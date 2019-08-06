@@ -1241,6 +1241,86 @@ struct i915_perf_stream {
 	 * @oa_config: The OA configuration used by the stream.
 	 */
 	struct i915_oa_config *oa_config;
+
+	/**
+	 * The OA context specific information.
+	 */
+	struct intel_context *pinned_ctx;
+	u32 specific_ctx_id;
+	u32 specific_ctx_id_mask;
+
+	struct hrtimer poll_check_timer;
+	wait_queue_head_t poll_wq;
+	bool pollin;
+
+	bool periodic;
+	int period_exponent;
+
+	/**
+	 * State of the OA buffer.
+	 */
+	struct {
+		struct i915_vma *vma;
+		u8 *vaddr;
+		u32 last_ctx_id;
+		int format;
+		int format_size;
+		int size_exponent;
+
+		/**
+		 * Locks reads and writes to all head/tail state
+		 *
+		 * Consider: the head and tail pointer state needs to be read
+		 * consistently from a hrtimer callback (atomic context) and
+		 * read() fop (user context) with tail pointer updates happening
+		 * in atomic context and head updates in user context and the
+		 * (unlikely) possibility of read() errors needing to reset all
+		 * head/tail state.
+		 *
+		 * Note: Contention/performance aren't currently a significant
+		 * concern here considering the relatively low frequency of
+		 * hrtimer callbacks (5ms period) and that reads typically only
+		 * happen in response to a hrtimer event and likely complete
+		 * before the next callback.
+		 *
+		 * Note: This lock is not held *while* reading and copying data
+		 * to userspace so the value of head observed in htrimer
+		 * callbacks won't represent any partial consumption of data.
+		 */
+		spinlock_t ptr_lock;
+
+		/**
+		 * One 'aging' tail pointer and one 'aged' tail pointer ready to
+		 * used for reading.
+		 *
+		 * Initial values of 0xffffffff are invalid and imply that an
+		 * update is required (and should be ignored by an attempted
+		 * read)
+		 */
+		struct {
+			u32 offset;
+		} tails[2];
+
+		/**
+		 * Index for the aged tail ready to read() data up to.
+		 */
+		unsigned int aged_tail_idx;
+
+		/**
+		 * A monotonic timestamp for when the current aging tail pointer
+		 * was read; used to determine when it is old enough to trust.
+		 */
+		u64 aging_timestamp;
+
+		/**
+		 * Although we can always read back the head pointer register,
+		 * we prefer to avoid trusting the HW state, just to avoid any
+		 * risk that some hardware condition could * somehow bump the
+		 * head pointer unpredictably and cause us to forward the wrong
+		 * OA buffer data to userspace.
+		 */
+		u32 head;
+	} oa_buffer;
 };
 
 /**
@@ -1278,7 +1358,7 @@ struct i915_oa_ops {
 	 * @disable_metric_set: Remove system constraints associated with using
 	 * the OA unit.
 	 */
-	void (*disable_metric_set)(struct drm_i915_private *dev_priv);
+	void (*disable_metric_set)(struct i915_perf_stream *stream);
 
 	/**
 	 * @oa_enable: Enable periodic sampling
@@ -1306,7 +1386,7 @@ struct i915_oa_ops {
 	 * handling the OA unit tail pointer race that affects multiple
 	 * generations.
 	 */
-	u32 (*oa_hw_tail_read)(struct drm_i915_private *dev_priv);
+	u32 (*oa_hw_tail_read)(struct i915_perf_stream *stream);
 };
 
 struct intel_cdclk_state {
@@ -1705,120 +1785,35 @@ struct drm_i915_private {
 		struct mutex lock;
 		struct list_head streams;
 
-		struct {
-			/*
-			 * The stream currently using the OA unit. If accessed
-			 * outside a syscall associated to its file
-			 * descriptor, you need to hold
-			 * dev_priv->drm.struct_mutex.
-			 */
-			struct i915_perf_stream *exclusive_stream;
+		/*
+		 * The stream currently using the OA unit. If accessed
+		 * outside a syscall associated to its file
+		 * descriptor, you need to hold
+		 * dev_priv->drm.struct_mutex.
+		 */
+		struct i915_perf_stream *exclusive_stream;
 
-			struct intel_context *pinned_ctx;
-			u32 specific_ctx_id;
-			u32 specific_ctx_id_mask;
+		/**
+		 * For rate limiting any notifications of spurious
+		 * invalid OA reports
+		 */
+		struct ratelimit_state spurious_report_rs;
 
-			struct hrtimer poll_check_timer;
-			wait_queue_head_t poll_wq;
-			bool pollin;
+		struct i915_oa_config test_config;
 
-			/**
-			 * For rate limiting any notifications of spurious
-			 * invalid OA reports
-			 */
-			struct ratelimit_state spurious_report_rs;
+		u32 gen7_latched_oastatus1;
+		u32 ctx_oactxctrl_offset;
+		u32 ctx_flexeu0_offset;
 
-			bool periodic;
-			int period_exponent;
+		/**
+		 * The RPT_ID/reason field for Gen8+ includes a bit
+		 * to determine if the CTX ID in the report is valid
+		 * but the specific bit differs between Gen 8 and 9
+		 */
+		u32 gen8_valid_ctx_bit;
 
-			struct i915_oa_config test_config;
-
-			struct {
-				struct i915_vma *vma;
-				u8 *vaddr;
-				u32 last_ctx_id;
-				int format;
-				int format_size;
-
-				/**
-				 * Locks reads and writes to all head/tail state
-				 *
-				 * Consider: the head and tail pointer state
-				 * needs to be read consistently from a hrtimer
-				 * callback (atomic context) and read() fop
-				 * (user context) with tail pointer updates
-				 * happening in atomic context and head updates
-				 * in user context and the (unlikely)
-				 * possibility of read() errors needing to
-				 * reset all head/tail state.
-				 *
-				 * Note: Contention or performance aren't
-				 * currently a significant concern here
-				 * considering the relatively low frequency of
-				 * hrtimer callbacks (5ms period) and that
-				 * reads typically only happen in response to a
-				 * hrtimer event and likely complete before the
-				 * next callback.
-				 *
-				 * Note: This lock is not held *while* reading
-				 * and copying data to userspace so the value
-				 * of head observed in htrimer callbacks won't
-				 * represent any partial consumption of data.
-				 */
-				spinlock_t ptr_lock;
-
-				/**
-				 * One 'aging' tail pointer and one 'aged'
-				 * tail pointer ready to used for reading.
-				 *
-				 * Initial values of 0xffffffff are invalid
-				 * and imply that an update is required
-				 * (and should be ignored by an attempted
-				 * read)
-				 */
-				struct {
-					u32 offset;
-				} tails[2];
-
-				/**
-				 * Index for the aged tail ready to read()
-				 * data up to.
-				 */
-				unsigned int aged_tail_idx;
-
-				/**
-				 * A monotonic timestamp for when the current
-				 * aging tail pointer was read; used to
-				 * determine when it is old enough to trust.
-				 */
-				u64 aging_timestamp;
-
-				/**
-				 * Although we can always read back the head
-				 * pointer register, we prefer to avoid
-				 * trusting the HW state, just to avoid any
-				 * risk that some hardware condition could
-				 * somehow bump the head pointer unpredictably
-				 * and cause us to forward the wrong OA buffer
-				 * data to userspace.
-				 */
-				u32 head;
-			} oa_buffer;
-
-			u32 gen7_latched_oastatus1;
-			u32 ctx_oactxctrl_offset;
-			u32 ctx_flexeu0_offset;
-
-			/**
-			 * The RPT_ID/reason field for Gen8+ includes a bit
-			 * to determine if the CTX ID in the report is valid
-			 * but the specific bit differs between Gen 8 and 9
-			 */
-			u32 gen8_valid_ctx_bit;
-
-			struct i915_oa_ops ops;
-			const struct i915_oa_format *oa_formats;
-		} oa;
+		struct i915_oa_ops ops;
+		const struct i915_oa_format *oa_formats;
 	} perf;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
