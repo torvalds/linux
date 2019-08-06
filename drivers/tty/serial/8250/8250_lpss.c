@@ -113,7 +113,6 @@ static unsigned int byt_get_mctrl(struct uart_port *port)
 static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct dw_dma_slave *param = &lpss->dma_param;
-	struct uart_8250_port *up = up_to_u8250p(port);
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	unsigned int dma_devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
 	struct pci_dev *dma_dev = pci_get_slot(pdev->bus, dma_devfn);
@@ -138,10 +137,6 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	param->dma_dev = &dma_dev->dev;
 	param->m_master = 0;
 	param->p_master = 1;
-
-	/* TODO: Detect FIFO size automaticaly for DesignWare 8250 */
-	port->fifosize = 64;
-	up->tx_loadsz = 64;
 
 	lpss->dma_maxburst = 16;
 
@@ -315,6 +310,8 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = lpss->board->setup(lpss, &uart.port);
 	if (ret)
 		return ret;
+
+	dw8250_setup_port(&uart.port);
 
 	ret = lpss8250_dma_setup(lpss, &uart);
 	if (ret)
