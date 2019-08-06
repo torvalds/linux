@@ -6,16 +6,6 @@
 
 #include <asm/sgidefs.h>
 
-#if _MIPS_SIM != _MIPS_SIM_ABI64 && defined(CONFIG_64BIT)
-
-/* Building 32-bit VDSO for the 64-bit kernel. Fake a 32-bit Kconfig. */
-#undef CONFIG_64BIT
-#define CONFIG_32BIT 1
-#ifndef __ASSEMBLY__
-#include <asm-generic/atomic64.h>
-#endif
-#endif
-
 #ifndef __ASSEMBLY__
 
 #include <asm/asm.h>
