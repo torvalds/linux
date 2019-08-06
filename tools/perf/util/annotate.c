@@ -1122,7 +1122,7 @@ static int disasm_line__parse(char *line, const char **namep, char **rawp)
 		goto out;
 
 	(*rawp)[0] = tmp;
-	*rawp = skip_spaces(*rawp);
+	*rawp = strim(*rawp);
 
 	return 0;
 
