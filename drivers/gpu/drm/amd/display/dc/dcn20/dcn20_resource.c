@@ -1602,12 +1602,8 @@ static bool dcn20_split_stream_for_odm(
 		struct pipe_ctx *next_odm_pipe)
 {
 	int pipe_idx = next_odm_pipe->pipe_idx;
-	struct scaler_data *sd = &prev_odm_pipe->plane_res.scl_data;
-	struct pipe_ctx *sec_next_pipe = next_odm_pipe->next_odm_pipe;
-	int new_width;
 
 	*next_odm_pipe = *prev_odm_pipe;
-	next_odm_pipe->next_odm_pipe = sec_next_pipe;
 
 	next_odm_pipe->pipe_idx = pipe_idx;
 	next_odm_pipe->plane_res.mi = pool->mis[next_odm_pipe->pipe_idx];
@@ -1629,11 +1625,11 @@ static bool dcn20_split_stream_for_odm(
 	ASSERT(next_odm_pipe->top_pipe == NULL);
 
 	if (prev_odm_pipe->plane_state) {
+		struct scaler_data *sd = &prev_odm_pipe->plane_res.scl_data;
+		int new_width;
+
 		/* HACTIVE halved for odm combine */
 		sd->h_active /= 2;
-		/* Copy scl_data to secondary pipe */
-		next_odm_pipe->plane_res.scl_data = *sd;
-
 		/* Calculate new vp and recout for left pipe */
 		/* Need at least 16 pixels width per side */
 		if (sd->recout.x + 16 >= sd->h_active)
@@ -1647,10 +1643,12 @@ static bool dcn20_split_stream_for_odm(
 
 		/* Calculate new vp and recout for right pipe */
 		sd = &next_odm_pipe->plane_res.scl_data;
-		new_width = sd->recout.width + sd->recout.x - sd->h_active;
+		/* HACTIVE halved for odm combine */
+		sd->h_active /= 2;
 		/* Need at least 16 pixels width per side */
 		if (new_width <= 16)
 			return false;
+		new_width = sd->recout.width + sd->recout.x - sd->h_active;
 		sd->viewport.width -= dc_fixpt_floor(dc_fixpt_mul_int(
 				sd->ratios.horz, sd->recout.width - new_width));
 		sd->viewport_c.width -= dc_fixpt_floor(dc_fixpt_mul_int(
@@ -1820,6 +1818,19 @@ int dcn20_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].dout.dp_lanes = 4;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
+		pipes[pipe_cnt].pipe.dest.odm_combine = res_ctx->pipe_ctx[i].prev_odm_pipe
+							|| res_ctx->pipe_ctx[i].next_odm_pipe;
+		pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
+		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state
+				== res_ctx->pipe_ctx[i].plane_state)
+			pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].top_pipe->pipe_idx;
+		else if (res_ctx->pipe_ctx[i].prev_odm_pipe) {
+			struct pipe_ctx *first_pipe = res_ctx->pipe_ctx[i].prev_odm_pipe;
+
+			while (first_pipe->prev_odm_pipe)
+				first_pipe = first_pipe->prev_odm_pipe;
+			pipes[pipe_cnt].pipe.src.hsplit_grp = first_pipe->pipe_idx;
+		}
 
 		switch (res_ctx->pipe_ctx[i].stream->signal) {
 		case SIGNAL_TYPE_DISPLAY_PORT_MST:
@@ -1872,7 +1883,6 @@ int dcn20_populate_dml_pipes_from_context(
 			break;
 		}
 
-
 		switch (res_ctx->pipe_ctx[i].stream->timing.pixel_encoding) {
 		case PIXEL_ENCODING_RGB:
 		case PIXEL_ENCODING_YCBCR444:
@@ -1894,10 +1904,6 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].dout.output_format = dm_444;
 			pipes[pipe_cnt].dout.output_bpp = output_bpc * 3;
 		}
-		pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
-		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state
-				== res_ctx->pipe_ctx[i].plane_state)
-			pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].top_pipe->pipe_idx;
 
 		/* todo: default max for now, until there is logic reflecting this in dc*/
 		pipes[pipe_cnt].dout.output_bpc = 12;
@@ -1946,14 +1952,6 @@ int dcn20_populate_dml_pipes_from_context(
 					&& res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln)
 					|| (res_ctx->pipe_ctx[i].top_pipe
 					&& res_ctx->pipe_ctx[i].top_pipe->plane_state == pln);
-			pipes[pipe_cnt].pipe.dest.odm_combine = (res_ctx->pipe_ctx[i].bottom_pipe
-					&& res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln
-					&& res_ctx->pipe_ctx[i].bottom_pipe->stream_res.opp
-						!= res_ctx->pipe_ctx[i].stream_res.opp)
-				|| (res_ctx->pipe_ctx[i].top_pipe
-					&& res_ctx->pipe_ctx[i].top_pipe->plane_state == pln
-					&& res_ctx->pipe_ctx[i].top_pipe->stream_res.opp
-						!= res_ctx->pipe_ctx[i].stream_res.opp);
 			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
 					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
 			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport.y;
