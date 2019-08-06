@@ -185,7 +185,7 @@ int i915_live_selftests(struct pci_dev *pdev)
 	if (!i915_selftest.live)
 		return 0;
 
-	err = run_selftests(live, to_i915(pci_get_drvdata(pdev)));
+	err = run_selftests(live, pdev_to_i915(pdev));
 	if (err) {
 		i915_selftest.live = err;
 		return err;

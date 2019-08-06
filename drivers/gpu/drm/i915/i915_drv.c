@@ -641,39 +641,45 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
-static int i915_resume_switcheroo(struct drm_device *dev);
-static int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
+static int i915_resume_switcheroo(struct drm_i915_private *i915);
+static int i915_suspend_switcheroo(struct drm_i915_private *i915,
+				   pm_message_t state);
 
 static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_i915_private *i915 = pdev_to_i915(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
+
+	if (!i915) {
+		dev_err(&pdev->dev, "DRM not initialized, aborting switch.\n");
+		return;
+	}
 
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_info("switched on\n");
-		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
+		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		/* i915 resume handler doesn't set to D0 */
 		pci_set_power_state(pdev, PCI_D0);
-		i915_resume_switcheroo(dev);
-		dev->switch_power_state = DRM_SWITCH_POWER_ON;
+		i915_resume_switcheroo(i915);
+		i915->drm.switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
 		pr_info("switched off\n");
-		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		i915_suspend_switcheroo(dev, pmm);
-		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
+		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
+		i915_suspend_switcheroo(i915, pmm);
+		i915->drm.switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
 
 static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_i915_private *i915 = pdev_to_i915(pdev);
 
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
 	 * completely racy anyway. So don't bother with locking for now.
 	 */
-	return dev->open_count == 0;
+	return i915 && i915->drm.open_count == 0;
 }
 
 static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
@@ -1840,9 +1846,10 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ERR_PTR(err);
 	}
 
-	i915->drm.pdev = pdev;
 	i915->drm.dev_private = i915;
-	pci_set_drvdata(pdev, &i915->drm);
+
+	i915->drm.pdev = pdev;
+	pci_set_drvdata(pdev, i915);
 
 	/* Setup the write-once "constant" device info */
 	device_info = mkwrite_device_info(i915);
@@ -1942,51 +1949,50 @@ out_fini:
 	return ret;
 }
 
-void i915_driver_remove(struct drm_device *dev)
+void i915_driver_remove(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = i915->drm.pdev;
 
-	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
-	i915_driver_unregister(dev_priv);
+	i915_driver_unregister(i915);
 
 	/*
 	 * After unregistering the device to prevent any new users, cancel
 	 * all in-flight requests so that we can quickly unbind the active
 	 * resources.
 	 */
-	intel_gt_set_wedged(&dev_priv->gt);
+	intel_gt_set_wedged(&i915->gt);
 
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
 
-	i915_gem_suspend(dev_priv);
+	i915_gem_suspend(i915);
 
-	drm_atomic_helper_shutdown(dev);
+	drm_atomic_helper_shutdown(&i915->drm);
 
-	intel_gvt_driver_remove(dev_priv);
+	intel_gvt_driver_remove(i915);
 
-	intel_modeset_driver_remove(dev);
+	intel_modeset_driver_remove(&i915->drm);
 
-	intel_bios_driver_remove(dev_priv);
+	intel_bios_driver_remove(i915);
 
 	vga_switcheroo_unregister_client(pdev);
 	vga_client_register(pdev, NULL, NULL, NULL);
 
-	intel_csr_ucode_fini(dev_priv);
+	intel_csr_ucode_fini(i915);
 
 	/* Free error state after interrupts are fully disabled. */
-	cancel_delayed_work_sync(&dev_priv->gt.hangcheck.work);
-	i915_reset_error_state(dev_priv);
+	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
+	i915_reset_error_state(i915);
 
-	i915_gem_driver_remove(dev_priv);
+	i915_gem_driver_remove(i915);
 
-	intel_power_domains_driver_remove(dev_priv);
+	intel_power_domains_driver_remove(i915);
 
-	i915_driver_hw_remove(dev_priv);
+	i915_driver_hw_remove(i915);
 
-	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 }
 
 static void i915_driver_release(struct drm_device *dev)
@@ -2209,28 +2215,23 @@ out:
 	return ret;
 }
 
-static int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state)
+static int
+i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state)
 {
 	int error;
-
-	if (!dev) {
-		DRM_ERROR("dev: %p\n", dev);
-		DRM_ERROR("DRM not initialized, aborting suspend.\n");
-		return -ENODEV;
-	}
 
 	if (WARN_ON_ONCE(state.event != PM_EVENT_SUSPEND &&
 			 state.event != PM_EVENT_FREEZE))
 		return -EINVAL;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	error = i915_drm_suspend(dev);
+	error = i915_drm_suspend(&i915->drm);
 	if (error)
 		return error;
 
-	return i915_drm_suspend_late(dev, false);
+	return i915_drm_suspend_late(&i915->drm, false);
 }
 
 static int i915_drm_resume(struct drm_device *dev)
@@ -2383,53 +2384,53 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	return ret;
 }
 
-static int i915_resume_switcheroo(struct drm_device *dev)
+static int i915_resume_switcheroo(struct drm_i915_private *i915)
 {
 	int ret;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	ret = i915_drm_resume_early(dev);
+	ret = i915_drm_resume_early(&i915->drm);
 	if (ret)
 		return ret;
 
-	return i915_drm_resume(dev);
+	return i915_drm_resume(&i915->drm);
 }
 
 static int i915_pm_prepare(struct device *kdev)
 {
-	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
-	if (!dev) {
+	if (!i915) {
 		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_prepare(dev);
+	return i915_drm_prepare(&i915->drm);
 }
 
 static int i915_pm_suspend(struct device *kdev)
 {
-	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
-	if (!dev) {
+	if (!i915) {
 		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend(dev);
+	return i915_drm_suspend(&i915->drm);
 }
 
 static int i915_pm_suspend_late(struct device *kdev)
 {
-	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
 	/*
 	 * We have a suspend ordering issue with the snd-hda driver also
@@ -2440,55 +2441,55 @@ static int i915_pm_suspend_late(struct device *kdev)
 	 * FIXME: This should be solved with a special hdmi sink device or
 	 * similar so that power domains can be employed.
 	 */
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend_late(dev, false);
+	return i915_drm_suspend_late(&i915->drm, false);
 }
 
 static int i915_pm_poweroff_late(struct device *kdev)
 {
-	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend_late(dev, true);
+	return i915_drm_suspend_late(&i915->drm, true);
 }
 
 static int i915_pm_resume_early(struct device *kdev)
 {
-	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_resume_early(dev);
+	return i915_drm_resume_early(&i915->drm);
 }
 
 static int i915_pm_resume(struct device *kdev)
 {
-	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_resume(dev);
+	return i915_drm_resume(&i915->drm);
 }
 
 /* freeze: before creating the hibernation_image */
 static int i915_pm_freeze(struct device *kdev)
 {
-	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 	int ret;
 
-	if (dev->switch_power_state != DRM_SWITCH_POWER_OFF) {
-		ret = i915_drm_suspend(dev);
+	if (i915->drm.switch_power_state != DRM_SWITCH_POWER_OFF) {
+		ret = i915_drm_suspend(&i915->drm);
 		if (ret)
 			return ret;
 	}
 
-	ret = i915_gem_freeze(kdev_to_i915(kdev));
+	ret = i915_gem_freeze(i915);
 	if (ret)
 		return ret;
 
@@ -2497,16 +2498,16 @@ static int i915_pm_freeze(struct device *kdev)
 
 static int i915_pm_freeze_late(struct device *kdev)
 {
-	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 	int ret;
 
-	if (dev->switch_power_state != DRM_SWITCH_POWER_OFF) {
-		ret = i915_drm_suspend_late(dev, true);
+	if (i915->drm.switch_power_state != DRM_SWITCH_POWER_OFF) {
+		ret = i915_drm_suspend_late(&i915->drm, true);
 		if (ret)
 			return ret;
 	}
 
-	ret = i915_gem_freeze_late(kdev_to_i915(kdev));
+	ret = i915_gem_freeze_late(i915);
 	if (ret)
 		return ret;
 
@@ -2908,8 +2909,7 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 
 static int intel_runtime_suspend(struct device *kdev)
 {
-	struct drm_device *dev = dev_get_drvdata(kdev);
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret;
 
@@ -3005,8 +3005,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 static int intel_runtime_resume(struct device *kdev)
 {
-	struct drm_device *dev = dev_get_drvdata(kdev);
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret = 0;
 

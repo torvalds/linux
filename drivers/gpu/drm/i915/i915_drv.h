@@ -1897,7 +1897,12 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 
 static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 {
-	return to_i915(dev_get_drvdata(kdev));
+	return dev_get_drvdata(kdev);
+}
+
+static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
+{
+	return pci_get_drvdata(pdev);
 }
 
 static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
@@ -2376,7 +2381,7 @@ long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 extern const struct dev_pm_ops i915_pm_ops;
 
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-void i915_driver_remove(struct drm_device *dev);
+void i915_driver_remove(struct drm_i915_private *i915);
 
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
