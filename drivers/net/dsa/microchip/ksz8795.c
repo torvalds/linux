@@ -18,7 +18,6 @@
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
-#include "ksz_priv.h"
 #include "ksz_common.h"
 #include "ksz8795_reg.h"
 

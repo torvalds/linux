@@ -13,7 +13,6 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
-#include "ksz_priv.h"
 #include "ksz_common.h"
 
 #define SPI_ADDR_SHIFT			24

@@ -18,7 +18,6 @@
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
-#include "ksz_priv.h"
 #include "ksz_common.h"
 
 void ksz_update_port_member(struct ksz_device *dev, int port)
