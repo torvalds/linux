@@ -20,7 +20,8 @@ static int __remove_xattr(struct ceph_inode_info *ci,
 
 static bool ceph_is_valid_xattr(const char *name)
 {
-	return !strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN) ||
+	return !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) ||
+	       !strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
@@ -1265,35 +1266,6 @@ out:
 		ceph_pagelist_release(pagelist);
 	return err;
 }
-
-static int ceph_xattr_set_security_label(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *key, const void *buf,
-				    size_t buflen, int flags)
-{
-	if (security_ismaclabel(key)) {
-		const char *name = xattr_full_name(handler, key);
-		return __ceph_setxattr(inode, name, buf, buflen, flags);
-	}
-	return  -EOPNOTSUPP;
-}
-
-static int ceph_xattr_get_security_label(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *key, void *buf, size_t buflen)
-{
-	if (security_ismaclabel(key)) {
-		const char *name = xattr_full_name(handler, key);
-		return __ceph_getxattr(inode, name, buf, buflen);
-	}
-	return  -EOPNOTSUPP;
-}
-
-static const struct xattr_handler ceph_security_label_handler = {
-	.prefix = XATTR_SECURITY_PREFIX,
-	.get    = ceph_xattr_get_security_label,
-	.set    = ceph_xattr_set_security_label,
-};
 #endif /* CONFIG_CEPH_FS_SECURITY_LABEL */
 #endif /* CONFIG_SECURITY */
 
@@ -1318,9 +1290,6 @@ const struct xattr_handler *ceph_xattr_handlers[] = {
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
-#endif
-#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
-	&ceph_security_label_handler,
 #endif
 	&ceph_other_xattr_handler,
 	NULL,
