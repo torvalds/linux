@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 
 #include <linux/omap-dma.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include "omapfb.h"
 #include "lcd_dma.h"

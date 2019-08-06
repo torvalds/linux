@@ -25,7 +25,8 @@
 
 #include <linux/omap-dma.h>
 
-#include <mach/hardware.h>
+#include <linux/soc/ti/omap1-soc.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include "lcdc.h"
 #include "lcd_dma.h"

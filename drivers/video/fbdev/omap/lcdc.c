@@ -17,6 +17,8 @@
 #include <linux/clk.h>
 #include <linux/gfp.h>
 
+#include <linux/soc/ti/omap1-io.h>
+#include <linux/soc/ti/omap1-soc.h>
 #include <linux/omap-dma.h>
 
 #include <asm/mach-types.h>

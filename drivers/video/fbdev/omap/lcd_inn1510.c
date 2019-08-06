@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
+#include <linux/soc/ti/omap1-soc.h>
 
 #include "omapfb.h"
 
