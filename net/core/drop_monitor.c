@@ -300,7 +300,6 @@ out_unlock:
 	return rc;
 }
 
-
 static int net_dm_cmd_config(struct sk_buff *skb,
 			struct genl_info *info)
 {
@@ -426,7 +425,6 @@ static int __init init_net_drop_monitor(void)
 		spin_lock_init(&data->lock);
 		reset_per_cpu_data(data);
 	}
-
 
 	goto out;
 
