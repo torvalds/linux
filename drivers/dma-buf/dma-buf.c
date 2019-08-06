@@ -199,7 +199,7 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence_excl;
 	__poll_t events;
-	unsigned shared_count, seq;
+	unsigned shared_count;
 
 	dmabuf = file->private_data;
 	if (!dmabuf || !dmabuf->resv)
@@ -213,21 +213,8 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 	if (!events)
 		return 0;
 
-retry:
-	seq = read_seqcount_begin(&resv->seq);
 	rcu_read_lock();
-
-	fobj = rcu_dereference(resv->fence);
-	if (fobj)
-		shared_count = fobj->shared_count;
-	else
-		shared_count = 0;
-	fence_excl = rcu_dereference(resv->fence_excl);
-	if (read_seqcount_retry(&resv->seq, seq)) {
-		rcu_read_unlock();
-		goto retry;
-	}
-
+	reservation_object_fences(resv, &fence_excl, &fobj, &shared_count);
 	if (fence_excl && (!(events & EPOLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
 		__poll_t pevents = EPOLLIN;
@@ -1157,7 +1144,6 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 	struct reservation_object *robj;
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence;
-	unsigned seq;
 	int count = 0, attach_count, shared_count, i;
 	size_t size = 0;
 
@@ -1188,16 +1174,9 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 				buf_obj->name ?: "");
 
 		robj = buf_obj->resv;
-		while (true) {
-			seq = read_seqcount_begin(&robj->seq);
-			rcu_read_lock();
-			fobj = rcu_dereference(robj->fence);
-			shared_count = fobj ? fobj->shared_count : 0;
-			fence = rcu_dereference(robj->fence_excl);
-			if (!read_seqcount_retry(&robj->seq, seq))
-				break;
-			rcu_read_unlock();
-		}
+		rcu_read_lock();
+		reservation_object_fences(robj, &fence, &fobj, &shared_count);
+		rcu_read_unlock();
 
 		if (fence)
 			seq_printf(s, "\tExclusive fence: %s %s %ssignalled\n",
