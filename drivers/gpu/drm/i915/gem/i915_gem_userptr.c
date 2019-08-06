@@ -12,11 +12,12 @@
 
 #include <drm/i915_drm.h>
 
+#include "display/intel_display_types.h"
+
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
-#include "intel_drv.h"
 
 struct i915_mm_struct {
 	struct mm_struct *mm;

@@ -30,7 +30,7 @@
 #include <linux/seq_file.h>
 
 #include "intel_atomic.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_pipe_crc.h"
 
 static const char * const pipe_crc_sources[] = {

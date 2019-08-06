@@ -22,8 +22,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-#ifndef __INTEL_DRV_H__
-#define __INTEL_DRV_H__
+
+#ifndef __INTEL_DISPLAY_TYPES_H__
+#define __INTEL_DISPLAY_TYPES_H__
 
 #include <linux/async.h>
 #include <linux/i2c.h>
@@ -1506,4 +1507,4 @@ static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 	return i915_ggtt_offset(state->vma);
 }
 
-#endif /* __INTEL_DRV_H__ */
+#endif /*  __INTEL_DISPLAY_TYPES_H__ */

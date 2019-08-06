@@ -34,7 +34,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_connector.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"

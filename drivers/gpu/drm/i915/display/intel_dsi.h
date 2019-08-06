@@ -26,7 +26,8 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
-#include "intel_drv.h"
+
+#include "intel_display_types.h"
 
 #define INTEL_DSI_VIDEO_MODE	0
 #define INTEL_DSI_COMMAND_MODE	1

@@ -51,6 +51,7 @@
 #include "display/intel_audio.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
+#include "display/intel_display_types.h"
 #include "display/intel_dp.h"
 #include "display/intel_fbdev.h"
 #include "display/intel_gmbus.h"
@@ -76,7 +77,6 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_csr.h"
-#include "intel_drv.h"
 #include "intel_pm.h"
 
 static struct drm_driver driver;

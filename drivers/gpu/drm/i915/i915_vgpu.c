@@ -21,7 +21,7 @@
  * SOFTWARE.
  */
 
-#include "intel_drv.h"
+#include "display/intel_display_types.h"
 #include "i915_vgpu.h"
 
 /**

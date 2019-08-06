@@ -26,7 +26,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
 

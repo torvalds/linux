@@ -6,7 +6,7 @@
 #include <drm/drm_atomic_state_helper.h>
 
 #include "intel_bw.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_sideband.h"
 
 /* Parameters for Qclk Geyserville (QGV) */

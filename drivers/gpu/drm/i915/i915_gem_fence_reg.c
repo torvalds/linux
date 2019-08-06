@@ -23,6 +23,8 @@
 
 #include <drm/i915_drm.h>
 
+#include "display/intel_display_types.h"
+
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
 #include "i915_vgpu.h"

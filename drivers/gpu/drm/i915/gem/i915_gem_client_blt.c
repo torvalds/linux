@@ -2,10 +2,11 @@
 /*
  * Copyright © 2019 Intel Corporation
  */
-#include "i915_gem_client_blt.h"
 
+#include "display/intel_display_types.h"
+
+#include "i915_gem_client_blt.h"
 #include "i915_gem_object_blt.h"
-#include "intel_drv.h"
 
 struct i915_sleeve {
 	struct i915_vma *vma;

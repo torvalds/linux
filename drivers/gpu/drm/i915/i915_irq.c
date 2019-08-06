@@ -37,6 +37,7 @@
 #include <drm/drm_irq.h>
 #include <drm/i915_drm.h>
 
+#include "display/intel_display_types.h"
 #include "display/intel_fifo_underrun.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_lpe_audio.h"
@@ -47,7 +48,6 @@
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
-#include "intel_drv.h"
 #include "intel_pm.h"
 
 /**

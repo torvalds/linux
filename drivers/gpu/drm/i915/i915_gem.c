@@ -39,6 +39,7 @@
 #include <linux/mman.h>
 
 #include "display/intel_display.h"
+#include "display/intel_display_types.h"
 #include "display/intel_frontbuffer.h"
 
 #include "gem/i915_gem_clflush.h"
@@ -59,7 +60,6 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 
-#include "intel_drv.h"
 #include "intel_pm.h"
 
 static int
