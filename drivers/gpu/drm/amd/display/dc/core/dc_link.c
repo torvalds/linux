@@ -2690,6 +2690,24 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	return DC_OK;
 }
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
+{
+	struct cp_psp *cp_psp = &pipe_ctx->stream->ctx->cp_psp;
+	if (cp_psp && cp_psp->funcs.update_stream_config) {
+		struct cp_psp_stream_config config;
+
+		memset(&config, 0, sizeof(config));
+
+		config.otg_inst = (uint8_t) pipe_ctx->stream_res.tg->inst;
+		config.stream_enc_inst = (uint8_t) pipe_ctx->stream_res.stream_enc->id;
+		config.link_enc_inst = pipe_ctx->stream->link->link_enc_hw_inst;
+		config.dpms_off = dpms_off;
+		config.dm_stream_ctx = pipe_ctx->stream->dm_stream_context;
+		cp_psp->funcs.update_stream_config(cp_psp->handle, &config);
+	}
+}
+#endif
 
 void core_link_enable_stream(
 		struct dc_state *state,
@@ -2750,6 +2768,9 @@ void core_link_enable_stream(
 		/* Do not touch link on seamless boot optimization. */
 		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+			update_psp_stream_config(pipe_ctx, false);
+#endif
 			return;
 		}
 
@@ -2757,6 +2778,9 @@ void core_link_enable_stream(
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
 					apply_edp_fast_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+			update_psp_stream_config(pipe_ctx, false);
+#endif
 			return;
 		}
 
@@ -2816,6 +2840,9 @@ void core_link_enable_stream(
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+		update_psp_stream_config(pipe_ctx, false);
+#endif
 	}
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	else { // if (IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
@@ -2832,6 +2859,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
+
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+	update_psp_stream_config(pipe_ctx, true);
+#endif
 
 	core_dc->hwss.blank_stream(pipe_ctx);
 

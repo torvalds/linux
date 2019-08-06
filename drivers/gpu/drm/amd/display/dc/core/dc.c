@@ -830,6 +830,16 @@ void dc_hardware_init(struct dc *dc)
 void dc_init_callbacks(struct dc *dc,
 		const struct dc_callback_init *init_params)
 {
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	dc->ctx->cp_psp = init_params->cp_psp;
+#endif
+}
+
+void dc_deinit_callbacks(struct dc *dc)
+{
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	memset(&dc->ctx->cp_psp, 0, sizeof(dc->ctx->cp_psp));
+#endif
 }
 
 void dc_destroy(struct dc **dc)

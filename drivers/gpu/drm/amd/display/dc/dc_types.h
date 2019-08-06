@@ -38,6 +38,10 @@
 #include "dal_types.h"
 #include "grph_object_defs.h"
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+#include "dm_cp_psp.h"
+#endif
+
 /* forward declarations */
 struct dc_plane_state;
 struct dc_stream_state;
@@ -105,6 +109,9 @@ struct dc_context {
 	uint32_t dc_sink_id_count;
 	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp cp_psp;
+#endif
 };
 
 

@@ -552,7 +552,11 @@ struct dc_init_data {
 };
 
 struct dc_callback_init {
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp cp_psp;
+#else
 	uint8_t reserved;
+#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
@@ -566,6 +570,7 @@ int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_c
 #endif
 void dc_init_callbacks(struct dc *dc,
 		const struct dc_callback_init *init_params);
+void dc_deinit_callbacks(struct dc *dc);
 void dc_destroy(struct dc **dc);
 
 /*******************************************************************************
