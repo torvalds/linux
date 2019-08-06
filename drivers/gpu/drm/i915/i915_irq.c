@@ -595,6 +595,11 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915, u32 mask)
+{
+	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
+}
+
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
@@ -5195,4 +5200,18 @@ void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
 	dev_priv->runtime_pm.irqs_enabled = true;
 	intel_irq_reset(dev_priv);
 	intel_irq_postinstall(dev_priv);
+}
+
+bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * We only use drm_irq_uninstall() at unload and VT switch, so
+	 * this is the only thing we need to check.
+	 */
+	return dev_priv->runtime_pm.irqs_enabled;
+}
+
+void intel_synchronize_irq(struct drm_i915_private *i915)
+{
+	synchronize_irq(i915->drm.pdev->irq);
 }

@@ -6,12 +6,18 @@
 #ifndef __I915_IRQ_H__
 #define __I915_IRQ_H__
 
+#include <linux/ktime.h>
 #include <linux/types.h>
 
-#include "i915_drv.h"
+#include "display/intel_display.h"
 
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
 struct drm_i915_private;
 struct intel_crtc;
+struct intel_crtc;
+struct intel_gt;
 struct intel_guc;
 
 void intel_irq_init(struct drm_i915_private *dev_priv);
@@ -85,28 +91,12 @@ void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
-
-static inline u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915,
-					    u32 mask)
-{
-	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
-}
+u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915, u32 mask);
 
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
-static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * We only use drm_irq_uninstall() at unload and VT switch, so
-	 * this is the only thing we need to check.
-	 */
-	return dev_priv->runtime_pm.irqs_enabled;
-}
-
-static inline void intel_synchronize_irq(struct drm_i915_private *i915)
-{
-	synchronize_irq(i915->drm.pdev->irq);
-}
+bool intel_irqs_enabled(struct drm_i915_private *dev_priv);
+void intel_synchronize_irq(struct drm_i915_private *i915);
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
