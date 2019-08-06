@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2019 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -20,55 +20,13 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 #
-# Makefile for Display Core (dc) component.
+# Makefile for the 'hdcp' sub-module of DAL.
 #
 
-DC_LIBS = basics bios calcs clk_mgr dce gpio irq virtual
+HDCP = hdcp_ddc.o hdcp_log.o hdcp_psp.o hdcp.o \
+		hdcp1_execution.o hdcp1_transition.o
 
-ifdef CONFIG_DRM_AMD_DC_DCN2_0
-DC_LIBS += dcn20
-endif
+AMD_DAL_HDCP = $(addprefix $(AMDDALPATH)/modules/hdcp/,$(HDCP))
+#$(info ************  DAL-HDCP_MAKEFILE ************)
 
-
-ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-DC_LIBS += dsc
-endif
-
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
-DC_LIBS += dcn10 dml
-endif
-ifdef CONFIG_DRM_AMD_DC_DCN2_1
-DC_LIBS += dcn21
-endif
-
-DC_LIBS += dce120
-
-DC_LIBS += dce112
-DC_LIBS += dce110
-DC_LIBS += dce100
-DC_LIBS += dce80
-
-ifdef CONFIG_DRM_AMD_DC_HDCP
-DC_LIBS += hdcp
-endif
-
-AMD_DC = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/dc/,$(DC_LIBS)))
-
-include $(AMD_DC)
-
-DISPLAY_CORE = dc.o dc_link.o dc_resource.o dc_hw_sequencer.o dc_sink.o \
-dc_surface.o dc_link_hwss.o dc_link_dp.o dc_link_ddc.o dc_debug.o dc_stream.o
-
-ifdef CONFIG_DRM_AMD_DC_DCN2_0
-DISPLAY_CORE += dc_vm_helper.o
-endif
-
-AMD_DISPLAY_CORE = $(addprefix $(AMDDALPATH)/dc/core/,$(DISPLAY_CORE))
-
-AMD_DM_REG_UPDATE = $(addprefix $(AMDDALPATH)/dc/,dc_helper.o)
-
-AMD_DISPLAY_FILES += $(AMD_DISPLAY_CORE)
-AMD_DISPLAY_FILES += $(AMD_DM_REG_UPDATE)
-
-
-
+AMD_DISPLAY_FILES += $(AMD_DAL_HDCP)
