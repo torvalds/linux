@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <perf/cpumap.h>
 #include <perf/threadmap.h>
+#include <api/fd/array.h>
 
 void perf_evlist__init(struct perf_evlist *evlist)
 {
@@ -236,5 +237,26 @@ int perf_evlist__id_add_fd(struct perf_evlist *evlist,
 
 add:
 	perf_evlist__id_add(evlist, evsel, cpu, thread, id);
+	return 0;
+}
+
+int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
+{
+	int nr_cpus = perf_cpu_map__nr(evlist->cpus);
+	int nr_threads = perf_thread_map__nr(evlist->threads);
+	int nfds = 0;
+	struct perf_evsel *evsel;
+
+	perf_evlist__for_each_entry(evlist, evsel) {
+		if (evsel->system_wide)
+			nfds += nr_cpus;
+		else
+			nfds += nr_cpus * nr_threads;
+	}
+
+	if (fdarray__available_entries(&evlist->pollfd) < nfds &&
+	    fdarray__grow(&evlist->pollfd, nfds) < 0)
+		return -ENOMEM;
+
 	return 0;
 }

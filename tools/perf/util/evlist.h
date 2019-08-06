@@ -142,7 +142,6 @@ perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
 				     const char *name);
 
 int perf_evlist__add_pollfd(struct evlist *evlist, int fd);
-int perf_evlist__alloc_pollfd(struct evlist *evlist);
 int perf_evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
 
 int perf_evlist__poll(struct evlist *evlist, int timeout);
