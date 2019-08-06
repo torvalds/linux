@@ -9,6 +9,7 @@
 
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
@@ -860,7 +861,6 @@ create_event_attributes(struct i915_pmu *pmu)
 	struct i915_ext_attribute *i915_attr = NULL, *i915_iter;
 	struct attribute **attr = NULL, **attr_iter;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	unsigned int i;
 
 	/* Count how many counters we will be exposing. */
@@ -869,7 +869,7 @@ create_event_attributes(struct i915_pmu *pmu)
 			count++;
 	}
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		for (i = 0; i < ARRAY_SIZE(engine_events); i++) {
 			if (!engine_event_status(engine,
 						 engine_events[i].sample))
@@ -920,7 +920,7 @@ create_event_attributes(struct i915_pmu *pmu)
 	}
 
 	/* Initialize supported engine counters. */
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		for (i = 0; i < ARRAY_SIZE(engine_events); i++) {
 			char *str;
 
@@ -937,7 +937,7 @@ create_event_attributes(struct i915_pmu *pmu)
 			i915_iter =
 				add_i915_attr(i915_iter, str,
 					      __I915_PMU_ENGINE(engine->uabi_class,
-								engine->instance,
+								engine->uabi_instance,
 								engine_events[i].sample));
 
 			str = kasprintf(GFP_KERNEL, "%s-%s.unit",

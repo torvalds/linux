@@ -5,6 +5,7 @@
  */
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "i915_selftest.h"
 #include "intel_reset.h"

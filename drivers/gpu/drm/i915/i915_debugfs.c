@@ -415,7 +415,6 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
 	int i, pipe;
 
@@ -618,7 +617,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(GEN11_GUNIT_CSME_INTR_MASK));
 
 	} else if (INTEL_GEN(dev_priv) >= 6) {
-		for_each_engine(engine, dev_priv, id) {
+		for_each_uabi_engine(engine, dev_priv) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
 				   engine->name, ENGINE_READ(engine, RING_IMR));
@@ -1890,7 +1889,6 @@ static void i915_guc_client_info(struct seq_file *m,
 				 struct intel_guc_client *client)
 {
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	u64 tot = 0;
 
 	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
@@ -1898,8 +1896,8 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx\n",
 		client->doorbell_id, client->doorbell_offset);
 
-	for_each_engine(engine, dev_priv, id) {
-		u64 submissions = client->submissions[id];
+	for_each_uabi_engine(engine, dev_priv) {
+		u64 submissions = client->submissions[engine->guc_id];
 		tot += submissions;
 		seq_printf(m, "\tSubmissions: %llu %s\n",
 				submissions, engine->name);
@@ -1939,7 +1937,6 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_guc *guc = &dev_priv->gt.uc.guc;
 	struct guc_stage_desc *desc = guc->stage_desc_pool_vaddr;
-	intel_engine_mask_t tmp;
 	int index;
 
 	if (!USES_GUC_SUBMISSION(dev_priv))
@@ -1968,7 +1965,7 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 			   desc->wq_addr, desc->wq_size);
 		seq_putc(m, '\n');
 
-		for_each_engine(engine, dev_priv, tmp) {
+		for_each_uabi_engine(engine, dev_priv) {
 			u32 guc_engine_id = engine->guc_id;
 			struct guc_execlist_context *lrc =
 						&desc->lrc[guc_engine_id];
@@ -2806,7 +2803,6 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
-	enum intel_engine_id id;
 	struct drm_printer p;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
@@ -2818,7 +2814,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
 
 	p = drm_seq_file_printer(m);
-	for_each_engine(engine, dev_priv, id)
+	for_each_uabi_engine(engine, dev_priv)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
@@ -2899,9 +2895,8 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		const struct i915_wa_list *wal = &engine->ctx_wa_list;
 		const struct i915_wa *wa;
 		unsigned int count;

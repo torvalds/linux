@@ -70,6 +70,7 @@
 #include <drm/i915_drm.h>
 
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_engine_user.h"
 
 #include "i915_gem_context.h"
 #include "i915_globals.h"
@@ -1729,7 +1730,7 @@ get_engines(struct i915_gem_context *ctx,
 
 		if (e->engines[n]) {
 			ci.engine_class = e->engines[n]->engine->uabi_class;
-			ci.engine_instance = e->engines[n]->engine->instance;
+			ci.engine_instance = e->engines[n]->engine->uabi_instance;
 		}
 
 		if (copy_to_user(&user->engines[n], &ci, sizeof(ci))) {

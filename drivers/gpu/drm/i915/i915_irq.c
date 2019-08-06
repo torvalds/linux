@@ -3251,7 +3251,7 @@ gen11_engine_irq_handler(struct intel_gt *gt, const u8 class,
 	struct intel_engine_cs *engine;
 
 	if (instance <= MAX_ENGINE_INSTANCE)
-		engine = gt->i915->engine_class[class][instance];
+		engine = gt->engine_class[class][instance];
 	else
 		engine = NULL;
 

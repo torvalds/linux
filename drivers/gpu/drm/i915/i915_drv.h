@@ -1376,11 +1376,12 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
-	struct intel_engine_cs *engine[I915_NUM_ENGINES];
+
 	/* Context used internally to idle the GPU and setup initial state */
 	struct i915_gem_context *kernel_context;
-	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]
-					    [MAX_ENGINE_INSTANCE + 1];
+
+	struct intel_engine_cs *engine[I915_NUM_ENGINES];
+	struct rb_root uabi_engines;
 
 	struct resource mch_res;
 
@@ -1923,6 +1924,14 @@ static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
 	     (tmp__) ? \
 	     ((engine__) = (dev_priv__)->engine[__mask_next_bit(tmp__)]), 1 : \
 	     0;)
+
+#define rb_to_uabi_engine(rb) \
+	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
+
+#define for_each_uabi_engine(engine__, i915__) \
+	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
+	     (engine__); \
+	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */

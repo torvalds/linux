@@ -12,6 +12,7 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/llist.h>
+#include <linux/rbtree.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 
@@ -267,14 +268,18 @@ struct intel_engine_cs {
 	unsigned int guc_id;
 	intel_engine_mask_t mask;
 
-	u8 uabi_class;
-
 	u8 class;
 	u8 instance;
+
+	u8 uabi_class;
+	u8 uabi_instance;
+
 	u32 context_size;
 	u32 mmio_base;
 
 	u32 uabi_capabilities;
+
+	struct rb_node uabi_node;
 
 	struct intel_sseu sseu;
 

@@ -46,6 +46,7 @@
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_pm.h"
 #include "gem/i915_gemfs.h"
+#include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"
@@ -1359,24 +1360,6 @@ err_rq:
 		i915_gem_object_unpin_map(engine->default_state);
 	}
 
-	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) {
-		unsigned int found = intel_engines_has_context_isolation(i915);
-
-		/*
-		 * Make sure that classes with multiple engine instances all
-		 * share the same basic configuration.
-		 */
-		for_each_engine(engine, i915, id) {
-			unsigned int bit = BIT(engine->uabi_class);
-			unsigned int expected = engine->default_state ? bit : 0;
-
-			if ((found & bit) != expected) {
-				DRM_ERROR("mismatching default context state for class %d on engine %s\n",
-					  engine->uabi_class, engine->name);
-			}
-		}
-	}
-
 out_ctx:
 	i915_gem_context_unlock_engines(ctx);
 	i915_gem_context_set_closed(ctx);
@@ -1600,7 +1583,8 @@ err_unlock:
 void i915_gem_driver_register(struct drm_i915_private *i915)
 {
 	i915_gem_driver_register__shrinker(i915);
-	intel_engines_set_scheduler_caps(i915);
+
+	intel_engines_driver_register(i915);
 }
 
 void i915_gem_driver_unregister(struct drm_i915_private *i915)

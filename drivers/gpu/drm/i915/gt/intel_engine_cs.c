@@ -33,6 +33,7 @@
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_pool.h"
+#include "intel_engine_user.h"
 #include "intel_context.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
@@ -286,9 +287,7 @@ static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
 	intel_engine_set_hwsp_writemask(engine, ~0u);
 }
 
-static int
-intel_engine_setup(struct drm_i915_private *dev_priv,
-		   enum intel_engine_id id)
+static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 {
 	const struct engine_info *info = &intel_engines[id];
 	struct intel_engine_cs *engine;
@@ -304,10 +303,9 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	if (GEM_DEBUG_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
 		return -EINVAL;
 
-	if (GEM_DEBUG_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+	if (GEM_DEBUG_WARN_ON(gt->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
-	GEM_BUG_ON(dev_priv->engine[id]);
 	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
 	if (!engine)
 		return -ENOMEM;
@@ -316,12 +314,12 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 
 	engine->id = id;
 	engine->mask = BIT(id);
-	engine->i915 = dev_priv;
-	engine->gt = &dev_priv->gt;
-	engine->uncore = &dev_priv->uncore;
+	engine->i915 = gt->i915;
+	engine->gt = gt;
+	engine->uncore = gt->uncore;
 	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;
-	engine->mmio_base = __engine_mmio_base(dev_priv, info->mmio_bases);
+	engine->mmio_base = __engine_mmio_base(gt->i915, info->mmio_bases);
 	engine->class = info->class;
 	engine->instance = info->instance;
 
@@ -331,14 +329,12 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	 */
 	engine->destroy = (typeof(engine->destroy))kfree;
 
-	engine->uabi_class = intel_engine_classes[info->class].uabi_class;
-
-	engine->context_size = intel_engine_context_size(dev_priv,
+	engine->context_size = intel_engine_context_size(gt->i915,
 							 engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
 	if (engine->context_size)
-		DRIVER_CAPS(dev_priv)->has_logical_contexts = true;
+		DRIVER_CAPS(gt->i915)->has_logical_contexts = true;
 
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
@@ -350,8 +346,11 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	/* Scrub mmio state on takeover */
 	intel_engine_sanitize_mmio(engine);
 
-	dev_priv->engine_class[info->class][info->instance] = engine;
-	dev_priv->engine[id] = engine;
+	gt->engine_class[info->class][info->instance] = engine;
+
+	intel_engine_add_user(engine);
+	gt->i915->engine[id] = engine;
+
 	return 0;
 }
 
@@ -434,7 +433,7 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 		if (!HAS_ENGINE(i915, i))
 			continue;
 
-		err = intel_engine_setup(i915, i);
+		err = intel_engine_setup(&i915->gt, i);
 		if (err)
 			goto cleanup;
 
@@ -675,47 +674,6 @@ int intel_engines_setup(struct drm_i915_private *i915)
 cleanup:
 	intel_engines_cleanup(i915);
 	return err;
-}
-
-void intel_engines_set_scheduler_caps(struct drm_i915_private *i915)
-{
-	static const struct {
-		u8 engine;
-		u8 sched;
-	} map[] = {
-#define MAP(x, y) { ilog2(I915_ENGINE_##x), ilog2(I915_SCHEDULER_CAP_##y) }
-		MAP(HAS_PREEMPTION, PREEMPTION),
-		MAP(HAS_SEMAPHORES, SEMAPHORES),
-		MAP(SUPPORTS_STATS, ENGINE_BUSY_STATS),
-#undef MAP
-	};
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	u32 enabled, disabled;
-
-	enabled = 0;
-	disabled = 0;
-	for_each_engine(engine, i915, id) { /* all engines must agree! */
-		int i;
-
-		if (engine->schedule)
-			enabled |= (I915_SCHEDULER_CAP_ENABLED |
-				    I915_SCHEDULER_CAP_PRIORITY);
-		else
-			disabled |= (I915_SCHEDULER_CAP_ENABLED |
-				     I915_SCHEDULER_CAP_PRIORITY);
-
-		for (i = 0; i < ARRAY_SIZE(map); i++) {
-			if (engine->flags & BIT(map[i].engine))
-				enabled |= BIT(map[i].sched);
-			else
-				disabled |= BIT(map[i].sched);
-		}
-	}
-
-	i915->caps.scheduler = enabled & ~disabled;
-	if (!(i915->caps.scheduler & I915_SCHEDULER_CAP_ENABLED))
-		i915->caps.scheduler = 0;
 }
 
 struct measure_breadcrumb {
@@ -1187,20 +1145,6 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 	}
 }
 
-unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	unsigned int which;
-
-	which = 0;
-	for_each_engine(engine, i915, id)
-		if (engine->default_state)
-			which |= BIT(engine->uabi_class);
-
-	return which;
-}
-
 static int print_sched_attr(struct drm_i915_private *i915,
 			    const struct i915_sched_attr *attr,
 			    char *buf, int x, int len)
@@ -1496,29 +1440,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
 
 	intel_engine_print_breadcrumbs(engine, m);
-}
-
-static u8 user_class_map[] = {
-	[I915_ENGINE_CLASS_RENDER] = RENDER_CLASS,
-	[I915_ENGINE_CLASS_COPY] = COPY_ENGINE_CLASS,
-	[I915_ENGINE_CLASS_VIDEO] = VIDEO_DECODE_CLASS,
-	[I915_ENGINE_CLASS_VIDEO_ENHANCE] = VIDEO_ENHANCEMENT_CLASS,
-};
-
-struct intel_engine_cs *
-intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
-{
-	if (class >= ARRAY_SIZE(user_class_map))
-		return NULL;
-
-	class = user_class_map[class];
-
-	GEM_BUG_ON(class > MAX_ENGINE_CLASS);
-
-	if (instance > MAX_ENGINE_INSTANCE)
-		return NULL;
-
-	return i915->engine_class[class][instance];
 }
 
 /**
