@@ -2652,23 +2652,8 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 	return (struct intel_device_info *)INTEL_INFO(dev_priv);
 }
 
-/* modesetting */
-void intel_modeset_init_hw(struct drm_device *dev);
-int intel_modeset_init(struct drm_device *dev);
-void intel_modeset_driver_remove(struct drm_device *dev);
-int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv, bool state);
-void intel_display_resume(struct drm_device *dev);
-void i915_redisable_vga(struct drm_i915_private *dev_priv);
-void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
-void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
-
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
-
-struct intel_display_error_state *
-intel_display_capture_error_state(struct drm_i915_private *dev_priv);
-void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
-				     struct intel_display_error_state *error);
 
 #define __I915_REG_OP(op__, dev_priv__, ...) \
 	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)
