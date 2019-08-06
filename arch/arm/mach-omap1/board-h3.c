@@ -45,7 +45,7 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/usb.h>
+#include "usb.h"
 
 #include "common.h"
 #include "board-h3.h"

@@ -38,7 +38,7 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include <mach/usb.h>
+#include "usb.h"
 
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"

@@ -25,7 +25,7 @@
 
 #include <mach/mux.h>
 
-#include <mach/usb.h>
+#include <linux/soc/ti/omap1-usb.h>
 
 #undef VERBOSE
 

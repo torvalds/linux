@@ -17,7 +17,7 @@
 
 #include <mach/mux.h>
 
-#include <mach/usb.h>
+#include "usb.h"
 
 #include "common.h"
 

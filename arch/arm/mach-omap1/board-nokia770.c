@@ -31,7 +31,7 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include <mach/usb.h>
+#include "usb.h"
 
 #include "common.h"
 #include "clock.h"

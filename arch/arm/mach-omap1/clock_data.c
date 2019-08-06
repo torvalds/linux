@@ -22,7 +22,7 @@
 #include "soc.h"
 
 #include <mach/hardware.h>
-#include <mach/usb.h>   /* for OTG_BASE */
+#include "usb.h"   /* for OTG_BASE */
 
 #include "iomap.h"
 #include "clock.h"

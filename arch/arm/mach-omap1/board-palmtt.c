@@ -38,7 +38,7 @@
 #include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>
-#include <mach/usb.h>
+#include "usb.h"
 
 #include "common.h"
 

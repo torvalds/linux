@@ -1,34 +1,20 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __SOC_TI_OMAP1_USB
+#define __SOC_TI_OMAP1_USB
 /*
- * FIXME correct answer depends on hmc_mode,
- * as does (on omap1) any nonzero value for config->otg port number
+ * Constants in this file are used all over the place, in platform
+ * code, as well as the udc, phy and ohci drivers.
+ * This is not a great design, but unlikely to get fixed after
+ * such a long time. Don't do this elsewhere.
  */
-#if IS_ENABLED(CONFIG_USB_OMAP)
-#define	is_usb0_device(config)	1
-#else
-#define	is_usb0_device(config)	0
-#endif
-
-#include <linux/platform_data/usb-omap1.h>
-
-#if IS_ENABLED(CONFIG_USB_SUPPORT)
-void omap1_usb_init(struct omap_usb_config *pdata);
-#else
-static inline void omap1_usb_init(struct omap_usb_config *pdata)
-{
-}
-#endif
 
 #define OMAP1_OTG_BASE			0xfffb0400
 #define OMAP1_UDC_BASE			0xfffb4000
-#define OMAP1_OHCI_BASE			0xfffba000
 
-#define OMAP2_OHCI_BASE			0x4805e000
 #define OMAP2_UDC_BASE			0x4805e200
 #define OMAP2_OTG_BASE			0x4805e300
 #define OTG_BASE			OMAP1_OTG_BASE
 #define UDC_BASE			OMAP1_UDC_BASE
-#define OMAP_OHCI_BASE			OMAP1_OHCI_BASE
 
 /*
  * OTG and transceiver registers, for OMAPs starting with ARM926
@@ -126,3 +112,5 @@ static inline void omap1_usb_init(struct omap_usb_config *pdata)
 #	define	CONF_USB0_ISOLATE_R	(1 << 3)
 #	define	CONF_USB_PWRDN_DM_R	(1 << 2)
 #	define	CONF_USB_PWRDN_DP_R	(1 << 1)
+
+#endif
