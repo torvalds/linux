@@ -344,7 +344,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 	 */
 	if (config->dnld_type == ROME_SKIP_EVT_VSE_CC ||
 	    config->dnld_type == ROME_SKIP_EVT_VSE)
-		return qca_inject_cmd_complete_event(hdev);
+		ret = qca_inject_cmd_complete_event(hdev);
 
 out:
 	release_firmware(fw);
