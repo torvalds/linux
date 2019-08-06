@@ -659,12 +659,17 @@ static int imx8mm_clocks_probe(struct platform_device *pdev)
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	if (ret < 0) {
 		pr_err("failed to register clks for i.MX8MM\n");
-		return -EINVAL;
+		goto unregister_clks;
 	}
 
 	imx_register_uart_clocks(uart_clks);
 
 	return 0;
+
+unregister_clks:
+	imx_unregister_clocks(clks, ARRAY_SIZE(clks));
+
+	return ret;
 }
 
 static const struct of_device_id imx8mm_clk_of_match[] = {
