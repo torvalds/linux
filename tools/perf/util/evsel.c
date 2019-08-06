@@ -1232,7 +1232,7 @@ int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
 	if (ncpus == 0 || nthreads == 0)
 		return 0;
 
-	if (evsel->system_wide)
+	if (evsel->core.system_wide)
 		nthreads = 1;
 
 	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
@@ -1663,7 +1663,7 @@ static bool ignore_missing_thread(struct evsel *evsel,
 		return false;
 
 	/* The system wide setup does not work with threads. */
-	if (evsel->system_wide)
+	if (evsel->core.system_wide)
 		return false;
 
 	/* The -ESRCH is perf event syscall errno for pid's not found. */
@@ -1772,7 +1772,7 @@ int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		threads = empty_thread_map;
 	}
 
-	if (evsel->system_wide)
+	if (evsel->core.system_wide)
 		nthreads = 1;
 	else
 		nthreads = threads->nr;
@@ -1819,7 +1819,7 @@ retry_sample_id:
 		for (thread = 0; thread < nthreads; thread++) {
 			int fd, group_fd;
 
-			if (!evsel->cgrp && !evsel->system_wide)
+			if (!evsel->cgrp && !evsel->core.system_wide)
 				pid = perf_thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);

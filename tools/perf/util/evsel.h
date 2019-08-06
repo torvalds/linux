@@ -146,7 +146,6 @@ struct evsel {
 	bool 			disabled;
 	bool			no_aux_samples;
 	bool			immediate;
-	bool			system_wide;
 	bool			tracking;
 	bool			per_pkg;
 	bool			precise_max;

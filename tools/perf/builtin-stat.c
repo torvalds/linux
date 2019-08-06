@@ -278,7 +278,7 @@ static int read_counter(struct evsel *counter, struct timespec *rs)
 	if (!counter->supported)
 		return -ENOENT;
 
-	if (counter->system_wide)
+	if (counter->core.system_wide)
 		nthreads = 1;
 
 	for (thread = 0; thread < nthreads; thread++) {
@@ -1671,7 +1671,7 @@ static void setup_system_wide(int forks)
 		struct evsel *counter;
 
 		evlist__for_each_entry(evsel_list, counter) {
-			if (!counter->system_wide)
+			if (!counter->core.system_wide)
 				return;
 		}
 

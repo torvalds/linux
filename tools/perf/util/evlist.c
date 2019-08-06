@@ -319,7 +319,7 @@ int perf_evlist__add_newtp(struct evlist *evlist,
 static int perf_evlist__nr_threads(struct evlist *evlist,
 				   struct evsel *evsel)
 {
-	if (evsel->system_wide)
+	if (evsel->core.system_wide)
 		return 1;
 	else
 		return perf_thread_map__nr(evlist->core.threads);
@@ -410,7 +410,7 @@ int perf_evlist__alloc_pollfd(struct evlist *evlist)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->system_wide)
+		if (evsel->core.system_wide)
 			nfds += nr_cpus;
 		else
 			nfds += nr_cpus * nr_threads;
@@ -536,7 +536,7 @@ static void perf_evlist__set_sid_idx(struct evlist *evlist,
 		sid->cpu = evlist->core.cpus->map[cpu];
 	else
 		sid->cpu = -1;
-	if (!evsel->system_wide && evlist->core.threads && thread >= 0)
+	if (!evsel->core.system_wide && evlist->core.threads && thread >= 0)
 		sid->tid = perf_thread_map__pid(evlist->core.threads, thread);
 	else
 		sid->tid = -1;
@@ -763,7 +763,7 @@ static int evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 			mp->prot &= ~PROT_WRITE;
 		}
 
-		if (evsel->system_wide && thread)
+		if (evsel->core.system_wide && thread)
 			continue;
 
 		cpu = perf_cpu_map__idx(evsel->core.cpus, evlist_cpu);
@@ -793,7 +793,7 @@ static int evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 		 * other events, so it should not need to be polled anyway.
 		 * Therefore don't add it for polling.
 		 */
-		if (!evsel->system_wide &&
+		if (!evsel->core.system_wide &&
 		    __perf_evlist__add_pollfd(evlist, fd, &maps[idx], revent) < 0) {
 			perf_mmap__put(&maps[idx]);
 			return -1;

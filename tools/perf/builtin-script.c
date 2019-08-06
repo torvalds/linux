@@ -1916,7 +1916,7 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 	int cpu, thread;
 	static int header_printed;
 
-	if (counter->system_wide)
+	if (counter->core.system_wide)
 		nthreads = 1;
 
 	if (!header_printed) {

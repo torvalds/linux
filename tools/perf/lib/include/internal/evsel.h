@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/perf_event.h>
+#include <stdbool.h>
 
 struct perf_cpu_map;
 struct perf_thread_map;
@@ -18,6 +19,7 @@ struct perf_evsel {
 
 	/* parse modifier helper */
 	int			 nr_members;
+	bool			 system_wide;
 };
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
