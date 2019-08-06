@@ -954,6 +954,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 	new_driver->drvwrap.driver.remove = usb_unbind_interface;
 	new_driver->drvwrap.driver.owner = owner;
 	new_driver->drvwrap.driver.mod_name = mod_name;
+	new_driver->drvwrap.driver.dev_groups = new_driver->dev_groups;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 
