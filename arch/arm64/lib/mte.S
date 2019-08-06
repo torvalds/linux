@@ -5,6 +5,7 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
+#include <asm/page.h>
 #include <asm/sysreg.h>
 
 	.arch	armv8.5-a+memtag
@@ -32,3 +33,21 @@ SYM_FUNC_START(mte_clear_page_tags)
 	b.ne	1b
 	ret
 SYM_FUNC_END(mte_clear_page_tags)
+
+/*
+ * Copy the tags from the source page to the destination one
+ *   x0 - address of the destination page
+ *   x1 - address of the source page
+ */
+SYM_FUNC_START(mte_copy_page_tags)
+	mov	x2, x0
+	mov	x3, x1
+	multitag_transfer_size x5, x6
+1:	ldgm	x4, [x3]
+	stgm	x4, [x2]
+	add	x2, x2, x5
+	add	x3, x3, x5
+	tst	x2, #(PAGE_SIZE - 1)
+	b.ne	1b
+	ret
+SYM_FUNC_END(mte_copy_page_tags)

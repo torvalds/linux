@@ -19,6 +19,7 @@ void mte_clear_page_tags(void *addr);
 #define PG_mte_tagged	PG_arch_2
 
 void mte_sync_tags(pte_t *ptep, pte_t pte);
+void mte_copy_page_tags(void *kto, const void *kfrom);
 void flush_mte_state(void);
 
 #else
@@ -27,6 +28,9 @@ void flush_mte_state(void);
 #define PG_mte_tagged	0
 
 static inline void mte_sync_tags(pte_t *ptep, pte_t pte)
+{
+}
+static inline void mte_copy_page_tags(void *kto, const void *kfrom)
 {
 }
 static inline void flush_mte_state(void)
