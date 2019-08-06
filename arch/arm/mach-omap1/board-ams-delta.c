@@ -28,6 +28,7 @@
 #include <linux/omapfb.h>
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/soc/ti/omap1-mux.h>
 
 #include <asm/serial.h>
 #include <asm/mach-types.h>

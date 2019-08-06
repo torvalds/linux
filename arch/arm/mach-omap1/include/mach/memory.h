@@ -7,6 +7,6 @@
 #define __ASM_ARCH_MEMORY_H
 
 /* REVISIT: omap1 legacy drivers still rely on this */
-#include <mach/soc.h>
+#include <mach/hardware.h>
 
 #endif
