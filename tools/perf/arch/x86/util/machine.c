@@ -4,7 +4,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
-#include "../../util/util.h" // page_size
+#include <internal/lib.h> // page_size
 #include "../../util/machine.h"
 #include "../../util/map.h"
 #include "../../util/symbol.h"

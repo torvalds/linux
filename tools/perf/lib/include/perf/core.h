@@ -18,5 +18,6 @@ typedef int (*libperf_print_fn_t)(enum libperf_print_level level,
 				  const char *, va_list ap);
 
 LIBPERF_API void libperf_set_print(libperf_print_fn_t fn);
+LIBPERF_API void libperf_init(void);
 
 #endif /* __LIBPERF_CORE_H */

@@ -33,8 +33,6 @@ int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size);
 
 size_t hex_width(u64 v);
 
-extern unsigned int page_size;
-
 int sysctl__max_stack(void);
 
 int fetch_kernel_version(unsigned int *puint,

@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "event.h"
 #include "namespaces.h"
+#include <internal/lib.h>
 #include <api/fs/fs.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -40,8 +41,6 @@ void perf_set_multithreaded(void)
 {
 	perf_singlethreaded = false;
 }
-
-unsigned int page_size;
 
 int sysctl_perf_event_max_stack = PERF_MAX_STACK_DEPTH;
 int sysctl_perf_event_max_contexts_per_stack = PERF_MAX_CONTEXTS_PER_STACK;

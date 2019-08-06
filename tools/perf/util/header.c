@@ -42,7 +42,7 @@
 #include "tool.h"
 #include "time-utils.h"
 #include "units.h"
-#include "util.h" // page_size, perf_exe()
+#include "util/util.h" // perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
 

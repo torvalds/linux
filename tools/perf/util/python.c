@@ -14,7 +14,7 @@
 #include "thread_map.h"
 #include "trace-event.h"
 #include "mmap.h"
-#include "util.h"
+#include <internal/lib.h>
 #include "../perf-sys.h"
 
 #if PY_MAJOR_VERSION < 3

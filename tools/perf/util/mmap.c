@@ -20,7 +20,7 @@
 #include "event.h"
 #include "mmap.h"
 #include "../perf.h"
-#include "util.h" /* page_size */
+#include <internal/lib.h> /* page_size */
 
 size_t perf_mmap__mmap_len(struct mmap *map)
 {

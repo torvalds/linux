@@ -5,6 +5,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "arch-tests.h"
+#include <internal/lib.h> // page_size
 
 #include <signal.h>
 #include <sys/mman.h>

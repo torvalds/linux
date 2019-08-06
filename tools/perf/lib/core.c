@@ -4,7 +4,9 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <perf/core.h>
+#include <internal/lib.h>
 #include "internal.h"
 
 static int __base_pr(enum libperf_print_level level, const char *format,
@@ -31,4 +33,9 @@ void libperf_print(enum libperf_print_level level, const char *format, ...)
 	va_start(args, format);
 	__libperf_pr(level, format, args);
 	va_end(args);
+}
+
+void libperf_init(void)
+{
+	page_size = sysconf(_SC_PAGE_SIZE);
 }

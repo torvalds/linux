@@ -16,7 +16,6 @@
 #include "util/synthetic-events.h"
 #include "util/target.h"
 #include "util/time-utils.h"
-#include "util/util.h"
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -26,6 +25,7 @@
 #include <perf/evsel.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
+#include <internal/lib.h> // page_size
 #include <internal/threadmap.h>
 #include <perf/threadmap.h>
 #include <symbol/kallsyms.h>

@@ -5,6 +5,8 @@
 #include <linux/kernel.h>
 #include <internal/lib.h>
 
+unsigned int page_size;
+
 static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 {
 	void *buf_start = buf;
