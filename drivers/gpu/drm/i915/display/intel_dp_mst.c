@@ -632,6 +632,12 @@ intel_dp_create_fake_mst_encoders(struct intel_digital_port *intel_dig_port)
 }
 
 int
+intel_dp_mst_encoder_active_links(struct intel_digital_port *intel_dig_port)
+{
+	return intel_dig_port->dp.active_mst_links;
+}
+
+int
 intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_base_id)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
