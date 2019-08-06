@@ -290,6 +290,23 @@ static void __init innovator_init_smc91x(void)
 }
 
 #ifdef CONFIG_ARCH_OMAP15XX
+/*
+ * Board specific gang-switched transceiver power on/off.
+ */
+static int innovator_omap_ohci_transceiver_power(int on)
+{
+	if (on)
+		__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
+				| ((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
+			       INNOVATOR_FPGA_CAM_USB_CONTROL);
+	else
+		__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
+				& ~((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
+			       INNOVATOR_FPGA_CAM_USB_CONTROL);
+
+	return 0;
+}
+
 static struct omap_usb_config innovator1510_usb_config __initdata = {
 	/* for bundled non-standard host and peripheral cables */
 	.hmc_mode	= 4,
@@ -300,6 +317,8 @@ static struct omap_usb_config innovator1510_usb_config __initdata = {
 
 	.register_dev	= 1,
 	.pins[0]	= 2,
+
+	.transceiver_power = innovator_omap_ohci_transceiver_power,
 };
 
 static const struct omap_lcd_config innovator1510_lcd_config __initconst = {
