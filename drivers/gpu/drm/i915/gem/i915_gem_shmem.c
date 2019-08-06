@@ -10,6 +10,7 @@
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
+#include "i915_trace.h"
 
 /*
  * Move pages to appropriate lru and release the pagevec, decrementing the

@@ -25,6 +25,7 @@
 #include <asm/iosf_mbi.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_drv.h"
 #include "intel_pm.h"

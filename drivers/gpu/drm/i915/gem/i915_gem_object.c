@@ -29,6 +29,7 @@
 #include "i915_gem_context.h"
 #include "i915_gem_object.h"
 #include "i915_globals.h"
+#include "i915_trace.h"
 
 static struct i915_global_object {
 	struct i915_global base;

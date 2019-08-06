@@ -44,6 +44,7 @@
 
 #include "i915_debugfs.h"
 #include "i915_irq.h"
+#include "i915_trace.h"
 #include "intel_csr.h"
 #include "intel_drv.h"
 #include "intel_pm.h"

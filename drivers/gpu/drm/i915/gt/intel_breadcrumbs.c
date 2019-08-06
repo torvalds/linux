@@ -27,6 +27,7 @@
 #include <uapi/linux/sched/types.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 static void irq_enable(struct intel_engine_cs *engine)
 {

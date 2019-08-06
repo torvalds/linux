@@ -32,6 +32,7 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 /**
  * DOC: runtime pm

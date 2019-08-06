@@ -33,6 +33,7 @@
 #include "intel_guc_submission.h"
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 enum {
 	GUC_PREEMPT_NONE = 0,

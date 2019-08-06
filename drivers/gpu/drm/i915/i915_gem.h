@@ -28,6 +28,8 @@
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 
+#include <drm/drm_drv.h>
+
 struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM

@@ -91,6 +91,7 @@
 #include "i915_scheduler.h"
 #include "gt/intel_timeline.h"
 #include "i915_vma.h"
+#include "i915_irq.h"
 
 #include "intel_gvt.h"
 
@@ -2351,8 +2352,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define GEN9_FREQ_SCALER 3
 
 #define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->num_pipes > 0)
-
-#include "i915_trace.h"
 
 static inline bool intel_vtd_active(void)
 {
