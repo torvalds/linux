@@ -241,7 +241,7 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
-static int set_all_monitor_traces(int state)
+static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 {
 	int rc = 0;
 	struct dm_hw_stat_delta *new_stat = NULL;
@@ -250,6 +250,7 @@ static int set_all_monitor_traces(int state)
 	mutex_lock(&net_dm_mutex);
 
 	if (state == trace_state) {
+		NL_SET_ERR_MSG_MOD(extack, "Trace state already set to requested state");
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
@@ -257,6 +258,7 @@ static int set_all_monitor_traces(int state)
 	switch (state) {
 	case TRACE_ON:
 		if (!try_module_get(THIS_MODULE)) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
 			rc = -ENODEV;
 			break;
 		}
@@ -303,6 +305,8 @@ out_unlock:
 static int net_dm_cmd_config(struct sk_buff *skb,
 			struct genl_info *info)
 {
+	NL_SET_ERR_MSG_MOD(info->extack, "Command not supported");
+
 	return -EOPNOTSUPP;
 }
 
@@ -311,9 +315,9 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 {
 	switch (info->genlhdr->cmd) {
 	case NET_DM_CMD_START:
-		return set_all_monitor_traces(TRACE_ON);
+		return set_all_monitor_traces(TRACE_ON, info->extack);
 	case NET_DM_CMD_STOP:
-		return set_all_monitor_traces(TRACE_OFF);
+		return set_all_monitor_traces(TRACE_OFF, info->extack);
 	}
 
 	return -EOPNOTSUPP;
