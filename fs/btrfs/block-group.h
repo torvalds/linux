@@ -174,6 +174,8 @@ int btrfs_cache_block_group(struct btrfs_block_group_cache *cache,
 void btrfs_put_caching_control(struct btrfs_caching_control *ctl);
 struct btrfs_caching_control *btrfs_get_caching_control(
 		struct btrfs_block_group_cache *cache);
+u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
+		       u64 start, u64 end);
 
 static inline int btrfs_block_group_cache_done(
 		struct btrfs_block_group_cache *cache)
