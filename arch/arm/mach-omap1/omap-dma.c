@@ -34,9 +34,10 @@
 
 #include <linux/omap-dma.h>
 
-#include <mach/hardware.h>
 #include <linux/soc/ti/omap1-io.h>
 #include <linux/soc/ti/omap1-soc.h>
+
+#include "tc.h"
 
 /*
  * MAX_LOGICAL_DMA_CH_COUNT: the maximum number of logical DMA

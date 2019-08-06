@@ -20,9 +20,9 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/soc/ti/omap1-io.h>
 
-#include <mach/hardware.h>
-
+#include "hardware.h"
 #include "common.h"
 
 #define OCPI_BASE		0xfffec320

@@ -16,14 +16,13 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>  /* for machine_is_* */
 
 #include "soc.h"
-
-#include <mach/hardware.h>
+#include "hardware.h"
 #include "usb.h"   /* for OTG_BASE */
-
 #include "iomap.h"
 #include "clock.h"
 #include "sram.h"

@@ -51,7 +51,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include "common.h"
 
 /*

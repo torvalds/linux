@@ -21,7 +21,7 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #if IS_ENABLED(CONFIG_FB_OMAP)
 

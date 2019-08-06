@@ -36,11 +36,9 @@
 #include <asm/mach/map.h>
 
 #include <linux/platform_data/keypad-omap.h>
-#include <mach/mux.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include "usb.h"
-
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"
 #include "iomap.h"

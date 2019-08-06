@@ -15,14 +15,13 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-
 #include <linux/omap-dma.h>
-#include <mach/mux.h>
-#include "soc.h"
+#include <linux/soc/ti/omap1-io.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
-#include <mach/irqs.h>
-
+#include "mux.h"
+#include "soc.h"
+#include "irqs.h"
 #include "iomap.h"
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)

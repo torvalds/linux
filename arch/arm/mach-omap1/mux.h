@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * arch/arm/plat-omap/include/mach/mux.h
- *
  * Table of the Omap register configurations for the FUNC_MUX and
  * PULL_DWN combinations.
  *

@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  arch/arm/plat-omap/include/mach/irqs.h
- *
  *  Copyright (C) Greg Lonnon 2001
  *  Updated for OMAP-1610 by Tony Lindgren <tony@atomide.com>
  *

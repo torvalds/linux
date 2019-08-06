@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-omap1/include/mach/hardware.h
- *
  * Hardware definitions for TI OMAP processors and boards
  *
  * NOTE: Please put device driver specific defines into a separate header
@@ -42,7 +40,7 @@
 #include <asm/types.h>
 #include <linux/soc/ti/omap1-soc.h>
 
-#include <mach/tc.h>
+#include "tc.h"
 
 /* Almost all documentation for chip and board memory maps assumes
  * BM is clear.  Most devel boards have a switch to control booting

@@ -23,16 +23,16 @@
 #include <linux/spi/ads7846.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/keypad-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/omap7xx.h>
+#include "hardware.h"
+#include "omap7xx.h"
 #include "mmc.h"
-
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "usb.h"
-
 #include "common.h"
 
 /* LCD register definition */

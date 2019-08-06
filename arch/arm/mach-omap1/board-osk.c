@@ -42,18 +42,17 @@
 #include <linux/mfd/tps65010.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/omap1_bl.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include "tc.h"
 #include "flash.h"
-#include <mach/mux.h>
-#include <mach/tc.h>
-
-#include <mach/hardware.h>
+#include "mux.h"
+#include "hardware.h"
 #include "usb.h"
-
 #include "common.h"
 
 /* Name of the GPIO chip used by the OMAP for GPIOs 0..15 */

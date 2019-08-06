@@ -16,11 +16,11 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>
 
-#include <mach/hardware.h>
-
+#include "hardware.h"
 #include "soc.h"
 #include "iomap.h"
 #include "clock.h"
