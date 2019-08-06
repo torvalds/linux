@@ -1564,6 +1564,11 @@ void cpu_emergency_stop_pt(void)
 		pt_event_stop(pt->handle.event, PERF_EF_UPDATE);
 }
 
+int is_intel_pt_event(struct perf_event *event)
+{
+	return event->pmu == &pt_pmu.pmu;
+}
+
 static __init int pt_init(void)
 {
 	int ret, cpu, prior_warn = 0;
