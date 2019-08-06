@@ -908,6 +908,10 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 	if (!smu->pm_enabled)
 		return ret;
 
+	if ((smu_msg_get_index(smu, SMU_MSG_GetDcModeMaxDpmFreq) < 0) ||
+	    (smu_msg_get_index(smu, SMU_MSG_GetMaxDpmFreq) < 0))
+		return 0;
+
 	clk_id = smu_clk_get_index(smu, clock_select);
 	if (clk_id < 0)
 		return -EINVAL;
