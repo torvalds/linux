@@ -98,8 +98,6 @@ source "drivers/usb/core/Kconfig"
 
 source "drivers/usb/mon/Kconfig"
 
-source "drivers/usb/wusbcore/Kconfig"
-
 source "drivers/usb/host/Kconfig"
 
 source "drivers/usb/renesas_usbhs/Kconfig"
