@@ -19,16 +19,7 @@
 #include <net/switchdev.h>
 
 #include "ksz_priv.h"
-
-void ksz_port_cleanup(struct ksz_device *dev, int port)
-{
-	/* Common code for port cleanup. */
-	mutex_lock(&dev->dev_mutex);
-	dev->on_ports &= ~(1 << port);
-	dev->live_ports &= ~(1 << port);
-	mutex_unlock(&dev->dev_mutex);
-}
-EXPORT_SYMBOL_GPL(ksz_port_cleanup);
+#include "ksz_common.h"
 
 void ksz_update_port_member(struct ksz_device *dev, int port)
 {
