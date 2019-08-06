@@ -356,17 +356,15 @@ static const struct lpss8250_board qrk_board = {
 	.exit = qrk_serial_exit,
 };
 
-#define LPSS_DEVICE(id, board) { PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&board }
-
 static const struct pci_device_id pci_ids[] = {
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_QRK_UARTx, qrk_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BYT_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BYT_UART2, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BSW_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BSW_UART2, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BDW_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BDW_UART2, byt_board),
-	{ },
+	{ PCI_DEVICE_DATA(INTEL, QRK_UARTx, &qrk_board) },
+	{ PCI_DEVICE_DATA(INTEL, BYT_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BYT_UART2, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_UART2, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_UART2, &byt_board) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
 
