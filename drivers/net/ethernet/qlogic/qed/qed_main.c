@@ -1688,6 +1688,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 
 	switch (media_type) {
 	case MEDIA_DA_TWINAX:
+		*if_capability |= QED_LM_FIBRE_BIT;
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
 			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
 		/* For DAC media multiple speed capabilities are supported*/
@@ -1707,6 +1708,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 			*if_capability |= QED_LM_100000baseCR4_Full_BIT;
 		break;
 	case MEDIA_BASE_T:
+		*if_capability |= QED_LM_TP_BIT;
 		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_EXT_PHY) {
 			if (capability &
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
@@ -1718,6 +1720,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 			}
 		}
 		if (board_cfg & NVM_CFG1_PORT_PORT_TYPE_MODULE) {
+			*if_capability |= QED_LM_FIBRE_BIT;
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_1000BASET)
 				*if_capability |= QED_LM_1000baseT_Full_BIT;
 			if (tcvr_type == ETH_TRANSCEIVER_TYPE_10G_BASET)
@@ -1728,6 +1731,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 	case MEDIA_SFPP_10G_FIBER:
 	case MEDIA_XFP_FIBER:
 	case MEDIA_MODULE_FIBER:
+		*if_capability |= QED_LM_FIBRE_BIT;
 		if (capability &
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G) {
 			if ((tcvr_type == ETH_TRANSCEIVER_TYPE_1G_LX) ||
@@ -1770,6 +1774,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 
 		break;
 	case MEDIA_KR:
+		*if_capability |= QED_LM_Backplane_BIT;
 		if (capability & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
 			*if_capability |= QED_LM_20000baseKR2_Full_BIT;
 		if (capability &
@@ -1821,7 +1826,6 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		if_link->link_up = true;
 
 	/* TODO - at the moment assume supported and advertised speed equal */
-	if_link->supported_caps = QED_LM_FIBRE_BIT;
 	if (link_caps.default_speed_autoneg)
 		if_link->supported_caps |= QED_LM_Autoneg_BIT;
 	if (params.pause.autoneg ||
