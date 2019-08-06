@@ -27,6 +27,9 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/usb-omap1.h>
 #include <linux/soc/ti/omap1-usb.h>
+#include <linux/soc/ti/omap1-mux.h>
+#include <linux/soc/ti/omap1-soc.h>
+#include <linux/soc/ti/omap1-io.h>
 #include <linux/signal.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -35,10 +38,6 @@
 
 #include <asm/io.h>
 #include <asm/mach-types.h>
-
-#include <mach/mux.h>
-
-#include <mach/hardware.h>
 
 #define DRIVER_DESC "OHCI OMAP driver"
 
