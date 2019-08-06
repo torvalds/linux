@@ -153,6 +153,11 @@ static inline int is_usb_port(const struct device *dev)
 	return dev->type == &usb_port_device_type;
 }
 
+static inline int is_root_hub(struct usb_device *udev)
+{
+	return (udev->parent == NULL);
+}
+
 /* Do the same for device drivers and interface drivers. */
 
 static inline int is_usb_device_driver(struct device_driver *drv)
