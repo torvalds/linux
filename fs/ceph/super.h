@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/posix_acl.h>
 #include <linux/refcount.h>
+#include <linux/security.h>
 
 #include <linux/ceph/libceph.h>
 
@@ -971,7 +972,10 @@ static inline bool ceph_security_xattr_wanted(struct inode *in)
 #ifdef CONFIG_CEPH_FS_SECURITY_LABEL
 extern int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
 				     struct ceph_acl_sec_ctx *ctx);
-extern void ceph_security_invalidate_secctx(struct inode *inode);
+static inline void ceph_security_invalidate_secctx(struct inode *inode)
+{
+	security_inode_invalidate_secctx(inode);
+}
 #else
 static inline int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
 					    struct ceph_acl_sec_ctx *ctx)

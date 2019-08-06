@@ -1265,11 +1265,6 @@ out:
 	return err;
 }
 
-void ceph_security_invalidate_secctx(struct inode *inode)
-{
-	security_inode_invalidate_secctx(inode);
-}
-
 static int ceph_xattr_set_security_label(const struct xattr_handler *handler,
 				    struct dentry *unused, struct inode *inode,
 				    const char *key, const void *buf,
@@ -1298,8 +1293,8 @@ static const struct xattr_handler ceph_security_label_handler = {
 	.get    = ceph_xattr_get_security_label,
 	.set    = ceph_xattr_set_security_label,
 };
-#endif
-#endif
+#endif /* CONFIG_CEPH_FS_SECURITY_LABEL */
+#endif /* CONFIG_SECURITY */
 
 void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx)
 {
