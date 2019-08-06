@@ -26,100 +26,36 @@
 #include <linux/mmu_notifier.h>
 #include <linux/memory_hotplug.h>
 
-static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
-
-/**
- * hmm_get_or_create - register HMM against an mm (HMM internal)
- *
- * @mm: mm struct to attach to
- * Return: an HMM object, either by referencing the existing
- *          (per-process) object, or by creating a new one.
- *
- * This is not intended to be used directly by device drivers. If mm already
- * has an HMM struct then it get a reference on it and returns it. Otherwise
- * it allocates an HMM struct, initializes it, associate it with the mm and
- * returns it.
- */
-static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+static struct mmu_notifier *hmm_alloc_notifier(struct mm_struct *mm)
 {
 	struct hmm *hmm;
 
-	lockdep_assert_held_write(&mm->mmap_sem);
-
-	/* Abuse the page_table_lock to also protect mm->hmm. */
-	spin_lock(&mm->page_table_lock);
-	hmm = mm->hmm;
-	if (mm->hmm && kref_get_unless_zero(&mm->hmm->kref))
-		goto out_unlock;
-	spin_unlock(&mm->page_table_lock);
-
-	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
+	hmm = kzalloc(sizeof(*hmm), GFP_KERNEL);
 	if (!hmm)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
+
 	init_waitqueue_head(&hmm->wq);
 	INIT_LIST_HEAD(&hmm->mirrors);
 	init_rwsem(&hmm->mirrors_sem);
-	hmm->mmu_notifier.ops = NULL;
 	INIT_LIST_HEAD(&hmm->ranges);
 	spin_lock_init(&hmm->ranges_lock);
-	kref_init(&hmm->kref);
 	hmm->notifiers = 0;
-	hmm->mm = mm;
-
-	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
-	if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
-		kfree(hmm);
-		return NULL;
-	}
-
-	mmgrab(hmm->mm);
-
-	/*
-	 * We hold the exclusive mmap_sem here so we know that mm->hmm is
-	 * still NULL or 0 kref, and is safe to update.
-	 */
-	spin_lock(&mm->page_table_lock);
-	mm->hmm = hmm;
-
-out_unlock:
-	spin_unlock(&mm->page_table_lock);
-	return hmm;
+	return &hmm->mmu_notifier;
 }
 
-static void hmm_free_rcu(struct rcu_head *rcu)
+static void hmm_free_notifier(struct mmu_notifier *mn)
 {
-	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
 
-	mmdrop(hmm->mm);
+	WARN_ON(!list_empty(&hmm->ranges));
+	WARN_ON(!list_empty(&hmm->mirrors));
 	kfree(hmm);
-}
-
-static void hmm_free(struct kref *kref)
-{
-	struct hmm *hmm = container_of(kref, struct hmm, kref);
-
-	spin_lock(&hmm->mm->page_table_lock);
-	if (hmm->mm->hmm == hmm)
-		hmm->mm->hmm = NULL;
-	spin_unlock(&hmm->mm->page_table_lock);
-
-	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
-	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
-}
-
-static inline void hmm_put(struct hmm *hmm)
-{
-	kref_put(&hmm->kref, hmm_free);
 }
 
 static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 {
 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
 	struct hmm_mirror *mirror;
-
-	/* Bail out if hmm is in the process of being freed */
-	if (!kref_get_unless_zero(&hmm->kref))
-		return;
 
 	/*
 	 * Since hmm_range_register() holds the mmget() lock hmm_release() is
@@ -137,8 +73,6 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 			mirror->ops->release(mirror);
 	}
 	up_read(&hmm->mirrors_sem);
-
-	hmm_put(hmm);
 }
 
 static void notifiers_decrement(struct hmm *hmm)
@@ -168,9 +102,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 	struct hmm_range *range;
 	unsigned long flags;
 	int ret = 0;
-
-	if (!kref_get_unless_zero(&hmm->kref))
-		return 0;
 
 	spin_lock_irqsave(&hmm->ranges_lock, flags);
 	hmm->notifiers++;
@@ -206,7 +137,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 out:
 	if (ret)
 		notifiers_decrement(hmm);
-	hmm_put(hmm);
 	return ret;
 }
 
@@ -215,17 +145,15 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
 {
 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
 
-	if (!kref_get_unless_zero(&hmm->kref))
-		return;
-
 	notifiers_decrement(hmm);
-	hmm_put(hmm);
 }
 
 static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
 	.release		= hmm_release,
 	.invalidate_range_start	= hmm_invalidate_range_start,
 	.invalidate_range_end	= hmm_invalidate_range_end,
+	.alloc_notifier		= hmm_alloc_notifier,
+	.free_notifier		= hmm_free_notifier,
 };
 
 /*
@@ -237,18 +165,27 @@ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
  *
  * To start mirroring a process address space, the device driver must register
  * an HMM mirror struct.
+ *
+ * The caller cannot unregister the hmm_mirror while any ranges are
+ * registered.
+ *
+ * Callers using this function must put a call to mmu_notifier_synchronize()
+ * in their module exit functions.
  */
 int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
 {
+	struct mmu_notifier *mn;
+
 	lockdep_assert_held_write(&mm->mmap_sem);
 
 	/* Sanity check */
 	if (!mm || !mirror || !mirror->ops)
 		return -EINVAL;
 
-	mirror->hmm = hmm_get_or_create(mm);
-	if (!mirror->hmm)
-		return -ENOMEM;
+	mn = mmu_notifier_get_locked(&hmm_mmu_notifier_ops, mm);
+	if (IS_ERR(mn))
+		return PTR_ERR(mn);
+	mirror->hmm = container_of(mn, struct hmm, mmu_notifier);
 
 	down_write(&mirror->hmm->mirrors_sem);
 	list_add(&mirror->list, &mirror->hmm->mirrors);
@@ -272,7 +209,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
 	down_write(&hmm->mirrors_sem);
 	list_del(&mirror->list);
 	up_write(&hmm->mirrors_sem);
-	hmm_put(hmm);
+	mmu_notifier_put(&hmm->mmu_notifier);
 }
 EXPORT_SYMBOL(hmm_mirror_unregister);
 
@@ -854,14 +791,13 @@ int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror)
 		return -EINVAL;
 
 	/* Prevent hmm_release() from running while the range is valid */
-	if (!mmget_not_zero(hmm->mm))
+	if (!mmget_not_zero(hmm->mmu_notifier.mm))
 		return -EFAULT;
 
 	/* Initialize range to track CPU page table updates. */
 	spin_lock_irqsave(&hmm->ranges_lock, flags);
 
 	range->hmm = hmm;
-	kref_get(&hmm->kref);
 	list_add(&range->list, &hmm->ranges);
 
 	/*
@@ -893,8 +829,7 @@ void hmm_range_unregister(struct hmm_range *range)
 	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
 
 	/* Drop reference taken by hmm_range_register() */
-	mmput(hmm->mm);
-	hmm_put(hmm);
+	mmput(hmm->mmu_notifier.mm);
 
 	/*
 	 * The range is now invalid and the ref on the hmm is dropped, so
@@ -944,14 +879,14 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 	struct mm_walk mm_walk;
 	int ret;
 
-	lockdep_assert_held(&hmm->mm->mmap_sem);
+	lockdep_assert_held(&hmm->mmu_notifier.mm->mmap_sem);
 
 	do {
 		/* If range is no longer valid force retry. */
 		if (!range->valid)
 			return -EBUSY;
 
-		vma = find_vma(hmm->mm, start);
+		vma = find_vma(hmm->mmu_notifier.mm, start);
 		if (vma == NULL || (vma->vm_flags & device_vma))
 			return -EFAULT;
 
