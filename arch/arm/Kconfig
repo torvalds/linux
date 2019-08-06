@@ -487,11 +487,11 @@ config ARCH_OMAP1
 	bool "TI OMAP1"
 	select ARCH_OMAP
 	select CLKSRC_MMIO
+	select FORCE_PCI if PCCARD
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
 	select HAVE_LEGACY_CLK
 	select IRQ_DOMAIN
-	select NEED_MACH_IO_H if PCCARD
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	help
