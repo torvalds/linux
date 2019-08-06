@@ -4,6 +4,8 @@
 #ifndef __SOUNDWIRE_H
 #define __SOUNDWIRE_H
 
+#include <linux/mod_devicetable.h>
+
 struct sdw_bus;
 struct sdw_slave;
 
