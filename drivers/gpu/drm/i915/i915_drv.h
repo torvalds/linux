@@ -1934,13 +1934,6 @@ static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
 	     (engine__); \
 	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
-enum hdmi_force_audio {
-	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
-	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
-	HDMI_AUDIO_AUTO,		/* trust EDID */
-	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
-};
-
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
 /*
@@ -2690,11 +2683,6 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
  */
 #define I915_READ_FW(reg__) __I915_REG_OP(read_fw, dev_priv, (reg__))
 #define I915_WRITE_FW(reg__, val__) __I915_REG_OP(write_fw, dev_priv, (reg__), (val__))
-
-/* "Broadcast RGB" property */
-#define INTEL_BROADCAST_RGB_AUTO 0
-#define INTEL_BROADCAST_RGB_FULL 1
-#define INTEL_BROADCAST_RGB_LIMITED 2
 
 void i915_memcpy_init_early(struct drm_i915_private *dev_priv);
 bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
