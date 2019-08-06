@@ -83,7 +83,8 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_busy *args = data;
 	struct drm_i915_gem_object *obj;
 	struct reservation_object_list *list;
-	unsigned int seq;
+	unsigned int i, shared_count;
+	struct dma_fence *excl;
 	int err;
 
 	err = -ENOENT;
@@ -109,28 +110,17 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * to report the overall busyness. This is what the wait-ioctl does.
 	 *
 	 */
-retry:
-	seq = raw_read_seqcount(&obj->base.resv->seq);
+	reservation_object_fences(obj->base.resv, &excl, &list, &shared_count);
 
 	/* Translate the exclusive fence to the READ *and* WRITE engine */
-	args->busy =
-		busy_check_writer(rcu_dereference(obj->base.resv->fence_excl));
+	args->busy = busy_check_writer(excl);
 
 	/* Translate shared fences to READ set of engines */
-	list = rcu_dereference(obj->base.resv->fence);
-	if (list) {
-		unsigned int shared_count = list->shared_count, i;
+	for (i = 0; i < shared_count; ++i) {
+		struct dma_fence *fence = rcu_dereference(list->shared[i]);
 
-		for (i = 0; i < shared_count; ++i) {
-			struct dma_fence *fence =
-				rcu_dereference(list->shared[i]);
-
-			args->busy |= busy_check_reader(fence);
-		}
+		args->busy |= busy_check_reader(fence);
 	}
-
-	if (args->busy && read_seqcount_retry(&obj->base.resv->seq, seq))
-		goto retry;
 
 	err = 0;
 out:
