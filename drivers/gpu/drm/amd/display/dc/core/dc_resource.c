@@ -1114,13 +1114,12 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct dc_stream_state *stream)
 {
 	int i;
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (res_ctx->pipe_ctx[i].stream == stream
 				&& !res_ctx->pipe_ctx[i].top_pipe
-				&& !res_ctx->pipe_ctx[i].prev_odm_pipe) {
+				&& !res_ctx->pipe_ctx[i].prev_odm_pipe)
 			return &res_ctx->pipe_ctx[i];
-			break;
-		}
 	}
 	return NULL;
 }
@@ -1697,45 +1696,45 @@ enum dc_status dc_remove_stream_from_ctx(
 {
 	int i;
 	struct dc_context *dc_ctx = dc->ctx;
-	struct pipe_ctx *del_pipe = NULL;
-
-	/* Release primary pipe */
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (new_ctx->res_ctx.pipe_ctx[i].stream == stream &&
-				!new_ctx->res_ctx.pipe_ctx[i].top_pipe) {
-			del_pipe = &new_ctx->res_ctx.pipe_ctx[i];
-
-			ASSERT(del_pipe->stream_res.stream_enc);
-			update_stream_engine_usage(
-					&new_ctx->res_ctx,
-						dc->res_pool,
-					del_pipe->stream_res.stream_enc,
-					false);
-
-			if (del_pipe->stream_res.audio)
-				update_audio_usage(
-					&new_ctx->res_ctx,
-					dc->res_pool,
-					del_pipe->stream_res.audio,
-					false);
-
-			resource_unreference_clock_source(&new_ctx->res_ctx,
-							  dc->res_pool,
-							  del_pipe->clock_source);
-
-			if (dc->res_pool->funcs->remove_stream_from_ctx)
-				dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
-
-			memset(del_pipe, 0, sizeof(*del_pipe));
-
-			break;
-		}
-	}
+	struct pipe_ctx *del_pipe = resource_get_head_pipe_for_stream(&new_ctx->res_ctx, stream);
+	struct pipe_ctx *odm_pipe;
 
 	if (!del_pipe) {
 		DC_ERROR("Pipe not found for stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
+
+	odm_pipe = del_pipe->next_odm_pipe;
+
+	/* Release primary pipe */
+	ASSERT(del_pipe->stream_res.stream_enc);
+	update_stream_engine_usage(
+			&new_ctx->res_ctx,
+				dc->res_pool,
+			del_pipe->stream_res.stream_enc,
+			false);
+
+	if (del_pipe->stream_res.audio)
+		update_audio_usage(
+			&new_ctx->res_ctx,
+			dc->res_pool,
+			del_pipe->stream_res.audio,
+			false);
+
+	resource_unreference_clock_source(&new_ctx->res_ctx,
+					  dc->res_pool,
+					  del_pipe->clock_source);
+
+	if (dc->res_pool->funcs->remove_stream_from_ctx)
+		dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
+
+	while (odm_pipe) {
+		struct pipe_ctx *next_odm_pipe = odm_pipe->next_odm_pipe;
+
+		memset(odm_pipe, 0, sizeof(*odm_pipe));
+		odm_pipe = next_odm_pipe;
+	}
+	memset(del_pipe, 0, sizeof(*del_pipe));
 
 	for (i = 0; i < new_ctx->stream_count; i++)
 		if (new_ctx->streams[i] == stream)
