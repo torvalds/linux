@@ -122,20 +122,12 @@ static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 
 struct ib_ucontext_per_mm {
-	struct ib_ucontext *context;
-	struct mm_struct *mm;
+	struct mmu_notifier mn;
 	struct pid *tgid;
-	bool active;
 
 	struct rb_root_cached umem_tree;
 	/* Protects umem_tree */
 	struct rw_semaphore umem_rwsem;
-
-	struct mmu_notifier mn;
-	unsigned int odp_mrs_count;
-
-	struct list_head ucontext_list;
-	struct rcu_head rcu;
 };
 
 struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
