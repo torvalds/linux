@@ -144,13 +144,16 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 	params->op = args->op;
 
 	if (args->input_ptr && args->input_size) {
-		input = memdup_user(u64_to_user_ptr(args->input_ptr),
-					args->input_size);
-		if (IS_ERR(input)) {
-			rc = PTR_ERR(input);
-			input = NULL;
-			dev_err(hdev->dev,
-				"error %d when copying input debug data\n", rc);
+		input = kzalloc(hl_debug_struct_size[args->op], GFP_KERNEL);
+		if (!input) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		if (copy_from_user(input, u64_to_user_ptr(args->input_ptr),
+					args->input_size)) {
+			rc = -EFAULT;
+			dev_err(hdev->dev, "failed to copy input debug data\n");
 			goto out;
 		}
 
