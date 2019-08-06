@@ -19,6 +19,10 @@
 #include "bus.h"
 #include "cadence_master.h"
 
+static int interrupt_mask;
+module_param_named(cnds_mcp_int_mask, interrupt_mask, int, 0444);
+MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
+
 #define CDNS_MCP_CONFIG				0x0
 
 #define CDNS_MCP_CONFIG_MCMD_RETRY		GENMASK(27, 24)
@@ -667,6 +671,9 @@ static int _cdns_enable_interrupt(struct sdw_cdns *cdns)
 	 * settings are irrelevant
 	 */
 	mask |= CDNS_MCP_INT_IRQ;
+
+	if (interrupt_mask) /* parameter override */
+		mask = interrupt_mask;
 
 	cdns_writel(cdns, CDNS_MCP_INTMASK, mask);
 
