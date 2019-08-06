@@ -935,17 +935,17 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
         PyObject *list = PyList_New(0);
 	int i;
 
-	for (i = 0; i < evlist->pollfd.nr; ++i) {
+	for (i = 0; i < evlist->core.pollfd.nr; ++i) {
 		PyObject *file;
 #if PY_MAJOR_VERSION < 3
-		FILE *fp = fdopen(evlist->pollfd.entries[i].fd, "r");
+		FILE *fp = fdopen(evlist->core.pollfd.entries[i].fd, "r");
 
 		if (fp == NULL)
 			goto free_list;
 
 		file = PyFile_FromFile(fp, "perf", "r", NULL);
 #else
-		file = PyFile_FromFd(evlist->pollfd.entries[i].fd, "perf", "r", -1,
+		file = PyFile_FromFd(evlist->core.pollfd.entries[i].fd, "perf", "r", -1,
 				     NULL, NULL, NULL, 0);
 #endif
 		if (file == NULL)

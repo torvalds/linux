@@ -3,6 +3,7 @@
 #define __LIBPERF_INTERNAL_EVLIST_H
 
 #include <linux/list.h>
+#include <api/fd/array.h>
 
 struct perf_cpu_map;
 struct perf_thread_map;
@@ -15,6 +16,7 @@ struct perf_evlist {
 	struct perf_thread_map	*threads;
 	int			 nr_mmaps;
 	size_t			 mmap_len;
+	struct fdarray		 pollfd;
 };
 
 /**

@@ -981,7 +981,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	evlist__enable(kvm->evlist);
 
 	while (!done) {
-		struct fdarray *fda = &kvm->evlist->pollfd;
+		struct fdarray *fda = &kvm->evlist->core.pollfd;
 		int rc;
 
 		rc = perf_kvm__mmap_read(kvm);

@@ -64,7 +64,6 @@ struct evlist {
 		int	cork_fd;
 		pid_t	pid;
 	} workload;
-	struct fdarray	 pollfd;
 	struct mmap *mmap;
 	struct mmap *overwrite_mmap;
 	struct evsel *selected;
