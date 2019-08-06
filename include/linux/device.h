@@ -262,6 +262,8 @@ enum probe_type {
  * @resume:	Called to bring a device from sleep mode.
  * @groups:	Default attributes that get created by the driver core
  *		automatically.
+ * @dev_groups:	Additional attributes attached to device instance once the
+ *		it is bound to the driver.
  * @pm:		Power management operations of the device which matched
  *		this driver.
  * @coredump:	Called when sysfs entry is written to. The device driver
@@ -296,6 +298,7 @@ struct device_driver {
 	int (*suspend) (struct device *dev, pm_message_t state);
 	int (*resume) (struct device *dev);
 	const struct attribute_group **groups;
+	const struct attribute_group **dev_groups;
 
 	const struct dev_pm_ops *pm;
 	void (*coredump) (struct device *dev);
