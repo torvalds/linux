@@ -620,7 +620,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	enum iwl_mcc_source src;
 	char mcc[3];
 	struct ieee80211_regdomain *regd;
-	u32 wgds_tbl_idx;
+	int wgds_tbl_idx;
 
 	lockdep_assert_held(&mvm->mutex);
 
