@@ -14,12 +14,12 @@
 			 SNDRV_PCM_FMTBIT_S32_LE)
 
 /* SAI Register Map Register */
-#define FSL_SAI_TCSR	0x00 /* SAI Transmit Control */
-#define FSL_SAI_TCR1	0x04 /* SAI Transmit Configuration 1 */
-#define FSL_SAI_TCR2	0x08 /* SAI Transmit Configuration 2 */
-#define FSL_SAI_TCR3	0x0c /* SAI Transmit Configuration 3 */
-#define FSL_SAI_TCR4	0x10 /* SAI Transmit Configuration 4 */
-#define FSL_SAI_TCR5	0x14 /* SAI Transmit Configuration 5 */
+#define FSL_SAI_TCSR(ofs)	(0x00 + ofs) /* SAI Transmit Control */
+#define FSL_SAI_TCR1(ofs)	(0x04 + ofs) /* SAI Transmit Configuration 1 */
+#define FSL_SAI_TCR2(ofs)	(0x08 + ofs) /* SAI Transmit Configuration 2 */
+#define FSL_SAI_TCR3(ofs)	(0x0c + ofs) /* SAI Transmit Configuration 3 */
+#define FSL_SAI_TCR4(ofs)	(0x10 + ofs) /* SAI Transmit Configuration 4 */
+#define FSL_SAI_TCR5(ofs)	(0x14 + ofs) /* SAI Transmit Configuration 5 */
 #define FSL_SAI_TDR0	0x20 /* SAI Transmit Data 0 */
 #define FSL_SAI_TDR1	0x24 /* SAI Transmit Data 1 */
 #define FSL_SAI_TDR2	0x28 /* SAI Transmit Data 2 */
@@ -37,12 +37,12 @@
 #define FSL_SAI_TFR6	0x58 /* SAI Transmit FIFO 6 */
 #define FSL_SAI_TFR7	0x5C /* SAI Transmit FIFO 7 */
 #define FSL_SAI_TMR	0x60 /* SAI Transmit Mask */
-#define FSL_SAI_RCSR	0x80 /* SAI Receive Control */
-#define FSL_SAI_RCR1	0x84 /* SAI Receive Configuration 1 */
-#define FSL_SAI_RCR2	0x88 /* SAI Receive Configuration 2 */
-#define FSL_SAI_RCR3	0x8c /* SAI Receive Configuration 3 */
-#define FSL_SAI_RCR4	0x90 /* SAI Receive Configuration 4 */
-#define FSL_SAI_RCR5	0x94 /* SAI Receive Configuration 5 */
+#define FSL_SAI_RCSR(ofs)	(0x80 + ofs) /* SAI Receive Control */
+#define FSL_SAI_RCR1(ofs)	(0x84 + ofs)/* SAI Receive Configuration 1 */
+#define FSL_SAI_RCR2(ofs)	(0x88 + ofs) /* SAI Receive Configuration 2 */
+#define FSL_SAI_RCR3(ofs)	(0x8c + ofs) /* SAI Receive Configuration 3 */
+#define FSL_SAI_RCR4(ofs)	(0x90 + ofs) /* SAI Receive Configuration 4 */
+#define FSL_SAI_RCR5(ofs)	(0x94 + ofs) /* SAI Receive Configuration 5 */
 #define FSL_SAI_RDR0	0xa0 /* SAI Receive Data 0 */
 #define FSL_SAI_RDR1	0xa4 /* SAI Receive Data 1 */
 #define FSL_SAI_RDR2	0xa8 /* SAI Receive Data 2 */
@@ -61,14 +61,14 @@
 #define FSL_SAI_RFR7	0xdc /* SAI Receive FIFO 7 */
 #define FSL_SAI_RMR	0xe0 /* SAI Receive Mask */
 
-#define FSL_SAI_xCSR(tx)	(tx ? FSL_SAI_TCSR : FSL_SAI_RCSR)
-#define FSL_SAI_xCR1(tx)	(tx ? FSL_SAI_TCR1 : FSL_SAI_RCR1)
-#define FSL_SAI_xCR2(tx)	(tx ? FSL_SAI_TCR2 : FSL_SAI_RCR2)
-#define FSL_SAI_xCR3(tx)	(tx ? FSL_SAI_TCR3 : FSL_SAI_RCR3)
-#define FSL_SAI_xCR4(tx)	(tx ? FSL_SAI_TCR4 : FSL_SAI_RCR4)
-#define FSL_SAI_xCR5(tx)	(tx ? FSL_SAI_TCR5 : FSL_SAI_RCR5)
-#define FSL_SAI_xDR(tx)		(tx ? FSL_SAI_TDR : FSL_SAI_RDR)
-#define FSL_SAI_xFR(tx)		(tx ? FSL_SAI_TFR : FSL_SAI_RFR)
+#define FSL_SAI_xCSR(tx, ofs)	(tx ? FSL_SAI_TCSR(ofs) : FSL_SAI_RCSR(ofs))
+#define FSL_SAI_xCR1(tx, ofs)	(tx ? FSL_SAI_TCR1(ofs) : FSL_SAI_RCR1(ofs))
+#define FSL_SAI_xCR2(tx, ofs)	(tx ? FSL_SAI_TCR2(ofs) : FSL_SAI_RCR2(ofs))
+#define FSL_SAI_xCR3(tx, ofs)	(tx ? FSL_SAI_TCR3(ofs) : FSL_SAI_RCR3(ofs))
+#define FSL_SAI_xCR4(tx, ofs)	(tx ? FSL_SAI_TCR4(ofs) : FSL_SAI_RCR4(ofs))
+#define FSL_SAI_xCR5(tx, ofs)	(tx ? FSL_SAI_TCR5(ofs) : FSL_SAI_RCR5(ofs))
+#define FSL_SAI_xDR(tx, ofs)	(tx ? FSL_SAI_TDR(ofs) : FSL_SAI_RDR(ofs))
+#define FSL_SAI_xFR(tx, ofs)	(tx ? FSL_SAI_TFR(ofs) : FSL_SAI_RFR(ofs))
 #define FSL_SAI_xMR(tx)		(tx ? FSL_SAI_TMR : FSL_SAI_RMR)
 
 /* SAI Transmit/Receive Control Register */
@@ -158,6 +158,7 @@
 struct fsl_sai_soc_data {
 	bool use_imx_pcm;
 	unsigned int fifo_depth;
+	unsigned int reg_offset;
 };
 
 struct fsl_sai {
