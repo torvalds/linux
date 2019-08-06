@@ -52,7 +52,7 @@ static int trace_state = TRACE_OFF;
 static DEFINE_MUTEX(net_dm_mutex);
 
 struct per_cpu_dm_data {
-	spinlock_t		lock;
+	spinlock_t		lock;	/* Protects 'skb' and 'send_timer' */
 	struct sk_buff		*skb;
 	struct work_struct	dm_alert_work;
 	struct timer_list	send_timer;
