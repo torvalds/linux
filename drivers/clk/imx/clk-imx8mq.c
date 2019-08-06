@@ -562,9 +562,17 @@ static int imx8mq_clocks_probe(struct platform_device *pdev)
 	clk_data.clk_num = ARRAY_SIZE(clks);
 
 	err = of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-	WARN_ON(err);
+	if (err < 0) {
+		dev_err(dev, "failed to register clks for i.MX8MQ\n");
+		goto unregister_clks;
+	}
 
 	imx_register_uart_clocks(uart_clks);
+
+	return 0;
+
+unregister_clks:
+	imx_unregister_clocks(clks, ARRAY_SIZE(clks));
 
 	return err;
 }
