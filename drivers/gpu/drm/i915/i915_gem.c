@@ -1249,8 +1249,6 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 
 	intel_mocs_init(gt);
 
-	intel_engines_set_scheduler_caps(i915);
-
 out:
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 	return ret;
@@ -1597,6 +1595,17 @@ err_unlock:
 
 	i915_gem_drain_freed_objects(dev_priv);
 	return ret;
+}
+
+void i915_gem_driver_register(struct drm_i915_private *i915)
+{
+	i915_gem_driver_register__shrinker(i915);
+	intel_engines_set_scheduler_caps(i915);
+}
+
+void i915_gem_driver_unregister(struct drm_i915_private *i915)
+{
+	i915_gem_driver_unregister__shrinker(i915);
 }
 
 void i915_gem_driver_remove(struct drm_i915_private *dev_priv)

@@ -2488,6 +2488,8 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
 int __must_check i915_gem_init_hw(struct drm_i915_private *dev_priv);
+void i915_gem_driver_register(struct drm_i915_private *i915);
+void i915_gem_driver_unregister(struct drm_i915_private *i915);
 void i915_gem_driver_remove(struct drm_i915_private *dev_priv);
 void i915_gem_driver_release(struct drm_i915_private *dev_priv);
 int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
@@ -2588,8 +2590,8 @@ unsigned long i915_gem_shrink(struct drm_i915_private *i915,
 #define I915_SHRINK_WRITEBACK	BIT(4)
 
 unsigned long i915_gem_shrink_all(struct drm_i915_private *i915);
-void i915_gem_shrinker_register(struct drm_i915_private *i915);
-void i915_gem_shrinker_unregister(struct drm_i915_private *i915);
+void i915_gem_driver_register__shrinker(struct drm_i915_private *i915);
+void i915_gem_driver_unregister__shrinker(struct drm_i915_private *i915);
 void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 				    struct mutex *mutex);
 

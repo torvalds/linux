@@ -757,11 +757,8 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		__intel_gt_reset(gt, ALL_ENGINES);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt->i915, id)
 		engine->submit_request = nop_submit_request;
-		engine->schedule = NULL;
-	}
-	gt->i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no request can slip through without getting completed by
