@@ -22,18 +22,6 @@
 DEFINE_STATIC_SRCU(srcu);
 
 /*
- * This function allows mmu_notifier::release callback to delay a call to
- * a function that will free appropriate resources. The function must be
- * quick and must not block.
- */
-void mmu_notifier_call_srcu(struct rcu_head *rcu,
-			    void (*func)(struct rcu_head *rcu))
-{
-	call_srcu(&srcu, rcu, func);
-}
-EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
-
-/*
  * This function can't run concurrently against mmu_notifier_register
  * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap
  * runs with mm_users == 0. Other tasks may still invoke mmu notifiers
@@ -454,25 +442,6 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 	mmdrop(mm);
 }
 EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
-
-/*
- * Same as mmu_notifier_unregister but no callback and no srcu synchronization.
- */
-void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
-					struct mm_struct *mm)
-{
-	spin_lock(&mm->mmu_notifier_mm->lock);
-	/*
-	 * Can not use list_del_rcu() since __mmu_notifier_release
-	 * can delete it before we hold the lock.
-	 */
-	hlist_del_init_rcu(&mn->hlist);
-	spin_unlock(&mm->mmu_notifier_mm->lock);
-
-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
-	mmdrop(mm);
-}
-EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
 
 static void mmu_notifier_free_rcu(struct rcu_head *rcu)
 {
