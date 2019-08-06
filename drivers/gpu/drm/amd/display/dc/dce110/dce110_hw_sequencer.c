@@ -1341,7 +1341,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 #endif
 
 	if (dc->hwss.disable_stream_gating) {
@@ -1409,7 +1409,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		&stream->bit_depth_params,
 		&stream->clamping);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	if (odm_pipe) {
+	while (odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_set_dyn_expansion(
 				odm_pipe->stream_res.opp,
 				COLOR_SPACE_YCBCR601,
@@ -1420,6 +1420,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 				odm_pipe->stream_res.opp,
 				&stream->bit_depth_params,
 				&stream->clamping);
+		odm_pipe = odm_pipe->next_odm_pipe;
 	}
 #endif
 
@@ -2079,7 +2080,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx_old->stream && !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
 			continue;
 
-		if (pipe_ctx->top_pipe)
+		if (pipe_ctx->top_pipe || pipe_ctx->prev_odm_pipe)
 			continue;
 
 		status = apply_single_controller_ctx_to_hw(

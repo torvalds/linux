@@ -529,11 +529,9 @@ enum dc_status dcn20_enable_stream_timing(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
-
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
-#endif
+	struct pipe_ctx *odm_pipe;
+	int opp_cnt = 1;
+	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -544,14 +542,17 @@ enum dc_status dcn20_enable_stream_timing(
 
 	/* TODO check if timing_changed, disable stream if timing changed */
 
-	if (odm_pipe) {
-		int opp_inst[2] = { pipe_ctx->stream_res.opp->inst, odm_pipe->stream_res.opp->inst };
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
+		opp_cnt++;
+	}
 
+	if (opp_cnt > 1)
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
-				opp_inst, 2,
+				opp_inst, opp_cnt,
 				&pipe_ctx->stream->timing);
-	}
+
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
 	 */
@@ -575,7 +576,7 @@ enum dc_status dcn20_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
-	if (odm_pipe)
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
 				odm_pipe->stream_res.opp,
 				true);
@@ -661,7 +662,7 @@ bool dcn20_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	 */
 	if (mpc->funcs->power_on_mpc_mem_pwr)
 		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
-	if ((pipe_ctx->top_pipe == NULL || dc_res_is_odm_head_pipe(pipe_ctx))
+	if (pipe_ctx->top_pipe == NULL
 			&& mpc->funcs->set_output_gamma && stream->out_transfer_func) {
 		if (stream->out_transfer_func->type == TF_TYPE_HWPWL)
 			params = &stream->out_transfer_func->pwl;
@@ -823,17 +824,21 @@ bool dcn20_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 
 static void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
-	struct pipe_ctx *combine_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+	struct pipe_ctx *odm_pipe;
+	int opp_cnt = 1;
+	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
 
-	if (combine_pipe) {
-		int opp_inst[2] = { pipe_ctx->stream_res.opp->inst,
-				combine_pipe->stream_res.opp->inst };
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
+		opp_cnt++;
+	}
 
+	if (opp_cnt > 1)
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
-				opp_inst, 2,
+				opp_inst, opp_cnt,
 				&pipe_ctx->stream->timing);
-	} else
+	else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
 }
@@ -848,7 +853,8 @@ void dcn20_blank_pixel_data(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space = stream->output_color_space;
 	enum controller_dp_test_pattern test_pattern = CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR;
-	struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+	struct pipe_ctx *odm_pipe;
+	int odm_cnt = 1;
 
 	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
@@ -856,8 +862,10 @@ void dcn20_blank_pixel_data(
 	/* get opp dpg blank color */
 	color_space_to_black_color(dc, color_space, &black_color);
 
-	if (bot_odm_pipe)
-		width = width / 2;
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+		odm_cnt++;
+
+	width = width / odm_cnt;
 
 	if (blank) {
 		if (stream_res->abm)
@@ -877,9 +885,9 @@ void dcn20_blank_pixel_data(
 			width,
 			height);
 
-	if (bot_odm_pipe) {
-		bot_odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
-				bot_odm_pipe->stream_res.opp,
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
+				odm_pipe->stream_res.opp,
 				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE ?
 						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
 				stream->timing.display_color_depth,
@@ -1021,7 +1029,7 @@ static void dcn20_program_all_pipe_in_tree(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
-	if (pipe_ctx->top_pipe == NULL) {
+	if (pipe_ctx->top_pipe == NULL && !pipe_ctx->prev_odm_pipe) {
 		bool blank = !is_pipe_tree_visible(pipe_ctx);
 
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
@@ -1312,8 +1320,8 @@ bool dcn20_update_bandwidth(
 
 			pipe_ctx->stream_res.tg->funcs->set_vtg_params(
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
-
-			dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
+			if (pipe_ctx->prev_odm_pipe == NULL)
+				dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 		}
 
 		pipe_ctx->plane_res.hubp->funcs->hubp_setup(
@@ -1403,12 +1411,15 @@ static void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx
 {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct dce_hwseq *hws = dc->hwseq;
-	struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
 
 	if (pipe_ctx->stream_res.dsc) {
+		struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
+
 		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, true);
-		if (bot_odm_pipe)
-			dcn20_dsc_pg_control(hws, bot_odm_pipe->stream_res.dsc->inst, true);
+		while (odm_pipe) {
+			dcn20_dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, true);
+			odm_pipe = odm_pipe->next_odm_pipe;
+		}
 	}
 #endif
 }
@@ -1417,12 +1428,15 @@ static void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct dce_hwseq *hws = dc->hwseq;
-	struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
 
 	if (pipe_ctx->stream_res.dsc) {
+		struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
+
 		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, false);
-		if (bot_odm_pipe)
-			dcn20_dsc_pg_control(hws, bot_odm_pipe->stream_res.dsc->inst, false);
+		while (odm_pipe) {
+			dcn20_dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, false);
+			odm_pipe = odm_pipe->next_odm_pipe;
+		}
 	}
 #endif
 }
@@ -1552,18 +1566,22 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 	struct encoder_unblank_param params = { { 0 } };
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	params.odm = dc_res_get_odm_bottom_pipe(pipe_ctx);
+	struct pipe_ctx *odm_pipe;
 
+	params.opp_cnt = 1;
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+		params.opp_cnt++;
+	}
 	/* only 3 items below are used by unblank */
 	params.timing = pipe_ctx->stream->timing;
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		if (optc1_is_two_pixels_per_containter(&stream->timing) || params.odm)
+		if (optc1_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt)
 			params.timing.pix_clk_100hz /= 2;
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
-				pipe_ctx->stream_res.stream_enc, params.odm);
+				pipe_ctx->stream_res.stream_enc, params.opp_cnt);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 	}
 
@@ -1654,7 +1672,7 @@ static void dcn20_reset_hw_ctx_wrap(
 		if (!pipe_ctx_old->stream)
 			continue;
 
-		if (pipe_ctx_old->top_pipe)
+		if (pipe_ctx_old->top_pipe || pipe_ctx_old->prev_odm_pipe)
 			continue;
 
 		if (!pipe_ctx->stream ||

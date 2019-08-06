@@ -1319,7 +1319,11 @@ static void get_pixel_clock_parameters(
 	struct pixel_clk_params *pixel_clk_params)
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	bool odm_combine = dc_res_get_odm_bottom_pipe(pipe_ctx) != NULL;
+	struct pipe_ctx *odm_pipe;
+	int opp_cnt = 1;
+
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+		opp_cnt++;
 
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
@@ -1337,7 +1341,9 @@ static void get_pixel_clock_parameters(
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 
-	if (optc1_is_two_pixels_per_containter(&stream->timing) || odm_combine)
+	if (opp_cnt == 4)
+		pixel_clk_params->requested_pix_clk_100hz /= 4;
+	else if (optc1_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
 		pixel_clk_params->requested_pix_clk_100hz /= 2;
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
@@ -1481,22 +1487,16 @@ static enum dc_status remove_dsc_from_stream_resource(struct dc *dc,
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (new_ctx->res_ctx.pipe_ctx[i].stream == dc_stream && !new_ctx->res_ctx.pipe_ctx[i].top_pipe) {
 			pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
-			break;
+
+			if (pipe_ctx->stream_res.dsc)
+				release_dsc(&new_ctx->res_ctx, dc->res_pool, &pipe_ctx->stream_res.dsc);
 		}
 	}
 
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
-
-	if (pipe_ctx->stream_res.dsc) {
-		struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
-
-		release_dsc(&new_ctx->res_ctx, dc->res_pool, &pipe_ctx->stream_res.dsc);
-		if (odm_pipe)
-			release_dsc(&new_ctx->res_ctx, dc->res_pool, &odm_pipe->stream_res.dsc);
-	}
-
-	return DC_OK;
+	else
+		return DC_OK;
 }
 #endif
 
@@ -1595,17 +1595,94 @@ static void swizzle_to_dml_params(
 	}
 }
 
-static bool dcn20_split_stream_for_combine(
+static bool dcn20_split_stream_for_odm(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *prev_odm_pipe,
+		struct pipe_ctx *next_odm_pipe)
+{
+	int pipe_idx = next_odm_pipe->pipe_idx;
+	struct scaler_data *sd = &prev_odm_pipe->plane_res.scl_data;
+	struct pipe_ctx *sec_next_pipe = next_odm_pipe->next_odm_pipe;
+	int new_width;
+
+	*next_odm_pipe = *prev_odm_pipe;
+	next_odm_pipe->next_odm_pipe = sec_next_pipe;
+
+	next_odm_pipe->pipe_idx = pipe_idx;
+	next_odm_pipe->plane_res.mi = pool->mis[next_odm_pipe->pipe_idx];
+	next_odm_pipe->plane_res.hubp = pool->hubps[next_odm_pipe->pipe_idx];
+	next_odm_pipe->plane_res.ipp = pool->ipps[next_odm_pipe->pipe_idx];
+	next_odm_pipe->plane_res.xfm = pool->transforms[next_odm_pipe->pipe_idx];
+	next_odm_pipe->plane_res.dpp = pool->dpps[next_odm_pipe->pipe_idx];
+	next_odm_pipe->plane_res.mpcc_inst = pool->dpps[next_odm_pipe->pipe_idx]->inst;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	next_odm_pipe->stream_res.dsc = NULL;
+#endif
+	if (prev_odm_pipe->next_odm_pipe && prev_odm_pipe->next_odm_pipe != next_odm_pipe) {
+		ASSERT(!next_odm_pipe->next_odm_pipe);
+		next_odm_pipe->next_odm_pipe = prev_odm_pipe->next_odm_pipe;
+		next_odm_pipe->next_odm_pipe->prev_odm_pipe = next_odm_pipe;
+	}
+	prev_odm_pipe->next_odm_pipe = next_odm_pipe;
+	next_odm_pipe->prev_odm_pipe = prev_odm_pipe;
+	ASSERT(next_odm_pipe->top_pipe == NULL);
+
+	if (prev_odm_pipe->plane_state) {
+		/* HACTIVE halved for odm combine */
+		sd->h_active /= 2;
+		/* Copy scl_data to secondary pipe */
+		next_odm_pipe->plane_res.scl_data = *sd;
+
+		/* Calculate new vp and recout for left pipe */
+		/* Need at least 16 pixels width per side */
+		if (sd->recout.x + 16 >= sd->h_active)
+			return false;
+		new_width = sd->h_active - sd->recout.x;
+		sd->viewport.width -= dc_fixpt_floor(dc_fixpt_mul_int(
+				sd->ratios.horz, sd->recout.width - new_width));
+		sd->viewport_c.width -= dc_fixpt_floor(dc_fixpt_mul_int(
+				sd->ratios.horz_c, sd->recout.width - new_width));
+		sd->recout.width = new_width;
+
+		/* Calculate new vp and recout for right pipe */
+		sd = &next_odm_pipe->plane_res.scl_data;
+		new_width = sd->recout.width + sd->recout.x - sd->h_active;
+		/* Need at least 16 pixels width per side */
+		if (new_width <= 16)
+			return false;
+		sd->viewport.width -= dc_fixpt_floor(dc_fixpt_mul_int(
+				sd->ratios.horz, sd->recout.width - new_width));
+		sd->viewport_c.width -= dc_fixpt_floor(dc_fixpt_mul_int(
+				sd->ratios.horz_c, sd->recout.width - new_width));
+		sd->recout.width = new_width;
+		sd->viewport.x += dc_fixpt_floor(dc_fixpt_mul_int(
+				sd->ratios.horz, sd->h_active - sd->recout.x));
+		sd->viewport_c.x += dc_fixpt_floor(dc_fixpt_mul_int(
+				sd->ratios.horz_c, sd->h_active - sd->recout.x));
+		sd->recout.x = 0;
+	}
+	next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (next_odm_pipe->stream->timing.flags.DSC == 1) {
+		acquire_dsc(res_ctx, pool, &next_odm_pipe->stream_res.dsc);
+		ASSERT(next_odm_pipe->stream_res.dsc);
+		if (next_odm_pipe->stream_res.dsc == NULL)
+			return false;
+	}
+#endif
+
+	return true;
+}
+
+static void dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct pipe_ctx *primary_pipe,
-		struct pipe_ctx *secondary_pipe,
-		bool is_odm_combine)
+		struct pipe_ctx *secondary_pipe)
 {
 	int pipe_idx = secondary_pipe->pipe_idx;
-	struct scaler_data *sd = &primary_pipe->plane_res.scl_data;
 	struct pipe_ctx *sec_bot_pipe = secondary_pipe->bottom_pipe;
-	int new_width;
 
 	*secondary_pipe = *primary_pipe;
 	secondary_pipe->bottom_pipe = sec_bot_pipe;
@@ -1628,57 +1705,9 @@ static bool dcn20_split_stream_for_combine(
 	primary_pipe->bottom_pipe = secondary_pipe;
 	secondary_pipe->top_pipe = primary_pipe;
 
-	if (is_odm_combine) {
-		if (primary_pipe->plane_state) {
-			/* HACTIVE halved for odm combine */
-			sd->h_active /= 2;
-			/* Copy scl_data to secondary pipe */
-			secondary_pipe->plane_res.scl_data = *sd;
-
-			/* Calculate new vp and recout for left pipe */
-			/* Need at least 16 pixels width per side */
-			if (sd->recout.x + 16 >= sd->h_active)
-				return false;
-			new_width = sd->h_active - sd->recout.x;
-			sd->viewport.width -= dc_fixpt_floor(dc_fixpt_mul_int(
-					sd->ratios.horz, sd->recout.width - new_width));
-			sd->viewport_c.width -= dc_fixpt_floor(dc_fixpt_mul_int(
-					sd->ratios.horz_c, sd->recout.width - new_width));
-			sd->recout.width = new_width;
-
-			/* Calculate new vp and recout for right pipe */
-			sd = &secondary_pipe->plane_res.scl_data;
-			new_width = sd->recout.width + sd->recout.x - sd->h_active;
-			/* Need at least 16 pixels width per side */
-			if (new_width <= 16)
-				return false;
-			sd->viewport.width -= dc_fixpt_floor(dc_fixpt_mul_int(
-					sd->ratios.horz, sd->recout.width - new_width));
-			sd->viewport_c.width -= dc_fixpt_floor(dc_fixpt_mul_int(
-					sd->ratios.horz_c, sd->recout.width - new_width));
-			sd->recout.width = new_width;
-			sd->viewport.x += dc_fixpt_floor(dc_fixpt_mul_int(
-					sd->ratios.horz, sd->h_active - sd->recout.x));
-			sd->viewport_c.x += dc_fixpt_floor(dc_fixpt_mul_int(
-					sd->ratios.horz_c, sd->h_active - sd->recout.x));
-			sd->recout.x = 0;
-		}
-		secondary_pipe->stream_res.opp = pool->opps[secondary_pipe->pipe_idx];
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-		if (secondary_pipe->stream->timing.flags.DSC == 1) {
-			acquire_dsc(res_ctx, pool, &secondary_pipe->stream_res.dsc);
-			ASSERT(secondary_pipe->stream_res.dsc);
-			if (secondary_pipe->stream_res.dsc == NULL)
-				return false;
-		}
-#endif
-	} else {
-		ASSERT(primary_pipe->plane_state);
-		resource_build_scaling_params(primary_pipe);
-		resource_build_scaling_params(secondary_pipe);
-	}
-
-	return true;
+	ASSERT(primary_pipe->plane_state);
+	resource_build_scaling_params(primary_pipe);
+	resource_build_scaling_params(secondary_pipe);
 }
 
 void dcn20_populate_dml_writeback_from_context(
@@ -2108,20 +2137,24 @@ static bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 		struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
 		struct dc_stream_state *stream = pipe_ctx->stream;
 		struct dsc_config dsc_cfg;
+		struct pipe_ctx *odm_pipe;
+		int opp_cnt = 1;
+
+		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+			opp_cnt++;
 
 		/* Only need to validate top pipe */
-		if (pipe_ctx->top_pipe || !stream || !stream->timing.flags.DSC)
+		if (pipe_ctx->top_pipe || pipe_ctx->prev_odm_pipe || !stream || !stream->timing.flags.DSC)
 			continue;
 
-		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left
-				+ stream->timing.h_border_right;
+		dsc_cfg.pic_width = (stream->timing.h_addressable + stream->timing.h_border_left
+				+ stream->timing.h_border_right) / opp_cnt;
 		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top
 				+ stream->timing.v_border_bottom;
-		if (dc_res_get_odm_bottom_pipe(pipe_ctx))
-			dsc_cfg.pic_width /= 2;
 		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
+		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
 
 		if (!pipe_ctx->stream_res.dsc->funcs->dsc_validate_stream(pipe_ctx->stream_res.dsc, &dsc_cfg))
 			return false;
@@ -2145,9 +2178,17 @@ static struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		 * if this primary pipe has a bottom pipe in prev. state
 		 * and if the bottom pipe is still available (which it should be),
 		 * pick that pipe as secondary
+		 * Same logic applies for ODM pipes. Since mpo is not allowed with odm
+		 * check in else case.
 		 */
 		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
 			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
+			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
+				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
+				secondary_pipe->pipe_idx = preferred_pipe_idx;
+			}
+		} else if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe) {
+			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
 				secondary_pipe->pipe_idx = preferred_pipe_idx;
@@ -2222,6 +2263,38 @@ bool dcn20_fast_validate_bw(
 	if (!pipes)
 		return false;
 
+	/* merge previously split odm pipes since mode support needs to make the decision */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *odm_pipe = pipe->next_odm_pipe;
+
+		if (pipe->prev_odm_pipe)
+			continue;
+
+		pipe->next_odm_pipe = NULL;
+		while (odm_pipe) {
+			struct pipe_ctx *next_odm_pipe = odm_pipe->next_odm_pipe;
+
+			odm_pipe->plane_state = NULL;
+			odm_pipe->stream = NULL;
+			odm_pipe->top_pipe = NULL;
+			odm_pipe->bottom_pipe = NULL;
+			odm_pipe->prev_odm_pipe = NULL;
+			odm_pipe->next_odm_pipe = NULL;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+			if (odm_pipe->stream_res.dsc)
+				release_dsc(&context->res_ctx, dc->res_pool, &odm_pipe->stream_res.dsc);
+#endif
+			/* Clear plane_res and stream_res */
+			memset(&odm_pipe->plane_res, 0, sizeof(odm_pipe->plane_res));
+			memset(&odm_pipe->stream_res, 0, sizeof(odm_pipe->stream_res));
+			odm_pipe = next_odm_pipe;
+		}
+		if (pipe->plane_state)
+			resource_build_scaling_params(pipe);
+	}
+
+	/* merge previously mpc split pipes since mode support needs to make the decision */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *hsplit_pipe = pipe->bottom_pipe;
@@ -2229,7 +2302,6 @@ bool dcn20_fast_validate_bw(
 		if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state)
 			continue;
 
-		/* merge previously split pipe since mode support needs to make the decision */
 		pipe->bottom_pipe = hsplit_pipe->bottom_pipe;
 		if (hsplit_pipe->bottom_pipe)
 			hsplit_pipe->bottom_pipe->top_pipe = pipe;
@@ -2237,10 +2309,7 @@ bool dcn20_fast_validate_bw(
 		hsplit_pipe->stream = NULL;
 		hsplit_pipe->top_pipe = NULL;
 		hsplit_pipe->bottom_pipe = NULL;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-		if (hsplit_pipe->stream_res.dsc && hsplit_pipe->stream_res.dsc != pipe->stream_res.dsc)
-			release_dsc(&context->res_ctx, dc->res_pool, &hsplit_pipe->stream_res.dsc);
-#endif
+
 		/* Clear plane_res and stream_res */
 		memset(&hsplit_pipe->plane_res, 0, sizeof(hsplit_pipe->plane_res));
 		memset(&hsplit_pipe->stream_res, 0, sizeof(hsplit_pipe->stream_res));
@@ -2353,10 +2422,9 @@ bool dcn20_fast_validate_bw(
 		if (!pipe->top_pipe && !pipe->plane_state && context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]) {
 			hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 			ASSERT(hsplit_pipe);
-			if (!dcn20_split_stream_for_combine(
+			if (!dcn20_split_stream_for_odm(
 					&context->res_ctx, dc->res_pool,
-					pipe, hsplit_pipe,
-					true))
+					pipe, hsplit_pipe))
 				goto validate_fail;
 			pipe_split_from[hsplit_pipe->pipe_idx] = pipe_idx;
 			dcn20_build_mapped_resource(dc, context, pipe->stream);
@@ -2397,11 +2465,15 @@ bool dcn20_fast_validate_bw(
 				if (!hsplit_pipe)
 					continue;
 
-				if (!dcn20_split_stream_for_combine(
+				if (context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]) {
+					if (!dcn20_split_stream_for_odm(
+							&context->res_ctx, dc->res_pool,
+							pipe, hsplit_pipe))
+						goto validate_fail;
+				} else
+					dcn20_split_stream_for_mpc(
 						&context->res_ctx, dc->res_pool,
-						pipe, hsplit_pipe,
-						context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]))
-					goto validate_fail;
+						pipe, hsplit_pipe);
 				pipe_split_from[hsplit_pipe->pipe_idx] = pipe_idx;
 			}
 		} else if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {

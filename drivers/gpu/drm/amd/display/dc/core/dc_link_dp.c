@@ -3095,14 +3095,19 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				controller_test_pattern, color_depth);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
-			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+			struct pipe_ctx *odm_pipe;
+			int opp_cnt = 1;
 
-			if (bot_odm_pipe) {
-				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				opp_cnt++;
 
-				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
-				width /= 2;
-				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+			width /= opp_cnt;
+
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
+
+				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
+				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					controller_test_pattern,
 					color_depth,
 					NULL,
@@ -3131,14 +3136,18 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				color_depth);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
-			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+			struct pipe_ctx *odm_pipe;
+			int opp_cnt = 1;
 
-			if (bot_odm_pipe) {
-				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				opp_cnt++;
 
-				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
-				width /= 2;
-				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+			width /= opp_cnt;
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
+
+				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
+				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 					color_depth,
 					NULL,

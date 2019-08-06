@@ -297,6 +297,8 @@ struct pipe_ctx {
 
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;
+	struct pipe_ctx *next_odm_pipe;
+	struct pipe_ctx *prev_odm_pipe;
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;

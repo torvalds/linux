@@ -91,7 +91,7 @@ struct encoder_unblank_param {
 	struct dc_link_settings link_settings;
 	struct dc_crtc_timing timing;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
-	bool odm;
+	int opp_cnt;
 #endif
 };
 

@@ -179,7 +179,4 @@ void update_audio_usage(
 
 unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
 
-struct pipe_ctx *dc_res_get_odm_bottom_pipe(struct pipe_ctx *pipe_ctx);
-bool dc_res_is_odm_head_pipe(struct pipe_ctx *pipe_ctx);
-
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

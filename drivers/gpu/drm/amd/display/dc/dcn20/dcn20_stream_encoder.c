@@ -460,7 +460,7 @@ void enc2_stream_encoder_dp_unblank(
 		uint64_t m_vid_l = n_vid;
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
-		if (is_two_pixels_per_containter(&param->timing) || param->odm) {
+		if (is_two_pixels_per_containter(&param->timing) || param->opp_cnt) {
 			/*this logic should be the same in get_pixel_clock_parameters() */
 			n_multiply = 1;
 		}

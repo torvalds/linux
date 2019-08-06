@@ -2537,7 +2537,7 @@ struct pipe_ctx *find_top_pipe_for_stream(
 		if (pipe_ctx->stream != stream)
 			continue;
 
-		if (!pipe_ctx->top_pipe)
+		if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe)
 			return pipe_ctx;
 	}
 	return NULL;

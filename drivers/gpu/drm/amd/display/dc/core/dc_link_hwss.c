@@ -275,7 +275,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (pipes[i].stream != NULL &&
-			!pipes[i].top_pipe &&
+			!pipes[i].top_pipe && !pipes[i].prev_odm_pipe &&
 			pipes[i].stream->link != NULL &&
 			pipes[i].stream_res.stream_enc != NULL) {
 			udelay(100);
@@ -381,7 +381,11 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+	struct pipe_ctx *odm_pipe;
+	int opp_cnt = 1;
+
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+		opp_cnt++;
 
 	if (enable) {
 		struct dsc_config dsc_cfg;
@@ -389,26 +393,24 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		enum optc_dsc_mode optc_dsc_mode;
 
 		/* Enable DSC hw block */
-		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+		dsc_cfg.pic_width = (stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right) / opp_cnt;
 		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
 		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
+		ASSERT(dsc_cfg.dc_dsc_cfg.num_slices_h % opp_cnt == 0);
+		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
 
-		if (odm_pipe) {
-			struct display_stream_compressor *bot_dsc = odm_pipe->stream_res.dsc;
+		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
+		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+			struct display_stream_compressor *odm_dsc = odm_pipe->stream_res.dsc;
 
-			dsc_cfg.pic_width /= 2;
-			ASSERT(dsc_cfg.dc_dsc_cfg.num_slices_h % 2 == 0);
-			dsc_cfg.dc_dsc_cfg.num_slices_h /= 2;
-			dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
-			bot_dsc->funcs->dsc_set_config(bot_dsc, &dsc_cfg, &dsc_optc_cfg);
-			dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
-			bot_dsc->funcs->dsc_enable(bot_dsc, odm_pipe->stream_res.opp->inst);
-		} else {
-			dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
-			dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
+			odm_dsc->funcs->dsc_set_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg);
+			odm_dsc->funcs->dsc_enable(odm_dsc, odm_pipe->stream_res.opp->inst);
 		}
+		dsc_cfg.dc_dsc_cfg.num_slices_h *= opp_cnt;
+		dsc_cfg.pic_width *= opp_cnt;
 
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
 
@@ -449,7 +451,7 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		/* disable DSC block */
 		pipe_ctx->stream_res.dsc->funcs->dsc_disable(pipe_ctx->stream_res.dsc);
-		if (odm_pipe)
+		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 			odm_pipe->stream_res.dsc->funcs->dsc_disable(odm_pipe->stream_res.dsc);
 	}
 }
