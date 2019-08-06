@@ -492,10 +492,10 @@ static void dw8250_setup_port(struct uart_port *p)
 
 static int dw8250_probe(struct platform_device *pdev)
 {
-	struct uart_8250_port uart = {};
+	struct uart_8250_port uart = {}, *up = &uart;
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
-	struct uart_port *p = &uart.port;
+	struct uart_port *p = &up->port;
 	struct device *dev = &pdev->dev;
 	struct dw8250_data *data;
 	int err;
@@ -634,10 +634,10 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (p->fifosize) {
 		data->dma.rxconf.src_maxburst = p->fifosize / 4;
 		data->dma.txconf.dst_maxburst = p->fifosize / 4;
-		uart.dma = &data->dma;
+		up->dma = &data->dma;
 	}
 
-	data->line = serial8250_register_8250_port(&uart);
+	data->line = serial8250_register_8250_port(up);
 	if (data->line < 0) {
 		err = data->line;
 		goto err_reset;
