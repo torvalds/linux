@@ -24,6 +24,13 @@
 #define PCI_DEVICE_ID_INTEL_BSW_UART1	0x228a
 #define PCI_DEVICE_ID_INTEL_BSW_UART2	0x228c
 
+#define PCI_DEVICE_ID_INTEL_EHL_UART0	0x4b96
+#define PCI_DEVICE_ID_INTEL_EHL_UART1	0x4b97
+#define PCI_DEVICE_ID_INTEL_EHL_UART2	0x4b98
+#define PCI_DEVICE_ID_INTEL_EHL_UART3	0x4b99
+#define PCI_DEVICE_ID_INTEL_EHL_UART4	0x4b9a
+#define PCI_DEVICE_ID_INTEL_EHL_UART5	0x4b9b
+
 #define PCI_DEVICE_ID_INTEL_BDW_UART1	0x9ce3
 #define PCI_DEVICE_ID_INTEL_BDW_UART2	0x9ce4
 
@@ -349,6 +356,11 @@ static const struct lpss8250_board byt_board = {
 	.setup = byt_serial_setup,
 };
 
+static const struct lpss8250_board ehl_board = {
+	.freq = 200000000,
+	.base_baud = 12500000,
+};
+
 static const struct lpss8250_board qrk_board = {
 	.freq = 44236800,
 	.base_baud = 2764800,
@@ -358,6 +370,12 @@ static const struct lpss8250_board qrk_board = {
 
 static const struct pci_device_id pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, QRK_UARTx, &qrk_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART0, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART1, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART2, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART3, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART4, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART5, &ehl_board) },
 	{ PCI_DEVICE_DATA(INTEL, BYT_UART1, &byt_board) },
 	{ PCI_DEVICE_DATA(INTEL, BYT_UART2, &byt_board) },
 	{ PCI_DEVICE_DATA(INTEL, BSW_UART1, &byt_board) },
