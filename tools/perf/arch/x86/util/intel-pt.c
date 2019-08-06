@@ -548,6 +548,26 @@ static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 					evsel->core.attr.config);
 }
 
+/*
+ * Currently, there is not enough information to disambiguate different PEBS
+ * events, so only allow one.
+ */
+static bool intel_pt_too_many_aux_output(struct evlist *evlist)
+{
+	struct evsel *evsel;
+	int aux_output_cnt = 0;
+
+	evlist__for_each_entry(evlist, evsel)
+		aux_output_cnt += !!evsel->core.attr.aux_output;
+
+	if (aux_output_cnt > 1) {
+		pr_err(INTEL_PT_PMU_NAME " supports at most one event with aux-output\n");
+		return true;
+	}
+
+	return false;
+}
+
 static int intel_pt_recording_options(struct auxtrace_record *itr,
 				      struct evlist *evlist,
 				      struct record_opts *opts)
@@ -587,6 +607,9 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		pr_err("Cannot use clockid (-k option) with " INTEL_PT_PMU_NAME "\n");
 		return -EINVAL;
 	}
+
+	if (intel_pt_too_many_aux_output(evlist))
+		return -EINVAL;
 
 	if (!opts->full_auxtrace)
 		return 0;

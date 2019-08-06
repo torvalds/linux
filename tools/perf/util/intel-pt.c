@@ -2894,6 +2894,22 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	return 0;
 }
 
+static void intel_pt_setup_pebs_events(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+
+	if (!pt->synth_opts.other_events)
+		return;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (evsel->core.attr.aux_output && evsel->id) {
+			pt->sample_pebs = true;
+			pt->pebs_evsel = evsel;
+			return;
+		}
+	}
+}
+
 static struct evsel *intel_pt_find_sched_switch(struct evlist *evlist)
 {
 	struct evsel *evsel;
@@ -3262,6 +3278,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	err = intel_pt_synth_events(pt, session);
 	if (err)
 		goto err_delete_thread;
+
+	intel_pt_setup_pebs_events(pt);
 
 	err = auxtrace_queues__process_index(&pt->queues, session);
 	if (err)
