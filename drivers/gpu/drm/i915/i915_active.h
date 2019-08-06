@@ -369,9 +369,16 @@ i915_active_request_retire(struct i915_active_request *active,
  * synchronisation.
  */
 
-void i915_active_init(struct drm_i915_private *i915,
-		      struct i915_active *ref,
-		      void (*retire)(struct i915_active *ref));
+void __i915_active_init(struct drm_i915_private *i915,
+			struct i915_active *ref,
+			int (*active)(struct i915_active *ref),
+			void (*retire)(struct i915_active *ref),
+			struct lock_class_key *key);
+#define i915_active_init(i915, ref, active, retire) do {		\
+	static struct lock_class_key __key;				\
+									\
+	__i915_active_init(i915, ref, active, retire, &__key);		\
+} while (0)
 
 int i915_active_ref(struct i915_active *ref,
 		    u64 timeline,
@@ -384,20 +391,17 @@ int i915_request_await_active(struct i915_request *rq,
 int i915_request_await_active_request(struct i915_request *rq,
 				      struct i915_active_request *active);
 
-bool i915_active_acquire(struct i915_active *ref);
-
-static inline void i915_active_cancel(struct i915_active *ref)
-{
-	GEM_BUG_ON(ref->count != 1);
-	ref->count = 0;
-}
-
+int i915_active_acquire(struct i915_active *ref);
 void i915_active_release(struct i915_active *ref);
+void __i915_active_release_nested(struct i915_active *ref, int subclass);
+
+bool i915_active_trygrab(struct i915_active *ref);
+void i915_active_ungrab(struct i915_active *ref);
 
 static inline bool
 i915_active_is_idle(const struct i915_active *ref)
 {
-	return !ref->count;
+	return !atomic_read(&ref->count);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)

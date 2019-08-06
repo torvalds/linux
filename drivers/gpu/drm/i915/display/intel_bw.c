@@ -65,7 +65,7 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 					 struct intel_qgv_point *sp,
 					 int point)
 {
-	u32 val = 0, val2;
+	u32 val = 0, val2 = 0;
 	int ret;
 
 	ret = sandybridge_pcode_read(dev_priv,

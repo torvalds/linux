@@ -102,10 +102,8 @@ static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 	/*
 	 * Also there is software busyness tracking available we do not
 	 * need the timer for I915_SAMPLE_BUSY counter.
-	 *
-	 * Use RCS as proxy for all engines.
 	 */
-	else if (intel_engine_supports_stats(i915->engine[RCS0]))
+	else if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
 		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*

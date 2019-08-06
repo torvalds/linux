@@ -33,15 +33,15 @@
 
 struct mock_ring {
 	struct intel_ring base;
-	struct i915_timeline timeline;
+	struct intel_timeline timeline;
 };
 
-static void mock_timeline_pin(struct i915_timeline *tl)
+static void mock_timeline_pin(struct intel_timeline *tl)
 {
 	tl->pin_count++;
 }
 
-static void mock_timeline_unpin(struct i915_timeline *tl)
+static void mock_timeline_unpin(struct intel_timeline *tl)
 {
 	GEM_BUG_ON(!tl->pin_count);
 	tl->pin_count--;
@@ -56,7 +56,7 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	if (!ring)
 		return NULL;
 
-	if (i915_timeline_init(engine->i915, &ring->timeline, NULL)) {
+	if (intel_timeline_init(&ring->timeline, engine->gt, NULL)) {
 		kfree(ring);
 		return NULL;
 	}
@@ -78,7 +78,7 @@ static void mock_ring_free(struct intel_ring *base)
 {
 	struct mock_ring *ring = container_of(base, typeof(*ring), base);
 
-	i915_timeline_fini(&ring->timeline);
+	intel_timeline_fini(&ring->timeline);
 	kfree(ring);
 }
 
@@ -142,6 +142,7 @@ static void mock_context_destroy(struct kref *ref)
 	if (ce->ring)
 		mock_ring_free(ce->ring);
 
+	intel_context_fini(ce);
 	intel_context_free(ce);
 }
 
@@ -155,7 +156,7 @@ static int mock_context_pin(struct intel_context *ce)
 			return -ENOMEM;
 	}
 
-	ret = intel_context_active_acquire(ce, PIN_HIGH);
+	ret = intel_context_active_acquire(ce);
 	if (ret)
 		return ret;
 
@@ -257,6 +258,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 	/* minimal engine setup for requests */
 	engine->base.i915 = i915;
+	engine->base.gt = &i915->gt;
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
 	engine->base.id = id;
 	engine->base.mask = BIT(id);

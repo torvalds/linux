@@ -9,6 +9,8 @@
 
 #include <linux/types.h>
 
+struct intel_gt;
+
 /**
  * struct intel_wopcm - Overall WOPCM info and WOPCM regions.
  * @size: Size of overall WOPCM.
@@ -41,6 +43,6 @@ static inline u32 intel_wopcm_guc_size(struct intel_wopcm *wopcm)
 
 void intel_wopcm_init_early(struct intel_wopcm *wopcm);
 int intel_wopcm_init(struct intel_wopcm *wopcm);
-int intel_wopcm_init_hw(struct intel_wopcm *wopcm);
+int intel_wopcm_init_hw(struct intel_wopcm *wopcm, struct intel_gt *gt);
 
 #endif

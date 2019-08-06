@@ -7,7 +7,9 @@
 #ifndef _I915_ACTIVE_TYPES_H_
 #define _I915_ACTIVE_TYPES_H_
 
+#include <linux/atomic.h>
 #include <linux/llist.h>
+#include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
 
@@ -24,13 +26,20 @@ struct i915_active_request {
 	i915_active_retire_fn retire;
 };
 
+struct active_node;
+
 struct i915_active {
 	struct drm_i915_private *i915;
 
+	struct active_node *cache;
 	struct rb_root tree;
-	struct i915_active_request last;
-	unsigned int count;
+	struct mutex mutex;
+	atomic_t count;
 
+	unsigned long flags;
+#define I915_ACTIVE_GRAB_BIT 0
+
+	int (*active)(struct i915_active *ref);
 	void (*retire)(struct i915_active *ref);
 
 	struct llist_head barriers;

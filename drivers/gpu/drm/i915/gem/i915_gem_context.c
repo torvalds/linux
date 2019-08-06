@@ -316,7 +316,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	mutex_destroy(&ctx->engines_mutex);
 
 	if (ctx->timeline)
-		i915_timeline_put(ctx->timeline);
+		intel_timeline_put(ctx->timeline);
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
@@ -459,8 +459,7 @@ __create_context(struct drm_i915_private *i915)
 	i915_gem_context_set_recoverable(ctx);
 
 	ctx->ring_size = 4 * PAGE_SIZE;
-	ctx->desc_template =
-		default_desc_template(i915, &i915->mm.aliasing_ppgtt->vm);
+	ctx->desc_template = default_desc_template(i915, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
@@ -476,9 +475,17 @@ static struct i915_address_space *
 __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
 	struct i915_address_space *old = ctx->vm;
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
 
 	ctx->vm = i915_vm_get(vm);
 	ctx->desc_template = default_desc_template(ctx->i915, vm);
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		i915_vm_put(ce->vm);
+		ce->vm = i915_vm_get(vm);
+	}
+	i915_gem_context_unlock_engines(ctx);
 
 	return old;
 }
@@ -528,9 +535,9 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 	}
 
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
-		struct i915_timeline *timeline;
+		struct intel_timeline *timeline;
 
-		timeline = i915_timeline_create(dev_priv, NULL);
+		timeline = intel_timeline_create(&dev_priv->gt, NULL);
 		if (IS_ERR(timeline)) {
 			context_close(ctx);
 			return ERR_CAST(timeline);
@@ -644,20 +651,13 @@ static void init_contexts(struct drm_i915_private *i915)
 	init_llist_head(&i915->contexts.free_list);
 }
 
-static bool needs_preempt_context(struct drm_i915_private *i915)
-{
-	return HAS_EXECLISTS(i915);
-}
-
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
-	GEM_BUG_ON(dev_priv->preempt_context);
 
-	intel_engine_init_ctx_wa(dev_priv->engine[RCS0]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */
@@ -677,15 +677,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!atomic_read(&ctx->hw_id_pin_count));
 	dev_priv->kernel_context = ctx;
 
-	/* highest priority; preempting task */
-	if (needs_preempt_context(dev_priv)) {
-		ctx = i915_gem_context_create_kernel(dev_priv, INT_MAX);
-		if (!IS_ERR(ctx))
-			dev_priv->preempt_context = ctx;
-		else
-			DRM_ERROR("Failed to create preempt context; disabling preemption\n");
-	}
-
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			 DRIVER_CAPS(dev_priv)->has_logical_contexts ?
 			 "logical" : "fake");
@@ -696,8 +687,6 @@ void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	if (i915->preempt_context)
-		destroy_kernel_context(&i915->preempt_context);
 	destroy_kernel_context(&i915->kernel_context);
 
 	/* Must free all deferred contexts (via flush_workqueue) first */
@@ -923,8 +912,12 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	if (!cb)
 		return -ENOMEM;
 
-	i915_active_init(i915, &cb->base, cb_retire);
-	i915_active_acquire(&cb->base);
+	i915_active_init(i915, &cb->base, NULL, cb_retire);
+	err = i915_active_acquire(&cb->base);
+	if (err) {
+		kfree(cb);
+		return err;
+	}
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;
@@ -1019,7 +1012,7 @@ static void set_ppgtt_barrier(void *data)
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
 {
-	struct i915_address_space *vm = rq->gem_context->vm;
+	struct i915_address_space *vm = rq->hw_context->vm;
 	struct intel_engine_cs *engine = rq->engine;
 	u32 base = engine->mmio_base;
 	u32 *cs;
@@ -1128,9 +1121,8 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 				   set_ppgtt_barrier,
 				   old);
 	if (err) {
-		ctx->vm = old;
-		ctx->desc_template = default_desc_template(ctx->i915, old);
-		i915_vm_put(vm);
+		i915_vm_put(__set_ppgtt(ctx, old));
+		i915_vm_put(old);
 	}
 
 unlock:
@@ -1187,26 +1179,11 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	/* Queue this switch after all other activity by this context. */
-	ret = i915_active_request_set(&ce->ring->timeline->last_request, rq);
-	if (ret)
-		goto out_add;
+	/* Serialise with the remote context */
+	ret = intel_context_prepare_remote_request(ce, rq);
+	if (ret == 0)
+		ret = gen8_emit_rpcs_config(rq, ce, sseu);
 
-	/*
-	 * Guarantee context image and the timeline remains pinned until the
-	 * modifying request is retired by setting the ce activity tracker.
-	 *
-	 * But we only need to take one pin on the account of it. Or in other
-	 * words transfer the pinned ce object to tracked active request.
-	 */
-	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	ret = i915_active_ref(&ce->active, rq->fence.context, rq);
-	if (ret)
-		goto out_add;
-
-	ret = gen8_emit_rpcs_config(rq, ce, sseu);
-
-out_add:
 	i915_request_add(rq);
 	return ret;
 }
@@ -2015,8 +1992,8 @@ static int clone_timeline(struct i915_gem_context *dst,
 		GEM_BUG_ON(src->timeline == dst->timeline);
 
 		if (dst->timeline)
-			i915_timeline_put(dst->timeline);
-		dst->timeline = i915_timeline_get(src->timeline);
+			intel_timeline_put(dst->timeline);
+		dst->timeline = intel_timeline_get(src->timeline);
 	}
 
 	return 0;
@@ -2141,7 +2118,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & I915_CONTEXT_CREATE_FLAGS_UNKNOWN)
 		return -EINVAL;
 
-	ret = i915_terminally_wedged(i915);
+	ret = intel_gt_terminally_wedged(&i915->gt);
 	if (ret)
 		return ret;
 
@@ -2287,8 +2264,8 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->size = 0;
 		if (ctx->vm)
 			args->value = ctx->vm->total;
-		else if (to_i915(dev)->mm.aliasing_ppgtt)
-			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
+		else if (to_i915(dev)->ggtt.alias)
+			args->value = to_i915(dev)->ggtt.alias->vm.total;
 		else
 			args->value = to_i915(dev)->ggtt.vm.total;
 		break;

@@ -13,6 +13,7 @@
 #include <drm/drm_legacy.h> /* for drm_pci.h! */
 #include <drm/drm_pci.h>
 
+#include "gt/intel_gt.h"
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
@@ -60,7 +61,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 		vaddr += PAGE_SIZE;
 	}
 
-	i915_gem_chipset_flush(to_i915(obj->base.dev));
+	intel_gt_chipset_flush(&to_i915(obj->base.dev)->gt);
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st) {
@@ -132,16 +133,9 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 	drm_pci_free(obj->base.dev, obj->phys_handle);
 }
 
-static void
-i915_gem_object_release_phys(struct drm_i915_gem_object *obj)
-{
-	i915_gem_object_unpin_pages(obj);
-}
-
 static const struct drm_i915_gem_object_ops i915_gem_phys_ops = {
 	.get_pages = i915_gem_object_get_pages_phys,
 	.put_pages = i915_gem_object_put_pages_phys,
-	.release = i915_gem_object_release_phys,
 };
 
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
@@ -158,7 +152,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (obj->ops != &i915_gem_shmem_ops)
 		return -EINVAL;
 
-	err = i915_gem_object_unbind(obj);
+	err = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
 	if (err)
 		return err;
 

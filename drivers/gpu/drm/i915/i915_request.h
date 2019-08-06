@@ -28,6 +28,7 @@
 #include <linux/dma-fence.h>
 #include <linux/lockdep.h>
 
+#include "gt/intel_context_types.h"
 #include "gt/intel_engine_types.h"
 
 #include "i915_gem.h"
@@ -40,8 +41,8 @@
 struct drm_file;
 struct drm_i915_gem_object;
 struct i915_request;
-struct i915_timeline;
-struct i915_timeline_cacheline;
+struct intel_timeline;
+struct intel_timeline_cacheline;
 
 struct i915_capture_list {
 	struct i915_capture_list *next;
@@ -112,7 +113,7 @@ struct i915_request {
 	struct intel_engine_cs *engine;
 	struct intel_context *hw_context;
 	struct intel_ring *ring;
-	struct i915_timeline *timeline;
+	struct intel_timeline *timeline;
 	struct list_head signal_link;
 
 	/*
@@ -175,7 +176,7 @@ struct i915_request {
 	 * inside the timeline's HWSP vma, but it is only valid while this
 	 * request has not completed and guarded by the timeline mutex.
 	 */
-	struct i915_timeline_cacheline *hwsp_cacheline;
+	struct intel_timeline_cacheline *hwsp_cacheline;
 
 	/** Position in the ring of the start of the request */
 	u32 head;
@@ -215,7 +216,9 @@ struct i915_request {
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
-	bool waitboost;
+	unsigned long flags;
+#define I915_REQUEST_WAITBOOST BIT(0)
+#define I915_REQUEST_NOPREEMPT BIT(1)
 
 	/** timeline->request entry for this request */
 	struct list_head link;
@@ -427,6 +430,17 @@ static inline bool i915_request_completed(const struct i915_request *rq)
 static inline void i915_request_mark_complete(struct i915_request *rq)
 {
 	rq->hwsp_seqno = (u32 *)&rq->fence.seqno; /* decouple from HWSP */
+}
+
+static inline bool i915_request_has_waitboost(const struct i915_request *rq)
+{
+	return rq->flags & I915_REQUEST_WAITBOOST;
+}
+
+static inline bool i915_request_has_nopreempt(const struct i915_request *rq)
+{
+	/* Preemption should only be disabled very rarely */
+	return unlikely(rq->flags & I915_REQUEST_NOPREEMPT);
 }
 
 bool i915_retire_requests(struct drm_i915_private *i915);

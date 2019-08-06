@@ -81,7 +81,7 @@ i915_gem_object_lookup(struct drm_file *file, u32 handle)
 }
 
 __deprecated
-extern struct drm_gem_object *
+struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
 __attribute__((nonnull))
@@ -156,12 +156,6 @@ static inline bool
 i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_ASYNC_CANCEL;
-}
-
-static inline bool
-i915_gem_object_is_active(const struct drm_i915_gem_object *obj)
-{
-	return READ_ONCE(obj->active_count);
 }
 
 static inline bool

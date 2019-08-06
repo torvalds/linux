@@ -3,6 +3,7 @@
  *
  * Copyright © 2018 Intel Corporation
  */
+#include "gt/intel_gt.h"
 
 #include "gem/selftests/igt_gem_utils.h"
 
@@ -18,6 +19,7 @@ int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
 
 	memset(spin, 0, sizeof(*spin));
 	spin->i915 = i915;
+	spin->gt = &i915->gt;
 
 	spin->hws = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(spin->hws)) {
@@ -94,6 +96,8 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	u32 *batch;
 	int err;
 
+	spin->gt = engine->gt;
+
 	vma = i915_vma_instance(spin->obj, ctx->vm, NULL);
 	if (IS_ERR(vma))
 		return ERR_CAST(vma);
@@ -138,7 +142,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	*batch++ = upper_32_bits(vma->node.start);
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
 
-	i915_gem_chipset_flush(spin->i915);
+	intel_gt_chipset_flush(engine->gt);
 
 	if (engine->emit_init_breadcrumb &&
 	    rq->timeline->has_initial_breadcrumb) {
@@ -172,7 +176,7 @@ hws_seqno(const struct igt_spinner *spin, const struct i915_request *rq)
 void igt_spinner_end(struct igt_spinner *spin)
 {
 	*spin->batch = MI_BATCH_BUFFER_END;
-	i915_gem_chipset_flush(spin->i915);
+	intel_gt_chipset_flush(spin->gt);
 }
 
 void igt_spinner_fini(struct igt_spinner *spin)

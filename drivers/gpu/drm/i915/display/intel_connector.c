@@ -118,7 +118,7 @@ int intel_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto err;
 
-	if (i915_inject_load_failure()) {
+	if (i915_inject_probe_failure()) {
 		ret = -EFAULT;
 		goto err_backlight;
 	}

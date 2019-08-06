@@ -6,6 +6,8 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gt/intel_gt.h"
+
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 
@@ -242,12 +244,15 @@ static bool always_valid(struct drm_i915_private *i915)
 
 static bool needs_fence_registers(struct drm_i915_private *i915)
 {
-	return !i915_terminally_wedged(i915);
+	return !intel_gt_is_wedged(&i915->gt);
 }
 
 static bool needs_mi_store_dword(struct drm_i915_private *i915)
 {
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
+		return false;
+
+	if (!HAS_ENGINE(i915, RCS0))
 		return false;
 
 	return intel_engine_can_store_dword(i915->engine[RCS0]);

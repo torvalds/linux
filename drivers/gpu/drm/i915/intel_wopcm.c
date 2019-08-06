@@ -74,7 +74,7 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 {
 	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
 
-	if (!HAS_GUC(i915))
+	if (!HAS_GT_UC(i915))
 		return;
 
 	if (INTEL_GEN(i915) >= 11)
@@ -164,8 +164,8 @@ static inline int check_hw_restriction(struct drm_i915_private *i915,
 int intel_wopcm_init(struct intel_wopcm *wopcm)
 {
 	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
-	u32 guc_fw_size = intel_uc_fw_get_upload_size(&i915->guc.fw);
-	u32 huc_fw_size = intel_uc_fw_get_upload_size(&i915->huc.fw);
+	u32 guc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.guc.fw);
+	u32 huc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.huc.fw);
 	u32 ctx_rsvd = context_reserved_size(i915);
 	u32 guc_wopcm_base;
 	u32 guc_wopcm_size;
@@ -177,7 +177,7 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 
 	GEM_BUG_ON(!wopcm->size);
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -E2BIG;
 
 	if (guc_fw_size >= wopcm->size) {
@@ -225,17 +225,18 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	return 0;
 }
 
-static inline int write_and_verify(struct drm_i915_private *dev_priv,
-				   i915_reg_t reg, u32 val, u32 mask,
-				   u32 locked_bit)
+static int
+write_and_verify(struct intel_gt *gt,
+		 i915_reg_t reg, u32 val, u32 mask, u32 locked_bit)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	u32 reg_val;
 
 	GEM_BUG_ON(val & ~mask);
 
-	I915_WRITE(reg, val);
+	intel_uncore_write(uncore, reg, val);
 
-	reg_val = I915_READ(reg);
+	reg_val = intel_uncore_read(uncore, reg);
 
 	return (reg_val & mask) != (val | locked_bit) ? -EIO : 0;
 }
@@ -243,6 +244,7 @@ static inline int write_and_verify(struct drm_i915_private *dev_priv,
 /**
  * intel_wopcm_init_hw() - Setup GuC WOPCM registers.
  * @wopcm: pointer to intel_wopcm.
+ * @gt: pointer to the containing GT
  *
  * Setup the GuC WOPCM size and offset registers with the calculated values. It
  * will verify the register values to make sure the registers are locked with
@@ -250,29 +252,30 @@ static inline int write_and_verify(struct drm_i915_private *dev_priv,
  *
  * Return: 0 on success. -EIO if registers were locked with incorrect values.
  */
-int intel_wopcm_init_hw(struct intel_wopcm *wopcm)
+int intel_wopcm_init_hw(struct intel_wopcm *wopcm, struct intel_gt *gt)
 {
-	struct drm_i915_private *dev_priv = wopcm_to_i915(wopcm);
+	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
+	struct intel_uncore *uncore = gt->uncore;
 	u32 huc_agent;
 	u32 mask;
 	int err;
 
-	if (!USES_GUC(dev_priv))
+	if (!USES_GUC(i915))
 		return 0;
 
-	GEM_BUG_ON(!HAS_GUC(dev_priv));
+	GEM_BUG_ON(!HAS_GT_UC(i915));
 	GEM_BUG_ON(!wopcm->guc.size);
 	GEM_BUG_ON(!wopcm->guc.base);
 
-	err = write_and_verify(dev_priv, GUC_WOPCM_SIZE, wopcm->guc.size,
+	err = write_and_verify(gt, GUC_WOPCM_SIZE, wopcm->guc.size,
 			       GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED,
 			       GUC_WOPCM_SIZE_LOCKED);
 	if (err)
 		goto err_out;
 
-	huc_agent = USES_HUC(dev_priv) ? HUC_LOADING_AGENT_GUC : 0;
+	huc_agent = USES_HUC(i915) ? HUC_LOADING_AGENT_GUC : 0;
 	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID | huc_agent;
-	err = write_and_verify(dev_priv, DMA_GUC_WOPCM_OFFSET,
+	err = write_and_verify(gt, DMA_GUC_WOPCM_OFFSET,
 			       wopcm->guc.base | huc_agent, mask,
 			       GUC_WOPCM_OFFSET_VALID);
 	if (err)
@@ -283,8 +286,9 @@ int intel_wopcm_init_hw(struct intel_wopcm *wopcm)
 err_out:
 	DRM_ERROR("Failed to init WOPCM registers:\n");
 	DRM_ERROR("DMA_GUC_WOPCM_OFFSET=%#x\n",
-		  I915_READ(DMA_GUC_WOPCM_OFFSET));
-	DRM_ERROR("GUC_WOPCM_SIZE=%#x\n", I915_READ(GUC_WOPCM_SIZE));
+		  intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET));
+	DRM_ERROR("GUC_WOPCM_SIZE=%#x\n",
+		  intel_uncore_read(uncore, GUC_WOPCM_SIZE));
 
 	return err;
 }

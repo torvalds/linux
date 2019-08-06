@@ -14,8 +14,11 @@
 #include "i915_request.h"
 #include "i915_selftest.h"
 
+struct intel_gt;
+
 struct igt_spinner {
 	struct drm_i915_private *i915;
+	struct intel_gt *gt;
 	struct drm_i915_gem_object *hws;
 	struct drm_i915_gem_object *obj;
 	u32 *batch;

@@ -101,20 +101,30 @@ struct intel_fbdev {
 	struct mutex hpd_lock;
 };
 
+enum intel_hotplug_state {
+	INTEL_HOTPLUG_UNCHANGED,
+	INTEL_HOTPLUG_CHANGED,
+	INTEL_HOTPLUG_RETRY,
+};
+
 struct intel_encoder {
 	struct drm_encoder base;
 
 	enum intel_output_type type;
 	enum port port;
 	unsigned int cloneable;
-	bool (*hotplug)(struct intel_encoder *encoder,
-			struct intel_connector *connector);
+	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
+					    struct intel_connector *connector,
+					    bool irq_received);
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
 						      struct intel_crtc_state *,
 						      struct drm_connector_state *);
 	int (*compute_config)(struct intel_encoder *,
 			      struct intel_crtc_state *,
 			      struct drm_connector_state *);
+	void (*update_prepare)(struct intel_atomic_state *,
+			       struct intel_encoder *,
+			       struct intel_crtc *);
 	void (*pre_pll_enable)(struct intel_encoder *,
 			       const struct intel_crtc_state *,
 			       const struct drm_connector_state *);
@@ -124,6 +134,9 @@ struct intel_encoder {
 	void (*enable)(struct intel_encoder *,
 		       const struct intel_crtc_state *,
 		       const struct drm_connector_state *);
+	void (*update_complete)(struct intel_atomic_state *,
+				struct intel_encoder *,
+				struct intel_crtc *);
 	void (*disable)(struct intel_encoder *,
 			const struct intel_crtc_state *,
 			const struct drm_connector_state *);
@@ -812,6 +825,15 @@ struct intel_crtc_state {
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
 	struct intel_dpll_hw_state dpll_hw_state;
 
+	/*
+	 * ICL reserved DPLLs for the CRTC/port. The active PLL is selected by
+	 * setting shared_dpll and dpll_hw_state to one of these reserved ones.
+	 */
+	struct icl_port_dpll {
+		struct intel_shared_dpll *pll;
+		struct intel_dpll_hw_state hw_state;
+	} icl_port_dplls[ICL_PORT_DPLL_COUNT];
+
 	/* DSI PLL registers */
 	struct {
 		u32 ctrl, div;
@@ -1224,8 +1246,13 @@ struct intel_digital_port {
 	/* Used for DP and ICL+ TypeC/DP and TypeC/HDMI ports. */
 	enum aux_ch aux_ch;
 	enum intel_display_power_domain ddi_io_power_domain;
+	struct mutex tc_lock;	/* protects the TypeC port mode */
+	intel_wakeref_t tc_lock_wakeref;
+	int tc_link_refcount;
 	bool tc_legacy_port:1;
-	enum tc_port_type tc_type;
+	char tc_port_name[8];
+	enum tc_port_mode tc_mode;
+	enum phy_fia tc_phy_fia;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -1473,8 +1500,8 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
-bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port);
-bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port);
+bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy);
+bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
 			      enum port port);
 int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,

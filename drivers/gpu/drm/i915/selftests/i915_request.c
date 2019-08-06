@@ -27,6 +27,8 @@
 #include "gem/i915_gem_pm.h"
 #include "gem/selftests/mock_context.h"
 
+#include "gt/intel_gt.h"
+
 #include "i915_random.h"
 #include "i915_selftest.h"
 #include "igt_live_test.h"
@@ -73,55 +75,58 @@ static int igt_wait_request(void *arg)
 		err = -ENOMEM;
 		goto out_unlock;
 	}
+	i915_request_get(request);
 
 	if (i915_request_wait(request, 0, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout before submit!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout before submit!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_completed(request)) {
 		pr_err("request completed before submit!!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	i915_request_add(request);
 
 	if (i915_request_wait(request, 0, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout after submit!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_completed(request)) {
 		pr_err("request completed immediately!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T / 2) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout!)\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T) == -ETIME) {
 		pr_err("request wait timed out!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (!i915_request_completed(request)) {
 		pr_err("request not complete after waiting!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	if (i915_request_wait(request, 0, T) == -ETIME) {
 		pr_err("request wait timed out when already complete!\n");
-		goto out_unlock;
+		goto out_request;
 	}
 
 	err = 0;
+out_request:
+	i915_request_put(request);
 out_unlock:
 	mock_device_flush(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -366,14 +371,16 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 
 		if (!wait_event_timeout(wait->wait,
 					i915_sw_fence_done(wait),
-					HZ / 2)) {
+					5 * HZ)) {
 			struct i915_request *rq = requests[count - 1];
 
-			pr_err("waiting for %d fences (last %llx:%lld) on %s timed out!\n",
-			       count,
+			pr_err("waiting for %d/%d fences (last %llx:%lld) on %s timed out!\n",
+			       atomic_read(&wait->pending), count,
 			       rq->fence.context, rq->fence.seqno,
 			       t->engine->name);
-			i915_gem_set_wedged(t->engine->i915);
+			GEM_TRACE_DUMP();
+
+			intel_gt_set_wedged(t->engine->gt);
 			GEM_BUG_ON(!i915_request_completed(rq));
 			i915_sw_fence_wait(wait);
 			err = -EIO;
@@ -622,7 +629,7 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	i915_gem_chipset_flush(i915);
+	intel_gt_chipset_flush(&i915->gt);
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
@@ -791,7 +798,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	i915_gem_chipset_flush(i915);
+	intel_gt_chipset_flush(&i915->gt);
 
 	return vma;
 
@@ -809,7 +816,7 @@ static int recursive_batch_resolve(struct i915_vma *batch)
 		return PTR_ERR(cmd);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_chipset_flush(batch->vm->i915);
+	intel_gt_chipset_flush(batch->vm->gt);
 
 	i915_gem_object_unpin_map(batch->obj);
 
@@ -1031,7 +1038,7 @@ out_request:
 					      I915_MAP_WC);
 		if (!IS_ERR(cmd)) {
 			*cmd = MI_BATCH_BUFFER_END;
-			i915_gem_chipset_flush(i915);
+			intel_gt_chipset_flush(engine->gt);
 
 			i915_gem_object_unpin_map(request[id]->batch->obj);
 		}
@@ -1227,7 +1234,7 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_breadcrumbs_smoketest),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_subtests(tests, i915);

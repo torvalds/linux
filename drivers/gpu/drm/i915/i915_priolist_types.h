@@ -17,6 +17,16 @@ enum {
 	I915_PRIORITY_NORMAL = I915_CONTEXT_DEFAULT_PRIORITY,
 	I915_PRIORITY_MAX = I915_CONTEXT_MAX_USER_PRIORITY + 1,
 
+	/*
+	 * Requests containing performance queries must not be preempted by
+	 * another context. They get scheduled with their default priority and
+	 * once they reach the execlist ports we ensure that they stick on the
+	 * HW until finished by pretending that they have maximum priority,
+	 * i.e. nothing can have higher priority and force us to usurp the
+	 * active request.
+	 */
+	I915_PRIORITY_UNPREEMPTABLE = INT_MAX,
+
 	I915_PRIORITY_INVALID = INT_MIN
 };
 

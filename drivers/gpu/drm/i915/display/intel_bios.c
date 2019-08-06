@@ -28,6 +28,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/i915_drm.h>
 
+#include "display/intel_display.h"
 #include "display/intel_gmbus.h"
 
 #include "i915_drv.h"
@@ -1354,12 +1355,27 @@ static const u8 mcc_ddc_pin_map[] = {
 	[MCC_DDC_BUS_DDI_C] = GMBUS_PIN_9_TC1_ICP,
 };
 
+static const u8 tgp_ddc_pin_map[] = {
+	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
+	[ICL_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
+	[TGL_DDC_BUS_DDI_C] = GMBUS_PIN_3_BXT,
+	[ICL_DDC_BUS_PORT_1] = GMBUS_PIN_9_TC1_ICP,
+	[ICL_DDC_BUS_PORT_2] = GMBUS_PIN_10_TC2_ICP,
+	[ICL_DDC_BUS_PORT_3] = GMBUS_PIN_11_TC3_ICP,
+	[ICL_DDC_BUS_PORT_4] = GMBUS_PIN_12_TC4_ICP,
+	[TGL_DDC_BUS_PORT_5] = GMBUS_PIN_13_TC5_TGP,
+	[TGL_DDC_BUS_PORT_6] = GMBUS_PIN_14_TC6_TGP,
+};
+
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
 	const u8 *ddc_pin_map;
 	int n_entries;
 
-	if (HAS_PCH_MCC(dev_priv)) {
+	if (HAS_PCH_TGP(dev_priv)) {
+		ddc_pin_map = tgp_ddc_pin_map;
+		n_entries = ARRAY_SIZE(tgp_ddc_pin_map);
+	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddc_pin_map = mcc_ddc_pin_map;
 		n_entries = ARRAY_SIZE(mcc_ddc_pin_map);
 	} else if (HAS_PCH_ICP(dev_priv)) {
@@ -1668,6 +1684,9 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		if (!child->device_type)
 			continue;
 
+		DRM_DEBUG_KMS("Found VBT child device with type 0x%x\n",
+			      child->device_type);
+
 		/*
 		 * Copy as much as we know (sizeof) and is available
 		 * (child_dev_size) of the child device. Accessing the data must
@@ -1730,12 +1749,13 @@ init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
 	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
 		struct ddi_vbt_port_info *info =
 			&dev_priv->vbt.ddi_port_info[port];
+		enum phy phy = intel_port_to_phy(dev_priv, port);
 
 		/*
 		 * VBT has the TypeC mode (native,TBT/USB) and we don't want
 		 * to detect it.
 		 */
-		if (intel_port_is_tc(dev_priv, port))
+		if (intel_phy_is_tc(dev_priv, phy))
 			continue;
 
 		info->supports_dvi = (port != PORT_A && port != PORT_E);
@@ -1888,10 +1908,10 @@ out:
 }
 
 /**
- * intel_bios_cleanup - Free any resources allocated by intel_bios_init()
+ * intel_bios_driver_remove - Free any resources allocated by intel_bios_init()
  * @dev_priv: i915 device instance
  */
-void intel_bios_cleanup(struct drm_i915_private *dev_priv)
+void intel_bios_driver_remove(struct drm_i915_private *dev_priv)
 {
 	kfree(dev_priv->vbt.child_dev);
 	dev_priv->vbt.child_dev = NULL;

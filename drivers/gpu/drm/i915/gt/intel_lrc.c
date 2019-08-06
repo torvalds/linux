@@ -136,9 +136,9 @@
 #include "gem/i915_gem_context.h"
 
 #include "i915_drv.h"
-#include "i915_gem_render_state.h"
 #include "i915_vgpu.h"
 #include "intel_engine_pm.h"
+#include "intel_gt.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
 #include "intel_reset.h"
@@ -160,6 +160,8 @@
 
 #define GEN8_CTX_STATUS_COMPLETED_MASK \
 	 (GEN8_CTX_STATUS_COMPLETE | GEN8_CTX_STATUS_PREEMPTED)
+
+#define CTX_DESC_FORCE_RESTORE BIT_ULL(2)
 
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
@@ -221,6 +223,26 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
+static inline u32 intel_hws_preempt_address(struct intel_engine_cs *engine)
+{
+	return (i915_ggtt_offset(engine->status_page.vma) +
+		I915_GEM_HWS_PREEMPT_ADDR);
+}
+
+static inline void
+ring_set_paused(const struct intel_engine_cs *engine, int state)
+{
+	/*
+	 * We inspect HWS_PREEMPT with a semaphore inside
+	 * engine->emit_fini_breadcrumb. If the dword is true,
+	 * the ring is paused as the semaphore will busywait
+	 * until the dword is false.
+	 */
+	engine->status_page.addr[I915_GEM_HWS_PREEMPT] = state;
+	if (state)
+		wmb();
+}
+
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
@@ -236,6 +258,17 @@ static int effective_prio(const struct i915_request *rq)
 	int prio = rq_prio(rq);
 
 	/*
+	 * If this request is special and must not be interrupted at any
+	 * cost, so be it. Note we are only checking the most recent request
+	 * in the context and so may be masking an earlier vip request. It
+	 * is hoped that under the conditions where nopreempt is used, this
+	 * will not matter (i.e. all requests to that context will be
+	 * nopreempt for as long as desired).
+	 */
+	if (i915_request_has_nopreempt(rq))
+		prio = I915_PRIORITY_UNPREEMPTABLE;
+
+	/*
 	 * On unwinding the active request, we give it a priority bump
 	 * if it has completed waiting on any semaphore. If we know that
 	 * the request has already started, we can prevent an unwanted
@@ -245,6 +278,7 @@ static int effective_prio(const struct i915_request *rq)
 		prio |= I915_PRIORITY_NOSEMAPHORE;
 
 	/* Restrict mere WAIT boosts from triggering preemption */
+	BUILD_BUG_ON(__NO_PREEMPTION & ~I915_PRIORITY_MASK); /* only internal */
 	return prio | __NO_PREEMPTION;
 }
 
@@ -271,10 +305,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 {
 	int last_prio;
 
-	if (!engine->preempt_context)
-		return false;
-
-	if (i915_request_completed(rq))
+	if (!intel_engine_has_semaphores(engine))
 		return false;
 
 	/*
@@ -338,9 +369,6 @@ __maybe_unused static inline bool
 assert_priority_queue(const struct i915_request *prev,
 		      const struct i915_request *next)
 {
-	const struct intel_engine_execlists *execlists =
-		&prev->engine->execlists;
-
 	/*
 	 * Without preemption, the prev may refer to the still active element
 	 * which we refuse to let go.
@@ -348,7 +376,7 @@ assert_priority_queue(const struct i915_request *prev,
 	 * Even with preemption, there are times when we think it is better not
 	 * to preempt and leave an ostensibly lower priority request in flight.
 	 */
-	if (port_request(execlists->port) == prev)
+	if (i915_request_is_active(prev))
 		return true;
 
 	return rq_prio(prev) >= rq_prio(next);
@@ -442,12 +470,10 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		struct intel_engine_cs *owner;
 
 		if (i915_request_completed(rq))
-			break;
+			continue; /* XXX */
 
 		__i915_request_unsubmit(rq);
 		unwind_wa_tail(rq);
-
-		GEM_BUG_ON(rq->hw_context->inflight);
 
 		/*
 		 * Push the request back into the queue for later resubmission.
@@ -468,6 +494,19 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 			list_move(&rq->sched.link, pl);
 			active = rq;
 		} else {
+			/*
+			 * Decouple the virtual breadcrumb before moving it
+			 * back to the virtual engine -- we don't want the
+			 * request to complete in the background and try
+			 * and cancel the breadcrumb on the virtual engine
+			 * (instead of the old engine where it is linked)!
+			 */
+			if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+				     &rq->fence.flags)) {
+				spin_lock(&rq->lock);
+				i915_request_cancel_breadcrumb(rq);
+				spin_unlock(&rq->lock);
+			}
 			rq->engine = owner;
 			owner->submit_request(rq);
 			active = NULL;
@@ -500,32 +539,32 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 				   status, rq);
 }
 
-inline void
-execlists_user_begin(struct intel_engine_execlists *execlists,
-		     const struct execlist_port *port)
+static inline struct i915_request *
+execlists_schedule_in(struct i915_request *rq, int idx)
 {
-	execlists_set_active_once(execlists, EXECLISTS_ACTIVE_USER);
+	struct intel_context *ce = rq->hw_context;
+	int count;
+
+	trace_i915_request_in(rq, idx);
+
+	count = intel_context_inflight_count(ce);
+	if (!count) {
+		intel_context_get(ce);
+		ce->inflight = rq->engine;
+
+		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
+		intel_engine_context_in(ce->inflight);
+	}
+
+	intel_context_inflight_inc(ce);
+	GEM_BUG_ON(intel_context_inflight(ce) != rq->engine);
+
+	return i915_request_get(rq);
 }
 
-inline void
-execlists_user_end(struct intel_engine_execlists *execlists)
+static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 {
-	execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
-}
-
-static inline void
-execlists_context_schedule_in(struct i915_request *rq)
-{
-	GEM_BUG_ON(rq->hw_context->inflight);
-
-	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
-	intel_engine_context_in(rq->engine);
-	rq->hw_context->inflight = rq->engine;
-}
-
-static void kick_siblings(struct i915_request *rq)
-{
-	struct virtual_engine *ve = to_virtual_engine(rq->hw_context->engine);
+	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 	struct i915_request *next = READ_ONCE(ve->request);
 
 	if (next && next->execution_mask & ~rq->execution_mask)
@@ -533,29 +572,42 @@ static void kick_siblings(struct i915_request *rq)
 }
 
 static inline void
-execlists_context_schedule_out(struct i915_request *rq, unsigned long status)
-{
-	rq->hw_context->inflight = NULL;
-	intel_engine_context_out(rq->engine);
-	execlists_context_status_change(rq, status);
-	trace_i915_request_out(rq);
-
-	/*
-	 * If this is part of a virtual engine, its next request may have
-	 * been blocked waiting for access to the active context. We have
-	 * to kick all the siblings again in case we need to switch (e.g.
-	 * the next request is not runnable on this engine). Hopefully,
-	 * we will already have submitted the next request before the
-	 * tasklet runs and do not need to rebuild each virtual tree
-	 * and kick everyone again.
-	 */
-	if (rq->engine != rq->hw_context->engine)
-		kick_siblings(rq);
-}
-
-static u64 execlists_update_context(struct i915_request *rq)
+execlists_schedule_out(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->hw_context;
+
+	GEM_BUG_ON(!intel_context_inflight_count(ce));
+
+	trace_i915_request_out(rq);
+
+	intel_context_inflight_dec(ce);
+	if (!intel_context_inflight_count(ce)) {
+		intel_engine_context_out(ce->inflight);
+		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+
+		/*
+		 * If this is part of a virtual engine, its next request may
+		 * have been blocked waiting for access to the active context.
+		 * We have to kick all the siblings again in case we need to
+		 * switch (e.g. the next request is not runnable on this
+		 * engine). Hopefully, we will already have submitted the next
+		 * request before the tasklet runs and do not need to rebuild
+		 * each virtual tree and kick everyone again.
+		 */
+		ce->inflight = NULL;
+		if (rq->engine != ce->engine)
+			kick_siblings(rq, ce);
+
+		intel_context_put(ce);
+	}
+
+	i915_request_put(rq);
+}
+
+static u64 execlists_update_context(const struct i915_request *rq)
+{
+	struct intel_context *ce = rq->hw_context;
+	u64 desc;
 
 	ce->lrc_reg_state[CTX_RING_TAIL + 1] =
 		intel_ring_set_tail(rq->ring, rq->tail);
@@ -576,7 +628,11 @@ static u64 execlists_update_context(struct i915_request *rq)
 	 * wmb).
 	 */
 	mb();
-	return ce->lrc_desc;
+
+	desc = ce->lrc_desc;
+	ce->lrc_desc &= ~CTX_DESC_FORCE_RESTORE;
+
+	return desc;
 }
 
 static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc, u32 port)
@@ -590,11 +646,61 @@ static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc
 	}
 }
 
+static __maybe_unused void
+trace_ports(const struct intel_engine_execlists *execlists,
+	    const char *msg,
+	    struct i915_request * const *ports)
+{
+	const struct intel_engine_cs *engine =
+		container_of(execlists, typeof(*engine), execlists);
+
+	GEM_TRACE("%s: %s { %llx:%lld%s, %llx:%lld }\n",
+		  engine->name, msg,
+		  ports[0]->fence.context,
+		  ports[0]->fence.seqno,
+		  i915_request_completed(ports[0]) ? "!" :
+		  i915_request_started(ports[0]) ? "*" :
+		  "",
+		  ports[1] ? ports[1]->fence.context : 0,
+		  ports[1] ? ports[1]->fence.seqno : 0);
+}
+
+static __maybe_unused bool
+assert_pending_valid(const struct intel_engine_execlists *execlists,
+		     const char *msg)
+{
+	struct i915_request * const *port, *rq;
+	struct intel_context *ce = NULL;
+
+	trace_ports(execlists, msg, execlists->pending);
+
+	if (execlists->pending[execlists_num_ports(execlists)])
+		return false;
+
+	for (port = execlists->pending; (rq = *port); port++) {
+		if (ce == rq->hw_context)
+			return false;
+
+		ce = rq->hw_context;
+		if (i915_request_completed(rq))
+			continue;
+
+		if (i915_active_is_idle(&ce->active))
+			return false;
+
+		if (!i915_vma_is_pinned(ce->state))
+			return false;
+	}
+
+	return ce;
+}
+
 static void execlists_submit_ports(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
-	struct execlist_port *port = execlists->port;
 	unsigned int n;
+
+	GEM_BUG_ON(!assert_pending_valid(execlists, "submit"));
 
 	/*
 	 * We can skip acquiring intel_runtime_pm_get() here as it was taken
@@ -604,7 +710,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	 * that all ELSP are drained i.e. we have processed the CSB,
 	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
 	 */
-	GEM_BUG_ON(!intel_wakeref_active(&engine->wakeref));
+	GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
 
 	/*
 	 * ELSQ note: the submit queue is not cleared after being submitted
@@ -613,38 +719,16 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	 * of elsq entries, keep this in mind before changing the loop below.
 	 */
 	for (n = execlists_num_ports(execlists); n--; ) {
-		struct i915_request *rq;
-		unsigned int count;
-		u64 desc;
+		struct i915_request *rq = execlists->pending[n];
 
-		rq = port_unpack(&port[n], &count);
-		if (rq) {
-			GEM_BUG_ON(count > !n);
-			if (!count++)
-				execlists_context_schedule_in(rq);
-			port_set(&port[n], port_pack(rq, count));
-			desc = execlists_update_context(rq);
-			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
-
-			GEM_TRACE("%s in[%d]:  ctx=%d.%d, fence %llx:%lld (current %d), prio=%d\n",
-				  engine->name, n,
-				  port[n].context_id, count,
-				  rq->fence.context, rq->fence.seqno,
-				  hwsp_seqno(rq),
-				  rq_prio(rq));
-		} else {
-			GEM_BUG_ON(!n);
-			desc = 0;
-		}
-
-		write_desc(execlists, desc, n);
+		write_desc(execlists,
+			   rq ? execlists_update_context(rq) : 0,
+			   n);
 	}
 
 	/* we need to manually load the submit queue */
 	if (execlists->ctrl_reg)
 		writel(EL_CTRL_LOAD, execlists->ctrl_reg);
-
-	execlists_clear_active(execlists, EXECLISTS_ACTIVE_HWACK);
 }
 
 static bool ctx_single_port_submission(const struct intel_context *ce)
@@ -668,64 +752,13 @@ static bool can_merge_ctx(const struct intel_context *prev,
 static bool can_merge_rq(const struct i915_request *prev,
 			 const struct i915_request *next)
 {
+	GEM_BUG_ON(prev == next);
 	GEM_BUG_ON(!assert_priority_queue(prev, next));
 
 	if (!can_merge_ctx(prev->hw_context, next->hw_context))
 		return false;
 
 	return true;
-}
-
-static void port_assign(struct execlist_port *port, struct i915_request *rq)
-{
-	GEM_BUG_ON(rq == port_request(port));
-
-	if (port_isset(port))
-		i915_request_put(port_request(port));
-
-	port_set(port, port_pack(i915_request_get(rq), port_count(port)));
-}
-
-static void inject_preempt_context(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists *execlists = &engine->execlists;
-	struct intel_context *ce = engine->preempt_context;
-	unsigned int n;
-
-	GEM_BUG_ON(execlists->preempt_complete_status !=
-		   upper_32_bits(ce->lrc_desc));
-
-	/*
-	 * Switch to our empty preempt context so
-	 * the state of the GPU is known (idle).
-	 */
-	GEM_TRACE("%s\n", engine->name);
-	for (n = execlists_num_ports(execlists); --n; )
-		write_desc(execlists, 0, n);
-
-	write_desc(execlists, ce->lrc_desc, n);
-
-	/* we need to manually load the submit queue */
-	if (execlists->ctrl_reg)
-		writel(EL_CTRL_LOAD, execlists->ctrl_reg);
-
-	execlists_clear_active(execlists, EXECLISTS_ACTIVE_HWACK);
-	execlists_set_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
-
-	(void)I915_SELFTEST_ONLY(execlists->preempt_hang.count++);
-}
-
-static void complete_preempt_context(struct intel_engine_execlists *execlists)
-{
-	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
-
-	if (inject_preempt_hang(execlists))
-		return;
-
-	execlists_cancel_port_requests(execlists);
-	__unwind_incomplete_requests(container_of(execlists,
-						  struct intel_engine_cs,
-						  execlists));
 }
 
 static void virtual_update_register_offsets(u32 *regs,
@@ -792,7 +825,7 @@ static bool virtual_matches(const struct virtual_engine *ve,
 	 * we reuse the register offsets). This is a very small
 	 * hystersis on the greedy seelction algorithm.
 	 */
-	inflight = READ_ONCE(ve->context.inflight);
+	inflight = intel_context_inflight(&ve->context);
 	if (inflight && inflight != engine)
 		return false;
 
@@ -815,13 +848,108 @@ static void virtual_xfer_breadcrumbs(struct virtual_engine *ve,
 	spin_unlock(&old->breadcrumbs.irq_lock);
 }
 
+static struct i915_request *
+last_active(const struct intel_engine_execlists *execlists)
+{
+	struct i915_request * const *last = execlists->active;
+
+	while (*last && i915_request_completed(*last))
+		last++;
+
+	return *last;
+}
+
+static void defer_request(struct i915_request *rq, struct list_head * const pl)
+{
+	LIST_HEAD(list);
+
+	/*
+	 * We want to move the interrupted request to the back of
+	 * the round-robin list (i.e. its priority level), but
+	 * in doing so, we must then move all requests that were in
+	 * flight and were waiting for the interrupted request to
+	 * be run after it again.
+	 */
+	do {
+		struct i915_dependency *p;
+
+		GEM_BUG_ON(i915_request_is_active(rq));
+		list_move_tail(&rq->sched.link, pl);
+
+		list_for_each_entry(p, &rq->sched.waiters_list, wait_link) {
+			struct i915_request *w =
+				container_of(p->waiter, typeof(*w), sched);
+
+			/* Leave semaphores spinning on the other engines */
+			if (w->engine != rq->engine)
+				continue;
+
+			/* No waiter should start before its signaler */
+			GEM_BUG_ON(i915_request_started(w) &&
+				   !i915_request_completed(rq));
+
+			GEM_BUG_ON(i915_request_is_active(w));
+			if (list_empty(&w->sched.link))
+				continue; /* Not yet submitted; unready */
+
+			if (rq_prio(w) < rq_prio(rq))
+				continue;
+
+			GEM_BUG_ON(rq_prio(w) > rq_prio(rq));
+			list_move_tail(&w->sched.link, &list);
+		}
+
+		rq = list_first_entry_or_null(&list, typeof(*rq), sched.link);
+	} while (rq);
+}
+
+static void defer_active(struct intel_engine_cs *engine)
+{
+	struct i915_request *rq;
+
+	rq = __unwind_incomplete_requests(engine);
+	if (!rq)
+		return;
+
+	defer_request(rq, i915_sched_lookup_priolist(engine, rq_prio(rq)));
+}
+
+static bool
+need_timeslice(struct intel_engine_cs *engine, const struct i915_request *rq)
+{
+	int hint;
+
+	if (!intel_engine_has_semaphores(engine))
+		return false;
+
+	if (list_is_last(&rq->sched.link, &engine->active.requests))
+		return false;
+
+	hint = max(rq_prio(list_next_entry(rq, sched.link)),
+		   engine->execlists.queue_priority_hint);
+
+	return hint >= effective_prio(rq);
+}
+
+static bool
+enable_timeslice(struct intel_engine_cs *engine)
+{
+	struct i915_request *last = last_active(&engine->execlists);
+
+	return last && need_timeslice(engine, last);
+}
+
+static void record_preemption(struct intel_engine_execlists *execlists)
+{
+	(void)I915_SELFTEST_ONLY(execlists->preempt_hang.count++);
+}
+
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct execlist_port *port = execlists->port;
-	const struct execlist_port * const last_port =
-		&execlists->port[execlists->port_mask];
-	struct i915_request *last = port_request(port);
+	struct i915_request **port = execlists->pending;
+	struct i915_request ** const last_port = port + execlists->port_mask;
+	struct i915_request *last;
 	struct rb_node *rb;
 	bool submit = false;
 
@@ -867,65 +995,100 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		break;
 	}
 
+	/*
+	 * If the queue is higher priority than the last
+	 * request in the currently active context, submit afresh.
+	 * We will resubmit again afterwards in case we need to split
+	 * the active context to interject the preemption request,
+	 * i.e. we will retrigger preemption following the ack in case
+	 * of trouble.
+	 */
+	last = last_active(execlists);
 	if (last) {
-		/*
-		 * Don't resubmit or switch until all outstanding
-		 * preemptions (lite-restore) are seen. Then we
-		 * know the next preemption status we see corresponds
-		 * to this ELSP update.
-		 */
-		GEM_BUG_ON(!execlists_is_active(execlists,
-						EXECLISTS_ACTIVE_USER));
-		GEM_BUG_ON(!port_count(&port[0]));
-
-		/*
-		 * If we write to ELSP a second time before the HW has had
-		 * a chance to respond to the previous write, we can confuse
-		 * the HW and hit "undefined behaviour". After writing to ELSP,
-		 * we must then wait until we see a context-switch event from
-		 * the HW to indicate that it has had a chance to respond.
-		 */
-		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
-			return;
-
 		if (need_preempt(engine, last, rb)) {
-			inject_preempt_context(engine);
-			return;
+			GEM_TRACE("%s: preempting last=%llx:%lld, prio=%d, hint=%d\n",
+				  engine->name,
+				  last->fence.context,
+				  last->fence.seqno,
+				  last->sched.attr.priority,
+				  execlists->queue_priority_hint);
+			record_preemption(execlists);
+
+			/*
+			 * Don't let the RING_HEAD advance past the breadcrumb
+			 * as we unwind (and until we resubmit) so that we do
+			 * not accidentally tell it to go backwards.
+			 */
+			ring_set_paused(engine, 1);
+
+			/*
+			 * Note that we have not stopped the GPU at this point,
+			 * so we are unwinding the incomplete requests as they
+			 * remain inflight and so by the time we do complete
+			 * the preemption, some of the unwound requests may
+			 * complete!
+			 */
+			__unwind_incomplete_requests(engine);
+
+			/*
+			 * If we need to return to the preempted context, we
+			 * need to skip the lite-restore and force it to
+			 * reload the RING_TAIL. Otherwise, the HW has a
+			 * tendency to ignore us rewinding the TAIL to the
+			 * end of an earlier request.
+			 */
+			last->hw_context->lrc_desc |= CTX_DESC_FORCE_RESTORE;
+			last = NULL;
+		} else if (need_timeslice(engine, last) &&
+			   !timer_pending(&engine->execlists.timer)) {
+			GEM_TRACE("%s: expired last=%llx:%lld, prio=%d, hint=%d\n",
+				  engine->name,
+				  last->fence.context,
+				  last->fence.seqno,
+				  last->sched.attr.priority,
+				  execlists->queue_priority_hint);
+
+			ring_set_paused(engine, 1);
+			defer_active(engine);
+
+			/*
+			 * Unlike for preemption, if we rewind and continue
+			 * executing the same context as previously active,
+			 * the order of execution will remain the same and
+			 * the tail will only advance. We do not need to
+			 * force a full context restore, as a lite-restore
+			 * is sufficient to resample the monotonic TAIL.
+			 *
+			 * If we switch to any other context, similarly we
+			 * will not rewind TAIL of current context, and
+			 * normal save/restore will preserve state and allow
+			 * us to later continue executing the same request.
+			 */
+			last = NULL;
+		} else {
+			/*
+			 * Otherwise if we already have a request pending
+			 * for execution after the current one, we can
+			 * just wait until the next CS event before
+			 * queuing more. In either case we will force a
+			 * lite-restore preemption event, but if we wait
+			 * we hopefully coalesce several updates into a single
+			 * submission.
+			 */
+			if (!list_is_last(&last->sched.link,
+					  &engine->active.requests))
+				return;
+
+			/*
+			 * WaIdleLiteRestore:bdw,skl
+			 * Apply the wa NOOPs to prevent
+			 * ring:HEAD == rq:TAIL as we resubmit the
+			 * request. See gen8_emit_fini_breadcrumb() for
+			 * where we prepare the padding after the
+			 * end of the request.
+			 */
+			last->tail = last->wa_tail;
 		}
-
-		/*
-		 * In theory, we could coalesce more requests onto
-		 * the second port (the first port is active, with
-		 * no preemptions pending). However, that means we
-		 * then have to deal with the possible lite-restore
-		 * of the second port (as we submit the ELSP, there
-		 * may be a context-switch) but also we may complete
-		 * the resubmission before the context-switch. Ergo,
-		 * coalescing onto the second port will cause a
-		 * preemption event, but we cannot predict whether
-		 * that will affect port[0] or port[1].
-		 *
-		 * If the second port is already active, we can wait
-		 * until the next context-switch before contemplating
-		 * new requests. The GPU will be busy and we should be
-		 * able to resubmit the new ELSP before it idles,
-		 * avoiding pipeline bubbles (momentary pauses where
-		 * the driver is unable to keep up the supply of new
-		 * work). However, we have to double check that the
-		 * priorities of the ports haven't been switch.
-		 */
-		if (port_count(&port[1]))
-			return;
-
-		/*
-		 * WaIdleLiteRestore:bdw,skl
-		 * Apply the wa NOOPs to prevent
-		 * ring:HEAD == rq:TAIL as we resubmit the
-		 * request. See gen8_emit_fini_breadcrumb() for
-		 * where we prepare the padding after the
-		 * end of the request.
-		 */
-		last->tail = last->wa_tail;
 	}
 
 	while (rb) { /* XXX virtual is always taking precedence */
@@ -955,9 +1118,24 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				continue;
 			}
 
+			if (i915_request_completed(rq)) {
+				ve->request = NULL;
+				ve->base.execlists.queue_priority_hint = INT_MIN;
+				rb_erase_cached(rb, &execlists->virtual);
+				RB_CLEAR_NODE(rb);
+
+				rq->engine = engine;
+				__i915_request_submit(rq);
+
+				spin_unlock(&ve->base.active.lock);
+
+				rb = rb_first_cached(&execlists->virtual);
+				continue;
+			}
+
 			if (last && !can_merge_rq(last, rq)) {
 				spin_unlock(&ve->base.active.lock);
-				return; /* leave this rq for another engine */
+				return; /* leave this for another */
 			}
 
 			GEM_TRACE("%s: virtual rq=%llx:%lld%s, new engine? %s\n",
@@ -1006,9 +1184,10 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			}
 
 			__i915_request_submit(rq);
-			trace_i915_request_in(rq, port_index(port, execlists));
-			submit = true;
-			last = rq;
+			if (!i915_request_completed(rq)) {
+				submit = true;
+				last = rq;
+			}
 		}
 
 		spin_unlock(&ve->base.active.lock);
@@ -1021,6 +1200,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
+			if (i915_request_completed(rq))
+				goto skip;
+
 			/*
 			 * Can we combine this request with the current port?
 			 * It has to be the same context/ringbuffer and not
@@ -1060,19 +1242,14 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				    ctx_single_port_submission(rq->hw_context))
 					goto done;
 
-
-				if (submit)
-					port_assign(port, last);
+				*port = execlists_schedule_in(last, port - execlists->pending);
 				port++;
-
-				GEM_BUG_ON(port_isset(port));
 			}
-
-			__i915_request_submit(rq);
-			trace_i915_request_in(rq, port_index(port, execlists));
 
 			last = rq;
 			submit = true;
+skip:
+			__i915_request_submit(rq);
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
@@ -1097,54 +1274,32 @@ done:
 	 * interrupt for secondary ports).
 	 */
 	execlists->queue_priority_hint = queue_prio(execlists);
+	GEM_TRACE("%s: queue_priority_hint:%d, submit:%s\n",
+		  engine->name, execlists->queue_priority_hint,
+		  yesno(submit));
 
 	if (submit) {
-		port_assign(port, last);
+		*port = execlists_schedule_in(last, port - execlists->pending);
+		memset(port + 1, 0, (last_port - port) * sizeof(*port));
 		execlists_submit_ports(engine);
+	} else {
+		ring_set_paused(engine, 0);
 	}
-
-	/* We must always keep the beast fed if we have work piled up */
-	GEM_BUG_ON(rb_first_cached(&execlists->queue) &&
-		   !port_isset(execlists->port));
-
-	/* Re-evaluate the executing context setup after each preemptive kick */
-	if (last)
-		execlists_user_begin(execlists, execlists->port);
-
-	/* If the engine is now idle, so should be the flag; and vice versa. */
-	GEM_BUG_ON(execlists_is_active(&engine->execlists,
-				       EXECLISTS_ACTIVE_USER) ==
-		   !port_isset(engine->execlists.port));
 }
 
 void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 {
-	struct execlist_port *port = execlists->port;
-	unsigned int num_ports = execlists_num_ports(execlists);
+	struct i915_request * const *port, *rq;
 
-	while (num_ports-- && port_isset(port)) {
-		struct i915_request *rq = port_request(port);
+	for (port = execlists->pending; (rq = *port); port++)
+		execlists_schedule_out(rq);
+	memset(execlists->pending, 0, sizeof(execlists->pending));
 
-		GEM_TRACE("%s:port%u fence %llx:%lld, (current %d)\n",
-			  rq->engine->name,
-			  (unsigned int)(port - execlists->port),
-			  rq->fence.context, rq->fence.seqno,
-			  hwsp_seqno(rq));
-
-		GEM_BUG_ON(!execlists->active);
-		execlists_context_schedule_out(rq,
-					       i915_request_completed(rq) ?
-					       INTEL_CONTEXT_SCHEDULE_OUT :
-					       INTEL_CONTEXT_SCHEDULE_PREEMPTED);
-
-		i915_request_put(rq);
-
-		memset(port, 0, sizeof(*port));
-		port++;
-	}
-
-	execlists_clear_all_active(execlists);
+	for (port = execlists->active; (rq = *port); port++)
+		execlists_schedule_out(rq);
+	execlists->active =
+		memset(execlists->inflight, 0, sizeof(execlists->inflight));
 }
 
 static inline void
@@ -1160,10 +1315,33 @@ reset_in_progress(const struct intel_engine_execlists *execlists)
 	return unlikely(!__tasklet_is_enabled(&execlists->tasklet));
 }
 
+enum csb_step {
+	CSB_NOP,
+	CSB_PROMOTE,
+	CSB_PREEMPT,
+	CSB_COMPLETE,
+};
+
+static inline enum csb_step
+csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
+{
+	unsigned int status = *csb;
+
+	if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
+		return CSB_PROMOTE;
+
+	if (status & GEN8_CTX_STATUS_PREEMPTED)
+		return CSB_PREEMPT;
+
+	if (*execlists->active)
+		return CSB_COMPLETE;
+
+	return CSB_NOP;
+}
+
 static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct execlist_port *port = execlists->port;
 	const u32 * const buf = execlists->csb_status;
 	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
@@ -1198,10 +1376,6 @@ static void process_csb(struct intel_engine_cs *engine)
 	rmb();
 
 	do {
-		struct i915_request *rq;
-		unsigned int status;
-		unsigned int count;
-
 		if (++head == num_entries)
 			head = 0;
 
@@ -1223,68 +1397,39 @@ static void process_csb(struct intel_engine_cs *engine)
 		 * status notifier.
 		 */
 
-		GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x, active=0x%x\n",
+		GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x\n",
 			  engine->name, head,
-			  buf[2 * head + 0], buf[2 * head + 1],
-			  execlists->active);
+			  buf[2 * head + 0], buf[2 * head + 1]);
 
-		status = buf[2 * head];
-		if (status & (GEN8_CTX_STATUS_IDLE_ACTIVE |
-			      GEN8_CTX_STATUS_PREEMPTED))
-			execlists_set_active(execlists,
-					     EXECLISTS_ACTIVE_HWACK);
-		if (status & GEN8_CTX_STATUS_ACTIVE_IDLE)
-			execlists_clear_active(execlists,
-					       EXECLISTS_ACTIVE_HWACK);
+		switch (csb_parse(execlists, buf + 2 * head)) {
+		case CSB_PREEMPT: /* cancel old inflight, prepare for switch */
+			trace_ports(execlists, "preempted", execlists->active);
 
-		if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
-			continue;
+			while (*execlists->active)
+				execlists_schedule_out(*execlists->active++);
 
-		/* We should never get a COMPLETED | IDLE_ACTIVE! */
-		GEM_BUG_ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
+			/* fallthrough */
+		case CSB_PROMOTE: /* switch pending to inflight */
+			GEM_BUG_ON(*execlists->active);
+			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
+			execlists->active =
+				memcpy(execlists->inflight,
+				       execlists->pending,
+				       execlists_num_ports(execlists) *
+				       sizeof(*execlists->pending));
+			execlists->pending[0] = NULL;
 
-		if (status & GEN8_CTX_STATUS_COMPLETE &&
-		    buf[2*head + 1] == execlists->preempt_complete_status) {
-			GEM_TRACE("%s preempt-idle\n", engine->name);
-			complete_preempt_context(execlists);
-			continue;
-		}
+			trace_ports(execlists, "promoted", execlists->active);
 
-		if (status & GEN8_CTX_STATUS_PREEMPTED &&
-		    execlists_is_active(execlists,
-					EXECLISTS_ACTIVE_PREEMPT))
-			continue;
+			if (enable_timeslice(engine))
+				mod_timer(&execlists->timer, jiffies + 1);
 
-		GEM_BUG_ON(!execlists_is_active(execlists,
-						EXECLISTS_ACTIVE_USER));
+			if (!inject_preempt_hang(execlists))
+				ring_set_paused(engine, 0);
+			break;
 
-		rq = port_unpack(port, &count);
-		GEM_TRACE("%s out[0]: ctx=%d.%d, fence %llx:%lld (current %d), prio=%d\n",
-			  engine->name,
-			  port->context_id, count,
-			  rq ? rq->fence.context : 0,
-			  rq ? rq->fence.seqno : 0,
-			  rq ? hwsp_seqno(rq) : 0,
-			  rq ? rq_prio(rq) : 0);
-
-		/* Check the context/desc id for this event matches */
-		GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
-
-		GEM_BUG_ON(count == 0);
-		if (--count == 0) {
-			/*
-			 * On the final event corresponding to the
-			 * submission of this context, we expect either
-			 * an element-switch event or a completion
-			 * event (and on completion, the active-idle
-			 * marker). No more preemptions, lite-restore
-			 * or otherwise.
-			 */
-			GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
-			GEM_BUG_ON(port_isset(&port[1]) &&
-				   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
-			GEM_BUG_ON(!port_isset(&port[1]) &&
-				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
+		case CSB_COMPLETE: /* port0 completed, advanced to port1 */
+			trace_ports(execlists, "completed", execlists->active);
 
 			/*
 			 * We rely on the hardware being strongly
@@ -1292,22 +1437,16 @@ static void process_csb(struct intel_engine_cs *engine)
 			 * coherent (visible from the CPU) before the
 			 * user interrupt and CSB is processed.
 			 */
-			GEM_BUG_ON(!i915_request_completed(rq));
+			GEM_BUG_ON(!i915_request_completed(*execlists->active) &&
+				   !reset_in_progress(execlists));
+			execlists_schedule_out(*execlists->active++);
 
-			execlists_context_schedule_out(rq,
-						       INTEL_CONTEXT_SCHEDULE_OUT);
-			i915_request_put(rq);
+			GEM_BUG_ON(execlists->active - execlists->inflight >
+				   execlists_num_ports(execlists));
+			break;
 
-			GEM_TRACE("%s completed ctx=%d\n",
-				  engine->name, port->context_id);
-
-			port = execlists_port_complete(execlists, port);
-			if (port_isset(port))
-				execlists_user_begin(execlists, port);
-			else
-				execlists_user_end(execlists);
-		} else {
-			port_set(port, port_pack(rq, count));
+		case CSB_NOP:
+			break;
 		}
 	} while (head != tail);
 
@@ -1332,7 +1471,7 @@ static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
 	lockdep_assert_held(&engine->active.lock);
 
 	process_csb(engine);
-	if (!execlists_is_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT))
+	if (!engine->execlists.pending[0])
 		execlists_dequeue(engine);
 }
 
@@ -1345,14 +1484,18 @@ static void execlists_submission_tasklet(unsigned long data)
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	unsigned long flags;
 
-	GEM_TRACE("%s awake?=%d, active=%x\n",
-		  engine->name,
-		  !!intel_wakeref_active(&engine->wakeref),
-		  engine->execlists.active);
-
 	spin_lock_irqsave(&engine->active.lock, flags);
 	__execlists_submission_tasklet(engine);
 	spin_unlock_irqrestore(&engine->active.lock, flags);
+}
+
+static void execlists_submission_timer(struct timer_list *timer)
+{
+	struct intel_engine_cs *engine =
+		from_timer(engine, timer, execlists.timer);
+
+	/* Kick the tasklet for some interrupt coalescing and reset handling */
+	tasklet_hi_schedule(&engine->execlists.tasklet);
 }
 
 static void queue_request(struct intel_engine_cs *engine,
@@ -1376,12 +1519,16 @@ static void __submit_queue_imm(struct intel_engine_cs *engine)
 		tasklet_hi_schedule(&execlists->tasklet);
 }
 
-static void submit_queue(struct intel_engine_cs *engine, int prio)
+static void submit_queue(struct intel_engine_cs *engine,
+			 const struct i915_request *rq)
 {
-	if (prio > engine->execlists.queue_priority_hint) {
-		engine->execlists.queue_priority_hint = prio;
-		__submit_queue_imm(engine);
-	}
+	struct intel_engine_execlists *execlists = &engine->execlists;
+
+	if (rq_prio(rq) <= execlists->queue_priority_hint)
+		return;
+
+	execlists->queue_priority_hint = rq_prio(rq);
+	__submit_queue_imm(engine);
 }
 
 static void execlists_submit_request(struct i915_request *request)
@@ -1397,7 +1544,7 @@ static void execlists_submit_request(struct i915_request *request)
 	GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 	GEM_BUG_ON(list_empty(&request->sched.link));
 
-	submit_queue(engine, rq_prio(request));
+	submit_queue(engine, request);
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
@@ -1405,9 +1552,7 @@ static void execlists_submit_request(struct i915_request *request)
 static void __execlists_context_fini(struct intel_context *ce)
 {
 	intel_ring_put(ce->ring);
-
-	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
-	i915_gem_object_put(ce->state->obj);
+	i915_vma_put(ce->state);
 }
 
 static void execlists_context_destroy(struct kref *kref)
@@ -1420,6 +1565,7 @@ static void execlists_context_destroy(struct kref *kref)
 	if (ce->state)
 		__execlists_context_fini(ce);
 
+	intel_context_fini(ce);
 	intel_context_free(ce);
 }
 
@@ -1444,9 +1590,12 @@ __execlists_update_reg_state(struct intel_context *ce,
 	regs[CTX_RING_TAIL + 1] = ring->tail;
 
 	/* RPCS */
-	if (engine->class == RENDER_CLASS)
+	if (engine->class == RENDER_CLASS) {
 		regs[CTX_R_PWR_CLK_STATE + 1] =
 			intel_sseu_make_rpcs(engine->i915, &ce->sseu);
+
+		i915_oa_init_reg_state(engine, ce, regs);
+	}
 }
 
 static int
@@ -1456,19 +1605,15 @@ __execlists_context_pin(struct intel_context *ce,
 	void *vaddr;
 	int ret;
 
-	GEM_BUG_ON(!ce->gem_context->vm);
-
 	ret = execlists_context_deferred_alloc(ce, engine);
 	if (ret)
 		goto err;
 	GEM_BUG_ON(!ce->state);
 
-	ret = intel_context_active_acquire(ce,
-					   engine->i915->ggtt.pin_bias |
-					   PIN_OFFSET_BIAS |
-					   PIN_HIGH);
+	ret = intel_context_active_acquire(ce);
 	if (ret)
 		goto err;
+	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	vaddr = i915_gem_object_pin_map(ce->state->obj,
 					i915_coherent_map_type(engine->i915) |
@@ -1569,8 +1714,7 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 static int emit_pdps(struct i915_request *rq)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
-	struct i915_ppgtt * const ppgtt =
-		i915_vm_to_ppgtt(rq->gem_context->vm);
+	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(rq->hw_context->vm);
 	int err, i;
 	u32 *cs;
 
@@ -1643,7 +1787,7 @@ static int execlists_request_alloc(struct i915_request *request)
 	 */
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
-	if (i915_vm_is_4lvl(request->gem_context->vm))
+	if (i915_vm_is_4lvl(request->hw_context->vm))
 		ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
 	else
 		ret = emit_pdps(request);
@@ -1676,7 +1820,8 @@ gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 	/* NB no one else is allowed to scribble over scratch + 256! */
 	*batch++ = MI_STORE_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
-	*batch++ = i915_scratch_offset(engine->i915) + 256;
+	*batch++ = intel_gt_scratch_offset(engine->gt,
+					   INTEL_GT_SCRATCH_FIELD_COHERENTL3_WA);
 	*batch++ = 0;
 
 	*batch++ = MI_LOAD_REGISTER_IMM(1);
@@ -1690,10 +1835,17 @@ gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 
 	*batch++ = MI_LOAD_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
-	*batch++ = i915_scratch_offset(engine->i915) + 256;
+	*batch++ = intel_gt_scratch_offset(engine->gt,
+					   INTEL_GT_SCRATCH_FIELD_COHERENTL3_WA);
 	*batch++ = 0;
 
 	return batch;
+}
+
+static u32 slm_offset(struct intel_engine_cs *engine)
+{
+	return intel_gt_scratch_offset(engine->gt,
+				       INTEL_GT_SCRATCH_FIELD_CLEAR_SLM_WA);
 }
 
 /*
@@ -1727,8 +1879,7 @@ static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 				       PIPE_CONTROL_GLOBAL_GTT_IVB |
 				       PIPE_CONTROL_CS_STALL |
 				       PIPE_CONTROL_QW_WRITE,
-				       i915_scratch_offset(engine->i915) +
-				       2 * CACHELINE_BYTES);
+				       slm_offset(engine));
 
 	*batch++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 
@@ -1874,7 +2025,7 @@ static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vma = i915_vma_instance(obj, &engine->i915->ggtt.vm, NULL);
+	vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1970,22 +2121,23 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 
 static void enable_execlists(struct intel_engine_cs *engine)
 {
+	u32 mode;
+
+	assert_forcewakes_active(engine->uncore, FORCEWAKE_ALL);
+
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
 	if (INTEL_GEN(engine->i915) >= 11)
-		ENGINE_WRITE(engine,
-			     RING_MODE_GEN7,
-			     _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+		mode = _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE);
 	else
-		ENGINE_WRITE(engine,
-			     RING_MODE_GEN7,
-			     _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+		mode = _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE);
+	ENGINE_WRITE_FW(engine, RING_MODE_GEN7, mode);
 
-	ENGINE_WRITE(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
+	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 
-	ENGINE_WRITE(engine,
-		     RING_HWS_PGA,
-		     i915_ggtt_offset(engine->status_page.vma));
+	ENGINE_WRITE_FW(engine,
+			RING_HWS_PGA,
+			i915_ggtt_offset(engine->status_page.vma));
 	ENGINE_POSTING_READ(engine, RING_HWS_PGA);
 }
 
@@ -1993,7 +2145,7 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 {
 	bool unexpected = false;
 
-	if (ENGINE_READ(engine, RING_MI_MODE) & STOP_RING) {
+	if (ENGINE_READ_FW(engine, RING_MI_MODE) & STOP_RING) {
 		DRM_DEBUG_DRIVER("STOP_RING still set in RING_MI_MODE\n");
 		unexpected = true;
 	}
@@ -2041,33 +2193,31 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	__tasklet_disable_sync_once(&execlists->tasklet);
 	GEM_BUG_ON(!reset_in_progress(execlists));
 
-	intel_engine_stop_cs(engine);
-
 	/* And flush any current direct submission. */
 	spin_lock_irqsave(&engine->active.lock, flags);
 	spin_unlock_irqrestore(&engine->active.lock, flags);
+
+	/*
+	 * We stop engines, otherwise we might get failed reset and a
+	 * dead gpu (on elk). Also as modern gpu as kbl can suffer
+	 * from system hang if batchbuffer is progressing when
+	 * the reset is issued, regardless of READY_TO_RESET ack.
+	 * Thus assume it is best to stop engines on all gens
+	 * where we have a gpu reset.
+	 *
+	 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
+	 *
+	 * FIXME: Wa for more modern gens needs to be validated
+	 */
+	intel_engine_stop_cs(engine);
 }
 
-static bool lrc_regs_ok(const struct i915_request *rq)
+static void reset_csb_pointers(struct intel_engine_cs *engine)
 {
-	const struct intel_ring *ring = rq->ring;
-	const u32 *regs = rq->hw_context->lrc_reg_state;
-
-	/* Quick spot check for the common signs of context corruption */
-
-	if (regs[CTX_RING_BUFFER_CONTROL + 1] !=
-	    (RING_CTL_SIZE(ring->size) | RING_VALID))
-		return false;
-
-	if (regs[CTX_RING_BUFFER_START + 1] != i915_ggtt_offset(ring->vma))
-		return false;
-
-	return true;
-}
-
-static void reset_csb_pointers(struct intel_engine_execlists *execlists)
-{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
 	const unsigned int reset_value = execlists->csb_size - 1;
+
+	ring_set_paused(engine, 0);
 
 	/*
 	 * After a reset, the HW starts writing into CSB entry [0]. We
@@ -2115,18 +2265,21 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	process_csb(engine); /* drain preemption events */
 
 	/* Following the reset, we need to reload the CSB read/write pointers */
-	reset_csb_pointers(&engine->execlists);
+	reset_csb_pointers(engine);
 
 	/*
 	 * Save the currently executing context, even if we completed
 	 * its request, it was still running at the time of the
 	 * reset and will have been clobbered.
 	 */
-	if (!port_isset(execlists->port))
-		goto out_clear;
+	rq = execlists_active(execlists);
+	if (!rq)
+		goto unwind;
 
-	rq = port_request(execlists->port);
 	ce = rq->hw_context;
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
+	rq = active_request(rq);
 
 	/*
 	 * Catch up with any missed context-switch interrupts.
@@ -2139,9 +2292,12 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 */
 	execlists_cancel_port_requests(execlists);
 
-	rq = active_request(rq);
-	if (!rq)
+	if (!rq) {
+		ce->ring->head = ce->ring->tail;
 		goto out_replay;
+	}
+
+	ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
 
 	/*
 	 * If this request hasn't started yet, e.g. it is waiting on a
@@ -2155,7 +2311,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * Otherwise, if we have not started yet, the request should replay
 	 * perfectly and we do not need to flag the result as being erroneous.
 	 */
-	if (!i915_request_started(rq) && lrc_regs_ok(rq))
+	if (!i915_request_started(rq))
 		goto out_replay;
 
 	/*
@@ -2169,8 +2325,8 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * and have to at least restore the RING register in the context
 	 * image back to the expected values to skip over the guilty request.
 	 */
-	i915_reset_request(rq, stalled);
-	if (!stalled && lrc_regs_ok(rq))
+	__i915_request_reset(rq, stalled);
+	if (!stalled)
 		goto out_replay;
 
 	/*
@@ -2190,17 +2346,14 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	execlists_init_reg_state(regs, ce, engine, ce->ring);
 
 out_replay:
-	/* Rerun the request; its payload has been neutered (if guilty). */
-	ce->ring->head =
-		rq ? intel_ring_wrap(ce->ring, rq->head) : ce->ring->tail;
+	GEM_TRACE("%s replay {head:%04x, tail:%04x\n",
+		  engine->name, ce->ring->head, ce->ring->tail);
 	intel_ring_update_space(ce->ring);
 	__execlists_update_reg_state(ce, engine);
 
+unwind:
 	/* Push back any incomplete requests for replay after the reset. */
 	__unwind_incomplete_requests(engine);
-
-out_clear:
-	execlists_clear_all_active(execlists);
 }
 
 static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
@@ -2296,7 +2449,6 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
-	GEM_BUG_ON(port_isset(execlists->port));
 
 	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
 	execlists->tasklet.func = nop_submission_tasklet;
@@ -2434,7 +2586,8 @@ static int gen8_emit_flush_render(struct i915_request *request,
 {
 	struct intel_engine_cs *engine = request->engine;
 	u32 scratch_addr =
-		i915_scratch_offset(engine->i915) + 2 * CACHELINE_BYTES;
+		intel_gt_scratch_offset(engine->gt,
+					INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH);
 	bool vf_flush_wa = false, dc_flush_wa = false;
 	u32 *cs, flags = 0;
 	int len;
@@ -2514,15 +2667,30 @@ static u32 *gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
 	return cs;
 }
 
+static u32 *emit_preempt_busywait(struct i915_request *request, u32 *cs)
+{
+	*cs++ = MI_SEMAPHORE_WAIT |
+		MI_SEMAPHORE_GLOBAL_GTT |
+		MI_SEMAPHORE_POLL |
+		MI_SEMAPHORE_SAD_EQ_SDD;
+	*cs++ = 0;
+	*cs++ = intel_hws_preempt_address(request->engine);
+	*cs++ = 0;
+
+	return cs;
+}
+
 static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 {
 	cs = gen8_emit_ggtt_write(cs,
 				  request->fence.seqno,
 				  request->timeline->hwsp_offset,
 				  0);
-
 	*cs++ = MI_USER_INTERRUPT;
+
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	if (intel_engine_has_semaphores(request->engine))
+		cs = emit_preempt_busywait(request, cs);
 
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
@@ -2543,9 +2711,11 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 				    PIPE_CONTROL_FLUSH_ENABLE |
 				    PIPE_CONTROL_CS_STALL,
 				    0);
-
 	*cs++ = MI_USER_INTERRUPT;
+
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	if (intel_engine_has_semaphores(request->engine))
+		cs = emit_preempt_busywait(request, cs);
 
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
@@ -2553,27 +2723,9 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	return gen8_emit_wa_tail(request, cs);
 }
 
-static int gen8_init_rcs_context(struct i915_request *rq)
-{
-	int ret;
-
-	ret = intel_engine_emit_ctx_wa(rq);
-	if (ret)
-		return ret;
-
-	ret = intel_rcs_context_init_mocs(rq);
-	/*
-	 * Failing to program the MOCS is non-fatal.The system will not
-	 * run at peak performance. So generate an error and carry on.
-	 */
-	if (ret)
-		DRM_ERROR("MOCS failed to program: expect performance issues.\n");
-
-	return i915_gem_render_state_emit(rq);
-}
-
 static void execlists_park(struct intel_engine_cs *engine)
 {
+	del_timer_sync(&engine->execlists.timer);
 	intel_engine_park(engine);
 }
 
@@ -2592,11 +2744,11 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->unpark = NULL;
 
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
-	if (!intel_vgpu_active(engine->i915))
+	if (!intel_vgpu_active(engine->i915)) {
 		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
-	if (engine->preempt_context &&
-	    HAS_LOGICAL_RING_PREEMPTION(engine->i915))
-		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+	}
 }
 
 static void execlists_destroy(struct intel_engine_cs *engine)
@@ -2672,12 +2824,12 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 
 	tasklet_init(&engine->execlists.tasklet,
 		     execlists_submission_tasklet, (unsigned long)engine);
+	timer_setup(&engine->execlists.timer, execlists_submission_timer, 0);
 
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 
 	if (engine->class == RENDER_CLASS) {
-		engine->init_context = gen8_init_rcs_context;
 		engine->emit_flush = gen8_emit_flush_render;
 		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
 	}
@@ -2697,9 +2849,6 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	intel_engine_init_workarounds(engine);
-	intel_engine_init_whitelist(engine);
-
 	if (intel_init_workaround_bb(engine))
 		/*
 		 * We continue even if we fail to initialize WA batch
@@ -2718,11 +2867,6 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 			i915_mmio_reg_offset(RING_ELSP(base));
 	}
 
-	execlists->preempt_complete_status = ~0u;
-	if (engine->preempt_context)
-		execlists->preempt_complete_status =
-			upper_32_bits(engine->preempt_context->lrc_desc);
-
 	execlists->csb_status =
 		&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 
@@ -2734,7 +2878,7 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 	else
 		execlists->csb_size = GEN11_CSB_ENTRIES;
 
-	reset_csb_pointers(execlists);
+	reset_csb_pointers(engine);
 
 	return 0;
 }
@@ -2773,7 +2917,7 @@ static void execlists_init_reg_state(u32 *regs,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring)
 {
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->gem_context->vm);
+	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->vm);
 	bool rcs = engine->class == RENDER_CLASS;
 	u32 base = engine->mmio_base;
 
@@ -2864,8 +3008,6 @@ static void execlists_init_reg_state(u32 *regs,
 	if (rcs) {
 		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
 		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
-
-		i915_oa_init_reg_state(engine, ce, regs);
 	}
 
 	regs[CTX_END] = MI_BATCH_BUFFER_END;
@@ -2917,11 +3059,6 @@ populate_lr_context(struct intel_context *ce,
 	if (!engine->default_state)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
-	if (ce->gem_context == engine->i915->preempt_context &&
-	    INTEL_GEN(engine->i915) < 11)
-		regs[CTX_CONTEXT_CONTROL + 1] |=
-			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
 
 	ret = 0;
 err_unpin_ctx:
@@ -2932,12 +3069,13 @@ err_unpin_ctx:
 	return ret;
 }
 
-static struct i915_timeline *get_timeline(struct i915_gem_context *ctx)
+static struct intel_timeline *
+get_timeline(struct i915_gem_context *ctx, struct intel_gt *gt)
 {
 	if (ctx->timeline)
-		return i915_timeline_get(ctx->timeline);
+		return intel_timeline_get(ctx->timeline);
 	else
-		return i915_timeline_create(ctx->i915, NULL);
+		return intel_timeline_create(gt, NULL);
 }
 
 static int execlists_context_deferred_alloc(struct intel_context *ce,
@@ -2947,7 +3085,7 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 	struct i915_vma *vma;
 	u32 context_size;
 	struct intel_ring *ring;
-	struct i915_timeline *timeline;
+	struct intel_timeline *timeline;
 	int ret;
 
 	if (ce->state)
@@ -2965,13 +3103,13 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 	if (IS_ERR(ctx_obj))
 		return PTR_ERR(ctx_obj);
 
-	vma = i915_vma_instance(ctx_obj, &engine->i915->ggtt.vm, NULL);
+	vma = i915_vma_instance(ctx_obj, &engine->gt->ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto error_deref_obj;
 	}
 
-	timeline = get_timeline(ce->gem_context);
+	timeline = get_timeline(ce->gem_context, engine->gt);
 	if (IS_ERR(timeline)) {
 		ret = PTR_ERR(timeline);
 		goto error_deref_obj;
@@ -2980,7 +3118,7 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 	ring = intel_engine_create_ring(engine,
 					timeline,
 					ce->gem_context->ring_size);
-	i915_timeline_put(timeline);
+	intel_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
 		goto error_deref_obj;
@@ -3038,6 +3176,7 @@ static void virtual_context_destroy(struct kref *kref)
 
 	if (ve->context.state)
 		__execlists_context_fini(&ve->context);
+	intel_context_fini(&ve->context);
 
 	kfree(ve->bonds);
 	kfree(ve);
@@ -3290,11 +3429,11 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 		return ERR_PTR(-ENOMEM);
 
 	ve->base.i915 = ctx->i915;
+	ve->base.gt = siblings[0]->gt;
 	ve->base.id = -1;
 	ve->base.class = OTHER_CLASS;
 	ve->base.uabi_class = I915_ENGINE_CLASS_INVALID;
 	ve->base.instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
-	ve->base.flags = I915_ENGINE_IS_VIRTUAL;
 
 	/*
 	 * The decision on whether to submit a request using semaphores
@@ -3391,7 +3530,11 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 		ve->base.emit_fini_breadcrumb = sibling->emit_fini_breadcrumb;
 		ve->base.emit_fini_breadcrumb_dw =
 			sibling->emit_fini_breadcrumb_dw;
+
+		ve->base.flags = sibling->flags;
 	}
+
+	ve->base.flags |= I915_ENGINE_IS_VIRTUAL;
 
 	return &ve->context;
 

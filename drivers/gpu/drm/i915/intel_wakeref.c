@@ -5,7 +5,7 @@
  */
 
 #include "intel_runtime_pm.h"
-#include "i915_gem.h"
+#include "intel_wakeref.h"
 
 static void rpm_get(struct intel_runtime_pm *rpm, struct intel_wakeref *wf)
 {
@@ -17,7 +17,7 @@ static void rpm_put(struct intel_runtime_pm *rpm, struct intel_wakeref *wf)
 	intel_wakeref_t wakeref = fetch_and_zero(&wf->wakeref);
 
 	intel_runtime_pm_put(rpm, wakeref);
-	GEM_BUG_ON(!wakeref);
+	INTEL_WAKEREF_BUG_ON(!wakeref);
 }
 
 int __intel_wakeref_get_first(struct intel_runtime_pm *rpm,
@@ -48,6 +48,7 @@ int __intel_wakeref_get_first(struct intel_runtime_pm *rpm,
 	atomic_inc(&wf->count);
 	mutex_unlock(&wf->mutex);
 
+	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
 	return 0;
 }
 
@@ -115,7 +116,7 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 	if (!refcount_inc_not_zero(&wf->count)) {
 		spin_lock_irqsave(&wf->lock, flags);
 		if (!refcount_inc_not_zero(&wf->count)) {
-			GEM_BUG_ON(wf->wakeref);
+			INTEL_WAKEREF_BUG_ON(wf->wakeref);
 			wf->wakeref = intel_runtime_pm_get_if_in_use(wf->rpm);
 			refcount_set(&wf->count, 1);
 		}
@@ -134,5 +135,5 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 void intel_wakeref_auto_fini(struct intel_wakeref_auto *wf)
 {
 	intel_wakeref_auto(wf, 0);
-	GEM_BUG_ON(wf->wakeref);
+	INTEL_WAKEREF_BUG_ON(wf->wakeref);
 }

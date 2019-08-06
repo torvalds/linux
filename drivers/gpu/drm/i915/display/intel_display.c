@@ -78,6 +78,7 @@
 #include "intel_quirks.h"
 #include "intel_sideband.h"
 #include "intel_sprite.h"
+#include "intel_tc.h"
 
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {
@@ -515,9 +516,9 @@ icl_wa_scalerclkgating(struct drm_i915_private *dev_priv, enum pipe pipe,
 }
 
 static bool
-needs_modeset(const struct drm_crtc_state *state)
+needs_modeset(const struct intel_crtc_state *state)
 {
-	return drm_atomic_crtc_needs_modeset(state);
+	return drm_atomic_crtc_needs_modeset(&state->base);
 }
 
 /*
@@ -3715,10 +3716,27 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
+static bool i9xx_plane_has_windowing(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+
+	if (IS_CHERRYVIEW(dev_priv))
+		return i9xx_plane == PLANE_B;
+	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+		return false;
+	else if (IS_GEN(dev_priv, 4))
+		return i9xx_plane == PLANE_C;
+	else
+		return i9xx_plane == PLANE_B ||
+			i9xx_plane == PLANE_C;
+}
+
 static int
 i9xx_plane_check(struct intel_crtc_state *crtc_state,
 		 struct intel_plane_state *plane_state)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	int ret;
 
 	ret = chv_plane_check_rotation(plane_state);
@@ -3729,7 +3747,8 @@ i9xx_plane_check(struct intel_crtc_state *crtc_state,
 						  &crtc_state->base,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
-						  false, true);
+						  i9xx_plane_has_windowing(plane),
+						  true);
 	if (ret)
 		return ret;
 
@@ -3758,6 +3777,10 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	u32 linear_offset;
 	int x = plane_state->color_plane[0].x;
 	int y = plane_state->color_plane[0].y;
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_y = plane_state->base.dst.y1;
+	int crtc_w = drm_rect_width(&plane_state->base.dst);
+	int crtc_h = drm_rect_height(&plane_state->base.dst);
 	unsigned long irqflags;
 	u32 dspaddr_offset;
 	u32 dspcntr;
@@ -3776,18 +3799,18 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(DSPSTRIDE(i9xx_plane), plane_state->color_plane[0].stride);
 
 	if (INTEL_GEN(dev_priv) < 4) {
-		/* pipesrc and dspsize control the size that is scaled from,
-		 * which should always be the user's requested size.
+		/*
+		 * PLANE_A doesn't actually have a full window
+		 * generator but let's assume we still need to
+		 * program whatever is there.
 		 */
-		I915_WRITE_FW(DSPPOS(i9xx_plane), 0);
+		I915_WRITE_FW(DSPPOS(i9xx_plane), (crtc_y << 16) | crtc_x);
 		I915_WRITE_FW(DSPSIZE(i9xx_plane),
-			      ((crtc_state->pipe_src_h - 1) << 16) |
-			      (crtc_state->pipe_src_w - 1));
+			      ((crtc_h - 1) << 16) | (crtc_w - 1));
 	} else if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
-		I915_WRITE_FW(PRIMPOS(i9xx_plane), 0);
+		I915_WRITE_FW(PRIMPOS(i9xx_plane), (crtc_y << 16) | crtc_x);
 		I915_WRITE_FW(PRIMSIZE(i9xx_plane),
-			      ((crtc_state->pipe_src_h - 1) << 16) |
-			      (crtc_state->pipe_src_w - 1));
+			      ((crtc_h - 1) << 16) | (crtc_w - 1));
 		I915_WRITE_FW(PRIMCNSTALPHA(i9xx_plane), 0);
 	}
 
@@ -3950,10 +3973,10 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 		return PLANE_CTL_FORMAT_XRGB_8888;
+	case DRM_FORMAT_XBGR2101010:
+		return PLANE_CTL_FORMAT_XRGB_2101010 | PLANE_CTL_ORDER_RGBX;
 	case DRM_FORMAT_XRGB2101010:
 		return PLANE_CTL_FORMAT_XRGB_2101010;
-	case DRM_FORMAT_XBGR2101010:
-		return PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
 	case DRM_FORMAT_XBGR16161616F:
 	case DRM_FORMAT_ABGR16161616F:
 		return PLANE_CTL_FORMAT_XRGB_16161616F | PLANE_CTL_ORDER_RGBX;
@@ -4248,12 +4271,13 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 		return;
 
 	/* We have a modeset vs reset deadlock, defensively unbreak it. */
-	set_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags);
-	wake_up_all(&dev_priv->gpu_error.wait_queue);
+	set_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags);
+	smp_mb__after_atomic();
+	wake_up_bit(&dev_priv->gt.reset.flags, I915_RESET_MODESET);
 
 	if (atomic_read(&dev_priv->gpu_error.pending_fb_pin)) {
 		DRM_DEBUG_KMS("Modeset potentially stuck, unbreaking through wedging\n");
-		i915_gem_set_wedged(dev_priv);
+		intel_gt_set_wedged(&dev_priv->gt);
 	}
 
 	/*
@@ -4299,7 +4323,7 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	int ret;
 
 	/* reset doesn't touch the display */
-	if (!test_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags))
+	if (!test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
 		return;
 
 	state = fetch_and_zero(&dev_priv->modeset_restore_state);
@@ -4339,7 +4363,7 @@ unlock:
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	clear_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags);
+	clear_bit_unlock(I915_RESET_MODESET, &dev_priv->gt.reset.flags);
 }
 
 static void icl_set_pipe_chicken(struct intel_crtc *crtc)
@@ -5796,7 +5820,7 @@ static bool hsw_pre_update_disable_ips(const struct intel_crtc_state *old_crtc_s
 	if (!old_crtc_state->ips_enabled)
 		return false;
 
-	if (needs_modeset(&new_crtc_state->base))
+	if (needs_modeset(new_crtc_state))
 		return true;
 
 	/*
@@ -5823,7 +5847,7 @@ static bool hsw_post_update_enable_ips(const struct intel_crtc_state *old_crtc_s
 	if (!new_crtc_state->ips_enabled)
 		return false;
 
-	if (needs_modeset(&new_crtc_state->base))
+	if (needs_modeset(new_crtc_state))
 		return true;
 
 	/*
@@ -5877,13 +5901,13 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_atomic_state *old_state = old_crtc_state->base.state;
+	struct drm_atomic_state *state = old_crtc_state->base.state;
 	struct intel_crtc_state *pipe_config =
-		intel_atomic_get_new_crtc_state(to_intel_atomic_state(old_state),
+		intel_atomic_get_new_crtc_state(to_intel_atomic_state(state),
 						crtc);
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_primary_state =
-		drm_atomic_get_old_plane_state(old_state, primary);
+		drm_atomic_get_old_plane_state(state, primary);
 
 	intel_frontbuffer_flip(to_i915(crtc->base.dev), pipe_config->fb_bits);
 
@@ -5895,12 +5919,12 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 
 	if (old_primary_state) {
 		struct drm_plane_state *new_primary_state =
-			drm_atomic_get_new_plane_state(old_state, primary);
+			drm_atomic_get_new_plane_state(state, primary);
 
 		intel_fbc_post_update(crtc);
 
 		if (new_primary_state->visible &&
-		    (needs_modeset(&pipe_config->base) ||
+		    (needs_modeset(pipe_config) ||
 		     !old_primary_state->visible))
 			intel_post_enable_primary(&crtc->base, pipe_config);
 	}
@@ -5920,20 +5944,20 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_atomic_state *old_state = old_crtc_state->base.state;
+	struct drm_atomic_state *state = old_crtc_state->base.state;
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_primary_state =
-		drm_atomic_get_old_plane_state(old_state, primary);
-	bool modeset = needs_modeset(&pipe_config->base);
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
+		drm_atomic_get_old_plane_state(state, primary);
+	bool modeset = needs_modeset(pipe_config);
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(state);
 
 	if (hsw_pre_update_disable_ips(old_crtc_state, pipe_config))
 		hsw_disable_ips(old_crtc_state);
 
 	if (old_primary_state) {
 		struct intel_plane_state *new_primary_state =
-			intel_atomic_get_new_plane_state(old_intel_state,
+			intel_atomic_get_new_plane_state(intel_state,
 							 to_intel_plane(primary));
 
 		intel_fbc_pre_update(crtc, pipe_config, new_primary_state);
@@ -5984,7 +6008,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	 * If we're doing a modeset, we're done.  No need to do any pre-vblank
 	 * watermark programming here.
 	 */
-	if (needs_modeset(&pipe_config->base))
+	if (needs_modeset(pipe_config))
 		return;
 
 	/*
@@ -6002,7 +6026,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	 * us to.
 	 */
 	if (dev_priv->display.initial_watermarks != NULL)
-		dev_priv->display.initial_watermarks(old_intel_state,
+		dev_priv->display.initial_watermarks(intel_state,
 						     pipe_config);
 	else if (pipe_config->update_wm_pre)
 		intel_update_watermarks(crtc);
@@ -6036,19 +6060,111 @@ static void intel_crtc_disable_planes(struct intel_atomic_state *state,
 	intel_frontbuffer_flip(dev_priv, fb_bits);
 }
 
-static void intel_encoders_pre_pll_enable(struct drm_crtc *crtc,
+/*
+ * intel_connector_primary_encoder - get the primary encoder for a connector
+ * @connector: connector for which to return the encoder
+ *
+ * Returns the primary encoder for a connector. There is a 1:1 mapping from
+ * all connectors to their encoder, except for DP-MST connectors which have
+ * both a virtual and a primary encoder. These DP-MST primary encoders can be
+ * pointed to by as many DP-MST connectors as there are pipes.
+ */
+static struct intel_encoder *
+intel_connector_primary_encoder(struct intel_connector *connector)
+{
+	struct intel_encoder *encoder;
+
+	if (connector->mst_port)
+		return &dp_to_dig_port(connector->mst_port)->base;
+
+	encoder = intel_attached_encoder(&connector->base);
+	WARN_ON(!encoder);
+
+	return encoder;
+}
+
+static bool
+intel_connector_needs_modeset(struct intel_atomic_state *state,
+			      const struct drm_connector_state *old_conn_state,
+			      const struct drm_connector_state *new_conn_state)
+{
+	struct intel_crtc *old_crtc = old_conn_state->crtc ?
+				      to_intel_crtc(old_conn_state->crtc) : NULL;
+	struct intel_crtc *new_crtc = new_conn_state->crtc ?
+				      to_intel_crtc(new_conn_state->crtc) : NULL;
+
+	return new_crtc != old_crtc ||
+	       (new_crtc &&
+		needs_modeset(intel_atomic_get_new_crtc_state(state, new_crtc)));
+}
+
+static void intel_encoders_update_prepare(struct intel_atomic_state *state)
+{
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	for_each_oldnew_connector_in_state(&state->base, conn,
+					   old_conn_state, new_conn_state, i) {
+		struct intel_encoder *encoder;
+		struct intel_crtc *crtc;
+
+		if (!intel_connector_needs_modeset(state,
+						   old_conn_state,
+						   new_conn_state))
+			continue;
+
+		encoder = intel_connector_primary_encoder(to_intel_connector(conn));
+		if (!encoder->update_prepare)
+			continue;
+
+		crtc = new_conn_state->crtc ?
+			to_intel_crtc(new_conn_state->crtc) : NULL;
+		encoder->update_prepare(state, encoder, crtc);
+	}
+}
+
+static void intel_encoders_update_complete(struct intel_atomic_state *state)
+{
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	for_each_oldnew_connector_in_state(&state->base, conn,
+					   old_conn_state, new_conn_state, i) {
+		struct intel_encoder *encoder;
+		struct intel_crtc *crtc;
+
+		if (!intel_connector_needs_modeset(state,
+						   old_conn_state,
+						   new_conn_state))
+			continue;
+
+		encoder = intel_connector_primary_encoder(to_intel_connector(conn));
+		if (!encoder->update_complete)
+			continue;
+
+		crtc = new_conn_state->crtc ?
+			to_intel_crtc(new_conn_state->crtc) : NULL;
+		encoder->update_complete(state, encoder, crtc);
+	}
+}
+
+static void intel_encoders_pre_pll_enable(struct intel_crtc *crtc,
 					  struct intel_crtc_state *crtc_state,
-					  struct drm_atomic_state *old_state)
+					  struct intel_atomic_state *state)
 {
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
+	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
-		if (conn_state->crtc != crtc)
+		if (conn_state->crtc != &crtc->base)
 			continue;
 
 		if (encoder->pre_pll_enable)
@@ -6056,19 +6172,19 @@ static void intel_encoders_pre_pll_enable(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_encoders_pre_enable(struct drm_crtc *crtc,
+static void intel_encoders_pre_enable(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state,
-				      struct drm_atomic_state *old_state)
+				      struct intel_atomic_state *state)
 {
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
+	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
-		if (conn_state->crtc != crtc)
+		if (conn_state->crtc != &crtc->base)
 			continue;
 
 		if (encoder->pre_enable)
@@ -6076,19 +6192,19 @@ static void intel_encoders_pre_enable(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_encoders_enable(struct drm_crtc *crtc,
+static void intel_encoders_enable(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state,
-				  struct drm_atomic_state *old_state)
+				  struct intel_atomic_state *state)
 {
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
+	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
-		if (conn_state->crtc != crtc)
+		if (conn_state->crtc != &crtc->base)
 			continue;
 
 		if (encoder->enable)
@@ -6097,19 +6213,19 @@ static void intel_encoders_enable(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_encoders_disable(struct drm_crtc *crtc,
+static void intel_encoders_disable(struct intel_crtc *crtc,
 				   struct intel_crtc_state *old_crtc_state,
-				   struct drm_atomic_state *old_state)
+				   struct intel_atomic_state *state)
 {
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
+	for_each_old_connector_in_state(&state->base, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
 
-		if (old_conn_state->crtc != crtc)
+		if (old_conn_state->crtc != &crtc->base)
 			continue;
 
 		intel_opregion_notify_encoder(encoder, false);
@@ -6118,19 +6234,19 @@ static void intel_encoders_disable(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_encoders_post_disable(struct drm_crtc *crtc,
+static void intel_encoders_post_disable(struct intel_crtc *crtc,
 					struct intel_crtc_state *old_crtc_state,
-					struct drm_atomic_state *old_state)
+					struct intel_atomic_state *state)
 {
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
+	for_each_old_connector_in_state(&state->base, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
 
-		if (old_conn_state->crtc != crtc)
+		if (old_conn_state->crtc != &crtc->base)
 			continue;
 
 		if (encoder->post_disable)
@@ -6138,19 +6254,19 @@ static void intel_encoders_post_disable(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_encoders_post_pll_disable(struct drm_crtc *crtc,
+static void intel_encoders_post_pll_disable(struct intel_crtc *crtc,
 					    struct intel_crtc_state *old_crtc_state,
-					    struct drm_atomic_state *old_state)
+					    struct intel_atomic_state *state)
 {
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
+	for_each_old_connector_in_state(&state->base, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
 
-		if (old_conn_state->crtc != crtc)
+		if (old_conn_state->crtc != &crtc->base)
 			continue;
 
 		if (encoder->post_pll_disable)
@@ -6158,19 +6274,19 @@ static void intel_encoders_post_pll_disable(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_encoders_update_pipe(struct drm_crtc *crtc,
+static void intel_encoders_update_pipe(struct intel_crtc *crtc,
 				       struct intel_crtc_state *crtc_state,
-				       struct drm_atomic_state *old_state)
+				       struct intel_atomic_state *state)
 {
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
 	int i;
 
-	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
+	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
 
-		if (conn_state->crtc != crtc)
+		if (conn_state->crtc != &crtc->base)
 			continue;
 
 		if (encoder->update_pipe)
@@ -6187,15 +6303,13 @@ static void intel_disable_primary_plane(const struct intel_crtc_state *crtc_stat
 }
 
 static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
-				 struct drm_atomic_state *old_state)
+				 struct intel_atomic_state *state)
 {
 	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -6231,7 +6345,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_crtc->active = true;
 
-	intel_encoders_pre_enable(crtc, pipe_config, old_state);
+	intel_encoders_pre_enable(intel_crtc, pipe_config, state);
 
 	if (pipe_config->has_pch_encoder) {
 		/* Note: FDI PLL enabling _must_ be done before we enable the
@@ -6255,16 +6369,16 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_disable_primary_plane(pipe_config);
 
 	if (dev_priv->display.initial_watermarks != NULL)
-		dev_priv->display.initial_watermarks(old_intel_state, pipe_config);
+		dev_priv->display.initial_watermarks(state, pipe_config);
 	intel_enable_pipe(pipe_config);
 
 	if (pipe_config->has_pch_encoder)
-		ironlake_pch_enable(old_intel_state, pipe_config);
+		ironlake_pch_enable(state, pipe_config);
 
 	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
-	intel_encoders_enable(crtc, pipe_config, old_state);
+	intel_encoders_enable(intel_crtc, pipe_config, state);
 
 	if (HAS_PCH_CPT(dev_priv))
 		cpt_verify_modeset(dev, intel_crtc->pipe);
@@ -6310,33 +6424,37 @@ static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
 	u32 val;
 
 	val = MBUS_DBOX_A_CREDIT(2);
-	val |= MBUS_DBOX_BW_CREDIT(1);
-	val |= MBUS_DBOX_B_CREDIT(8);
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		val |= MBUS_DBOX_BW_CREDIT(2);
+		val |= MBUS_DBOX_B_CREDIT(12);
+	} else {
+		val |= MBUS_DBOX_BW_CREDIT(1);
+		val |= MBUS_DBOX_B_CREDIT(8);
+	}
 
 	I915_WRITE(PIPE_MBUS_DBOX_CTL(pipe), val);
 }
 
 static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
-				struct drm_atomic_state *old_state)
+				struct intel_atomic_state *state)
 {
 	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
 	bool psl_clkgate_wa;
 
 	if (WARN_ON(intel_crtc->active))
 		return;
 
-	intel_encoders_pre_pll_enable(crtc, pipe_config, old_state);
+	intel_encoders_pre_pll_enable(intel_crtc, pipe_config, state);
 
 	if (pipe_config->shared_dpll)
 		intel_enable_shared_dpll(pipe_config);
 
-	intel_encoders_pre_enable(crtc, pipe_config, old_state);
+	intel_encoders_pre_enable(intel_crtc, pipe_config, state);
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
 		intel_dp_set_m_n(pipe_config, M1_N1);
@@ -6394,7 +6512,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_ddi_enable_transcoder_func(pipe_config);
 
 	if (dev_priv->display.initial_watermarks != NULL)
-		dev_priv->display.initial_watermarks(old_intel_state, pipe_config);
+		dev_priv->display.initial_watermarks(state, pipe_config);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_pipe_mbus_enable(intel_crtc);
@@ -6404,7 +6522,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_enable_pipe(pipe_config);
 
 	if (pipe_config->has_pch_encoder)
-		lpt_pch_enable(old_intel_state, pipe_config);
+		lpt_pch_enable(state, pipe_config);
 
 	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST))
 		intel_ddi_set_vc_payload_alloc(pipe_config, true);
@@ -6412,7 +6530,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
-	intel_encoders_enable(crtc, pipe_config, old_state);
+	intel_encoders_enable(intel_crtc, pipe_config, state);
 
 	if (psl_clkgate_wa) {
 		intel_wait_for_vblank(dev_priv, pipe);
@@ -6444,7 +6562,7 @@ static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 }
 
 static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
-				  struct drm_atomic_state *old_state)
+				  struct intel_atomic_state *state)
 {
 	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_device *dev = crtc->dev;
@@ -6460,7 +6578,7 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	intel_encoders_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_disable(intel_crtc, old_crtc_state, state);
 
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
@@ -6472,7 +6590,7 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (old_crtc_state->has_pch_encoder)
 		ironlake_fdi_disable(crtc);
 
-	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_post_disable(intel_crtc, old_crtc_state, state);
 
 	if (old_crtc_state->has_pch_encoder) {
 		ironlake_disable_pch_transcoder(dev_priv, pipe);
@@ -6503,14 +6621,14 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 }
 
 static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
-				 struct drm_atomic_state *old_state)
+				 struct intel_atomic_state *state)
 {
 	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
-	intel_encoders_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_disable(intel_crtc, old_crtc_state, state);
 
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
@@ -6532,9 +6650,9 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	else
 		ironlake_pfit_disable(old_crtc_state);
 
-	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_post_disable(intel_crtc, old_crtc_state, state);
 
-	intel_encoders_post_pll_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_post_pll_disable(intel_crtc, old_crtc_state, state);
 }
 
 static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
@@ -6560,32 +6678,46 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
-bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port)
+bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 {
-	if (port == PORT_NONE)
+	if (phy == PHY_NONE)
 		return false;
 
-	if (IS_ELKHARTLAKE(dev_priv))
-		return port <= PORT_C;
+	if (IS_ELKHARTLAKE(dev_priv) || INTEL_GEN(dev_priv) >= 12)
+		return phy <= PHY_C;
 
 	if (INTEL_GEN(dev_priv) >= 11)
-		return port <= PORT_B;
+		return phy <= PHY_B;
 
 	return false;
 }
 
-bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port)
+bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
 {
+	if (INTEL_GEN(dev_priv) >= 12)
+		return phy >= PHY_D && phy <= PHY_I;
+
 	if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
-		return port >= PORT_C && port <= PORT_F;
+		return phy >= PHY_C && phy <= PHY_F;
 
 	return false;
+}
+
+enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
+{
+	if (IS_ELKHARTLAKE(i915) && port == PORT_D)
+		return PHY_A;
+
+	return (enum phy)port;
 }
 
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
 {
-	if (!intel_port_is_tc(dev_priv, port))
+	if (!intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv, port)))
 		return PORT_TC_NONE;
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		return port - PORT_D;
 
 	return port - PORT_C;
 }
@@ -6614,6 +6746,26 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
+
+	if (intel_phy_is_tc(dev_priv, phy) &&
+	    dig_port->tc_mode == TC_PORT_TBT_ALT) {
+		switch (dig_port->aux_ch) {
+		case AUX_CH_C:
+			return POWER_DOMAIN_AUX_TBT1;
+		case AUX_CH_D:
+			return POWER_DOMAIN_AUX_TBT2;
+		case AUX_CH_E:
+			return POWER_DOMAIN_AUX_TBT3;
+		case AUX_CH_F:
+			return POWER_DOMAIN_AUX_TBT4;
+		default:
+			MISSING_CASE(dig_port->aux_ch);
+			return POWER_DOMAIN_AUX_TBT1;
+		}
+	}
+
 	switch (dig_port->aux_ch) {
 	case AUX_CH_A:
 		return POWER_DOMAIN_AUX_A;
@@ -6633,14 +6785,12 @@ intel_aux_power_domain(struct intel_digital_port *dig_port)
 	}
 }
 
-static u64 get_crtc_power_domains(struct drm_crtc *crtc,
-				  struct intel_crtc_state *crtc_state)
+static u64 get_crtc_power_domains(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_encoder *encoder;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	u64 mask;
 	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
@@ -6653,7 +6803,8 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	    crtc_state->pch_pfit.force_thru)
 		mask |= BIT_ULL(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
 
-	drm_for_each_encoder_mask(encoder, dev, crtc_state->base.encoder_mask) {
+	drm_for_each_encoder_mask(encoder, &dev_priv->drm,
+				  crtc_state->base.encoder_mask) {
 		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
 		mask |= BIT_ULL(intel_encoder->power_domain);
@@ -6669,17 +6820,16 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 }
 
 static u64
-modeset_get_crtc_power_domains(struct drm_crtc *crtc,
-			       struct intel_crtc_state *crtc_state)
+modeset_get_crtc_power_domains(struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum intel_display_power_domain domain;
 	u64 domains, new_domains, old_domains;
 
-	old_domains = intel_crtc->enabled_power_domains;
-	intel_crtc->enabled_power_domains = new_domains =
-		get_crtc_power_domains(crtc, crtc_state);
+	old_domains = crtc->enabled_power_domains;
+	crtc->enabled_power_domains = new_domains =
+		get_crtc_power_domains(crtc_state);
 
 	domains = new_domains & ~old_domains;
 
@@ -6699,10 +6849,8 @@ static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
 }
 
 static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
-				   struct drm_atomic_state *old_state)
+				   struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
 	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -6729,7 +6877,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
-	intel_encoders_pre_pll_enable(crtc, pipe_config, old_state);
+	intel_encoders_pre_pll_enable(intel_crtc, pipe_config, state);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		chv_prepare_pll(intel_crtc, pipe_config);
@@ -6739,7 +6887,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 		vlv_enable_pll(intel_crtc, pipe_config);
 	}
 
-	intel_encoders_pre_enable(crtc, pipe_config, old_state);
+	intel_encoders_pre_enable(intel_crtc, pipe_config, state);
 
 	i9xx_pfit_enable(pipe_config);
 
@@ -6748,14 +6896,13 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	/* update DSPCNTR to configure gamma for pipe bottom color */
 	intel_disable_primary_plane(pipe_config);
 
-	dev_priv->display.initial_watermarks(old_intel_state,
-					     pipe_config);
+	dev_priv->display.initial_watermarks(state, pipe_config);
 	intel_enable_pipe(pipe_config);
 
 	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
-	intel_encoders_enable(crtc, pipe_config, old_state);
+	intel_encoders_enable(intel_crtc, pipe_config, state);
 }
 
 static void i9xx_set_pll_dividers(const struct intel_crtc_state *crtc_state)
@@ -6768,10 +6915,8 @@ static void i9xx_set_pll_dividers(const struct intel_crtc_state *crtc_state)
 }
 
 static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
-			     struct drm_atomic_state *old_state)
+			     struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
 	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -6796,7 +6941,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (!IS_GEN(dev_priv, 2))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
-	intel_encoders_pre_enable(crtc, pipe_config, old_state);
+	intel_encoders_pre_enable(intel_crtc, pipe_config, state);
 
 	i9xx_enable_pll(intel_crtc, pipe_config);
 
@@ -6808,7 +6953,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_disable_primary_plane(pipe_config);
 
 	if (dev_priv->display.initial_watermarks != NULL)
-		dev_priv->display.initial_watermarks(old_intel_state,
+		dev_priv->display.initial_watermarks(state,
 						     pipe_config);
 	else
 		intel_update_watermarks(intel_crtc);
@@ -6817,7 +6962,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
-	intel_encoders_enable(crtc, pipe_config, old_state);
+	intel_encoders_enable(intel_crtc, pipe_config, state);
 }
 
 static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
@@ -6836,7 +6981,7 @@ static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 }
 
 static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
-			      struct drm_atomic_state *old_state)
+			      struct intel_atomic_state *state)
 {
 	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_device *dev = crtc->dev;
@@ -6851,7 +6996,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (IS_GEN(dev_priv, 2))
 		intel_wait_for_vblank(dev_priv, pipe);
 
-	intel_encoders_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_disable(intel_crtc, old_crtc_state, state);
 
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
@@ -6860,7 +7005,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	i9xx_pfit_disable(old_crtc_state);
 
-	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_post_disable(intel_crtc, old_crtc_state, state);
 
 	if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DSI)) {
 		if (IS_CHERRYVIEW(dev_priv))
@@ -6871,7 +7016,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 			i9xx_disable_pll(old_crtc_state);
 	}
 
-	intel_encoders_post_pll_disable(crtc, old_crtc_state, old_state);
+	intel_encoders_post_pll_disable(intel_crtc, old_crtc_state, state);
 
 	if (!IS_GEN(dev_priv, 2))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
@@ -6925,7 +7070,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 
 	WARN_ON(IS_ERR(crtc_state) || ret);
 
-	dev_priv->display.crtc_disable(crtc_state, state);
+	dev_priv->display.crtc_disable(crtc_state, to_intel_atomic_state(state));
 
 	drm_atomic_state_put(state);
 
@@ -6988,7 +7133,7 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 
 /* Cross check the actual hw state with our own modeset state tracking (and it's
  * internal consistency). */
-static void intel_connector_verify_state(struct drm_crtc_state *crtc_state,
+static void intel_connector_verify_state(struct intel_crtc_state *crtc_state,
 					 struct drm_connector_state *conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
@@ -7006,7 +7151,7 @@ static void intel_connector_verify_state(struct drm_crtc_state *crtc_state,
 		if (!crtc_state)
 			return;
 
-		I915_STATE_WARN(!crtc_state->active,
+		I915_STATE_WARN(!crtc_state->base.active,
 		      "connector is active, but attached crtc isn't\n");
 
 		if (!encoder || encoder->type == INTEL_OUTPUT_DP_MST)
@@ -7018,7 +7163,7 @@ static void intel_connector_verify_state(struct drm_crtc_state *crtc_state,
 		I915_STATE_WARN(conn_state->crtc != encoder->base.crtc,
 			"attached encoder crtc differs from connector crtc\n");
 	} else {
-		I915_STATE_WARN(crtc_state && crtc_state->active,
+		I915_STATE_WARN(crtc_state && crtc_state->base.active,
 			"attached crtc is active, but connector isn't\n");
 		I915_STATE_WARN(!crtc_state && conn_state->best_encoder,
 			"best encoder set without crtc!\n");
@@ -9484,6 +9629,8 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 				       struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->base.state);
 	const struct intel_limit *limit;
 	int refclk = 120000;
 
@@ -9525,7 +9672,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 
 	ironlake_compute_dpll(crtc, crtc_state, NULL);
 
-	if (!intel_get_shared_dpll(crtc_state, NULL)) {
+	if (!intel_reserve_shared_dplls(state, crtc, NULL)) {
 		DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
 			      pipe_name(crtc->pipe));
 		return -EINVAL;
@@ -9906,7 +10053,7 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 		struct intel_encoder *encoder =
 			intel_get_crtc_new_encoder(state, crtc_state);
 
-		if (!intel_get_shared_dpll(crtc_state, encoder)) {
+		if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
 			DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
 				      pipe_name(crtc->pipe));
 			return -EINVAL;
@@ -9936,22 +10083,37 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	enum phy phy = intel_port_to_phy(dev_priv, port);
+	enum icl_port_dpll_id port_dpll_id;
 	enum intel_dpll_id id;
 	u32 temp;
 
-	/* TODO: TBT pll not implemented. */
-	if (intel_port_is_combophy(dev_priv, port)) {
-		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
-		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
-	} else if (intel_port_is_tc(dev_priv, port)) {
-		id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv, port));
+	if (intel_phy_is_combo(dev_priv, phy)) {
+		temp = I915_READ(ICL_DPCLKA_CFGCR0) &
+			ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
+		id = temp >> ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy);
+		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
+	} else if (intel_phy_is_tc(dev_priv, phy)) {
+		u32 clk_sel = I915_READ(DDI_CLK_SEL(port)) & DDI_CLK_SEL_MASK;
+
+		if (clk_sel == DDI_CLK_SEL_MG) {
+			id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv,
+								    port));
+			port_dpll_id = ICL_PORT_DPLL_MG_PHY;
+		} else {
+			WARN_ON(clk_sel < DDI_CLK_SEL_TBT_162);
+			id = DPLL_ID_ICL_TBTPLL;
+			port_dpll_id = ICL_PORT_DPLL_DEFAULT;
+		}
 	} else {
 		WARN(1, "Invalid port %x\n", port);
 		return;
 	}
 
-	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+	pipe_config->icl_port_dplls[port_dpll_id].pll =
+		intel_get_shared_dpll_by_id(dev_priv, id);
+
+	icl_set_active_port_dpll(pipe_config, port_dpll_id);
 }
 
 static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
@@ -10191,7 +10353,11 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
 
-	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
+	if (INTEL_GEN(dev_priv) >= 12)
+		port = (tmp & TGL_TRANS_DDI_PORT_MASK) >>
+			TGL_TRANS_DDI_PORT_SHIFT;
+	else
+		port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icelake_get_ddi_pll(dev_priv, port, pipe_config);
@@ -11297,7 +11463,7 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
  *
  * Returns true or false.
  */
-static bool intel_wm_need_update(struct intel_plane_state *cur,
+static bool intel_wm_need_update(const struct intel_plane_state *cur,
 				 struct intel_plane_state *new)
 {
 	/* Update watermarks on tiling or size changes. */
@@ -11329,33 +11495,28 @@ static bool needs_scaling(const struct intel_plane_state *state)
 }
 
 int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
-				    struct drm_crtc_state *crtc_state,
+				    struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *old_plane_state,
-				    struct drm_plane_state *plane_state)
+				    struct intel_plane_state *plane_state)
 {
-	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc_state);
-	struct drm_crtc *crtc = crtc_state->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *plane = to_intel_plane(plane_state->plane);
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	bool mode_changed = needs_modeset(crtc_state);
 	bool was_crtc_enabled = old_crtc_state->base.active;
-	bool is_crtc_enabled = crtc_state->active;
+	bool is_crtc_enabled = crtc_state->base.active;
 	bool turn_off, turn_on, visible, was_visible;
-	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_CURSOR) {
-		ret = skl_update_scaler_plane(
-			to_intel_crtc_state(crtc_state),
-			to_intel_plane_state(plane_state));
+		ret = skl_update_scaler_plane(crtc_state, plane_state);
 		if (ret)
 			return ret;
 	}
 
 	was_visible = old_plane_state->base.visible;
-	visible = plane_state->visible;
+	visible = plane_state->base.visible;
 
 	if (!was_crtc_enabled && WARN_ON(was_visible))
 		was_visible = false;
@@ -11371,22 +11532,22 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	 * only combine the results from all planes in the current place?
 	 */
 	if (!is_crtc_enabled) {
-		plane_state->visible = visible = false;
-		to_intel_crtc_state(crtc_state)->active_planes &= ~BIT(plane->id);
-		to_intel_crtc_state(crtc_state)->data_rate[plane->id] = 0;
+		plane_state->base.visible = visible = false;
+		crtc_state->active_planes &= ~BIT(plane->id);
+		crtc_state->data_rate[plane->id] = 0;
 	}
 
 	if (!was_visible && !visible)
 		return 0;
 
 	if (fb != old_plane_state->base.fb)
-		pipe_config->fb_changed = true;
+		crtc_state->fb_changed = true;
 
 	turn_off = was_visible && (!visible || mode_changed);
 	turn_on = visible && (!was_visible || mode_changed);
 
 	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%d:%s] with fb %i\n",
-			 intel_crtc->base.base.id, intel_crtc->base.name,
+			 crtc->base.base.id, crtc->base.name,
 			 plane->base.base.id, plane->base.name,
 			 fb ? fb->base.id : -1);
 
@@ -11397,29 +11558,28 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 
 	if (turn_on) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
-			pipe_config->update_wm_pre = true;
+			crtc_state->update_wm_pre = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
-			pipe_config->disable_cxsr = true;
+			crtc_state->disable_cxsr = true;
 	} else if (turn_off) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
-			pipe_config->update_wm_post = true;
+			crtc_state->update_wm_post = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
-			pipe_config->disable_cxsr = true;
-	} else if (intel_wm_need_update(to_intel_plane_state(plane->base.state),
-					to_intel_plane_state(plane_state))) {
+			crtc_state->disable_cxsr = true;
+	} else if (intel_wm_need_update(old_plane_state, plane_state)) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv)) {
 			/* FIXME bollocks */
-			pipe_config->update_wm_pre = true;
-			pipe_config->update_wm_post = true;
+			crtc_state->update_wm_pre = true;
+			crtc_state->update_wm_post = true;
 		}
 	}
 
 	if (visible || was_visible)
-		pipe_config->fb_bits |= plane->frontbuffer_bit;
+		crtc_state->fb_bits |= plane->frontbuffer_bit;
 
 	/*
 	 * ILK/SNB DVSACNTR/Sprite Enable
@@ -11458,8 +11618,8 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	    (IS_GEN_RANGE(dev_priv, 5, 6) ||
 	     IS_IVYBRIDGE(dev_priv)) &&
 	    (turn_on || (!needs_scaling(old_plane_state) &&
-			 needs_scaling(to_intel_plane_state(plane_state)))))
-		pipe_config->disable_lp_wm = true;
+			 needs_scaling(plane_state))))
+		crtc_state->disable_lp_wm = true;
 
 	return 0;
 }
@@ -11608,7 +11768,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc_state);
 	int ret;
-	bool mode_changed = needs_modeset(crtc_state);
+	bool mode_changed = needs_modeset(pipe_config);
 
 	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv) &&
 	    mode_changed && !crtc_state->active)
@@ -12090,6 +12250,8 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	saved_state->scaler_state = crtc_state->scaler_state;
 	saved_state->shared_dpll = crtc_state->shared_dpll;
 	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
+	memcpy(saved_state->icl_port_dplls, crtc_state->icl_port_dplls,
+	       sizeof(saved_state->icl_port_dplls));
 	saved_state->crc_enabled = crtc_state->crc_enabled;
 	if (IS_G4X(dev_priv) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
@@ -12706,10 +12868,10 @@ static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void verify_wm_state(struct drm_crtc *crtc,
-			    struct drm_crtc_state *new_state)
+static void verify_wm_state(struct intel_crtc *crtc,
+			    struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct skl_hw_state {
 		struct skl_ddb_entry ddb_y[I915_MAX_PLANES];
 		struct skl_ddb_entry ddb_uv[I915_MAX_PLANES];
@@ -12719,21 +12881,20 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	struct skl_ddb_allocation *sw_ddb;
 	struct skl_pipe_wm *sw_wm;
 	struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const enum pipe pipe = intel_crtc->pipe;
+	const enum pipe pipe = crtc->pipe;
 	int plane, level, max_level = ilk_wm_max_level(dev_priv);
 
-	if (INTEL_GEN(dev_priv) < 9 || !new_state->active)
+	if (INTEL_GEN(dev_priv) < 9 || !new_crtc_state->base.active)
 		return;
 
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw)
 		return;
 
-	skl_pipe_wm_get_hw_state(intel_crtc, &hw->wm);
-	sw_wm = &to_intel_crtc_state(new_state)->wm.skl.optimal;
+	skl_pipe_wm_get_hw_state(crtc, &hw->wm);
+	sw_wm = &new_crtc_state->wm.skl.optimal;
 
-	skl_pipe_ddb_get_hw_state(intel_crtc, hw->ddb_y, hw->ddb_uv);
+	skl_pipe_ddb_get_hw_state(crtc, hw->ddb_y, hw->ddb_uv);
 
 	skl_ddb_get_hw_state(dev_priv, &hw->ddb);
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;
@@ -12781,7 +12942,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 
 		/* DDB */
 		hw_ddb_entry = &hw->ddb_y[plane];
-		sw_ddb_entry = &to_intel_crtc_state(new_state)->wm.skl.plane_ddb_y[plane];
+		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb_y[plane];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			DRM_ERROR("mismatch in DDB state pipe %c plane %d (expected (%u,%u), found (%u,%u))\n",
@@ -12833,7 +12994,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 
 		/* DDB */
 		hw_ddb_entry = &hw->ddb_y[PLANE_CURSOR];
-		sw_ddb_entry = &to_intel_crtc_state(new_state)->wm.skl.plane_ddb_y[PLANE_CURSOR];
+		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			DRM_ERROR("mismatch in DDB state pipe %c cursor (expected (%u,%u), found (%u,%u))\n",
@@ -12847,23 +13008,22 @@ static void verify_wm_state(struct drm_crtc *crtc,
 }
 
 static void
-verify_connector_state(struct drm_device *dev,
-		       struct drm_atomic_state *state,
-		       struct drm_crtc *crtc)
+verify_connector_state(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *new_conn_state;
 	int i;
 
-	for_each_new_connector_in_state(state, connector, new_conn_state, i) {
+	for_each_new_connector_in_state(&state->base, connector, new_conn_state, i) {
 		struct drm_encoder *encoder = connector->encoder;
-		struct drm_crtc_state *crtc_state = NULL;
+		struct intel_crtc_state *crtc_state = NULL;
 
-		if (new_conn_state->crtc != crtc)
+		if (new_conn_state->crtc != &crtc->base)
 			continue;
 
 		if (crtc)
-			crtc_state = drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
+			crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
 		intel_connector_verify_state(crtc_state, new_conn_state);
 
@@ -12873,14 +13033,14 @@ verify_connector_state(struct drm_device *dev,
 }
 
 static void
-verify_encoder_state(struct drm_device *dev, struct drm_atomic_state *state)
+verify_encoder_state(struct drm_i915_private *dev_priv, struct intel_atomic_state *state)
 {
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_connector_state *old_conn_state, *new_conn_state;
 	int i;
 
-	for_each_intel_encoder(dev, encoder) {
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		bool enabled = false, found = false;
 		enum pipe pipe;
 
@@ -12888,7 +13048,7 @@ verify_encoder_state(struct drm_device *dev, struct drm_atomic_state *state)
 			      encoder->base.base.id,
 			      encoder->base.name);
 
-		for_each_oldnew_connector_in_state(state, connector, old_conn_state,
+		for_each_oldnew_connector_in_state(&state->base, connector, old_conn_state,
 						   new_conn_state, i) {
 			if (old_conn_state->best_encoder == &encoder->base)
 				found = true;
@@ -12922,50 +13082,49 @@ verify_encoder_state(struct drm_device *dev, struct drm_atomic_state *state)
 }
 
 static void
-verify_crtc_state(struct drm_crtc *crtc,
-		  struct drm_crtc_state *old_crtc_state,
-		  struct drm_crtc_state *new_crtc_state)
+verify_crtc_state(struct intel_crtc *crtc,
+		  struct intel_crtc_state *old_crtc_state,
+		  struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *pipe_config, *sw_config;
-	struct drm_atomic_state *old_state;
+	struct intel_crtc_state *pipe_config;
+	struct drm_atomic_state *state;
 	bool active;
 
-	old_state = old_crtc_state->state;
-	__drm_atomic_helper_crtc_destroy_state(old_crtc_state);
-	pipe_config = to_intel_crtc_state(old_crtc_state);
+	state = old_crtc_state->base.state;
+	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->base);
+	pipe_config = old_crtc_state;
 	memset(pipe_config, 0, sizeof(*pipe_config));
-	pipe_config->base.crtc = crtc;
-	pipe_config->base.state = old_state;
+	pipe_config->base.crtc = &crtc->base;
+	pipe_config->base.state = state;
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.base.id, crtc->base.name);
 
-	active = dev_priv->display.get_pipe_config(intel_crtc, pipe_config);
+	active = dev_priv->display.get_pipe_config(crtc, pipe_config);
 
 	/* we keep both pipes enabled on 830 */
 	if (IS_I830(dev_priv))
-		active = new_crtc_state->active;
+		active = new_crtc_state->base.active;
 
-	I915_STATE_WARN(new_crtc_state->active != active,
+	I915_STATE_WARN(new_crtc_state->base.active != active,
 	     "crtc active state doesn't match with hw state "
-	     "(expected %i, found %i)\n", new_crtc_state->active, active);
+	     "(expected %i, found %i)\n", new_crtc_state->base.active, active);
 
-	I915_STATE_WARN(intel_crtc->active != new_crtc_state->active,
+	I915_STATE_WARN(crtc->active != new_crtc_state->base.active,
 	     "transitional active state does not match atomic hw state "
-	     "(expected %i, found %i)\n", new_crtc_state->active, intel_crtc->active);
+	     "(expected %i, found %i)\n", new_crtc_state->base.active, crtc->active);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
 		enum pipe pipe;
 
 		active = encoder->get_hw_state(encoder, &pipe);
-		I915_STATE_WARN(active != new_crtc_state->active,
+		I915_STATE_WARN(active != new_crtc_state->base.active,
 			"[ENCODER:%i] active %i with crtc active %i\n",
-			encoder->base.base.id, active, new_crtc_state->active);
+			encoder->base.base.id, active, new_crtc_state->base.active);
 
-		I915_STATE_WARN(active && intel_crtc->pipe != pipe,
+		I915_STATE_WARN(active && crtc->pipe != pipe,
 				"Encoder connected to wrong pipe %c\n",
 				pipe_name(pipe));
 
@@ -12975,16 +13134,16 @@ verify_crtc_state(struct drm_crtc *crtc,
 
 	intel_crtc_compute_pixel_rate(pipe_config);
 
-	if (!new_crtc_state->active)
+	if (!new_crtc_state->base.active)
 		return;
 
 	intel_pipe_config_sanity_check(dev_priv, pipe_config);
 
-	sw_config = to_intel_crtc_state(new_crtc_state);
-	if (!intel_pipe_config_compare(sw_config, pipe_config, false)) {
+	if (!intel_pipe_config_compare(new_crtc_state,
+				       pipe_config, false)) {
 		I915_STATE_WARN(1, "pipe state doesn't match!\n");
 		intel_dump_pipe_config(pipe_config, NULL, "[hw state]");
-		intel_dump_pipe_config(sw_config, NULL, "[sw state]");
+		intel_dump_pipe_config(new_crtc_state, NULL, "[sw state]");
 	}
 }
 
@@ -13004,8 +13163,8 @@ intel_verify_planes(struct intel_atomic_state *state)
 static void
 verify_single_dpll_state(struct drm_i915_private *dev_priv,
 			 struct intel_shared_dpll *pll,
-			 struct drm_crtc *crtc,
-			 struct drm_crtc_state *new_state)
+			 struct intel_crtc *crtc,
+			 struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_dpll_hw_state dpll_hw_state;
 	unsigned int crtc_mask;
@@ -13035,16 +13194,16 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	crtc_mask = drm_crtc_mask(crtc);
+	crtc_mask = drm_crtc_mask(&crtc->base);
 
-	if (new_state->active)
+	if (new_crtc_state->base.active)
 		I915_STATE_WARN(!(pll->active_mask & crtc_mask),
 				"pll active mismatch (expected pipe %c in active mask 0x%02x)\n",
-				pipe_name(drm_crtc_index(crtc)), pll->active_mask);
+				pipe_name(drm_crtc_index(&crtc->base)), pll->active_mask);
 	else
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask 0x%02x)\n",
-				pipe_name(drm_crtc_index(crtc)), pll->active_mask);
+				pipe_name(drm_crtc_index(&crtc->base)), pll->active_mask);
 
 	I915_STATE_WARN(!(pll->state.crtc_mask & crtc_mask),
 			"pll enabled crtcs mismatch (expected 0x%x in 0x%02x)\n",
@@ -13057,51 +13216,47 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 }
 
 static void
-verify_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
-			 struct drm_crtc_state *old_crtc_state,
-			 struct drm_crtc_state *new_crtc_state)
+verify_shared_dpll_state(struct intel_crtc *crtc,
+			 struct intel_crtc_state *old_crtc_state,
+			 struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *old_state = to_intel_crtc_state(old_crtc_state);
-	struct intel_crtc_state *new_state = to_intel_crtc_state(new_crtc_state);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	if (new_state->shared_dpll)
-		verify_single_dpll_state(dev_priv, new_state->shared_dpll, crtc, new_crtc_state);
+	if (new_crtc_state->shared_dpll)
+		verify_single_dpll_state(dev_priv, new_crtc_state->shared_dpll, crtc, new_crtc_state);
 
-	if (old_state->shared_dpll &&
-	    old_state->shared_dpll != new_state->shared_dpll) {
-		unsigned int crtc_mask = drm_crtc_mask(crtc);
-		struct intel_shared_dpll *pll = old_state->shared_dpll;
+	if (old_crtc_state->shared_dpll &&
+	    old_crtc_state->shared_dpll != new_crtc_state->shared_dpll) {
+		unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
+		struct intel_shared_dpll *pll = old_crtc_state->shared_dpll;
 
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask)\n",
-				pipe_name(drm_crtc_index(crtc)));
+				pipe_name(drm_crtc_index(&crtc->base)));
 		I915_STATE_WARN(pll->state.crtc_mask & crtc_mask,
 				"pll enabled crtcs mismatch (found %x in enabled mask)\n",
-				pipe_name(drm_crtc_index(crtc)));
+				pipe_name(drm_crtc_index(&crtc->base)));
 	}
 }
 
 static void
-intel_modeset_verify_crtc(struct drm_crtc *crtc,
-			  struct drm_atomic_state *state,
-			  struct drm_crtc_state *old_state,
-			  struct drm_crtc_state *new_state)
+intel_modeset_verify_crtc(struct intel_crtc *crtc,
+			  struct intel_atomic_state *state,
+			  struct intel_crtc_state *old_crtc_state,
+			  struct intel_crtc_state *new_crtc_state)
 {
-	if (!needs_modeset(new_state) &&
-	    !to_intel_crtc_state(new_state)->update_pipe)
+	if (!needs_modeset(new_crtc_state) && !new_crtc_state->update_pipe)
 		return;
 
-	verify_wm_state(crtc, new_state);
-	verify_connector_state(crtc->dev, state, crtc);
-	verify_crtc_state(crtc, old_state, new_state);
-	verify_shared_dpll_state(crtc->dev, crtc, old_state, new_state);
+	verify_wm_state(crtc, new_crtc_state);
+	verify_connector_state(state, crtc);
+	verify_crtc_state(crtc, old_crtc_state, new_crtc_state);
+	verify_shared_dpll_state(crtc, old_crtc_state, new_crtc_state);
 }
 
 static void
-verify_disabled_dpll_state(struct drm_device *dev)
+verify_disabled_dpll_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++)
@@ -13109,12 +13264,12 @@ verify_disabled_dpll_state(struct drm_device *dev)
 }
 
 static void
-intel_modeset_verify_disabled(struct drm_device *dev,
-			      struct drm_atomic_state *state)
+intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
+			      struct intel_atomic_state *state)
 {
-	verify_encoder_state(dev, state);
-	verify_connector_state(dev, state, NULL);
-	verify_disabled_dpll_state(dev);
+	verify_encoder_state(dev_priv, state);
+	verify_connector_state(state, NULL);
+	verify_disabled_dpll_state(dev_priv);
 }
 
 static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
@@ -13168,27 +13323,18 @@ static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
 static void intel_modeset_clear_plls(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
 	if (!dev_priv->display.crtc_compute_clock)
 		return;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
-		struct intel_shared_dpll *old_dpll =
-			old_crtc_state->shared_dpll;
-
-		if (!needs_modeset(&new_crtc_state->base))
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		new_crtc_state->shared_dpll = NULL;
-
-		if (!old_dpll)
-			continue;
-
-		intel_release_shared_dpll(old_dpll, crtc, &state->base);
+		intel_release_shared_dplls(state, crtc);
 	}
 }
 
@@ -13210,7 +13356,7 @@ static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
 	/* look at all crtc's that are going to be enabled in during modeset */
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!crtc_state->base.active ||
-		    !needs_modeset(&crtc_state->base))
+		    !needs_modeset(crtc_state))
 			continue;
 
 		if (first_crtc_state) {
@@ -13235,7 +13381,7 @@ static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
 		crtc_state->hsw_workaround_pipe = INVALID_PIPE;
 
 		if (!crtc_state->base.active ||
-		    needs_modeset(&crtc_state->base))
+		    needs_modeset(crtc_state))
 			continue;
 
 		/* 2 or more enabled crtcs means no need for w/a */
@@ -13253,15 +13399,16 @@ static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int intel_lock_all_pipes(struct drm_atomic_state *state)
+static int intel_lock_all_pipes(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
 
 	/* Add all pipes to the state */
-	for_each_crtc(state->dev, crtc) {
-		struct drm_crtc_state *crtc_state;
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 	}
@@ -13269,32 +13416,35 @@ static int intel_lock_all_pipes(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int intel_modeset_all_pipes(struct drm_atomic_state *state)
+static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
 
 	/*
 	 * Add all pipes to the state, and force
 	 * a modeset on all the active ones.
 	 */
-	for_each_crtc(state->dev, crtc) {
-		struct drm_crtc_state *crtc_state;
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
 		int ret;
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
-		if (!crtc_state->active || needs_modeset(crtc_state))
+		if (!crtc_state->base.active || needs_modeset(crtc_state))
 			continue;
 
-		crtc_state->mode_changed = true;
+		crtc_state->base.mode_changed = true;
 
-		ret = drm_atomic_add_affected_connectors(state, crtc);
+		ret = drm_atomic_add_affected_connectors(&state->base,
+							 &crtc->base);
 		if (ret)
 			return ret;
 
-		ret = drm_atomic_add_affected_planes(state, crtc);
+		ret = drm_atomic_add_affected_planes(&state->base,
+						     &crtc->base);
 		if (ret)
 			return ret;
 	}
@@ -13356,18 +13506,18 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 		 */
 		if (intel_cdclk_changed(&dev_priv->cdclk.logical,
 					&state->cdclk.logical)) {
-			ret = intel_lock_all_pipes(&state->base);
+			ret = intel_lock_all_pipes(state);
 			if (ret < 0)
 				return ret;
 		}
 
 		if (is_power_of_2(state->active_crtcs)) {
-			struct drm_crtc *crtc;
-			struct drm_crtc_state *crtc_state;
+			struct intel_crtc *crtc;
+			struct intel_crtc_state *crtc_state;
 
 			pipe = ilog2(state->active_crtcs);
-			crtc = &intel_get_crtc_for_pipe(dev_priv, pipe)->base;
-			crtc_state = drm_atomic_get_new_crtc_state(&state->base, crtc);
+			crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+			crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 			if (crtc_state && needs_modeset(crtc_state))
 				pipe = INVALID_PIPE;
 		} else {
@@ -13379,14 +13529,14 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 		    intel_cdclk_needs_cd2x_update(dev_priv,
 						  &dev_priv->cdclk.actual,
 						  &state->cdclk.actual)) {
-			ret = intel_lock_all_pipes(&state->base);
+			ret = intel_lock_all_pipes(state);
 			if (ret < 0)
 				return ret;
 
 			state->cdclk.pipe = pipe;
 		} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
 						     &state->cdclk.actual)) {
-			ret = intel_modeset_all_pipes(&state->base);
+			ret = intel_modeset_all_pipes(state);
 			if (ret < 0)
 				return ret;
 
@@ -13478,7 +13628,7 @@ static int intel_atomic_check(struct drm_device *dev,
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (!needs_modeset(&new_crtc_state->base))
+		if (!needs_modeset(new_crtc_state))
 			continue;
 
 		if (!new_crtc_state->base.enable) {
@@ -13492,7 +13642,7 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		intel_crtc_check_fastset(old_crtc_state, new_crtc_state);
 
-		if (needs_modeset(&new_crtc_state->base))
+		if (needs_modeset(new_crtc_state))
 			any_ms = true;
 	}
 
@@ -13527,12 +13677,12 @@ static int intel_atomic_check(struct drm_device *dev,
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (!needs_modeset(&new_crtc_state->base) &&
+		if (!needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->update_pipe)
 			continue;
 
 		intel_dump_pipe_config(new_crtc_state, state,
-				       needs_modeset(&new_crtc_state->base) ?
+				       needs_modeset(new_crtc_state) ?
 				       "[modeset]" : "[fastset]");
 	}
 
@@ -13553,10 +13703,10 @@ static int intel_atomic_check(struct drm_device *dev,
 	return ret;
 }
 
-static int intel_atomic_prepare_commit(struct drm_device *dev,
-				       struct drm_atomic_state *state)
+static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 {
-	return drm_atomic_helper_prepare_planes(dev, state);
+	return drm_atomic_helper_prepare_planes(state->base.dev,
+						&state->base);
 }
 
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
@@ -13567,60 +13717,57 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 	if (!vblank->max_vblank_count)
 		return (u32)drm_crtc_accurate_vblank_count(&crtc->base);
 
-	return dev->driver->get_vblank_counter(dev, crtc->pipe);
+	return crtc->base.funcs->get_vblank_counter(&crtc->base);
 }
 
-static void intel_update_crtc(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state,
-			      struct drm_crtc_state *old_crtc_state,
-			      struct drm_crtc_state *new_crtc_state)
+static void intel_update_crtc(struct intel_crtc *crtc,
+			      struct intel_atomic_state *state,
+			      struct intel_crtc_state *old_crtc_state,
+			      struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = state->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *pipe_config = to_intel_crtc_state(new_crtc_state);
 	bool modeset = needs_modeset(new_crtc_state);
 	struct intel_plane_state *new_plane_state =
-		intel_atomic_get_new_plane_state(to_intel_atomic_state(state),
-						 to_intel_plane(crtc->primary));
+		intel_atomic_get_new_plane_state(state,
+						 to_intel_plane(crtc->base.primary));
 
 	if (modeset) {
-		update_scanline_offset(pipe_config);
-		dev_priv->display.crtc_enable(pipe_config, state);
+		update_scanline_offset(new_crtc_state);
+		dev_priv->display.crtc_enable(new_crtc_state, state);
 
 		/* vblanks work again, re-enable pipe CRC. */
-		intel_crtc_enable_pipe_crc(intel_crtc);
+		intel_crtc_enable_pipe_crc(crtc);
 	} else {
-		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state),
-				       pipe_config);
+		intel_pre_plane_update(old_crtc_state, new_crtc_state);
 
-		if (pipe_config->update_pipe)
-			intel_encoders_update_pipe(crtc, pipe_config, state);
+		if (new_crtc_state->update_pipe)
+			intel_encoders_update_pipe(crtc, new_crtc_state, state);
 	}
 
-	if (pipe_config->update_pipe && !pipe_config->enable_fbc)
-		intel_fbc_disable(intel_crtc);
+	if (new_crtc_state->update_pipe && !new_crtc_state->enable_fbc)
+		intel_fbc_disable(crtc);
 	else if (new_plane_state)
-		intel_fbc_enable(intel_crtc, pipe_config, new_plane_state);
+		intel_fbc_enable(crtc, new_crtc_state, new_plane_state);
 
-	intel_begin_crtc_commit(to_intel_atomic_state(state), intel_crtc);
+	intel_begin_crtc_commit(state, crtc);
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		skl_update_planes_on_crtc(to_intel_atomic_state(state), intel_crtc);
+		skl_update_planes_on_crtc(state, crtc);
 	else
-		i9xx_update_planes_on_crtc(to_intel_atomic_state(state), intel_crtc);
+		i9xx_update_planes_on_crtc(state, crtc);
 
-	intel_finish_crtc_commit(to_intel_atomic_state(state), intel_crtc);
+	intel_finish_crtc_commit(state, crtc);
 }
 
-static void intel_update_crtcs(struct drm_atomic_state *state)
+static void intel_update_crtcs(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		if (!new_crtc_state->active)
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (!new_crtc_state->base.active)
 			continue;
 
 		intel_update_crtc(crtc, state, old_crtc_state,
@@ -13628,26 +13775,23 @@ static void intel_update_crtcs(struct drm_atomic_state *state)
 	}
 }
 
-static void skl_update_crtcs(struct drm_atomic_state *state)
+static void skl_update_crtcs(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	struct intel_crtc_state *cstate;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	unsigned int updated = 0;
 	bool progress;
 	enum pipe pipe;
 	int i;
 	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
-	u8 required_slices = intel_state->wm_results.ddb.enabled_slices;
+	u8 required_slices = state->wm_results.ddb.enabled_slices;
 	struct skl_ddb_entry entries[I915_MAX_PIPES] = {};
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
 		/* ignore allocations for crtc's that have been turned off. */
-		if (new_crtc_state->active)
-			entries[i] = to_intel_crtc_state(old_crtc_state)->wm.skl.ddb;
+		if (new_crtc_state->base.active)
+			entries[i] = old_crtc_state->wm.skl.ddb;
 
 	/* If 2nd DBuf slice required, enable it here */
 	if (INTEL_GEN(dev_priv) >= 11 && required_slices > hw_enabled_slices)
@@ -13662,24 +13806,22 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 	do {
 		progress = false;
 
-		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 			bool vbl_wait = false;
-			unsigned int cmask = drm_crtc_mask(crtc);
+			unsigned int cmask = drm_crtc_mask(&crtc->base);
 
-			intel_crtc = to_intel_crtc(crtc);
-			cstate = to_intel_crtc_state(new_crtc_state);
-			pipe = intel_crtc->pipe;
+			pipe = crtc->pipe;
 
-			if (updated & cmask || !cstate->base.active)
+			if (updated & cmask || !new_crtc_state->base.active)
 				continue;
 
-			if (skl_ddb_allocation_overlaps(&cstate->wm.skl.ddb,
+			if (skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
 							entries,
 							INTEL_INFO(dev_priv)->num_pipes, i))
 				continue;
 
 			updated |= cmask;
-			entries[i] = cstate->wm.skl.ddb;
+			entries[i] = new_crtc_state->wm.skl.ddb;
 
 			/*
 			 * If this is an already active pipe, it's DDB changed,
@@ -13687,10 +13829,10 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 			 * then we need to wait for a vblank to pass for the
 			 * new ddb allocation to take effect.
 			 */
-			if (!skl_ddb_entry_equal(&cstate->wm.skl.ddb,
-						 &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb) &&
-			    !new_crtc_state->active_changed &&
-			    intel_state->wm_results.dirty_pipes != updated)
+			if (!skl_ddb_entry_equal(&new_crtc_state->wm.skl.ddb,
+						 &old_crtc_state->wm.skl.ddb) &&
+			    !new_crtc_state->base.active_changed &&
+			    state->wm_results.dirty_pipes != updated)
 				vbl_wait = true;
 
 			intel_update_crtc(crtc, state, old_crtc_state,
@@ -13736,18 +13878,21 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	for (;;) {
 		prepare_to_wait(&intel_state->commit_ready.wait,
 				&wait_fence, TASK_UNINTERRUPTIBLE);
-		prepare_to_wait(&dev_priv->gpu_error.wait_queue,
+		prepare_to_wait(bit_waitqueue(&dev_priv->gt.reset.flags,
+					      I915_RESET_MODESET),
 				&wait_reset, TASK_UNINTERRUPTIBLE);
 
 
-		if (i915_sw_fence_done(&intel_state->commit_ready)
-		    || test_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags))
+		if (i915_sw_fence_done(&intel_state->commit_ready) ||
+		    test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
 			break;
 
 		schedule();
 	}
 	finish_wait(&intel_state->commit_ready.wait, &wait_fence);
-	finish_wait(&dev_priv->gpu_error.wait_queue, &wait_reset);
+	finish_wait(bit_waitqueue(&dev_priv->gt.reset.flags,
+				  I915_RESET_MODESET),
+		    &wait_reset);
 }
 
 static void intel_atomic_cleanup_work(struct work_struct *work)
@@ -13763,57 +13908,49 @@ static void intel_atomic_cleanup_work(struct work_struct *work)
 	intel_atomic_helper_free_state(i915);
 }
 
-static void intel_atomic_commit_tail(struct drm_atomic_state *state)
+static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_device *dev = state->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	struct intel_crtc_state *new_intel_crtc_state, *old_intel_crtc_state;
-	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	struct intel_crtc *crtc;
 	u64 put_domains[I915_MAX_PIPES] = {};
 	intel_wakeref_t wakeref = 0;
 	int i;
 
-	intel_atomic_commit_fence_wait(intel_state);
+	intel_atomic_commit_fence_wait(state);
 
-	drm_atomic_helper_wait_for_dependencies(state);
+	drm_atomic_helper_wait_for_dependencies(&state->base);
 
-	if (intel_state->modeset)
+	if (state->modeset)
 		wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		old_intel_crtc_state = to_intel_crtc_state(old_crtc_state);
-		new_intel_crtc_state = to_intel_crtc_state(new_crtc_state);
-		intel_crtc = to_intel_crtc(crtc);
-
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		if (needs_modeset(new_crtc_state) ||
-		    to_intel_crtc_state(new_crtc_state)->update_pipe) {
+		    new_crtc_state->update_pipe) {
 
-			put_domains[intel_crtc->pipe] =
-				modeset_get_crtc_power_domains(crtc,
-					new_intel_crtc_state);
+			put_domains[crtc->pipe] =
+				modeset_get_crtc_power_domains(new_crtc_state);
 		}
 
 		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		intel_pre_plane_update(old_intel_crtc_state, new_intel_crtc_state);
+		intel_pre_plane_update(old_crtc_state, new_crtc_state);
 
-		if (old_crtc_state->active) {
-			intel_crtc_disable_planes(intel_state, intel_crtc);
+		if (old_crtc_state->base.active) {
+			intel_crtc_disable_planes(state, crtc);
 
 			/*
 			 * We need to disable pipe CRC before disabling the pipe,
 			 * or we race against vblank off.
 			 */
-			intel_crtc_disable_pipe_crc(intel_crtc);
+			intel_crtc_disable_pipe_crc(crtc);
 
-			dev_priv->display.crtc_disable(old_intel_crtc_state, state);
-			intel_crtc->active = false;
-			intel_fbc_disable(intel_crtc);
-			intel_disable_shared_dpll(old_intel_crtc_state);
+			dev_priv->display.crtc_disable(old_crtc_state, state);
+			crtc->active = false;
+			intel_fbc_disable(crtc);
+			intel_disable_shared_dpll(old_crtc_state);
 
 			/*
 			 * Underruns don't always raise
@@ -13823,25 +13960,25 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 			intel_check_pch_fifo_underruns(dev_priv);
 
 			/* FIXME unify this for all platforms */
-			if (!new_crtc_state->active &&
+			if (!new_crtc_state->base.active &&
 			    !HAS_GMCH(dev_priv) &&
 			    dev_priv->display.initial_watermarks)
-				dev_priv->display.initial_watermarks(intel_state,
-								     new_intel_crtc_state);
+				dev_priv->display.initial_watermarks(state,
+								     new_crtc_state);
 		}
 	}
 
-	/* FIXME: Eventually get rid of our intel_crtc->config pointer */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
-		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
+	/* FIXME: Eventually get rid of our crtc->config pointer */
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
+		crtc->config = new_crtc_state;
 
-	if (intel_state->modeset) {
-		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
+	if (state->modeset) {
+		drm_atomic_helper_update_legacy_modeset_state(dev, &state->base);
 
 		intel_set_cdclk_pre_plane_update(dev_priv,
-						 &intel_state->cdclk.actual,
+						 &state->cdclk.actual,
 						 &dev_priv->cdclk.actual,
-						 intel_state->cdclk.pipe);
+						 state->cdclk.pipe);
 
 		/*
 		 * SKL workaround: bspec recommends we disable the SAGV when we
@@ -13850,31 +13987,37 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!intel_can_enable_sagv(state))
 			intel_disable_sagv(dev_priv);
 
-		intel_modeset_verify_disabled(dev, state);
+		intel_modeset_verify_disabled(dev_priv, state);
 	}
 
 	/* Complete the events for pipes that have now been disabled */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		bool modeset = needs_modeset(new_crtc_state);
 
 		/* Complete events for now disable pipes here. */
-		if (modeset && !new_crtc_state->active && new_crtc_state->event) {
+		if (modeset && !new_crtc_state->base.active && new_crtc_state->base.event) {
 			spin_lock_irq(&dev->event_lock);
-			drm_crtc_send_vblank_event(crtc, new_crtc_state->event);
+			drm_crtc_send_vblank_event(&crtc->base, new_crtc_state->base.event);
 			spin_unlock_irq(&dev->event_lock);
 
-			new_crtc_state->event = NULL;
+			new_crtc_state->base.event = NULL;
 		}
 	}
+
+	if (state->modeset)
+		intel_encoders_update_prepare(state);
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.update_crtcs(state);
 
-	if (intel_state->modeset)
+	if (state->modeset) {
+		intel_encoders_update_complete(state);
+
 		intel_set_cdclk_post_plane_update(dev_priv,
-						  &intel_state->cdclk.actual,
+						  &state->cdclk.actual,
 						  &dev_priv->cdclk.actual,
-						  intel_state->cdclk.pipe);
+						  state->cdclk.pipe);
+	}
 
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
 	 * already, but still need the state for the delayed optimization. To
@@ -13885,16 +14028,14 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	 * - switch over to the vblank wait helper in the core after that since
 	 *   we don't need out special handling any more.
 	 */
-	drm_atomic_helper_wait_for_flip_done(dev, state);
+	drm_atomic_helper_wait_for_flip_done(dev, &state->base);
 
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		new_intel_crtc_state = to_intel_crtc_state(new_crtc_state);
-
-		if (new_crtc_state->active &&
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->base.active &&
 		    !needs_modeset(new_crtc_state) &&
-		    (new_intel_crtc_state->base.color_mgmt_changed ||
-		     new_intel_crtc_state->update_pipe))
-			intel_color_load_luts(new_intel_crtc_state);
+		    (new_crtc_state->base.color_mgmt_changed ||
+		     new_crtc_state->update_pipe))
+			intel_color_load_luts(new_crtc_state);
 	}
 
 	/*
@@ -13904,16 +14045,14 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	 *
 	 * TODO: Move this (and other cleanup) to an async worker eventually.
 	 */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		new_intel_crtc_state = to_intel_crtc_state(new_crtc_state);
-
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (dev_priv->display.optimize_watermarks)
-			dev_priv->display.optimize_watermarks(intel_state,
-							      new_intel_crtc_state);
+			dev_priv->display.optimize_watermarks(state,
+							      new_crtc_state);
 	}
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		intel_post_plane_update(to_intel_crtc_state(old_crtc_state));
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		intel_post_plane_update(old_crtc_state);
 
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);
@@ -13921,15 +14060,15 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_modeset_verify_crtc(crtc, state, old_crtc_state, new_crtc_state);
 	}
 
-	if (intel_state->modeset)
-		intel_verify_planes(intel_state);
+	if (state->modeset)
+		intel_verify_planes(state);
 
-	if (intel_state->modeset && intel_can_enable_sagv(state))
+	if (state->modeset && intel_can_enable_sagv(state))
 		intel_enable_sagv(dev_priv);
 
-	drm_atomic_helper_commit_hw_done(state);
+	drm_atomic_helper_commit_hw_done(&state->base);
 
-	if (intel_state->modeset) {
+	if (state->modeset) {
 		/* As one of the primary mmio accessors, KMS has a high
 		 * likelihood of triggering bugs in unclaimed access. After we
 		 * finish modesetting, see if an error has been flagged, and if
@@ -13939,7 +14078,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET, wakeref);
 	}
-	intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 
 	/*
 	 * Defer the cleanup of the old state to a separate worker to not
@@ -13949,14 +14088,14 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	 * schedule point (cond_resched()) here anyway to keep latencies
 	 * down.
 	 */
-	INIT_WORK(&state->commit_work, intel_atomic_cleanup_work);
-	queue_work(system_highpri_wq, &state->commit_work);
+	INIT_WORK(&state->base.commit_work, intel_atomic_cleanup_work);
+	queue_work(system_highpri_wq, &state->base.commit_work);
 }
 
 static void intel_atomic_commit_work(struct work_struct *work)
 {
-	struct drm_atomic_state *state =
-		container_of(work, struct drm_atomic_state, commit_work);
+	struct intel_atomic_state *state =
+		container_of(work, struct intel_atomic_state, base.commit_work);
 
 	intel_atomic_commit_tail(state);
 }
@@ -13986,42 +14125,31 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 	return NOTIFY_DONE;
 }
 
-static void intel_atomic_track_fbs(struct drm_atomic_state *state)
+static void intel_atomic_track_fbs(struct intel_atomic_state *state)
 {
-	struct drm_plane_state *old_plane_state, *new_plane_state;
-	struct drm_plane *plane;
+	struct intel_plane_state *old_plane_state, *new_plane_state;
+	struct intel_plane *plane;
 	int i;
 
-	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
-		i915_gem_track_fb(intel_fb_obj(old_plane_state->fb),
-				  intel_fb_obj(new_plane_state->fb),
-				  to_intel_plane(plane)->frontbuffer_bit);
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i)
+		i915_gem_track_fb(intel_fb_obj(old_plane_state->base.fb),
+				  intel_fb_obj(new_plane_state->base.fb),
+				  plane->frontbuffer_bit);
 }
 
-/**
- * intel_atomic_commit - commit validated state object
- * @dev: DRM device
- * @state: the top-level driver state object
- * @nonblock: nonblocking commit
- *
- * This function commits a top-level state object that has been validated
- * with drm_atomic_helper_check().
- *
- * RETURNS
- * Zero for success or -errno.
- */
 static int intel_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_state *_state,
 			       bool nonblock)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
-	intel_state->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	state->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	drm_atomic_state_get(state);
-	i915_sw_fence_init(&intel_state->commit_ready,
+	drm_atomic_state_get(&state->base);
+	i915_sw_fence_init(&state->commit_ready,
 			   intel_atomic_commit_ready);
 
 	/*
@@ -14041,81 +14169,67 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 * FIXME doing watermarks and fb cleanup from a vblank worker
 	 * (assuming we had any) would solve these problems.
 	 */
-	if (INTEL_GEN(dev_priv) < 9 && state->legacy_cursor_update) {
+	if (INTEL_GEN(dev_priv) < 9 && state->base.legacy_cursor_update) {
 		struct intel_crtc_state *new_crtc_state;
 		struct intel_crtc *crtc;
 		int i;
 
-		for_each_new_intel_crtc_in_state(intel_state, crtc, new_crtc_state, i)
+		for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
 			if (new_crtc_state->wm.need_postvbl_update ||
 			    new_crtc_state->update_wm_post)
-				state->legacy_cursor_update = false;
+				state->base.legacy_cursor_update = false;
 	}
 
-	ret = intel_atomic_prepare_commit(dev, state);
+	ret = intel_atomic_prepare_commit(state);
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
-		i915_sw_fence_commit(&intel_state->commit_ready);
-		intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
+		i915_sw_fence_commit(&state->commit_ready);
+		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 		return ret;
 	}
 
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	ret = drm_atomic_helper_setup_commit(&state->base, nonblock);
 	if (!ret)
-		ret = drm_atomic_helper_swap_state(state, true);
+		ret = drm_atomic_helper_swap_state(&state->base, true);
 
 	if (ret) {
-		i915_sw_fence_commit(&intel_state->commit_ready);
+		i915_sw_fence_commit(&state->commit_ready);
 
-		drm_atomic_helper_cleanup_planes(dev, state);
-		intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
+		drm_atomic_helper_cleanup_planes(dev, &state->base);
+		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 		return ret;
 	}
 	dev_priv->wm.distrust_bios_wm = false;
 	intel_shared_dpll_swap_state(state);
 	intel_atomic_track_fbs(state);
 
-	if (intel_state->modeset) {
-		memcpy(dev_priv->min_cdclk, intel_state->min_cdclk,
-		       sizeof(intel_state->min_cdclk));
-		memcpy(dev_priv->min_voltage_level,
-		       intel_state->min_voltage_level,
-		       sizeof(intel_state->min_voltage_level));
-		dev_priv->active_crtcs = intel_state->active_crtcs;
-		dev_priv->cdclk.force_min_cdclk =
-			intel_state->cdclk.force_min_cdclk;
+	if (state->modeset) {
+		memcpy(dev_priv->min_cdclk, state->min_cdclk,
+		       sizeof(state->min_cdclk));
+		memcpy(dev_priv->min_voltage_level, state->min_voltage_level,
+		       sizeof(state->min_voltage_level));
+		dev_priv->active_crtcs = state->active_crtcs;
+		dev_priv->cdclk.force_min_cdclk = state->cdclk.force_min_cdclk;
 
-		intel_cdclk_swap_state(intel_state);
+		intel_cdclk_swap_state(state);
 	}
 
-	drm_atomic_state_get(state);
-	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
+	drm_atomic_state_get(&state->base);
+	INIT_WORK(&state->base.commit_work, intel_atomic_commit_work);
 
-	i915_sw_fence_commit(&intel_state->commit_ready);
-	if (nonblock && intel_state->modeset) {
-		queue_work(dev_priv->modeset_wq, &state->commit_work);
+	i915_sw_fence_commit(&state->commit_ready);
+	if (nonblock && state->modeset) {
+		queue_work(dev_priv->modeset_wq, &state->base.commit_work);
 	} else if (nonblock) {
-		queue_work(system_unbound_wq, &state->commit_work);
+		queue_work(system_unbound_wq, &state->base.commit_work);
 	} else {
-		if (intel_state->modeset)
+		if (state->modeset)
 			flush_workqueue(dev_priv->modeset_wq);
 		intel_atomic_commit_tail(state);
 	}
 
 	return 0;
 }
-
-static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
-	.set_config = drm_atomic_helper_set_config,
-	.destroy = intel_crtc_destroy,
-	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = intel_crtc_duplicate_state,
-	.atomic_destroy_state = intel_crtc_destroy_state,
-	.set_crc_source = intel_crtc_set_crc_source,
-	.verify_crc_source = intel_crtc_verify_crc_source,
-	.get_crc_sources = intel_crtc_get_crc_sources,
-};
 
 struct wait_rps_boost {
 	struct wait_queue_entry wait;
@@ -14250,9 +14364,9 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	int ret;
 
 	if (old_obj) {
-		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_new_crtc_state(new_state->state,
-						      plane->state->crtc);
+		struct intel_crtc_state *crtc_state =
+			intel_atomic_get_new_crtc_state(intel_state,
+							to_intel_crtc(plane->state->crtc));
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
@@ -14413,7 +14527,7 @@ static void intel_begin_crtc_commit(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	bool modeset = needs_modeset(&new_crtc_state->base);
+	bool modeset = needs_modeset(new_crtc_state);
 
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(new_crtc_state);
@@ -14466,7 +14580,7 @@ static void intel_finish_crtc_commit(struct intel_atomic_state *state,
 	intel_pipe_update_end(new_crtc_state);
 
 	if (new_crtc_state->update_pipe &&
-	    !needs_modeset(&new_crtc_state->base) &&
+	    !needs_modeset(new_crtc_state) &&
 	    old_crtc_state->base.mode.private_flags & I915_MODE_FLAG_INHERITED)
 		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
@@ -14580,7 +14694,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	 * When crtc is inactive or there is a modeset pending,
 	 * wait for it to complete in the slowpath
 	 */
-	if (!crtc_state->base.active || needs_modeset(&crtc_state->base) ||
+	if (!crtc_state->base.active || needs_modeset(crtc_state) ||
 	    crtc_state->update_pipe)
 		goto slow;
 
@@ -14910,8 +15024,76 @@ static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 	scaler_state->scaler_id = -1;
 }
 
+#define INTEL_CRTC_FUNCS \
+	.gamma_set = drm_atomic_helper_legacy_gamma_set, \
+	.set_config = drm_atomic_helper_set_config, \
+	.destroy = intel_crtc_destroy, \
+	.page_flip = drm_atomic_helper_page_flip, \
+	.atomic_duplicate_state = intel_crtc_duplicate_state, \
+	.atomic_destroy_state = intel_crtc_destroy_state, \
+	.set_crc_source = intel_crtc_set_crc_source, \
+	.verify_crc_source = intel_crtc_verify_crc_source, \
+	.get_crc_sources = intel_crtc_get_crc_sources
+
+static const struct drm_crtc_funcs bdw_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = g4x_get_vblank_counter,
+	.enable_vblank = bdw_enable_vblank,
+	.disable_vblank = bdw_disable_vblank,
+};
+
+static const struct drm_crtc_funcs ilk_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = g4x_get_vblank_counter,
+	.enable_vblank = ilk_enable_vblank,
+	.disable_vblank = ilk_disable_vblank,
+};
+
+static const struct drm_crtc_funcs g4x_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = g4x_get_vblank_counter,
+	.enable_vblank = i965_enable_vblank,
+	.disable_vblank = i965_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i965_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = i915_get_vblank_counter,
+	.enable_vblank = i965_enable_vblank,
+	.disable_vblank = i965_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i945gm_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = i915_get_vblank_counter,
+	.enable_vblank = i945gm_enable_vblank,
+	.disable_vblank = i945gm_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i915_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = i915_get_vblank_counter,
+	.enable_vblank = i8xx_enable_vblank,
+	.disable_vblank = i8xx_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i8xx_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	/* no hw vblank counter */
+	.enable_vblank = i8xx_enable_vblank,
+	.disable_vblank = i8xx_disable_vblank,
+};
+
 static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	const struct drm_crtc_funcs *funcs;
 	struct intel_crtc *intel_crtc;
 	struct intel_crtc_state *crtc_state = NULL;
 	struct intel_plane *primary = NULL;
@@ -14955,10 +15137,28 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	}
 	intel_crtc->plane_ids_mask |= BIT(cursor->id);
 
+	if (HAS_GMCH(dev_priv)) {
+		if (IS_CHERRYVIEW(dev_priv) ||
+		    IS_VALLEYVIEW(dev_priv) || IS_G4X(dev_priv))
+			funcs = &g4x_crtc_funcs;
+		else if (IS_GEN(dev_priv, 4))
+			funcs = &i965_crtc_funcs;
+		else if (IS_I945GM(dev_priv))
+			funcs = &i945gm_crtc_funcs;
+		else if (IS_GEN(dev_priv, 3))
+			funcs = &i915_crtc_funcs;
+		else
+			funcs = &i8xx_crtc_funcs;
+	} else {
+		if (INTEL_GEN(dev_priv) >= 8)
+			funcs = &bdw_crtc_funcs;
+		else
+			funcs = &ilk_crtc_funcs;
+	}
+
 	ret = drm_crtc_init_with_planes(&dev_priv->drm, &intel_crtc->base,
 					&primary->base, &cursor->base,
-					&intel_crtc_funcs,
-					"pipe %c", pipe_name(pipe));
+					funcs, "pipe %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
 
@@ -15114,12 +15314,18 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_ELKHARTLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		/* TODO: initialize TC ports as well */
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_B);
 		intel_ddi_init(dev_priv, PORT_C);
+	} else if (IS_ELKHARTLAKE(dev_priv)) {
+		intel_ddi_init(dev_priv, PORT_A);
+		intel_ddi_init(dev_priv, PORT_B);
+		intel_ddi_init(dev_priv, PORT_C);
+		intel_ddi_init(dev_priv, PORT_D);
 		icl_dsi_init(dev_priv);
-	} else if (INTEL_GEN(dev_priv) >= 11) {
+	} else if (IS_GEN(dev_priv, 11)) {
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_B);
 		intel_ddi_init(dev_priv, PORT_C);
@@ -15775,8 +15981,8 @@ static void sanitize_watermarks(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state;
 	struct intel_atomic_state *intel_state;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *cstate;
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 	int i;
@@ -15831,13 +16037,11 @@ retry:
 	}
 
 	/* Write calculated watermark values back */
-	for_each_new_crtc_in_state(state, crtc, cstate, i) {
-		struct intel_crtc_state *cs = to_intel_crtc_state(cstate);
+	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+		crtc_state->wm.need_postvbl_update = true;
+		dev_priv->display.optimize_watermarks(intel_state, crtc_state);
 
-		cs->wm.need_postvbl_update = true;
-		dev_priv->display.optimize_watermarks(intel_state, cs);
-
-		to_intel_crtc_state(crtc->state)->wm = cs->wm;
+		to_intel_crtc_state(crtc->base.state)->wm = crtc_state->wm;
 	}
 
 put_state:
@@ -16495,6 +16699,13 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		pll->on = pll->info->funcs->get_hw_state(dev_priv, pll,
 							&pll->state.hw_state);
+
+		if (IS_ELKHARTLAKE(dev_priv) && pll->on &&
+		    pll->info->id == DPLL_ID_EHL_DPLL4) {
+			pll->wakeref = intel_display_power_get(dev_priv,
+							       POWER_DOMAIN_DPLL_DC_OFF);
+		}
+
 		pll->state.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
 			struct intel_crtc_state *crtc_state =
@@ -16744,6 +16955,17 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	intel_modeset_readout_hw_state(dev);
 
 	/* HW state is read out, now we need to sanitize this mess. */
+
+	/* Sanitize the TypeC port mode upfront, encoders depend on this */
+	for_each_intel_encoder(dev, encoder) {
+		enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+
+		/* We need to sanitize only the MST primary port. */
+		if (encoder->type != INTEL_OUTPUT_DP_MST &&
+		    intel_phy_is_tc(dev_priv, phy))
+			intel_tc_port_sanitize(enc_to_dig_port(&encoder->base));
+	}
+
 	get_encoder_power_domains(dev_priv);
 
 	if (HAS_PCH_IBX(dev_priv))
@@ -16804,7 +17026,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		u64 put_domains;
 
 		crtc_state = to_intel_crtc_state(crtc->base.state);
-		put_domains = modeset_get_crtc_power_domains(&crtc->base, crtc_state);
+		put_domains = modeset_get_crtc_power_domains(crtc_state);
 		if (WARN_ON(put_domains))
 			modeset_put_power_domains(dev_priv, put_domains);
 	}
@@ -16866,7 +17088,7 @@ static void intel_hpd_poll_fini(struct drm_device *dev)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-void intel_modeset_cleanup(struct drm_device *dev)
+void intel_modeset_driver_remove(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -16982,7 +17204,7 @@ struct intel_display_error_state {
 		u32 vtotal;
 		u32 vblank;
 		u32 vsync;
-	} transcoder[4];
+	} transcoder[5];
 };
 
 struct intel_display_error_state *
@@ -16993,6 +17215,7 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 		TRANSCODER_A,
 		TRANSCODER_B,
 		TRANSCODER_C,
+		TRANSCODER_D,
 		TRANSCODER_EDP,
 	};
 	int i;

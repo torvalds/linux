@@ -61,9 +61,11 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_workarounds.h"
+#include "gt/uc/intel_uc.h"
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
@@ -75,19 +77,18 @@
 #include "intel_csr.h"
 #include "intel_drv.h"
 #include "intel_pm.h"
-#include "intel_uc.h"
 
 static struct drm_driver driver;
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-static unsigned int i915_load_fail_count;
+static unsigned int i915_probe_fail_count;
 
-bool __i915_inject_load_failure(const char *func, int line)
+bool __i915_inject_probe_failure(const char *func, int line)
 {
-	if (i915_load_fail_count >= i915_modparams.inject_load_failure)
+	if (i915_probe_fail_count >= i915_modparams.inject_load_failure)
 		return false;
 
-	if (++i915_load_fail_count == i915_modparams.inject_load_failure) {
+	if (++i915_probe_fail_count == i915_modparams.inject_load_failure) {
 		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
 			 i915_modparams.inject_load_failure, func, line);
 		i915_modparams.inject_load_failure = 0;
@@ -99,7 +100,7 @@ bool __i915_inject_load_failure(const char *func, int line)
 
 bool i915_error_injected(void)
 {
-	return i915_load_fail_count && !i915_modparams.inject_load_failure;
+	return i915_probe_fail_count && !i915_modparams.inject_load_failure;
 }
 
 #endif
@@ -219,9 +220,14 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		WARN_ON(!IS_ICELAKE(dev_priv));
 		return PCH_ICP;
 	case INTEL_PCH_MCC_DEVICE_ID_TYPE:
+	case INTEL_PCH_MCC2_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found Mule Creek Canyon PCH\n");
 		WARN_ON(!IS_ELKHARTLAKE(dev_priv));
 		return PCH_MCC;
+	case INTEL_PCH_TGP_DEVICE_ID_TYPE:
+		DRM_DEBUG_KMS("Found Tiger Lake LP PCH\n");
+		WARN_ON(!IS_TIGERLAKE(dev_priv));
+		return PCH_TGP;
 	default:
 		return PCH_NONE;
 	}
@@ -249,7 +255,9 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_ELKHARTLAKE(dev_priv))
+	if (IS_TIGERLAKE(dev_priv))
+		id = INTEL_PCH_TGP_DEVICE_ID_TYPE;
+	else if (IS_ELKHARTLAKE(dev_priv))
 		id = INTEL_PCH_MCC_DEVICE_ID_TYPE;
 	else if (IS_ICELAKE(dev_priv))
 		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
@@ -418,7 +426,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = sseu->min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
-		value = intel_huc_check_status(&dev_priv->huc);
+		value = intel_huc_check_status(&dev_priv->gt.uc.huc);
 		if (value < 0)
 			return value;
 		break;
@@ -673,13 +681,13 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.can_switch = i915_switcheroo_can_switch,
 };
 
-static int i915_load_modeset_init(struct drm_device *dev)
+static int i915_driver_modeset_probe(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	if (HAS_DISPLAY(dev_priv)) {
@@ -749,16 +757,16 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 cleanup_gem:
 	i915_gem_suspend(dev_priv);
-	i915_gem_fini_hw(dev_priv);
-	i915_gem_fini(dev_priv);
+	i915_gem_driver_remove(dev_priv);
+	i915_gem_driver_release(dev_priv);
 cleanup_modeset:
-	intel_modeset_cleanup(dev);
+	intel_modeset_driver_remove(dev);
 cleanup_irq:
-	drm_irq_uninstall(dev);
+	intel_irq_uninstall(dev_priv);
 	intel_gmbus_teardown(dev_priv);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
-	intel_power_domains_fini_hw(dev_priv);
+	intel_power_domains_driver_remove(dev_priv);
 	vga_switcheroo_unregister_client(pdev);
 cleanup_vga_client:
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -840,15 +848,6 @@ out_err:
 	return -ENOMEM;
 }
 
-static void i915_engines_cleanup(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, i915, id)
-		kfree(engine);
-}
-
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
 	destroy_workqueue(dev_priv->hotplug.dp_wq);
@@ -882,7 +881,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_driver_init_early - setup state not requiring device access
+ * i915_driver_early_probe - setup state not requiring device access
  * @dev_priv: device private
  *
  * Initialize everything that is a "SW-only" state, that is state not
@@ -891,16 +890,16 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
  * system memory allocation, setting up device specific attributes and
  * function hooks not requiring accessing the device.
  */
-static int i915_driver_init_early(struct drm_i915_private *dev_priv)
+static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	intel_device_info_subplatform_init(dev_priv);
 
-	intel_uncore_init_early(&dev_priv->uncore);
+	intel_uncore_init_early(&dev_priv->uncore, dev_priv);
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
@@ -920,7 +919,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
-		goto err_engines;
+		return ret;
+
+	intel_gt_init_early(&dev_priv->gt, dev_priv);
 
 	ret = i915_gem_init_early(dev_priv);
 	if (ret < 0)
@@ -930,14 +931,13 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	intel_detect_pch(dev_priv);
 
 	intel_wopcm_init_early(&dev_priv->wopcm);
-	intel_uc_init_early(dev_priv);
+	intel_uc_init_early(&dev_priv->gt.uc);
 	intel_pm_setup(dev_priv);
 	intel_init_dpio(dev_priv);
 	ret = intel_power_domains_init(dev_priv);
 	if (ret < 0)
 		goto err_uc;
 	intel_irq_init(dev_priv);
-	intel_hangcheck_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
@@ -948,34 +948,32 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_uc:
-	intel_uc_cleanup_early(dev_priv);
+	intel_uc_cleanup_early(&dev_priv->gt.uc);
 	i915_gem_cleanup_early(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
-err_engines:
-	i915_engines_cleanup(dev_priv);
 	return ret;
 }
 
 /**
- * i915_driver_cleanup_early - cleanup the setup done in i915_driver_init_early()
+ * i915_driver_late_release - cleanup the setup done in
+ *			       i915_driver_early_probe()
  * @dev_priv: device private
  */
-static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
+static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 {
 	intel_irq_fini(dev_priv);
 	intel_power_domains_cleanup(dev_priv);
-	intel_uc_cleanup_early(dev_priv);
+	intel_uc_cleanup_early(&dev_priv->gt.uc);
 	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
-	i915_engines_cleanup(dev_priv);
 
 	pm_qos_remove_request(&dev_priv->sb_qos);
 	mutex_destroy(&dev_priv->sb_lock);
 }
 
 /**
- * i915_driver_init_mmio - setup device MMIO
+ * i915_driver_mmio_probe - setup device MMIO
  * @dev_priv: device private
  *
  * Setup minimal device state necessary for MMIO accesses later in the
@@ -983,11 +981,11 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
  * side effects or exposing the driver via kernel internal or user space
  * interfaces.
  */
-static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
+static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	if (i915_get_bridge_dev(dev_priv))
@@ -1004,7 +1002,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 
 	intel_uncore_prune_mmio_domains(&dev_priv->uncore);
 
-	intel_uc_init_mmio(dev_priv);
+	intel_uc_init_mmio(&dev_priv->gt.uc);
 
 	ret = intel_engines_init_mmio(dev_priv);
 	if (ret)
@@ -1024,11 +1022,12 @@ err_bridge:
 }
 
 /**
- * i915_driver_cleanup_mmio - cleanup the setup done in i915_driver_init_mmio()
+ * i915_driver_mmio_release - cleanup the setup done in i915_driver_mmio_probe()
  * @dev_priv: device private
  */
-static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
+static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
+	intel_engines_cleanup(dev_priv);
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1520,18 +1519,18 @@ static void edram_detect(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_driver_init_hw - setup state requiring device access
+ * i915_driver_hw_probe - setup state requiring device access
  * @dev_priv: device private
  *
  * Setup state that requires accessing the device, but doesn't require
  * exposing the driver via kernel internal or userspace interfaces.
  */
-static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
+static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	intel_device_info_runtime_init(dev_priv);
@@ -1590,6 +1589,8 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
+	intel_gt_init_hw(dev_priv);
+
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");
@@ -1629,7 +1630,8 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);
 
-	intel_uncore_sanitize(dev_priv);
+	/* BIOS often leaves RC6 enabled, but disable it for hw init */
+	intel_sanitize_gt_powersave(dev_priv);
 
 	intel_gt_init_workarounds(dev_priv);
 
@@ -1677,17 +1679,17 @@ err_msi:
 		pci_disable_msi(pdev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 err_ggtt:
-	i915_ggtt_cleanup_hw(dev_priv);
+	i915_ggtt_driver_release(dev_priv);
 err_perf:
 	i915_perf_fini(dev_priv);
 	return ret;
 }
 
 /**
- * i915_driver_cleanup_hw - cleanup the setup done in i915_driver_init_hw()
+ * i915_driver_hw_remove - cleanup the setup done in i915_driver_hw_probe()
  * @dev_priv: device private
  */
-static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
+static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
@@ -1863,17 +1865,17 @@ static void i915_driver_destroy(struct drm_i915_private *i915)
 }
 
 /**
- * i915_driver_load - setup chip and create an initial config
+ * i915_driver_probe - setup chip and create an initial config
  * @pdev: PCI device
  * @ent: matching PCI ID entry
  *
- * The driver load routine has to do several things:
+ * The driver probe routine has to do several things:
  *   - drive output discovery via intel_modeset_init()
  *   - initialize the memory manager
  *   - allocate initial config memory
  *   - setup the DRM framebuffer with the allocated memory
  */
-int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
+int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct intel_device_info *match_info =
 		(struct intel_device_info *)ent->driver_data;
@@ -1892,21 +1894,23 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_fini;
 
-	ret = i915_driver_init_early(dev_priv);
+	ret = i915_driver_early_probe(dev_priv);
 	if (ret < 0)
 		goto out_pci_disable;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
-	ret = i915_driver_init_mmio(dev_priv);
+	i915_detect_vgpu(dev_priv);
+
+	ret = i915_driver_mmio_probe(dev_priv);
 	if (ret < 0)
 		goto out_runtime_pm_put;
 
-	ret = i915_driver_init_hw(dev_priv);
+	ret = i915_driver_hw_probe(dev_priv);
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = i915_load_modeset_init(&dev_priv->drm);
+	ret = i915_driver_modeset_probe(&dev_priv->drm);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
@@ -1919,22 +1923,25 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 out_cleanup_hw:
-	i915_driver_cleanup_hw(dev_priv);
-	i915_ggtt_cleanup_hw(dev_priv);
+	i915_driver_hw_remove(dev_priv);
+	i915_ggtt_driver_release(dev_priv);
+
+	/* Paranoia: make sure we have disabled everything before we exit. */
+	intel_sanitize_gt_powersave(dev_priv);
 out_cleanup_mmio:
-	i915_driver_cleanup_mmio(dev_priv);
+	i915_driver_mmio_release(dev_priv);
 out_runtime_pm_put:
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-	i915_driver_cleanup_early(dev_priv);
+	i915_driver_late_release(dev_priv);
 out_pci_disable:
 	pci_disable_device(pdev);
 out_fini:
-	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
+	i915_probe_error(dev_priv, "Device initialization failed (%d)\n", ret);
 	i915_driver_destroy(dev_priv);
 	return ret;
 }
 
-void i915_driver_unload(struct drm_device *dev)
+void i915_driver_remove(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
@@ -1948,7 +1955,7 @@ void i915_driver_unload(struct drm_device *dev)
 	 * all in-flight requests so that we can quickly unbind the active
 	 * resources.
 	 */
-	i915_gem_set_wedged(dev_priv);
+	intel_gt_set_wedged(&dev_priv->gt);
 
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
@@ -1957,11 +1964,11 @@ void i915_driver_unload(struct drm_device *dev)
 
 	drm_atomic_helper_shutdown(dev);
 
-	intel_gvt_cleanup(dev_priv);
+	intel_gvt_driver_remove(dev_priv);
 
-	intel_modeset_cleanup(dev);
+	intel_modeset_driver_remove(dev);
 
-	intel_bios_cleanup(dev_priv);
+	intel_bios_driver_remove(dev_priv);
 
 	vga_switcheroo_unregister_client(pdev);
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -1969,14 +1976,14 @@ void i915_driver_unload(struct drm_device *dev)
 	intel_csr_ucode_fini(dev_priv);
 
 	/* Free error state after interrupts are fully disabled. */
-	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
+	cancel_delayed_work_sync(&dev_priv->gt.hangcheck.work);
 	i915_reset_error_state(dev_priv);
 
-	i915_gem_fini_hw(dev_priv);
+	i915_gem_driver_remove(dev_priv);
 
-	intel_power_domains_fini_hw(dev_priv);
+	intel_power_domains_driver_remove(dev_priv);
 
-	i915_driver_cleanup_hw(dev_priv);
+	i915_driver_hw_remove(dev_priv);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 }
@@ -1988,15 +1995,19 @@ static void i915_driver_release(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(rpm);
 
-	i915_gem_fini(dev_priv);
+	i915_gem_driver_release(dev_priv);
 
-	i915_ggtt_cleanup_hw(dev_priv);
-	i915_driver_cleanup_mmio(dev_priv);
+	i915_ggtt_driver_release(dev_priv);
+
+	/* Paranoia: make sure we have disabled everything before we exit. */
+	intel_sanitize_gt_powersave(dev_priv);
+
+	i915_driver_mmio_release(dev_priv);
 
 	enable_rpm_wakeref_asserts(rpm);
-	intel_runtime_pm_cleanup(rpm);
+	intel_runtime_pm_driver_release(rpm);
 
-	i915_driver_cleanup_early(dev_priv);
+	i915_driver_late_release(dev_priv);
 	i915_driver_destroy(dev_priv);
 }
 
@@ -2189,7 +2200,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 out:
 	enable_rpm_wakeref_asserts(rpm);
 	if (!dev_priv->uncore.user_forcewake.count)
-		intel_runtime_pm_cleanup(rpm);
+		intel_runtime_pm_driver_release(rpm);
 
 	return ret;
 }
@@ -2348,7 +2359,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_resume_early(&dev_priv->uncore);
 
-	i915_check_and_clear_faults(dev_priv);
+	intel_gt_check_and_clear_faults(&dev_priv->gt);
 
 	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
 		gen9_sanitize_dc_state(dev_priv);
@@ -2357,11 +2368,11 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		hsw_disable_pc8(dev_priv);
 	}
 
-	intel_uncore_sanitize(dev_priv);
+	intel_sanitize_gt_powersave(dev_priv);
 
 	intel_power_domains_resume(dev_priv);
 
-	intel_gt_sanitize(dev_priv, true);
+	intel_gt_sanitize(&dev_priv->gt, true);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -2384,8 +2395,7 @@ static int i915_resume_switcheroo(struct drm_device *dev)
 
 static int i915_pm_prepare(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 
 	if (!dev) {
 		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
@@ -2400,8 +2410,7 @@ static int i915_pm_prepare(struct device *kdev)
 
 static int i915_pm_suspend(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 
 	if (!dev) {
 		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
@@ -2895,8 +2904,7 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 
 static int intel_runtime_suspend(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret;
@@ -2917,7 +2925,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	 */
 	i915_gem_runtime_suspend(dev_priv);
 
-	intel_uc_runtime_suspend(dev_priv);
+	intel_uc_runtime_suspend(&dev_priv->gt.uc);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
@@ -2942,9 +2950,9 @@ static int intel_runtime_suspend(struct device *kdev)
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
-		intel_uc_resume(dev_priv);
+		intel_uc_resume(&dev_priv->gt.uc);
 
-		i915_gem_init_swizzling(dev_priv);
+		intel_gt_init_swizzling(&dev_priv->gt);
 		i915_gem_restore_fences(dev_priv);
 
 		enable_rpm_wakeref_asserts(rpm);
@@ -2953,7 +2961,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	}
 
 	enable_rpm_wakeref_asserts(rpm);
-	intel_runtime_pm_cleanup(rpm);
+	intel_runtime_pm_driver_release(rpm);
 
 	if (intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
@@ -2994,8 +3002,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 static int intel_runtime_resume(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret = 0;
@@ -3040,13 +3047,13 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
-	intel_uc_resume(dev_priv);
+	intel_uc_resume(&dev_priv->gt.uc);
 
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
-	i915_gem_init_swizzling(dev_priv);
+	intel_gt_init_swizzling(&dev_priv->gt);
 	i915_gem_restore_fences(dev_priv);
 
 	/*
@@ -3215,6 +3222,9 @@ static struct drm_driver driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = i915_gem_prime_export,
 	.gem_prime_import = i915_gem_prime_import,
+
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
+	.get_scanout_position = i915_get_crtc_scanoutpos,
 
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,

@@ -176,33 +176,49 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	new_crtc_state->data_rate[plane->id] =
 		intel_plane_data_rate(new_crtc_state, new_plane_state);
 
-	return intel_plane_atomic_calc_changes(old_crtc_state,
-					       &new_crtc_state->base,
-					       old_plane_state,
-					       &new_plane_state->base);
+	return intel_plane_atomic_calc_changes(old_crtc_state, new_crtc_state,
+					       old_plane_state, new_plane_state);
 }
 
-static int intel_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *new_plane_state)
+static struct intel_crtc *
+get_crtc_from_states(const struct intel_plane_state *old_plane_state,
+		     const struct intel_plane_state *new_plane_state)
 {
-	struct drm_atomic_state *state = new_plane_state->state;
-	const struct drm_plane_state *old_plane_state =
-		drm_atomic_get_old_plane_state(state, plane);
-	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
-	const struct drm_crtc_state *old_crtc_state;
-	struct drm_crtc_state *new_crtc_state;
+	if (new_plane_state->base.crtc)
+		return to_intel_crtc(new_plane_state->base.crtc);
 
-	new_plane_state->visible = false;
+	if (old_plane_state->base.crtc)
+		return to_intel_crtc(old_plane_state->base.crtc);
+
+	return NULL;
+}
+
+static int intel_plane_atomic_check(struct drm_plane *_plane,
+				    struct drm_plane_state *_new_plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(_plane);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(_new_plane_state->state);
+	struct intel_plane_state *new_plane_state =
+		to_intel_plane_state(_new_plane_state);
+	const struct intel_plane_state *old_plane_state =
+		intel_atomic_get_old_plane_state(state, plane);
+	struct intel_crtc *crtc =
+		get_crtc_from_states(old_plane_state, new_plane_state);
+	const struct intel_crtc_state *old_crtc_state;
+	struct intel_crtc_state *new_crtc_state;
+
+	new_plane_state->base.visible = false;
 	if (!crtc)
 		return 0;
 
-	old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
-	new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
+	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
-	return intel_plane_atomic_check_with_state(to_intel_crtc_state(old_crtc_state),
-						   to_intel_crtc_state(new_crtc_state),
-						   to_intel_plane_state(old_plane_state),
-						   to_intel_plane_state(new_plane_state));
+	return intel_plane_atomic_check_with_state(old_crtc_state,
+						   new_crtc_state,
+						   old_plane_state,
+						   new_plane_state);
 }
 
 static struct intel_plane *

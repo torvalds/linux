@@ -32,6 +32,7 @@ struct drm_i915_gem_object;
 struct drm_i915_private;
 struct i915_ggtt;
 struct i915_vma;
+struct intel_gt;
 struct sg_table;
 
 #define I965_FENCE_PAGE 4096UL
@@ -65,5 +66,7 @@ void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
 
 void i915_ggtt_init_fences(struct i915_ggtt *ggtt);
+
+void intel_gt_init_swizzling(struct intel_gt *gt);
 
 #endif

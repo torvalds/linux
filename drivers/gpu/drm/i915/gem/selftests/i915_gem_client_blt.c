@@ -5,14 +5,16 @@
 
 #include "i915_selftest.h"
 
+#include "gt/intel_gt.h"
+
 #include "selftests/igt_flush_test.h"
 #include "selftests/mock_drm.h"
 #include "mock_context.h"
 
 static int igt_client_fill(void *arg)
 {
-	struct intel_context *ce = arg;
-	struct drm_i915_private *i915 = ce->gem_context->i915;
+	struct drm_i915_private *i915 = arg;
+	struct intel_context *ce = i915->engine[BCS0]->kernel_context;
 	struct drm_i915_gem_object *obj;
 	struct rnd_state prng;
 	IGT_TIMEOUT(end);
@@ -63,17 +65,6 @@ static int igt_client_fill(void *arg)
 		if (err)
 			goto err_unpin;
 
-		/*
-		 * XXX: For now do the wait without the object resv lock to
-		 * ensure we don't deadlock.
-		 */
-		err = i915_gem_object_wait(obj,
-					   I915_WAIT_INTERRUPTIBLE |
-					   I915_WAIT_ALL,
-					   MAX_SCHEDULE_TIMEOUT);
-		if (err)
-			goto err_unpin;
-
 		i915_gem_object_lock(obj);
 		err = i915_gem_object_set_to_cpu_domain(obj, false);
 		i915_gem_object_unlock(obj);
@@ -100,11 +91,6 @@ err_unpin:
 err_put:
 	i915_gem_object_put(obj);
 err_flush:
-	mutex_lock(&i915->drm.struct_mutex);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		err = -EIO;
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	if (err == -ENOMEM)
 		err = 0;
 
@@ -117,11 +103,11 @@ int i915_gem_client_blt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_client_fill),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	if (!HAS_ENGINE(i915, BCS0))
 		return 0;
 
-	return i915_subtests(tests, i915->engine[BCS0]->kernel_context);
+	return i915_live_subtests(tests, i915);
 }

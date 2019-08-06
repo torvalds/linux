@@ -200,20 +200,20 @@
 #include "gt/intel_lrc_reg.h"
 
 #include "i915_drv.h"
-#include "i915_oa_hsw.h"
-#include "i915_oa_bdw.h"
-#include "i915_oa_chv.h"
-#include "i915_oa_sklgt2.h"
-#include "i915_oa_sklgt3.h"
-#include "i915_oa_sklgt4.h"
-#include "i915_oa_bxt.h"
-#include "i915_oa_kblgt2.h"
-#include "i915_oa_kblgt3.h"
-#include "i915_oa_glk.h"
-#include "i915_oa_cflgt2.h"
-#include "i915_oa_cflgt3.h"
-#include "i915_oa_cnl.h"
-#include "i915_oa_icl.h"
+#include "oa/i915_oa_hsw.h"
+#include "oa/i915_oa_bdw.h"
+#include "oa/i915_oa_chv.h"
+#include "oa/i915_oa_sklgt2.h"
+#include "oa/i915_oa_sklgt3.h"
+#include "oa/i915_oa_sklgt4.h"
+#include "oa/i915_oa_bxt.h"
+#include "oa/i915_oa_kblgt2.h"
+#include "oa/i915_oa_kblgt3.h"
+#include "oa/i915_oa_glk.h"
+#include "oa/i915_oa_cflgt2.h"
+#include "oa/i915_oa_cflgt3.h"
+#include "oa/i915_oa_cnl.h"
+#include "oa/i915_oa_icl.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1634,6 +1634,27 @@ static void hsw_disable_metric_set(struct drm_i915_private *dev_priv)
 				      ~GT_NOA_ENABLE));
 }
 
+static u32 oa_config_flex_reg(const struct i915_oa_config *oa_config,
+			      i915_reg_t reg)
+{
+	u32 mmio = i915_mmio_reg_offset(reg);
+	int i;
+
+	/*
+	 * This arbitrary default will select the 'EU FPU0 Pipeline
+	 * Active' event. In the future it's anticipated that there
+	 * will be an explicit 'No Event' we can select, but not yet...
+	 */
+	if (!oa_config)
+		return 0;
+
+	for (i = 0; i < oa_config->flex_regs_len; i++) {
+		if (i915_mmio_reg_offset(oa_config->flex_regs[i].addr) == mmio)
+			return oa_config->flex_regs[i].value;
+	}
+
+	return 0;
+}
 /*
  * NB: It must always remain pointer safe to run this even if the OA unit
  * has been disabled.
@@ -1667,33 +1688,138 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
 		GEN8_OA_COUNTER_RESUME);
 
 	for (i = 0; i < ARRAY_SIZE(flex_regs); i++) {
-		u32 state_offset = ctx_flexeu0 + i * 2;
-		u32 mmio = i915_mmio_reg_offset(flex_regs[i]);
-
-		/*
-		 * This arbitrary default will select the 'EU FPU0 Pipeline
-		 * Active' event. In the future it's anticipated that there
-		 * will be an explicit 'No Event' we can select, but not yet...
-		 */
-		u32 value = 0;
-
-		if (oa_config) {
-			u32 j;
-
-			for (j = 0; j < oa_config->flex_regs_len; j++) {
-				if (i915_mmio_reg_offset(oa_config->flex_regs[j].addr) == mmio) {
-					value = oa_config->flex_regs[j].value;
-					break;
-				}
-			}
-		}
-
-		CTX_REG(reg_state, state_offset, flex_regs[i], value);
+		CTX_REG(reg_state, ctx_flexeu0 + i * 2, flex_regs[i],
+			oa_config_flex_reg(oa_config, flex_regs[i]));
 	}
 
 	CTX_REG(reg_state,
 		CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
 		intel_sseu_make_rpcs(i915, &ce->sseu));
+}
+
+struct flex {
+	i915_reg_t reg;
+	u32 offset;
+	u32 value;
+};
+
+static int
+gen8_store_flex(struct i915_request *rq,
+		struct intel_context *ce,
+		const struct flex *flex, unsigned int count)
+{
+	u32 offset;
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 4 * count);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	offset = i915_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
+	do {
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+		*cs++ = offset + (flex->offset + 1) * sizeof(u32);
+		*cs++ = 0;
+		*cs++ = flex->value;
+	} while (flex++, --count);
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int
+gen8_load_flex(struct i915_request *rq,
+	       struct intel_context *ce,
+	       const struct flex *flex, unsigned int count)
+{
+	u32 *cs;
+
+	GEM_BUG_ON(!count || count > 63);
+
+	cs = intel_ring_begin(rq, 2 * count + 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_LOAD_REGISTER_IMM(count);
+	do {
+		*cs++ = i915_mmio_reg_offset(flex->reg);
+		*cs++ = flex->value;
+	} while (flex++, --count);
+	*cs++ = MI_NOOP;
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int gen8_modify_context(struct intel_context *ce,
+			       const struct flex *flex, unsigned int count)
+{
+	struct i915_request *rq;
+	int err;
+
+	lockdep_assert_held(&ce->pin_mutex);
+
+	rq = i915_request_create(ce->engine->kernel_context);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	/* Serialise with the remote context */
+	err = intel_context_prepare_remote_request(ce, rq);
+	if (err == 0)
+		err = gen8_store_flex(rq, ce, flex, count);
+
+	i915_request_add(rq);
+	return err;
+}
+
+static int gen8_modify_self(struct intel_context *ce,
+			    const struct flex *flex, unsigned int count)
+{
+	struct i915_request *rq;
+	int err;
+
+	rq = i915_request_create(ce);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	err = gen8_load_flex(rq, ce, flex, count);
+
+	i915_request_add(rq);
+	return err;
+}
+
+static int gen8_configure_context(struct i915_gem_context *ctx,
+				  struct flex *flex, unsigned int count)
+{
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+	int err = 0;
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		GEM_BUG_ON(ce == ce->engine->kernel_context);
+
+		if (ce->engine->class != RENDER_CLASS)
+			continue;
+
+		err = intel_context_lock_pinned(ce);
+		if (err)
+			break;
+
+		flex->value = intel_sseu_make_rpcs(ctx->i915, &ce->sseu);
+
+		/* Otherwise OA settings will be set upon first use */
+		if (intel_context_is_pinned(ce))
+			err = gen8_modify_context(ce, flex, count);
+
+		intel_context_unlock_pinned(ce);
+		if (err)
+			break;
+	}
+	i915_gem_context_unlock_engines(ctx);
+
+	return err;
 }
 
 /*
@@ -1720,15 +1846,42 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
  *
  * Note: it's only the RCS/Render context that has any OA state.
  */
-static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
+static int gen8_configure_all_contexts(struct drm_i915_private *i915,
 				       const struct i915_oa_config *oa_config)
 {
-	unsigned int map_type = i915_coherent_map_type(dev_priv);
+	/* The MMIO offsets for Flex EU registers aren't contiguous */
+	const u32 ctx_flexeu0 = i915->perf.oa.ctx_flexeu0_offset;
+#define ctx_flexeuN(N) (ctx_flexeu0 + 2 * (N))
+	struct flex regs[] = {
+		{
+			GEN8_R_PWR_CLK_STATE,
+			CTX_R_PWR_CLK_STATE,
+		},
+		{
+			GEN8_OACTXCONTROL,
+			i915->perf.oa.ctx_oactxctrl_offset,
+			((i915->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
+			 (i915->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
+			 GEN8_OA_COUNTER_RESUME)
+		},
+		{ EU_PERF_CNTL0, ctx_flexeuN(0) },
+		{ EU_PERF_CNTL1, ctx_flexeuN(1) },
+		{ EU_PERF_CNTL2, ctx_flexeuN(2) },
+		{ EU_PERF_CNTL3, ctx_flexeuN(3) },
+		{ EU_PERF_CNTL4, ctx_flexeuN(4) },
+		{ EU_PERF_CNTL5, ctx_flexeuN(5) },
+		{ EU_PERF_CNTL6, ctx_flexeuN(6) },
+	};
+#undef ctx_flexeuN
+	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
-	struct i915_request *rq;
-	int ret;
+	enum intel_engine_id id;
+	int i;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	for (i = 2; i < ARRAY_SIZE(regs); i++)
+		regs[i].value = oa_config_flex_reg(oa_config, regs[i].reg);
+
+	lockdep_assert_held(&i915->drm.struct_mutex);
 
 	/*
 	 * The OA register config is setup through the context image. This image
@@ -1740,58 +1893,41 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	 * this might leave small interval of time where the OA unit is
 	 * configured at an invalid sampling period.
 	 *
-	 * So far the best way to work around this issue seems to be draining
-	 * the GPU from any submitted work.
+	 * Note that since we emit all requests from a single ring, there
+	 * is still an implicit global barrier here that may cause a high
+	 * priority context to wait for an otherwise independent low priority
+	 * context. Contexts idle at the time of reconfiguration are not
+	 * trapped behind the barrier.
 	 */
-	ret = i915_gem_wait_for_idle(dev_priv,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (ret)
-		return ret;
+	list_for_each_entry(ctx, &i915->contexts.list, link) {
+		int err;
 
-	/* Update all contexts now that we've stalled the submission. */
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct i915_gem_engines_iter it;
-		struct intel_context *ce;
+		if (ctx == i915->kernel_context)
+			continue;
 
-		for_each_gem_engine(ce,
-				    i915_gem_context_lock_engines(ctx),
-				    it) {
-			u32 *regs;
-
-			if (ce->engine->class != RENDER_CLASS)
-				continue;
-
-			/* OA settings will be set upon first use */
-			if (!ce->state)
-				continue;
-
-			regs = i915_gem_object_pin_map(ce->state->obj,
-						       map_type);
-			if (IS_ERR(regs)) {
-				i915_gem_context_unlock_engines(ctx);
-				return PTR_ERR(regs);
-			}
-
-			ce->state->obj->mm.dirty = true;
-			regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
-
-			gen8_update_reg_state_unlocked(ce, regs, oa_config);
-
-			i915_gem_object_unpin_map(ce->state->obj);
-		}
-		i915_gem_context_unlock_engines(ctx);
+		err = gen8_configure_context(ctx, regs, ARRAY_SIZE(regs));
+		if (err)
+			return err;
 	}
 
 	/*
-	 * Apply the configuration by doing one context restore of the edited
-	 * context image.
+	 * After updating all other contexts, we need to modify ourselves.
+	 * If we don't modify the kernel_context, we do not get events while
+	 * idle.
 	 */
-	rq = i915_request_create(dev_priv->engine[RCS0]->kernel_context);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
+	for_each_engine(engine, i915, id) {
+		struct intel_context *ce = engine->kernel_context;
+		int err;
 
-	i915_request_add(rq);
+		if (engine->class != RENDER_CLASS)
+			continue;
+
+		regs[0].value = intel_sseu_make_rpcs(i915, &ce->sseu);
+
+		err = gen8_modify_self(ce, regs, ARRAY_SIZE(regs));
+		if (err)
+			return err;
+	}
 
 	return 0;
 }

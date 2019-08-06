@@ -119,6 +119,50 @@ const struct dma_fence_ops i915_fence_ops = {
 	.release = i915_fence_release,
 };
 
+static void irq_execute_cb(struct irq_work *wrk)
+{
+	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
+
+	i915_sw_fence_complete(cb->fence);
+	kmem_cache_free(global.slab_execute_cbs, cb);
+}
+
+static void irq_execute_cb_hook(struct irq_work *wrk)
+{
+	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
+
+	cb->hook(container_of(cb->fence, struct i915_request, submit),
+		 &cb->signal->fence);
+	i915_request_put(cb->signal);
+
+	irq_execute_cb(wrk);
+}
+
+static void __notify_execute_cb(struct i915_request *rq)
+{
+	struct execute_cb *cb;
+
+	lockdep_assert_held(&rq->lock);
+
+	if (list_empty(&rq->execute_cb))
+		return;
+
+	list_for_each_entry(cb, &rq->execute_cb, link)
+		irq_work_queue(&cb->work);
+
+	/*
+	 * XXX Rollback on __i915_request_unsubmit()
+	 *
+	 * In the future, perhaps when we have an active time-slicing scheduler,
+	 * it will be interesting to unsubmit parallel execution and remove
+	 * busywaits from the GPU until their master is restarted. This is
+	 * quite hairy, we have to carefully rollback the fence and do a
+	 * preempt-to-idle cycle on the target engine, all the while the
+	 * master execute_cb may refire.
+	 */
+	INIT_LIST_HEAD(&rq->execute_cb);
+}
+
 static inline void
 i915_request_remove_from_client(struct i915_request *request)
 {
@@ -232,6 +276,12 @@ static bool i915_request_retire(struct i915_request *rq)
 
 	local_irq_disable();
 
+	/*
+	 * We only loosely track inflight requests across preemption,
+	 * and so we may find ourselves attempting to retire a _completed_
+	 * request that we have removed from the HW and put back on a run
+	 * queue.
+	 */
 	spin_lock(&rq->engine->active.lock);
 	list_del(&rq->sched.link);
 	spin_unlock(&rq->engine->active.lock);
@@ -242,10 +292,15 @@ static bool i915_request_retire(struct i915_request *rq)
 		dma_fence_signal_locked(&rq->fence);
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
 		i915_request_cancel_breadcrumb(rq);
-	if (rq->waitboost) {
+	if (i915_request_has_waitboost(rq)) {
 		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
 		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
 	}
+	if (!test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
+		set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
+		__notify_execute_cb(rq);
+	}
+	GEM_BUG_ON(!list_empty(&rq->execute_cb));
 	spin_unlock(&rq->lock);
 
 	local_irq_enable();
@@ -283,50 +338,6 @@ void i915_request_retire_upto(struct i915_request *rq)
 		tmp = list_first_entry(&ring->request_list,
 				       typeof(*tmp), ring_link);
 	} while (i915_request_retire(tmp) && tmp != rq);
-}
-
-static void irq_execute_cb(struct irq_work *wrk)
-{
-	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
-
-	i915_sw_fence_complete(cb->fence);
-	kmem_cache_free(global.slab_execute_cbs, cb);
-}
-
-static void irq_execute_cb_hook(struct irq_work *wrk)
-{
-	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
-
-	cb->hook(container_of(cb->fence, struct i915_request, submit),
-		 &cb->signal->fence);
-	i915_request_put(cb->signal);
-
-	irq_execute_cb(wrk);
-}
-
-static void __notify_execute_cb(struct i915_request *rq)
-{
-	struct execute_cb *cb;
-
-	lockdep_assert_held(&rq->lock);
-
-	if (list_empty(&rq->execute_cb))
-		return;
-
-	list_for_each_entry(cb, &rq->execute_cb, link)
-		irq_work_queue(&cb->work);
-
-	/*
-	 * XXX Rollback on __i915_request_unsubmit()
-	 *
-	 * In the future, perhaps when we have an active time-slicing scheduler,
-	 * it will be interesting to unsubmit parallel execution and remove
-	 * busywaits from the GPU until their master is restarted. This is
-	 * quite hairy, we have to carefully rollback the fence and do a
-	 * preempt-to-idle cycle on the target engine, all the while the
-	 * master execute_cb may refire.
-	 */
-	INIT_LIST_HEAD(&rq->execute_cb);
 }
 
 static int
@@ -596,7 +607,7 @@ out:
 struct i915_request *
 __i915_request_create(struct intel_context *ce, gfp_t gfp)
 {
-	struct i915_timeline *tl = ce->ring->timeline;
+	struct intel_timeline *tl = ce->ring->timeline;
 	struct i915_request *rq;
 	u32 seqno;
 	int ret;
@@ -645,7 +656,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		}
 	}
 
-	ret = i915_timeline_get_seqno(tl, rq, &seqno);
+	ret = intel_timeline_get_seqno(tl, rq, &seqno);
 	if (ret)
 		goto err_free;
 
@@ -673,7 +684,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->file_priv = NULL;
 	rq->batch = NULL;
 	rq->capture_list = NULL;
-	rq->waitboost = false;
+	rq->flags = 0;
 	rq->execution_mask = ALL_ENGINES;
 
 	INIT_LIST_HEAD(&rq->active_list);
@@ -764,7 +775,7 @@ i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 		return 0;
 
 	signal = list_prev_entry(signal, ring_link);
-	if (i915_timeline_sync_is_later(rq->timeline, &signal->fence))
+	if (intel_timeline_sync_is_later(rq->timeline, &signal->fence))
 		return 0;
 
 	return i915_sw_fence_await_dma_fence(&rq->submit,
@@ -818,7 +829,7 @@ emit_semaphore_wait(struct i915_request *to,
 		return err;
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
-	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
+	err = intel_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
 		return err;
 
@@ -929,7 +940,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Squash repeated waits to the same timelines */
 		if (fence->context != rq->i915->mm.unordered_timeline &&
-		    i915_timeline_sync_is_later(rq->timeline, fence))
+		    intel_timeline_sync_is_later(rq->timeline, fence))
 			continue;
 
 		if (dma_fence_is_i915(fence))
@@ -943,7 +954,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Record the latest fence used against each timeline */
 		if (fence->context != rq->i915->mm.unordered_timeline)
-			i915_timeline_sync_set(rq->timeline, fence);
+			intel_timeline_sync_set(rq->timeline, fence);
 	} while (--nchild);
 
 	return 0;
@@ -1081,7 +1092,7 @@ void i915_request_skip(struct i915_request *rq, int error)
 static struct i915_request *
 __i915_request_add_to_timeline(struct i915_request *rq)
 {
-	struct i915_timeline *timeline = rq->timeline;
+	struct intel_timeline *timeline = rq->timeline;
 	struct i915_request *prev;
 
 	/*
@@ -1390,8 +1401,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * serialise wait/reset with an explicit lock, we do want
 	 * lockdep to detect potential dependency cycles.
 	 */
-	mutex_acquire(&rq->i915->gpu_error.wedge_mutex.dep_map,
-		      0, 0, _THIS_IP_);
+	mutex_acquire(&rq->engine->gt->reset.mutex.dep_map, 0, 0, _THIS_IP_);
 
 	/*
 	 * Optimistic spin before touching IRQs.
@@ -1447,8 +1457,10 @@ long i915_request_wait(struct i915_request *rq,
 	for (;;) {
 		set_current_state(state);
 
-		if (i915_request_completed(rq))
+		if (i915_request_completed(rq)) {
+			dma_fence_signal(&rq->fence);
 			break;
+		}
 
 		if (signal_pending_state(state, current)) {
 			timeout = -ERESTARTSYS;
@@ -1467,7 +1479,7 @@ long i915_request_wait(struct i915_request *rq,
 	dma_fence_remove_callback(&rq->fence, &wait.cb);
 
 out:
-	mutex_release(&rq->i915->gpu_error.wedge_mutex.dep_map, 0, _THIS_IP_);
+	mutex_release(&rq->engine->gt->reset.mutex.dep_map, 0, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
 }

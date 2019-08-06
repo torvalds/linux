@@ -545,10 +545,10 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	/* There are cases where we can end up here with power domains
 	 * off and a CDCLK frequency other than the minimum, like when
 	 * issuing a modeset without actually changing any display after
-	 * a system suspend.  So grab the PIPE-A domain, which covers
+	 * a system suspend.  So grab the display core domain, which covers
 	 * the HW blocks needed for the following programming.
 	 */
-	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
 
 	vlv_iosf_sb_get(dev_priv,
 			BIT(VLV_IOSF_SB_CCK) |
@@ -606,7 +606,7 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 
 	vlv_program_pfi_credits(dev_priv);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A, wakeref);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
 }
 
 static void chv_set_cdclk(struct drm_i915_private *dev_priv,
@@ -631,10 +631,10 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	/* There are cases where we can end up here with power domains
 	 * off and a CDCLK frequency other than the minimum, like when
 	 * issuing a modeset without actually changing any display after
-	 * a system suspend.  So grab the PIPE-A domain, which covers
+	 * a system suspend.  So grab the display core domain, which covers
 	 * the HW blocks needed for the following programming.
 	 */
-	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
 
 	vlv_punit_get(dev_priv);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
@@ -653,7 +653,7 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 
 	vlv_program_pfi_credits(dev_priv);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A, wakeref);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
 }
 
 static int bdw_calc_cdclk(int min_cdclk)
@@ -1756,9 +1756,10 @@ sanitize:
 
 static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
 {
-	int ranges_24[] = { 312000, 552000, 648000 };
-	int ranges_19_38[] = { 307200, 556800, 652800 };
-	int *ranges;
+	static const int ranges_24[] = { 180000, 192000, 312000, 552000, 648000 };
+	static const int ranges_19_38[] = { 172800, 192000, 307200, 556800, 652800 };
+	const int *ranges;
+	int len, i;
 
 	switch (ref) {
 	default:
@@ -1766,19 +1767,22 @@ static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
 		/* fall through */
 	case 24000:
 		ranges = ranges_24;
+		len = ARRAY_SIZE(ranges_24);
 		break;
 	case 19200:
 	case 38400:
 		ranges = ranges_19_38;
+		len = ARRAY_SIZE(ranges_19_38);
 		break;
 	}
 
-	if (min_cdclk > ranges[1])
-		return ranges[2];
-	else if (min_cdclk > ranges[0])
-		return ranges[1];
-	else
-		return ranges[0];
+	for (i = 0; i < len; i++) {
+		if (min_cdclk <= ranges[i])
+			return ranges[i];
+	}
+
+	WARN_ON(min_cdclk > ranges[len - 1]);
+	return ranges[len - 1];
 }
 
 static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
@@ -1792,16 +1796,24 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	default:
 		MISSING_CASE(cdclk);
 		/* fall through */
+	case 172800:
 	case 307200:
 	case 556800:
 	case 652800:
 		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
 			dev_priv->cdclk.hw.ref != 38400);
 		break;
+	case 180000:
 	case 312000:
 	case 552000:
 	case 648000:
 		WARN_ON(dev_priv->cdclk.hw.ref != 24000);
+		break;
+	case 192000:
+		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
+			dev_priv->cdclk.hw.ref != 38400 &&
+			dev_priv->cdclk.hw.ref != 24000);
+		break;
 	}
 
 	ratio = cdclk / (dev_priv->cdclk.hw.ref / 2);
@@ -1854,14 +1866,23 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 	dev_priv->cdclk.hw.voltage_level = cdclk_state->voltage_level;
 }
 
-static u8 icl_calc_voltage_level(int cdclk)
+static u8 icl_calc_voltage_level(struct drm_i915_private *dev_priv, int cdclk)
 {
-	if (cdclk > 556800)
-		return 2;
-	else if (cdclk > 312000)
-		return 1;
-	else
-		return 0;
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		if (cdclk > 312000)
+			return 2;
+		else if (cdclk > 180000)
+			return 1;
+		else
+			return 0;
+	} else {
+		if (cdclk > 556800)
+			return 2;
+		else if (cdclk > 312000)
+			return 1;
+		else
+			return 0;
+	}
 }
 
 static void icl_get_cdclk(struct drm_i915_private *dev_priv,
@@ -1912,7 +1933,7 @@ out:
 	 * at least what the CDCLK frequency requires.
 	 */
 	cdclk_state->voltage_level =
-		icl_calc_voltage_level(cdclk_state->cdclk);
+		icl_calc_voltage_level(dev_priv, cdclk_state->cdclk);
 }
 
 static void icl_init_cdclk(struct drm_i915_private *dev_priv)
@@ -1947,7 +1968,8 @@ sanitize:
 	sanitized_state.vco = icl_calc_cdclk_pll_vco(dev_priv,
 						     sanitized_state.cdclk);
 	sanitized_state.voltage_level =
-				icl_calc_voltage_level(sanitized_state.cdclk);
+				icl_calc_voltage_level(dev_priv,
+						       sanitized_state.cdclk);
 
 	icl_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
@@ -1958,7 +1980,8 @@ static void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
-	cdclk_state.voltage_level = icl_calc_voltage_level(cdclk_state.cdclk);
+	cdclk_state.voltage_level = icl_calc_voltage_level(dev_priv,
+							   cdclk_state.cdclk);
 
 	icl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -2560,7 +2583,7 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
 	state->cdclk.logical.voltage_level =
-		max(icl_calc_voltage_level(cdclk),
+		max(icl_calc_voltage_level(dev_priv, cdclk),
 		    cnl_compute_min_voltage_level(state));
 
 	if (!state->active_crtcs) {
@@ -2570,7 +2593,7 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
 		state->cdclk.actual.voltage_level =
-			icl_calc_voltage_level(cdclk);
+			icl_calc_voltage_level(dev_priv, cdclk);
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
 	}
@@ -2605,7 +2628,12 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		if (dev_priv->cdclk.hw.ref == 24000)
+			dev_priv->max_cdclk_freq = 552000;
+		else
+			dev_priv->max_cdclk_freq = 556800;
+	} else if (INTEL_GEN(dev_priv) >= 11) {
 		if (dev_priv->cdclk.hw.ref == 24000)
 			dev_priv->max_cdclk_freq = 648000;
 		else

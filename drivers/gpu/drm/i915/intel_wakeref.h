@@ -13,6 +13,12 @@
 #include <linux/stackdepot.h>
 #include <linux/timer.h>
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
+#define INTEL_WAKEREF_BUG_ON(expr) BUG_ON(expr)
+#else
+#define INTEL_WAKEREF_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
+#endif
+
 struct intel_runtime_pm;
 
 typedef depot_stack_handle_t intel_wakeref_t;
@@ -101,6 +107,7 @@ intel_wakeref_put(struct intel_runtime_pm *rpm,
 		  struct intel_wakeref *wf,
 		  int (*fn)(struct intel_wakeref *wf))
 {
+	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
 	if (atomic_dec_and_mutex_lock(&wf->count, &wf->mutex))
 		return __intel_wakeref_put_last(rpm, wf, fn);
 
@@ -136,13 +143,13 @@ intel_wakeref_unlock(struct intel_wakeref *wf)
 }
 
 /**
- * intel_wakeref_active: Query whether the wakeref is currently held
+ * intel_wakeref_is_active: Query whether the wakeref is currently held
  * @wf: the wakeref
  *
  * Returns: true if the wakeref is currently held.
  */
 static inline bool
-intel_wakeref_active(struct intel_wakeref *wf)
+intel_wakeref_is_active(const struct intel_wakeref *wf)
 {
 	return READ_ONCE(wf->wakeref);
 }

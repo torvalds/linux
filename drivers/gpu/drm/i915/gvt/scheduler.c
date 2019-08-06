@@ -1157,7 +1157,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 
 	intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 
-	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(s->shadow[0]->gem_context->vm));
+	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(s->shadow[0]->vm));
 	for_each_engine(engine, vgpu->gvt->dev_priv, id)
 		intel_context_unpin(s->shadow[id]);
 

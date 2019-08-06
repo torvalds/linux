@@ -150,7 +150,8 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 			}
 		}
 
-		ret = i915_gem_object_unbind(obj);
+		ret = i915_gem_object_unbind(obj,
+					     I915_GEM_OBJECT_UNBIND_ACTIVE);
 		if (ret == 0)
 			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
 		i915_gem_object_put(obj);
@@ -661,6 +662,14 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 
 	__i915_gem_object_release_shmem(obj, pages, true);
 	i915_gem_gtt_finish_pages(obj, pages);
+
+	/*
+	 * We always mark objects as dirty when they are used by the GPU,
+	 * just in case. However, if we set the vma as being read-only we know
+	 * that the object will never have been written to.
+	 */
+	if (i915_gem_object_is_readonly(obj))
+		obj->mm.dirty = false;
 
 	for_each_sgt_page(page, sgt_iter, pages) {
 		if (obj->mm.dirty)

@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_gt.h"
 #include "intel_workarounds.h"
 
 /**
@@ -49,9 +50,10 @@
  * - Public functions to init or apply the given workaround type.
  */
 
-static void wa_init_start(struct i915_wa_list *wal, const char *name)
+static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
 {
 	wal->name = name;
+	wal->engine_name = engine_name;
 }
 
 #define WA_LIST_CHUNK (1 << 4)
@@ -73,8 +75,8 @@ static void wa_init_finish(struct i915_wa_list *wal)
 	if (!wal->count)
 		return;
 
-	DRM_DEBUG_DRIVER("Initialized %u %s workarounds\n",
-			 wal->wa_count, wal->name);
+	DRM_DEBUG_DRIVER("Initialized %u %s workarounds on %s\n",
+			 wal->wa_count, wal->name, wal->engine_name);
 }
 
 static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
@@ -173,19 +175,6 @@ static void
 wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
 	wa_write_masked_or(wal, reg, val, val);
-}
-
-static void
-ignore_wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask, u32 val)
-{
-	struct i915_wa wa = {
-		.reg  = reg,
-		.mask = mask,
-		.val  = val,
-		/* Bonkers HW, skip verifying */
-	};
-
-	_wa_add(wal, &wa);
 }
 
 #define WA_SET_BIT_MASKED(addr, mask) \
@@ -536,12 +525,6 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
 		 GEN8_ERRDETBCTRL);
 
-	/* WaDisableBankHangMode:icl */
-	wa_write(wal,
-		 GEN8_L3CNTLREG,
-		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
-		 GEN8_ERRDETBCTRL);
-
 	/* Wa_1604370585:icl (pre-prod)
 	 * Formerly known as WaPushConstantDereferenceHoldDisable
 	 */
@@ -596,7 +579,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	if (engine->class != RENDER_CLASS)
 		return;
 
-	wa_init_start(wal, name);
+	wa_init_start(wal, name, engine->name);
 
 	if (IS_GEN(i915, 11))
 		icl_ctx_workarounds_init(engine, wal);
@@ -766,7 +749,10 @@ static void
 wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
-	u32 mcr_slice_subslice_mask;
+	unsigned int slice, subslice;
+	u32 l3_en, mcr, mcr_mask;
+
+	GEM_BUG_ON(INTEL_GEN(i915) < 10);
 
 	/*
 	 * WaProgramMgsrForL3BankSpecificMmioReads: cnl,icl
@@ -774,42 +760,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	 * the case, we might need to program MCR select to a valid L3Bank
 	 * by default, to make sure we correctly read certain registers
 	 * later on (in the range 0xB100 - 0xB3FF).
-	 * This might be incompatible with
-	 * WaProgramMgsrForCorrectSliceSpecificMmioReads.
-	 * Fortunately, this should not happen in production hardware, so
-	 * we only assert that this is the case (instead of implementing
-	 * something more complex that requires checking the range of every
-	 * MMIO read).
-	 */
-	if (INTEL_GEN(i915) >= 10 &&
-	    is_power_of_2(sseu->slice_mask)) {
-		/*
-		 * read FUSE3 for enabled L3 Bank IDs, if L3 Bank matches
-		 * enabled subslice, no need to redirect MCR packet
-		 */
-		u32 slice = fls(sseu->slice_mask);
-		u32 fuse3 =
-			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3);
-		u8 ss_mask = sseu->subslice_mask[slice];
-
-		u8 enabled_mask = (ss_mask | ss_mask >>
-				   GEN10_L3BANK_PAIR_COUNT) & GEN10_L3BANK_MASK;
-		u8 disabled_mask = fuse3 & GEN10_L3BANK_MASK;
-
-		/*
-		 * Production silicon should have matched L3Bank and
-		 * subslice enabled
-		 */
-		WARN_ON((enabled_mask & disabled_mask) != enabled_mask);
-	}
-
-	if (INTEL_GEN(i915) >= 11)
-		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
-					  GEN11_MCR_SUBSLICE_MASK;
-	else
-		mcr_slice_subslice_mask = GEN8_MCR_SLICE_MASK |
-					  GEN8_MCR_SUBSLICE_MASK;
-	/*
+	 *
 	 * WaProgramMgsrForCorrectSliceSpecificMmioReads:cnl,icl
 	 * Before any MMIO read into slice/subslice specific registers, MCR
 	 * packet control register needs to be programmed to point to any
@@ -819,11 +770,51 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	 * are consistent across s/ss in almost all cases. In the rare
 	 * occasions, such as INSTDONE, where this value is dependent
 	 * on s/ss combo, the read should be done with read_subslice_reg.
+	 *
+	 * Since GEN8_MCR_SELECTOR contains dual-purpose bits which select both
+	 * to which subslice, or to which L3 bank, the respective mmio reads
+	 * will go, we have to find a common index which works for both
+	 * accesses.
+	 *
+	 * Case where we cannot find a common index fortunately should not
+	 * happen in production hardware, so we only emit a warning instead of
+	 * implementing something more complex that requires checking the range
+	 * of every MMIO read.
 	 */
-	wa_write_masked_or(wal,
-			   GEN8_MCR_SELECTOR,
-			   mcr_slice_subslice_mask,
-			   intel_calculate_mcr_s_ss_select(i915));
+
+	if (INTEL_GEN(i915) >= 10 && is_power_of_2(sseu->slice_mask)) {
+		u32 l3_fuse =
+			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3) &
+			GEN10_L3BANK_MASK;
+
+		DRM_DEBUG_DRIVER("L3 fuse = %x\n", l3_fuse);
+		l3_en = ~(l3_fuse << GEN10_L3BANK_PAIR_COUNT | l3_fuse);
+	} else {
+		l3_en = ~0;
+	}
+
+	slice = fls(sseu->slice_mask) - 1;
+	GEM_BUG_ON(slice >= ARRAY_SIZE(sseu->subslice_mask));
+	subslice = fls(l3_en & sseu->subslice_mask[slice]);
+	if (!subslice) {
+		DRM_WARN("No common index found between subslice mask %x and L3 bank mask %x!\n",
+			 sseu->subslice_mask[slice], l3_en);
+		subslice = fls(l3_en);
+		WARN_ON(!subslice);
+	}
+	subslice--;
+
+	if (INTEL_GEN(i915) >= 11) {
+		mcr = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
+		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
+	} else {
+		mcr = GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
+		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
+	}
+
+	DRM_DEBUG_DRIVER("MCR slice/subslice = %x\n", mcr);
+
+	wa_write_masked_or(wal, GEN8_MCR_SELECTOR, mcr_mask, mcr);
 }
 
 static void
@@ -926,7 +917,7 @@ void intel_gt_init_workarounds(struct drm_i915_private *i915)
 {
 	struct i915_wa_list *wal = &i915->gt_wa_list;
 
-	wa_init_start(wal, "GT");
+	wa_init_start(wal, "GT", "global");
 	gt_init_workarounds(i915, wal);
 	wa_init_finish(wal);
 }
@@ -990,9 +981,9 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 	spin_unlock_irqrestore(&uncore->lock, flags);
 }
 
-void intel_gt_apply_workarounds(struct drm_i915_private *i915)
+void intel_gt_apply_workarounds(struct intel_gt *gt)
 {
-	wa_list_apply(&i915->uncore, &i915->gt_wa_list);
+	wa_list_apply(gt->uncore, &gt->i915->gt_wa_list);
 }
 
 static bool wa_list_verify(struct intel_uncore *uncore,
@@ -1011,10 +1002,23 @@ static bool wa_list_verify(struct intel_uncore *uncore,
 	return ok;
 }
 
-bool intel_gt_verify_workarounds(struct drm_i915_private *i915,
-				 const char *from)
+bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 {
-	return wa_list_verify(&i915->uncore, &i915->gt_wa_list, from);
+	return wa_list_verify(gt->uncore, &gt->i915->gt_wa_list, from);
+}
+
+static inline bool is_nonpriv_flags_valid(u32 flags)
+{
+	/* Check only valid flag bits are set */
+	if (flags & ~RING_FORCE_TO_NONPRIV_MASK_VALID)
+		return false;
+
+	/* NB: Only 3 out of 4 enum values are valid for access field */
+	if ((flags & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
+	    RING_FORCE_TO_NONPRIV_ACCESS_INVALID)
+		return false;
+
+	return true;
 }
 
 static void
@@ -1027,6 +1031,9 @@ whitelist_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
 	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
 		return;
 
+	if (GEM_DEBUG_WARN_ON(!is_nonpriv_flags_valid(flags)))
+		return;
+
 	wa.reg.reg |= flags;
 	_wa_add(wal, &wa);
 }
@@ -1034,7 +1041,7 @@ whitelist_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
 static void
 whitelist_reg(struct i915_wa_list *wal, i915_reg_t reg)
 {
-	whitelist_reg_ext(wal, reg, RING_FORCE_TO_NONPRIV_RW);
+	whitelist_reg_ext(wal, reg, RING_FORCE_TO_NONPRIV_ACCESS_RW);
 }
 
 static void gen9_whitelist_build(struct i915_wa_list *w)
@@ -1115,7 +1122,7 @@ static void cfl_whitelist_build(struct intel_engine_cs *engine)
 	 *   - PS_DEPTH_COUNT_UDW
 	 */
 	whitelist_reg_ext(w, PS_INVOCATION_COUNT,
-			  RING_FORCE_TO_NONPRIV_RD |
+			  RING_FORCE_TO_NONPRIV_ACCESS_RD |
 			  RING_FORCE_TO_NONPRIV_RANGE_4);
 }
 
@@ -1155,20 +1162,20 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 		 *   - PS_DEPTH_COUNT_UDW
 		 */
 		whitelist_reg_ext(w, PS_INVOCATION_COUNT,
-				  RING_FORCE_TO_NONPRIV_RD |
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD |
 				  RING_FORCE_TO_NONPRIV_RANGE_4);
 		break;
 
 	case VIDEO_DECODE_CLASS:
 		/* hucStatusRegOffset */
 		whitelist_reg_ext(w, _MMIO(0x2000 + engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_RD);
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		/* hucUKernelHdrInfoRegOffset */
 		whitelist_reg_ext(w, _MMIO(0x2014 + engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_RD);
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		/* hucStatus2RegOffset */
 		whitelist_reg_ext(w, _MMIO(0x23B0 + engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_RD);
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 
 	default:
@@ -1181,7 +1188,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	wa_init_start(w, "whitelist");
+	wa_init_start(w, "whitelist", engine->name);
 
 	if (IS_GEN(i915, 11))
 		icl_whitelist_build(engine);
@@ -1240,10 +1247,9 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
 
 		/* WaPipelineFlushCoherentLines:icl */
-		ignore_wa_write_or(wal,
-				   GEN8_L3SQCREG4,
-				   GEN8_LQSC_FLUSH_COHERENT_LINES,
-				   GEN8_LQSC_FLUSH_COHERENT_LINES);
+		wa_write_or(wal,
+			    GEN8_L3SQCREG4,
+			    GEN8_LQSC_FLUSH_COHERENT_LINES);
 
 		/*
 		 * Wa_1405543622:icl
@@ -1270,10 +1276,9 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_1405733216:icl
 		 * Formerly known as WaDisableCleanEvicts
 		 */
-		ignore_wa_write_or(wal,
-				   GEN8_L3SQCREG4,
-				   GEN11_LQSC_CLEAN_EVICT_DISABLE,
-				   GEN11_LQSC_CLEAN_EVICT_DISABLE);
+		wa_write_or(wal,
+			    GEN8_L3SQCREG4,
+			    GEN11_LQSC_CLEAN_EVICT_DISABLE);
 
 		/* WaForwardProgressSoftReset:icl */
 		wa_write_or(wal,
@@ -1292,6 +1297,12 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN7_SARCHKMD,
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
+
+		/* Wa_1409178092:icl */
+		wa_write_masked_or(wal,
+				   GEN11_SCRATCH2,
+				   GEN11_COHERENT_PARTIAL_WRITE_MERGE_ENABLE,
+				   0);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 11)) {
@@ -1360,7 +1371,7 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 8))
 		return;
 
-	if (engine->id == RCS0)
+	if (engine->class == RENDER_CLASS)
 		rcs_engine_wa_init(engine, wal);
 	else
 		xcs_engine_wa_init(engine, wal);
@@ -1370,10 +1381,10 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->wa_list;
 
-	if (GEM_WARN_ON(INTEL_GEN(engine->i915) < 8))
+	if (INTEL_GEN(engine->i915) < 8)
 		return;
 
-	wa_init_start(wal, engine->name);
+	wa_init_start(wal, "engine", engine->name);
 	engine_init_workarounds(engine, wal);
 	wa_init_finish(wal);
 }
@@ -1416,26 +1427,50 @@ err_obj:
 	return ERR_PTR(err);
 }
 
+static bool mcr_range(struct drm_i915_private *i915, u32 offset)
+{
+	/*
+	 * Registers in this range are affected by the MCR selector
+	 * which only controls CPU initiated MMIO. Routing does not
+	 * work for CS access so we cannot verify them on this path.
+	 */
+	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb100 && offset <= 0xb3ff))
+		return true;
+
+	return false;
+}
+
 static int
 wa_list_srm(struct i915_request *rq,
 	    const struct i915_wa_list *wal,
 	    struct i915_vma *vma)
 {
+	struct drm_i915_private *i915 = rq->i915;
+	unsigned int i, count = 0;
 	const struct i915_wa *wa;
-	unsigned int i;
 	u32 srm, *cs;
 
 	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	if (INTEL_GEN(rq->i915) >= 8)
+	if (INTEL_GEN(i915) >= 8)
 		srm++;
 
-	cs = intel_ring_begin(rq, 4 * wal->count);
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		if (!mcr_range(i915, i915_mmio_reg_offset(wa->reg)))
+			count++;
+	}
+
+	cs = intel_ring_begin(rq, 4 * count);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		u32 offset = i915_mmio_reg_offset(wa->reg);
+
+		if (mcr_range(i915, offset))
+			continue;
+
 		*cs++ = srm;
-		*cs++ = i915_mmio_reg_offset(wa->reg);
+		*cs++ = offset;
 		*cs++ = i915_ggtt_offset(vma) + sizeof(u32) * i;
 		*cs++ = 0;
 	}
@@ -1458,7 +1493,7 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (!wal->count)
 		return 0;
 
-	vma = create_scratch(&ce->engine->i915->ggtt.vm, wal->count);
+	vma = create_scratch(&ce->engine->gt->ggtt->vm, wal->count);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -1485,9 +1520,13 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	}
 
 	err = 0;
-	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		if (mcr_range(rq->i915, i915_mmio_reg_offset(wa->reg)))
+			continue;
+
 		if (!wa_verify(wa, results[i], wal->name, from))
 			err = -ENXIO;
+	}
 
 	i915_gem_object_unpin_map(vma->obj);
 

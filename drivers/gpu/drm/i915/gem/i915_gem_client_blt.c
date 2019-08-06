@@ -72,7 +72,6 @@ static struct i915_sleeve *create_sleeve(struct i915_address_space *vm,
 	vma->ops = &proxy_vma_ops;
 
 	sleeve->vma = vma;
-	sleeve->obj = i915_gem_object_get(obj);
 	sleeve->pages = pages;
 	sleeve->page_sizes = *page_sizes;
 
@@ -85,7 +84,6 @@ err_free:
 
 static void destroy_sleeve(struct i915_sleeve *sleeve)
 {
-	i915_gem_object_put(sleeve->obj);
 	kfree(sleeve);
 }
 
@@ -155,7 +153,7 @@ static void clear_pages_worker(struct work_struct *work)
 {
 	struct clear_pages_work *w = container_of(work, typeof(*w), work);
 	struct drm_i915_private *i915 = w->ce->gem_context->i915;
-	struct drm_i915_gem_object *obj = w->sleeve->obj;
+	struct drm_i915_gem_object *obj = w->sleeve->vma->obj;
 	struct i915_vma *vma = w->sleeve->vma;
 	struct i915_request *rq;
 	int err = w->dma.error;
@@ -164,11 +162,12 @@ static void clear_pages_worker(struct work_struct *work)
 		goto out_signal;
 
 	if (obj->cache_dirty) {
-		obj->write_domain = 0;
 		if (i915_gem_object_has_struct_page(obj))
 			drm_clflush_sg(w->sleeve->pages);
 		obj->cache_dirty = false;
 	}
+	obj->read_domains = I915_GEM_GPU_DOMAINS;
+	obj->write_domain = 0;
 
 	/* XXX: we need to kill this */
 	mutex_lock(&i915->drm.struct_mutex);
@@ -193,10 +192,12 @@ static void clear_pages_worker(struct work_struct *work)
 			goto out_request;
 	}
 
-	/* XXX: more feverish nightmares await */
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
+	/*
+	 * w->dma is already exported via (vma|obj)->resv we need only
+	 * keep track of the GPU activity within this vma/request, and
+	 * propagate the signal from the request to w->dma.
+	 */
+	err = i915_active_ref(&vma->active, rq->fence.context, rq);
 	if (err)
 		goto out_request;
 
@@ -249,13 +250,11 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 				     u32 value)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_gem_context *ctx = ce->gem_context;
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct clear_pages_work *work;
 	struct i915_sleeve *sleeve;
 	int err;
 
-	sleeve = create_sleeve(vm, obj, pages, page_sizes);
+	sleeve = create_sleeve(ce->vm, obj, pages, page_sizes);
 	if (IS_ERR(sleeve))
 		return PTR_ERR(sleeve);
 

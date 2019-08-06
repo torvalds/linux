@@ -5,13 +5,13 @@
  */
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_gt.h"
 #include "i915_selftest.h"
 #include "intel_reset.h"
 
 #include "selftests/igt_flush_test.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
-#include "selftests/igt_wedge_me.h"
 #include "selftests/mock_drm.h"
 
 #include "gem/selftests/igt_gem_utils.h"
@@ -24,11 +24,9 @@ static const struct wo_register {
 	{ INTEL_GEMINILAKE, 0x731c }
 };
 
-#define REF_NAME_MAX (INTEL_ENGINE_CS_MAX_NAME + 8)
 struct wa_lists {
 	struct i915_wa_list gt_wa_list;
 	struct {
-		char name[REF_NAME_MAX];
 		struct i915_wa_list wa_list;
 		struct i915_wa_list ctx_wa_list;
 	} engine[I915_NUM_ENGINES];
@@ -42,25 +40,20 @@ reference_lists_init(struct drm_i915_private *i915, struct wa_lists *lists)
 
 	memset(lists, 0, sizeof(*lists));
 
-	wa_init_start(&lists->gt_wa_list, "GT_REF");
+	wa_init_start(&lists->gt_wa_list, "GT_REF", "global");
 	gt_init_workarounds(i915, &lists->gt_wa_list);
 	wa_init_finish(&lists->gt_wa_list);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_wa_list *wal = &lists->engine[id].wa_list;
-		char *name = lists->engine[id].name;
 
-		snprintf(name, REF_NAME_MAX, "%s_REF", engine->name);
-
-		wa_init_start(wal, name);
+		wa_init_start(wal, "REF", engine->name);
 		engine_init_workarounds(engine, wal);
 		wa_init_finish(wal);
 
-		snprintf(name, REF_NAME_MAX, "%s_CTX_REF", engine->name);
-
 		__intel_engine_init_ctx_wa(engine,
 					   &lists->engine[id].ctx_wa_list,
-					   name);
+					   "CTX_REF");
 	}
 }
 
@@ -102,7 +95,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	i915_gem_object_flush_map(result);
 	i915_gem_object_unpin_map(result);
 
-	vma = i915_vma_instance(result, &engine->i915->ggtt.vm, NULL);
+	vma = i915_vma_instance(result, &engine->gt->ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err_obj;
@@ -184,7 +177,7 @@ static int check_whitelist(struct i915_gem_context *ctx,
 			   struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *results;
-	struct igt_wedge_me wedge;
+	struct intel_wedge_me wedge;
 	u32 *vaddr;
 	int err;
 	int i;
@@ -195,10 +188,10 @@ static int check_whitelist(struct i915_gem_context *ctx,
 
 	err = 0;
 	i915_gem_object_lock(results);
-	igt_wedge_on_timeout(&wedge, ctx->i915, HZ / 5) /* a safety net! */
+	intel_wedge_on_timeout(&wedge, &ctx->i915->gt, HZ / 5) /* safety net! */
 		err = i915_gem_object_set_to_cpu_domain(results, false);
 	i915_gem_object_unlock(results);
-	if (i915_terminally_wedged(ctx->i915))
+	if (intel_gt_is_wedged(&ctx->i915->gt))
 		err = -EIO;
 	if (err)
 		goto out_put;
@@ -231,13 +224,13 @@ out_put:
 
 static int do_device_reset(struct intel_engine_cs *engine)
 {
-	i915_reset(engine->i915, engine->mask, "live_workarounds");
+	intel_gt_reset(engine->gt, engine->mask, "live_workarounds");
 	return 0;
 }
 
 static int do_engine_reset(struct intel_engine_cs *engine)
 {
-	return i915_reset_engine(engine, "live_workarounds");
+	return intel_engine_reset(engine, "live_workarounds");
 }
 
 static int
@@ -286,64 +279,67 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 					const char *name)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct i915_gem_context *ctx;
+	struct i915_gem_context *ctx, *tmp;
 	struct igt_spinner spin;
 	intel_wakeref_t wakeref;
 	int err;
 
-	pr_info("Checking %d whitelisted registers (RING_NONPRIV) [%s]\n",
-		engine->whitelist.count, name);
-
-	err = igt_spinner_init(&spin, i915);
-	if (err)
-		return err;
+	pr_info("Checking %d whitelisted registers on %s (RING_NONPRIV) [%s]\n",
+		engine->whitelist.count, engine->name, name);
 
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
+	err = igt_spinner_init(&spin, i915);
+	if (err)
+		goto out_ctx;
+
 	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Invalid whitelist *before* %s reset!\n", name);
-		goto out;
+		goto out_spin;
 	}
 
 	err = switch_to_scratch_context(engine, &spin);
 	if (err)
-		goto out;
+		goto out_spin;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = reset(engine);
 
 	igt_spinner_end(&spin);
-	igt_spinner_fini(&spin);
 
 	if (err) {
 		pr_err("%s reset failed\n", name);
-		goto out;
+		goto out_spin;
 	}
 
 	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Whitelist not preserved in context across %s reset!\n",
 		       name);
-		goto out;
+		goto out_spin;
 	}
 
+	tmp = kernel_context(i915);
+	if (IS_ERR(tmp)) {
+		err = PTR_ERR(tmp);
+		goto out_spin;
+	}
 	kernel_context_close(ctx);
-
-	ctx = kernel_context(i915);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	ctx = tmp;
 
 	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Invalid whitelist *after* %s reset in fresh context!\n",
 		       name);
-		goto out;
+		goto out_spin;
 	}
 
-out:
+out_spin:
+	igt_spinner_fini(&spin);
+out_ctx:
 	kernel_context_close(ctx);
 	return err;
 }
@@ -393,6 +389,10 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 	enum intel_platform platform = INTEL_INFO(engine->i915)->platform;
 	int i;
 
+	if ((reg & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
+	     RING_FORCE_TO_NONPRIV_ACCESS_WR)
+		return true;
+
 	for (i = 0; i < ARRAY_SIZE(wo_registers); i++) {
 		if (wo_registers[i].platform == platform &&
 		    wo_registers[i].reg == reg)
@@ -404,7 +404,8 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 
 static bool ro_register(u32 reg)
 {
-	if (reg & RING_FORCE_TO_NONPRIV_RD)
+	if ((reg & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
+	     RING_FORCE_TO_NONPRIV_ACCESS_RD)
 		return true;
 
 	return false;
@@ -476,12 +477,12 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		u32 srm, lrm, rsvd;
 		u32 expect;
 		int idx;
+		bool ro_reg;
 
 		if (wo_register(engine, reg))
 			continue;
 
-		if (ro_register(reg))
-			continue;
+		ro_reg = ro_register(reg);
 
 		srm = MI_STORE_REGISTER_MEM;
 		lrm = MI_LOAD_REGISTER_MEM;
@@ -542,7 +543,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 
 		i915_gem_object_flush_map(batch->obj);
 		i915_gem_object_unpin_map(batch->obj);
-		i915_gem_chipset_flush(ctx->i915);
+		intel_gt_chipset_flush(engine->gt);
 
 		rq = igt_request_alloc(ctx, engine);
 		if (IS_ERR(rq)) {
@@ -570,7 +571,7 @@ err_request:
 		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("%s: Futzing %x timedout; cancelling test\n",
 			       engine->name, reg);
-			i915_gem_set_wedged(ctx->i915);
+			intel_gt_set_wedged(&ctx->i915->gt);
 			err = -EIO;
 			goto out_batch;
 		}
@@ -582,24 +583,35 @@ err_request:
 		}
 
 		GEM_BUG_ON(values[ARRAY_SIZE(values) - 1] != 0xffffffff);
-		rsvd = results[ARRAY_SIZE(values)]; /* detect write masking */
-		if (!rsvd) {
-			pr_err("%s: Unable to write to whitelisted register %x\n",
-			       engine->name, reg);
-			err = -EINVAL;
-			goto out_unpin;
+		if (!ro_reg) {
+			/* detect write masking */
+			rsvd = results[ARRAY_SIZE(values)];
+			if (!rsvd) {
+				pr_err("%s: Unable to write to whitelisted register %x\n",
+				       engine->name, reg);
+				err = -EINVAL;
+				goto out_unpin;
+			}
 		}
 
 		expect = results[0];
 		idx = 1;
 		for (v = 0; v < ARRAY_SIZE(values); v++) {
-			expect = reg_write(expect, values[v], rsvd);
+			if (ro_reg)
+				expect = results[0];
+			else
+				expect = reg_write(expect, values[v], rsvd);
+
 			if (results[idx] != expect)
 				err++;
 			idx++;
 		}
 		for (v = 0; v < ARRAY_SIZE(values); v++) {
-			expect = reg_write(expect, ~values[v], rsvd);
+			if (ro_reg)
+				expect = results[0];
+			else
+				expect = reg_write(expect, ~values[v], rsvd);
+
 			if (results[idx] != expect)
 				err++;
 			idx++;
@@ -608,15 +620,22 @@ err_request:
 			pr_err("%s: %d mismatch between values written to whitelisted register [%x], and values read back!\n",
 			       engine->name, err, reg);
 
-			pr_info("%s: Whitelisted register: %x, original value %08x, rsvd %08x\n",
-				engine->name, reg, results[0], rsvd);
+			if (ro_reg)
+				pr_info("%s: Whitelisted read-only register: %x, original value %08x\n",
+					engine->name, reg, results[0]);
+			else
+				pr_info("%s: Whitelisted register: %x, original value %08x, rsvd %08x\n",
+					engine->name, reg, results[0], rsvd);
 
 			expect = results[0];
 			idx = 1;
 			for (v = 0; v < ARRAY_SIZE(values); v++) {
 				u32 w = values[v];
 
-				expect = reg_write(expect, w, rsvd);
+				if (ro_reg)
+					expect = results[0];
+				else
+					expect = reg_write(expect, w, rsvd);
 				pr_info("Wrote %08x, read %08x, expect %08x\n",
 					w, results[idx], expect);
 				idx++;
@@ -624,7 +643,10 @@ err_request:
 			for (v = 0; v < ARRAY_SIZE(values); v++) {
 				u32 w = ~values[v];
 
-				expect = reg_write(expect, w, rsvd);
+				if (ro_reg)
+					expect = results[0];
+				else
+					expect = reg_write(expect, w, rsvd);
 				pr_info("Wrote %08x, read %08x, expect %08x\n",
 					w, results[idx], expect);
 				idx++;
@@ -707,7 +729,7 @@ static int live_reset_whitelist(void *arg)
 	if (!engine || engine->whitelist.count == 0)
 		return 0;
 
-	igt_global_reset_lock(i915);
+	igt_global_reset_lock(&i915->gt);
 
 	if (intel_has_reset_engine(i915)) {
 		err = check_whitelist_across_reset(engine,
@@ -726,7 +748,7 @@ static int live_reset_whitelist(void *arg)
 	}
 
 out:
-	igt_global_reset_unlock(i915);
+	igt_global_reset_unlock(&i915->gt);
 	return err;
 }
 
@@ -756,8 +778,8 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 		u64 offset = results->node.start + sizeof(u32) * i;
 		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
 
-		/* Clear RD only and WR only flags */
-		reg &= ~(RING_FORCE_TO_NONPRIV_RD | RING_FORCE_TO_NONPRIV_WR);
+		/* Clear access permission field */
+		reg &= ~RING_FORCE_TO_NONPRIV_ACCESS_MASK;
 
 		*cs++ = srm;
 		*cs++ = reg;
@@ -806,7 +828,7 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 	*cs++ = MI_BATCH_BUFFER_END;
 
 	i915_gem_object_flush_map(batch->obj);
-	i915_gem_chipset_flush(ctx->i915);
+	intel_gt_chipset_flush(engine->gt);
 
 	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
@@ -927,7 +949,8 @@ check_whitelisted_registers(struct intel_engine_cs *engine,
 	for (i = 0; i < engine->whitelist.count; i++) {
 		const struct i915_wa *wa = &engine->whitelist.list[i];
 
-		if (i915_mmio_reg_offset(wa->reg) & RING_FORCE_TO_NONPRIV_RD)
+		if (i915_mmio_reg_offset(wa->reg) &
+		    RING_FORCE_TO_NONPRIV_ACCESS_RD)
 			continue;
 
 		if (!fn(engine, a[i], b[i], wa->reg))
@@ -1094,7 +1117,7 @@ live_gpu_reset_workarounds(void *arg)
 
 	pr_info("Verifying after GPU reset...\n");
 
-	igt_global_reset_lock(i915);
+	igt_global_reset_lock(&i915->gt);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	reference_lists_init(i915, &lists);
@@ -1103,7 +1126,7 @@ live_gpu_reset_workarounds(void *arg)
 	if (!ok)
 		goto out;
 
-	i915_reset(i915, ALL_ENGINES, "live_workarounds");
+	intel_gt_reset(&i915->gt, ALL_ENGINES, "live_workarounds");
 
 	ok = verify_wa_lists(ctx, &lists, "after reset");
 
@@ -1111,7 +1134,7 @@ out:
 	kernel_context_close(ctx);
 	reference_lists_fini(i915, &lists);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	igt_global_reset_unlock(i915);
+	igt_global_reset_unlock(&i915->gt);
 
 	return ok ? 0 : -ESRCH;
 }
@@ -1136,7 +1159,7 @@ live_engine_reset_workarounds(void *arg)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	igt_global_reset_lock(i915);
+	igt_global_reset_lock(&i915->gt);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	reference_lists_init(i915, &lists);
@@ -1152,7 +1175,7 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		i915_reset_engine(engine, "live_workarounds");
+		intel_engine_reset(engine, "live_workarounds");
 
 		ok = verify_wa_lists(ctx, &lists, "after idle reset");
 		if (!ok) {
@@ -1180,7 +1203,7 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		i915_reset_engine(engine, "live_workarounds");
+		intel_engine_reset(engine, "live_workarounds");
 
 		igt_spinner_end(&spin);
 		igt_spinner_fini(&spin);
@@ -1195,7 +1218,7 @@ live_engine_reset_workarounds(void *arg)
 err:
 	reference_lists_fini(i915, &lists);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	igt_global_reset_unlock(i915);
+	igt_global_reset_unlock(&i915->gt);
 	kernel_context_close(ctx);
 
 	igt_flush_test(i915, I915_WAIT_LOCKED);
@@ -1214,7 +1237,7 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 	};
 	int err;
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);

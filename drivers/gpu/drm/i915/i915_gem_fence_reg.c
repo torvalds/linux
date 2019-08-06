@@ -834,3 +834,35 @@ void i915_ggtt_init_fences(struct i915_ggtt *ggtt)
 
 	i915_gem_restore_fences(i915);
 }
+
+void intel_gt_init_swizzling(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
+
+	if (INTEL_GEN(i915) < 5 ||
+	    i915->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
+		return;
+
+	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);
+
+	if (IS_GEN(i915, 5))
+		return;
+
+	intel_uncore_rmw(uncore, TILECTL, 0, TILECTL_SWZCTL);
+
+	if (IS_GEN(i915, 6))
+		intel_uncore_write(uncore,
+				   ARB_MODE,
+				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
+	else if (IS_GEN(i915, 7))
+		intel_uncore_write(uncore,
+				   ARB_MODE,
+				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
+	else if (IS_GEN(i915, 8))
+		intel_uncore_write(uncore,
+				   GAMTARBMODE,
+				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_BDW));
+	else
+		MISSING_CASE(INTEL_GEN(i915));
+}
