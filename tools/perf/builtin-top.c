@@ -601,6 +601,8 @@ static void *display_thread_tui(void *arg)
 	 */
 	unshare(CLONE_FS);
 
+	prctl(PR_SET_NAME, "perf-top-UI", 0, 0, 0);
+
 	perf_top__sort_new_samples(top);
 
 	/*
@@ -650,6 +652,8 @@ static void *display_thread(void *arg)
 	 * that we're observing.
 	 */
 	unshare(CLONE_FS);
+
+	prctl(PR_SET_NAME, "perf-top-UI", 0, 0, 0);
 
 	display_setup_sig();
 	pthread__unblock_sigwinch();
