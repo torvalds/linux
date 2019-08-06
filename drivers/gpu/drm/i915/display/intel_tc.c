@@ -7,6 +7,7 @@
 #include "intel_display.h"
 #include "intel_dp_mst.h"
 #include "intel_tc.h"
+#include "intel_drv.h"
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
@@ -501,6 +502,12 @@ void intel_tc_port_unlock(struct intel_digital_port *dig_port)
 
 	intel_display_power_put_async(i915, POWER_DOMAIN_DISPLAY_CORE,
 				      wakeref);
+}
+
+bool intel_tc_port_ref_held(struct intel_digital_port *dig_port)
+{
+	return mutex_is_locked(&dig_port->tc_lock) ||
+	       dig_port->tc_link_refcount;
 }
 
 void intel_tc_port_get_link(struct intel_digital_port *dig_port,
