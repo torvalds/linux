@@ -247,12 +247,9 @@ static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 	struct dm_hw_stat_delta *new_stat = NULL;
 	struct dm_hw_stat_delta *temp;
 
-	mutex_lock(&net_dm_mutex);
-
 	if (state == trace_state) {
 		NL_SET_ERR_MSG_MOD(extack, "Trace state already set to requested state");
-		rc = -EAGAIN;
-		goto out_unlock;
+		return -EAGAIN;
 	}
 
 	switch (state) {
@@ -295,9 +292,6 @@ static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 		trace_state = state;
 	else
 		rc = -EINPROGRESS;
-
-out_unlock:
-	mutex_unlock(&net_dm_mutex);
 
 	return rc;
 }
@@ -380,10 +374,26 @@ static const struct genl_ops dropmon_ops[] = {
 	},
 };
 
+static int net_dm_nl_pre_doit(const struct genl_ops *ops,
+			      struct sk_buff *skb, struct genl_info *info)
+{
+	mutex_lock(&net_dm_mutex);
+
+	return 0;
+}
+
+static void net_dm_nl_post_doit(const struct genl_ops *ops,
+				struct sk_buff *skb, struct genl_info *info)
+{
+	mutex_unlock(&net_dm_mutex);
+}
+
 static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.hdrsize        = 0,
 	.name           = "NET_DM",
 	.version        = 2,
+	.pre_doit	= net_dm_nl_pre_doit,
+	.post_doit	= net_dm_nl_post_doit,
 	.module		= THIS_MODULE,
 	.ops		= dropmon_ops,
 	.n_ops		= ARRAY_SIZE(dropmon_ops),
