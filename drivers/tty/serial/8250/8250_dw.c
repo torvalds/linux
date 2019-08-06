@@ -667,8 +667,9 @@ err_clk:
 static int dw8250_remove(struct platform_device *pdev)
 {
 	struct dw8250_data *data = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 
-	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_get_sync(dev);
 
 	serial8250_unregister_port(data->line);
 
@@ -680,8 +681,8 @@ static int dw8250_remove(struct platform_device *pdev)
 	if (!IS_ERR(data->clk))
 		clk_disable_unprepare(data->clk);
 
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
 
 	return 0;
 }
