@@ -1054,8 +1054,13 @@ static void dcn20_program_all_pipe_in_tree(
 	if (pipe_ctx->plane_state != NULL)
 		dcn20_program_pipe(dc, pipe_ctx, context);
 
-	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
+	if (pipe_ctx->bottom_pipe != NULL) {
+		ASSERT(pipe_ctx->bottom_pipe != pipe_ctx);
 		dcn20_program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
+	} else if (pipe_ctx->next_odm_pipe != NULL) {
+		ASSERT(pipe_ctx->next_odm_pipe != pipe_ctx);
+		dcn20_program_all_pipe_in_tree(dc, pipe_ctx->next_odm_pipe, context);
+	}
 }
 
 void dcn20_pipe_control_lock_global(

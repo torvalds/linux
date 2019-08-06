@@ -2026,6 +2026,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
 		if (!pipe_ctx->top_pipe &&
+			!pipe_ctx->prev_odm_pipe &&
 			pipe_ctx->stream &&
 			pipe_ctx->stream == stream) {
 			struct dc_stream_status *stream_status = NULL;
