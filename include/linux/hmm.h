@@ -158,7 +158,6 @@ enum hmm_pfn_value_e {
  * @values: pfn value for some special case (none, special, error, ...)
  * @default_flags: default flags for the range (write, read, ... see hmm doc)
  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
- * @page_shift: device virtual address shift value (should be >= PAGE_SHIFT)
  * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
  * @valid: pfns array did not change since it has been fill by an HMM function
  */
@@ -172,30 +171,9 @@ struct hmm_range {
 	const uint64_t		*values;
 	uint64_t		default_flags;
 	uint64_t		pfn_flags_mask;
-	uint8_t			page_shift;
 	uint8_t			pfn_shift;
 	bool			valid;
 };
-
-/*
- * hmm_range_page_shift() - return the page shift for the range
- * @range: range being queried
- * Return: page shift (page size = 1 << page shift) for the range
- */
-static inline unsigned hmm_range_page_shift(const struct hmm_range *range)
-{
-	return range->page_shift;
-}
-
-/*
- * hmm_range_page_size() - return the page size for the range
- * @range: range being queried
- * Return: page size for the range in bytes
- */
-static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
-{
-	return 1UL << hmm_range_page_shift(range);
-}
 
 /*
  * hmm_range_wait_until_valid() - wait for range to be valid

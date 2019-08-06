@@ -345,13 +345,12 @@ static int hmm_vma_walk_hole_(unsigned long addr, unsigned long end,
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
 	uint64_t *pfns = range->pfns;
-	unsigned long i, page_size;
+	unsigned long i;
 
 	hmm_vma_walk->last = addr;
-	page_size = hmm_range_page_size(range);
-	i = (addr - range->start) >> range->page_shift;
+	i = (addr - range->start) >> PAGE_SHIFT;
 
-	for (; addr < end; addr += page_size, i++) {
+	for (; addr < end; addr += PAGE_SIZE, i++) {
 		pfns[i] = range->values[HMM_PFN_NONE];
 		if (fault || write_fault) {
 			int ret;
@@ -779,7 +778,7 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 				      struct mm_walk *walk)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	unsigned long addr = start, i, pfn, mask, size, pfn_inc;
+	unsigned long addr = start, i, pfn, mask;
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
 	struct vm_area_struct *vma = walk->vma;
@@ -790,24 +789,12 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 	pte_t entry;
 	int ret = 0;
 
-	size = huge_page_size(h);
-	mask = size - 1;
-	if (range->page_shift != PAGE_SHIFT) {
-		/* Make sure we are looking at a full page. */
-		if (start & mask)
-			return -EINVAL;
-		if (end < (start + size))
-			return -EINVAL;
-		pfn_inc = size >> PAGE_SHIFT;
-	} else {
-		pfn_inc = 1;
-		size = PAGE_SIZE;
-	}
+	mask = huge_page_size(h) - 1;
 
 	ptl = huge_pte_lock(hstate_vma(vma), walk->mm, pte);
 	entry = huge_ptep_get(pte);
 
-	i = (start - range->start) >> range->page_shift;
+	i = (start - range->start) >> PAGE_SHIFT;
 	orig_pfn = range->pfns[i];
 	range->pfns[i] = range->values[HMM_PFN_NONE];
 	cpu_flags = pte_to_hmm_pfn_flags(range, entry);
@@ -819,8 +806,8 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
 		goto unlock;
 	}
 
-	pfn = pte_pfn(entry) + ((start & mask) >> range->page_shift);
-	for (; addr < end; addr += size, i++, pfn += pfn_inc)
+	pfn = pte_pfn(entry) + ((start & mask) >> PAGE_SHIFT);
+	for (; addr < end; addr += PAGE_SIZE, i++, pfn++)
 		range->pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
 				 cpu_flags;
 	hmm_vma_walk->last = end;
@@ -857,14 +844,13 @@ static void hmm_pfns_clear(struct hmm_range *range,
  */
 int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror)
 {
-	unsigned long mask = ((1UL << range->page_shift) - 1UL);
 	struct hmm *hmm = mirror->hmm;
 	unsigned long flags;
 
 	range->valid = false;
 	range->hmm = NULL;
 
-	if ((range->start & mask) || (range->end & mask))
+	if ((range->start & (PAGE_SIZE - 1)) || (range->end & (PAGE_SIZE - 1)))
 		return -EINVAL;
 	if (range->start >= range->end)
 		return -EINVAL;
@@ -970,16 +956,6 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 		vma = find_vma(hmm->mm, start);
 		if (vma == NULL || (vma->vm_flags & device_vma))
 			return -EFAULT;
-
-		if (is_vm_hugetlb_page(vma)) {
-			if (huge_page_shift(hstate_vma(vma)) !=
-			    range->page_shift &&
-			    range->page_shift != PAGE_SHIFT)
-				return -EINVAL;
-		} else {
-			if (range->page_shift != PAGE_SHIFT)
-				return -EINVAL;
-		}
 
 		if (!(vma->vm_flags & VM_READ)) {
 			/*
