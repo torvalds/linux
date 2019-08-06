@@ -14,6 +14,7 @@ struct perf_evlist {
 	struct perf_cpu_map	*cpus;
 	struct perf_thread_map	*threads;
 	int			 nr_mmaps;
+	size_t			 mmap_len;
 };
 
 /**
