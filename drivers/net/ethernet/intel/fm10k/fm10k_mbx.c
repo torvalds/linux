@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k_common.h"
 
@@ -2134,7 +2134,8 @@ fifo_err:
  *  DWORDs, not bytes.  Any invalid values will cause the mailbox to return
  *  error.
  **/
-s32 fm10k_sm_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
+s32 fm10k_sm_mbx_init(struct fm10k_hw __always_unused *hw,
+		      struct fm10k_mbx_info *mbx,
 		      const struct fm10k_msg_data *msg_data)
 {
 	mbx->mbx_reg = FM10K_GMBX;

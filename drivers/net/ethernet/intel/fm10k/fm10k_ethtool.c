@@ -1114,13 +1114,12 @@ static void fm10k_get_channels(struct net_device *dev,
 			       struct ethtool_channels *ch)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_hw *hw = &interface->hw;
 
 	/* report maximum channels */
 	ch->max_combined = fm10k_max_channels(dev);
 
 	/* report info for other vector */
-	ch->max_other = NON_Q_VECTORS(hw);
+	ch->max_other = NON_Q_VECTORS;
 	ch->other_count = ch->max_other;
 
 	/* record RSS queues */
@@ -1132,14 +1131,13 @@ static int fm10k_set_channels(struct net_device *dev,
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	unsigned int count = ch->combined_count;
-	struct fm10k_hw *hw = &interface->hw;
 
 	/* verify they are not requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
 	/* verify other_count has not changed */
-	if (ch->other_count != NON_Q_VECTORS(hw))
+	if (ch->other_count != NON_Q_VECTORS)
 		return -EINVAL;
 
 	/* verify the number of channels does not exceed hardware limits */
