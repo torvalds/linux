@@ -923,8 +923,9 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	if (!htotal || !vtotal) {
 		pr_debug("Invalid 'var' information\n");
 		return -EINVAL;
-	} pr_debug("var->pixclock=%d, htotal=%d, vtotal=%d\n",
-			var->pixclock, htotal, vtotal);
+	}
+	pr_debug("var->pixclock=%d, htotal=%d, vtotal=%d\n",
+		 var->pixclock, htotal, vtotal);
 
 	if (var->pixclock) {
 		drate = 1000000000 / var->pixclock;

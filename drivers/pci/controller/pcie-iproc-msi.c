@@ -602,9 +602,9 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	}
 
 	/* Reserve memory for event queue and make sure memories are zeroed */
-	msi->eq_cpu = dma_zalloc_coherent(pcie->dev,
-					  msi->nr_eq_region * EQ_MEM_REGION_SIZE,
-					  &msi->eq_dma, GFP_KERNEL);
+	msi->eq_cpu = dma_alloc_coherent(pcie->dev,
+					 msi->nr_eq_region * EQ_MEM_REGION_SIZE,
+					 &msi->eq_dma, GFP_KERNEL);
 	if (!msi->eq_cpu) {
 		ret = -ENOMEM;
 		goto free_irqs;

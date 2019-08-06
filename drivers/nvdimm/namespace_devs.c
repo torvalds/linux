@@ -270,11 +270,10 @@ static ssize_t __alt_name_store(struct device *dev, const char *buf,
 	if (dev->driver || to_ndns(dev)->claim)
 		return -EBUSY;
 
-	input = kmemdup(buf, len + 1, GFP_KERNEL);
+	input = kstrndup(buf, len, GFP_KERNEL);
 	if (!input)
 		return -ENOMEM;
 
-	input[len] = '\0';
 	pos = strim(input);
 	if (strlen(pos) + 1 > NSLABEL_NAME_LEN) {
 		rc = -EINVAL;

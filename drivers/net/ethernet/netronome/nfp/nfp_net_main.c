@@ -116,13 +116,13 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the vNIC */
-	nn = nfp_net_alloc(pf->pdev, needs_netdev, n_tx_rings, n_rx_rings);
+	nn = nfp_net_alloc(pf->pdev, ctrl_bar, needs_netdev,
+			   n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
 
 	nn->app = pf->app;
 	nfp_net_get_fw_version(&nn->fw_ver, ctrl_bar);
-	nn->dp.ctrl_bar = ctrl_bar;
 	nn->tx_bar = qc_bar + tx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->rx_bar = qc_bar + rx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->dp.is_vf = 0;

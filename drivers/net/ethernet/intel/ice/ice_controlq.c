@@ -3,6 +3,26 @@
 
 #include "ice_common.h"
 
+#define ICE_CQ_INIT_REGS(qinfo, prefix)				\
+do {								\
+	(qinfo)->sq.head = prefix##_ATQH;			\
+	(qinfo)->sq.tail = prefix##_ATQT;			\
+	(qinfo)->sq.len = prefix##_ATQLEN;			\
+	(qinfo)->sq.bah = prefix##_ATQBAH;			\
+	(qinfo)->sq.bal = prefix##_ATQBAL;			\
+	(qinfo)->sq.len_mask = prefix##_ATQLEN_ATQLEN_M;	\
+	(qinfo)->sq.len_ena_mask = prefix##_ATQLEN_ATQENABLE_M;	\
+	(qinfo)->sq.head_mask = prefix##_ATQH_ATQH_M;		\
+	(qinfo)->rq.head = prefix##_ARQH;			\
+	(qinfo)->rq.tail = prefix##_ARQT;			\
+	(qinfo)->rq.len = prefix##_ARQLEN;			\
+	(qinfo)->rq.bah = prefix##_ARQBAH;			\
+	(qinfo)->rq.bal = prefix##_ARQBAL;			\
+	(qinfo)->rq.len_mask = prefix##_ARQLEN_ARQLEN_M;	\
+	(qinfo)->rq.len_ena_mask = prefix##_ARQLEN_ARQENABLE_M;	\
+	(qinfo)->rq.head_mask = prefix##_ARQH_ARQH_M;		\
+} while (0)
+
 /**
  * ice_adminq_init_regs - Initialize AdminQ registers
  * @hw: pointer to the hardware structure
@@ -13,23 +33,7 @@ static void ice_adminq_init_regs(struct ice_hw *hw)
 {
 	struct ice_ctl_q_info *cq = &hw->adminq;
 
-	cq->sq.head = PF_FW_ATQH;
-	cq->sq.tail = PF_FW_ATQT;
-	cq->sq.len = PF_FW_ATQLEN;
-	cq->sq.bah = PF_FW_ATQBAH;
-	cq->sq.bal = PF_FW_ATQBAL;
-	cq->sq.len_mask = PF_FW_ATQLEN_ATQLEN_M;
-	cq->sq.len_ena_mask = PF_FW_ATQLEN_ATQENABLE_M;
-	cq->sq.head_mask = PF_FW_ATQH_ATQH_M;
-
-	cq->rq.head = PF_FW_ARQH;
-	cq->rq.tail = PF_FW_ARQT;
-	cq->rq.len = PF_FW_ARQLEN;
-	cq->rq.bah = PF_FW_ARQBAH;
-	cq->rq.bal = PF_FW_ARQBAL;
-	cq->rq.len_mask = PF_FW_ARQLEN_ARQLEN_M;
-	cq->rq.len_ena_mask = PF_FW_ARQLEN_ARQENABLE_M;
-	cq->rq.head_mask = PF_FW_ARQH_ARQH_M;
+	ICE_CQ_INIT_REGS(cq, PF_FW);
 }
 
 /**
@@ -42,24 +46,7 @@ static void ice_mailbox_init_regs(struct ice_hw *hw)
 {
 	struct ice_ctl_q_info *cq = &hw->mailboxq;
 
-	/* set head and tail registers in our local struct */
-	cq->sq.head = PF_MBX_ATQH;
-	cq->sq.tail = PF_MBX_ATQT;
-	cq->sq.len = PF_MBX_ATQLEN;
-	cq->sq.bah = PF_MBX_ATQBAH;
-	cq->sq.bal = PF_MBX_ATQBAL;
-	cq->sq.len_mask = PF_MBX_ATQLEN_ATQLEN_M;
-	cq->sq.len_ena_mask = PF_MBX_ATQLEN_ATQENABLE_M;
-	cq->sq.head_mask = PF_MBX_ATQH_ATQH_M;
-
-	cq->rq.head = PF_MBX_ARQH;
-	cq->rq.tail = PF_MBX_ARQT;
-	cq->rq.len = PF_MBX_ARQLEN;
-	cq->rq.bah = PF_MBX_ARQBAH;
-	cq->rq.bal = PF_MBX_ARQBAL;
-	cq->rq.len_mask = PF_MBX_ARQLEN_ARQLEN_M;
-	cq->rq.len_ena_mask = PF_MBX_ARQLEN_ARQENABLE_M;
-	cq->rq.head_mask = PF_MBX_ARQH_ARQH_M;
+	ICE_CQ_INIT_REGS(cq, PF_MBX);
 }
 
 /**
@@ -131,37 +118,20 @@ ice_alloc_ctrlq_rq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 }
 
 /**
- * ice_free_ctrlq_sq_ring - Free Control Transmit Queue (ATQ) rings
+ * ice_free_cq_ring - Free control queue ring
  * @hw: pointer to the hardware structure
- * @cq: pointer to the specific Control queue
+ * @ring: pointer to the specific control queue ring
  *
- * This assumes the posted send buffers have already been cleaned
+ * This assumes the posted buffers have already been cleaned
  * and de-allocated
  */
-static void ice_free_ctrlq_sq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+static void ice_free_cq_ring(struct ice_hw *hw, struct ice_ctl_q_ring *ring)
 {
-	dmam_free_coherent(ice_hw_to_dev(hw), cq->sq.desc_buf.size,
-			   cq->sq.desc_buf.va, cq->sq.desc_buf.pa);
-	cq->sq.desc_buf.va = NULL;
-	cq->sq.desc_buf.pa = 0;
-	cq->sq.desc_buf.size = 0;
-}
-
-/**
- * ice_free_ctrlq_rq_ring - Free Control Receive Queue (ARQ) rings
- * @hw: pointer to the hardware structure
- * @cq: pointer to the specific Control queue
- *
- * This assumes the posted receive buffers have already been cleaned
- * and de-allocated
- */
-static void ice_free_ctrlq_rq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
-{
-	dmam_free_coherent(ice_hw_to_dev(hw), cq->rq.desc_buf.size,
-			   cq->rq.desc_buf.va, cq->rq.desc_buf.pa);
-	cq->rq.desc_buf.va = NULL;
-	cq->rq.desc_buf.pa = 0;
-	cq->rq.desc_buf.size = 0;
+	dmam_free_coherent(ice_hw_to_dev(hw), ring->desc_buf.size,
+			   ring->desc_buf.va, ring->desc_buf.pa);
+	ring->desc_buf.va = NULL;
+	ring->desc_buf.pa = 0;
+	ring->desc_buf.size = 0;
 }
 
 /**
@@ -280,54 +250,23 @@ unwind_alloc_sq_bufs:
 	return ICE_ERR_NO_MEMORY;
 }
 
-/**
- * ice_free_rq_bufs - Free ARQ buffer info elements
- * @hw: pointer to the hardware structure
- * @cq: pointer to the specific Control queue
- */
-static void ice_free_rq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+static enum ice_status
+ice_cfg_cq_regs(struct ice_hw *hw, struct ice_ctl_q_ring *ring, u16 num_entries)
 {
-	int i;
+	/* Clear Head and Tail */
+	wr32(hw, ring->head, 0);
+	wr32(hw, ring->tail, 0);
 
-	/* free descriptors */
-	for (i = 0; i < cq->num_rq_entries; i++) {
-		dmam_free_coherent(ice_hw_to_dev(hw), cq->rq.r.rq_bi[i].size,
-				   cq->rq.r.rq_bi[i].va, cq->rq.r.rq_bi[i].pa);
-		cq->rq.r.rq_bi[i].va = NULL;
-		cq->rq.r.rq_bi[i].pa = 0;
-		cq->rq.r.rq_bi[i].size = 0;
-	}
+	/* set starting point */
+	wr32(hw, ring->len, (num_entries | ring->len_ena_mask));
+	wr32(hw, ring->bal, lower_32_bits(ring->desc_buf.pa));
+	wr32(hw, ring->bah, upper_32_bits(ring->desc_buf.pa));
 
-	/* free the dma header */
-	devm_kfree(ice_hw_to_dev(hw), cq->rq.dma_head);
-}
+	/* Check one register to verify that config was applied */
+	if (rd32(hw, ring->bal) != lower_32_bits(ring->desc_buf.pa))
+		return ICE_ERR_AQ_ERROR;
 
-/**
- * ice_free_sq_bufs - Free ATQ buffer info elements
- * @hw: pointer to the hardware structure
- * @cq: pointer to the specific Control queue
- */
-static void ice_free_sq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
-{
-	int i;
-
-	/* only unmap if the address is non-NULL */
-	for (i = 0; i < cq->num_sq_entries; i++)
-		if (cq->sq.r.sq_bi[i].pa) {
-			dmam_free_coherent(ice_hw_to_dev(hw),
-					   cq->sq.r.sq_bi[i].size,
-					   cq->sq.r.sq_bi[i].va,
-					   cq->sq.r.sq_bi[i].pa);
-			cq->sq.r.sq_bi[i].va = NULL;
-			cq->sq.r.sq_bi[i].pa = 0;
-			cq->sq.r.sq_bi[i].size = 0;
-		}
-
-	/* free the buffer info list */
-	devm_kfree(ice_hw_to_dev(hw), cq->sq.cmd_buf);
-
-	/* free the dma header */
-	devm_kfree(ice_hw_to_dev(hw), cq->sq.dma_head);
+	return 0;
 }
 
 /**
@@ -340,23 +279,7 @@ static void ice_free_sq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 static enum ice_status
 ice_cfg_sq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
-	u32 reg = 0;
-
-	/* Clear Head and Tail */
-	wr32(hw, cq->sq.head, 0);
-	wr32(hw, cq->sq.tail, 0);
-
-	/* set starting point */
-	wr32(hw, cq->sq.len, (cq->num_sq_entries | cq->sq.len_ena_mask));
-	wr32(hw, cq->sq.bal, lower_32_bits(cq->sq.desc_buf.pa));
-	wr32(hw, cq->sq.bah, upper_32_bits(cq->sq.desc_buf.pa));
-
-	/* Check one register to verify that config was applied */
-	reg = rd32(hw, cq->sq.bal);
-	if (reg != lower_32_bits(cq->sq.desc_buf.pa))
-		return ICE_ERR_AQ_ERROR;
-
-	return 0;
+	return ice_cfg_cq_regs(hw, &cq->sq, cq->num_sq_entries);
 }
 
 /**
@@ -369,24 +292,14 @@ ice_cfg_sq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 static enum ice_status
 ice_cfg_rq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
-	u32 reg = 0;
+	enum ice_status status;
 
-	/* Clear Head and Tail */
-	wr32(hw, cq->rq.head, 0);
-	wr32(hw, cq->rq.tail, 0);
-
-	/* set starting point */
-	wr32(hw, cq->rq.len, (cq->num_rq_entries | cq->rq.len_ena_mask));
-	wr32(hw, cq->rq.bal, lower_32_bits(cq->rq.desc_buf.pa));
-	wr32(hw, cq->rq.bah, upper_32_bits(cq->rq.desc_buf.pa));
+	status = ice_cfg_cq_regs(hw, &cq->rq, cq->num_rq_entries);
+	if (status)
+		return status;
 
 	/* Update tail in the HW to post pre-allocated buffers */
 	wr32(hw, cq->rq.tail, (u32)(cq->num_rq_entries - 1));
-
-	/* Check one register to verify that config was applied */
-	reg = rd32(hw, cq->rq.bal);
-	if (reg != lower_32_bits(cq->rq.desc_buf.pa))
-		return ICE_ERR_AQ_ERROR;
 
 	return 0;
 }
@@ -444,7 +357,7 @@ static enum ice_status ice_init_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	goto init_ctrlq_exit;
 
 init_ctrlq_free_rings:
-	ice_free_ctrlq_sq_ring(hw, cq);
+	ice_free_cq_ring(hw, &cq->sq);
 
 init_ctrlq_exit:
 	return ret_code;
@@ -503,11 +416,32 @@ static enum ice_status ice_init_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	goto init_ctrlq_exit;
 
 init_ctrlq_free_rings:
-	ice_free_ctrlq_rq_ring(hw, cq);
+	ice_free_cq_ring(hw, &cq->rq);
 
 init_ctrlq_exit:
 	return ret_code;
 }
+
+#define ICE_FREE_CQ_BUFS(hw, qi, ring)					\
+do {									\
+	int i;								\
+	/* free descriptors */						\
+	for (i = 0; i < (qi)->num_##ring##_entries; i++)		\
+		if ((qi)->ring.r.ring##_bi[i].pa) {			\
+			dmam_free_coherent(ice_hw_to_dev(hw),		\
+					   (qi)->ring.r.ring##_bi[i].size,\
+					   (qi)->ring.r.ring##_bi[i].va,\
+					   (qi)->ring.r.ring##_bi[i].pa);\
+			(qi)->ring.r.ring##_bi[i].va = NULL;		\
+			(qi)->ring.r.ring##_bi[i].pa = 0;		\
+			(qi)->ring.r.ring##_bi[i].size = 0;		\
+		}							\
+	/* free the buffer info list */					\
+	if ((qi)->ring.cmd_buf)						\
+		devm_kfree(ice_hw_to_dev(hw), (qi)->ring.cmd_buf);	\
+	/* free dma head */						\
+	devm_kfree(ice_hw_to_dev(hw), (qi)->ring.dma_head);		\
+} while (0)
 
 /**
  * ice_shutdown_sq - shutdown the Control ATQ
@@ -538,8 +472,8 @@ ice_shutdown_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	cq->sq.count = 0;	/* to indicate uninitialized queue */
 
 	/* free ring buffers and the ring itself */
-	ice_free_sq_bufs(hw, cq);
-	ice_free_ctrlq_sq_ring(hw, cq);
+	ICE_FREE_CQ_BUFS(hw, cq, sq);
+	ice_free_cq_ring(hw, &cq->sq);
 
 shutdown_sq_out:
 	mutex_unlock(&cq->sq_lock);
@@ -606,8 +540,8 @@ ice_shutdown_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	cq->rq.count = 0;
 
 	/* free ring buffers and the ring itself */
-	ice_free_rq_bufs(hw, cq);
-	ice_free_ctrlq_rq_ring(hw, cq);
+	ICE_FREE_CQ_BUFS(hw, cq, rq);
+	ice_free_cq_ring(hw, &cq->rq);
 
 shutdown_rq_out:
 	mutex_unlock(&cq->rq_lock);
@@ -657,7 +591,6 @@ init_ctrlq_free_rq:
  *     - cq->num_rq_entries
  *     - cq->rq_buf_size
  *     - cq->sq_buf_size
- *
  */
 static enum ice_status ice_init_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 {
@@ -841,7 +774,7 @@ static bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
  * @cd: pointer to command details structure
  *
- * This is the main send command routine for the ATQ.  It runs the q,
+ * This is the main send command routine for the ATQ. It runs the queue,
  * cleans the queue, etc.
  */
 enum ice_status
@@ -1035,7 +968,7 @@ void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode)
  * @pending: number of events that could be left to process
  *
  * This function cleans one Admin Receive Queue element and returns
- * the contents through e.  It can also return how many events are
+ * the contents through e. It can also return how many events are
  * left to process through 'pending'.
  */
 enum ice_status

@@ -199,6 +199,12 @@ colors.*::
 		Colors for headers in the output of a sub-commands (top, report).
 		Default values are 'white', 'blue'.
 
+core.*::
+	core.proc-map-timeout::
+		Sets a timeout (in milliseconds) for parsing /proc/<pid>/maps files.
+		Can be overridden by the --proc-map-timeout option on supported
+		subcommands. The default timeout is 500ms.
+
 tui.*, gtk.*::
 	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
 	These values are booleans, for example:
@@ -514,6 +520,38 @@ diff.*::
 		This options sets the method for computing the diff result.
 		Possible values are 'delta', 'delta-abs', 'ratio' and
 		'wdiff'.  Default is 'delta'.
+
+trace.*::
+	trace.add_events::
+		Allows adding a set of events to add to the ones specified
+		by the user, or use as a default one if none was specified.
+		The initial use case is to add augmented_raw_syscalls.o to
+		activate the 'perf trace' logic that looks for syscall
+		pointer contents after the normal tracepoint payload.
+
+	trace.args_alignment::
+		Number of columns to align the argument list, default is 70,
+		use 40 for the strace default, zero to no alignment.
+
+	trace.no_inherit::
+		Do not follow children threads.
+
+	trace.show_arg_names::
+		Should syscall argument names be printed? If not then trace.show_zeros
+		will be set.
+
+	trace.show_duration::
+		Show syscall duration.
+
+	trace.show_prefix::
+		If set to 'yes' will show common string prefixes in tables. The default
+		is to remove the common prefix in things like "MAP_SHARED", showing just "SHARED".
+
+	trace.show_timestamp::
+		Show syscall start timestamp.
+
+	trace.show_zeros::
+		Do not suppress syscall arguments that are equal to zero.
 
 SEE ALSO
 --------

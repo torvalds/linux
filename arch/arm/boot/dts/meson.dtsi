@@ -59,14 +59,6 @@
 		cache-level = <2>;
 	};
 
-	gic: interrupt-controller@c4301000 {
-		compatible = "arm,cortex-a9-gic";
-		reg = <0xc4301000 0x1000>,
-		      <0xc4300100 0x0100>;
-		interrupt-controller;
-		#interrupt-cells = <3>;
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -197,10 +189,29 @@
 				interrupts = <GIC_SPI 0 IRQ_TYPE_EDGE_RISING>;
 			};
 
-			timer@9940 {
+			timer_abcde: timer@9940 {
 				compatible = "amlogic,meson6-timer";
 				reg = <0x9940 0x18>;
-				interrupts = <GIC_SPI 10 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 11 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		periph: bus@c4300000 {
+			compatible = "simple-bus";
+			reg = <0xc4300000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc4300000 0x10000>;
+
+			gic: interrupt-controller@1000 {
+				compatible = "arm,cortex-a9-gic";
+				reg = <0x1000 0x1000>,
+				      <0x100 0x100>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
 			};
 		};
 
@@ -263,7 +274,7 @@
 			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
 			reg = <0xc9410000 0x10000
 			       0xc1108108 0x4>;
-			interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			status = "disabled";
 		};

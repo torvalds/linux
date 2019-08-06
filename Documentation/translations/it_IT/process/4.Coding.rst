@@ -1,0 +1,447 @@
+.. include:: ../disclaimer-ita.rst
+
+:Original: :ref:`Documentation/process/4.Coding.rst <development_coding>`
+:Translator: Alessia Mantegazza <amantegazza@vaga.pv.it>
+
+.. _it_development_coding:
+
+Scrivere codice corretto
+========================
+
+Nonostante ci sia molto da dire sul processo di creazione, sulla sua solidità
+e sul suo orientamento alla comunità, la prova di ogni progetto di sviluppo
+del kernel si trova nel codice stesso.  È il codice che sarà esaminato dagli
+altri sviluppatori ed inserito (o no) nel ramo principale. Quindi è la
+qualità di questo codice che determinerà il successo finale del progetto.
+
+Questa sezione esaminerà il processo di codifica.  Inizieremo con uno sguardo
+sulle diverse casistiche nelle quali gli sviluppatori kernel possono
+sbagliare.  Poi, l'attenzione si sposterà verso "il fare le cose
+correttamente" e sugli strumenti che possono essere utili in questa missione.
+
+Trappole
+--------
+
+Lo stile del codice
+*******************
+
+Il kernel ha da tempo delle norme sullo stile di codifica che sono descritte in
+:ref:`Documentation/translations/it_IT/process/coding-style.rst <codingstyle>`.
+Per la maggior parte del tempo, la politica descritta in quel file è stata
+praticamente informativa.  Ne risulta che ci sia una quantità sostanziale di
+codice nel kernel che non rispetta le linee guida relative allo stile.
+La presenza di quel codice conduce a due distinti pericoli per gli
+sviluppatori kernel.
+
+Il primo di questi è credere che gli standard di codifica del kernel
+non sono importanti e possono non essere applicati.  La verità è che
+aggiungere nuovo codice al kernel è davvero difficile se questo non
+rispetta le norme; molti sviluppatori richiederanno che il codice sia
+riformulato prima che anche solo lo revisionino.  Una base di codice larga
+quanto il kernel richiede una certa uniformità, in modo da rendere possibile
+per gli sviluppatori una comprensione veloce di ogni sua parte.  Non ci sono,
+quindi, più spazi per un codice formattato alla carlona.
+
+Occasionalmente, lo stile di codifica del kernel andrà in conflitto con lo
+stile richiesto da un datore di lavoro.  In alcuni casi, lo stile del kernel
+dovrà prevalere prima che il codice venga inserito.  Mettere il codice
+all'interno del kernel significa rinunciare a un certo grado di controllo
+in differenti modi - incluso il controllo sul come formattare il codice.
+
+L’altra trappola è quella di pensare che il codice già presente nel kernel
+abbia urgentemente bisogno di essere sistemato.  Gli sviluppatori potrebbero
+iniziare a generare patch che correggono lo stile come modo per prendere
+famigliarità con il processo, o come modo per inserire i propri nomi nei
+changelog del kernel – o entrambe.  La comunità di sviluppo vede un attività
+di codifica puramente correttiva come "rumore"; queste attività riceveranno
+una fredda accoglienza.  Di conseguenza è meglio evitare questo tipo di patch.
+Mentre si lavora su un pezzo di codice è normale correggerne anche lo stile,
+ma le modifiche di stile non dovrebbero essere fatte fini a se stesse.
+
+Il documento sullo stile del codice non dovrebbe essere letto come una legge
+assoluta che non può mai essere trasgredita.  Se c’è un a buona ragione
+(per esempio, una linea che diviene poco leggibile se divisa per rientrare
+nel limite di 80 colonne), fatelo e basta.
+
+Notate che potete utilizzare lo strumento “clang-format” per aiutarvi con
+le regole, per una riformattazione automatica e veloce del vostro codice
+e per revisionare interi file per individuare errori nello stile di codifica,
+refusi e possibili miglioramenti.  Inoltre è utile anche per classificare gli
+``#includes``, per allineare variabili/macro, per testi derivati ed altri
+compiti del genere.  Consultate il file
+:ref:`Documentation/translations/it_IT/process/clang-format.rst <clangformat>`
+per maggiori dettagli
+
+
+Livelli di astrazione
+*********************
+
+
+I professori di Informatica insegnano ai propri studenti a fare ampio uso dei
+livelli di astrazione nel nome della flessibilità e del nascondere informazioni.
+Certo il kernel fa un grande uso dell'astrazione; nessun progetto con milioni
+di righe di codice potrebbe fare altrimenti e sopravvivere.  Ma l'esperienza
+ha dimostrato che un'eccessiva o prematura astrazione può rivelarsi dannosa
+al pari di una prematura ottimizzazione.  L'astrazione dovrebbe essere usata
+fino al livello necessario e non oltre.
+
+Ad un livello base, considerate una funzione che ha un argomento che viene
+sempre impostato a zero da tutti i chiamanti.  Uno potrebbe mantenere
+quell'argomento nell'eventualità qualcuno volesse sfruttare la flessibilità
+offerta.  In ogni caso, tuttavia, ci sono buone possibilità che il codice
+che va ad implementare questo argomento aggiuntivo, sia stato rotto in maniera
+sottile, in un modo che non è mai stato notato - perché non è mai stato usato.
+Oppure, quando sorge la necessità di avere più flessibilità, questo argomento
+non la fornisce in maniera soddisfacente.  Gli sviluppatori di Kernel,
+sottopongono costantemente patch che vanno a rimuovere gli argomenti
+inutilizzate; anche se, in generale, non avrebbero dovuto essere aggiunti.
+
+I livelli di astrazione che nascondono l'accesso all'hardware -
+spesso per poter usare dei driver su diversi sistemi operativi - vengono
+particolarmente disapprovati.  Tali livelli oscurano il codice e possono
+peggiorare le prestazioni; essi non appartengono al kernel Linux.
+
+D'altro canto, se vi ritrovate a dover copiare una quantità significativa di
+codice proveniente da un altro sottosistema del kernel, è tempo di chiedersi
+se, in effetti, non avrebbe più senso togliere parte di quel codice e metterlo
+in una libreria separata o di implementare quella funzionalità ad un livello
+più elevato.  Non c'è utilità nel replicare lo stesso codice per tutto
+il kernel.
+
+
+#ifdef e l'uso del preprocessore in generale
+********************************************
+
+Il preprocessore C sembra essere una fonte di attrazione per qualche
+programmatore C, che ci vede una via per ottenere una grande flessibilità
+all'interno di un file sorgente.  Ma il preprocessore non è scritto in C,
+e un suo massiccio impiego conduce a un codice che è molto più difficile
+da leggere per gli altri e che rende più difficile il lavoro di verifica del
+compilatore.  L'uso eccessivo del preprocessore è praticamente sempre il segno
+di un codice che necessita di un certo lavoro di pulizia.
+
+La compilazione condizionata con #ifdef è, in effetti, un potente strumento,
+ed esso viene usato all'interno del kernel.  Ma esiste un piccolo desiderio:
+quello di vedere il codice coperto solo da una leggera spolverata di
+blocchi #ifdef.  Come regola generale, quando possibile, l'uso di #ifdef
+dovrebbe essere confinato nei file d'intestazione.  Il codice compilato
+condizionatamente può essere confinato a funzioni tali che, nel caso in cui
+il codice non deve essere presente, diventano vuote.  Il compilatore poi
+ottimizzerà la chiamata alla funzione vuota rimuovendola.  Il risultato è
+un codice molto più pulito, più facile da seguire.
+
+Le macro del preprocessore C presentano una serie di pericoli, inclusi
+valutazioni multiple di espressioni che hanno effetti collaterali e non
+garantiscono una sicurezza rispetto ai tipi.  Se siete tentati dal definire
+una macro, considerate l'idea di creare invece una funzione inline.  Il codice
+che ne risulterà sarà lo stesso, ma le funzioni inline sono più leggibili,
+non considerano i propri argomenti più volte, e permettono al compilatore di
+effettuare controlli sul tipo degli argomenti e del valore di ritorno.
+
+
+Funzioni inline
+***************
+
+Comunque, anche le funzioni inline hanno i loro pericoli.  I programmatori
+potrebbero innamorarsi dell'efficienza percepita derivata dalla rimozione
+di una chiamata a funzione.  Queste funzioni, tuttavia, possono ridurre le
+prestazioni.  Dato che il loro codice viene replicato ovunque vi sia una
+chiamata ad esse, si finisce per gonfiare le dimensioni del kernel compilato.
+Questi, a turno, creano pressione sulla memoria cache del processore, e questo
+può causare rallentamenti importanti.  Le funzioni inline, di norma, dovrebbero
+essere piccole e usate raramente.  Il costo di una chiamata a funzione, dopo
+tutto, non è così alto; la creazione di molte funzioni inline è il classico
+esempio di un'ottimizzazione prematura.
+
+In generale, i programmatori del kernel ignorano gli effetti della cache a
+loro rischio e pericolo.  Il classico compromesso tempo/spazio teorizzato
+all'inizio delle lezioni sulle strutture dati spesso non si applica
+all'hardware moderno.  Lo spazio *è* tempo, in questo senso un programma
+più grande sarà più lento rispetto ad uno più compatto.
+
+I compilatori più recenti hanno preso un ruolo attivo nel decidere se
+una data funzione deve essere resa inline oppure no.  Quindi l'uso
+indiscriminato della parola chiave "inline" potrebbe non essere non solo
+eccessivo, ma anche irrilevante.
+
+Sincronizzazione
+****************
+
+Nel maggio 2006, il sistema di rete "Devicescape" fu rilasciato in pompa magna
+sotto la licenza GPL e reso disponibile per la sua inclusione nella ramo
+principale del kernel.  Questa donazione fu una notizia bene accolta;
+il supporto per le reti senza fili era considerata, nel migliore dei casi,
+al di sotto degli standard; il sistema Deviscape offrì la promessa di una
+risoluzione a tale situazione.  Tuttavia, questo codice non fu inserito nel
+ramo principale fino al giugno del 2007 (2.6.22). Cosa accadde?
+
+Quel codice mostrava numerosi segnali di uno sviluppo in azienda avvenuto
+a porte chiuse.  Ma in particolare, un grosso problema fu che non fu
+progettato per girare in un sistema multiprocessore.  Prima che questo
+sistema di rete (ora chiamato mac80211) potesse essere inserito, fu necessario
+un lavoro sugli schemi di sincronizzazione.
+
+Una volta, il codice del kernel Linux poteva essere sviluppato senza pensare
+ai problemi di concorrenza presenti nei sistemi multiprocessore.  Ora,
+comunque, questo documento è stato scritto su di un portatile dual-core.
+Persino su sistemi a singolo processore, il lavoro svolto per incrementare
+la capacità di risposta aumenterà il livello di concorrenza interno al kernel.
+I giorni nei quali il codice poteva essere scritto senza pensare alla
+sincronizzazione sono da passati tempo.
+
+Ogni risorsa (strutture dati, registri hardware, etc.) ai quali si potrebbe
+avere accesso simultaneo da più di un thread deve essere sincronizzato.  Il
+nuovo codice dovrebbe essere scritto avendo tale accortezza in testa;
+riadattare la sincronizzazione a posteriori è un compito molto più difficile.
+Gli sviluppatori del kernel dovrebbero prendersi il tempo di comprendere bene
+le primitive di sincronizzazione, in modo da sceglier lo strumento corretto
+per eseguire un compito.  Il codice che presenta una mancanza di attenzione
+alla concorrenza avrà un percorso difficile all'interno del ramo principale.
+
+Regressioni
+***********
+
+Vale la pena menzionare un ultimo pericolo: potrebbe rivelarsi accattivante
+l'idea di eseguire un cambiamento (che potrebbe portare a grandi
+miglioramenti) che porterà ad alcune rotture per gli utenti esistenti.
+Questa tipologia di cambiamento è chiamata "regressione", e le regressioni son
+diventate mal viste nel ramo principale del kernel.  Con alcune eccezioni,
+i cambiamenti che causano regressioni saranno fermati se quest'ultime non
+potranno essere corrette in tempo utile.  È molto meglio quindi evitare
+la regressione fin dall'inizio.
+
+Spesso si è argomentato che una regressione può essere giustificata se essa
+porta risolve più problemi di quanti non ne crei.  Perché, dunque, non fare
+un cambiamento se questo porta a nuove funzionalità a dieci sistemi per
+ognuno dei quali esso determina una rottura?  La migliore risposta a questa
+domanda ci è stata fornita da Linus nel luglio 2007:
+
+::
+   Dunque, noi non sistemiamo bachi introducendo nuovi problemi. Quella
+   via nasconde insidie, e nessuno può sapere del tutto se state facendo
+   dei progressi reali. Sono due passi avanti e uno indietro, oppure
+   un passo avanti e due indietro?
+
+(http://lwn.net/Articles/243460/).
+
+Una particolare tipologia di regressione mal vista consiste in una qualsiasi
+sorta di modifica all'ABI dello spazio utente.  Una volta che un'interfaccia
+viene esportata verso lo spazio utente, dev'essere supportata all'infinito.
+Questo fatto rende la creazione di interfacce per lo spazio utente
+particolarmente complicato: dato che non possono venir cambiate introducendo
+incompatibilità, esse devono essere fatte bene al primo colpo.  Per questa
+ragione sono sempre richieste: ampie riflessioni, documentazione chiara e
+ampie revisioni dell'interfaccia verso lo spazio utente.
+
+
+Strumenti di verifica del codice
+--------------------------------
+Almeno per ora la scrittura di codice priva di errori resta un ideale
+irraggiungibile ai più.  Quello che speriamo di poter fare, tuttavia, è
+trovare e correggere molti di questi errori prima che il codice entri nel
+ramo principale del kernel.  A tal scopo gli sviluppatori del kernel devono
+mettere insieme una schiera impressionante di strumenti che possano
+localizzare automaticamente un'ampia varietà di problemi.  Qualsiasi problema
+trovato dal computer è un problema che non affliggerà l'utente in seguito,
+ne consegue che gli strumenti automatici dovrebbero essere impiegati ovunque
+possibile.
+
+Il primo passo consiste semplicemente nel fare attenzione agli avvertimenti
+proveniente dal compilatore.  Versioni moderne di gcc possono individuare
+(e segnalare) un gran numero di potenziali errori.  Molto spesso, questi
+avvertimenti indicano problemi reali.  Di regola, il codice inviato per la
+revisione non dovrebbe produrre nessun avvertimento da parte del compilatore.
+Per mettere a tacere gli avvertimenti, cercate di comprenderne le cause reali
+e cercate di evitare le "riparazioni" che fan sparire l'avvertimento senza
+però averne trovato la causa.
+
+Tenete a mente che non tutti gli avvertimenti sono disabilitati di default.
+Costruite il kernel con "make EXTRA_CFLAGS=-W" per ottenerli tutti.
+
+Il kernel fornisce differenti opzioni che abilitano funzionalità di debugging;
+molti di queste sono trovano all'interno del sotto menu "kernel hacking".
+La maggior parte di queste opzioni possono essere attivate per qualsiasi
+kernel utilizzato per lo sviluppo o a scopo di test.  In particolare dovreste
+attivare:
+
+ - ENABLE_WARN_DEPRECATED, ENABLE_MUST_CHECK, e FRAME_WARN per ottenere degli
+   avvertimenti dedicati a problemi come l'uso di interfacce deprecate o
+   l'ignorare un importante valore di ritorno di una funzione.  Il risultato
+   generato da questi avvertimenti può risultare verboso, ma non bisogna
+   preoccuparsi per gli avvertimenti provenienti da altre parti del kernel.
+
+ - DEBUG_OBJECTS aggiungerà un codice per tracciare il ciclo di vita di
+   diversi oggetti creati dal kernel e avvisa quando qualcosa viene eseguito
+   fuori controllo.  Se state aggiungendo un sottosistema che crea (ed
+   esporta) oggetti complessi propri, considerate l'aggiunta di un supporto
+   al debugging dell'oggetto.
+
+ - DEBUG_SLAB può trovare svariati errori di uso e di allocazione di memoria;
+   esso dovrebbe esser usato dalla maggior parte dei kernel di sviluppo.
+
+ - DEBUG_SPINLOCK, DEBUG_ATOMIC_SLEEP, e DEBUG_MUTEXES troveranno un certo
+   numero di errori comuni di sincronizzazione.
+
+Esistono ancora delle altre opzioni di debugging, di alcune di esse
+discuteremo qui sotto.  Alcune di esse hanno un forte impatto e non dovrebbero
+essere usate tutte le volte.  Ma qualche volta il tempo speso nell'capire
+le opzioni disponibili porterà ad un risparmio di tempo nel breve termine.
+
+Uno degli strumenti di debugging più tosti è il *locking checker*, o
+"lockdep".  Questo strumento traccerà qualsiasi acquisizione e rilascio di
+ogni *lock* (spinlock o mutex) nel sistema, l'ordine con il quale i *lock*
+sono acquisiti in relazione l'uno con l'altro, l'ambiente corrente di
+interruzione, eccetera.  Inoltre esso può assicurare che i *lock* vengano
+acquisiti sempre nello stesso ordine, che le stesse assunzioni sulle
+interruzioni si applichino in tutte le occasioni, e così via.  In altre parole,
+lockdep può scovare diversi scenari nei quali il sistema potrebbe, in rari
+casi, trovarsi in stallo.  Questa tipologia di problema può essere grave
+(sia per gli sviluppatori che per gli utenti) in un sistema in uso; lockdep
+permette di trovare tali problemi automaticamente e in anticipo.
+
+In qualità di programmatore kernel diligente, senza dubbio, dovrete controllare
+il valore di ritorno di ogni operazione (come l'allocazione della memoria)
+poiché esso potrebbe fallire.  Il nocciolo della questione è che i percorsi
+di gestione degli errori, con grande probabilità, non sono mai stati
+collaudati del tutto.  Il codice collaudato tende ad essere codice bacato;
+potrete quindi essere più a vostro agio con il vostro codice se tutti questi
+percorsi fossero stati verificati un po' di volte.
+
+Il kernel fornisce un framework per l'inserimento di fallimenti che fa
+esattamente al caso, specialmente dove sono coinvolte allocazioni di memoria.
+Con l'opzione per l'inserimento dei fallimenti abilitata, una certa percentuale
+di allocazione di memoria sarà destinata al fallimento; questi fallimenti
+possono essere ridotti ad uno specifico pezzo di codice.  Procedere con
+l'inserimento dei fallimenti attivo permette al programmatore di verificare
+come il codice risponde quando le cose vanno male.  Consultate:
+Documentation/fault-injection/fault-injection.txt per avere maggiori
+informazioni su come utilizzare questo strumento.
+
+Altre tipologie di errori possono essere riscontrati con lo strumento di
+analisi statica "sparse".  Con Sparse, il programmatore può essere avvisato
+circa la confusione tra gli indirizzi dello spazio utente e dello spazio
+kernel, un miscuglio fra quantità big-endian e little-endian, il passaggio
+di un valore intero dove ci sia aspetta un gruppo di flag, e così via.
+Sparse deve essere installato separatamente (se il vostra distribuzione non
+lo prevede, potete trovarlo su https://sparse.wiki.kernel.org/index.php/Main_Page);
+può essere attivato sul codice aggiungendo "C=1" al comando make.
+
+Lo strumento "Coccinelle" (http://coccinelle.lip6.fr/) è in grado di trovare
+una vasta varietà di potenziali problemi di codifica; e può inoltre proporre
+soluzioni per risolverli.  Un buon numero di "patch semantiche" per il kernel
+sono state preparate nella cartella scripts/coccinelle; utilizzando
+"make coccicheck" esso percorrerà tali patch semantiche e farà rapporto su
+qualsiasi problema trovato.  Per maggiori informazioni, consultate
+:ref:`Documentation/dev-tools/coccinelle.rst <devtools_coccinelle>`.
+
+Altri errori di portabilità sono meglio scovati compilando il vostro codice
+per altre architetture.  Se non vi accade di avere un sistema S/390 o una
+scheda di sviluppo Blackfin sotto mano, potete comunque continuare la fase
+di compilazione.  Un vasto numero di cross-compilatori per x86 possono
+essere trovati al sito:
+
+	http://www.kernel.org/pub/tools/crosstool/
+
+Il tempo impiegato nell'installare e usare questi compilatori sarà d'aiuto
+nell'evitare situazioni imbarazzanti nel futuro.
+
+
+Documentazione
+--------------
+
+La documentazione è spesso stata più un'eccezione che una regola nello
+sviluppo del kernel.  Nonostante questo, un'adeguata documentazione aiuterà
+a facilitare l'inserimento di nuovo codice nel kernel, rende la vita più
+facile per gli altri sviluppatori e sarà utile per i vostri utenti.  In molti
+casi, la documentazione è divenuta sostanzialmente obbligatoria.
+
+La prima parte di documentazione per qualsiasi patch è il suo changelog.
+Questi dovrebbero descrivere le problematiche risolte, la tipologia di
+soluzione, le persone che lavorano alla patch, ogni effetto rilevante
+sulle prestazioni e tutto ciò che può servire per la comprensione della
+patch.  Assicuratevi che il changelog dica *perché*, vale la pena aggiungere
+la patch; un numero sorprendente di sviluppatori sbaglia nel fornire tale
+informazione.
+
+Qualsiasi codice che aggiunge una nuova interfaccia in spazio utente - inclusi
+nuovi file in sysfs o /proc - dovrebbe includere la documentazione di tale
+interfaccia così da permette agli sviluppatori dello spazio utente di sapere
+con cosa stanno lavorando.  Consultate: Documentation/ABI/README per avere una
+descrizione di come questi documenti devono essere impostati e quali
+informazioni devono essere fornite.
+
+Il file :ref:`Documentation/translations/it_IT/admin-guide/kernel-parameters.rst <kernelparameters>`
+descrive tutti i parametri di avvio del kernel.  Ogni patch che aggiunga
+nuovi parametri dovrebbe aggiungere nuove voci a questo file.
+
+Ogni nuova configurazione deve essere accompagnata da un testo di supporto
+che spieghi chiaramente le opzioni e spieghi quando l'utente potrebbe volerle
+selezionare.
+
+Per molti sottosistemi le informazioni sull'API interna sono documentate sotto
+forma di commenti formattati in maniera particolare; questi commenti possono
+essere estratti e formattati in differenti modi attraverso lo script
+"kernel-doc".  Se state lavorando all'interno di un sottosistema che ha
+commenti kerneldoc dovreste mantenerli e aggiungerli, in maniera appropriata,
+per le funzioni disponibili esternamente.  Anche in aree che non sono molto
+documentate, non c'è motivo per non aggiungere commenti kerneldoc per il
+futuro; infatti, questa può essere un'attività utile per sviluppatori novizi
+del kernel.  Il formato di questi commenti, assieme alle informazione su come
+creare modelli per kerneldoc, possono essere trovati in
+:ref:`Documentation/translations/it_IT/doc-guide/ <doc_guide>`.
+
+Chiunque legga un ammontare significativo di codice kernel noterà che, spesso,
+i commenti si fanno maggiormente notare per la loro assenza.  Ancora una volta,
+le aspettative verso il nuovo codice sono più alte rispetto al passato;
+inserire codice privo di commenti sarà più difficile.  Detto ciò, va aggiunto
+che non si desiderano commenti prolissi per il codice.  Il codice dovrebbe
+essere, di per sé, leggibile, con dei commenti che spieghino gli aspetti più
+sottili.
+
+Determinate cose dovrebbero essere sempre commentate.  L'uso di barriere
+di memoria dovrebbero essere accompagnate da una riga che spieghi perché sia
+necessaria.  Le regole di sincronizzazione per le strutture dati, generalmente,
+necessitano di una spiegazioni da qualche parte.  Le strutture dati più
+importanti, in generale, hanno bisogno di una documentazione onnicomprensiva.
+Le dipendenze che non sono ovvie tra bit separati di codice dovrebbero essere
+indicate.  Tutto ciò che potrebbe indurre un inserviente del codice a fare
+una "pulizia" incorretta, ha bisogno di un commento che dica perché è stato
+fatto in quel modo.  E così via.
+
+Cambiamenti interni dell'API
+----------------------------
+
+L'interfaccia binaria fornita dal kernel allo spazio utente non può essere
+rotta tranne che in circostanze eccezionali.  L'interfaccia di programmazione
+interna al kernel, invece, è estremamente fluida e può essere modificata al
+bisogno.  Se vi trovate a dover lavorare attorno ad un'API del kernel o
+semplicemente non state utilizzando una funzionalità offerta perché questa
+non rispecchia i vostri bisogni, allora questo potrebbe essere un segno che
+l'API ha bisogno di essere cambiata.  In qualità di sviluppatore del kernel,
+hai il potere di fare questo tipo di modifica.
+
+Ci sono ovviamente alcuni punti da cogliere.  I cambiamenti API possono essere
+fatti, ma devono essere giustificati.  Quindi ogni patch che porta ad una
+modifica dell'API interna dovrebbe essere accompagnata da una descrizione
+della modifica in sé e del perché essa è necessaria.  Questo tipo di
+cambiamenti dovrebbero, inoltre, essere fatti in una patch separata, invece di
+essere sepolti all'interno di una patch più grande.
+
+L'altro punto da cogliere consiste nel fatto che uno sviluppatore che
+modifica l'API deve, in generale, essere responsabile della correzione
+di tutto il codice del kernel che viene rotto per via della sua modifica.
+Per una funzione ampiamente usata, questo compito può condurre letteralmente
+a centinaia o migliaia di modifiche, molte delle quali sono in conflitto con
+il lavoro svolto da altri sviluppatori.  Non c'è bisogno di dire che questo
+può essere un lavoro molto grosso, quindi è meglio essere sicuri che la
+motivazione sia ben solida.  Notate che lo strumento Coccinelle può fornire
+un aiuto con modifiche estese dell'API.
+
+Quando viene fatta una modifica API incompatibile, una persona dovrebbe,
+quando possibile, assicurarsi che quel codice non aggiornato sia trovato
+dal compilatore.  Questo vi aiuterà ad essere sicuri d'avere trovato,
+tutti gli usi di quell'interfaccia.  Inoltre questo avviserà gli sviluppatori
+di codice fuori dal kernel che c'è un cambiamento per il quale è necessario del
+lavoro.  Il supporto al codice fuori dal kernel non è qualcosa di cui gli
+sviluppatori del kernel devono preoccuparsi, ma non dobbiamo nemmeno rendere
+più difficile del necessario la vita agli sviluppatori di questo codice.

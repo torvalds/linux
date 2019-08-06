@@ -172,11 +172,7 @@ ACPI_GLOBAL(u8, acpi_gbl_disable_mem_tracking);
  *
  ****************************************************************************/
 
-#if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 #define NUM_PREDEFINED_NAMES            10
-#else
-#define NUM_PREDEFINED_NAMES            9
-#endif
 
 ACPI_GLOBAL(struct acpi_namespace_node, acpi_gbl_root_node_struct);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_root_node);

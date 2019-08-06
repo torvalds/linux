@@ -127,7 +127,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	else
 #endif
 		if (skb_vlan_tag_present(skb))
-			up = skb->vlan_tci >> VLAN_PRIO_SHIFT;
+			up = skb_vlan_tag_get_prio(skb);
 
 	/* channel_ix can be larger than num_channels since
 	 * dev->num_real_tx_queues = num_channels * num_tc
@@ -387,8 +387,14 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
 	if (unlikely(contig_wqebbs_room < num_wqebbs)) {
+#ifdef CONFIG_MLX5_EN_IPSEC
+		struct mlx5_wqe_eth_seg cur_eth = wqe->eth;
+#endif
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 		mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
+#ifdef CONFIG_MLX5_EN_IPSEC
+		wqe->eth = cur_eth;
+#endif
 	}
 
 	/* fill wqe */
@@ -459,9 +465,10 @@ static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
 	u32 ci = mlx5_cqwq_get_ci(&sq->cq.wq);
 
 	netdev_err(sq->channel->netdev,
-		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
-		   sq->cq.mcq.cqn, ci, sq->sqn, err_cqe->syndrome,
-		   err_cqe->vendor_err_synd);
+		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
+		   sq->cq.mcq.cqn, ci, sq->sqn,
+		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
+		   err_cqe->syndrome, err_cqe->vendor_err_synd);
 	mlx5_dump_err_cqe(sq->cq.mdev, err_cqe);
 }
 
@@ -507,7 +514,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
-		if (unlikely(cqe->op_own >> 4 == MLX5_CQE_REQ_ERR)) {
+		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
 			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
 					      &sq->state)) {
 				mlx5e_dump_error_cqe(sq,

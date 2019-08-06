@@ -53,22 +53,6 @@ static int sanitize_arg(const char *val, char *intf, int intf_len)
 	return len;
 }
 
-static void rxe_set_port_state(struct net_device *ndev)
-{
-	struct rxe_dev *rxe = net_to_rxe(ndev);
-	bool is_up = netif_running(ndev) && netif_carrier_ok(ndev);
-
-	if (!rxe)
-		goto out;
-
-	if (is_up)
-		rxe_port_up(rxe);
-	else
-		rxe_port_down(rxe); /* down for unknown state */
-out:
-	return;
-}
-
 static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 {
 	int len;
@@ -104,7 +88,7 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 		goto err;
 	}
 
-	rxe_set_port_state(ndev);
+	rxe_set_port_state(rxe);
 	dev_info(&rxe->ib_dev.dev, "added %s\n", intf);
 err:
 	if (ndev)

@@ -34,6 +34,7 @@ generic-y += qrwlock_types.h
 generic-y += qrwlock.h
 generic-y += sections.h
 generic-y += segment.h
+generic-y += shmparam.h
 generic-y += string.h
 generic-y += switch_to.h
 generic-y += topology.h

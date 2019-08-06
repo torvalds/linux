@@ -110,7 +110,7 @@ void machine_restart(char * cmd)
 void machine_power_off(void)
 {
 	if (auxio_power_register &&
-	    (strcmp(of_console_device->type, "serial") || scons_pwroff)) {
+	    (!of_node_is_type(of_console_device, "serial") || scons_pwroff)) {
 		u8 power_register = sbus_readb(auxio_power_register);
 		power_register |= AUXIO_POWER_OFF;
 		sbus_writeb(power_register, auxio_power_register);

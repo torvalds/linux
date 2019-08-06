@@ -70,7 +70,7 @@ static unsigned long cken_recalc_rate(struct clk_hw *hw,
 	return clk_fixed_factor_ops.recalc_rate(&fix->hw, parent_rate);
 }
 
-static struct clk_ops cken_rate_ops = {
+static const struct clk_ops cken_rate_ops = {
 	.recalc_rate = cken_recalc_rate,
 };
 
@@ -83,7 +83,7 @@ static u8 cken_get_parent(struct clk_hw *hw)
 	return pclk->is_in_low_power() ? 0 : 1;
 }
 
-static struct clk_ops cken_mux_ops = {
+static const struct clk_ops cken_mux_ops = {
 	.get_parent = cken_get_parent,
 	.set_parent = dummy_clk_set_parent,
 };

@@ -89,7 +89,13 @@ static int fanotify_get_response(struct fsnotify_group *group,
 	return ret;
 }
 
-static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
+/*
+ * This function returns a mask for an event that only contains the flags
+ * that have been specifically requested by the user. Flags that may have
+ * been included within the event mask, but have not been explicitly
+ * requested by the user, will not be present in the returned mask.
+ */
+static u32 fanotify_group_event_mask(struct fsnotify_iter_info *iter_info,
 				       u32 event_mask, const void *data,
 				       int data_type)
 {
@@ -101,14 +107,14 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
 		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
-	/* if we don't have enough info to send an event to userspace say no */
+	/* If we don't have enough info to send an event to userspace say no */
 	if (data_type != FSNOTIFY_EVENT_PATH)
-		return false;
+		return 0;
 
-	/* sorry, fanotify only gives a damn about files and dirs */
+	/* Sorry, fanotify only gives a damn about files and dirs */
 	if (!d_is_reg(path->dentry) &&
 	    !d_can_lookup(path->dentry))
-		return false;
+		return 0;
 
 	fsnotify_foreach_obj_type(type) {
 		if (!fsnotify_iter_should_report_type(iter_info, type))
@@ -129,13 +135,10 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 
 	if (d_is_dir(path->dentry) &&
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
-		return false;
+		return 0;
 
-	if (event_mask & FANOTIFY_OUTGOING_EVENTS &
-	    marks_mask & ~marks_ignored_mask)
-		return true;
-
-	return false;
+	return event_mask & FANOTIFY_OUTGOING_EVENTS & marks_mask &
+		~marks_ignored_mask;
 }
 
 struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
@@ -207,10 +210,13 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_OPEN_PERM != FS_OPEN_PERM);
 	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
 	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
+	BUILD_BUG_ON(FAN_OPEN_EXEC != FS_OPEN_EXEC);
+	BUILD_BUG_ON(FAN_OPEN_EXEC_PERM != FS_OPEN_EXEC_PERM);
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 10);
+	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 12);
 
-	if (!fanotify_should_send_event(iter_info, mask, data, data_type))
+	mask = fanotify_group_event_mask(iter_info, mask, data, data_type);
+	if (!mask)
 		return 0;
 
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,

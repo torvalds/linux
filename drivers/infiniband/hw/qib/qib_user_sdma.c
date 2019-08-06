@@ -237,7 +237,6 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 
 		ret = qib_user_sdma_rb_insert(&qib_user_sdma_rb_root,
 					sdma_rb_node);
-		BUG_ON(ret == 0);
 	}
 	pq->sdma_rb_node = sdma_rb_node;
 

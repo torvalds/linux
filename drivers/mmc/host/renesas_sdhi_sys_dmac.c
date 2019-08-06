@@ -65,6 +65,7 @@ static const struct renesas_sdhi_of_data of_rcar_gen2_compatible = {
 	.scc_offset	= 0x0300,
 	.taps		= rcar_gen2_scc_taps,
 	.taps_num	= ARRAY_SIZE(rcar_gen2_scc_taps),
+	.max_blk_count  = 0xffffffff,
 };
 
 /* Definitions for sampling clocks */
@@ -73,19 +74,6 @@ static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
 		.clk_rate = 0,
 		.tap = 0x00000300,
 	},
-};
-
-static const struct renesas_sdhi_of_data of_rcar_r8a7795_compatible = {
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_CLK_ACTUAL |
-			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2 |
-			  TMIO_MMC_HAVE_4TAP_HS400,
-	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
-			  MMC_CAP_CMD23,
-	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
-	.bus_shift	= 2,
-	.scc_offset	= 0x1000,
-	.taps		= rcar_gen3_scc_taps,
-	.taps_num	= ARRAY_SIZE(rcar_gen3_scc_taps),
 };
 
 static const struct renesas_sdhi_of_data of_rcar_gen3_compatible = {
@@ -114,8 +102,8 @@ static const struct of_device_id renesas_sdhi_sys_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a7792", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7793", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7794", .data = &of_rcar_gen2_compatible, },
-	{ .compatible = "renesas,sdhi-r8a7795", .data = &of_rcar_r8a7795_compatible, },
-	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_r8a7795_compatible, },
+	{ .compatible = "renesas,sdhi-r8a7795", .data = &of_rcar_gen3_compatible, },
+	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_gen3_compatible, },
 	{ .compatible = "renesas,rcar-gen1-sdhi", .data = &of_rcar_gen1_compatible, },
 	{ .compatible = "renesas,rcar-gen2-sdhi", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,rcar-gen3-sdhi", .data = &of_rcar_gen3_compatible, },
@@ -493,8 +481,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
 
 static int renesas_sdhi_sys_dmac_probe(struct platform_device *pdev)
 {
-	if ((of_device_get_match_data(&pdev->dev) == &of_rcar_gen3_compatible ||
-	    of_device_get_match_data(&pdev->dev) == &of_rcar_r8a7795_compatible) &&
+	if (of_device_get_match_data(&pdev->dev) == &of_rcar_gen3_compatible &&
 	    !soc_device_match(gen3_soc_whitelist))
 		return -ENODEV;
 

@@ -18,22 +18,19 @@ void show_mem(unsigned int filter, nodemask_t *nodemask)
 	show_free_areas(filter, nodemask);
 
 	for_each_online_pgdat(pgdat) {
-		unsigned long flags;
 		int zoneid;
 
-		pgdat_resize_lock(pgdat, &flags);
 		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
 			struct zone *zone = &pgdat->node_zones[zoneid];
 			if (!populated_zone(zone))
 				continue;
 
 			total += zone->present_pages;
-			reserved += zone->present_pages - zone->managed_pages;
+			reserved += zone->present_pages - zone_managed_pages(zone);
 
 			if (is_highmem_idx(zoneid))
 				highmem += zone->present_pages;
 		}
-		pgdat_resize_unlock(pgdat, &flags);
 	}
 
 	printk("%lu pages RAM\n", total);

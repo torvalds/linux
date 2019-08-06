@@ -5,7 +5,7 @@ config PPC_PSERIES
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
 	select OF_DYNAMIC
-	select PCI
+	select FORCE_PCI
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_XIVE_SPAPR

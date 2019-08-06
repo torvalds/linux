@@ -357,6 +357,13 @@ video playing/streaming, a very low drop rate may be more important
 than maximum throughput. In these cases, consider setting the
 strict_guarantees parameter.
 
+slice_idle_us
+-------------
+
+Controls the same tuning parameter as slice_idle, but in microseconds.
+Either tunable can be used to set idling behavior.  Afterwards, the
+other tunable will reflect the newly set value in sysfs.
+
 strict_guarantees
 -----------------
 

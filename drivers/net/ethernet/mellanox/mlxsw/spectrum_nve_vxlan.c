@@ -17,7 +17,8 @@
 #define MLXSW_SP_NVE_VXLAN_PARSING_DEPTH 128
 #define MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH 96
 
-#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	VXLAN_F_UDP_ZERO_CSUM_TX
+#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
+						 VXLAN_F_LEARN)
 
 static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 					    const struct net_device *dev,
@@ -58,11 +59,6 @@ static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 
 	if (cfg->flags & VXLAN_F_TTL_INHERIT) {
 		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must not be configured to inherit");
-		return false;
-	}
-
-	if (cfg->flags & VXLAN_F_LEARN) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Learning is not supported");
 		return false;
 	}
 
@@ -215,12 +211,30 @@ static void mlxsw_sp1_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 				 config->udp_dport);
 }
 
+static int
+mlxsw_sp_nve_vxlan_fdb_replay(const struct net_device *nve_dev, __be32 vni)
+{
+	if (WARN_ON(!netif_is_vxlan(nve_dev)))
+		return -EINVAL;
+	return vxlan_fdb_replay(nve_dev, vni, &mlxsw_sp_switchdev_notifier);
+}
+
+static void
+mlxsw_sp_nve_vxlan_clear_offload(const struct net_device *nve_dev, __be32 vni)
+{
+	if (WARN_ON(!netif_is_vxlan(nve_dev)))
+		return;
+	vxlan_fdb_clear_offload(nve_dev, vni);
+}
+
 const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops = {
 	.type		= MLXSW_SP_NVE_TYPE_VXLAN,
 	.can_offload	= mlxsw_sp1_nve_vxlan_can_offload,
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp1_nve_vxlan_init,
 	.fini		= mlxsw_sp1_nve_vxlan_fini,
+	.fdb_replay	= mlxsw_sp_nve_vxlan_fdb_replay,
+	.fdb_clear_offload = mlxsw_sp_nve_vxlan_clear_offload,
 };
 
 static bool mlxsw_sp2_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
@@ -246,4 +260,6 @@ const struct mlxsw_sp_nve_ops mlxsw_sp2_nve_vxlan_ops = {
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp2_nve_vxlan_init,
 	.fini		= mlxsw_sp2_nve_vxlan_fini,
+	.fdb_replay	= mlxsw_sp_nve_vxlan_fdb_replay,
+	.fdb_clear_offload = mlxsw_sp_nve_vxlan_clear_offload,
 };

@@ -643,6 +643,7 @@ next_wqe:
 			rmr->access = wqe->wr.wr.reg.access;
 			rmr->lkey = wqe->wr.wr.reg.key;
 			rmr->rkey = wqe->wr.wr.reg.key;
+			rmr->iova = wqe->wr.wr.reg.mr->iova;
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 		} else {
@@ -728,7 +729,7 @@ next_wqe:
 	save_state(wqe, qp, &rollback_wqe, &rollback_psn);
 	update_wqe_state(qp, wqe, &pkt);
 	update_wqe_psn(qp, wqe, &pkt, payload);
-	ret = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp, &pkt, skb);
+	ret = rxe_xmit_packet(qp, &pkt, skb);
 	if (ret) {
 		qp->need_req_skb = 1;
 

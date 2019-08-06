@@ -96,6 +96,16 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[] = {
 		.quirk_data = &kbl_7219_98927_codecs,
 		.pdata = &skl_dmic_data
 	},
+	{
+		.id = "10EC5660",
+		.drv_name = "kbl_rt5660",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+	},
+	{
+		.id = "10EC3277",
+		.drv_name = "kbl_rt5660",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_kbl_machines);

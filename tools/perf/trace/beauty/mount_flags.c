@@ -11,12 +11,12 @@
 #include <linux/log2.h>
 #include <sys/mount.h>
 
-static size_t mount__scnprintf_flags(unsigned long flags, char *bf, size_t size)
+static size_t mount__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {
 #include "trace/beauty/generated/mount_flags_array.c"
-	static DEFINE_STRARRAY(mount_flags);
+	static DEFINE_STRARRAY(mount_flags, "MS_");
 
-	return strarray__scnprintf_flags(&strarray__mount_flags, bf, size, flags);
+	return strarray__scnprintf_flags(&strarray__mount_flags, bf, size, show_prefix, flags);
 }
 
 unsigned long syscall_arg__mask_val_mount_flags(struct syscall_arg *arg __maybe_unused, unsigned long flags)
@@ -39,5 +39,5 @@ size_t syscall_arg__scnprintf_mount_flags(char *bf, size_t size, struct syscall_
 {
 	unsigned long flags = arg->val;
 
-	return mount__scnprintf_flags(flags, bf, size);
+	return mount__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }

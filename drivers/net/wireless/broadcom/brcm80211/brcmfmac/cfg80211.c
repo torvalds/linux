@@ -5196,10 +5196,17 @@ static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.del_pmk = brcmf_cfg80211_del_pmk,
 };
 
-struct cfg80211_ops *brcmf_cfg80211_get_ops(void)
+struct cfg80211_ops *brcmf_cfg80211_get_ops(struct brcmf_mp_device *settings)
 {
-	return kmemdup(&brcmf_cfg80211_ops, sizeof(brcmf_cfg80211_ops),
+	struct cfg80211_ops *ops;
+
+	ops = kmemdup(&brcmf_cfg80211_ops, sizeof(brcmf_cfg80211_ops),
 		       GFP_KERNEL);
+
+	if (ops && settings->roamoff)
+		ops->update_connect_params = NULL;
+
+	return ops;
 }
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
@@ -6309,6 +6316,16 @@ brcmf_txrx_stypes[NUM_NL80211_IFTYPES] = {
 		.tx = 0xffff,
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
 		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+	},
+	[NL80211_IFTYPE_AP] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_DISASSOC >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4) |
+		      BIT(IEEE80211_STYPE_DEAUTH >> 4) |
+		      BIT(IEEE80211_STYPE_ACTION >> 4)
 	}
 };
 
@@ -6638,6 +6655,12 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 		goto default_conf_out;
 
 	brcmf_configure_arp_nd_offload(ifp, true);
+
+	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_FAKEFRAG, 1);
+	if (err) {
+		brcmf_err("failed to set frameburst mode\n");
+		goto default_conf_out;
+	}
 
 	cfg->dongle_up = true;
 default_conf_out:

@@ -207,15 +207,10 @@ static bool create_on_open = true;
 struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 			    struct mddev *mddev)
 {
-	struct bio *b;
-
 	if (!mddev || !bioset_initialized(&mddev->bio_set))
 		return bio_alloc(gfp_mask, nr_iovecs);
 
-	b = bio_alloc_bioset(gfp_mask, nr_iovecs, &mddev->bio_set);
-	if (!b)
-		return NULL;
-	return b;
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, &mddev->bio_set);
 }
 EXPORT_SYMBOL_GPL(bio_alloc_mddev);
 
@@ -334,7 +329,6 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 	const int sgrp = op_stat_group(bio_op(bio));
 	struct mddev *mddev = q->queuedata;
 	unsigned int sectors;
-	int cpu;
 
 	blk_queue_split(q, &bio);
 
@@ -359,9 +353,9 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 
 	md_handle_request(mddev, bio);
 
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &mddev->gendisk->part0, ios[sgrp]);
-	part_stat_add(cpu, &mddev->gendisk->part0, sectors[sgrp], sectors);
+	part_stat_lock();
+	part_stat_inc(&mddev->gendisk->part0, ios[sgrp]);
+	part_stat_add(&mddev->gendisk->part0, sectors[sgrp], sectors);
 	part_stat_unlock();
 
 	return BLK_QC_T_NONE;
@@ -2148,14 +2142,12 @@ EXPORT_SYMBOL(md_integrity_register);
  */
 int md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev)
 {
-	struct blk_integrity *bi_rdev;
 	struct blk_integrity *bi_mddev;
 	char name[BDEVNAME_SIZE];
 
 	if (!mddev->gendisk)
 		return 0;
 
-	bi_rdev = bdev_get_integrity(rdev->bdev);
 	bi_mddev = blk_get_integrity(mddev->gendisk);
 
 	if (!bi_mddev) /* nothing to do */
@@ -5694,14 +5686,10 @@ int md_run(struct mddev *mddev)
 	return 0;
 
 abort:
-	if (mddev->flush_bio_pool) {
-		mempool_destroy(mddev->flush_bio_pool);
-		mddev->flush_bio_pool = NULL;
-	}
-	if (mddev->flush_pool){
-		mempool_destroy(mddev->flush_pool);
-		mddev->flush_pool = NULL;
-	}
+	mempool_destroy(mddev->flush_bio_pool);
+	mddev->flush_bio_pool = NULL;
+	mempool_destroy(mddev->flush_pool);
+	mddev->flush_pool = NULL;
 
 	return err;
 }

@@ -250,6 +250,15 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 void nvdimm_set_aliasing(struct device *dev);
 void nvdimm_set_locked(struct device *dev);
 void nvdimm_clear_locked(struct device *dev);
+int nvdimm_security_setup_events(struct device *dev);
+#if IS_ENABLED(CONFIG_NVDIMM_KEYS)
+int nvdimm_security_unlock(struct device *dev);
+#else
+static inline int nvdimm_security_unlock(struct device *dev)
+{
+	return 0;
+}
+#endif
 struct nd_btt *to_nd_btt(struct device *dev);
 
 struct nd_gen_sb {

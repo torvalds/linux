@@ -103,6 +103,9 @@ struct netns_ipv4 {
 	/* Shall we try to damage output packets if routing dev changes? */
 	int sysctl_ip_dynaddr;
 	int sysctl_ip_early_demux;
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	int sysctl_raw_l3mdev_accept;
+#endif
 	int sysctl_tcp_early_demux;
 	int sysctl_udp_early_demux;
 

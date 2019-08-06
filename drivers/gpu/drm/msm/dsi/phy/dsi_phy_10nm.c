@@ -93,7 +93,7 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	DBG("");
 
 	if (msm_dsi_dphy_timing_calc_v3(timing, clk_req)) {
-		dev_err(&phy->pdev->dev,
+		DRM_DEV_ERROR(&phy->pdev->dev,
 			"%s: D-PHY timing calculation failed\n", __func__);
 		return -EINVAL;
 	}
@@ -172,7 +172,7 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	ret = msm_dsi_pll_set_usecase(phy->pll, phy->usecase);
 	if (ret) {
-		dev_err(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
+		DRM_DEV_ERROR(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
 			__func__, ret);
 		return ret;
 	}
@@ -196,7 +196,7 @@ static int dsi_10nm_phy_init(struct msm_dsi_phy *phy)
 	phy->lane_base = msm_ioremap(pdev, "dsi_phy_lane",
 				     "DSI_PHY_LANE");
 	if (IS_ERR(phy->lane_base)) {
-		dev_err(&pdev->dev, "%s: failed to map phy lane base\n",
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy lane base\n",
 			__func__);
 		return -ENOMEM;
 	}

@@ -70,7 +70,7 @@ struct ice_vf {
 	u8 spoofchk;
 	u16 num_mac;
 	u16 num_vlan;
-	u8 num_req_qs;		/* num of queue pairs requested by VF */
+	u8 num_req_qs;			/* num of queue pairs requested by VF */
 };
 
 #ifdef CONFIG_PCI_IOV

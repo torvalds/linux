@@ -906,6 +906,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		ks->base.speed = SPEED_100;
 		break;
 	default:
+		ks->base.speed = SPEED_UNKNOWN;
 		break;
 	}
 	ks->base.duplex = DUPLEX_FULL;
@@ -1335,6 +1336,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	i40e_status status;
 	u8 aq_failures;
 	int err = 0;
+	u32 is_an;
 
 	/* Changing the port's flow control is not supported if this isn't the
 	 * port's controlling PF
@@ -1347,15 +1349,14 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	if (vsi != pf->vsi[pf->lan_vsi])
 		return -EOPNOTSUPP;
 
-	if (pause->autoneg != ((hw_link_info->an_info & I40E_AQ_AN_COMPLETED) ?
-	    AUTONEG_ENABLE : AUTONEG_DISABLE)) {
+	is_an = hw_link_info->an_info & I40E_AQ_AN_COMPLETED;
+	if (pause->autoneg != is_an) {
 		netdev_info(netdev, "To change autoneg please use: ethtool -s <dev> autoneg <on|off>\n");
 		return -EOPNOTSUPP;
 	}
 
 	/* If we have link and don't have autoneg */
-	if (!test_bit(__I40E_DOWN, pf->state) &&
-	    !(hw_link_info->an_info & I40E_AQ_AN_COMPLETED)) {
+	if (!test_bit(__I40E_DOWN, pf->state) && !is_an) {
 		/* Send message that it might not necessarily work*/
 		netdev_info(netdev, "Autoneg did not complete so changing settings may not result in an actual change.\n");
 	}
@@ -1406,7 +1407,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		err = -EAGAIN;
 	}
 
-	if (!test_bit(__I40E_DOWN, pf->state)) {
+	if (!test_bit(__I40E_DOWN, pf->state) && is_an) {
 		/* Give it a little more time to try to come back */
 		msleep(75);
 		if (!test_bit(__I40E_DOWN, pf->state))
@@ -2377,7 +2378,8 @@ static int i40e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 		return -EOPNOTSUPP;
 
 	/* only magic packet is supported */
-	if (wol->wolopts && (wol->wolopts != WAKE_MAGIC))
+	if (wol->wolopts && (wol->wolopts != WAKE_MAGIC)
+			  | (wol->wolopts != WAKE_FILTER))
 		return -EOPNOTSUPP;
 
 	/* is this a new value? */
@@ -4659,14 +4661,15 @@ flags_complete:
 		return -EOPNOTSUPP;
 
 	/* If the driver detected FW LLDP was disabled on init, this flag could
-	 * be set, however we do not support _changing_ the flag if NPAR is
-	 * enabled or FW API version < 1.7.  There are situations where older
-	 * FW versions/NPAR enabled PFs could disable LLDP, however we _must_
-	 * not allow the user to enable/disable LLDP with this flag on
-	 * unsupported FW versions.
+	 * be set, however we do not support _changing_ the flag:
+	 * - on XL710 if NPAR is enabled or FW API version < 1.7
+	 * - on X722 with FW API version < 1.6
+	 * There are situations where older FW versions/NPAR enabled PFs could
+	 * disable LLDP, however we _must_ not allow the user to enable/disable
+	 * LLDP with this flag on unsupported FW versions.
 	 */
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
-		if (!(pf->hw_features & I40E_HW_STOPPABLE_FW_LLDP)) {
+		if (!(pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE)) {
 			dev_warn(&pf->pdev->dev,
 				 "Device does not support changing FW LLDP\n");
 			return -EOPNOTSUPP;

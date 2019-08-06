@@ -202,6 +202,7 @@
 				 <&clks IMX6QDL_CLK_GPU2D_CORE>;
 			clock-names = "bus", "core";
 			power-domains = <&pd_pu>;
+			#cooling-cells = <2>;
 		};
 
 		ipu2: ipu@2800000 {

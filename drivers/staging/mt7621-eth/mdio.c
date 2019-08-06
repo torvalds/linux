@@ -89,7 +89,7 @@ int mtk_connect_phy_node(struct mtk_eth *eth, struct mtk_mac *mac,
 		return -ENODEV;
 	}
 
-	phydev->supported &= PHY_GBIT_FEATURES;
+	phydev->supported &= PHY_1000BT_FEATURES;
 	phydev->advertising = phydev->supported;
 
 	dev_info(eth->dev,

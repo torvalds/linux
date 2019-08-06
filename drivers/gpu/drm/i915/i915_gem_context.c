@@ -337,7 +337,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
-	ctx->sched.priority = I915_PRIORITY_NORMAL;
+	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
 
 	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
 		struct intel_context *ce = &ctx->__engine[n];
@@ -414,7 +414,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 	if (IS_ERR(ctx))
 		return ctx;
 
-	if (USES_FULL_PPGTT(dev_priv)) {
+	if (HAS_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
 		ppgtt = i915_ppgtt_create(dev_priv, file_priv);
@@ -457,7 +457,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = __create_hw_context(to_i915(dev), NULL);
+	ctx = i915_gem_create_context(to_i915(dev), NULL);
 	if (IS_ERR(ctx))
 		goto out;
 
@@ -504,7 +504,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	ctx->sched.priority = prio;
+	ctx->sched.priority = I915_USER_PRIORITY(prio);
 	ctx->ring_size = PAGE_SIZE;
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
@@ -535,16 +535,12 @@ static bool needs_preempt_context(struct drm_i915_private *i915)
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
-	int ret;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
 	GEM_BUG_ON(dev_priv->preempt_context);
 
-	ret = intel_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
-
+	intel_engine_init_ctx_wa(dev_priv->engine[RCS]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */
@@ -879,7 +875,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
 	case I915_CONTEXT_PARAM_PRIORITY:
-		args->value = ctx->sched.priority;
+		args->value = ctx->sched.priority >> I915_USER_PRIORITY_SHIFT;
 		break;
 	default:
 		ret = -EINVAL;
@@ -948,7 +944,8 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				 !capable(CAP_SYS_NICE))
 				ret = -EPERM;
 			else
-				ctx->sched.priority = priority;
+				ctx->sched.priority =
+					I915_USER_PRIORITY(priority);
 		}
 		break;
 

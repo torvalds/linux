@@ -109,7 +109,7 @@ struct reset_simple_devdata {
 #define SOCFPGA_NR_BANKS	8
 
 static const struct reset_simple_devdata reset_simple_socfpga = {
-	.reg_offset = 0x10,
+	.reg_offset = 0x20,
 	.nr_resets = SOCFPGA_NR_BANKS * 32,
 	.status_active_low = true,
 };
@@ -120,7 +120,8 @@ static const struct reset_simple_devdata reset_simple_active_low = {
 };
 
 static const struct of_device_id reset_simple_dt_ids[] = {
-	{ .compatible = "altr,rst-mgr", .data = &reset_simple_socfpga },
+	{ .compatible = "altr,stratix10-rst-mgr",
+		.data = &reset_simple_socfpga },
 	{ .compatible = "st,stm32-rcc", },
 	{ .compatible = "allwinner,sun6i-a31-clock-reset",
 		.data = &reset_simple_active_low },
@@ -164,14 +165,6 @@ static int reset_simple_probe(struct platform_device *pdev)
 			data->rcdev.nr_resets = devdata->nr_resets;
 		data->active_low = devdata->active_low;
 		data->status_active_low = devdata->status_active_low;
-	}
-
-	if (of_device_is_compatible(dev->of_node, "altr,rst-mgr") &&
-	    of_property_read_u32(dev->of_node, "altr,modrst-offset",
-				 &reg_offset)) {
-		dev_warn(dev,
-			 "missing altr,modrst-offset property, assuming 0x%x!\n",
-			 reg_offset);
 	}
 
 	data->membase += reg_offset;

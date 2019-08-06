@@ -1,3 +1,7 @@
+generated-y += syscall_table_32.h
+generated-y += syscall_table_64.h
+generated-y += syscall_table_c32.h
+generated-y += syscall_table_spu.h
 generic-y += div64.h
 generic-y += export.h
 generic-y += irq_regs.h

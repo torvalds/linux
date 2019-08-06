@@ -397,6 +397,9 @@ struct iwl_mvm_rxq_dup_data {
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
  * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
+ * @tx_ant: the index of the antenna to use for data tx to this station. Only
+ *	used during connection establishment (e.g. for the 4 way handshake
+ *	exchange).
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -439,6 +442,7 @@ struct iwl_mvm_sta {
 	u8 agg_tids;
 	u8 sleep_tx_count;
 	u8 avg_energy;
+	u8 tx_ant;
 };
 
 u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);

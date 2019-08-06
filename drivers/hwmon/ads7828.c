@@ -62,8 +62,8 @@ static inline u8 ads7828_cmd_byte(u8 cmd, int ch)
 }
 
 /* sysfs callback function */
-static ssize_t ads7828_show_in(struct device *dev, struct device_attribute *da,
-			       char *buf)
+static ssize_t ads7828_in_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ads7828_data *data = dev_get_drvdata(dev);
@@ -79,14 +79,14 @@ static ssize_t ads7828_show_in(struct device *dev, struct device_attribute *da,
 		       DIV_ROUND_CLOSEST(regval * data->lsb_resol, 1000));
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ads7828_show_in, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ads7828_show_in, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ads7828_show_in, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, ads7828_show_in, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, ads7828_show_in, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, ads7828_show_in, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, ads7828_show_in, NULL, 6);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, ads7828_show_in, NULL, 7);
+static SENSOR_DEVICE_ATTR_RO(in0_input, ads7828_in, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ads7828_in, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ads7828_in, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, ads7828_in, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, ads7828_in, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, ads7828_in, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, ads7828_in, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, ads7828_in, 7);
 
 static struct attribute *ads7828_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,

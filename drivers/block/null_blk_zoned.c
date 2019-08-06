@@ -29,7 +29,25 @@ int null_zone_init(struct nullb_device *dev)
 	if (!dev->zones)
 		return -ENOMEM;
 
-	for (i = 0; i < dev->nr_zones; i++) {
+	if (dev->zone_nr_conv >= dev->nr_zones) {
+		dev->zone_nr_conv = dev->nr_zones - 1;
+		pr_info("null_blk: changed the number of conventional zones to %u",
+			dev->zone_nr_conv);
+	}
+
+	for (i = 0; i <  dev->zone_nr_conv; i++) {
+		struct blk_zone *zone = &dev->zones[i];
+
+		zone->start = sector;
+		zone->len = dev->zone_size_sects;
+		zone->wp = zone->start + zone->len;
+		zone->type = BLK_ZONE_TYPE_CONVENTIONAL;
+		zone->cond = BLK_ZONE_COND_NOT_WP;
+
+		sector += dev->zone_size_sects;
+	}
+
+	for (i = dev->zone_nr_conv; i < dev->nr_zones; i++) {
 		struct blk_zone *zone = &dev->zones[i];
 
 		zone->start = zone->wp = sector;
@@ -98,6 +116,8 @@ void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		if (zone->wp == zone->start + zone->len)
 			zone->cond = BLK_ZONE_COND_FULL;
 		break;
+	case BLK_ZONE_COND_NOT_WP:
+		break;
 	default:
 		/* Invalid zone condition */
 		cmd->error = BLK_STS_IOERR;
@@ -110,6 +130,11 @@ void null_zone_reset(struct nullb_cmd *cmd, sector_t sector)
 	struct nullb_device *dev = cmd->nq->dev;
 	unsigned int zno = null_zone_no(dev, sector);
 	struct blk_zone *zone = &dev->zones[zno];
+
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
+		cmd->error = BLK_STS_IOERR;
+		return;
+	}
 
 	zone->cond = BLK_ZONE_COND_EMPTY;
 	zone->wp = zone->start;

@@ -2,7 +2,7 @@
 config PPC_86xx
 menuconfig PPC_86xx
 	bool "86xx-based boards"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	select FSL_SOC
 	select ALTIVEC
 	help
@@ -15,7 +15,7 @@ config MPC8641_HPCN
 	select PPC_I8259
 	select DEFAULT_UIMAGE
 	select FSL_ULI1575 if PCI
-	select HAS_RAPIDIO
+	select HAVE_RAPIDIO
 	select SWIOTLB
 	help
 	  This option enables support for the MPC8641 HPCN board.
@@ -57,7 +57,7 @@ config GEF_SBC610
 	select MMIO_NVRAM
 	select GPIOLIB
 	select GE_FPGA
-	select HAS_RAPIDIO
+	select HAVE_RAPIDIO
 	help
 	  This option enables support for the GE SBC610.
 
@@ -70,7 +70,7 @@ endif
 
 config MPC8641
 	bool
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
@@ -79,7 +79,7 @@ config MPC8641
 
 config MPC8610
 	bool
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC

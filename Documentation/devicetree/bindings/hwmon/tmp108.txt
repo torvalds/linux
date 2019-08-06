@@ -7,6 +7,10 @@ Requires node properties:
 - compatible : "ti,tmp108"
 - reg : the I2C address of the device. This is 0x48, 0x49, 0x4a, or 0x4b.
 
+Optional properties:
+- interrupts: Reference to the TMP108 alert interrupt.
+- #thermal-sensor-cells: should be set to 0.
+
 Example:
 	tmp108@48 {
 		compatible = "ti,tmp108";

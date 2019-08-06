@@ -105,7 +105,7 @@ static int wait_for_free(struct slot_map *m)
 			left = t;
 		else
 			left = t + (left - n);
-		if (unlikely(signal_pending(current)))
+		if (signal_pending(current))
 			left = -EINTR;
 	} while (left > 0);
 

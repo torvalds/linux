@@ -241,30 +241,6 @@ static inline void drm_framebuffer_put(struct drm_framebuffer *fb)
 }
 
 /**
- * drm_framebuffer_reference - acquire a framebuffer reference
- * @fb: DRM framebuffer
- *
- * This is a compatibility alias for drm_framebuffer_get() and should not be
- * used by new code.
- */
-static inline void drm_framebuffer_reference(struct drm_framebuffer *fb)
-{
-	drm_framebuffer_get(fb);
-}
-
-/**
- * drm_framebuffer_unreference - release a framebuffer reference
- * @fb: DRM framebuffer
- *
- * This is a compatibility alias for drm_framebuffer_put() and should not be
- * used by new code.
- */
-static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
-{
-	drm_framebuffer_put(fb);
-}
-
-/**
  * drm_framebuffer_read_refcount - read the framebuffer reference count.
  * @fb: framebuffer
  *

@@ -280,7 +280,7 @@ static int max77620_config_fps(struct max77620_chip *chip,
 
 	for (fps_id = 0; fps_id < MAX77620_FPS_COUNT; fps_id++) {
 		sprintf(fps_name, "fps%d", fps_id);
-		if (!strcmp(fps_np->name, fps_name))
+		if (of_node_name_eq(fps_np, fps_name))
 			break;
 	}
 

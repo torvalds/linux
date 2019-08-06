@@ -73,8 +73,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_bpi_m1p>;
 
 		green {
 			label = "bananapi-m1-plus:green:usr";
@@ -90,15 +88,11 @@
 
 	mmc3_pwrseq: mmc3_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mmc3_pwrseq_pin_bpi_m1p>;
 		reset-gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 WL-PMU-EN */
 	};
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_bpi_m1p>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -134,7 +128,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_3v3>;
@@ -156,8 +150,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -175,13 +167,11 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bpi_m1p>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 10 GPIO_ACTIVE_LOW>; /* PH10 */
@@ -191,8 +181,6 @@
 &mmc3 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
@@ -209,11 +197,6 @@
 	};
 };
 
-&mmc3_pins_a {
-	/* AP6210 requires pull-up */
-	bias-pull-up;
-};
-
 &ohci0 {
 	status = "okay";
 };
@@ -224,29 +207,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	gmac_power_pin_bpi_m1p: gmac_power_pin@0 {
-		pins = "PH23";
-		function = "gpio_out";
-	};
-
-	led_pins_bpi_m1p: led_pins@0 {
-		pins = "PH24", "PH25";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_bpi_m1p: mmc0_cd_pin@0 {
-		pins = "PH10";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	mmc3_pwrseq_pin_bpi_m1p: mmc3_pwrseq_pin@0 {
-		pins = "PH22";
-		function = "gpio_out";
-	};
 };
 
 &reg_dcdc2 {
@@ -280,7 +240,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

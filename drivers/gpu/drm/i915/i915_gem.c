@@ -1282,8 +1282,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (args->size == 0)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE,
-		       u64_to_user_ptr(args->data_ptr),
+	if (!access_ok(u64_to_user_ptr(args->data_ptr),
 		       args->size))
 		return -EFAULT;
 
@@ -1609,9 +1608,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (args->size == 0)
 		return 0;
 
-	if (!access_ok(VERIFY_READ,
-		       u64_to_user_ptr(args->data_ptr),
-		       args->size))
+	if (!access_ok(u64_to_user_ptr(args->data_ptr), args->size))
 		return -EFAULT;
 
 	obj = i915_gem_object_lookup(file, args->handle);
@@ -1740,6 +1737,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 */
 	err = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_PRIORITY |
 				   (write_domain ? I915_WAIT_ALL : 0),
 				   MAX_SCHEDULE_TIMEOUT,
 				   to_rps_client(file));
@@ -1826,6 +1824,16 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static inline bool
+__vma_matches(struct vm_area_struct *vma, struct file *filp,
+	      unsigned long addr, unsigned long size)
+{
+	if (vma->vm_file != filp)
+		return false;
+
+	return vma->vm_start == addr && (vma->vm_end - vma->vm_start) == size;
+}
+
 /**
  * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address
  *			 it is mapped to.
@@ -1884,7 +1892,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			return -EINTR;
 		}
 		vma = find_vma(mm, addr);
-		if (vma)
+		if (vma && __vma_matches(vma, obj->base.filp, addr, args->size))
 			vma->vm_page_prot =
 				pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 		else
@@ -2381,11 +2389,23 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 	invalidate_mapping_pages(mapping, 0, (loff_t)-1);
 }
 
+/*
+ * Move pages to appropriate lru and release the pagevec, decrementing the
+ * ref count of those pages.
+ */
+static void check_release_pagevec(struct pagevec *pvec)
+{
+	check_move_unevictable_pages(pvec);
+	__pagevec_release(pvec);
+	cond_resched();
+}
+
 static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 			      struct sg_table *pages)
 {
 	struct sgt_iter sgt_iter;
+	struct pagevec pvec;
 	struct page *page;
 
 	__i915_gem_object_release_shmem(obj, pages, true);
@@ -2395,6 +2415,9 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
+	mapping_clear_unevictable(file_inode(obj->base.filp)->i_mapping);
+
+	pagevec_init(&pvec);
 	for_each_sgt_page(page, sgt_iter, pages) {
 		if (obj->mm.dirty)
 			set_page_dirty(page);
@@ -2402,8 +2425,11 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 		if (obj->mm.madv == I915_MADV_WILLNEED)
 			mark_page_accessed(page);
 
-		put_page(page);
+		if (!pagevec_add(&pvec, page))
+			check_release_pagevec(&pvec);
 	}
+	if (pagevec_count(&pvec))
+		check_release_pagevec(&pvec);
 	obj->mm.dirty = false;
 
 	sg_free_table(pages);
@@ -2483,7 +2509,7 @@ unlock:
 	mutex_unlock(&obj->mm.lock);
 }
 
-static bool i915_sg_trim(struct sg_table *orig_st)
+bool i915_sg_trim(struct sg_table *orig_st)
 {
 	struct sg_table new_st;
 	struct scatterlist *sg, *new_sg;
@@ -2524,6 +2550,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	unsigned int max_segment = i915_sg_segment_size();
 	unsigned int sg_page_sizes;
+	struct pagevec pvec;
 	gfp_t noreclaim;
 	int ret;
 
@@ -2539,7 +2566,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	 * If there's no chance of allocating enough pages for the whole
 	 * object, bail early.
 	 */
-	if (page_count > totalram_pages)
+	if (page_count > totalram_pages())
 		return -ENOMEM;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
@@ -2559,6 +2586,7 @@ rebuild_st:
 	 * Fail silently without starting the shrinker
 	 */
 	mapping = obj->base.filp->f_mapping;
+	mapping_set_unevictable(mapping);
 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
@@ -2573,6 +2601,7 @@ rebuild_st:
 		gfp_t gfp = noreclaim;
 
 		do {
+			cond_resched();
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 			if (likely(!IS_ERR(page)))
 				break;
@@ -2583,7 +2612,6 @@ rebuild_st:
 			}
 
 			i915_gem_shrink(dev_priv, 2 * page_count, NULL, *s++);
-			cond_resched();
 
 			/*
 			 * We've tried hard to allocate the memory by reaping
@@ -2673,8 +2701,14 @@ rebuild_st:
 err_sg:
 	sg_mark_end(sg);
 err_pages:
-	for_each_sgt_page(page, sgt_iter, st)
-		put_page(page);
+	mapping_clear_unevictable(mapping);
+	pagevec_init(&pvec);
+	for_each_sgt_page(page, sgt_iter, st) {
+		if (!pagevec_add(&pvec, page))
+			check_release_pagevec(&pvec);
+	}
+	if (pagevec_count(&pvec))
+		check_release_pagevec(&pvec);
 	sg_free_table(st);
 	kfree(st);
 
@@ -3282,16 +3316,6 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct i915_request *request)
 {
-	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
-		  request->engine->name,
-		  request->fence.context, request->fence.seqno);
-	dma_fence_set_error(&request->fence, -EIO);
-
-	i915_request_submit(request);
-}
-
-static void nop_complete_submit_request(struct i915_request *request)
-{
 	unsigned long flags;
 
 	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
@@ -3327,57 +3351,33 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * rolling the global seqno forward (since this would complete requests
 	 * for which we haven't set the fence error to EIO yet).
 	 */
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, i915, id)
 		i915_gem_reset_prepare_engine(engine);
-
-		engine->submit_request = nop_submit_request;
-		engine->schedule = NULL;
-	}
-	i915->caps.scheduler = 0;
 
 	/* Even if the GPU reset fails, it should still stop the engines */
 	if (INTEL_GEN(i915) >= 5)
 		intel_gpu_reset(i915, ALL_ENGINES);
 
-	/*
-	 * Make sure no one is running the old callback before we proceed with
-	 * cancelling requests and resetting the completion tracking. Otherwise
-	 * we might submit a request to the hardware which never completes.
-	 */
-	synchronize_rcu();
-
 	for_each_engine(engine, i915, id) {
-		/* Mark all executing requests as skipped */
-		engine->cancel_requests(engine);
-
-		/*
-		 * Only once we've force-cancelled all in-flight requests can we
-		 * start to complete all requests.
-		 */
-		engine->submit_request = nop_complete_submit_request;
+		engine->submit_request = nop_submit_request;
+		engine->schedule = NULL;
 	}
+	i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no request can slip through without getting completed by
 	 * either this call here to intel_engine_init_global_seqno, or the one
-	 * in nop_complete_submit_request.
+	 * in nop_submit_request.
 	 */
 	synchronize_rcu();
 
+	/* Mark all executing requests as skipped */
+	for_each_engine(engine, i915, id)
+		engine->cancel_requests(engine);
+
 	for_each_engine(engine, i915, id) {
-		unsigned long flags;
-
-		/*
-		 * Mark all pending requests as complete so that any concurrent
-		 * (lockless) lookup doesn't try and wait upon the request as we
-		 * reset it.
-		 */
-		spin_lock_irqsave(&engine->timeline.lock, flags);
-		intel_engine_init_global_seqno(engine,
-					       intel_engine_last_submit(engine));
-		spin_unlock_irqrestore(&engine->timeline.lock, flags);
-
 		i915_gem_reset_finish_engine(engine);
+		intel_engine_wakeup(engine);
 	}
 
 out:
@@ -3530,6 +3530,8 @@ static void __sleep_rcu(struct rcu_head *rcu)
 	struct sleep_rcu_work *s = container_of(rcu, typeof(*s), rcu);
 	struct drm_i915_private *i915 = s->i915;
 
+	destroy_rcu_head(&s->rcu);
+
 	if (same_epoch(i915, s->epoch)) {
 		INIT_WORK(&s->work, __sleep_work);
 		queue_work(i915->wq, &s->work);
@@ -3646,6 +3648,7 @@ out_rearm:
 	if (same_epoch(dev_priv, epoch)) {
 		struct sleep_rcu_work *s = kmalloc(sizeof(*s), GFP_KERNEL);
 		if (s) {
+			init_rcu_head(&s->rcu);
 			s->i915 = dev_priv;
 			s->epoch = epoch;
 			call_rcu(&s->rcu, __sleep_rcu);
@@ -3743,7 +3746,9 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	start = ktime_get();
 
 	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE | I915_WAIT_ALL,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_PRIORITY |
+				   I915_WAIT_ALL,
 				   to_wait_timeout(args->timeout_ns),
 				   to_rps_client(file));
 
@@ -4710,6 +4715,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
+	init_rcu_head(&obj->rcu);
+
 	obj->ops = ops;
 
 	reservation_object_init(&obj->__builtin_resv);
@@ -4975,6 +4982,13 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 	struct drm_i915_gem_object *obj =
 		container_of(head, typeof(*obj), rcu);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
+	/*
+	 * We reuse obj->rcu for the freed list, so we had better not treat
+	 * it like a rcu_head from this point forwards. And we expect all
+	 * objects to be freed via this path.
+	 */
+	destroy_rcu_head(&obj->rcu);
 
 	/*
 	 * Since we require blocking on struct_mutex to unbind the freed
@@ -5293,19 +5307,10 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 		I915_WRITE(MI_PREDICATE_RESULT_2, IS_HSW_GT3(dev_priv) ?
 			   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
-	if (HAS_PCH_NOP(dev_priv)) {
-		if (IS_IVYBRIDGE(dev_priv)) {
-			u32 temp = I915_READ(GEN7_MSG_CTL);
-			temp &= ~(WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK);
-			I915_WRITE(GEN7_MSG_CTL, temp);
-		} else if (INTEL_GEN(dev_priv) >= 7) {
-			u32 temp = I915_READ(HSW_NDE_RSTWRN_OPT);
-			temp &= ~RESET_PCH_HANDSHAKE_ENABLE;
-			I915_WRITE(HSW_NDE_RSTWRN_OPT, temp);
-		}
-	}
-
+	/* Apply the GT workarounds... */
 	intel_gt_apply_workarounds(dev_priv);
+	/* ...and determine whether they are sticking. */
+	intel_gt_verify_workarounds(dev_priv, "init");
 
 	i915_gem_init_swizzling(dev_priv);
 
@@ -6001,7 +6006,7 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 	 * the bits.
 	 */
 	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES >
-		     sizeof(atomic_t) * BITS_PER_BYTE);
+		     BITS_PER_TYPE(atomic_t));
 
 	if (old) {
 		WARN_ON(!(atomic_read(&old->frontbuffer_bits) & frontbuffer_bits));

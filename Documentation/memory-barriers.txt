@@ -587,7 +587,7 @@ leading to the following situation:
 
 	(Q == &B) and (D == 2) ????
 
-Whilst this may seem like a failure of coherency or causality maintenance, it
+While this may seem like a failure of coherency or causality maintenance, it
 isn't, and this behaviour can be observed on certain real CPUs (such as the DEC
 Alpha).
 
@@ -2008,7 +2008,7 @@ for each construct.  These operations all imply certain barriers:
 
      Certain locking variants of the ACQUIRE operation may fail, either due to
      being unable to get the lock immediately, or due to receiving an unblocked
-     signal whilst asleep waiting for the lock to become available.  Failed
+     signal while asleep waiting for the lock to become available.  Failed
      locks do not imply any sort of barrier.
 
 [!] Note: one of the consequences of lock ACQUIREs and RELEASEs being only
@@ -2508,7 +2508,7 @@ CPU, that CPU's dependency ordering logic will take care of everything else.
 ATOMIC OPERATIONS
 -----------------
 
-Whilst they are technically interprocessor interaction considerations, atomic
+While they are technically interprocessor interaction considerations, atomic
 operations are noted specially as some of them imply full memory barriers and
 some don't, but they're very heavily relied on as a group throughout the
 kernel.
@@ -2531,7 +2531,7 @@ the device to malfunction.
 
 Inside of the Linux kernel, I/O should be done through the appropriate accessor
 routines - such as inb() or writel() - which know how to make such accesses
-appropriately sequential.  Whilst this, for the most part, renders the explicit
+appropriately sequential.  While this, for the most part, renders the explicit
 use of memory barriers unnecessary, there are a couple of situations where they
 might be needed:
 
@@ -2555,7 +2555,7 @@ access the device.
 
 This may be alleviated - at least in part - by disabling local interrupts (a
 form of locking), such that the critical operations are all contained within
-the interrupt-disabled section in the driver.  Whilst the driver's interrupt
+the interrupt-disabled section in the driver.  While the driver's interrupt
 routine is executing, the driver's core may not run on the same CPU, and its
 interrupt is not permitted to happen again until the current interrupt has been
 handled, thus the interrupt handler does not need to lock against that.
@@ -2763,7 +2763,7 @@ CACHE COHERENCY
 
 Life isn't quite as simple as it may appear above, however: for while the
 caches are expected to be coherent, there's no guarantee that that coherency
-will be ordered.  This means that whilst changes made on one CPU will
+will be ordered.  This means that while changes made on one CPU will
 eventually become visible on all CPUs, there's no guarantee that they will
 become apparent in the same order on those other CPUs.
 
@@ -2799,7 +2799,7 @@ Imagine the system has the following properties:
  (*) an even-numbered cache line may be in cache B, cache D or it may still be
      resident in memory;
 
- (*) whilst the CPU core is interrogating one cache, the other cache may be
+ (*) while the CPU core is interrogating one cache, the other cache may be
      making use of the bus to access the rest of the system - perhaps to
      displace a dirty cacheline or to do a speculative load;
 
@@ -2835,7 +2835,7 @@ now imagine that the second CPU wants to read those values:
 			x = *q;
 
 The above pair of reads may then fail to happen in the expected order, as the
-cacheline holding p may get updated in one of the second CPU's caches whilst
+cacheline holding p may get updated in one of the second CPU's caches while
 the update to the cacheline holding v is delayed in the other of the second
 CPU's caches by some other cache event:
 
@@ -2855,7 +2855,7 @@ CPU's caches by some other cache event:
 			<C:unbusy>
 			<C:commit v=2>
 
-Basically, whilst both cachelines will be updated on CPU 2 eventually, there's
+Basically, while both cachelines will be updated on CPU 2 eventually, there's
 no guarantee that, without intervention, the order of update will be the same
 as that committed on CPU 1.
 
@@ -2885,7 +2885,7 @@ coherency queue before processing any further requests:
 
 This sort of problem can be encountered on DEC Alpha processors as they have a
 split cache that improves performance by making better use of the data bus.
-Whilst most CPUs do imply a data dependency barrier on the read when a memory
+While most CPUs do imply a data dependency barrier on the read when a memory
 access depends on a read, not all do, so it may not be relied on.
 
 Other CPUs may also have split caches, but must coordinate between the various
@@ -2974,7 +2974,7 @@ assumption doesn't hold because:
      thus cutting down on transaction setup costs (memory and PCI devices may
      both be able to do this); and
 
- (*) the CPU's data cache may affect the ordering, and whilst cache-coherency
+ (*) the CPU's data cache may affect the ordering, and while cache-coherency
      mechanisms may alleviate this - once the store has actually hit the cache
      - there's no guarantee that the coherency management will be propagated in
      order to other CPUs.

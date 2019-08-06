@@ -472,6 +472,34 @@ int qed_get_queue_coalesce(struct qed_hwfn *p_hwfn, u16 *coal, void *handle);
 int
 qed_set_queue_coalesce(u16 rx_coal, u16 tx_coal, void *p_handle);
 
+/**
+ * @brief db_recovery_add - add doorbell information to the doorbell
+ * recovery mechanism.
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address of where db_data is stored
+ * @param db_width - doorbell is 32b pr 64b
+ * @param db_space - doorbell recovery addresses are user or kernel space
+ */
+int qed_db_recovery_add(struct qed_dev *cdev,
+			void __iomem *db_addr,
+			void *db_data,
+			enum qed_db_rec_width db_width,
+			enum qed_db_rec_space db_space);
+
+/**
+ * @brief db_recovery_del - remove doorbell information from the doorbell
+ * recovery mechanism. db_data serves as key (db_addr is not unique).
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address where db_data is stored. Serves as key for the
+ *                  entry to delete.
+ */
+int qed_db_recovery_del(struct qed_dev *cdev,
+			void __iomem *db_addr, void *db_data);
+
 
 const char *qed_hw_get_resc_name(enum qed_resources res_id);
 #endif

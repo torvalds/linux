@@ -43,12 +43,11 @@ static int uverbs_free_dm(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	return dm->device->dealloc_dm(dm);
+	return dm->device->ops.dealloc_dm(dm);
 }
 
-static int
-UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_uverbs_file *file,
-				       struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_dm_alloc_attr attr = {};
 	struct ib_uobject *uobj =
@@ -58,7 +57,7 @@ UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_uverbs_file *file,
 	struct ib_dm *dm;
 	int ret;
 
-	if (!ib_dev->alloc_dm)
+	if (!ib_dev->ops.alloc_dm)
 		return -EOPNOTSUPP;
 
 	ret = uverbs_copy_from(&attr.length, attrs,
@@ -71,7 +70,7 @@ UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_uverbs_file *file,
 	if (ret)
 		return ret;
 
-	dm = ib_dev->alloc_dm(ib_dev, uobj->context, &attr, attrs);
+	dm = ib_dev->ops.alloc_dm(ib_dev, uobj->context, &attr, attrs);
 	if (IS_ERR(dm))
 		return PTR_ERR(dm);
 
@@ -109,3 +108,9 @@ DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_DM,
 			    UVERBS_TYPE_ALLOC_IDR(uverbs_free_dm),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_ALLOC),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_FREE));
+
+const struct uapi_definition uverbs_def_obj_dm[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_DM,
+				      UAPI_DEF_OBJ_NEEDS_FN(dealloc_dm)),
+	{}
+};

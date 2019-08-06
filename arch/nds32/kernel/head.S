@@ -123,21 +123,12 @@ _image_size_check:
         andi    $r0, $r0, MMU_CFG_mskTBS
         srli    $r6, $r6, MMU_CFG_offTBW
         srli    $r0, $r0, MMU_CFG_offTBS
-        /*
-         * we just map the kernel to the maximum way - 1 of tlb
-         * reserver one way for UART VA mapping
-         * it will cause page fault if UART mapping cover the kernel mapping
-         *
-         * direct mapping is not supported now.
-         */
-        li      $r2, 't'
-        beqz    $r6, __error                 ! MMU_CFG.TBW = 0 is direct mappin
+	addi    $r6, $r6, #0x1               ! MMU_CFG.TBW value -> meaning
         addi    $r0, $r0, #0x2               ! MMU_CFG.TBS value -> meaning
         sll     $r0, $r6, $r0                ! entries = k-way * n-set
         mul     $r6, $r0, $r5                ! max size = entries * page size
         /* check kernel image size */
         la      $r3, (_end - PAGE_OFFSET)
-        li      $r2, 's'
         bgt     $r3, $r6, __error
 
 	li      $r2, #(PHYS_OFFSET + TLB_DATA_kernel_text_attr)
@@ -160,7 +151,7 @@ _tlb:
 #endif
 	mtsr    $r3, $TLB_MISC
 
-	mfsr    $r0, $MISC_CTL      ! Enable BTB and RTP and shadow sp
+	mfsr    $r0, $MISC_CTL      ! Enable BTB, RTP, shadow sp, and HW_PRE
 	ori     $r0, $r0, #MISC_init
 	mtsr    $r0, $MISC_CTL
 

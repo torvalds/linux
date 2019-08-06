@@ -202,7 +202,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -229,9 +232,53 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
+		};
+
+		gpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 2>;
+
+			trips {
+				gpu_alert: trip0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				gpu_crit: trip1 {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		camera-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 1>;
+
+			trips {
+				cam_alert: trip0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cam_crit: trip1 {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
 		};
 
 	};
@@ -758,11 +805,13 @@
 			};
 		};
 
-		tsens: thermal-sensor@4a8000 {
+		tsens: thermal-sensor@4a9000 {
 			compatible = "qcom,msm8916-tsens";
-			reg = <0x4a8000 0x2000>;
+			reg = <0x4a9000 0x1000>, /* TM */
+			      <0x4a8000 0x1000>; /* SROT */
 			nvmem-cells = <&tsens_caldata>, <&tsens_calsel>;
 			nvmem-cell-names = "calib", "calib_sel";
+			#qcom,sensors = <5>;
 			#thermal-sensor-cells = <1>;
 		};
 
@@ -777,6 +826,13 @@
 				 <&gcc GCC_APSS_TCU_CLK>;
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <17>;
+
+			// vfe:
+			iommu-ctx@3000 {
+				compatible = "qcom,msm-iommu-v1-sec";
+				reg = <0x3000 0x1000>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			};
 
 			// mdp_0:
 			iommu-ctx@4000 {
@@ -1387,6 +1443,86 @@
 
 			video-encoder {
 				compatible = "venus-encoder";
+			};
+		};
+
+		camss: camss@1b00000 {
+			compatible = "qcom,msm8916-camss";
+			reg = <0x1b0ac00 0x200>,
+				<0x1b00030 0x4>,
+				<0x1b0b000 0x200>,
+				<0x1b00038 0x4>,
+				<0x1b08000 0x100>,
+				<0x1b08400 0x100>,
+				<0x1b0a000 0x500>,
+				<0x1b00020 0x10>,
+				<0x1b10000 0x1000>;
+			reg-names = "csiphy0",
+				"csiphy0_clk_mux",
+				"csiphy1",
+				"csiphy1_clk_mux",
+				"csid0",
+				"csid1",
+				"ispif",
+				"csi_clk_mux",
+				"vfe0";
+			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 79 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 51 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 52 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 55 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 57 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "csiphy0",
+				"csiphy1",
+				"csid0",
+				"csid1",
+				"ispif",
+				"vfe0";
+			power-domains = <&gcc VFE_GDSC>;
+			clocks = <&gcc GCC_CAMSS_TOP_AHB_CLK>,
+				<&gcc GCC_CAMSS_ISPIF_AHB_CLK>,
+				<&gcc GCC_CAMSS_CSI0PHYTIMER_CLK>,
+				<&gcc GCC_CAMSS_CSI1PHYTIMER_CLK>,
+				<&gcc GCC_CAMSS_CSI0_AHB_CLK>,
+				<&gcc GCC_CAMSS_CSI0_CLK>,
+				<&gcc GCC_CAMSS_CSI0PHY_CLK>,
+				<&gcc GCC_CAMSS_CSI0PIX_CLK>,
+				<&gcc GCC_CAMSS_CSI0RDI_CLK>,
+				<&gcc GCC_CAMSS_CSI1_AHB_CLK>,
+				<&gcc GCC_CAMSS_CSI1_CLK>,
+				<&gcc GCC_CAMSS_CSI1PHY_CLK>,
+				<&gcc GCC_CAMSS_CSI1PIX_CLK>,
+				<&gcc GCC_CAMSS_CSI1RDI_CLK>,
+				<&gcc GCC_CAMSS_AHB_CLK>,
+				<&gcc GCC_CAMSS_VFE0_CLK>,
+				<&gcc GCC_CAMSS_CSI_VFE0_CLK>,
+				<&gcc GCC_CAMSS_VFE_AHB_CLK>,
+				<&gcc GCC_CAMSS_VFE_AXI_CLK>;
+			clock-names = "top_ahb",
+				"ispif_ahb",
+				"csiphy0_timer",
+				"csiphy1_timer",
+				"csi0_ahb",
+				"csi0",
+				"csi0_phy",
+				"csi0_pix",
+				"csi0_rdi",
+				"csi1_ahb",
+				"csi1",
+				"csi1_phy",
+				"csi1_pix",
+				"csi1_rdi",
+				"ahb",
+				"vfe0",
+				"csi_vfe0",
+				"vfe_ahb",
+				"vfe_axi";
+			vdda-supply = <&pm8916_l2>;
+			iommus = <&apps_iommu 3>;
+			status = "disabled";
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 	};

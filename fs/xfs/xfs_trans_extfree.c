@@ -18,6 +18,7 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_trace.h"
+#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate an "extent free done"
@@ -52,19 +53,20 @@ xfs_trans_get_efd(struct xfs_trans		*tp,
  */
 int
 xfs_trans_free_extent(
-	struct xfs_trans	*tp,
-	struct xfs_efd_log_item	*efdp,
-	xfs_fsblock_t		start_block,
-	xfs_extlen_t		ext_len,
-	struct xfs_owner_info	*oinfo,
-	bool			skip_discard)
+	struct xfs_trans		*tp,
+	struct xfs_efd_log_item		*efdp,
+	xfs_fsblock_t			start_block,
+	xfs_extlen_t			ext_len,
+	const struct xfs_owner_info	*oinfo,
+	bool				skip_discard)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-	uint			next_extent;
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, start_block);
-	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(mp, start_block);
-	struct xfs_extent	*extp;
-	int			error;
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_extent		*extp;
+	uint				next_extent;
+	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp, start_block);
+	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp,
+								start_block);
+	int				error;
 
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 
@@ -206,8 +208,7 @@ xfs_extent_free_cancel_item(
 	kmem_free(free);
 }
 
-static const struct xfs_defer_op_type xfs_extent_free_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_FREE,
+const struct xfs_defer_op_type xfs_extent_free_defer_type = {
 	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_extent_free_diff_items,
 	.create_intent	= xfs_extent_free_create_intent,
@@ -274,8 +275,7 @@ xfs_agfl_free_finish_item(
 
 
 /* sub-type with special handling for AGFL deferred frees */
-static const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_AGFL_FREE,
+const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
 	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_extent_free_diff_items,
 	.create_intent	= xfs_extent_free_create_intent,
@@ -285,11 +285,3 @@ static const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
 	.finish_item	= xfs_agfl_free_finish_item,
 	.cancel_item	= xfs_extent_free_cancel_item,
 };
-
-/* Register the deferred op type. */
-void
-xfs_extent_free_init_defer_op(void)
-{
-	xfs_defer_init_op_type(&xfs_extent_free_defer_type);
-	xfs_defer_init_op_type(&xfs_agfl_free_defer_type);
-}

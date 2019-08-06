@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 		goto err;
 
 	cgfd = create_and_get_cgroup(CG_PATH);
-	if (!cgfd)
+	if (cgfd < 0)
 		goto err;
 
 	if (join_cgroup(CG_PATH))

@@ -695,7 +695,8 @@ void rc_repeat(struct rc_dev *dev)
 			 (dev->last_toggle ? LIRC_SCANCODE_FLAG_TOGGLE : 0)
 	};
 
-	ir_lirc_scancode_event(dev, &sc);
+	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
+		ir_lirc_scancode_event(dev, &sc);
 
 	spin_lock_irqsave(&dev->keylock, flags);
 
@@ -735,7 +736,8 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 		.keycode = keycode
 	};
 
-	ir_lirc_scancode_event(dev, &sc);
+	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
+		ir_lirc_scancode_event(dev, &sc);
 
 	if (new_event && dev->keypressed)
 		ir_do_keyup(dev, false);
@@ -1950,6 +1952,8 @@ void rc_unregister_device(struct rc_dev *dev)
 	rc_free_rx_device(dev);
 
 	mutex_lock(&dev->lock);
+	if (dev->users && dev->close)
+		dev->close(dev);
 	dev->registered = false;
 	mutex_unlock(&dev->lock);
 

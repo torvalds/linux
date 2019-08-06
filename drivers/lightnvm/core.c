@@ -389,7 +389,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_dev;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node, NULL);
+	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
 	if (!tqueue) {
 		ret = -ENOMEM;
 		goto err_disk;
@@ -974,7 +974,7 @@ static int nvm_get_bb_meta(struct nvm_dev *dev, sector_t slba,
 	struct ppa_addr ppa;
 	u8 *blks;
 	int ch, lun, nr_blks;
-	int ret;
+	int ret = 0;
 
 	ppa.ppa = slba;
 	ppa = dev_to_generic_addr(dev, ppa);
@@ -1140,20 +1140,26 @@ EXPORT_SYMBOL(nvm_alloc_dev);
 
 int nvm_register(struct nvm_dev *dev)
 {
-	int ret;
+	int ret, exp_pool_size;
 
 	if (!dev->q || !dev->ops)
 		return -EINVAL;
 
-	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist");
-	if (!dev->dma_pool) {
-		pr_err("nvm: could not create dma pool\n");
-		return -ENOMEM;
-	}
-
 	ret = nvm_init(dev);
 	if (ret)
-		goto err_init;
+		return ret;
+
+	exp_pool_size = max_t(int, PAGE_SIZE,
+			      (NVM_MAX_VLBA * (sizeof(u64) + dev->geo.sos)));
+	exp_pool_size = round_up(exp_pool_size, PAGE_SIZE);
+
+	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist",
+						  exp_pool_size);
+	if (!dev->dma_pool) {
+		pr_err("nvm: could not create dma pool\n");
+		nvm_free(dev);
+		return -ENOMEM;
+	}
 
 	/* register device with a supported media manager */
 	down_write(&nvm_lock);
@@ -1161,9 +1167,6 @@ int nvm_register(struct nvm_dev *dev)
 	up_write(&nvm_lock);
 
 	return 0;
-err_init:
-	dev->ops->destroy_dma_pool(dev->dma_pool);
-	return ret;
 }
 EXPORT_SYMBOL(nvm_register);
 

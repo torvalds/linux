@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/lib/io.c - SH32 optimized I/O routines
  *
@@ -6,10 +7,6 @@
  *
  * Provide real functions which expand to whatever the header file defined.
  * Also definitions of machine independent IO functions.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/module.h>
 #include <linux/io.h>

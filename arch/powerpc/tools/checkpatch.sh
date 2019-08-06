@@ -19,4 +19,5 @@ exec $script_base/../../../scripts/checkpatch.pl \
 	--ignore GLOBAL_INITIALISERS \
 	--ignore LINE_SPACING \
 	--ignore MULTIPLE_ASSIGNMENTS \
+	--ignore DT_SPLIT_BINDING_PATCH \
 	$@

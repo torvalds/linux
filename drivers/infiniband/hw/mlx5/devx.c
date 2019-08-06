@@ -9,6 +9,7 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
 #include <rdma/ib_umem.h>
+#include <rdma/uverbs_std_types.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/fs.h>
 #include "mlx5_ib.h"
@@ -40,29 +41,32 @@ struct devx_umem_reg_cmd {
 	u32				out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 };
 
-static struct mlx5_ib_ucontext *devx_ufile2uctx(struct ib_uverbs_file *file)
+static struct mlx5_ib_ucontext *
+devx_ufile2uctx(const struct uverbs_attr_bundle *attrs)
 {
-	return to_mucontext(ib_uverbs_get_ucontext(file));
+	return to_mucontext(ib_uverbs_get_ucontext(attrs));
 }
 
-int mlx5_ib_devx_create(struct mlx5_ib_dev *dev)
+int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 {
 	u32 in[MLX5_ST_SZ_DW(create_uctx_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
-	u64 general_obj_types;
-	void *hdr;
+	void *uctx;
 	int err;
 	u16 uid;
+	u32 cap = 0;
 
-	hdr = MLX5_ADDR_OF(create_uctx_in, in, hdr);
-
-	general_obj_types = MLX5_CAP_GEN_64(dev->mdev, general_obj_types);
-	if (!(general_obj_types & MLX5_GENERAL_OBJ_TYPES_CAP_UCTX) ||
-	    !(general_obj_types & MLX5_GENERAL_OBJ_TYPES_CAP_UMEM))
+	/* 0 means not supported */
+	if (!MLX5_CAP_GEN(dev->mdev, log_max_uctx))
 		return -EINVAL;
 
-	MLX5_SET(general_obj_in_cmd_hdr, hdr, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
-	MLX5_SET(general_obj_in_cmd_hdr, hdr, obj_type, MLX5_OBJ_TYPE_UCTX);
+	uctx = MLX5_ADDR_OF(create_uctx_in, in, uctx);
+	if (is_user && capable(CAP_NET_RAW) &&
+	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RAW_TX))
+		cap |= MLX5_UCTX_CAP_RAW_TX;
+
+	MLX5_SET(create_uctx_in, in, opcode, MLX5_CMD_OP_CREATE_UCTX);
+	MLX5_SET(uctx, uctx, cap, cap);
 
 	err = mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 	if (err)
@@ -74,12 +78,11 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev)
 
 void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid)
 {
-	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_uctx_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
 
-	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
-	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type, MLX5_OBJ_TYPE_UCTX);
-	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, uid);
+	MLX5_SET(destroy_uctx_in, in, opcode, MLX5_CMD_OP_DESTROY_UCTX);
+	MLX5_SET(destroy_uctx_in, in, uid, uid);
 
 	mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 }
@@ -106,6 +109,21 @@ bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type)
 	}
 }
 
+bool mlx5_ib_devx_is_flow_counter(void *obj, u32 *counter_id)
+{
+	struct devx_obj *devx_obj = obj;
+	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox, opcode);
+
+	if (opcode == MLX5_CMD_OP_DEALLOC_FLOW_COUNTER) {
+		*counter_id = MLX5_GET(dealloc_flow_counter_in,
+				       devx_obj->dinbox,
+				       flow_counter_id);
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * As the obj_id in the firmware is not globally unique the object type
  * must be considered upon checking for a valid object id.
@@ -116,7 +134,7 @@ static u64 get_enc_obj_id(u16 opcode, u32 obj_id)
 	return ((u64)opcode << 32) | obj_id;
 }
 
-static int devx_is_valid_obj_id(struct devx_obj *obj, const void *in)
+static u64 devx_get_obj_id(const void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
 	u64 obj_id;
@@ -290,6 +308,8 @@ static int devx_is_valid_obj_id(struct devx_obj *obj, const void *in)
 					MLX5_GET(query_dct_in, in, dctn));
 		break;
 	case MLX5_CMD_OP_QUERY_XRQ:
+	case MLX5_CMD_OP_QUERY_XRQ_DC_PARAMS_ENTRY:
+	case MLX5_CMD_OP_QUERY_XRQ_ERROR_PARAMS:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
 					MLX5_GET(query_xrq_in, in, xrqn));
 		break;
@@ -316,17 +336,107 @@ static int devx_is_valid_obj_id(struct devx_obj *obj, const void *in)
 					MLX5_GET(drain_dct_in, in, dctn));
 		break;
 	case MLX5_CMD_OP_ARM_XRQ:
+	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
 					MLX5_GET(arm_xrq_in, in, xrqn));
 		break;
+	case MLX5_CMD_OP_QUERY_PACKET_REFORMAT_CONTEXT:
+		obj_id = get_enc_obj_id
+				(MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT,
+				 MLX5_GET(query_packet_reformat_context_in,
+					  in, packet_reformat_id));
+		break;
+	default:
+		obj_id = 0;
+	}
+
+	return obj_id;
+}
+
+static bool devx_is_valid_obj_id(struct ib_uobject *uobj, const void *in)
+{
+	u64 obj_id = devx_get_obj_id(in);
+
+	if (!obj_id)
+		return false;
+
+	switch (uobj_get_object_id(uobj)) {
+	case UVERBS_OBJECT_CQ:
+		return get_enc_obj_id(MLX5_CMD_OP_CREATE_CQ,
+				      to_mcq(uobj->object)->mcq.cqn) ==
+				      obj_id;
+
+	case UVERBS_OBJECT_SRQ:
+	{
+		struct mlx5_core_srq *srq = &(to_msrq(uobj->object)->msrq);
+		struct mlx5_ib_dev *dev = to_mdev(uobj->context->device);
+		u16 opcode;
+
+		switch (srq->common.res) {
+		case MLX5_RES_XSRQ:
+			opcode = MLX5_CMD_OP_CREATE_XRC_SRQ;
+			break;
+		case MLX5_RES_XRQ:
+			opcode = MLX5_CMD_OP_CREATE_XRQ;
+			break;
+		default:
+			if (!dev->mdev->issi)
+				opcode = MLX5_CMD_OP_CREATE_SRQ;
+			else
+				opcode = MLX5_CMD_OP_CREATE_RMP;
+		}
+
+		return get_enc_obj_id(opcode,
+				      to_msrq(uobj->object)->msrq.srqn) ==
+				      obj_id;
+	}
+
+	case UVERBS_OBJECT_QP:
+	{
+		struct mlx5_ib_qp *qp = to_mqp(uobj->object);
+		enum ib_qp_type	qp_type = qp->ibqp.qp_type;
+
+		if (qp_type == IB_QPT_RAW_PACKET ||
+		    (qp->flags & MLX5_IB_QP_UNDERLAY)) {
+			struct mlx5_ib_raw_packet_qp *raw_packet_qp =
+							 &qp->raw_packet_qp;
+			struct mlx5_ib_rq *rq = &raw_packet_qp->rq;
+			struct mlx5_ib_sq *sq = &raw_packet_qp->sq;
+
+			return (get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
+					       rq->base.mqp.qpn) == obj_id ||
+				get_enc_obj_id(MLX5_CMD_OP_CREATE_SQ,
+					       sq->base.mqp.qpn) == obj_id ||
+				get_enc_obj_id(MLX5_CMD_OP_CREATE_TIR,
+					       rq->tirn) == obj_id ||
+				get_enc_obj_id(MLX5_CMD_OP_CREATE_TIS,
+					       sq->tisn) == obj_id);
+		}
+
+		if (qp_type == MLX5_IB_QPT_DCT)
+			return get_enc_obj_id(MLX5_CMD_OP_CREATE_DCT,
+					      qp->dct.mdct.mqp.qpn) == obj_id;
+
+		return get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+				      qp->ibqp.qp_num) == obj_id;
+	}
+
+	case UVERBS_OBJECT_WQ:
+		return get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
+				      to_mrwq(uobj->object)->core_qp.qpn) ==
+				      obj_id;
+
+	case UVERBS_OBJECT_RWQ_IND_TBL:
+		return get_enc_obj_id(MLX5_CMD_OP_CREATE_RQT,
+				      to_mrwq_ind_table(uobj->object)->rqtn) ==
+				      obj_id;
+
+	case MLX5_IB_OBJECT_DEVX_OBJ:
+		return ((struct devx_obj *)uobj->object)->obj_id == obj_id;
+
 	default:
 		return false;
 	}
-
-	if (obj_id == obj->obj_id)
-		return true;
-
-	return false;
 }
 
 static void devx_set_umem_valid(const void *in)
@@ -494,6 +604,7 @@ static bool devx_is_obj_modify_cmd(const void *in)
 	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 	case MLX5_CMD_OP_ARM_XRQ:
+	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
 		return true;
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
 	{
@@ -535,6 +646,9 @@ static bool devx_is_obj_query_cmd(const void *in)
 	case MLX5_CMD_OP_QUERY_XRC_SRQ:
 	case MLX5_CMD_OP_QUERY_DCT:
 	case MLX5_CMD_OP_QUERY_XRQ:
+	case MLX5_CMD_OP_QUERY_XRQ_DC_PARAMS_ENTRY:
+	case MLX5_CMD_OP_QUERY_XRQ_ERROR_PARAMS:
+	case MLX5_CMD_OP_QUERY_PACKET_REFORMAT_CONTEXT:
 		return true;
 	default:
 		return false;
@@ -572,14 +686,15 @@ static int devx_get_uid(struct mlx5_ib_ucontext *c, void *cmd_in)
 	if (!c->devx_uid)
 		return -EINVAL;
 
-	if (!capable(CAP_NET_RAW))
-		return -EPERM;
-
 	return c->devx_uid;
 }
 static bool devx_is_general_cmd(void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
+
+	if (opcode >= MLX5_CMD_OP_GENERAL_START &&
+	    opcode < MLX5_CMD_OP_GENERAL_END)
+		return true;
 
 	switch (opcode) {
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
@@ -603,7 +718,7 @@ static bool devx_is_general_cmd(void *in)
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_ucontext *c;
 	struct mlx5_ib_dev *dev;
@@ -616,7 +731,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
 			     MLX5_IB_ATTR_DEVX_QUERY_EQN_USER_VEC))
 		return -EFAULT;
 
-	c = devx_ufile2uctx(file);
+	c = devx_ufile2uctx(attrs);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 	dev = to_mdev(c->ibucontext.device);
@@ -653,14 +768,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
  * queue or arm its CQ for event generation), no further harm is expected.
  */
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_ucontext *c;
 	struct mlx5_ib_dev *dev;
 	u32 user_idx;
 	s32 dev_idx;
 
-	c = devx_ufile2uctx(file);
+	c = devx_ufile2uctx(attrs);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 	dev = to_mdev(c->ibucontext.device);
@@ -681,7 +796,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_ucontext *c;
 	struct mlx5_ib_dev *dev;
@@ -693,7 +808,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(
 	int err;
 	int uid;
 
-	c = devx_ufile2uctx(file);
+	c = devx_ufile2uctx(attrs);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 	dev = to_mdev(c->ibucontext.device);
@@ -740,6 +855,10 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 		MLX5_SET(general_obj_in_cmd_hdr, din, obj_type, obj_type);
 		break;
 
+	case MLX5_CMD_OP_CREATE_UMEM:
+		MLX5_SET(general_obj_in_cmd_hdr, din, opcode,
+			 MLX5_CMD_OP_DESTROY_UMEM);
+		break;
 	case MLX5_CMD_OP_CREATE_MKEY:
 		MLX5_SET(general_obj_in_cmd_hdr, din, opcode, MLX5_CMD_OP_DESTROY_MKEY);
 		break;
@@ -908,7 +1027,7 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN);
 	int cmd_out_len =  uverbs_attr_get_len(attrs,
@@ -970,7 +1089,7 @@ obj_free:
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
@@ -978,7 +1097,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 							  MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE);
 	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
-	struct devx_obj *obj = uobj->object;
+	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
 	void *cmd_out;
 	int err;
 	int uid;
@@ -990,7 +1109,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 	if (!devx_is_obj_modify_cmd(cmd_in))
 		return -EINVAL;
 
-	if (!devx_is_valid_obj_id(obj, cmd_in))
+	if (!devx_is_valid_obj_id(uobj, cmd_in))
 		return -EINVAL;
 
 	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
@@ -1000,7 +1119,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, uid);
 	devx_set_umem_valid(cmd_in);
 
-	err = mlx5_cmd_exec(obj->mdev, cmd_in,
+	err = mlx5_cmd_exec(mdev->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
@@ -1011,7 +1130,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
@@ -1019,10 +1138,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 							  MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE);
 	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
-	struct devx_obj *obj = uobj->object;
 	void *cmd_out;
 	int err;
 	int uid;
+	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
 
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
@@ -1031,7 +1150,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 	if (!devx_is_obj_query_cmd(cmd_in))
 		return -EINVAL;
 
-	if (!devx_is_valid_obj_id(obj, cmd_in))
+	if (!devx_is_valid_obj_id(uobj, cmd_in))
 		return -EINVAL;
 
 	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
@@ -1039,7 +1158,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 		return PTR_ERR(cmd_out);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, uid);
-	err = mlx5_cmd_exec(obj->mdev, cmd_in,
+	err = mlx5_cmd_exec(mdev->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
@@ -1115,8 +1234,7 @@ static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
 	umem = MLX5_ADDR_OF(create_umem_in, cmd->in, umem);
 	mtt = (__be64 *)MLX5_ADDR_OF(umem, umem, mtt);
 
-	MLX5_SET(general_obj_in_cmd_hdr, cmd->in, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
-	MLX5_SET(general_obj_in_cmd_hdr, cmd->in, obj_type, MLX5_OBJ_TYPE_UMEM);
+	MLX5_SET(create_umem_in, cmd->in, opcode, MLX5_CMD_OP_CREATE_UMEM);
 	MLX5_SET64(umem, umem, num_of_mtt, obj->ncont);
 	MLX5_SET(umem, umem, log_page_size, obj->page_shift -
 					    MLX5_ADAPTER_PAGE_SHIFT);
@@ -1127,7 +1245,7 @@ static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct devx_umem_reg_cmd cmd;
 	struct devx_umem *obj;
@@ -1140,9 +1258,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 
 	if (!c->devx_uid)
 		return -EINVAL;
-
-	if (!capable(CAP_NET_RAW))
-		return -EPERM;
 
 	obj = kzalloc(sizeof(struct devx_umem), GFP_KERNEL);
 	if (!obj)
@@ -1158,7 +1273,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 
 	devx_umem_reg_cmd_build(dev, obj, &cmd);
 
-	MLX5_SET(general_obj_in_cmd_hdr, cmd.in, uid, c->devx_uid);
+	MLX5_SET(create_umem_in, cmd.in, uid, c->devx_uid);
 	err = mlx5_cmd_exec(dev->mdev, cmd.in, cmd.inlen, cmd.out,
 			    sizeof(cmd.out));
 	if (err)
@@ -1279,7 +1394,7 @@ DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_DEVX_OBJ_MODIFY,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE,
-			MLX5_IB_OBJECT_DEVX_OBJ,
+			UVERBS_IDR_ANY_OBJECT,
 			UVERBS_ACCESS_WRITE,
 			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(
@@ -1295,7 +1410,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_DEVX_OBJ_QUERY,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE,
-			MLX5_IB_OBJECT_DEVX_OBJ,
+			UVERBS_IDR_ANY_OBJECT,
 			UVERBS_ACCESS_READ,
 			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(
@@ -1325,12 +1440,22 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_REG),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_DEREG));
 
-DECLARE_UVERBS_OBJECT_TREE(devx_objects,
-			   &UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX),
-			   &UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ),
-			   &UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM));
-
-const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void)
+static bool devx_is_supported(struct ib_device *device)
 {
-	return &devx_objects;
+	struct mlx5_ib_dev *dev = to_mdev(device);
+
+	return !dev->rep && MLX5_CAP_GEN(dev->mdev, log_max_uctx);
 }
+
+const struct uapi_definition mlx5_ib_devx_defs[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_DEVX,
+		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_DEVX_OBJ,
+		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_DEVX_UMEM,
+		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
+	{},
+};

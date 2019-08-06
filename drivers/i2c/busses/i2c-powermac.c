@@ -229,9 +229,9 @@ static u32 i2c_powermac_get_addr(struct i2c_adapter *adap,
 		return (be32_to_cpup(prop) & 0xff) >> 1;
 
 	/* Now handle some devices with missing "reg" properties */
-	if (!strcmp(node->name, "cereal"))
+	if (of_node_name_eq(node, "cereal"))
 		return 0x60;
-	else if (!strcmp(node->name, "deq"))
+	else if (of_node_name_eq(node, "deq"))
 		return 0x34;
 
 	dev_warn(&adap->dev, "No i2c address for %pOF\n", node);
@@ -304,7 +304,7 @@ static bool i2c_powermac_get_type(struct i2c_adapter *adap,
 	}
 
 	/* Now look for known workarounds */
-	if (!strcmp(node->name, "deq")) {
+	if (of_node_name_eq(node, "deq")) {
 		/* Apple uses address 0x34 for TAS3001 and 0x35 for TAS3004 */
 		if (addr == 0x34) {
 			snprintf(type, type_size, "MAC,tas3001");
@@ -331,7 +331,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 	 * case we skip this function completely as the device-tree will
 	 * not contain anything useful.
 	 */
-	if (!strcmp(adap->dev.of_node->name, "via-pmu"))
+	if (of_node_name_eq(adap->dev.of_node, "via-pmu"))
 		return;
 
 	for_each_child_of_node(adap->dev.of_node, node) {

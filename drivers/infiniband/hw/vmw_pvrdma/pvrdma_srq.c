@@ -111,7 +111,7 @@ struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 	unsigned long flags;
 	int ret;
 
-	if (!(pd->uobject && udata)) {
+	if (!udata) {
 		/* No support for kernel clients. */
 		dev_warn(&dev->pdev->dev,
 			 "no shared receive queue support for kernel client\n");

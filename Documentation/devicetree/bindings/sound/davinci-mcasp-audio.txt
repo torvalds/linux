@@ -30,6 +30,11 @@ Optional properties:
 - ti,hwmods : Must be "mcasp<n>", n is controller instance starting 0
 - tx-num-evt : FIFO levels.
 - rx-num-evt : FIFO levels.
+- dismod : Specify the drive on TX pin during inactive slots
+	0 : 3-state
+	2 : logic low
+	3 : logic high
+	Defaults to 'logic low' when the property is not present
 - sram-size-playback : size of sram to be allocated during playback
 - sram-size-capture  : size of sram to be allocated during capture
 - interrupts : Interrupt numbers for McASP

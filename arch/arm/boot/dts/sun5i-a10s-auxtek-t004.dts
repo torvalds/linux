@@ -71,8 +71,6 @@
 
 	reg_vmmc1: vmmc1 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mmc1_vcc_en_pin_t004>;
 		regulator-name = "vmmc1";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -86,8 +84,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp152: pmic@30 {
@@ -100,8 +96,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_t004>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
@@ -109,8 +103,6 @@
 };
 
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_vmmc1>;
 	bus-width = <4>;
 	non-removable;
@@ -127,24 +119,13 @@
 };
 
 &pio {
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PG12";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	mmc0_cd_pin_t004: mmc0_cd_pin@0 {
-		pins = "PG1";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	mmc1_vcc_en_pin_t004: mmc1_vcc_en_pin@0 {
-		pins = "PB18";
-		function = "gpio_out";
-	};
-
-	led_pins_t004: led_pins@0 {
+	led_pins_t004: led-pin {
 		pins = "PB2";
 		function = "gpio_out";
 		drive-strength = <20>;
@@ -158,7 +139,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

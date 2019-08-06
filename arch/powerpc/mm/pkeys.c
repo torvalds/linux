@@ -6,20 +6,21 @@
  */
 
 #include <asm/mman.h>
+#include <asm/mmu_context.h>
 #include <asm/setup.h>
 #include <linux/pkeys.h>
 #include <linux/of_device.h>
 
 DEFINE_STATIC_KEY_TRUE(pkey_disabled);
-bool pkey_execute_disable_supported;
 int  pkeys_total;		/* Total pkeys as per device tree */
-bool pkeys_devtree_defined;	/* pkey property exported by device tree */
 u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
 u32  reserved_allocation_mask;  /* Bits set for reserved keys */
-u64  pkey_amr_mask;		/* Bits in AMR not to be touched */
-u64  pkey_iamr_mask;		/* Bits in AMR not to be touched */
-u64  pkey_uamor_mask;		/* Bits in UMOR not to be touched */
-int  execute_only_key = 2;
+static bool pkey_execute_disable_supported;
+static bool pkeys_devtree_defined;	/* property exported by device tree */
+static u64 pkey_amr_mask;		/* Bits in AMR not to be touched */
+static u64 pkey_iamr_mask;		/* Bits in AMR not to be touched */
+static u64 pkey_uamor_mask;		/* Bits in UMOR not to be touched */
+static int execute_only_key = 2;
 
 #define AMR_BITS_PER_PKEY 2
 #define AMR_RD_BIT 0x1UL
@@ -57,7 +58,7 @@ static inline bool pkey_mmu_enabled(void)
 		return cpu_has_feature(CPU_FTR_PKEY);
 }
 
-int pkey_initialize(void)
+static int pkey_initialize(void)
 {
 	int os_reserved, i;
 
@@ -413,4 +414,14 @@ bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 		return true;
 
 	return pkey_access_permitted(vma_pkey(vma), write, execute);
+}
+
+void arch_dup_pkeys(struct mm_struct *oldmm, struct mm_struct *mm)
+{
+	if (static_branch_likely(&pkey_disabled))
+		return;
+
+	/* Duplicate the oldmm pkey state in mm: */
+	mm_pkey_allocation_map(mm) = mm_pkey_allocation_map(oldmm);
+	mm->context.execute_only_pkey = oldmm->context.execute_only_pkey;
 }

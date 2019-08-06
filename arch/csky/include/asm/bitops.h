@@ -40,7 +40,7 @@ static __always_inline unsigned long __ffs(unsigned long x)
 /*
  * asm-generic/bitops/fls.h
  */
-static __always_inline int fls(int x)
+static __always_inline int fls(unsigned int x)
 {
 	asm volatile(
 		"ff1 %0\n"

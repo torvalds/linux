@@ -327,8 +327,7 @@
 				ak8963@f {
 					compatible = "asahi-kasei,ak8963";
 					reg = <0x0f>;
-					// Currently only works in polling mode.
-					// gpios = <&msmgpio 61 0>;
+					gpios = <&msmgpio 67 0>;
 					vid-supply = <&pm8941_lvs1>;
 					vdd-supply = <&pm8941_l17>;
 				};

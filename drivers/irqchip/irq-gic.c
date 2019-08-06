@@ -604,8 +604,8 @@ void gic_dist_save(struct gic_chip_data *gic)
 /*
  * Restores the GIC distributor registers during resume or when coming out of
  * idle.  Must be called before enabling interrupts.  If a level interrupt
- * that occured while the GIC was suspended is still present, it will be
- * handled normally, but any edge interrupts that occured will not be seen by
+ * that occurred while the GIC was suspended is still present, it will be
+ * handled normally, but any edge interrupts that occurred will not be seen by
  * the GIC and need to be handled by the platform-specific wakeup source.
  */
 void gic_dist_restore(struct gic_chip_data *gic)
@@ -899,7 +899,7 @@ void gic_migrate_target(unsigned int new_cpu_id)
 	gic_cpu_map[cpu] = 1 << new_cpu_id;
 
 	/*
-	 * Find all the peripheral interrupts targetting the current
+	 * Find all the peripheral interrupts targeting the current
 	 * CPU interface and migrate them to the new CPU interface.
 	 * We skip DIST_TARGET 0 to 7 as they are read-only.
 	 */

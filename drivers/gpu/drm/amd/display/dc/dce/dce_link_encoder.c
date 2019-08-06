@@ -645,7 +645,7 @@ static bool dce110_link_encoder_validate_hdmi_output(
 		return false;
 
 	/* DCE11 HW does not support 420 */
-	if (!enc110->base.features.ycbcr420_supported &&
+	if (!enc110->base.features.hdmi_ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 

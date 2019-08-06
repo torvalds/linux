@@ -240,6 +240,7 @@ int mlx5_cmd_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn,
 
 	MLX5_SET(alloc_transport_domain_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_TRANSPORT_DOMAIN);
+	MLX5_SET(alloc_transport_domain_in, in, uid, uid);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (!err)
@@ -257,6 +258,7 @@ void mlx5_cmd_dealloc_transport_domain(struct mlx5_core_dev *dev, u32 tdn,
 
 	MLX5_SET(dealloc_transport_domain_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_TRANSPORT_DOMAIN);
+	MLX5_SET(dealloc_transport_domain_in, in, uid, uid);
 	MLX5_SET(dealloc_transport_domain_in, in, transport_domain, tdn);
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
@@ -325,4 +327,21 @@ int mlx5_cmd_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn, u16 uid)
 	MLX5_SET(dealloc_xrcd_in, in, xrcd, xrcdn);
 	MLX5_SET(dealloc_xrcd_in, in, uid, uid);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
+int mlx5_cmd_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id,
+			     u16 uid)
+{
+	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {0};
+	int err;
+
+	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
+	MLX5_SET(alloc_q_counter_in, in, uid, uid);
+
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (!err)
+		*counter_id = MLX5_GET(alloc_q_counter_out, out,
+				       counter_set_id);
+	return err;
 }

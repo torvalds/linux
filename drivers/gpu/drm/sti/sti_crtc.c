@@ -40,6 +40,8 @@ static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("\n");
 
 	mixer->status = STI_MIXER_DISABLING;
+
+	drm_crtc_wait_one_vblank(crtc);
 }
 
 static int
@@ -250,10 +252,8 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 	struct sti_compositor *compo;
 	struct drm_crtc *crtc = data;
 	struct sti_mixer *mixer;
-	struct sti_private *priv;
 	unsigned int pipe;
 
-	priv = crtc->dev->dev_private;
 	pipe = drm_crtc_index(crtc);
 	compo = container_of(nb, struct sti_compositor, vtg_vblank_nb[pipe]);
 	mixer = compo->mixer[pipe];

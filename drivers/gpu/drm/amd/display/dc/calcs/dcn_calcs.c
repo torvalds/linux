@@ -1423,27 +1423,27 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	ranges.num_reader_wm_sets = WM_SET_COUNT;
 	ranges.num_writer_wm_sets = WM_SET_COUNT;
 	ranges.reader_wm_sets[0].wm_inst = WM_A;
-	ranges.reader_wm_sets[0].min_drain_clk_khz = min_dcfclk_khz;
-	ranges.reader_wm_sets[0].max_drain_clk_khz = overdrive;
-	ranges.reader_wm_sets[0].min_fill_clk_khz = min_fclk_khz;
-	ranges.reader_wm_sets[0].max_fill_clk_khz = overdrive;
+	ranges.reader_wm_sets[0].min_drain_clk_mhz = min_dcfclk_khz / 1000;
+	ranges.reader_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
+	ranges.reader_wm_sets[0].min_fill_clk_mhz = min_fclk_khz / 1000;
+	ranges.reader_wm_sets[0].max_fill_clk_mhz = overdrive / 1000;
 	ranges.writer_wm_sets[0].wm_inst = WM_A;
-	ranges.writer_wm_sets[0].min_fill_clk_khz = socclk_khz;
-	ranges.writer_wm_sets[0].max_fill_clk_khz = overdrive;
-	ranges.writer_wm_sets[0].min_drain_clk_khz = min_fclk_khz;
-	ranges.writer_wm_sets[0].max_drain_clk_khz = overdrive;
+	ranges.writer_wm_sets[0].min_fill_clk_mhz = socclk_khz / 1000;
+	ranges.writer_wm_sets[0].max_fill_clk_mhz = overdrive / 1000;
+	ranges.writer_wm_sets[0].min_drain_clk_mhz = min_fclk_khz / 1000;
+	ranges.writer_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		ranges.reader_wm_sets[0].wm_inst = WM_A;
-		ranges.reader_wm_sets[0].min_drain_clk_khz = 300000;
-		ranges.reader_wm_sets[0].max_drain_clk_khz = 5000000;
-		ranges.reader_wm_sets[0].min_fill_clk_khz = 800000;
-		ranges.reader_wm_sets[0].max_fill_clk_khz = 5000000;
+		ranges.reader_wm_sets[0].min_drain_clk_mhz = 300;
+		ranges.reader_wm_sets[0].max_drain_clk_mhz = 5000;
+		ranges.reader_wm_sets[0].min_fill_clk_mhz = 800;
+		ranges.reader_wm_sets[0].max_fill_clk_mhz = 5000;
 		ranges.writer_wm_sets[0].wm_inst = WM_A;
-		ranges.writer_wm_sets[0].min_fill_clk_khz = 200000;
-		ranges.writer_wm_sets[0].max_fill_clk_khz = 5000000;
-		ranges.writer_wm_sets[0].min_drain_clk_khz = 800000;
-		ranges.writer_wm_sets[0].max_drain_clk_khz = 5000000;
+		ranges.writer_wm_sets[0].min_fill_clk_mhz = 200;
+		ranges.writer_wm_sets[0].max_fill_clk_mhz = 5000;
+		ranges.writer_wm_sets[0].min_drain_clk_mhz = 800;
+		ranges.writer_wm_sets[0].max_drain_clk_mhz = 5000;
 	}
 
 	ranges.reader_wm_sets[1] = ranges.writer_wm_sets[0];

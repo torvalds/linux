@@ -67,7 +67,7 @@ nv04_display_create(struct drm_device *dev)
 	for (i = 0; i < dcb->entries; i++) {
 		struct dcb_output *dcbent = &dcb->entry[i];
 
-		connector = nouveau_connector_create(dev, dcbent->connector);
+		connector = nouveau_connector_create(dev, dcbent);
 		if (IS_ERR(connector))
 			continue;
 

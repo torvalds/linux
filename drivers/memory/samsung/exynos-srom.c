@@ -139,8 +139,8 @@ static int exynos_srom_probe(struct platform_device *pdev)
 	for_each_child_of_node(np, child) {
 		if (exynos_srom_configure_bank(srom, child)) {
 			dev_err(dev,
-				"Could not decode bank configuration for %s\n",
-				child->name);
+				"Could not decode bank configuration for %pOFn\n",
+				child);
 			bad_bank_config = true;
 		}
 	}

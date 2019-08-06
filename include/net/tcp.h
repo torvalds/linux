@@ -313,7 +313,7 @@ extern struct proto tcp_prot;
 
 void tcp_tasklet_init(void);
 
-void tcp_v4_err(struct sk_buff *skb, u32);
+int tcp_v4_err(struct sk_buff *skb, u32);
 
 void tcp_shutdown(struct sock *sk, int how);
 
@@ -1124,7 +1124,7 @@ void tcp_rate_check_app_limited(struct sock *sk);
  */
 static inline int tcp_is_sack(const struct tcp_sock *tp)
 {
-	return tp->rx_opt.sack_ok;
+	return likely(tp->rx_opt.sack_ok);
 }
 
 static inline bool tcp_is_reno(const struct tcp_sock *tp)
@@ -1315,33 +1315,16 @@ static inline __sum16 tcp_v4_check(int len, __be32 saddr,
 	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
 }
 
-static inline __sum16 __tcp_checksum_complete(struct sk_buff *skb)
-{
-	return __skb_checksum_complete(skb);
-}
-
 static inline bool tcp_checksum_complete(struct sk_buff *skb)
 {
 	return !skb_csum_unnecessary(skb) &&
-		__tcp_checksum_complete(skb);
+		__skb_checksum_complete(skb);
 }
 
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb);
 int tcp_filter(struct sock *sk, struct sk_buff *skb);
-
-#undef STATE_TRACE
-
-#ifdef STATE_TRACE
-static const char *statename[]={
-	"Unused","Established","Syn Sent","Syn Recv",
-	"Fin Wait 1","Fin Wait 2","Time Wait", "Close",
-	"Close Wait","Last ACK","Listen","Closing"
-};
-#endif
 void tcp_set_state(struct sock *sk, int state);
-
 void tcp_done(struct sock *sk);
-
 int tcp_abort(struct sock *sk, int err);
 
 static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
@@ -1385,7 +1368,7 @@ static inline int tcp_win_from_space(const struct sock *sk, int space)
 /* Note: caller must be prepared to deal with negative returns */
 static inline int tcp_space(const struct sock *sk)
 {
-	return tcp_win_from_space(sk, sk->sk_rcvbuf -
+	return tcp_win_from_space(sk, sk->sk_rcvbuf - sk->sk_backlog.len -
 				  atomic_read(&sk->sk_rmem_alloc));
 }
 
@@ -1572,9 +1555,21 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(const struct sock *sk,
 					 const struct sock *addr_sk);
 
 #ifdef CONFIG_TCP_MD5SIG
-struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
-					 const union tcp_md5_addr *addr,
-					 int family);
+#include <linux/jump_label.h>
+extern struct static_key tcp_md5_needed;
+struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk,
+					   const union tcp_md5_addr *addr,
+					   int family);
+static inline struct tcp_md5sig_key *
+tcp_md5_do_lookup(const struct sock *sk,
+		  const union tcp_md5_addr *addr,
+		  int family)
+{
+	if (!static_key_false(&tcp_md5_needed))
+		return NULL;
+	return __tcp_md5_do_lookup(sk, addr, family);
+}
+
 #define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_key)
 #else
 static inline struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
@@ -1875,12 +1870,16 @@ static inline u32 tcp_notsent_lowat(const struct tcp_sock *tp)
 	return tp->notsent_lowat ?: net->ipv4.sysctl_tcp_notsent_lowat;
 }
 
-static inline bool tcp_stream_memory_free(const struct sock *sk)
+/* @wake is one when sk_stream_write_space() calls us.
+ * This sends EPOLLOUT only if notsent_bytes is half the limit.
+ * This mimics the strategy used in sock_def_write_space().
+ */
+static inline bool tcp_stream_memory_free(const struct sock *sk, int wake)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	u32 notsent_bytes = tp->write_seq - tp->snd_nxt;
 
-	return notsent_bytes < tcp_notsent_lowat(tp);
+	return (notsent_bytes << wake) < tcp_notsent_lowat(tp);
 }
 
 #ifdef CONFIG_PROC_FS

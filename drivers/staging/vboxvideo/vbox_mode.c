@@ -1,32 +1,10 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright (C) 2013-2017 Oracle Corporation
  * This file is based on ast_mode.c
  * Copyright 2012 Red Hat Inc.
  * Parts based on xf86-video-ast
  * Copyright (c) 2005 ASPEED Technology Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- */
-/*
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
@@ -41,7 +19,7 @@
 #include "vboxvideo.h"
 #include "hgsmi_channels.h"
 
-/**
+/*
  * Set a graphics mode.  Poke any required values into registers, do an HGSMI
  * mode set and tell the host we support advanced graphics functions.
  */
@@ -84,7 +62,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	}
 
 	flags = VBVA_SCREEN_F_ACTIVE;
-	flags |= (fb && crtc->state->active) ? 0 : VBVA_SCREEN_F_BLANK;
+	flags |= (fb && crtc->state->enable) ? 0 : VBVA_SCREEN_F_BLANK;
 	flags |= vbox_crtc->disconnected ? VBVA_SCREEN_F_DISABLED : 0;
 	hgsmi_process_display_info(vbox->guest_pool, vbox_crtc->crtc_id,
 				   x_offset, y_offset,
@@ -190,7 +168,6 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 
 static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					struct drm_framebuffer *fb,
-					struct drm_display_mode *mode,
 					int x, int y)
 {
 	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
@@ -200,8 +177,11 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 
 	mutex_lock(&vbox->hw_mutex);
 
-	vbox_crtc->width = mode->hdisplay;
-	vbox_crtc->height = mode->vdisplay;
+	if (crtc->state->enable) {
+		vbox_crtc->width = crtc->state->mode.hdisplay;
+		vbox_crtc->height = crtc->state->mode.vdisplay;
+	}
+
 	vbox_crtc->x = x;
 	vbox_crtc->y = y;
 	vbox_crtc->fb_offset = vbox_bo_gpu_offset(bo);
@@ -301,7 +281,7 @@ static void vbox_primary_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct drm_framebuffer *fb = plane->state->fb;
 
-	vbox_crtc_set_base_and_mode(crtc, fb, &crtc->state->mode,
+	vbox_crtc_set_base_and_mode(crtc, fb,
 				    plane->state->src_x >> 16,
 				    plane->state->src_y >> 16);
 }
@@ -312,7 +292,7 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 	struct drm_crtc *crtc = old_state->crtc;
 
 	/* vbox_do_modeset checks plane->state->fb and will disable if NULL */
-	vbox_crtc_set_base_and_mode(crtc, old_state->fb, &crtc->state->mode,
+	vbox_crtc_set_base_and_mode(crtc, old_state->fb,
 				    old_state->src_x >> 16,
 				    old_state->src_y >> 16);
 }
@@ -378,7 +358,7 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-/**
+/*
  * Copy the ARGB image and generate the mask, which is needed in case the host
  * does not support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
  * if the corresponding alpha value in the ARGB image is greater than 0xF0.
@@ -499,7 +479,7 @@ static void vbox_cursor_cleanup_fb(struct drm_plane *plane,
 	vbox_bo_unpin(bo);
 }
 
-static const uint32_t vbox_cursor_plane_formats[] = {
+static const u32 vbox_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
@@ -520,7 +500,7 @@ static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
-static const uint32_t vbox_primary_plane_formats[] = {
+static const u32 vbox_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
@@ -549,7 +529,7 @@ static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
 	const struct drm_plane_helper_funcs *helper_funcs = NULL;
 	const struct drm_plane_funcs *funcs;
 	struct drm_plane *plane;
-	const uint32_t *formats;
+	const u32 *formats;
 	int num_formats;
 	int err;
 
@@ -672,11 +652,11 @@ static struct drm_encoder *vbox_encoder_init(struct drm_device *dev,
 	return &vbox_encoder->base;
 }
 
-/**
+/*
  * Generate EDID data with a mode-unique serial number for the virtual
- *  monitor to try to persuade Unity that different modes correspond to
- *  different monitors and it should not try to force the same resolution on
- *  them.
+ * monitor to try to persuade Unity that different modes correspond to
+ * different monitors and it should not try to force the same resolution on
+ * them.
  */
 static void vbox_set_edid(struct drm_connector *connector, int width,
 			  int height)

@@ -32,6 +32,8 @@ static void batadv_hash_init(struct batadv_hashtable *hash)
 		INIT_HLIST_HEAD(&hash->table[i]);
 		spin_lock_init(&hash->list_locks[i]);
 	}
+
+	atomic_set(&hash->generation, 0);
 }
 
 /**

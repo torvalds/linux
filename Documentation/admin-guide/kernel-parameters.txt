@@ -331,7 +331,7 @@
 			APC and your system crashes randomly.
 
 	apic=		[APIC,X86] Advanced Programmable Interrupt Controller
-			Change the output verbosity whilst booting
+			Change the output verbosity while booting
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
@@ -486,10 +486,14 @@
 			cut the overhead, others just disable the usage. So
 			only cgroup_disable=memory is actually worthy}
 
-	cgroup_no_v1=	[KNL] Disable one, multiple, all cgroup controllers in v1
-			Format: { controller[,controller...] | "all" }
+	cgroup_no_v1=	[KNL] Disable cgroup controllers and named hierarchies in v1
+			Format: { { controller | "all" | "named" }
+			          [,{ controller | "all" | "named" }...] }
 			Like cgroup_disable, but only applies to cgroup v1;
 			the blacklisted controllers remain available in cgroup2.
+			"all" blacklists all controllers and "named" disables
+			named mounts. Specifying both "all" and "named" disables
+			all v1 hierarchies.
 
 	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
 			Format: <string>
@@ -673,6 +677,9 @@
 
 	cpuidle.off=1	[CPU_IDLE]
 			disable the cpuidle sub-system
+
+	cpuidle.governor=
+			[CPU_IDLE] Name of the cpuidle governor to use.
 
 	cpufreq.off=1	[CPU_FREQ]
 			disable the cpufreq sub-system
@@ -1018,6 +1025,12 @@
 		owl,<addr>
 			Start an early, polled-mode console on a serial port
 			of an Actions Semi SoC, such as S500 or S900, at the
+			specified address. The serial port must already be
+			setup and configured. Options are not yet supported.
+
+		rda,<addr>
+			Start an early, polled-mode console on a serial port
+			of an RDA Micro SoC, such as RDA8810PL, at the
 			specified address. The serial port must already be
 			setup and configured. Options are not yet supported.
 
@@ -1683,12 +1696,11 @@
 			By default, super page will be supported if Intel IOMMU
 			has the capability. With this option, super page will
 			not be supported.
-		ecs_off [Default Off]
-			By default, extended context tables will be supported if
-			the hardware advertises that it has support both for the
-			extended tables themselves, and also PASID support. With
-			this option set, extended tables will not be used even
-			on hardware which claims to support them.
+		sm_on [Default Off]
+			By default, scalable mode will be disabled even if the
+			hardware advertises that it has support for the scalable
+			mode translation. With this option set, scalable mode
+			will be used on hardware which claims to support it.
 		tboot_noforce [Default Off]
 			Do not force the Intel IOMMU enabled under tboot.
 			By default, tboot will force Intel IOMMU on, which
@@ -2096,6 +2108,9 @@
 			off
 				Disables hypervisor mitigations and doesn't
 				emit any warnings.
+				It also drops the swap size and available
+				RAM limit restriction on both hypervisor and
+				bare metal.
 
 			Default is 'flush'.
 
@@ -2827,7 +2842,7 @@
 			check bypass). With this option data leaks are possible
 			in the system.
 
-	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
+	nospectre_v2	[X86,PPC_FSL_BOOK3E] Disable all mitigations for the Spectre variant 2
 			(indirect branch prediction) vulnerability. System may
 			allow data leaks with this option, which is equivalent
 			to spectre_v2=off.
@@ -3081,6 +3096,14 @@
 			timeout = 0: wait forever
 			timeout < 0: reboot immediately
 			Format: <timeout>
+
+	panic_print=	Bitmask for printing system info when panic happens.
+			User can chose combination of the following bits:
+			bit 0: print all tasks info
+			bit 1: print system memory info
+			bit 2: print timer info
+			bit 3: print locks info if CONFIG_LOCKDEP is on
+			bit 4: print ftrace buffer
 
 	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
@@ -3748,24 +3771,6 @@
 			in microseconds.  The default of zero says
 			no holdoff.
 
-	rcutorture.cbflood_inter_holdoff= [KNL]
-			Set holdoff time (jiffies) between successive
-			callback-flood tests.
-
-	rcutorture.cbflood_intra_holdoff= [KNL]
-			Set holdoff time (jiffies) between successive
-			bursts of callbacks within a given callback-flood
-			test.
-
-	rcutorture.cbflood_n_burst= [KNL]
-			Set the number of bursts making up a given
-			callback-flood test.  Set this to zero to
-			disable callback-flood testing.
-
-	rcutorture.cbflood_n_per_burst= [KNL]
-			Set the number of callbacks to be registered
-			in a given burst of a callback-flood test.
-
 	rcutorture.fqs_duration= [KNL]
 			Set duration of force_quiescent_state bursts
 			in microseconds.
@@ -3777,6 +3782,23 @@
 	rcutorture.fqs_stutter= [KNL]
 			Set wait time between force_quiescent_state bursts
 			in seconds.
+
+	rcutorture.fwd_progress= [KNL]
+			Enable RCU grace-period forward-progress testing
+			for the types of RCU supporting this notion.
+
+	rcutorture.fwd_progress_div= [KNL]
+			Specify the fraction of a CPU-stall-warning
+			period to do tight-loop forward-progress testing.
+
+	rcutorture.fwd_progress_holdoff= [KNL]
+			Number of seconds to wait between successive
+			forward-progress tests.
+
+	rcutorture.fwd_progress_need_resched= [KNL]
+			Enclose cond_resched() calls within checks for
+			need_resched() during tight-loop forward-progress
+			testing.
 
 	rcutorture.gp_cond= [KNL]
 			Use conditional/asynchronous update-side

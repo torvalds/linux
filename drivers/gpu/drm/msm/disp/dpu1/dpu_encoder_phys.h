@@ -114,8 +114,6 @@ struct dpu_encoder_virt_ops {
  * @handle_post_kickoff:	Do any work necessary post-kickoff work
  * @trigger_start:		Process start event on physical encoder
  * @needs_single_flush:		Whether encoder slaves need to be flushed
- * @hw_reset:			Issue HW recovery such as CTL reset and clear
- *				DPU_ENC_ERR_NEEDS_HW_RESET state
  * @irq_control:		Handler to enable/disable all the encoder IRQs
  * @prepare_idle_pc:		phys encoder can update the vsync_enable status
  *                              on idle power collapse prepare
@@ -151,7 +149,6 @@ struct dpu_encoder_phys_ops {
 	void (*handle_post_kickoff)(struct dpu_encoder_phys *phys_enc);
 	void (*trigger_start)(struct dpu_encoder_phys *phys_enc);
 	bool (*needs_single_flush)(struct dpu_encoder_phys *phys_enc);
-	void (*hw_reset)(struct dpu_encoder_phys *phys_enc);
 	void (*irq_control)(struct dpu_encoder_phys *phys, bool enable);
 	void (*prepare_idle_pc)(struct dpu_encoder_phys *phys_enc);
 	void (*restore)(struct dpu_encoder_phys *phys);
@@ -342,15 +339,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
  */
 void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc);
 
-/**
- * dpu_encoder_helper_hw_reset - issue ctl hw reset
- *	This helper function may be optionally specified by physical
- *	encoders if they require ctl hw reset. If state is currently
- *	DPU_ENC_ERR_NEEDS_HW_RESET, it is set back to DPU_ENC_ENABLED.
- * @phys_enc: Pointer to physical encoder structure
- */
-void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc);
-
 static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 		struct dpu_encoder_phys *phys_enc)
 {
@@ -362,7 +350,7 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
 	if (phys_enc->split_role == ENC_ROLE_SOLO &&
-	    dpu_crtc_state_is_stereo(dpu_cstate))
+	    dpu_cstate->num_mixers == CRTC_DUAL_MIXERS)
 		return BLEND_3D_H_ROW_INT;
 
 	return BLEND_3D_NONE;

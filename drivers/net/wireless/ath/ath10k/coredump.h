@@ -165,6 +165,7 @@ struct ath10k_mem_region {
  */
 struct ath10k_hw_mem_layout {
 	u32 hw_id;
+	u32 hw_rev;
 
 	struct {
 		const struct ath10k_mem_region *regions;

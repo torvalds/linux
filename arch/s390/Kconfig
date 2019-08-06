@@ -73,7 +73,6 @@ config S390
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SET_MEMORY
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
@@ -140,7 +139,6 @@ config S390
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
-	select DMA_DIRECT_OPS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -168,14 +166,21 @@ config S390
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NOP_MCOUNT
 	select HAVE_OPROFILE
+	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
+	select IOMMU_HELPER		if PCI
+	select IOMMU_SUPPORT		if PCI
 	select MODULES_USE_ELF_RELA
+	select NEED_DMA_MAP_STATE	if PCI
+	select NEED_SG_DMA_LENGTH	if PCI
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select PCI_DOMAINS		if PCI
+	select PCI_MSI			if PCI
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
@@ -520,7 +525,7 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	def_bool y
@@ -706,17 +711,6 @@ config QDIO
 
 	  If unsure, say Y.
 
-menuconfig PCI
-	bool "PCI support"
-	select PCI_MSI
-	select IOMMU_HELPER
-	select IOMMU_SUPPORT
-	select NEED_DMA_MAP_STATE
-	select NEED_SG_DMA_LENGTH
-
-	help
-	  Enable PCI support.
-
 if PCI
 
 config PCI_NR_FUNCTIONS
@@ -727,12 +721,7 @@ config PCI_NR_FUNCTIONS
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
 
-source "drivers/pci/Kconfig"
-
 endif	# PCI
-
-config PCI_DOMAINS
-	def_bool PCI
 
 config HAS_IOMEM
 	def_bool PCI
@@ -836,9 +825,6 @@ config ARCH_HIBERNATION_POSSIBLE
 source "kernel/power/Kconfig"
 
 endmenu
-
-config PCMCIA
-	def_bool n
 
 config CCW
 	def_bool y

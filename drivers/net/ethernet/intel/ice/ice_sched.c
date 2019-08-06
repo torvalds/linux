@@ -630,7 +630,7 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
  *
  * Cleanup scheduling elements from SW DB
  */
-static void ice_sched_clear_port(struct ice_port_info *pi)
+void ice_sched_clear_port(struct ice_port_info *pi)
 {
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return;
@@ -894,8 +894,7 @@ static u8 ice_sched_get_vsi_layer(struct ice_hw *hw)
  * This function removes the leaf node that was created by the FW
  * during initialization
  */
-static void
-ice_rm_dflt_leaf_node(struct ice_port_info *pi)
+static void ice_rm_dflt_leaf_node(struct ice_port_info *pi)
 {
 	struct ice_sched_node *node;
 
@@ -923,8 +922,7 @@ ice_rm_dflt_leaf_node(struct ice_port_info *pi)
  * This function frees all the nodes except root and TC that were created by
  * the FW during initialization
  */
-static void
-ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
+static void ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
 {
 	struct ice_sched_node *node;
 
@@ -1339,7 +1337,7 @@ ice_sched_rm_vsi_child_nodes(struct ice_port_info *pi,
  * @num_nodes: pointer to num nodes array
  *
  * This function calculates the number of supported nodes needed to add this
- * VSI into tx tree including the VSI, parent and intermediate nodes in below
+ * VSI into Tx tree including the VSI, parent and intermediate nodes in below
  * layers
  */
 static void
@@ -1376,13 +1374,13 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 }
 
 /**
- * ice_sched_add_vsi_support_nodes - add VSI supported nodes into tx tree
+ * ice_sched_add_vsi_support_nodes - add VSI supported nodes into Tx tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc_node: pointer to TC node
  * @num_nodes: pointer to num nodes array
  *
- * This function adds the VSI supported nodes into tx tree including the
+ * This function adds the VSI supported nodes into Tx tree including the
  * VSI, its parent and intermediate nodes in below layers
  */
 static enum ice_status
@@ -1527,7 +1525,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 }
 
 /**
- * ice_sched_cfg_vsi - configure the new/exisiting VSI
+ * ice_sched_cfg_vsi - configure the new/existing VSI
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc: TC number
@@ -1604,4 +1602,110 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 	}
 
 	return status;
+}
+
+/**
+ * ice_sched_rm_agg_vsi_entry - remove agg related VSI info entry
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ *
+ * This function removes single aggregator VSI info entry from
+ * aggregator list.
+ */
+static void
+ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
+{
+	struct ice_sched_agg_info *agg_info;
+	struct ice_sched_agg_info *atmp;
+
+	list_for_each_entry_safe(agg_info, atmp, &pi->agg_list, list_entry) {
+		struct ice_sched_agg_vsi_info *agg_vsi_info;
+		struct ice_sched_agg_vsi_info *vtmp;
+
+		list_for_each_entry_safe(agg_vsi_info, vtmp,
+					 &agg_info->agg_vsi_list, list_entry)
+			if (agg_vsi_info->vsi_handle == vsi_handle) {
+				list_del(&agg_vsi_info->list_entry);
+				devm_kfree(ice_hw_to_dev(pi->hw),
+					   agg_vsi_info);
+				return;
+			}
+	}
+}
+
+/**
+ * ice_sched_rm_vsi_cfg - remove the VSI and its children nodes
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @owner: LAN or RDMA
+ *
+ * This function removes the VSI and its LAN or RDMA children nodes from the
+ * scheduler tree.
+ */
+static enum ice_status
+ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
+{
+	enum ice_status status = ICE_ERR_PARAM;
+	struct ice_vsi_ctx *vsi_ctx;
+	u8 i, j = 0;
+
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return status;
+	mutex_lock(&pi->sched_lock);
+	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+	if (!vsi_ctx)
+		goto exit_sched_rm_vsi_cfg;
+
+	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+		struct ice_sched_node *vsi_node, *tc_node;
+
+		tc_node = ice_sched_get_tc_node(pi, i);
+		if (!tc_node)
+			continue;
+
+		vsi_node = ice_sched_get_vsi_node(pi->hw, tc_node, vsi_handle);
+		if (!vsi_node)
+			continue;
+
+		while (j < vsi_node->num_children) {
+			if (vsi_node->children[j]->owner == owner) {
+				ice_free_sched_node(pi, vsi_node->children[j]);
+
+				/* reset the counter again since the num
+				 * children will be updated after node removal
+				 */
+				j = 0;
+			} else {
+				j++;
+			}
+		}
+		/* remove the VSI if it has no children */
+		if (!vsi_node->num_children) {
+			ice_free_sched_node(pi, vsi_node);
+			vsi_ctx->sched.vsi_node[i] = NULL;
+
+			/* clean up agg related vsi info if any */
+			ice_sched_rm_agg_vsi_info(pi, vsi_handle);
+		}
+		if (owner == ICE_SCHED_NODE_OWNER_LAN)
+			vsi_ctx->sched.max_lanq[i] = 0;
+	}
+	status = 0;
+
+exit_sched_rm_vsi_cfg:
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_rm_vsi_lan_cfg - remove VSI and its LAN children nodes
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ *
+ * This function clears the VSI and its LAN children nodes from scheduler tree
+ * for all TCs.
+ */
+enum ice_status ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle)
+{
+	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_NODE_OWNER_LAN);
 }

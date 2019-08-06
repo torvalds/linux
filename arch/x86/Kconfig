@@ -66,7 +66,6 @@ config X86
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
 	select ARCH_HAS_SET_MEMORY
-	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
@@ -90,7 +89,6 @@ config X86
 	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
 	select CLOCKSOURCE_WATCHDOG
 	select DCACHE_WORD_ACCESS
-	select DMA_DIRECT_OPS
 	select EDAC_ATOMIC_SCRUB
 	select EDAC_SUPPORT
 	select GENERIC_CLOCKEVENTS
@@ -147,6 +145,7 @@ config X86
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_EISA
 	select HAVE_EXIT_THREAD
 	select HAVE_FENTRY			if X86_64 || DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -173,6 +172,7 @@ config X86
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MIXED_BREAKPOINTS_REGS
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_MOVE_PMD
 	select HAVE_NMI
 	select HAVE_OPROFILE
 	select HAVE_OPTPROBES
@@ -180,6 +180,7 @@ config X86
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_EVENTS_NMI
 	select HAVE_HARDLOCKUP_DETECTOR_PERF	if PERF_EVENTS && HAVE_PERF_EVENTS_NMI
+	select HAVE_PCI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE		if PARAVIRT
@@ -196,7 +197,8 @@ config X86
 	select HOTPLUG_SMT			if SMP
 	select IRQ_FORCED_THREADING
 	select NEED_SG_DMA_LENGTH
-	select PCI_LOCKLESS_CONFIG
+	select PCI_DOMAINS			if PCI
+	select PCI_LOCKLESS_CONFIG		if PCI
 	select PERF_EVENTS
 	select RTC_LIB
 	select RTC_MC146818_LIB
@@ -444,15 +446,23 @@ config RETPOLINE
 	  branches. Requires a compiler with -mindirect-branch=thunk-extern
 	  support for full protection. The kernel may run slower.
 
-config INTEL_RDT
-	bool "Intel Resource Director Technology support"
-	depends on X86 && CPU_SUP_INTEL
+config X86_CPU_RESCTRL
+	bool "x86 CPU resource control support"
+	depends on X86 && (CPU_SUP_INTEL || CPU_SUP_AMD)
 	select KERNFS
 	help
-	  Select to enable resource allocation and monitoring which are
-	  sub-features of Intel Resource Director Technology(RDT). More
-	  information about RDT can be found in the Intel x86
-	  Architecture Software Developer Manual.
+	  Enable x86 CPU resource control support.
+
+	  Provide support for the allocation and monitoring of system resources
+	  usage by the CPU.
+
+	  Intel calls this Intel Resource Director Technology
+	  (Intel(R) RDT). More information about RDT can be found in the
+	  Intel x86 Architecture Software Developer Manual.
+
+	  AMD calls this AMD Platform Quality of Service (AMD QoS).
+	  More information about AMD QoS can be found in the AMD64 Technology
+	  Platform Quality of Service Extensions manual.
 
 	  Say N if unsure.
 
@@ -607,7 +617,7 @@ config X86_INTEL_QUARK
 
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
-	depends on X86 && ACPI
+	depends on X86 && ACPI && PCI
 	select COMMON_CLK
 	select PINCTRL
 	select IOSF_MBI
@@ -795,6 +805,12 @@ config KVM_GUEST
 	  of relying on a PIT (or probably other) emulation by the
 	  underlying device model, the host provides the guest with
 	  timing infrastructure such as time of day, and system time
+
+config PVH
+	bool "Support for running PVH guests"
+	---help---
+	  This option enables the PVH entry point for guest virtual machines
+	  as specified in the x86/HVM direct boot ABI.
 
 config KVM_DEBUG_FS
 	bool "Enable debug information for KVM Guests in debugfs"
@@ -1965,7 +1981,7 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call"
@@ -2562,15 +2578,6 @@ endmenu
 
 menu "Bus options (PCI etc.)"
 
-config PCI
-	bool "PCI support"
-	default y
-	---help---
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
 choice
 	prompt "PCI access mode"
 	depends on X86_32 && PCI
@@ -2632,10 +2639,6 @@ config PCI_XEN
 	depends on PCI && XEN
 	select SWIOTLB_XEN
 
-config PCI_DOMAINS
-	def_bool y
-	depends on PCI
-
 config MMCONF_FAM10H
 	def_bool y
 	depends on X86_64 && PCI_MMCONFIG && ACPI
@@ -2652,8 +2655,6 @@ config PCI_CNB20LE_QUIRK
 	  is known to be incomplete.
 
 	  You should say N unless you know you need this.
-
-source "drivers/pci/Kconfig"
 
 config ISA_BUS
 	bool "ISA bus support on modern systems" if EXPERT
@@ -2684,24 +2685,6 @@ config ISA
 	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
-
-config EISA
-	bool "EISA support"
-	depends on ISA
-	---help---
-	  The Extended Industry Standard Architecture (EISA) bus was
-	  developed as an open alternative to the IBM MicroChannel bus.
-
-	  The EISA bus provided some of the features of the IBM MicroChannel
-	  bus while maintaining backward compatibility with cards made for
-	  the older ISA bus.  The EISA bus saw limited use between 1988 and
-	  1995 when it was made obsolete by the PCI bus.
-
-	  Say Y here if you are building a kernel for an EISA-based machine.
-
-	  Otherwise, say N.
-
-source "drivers/eisa/Kconfig"
 
 config SCx200
 	tristate "NatSemi SCx200 support"
@@ -2813,17 +2796,6 @@ endif # X86_32
 config AMD_NB
 	def_bool y
 	depends on CPU_SUP_AMD && PCI
-
-source "drivers/pcmcia/Kconfig"
-
-config RAPIDIO
-	tristate "RapidIO support"
-	depends on PCI
-	help
-	  If enabled this option will include drivers and the core
-	  infrastructure code to support RapidIO interconnect devices.
-
-source "drivers/rapidio/Kconfig"
 
 config X86_SYSFB
 	bool "Mark VGA/VBE/EFI FB as generic system framebuffer"

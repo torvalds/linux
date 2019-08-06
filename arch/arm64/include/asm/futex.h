@@ -96,7 +96,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *_uaddr,
 	u32 val, tmp;
 	u32 __user *uaddr;
 
-	if (!access_ok(VERIFY_WRITE, _uaddr, sizeof(u32)))
+	if (!access_ok(_uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	uaddr = __uaccess_mask_ptr(_uaddr);

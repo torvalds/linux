@@ -179,7 +179,7 @@ static int submit_fence_sync(struct etnaviv_gem_submit *submit)
 		struct reservation_object *robj = bo->obj->resv;
 
 		if (!(bo->flags & ETNA_SUBMIT_BO_WRITE)) {
-			ret = reservation_object_reserve_shared(robj);
+			ret = reservation_object_reserve_shared(robj, 1);
 			if (ret)
 				return ret;
 		}

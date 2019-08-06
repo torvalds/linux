@@ -20,7 +20,7 @@
  * new data the application may have written before commit.
  */
 enum {
-	BTRFS_INODE_ORDERED_DATA_CLOSE = 0,
+	BTRFS_INODE_ORDERED_DATA_CLOSE,
 	BTRFS_INODE_DUMMY,
 	BTRFS_INODE_IN_DEFRAG,
 	BTRFS_INODE_HAS_ASYNC_EXTENT,
@@ -29,6 +29,7 @@ enum {
 	BTRFS_INODE_IN_DELALLOC_LIST,
 	BTRFS_INODE_READDIO_NEED_LOCK,
 	BTRFS_INODE_HAS_PROPS,
+	BTRFS_INODE_SNAPSHOT_FLUSH,
 };
 
 /* in memory btrfs inode */
@@ -147,6 +148,12 @@ struct btrfs_inode {
 	u64 last_unlink_trans;
 
 	/*
+	 * Track the transaction id of the last transaction used to create a
+	 * hard link for the inode. This is used by the log tree (fsync).
+	 */
+	u64 last_link_trans;
+
+	/*
 	 * Number of bytes outstanding that are going to need csums.  This is
 	 * used in ENOSPC accounting.
 	 */
@@ -251,6 +258,11 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
+}
+
+static inline bool is_data_inode(struct inode *inode)
+{
+	return btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID;
 }
 
 static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,

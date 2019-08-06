@@ -57,11 +57,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	ring = kzalloc_node(sizeof(*ring), GFP_KERNEL, node);
 	if (!ring) {
-		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
-		if (!ring) {
-			en_err(priv, "Failed allocating TX ring\n");
-			return -ENOMEM;
-		}
+		en_err(priv, "Failed allocating TX ring\n");
+		return -ENOMEM;
 	}
 
 	ring->size = size;

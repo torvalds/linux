@@ -114,8 +114,6 @@ bool __init exynos_secure_firmware_available(void);
 void exynos_set_boot_flag(unsigned int cpu, unsigned int mode);
 void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode);
 
-extern u32 exynos_get_eint_wake_mask(void);
-
 #ifdef CONFIG_PM_SLEEP
 extern void __init exynos_pm_init(void);
 #else

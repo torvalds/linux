@@ -549,7 +549,7 @@ static int __init workingset_init(void)
 	 * double the initial memory by using totalram_pages as-is.
 	 */
 	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
-	max_order = fls_long(totalram_pages - 1);
+	max_order = fls_long(totalram_pages() - 1);
 	if (max_order > timestamp_bits)
 		bucket_order = max_order - timestamp_bits;
 	pr_info("workingset: timestamp_bits=%d max_order=%d bucket_order=%u\n",

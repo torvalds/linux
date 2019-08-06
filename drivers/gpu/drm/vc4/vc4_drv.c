@@ -33,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
@@ -307,6 +308,8 @@ static void vc4_drm_unbind(struct device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
+
+	drm_atomic_helper_shutdown(drm);
 
 	drm_mode_config_cleanup(drm);
 

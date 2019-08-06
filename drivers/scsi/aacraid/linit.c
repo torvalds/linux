@@ -759,6 +759,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			    !(aac->raw_io_64) ||
 			    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
 				break;
+			/* fall through */
 		case INQUIRY:
 		case READ_CAPACITY:
 			/*
@@ -1539,7 +1540,6 @@ static struct scsi_host_template aac_driver_template = {
 #else
 	.cmd_per_lun			= AAC_NUM_IO_FIB,
 #endif
-	.use_clustering			= ENABLE_CLUSTERING,
 	.emulated			= 1,
 	.no_write_same			= 1,
 };
@@ -1559,7 +1559,7 @@ static void __aac_shutdown(struct aac_dev * aac)
 			struct fib *fib = &aac->fibs[i];
 			if (!(fib->hw_fib_va->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
 			    (fib->hw_fib_va->header.XferState & cpu_to_le32(ResponseExpected)))
-				up(&fib->event_wait);
+				complete(&fib->event_wait);
 		}
 		kthread_stop(aac->thread);
 		aac->thread = NULL;
@@ -1747,11 +1747,10 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		shost->max_sectors = (shost->sg_tablesize * 8) + 112;
 	}
 
-	error = dma_set_max_seg_size(&pdev->dev,
-		(aac->adapter_info.options & AAC_OPT_NEW_COMM) ?
-			(shost->max_sectors << 9) : 65536);
-	if (error)
-		goto out_deinit;
+	if (aac->adapter_info.options & AAC_OPT_NEW_COMM)
+		shost->max_segment_size = shost->max_sectors << 9;
+	else
+		shost->max_segment_size = 65536;
 
 	/*
 	 * Firmware printf works only with older firmware.

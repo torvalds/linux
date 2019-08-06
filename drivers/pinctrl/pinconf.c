@@ -366,29 +366,8 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-static int pinconf_pins_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinconf_pins_show, inode->i_private);
-}
-
-static int pinconf_groups_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinconf_groups_show, inode->i_private);
-}
-
-static const struct file_operations pinconf_pins_ops = {
-	.open		= pinconf_pins_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinconf_groups_ops = {
-	.open		= pinconf_groups_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pinconf_pins);
+DEFINE_SHOW_ATTRIBUTE(pinconf_groups);
 
 #define MAX_NAME_LEN 15
 
@@ -613,9 +592,9 @@ void pinconf_init_device_debugfs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
 {
 	debugfs_create_file("pinconf-pins", S_IFREG | S_IRUGO,
-			    devroot, pctldev, &pinconf_pins_ops);
+			    devroot, pctldev, &pinconf_pins_fops);
 	debugfs_create_file("pinconf-groups", S_IFREG | S_IRUGO,
-			    devroot, pctldev, &pinconf_groups_ops);
+			    devroot, pctldev, &pinconf_groups_fops);
 	debugfs_create_file("pinconf-config",  (S_IRUGO | S_IWUSR | S_IWGRP),
 			    devroot, pctldev, &pinconf_dbg_pinconfig_fops);
 }

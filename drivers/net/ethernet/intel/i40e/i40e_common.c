@@ -3723,6 +3723,9 @@ i40e_aq_set_dcb_parameters(struct i40e_hw *hw, bool dcb_enable,
 		(struct i40e_aqc_set_dcb_parameters *)&desc.params.raw;
 	i40e_status status;
 
+	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))
+		return I40E_ERR_DEVICE_NOT_SUPPORTED;
+
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_set_dcb_parameters);
 

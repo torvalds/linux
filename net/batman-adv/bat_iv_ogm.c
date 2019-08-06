@@ -34,7 +34,6 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/pkt_sched.h>
@@ -2585,13 +2584,14 @@ static void batadv_iv_gw_print(struct batadv_priv *bat_priv,
  * batadv_iv_gw_dump_entry() - Dump a gateway into a message
  * @msg: Netlink message to dump into
  * @portid: Port making netlink request
- * @seq: Sequence number of netlink message
+ * @cb: Control block containing additional options
  * @bat_priv: The bat priv with all the soft interface information
  * @gw_node: Gateway to be dumped
  *
  * Return: Error code, or 0 on success
  */
-static int batadv_iv_gw_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
+static int batadv_iv_gw_dump_entry(struct sk_buff *msg, u32 portid,
+				   struct netlink_callback *cb,
 				   struct batadv_priv *bat_priv,
 				   struct batadv_gw_node *gw_node)
 {
@@ -2611,12 +2611,15 @@ static int batadv_iv_gw_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family,
-			  NLM_F_MULTI, BATADV_CMD_GET_GATEWAYS);
+	hdr = genlmsg_put(msg, portid, cb->nlh->nlmsg_seq,
+			  &batadv_netlink_family, NLM_F_MULTI,
+			  BATADV_CMD_GET_GATEWAYS);
 	if (!hdr) {
 		ret = -ENOBUFS;
 		goto out;
 	}
+
+	genl_dump_check_consistent(cb, hdr);
 
 	ret = -EMSGSIZE;
 
@@ -2668,13 +2671,15 @@ static void batadv_iv_gw_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	int idx_skip = cb->args[0];
 	int idx = 0;
 
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
+	spin_lock_bh(&bat_priv->gw.list_lock);
+	cb->seq = bat_priv->gw.generation << 1 | 1;
+
+	hlist_for_each_entry(gw_node, &bat_priv->gw.gateway_list, list) {
 		if (idx++ < idx_skip)
 			continue;
 
-		if (batadv_iv_gw_dump_entry(msg, portid, cb->nlh->nlmsg_seq,
-					    bat_priv, gw_node)) {
+		if (batadv_iv_gw_dump_entry(msg, portid, cb, bat_priv,
+					    gw_node)) {
 			idx_skip = idx - 1;
 			goto unlock;
 		}
@@ -2682,7 +2687,7 @@ static void batadv_iv_gw_dump(struct sk_buff *msg, struct netlink_callback *cb,
 
 	idx_skip = idx;
 unlock:
-	rcu_read_unlock();
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	cb->args[0] = idx_skip;
 }

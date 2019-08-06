@@ -32,14 +32,13 @@
  */
 
 #include "vchiq_util.h"
-#include "vchiq_killable.h"
 
 static inline int is_pow2(int i)
 {
 	return i && !(i & (i - 1));
 }
 
-int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
+int vchiu_queue_init(struct vchiu_queue *queue, int size)
 {
 	WARN_ON(!is_pow2(size));
 
@@ -48,10 +47,11 @@ int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
 	queue->write = 0;
 	queue->initialized = 1;
 
-	sema_init(&queue->pop, 0);
-	sema_init(&queue->push, 0);
+	init_completion(&queue->pop);
+	init_completion(&queue->push);
 
-	queue->storage = kcalloc(size, sizeof(VCHIQ_HEADER_T *), GFP_KERNEL);
+	queue->storage = kcalloc(size, sizeof(struct vchiq_header *),
+				 GFP_KERNEL);
 	if (!queue->storage) {
 		vchiu_queue_delete(queue);
 		return 0;
@@ -59,94 +59,62 @@ int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
 	return 1;
 }
 
-void vchiu_queue_delete(VCHIU_QUEUE_T *queue)
+void vchiu_queue_delete(struct vchiu_queue *queue)
 {
 	kfree(queue->storage);
 }
 
-int vchiu_queue_is_empty(VCHIU_QUEUE_T *queue)
+int vchiu_queue_is_empty(struct vchiu_queue *queue)
 {
 	return queue->read == queue->write;
 }
 
-int vchiu_queue_is_full(VCHIU_QUEUE_T *queue)
+int vchiu_queue_is_full(struct vchiu_queue *queue)
 {
 	return queue->write == queue->read + queue->size;
 }
 
-void vchiu_queue_push(VCHIU_QUEUE_T *queue, VCHIQ_HEADER_T *header)
+void vchiu_queue_push(struct vchiu_queue *queue, struct vchiq_header *header)
 {
 	if (!queue->initialized)
 		return;
 
 	while (queue->write == queue->read + queue->size) {
-		if (down_interruptible(&queue->pop) != 0)
+		if (wait_for_completion_killable(&queue->pop))
 			flush_signals(current);
 	}
-
-	/*
-	 * Write to queue->storage must be visible after read from
-	 * queue->read
-	 */
-	smp_mb();
 
 	queue->storage[queue->write & (queue->size - 1)] = header;
-
-	/*
-	 * Write to queue->storage must be visible before write to
-	 * queue->write
-	 */
-	smp_wmb();
-
 	queue->write++;
 
-	up(&queue->push);
+	complete(&queue->push);
 }
 
-VCHIQ_HEADER_T *vchiu_queue_peek(VCHIU_QUEUE_T *queue)
+struct vchiq_header *vchiu_queue_peek(struct vchiu_queue *queue)
 {
 	while (queue->write == queue->read) {
-		if (down_interruptible(&queue->push) != 0)
+		if (wait_for_completion_killable(&queue->push))
 			flush_signals(current);
 	}
 
-	up(&queue->push); // We haven't removed anything from the queue.
-
-	/*
-	 * Read from queue->storage must be visible after read from
-	 * queue->write
-	 */
-	smp_rmb();
+	complete(&queue->push); // We haven't removed anything from the queue.
 
 	return queue->storage[queue->read & (queue->size - 1)];
 }
 
-VCHIQ_HEADER_T *vchiu_queue_pop(VCHIU_QUEUE_T *queue)
+struct vchiq_header *vchiu_queue_pop(struct vchiu_queue *queue)
 {
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	while (queue->write == queue->read) {
-		if (down_interruptible(&queue->push) != 0)
+		if (wait_for_completion_killable(&queue->push))
 			flush_signals(current);
 	}
 
-	/*
-	 * Read from queue->storage must be visible after read from
-	 * queue->write
-	 */
-	smp_rmb();
-
 	header = queue->storage[queue->read & (queue->size - 1)];
-
-	/*
-	 * Read from queue->storage must be visible before write to
-	 * queue->read
-	 */
-	smp_mb();
-
 	queue->read++;
 
-	up(&queue->pop);
+	complete(&queue->pop);
 
 	return header;
 }

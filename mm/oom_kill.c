@@ -245,11 +245,11 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
 	return points > 0 ? points : 1;
 }
 
-enum oom_constraint {
-	CONSTRAINT_NONE,
-	CONSTRAINT_CPUSET,
-	CONSTRAINT_MEMORY_POLICY,
-	CONSTRAINT_MEMCG,
+static const char * const oom_constraint_text[] = {
+	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
+	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
+	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
+	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
 };
 
 /*
@@ -269,7 +269,7 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 	}
 
 	/* Default to all available memory */
-	oc->totalpages = totalram_pages + total_swap_pages;
+	oc->totalpages = totalram_pages() + total_swap_pages;
 
 	if (!IS_ENABLED(CONFIG_NUMA))
 		return CONSTRAINT_NONE;
@@ -428,19 +428,29 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 	rcu_read_unlock();
 }
 
+static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
+{
+	/* one line summary of the oom killer context. */
+	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
+			oom_constraint_text[oc->constraint],
+			nodemask_pr_args(oc->nodemask));
+	cpuset_print_current_mems_allowed();
+	mem_cgroup_print_oom_context(oc->memcg, victim);
+	pr_cont(",task=%s,pid=%d,uid=%d\n", victim->comm, victim->pid,
+		from_kuid(&init_user_ns, task_uid(victim)));
+}
+
 static void dump_header(struct oom_control *oc, struct task_struct *p)
 {
-	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n",
-		current->comm, oc->gfp_mask, &oc->gfp_mask,
-		nodemask_pr_args(oc->nodemask), oc->order,
+	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
+		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
 			current->signal->oom_score_adj);
 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
 		pr_warn("COMPACTION is disabled!!!\n");
 
-	cpuset_print_current_mems_allowed();
 	dump_stack();
 	if (is_memcg_oom(oc))
-		mem_cgroup_print_oom_info(oc->memcg, p);
+		mem_cgroup_print_oom_meminfo(oc->memcg);
 	else {
 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
 		if (is_dump_unreclaim_slabs())
@@ -448,6 +458,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
 	}
 	if (sysctl_oom_dump_tasks)
 		dump_tasks(oc->memcg, oc->nodemask);
+	if (p)
+		dump_oom_summary(oc, p);
 }
 
 /*
@@ -516,19 +528,20 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
 		 * count elevated without a good reason.
 		 */
 		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
-			const unsigned long start = vma->vm_start;
-			const unsigned long end = vma->vm_end;
+			struct mmu_notifier_range range;
 			struct mmu_gather tlb;
 
-			tlb_gather_mmu(&tlb, mm, start, end);
-			if (mmu_notifier_invalidate_range_start_nonblock(mm, start, end)) {
-				tlb_finish_mmu(&tlb, start, end);
+			mmu_notifier_range_init(&range, mm, vma->vm_start,
+						vma->vm_end);
+			tlb_gather_mmu(&tlb, mm, range.start, range.end);
+			if (mmu_notifier_invalidate_range_start_nonblock(&range)) {
+				tlb_finish_mmu(&tlb, range.start, range.end);
 				ret = false;
 				continue;
 			}
-			unmap_page_range(&tlb, vma, start, end, NULL);
-			mmu_notifier_invalidate_range_end(mm, start, end);
-			tlb_finish_mmu(&tlb, start, end);
+			unmap_page_range(&tlb, vma, range.start, range.end, NULL);
+			mmu_notifier_invalidate_range_end(&range);
+			tlb_finish_mmu(&tlb, range.start, range.end);
 		}
 	}
 
@@ -634,8 +647,8 @@ static int oom_reaper(void *unused)
 
 static void wake_oom_reaper(struct task_struct *tsk)
 {
-	/* tsk is already queued? */
-	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
+	/* mm is already queued? */
+	if (test_and_set_bit(MMF_OOM_REAP_QUEUED, &tsk->signal->oom_mm->flags))
 		return;
 
 	get_task_struct(tsk);
@@ -962,6 +975,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	 * still freeing memory.
 	 */
 	read_lock(&tasklist_lock);
+
+	/*
+	 * The task 'p' might have already exited before reaching here. The
+	 * put_task_struct() will free task_struct 'p' while the loop still try
+	 * to access the field of 'p', so, get an extra reference.
+	 */
+	get_task_struct(p);
 	for_each_thread(p, t) {
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
@@ -981,6 +1001,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 			}
 		}
 	}
+	put_task_struct(p);
 	read_unlock(&tasklist_lock);
 
 	/*

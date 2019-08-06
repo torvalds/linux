@@ -203,7 +203,7 @@ static ssize_t target_fabric_mappedlun_write_protect_store(
 
 	pr_debug("%s_ConfigFS: Changed Initiator ACL: %s"
 		" Mapped LUN: %llu Write Protect bit to %s\n",
-		se_tpg->se_tpg_tfo->get_fabric_name(),
+		se_tpg->se_tpg_tfo->fabric_name,
 		se_nacl->initiatorname, lacl->mapped_lun, (wp) ? "ON" : "OFF");
 
 	return count;

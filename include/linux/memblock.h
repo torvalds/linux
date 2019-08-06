@@ -29,9 +29,6 @@ extern unsigned long max_pfn;
  */
 extern unsigned long long max_possible_pfn;
 
-#define INIT_MEMBLOCK_REGIONS	128
-#define INIT_PHYSMEM_REGIONS	4
-
 /**
  * enum memblock_flags - definition of memory region attributes
  * @MEMBLOCK_NONE: no special request
@@ -154,7 +151,6 @@ void __next_mem_range_rev(u64 *idx, int nid, enum memblock_flags flags,
 void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
 				phys_addr_t *out_end);
 
-void __memblock_free_early(phys_addr_t base, phys_addr_t size);
 void __memblock_free_late(phys_addr_t base, phys_addr_t size);
 
 /**
@@ -320,6 +316,7 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
 /* Flags for memblock allocation APIs */
 #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
 #define MEMBLOCK_ALLOC_ACCESSIBLE	0
+#define MEMBLOCK_ALLOC_KASAN		1
 
 /* We are using top down, so it is safe to use 0 here */
 #define MEMBLOCK_LOW_LIMIT 0
@@ -414,13 +411,13 @@ static inline void * __init memblock_alloc_node_nopanic(phys_addr_t size,
 static inline void __init memblock_free_early(phys_addr_t base,
 					      phys_addr_t size)
 {
-	__memblock_free_early(base, size);
+	memblock_free(base, size);
 }
 
 static inline void __init memblock_free_early_nid(phys_addr_t base,
 						  phys_addr_t size, int nid)
 {
-	__memblock_free_early(base, size);
+	memblock_free(base, size);
 }
 
 static inline void __init memblock_free_late(phys_addr_t base, phys_addr_t size)

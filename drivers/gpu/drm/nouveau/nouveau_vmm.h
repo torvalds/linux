@@ -25,7 +25,6 @@ void nouveau_vma_unmap(struct nouveau_vma *);
 struct nouveau_vmm {
 	struct nouveau_cli *cli;
 	struct nvif_vmm vmm;
-	struct nvkm_vm *vm;
 };
 
 int nouveau_vmm_init(struct nouveau_cli *, s32 oclass, struct nouveau_vmm *);

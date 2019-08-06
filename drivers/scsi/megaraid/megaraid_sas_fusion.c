@@ -2,7 +2,8 @@
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
- *  Copyright (c) 2013-2014  Avago Technologies
+ *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,16 +20,13 @@
  *
  *  FILE: megaraid_sas_fusion.c
  *
- *  Authors: Avago Technologies
+ *  Authors: Broadcom Inc.
  *           Sumant Patro
  *           Adam Radford
- *           Kashyap Desai <kashyap.desai@avagotech.com>
- *           Sumit Saxena <sumit.saxena@avagotech.com>
+ *           Kashyap Desai <kashyap.desai@broadcom.com>
+ *           Sumit Saxena <sumit.saxena@broadcom.com>
  *
- *  Send feedback to: megaraidlinux.pdl@avagotech.com
- *
- *  Mail to: Avago Technologies, 350 West Trimble Road, Building 90,
- *  San Jose, California 95131
+ *  Send feedback to: megaraidlinux.pdl@broadcom.com
  */
 
 #include <linux/kernel.h>
@@ -48,6 +46,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/workqueue.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -74,7 +73,7 @@ void
 megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd);
 int megasas_alloc_cmds(struct megasas_instance *instance);
 int
-megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs);
+megasas_clear_intr_fusion(struct megasas_instance *instance);
 int
 megasas_issue_polled(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd);
@@ -95,6 +94,9 @@ static void megasas_free_rdpq_fusion(struct megasas_instance *instance);
 static void megasas_free_reply_fusion(struct megasas_instance *instance);
 static inline
 void megasas_configure_queue_sizes(struct megasas_instance *instance);
+static void megasas_fusion_crash_dump(struct megasas_instance *instance);
+extern u32 megasas_readl(struct megasas_instance *instance,
+			 const volatile void __iomem *addr);
 
 /**
  * megasas_check_same_4gb_region -	check if allocation
@@ -165,13 +167,16 @@ megasas_disable_intr_fusion(struct megasas_instance *instance)
 }
 
 int
-megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs)
+megasas_clear_intr_fusion(struct megasas_instance *instance)
 {
 	u32 status;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 	/*
 	 * Check if it is our interrupt
 	 */
-	status = readl(&regs->outbound_intr_status);
+	status = megasas_readl(instance,
+			       &regs->outbound_intr_status);
 
 	if (status & 1) {
 		writel(status, &regs->outbound_intr_status);
@@ -262,16 +267,17 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 
 	reg_set = instance->reg_set;
 
-	/* ventura FW does not fill outbound_scratch_pad_3 with queue depth */
+	/* ventura FW does not fill outbound_scratch_pad_2 with queue depth */
 	if (instance->adapter_type < VENTURA_SERIES)
 		cur_max_fw_cmds =
-		readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
+		megasas_readl(instance,
+			      &instance->reg_set->outbound_scratch_pad_2) & 0x00FFFF;
 
 	if (dual_qdepth_disable || !cur_max_fw_cmds)
-		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
+		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(instance) & 0x00FFFF;
 	else
 		ldio_threshold =
-			(instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF) - MEGASAS_FUSION_IOCTL_CMDS;
+			(instance->instancet->read_fw_status_reg(instance) & 0x00FFFF) - MEGASAS_FUSION_IOCTL_CMDS;
 
 	dev_info(&instance->pdev->dev,
 		 "Current firmware supports maximum commands: %d\t LDIO threshold: %d\n",
@@ -684,8 +690,9 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	array_size = sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) *
 		     MAX_MSIX_QUEUES_FUSION;
 
-	fusion->rdpq_virt = dma_zalloc_coherent(&instance->pdev->dev,
-			array_size, &fusion->rdpq_phys, GFP_KERNEL);
+	fusion->rdpq_virt = dma_alloc_coherent(&instance->pdev->dev,
+					       array_size, &fusion->rdpq_phys,
+					       GFP_KERNEL);
 	if (!fusion->rdpq_virt) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);
@@ -807,10 +814,8 @@ megasas_free_rdpq_fusion(struct megasas_instance *instance) {
 
 	}
 
-	if (fusion->reply_frames_desc_pool)
-		dma_pool_destroy(fusion->reply_frames_desc_pool);
-	if (fusion->reply_frames_desc_pool_align)
-		dma_pool_destroy(fusion->reply_frames_desc_pool_align);
+	dma_pool_destroy(fusion->reply_frames_desc_pool);
+	dma_pool_destroy(fusion->reply_frames_desc_pool_align);
 
 	if (fusion->rdpq_virt)
 		dma_free_coherent(&instance->pdev->dev,
@@ -830,8 +835,7 @@ megasas_free_reply_fusion(struct megasas_instance *instance) {
 			fusion->reply_frames_desc[0],
 			fusion->reply_frames_desc_phys[0]);
 
-	if (fusion->reply_frames_desc_pool)
-		dma_pool_destroy(fusion->reply_frames_desc_pool);
+	dma_pool_destroy(fusion->reply_frames_desc_pool);
 
 }
 
@@ -974,7 +978,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	struct megasas_header *frame_hdr;
 	const char *sys_info;
 	MFI_CAPABILITIES *drv_ops;
-	u32 scratch_pad_2;
+	u32 scratch_pad_1;
 	ktime_t time;
 	bool cur_fw_64bit_dma_capable;
 
@@ -985,14 +989,14 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	cmd = fusion->ioc_init_cmd;
 
-	scratch_pad_2 = readl
-		(&instance->reg_set->outbound_scratch_pad_2);
+	scratch_pad_1 = megasas_readl
+		(instance, &instance->reg_set->outbound_scratch_pad_1);
 
-	cur_rdpq_mode = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ? 1 : 0;
+	cur_rdpq_mode = (scratch_pad_1 & MR_RDPQ_MODE_OFFSET) ? 1 : 0;
 
 	if (instance->adapter_type == INVADER_SERIES) {
 		cur_fw_64bit_dma_capable =
-			(scratch_pad_2 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET) ? true : false;
+			(scratch_pad_1 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET) ? true : false;
 
 		if (instance->consistent_mask_64bit && !cur_fw_64bit_dma_capable) {
 			dev_err(&instance->pdev->dev, "Driver was operating on 64bit "
@@ -1010,7 +1014,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		goto fail_fw_init;
 	}
 
-	instance->fw_sync_cache_support = (scratch_pad_2 &
+	instance->fw_sync_cache_support = (scratch_pad_1 &
 		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
 	dev_info(&instance->pdev->dev, "FW supports sync cache\t: %s\n",
 		 instance->fw_sync_cache_support ? "Yes" : "No");
@@ -1043,9 +1047,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	frame_hdr = &cmd->frame->hdr;
 	frame_hdr->cmd_status = 0xFF;
-	frame_hdr->flags = cpu_to_le16(
-		le16_to_cpu(frame_hdr->flags) |
-		MFI_FRAME_DONT_POST_IN_REPLY_QUEUE);
+	frame_hdr->flags |= cpu_to_le16(MFI_FRAME_DONT_POST_IN_REPLY_QUEUE);
 
 	init_frame->cmd	= MFI_CMD_INIT;
 	init_frame->cmd_status = 0xFF;
@@ -1107,7 +1109,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	instance->instancet->disable_intr(instance);
 
 	for (i = 0; i < (10 * 1000); i += 20) {
-		if (readl(&instance->reg_set->doorbell) & 1)
+		if (megasas_readl(instance, &instance->reg_set->doorbell) & 1)
 			msleep(20);
 		else
 			break;
@@ -1115,7 +1117,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	megasas_fire_cmd_fusion(instance, &req_desc);
 
-	wait_and_poll(instance, cmd, MFI_POLL_TIMEOUT_SECS);
+	wait_and_poll(instance, cmd, MFI_IO_TIMEOUT_SECS);
 
 	frame_hdr = &cmd->frame->hdr;
 	if (frame_hdr->cmd_status != 0) {
@@ -1559,14 +1561,12 @@ void megasas_configure_queue_sizes(struct megasas_instance *instance)
 	fusion = instance->ctrl_context;
 	max_cmd = instance->max_fw_cmds;
 
-	if (instance->adapter_type == VENTURA_SERIES)
+	if (instance->adapter_type >= VENTURA_SERIES)
 		instance->max_mpt_cmds = instance->max_fw_cmds * RAID_1_PEER_CMDS;
 	else
 		instance->max_mpt_cmds = instance->max_fw_cmds;
 
-	instance->max_scsi_cmds = instance->max_fw_cmds -
-			(MEGASAS_FUSION_INTERNAL_CMDS +
-			MEGASAS_FUSION_IOCTL_CMDS);
+	instance->max_scsi_cmds = instance->max_fw_cmds - instance->max_mfi_cmds;
 	instance->cur_can_queue = instance->max_scsi_cmds;
 	instance->host->can_queue = instance->cur_can_queue;
 
@@ -1627,8 +1627,7 @@ static inline void megasas_free_ioc_init_cmd(struct megasas_instance *instance)
 				  fusion->ioc_init_cmd->frame,
 				  fusion->ioc_init_cmd->frame_phys_addr);
 
-	if (fusion->ioc_init_cmd)
-		kfree(fusion->ioc_init_cmd);
+	kfree(fusion->ioc_init_cmd);
 }
 
 /**
@@ -1642,7 +1641,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *reg_set;
 	struct fusion_context *fusion;
-	u32 scratch_pad_2;
+	u32 scratch_pad_1;
 	int i = 0, count;
 
 	fusion = instance->ctrl_context;
@@ -1659,20 +1658,21 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	megasas_configure_queue_sizes(instance);
 
-	scratch_pad_2 = readl(&instance->reg_set->outbound_scratch_pad_2);
-	/* If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
+	scratch_pad_1 = megasas_readl(instance,
+				      &instance->reg_set->outbound_scratch_pad_1);
+	/* If scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
 	 * Firmware support extended IO chain frame which is 4 times more than
 	 * legacy Firmware.
 	 * Legacy Firmware - Frame size is (8 * 128) = 1K
 	 * 1M IO Firmware  - Frame size is (8 * 128 * 4)  = 4K
 	 */
-	if (scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
+	if (scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
 		instance->max_chain_frame_sz =
-			((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
+			((scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
 			MEGASAS_MAX_CHAIN_SHIFT) * MEGASAS_1MB_IO;
 	else
 		instance->max_chain_frame_sz =
-			((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
+			((scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
 			MEGASAS_MAX_CHAIN_SHIFT) * MEGASAS_256K_IO;
 
 	if (instance->max_chain_frame_sz < MEGASAS_CHAIN_FRAME_SZ_MIN) {
@@ -1757,6 +1757,90 @@ fail_alloc_cmds:
 fail_alloc_mfi_cmds:
 	megasas_free_ioc_init_cmd(instance);
 	return 1;
+}
+
+/**
+ * megasas_fault_detect_work	-	Worker function of
+ *					FW fault handling workqueue.
+ */
+static void
+megasas_fault_detect_work(struct work_struct *work)
+{
+	struct megasas_instance *instance =
+		container_of(work, struct megasas_instance,
+			     fw_fault_work.work);
+	u32 fw_state, dma_state, status;
+
+	/* Check the fw state */
+	fw_state = instance->instancet->read_fw_status_reg(instance) &
+			MFI_STATE_MASK;
+
+	if (fw_state == MFI_STATE_FAULT) {
+		dma_state = instance->instancet->read_fw_status_reg(instance) &
+				MFI_STATE_DMADONE;
+		/* Start collecting crash, if DMA bit is done */
+		if (instance->crash_dump_drv_support &&
+		    instance->crash_dump_app_support && dma_state) {
+			megasas_fusion_crash_dump(instance);
+		} else {
+			if (instance->unload == 0) {
+				status = megasas_reset_fusion(instance->host, 0);
+				if (status != SUCCESS) {
+					dev_err(&instance->pdev->dev,
+						"Failed from %s %d, do not re-arm timer\n",
+						__func__, __LINE__);
+					return;
+				}
+			}
+		}
+	}
+
+	if (instance->fw_fault_work_q)
+		queue_delayed_work(instance->fw_fault_work_q,
+			&instance->fw_fault_work,
+			msecs_to_jiffies(MEGASAS_WATCHDOG_THREAD_INTERVAL));
+}
+
+int
+megasas_fusion_start_watchdog(struct megasas_instance *instance)
+{
+	/* Check if the Fault WQ is already started */
+	if (instance->fw_fault_work_q)
+		return SUCCESS;
+
+	INIT_DELAYED_WORK(&instance->fw_fault_work, megasas_fault_detect_work);
+
+	snprintf(instance->fault_handler_work_q_name,
+		 sizeof(instance->fault_handler_work_q_name),
+		 "poll_megasas%d_status", instance->host->host_no);
+
+	instance->fw_fault_work_q =
+		create_singlethread_workqueue(instance->fault_handler_work_q_name);
+	if (!instance->fw_fault_work_q) {
+		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
+			__func__, __LINE__);
+		return FAILED;
+	}
+
+	queue_delayed_work(instance->fw_fault_work_q,
+			   &instance->fw_fault_work,
+			   msecs_to_jiffies(MEGASAS_WATCHDOG_THREAD_INTERVAL));
+
+	return SUCCESS;
+}
+
+void
+megasas_fusion_stop_watchdog(struct megasas_instance *instance)
+{
+	struct workqueue_struct *wq;
+
+	if (instance->fw_fault_work_q) {
+		wq = instance->fw_fault_work_q;
+		instance->fw_fault_work_q = NULL;
+		if (!cancel_delayed_work_sync(&instance->fw_fault_work))
+			flush_workqueue(wq);
+		destroy_workqueue(wq);
+	}
 }
 
 /**
@@ -2543,19 +2627,22 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	u8 *raidLUN;
 	unsigned long spinlock_flags;
-	union RAID_CONTEXT_UNION *praid_context;
 	struct MR_LD_RAID *raid = NULL;
 	struct MR_PRIV_DEVICE *mrdev_priv;
+	struct RAID_CONTEXT *rctx;
+	struct RAID_CONTEXT_G35 *rctx_g35;
 
 	device_id = MEGASAS_DEV_INDEX(scp);
 
 	fusion = instance->ctrl_context;
 
 	io_request = cmd->io_request;
-	io_request->RaidContext.raid_context.virtual_disk_tgt_id =
-		cpu_to_le16(device_id);
-	io_request->RaidContext.raid_context.status = 0;
-	io_request->RaidContext.raid_context.ex_status = 0;
+	rctx = &io_request->RaidContext.raid_context;
+	rctx_g35 = &io_request->RaidContext.raid_context_g35;
+
+	rctx->virtual_disk_tgt_id = cpu_to_le16(device_id);
+	rctx->status = 0;
+	rctx->ex_status = 0;
 
 	req_desc = (union MEGASAS_REQUEST_DESCRIPTOR_UNION *)cmd->request_desc;
 
@@ -2631,11 +2718,10 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		raid = MR_LdRaidGet(ld, local_map_ptr);
 
 	if (!raid || (!fusion->fast_path_io)) {
-		io_request->RaidContext.raid_context.reg_lock_flags  = 0;
+		rctx->reg_lock_flags  = 0;
 		fp_possible = false;
 	} else {
-		if (MR_BuildRaidContext(instance, &io_info,
-					&io_request->RaidContext.raid_context,
+		if (MR_BuildRaidContext(instance, &io_info, rctx,
 					local_map_ptr, &raidLUN))
 			fp_possible = (io_info.fpOkForIo > 0) ? true : false;
 	}
@@ -2643,9 +2729,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	cmd->request_desc->SCSIIO.MSIxIndex =
 		instance->reply_map[raw_smp_processor_id()];
 
-	praid_context = &io_request->RaidContext;
-
-	if (instance->adapter_type == VENTURA_SERIES) {
+	if (instance->adapter_type >= VENTURA_SERIES) {
 		/* FP for Optimal raid level 1.
 		 * All large RAID-1 writes (> 32 KiB, both WT and WB modes)
 		 * are built by the driver as LD I/Os.
@@ -2681,17 +2765,17 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			/* In ventura if stream detected for a read and it is
 			 * read ahead capable make this IO as LDIO
 			 */
-			if (is_stream_detected(&io_request->RaidContext.raid_context_g35))
+			if (is_stream_detected(rctx_g35))
 				fp_possible = false;
 		}
 
 		/* If raid is NULL, set CPU affinity to default CPU0 */
 		if (raid)
-			megasas_set_raidflag_cpu_affinity(praid_context,
+			megasas_set_raidflag_cpu_affinity(&io_request->RaidContext,
 				raid, fp_possible, io_info.isRead,
 				scsi_buff_len);
 		else
-			praid_context->raid_context_g35.routing_flags |=
+			rctx_g35->routing_flags |=
 				(MR_RAID_CTX_CPUSEL_0 << MR_RAID_CTX_ROUTINGFLAGS_CPUSEL_SHIFT);
 	}
 
@@ -2703,25 +2787,20 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			(MPI2_REQ_DESCRIPT_FLAGS_FP_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (instance->adapter_type == INVADER_SERIES) {
-			if (io_request->RaidContext.raid_context.reg_lock_flags ==
-			    REGION_TYPE_UNUSED)
+			if (rctx->reg_lock_flags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.raid_context.type
-				= MPI2_TYPE_CUDA;
-			io_request->RaidContext.raid_context.nseg = 0x1;
+			rctx->type = MPI2_TYPE_CUDA;
+			rctx->nseg = 0x1;
 			io_request->IoFlags |= cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
-			io_request->RaidContext.raid_context.reg_lock_flags |=
+			rctx->reg_lock_flags |=
 			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
-		} else if (instance->adapter_type == VENTURA_SERIES) {
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-						(1 << RAID_CONTEXT_NSEG_SHIFT);
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-						(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
-			io_request->RaidContext.raid_context_g35.routing_flags |=
-						(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+		} else if (instance->adapter_type >= VENTURA_SERIES) {
+			rctx_g35->nseg_type |= (1 << RAID_CONTEXT_NSEG_SHIFT);
+			rctx_g35->nseg_type |= (MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+			rctx_g35->routing_flags |= (1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->IoFlags |=
 				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 		}
@@ -2734,17 +2813,15 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 					&io_info, local_map_ptr);
 			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
-			if (instance->adapter_type == VENTURA_SERIES)
-				io_request->RaidContext.raid_context_g35.span_arm
-					= io_info.span_arm;
+			if (instance->adapter_type >= VENTURA_SERIES)
+				rctx_g35->span_arm = io_info.span_arm;
 			else
-				io_request->RaidContext.raid_context.span_arm
-					= io_info.span_arm;
+				rctx->span_arm = io_info.span_arm;
 
 		} else
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 
-		if (instance->adapter_type == VENTURA_SERIES)
+		if (instance->adapter_type >= VENTURA_SERIES)
 			cmd->r1_alt_dev_handle = io_info.r1_alt_dev_handle;
 		else
 			cmd->r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
@@ -2762,31 +2839,26 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		/* populate the LUN field */
 		memcpy(io_request->LUN, raidLUN, 8);
 	} else {
-		io_request->RaidContext.raid_context.timeout_value =
+		rctx->timeout_value =
 			cpu_to_le16(local_map_ptr->raidMap.fpPdIoTimeoutSec);
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (instance->adapter_type == INVADER_SERIES) {
 			if (io_info.do_fp_rlbypass ||
-			(io_request->RaidContext.raid_context.reg_lock_flags
-					== REGION_TYPE_UNUSED))
+			(rctx->reg_lock_flags == REGION_TYPE_UNUSED))
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.raid_context.type
-				= MPI2_TYPE_CUDA;
-			io_request->RaidContext.raid_context.reg_lock_flags |=
+			rctx->type = MPI2_TYPE_CUDA;
+			rctx->reg_lock_flags |=
 				(MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
-				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
-			io_request->RaidContext.raid_context.nseg = 0x1;
-		} else if (instance->adapter_type == VENTURA_SERIES) {
-			io_request->RaidContext.raid_context_g35.routing_flags |=
-					(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-					(1 << RAID_CONTEXT_NSEG_SHIFT);
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-					(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+					MR_RL_FLAGS_SEQ_NUM_ENABLE);
+			rctx->nseg = 0x1;
+		} else if (instance->adapter_type >= VENTURA_SERIES) {
+			rctx_g35->routing_flags |= (1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			rctx_g35->nseg_type |= (1 << RAID_CONTEXT_NSEG_SHIFT);
+			rctx_g35->nseg_type |= (MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
 		}
 		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = cpu_to_le16(device_id);
@@ -2832,7 +2904,7 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 		device_id < instance->fw_supported_vd_count)) {
 
 		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
-		if (ld >= instance->fw_supported_vd_count)
+		if (ld >= instance->fw_supported_vd_count - 1)
 			fp_possible = 0;
 		else {
 			raid = MR_LdRaidGet(ld, local_map_ptr);
@@ -2855,7 +2927,7 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 
 		/* set RAID context values */
 		pRAID_Context->config_seq_num = raid->seqNum;
-		if (instance->adapter_type != VENTURA_SERIES)
+		if (instance->adapter_type < VENTURA_SERIES)
 			pRAID_Context->reg_lock_flags = REGION_TYPE_SHARED_READ;
 		pRAID_Context->timeout_value =
 			cpu_to_le16(raid->fpIoTimeoutForLd);
@@ -2940,7 +3012,7 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 				cpu_to_le16(device_id + (MAX_PHYSICAL_DEVICES - 1));
 		pRAID_Context->config_seq_num = pd_sync->seq[pd_index].seqNum;
 		io_request->DevHandle = pd_sync->seq[pd_index].devHandle;
-		if (instance->adapter_type == VENTURA_SERIES) {
+		if (instance->adapter_type >= VENTURA_SERIES) {
 			io_request->RaidContext.raid_context_g35.routing_flags |=
 				(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->RaidContext.raid_context_g35.nseg_type |=
@@ -3073,7 +3145,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 		return 1;
 	}
 
-	if (instance->adapter_type == VENTURA_SERIES) {
+	if (instance->adapter_type >= VENTURA_SERIES) {
 		set_num_sge(&io_request->RaidContext.raid_context_g35, sge_count);
 		cpu_to_le16s(&io_request->RaidContext.raid_context_g35.routing_flags);
 		cpu_to_le16s(&io_request->RaidContext.raid_context_g35.nseg_type);
@@ -3385,7 +3457,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
 				cmd_fusion->scmd->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 			}
-			//Fall thru and complete IO
+			/* Fall through - and complete IO */
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
 			atomic_dec(&instance->fw_outstanding);
 			if (cmd_fusion->r1_alt_dev_handle == MR_DEVHANDLE_INVALID) {
@@ -3501,18 +3573,13 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 {
 	struct megasas_instance *instance =
 		(struct megasas_instance *)instance_addr;
-	unsigned long flags;
 	u32 count, MSIxIndex;
 
 	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 
 	/* If we have already declared adapter dead, donot complete cmds */
-	spin_lock_irqsave(&instance->hba_lock, flags);
-	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
-		spin_unlock_irqrestore(&instance->hba_lock, flags);
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR)
 		return;
-	}
-	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
 	for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
 		complete_cmd_fusion(instance, MSIxIndex);
@@ -3525,48 +3592,24 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 {
 	struct megasas_irq_context *irq_context = devp;
 	struct megasas_instance *instance = irq_context->instance;
-	u32 mfiStatus, fw_state, dma_state;
+	u32 mfiStatus;
 
 	if (instance->mask_interrupts)
 		return IRQ_NONE;
 
 	if (!instance->msix_vectors) {
-		mfiStatus = instance->instancet->clear_intr(instance->reg_set);
+		mfiStatus = instance->instancet->clear_intr(instance);
 		if (!mfiStatus)
 			return IRQ_NONE;
 	}
 
 	/* If we are resetting, bail */
 	if (test_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags)) {
-		instance->instancet->clear_intr(instance->reg_set);
+		instance->instancet->clear_intr(instance);
 		return IRQ_HANDLED;
 	}
 
-	if (!complete_cmd_fusion(instance, irq_context->MSIxIndex)) {
-		instance->instancet->clear_intr(instance->reg_set);
-		/* If we didn't complete any commands, check for FW fault */
-		fw_state = instance->instancet->read_fw_status_reg(
-			instance->reg_set) & MFI_STATE_MASK;
-		dma_state = instance->instancet->read_fw_status_reg
-			(instance->reg_set) & MFI_STATE_DMADONE;
-		if (instance->crash_dump_drv_support &&
-			instance->crash_dump_app_support) {
-			/* Start collecting crash, if DMA bit is done */
-			if ((fw_state == MFI_STATE_FAULT) && dma_state)
-				schedule_work(&instance->crash_init);
-			else if (fw_state == MFI_STATE_FAULT) {
-				if (instance->unload == 0)
-					schedule_work(&instance->work_init);
-			}
-		} else if (fw_state == MFI_STATE_FAULT) {
-			dev_warn(&instance->pdev->dev, "Iop2SysDoorbellInt"
-			       "for scsi%d\n", instance->host->host_no);
-			if (instance->unload == 0)
-				schedule_work(&instance->work_init);
-		}
-	}
-
-	return IRQ_HANDLED;
+	return complete_cmd_fusion(instance, irq_context->MSIxIndex);
 }
 
 /**
@@ -3692,9 +3735,9 @@ megasas_release_fusion(struct megasas_instance *instance)
  * @regs:			MFI register set
  */
 static u32
-megasas_read_fw_status_reg_fusion(struct megasas_register_set __iomem *regs)
+megasas_read_fw_status_reg_fusion(struct megasas_instance *instance)
 {
-	return readl(&(regs)->outbound_scratch_pad);
+	return megasas_readl(instance, &instance->reg_set->outbound_scratch_pad_0);
 }
 
 /**
@@ -3756,11 +3799,12 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	writel(MPI2_WRSEQ_6TH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
 
 	/* Check that the diag write enable (DRWE) bit is on */
-	host_diag = readl(&instance->reg_set->fusion_host_diag);
+	host_diag = megasas_readl(instance, &instance->reg_set->fusion_host_diag);
 	retry = 0;
 	while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
 		msleep(100);
-		host_diag = readl(&instance->reg_set->fusion_host_diag);
+		host_diag = megasas_readl(instance,
+					  &instance->reg_set->fusion_host_diag);
 		if (retry++ == 100) {
 			dev_warn(&instance->pdev->dev,
 				"Host diag unlock failed from %s %d\n",
@@ -3777,11 +3821,12 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	msleep(3000);
 
 	/* Make sure reset adapter bit is cleared */
-	host_diag = readl(&instance->reg_set->fusion_host_diag);
+	host_diag = megasas_readl(instance, &instance->reg_set->fusion_host_diag);
 	retry = 0;
 	while (host_diag & HOST_DIAG_RESET_ADAPTER) {
 		msleep(100);
-		host_diag = readl(&instance->reg_set->fusion_host_diag);
+		host_diag = megasas_readl(instance,
+					  &instance->reg_set->fusion_host_diag);
 		if (retry++ == 1000) {
 			dev_warn(&instance->pdev->dev,
 				"Diag reset adapter never cleared %s %d\n",
@@ -3792,14 +3837,14 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	if (host_diag & HOST_DIAG_RESET_ADAPTER)
 		return -1;
 
-	abs_state = instance->instancet->read_fw_status_reg(instance->reg_set)
+	abs_state = instance->instancet->read_fw_status_reg(instance)
 			& MFI_STATE_MASK;
 	retry = 0;
 
 	while ((abs_state <= MFI_STATE_FW_INIT) && (retry++ < 1000)) {
 		msleep(100);
 		abs_state = instance->instancet->
-			read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
+			read_fw_status_reg(instance) & MFI_STATE_MASK;
 	}
 	if (abs_state <= MFI_STATE_FW_INIT) {
 		dev_warn(&instance->pdev->dev,
@@ -3822,17 +3867,60 @@ megasas_check_reset_fusion(struct megasas_instance *instance,
 	return 0;
 }
 
+/**
+ * megasas_trigger_snap_dump -	Trigger snap dump in FW
+ * @instance:			Soft instance of adapter
+ */
+static inline void megasas_trigger_snap_dump(struct megasas_instance *instance)
+{
+	int j;
+	u32 fw_state;
+
+	if (!instance->disableOnlineCtrlReset) {
+		dev_info(&instance->pdev->dev, "Trigger snap dump\n");
+		writel(MFI_ADP_TRIGGER_SNAP_DUMP,
+		       &instance->reg_set->doorbell);
+		readl(&instance->reg_set->doorbell);
+	}
+
+	for (j = 0; j < instance->snapdump_wait_time; j++) {
+		fw_state = instance->instancet->read_fw_status_reg(instance) &
+				MFI_STATE_MASK;
+		if (fw_state == MFI_STATE_FAULT) {
+			dev_err(&instance->pdev->dev,
+				"Found FW in FAULT state, after snap dump trigger\n");
+			return;
+		}
+		msleep(1000);
+	}
+}
+
 /* This function waits for outstanding commands on fusion to complete */
 int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 					int reason, int *convert)
 {
 	int i, outstanding, retval = 0, hb_seconds_missed = 0;
 	u32 fw_state;
+	u32 waittime_for_io_completion;
 
-	for (i = 0; i < resetwaittime; i++) {
+	waittime_for_io_completion =
+		min_t(u32, resetwaittime,
+			(resetwaittime - instance->snapdump_wait_time));
+
+	if (reason == MFI_IO_TIMEOUT_OCR) {
+		dev_info(&instance->pdev->dev,
+			"MFI command is timed out\n");
+		megasas_complete_cmd_dpc_fusion((unsigned long)instance);
+		if (instance->snapdump_wait_time)
+			megasas_trigger_snap_dump(instance);
+		retval = 1;
+		goto out;
+	}
+
+	for (i = 0; i < waittime_for_io_completion; i++) {
 		/* Check if firmware is in fault state */
-		fw_state = instance->instancet->read_fw_status_reg(
-			instance->reg_set) & MFI_STATE_MASK;
+		fw_state = instance->instancet->read_fw_status_reg(instance) &
+				MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT) {
 			dev_warn(&instance->pdev->dev, "Found FW in FAULT state,"
 			       " will reset adapter scsi%d.\n",
@@ -3850,13 +3938,6 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 			goto out;
 		}
 
-		if (reason == MFI_IO_TIMEOUT_OCR) {
-			dev_info(&instance->pdev->dev,
-				"MFI IO is timed out, initiating OCR\n");
-			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
-			retval = 1;
-			goto out;
-		}
 
 		/* If SR-IOV VF mode & heartbeat timeout, don't wait */
 		if (instance->requestorId && !reason) {
@@ -3901,6 +3982,12 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		msleep(1000);
 	}
 
+	if (instance->snapdump_wait_time) {
+		megasas_trigger_snap_dump(instance);
+		retval = 1;
+		goto out;
+	}
+
 	if (atomic_read(&instance->fw_outstanding)) {
 		dev_err(&instance->pdev->dev, "pending commands remain after waiting, "
 		       "will reset adapter scsi%d.\n",
@@ -3908,6 +3995,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		*convert = 1;
 		retval = 1;
 	}
+
 out:
 	return retval;
 }
@@ -4518,7 +4606,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		mutex_unlock(&instance->reset_mutex);
 		return FAILED;
 	}
-	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
+	status_reg = instance->instancet->read_fw_status_reg(instance);
 	abs_state = status_reg & MFI_STATE_MASK;
 
 	/* IO timeout detected, forcibly put FW in FAULT state */
@@ -4527,7 +4615,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		dev_info(&instance->pdev->dev, "IO/DCMD timeout is detected, "
 			"forcibly FAULT Firmware\n");
 		atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_INFAULT);
-		status_reg = readl(&instance->reg_set->doorbell);
+		status_reg = megasas_readl(instance, &instance->reg_set->doorbell);
 		writel(status_reg | MFI_STATE_FORCE_OCR,
 			&instance->reg_set->doorbell);
 		readl(&instance->reg_set->doorbell);
@@ -4578,7 +4666,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		for (i = 0 ; i < instance->max_scsi_cmds; i++) {
 			cmd_fusion = fusion->cmd_list[i];
 			/*check for extra commands issued by driver*/
-			if (instance->adapter_type == VENTURA_SERIES) {
+			if (instance->adapter_type >= VENTURA_SERIES) {
 				r1_cmd = fusion->cmd_list[i + instance->max_fw_cmds];
 				megasas_return_cmd_fusion(instance, r1_cmd);
 			}
@@ -4605,8 +4693,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 
 		atomic_set(&instance->fw_outstanding, 0);
 
-		status_reg = instance->instancet->read_fw_status_reg(
-			instance->reg_set);
+		status_reg = instance->instancet->read_fw_status_reg(instance);
 		abs_state = status_reg & MFI_STATE_MASK;
 		reset_adapter = status_reg & MFI_RESET_ADAPTER;
 		if (instance->disableOnlineCtrlReset ||
@@ -4677,7 +4764,7 @@ transition_to_ready:
 			megasas_setup_jbod_map(instance);
 
 			/* reset stream detection array */
-			if (instance->adapter_type == VENTURA_SERIES) {
+			if (instance->adapter_type >= VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
 					memset(fusion->stream_detect_by_ld[j],
 					0, sizeof(struct LD_STREAM_DETECT));
@@ -4721,6 +4808,13 @@ transition_to_ready:
 				megasas_set_crash_dump_params(instance,
 					MR_CRASH_BUF_TURN_OFF);
 
+			if (instance->snapdump_wait_time) {
+				megasas_get_snapdump_properties(instance);
+				dev_info(&instance->pdev->dev,
+					 "Snap dump wait time\t: %d\n",
+					 instance->snapdump_wait_time);
+			}
+
 			retval = SUCCESS;
 
 			/* Adapter reset completed successfully */
@@ -4752,16 +4846,15 @@ out:
 	return retval;
 }
 
-/* Fusion Crash dump collection work queue */
-void  megasas_fusion_crash_dump_wq(struct work_struct *work)
+/* Fusion Crash dump collection */
+void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 {
-	struct megasas_instance *instance =
-		container_of(work, struct megasas_instance, crash_init);
 	u32 status_reg;
 	u8 partial_copy = 0;
+	int wait = 0;
 
 
-	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
+	status_reg = instance->instancet->read_fw_status_reg(instance);
 
 	/*
 	 * Allocate host crash buffers to copy data from 1 MB DMA crash buffer
@@ -4777,8 +4870,8 @@ void  megasas_fusion_crash_dump_wq(struct work_struct *work)
 				"crash dump and initiating OCR\n");
 			status_reg |= MFI_STATE_CRASH_DUMP_DONE;
 			writel(status_reg,
-				&instance->reg_set->outbound_scratch_pad);
-			readl(&instance->reg_set->outbound_scratch_pad);
+				&instance->reg_set->outbound_scratch_pad_0);
+			readl(&instance->reg_set->outbound_scratch_pad_0);
 			return;
 		}
 		megasas_alloc_host_crash_buffer(instance);
@@ -4786,21 +4879,41 @@ void  megasas_fusion_crash_dump_wq(struct work_struct *work)
 			"allocated: %d\n", instance->drv_buf_alloc);
 	}
 
-	/*
-	 * Driver has allocated max buffers, which can be allocated
-	 * and FW has more crash dump data, then driver will
-	 * ignore the data.
-	 */
-	if (instance->drv_buf_index >= (instance->drv_buf_alloc)) {
-		dev_info(&instance->pdev->dev, "Driver is done copying "
-			"the buffer: %d\n", instance->drv_buf_alloc);
-		status_reg |= MFI_STATE_CRASH_DUMP_DONE;
-		partial_copy = 1;
-	} else {
-		memcpy(instance->crash_buf[instance->drv_buf_index],
-			instance->crash_dump_buf, CRASH_DMA_BUF_SIZE);
-		instance->drv_buf_index++;
-		status_reg &= ~MFI_STATE_DMADONE;
+	while (!(status_reg & MFI_STATE_CRASH_DUMP_DONE) &&
+	       (wait < MEGASAS_WATCHDOG_WAIT_COUNT)) {
+		if (!(status_reg & MFI_STATE_DMADONE)) {
+			/*
+			 * Next crash dump buffer is not yet DMA'd by FW
+			 * Check after 10ms. Wait for 1 second for FW to
+			 * post the next buffer. If not bail out.
+			 */
+			wait++;
+			msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
+			status_reg = instance->instancet->read_fw_status_reg(
+					instance);
+			continue;
+		}
+
+		wait = 0;
+		if (instance->drv_buf_index >= instance->drv_buf_alloc) {
+			dev_info(&instance->pdev->dev,
+				 "Driver is done copying the buffer: %d\n",
+				 instance->drv_buf_alloc);
+			status_reg |= MFI_STATE_CRASH_DUMP_DONE;
+			partial_copy = 1;
+			break;
+		} else {
+			memcpy(instance->crash_buf[instance->drv_buf_index],
+			       instance->crash_dump_buf, CRASH_DMA_BUF_SIZE);
+			instance->drv_buf_index++;
+			status_reg &= ~MFI_STATE_DMADONE;
+		}
+
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad_0);
+		readl(&instance->reg_set->outbound_scratch_pad_0);
+
+		msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
+		status_reg = instance->instancet->read_fw_status_reg(instance);
 	}
 
 	if (status_reg & MFI_STATE_CRASH_DUMP_DONE) {
@@ -4809,13 +4922,10 @@ void  megasas_fusion_crash_dump_wq(struct work_struct *work)
 		instance->fw_crash_buffer_size =  instance->drv_buf_index;
 		instance->fw_crash_state = AVAILABLE;
 		instance->drv_buf_index = 0;
-		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
-		readl(&instance->reg_set->outbound_scratch_pad);
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad_0);
+		readl(&instance->reg_set->outbound_scratch_pad_0);
 		if (!partial_copy)
 			megasas_reset_fusion(instance->host, 0);
-	} else {
-		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
-		readl(&instance->reg_set->outbound_scratch_pad);
 	}
 }
 

@@ -16,9 +16,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
@@ -32,15 +30,7 @@
 
 MODULE_LICENSE("GPL");
 
-enum {
-	CD_GPIO = 0,
-	WP_GPIO,
-	NUM_GPIOS,
-};
-
 struct of_mmc_spi {
-	int gpios[NUM_GPIOS];
-	bool alow_gpios[NUM_GPIOS];
 	int detect_irq;
 	struct mmc_spi_platform_data pdata;
 };
@@ -100,30 +90,6 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 			goto err_ocr;
 		}
 		oms->pdata.ocr_mask |= mask;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(oms->gpios); i++) {
-		enum of_gpio_flags gpio_flags;
-
-		oms->gpios[i] = of_get_gpio_flags(np, i, &gpio_flags);
-		if (!gpio_is_valid(oms->gpios[i]))
-			continue;
-
-		if (gpio_flags & OF_GPIO_ACTIVE_LOW)
-			oms->alow_gpios[i] = true;
-	}
-
-	if (gpio_is_valid(oms->gpios[CD_GPIO])) {
-		oms->pdata.cd_gpio = oms->gpios[CD_GPIO];
-		oms->pdata.flags |= MMC_SPI_USE_CD_GPIO;
-		if (!oms->alow_gpios[CD_GPIO])
-			oms->pdata.caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
-	}
-	if (gpio_is_valid(oms->gpios[WP_GPIO])) {
-		oms->pdata.ro_gpio = oms->gpios[WP_GPIO];
-		oms->pdata.flags |= MMC_SPI_USE_RO_GPIO;
-		if (!oms->alow_gpios[WP_GPIO])
-			oms->pdata.caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 	}
 
 	oms->detect_irq = irq_of_parse_and_map(np, 0);

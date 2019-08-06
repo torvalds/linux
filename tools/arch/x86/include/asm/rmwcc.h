@@ -2,7 +2,7 @@
 #ifndef _TOOLS_LINUX_ASM_X86_RMWcc
 #define _TOOLS_LINUX_ASM_X86_RMWcc
 
-#ifdef CC_HAVE_ASM_GOTO
+#ifdef CONFIG_CC_HAS_ASM_GOTO
 
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
@@ -20,7 +20,7 @@ cc_label:								\
 #define GEN_BINARY_RMWcc(op, var, vcon, val, arg0, cc)			\
 	__GEN_RMWcc(op " %1, " arg0, var, cc, vcon (val))
 
-#else /* !CC_HAVE_ASM_GOTO */
+#else /* !CONFIG_CC_HAS_ASM_GOTO */
 
 #define __GEN_RMWcc(fullop, var, cc, ...)				\
 do {									\
@@ -37,6 +37,6 @@ do {									\
 #define GEN_BINARY_RMWcc(op, var, vcon, val, arg0, cc)			\
 	__GEN_RMWcc(op " %2, " arg0, var, cc, vcon (val))
 
-#endif /* CC_HAVE_ASM_GOTO */
+#endif /* CONFIG_CC_HAS_ASM_GOTO */
 
 #endif /* _TOOLS_LINUX_ASM_X86_RMWcc */

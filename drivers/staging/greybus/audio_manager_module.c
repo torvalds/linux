@@ -25,8 +25,8 @@ struct gb_audio_manager_module_attribute {
 			 const char *buf, size_t count);
 };
 
-static ssize_t gb_audio_module_attr_show(
-	struct kobject *kobj, struct attribute *attr, char *buf)
+static ssize_t gb_audio_module_attr_show(struct kobject *kobj,
+					 struct attribute *attr, char *buf)
 {
 	struct gb_audio_manager_module_attribute *attribute;
 	struct gb_audio_manager_module *module;

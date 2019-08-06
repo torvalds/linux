@@ -812,6 +812,8 @@ enum mesh_config_capab_flags {
 	IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL	= 0x40,
 };
 
+#define IEEE80211_MESHCONF_FORM_CONNECTED_TO_GATE 0x1
+
 /**
  * mesh channel switch parameters element's flag indicator
  *
@@ -1617,7 +1619,7 @@ struct ieee80211_he_mcs_nss_supp {
  * struct ieee80211_he_operation - HE capabilities element
  *
  * This structure is the "HE operation element" fields as
- * described in P802.11ax_D2.0 section 9.4.2.238
+ * described in P802.11ax_D3.0 section 9.4.2.238
  */
 struct ieee80211_he_operation {
 	__le32 he_oper_params;
@@ -2009,17 +2011,17 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
 }
 
 /* HE Operation defines */
-#define IEEE80211_HE_OPERATION_BSS_COLOR_MASK			0x0000003f
-#define IEEE80211_HE_OPERATION_DFLT_PE_DURATION_MASK		0x000001c0
-#define IEEE80211_HE_OPERATION_DFLT_PE_DURATION_OFFSET		6
-#define IEEE80211_HE_OPERATION_TWT_REQUIRED			0x00000200
-#define IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK		0x000ffc00
-#define IEEE80211_HE_OPERATION_RTS_THRESHOLD_OFFSET		10
-#define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x00100000
-#define IEEE80211_HE_OPERATION_VHT_OPER_INFO			0x00200000
-#define IEEE80211_HE_OPERATION_MULTI_BSSID_AP			0x10000000
-#define IEEE80211_HE_OPERATION_TX_BSSID_INDICATOR		0x20000000
-#define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x40000000
+#define IEEE80211_HE_OPERATION_DFLT_PE_DURATION_MASK		0x00000003
+#define IEEE80211_HE_OPERATION_TWT_REQUIRED			0x00000008
+#define IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK		0x00003ff0
+#define IEEE80211_HE_OPERATION_RTS_THRESHOLD_OFFSET		4
+#define IEEE80211_HE_OPERATION_VHT_OPER_INFO			0x00004000
+#define IEEE80211_HE_OPERATION_CO_LOCATED_BSS			0x00008000
+#define IEEE80211_HE_OPERATION_ER_SU_DISABLE			0x00010000
+#define IEEE80211_HE_OPERATION_BSS_COLOR_MASK			0x3f000000
+#define IEEE80211_HE_OPERATION_BSS_COLOR_OFFSET		24
+#define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
+#define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
 /*
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
@@ -2044,7 +2046,7 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 	he_oper_params = le32_to_cpu(he_oper->he_oper_params);
 	if (he_oper_params & IEEE80211_HE_OPERATION_VHT_OPER_INFO)
 		oper_len += 3;
-	if (he_oper_params & IEEE80211_HE_OPERATION_MULTI_BSSID_AP)
+	if (he_oper_params & IEEE80211_HE_OPERATION_CO_LOCATED_BSS)
 		oper_len++;
 
 	/* Add the first byte (extension ID) to the total length */
@@ -2684,6 +2686,10 @@ enum ieee80211_tdls_actioncode {
  * information element
  */
 #define WLAN_EXT_CAPA9_FTM_INITIATOR	BIT(7)
+
+/* Defines support for TWT Requester and TWT Responder */
+#define WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT	BIT(5)
+#define WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT	BIT(6)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2

@@ -144,7 +144,7 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 		for (tmp = dev; tmp; tmp = tmp->bus->self)
 			level++;
 
-	size = sizeof(*info) + level * sizeof(struct acpi_dmar_pci_path);
+	size = sizeof(*info) + level * sizeof(info->path[0]);
 	if (size <= sizeof(dmar_pci_notify_info_buf)) {
 		info = (struct dmar_pci_notify_info *)dmar_pci_notify_info_buf;
 	} else {
@@ -1160,6 +1160,7 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
 	int head, tail;
 	struct q_inval *qi = iommu->qi;
 	int wait_index = (index + 1) % QI_LENGTH;
+	int shift = qi_shift(iommu);
 
 	if (qi->desc_status[wait_index] == QI_ABORT)
 		return -EAGAIN;
@@ -1173,13 +1174,19 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
 	 */
 	if (fault & DMA_FSTS_IQE) {
 		head = readl(iommu->reg + DMAR_IQH_REG);
-		if ((head >> DMAR_IQ_SHIFT) == index) {
-			pr_err("VT-d detected invalid descriptor: "
-				"low=%llx, high=%llx\n",
-				(unsigned long long)qi->desc[index].low,
-				(unsigned long long)qi->desc[index].high);
-			memcpy(&qi->desc[index], &qi->desc[wait_index],
-					sizeof(struct qi_desc));
+		if ((head >> shift) == index) {
+			struct qi_desc *desc = qi->desc + head;
+
+			/*
+			 * desc->qw2 and desc->qw3 are either reserved or
+			 * used by software as private data. We won't print
+			 * out these two qw's for security consideration.
+			 */
+			pr_err("VT-d detected invalid descriptor: qw0 = %llx, qw1 = %llx\n",
+			       (unsigned long long)desc->qw0,
+			       (unsigned long long)desc->qw1);
+			memcpy(desc, qi->desc + (wait_index << shift),
+			       1 << shift);
 			writel(DMA_FSTS_IQE, iommu->reg + DMAR_FSTS_REG);
 			return -EINVAL;
 		}
@@ -1191,10 +1198,10 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
 	 */
 	if (fault & DMA_FSTS_ITE) {
 		head = readl(iommu->reg + DMAR_IQH_REG);
-		head = ((head >> DMAR_IQ_SHIFT) - 1 + QI_LENGTH) % QI_LENGTH;
+		head = ((head >> shift) - 1 + QI_LENGTH) % QI_LENGTH;
 		head |= 1;
 		tail = readl(iommu->reg + DMAR_IQT_REG);
-		tail = ((tail >> DMAR_IQ_SHIFT) - 1 + QI_LENGTH) % QI_LENGTH;
+		tail = ((tail >> shift) - 1 + QI_LENGTH) % QI_LENGTH;
 
 		writel(DMA_FSTS_ITE, iommu->reg + DMAR_FSTS_REG);
 
@@ -1222,14 +1229,13 @@ int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 {
 	int rc;
 	struct q_inval *qi = iommu->qi;
-	struct qi_desc *hw, wait_desc;
+	int offset, shift, length;
+	struct qi_desc wait_desc;
 	int wait_index, index;
 	unsigned long flags;
 
 	if (!qi)
 		return 0;
-
-	hw = qi->desc;
 
 restart:
 	rc = 0;
@@ -1243,16 +1249,21 @@ restart:
 
 	index = qi->free_head;
 	wait_index = (index + 1) % QI_LENGTH;
+	shift = qi_shift(iommu);
+	length = 1 << shift;
 
 	qi->desc_status[index] = qi->desc_status[wait_index] = QI_IN_USE;
 
-	hw[index] = *desc;
-
-	wait_desc.low = QI_IWD_STATUS_DATA(QI_DONE) |
+	offset = index << shift;
+	memcpy(qi->desc + offset, desc, length);
+	wait_desc.qw0 = QI_IWD_STATUS_DATA(QI_DONE) |
 			QI_IWD_STATUS_WRITE | QI_IWD_TYPE;
-	wait_desc.high = virt_to_phys(&qi->desc_status[wait_index]);
+	wait_desc.qw1 = virt_to_phys(&qi->desc_status[wait_index]);
+	wait_desc.qw2 = 0;
+	wait_desc.qw3 = 0;
 
-	hw[wait_index] = wait_desc;
+	offset = wait_index << shift;
+	memcpy(qi->desc + offset, &wait_desc, length);
 
 	qi->free_head = (qi->free_head + 2) % QI_LENGTH;
 	qi->free_cnt -= 2;
@@ -1261,7 +1272,7 @@ restart:
 	 * update the HW tail register indicating the presence of
 	 * new descriptors.
 	 */
-	writel(qi->free_head << DMAR_IQ_SHIFT, iommu->reg + DMAR_IQT_REG);
+	writel(qi->free_head << shift, iommu->reg + DMAR_IQT_REG);
 
 	while (qi->desc_status[wait_index] != QI_DONE) {
 		/*
@@ -1298,8 +1309,10 @@ void qi_global_iec(struct intel_iommu *iommu)
 {
 	struct qi_desc desc;
 
-	desc.low = QI_IEC_TYPE;
-	desc.high = 0;
+	desc.qw0 = QI_IEC_TYPE;
+	desc.qw1 = 0;
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	/* should never fail */
 	qi_submit_sync(&desc, iommu);
@@ -1310,9 +1323,11 @@ void qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid, u8 fm,
 {
 	struct qi_desc desc;
 
-	desc.low = QI_CC_FM(fm) | QI_CC_SID(sid) | QI_CC_DID(did)
+	desc.qw0 = QI_CC_FM(fm) | QI_CC_SID(sid) | QI_CC_DID(did)
 			| QI_CC_GRAN(type) | QI_CC_TYPE;
-	desc.high = 0;
+	desc.qw1 = 0;
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	qi_submit_sync(&desc, iommu);
 }
@@ -1331,10 +1346,12 @@ void qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 	if (cap_read_drain(iommu->cap))
 		dr = 1;
 
-	desc.low = QI_IOTLB_DID(did) | QI_IOTLB_DR(dr) | QI_IOTLB_DW(dw)
+	desc.qw0 = QI_IOTLB_DID(did) | QI_IOTLB_DR(dr) | QI_IOTLB_DW(dw)
 		| QI_IOTLB_GRAN(type) | QI_IOTLB_TYPE;
-	desc.high = QI_IOTLB_ADDR(addr) | QI_IOTLB_IH(ih)
+	desc.qw1 = QI_IOTLB_ADDR(addr) | QI_IOTLB_IH(ih)
 		| QI_IOTLB_AM(size_order);
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	qi_submit_sync(&desc, iommu);
 }
@@ -1347,15 +1364,17 @@ void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
 	if (mask) {
 		WARN_ON_ONCE(addr & ((1ULL << (VTD_PAGE_SHIFT + mask)) - 1));
 		addr |= (1ULL << (VTD_PAGE_SHIFT + mask - 1)) - 1;
-		desc.high = QI_DEV_IOTLB_ADDR(addr) | QI_DEV_IOTLB_SIZE;
+		desc.qw1 = QI_DEV_IOTLB_ADDR(addr) | QI_DEV_IOTLB_SIZE;
 	} else
-		desc.high = QI_DEV_IOTLB_ADDR(addr);
+		desc.qw1 = QI_DEV_IOTLB_ADDR(addr);
 
 	if (qdep >= QI_DEV_IOTLB_MAX_INVS)
 		qdep = 0;
 
-	desc.low = QI_DEV_IOTLB_SID(sid) | QI_DEV_IOTLB_QDEP(qdep) |
+	desc.qw0 = QI_DEV_IOTLB_SID(sid) | QI_DEV_IOTLB_QDEP(qdep) |
 		   QI_DIOTLB_TYPE | QI_DEV_IOTLB_PFSID(pfsid);
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	qi_submit_sync(&desc, iommu);
 }
@@ -1403,16 +1422,24 @@ static void __dmar_enable_qi(struct intel_iommu *iommu)
 	u32 sts;
 	unsigned long flags;
 	struct q_inval *qi = iommu->qi;
+	u64 val = virt_to_phys(qi->desc);
 
 	qi->free_head = qi->free_tail = 0;
 	qi->free_cnt = QI_LENGTH;
+
+	/*
+	 * Set DW=1 and QS=1 in IQA_REG when Scalable Mode capability
+	 * is present.
+	 */
+	if (ecap_smts(iommu->ecap))
+		val |= (1 << 11) | 1;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
 	/* write zero to the tail reg */
 	writel(0, iommu->reg + DMAR_IQT_REG);
 
-	dmar_writeq(iommu->reg + DMAR_IQA_REG, virt_to_phys(qi->desc));
+	dmar_writeq(iommu->reg + DMAR_IQA_REG, val);
 
 	iommu->gcmd |= DMA_GCMD_QIE;
 	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
@@ -1448,8 +1475,12 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	qi = iommu->qi;
 
-
-	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO, 0);
+	/*
+	 * Need two pages to accommodate 256 descriptors of 256 bits each
+	 * if the remapping hardware supports scalable mode translation.
+	 */
+	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO,
+				     !!ecap_smts(iommu->ecap));
 	if (!desc_page) {
 		kfree(qi);
 		iommu->qi = NULL;
@@ -2042,3 +2073,28 @@ int dmar_device_remove(acpi_handle handle)
 {
 	return dmar_device_hotplug(handle, false);
 }
+
+/*
+ * dmar_platform_optin - Is %DMA_CTRL_PLATFORM_OPT_IN_FLAG set in DMAR table
+ *
+ * Returns true if the platform has %DMA_CTRL_PLATFORM_OPT_IN_FLAG set in
+ * the ACPI DMAR table. This means that the platform boot firmware has made
+ * sure no device can issue DMA outside of RMRR regions.
+ */
+bool dmar_platform_optin(void)
+{
+	struct acpi_table_dmar *dmar;
+	acpi_status status;
+	bool ret;
+
+	status = acpi_get_table(ACPI_SIG_DMAR, 0,
+				(struct acpi_table_header **)&dmar);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	ret = !!(dmar->flags & DMAR_PLATFORM_OPT_IN);
+	acpi_put_table((struct acpi_table_header *)dmar);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dmar_platform_optin);

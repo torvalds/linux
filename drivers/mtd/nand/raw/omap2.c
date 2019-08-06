@@ -1944,7 +1944,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	case NAND_OMAP_PREFETCH_DMA:
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
-		info->dma = dma_request_chan(dev, "rxtx");
+		info->dma = dma_request_chan(dev->parent, "rxtx");
 
 		if (IS_ERR(info->dma)) {
 			dev_err(dev, "DMA engine request failed\n");

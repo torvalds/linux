@@ -1,0 +1,99 @@
+MediaTek MT7621 PCIe controller
+
+Required properties:
+- compatible: "mediatek,mt7621-pci"
+- device_type: Must be "pci"
+- reg: Base addresses and lengths of the PCIe subsys and root ports.
+- bus-range: Range of bus numbers associated with this controller.
+- #address-cells: Address representation for root ports (must be 3)
+- pinctrl-names : The pin control state names.
+- pinctrl-0: The "default" pinctrl state.
+- #size-cells: Size representation for root ports (must be 2)
+- ranges: Ranges for the PCI memory and I/O regions.
+- #interrupt-cells: Must be 1
+- interrupt-map-mask and interrupt-map: Standard PCI IRQ mapping properties.
+  Please refer to the standard PCI bus binding document for a more detailed
+  explanation.
+- status: either "disabled" or "okay".
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must be "pcie0", "pcie1", "pcieN"... based on the number of
+  root ports.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Must be "pcie0", "pcie1", "pcieN"... based on the number of
+  root ports.
+
+In addition, the device tree node must have sub-nodes describing each PCIe port
+interface, having the following mandatory properties:
+
+Required properties:
+- reg: Only the first four bytes are used to refer to the correct bus number
+      and device number.
+- #address-cells: Must be 3
+- #size-cells: Must be 2
+- ranges: Sub-ranges distributed from the PCIe controller node. An empty
+  property is sufficient.
+- bus-range: Range of bus numbers associated with this port.
+
+Example for MT7621:
+
+	pcie: pcie@1e140000 {
+		compatible = "mediatek,mt7621-pci";
+        reg = <0x1e140000 0x100    /* host-pci bridge registers */
+               0x1e142000 0x100    /* pcie port 0 RC control registers */
+               0x1e143000 0x100    /* pcie port 1 RC control registers */
+               0x1e144000 0x100>;  /* pcie port 2 RC control registers */
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie_pins>;
+
+		device_type = "pci";
+
+		bus-range = <0 255>;
+		ranges = <
+			0x02000000 0 0x00000000 0x60000000 0 0x10000000 /* pci memory */
+			0x01000000 0 0x00000000 0x1e160000 0 0x00010000 /* io space */
+		>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0xF0000 0 0 1>;
+		interrupt-map = <0x10000 0 0 1 &gic GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH>,
+				<0x20000 0 0 1 &gic GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH>,
+				<0x30000 0 0 1 &gic GIC_SHARED 25 IRQ_TYPE_LEVEL_HIGH>;
+
+		status = "disabled";
+
+		resets = <&rstctrl 24 &rstctrl 25 &rstctrl 26>;
+		reset-names = "pcie0", "pcie1", "pcie2";
+		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
+		clock-names = "pcie0", "pcie1", "pcie2";
+
+		pcie@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+			bus-range = <0x00 0xff>;
+		};
+
+		pcie@1,0 {
+			reg = <0x0800 0 0 0 0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+			bus-range = <0x00 0xff>;
+		};
+
+		pcie@2,0 {
+			reg = <0x1000 0 0 0 0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+			bus-range = <0x00 0xff>;
+		};
+	};
+

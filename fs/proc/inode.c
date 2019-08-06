@@ -59,7 +59,6 @@ static struct kmem_cache *pde_opener_cache __ro_after_init;
 static struct inode *proc_alloc_inode(struct super_block *sb)
 {
 	struct proc_inode *ei;
-	struct inode *inode;
 
 	ei = kmem_cache_alloc(proc_inode_cachep, GFP_KERNEL);
 	if (!ei)
@@ -71,8 +70,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->sysctl = NULL;
 	ei->sysctl_entry = NULL;
 	ei->ns_ops = NULL;
-	inode = &ei->vfs_inode;
-	return inode;
+	return &ei->vfs_inode;
 }
 
 static void proc_i_callback(struct rcu_head *head)

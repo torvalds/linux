@@ -2505,24 +2505,14 @@ static int pl08x_debugfs_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int pl08x_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pl08x_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations pl08x_debugfs_operations = {
-	.open		= pl08x_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pl08x_debugfs);
 
 static void init_pl08x_debugfs(struct pl08x_driver_data *pl08x)
 {
 	/* Expose a simple debugfs interface to view all clocks */
 	(void) debugfs_create_file(dev_name(&pl08x->adev->dev),
 			S_IFREG | S_IRUGO, NULL, pl08x,
-			&pl08x_debugfs_operations);
+			&pl08x_debugfs_fops);
 }
 
 #else

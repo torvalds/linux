@@ -29,10 +29,9 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <linux/input/touchscreen.h>
-#include <linux/platform_data/ad7879.h>
 #include <linux/module.h>
 #include "ad7879.h"
 
@@ -290,7 +289,7 @@ static int ad7879_open(struct input_dev *input)
 	return 0;
 }
 
-static void ad7879_close(struct input_dev* input)
+static void ad7879_close(struct input_dev *input)
 {
 	struct ad7879 *ts = input_get_drvdata(input);
 
@@ -452,47 +451,36 @@ static void ad7879_gpio_set_value(struct gpio_chip *chip,
 	mutex_unlock(&ts->mutex);
 }
 
-static int ad7879_gpio_add(struct ad7879 *ts,
-			   const struct ad7879_platform_data *pdata)
+static int ad7879_gpio_add(struct ad7879 *ts)
 {
-	bool gpio_export;
-	int gpio_base;
 	int ret = 0;
-
-	if (pdata) {
-		gpio_export = pdata->gpio_export;
-		gpio_base = pdata->gpio_base;
-	} else {
-		gpio_export = device_property_read_bool(ts->dev,
-							"gpio-controller");
-		gpio_base = -1;
-	}
 
 	mutex_init(&ts->mutex);
 
-	if (gpio_export) {
-		ts->gc.direction_input = ad7879_gpio_direction_input;
-		ts->gc.direction_output = ad7879_gpio_direction_output;
-		ts->gc.get = ad7879_gpio_get_value;
-		ts->gc.set = ad7879_gpio_set_value;
-		ts->gc.can_sleep = 1;
-		ts->gc.base = gpio_base;
-		ts->gc.ngpio = 1;
-		ts->gc.label = "AD7879-GPIO";
-		ts->gc.owner = THIS_MODULE;
-		ts->gc.parent = ts->dev;
+	/* Do not create a chip unless flagged for it */
+	if (!device_property_read_bool(ts->dev, "gpio-controller"))
+		return 0;
 
-		ret = devm_gpiochip_add_data(ts->dev, &ts->gc, ts);
-		if (ret)
-			dev_err(ts->dev, "failed to register gpio %d\n",
-				ts->gc.base);
-	}
+	ts->gc.direction_input = ad7879_gpio_direction_input;
+	ts->gc.direction_output = ad7879_gpio_direction_output;
+	ts->gc.get = ad7879_gpio_get_value;
+	ts->gc.set = ad7879_gpio_set_value;
+	ts->gc.can_sleep = 1;
+	ts->gc.base = -1;
+	ts->gc.ngpio = 1;
+	ts->gc.label = "AD7879-GPIO";
+	ts->gc.owner = THIS_MODULE;
+	ts->gc.parent = ts->dev;
+
+	ret = devm_gpiochip_add_data(ts->dev, &ts->gc, ts);
+	if (ret)
+		dev_err(ts->dev, "failed to register gpio %d\n",
+			ts->gc.base);
 
 	return ret;
 }
 #else
-static int ad7879_gpio_add(struct ad7879 *ts,
-			   const struct ad7879_platform_data *pdata)
+static int ad7879_gpio_add(struct ad7879 *ts)
 {
 	return 0;
 }
@@ -527,7 +515,6 @@ static int ad7879_parse_dt(struct device *dev, struct ad7879 *ts)
 int ad7879_probe(struct device *dev, struct regmap *regmap,
 		 int irq, u16 bustype, u8 devid)
 {
-	struct ad7879_platform_data *pdata = dev_get_platdata(dev);
 	struct ad7879 *ts;
 	struct input_dev *input_dev;
 	int err;
@@ -542,22 +529,9 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	if (!ts)
 		return -ENOMEM;
 
-	if (pdata) {
-		/* Platform data use swapped axis (backward compatibility) */
-		ts->swap_xy = !pdata->swap_xy;
-
-		ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
-
-		ts->first_conversion_delay = pdata->first_conversion_delay;
-		ts->acquisition_time = pdata->acquisition_time;
-		ts->averaging = pdata->averaging;
-		ts->pen_down_acc_interval = pdata->pen_down_acc_interval;
-		ts->median = pdata->median;
-	} else {
-		err = ad7879_parse_dt(dev, ts);
-		if (err)
-			return err;
-	}
+	err = ad7879_parse_dt(dev, ts);
+	if (err)
+		return err;
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
@@ -585,28 +559,13 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 
 	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
-	if (pdata) {
-		input_set_abs_params(input_dev, ABS_X,
-				pdata->x_min ? : 0,
-				pdata->x_max ? : MAX_12BIT,
-				0, 0);
-		input_set_abs_params(input_dev, ABS_Y,
-				pdata->y_min ? : 0,
-				pdata->y_max ? : MAX_12BIT,
-				0, 0);
-		input_set_abs_params(input_dev, ABS_PRESSURE,
-				pdata->pressure_min,
-				pdata->pressure_max ? : ~0,
-				0, 0);
-	} else {
-		input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
-		input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
-		input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
-		touchscreen_parse_properties(input_dev, false, NULL);
-		if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
-			dev_err(dev, "Touchscreen pressure is not specified\n");
-			return -EINVAL;
-		}
+	input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
+	input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
+	touchscreen_parse_properties(input_dev, false, NULL);
+	if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
+		dev_err(dev, "Touchscreen pressure is not specified\n");
+		return -EINVAL;
 	}
 
 	err = ad7879_write(ts, AD7879_REG_CTRL2, AD7879_RESET);
@@ -655,7 +614,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	if (err)
 		return err;
 
-	err = ad7879_gpio_add(ts, pdata);
+	err = ad7879_gpio_add(ts);
 	if (err)
 		return err;
 

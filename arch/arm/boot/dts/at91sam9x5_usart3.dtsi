@@ -42,15 +42,6 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
-				periphck {
-					usart3_clk: usart3_clk {
-						#clock-cells = <0>;
-						reg = <8>;
-					};
-				};
-			};
-
 			usart3: serial@f8028000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8028000 0x200>;
@@ -60,7 +51,7 @@
 				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(14)>,
 				       <&dma1 1 (AT91_DMA_CFG_PER_ID(15) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
 				dma-names = "tx", "rx";
-				clocks = <&usart3_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 8>;
 				clock-names = "usart";
 				status = "disabled";
 			};

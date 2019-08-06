@@ -59,6 +59,7 @@ struct brcmf_mp_device {
 	bool		iapp;
 	bool		ignore_probe_fail;
 	struct brcmfmac_pd_cc *country_codes;
+	const char	*board_type;
 	union {
 		struct brcmfmac_sdio_pd sdio;
 	} bus;
@@ -73,5 +74,12 @@ void brcmf_release_module_param(struct brcmf_mp_device *module_param);
 
 /* Sets dongle media info (drv_version, mac address). */
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
+
+#ifdef CONFIG_DMI
+void brcmf_dmi_probe(struct brcmf_mp_device *settings, u32 chip, u32 chiprev);
+#else
+static inline void
+brcmf_dmi_probe(struct brcmf_mp_device *settings, u32 chip, u32 chiprev) {}
+#endif
 
 #endif /* BRCMFMAC_COMMON_H */

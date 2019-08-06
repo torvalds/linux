@@ -41,7 +41,9 @@ Optional properties:
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:
 	- "pcie_inbound_axi"
-- power-domains: Must be set to a phandle pointing to the PCIE_PHY power domain
+- power-domains: Must be set to phandles pointing to the DISPLAY and
+  PCIE_PHY power domains
+- power-domain-names: Must be "pcie", "pcie_phy"
 
 Additional required properties for imx7d-pcie:
 - power-domains: Must be set to a phandle pointing to PCIE_PHY power domain

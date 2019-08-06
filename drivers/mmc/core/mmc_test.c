@@ -3145,17 +3145,7 @@ static int mtf_testlist_show(struct seq_file *sf, void *data)
 	return 0;
 }
 
-static int mtf_testlist_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtf_testlist_show, inode->i_private);
-}
-
-static const struct file_operations mmc_test_fops_testlist = {
-	.open		= mtf_testlist_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mtf_testlist);
 
 static void mmc_test_free_dbgfs_file(struct mmc_card *card)
 {
@@ -3216,7 +3206,7 @@ static int mmc_test_register_dbgfs_file(struct mmc_card *card)
 		goto err;
 
 	ret = __mmc_test_register_dbgfs_file(card, "testlist", S_IRUGO,
-		&mmc_test_fops_testlist);
+		&mtf_testlist_fops);
 	if (ret)
 		goto err;
 

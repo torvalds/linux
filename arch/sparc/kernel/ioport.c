@@ -52,8 +52,6 @@
 #include <asm/io-unit.h>
 #include <asm/leon.h>
 
-const struct sparc32_dma_ops *sparc32_dma_ops;
-
 /* This function must make sure that caches and memory are coherent after DMA
  * On LEON systems without cache snooping it flushes the entire D-CACHE.
  */
@@ -247,6 +245,53 @@ static void _sparc_free_io(struct resource *res)
 	release_resource(res);
 }
 
+unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
+{
+	struct resource *res;
+
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return 0;
+	res->name = dev->of_node->full_name;
+
+	if (allocate_resource(&_sparc_dvma, res, len, _sparc_dvma.start,
+			      _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
+		printk("%s: cannot occupy 0x%zx", __func__, len);
+		kfree(res);
+		return 0;
+	}
+
+	return res->start;
+}
+
+bool sparc_dma_free_resource(void *cpu_addr, size_t size)
+{
+	unsigned long addr = (unsigned long)cpu_addr;
+	struct resource *res;
+
+	res = lookup_resource(&_sparc_dvma, addr);
+	if (!res) {
+		printk("%s: cannot free %p\n", __func__, cpu_addr);
+		return false;
+	}
+
+	if ((addr & (PAGE_SIZE - 1)) != 0) {
+		printk("%s: unaligned va %p\n", __func__, cpu_addr);
+		return false;
+	}
+
+	size = PAGE_ALIGN(size);
+	if (resource_size(res) != size) {
+		printk("%s: region 0x%lx asked 0x%zx\n",
+			__func__, (long)resource_size(res), size);
+		return false;
+	}
+
+	release_resource(res);
+	kfree(res);
+	return true;
+}
+
 #ifdef CONFIG_SBUS
 
 void sbus_set_sbus64(struct device *dev, int x)
@@ -254,171 +299,6 @@ void sbus_set_sbus64(struct device *dev, int x)
 	printk("sbus_set_sbus64: unsupported\n");
 }
 EXPORT_SYMBOL(sbus_set_sbus64);
-
-/*
- * Allocate a chunk of memory suitable for DMA.
- * Typically devices use them for control blocks.
- * CPU may access them without any explicit flushing.
- */
-static void *sbus_alloc_coherent(struct device *dev, size_t len,
-				 dma_addr_t *dma_addrp, gfp_t gfp,
-				 unsigned long attrs)
-{
-	struct platform_device *op = to_platform_device(dev);
-	unsigned long len_total = PAGE_ALIGN(len);
-	unsigned long va;
-	struct resource *res;
-	int order;
-
-	/* XXX why are some lengths signed, others unsigned? */
-	if (len <= 0) {
-		return NULL;
-	}
-	/* XXX So what is maxphys for us and how do drivers know it? */
-	if (len > 256*1024) {			/* __get_free_pages() limit */
-		return NULL;
-	}
-
-	order = get_order(len_total);
-	va = __get_free_pages(gfp, order);
-	if (va == 0)
-		goto err_nopages;
-
-	if ((res = kzalloc(sizeof(struct resource), GFP_KERNEL)) == NULL)
-		goto err_nomem;
-
-	if (allocate_resource(&_sparc_dvma, res, len_total,
-	    _sparc_dvma.start, _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
-		printk("sbus_alloc_consistent: cannot occupy 0x%lx", len_total);
-		goto err_nova;
-	}
-
-	// XXX The sbus_map_dma_area does this for us below, see comments.
-	// srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
-	/*
-	 * XXX That's where sdev would be used. Currently we load
-	 * all iommu tables with the same translations.
-	 */
-	if (sbus_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
-		goto err_noiommu;
-
-	res->name = op->dev.of_node->name;
-
-	return (void *)(unsigned long)res->start;
-
-err_noiommu:
-	release_resource(res);
-err_nova:
-	kfree(res);
-err_nomem:
-	free_pages(va, order);
-err_nopages:
-	return NULL;
-}
-
-static void sbus_free_coherent(struct device *dev, size_t n, void *p,
-			       dma_addr_t ba, unsigned long attrs)
-{
-	struct resource *res;
-	struct page *pgv;
-
-	if ((res = lookup_resource(&_sparc_dvma,
-	    (unsigned long)p)) == NULL) {
-		printk("sbus_free_consistent: cannot free %p\n", p);
-		return;
-	}
-
-	if (((unsigned long)p & (PAGE_SIZE-1)) != 0) {
-		printk("sbus_free_consistent: unaligned va %p\n", p);
-		return;
-	}
-
-	n = PAGE_ALIGN(n);
-	if (resource_size(res) != n) {
-		printk("sbus_free_consistent: region 0x%lx asked 0x%zx\n",
-		    (long)resource_size(res), n);
-		return;
-	}
-
-	release_resource(res);
-	kfree(res);
-
-	pgv = virt_to_page(p);
-	sbus_unmap_dma_area(dev, ba, n);
-
-	__free_pages(pgv, get_order(n));
-}
-
-/*
- * Map a chunk of memory so that devices can see it.
- * CPU view of this memory may be inconsistent with
- * a device view and explicit flushing is necessary.
- */
-static dma_addr_t sbus_map_page(struct device *dev, struct page *page,
-				unsigned long offset, size_t len,
-				enum dma_data_direction dir,
-				unsigned long attrs)
-{
-	void *va = page_address(page) + offset;
-
-	/* XXX why are some lengths signed, others unsigned? */
-	if (len <= 0) {
-		return 0;
-	}
-	/* XXX So what is maxphys for us and how do drivers know it? */
-	if (len > 256*1024) {			/* __get_free_pages() limit */
-		return 0;
-	}
-	return mmu_get_scsi_one(dev, va, len);
-}
-
-static void sbus_unmap_page(struct device *dev, dma_addr_t ba, size_t n,
-			    enum dma_data_direction dir, unsigned long attrs)
-{
-	mmu_release_scsi_one(dev, ba, n);
-}
-
-static int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n,
-		       enum dma_data_direction dir, unsigned long attrs)
-{
-	mmu_get_scsi_sgl(dev, sg, n);
-	return n;
-}
-
-static void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n,
-			  enum dma_data_direction dir, unsigned long attrs)
-{
-	mmu_release_scsi_sgl(dev, sg, n);
-}
-
-static void sbus_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
-				 int n,	enum dma_data_direction dir)
-{
-	BUG();
-}
-
-static void sbus_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
-				    int n, enum dma_data_direction dir)
-{
-	BUG();
-}
-
-static int sbus_dma_supported(struct device *dev, u64 mask)
-{
-	return 0;
-}
-
-static const struct dma_map_ops sbus_dma_ops = {
-	.alloc			= sbus_alloc_coherent,
-	.free			= sbus_free_coherent,
-	.map_page		= sbus_map_page,
-	.unmap_page		= sbus_unmap_page,
-	.map_sg			= sbus_map_sg,
-	.unmap_sg		= sbus_unmap_sg,
-	.sync_sg_for_cpu	= sbus_sync_sg_for_cpu,
-	.sync_sg_for_device	= sbus_sync_sg_for_device,
-	.dma_supported		= sbus_dma_supported,
-};
 
 static int __init sparc_register_ioport(void)
 {
@@ -438,45 +318,30 @@ arch_initcall(sparc_register_ioport);
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs)
 {
-	unsigned long len_total = PAGE_ALIGN(size);
+	unsigned long addr;
 	void *va;
-	struct resource *res;
-	int order;
 
-	if (size == 0) {
+	if (!size || size > 256 * 1024)	/* __get_free_pages() limit */
+		return NULL;
+
+	size = PAGE_ALIGN(size);
+	va = (void *) __get_free_pages(gfp | __GFP_ZERO, get_order(size));
+	if (!va) {
+		printk("%s: no %zd pages\n", __func__, size >> PAGE_SHIFT);
 		return NULL;
 	}
-	if (size > 256*1024) {			/* __get_free_pages() limit */
-		return NULL;
-	}
 
-	order = get_order(len_total);
-	va = (void *) __get_free_pages(gfp, order);
-	if (va == NULL) {
-		printk("%s: no %ld pages\n", __func__, len_total>>PAGE_SHIFT);
-		goto err_nopages;
-	}
-
-	if ((res = kzalloc(sizeof(struct resource), GFP_KERNEL)) == NULL) {
-		printk("%s: no core\n", __func__);
+	addr = sparc_dma_alloc_resource(dev, size);
+	if (!addr)
 		goto err_nomem;
-	}
 
-	if (allocate_resource(&_sparc_dvma, res, len_total,
-	    _sparc_dvma.start, _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
-		printk("%s: cannot occupy 0x%lx", __func__, len_total);
-		goto err_nova;
-	}
-	srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
+	srmmu_mapiorange(0, virt_to_phys(va), addr, size);
 
 	*dma_handle = virt_to_phys(va);
-	return (void *) res->start;
+	return (void *)addr;
 
-err_nova:
-	kfree(res);
 err_nomem:
-	free_pages((unsigned long)va, order);
-err_nopages:
+	free_pages((unsigned long)va, get_order(size));
 	return NULL;
 }
 
@@ -491,31 +356,11 @@ err_nopages:
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
-	struct resource *res;
-
-	if ((res = lookup_resource(&_sparc_dvma,
-	    (unsigned long)cpu_addr)) == NULL) {
-		printk("%s: cannot free %p\n", __func__, cpu_addr);
+	if (!sparc_dma_free_resource(cpu_addr, PAGE_ALIGN(size)))
 		return;
-	}
-
-	if (((unsigned long)cpu_addr & (PAGE_SIZE-1)) != 0) {
-		printk("%s: unaligned va %p\n", __func__, cpu_addr);
-		return;
-	}
-
-	size = PAGE_ALIGN(size);
-	if (resource_size(res) != size) {
-		printk("%s: region 0x%lx asked 0x%zx\n", __func__,
-		    (long)resource_size(res), size);
-		return;
-	}
 
 	dma_make_coherent(dma_addr, size);
 	srmmu_unmapiorange((unsigned long)cpu_addr, size);
-
-	release_resource(res);
-	kfree(res);
 	free_pages((unsigned long)phys_to_virt(dma_addr), get_order(size));
 }
 
@@ -528,7 +373,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		dma_make_coherent(paddr, PAGE_ALIGN(size));
 }
 
-const struct dma_map_ops *dma_ops = &sbus_dma_ops;
+const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 #ifdef CONFIG_PROC_FS

@@ -817,7 +817,7 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 	unsigned int pin;
 	int ret;
 
-	if (INTEL_INFO(dev_priv)->num_pipes == 0)
+	if (!HAS_DISPLAY(dev_priv))
 		return 0;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))

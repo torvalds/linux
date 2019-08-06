@@ -244,6 +244,65 @@ DEFINE_EVENT(net_dev_rx_verbose_template, netif_rx_ni_entry,
 	TP_ARGS(skb)
 );
 
+DECLARE_EVENT_CLASS(net_dev_rx_exit_template,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret),
+
+	TP_STRUCT__entry(
+		__field(int,	ret)
+	),
+
+	TP_fast_assign(
+		__entry->ret = ret;
+	),
+
+	TP_printk("ret=%d", __entry->ret)
+);
+
+DEFINE_EVENT(net_dev_rx_exit_template, napi_gro_frags_exit,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret)
+);
+
+DEFINE_EVENT(net_dev_rx_exit_template, napi_gro_receive_exit,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret)
+);
+
+DEFINE_EVENT(net_dev_rx_exit_template, netif_receive_skb_exit,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret)
+);
+
+DEFINE_EVENT(net_dev_rx_exit_template, netif_rx_exit,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret)
+);
+
+DEFINE_EVENT(net_dev_rx_exit_template, netif_rx_ni_exit,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret)
+);
+
+DEFINE_EVENT(net_dev_rx_exit_template, netif_receive_skb_list_exit,
+
+	TP_PROTO(int ret),
+
+	TP_ARGS(ret)
+);
+
 #endif /* _TRACE_NET_H */
 
 /* This part must be outside protection */

@@ -423,6 +423,7 @@ struct adc5_channels {
 	enum vadc_scale_fn_type scale_fn_type;
 };
 
+/* In these definitions, _pre refers to an index into adc5_prescale_ratios. */
 #define ADC5_CHAN(_dname, _type, _mask, _pre, _scale)			\
 	{								\
 		.datasheet_name = _dname,				\
@@ -443,63 +444,63 @@ struct adc5_channels {
 		  _pre, _scale)						\
 
 static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
-	[ADC5_REF_GND]		= ADC5_CHAN_VOLT("ref_gnd", 1,
+	[ADC5_REF_GND]		= ADC5_CHAN_VOLT("ref_gnd", 0,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 1,
+	[ADC5_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 0,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 3,
+	[ADC5_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 3,
+	[ADC5_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 1,
+	[ADC5_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
 					SCALE_HW_CALIB_PMIC_THERM)
-	[ADC5_USB_IN_I]		= ADC5_CHAN_VOLT("usb_in_i_uv", 1,
+	[ADC5_USB_IN_I]		= ADC5_CHAN_VOLT("usb_in_i_uv", 0,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_USB_IN_V_16]	= ADC5_CHAN_VOLT("usb_in_v_div_16", 16,
+	[ADC5_USB_IN_V_16]	= ADC5_CHAN_VOLT("usb_in_v_div_16", 8,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 1,
+	[ADC5_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
 					SCALE_HW_CALIB_PM5_CHG_TEMP)
 	/* Charger prescales SBUx and MID_CHG to fit within 1.8V upper unit */
-	[ADC5_SBUx]		= ADC5_CHAN_VOLT("chg_sbux", 3,
+	[ADC5_SBUx]		= ADC5_CHAN_VOLT("chg_sbux", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_MID_CHG_DIV6]	= ADC5_CHAN_VOLT("chg_mid_chg", 6,
+	[ADC5_MID_CHG_DIV6]	= ADC5_CHAN_VOLT("chg_mid_chg", 3,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm", 1,
+	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm", 0,
 					SCALE_HW_CALIB_XOTHERM)
-	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 1,
+	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 1,
+	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 1,
+	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM2]	= ADC5_CHAN_TEMP("amux_thm2", 1,
+	[ADC5_AMUX_THM2]	= ADC5_CHAN_TEMP("amux_thm2", 0,
 					SCALE_HW_CALIB_PM5_SMB_TEMP)
 };
 
 static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
-	[ADC5_REF_GND]		= ADC5_CHAN_VOLT("ref_gnd", 1,
+	[ADC5_REF_GND]		= ADC5_CHAN_VOLT("ref_gnd", 0,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 1,
+	[ADC5_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 0,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 3,
+	[ADC5_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 3,
+	[ADC5_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_VCOIN]		= ADC5_CHAN_VOLT("vcoin", 3,
+	[ADC5_VCOIN]		= ADC5_CHAN_VOLT("vcoin", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 1,
+	[ADC5_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
 					SCALE_HW_CALIB_PMIC_THERM)
-	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 1,
+	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 1,
+	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 1,
+	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_TEMP("amux_thm4_100k_pu", 1,
+	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_TEMP("amux_thm4_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_AMUX_THM5_100K_PU] = ADC5_CHAN_TEMP("amux_thm5_100k_pu", 1,
+	[ADC5_AMUX_THM5_100K_PU] = ADC5_CHAN_TEMP("amux_thm5_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
-	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm_100k_pu", 1,
+	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 };
 
@@ -558,6 +559,9 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 			return ret;
 		}
 		prop->prescale = ret;
+	} else {
+		prop->prescale =
+			adc->data->adc_chans[prop->channel].prescale_index;
 	}
 
 	ret = of_property_read_u32(node, "qcom,hw-settle-time", &value);

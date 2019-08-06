@@ -440,7 +440,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 			goto put_req;
 	}
 
-	rq->special = cmd;
+	ide_req(rq)->special = cmd;
 	cmd->rq = rq;
 
 	blk_execute_rq(drive->queue, NULL, rq, 0);

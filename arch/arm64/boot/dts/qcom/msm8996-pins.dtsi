@@ -495,4 +495,124 @@
 			bias-disable;
 		};
 	};
+
+	cci0_default: cci0_default {
+		pinmux {
+			function = "cci_i2c";
+			pins = "gpio17", "gpio18";
+		};
+		pinconf {
+			pins = "gpio17", "gpio18";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	cci1_default: cci1_default {
+		pinmux {
+			function = "cci_i2c";
+			pins = "gpio19", "gpio20";
+		};
+		pinconf {
+			pins = "gpio19", "gpio20";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	camera_board_default: camera_board_default {
+		mux_pwdn {
+			function = "gpio";
+			pins = "gpio98";
+		};
+		config_pwdn {
+			pins = "gpio98";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		mux_rst {
+			function = "gpio";
+			pins = "gpio104";
+		};
+		config_rst {
+			pins = "gpio104";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		mux_mclk1 {
+			function = "cam_mclk";
+			pins = "gpio14";
+		};
+		config_mclk1 {
+			pins = "gpio14";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	camera_front_default: camera_front_default {
+		mux_pwdn {
+			function = "gpio";
+			pins = "gpio133";
+		};
+		config_pwdn {
+			pins = "gpio133";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		mux_rst {
+			function = "gpio";
+			pins = "gpio23";
+		};
+		config_rst {
+			pins = "gpio23";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		mux_mclk2 {
+			function = "cam_mclk";
+			pins = "gpio15";
+		};
+		config_mclk2 {
+			pins = "gpio15";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	camera_rear_default: camera_rear_default {
+		mux_pwdn {
+			function = "gpio";
+			pins = "gpio26";
+		};
+		config_pwdn {
+			pins = "gpio26";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		mux_rst {
+			function = "gpio";
+			pins = "gpio25";
+		};
+		config_rst {
+			pins = "gpio25";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		mux_mclk0 {
+			function = "cam_mclk";
+			pins = "gpio13";
+		};
+		config_mclk0 {
+			pins = "gpio13";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
 };

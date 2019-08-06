@@ -392,11 +392,6 @@ static inline struct ft_tpg *ft_tpg(struct se_portal_group *se_tpg)
 	return container_of(se_tpg, struct ft_tpg, se_tpg);
 }
 
-static char *ft_get_fabric_name(void)
-{
-	return "fc";
-}
-
 static char *ft_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	return ft_tpg(se_tpg)->lport_wwn->name;
@@ -427,9 +422,8 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 
 static const struct target_core_fabric_ops ft_fabric_ops = {
 	.module =			THIS_MODULE,
-	.name =				"fc",
+	.fabric_name =			"fc",
 	.node_acl_size =		sizeof(struct ft_node_acl),
-	.get_fabric_name =		ft_get_fabric_name,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
 	.tpg_check_demo_mode =		ft_check_false,

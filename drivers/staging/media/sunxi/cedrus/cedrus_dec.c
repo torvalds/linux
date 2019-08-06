@@ -26,9 +26,8 @@ void cedrus_device_run(void *priv)
 {
 	struct cedrus_ctx *ctx = priv;
 	struct cedrus_dev *dev = ctx->dev;
-	struct cedrus_run run = { 0 };
+	struct cedrus_run run = {};
 	struct media_request *src_req;
-	unsigned long flags;
 
 	run.src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	run.dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -38,8 +37,6 @@ void cedrus_device_run(void *priv)
 
 	if (src_req)
 		v4l2_ctrl_request_setup(src_req, &ctx->hdl);
-
-	spin_lock_irqsave(&ctx->dev->irq_lock, flags);
 
 	switch (ctx->src_fmt.pixelformat) {
 	case V4L2_PIX_FMT_MPEG2_SLICE:
@@ -55,16 +52,10 @@ void cedrus_device_run(void *priv)
 
 	dev->dec_ops[ctx->current_codec]->setup(ctx, &run);
 
-	spin_unlock_irqrestore(&ctx->dev->irq_lock, flags);
-
 	/* Complete request(s) controls if needed. */
 
 	if (src_req)
 		v4l2_ctrl_request_complete(src_req, &ctx->hdl);
 
-	spin_lock_irqsave(&ctx->dev->irq_lock, flags);
-
 	dev->dec_ops[ctx->current_codec]->trigger(ctx);
-
-	spin_unlock_irqrestore(&ctx->dev->irq_lock, flags);
 }

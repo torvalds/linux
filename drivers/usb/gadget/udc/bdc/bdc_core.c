@@ -172,8 +172,9 @@ static int scratchpad_setup(struct bdc *bdc)
 	/* Refer to BDC spec, Table 4 for description of SPB */
 	sp_buff_size = 1 << (sp_buff_size + 5);
 	dev_dbg(bdc->dev, "Allocating %d bytes for scratchpad\n", sp_buff_size);
-	bdc->scratchpad.buff  =  dma_zalloc_coherent(bdc->dev, sp_buff_size,
-					&bdc->scratchpad.sp_dma, GFP_KERNEL);
+	bdc->scratchpad.buff  =  dma_alloc_coherent(bdc->dev, sp_buff_size,
+						    &bdc->scratchpad.sp_dma,
+						    GFP_KERNEL);
 
 	if (!bdc->scratchpad.buff)
 		goto fail;
@@ -202,11 +203,9 @@ static int setup_srr(struct bdc *bdc, int interrupter)
 	bdc_writel(bdc->regs, BDC_SRRINT(0), BDC_SRR_RWS | BDC_SRR_RST);
 	bdc->srr.dqp_index = 0;
 	/* allocate the status report descriptors */
-	bdc->srr.sr_bds = dma_zalloc_coherent(
-					bdc->dev,
-					NUM_SR_ENTRIES * sizeof(struct bdc_bd),
-					&bdc->srr.dma_addr,
-					GFP_KERNEL);
+	bdc->srr.sr_bds = dma_alloc_coherent(bdc->dev,
+					     NUM_SR_ENTRIES * sizeof(struct bdc_bd),
+					     &bdc->srr.dma_addr, GFP_KERNEL);
 	if (!bdc->srr.sr_bds)
 		return -ENOMEM;
 

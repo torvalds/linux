@@ -16,4 +16,4 @@ oprofile-$(CONFIG_OPROFILE_CELL) += op_model_cell.o \
 		cell/spu_task_sync.o
 oprofile-$(CONFIG_PPC_BOOK3S_64) += op_model_power4.o op_model_pa6t.o
 oprofile-$(CONFIG_FSL_EMB_PERFMON) += op_model_fsl_emb.o
-oprofile-$(CONFIG_6xx) += op_model_7450.o
+oprofile-$(CONFIG_PPC_BOOK3S_32) += op_model_7450.o

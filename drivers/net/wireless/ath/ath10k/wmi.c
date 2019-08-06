@@ -539,6 +539,7 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 		WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
 	.radar_found_cmdid = WMI_CMD_UNSUPPORTED,
+	.set_bb_timing_cmdid = WMI_10_2_PDEV_SET_BB_TIMING_CONFIG_CMDID,
 };
 
 /* 10.4 WMI cmd track */
@@ -825,6 +826,7 @@ static struct wmi_vdev_param_map wmi_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.disable_4addr_src_lrn = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 /* 10.X WMI VDEV param map */
@@ -900,6 +902,7 @@ static struct wmi_vdev_param_map wmi_10x_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.disable_4addr_src_lrn = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
@@ -974,6 +977,7 @@ static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.disable_4addr_src_lrn = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
@@ -1051,6 +1055,7 @@ static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
 	.bw_nss_ratemask = WMI_10_4_VDEV_PARAM_BW_NSS_RATEMASK,
 	.inc_tsf = WMI_10_4_VDEV_PARAM_TSF_INCREMENT,
 	.dec_tsf = WMI_10_4_VDEV_PARAM_TSF_DECREMENT,
+	.disable_4addr_src_lrn = WMI_10_4_VDEV_PARAM_DISABLE_4_ADDR_SRC_LRN,
 };
 
 static struct wmi_pdev_param_map wmi_pdev_param_map = {
@@ -2554,12 +2559,89 @@ static int ath10k_wmi_10_4_op_pull_ch_info_ev(struct ath10k *ar,
 	return 0;
 }
 
+/*
+ * Handle the channel info event for firmware which only sends one
+ * chan_info event per scanned channel.
+ */
+static void ath10k_wmi_event_chan_info_unpaired(struct ath10k *ar,
+						struct chan_info_params *params)
+{
+	struct survey_info *survey;
+	int idx;
+
+	if (params->cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
+		ath10k_dbg(ar, ATH10K_DBG_WMI, "chan info report completed\n");
+		return;
+	}
+
+	idx = freq_to_idx(ar, params->freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn(ar, "chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    params->freq, idx);
+		return;
+	}
+
+	survey = &ar->survey[idx];
+
+	if (!params->mac_clk_mhz)
+		return;
+
+	memset(survey, 0, sizeof(*survey));
+
+	survey->noise = params->noise_floor;
+	survey->time = (params->cycle_count / params->mac_clk_mhz) / 1000;
+	survey->time_busy = (params->rx_clear_count / params->mac_clk_mhz) / 1000;
+	survey->filled |= SURVEY_INFO_NOISE_DBM | SURVEY_INFO_TIME |
+			  SURVEY_INFO_TIME_BUSY;
+}
+
+/*
+ * Handle the channel info event for firmware which sends chan_info
+ * event in pairs(start and stop events) for every scanned channel.
+ */
+static void ath10k_wmi_event_chan_info_paired(struct ath10k *ar,
+					      struct chan_info_params *params)
+{
+	struct survey_info *survey;
+	int idx;
+
+	idx = freq_to_idx(ar, params->freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn(ar, "chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    params->freq, idx);
+		return;
+	}
+
+	if (params->cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
+		if (ar->ch_info_can_report_survey) {
+			survey = &ar->survey[idx];
+			survey->noise = params->noise_floor;
+			survey->filled = SURVEY_INFO_NOISE_DBM;
+
+			ath10k_hw_fill_survey_time(ar,
+						   survey,
+						   params->cycle_count,
+						   params->rx_clear_count,
+						   ar->survey_last_cycle_count,
+						   ar->survey_last_rx_clear_count);
+		}
+
+		ar->ch_info_can_report_survey = false;
+	} else {
+		ar->ch_info_can_report_survey = true;
+	}
+
+	if (!(params->cmd_flags & WMI_CHAN_INFO_FLAG_PRE_COMPLETE)) {
+		ar->survey_last_rx_clear_count = params->rx_clear_count;
+		ar->survey_last_cycle_count = params->cycle_count;
+	}
+}
+
 void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 {
+	struct chan_info_params ch_info_param;
 	struct wmi_ch_info_ev_arg arg = {};
-	struct survey_info *survey;
-	u32 err_code, freq, cmd_flags, noise_floor, rx_clear_count, cycle_count;
-	int idx, ret;
+	int ret;
 
 	ret = ath10k_wmi_pull_ch_info(ar, skb, &arg);
 	if (ret) {
@@ -2567,17 +2649,19 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	}
 
-	err_code = __le32_to_cpu(arg.err_code);
-	freq = __le32_to_cpu(arg.freq);
-	cmd_flags = __le32_to_cpu(arg.cmd_flags);
-	noise_floor = __le32_to_cpu(arg.noise_floor);
-	rx_clear_count = __le32_to_cpu(arg.rx_clear_count);
-	cycle_count = __le32_to_cpu(arg.cycle_count);
+	ch_info_param.err_code = __le32_to_cpu(arg.err_code);
+	ch_info_param.freq = __le32_to_cpu(arg.freq);
+	ch_info_param.cmd_flags = __le32_to_cpu(arg.cmd_flags);
+	ch_info_param.noise_floor = __le32_to_cpu(arg.noise_floor);
+	ch_info_param.rx_clear_count = __le32_to_cpu(arg.rx_clear_count);
+	ch_info_param.cycle_count = __le32_to_cpu(arg.cycle_count);
+	ch_info_param.mac_clk_mhz = __le32_to_cpu(arg.mac_clk_mhz);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "chan info err_code %d freq %d cmd_flags %d noise_floor %d rx_clear_count %d cycle_count %d\n",
-		   err_code, freq, cmd_flags, noise_floor, rx_clear_count,
-		   cycle_count);
+		   ch_info_param.err_code, ch_info_param.freq, ch_info_param.cmd_flags,
+		   ch_info_param.noise_floor, ch_info_param.rx_clear_count,
+		   ch_info_param.cycle_count);
 
 	spin_lock_bh(&ar->data_lock);
 
@@ -2591,36 +2675,11 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 
-	idx = freq_to_idx(ar, freq);
-	if (idx >= ARRAY_SIZE(ar->survey)) {
-		ath10k_warn(ar, "chan info: invalid frequency %d (idx %d out of bounds)\n",
-			    freq, idx);
-		goto exit;
-	}
-
-	if (cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
-		if (ar->ch_info_can_report_survey) {
-			survey = &ar->survey[idx];
-			survey->noise = noise_floor;
-			survey->filled = SURVEY_INFO_NOISE_DBM;
-
-			ath10k_hw_fill_survey_time(ar,
-						   survey,
-						   cycle_count,
-						   rx_clear_count,
-						   ar->survey_last_cycle_count,
-						   ar->survey_last_rx_clear_count);
-		}
-
-		ar->ch_info_can_report_survey = false;
-	} else {
-		ar->ch_info_can_report_survey = true;
-	}
-
-	if (!(cmd_flags & WMI_CHAN_INFO_FLAG_PRE_COMPLETE)) {
-		ar->survey_last_rx_clear_count = rx_clear_count;
-		ar->survey_last_cycle_count = cycle_count;
-	}
+	if (test_bit(ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL,
+		     ar->running_fw->fw_file.fw_features))
+		ath10k_wmi_event_chan_info_unpaired(ar, &ch_info_param);
+	else
+		ath10k_wmi_event_chan_info_paired(ar, &ch_info_param);
 
 exit:
 	spin_unlock_bh(&ar->data_lock);
@@ -5134,7 +5193,7 @@ static int ath10k_wmi_alloc_chunk(struct ath10k *ar, u32 req_id,
 	void *vaddr;
 
 	pool_size = num_units * round_up(unit_len, 4);
-	vaddr = dma_zalloc_coherent(ar->dev, pool_size, &paddr, GFP_KERNEL);
+	vaddr = dma_alloc_coherent(ar->dev, pool_size, &paddr, GFP_KERNEL);
 
 	if (!vaddr)
 		return -ENOMEM;
@@ -8785,6 +8844,27 @@ ath10k_wmi_barrier(struct ath10k *ar)
 	return 0;
 }
 
+static struct sk_buff *
+ath10k_wmi_10_2_4_op_gen_bb_timing(struct ath10k *ar,
+				   const struct wmi_bb_timing_cfg_arg *arg)
+{
+	struct wmi_pdev_bb_timing_cfg_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_pdev_bb_timing_cfg_cmd *)skb->data;
+	cmd->bb_tx_timing = __cpu_to_le32(arg->bb_tx_timing);
+	cmd->bb_xpa_timing = __cpu_to_le32(arg->bb_xpa_timing);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi pdev bb_tx_timing 0x%x bb_xpa_timing 0x%x\n",
+		   arg->bb_tx_timing, arg->bb_xpa_timing);
+	return skb;
+}
+
 static const struct wmi_ops wmi_ops = {
 	.rx = ath10k_wmi_op_rx,
 	.map_svc = wmi_main_svc_map,
@@ -9058,6 +9138,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.gen_pdev_enable_adaptive_cca =
 		ath10k_wmi_op_gen_pdev_enable_adaptive_cca,
 	.get_vdev_subtype = ath10k_wmi_10_2_4_op_get_vdev_subtype,
+	.gen_bb_timing = ath10k_wmi_10_2_4_op_gen_bb_timing,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */

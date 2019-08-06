@@ -822,9 +822,9 @@ static int ccp5_init(struct ccp_device *ccp)
 		/* Page alignment satisfies our needs for N <= 128 */
 		BUILD_BUG_ON(COMMANDS_PER_QUEUE > 128);
 		cmd_q->qsize = Q_SIZE(Q_DESC_SIZE);
-		cmd_q->qbase = dma_zalloc_coherent(dev, cmd_q->qsize,
-						   &cmd_q->qbase_dma,
-						   GFP_KERNEL);
+		cmd_q->qbase = dma_alloc_coherent(dev, cmd_q->qsize,
+						  &cmd_q->qbase_dma,
+						  GFP_KERNEL);
 		if (!cmd_q->qbase) {
 			dev_err(dev, "unable to allocate command queue\n");
 			ret = -ENOMEM;

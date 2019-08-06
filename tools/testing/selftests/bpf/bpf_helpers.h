@@ -113,6 +113,8 @@ static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_pull_data;
 static int (*bpf_msg_push_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_push_data;
+static int (*bpf_msg_pop_data)(void *ctx, int start, int cut, int flags) =
+	(void *) BPF_FUNC_msg_pop_data;
 static int (*bpf_bind)(void *ctx, void *addr, int addr_len) =
 	(void *) BPF_FUNC_bind;
 static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =
@@ -168,6 +170,8 @@ static int (*bpf_skb_vlan_push)(void *ctx, __be16 vlan_proto, __u16 vlan_tci) =
 	(void *) BPF_FUNC_skb_vlan_push;
 static int (*bpf_skb_vlan_pop)(void *ctx) =
 	(void *) BPF_FUNC_skb_vlan_pop;
+static int (*bpf_rc_pointer_rel)(void *ctx, int rel_x, int rel_y) =
+	(void *) BPF_FUNC_rc_pointer_rel;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

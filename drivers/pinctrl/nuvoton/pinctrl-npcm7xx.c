@@ -1799,19 +1799,12 @@ static int npcm7xx_config_set_one(struct npcm7xx_pinctrl *npcm,
 		npcm_gpio_set(&bank->gc, bank->base + NPCM7XX_GP_N_PU, gpio);
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		if (arg) {
-			iowrite32(gpio, bank->base + NPCM7XX_GP_N_OEC);
-			npcm_gpio_set(&bank->gc, bank->base + NPCM7XX_GP_N_IEM,
-				      gpio);
-		} else
-			npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_IEM,
-				      gpio);
+		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OEC);
+		bank->direction_input(&bank->gc, pin % bank->gc.ngpio);
 		break;
 	case PIN_CONFIG_OUTPUT:
-		npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_IEM, gpio);
-		iowrite32(gpio, arg ? bank->base + NPCM7XX_GP_N_DOS :
-			  bank->base + NPCM7XX_GP_N_DOC);
 		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OES);
+		bank->direction_output(&bank->gc, pin % bank->gc.ngpio, arg);
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_OTYP, gpio);
@@ -1932,6 +1925,9 @@ static int npcm7xx_gpio_of(struct npcm7xx_pinctrl *pctrl)
 			pctrl->gpio_bank[id].gc.label =
 				devm_kasprintf(pctrl->dev, GFP_KERNEL, "%pOF",
 					       np);
+			if (pctrl->gpio_bank[id].gc.label == NULL)
+				return -ENOMEM;
+
 			pctrl->gpio_bank[id].gc.dbg_show = npcmgpio_dbg_show;
 			pctrl->gpio_bank[id].direction_input =
 				pctrl->gpio_bank[id].gc.direction_input;

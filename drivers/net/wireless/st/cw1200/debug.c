@@ -289,19 +289,7 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int cw1200_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, &cw1200_status_show,
-		inode->i_private);
-}
-
-static const struct file_operations fops_status = {
-	.open = cw1200_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(cw1200_status);
 
 static int cw1200_counters_show(struct seq_file *seq, void *v)
 {
@@ -345,19 +333,7 @@ static int cw1200_counters_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int cw1200_counters_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, &cw1200_counters_show,
-		inode->i_private);
-}
-
-static const struct file_operations fops_counters = {
-	.open = cw1200_counters_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(cw1200_counters);
 
 static ssize_t cw1200_wsm_dumps(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
@@ -399,11 +375,11 @@ int cw1200_debug_init(struct cw1200_common *priv)
 		goto err;
 
 	if (!debugfs_create_file("status", 0400, d->debugfs_phy,
-				 priv, &fops_status))
+				 priv, &cw1200_status_fops))
 		goto err;
 
 	if (!debugfs_create_file("counters", 0400, d->debugfs_phy,
-				 priv, &fops_counters))
+				 priv, &cw1200_counters_fops))
 		goto err;
 
 	if (!debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy,

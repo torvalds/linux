@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/kernel/time/timekeeping.c
- *
- *  Kernel timekeeping code and accessor functions
- *
- *  This code was moved from linux/kernel/timer.c.
- *  Please see that file for copyright and history logs.
- *
+ *  Kernel timekeeping code and accessor functions. Based on code from
+ *  timer.c, moved in commit 8524070b7982.
  */
-
 #include <linux/timekeeper_internal.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -50,7 +45,9 @@ enum timekeeping_adv_mode {
 static struct {
 	seqcount_t		seq;
 	struct timekeeper	timekeeper;
-} tk_core ____cacheline_aligned;
+} tk_core ____cacheline_aligned = {
+	.seq = SEQCNT_ZERO(tk_core.seq),
+};
 
 static DEFINE_RAW_SPINLOCK(timekeeper_lock);
 static struct timekeeper shadow_timekeeper;
@@ -1467,7 +1464,7 @@ u64 timekeeping_max_deferment(void)
 }
 
 /**
- * read_persistent_clock -  Return time from the persistent clock.
+ * read_persistent_clock64 -  Return time from the persistent clock.
  *
  * Weak dummy function for arches that do not yet support it.
  * Reads the time from the battery backed persistent clock.
@@ -1475,18 +1472,10 @@ u64 timekeeping_max_deferment(void)
  *
  *  XXX - Do be sure to remove it once all arches implement it.
  */
-void __weak read_persistent_clock(struct timespec *ts)
+void __weak read_persistent_clock64(struct timespec64 *ts)
 {
 	ts->tv_sec = 0;
 	ts->tv_nsec = 0;
-}
-
-void __weak read_persistent_clock64(struct timespec64 *ts64)
-{
-	struct timespec ts;
-
-	read_persistent_clock(&ts);
-	*ts64 = timespec_to_timespec64(ts);
 }
 
 /**

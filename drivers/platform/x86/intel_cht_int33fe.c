@@ -79,7 +79,7 @@ static const struct property_entry max17047_props[] = {
 };
 
 static const struct property_entry fusb302_props[] = {
-	PROPERTY_ENTRY_STRING("fcs,extcon-name", "cht_wcove_pwrsrc"),
+	PROPERTY_ENTRY_STRING("linux,extcon-name", "cht_wcove_pwrsrc"),
 	PROPERTY_ENTRY_U32("fcs,max-sink-microvolt", 12000000),
 	PROPERTY_ENTRY_U32("fcs,max-sink-microamp",   3000000),
 	PROPERTY_ENTRY_U32("fcs,max-sink-microwatt", 36000000),
@@ -168,8 +168,8 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 		board_info.dev_name = "max17047";
 		board_info.properties = max17047_props;
 		data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
-		if (!data->max17047)
-			return -EPROBE_DEFER; /* Wait for i2c-adapter to load */
+		if (IS_ERR(data->max17047))
+			return PTR_ERR(data->max17047);
 	}
 
 	data->connections[0].endpoint[0] = "port0";
@@ -194,16 +194,20 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 	board_info.irq = fusb302_irq;
 
 	data->fusb302 = i2c_acpi_new_device(dev, 2, &board_info);
-	if (!data->fusb302)
+	if (IS_ERR(data->fusb302)) {
+		ret = PTR_ERR(data->fusb302);
 		goto out_unregister_max17047;
+	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
 	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
-	if (!data->pi3usb30532)
+	if (IS_ERR(data->pi3usb30532)) {
+		ret = PTR_ERR(data->pi3usb30532);
 		goto out_unregister_fusb302;
+	}
 
 	platform_set_drvdata(pdev, data);
 
@@ -213,12 +217,11 @@ out_unregister_fusb302:
 	i2c_unregister_device(data->fusb302);
 
 out_unregister_max17047:
-	if (data->max17047)
-		i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->max17047);
 
 	device_connections_remove(data->connections);
 
-	return -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
+	return ret;
 }
 
 static int cht_int33fe_remove(struct platform_device *pdev)
@@ -227,8 +230,7 @@ static int cht_int33fe_remove(struct platform_device *pdev)
 
 	i2c_unregister_device(data->pi3usb30532);
 	i2c_unregister_device(data->fusb302);
-	if (data->max17047)
-		i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->max17047);
 
 	device_connections_remove(data->connections);
 

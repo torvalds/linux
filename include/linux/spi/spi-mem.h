@@ -57,10 +57,12 @@
 /**
  * enum spi_mem_data_dir - describes the direction of a SPI memory data
  *			   transfer from the controller perspective
+ * @SPI_MEM_NO_DATA: no data transferred
  * @SPI_MEM_DATA_IN: data coming from the SPI memory
- * @SPI_MEM_DATA_OUT: data sent the SPI memory
+ * @SPI_MEM_DATA_OUT: data sent to the SPI memory
  */
 enum spi_mem_data_dir {
+	SPI_MEM_NO_DATA,
 	SPI_MEM_DATA_IN,
 	SPI_MEM_DATA_OUT,
 };
@@ -123,6 +125,49 @@ struct spi_mem_op {
 	}
 
 /**
+ * struct spi_mem_dirmap_info - Direct mapping information
+ * @op_tmpl: operation template that should be used by the direct mapping when
+ *	     the memory device is accessed
+ * @offset: absolute offset this direct mapping is pointing to
+ * @length: length in byte of this direct mapping
+ *
+ * These information are used by the controller specific implementation to know
+ * the portion of memory that is directly mapped and the spi_mem_op that should
+ * be used to access the device.
+ * A direct mapping is only valid for one direction (read or write) and this
+ * direction is directly encoded in the ->op_tmpl.data.dir field.
+ */
+struct spi_mem_dirmap_info {
+	struct spi_mem_op op_tmpl;
+	u64 offset;
+	u64 length;
+};
+
+/**
+ * struct spi_mem_dirmap_desc - Direct mapping descriptor
+ * @mem: the SPI memory device this direct mapping is attached to
+ * @info: information passed at direct mapping creation time
+ * @nodirmap: set to 1 if the SPI controller does not implement
+ *	      ->mem_ops->dirmap_create() or when this function returned an
+ *	      error. If @nodirmap is true, all spi_mem_dirmap_{read,write}()
+ *	      calls will use spi_mem_exec_op() to access the memory. This is a
+ *	      degraded mode that allows spi_mem drivers to use the same code
+ *	      no matter whether the controller supports direct mapping or not
+ * @priv: field pointing to controller specific data
+ *
+ * Common part of a direct mapping descriptor. This object is created by
+ * spi_mem_dirmap_create() and controller implementation of ->create_dirmap()
+ * can create/attach direct mapping resources to the descriptor in the ->priv
+ * field.
+ */
+struct spi_mem_dirmap_desc {
+	struct spi_mem *mem;
+	struct spi_mem_dirmap_info info;
+	unsigned int nodirmap;
+	void *priv;
+};
+
+/**
  * struct spi_mem - describes a SPI memory device
  * @spi: the underlying SPI device
  * @drvpriv: spi_mem_driver private data
@@ -177,10 +222,32 @@ static inline void *spi_mem_get_drvdata(struct spi_mem *mem)
  *	      Note that if the implementation of this function allocates memory
  *	      dynamically, then it should do so with devm_xxx(), as we don't
  *	      have a ->free_name() function.
+ * @dirmap_create: create a direct mapping descriptor that can later be used to
+ *		   access the memory device. This method is optional
+ * @dirmap_destroy: destroy a memory descriptor previous created by
+ *		    ->dirmap_create()
+ * @dirmap_read: read data from the memory device using the direct mapping
+ *		 created by ->dirmap_create(). The function can return less
+ *		 data than requested (for example when the request is crossing
+ *		 the currently mapped area), and the caller of
+ *		 spi_mem_dirmap_read() is responsible for calling it again in
+ *		 this case.
+ * @dirmap_write: write data to the memory device using the direct mapping
+ *		  created by ->dirmap_create(). The function can return less
+ *		  data than requested (for example when the request is crossing
+ *		  the currently mapped area), and the caller of
+ *		  spi_mem_dirmap_write() is responsible for calling it again in
+ *		  this case.
  *
  * This interface should be implemented by SPI controllers providing an
  * high-level interface to execute SPI memory operation, which is usually the
  * case for QSPI controllers.
+ *
+ * Note on ->dirmap_{read,write}(): drivers should avoid accessing the direct
+ * mapping from the CPU because doing that can stall the CPU waiting for the
+ * SPI mem transaction to finish, and this will make real-time maintainers
+ * unhappy and might make your system less reactive. Instead, drivers should
+ * use DMA to access this direct mapping.
  */
 struct spi_controller_mem_ops {
 	int (*adjust_op_size)(struct spi_mem *mem, struct spi_mem_op *op);
@@ -189,6 +256,12 @@ struct spi_controller_mem_ops {
 	int (*exec_op)(struct spi_mem *mem,
 		       const struct spi_mem_op *op);
 	const char *(*get_name)(struct spi_mem *mem);
+	int (*dirmap_create)(struct spi_mem_dirmap_desc *desc);
+	void (*dirmap_destroy)(struct spi_mem_dirmap_desc *desc);
+	ssize_t (*dirmap_read)(struct spi_mem_dirmap_desc *desc,
+			       u64 offs, size_t len, void *buf);
+	ssize_t (*dirmap_write)(struct spi_mem_dirmap_desc *desc,
+				u64 offs, size_t len, const void *buf);
 };
 
 /**
@@ -248,6 +321,15 @@ int spi_mem_exec_op(struct spi_mem *mem,
 		    const struct spi_mem_op *op);
 
 const char *spi_mem_get_name(struct spi_mem *mem);
+
+struct spi_mem_dirmap_desc *
+spi_mem_dirmap_create(struct spi_mem *mem,
+		      const struct spi_mem_dirmap_info *info);
+void spi_mem_dirmap_destroy(struct spi_mem_dirmap_desc *desc);
+ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
+			    u64 offs, size_t len, void *buf);
+ssize_t spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
+			     u64 offs, size_t len, const void *buf);
 
 int spi_mem_driver_register_with_owner(struct spi_mem_driver *drv,
 				       struct module *owner);

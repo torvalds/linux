@@ -7,60 +7,43 @@ int kstack_depth_to_print = 48;
 
 void show_trace(unsigned long *stack)
 {
-	unsigned long *endstack;
+	unsigned long *stack_end;
+	unsigned long *stack_start;
+	unsigned long *fp;
 	unsigned long addr;
-	int i;
 
-	pr_info("Call Trace:\n");
-	addr = (unsigned long)stack + THREAD_SIZE - 1;
-	endstack = (unsigned long *)(addr & -THREAD_SIZE);
-	i = 0;
-	while (stack + 1 <= endstack) {
-		addr = *stack++;
-		/*
-		 * If the address is either in the text segment of the
-		 * kernel, or in the region which contains vmalloc'ed
-		 * memory, it *may* be the address of a calling
-		 * routine; if so, print it so that someone tracing
-		 * down the cause of the crash will be able to figure
-		 * out the call path that was taken.
-		 */
-		if (__kernel_text_address(addr)) {
-#ifndef CONFIG_KALLSYMS
-			if (i % 5 == 0)
-				pr_cont("\n       ");
+	addr = (unsigned long) stack & THREAD_MASK;
+	stack_start = (unsigned long *) addr;
+	stack_end = (unsigned long *) (addr + THREAD_SIZE);
+
+	fp = stack;
+	pr_info("\nCall Trace:");
+
+	while (fp > stack_start && fp < stack_end) {
+#ifdef CONFIG_STACKTRACE
+		addr	= fp[1];
+		fp	= (unsigned long *) fp[0];
+#else
+		addr	= *fp++;
 #endif
-			pr_cont(" [<%08lx>] %pS\n", addr, (void *)addr);
-			i++;
-		}
+		if (__kernel_text_address(addr))
+			pr_cont("\n[<%08lx>] %pS", addr, (void *)addr);
 	}
 	pr_cont("\n");
 }
 
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
-	unsigned long *p;
-	unsigned long *endstack;
-	int i;
-
 	if (!stack) {
 		if (task)
-			stack = (unsigned long *)task->thread.esp0;
+			stack = (unsigned long *)thread_saved_fp(task);
 		else
+#ifdef CONFIG_STACKTRACE
+			asm volatile("mov %0, r8\n":"=r"(stack)::"memory");
+#else
 			stack = (unsigned long *)&stack;
+#endif
 	}
-	endstack = (unsigned long *)
-		(((unsigned long)stack + THREAD_SIZE - 1) & -THREAD_SIZE);
 
-	pr_info("Stack from %08lx:", (unsigned long)stack);
-	p = stack;
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (p + 1 > endstack)
-			break;
-		if (i % 8 == 0)
-			pr_cont("\n       ");
-		pr_cont(" %08lx", *p++);
-	}
-	pr_cont("\n");
 	show_trace(stack);
 }

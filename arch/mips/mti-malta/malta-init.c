@@ -118,8 +118,6 @@ phys_addr_t mips_cpc_default_phys_base(void)
 
 void __init prom_init(void)
 {
-	mips_display_message("LINUX");
-
 	/*
 	 * early setup of _pcictrl_bonito so that we can determine
 	 * the system controller on a CORE_EMUL board
@@ -277,7 +275,6 @@ mips_pci_controller:
 
 	default:
 		/* Unknown system controller */
-		mips_display_message("SC Error");
 		while (1);	/* We die here... */
 	}
 	board_nmi_handler_setup = mips_nmi_setup;

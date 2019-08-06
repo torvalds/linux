@@ -104,6 +104,7 @@
 
 /* U3D_EPISR */
 #define EPRISR(x)		(BIT(16) << (x))
+#define SETUPENDISR		BIT(16)
 #define EPTISR(x)		(BIT(0) << (x))
 #define EP0ISR			BIT(0)
 
@@ -267,6 +268,8 @@
 #define U3D_LTSSM_INTR_ENABLE	(SSUSB_USB3_MAC_CSR_BASE + 0x013C)
 #define U3D_LTSSM_INTR		(SSUSB_USB3_MAC_CSR_BASE + 0x0140)
 
+#define U3D_U3U2_SWITCH_CTRL	(SSUSB_USB3_MAC_CSR_BASE + 0x0170)
+
 /*---------------- SSUSB_USB3_MAC_CSR FIELD DEFINITION ----------------*/
 
 /* U3D_LTSSM_CTRL */
@@ -300,6 +303,9 @@
 #define COMPLIANCE_INTR		BIT(2)
 #define SS_DISABLE_INTR		BIT(1)
 #define SS_INACTIVE_INTR	BIT(0)
+
+/* U3D_U3U2_SWITCH_CTRL */
+#define SOFTCON_CLR_AUTO_EN	BIT(0)
 
 /*---------------- SSUSB_USB3_SYS_CSR REGISTER DEFINITION ----------------*/
 

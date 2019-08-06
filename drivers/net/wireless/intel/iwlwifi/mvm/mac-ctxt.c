@@ -767,13 +767,8 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	}
 
 	ctxt_sta->bi = cpu_to_le32(vif->bss_conf.beacon_int);
-	ctxt_sta->bi_reciprocal =
-		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int));
 	ctxt_sta->dtim_interval = cpu_to_le32(vif->bss_conf.beacon_int *
 					      vif->bss_conf.dtim_period);
-	ctxt_sta->dtim_reciprocal =
-		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int *
-					       vif->bss_conf.dtim_period));
 
 	ctxt_sta->listen_interval = cpu_to_le32(mvm->hw->conf.listen_interval);
 	ctxt_sta->assoc_id = cpu_to_le32(vif->bss_conf.aid);
@@ -782,8 +777,30 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	if (vif->bss_conf.assoc && vif->bss_conf.he_support &&
-	    !iwlwifi_mod_params.disable_11ax)
+	    !iwlwifi_mod_params.disable_11ax) {
+		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		u8 sta_id = mvmvif->ap_sta_id;
+
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
+		if (sta_id != IWL_MVM_INVALID_STA) {
+			struct ieee80211_sta *sta;
+
+			sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
+				lockdep_is_held(&mvm->mutex));
+
+			/*
+			 * TODO: we should check the ext cap IE but it is
+			 * unclear why the spec requires two bits (one in HE
+			 * cap IE, and one in the ext cap IE). In the meantime
+			 * rely on the HE cap IE only.
+			 */
+			if (sta && (sta->he_cap.he_cap_elem.mac_cap_info[0] &
+				    IEEE80211_HE_MAC_CAP0_TWT_RES))
+				ctxt_sta->data_policy |=
+					cpu_to_le32(TWT_SUPPORTED);
+		}
+	}
+
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -832,8 +849,6 @@ static int iwl_mvm_mac_ctxt_cmd_ibss(struct iwl_mvm *mvm,
 
 	/* cmd.ibss.beacon_time/cmd.ibss.beacon_tsf are curently ignored */
 	cmd.ibss.bi = cpu_to_le32(vif->bss_conf.beacon_int);
-	cmd.ibss.bi_reciprocal =
-		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int));
 
 	/* TODO: Assumes that the beacon id == mac context id */
 	cmd.ibss.beacon_template = cpu_to_le32(mvmvif->id);
@@ -965,11 +980,8 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 	tx->tx_flags = cpu_to_le32(tx_flags);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
-			 IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION)) {
-		mvm->mgmt_last_antenna_idx =
-			iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
-					     mvm->mgmt_last_antenna_idx);
-	}
+			 IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION))
+		iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
 
 	tx->rate_n_flags =
 		cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
@@ -1182,14 +1194,12 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 		IWL_DEBUG_HC(mvm, "No need to receive beacons\n");
 	}
 
+	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax)
+		cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
+
 	ctxt_ap->bi = cpu_to_le32(vif->bss_conf.beacon_int);
-	ctxt_ap->bi_reciprocal =
-		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int));
 	ctxt_ap->dtim_interval = cpu_to_le32(vif->bss_conf.beacon_int *
 					     vif->bss_conf.dtim_period);
-	ctxt_ap->dtim_reciprocal =
-		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int *
-					       vif->bss_conf.dtim_period));
 
 	if (!fw_has_api(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_API_STA_TYPE))
@@ -1522,6 +1532,8 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_beacon_loss_iterator,
 						   mb);
+
+	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_MISSED_BEACONS);
 }
 
 void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,

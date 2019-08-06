@@ -199,8 +199,7 @@ err3:
 err2:
 	kfree(tname);
 err1:
-	if (ret == ACT_P_CREATED)
-		tcf_idr_release(*a, bind);
+	tcf_idr_release(*a, bind);
 	return err;
 }
 

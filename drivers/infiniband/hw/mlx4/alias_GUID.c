@@ -849,7 +849,7 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev)
 	spin_lock_init(&dev->sriov.alias_guid.ag_work_lock);
 
 	for (i = 1; i <= dev->num_ports; ++i) {
-		if (dev->ib_dev.query_gid(&dev->ib_dev , i, 0, &gid)) {
+		if (dev->ib_dev.ops.query_gid(&dev->ib_dev, i, 0, &gid)) {
 			ret = -EFAULT;
 			goto err_unregister;
 		}

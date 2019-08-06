@@ -1938,9 +1938,16 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 				int head_need, bool may_encrypt)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_hdr *hdr;
+	bool enc_tailroom;
 	int tail_need = 0;
 
-	if (may_encrypt && sdata->crypto_tx_tailroom_needed_cnt) {
+	hdr = (struct ieee80211_hdr *) skb->data;
+	enc_tailroom = may_encrypt &&
+		       (sdata->crypto_tx_tailroom_needed_cnt ||
+			ieee80211_is_mgmt(hdr->frame_control));
+
+	if (enc_tailroom) {
 		tail_need = IEEE80211_ENCRYPT_TAILROOM;
 		tail_need -= skb_tailroom(skb);
 		tail_need = max_t(int, tail_need, 0);
@@ -1948,8 +1955,7 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 
 	if (skb_cloned(skb) &&
 	    (!ieee80211_hw_check(&local->hw, SUPPORTS_CLONED_SKBS) ||
-	     !skb_clone_writable(skb, ETH_HLEN) ||
-	     (may_encrypt && sdata->crypto_tx_tailroom_needed_cnt)))
+	     !skb_clone_writable(skb, ETH_HLEN) || enc_tailroom))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);
@@ -3218,6 +3224,9 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_hw_check(&local->hw, TX_AMSDU))
 		return false;
 
+	if (skb_is_gso(skb))
+		return false;
+
 	if (!txq)
 		return false;
 
@@ -3242,7 +3251,7 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	tin = &txqi->tin;
 	flow = fq_flow_classify(fq, tin, skb, fq_flow_get_default_func);
 	head = skb_peek_tail(&flow->queue);
-	if (!head)
+	if (!head || skb_is_gso(head))
 		goto out;
 
 	orig_len = head->len;
@@ -3583,7 +3592,7 @@ begin:
 			skb_queue_splice_tail(&tx.skbs, &txqi->frags);
 	}
 
-	if (skb && skb_has_frag_list(skb) &&
+	if (skb_has_frag_list(skb) &&
 	    !ieee80211_hw_check(&local->hw, TX_FRAG_LIST)) {
 		if (skb_linearize(skb)) {
 			ieee80211_free_txskb(&local->hw, skb);
@@ -4579,7 +4588,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 					      IEEE80211_STYPE_NULLFUNC |
 					      IEEE80211_FCTL_TODS);
 	if (qos) {
-		__le16 qos = cpu_to_le16(7);
+		__le16 qoshdr = cpu_to_le16(7);
 
 		BUILD_BUG_ON((IEEE80211_STYPE_QOS_NULLFUNC |
 			      IEEE80211_STYPE_NULLFUNC) !=
@@ -4588,7 +4597,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 			cpu_to_le16(IEEE80211_STYPE_QOS_NULLFUNC);
 		skb->priority = 7;
 		skb_set_queue_mapping(skb, IEEE80211_AC_VO);
-		skb_put_data(skb, &qos, sizeof(qos));
+		skb_put_data(skb, &qoshdr, sizeof(qoshdr));
 	}
 
 	memcpy(nullfunc->addr1, ifmgd->bssid, ETH_ALEN);

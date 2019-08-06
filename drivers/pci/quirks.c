@@ -619,6 +619,31 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB,
 		quirk_amd_nl_class);
 
 /*
+ * Synopsys USB 3.x host HAPS platform has a class code of
+ * PCI_CLASS_SERIAL_USB_XHCI, and xhci driver can claim it.  However, these
+ * devices should use dwc3-haps driver.  Change these devices' class code to
+ * PCI_CLASS_SERIAL_USB_DEVICE to prevent the xhci-pci driver from claiming
+ * them.
+ */
+static void quirk_synopsys_haps(struct pci_dev *pdev)
+{
+	u32 class = pdev->class;
+
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3:
+	case PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI:
+	case PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31:
+		pdev->class = PCI_CLASS_SERIAL_USB_DEVICE;
+		pci_info(pdev, "PCI class overridden (%#08x -> %#08x) so dwc3 driver can claim this instead of xhci\n",
+			 class, pdev->class);
+		break;
+	}
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_SYNOPSYS, PCI_ANY_ID,
+			       PCI_CLASS_SERIAL_USB_XHCI, 0,
+			       quirk_synopsys_haps);
+
+/*
  * Let's make the southbridge information explicit instead of having to
  * worry about people probing the ACPI areas, for example.. (Yes, it
  * happens, and if you read the wrong ACPI register it will put the machine

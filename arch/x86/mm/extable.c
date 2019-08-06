@@ -117,67 +117,11 @@ __visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL_GPL(ex_handler_fprestore);
 
-/* Helper to check whether a uaccess fault indicates a kernel bug. */
-static bool bogus_uaccess(struct pt_regs *regs, int trapnr,
-			  unsigned long fault_addr)
-{
-	/* This is the normal case: #PF with a fault address in userspace. */
-	if (trapnr == X86_TRAP_PF && fault_addr < TASK_SIZE_MAX)
-		return false;
-
-	/*
-	 * This code can be reached for machine checks, but only if the #MC
-	 * handler has already decided that it looks like a candidate for fixup.
-	 * This e.g. happens when attempting to access userspace memory which
-	 * the CPU can't access because of uncorrectable bad memory.
-	 */
-	if (trapnr == X86_TRAP_MC)
-		return false;
-
-	/*
-	 * There are two remaining exception types we might encounter here:
-	 *  - #PF for faulting accesses to kernel addresses
-	 *  - #GP for faulting accesses to noncanonical addresses
-	 * Complain about anything else.
-	 */
-	if (trapnr != X86_TRAP_PF && trapnr != X86_TRAP_GP) {
-		WARN(1, "unexpected trap %d in uaccess\n", trapnr);
-		return false;
-	}
-
-	/*
-	 * This is a faulting memory access in kernel space, on a kernel
-	 * address, in a usercopy function. This can e.g. be caused by improper
-	 * use of helpers like __put_user and by improper attempts to access
-	 * userspace addresses in KERNEL_DS regions.
-	 * The one (semi-)legitimate exception are probe_kernel_{read,write}(),
-	 * which can be invoked from places like kgdb, /dev/mem (for reading)
-	 * and privileged BPF code (for reading).
-	 * The probe_kernel_*() functions set the kernel_uaccess_faults_ok flag
-	 * to tell us that faulting on kernel addresses, and even noncanonical
-	 * addresses, in a userspace accessor does not necessarily imply a
-	 * kernel bug, root might just be doing weird stuff.
-	 */
-	if (current->kernel_uaccess_faults_ok)
-		return false;
-
-	/* This is bad. Refuse the fixup so that we go into die(). */
-	if (trapnr == X86_TRAP_PF) {
-		pr_emerg("BUG: pagefault on kernel address 0x%lx in non-whitelisted uaccess\n",
-			 fault_addr);
-	} else {
-		pr_emerg("BUG: GPF in non-whitelisted uaccess (non-canonical address?)\n");
-	}
-	return true;
-}
-
 __visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
 				  struct pt_regs *regs, int trapnr,
 				  unsigned long error_code,
 				  unsigned long fault_addr)
 {
-	if (bogus_uaccess(regs, trapnr, fault_addr))
-		return false;
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
@@ -188,8 +132,6 @@ __visible bool ex_handler_ext(const struct exception_table_entry *fixup,
 			      unsigned long error_code,
 			      unsigned long fault_addr)
 {
-	if (bogus_uaccess(regs, trapnr, fault_addr))
-		return false;
 	/* Special hack for uaccess_err */
 	current->thread.uaccess_err = 1;
 	regs->ip = ex_fixup_addr(fixup);

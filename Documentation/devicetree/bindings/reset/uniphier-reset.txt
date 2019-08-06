@@ -120,27 +120,30 @@ Example:
 	};
 
 
-USB3 core reset
----------------
+Peripheral core reset in glue layer
+-----------------------------------
 
-USB3 core reset belongs to USB3 glue layer. Before using the core reset,
-it is necessary to control the clocks and resets to enable this layer.
-These clocks and resets should be described in each property.
+Some peripheral core reset belongs to its own glue layer. Before using
+this core reset, it is necessary to control the clocks and resets to enable
+this layer. These clocks and resets should be described in each property.
 
 Required properties:
 - compatible: Should be
-    "socionext,uniphier-pro4-usb3-reset" - for Pro4 SoC
-    "socionext,uniphier-pxs2-usb3-reset" - for PXs2 SoC
-    "socionext,uniphier-ld20-usb3-reset" - for LD20 SoC
-    "socionext,uniphier-pxs3-usb3-reset" - for PXs3 SoC
+    "socionext,uniphier-pro4-usb3-reset" - for Pro4 SoC USB3
+    "socionext,uniphier-pxs2-usb3-reset" - for PXs2 SoC USB3
+    "socionext,uniphier-ld20-usb3-reset" - for LD20 SoC USB3
+    "socionext,uniphier-pxs3-usb3-reset" - for PXs3 SoC USB3
+    "socionext,uniphier-pro4-ahci-reset" - for Pro4 SoC AHCI
+    "socionext,uniphier-pxs2-ahci-reset" - for PXs2 SoC AHCI
+    "socionext,uniphier-pxs3-ahci-reset" - for PXs3 SoC AHCI
 - #reset-cells: Should be 1.
 - reg: Specifies offset and length of the register set for the device.
-- clocks: A list of phandles to the clock gate for USB3 glue layer.
+- clocks: A list of phandles to the clock gate for the glue layer.
 	According to the clock-names, appropriate clocks are required.
 - clock-names: Should contain
     "gio", "link" - for Pro4 SoC
     "link"        - for others
-- resets: A list of phandles to the reset control for USB3 glue layer.
+- resets: A list of phandles to the reset control for the glue layer.
 	According to the reset-names, appropriate resets are required.
 - reset-names: Should contain
     "gio", "link" - for Pro4 SoC

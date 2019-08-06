@@ -30,7 +30,7 @@
  *  - sync
  *  - copy also limits on subvol creation
  *  - limit
- *  - caches fuer ulists
+ *  - caches for ulists
  *  - performance benchmarks
  *  - check all ioctl parameters
  */
@@ -522,7 +522,7 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 		__del_qgroup_rb(qgroup);
 	}
 	/*
-	 * we call btrfs_free_qgroup_config() when umounting
+	 * We call btrfs_free_qgroup_config() when unmounting
 	 * filesystem and disabling quota, so we set qgroup_ulist
 	 * to be null here to avoid double free.
 	 */
@@ -1013,15 +1013,21 @@ out_add_root:
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;
 	}
-	spin_lock(&fs_info->qgroup_lock);
-	fs_info->quota_root = quota_root;
-	set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
-	spin_unlock(&fs_info->qgroup_lock);
 
 	ret = btrfs_commit_transaction(trans);
 	trans = NULL;
 	if (ret)
 		goto out_free_path;
+
+	/*
+	 * Set quota enabled flag after committing the transaction, to avoid
+	 * deadlocks on fs_info->qgroup_ioctl_lock with concurrent snapshot
+	 * creation.
+	 */
+	spin_lock(&fs_info->qgroup_lock);
+	fs_info->quota_root = quota_root;
+	set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
+	spin_unlock(&fs_info->qgroup_lock);
 
 	ret = qgroup_rescan_init(fs_info, 0, 1);
 	if (!ret) {
@@ -1122,7 +1128,7 @@ static void qgroup_dirty(struct btrfs_fs_info *fs_info,
  * The easy accounting, we're updating qgroup relationship whose child qgroup
  * only has exclusive extents.
  *
- * In this case, all exclsuive extents will also be exlusive for parent, so
+ * In this case, all exclusive extents will also be exclusive for parent, so
  * excl/rfer just get added/removed.
  *
  * So is qgroup reservation space, which should also be added/removed to
@@ -1749,14 +1755,14 @@ static int adjust_slots_upwards(struct btrfs_path *path, int root_level)
  *
  * 2) Mark the final tree blocks in @src_path and @dst_path qgroup dirty
  *    NOTE: In above case, OO(a) and NN(a) won't be marked qgroup dirty.
- *    They should be marked during preivous (@dst_level = 1) iteration.
+ *    They should be marked during previous (@dst_level = 1) iteration.
  *
  * 3) Mark file extents in leaves dirty
  *    We don't have good way to pick out new file extents only.
  *    So we still follow the old method by scanning all file extents in
  *    the leave.
  *
- * This function can free us from keeping two pathes, thus later we only need
+ * This function can free us from keeping two paths, thus later we only need
  * to care about how to iterate all new tree blocks in reloc tree.
  */
 static int qgroup_trace_extent_swap(struct btrfs_trans_handle* trans,
@@ -1895,7 +1901,7 @@ out:
  *
  * We will iterate through tree blocks NN(b), NN(d) and info qgroup to trace
  * above tree blocks along with their counter parts in file tree.
- * While during search, old tree blocsk OO(c) will be skiped as tree block swap
+ * While during search, old tree blocks OO(c) will be skipped as tree block swap
  * won't affect OO(c).
  */
 static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
@@ -2020,7 +2026,7 @@ out:
  * Will go down the tree block pointed by @dst_eb (pointed by @dst_parent and
  * @dst_slot), and find any tree blocks whose generation is at @last_snapshot,
  * and then go down @src_eb (pointed by @src_parent and @src_slot) to find
- * the conterpart of the tree block, then mark both tree blocks as qgroup dirty,
+ * the counterpart of the tree block, then mark both tree blocks as qgroup dirty,
  * and skip all tree blocks whose generation is smaller than last_snapshot.
  *
  * This would skip tons of tree blocks of original btrfs_qgroup_trace_subtree(),
@@ -3104,9 +3110,6 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 		mutex_unlock(&fs_info->qgroup_rescan_lock);
 		goto out;
 	}
-	extent_buffer_get(scratch_leaf);
-	btrfs_tree_read_lock(scratch_leaf);
-	btrfs_set_lock_blocking_rw(scratch_leaf, BTRFS_READ_LOCK);
 	slot = path->slots[0];
 	btrfs_release_path(path);
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
@@ -3132,10 +3135,8 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 			goto out;
 	}
 out:
-	if (scratch_leaf) {
-		btrfs_tree_read_unlock_blocking(scratch_leaf);
+	if (scratch_leaf)
 		free_extent_buffer(scratch_leaf);
-	}
 
 	if (done && !ret) {
 		ret = 1;

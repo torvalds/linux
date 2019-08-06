@@ -615,6 +615,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Mediacom Flexbook Edge 11 (same hw as TS Primebook C11) */
+		.driver_data = (void *)&trekstor_primebook_c11_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MEDIACOM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "FlexBook edge11 - M-FBE11"),
+		},
+	},
+	{
 		/* Onda oBook 20 Plus */
 		.driver_data = (void *)&onda_obook_20_plus_data,
 		.matches = {

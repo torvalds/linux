@@ -333,7 +333,7 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 	fattr->cf_mtime = timespec64_trunc(fattr->cf_mtime, sb->s_time_gran);
 	fattr->cf_atime = fattr->cf_ctime = fattr->cf_mtime;
 	fattr->cf_nlink = 2;
-	fattr->cf_flags |= CIFS_FATTR_DFS_REFERRAL;
+	fattr->cf_flags = CIFS_FATTR_DFS_REFERRAL;
 }
 
 static int
@@ -730,7 +730,6 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 		    FILE_ALL_INFO *data, struct super_block *sb, int xid,
 		    const struct cifs_fid *fid)
 {
-	bool validinum = false;
 	__u16 srchflgs;
 	int rc = 0, tmprc = ENOSYS;
 	struct cifs_tcon *tcon;
@@ -821,7 +820,6 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 			(FILE_DIRECTORY_INFO *)data, cifs_sb);
 			fattr.cf_uniqueid = le64_to_cpu(
 			((SEARCH_ID_FULL_DIR_INFO *)data)->UniqueId);
-			validinum = true;
 
 			cifs_buf_release(srchinf->ntwrk_buf_start);
 		}
@@ -840,31 +838,29 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	 */
 	if (*inode == NULL) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
-			if (validinum == false) {
-				if (server->ops->get_srv_inum)
-					tmprc = server->ops->get_srv_inum(xid,
-						tcon, cifs_sb, full_path,
-						&fattr.cf_uniqueid, data);
-				if (tmprc) {
-					cifs_dbg(FYI, "GetSrvInodeNum rc %d\n",
-						 tmprc);
-					fattr.cf_uniqueid = iunique(sb, ROOT_I);
-					cifs_autodisable_serverino(cifs_sb);
-				} else if ((fattr.cf_uniqueid == 0) &&
-						strlen(full_path) == 0) {
-					/* some servers ret bad root ino ie 0 */
-					cifs_dbg(FYI, "Invalid (0) inodenum\n");
-					fattr.cf_flags |=
-						CIFS_FATTR_FAKE_ROOT_INO;
-					fattr.cf_uniqueid =
-						simple_hashstr(tcon->treeName);
-				}
+			if (server->ops->get_srv_inum)
+				tmprc = server->ops->get_srv_inum(xid,
+								  tcon, cifs_sb, full_path,
+								  &fattr.cf_uniqueid, data);
+			if (tmprc) {
+				cifs_dbg(FYI, "GetSrvInodeNum rc %d\n",
+					 tmprc);
+				fattr.cf_uniqueid = iunique(sb, ROOT_I);
+				cifs_autodisable_serverino(cifs_sb);
+			} else if ((fattr.cf_uniqueid == 0) &&
+				   strlen(full_path) == 0) {
+				/* some servers ret bad root ino ie 0 */
+				cifs_dbg(FYI, "Invalid (0) inodenum\n");
+				fattr.cf_flags |=
+					CIFS_FATTR_FAKE_ROOT_INO;
+				fattr.cf_uniqueid =
+					simple_hashstr(tcon->treeName);
 			}
 		} else
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
 	} else {
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) &&
-		    validinum == false && server->ops->get_srv_inum) {
+		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+		    && server->ops->get_srv_inum) {
 			/*
 			 * Pass a NULL tcon to ensure we don't make a round
 			 * trip to the server. This only works for SMB2+.
@@ -2261,6 +2257,11 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	 * the flush returns error?
 	 */
 	rc = filemap_write_and_wait(inode->i_mapping);
+	if (is_interrupt_error(rc)) {
+		rc = -ERESTARTSYS;
+		goto out;
+	}
+
 	mapping_set_error(inode->i_mapping, rc);
 	rc = 0;
 
@@ -2404,6 +2405,11 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	 * the flush returns error?
 	 */
 	rc = filemap_write_and_wait(inode->i_mapping);
+	if (is_interrupt_error(rc)) {
+		rc = -ERESTARTSYS;
+		goto cifs_setattr_exit;
+	}
+
 	mapping_set_error(inode->i_mapping, rc);
 	rc = 0;
 

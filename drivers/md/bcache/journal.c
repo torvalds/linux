@@ -663,7 +663,7 @@ static void journal_write_unlocked(struct closure *cl)
 				 REQ_SYNC|REQ_META|REQ_PREFLUSH|REQ_FUA);
 		bch_bio_map(bio, w->data);
 
-		trace_bcache_journal_write(bio);
+		trace_bcache_journal_write(bio, w->data->keys);
 		bio_list_add(&list, bio);
 
 		SET_PTR_OFFSET(k, i, PTR_OFFSET(k, i) + sectors);

@@ -1455,7 +1455,7 @@ static int __init fbtft_device_init(void)
 	}
 
 	/* name=list lists all supported displays */
-	if (strncmp(name, "list", FBTFT_GPIO_NAME_SIZE) == 0) {
+	if (strcmp(name, "list") == 0) {
 		pr_info("Supported displays:\n");
 
 		for (i = 0; i < ARRAY_SIZE(displays); i++)

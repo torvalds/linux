@@ -174,7 +174,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 /*
  * Alternative inline assembly with input.
  *
- * Pecularities:
+ * Peculiarities:
  * No memory clobber here.
  * Argument numbers start with 1.
  * Best is to use constraints that are fixed size (like (%1) ... "r")

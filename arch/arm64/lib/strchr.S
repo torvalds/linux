@@ -40,3 +40,4 @@ WEAK(strchr)
 	csel	x0, x0, xzr, eq
 	ret
 ENDPROC(strchr)
+EXPORT_SYMBOL_NOKASAN(strchr)

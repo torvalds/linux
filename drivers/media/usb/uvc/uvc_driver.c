@@ -214,6 +214,11 @@ static struct uvc_format_desc uvc_fmts[] = {
 		.guid		= UVC_GUID_FORMAT_INZI,
 		.fcc		= V4L2_PIX_FMT_INZI,
 	},
+	{
+		.name		= "4-bit Depth Confidence (Packed)",
+		.guid		= UVC_GUID_FORMAT_CNF4,
+		.fcc		= V4L2_PIX_FMT_CNF4,
+	},
 };
 
 /* ------------------------------------------------------------------------
@@ -388,6 +393,50 @@ static struct uvc_streaming *uvc_stream_by_id(struct uvc_device *dev, int id)
 	}
 
 	return NULL;
+}
+
+/* ------------------------------------------------------------------------
+ * Streaming Object Management
+ */
+
+static void uvc_stream_delete(struct uvc_streaming *stream)
+{
+	if (stream->async_wq)
+		destroy_workqueue(stream->async_wq);
+
+	mutex_destroy(&stream->mutex);
+
+	usb_put_intf(stream->intf);
+
+	kfree(stream->format);
+	kfree(stream->header.bmaControls);
+	kfree(stream);
+}
+
+static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
+					    struct usb_interface *intf)
+{
+	struct uvc_streaming *stream;
+
+	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	if (stream == NULL)
+		return NULL;
+
+	mutex_init(&stream->mutex);
+
+	stream->dev = dev;
+	stream->intf = usb_get_intf(intf);
+	stream->intfnum = intf->cur_altsetting->desc.bInterfaceNumber;
+
+	/* Allocate a stream specific work queue for asynchronous tasks. */
+	stream->async_wq = alloc_workqueue("uvcvideo", WQ_UNBOUND | WQ_HIGHPRI,
+					   0);
+	if (!stream->async_wq) {
+		uvc_stream_delete(stream);
+		return NULL;
+	}
+
+	return stream;
 }
 
 /* ------------------------------------------------------------------------
@@ -682,16 +731,11 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 		return -EINVAL;
 	}
 
-	streaming = kzalloc(sizeof(*streaming), GFP_KERNEL);
+	streaming = uvc_stream_new(dev, intf);
 	if (streaming == NULL) {
 		usb_driver_release_interface(&uvc_driver.driver, intf);
-		return -EINVAL;
+		return -ENOMEM;
 	}
-
-	mutex_init(&streaming->mutex);
-	streaming->dev = dev;
-	streaming->intf = usb_get_intf(intf);
-	streaming->intfnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
 	/* The Pico iMage webcam has its class-specific interface descriptors
 	 * after the endpoint descriptors.
@@ -899,10 +943,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 
 error:
 	usb_driver_release_interface(&uvc_driver.driver, intf);
-	usb_put_intf(intf);
-	kfree(streaming->format);
-	kfree(streaming->header.bmaControls);
-	kfree(streaming);
+	uvc_stream_delete(streaming);
 	return ret;
 }
 
@@ -1810,7 +1851,7 @@ static int uvc_scan_device(struct uvc_device *dev)
  * is released.
  *
  * As this function is called after or during disconnect(), all URBs have
- * already been canceled by the USB core. There is no need to kill the
+ * already been cancelled by the USB core. There is no need to kill the
  * interrupt URB manually.
  */
 static void uvc_delete(struct kref *kref)
@@ -1824,11 +1865,7 @@ static void uvc_delete(struct kref *kref)
 	usb_put_intf(dev->intf);
 	usb_put_dev(dev->udev);
 
-	if (dev->vdev.dev)
-		v4l2_device_unregister(&dev->vdev);
 #ifdef CONFIG_MEDIA_CONTROLLER
-	if (media_devnode_is_registered(dev->mdev.devnode))
-		media_device_unregister(&dev->mdev);
 	media_device_cleanup(&dev->mdev);
 #endif
 
@@ -1852,10 +1889,7 @@ static void uvc_delete(struct kref *kref)
 		streaming = list_entry(p, struct uvc_streaming, list);
 		usb_driver_release_interface(&uvc_driver.driver,
 			streaming->intf);
-		usb_put_intf(streaming->intf);
-		kfree(streaming->format);
-		kfree(streaming->header.bmaControls);
-		kfree(streaming);
+		uvc_stream_delete(streaming);
 	}
 
 	kfree(dev);
@@ -1885,6 +1919,15 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 		uvc_debugfs_cleanup_stream(stream);
 	}
+
+	uvc_status_unregister(dev);
+
+	if (dev->vdev.dev)
+		v4l2_device_unregister(&dev->vdev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (media_devnode_is_registered(dev->mdev.devnode))
+		media_device_unregister(&dev->mdev);
+#endif
 }
 
 int uvc_register_video_device(struct uvc_device *dev,

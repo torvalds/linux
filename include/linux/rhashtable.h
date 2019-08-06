@@ -75,8 +75,19 @@ struct bucket_table {
 	struct rhash_head __rcu *buckets[] ____cacheline_aligned_in_smp;
 };
 
+/*
+ * NULLS_MARKER() expects a hash value with the low
+ * bits mostly likely to be significant, and it discards
+ * the msb.
+ * We git it an address, in which the bottom 2 bits are
+ * always 0, and the msb might be significant.
+ * So we shift the address down one bit to align with
+ * expectations and avoid losing a significant bit.
+ */
+#define	RHT_NULLS_MARKER(ptr)	\
+	((void *)NULLS_MARKER(((unsigned long) (ptr)) >> 1))
 #define INIT_RHT_NULLS_HEAD(ptr)	\
-	((ptr) = (typeof(ptr)) NULLS_MARKER(0))
+	((ptr) = RHT_NULLS_MARKER(&(ptr)))
 
 static inline bool rht_is_a_nulls(const struct rhash_head *ptr)
 {
@@ -471,6 +482,7 @@ static inline struct rhash_head *__rhashtable_lookup(
 		.ht = ht,
 		.key = key,
 	};
+	struct rhash_head __rcu * const *head;
 	struct bucket_table *tbl;
 	struct rhash_head *he;
 	unsigned int hash;
@@ -478,13 +490,19 @@ static inline struct rhash_head *__rhashtable_lookup(
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 restart:
 	hash = rht_key_hashfn(ht, tbl, key, params);
-	rht_for_each_rcu(he, tbl, hash) {
-		if (params.obj_cmpfn ?
-		    params.obj_cmpfn(&arg, rht_obj(ht, he)) :
-		    rhashtable_compare(&arg, rht_obj(ht, he)))
-			continue;
-		return he;
-	}
+	head = rht_bucket(tbl, hash);
+	do {
+		rht_for_each_rcu_continue(he, *head, tbl, hash) {
+			if (params.obj_cmpfn ?
+			    params.obj_cmpfn(&arg, rht_obj(ht, he)) :
+			    rhashtable_compare(&arg, rht_obj(ht, he)))
+				continue;
+			return he;
+		}
+		/* An object might have been moved to a different hash chain,
+		 * while we walk along it - better check and retry.
+		 */
+	} while (he != RHT_NULLS_MARKER(head));
 
 	/* Ensure we see any new tables. */
 	smp_rmb();

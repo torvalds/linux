@@ -91,7 +91,7 @@ void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
 		pc = MAKE_PC_FROM_RA(a0, pc);
 
 		/* Check if the region is OK to access. */
-		if (!access_ok(VERIFY_READ, &SPILL_SLOT(a1, 0), 8))
+		if (!access_ok(&SPILL_SLOT(a1, 0), 8))
 			return;
 		/* Copy a1, a0 from user space stack frame. */
 		if (__get_user(a0, &SPILL_SLOT(a1, 0)) ||

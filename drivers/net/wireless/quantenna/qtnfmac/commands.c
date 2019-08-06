@@ -84,7 +84,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 				    size_t *var_resp_size)
 {
 	struct qlink_cmd *cmd;
-	const struct qlink_resp *resp;
+	struct qlink_resp *resp = NULL;
 	struct sk_buff *resp_skb = NULL;
 	u16 cmd_id;
 	u8 mac_id;
@@ -113,7 +113,12 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	if (ret)
 		goto out;
 
-	resp = (const struct qlink_resp *)resp_skb->data;
+	if (WARN_ON(!resp_skb || !resp_skb->data)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	resp = (struct qlink_resp *)resp_skb->data;
 	ret = qtnf_cmd_check_reply_header(resp, cmd_id, mac_id, vif_id,
 					  const_resp_size);
 	if (ret)
@@ -686,7 +691,7 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	struct qlink_cmd_get_sta_info *cmd;
 	const struct qlink_resp_get_sta_info *resp;
-	size_t var_resp_len;
+	size_t var_resp_len = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -1650,7 +1655,7 @@ int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	const struct qlink_resp_get_mac_info *resp;
-	size_t var_data_len;
+	size_t var_data_len = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
@@ -1680,8 +1685,8 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	const struct qlink_resp_get_hw_info *resp;
+	size_t info_len = 0;
 	int ret = 0;
-	size_t info_len;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
 					    QLINK_CMD_GET_HW_INFO,
@@ -1709,9 +1714,9 @@ int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 			   struct ieee80211_supported_band *band)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
-	size_t info_len;
 	struct qlink_cmd_band_info_get *cmd;
 	struct qlink_resp_band_info_get *resp;
+	size_t info_len = 0;
 	int ret = 0;
 	u8 qband;
 
@@ -1764,8 +1769,8 @@ out:
 int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
-	size_t response_size;
 	struct qlink_resp_phy_params *resp;
+	size_t response_size = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
@@ -2431,7 +2436,7 @@ int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	struct qlink_cmd_get_chan_stats *cmd;
 	struct qlink_resp_get_chan_stats *resp;
-	size_t var_data_len;
+	size_t var_data_len = 0;
 	int ret = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,

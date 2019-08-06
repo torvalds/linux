@@ -977,7 +977,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 			return 0;
 	}
 
-	if (bits <= 8 && len > 15 && !(len & 3)) {
+	if (bits <= 8 && len > 15) {
 		bits = 32;
 		swab = true;
 	} else {
@@ -1038,6 +1038,14 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 		if (rx_buf)
 			rx_buf += n * bytes_per_word;
 		words -= n;
+
+		if (words == 0 && (len % bytes_per_word)) {
+			words = len % bytes_per_word;
+			bits = t->bits_per_word;
+			bytes_per_word = 1;
+			tx_fifo = sh_msiof_spi_write_fifo_8;
+			rx_fifo = sh_msiof_spi_read_fifo_8;
+		}
 	}
 
 	return 0;
@@ -1426,16 +1434,14 @@ MODULE_DEVICE_TABLE(platform, spi_driver_ids);
 #ifdef CONFIG_PM_SLEEP
 static int sh_msiof_spi_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
+	struct sh_msiof_spi_priv *p = dev_get_drvdata(dev);
 
 	return spi_master_suspend(p->master);
 }
 
 static int sh_msiof_spi_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
+	struct sh_msiof_spi_priv *p = dev_get_drvdata(dev);
 
 	return spi_master_resume(p->master);
 }

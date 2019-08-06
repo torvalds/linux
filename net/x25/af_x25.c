@@ -352,17 +352,15 @@ static unsigned int x25_new_lci(struct x25_neigh *nb)
 	unsigned int lci = 1;
 	struct sock *sk;
 
-	read_lock_bh(&x25_list_lock);
-
-	while ((sk = __x25_find_socket(lci, nb)) != NULL) {
+	while ((sk = x25_find_socket(lci, nb)) != NULL) {
 		sock_put(sk);
 		if (++lci == 4096) {
 			lci = 0;
 			break;
 		}
+		cond_resched();
 	}
 
-	read_unlock_bh(&x25_list_lock);
 	return lci;
 }
 
@@ -681,8 +679,7 @@ static int x25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sockaddr_x25 *addr = (struct sockaddr_x25 *)uaddr;
 	int len, i, rc = 0;
 
-	if (!sock_flag(sk, SOCK_ZAPPED) ||
-	    addr_len != sizeof(struct sockaddr_x25) ||
+	if (addr_len != sizeof(struct sockaddr_x25) ||
 	    addr->sx25_family != AF_X25) {
 		rc = -EINVAL;
 		goto out;
@@ -701,9 +698,13 @@ static int x25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	}
 
 	lock_sock(sk);
-	x25_sk(sk)->source_addr = addr->sx25_addr;
-	x25_insert_socket(sk);
-	sock_reset_flag(sk, SOCK_ZAPPED);
+	if (sock_flag(sk, SOCK_ZAPPED)) {
+		x25_sk(sk)->source_addr = addr->sx25_addr;
+		x25_insert_socket(sk);
+		sock_reset_flag(sk, SOCK_ZAPPED);
+	} else {
+		rc = -EINVAL;
+	}
 	release_sock(sk);
 	SOCK_DEBUG(sk, "x25_bind: socket is bound\n");
 out:

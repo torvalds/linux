@@ -231,10 +231,10 @@ config EDAC_SBRIDGE
 
 config EDAC_SKX
 	tristate "Intel Skylake server Integrated MC"
-	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
 	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_SKX can't be y
 	select DMI
-	select ACPI_ADXL if ACPI
+	select ACPI_ADXL
 	help
 	  Support for error detection and correction the Intel
 	  Skylake server Integrated Memory Controllers. If your
@@ -442,7 +442,7 @@ config EDAC_ALTERA_SDMMC
 
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
-	depends on ARCH_ZYNQ
+	depends on ARCH_ZYNQ || ARCH_ZYNQMP
 	help
 	  Support for error detection and correction on the Synopsys DDR
 	  memory controller.

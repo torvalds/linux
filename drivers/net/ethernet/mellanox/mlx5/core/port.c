@@ -915,63 +915,6 @@ void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
 	*enabled = !!(MLX5_GET(pcmr_reg, out, fcs_chk));
 }
 
-static const char *mlx5_pme_status[MLX5_MODULE_STATUS_NUM] = {
-	"Cable plugged",   /* MLX5_MODULE_STATUS_PLUGGED    = 0x1 */
-	"Cable unplugged", /* MLX5_MODULE_STATUS_UNPLUGGED  = 0x2 */
-	"Cable error",     /* MLX5_MODULE_STATUS_ERROR      = 0x3 */
-};
-
-static const char *mlx5_pme_error[MLX5_MODULE_EVENT_ERROR_NUM] = {
-	"Power budget exceeded",
-	"Long Range for non MLNX cable",
-	"Bus stuck(I2C or data shorted)",
-	"No EEPROM/retry timeout",
-	"Enforce part number list",
-	"Unknown identifier",
-	"High Temperature",
-	"Bad or shorted cable/module",
-	"Unknown status",
-};
-
-void mlx5_port_module_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
-{
-	enum port_module_event_status_type module_status;
-	enum port_module_event_error_type error_type;
-	struct mlx5_eqe_port_module *module_event_eqe;
-	struct mlx5_priv *priv = &dev->priv;
-	u8 module_num;
-
-	module_event_eqe = &eqe->data.port_module;
-	module_num = module_event_eqe->module;
-	module_status = module_event_eqe->module_status &
-			PORT_MODULE_EVENT_MODULE_STATUS_MASK;
-	error_type = module_event_eqe->error_type &
-		     PORT_MODULE_EVENT_ERROR_TYPE_MASK;
-
-	if (module_status < MLX5_MODULE_STATUS_ERROR) {
-		priv->pme_stats.status_counters[module_status - 1]++;
-	} else if (module_status == MLX5_MODULE_STATUS_ERROR) {
-		if (error_type >= MLX5_MODULE_EVENT_ERROR_UNKNOWN)
-			/* Unknown error type */
-			error_type = MLX5_MODULE_EVENT_ERROR_UNKNOWN;
-		priv->pme_stats.error_counters[error_type]++;
-	}
-
-	if (!printk_ratelimit())
-		return;
-
-	if (module_status < MLX5_MODULE_STATUS_ERROR)
-		mlx5_core_info(dev,
-			       "Port module event: module %u, %s\n",
-			       module_num, mlx5_pme_status[module_status - 1]);
-
-	else if (module_status == MLX5_MODULE_STATUS_ERROR)
-		mlx5_core_info(dev,
-			       "Port module event[error]: module %u, %s, %s\n",
-			       module_num, mlx5_pme_status[module_status - 1],
-			       mlx5_pme_error[error_type]);
-}
-
 int mlx5_query_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size)
 {
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};

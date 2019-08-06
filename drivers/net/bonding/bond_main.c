@@ -609,14 +609,21 @@ static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
  *
  * Should be called with RTNL held.
  */
-static void bond_set_dev_addr(struct net_device *bond_dev,
-			      struct net_device *slave_dev)
+static int bond_set_dev_addr(struct net_device *bond_dev,
+			     struct net_device *slave_dev)
 {
+	int err;
+
 	netdev_dbg(bond_dev, "bond_dev=%p slave_dev=%p slave_dev->name=%s slave_dev->addr_len=%d\n",
 		   bond_dev, slave_dev, slave_dev->name, slave_dev->addr_len);
+	err = dev_pre_changeaddr_notify(bond_dev, slave_dev->dev_addr, NULL);
+	if (err)
+		return err;
+
 	memcpy(bond_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
 	bond_dev->addr_assign_type = NET_ADDR_STOLEN;
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
+	return 0;
 }
 
 static struct slave *bond_get_old_active(struct bonding *bond,
@@ -652,8 +659,12 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 
 	switch (bond->params.fail_over_mac) {
 	case BOND_FOM_ACTIVE:
-		if (new_active)
-			bond_set_dev_addr(bond->dev, new_active->dev);
+		if (new_active) {
+			rv = bond_set_dev_addr(bond->dev, new_active->dev);
+			if (rv)
+				netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
+					   -rv, bond->dev->name);
+		}
 		break;
 	case BOND_FOM_FOLLOW:
 		/* if new_active && old_active, swap them
@@ -680,7 +691,7 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		}
 
 		rv = dev_set_mac_address(new_active->dev,
-					 (struct sockaddr *)&ss);
+					 (struct sockaddr *)&ss, NULL);
 		if (rv) {
 			netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
 				   -rv, new_active->dev->name);
@@ -695,7 +706,7 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		ss.ss_family = old_active->dev->type;
 
 		rv = dev_set_mac_address(old_active->dev,
-					 (struct sockaddr *)&ss);
+					 (struct sockaddr *)&ss, NULL);
 		if (rv)
 			netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
 				   -rv, new_active->dev->name);
@@ -1172,29 +1183,22 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		}
 	}
 
-	/* Link-local multicast packets should be passed to the
-	 * stack on the link they arrive as well as pass them to the
-	 * bond-master device. These packets are mostly usable when
-	 * stack receives it with the link on which they arrive
-	 * (e.g. LLDP) they also must be available on master. Some of
-	 * the use cases include (but are not limited to): LLDP agents
-	 * that must be able to operate both on enslaved interfaces as
-	 * well as on bonds themselves; linux bridges that must be able
-	 * to process/pass BPDUs from attached bonds when any kind of
-	 * STP version is enabled on the network.
+	/*
+	 * For packets determined by bond_should_deliver_exact_match() call to
+	 * be suppressed we want to make an exception for link-local packets.
+	 * This is necessary for e.g. LLDP daemons to be able to monitor
+	 * inactive slave links without being forced to bind to them
+	 * explicitly.
+	 *
+	 * At the same time, packets that are passed to the bonding master
+	 * (including link-local ones) can have their originating interface
+	 * determined via PACKET_ORIGDEV socket option.
 	 */
-	if (is_link_local_ether_addr(eth_hdr(skb)->h_dest)) {
-		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
-
-		if (nskb) {
-			nskb->dev = bond->dev;
-			nskb->queue_mapping = 0;
-			netif_rx(nskb);
-		}
-		return RX_HANDLER_PASS;
-	}
-	if (bond_should_deliver_exact_match(skb, slave, bond))
+	if (bond_should_deliver_exact_match(skb, slave, bond)) {
+		if (is_link_local_ether_addr(eth_hdr(skb)->h_dest))
+			return RX_HANDLER_PASS;
 		return RX_HANDLER_EXACT;
+	}
 
 	skb->dev = bond->dev;
 
@@ -1489,8 +1493,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	 * address to be the same as the slave's.
 	 */
 	if (!bond_has_slaves(bond) &&
-	    bond->dev->addr_assign_type == NET_ADDR_RANDOM)
-		bond_set_dev_addr(bond->dev, slave_dev);
+	    bond->dev->addr_assign_type == NET_ADDR_RANDOM) {
+		res = bond_set_dev_addr(bond->dev, slave_dev);
+		if (res)
+			goto err_undo_flags;
+	}
 
 	new_slave = bond_alloc_slave(bond);
 	if (!new_slave) {
@@ -1527,7 +1534,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 		 */
 		memcpy(ss.__data, bond_dev->dev_addr, bond_dev->addr_len);
 		ss.ss_family = slave_dev->type;
-		res = dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
+		res = dev_set_mac_address(slave_dev, (struct sockaddr *)&ss,
+					  extack);
 		if (res) {
 			netdev_dbg(bond_dev, "Error %d calling set_mac_address\n", res);
 			goto err_restore_mtu;
@@ -1538,7 +1546,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	slave_dev->flags |= IFF_SLAVE;
 
 	/* open the slave since the application closed it */
-	res = dev_open(slave_dev);
+	res = dev_open(slave_dev, extack);
 	if (res) {
 		netdev_dbg(bond_dev, "Opening slave %s failed\n", slave_dev->name);
 		goto err_restore_mac;
@@ -1818,7 +1826,7 @@ err_restore_mac:
 		bond_hw_addr_copy(ss.__data, new_slave->perm_hwaddr,
 				  new_slave->dev->addr_len);
 		ss.ss_family = slave_dev->type;
-		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
+		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss, NULL);
 	}
 
 err_restore_mtu:
@@ -1948,6 +1956,9 @@ static int __bond_release_one(struct net_device *bond_dev,
 	if (!bond_has_slaves(bond)) {
 		bond_set_carrier(bond);
 		eth_hw_addr_random(bond_dev);
+		bond->nest_level = SINGLE_DEPTH_NESTING;
+	} else {
+		bond->nest_level = dev_get_nest_level(bond_dev) + 1;
 	}
 
 	unblock_netpoll_tx();
@@ -1999,7 +2010,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 		bond_hw_addr_copy(ss.__data, slave->perm_hwaddr,
 				  slave->dev->addr_len);
 		ss.ss_family = slave_dev->type;
-		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
+		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss, NULL);
 	}
 
 	if (unregister)
@@ -3544,8 +3555,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		break;
 	case BOND_SETHWADDR_OLD:
 	case SIOCBONDSETHWADDR:
-		bond_set_dev_addr(bond_dev, slave_dev);
-		res = 0;
+		res = bond_set_dev_addr(bond_dev, slave_dev);
 		break;
 	case BOND_CHANGE_ACTIVE_OLD:
 	case SIOCBONDCHANGEACTIVE:
@@ -3732,7 +3742,7 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	bond_for_each_slave(bond, slave, iter) {
 		netdev_dbg(bond_dev, "slave %p %s\n", slave, slave->dev->name);
-		res = dev_set_mac_address(slave->dev, addr);
+		res = dev_set_mac_address(slave->dev, addr, NULL);
 		if (res) {
 			/* TODO: consider downing the slave
 			 * and retry ?
@@ -3761,7 +3771,7 @@ unwind:
 			break;
 
 		tmp_res = dev_set_mac_address(rollback_slave->dev,
-					      (struct sockaddr *)&tmp_ss);
+					      (struct sockaddr *)&tmp_ss, NULL);
 		if (tmp_res) {
 			netdev_dbg(bond_dev, "unwind err %d dev %s\n",
 				   tmp_res, rollback_slave->dev->name);

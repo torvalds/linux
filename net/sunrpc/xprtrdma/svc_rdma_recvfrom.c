@@ -485,6 +485,68 @@ static __be32 *xdr_check_reply_chunk(__be32 *p, const __be32 *end)
 	return p;
 }
 
+/* RPC-over-RDMA Version One private extension: Remote Invalidation.
+ * Responder's choice: requester signals it can handle Send With
+ * Invalidate, and responder chooses one R_key to invalidate.
+ *
+ * If there is exactly one distinct R_key in the received transport
+ * header, set rc_inv_rkey to that R_key. Otherwise, set it to zero.
+ *
+ * Perform this operation while the received transport header is
+ * still in the CPU cache.
+ */
+static void svc_rdma_get_inv_rkey(struct svcxprt_rdma *rdma,
+				  struct svc_rdma_recv_ctxt *ctxt)
+{
+	__be32 inv_rkey, *p;
+	u32 i, segcount;
+
+	ctxt->rc_inv_rkey = 0;
+
+	if (!rdma->sc_snd_w_inv)
+		return;
+
+	inv_rkey = xdr_zero;
+	p = ctxt->rc_recv_buf;
+	p += rpcrdma_fixed_maxsz;
+
+	/* Read list */
+	while (*p++ != xdr_zero) {
+		p++;	/* position */
+		if (inv_rkey == xdr_zero)
+			inv_rkey = *p;
+		else if (inv_rkey != *p)
+			return;
+		p += 4;
+	}
+
+	/* Write list */
+	while (*p++ != xdr_zero) {
+		segcount = be32_to_cpup(p++);
+		for (i = 0; i < segcount; i++) {
+			if (inv_rkey == xdr_zero)
+				inv_rkey = *p;
+			else if (inv_rkey != *p)
+				return;
+			p += 4;
+		}
+	}
+
+	/* Reply chunk */
+	if (*p++ != xdr_zero) {
+		segcount = be32_to_cpup(p++);
+		for (i = 0; i < segcount; i++) {
+			if (inv_rkey == xdr_zero)
+				inv_rkey = *p;
+			else if (inv_rkey != *p)
+				return;
+			p += 4;
+		}
+	}
+
+	ctxt->rc_inv_rkey = be32_to_cpu(inv_rkey);
+}
+
 /* On entry, xdr->head[0].iov_base points to first byte in the
  * RPC-over-RDMA header.
  *
@@ -746,6 +808,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 		return ret;
 	}
+	svc_rdma_get_inv_rkey(rdma_xprt, ctxt);
 
 	p += rpcrdma_fixed_maxsz;
 	if (*p != xdr_zero)

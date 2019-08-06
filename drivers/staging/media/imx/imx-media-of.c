@@ -162,7 +162,7 @@ int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
 		fwnode_property_read_u32(fwnode, "reg", &link.remote_port);
 		fwnode = fwnode_get_next_parent(fwnode);
 		if (is_of_node(fwnode) &&
-		    of_node_cmp(to_of_node(fwnode)->name, "ports") == 0)
+		    of_node_name_eq(to_of_node(fwnode), "ports"))
 			fwnode = fwnode_get_next_parent(fwnode);
 		link.remote_node = fwnode;
 

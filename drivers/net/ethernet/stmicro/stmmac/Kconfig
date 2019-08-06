@@ -75,6 +75,14 @@ config DWMAC_LPC18XX
 	---help---
 	  Support for NXP LPC18xx/43xx DWMAC Ethernet.
 
+config DWMAC_MEDIATEK
+	tristate "MediaTek MT27xx GMAC support"
+	depends on OF && (ARCH_MEDIATEK || COMPILE_TEST)
+	help
+	  Support for MediaTek GMAC Ethernet controller.
+
+	  This selects the MT2712 SoC support for the stmmac driver.
+
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	default ARCH_MESON

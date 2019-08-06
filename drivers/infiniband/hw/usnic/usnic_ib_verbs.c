@@ -336,13 +336,16 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	usnic_dbg("\n");
 
-	mutex_lock(&us_ibdev->usdev_lock);
 	if (ib_get_eth_speed(ibdev, port, &props->active_speed,
-			     &props->active_width)) {
-		mutex_unlock(&us_ibdev->usdev_lock);
+			     &props->active_width))
 		return -EINVAL;
-	}
 
+	/*
+	 * usdev_lock is acquired after (and not before) ib_get_eth_speed call
+	 * because acquiring rtnl_lock in ib_get_eth_speed, while holding
+	 * usdev_lock could lead to a deadlock.
+	 */
+	mutex_lock(&us_ibdev->usdev_lock);
 	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
@@ -760,6 +763,7 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 				 struct rdma_ah_attr *ah_attr,
+				 u32 flags,
 				 struct ib_udata *udata)
 
 {
@@ -767,7 +771,7 @@ struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 	return ERR_PTR(-EPERM);
 }
 
-int usnic_ib_destroy_ah(struct ib_ah *ah)
+int usnic_ib_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	usnic_dbg("\n");
 	return -EINVAL;

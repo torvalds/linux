@@ -657,6 +657,8 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	struct max14577 *max14577 = dev_get_drvdata(pdev->dev.parent);
 	struct max14577_muic_info *info;
 	int delay_jiffies;
+	int cable_type;
+	bool attached;
 	int ret;
 	int i;
 	u8 id;
@@ -725,8 +727,17 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	info->path_uart = CTRL1_SW_UART;
 	delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 
-	/* Set initial path for UART */
-	max14577_muic_set_path(info, info->path_uart, true);
+	/* Set initial path for UART when JIG is connected to get serial logs */
+	ret = max14577_bulk_read(info->max14577->regmap,
+			MAX14577_MUIC_REG_STATUS1, info->status, 2);
+	if (ret) {
+		dev_err(info->dev, "Cannot read STATUS registers\n");
+		return ret;
+	}
+	cable_type = max14577_muic_get_cable_type(info, MAX14577_CABLE_GROUP_ADC,
+					 &attached);
+	if (attached && cable_type == MAX14577_MUIC_ADC_FACTORY_MODE_UART_OFF)
+		max14577_muic_set_path(info, info->path_uart, true);
 
 	/* Check revision number of MUIC device*/
 	ret = max14577_read_reg(info->max14577->regmap,

@@ -1259,7 +1259,7 @@ again:
 		}
 		/*
 		 * Perf does test runs to see if a whole group can be assigned
-		 * together succesfully.  There can be multiple rounds of this.
+		 * together successfully.  There can be multiple rounds of this.
 		 * Unfortunately, p4_pmu_swap_config_ts touches the hwc->config
 		 * bits, such that the next round of group assignments will
 		 * cause the above p4_should_swap_ts to pass instead of fail.

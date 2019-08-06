@@ -24,6 +24,19 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		service_reserved: svcbuffer@0 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x0 0x0 0x1000000>;
+			alignment = <0x1000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -92,6 +105,14 @@
 		device_type = "soc";
 		interrupt-parent = <&intc>;
 		ranges = <0 0 0 0xffffffff>;
+
+		base_fpga_region {
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+
+			compatible = "fpga-region";
+			fpga-mgr = <&fpga_mgr>;
+		};
 
 		clkmgr: clock-controller@ffd10000 {
 			compatible = "intel,stratix10-clkmgr";
@@ -311,9 +332,8 @@
 
 		rst: rstmgr@ffd11000 {
 			#reset-cells = <1>;
-			compatible = "altr,rst-mgr";
+			compatible = "altr,stratix10-rst-mgr";
 			reg = <0xffd11000 0x1000>;
-			altr,modrst-offset = <0x20>;
 		};
 
 		spi0: spi@ffda4000 {
@@ -536,6 +556,18 @@
 			clocks = <&qspi_clk>;
 
 			status = "disabled";
+		};
+
+		firmware {
+			svc {
+				compatible = "intel,stratix10-svc";
+				method = "smc";
+				memory-region = <&service_reserved>;
+
+				fpga_mgr: fpga-mgr {
+					compatible = "intel,stratix10-soc-fpga-mgr";
+				};
+			};
 		};
 	};
 };

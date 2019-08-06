@@ -16,7 +16,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/audit.h>
 #include <linux/xattr.h>
@@ -592,6 +592,3 @@ error:
 }
 
 late_initcall(init_evm);
-
-MODULE_DESCRIPTION("Extended Verification Module");
-MODULE_LICENSE("GPL");

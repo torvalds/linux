@@ -701,7 +701,7 @@ static void walk_pfn(unsigned long voffset,
 		if (kpagecgroup_read(cgi, index, pages) != pages)
 			fatal("kpagecgroup returned fewer pages than expected");
 
-		if (kpagecount_read(cnt, index, batch) != pages)
+		if (kpagecount_read(cnt, index, pages) != pages)
 			fatal("kpagecount returned fewer pages than expected");
 
 		for (i = 0; i < pages; i++)

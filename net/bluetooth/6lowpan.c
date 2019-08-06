@@ -607,7 +607,7 @@ static void ifup(struct net_device *netdev)
 	int err;
 
 	rtnl_lock();
-	err = dev_open(netdev);
+	err = dev_open(netdev, NULL);
 	if (err < 0)
 		BT_INFO("iface %s cannot be opened (%d)", netdev->name, err);
 	rtnl_unlock();

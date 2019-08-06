@@ -1,33 +1,9 @@
-/*
- * Copyright (C) 2006-2016 Oracle Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- */
+/* SPDX-License-Identifier: MIT */
+/* Copyright (C) 2006-2016 Oracle Corporation */
 
 #ifndef __VBOXVIDEO_H__
 #define __VBOXVIDEO_H__
 
-/*
- * This should be in sync with monitorCount <xsd:maxInclusive value="64"/> in
- * src/VBox/Main/xml/VirtualBox-settings-common.xsd
- */
 #define VBOX_VIDEO_MAX_SCREENS 64
 
 /*
@@ -77,21 +53,14 @@
  * read 32 bit value    result of the last vbox command is returned
  */
 
-/**
- * VBVA command header.
- *
- * @todo Where does this fit in?
- */
 struct vbva_cmd_hdr {
-   /** Coordinates of affected rectangle. */
 	s16 x;
 	s16 y;
 	u16 w;
 	u16 h;
 } __packed;
 
-/** @name VBVA ring defines.
- *
+/*
  * The VBVA ring buffer is suitable for transferring large (< 2GB) amount of
  * data. For example big bitmaps which do not fit to the buffer.
  *
@@ -106,8 +75,8 @@ struct vbva_cmd_hdr {
  * VBVA_RING_BUFFER_THRESHOLD, the host fetched all record data and updates
  * data_offset. After that on each flush the host continues fetching the data
  * until the record is completed.
- *
  */
+
 #define VBVA_RING_BUFFER_SIZE        (4194304 - 1024)
 #define VBVA_RING_BUFFER_THRESHOLD   (4096)
 
@@ -122,11 +91,7 @@ struct vbva_cmd_hdr {
 
 #define VBVA_F_RECORD_PARTIAL       0x80000000u
 
-/**
- * VBVA record.
- */
 struct vbva_record {
-	/** The length of the record. Changed by guest. */
 	u32 len_and_flags;
 } __packed;
 
@@ -144,7 +109,8 @@ struct vbva_record {
 /* The value for port IO to let the adapter to interpret the adapter memory. */
 #define VBOX_VIDEO_INTERPRET_ADAPTER_MEMORY      0x00000000
 
-/* The value for port IO to let the adapter to interpret the display memory.
+/*
+ * The value for port IO to let the adapter to interpret the display memory.
  * The display number is encoded in low 16 bits.
  */
 #define VBOX_VIDEO_INTERPRET_DISPLAY_MEMORY_BASE 0x00010000
@@ -200,12 +166,12 @@ struct vbva_buffer {
 #define VBVA_CMDVBVA_CTL			18
 /* Query most recent mode hints sent */
 #define VBVA_QUERY_MODE_HINTS			19
-/**
+/*
  * Report the guest virtual desktop position and size for mapping host and
  * guest pointer positions.
  */
 #define VBVA_REPORT_INPUT_MAPPING		20
-/** Report the guest cursor position and query the host position. */
+/* Report the guest cursor position and query the host position. */
 #define VBVA_CURSOR_POSITION			21
 
 /* host->guest commands */
@@ -215,25 +181,24 @@ struct vbva_buffer {
 /* vbva_conf32::index */
 #define VBOX_VBVA_CONF32_MONITOR_COUNT		0
 #define VBOX_VBVA_CONF32_HOST_HEAP_SIZE		1
-/**
+/*
  * Returns VINF_SUCCESS if the host can report mode hints via VBVA.
  * Set value to VERR_NOT_SUPPORTED before calling.
  */
 #define VBOX_VBVA_CONF32_MODE_HINT_REPORTING	2
-/**
+/*
  * Returns VINF_SUCCESS if the host can report guest cursor enabled status via
  * VBVA.  Set value to VERR_NOT_SUPPORTED before calling.
  */
 #define VBOX_VBVA_CONF32_GUEST_CURSOR_REPORTING	3
-/**
+/*
  * Returns the currently available host cursor capabilities.  Available if
- * vbva_conf32::VBOX_VBVA_CONF32_GUEST_CURSOR_REPORTING returns success.
- * @see VMMDevReqMouseStatus::mouseFeatures.
+ * VBOX_VBVA_CONF32_GUEST_CURSOR_REPORTING returns success.
  */
 #define VBOX_VBVA_CONF32_CURSOR_CAPABILITIES	4
-/** Returns the supported flags in vbva_infoscreen::flags. */
+/* Returns the supported flags in vbva_infoscreen.flags. */
 #define VBOX_VBVA_CONF32_SCREEN_FLAGS		5
-/** Returns the max size of VBVA record. */
+/* Returns the max size of VBVA record. */
 #define VBOX_VBVA_CONF32_MAX_RECORD_SIZE	6
 
 struct vbva_conf32 {
@@ -241,20 +206,20 @@ struct vbva_conf32 {
 	u32 value;
 } __packed;
 
-/** Reserved for historical reasons. */
+/* Reserved for historical reasons. */
 #define VBOX_VBVA_CURSOR_CAPABILITY_RESERVED0   BIT(0)
-/**
+/*
  * Guest cursor capability: can the host show a hardware cursor at the host
  * pointer location?
  */
 #define VBOX_VBVA_CURSOR_CAPABILITY_HARDWARE    BIT(1)
-/** Reserved for historical reasons. */
+/* Reserved for historical reasons. */
 #define VBOX_VBVA_CURSOR_CAPABILITY_RESERVED2   BIT(2)
-/** Reserved for historical reasons.  Must always be unset. */
+/* Reserved for historical reasons.  Must always be unset. */
 #define VBOX_VBVA_CURSOR_CAPABILITY_RESERVED3   BIT(3)
-/** Reserved for historical reasons. */
+/* Reserved for historical reasons. */
 #define VBOX_VBVA_CURSOR_CAPABILITY_RESERVED4   BIT(4)
-/** Reserved for historical reasons. */
+/* Reserved for historical reasons. */
 #define VBOX_VBVA_CURSOR_CAPABILITY_RESERVED5   BIT(5)
 
 struct vbva_infoview {
@@ -275,21 +240,21 @@ struct vbva_flush {
 	u32 reserved;
 } __packed;
 
-/* vbva_infoscreen::flags */
+/* vbva_infoscreen.flags */
 #define VBVA_SCREEN_F_NONE			0x0000
 #define VBVA_SCREEN_F_ACTIVE			0x0001
-/**
+/*
  * The virtual monitor has been disabled by the guest and should be removed
  * by the host and ignored for purposes of pointer position calculation.
  */
 #define VBVA_SCREEN_F_DISABLED			0x0002
-/**
+/*
  * The virtual monitor has been blanked by the guest and should be blacked
  * out by the host using width, height, etc values from the vbva_infoscreen
  * request.
  */
 #define VBVA_SCREEN_F_BLANK			0x0004
-/**
+/*
  * The virtual monitor has been blanked by the guest and should be blacked
  * out by the host using the previous mode values for width. height, etc.
  */
@@ -324,7 +289,7 @@ struct vbva_infoscreen {
 	u16 flags;
 } __packed;
 
-/* vbva_enable::flags */
+/* vbva_enable.flags */
 #define VBVA_F_NONE				0x00000000
 #define VBVA_F_ENABLE				0x00000001
 #define VBVA_F_DISABLE				0x00000002
@@ -365,7 +330,6 @@ struct vbva_mouse_pointer_shape {
 
 	/* Pointer data.
 	 *
-	 ****
 	 * The data consists of 1 bpp AND mask followed by 32 bpp XOR (color)
 	 * mask.
 	 *
@@ -387,29 +351,18 @@ struct vbva_mouse_pointer_shape {
 	 * Bytes in the gap between the AND and the XOR mask are undefined.
 	 * XOR mask scanlines have no gap between them and size of XOR mask is:
 	 * xor_len = width * 4 * height.
-	 ****
 	 *
 	 * Preallocate 4 bytes for accessing actual data as p->data.
 	 */
 	u8 data[4];
 } __packed;
 
-/**
- * @name vbva_mouse_pointer_shape::flags
- * @note The VBOX_MOUSE_POINTER_* flags are used in the guest video driver,
- *       values must be <= 0x8000 and must not be changed. (try make more sense
- *       of this, please).
- * @{
- */
-
-/** pointer is visible */
+/* pointer is visible */
 #define VBOX_MOUSE_POINTER_VISIBLE		0x0001
-/** pointer has alpha channel */
+/* pointer has alpha channel */
 #define VBOX_MOUSE_POINTER_ALPHA		0x0002
-/** pointerData contains new pointer shape */
+/* pointerData contains new pointer shape */
 #define VBOX_MOUSE_POINTER_SHAPE		0x0004
-
-/** @} */
 
 /*
  * The guest driver can handle asynch guest cmd completion by reading the
@@ -418,11 +371,11 @@ struct vbva_mouse_pointer_shape {
 #define VBVACAPS_COMPLETEGCMD_BY_IOREAD		0x00000001
 /* the guest driver can handle video adapter IRQs */
 #define VBVACAPS_IRQ				0x00000002
-/** The guest can read video mode hints sent via VBVA. */
+/* The guest can read video mode hints sent via VBVA. */
 #define VBVACAPS_VIDEO_MODE_HINTS		0x00000004
-/** The guest can switch to a software cursor on demand. */
+/* The guest can switch to a software cursor on demand. */
 #define VBVACAPS_DISABLE_CURSOR_INTEGRATION	0x00000008
-/** The guest does not depend on host handling the VBE registers. */
+/* The guest does not depend on host handling the VBE registers. */
 #define VBVACAPS_USE_VBVA_ONLY			0x00000010
 
 struct vbva_caps {
@@ -430,17 +383,17 @@ struct vbva_caps {
 	u32 caps;
 } __packed;
 
-/** Query the most recent mode hints received from the host. */
+/* Query the most recent mode hints received from the host. */
 struct vbva_query_mode_hints {
-	/** The maximum number of screens to return hints for. */
+	/* The maximum number of screens to return hints for. */
 	u16 hints_queried_count;
-	/** The size of the mode hint structures directly following this one. */
+	/* The size of the mode hint structures directly following this one. */
 	u16 hint_structure_guest_size;
-	/** Return code for the operation. Initialise to VERR_NOT_SUPPORTED. */
+	/* Return code for the operation. Initialise to VERR_NOT_SUPPORTED. */
 	s32 rc;
 } __packed;
 
-/**
+/*
  * Structure in which a mode hint is returned. The guest allocates an array
  * of these immediately after the vbva_query_mode_hints structure.
  * To accommodate future extensions, the vbva_query_mode_hints structure
@@ -455,37 +408,35 @@ struct vbva_modehint {
 	u32 cy;
 	u32 bpp;		/* Which has never been used... */
 	u32 display;
-	u32 dx;			/**< X offset into the virtual frame-buffer. */
-	u32 dy;			/**< Y offset into the virtual frame-buffer. */
+	u32 dx;			/* X offset into the virtual frame-buffer. */
+	u32 dy;			/* Y offset into the virtual frame-buffer. */
 	u32 enabled;		/* Not flags. Add new members for new flags. */
 } __packed;
 
 #define VBVAMODEHINT_MAGIC 0x0801add9u
 
-/**
+/*
  * Report the rectangle relative to which absolute pointer events should be
  * expressed. This information remains valid until the next VBVA resize event
  * for any screen, at which time it is reset to the bounding rectangle of all
  * virtual screens and must be re-set.
- * @see VBVA_REPORT_INPUT_MAPPING.
  */
 struct vbva_report_input_mapping {
-	s32 x;	/**< Upper left X co-ordinate relative to the first screen. */
-	s32 y;	/**< Upper left Y co-ordinate relative to the first screen. */
-	u32 cx;	/**< Rectangle width. */
-	u32 cy;	/**< Rectangle height. */
+	s32 x;	/* Upper left X co-ordinate relative to the first screen. */
+	s32 y;	/* Upper left Y co-ordinate relative to the first screen. */
+	u32 cx;	/* Rectangle width. */
+	u32 cy;	/* Rectangle height. */
 } __packed;
 
-/**
+/*
  * Report the guest cursor position and query the host one. The host may wish
  * to use the guest information to re-position its own cursor (though this is
  * currently unlikely).
- * @see VBVA_CURSOR_POSITION
  */
 struct vbva_cursor_position {
-	u32 report_position;	/**< Are we reporting a position? */
-	u32 x;			/**< Guest cursor X position */
-	u32 y;			/**< Guest cursor Y position */
+	u32 report_position;	/* Are we reporting a position? */
+	u32 x;			/* Guest cursor X position */
+	u32 y;			/* Guest cursor Y position */
 } __packed;
 
 #endif

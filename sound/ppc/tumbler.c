@@ -1365,8 +1365,8 @@ int snd_pmac_tumbler_init(struct snd_pmac *chip)
 	mix->anded_reset = 0;
 	mix->reset_on_sleep = 1;
 
-	for (np = chip->node->child; np; np = np->sibling) {
-		if (!strcmp(np->name, "sound")) {
+	for_each_child_of_node(chip->node, np) {
+		if (of_node_name_eq(np, "sound")) {
 			if (of_get_property(np, "has-anded-reset", NULL))
 				mix->anded_reset = 1;
 			if (of_get_property(np, "layout-id", NULL))

@@ -1471,7 +1471,7 @@ static int pdc_mb_init(struct pdc_state *pdcs)
 		mbc->chans[chan_index].con_priv = pdcs;
 
 	/* Register mailbox controller */
-	err = mbox_controller_register(mbc);
+	err = devm_mbox_controller_register(dev, mbc);
 	if (err) {
 		dev_crit(dev,
 			 "Failed to register PDC mailbox controller. Error %d.",
@@ -1640,8 +1640,6 @@ static int pdc_remove(struct platform_device *pdev)
 	tasklet_kill(&pdcs->rx_tasklet);
 
 	pdc_hw_disable(pdcs);
-
-	mbox_controller_unregister(&pdcs->mbc);
 
 	dma_pool_destroy(pdcs->rx_buf_pool);
 	dma_pool_destroy(pdcs->ring_pool);

@@ -1140,6 +1140,11 @@ struct shm_dev_info {				/* size */
 
 };
 
+struct extended_dev_info_shared_cfg {
+	u32 reserved[18];
+	u32 mbi_version;
+	u32 mbi_date;
+};
 
 #if !defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)
 	#error "Missing either LITTLE_ENDIAN or BIG_ENDIAN definition."

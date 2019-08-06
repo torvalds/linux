@@ -119,5 +119,5 @@ If a deauthorized interface will be authorized so the driver probing must
 be triggered manually by writing INTERFACE to /sys/bus/usb/drivers_probe
 
 For drivers that need multiple interfaces all needed interfaces should be
-authroized first. After that the drivers should be probed.
+authorized first. After that the drivers should be probed.
 This avoids side effects.

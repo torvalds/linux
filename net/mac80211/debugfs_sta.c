@@ -795,22 +795,22 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 
 #define PRINT_NSS_SUPP(f, n)						\
 	do {								\
-		int i;							\
+		int _i;							\
 		u16 v = le16_to_cpu(nss->f);				\
 		p += scnprintf(p, buf_sz + buf - p, n ": %#.4x\n", v);	\
-		for (i = 0; i < 8; i += 2) {				\
-			switch ((v >> i) & 0x3) {			\
+		for (_i = 0; _i < 8; _i += 2) {				\
+			switch ((v >> _i) & 0x3) {			\
 			case 0:						\
-				PRINT(n "-%d-SUPPORT-0-7", i / 2);	\
+				PRINT(n "-%d-SUPPORT-0-7", _i / 2);	\
 				break;					\
 			case 1:						\
-				PRINT(n "-%d-SUPPORT-0-9", i / 2);	\
+				PRINT(n "-%d-SUPPORT-0-9", _i / 2);	\
 				break;					\
 			case 2:						\
-				PRINT(n "-%d-SUPPORT-0-11", i / 2);	\
+				PRINT(n "-%d-SUPPORT-0-11", _i / 2);	\
 				break;					\
 			case 3:						\
-				PRINT(n "-%d-NOT-SUPPORTED", i / 2);	\
+				PRINT(n "-%d-NOT-SUPPORTED", _i / 2);	\
 				break;					\
 			}						\
 		}							\

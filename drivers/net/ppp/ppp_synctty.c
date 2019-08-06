@@ -709,11 +709,10 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 		p = skb_pull(skb, 2);
 	}
 
-	/* decompress protocol field if compressed */
-	if (p[0] & 1) {
-		/* protocol is compressed */
-		*(u8 *)skb_push(skb, 1) = 0;
-	} else if (skb->len < 2)
+	/* PPP packet length should be >= 2 bytes when protocol field is not
+	 * compressed.
+	 */
+	if (!(p[0] & 0x01) && skb->len < 2)
 		goto err;
 
 	/* queue the frame to be processed */

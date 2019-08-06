@@ -39,9 +39,6 @@ extern int dma_nommu_mmap_coherent(struct device *dev,
  * to ensure it is consistent.
  */
 struct device;
-extern void *__dma_alloc_coherent(struct device *dev, size_t size,
-				  dma_addr_t *handle, gfp_t gfp);
-extern void __dma_free_coherent(size_t size, void *vaddr);
 extern void __dma_sync(void *vaddr, size_t size, int direction);
 extern void __dma_sync_page(struct page *page, unsigned long offset,
 				 size_t size, int direction);
@@ -52,8 +49,6 @@ extern unsigned long __dma_get_coherent_pfn(unsigned long cpu_addr);
  * Cache coherent cores.
  */
 
-#define __dma_alloc_coherent(dev, gfp, size, handle)	NULL
-#define __dma_free_coherent(size, addr)		((void)0)
 #define __dma_sync(addr, size, rw)		((void)0)
 #define __dma_sync_page(pg, off, sz, rw)	((void)0)
 
@@ -108,11 +103,8 @@ static inline void set_dma_offset(struct device *dev, dma_addr_t off)
 }
 
 #define HAVE_ARCH_DMA_SET_MASK 1
-extern int dma_set_mask(struct device *dev, u64 dma_mask);
 
 extern u64 __dma_get_required_mask(struct device *dev);
-
-#define ARCH_HAS_DMA_MMAP_COHERENT
 
 #endif /* __KERNEL__ */
 #endif	/* _ASM_DMA_MAPPING_H */

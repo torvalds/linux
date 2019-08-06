@@ -1199,6 +1199,40 @@ drv_get_ftm_responder_stats(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_start_pmsr(struct ieee80211_local *local,
+				 struct ieee80211_sub_if_data *sdata,
+				 struct cfg80211_pmsr_request *request)
+{
+	int ret = -EOPNOTSUPP;
+
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_start_pmsr(local, sdata);
+
+	if (local->ops->start_pmsr)
+		ret = local->ops->start_pmsr(&local->hw, &sdata->vif, request);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline void drv_abort_pmsr(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata,
+				  struct cfg80211_pmsr_request *request)
+{
+	trace_drv_abort_pmsr(local, sdata);
+
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (local->ops->abort_pmsr)
+		local->ops->abort_pmsr(&local->hw, &sdata->vif, request);
+	trace_drv_return_void(local);
+}
+
 static inline int drv_start_nan(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata,
 				struct cfg80211_nan_conf *conf)

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _userp:
 
@@ -62,9 +69,9 @@ memory pages at any time between the completion of the DMA and this
 ioctl. The memory is also unlocked when
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` is called,
 :ref:`VIDIOC_REQBUFS`, or when the device is closed.
-Applications must take care not to free buffers without dequeuing. For
-once, the buffers remain locked until further, wasting physical memory.
-Second the driver will not be notified when the memory is returned to
+Applications must take care not to free buffers without dequeuing.
+Firstly, the buffers remain locked for longer, wasting physical memory.
+Secondly the driver will not be notified when the memory is returned to
 the application's free list and subsequently reused for other purposes,
 possibly completing the requested DMA and overwriting valuable data.
 
@@ -90,7 +97,7 @@ To start and stop capturing or output applications call the
 
 .. note::
 
-   ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
+   :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
    both queues and unlocks all buffers as a side effect. Since there is no
    notion of doing anything "now" on a multitasking system, if an
    application needs to synchronize with another event it should examine

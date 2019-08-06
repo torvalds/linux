@@ -190,7 +190,6 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			fwnode_handle_put(child);
 			return ERR_PTR(ret);
 		}
-		led_dat->cdev.dev->of_node = np;
 		priv->num_leds++;
 	}
 

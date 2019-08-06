@@ -11,4 +11,5 @@ obj-$(CONFIG_MAX5487) += max5487.o
 obj-$(CONFIG_MCP4018) += mcp4018.o
 obj-$(CONFIG_MCP4131) += mcp4131.o
 obj-$(CONFIG_MCP4531) += mcp4531.o
+obj-$(CONFIG_MCP41010) += mcp41010.o
 obj-$(CONFIG_TPL0102) += tpl0102.o

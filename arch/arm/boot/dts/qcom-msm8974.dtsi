@@ -427,11 +427,13 @@
 			};
 		};
 
-		tsens: thermal-sensor@fc4a8000 {
+		tsens: thermal-sensor@fc4a9000 {
 			compatible = "qcom,msm8974-tsens";
-			reg = <0xfc4a8000 0x2000>;
+			reg = <0xfc4a9000 0x1000>, /* TM */
+			      <0xfc4a8000 0x1000>; /* SROT */
 			nvmem-cells = <&tsens_calib>, <&tsens_backup>;
 			nvmem-cell-names = "calib", "calib_backup";
+			#qcom,sensors = <11>;
 			#thermal-sensor-cells = <1>;
 		};
 
@@ -602,7 +604,7 @@
 		};
 
 		sdhci@f9824900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8974-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
@@ -616,7 +618,7 @@
 		};
 
 		sdhci@f9864900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8974-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9864900 0x11c>, <0xf9864000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
@@ -630,7 +632,7 @@
 		};
 
 		sdhci@f98a4900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8974-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,

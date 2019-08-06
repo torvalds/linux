@@ -7,12 +7,6 @@
 #include <xen/xen.h>
 #include "blk-mq.h"
 
-/* Amount of time in which a process may batch requests */
-#define BLK_BATCH_TIME	(HZ/50UL)
-
-/* Number of requests a "batching" process may submit */
-#define BLK_BATCH_REQ	32
-
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
@@ -38,85 +32,13 @@ struct blk_flush_queue {
 };
 
 extern struct kmem_cache *blk_requestq_cachep;
-extern struct kmem_cache *request_cachep;
 extern struct kobj_type blk_queue_ktype;
 extern struct ida blk_queue_ida;
 
-/*
- * @q->queue_lock is set while a queue is being initialized. Since we know
- * that no other threads access the queue object before @q->queue_lock has
- * been set, it is safe to manipulate queue flags without holding the
- * queue_lock if @q->queue_lock == NULL. See also blk_alloc_queue_node() and
- * blk_init_allocated_queue().
- */
-static inline void queue_lockdep_assert_held(struct request_queue *q)
+static inline struct blk_flush_queue *
+blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
 {
-	if (q->queue_lock)
-		lockdep_assert_held(q->queue_lock);
-}
-
-static inline void queue_flag_set_unlocked(unsigned int flag,
-					   struct request_queue *q)
-{
-	if (test_bit(QUEUE_FLAG_INIT_DONE, &q->queue_flags) &&
-	    kref_read(&q->kobj.kref))
-		lockdep_assert_held(q->queue_lock);
-	__set_bit(flag, &q->queue_flags);
-}
-
-static inline void queue_flag_clear_unlocked(unsigned int flag,
-					     struct request_queue *q)
-{
-	if (test_bit(QUEUE_FLAG_INIT_DONE, &q->queue_flags) &&
-	    kref_read(&q->kobj.kref))
-		lockdep_assert_held(q->queue_lock);
-	__clear_bit(flag, &q->queue_flags);
-}
-
-static inline int queue_flag_test_and_clear(unsigned int flag,
-					    struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-
-	if (test_bit(flag, &q->queue_flags)) {
-		__clear_bit(flag, &q->queue_flags);
-		return 1;
-	}
-
-	return 0;
-}
-
-static inline int queue_flag_test_and_set(unsigned int flag,
-					  struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-
-	if (!test_bit(flag, &q->queue_flags)) {
-		__set_bit(flag, &q->queue_flags);
-		return 0;
-	}
-
-	return 1;
-}
-
-static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-	__set_bit(flag, &q->queue_flags);
-}
-
-static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-	__clear_bit(flag, &q->queue_flags);
-}
-
-static inline struct blk_flush_queue *blk_get_flush_queue(
-		struct request_queue *q, struct blk_mq_ctx *ctx)
-{
-	if (q->mq_ops)
-		return blk_mq_map_queue(q, ctx->cpu)->fq;
-	return q->fq;
+	return blk_mq_map_queue(q, REQ_OP_FLUSH, ctx->cpu)->fq;
 }
 
 static inline void __blk_get_queue(struct request_queue *q)
@@ -128,15 +50,9 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 		int node, int cmd_size, gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
-int blk_init_rl(struct request_list *rl, struct request_queue *q,
-		gfp_t gfp_mask);
-void blk_exit_rl(struct request_queue *q, struct request_list *rl);
 void blk_exit_queue(struct request_queue *q);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
-void blk_queue_bypass_start(struct request_queue *q);
-void blk_queue_bypass_end(struct request_queue *q);
-void __blk_queue_free_tags(struct request_queue *q);
 void blk_freeze_queue(struct request_queue *q);
 
 static inline void blk_queue_enter_live(struct request_queue *q)
@@ -235,11 +151,8 @@ static inline bool bio_integrity_endio(struct bio *bio)
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
-void blk_timeout_work(struct work_struct *work);
 unsigned long blk_rq_timeout(unsigned long timeout);
 void blk_add_timer(struct request *req);
-void blk_delete_timer(struct request *);
-
 
 bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 			     struct bio *bio);
@@ -248,33 +161,11 @@ bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 		struct bio *bio);
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			    unsigned int *request_count,
 			    struct request **same_queue_rq);
-unsigned int blk_plug_queued_count(struct request_queue *q);
 
 void blk_account_io_start(struct request *req, bool new_io);
 void blk_account_io_completion(struct request *req, unsigned int bytes);
 void blk_account_io_done(struct request *req, u64 now);
-
-/*
- * EH timer and IO completion will both attempt to 'grab' the request, make
- * sure that only one of them succeeds. Steal the bottom bit of the
- * __deadline field for this.
- */
-static inline int blk_mark_rq_complete(struct request *rq)
-{
-	return test_and_set_bit(0, &rq->__deadline);
-}
-
-static inline void blk_clear_rq_complete(struct request *rq)
-{
-	clear_bit(0, &rq->__deadline);
-}
-
-static inline bool blk_rq_is_complete(struct request *rq)
-{
-	return test_bit(0, &rq->__deadline);
-}
 
 /*
  * Internal elevator interface
@@ -283,23 +174,6 @@ static inline bool blk_rq_is_complete(struct request *rq)
 
 void blk_insert_flush(struct request *rq);
 
-static inline void elv_activate_rq(struct request_queue *q, struct request *rq)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e->type->ops.sq.elevator_activate_req_fn)
-		e->type->ops.sq.elevator_activate_req_fn(q, rq);
-}
-
-static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e->type->ops.sq.elevator_deactivate_req_fn)
-		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
-}
-
-int elevator_init(struct request_queue *);
 int elevator_init_mq(struct request_queue *q);
 int elevator_switch_mq(struct request_queue *q,
 			      struct elevator_type *new_e);
@@ -334,30 +208,7 @@ void blk_rq_set_mixed_merge(struct request *rq);
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
 enum elv_merge blk_try_merge(struct request *rq, struct bio *bio);
 
-void blk_queue_congestion_threshold(struct request_queue *q);
-
 int blk_dev_init(void);
-
-
-/*
- * Return the threshold (number of used requests) at which the queue is
- * considered to be congested.  It include a little hysteresis to keep the
- * context switch rate down.
- */
-static inline int queue_congestion_on_threshold(struct request_queue *q)
-{
-	return q->nr_congestion_on;
-}
-
-/*
- * The threshold at which a queue is considered to be uncongested
- */
-static inline int queue_congestion_off_threshold(struct request_queue *q)
-{
-	return q->nr_congestion_off;
-}
-
-extern int blk_update_nr_requests(struct request_queue *, unsigned int);
 
 /*
  * Contribute to IO statistics IFF:
@@ -381,21 +232,6 @@ static inline void req_set_nomerge(struct request_queue *q, struct request *req)
 }
 
 /*
- * Steal a bit from this field for legacy IO path atomic IO marking. Note that
- * setting the deadline clears the bottom bit, potentially clearing the
- * completed bit. The user has to be OK with this (current ones are fine).
- */
-static inline void blk_rq_set_deadline(struct request *rq, unsigned long time)
-{
-	rq->__deadline = time & ~0x1UL;
-}
-
-static inline unsigned long blk_rq_deadline(struct request *rq)
-{
-	return rq->__deadline & ~0x1UL;
-}
-
-/*
  * The max size one bio can handle is UINT_MAX becasue bvec_iter.bi_size
  * is defined as 'unsigned int', meantime it has to aligned to with logical
  * block size which is the minimum accepted unit by hardware.
@@ -415,22 +251,6 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 void ioc_clear_queue(struct request_queue *q);
 
 int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
-
-/**
- * rq_ioc - determine io_context for request allocation
- * @bio: request being allocated is for this bio (can be %NULL)
- *
- * Determine io_context to use for request allocation for @bio.  May return
- * %NULL if %current->io_context doesn't exist.
- */
-static inline struct io_context *rq_ioc(struct bio *bio)
-{
-#ifdef CONFIG_BLK_CGROUP
-	if (bio && bio->bi_ioc)
-		return bio->bi_ioc;
-#endif
-	return current->io_context;
-}
 
 /**
  * create_io_context - try to create task->io_context
@@ -489,8 +309,6 @@ static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
 {
 }
 #endif /* CONFIG_BOUNCE */
-
-extern void blk_drain_queue(struct request_queue *q);
 
 #ifdef CONFIG_BLK_CGROUP_IOLATENCY
 extern int blk_iolatency_init(struct request_queue *q);

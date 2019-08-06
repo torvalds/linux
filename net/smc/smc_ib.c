@@ -289,8 +289,8 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 
 static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 {
-	struct smc_ib_device *smcibdev =
-		(struct smc_ib_device *)ibevent->device;
+	struct smc_link *lnk = (struct smc_link *)priv;
+	struct smc_ib_device *smcibdev = lnk->smcibdev;
 	u8 port_idx;
 
 	switch (ibevent->event) {
@@ -298,7 +298,7 @@ static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 	case IB_EVENT_GID_CHANGE:
 	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_QP_ACCESS_ERR:
-		port_idx = ibevent->element.port_num - 1;
+		port_idx = ibevent->element.qp->port - 1;
 		set_bit(port_idx, &smcibdev->port_event_mask);
 		schedule_work(&smcibdev->port_event_work);
 		break;

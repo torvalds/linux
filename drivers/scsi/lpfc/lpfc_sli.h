@@ -144,9 +144,9 @@ typedef struct lpfcMboxq {
 		MAILBOX_t mb;		/* Mailbox cmd */
 		struct lpfc_mqe mqe;
 	} u;
-	struct lpfc_vport *vport;/* virtual port pointer */
-	void *context1;		/* caller context information */
-	void *context2;		/* caller context information */
+	struct lpfc_vport *vport; /* virtual port pointer */
+	void *ctx_ndlp;		  /* caller ndlp information */
+	void *ctx_buf;		  /* caller buffer information */
 	void *context3;
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);

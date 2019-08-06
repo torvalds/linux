@@ -588,6 +588,12 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	    hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
 	    hw->aq.api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_XL710) {
 		hw->flags |= I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE;
+		hw->flags |= I40E_HW_FLAG_FW_LLDP_STOPPABLE;
+	}
+	if (hw->mac.type == I40E_MAC_X722 &&
+	    hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
+	    hw->aq.api_min_ver >= I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722) {
+		hw->flags |= I40E_HW_FLAG_FW_LLDP_STOPPABLE;
 	}
 
 	/* Newer versions of firmware require lock when reading the NVM */

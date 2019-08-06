@@ -151,8 +151,8 @@ int sctp_primitive_RECONF(struct net *net, struct sctp_association *asoc,
  * sctp/input.c
  */
 int sctp_rcv(struct sk_buff *skb);
-void sctp_v4_err(struct sk_buff *skb, u32 info);
-void sctp_hash_endpoint(struct sctp_endpoint *);
+int sctp_v4_err(struct sk_buff *skb, u32 info);
+int sctp_hash_endpoint(struct sctp_endpoint *ep);
 void sctp_unhash_endpoint(struct sctp_endpoint *);
 struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,

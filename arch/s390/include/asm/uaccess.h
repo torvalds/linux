@@ -48,7 +48,7 @@ static inline int __range_ok(unsigned long addr, unsigned long size)
 	__range_ok((unsigned long)(addr), (size));	\
 })
 
-#define access_ok(type, addr, size) __access_ok(addr, size)
+#define access_ok(addr, size) __access_ok(addr, size)
 
 unsigned long __must_check
 raw_copy_from_user(void *to, const void __user *from, unsigned long n);

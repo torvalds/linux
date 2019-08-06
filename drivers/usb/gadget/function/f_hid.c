@@ -252,7 +252,7 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buffer, count))
+	if (!access_ok(buffer, count))
 		return -EFAULT;
 
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
@@ -339,7 +339,7 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 	unsigned long flags;
 	ssize_t status = -ENOMEM;
 
-	if (!access_ok(VERIFY_READ, buffer, count))
+	if (!access_ok(buffer, count))
 		return -EFAULT;
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);

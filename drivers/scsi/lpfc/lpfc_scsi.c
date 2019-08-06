@@ -2734,6 +2734,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
+	struct lpfc_vport *vport = phba->pport;
 
 	/*
 	 * Start the lpfc command prep by bumping the bpl beyond fcp_cmnd
@@ -2838,6 +2839,14 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = fcpdl;
+
+	/*
+	 * For First burst, we may need to adjust the initial transfer
+	 * length for DIF
+	 */
+	if (iocb_cmd->un.fcpi.fcpi_XRdy &&
+	    (fcpdl < vport->cfg_first_burst_size))
+		iocb_cmd->un.fcpi.fcpi_XRdy = fcpdl;
 
 	return 0;
 err:
@@ -3403,6 +3412,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
+	struct lpfc_vport *vport = phba->pport;
 
 	/*
 	 * Start the lpfc command prep by bumping the sgl beyond fcp_cmnd
@@ -3517,6 +3527,14 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = fcpdl;
+
+	/*
+	 * For First burst, we may need to adjust the initial transfer
+	 * length for DIF
+	 */
+	if (iocb_cmd->un.fcpi.fcpi_XRdy &&
+	    (fcpdl < vport->cfg_first_burst_size))
+		iocb_cmd->un.fcpi.fcpi_XRdy = fcpdl;
 
 	/*
 	 * If the OAS driver feature is enabled and the lun is enabled for
@@ -3914,7 +3932,7 @@ int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
 	uint32_t tag;
 	uint16_t hwq;
 
-	if (cmnd && shost_use_blk_mq(cmnd->device->host)) {
+	if (cmnd) {
 		tag = blk_mq_unique_tag(cmnd->request);
 		hwq = blk_mq_unique_tag_to_hwq(tag);
 
@@ -4163,7 +4181,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	/* If pCmd was set to NULL from abort path, do not call scsi_done */
 	if (xchg(&lpfc_cmd->pCmd, NULL) == NULL) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-				 "0711 FCP cmd already NULL, sid: 0x%06x, "
+				 "5688 FCP cmd already NULL, sid: 0x%06x, "
 				 "did: 0x%06x, oxid: 0x%04x\n",
 				 vport->fc_myDID,
 				 (pnode) ? pnode->nlp_DID : 0,
@@ -4442,6 +4460,66 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_check_pci_resettable - Walks list of devices on pci_dev's bus to check
+ *                             if issuing a pci_bus_reset is possibly unsafe
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * Walks the bus_list to ensure only PCI devices with Emulex
+ * vendor id, device ids that support hot reset, and only one occurrence
+ * of function 0.
+ *
+ * Returns:
+ * -EBADSLT,  detected invalid device
+ *      0,    successful
+ */
+int
+lpfc_check_pci_resettable(const struct lpfc_hba *phba)
+{
+	const struct pci_dev *pdev = phba->pcidev;
+	struct pci_dev *ptr = NULL;
+	u8 counter = 0;
+
+	/* Walk the list of devices on the pci_dev's bus */
+	list_for_each_entry(ptr, &pdev->bus->devices, bus_list) {
+		/* Check for Emulex Vendor ID */
+		if (ptr->vendor != PCI_VENDOR_ID_EMULEX) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"8346 Non-Emulex vendor found: "
+					"0x%04x\n", ptr->vendor);
+			return -EBADSLT;
+		}
+
+		/* Check for valid Emulex Device ID */
+		switch (ptr->device) {
+		case PCI_DEVICE_ID_LANCER_FC:
+		case PCI_DEVICE_ID_LANCER_G6_FC:
+		case PCI_DEVICE_ID_LANCER_G7_FC:
+			break;
+		default:
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"8347 Invalid device found: "
+					"0x%04x\n", ptr->device);
+			return -EBADSLT;
+		}
+
+		/* Check for only one function 0 ID to ensure only one HBA on
+		 * secondary bus
+		 */
+		if (ptr->devfn == 0) {
+			if (++counter > 1) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"8348 More than one device on "
+						"secondary bus found\n");
+				return -EBADSLT;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
  * lpfc_info - Info entry point of scsi_host_template data structure
  * @host: The scsi host for which this call is being executed.
  *
@@ -4455,32 +4533,53 @@ lpfc_info(struct Scsi_Host *host)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	int len, link_speed = 0;
-	static char  lpfcinfobuf[384];
+	int link_speed = 0;
+	static char lpfcinfobuf[384];
+	char tmp[384] = {0};
 
-	memset(lpfcinfobuf,0,384);
+	memset(lpfcinfobuf, 0, sizeof(lpfcinfobuf));
 	if (phba && phba->pcidev){
-		strncpy(lpfcinfobuf, phba->ModelDesc, 256);
-		len = strlen(lpfcinfobuf);
-		snprintf(lpfcinfobuf + len,
-			384-len,
-			" on PCI bus %02x device %02x irq %d",
-			phba->pcidev->bus->number,
-			phba->pcidev->devfn,
-			phba->pcidev->irq);
-		len = strlen(lpfcinfobuf);
+		/* Model Description */
+		scnprintf(tmp, sizeof(tmp), phba->ModelDesc);
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
+		/* PCI Info */
+		scnprintf(tmp, sizeof(tmp),
+			  " on PCI bus %02x device %02x irq %d",
+			  phba->pcidev->bus->number, phba->pcidev->devfn,
+			  phba->pcidev->irq);
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
+		/* Port Number */
 		if (phba->Port[0]) {
-			snprintf(lpfcinfobuf + len,
-				 384-len,
-				 " port %s",
-				 phba->Port);
+			scnprintf(tmp, sizeof(tmp), " port %s", phba->Port);
+			if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+			    sizeof(lpfcinfobuf))
+				goto buffer_done;
 		}
-		len = strlen(lpfcinfobuf);
+
+		/* Link Speed */
 		link_speed = lpfc_sli_port_speed_get(phba);
-		if (link_speed != 0)
-			snprintf(lpfcinfobuf + len, 384-len,
-				 " Logical Link Speed: %d Mbps", link_speed);
+		if (link_speed != 0) {
+			scnprintf(tmp, sizeof(tmp),
+				  " Logical Link Speed: %d Mbps", link_speed);
+			if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+			    sizeof(lpfcinfobuf))
+				goto buffer_done;
+		}
+
+		/* PCI resettable */
+		if (!lpfc_check_pci_resettable(phba)) {
+			scnprintf(tmp, sizeof(tmp), " PCI resettable");
+			strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf));
+		}
 	}
+
+buffer_done:
 	return lpfcinfobuf;
 }
 
@@ -6036,7 +6135,6 @@ struct scsi_host_template lpfc_template_nvme = {
 	.this_id		= -1,
 	.sg_tablesize		= 1,
 	.cmd_per_lun		= 1,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
@@ -6061,7 +6159,6 @@ struct scsi_host_template lpfc_template_no_hr = {
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
@@ -6088,7 +6185,6 @@ struct scsi_host_template lpfc_template = {
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
@@ -6113,7 +6209,6 @@ struct scsi_host_template lpfc_vport_template = {
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= scsi_change_queue_depth,

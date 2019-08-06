@@ -5,10 +5,11 @@
 #include "nitrox_csr.h"
 
 #define PLL_REF_CLK 50
+#define MAX_CSR_RETRIES 10
 
 /**
  * emu_enable_cores - Enable EMU cluster cores.
- * @ndev: N5 device
+ * @ndev: NITROX device
  */
 static void emu_enable_cores(struct nitrox_device *ndev)
 {
@@ -33,7 +34,7 @@ static void emu_enable_cores(struct nitrox_device *ndev)
 
 /**
  * nitrox_config_emu_unit - configure EMU unit.
- * @ndev: N5 device
+ * @ndev: NITROX device
  */
 void nitrox_config_emu_unit(struct nitrox_device *ndev)
 {
@@ -63,29 +64,26 @@ void nitrox_config_emu_unit(struct nitrox_device *ndev)
 static void reset_pkt_input_ring(struct nitrox_device *ndev, int ring)
 {
 	union nps_pkt_in_instr_ctl pkt_in_ctl;
-	union nps_pkt_in_instr_baoff_dbell pkt_in_dbell;
 	union nps_pkt_in_done_cnts pkt_in_cnts;
+	int max_retries = MAX_CSR_RETRIES;
 	u64 offset;
 
+	/* step 1: disable the ring, clear enable bit */
 	offset = NPS_PKT_IN_INSTR_CTLX(ring);
-	/* disable the ring */
 	pkt_in_ctl.value = nitrox_read_csr(ndev, offset);
 	pkt_in_ctl.s.enb = 0;
 	nitrox_write_csr(ndev, offset, pkt_in_ctl.value);
-	usleep_range(100, 150);
 
-	/* wait to clear [ENB] */
+	/* step 2: wait to clear [ENB] */
+	usleep_range(100, 150);
 	do {
 		pkt_in_ctl.value = nitrox_read_csr(ndev, offset);
-	} while (pkt_in_ctl.s.enb);
+		if (!pkt_in_ctl.s.enb)
+			break;
+		udelay(50);
+	} while (max_retries--);
 
-	/* clear off door bell counts */
-	offset = NPS_PKT_IN_INSTR_BAOFF_DBELLX(ring);
-	pkt_in_dbell.value = 0;
-	pkt_in_dbell.s.dbell = 0xffffffff;
-	nitrox_write_csr(ndev, offset, pkt_in_dbell.value);
-
-	/* clear done counts */
+	/* step 3: clear done counts */
 	offset = NPS_PKT_IN_DONE_CNTSX(ring);
 	pkt_in_cnts.value = nitrox_read_csr(ndev, offset);
 	nitrox_write_csr(ndev, offset, pkt_in_cnts.value);
@@ -95,6 +93,7 @@ static void reset_pkt_input_ring(struct nitrox_device *ndev, int ring)
 void enable_pkt_input_ring(struct nitrox_device *ndev, int ring)
 {
 	union nps_pkt_in_instr_ctl pkt_in_ctl;
+	int max_retries = MAX_CSR_RETRIES;
 	u64 offset;
 
 	/* 64-byte instruction size */
@@ -107,12 +106,15 @@ void enable_pkt_input_ring(struct nitrox_device *ndev, int ring)
 	/* wait for set [ENB] */
 	do {
 		pkt_in_ctl.value = nitrox_read_csr(ndev, offset);
-	} while (!pkt_in_ctl.s.enb);
+		if (pkt_in_ctl.s.enb)
+			break;
+		udelay(50);
+	} while (max_retries--);
 }
 
 /**
  * nitrox_config_pkt_input_rings - configure Packet Input Rings
- * @ndev: N5 device
+ * @ndev: NITROX device
  */
 void nitrox_config_pkt_input_rings(struct nitrox_device *ndev)
 {
@@ -121,11 +123,14 @@ void nitrox_config_pkt_input_rings(struct nitrox_device *ndev)
 	for (i = 0; i < ndev->nr_queues; i++) {
 		struct nitrox_cmdq *cmdq = &ndev->pkt_inq[i];
 		union nps_pkt_in_instr_rsize pkt_in_rsize;
+		union nps_pkt_in_instr_baoff_dbell pkt_in_dbell;
 		u64 offset;
 
 		reset_pkt_input_ring(ndev, i);
 
-		/* configure ring base address 16-byte aligned,
+		/**
+		 * step 4:
+		 * configure ring base address 16-byte aligned,
 		 * size and interrupt threshold.
 		 */
 		offset = NPS_PKT_IN_INSTR_BADDRX(i);
@@ -141,6 +146,13 @@ void nitrox_config_pkt_input_rings(struct nitrox_device *ndev)
 		offset = NPS_PKT_IN_INT_LEVELSX(i);
 		nitrox_write_csr(ndev, offset, 0xffffffff);
 
+		/* step 5: clear off door bell counts */
+		offset = NPS_PKT_IN_INSTR_BAOFF_DBELLX(i);
+		pkt_in_dbell.value = 0;
+		pkt_in_dbell.s.dbell = 0xffffffff;
+		nitrox_write_csr(ndev, offset, pkt_in_dbell.value);
+
+		/* enable the ring */
 		enable_pkt_input_ring(ndev, i);
 	}
 }
@@ -149,21 +161,26 @@ static void reset_pkt_solicit_port(struct nitrox_device *ndev, int port)
 {
 	union nps_pkt_slc_ctl pkt_slc_ctl;
 	union nps_pkt_slc_cnts pkt_slc_cnts;
+	int max_retries = MAX_CSR_RETRIES;
 	u64 offset;
 
-	/* disable slc port */
+	/* step 1: disable slc port */
 	offset = NPS_PKT_SLC_CTLX(port);
 	pkt_slc_ctl.value = nitrox_read_csr(ndev, offset);
 	pkt_slc_ctl.s.enb = 0;
 	nitrox_write_csr(ndev, offset, pkt_slc_ctl.value);
-	usleep_range(100, 150);
 
+	/* step 2 */
+	usleep_range(100, 150);
 	/* wait to clear [ENB] */
 	do {
 		pkt_slc_ctl.value = nitrox_read_csr(ndev, offset);
-	} while (pkt_slc_ctl.s.enb);
+		if (!pkt_slc_ctl.s.enb)
+			break;
+		udelay(50);
+	} while (max_retries--);
 
-	/* clear slc counters */
+	/* step 3: clear slc counters */
 	offset = NPS_PKT_SLC_CNTSX(port);
 	pkt_slc_cnts.value = nitrox_read_csr(ndev, offset);
 	nitrox_write_csr(ndev, offset, pkt_slc_cnts.value);
@@ -173,12 +190,12 @@ static void reset_pkt_solicit_port(struct nitrox_device *ndev, int port)
 void enable_pkt_solicit_port(struct nitrox_device *ndev, int port)
 {
 	union nps_pkt_slc_ctl pkt_slc_ctl;
+	int max_retries = MAX_CSR_RETRIES;
 	u64 offset;
 
 	offset = NPS_PKT_SLC_CTLX(port);
 	pkt_slc_ctl.value = 0;
 	pkt_slc_ctl.s.enb = 1;
-
 	/*
 	 * 8 trailing 0x00 bytes will be added
 	 * to the end of the outgoing packet.
@@ -191,23 +208,27 @@ void enable_pkt_solicit_port(struct nitrox_device *ndev, int port)
 	/* wait to set [ENB] */
 	do {
 		pkt_slc_ctl.value = nitrox_read_csr(ndev, offset);
-	} while (!pkt_slc_ctl.s.enb);
+		if (pkt_slc_ctl.s.enb)
+			break;
+		udelay(50);
+	} while (max_retries--);
 }
 
-static void config_single_pkt_solicit_port(struct nitrox_device *ndev,
-					   int port)
+static void config_pkt_solicit_port(struct nitrox_device *ndev, int port)
 {
 	union nps_pkt_slc_int_levels pkt_slc_int;
 	u64 offset;
 
 	reset_pkt_solicit_port(ndev, port);
 
+	/* step 4: configure interrupt levels */
 	offset = NPS_PKT_SLC_INT_LEVELSX(port);
 	pkt_slc_int.value = 0;
 	/* time interrupt threshold */
 	pkt_slc_int.s.timet = 0x3fffff;
 	nitrox_write_csr(ndev, offset, pkt_slc_int.value);
 
+	/* enable the solicit port */
 	enable_pkt_solicit_port(ndev, port);
 }
 
@@ -216,12 +237,12 @@ void nitrox_config_pkt_solicit_ports(struct nitrox_device *ndev)
 	int i;
 
 	for (i = 0; i < ndev->nr_queues; i++)
-		config_single_pkt_solicit_port(ndev, i);
+		config_pkt_solicit_port(ndev, i);
 }
 
 /**
  * enable_nps_interrupts - enable NPS interrutps
- * @ndev: N5 device.
+ * @ndev: NITROX device.
  *
  * This includes NPS core, packet in and slc interrupts.
  */
@@ -284,8 +305,8 @@ void nitrox_config_pom_unit(struct nitrox_device *ndev)
 }
 
 /**
- * nitrox_config_rand_unit - enable N5 random number unit
- * @ndev: N5 device
+ * nitrox_config_rand_unit - enable NITROX random number unit
+ * @ndev: NITROX device
  */
 void nitrox_config_rand_unit(struct nitrox_device *ndev)
 {
@@ -361,6 +382,7 @@ void invalidate_lbc(struct nitrox_device *ndev)
 {
 	union lbc_inval_ctl lbc_ctl;
 	union lbc_inval_status lbc_stat;
+	int max_retries = MAX_CSR_RETRIES;
 	u64 offset;
 
 	/* invalidate LBC */
@@ -370,10 +392,12 @@ void invalidate_lbc(struct nitrox_device *ndev)
 	nitrox_write_csr(ndev, offset, lbc_ctl.value);
 
 	offset = LBC_INVAL_STATUS;
-
 	do {
 		lbc_stat.value = nitrox_read_csr(ndev, offset);
-	} while (!lbc_stat.s.done);
+		if (lbc_stat.s.done)
+			break;
+		udelay(50);
+	} while (max_retries--);
 }
 
 void nitrox_config_lbc_unit(struct nitrox_device *ndev)
@@ -466,4 +490,32 @@ void nitrox_get_hwinfo(struct nitrox_device *ndev)
 
 	/* copy partname */
 	strncpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));
+}
+
+void enable_pf2vf_mbox_interrupts(struct nitrox_device *ndev)
+{
+	u64 value = ~0ULL;
+	u64 reg_addr;
+
+	/* Mailbox interrupt low enable set register */
+	reg_addr = NPS_PKT_MBOX_INT_LO_ENA_W1S;
+	nitrox_write_csr(ndev, reg_addr, value);
+
+	/* Mailbox interrupt high enable set register */
+	reg_addr = NPS_PKT_MBOX_INT_HI_ENA_W1S;
+	nitrox_write_csr(ndev, reg_addr, value);
+}
+
+void disable_pf2vf_mbox_interrupts(struct nitrox_device *ndev)
+{
+	u64 value = ~0ULL;
+	u64 reg_addr;
+
+	/* Mailbox interrupt low enable clear register */
+	reg_addr = NPS_PKT_MBOX_INT_LO_ENA_W1C;
+	nitrox_write_csr(ndev, reg_addr, value);
+
+	/* Mailbox interrupt high enable clear register */
+	reg_addr = NPS_PKT_MBOX_INT_HI_ENA_W1C;
+	nitrox_write_csr(ndev, reg_addr, value);
 }

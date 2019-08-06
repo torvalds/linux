@@ -155,7 +155,7 @@ void cleanup_cgroup_environment(void)
  * This function creates a cgroup under the top level workdir and returns the
  * file descriptor. It is idempotent.
  *
- * On success, it returns the file descriptor. On failure it returns 0.
+ * On success, it returns the file descriptor. On failure it returns -1.
  * If there is a failure, it prints the error to stderr.
  */
 int create_and_get_cgroup(const char *path)
@@ -166,13 +166,13 @@ int create_and_get_cgroup(const char *path)
 	format_cgroup_path(cgroup_path, path);
 	if (mkdir(cgroup_path, 0777) && errno != EEXIST) {
 		log_err("mkdiring cgroup %s .. %s", path, cgroup_path);
-		return 0;
+		return -1;
 	}
 
 	fd = open(cgroup_path, O_RDONLY);
 	if (fd < 0) {
 		log_err("Opening Cgroup");
-		return 0;
+		return -1;
 	}
 
 	return fd;

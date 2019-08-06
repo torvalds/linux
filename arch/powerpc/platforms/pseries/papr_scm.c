@@ -43,6 +43,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 {
 	unsigned long ret[PLPAR_HCALL_BUFSIZE];
 	uint64_t rc, token;
+	uint64_t saved = 0;
 
 	/*
 	 * When the hypervisor cannot map all the requested memory in a single
@@ -56,6 +57,8 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 		rc = plpar_hcall(H_SCM_BIND_MEM, ret, p->drc_index, 0,
 				p->blocks, BIND_ANY_ADDR, token);
 		token = ret[0];
+		if (!saved)
+			saved = ret[1];
 		cond_resched();
 	} while (rc == H_BUSY);
 
@@ -64,7 +67,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 		return -ENXIO;
 	}
 
-	p->bound_addr = ret[1];
+	p->bound_addr = saved;
 
 	dev_dbg(&p->pdev->dev, "bound drc %x to %pR\n", p->drc_index, &p->res);
 

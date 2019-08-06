@@ -601,15 +601,15 @@ static int qat_alg_aead_setkey(struct crypto_aead *tfm, const uint8_t *key,
 
 		dev = &GET_DEV(inst->accel_dev);
 		ctx->inst = inst;
-		ctx->enc_cd = dma_zalloc_coherent(dev, sizeof(*ctx->enc_cd),
-						  &ctx->enc_cd_paddr,
-						  GFP_ATOMIC);
+		ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
+						 &ctx->enc_cd_paddr,
+						 GFP_ATOMIC);
 		if (!ctx->enc_cd) {
 			return -ENOMEM;
 		}
-		ctx->dec_cd = dma_zalloc_coherent(dev, sizeof(*ctx->dec_cd),
-						  &ctx->dec_cd_paddr,
-						  GFP_ATOMIC);
+		ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
+						 &ctx->dec_cd_paddr,
+						 GFP_ATOMIC);
 		if (!ctx->dec_cd) {
 			goto out_free_enc;
 		}
@@ -933,16 +933,16 @@ static int qat_alg_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 
 		dev = &GET_DEV(inst->accel_dev);
 		ctx->inst = inst;
-		ctx->enc_cd = dma_zalloc_coherent(dev, sizeof(*ctx->enc_cd),
-						  &ctx->enc_cd_paddr,
-						  GFP_ATOMIC);
+		ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
+						 &ctx->enc_cd_paddr,
+						 GFP_ATOMIC);
 		if (!ctx->enc_cd) {
 			spin_unlock(&ctx->lock);
 			return -ENOMEM;
 		}
-		ctx->dec_cd = dma_zalloc_coherent(dev, sizeof(*ctx->dec_cd),
-						  &ctx->dec_cd_paddr,
-						  GFP_ATOMIC);
+		ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
+						 &ctx->dec_cd_paddr,
+						 GFP_ATOMIC);
 		if (!ctx->dec_cd) {
 			spin_unlock(&ctx->lock);
 			goto out_free_enc;

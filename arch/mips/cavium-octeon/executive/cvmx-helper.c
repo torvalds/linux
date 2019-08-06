@@ -46,26 +46,6 @@
 #include <asm/octeon/cvmx-smix-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 
-/**
- * cvmx_override_pko_queue_priority(int ipd_port, uint64_t
- * priorities[16]) is a function pointer. It is meant to allow
- * customization of the PKO queue priorities based on the port
- * number. Users should set this pointer to a function before
- * calling any cvmx-helper operations.
- */
-void (*cvmx_override_pko_queue_priority) (int pko_port,
-					  uint64_t priorities[16]);
-
-/**
- * cvmx_override_ipd_port_setup(int ipd_port) is a function
- * pointer. It is meant to allow customization of the IPD port
- * setup before packet input/output comes online. It is called
- * after cvmx-helper does the default IPD configuration, but
- * before IPD is enabled. Users should set this pointer to a
- * function before calling any cvmx-helper operations.
- */
-void (*cvmx_override_ipd_port_setup) (int ipd_port);
-
 /* Port count per interface */
 static int interface_port_count[9];
 
@@ -238,7 +218,7 @@ static cvmx_helper_interface_mode_t __cvmx_get_mode_octeon2(int interface)
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX)) {
-		switch (mode.cn63xx.mode) {
+		switch (mode.cn61xx.mode) {
 		case 0:
 			return CVMX_HELPER_INTERFACE_MODE_SGMII;
 		case 1:
@@ -286,7 +266,8 @@ static cvmx_helper_interface_mode_t __cvmx_get_mode_cn7xxx(int interface)
 	case 3:
 		return CVMX_HELPER_INTERFACE_MODE_LOOP;
 	case 4:
-		return CVMX_HELPER_INTERFACE_MODE_RGMII;
+		/* TODO: Implement support for AGL (RGMII). */
+		return CVMX_HELPER_INTERFACE_MODE_DISABLED;
 	default:
 		return CVMX_HELPER_INTERFACE_MODE_DISABLED;
 	}
@@ -362,7 +343,7 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX)) {
-		switch (mode.cn56xx.mode) {
+		switch (mode.cn52xx.mode) {
 		case 0:
 			return CVMX_HELPER_INTERFACE_MODE_DISABLED;
 		case 1:
@@ -435,10 +416,6 @@ static int __cvmx_helper_port_setup_ipd(int ipd_port)
 	tag_config.s.grp = 0;
 
 	cvmx_pip_config_port(ipd_port, port_config, tag_config);
-
-	/* Give the user a chance to override our setting for each port */
-	if (cvmx_override_ipd_port_setup)
-		cvmx_override_ipd_port_setup(ipd_port);
 
 	return 0;
 }
@@ -663,13 +640,6 @@ static int __cvmx_helper_interface_setup_pko(int interface)
 	int ipd_port = cvmx_helper_get_ipd_port(interface, 0);
 	int num_ports = interface_port_count[interface];
 	while (num_ports--) {
-		/*
-		 * Give the user a chance to override the per queue
-		 * priorities.
-		 */
-		if (cvmx_override_pko_queue_priority)
-			cvmx_override_pko_queue_priority(ipd_port, priorities);
-
 		cvmx_pko_config_port(ipd_port,
 				     cvmx_pko_get_base_queue_per_core(ipd_port,
 								      0),
@@ -818,7 +788,7 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
  * Returns 0 on success
  *	   !0 on failure
  */
-int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
+static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 {
 #define FIX_IPD_FIRST_BUFF_PAYLOAD_BYTES \
      (CVMX_FPA_PACKET_POOL_SIZE-8-CVMX_HELPER_FIRST_MBUFF_SKIP)
@@ -1239,57 +1209,3 @@ int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 	return result;
 }
 EXPORT_SYMBOL_GPL(cvmx_helper_link_set);
-
-/**
- * Configure a port for internal and/or external loopback. Internal loopback
- * causes packets sent by the port to be received by Octeon. External loopback
- * causes packets received from the wire to sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-int cvmx_helper_configure_loopback(int ipd_port, int enable_internal,
-				   int enable_external)
-{
-	int result = -1;
-	int interface = cvmx_helper_get_interface_num(ipd_port);
-	int index = cvmx_helper_get_interface_index_num(ipd_port);
-
-	if (index >= cvmx_helper_ports_on_interface(interface))
-		return -1;
-
-	switch (cvmx_helper_interface_get_mode(interface)) {
-	case CVMX_HELPER_INTERFACE_MODE_DISABLED:
-	case CVMX_HELPER_INTERFACE_MODE_PCIE:
-	case CVMX_HELPER_INTERFACE_MODE_SPI:
-	case CVMX_HELPER_INTERFACE_MODE_NPI:
-	case CVMX_HELPER_INTERFACE_MODE_LOOP:
-		break;
-	case CVMX_HELPER_INTERFACE_MODE_XAUI:
-		result =
-		    __cvmx_helper_xaui_configure_loopback(ipd_port,
-							  enable_internal,
-							  enable_external);
-		break;
-	case CVMX_HELPER_INTERFACE_MODE_RGMII:
-	case CVMX_HELPER_INTERFACE_MODE_GMII:
-		result =
-		    __cvmx_helper_rgmii_configure_loopback(ipd_port,
-							   enable_internal,
-							   enable_external);
-		break;
-	case CVMX_HELPER_INTERFACE_MODE_SGMII:
-	case CVMX_HELPER_INTERFACE_MODE_PICMG:
-		result =
-		    __cvmx_helper_sgmii_configure_loopback(ipd_port,
-							   enable_internal,
-							   enable_external);
-		break;
-	}
-	return result;
-}

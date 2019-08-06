@@ -10,11 +10,6 @@ config DRM_EXYNOS
 
 if DRM_EXYNOS
 
-config DRM_EXYNOS_IOMMU
-	bool
-	depends on EXYNOS_IOMMU
-	default y
-
 comment "CRTCs"
 
 config DRM_EXYNOS_FIMD

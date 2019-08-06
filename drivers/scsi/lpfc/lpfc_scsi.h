@@ -194,6 +194,10 @@ struct lpfc_scsi_buf {
 #define NO_MORE_OAS_LUN		-1
 #define NOT_OAS_ENABLED_LUN	NO_MORE_OAS_LUN
 
+#ifndef FC_PORTSPEED_128GBIT
+#define FC_PORTSPEED_128GBIT	0x2000
+#endif
+
 #define TXRDY_PAYLOAD_LEN	12
 
 int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,

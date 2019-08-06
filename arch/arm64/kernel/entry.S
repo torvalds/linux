@@ -344,10 +344,6 @@ alternative_else_nop_endif
 	ldp	x28, x29, [sp, #16 * 14]
 	ldr	lr, [sp, #S_LR]
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
-	/*
-	 * ARCH_HAS_MEMBARRIER_SYNC_CORE rely on eret context synchronization
-	 * when returning from IPI handler, and when returning to user-space.
-	 */
 
 	.if	\el == 0
 alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
@@ -363,6 +359,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	.else
 	eret
 	.endif
+	sb
 	.endm
 
 	.macro	irq_stack_entry
@@ -395,17 +392,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	mov	sp, x19
 	.endm
 
-/*
- * These are the registers used in the syscall handler, and allow us to
- * have in theory up to 7 arguments to a function - x0 to x6.
- *
- * x7 is reserved for the system call number in 32-bit mode.
- */
-wsc_nr	.req	w25		// number of system calls
-xsc_nr	.req	x25		// number of system calls (zero-extended)
-wscno	.req	w26		// syscall number
-xscno	.req	x26		// syscall number (zero-extended)
-stbl	.req	x27		// syscall table pointer
+/* GPRs used by entry code */
 tsk	.req	x28		// current thread_info
 
 /*
@@ -622,10 +609,8 @@ el1_irq:
 	irq_handler
 
 #ifdef CONFIG_PREEMPT
-	ldr	w24, [tsk, #TSK_TI_PREEMPT]	// get preempt count
-	cbnz	w24, 1f				// preempt count != 0
-	ldr	x0, [tsk, #TSK_TI_FLAGS]	// get flags
-	tbz	x0, #TIF_NEED_RESCHED, 1f	// needs rescheduling?
+	ldr	x24, [tsk, #TSK_TI_PREEMPT]	// get preempt count
+	cbnz	x24, 1f				// preempt count != 0
 	bl	el1_preempt
 1:
 #endif
@@ -1006,6 +991,7 @@ alternative_insn isb, nop, ARM64_WORKAROUND_QCOM_FALKOR_E1003
 	mrs	x30, far_el1
 	.endif
 	eret
+	sb
 	.endm
 
 	.align	11

@@ -214,7 +214,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
 				       sizeof(ifp->mac_addr));
 	if (err < 0) {
-		brcmf_err("Retreiving cur_etheraddr failed, %d\n", err);
+		brcmf_err("Retrieving cur_etheraddr failed, %d\n", err);
 		goto done;
 	}
 	memcpy(ifp->drvr->wiphy->perm_addr, ifp->drvr->mac, ETH_ALEN);
@@ -269,7 +269,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	strcpy(buf, "ver");
 	err = brcmf_fil_iovar_data_get(ifp, "ver", buf, sizeof(buf));
 	if (err < 0) {
-		brcmf_err("Retreiving version information failed, %d\n",
+		brcmf_err("Retrieving version information failed, %d\n",
 			  err);
 		goto done;
 	}
@@ -448,7 +448,8 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 		}
 	}
 	if (!found) {
-		/* No platform data for this device, try OF (Open Firwmare) */
+		/* No platform data for this device, try OF and DMI data */
+		brcmf_dmi_probe(settings, chip, chiprev);
 		brcmf_of_probe(dev, bus_type, settings);
 	}
 	return settings;

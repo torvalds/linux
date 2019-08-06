@@ -15,9 +15,9 @@ config IPW2100
           A driver for the Intel PRO/Wireless 2100 Network 
 	  Connection 802.11b wireless network adapter.
 
-          See <file:Documentation/networking/README.ipw2100> for information on
-          the capabilities currently enabled in this driver and for tips
-          for debugging issues and problems.
+          See <file:Documentation/networking/device_drivers/intel/ipw2100.txt>
+	  for information on the capabilities currently enabled in this driver
+	  and for tips for debugging issues and problems.
 
 	  In order to use this driver, you will need a firmware image for it.
           You can obtain the firmware from
@@ -77,8 +77,8 @@ config IPW2200
           A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
 	  Connection adapters. 
 
-          See <file:Documentation/networking/README.ipw2200> for 
-	  information on the capabilities currently enabled in this 
+          See <file:Documentation/networking/device_drivers/intel/ipw2200.txt>
+	  for information on the capabilities currently enabled in this
 	  driver and for tips for debugging issues and problems.
 
 	  In order to use this driver, you will need a firmware image for it.

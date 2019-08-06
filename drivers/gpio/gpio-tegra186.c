@@ -279,7 +279,7 @@ static void tegra186_irq_unmask(struct irq_data *data)
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 }
 
-static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
+static int tegra186_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct tegra_gpio *gpio = irq_data_get_irq_chip_data(data);
 	void __iomem *base;
@@ -293,7 +293,7 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_MASK;
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_LEVEL;
 
-	switch (flow & IRQ_TYPE_SENSE_MASK) {
+	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_NONE:
 		break;
 
@@ -325,7 +325,7 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	if ((flow & IRQ_TYPE_EDGE_BOTH) == 0)
+	if ((type & IRQ_TYPE_EDGE_BOTH) == 0)
 		irq_set_handler_locked(data, handle_level_irq);
 	else
 		irq_set_handler_locked(data, handle_edge_irq);

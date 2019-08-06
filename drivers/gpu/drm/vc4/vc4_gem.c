@@ -635,7 +635,7 @@ retry:
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = to_vc4_bo(&exec->bo[i]->base);
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = reservation_object_reserve_shared(bo->resv, 1);
 		if (ret) {
 			vc4_unlock_bo_reservations(dev, exec, acquire_ctx);
 			return ret;
@@ -681,7 +681,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	exec->fence = &fence->base;
 
 	if (out_sync)
-		drm_syncobj_replace_fence(out_sync, 0, exec->fence);
+		drm_syncobj_replace_fence(out_sync, exec->fence);
 
 	vc4_update_bo_seqnos(exec, seqno);
 
@@ -1173,7 +1173,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	if (args->in_sync) {
 		ret = drm_syncobj_find_fence(file_priv, args->in_sync,
-					     0, &in_fence);
+					     0, 0, &in_fence);
 		if (ret)
 			goto fail;
 

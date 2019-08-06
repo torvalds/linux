@@ -77,7 +77,7 @@ The general format of a function and function-like macro kernel-doc comment is::
    * Context: Describes whether the function can sleep, what locks it takes,
    *          releases, or expects to be held. It can extend over multiple
    *          lines.
-   * Return: Describe the return value of foobar.
+   * Return: Describe the return value of function_name.
    *
    * The return value description can also have multiple paragraphs, and should
    * be placed at the end of the comment block.

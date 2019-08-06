@@ -130,7 +130,6 @@ static int defer_packet_queue(
 {
 	struct hfi1_user_sdma_pkt_q *pq =
 		container_of(wait->iow, struct hfi1_user_sdma_pkt_q, busy);
-	struct hfi1_ibdev *dev = &pq->dd->verbs_dev;
 	struct user_sdma_txreq *tx =
 		container_of(txreq, struct user_sdma_txreq, txreq);
 
@@ -144,10 +143,10 @@ static int defer_packet_queue(
 	 * it is supposed to be enqueued.
 	 */
 	xchg(&pq->state, SDMA_PKT_Q_DEFERRED);
-	write_seqlock(&dev->iowait_lock);
+	write_seqlock(&sde->waitlock);
 	if (list_empty(&pq->busy.list))
 		iowait_queue(pkts_sent, &pq->busy, &sde->dmawait);
-	write_sequnlock(&dev->iowait_lock);
+	write_sequnlock(&sde->waitlock);
 	return -EBUSY;
 eagain:
 	return -EAGAIN;

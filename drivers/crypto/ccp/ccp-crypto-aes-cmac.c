@@ -346,9 +346,7 @@ static int ccp_aes_cmac_cra_init(struct crypto_tfm *tfm)
 
 	crypto_ahash_set_reqsize(ahash, sizeof(struct ccp_aes_cmac_req_ctx));
 
-	cipher_tfm = crypto_alloc_cipher("aes", 0,
-					 CRYPTO_ALG_ASYNC |
-					 CRYPTO_ALG_NEED_FALLBACK);
+	cipher_tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(cipher_tfm)) {
 		pr_warn("could not load aes cipher driver\n");
 		return PTR_ERR(cipher_tfm);

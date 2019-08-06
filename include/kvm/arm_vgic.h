@@ -100,7 +100,7 @@ enum vgic_irq_config {
 };
 
 struct vgic_irq {
-	spinlock_t irq_lock;		/* Protects the content of the struct */
+	raw_spinlock_t irq_lock;	/* Protects the content of the struct */
 	struct list_head lpi_list;	/* Used to link all LPIs together */
 	struct list_head ap_list;
 
@@ -256,7 +256,7 @@ struct vgic_dist {
 	u64			propbaser;
 
 	/* Protects the lpi_list and the count value below. */
-	spinlock_t		lpi_list_lock;
+	raw_spinlock_t		lpi_list_lock;
 	struct list_head	lpi_list_head;
 	int			lpi_list_count;
 
@@ -307,7 +307,7 @@ struct vgic_cpu {
 	unsigned int used_lrs;
 	struct vgic_irq private_irqs[VGIC_NR_PRIVATE_IRQS];
 
-	spinlock_t ap_list_lock;	/* Protects the ap_list */
+	raw_spinlock_t ap_list_lock;	/* Protects the ap_list */
 
 	/*
 	 * List of IRQs that this VCPU should consider because they are either

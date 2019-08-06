@@ -161,3 +161,14 @@ struct yfs_xdr_YFSStoreVolumeStatus {
 	struct yfs_xdr_u64	max_quota;
 	struct yfs_xdr_u64	file_quota;
 } __packed;
+
+enum yfs_lock_type {
+	yfs_LockNone		= -1,
+	yfs_LockRead		= 0,
+	yfs_LockWrite		= 1,
+	yfs_LockExtend		= 2,
+	yfs_LockRelease		= 3,
+	yfs_LockMandatoryRead	= 0x100,
+	yfs_LockMandatoryWrite	= 0x101,
+	yfs_LockMandatoryExtend	= 0x102,
+};

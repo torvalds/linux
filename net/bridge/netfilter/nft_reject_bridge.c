@@ -229,6 +229,7 @@ static bool reject6_br_csum_ok(struct sk_buff *skb, int hook)
 	    pskb_trim_rcsum(skb, ntohs(ip6h->payload_len) + sizeof(*ip6h)))
 		return false;
 
+	ip6h = ipv6_hdr(skb);
 	thoff = ipv6_skip_exthdr(skb, ((u8*)(ip6h+1) - skb->data), &proto, &fo);
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;

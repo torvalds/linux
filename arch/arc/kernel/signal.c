@@ -169,7 +169,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	sf = (struct rt_sigframe __force __user *)(regs->sp);
 
-	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)))
+	if (!access_ok(sf, sizeof(*sf)))
 		goto badframe;
 
 	if (__get_user(magic, &sf->sigret_magic))
@@ -219,7 +219,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 	frame = (void __user *)((sp - framesize) & ~7);
 
 	/* Check that we can actually write to the signal frame */
-	if (!access_ok(VERIFY_WRITE, frame, framesize))
+	if (!access_ok(frame, framesize))
 		frame = NULL;
 
 	return frame;

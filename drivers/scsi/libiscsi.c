@@ -40,6 +40,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/libiscsi.h>
+#include <trace/events/iscsi.h>
 
 static int iscsi_dbg_lib_conn;
 module_param_named(debug_libiscsi_conn, iscsi_dbg_lib_conn, int,
@@ -68,6 +69,9 @@ MODULE_PARM_DESC(debug_libiscsi_eh,
 			iscsi_conn_printk(KERN_INFO, _conn,	\
 					     "%s " dbg_fmt,	\
 					     __func__, ##arg);	\
+		iscsi_dbg_trace(trace_iscsi_dbg_conn,		\
+				&(_conn)->cls_conn->dev,	\
+				"%s " dbg_fmt, __func__, ##arg);\
 	} while (0);
 
 #define ISCSI_DBG_SESSION(_session, dbg_fmt, arg...)			\
@@ -76,6 +80,9 @@ MODULE_PARM_DESC(debug_libiscsi_eh,
 			iscsi_session_printk(KERN_INFO, _session,	\
 					     "%s " dbg_fmt,		\
 					     __func__, ##arg);		\
+		iscsi_dbg_trace(trace_iscsi_dbg_session, 		\
+				&(_session)->cls_session->dev,		\
+				"%s " dbg_fmt, __func__, ##arg);	\
 	} while (0);
 
 #define ISCSI_DBG_EH(_session, dbg_fmt, arg...)				\
@@ -84,6 +91,9 @@ MODULE_PARM_DESC(debug_libiscsi_eh,
 			iscsi_session_printk(KERN_INFO, _session,	\
 					     "%s " dbg_fmt,		\
 					     __func__, ##arg);		\
+		iscsi_dbg_trace(trace_iscsi_dbg_eh,			\
+				&(_session)->cls_session->dev,		\
+				"%s " dbg_fmt, __func__, ##arg);	\
 	} while (0);
 
 inline void iscsi_conn_queue_work(struct iscsi_conn *conn)
@@ -1449,7 +1459,13 @@ static int iscsi_xmit_task(struct iscsi_conn *conn)
 	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx))
 		return -ENODATA;
 
+	spin_lock_bh(&conn->session->back_lock);
+	if (conn->task == NULL) {
+		spin_unlock_bh(&conn->session->back_lock);
+		return -ENODATA;
+	}
 	__iscsi_get_task(task);
+	spin_unlock_bh(&conn->session->back_lock);
 	spin_unlock_bh(&conn->session->frwd_lock);
 	rc = conn->session->tt->xmit_task(task);
 	spin_lock_bh(&conn->session->frwd_lock);

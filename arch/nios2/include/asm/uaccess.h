@@ -37,7 +37,7 @@
 	(((signed long)(((long)get_fs().seg) &	\
 		((long)(addr) | (((long)(addr)) + (len)) | (len)))) == 0)
 
-#define access_ok(type, addr, len)		\
+#define access_ok(addr, len)		\
 	likely(__access_ok((unsigned long)(addr), (unsigned long)(len)))
 
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
@@ -70,7 +70,7 @@ static inline unsigned long __must_check __clear_user(void __user *to,
 static inline unsigned long __must_check clear_user(void __user *to,
 						    unsigned long n)
 {
-	if (!access_ok(VERIFY_WRITE, to, n))
+	if (!access_ok(to, n))
 		return n;
 	return __clear_user(to, n);
 }
@@ -142,7 +142,7 @@ do {									\
 	long __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);		\
 	unsigned long __gu_val = 0;					\
-	if (access_ok(VERIFY_READ,  __gu_ptr, sizeof(*__gu_ptr)))	\
+	if (access_ok( __gu_ptr, sizeof(*__gu_ptr)))	\
 		__get_user_common(__gu_val, sizeof(*__gu_ptr),		\
 			__gu_ptr, __gu_err);				\
 	(x) = (__force __typeof__(x))__gu_val;				\
@@ -168,7 +168,7 @@ do {									\
 	long __pu_err = -EFAULT;					\
 	__typeof__(*(ptr)) __user *__pu_ptr = (ptr);			\
 	__typeof__(*(ptr)) __pu_val = (__typeof(*ptr))(x);		\
-	if (access_ok(VERIFY_WRITE, __pu_ptr, sizeof(*__pu_ptr))) {	\
+	if (access_ok(__pu_ptr, sizeof(*__pu_ptr))) {	\
 		switch (sizeof(*__pu_ptr)) {				\
 		case 1:							\
 			__put_user_asm(__pu_val, "stb", __pu_ptr, __pu_err); \

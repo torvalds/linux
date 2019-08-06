@@ -177,6 +177,7 @@ struct bnxt_qplib_ctx {
 	struct bnxt_qplib_hwq		tqm_tbl[MAX_TQM_ALLOC_REQ];
 	struct bnxt_qplib_stats		stats;
 	struct bnxt_qplib_vf_res	vf_res;
+	u64				hwrm_intf_ver;
 };
 
 struct bnxt_qplib_res {

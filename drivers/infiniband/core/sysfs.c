@@ -462,7 +462,7 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	u16 out_mad_pkey_index = 0;
 	ssize_t ret;
 
-	if (!dev->process_mad)
+	if (!dev->ops.process_mad)
 		return -ENOSYS;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
@@ -481,11 +481,11 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	if (attr != IB_PMA_CLASS_PORT_INFO)
 		in_mad->data[41] = port_num;	/* PortSelect field */
 
-	if ((dev->process_mad(dev, IB_MAD_IGNORE_MKEY,
-		 port_num, NULL, NULL,
-		 (const struct ib_mad_hdr *)in_mad, mad_size,
-		 (struct ib_mad_hdr *)out_mad, &mad_size,
-		 &out_mad_pkey_index) &
+	if ((dev->ops.process_mad(dev, IB_MAD_IGNORE_MKEY,
+				  port_num, NULL, NULL,
+				  (const struct ib_mad_hdr *)in_mad, mad_size,
+				  (struct ib_mad_hdr *)out_mad, &mad_size,
+				  &out_mad_pkey_index) &
 	     (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) !=
 	    (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) {
 		ret = -EINVAL;
@@ -786,7 +786,7 @@ static int update_hw_stats(struct ib_device *dev, struct rdma_hw_stats *stats,
 
 	if (time_is_after_eq_jiffies(stats->timestamp + stats->lifespan))
 		return 0;
-	ret = dev->get_hw_stats(dev, stats, port_num, index);
+	ret = dev->ops.get_hw_stats(dev, stats, port_num, index);
 	if (ret < 0)
 		return ret;
 	if (ret == stats->num_counters)
@@ -946,7 +946,7 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	struct rdma_hw_stats *stats;
 	int i, ret;
 
-	stats = device->alloc_hw_stats(device, port_num);
+	stats = device->ops.alloc_hw_stats(device, port_num);
 
 	if (!stats)
 		return;
@@ -964,8 +964,8 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	if (!hsag)
 		goto err_free_stats;
 
-	ret = device->get_hw_stats(device, stats, port_num,
-				   stats->num_counters);
+	ret = device->ops.get_hw_stats(device, stats, port_num,
+				       stats->num_counters);
 	if (ret != stats->num_counters)
 		goto err_free_hsag;
 
@@ -1057,7 +1057,7 @@ static int add_port(struct ib_device *device, int port_num,
 		goto err_put;
 	}
 
-	if (device->process_mad) {
+	if (device->ops.process_mad) {
 		p->pma_table = get_counter_table(device, port_num);
 		ret = sysfs_create_group(&p->kobj, p->pma_table);
 		if (ret)
@@ -1124,7 +1124,7 @@ static int add_port(struct ib_device *device, int port_num,
 	 * port, so holder should be device. Therefore skip per port conunter
 	 * initialization.
 	 */
-	if (device->alloc_hw_stats && port_num)
+	if (device->ops.alloc_hw_stats && port_num)
 		setup_hw_stats(device, p, port_num);
 
 	list_add_tail(&p->kobj.entry, &device->port_list);
@@ -1245,7 +1245,7 @@ static ssize_t node_desc_store(struct device *device,
 	struct ib_device_modify desc = {};
 	int ret;
 
-	if (!dev->modify_device)
+	if (!dev->ops.modify_device)
 		return -EIO;
 
 	memcpy(desc.node_desc, buf, min_t(int, count, IB_DEVICE_NODE_DESC_MAX));
@@ -1341,7 +1341,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 		}
 	}
 
-	if (device->alloc_hw_stats)
+	if (device->ops.alloc_hw_stats)
 		setup_hw_stats(device, NULL, 0);
 
 	return 0;

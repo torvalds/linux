@@ -1189,6 +1189,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo Yoga 2 13",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Yoga 2 13"),
+		},
+	},
+	{
 		.ident = "Lenovo Yoga 3 1170 / 1470",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),

@@ -66,7 +66,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_e708_q1>;
+	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
@@ -74,13 +74,7 @@
 };
 
 &pio {
-	mmc0_cd_pin_e708_q1: mmc0_cd_pin@0 {
-		pins = "PA8";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PA15";
 		function = "gpio_in";
 		bias-pull-up;

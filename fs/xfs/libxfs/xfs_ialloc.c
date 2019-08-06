@@ -288,7 +288,7 @@ xfs_ialloc_inode_init(
 {
 	struct xfs_buf		*fbuf;
 	struct xfs_dinode	*free;
-	int			nbufs, blks_per_cluster, inodes_per_cluster;
+	int			nbufs;
 	int			version;
 	int			i, j;
 	xfs_daddr_t		d;
@@ -299,9 +299,7 @@ xfs_ialloc_inode_init(
 	 * sizes, manipulate the inodes in buffers  which are multiples of the
 	 * blocks size.
 	 */
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
-	nbufs = length / blks_per_cluster;
+	nbufs = length / mp->m_blocks_per_cluster;
 
 	/*
 	 * Figure out what version number to use in the inodes we create.  If
@@ -312,7 +310,7 @@ xfs_ialloc_inode_init(
 	 *
 	 * For v3 inodes, we also need to write the inode number into the inode,
 	 * so calculate the first inode number of the chunk here as
-	 * XFS_OFFBNO_TO_AGINO() only works within a filesystem block, not
+	 * XFS_AGB_TO_AGINO() only works within a filesystem block, not
 	 * across multiple filesystem blocks (such as a cluster) and so cannot
 	 * be used in the cluster buffer loop below.
 	 *
@@ -324,8 +322,7 @@ xfs_ialloc_inode_init(
 	 */
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		version = 3;
-		ino = XFS_AGINO_TO_INO(mp, agno,
-				       XFS_OFFBNO_TO_AGINO(mp, agbno, 0));
+		ino = XFS_AGINO_TO_INO(mp, agno, XFS_AGB_TO_AGINO(mp, agbno));
 
 		/*
 		 * log the initialisation that is about to take place as an
@@ -345,9 +342,10 @@ xfs_ialloc_inode_init(
 		/*
 		 * Get the block.
 		 */
-		d = XFS_AGB_TO_DADDR(mp, agno, agbno + (j * blks_per_cluster));
+		d = XFS_AGB_TO_DADDR(mp, agno, agbno +
+				(j * mp->m_blocks_per_cluster));
 		fbuf = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
-					 mp->m_bsize * blks_per_cluster,
+					 mp->m_bsize * mp->m_blocks_per_cluster,
 					 XBF_UNMAPPED);
 		if (!fbuf)
 			return -ENOMEM;
@@ -355,7 +353,7 @@ xfs_ialloc_inode_init(
 		/* Initialize the inode buffers and log them appropriately. */
 		fbuf->b_ops = &xfs_inode_buf_ops;
 		xfs_buf_zero(fbuf, 0, BBTOB(fbuf->b_length));
-		for (i = 0; i < inodes_per_cluster; i++) {
+		for (i = 0; i < mp->m_inodes_per_cluster; i++) {
 			int	ioffset = i << mp->m_sb.sb_inodelog;
 			uint	isize = xfs_dinode_size(version);
 
@@ -445,7 +443,7 @@ xfs_align_sparse_ino(
 		return;
 
 	/* calculate the inode offset and align startino */
-	offset = mod << mp->m_sb.sb_inopblog;
+	offset = XFS_AGB_TO_AGINO(mp, mod);
 	*startino -= offset;
 
 	/*
@@ -641,7 +639,7 @@ xfs_ialloc_ag_alloc(
 	args.tp = tp;
 	args.mp = tp->t_mountp;
 	args.fsbno = NULLFSBLOCK;
-	xfs_rmap_ag_owner(&args.oinfo, XFS_RMAP_OWN_INODES);
+	args.oinfo = XFS_RMAP_OINFO_INODES;
 
 #ifdef DEBUG
 	/* randomly do sparse inode allocations */
@@ -692,7 +690,7 @@ xfs_ialloc_ag_alloc(
 		 * but not to use them in the actual exact allocation.
 		 */
 		args.alignment = 1;
-		args.minalignslop = xfs_ialloc_cluster_alignment(args.mp) - 1;
+		args.minalignslop = args.mp->m_cluster_align - 1;
 
 		/* Allow space for the inode btree to split. */
 		args.minleft = args.mp->m_in_maxlevels - 1;
@@ -727,7 +725,7 @@ xfs_ialloc_ag_alloc(
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
 		} else
-			args.alignment = xfs_ialloc_cluster_alignment(args.mp);
+			args.alignment = args.mp->m_cluster_align;
 		/*
 		 * Need to figure out where to allocate the inode blocks.
 		 * Ideally they should be spaced out through the a.g.
@@ -756,7 +754,7 @@ xfs_ialloc_ag_alloc(
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
-		args.alignment = xfs_ialloc_cluster_alignment(args.mp);
+		args.alignment = args.mp->m_cluster_align;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
@@ -797,7 +795,7 @@ sparse_alloc:
 		if (error)
 			return error;
 
-		newlen = args.len << args.mp->m_sb.sb_inopblog;
+		newlen = XFS_AGB_TO_AGINO(args.mp, args.len);
 		ASSERT(newlen <= XFS_INODES_PER_CHUNK);
 		allocmask = (1 << (newlen / XFS_INODES_PER_HOLEMASK_BIT)) - 1;
 	}
@@ -825,7 +823,7 @@ sparse_alloc:
 	/*
 	 * Convert the results.
 	 */
-	newino = XFS_OFFBNO_TO_AGINO(args.mp, args.agbno, 0);
+	newino = XFS_AGB_TO_AGINO(args.mp, args.agbno);
 
 	if (xfs_inobt_issparse(~allocmask)) {
 		/*
@@ -1019,7 +1017,7 @@ xfs_ialloc_ag_select(
 		 */
 		ineed = mp->m_ialloc_min_blks;
 		if (flags && ineed > 1)
-			ineed += xfs_ialloc_cluster_alignment(mp);
+			ineed += mp->m_cluster_align;
 		longest = pag->pagf_longest;
 		if (!longest)
 			longest = pag->pagf_flcount > 0;
@@ -1849,14 +1847,12 @@ xfs_difree_inode_chunk(
 	int				nextbit;
 	xfs_agblock_t			agbno;
 	int				contigblk;
-	struct xfs_owner_info		oinfo;
 	DECLARE_BITMAP(holemask, XFS_INOBT_HOLEMASK_BITS);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
 
 	if (!xfs_inobt_issparse(rec->ir_holemask)) {
 		/* not sparse, calculate extent info directly */
 		xfs_bmap_add_free(tp, XFS_AGB_TO_FSB(mp, agno, sagbno),
-				  mp->m_ialloc_blks, &oinfo);
+				  mp->m_ialloc_blks, &XFS_RMAP_OINFO_INODES);
 		return;
 	}
 
@@ -1900,7 +1896,7 @@ xfs_difree_inode_chunk(
 		ASSERT(agbno % mp->m_sb.sb_spino_align == 0);
 		ASSERT(contigblk % mp->m_sb.sb_spino_align == 0);
 		xfs_bmap_add_free(tp, XFS_AGB_TO_FSB(mp, agno, agbno),
-				  contigblk, &oinfo);
+				  contigblk, &XFS_RMAP_OINFO_INODES);
 
 		/* reset range to current bit and carry on... */
 		startidx = endidx = nextbit;
@@ -2292,7 +2288,6 @@ xfs_imap(
 	xfs_agblock_t	agbno;	/* block number of inode in the alloc group */
 	xfs_agino_t	agino;	/* inode number within alloc group */
 	xfs_agnumber_t	agno;	/* allocation group number */
-	int		blks_per_cluster; /* num blocks per inode cluster */
 	xfs_agblock_t	chunk_agbno;	/* first block in inode chunk */
 	xfs_agblock_t	cluster_agbno;	/* first block in inode cluster */
 	int		error;	/* error code */
@@ -2338,8 +2333,6 @@ xfs_imap(
 		return -EINVAL;
 	}
 
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-
 	/*
 	 * For bulkstat and handle lookups, we have an untrusted inode number
 	 * that we have to verify is valid. We cannot do this just by reading
@@ -2359,7 +2352,7 @@ xfs_imap(
 	 * If the inode cluster size is the same as the blocksize or
 	 * smaller we get to the buffer by simple arithmetics.
 	 */
-	if (blks_per_cluster == 1) {
+	if (mp->m_blocks_per_cluster == 1) {
 		offset = XFS_INO_TO_OFFSET(mp, ino);
 		ASSERT(offset < mp->m_sb.sb_inopblock);
 
@@ -2388,12 +2381,13 @@ xfs_imap(
 out_map:
 	ASSERT(agbno >= chunk_agbno);
 	cluster_agbno = chunk_agbno +
-		((offset_agbno / blks_per_cluster) * blks_per_cluster);
+		((offset_agbno / mp->m_blocks_per_cluster) *
+		 mp->m_blocks_per_cluster);
 	offset = ((agbno - cluster_agbno) * mp->m_sb.sb_inopblock) +
 		XFS_INO_TO_OFFSET(mp, ino);
 
 	imap->im_blkno = XFS_AGB_TO_DADDR(mp, agno, cluster_agbno);
-	imap->im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);
+	imap->im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
 	imap->im_boffset = (unsigned short)(offset << mp->m_sb.sb_inodelog);
 
 	/*
@@ -2726,8 +2720,8 @@ xfs_ialloc_has_inodes_at_extent(
 	xfs_agino_t		low;
 	xfs_agino_t		high;
 
-	low = XFS_OFFBNO_TO_AGINO(cur->bc_mp, bno, 0);
-	high = XFS_OFFBNO_TO_AGINO(cur->bc_mp, bno + len, 0) - 1;
+	low = XFS_AGB_TO_AGINO(cur->bc_mp, bno);
+	high = XFS_AGB_TO_AGINO(cur->bc_mp, bno + len) - 1;
 
 	return xfs_ialloc_has_inode_record(cur, low, high, exists);
 }

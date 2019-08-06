@@ -77,8 +77,8 @@ int iser_assign_reg_ops(struct iser_device *device)
 	struct ib_device *ib_dev = device->ib_device;
 
 	/* Assign function handles  - based on FMR support */
-	if (ib_dev->alloc_fmr && ib_dev->dealloc_fmr &&
-	    ib_dev->map_phys_fmr && ib_dev->unmap_fmr) {
+	if (ib_dev->ops.alloc_fmr && ib_dev->ops.dealloc_fmr &&
+	    ib_dev->ops.map_phys_fmr && ib_dev->ops.unmap_fmr) {
 		iser_info("FMR supported, using FMR for registration\n");
 		device->reg_ops = &fmr_ops;
 	} else if (ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
@@ -277,16 +277,13 @@ void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 			enum iser_data_dir cmd_dir)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
-	int ret;
 
 	if (!reg->mem_h)
 		return;
 
 	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n", reg->mem_h);
 
-	ret = ib_fmr_pool_unmap((struct ib_pool_fmr *)reg->mem_h);
-	if (ret)
-		iser_err("ib_fmr_pool_unmap failed %d\n", ret);
+	ib_fmr_pool_unmap((struct ib_pool_fmr *)reg->mem_h);
 
 	reg->mem_h = NULL;
 }

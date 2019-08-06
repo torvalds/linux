@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/security.h>
@@ -26,12 +27,201 @@
 #include <linux/tracehook.h>
 #include <linux/uaccess.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
+
 #include <asm/coprocessor.h>
 #include <asm/elf.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
+static int gpr_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	struct user_pt_regs newregs = {
+		.pc = regs->pc,
+		.ps = regs->ps & ~(1 << PS_EXCM_BIT),
+		.lbeg = regs->lbeg,
+		.lend = regs->lend,
+		.lcount = regs->lcount,
+		.sar = regs->sar,
+		.threadptr = regs->threadptr,
+		.windowbase = regs->windowbase,
+		.windowstart = regs->windowstart,
+	};
+
+	memcpy(newregs.a,
+	       regs->areg + XCHAL_NUM_AREGS - regs->windowbase * 4,
+	       regs->windowbase * 16);
+	memcpy(newregs.a + regs->windowbase * 4,
+	       regs->areg,
+	       (WSBITS - regs->windowbase) * 16);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &newregs, 0, -1);
+}
+
+static int gpr_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct user_pt_regs newregs = {0};
+	struct pt_regs *regs;
+	const u32 ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newregs, 0, -1);
+	if (ret)
+		return ret;
+
+	if (newregs.windowbase >= XCHAL_NUM_AREGS / 4)
+		return -EINVAL;
+
+	regs = task_pt_regs(target);
+	regs->pc = newregs.pc;
+	regs->ps = (regs->ps & ~ps_mask) | (newregs.ps & ps_mask);
+	regs->lbeg = newregs.lbeg;
+	regs->lend = newregs.lend;
+	regs->lcount = newregs.lcount;
+	regs->sar = newregs.sar;
+	regs->threadptr = newregs.threadptr;
+
+	if (newregs.windowbase != regs->windowbase ||
+	    newregs.windowstart != regs->windowstart) {
+		u32 rotws, wmask;
+
+		rotws = (((newregs.windowstart |
+			   (newregs.windowstart << WSBITS)) >>
+			  newregs.windowbase) &
+			 ((1 << WSBITS) - 1)) & ~1;
+		wmask = ((rotws ? WSBITS + 1 - ffs(rotws) : 0) << 4) |
+			(rotws & 0xF) | 1;
+		regs->windowbase = newregs.windowbase;
+		regs->windowstart = newregs.windowstart;
+		regs->wmask = wmask;
+	}
+
+	memcpy(regs->areg + XCHAL_NUM_AREGS - newregs.windowbase * 4,
+	       newregs.a, newregs.windowbase * 16);
+	memcpy(regs->areg, newregs.a + newregs.windowbase * 4,
+	       (WSBITS - newregs.windowbase) * 16);
+
+	return 0;
+}
+
+static int tie_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	int ret;
+	struct pt_regs *regs = task_pt_regs(target);
+	struct thread_info *ti = task_thread_info(target);
+	elf_xtregs_t *newregs = kzalloc(sizeof(elf_xtregs_t), GFP_KERNEL);
+
+	if (!newregs)
+		return -ENOMEM;
+
+	newregs->opt = regs->xtregs_opt;
+	newregs->user = ti->xtregs_user;
+
+#if XTENSA_HAVE_COPROCESSORS
+	/* Flush all coprocessor registers to memory. */
+	coprocessor_flush_all(ti);
+	newregs->cp0 = ti->xtregs_cp.cp0;
+	newregs->cp1 = ti->xtregs_cp.cp1;
+	newregs->cp2 = ti->xtregs_cp.cp2;
+	newregs->cp3 = ti->xtregs_cp.cp3;
+	newregs->cp4 = ti->xtregs_cp.cp4;
+	newregs->cp5 = ti->xtregs_cp.cp5;
+	newregs->cp6 = ti->xtregs_cp.cp6;
+	newregs->cp7 = ti->xtregs_cp.cp7;
+#endif
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  newregs, 0, -1);
+	kfree(newregs);
+	return ret;
+}
+
+static int tie_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct pt_regs *regs = task_pt_regs(target);
+	struct thread_info *ti = task_thread_info(target);
+	elf_xtregs_t *newregs = kzalloc(sizeof(elf_xtregs_t), GFP_KERNEL);
+
+	if (!newregs)
+		return -ENOMEM;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 newregs, 0, -1);
+
+	if (ret)
+		goto exit;
+	regs->xtregs_opt = newregs->opt;
+	ti->xtregs_user = newregs->user;
+
+#if XTENSA_HAVE_COPROCESSORS
+	/* Flush all coprocessors before we overwrite them. */
+	coprocessor_flush_all(ti);
+	coprocessor_release_all(ti);
+	ti->xtregs_cp.cp0 = newregs->cp0;
+	ti->xtregs_cp.cp1 = newregs->cp1;
+	ti->xtregs_cp.cp2 = newregs->cp2;
+	ti->xtregs_cp.cp3 = newregs->cp3;
+	ti->xtregs_cp.cp4 = newregs->cp4;
+	ti->xtregs_cp.cp5 = newregs->cp5;
+	ti->xtregs_cp.cp6 = newregs->cp6;
+	ti->xtregs_cp.cp7 = newregs->cp7;
+#endif
+exit:
+	kfree(newregs);
+	return ret;
+}
+
+enum xtensa_regset {
+	REGSET_GPR,
+	REGSET_TIE,
+};
+
+static const struct user_regset xtensa_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS,
+		.n = sizeof(struct user_pt_regs) / sizeof(u32),
+		.size = sizeof(u32),
+		.align = sizeof(u32),
+		.get = gpr_get,
+		.set = gpr_set,
+	},
+	[REGSET_TIE] = {
+		.core_note_type = NT_PRFPREG,
+		.n = sizeof(elf_xtregs_t) / sizeof(u32),
+		.size = sizeof(u32),
+		.align = sizeof(u32),
+		.get = tie_get,
+		.set = tie_set,
+	},
+};
+
+static const struct user_regset_view user_xtensa_view = {
+	.name = "xtensa",
+	.e_machine = EM_XTENSA,
+	.regsets = xtensa_regsets,
+	.n = ARRAY_SIZE(xtensa_regsets)
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_xtensa_view;
+}
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -54,161 +244,26 @@ void ptrace_disable(struct task_struct *child)
 
 static int ptrace_getregs(struct task_struct *child, void __user *uregs)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	xtensa_gregset_t __user *gregset = uregs;
-	unsigned long wb = regs->windowbase;
-	int i;
-
-	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
-		return -EIO;
-
-	__put_user(regs->pc, &gregset->pc);
-	__put_user(regs->ps & ~(1 << PS_EXCM_BIT), &gregset->ps);
-	__put_user(regs->lbeg, &gregset->lbeg);
-	__put_user(regs->lend, &gregset->lend);
-	__put_user(regs->lcount, &gregset->lcount);
-	__put_user(regs->windowstart, &gregset->windowstart);
-	__put_user(regs->windowbase, &gregset->windowbase);
-	__put_user(regs->threadptr, &gregset->threadptr);
-
-	for (i = 0; i < XCHAL_NUM_AREGS; i++)
-		__put_user(regs->areg[i],
-			   gregset->a + ((wb * 4 + i) % XCHAL_NUM_AREGS));
-
-	return 0;
+	return copy_regset_to_user(child, &user_xtensa_view, REGSET_GPR,
+				   0, sizeof(xtensa_gregset_t), uregs);
 }
 
 static int ptrace_setregs(struct task_struct *child, void __user *uregs)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	xtensa_gregset_t *gregset = uregs;
-	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
-	unsigned long ps;
-	unsigned long wb, ws;
-
-	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
-		return -EIO;
-
-	__get_user(regs->pc, &gregset->pc);
-	__get_user(ps, &gregset->ps);
-	__get_user(regs->lbeg, &gregset->lbeg);
-	__get_user(regs->lend, &gregset->lend);
-	__get_user(regs->lcount, &gregset->lcount);
-	__get_user(ws, &gregset->windowstart);
-	__get_user(wb, &gregset->windowbase);
-	__get_user(regs->threadptr, &gregset->threadptr);
-
-	regs->ps = (regs->ps & ~ps_mask) | (ps & ps_mask) | (1 << PS_EXCM_BIT);
-
-	if (wb >= XCHAL_NUM_AREGS / 4)
-		return -EFAULT;
-
-	if (wb != regs->windowbase || ws != regs->windowstart) {
-		unsigned long rotws, wmask;
-
-		rotws = (((ws | (ws << WSBITS)) >> wb) &
-			 ((1 << WSBITS) - 1)) & ~1;
-		wmask = ((rotws ? WSBITS + 1 - ffs(rotws) : 0) << 4) |
-			(rotws & 0xF) | 1;
-		regs->windowbase = wb;
-		regs->windowstart = ws;
-		regs->wmask = wmask;
-	}
-
-	if (wb != 0 && __copy_from_user(regs->areg + XCHAL_NUM_AREGS - wb * 4,
-					gregset->a, wb * 16))
-		return -EFAULT;
-
-	if (__copy_from_user(regs->areg, gregset->a + wb * 4,
-			     (WSBITS - wb) * 16))
-		return -EFAULT;
-
-	return 0;
+	return copy_regset_from_user(child, &user_xtensa_view, REGSET_GPR,
+				     0, sizeof(xtensa_gregset_t), uregs);
 }
-
-
-#if XTENSA_HAVE_COPROCESSORS
-#define CP_OFFSETS(cp) \
-	{ \
-		.elf_xtregs_offset = offsetof(elf_xtregs_t, cp), \
-		.ti_offset = offsetof(struct thread_info, xtregs_cp.cp), \
-		.sz = sizeof(xtregs_ ## cp ## _t), \
-	}
-
-static const struct {
-	size_t elf_xtregs_offset;
-	size_t ti_offset;
-	size_t sz;
-} cp_offsets[] = {
-	CP_OFFSETS(cp0),
-	CP_OFFSETS(cp1),
-	CP_OFFSETS(cp2),
-	CP_OFFSETS(cp3),
-	CP_OFFSETS(cp4),
-	CP_OFFSETS(cp5),
-	CP_OFFSETS(cp6),
-	CP_OFFSETS(cp7),
-};
-#endif
 
 static int ptrace_getxregs(struct task_struct *child, void __user *uregs)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	struct thread_info *ti = task_thread_info(child);
-	elf_xtregs_t __user *xtregs = uregs;
-	int ret = 0;
-	int i __maybe_unused;
-
-	if (!access_ok(VERIFY_WRITE, uregs, sizeof(elf_xtregs_t)))
-		return -EIO;
-
-#if XTENSA_HAVE_COPROCESSORS
-	/* Flush all coprocessor registers to memory. */
-	coprocessor_flush_all(ti);
-
-	for (i = 0; i < ARRAY_SIZE(cp_offsets); ++i)
-		ret |= __copy_to_user((char __user *)xtregs +
-				      cp_offsets[i].elf_xtregs_offset,
-				      (const char *)ti +
-				      cp_offsets[i].ti_offset,
-				      cp_offsets[i].sz);
-#endif
-	ret |= __copy_to_user(&xtregs->opt, &regs->xtregs_opt,
-			      sizeof(xtregs->opt));
-	ret |= __copy_to_user(&xtregs->user,&ti->xtregs_user,
-			      sizeof(xtregs->user));
-
-	return ret ? -EFAULT : 0;
+	return copy_regset_to_user(child, &user_xtensa_view, REGSET_TIE,
+				   0, sizeof(elf_xtregs_t), uregs);
 }
 
 static int ptrace_setxregs(struct task_struct *child, void __user *uregs)
 {
-	struct thread_info *ti = task_thread_info(child);
-	struct pt_regs *regs = task_pt_regs(child);
-	elf_xtregs_t *xtregs = uregs;
-	int ret = 0;
-	int i __maybe_unused;
-
-	if (!access_ok(VERIFY_READ, uregs, sizeof(elf_xtregs_t)))
-		return -EFAULT;
-
-#if XTENSA_HAVE_COPROCESSORS
-	/* Flush all coprocessors before we overwrite them. */
-	coprocessor_flush_all(ti);
-	coprocessor_release_all(ti);
-
-	for (i = 0; i < ARRAY_SIZE(cp_offsets); ++i)
-		ret |= __copy_from_user((char *)ti + cp_offsets[i].ti_offset,
-					(const char __user *)xtregs +
-					cp_offsets[i].elf_xtregs_offset,
-					cp_offsets[i].sz);
-#endif
-	ret |= __copy_from_user(&regs->xtregs_opt, &xtregs->opt,
-				sizeof(xtregs->opt));
-	ret |= __copy_from_user(&ti->xtregs_user, &xtregs->user,
-				sizeof(xtregs->user));
-
-	return ret ? -EFAULT : 0;
+	return copy_regset_from_user(child, &user_xtensa_view, REGSET_TIE,
+				     0, sizeof(elf_xtregs_t), uregs);
 }
 
 static int ptrace_peekusr(struct task_struct *child, long regno,
@@ -447,18 +502,8 @@ long arch_ptrace(struct task_struct *child, long request,
 	void __user *datap = (void __user *) data;
 
 	switch (request) {
-	case PTRACE_PEEKTEXT:	/* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	case PTRACE_PEEKUSR:	/* read register specified by addr. */
 		ret = ptrace_peekusr(child, addr, datap);
-		break;
-
-	case PTRACE_POKETEXT:	/* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR:	/* write register specified by addr. */
@@ -497,18 +542,22 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-unsigned long do_syscall_trace_enter(struct pt_regs *regs)
+void do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
-		return -1;
+		regs->syscall = NO_SYSCALL;
 
-	return regs->areg[2];
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_enter(regs, syscall_get_nr(current, regs));
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)
 {
 	int step;
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_exit(regs, regs_return_value(regs));
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 

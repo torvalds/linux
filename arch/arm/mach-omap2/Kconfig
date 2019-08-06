@@ -223,7 +223,6 @@ config MACH_NOKIA_N8X0
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
 	depends on ARCH_OMAP3
-	default n
 	help
 	  If you know that none of your system initiators will attempt to
 	  access SDRAM during CORE DVFS, select Y here.  This should boost

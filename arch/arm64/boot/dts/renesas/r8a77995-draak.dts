@@ -24,6 +24,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 50000>;
+
+		brightness-levels = <256 128 64 16 8 4 0>;
+		default-brightness-level = <6>;
+
+		power-supply = <&reg_12p0v>;
+		enable-gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+	};
+
 	composite-in {
 		compatible = "composite-video-connector";
 
@@ -104,6 +115,15 @@
 		regulator-always-on;
 	};
 
+	reg_12p0v: regulator1 {
+		compatible = "regulator-fixed";
+		regulator-name = "D12.0V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	vga {
 		compatible = "vga-connector";
 
@@ -179,11 +199,17 @@
 };
 
 &ehci0 {
+	dr_mode = "host";
 	status = "okay";
 };
 
 &extal_clk {
 	clock-frequency = <48000000>;
+};
+
+&hsusb {
+	dr_mode = "host";
+	status = "okay";
 };
 
 &i2c0 {
@@ -195,7 +221,7 @@
 		compatible = "adi,adv7180cp";
 		reg = <0x20>;
 
-		port {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -337,6 +363,7 @@
 };
 
 &ohci0 {
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -445,6 +472,7 @@
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
 
+	renesas,no-otg-pins;
 	status = "okay";
 };
 

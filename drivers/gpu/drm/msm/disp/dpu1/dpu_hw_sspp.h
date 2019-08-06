@@ -392,16 +392,6 @@ struct dpu_hw_pipe {
 };
 
 /**
- * dpu_hw_pipe - convert base object dpu_hw_base to container
- * @hw: Pointer to base hardware block
- * return: Pointer to hardware block container
- */
-static inline struct dpu_hw_pipe *to_dpu_hw_pipe(struct dpu_hw_blk *hw)
-{
-	return container_of(hw, struct dpu_hw_pipe, base);
-}
-
-/**
  * dpu_hw_sspp_init - initializes the sspp hw driver object.
  * Should be called once before accessing every pipe.
  * @idx:  Pipe index for which driver object is required

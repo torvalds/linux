@@ -882,7 +882,7 @@ struct ethtool_rx_flow_spec {
 	__u32		location;
 };
 
-/* How rings are layed out when accessing virtual functions or
+/* How rings are laid out when accessing virtual functions or
  * offloaded queues is device specific. To allow users to do flow
  * steering and specify these queues the ring cookie is partitioned
  * into a 32bit queue index with an 8 bit virtual function id.
@@ -891,7 +891,7 @@ struct ethtool_rx_flow_spec {
  * devices start supporting PCIe w/ARI. However at the moment I
  * do not know of any devices that support this so I do not reserve
  * space for this at this time. If a future patch consumes the next
- * byte it should be aware of this possiblity.
+ * byte it should be aware of this possibility.
  */
 #define ETHTOOL_RX_FLOW_SPEC_RING	0x00000000FFFFFFFFLL
 #define ETHTOOL_RX_FLOW_SPEC_RING_VF	0x000000FF00000000LL

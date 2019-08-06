@@ -127,12 +127,13 @@ enum amd_pp_task {
 };
 
 enum PP_SMC_POWER_PROFILE {
-	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x0,
-	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x1,
-	PP_SMC_POWER_PROFILE_VIDEO        = 0x2,
-	PP_SMC_POWER_PROFILE_VR           = 0x3,
-	PP_SMC_POWER_PROFILE_COMPUTE      = 0x4,
-	PP_SMC_POWER_PROFILE_CUSTOM       = 0x5,
+	PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT = 0x0,
+	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x1,
+	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x2,
+	PP_SMC_POWER_PROFILE_VIDEO        = 0x3,
+	PP_SMC_POWER_PROFILE_VR           = 0x4,
+	PP_SMC_POWER_PROFILE_COMPUTE      = 0x5,
+	PP_SMC_POWER_PROFILE_CUSTOM       = 0x6,
 };
 
 enum {
@@ -276,6 +277,10 @@ struct amd_pm_funcs {
 		struct amd_pp_simple_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(void *handle);
 	int (*enable_mgpu_fan_boost)(void *handle);
+	int (*set_active_display_count)(void *handle, uint32_t count);
+	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
 };
 
 #endif

@@ -1072,45 +1072,45 @@ static void dib0090_set_bbramp_pwm(struct dib0090_state *state, const u16 * cfg)
 void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 {
 	struct dib0090_state *state = fe->tuner_priv;
-	u16 *bb_ramp = (u16 *)&bb_ramp_pwm_normal; /* default baseband config */
-	u16 *rf_ramp = NULL;
+	const u16 *bb_ramp = bb_ramp_pwm_normal; /* default baseband config */
+	const u16 *rf_ramp = NULL;
 	u8 en_pwm_rf_mux = 1;
 
 	/* reset the AGC */
 	if (state->config->use_pwm_agc) {
 		if (state->current_band == BAND_CBAND) {
 			if (state->identity.in_soc) {
-				bb_ramp = (u16 *)&bb_ramp_pwm_normal_socs;
+				bb_ramp = bb_ramp_pwm_normal_socs;
 				if (state->identity.version == SOC_8090_P1G_11R1 || state->identity.version == SOC_8090_P1G_21R1)
-					rf_ramp = (u16 *)&rf_ramp_pwm_cband_8090;
+					rf_ramp = rf_ramp_pwm_cband_8090;
 				else if (state->identity.version == SOC_7090_P1G_11R1 || state->identity.version == SOC_7090_P1G_21R1) {
 					if (state->config->is_dib7090e) {
 						if (state->rf_ramp == NULL)
-							rf_ramp = (u16 *)&rf_ramp_pwm_cband_7090e_sensitivity;
+							rf_ramp = rf_ramp_pwm_cband_7090e_sensitivity;
 						else
-							rf_ramp = (u16 *)state->rf_ramp;
+							rf_ramp = state->rf_ramp;
 					} else
-						rf_ramp = (u16 *)&rf_ramp_pwm_cband_7090p;
+						rf_ramp = rf_ramp_pwm_cband_7090p;
 				}
 			} else
-				rf_ramp = (u16 *)&rf_ramp_pwm_cband;
+				rf_ramp = rf_ramp_pwm_cband;
 		} else
 
 			if (state->current_band == BAND_VHF) {
 				if (state->identity.in_soc) {
-					bb_ramp = (u16 *)&bb_ramp_pwm_normal_socs;
+					bb_ramp = bb_ramp_pwm_normal_socs;
 					/* rf_ramp = &rf_ramp_pwm_vhf_socs; */ /* TODO */
 				} else
-					rf_ramp = (u16 *)&rf_ramp_pwm_vhf;
+					rf_ramp = rf_ramp_pwm_vhf;
 			} else if (state->current_band == BAND_UHF) {
 				if (state->identity.in_soc) {
-					bb_ramp = (u16 *)&bb_ramp_pwm_normal_socs;
+					bb_ramp = bb_ramp_pwm_normal_socs;
 					if (state->identity.version == SOC_8090_P1G_11R1 || state->identity.version == SOC_8090_P1G_21R1)
-						rf_ramp = (u16 *)&rf_ramp_pwm_uhf_8090;
+						rf_ramp = rf_ramp_pwm_uhf_8090;
 					else if (state->identity.version == SOC_7090_P1G_11R1 || state->identity.version == SOC_7090_P1G_21R1)
-						rf_ramp = (u16 *)&rf_ramp_pwm_uhf_7090;
+						rf_ramp = rf_ramp_pwm_uhf_7090;
 				} else
-					rf_ramp = (u16 *)&rf_ramp_pwm_uhf;
+					rf_ramp = rf_ramp_pwm_uhf;
 			}
 		if (rf_ramp)
 			dib0090_set_rframp_pwm(state, rf_ramp);
@@ -1416,9 +1416,9 @@ int dib0090_update_rframp_7090(struct dvb_frontend *fe, u8 cfg_sensitivity)
 	}
 
 	if (cfg_sensitivity)
-		state->rf_ramp = (const u16 *)&rf_ramp_pwm_cband_7090e_sensitivity;
+		state->rf_ramp = rf_ramp_pwm_cband_7090e_sensitivity;
 	else
-		state->rf_ramp = (const u16 *)&rf_ramp_pwm_cband_7090e_aci;
+		state->rf_ramp = rf_ramp_pwm_cband_7090e_aci;
 	dib0090_pwm_gain_reset(fe);
 
 	return 0;

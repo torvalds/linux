@@ -424,11 +424,7 @@ static int v4l2_async_notifier_asd_valid(struct v4l2_async_notifier *notifier,
 
 void v4l2_async_notifier_init(struct v4l2_async_notifier *notifier)
 {
-	mutex_lock(&list_lock);
-
 	INIT_LIST_HEAD(&notifier->asd_list);
-
-	mutex_unlock(&list_lock);
 }
 EXPORT_SYMBOL(v4l2_async_notifier_init);
 

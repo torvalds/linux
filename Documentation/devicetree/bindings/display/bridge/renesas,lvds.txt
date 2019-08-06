@@ -13,6 +13,7 @@ Required properties:
   - "renesas,r8a7793-lvds" for R8A7793 (R-Car M2-N) compatible LVDS encoders
   - "renesas,r8a7795-lvds" for R8A7795 (R-Car H3) compatible LVDS encoders
   - "renesas,r8a7796-lvds" for R8A7796 (R-Car M3-W) compatible LVDS encoders
+  - "renesas,r8a77965-lvds" for R8A77965 (R-Car M3-N) compatible LVDS encoders
   - "renesas,r8a77970-lvds" for R8A77970 (R-Car V3M) compatible LVDS encoders
   - "renesas,r8a77980-lvds" for R8A77980 (R-Car V3H) compatible LVDS encoders
   - "renesas,r8a77990-lvds" for R8A77990 (R-Car E3) compatible LVDS encoders

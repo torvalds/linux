@@ -39,6 +39,7 @@
 #include "ixgbe.h"
 #include "ixgbe_common.h"
 #include "ixgbe_dcb_82599.h"
+#include "ixgbe_phy.h"
 #include "ixgbe_sriov.h"
 #include "ixgbe_model.h"
 #include "ixgbe_txrx_common.h"
@@ -3952,8 +3953,11 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 			else
 				mrqc = IXGBE_MRQC_VMDQRSS64EN;
 
-			/* Enable L3/L4 for Tx Switched packets */
-			mrqc |= IXGBE_MRQC_L3L4TXSWEN;
+			/* Enable L3/L4 for Tx Switched packets only for X550,
+			 * older devices do not support this feature
+			 */
+			if (hw->mac.type >= ixgbe_mac_X550)
+				mrqc |= IXGBE_MRQC_L3L4TXSWEN;
 		} else {
 			if (tcs > 4)
 				mrqc = IXGBE_MRQC_RTRSS8TCEN;
@@ -6077,9 +6081,9 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* Disable Rx */
 	ixgbe_disable_rx(adapter);
 
-	/* synchronize_sched() needed for pending XDP buffers to drain */
+	/* synchronize_rcu() needed for pending XDP buffers to drain */
 	if (adapter->xdp_ring[0])
-		synchronize_sched();
+		synchronize_rcu();
 
 	ixgbe_irq_disable(adapter);
 
@@ -8269,6 +8273,8 @@ static int ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 	/* set the timestamp */
 	first->time_stamp = jiffies;
 
+	skb_tx_timestamp(skb);
+
 	/*
 	 * Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
@@ -8646,8 +8652,6 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		}
 	}
 
-	skb_tx_timestamp(skb);
-
 #ifdef CONFIG_PCI_IOV
 	/*
 	 * Use the l2switch_enable flag - would be false if the DMA
@@ -8695,7 +8699,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 #endif /* IXGBE_FCOE */
 
 #ifdef CONFIG_IXGBE_IPSEC
-	if (skb->sp && !ixgbe_ipsec_tx(tx_ring, first, &ipsec_tx))
+	if (secpath_exists(skb) &&
+	    !ixgbe_ipsec_tx(tx_ring, first, &ipsec_tx))
 		goto out_drop;
 #endif
 	tso = ixgbe_tso(tx_ring, first, &hdr_len, &ipsec_tx);
@@ -8789,6 +8794,15 @@ ixgbe_mdio_read(struct net_device *netdev, int prtad, int devad, u16 addr)
 	u16 value;
 	int rc;
 
+	if (adapter->mii_bus) {
+		int regnum = addr;
+
+		if (devad != MDIO_DEVAD_NONE)
+			regnum |= (devad << 16) | MII_ADDR_C45;
+
+		return mdiobus_read(adapter->mii_bus, prtad, regnum);
+	}
+
 	if (prtad != hw->phy.mdio.prtad)
 		return -EINVAL;
 	rc = hw->phy.ops.read_reg(hw, addr, devad, &value);
@@ -8802,6 +8816,15 @@ static int ixgbe_mdio_write(struct net_device *netdev, int prtad, int devad,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+
+	if (adapter->mii_bus) {
+		int regnum = addr;
+
+		if (devad != MDIO_DEVAD_NONE)
+			regnum |= (devad << 16) | MII_ADDR_C45;
+
+		return mdiobus_write(adapter->mii_bus, prtad, regnum, value);
+	}
 
 	if (prtad != hw->phy.mdio.prtad)
 		return -EINVAL;
@@ -9979,7 +10002,8 @@ static int ixgbe_configure_bridge_mode(struct ixgbe_adapter *adapter,
 }
 
 static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
-				    struct nlmsghdr *nlh, u16 flags)
+				    struct nlmsghdr *nlh, u16 flags,
+				    struct netlink_ext_ack *extack)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct nlattr *attr, *br_spec;
@@ -10191,7 +10215,7 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID)) {
 #ifdef CONFIG_IXGBE_IPSEC
-		if (!skb->sp)
+		if (!secpath_exists(skb))
 #endif
 			features &= ~NETIF_F_TSO;
 	}
@@ -10204,6 +10228,7 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 	int i, frame_size = dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct bpf_prog *old_prog;
+	bool need_reset;
 
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		return -EINVAL;
@@ -10226,9 +10251,10 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 		return -ENOMEM;
 
 	old_prog = xchg(&adapter->xdp_prog, prog);
+	need_reset = (!!prog != !!old_prog);
 
 	/* If transitioning XDP modes reconfigure rings */
-	if (!!prog != !!old_prog) {
+	if (need_reset) {
 		int err = ixgbe_setup_tc(dev, adapter->hw_tcs);
 
 		if (err) {
@@ -10243,6 +10269,14 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 
 	if (old_prog)
 		bpf_prog_put(old_prog);
+
+	/* Kick start the NAPI context if there is an AF_XDP socket open
+	 * on that queue id. This so that receiving will start.
+	 */
+	if (need_reset && prog)
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			if (adapter->xdp_ring[i]->xsk_umem)
+				(void)ixgbe_xsk_async_xmit(adapter->netdev, i);
 
 	return 0;
 }
@@ -10476,7 +10510,7 @@ void ixgbe_txrx_ring_disable(struct ixgbe_adapter *adapter, int ring)
 	ixgbe_disable_rxr_hw(adapter, rx_ring);
 
 	if (xdp_ring)
-		synchronize_sched();
+		synchronize_rcu();
 
 	/* Rx/Tx/XDP Tx share the same napi context. */
 	napi_disable(&rx_ring->q_vector->napi);
@@ -10517,7 +10551,8 @@ void ixgbe_txrx_ring_enable(struct ixgbe_adapter *adapter, int ring)
 	ixgbe_configure_rx_ring(adapter, rx_ring);
 
 	clear_bit(__IXGBE_TX_DISABLED, &tx_ring->state);
-	clear_bit(__IXGBE_TX_DISABLED, &xdp_ring->state);
+	if (xdp_ring)
+		clear_bit(__IXGBE_TX_DISABLED, &xdp_ring->state);
 }
 
 /**
@@ -11119,6 +11154,8 @@ skip_sriov:
 			IXGBE_LINK_SPEED_10GB_FULL | IXGBE_LINK_SPEED_1GB_FULL,
 			true);
 
+	ixgbe_mii_bus_init(hw);
+
 	return 0;
 
 err_register:
@@ -11169,6 +11206,8 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	set_bit(__IXGBE_REMOVING, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
 
+	if (adapter->mii_bus)
+		mdiobus_unregister(adapter->mii_bus);
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {

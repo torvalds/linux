@@ -44,15 +44,15 @@
 #include <net/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_csum.h>
-#include <net/vxlan.h>
 #include <net/arp.h>
 #include "en.h"
 #include "en_rep.h"
 #include "en_tc.h"
 #include "eswitch.h"
-#include "lib/vxlan.h"
 #include "fs_core.h"
 #include "en/port.h"
+#include "en/tc_tun.h"
+#include "lib/devcom.h"
 
 struct mlx5_nic_flow_attr {
 	u32 action;
@@ -69,15 +69,38 @@ struct mlx5_nic_flow_attr {
 enum {
 	MLX5E_TC_FLOW_INGRESS	= MLX5E_TC_INGRESS,
 	MLX5E_TC_FLOW_EGRESS	= MLX5E_TC_EGRESS,
-	MLX5E_TC_FLOW_ESWITCH	= BIT(MLX5E_TC_FLOW_BASE),
-	MLX5E_TC_FLOW_NIC	= BIT(MLX5E_TC_FLOW_BASE + 1),
-	MLX5E_TC_FLOW_OFFLOADED	= BIT(MLX5E_TC_FLOW_BASE + 2),
-	MLX5E_TC_FLOW_HAIRPIN	= BIT(MLX5E_TC_FLOW_BASE + 3),
-	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(MLX5E_TC_FLOW_BASE + 4),
-	MLX5E_TC_FLOW_SLOW	  = BIT(MLX5E_TC_FLOW_BASE + 5),
+	MLX5E_TC_FLOW_ESWITCH	= MLX5E_TC_ESW_OFFLOAD,
+	MLX5E_TC_FLOW_NIC	= MLX5E_TC_NIC_OFFLOAD,
+	MLX5E_TC_FLOW_OFFLOADED	= BIT(MLX5E_TC_FLOW_BASE),
+	MLX5E_TC_FLOW_HAIRPIN	= BIT(MLX5E_TC_FLOW_BASE + 1),
+	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(MLX5E_TC_FLOW_BASE + 2),
+	MLX5E_TC_FLOW_SLOW	  = BIT(MLX5E_TC_FLOW_BASE + 3),
+	MLX5E_TC_FLOW_DUP         = BIT(MLX5E_TC_FLOW_BASE + 4),
 };
 
 #define MLX5E_TC_MAX_SPLITS 1
+
+/* Helper struct for accessing a struct containing list_head array.
+ * Containing struct
+ *   |- Helper array
+ *      [0] Helper item 0
+ *          |- list_head item 0
+ *          |- index (0)
+ *      [1] Helper item 1
+ *          |- list_head item 1
+ *          |- index (1)
+ * To access the containing struct from one of the list_head items:
+ * 1. Get the helper item from the list_head item using
+ *    helper item =
+ *        container_of(list_head item, helper struct type, list_head field)
+ * 2. Get the contining struct from the helper item and its index in the array:
+ *    containing struct =
+ *        container_of(helper item, containing struct type, helper field[index])
+ */
+struct encap_flow_item {
+	struct list_head list;
+	int index;
+};
 
 struct mlx5e_tc_flow {
 	struct rhash_head	node;
@@ -85,9 +108,15 @@ struct mlx5e_tc_flow {
 	u64			cookie;
 	u16			flags;
 	struct mlx5_flow_handle *rule[MLX5E_TC_MAX_SPLITS + 1];
-	struct list_head	encap;   /* flows sharing the same encap ID */
+	/* Flow can be associated with multiple encap IDs.
+	 * The number of encaps is bounded by the number of supported
+	 * destinations.
+	 */
+	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5e_tc_flow    *peer_flow;
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
 	struct list_head	hairpin; /* flows sharing the same hairpin */
+	struct list_head	peer;    /* flows with peer flow */
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -95,11 +124,13 @@ struct mlx5e_tc_flow {
 };
 
 struct mlx5e_tc_flow_parse_attr {
-	struct ip_tunnel_info tun_info;
+	struct ip_tunnel_info tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
 	int num_mod_hdr_actions;
+	int max_mod_hdr_actions;
 	void *mod_hdr_actions;
-	int mirred_ifindex;
+	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
 };
 
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
@@ -316,7 +347,7 @@ static void mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
 
 	for (i = 0; i < sz; i++) {
 		ix = i;
-		if (priv->channels.params.rss_hfunc == ETH_RSS_HASH_XOR)
+		if (priv->rss_params.hfunc == ETH_RSS_HASH_XOR)
 			ix = mlx5e_bits_invert(i, ilog2(sz));
 		ix = indirection_rqt[ix];
 		rqn = hp->pair->rqn[ix];
@@ -360,13 +391,15 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 	void *tirc;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
+		struct mlx5e_tirc_config ttconfig = mlx5e_tirc_get_default_config(tt);
+
 		memset(in, 0, MLX5_ST_SZ_BYTES(create_tir_in));
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 
 		MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
 		MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
 		MLX5_SET(tirc, tirc, indirect_table, hp->indir_rqt.rqtn);
-		mlx5e_build_indir_tir_ctx_hash(&priv->channels.params, tt, tirc, false);
+		mlx5e_build_indir_tir_ctx_hash(&priv->rss_params, &ttconfig, tirc, false);
 
 		err = mlx5_core_create_tir(hp->func_mdev, in,
 					   MLX5_ST_SZ_BYTES(create_tir_in), &hp->indir_tirn[tt]);
@@ -569,7 +602,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow_parse_attr *parse_attr,
 				  struct netlink_ext_ack *extack)
 {
-	int peer_ifindex = parse_attr->mirred_ifindex;
+	int peer_ifindex = parse_attr->mirred_ifindex[0];
 	struct mlx5_hairpin_params params;
 	struct mlx5_core_dev *peer_mdev;
 	struct mlx5e_hairpin_entry *hpe;
@@ -802,7 +835,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	mlx5_del_flow_rules(flow->rule[0]);
 	mlx5_fc_destroy(priv->mdev, counter);
 
-	if (!mlx5e_tc_num_filters(priv) && priv->fs.tc.t) {
+	if (!mlx5e_tc_num_filters(priv, MLX5E_TC_NIC_OFFLOAD)  && priv->fs.tc.t) {
 		mlx5_destroy_flow_table(priv->fs.tc.t);
 		priv->fs.tc.t = NULL;
 	}
@@ -815,14 +848,15 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow);
+			       struct mlx5e_tc_flow *flow, int out_index);
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct ip_tunnel_info *tun_info,
 			      struct net_device *mirred_dev,
 			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
-			      struct netlink_ext_ack *extack);
+			      struct netlink_ext_ack *extack,
+			      int out_index);
 
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
@@ -836,7 +870,7 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 	if (IS_ERR(rule))
 		return rule;
 
-	if (attr->mirror_count) {
+	if (attr->split_count) {
 		flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, spec, attr);
 		if (IS_ERR(flow->rule[1])) {
 			mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
@@ -855,7 +889,7 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 {
 	flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
 
-	if (attr->mirror_count)
+	if (attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
 	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
@@ -871,7 +905,7 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	slow_attr->mirror_count = 0;
+	slow_attr->split_count = 0;
 	slow_attr->dest_chain = FDB_SLOW_PATH_CHAIN;
 
 	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
@@ -888,7 +922,7 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 {
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	slow_attr->mirror_count = 0;
+	slow_attr->split_count = 0;
 	slow_attr->dest_chain = FDB_SLOW_PATH_CHAIN;
 	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
 	flow->flags &= ~MLX5E_TC_FLOW_SLOW;
@@ -909,6 +943,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
 	int err = 0, encap_err = 0;
+	int out_index;
 
 	if (!mlx5_eswitch_prios_supported(esw) && attr->prio != 1) {
 		NL_SET_ERR_MSG(extack, "E-switch priorities unsupported, upgrade FW");
@@ -927,20 +962,27 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_max_prio_chain;
 	}
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		int mirred_ifindex;
+
+		if (!(attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		mirred_ifindex = attr->parse_attr->mirred_ifindex[out_index];
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
-					     attr->parse_attr->mirred_ifindex);
-		encap_err = mlx5e_attach_encap(priv, &parse_attr->tun_info,
-					       out_dev, &encap_dev, flow,
-					       extack);
-		if (encap_err && encap_err != -EAGAIN) {
-			err = encap_err;
+					     mirred_ifindex);
+		err = mlx5e_attach_encap(priv,
+					 &parse_attr->tun_info[out_index],
+					 out_dev, &encap_dev, flow,
+					 extack, out_index);
+		if (err && err != -EAGAIN)
 			goto err_attach_encap;
-		}
+		if (err == -EAGAIN)
+			encap_err = err;
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
-		attr->out_rep[attr->out_count] = rpriv->rep;
-		attr->out_mdev[attr->out_count++] = out_priv->mdev;
+		attr->dests[out_index].rep = rpriv->rep;
+		attr->dests[out_index].mdev = out_priv->mdev;
 	}
 
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
@@ -955,7 +997,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(esw->dev, true);
+		counter = mlx5_fc_create(attr->counter_dev, true);
 		if (IS_ERR(counter)) {
 			err = PTR_ERR(counter);
 			goto err_create_counter;
@@ -984,15 +1026,16 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	return 0;
 
 err_add_rule:
-	mlx5_fc_destroy(esw->dev, counter);
+	mlx5_fc_destroy(attr->counter_dev, counter);
 err_create_counter:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
 err_mod_hdr:
 	mlx5_eswitch_del_vlan_action(esw, attr);
 err_add_vlan:
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
-		mlx5e_detach_encap(priv, flow);
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)
+			mlx5e_detach_encap(priv, flow, out_index);
 err_attach_encap:
 err_max_prio_chain:
 	return err;
@@ -1004,6 +1047,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5_esw_flow_attr slow_attr;
+	int out_index;
 
 	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 		if (flow->flags & MLX5E_TC_FLOW_SLOW)
@@ -1014,16 +1058,16 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
-		mlx5e_detach_encap(priv, flow);
-		kvfree(attr->parse_attr);
-	}
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)
+			mlx5e_detach_encap(priv, flow, out_index);
+	kvfree(attr->parse_attr);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
-		mlx5_fc_destroy(esw->dev, attr->counter);
+		mlx5_fc_destroy(attr->counter_dev, attr->counter);
 }
 
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
@@ -1033,10 +1077,12 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr slow_attr, *esw_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
+	struct encap_flow_item *efi;
 	struct mlx5e_tc_flow *flow;
 	int err;
 
-	err = mlx5_packet_reformat_alloc(priv->mdev, e->tunnel_type,
+	err = mlx5_packet_reformat_alloc(priv->mdev,
+					 e->reformat_type,
 					 e->encap_size, e->encap_header,
 					 MLX5_FLOW_NAMESPACE_FDB,
 					 &e->encap_id);
@@ -1048,11 +1094,31 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(priv);
 
-	list_for_each_entry(flow, &e->flows, encap) {
+	list_for_each_entry(efi, &e->flows, list) {
+		bool all_flow_encaps_valid = true;
+		int i;
+
+		flow = container_of(efi, struct mlx5e_tc_flow, encaps[efi->index]);
 		esw_attr = flow->esw_attr;
-		esw_attr->encap_id = e->encap_id;
 		spec = &esw_attr->parse_attr->spec;
 
+		esw_attr->dests[efi->index].encap_id = e->encap_id;
+		esw_attr->dests[efi->index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+		/* Flow can be associated with multiple encap entries.
+		 * Before offloading the flow verify that all of them have
+		 * a valid neighbour.
+		 */
+		for (i = 0; i < MLX5_MAX_FLOW_FWD_VPORTS; i++) {
+			if (!(esw_attr->dests[i].flags & MLX5_ESW_DEST_ENCAP))
+				continue;
+			if (!(esw_attr->dests[i].flags & MLX5_ESW_DEST_ENCAP_VALID)) {
+				all_flow_encaps_valid = false;
+				break;
+			}
+		}
+		/* Do not offload flows with unresolved neighbors */
+		if (!all_flow_encaps_valid)
+			continue;
 		/* update from slow path rule to encap rule */
 		rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, esw_attr);
 		if (IS_ERR(rule)) {
@@ -1075,14 +1141,18 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr slow_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
+	struct encap_flow_item *efi;
 	struct mlx5e_tc_flow *flow;
 	int err;
 
-	list_for_each_entry(flow, &e->flows, encap) {
+	list_for_each_entry(efi, &e->flows, list) {
+		flow = container_of(efi, struct mlx5e_tc_flow, encaps[efi->index]);
 		spec = &flow->esw_attr->parse_attr->spec;
 
 		/* update from encap rule to slow path rule */
 		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec, &slow_attr);
+		/* mark the flow's encap dest as non-valid */
+		flow->esw_attr->dests[efi->index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 
 		if (IS_ERR(rule)) {
 			err = PTR_ERR(rule);
@@ -1130,9 +1200,12 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		return;
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
+		struct encap_flow_item *efi;
 		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID))
 			continue;
-		list_for_each_entry(flow, &e->flows, encap) {
+		list_for_each_entry(efi, &e->flows, list) {
+			flow = container_of(efi, struct mlx5e_tc_flow,
+					    encaps[efi->index]);
 			if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 				counter = mlx5e_tc_get_counter(flow);
 				mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
@@ -1162,11 +1235,11 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow)
+			       struct mlx5e_tc_flow *flow, int out_index)
 {
-	struct list_head *next = flow->encap.next;
+	struct list_head *next = flow->encaps[out_index].list.next;
 
-	list_del(&flow->encap);
+	list_del(&flow->encaps[out_index].list);
 	if (list_empty(next)) {
 		struct mlx5e_encap_entry *e;
 
@@ -1182,49 +1255,55 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 	}
 }
 
+static void __mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_eswitch *esw = flow->priv->mdev->priv.eswitch;
+
+	if (!(flow->flags & MLX5E_TC_FLOW_ESWITCH) ||
+	    !(flow->flags & MLX5E_TC_FLOW_DUP))
+		return;
+
+	mutex_lock(&esw->offloads.peer_mutex);
+	list_del(&flow->peer);
+	mutex_unlock(&esw->offloads.peer_mutex);
+
+	flow->flags &= ~MLX5E_TC_FLOW_DUP;
+
+	mlx5e_tc_del_fdb_flow(flow->peer_flow->priv, flow->peer_flow);
+	kvfree(flow->peer_flow);
+	flow->peer_flow = NULL;
+}
+
+static void mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_core_dev *dev = flow->priv->mdev;
+	struct mlx5_devcom *devcom = dev->priv.devcom;
+	struct mlx5_eswitch *peer_esw;
+
+	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	if (!peer_esw)
+		return;
+
+	__mlx5e_tc_del_fdb_peer_flow(flow);
+	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+}
+
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow)
 {
-	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH) {
+		mlx5e_tc_del_fdb_peer_flow(flow);
 		mlx5e_tc_del_fdb_flow(priv, flow);
-	else
+	} else {
 		mlx5e_tc_del_nic_flow(priv, flow);
-}
-
-static void parse_vxlan_attr(struct mlx5_flow_spec *spec,
-			     struct tc_cls_flower_offload *f)
-{
-	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-				       outer_headers);
-	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-				       outer_headers);
-	void *misc_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-				    misc_parameters);
-	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-				    misc_parameters);
-
-	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ip_protocol);
-	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol, IPPROTO_UDP);
-
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_dissector_key_keyid *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_KEYID,
-						  f->key);
-		struct flow_dissector_key_keyid *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_KEYID,
-						  f->mask);
-		MLX5_SET(fte_match_set_misc, misc_c, vxlan_vni,
-			 be32_to_cpu(mask->keyid));
-		MLX5_SET(fte_match_set_misc, misc_v, vxlan_vni,
-			 be32_to_cpu(key->keyid));
 	}
 }
 
+
 static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			     struct mlx5_flow_spec *spec,
-			     struct tc_cls_flower_offload *f)
+			     struct tc_cls_flower_offload *f,
+			     struct net_device *filter_dev, u8 *match_level)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -1236,48 +1315,14 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		skb_flow_dissector_target(f->dissector,
 					  FLOW_DISSECTOR_KEY_ENC_CONTROL,
 					  f->key);
+	int err = 0;
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
-		struct flow_dissector_key_ports *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_PORTS,
-						  f->key);
-		struct flow_dissector_key_ports *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_PORTS,
-						  f->mask);
-
-		/* Full udp dst port must be given */
-		if (memchr_inv(&mask->dst, 0xff, sizeof(mask->dst)))
-			goto vxlan_match_offload_err;
-
-		if (mlx5_vxlan_lookup_port(priv->mdev->vxlan, be16_to_cpu(key->dst)) &&
-		    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
-			parse_vxlan_attr(spec, f);
-		else {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "port isn't an offloaded vxlan udp dport");
-			netdev_warn(priv->netdev,
-				    "%d isn't an offloaded vxlan udp dport\n", be16_to_cpu(key->dst));
-			return -EOPNOTSUPP;
-		}
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 udp_dport, ntohs(mask->dst));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 udp_dport, ntohs(key->dst));
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 udp_sport, ntohs(mask->src));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 udp_sport, ntohs(key->src));
-	} else { /* udp dst port must be given */
-vxlan_match_offload_err:
+	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f,
+				 headers_c, headers_v, match_level);
+	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "IP tunnel decap offload supported only for vxlan, must set UDP dport");
-		netdev_warn(priv->netdev,
-			    "IP tunnel decap offload supported only for vxlan, must set UDP dport\n");
-		return -EOPNOTSUPP;
+				   "failed to parse tunnel attributes");
+		return err;
 	}
 
 	if (enc_control->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
@@ -1381,7 +1426,8 @@ vxlan_match_offload_err:
 static int __parse_cls_flower(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,
 			      struct tc_cls_flower_offload *f,
-			      u8 *match_level)
+			      struct net_device *filter_dev,
+			      u8 *match_level, u8 *tunnel_match_level)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -1432,7 +1478,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		switch (key->addr_type) {
 		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
 		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
-			if (parse_tunnel_attr(priv, spec, f))
+			if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 				return -EOPNOTSUPP;
 			break;
 		default:
@@ -1774,17 +1820,18 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 static int parse_cls_flower(struct mlx5e_priv *priv,
 			    struct mlx5e_tc_flow *flow,
 			    struct mlx5_flow_spec *spec,
-			    struct tc_cls_flower_offload *f)
+			    struct tc_cls_flower_offload *f,
+			    struct net_device *filter_dev)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	u8 match_level, tunnel_match_level = MLX5_MATCH_NONE;
 	struct mlx5_eswitch_rep *rep;
-	u8 match_level;
 	int err;
 
-	err = __parse_cls_flower(priv, spec, f, &match_level);
+	err = __parse_cls_flower(priv, spec, f, filter_dev, &match_level, &tunnel_match_level);
 
 	if (!err && (flow->flags & MLX5E_TC_FLOW_ESWITCH)) {
 		rep = rpriv->rep;
@@ -1800,10 +1847,12 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 		}
 	}
 
-	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH) {
 		flow->esw_attr->match_level = match_level;
-	else
+		flow->esw_attr->tunnel_match_level = tunnel_match_level;
+	} else {
 		flow->nic_attr->match_level = match_level;
+	}
 
 	return err;
 }
@@ -1888,9 +1937,9 @@ static struct mlx5_fields fields[] = {
 	OFFLOAD(UDP_DPORT, 2, udp.dest,   0),
 };
 
-/* On input attr->num_mod_hdr_actions tells how many HW actions can be parsed at
- * max from the SW pedit action. On success, it says how many HW actions were
- * actually parsed.
+/* On input attr->max_mod_hdr_actions tells how many HW actions can be parsed at
+ * max from the SW pedit action. On success, attr->num_mod_hdr_actions
+ * says how many HW actions were actually parsed.
  */
 static int offload_pedit_fields(struct pedit_headers *masks,
 				struct pedit_headers *vals,
@@ -1914,9 +1963,11 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 	add_vals = &vals[TCA_PEDIT_KEY_EX_CMD_ADD];
 
 	action_size = MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto);
-	action = parse_attr->mod_hdr_actions;
-	max_actions = parse_attr->num_mod_hdr_actions;
-	nactions = 0;
+	action = parse_attr->mod_hdr_actions +
+		 parse_attr->num_mod_hdr_actions * action_size;
+
+	max_actions = parse_attr->max_mod_hdr_actions;
+	nactions = parse_attr->num_mod_hdr_actions;
 
 	for (i = 0; i < ARRAY_SIZE(fields); i++) {
 		f = &fields[i];
@@ -2027,7 +2078,7 @@ static int alloc_mod_hdr_actions(struct mlx5e_priv *priv,
 	if (!parse_attr->mod_hdr_actions)
 		return -ENOMEM;
 
-	parse_attr->num_mod_hdr_actions = max_actions;
+	parse_attr->max_mod_hdr_actions = max_actions;
 	return 0;
 }
 
@@ -2073,9 +2124,11 @@ static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 			goto out_err;
 	}
 
-	err = alloc_mod_hdr_actions(priv, a, namespace, parse_attr);
-	if (err)
-		goto out_err;
+	if (!parse_attr->mod_hdr_actions) {
+		err = alloc_mod_hdr_actions(priv, a, namespace, parse_attr);
+		if (err)
+			goto out_err;
+	}
 
 	err = offload_pedit_fields(masks, vals, parse_attr, extack);
 	if (err < 0)
@@ -2133,17 +2186,21 @@ static bool csum_offload_supported(struct mlx5e_priv *priv,
 
 static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
 					  struct tcf_exts *exts,
+					  u32 actions,
 					  struct netlink_ext_ack *extack)
 {
 	const struct tc_action *a;
 	bool modify_ip_header;
-	LIST_HEAD(actions);
 	u8 htype, ip_proto;
 	void *headers_v;
 	u16 ethertype;
 	int nkeys, i;
 
-	headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
+	if (actions & MLX5_FLOW_CONTEXT_ACTION_DECAP)
+		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, inner_headers);
+	else
+		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
+
 	ethertype = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ethertype);
 
 	/* for non-IP we only re-write MACs, so we're okay */
@@ -2200,7 +2257,7 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		return modify_header_match_supported(&parse_attr->spec, exts,
-						     extack);
+						     actions, extack);
 
 	return true;
 }
@@ -2226,7 +2283,6 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 {
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	const struct tc_action *a;
-	LIST_HEAD(actions);
 	u32 action = 0;
 	int err, i;
 
@@ -2269,7 +2325,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 			if (priv->netdev->netdev_ops == peer_dev->netdev_ops &&
 			    same_hw_devs(priv, netdev_priv(peer_dev))) {
-				parse_attr->mirred_ifindex = peer_dev->ifindex;
+				parse_attr->mirred_ifindex[0] = peer_dev->ifindex;
 				flow->flags |= MLX5E_TC_FLOW_HAIRPIN;
 				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
@@ -2318,45 +2374,6 @@ static inline int hash_encap_info(struct ip_tunnel_key *key)
 	return jhash(key, sizeof(*key), 0);
 }
 
-static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
-				   struct net_device *mirred_dev,
-				   struct net_device **out_dev,
-				   struct flowi4 *fl4,
-				   struct neighbour **out_n,
-				   u8 *out_ttl)
-{
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5e_rep_priv *uplink_rpriv;
-	struct rtable *rt;
-	struct neighbour *n = NULL;
-
-#if IS_ENABLED(CONFIG_INET)
-	int ret;
-
-	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
-	ret = PTR_ERR_OR_ZERO(rt);
-	if (ret)
-		return ret;
-#else
-	return -EOPNOTSUPP;
-#endif
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-	/* if the egress device isn't on the same HW e-switch, we use the uplink */
-	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev))
-		*out_dev = uplink_rpriv->netdev;
-	else
-		*out_dev = rt->dst.dev;
-
-	if (!(*out_ttl))
-		*out_ttl = ip4_dst_hoplimit(&rt->dst);
-	n = dst_neigh_lookup(&rt->dst, &fl4->daddr);
-	ip_rt_put(rt);
-	if (!n)
-		return -ENOMEM;
-
-	*out_n = n;
-	return 0;
-}
 
 static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 				  struct net_device *peer_netdev)
@@ -2372,377 +2389,24 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 		(peer_priv->mdev->priv.eswitch->mode == SRIOV_OFFLOADS));
 }
 
-static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
-				   struct net_device *mirred_dev,
-				   struct net_device **out_dev,
-				   struct flowi6 *fl6,
-				   struct neighbour **out_n,
-				   u8 *out_ttl)
-{
-	struct neighbour *n = NULL;
-	struct dst_entry *dst;
 
-#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
-	struct mlx5e_rep_priv *uplink_rpriv;
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	int ret;
-
-	ret = ipv6_stub->ipv6_dst_lookup(dev_net(mirred_dev), NULL, &dst,
-					 fl6);
-	if (ret < 0)
-		return ret;
-
-	if (!(*out_ttl))
-		*out_ttl = ip6_dst_hoplimit(dst);
-
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-	/* if the egress device isn't on the same HW e-switch, we use the uplink */
-	if (!switchdev_port_same_parent_id(priv->netdev, dst->dev))
-		*out_dev = uplink_rpriv->netdev;
-	else
-		*out_dev = dst->dev;
-#else
-	return -EOPNOTSUPP;
-#endif
-
-	n = dst_neigh_lookup(dst, &fl6->daddr);
-	dst_release(dst);
-	if (!n)
-		return -ENOMEM;
-
-	*out_n = n;
-	return 0;
-}
-
-static void gen_vxlan_header_ipv4(struct net_device *out_dev,
-				  char buf[], int encap_size,
-				  unsigned char h_dest[ETH_ALEN],
-				  u8 tos, u8 ttl,
-				  __be32 daddr,
-				  __be32 saddr,
-				  __be16 udp_dst_port,
-				  __be32 vx_vni)
-{
-	struct ethhdr *eth = (struct ethhdr *)buf;
-	struct iphdr  *ip = (struct iphdr *)((char *)eth + sizeof(struct ethhdr));
-	struct udphdr *udp = (struct udphdr *)((char *)ip + sizeof(struct iphdr));
-	struct vxlanhdr *vxh = (struct vxlanhdr *)((char *)udp + sizeof(struct udphdr));
-
-	memset(buf, 0, encap_size);
-
-	ether_addr_copy(eth->h_dest, h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IP);
-
-	ip->daddr = daddr;
-	ip->saddr = saddr;
-
-	ip->tos = tos;
-	ip->ttl = ttl;
-	ip->protocol = IPPROTO_UDP;
-	ip->version = 0x4;
-	ip->ihl = 0x5;
-
-	udp->dest = udp_dst_port;
-	vxh->vx_flags = VXLAN_HF_VNI;
-	vxh->vx_vni = vxlan_vni_field(vx_vni);
-}
-
-static void gen_vxlan_header_ipv6(struct net_device *out_dev,
-				  char buf[], int encap_size,
-				  unsigned char h_dest[ETH_ALEN],
-				  u8 tos, u8 ttl,
-				  struct in6_addr *daddr,
-				  struct in6_addr *saddr,
-				  __be16 udp_dst_port,
-				  __be32 vx_vni)
-{
-	struct ethhdr *eth = (struct ethhdr *)buf;
-	struct ipv6hdr *ip6h = (struct ipv6hdr *)((char *)eth + sizeof(struct ethhdr));
-	struct udphdr *udp = (struct udphdr *)((char *)ip6h + sizeof(struct ipv6hdr));
-	struct vxlanhdr *vxh = (struct vxlanhdr *)((char *)udp + sizeof(struct udphdr));
-
-	memset(buf, 0, encap_size);
-
-	ether_addr_copy(eth->h_dest, h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IPV6);
-
-	ip6_flow_hdr(ip6h, tos, 0);
-	/* the HW fills up ipv6 payload len */
-	ip6h->nexthdr     = IPPROTO_UDP;
-	ip6h->hop_limit   = ttl;
-	ip6h->daddr	  = *daddr;
-	ip6h->saddr	  = *saddr;
-
-	udp->dest = udp_dst_port;
-	vxh->vx_flags = VXLAN_HF_VNI;
-	vxh->vx_vni = vxlan_vni_field(vx_vni);
-}
-
-static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
-					  struct net_device *mirred_dev,
-					  struct mlx5e_encap_entry *e)
-{
-	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	int ipv4_encap_size = ETH_HLEN + sizeof(struct iphdr) + VXLAN_HLEN;
-	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev;
-	struct neighbour *n = NULL;
-	struct flowi4 fl4 = {};
-	u8 nud_state, tos, ttl;
-	char *encap_header;
-	int err;
-
-	if (max_encap_size < ipv4_encap_size) {
-		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
-			       ipv4_encap_size, max_encap_size);
-		return -EOPNOTSUPP;
-	}
-
-	encap_header = kzalloc(ipv4_encap_size, GFP_KERNEL);
-	if (!encap_header)
-		return -ENOMEM;
-
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		fl4.flowi4_proto = IPPROTO_UDP;
-		fl4.fl4_dport = tun_key->tp_dst;
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		goto free_encap;
-	}
-
-	tos = tun_key->tos;
-	ttl = tun_key->ttl;
-
-	fl4.flowi4_tos = tun_key->tos;
-	fl4.daddr = tun_key->u.ipv4.dst;
-	fl4.saddr = tun_key->u.ipv4.src;
-
-	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
-				      &fl4, &n, &ttl);
-	if (err)
-		goto free_encap;
-
-	/* used by mlx5e_detach_encap to lookup a neigh hash table
-	 * entry in the neigh hash table when a user deletes a rule
-	 */
-	e->m_neigh.dev = n->dev;
-	e->m_neigh.family = n->ops->family;
-	memcpy(&e->m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
-	e->out_dev = out_dev;
-
-	/* It's importent to add the neigh to the hash table before checking
-	 * the neigh validity state. So if we'll get a notification, in case the
-	 * neigh changes it's validity state, we would find the relevant neigh
-	 * in the hash.
-	 */
-	err = mlx5e_rep_encap_entry_attach(netdev_priv(out_dev), e);
-	if (err)
-		goto free_encap;
-
-	read_lock_bh(&n->lock);
-	nud_state = n->nud_state;
-	ether_addr_copy(e->h_dest, n->ha);
-	read_unlock_bh(&n->lock);
-
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		gen_vxlan_header_ipv4(out_dev, encap_header,
-				      ipv4_encap_size, e->h_dest, tos, ttl,
-				      fl4.daddr,
-				      fl4.saddr, tun_key->tp_dst,
-				      tunnel_id_to_key32(tun_key->tun_id));
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		goto destroy_neigh_entry;
-	}
-	e->encap_size = ipv4_encap_size;
-	e->encap_header = encap_header;
-
-	if (!(nud_state & NUD_VALID)) {
-		neigh_event_send(n, NULL);
-		err = -EAGAIN;
-		goto out;
-	}
-
-	err = mlx5_packet_reformat_alloc(priv->mdev, e->tunnel_type,
-					 ipv4_encap_size, encap_header,
-					 MLX5_FLOW_NAMESPACE_FDB,
-					 &e->encap_id);
-	if (err)
-		goto destroy_neigh_entry;
-
-	e->flags |= MLX5_ENCAP_ENTRY_VALID;
-	mlx5e_rep_queue_neigh_stats_work(netdev_priv(out_dev));
-	neigh_release(n);
-	return err;
-
-destroy_neigh_entry:
-	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-free_encap:
-	kfree(encap_header);
-out:
-	if (n)
-		neigh_release(n);
-	return err;
-}
-
-static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
-					  struct net_device *mirred_dev,
-					  struct mlx5e_encap_entry *e)
-{
-	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	int ipv6_encap_size = ETH_HLEN + sizeof(struct ipv6hdr) + VXLAN_HLEN;
-	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev;
-	struct neighbour *n = NULL;
-	struct flowi6 fl6 = {};
-	u8 nud_state, tos, ttl;
-	char *encap_header;
-	int err;
-
-	if (max_encap_size < ipv6_encap_size) {
-		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
-			       ipv6_encap_size, max_encap_size);
-		return -EOPNOTSUPP;
-	}
-
-	encap_header = kzalloc(ipv6_encap_size, GFP_KERNEL);
-	if (!encap_header)
-		return -ENOMEM;
-
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		fl6.flowi6_proto = IPPROTO_UDP;
-		fl6.fl6_dport = tun_key->tp_dst;
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		goto free_encap;
-	}
-
-	tos = tun_key->tos;
-	ttl = tun_key->ttl;
-
-	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
-	fl6.daddr = tun_key->u.ipv6.dst;
-	fl6.saddr = tun_key->u.ipv6.src;
-
-	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev,
-				      &fl6, &n, &ttl);
-	if (err)
-		goto free_encap;
-
-	/* used by mlx5e_detach_encap to lookup a neigh hash table
-	 * entry in the neigh hash table when a user deletes a rule
-	 */
-	e->m_neigh.dev = n->dev;
-	e->m_neigh.family = n->ops->family;
-	memcpy(&e->m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
-	e->out_dev = out_dev;
-
-	/* It's importent to add the neigh to the hash table before checking
-	 * the neigh validity state. So if we'll get a notification, in case the
-	 * neigh changes it's validity state, we would find the relevant neigh
-	 * in the hash.
-	 */
-	err = mlx5e_rep_encap_entry_attach(netdev_priv(out_dev), e);
-	if (err)
-		goto free_encap;
-
-	read_lock_bh(&n->lock);
-	nud_state = n->nud_state;
-	ether_addr_copy(e->h_dest, n->ha);
-	read_unlock_bh(&n->lock);
-
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		gen_vxlan_header_ipv6(out_dev, encap_header,
-				      ipv6_encap_size, e->h_dest, tos, ttl,
-				      &fl6.daddr,
-				      &fl6.saddr, tun_key->tp_dst,
-				      tunnel_id_to_key32(tun_key->tun_id));
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		goto destroy_neigh_entry;
-	}
-
-	e->encap_size = ipv6_encap_size;
-	e->encap_header = encap_header;
-
-	if (!(nud_state & NUD_VALID)) {
-		neigh_event_send(n, NULL);
-		err = -EAGAIN;
-		goto out;
-	}
-
-	err = mlx5_packet_reformat_alloc(priv->mdev, e->tunnel_type,
-					 ipv6_encap_size, encap_header,
-					 MLX5_FLOW_NAMESPACE_FDB,
-					 &e->encap_id);
-	if (err)
-		goto destroy_neigh_entry;
-
-	e->flags |= MLX5_ENCAP_ENTRY_VALID;
-	mlx5e_rep_queue_neigh_stats_work(netdev_priv(out_dev));
-	neigh_release(n);
-	return err;
-
-destroy_neigh_entry:
-	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-free_encap:
-	kfree(encap_header);
-out:
-	if (n)
-		neigh_release(n);
-	return err;
-}
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct ip_tunnel_info *tun_info,
 			      struct net_device *mirred_dev,
 			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
-			      struct netlink_ext_ack *extack)
+			      struct netlink_ext_ack *extack,
+			      int out_index)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	unsigned short family = ip_tunnel_info_af(tun_info);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct ip_tunnel_key *key = &tun_info->key;
 	struct mlx5e_encap_entry *e;
-	int tunnel_type, err = 0;
 	uintptr_t hash_key;
 	bool found = false;
-
-	/* udp dst port must be set */
-	if (!memchr_inv(&key->tp_dst, 0, sizeof(key->tp_dst)))
-		goto vxlan_encap_offload_err;
-
-	/* setting udp src port isn't supported */
-	if (memchr_inv(&key->tp_src, 0, sizeof(key->tp_src))) {
-vxlan_encap_offload_err:
-		NL_SET_ERR_MSG_MOD(extack,
-				   "must set udp dst port and not set udp src port");
-		netdev_warn(priv->netdev,
-			    "must set udp dst port and not set udp src port\n");
-		return -EOPNOTSUPP;
-	}
-
-	if (mlx5_vxlan_lookup_port(priv->mdev->vxlan, be16_to_cpu(key->tp_dst)) &&
-	    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap)) {
-		tunnel_type = MLX5_REFORMAT_TYPE_L2_TO_VXLAN;
-	} else {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "port isn't an offloaded vxlan udp dport");
-		netdev_warn(priv->netdev,
-			    "%d isn't an offloaded vxlan udp dport\n", be16_to_cpu(key->tp_dst));
-		return -EOPNOTSUPP;
-	}
+	int err = 0;
 
 	hash_key = hash_encap_info(key);
 
@@ -2763,13 +2427,16 @@ vxlan_encap_offload_err:
 		return -ENOMEM;
 
 	e->tun_info = *tun_info;
-	e->tunnel_type = tunnel_type;
+	err = mlx5e_tc_tun_init_encap_attr(mirred_dev, priv, e, extack);
+	if (err)
+		goto out_err;
+
 	INIT_LIST_HEAD(&e->flows);
 
 	if (family == AF_INET)
-		err = mlx5e_create_encap_header_ipv4(priv, mirred_dev, e);
+		err = mlx5e_tc_tun_create_header_ipv4(priv, mirred_dev, e);
 	else if (family == AF_INET6)
-		err = mlx5e_create_encap_header_ipv6(priv, mirred_dev, e);
+		err = mlx5e_tc_tun_create_header_ipv6(priv, mirred_dev, e);
 
 	if (err && err != -EAGAIN)
 		goto out_err;
@@ -2777,12 +2444,15 @@ vxlan_encap_offload_err:
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
 
 attach_flow:
-	list_add(&flow->encap, &e->flows);
+	list_add(&flow->encaps[out_index].list, &e->flows);
+	flow->encaps[out_index].index = out_index;
 	*encap_dev = e->out_dev;
-	if (e->flags & MLX5_ENCAP_ENTRY_VALID)
-		attr->encap_id = e->encap_id;
-	else
+	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
+		attr->dests[out_index].encap_id = e->encap_id;
+		attr->dests[out_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+	} else {
 		err = -EAGAIN;
+	}
 
 	return err;
 
@@ -2851,7 +2521,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct ip_tunnel_info *info = NULL;
 	const struct tc_action *a;
-	LIST_HEAD(actions);
 	bool encap = false;
 	u32 action = 0;
 	int err, i;
@@ -2876,7 +2545,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				return err;
 
 			action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-			attr->mirror_count = attr->out_count;
+			attr->split_count = attr->out_count;
 			continue;
 		}
 
@@ -2894,6 +2563,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			struct net_device *out_dev;
 
 			out_dev = tcf_mirred_dev(a);
+			if (!out_dev) {
+				/* out_dev is NULL when filters with
+				 * non-existing mirred device are replayed to
+				 * the driver.
+				 */
+				return -EINVAL;
+			}
 
 			if (attr->out_count >= MLX5_MAX_FLOW_FWD_VPORTS) {
 				NL_SET_ERR_MSG_MOD(extack,
@@ -2903,23 +2579,47 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				return -EOPNOTSUPP;
 			}
 
+			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			if (switchdev_port_same_parent_id(priv->netdev,
 							  out_dev) ||
 			    is_merged_eswitch_dev(priv, out_dev)) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
+				struct net_device *uplink_upper = netdev_master_upper_dev_get(uplink_dev);
+
+				if (uplink_upper &&
+				    netif_is_lag_master(uplink_upper) &&
+				    uplink_upper == out_dev)
+					out_dev = uplink_dev;
+
+				if (!mlx5e_eswitch_rep(out_dev))
+					return -EOPNOTSUPP;
+
 				out_priv = netdev_priv(out_dev);
 				rpriv = out_priv->ppriv;
-				attr->out_rep[attr->out_count] = rpriv->rep;
-				attr->out_mdev[attr->out_count++] = out_priv->mdev;
+				attr->dests[attr->out_count].rep = rpriv->rep;
+				attr->dests[attr->out_count].mdev = out_priv->mdev;
+				attr->out_count++;
 			} else if (encap) {
-				parse_attr->mirred_ifindex = out_dev->ifindex;
-				parse_attr->tun_info = *info;
+				parse_attr->mirred_ifindex[attr->out_count] =
+					out_dev->ifindex;
+				parse_attr->tun_info[attr->out_count] = *info;
+				encap = false;
 				attr->parse_attr = parse_attr;
-				action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
-					  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
-				/* attr->out_rep is resolved when we handle encap */
+				attr->dests[attr->out_count].flags |=
+					MLX5_ESW_DEST_ENCAP;
+				attr->out_count++;
+				/* attr->dests[].rep is resolved when we
+				 * handle encap
+				 */
+			} else if (parse_attr->filter_dev != priv->netdev) {
+				/* All mlx5 devices are called to configure
+				 * high level device filters. Therefore, the
+				 * *attempt* to  install a filter on invalid
+				 * eswitch should not trigger an explicit error
+				 */
+				return -EINVAL;
 			} else {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "devices are not on same switch HW, can't offload forwarding");
@@ -2936,7 +2636,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				encap = true;
 			else
 				return -EOPNOTSUPP;
-			attr->mirror_count = attr->out_count;
 			continue;
 		}
 
@@ -2946,7 +2645,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			if (err)
 				return err;
 
-			attr->mirror_count = attr->out_count;
+			attr->split_count = attr->out_count;
 			continue;
 		}
 
@@ -2988,7 +2687,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
-	if (attr->mirror_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
+	if (attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "current firmware doesn't support split rule for port mirroring");
 		netdev_warn_once(priv->netdev, "current firmware doesn't support split rule for port mirroring\n");
@@ -3007,6 +2706,11 @@ static void get_flags(int flags, u16 *flow_flags)
 	if (flags & MLX5E_TC_EGRESS)
 		__flow_flags |= MLX5E_TC_FLOW_EGRESS;
 
+	if (flags & MLX5E_TC_ESW_OFFLOAD)
+		__flow_flags |= MLX5E_TC_FLOW_ESWITCH;
+	if (flags & MLX5E_TC_NIC_OFFLOAD)
+		__flow_flags |= MLX5E_TC_FLOW_NIC;
+
 	*flow_flags = __flow_flags;
 }
 
@@ -3017,16 +2721,30 @@ static const struct rhashtable_params tc_ht_params = {
 	.automatic_shrinking = true,
 };
 
-static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv)
+static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv, int flags)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *uplink_rpriv;
 
-	if (MLX5_VPORT_MANAGER(priv->mdev) && esw->mode == SRIOV_OFFLOADS) {
+	if (flags & MLX5E_TC_ESW_OFFLOAD) {
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-		return &uplink_rpriv->tc_ht;
-	} else
+		return &uplink_rpriv->uplink_priv.tc_ht;
+	} else /* NIC offload */
 		return &priv->fs.tc.ht;
+}
+
+static bool is_peer_flow_needed(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	bool is_rep_ingress = attr->in_rep->vport != FDB_UPLINK_VPORT &&
+			      flow->flags & MLX5E_TC_FLOW_INGRESS;
+	bool act_is_encap = !!(attr->action &
+			       MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT);
+	bool esw_paired = mlx5_devcom_is_paired(attr->in_mdev->priv.devcom,
+						MLX5_DEVCOM_ESW_OFFLOADS);
+
+	return esw_paired && mlx5_lag_is_sriov(attr->in_mdev) &&
+	       (is_rep_ingress || act_is_encap);
 }
 
 static int
@@ -3050,10 +2768,6 @@ mlx5e_alloc_flow(struct mlx5e_priv *priv, int attr_size,
 	flow->flags = flow_flags;
 	flow->priv = priv;
 
-	err = parse_cls_flower(priv, flow, &parse_attr->spec, f);
-	if (err)
-		goto err_free;
-
 	*__flow = flow;
 	*__parse_attr = parse_attr;
 
@@ -3066,12 +2780,16 @@ err_free:
 }
 
 static int
-mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
-		   struct tc_cls_flower_offload *f,
-		   u16 flow_flags,
-		   struct mlx5e_tc_flow **__flow)
+__mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
+		     struct tc_cls_flower_offload *f,
+		     u16 flow_flags,
+		     struct net_device *filter_dev,
+		     struct mlx5_eswitch_rep *in_rep,
+		     struct mlx5_core_dev *in_mdev,
+		     struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_tc_flow *flow;
 	int attr_size, err;
@@ -3082,6 +2800,12 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 			       &parse_attr, &flow);
 	if (err)
 		goto out;
+	parse_attr->filter_dev = filter_dev;
+	flow->esw_attr->parse_attr = parse_attr;
+	err = parse_cls_flower(flow->priv, flow, &parse_attr->spec,
+			       f, filter_dev);
+	if (err)
+		goto err_free;
 
 	flow->esw_attr->chain = f->common.chain_index;
 	flow->esw_attr->prio = TC_H_MAJ(f->common.prio) >> 16;
@@ -3089,13 +2813,18 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
+	flow->esw_attr->in_rep = in_rep;
+	flow->esw_attr->in_mdev = in_mdev;
+
+	if (MLX5_CAP_ESW(esw->dev, counter_eswitch_affinity) ==
+	    MLX5_COUNTER_SOURCE_ESWITCH)
+		flow->esw_attr->counter_dev = in_mdev;
+	else
+		flow->esw_attr->counter_dev = priv->mdev;
+
 	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
 	if (err)
 		goto err_free;
-
-	if (!(flow->esw_attr->action &
-	      MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT))
-		kvfree(parse_attr);
 
 	*__flow = flow;
 
@@ -3108,10 +2837,92 @@ out:
 	return err;
 }
 
+static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
+				      struct mlx5e_tc_flow *flow)
+{
+	struct mlx5e_priv *priv = flow->priv, *peer_priv;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch, *peer_esw;
+	struct mlx5_devcom *devcom = priv->mdev->priv.devcom;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5e_rep_priv *peer_urpriv;
+	struct mlx5e_tc_flow *peer_flow;
+	struct mlx5_core_dev *in_mdev;
+	int err = 0;
+
+	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	if (!peer_esw)
+		return -ENODEV;
+
+	peer_urpriv = mlx5_eswitch_get_uplink_priv(peer_esw, REP_ETH);
+	peer_priv = netdev_priv(peer_urpriv->netdev);
+
+	/* in_mdev is assigned of which the packet originated from.
+	 * So packets redirected to uplink use the same mdev of the
+	 * original flow and packets redirected from uplink use the
+	 * peer mdev.
+	 */
+	if (flow->esw_attr->in_rep->vport == FDB_UPLINK_VPORT)
+		in_mdev = peer_priv->mdev;
+	else
+		in_mdev = priv->mdev;
+
+	parse_attr = flow->esw_attr->parse_attr;
+	err = __mlx5e_add_fdb_flow(peer_priv, f, flow->flags,
+				   parse_attr->filter_dev,
+				   flow->esw_attr->in_rep, in_mdev, &peer_flow);
+	if (err)
+		goto out;
+
+	flow->peer_flow = peer_flow;
+	flow->flags |= MLX5E_TC_FLOW_DUP;
+	mutex_lock(&esw->offloads.peer_mutex);
+	list_add_tail(&flow->peer, &esw->offloads.peer_flows);
+	mutex_unlock(&esw->offloads.peer_mutex);
+
+out:
+	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	return err;
+}
+
+static int
+mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
+		   struct tc_cls_flower_offload *f,
+		   u16 flow_flags,
+		   struct net_device *filter_dev,
+		   struct mlx5e_tc_flow **__flow)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *in_rep = rpriv->rep;
+	struct mlx5_core_dev *in_mdev = priv->mdev;
+	struct mlx5e_tc_flow *flow;
+	int err;
+
+	err = __mlx5e_add_fdb_flow(priv, f, flow_flags, filter_dev, in_rep,
+				   in_mdev, &flow);
+	if (err)
+		goto out;
+
+	if (is_peer_flow_needed(flow)) {
+		err = mlx5e_tc_add_fdb_peer_flow(f, flow);
+		if (err) {
+			mlx5e_tc_del_fdb_flow(priv, flow);
+			goto out;
+		}
+	}
+
+	*__flow = flow;
+
+	return 0;
+
+out:
+	return err;
+}
+
 static int
 mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 		   struct tc_cls_flower_offload *f,
 		   u16 flow_flags,
+		   struct net_device *filter_dev,
 		   struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -3129,6 +2940,12 @@ mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 			       &parse_attr, &flow);
 	if (err)
 		goto out;
+
+	parse_attr->filter_dev = filter_dev;
+	err = parse_cls_flower(flow->priv, flow, &parse_attr->spec,
+			       f, filter_dev);
+	if (err)
+		goto err_free;
 
 	err = parse_tc_nic_actions(priv, f->exts, parse_attr, flow, extack);
 	if (err)
@@ -3155,6 +2972,7 @@ static int
 mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		  struct tc_cls_flower_offload *f,
 		  int flags,
+		  struct net_device *filter_dev,
 		  struct mlx5e_tc_flow **flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -3167,18 +2985,20 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
-		err = mlx5e_add_fdb_flow(priv, f, flow_flags, flow);
+		err = mlx5e_add_fdb_flow(priv, f, flow_flags,
+					 filter_dev, flow);
 	else
-		err = mlx5e_add_nic_flow(priv, f, flow_flags, flow);
+		err = mlx5e_add_nic_flow(priv, f, flow_flags,
+					 filter_dev, flow);
 
 	return err;
 }
 
-int mlx5e_configure_flower(struct mlx5e_priv *priv,
+int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct tc_cls_flower_offload *f, int flags)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
-	struct rhashtable *tc_ht = get_tc_ht(priv);
+	struct rhashtable *tc_ht = get_tc_ht(priv, flags);
 	struct mlx5e_tc_flow *flow;
 	int err = 0;
 
@@ -3192,7 +3012,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	err = mlx5e_tc_add_flow(priv, f, flags, &flow);
+	err = mlx5e_tc_add_flow(priv, f, flags, dev, &flow);
 	if (err)
 		goto out;
 
@@ -3220,10 +3040,10 @@ static bool same_flow_direction(struct mlx5e_tc_flow *flow, int flags)
 	return false;
 }
 
-int mlx5e_delete_flower(struct mlx5e_priv *priv,
+int mlx5e_delete_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			struct tc_cls_flower_offload *f, int flags)
 {
-	struct rhashtable *tc_ht = get_tc_ht(priv);
+	struct rhashtable *tc_ht = get_tc_ht(priv, flags);
 	struct mlx5e_tc_flow *flow;
 
 	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
@@ -3239,10 +3059,12 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 	return 0;
 }
 
-int mlx5e_stats_flower(struct mlx5e_priv *priv,
+int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		       struct tc_cls_flower_offload *f, int flags)
 {
-	struct rhashtable *tc_ht = get_tc_ht(priv);
+	struct mlx5_devcom *devcom = priv->mdev->priv.devcom;
+	struct rhashtable *tc_ht = get_tc_ht(priv, flags);
+	struct mlx5_eswitch *peer_esw;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_fc *counter;
 	u64 bytes;
@@ -3262,6 +3084,27 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 
 	mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
 
+	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	if (!peer_esw)
+		goto out;
+
+	if ((flow->flags & MLX5E_TC_FLOW_DUP) &&
+	    (flow->peer_flow->flags & MLX5E_TC_FLOW_OFFLOADED)) {
+		u64 bytes2;
+		u64 packets2;
+		u64 lastuse2;
+
+		counter = mlx5e_tc_get_counter(flow->peer_flow);
+		mlx5_fc_query_cached(counter, &bytes2, &packets2, &lastuse2);
+
+		bytes += bytes2;
+		packets += packets2;
+		lastuse = max_t(u64, lastuse, lastuse2);
+	}
+
+	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+
+out:
 	tcf_exts_stats_update(f->exts, bytes, packets, lastuse);
 
 	return 0;
@@ -3350,7 +3193,7 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 	if (tc->netdevice_nb.notifier_call)
 		unregister_netdevice_notifier(&tc->netdevice_nb);
 
-	rhashtable_free_and_destroy(&tc->ht, _mlx5e_tc_del_flow, NULL);
+	rhashtable_destroy(&tc->ht);
 
 	if (!IS_ERR_OR_NULL(tc->t)) {
 		mlx5_destroy_flow_table(tc->t);
@@ -3368,9 +3211,17 @@ void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
 	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
 }
 
-int mlx5e_tc_num_filters(struct mlx5e_priv *priv)
+int mlx5e_tc_num_filters(struct mlx5e_priv *priv, int flags)
 {
-	struct rhashtable *tc_ht = get_tc_ht(priv);
+	struct rhashtable *tc_ht = get_tc_ht(priv, flags);
 
 	return atomic_read(&tc_ht->nelems);
+}
+
+void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw)
+{
+	struct mlx5e_tc_flow *flow, *tmp;
+
+	list_for_each_entry_safe(flow, tmp, &esw->offloads.peer_flows, peer)
+		__mlx5e_tc_del_fdb_peer_flow(flow);
 }

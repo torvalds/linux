@@ -177,30 +177,22 @@ static int vcn_v1_0_hw_init(void *handle)
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
 	int i, r;
 
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		goto done;
-	}
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.ring_enc[i];
-		ring->ready = true;
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->ready = false;
+		ring->sched.ready = true;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			goto done;
-		}
 	}
 
 	ring = &adev->vcn.ring_jpeg;
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		goto done;
-	}
 
 done:
 	if (!r)
@@ -222,10 +214,11 @@ static int vcn_v1_0_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
 
-	if (RREG32_SOC15(VCN, 0, mmUVD_STATUS))
+	if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
+		RREG32_SOC15(VCN, 0, mmUVD_STATUS))
 		vcn_v1_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
 
-	ring->ready = false;
+	ring->sched.ready = false;
 
 	return 0;
 }
@@ -1095,7 +1088,8 @@ static int vcn_v1_0_start_dpg_mode(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), 0,
 			~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
 
-	/* initialize wptr */
+	/* initialize JPEG wptr */
+	ring = &adev->vcn.ring_jpeg;
 	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
 
 	/* copy patch commands to the jpeg ring */
@@ -1167,21 +1161,29 @@ static int vcn_v1_0_stop_spg_mode(struct amdgpu_device *adev)
 static int vcn_v1_0_stop_dpg_mode(struct amdgpu_device *adev)
 {
 	int ret_code = 0;
+	uint32_t tmp;
 
 	/* Wait for power status to be UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF */
 	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
 			UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
 			UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
 
-	if (!ret_code) {
-		int tmp = RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR) & 0x7FFFFFFF;
-		/* wait for read ptr to be equal to write ptr */
-		SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_RBC_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
+	/* wait for read ptr to be equal to write ptr */
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR);
+	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
 
-		SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
-			UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
-			UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
-	}
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2);
+	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_RB_RPTR2, tmp, 0xFFFFFFFF, ret_code);
+
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
+	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_JRBC_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
+
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR) & 0x7FFFFFFF;
+	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_RBC_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
+
+	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+		UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
+		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
 
 	/* disable dynamic power gating mode */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_POWER_STATUS), 0,
@@ -1367,10 +1369,12 @@ static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
  * Write ring commands to execute the indirect buffer
  */
 static void vcn_v1_0_dec_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib,
-				  unsigned vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
 	struct amdgpu_device *adev = ring->adev;
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_VMID), 0));
@@ -1525,8 +1529,12 @@ static void vcn_v1_0_enc_ring_insert_end(struct amdgpu_ring *ring)
  * Write enc ring commands to execute the indirect buffer
  */
 static void vcn_v1_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, VCN_ENC_CMD_IB);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -1726,10 +1734,12 @@ static void vcn_v1_0_jpeg_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u6
  * Write ring commands to execute the indirect buffer.
  */
 static void vcn_v1_0_jpeg_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib,
-				  unsigned vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
 	struct amdgpu_device *adev = ring->adev;
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
 	amdgpu_ring_write(ring,
 		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_IB_VMID), 0, 0, PACKETJ_TYPE0));

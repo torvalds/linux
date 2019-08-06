@@ -906,13 +906,10 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 		container_of(action, struct vmw_event_fence_action, action);
 	struct drm_device *dev = eaction->dev;
 	struct drm_pending_event *event = eaction->event;
-	struct drm_file *file_priv;
-
 
 	if (unlikely(event == NULL))
 		return;
 
-	file_priv = event->file_priv;
 	spin_lock_irq(&dev->event_lock);
 
 	if (likely(eaction->tv_sec != NULL)) {

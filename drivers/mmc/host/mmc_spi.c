@@ -1434,26 +1434,30 @@ static int mmc_spi_probe(struct spi_device *spi)
 	if (status != 0)
 		goto fail_add_host;
 
-	if (host->pdata && host->pdata->flags & MMC_SPI_USE_CD_GPIO) {
-		status = mmc_gpio_request_cd(mmc, host->pdata->cd_gpio,
-					     host->pdata->cd_debounce);
-		if (status != 0)
-			goto fail_add_host;
-
-		/* The platform has a CD GPIO signal that may support
+	/*
+	 * Index 0 is card detect
+	 * Old boardfiles were specifying 1 ms as debounce
+	 */
+	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1, NULL);
+	if (status == -EPROBE_DEFER)
+		goto fail_add_host;
+	if (!status) {
+		/*
+		 * The platform has a CD GPIO signal that may support
 		 * interrupts, so let mmc_gpiod_request_cd_irq() decide
 		 * if polling is needed or not.
 		 */
 		mmc->caps &= ~MMC_CAP_NEEDS_POLL;
 		mmc_gpiod_request_cd_irq(mmc);
 	}
+	mmc_detect_change(mmc, 0);
 
-	if (host->pdata && host->pdata->flags & MMC_SPI_USE_RO_GPIO) {
+	/* Index 1 is write protect/read only */
+	status = mmc_gpiod_request_ro(mmc, NULL, 1, false, 0, NULL);
+	if (status == -EPROBE_DEFER)
+		goto fail_add_host;
+	if (!status)
 		has_ro = true;
-		status = mmc_gpio_request_ro(mmc, host->pdata->ro_gpio);
-		if (status != 0)
-			goto fail_add_host;
-	}
 
 	dev_info(&spi->dev, "SD/MMC host %s%s%s%s%s\n",
 			dev_name(&mmc->class_dev),

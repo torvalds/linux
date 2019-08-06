@@ -1199,13 +1199,13 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	mutex_lock(&fp->f_fl_mutex);
 
 	if (gfs2_holder_initialized(fl_gh)) {
+		struct file_lock request;
 		if (fl_gh->gh_state == state)
 			goto out;
-		locks_lock_file_wait(file,
-				     &(struct file_lock) {
-					     .fl_type = F_UNLCK,
-					     .fl_flags = FL_FLOCK
-				     });
+		locks_init_lock(&request);
+		request.fl_type = F_UNLCK;
+		request.fl_flags = FL_FLOCK;
+		locks_lock_file_wait(file, &request);
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_reinit(state, flags, fl_gh);
 	} else {

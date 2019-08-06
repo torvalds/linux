@@ -79,6 +79,8 @@ struct uverbs_attr_spec {
 	 */
 	u8 alloc_and_copy:1;
 	u8 mandatory:1;
+	/* True if this is from UVERBS_ATTR_UHW */
+	u8 is_udata:1;
 
 	union {
 		struct {
@@ -140,6 +142,13 @@ struct uverbs_attr_spec {
  *
  * The tree encodes multiple types, and uses a scheme where OBJ_ID,0,0 returns
  * the object slot, and OBJ_ID,METH_ID,0 and returns the method slot.
+ *
+ * This also encodes the tables for the write() and write() extended commands
+ * using the coding
+ *   OBJ_ID,UVERBS_API_METHOD_IS_WRITE,command #
+ *   OBJ_ID,UVERBS_API_METHOD_IS_WRITE_EX,command_ex #
+ * ie the WRITE path is treated as a special method type in the ioctl
+ * framework.
  */
 enum uapi_radix_data {
 	UVERBS_API_NS_FLAG = 1U << UVERBS_ID_NS_SHIFT,
@@ -147,12 +156,16 @@ enum uapi_radix_data {
 	UVERBS_API_ATTR_KEY_BITS = 6,
 	UVERBS_API_ATTR_KEY_MASK = GENMASK(UVERBS_API_ATTR_KEY_BITS - 1, 0),
 	UVERBS_API_ATTR_BKEY_LEN = (1 << UVERBS_API_ATTR_KEY_BITS) - 1,
+	UVERBS_API_WRITE_KEY_NUM = 1 << UVERBS_API_ATTR_KEY_BITS,
 
 	UVERBS_API_METHOD_KEY_BITS = 5,
 	UVERBS_API_METHOD_KEY_SHIFT = UVERBS_API_ATTR_KEY_BITS,
-	UVERBS_API_METHOD_KEY_NUM_CORE = 24,
-	UVERBS_API_METHOD_KEY_NUM_DRIVER = (1 << UVERBS_API_METHOD_KEY_BITS) -
-					   UVERBS_API_METHOD_KEY_NUM_CORE,
+	UVERBS_API_METHOD_KEY_NUM_CORE = 22,
+	UVERBS_API_METHOD_IS_WRITE = 30 << UVERBS_API_METHOD_KEY_SHIFT,
+	UVERBS_API_METHOD_IS_WRITE_EX = 31 << UVERBS_API_METHOD_KEY_SHIFT,
+	UVERBS_API_METHOD_KEY_NUM_DRIVER =
+		(UVERBS_API_METHOD_IS_WRITE >> UVERBS_API_METHOD_KEY_SHIFT) -
+		UVERBS_API_METHOD_KEY_NUM_CORE,
 	UVERBS_API_METHOD_KEY_MASK = GENMASK(
 		UVERBS_API_METHOD_KEY_BITS + UVERBS_API_METHOD_KEY_SHIFT - 1,
 		UVERBS_API_METHOD_KEY_SHIFT),
@@ -205,7 +218,22 @@ static inline __attribute_const__ u32 uapi_key_ioctl_method(u32 id)
 	return id << UVERBS_API_METHOD_KEY_SHIFT;
 }
 
-static inline __attribute_const__ u32 uapi_key_attr_to_method(u32 attr_key)
+static inline __attribute_const__ u32 uapi_key_write_method(u32 id)
+{
+	if (id >= UVERBS_API_WRITE_KEY_NUM)
+		return UVERBS_API_KEY_ERR;
+	return UVERBS_API_METHOD_IS_WRITE | id;
+}
+
+static inline __attribute_const__ u32 uapi_key_write_ex_method(u32 id)
+{
+	if (id >= UVERBS_API_WRITE_KEY_NUM)
+		return UVERBS_API_KEY_ERR;
+	return UVERBS_API_METHOD_IS_WRITE_EX | id;
+}
+
+static inline __attribute_const__ u32
+uapi_key_attr_to_ioctl_method(u32 attr_key)
 {
 	return attr_key &
 	       (UVERBS_API_OBJ_KEY_MASK | UVERBS_API_METHOD_KEY_MASK);
@@ -213,8 +241,21 @@ static inline __attribute_const__ u32 uapi_key_attr_to_method(u32 attr_key)
 
 static inline __attribute_const__ bool uapi_key_is_ioctl_method(u32 key)
 {
-	return (key & UVERBS_API_METHOD_KEY_MASK) != 0 &&
+	unsigned int method = key & UVERBS_API_METHOD_KEY_MASK;
+
+	return method != 0 && method < UVERBS_API_METHOD_IS_WRITE &&
 	       (key & UVERBS_API_ATTR_KEY_MASK) == 0;
+}
+
+static inline __attribute_const__ bool uapi_key_is_write_method(u32 key)
+{
+	return (key & UVERBS_API_METHOD_KEY_MASK) == UVERBS_API_METHOD_IS_WRITE;
+}
+
+static inline __attribute_const__ bool uapi_key_is_write_ex_method(u32 key)
+{
+	return (key & UVERBS_API_METHOD_KEY_MASK) ==
+	       UVERBS_API_METHOD_IS_WRITE_EX;
 }
 
 static inline __attribute_const__ u32 uapi_key_attrs_start(u32 ioctl_method_key)
@@ -246,9 +287,12 @@ static inline __attribute_const__ u32 uapi_key_attr(u32 id)
 	return id;
 }
 
+/* Only true for ioctl methods */
 static inline __attribute_const__ bool uapi_key_is_attr(u32 key)
 {
-	return (key & UVERBS_API_METHOD_KEY_MASK) != 0 &&
+	unsigned int method = key & UVERBS_API_METHOD_KEY_MASK;
+
+	return method != 0 && method < UVERBS_API_METHOD_IS_WRITE &&
 	       (key & UVERBS_API_ATTR_KEY_MASK) != 0;
 }
 
@@ -285,8 +329,7 @@ struct uverbs_method_def {
 	u32				     flags;
 	size_t				     num_attrs;
 	const struct uverbs_attr_def * const (*attrs)[];
-	int (*handler)(struct ib_uverbs_file *ufile,
-		       struct uverbs_attr_bundle *ctx);
+	int (*handler)(struct uverbs_attr_bundle *attrs);
 };
 
 struct uverbs_object_def {
@@ -296,10 +339,131 @@ struct uverbs_object_def {
 	const struct uverbs_method_def * const (*methods)[];
 };
 
-struct uverbs_object_tree_def {
-	size_t					 num_objects;
-	const struct uverbs_object_def * const (*objects)[];
+enum uapi_definition_kind {
+	UAPI_DEF_END = 0,
+	UAPI_DEF_OBJECT_START,
+	UAPI_DEF_WRITE,
+	UAPI_DEF_CHAIN_OBJ_TREE,
+	UAPI_DEF_CHAIN,
+	UAPI_DEF_IS_SUPPORTED_FUNC,
+	UAPI_DEF_IS_SUPPORTED_DEV_FN,
 };
+
+enum uapi_definition_scope {
+	UAPI_SCOPE_OBJECT = 1,
+	UAPI_SCOPE_METHOD = 2,
+};
+
+struct uapi_definition {
+	u8 kind;
+	u8 scope;
+	union {
+		struct {
+			u16 object_id;
+		} object_start;
+		struct {
+			u16 command_num;
+			u8 is_ex:1;
+			u8 has_udata:1;
+			u8 has_resp:1;
+			u8 req_size;
+			u8 resp_size;
+		} write;
+	};
+
+	union {
+		bool (*func_is_supported)(struct ib_device *device);
+		int (*func_write)(struct uverbs_attr_bundle *attrs);
+		const struct uapi_definition *chain;
+		const struct uverbs_object_def *chain_obj_tree;
+		size_t needs_fn_offset;
+	};
+};
+
+/* Define things connected to object_id */
+#define DECLARE_UVERBS_OBJECT(_object_id, ...)                                 \
+	{                                                                      \
+		.kind = UAPI_DEF_OBJECT_START,                                 \
+		.object_start = { .object_id = _object_id },                   \
+	},                                                                     \
+		##__VA_ARGS__
+
+/* Use in a var_args of DECLARE_UVERBS_OBJECT */
+#define DECLARE_UVERBS_WRITE(_command_num, _func, _cmd_desc, ...)              \
+	{                                                                      \
+		.kind = UAPI_DEF_WRITE,                                        \
+		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.write = { .is_ex = 0, .command_num = _command_num },          \
+		.func_write = _func,                                           \
+		_cmd_desc,                                                     \
+	},                                                                     \
+		##__VA_ARGS__
+
+/* Use in a var_args of DECLARE_UVERBS_OBJECT */
+#define DECLARE_UVERBS_WRITE_EX(_command_num, _func, _cmd_desc, ...)           \
+	{                                                                      \
+		.kind = UAPI_DEF_WRITE,                                        \
+		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.write = { .is_ex = 1, .command_num = _command_num },          \
+		.func_write = _func,                                           \
+		_cmd_desc,                                                     \
+	},                                                                     \
+		##__VA_ARGS__
+
+/*
+ * Object is only supported if the function pointer named ibdev_fn in struct
+ * ib_device is not NULL.
+ */
+#define UAPI_DEF_OBJ_NEEDS_FN(ibdev_fn)                                        \
+	{                                                                      \
+		.kind = UAPI_DEF_IS_SUPPORTED_DEV_FN,                          \
+		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.needs_fn_offset =                                             \
+			offsetof(struct ib_device_ops, ibdev_fn) +             \
+			BUILD_BUG_ON_ZERO(                                     \
+			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
+			    sizeof(void *)),				       \
+	}
+
+/*
+ * Method is only supported if the function pointer named ibdev_fn in struct
+ * ib_device is not NULL.
+ */
+#define UAPI_DEF_METHOD_NEEDS_FN(ibdev_fn)                                     \
+	{                                                                      \
+		.kind = UAPI_DEF_IS_SUPPORTED_DEV_FN,                          \
+		.scope = UAPI_SCOPE_METHOD,                                    \
+		.needs_fn_offset =                                             \
+			offsetof(struct ib_device_ops, ibdev_fn) +             \
+			BUILD_BUG_ON_ZERO(                                     \
+			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
+			    sizeof(void *)),                                   \
+	}
+
+/* Call a function to determine if the entire object is supported or not */
+#define UAPI_DEF_IS_OBJ_SUPPORTED(_func)                                       \
+	{                                                                      \
+		.kind = UAPI_DEF_IS_SUPPORTED_FUNC,                            \
+		.scope = UAPI_SCOPE_OBJECT, .func_is_supported = _func,        \
+	}
+
+/* Include another struct uapi_definition in this one */
+#define UAPI_DEF_CHAIN(_def_var)                                               \
+	{                                                                      \
+		.kind = UAPI_DEF_CHAIN, .chain = _def_var,                     \
+	}
+
+/* Temporary until the tree base description is replaced */
+#define UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, _object_ptr, ...)                \
+	{                                                                      \
+		.kind = UAPI_DEF_CHAIN_OBJ_TREE,                               \
+		.object_start = { .object_id = _object_enum },                 \
+		.chain_obj_tree = _object_ptr,                                 \
+	},								       \
+		##__VA_ARGS__
+#define UAPI_DEF_CHAIN_OBJ_TREE_NAMED(_object_enum, ...)                       \
+	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, &UVERBS_OBJECT(_object_enum),    \
+				##__VA_ARGS__)
 
 /*
  * =======================================
@@ -360,6 +524,12 @@ struct uverbs_object_tree_def {
 			  .u2.objs_arr.min_len = _min_len,                     \
 			  .u2.objs_arr.max_len = _max_len,                     \
 			  __VA_ARGS__ } })
+
+/*
+ * Only for use with UVERBS_ATTR_IDR, allows any uobject type to be accepted,
+ * the user must validate the type of the uobject instead.
+ */
+#define UVERBS_IDR_ANY_OBJECT 0xFFFF
 
 #define UVERBS_ATTR_IDR(_attr_id, _idr_type, _access, ...)                     \
 	(&(const struct uverbs_attr_def){                                      \
@@ -433,25 +603,12 @@ struct uverbs_object_tree_def {
 #define UVERBS_ATTR_UHW()                                                      \
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_UHW_IN,                                 \
 			   UVERBS_ATTR_MIN_SIZE(0),			       \
-			   UA_OPTIONAL),				       \
+			   UA_OPTIONAL,                                        \
+			   .is_udata = 1),				       \
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_UHW_OUT,                               \
 			    UVERBS_ATTR_MIN_SIZE(0),			       \
-			    UA_OPTIONAL)
-
-/*
- * =======================================
- *	Declaration helpers
- * =======================================
- */
-
-#define DECLARE_UVERBS_OBJECT_TREE(_name, ...)                                 \
-	static const struct uverbs_object_def *const _name##_ptr[] = {         \
-		__VA_ARGS__,                                                   \
-	};                                                                     \
-	static const struct uverbs_object_tree_def _name = {                   \
-		.num_objects = ARRAY_SIZE(_name##_ptr),                        \
-		.objects = &_name##_ptr,                                       \
-	}
+			    UA_OPTIONAL,                                       \
+			    .is_udata = 1)
 
 /* =================================================
  *              Parsing infrastructure
@@ -492,6 +649,8 @@ struct uverbs_attr {
 };
 
 struct uverbs_attr_bundle {
+	struct ib_udata driver_udata;
+	struct ib_udata ucore;
 	struct ib_uverbs_file *ufile;
 	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
 	struct uverbs_attr attrs[];
@@ -558,6 +717,28 @@ uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
 		return PTR_ERR(attr);
 
 	return attr->ptr_attr.len;
+}
+
+/*
+ * uverbs_attr_ptr_get_array_size() - Get array size pointer by a ptr
+ * attribute.
+ * @attrs: The attribute bundle
+ * @idx: The ID of the attribute
+ * @elem_size: The size of the element in the array
+ */
+static inline int
+uverbs_attr_ptr_get_array_size(struct uverbs_attr_bundle *attrs, u16 idx,
+			       size_t elem_size)
+{
+	int size = uverbs_attr_get_len(attrs, idx);
+
+	if (size < 0)
+		return size;
+
+	if (size % elem_size)
+		return -EINVAL;
+
+	return size / elem_size;
 }
 
 /**
@@ -660,6 +841,12 @@ static inline int _uverbs_copy_from_or_zero(void *to,
 #define uverbs_copy_from_or_zero(to, attrs_bundle, idx)			      \
 	_uverbs_copy_from_or_zero(to, attrs_bundle, idx, sizeof(*to))
 
+static inline struct ib_ucontext *
+ib_uverbs_get_ucontext(const struct uverbs_attr_bundle *attrs)
+{
+	return ib_uverbs_get_ucontext_file(attrs->ufile);
+}
+
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		       size_t idx, u64 allowed_bits);
@@ -684,6 +871,8 @@ static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
 int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		      size_t idx, s64 lower_bound, u64 upper_bound,
 		      s64 *def_val);
+int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+				  size_t idx, const void *from, size_t size);
 #else
 static inline int
 uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
@@ -716,6 +905,12 @@ static inline int
 _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		  size_t idx, s64 lower_bound, u64 upper_bound,
 		  s64 *def_val)
+{
+	return -EINVAL;
+}
+static inline int
+uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+			      size_t idx, const void *from, size_t size)
 {
 	return -EINVAL;
 }

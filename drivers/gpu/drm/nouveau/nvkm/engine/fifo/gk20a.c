@@ -26,7 +26,7 @@
 
 static const struct gk104_fifo_func
 gk20a_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

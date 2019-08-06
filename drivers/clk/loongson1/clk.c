@@ -10,6 +10,8 @@
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
 
+#include "clk.h"
+
 struct clk_hw *__init clk_hw_register_pll(struct device *dev,
 					  const char *name,
 					  const char *parent_name,
@@ -27,9 +29,9 @@ struct clk_hw *__init clk_hw_register_pll(struct device *dev,
 
 	init.name = name;
 	init.ops = ops;
-	init.flags = flags | CLK_IS_BASIC;
-	init.parent_names = (parent_name ? &parent_name : NULL);
-	init.num_parents = (parent_name ? 1 : 0);
+	init.flags = flags;
+	init.parent_names = parent_name ? &parent_name : NULL;
+	init.num_parents = parent_name ? 1 : 0;
 	hw->init = &init;
 
 	/* register the clock */

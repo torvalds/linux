@@ -158,14 +158,24 @@ Security Module (SECUMOD)
 
 The Security Module macrocell provides all necessary secure functions to avoid
 voltage, temperature, frequency and mechanical attacks on the chip. It also
-embeds secure memories that can be scrambled
+embeds secure memories that can be scrambled.
+
+The Security Module also offers the PIOBU pins which can be used as GPIO pins.
+Note that they maintain their voltage during Backup/Self-refresh.
 
 required properties:
 - compatible: Should be "atmel,<chip>-secumod", "syscon".
   <chip> can be "sama5d2".
 - reg: Should contain registers location and length
+- gpio-controller:	Marks the port as GPIO controller.
+- #gpio-cells:		There are 2. The pin number is the
+			first, the second represents additional
+			parameters such as GPIO_ACTIVE_HIGH/LOW.
+
 
 	secumod@fc040000 {
 		compatible = "atmel,sama5d2-secumod", "syscon";
 		reg = <0xfc040000 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};

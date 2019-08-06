@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2000-2014 Avago Technologies.  All rights reserved.
+ * Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *          Name:  mpi2_tool.h
  *         Title:  MPI diagnostic tool structures and definitions
  * Creation Date:  March 26, 2007
  *
- *   mpi2_tool.h Version:  02.00.14
+ *   mpi2_tool.h Version:  02.00.15
  *
  * Version History
  * ---------------
@@ -38,6 +38,8 @@
  * 11-18-14  02.00.13  Updated copyright information.
  * 08-25-16  02.00.14  Added new values for the Flags field of Toolbox Clean
  *                     Tool Request Message.
+ * 07-22-18  02.00.15  Added defines for new TOOLBOX_PCIE_LANE_MARGINING tool.
+ *                     Added option for DeviceInfo field in ISTWI tool.
  * --------------------------------------------------------------------------
  */
 
@@ -58,6 +60,7 @@
 #define MPI2_TOOLBOX_BEACON_TOOL                    (0x05)
 #define MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL            (0x06)
 #define MPI2_TOOLBOX_TEXT_DISPLAY_TOOL              (0x07)
+#define MPI26_TOOLBOX_BACKEND_PCIE_LANE_MARGIN      (0x08)
 
 /****************************************************************************
 * Toolbox reply
@@ -226,6 +229,13 @@ typedef struct _MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST {
 #define MPI2_TOOL_ISTWI_FLAG_AUTO_RESERVE_RELEASE   (0x80)
 #define MPI2_TOOL_ISTWI_FLAG_PAGE_ADDR_MASK         (0x07)
 
+/*MPI26 TOOLBOX Request MsgFlags defines */
+#define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_MASK     (0x01)
+/*Request uses Man Page 43 device index addressing */
+#define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_DEVINDEX (0x00)
+/*Request uses Man Page 43 device info struct addressing */
+#define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_DEVINFO  (0x01)
+
 /*Toolbox ISTWI Read Write Tool reply message */
 typedef struct _MPI2_TOOLBOX_ISTWI_REPLY {
 	U8 Tool;		/*0x00 */
@@ -386,6 +396,64 @@ Mpi2ToolboxTextDisplayRequest_t,
 /* defines for the Flags field */
 #define MPI2_TOOLBOX_CONSOLE_FLAG_TIMESTAMP     (0x01)
 
+
+/***************************************************************************
+ *  Toolbox Backend Lane Margining Tool
+ ***************************************************************************
+ */
+
+/*Toolbox Backend Lane Margining Tool request message */
+typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REQUEST {
+	U8 Tool;			/*0x00 */
+	U8 Reserved1;			/*0x01 */
+	U8 ChainOffset;			/*0x02 */
+	U8 Function;			/*0x03 */
+	U16 Reserved2;			/*0x04 */
+	U8 Reserved3;			/*0x06 */
+	U8 MsgFlags;			/*0x07 */
+	U8 VP_ID;			/*0x08 */
+	U8 VF_ID;			/*0x09 */
+	U16 Reserved4;			/*0x0A */
+	U8 Command;			/*0x0C */
+	U8 SwitchPort;			/*0x0D */
+	U16 DevHandle;			/*0x0E */
+	U8 RegisterOffset;		/*0x10 */
+	U8 Reserved5;			/*0x11 */
+	U16 DataLength;			/*0x12 */
+	MPI25_SGE_IO_UNION SGL;		/*0x14 */
+} MPI26_TOOLBOX_LANE_MARGINING_REQUEST,
+	*PTR_MPI2_TOOLBOX_LANE_MARGINING_REQUEST,
+	Mpi26ToolboxLaneMarginingRequest_t,
+	*pMpi2ToolboxLaneMarginingRequest_t;
+
+/* defines for the Command field */
+#define MPI26_TOOL_MARGIN_COMMAND_ENTER_MARGIN_MODE        (0x01)
+#define MPI26_TOOL_MARGIN_COMMAND_READ_REGISTER_DATA       (0x02)
+#define MPI26_TOOL_MARGIN_COMMAND_WRITE_REGISTER_DATA      (0x03)
+#define MPI26_TOOL_MARGIN_COMMAND_EXIT_MARGIN_MODE         (0x04)
+
+
+/*Toolbox Backend Lane Margining Tool reply message */
+typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REPLY {
+	U8 Tool;			/*0x00 */
+	U8 Reserved1;			/*0x01 */
+	U8 MsgLength;			/*0x02 */
+	U8 Function;			/*0x03 */
+	U16 Reserved2;			/*0x04 */
+	U8 Reserved3;			/*0x06 */
+	U8 MsgFlags;			/*0x07 */
+	U8 VP_ID;			/*0x08 */
+	U8 VF_ID;			/*0x09 */
+	U16 Reserved4;			/*0x0A */
+	U16 Reserved5;			/*0x0C */
+	U16 IOCStatus;			/*0x0E */
+	U32 IOCLogInfo;			/*0x10 */
+	U16 ReturnedDataLength;		/*0x14 */
+	U16 Reserved6;			/*0x16 */
+} MPI26_TOOLBOX_LANE_MARGINING_REPLY,
+	*PTR_MPI26_TOOLBOX_LANE_MARGINING_REPLY,
+	Mpi26ToolboxLaneMarginingReply_t,
+	*pMpi26ToolboxLaneMarginingReply_t;
 
 
 /*****************************************************************************

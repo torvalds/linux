@@ -538,7 +538,7 @@ config COH901327_WATCHDOG
 config NPCM7XX_WATCHDOG
 	bool "Nuvoton NPCM750 watchdog"
 	depends on ARCH_NPCM || COMPILE_TEST
-	default y if ARCH_NPCM750
+	default y if ARCH_NPCM7XX
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include Watchdog timer support for the
@@ -846,6 +846,14 @@ config SPRD_WATCHDOG
 	help
 	  Say Y here to include watchdog timer supported
 	  by Spreadtrum system.
+
+config PM8916_WATCHDOG
+	tristate "QCOM PM8916 pmic watchdog"
+	depends on OF && MFD_SPMI_PMIC
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support watchdog timer embedded into the
+	  pm8916 module.
 
 # X86 (i386 + ia64 + x86_64) Architecture
 
@@ -1307,6 +1315,18 @@ config SMSC37B787_WDT
 	  module will be called smsc37b787_wdt.
 
 	  Most people will say N.
+
+config TQMX86_WDT
+	tristate "TQ-Systems TQMX86 Watchdog Timer"
+	depends on X86
+	help
+	This is the driver for the hardware watchdog timer in the TQMX86 IO
+	controller found on some of their ComExpress Modules.
+
+	To compile this driver as a module, choose M here; the module
+	will be called tqmx86_wdt.
+
+	Most people will say N.
 
 config VIA_WDT
 	tristate "VIA Watchdog Timer"

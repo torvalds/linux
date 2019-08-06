@@ -103,6 +103,7 @@ struct qed_ll2_tx_queue {
 	struct qed_ll2_tx_packet cur_completing_packet;
 	u16 cur_completing_bd_idx;
 	void __iomem *doorbell_addr;
+	struct core_db_data db_msg;
 	u16 bds_idx;
 	u16 cur_send_frag_num;
 	u16 cur_completing_frag_num;

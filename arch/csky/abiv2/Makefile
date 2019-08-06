@@ -8,3 +8,4 @@ obj-y				+= strcmp.o
 obj-y				+= strcpy.o
 obj-y				+= strlen.o
 obj-y				+= strksyms.o
+obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o

@@ -151,6 +151,14 @@ struct bcr_isa_arcv2 {
 #endif
 };
 
+struct bcr_uarch_build_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:8, prod:8, maj:8, min:8;
+#else
+	unsigned int min:8, maj:8, prod:8, pad:8;
+#endif
+};
+
 struct bcr_mpy {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:8, x1616:8, dsp:4, cycles:2, type:2, ver:8;
@@ -213,6 +221,14 @@ struct bcr_fp_arcv2 {
 	unsigned int pad2:15, dp:1, pad1:7, sp:1, ver:8;
 #else
 	unsigned int ver:8, sp:1, pad1:7, dp:1, pad2:15;
+#endif
+};
+
+struct bcr_actionpoint {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:21, min:1, num:2, ver:8;
+#else
+	unsigned int ver:8, num:2, min:1, pad:21;
 #endif
 };
 
@@ -283,7 +299,7 @@ struct cpuinfo_arc_cache {
 };
 
 struct cpuinfo_arc_bpu {
-	unsigned int ver, full, num_cache, num_pred;
+	unsigned int ver, full, num_cache, num_pred, ret_stk;
 };
 
 struct cpuinfo_arc_ccm {
@@ -302,7 +318,7 @@ struct cpuinfo_arc {
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
 			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
-			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
+			     ap_num:4, ap_full:1, smart:1, rtt:1, pad3:1,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;
 	struct bcr_mpy extn_mpy;

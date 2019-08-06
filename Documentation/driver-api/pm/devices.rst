@@ -6,6 +6,8 @@
 .. |struct wakeup_source| replace:: :c:type:`struct wakeup_source <wakeup_source>`
 .. |struct device| replace:: :c:type:`struct device <device>`
 
+.. _driverapi_pm_devices:
+
 ==============================
 Device Power Management Basics
 ==============================

@@ -377,6 +377,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 
 	kref_get(&gw_node->refcount);
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.gateway_list);
+	bat_priv->gw.generation++;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Found new gateway %pM -> gw bandwidth: %u.%u/%u.%u MBit\n",
@@ -472,6 +473,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		if (!hlist_unhashed(&gw_node->list)) {
 			hlist_del_init_rcu(&gw_node->list);
 			batadv_gw_node_put(gw_node);
+			bat_priv->gw.generation++;
 		}
 		spin_unlock_bh(&bat_priv->gw.list_lock);
 
@@ -518,6 +520,7 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 				  &bat_priv->gw.gateway_list, list) {
 		hlist_del_init_rcu(&gw_node->list);
 		batadv_gw_node_put(gw_node);
+		bat_priv->gw.generation++;
 	}
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }

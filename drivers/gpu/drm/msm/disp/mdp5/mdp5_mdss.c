@@ -132,7 +132,7 @@ static int mdss_irq_domain_init(struct mdp5_mdss *mdp5_mdss)
 	d = irq_domain_add_linear(dev->of_node, 32, &mdss_hw_irqdomain_ops,
 				  mdp5_mdss);
 	if (!d) {
-		dev_err(dev, "mdss irq domain add failed\n");
+		DRM_DEV_ERROR(dev, "mdss irq domain add failed\n");
 		return -ENXIO;
 	}
 
@@ -246,7 +246,7 @@ int mdp5_mdss_init(struct drm_device *dev)
 
 	ret = msm_mdss_get_clocks(mdp5_mdss);
 	if (ret) {
-		dev_err(dev->dev, "failed to get clocks: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get clocks: %d\n", ret);
 		goto fail;
 	}
 
@@ -259,7 +259,7 @@ int mdp5_mdss_init(struct drm_device *dev)
 
 	ret = regulator_enable(mdp5_mdss->vdd);
 	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n",
+		DRM_DEV_ERROR(dev->dev, "failed to enable regulator vdd: %d\n",
 			ret);
 		goto fail;
 	}
@@ -267,13 +267,13 @@ int mdp5_mdss_init(struct drm_device *dev)
 	ret = devm_request_irq(dev->dev, platform_get_irq(pdev, 0),
 			       mdss_irq, 0, "mdss_isr", mdp5_mdss);
 	if (ret) {
-		dev_err(dev->dev, "failed to init irq: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to init irq: %d\n", ret);
 		goto fail_irq;
 	}
 
 	ret = mdss_irq_domain_init(mdp5_mdss);
 	if (ret) {
-		dev_err(dev->dev, "failed to init sub-block irqs: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to init sub-block irqs: %d\n", ret);
 		goto fail_irq;
 	}
 

@@ -130,10 +130,6 @@ else
 
         KBUILD_CFLAGS += -mno-red-zone
         KBUILD_CFLAGS += -mcmodel=kernel
-
-        # -funit-at-a-time shrinks the kernel .text considerably
-        # unfortunately it makes reading oopses harder.
-        KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
 endif
 
 ifdef CONFIG_X86_X32
@@ -293,7 +289,7 @@ vdso_install:
 
 archprepare: checkbin
 checkbin:
-ifndef CC_HAVE_ASM_GOTO
+ifndef CONFIG_CC_HAS_ASM_GOTO
 	@echo Compiler lacks asm-goto support.
 	@exit 1
 endif

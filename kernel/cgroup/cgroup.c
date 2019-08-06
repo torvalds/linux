@@ -86,6 +86,7 @@ EXPORT_SYMBOL_GPL(css_set_lock);
 
 DEFINE_SPINLOCK(trace_cgroup_path_lock);
 char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
+bool cgroup_debug __read_mostly;
 
 /*
  * Protects cgroup_idr and css_idr so that IDs can be released without
@@ -493,7 +494,7 @@ static struct cgroup_subsys_state *cgroup_tryget_css(struct cgroup *cgrp,
 }
 
 /**
- * cgroup_e_css - obtain a cgroup's effective css for the specified subsystem
+ * cgroup_e_css_by_mask - obtain a cgroup's effective css for the specified ss
  * @cgrp: the cgroup of interest
  * @ss: the subsystem of interest (%NULL returns @cgrp->self)
  *
@@ -502,8 +503,8 @@ static struct cgroup_subsys_state *cgroup_tryget_css(struct cgroup *cgrp,
  * enabled.  If @ss is associated with the hierarchy @cgrp is on, this
  * function is guaranteed to return non-NULL css.
  */
-static struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
-						struct cgroup_subsys *ss)
+static struct cgroup_subsys_state *cgroup_e_css_by_mask(struct cgroup *cgrp,
+							struct cgroup_subsys *ss)
 {
 	lockdep_assert_held(&cgroup_mutex);
 
@@ -521,6 +522,35 @@ static struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
 	}
 
 	return cgroup_css(cgrp, ss);
+}
+
+/**
+ * cgroup_e_css - obtain a cgroup's effective css for the specified subsystem
+ * @cgrp: the cgroup of interest
+ * @ss: the subsystem of interest
+ *
+ * Find and get the effective css of @cgrp for @ss.  The effective css is
+ * defined as the matching css of the nearest ancestor including self which
+ * has @ss enabled.  If @ss is not mounted on the hierarchy @cgrp is on,
+ * the root css is returned, so this function always returns a valid css.
+ *
+ * The returned css is not guaranteed to be online, and therefore it is the
+ * callers responsiblity to tryget a reference for it.
+ */
+struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
+					 struct cgroup_subsys *ss)
+{
+	struct cgroup_subsys_state *css;
+
+	do {
+		css = cgroup_css(cgrp, ss);
+
+		if (css)
+			return css;
+		cgrp = cgroup_parent(cgrp);
+	} while (cgrp);
+
+	return init_css_set.subsys[ss->id];
 }
 
 /**
@@ -605,10 +635,11 @@ EXPORT_SYMBOL_GPL(of_css);
  *
  * Should be called under cgroup_[tree_]mutex.
  */
-#define for_each_e_css(css, ssid, cgrp)					\
-	for ((ssid) = 0; (ssid) < CGROUP_SUBSYS_COUNT; (ssid)++)	\
-		if (!((css) = cgroup_e_css(cgrp, cgroup_subsys[(ssid)]))) \
-			;						\
+#define for_each_e_css(css, ssid, cgrp)					    \
+	for ((ssid) = 0; (ssid) < CGROUP_SUBSYS_COUNT; (ssid)++)	    \
+		if (!((css) = cgroup_e_css_by_mask(cgrp,		    \
+						   cgroup_subsys[(ssid)]))) \
+			;						    \
 		else
 
 /**
@@ -1007,7 +1038,7 @@ static struct css_set *find_existing_css_set(struct css_set *old_cset,
 			 * @ss is in this hierarchy, so we want the
 			 * effective css from @cgrp.
 			 */
-			template[i] = cgroup_e_css(cgrp, ss);
+			template[i] = cgroup_e_css_by_mask(cgrp, ss);
 		} else {
 			/*
 			 * @ss is not in this hierarchy, so we don't want
@@ -1399,12 +1430,15 @@ static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
 	struct cgroup_subsys *ss = cft->ss;
 
 	if (cft->ss && !(cft->flags & CFTYPE_NO_PREFIX) &&
-	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX))
-		snprintf(buf, CGROUP_FILE_NAME_MAX, "%s.%s",
-			 cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
+	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX)) {
+		const char *dbg = (cft->flags & CFTYPE_DEBUG) ? ".__DEBUG__." : "";
+
+		snprintf(buf, CGROUP_FILE_NAME_MAX, "%s%s.%s",
+			 dbg, cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
 			 cft->name);
-	else
+	} else {
 		strscpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
+	}
 	return buf;
 }
 
@@ -1744,7 +1778,7 @@ static int parse_cgroup_root_flags(char *data, unsigned int *root_flags)
 
 	*root_flags = 0;
 
-	if (!data)
+	if (!data || *data == '\0')
 		return 0;
 
 	while ((token = strsep(&data, ",")) != NULL) {
@@ -3024,7 +3058,7 @@ static int cgroup_apply_control(struct cgroup *cgrp)
 		return ret;
 
 	/*
-	 * At this point, cgroup_e_css() results reflect the new csses
+	 * At this point, cgroup_e_css_by_mask() results reflect the new csses
 	 * making the following cgroup_update_dfl_csses() properly update
 	 * css associations of all tasks in the subtree.
 	 */
@@ -3639,7 +3673,8 @@ restart:
 			continue;
 		if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgroup_parent(cgrp))
 			continue;
-
+		if ((cft->flags & CFTYPE_DEBUG) && !cgroup_debug)
+			continue;
 		if (is_add) {
 			ret = cgroup_add_file(css, cgrp, cft);
 			if (ret) {
@@ -4202,20 +4237,25 @@ static void css_task_iter_advance(struct css_task_iter *it)
 
 	lockdep_assert_held(&css_set_lock);
 repeat:
-	/*
-	 * Advance iterator to find next entry.  cset->tasks is consumed
-	 * first and then ->mg_tasks.  After ->mg_tasks, we move onto the
-	 * next cset.
-	 */
-	next = it->task_pos->next;
+	if (it->task_pos) {
+		/*
+		 * Advance iterator to find next entry.  cset->tasks is
+		 * consumed first and then ->mg_tasks.  After ->mg_tasks,
+		 * we move onto the next cset.
+		 */
+		next = it->task_pos->next;
 
-	if (next == it->tasks_head)
-		next = it->mg_tasks_head->next;
+		if (next == it->tasks_head)
+			next = it->mg_tasks_head->next;
 
-	if (next == it->mg_tasks_head)
+		if (next == it->mg_tasks_head)
+			css_task_iter_advance_css_set(it);
+		else
+			it->task_pos = next;
+	} else {
+		/* called from start, proceed to the first cset */
 		css_task_iter_advance_css_set(it);
-	else
-		it->task_pos = next;
+	}
 
 	/* if PROCS, skip over tasks which aren't group leaders */
 	if ((it->flags & CSS_TASK_ITER_PROCS) && it->task_pos &&
@@ -4255,7 +4295,7 @@ void css_task_iter_start(struct cgroup_subsys_state *css, unsigned int flags,
 
 	it->cset_head = it->cset_pos;
 
-	css_task_iter_advance_css_set(it);
+	css_task_iter_advance(it);
 
 	spin_unlock_irq(&css_set_lock);
 }
@@ -5343,7 +5383,7 @@ int __init cgroup_init(void)
 	cgroup_rstat_boot();
 
 	/*
-	 * The latency of the synchronize_sched() is too high for cgroups,
+	 * The latency of the synchronize_rcu() is too high for cgroups,
 	 * avoid it at the cost of forcing all readers into the slow path.
 	 */
 	rcu_sync_enter_start(&cgroup_threadgroup_rwsem.rss);
@@ -5743,6 +5783,16 @@ static int __init cgroup_disable(char *str)
 }
 __setup("cgroup_disable=", cgroup_disable);
 
+void __init __weak enable_debug_cgroup(void) { }
+
+static int __init enable_cgroup_debug(char *str)
+{
+	cgroup_debug = true;
+	enable_debug_cgroup();
+	return 1;
+}
+__setup("cgroup_debug", enable_cgroup_debug);
+
 /**
  * css_tryget_online_from_dir - get corresponding css from a cgroup dentry
  * @dentry: directory dentry of interest
@@ -5978,10 +6028,8 @@ static ssize_t show_delegatable_files(struct cftype *files, char *buf,
 
 		ret += snprintf(buf + ret, size - ret, "%s\n", cft->name);
 
-		if (unlikely(ret >= size)) {
-			WARN_ON(1);
+		if (WARN_ON(ret >= size))
 			break;
-		}
 	}
 
 	return ret;

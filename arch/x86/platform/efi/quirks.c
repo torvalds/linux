@@ -369,6 +369,40 @@ void __init efi_reserve_boot_services(void)
 	}
 }
 
+/*
+ * Apart from having VA mappings for EFI boot services code/data regions,
+ * (duplicate) 1:1 mappings were also created as a quirk for buggy firmware. So,
+ * unmap both 1:1 and VA mappings.
+ */
+static void __init efi_unmap_pages(efi_memory_desc_t *md)
+{
+	pgd_t *pgd = efi_mm.pgd;
+	u64 pa = md->phys_addr;
+	u64 va = md->virt_addr;
+
+	/*
+	 * To Do: Remove this check after adding functionality to unmap EFI boot
+	 * services code/data regions from direct mapping area because
+	 * "efi=old_map" maps EFI regions in swapper_pg_dir.
+	 */
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		return;
+
+	/*
+	 * EFI mixed mode has all RAM mapped to access arguments while making
+	 * EFI runtime calls, hence don't unmap EFI boot services code/data
+	 * regions.
+	 */
+	if (!efi_is_native())
+		return;
+
+	if (kernel_unmap_pages_in_pgd(pgd, pa, md->num_pages))
+		pr_err("Failed to unmap 1:1 mapping for 0x%llx\n", pa);
+
+	if (kernel_unmap_pages_in_pgd(pgd, va, md->num_pages))
+		pr_err("Failed to unmap VA mapping for 0x%llx\n", va);
+}
+
 void __init efi_free_boot_services(void)
 {
 	phys_addr_t new_phys, new_size;
@@ -392,6 +426,13 @@ void __init efi_free_boot_services(void)
 			num_entries++;
 			continue;
 		}
+
+		/*
+		 * Before calling set_virtual_address_map(), EFI boot services
+		 * code/data regions were mapped as a quirk for buggy firmware.
+		 * Unmap them from efi_pgd before freeing them up.
+		 */
+		efi_unmap_pages(md);
 
 		/*
 		 * Nasty quirk: if all sub-1MB memory is used for boot

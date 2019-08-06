@@ -65,14 +65,10 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
@@ -80,21 +76,21 @@
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	button@190 {
+	button-190 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <190000>;
 	};
 
-	button@390 {
+	button-390 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <390000>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Home";
 		linux,code = <KEY_HOME>;
 		channel = <0>;
@@ -103,20 +99,10 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_evb>;
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_LOW>; /* PB4 */
 	status = "okay";
-};
-
-&pio {
-	mmc0_cd_pin_evb: mmc0_cd_pin@0 {
-		pins = "PB4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
 };
 
 /*

@@ -433,6 +433,8 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
 		drm_property_blob_put(mode);
 		return ret;
+	} else if (property == config->prop_vrr_enabled) {
+		state->vrr_enabled = val;
 	} else if (property == config->degamma_lut_property) {
 		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->degamma_lut,
@@ -491,6 +493,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = state->active;
 	else if (property == config->prop_mode_id)
 		*val = (state->mode_blob) ? state->mode_blob->base.id : 0;
+	else if (property == config->prop_vrr_enabled)
+		*val = state->vrr_enabled;
 	else if (property == config->degamma_lut_property)
 		*val = (state->degamma_lut) ? state->degamma_lut->base.id : 0;
 	else if (property == config->ctm_property)
@@ -513,6 +517,8 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_mode_config *config = &dev->mode_config;
+	bool replaced = false;
+	int ret;
 
 	if (property == config->prop_fb_id) {
 		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
@@ -566,6 +572,14 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->color_encoding = val;
 	} else if (property == plane->color_range_property) {
 		state->color_range = val;
+	} else if (property == config->prop_fb_damage_clips) {
+		ret = drm_atomic_replace_property_blob_from_id(dev,
+					&state->fb_damage_clips,
+					val,
+					-1,
+					sizeof(struct drm_rect),
+					&replaced);
+		return ret;
 	} else if (plane->funcs->atomic_set_property) {
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
@@ -621,6 +635,9 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->color_encoding;
 	} else if (property == plane->color_range_property) {
 		*val = state->color_range;
+	} else if (property == config->prop_fb_damage_clips) {
+		*val = (state->fb_damage_clips) ?
+			state->fb_damage_clips->base.id : 0;
 	} else if (plane->funcs->atomic_get_property) {
 		return plane->funcs->atomic_get_property(plane, state, property, val);
 	} else {
@@ -740,6 +757,8 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 
 		return set_out_fence_for_connector(state->state, connector,
 						   fence_ptr);
+	} else if (property == connector->max_bpc_property) {
+		state->max_requested_bpc = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -804,6 +823,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = 0;
 	} else if (property == config->writeback_out_fence_ptr_property) {
 		*val = 0;
+	} else if (property == connector->max_bpc_property) {
+		*val = state->max_requested_bpc;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
@@ -1275,12 +1296,11 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 			(arg->flags & DRM_MODE_PAGE_FLIP_EVENT))
 		return -EINVAL;
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
 		return -ENOMEM;
 
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 	state->acquire_ctx = &ctx;
 	state->allow_modeset = !!(arg->flags & DRM_MODE_ATOMIC_ALLOW_MODESET);
 

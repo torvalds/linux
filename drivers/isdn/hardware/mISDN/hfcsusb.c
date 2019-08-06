@@ -262,8 +262,7 @@ hfcsusb_ph_info(struct hfcsusb *hw)
 	struct dchannel *dch = &hw->dch;
 	int i;
 
-	phi = kzalloc(sizeof(struct ph_info) +
-		      dch->dev.nrbchan * sizeof(struct ph_info_ch), GFP_ATOMIC);
+	phi = kzalloc(struct_size(phi, bch, dch->dev.nrbchan), GFP_ATOMIC);
 	phi->dch.ch.protocol = hw->protocol;
 	phi->dch.ch.Flags = dch->Flags;
 	phi->dch.state = dch->state;

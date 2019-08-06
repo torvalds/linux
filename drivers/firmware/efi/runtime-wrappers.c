@@ -147,6 +147,13 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
 static DEFINE_SEMAPHORE(efi_runtime_lock);
 
 /*
+ * Expose the EFI runtime lock to the UV platform
+ */
+#ifdef CONFIG_X86_UV
+extern struct semaphore __efi_uv_runtime_lock __alias(efi_runtime_lock);
+#endif
+
+/*
  * Calls the appropriate efi_runtime_service() with the appropriate
  * arguments.
  *

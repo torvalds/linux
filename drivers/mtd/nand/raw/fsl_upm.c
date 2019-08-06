@@ -170,7 +170,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	fun->chip.ecc.mode = NAND_ECC_SOFT;
 	fun->chip.ecc.algo = NAND_ECC_HAMMING;
 	if (fun->mchip_count > 1)
-		fun->chip.select_chip = fun_select_chip;
+		fun->chip.legacy.select_chip = fun_select_chip;
 
 	if (fun->rnb_gpio[0] >= 0)
 		fun->chip.legacy.dev_ready = fun_chip_ready;

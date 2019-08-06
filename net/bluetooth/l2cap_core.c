@@ -7650,17 +7650,7 @@ static int l2cap_debugfs_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int l2cap_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, l2cap_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations l2cap_debugfs_fops = {
-	.open		= l2cap_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(l2cap_debugfs);
 
 static struct dentry *l2cap_debugfs;
 

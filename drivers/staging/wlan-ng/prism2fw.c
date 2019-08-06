@@ -406,7 +406,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	int i;
 	int c;
 	u32 crcstart;
-	u32 crcend;
 	u32 cstart = 0;
 	u32 cend;
 	u8 *dest;
@@ -416,7 +415,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		if (!s3crc[i].dowrite)
 			continue;
 		crcstart = s3crc[i].addr;
-		crcend = s3crc[i].addr + s3crc[i].len;
 		/* Find chunk */
 		for (c = 0; c < nfchunks; c++) {
 			cstart = fchunk[c].addr;
@@ -559,7 +557,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 	for (i = 0; i < *ccnt; i++) {
 		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
 		if (!clist[i].data) {
-			pr_err("failed to allocate image space, exitting.\n");
+			pr_err("failed to allocate image space, exiting.\n");
 			return 1;
 		}
 		pr_debug("chunk[%d]: addr=0x%06x len=%d\n",

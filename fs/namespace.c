@@ -26,6 +26,7 @@
 #include <linux/memblock.h>
 #include <linux/task_work.h>
 #include <linux/sched/task.h>
+#include <uapi/linux/mount.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -245,13 +246,9 @@ out_free_cache:
  * mnt_want/drop_write() will _keep_ the filesystem
  * r/w.
  */
-int __mnt_is_readonly(struct vfsmount *mnt)
+bool __mnt_is_readonly(struct vfsmount *mnt)
 {
-	if (mnt->mnt_flags & MNT_READONLY)
-		return 1;
-	if (sb_rdonly(mnt->mnt_sb))
-		return 1;
-	return 0;
+	return (mnt->mnt_flags & MNT_READONLY) || sb_rdonly(mnt->mnt_sb);
 }
 EXPORT_SYMBOL_GPL(__mnt_is_readonly);
 
@@ -507,11 +504,12 @@ static int mnt_make_readonly(struct mount *mnt)
 	return ret;
 }
 
-static void __mnt_unmake_readonly(struct mount *mnt)
+static int __mnt_unmake_readonly(struct mount *mnt)
 {
 	lock_mount_hash();
 	mnt->mnt.mnt_flags &= ~MNT_READONLY;
 	unlock_mount_hash();
+	return 0;
 }
 
 int sb_prepare_remount_readonly(struct super_block *sb)
@@ -1360,7 +1358,7 @@ static void namespace_unlock(void)
 	if (likely(hlist_empty(&head)))
 		return;
 
-	synchronize_rcu();
+	synchronize_rcu_expedited();
 
 	group_pin_kill(&head);
 }
@@ -2215,21 +2213,91 @@ out:
 	return err;
 }
 
-static int change_mount_flags(struct vfsmount *mnt, int ms_flags)
+/*
+ * Don't allow locked mount flags to be cleared.
+ *
+ * No locks need to be held here while testing the various MNT_LOCK
+ * flags because those flags can never be cleared once they are set.
+ */
+static bool can_change_locked_flags(struct mount *mnt, unsigned int mnt_flags)
 {
-	int error = 0;
-	int readonly_request = 0;
+	unsigned int fl = mnt->mnt.mnt_flags;
 
-	if (ms_flags & MS_RDONLY)
-		readonly_request = 1;
-	if (readonly_request == __mnt_is_readonly(mnt))
+	if ((fl & MNT_LOCK_READONLY) &&
+	    !(mnt_flags & MNT_READONLY))
+		return false;
+
+	if ((fl & MNT_LOCK_NODEV) &&
+	    !(mnt_flags & MNT_NODEV))
+		return false;
+
+	if ((fl & MNT_LOCK_NOSUID) &&
+	    !(mnt_flags & MNT_NOSUID))
+		return false;
+
+	if ((fl & MNT_LOCK_NOEXEC) &&
+	    !(mnt_flags & MNT_NOEXEC))
+		return false;
+
+	if ((fl & MNT_LOCK_ATIME) &&
+	    ((fl & MNT_ATIME_MASK) != (mnt_flags & MNT_ATIME_MASK)))
+		return false;
+
+	return true;
+}
+
+static int change_mount_ro_state(struct mount *mnt, unsigned int mnt_flags)
+{
+	bool readonly_request = (mnt_flags & MNT_READONLY);
+
+	if (readonly_request == __mnt_is_readonly(&mnt->mnt))
 		return 0;
 
 	if (readonly_request)
-		error = mnt_make_readonly(real_mount(mnt));
-	else
-		__mnt_unmake_readonly(real_mount(mnt));
-	return error;
+		return mnt_make_readonly(mnt);
+
+	return __mnt_unmake_readonly(mnt);
+}
+
+/*
+ * Update the user-settable attributes on a mount.  The caller must hold
+ * sb->s_umount for writing.
+ */
+static void set_mount_attributes(struct mount *mnt, unsigned int mnt_flags)
+{
+	lock_mount_hash();
+	mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
+	mnt->mnt.mnt_flags = mnt_flags;
+	touch_mnt_namespace(mnt->mnt_ns);
+	unlock_mount_hash();
+}
+
+/*
+ * Handle reconfiguration of the mountpoint only without alteration of the
+ * superblock it refers to.  This is triggered by specifying MS_REMOUNT|MS_BIND
+ * to mount(2).
+ */
+static int do_reconfigure_mnt(struct path *path, unsigned int mnt_flags)
+{
+	struct super_block *sb = path->mnt->mnt_sb;
+	struct mount *mnt = real_mount(path->mnt);
+	int ret;
+
+	if (!check_mnt(mnt))
+		return -EINVAL;
+
+	if (path->dentry != mnt->mnt.mnt_root)
+		return -EINVAL;
+
+	if (!can_change_locked_flags(mnt, mnt_flags))
+		return -EPERM;
+
+	down_write(&sb->s_umount);
+	ret = change_mount_ro_state(mnt, mnt_flags);
+	if (ret == 0)
+		set_mount_attributes(mnt, mnt_flags);
+	up_write(&sb->s_umount);
+	return ret;
 }
 
 /*
@@ -2243,6 +2311,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	int err;
 	struct super_block *sb = path->mnt->mnt_sb;
 	struct mount *mnt = real_mount(path->mnt);
+	void *sec_opts = NULL;
 
 	if (!check_mnt(mnt))
 		return -EINVAL;
@@ -2250,50 +2319,25 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	if (path->dentry != path->mnt->mnt_root)
 		return -EINVAL;
 
-	/* Don't allow changing of locked mnt flags.
-	 *
-	 * No locks need to be held here while testing the various
-	 * MNT_LOCK flags because those flags can never be cleared
-	 * once they are set.
-	 */
-	if ((mnt->mnt.mnt_flags & MNT_LOCK_READONLY) &&
-	    !(mnt_flags & MNT_READONLY)) {
+	if (!can_change_locked_flags(mnt, mnt_flags))
 		return -EPERM;
-	}
-	if ((mnt->mnt.mnt_flags & MNT_LOCK_NODEV) &&
-	    !(mnt_flags & MNT_NODEV)) {
-		return -EPERM;
-	}
-	if ((mnt->mnt.mnt_flags & MNT_LOCK_NOSUID) &&
-	    !(mnt_flags & MNT_NOSUID)) {
-		return -EPERM;
-	}
-	if ((mnt->mnt.mnt_flags & MNT_LOCK_NOEXEC) &&
-	    !(mnt_flags & MNT_NOEXEC)) {
-		return -EPERM;
-	}
-	if ((mnt->mnt.mnt_flags & MNT_LOCK_ATIME) &&
-	    ((mnt->mnt.mnt_flags & MNT_ATIME_MASK) != (mnt_flags & MNT_ATIME_MASK))) {
-		return -EPERM;
-	}
 
-	err = security_sb_remount(sb, data);
+	if (data && !(sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)) {
+		err = security_sb_eat_lsm_opts(data, &sec_opts);
+		if (err)
+			return err;
+	}
+	err = security_sb_remount(sb, sec_opts);
+	security_free_mnt_opts(&sec_opts);
 	if (err)
 		return err;
 
 	down_write(&sb->s_umount);
-	if (ms_flags & MS_BIND)
-		err = change_mount_flags(path->mnt, ms_flags);
-	else if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
-		err = -EPERM;
-	else
+	err = -EPERM;
+	if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
 		err = do_remount_sb(sb, sb_flags, data, 0);
-	if (!err) {
-		lock_mount_hash();
-		mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
-		mnt->mnt.mnt_flags = mnt_flags;
-		touch_mnt_namespace(mnt->mnt_ns);
-		unlock_mount_hash();
+		if (!err)
+			set_mount_attributes(mnt, mnt_flags);
 	}
 	up_write(&sb->s_umount);
 	return err;
@@ -2651,10 +2695,9 @@ static long exact_copy_from_user(void *to, const void __user * from,
 	const char __user *f = from;
 	char c;
 
-	if (!access_ok(VERIFY_READ, from, n))
+	if (!access_ok(from, n))
 		return n;
 
-	current->kernel_uaccess_faults_ok++;
 	while (n) {
 		if (__get_user(c, f)) {
 			memset(t, 0, n);
@@ -2664,7 +2707,6 @@ static long exact_copy_from_user(void *to, const void __user * from,
 		f++;
 		n--;
 	}
-	current->kernel_uaccess_faults_ok--;
 	return n;
 }
 
@@ -2788,7 +2830,9 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 			    SB_LAZYTIME |
 			    SB_I_VERSION);
 
-	if (flags & MS_REMOUNT)
+	if ((flags & (MS_REMOUNT | MS_BIND)) == (MS_REMOUNT | MS_BIND))
+		retval = do_reconfigure_mnt(&path, mnt_flags);
+	else if (flags & MS_REMOUNT)
 		retval = do_remount(&path, flags, sb_flags, mnt_flags,
 				    data_page);
 	else if (flags & MS_BIND)

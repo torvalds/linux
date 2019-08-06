@@ -5,11 +5,16 @@
 #define CUTOFF_WRITEBACK	40
 #define CUTOFF_WRITEBACK_SYNC	70
 
+#define CUTOFF_WRITEBACK_MAX		70
+#define CUTOFF_WRITEBACK_SYNC_MAX	90
+
 #define MAX_WRITEBACKS_IN_PASS  5
 #define MAX_WRITESIZE_IN_PASS   5000	/* *512b */
 
 #define WRITEBACK_RATE_UPDATE_SECS_MAX		60
 #define WRITEBACK_RATE_UPDATE_SECS_DEFAULT	5
+
+#define BCH_AUTO_GC_DIRTY_THRESHOLD	50
 
 /*
  * 14 (16384ths) is chosen here as something that each backing device
@@ -53,6 +58,9 @@ static inline bool bcache_dev_stripe_dirty(struct cached_dev *dc,
 	}
 }
 
+extern unsigned int bch_cutoff_writeback;
+extern unsigned int bch_cutoff_writeback_sync;
+
 static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 				    unsigned int cache_mode, bool would_skip)
 {
@@ -60,7 +68,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 
 	if (cache_mode != CACHE_MODE_WRITEBACK ||
 	    test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
-	    in_use > CUTOFF_WRITEBACK_SYNC)
+	    in_use > bch_cutoff_writeback_sync)
 		return false;
 
 	if (dc->partial_stripes_expensive &&
@@ -73,7 +81,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 
 	return (op_is_sync(bio->bi_opf) ||
 		bio->bi_opf & (REQ_META|REQ_PRIO) ||
-		in_use <= CUTOFF_WRITEBACK);
+		in_use <= bch_cutoff_writeback);
 }
 
 static inline void bch_writeback_queue(struct cached_dev *dc)

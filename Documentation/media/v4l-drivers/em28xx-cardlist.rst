@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 EM28xx cards list
 =================
 
@@ -233,7 +235,7 @@ EM28xx cards list
      - em2882
      - eb1a:e323
    * - 55
-     - Terratec Cinnergy Hybrid T USB XS (em2882)
+     - Terratec Cinergy Hybrid T USB XS (em2882)
      - em2882
      - 0ccd:005e, 0ccd:0042
    * - 56
