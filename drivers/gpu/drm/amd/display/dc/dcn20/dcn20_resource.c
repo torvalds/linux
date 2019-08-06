@@ -82,7 +82,8 @@
 
 #include "amdgpu_socbb.h"
 
-#define SOC_BOUNDING_BOX_VALID true
+/* NV12 SOC BB is currently in FW, mark SW bounding box invalid. */
+#define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
 
 struct _vcs_dpi_ip_params_st dcn2_0_ip = {
@@ -268,6 +269,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
 	.use_urgent_burst_bw = 0
 };
 
+struct _vcs_dpi_soc_bounding_box_st dcn2_0_nv12_soc = { 0 };
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL		0x210f
@@ -3044,6 +3046,27 @@ static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 	kernel_fpu_end();
 }
 
+static struct _vcs_dpi_soc_bounding_box_st *get_asic_rev_soc_bb(
+	uint32_t hw_internal_rev)
+{
+	if (ASICREV_IS_NAVI12_P(hw_internal_rev))
+		return &dcn2_0_nv12_soc;
+
+	return &dcn2_0_soc;
+}
+
+static struct _vcs_dpi_ip_params_st *get_asic_rev_ip_params(
+	uint32_t hw_internal_rev)
+{
+	/* NV12 and NV10 */
+	return &dcn2_0_ip;
+}
+
+static enum dml_project get_dml_project_version(uint32_t hw_internal_rev)
+{
+	return DML_PROJECT_NAVI10v2;
+}
+
 #define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
 #define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
@@ -3051,6 +3074,11 @@ static bool init_soc_bounding_box(struct dc *dc,
 				  struct dcn20_resource_pool *pool)
 {
 	const struct gpu_info_soc_bounding_box_v1_0 *bb = dc->soc_bounding_box;
+	struct _vcs_dpi_soc_bounding_box_st *loaded_bb =
+			get_asic_rev_soc_bb(dc->ctx->asic_id.hw_internal_rev);
+	struct _vcs_dpi_ip_params_st *loaded_ip =
+			get_asic_rev_ip_params(dc->ctx->asic_id.hw_internal_rev);
+
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!bb && !SOC_BOUNDING_BOX_VALID) {
@@ -3061,101 +3089,103 @@ static bool init_soc_bounding_box(struct dc *dc,
 	if (bb && !SOC_BOUNDING_BOX_VALID) {
 		int i;
 
-		dcn2_0_soc.sr_exit_time_us =
+		dcn2_0_nv12_soc.sr_exit_time_us =
 				fixed16_to_double_to_cpu(bb->sr_exit_time_us);
-		dcn2_0_soc.sr_enter_plus_exit_time_us =
+		dcn2_0_nv12_soc.sr_enter_plus_exit_time_us =
 				fixed16_to_double_to_cpu(bb->sr_enter_plus_exit_time_us);
-		dcn2_0_soc.urgent_latency_us =
+		dcn2_0_nv12_soc.urgent_latency_us =
 				fixed16_to_double_to_cpu(bb->urgent_latency_us);
-		dcn2_0_soc.urgent_latency_pixel_data_only_us =
+		dcn2_0_nv12_soc.urgent_latency_pixel_data_only_us =
 				fixed16_to_double_to_cpu(bb->urgent_latency_pixel_data_only_us);
-		dcn2_0_soc.urgent_latency_pixel_mixed_with_vm_data_us =
+		dcn2_0_nv12_soc.urgent_latency_pixel_mixed_with_vm_data_us =
 				fixed16_to_double_to_cpu(bb->urgent_latency_pixel_mixed_with_vm_data_us);
-		dcn2_0_soc.urgent_latency_vm_data_only_us =
+		dcn2_0_nv12_soc.urgent_latency_vm_data_only_us =
 				fixed16_to_double_to_cpu(bb->urgent_latency_vm_data_only_us);
-		dcn2_0_soc.urgent_out_of_order_return_per_channel_pixel_only_bytes =
+		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_pixel_only_bytes =
 				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_pixel_only_bytes);
-		dcn2_0_soc.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes =
+		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes =
 				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_pixel_and_vm_bytes);
-		dcn2_0_soc.urgent_out_of_order_return_per_channel_vm_only_bytes =
+		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_vm_only_bytes =
 				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_vm_only_bytes);
-		dcn2_0_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only =
+		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only =
 				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_only);
-		dcn2_0_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm =
+		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm =
 				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm);
-		dcn2_0_soc.pct_ideal_dram_sdp_bw_after_urgent_vm_only =
+		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_vm_only =
 				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_vm_only);
-		dcn2_0_soc.max_avg_sdp_bw_use_normal_percent =
+		dcn2_0_nv12_soc.max_avg_sdp_bw_use_normal_percent =
 				fixed16_to_double_to_cpu(bb->max_avg_sdp_bw_use_normal_percent);
-		dcn2_0_soc.max_avg_dram_bw_use_normal_percent =
+		dcn2_0_nv12_soc.max_avg_dram_bw_use_normal_percent =
 				fixed16_to_double_to_cpu(bb->max_avg_dram_bw_use_normal_percent);
-		dcn2_0_soc.writeback_latency_us =
+		dcn2_0_nv12_soc.writeback_latency_us =
 				fixed16_to_double_to_cpu(bb->writeback_latency_us);
-		dcn2_0_soc.ideal_dram_bw_after_urgent_percent =
+		dcn2_0_nv12_soc.ideal_dram_bw_after_urgent_percent =
 				fixed16_to_double_to_cpu(bb->ideal_dram_bw_after_urgent_percent);
-		dcn2_0_soc.max_request_size_bytes =
+		dcn2_0_nv12_soc.max_request_size_bytes =
 				le32_to_cpu(bb->max_request_size_bytes);
-		dcn2_0_soc.dram_channel_width_bytes =
+		dcn2_0_nv12_soc.dram_channel_width_bytes =
 				le32_to_cpu(bb->dram_channel_width_bytes);
-		dcn2_0_soc.fabric_datapath_to_dcn_data_return_bytes =
+		dcn2_0_nv12_soc.fabric_datapath_to_dcn_data_return_bytes =
 				le32_to_cpu(bb->fabric_datapath_to_dcn_data_return_bytes);
-		dcn2_0_soc.dcn_downspread_percent =
+		dcn2_0_nv12_soc.dcn_downspread_percent =
 				fixed16_to_double_to_cpu(bb->dcn_downspread_percent);
-		dcn2_0_soc.downspread_percent =
+		dcn2_0_nv12_soc.downspread_percent =
 				fixed16_to_double_to_cpu(bb->downspread_percent);
-		dcn2_0_soc.dram_page_open_time_ns =
+		dcn2_0_nv12_soc.dram_page_open_time_ns =
 				fixed16_to_double_to_cpu(bb->dram_page_open_time_ns);
-		dcn2_0_soc.dram_rw_turnaround_time_ns =
+		dcn2_0_nv12_soc.dram_rw_turnaround_time_ns =
 				fixed16_to_double_to_cpu(bb->dram_rw_turnaround_time_ns);
-		dcn2_0_soc.dram_return_buffer_per_channel_bytes =
+		dcn2_0_nv12_soc.dram_return_buffer_per_channel_bytes =
 				le32_to_cpu(bb->dram_return_buffer_per_channel_bytes);
-		dcn2_0_soc.round_trip_ping_latency_dcfclk_cycles =
+		dcn2_0_nv12_soc.round_trip_ping_latency_dcfclk_cycles =
 				le32_to_cpu(bb->round_trip_ping_latency_dcfclk_cycles);
-		dcn2_0_soc.urgent_out_of_order_return_per_channel_bytes =
+		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_bytes =
 				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_bytes);
-		dcn2_0_soc.channel_interleave_bytes =
+		dcn2_0_nv12_soc.channel_interleave_bytes =
 				le32_to_cpu(bb->channel_interleave_bytes);
-		dcn2_0_soc.num_banks =
+		dcn2_0_nv12_soc.num_banks =
 				le32_to_cpu(bb->num_banks);
-		dcn2_0_soc.num_chans =
+		dcn2_0_nv12_soc.num_chans =
 				le32_to_cpu(bb->num_chans);
-		dcn2_0_soc.vmm_page_size_bytes =
+		dcn2_0_nv12_soc.vmm_page_size_bytes =
 				le32_to_cpu(bb->vmm_page_size_bytes);
-		dcn2_0_soc.dram_clock_change_latency_us =
+		dcn2_0_nv12_soc.dram_clock_change_latency_us =
 				fixed16_to_double_to_cpu(bb->dram_clock_change_latency_us);
-		dcn2_0_soc.writeback_dram_clock_change_latency_us =
+		// HACK!! Lower uclock latency switch time so we don't switch
+		dcn2_0_nv12_soc.dram_clock_change_latency_us = 10;
+		dcn2_0_nv12_soc.writeback_dram_clock_change_latency_us =
 				fixed16_to_double_to_cpu(bb->writeback_dram_clock_change_latency_us);
-		dcn2_0_soc.return_bus_width_bytes =
+		dcn2_0_nv12_soc.return_bus_width_bytes =
 				le32_to_cpu(bb->return_bus_width_bytes);
-		dcn2_0_soc.dispclk_dppclk_vco_speed_mhz =
+		dcn2_0_nv12_soc.dispclk_dppclk_vco_speed_mhz =
 				le32_to_cpu(bb->dispclk_dppclk_vco_speed_mhz);
-		dcn2_0_soc.xfc_bus_transport_time_us =
+		dcn2_0_nv12_soc.xfc_bus_transport_time_us =
 				le32_to_cpu(bb->xfc_bus_transport_time_us);
-		dcn2_0_soc.xfc_xbuf_latency_tolerance_us =
+		dcn2_0_nv12_soc.xfc_xbuf_latency_tolerance_us =
 				le32_to_cpu(bb->xfc_xbuf_latency_tolerance_us);
-		dcn2_0_soc.use_urgent_burst_bw =
+		dcn2_0_nv12_soc.use_urgent_burst_bw =
 				le32_to_cpu(bb->use_urgent_burst_bw);
-		dcn2_0_soc.num_states =
+		dcn2_0_nv12_soc.num_states =
 				le32_to_cpu(bb->num_states);
 
-		for (i = 0; i < dcn2_0_soc.num_states; i++) {
-			dcn2_0_soc.clock_limits[i].state =
+		for (i = 0; i < dcn2_0_nv12_soc.num_states; i++) {
+			dcn2_0_nv12_soc.clock_limits[i].state =
 					le32_to_cpu(bb->clock_limits[i].state);
-			dcn2_0_soc.clock_limits[i].dcfclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].dcfclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].dcfclk_mhz);
-			dcn2_0_soc.clock_limits[i].fabricclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].fabricclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].fabricclk_mhz);
-			dcn2_0_soc.clock_limits[i].dispclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].dispclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].dispclk_mhz);
-			dcn2_0_soc.clock_limits[i].dppclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].dppclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].dppclk_mhz);
-			dcn2_0_soc.clock_limits[i].phyclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].phyclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].phyclk_mhz);
-			dcn2_0_soc.clock_limits[i].socclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].socclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].socclk_mhz);
-			dcn2_0_soc.clock_limits[i].dscclk_mhz =
+			dcn2_0_nv12_soc.clock_limits[i].dscclk_mhz =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].dscclk_mhz);
-			dcn2_0_soc.clock_limits[i].dram_speed_mts =
+			dcn2_0_nv12_soc.clock_limits[i].dram_speed_mts =
 					fixed16_to_double_to_cpu(bb->clock_limits[i].dram_speed_mts);
 		}
 	}
@@ -3186,14 +3216,14 @@ static bool init_soc_bounding_box(struct dc *dc,
 		}
 
 		if (clock_limits_available && uclk_states_available && num_states)
-			update_bounding_box(dc, &dcn2_0_soc, &max_clocks, uclk_states, num_states);
+			update_bounding_box(dc, loaded_bb, &max_clocks, uclk_states, num_states);
 		else if (clock_limits_available)
-			cap_soc_clocks(&dcn2_0_soc, max_clocks);
+			cap_soc_clocks(loaded_bb, max_clocks);
 	}
 
-	dcn2_0_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
-	dcn2_0_ip.max_num_dpp = pool->base.pipe_count;
-	patch_bounding_box(dc, &dcn2_0_soc);
+	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
+	loaded_ip->max_num_dpp = pool->base.pipe_count;
+	patch_bounding_box(dc, loaded_bb);
 
 	return true;
 }
@@ -3206,6 +3236,12 @@ static bool construct(
 	int i;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
+	struct _vcs_dpi_soc_bounding_box_st *loaded_bb =
+			get_asic_rev_soc_bb(ctx->asic_id.hw_internal_rev);
+	struct _vcs_dpi_ip_params_st *loaded_ip =
+			get_asic_rev_ip_params(ctx->asic_id.hw_internal_rev);
+	enum dml_project dml_project_version =
+			get_dml_project_version(ctx->asic_id.hw_internal_rev);
 
 	ctx->dc_bios->regs = &bios_regs;
 	pool->base.funcs = &dcn20_res_pool_funcs;
@@ -3329,7 +3365,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	dml_init_instance(&dc->dml, &dcn2_0_soc, &dcn2_0_ip, DML_PROJECT_NAVI10v2);
+	dml_init_instance(&dc->dml, loaded_bb, loaded_ip, dml_project_version);
 
 	if (!dc->debug.disable_pplib_wm_range) {
 		struct pp_smu_wm_range_sets ranges = {0};
@@ -3337,7 +3373,7 @@ static bool construct(
 
 		ranges.num_reader_wm_sets = 0;
 
-		if (dcn2_0_soc.num_states == 1) {
+		if (loaded_bb->num_states == 1) {
 			ranges.reader_wm_sets[0].wm_inst = i;
 			ranges.reader_wm_sets[0].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 			ranges.reader_wm_sets[0].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
@@ -3345,13 +3381,13 @@ static bool construct(
 			ranges.reader_wm_sets[0].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 
 			ranges.num_reader_wm_sets = 1;
-		} else if (dcn2_0_soc.num_states > 1) {
-			for (i = 0; i < 4 && i < dcn2_0_soc.num_states; i++) {
+		} else if (loaded_bb->num_states > 1) {
+			for (i = 0; i < 4 && i < loaded_bb->num_states; i++) {
 				ranges.reader_wm_sets[i].wm_inst = i;
 				ranges.reader_wm_sets[i].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 				ranges.reader_wm_sets[i].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
-				ranges.reader_wm_sets[i].min_fill_clk_mhz = (i > 0) ? (dcn2_0_soc.clock_limits[i - 1].dram_speed_mts / 16) + 1 : 0;
-				ranges.reader_wm_sets[i].max_fill_clk_mhz = dcn2_0_soc.clock_limits[i].dram_speed_mts / 16;
+				ranges.reader_wm_sets[i].min_fill_clk_mhz = (i > 0) ? (loaded_bb->clock_limits[i - 1].dram_speed_mts / 16) + 1 : 0;
+				ranges.reader_wm_sets[i].max_fill_clk_mhz = loaded_bb->clock_limits[i].dram_speed_mts / 16;
 
 				ranges.num_reader_wm_sets = i + 1;
 			}
