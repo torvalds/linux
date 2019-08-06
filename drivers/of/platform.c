@@ -506,6 +506,7 @@ int of_platform_default_populate(struct device_node *root,
 }
 EXPORT_SYMBOL_GPL(of_platform_default_populate);
 
+#ifndef CONFIG_PPC
 static bool of_link_is_valid(struct device_node *con, struct device_node *sup)
 {
 	of_node_get(sup);
@@ -683,7 +684,6 @@ static int of_link_to_suppliers(struct device *dev)
 	return __of_link_to_suppliers(dev, dev->of_node);
 }
 
-#ifndef CONFIG_PPC
 static const struct of_device_id reserved_mem_matches[] = {
 	{ .compatible = "qcom,rmtfs-mem" },
 	{ .compatible = "qcom,cmd-db" },
