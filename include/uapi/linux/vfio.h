@@ -295,15 +295,38 @@ struct vfio_region_info_cap_type {
 	__u32 subtype;	/* type specific */
 };
 
+/*
+ * List of region types, global per bus driver.
+ * If you introduce a new type, please add it here.
+ */
+
+/* PCI region type containing a PCI vendor part */
 #define VFIO_REGION_TYPE_PCI_VENDOR_TYPE	(1 << 31)
 #define VFIO_REGION_TYPE_PCI_VENDOR_MASK	(0xffff)
+#define VFIO_REGION_TYPE_GFX                    (1)
+#define VFIO_REGION_TYPE_CCW			(2)
 
-/* 8086 Vendor sub-types */
+/* sub-types for VFIO_REGION_TYPE_PCI_* */
+
+/* 8086 vendor PCI sub-types */
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION	(1)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG	(2)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG	(3)
 
-#define VFIO_REGION_TYPE_GFX                    (1)
+/* 10de vendor PCI sub-types */
+/*
+ * NVIDIA GPU NVlink2 RAM is coherent RAM mapped onto the host address space.
+ */
+#define VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM	(1)
+
+/* 1014 vendor PCI sub-types */
+/*
+ * IBM NPU NVlink2 ATSD (Address Translation Shootdown) register of NPU
+ * to do TLB invalidation on a GPU.
+ */
+#define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
+
+/* sub-types for VFIO_REGION_TYPE_GFX */
 #define VFIO_REGION_SUBTYPE_GFX_EDID            (1)
 
 /**
@@ -353,24 +376,8 @@ struct vfio_region_gfx_edid {
 #define VFIO_DEVICE_GFX_LINK_STATE_DOWN  2
 };
 
-#define VFIO_REGION_TYPE_CCW			(2)
-/* ccw sub-types */
+/* sub-types for VFIO_REGION_TYPE_CCW */
 #define VFIO_REGION_SUBTYPE_CCW_ASYNC_CMD	(1)
-
-/*
- * 10de vendor sub-type
- *
- * NVIDIA GPU NVlink2 RAM is coherent RAM mapped onto the host address space.
- */
-#define VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM	(1)
-
-/*
- * 1014 vendor sub-type
- *
- * IBM NPU NVlink2 ATSD (Address Translation Shootdown) register of NPU
- * to do TLB invalidation on a GPU.
- */
-#define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
 
 /*
  * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
