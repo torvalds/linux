@@ -892,6 +892,7 @@ int usb_register_device_driver(struct usb_device_driver *new_udriver,
 	new_udriver->drvwrap.driver.probe = usb_probe_device;
 	new_udriver->drvwrap.driver.remove = usb_unbind_device;
 	new_udriver->drvwrap.driver.owner = owner;
+	new_udriver->drvwrap.driver.dev_groups = new_udriver->dev_groups;
 
 	retval = driver_register(&new_udriver->drvwrap.driver);
 
