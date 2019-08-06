@@ -2166,7 +2166,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
-	int ret;
+	int ret = 0;
 
 	disable_rpm_wakeref_asserts(rpm);
 
@@ -2177,12 +2177,9 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	intel_power_domains_suspend(dev_priv,
 				    get_suspend_mode(dev_priv, hibernation));
 
-	ret = 0;
-	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv))
-		bxt_enable_dc9(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hsw_enable_pc8(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	intel_display_power_suspend_late(dev_priv);
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
 
 	if (ret) {
@@ -2367,12 +2364,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_gt_check_and_clear_faults(&dev_priv->gt);
 
-	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
-		gen9_sanitize_dc_state(dev_priv);
-		bxt_disable_dc9(dev_priv);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		hsw_disable_pc8(dev_priv);
-	}
+	intel_display_power_resume_early(dev_priv);
 
 	intel_sanitize_gt_powersave(dev_priv);
 
@@ -2912,7 +2904,7 @@ static int intel_runtime_suspend(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
-	int ret;
+	int ret = 0;
 
 	if (WARN_ON_ONCE(!(dev_priv->gt_pm.rc6.enabled && HAS_RC6(dev_priv))))
 		return -ENODEV;
@@ -2936,18 +2928,10 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	intel_uncore_suspend(&dev_priv->uncore);
 
-	ret = 0;
-	if (INTEL_GEN(dev_priv) >= 11) {
-		icl_display_core_uninit(dev_priv);
-		bxt_enable_dc9(dev_priv);
-	} else if (IS_GEN9_LP(dev_priv)) {
-		bxt_display_core_uninit(dev_priv);
-		bxt_enable_dc9(dev_priv);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		hsw_enable_pc8(dev_priv);
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+	intel_display_power_suspend(dev_priv);
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
-	}
 
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
@@ -3023,28 +3007,10 @@ static int intel_runtime_resume(struct device *kdev)
 	if (intel_uncore_unclaimed_mmio(&dev_priv->uncore))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
-	if (INTEL_GEN(dev_priv) >= 11) {
-		bxt_disable_dc9(dev_priv);
-		icl_display_core_init(dev_priv, true);
-		if (dev_priv->csr.dmc_payload) {
-			if (dev_priv->csr.allowed_dc_mask &
-			    DC_STATE_EN_UPTO_DC6)
-				skl_enable_dc6(dev_priv);
-			else if (dev_priv->csr.allowed_dc_mask &
-				 DC_STATE_EN_UPTO_DC5)
-				gen9_enable_dc5(dev_priv);
-		}
-	} else if (IS_GEN9_LP(dev_priv)) {
-		bxt_disable_dc9(dev_priv);
-		bxt_display_core_init(dev_priv, true);
-		if (dev_priv->csr.dmc_payload &&
-		    (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
-			gen9_enable_dc5(dev_priv);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		hsw_disable_pc8(dev_priv);
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+	intel_display_power_resume(dev_priv);
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, true);
-	}
 
 	intel_uncore_runtime_resume(&dev_priv->uncore);
 
