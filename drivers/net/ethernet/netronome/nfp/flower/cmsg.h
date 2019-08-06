@@ -220,7 +220,8 @@ struct nfp_fl_set_ipv4_tun {
 	__be16 tun_flags;
 	u8 ttl;
 	u8 tos;
-	__be32 extra;
+	__be16 outer_vlan_tpid;
+	__be16 outer_vlan_tci;
 	u8 tun_len;
 	u8 res2;
 	__be16 tun_proto;
@@ -483,6 +484,7 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_QOS_MOD =		18,
 	NFP_FLOWER_CMSG_TYPE_QOS_DEL =		19,
 	NFP_FLOWER_CMSG_TYPE_QOS_STATS =	20,
+	NFP_FLOWER_CMSG_TYPE_PRE_TUN_RULE =	21,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
 };
 

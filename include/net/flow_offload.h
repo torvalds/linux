@@ -117,6 +117,8 @@ enum flow_action_id {
 	FLOW_ACTION_GOTO,
 	FLOW_ACTION_REDIRECT,
 	FLOW_ACTION_MIRRED,
+	FLOW_ACTION_REDIRECT_INGRESS,
+	FLOW_ACTION_MIRRED_INGRESS,
 	FLOW_ACTION_VLAN_PUSH,
 	FLOW_ACTION_VLAN_POP,
 	FLOW_ACTION_VLAN_MANGLE,
@@ -126,6 +128,7 @@ enum flow_action_id {
 	FLOW_ACTION_ADD,
 	FLOW_ACTION_CSUM,
 	FLOW_ACTION_MARK,
+	FLOW_ACTION_PTYPE,
 	FLOW_ACTION_WAKE,
 	FLOW_ACTION_QUEUE,
 	FLOW_ACTION_SAMPLE,
@@ -168,6 +171,7 @@ struct flow_action_entry {
 		const struct ip_tunnel_info *tunnel;	/* FLOW_ACTION_TUNNEL_ENCAP */
 		u32			csum_flags;	/* FLOW_ACTION_CSUM */
 		u32			mark;		/* FLOW_ACTION_MARK */
+		u16                     ptype;          /* FLOW_ACTION_PTYPE */
 		struct {				/* FLOW_ACTION_QUEUE */
 			u32		ctx;
 			u32		index;

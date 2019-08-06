@@ -15,6 +15,24 @@
 
 #define NFP_FL_MAX_ROUTES               32
 
+#define NFP_TUN_PRE_TUN_RULE_LIMIT	32
+#define NFP_TUN_PRE_TUN_RULE_DEL	0x1
+#define NFP_TUN_PRE_TUN_IDX_BIT		0x8
+
+/**
+ * struct nfp_tun_pre_run_rule - rule matched before decap
+ * @flags:		options for the rule offset
+ * @port_idx:		index of destination MAC address for the rule
+ * @vlan_tci:		VLAN info associated with MAC
+ * @host_ctx_id:	stats context of rule to update
+ */
+struct nfp_tun_pre_tun_rule {
+	__be32 flags;
+	__be16 port_idx;
+	__be16 vlan_tci;
+	__be32 host_ctx_id;
+};
+
 /**
  * struct nfp_tun_active_tuns - periodic message of active tunnels
  * @seq:		sequence number of the message
@@ -124,11 +142,12 @@ enum nfp_flower_mac_offload_cmd {
 
 /**
  * struct nfp_tun_offloaded_mac - hashtable entry for an offloaded MAC
- * @ht_node:	Hashtable entry
- * @addr:	Offloaded MAC address
- * @index:	Offloaded index for given MAC address
- * @ref_count:	Number of devs using this MAC address
- * @repr_list:	List of reprs sharing this MAC address
+ * @ht_node:		Hashtable entry
+ * @addr:		Offloaded MAC address
+ * @index:		Offloaded index for given MAC address
+ * @ref_count:		Number of devs using this MAC address
+ * @repr_list:		List of reprs sharing this MAC address
+ * @bridge_count:	Number of bridge/internal devs with MAC
  */
 struct nfp_tun_offloaded_mac {
 	struct rhash_head ht_node;
@@ -136,6 +155,7 @@ struct nfp_tun_offloaded_mac {
 	u16 index;
 	int ref_count;
 	struct list_head repr_list;
+	int bridge_count;
 };
 
 static const struct rhashtable_params offloaded_macs_params = {
@@ -556,6 +576,8 @@ nfp_tunnel_offloaded_macs_inc_ref_and_link(struct nfp_tun_offloaded_mac *entry,
 			list_del(&repr_priv->mac_list);
 
 		list_add_tail(&repr_priv->mac_list, &entry->repr_list);
+	} else if (nfp_flower_is_supported_bridge(netdev)) {
+		entry->bridge_count++;
 	}
 
 	entry->ref_count++;
@@ -572,20 +594,35 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 
 	entry = nfp_tunnel_lookup_offloaded_macs(app, netdev->dev_addr);
 	if (entry && nfp_tunnel_is_mac_idx_global(entry->index)) {
-		nfp_tunnel_offloaded_macs_inc_ref_and_link(entry, netdev, mod);
-		return 0;
+		if (entry->bridge_count ||
+		    !nfp_flower_is_supported_bridge(netdev)) {
+			nfp_tunnel_offloaded_macs_inc_ref_and_link(entry,
+								   netdev, mod);
+			return 0;
+		}
+
+		/* MAC is global but matches need to go to pre_tun table. */
+		nfp_mac_idx = entry->index | NFP_TUN_PRE_TUN_IDX_BIT;
 	}
 
-	/* Assign a global index if non-repr or MAC address is now shared. */
-	if (entry || !port) {
-		ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
-					 NFP_MAX_MAC_INDEX, GFP_KERNEL);
-		if (ida_idx < 0)
-			return ida_idx;
+	if (!nfp_mac_idx) {
+		/* Assign a global index if non-repr or MAC is now shared. */
+		if (entry || !port) {
+			ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
+						 NFP_MAX_MAC_INDEX, GFP_KERNEL);
+			if (ida_idx < 0)
+				return ida_idx;
 
-		nfp_mac_idx = nfp_tunnel_get_global_mac_idx_from_ida(ida_idx);
-	} else {
-		nfp_mac_idx = nfp_tunnel_get_mac_idx_from_phy_port_id(port);
+			nfp_mac_idx =
+				nfp_tunnel_get_global_mac_idx_from_ida(ida_idx);
+
+			if (nfp_flower_is_supported_bridge(netdev))
+				nfp_mac_idx |= NFP_TUN_PRE_TUN_IDX_BIT;
+
+		} else {
+			nfp_mac_idx =
+				nfp_tunnel_get_mac_idx_from_phy_port_id(port);
+		}
 	}
 
 	if (!entry) {
@@ -654,6 +691,25 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		list_del(&repr_priv->mac_list);
 	}
 
+	if (nfp_flower_is_supported_bridge(netdev)) {
+		entry->bridge_count--;
+
+		if (!entry->bridge_count && entry->ref_count) {
+			u16 nfp_mac_idx;
+
+			nfp_mac_idx = entry->index & ~NFP_TUN_PRE_TUN_IDX_BIT;
+			if (__nfp_tunnel_offload_mac(app, mac, nfp_mac_idx,
+						     false)) {
+				nfp_flower_cmsg_warn(app, "MAC offload index revert failed on %s.\n",
+						     netdev_name(netdev));
+				return 0;
+			}
+
+			entry->index = nfp_mac_idx;
+			return 0;
+		}
+	}
+
 	/* If MAC is now used by 1 repr set the offloaded MAC index to port. */
 	if (entry->ref_count == 1 && list_is_singular(&entry->repr_list)) {
 		u16 nfp_mac_idx;
@@ -713,6 +769,9 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 			return 0;
 
 		repr_priv = repr->app_priv;
+		if (repr_priv->on_bridge)
+			return 0;
+
 		mac_offloaded = &repr_priv->mac_offloaded;
 		off_mac = &repr_priv->offloaded_mac_addr[0];
 		port = nfp_repr_get_port_id(netdev);
@@ -828,8 +887,117 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 		if (err)
 			nfp_flower_cmsg_warn(app, "Failed to offload MAC change on %s.\n",
 					     netdev_name(netdev));
+	} else if (event == NETDEV_CHANGEUPPER) {
+		/* If a repr is attached to a bridge then tunnel packets
+		 * entering the physical port are directed through the bridge
+		 * datapath and cannot be directly detunneled. Therefore,
+		 * associated offloaded MACs and indexes should not be used
+		 * by fw for detunneling.
+		 */
+		struct netdev_notifier_changeupper_info *info = ptr;
+		struct net_device *upper = info->upper_dev;
+		struct nfp_flower_repr_priv *repr_priv;
+		struct nfp_repr *repr;
+
+		if (!nfp_netdev_is_nfp_repr(netdev) ||
+		    !nfp_flower_is_supported_bridge(upper))
+			return NOTIFY_OK;
+
+		repr = netdev_priv(netdev);
+		if (repr->app != app)
+			return NOTIFY_OK;
+
+		repr_priv = repr->app_priv;
+
+		if (info->linking) {
+			if (nfp_tunnel_offload_mac(app, netdev,
+						   NFP_TUNNEL_MAC_OFFLOAD_DEL))
+				nfp_flower_cmsg_warn(app, "Failed to delete offloaded MAC on %s.\n",
+						     netdev_name(netdev));
+			repr_priv->on_bridge = true;
+		} else {
+			repr_priv->on_bridge = false;
+
+			if (!(netdev->flags & IFF_UP))
+				return NOTIFY_OK;
+
+			if (nfp_tunnel_offload_mac(app, netdev,
+						   NFP_TUNNEL_MAC_OFFLOAD_ADD))
+				nfp_flower_cmsg_warn(app, "Failed to offload MAC on %s.\n",
+						     netdev_name(netdev));
+		}
 	}
 	return NOTIFY_OK;
+}
+
+int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
+				 struct nfp_fl_payload *flow)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+	struct nfp_tun_offloaded_mac *mac_entry;
+	struct nfp_tun_pre_tun_rule payload;
+	struct net_device *internal_dev;
+	int err;
+
+	if (app_priv->pre_tun_rule_cnt == NFP_TUN_PRE_TUN_RULE_LIMIT)
+		return -ENOSPC;
+
+	memset(&payload, 0, sizeof(struct nfp_tun_pre_tun_rule));
+
+	internal_dev = flow->pre_tun_rule.dev;
+	payload.vlan_tci = flow->pre_tun_rule.vlan_tci;
+	payload.host_ctx_id = flow->meta.host_ctx_id;
+
+	/* Lookup MAC index for the pre-tunnel rule egress device.
+	 * Note that because the device is always an internal port, it will
+	 * have a constant global index so does not need to be tracked.
+	 */
+	mac_entry = nfp_tunnel_lookup_offloaded_macs(app,
+						     internal_dev->dev_addr);
+	if (!mac_entry)
+		return -ENOENT;
+
+	payload.port_idx = cpu_to_be16(mac_entry->index);
+
+	/* Copy mac id and vlan to flow - dev may not exist at delete time. */
+	flow->pre_tun_rule.vlan_tci = payload.vlan_tci;
+	flow->pre_tun_rule.port_idx = payload.port_idx;
+
+	err = nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_PRE_TUN_RULE,
+				       sizeof(struct nfp_tun_pre_tun_rule),
+				       (unsigned char *)&payload, GFP_KERNEL);
+	if (err)
+		return err;
+
+	app_priv->pre_tun_rule_cnt++;
+
+	return 0;
+}
+
+int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
+				     struct nfp_fl_payload *flow)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+	struct nfp_tun_pre_tun_rule payload;
+	u32 tmp_flags = 0;
+	int err;
+
+	memset(&payload, 0, sizeof(struct nfp_tun_pre_tun_rule));
+
+	tmp_flags |= NFP_TUN_PRE_TUN_RULE_DEL;
+	payload.flags = cpu_to_be32(tmp_flags);
+	payload.vlan_tci = flow->pre_tun_rule.vlan_tci;
+	payload.port_idx = flow->pre_tun_rule.port_idx;
+
+	err = nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_PRE_TUN_RULE,
+				       sizeof(struct nfp_tun_pre_tun_rule),
+				       (unsigned char *)&payload, GFP_KERNEL);
+	if (err)
+		return err;
+
+	app_priv->pre_tun_rule_cnt--;
+
+	return 0;
 }
 
 int nfp_tunnel_config_start(struct nfp_app *app)
