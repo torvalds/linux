@@ -43,7 +43,13 @@
  * netlink alerts
  */
 static int trace_state = TRACE_OFF;
-static DEFINE_MUTEX(trace_state_mutex);
+
+/* net_dm_mutex
+ *
+ * An overall lock guarding every operation coming from userspace.
+ * It also guards the global 'hw_stats_list' list.
+ */
+static DEFINE_MUTEX(net_dm_mutex);
 
 struct per_cpu_dm_data {
 	spinlock_t		lock;
@@ -241,7 +247,7 @@ static int set_all_monitor_traces(int state)
 	struct dm_hw_stat_delta *new_stat = NULL;
 	struct dm_hw_stat_delta *temp;
 
-	mutex_lock(&trace_state_mutex);
+	mutex_lock(&net_dm_mutex);
 
 	if (state == trace_state) {
 		rc = -EAGAIN;
@@ -289,7 +295,7 @@ static int set_all_monitor_traces(int state)
 		rc = -EINPROGRESS;
 
 out_unlock:
-	mutex_unlock(&trace_state_mutex);
+	mutex_unlock(&net_dm_mutex);
 
 	return rc;
 }
@@ -330,12 +336,12 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 
 		new_stat->dev = dev;
 		new_stat->last_rx = jiffies;
-		mutex_lock(&trace_state_mutex);
+		mutex_lock(&net_dm_mutex);
 		list_add_rcu(&new_stat->list, &hw_stats_list);
-		mutex_unlock(&trace_state_mutex);
+		mutex_unlock(&net_dm_mutex);
 		break;
 	case NETDEV_UNREGISTER:
-		mutex_lock(&trace_state_mutex);
+		mutex_lock(&net_dm_mutex);
 		list_for_each_entry_safe(new_stat, tmp, &hw_stats_list, list) {
 			if (new_stat->dev == dev) {
 				new_stat->dev = NULL;
@@ -346,7 +352,7 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 				}
 			}
 		}
-		mutex_unlock(&trace_state_mutex);
+		mutex_unlock(&net_dm_mutex);
 		break;
 	}
 out:
