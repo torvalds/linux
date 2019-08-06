@@ -39,7 +39,6 @@
 #include <linux/mman.h>
 
 #include "display/intel_display.h"
-#include "display/intel_display_types.h"
 #include "display/intel_frontbuffer.h"
 
 #include "gem/i915_gem_clflush.h"

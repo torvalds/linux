@@ -24,8 +24,6 @@
 #include <linux/pm_runtime.h>
 #include <asm/iosf_mbi.h>
 
-#include "display/intel_display_types.h"
-
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"

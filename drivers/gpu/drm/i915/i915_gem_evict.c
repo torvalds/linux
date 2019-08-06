@@ -28,7 +28,6 @@
 
 #include <drm/i915_drm.h>
 
-#include "display/intel_display_types.h"
 #include "gem/i915_gem_context.h"
 
 #include "i915_drv.h"

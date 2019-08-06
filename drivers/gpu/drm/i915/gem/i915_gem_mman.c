@@ -7,7 +7,6 @@
 #include <linux/mman.h>
 #include <linux/sizes.h>
 
-#include "display/intel_display_types.h"
 #include "gt/intel_gt.h"
 
 #include "i915_drv.h"

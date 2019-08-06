@@ -3,8 +3,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#include "display/intel_display_types.h"
-
+#include "i915_drv.h"
 #include "i915_gem_client_blt.h"
 #include "i915_gem_object_blt.h"
 

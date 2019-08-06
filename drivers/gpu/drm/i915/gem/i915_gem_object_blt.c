@@ -3,10 +3,9 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#include "display/intel_display_types.h"
-
-#include "i915_gem_object_blt.h"
+#include "i915_drv.h"
 #include "i915_gem_clflush.h"
+#include "i915_gem_object_blt.h"
 
 int intel_emit_vma_fill_blt(struct i915_request *rq,
 			    struct i915_vma *vma,

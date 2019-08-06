@@ -12,7 +12,6 @@
 #include <drm/drm_syncobj.h>
 #include <drm/i915_drm.h>
 
-#include "display/intel_display_types.h"
 #include "display/intel_frontbuffer.h"
 
 #include "gem/i915_gem_ioctls.h"
@@ -21,9 +20,10 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 
-#include "i915_gem_ioctls.h"
+#include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
+#include "i915_gem_ioctls.h"
 #include "i915_trace.h"
 
 enum {

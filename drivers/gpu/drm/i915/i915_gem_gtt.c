@@ -35,7 +35,6 @@
 
 #include <drm/i915_drm.h>
 
-#include "display/intel_display_types.h"
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 
