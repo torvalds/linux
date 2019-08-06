@@ -43,10 +43,16 @@
  * netlink alerts
  */
 static int trace_state = TRACE_OFF;
-static DEFINE_MUTEX(trace_state_mutex);
+
+/* net_dm_mutex
+ *
+ * An overall lock guarding every operation coming from userspace.
+ * It also guards the global 'hw_stats_list' list.
+ */
+static DEFINE_MUTEX(net_dm_mutex);
 
 struct per_cpu_dm_data {
-	spinlock_t		lock;
+	spinlock_t		lock;	/* Protects 'skb' and 'send_timer' */
 	struct sk_buff		*skb;
 	struct work_struct	dm_alert_work;
 	struct timer_list	send_timer;
@@ -235,22 +241,21 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
-static int set_all_monitor_traces(int state)
+static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 {
 	int rc = 0;
 	struct dm_hw_stat_delta *new_stat = NULL;
 	struct dm_hw_stat_delta *temp;
 
-	mutex_lock(&trace_state_mutex);
-
 	if (state == trace_state) {
-		rc = -EAGAIN;
-		goto out_unlock;
+		NL_SET_ERR_MSG_MOD(extack, "Trace state already set to requested state");
+		return -EAGAIN;
 	}
 
 	switch (state) {
 	case TRACE_ON:
 		if (!try_module_get(THIS_MODULE)) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
 			rc = -ENODEV;
 			break;
 		}
@@ -288,17 +293,15 @@ static int set_all_monitor_traces(int state)
 	else
 		rc = -EINPROGRESS;
 
-out_unlock:
-	mutex_unlock(&trace_state_mutex);
-
 	return rc;
 }
-
 
 static int net_dm_cmd_config(struct sk_buff *skb,
 			struct genl_info *info)
 {
-	return -ENOTSUPP;
+	NL_SET_ERR_MSG_MOD(info->extack, "Command not supported");
+
+	return -EOPNOTSUPP;
 }
 
 static int net_dm_cmd_trace(struct sk_buff *skb,
@@ -306,12 +309,12 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 {
 	switch (info->genlhdr->cmd) {
 	case NET_DM_CMD_START:
-		return set_all_monitor_traces(TRACE_ON);
+		return set_all_monitor_traces(TRACE_ON, info->extack);
 	case NET_DM_CMD_STOP:
-		return set_all_monitor_traces(TRACE_OFF);
+		return set_all_monitor_traces(TRACE_OFF, info->extack);
 	}
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int dropmon_net_event(struct notifier_block *ev_block,
@@ -330,12 +333,12 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 
 		new_stat->dev = dev;
 		new_stat->last_rx = jiffies;
-		mutex_lock(&trace_state_mutex);
+		mutex_lock(&net_dm_mutex);
 		list_add_rcu(&new_stat->list, &hw_stats_list);
-		mutex_unlock(&trace_state_mutex);
+		mutex_unlock(&net_dm_mutex);
 		break;
 	case NETDEV_UNREGISTER:
-		mutex_lock(&trace_state_mutex);
+		mutex_lock(&net_dm_mutex);
 		list_for_each_entry_safe(new_stat, tmp, &hw_stats_list, list) {
 			if (new_stat->dev == dev) {
 				new_stat->dev = NULL;
@@ -346,7 +349,7 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 				}
 			}
 		}
-		mutex_unlock(&trace_state_mutex);
+		mutex_unlock(&net_dm_mutex);
 		break;
 	}
 out:
@@ -371,10 +374,26 @@ static const struct genl_ops dropmon_ops[] = {
 	},
 };
 
+static int net_dm_nl_pre_doit(const struct genl_ops *ops,
+			      struct sk_buff *skb, struct genl_info *info)
+{
+	mutex_lock(&net_dm_mutex);
+
+	return 0;
+}
+
+static void net_dm_nl_post_doit(const struct genl_ops *ops,
+				struct sk_buff *skb, struct genl_info *info)
+{
+	mutex_unlock(&net_dm_mutex);
+}
+
 static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.hdrsize        = 0,
 	.name           = "NET_DM",
 	.version        = 2,
+	.pre_doit	= net_dm_nl_pre_doit,
+	.post_doit	= net_dm_nl_post_doit,
 	.module		= THIS_MODULE,
 	.ops		= dropmon_ops,
 	.n_ops		= ARRAY_SIZE(dropmon_ops),
@@ -420,7 +439,6 @@ static int __init init_net_drop_monitor(void)
 		spin_lock_init(&data->lock);
 		reset_per_cpu_data(data);
 	}
-
 
 	goto out;
 
