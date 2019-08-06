@@ -2324,8 +2324,10 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
+	struct bch_page_state *s;
 	unsigned start_offset = start & (PAGE_SIZE - 1);
 	unsigned end_offset = ((end - 1) & (PAGE_SIZE - 1)) + 1;
+	unsigned i;
 	struct page *page;
 	int ret = 0;
 
@@ -2357,11 +2359,31 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		}
 	}
 
+	s = bch2_page_state_create(page, 0);
+	if (!s) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
 	if (!PageUptodate(page)) {
 		ret = bch2_read_single_page(page, mapping);
 		if (ret)
 			goto unlock;
 	}
+
+	if (index != start >> PAGE_SHIFT)
+		start_offset = 0;
+	if (index != end >> PAGE_SHIFT)
+		end_offset = PAGE_SIZE;
+
+	for (i = round_up(start_offset, block_bytes(c)) >> 9;
+	     i < round_down(end_offset, block_bytes(c)) >> 9;
+	     i++) {
+		s->s[i].nr_replicas	= 0;
+		s->s[i].state		= SECTOR_UNALLOCATED;
+	}
+
+	zero_user_segment(page, start_offset, end_offset);
 
 	/*
 	 * Bit of a hack - we don't want truncate to fail due to -ENOSPC.
@@ -2371,14 +2393,6 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 	 */
 	ret = bch2_get_page_disk_reservation(c, inode, page, false);
 	BUG_ON(ret);
-
-	if (index == start >> PAGE_SHIFT &&
-	    index == end >> PAGE_SHIFT)
-		zero_user_segment(page, start_offset, end_offset);
-	else if (index == start >> PAGE_SHIFT)
-		zero_user_segment(page, start_offset, PAGE_SIZE);
-	else if (index == end >> PAGE_SHIFT)
-		zero_user_segment(page, 0, end_offset);
 
 	filemap_dirty_folio(mapping, page_folio(page));
 unlock:
@@ -2391,7 +2405,7 @@ out:
 static int bch2_truncate_page(struct bch_inode_info *inode, loff_t from)
 {
 	return __bch2_truncate_page(inode, from >> PAGE_SHIFT,
-				    from, from + PAGE_SIZE);
+				    from, round_up(from, PAGE_SIZE));
 }
 
 static int bch2_extend(struct bch_inode_info *inode, struct iattr *iattr)
@@ -2483,12 +2497,8 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 
 	truncate_setsize(&inode->v, iattr->ia_size);
 
-	/*
-	 * XXX: need a comment explaining why PAGE_SIZE and not block_bytes()
-	 * here:
-	 */
 	ret = __bch2_fpunch(c, inode,
-			round_up(iattr->ia_size, PAGE_SIZE) >> 9,
+			round_up(iattr->ia_size, block_bytes(c)) >> 9,
 			U64_MAX, &inode->ei_journal_seq);
 	if (unlikely(ret))
 		goto err;
@@ -2510,8 +2520,8 @@ err:
 static long bch2_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	u64 discard_start = round_up(offset, PAGE_SIZE) >> 9;
-	u64 discard_end = round_down(offset + len, PAGE_SIZE) >> 9;
+	u64 discard_start = round_up(offset, block_bytes(c)) >> 9;
+	u64 discard_end = round_down(offset + len, block_bytes(c)) >> 9;
 	int ret = 0;
 
 	inode_lock(&inode->v);
@@ -2596,7 +2606,7 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 
 	while (bkey_cmp(dst->pos,
 			POS(inode->v.i_ino,
-			    round_up(new_size, PAGE_SIZE) >> 9)) < 0) {
+			    round_up(new_size, block_bytes(c)) >> 9)) < 0) {
 		struct disk_reservation disk_res;
 
 		ret = bch2_btree_iter_traverse(dst);
@@ -2671,8 +2681,9 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bpos end_pos;
-	loff_t block_start, block_end;
-	loff_t end = offset + len;
+	loff_t end		= offset + len;
+	loff_t block_start	= round_down(offset,	block_bytes(c));
+	loff_t block_end	= round_up(end,		block_bytes(c));
 	unsigned sectors;
 	unsigned replicas = io_opts(c, inode).data_replicas;
 	int ret;
@@ -2704,12 +2715,6 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 			goto err;
 
 		truncate_pagecache_range(&inode->v, offset, end - 1);
-
-		block_start	= round_up(offset, PAGE_SIZE);
-		block_end	= round_down(end, PAGE_SIZE);
-	} else {
-		block_start	= round_down(offset, PAGE_SIZE);
-		block_end	= round_up(end, PAGE_SIZE);
 	}
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
