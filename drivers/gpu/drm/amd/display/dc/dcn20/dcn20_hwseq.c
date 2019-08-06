@@ -888,7 +888,7 @@ void dcn20_blank_pixel_data(
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
 				odm_pipe->stream_res.opp,
-				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE ?
+				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE && blank ?
 						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
 				stream->timing.display_color_depth,
 				&black_color,
