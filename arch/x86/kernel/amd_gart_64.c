@@ -680,6 +680,7 @@ static const struct dma_map_ops gart_dma_ops = {
 	.mmap				= dma_common_mmap,
 	.get_sgtable			= dma_common_get_sgtable,
 	.dma_supported			= dma_direct_supported,
+	.get_required_mask		= dma_direct_get_required_mask,
 };
 
 static void gart_iommu_shutdown(void)
