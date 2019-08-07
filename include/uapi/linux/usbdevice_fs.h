@@ -223,5 +223,8 @@ struct usbdevfs_streams {
  * extending size of the data returned.
  */
 #define USBDEVFS_CONNINFO_EX(len)  _IOC(_IOC_READ, 'U', 32, len)
+#define USBDEVFS_FORBID_SUSPEND    _IO('U', 33)
+#define USBDEVFS_ALLOW_SUSPEND     _IO('U', 34)
+#define USBDEVFS_WAIT_FOR_RESUME   _IO('U', 35)
 
 #endif /* _UAPI_LINUX_USBDEVICE_FS_H */
