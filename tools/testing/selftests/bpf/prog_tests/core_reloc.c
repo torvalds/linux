@@ -129,6 +129,22 @@
 	.output_len = sizeof(struct core_reloc_mods_output),		\
 }
 
+#define PTR_AS_ARR_CASE(name) {						\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_ptr_as_arr.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o",			\
+	.input = (const char *)&(struct core_reloc_##name []){		\
+		{ .a = 1 },						\
+		{ .a = 2 },						\
+		{ .a = 3 },						\
+	},								\
+	.input_len = 3 * sizeof(struct core_reloc_##name),		\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_ptr_as_arr) {		\
+		.a = 3,							\
+	},								\
+	.output_len = sizeof(struct core_reloc_ptr_as_arr),		\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -200,6 +216,10 @@ static struct core_reloc_test_case test_cases[] = {
 	MODS_CASE(mods),
 	MODS_CASE(mods___mod_swap),
 	MODS_CASE(mods___typedefs),
+
+	/* handling "ptr is an array" semantics */
+	PTR_AS_ARR_CASE(ptr_as_arr),
+	PTR_AS_ARR_CASE(ptr_as_arr___diff_sz),
 };
 
 struct data {

@@ -526,3 +526,16 @@ struct core_reloc_mods___typedefs {
 	int3_t b;
 	int3_t a;
 };
+
+/*
+ * PTR_AS_ARR
+ */
+struct core_reloc_ptr_as_arr {
+	int a;
+};
+
+struct core_reloc_ptr_as_arr___diff_sz {
+	int :32; /* padding */
+	char __some_more_padding;
+	int a;
+};
