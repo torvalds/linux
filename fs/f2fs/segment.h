@@ -230,6 +230,9 @@ struct sit_info {
 	char *sit_bitmap;		/* SIT bitmap pointer */
 #ifdef CONFIG_F2FS_CHECK_FS
 	char *sit_bitmap_mir;		/* SIT bitmap mirror */
+
+	/* bitmap of segments to be ignored by GC in case of errors */
+	unsigned long *invalid_segmap;
 #endif
 	unsigned int bitmap_size;	/* SIT bitmap size */
 
