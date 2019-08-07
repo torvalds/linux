@@ -186,53 +186,18 @@ static void omap2_iommu_disable(struct omap_iommu *obj)
 
 static int iommu_enable(struct omap_iommu *obj)
 {
-	int err;
-	struct platform_device *pdev = to_platform_device(obj->dev);
-	struct iommu_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	int ret;
 
-	if (pdata && pdata->set_pwrdm_constraint) {
-		err = pdata->set_pwrdm_constraint(pdev, true, &obj->pwrst);
-		if (err) {
-			dev_warn(obj->dev, "pwrdm_constraint failed to be set, status = %d\n",
-				 err);
-		}
-	}
+	ret = pm_runtime_get_sync(obj->dev);
+	if (ret < 0)
+		pm_runtime_put_noidle(obj->dev);
 
-	if (pdata && pdata->deassert_reset) {
-		err = pdata->deassert_reset(pdev, pdata->reset_name);
-		if (err) {
-			dev_err(obj->dev, "deassert_reset failed: %d\n", err);
-			return err;
-		}
-	}
-
-	pm_runtime_get_sync(obj->dev);
-
-	err = omap2_iommu_enable(obj);
-
-	return err;
+	return ret < 0 ? ret : 0;
 }
 
 static void iommu_disable(struct omap_iommu *obj)
 {
-	struct platform_device *pdev = to_platform_device(obj->dev);
-	struct iommu_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	int ret;
-
-	omap2_iommu_disable(obj);
-
 	pm_runtime_put_sync(obj->dev);
-
-	if (pdata && pdata->assert_reset)
-		pdata->assert_reset(pdev, pdata->reset_name);
-
-	if (pdata && pdata->set_pwrdm_constraint) {
-		ret = pdata->set_pwrdm_constraint(pdev, false, &obj->pwrst);
-		if (ret) {
-			dev_warn(obj->dev, "pwrdm_constraint failed to be reset, status = %d\n",
-				 ret);
-		}
-	}
 }
 
 /*
@@ -927,6 +892,85 @@ static void omap_iommu_detach(struct omap_iommu *obj)
 	dev_dbg(obj->dev, "%s: %s\n", __func__, obj->name);
 }
 
+/**
+ * omap_iommu_runtime_suspend - disable an iommu device
+ * @dev:	iommu device
+ *
+ * This function performs all that is necessary to disable an
+ * IOMMU device, either during final detachment from a client
+ * device, or during system/runtime suspend of the device. This
+ * includes programming all the appropriate IOMMU registers, and
+ * managing the associated omap_hwmod's state and the device's
+ * reset line.
+ **/
+static int omap_iommu_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iommu_platform_data *pdata = dev_get_platdata(dev);
+	struct omap_iommu *obj = to_iommu(dev);
+	int ret;
+
+	omap2_iommu_disable(obj);
+
+	if (pdata && pdata->device_idle)
+		pdata->device_idle(pdev);
+
+	if (pdata && pdata->assert_reset)
+		pdata->assert_reset(pdev, pdata->reset_name);
+
+	if (pdata && pdata->set_pwrdm_constraint) {
+		ret = pdata->set_pwrdm_constraint(pdev, false, &obj->pwrst);
+		if (ret) {
+			dev_warn(obj->dev, "pwrdm_constraint failed to be reset, status = %d\n",
+				 ret);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * omap_iommu_runtime_resume - enable an iommu device
+ * @dev:	iommu device
+ *
+ * This function performs all that is necessary to enable an
+ * IOMMU device, either during initial attachment to a client
+ * device, or during system/runtime resume of the device. This
+ * includes programming all the appropriate IOMMU registers, and
+ * managing the associated omap_hwmod's state and the device's
+ * reset line.
+ **/
+static int omap_iommu_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iommu_platform_data *pdata = dev_get_platdata(dev);
+	struct omap_iommu *obj = to_iommu(dev);
+	int ret = 0;
+
+	if (pdata && pdata->set_pwrdm_constraint) {
+		ret = pdata->set_pwrdm_constraint(pdev, true, &obj->pwrst);
+		if (ret) {
+			dev_warn(obj->dev, "pwrdm_constraint failed to be set, status = %d\n",
+				 ret);
+		}
+	}
+
+	if (pdata && pdata->deassert_reset) {
+		ret = pdata->deassert_reset(pdev, pdata->reset_name);
+		if (ret) {
+			dev_err(dev, "deassert_reset failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (pdata && pdata->device_enable)
+		pdata->device_enable(pdev);
+
+	ret = omap2_iommu_enable(obj);
+
+	return ret;
+}
+
 static bool omap_iommu_can_register(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1000,6 +1044,15 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	obj = devm_kzalloc(&pdev->dev, sizeof(*obj) + MMU_REG_SIZE, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
+
+	/*
+	 * self-manage the ordering dependencies between omap_device_enable/idle
+	 * and omap_device_assert/deassert_hardreset API
+	 */
+	if (pdev->dev.pm_domain) {
+		dev_dbg(&pdev->dev, "device pm_domain is being reset\n");
+		pdev->dev.pm_domain = NULL;
+	}
 
 	obj->name = dev_name(&pdev->dev);
 	obj->nr_tlb_entries = 32;
@@ -1089,6 +1142,11 @@ static int omap_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops omap_iommu_pm_ops = {
+	SET_RUNTIME_PM_OPS(omap_iommu_runtime_suspend,
+			   omap_iommu_runtime_resume, NULL)
+};
+
 static const struct of_device_id omap_iommu_of_match[] = {
 	{ .compatible = "ti,omap2-iommu" },
 	{ .compatible = "ti,omap4-iommu" },
@@ -1102,6 +1160,7 @@ static struct platform_driver omap_iommu_driver = {
 	.remove	= omap_iommu_remove,
 	.driver	= {
 		.name	= "omap-iommu",
+		.pm	= &omap_iommu_pm_ops,
 		.of_match_table = of_match_ptr(omap_iommu_of_match),
 	},
 };
