@@ -131,6 +131,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	char err[9] = "ue";
 	int op = -1;
 	int block_id;
+	uint32_t sub_block;
 	u64 address, value;
 
 	if (*pos)
@@ -169,11 +170,12 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		data->op = op;
 
 		if (op == 2) {
-			if (sscanf(str, "%*s %*s %*s %llu %llu",
-						&address, &value) != 2)
-				if (sscanf(str, "%*s %*s %*s 0x%llx 0x%llx",
-							&address, &value) != 2)
+			if (sscanf(str, "%*s %*s %*s %u %llu %llu",
+						&sub_block, &address, &value) != 3)
+				if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
+							&sub_block, &address, &value) != 3)
 					return -EINVAL;
+			data->head.sub_block_index = sub_block;
 			data->inject.address = address;
 			data->inject.value = value;
 		}
@@ -218,7 +220,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  * write the struct to the control node.
  *
  * bash:
- * echo op block [error [address value]] > .../ras/ras_ctrl
+ * echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
  *	op: disable, enable, inject
  *		disable: only block is needed
  *		enable: block and error are needed
@@ -228,10 +230,11 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *	error: ue, ce
  *		ue: multi_uncorrectable
  *		ce: single_correctable
+ *	sub_block: sub block index, pass 0 if there is no sub block
  *
  * here are some examples for bash commands,
- *	echo inject umc ue 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
- *	echo inject umc ce 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ue 0x0 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ce 0 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *
  * How to check the result?
