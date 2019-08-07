@@ -2086,61 +2086,35 @@ static void sdma_v4_0_update_medium_grain_clock_gating(
 		bool enable)
 {
 	uint32_t data, def;
+	int i;
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
-		/* enable sdma0 clock gating */
-		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL));
-		data &= ~(SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-			  SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK);
-		if (def != data)
-			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), data);
-
-		if (adev->sdma.num_instances > 1) {
-			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_CLK_CTRL));
-			data &= ~(SDMA1_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-				  SDMA1_CLK_CTRL__SOFT_OVERRIDE0_MASK);
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			def = data = RREG32_SDMA(i, mmSDMA0_CLK_CTRL);
+			data &= ~(SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE3_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE2_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK);
 			if (def != data)
-				WREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_CLK_CTRL), data);
+				WREG32_SDMA(i, mmSDMA0_CLK_CTRL, data);
 		}
 	} else {
-		/* disable sdma0 clock gating */
-		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL));
-		data |= (SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-			 SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK);
-
-		if (def != data)
-			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), data);
-
-		if (adev->sdma.num_instances > 1) {
-			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_CLK_CTRL));
-			data |= (SDMA1_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-				 SDMA1_CLK_CTRL__SOFT_OVERRIDE0_MASK);
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			def = data = RREG32_SDMA(i, mmSDMA0_CLK_CTRL);
+			data |= (SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE3_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE2_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
+				 SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK);
 			if (def != data)
-				WREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_CLK_CTRL), data);
+				WREG32_SDMA(i, mmSDMA0_CLK_CTRL, data);
 		}
 	}
 }
@@ -2151,34 +2125,23 @@ static void sdma_v4_0_update_medium_grain_light_sleep(
 		bool enable)
 {
 	uint32_t data, def;
+	int i;
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
-		/* 1-not override: enable sdma0 mem light sleep */
-		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL));
-		data |= SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
-		if (def != data)
-			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), data);
-
-		/* 1-not override: enable sdma1 mem light sleep */
-		if (adev->sdma.num_instances > 1) {
-			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_POWER_CNTL));
-			data |= SDMA1_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			/* 1-not override: enable sdma mem light sleep */
+			def = data = RREG32_SDMA(0, mmSDMA0_POWER_CNTL);
+			data |= SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (def != data)
-				WREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_POWER_CNTL), data);
+				WREG32_SDMA(0, mmSDMA0_POWER_CNTL, data);
 		}
 	} else {
-		/* 0-override:disable sdma0 mem light sleep */
-		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL));
-		data &= ~SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
-		if (def != data)
-			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), data);
-
-		/* 0-override:disable sdma1 mem light sleep */
-		if (adev->sdma.num_instances > 1) {
-			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_POWER_CNTL));
-			data &= ~SDMA1_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+		/* 0-override:disable sdma mem light sleep */
+			def = data = RREG32_SDMA(0, mmSDMA0_POWER_CNTL);
+			data &= ~SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (def != data)
-				WREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_POWER_CNTL), data);
+				WREG32_SDMA(0, mmSDMA0_POWER_CNTL, data);
 		}
 	}
 }
