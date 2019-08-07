@@ -373,16 +373,20 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = dev_priv->overlay ? 1 : 0;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = !!dev_priv->engine[VCS0];
+		value = !!intel_engine_lookup_user(dev_priv,
+						   I915_ENGINE_CLASS_VIDEO, 0);
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = !!dev_priv->engine[BCS0];
+		value = !!intel_engine_lookup_user(dev_priv,
+						   I915_ENGINE_CLASS_COPY, 0);
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = !!dev_priv->engine[VECS0];
+		value = !!intel_engine_lookup_user(dev_priv,
+						   I915_ENGINE_CLASS_VIDEO_ENHANCE, 0);
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = !!dev_priv->engine[VCS1];
+		value = !!intel_engine_lookup_user(dev_priv,
+						   I915_ENGINE_CLASS_VIDEO, 1);
 		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);
