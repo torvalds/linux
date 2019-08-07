@@ -6,6 +6,9 @@ config SND_HDA_CORE
 config SND_HDA_DSP_LOADER
 	bool
 
+config SND_HDA_ALIGNED_MMIO
+	bool
+
 config SND_HDA_COMPONENT
 	bool
 

@@ -26,6 +26,7 @@ config SND_HDA_TEGRA
 	tristate "NVIDIA Tegra HD Audio"
 	depends on ARCH_TEGRA
 	select SND_HDA
+	select SND_HDA_ALIGNED_MMIO
 	help
 	  Say Y here to support the HDA controller present in NVIDIA
 	  Tegra SoCs

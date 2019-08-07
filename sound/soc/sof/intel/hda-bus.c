@@ -21,45 +21,6 @@ static const struct hdac_bus_ops bus_ops = {
 
 #endif
 
-static void sof_hda_writel(u32 value, u32 __iomem *addr)
-{
-	writel(value, addr);
-}
-
-static u32 sof_hda_readl(u32 __iomem *addr)
-{
-	return readl(addr);
-}
-
-static void sof_hda_writew(u16 value, u16 __iomem *addr)
-{
-	writew(value, addr);
-}
-
-static u16 sof_hda_readw(u16 __iomem *addr)
-{
-	return readw(addr);
-}
-
-static void sof_hda_writeb(u8 value, u8 __iomem *addr)
-{
-	writeb(value, addr);
-}
-
-static u8 sof_hda_readb(u8 __iomem *addr)
-{
-	return readb(addr);
-}
-
-static const struct hdac_io_ops io_ops = {
-	.reg_writel = sof_hda_writel,
-	.reg_readl = sof_hda_readl,
-	.reg_writew = sof_hda_writew,
-	.reg_readw = sof_hda_readw,
-	.reg_writeb = sof_hda_writeb,
-	.reg_readb = sof_hda_readb,
-};
-
 /*
  * This can be used for both with/without hda link support.
  */
@@ -69,7 +30,6 @@ void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev,
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
 
-	bus->io_ops = &io_ops;
 	INIT_LIST_HEAD(&bus->stream_list);
 
 	bus->irq = -1;
