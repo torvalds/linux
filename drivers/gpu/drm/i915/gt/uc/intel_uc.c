@@ -283,11 +283,14 @@ static void guc_disable_communication(struct intel_guc *guc)
 void intel_uc_fetch_firmwares(struct intel_uc *uc)
 {
 	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+	int err;
 
 	if (!intel_uc_supports_guc(uc))
 		return;
 
-	intel_uc_fw_fetch(&uc->guc.fw, i915);
+	err = intel_uc_fw_fetch(&uc->guc.fw, i915);
+	if (err)
+		return;
 
 	if (intel_uc_supports_huc(uc))
 		intel_uc_fw_fetch(&uc->huc.fw, i915);

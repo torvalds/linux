@@ -205,13 +205,14 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 
 /**
  * intel_uc_fw_fetch - fetch uC firmware
- *
  * @uc_fw: uC firmware
  * @i915: device private
  *
  * Fetch uC firmware into GEM obj.
+ *
+ * Return: 0 on success, a negative errno code on failure.
  */
-void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
+int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
@@ -322,7 +323,7 @@ void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	uc_fw->status = INTEL_UC_FIRMWARE_AVAILABLE;
 
 	release_firmware(fw);
-	return;
+	return 0;
 
 fail:
 	uc_fw->status = INTEL_UC_FIRMWARE_MISSING;
@@ -333,6 +334,7 @@ fail:
 		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
+	return err;
 }
 
 static u32 uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
