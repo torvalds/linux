@@ -86,10 +86,8 @@ static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
 		return err;
 	}
 
-	if (state != MLX5_SQC_STATE_ERR) {
-		netdev_err(dev, "SQ 0x%x not in ERROR state\n", sq->sqn);
-		return -EINVAL;
-	}
+	if (state != MLX5_SQC_STATE_ERR)
+		return 0;
 
 	mlx5e_tx_disable_queue(sq->txq);
 
