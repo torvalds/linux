@@ -2976,6 +2976,40 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 		pos_cpy.enable = false;
 
+	// Swap axis and mirror horizontally
+	if (param.rotation == ROTATION_ANGLE_90) {
+		uint32_t temp_x = pos_cpy.x;
+		pos_cpy.x = pipe_ctx->plane_res.scl_data.viewport.width -
+				(pos_cpy.y - pipe_ctx->plane_res.scl_data.viewport.x) + pipe_ctx->plane_res.scl_data.viewport.x;
+		pos_cpy.y = temp_x;
+	}
+	// Swap axis and mirror vertically
+	else if (param.rotation == ROTATION_ANGLE_270) {
+		uint32_t temp_y = pos_cpy.y;
+		if (pos_cpy.x >  pipe_ctx->plane_res.scl_data.viewport.height) {
+			pos_cpy.x = pos_cpy.x - pipe_ctx->plane_res.scl_data.viewport.height;
+			pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.x;
+		} else {
+			pos_cpy.y = 2 * pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.x;
+		}
+		pos_cpy.x = temp_y;
+	}
+	// Mirror horizontally and vertically
+	else if (param.rotation == ROTATION_ANGLE_180) {
+		if (pos_cpy.x >= pipe_ctx->plane_res.scl_data.viewport.width + pipe_ctx->plane_res.scl_data.viewport.x) {
+			pos_cpy.x = 2 * pipe_ctx->plane_res.scl_data.viewport.width
+					- pos_cpy.x + 2 * pipe_ctx->plane_res.scl_data.viewport.x;
+		} else {
+			uint32_t temp_x = pos_cpy.x;
+			pos_cpy.x = 2 * pipe_ctx->plane_res.scl_data.viewport.x - pos_cpy.x;
+			if (temp_x >= pipe_ctx->plane_res.scl_data.viewport.x + (int)hubp->curs_attr.width
+					|| pos_cpy.x <= (int)hubp->curs_attr.width + pipe_ctx->plane_state->src_rect.x) {
+				pos_cpy.x = temp_x + pipe_ctx->plane_res.scl_data.viewport.width;
+			}
+		}
+		pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
+	}
+
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);
 }
