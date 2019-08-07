@@ -314,7 +314,7 @@ __create_page_tables:
 	mov	x5, #52
 	cbnz	x6, 1f
 #endif
-	mov	x5, #VA_BITS
+	mov	x5, #VA_BITS_MIN
 1:
 	adr_l	x6, vabits_user
 	str	x5, [x6]
