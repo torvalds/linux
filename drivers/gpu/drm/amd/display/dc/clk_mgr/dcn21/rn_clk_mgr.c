@@ -377,7 +377,7 @@ void rn_get_clk_states(struct clk_mgr *clk_mgr_base, struct clk_states *s)
 
 	rn_dump_clk_registers(&sb, clk_mgr_base, &log_info);
 
-	s->dprefclk_khz = sb.dprefclk;
+	s->dprefclk_khz = sb.dprefclk * 1000;
 }
 
 void rn_enable_pme_wa(struct clk_mgr *clk_mgr_base)
@@ -633,16 +633,15 @@ void rn_clk_mgr_construct(
 			clk_mgr->dentist_vco_freq_khz = 3600000;
 
 		rn_dump_clk_registers(&s, &clk_mgr->base, &log_info);
-		clk_mgr->base.dprefclk_khz = s.dprefclk;
-
-		if (clk_mgr->base.dprefclk_khz != 600000) {
-			clk_mgr->base.dprefclk_khz = 600000;
-			ASSERT(1); //TODO: Renoir follow up.
-		}
+		/* Convert dprefclk units from MHz to KHz */
+		/* Value already divided by 10, some resolution lost */
+		clk_mgr->base.dprefclk_khz = s.dprefclk * 1000;
 
 		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->base.dprefclk_khz == 0)
+		if (clk_mgr->base.dprefclk_khz == 0) {
+			ASSERT(clk_mgr->base.dprefclk_khz == 600000);
 			clk_mgr->base.dprefclk_khz = 600000;
+		}
 	}
 
 	dce_clock_read_ss_info(clk_mgr);
