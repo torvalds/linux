@@ -145,6 +145,35 @@
 	.output_len = sizeof(struct core_reloc_ptr_as_arr),		\
 }
 
+#define INTS_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
+	.u8_field = 1,							\
+	.s8_field = 2,							\
+	.u16_field = 3,							\
+	.s16_field = 4,							\
+	.u32_field = 5,							\
+	.s32_field = 6,							\
+	.u64_field = 7,							\
+	.s64_field = 8,							\
+}
+
+#define INTS_CASE_COMMON(name)						\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_ints.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o"
+
+#define INTS_CASE(name) {						\
+	INTS_CASE_COMMON(name),						\
+	.input = INTS_DATA(core_reloc_##name),				\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = INTS_DATA(core_reloc_ints),				\
+	.output_len = sizeof(struct core_reloc_ints),			\
+}
+
+#define INTS_ERR_CASE(name) {						\
+	INTS_CASE_COMMON(name),						\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -220,6 +249,17 @@ static struct core_reloc_test_case test_cases[] = {
 	/* handling "ptr is an array" semantics */
 	PTR_AS_ARR_CASE(ptr_as_arr),
 	PTR_AS_ARR_CASE(ptr_as_arr___diff_sz),
+
+	/* int signedness/sizing/bitfield handling */
+	INTS_CASE(ints),
+	INTS_CASE(ints___bool),
+	INTS_CASE(ints___reverse_sign),
+
+	INTS_ERR_CASE(ints___err_bitfield),
+	INTS_ERR_CASE(ints___err_wrong_sz_8),
+	INTS_ERR_CASE(ints___err_wrong_sz_16),
+	INTS_ERR_CASE(ints___err_wrong_sz_32),
+	INTS_ERR_CASE(ints___err_wrong_sz_64),
 };
 
 struct data {
