@@ -501,7 +501,7 @@ static void sysc_clkdm_allow_idle(struct sysc *ddata)
 static int sysc_init_resets(struct sysc *ddata)
 {
 	ddata->rsts =
-		devm_reset_control_get_optional(ddata->dev, "rstctrl");
+		devm_reset_control_get_optional_shared(ddata->dev, "rstctrl");
 	if (IS_ERR(ddata->rsts))
 		return PTR_ERR(ddata->rsts);
 
@@ -1527,7 +1527,7 @@ static int sysc_legacy_init(struct sysc *ddata)
  */
 static int sysc_rstctrl_reset_deassert(struct sysc *ddata, bool reset)
 {
-	int error, val;
+	int error;
 
 	if (!ddata->rsts)
 		return 0;
@@ -1538,7 +1538,9 @@ static int sysc_rstctrl_reset_deassert(struct sysc *ddata, bool reset)
 			return error;
 	}
 
-	return reset_control_deassert(ddata->rsts);
+	reset_control_deassert(ddata->rsts);
+
+	return 0;
 }
 
 /*
@@ -2414,6 +2416,10 @@ static int sysc_probe(struct platform_device *pdev)
 		pm_runtime_disable(ddata->dev);
 		goto unprepare;
 	}
+
+	/* Balance reset counts */
+	if (ddata->rsts)
+		reset_control_assert(ddata->rsts);
 
 	sysc_show_registers(ddata);
 
