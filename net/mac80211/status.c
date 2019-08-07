@@ -327,13 +327,13 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 
 	/* IEEE80211_RADIOTAP_RATE */
 
-	if (status && status->rate && !(status->rate->flags &
-					(RATE_INFO_FLAGS_MCS |
-					 RATE_INFO_FLAGS_60G |
-					 RATE_INFO_FLAGS_VHT_MCS |
-					 RATE_INFO_FLAGS_HE_MCS)))
-		legacy_rate = status->rate->legacy;
-	else if (info->status.rates[0].idx >= 0 &&
+	if (status && status->rate) {
+		if (!(status->rate->flags & (RATE_INFO_FLAGS_MCS |
+					     RATE_INFO_FLAGS_60G |
+					     RATE_INFO_FLAGS_VHT_MCS |
+					     RATE_INFO_FLAGS_HE_MCS)))
+			legacy_rate = status->rate->legacy;
+	} else if (info->status.rates[0].idx >= 0 &&
 		 !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
 						  IEEE80211_TX_RC_VHT_MCS)))
 		legacy_rate =
