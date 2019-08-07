@@ -642,7 +642,7 @@ struct rtl8169_private {
 	struct RxDesc *RxDescArray;	/* 256-aligned Rx descriptor ring */
 	dma_addr_t TxPhyAddr;
 	dma_addr_t RxPhyAddr;
-	void *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
+	struct page *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
 	u16 cp_cmd;
 	u16 irq_mask;
@@ -5261,12 +5261,13 @@ static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
 }
 
 static void rtl8169_free_rx_databuff(struct rtl8169_private *tp,
-				     void **data_buff, struct RxDesc *desc)
+				     struct page **data_buff,
+				     struct RxDesc *desc)
 {
-	dma_unmap_single(tp_to_dev(tp), le64_to_cpu(desc->addr),
-			 R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_page(tp_to_dev(tp), le64_to_cpu(desc->addr),
+		       R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
-	kfree(*data_buff);
+	__free_pages(*data_buff, get_order(R8169_RX_BUF_SIZE));
 	*data_buff = NULL;
 	rtl8169_make_unusable_by_asic(desc);
 }
@@ -5281,38 +5282,30 @@ static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 	desc->opts1 = cpu_to_le32(DescOwn | eor | R8169_RX_BUF_SIZE);
 }
 
-static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
-					     struct RxDesc *desc)
+static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
+					  struct RxDesc *desc)
 {
-	void *data;
-	dma_addr_t mapping;
 	struct device *d = tp_to_dev(tp);
 	int node = dev_to_node(d);
+	dma_addr_t mapping;
+	struct page *data;
 
-	data = kmalloc_node(R8169_RX_BUF_SIZE, GFP_KERNEL, node);
+	data = alloc_pages_node(node, GFP_KERNEL, get_order(R8169_RX_BUF_SIZE));
 	if (!data)
 		return NULL;
 
-	/* Memory should be properly aligned, but better check. */
-	if (!IS_ALIGNED((unsigned long)data, 8)) {
-		netdev_err_once(tp->dev, "RX buffer not 8-byte-aligned\n");
-		goto err_out;
-	}
-
-	mapping = dma_map_single(d, data, R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
+	mapping = dma_map_page(d, data, 0, R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(d, mapping))) {
 		if (net_ratelimit())
 			netif_err(tp, drv, tp->dev, "Failed to map RX DMA!\n");
-		goto err_out;
+		__free_pages(data, get_order(R8169_RX_BUF_SIZE));
+		return NULL;
 	}
 
 	desc->addr = cpu_to_le64(mapping);
 	rtl8169_mark_to_asic(desc);
-	return data;
 
-err_out:
-	kfree(data);
-	return NULL;
+	return data;
 }
 
 static void rtl8169_rx_clear(struct rtl8169_private *tp)
@@ -5337,7 +5330,7 @@ static int rtl8169_rx_fill(struct rtl8169_private *tp)
 	unsigned int i;
 
 	for (i = 0; i < NUM_RX_DESC; i++) {
-		void *data;
+		struct page *data;
 
 		data = rtl8169_alloc_rx_data(tp, tp->RxDescArray + i);
 		if (!data) {
@@ -5892,6 +5885,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 
 	for (rx_left = min(budget, NUM_RX_DESC); rx_left > 0; rx_left--, cur_rx++) {
 		unsigned int entry = cur_rx % NUM_RX_DESC;
+		const void *rx_buf = page_address(tp->Rx_databuff[entry]);
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		u32 status;
 
@@ -5946,9 +5940,8 @@ process_pkt:
 				goto release_descriptor;
 			}
 
-			prefetch(tp->Rx_databuff[entry]);
-			skb_copy_to_linear_data(skb, tp->Rx_databuff[entry],
-						pkt_size);
+			prefetch(rx_buf);
+			skb_copy_to_linear_data(skb, rx_buf, pkt_size);
 			skb->tail += pkt_size;
 			skb->len = pkt_size;
 
