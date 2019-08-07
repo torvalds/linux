@@ -171,7 +171,10 @@ static void soc_init_component_debugfs(struct snd_soc_component *component)
 
 static void soc_cleanup_component_debugfs(struct snd_soc_component *component)
 {
+	if (!component->debugfs_root)
+		return;
 	debugfs_remove_recursive(component->debugfs_root);
+	component->debugfs_root = NULL;
 }
 
 static int dai_list_show(struct seq_file *m, void *v)
