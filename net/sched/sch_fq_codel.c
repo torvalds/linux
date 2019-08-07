@@ -285,7 +285,6 @@ static struct sk_buff *fq_codel_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	struct fq_codel_flow *flow;
 	struct list_head *head;
-	u32 prev_drop_count, prev_ecn_mark;
 
 begin:
 	head = &q->new_flows;
@@ -301,9 +300,6 @@ begin:
 		list_move_tail(&flow->flowchain, &q->old_flows);
 		goto begin;
 	}
-
-	prev_drop_count = q->cstats.drop_count;
-	prev_ecn_mark = q->cstats.ecn_mark;
 
 	skb = codel_dequeue(sch, &sch->qstats.backlog, &q->cparams,
 			    &flow->cvars, &q->cstats, qdisc_pkt_len,
