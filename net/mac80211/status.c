@@ -260,9 +260,15 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info,
 	int len = sizeof(struct ieee80211_radiotap_header);
 
 	/* IEEE80211_RADIOTAP_RATE rate */
-	if (info->status.rates[0].idx >= 0 &&
-	    !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
-					     IEEE80211_TX_RC_VHT_MCS)))
+	if (status && status->rate && !(status->rate->flags &
+					(RATE_INFO_FLAGS_MCS |
+					 RATE_INFO_FLAGS_60G |
+					 RATE_INFO_FLAGS_VHT_MCS |
+					 RATE_INFO_FLAGS_HE_MCS)))
+		len += 2;
+	else if (info->status.rates[0].idx >= 0 &&
+		 !(info->status.rates[0].flags &
+		   (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS)))
 		len += 2;
 
 	/* IEEE80211_RADIOTAP_TX_FLAGS */
