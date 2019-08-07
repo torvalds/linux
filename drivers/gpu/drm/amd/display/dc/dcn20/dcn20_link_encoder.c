@@ -341,6 +341,7 @@ static const struct link_encoder_funcs dcn20_link_enc_funcs = {
 	.fec_set_enable = enc2_fec_set_enable,
 	.fec_set_ready = enc2_fec_set_ready,
 	.fec_is_active = enc2_fec_is_active,
+	.get_dig_mode = dcn10_get_dig_mode,
 	.get_dig_frontend = dcn10_get_dig_frontend,
 };
 

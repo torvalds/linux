@@ -515,4 +515,6 @@ unsigned int dcn10_get_dig_frontend(struct link_encoder *enc);
 
 void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
 
+enum signal_type dcn10_get_dig_mode(
+	struct link_encoder *enc);
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */
