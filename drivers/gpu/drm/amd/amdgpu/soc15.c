@@ -1119,7 +1119,10 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_ARCTURUS:
 		adev->asic_funcs = &vega20_asic_funcs;
-		adev->cg_flags = 0;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x32;
 		break;
