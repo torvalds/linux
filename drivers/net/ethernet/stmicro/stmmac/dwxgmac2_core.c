@@ -6,6 +6,7 @@
 
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
+#include <linux/iopoll.h>
 #include "stmmac.h"
 #include "dwxgmac2.h"
 
@@ -439,6 +440,56 @@ static void dwxgmac2_set_mac_loopback(void __iomem *ioaddr, bool enable)
 	writel(value, ioaddr + XGMAC_RX_CONFIG);
 }
 
+static int dwxgmac2_rss_write_reg(void __iomem *ioaddr, bool is_key, int idx,
+				  u32 val)
+{
+	u32 ctrl = 0;
+
+	writel(val, ioaddr + XGMAC_RSS_DATA);
+	ctrl |= idx << XGMAC_RSSIA_SHIFT;
+	ctrl |= is_key ? XGMAC_ADDRT : 0x0;
+	ctrl |= XGMAC_OB;
+	writel(ctrl, ioaddr + XGMAC_RSS_ADDR);
+
+	return readl_poll_timeout(ioaddr + XGMAC_RSS_ADDR, ctrl,
+				  !(ctrl & XGMAC_OB), 100, 10000);
+}
+
+static int dwxgmac2_rss_configure(struct mac_device_info *hw,
+				  struct stmmac_rss *cfg, u32 num_rxq)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 *key = (u32 *)cfg->key;
+	int i, ret;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_RSS_CTRL);
+	if (!cfg->enable) {
+		value &= ~XGMAC_RSSE;
+		writel(value, ioaddr + XGMAC_RSS_CTRL);
+		return 0;
+	}
+
+	for (i = 0; i < (sizeof(cfg->key) / sizeof(u32)); i++) {
+		ret = dwxgmac2_rss_write_reg(ioaddr, true, i, *key++);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cfg->table); i++) {
+		ret = dwxgmac2_rss_write_reg(ioaddr, false, i, cfg->table[i]);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < num_rxq; i++)
+		dwxgmac2_map_mtl_to_dma(hw, i, XGMAC_QDDMACH);
+
+	value |= XGMAC_UDP4TE | XGMAC_TCP4TE | XGMAC_IP2TE | XGMAC_RSSE;
+	writel(value, ioaddr + XGMAC_RSS_CTRL);
+	return 0;
+}
+
 const struct stmmac_ops dwxgmac210_ops = {
 	.core_init = dwxgmac2_core_init,
 	.set_mac = dwxgmac2_set_mac,
@@ -469,6 +520,7 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.debug = NULL,
 	.set_filter = dwxgmac2_set_filter,
 	.set_mac_loopback = dwxgmac2_set_mac_loopback,
+	.rss_configure = dwxgmac2_rss_configure,
 };
 
 int dwxgmac2_setup(struct stmmac_priv *priv)

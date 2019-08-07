@@ -2417,6 +2417,22 @@ static void stmmac_mac_config_rx_queues_routing(struct stmmac_priv *priv)
 	}
 }
 
+static void stmmac_mac_config_rss(struct stmmac_priv *priv)
+{
+	if (!priv->dma_cap.rssen || !priv->plat->rss_en) {
+		priv->rss.enable = false;
+		return;
+	}
+
+	if (priv->dev->features & NETIF_F_RXHASH)
+		priv->rss.enable = true;
+	else
+		priv->rss.enable = false;
+
+	stmmac_rss_configure(priv, priv->hw, &priv->rss,
+			     priv->plat->rx_queues_to_use);
+}
+
 /**
  *  stmmac_mtl_configuration - Configure MTL
  *  @priv: driver private structure
@@ -2461,6 +2477,10 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	/* Set RX routing */
 	if (rx_queues_count > 1)
 		stmmac_mac_config_rx_queues_routing(priv);
+
+	/* Receive Side Scaling */
+	if (rx_queues_count > 1)
+		stmmac_mac_config_rss(priv);
 }
 
 static void stmmac_safety_feat_configuration(struct stmmac_priv *priv)
@@ -3385,9 +3405,11 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			priv->dev->stats.rx_errors++;
 			buf->page = NULL;
 		} else {
+			enum pkt_hash_types hash_type;
 			struct sk_buff *skb;
-			int frame_len;
 			unsigned int des;
+			int frame_len;
+			u32 hash;
 
 			stmmac_get_desc_addr(priv, p, &des);
 			frame_len = stmmac_get_rx_frame_len(priv, p, coe);
@@ -3452,6 +3474,10 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			else
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+			if (!stmmac_get_rx_hash(priv, p, &hash, &hash_type))
+				skb_set_hash(skb, hash, hash_type);
+
+			skb_record_rx_queue(skb, queue);
 			napi_gro_receive(&ch->rx_napi, skb);
 
 			/* Data payload copied into SKB, page ready for recycle */
@@ -4175,8 +4201,8 @@ int stmmac_dvr_probe(struct device *device,
 {
 	struct net_device *ndev = NULL;
 	struct stmmac_priv *priv;
-	u32 queue, maxq;
-	int ret = 0;
+	u32 queue, rxq, maxq;
+	int i, ret = 0;
 
 	ndev = devm_alloc_etherdev_mqs(device, sizeof(struct stmmac_priv),
 				       MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES);
@@ -4283,6 +4309,15 @@ int stmmac_dvr_probe(struct device *device,
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
+
+	/* Initialize RSS */
+	rxq = priv->plat->rx_queues_to_use;
+	netdev_rss_key_fill(priv->rss.key, sizeof(priv->rss.key));
+	for (i = 0; i < ARRAY_SIZE(priv->rss.table); i++)
+		priv->rss.table[i] = ethtool_rxfh_indir_default(i, rxq);
+
+	if (priv->dma_cap.rssen && priv->plat->rss_en)
+		ndev->features |= NETIF_F_RXHASH;
 
 	/* MTU range: 46 - hw-specific max */
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;

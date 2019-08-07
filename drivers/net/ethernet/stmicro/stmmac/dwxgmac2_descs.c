@@ -254,6 +254,34 @@ static void dwxgmac2_clear(struct dma_desc *p)
 	p->des3 = 0;
 }
 
+static int dwxgmac2_get_rx_hash(struct dma_desc *p, u32 *hash,
+				enum pkt_hash_types *type)
+{
+	unsigned int rdes3 = le32_to_cpu(p->des3);
+	u32 ptype;
+
+	if (rdes3 & XGMAC_RDES3_RSV) {
+		ptype = (rdes3 & XGMAC_RDES3_L34T) >> XGMAC_RDES3_L34T_SHIFT;
+
+		switch (ptype) {
+		case XGMAC_L34T_IP4TCP:
+		case XGMAC_L34T_IP4UDP:
+		case XGMAC_L34T_IP6TCP:
+		case XGMAC_L34T_IP6UDP:
+			*type = PKT_HASH_TYPE_L4;
+			break;
+		default:
+			*type = PKT_HASH_TYPE_L3;
+			break;
+		}
+
+		*hash = le32_to_cpu(p->des1);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 const struct stmmac_desc_ops dwxgmac210_desc_ops = {
 	.tx_status = dwxgmac2_get_tx_status,
 	.rx_status = dwxgmac2_get_rx_status,
@@ -277,4 +305,5 @@ const struct stmmac_desc_ops dwxgmac210_desc_ops = {
 	.get_addr = dwxgmac2_get_addr,
 	.set_addr = dwxgmac2_set_addr,
 	.clear = dwxgmac2_clear,
+	.get_rx_hash = dwxgmac2_get_rx_hash,
 };

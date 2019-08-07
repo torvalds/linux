@@ -113,6 +113,12 @@ struct stmmac_pps_cfg {
 	struct timespec64 period;
 };
 
+struct stmmac_rss {
+	int enable;
+	u8 key[STMMAC_RSS_HASH_KEY_SIZE];
+	u32 table[STMMAC_RSS_MAX_TABLE_SIZE];
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_coal_frames;
@@ -203,6 +209,9 @@ struct stmmac_priv {
 
 	/* Pulse Per Second output */
 	struct stmmac_pps_cfg pps[STMMAC_PPS_MAX];
+
+	/* Receive Side Scaling */
+	struct stmmac_rss rss;
 };
 
 enum stmmac_state {
