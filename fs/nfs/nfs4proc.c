@@ -2179,6 +2179,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 		case -ENOENT:
 		case -EAGAIN:
 		case -ESTALE:
+		case -ETIMEDOUT:
 			break;
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
@@ -2499,6 +2500,7 @@ static int nfs4_run_open_task(struct nfs4_opendata *data,
 	if (!ctx) {
 		nfs4_init_sequence(&o_arg->seq_args, &o_res->seq_res, 1, 1);
 		data->is_recover = true;
+		task_setup_data.flags |= RPC_TASK_TIMEOUT;
 	} else {
 		nfs4_init_sequence(&o_arg->seq_args, &o_res->seq_res, 1, 0);
 		pnfs_lgopen_prepare(data, ctx);
