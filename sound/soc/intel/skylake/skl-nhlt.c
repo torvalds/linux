@@ -126,7 +126,7 @@ static bool skl_check_ep_match(struct device *dev, struct nhlt_endpoint *epnt,
 }
 
 struct nhlt_specific_cfg
-*skl_get_ep_blob(struct skl *skl, u32 instance, u8 link_type,
+*skl_get_ep_blob(struct skl_dev *skl, u32 instance, u8 link_type,
 			u8 s_fmt, u8 num_ch, u32 s_rate,
 			u8 dirn, u8 dev_type)
 {
@@ -162,7 +162,7 @@ struct nhlt_specific_cfg
 	return NULL;
 }
 
-int skl_get_dmic_geo(struct skl *skl)
+int skl_get_dmic_geo(struct skl_dev *skl)
 {
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
 	struct nhlt_endpoint *epnt;
@@ -219,7 +219,7 @@ static void skl_nhlt_trim_space(char *trim)
 	s[cnt] = '\0';
 }
 
-int skl_nhlt_update_topology_bin(struct skl *skl)
+int skl_nhlt_update_topology_bin(struct skl_dev *skl)
 {
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
 	struct hdac_bus *bus = skl_to_bus(skl);
@@ -243,7 +243,7 @@ static ssize_t skl_nhlt_platform_id_show(struct device *dev,
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_bus *bus = pci_get_drvdata(pci);
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
 	char platform_id[32];
 
@@ -257,7 +257,7 @@ static ssize_t skl_nhlt_platform_id_show(struct device *dev,
 
 static DEVICE_ATTR(platform_id, 0444, skl_nhlt_platform_id_show, NULL);
 
-int skl_nhlt_create_sysfs(struct skl *skl)
+int skl_nhlt_create_sysfs(struct skl_dev *skl)
 {
 	struct device *dev = &skl->pci->dev;
 
@@ -267,7 +267,7 @@ int skl_nhlt_create_sysfs(struct skl *skl)
 	return 0;
 }
 
-void skl_nhlt_remove_sysfs(struct skl *skl)
+void skl_nhlt_remove_sysfs(struct skl_dev *skl)
 {
 	struct device *dev = &skl->pci->dev;
 
@@ -279,7 +279,7 @@ void skl_nhlt_remove_sysfs(struct skl *skl)
  * stores all possible rates supported in a rate table for the corresponding
  * sclk/sclkfs.
  */
-static void skl_get_ssp_clks(struct skl *skl, struct skl_ssp_clk *ssp_clks,
+static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 				struct nhlt_fmt *fmt, u8 id)
 {
 	struct skl_i2s_config_blob_ext *i2s_config_ext;
@@ -377,7 +377,7 @@ static void skl_get_ssp_clks(struct skl *skl, struct skl_ssp_clk *ssp_clks,
 	}
 }
 
-static void skl_get_mclk(struct skl *skl, struct skl_ssp_clk *mclk,
+static void skl_get_mclk(struct skl_dev *skl, struct skl_ssp_clk *mclk,
 				struct nhlt_fmt *fmt, u8 id)
 {
 	struct skl_i2s_config_blob_ext *i2s_config_ext;
@@ -421,7 +421,7 @@ static void skl_get_mclk(struct skl *skl, struct skl_ssp_clk *mclk,
 	mclk[id].parent_name = parent->name;
 }
 
-void skl_get_clks(struct skl *skl, struct skl_ssp_clk *ssp_clks)
+void skl_get_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks)
 {
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
 	struct nhlt_endpoint *epnt;

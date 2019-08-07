@@ -101,7 +101,7 @@ static void skl_fill_clk_ipc(struct skl_clk_rate_cfg_table *rcfg, u8 clk_type)
 }
 
 /* Sends dma control IPC to turn the clock ON/OFF */
-static int skl_send_clk_dma_control(struct skl *skl,
+static int skl_send_clk_dma_control(struct skl_dev *skl,
 				struct skl_clk_rate_cfg_table *rcfg,
 				u32 vbus_id, u8 clk_type,
 				bool enable)
@@ -152,7 +152,7 @@ static int skl_send_clk_dma_control(struct skl *skl,
 	memcpy(i2s_config + sp_cfg->size, data, size);
 
 	node_id = ((SKL_DMA_I2S_LINK_INPUT_CLASS << 8) | (vbus_id << 4));
-	ret = skl_dsp_set_dma_control(skl->skl_sst, (u32 *)i2s_config,
+	ret = skl_dsp_set_dma_control(skl, (u32 *)i2s_config,
 					i2s_config_size, node_id);
 	kfree(i2s_config);
 
