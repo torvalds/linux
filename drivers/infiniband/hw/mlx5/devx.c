@@ -2026,7 +2026,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 			event_sub->eventfd =
 				eventfd_ctx_fdget(redirect_fd);
 
-			if (IS_ERR(event_sub)) {
+			if (IS_ERR(event_sub->eventfd)) {
 				err = PTR_ERR(event_sub->eventfd);
 				event_sub->eventfd = NULL;
 				goto err;
