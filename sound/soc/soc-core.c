@@ -274,7 +274,6 @@ static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
 			      struct snd_soc_component *component)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_rtdcom_list *new_rtdcom;
 
 	for_each_rtdcom(rtd, rtdcom) {
 		/* already connected */
@@ -282,14 +281,14 @@ static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
 			return 0;
 	}
 
-	new_rtdcom = kmalloc(sizeof(*new_rtdcom), GFP_KERNEL);
-	if (!new_rtdcom)
+	rtdcom = kmalloc(sizeof(*rtdcom), GFP_KERNEL);
+	if (!rtdcom)
 		return -ENOMEM;
 
-	new_rtdcom->component = component;
-	INIT_LIST_HEAD(&new_rtdcom->list);
+	rtdcom->component = component;
+	INIT_LIST_HEAD(&rtdcom->list);
 
-	list_add_tail(&new_rtdcom->list, &rtd->component_list);
+	list_add_tail(&rtdcom->list, &rtd->component_list);
 
 	return 0;
 }
