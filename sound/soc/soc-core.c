@@ -1304,10 +1304,12 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	if (component->driver->controls)
-		snd_soc_add_component_controls(component,
-					       component->driver->controls,
-					       component->driver->num_controls);
+	ret = snd_soc_add_component_controls(component,
+					     component->driver->controls,
+					     component->driver->num_controls);
+	if (ret < 0)
+		goto err_probe;
+
 	if (component->driver->dapm_routes)
 		snd_soc_dapm_add_routes(dapm,
 					component->driver->dapm_routes,
