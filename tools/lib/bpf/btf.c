@@ -19,13 +19,6 @@
 #define BTF_MAX_NR_TYPES 0x7fffffff
 #define BTF_MAX_STR_OFFSET 0x7fffffff
 
-#define IS_MODIFIER(k) (((k) == BTF_KIND_TYPEDEF) || \
-		((k) == BTF_KIND_VOLATILE) || \
-		((k) == BTF_KIND_CONST) || \
-		((k) == BTF_KIND_RESTRICT))
-
-#define IS_VAR(k) ((k) == BTF_KIND_VAR)
-
 static struct btf_type btf_void;
 
 struct btf {
@@ -192,9 +185,9 @@ static int btf_parse_str_sec(struct btf *btf)
 static int btf_type_size(struct btf_type *t)
 {
 	int base_size = sizeof(struct btf_type);
-	__u16 vlen = BTF_INFO_VLEN(t->info);
+	__u16 vlen = btf_vlen(t);
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_FWD:
 	case BTF_KIND_CONST:
 	case BTF_KIND_VOLATILE:
@@ -219,7 +212,7 @@ static int btf_type_size(struct btf_type *t)
 	case BTF_KIND_DATASEC:
 		return base_size + vlen * sizeof(struct btf_var_secinfo);
 	default:
-		pr_debug("Unsupported BTF_KIND:%u\n", BTF_INFO_KIND(t->info));
+		pr_debug("Unsupported BTF_KIND:%u\n", btf_kind(t));
 		return -EINVAL;
 	}
 }
@@ -263,7 +256,7 @@ const struct btf_type *btf__type_by_id(const struct btf *btf, __u32 type_id)
 
 static bool btf_type_is_void(const struct btf_type *t)
 {
-	return t == &btf_void || BTF_INFO_KIND(t->info) == BTF_KIND_FWD;
+	return t == &btf_void || btf_is_fwd(t);
 }
 
 static bool btf_type_is_void_or_null(const struct btf_type *t)
@@ -284,7 +277,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 	t = btf__type_by_id(btf, type_id);
 	for (i = 0; i < MAX_RESOLVE_DEPTH && !btf_type_is_void_or_null(t);
 	     i++) {
-		switch (BTF_INFO_KIND(t->info)) {
+		switch (btf_kind(t)) {
 		case BTF_KIND_INT:
 		case BTF_KIND_STRUCT:
 		case BTF_KIND_UNION:
@@ -303,7 +296,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 			type_id = t->type;
 			break;
 		case BTF_KIND_ARRAY:
-			array = (const struct btf_array *)(t + 1);
+			array = btf_array(t);
 			if (nelems && array->nelems > UINT32_MAX / nelems)
 				return -E2BIG;
 			nelems *= array->nelems;
@@ -334,8 +327,7 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id)
 	t = btf__type_by_id(btf, type_id);
 	while (depth < MAX_RESOLVE_DEPTH &&
 	       !btf_type_is_void_or_null(t) &&
-	       (IS_MODIFIER(BTF_INFO_KIND(t->info)) ||
-		IS_VAR(BTF_INFO_KIND(t->info)))) {
+	       (btf_is_mod(t) || btf_is_typedef(t) || btf_is_var(t))) {
 		type_id = t->type;
 		t = btf__type_by_id(btf, type_id);
 		depth++;
@@ -554,11 +546,11 @@ static int compare_vsi_off(const void *_a, const void *_b)
 static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 			     struct btf_type *t)
 {
-	__u32 size = 0, off = 0, i, vars = BTF_INFO_VLEN(t->info);
+	__u32 size = 0, off = 0, i, vars = btf_vlen(t);
 	const char *name = btf__name_by_offset(btf, t->name_off);
 	const struct btf_type *t_var;
 	struct btf_var_secinfo *vsi;
-	struct btf_var *var;
+	const struct btf_var *var;
 	int ret;
 
 	if (!name) {
@@ -574,12 +566,11 @@ static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 
 	t->size = size;
 
-	for (i = 0, vsi = (struct btf_var_secinfo *)(t + 1);
-	     i < vars; i++, vsi++) {
+	for (i = 0, vsi = btf_var_secinfos(t); i < vars; i++, vsi++) {
 		t_var = btf__type_by_id(btf, vsi->type);
-		var = (struct btf_var *)(t_var + 1);
+		var = btf_var(t_var);
 
-		if (BTF_INFO_KIND(t_var->info) != BTF_KIND_VAR) {
+		if (!btf_is_var(t_var)) {
 			pr_debug("Non-VAR type seen in section %s\n", name);
 			return -EINVAL;
 		}
@@ -595,7 +586,8 @@ static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 
 		ret = bpf_object__variable_offset(obj, name, &off);
 		if (ret) {
-			pr_debug("No offset found in symbol table for VAR %s\n", name);
+			pr_debug("No offset found in symbol table for VAR %s\n",
+				 name);
 			return -ENOENT;
 		}
 
@@ -619,7 +611,7 @@ int btf__finalize_data(struct bpf_object *obj, struct btf *btf)
 		 * is section size and global variable offset. We use
 		 * the info from the ELF itself for this purpose.
 		 */
-		if (BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC) {
+		if (btf_is_datasec(t)) {
 			err = btf_fixup_datasec(obj, btf, t);
 			if (err)
 				break;
@@ -774,14 +766,13 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 		return -EINVAL;
 	}
 
-	if (BTF_INFO_KIND(container_type->info) != BTF_KIND_STRUCT ||
-	    BTF_INFO_VLEN(container_type->info) < 2) {
+	if (!btf_is_struct(container_type) || btf_vlen(container_type) < 2) {
 		pr_warning("map:%s container_name:%s is an invalid container struct\n",
 			   map_name, container_name);
 		return -EINVAL;
 	}
 
-	key = (struct btf_member *)(container_type + 1);
+	key = btf_members(container_type);
 	value = key + 1;
 
 	key_size = btf__resolve_size(btf, key->type);
@@ -1440,10 +1431,9 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 	d->map[0] = 0;
 	for (i = 1; i <= btf->nr_types; i++) {
 		struct btf_type *t = d->btf->types[i];
-		__u16 kind = BTF_INFO_KIND(t->info);
 
 		/* VAR and DATASEC are never deduped and are self-canonical */
-		if (kind == BTF_KIND_VAR || kind == BTF_KIND_DATASEC)
+		if (btf_is_var(t) || btf_is_datasec(t))
 			d->map[i] = i;
 		else
 			d->map[i] = BTF_UNPROCESSED_ID;
@@ -1484,11 +1474,11 @@ static int btf_for_each_str_off(struct btf_dedup *d, str_off_fn_t fn, void *ctx)
 		if (r)
 			return r;
 
-		switch (BTF_INFO_KIND(t->info)) {
+		switch (btf_kind(t)) {
 		case BTF_KIND_STRUCT:
 		case BTF_KIND_UNION: {
-			struct btf_member *m = (struct btf_member *)(t + 1);
-			__u16 vlen = BTF_INFO_VLEN(t->info);
+			struct btf_member *m = btf_members(t);
+			__u16 vlen = btf_vlen(t);
 
 			for (j = 0; j < vlen; j++) {
 				r = fn(&m->name_off, ctx);
@@ -1499,8 +1489,8 @@ static int btf_for_each_str_off(struct btf_dedup *d, str_off_fn_t fn, void *ctx)
 			break;
 		}
 		case BTF_KIND_ENUM: {
-			struct btf_enum *m = (struct btf_enum *)(t + 1);
-			__u16 vlen = BTF_INFO_VLEN(t->info);
+			struct btf_enum *m = btf_enum(t);
+			__u16 vlen = btf_vlen(t);
 
 			for (j = 0; j < vlen; j++) {
 				r = fn(&m->name_off, ctx);
@@ -1511,8 +1501,8 @@ static int btf_for_each_str_off(struct btf_dedup *d, str_off_fn_t fn, void *ctx)
 			break;
 		}
 		case BTF_KIND_FUNC_PROTO: {
-			struct btf_param *m = (struct btf_param *)(t + 1);
-			__u16 vlen = BTF_INFO_VLEN(t->info);
+			struct btf_param *m = btf_params(t);
+			__u16 vlen = btf_vlen(t);
 
 			for (j = 0; j < vlen; j++) {
 				r = fn(&m->name_off, ctx);
@@ -1801,16 +1791,16 @@ static long btf_hash_enum(struct btf_type *t)
 /* Check structural equality of two ENUMs. */
 static bool btf_equal_enum(struct btf_type *t1, struct btf_type *t2)
 {
-	struct btf_enum *m1, *m2;
+	const struct btf_enum *m1, *m2;
 	__u16 vlen;
 	int i;
 
 	if (!btf_equal_common(t1, t2))
 		return false;
 
-	vlen = BTF_INFO_VLEN(t1->info);
-	m1 = (struct btf_enum *)(t1 + 1);
-	m2 = (struct btf_enum *)(t2 + 1);
+	vlen = btf_vlen(t1);
+	m1 = btf_enum(t1);
+	m2 = btf_enum(t2);
 	for (i = 0; i < vlen; i++) {
 		if (m1->name_off != m2->name_off || m1->val != m2->val)
 			return false;
@@ -1822,8 +1812,7 @@ static bool btf_equal_enum(struct btf_type *t1, struct btf_type *t2)
 
 static inline bool btf_is_enum_fwd(struct btf_type *t)
 {
-	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM &&
-	       BTF_INFO_VLEN(t->info) == 0;
+	return btf_is_enum(t) && btf_vlen(t) == 0;
 }
 
 static bool btf_compat_enum(struct btf_type *t1, struct btf_type *t2)
@@ -1843,8 +1832,8 @@ static bool btf_compat_enum(struct btf_type *t1, struct btf_type *t2)
  */
 static long btf_hash_struct(struct btf_type *t)
 {
-	struct btf_member *member = (struct btf_member *)(t + 1);
-	__u32 vlen = BTF_INFO_VLEN(t->info);
+	const struct btf_member *member = btf_members(t);
+	__u32 vlen = btf_vlen(t);
 	long h = btf_hash_common(t);
 	int i;
 
@@ -1864,16 +1853,16 @@ static long btf_hash_struct(struct btf_type *t)
  */
 static bool btf_shallow_equal_struct(struct btf_type *t1, struct btf_type *t2)
 {
-	struct btf_member *m1, *m2;
+	const struct btf_member *m1, *m2;
 	__u16 vlen;
 	int i;
 
 	if (!btf_equal_common(t1, t2))
 		return false;
 
-	vlen = BTF_INFO_VLEN(t1->info);
-	m1 = (struct btf_member *)(t1 + 1);
-	m2 = (struct btf_member *)(t2 + 1);
+	vlen = btf_vlen(t1);
+	m1 = btf_members(t1);
+	m2 = btf_members(t2);
 	for (i = 0; i < vlen; i++) {
 		if (m1->name_off != m2->name_off || m1->offset != m2->offset)
 			return false;
@@ -1890,7 +1879,7 @@ static bool btf_shallow_equal_struct(struct btf_type *t1, struct btf_type *t2)
  */
 static long btf_hash_array(struct btf_type *t)
 {
-	struct btf_array *info = (struct btf_array *)(t + 1);
+	const struct btf_array *info = btf_array(t);
 	long h = btf_hash_common(t);
 
 	h = hash_combine(h, info->type);
@@ -1908,13 +1897,13 @@ static long btf_hash_array(struct btf_type *t)
  */
 static bool btf_equal_array(struct btf_type *t1, struct btf_type *t2)
 {
-	struct btf_array *info1, *info2;
+	const struct btf_array *info1, *info2;
 
 	if (!btf_equal_common(t1, t2))
 		return false;
 
-	info1 = (struct btf_array *)(t1 + 1);
-	info2 = (struct btf_array *)(t2 + 1);
+	info1 = btf_array(t1);
+	info2 = btf_array(t2);
 	return info1->type == info2->type &&
 	       info1->index_type == info2->index_type &&
 	       info1->nelems == info2->nelems;
@@ -1927,14 +1916,10 @@ static bool btf_equal_array(struct btf_type *t1, struct btf_type *t2)
  */
 static bool btf_compat_array(struct btf_type *t1, struct btf_type *t2)
 {
-	struct btf_array *info1, *info2;
-
 	if (!btf_equal_common(t1, t2))
 		return false;
 
-	info1 = (struct btf_array *)(t1 + 1);
-	info2 = (struct btf_array *)(t2 + 1);
-	return info1->nelems == info2->nelems;
+	return btf_array(t1)->nelems == btf_array(t2)->nelems;
 }
 
 /*
@@ -1944,8 +1929,8 @@ static bool btf_compat_array(struct btf_type *t1, struct btf_type *t2)
  */
 static long btf_hash_fnproto(struct btf_type *t)
 {
-	struct btf_param *member = (struct btf_param *)(t + 1);
-	__u16 vlen = BTF_INFO_VLEN(t->info);
+	const struct btf_param *member = btf_params(t);
+	__u16 vlen = btf_vlen(t);
 	long h = btf_hash_common(t);
 	int i;
 
@@ -1966,16 +1951,16 @@ static long btf_hash_fnproto(struct btf_type *t)
  */
 static bool btf_equal_fnproto(struct btf_type *t1, struct btf_type *t2)
 {
-	struct btf_param *m1, *m2;
+	const struct btf_param *m1, *m2;
 	__u16 vlen;
 	int i;
 
 	if (!btf_equal_common(t1, t2))
 		return false;
 
-	vlen = BTF_INFO_VLEN(t1->info);
-	m1 = (struct btf_param *)(t1 + 1);
-	m2 = (struct btf_param *)(t2 + 1);
+	vlen = btf_vlen(t1);
+	m1 = btf_params(t1);
+	m2 = btf_params(t2);
 	for (i = 0; i < vlen; i++) {
 		if (m1->name_off != m2->name_off || m1->type != m2->type)
 			return false;
@@ -1992,7 +1977,7 @@ static bool btf_equal_fnproto(struct btf_type *t1, struct btf_type *t2)
  */
 static bool btf_compat_fnproto(struct btf_type *t1, struct btf_type *t2)
 {
-	struct btf_param *m1, *m2;
+	const struct btf_param *m1, *m2;
 	__u16 vlen;
 	int i;
 
@@ -2000,9 +1985,9 @@ static bool btf_compat_fnproto(struct btf_type *t1, struct btf_type *t2)
 	if (t1->name_off != t2->name_off || t1->info != t2->info)
 		return false;
 
-	vlen = BTF_INFO_VLEN(t1->info);
-	m1 = (struct btf_param *)(t1 + 1);
-	m2 = (struct btf_param *)(t2 + 1);
+	vlen = btf_vlen(t1);
+	m1 = btf_params(t1);
+	m2 = btf_params(t2);
 	for (i = 0; i < vlen; i++) {
 		if (m1->name_off != m2->name_off)
 			return false;
@@ -2028,7 +2013,7 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 	__u32 cand_id;
 	long h;
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_CONST:
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_RESTRICT:
@@ -2141,13 +2126,13 @@ static uint32_t resolve_fwd_id(struct btf_dedup *d, uint32_t type_id)
 {
 	__u32 orig_type_id = type_id;
 
-	if (BTF_INFO_KIND(d->btf->types[type_id]->info) != BTF_KIND_FWD)
+	if (!btf_is_fwd(d->btf->types[type_id]))
 		return type_id;
 
 	while (is_type_mapped(d, type_id) && d->map[type_id] != type_id)
 		type_id = d->map[type_id];
 
-	if (BTF_INFO_KIND(d->btf->types[type_id]->info) != BTF_KIND_FWD)
+	if (!btf_is_fwd(d->btf->types[type_id]))
 		return type_id;
 
 	return orig_type_id;
@@ -2156,7 +2141,7 @@ static uint32_t resolve_fwd_id(struct btf_dedup *d, uint32_t type_id)
 
 static inline __u16 btf_fwd_kind(struct btf_type *t)
 {
-	return BTF_INFO_KFLAG(t->info) ? BTF_KIND_UNION : BTF_KIND_STRUCT;
+	return btf_kflag(t) ? BTF_KIND_UNION : BTF_KIND_STRUCT;
 }
 
 /*
@@ -2277,8 +2262,8 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 
 	cand_type = d->btf->types[cand_id];
 	canon_type = d->btf->types[canon_id];
-	cand_kind = BTF_INFO_KIND(cand_type->info);
-	canon_kind = BTF_INFO_KIND(canon_type->info);
+	cand_kind = btf_kind(cand_type);
+	canon_kind = btf_kind(canon_type);
 
 	if (cand_type->name_off != canon_type->name_off)
 		return 0;
@@ -2327,12 +2312,12 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		return btf_dedup_is_equiv(d, cand_type->type, canon_type->type);
 
 	case BTF_KIND_ARRAY: {
-		struct btf_array *cand_arr, *canon_arr;
+		const struct btf_array *cand_arr, *canon_arr;
 
 		if (!btf_compat_array(cand_type, canon_type))
 			return 0;
-		cand_arr = (struct btf_array *)(cand_type + 1);
-		canon_arr = (struct btf_array *)(canon_type + 1);
+		cand_arr = btf_array(cand_type);
+		canon_arr = btf_array(canon_type);
 		eq = btf_dedup_is_equiv(d,
 			cand_arr->index_type, canon_arr->index_type);
 		if (eq <= 0)
@@ -2342,14 +2327,14 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
-		struct btf_member *cand_m, *canon_m;
+		const struct btf_member *cand_m, *canon_m;
 		__u16 vlen;
 
 		if (!btf_shallow_equal_struct(cand_type, canon_type))
 			return 0;
-		vlen = BTF_INFO_VLEN(cand_type->info);
-		cand_m = (struct btf_member *)(cand_type + 1);
-		canon_m = (struct btf_member *)(canon_type + 1);
+		vlen = btf_vlen(cand_type);
+		cand_m = btf_members(cand_type);
+		canon_m = btf_members(canon_type);
 		for (i = 0; i < vlen; i++) {
 			eq = btf_dedup_is_equiv(d, cand_m->type, canon_m->type);
 			if (eq <= 0)
@@ -2362,7 +2347,7 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 	}
 
 	case BTF_KIND_FUNC_PROTO: {
-		struct btf_param *cand_p, *canon_p;
+		const struct btf_param *cand_p, *canon_p;
 		__u16 vlen;
 
 		if (!btf_compat_fnproto(cand_type, canon_type))
@@ -2370,9 +2355,9 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		eq = btf_dedup_is_equiv(d, cand_type->type, canon_type->type);
 		if (eq <= 0)
 			return eq;
-		vlen = BTF_INFO_VLEN(cand_type->info);
-		cand_p = (struct btf_param *)(cand_type + 1);
-		canon_p = (struct btf_param *)(canon_type + 1);
+		vlen = btf_vlen(cand_type);
+		cand_p = btf_params(cand_type);
+		canon_p = btf_params(canon_type);
 		for (i = 0; i < vlen; i++) {
 			eq = btf_dedup_is_equiv(d, cand_p->type, canon_p->type);
 			if (eq <= 0)
@@ -2427,8 +2412,8 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 		targ_type_id = d->hypot_map[cand_type_id];
 		t_id = resolve_type_id(d, targ_type_id);
 		c_id = resolve_type_id(d, cand_type_id);
-		t_kind = BTF_INFO_KIND(d->btf->types[t_id]->info);
-		c_kind = BTF_INFO_KIND(d->btf->types[c_id]->info);
+		t_kind = btf_kind(d->btf->types[t_id]);
+		c_kind = btf_kind(d->btf->types[c_id]);
 		/*
 		 * Resolve FWD into STRUCT/UNION.
 		 * It's ok to resolve FWD into STRUCT/UNION that's not yet
@@ -2497,7 +2482,7 @@ static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 		return 0;
 
 	t = d->btf->types[type_id];
-	kind = BTF_INFO_KIND(t->info);
+	kind = btf_kind(t);
 
 	if (kind != BTF_KIND_STRUCT && kind != BTF_KIND_UNION)
 		return 0;
@@ -2592,7 +2577,7 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 	t = d->btf->types[type_id];
 	d->map[type_id] = BTF_IN_PROGRESS_ID;
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_CONST:
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_RESTRICT:
@@ -2616,7 +2601,7 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 		break;
 
 	case BTF_KIND_ARRAY: {
-		struct btf_array *info = (struct btf_array *)(t + 1);
+		struct btf_array *info = btf_array(t);
 
 		ref_type_id = btf_dedup_ref_type(d, info->type);
 		if (ref_type_id < 0)
@@ -2650,8 +2635,8 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 			return ref_type_id;
 		t->type = ref_type_id;
 
-		vlen = BTF_INFO_VLEN(t->info);
-		param = (struct btf_param *)(t + 1);
+		vlen = btf_vlen(t);
+		param = btf_params(t);
 		for (i = 0; i < vlen; i++) {
 			ref_type_id = btf_dedup_ref_type(d, param->type);
 			if (ref_type_id < 0)
@@ -2791,7 +2776,7 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 	struct btf_type *t = d->btf->types[type_id];
 	int i, r;
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_INT:
 	case BTF_KIND_ENUM:
 		break;
@@ -2811,7 +2796,7 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 		break;
 
 	case BTF_KIND_ARRAY: {
-		struct btf_array *arr_info = (struct btf_array *)(t + 1);
+		struct btf_array *arr_info = btf_array(t);
 
 		r = btf_dedup_remap_type_id(d, arr_info->type);
 		if (r < 0)
@@ -2826,8 +2811,8 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
-		struct btf_member *member = (struct btf_member *)(t + 1);
-		__u16 vlen = BTF_INFO_VLEN(t->info);
+		struct btf_member *member = btf_members(t);
+		__u16 vlen = btf_vlen(t);
 
 		for (i = 0; i < vlen; i++) {
 			r = btf_dedup_remap_type_id(d, member->type);
@@ -2840,8 +2825,8 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 	}
 
 	case BTF_KIND_FUNC_PROTO: {
-		struct btf_param *param = (struct btf_param *)(t + 1);
-		__u16 vlen = BTF_INFO_VLEN(t->info);
+		struct btf_param *param = btf_params(t);
+		__u16 vlen = btf_vlen(t);
 
 		r = btf_dedup_remap_type_id(d, t->type);
 		if (r < 0)
@@ -2859,8 +2844,8 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 	}
 
 	case BTF_KIND_DATASEC: {
-		struct btf_var_secinfo *var = (struct btf_var_secinfo *)(t + 1);
-		__u16 vlen = BTF_INFO_VLEN(t->info);
+		struct btf_var_secinfo *var = btf_var_secinfos(t);
+		__u16 vlen = btf_vlen(t);
 
 		for (i = 0; i < vlen; i++) {
 			r = btf_dedup_remap_type_id(d, var->type);
