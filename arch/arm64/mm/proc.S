@@ -439,7 +439,7 @@ ENTRY(__cpu_setup)
 	tcr_clear_errata_bits x10, x9, x5
 
 #ifdef CONFIG_ARM64_VA_BITS_52
-	ldr_l		x9, vabits_user
+	ldr_l		x9, vabits_actual
 	sub		x9, xzr, x9
 	add		x9, x9, #64
 	tcr_set_t1sz	x10, x9
