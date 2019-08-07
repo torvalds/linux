@@ -273,14 +273,10 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
  */
 uint64_t amdgpu_mm_rreg64(struct amdgpu_device *adev, uint32_t reg)
 {
-	uint64_t ret;
-
 	if ((reg * 4) < adev->rmmio_size)
-		ret = readq(((void __iomem *)adev->rmmio) + (reg * 4));
+		return atomic64_read((atomic64_t *)(adev->rmmio + (reg * 4)));
 	else
 		BUG();
-
-	return ret;
 }
 
 /**
@@ -295,7 +291,7 @@ uint64_t amdgpu_mm_rreg64(struct amdgpu_device *adev, uint32_t reg)
 void amdgpu_mm_wreg64(struct amdgpu_device *adev, uint32_t reg, uint64_t v)
 {
 	if ((reg * 4) < adev->rmmio_size)
-		writeq(v, ((void __iomem *)adev->rmmio) + (reg * 4));
+		atomic64_set((atomic64_t *)(adev->rmmio + (reg * 4)), v);
 	else
 		BUG();
 }
