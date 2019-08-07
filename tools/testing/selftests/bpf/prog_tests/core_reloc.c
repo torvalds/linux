@@ -28,6 +28,29 @@
 	.fails = true,							\
 }
 
+#define NESTING_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
+	.a = { .a = { .a = 42 } },					\
+	.b = { .b = { .b = 0xc001 } },					\
+}
+
+#define NESTING_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_nesting.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o"
+
+#define NESTING_CASE(name) {						\
+	NESTING_CASE_COMMON(name),					\
+	.input = NESTING_DATA(core_reloc_##name),			\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = NESTING_DATA(core_reloc_nesting),			\
+	.output_len = sizeof(struct core_reloc_nesting)			\
+}
+
+#define NESTING_ERR_CASE(name) {					\
+	NESTING_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -57,6 +80,22 @@ static struct core_reloc_test_case test_cases[] = {
 	FLAVORS_CASE(flavors),
 
 	FLAVORS_ERR_CASE(flavors__err_wrong_name),
+
+	/* various struct/enum nesting and resolution scenarios */
+	NESTING_CASE(nesting),
+	NESTING_CASE(nesting___anon_embed),
+	NESTING_CASE(nesting___struct_union_mixup),
+	NESTING_CASE(nesting___extra_nesting),
+	NESTING_CASE(nesting___dup_compat_types),
+
+	NESTING_ERR_CASE(nesting___err_missing_field),
+	NESTING_ERR_CASE(nesting___err_array_field),
+	NESTING_ERR_CASE(nesting___err_missing_container),
+	NESTING_ERR_CASE(nesting___err_nonstruct_container),
+	NESTING_ERR_CASE(nesting___err_array_container),
+	NESTING_ERR_CASE(nesting___err_dup_incompat_types),
+	NESTING_ERR_CASE(nesting___err_partial_match_dups),
+	NESTING_ERR_CASE(nesting___err_too_deep),
 };
 
 struct data {
