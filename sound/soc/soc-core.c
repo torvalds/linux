@@ -1264,16 +1264,14 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 	soc_init_component_debugfs(component);
 
-	if (component->driver->dapm_widgets) {
-		ret = snd_soc_dapm_new_controls(dapm,
+	ret = snd_soc_dapm_new_controls(dapm,
 					component->driver->dapm_widgets,
 					component->driver->num_dapm_widgets);
 
-		if (ret != 0) {
-			dev_err(component->dev,
-				"Failed to create new controls %d\n", ret);
-			goto err_probe;
-		}
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create new controls %d\n", ret);
+		goto err_probe;
 	}
 
 	for_each_component_dais(component, dai) {
@@ -1990,13 +1988,15 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
 #endif
 
-	if (card->dapm_widgets)
-		snd_soc_dapm_new_controls(&card->dapm, card->dapm_widgets,
-					  card->num_dapm_widgets);
+	ret = snd_soc_dapm_new_controls(&card->dapm, card->dapm_widgets,
+					card->num_dapm_widgets);
+	if (ret < 0)
+		goto probe_end;
 
-	if (card->of_dapm_widgets)
-		snd_soc_dapm_new_controls(&card->dapm, card->of_dapm_widgets,
-					  card->num_of_dapm_widgets);
+	ret = snd_soc_dapm_new_controls(&card->dapm, card->of_dapm_widgets,
+					card->num_of_dapm_widgets);
+	if (ret < 0)
+		goto probe_end;
 
 	/* initialise the sound card only once */
 	if (card->probe) {
