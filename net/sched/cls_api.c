@@ -574,7 +574,6 @@ struct tc_indr_block_dev {
 	struct net_device *dev;
 	unsigned int refcnt;
 	struct list_head cb_list;
-	struct tcf_block *block;
 };
 
 struct tc_indr_block_cb {
@@ -611,7 +610,6 @@ static struct tc_indr_block_dev *tc_indr_block_dev_get(struct net_device *dev)
 
 	INIT_LIST_HEAD(&indr_dev->cb_list);
 	indr_dev->dev = dev;
-	indr_dev->block = tc_dev_ingress_block(dev);
 	if (rhashtable_insert_fast(&indr_setup_block_ht, &indr_dev->ht_node,
 				   tc_indr_setup_block_ht_params)) {
 		kfree(indr_dev);
@@ -706,6 +704,7 @@ int __tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 {
 	struct tc_indr_block_cb *indr_block_cb;
 	struct tc_indr_block_dev *indr_dev;
+	struct tcf_block *block;
 	int err;
 
 	indr_dev = tc_indr_block_dev_get(dev);
@@ -717,8 +716,9 @@ int __tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 	if (err)
 		goto err_dev_put;
 
-	tc_indr_block_ing_cmd(dev, indr_dev->block, cb, cb_priv,
-			      FLOW_BLOCK_BIND);
+	block = tc_dev_ingress_block(dev);
+	tc_indr_block_ing_cmd(dev, block, indr_block_cb->cb,
+			      indr_block_cb->cb_priv, FLOW_BLOCK_BIND);
 	return 0;
 
 err_dev_put:
@@ -745,6 +745,7 @@ void __tc_indr_block_cb_unregister(struct net_device *dev,
 {
 	struct tc_indr_block_cb *indr_block_cb;
 	struct tc_indr_block_dev *indr_dev;
+	struct tcf_block *block;
 
 	indr_dev = tc_indr_block_dev_lookup(dev);
 	if (!indr_dev)
@@ -755,8 +756,9 @@ void __tc_indr_block_cb_unregister(struct net_device *dev,
 		return;
 
 	/* Send unbind message if required to free any block cbs. */
-	tc_indr_block_ing_cmd(dev, indr_dev->block, cb, indr_block_cb->cb_priv,
-			      FLOW_BLOCK_UNBIND);
+	block = tc_dev_ingress_block(dev);
+	tc_indr_block_ing_cmd(dev, block, indr_block_cb->cb,
+			      indr_block_cb->cb_priv, FLOW_BLOCK_UNBIND);
 	tc_indr_block_cb_del(indr_block_cb);
 	tc_indr_block_dev_put(indr_dev);
 }
@@ -791,8 +793,6 @@ static void tc_indr_block_call(struct tcf_block *block, struct net_device *dev,
 	indr_dev = tc_indr_block_dev_lookup(dev);
 	if (!indr_dev)
 		return;
-
-	indr_dev->block = command == FLOW_BLOCK_BIND ? block : NULL;
 
 	list_for_each_entry(indr_block_cb, &indr_dev->cb_list, list)
 		indr_block_cb->cb(dev, indr_block_cb->cb_priv, TC_SETUP_BLOCK,
