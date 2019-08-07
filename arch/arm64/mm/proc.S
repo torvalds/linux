@@ -438,10 +438,11 @@ ENTRY(__cpu_setup)
 			TCR_TBI0 | TCR_A1 | TCR_KASAN_FLAGS
 	tcr_clear_errata_bits x10, x9, x5
 
-#ifdef CONFIG_ARM64_USER_VA_BITS_52
+#ifdef CONFIG_ARM64_VA_BITS_52
 	ldr_l		x9, vabits_user
 	sub		x9, xzr, x9
 	add		x9, x9, #64
+	tcr_set_t1sz	x10, x9
 #else
 	ldr_l		x9, idmap_t0sz
 #endif
