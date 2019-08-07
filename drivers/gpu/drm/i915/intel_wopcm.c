@@ -170,7 +170,7 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	u32 guc_wopcm_rsvd;
 	int err;
 
-	if (!USES_GUC(i915))
+	if (!guc_fw_size)
 		return;
 
 	GEM_BUG_ON(!wopcm->size);
