@@ -989,16 +989,6 @@ struct hns_roce_hw {
 	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
 
-enum hns_phy_state {
-	HNS_ROCE_PHY_SLEEP		= 1,
-	HNS_ROCE_PHY_POLLING		= 2,
-	HNS_ROCE_PHY_DISABLED		= 3,
-	HNS_ROCE_PHY_TRAINING		= 4,
-	HNS_ROCE_PHY_LINKUP		= 5,
-	HNS_ROCE_PHY_LINKERR		= 6,
-	HNS_ROCE_PHY_TEST		= 7
-};
-
 struct hns_roce_dev {
 	struct ib_device	ib_dev;
 	struct platform_device  *pdev;
