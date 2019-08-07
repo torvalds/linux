@@ -20,4 +20,6 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 void intel_engine_add_user(struct intel_engine_cs *engine);
 void intel_engines_driver_register(struct drm_i915_private *i915);
 
+const char *intel_engine_class_repr(u8 class);
+
 #endif /* INTEL_ENGINE_USER_H */

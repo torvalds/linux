@@ -127,6 +127,21 @@ static void set_scheduler_caps(struct drm_i915_private *i915)
 		i915->caps.scheduler = 0;
 }
 
+const char *intel_engine_class_repr(u8 class)
+{
+	static const char * const uabi_names[] = {
+		[RENDER_CLASS] = "rcs",
+		[COPY_ENGINE_CLASS] = "bcs",
+		[VIDEO_DECODE_CLASS] = "vcs",
+		[VIDEO_ENHANCEMENT_CLASS] = "vecs",
+	};
+
+	if (class >= ARRAY_SIZE(uabi_names) || !uabi_names[class])
+		return "xxx";
+
+	return uabi_names[class];
+}
+
 void intel_engines_driver_register(struct drm_i915_private *i915)
 {
 	u8 uabi_instances[4] = {};
@@ -142,12 +157,20 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 		struct intel_engine_cs *engine =
 			container_of((struct rb_node *)it, typeof(*engine),
 				     uabi_node);
+		char old[sizeof(engine->name)];
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));
 		engine->uabi_class = uabi_classes[engine->class];
 
 		GEM_BUG_ON(engine->uabi_class >= ARRAY_SIZE(uabi_instances));
 		engine->uabi_instance = uabi_instances[engine->uabi_class]++;
+
+		/* Replace the internal name with the final user facing name */
+		memcpy(old, engine->name, sizeof(engine->name));
+		scnprintf(engine->name, sizeof(engine->name), "%s%u",
+			  intel_engine_class_repr(engine->class),
+			  engine->uabi_instance);
+		DRM_DEBUG_DRIVER("renamed %s to %s\n", old, engine->name);
 
 		rb_link_node(&engine->uabi_node, prev, p);
 		rb_insert_color(&engine->uabi_node, &i915->uabi_engines);

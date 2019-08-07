@@ -55,30 +55,6 @@
 
 #define GEN8_LR_CONTEXT_OTHER_SIZE	( 2 * PAGE_SIZE)
 
-struct engine_class_info {
-	const char *name;
-	u8 uabi_class;
-};
-
-static const struct engine_class_info intel_engine_classes[] = {
-	[RENDER_CLASS] = {
-		.name = "rcs",
-		.uabi_class = I915_ENGINE_CLASS_RENDER,
-	},
-	[COPY_ENGINE_CLASS] = {
-		.name = "bcs",
-		.uabi_class = I915_ENGINE_CLASS_COPY,
-	},
-	[VIDEO_DECODE_CLASS] = {
-		.name = "vcs",
-		.uabi_class = I915_ENGINE_CLASS_VIDEO,
-	},
-	[VIDEO_ENHANCEMENT_CLASS] = {
-		.name = "vecs",
-		.uabi_class = I915_ENGINE_CLASS_VIDEO_ENHANCE,
-	},
-};
-
 #define MAX_MMIO_BASES 3
 struct engine_info {
 	unsigned int hw_id;
@@ -259,11 +235,16 @@ static u32 __engine_mmio_base(struct drm_i915_private *i915,
 	return bases[i].base;
 }
 
-static void __sprint_engine_name(char *name, const struct engine_info *info)
+static void __sprint_engine_name(struct intel_engine_cs *engine)
 {
-	WARN_ON(snprintf(name, INTEL_ENGINE_CS_MAX_NAME, "%s%u",
-			 intel_engine_classes[info->class].name,
-			 info->instance) >= INTEL_ENGINE_CS_MAX_NAME);
+	/*
+	 * Before we know what the uABI name for this engine will be,
+	 * we still would like to keep track of this engine in the debug logs.
+	 * We throw in a ' here as a reminder that this isn't its final name.
+	 */
+	GEM_WARN_ON(snprintf(engine->name, sizeof(engine->name), "%s'%u",
+			     intel_engine_class_repr(engine->class),
+			     engine->instance) >= sizeof(engine->name));
 }
 
 void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
@@ -292,8 +273,6 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	const struct engine_info *info = &intel_engines[id];
 	struct intel_engine_cs *engine;
 
-	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
-
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
 
@@ -317,11 +296,12 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = gt->i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(gt->i915, info->mmio_bases);
+
 	engine->class = info->class;
 	engine->instance = info->instance;
+	__sprint_engine_name(engine);
 
 	/*
 	 * To be overridden by the backend on setup. However to facilitate
