@@ -547,12 +547,6 @@ static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
 	atomic_inc(&dev->dev_stats_ccnt);
 }
 
-static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
-					int index)
-{
-	btrfs_dev_stat_set(dev, index, 0);
-}
-
 /*
  * Convert block group flags (BTRFS_BLOCK_GROUP_*) to btrfs_raid_types, which
  * can be used as index to access btrfs_raid_array[].
