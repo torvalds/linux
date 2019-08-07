@@ -44,6 +44,14 @@ config DRM_AMD_DC_DSC_SUPPORT
 	    Choose this option if you want to have
 	    Dynamic Stream Compression support
 
+config DRM_AMD_DC_HDCP
+        bool "Enable HDCP support in DC"
+        depends on DRM_AMD_DC
+        help
+         Choose this option
+         if you want to support
+         HDCP authentication
+
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC
