@@ -538,9 +538,17 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
  * 	ttbr: Value of ttbr to set, modified.
  */
-	.macro	offset_ttbr1, ttbr
+	.macro	offset_ttbr1, ttbr, tmp
 #ifdef CONFIG_ARM64_USER_VA_BITS_52
 	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+#endif
+
+#ifdef CONFIG_ARM64_VA_BITS_52
+	mrs_s	\tmp, SYS_ID_AA64MMFR2_EL1
+	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
+	cbnz	\tmp, .Lskipoffs_\@
+	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+.Lskipoffs_\@ :
 #endif
 	.endm
 
@@ -550,7 +558,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * to be nop'ed out when dealing with 52-bit kernel VAs.
  */
 	.macro	restore_ttbr1, ttbr
-#ifdef CONFIG_ARM64_USER_VA_BITS_52
+#if defined(CONFIG_ARM64_USER_VA_BITS_52) || defined(CONFIG_ARM64_VA_BITS_52)
 	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
 #endif
 	.endm
