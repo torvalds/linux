@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 #include <net/flow_offload.h>
 #include <linux/rtnetlink.h>
+#include <linux/mutex.h>
 
 struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 {
@@ -282,6 +283,8 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 }
 EXPORT_SYMBOL(flow_block_cb_setup_simple);
 
+static LIST_HEAD(block_ing_cb_list);
+
 static struct rhashtable indr_setup_block_ht;
 
 struct flow_indr_block_cb {
@@ -295,7 +298,6 @@ struct flow_indr_block_dev {
 	struct rhash_head ht_node;
 	struct net_device *dev;
 	unsigned int refcnt;
-	flow_indr_block_ing_cmd_t  *block_ing_cmd_cb;
 	struct list_head cb_list;
 };
 
@@ -389,6 +391,20 @@ static void flow_indr_block_cb_del(struct flow_indr_block_cb *indr_block_cb)
 	kfree(indr_block_cb);
 }
 
+static void flow_block_ing_cmd(struct net_device *dev,
+			       flow_indr_block_bind_cb_t *cb,
+			       void *cb_priv,
+			       enum flow_block_command command)
+{
+	struct flow_indr_block_ing_entry *entry;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, &block_ing_cb_list, list) {
+		entry->cb(dev, cb, cb_priv, command);
+	}
+	rcu_read_unlock();
+}
+
 int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 				  flow_indr_block_bind_cb_t *cb,
 				  void *cb_ident)
@@ -406,10 +422,8 @@ int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 	if (err)
 		goto err_dev_put;
 
-	if (indr_dev->block_ing_cmd_cb)
-		indr_dev->block_ing_cmd_cb(dev, indr_block_cb->cb,
-					   indr_block_cb->cb_priv,
-					   FLOW_BLOCK_BIND);
+	flow_block_ing_cmd(dev, indr_block_cb->cb, indr_block_cb->cb_priv,
+			   FLOW_BLOCK_BIND);
 
 	return 0;
 
@@ -448,10 +462,8 @@ void __flow_indr_block_cb_unregister(struct net_device *dev,
 	if (!indr_block_cb)
 		return;
 
-	if (indr_dev->block_ing_cmd_cb)
-		indr_dev->block_ing_cmd_cb(dev, indr_block_cb->cb,
-					   indr_block_cb->cb_priv,
-					   FLOW_BLOCK_UNBIND);
+	flow_block_ing_cmd(dev, indr_block_cb->cb, indr_block_cb->cb_priv,
+			   FLOW_BLOCK_UNBIND);
 
 	flow_indr_block_cb_del(indr_block_cb);
 	flow_indr_block_dev_put(indr_dev);
@@ -469,7 +481,6 @@ void flow_indr_block_cb_unregister(struct net_device *dev,
 EXPORT_SYMBOL_GPL(flow_indr_block_cb_unregister);
 
 void flow_indr_block_call(struct net_device *dev,
-			  flow_indr_block_ing_cmd_t cb,
 			  struct flow_block_offload *bo,
 			  enum flow_block_command command)
 {
@@ -480,14 +491,28 @@ void flow_indr_block_call(struct net_device *dev,
 	if (!indr_dev)
 		return;
 
-	indr_dev->block_ing_cmd_cb = command == FLOW_BLOCK_BIND
-				     ? cb : NULL;
-
 	list_for_each_entry(indr_block_cb, &indr_dev->cb_list, list)
 		indr_block_cb->cb(dev, indr_block_cb->cb_priv, TC_SETUP_BLOCK,
 				  bo);
 }
 EXPORT_SYMBOL_GPL(flow_indr_block_call);
+
+static DEFINE_MUTEX(flow_indr_block_ing_cb_lock);
+void flow_indr_add_block_ing_cb(struct flow_indr_block_ing_entry *entry)
+{
+	mutex_lock(&flow_indr_block_ing_cb_lock);
+	list_add_tail_rcu(&entry->list, &block_ing_cb_list);
+	mutex_unlock(&flow_indr_block_ing_cb_lock);
+}
+EXPORT_SYMBOL_GPL(flow_indr_add_block_ing_cb);
+
+void flow_indr_del_block_ing_cb(struct flow_indr_block_ing_entry *entry)
+{
+	mutex_lock(&flow_indr_block_ing_cb_lock);
+	list_del_rcu(&entry->list);
+	mutex_unlock(&flow_indr_block_ing_cb_lock);
+}
+EXPORT_SYMBOL_GPL(flow_indr_del_block_ing_cb);
 
 static int __init init_flow_indr_rhashtable(void)
 {

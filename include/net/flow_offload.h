@@ -379,6 +379,15 @@ typedef void flow_indr_block_ing_cmd_t(struct net_device *dev,
 					void *cb_priv,
 					enum flow_block_command command);
 
+struct flow_indr_block_ing_entry {
+	flow_indr_block_ing_cmd_t *cb;
+	struct list_head	list;
+};
+
+void flow_indr_add_block_ing_cb(struct flow_indr_block_ing_entry *entry);
+
+void flow_indr_del_block_ing_cb(struct flow_indr_block_ing_entry *entry);
+
 int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 				  flow_indr_block_bind_cb_t *cb,
 				  void *cb_ident);
@@ -395,7 +404,6 @@ void flow_indr_block_cb_unregister(struct net_device *dev,
 				   void *cb_ident);
 
 void flow_indr_block_call(struct net_device *dev,
-			  flow_indr_block_ing_cmd_t *cb,
 			  struct flow_block_offload *bo,
 			  enum flow_block_command command);
 

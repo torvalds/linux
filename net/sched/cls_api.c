@@ -621,7 +621,7 @@ static void tc_indr_block_call(struct tcf_block *block,
 	};
 	INIT_LIST_HEAD(&bo.cb_list);
 
-	flow_indr_block_call(dev, tc_indr_block_get_and_ing_cmd, &bo, command);
+	flow_indr_block_call(dev, &bo, command);
 	tcf_block_setup(block, &bo);
 }
 
@@ -3183,6 +3183,11 @@ static struct pernet_operations tcf_net_ops = {
 	.size = sizeof(struct tcf_net),
 };
 
+static struct flow_indr_block_ing_entry block_ing_entry = {
+	.cb = tc_indr_block_get_and_ing_cmd,
+	.list = LIST_HEAD_INIT(block_ing_entry.list),
+};
+
 static int __init tc_filter_init(void)
 {
 	int err;
@@ -3194,6 +3199,8 @@ static int __init tc_filter_init(void)
 	err = register_pernet_subsys(&tcf_net_ops);
 	if (err)
 		goto err_register_pernet_subsys;
+
+	flow_indr_add_block_ing_cb(&block_ing_entry);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_new_tfilter, NULL,
 		      RTNL_FLAG_DOIT_UNLOCKED);
