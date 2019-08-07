@@ -939,6 +939,64 @@ static void omap_iommu_restore_tlb_entries(struct omap_iommu *obj)
 }
 
 /**
+ * omap_iommu_domain_deactivate - deactivate attached iommu devices
+ * @domain: iommu domain attached to the target iommu device
+ *
+ * This API allows the client devices of IOMMU devices to suspend
+ * the IOMMUs they control at runtime, after they are idled and
+ * suspended all activity. System Suspend will leverage the PM
+ * driver late callbacks.
+ **/
+int omap_iommu_domain_deactivate(struct iommu_domain *domain)
+{
+	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
+	struct omap_iommu_device *iommu;
+	struct omap_iommu *oiommu;
+	int i;
+
+	if (!omap_domain->dev)
+		return 0;
+
+	iommu = omap_domain->iommus;
+	iommu += (omap_domain->num_iommus - 1);
+	for (i = 0; i < omap_domain->num_iommus; i++, iommu--) {
+		oiommu = iommu->iommu_dev;
+		pm_runtime_put_sync(oiommu->dev);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(omap_iommu_domain_deactivate);
+
+/**
+ * omap_iommu_domain_activate - activate attached iommu devices
+ * @domain: iommu domain attached to the target iommu device
+ *
+ * This API allows the client devices of IOMMU devices to resume the
+ * IOMMUs they control at runtime, before they can resume operations.
+ * System Resume will leverage the PM driver late callbacks.
+ **/
+int omap_iommu_domain_activate(struct iommu_domain *domain)
+{
+	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
+	struct omap_iommu_device *iommu;
+	struct omap_iommu *oiommu;
+	int i;
+
+	if (!omap_domain->dev)
+		return 0;
+
+	iommu = omap_domain->iommus;
+	for (i = 0; i < omap_domain->num_iommus; i++, iommu++) {
+		oiommu = iommu->iommu_dev;
+		pm_runtime_get_sync(oiommu->dev);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(omap_iommu_domain_activate);
+
+/**
  * omap_iommu_runtime_suspend - disable an iommu device
  * @dev:	iommu device
  *
