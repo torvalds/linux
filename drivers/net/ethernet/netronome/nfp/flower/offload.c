@@ -1649,16 +1649,17 @@ int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 		return NOTIFY_OK;
 
 	if (event == NETDEV_REGISTER) {
-		err = __tc_indr_block_cb_register(netdev, app,
-						  nfp_flower_indr_setup_tc_cb,
-						  app);
+		err = __flow_indr_block_cb_register(netdev, app,
+						    nfp_flower_indr_setup_tc_cb,
+						    app);
 		if (err)
 			nfp_flower_cmsg_warn(app,
 					     "Indirect block reg failed - %s\n",
 					     netdev->name);
 	} else if (event == NETDEV_UNREGISTER) {
-		__tc_indr_block_cb_unregister(netdev,
-					      nfp_flower_indr_setup_tc_cb, app);
+		__flow_indr_block_cb_unregister(netdev,
+						nfp_flower_indr_setup_tc_cb,
+						app);
 	}
 
 	return NOTIFY_OK;
