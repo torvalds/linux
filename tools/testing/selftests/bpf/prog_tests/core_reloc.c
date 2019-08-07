@@ -51,6 +51,36 @@
 	.fails = true,							\
 }
 
+#define ARRAYS_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
+	.a = { [2] = 1 },						\
+	.b = { [1] = { [2] = { [3] = 2 } } },				\
+	.c = { [1] = { .c =  3 } },					\
+	.d = { [0] = { [0] = { .d = 4 } } },				\
+}
+
+#define ARRAYS_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_arrays.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o"
+
+#define ARRAYS_CASE(name) {						\
+	ARRAYS_CASE_COMMON(name),					\
+	.input = ARRAYS_DATA(core_reloc_##name),			\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_arrays_output) {	\
+		.a2   = 1,						\
+		.b123 = 2,						\
+		.c1c  = 3,						\
+		.d00d = 4,						\
+	},								\
+	.output_len = sizeof(struct core_reloc_arrays_output)		\
+}
+
+#define ARRAYS_ERR_CASE(name) {						\
+	ARRAYS_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -96,6 +126,17 @@ static struct core_reloc_test_case test_cases[] = {
 	NESTING_ERR_CASE(nesting___err_dup_incompat_types),
 	NESTING_ERR_CASE(nesting___err_partial_match_dups),
 	NESTING_ERR_CASE(nesting___err_too_deep),
+
+	/* various array access relocation scenarios */
+	ARRAYS_CASE(arrays),
+	ARRAYS_CASE(arrays___diff_arr_dim),
+	ARRAYS_CASE(arrays___diff_arr_val_sz),
+
+	ARRAYS_ERR_CASE(arrays___err_too_small),
+	ARRAYS_ERR_CASE(arrays___err_too_shallow),
+	ARRAYS_ERR_CASE(arrays___err_non_array),
+	ARRAYS_ERR_CASE(arrays___err_wrong_val_type1),
+	ARRAYS_ERR_CASE(arrays___err_wrong_val_type2),
 };
 
 struct data {

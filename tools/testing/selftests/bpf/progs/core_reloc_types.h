@@ -306,3 +306,84 @@ struct core_reloc_nesting___err_too_deep {
 		} b;
 	} b;
 };
+
+/*
+ * ARRAYS
+ */
+struct core_reloc_arrays_output {
+	int a2;
+	char b123;
+	int c1c;
+	int d00d;
+};
+
+struct core_reloc_arrays_substruct {
+	int c;
+	int d;
+};
+
+struct core_reloc_arrays {
+	int a[5];
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+};
+
+/* bigger array dimensions */
+struct core_reloc_arrays___diff_arr_dim {
+	int a[7];
+	char b[3][4][5];
+	struct core_reloc_arrays_substruct c[4];
+	struct core_reloc_arrays_substruct d[2][3];
+};
+
+/* different size of array's value (struct) */
+struct core_reloc_arrays___diff_arr_val_sz {
+	int a[5];
+	char b[2][3][4];
+	struct {
+		int __padding1;
+		int c;
+		int __padding2;
+	} c[3];
+	struct {
+		int __padding1;
+		int d;
+		int __padding2;
+	} d[1][2];
+};
+
+struct core_reloc_arrays___err_too_small {
+	int a[2]; /* this one is too small */
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+};
+
+struct core_reloc_arrays___err_too_shallow {
+	int a[5];
+	char b[2][3]; /* this one lacks one dimension */
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+};
+
+struct core_reloc_arrays___err_non_array {
+	int a; /* not an array */
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+};
+
+struct core_reloc_arrays___err_wrong_val_type1 {
+	char a[5]; /* char instead of int */
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+};
+
+struct core_reloc_arrays___err_wrong_val_type2 {
+	int a[5];
+	char b[2][3][4];
+	int c[3]; /* value is not a struct */
+	struct core_reloc_arrays_substruct d[1][2];
+};
