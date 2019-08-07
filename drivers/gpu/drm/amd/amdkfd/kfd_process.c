@@ -801,6 +801,8 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 		return ret;
 	}
 
+	amdgpu_vm_set_task_info(pdd->vm);
+
 	ret = kfd_process_device_reserve_ib_mem(pdd);
 	if (ret)
 		goto err_reserve_ib_mem;
