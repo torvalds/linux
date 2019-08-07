@@ -1310,10 +1310,11 @@ static int soc_probe_component(struct snd_soc_card *card,
 	if (ret < 0)
 		goto err_probe;
 
-	if (component->driver->dapm_routes)
-		snd_soc_dapm_add_routes(dapm,
-					component->driver->dapm_routes,
-					component->driver->num_dapm_routes);
+	ret = snd_soc_dapm_add_routes(dapm,
+				      component->driver->dapm_routes,
+				      component->driver->num_dapm_routes);
+	if (ret < 0)
+		goto err_probe;
 
 	list_add(&dapm->list, &card->dapm_list);
 	/* see for_each_card_components */
@@ -2061,13 +2062,15 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_add_card_controls(card, card->controls,
 					  card->num_controls);
 
-	if (card->dapm_routes)
-		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
-					card->num_dapm_routes);
+	ret = snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
+				      card->num_dapm_routes);
+	if (ret < 0)
+		goto probe_end;
 
-	if (card->of_dapm_routes)
-		snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
-					card->num_of_dapm_routes);
+	ret = snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
+				      card->num_of_dapm_routes);
+	if (ret < 0)
+		goto probe_end;
 
 	/* try to set some sane longname if DMI is available */
 	snd_soc_set_dmi_name(card, NULL);
