@@ -86,8 +86,8 @@ static int __live_active_context(struct intel_engine_cs *engine,
 	}
 
 	ce = intel_context_create(fixme, engine);
-	if (!ce)
-		return -ENOMEM;
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
 
 	for (pass = 0; pass <= 2; pass++) {
 		struct i915_request *rq;
@@ -161,8 +161,8 @@ static int live_active_context(void *arg)
 	mutex_lock(&gt->i915->drm.struct_mutex);
 
 	fixme = live_context(gt->i915, file);
-	if (!fixme) {
-		err = -ENOMEM;
+	if (IS_ERR(fixme)) {
+		err = PTR_ERR(fixme);
 		goto unlock;
 	}
 
@@ -226,12 +226,12 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 	 */
 
 	remote = intel_context_create(fixme, engine);
-	if (!remote)
-		return -ENOMEM;
+	if (IS_ERR(remote))
+		return PTR_ERR(remote);
 
 	local = intel_context_create(fixme, engine);
-	if (!local) {
-		err = -ENOMEM;
+	if (IS_ERR(local)) {
+		err = PTR_ERR(local);
 		goto err_remote;
 	}
 
@@ -274,8 +274,8 @@ static int live_remote_context(void *arg)
 	mutex_lock(&gt->i915->drm.struct_mutex);
 
 	fixme = live_context(gt->i915, file);
-	if (!fixme) {
-		err = -ENOMEM;
+	if (IS_ERR(fixme)) {
+		err = PTR_ERR(fixme);
 		goto unlock;
 	}
 
