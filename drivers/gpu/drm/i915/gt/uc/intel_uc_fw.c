@@ -171,16 +171,18 @@ __uc_fw_override(struct intel_uc_fw *uc_fw)
 
 /**
  * intel_uc_fw_init_early - initialize the uC object and select the firmware
- * @i915: device private
  * @uc_fw: uC firmware
  * @type: type of uC
+ * @supported: is uC support possible
+ * @platform: platform identifier
+ * @rev: hardware revision
  *
  * Initialize the state of our uC object and relevant tracking and select the
  * firmware to fetch and load.
  */
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
-			    enum intel_uc_fw_type type,
-			    struct drm_i915_private *i915)
+			    enum intel_uc_fw_type type, bool supported,
+			    enum intel_platform platform, u8 rev)
 {
 	/*
 	 * we use FIRMWARE_UNINITIALIZED to detect checks against uc_fw->status
@@ -192,9 +194,8 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 
 	uc_fw->type = type;
 
-	if (HAS_GT_UC(i915) && likely(!__uc_fw_override(uc_fw)))
-		__uc_fw_auto_select(uc_fw, INTEL_INFO(i915)->platform,
-				    INTEL_REVID(i915));
+	if (supported && likely(!__uc_fw_override(uc_fw)))
+		__uc_fw_auto_select(uc_fw, platform, rev);
 
 	if (uc_fw->path && *uc_fw->path)
 		uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;

@@ -39,7 +39,10 @@
  */
 void intel_guc_fw_init_early(struct intel_guc *guc)
 {
-	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, guc_to_gt(guc)->i915);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+
+	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, HAS_GT_UC(i915),
+			       INTEL_INFO(i915)->platform, INTEL_REVID(i915));
 }
 
 static void guc_prepare_xfer(struct intel_uncore *uncore)

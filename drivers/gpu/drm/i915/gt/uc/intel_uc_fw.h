@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 #include "intel_uc_fw_abi.h"
+#include "intel_device_info.h"
 #include "i915_gem.h"
 
 struct drm_printer;
@@ -170,8 +171,8 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 }
 
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
-			    enum intel_uc_fw_type type,
-			    struct drm_i915_private *i915);
+			    enum intel_uc_fw_type type, bool supported,
+			    enum intel_platform platform, u8 rev);
 void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw,
 		       struct drm_i915_private *i915);
 void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw);
