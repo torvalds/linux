@@ -5,5 +5,3 @@ lib-y	+= memset.o
 lib-y	+= uaccess.o
 
 lib-$(CONFIG_64BIT) += tishift.o
-
-lib-$(CONFIG_32BIT) += udivdi3.o
