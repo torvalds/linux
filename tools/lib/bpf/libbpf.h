@@ -92,6 +92,7 @@ LIBBPF_API void bpf_object__close(struct bpf_object *object);
 struct bpf_object_load_attr {
 	struct bpf_object *obj;
 	int log_level;
+	const char *target_btf_path;
 };
 
 /* Load/unload object into/from kernel */
