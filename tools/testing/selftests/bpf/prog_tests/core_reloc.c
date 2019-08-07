@@ -260,6 +260,25 @@ static struct core_reloc_test_case test_cases[] = {
 	INTS_ERR_CASE(ints___err_wrong_sz_16),
 	INTS_ERR_CASE(ints___err_wrong_sz_32),
 	INTS_ERR_CASE(ints___err_wrong_sz_64),
+	
+	/* validate edge cases of capturing relocations */
+	{
+		.case_name = "misc",
+		.bpf_obj_file = "test_core_reloc_misc.o",
+		.btf_src_file = "btf__core_reloc_misc.o",
+		.input = (const char *)&(struct core_reloc_misc_extensible[]){
+			{ .a = 1 },
+			{ .a = 2 }, /* not read */
+			{ .a = 3 },
+		},
+		.input_len = 4 * sizeof(int),
+		.output = STRUCT_TO_CHAR_PTR(core_reloc_misc_output) {
+			.a = 1,
+			.b = 1,
+			.c = 0, /* BUG in clang, should be 3 */
+		},
+		.output_len = sizeof(struct core_reloc_misc_output),
+	},
 };
 
 struct data {

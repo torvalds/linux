@@ -640,3 +640,28 @@ struct core_reloc_ints___err_wrong_sz_64 {
 	uint32_t	u64_field; /* not 64-bit anymore */
 	int32_t		s64_field; /* not 64-bit anymore */
 };
+
+/*
+ * MISC
+ */
+struct core_reloc_misc_output {
+	int a, b, c;
+};
+
+struct core_reloc_misc___a {
+	int a1;
+	int a2;
+};
+
+struct core_reloc_misc___b {
+	int b1;
+	int b2;
+};
+
+/* this one extends core_reloc_misc_extensible struct from BPF prog */
+struct core_reloc_misc_extensible {
+	int a;
+	int b;
+	int c;
+	int d;
+};
