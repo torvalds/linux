@@ -1855,8 +1855,8 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 		ipc_data_size = sof_get_control_data(sdev, widget, wdata);
 
 		if (ipc_data_size <= 0) {
-			kfree(wdata);
-			return ipc_data_size;
+			ret = ipc_data_size;
+			goto out;
 		}
 	}
 
@@ -1872,8 +1872,8 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 
 	process = kzalloc(ipc_size, GFP_KERNEL);
 	if (!process) {
-		kfree(wdata);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	/* configure iir IPC message */
@@ -1890,9 +1890,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(sdev->dev, "error: parse process.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
-		kfree(wdata);
-		kfree(process);
-		return ret;
+		goto err;
 	}
 
 	sof_dbg_comp_config(scomp, &process->config);
@@ -1919,16 +1917,12 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: create process failed\n");
-		kfree(wdata);
-		kfree(process);
-		return ret;
+		goto err;
 	}
 
 	/* we sent the data in single message so return */
-	if (ipc_data_size) {
-		kfree(wdata);
-		return ret;
-	}
+	if (ipc_data_size)
+		goto out;
 
 	/* send control data with large message supported method */
 	for (i = 0; i < widget->num_kcontrols; i++) {
@@ -1940,11 +1934,14 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 						    true);
 		if (ret != 0) {
 			dev_err(sdev->dev, "error: send control failed\n");
-			kfree(process);
 			break;
 		}
 	}
 
+err:
+	if (ret < 0)
+		kfree(process);
+out:
 	kfree(wdata);
 	return ret;
 }
