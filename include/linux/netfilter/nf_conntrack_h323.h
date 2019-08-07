@@ -2,8 +2,6 @@
 #ifndef _NF_CONNTRACK_H323_H
 #define _NF_CONNTRACK_H323_H
 
-#ifdef __KERNEL__
-
 #include <linux/netfilter.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
@@ -95,7 +93,5 @@ extern int (*nat_q931_hook) (struct sk_buff *skb, struct nf_conn *ct,
 			     unsigned char **data, TransportAddress *taddr,
 			     int idx, __be16 port,
 			     struct nf_conntrack_expect *exp);
-
-#endif
 
 #endif
