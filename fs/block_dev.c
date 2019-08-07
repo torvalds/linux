@@ -1723,7 +1723,10 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 
 		/* finish claiming */
 		mutex_lock(&bdev->bd_mutex);
-		bd_finish_claiming(bdev, whole, holder);
+		if (!res)
+			bd_finish_claiming(bdev, whole, holder);
+		else
+			bd_abort_claiming(bdev, whole, holder);
 		/*
 		 * Block event polling for write claims if requested.  Any
 		 * write holder makes the write_holder state stick until
