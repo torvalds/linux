@@ -149,13 +149,13 @@ void ion_buffer_release(struct ion_buffer *buffer)
 	kfree(buffer);
 }
 
-void ion_buffer_destroy(struct ion_device *dev, struct ion_buffer *buffer)
+int ion_buffer_destroy(struct ion_device *dev, struct ion_buffer *buffer)
 {
 	struct ion_heap *heap;
 
 	if (!dev || !buffer) {
 		pr_warn("%s: invalid argument\n", __func__);
-		return;
+		return -EINVAL;
 	}
 
 	heap = buffer->heap;
@@ -167,6 +167,8 @@ void ion_buffer_destroy(struct ion_device *dev, struct ion_buffer *buffer)
 		ion_heap_freelist_add(heap, buffer);
 	else
 		ion_buffer_release(buffer);
+
+	return 0;
 }
 
 void *ion_buffer_kmap_get(struct ion_buffer *buffer)
