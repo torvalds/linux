@@ -487,6 +487,7 @@ struct mddev {
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
 
 	bool	has_superblocks:1;
+	bool	fail_last_dev:1;
 };
 
 enum recovery_flags {
