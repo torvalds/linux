@@ -399,6 +399,10 @@ static void dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 		((hw_cap & XGMAC_HWFEAT_TXQCNT) >> 6) + 1;
 	dma_cap->number_rx_queues =
 		((hw_cap & XGMAC_HWFEAT_RXQCNT) >> 0) + 1;
+
+	/* MAC HW feature 3 */
+	hw_cap = readl(ioaddr + XGMAC_HW_FEATURE3);
+	dma_cap->asp = (hw_cap & XGMAC_HWFEAT_ASP) >> 14;
 }
 
 static void dwxgmac2_rx_watchdog(void __iomem *ioaddr, u32 riwt, u32 nchan)
