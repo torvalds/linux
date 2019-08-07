@@ -153,20 +153,23 @@ static const char *__override_huc_firmware_path(void)
 	return "";
 }
 
-static bool
-__uc_fw_override(struct intel_uc_fw *uc_fw)
+static void __uc_fw_user_override(struct intel_uc_fw *uc_fw)
 {
+	const char *path = NULL;
+
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		uc_fw->path = __override_guc_firmware_path();
+		path = __override_guc_firmware_path();
 		break;
 	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->path = __override_huc_firmware_path();
+		path = __override_huc_firmware_path();
 		break;
 	}
 
-	uc_fw->user_overridden = uc_fw->path;
-	return uc_fw->user_overridden;
+	if (unlikely(path)) {
+		uc_fw->path = path;
+		uc_fw->user_overridden = true;
+	}
 }
 
 /**
@@ -194,13 +197,51 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 
 	uc_fw->type = type;
 
-	if (supported && likely(!__uc_fw_override(uc_fw)))
+	if (supported) {
 		__uc_fw_auto_select(uc_fw, platform, rev);
+		__uc_fw_user_override(uc_fw);
+	}
 
 	if (uc_fw->path && *uc_fw->path)
 		uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;
 	else
 		uc_fw->status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+}
+
+static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw,
+				      struct drm_i915_private *i915,
+				      int e)
+{
+	bool user = e == -EINVAL;
+
+	if (i915_inject_load_error(i915, e)) {
+		/* non-existing blob */
+		uc_fw->path = "<invalid>";
+		uc_fw->user_overridden = user;
+	} else if (i915_inject_load_error(i915, e)) {
+		/* require next major version */
+		uc_fw->major_ver_wanted += 1;
+		uc_fw->minor_ver_wanted = 0;
+		uc_fw->user_overridden = user;
+	} else if (i915_inject_load_error(i915, e)) {
+		/* require next minor version */
+		uc_fw->minor_ver_wanted += 1;
+		uc_fw->user_overridden = user;
+	} else if (uc_fw->major_ver_wanted && i915_inject_load_error(i915, e)) {
+		/* require prev major version */
+		uc_fw->major_ver_wanted -= 1;
+		uc_fw->minor_ver_wanted = 0;
+		uc_fw->user_overridden = user;
+	} else if (uc_fw->minor_ver_wanted && i915_inject_load_error(i915, e)) {
+		/* require prev minor version - hey, this should work! */
+		uc_fw->minor_ver_wanted -= 1;
+		uc_fw->user_overridden = user;
+	} else if (user && i915_inject_load_error(i915, e)) {
+		/* officially unsupported platform */
+		uc_fw->major_ver_wanted = 0;
+		uc_fw->minor_ver_wanted = 0;
+		uc_fw->user_overridden = true;
+	}
 }
 
 /**
@@ -214,6 +255,7 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
  */
 int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 {
+	struct device *dev = i915->drm.dev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
 	struct uc_css_header *css;
@@ -222,17 +264,21 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 
 	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
 
-	err = request_firmware(&fw, uc_fw->path, i915->drm.dev);
+	err = i915_inject_load_error(i915, -ENXIO);
+	if (err)
+		return err;
+
+	__force_fw_fetch_failures(uc_fw, i915, -EINVAL);
+	__force_fw_fetch_failures(uc_fw, i915, -ESTALE);
+
+	err = request_firmware(&fw, uc_fw->path, dev);
 	if (err)
 		goto fail;
 
-	DRM_DEBUG_DRIVER("%s fw size %zu ptr %p\n",
-			 intel_uc_fw_type_repr(uc_fw->type), fw->size, fw);
-
 	/* Check the size of the blob before examining buffer contents */
-	if (fw->size < sizeof(struct uc_css_header)) {
-		DRM_WARN("%s: Unexpected firmware size (%zu, min %zu)\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
+	if (unlikely(fw->size < sizeof(struct uc_css_header))) {
+		dev_warn(dev, "%s firmware %s: invalid size: %zu < %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, sizeof(struct uc_css_header));
 		err = -ENODATA;
 		goto fail;
@@ -243,10 +289,12 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	/* Check integrity of size values inside CSS header */
 	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
 		css->exponent_size_dw) * sizeof(u32);
-	if (size != sizeof(struct uc_css_header)) {
-		DRM_WARN("%s: Mismatched firmware header definition\n",
-			 intel_uc_fw_type_repr(uc_fw->type));
-		err = -ENOEXEC;
+	if (unlikely(size != sizeof(struct uc_css_header))) {
+		dev_warn(dev,
+			 "%s firmware %s: unexpected header size: %zu != %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw->size, sizeof(struct uc_css_header));
+		err = -EPROTO;
 		goto fail;
 	}
 
@@ -254,19 +302,21 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
 	/* now RSA */
-	if (css->key_size_dw != UOS_RSA_SCRATCH_COUNT) {
-		DRM_WARN("%s: Mismatched firmware RSA key size (%u)\n",
-			 intel_uc_fw_type_repr(uc_fw->type), css->key_size_dw);
-		err = -ENOEXEC;
+	if (unlikely(css->key_size_dw != UOS_RSA_SCRATCH_COUNT)) {
+		dev_warn(dev, "%s firmware %s: unexpected key size: %u != %u\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 css->key_size_dw, UOS_RSA_SCRATCH_COUNT);
+		err = -EPROTO;
 		goto fail;
 	}
 	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
 	size = sizeof(struct uc_css_header) + uc_fw->ucode_size + uc_fw->rsa_size;
-	if (fw->size < size) {
-		DRM_WARN("%s: Truncated firmware (%zu, expected %zu)\n",
-			 intel_uc_fw_type_repr(uc_fw->type), fw->size, size);
+	if (unlikely(fw->size < size)) {
+		dev_warn(dev, "%s firmware %s: invalid size: %zu < %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw->size, size);
 		err = -ENOEXEC;
 		goto fail;
 	}
@@ -292,29 +342,21 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 		break;
 	}
 
-	DRM_DEBUG_DRIVER("%s fw version %u.%u (wanted %u.%u)\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-
-	if (uc_fw->major_ver_wanted == 0 && uc_fw->minor_ver_wanted == 0) {
-		DRM_NOTE("%s: Skipping firmware version check\n",
-			 intel_uc_fw_type_repr(uc_fw->type));
-	} else if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
-		   uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-		DRM_NOTE("%s: Wrong firmware version (%u.%u, required %u.%u)\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
-		err = -ENOEXEC;
-		goto fail;
+	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
+	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
+		dev_notice(dev, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
+			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
+		if (!intel_uc_fw_is_overridden(uc_fw)) {
+			err = -ENOEXEC;
+			goto fail;
+		}
 	}
 
 	obj = i915_gem_object_create_shmem_from_data(i915, fw->data, fw->size);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
-		DRM_DEBUG_DRIVER("%s fw object_create err=%d\n",
-				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
 	}
 
@@ -322,15 +364,22 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	uc_fw->size = fw->size;
 	uc_fw->status = INTEL_UC_FIRMWARE_AVAILABLE;
 
+	DRM_DEV_DEBUG_DRIVER(dev, "%s firmware %s: %s\n",
+			     intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			     intel_uc_fw_status_repr(uc_fw->status));
+
 	release_firmware(fw);
 	return 0;
 
 fail:
-	uc_fw->status = INTEL_UC_FIRMWARE_MISSING;
+	if (err == -ENOENT)
+		uc_fw->status = INTEL_UC_FIRMWARE_MISSING;
+	else
+		uc_fw->status = INTEL_UC_FIRMWARE_ERROR;
 
-	DRM_WARN("%s: Failed to fetch firmware %s (error %d)\n",
-		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
-	DRM_INFO("%s: Firmware can be downloaded from %s\n",
+	dev_notice(dev, "%s firmware %s: fetch failed with error %d\n",
+		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+	dev_info(dev, "%s firmware(s) can be downloaded from %s\n",
 		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */

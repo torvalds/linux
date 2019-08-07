@@ -42,6 +42,7 @@ enum intel_uc_fw_status {
 	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
 	INTEL_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
 	INTEL_UC_FIRMWARE_MISSING, /* blob not found on the system */
+	INTEL_UC_FIRMWARE_ERROR, /* invalid format or version */
 	INTEL_UC_FIRMWARE_AVAILABLE, /* blob found and copied in mem */
 	INTEL_UC_FIRMWARE_FAIL, /* failed to xfer or init/auth the fw */
 	INTEL_UC_FIRMWARE_TRANSFERRED, /* dma xfer done */
@@ -92,6 +93,8 @@ const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 		return "SELECTED";
 	case INTEL_UC_FIRMWARE_MISSING:
 		return "MISSING";
+	case INTEL_UC_FIRMWARE_ERROR:
+		return "ERROR";
 	case INTEL_UC_FIRMWARE_AVAILABLE:
 		return "AVAILABLE";
 	case INTEL_UC_FIRMWARE_FAIL:
