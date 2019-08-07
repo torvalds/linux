@@ -62,17 +62,12 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
-#include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
-#include "gt/intel_reset.h"
-#include "gt/intel_workarounds.h"
-#include "gt/uc/intel_uc.h"
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "i915_pmu.h"
 #include "i915_query.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
@@ -342,168 +337,6 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_KMS("No PCH found.\n");
 
 	pci_dev_put(pch);
-}
-
-static int i915_getparam_ioctl(struct drm_device *dev, void *data,
-			       struct drm_file *file_priv)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
-	drm_i915_getparam_t *param = data;
-	int value;
-
-	switch (param->param) {
-	case I915_PARAM_IRQ_ACTIVE:
-	case I915_PARAM_ALLOW_BATCHBUFFER:
-	case I915_PARAM_LAST_DISPATCH:
-	case I915_PARAM_HAS_EXEC_CONSTANTS:
-		/* Reject all old ums/dri params. */
-		return -ENODEV;
-	case I915_PARAM_CHIPSET_ID:
-		value = pdev->device;
-		break;
-	case I915_PARAM_REVISION:
-		value = pdev->revision;
-		break;
-	case I915_PARAM_NUM_FENCES_AVAIL:
-		value = dev_priv->ggtt.num_fences;
-		break;
-	case I915_PARAM_HAS_OVERLAY:
-		value = dev_priv->overlay ? 1 : 0;
-		break;
-	case I915_PARAM_HAS_BSD:
-		value = !!intel_engine_lookup_user(dev_priv,
-						   I915_ENGINE_CLASS_VIDEO, 0);
-		break;
-	case I915_PARAM_HAS_BLT:
-		value = !!intel_engine_lookup_user(dev_priv,
-						   I915_ENGINE_CLASS_COPY, 0);
-		break;
-	case I915_PARAM_HAS_VEBOX:
-		value = !!intel_engine_lookup_user(dev_priv,
-						   I915_ENGINE_CLASS_VIDEO_ENHANCE, 0);
-		break;
-	case I915_PARAM_HAS_BSD2:
-		value = !!intel_engine_lookup_user(dev_priv,
-						   I915_ENGINE_CLASS_VIDEO, 1);
-		break;
-	case I915_PARAM_HAS_LLC:
-		value = HAS_LLC(dev_priv);
-		break;
-	case I915_PARAM_HAS_WT:
-		value = HAS_WT(dev_priv);
-		break;
-	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = INTEL_PPGTT(dev_priv);
-		break;
-	case I915_PARAM_HAS_SEMAPHORES:
-		value = !!(dev_priv->caps.scheduler & I915_SCHEDULER_CAP_SEMAPHORES);
-		break;
-	case I915_PARAM_HAS_SECURE_BATCHES:
-		value = capable(CAP_SYS_ADMIN);
-		break;
-	case I915_PARAM_CMD_PARSER_VERSION:
-		value = i915_cmd_parser_get_version(dev_priv);
-		break;
-	case I915_PARAM_SUBSLICE_TOTAL:
-		value = intel_sseu_subslice_total(sseu);
-		if (!value)
-			return -ENODEV;
-		break;
-	case I915_PARAM_EU_TOTAL:
-		value = sseu->eu_total;
-		if (!value)
-			return -ENODEV;
-		break;
-	case I915_PARAM_HAS_GPU_RESET:
-		value = i915_modparams.enable_hangcheck &&
-			intel_has_gpu_reset(dev_priv);
-		if (value && intel_has_reset_engine(dev_priv))
-			value = 2;
-		break;
-	case I915_PARAM_HAS_RESOURCE_STREAMER:
-		value = 0;
-		break;
-	case I915_PARAM_HAS_POOLED_EU:
-		value = HAS_POOLED_EU(dev_priv);
-		break;
-	case I915_PARAM_MIN_EU_IN_POOL:
-		value = sseu->min_eu_in_pool;
-		break;
-	case I915_PARAM_HUC_STATUS:
-		value = intel_huc_check_status(&dev_priv->gt.uc.huc);
-		if (value < 0)
-			return value;
-		break;
-	case I915_PARAM_MMAP_GTT_VERSION:
-		/* Though we've started our numbering from 1, and so class all
-		 * earlier versions as 0, in effect their value is undefined as
-		 * the ioctl will report EINVAL for the unknown param!
-		 */
-		value = i915_gem_mmap_gtt_version();
-		break;
-	case I915_PARAM_HAS_SCHEDULER:
-		value = dev_priv->caps.scheduler;
-		break;
-
-	case I915_PARAM_MMAP_VERSION:
-		/* Remember to bump this if the version changes! */
-	case I915_PARAM_HAS_GEM:
-	case I915_PARAM_HAS_PAGEFLIPPING:
-	case I915_PARAM_HAS_EXECBUF2: /* depends on GEM */
-	case I915_PARAM_HAS_RELAXED_FENCING:
-	case I915_PARAM_HAS_COHERENT_RINGS:
-	case I915_PARAM_HAS_RELAXED_DELTA:
-	case I915_PARAM_HAS_GEN7_SOL_RESET:
-	case I915_PARAM_HAS_WAIT_TIMEOUT:
-	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
-	case I915_PARAM_HAS_PINNED_BATCHES:
-	case I915_PARAM_HAS_EXEC_NO_RELOC:
-	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
-	case I915_PARAM_HAS_COHERENT_PHYS_GTT:
-	case I915_PARAM_HAS_EXEC_SOFTPIN:
-	case I915_PARAM_HAS_EXEC_ASYNC:
-	case I915_PARAM_HAS_EXEC_FENCE:
-	case I915_PARAM_HAS_EXEC_CAPTURE:
-	case I915_PARAM_HAS_EXEC_BATCH_FIRST:
-	case I915_PARAM_HAS_EXEC_FENCE_ARRAY:
-	case I915_PARAM_HAS_EXEC_SUBMIT_FENCE:
-		/* For the time being all of these are always true;
-		 * if some supported hardware does not have one of these
-		 * features this value needs to be provided from
-		 * INTEL_INFO(), a feature macro, or similar.
-		 */
-		value = 1;
-		break;
-	case I915_PARAM_HAS_CONTEXT_ISOLATION:
-		value = intel_engines_has_context_isolation(dev_priv);
-		break;
-	case I915_PARAM_SLICE_MASK:
-		value = sseu->slice_mask;
-		if (!value)
-			return -ENODEV;
-		break;
-	case I915_PARAM_SUBSLICE_MASK:
-		value = sseu->subslice_mask[0];
-		if (!value)
-			return -ENODEV;
-		break;
-	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
-		value = 1000 * RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz;
-		break;
-	case I915_PARAM_MMAP_GTT_COHERENT:
-		value = INTEL_INFO(dev_priv)->has_coherent_ggtt;
-		break;
-	default:
-		DRM_DEBUG("Unknown parameter %d\n", param->param);
-		return -EINVAL;
-	}
-
-	if (put_user(value, param->value))
-		return -EFAULT;
-
-	return 0;
 }
 
 static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
