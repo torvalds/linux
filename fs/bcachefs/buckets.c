@@ -1342,15 +1342,20 @@ static int trans_get_key(struct btree_trans *trans,
 			 struct btree_iter **iter,
 			 struct bkey_s_c *k)
 {
-	unsigned i;
+	struct btree_insert_entry *i;
 	int ret;
 
-	for (i = 0; i < trans->nr_updates; i++)
-		if (!trans->updates[i].deferred &&
-		    trans->updates[i].iter->btree_id == btree_id &&
-		    !bkey_cmp(pos, trans->updates[i].iter->pos)) {
-			*iter	= trans->updates[i].iter;
-			*k	= bkey_i_to_s_c(trans->updates[i].k);
+	for (i = trans->updates;
+	     i < trans->updates + trans->nr_updates;
+	     i++)
+		if (!i->deferred &&
+		    i->iter->btree_id == btree_id &&
+		    (btree_node_type_is_extents(btree_id)
+		     ? bkey_cmp(pos, bkey_start_pos(&i->k->k)) >= 0 &&
+		       bkey_cmp(pos, i->k->k.p) < 0
+		     : !bkey_cmp(pos, i->iter->pos))) {
+			*iter	= i->iter;
+			*k	= bkey_i_to_s_c(i->k);
 			return 0;
 		}
 
