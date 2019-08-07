@@ -13,6 +13,7 @@ mediatek-drm-y := mtk_disp_color.o \
 		  mtk_dsi.o \
 		  mtk_mipi_tx.o \
 		  mtk_mt8173_mipi_tx.o \
+		  mtk_mt8183_mipi_tx.o \
 		  mtk_dpi.o
 
 obj-$(CONFIG_DRM_MEDIATEK) += mediatek-drm.o
