@@ -102,10 +102,10 @@ void log_x_points_distribution(struct dal_logger *logger)
 	int i = 0;
 
 	if (logger != NULL) {
-		LOG_GAMMA_WRITE("]Log X Distribution\n");
+		LOG_GAMMA_WRITE("Log X Distribution\n");
 
 		for (i = 0; i < MAX_HW_POINTS; i++)
-			LOG_GAMMA_WRITE("]%llu\n", coordinates_x[i].x.value);
+			LOG_GAMMA_WRITE("%llu\n", coordinates_x[i].x.value);
 	}
 }
 
