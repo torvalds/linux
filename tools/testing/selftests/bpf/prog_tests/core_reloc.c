@@ -107,6 +107,28 @@
 	.fails = true,							\
 }
 
+#define MODS_CASE(name) {						\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_mods.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o",			\
+	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) {		\
+		.a = 1,							\
+		.b = 2,							\
+		.c = (void *)3,						\
+		.d = (void *)4,						\
+		.e = { [2] = 5 },					\
+		.f = { [1] = 6 },					\
+		.g = { .x = 7 },					\
+		.h = { .y = 8 },					\
+	},								\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_mods_output) {		\
+		.a = 1, .b = 2, .c = 3, .d = 4,				\
+		.e = 5, .f = 6, .g = 7, .h = 8,				\
+	},								\
+	.output_len = sizeof(struct core_reloc_mods_output),		\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -173,6 +195,11 @@ static struct core_reloc_test_case test_cases[] = {
 	PRIMITIVES_ERR_CASE(primitives___err_non_enum),
 	PRIMITIVES_ERR_CASE(primitives___err_non_int),
 	PRIMITIVES_ERR_CASE(primitives___err_non_ptr),
+
+	/* const/volatile/restrict and typedefs scenarios */
+	MODS_CASE(mods),
+	MODS_CASE(mods___mod_swap),
+	MODS_CASE(mods___typedefs),
 };
 
 struct data {

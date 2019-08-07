@@ -454,3 +454,75 @@ struct core_reloc_primitives___err_non_ptr {
 	int d; /* int instead of ptr */
 	int (*f)(const char *);
 };
+
+/*
+ * MODS
+ */
+struct core_reloc_mods_output {
+	int a, b, c, d, e, f, g, h;
+};
+
+typedef const int int_t;
+typedef const char *char_ptr_t;
+typedef const int arr_t[7];
+
+struct core_reloc_mods_substruct {
+	int x;
+	int y;
+};
+
+typedef struct {
+	int x;
+	int y;
+} core_reloc_mods_substruct_t;
+
+struct core_reloc_mods {
+	int a;
+	int_t b;
+	char *c;
+	char_ptr_t d;
+	int e[3];
+	arr_t f;
+	struct core_reloc_mods_substruct g;
+	core_reloc_mods_substruct_t h;
+};
+
+/* a/b, c/d, e/f, and g/h pairs are swapped */
+struct core_reloc_mods___mod_swap {
+	int b;
+	int_t a;
+	char *d;
+	char_ptr_t c;
+	int f[3];
+	arr_t e;
+	struct {
+		int y;
+		int x;
+	} h;
+	core_reloc_mods_substruct_t g;
+};
+
+typedef int int1_t;
+typedef int1_t int2_t;
+typedef int2_t int3_t;
+
+typedef int arr1_t[5];
+typedef arr1_t arr2_t;
+typedef arr2_t arr3_t;
+typedef arr3_t arr4_t;
+
+typedef const char * const volatile restrict fancy_char_ptr_t;
+
+typedef core_reloc_mods_substruct_t core_reloc_mods_substruct_tt;
+
+/* we need more typedefs */
+struct core_reloc_mods___typedefs {
+	core_reloc_mods_substruct_tt g;
+	core_reloc_mods_substruct_tt h;
+	arr4_t f;
+	arr4_t e;
+	fancy_char_ptr_t d;
+	fancy_char_ptr_t c;
+	int3_t b;
+	int3_t a;
+};
