@@ -206,9 +206,6 @@ struct nouveau_drm {
 	/* led management */
 	struct nouveau_led *led;
 
-	/* display power reference */
-	bool have_disp_power_ref;
-
 	struct dev_pm_domain vga_pm_domain;
 
 	struct nouveau_svm *svm;
