@@ -2438,17 +2438,19 @@ static void iwl_fw_dbg_info_apply(struct iwl_fw_runtime *fwrt,
 {
 	u32 img_name_len = le32_to_cpu(dbg_info->img_name_len);
 	u32 dbg_cfg_name_len = le32_to_cpu(dbg_info->dbg_cfg_name_len);
-	const char err_str[] =
-		"WRT: ext=%d. Invalid %s name length %d, expected %d\n";
 
 	if (img_name_len != IWL_FW_INI_MAX_IMG_NAME_LEN) {
-		IWL_WARN(fwrt, err_str, ext, "image", img_name_len,
+		IWL_WARN(fwrt,
+			 "WRT: ext=%d. Invalid image name length %d, expected %d\n",
+			 ext, img_name_len,
 			 IWL_FW_INI_MAX_IMG_NAME_LEN);
 		return;
 	}
 
 	if (dbg_cfg_name_len != IWL_FW_INI_MAX_DBG_CFG_NAME_LEN) {
-		IWL_WARN(fwrt, err_str, ext, "debug cfg", dbg_cfg_name_len,
+		IWL_WARN(fwrt,
+			 "WRT: ext=%d. Invalid debug cfg name length %d, expected %d\n",
+			 ext, dbg_cfg_name_len,
 			 IWL_FW_INI_MAX_DBG_CFG_NAME_LEN);
 		return;
 	}
@@ -2775,8 +2777,6 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		struct iwl_ucode_tlv *tlv = iter;
 		void *ini_tlv = (void *)tlv->data;
 		u32 type = le32_to_cpu(tlv->type);
-		const char invalid_ap_str[] =
-			"WRT: ext=%d. Invalid apply point %d for %s\n";
 
 		switch (type) {
 		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
@@ -2786,8 +2786,9 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			struct iwl_fw_ini_allocation_data *buf_alloc = ini_tlv;
 
 			if (pnt != IWL_FW_INI_APPLY_EARLY) {
-				IWL_ERR(fwrt, invalid_ap_str, ext, pnt,
-					"buffer allocation");
+				IWL_ERR(fwrt,
+					"WRT: ext=%d. Invalid apply point %d for buffer allocation\n",
+					ext, pnt);
 				goto next;
 			}
 
@@ -2797,8 +2798,9 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		}
 		case IWL_UCODE_TLV_TYPE_HCMD:
 			if (pnt < IWL_FW_INI_APPLY_AFTER_ALIVE) {
-				IWL_ERR(fwrt, invalid_ap_str, ext, pnt,
-					"host command");
+				IWL_ERR(fwrt,
+					"WRT: ext=%d. Invalid apply point %d for host command\n",
+					ext, pnt);
 				goto next;
 			}
 			iwl_fw_dbg_send_hcmd(fwrt, tlv, ext);

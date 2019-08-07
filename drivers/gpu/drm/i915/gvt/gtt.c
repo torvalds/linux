@@ -2141,10 +2141,19 @@ static int emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 	struct intel_vgpu_mm *ggtt_mm = vgpu->gtt.ggtt_mm;
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 	unsigned long index = off >> info->gtt_entry_size_shift;
+	unsigned long gma;
 	struct intel_gvt_gtt_entry e;
 
 	if (bytes != 4 && bytes != 8)
 		return -EINVAL;
+
+	gma = index << I915_GTT_PAGE_SHIFT;
+	if (!intel_gvt_ggtt_validate_range(vgpu,
+					   gma, 1 << I915_GTT_PAGE_SHIFT)) {
+		gvt_dbg_mm("read invalid ggtt at 0x%lx\n", gma);
+		memset(p_data, 0, bytes);
+		return 0;
+	}
 
 	ggtt_get_guest_entry(ggtt_mm, &e, index);
 	memcpy(p_data, (void *)&e.val64 + (off & (info->gtt_entry_size - 1)),

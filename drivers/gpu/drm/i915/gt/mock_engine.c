@@ -66,6 +66,7 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	ring->base.effective_size = sz;
 	ring->base.vaddr = (void *)(ring + 1);
 	ring->base.timeline = &ring->timeline;
+	atomic_set(&ring->base.pin_count, 1);
 
 	INIT_LIST_HEAD(&ring->base.request_list);
 	intel_ring_update_space(&ring->base);

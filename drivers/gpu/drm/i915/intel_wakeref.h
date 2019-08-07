@@ -66,6 +66,21 @@ intel_wakeref_get(struct intel_runtime_pm *rpm,
 }
 
 /**
+ * intel_wakeref_get_if_in_use: Acquire the wakeref
+ * @wf: the wakeref
+ *
+ * Acquire a hold on the wakeref, but only if the wakeref is already
+ * active.
+ *
+ * Returns: true if the wakeref was acquired, false otherwise.
+ */
+static inline bool
+intel_wakeref_get_if_active(struct intel_wakeref *wf)
+{
+	return atomic_inc_not_zero(&wf->count);
+}
+
+/**
  * intel_wakeref_put: Release the wakeref
  * @i915: the drm_i915_private device
  * @wf: the wakeref

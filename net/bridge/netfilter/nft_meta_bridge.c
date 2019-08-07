@@ -30,13 +30,9 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 	switch (priv->key) {
 	case NFT_META_BRI_IIFNAME:
 		br_dev = nft_meta_get_bridge(in);
-		if (!br_dev)
-			goto err;
 		break;
 	case NFT_META_BRI_OIFNAME:
 		br_dev = nft_meta_get_bridge(out);
-		if (!br_dev)
-			goto err;
 		break;
 	case NFT_META_BRI_IIFPVID: {
 		u16 p_pvid;
@@ -61,13 +57,11 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 		return;
 	}
 	default:
-		goto out;
+		return nft_meta_get_eval(expr, regs, pkt);
 	}
 
-	strncpy((char *)dest, br_dev->name, IFNAMSIZ);
+	strncpy((char *)dest, br_dev ? br_dev->name : "", IFNAMSIZ);
 	return;
-out:
-	return nft_meta_get_eval(expr, regs, pkt);
 err:
 	regs->verdict.code = NFT_BREAK;
 }

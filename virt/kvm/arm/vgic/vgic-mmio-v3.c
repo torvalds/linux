@@ -250,7 +250,7 @@ static unsigned long vgic_v3_uaccess_read_pending(struct kvm_vcpu *vcpu,
 	 * pending state of interrupt is latched in pending_latch variable.
 	 * Userspace will save and restore pending state and line_level
 	 * separately.
-	 * Refer to Documentation/virtual/kvm/devices/arm-vgic-v3.txt
+	 * Refer to Documentation/virt/kvm/devices/arm-vgic-v3.txt
 	 * for handling of ISPENDR and ICPENDR.
 	 */
 	for (i = 0; i < len * 8; i++) {

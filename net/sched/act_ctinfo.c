@@ -157,10 +157,10 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ctinfo_net_id);
+	u32 dscpmask = 0, dscpstatemask, index;
 	struct nlattr *tb[TCA_CTINFO_MAX + 1];
 	struct tcf_ctinfo_params *cp_new;
 	struct tcf_chain *goto_ch = NULL;
-	u32 dscpmask = 0, dscpstatemask;
 	struct tc_ctinfo *actparm;
 	struct tcf_ctinfo *ci;
 	u8 dscpmaskshift;
@@ -206,12 +206,13 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 	}
 
 	/* done the validation:now to the actual action allocation */
-	err = tcf_idr_check_alloc(tn, &actparm->index, a, bind);
+	index = actparm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, actparm->index, est, a,
+		ret = tcf_idr_create(tn, index, est, a,
 				     &act_ctinfo_ops, bind, false);
 		if (ret) {
-			tcf_idr_cleanup(tn, actparm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;

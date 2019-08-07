@@ -444,12 +444,12 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	data = nfp_pr_et(data, "hw_rx_csum_complete");
 	data = nfp_pr_et(data, "hw_rx_csum_err");
 	data = nfp_pr_et(data, "rx_replace_buf_alloc_fail");
-	data = nfp_pr_et(data, "rx_tls_decrypted");
+	data = nfp_pr_et(data, "rx_tls_decrypted_packets");
 	data = nfp_pr_et(data, "hw_tx_csum");
 	data = nfp_pr_et(data, "hw_tx_inner_csum");
 	data = nfp_pr_et(data, "tx_gather");
 	data = nfp_pr_et(data, "tx_lso");
-	data = nfp_pr_et(data, "tx_tls_encrypted");
+	data = nfp_pr_et(data, "tx_tls_encrypted_packets");
 	data = nfp_pr_et(data, "tx_tls_ooo");
 	data = nfp_pr_et(data, "tx_tls_drop_no_sync_data");
 

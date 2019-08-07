@@ -232,13 +232,15 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		if (device->power.flags.power_resources)
 			result = acpi_power_transition(device, target_state);
 	} else {
+		int cur_state = device->power.state;
+
 		if (device->power.flags.power_resources) {
 			result = acpi_power_transition(device, ACPI_STATE_D0);
 			if (result)
 				goto end;
 		}
 
-		if (device->power.state == ACPI_STATE_D0) {
+		if (cur_state == ACPI_STATE_D0) {
 			int psc;
 
 			/* Nothing to do here if _PSC is not present. */

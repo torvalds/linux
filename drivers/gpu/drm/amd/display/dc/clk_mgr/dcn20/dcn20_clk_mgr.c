@@ -301,6 +301,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 void dcn2_init_clocks(struct clk_mgr *clk_mgr)
 {
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
+	// Assumption is that boot state always supports pstate
+	clk_mgr->clks.p_state_change_support = true;
 }
 
 void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
@@ -331,6 +333,7 @@ void dcn20_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	clk_mgr->base.ctx = ctx;
+	clk_mgr->pp_smu = pp_smu;
 	clk_mgr->base.funcs = &dcn2_funcs;
 	clk_mgr->regs = &clk_mgr_regs;
 	clk_mgr->clk_mgr_shift = &clk_mgr_shift;

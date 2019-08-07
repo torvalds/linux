@@ -1951,7 +1951,7 @@ static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 		nexthop_for_each_fib6_nh(from->nh, fib6_nh_find_match, &arg);
 
 		if (!arg.match)
-			return;
+			goto unlock;
 		fib6_nh = arg.match;
 	} else {
 		fib6_nh = from->fib6_nh;

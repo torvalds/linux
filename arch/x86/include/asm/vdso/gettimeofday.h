@@ -96,6 +96,8 @@ long clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 
 #else
 
+#define VDSO_HAS_32BIT_FALLBACK	1
+
 static __always_inline
 long clock_gettime_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 {
@@ -108,6 +110,23 @@ long clock_gettime_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret), "=m" (*_ts)
 		: "0" (__NR_clock_gettime64), [clock] "g" (_clkid), "c" (_ts)
+		: "edx");
+
+	return ret;
+}
+
+static __always_inline
+long clock_gettime32_fallback(clockid_t _clkid, struct old_timespec32 *_ts)
+{
+	long ret;
+
+	asm (
+		"mov %%ebx, %%edx \n"
+		"mov %[clock], %%ebx \n"
+		"call __kernel_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret), "=m" (*_ts)
+		: "0" (__NR_clock_gettime), [clock] "g" (_clkid), "c" (_ts)
 		: "edx");
 
 	return ret;
@@ -143,6 +162,23 @@ clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret), "=m" (*_ts)
 		: "0" (__NR_clock_getres_time64), [clock] "g" (_clkid), "c" (_ts)
+		: "edx");
+
+	return ret;
+}
+
+static __always_inline
+long clock_getres32_fallback(clockid_t _clkid, struct old_timespec32 *_ts)
+{
+	long ret;
+
+	asm (
+		"mov %%ebx, %%edx \n"
+		"mov %[clock], %%ebx \n"
+		"call __kernel_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret), "=m" (*_ts)
+		: "0" (__NR_clock_getres), [clock] "g" (_clkid), "c" (_ts)
 		: "edx");
 
 	return ret;

@@ -140,6 +140,7 @@ static int kvm_compute_return_epc(struct kvm_vcpu *vcpu, unsigned long instpc,
 		/* These are unconditional and in j_format. */
 	case jal_op:
 		arch->gprs[31] = instpc + 8;
+		/* fall through */
 	case j_op:
 		epc += 4;
 		epc >>= 28;

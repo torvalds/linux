@@ -181,8 +181,9 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	for (i = 0; i < ARRAY_SIZE(insn); i++)
 		insn[i] = INSN_NOP;
 
+	__patch_text((void *)rec->ip, INSN_NOP);
 	__patch_text_multiple((void *)rec->ip + 4 - sizeof(insn),
-			      insn, sizeof(insn));
+			      insn, sizeof(insn)-4);
 	return 0;
 }
 #endif

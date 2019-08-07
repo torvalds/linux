@@ -53,7 +53,7 @@ disabled, there is ``khugepaged`` daemon that scans memory and
 collapses sequences of basic pages into huge pages.
 
 The THP behaviour is controlled via :ref:`sysfs <thp_sysfs>`
-interface and using madivse(2) and prctl(2) system calls.
+interface and using madvise(2) and prctl(2) system calls.
 
 Transparent Hugepage Support maximizes the usefulness of free memory
 if compared to the reservation approach of hugetlbfs by allowing all

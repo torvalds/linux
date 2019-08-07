@@ -485,9 +485,8 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 		tsk_set_unreturnable(tsk, true);
 		if (sock->type == SOCK_DGRAM)
 			tsk_set_unreliable(tsk, true);
-		__skb_queue_head_init(&tsk->mc_method.deferredq);
 	}
-
+	__skb_queue_head_init(&tsk->mc_method.deferredq);
 	trace_tipc_sk_create(sk, NULL, TIPC_DUMP_NONE, " ");
 	return 0;
 }
