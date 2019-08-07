@@ -1488,8 +1488,7 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 		return ret;
 
 	/* add DPCM sysfs entries */
-	if (dai_link->dynamic)
-		soc_dpcm_debugfs_add(rtd);
+	soc_dpcm_debugfs_add(rtd);
 
 	num = rtd->num;
 

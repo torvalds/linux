@@ -3200,6 +3200,9 @@ void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 	if (!rtd->dai_link)
 		return;
 
+	if (!rtd->dai_link->dynamic)
+		return;
+
 	if (!rtd->card->debugfs_card_root)
 		return;
 
