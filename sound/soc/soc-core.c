@@ -817,11 +817,11 @@ struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 					       int id, const char *name,
 					       const char *stream_name)
 {
-	struct snd_soc_dai_link *link, *_link;
+	struct snd_soc_dai_link *link;
 
 	lockdep_assert_held(&client_mutex);
 
-	for_each_card_links_safe(card, link, _link) {
+	for_each_card_links(card, link) {
 		if (link->id != id)
 			continue;
 
