@@ -35,6 +35,15 @@
 
 static const struct iommu_ops omap_iommu_ops;
 
+struct orphan_dev {
+	struct device *dev;
+	struct list_head node;
+};
+
+static LIST_HEAD(orphan_dev_list);
+
+static DEFINE_SPINLOCK(orphan_lock);
+
 #define to_iommu(dev)	((struct omap_iommu *)dev_get_drvdata(dev))
 
 /* bitmap of the page sizes currently supported */
@@ -52,6 +61,8 @@ static const struct iommu_ops omap_iommu_ops;
 
 static struct platform_driver omap_iommu_driver;
 static struct kmem_cache *iopte_cachep;
+
+static int _omap_iommu_add_device(struct device *dev);
 
 /**
  * to_omap_domain - Get struct omap_iommu_domain from generic iommu_domain
@@ -1166,6 +1177,7 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	struct omap_iommu *obj;
 	struct resource *res;
 	struct device_node *of = pdev->dev.of_node;
+	struct orphan_dev *orphan_dev, *tmp;
 
 	if (!of) {
 		pr_err("%s: only DT-based devices are supported\n", __func__);
@@ -1248,6 +1260,14 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	omap_iommu_debugfs_add(obj);
 
 	dev_info(&pdev->dev, "%s registered\n", obj->name);
+
+	list_for_each_entry_safe(orphan_dev, tmp, &orphan_dev_list, node) {
+		err = _omap_iommu_add_device(orphan_dev->dev);
+		if (!err) {
+			list_del(&orphan_dev->node);
+			kfree(orphan_dev);
+		}
+	}
 
 	return 0;
 
@@ -1638,7 +1658,7 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 	return ret;
 }
 
-static int omap_iommu_add_device(struct device *dev)
+static int _omap_iommu_add_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data, *tmp;
 	struct omap_iommu *oiommu;
@@ -1647,6 +1667,8 @@ static int omap_iommu_add_device(struct device *dev)
 	struct platform_device *pdev;
 	int num_iommus, i;
 	int ret;
+	struct orphan_dev *orphan_dev;
+	unsigned long flags;
 
 	/*
 	 * Allocate the archdata iommu structure for DT-based devices.
@@ -1678,10 +1700,26 @@ static int omap_iommu_add_device(struct device *dev)
 		}
 
 		pdev = of_find_device_by_node(np);
-		if (WARN_ON(!pdev)) {
+		if (!pdev) {
 			of_node_put(np);
 			kfree(arch_data);
-			return -EINVAL;
+			spin_lock_irqsave(&orphan_lock, flags);
+			list_for_each_entry(orphan_dev, &orphan_dev_list,
+					    node) {
+				if (orphan_dev->dev == dev)
+					break;
+			}
+			spin_unlock_irqrestore(&orphan_lock, flags);
+
+			if (orphan_dev && orphan_dev->dev == dev)
+				return -EPROBE_DEFER;
+
+			orphan_dev = kzalloc(sizeof(*orphan_dev), GFP_KERNEL);
+			orphan_dev->dev = dev;
+			spin_lock_irqsave(&orphan_lock, flags);
+			list_add(&orphan_dev->node, &orphan_dev_list);
+			spin_unlock_irqrestore(&orphan_lock, flags);
+			return -EPROBE_DEFER;
 		}
 
 		oiommu = platform_get_drvdata(pdev);
@@ -1692,6 +1730,7 @@ static int omap_iommu_add_device(struct device *dev)
 		}
 
 		tmp->iommu_dev = oiommu;
+		tmp->dev = &pdev->dev;
 
 		of_node_put(np);
 	}
@@ -1724,6 +1763,17 @@ static int omap_iommu_add_device(struct device *dev)
 	iommu_group_put(group);
 
 	return 0;
+}
+
+static int omap_iommu_add_device(struct device *dev)
+{
+	int ret;
+
+	ret = _omap_iommu_add_device(dev);
+	if (ret == -EPROBE_DEFER)
+		return 0;
+
+	return ret;
 }
 
 static void omap_iommu_remove_device(struct device *dev)
