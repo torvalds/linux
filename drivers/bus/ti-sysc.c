@@ -1090,10 +1090,10 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 	ddata->enabled = false;
 
 err_allow_idle:
-	sysc_clkdm_allow_idle(ddata);
-
 	if (ddata->disable_on_idle)
 		reset_control_assert(ddata->rsts);
+
+	sysc_clkdm_allow_idle(ddata);
 
 	return error;
 }
@@ -1108,10 +1108,11 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 	if (ddata->enabled)
 		return 0;
 
-	if (ddata->disable_on_idle)
-		reset_control_deassert(ddata->rsts);
 
 	sysc_clkdm_deny_idle(ddata);
+
+	if (ddata->disable_on_idle)
+		reset_control_deassert(ddata->rsts);
 
 	if (sysc_opt_clks_needed(ddata)) {
 		error = sysc_enable_opt_clocks(ddata);
