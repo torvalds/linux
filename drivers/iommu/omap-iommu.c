@@ -1254,7 +1254,6 @@ static int omap_iommu_probe(struct platform_device *pdev)
 			goto out_sysfs;
 	}
 
-	pm_runtime_irq_safe(obj->dev);
 	pm_runtime_enable(obj->dev);
 
 	omap_iommu_debugfs_add(obj);
