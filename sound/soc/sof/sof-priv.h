@@ -199,6 +199,8 @@ struct snd_sof_dsp_ops {
 	int (*get_bar_index)(struct snd_sof_dev *sdev,
 			     u32 type); /* optional */
 	int (*get_mailbox_offset)(struct snd_sof_dev *sdev);/* mandatory for common loader code */
+	int (*get_window_offset)(struct snd_sof_dev *sdev,
+				 u32 id);/* mandatory for common loader code */
 
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
