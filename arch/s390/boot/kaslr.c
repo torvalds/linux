@@ -7,6 +7,7 @@
 #include <asm/timex.h>
 #include <asm/sclp.h>
 #include "compressed/decompressor.h"
+#include "boot.h"
 
 #define PRNG_MODE_TDES	 1
 #define PRNG_MODE_SHA512 2

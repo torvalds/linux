@@ -341,7 +341,7 @@ err:
 		 */
 		if (!i915_terminally_wedged(i915))
 			return VM_FAULT_SIGBUS;
-		/* else: fall through */
+		/* else, fall through */
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error

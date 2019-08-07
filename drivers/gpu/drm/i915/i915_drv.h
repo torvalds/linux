@@ -1674,8 +1674,9 @@ struct drm_i915_private {
 	} dram_info;
 
 	struct intel_bw_info {
-		int num_planes;
-		int deratedbw[3];
+		unsigned int deratedbw[3]; /* for each QGV point */
+		u8 num_qgv_points;
+		u8 num_planes;
 	} max_bw[6];
 
 	struct drm_private_obj bw_obj;

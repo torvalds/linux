@@ -5561,7 +5561,6 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		char name[IFNAMSIZ];
 		u32 devcap2;
 		u16 flags;
-		int pos;
 
 		/* If we want to instantiate Virtual Functions, then our
 		 * parent bridge's PCI-E needs to support Alternative Routing
@@ -5569,9 +5568,8 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		 * and above.
 		 */
 		pbridge = pdev->bus->self;
-		pos = pci_find_capability(pbridge, PCI_CAP_ID_EXP);
-		pci_read_config_word(pbridge, pos + PCI_EXP_FLAGS, &flags);
-		pci_read_config_dword(pbridge, pos + PCI_EXP_DEVCAP2, &devcap2);
+		pcie_capability_read_word(pbridge, PCI_EXP_FLAGS, &flags);
+		pcie_capability_read_dword(pbridge, PCI_EXP_DEVCAP2, &devcap2);
 
 		if ((flags & PCI_EXP_FLAGS_VERS) < 2 ||
 		    !(devcap2 & PCI_EXP_DEVCAP2_ARI)) {

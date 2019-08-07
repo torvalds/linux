@@ -231,7 +231,7 @@ void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
 
 	IP_VS_DBG_BUF(7, "%s: ct=%p, expect tuple=" FMT_TUPLE "\n",
 		      __func__, ct, ARG_TUPLE(&exp->tuple));
-	nf_ct_expect_related(exp);
+	nf_ct_expect_related(exp, 0);
 	nf_ct_expect_put(exp);
 }
 EXPORT_SYMBOL(ip_vs_nfct_expect_related);
