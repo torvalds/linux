@@ -584,7 +584,7 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 		.cec_clk = 12000000,
 	};
 	static struct i2c_board_info adv7511_info = {
-		.type = "adv7511",
+		.type = "adv7511-v4l2",
 		.addr = 0x39, /* 0x39 or 0x3d */
 		.platform_data = &adv7511_pdata,
 	};
