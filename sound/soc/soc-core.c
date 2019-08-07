@@ -380,6 +380,7 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 static void soc_add_pcm_runtime(struct snd_soc_card *card,
 		struct snd_soc_pcm_runtime *rtd)
 {
+	/* see for_each_card_rtds */
 	list_add_tail(&rtd->list, &card->rtd_list);
 	rtd->num = card->num_rtd;
 	card->num_rtd++;
@@ -1149,6 +1150,7 @@ int snd_soc_add_dai_link(struct snd_soc_card *card,
 	if (dai_link->dobj.type && card->add_dai_link)
 		card->add_dai_link(card, dai_link);
 
+	/* see for_each_card_links */
 	list_add_tail(&dai_link->list, &card->dai_link_list);
 
 	return 0;
