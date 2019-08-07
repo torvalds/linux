@@ -64,6 +64,11 @@
 #define GEN9_GUC_FW_RESERVED	SZ_128K
 #define GEN9_GUC_WOPCM_OFFSET	(GUC_WOPCM_RESERVED + GEN9_GUC_FW_RESERVED)
 
+static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
+{
+	return container_of(wopcm, struct drm_i915_private, wopcm);
+}
+
 /**
  * intel_wopcm_init_early() - Early initialization of the WOPCM.
  * @wopcm: pointer to intel_wopcm.

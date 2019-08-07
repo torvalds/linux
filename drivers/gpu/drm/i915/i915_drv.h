@@ -1902,11 +1902,6 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 	return pci_get_drvdata(pdev);
 }
 
-static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
-{
-	return container_of(wopcm, struct drm_i915_private, wopcm);
-}
-
 /* Simple iterator over all initialised engines */
 #define for_each_engine(engine__, dev_priv__, id__) \
 	for ((id__) = 0; \
