@@ -94,7 +94,6 @@ struct sysc {
 	unsigned int enabled:1;
 	unsigned int needs_resume:1;
 	unsigned int child_needs_resume:1;
-	unsigned int disable_on_idle:1;
 	struct delayed_work idle_work;
 	void (*clk_enable_quirk)(struct sysc *sysc);
 	void (*clk_disable_quirk)(struct sysc *sysc);
@@ -1030,8 +1029,7 @@ static int __maybe_unused sysc_runtime_suspend_legacy(struct device *dev,
 		dev_err(dev, "%s: could not idle: %i\n",
 			__func__, error);
 
-	if (ddata->disable_on_idle)
-		reset_control_assert(ddata->rsts);
+	reset_control_assert(ddata->rsts);
 
 	return 0;
 }
@@ -1042,8 +1040,7 @@ static int __maybe_unused sysc_runtime_resume_legacy(struct device *dev,
 	struct ti_sysc_platform_data *pdata;
 	int error;
 
-	if (ddata->disable_on_idle)
-		reset_control_deassert(ddata->rsts);
+	reset_control_deassert(ddata->rsts);
 
 	pdata = dev_get_platdata(ddata->dev);
 	if (!pdata)
@@ -1090,8 +1087,7 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 	ddata->enabled = false;
 
 err_allow_idle:
-	if (ddata->disable_on_idle)
-		reset_control_assert(ddata->rsts);
+	reset_control_assert(ddata->rsts);
 
 	sysc_clkdm_allow_idle(ddata);
 
@@ -1111,8 +1107,7 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 
 	sysc_clkdm_deny_idle(ddata);
 
-	if (ddata->disable_on_idle)
-		reset_control_deassert(ddata->rsts);
+	reset_control_deassert(ddata->rsts);
 
 	if (sysc_opt_clks_needed(ddata)) {
 		error = sysc_enable_opt_clocks(ddata);
@@ -1543,14 +1538,7 @@ static int sysc_rstctrl_reset_deassert(struct sysc *ddata, bool reset)
 			return error;
 	}
 
-	error = reset_control_deassert(ddata->rsts);
-	if (error == -EEXIST)
-		return 0;
-
-	error = readx_poll_timeout(reset_control_status, ddata->rsts, val,
-				   val == 0, 100, MAX_MODULE_SOFTRESET_WAIT);
-
-	return error;
+	return reset_control_deassert(ddata->rsts);
 }
 
 /*
@@ -2445,9 +2433,6 @@ static int sysc_probe(struct platform_device *pdev)
 	} else {
 		pm_runtime_put(&pdev->dev);
 	}
-
-	if (!of_get_available_child_count(ddata->dev->of_node))
-		ddata->disable_on_idle = true;
 
 	return 0;
 
