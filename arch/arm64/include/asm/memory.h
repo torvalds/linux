@@ -26,8 +26,15 @@
 /*
  * VMEMMAP_SIZE - allows the whole linear region to be covered by
  *                a struct page array
+ *
+ * If we are configured with a 52-bit kernel VA then our VMEMMAP_SIZE
+ * neads to cover the memory region from the beginning of the 52-bit
+ * PAGE_OFFSET all the way to VA_START for 48-bit. This allows us to
+ * keep a constant PAGE_OFFSET and "fallback" to using the higher end
+ * of the VMEMMAP where 52-bit support is not available in hardware.
  */
-#define VMEMMAP_SIZE (UL(1) << (VA_BITS - PAGE_SHIFT - 1 + STRUCT_PAGE_MAX_SHIFT))
+#define VMEMMAP_SIZE ((_VA_START(VA_BITS_MIN) - PAGE_OFFSET) \
+			>> (PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT))
 
 /*
  * PAGE_OFFSET - the virtual address of the start of the linear map (top
