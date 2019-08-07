@@ -216,6 +216,8 @@ static void soc_init_card_debugfs(struct snd_soc_card *card)
 
 	debugfs_create_u32("dapm_pop_time", 0644, card->debugfs_card_root,
 			   &card->pop_time);
+
+	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
 }
 
 static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
@@ -1981,10 +1983,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	soc_init_card_debugfs(card);
-
-#ifdef CONFIG_DEBUG_FS
-	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 	/* deferred resume work */
