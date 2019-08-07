@@ -8,12 +8,13 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/gpio/driver.h>
 #include <linux/log2.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/time.h>
 
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -70,7 +71,7 @@
 #define PADCFG2_DEBOUNCE_SHIFT		1
 #define PADCFG2_DEBOUNCE_MASK		GENMASK(4, 1)
 
-#define DEBOUNCE_PERIOD			31250 /* ns */
+#define DEBOUNCE_PERIOD_NSEC		31250
 
 struct intel_pad_context {
 	u32 padcfg0;
@@ -565,7 +566,7 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -EINVAL;
 
 		v = (v & PADCFG2_DEBOUNCE_MASK) >> PADCFG2_DEBOUNCE_SHIFT;
-		arg = BIT(v) * DEBOUNCE_PERIOD / 1000;
+		arg = BIT(v) * DEBOUNCE_PERIOD_NSEC / NSEC_PER_USEC;
 
 		break;
 	}
@@ -682,7 +683,7 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 	if (debounce) {
 		unsigned long v;
 
-		v = order_base_2(debounce * 1000 / DEBOUNCE_PERIOD);
+		v = order_base_2(debounce * NSEC_PER_USEC / DEBOUNCE_PERIOD_NSEC);
 		if (v < 3 || v > 15) {
 			ret = -EINVAL;
 			goto exit_unlock;
