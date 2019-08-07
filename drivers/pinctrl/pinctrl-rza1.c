@@ -1359,7 +1359,6 @@ static int rza1_pinctrl_register(struct rza1_pinctrl *rza1_pctl)
 static int rza1_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rza1_pinctrl *rza1_pctl;
-	struct resource *res;
 	int ret;
 
 	rza1_pctl = devm_kzalloc(&pdev->dev, sizeof(*rza1_pctl), GFP_KERNEL);
@@ -1368,8 +1367,7 @@ static int rza1_pinctrl_probe(struct platform_device *pdev)
 
 	rza1_pctl->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rza1_pctl->base = devm_ioremap_resource(&pdev->dev, res);
+	rza1_pctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rza1_pctl->base))
 		return PTR_ERR(rza1_pctl->base);
 
