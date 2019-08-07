@@ -2800,7 +2800,6 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	ASSERT(false);
 
 restore_dml_state:
-	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
 	context->bw_ctx.dml.soc.dram_clock_change_latency_us = p_state_latency_us;
 
 	return voltage_supported;
