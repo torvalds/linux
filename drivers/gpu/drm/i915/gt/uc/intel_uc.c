@@ -415,11 +415,13 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	return 0;
 
 err_out:
-	DRM_ERROR("Failed to init uC WOPCM registers:\n");
-	DRM_ERROR("DMA_GUC_WOPCM_OFFSET=%#x\n",
-		  intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET));
-	DRM_ERROR("GUC_WOPCM_SIZE=%#x\n",
-		  intel_uncore_read(uncore, GUC_WOPCM_SIZE));
+	i915_probe_error(gt->i915, "Failed to init uC WOPCM registers!\n");
+	i915_probe_error(gt->i915, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
+			 i915_mmio_reg_offset(DMA_GUC_WOPCM_OFFSET),
+			 intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET));
+	i915_probe_error(gt->i915, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
+			 i915_mmio_reg_offset(GUC_WOPCM_SIZE),
+			 intel_uncore_read(uncore, GUC_WOPCM_SIZE));
 
 	return err;
 }
