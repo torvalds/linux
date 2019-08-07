@@ -6827,13 +6827,6 @@ F:	Documentation/filesystems/gfs2*.txt
 F:	fs/gfs2/
 F:	include/uapi/linux/gfs2_ondisk.h
 
-GIGASET ISDN DRIVERS
-M:	Paul Bolle <pebolle@tiscali.nl>
-L:	gigaset307x-common@lists.sourceforge.net
-W:	http://gigaset307x.sourceforge.net/
-S:	Odd Fixes
-F:	drivers/staging/isdn/gigaset/
-
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/gnss.git
@@ -11149,6 +11142,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
+F:	include/uapi/linux/net_dropmon.h
 
 NETWORKING DRIVERS
 M:	"David S. Miller" <davem@davemloft.net>
@@ -11287,6 +11281,7 @@ M:	Aviad Yehezkel <aviadye@mellanox.com>
 M:	Dave Watson <davejwatson@fb.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/tls/*
@@ -17565,7 +17560,6 @@ M:	Jakub Kicinski <jakub.kicinski@netronome.com>
 M:	Jesper Dangaard Brouer <hawk@kernel.org>
 M:	John Fastabend <john.fastabend@gmail.com>
 L:	netdev@vger.kernel.org
-L:	xdp-newbies@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	net/core/xdp.c

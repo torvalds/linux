@@ -331,12 +331,11 @@ static inline u64 mlx5e_get_mpwqe_offset(struct mlx5e_rq *rq, u16 wqe_ix)
 
 static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 {
-	struct mlx5e_wqe_frag_info next_frag, *prev;
+	struct mlx5e_wqe_frag_info next_frag = {};
+	struct mlx5e_wqe_frag_info *prev = NULL;
 	int i;
 
 	next_frag.di = &rq->wqe.di[0];
-	next_frag.offset = 0;
-	prev = NULL;
 
 	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {
 		struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
@@ -1677,10 +1676,10 @@ static int mlx5e_open_sqs(struct mlx5e_channel *c,
 			  struct mlx5e_channel_param *cparam)
 {
 	struct mlx5e_priv *priv = c->priv;
-	int err, tc, max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
+	int err, tc;
 
 	for (tc = 0; tc < params->num_tc; tc++) {
-		int txq_ix = c->ix + tc * max_nch;
+		int txq_ix = c->ix + tc * priv->max_nch;
 
 		err = mlx5e_open_txqsq(c, c->priv->tisn[tc], txq_ix,
 				       params, &cparam->sq, &c->sq[tc], tc);
@@ -2438,11 +2437,10 @@ int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv)
 
 int mlx5e_create_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 {
-	const int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int err;
 	int ix;
 
-	for (ix = 0; ix < max_nch; ix++) {
+	for (ix = 0; ix < priv->max_nch; ix++) {
 		err = mlx5e_create_rqt(priv, 1 /*size */, &tirs[ix].rqt);
 		if (unlikely(err))
 			goto err_destroy_rqts;
@@ -2460,10 +2458,9 @@ err_destroy_rqts:
 
 void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 {
-	const int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i;
 
-	for (i = 0; i < max_nch; i++)
+	for (i = 0; i < priv->max_nch; i++)
 		mlx5e_destroy_rqt(priv, &tirs[i].rqt);
 }
 
@@ -2557,7 +2554,7 @@ static void mlx5e_redirect_rqts(struct mlx5e_priv *priv,
 		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
 	}
 
-	for (ix = 0; ix < mlx5e_get_netdev_max_channels(priv->netdev); ix++) {
+	for (ix = 0; ix < priv->max_nch; ix++) {
 		struct mlx5e_redirect_rqt_param direct_rrp = {
 			.is_rss = false,
 			{
@@ -2758,7 +2755,7 @@ static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
 			goto free_in;
 	}
 
-	for (ix = 0; ix < mlx5e_get_netdev_max_channels(priv->netdev); ix++) {
+	for (ix = 0; ix < priv->max_nch; ix++) {
 		err = mlx5_core_modify_tir(mdev, priv->direct_tir[ix].tirn,
 					   in, inlen);
 		if (err)
@@ -2858,12 +2855,11 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 
 static void mlx5e_build_tc2txq_maps(struct mlx5e_priv *priv)
 {
-	int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i, tc;
 
-	for (i = 0; i < max_nch; i++)
+	for (i = 0; i < priv->max_nch; i++)
 		for (tc = 0; tc < priv->profile->max_tc; tc++)
-			priv->channel_tc2txq[i][tc] = i + tc * max_nch;
+			priv->channel_tc2txq[i][tc] = i + tc * priv->max_nch;
 }
 
 static void mlx5e_build_tx2sq_maps(struct mlx5e_priv *priv)
@@ -2884,7 +2880,7 @@ static void mlx5e_build_tx2sq_maps(struct mlx5e_priv *priv)
 void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 {
 	int num_txqs = priv->channels.num * priv->channels.params.num_tc;
-	int num_rxqs = priv->channels.num * MLX5E_NUM_RQ_GROUPS;
+	int num_rxqs = priv->channels.num * priv->profile->rq_groups;
 	struct net_device *netdev = priv->netdev;
 
 	mlx5e_netdev_set_tcs(netdev);
@@ -3306,7 +3302,6 @@ err_destroy_inner_tirs:
 
 int mlx5e_create_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 {
-	const int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	struct mlx5e_tir *tir;
 	void *tirc;
 	int inlen;
@@ -3319,7 +3314,7 @@ int mlx5e_create_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 	if (!in)
 		return -ENOMEM;
 
-	for (ix = 0; ix < max_nch; ix++) {
+	for (ix = 0; ix < priv->max_nch; ix++) {
 		memset(in, 0, inlen);
 		tir = &tirs[ix];
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
@@ -3358,10 +3353,9 @@ void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 
 void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 {
-	const int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i;
 
-	for (i = 0; i < max_nch; i++)
+	for (i = 0; i < priv->max_nch; i++)
 		mlx5e_destroy_tir(priv->mdev, &tirs[i]);
 }
 
@@ -3487,7 +3481,7 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 {
 	int i;
 
-	for (i = 0; i < mlx5e_get_netdev_max_channels(priv->netdev); i++) {
+	for (i = 0; i < priv->max_nch; i++) {
 		struct mlx5e_channel_stats *channel_stats = &priv->channel_stats[i];
 		struct mlx5e_rq_stats *xskrq_stats = &channel_stats->xskrq;
 		struct mlx5e_rq_stats *rq_stats = &channel_stats->rq;
@@ -4960,8 +4954,7 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 		return err;
 
 	mlx5e_build_nic_params(mdev, &priv->xsk, rss, &priv->channels.params,
-			       mlx5e_get_netdev_max_channels(netdev),
-			       netdev->mtu);
+			       priv->max_nch, netdev->mtu);
 
 	mlx5e_timestamp_init(priv);
 
@@ -5164,6 +5157,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
 	.max_tc		   = MLX5E_MAX_NUM_TC,
+	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(XSK),
 };
 
 /* mlx5e generic netdev management API (move to en_common.c) */
@@ -5181,6 +5175,7 @@ int mlx5e_netdev_init(struct net_device *netdev,
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
 	priv->msglevel    = MLX5E_MSG_LEVEL;
+	priv->max_nch     = netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
 	priv->max_opened_tc = 1;
 
 	mutex_init(&priv->state_lock);
@@ -5218,7 +5213,7 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 
 	netdev = alloc_etherdev_mqs(sizeof(struct mlx5e_priv),
 				    nch * profile->max_tc,
-				    nch * MLX5E_NUM_RQ_GROUPS);
+				    nch * profile->rq_groups);
 	if (!netdev) {
 		mlx5_core_err(mdev, "alloc_etherdev_mqs() failed\n");
 		return NULL;

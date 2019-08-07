@@ -1599,7 +1599,8 @@ static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
 	return true;
 }
 
-static struct sk_buff *__tun_build_skb(struct page_frag *alloc_frag, char *buf,
+static struct sk_buff *__tun_build_skb(struct tun_file *tfile,
+				       struct page_frag *alloc_frag, char *buf,
 				       int buflen, int len, int pad)
 {
 	struct sk_buff *skb = build_skb(buf, buflen);
@@ -1609,6 +1610,7 @@ static struct sk_buff *__tun_build_skb(struct page_frag *alloc_frag, char *buf,
 
 	skb_reserve(skb, pad);
 	skb_put(skb, len);
+	skb_set_owner_w(skb, tfile->socket.sk);
 
 	get_page(alloc_frag->page);
 	alloc_frag->offset += buflen;
@@ -1686,7 +1688,8 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	 */
 	if (hdr->gso_type || !xdp_prog) {
 		*skb_xdp = 1;
-		return __tun_build_skb(alloc_frag, buf, buflen, len, pad);
+		return __tun_build_skb(tfile, alloc_frag, buf, buflen, len,
+				       pad);
 	}
 
 	*skb_xdp = 0;
@@ -1723,7 +1726,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	rcu_read_unlock();
 	local_bh_enable();
 
-	return __tun_build_skb(alloc_frag, buf, buflen, len, pad);
+	return __tun_build_skb(tfile, alloc_frag, buf, buflen, len, pad);
 
 err_xdp:
 	put_page(alloc_frag->page);

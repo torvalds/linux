@@ -775,6 +775,7 @@ static void mlxsw_sp_nve_tunnel_fini(struct mlxsw_sp *mlxsw_sp)
 		ops->fini(nve);
 		mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
 				   nve->tunnel_index);
+		memset(&nve->config, 0, sizeof(nve->config));
 	}
 	nve->num_nve_tunnels--;
 }

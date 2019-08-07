@@ -165,6 +165,7 @@ static struct sk_buff
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
+			kfree_skb(sp->data->stampable_skb);
 		}
 
 		/* Hold a reference to avoid dsa_switch_rcv
@@ -211,17 +212,8 @@ static struct sk_buff
 		 * for further processing up the network stack.
 		 */
 		kfree_skb(skb);
-
-		skb = skb_copy(stampable_skb, GFP_ATOMIC);
-		if (!skb) {
-			dev_err_ratelimited(dp->ds->dev,
-					    "Failed to copy stampable skb\n");
-			spin_unlock(&sp->data->meta_lock);
-			return NULL;
-		}
+		skb = stampable_skb;
 		sja1105_transfer_meta(skb, meta);
-		/* The cached copy will be freed now */
-		skb_unref(stampable_skb);
 
 		spin_unlock(&sp->data->meta_lock);
 	}

@@ -107,9 +107,7 @@ struct tls_device {
 enum {
 	TLS_BASE,
 	TLS_SW,
-#ifdef CONFIG_TLS_DEVICE
 	TLS_HW,
-#endif
 	TLS_HW_RECORD,
 	TLS_NUM_CONFIG,
 };
@@ -162,6 +160,7 @@ struct tls_sw_context_tx {
 	int async_capable;
 
 #define BIT_TX_SCHEDULED	0
+#define BIT_TX_CLOSING		1
 	unsigned long tx_bitmask;
 };
 
@@ -272,6 +271,8 @@ struct tls_context {
 	unsigned long flags;
 
 	/* cache cold stuff */
+	struct proto *sk_proto;
+
 	void (*sk_destruct)(struct sock *sk);
 	void (*sk_proto_close)(struct sock *sk, long timeout);
 
@@ -355,13 +356,17 @@ int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
 		  unsigned int optlen);
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
+void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
+void tls_sw_strparser_done(struct tls_context *tls_ctx);
 int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags);
-void tls_sw_close(struct sock *sk, long timeout);
-void tls_sw_free_resources_tx(struct sock *sk);
+void tls_sw_cancel_work_tx(struct tls_context *tls_ctx);
+void tls_sw_release_resources_tx(struct sock *sk);
+void tls_sw_free_ctx_tx(struct tls_context *tls_ctx);
 void tls_sw_free_resources_rx(struct sock *sk);
 void tls_sw_release_resources_rx(struct sock *sk);
+void tls_sw_free_ctx_rx(struct tls_context *tls_ctx);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		   int nonblock, int flags, int *addr_len);
 bool tls_sw_stream_read(const struct sock *sk);

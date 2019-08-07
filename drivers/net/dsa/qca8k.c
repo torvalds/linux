@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2009 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2011-2012 Gabor Juhos <juhosg@openwrt.org>
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2016 John Crispin <john@phrozen.org>
  */
 
@@ -583,8 +583,11 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 
 	for_each_available_child_of_node(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
-		if (err)
+		if (err) {
+			of_node_put(port);
+			of_node_put(ports);
 			return err;
+		}
 
 		if (!dsa_is_user_port(priv->ds, reg))
 			continue;
@@ -595,6 +598,7 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 			internal_mdio_mask |= BIT(reg);
 	}
 
+	of_node_put(ports);
 	if (!external_mdio_mask && !internal_mdio_mask) {
 		dev_err(priv->dev, "no PHYs are defined.\n");
 		return -EINVAL;
@@ -934,6 +938,8 @@ qca8k_port_enable(struct dsa_switch *ds, int port,
 
 	qca8k_port_set_status(priv, port, 1);
 	priv->port_sts[port].enabled = 1;
+
+	phy_support_asym_pause(phy);
 
 	return 0;
 }
