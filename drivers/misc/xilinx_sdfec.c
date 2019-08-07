@@ -26,8 +26,7 @@
 
 #define DEV_NAME_LEN 12
 
-static struct idr dev_idr;
-static struct mutex dev_idr_lock;
+static DEFINE_IDA(dev_nrs);
 
 /* Xilinx SDFEC Register Map */
 /* CODE_WRI_PROTECT Register */
@@ -1374,13 +1373,6 @@ static void xsdfec_disable_all_clks(struct xsdfec_clks *clks)
 	clk_disable_unprepare(clks->axi_clk);
 }
 
-static void xsdfec_idr_remove(struct xsdfec_dev *xsdfec)
-{
-	mutex_lock(&dev_idr_lock);
-	idr_remove(&dev_idr, xsdfec->dev_id);
-	mutex_unlock(&dev_idr_lock);
-}
-
 static int xsdfec_probe(struct platform_device *pdev)
 {
 	struct xsdfec_dev *xsdfec;
@@ -1435,9 +1427,7 @@ static int xsdfec_probe(struct platform_device *pdev)
 		}
 	}
 
-	mutex_lock(&dev_idr_lock);
-	err = idr_alloc(&dev_idr, xsdfec->dev_name, 0, 0, GFP_KERNEL);
-	mutex_unlock(&dev_idr_lock);
+	err = ida_alloc(&dev_nrs, GFP_KERNEL);
 	if (err < 0)
 		goto err_xsdfec_dev;
 	xsdfec->dev_id = err;
@@ -1450,12 +1440,12 @@ static int xsdfec_probe(struct platform_device *pdev)
 	err = misc_register(&xsdfec->miscdev);
 	if (err) {
 		dev_err(dev, "error:%d. Unable to register device", err);
-		goto err_xsdfec_idr;
+		goto err_xsdfec_ida;
 	}
 	return 0;
 
-err_xsdfec_idr:
-	xsdfec_idr_remove(xsdfec);
+err_xsdfec_ida:
+	ida_free(&dev_nrs, xsdfec->dev_id);
 err_xsdfec_dev:
 	xsdfec_disable_all_clks(&xsdfec->clks);
 	return err;
@@ -1467,7 +1457,7 @@ static int xsdfec_remove(struct platform_device *pdev)
 
 	xsdfec = platform_get_drvdata(pdev);
 	misc_deregister(&xsdfec->miscdev);
-	xsdfec_idr_remove(xsdfec);
+	ida_free(&dev_nrs, xsdfec->dev_id);
 	xsdfec_disable_all_clks(&xsdfec->clks);
 	return 0;
 }
@@ -1493,8 +1483,6 @@ static int __init xsdfec_init(void)
 {
 	int err;
 
-	mutex_init(&dev_idr_lock);
-	idr_init(&dev_idr);
 	err = platform_driver_register(&xsdfec_driver);
 	if (err < 0) {
 		pr_err("%s Unabled to register SDFEC driver", __func__);
@@ -1506,7 +1494,6 @@ static int __init xsdfec_init(void)
 static void __exit xsdfec_exit(void)
 {
 	platform_driver_unregister(&xsdfec_driver);
-	idr_destroy(&dev_idr);
 }
 
 module_init(xsdfec_init);
