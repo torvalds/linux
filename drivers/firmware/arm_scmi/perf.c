@@ -151,7 +151,7 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 	if (ret)
 		return ret;
 
-	*(__le32 *)t->tx.buf = cpu_to_le32(domain);
+	put_unaligned_le32(domain, t->tx.buf);
 	attr = t->rx.buf;
 
 	ret = scmi_do_xfer(handle, t);
@@ -284,7 +284,7 @@ static int scmi_perf_limits_get(const struct scmi_handle *handle, u32 domain,
 	if (ret)
 		return ret;
 
-	*(__le32 *)t->tx.buf = cpu_to_le32(domain);
+	put_unaligned_le32(domain, t->tx.buf);
 
 	ret = scmi_do_xfer(handle, t);
 	if (!ret) {
@@ -333,11 +333,11 @@ static int scmi_perf_level_get(const struct scmi_handle *handle, u32 domain,
 		return ret;
 
 	t->hdr.poll_completion = poll;
-	*(__le32 *)t->tx.buf = cpu_to_le32(domain);
+	put_unaligned_le32(domain, t->tx.buf);
 
 	ret = scmi_do_xfer(handle, t);
 	if (!ret)
-		*level = le32_to_cpu(*(__le32 *)t->rx.buf);
+		*level = get_unaligned_le32(t->rx.buf);
 
 	scmi_xfer_put(handle, t);
 	return ret;

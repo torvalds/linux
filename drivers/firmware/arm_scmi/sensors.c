@@ -120,7 +120,7 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 
 	do {
 		/* Set the number of sensors to be skipped/already read */
-		*(__le32 *)t->tx.buf = cpu_to_le32(desc_index);
+		put_unaligned_le32(desc_index, t->tx.buf);
 
 		ret = scmi_do_xfer(handle, t);
 		if (ret)
@@ -217,7 +217,6 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 				   u32 sensor_id, u64 *value)
 {
 	int ret;
-	__le32 *pval;
 	struct scmi_xfer *t;
 	struct scmi_msg_sensor_reading_get *sensor;
 	struct sensors_info *si = handle->sensor_priv;
@@ -229,24 +228,20 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 	if (ret)
 		return ret;
 
-	pval = t->rx.buf;
 	sensor = t->tx.buf;
 	sensor->id = cpu_to_le32(sensor_id);
 
 	if (s->async) {
 		sensor->flags = cpu_to_le32(SENSOR_READ_ASYNC);
 		ret = scmi_do_xfer_with_response(handle, t);
-		if (!ret) {
-			*value = le32_to_cpu(*(pval + 1));
-			*value |= (u64)le32_to_cpu(*(pval + 2)) << 32;
-		}
+		if (!ret)
+			*value = get_unaligned_le64((void *)
+						    ((__le32 *)t->rx.buf + 1));
 	} else {
 		sensor->flags = cpu_to_le32(0);
 		ret = scmi_do_xfer(handle, t);
-		if (!ret) {
-			*value = le32_to_cpu(*pval);
-			*value |= (u64)le32_to_cpu(*(pval + 1)) << 32;
-		}
+		if (!ret)
+			*value = get_unaligned_le64(t->rx.buf);
 	}
 
 	scmi_xfer_put(handle, t);
