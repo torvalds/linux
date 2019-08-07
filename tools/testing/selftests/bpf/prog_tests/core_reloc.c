@@ -81,6 +81,32 @@
 	.fails = true,							\
 }
 
+#define PRIMITIVES_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
+	.a = 1,								\
+	.b = 2,								\
+	.c = 3,								\
+	.d = (void *)4,							\
+	.f = (void *)5,							\
+}
+
+#define PRIMITIVES_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_primitives.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o"
+
+#define PRIMITIVES_CASE(name) {						\
+	PRIMITIVES_CASE_COMMON(name),					\
+	.input = PRIMITIVES_DATA(core_reloc_##name),			\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = PRIMITIVES_DATA(core_reloc_primitives),		\
+	.output_len = sizeof(struct core_reloc_primitives),		\
+}
+
+#define PRIMITIVES_ERR_CASE(name) {					\
+	PRIMITIVES_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -137,6 +163,16 @@ static struct core_reloc_test_case test_cases[] = {
 	ARRAYS_ERR_CASE(arrays___err_non_array),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type1),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type2),
+
+	/* enum/ptr/int handling scenarios */
+	PRIMITIVES_CASE(primitives),
+	PRIMITIVES_CASE(primitives___diff_enum_def),
+	PRIMITIVES_CASE(primitives___diff_func_proto),
+	PRIMITIVES_CASE(primitives___diff_ptr_type),
+
+	PRIMITIVES_ERR_CASE(primitives___err_non_enum),
+	PRIMITIVES_ERR_CASE(primitives___err_non_int),
+	PRIMITIVES_ERR_CASE(primitives___err_non_ptr),
 };
 
 struct data {

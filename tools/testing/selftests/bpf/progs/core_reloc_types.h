@@ -387,3 +387,70 @@ struct core_reloc_arrays___err_wrong_val_type2 {
 	int c[3]; /* value is not a struct */
 	struct core_reloc_arrays_substruct d[1][2];
 };
+
+/*
+ * PRIMITIVES
+ */
+enum core_reloc_primitives_enum {
+	A = 0,
+	B = 1,
+};
+
+struct core_reloc_primitives {
+	char a;
+	int b;
+	enum core_reloc_primitives_enum c;
+	void *d;
+	int (*f)(const char *);
+};
+
+struct core_reloc_primitives___diff_enum_def {
+	char a;
+	int b;
+	void *d;
+	int (*f)(const char *);
+	enum {
+		X = 100,
+		Y = 200,
+	} c; /* inline enum def with differing set of values */
+};
+
+struct core_reloc_primitives___diff_func_proto {
+	void (*f)(int); /* incompatible function prototype */
+	void *d;
+	enum core_reloc_primitives_enum c;
+	int b;
+	char a;
+};
+
+struct core_reloc_primitives___diff_ptr_type {
+	const char * const d; /* different pointee type + modifiers */
+	char a;
+	int b;
+	enum core_reloc_primitives_enum c;
+	int (*f)(const char *);
+};
+
+struct core_reloc_primitives___err_non_enum {
+	char a[1];
+	int b;
+	int c; /* int instead of enum */
+	void *d;
+	int (*f)(const char *);
+};
+
+struct core_reloc_primitives___err_non_int {
+	char a[1];
+	int *b; /* ptr instead of int */
+	enum core_reloc_primitives_enum c;
+	void *d;
+	int (*f)(const char *);
+};
+
+struct core_reloc_primitives___err_non_ptr {
+	char a[1];
+	int b;
+	enum core_reloc_primitives_enum c;
+	int d; /* int instead of ptr */
+	int (*f)(const char *);
+};
