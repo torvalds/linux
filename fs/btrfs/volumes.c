@@ -191,7 +191,6 @@ out_overflow:;
 
 static int init_first_rw_device(struct btrfs_trans_handle *trans);
 static int btrfs_relocate_sys_chunks(struct btrfs_fs_info *fs_info);
-static void __btrfs_reset_dev_stats(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
@@ -7298,14 +7297,6 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 	}
 }
 
-static void __btrfs_reset_dev_stats(struct btrfs_device *dev)
-{
-	int i;
-
-	for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
-		btrfs_dev_stat_set(dev, i, 0);
-}
-
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_key key;
@@ -7335,7 +7326,8 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 		key.offset = device->devid;
 		ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 		if (ret) {
-			__btrfs_reset_dev_stats(device);
+			for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
+				btrfs_dev_stat_set(device, i, 0);
 			device->dev_stats_valid = 1;
 			btrfs_release_path(path);
 			continue;
