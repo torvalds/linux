@@ -243,6 +243,12 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_tcp_err_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_err_octets),
+	STMMAC_MMC_STAT(mmc_tx_fpe_fragment_cntr),
+	STMMAC_MMC_STAT(mmc_tx_hold_req_cntr),
+	STMMAC_MMC_STAT(mmc_rx_packet_assembly_err_cntr),
+	STMMAC_MMC_STAT(mmc_rx_packet_smd_err_cntr),
+	STMMAC_MMC_STAT(mmc_rx_packet_assembly_ok_cntr),
+	STMMAC_MMC_STAT(mmc_rx_fpe_fragment_cntr),
 };
 #define STMMAC_MMC_STATS_LEN ARRAY_SIZE(stmmac_mmc)
 
