@@ -65,6 +65,9 @@ static struct omap_iommu_domain *to_omap_domain(struct iommu_domain *dom)
 /**
  * omap_iommu_save_ctx - Save registers for pm off-mode support
  * @dev:	client device
+ *
+ * This should be treated as an deprecated API. It is preserved only
+ * to maintain existing functionality for OMAP3 ISP driver.
  **/
 void omap_iommu_save_ctx(struct device *dev)
 {
@@ -92,6 +95,9 @@ EXPORT_SYMBOL_GPL(omap_iommu_save_ctx);
 /**
  * omap_iommu_restore_ctx - Restore registers for pm off-mode support
  * @dev:	client device
+ *
+ * This should be treated as an deprecated API. It is preserved only
+ * to maintain existing functionality for OMAP3 ISP driver.
  **/
 void omap_iommu_restore_ctx(struct device *dev)
 {
@@ -1021,6 +1027,23 @@ static int omap_iommu_runtime_resume(struct device *dev)
 	return ret;
 }
 
+/**
+ * omap_iommu_suspend_prepare - prepare() dev_pm_ops implementation
+ * @dev:	iommu device
+ *
+ * This function performs the necessary checks to determine if the IOMMU
+ * device needs suspending or not. The function checks if the runtime_pm
+ * status of the device is suspended, and returns 1 in that case. This
+ * results in the PM core to skip invoking any of the Sleep PM callbacks
+ * (suspend, suspend_late, resume, resume_early etc).
+ */
+static int omap_iommu_prepare(struct device *dev)
+{
+	if (pm_runtime_status_suspended(dev))
+		return 1;
+	return 0;
+}
+
 static bool omap_iommu_can_register(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1198,6 +1221,9 @@ static int omap_iommu_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops omap_iommu_pm_ops = {
+	.prepare = omap_iommu_prepare,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(omap_iommu_runtime_suspend,
 			   omap_iommu_runtime_resume, NULL)
 };
