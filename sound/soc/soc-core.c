@@ -701,9 +701,18 @@ int snd_soc_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_resume);
+
+static void soc_resume_init(struct snd_soc_card *card)
+{
+	/* deferred resume work */
+	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
+}
 #else
 #define snd_soc_suspend NULL
 #define snd_soc_resume NULL
+static inline void soc_resume_init(struct snd_soc_card *card)
+{
+}
 #endif
 
 static const struct snd_soc_dai_ops null_dai_ops = {
@@ -1984,10 +1993,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	soc_init_card_debugfs(card);
 
-#ifdef CONFIG_PM_SLEEP
-	/* deferred resume work */
-	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
-#endif
+	soc_resume_init(card);
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, card->dapm_widgets,
 					card->num_dapm_widgets);
