@@ -365,7 +365,7 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 	__le64 *lba_list;
 	u64 paddr = pblk_line_smeta_start(pblk, line) + lm->smeta_sec;
 	bool padded = false;
-	int rq_ppas, rq_len;
+	int rq_ppas;
 	int i, j;
 	int ret;
 	u64 left_ppas = pblk_sec_in_open_line(pblk, line) - lm->smeta_sec;
@@ -388,7 +388,6 @@ next_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	if (!rq_ppas)
 		rq_ppas = pblk->min_write_pgs;
-	rq_len = rq_ppas * geo->csecs;
 
 retry_rq:
 	rqd->bio = NULL;
