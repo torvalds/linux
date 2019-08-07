@@ -40,12 +40,18 @@ struct nf_conn_tstamp *nf_ct_tstamp_ext_add(struct nf_conn *ct, gfp_t gfp)
 
 static inline bool nf_ct_tstamp_enabled(struct net *net)
 {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	return net->ct.sysctl_tstamp != 0;
+#else
+	return false;
+#endif
 }
 
 static inline void nf_ct_set_tstamp(struct net *net, bool enable)
 {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	net->ct.sysctl_tstamp = enable;
+#endif
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP

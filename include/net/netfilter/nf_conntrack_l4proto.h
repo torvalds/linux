@@ -176,6 +176,7 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 static inline struct nf_generic_net *nf_generic_pernet(struct net *net)
 {
        return &net->ct.nf_ct_proto.generic;
@@ -200,6 +201,7 @@ static inline struct nf_icmp_net *nf_icmpv6_pernet(struct net *net)
 {
        return &net->ct.nf_ct_proto.icmpv6;
 }
+#endif
 
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 static inline struct nf_dccp_net *nf_dccp_pernet(struct net *net)
