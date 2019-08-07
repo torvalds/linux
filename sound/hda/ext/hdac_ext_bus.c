@@ -47,17 +47,6 @@ static u8 hdac_ext_readb(u8 __iomem *addr)
 	return readb(addr);
 }
 
-static int hdac_ext_dma_alloc_pages(struct hdac_bus *bus, int type,
-			   size_t size, struct snd_dma_buffer *buf)
-{
-	return snd_dma_alloc_pages(type, bus->dev, size, buf);
-}
-
-static void hdac_ext_dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
-{
-	snd_dma_free_pages(buf);
-}
-
 static const struct hdac_io_ops hdac_ext_default_io = {
 	.reg_writel = hdac_ext_writel,
 	.reg_readl = hdac_ext_readl,
@@ -65,8 +54,6 @@ static const struct hdac_io_ops hdac_ext_default_io = {
 	.reg_readw = hdac_ext_readw,
 	.reg_writeb = hdac_ext_writeb,
 	.reg_readb = hdac_ext_readb,
-	.dma_alloc_pages = hdac_ext_dma_alloc_pages,
-	.dma_free_pages = hdac_ext_dma_free_pages,
 };
 
 /**

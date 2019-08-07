@@ -51,18 +51,6 @@ static u8 sof_hda_readb(u8 __iomem *addr)
 	return readb(addr);
 }
 
-static int sof_hda_dma_alloc_pages(struct hdac_bus *bus, int type,
-				   size_t size, struct snd_dma_buffer *buf)
-{
-	return snd_dma_alloc_pages(type, bus->dev, size, buf);
-}
-
-static void sof_hda_dma_free_pages(struct hdac_bus *bus,
-				   struct snd_dma_buffer *buf)
-{
-	snd_dma_free_pages(buf);
-}
-
 static const struct hdac_io_ops io_ops = {
 	.reg_writel = sof_hda_writel,
 	.reg_readl = sof_hda_readl,
@@ -70,8 +58,6 @@ static const struct hdac_io_ops io_ops = {
 	.reg_readw = sof_hda_readw,
 	.reg_writeb = sof_hda_writeb,
 	.reg_readb = sof_hda_readb,
-	.dma_alloc_pages = sof_hda_dma_alloc_pages,
-	.dma_free_pages = sof_hda_dma_free_pages,
 };
 
 /*

@@ -34,6 +34,7 @@ int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
 	else
 		bus->ops = &default_ops;
 	bus->io_ops = io_ops;
+	bus->dma_type = SNDRV_DMA_TYPE_DEV;
 	INIT_LIST_HEAD(&bus->stream_list);
 	INIT_LIST_HEAD(&bus->codec_list);
 	INIT_WORK(&bus->unsol_work, snd_hdac_bus_process_unsol_events);

@@ -264,11 +264,6 @@ struct hdac_io_ops {
 	u16 (*reg_readw)(u16 __iomem *addr);
 	void (*reg_writeb)(u8 value, u8 __iomem *addr);
 	u8 (*reg_readb)(u8 __iomem *addr);
-	/* Allocation ops */
-	int (*dma_alloc_pages)(struct hdac_bus *bus, int type, size_t size,
-			       struct snd_dma_buffer *buf);
-	void (*dma_free_pages)(struct hdac_bus *bus,
-			       struct snd_dma_buffer *buf);
 };
 
 #define HDA_UNSOL_QUEUE_SIZE	64
@@ -344,6 +339,7 @@ struct hdac_bus {
 	/* CORB/RIRB and position buffers */
 	struct snd_dma_buffer rb;
 	struct snd_dma_buffer posbuf;
+	int dma_type;			/* SNDRV_DMA_TYPE_XXX for CORB/RIRB */
 
 	/* hdac_stream linked list */
 	struct list_head stream_list;
