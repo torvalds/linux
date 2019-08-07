@@ -15,7 +15,7 @@
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
 
-#include "ion.h"
+#include "ion_private.h"
 
 void *ion_heap_map_kernel(struct ion_heap *heap,
 			  struct ion_buffer *buffer)
@@ -198,7 +198,7 @@ static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 			buffer->private_flags |= ION_PRIV_FLAG_SHRINKER_FREE;
 		total_drained += buffer->size;
 		spin_unlock(&heap->free_lock);
-		ion_buffer_destroy(buffer);
+		ion_buffer_release(buffer);
 		spin_lock(&heap->free_lock);
 	}
 	spin_unlock(&heap->free_lock);
@@ -236,7 +236,7 @@ static int ion_heap_deferred_free(void *data)
 		list_del(&buffer->list);
 		heap->free_list_size -= buffer->size;
 		spin_unlock(&heap->free_lock);
-		ion_buffer_destroy(buffer);
+		ion_buffer_release(buffer);
 	}
 
 	return 0;
