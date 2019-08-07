@@ -65,8 +65,14 @@ struct dma_fence_cb;
 struct dma_fence {
 	struct kref refcount;
 	const struct dma_fence_ops *ops;
-	struct rcu_head rcu;
-	struct list_head cb_list;
+	/* We clear the callback list on kref_put so that by the time we
+	 * release the fence it is unused. No one should be adding to the cb_list
+	 * that they don't themselves hold a reference for.
+	 */
+	union {
+		struct rcu_head rcu;
+		struct list_head cb_list;
+	};
 	spinlock_t *lock;
 	u64 context;
 	u64 seqno;
