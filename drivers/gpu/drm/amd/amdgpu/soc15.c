@@ -1259,7 +1259,8 @@ static void soc15_update_hdp_light_sleep(struct amdgpu_device *adev, bool enable
 {
 	uint32_t def, data;
 
-	if (adev->asic_type == CHIP_VEGA20) {
+	if (adev->asic_type == CHIP_VEGA20 ||
+		adev->asic_type == CHIP_ARCTURUS) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_CTRL));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
@@ -1389,6 +1390,10 @@ static int soc15_common_set_clockgating_state(void *handle,
 		soc15_update_drm_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		soc15_update_rom_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	case CHIP_ARCTURUS:
+		soc15_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	default:
