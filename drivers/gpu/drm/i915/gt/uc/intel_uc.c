@@ -59,11 +59,14 @@ static int __intel_uc_reset_hw(struct intel_uc *uc)
 
 static void __confirm_options(struct intel_uc *uc)
 {
-	DRM_DEBUG_DRIVER("enable_guc=%d (guc:%s submission:%s huc:%s)\n",
-			 i915_modparams.enable_guc,
-			 yesno(intel_uc_supports_guc(uc)),
-			 yesno(intel_uc_supports_guc_submission(uc)),
-			 yesno(intel_uc_supports_huc(uc)));
+	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+
+	DRM_DEV_DEBUG_DRIVER(i915->drm.dev,
+			     "enable_guc=%d (guc:%s submission:%s huc:%s)\n",
+			     i915_modparams.enable_guc,
+			     yesno(intel_uc_supports_guc(uc)),
+			     yesno(intel_uc_supports_guc_submission(uc)),
+			     yesno(intel_uc_supports_huc(uc)));
 
 	if (i915_modparams.enable_guc == -1)
 		return;
@@ -76,22 +79,26 @@ static void __confirm_options(struct intel_uc *uc)
 	}
 
 	if (!intel_uc_supports_guc(uc))
-		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+		dev_info(i915->drm.dev,
+			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "GuC is not supported!");
 
 	if (i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC &&
 	    !intel_uc_supports_huc(uc))
-		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+		dev_info(i915->drm.dev,
+			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "HuC is not supported!");
 
 	if (i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
-		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+		dev_info(i915->drm.dev,
+			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "GuC submission is N/A");
 
 	if (i915_modparams.enable_guc & ~(ENABLE_GUC_SUBMISSION |
 					  ENABLE_GUC_LOAD_HUC))
-		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+		dev_info(i915->drm.dev,
+			 "Incompatible option enable_guc=%d - %s\n",
 			 i915_modparams.enable_guc, "undocumented flag");
 }
 
