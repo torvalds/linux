@@ -53,6 +53,9 @@ EXPORT_SYMBOL(memstart_addr);
 s64 physvirt_offset __ro_after_init;
 EXPORT_SYMBOL(physvirt_offset);
 
+struct page *vmemmap __ro_after_init;
+EXPORT_SYMBOL(vmemmap);
+
 phys_addr_t arm64_dma_phys_limit __ro_after_init;
 
 #ifdef CONFIG_KEXEC_CORE
@@ -319,6 +322,8 @@ void __init arm64_memblock_init(void)
 				   ARM64_MEMSTART_ALIGN);
 
 	physvirt_offset = PHYS_OFFSET - PAGE_OFFSET;
+
+	vmemmap = ((struct page *)VMEMMAP_START - (memstart_addr >> PAGE_SHIFT));
 
 	/*
 	 * Remove the memory that we will not be able to cover with the
