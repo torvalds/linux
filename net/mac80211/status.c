@@ -403,7 +403,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			*pos = 11;
 			break;
 		case RATE_INFO_BW_80:
-			*pos = 2;
+			*pos = 4;
 			break;
 		case RATE_INFO_BW_40:
 			*pos = 1;
