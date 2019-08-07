@@ -69,10 +69,12 @@ static inline bool nf_nat_oif_changed(unsigned int hooknum,
 #endif
 }
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 		       const struct nf_hook_ops *nat_ops, unsigned int ops_count);
 void nf_nat_unregister_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 			  unsigned int ops_count);
+#endif
 
 unsigned int nf_nat_packet(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 			   unsigned int hooknum, struct sk_buff *skb);
@@ -92,6 +94,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
 				    enum ip_conntrack_info ctinfo,
 				    unsigned int hooknum, unsigned int hdrlen);
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 int nf_nat_ipv4_register_fn(struct net *net, const struct nf_hook_ops *ops);
 void nf_nat_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
@@ -104,6 +107,7 @@ void nf_nat_inet_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state);
+#endif
 
 int nf_xfrm_me_harder(struct net *n, struct sk_buff *s, unsigned int family);
 

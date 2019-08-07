@@ -49,6 +49,7 @@ struct arpt_error {
 }
 
 extern void *arpt_alloc_initial_table(const struct xt_table *);
+#if IS_ENABLED(CONFIG_NETFILTER)
 int arpt_register_table(struct net *net, const struct xt_table *table,
 			const struct arpt_replace *repl,
 			const struct nf_hook_ops *ops, struct xt_table **res);
@@ -57,6 +58,7 @@ void arpt_unregister_table(struct net *net, struct xt_table *table,
 extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  const struct nf_hook_state *state,
 				  struct xt_table *table);
+#endif
 
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>

@@ -105,6 +105,7 @@ struct ebt_table {
 
 #define EBT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) & \
 		     ~(__alignof__(struct _xt_align)-1))
+#if IS_ENABLED(CONFIG_NETFILTER)
 extern int ebt_register_table(struct net *net,
 			      const struct ebt_table *table,
 			      const struct nf_hook_ops *ops,
@@ -114,6 +115,7 @@ extern void ebt_unregister_table(struct net *net, struct ebt_table *table,
 extern unsigned int ebt_do_table(struct sk_buff *skb,
 				 const struct nf_hook_state *state,
 				 struct ebt_table *table);
+#endif
 
 /* True if the hook mask denotes that the rule is in a base chain,
  * used in the check() functions */

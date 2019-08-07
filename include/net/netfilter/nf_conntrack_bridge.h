@@ -6,7 +6,9 @@
 #include <uapi/linux/if_ether.h>
 
 struct nf_ct_bridge_info {
+#if IS_ENABLED(CONFIG_NETFILTER)
 	struct nf_hook_ops	*ops;
+#endif
 	unsigned int		ops_size;
 	struct module		*me;
 };

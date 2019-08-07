@@ -20,8 +20,10 @@ bool synproxy_recv_client_ack(struct net *net,
 			      const struct tcphdr *th,
 			      struct synproxy_options *opts, u32 recv_seq);
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 unsigned int ipv4_synproxy_hook(void *priv, struct sk_buff *skb,
 				const struct nf_hook_state *nhs);
+#endif
 int nf_synproxy_ipv4_init(struct synproxy_net *snet, struct net *net);
 void nf_synproxy_ipv4_fini(struct synproxy_net *snet, struct net *net);
 
@@ -35,8 +37,10 @@ bool synproxy_recv_client_ack_ipv6(struct net *net, const struct sk_buff *skb,
 				   const struct tcphdr *th,
 				   struct synproxy_options *opts, u32 recv_seq);
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 unsigned int ipv6_synproxy_hook(void *priv, struct sk_buff *skb,
 				const struct nf_hook_state *nhs);
+#endif
 int nf_synproxy_ipv6_init(struct synproxy_net *snet, struct net *net);
 void nf_synproxy_ipv6_fini(struct synproxy_net *snet, struct net *net);
 #else
