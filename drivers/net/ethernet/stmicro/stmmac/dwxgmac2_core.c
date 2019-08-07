@@ -808,6 +808,195 @@ static int dwxgmac3_safety_feat_dump(struct stmmac_safety_stats *stats,
 	return 0;
 }
 
+static int dwxgmac3_rxp_disable(void __iomem *ioaddr)
+{
+	u32 val = readl(ioaddr + XGMAC_MTL_OPMODE);
+
+	val &= ~XGMAC_FRPE;
+	writel(val, ioaddr + XGMAC_MTL_OPMODE);
+
+	return 0;
+}
+
+static void dwxgmac3_rxp_enable(void __iomem *ioaddr)
+{
+	u32 val;
+
+	val = readl(ioaddr + XGMAC_MTL_OPMODE);
+	val |= XGMAC_FRPE;
+	writel(val, ioaddr + XGMAC_MTL_OPMODE);
+}
+
+static int dwxgmac3_rxp_update_single_entry(void __iomem *ioaddr,
+					    struct stmmac_tc_entry *entry,
+					    int pos)
+{
+	int ret, i;
+
+	for (i = 0; i < (sizeof(entry->val) / sizeof(u32)); i++) {
+		int real_pos = pos * (sizeof(entry->val) / sizeof(u32)) + i;
+		u32 val;
+
+		/* Wait for ready */
+		ret = readl_poll_timeout(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST,
+					 val, !(val & XGMAC_STARTBUSY), 1, 10000);
+		if (ret)
+			return ret;
+
+		/* Write data */
+		val = *((u32 *)&entry->val + i);
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_DATA);
+
+		/* Write pos */
+		val = real_pos & XGMAC_ADDR;
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Write OP */
+		val |= XGMAC_WRRDN;
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Start Write */
+		val |= XGMAC_STARTBUSY;
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Wait for done */
+		ret = readl_poll_timeout(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST,
+					 val, !(val & XGMAC_STARTBUSY), 1, 10000);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static struct stmmac_tc_entry *
+dwxgmac3_rxp_get_next_entry(struct stmmac_tc_entry *entries,
+			    unsigned int count, u32 curr_prio)
+{
+	struct stmmac_tc_entry *entry;
+	u32 min_prio = ~0x0;
+	int i, min_prio_idx;
+	bool found = false;
+
+	for (i = count - 1; i >= 0; i--) {
+		entry = &entries[i];
+
+		/* Do not update unused entries */
+		if (!entry->in_use)
+			continue;
+		/* Do not update already updated entries (i.e. fragments) */
+		if (entry->in_hw)
+			continue;
+		/* Let last entry be updated last */
+		if (entry->is_last)
+			continue;
+		/* Do not return fragments */
+		if (entry->is_frag)
+			continue;
+		/* Check if we already checked this prio */
+		if (entry->prio < curr_prio)
+			continue;
+		/* Check if this is the minimum prio */
+		if (entry->prio < min_prio) {
+			min_prio = entry->prio;
+			min_prio_idx = i;
+			found = true;
+		}
+	}
+
+	if (found)
+		return &entries[min_prio_idx];
+	return NULL;
+}
+
+static int dwxgmac3_rxp_config(void __iomem *ioaddr,
+			       struct stmmac_tc_entry *entries,
+			       unsigned int count)
+{
+	struct stmmac_tc_entry *entry, *frag;
+	int i, ret, nve = 0;
+	u32 curr_prio = 0;
+	u32 old_val, val;
+
+	/* Force disable RX */
+	old_val = readl(ioaddr + XGMAC_RX_CONFIG);
+	val = old_val & ~XGMAC_CONFIG_RE;
+	writel(val, ioaddr + XGMAC_RX_CONFIG);
+
+	/* Disable RX Parser */
+	ret = dwxgmac3_rxp_disable(ioaddr);
+	if (ret)
+		goto re_enable;
+
+	/* Set all entries as NOT in HW */
+	for (i = 0; i < count; i++) {
+		entry = &entries[i];
+		entry->in_hw = false;
+	}
+
+	/* Update entries by reverse order */
+	while (1) {
+		entry = dwxgmac3_rxp_get_next_entry(entries, count, curr_prio);
+		if (!entry)
+			break;
+
+		curr_prio = entry->prio;
+		frag = entry->frag_ptr;
+
+		/* Set special fragment requirements */
+		if (frag) {
+			entry->val.af = 0;
+			entry->val.rf = 0;
+			entry->val.nc = 1;
+			entry->val.ok_index = nve + 2;
+		}
+
+		ret = dwxgmac3_rxp_update_single_entry(ioaddr, entry, nve);
+		if (ret)
+			goto re_enable;
+
+		entry->table_pos = nve++;
+		entry->in_hw = true;
+
+		if (frag && !frag->in_hw) {
+			ret = dwxgmac3_rxp_update_single_entry(ioaddr, frag, nve);
+			if (ret)
+				goto re_enable;
+			frag->table_pos = nve++;
+			frag->in_hw = true;
+		}
+	}
+
+	if (!nve)
+		goto re_enable;
+
+	/* Update all pass entry */
+	for (i = 0; i < count; i++) {
+		entry = &entries[i];
+		if (!entry->is_last)
+			continue;
+
+		ret = dwxgmac3_rxp_update_single_entry(ioaddr, entry, nve);
+		if (ret)
+			goto re_enable;
+
+		entry->table_pos = nve++;
+	}
+
+	/* Assume n. of parsable entries == n. of valid entries */
+	val = (nve << 16) & XGMAC_NPE;
+	val |= nve & XGMAC_NVE;
+	writel(val, ioaddr + XGMAC_MTL_RXP_CONTROL_STATUS);
+
+	/* Enable RX Parser */
+	dwxgmac3_rxp_enable(ioaddr);
+
+re_enable:
+	/* Re-enable RX */
+	writel(old_val, ioaddr + XGMAC_RX_CONFIG);
+	return ret;
+}
+
 const struct stmmac_ops dwxgmac210_ops = {
 	.core_init = dwxgmac2_core_init,
 	.set_mac = dwxgmac2_set_mac,
@@ -843,6 +1032,7 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.set_mac_loopback = dwxgmac2_set_mac_loopback,
 	.rss_configure = dwxgmac2_rss_configure,
 	.update_vlan_hash = dwxgmac2_update_vlan_hash,
+	.rxp_config = dwxgmac3_rxp_config,
 };
 
 int dwxgmac2_setup(struct stmmac_priv *priv)
