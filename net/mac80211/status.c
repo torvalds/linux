@@ -412,6 +412,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			*pos = 0;
 			break;
 		}
+		pos++;
 
 		/* u8 mcs_nss[4] */
 		*pos = (status->rate->mcs << 4) | status->rate->nss;
