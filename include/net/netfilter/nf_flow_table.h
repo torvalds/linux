@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/rhashtable-types.h>
 #include <linux/rcupdate.h>
+#include <linux/netfilter.h>
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
 #include <net/dst.h>
 

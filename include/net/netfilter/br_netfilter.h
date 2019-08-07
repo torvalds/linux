@@ -2,6 +2,8 @@
 #ifndef _BR_NETFILTER_H_
 #define _BR_NETFILTER_H_
 
+#include <linux/netfilter.h>
+
 #include "../../../net/bridge/br_private.h"
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)

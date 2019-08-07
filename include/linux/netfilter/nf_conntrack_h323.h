@@ -4,7 +4,12 @@
 
 #ifdef __KERNEL__
 
+#include <linux/netfilter.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
 #include <linux/netfilter/nf_conntrack_h323_asn1.h>
+#include <net/netfilter/nf_conntrack_expect.h>
+#include <uapi/linux/netfilter/nf_conntrack_tuple_common.h>
 
 #define RAS_PORT 1719
 #define Q931_PORT 1720
@@ -27,8 +32,6 @@ struct nf_ct_h323_master {
 		u_int16_t tpkt_len[IP_CT_DIR_MAX];
 	};
 };
-
-struct nf_conn;
 
 int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 		  TransportAddress *taddr, union nf_inet_addr *addr,

@@ -2,6 +2,8 @@
 #ifndef _NFT_FIB_H_
 #define _NFT_FIB_H_
 
+#include <net/netfilter/nf_tables.h>
+
 struct nft_fib {
 	enum nft_registers	dreg:8;
 	u8			result;

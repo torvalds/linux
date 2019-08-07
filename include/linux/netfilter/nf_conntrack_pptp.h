@@ -3,7 +3,12 @@
 #ifndef _NF_CONNTRACK_PPTP_H
 #define _NF_CONNTRACK_PPTP_H
 
+#include <linux/netfilter.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
 #include <linux/netfilter/nf_conntrack_common.h>
+#include <net/netfilter/nf_conntrack_expect.h>
+#include <uapi/linux/netfilter/nf_conntrack_tuple_common.h>
 
 extern const char *const pptp_msg_name[];
 
@@ -296,10 +301,6 @@ union pptp_ctrl_union {
 	struct PptpWanErrorNotify	wanerr;
 	struct PptpSetLinkInfo		setlink;
 };
-
-/* crap needed for nf_conntrack_compat.h */
-struct nf_conn;
-struct nf_conntrack_expect;
 
 extern int
 (*nf_nat_pptp_hook_outbound)(struct sk_buff *skb,

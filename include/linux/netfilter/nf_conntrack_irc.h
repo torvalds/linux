@@ -4,6 +4,10 @@
 
 #ifdef __KERNEL__
 
+#include <linux/netfilter.h>
+#include <linux/skbuff.h>
+#include <net/netfilter/nf_conntrack_expect.h>
+
 #define IRC_PORT	6667
 
 extern unsigned int (*nf_nat_irc_hook)(struct sk_buff *skb,
