@@ -216,11 +216,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	if (!vdso_enabled)
 		return 0;
-	/*
-	 * Only map the vdso for dynamically linked elf binaries.
-	 */
-	if (!uses_interp)
-		return 0;
 
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT_VDSO
