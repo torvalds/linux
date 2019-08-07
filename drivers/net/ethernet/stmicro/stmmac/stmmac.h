@@ -13,6 +13,7 @@
 #define DRV_MODULE_VERSION	"Jan_2016"
 
 #include <linux/clk.h>
+#include <linux/if_vlan.h>
 #include <linux/stmmac.h>
 #include <linux/phylink.h>
 #include <linux/pci.h>
@@ -191,6 +192,7 @@ struct stmmac_priv {
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;

@@ -355,6 +355,7 @@ struct dma_features {
 	unsigned int frpes;
 	unsigned int addr64;
 	unsigned int rssen;
+	unsigned int vlhash;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */

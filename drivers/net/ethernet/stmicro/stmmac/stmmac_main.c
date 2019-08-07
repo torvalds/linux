@@ -4037,6 +4037,79 @@ static void stmmac_exit_fs(struct net_device *dev)
 }
 #endif /* CONFIG_DEBUG_FS */
 
+static u32 stmmac_vid_crc32_le(__le16 vid_le)
+{
+	unsigned char *data = (unsigned char *)&vid_le;
+	unsigned char data_byte = 0;
+	u32 crc = ~0x0;
+	u32 temp = 0;
+	int i, bits;
+
+	bits = get_bitmask_order(VLAN_VID_MASK);
+	for (i = 0; i < bits; i++) {
+		if ((i % 8) == 0)
+			data_byte = data[i / 8];
+
+		temp = ((crc & 1) ^ data_byte) & 1;
+		crc >>= 1;
+		data_byte >>= 1;
+
+		if (temp)
+			crc ^= 0xedb88320;
+	}
+
+	return crc;
+}
+
+static int stmmac_vlan_update(struct stmmac_priv *priv, bool is_double)
+{
+	u32 crc, hash = 0;
+	u16 vid;
+
+	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
+		__le16 vid_le = cpu_to_le16(vid);
+		crc = bitrev32(~stmmac_vid_crc32_le(vid_le)) >> 28;
+		hash |= (1 << crc);
+	}
+
+	return stmmac_update_vlan_hash(priv, priv->hw, hash, is_double);
+}
+
+static int stmmac_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	bool is_double = false;
+	int ret;
+
+	if (!priv->dma_cap.vlhash)
+		return -EOPNOTSUPP;
+	if (be16_to_cpu(proto) == ETH_P_8021AD)
+		is_double = true;
+
+	set_bit(vid, priv->active_vlans);
+	ret = stmmac_vlan_update(priv, is_double);
+	if (ret) {
+		clear_bit(vid, priv->active_vlans);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int stmmac_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	bool is_double = false;
+
+	if (!priv->dma_cap.vlhash)
+		return -EOPNOTSUPP;
+	if (be16_to_cpu(proto) == ETH_P_8021AD)
+		is_double = true;
+
+	clear_bit(vid, priv->active_vlans);
+	return stmmac_vlan_update(priv, is_double);
+}
+
 static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_open = stmmac_open,
 	.ndo_start_xmit = stmmac_xmit,
@@ -4053,6 +4126,8 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_poll_controller = stmmac_poll_controller,
 #endif
 	.ndo_set_mac_address = stmmac_set_mac_address,
+	.ndo_vlan_rx_add_vid = stmmac_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = stmmac_vlan_rx_kill_vid,
 };
 
 static void stmmac_reset_subtask(struct stmmac_priv *priv)
@@ -4307,6 +4382,10 @@ int stmmac_dvr_probe(struct device *device,
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
+	if (priv->dma_cap.vlhash) {
+		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+		ndev->features |= NETIF_F_HW_VLAN_STAG_FILTER;
+	}
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
 
