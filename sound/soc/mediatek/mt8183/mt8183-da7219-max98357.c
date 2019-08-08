@@ -370,7 +370,7 @@ static int
 mt8183_da7219_max98357_headset_init(struct snd_soc_component *component);
 
 static struct snd_soc_aux_dev mt8183_da7219_max98357_headset_dev = {
-	.name = "Headset Chip",
+	.dlc = COMP_EMPTY(),
 	.init = mt8183_da7219_max98357_headset_init,
 };
 
@@ -436,10 +436,10 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 		dai_link->platforms->of_node = platform_node;
 	}
 
-	mt8183_da7219_max98357_headset_dev.codec_of_node =
+	mt8183_da7219_max98357_headset_dev.dlc.of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "mediatek,headset-codec", 0);
-	if (!mt8183_da7219_max98357_headset_dev.codec_of_node) {
+	if (!mt8183_da7219_max98357_headset_dev.dlc.of_node) {
 		dev_err(&pdev->dev,
 			"Property 'mediatek,headset-codec' missing/invalid\n");
 		return -EINVAL;
