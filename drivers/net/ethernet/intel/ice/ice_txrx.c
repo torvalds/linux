@@ -1226,6 +1226,8 @@ ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
 	if (time_after(next_update, rc->next_update))
 		goto clear_counts;
 
+	prefetch(q_vector->vsi->port_info);
+
 	packets = rc->total_pkts;
 	bytes = rc->total_bytes;
 
@@ -1486,7 +1488,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 
 	/* Handle case where we are called by netpoll with a budget of 0 */
-	if (budget <= 0)
+	if (unlikely(budget <= 0))
 		return budget;
 
 	/* normally we have 1 Rx ring per q_vector */
