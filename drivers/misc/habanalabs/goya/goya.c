@@ -2729,9 +2729,10 @@ void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 				GOYA_ASYNC_EVENT_ID_PI_UPDATE);
 }
 
-void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val)
+void goya_pqe_write(struct hl_device *hdev, __le64 *pqe, struct hl_bd *bd)
 {
-	/* Not needed in Goya */
+	/* The QMANs are on the SRAM so need to copy to IO space */
+	memcpy_toio((void __iomem *) pqe, bd, sizeof(struct hl_bd));
 }
 
 static void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
@@ -5048,7 +5049,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.resume = goya_resume,
 	.cb_mmap = goya_cb_mmap,
 	.ring_doorbell = goya_ring_doorbell,
-	.flush_pq_write = goya_flush_pq_write,
+	.pqe_write = goya_pqe_write,
 	.asic_dma_alloc_coherent = goya_dma_alloc_coherent,
 	.asic_dma_free_coherent = goya_dma_free_coherent,
 	.get_int_queue_base = goya_get_int_queue_base,
