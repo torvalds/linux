@@ -638,8 +638,8 @@ static int r8712_process_recv_indicatepkts(struct _adapter *padapter,
 		}
 	} else { /*B/G mode*/
 		retval = r8712_wlanhdr_to_ethhdr(prframe);
-		if (retval != _SUCCESS)
-			return retval;
+		if (retval)
+			return _FAIL;
 		if (!padapter->driver_stopped && !padapter->surprise_removed) {
 			/* indicate this recv_frame */
 			r8712_recv_indicatepkt(padapter, prframe);

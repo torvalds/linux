@@ -585,7 +585,7 @@ sint r8712_validate_recv_frame(struct _adapter *adapter,
 	return retval;
 }
 
-sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
+int r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 {
 	/*remove the wlanhdr and add the eth_hdr*/
 	sint	rmv_len;
@@ -628,14 +628,14 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 		ptr = recvframe_pull(precvframe, (rmv_len -
 		      sizeof(struct ethhdr) + 2) - 24);
 		if (!ptr)
-			return _FAIL;
+			return -ENOMEM;
 		memcpy(ptr, get_rxmem(precvframe), 24);
 		ptr += 24;
 	} else {
 		ptr = recvframe_pull(precvframe, (rmv_len -
 		      sizeof(struct ethhdr) + (bsnaphdr ? 2 : 0)));
 		if (!ptr)
-			return _FAIL;
+			return -ENOMEM;
 	}
 
 	memcpy(ptr, pattrib->dst, ETH_ALEN);
@@ -645,7 +645,7 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 
 		memcpy(ptr + 12, &be_tmp, 2);
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 s32 r8712_recv_entry(union recv_frame *precvframe)
