@@ -514,7 +514,7 @@ typedef arr1_t arr2_t;
 typedef arr2_t arr3_t;
 typedef arr3_t arr4_t;
 
-typedef const char * const volatile restrict fancy_char_ptr_t;
+typedef const char * const volatile fancy_char_ptr_t;
 
 typedef core_reloc_mods_substruct_t core_reloc_mods_substruct_tt;
 
