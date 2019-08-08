@@ -56,7 +56,7 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 no_valid_dev_replace_entry_found:
 		ret = 0;
 		dev_replace->replace_state =
-			BTRFS_DEV_REPLACE_ITEM_STATE_NEVER_STARTED;
+			BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED;
 		dev_replace->cont_reading_from_srcdev_mode =
 		    BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_ALWAYS;
 		dev_replace->time_started = 0;
