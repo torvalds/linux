@@ -5978,6 +5978,9 @@ static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 	if (adev->asic_type != CHIP_VEGA20)
 		return -EINVAL;
 
+	if (info->head.sub_block_index >= ARRAY_SIZE(ras_gfx_subblocks))
+		return -EINVAL;
+
 	if (!ras_gfx_subblocks[info->head.sub_block_index].name)
 		return -EPERM;
 
