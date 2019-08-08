@@ -577,6 +577,9 @@ static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 
 void rvin_crop_scale_comp(struct rvin_dev *vin)
 {
+	const struct rvin_video_format *fmt;
+	u32 stride;
+
 	/* Set Start/End Pixel/Line Pre-Clip */
 	rvin_write(vin, vin->crop.left, VNSPPRC_REG);
 	rvin_write(vin, vin->crop.left + vin->crop.width - 1, VNEPPRC_REG);
@@ -600,10 +603,9 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	if (vin->info->model != RCAR_GEN3)
 		rvin_crop_scale_comp_gen2(vin);
 
-	if (vin->format.pixelformat == V4L2_PIX_FMT_NV16)
-		rvin_write(vin, ALIGN(vin->format.width, 0x20), VNIS_REG);
-	else
-		rvin_write(vin, ALIGN(vin->format.width, 0x10), VNIS_REG);
+	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
+	stride = vin->format.bytesperline / fmt->bpp;
+	rvin_write(vin, stride, VNIS_REG);
 }
 
 /* -----------------------------------------------------------------------------

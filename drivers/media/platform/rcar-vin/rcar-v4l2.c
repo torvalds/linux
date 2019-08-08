@@ -83,13 +83,16 @@ static u32 rvin_format_bytesperline(struct rvin_dev *vin,
 				    struct v4l2_pix_format *pix)
 {
 	const struct rvin_video_format *fmt;
+	u32 align;
 
 	fmt = rvin_format_from_pixel(vin, pix->pixelformat);
 
 	if (WARN_ON(!fmt))
 		return -EINVAL;
 
-	return pix->width * fmt->bpp;
+	align = pix->pixelformat == V4L2_PIX_FMT_NV16 ? 0x20 : 0x10;
+
+	return ALIGN(pix->width, align) * fmt->bpp;
 }
 
 static u32 rvin_format_sizeimage(struct v4l2_pix_format *pix)
