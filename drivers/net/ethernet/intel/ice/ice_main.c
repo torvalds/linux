@@ -3477,12 +3477,16 @@ void ice_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 
 	vsi_stats = &vsi->net_stats;
 
-	if (test_bit(__ICE_DOWN, vsi->state) || !vsi->num_txq || !vsi->num_rxq)
+	if (!vsi->num_txq || !vsi->num_rxq)
 		return;
+
 	/* netdev packet/byte stats come from ring counter. These are obtained
 	 * by summing up ring counters (done by ice_update_vsi_ring_stats).
+	 * But, only call the update routine and read the registers if VSI is
+	 * not down.
 	 */
-	ice_update_vsi_ring_stats(vsi);
+	if (!test_bit(__ICE_DOWN, vsi->state))
+		ice_update_vsi_ring_stats(vsi);
 	stats->tx_packets = vsi_stats->tx_packets;
 	stats->tx_bytes = vsi_stats->tx_bytes;
 	stats->rx_packets = vsi_stats->rx_packets;
