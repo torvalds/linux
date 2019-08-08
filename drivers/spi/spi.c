@@ -2235,7 +2235,7 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 EXPORT_SYMBOL_GPL(__spi_alloc_controller);
 
 #ifdef CONFIG_OF
-static int of_spi_register_master(struct spi_controller *ctlr)
+static int of_spi_get_gpio_numbers(struct spi_controller *ctlr)
 {
 	int nb, i, *cs;
 	struct device_node *np = ctlr->dev.of_node;
@@ -2268,7 +2268,7 @@ static int of_spi_register_master(struct spi_controller *ctlr)
 	return 0;
 }
 #else
-static int of_spi_register_master(struct spi_controller *ctlr)
+static int of_spi_get_gpio_numbers(struct spi_controller *ctlr)
 {
 	return 0;
 }
@@ -2455,7 +2455,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 			ctlr->mode_bits |= SPI_CS_HIGH;
 		} else {
 			/* Legacy code path for GPIOs from DT */
-			status = of_spi_register_master(ctlr);
+			status = of_spi_get_gpio_numbers(ctlr);
 			if (status)
 				return status;
 		}
