@@ -67,7 +67,7 @@ static struct gmap *gmap_alloc(unsigned long limit)
 	INIT_RADIX_TREE(&gmap->host_to_rmap, GFP_ATOMIC);
 	spin_lock_init(&gmap->guest_table_lock);
 	spin_lock_init(&gmap->shadow_lock);
-	atomic_set(&gmap->ref_count, 1);
+	refcount_set(&gmap->ref_count, 1);
 	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
 	if (!page)
 		goto out_free;
@@ -214,7 +214,7 @@ static void gmap_free(struct gmap *gmap)
  */
 struct gmap *gmap_get(struct gmap *gmap)
 {
-	atomic_inc(&gmap->ref_count);
+	refcount_inc(&gmap->ref_count);
 	return gmap;
 }
 EXPORT_SYMBOL_GPL(gmap_get);
@@ -227,7 +227,7 @@ EXPORT_SYMBOL_GPL(gmap_get);
  */
 void gmap_put(struct gmap *gmap)
 {
-	if (atomic_dec_return(&gmap->ref_count) == 0)
+	if (refcount_dec_and_test(&gmap->ref_count))
 		gmap_free(gmap);
 }
 EXPORT_SYMBOL_GPL(gmap_put);
@@ -1594,7 +1594,7 @@ static struct gmap *gmap_find_shadow(struct gmap *parent, unsigned long asce,
 			continue;
 		if (!sg->initialized)
 			return ERR_PTR(-EAGAIN);
-		atomic_inc(&sg->ref_count);
+		refcount_inc(&sg->ref_count);
 		return sg;
 	}
 	return NULL;
@@ -1682,7 +1682,7 @@ struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
 			}
 		}
 	}
-	atomic_set(&new->ref_count, 2);
+	refcount_set(&new->ref_count, 2);
 	list_add(&new->list, &parent->children);
 	if (asce & _ASCE_REAL_SPACE) {
 		/* nothing to protect, return right away */
