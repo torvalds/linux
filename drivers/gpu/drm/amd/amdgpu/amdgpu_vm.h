@@ -54,6 +54,9 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_PTE_SYSTEM	(1ULL << 1)
 #define AMDGPU_PTE_SNOOPED	(1ULL << 2)
 
+/* RV+ */
+#define AMDGPU_PTE_TMZ		(1ULL << 3)
+
 /* VI only */
 #define AMDGPU_PTE_EXECUTABLE	(1ULL << 4)
 
