@@ -294,30 +294,36 @@ static void init_default_value(struct _adapter *padapter)
 	/*misc.*/
 }
 
-u8 r8712_init_drv_sw(struct _adapter *padapter)
+int r8712_init_drv_sw(struct _adapter *padapter)
 {
-	if (r8712_init_cmd_priv(&padapter->cmdpriv))
-		return _FAIL;
+	int ret;
+
+	ret = r8712_init_cmd_priv(&padapter->cmdpriv);
+	if (ret)
+		return ret;
 	padapter->cmdpriv.padapter = padapter;
-	if (r8712_init_evt_priv(&padapter->evtpriv))
-		return _FAIL;
-	if (r8712_init_mlme_priv(padapter))
-		return _FAIL;
+	ret = r8712_init_evt_priv(&padapter->evtpriv);
+	if (ret)
+		return ret;
+	ret = r8712_init_mlme_priv(padapter);
+	if (ret)
+		return ret;
 	_r8712_init_xmit_priv(&padapter->xmitpriv, padapter);
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
 	timer_setup(&padapter->securitypriv.tkip_timer,
 		    r8712_use_tkipkey_handler, 0);
-	if (_r8712_init_sta_priv(&padapter->stapriv))
-		return _FAIL;
+	ret = _r8712_init_sta_priv(&padapter->stapriv);
+	if (ret)
+		return ret;
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);
 	mp871xinit(padapter);
 	init_default_value(padapter);
 	r8712_InitSwLeds(padapter);
-	return _SUCCESS;
+	return ret;
 }
 
 u8 r8712_free_drv_sw(struct _adapter *padapter)
