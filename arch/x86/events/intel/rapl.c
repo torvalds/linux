@@ -634,7 +634,7 @@ static void cleanup_rapl_pmus(void)
 	kfree(rapl_pmus);
 }
 
-const struct attribute_group *rapl_attr_update[] = {
+static const struct attribute_group *rapl_attr_update[] = {
 	&rapl_events_cores_group,
 	&rapl_events_pkg_group,
 	&rapl_events_ram_group,

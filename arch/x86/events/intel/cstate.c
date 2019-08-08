@@ -446,7 +446,7 @@ static int cstate_cpu_init(unsigned int cpu)
 	return 0;
 }
 
-const struct attribute_group *core_attr_update[] = {
+static const struct attribute_group *core_attr_update[] = {
 	&group_cstate_core_c1,
 	&group_cstate_core_c3,
 	&group_cstate_core_c6,
@@ -454,7 +454,7 @@ const struct attribute_group *core_attr_update[] = {
 	NULL,
 };
 
-const struct attribute_group *pkg_attr_update[] = {
+static const struct attribute_group *pkg_attr_update[] = {
 	&group_cstate_pkg_c2,
 	&group_cstate_pkg_c3,
 	&group_cstate_pkg_c6,
