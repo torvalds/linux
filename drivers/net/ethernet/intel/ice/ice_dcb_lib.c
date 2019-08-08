@@ -452,14 +452,18 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	port_info = hw->port_info;
 
 	err = ice_init_dcb(hw);
+	if (err && !port_info->is_sw_lldp) {
+		dev_err(&pf->pdev->dev, "Error initializing DCB %d\n", err);
+		goto dcb_init_err;
+	}
+
+	dev_info(&pf->pdev->dev,
+		 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
+		 pf->hw.func_caps.common_cap.maxtc);
 	if (err) {
 		/* FW LLDP is disabled, activate SW DCBX/LLDP mode */
 		dev_info(&pf->pdev->dev,
-			 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
-			 pf->hw.func_caps.common_cap.maxtc);
-		dev_info(&pf->pdev->dev,
 			 "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
-		port_info->is_sw_lldp = true;
 		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 		err = ice_dcb_sw_dflt_cfg(pf, locked);
 		if (err) {
@@ -475,7 +479,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		return 0;
 	}
 
-	port_info->is_sw_lldp = false;
 	set_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 
 	/* DCBX in FW and LLDP enabled in FW */
@@ -487,10 +490,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	if (err)
 		goto dcb_init_err;
 
-	dev_info(&pf->pdev->dev,
-		 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
-		 pf->hw.func_caps.common_cap.maxtc);
-	dev_info(&pf->pdev->dev, "DCBX offload supported\n");
 	return err;
 
 dcb_init_err:
