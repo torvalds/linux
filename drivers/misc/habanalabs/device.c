@@ -907,6 +907,8 @@ again:
 	else
 		hdev->soft_reset_cnt++;
 
+	dev_warn(hdev->dev, "Successfully finished resetting the device\n");
+
 	return 0;
 
 out_err:
