@@ -365,12 +365,20 @@ ENTRY(startup_pgm_check_handler)
 	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r1)
 	mvc	__LC_GPREGS_SAVE_AREA-4095(128,%r1),__LC_SAVE_AREA_SYNC
 	mvc	__LC_PSW_SAVE_AREA-4095(16,%r1),__LC_PGM_OLD_PSW
-	lg	%r1,__LC_SAVE_AREA_SYNC+8
 	mvc	__LC_RETURN_PSW(16),__LC_PGM_OLD_PSW
 	ni	__LC_RETURN_PSW,0xfc	# remove IO and EX bits
 	ni	__LC_RETURN_PSW+1,0xfb	# remove MCHK bit
 	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
+	larl	%r2,.Lold_psw_disabled_wait
+	stg	%r2,__LC_PGM_NEW_PSW+8
+	l	%r15,.Ldump_info_stack-.Lold_psw_disabled_wait(%r2)
+	brasl	%r14,print_pgm_check_info
+.Lold_psw_disabled_wait:
+	la	%r1,4095
+	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)
 	lpswe	__LC_RETURN_PSW		# disabled wait
+.Ldump_info_stack:
+	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
 ENDPROC(startup_pgm_check_handler)
 
 #
