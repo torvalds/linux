@@ -27,6 +27,8 @@
 
 struct sh_pfc_pin_config {
 	u32 type;
+	bool mux_set;
+	bool gpio_enabled;
 };
 
 struct sh_pfc_pinctrl {
@@ -364,7 +366,15 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	for (i = 0; i < grp->nr_pins; ++i) {
 		ret = sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION);
 		if (ret < 0)
-			break;
+			goto done;
+	}
+
+	/* All group pins are configured, mark the pins as mux_set */
+	for (i = 0; i < grp->nr_pins; ++i) {
+		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
+		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
+
+		cfg->mux_set = true;
 	}
 
 done:
@@ -405,6 +415,7 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 	}
 
 	cfg->type = PINMUX_TYPE_GPIO;
+	cfg->gpio_enabled = true;
 
 	ret = 0;
 
@@ -426,6 +437,7 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 	cfg->type = PINMUX_TYPE_NONE;
+	cfg->gpio_enabled = false;
 	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
