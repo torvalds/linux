@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/suspend.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #define CREATE_TRACE_POINTS
@@ -97,6 +98,11 @@ static const struct pci_device_id ish_invalid_pci_ids[] = {
 	{}
 };
 
+static inline bool ish_should_enter_d0i3(struct pci_dev *pdev)
+{
+	return !pm_suspend_via_firmware() || pdev->device == CHV_DEVICE_ID;
+}
+
 /**
  * ish_probe() - PCI driver probe callback
  * @pdev:	pci device
@@ -147,7 +153,6 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* mapping IO device memory */
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
 	ishtp->pdev = pdev;
-	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
 
 	/* request and enable interrupt */
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
@@ -184,7 +189,6 @@ static void ish_remove(struct pci_dev *pdev)
 	struct ishtp_device *ishtp_dev = pci_get_drvdata(pdev);
 
 	ishtp_bus_remove_all_clients(ishtp_dev, false);
-	pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
 	ish_device_disable(ishtp_dev);
 }
 
@@ -208,6 +212,8 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
 	uint32_t fwsts;
 	int ret;
+
+	pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
 
 	/* Get ISH FW status */
 	fwsts = IPC_GET_ISH_FWSTS(dev->ops->get_fw_status(dev));
@@ -266,6 +272,17 @@ static int __maybe_unused ish_suspend(struct device *device)
 		wait_event_interruptible_timeout(dev->suspend_wait,
 						 !dev->suspend_flag,
 						  msecs_to_jiffies(25));
+
+	if (ish_should_enter_d0i3(pdev)) {
+		/* Set the NO_D3 flag, the ISH would enter D0i3 */
+		pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
+	} else {
+		/*
+		 * Clear the DMA bit before putting ISH into D3,
+		 * or ISH FW would reset automatically.
+		 */
+		ish_disable_dma(dev);
+	}
 
 	return 0;
 }
