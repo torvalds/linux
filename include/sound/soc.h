@@ -1087,6 +1087,10 @@ struct snd_soc_card {
 	for ((i) = 0;							\
 	     ((i) < (card)->num_links) && ((link) = &(card)->dai_link[i]); \
 	     (i)++)
+#define for_each_card_pre_auxs(card, i, aux)				\
+	for ((i) = 0;							\
+	     ((i) < (card)->num_aux_devs) && ((aux) = &(card)->aux_dev[i]); \
+	     (i)++)
 
 #define for_each_card_links(card, link)				\
 	list_for_each_entry(link, &(card)->dai_link_list, list)
@@ -1097,6 +1101,12 @@ struct snd_soc_card {
 	list_for_each_entry(rtd, &(card)->rtd_list, list)
 #define for_each_card_rtds_safe(card, rtd, _rtd)	\
 	list_for_each_entry_safe(rtd, _rtd, &(card)->rtd_list, list)
+
+#define for_each_card_auxs(card, component)			\
+	list_for_each_entry(component, &card->aux_comp_list, card_aux_list)
+#define for_each_card_auxs_safe(card, component, _comp)	\
+	list_for_each_entry_safe(component, _comp,	\
+				 &card->aux_comp_list, card_aux_list)
 
 #define for_each_card_components(card, component)			\
 	list_for_each_entry(component, &(card)->component_dev_list, card_list)
