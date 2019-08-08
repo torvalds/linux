@@ -924,7 +924,7 @@ static void soc_cleanup_component(struct snd_soc_component *component)
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 	soc_cleanup_component_debugfs(component);
 	component->card = NULL;
-	snd_soc_component_module_put_when_close(component);
+	snd_soc_component_module_put_when_remove(component);
 }
 
 static void soc_remove_component(struct snd_soc_component *component)
