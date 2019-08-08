@@ -210,19 +210,25 @@ static int intel_vbtn_pm_prepare(struct device *dev)
 	return 0;
 }
 
-static int intel_vbtn_pm_resume(struct device *dev)
+static void intel_vbtn_pm_complete(struct device *dev)
 {
-	if (device_may_wakeup(dev)) {
-		struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
+	if (priv->wakeup_mode) {
 		acpi_ec_set_gpe_wake_mask(ACPI_GPE_DISABLE);
 		priv->wakeup_mode = false;
 	}
+}
+
+static int intel_vbtn_pm_resume(struct device *dev)
+{
+	intel_vbtn_pm_complete(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops intel_vbtn_pm_ops = {
 	.prepare = intel_vbtn_pm_prepare,
+	.complete = intel_vbtn_pm_complete,
 	.resume = intel_vbtn_pm_resume,
 	.restore = intel_vbtn_pm_resume,
 	.thaw = intel_vbtn_pm_resume,
