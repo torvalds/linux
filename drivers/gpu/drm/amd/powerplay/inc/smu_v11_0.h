@@ -25,6 +25,11 @@
 
 #include "amdgpu_smu.h"
 
+#define SMU11_DRIVER_IF_VERSION_INV 0xFFFFFFFF
+#define SMU11_DRIVER_IF_VERSION_VG20 0x13
+#define SMU11_DRIVER_IF_VERSION_NV10 0x33
+#define SMU11_DRIVER_IF_VERSION_NV14 0x33
+
 /* MP Apertures */
 #define MP0_Public			0x03800000
 #define MP0_SRAM			0x03900000

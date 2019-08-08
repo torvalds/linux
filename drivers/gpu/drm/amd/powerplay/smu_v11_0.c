@@ -274,6 +274,22 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
+	switch (smu->adev->asic_type) {
+	case CHIP_VEGA20:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_VG20;
+		break;
+	case CHIP_NAVI10:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV10;
+		break;
+	case CHIP_NAVI14:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV14;
+		break;
+	default:
+		pr_err("smu unsuported asic type:%d.\n",smu->adev->asic_type);
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_INV;
+		break;
+	}
+
 	/*
 	 * 1. if_version mismatch is not critical as our fw is designed
 	 * to be backward compatible.

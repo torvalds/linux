@@ -26,7 +26,9 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x33
+// Be aware of that the version should be updated in
+// smu_v11_0.h, maybe rename is also needed.
+// #define SMU11_DRIVER_IF_VERSION 0x33
 
 #define PPTABLE_NV10_SMU_VERSION 8
 
