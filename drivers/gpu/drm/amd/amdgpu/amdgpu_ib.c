@@ -214,7 +214,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (job && ring->funcs->emit_cntxcntl) {
 		status |= job->preamble_status;
 		status |= job->preemption_status;
-		amdgpu_ring_emit_cntxcntl(ring, status, false);
+		amdgpu_ring_emit_cntxcntl(ring, status, job->secure);
 	}
 
 	for (i = 0; i < num_ibs; ++i) {
@@ -233,7 +233,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	if (ring->funcs->emit_tmz)
-		amdgpu_ring_emit_tmz(ring, false, false);
+		amdgpu_ring_emit_tmz(ring, false, job ? job->secure : false);
 
 #ifdef CONFIG_X86_64
 	if (!(adev->flags & AMD_IS_APU))
