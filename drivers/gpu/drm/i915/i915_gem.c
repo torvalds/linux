@@ -1256,9 +1256,8 @@ out:
 
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 {
+	struct i915_request *requests[I915_NUM_ENGINES] = {};
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	struct i915_gem_engines *e;
 	enum intel_engine_id id;
 	int err = 0;
 
@@ -1271,20 +1270,25 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	 * from the same default HW values.
 	 */
 
-	ctx = i915_gem_context_create_kernel(i915, 0);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-
-	e = i915_gem_context_lock_engines(ctx);
-
 	for_each_engine(engine, i915, id) {
-		struct intel_context *ce = e->engines[id];
+		struct intel_context *ce;
 		struct i915_request *rq;
+
+		/* We must be able to switch to something! */
+		GEM_BUG_ON(!engine->kernel_context);
+		engine->serial++; /* force the kernel context switch */
+
+		ce = intel_context_create(i915->kernel_context, engine);
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
+			goto out;
+		}
 
 		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err_active;
+			intel_context_put(ce);
+			goto out;
 		}
 
 		err = intel_engine_emit_ctx_wa(rq);
@@ -1305,26 +1309,33 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto err_rq;
 
 err_rq:
+		requests[id] = i915_request_get(rq);
 		i915_request_add(rq);
 		if (err)
-			goto err_active;
+			goto out;
 	}
 
 	/* Flush the default context image to memory, and enable powersaving. */
 	if (!i915_gem_load_power_context(i915)) {
 		err = -EIO;
-		goto err_active;
+		goto out;
 	}
 
-	for_each_engine(engine, i915, id) {
-		struct intel_context *ce = e->engines[id];
-		struct i915_vma *state = ce->state;
+	for (id = 0; id < ARRAY_SIZE(requests); id++) {
+		struct i915_request *rq;
+		struct i915_vma *state;
 		void *vaddr;
 
-		if (!state)
+		rq = requests[id];
+		if (!rq)
 			continue;
 
-		GEM_BUG_ON(intel_context_is_pinned(ce));
+		/* We want to be able to unbind the state from the GGTT */
+		GEM_BUG_ON(intel_context_is_pinned(rq->hw_context));
+
+		state = rq->hw_context->state;
+		if (!state)
+			continue;
 
 		/*
 		 * As we will hold a reference to the logical state, it will
@@ -1336,43 +1347,49 @@ err_rq:
 		 */
 		err = i915_vma_unbind(state);
 		if (err)
-			goto err_active;
+			goto out;
 
 		i915_gem_object_lock(state->obj);
 		err = i915_gem_object_set_to_cpu_domain(state->obj, false);
 		i915_gem_object_unlock(state->obj);
 		if (err)
-			goto err_active;
+			goto out;
 
-		engine->default_state = i915_gem_object_get(state->obj);
-		i915_gem_object_set_cache_coherency(engine->default_state,
-						    I915_CACHE_LLC);
+		i915_gem_object_set_cache_coherency(state->obj, I915_CACHE_LLC);
 
 		/* Check we can acquire the image of the context state */
-		vaddr = i915_gem_object_pin_map(engine->default_state,
-						I915_MAP_FORCE_WB);
+		vaddr = i915_gem_object_pin_map(state->obj, I915_MAP_FORCE_WB);
 		if (IS_ERR(vaddr)) {
 			err = PTR_ERR(vaddr);
-			goto err_active;
+			goto out;
 		}
 
-		i915_gem_object_unpin_map(engine->default_state);
+		rq->engine->default_state = i915_gem_object_get(state->obj);
+		i915_gem_object_unpin_map(state->obj);
 	}
 
-out_ctx:
-	i915_gem_context_unlock_engines(ctx);
-	i915_gem_context_set_closed(ctx);
-	i915_gem_context_put(ctx);
-	return err;
-
-err_active:
+out:
 	/*
 	 * If we have to abandon now, we expect the engines to be idle
 	 * and ready to be torn-down. The quickest way we can accomplish
 	 * this is by declaring ourselves wedged.
 	 */
-	intel_gt_set_wedged(&i915->gt);
-	goto out_ctx;
+	if (err)
+		intel_gt_set_wedged(&i915->gt);
+
+	for (id = 0; id < ARRAY_SIZE(requests); id++) {
+		struct intel_context *ce;
+		struct i915_request *rq;
+
+		rq = requests[id];
+		if (!rq)
+			continue;
+
+		ce = rq->hw_context;
+		i915_request_put(rq);
+		intel_context_put(ce);
+	}
+	return err;
 }
 
 static int

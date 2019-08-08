@@ -707,26 +707,6 @@ out_frame:
 	return dw;
 }
 
-static int pin_context(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine,
-		       struct intel_context **out)
-{
-	struct intel_context *ce;
-	int err;
-
-	ce = i915_gem_context_get_engine(ctx, engine->id);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
-
-	err = intel_context_pin(ce);
-	intel_context_put(ce);
-	if (err)
-		return err;
-
-	*out = ce;
-	return 0;
-}
-
 void
 intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 {
@@ -748,6 +728,25 @@ intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 #endif
 }
 
+static struct intel_context *
+create_kernel_context(struct intel_engine_cs *engine)
+{
+	struct intel_context *ce;
+	int err;
+
+	ce = intel_context_create(engine->i915->kernel_context, engine);
+	if (IS_ERR(ce))
+		return ce;
+
+	err = intel_context_pin(ce);
+	if (err) {
+		intel_context_put(ce);
+		return ERR_PTR(err);
+	}
+
+	return ce;
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -761,22 +760,24 @@ intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
  */
 int intel_engine_init_common(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *i915 = engine->i915;
+	struct intel_context *ce;
 	int ret;
 
 	engine->set_default_submission(engine);
 
-	/* We may need to do things with the shrinker which
+	/*
+	 * We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
 	 * context. This can cause a problem as pinning the
 	 * default context also requires GTT space which may not
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
-	ret = pin_context(i915->kernel_context, engine,
-			  &engine->kernel_context);
-	if (ret)
-		return ret;
+	ce = create_kernel_context(engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	engine->kernel_context = ce;
 
 	ret = measure_breadcrumb_dw(engine);
 	if (ret < 0)
@@ -787,7 +788,8 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	return 0;
 
 err_unpin:
-	intel_context_unpin(engine->kernel_context);
+	intel_context_unpin(ce);
+	intel_context_put(ce);
 	return ret;
 }
 
@@ -812,6 +814,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 		i915_gem_object_put(engine->default_state);
 
 	intel_context_unpin(engine->kernel_context);
+	intel_context_put(engine->kernel_context);
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 
 	intel_wa_list_free(&engine->ctx_wa_list);
@@ -1573,5 +1576,6 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "mock_engine.c"
 #include "selftest_engine_cs.c"
 #endif

@@ -95,8 +95,6 @@ gt-y += \
 	gt/gen7_renderstate.o \
 	gt/gen8_renderstate.o \
 	gt/gen9_renderstate.o
-gt-$(CONFIG_DRM_I915_SELFTEST) += \
-	gt/mock_engine.o
 i915-y += $(gt-y)
 
 # GEM (Graphics Execution Management) code
