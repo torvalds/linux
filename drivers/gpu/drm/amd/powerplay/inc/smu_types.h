@@ -124,6 +124,50 @@
        __SMU_DUMMY_MAP(PowerDownVcn0),               \
        __SMU_DUMMY_MAP(PowerUpVcn1),                  \
        __SMU_DUMMY_MAP(PowerDownVcn1),                \
+       __SMU_DUMMY_MAP(PowerUpGfx),                   \
+       __SMU_DUMMY_MAP(PowerDownIspByTile),           \
+       __SMU_DUMMY_MAP(PowerUpIspByTile),             \
+       __SMU_DUMMY_MAP(PowerDownSdma),                \
+	__SMU_DUMMY_MAP(PowerUpSdma),                 \
+	__SMU_DUMMY_MAP(SetHardMinIspclkByFreq),      \
+	__SMU_DUMMY_MAP(SetHardMinVcn),               \
+	__SMU_DUMMY_MAP(Spare1),                      \
+	__SMU_DUMMY_MAP(Spare2),           	      \
+	__SMU_DUMMY_MAP(SetAllowFclkSwitch),          \
+	__SMU_DUMMY_MAP(SetMinVideoGfxclkFreq),       \
+	__SMU_DUMMY_MAP(ActiveProcessNotify),         \
+	__SMU_DUMMY_MAP(SetCustomPolicy),             \
+	__SMU_DUMMY_MAP(QueryPowerLimit),             \
+	__SMU_DUMMY_MAP(SetGfxclkOverdriveByFreqVid), \
+	__SMU_DUMMY_MAP(SetHardMinDcfclkByFreq),      \
+	__SMU_DUMMY_MAP(SetHardMinSocclkByFreq),      \
+	__SMU_DUMMY_MAP(ControlIgpuATS),              \
+	__SMU_DUMMY_MAP(SetMinVideoFclkFreq),         \
+	__SMU_DUMMY_MAP(SetMinDeepSleepDcfclk),       \
+	__SMU_DUMMY_MAP(ForcePowerDownGfx),           \
+	__SMU_DUMMY_MAP(SetPhyclkVoltageByFreq),      \
+	__SMU_DUMMY_MAP(SetDppclkVoltageByFreq),      \
+	__SMU_DUMMY_MAP(SetSoftMinVcn),               \
+	__SMU_DUMMY_MAP(EnablePostCode),              \
+	__SMU_DUMMY_MAP(GetGfxclkFrequency),          \
+	__SMU_DUMMY_MAP(GetFclkFrequency),            \
+	__SMU_DUMMY_MAP(GetMinGfxclkFrequency),       \
+	__SMU_DUMMY_MAP(GetMaxGfxclkFrequency),       \
+	__SMU_DUMMY_MAP(SetGfxCGPG),                  \
+	__SMU_DUMMY_MAP(SetSoftMaxGfxClk),            \
+	__SMU_DUMMY_MAP(SetHardMinGfxClk),            \
+	__SMU_DUMMY_MAP(SetSoftMaxSocclkByFreq),      \
+	__SMU_DUMMY_MAP(SetSoftMaxFclkByFreq),        \
+	__SMU_DUMMY_MAP(SetSoftMaxVcn),               \
+	__SMU_DUMMY_MAP(PowerGateMmHub),              \
+	__SMU_DUMMY_MAP(UpdatePmeRestore),            \
+	__SMU_DUMMY_MAP(GpuChangeState),              \
+	__SMU_DUMMY_MAP(SetPowerLimitPercentage),     \
+	__SMU_DUMMY_MAP(ForceGfxContentSave),         \
+	__SMU_DUMMY_MAP(EnableTmdp48MHzRefclkPwrDown), \
+	__SMU_DUMMY_MAP(PowerGateAtHub),              \
+	__SMU_DUMMY_MAP(SetSoftMinJpeg),              \
+	__SMU_DUMMY_MAP(SetHardMinFclkByFreq),        \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
