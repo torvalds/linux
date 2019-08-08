@@ -61,15 +61,34 @@ enum lm75_type {		/* keep sorted in alphabetical order */
  * @resolution_limits:	Limit register resolution. Optional. Should be set if
  *			the resolution of limit registers does not match the
  *			resolution of the temperature register.
- * default_sample_time:	Sample time to be set by default.
+ * @resolutions:	List of resolutions associated with sample times.
+ *			Optional. Should be set if num_sample_times is larger
+ *			than 1, and if the resolution changes with sample times.
+ *			If set, number of entries must match num_sample_times.
+ * @default_sample_time:Sample time to be set by default.
+ * @num_sample_times:	Number of possible sample times to be set. Optional.
+ *			Should be set if the number of sample times is larger
+ *			than one.
+ * @sample_times:	All the possible sample times to be set. Mandatory if
+ *			num_sample_times is larger than 1. If set, number of
+ *			entries must match num_sample_times.
+ * @sample_set_masks:	All the set_masks for the possible sample times.
+ *			Mandatory if num_sample_times is larger than 1.
+ *			If set, number of entries must match num_sample_times.
+ * @sample_clr_mask:	Clear mask used to set the sample time.
  */
 
 struct lm75_params {
-	u8		set_mask;
-	u8		clr_mask;
-	u8		default_resolution;
-	u8		resolution_limits;
-	unsigned int	default_sample_time;
+	u8			set_mask;
+	u8			clr_mask;
+	u8			default_resolution;
+	u8			resolution_limits;
+	const u8		*resolutions;
+	unsigned int		default_sample_time;
+	u8			num_sample_times;
+	const unsigned int	*sample_times;
+	const u8		*sample_set_masks;
+	u8			sample_clr_mask;
 };
 
 /* Addresses scanned */
@@ -221,7 +240,14 @@ static const struct lm75_params device_params[] = {
 	[tmp75b] = { /* not one-shot mode, Conversion rate 37Hz */
 		.clr_mask = 1 << 7 | 3 << 5,
 		.default_resolution = 12,
+		.sample_set_masks = (u8 []){ 0 << 5, 1 << 5, 2 << 5,
+			3 << 5 },
+		.sample_clr_mask = 3 << 5,
 		.default_sample_time = MSEC_PER_SEC / 37,
+		.sample_times = (unsigned int []){ MSEC_PER_SEC / 37,
+			MSEC_PER_SEC / 18,
+			MSEC_PER_SEC / 9, MSEC_PER_SEC / 4 },
+		.num_sample_times = 4,
 	},
 	[tmp75c] = {
 		.clr_mask = 1 << 5,	/*not one-shot mode*/
