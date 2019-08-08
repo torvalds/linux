@@ -1719,7 +1719,8 @@ void dce110_set_safe_displaymarks(
  ******************************************************************************/
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, int vmin, int vmax)
+		int num_pipes, unsigned int vmin, unsigned int vmax,
+		unsigned int vmid, unsigned int vmid_frame_number)
 {
 	int i = 0;
 	struct drr_params params = {0};

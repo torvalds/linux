@@ -59,6 +59,8 @@ struct gsl_params {
 struct drr_params {
 	uint32_t vertical_total_min;
 	uint32_t vertical_total_max;
+	uint32_t vertical_total_mid;
+	uint32_t vertical_total_mid_frame_num;
 	bool immediate_flip;
 };
 

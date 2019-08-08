@@ -597,6 +597,8 @@ enum dc_status dcn20_enable_stream_timing(
 
 	params.vertical_total_min = stream->adjust.v_total_min;
 	params.vertical_total_max = stream->adjust.v_total_max;
+	params.vertical_total_mid = stream->adjust.v_total_mid;
+	params.vertical_total_mid_frame_num = stream->adjust.v_total_mid_frame_num;
 	if (pipe_ctx->stream_res.tg->funcs->set_drr)
 		pipe_ctx->stream_res.tg->funcs->set_drr(
 			pipe_ctx->stream_res.tg, &params);

@@ -2747,7 +2747,8 @@ static void dcn10_optimize_bandwidth(
 }
 
 static void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, int vmin, int vmax)
+		int num_pipes, unsigned int vmin, unsigned int vmax,
+		unsigned int vmid, unsigned int vmid_frame_number)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -2756,6 +2757,8 @@ static void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 
 	params.vertical_total_max = vmax;
 	params.vertical_total_min = vmin;
+	params.vertical_total_mid = vmid;
+	params.vertical_total_mid_frame_num = vmid_frame_number;
 
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently

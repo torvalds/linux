@@ -291,7 +291,9 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 			dc->hwss.set_drr(&pipe,
 					1,
 					adjust->v_total_min,
-					adjust->v_total_max);
+					adjust->v_total_max,
+					adjust->v_total_mid,
+					adjust->v_total_mid_frame_num);
 
 			ret = true;
 		}

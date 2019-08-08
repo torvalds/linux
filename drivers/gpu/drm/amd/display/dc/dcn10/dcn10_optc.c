@@ -850,6 +850,18 @@ void optc1_set_drr(
 		params->vertical_total_max > 0 &&
 		params->vertical_total_min > 0) {
 
+		if (params->vertical_total_mid != 0) {
+
+			REG_SET(OTG_V_TOTAL_MID, 0,
+				OTG_V_TOTAL_MID, params->vertical_total_mid - 1);
+
+			REG_UPDATE_2(OTG_V_TOTAL_CONTROL,
+					OTG_VTOTAL_MID_REPLACING_MAX_EN, 1,
+					OTG_VTOTAL_MID_FRAME_NUM,
+					(uint8_t)params->vertical_total_mid_frame_num);
+
+		}
+
 		REG_SET(OTG_V_TOTAL_MAX, 0,
 			OTG_V_TOTAL_MAX, params->vertical_total_max - 1);
 

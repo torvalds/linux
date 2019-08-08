@@ -237,7 +237,8 @@ struct hw_sequencer_funcs {
 #endif
 
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
-			int vmin, int vmax);
+			unsigned int vmin, unsigned int vmax,
+			unsigned int vmid, unsigned int vmid_frame_number);
 
 	void (*get_position)(struct pipe_ctx **pipe_ctx, int num_pipes,
 			struct crtc_position *position);

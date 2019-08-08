@@ -757,6 +757,8 @@ struct crtc_trigger_info {
 struct dc_crtc_timing_adjust {
 	uint32_t v_total_min;
 	uint32_t v_total_max;
+	uint32_t v_total_mid;
+	uint32_t v_total_mid_frame_num;
 };
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
