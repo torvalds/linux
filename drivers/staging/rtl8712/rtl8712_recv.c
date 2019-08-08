@@ -569,9 +569,9 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 			if (!padapter->driver_stopped &&
 			    !padapter->surprise_removed) {
 				r8712_recv_indicatepkt(padapter, prframe);
-				return _SUCCESS;
+				return 0;
 			} else {
-				return _FAIL;
+				return -EINVAL;
 			}
 		}
 	}
@@ -593,8 +593,7 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 	 * 2. All packets with SeqNum larger than or equal to
 	 * WinStart => Buffer it.
 	 */
-	if (r8712_recv_indicatepkts_in_order(padapter, preorder_ctrl, false) ==
-	    true) {
+	if (r8712_recv_indicatepkts_in_order(padapter, preorder_ctrl, false)) {
 		mod_timer(&preorder_ctrl->reordering_ctrl_timer,
 			  jiffies + msecs_to_jiffies(REORDER_WAIT_TIME));
 		spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
@@ -602,10 +601,10 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 		spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
 		del_timer(&preorder_ctrl->reordering_ctrl_timer);
 	}
-	return _SUCCESS;
+	return 0;
 _err_exit:
 	spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
-	return _FAIL;
+	return -ENOMEM;
 }
 
 void r8712_reordering_ctrl_timeout_handler(void *pcontext)
@@ -631,7 +630,7 @@ static int r8712_process_recv_indicatepkts(struct _adapter *padapter,
 	struct ht_priv	*phtpriv = &pmlmepriv->htpriv;
 
 	if (phtpriv->ht_option == 1) { /*B/G/N Mode*/
-		if (recv_indicatepkt_reorder(padapter, prframe) != _SUCCESS) {
+		if (recv_indicatepkt_reorder(padapter, prframe)) {
 			/* including perform A-MPDU Rx Ordering Buffer Control*/
 			if (!padapter->driver_stopped &&
 			    !padapter->surprise_removed)
