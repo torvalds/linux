@@ -70,6 +70,9 @@
 #include "display/intel_frontbuffer.h"
 #include "display/intel_opregion.h"
 
+#include "gem/i915_gem_context_types.h"
+#include "gem/i915_gem_stolen.h"
+
 #include "gt/intel_lrc.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_gt_types.h"
@@ -84,7 +87,6 @@
 #include "intel_wopcm.h"
 
 #include "i915_gem.h"
-#include "gem/i915_gem_context_types.h"
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_gtt.h"
 #include "i915_gpu_error.h"
@@ -2428,27 +2430,6 @@ int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 struct drm_mm_node *node,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
-
-/* i915_gem_stolen.c */
-int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *node, u64 size,
-				unsigned alignment);
-int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
-					 struct drm_mm_node *node, u64 size,
-					 unsigned alignment, u64 start,
-					 u64 end);
-void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
-				 struct drm_mm_node *node);
-int i915_gem_init_stolen(struct drm_i915_private *dev_priv);
-void i915_gem_cleanup_stolen(struct drm_i915_private *dev_priv);
-struct drm_i915_gem_object *
-i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
-			      resource_size_t size);
-struct drm_i915_gem_object *
-i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv,
-					       resource_size_t stolen_offset,
-					       resource_size_t gtt_offset,
-					       resource_size_t size);
 
 /* i915_gem_internal.c */
 struct drm_i915_gem_object *

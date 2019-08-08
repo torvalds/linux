@@ -4,7 +4,6 @@
  */
 
 #include "i915_drv.h"
-
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_uncore.h"
