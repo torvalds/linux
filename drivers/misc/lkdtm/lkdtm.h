@@ -95,4 +95,7 @@ void lkdtm_USERCOPY_KERNEL_DS(void);
 /* lkdtm_stackleak.c */
 void lkdtm_STACKLEAK_ERASING(void);
 
+/* cfi.c */
+void lkdtm_CFI_FORWARD_PROTO(void);
+
 #endif
