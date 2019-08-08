@@ -47,33 +47,6 @@ static struct pblk_global_caches pblk_caches = {
 
 struct bio_set pblk_bio_set;
 
-static int pblk_rw_io(struct request_queue *q, struct pblk *pblk,
-			  struct bio *bio)
-{
-	int ret;
-
-	/* Read requests must be <= 256kb due to NVMe's 64 bit completion bitmap
-	 * constraint. Writes can be of arbitrary size.
-	 */
-	if (bio_data_dir(bio) == READ) {
-		blk_queue_split(q, &bio);
-		ret = pblk_submit_read(pblk, bio);
-		if (ret == NVM_IO_DONE && bio_flagged(bio, BIO_CLONED))
-			bio_put(bio);
-
-		return ret;
-	}
-
-	/* Prevent deadlock in the case of a modest LUN configuration and large
-	 * user I/Os. Unless stalled, the rate limiter leaves at least 256KB
-	 * available for user I/O.
-	 */
-	if (pblk_get_secs(bio) > pblk_rl_max_io(&pblk->rl))
-		blk_queue_split(q, &bio);
-
-	return pblk_write_to_cache(pblk, bio, PBLK_IOTYPE_USER);
-}
-
 static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 {
 	struct pblk *pblk = q->queuedata;
@@ -86,13 +59,21 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 		}
 	}
 
-	switch (pblk_rw_io(q, pblk, bio)) {
-	case NVM_IO_ERR:
-		bio_io_error(bio);
-		break;
-	case NVM_IO_DONE:
-		bio_endio(bio);
-		break;
+	/* Read requests must be <= 256kb due to NVMe's 64 bit completion bitmap
+	 * constraint. Writes can be of arbitrary size.
+	 */
+	if (bio_data_dir(bio) == READ) {
+		blk_queue_split(q, &bio);
+		pblk_submit_read(pblk, bio);
+	} else {
+		/* Prevent deadlock in the case of a modest LUN configuration
+		 * and large user I/Os. Unless stalled, the rate limiter
+		 * leaves at least 256KB available for user I/O.
+		 */
+		if (pblk_get_secs(bio) > pblk_rl_max_io(&pblk->rl))
+			blk_queue_split(q, &bio);
+
+		pblk_write_to_cache(pblk, bio, PBLK_IOTYPE_USER);
 	}
 
 	return BLK_QC_T_NONE;
@@ -105,7 +86,7 @@ static size_t pblk_trans_map_size(struct pblk *pblk)
 	if (pblk->addrf_len < 32)
 		entry_size = 4;
 
-	return entry_size * pblk->rl.nr_secs;
+	return entry_size * pblk->capacity;
 }
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
@@ -164,13 +145,18 @@ static int pblk_l2p_init(struct pblk *pblk, bool factory_init)
 	int ret = 0;
 
 	map_size = pblk_trans_map_size(pblk);
-	pblk->trans_map = vmalloc(map_size);
-	if (!pblk->trans_map)
+	pblk->trans_map = __vmalloc(map_size, GFP_KERNEL | __GFP_NOWARN
+					| __GFP_RETRY_MAYFAIL | __GFP_HIGHMEM,
+					PAGE_KERNEL);
+	if (!pblk->trans_map) {
+		pblk_err(pblk, "failed to allocate L2P (need %zu of memory)\n",
+				map_size);
 		return -ENOMEM;
+	}
 
 	pblk_ppa_set_empty(&ppa);
 
-	for (i = 0; i < pblk->rl.nr_secs; i++)
+	for (i = 0; i < pblk->capacity; i++)
 		pblk_trans_map_set(pblk, i, ppa);
 
 	ret = pblk_l2p_recover(pblk, factory_init);
@@ -701,7 +687,6 @@ static int pblk_set_provision(struct pblk *pblk, int nr_free_chks)
 	 * on user capacity consider only provisioned blocks
 	 */
 	pblk->rl.total_blocks = nr_free_chks;
-	pblk->rl.nr_secs = nr_free_chks * geo->clba;
 
 	/* Consider sectors used for metadata */
 	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
@@ -1284,7 +1269,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	pblk_info(pblk, "luns:%u, lines:%d, secs:%llu, buf entries:%u\n",
 			geo->all_luns, pblk->l_mg.nr_lines,
-			(unsigned long long)pblk->rl.nr_secs,
+			(unsigned long long)pblk->capacity,
 			pblk->rwb.nr_entries);
 
 	wake_up_process(pblk->writer_ts);

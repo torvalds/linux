@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig STAGING_MEDIA
 	bool "Media staging drivers"
 	default n
-	---help---
+	help
 	  This option allows you to select a number of media drivers that
 	  don't have the "normal" Linux kernel quality level.
 	  Most of them don't follow properly the V4L, DVB and/or RC API's,
@@ -32,8 +33,6 @@ source "drivers/staging/media/rockchip/vpu/Kconfig"
 source "drivers/staging/media/sunxi/Kconfig"
 
 source "drivers/staging/media/tegra-vde/Kconfig"
-
-source "drivers/staging/media/zoran/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
 

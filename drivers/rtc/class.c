@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, base class
  *
@@ -5,11 +6,7 @@
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * class skeleton from drivers/hwmon/hwmon.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -23,13 +20,13 @@
 
 #include "rtc-core.h"
 
-
 static DEFINE_IDA(rtc_ida);
 struct class *rtc_class;
 
 static void rtc_device_release(struct device *dev)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
+
 	ida_simple_remove(&rtc_ida, rtc->id);
 	kfree(rtc);
 }
@@ -46,7 +43,6 @@ int rtc_hctosys_ret = -ENODEV;
  */
 
 static struct timespec64 old_rtc, old_system, old_delta;
-
 
 static int rtc_suspend(struct device *dev)
 {
@@ -71,7 +67,6 @@ static int rtc_suspend(struct device *dev)
 	ktime_get_real_ts64(&old_system);
 	old_rtc.tv_sec = rtc_tm_to_time64(&tm);
 
-
 	/*
 	 * To avoid drift caused by repeated suspend/resumes,
 	 * which each can add ~1 second drift error,
@@ -83,7 +78,7 @@ static int rtc_suspend(struct device *dev)
 	if (delta_delta.tv_sec < -2 || delta_delta.tv_sec >= 2) {
 		/*
 		 * if delta_delta is too large, assume time correction
-		 * has occured and set old_delta to the current delta.
+		 * has occurred and set old_delta to the current delta.
 		 */
 		old_delta = delta;
 	} else {
@@ -136,7 +131,7 @@ static int rtc_resume(struct device *dev)
 	 * to keep things accurate.
 	 */
 	sleep_time = timespec64_sub(sleep_time,
-			timespec64_sub(new_system, old_system));
+				    timespec64_sub(new_system, old_system));
 
 	if (sleep_time.tv_sec >= 0)
 		timekeeping_inject_sleeptime64(&sleep_time);
@@ -397,9 +392,9 @@ EXPORT_SYMBOL_GPL(__rtc_register_device);
  * rtc_register_device instead
  */
 struct rtc_device *devm_rtc_device_register(struct device *dev,
-					const char *name,
-					const struct rtc_class_ops *ops,
-					struct module *owner)
+					    const char *name,
+					    const struct rtc_class_ops *ops,
+					    struct module *owner)
 {
 	struct rtc_device *rtc;
 	int err;

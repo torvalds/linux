@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright © 2014-2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef VC4_REGS_H
@@ -212,11 +209,11 @@
 
 #define PV_HACT_ACT				0x30
 
+#define SCALER_CHANNELS_COUNT			3
+
 #define SCALER_DISPCTRL                         0x00000000
 /* Global register for clock gating the HVS */
 # define SCALER_DISPCTRL_ENABLE			BIT(31)
-# define SCALER_DISPCTRL_DSP2EISLUR		BIT(15)
-# define SCALER_DISPCTRL_DSP1EISLUR		BIT(14)
 # define SCALER_DISPCTRL_DSP3_MUX_MASK		VC4_MASK(19, 18)
 # define SCALER_DISPCTRL_DSP3_MUX_SHIFT		18
 
@@ -224,45 +221,25 @@
  * SCALER_DISPSTAT_IRQDISP0.  Note that short frame contributions are
  * always enabled.
  */
-# define SCALER_DISPCTRL_DSP0EISLUR		BIT(13)
-# define SCALER_DISPCTRL_DSP2EIEOLN		BIT(12)
-# define SCALER_DISPCTRL_DSP2EIEOF		BIT(11)
-# define SCALER_DISPCTRL_DSP1EIEOLN		BIT(10)
-# define SCALER_DISPCTRL_DSP1EIEOF		BIT(9)
+# define SCALER_DISPCTRL_DSPEISLUR(x)		BIT(13 + (x))
 /* Enables Display 0 end-of-line-N contribution to
  * SCALER_DISPSTAT_IRQDISP0
  */
-# define SCALER_DISPCTRL_DSP0EIEOLN		BIT(8)
+# define SCALER_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 2))
 /* Enables Display 0 EOF contribution to SCALER_DISPSTAT_IRQDISP0 */
-# define SCALER_DISPCTRL_DSP0EIEOF		BIT(7)
+# define SCALER_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 2))
 
 # define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)
 # define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)
 # define SCALER_DISPCTRL_DMAEIRQ		BIT(4)
-# define SCALER_DISPCTRL_DISP2EIRQ		BIT(3)
-# define SCALER_DISPCTRL_DISP1EIRQ		BIT(2)
 /* Enables interrupt generation on the enabled EOF/EOLN/EISLUR
  * bits and short frames..
  */
-# define SCALER_DISPCTRL_DISP0EIRQ		BIT(1)
+# define SCALER_DISPCTRL_DISPEIRQ(x)		BIT(1 + (x))
 /* Enables interrupt generation on scaler profiler interrupt. */
 # define SCALER_DISPCTRL_SCLEIRQ		BIT(0)
 
 #define SCALER_DISPSTAT                         0x00000004
-# define SCALER_DISPSTAT_COBLOW2		BIT(29)
-# define SCALER_DISPSTAT_EOLN2			BIT(28)
-# define SCALER_DISPSTAT_ESFRAME2		BIT(27)
-# define SCALER_DISPSTAT_ESLINE2		BIT(26)
-# define SCALER_DISPSTAT_EUFLOW2		BIT(25)
-# define SCALER_DISPSTAT_EOF2			BIT(24)
-
-# define SCALER_DISPSTAT_COBLOW1		BIT(21)
-# define SCALER_DISPSTAT_EOLN1			BIT(20)
-# define SCALER_DISPSTAT_ESFRAME1		BIT(19)
-# define SCALER_DISPSTAT_ESLINE1		BIT(18)
-# define SCALER_DISPSTAT_EUFLOW1		BIT(17)
-# define SCALER_DISPSTAT_EOF1			BIT(16)
-
 # define SCALER_DISPSTAT_RESP_MASK		VC4_MASK(15, 14)
 # define SCALER_DISPSTAT_RESP_SHIFT		14
 # define SCALER_DISPSTAT_RESP_OKAY		0
@@ -270,23 +247,26 @@
 # define SCALER_DISPSTAT_RESP_SLVERR		2
 # define SCALER_DISPSTAT_RESP_DECERR		3
 
-# define SCALER_DISPSTAT_COBLOW0		BIT(13)
+# define SCALER_DISPSTAT_COBLOW(x)		BIT(13 + ((x) * 8))
 /* Set when the DISPEOLN line is done compositing. */
-# define SCALER_DISPSTAT_EOLN0			BIT(12)
+# define SCALER_DISPSTAT_EOLN(x)		BIT(12 + ((x) * 8))
 /* Set when VSTART is seen but there are still pixels in the current
  * output line.
  */
-# define SCALER_DISPSTAT_ESFRAME0		BIT(11)
+# define SCALER_DISPSTAT_ESFRAME(x)		BIT(11 + ((x) * 8))
 /* Set when HSTART is seen but there are still pixels in the current
  * output line.
  */
-# define SCALER_DISPSTAT_ESLINE0		BIT(10)
+# define SCALER_DISPSTAT_ESLINE(x)		BIT(10 + ((x) * 8))
 /* Set when the the downstream tries to read from the display FIFO
  * while it's empty.
  */
-# define SCALER_DISPSTAT_EUFLOW0		BIT(9)
+# define SCALER_DISPSTAT_EUFLOW(x)		BIT(9 + ((x) * 8))
 /* Set when the display mode changes from RUN to EOF */
-# define SCALER_DISPSTAT_EOF0			BIT(8)
+# define SCALER_DISPSTAT_EOF(x)			BIT(8 + ((x) * 8))
+
+# define SCALER_DISPSTAT_IRQMASK(x)		VC4_MASK(13 + ((x) * 8), \
+							 8 + ((x) * 8))
 
 /* Set on AXI invalid DMA ID error. */
 # define SCALER_DISPSTAT_DMA_ERROR		BIT(7)
@@ -298,12 +278,10 @@
  * SCALER_DISPSTAT_RESP_ERROR is not SCALER_DISPSTAT_RESP_OKAY.
  */
 # define SCALER_DISPSTAT_IRQDMA			BIT(4)
-# define SCALER_DISPSTAT_IRQDISP2		BIT(3)
-# define SCALER_DISPSTAT_IRQDISP1		BIT(2)
 /* Set when any of the EOF/EOLN/ESFRAME/ESLINE bits are set and their
  * corresponding interrupt bit is enabled in DISPCTRL.
  */
-# define SCALER_DISPSTAT_IRQDISP0		BIT(1)
+# define SCALER_DISPSTAT_IRQDISP(x)		BIT(1 + (x))
 /* On read, the profiler interrupt.  On write, clear *all* interrupt bits. */
 # define SCALER_DISPSTAT_IRQSCL			BIT(0)
 

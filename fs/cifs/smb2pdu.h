@@ -251,6 +251,14 @@ struct smb2_negotiate_req {
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000
 
+
+/* Negotiate Contexts - ContextTypes. See MS-SMB2 section 2.2.3.1 for details */
+#define SMB2_PREAUTH_INTEGRITY_CAPABILITIES	cpu_to_le16(1)
+#define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
+#define SMB2_COMPRESSION_CAPABILITIES		cpu_to_le16(3)
+#define SMB2_NETNAME_NEGOTIATE_CONTEXT_ID	cpu_to_le16(5)
+#define SMB2_POSIX_EXTENSIONS_AVAILABLE		cpu_to_le16(0x100)
+
 struct smb2_neg_context {
 	__le16	ContextType;
 	__le16	DataLength;
@@ -287,6 +295,27 @@ struct smb2_encryption_neg_context {
 	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
 	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
 } __packed;
+
+/* See MS-SMB2 2.2.3.1.3 */
+#define SMB3_COMPRESS_NONE	cpu_to_le16(0x0000)
+#define SMB3_COMPRESS_LZNT1	cpu_to_le16(0x0001)
+#define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
+#define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
+
+struct smb2_compression_capabilities_context {
+	__le16	ContextType; /* 3 */
+	__le16  DataLength;
+	__u32	Reserved;
+	__le16	CompressionAlgorithmCount;
+	__u16	Padding;
+	__u32	Reserved1;
+	__le16	CompressionAlgorithms[3];
+} __packed;
+
+/*
+ * For smb2_netname_negotiate_context_id See MS-SMB2 2.2.3.1.4.
+ * Its struct simply contains NetName, an array of Unicode characters
+ */
 
 #define POSIX_CTXT_DATA_LEN	16
 struct smb2_posix_neg_context {
@@ -842,6 +871,11 @@ struct fsctl_get_integrity_information_rsp {
 	__le32	ClusterSizeInBytes;
 } __packed;
 
+struct file_allocated_range_buffer {
+	__le64	file_offset;
+	__le64	length;
+} __packed;
+
 /* Integrity ChecksumAlgorithm choices for above */
 #define	CHECKSUM_TYPE_NONE	0x0000
 #define	CHECKSUM_TYPE_CRC64	0x0002
@@ -880,7 +914,19 @@ struct reparse_mount_point_data_buffer {
 	__u8	PathBuffer[0]; /* Variable Length */
 } __packed;
 
-/* See MS-FSCC 2.1.2.4 and cifspdu.h for struct reparse_symlink_data */
+#define SYMLINK_FLAG_RELATIVE 0x00000001
+
+struct reparse_symlink_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__le32	Flags;
+	__u8	PathBuffer[0]; /* Variable Length */
+} __packed;
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
 
@@ -1047,6 +1093,7 @@ struct smb2_flush_rsp {
 
 /* For read request Flags field below, following flag is defined for SMB3.02 */
 #define SMB2_READFLAG_READ_UNBUFFERED	0x01
+#define SMB2_READFLAG_REQUEST_COMPRESSED 0x02 /* See MS-SMB2 2.2.19 */
 
 /* Channel field for read and write: exactly one of following flags can be set*/
 #define SMB2_CHANNEL_NONE	cpu_to_le32(0x00000000)
@@ -1111,6 +1158,42 @@ struct smb2_write_rsp {
 	__le32 DataRemaining;
 	__u32  Reserved2;
 	__u8   Buffer[1];
+} __packed;
+
+/* notify flags */
+#define SMB2_WATCH_TREE			0x0001
+
+/* notify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
+#define FILE_NOTIFY_CHANGE_FILE_NAME		0x00000001
+#define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
+#define FILE_NOTIFY_CHANGE_ATTRIBUTES		0x00000004
+#define FILE_NOTIFY_CHANGE_SIZE			0x00000008
+#define FILE_NOTIFY_CHANGE_LAST_WRITE		0x00000010
+#define FILE_NOTIFY_CHANGE_LAST_ACCESS		0x00000020
+#define FILE_NOTIFY_CHANGE_CREATION		0x00000040
+#define FILE_NOTIFY_CHANGE_EA			0x00000080
+#define FILE_NOTIFY_CHANGE_SECURITY		0x00000100
+#define FILE_NOTIFY_CHANGE_STREAM_NAME		0x00000200
+#define FILE_NOTIFY_CHANGE_STREAM_SIZE		0x00000400
+#define FILE_NOTIFY_CHANGE_STREAM_WRITE		0x00000800
+
+struct smb2_change_notify_req {
+	struct smb2_sync_hdr sync_hdr;
+	__le16	StructureSize;
+	__le16	Flags;
+	__le32	OutputBufferLength;
+	__u64	PersistentFileId; /* opaque endianness */
+	__u64	VolatileFileId; /* opaque endianness */
+	__le32	CompletionFilter;
+	__u32	Reserved;
+} __packed;
+
+struct smb2_change_notify_rsp {
+	struct smb2_sync_hdr sync_hdr;
+	__le16	StructureSize;  /* Must be 9 */
+	__le16	OutputBufferOffset;
+	__le32	OutputBufferLength;
+	__u8	Buffer[1]; /* array of file notify structs */
 } __packed;
 
 #define SMB2_LOCKFLAG_SHARED_LOCK	0x0001

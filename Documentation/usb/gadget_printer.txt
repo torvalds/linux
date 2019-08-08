@@ -1,12 +1,14 @@
+﻿===============================
+Linux USB Printer Gadget Driver
+===============================
 
-                       Linux USB Printer Gadget Driver
-                                 06/04/2007
+06/04/2007
 
-              Copyright (C) 2007 Craig W. Nadler <craig@nadler.us>
-
+Copyright (C) 2007 Craig W. Nadler <craig@nadler.us>
 
 
-GENERAL
+
+General
 =======
 
 This driver may be used if you are writing printer firmware using Linux as
@@ -29,52 +31,60 @@ user space firmware can read or write this status byte using a device file
 
 
 
-HOWTO USE THIS DRIVER
+Howto Use This Driver
 =====================
 
 To load the USB device controller driver and the printer gadget driver. The
-following example uses the Netchip 2280 USB device controller driver:
+following example uses the Netchip 2280 USB device controller driver::
 
-modprobe net2280
-modprobe g_printer
+	modprobe net2280
+	modprobe g_printer
 
 
 The follow command line parameter can be used when loading the printer gadget
 (ex: modprobe g_printer idVendor=0x0525 idProduct=0xa4a8 ):
 
-idVendor - This is the Vendor ID used in the device descriptor. The default is
+idVendor
+	This is the Vendor ID used in the device descriptor. The default is
 	the Netchip vendor id 0x0525. YOU MUST CHANGE TO YOUR OWN VENDOR ID
 	BEFORE RELEASING A PRODUCT. If you plan to release a product and don't
 	already have a Vendor ID please see www.usb.org for details on how to
 	get one.
 
-idProduct - This is the Product ID used in the device descriptor. The default
+idProduct
+	This is the Product ID used in the device descriptor. The default
 	is 0xa4a8, you should change this to an ID that's not used by any of
 	your other USB products if you have any. It would be a good idea to
 	start numbering your products starting with say 0x0001.
 
-bcdDevice - This is the version number of your product. It would be a good idea
+bcdDevice
+	This is the version number of your product. It would be a good idea
 	to put your firmware version here.
 
-iManufacturer - A string containing the name of the Vendor.
+iManufacturer
+	A string containing the name of the Vendor.
 
-iProduct - A string containing the Product Name.
+iProduct
+	A string containing the Product Name.
 
-iSerialNum - A string containing the Serial Number. This should be changed for
+iSerialNum
+	A string containing the Serial Number. This should be changed for
 	each unit of your product.
 
-iPNPstring -  The PNP ID string used for this printer. You will want to set
+iPNPstring
+	The PNP ID string used for this printer. You will want to set
 	either on the command line or hard code the PNP ID string used for
 	your printer product.
 
-qlen - The number of 8k buffers to use per endpoint. The default is 10, you
+qlen
+	The number of 8k buffers to use per endpoint. The default is 10, you
 	should tune this for your product. You may also want to tune the
 	size of each buffer for your product.
 
 
 
 
-USING THE EXAMPLE CODE
+Using The Example Code
 ======================
 
 This example code talks to stdout, instead of a print engine.
@@ -82,22 +92,23 @@ This example code talks to stdout, instead of a print engine.
 To compile the test code below:
 
 1) save it to a file called prn_example.c
-2) compile the code with the follow command:
+2) compile the code with the follow command::
+
 	 gcc prn_example.c -o prn_example
 
 
 
-To read printer data from the host to stdout:
+To read printer data from the host to stdout::
 
 	# prn_example -read_data
 
 
-To write printer data from a file (data_file) to the host:
+To write printer data from a file (data_file) to the host::
 
 	# cat data_file | prn_example -write_data
 
 
-To get the current printer status for the gadget driver:
+To get the current printer status for the gadget driver:::
 
 	# prn_example -get_status
 
@@ -107,60 +118,62 @@ To get the current printer status for the gadget driver:
 	     Printer OK
 
 
-To set printer to Selected/On-line:
+To set printer to Selected/On-line::
 
 	# prn_example -selected
 
 
-To set printer to Not Selected/Off-line:
+To set printer to Not Selected/Off-line::
 
 	# prn_example -not_selected
 
 
-To set paper status to paper out:
+To set paper status to paper out::
 
 	# prn_example -paper_out
 
 
-To set paper status to paper loaded:
+To set paper status to paper loaded::
 
 	# prn_example -paper_loaded
 
 
-To set error status to printer OK:
+To set error status to printer OK::
 
 	# prn_example -no_error
 
 
-To set error status to ERROR:
+To set error status to ERROR::
 
 	# prn_example -error
 
 
 
 
-EXAMPLE CODE
+Example Code
 ============
 
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <linux/poll.h>
-#include <sys/ioctl.h>
-#include <linux/usb/g_printer.h>
-
-#define PRINTER_FILE			"/dev/g_printer"
-#define BUF_SIZE			512
+::
 
 
-/*
- * 'usage()' - Show program usage.
- */
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <fcntl.h>
+  #include <linux/poll.h>
+  #include <sys/ioctl.h>
+  #include <linux/usb/g_printer.h>
 
-static void
-usage(const char *option)		/* I - Option string or NULL */
-{
+  #define PRINTER_FILE			"/dev/g_printer"
+  #define BUF_SIZE			512
+
+
+  /*
+   * 'usage()' - Show program usage.
+   */
+
+  static void
+  usage(const char *option)		/* I - Option string or NULL */
+  {
 	if (option) {
 		fprintf(stderr,"prn_example: Unknown option \"%s\"!\n",
 				option);
@@ -186,12 +199,12 @@ usage(const char *option)		/* I - Option string or NULL */
 	fputs("\n\n", stderr);
 
 	exit(1);
-}
+  }
 
 
-static int
-read_printer_data()
-{
+  static int
+  read_printer_data()
+  {
 	struct pollfd	fd[1];
 
 	/* Open device file for printer gadget. */
@@ -236,12 +249,12 @@ read_printer_data()
 	close(fd[0].fd);
 
 	return 0;
-}
+  }
 
 
-static int
-write_printer_data()
-{
+  static int
+  write_printer_data()
+  {
 	struct pollfd	fd[1];
 
 	/* Open device file for printer gadget. */
@@ -295,12 +308,12 @@ write_printer_data()
 	close(fd[0].fd);
 
 	return 0;
-}
+  }
 
 
-static int
-read_NB_printer_data()
-{
+  static int
+  read_NB_printer_data()
+  {
 	int		fd;
 	static char	buf[BUF_SIZE];
 	int		bytes_read;
@@ -329,12 +342,12 @@ read_NB_printer_data()
 	close(fd);
 
 	return 0;
-}
+  }
 
 
-static int
-get_printer_status()
-{
+  static int
+  get_printer_status()
+  {
 	int	retval;
 	int	fd;
 
@@ -357,12 +370,12 @@ get_printer_status()
 	close(fd);
 
 	return(retval);
-}
+  }
 
 
-static int
-set_printer_status(unsigned char buf, int clear_printer_status_bit)
-{
+  static int
+  set_printer_status(unsigned char buf, int clear_printer_status_bit)
+  {
 	int	retval;
 	int	fd;
 
@@ -397,12 +410,12 @@ set_printer_status(unsigned char buf, int clear_printer_status_bit)
 	close(fd);
 
 	return 0;
-}
+  }
 
 
-static int
-display_printer_status()
-{
+  static int
+  display_printer_status()
+  {
 	char	printer_status;
 
 	printer_status = get_printer_status();
@@ -429,12 +442,12 @@ display_printer_status()
 	}
 
 	return(0);
-}
+  }
 
 
-int
-main(int  argc, char *argv[])
-{
+  int
+  main(int  argc, char *argv[])
+  {
 	int	i;		/* Looping var */
 	int	retval = 0;
 
@@ -507,4 +520,4 @@ main(int  argc, char *argv[])
 	}
 
 	exit(retval);
-}
+  }

@@ -55,6 +55,31 @@ struct bpf_map_def SEC("maps") linum_map = {
 	.max_entries = __NR_BPF_LINUM_ARRAY_IDX,
 };
 
+struct bpf_spinlock_cnt {
+	struct bpf_spin_lock lock;
+	__u32 cnt;
+};
+
+struct bpf_map_def SEC("maps") sk_pkt_out_cnt = {
+	.type = BPF_MAP_TYPE_SK_STORAGE,
+	.key_size = sizeof(int),
+	.value_size = sizeof(struct bpf_spinlock_cnt),
+	.max_entries = 0,
+	.map_flags = BPF_F_NO_PREALLOC,
+};
+
+BPF_ANNOTATE_KV_PAIR(sk_pkt_out_cnt, int, struct bpf_spinlock_cnt);
+
+struct bpf_map_def SEC("maps") sk_pkt_out_cnt10 = {
+	.type = BPF_MAP_TYPE_SK_STORAGE,
+	.key_size = sizeof(int),
+	.value_size = sizeof(struct bpf_spinlock_cnt),
+	.max_entries = 0,
+	.map_flags = BPF_F_NO_PREALLOC,
+};
+
+BPF_ANNOTATE_KV_PAIR(sk_pkt_out_cnt10, int, struct bpf_spinlock_cnt);
+
 static bool is_loopback6(__u32 *a6)
 {
 	return !a6[0] && !a6[1] && !a6[2] && a6[3] == bpf_htonl(1);
@@ -120,7 +145,9 @@ static void tpcpy(struct bpf_tcp_sock *dst,
 SEC("cgroup_skb/egress")
 int egress_read_sock_fields(struct __sk_buff *skb)
 {
+	struct bpf_spinlock_cnt cli_cnt_init = { .lock = 0, .cnt = 0xeB9F };
 	__u32 srv_idx = ADDR_SRV_IDX, cli_idx = ADDR_CLI_IDX, result_idx;
+	struct bpf_spinlock_cnt *pkt_out_cnt, *pkt_out_cnt10;
 	struct sockaddr_in6 *srv_sa6, *cli_sa6;
 	struct bpf_tcp_sock *tp, *tp_ret;
 	struct bpf_sock *sk, *sk_ret;
@@ -160,6 +187,32 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 
 	skcpy(sk_ret, sk);
 	tpcpy(tp_ret, tp);
+
+	if (result_idx == EGRESS_SRV_IDX) {
+		/* The userspace has created it for srv sk */
+		pkt_out_cnt = bpf_sk_storage_get(&sk_pkt_out_cnt, sk, 0, 0);
+		pkt_out_cnt10 = bpf_sk_storage_get(&sk_pkt_out_cnt10, sk,
+						   0, 0);
+	} else {
+		pkt_out_cnt = bpf_sk_storage_get(&sk_pkt_out_cnt, sk,
+						 &cli_cnt_init,
+						 BPF_SK_STORAGE_GET_F_CREATE);
+		pkt_out_cnt10 = bpf_sk_storage_get(&sk_pkt_out_cnt10,
+						   sk, &cli_cnt_init,
+						   BPF_SK_STORAGE_GET_F_CREATE);
+	}
+
+	if (!pkt_out_cnt || !pkt_out_cnt10)
+		RETURN;
+
+	/* Even both cnt and cnt10 have lock defined in their BTF,
+	 * intentionally one cnt takes lock while one does not
+	 * as a test for the spinlock support in BPF_MAP_TYPE_SK_STORAGE.
+	 */
+	pkt_out_cnt->cnt += 1;
+	bpf_spin_lock(&pkt_out_cnt10->lock);
+	pkt_out_cnt10->cnt += 10;
+	bpf_spin_unlock(&pkt_out_cnt10->lock);
 
 	RETURN;
 }

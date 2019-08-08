@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* exynos_drm_fb.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
@@ -5,11 +6,6 @@
  *	Inki Dae <inki.dae@samsung.com>
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -45,7 +41,8 @@ static int check_fb_gem_memory_type(struct drm_device *drm_dev,
 	 * supported without IOMMU.
 	 */
 	if (IS_NONCONTIG_BUFFER(flags)) {
-		DRM_ERROR("Non-contiguous GEM memory is not supported.\n");
+		DRM_DEV_ERROR(drm_dev->dev,
+			      "Non-contiguous GEM memory is not supported.\n");
 		return -EINVAL;
 	}
 
@@ -83,7 +80,8 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 
 	ret = drm_framebuffer_init(dev, fb, &exynos_drm_fb_funcs);
 	if (ret < 0) {
-		DRM_ERROR("failed to initialize framebuffer\n");
+		DRM_DEV_ERROR(dev->dev,
+			      "failed to initialize framebuffer\n");
 		goto err;
 	}
 
@@ -113,7 +111,8 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		exynos_gem[i] = exynos_drm_gem_get(file_priv,
 						   mode_cmd->handles[i]);
 		if (!exynos_gem[i]) {
-			DRM_ERROR("failed to lookup gem object\n");
+			DRM_DEV_ERROR(dev->dev,
+				      "failed to lookup gem object\n");
 			ret = -ENOENT;
 			goto err;
 		}

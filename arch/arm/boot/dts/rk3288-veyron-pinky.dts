@@ -55,19 +55,19 @@
 &pinctrl {
 	buttons {
 		pwr_key_h: pwr-key-h {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	emmc {
 		emmc_reset: emmc-reset {
-			rockchip,pins = <7 12 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <7 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_wp_gpio: sdmmc-wp-gpio {
-			rockchip,pins = <7 10 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <7 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

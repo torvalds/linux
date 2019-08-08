@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Hisilicon Hibmc SoC drm driver
  *
  * Based on the bochs drm driver.
@@ -8,12 +9,6 @@
  *	Rongrong Zou <zourongrong@huawei.com>
  *	Rongrong Zou <zourongrong@gmail.com>
  *	Jianhua Li <lijianhua@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <drm/drm_atomic_helper.h>
@@ -33,17 +28,10 @@ static enum drm_mode_status hibmc_connector_mode_valid(struct drm_connector *con
 	return MODE_OK;
 }
 
-static struct drm_encoder *
-hibmc_connector_best_encoder(struct drm_connector *connector)
-{
-	return drm_encoder_find(connector->dev, NULL, connector->encoder_ids[0]);
-}
-
 static const struct drm_connector_helper_funcs
 	hibmc_connector_helper_funcs = {
 	.get_modes = hibmc_connector_get_modes,
 	.mode_valid = hibmc_connector_mode_valid,
-	.best_encoder = hibmc_connector_best_encoder,
 };
 
 static const struct drm_connector_funcs hibmc_connector_funcs = {

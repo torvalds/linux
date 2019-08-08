@@ -10,6 +10,7 @@ Required properties:
   - Tegra124: "nvidia,tegra124-xusb"
   - Tegra132: "nvidia,tegra132-xusb", "nvidia,tegra124-xusb"
   - Tegra210: "nvidia,tegra210-xusb"
+  - Tegra186: "nvidia,tegra186-xusb"
 - reg: Must contain the base and length of the xHCI host registers, XUSB FPCI
   registers and XUSB IPFS registers.
 - reg-names: Must contain the following entries:
@@ -59,6 +60,8 @@ For Tegra210:
 - avdd-pll-uerefe-supply: PLLE reference PLL power supply. Must supply 1.05 V.
 - dvdd-pex-pll-supply: PCIe/USB3 PLL power supply. Must supply 1.05 V.
 - hvdd-pex-pll-e-supply: High-voltage PLLE power supply. Must supply 1.8 V.
+
+For Tegra210 and Tegra186:
 - power-domains: A list of PM domain specifiers that reference each power-domain
   used by the xHCI controller. This list must comprise of a specifier for the
   XUSBA and XUSBC power-domains. See ../power/power_domain.txt and
@@ -78,6 +81,7 @@ Optional properties:
   - Tegra132: usb2-0, usb2-1, usb2-2, hsic-0, hsic-1, usb3-0, usb3-1
   - Tegra210: usb2-0, usb2-1, usb2-2, usb2-3, hsic-0, usb3-0, usb3-1, usb3-2,
               usb3-3
+  - Tegra186: usb2-0, usb2-1, usb2-2, hsic-0, usb3-0, usb3-1, usb3-2
 
 Example:
 --------

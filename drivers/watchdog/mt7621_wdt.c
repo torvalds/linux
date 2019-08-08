@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ralink MT7621/MT7628 built-in hardware watchdog timer
  *
  * Copyright (C) 2014 John Crispin <john@phrozen.org>
  *
  * This driver was based on: drivers/watchdog/rt2880_wdt.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -133,21 +130,19 @@ static struct watchdog_device mt7621_wdt_dev = {
 
 static int mt7621_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mt7621_wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	struct device *dev = &pdev->dev;
+	mt7621_wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mt7621_wdt_base))
 		return PTR_ERR(mt7621_wdt_base);
 
-	mt7621_wdt_reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	mt7621_wdt_reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(mt7621_wdt_reset))
 		reset_control_deassert(mt7621_wdt_reset);
 
 	mt7621_wdt_dev.bootstatus = mt7621_wdt_bootcause();
 
 	watchdog_init_timeout(&mt7621_wdt_dev, mt7621_wdt_dev.max_timeout,
-			      &pdev->dev);
+			      dev);
 	watchdog_set_nowayout(&mt7621_wdt_dev, nowayout);
 	if (mt7621_wdt_is_running(&mt7621_wdt_dev)) {
 		/*
@@ -164,7 +159,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &mt7621_wdt_dev.status);
 	}
 
-	return devm_watchdog_register_device(&pdev->dev, &mt7621_wdt_dev);
+	return devm_watchdog_register_device(dev, &mt7621_wdt_dev);
 }
 
 static void mt7621_wdt_shutdown(struct platform_device *pdev)

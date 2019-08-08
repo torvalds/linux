@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PI433
         tristate "Pi433 - a 433MHz radio module for Raspberry Pi"
         depends on SPI

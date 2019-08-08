@@ -85,10 +85,10 @@ Reservation Map Location (Private or Shared)
 A huge page mapping or segment is either private or shared.  If private,
 it is typically only available to a single address space (task).  If shared,
 it can be mapped into multiple address spaces (tasks).  The location and
-semantics of the reservation map is significantly different for two types
+semantics of the reservation map is significantly different for the two types
 of mappings.  Location differences are:
 
-- For private mappings, the reservation map hangs off the the VMA structure.
+- For private mappings, the reservation map hangs off the VMA structure.
   Specifically, vma->vm_private_data.  This reserve map is created at the
   time the mapping (mmap(MAP_PRIVATE)) is created.
 - For shared mappings, the reservation map hangs off the inode.  Specifically,
@@ -109,15 +109,15 @@ These operations result in a call to the routine hugetlb_reserve_pages()::
 				  struct vm_area_struct *vma,
 				  vm_flags_t vm_flags)
 
-The first thing hugetlb_reserve_pages() does is check for the NORESERVE
+The first thing hugetlb_reserve_pages() does is check if the NORESERVE
 flag was specified in either the shmget() or mmap() call.  If NORESERVE
-was specified, then this routine returns immediately as no reservation
+was specified, then this routine returns immediately as no reservations
 are desired.
 
 The arguments 'from' and 'to' are huge page indices into the mapping or
 underlying file.  For shmget(), 'from' is always 0 and 'to' corresponds to
 the length of the segment/mapping.  For mmap(), the offset argument could
-be used to specify the offset into the underlying file.  In such a case
+be used to specify the offset into the underlying file.  In such a case,
 the 'from' and 'to' arguments have been adjusted by this offset.
 
 One of the big differences between PRIVATE and SHARED mappings is the way
@@ -138,7 +138,8 @@ to indicate this VMA owns the reservations.
 
 The reservation map is consulted to determine how many huge page reservations
 are needed for the current mapping/segment.  For private mappings, this is
-always the value (to - from).  However, for shared mappings it is possible that some reservations may already exist within the range (to - from).  See the
+always the value (to - from).  However, for shared mappings it is possible that
+some reservations may already exist within the range (to - from).  See the
 section :ref:`Reservation Map Modifications <resv_map_modifications>`
 for details on how this is accomplished.
 
@@ -165,7 +166,7 @@ these counters.
 If there were enough free huge pages and the global count resv_huge_pages
 was adjusted, then the reservation map associated with the mapping is
 modified to reflect the reservations.  In the case of a shared mapping, a
-file_region will exist that includes the range 'from' 'to'.  For private
+file_region will exist that includes the range 'from' - 'to'.  For private
 mappings, no modifications are made to the reservation map as lack of an
 entry indicates a reservation exists.
 
@@ -239,7 +240,7 @@ subpool accounting when the page is freed.
 The routine vma_commit_reservation() is then called to adjust the reserve
 map based on the consumption of the reservation.  In general, this involves
 ensuring the page is represented within a file_region structure of the region
-map.  For shared mappings where the the reservation was present, an entry
+map.  For shared mappings where the reservation was present, an entry
 in the reserve map already existed so no change is made.  However, if there
 was no reservation in a shared mapping or this was a private mapping a new
 entry must be created.

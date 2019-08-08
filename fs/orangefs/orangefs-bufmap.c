@@ -269,7 +269,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 
 	/* map the pages */
 	ret = get_user_pages_fast((unsigned long)user_desc->ptr,
-			     bufmap->page_count, 1, bufmap->page_array);
+			     bufmap->page_count, FOLL_WRITE, bufmap->page_array);
 
 	if (ret < 0)
 		return ret;
@@ -537,4 +537,17 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 		size -= n;
 	}
 	return 0;
+}
+
+void orangefs_bufmap_page_fill(void *page_to,
+				int buffer_index,
+				int slot_index)
+{
+	struct orangefs_bufmap_desc *from;
+	void *page_from;
+
+	from = &__orangefs_bufmap->desc_array[buffer_index];
+	page_from = kmap_atomic(from->page_array[slot_index]);
+	memcpy(page_to, page_from, PAGE_SIZE);
+	kunmap_atomic(page_from);
 }

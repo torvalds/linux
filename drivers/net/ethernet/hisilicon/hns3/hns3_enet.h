@@ -42,8 +42,10 @@ enum hns3_nic_state {
 #define HNS3_RING_TX_RING_HEAD_REG		0x0005C
 #define HNS3_RING_TX_RING_FBDNUM_REG		0x00060
 #define HNS3_RING_TX_RING_OFFSET_REG		0x00064
+#define HNS3_RING_TX_RING_EBDNUM_REG		0x00068
 #define HNS3_RING_TX_RING_PKTNUM_RECORD_REG	0x0006C
-
+#define HNS3_RING_TX_RING_EBD_OFFSET_REG	0x00070
+#define HNS3_RING_TX_RING_BD_ERR_REG		0x00074
 #define HNS3_RING_PREFETCH_EN_REG		0x0007C
 #define HNS3_RING_CFG_VF_NUM_REG		0x00080
 #define HNS3_RING_ASID_REG			0x0008C
@@ -374,6 +376,7 @@ struct ring_stats {
 			u64 tx_err_cnt;
 			u64 restart_queue;
 			u64 tx_busy;
+			u64 tx_copy;
 		};
 		struct {
 			u64 rx_pkts;
@@ -386,6 +389,7 @@ struct ring_stats {
 			u64 l2_err;
 			u64 l3l4_csum_err;
 			u64 rx_multicast;
+			u64 non_reuse_pg;
 		};
 	};
 };
@@ -397,7 +401,6 @@ struct hns3_enet_ring {
 	struct hns3_enet_ring *next;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	struct hnae3_queue *tqp;
-	char ring_name[HNS3_RING_NAME_LEN];
 	struct device *dev; /* will be used for DMA mapping of descriptors */
 
 	/* statistic */
@@ -407,9 +410,6 @@ struct hns3_enet_ring {
 	dma_addr_t desc_dma_addr;
 	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
 	u16 desc_num;       /* total number of desc */
-	u16 max_desc_num_per_pkt;
-	u16 max_raw_data_sz_per_desc;
-	u16 max_pkt_size;
 	int next_to_use;    /* idx of next spare desc */
 
 	/* idx of lastest sent desc, the ring is empty when equal to
@@ -422,9 +422,6 @@ struct hns3_enet_ring {
 	unsigned char *va; /* first buffer address for current packet */
 
 	u32 flag;          /* ring attribute */
-
-	int numa_node;
-	cpumask_t affinity_mask;
 
 	int pending_buf;
 	struct sk_buff *skb;
@@ -440,11 +437,6 @@ struct hns3_nic_ring_data {
 	int (*poll_one)(struct hns3_nic_ring_data *, int, void *);
 	void (*ex_process)(struct hns3_nic_ring_data *, struct sk_buff *);
 	void (*fini_process)(struct hns3_nic_ring_data *);
-};
-
-struct hns3_nic_ops {
-	int (*maybe_stop_tx)(struct sk_buff **out_skb,
-			     int *bnum, struct hns3_enet_ring *ring);
 };
 
 enum hns3_flow_level_range {
@@ -536,7 +528,6 @@ struct hns3_nic_priv {
 	u32 port_id;
 	struct net_device *netdev;
 	struct device *dev;
-	struct hns3_nic_ops ops;
 
 	/**
 	 * the cb for nic to manage the ring buffer, the first half of the
@@ -577,18 +568,16 @@ union l4_hdr_info {
 	unsigned char *hdr;
 };
 
-/* the distance between [begin, end) in a ring buffer
- * note: there is a unuse slot between the begin and the end
- */
-static inline int ring_dist(struct hns3_enet_ring *ring, int begin, int end)
-{
-	return (end - begin + ring->desc_num) % ring->desc_num;
-}
-
 static inline int ring_space(struct hns3_enet_ring *ring)
 {
-	return ring->desc_num -
-		ring_dist(ring, ring->next_to_clean, ring->next_to_use) - 1;
+	/* This smp_load_acquire() pairs with smp_store_release() in
+	 * hns3_nic_reclaim_one_desc called by hns3_clean_tx_ring.
+	 */
+	int begin = smp_load_acquire(&ring->next_to_clean);
+	int end = READ_ONCE(ring->next_to_use);
+
+	return ((end >= begin) ? (ring->desc_num - end + begin) :
+			(begin - end)) - 1;
 }
 
 static inline int is_ring_empty(struct hns3_enet_ring *ring)
@@ -633,7 +622,7 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 #define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
 		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
 
-#define ring_to_dev(ring) (&(ring)->tqp->handle->pdev->dev)
+#define ring_to_dev(ring) ((ring)->dev)
 
 #define ring_to_dma_dir(ring) (HNAE3_IS_TX_RING(ring) ? \
 	DMA_TO_DEVICE : DMA_FROM_DEVICE)
@@ -666,6 +655,7 @@ int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
 int hns3_nic_reset_all_ring(struct hnae3_handle *h);
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
+bool hns3_is_phys_func(struct pci_dev *pdev);
 int hns3_clean_rx_ring(
 		struct hns3_enet_ring *ring, int budget,
 		void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *));

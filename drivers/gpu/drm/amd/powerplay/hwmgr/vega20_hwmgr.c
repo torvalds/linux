@@ -434,6 +434,7 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 
 	data->total_active_cus = adev->gfx.cu_info.number;
+	data->is_custom_profile_set = false;
 
 	return 0;
 }
@@ -450,6 +451,7 @@ static int vega20_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	int ret = 0;
 
 	ret = vega20_init_sclk_threshold(hwmgr);
@@ -457,7 +459,15 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 			"Failed to init sclk threshold!",
 			return ret);
 
-	return 0;
+	if (adev->in_baco_reset) {
+		adev->in_baco_reset = 0;
+
+		ret = vega20_baco_apply_vdci_flush_workaround(hwmgr);
+		if (ret)
+			pr_err("Failed to apply vega20 baco workaround!\n");
+	}
+
+	return ret;
 }
 
 /*
@@ -3450,7 +3460,18 @@ static void vega20_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 		return ;
 
 	data->vce_power_gated = bgate;
-	vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+	if (bgate) {
+		vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_GATE);
+	} else {
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_UNGATE);
+		vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+	}
+
 }
 
 static void vega20_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
@@ -3826,16 +3847,19 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
 	int workload_type, result = 0;
+	uint32_t power_profile_mode = input[size];
 
-	hwmgr->power_profile_mode = input[size];
-
-	if (hwmgr->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", hwmgr->power_profile_mode);
+	if (power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", power_profile_mode);
 		return -EINVAL;
 	}
 
-	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size < 10)
+	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+		if (size == 0 && !data->is_custom_profile_set)
+			return -EINVAL;
+		if (size < 10 && size != 0)
 			return -EINVAL;
 
 		result = vega20_get_activity_monitor_coeff(hwmgr,
@@ -3844,6 +3868,13 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 		PP_ASSERT_WITH_CODE(!result,
 				"[SetPowerProfile] Failed to get activity monitor!",
 				return result);
+
+		/* If size==0, then we want to apply the already-configured
+		 * CUSTOM profile again. Just apply it, since we checked its
+		 * validity above
+		 */
+		if (size == 0)
+			goto out;
 
 		switch (input[0]) {
 		case 0: /* Gfxclk */
@@ -3895,16 +3926,20 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 		result = vega20_set_activity_monitor_coeff(hwmgr,
 				(uint8_t *)(&activity_monitor),
 				WORKLOAD_PPLIB_CUSTOM_BIT);
+		data->is_custom_profile_set = true;
 		PP_ASSERT_WITH_CODE(!result,
 				"[SetPowerProfile] Failed to set activity monitor!",
 				return result);
 	}
 
+out:
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type =
-		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
+		conv_power_profile_to_pplib_workload(power_profile_mode);
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
 						1 << workload_type);
+
+	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
 }

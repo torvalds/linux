@@ -10,6 +10,7 @@
 #include <linux/err.h>
 #include <linux/firmware/imx/types.h>
 #include <linux/firmware/imx/ipc.h>
+#include <linux/firmware/imx/sci.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -245,6 +246,11 @@ static int imx_scu_probe(struct platform_device *pdev)
 	init_completion(&sc_ipc->done);
 
 	imx_sc_ipc_handle = sc_ipc;
+
+	ret = imx_scu_enable_general_irq_channel(dev);
+	if (ret)
+		dev_warn(dev,
+			"failed to enable general irq channel: %d\n", ret);
 
 	dev_info(dev, "NXP i.MX SCU Initialized\n");
 

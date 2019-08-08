@@ -25,76 +25,14 @@
 #ifndef I915_TIMELINE_H
 #define I915_TIMELINE_H
 
-#include <linux/list.h>
-#include <linux/kref.h>
+#include <linux/lockdep.h>
 
 #include "i915_active.h"
-#include "i915_request.h"
 #include "i915_syncmap.h"
-#include "i915_utils.h"
-
-struct i915_vma;
-struct i915_timeline_hwsp;
-
-struct i915_timeline {
-	u64 fence_context;
-	u32 seqno;
-
-	spinlock_t lock;
-#define TIMELINE_CLIENT 0 /* default subclass */
-#define TIMELINE_ENGINE 1
-
-	unsigned int pin_count;
-	const u32 *hwsp_seqno;
-	struct i915_vma *hwsp_ggtt;
-	u32 hwsp_offset;
-
-	bool has_initial_breadcrumb;
-
-	/**
-	 * List of breadcrumbs associated with GPU requests currently
-	 * outstanding.
-	 */
-	struct list_head requests;
-
-	/* Contains an RCU guarded pointer to the last request. No reference is
-	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_active_request_get_request_rcu(), or hold the
-	 * struct_mutex.
-	 */
-	struct i915_active_request last_request;
-
-	/**
-	 * We track the most recent seqno that we wait on in every context so
-	 * that we only have to emit a new await and dependency on a more
-	 * recent sync point. As the contexts may be executed out-of-order, we
-	 * have to track each individually and can not rely on an absolute
-	 * global_seqno. When we know that all tracked fences are completed
-	 * (i.e. when the driver is idle), we know that the syncmap is
-	 * redundant and we can discard it without loss of generality.
-	 */
-	struct i915_syncmap *sync;
-
-	/**
-	 * Barrier provides the ability to serialize ordering between different
-	 * timelines.
-	 *
-	 * Users can call i915_timeline_set_barrier which will make all
-	 * subsequent submissions to this timeline be executed only after the
-	 * barrier has been completed.
-	 */
-	struct i915_active_request barrier;
-
-	struct list_head link;
-	const char *name;
-	struct drm_i915_private *i915;
-
-	struct kref kref;
-};
+#include "i915_timeline_types.h"
 
 int i915_timeline_init(struct drm_i915_private *i915,
 		       struct i915_timeline *tl,
-		       const char *name,
 		       struct i915_vma *hwsp);
 void i915_timeline_fini(struct i915_timeline *tl);
 
@@ -119,7 +57,6 @@ i915_timeline_set_subclass(struct i915_timeline *timeline,
 
 struct i915_timeline *
 i915_timeline_create(struct drm_i915_private *i915,
-		     const char *name,
 		     struct i915_vma *global_hwsp);
 
 static inline struct i915_timeline *
@@ -160,25 +97,17 @@ static inline bool i915_timeline_sync_is_later(struct i915_timeline *tl,
 }
 
 int i915_timeline_pin(struct i915_timeline *tl);
+int i915_timeline_get_seqno(struct i915_timeline *tl,
+			    struct i915_request *rq,
+			    u32 *seqno);
 void i915_timeline_unpin(struct i915_timeline *tl);
+
+int i915_timeline_read_hwsp(struct i915_request *from,
+			    struct i915_request *until,
+			    u32 *hwsp_offset);
 
 void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
 void i915_timelines_fini(struct drm_i915_private *i915);
-
-/**
- * i915_timeline_set_barrier - orders submission between different timelines
- * @timeline: timeline to set the barrier on
- * @rq: request after which new submissions can proceed
- *
- * Sets the passed in request as the serialization point for all subsequent
- * submissions on @timeline. Subsequent requests will not be submitted to GPU
- * until the barrier has been completed.
- */
-static inline int
-i915_timeline_set_barrier(struct i915_timeline *tl, struct i915_request *rq)
-{
-	return i915_active_request_set(&tl->barrier, rq);
-}
 
 #endif

@@ -451,6 +451,7 @@ static int set_property_legacy(struct drm_mode_object *obj,
 }
 
 static int set_property_atomic(struct drm_mode_object *obj,
+			       struct drm_file *file_priv,
 			       struct drm_property *prop,
 			       uint64_t prop_value)
 {
@@ -477,7 +478,7 @@ retry:
 						       obj_to_connector(obj),
 						       prop_value);
 	} else {
-		ret = drm_atomic_set_property(state, obj, prop, prop_value);
+		ret = drm_atomic_set_property(state, file_priv, obj, prop, prop_value);
 		if (ret)
 			goto out;
 		ret = drm_atomic_commit(state);
@@ -520,7 +521,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		goto out_unref;
 
 	if (drm_drv_uses_atomic_modeset(property->dev))
-		ret = set_property_atomic(arg_obj, property, arg->value);
+		ret = set_property_atomic(arg_obj, file_priv, property, arg->value);
 	else
 		ret = set_property_legacy(arg_obj, property, arg->value);
 

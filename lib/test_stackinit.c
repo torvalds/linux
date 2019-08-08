@@ -1,4 +1,4 @@
-// SPDX-Licenses: GPLv2
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Test cases for compiler-based stack variable zeroing via future
  * compiler flags or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
@@ -12,7 +12,7 @@
 
 /* Exfiltration buffer. */
 #define MAX_VAR_SIZE	128
-static char check_buf[MAX_VAR_SIZE];
+static u8 check_buf[MAX_VAR_SIZE];
 
 /* Character array to trigger stack protector in all functions. */
 #define VAR_BUFFER	 32
@@ -106,9 +106,18 @@ static noinline __init int test_ ## name (void)			\
 								\
 	/* Fill clone type with zero for per-field init. */	\
 	memset(&zero, 0x00, sizeof(zero));			\
+	/* Clear entire check buffer for 0xFF overlap test. */	\
+	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Fill stack with 0xFF. */				\
 	ignored = leaf_ ##name((unsigned long)&ignored, 1,	\
 				FETCH_ARG_ ## which(zero));	\
+	/* Verify all bytes overwritten with 0xFF. */		\
+	for (sum = 0, i = 0; i < target_size; i++)		\
+		sum += (check_buf[i] != 0xFF);			\
+	if (sum) {						\
+		pr_err(#name ": leaf fill was not 0xFF!?\n");	\
+		return 1;					\
+	}							\
 	/* Clear entire check buffer for later bit tests. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Extract stack-defined variable contents. */		\
@@ -126,9 +135,9 @@ static noinline __init int test_ ## name (void)			\
 		return 1;					\
 	}							\
 								\
-	/* Look for any set bits in the check region. */	\
-	for (i = 0; i < sizeof(check_buf); i++)			\
-		sum += (check_buf[i] != 0);			\
+	/* Look for any bytes still 0xFF in check region. */	\
+	for (sum = 0, i = 0; i < target_size; i++)		\
+		sum += (check_buf[i] == 0xFF);			\
 								\
 	if (sum == 0)						\
 		pr_info(#name " ok\n");				\
@@ -162,13 +171,13 @@ static noinline __init int leaf_ ## name(unsigned long sp,	\
 	 * Keep this buffer around to make sure we've got a	\
 	 * stack frame of SOME kind...				\
 	 */							\
-	memset(buf, (char)(sp && 0xff), sizeof(buf));		\
+	memset(buf, (char)(sp & 0xff), sizeof(buf));		\
 	/* Fill variable with 0xFF. */				\
 	if (fill) {						\
 		fill_start = &var;				\
 		fill_size = sizeof(var);			\
 		memset(fill_start,				\
-		       (char)((sp && 0xff) | forced_mask),	\
+		       (char)((sp & 0xff) | forced_mask),	\
 		       fill_size);				\
 	}							\
 								\

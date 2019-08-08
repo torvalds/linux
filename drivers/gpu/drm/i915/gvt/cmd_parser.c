@@ -391,12 +391,12 @@ struct cmd_info {
 #define F_POST_HANDLE	(1<<2)
 	u32 flag;
 
-#define R_RCS	(1 << RCS)
-#define R_VCS1  (1 << VCS)
-#define R_VCS2  (1 << VCS2)
+#define R_RCS	BIT(RCS0)
+#define R_VCS1  BIT(VCS0)
+#define R_VCS2  BIT(VCS1)
 #define R_VCS	(R_VCS1 | R_VCS2)
-#define R_BCS	(1 << BCS)
-#define R_VECS	(1 << VECS)
+#define R_BCS	BIT(BCS0)
+#define R_VECS	BIT(VECS0)
 #define R_ALL (R_RCS | R_VCS | R_BCS | R_VECS)
 	/* rings that support this cmd: BLT/RCS/VCS/VECS */
 	u16 rings;
@@ -558,7 +558,7 @@ static const struct decode_info decode_info_vebox = {
 };
 
 static const struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
-	[RCS] = {
+	[RCS0] = {
 		&decode_info_mi,
 		NULL,
 		NULL,
@@ -569,7 +569,7 @@ static const struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
 		NULL,
 	},
 
-	[VCS] = {
+	[VCS0] = {
 		&decode_info_mi,
 		NULL,
 		NULL,
@@ -580,7 +580,7 @@ static const struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
 		NULL,
 	},
 
-	[BCS] = {
+	[BCS0] = {
 		&decode_info_mi,
 		NULL,
 		&decode_info_2d,
@@ -591,7 +591,7 @@ static const struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
 		NULL,
 	},
 
-	[VECS] = {
+	[VECS0] = {
 		&decode_info_mi,
 		NULL,
 		NULL,
@@ -602,7 +602,7 @@ static const struct decode_info *ring_decode_info[I915_NUM_ENGINES][8] = {
 		NULL,
 	},
 
-	[VCS2] = {
+	[VCS1] = {
 		&decode_info_mi,
 		NULL,
 		NULL,
@@ -631,8 +631,7 @@ static inline const struct cmd_info *find_cmd_entry(struct intel_gvt *gvt,
 	struct cmd_entry *e;
 
 	hash_for_each_possible(gvt->cmd_table, e, hlist, opcode) {
-		if ((opcode == e->info->opcode) &&
-				(e->info->rings & (1 << ring_id)))
+		if (opcode == e->info->opcode && e->info->rings & BIT(ring_id))
 			return e->info;
 	}
 	return NULL;
@@ -897,12 +896,16 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	}
 
 	/* TODO
-	 * Right now only scan LRI command on KBL and in inhibit context.
-	 * It's good enough to support initializing mmio by lri command in
-	 * vgpu inhibit context on KBL.
+	 * In order to let workload with inhibit context to generate
+	 * correct image data into memory, vregs values will be loaded to
+	 * hw via LRIs in the workload with inhibit context. But as
+	 * indirect context is loaded prior to LRIs in workload, we don't
+	 * want reg values specified in indirect context overwritten by
+	 * LRIs in workloads. So, when scanning an indirect context, we
+	 * update reg values in it into vregs, so LRIs in workload with
+	 * inhibit context will restore with correct values
 	 */
-	if ((IS_KABYLAKE(s->vgpu->gvt->dev_priv)
-		|| IS_COFFEELAKE(s->vgpu->gvt->dev_priv)) &&
+	if (IS_GEN(gvt->dev_priv, 9) &&
 			intel_gvt_mmio_is_in_ctx(gvt, offset) &&
 			!strncmp(cmd, "lri", 3)) {
 		intel_gvt_hypervisor_read_gpa(s->vgpu,
@@ -943,15 +946,12 @@ static int cmd_handler_lri(struct parser_exec_state *s)
 	struct intel_gvt *gvt = s->vgpu->gvt;
 
 	for (i = 1; i < cmd_len; i += 2) {
-		if (IS_BROADWELL(gvt->dev_priv) &&
-				(s->ring_id != RCS)) {
-			if (s->ring_id == BCS &&
-					cmd_reg(s, i) ==
-					i915_mmio_reg_offset(DERRMR))
+		if (IS_BROADWELL(gvt->dev_priv) && s->ring_id != RCS0) {
+			if (s->ring_id == BCS0 &&
+			    cmd_reg(s, i) == i915_mmio_reg_offset(DERRMR))
 				ret |= 0;
 			else
-				ret |= (cmd_reg_inhibit(s, i)) ?
-					-EBADRQC : 0;
+				ret |= cmd_reg_inhibit(s, i) ? -EBADRQC : 0;
 		}
 		if (ret)
 			break;
@@ -1047,27 +1047,27 @@ struct cmd_interrupt_event {
 };
 
 static struct cmd_interrupt_event cmd_interrupt_events[] = {
-	[RCS] = {
+	[RCS0] = {
 		.pipe_control_notify = RCS_PIPE_CONTROL,
 		.mi_flush_dw = INTEL_GVT_EVENT_RESERVED,
 		.mi_user_interrupt = RCS_MI_USER_INTERRUPT,
 	},
-	[BCS] = {
+	[BCS0] = {
 		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = BCS_MI_FLUSH_DW,
 		.mi_user_interrupt = BCS_MI_USER_INTERRUPT,
 	},
-	[VCS] = {
+	[VCS0] = {
 		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VCS_MI_FLUSH_DW,
 		.mi_user_interrupt = VCS_MI_USER_INTERRUPT,
 	},
-	[VCS2] = {
+	[VCS1] = {
 		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VCS2_MI_FLUSH_DW,
 		.mi_user_interrupt = VCS2_MI_USER_INTERRUPT,
 	},
-	[VECS] = {
+	[VECS0] = {
 		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VECS_MI_FLUSH_DW,
 		.mi_user_interrupt = VECS_MI_USER_INTERRUPT,
@@ -1081,6 +1081,7 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 	bool index_mode = false;
 	unsigned int post_sync;
 	int ret = 0;
+	u32 hws_pga, val;
 
 	post_sync = (cmd_val(s, 1) & PIPE_CONTROL_POST_SYNC_OP_MASK) >> 14;
 
@@ -1104,6 +1105,15 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 					index_mode = true;
 				ret |= cmd_address_audit(s, gma, sizeof(u64),
 						index_mode);
+				if (ret)
+					return ret;
+				if (index_mode) {
+					hws_pga = s->vgpu->hws_pga[s->ring_id];
+					gma = hws_pga + gma;
+					patch_value(s, cmd_ptr(s, 2), gma);
+					val = cmd_val(s, 1) & (~(1 << 21));
+					patch_value(s, cmd_ptr(s, 1), val);
+				}
 			}
 		}
 	}
@@ -1321,8 +1331,14 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 			      info->tile_val << 10);
 	}
 
-	vgpu_vreg_t(vgpu, PIPE_FRMCOUNT_G4X(info->pipe))++;
-	intel_vgpu_trigger_virtual_event(vgpu, info->event);
+	if (info->plane == PLANE_PRIMARY)
+		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(info->pipe))++;
+
+	if (info->async_flip)
+		intel_vgpu_trigger_virtual_event(vgpu, info->event);
+	else
+		set_bit(info->event, vgpu->irq.flip_done_event[info->pipe]);
+
 	return 0;
 }
 
@@ -1567,6 +1583,7 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 	unsigned long gma;
 	bool index_mode = false;
 	int ret = 0;
+	u32 hws_pga, val;
 
 	/* Check post-sync and ppgtt bit */
 	if (((cmd_val(s, 0) >> 14) & 0x3) && (cmd_val(s, 1) & (1 << 2))) {
@@ -1577,6 +1594,15 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 		if (cmd_val(s, 0) & (1 << 21))
 			index_mode = true;
 		ret = cmd_address_audit(s, gma, sizeof(u64), index_mode);
+		if (ret)
+			return ret;
+		if (index_mode) {
+			hws_pga = s->vgpu->hws_pga[s->ring_id];
+			gma = hws_pga + gma;
+			patch_value(s, cmd_ptr(s, 1), gma);
+			val = cmd_val(s, 0) & (~(1 << 21));
+			patch_value(s, cmd_ptr(s, 0), val);
+		}
 	}
 	/* Check notify bit */
 	if ((cmd_val(s, 0) & (1 << 8)))
@@ -2504,7 +2530,7 @@ static const struct cmd_info cmd_info[] = {
 		0, 12, NULL},
 
 	{"VEB_DI_IECP", OP_VEB_DNDI_IECP_STATE, F_LEN_VAR, R_VECS, D_BDW_PLUS,
-		0, 20, NULL},
+		0, 12, NULL},
 };
 
 static void add_cmd_entry(struct intel_gvt *gvt, struct cmd_entry *e)

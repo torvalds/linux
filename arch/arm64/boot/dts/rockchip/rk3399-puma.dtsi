@@ -146,6 +146,7 @@
 
 &emmc_phy {
 	status = "okay";
+	drive-impedance-ohm = <33>;
 };
 
 &gmac {
@@ -369,8 +370,6 @@
 	fan: fan@18 {
 		compatible = "ti,amc6821";
 		reg = <0x18>;
-		cooling-min-state = <0>;
-		cooling-max-state = <9>;
 		#cooling-cells = <2>;
 	};
 
@@ -413,10 +412,10 @@
  */
 &i2s0_2ch_bus {
 	rockchip,pins =
-		<RK_GPIO3 RK_PD0 RK_FUNC_1 &pcfg_pull_none>,
-		<RK_GPIO3 RK_PD2 RK_FUNC_1 &pcfg_pull_none>,
-		<RK_GPIO3 RK_PD3 RK_FUNC_1 &pcfg_pull_none>,
-		<RK_GPIO3 RK_PD7 RK_FUNC_1 &pcfg_pull_none>;
+		<3 RK_PD0 1 &pcfg_pull_none>,
+		<3 RK_PD2 1 &pcfg_pull_none>,
+		<3 RK_PD3 1 &pcfg_pull_none>,
+		<3 RK_PD7 1 &pcfg_pull_none>;
 };
 
 &io_domains {
@@ -440,29 +439,29 @@
 	i2c8 {
 		i2c8_xfer_a: i2c8-xfer {
 			rockchip,pins =
-			  <RK_GPIO1 RK_PC4 RK_FUNC_1 &pcfg_pull_up>,
-			  <RK_GPIO1 RK_PC5 RK_FUNC_1 &pcfg_pull_up>;
+			  <1 RK_PC4 1 &pcfg_pull_up>,
+			  <1 RK_PC5 1 &pcfg_pull_up>;
 		};
 	};
 
 	leds {
 		led_pin_module: led-module-gpio {
 			rockchip,pins =
-			  <RK_GPIO2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
-			  <RK_GPIO1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+			  <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins =
-			  <RK_GPIO4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

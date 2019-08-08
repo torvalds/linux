@@ -5,7 +5,7 @@ choice
 	default BOARD_BCM963XX
 
 config BOARD_BCM963XX
-       bool "Generic Broadcom 963xx boards"
+	bool "Generic Broadcom 963xx boards"
 	select SSB
 
 endchoice

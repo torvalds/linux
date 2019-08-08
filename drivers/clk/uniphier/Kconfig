@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CLK_UNIPHIER
 	bool "Clock driver for UniPhier SoCs"
 	depends on ARCH_UNIPHIER || COMPILE_TEST

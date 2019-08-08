@@ -45,7 +45,7 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 #include <rdma/ib_hdrs.h>
 
 /*

@@ -189,20 +189,10 @@ the driver callback returns.
 When the device driver wants to populate a range of virtual addresses, it can
 use either::
 
-  int hmm_vma_get_pfns(struct vm_area_struct *vma,
-                      struct hmm_range *range,
-                      unsigned long start,
-                      unsigned long end,
-                      hmm_pfn_t *pfns);
-  int hmm_vma_fault(struct vm_area_struct *vma,
-                    struct hmm_range *range,
-                    unsigned long start,
-                    unsigned long end,
-                    hmm_pfn_t *pfns,
-                    bool write,
-                    bool block);
+  long hmm_range_snapshot(struct hmm_range *range);
+  long hmm_range_fault(struct hmm_range *range, bool block);
 
-The first one (hmm_vma_get_pfns()) will only fetch present CPU page table
+The first one (hmm_range_snapshot()) will only fetch present CPU page table
 entries and will not trigger a page fault on missing or non-present entries.
 The second one does trigger a page fault on missing or read-only entry if the
 write parameter is true. Page faults use the generic mm page fault code path
@@ -220,25 +210,56 @@ respect in order to keep things properly synchronized. The usage pattern is::
  {
       struct hmm_range range;
       ...
+
+      range.start = ...;
+      range.end = ...;
+      range.pfns = ...;
+      range.flags = ...;
+      range.values = ...;
+      range.pfn_shift = ...;
+      hmm_range_register(&range);
+
+      /*
+       * Just wait for range to be valid, safe to ignore return value as we
+       * will use the return value of hmm_range_snapshot() below under the
+       * mmap_sem to ascertain the validity of the range.
+       */
+      hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
+
  again:
-      ret = hmm_vma_get_pfns(vma, &range, start, end, pfns);
-      if (ret)
+      down_read(&mm->mmap_sem);
+      ret = hmm_range_snapshot(&range);
+      if (ret) {
+          up_read(&mm->mmap_sem);
+          if (ret == -EAGAIN) {
+            /*
+             * No need to check hmm_range_wait_until_valid() return value
+             * on retry we will get proper error with hmm_range_snapshot()
+             */
+            hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
+            goto again;
+          }
+          hmm_mirror_unregister(&range);
           return ret;
+      }
       take_lock(driver->update);
-      if (!hmm_vma_range_done(vma, &range)) {
+      if (!range.valid) {
           release_lock(driver->update);
+          up_read(&mm->mmap_sem);
           goto again;
       }
 
       // Use pfns array content to update device page table
 
+      hmm_mirror_unregister(&range);
       release_lock(driver->update);
+      up_read(&mm->mmap_sem);
       return 0;
  }
 
 The driver->update lock is the same lock that the driver takes inside its
-update() callback. That lock must be held before hmm_vma_range_done() to avoid
-any race with a concurrent CPU page table update.
+update() callback. That lock must be held before checking the range.valid
+field to avoid any race with a concurrent CPU page table update.
 
 HMM implements all this on top of the mmu_notifier API because we wanted a
 simpler API and also to be able to perform optimizations latter on like doing
@@ -253,6 +274,43 @@ the buffer that the update is done. Creating and scheduling the update command
 buffer can happen concurrently for multiple devices. Waiting for each device to
 report commands as executed is serialized (there is no point in doing this
 concurrently).
+
+
+Leverage default_flags and pfn_flags_mask
+=========================================
+
+The hmm_range struct has 2 fields default_flags and pfn_flags_mask that allows
+to set fault or snapshot policy for a whole range instead of having to set them
+for each entries in the range.
+
+For instance if the device flags for device entries are:
+    VALID (1 << 63)
+    WRITE (1 << 62)
+
+Now let say that device driver wants to fault with at least read a range then
+it does set::
+
+    range->default_flags = (1 << 63);
+    range->pfn_flags_mask = 0;
+
+and calls hmm_range_fault() as described above. This will fill fault all page
+in the range with at least read permission.
+
+Now let say driver wants to do the same except for one page in the range for
+which its want to have write. Now driver set::
+
+    range->default_flags = (1 << 63);
+    range->pfn_flags_mask = (1 << 62);
+    range->pfns[index_of_write] = (1 << 62);
+
+With this HMM will fault in all page with at least read (ie valid) and for the
+address == range->start + (index_of_write << PAGE_SHIFT) it will fault with
+write permission ie if the CPU pte does not have write permission set then HMM
+will call handle_mm_fault().
+
+Note that HMM will populate the pfns array with write permission for any entry
+that have write permission within the CPU pte no matter what are the values set
+in default_flags or pfn_flags_mask.
 
 
 Represent and manage device memory from core kernel point of view

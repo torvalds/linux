@@ -3,9 +3,10 @@
  * Copyright 2018 NXP
  */
 
-#include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/clk-provider.h>
+#include <linux/errno.h>
+#include <linux/io.h>
+#include <linux/slab.h>
 
 #include "clk.h"
 

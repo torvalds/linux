@@ -4,12 +4,14 @@ NOTE: All 'phy*' properties documented below are Ethernet specific. For the
 generic PHY 'phys' property, see
 Documentation/devicetree/bindings/phy/phy-bindings.txt.
 
-- local-mac-address: array of 6 bytes, specifies the MAC address that was
-  assigned to the network device;
 - mac-address: array of 6 bytes, specifies the MAC address that was last used by
   the boot program; should be used in cases where the MAC address assigned to
   the device by the boot program is different from the "local-mac-address"
   property;
+- local-mac-address: array of 6 bytes, specifies the MAC address that was
+  assigned to the network device;
+- nvmem-cells: phandle, reference to an nvmem node for the MAC address
+- nvmem-cell-names: string, should be "mac-address" if nvmem is to be used
 - max-speed: number, specifies maximum speed in Mbit/s supported by the device;
 - max-frame-size: number, maximum transfer unit (IEEE defined MTU), rather than
   the maximum frame size (there's contradiction in the Devicetree
@@ -36,7 +38,7 @@ Documentation/devicetree/bindings/phy/phy-bindings.txt.
   * "smii"
   * "xgmii"
   * "trgmii"
-  * "2000base-x",
+  * "1000base-x",
   * "2500base-x",
   * "rxaui"
   * "xaui"

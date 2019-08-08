@@ -13,6 +13,7 @@
 #include <linux/nvme-fc-driver.h>
 
 #include "qla_def.h"
+#include "qla_dsd.h"
 
 /* default dev loss time (seconds) before transport tears down ctrl */
 #define NVME_FC_DEV_LOSS_TMO  30
@@ -64,16 +65,15 @@ struct cmd_nvme {
 #define CF_WRITE_DATA                   BIT_0
 
 	uint16_t nvme_cmnd_dseg_len;             /* Data segment length. */
-	uint32_t nvme_cmnd_dseg_address[2];      /* Data segment address. */
-	uint32_t nvme_rsp_dseg_address[2];       /* Data segment address. */
+	__le64	 nvme_cmnd_dseg_address __packed;/* Data segment address. */
+	__le64	 nvme_rsp_dseg_address __packed; /* Data segment address. */
 
 	uint32_t byte_count;            /* Total byte count. */
 
 	uint8_t port_id[3];             /* PortID of destination port. */
 	uint8_t vp_index;
 
-	uint32_t nvme_data_dseg_address[2];      /* Data segment address. */
-	uint32_t nvme_data_dseg_len;             /* Data segment length. */
+	struct dsd64 nvme_dsd;
 };
 
 #define PT_LS4_REQUEST 0x89	/* Link Service pass-through IOCB (request) */
@@ -101,10 +101,7 @@ struct pt_ls4_request {
 	uint32_t rsvd3;
 	uint32_t rx_byte_count;
 	uint32_t tx_byte_count;
-	uint32_t dseg0_address[2];
-	uint32_t dseg0_len;
-	uint32_t dseg1_address[2];
-	uint32_t dseg1_len;
+	struct dsd64 dsd[2];
 };
 
 #define PT_LS4_UNSOL 0x56	/* pass-up unsolicited rec FC-NVMe request */
@@ -145,7 +142,6 @@ struct pt_ls4_rx_unsol {
 int qla_nvme_register_hba(struct scsi_qla_host *);
 int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
 void qla_nvme_delete(struct scsi_qla_host *);
-void qla_nvme_abort(struct qla_hw_data *, struct srb *sp, int res);
 void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *, struct pt_ls4_request *,
     struct req_que *);
 void qla24xx_async_gffid_sp_done(void *, int);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  */
 #ifndef __PMSR_H
 #define __PMSR_H
@@ -25,7 +25,8 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	}
 
 	/* no validation needed - was already done via nested policy */
-	nla_parse_nested(tb, NL80211_PMSR_FTM_REQ_ATTR_MAX, ftmreq, NULL, NULL);
+	nla_parse_nested_deprecated(tb, NL80211_PMSR_FTM_REQ_ATTR_MAX, ftmreq,
+				    NULL, NULL);
 
 	if (tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE])
 		preamble = nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE]);
@@ -139,7 +140,8 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	int err, rem;
 
 	/* no validation needed - was already done via nested policy */
-	nla_parse_nested(tb, NL80211_PMSR_PEER_ATTR_MAX, peer, NULL, NULL);
+	nla_parse_nested_deprecated(tb, NL80211_PMSR_PEER_ATTR_MAX, peer,
+				    NULL, NULL);
 
 	if (!tb[NL80211_PMSR_PEER_ATTR_ADDR] ||
 	    !tb[NL80211_PMSR_PEER_ATTR_CHAN] ||
@@ -154,9 +156,9 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	/* reuse info->attrs */
 	memset(info->attrs, 0, sizeof(*info->attrs) * (NL80211_ATTR_MAX + 1));
 	/* need to validate here, we don't want to have validation recursion */
-	err = nla_parse_nested(info->attrs, NL80211_ATTR_MAX,
-			       tb[NL80211_PMSR_PEER_ATTR_CHAN],
-			       nl80211_policy, info->extack);
+	err = nla_parse_nested_deprecated(info->attrs, NL80211_ATTR_MAX,
+					  tb[NL80211_PMSR_PEER_ATTR_CHAN],
+					  nl80211_policy, info->extack);
 	if (err)
 		return err;
 
@@ -165,9 +167,9 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 		return err;
 
 	/* no validation needed - was already done via nested policy */
-	nla_parse_nested(req, NL80211_PMSR_REQ_ATTR_MAX,
-			 tb[NL80211_PMSR_PEER_ATTR_REQ],
-			 NULL, NULL);
+	nla_parse_nested_deprecated(req, NL80211_PMSR_REQ_ATTR_MAX,
+				    tb[NL80211_PMSR_PEER_ATTR_REQ], NULL,
+				    NULL);
 
 	if (!req[NL80211_PMSR_REQ_ATTR_DATA]) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
@@ -420,22 +422,22 @@ static int nl80211_pmsr_send_result(struct sk_buff *msg,
 {
 	struct nlattr *pmsr, *peers, *peer, *resp, *data, *typedata;
 
-	pmsr = nla_nest_start(msg, NL80211_ATTR_PEER_MEASUREMENTS);
+	pmsr = nla_nest_start_noflag(msg, NL80211_ATTR_PEER_MEASUREMENTS);
 	if (!pmsr)
 		goto error;
 
-	peers = nla_nest_start(msg, NL80211_PMSR_ATTR_PEERS);
+	peers = nla_nest_start_noflag(msg, NL80211_PMSR_ATTR_PEERS);
 	if (!peers)
 		goto error;
 
-	peer = nla_nest_start(msg, 1);
+	peer = nla_nest_start_noflag(msg, 1);
 	if (!peer)
 		goto error;
 
 	if (nla_put(msg, NL80211_PMSR_PEER_ATTR_ADDR, ETH_ALEN, res->addr))
 		goto error;
 
-	resp = nla_nest_start(msg, NL80211_PMSR_PEER_ATTR_RESP);
+	resp = nla_nest_start_noflag(msg, NL80211_PMSR_PEER_ATTR_RESP);
 	if (!resp)
 		goto error;
 
@@ -446,17 +448,17 @@ static int nl80211_pmsr_send_result(struct sk_buff *msg,
 
 	if (res->ap_tsf_valid &&
 	    nla_put_u64_64bit(msg, NL80211_PMSR_RESP_ATTR_AP_TSF,
-			      res->host_time, NL80211_PMSR_RESP_ATTR_PAD))
+			      res->ap_tsf, NL80211_PMSR_RESP_ATTR_PAD))
 		goto error;
 
 	if (res->final && nla_put_flag(msg, NL80211_PMSR_RESP_ATTR_FINAL))
 		goto error;
 
-	data = nla_nest_start(msg, NL80211_PMSR_RESP_ATTR_DATA);
+	data = nla_nest_start_noflag(msg, NL80211_PMSR_RESP_ATTR_DATA);
 	if (!data)
 		goto error;
 
-	typedata = nla_nest_start(msg, res->type);
+	typedata = nla_nest_start_noflag(msg, res->type);
 	if (!typedata)
 		goto error;
 

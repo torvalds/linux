@@ -95,7 +95,7 @@ static void __exit crypto_ofb_module_exit(void)
 	crypto_unregister_template(&crypto_ofb_tmpl);
 }
 
-module_init(crypto_ofb_module_init);
+subsys_initcall(crypto_ofb_module_init);
 module_exit(crypto_ofb_module_exit);
 
 MODULE_LICENSE("GPL");

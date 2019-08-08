@@ -212,6 +212,50 @@ struct nitrox_kcrypt_request {
 };
 
 /**
+ * struct nitrox_aead_rctx - AEAD request context
+ * @nkreq: Base request context
+ * @cryptlen: Encryption/Decryption data length
+ * @assoclen: AAD length
+ * @srclen: Input buffer length
+ * @dstlen: Output buffer length
+ * @iv: IV data
+ * @ivsize: IV data length
+ * @flags: AEAD req flags
+ * @ctx_handle: Device context handle
+ * @src: Source sglist
+ * @dst: Destination sglist
+ * @ctrl_arg: Identifies the request type (ENCRYPT/DECRYPT)
+ */
+struct nitrox_aead_rctx {
+	struct nitrox_kcrypt_request nkreq;
+	unsigned int cryptlen;
+	unsigned int assoclen;
+	unsigned int srclen;
+	unsigned int dstlen;
+	u8 *iv;
+	int ivsize;
+	u32 flags;
+	u64 ctx_handle;
+	struct scatterlist *src;
+	struct scatterlist *dst;
+	u8 ctrl_arg;
+};
+
+/**
+ * struct nitrox_rfc4106_rctx - rfc4106 cipher request context
+ * @base: AEAD request context
+ * @src: Source sglist
+ * @dst: Destination sglist
+ * @assoc: AAD
+ */
+struct nitrox_rfc4106_rctx {
+	struct nitrox_aead_rctx base;
+	struct scatterlist src[3];
+	struct scatterlist dst[3];
+	u8 assoc[20];
+};
+
+/**
  * struct pkt_instr_hdr - Packet Instruction Header
  * @g: Gather used
  *   When [G] is set and [GSZ] != 0, the instruction is
@@ -512,7 +556,7 @@ static inline struct scatterlist *create_multi_sg(struct scatterlist *to_sg,
 	struct scatterlist *sg = to_sg;
 	unsigned int sglen;
 
-	for (; buflen; buflen -= sglen) {
+	for (; buflen && from_sg; buflen -= sglen) {
 		sglen = from_sg->length;
 		if (sglen > buflen)
 			sglen = buflen;

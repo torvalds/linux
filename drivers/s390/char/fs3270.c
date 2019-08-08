@@ -486,7 +486,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 		raw3270_del_view(&fp->view);
 		goto out;
 	}
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	filp->private_data = fp;
 out:
 	mutex_unlock(&fs3270_mutex);

@@ -1,0 +1,19 @@
+Qualcomm Turing Clock & Reset Controller Binding
+------------------------------------------------
+
+Required properties :
+- compatible: shall contain "qcom,qcs404-turingcc".
+- reg: shall contain base register location and length.
+- clocks: ahb clock for the TuringCC
+- #clock-cells: from common clock binding, shall contain 1.
+- #reset-cells: from common reset binding, shall contain 1.
+
+Example:
+	turingcc: clock-controller@800000 {
+		compatible = "qcom,qcs404-turingcc";
+		reg = <0x00800000 0x30000>;
+		clocks = <&gcc GCC_CDSP_CFG_AHB_CLK>;
+
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};

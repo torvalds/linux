@@ -57,15 +57,21 @@
 
 #define SHDW_WK_PIN(reg, cfg)	((reg) & AT91_SHDW_WKUPIS((cfg)->wkup_pin_input))
 #define SHDW_RTCWK(reg, cfg)	(((reg) >> ((cfg)->sr_rtcwk_shift)) & 0x1)
+#define SHDW_RTTWK(reg, cfg)	(((reg) >> ((cfg)->sr_rttwk_shift)) & 0x1)
 #define SHDW_RTCWKEN(cfg)	(1 << ((cfg)->mr_rtcwk_shift))
+#define SHDW_RTTWKEN(cfg)	(1 << ((cfg)->mr_rttwk_shift))
 
 #define DBC_PERIOD_US(x)	DIV_ROUND_UP_ULL((1000000 * (x)), \
 							SLOW_CLOCK_FREQ)
 
+#define SHDW_CFG_NOT_USED	(32)
+
 struct shdwc_config {
 	u8 wkup_pin_input;
 	u8 mr_rtcwk_shift;
+	u8 mr_rttwk_shift;
 	u8 sr_rtcwk_shift;
+	u8 sr_rttwk_shift;
 };
 
 struct shdwc {
@@ -104,6 +110,8 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 		reason = "WKUP pin";
 	else if (SHDW_RTCWK(reg, shdw->cfg))
 		reason = "RTC";
+	else if (SHDW_RTTWK(reg, shdw->cfg))
+		reason = "RTT";
 
 	pr_info("AT91: Wake-Up source: %s\n", reason);
 }
@@ -221,6 +229,9 @@ static void at91_shdwc_dt_configure(struct platform_device *pdev)
 	if (of_property_read_bool(np, "atmel,wakeup-rtc-timer"))
 		mode |= SHDW_RTCWKEN(shdw->cfg);
 
+	if (of_property_read_bool(np, "atmel,wakeup-rtt-timer"))
+		mode |= SHDW_RTTWKEN(shdw->cfg);
+
 	dev_dbg(&pdev->dev, "%s: mode = %#x\n", __func__, mode);
 	writel(mode, shdw->shdwc_base + AT91_SHDW_MR);
 
@@ -231,13 +242,27 @@ static void at91_shdwc_dt_configure(struct platform_device *pdev)
 static const struct shdwc_config sama5d2_shdwc_config = {
 	.wkup_pin_input = 0,
 	.mr_rtcwk_shift = 17,
+	.mr_rttwk_shift	= SHDW_CFG_NOT_USED,
 	.sr_rtcwk_shift = 5,
+	.sr_rttwk_shift = SHDW_CFG_NOT_USED,
+};
+
+static const struct shdwc_config sam9x60_shdwc_config = {
+	.wkup_pin_input = 0,
+	.mr_rtcwk_shift = 17,
+	.mr_rttwk_shift = 16,
+	.sr_rtcwk_shift = 5,
+	.sr_rttwk_shift = 4,
 };
 
 static const struct of_device_id at91_shdwc_of_match[] = {
 	{
 		.compatible = "atmel,sama5d2-shdwc",
 		.data = &sama5d2_shdwc_config,
+	},
+	{
+		.compatible = "microchip,sam9x60-shdwc",
+		.data = &sam9x60_shdwc_config,
 	}, {
 		/*sentinel*/
 	}

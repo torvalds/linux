@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig STAGING
 	bool "Staging drivers"
-	default n
 	---help---
 	  This option allows you to select a number of drivers that are
 	  not of the "normal" Linux kernel quality level.  These drivers
@@ -16,8 +16,8 @@ menuconfig STAGING
 
 	  If you wish to work on these drivers, to help improve them, or
 	  to report problems you have with them, please see the
-	  driver_name.README file in the drivers/staging/ directory to
-	  see what needs to be worked on, and who to contact.
+	  drivers/staging/<driver_name>/TODO file to see what needs to be
+	  worked on, and who to contact.
 
 	  If in doubt, say N here.
 
@@ -39,8 +39,6 @@ source "drivers/staging/rtl8723bs/Kconfig"
 source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rtl8188eu/Kconfig"
-
-source "drivers/staging/rtlwifi/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
@@ -96,8 +94,6 @@ source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
 
-source "drivers/staging/vboxvideo/Kconfig"
-
 source "drivers/staging/pi433/Kconfig"
 
 source "drivers/staging/mt7621-pci/Kconfig"
@@ -106,13 +102,9 @@ source "drivers/staging/mt7621-pci-phy/Kconfig"
 
 source "drivers/staging/mt7621-pinctrl/Kconfig"
 
-source "drivers/staging/mt7621-spi/Kconfig"
-
 source "drivers/staging/mt7621-dma/Kconfig"
 
 source "drivers/staging/ralink-gdma/Kconfig"
-
-source "drivers/staging/mt7621-mmc/Kconfig"
 
 source "drivers/staging/mt7621-dts/Kconfig"
 
@@ -121,5 +113,9 @@ source "drivers/staging/gasket/Kconfig"
 source "drivers/staging/axis-fifo/Kconfig"
 
 source "drivers/staging/erofs/Kconfig"
+
+source "drivers/staging/fieldbus/Kconfig"
+
+source "drivers/staging/kpc2000/Kconfig"
 
 endif # STAGING

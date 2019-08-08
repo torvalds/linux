@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* IEEE 802.11 SoftMAC layer
  * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
  *
@@ -9,8 +10,6 @@
  *
  * PS wx handler mostly stolen from hostap, copyright who
  * own it's copyright ;-)
- *
- * released under the GPL
  */
 
 

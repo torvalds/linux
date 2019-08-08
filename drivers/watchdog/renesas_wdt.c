@@ -151,7 +151,6 @@ static const struct soc_device_attribute rwdt_quirks_match[] = {
 		.data = (void *)1,	/* needs single CPU */
 	}, {
 		.soc_id = "r8a7792",
-		.revision = "*",
 		.data = (void *)0,	/* needs SMP disabled */
 	},
 	{ /* sentinel */ }
@@ -177,7 +176,6 @@ static inline bool rwdt_blacklisted(struct device *dev) { return false; }
 static int rwdt_probe(struct platform_device *pdev)
 {
 	struct rwdt_priv *priv;
-	struct resource *res;
 	struct clk *clk;
 	unsigned long clks_per_sec;
 	int ret, i;
@@ -189,8 +187,7 @@ static int rwdt_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -238,9 +235,7 @@ static int rwdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(&priv->wdev);
 
 	/* This overrides the default timeout only if DT configuration was found */
-	ret = watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);
-	if (ret)
-		dev_warn(&pdev->dev, "Specified timeout value invalid, using default\n");
+	watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);
 
 	ret = watchdog_register_device(&priv->wdev);
 	if (ret < 0)

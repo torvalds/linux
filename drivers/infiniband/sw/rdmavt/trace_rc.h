@@ -51,7 +51,7 @@
 #include <linux/trace_seq.h>
 
 #include <rdma/ib_verbs.h>
-#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rvt_rc

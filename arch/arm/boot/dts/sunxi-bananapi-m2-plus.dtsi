@@ -69,7 +69,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
 
 		pwr_led {
 			label = "bananapi-m2-plus:red:pwr";
@@ -80,7 +79,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
 
 		sw4 {
 			label = "power";
@@ -101,7 +99,6 @@
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 		clocks = <&rtc 1>;
 		clock-names = "ext_clock";
@@ -153,7 +150,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -210,7 +207,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

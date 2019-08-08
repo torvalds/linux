@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Phy drivers for Broadcom platforms
 #
@@ -8,6 +9,17 @@ config PHY_CYGNUS_PCIE
 	default ARCH_BCM_CYGNUS
 	help
 	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
+
+config PHY_BCM_SR_USB
+	tristate "Broadcom Stingray USB PHY driver"
+	depends on OF && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Stingray USB PHY
+	  driver. It supports all versions of Superspeed and
+	  Highspeed PHYs.
 	  If unsure, say N.
 
 config BCM_KONA_USB2_PHY

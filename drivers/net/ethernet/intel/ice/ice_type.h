@@ -24,6 +24,7 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
 #define ICE_DBG_LINK		BIT_ULL(4)
+#define ICE_DBG_PHY		BIT_ULL(5)
 #define ICE_DBG_QCTX		BIT_ULL(6)
 #define ICE_DBG_NVM		BIT_ULL(7)
 #define ICE_DBG_LAN		BIT_ULL(8)
@@ -106,7 +107,7 @@ struct ice_link_status {
 };
 
 /* Different reset sources for which a disable queue AQ call has to be made in
- * order to clean the TX scheduler as a part of the reset
+ * order to clean the Tx scheduler as a part of the reset
  */
 enum ice_disq_rst_src {
 	ICE_NO_RESET = 0,
@@ -128,11 +129,11 @@ struct ice_phy_info {
 struct ice_hw_common_caps {
 	u32 valid_functions;
 
-	/* TX/RX queues */
-	u16 num_rxq;		/* Number/Total RX queues */
-	u16 rxq_first_id;	/* First queue ID for RX queues */
-	u16 num_txq;		/* Number/Total TX queues */
-	u16 txq_first_id;	/* First queue ID for TX queues */
+	/* Tx/Rx queues */
+	u16 num_rxq;		/* Number/Total Rx queues */
+	u16 rxq_first_id;	/* First queue ID for Rx queues */
+	u16 num_txq;		/* Number/Total Tx queues */
+	u16 txq_first_id;	/* First queue ID for Tx queues */
 
 	/* MSI-X vectors */
 	u16 num_msix_vectors;
@@ -147,6 +148,8 @@ struct ice_hw_common_caps {
 	/* RSS related capabilities */
 	u16 rss_table_size;		/* 512 for PFs and 64 for VFs */
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
+
+	u8 dcb;
 };
 
 /* Function specific capabilities */
@@ -209,12 +212,17 @@ struct ice_nvm_info {
 #define ICE_MAX_TRAFFIC_CLASS 8
 #define ICE_TXSCHED_MAX_BRANCHES ICE_MAX_TRAFFIC_CLASS
 
+#define ice_for_each_traffic_class(_i)	\
+	for ((_i) = 0; (_i) < ICE_MAX_TRAFFIC_CLASS; (_i)++)
+
+#define ICE_INVAL_TEID 0xFFFFFFFF
+
 struct ice_sched_node {
 	struct ice_sched_node *parent;
 	struct ice_sched_node *sibling; /* next sibling in the same layer */
 	struct ice_sched_node **children;
 	struct ice_aqc_txsched_elem_data info;
-	u32 agg_id;			/* aggregator group id */
+	u32 agg_id;			/* aggregator group ID */
 	u16 vsi_handle;
 	u8 in_use;			/* suspended or in use */
 	u8 tx_sched_layer;		/* Logical Layer (1-9) */
@@ -241,13 +249,12 @@ enum ice_agg_type {
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
 #define ICE_SCHED_DFLT_BW_WT		1
 
-/* vsi type list entry to locate corresponding vsi/ag nodes */
+/* VSI type list entry to locate corresponding VSI/ag nodes */
 struct ice_sched_vsi_info {
 	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
 	struct list_head list_entry;
 	u16 max_lanq[ICE_MAX_TRAFFIC_CLASS];
-	u16 vsi_id;
 };
 
 /* driver defines the policy */
@@ -257,15 +264,70 @@ struct ice_sched_tx_policy {
 	u8 rdma_ena;
 };
 
+/* CEE or IEEE 802.1Qaz ETS Configuration data */
+struct ice_dcb_ets_cfg {
+	u8 willing;
+	u8 cbs;
+	u8 maxtcs;
+	u8 prio_table[ICE_MAX_TRAFFIC_CLASS];
+	u8 tcbwtable[ICE_MAX_TRAFFIC_CLASS];
+	u8 tsatable[ICE_MAX_TRAFFIC_CLASS];
+};
+
+/* CEE or IEEE 802.1Qaz PFC Configuration data */
+struct ice_dcb_pfc_cfg {
+	u8 willing;
+	u8 mbc;
+	u8 pfccap;
+	u8 pfcena;
+};
+
+/* CEE or IEEE 802.1Qaz Application Priority data */
+struct ice_dcb_app_priority_table {
+	u16 prot_id;
+	u8 priority;
+	u8 selector;
+};
+
+#define ICE_MAX_USER_PRIORITY	8
+#define ICE_DCBX_MAX_APPS	32
+#define ICE_LLDPDU_SIZE		1500
+#define ICE_TLV_STATUS_OPER	0x1
+#define ICE_TLV_STATUS_SYNC	0x2
+#define ICE_TLV_STATUS_ERR	0x4
+#define ICE_APP_PROT_ID_FCOE	0x8906
+#define ICE_APP_PROT_ID_ISCSI	0x0cbc
+#define ICE_APP_PROT_ID_FIP	0x8914
+#define ICE_APP_SEL_ETHTYPE	0x1
+#define ICE_APP_SEL_TCPIP	0x2
+#define ICE_CEE_APP_SEL_ETHTYPE	0x0
+#define ICE_CEE_APP_SEL_TCPIP	0x1
+
+struct ice_dcbx_cfg {
+	u32 numapps;
+	u32 tlv_status; /* CEE mode TLV status */
+	struct ice_dcb_ets_cfg etscfg;
+	struct ice_dcb_ets_cfg etsrec;
+	struct ice_dcb_pfc_cfg pfc;
+	struct ice_dcb_app_priority_table app[ICE_DCBX_MAX_APPS];
+	u8 dcbx_mode;
+#define ICE_DCBX_MODE_CEE	0x1
+#define ICE_DCBX_MODE_IEEE	0x2
+	u8 app_mode;
+#define ICE_DCBX_APPS_NON_WILLING	0x1
+};
+
 struct ice_port_info {
 	struct ice_sched_node *root;	/* Root Node per Port */
-	struct ice_hw *hw;		/* back pointer to hw instance */
+	struct ice_hw *hw;		/* back pointer to HW instance */
 	u32 last_node_teid;		/* scheduler last node info */
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
 	u8 port_state;
 #define ICE_SCHED_PORT_STATE_INIT	0x0
 #define ICE_SCHED_PORT_STATE_READY	0x1
+	u8 lport;
+#define ICE_LPORT_MASK			0xff
 	u16 dflt_tx_vsi_rule_id;
 	u16 dflt_tx_vsi_num;
 	u16 dflt_rx_vsi_rule_id;
@@ -274,9 +336,14 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	u8 lport;
-#define ICE_LPORT_MASK		0xff
-	u8 is_vf;
+	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
+	/* DCBX info */
+	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
+	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
+	/* LLDP/DCBX Status */
+	u8 dcbx_status:3;		/* see ICE_DCBX_STATUS_DIS */
+	u8 is_sw_lldp:1;
+	u8 is_vf:1;
 };
 
 struct ice_switch_info {
@@ -320,7 +387,7 @@ struct ice_hw {
 
 	u8 pf_id;		/* device profile info */
 
-	/* TX Scheduler values */
+	/* Tx Scheduler values */
 	u16 num_tx_sched_layers;
 	u16 num_tx_sched_phys_layers;
 	u8 flattened_layers;
@@ -331,7 +398,7 @@ struct ice_hw {
 
 	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */
-	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
+	u8 reset_ongoing;	/* true if HW is in reset, false otherwise */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
@@ -410,6 +477,11 @@ struct ice_hw_port_stats {
 	u64 link_xoff_rx;		/* lxoffrxc */
 	u64 link_xon_tx;		/* lxontxc */
 	u64 link_xoff_tx;		/* lxofftxc */
+	u64 priority_xon_rx[8];		/* pxonrxc[8] */
+	u64 priority_xoff_rx[8];	/* pxoffrxc[8] */
+	u64 priority_xon_tx[8];		/* pxontxc[8] */
+	u64 priority_xoff_tx[8];	/* pxofftxc[8] */
+	u64 priority_xon_2_xoff[8];	/* pxon2offc[8] */
 	u64 rx_size_64;			/* prc64 */
 	u64 rx_size_127;		/* prc127 */
 	u64 rx_size_255;		/* prc255 */

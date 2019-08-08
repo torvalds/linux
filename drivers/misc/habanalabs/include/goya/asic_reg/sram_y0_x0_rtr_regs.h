@@ -80,4 +80,3 @@
 #define mmSRAM_Y0_X0_RTR_DBG_L_ARB_MAX                               0x201330
 
 #endif /* ASIC_REG_SRAM_Y0_X0_RTR_REGS_H_ */
-

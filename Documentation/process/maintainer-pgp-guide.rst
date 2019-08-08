@@ -943,7 +943,7 @@ have on your keyring::
 
 Next, open the `PGP pathfinder`_. In the "From" field, paste the key
 fingerprint of Linus Torvalds from the output above. In the "To" field,
-paste they key-id you found via ``gpg --search`` of the unknown key, and
+paste the key-id you found via ``gpg --search`` of the unknown key, and
 check the results:
 
 - `Finding paths to Linus`_

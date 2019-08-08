@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* YFS File Server client stubs
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -183,24 +179,19 @@ static void xdr_dump_bad(const __be32 *bp)
 /*
  * Decode a YFSFetchStatus block
  */
-static int xdr_decode_YFSFetchStatus(struct afs_call *call,
-				     const __be32 **_bp,
-				     struct afs_file_status *status,
-				     struct afs_vnode *vnode,
-				     const afs_dataversion_t *expected_version,
-				     struct afs_read *read_req)
+static int xdr_decode_YFSFetchStatus(const __be32 **_bp,
+				     struct afs_call *call,
+				     struct afs_status_cb *scb)
 {
 	const struct yfs_xdr_YFSFetchStatus *xdr = (const void *)*_bp;
+	struct afs_file_status *status = &scb->status;
 	u32 type;
-	u8 flags = 0;
 
 	status->abort_code = ntohl(xdr->abort_code);
 	if (status->abort_code != 0) {
-		if (vnode && status->abort_code == VNOVNODE) {
-			set_bit(AFS_VNODE_DELETED, &vnode->flags);
+		if (status->abort_code == VNOVNODE)
 			status->nlink = 0;
-			__afs_break_callback(vnode);
-		}
+		scb->have_error = true;
 		return 0;
 	}
 
@@ -209,77 +200,28 @@ static int xdr_decode_YFSFetchStatus(struct afs_call *call,
 	case AFS_FTYPE_FILE:
 	case AFS_FTYPE_DIR:
 	case AFS_FTYPE_SYMLINK:
-		if (type != status->type &&
-		    vnode &&
-		    !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
-			pr_warning("Vnode %llx:%llx:%x changed type %u to %u\n",
-				   vnode->fid.vid,
-				   vnode->fid.vnode,
-				   vnode->fid.unique,
-				   status->type, type);
-			goto bad;
-		}
 		status->type = type;
 		break;
 	default:
 		goto bad;
 	}
 
-#define EXTRACT_M4(FIELD)					\
-	do {							\
-		u32 x = ntohl(xdr->FIELD);			\
-		if (status->FIELD != x) {			\
-			flags |= AFS_VNODE_META_CHANGED;	\
-			status->FIELD = x;			\
-		}						\
-	} while (0)
+	status->nlink		= ntohl(xdr->nlink);
+	status->author		= xdr_to_u64(xdr->author);
+	status->owner		= xdr_to_u64(xdr->owner);
+	status->caller_access	= ntohl(xdr->caller_access); /* Ticket dependent */
+	status->anon_access	= ntohl(xdr->anon_access);
+	status->mode		= ntohl(xdr->mode) & S_IALLUGO;
+	status->group		= xdr_to_u64(xdr->group);
+	status->lock_count	= ntohl(xdr->lock_count);
 
-#define EXTRACT_M8(FIELD)					\
-	do {							\
-		u64 x = xdr_to_u64(xdr->FIELD);			\
-		if (status->FIELD != x) {			\
-			flags |= AFS_VNODE_META_CHANGED;	\
-			status->FIELD = x;			\
-		}						\
-	} while (0)
-
-#define EXTRACT_D8(FIELD)					\
-	do {							\
-		u64 x = xdr_to_u64(xdr->FIELD);			\
-		if (status->FIELD != x) {			\
-			flags |= AFS_VNODE_DATA_CHANGED;	\
-			status->FIELD = x;			\
-		}						\
-	} while (0)
-
-	EXTRACT_M4(nlink);
-	EXTRACT_D8(size);
-	EXTRACT_D8(data_version);
-	EXTRACT_M8(author);
-	EXTRACT_M8(owner);
-	EXTRACT_M8(group);
-	EXTRACT_M4(mode);
-	EXTRACT_M4(caller_access); /* call ticket dependent */
-	EXTRACT_M4(anon_access);
-
-	status->mtime_client = xdr_to_time(xdr->mtime_client);
-	status->mtime_server = xdr_to_time(xdr->mtime_server);
-	status->lock_count   = ntohl(xdr->lock_count);
-
-	if (read_req) {
-		read_req->data_version = status->data_version;
-		read_req->file_size = status->size;
-	}
+	status->mtime_client	= xdr_to_time(xdr->mtime_client);
+	status->mtime_server	= xdr_to_time(xdr->mtime_server);
+	status->size		= xdr_to_u64(xdr->size);
+	status->data_version	= xdr_to_u64(xdr->data_version);
+	scb->have_status	= true;
 
 	*_bp += xdr_size(xdr);
-
-	if (vnode) {
-		if (test_bit(AFS_VNODE_UNSET, &vnode->flags))
-			flags |= AFS_VNODE_NOT_YET_SET;
-		afs_update_inode_from_status(vnode, status, expected_version,
-					     flags);
-	}
-
 	return 0;
 
 bad:
@@ -288,73 +230,20 @@ bad:
 }
 
 /*
- * Decode the file status.  We need to lock the target vnode if we're going to
- * update its status so that stat() sees the attributes update atomically.
- */
-static int yfs_decode_status(struct afs_call *call,
-			     const __be32 **_bp,
-			     struct afs_file_status *status,
-			     struct afs_vnode *vnode,
-			     const afs_dataversion_t *expected_version,
-			     struct afs_read *read_req)
-{
-	int ret;
-
-	if (!vnode)
-		return xdr_decode_YFSFetchStatus(call, _bp, status, vnode,
-						 expected_version, read_req);
-
-	write_seqlock(&vnode->cb_lock);
-	ret = xdr_decode_YFSFetchStatus(call, _bp, status, vnode,
-					expected_version, read_req);
-	write_sequnlock(&vnode->cb_lock);
-	return ret;
-}
-
-/*
  * Decode a YFSCallBack block
  */
-static void xdr_decode_YFSCallBack(struct afs_call *call,
-				   struct afs_vnode *vnode,
-				   const __be32 **_bp)
-{
-	struct yfs_xdr_YFSCallBack *xdr = (void *)*_bp;
-	struct afs_cb_interest *old, *cbi = call->cbi;
-	u64 cb_expiry;
-
-	write_seqlock(&vnode->cb_lock);
-
-	if (!afs_cb_is_broken(call->cb_break, vnode, cbi)) {
-		cb_expiry = xdr_to_u64(xdr->expiration_time);
-		do_div(cb_expiry, 10 * 1000 * 1000);
-		vnode->cb_version	= ntohl(xdr->version);
-		vnode->cb_type		= ntohl(xdr->type);
-		vnode->cb_expires_at	= cb_expiry + ktime_get_real_seconds();
-		old = vnode->cb_interest;
-		if (old != call->cbi) {
-			vnode->cb_interest = cbi;
-			cbi = old;
-		}
-		set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-	}
-
-	write_sequnlock(&vnode->cb_lock);
-	call->cbi = cbi;
-	*_bp += xdr_size(xdr);
-}
-
-static void xdr_decode_YFSCallBack_raw(const __be32 **_bp,
-				       struct afs_callback *cb)
+static void xdr_decode_YFSCallBack(const __be32 **_bp,
+				   struct afs_call *call,
+				   struct afs_status_cb *scb)
 {
 	struct yfs_xdr_YFSCallBack *x = (void *)*_bp;
-	u64 cb_expiry;
+	struct afs_callback *cb = &scb->callback;
+	ktime_t cb_expiry;
 
-	cb_expiry = xdr_to_u64(x->expiration_time);
-	do_div(cb_expiry, 10 * 1000 * 1000);
-	cb->version	= ntohl(x->version);
-	cb->type	= ntohl(x->type);
-	cb->expires_at	= cb_expiry + ktime_get_real_seconds();
-
+	cb_expiry = call->reply_time;
+	cb_expiry = ktime_add(cb_expiry, xdr_to_u64(x->expiration_time) * 100);
+	cb->expires_at	= ktime_divns(cb_expiry, NSEC_PER_SEC);
+	scb->have_cb	= true;
 	*_bp += xdr_size(x);
 }
 
@@ -442,11 +331,10 @@ static void xdr_decode_YFSFetchVolumeStatus(const __be32 **_bp,
 }
 
 /*
- * deliver reply data to an FS.FetchStatus
+ * Deliver a reply that's a status, callback and volsync.
  */
-static int yfs_deliver_fs_fetch_status_vnode(struct afs_call *call)
+static int yfs_deliver_fs_status_cb_and_volsync(struct afs_call *call)
 {
-	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
 	int ret;
 
@@ -454,16 +342,36 @@ static int yfs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
-
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 	if (ret < 0)
 		return ret;
-	xdr_decode_YFSCallBack(call, vnode, &bp);
-	xdr_decode_YFSVolSync(&bp, call->reply[1]);
+	xdr_decode_YFSCallBack(&bp, call, call->out_scb);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * Deliver reply data to operations that just return a file status and a volume
+ * sync record.
+ */
+static int yfs_deliver_status_and_volsync(struct afs_call *call)
+{
+	const __be32 *bp;
+	int ret;
+
+	ret = afs_transfer_reply(call);
+	if (ret < 0)
+		return ret;
+
+	bp = call->buffer;
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
+	if (ret < 0)
+		return ret;
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 
 	_leave(" = 0 [done]");
 	return 0;
@@ -475,15 +383,15 @@ static int yfs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 static const struct afs_call_type yfs_RXYFSFetchStatus_vnode = {
 	.name		= "YFS.FetchStatus(vnode)",
 	.op		= yfs_FS_FetchStatus,
-	.deliver	= yfs_deliver_fs_fetch_status_vnode,
+	.deliver	= yfs_deliver_fs_status_cb_and_volsync,
 	.destructor	= afs_flat_call_destructor,
 };
 
 /*
  * Fetch the status information for a file.
  */
-int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsync,
-			     bool new_inode)
+int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
+			     struct afs_volsync *volsync)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -505,9 +413,8 @@ int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	}
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->reply[1] = volsync;
-	call->expected_version = new_inode ? 1 : vnode->status.data_version;
+	call->out_scb = scb;
+	call->out_volsync = volsync;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -516,10 +423,11 @@ int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	bp = xdr_encode_YFSFid(bp, &vnode->fid);
 	yfs_check_req(call, bp);
 
-	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -527,8 +435,7 @@ int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
  */
 static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 {
-	struct afs_vnode *vnode = call->reply[0];
-	struct afs_read *req = call->reply[2];
+	struct afs_read *req = call->read_request;
 	const __be32 *bp;
 	unsigned int size;
 	int ret;
@@ -544,7 +451,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		afs_extract_to_tmp64(call);
 		call->unmarshall++;
 
-		/* extract the returned data length */
+		/* Fall through - and extract the returned data length */
 	case 1:
 		_debug("extract data length");
 		ret = afs_extract_data(call, true);
@@ -571,7 +478,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		iov_iter_bvec(&call->iter, READ, call->bvec, 1, size);
 		ASSERTCMP(size, <=, PAGE_SIZE);
 
-		/* extract the returned data */
+		/* Fall through - and extract the returned data */
 	case 2:
 		_debug("extract data %zu/%llu",
 		       iov_iter_count(&call->iter), req->remain);
@@ -585,7 +492,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		if (req->offset == PAGE_SIZE) {
 			req->offset = 0;
 			if (req->page_done)
-				req->page_done(call, req);
+				req->page_done(req);
 			req->index++;
 			if (req->remain > 0)
 				goto begin_page;
@@ -598,6 +505,8 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		/* Discard any excess data the server gave us */
 		iov_iter_discard(&call->iter, READ, req->actual_len - req->len);
 		call->unmarshall = 3;
+
+		/* Fall through */
 	case 3:
 		_debug("extract discard %zu/%llu",
 		       iov_iter_count(&call->iter), req->actual_len - req->len);
@@ -613,22 +522,25 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 				   sizeof(struct yfs_xdr_YFSCallBack) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 
-		/* extract the metadata */
+		/* Fall through - and extract the metadata */
 	case 4:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
 
 		bp = call->buffer;
-		ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-					&vnode->status.data_version, req);
+		ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 		if (ret < 0)
 			return ret;
-		xdr_decode_YFSCallBack(call, vnode, &bp);
-		xdr_decode_YFSVolSync(&bp, call->reply[1]);
+		xdr_decode_YFSCallBack(&bp, call, call->out_scb);
+		xdr_decode_YFSVolSync(&bp, call->out_volsync);
+
+		req->data_version = call->out_scb->status.data_version;
+		req->file_size = call->out_scb->status.size;
 
 		call->unmarshall++;
 
+		/* Fall through */
 	case 5:
 		break;
 	}
@@ -638,7 +550,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 			zero_user_segment(req->pages[req->index],
 					  req->offset, PAGE_SIZE);
 		if (req->page_done)
-			req->page_done(call, req);
+			req->page_done(req);
 		req->offset = 0;
 	}
 
@@ -648,9 +560,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 
 static void yfs_fetch_data_destructor(struct afs_call *call)
 {
-	struct afs_read *req = call->reply[2];
-
-	afs_put_read(req);
+	afs_put_read(call->read_request);
 	afs_flat_call_destructor(call);
 }
 
@@ -667,7 +577,8 @@ static const struct afs_call_type yfs_RXYFSFetchData64 = {
 /*
  * Fetch data from a file.
  */
-int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
+int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
+		      struct afs_read *req)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -689,11 +600,9 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->reply[1] = NULL; /* volsync */
-	call->reply[2] = req;
-	call->expected_version = vnode->status.data_version;
-	call->want_reply_time = true;
+	call->out_scb = scb;
+	call->out_volsync = NULL;
+	call->read_request = req;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -705,10 +614,11 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 	yfs_check_req(call, bp);
 
 	refcount_inc(&req->usage);
-	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -716,7 +626,6 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
  */
 static int yfs_deliver_fs_create_vnode(struct afs_call *call)
 {
-	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
 	int ret;
 
@@ -728,16 +637,15 @@ static int yfs_deliver_fs_create_vnode(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_YFSFid(&bp, call->reply[1]);
-	ret = yfs_decode_status(call, &bp, call->reply[2], NULL, NULL, NULL);
+	xdr_decode_YFSFid(&bp, call->out_fid);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 	if (ret < 0)
 		return ret;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
-	xdr_decode_YFSCallBack_raw(&bp, call->reply[3]);
-	xdr_decode_YFSVolSync(&bp, NULL);
+	xdr_decode_YFSCallBack(&bp, call, call->out_scb);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 
 	_leave(" = 0 [done]");
 	return 0;
@@ -759,14 +667,13 @@ static const struct afs_call_type afs_RXFSCreateFile = {
 int yfs_fs_create_file(struct afs_fs_cursor *fc,
 		       const char *name,
 		       umode_t mode,
-		       u64 current_data_version,
+		       struct afs_status_cb *dvnode_scb,
 		       struct afs_fid *newfid,
-		       struct afs_file_status *newstatus,
-		       struct afs_callback *newcb)
+		       struct afs_status_cb *new_scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(dvnode);
 	size_t namesz, reqsz, rplsz;
 	__be32 *bp;
 
@@ -790,25 +697,25 @@ int yfs_fs_create_file(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->reply[1] = newfid;
-	call->reply[2] = newstatus;
-	call->reply[3] = newcb;
-	call->expected_version = current_data_version + 1;
+	call->out_dir_scb = dvnode_scb;
+	call->out_fid = newfid;
+	call->out_scb = new_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSCREATEFILE);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	bp = xdr_encode_YFSStoreStatus_mode(bp, mode);
 	bp = xdr_encode_u32(bp, yfs_LockNone); /* ViceLockType */
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 static const struct afs_call_type yfs_RXFSMakeDir = {
@@ -824,14 +731,13 @@ static const struct afs_call_type yfs_RXFSMakeDir = {
 int yfs_fs_make_dir(struct afs_fs_cursor *fc,
 		    const char *name,
 		    umode_t mode,
-		    u64 current_data_version,
+		    struct afs_status_cb *dvnode_scb,
 		    struct afs_fid *newfid,
-		    struct afs_file_status *newstatus,
-		    struct afs_callback *newcb)
+		    struct afs_status_cb *new_scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(dvnode);
 	size_t namesz, reqsz, rplsz;
 	__be32 *bp;
 
@@ -854,24 +760,24 @@ int yfs_fs_make_dir(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->reply[1] = newfid;
-	call->reply[2] = newstatus;
-	call->reply[3] = newcb;
-	call->expected_version = current_data_version + 1;
+	call->out_dir_scb = dvnode_scb;
+	call->out_fid = newfid;
+	call->out_scb = new_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSMAKEDIR);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	bp = xdr_encode_YFSStoreStatus_mode(bp, mode);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -879,8 +785,6 @@ int yfs_fs_make_dir(struct afs_fs_cursor *fc,
  */
 static int yfs_deliver_fs_remove_file2(struct afs_call *call)
 {
-	struct afs_vnode *dvnode = call->reply[0];
-	struct afs_vnode *vnode = call->reply[1];
 	struct afs_fid fid;
 	const __be32 *bp;
 	int ret;
@@ -891,20 +795,18 @@ static int yfs_deliver_fs_remove_file2(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &dvnode->status, dvnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
 
 	xdr_decode_YFSFid(&bp, &fid);
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode, NULL, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 	if (ret < 0)
 		return ret;
 	/* Was deleted if vnode->status.abort_code == VNOVNODE. */
 
-	xdr_decode_YFSVolSync(&bp, NULL);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 	return 0;
 }
 
@@ -922,7 +824,8 @@ static const struct afs_call_type yfs_RXYFSRemoveFile2 = {
  * Remove a file and retrieve new file status.
  */
 int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
-			const char *name, u64 current_data_version)
+			const char *name, struct afs_status_cb *dvnode_scb,
+			struct afs_status_cb *vnode_scb)
 {
 	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
@@ -947,9 +850,8 @@ int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = dvnode;
-	call->reply[1] = vnode;
-	call->expected_version = current_data_version + 1;
+	call->out_dir_scb = dvnode_scb;
+	call->out_scb = vnode_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -960,8 +862,10 @@ int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &dvnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -969,7 +873,6 @@ int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
  */
 static int yfs_deliver_fs_remove(struct afs_call *call)
 {
-	struct afs_vnode *dvnode = call->reply[0];
 	const __be32 *bp;
 	int ret;
 
@@ -979,14 +882,12 @@ static int yfs_deliver_fs_remove(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &dvnode->status, dvnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
 
-	xdr_decode_YFSVolSync(&bp, NULL);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 	return 0;
 }
 
@@ -1011,7 +912,8 @@ static const struct afs_call_type yfs_RXYFSRemoveDir = {
  * remove a file or directory
  */
 int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
-		  const char *name, bool isdir, u64 current_data_version)
+		  const char *name, bool isdir,
+		  struct afs_status_cb *dvnode_scb)
 {
 	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
@@ -1034,9 +936,7 @@ int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = dvnode;
-	call->reply[1] = vnode;
-	call->expected_version = current_data_version + 1;
+	call->out_dir_scb = dvnode_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1047,8 +947,10 @@ int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &dvnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1056,7 +958,6 @@ int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
  */
 static int yfs_deliver_fs_link(struct afs_call *call)
 {
-	struct afs_vnode *dvnode = call->reply[0], *vnode = call->reply[1];
 	const __be32 *bp;
 	int ret;
 
@@ -1066,16 +967,14 @@ static int yfs_deliver_fs_link(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode, NULL, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 	if (ret < 0)
 		return ret;
-	ret = yfs_decode_status(call, &bp, &dvnode->status, dvnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
-	xdr_decode_YFSVolSync(&bp, NULL);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 	_leave(" = 0 [done]");
 	return 0;
 }
@@ -1094,7 +993,9 @@ static const struct afs_call_type yfs_RXYFSLink = {
  * Make a hard link.
  */
 int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
-		const char *name, u64 current_data_version)
+		const char *name,
+		struct afs_status_cb *dvnode_scb,
+		struct afs_status_cb *vnode_scb)
 {
 	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
@@ -1118,9 +1019,8 @@ int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = dvnode;
-	call->reply[1] = vnode;
-	call->expected_version = current_data_version + 1;
+	call->out_dir_scb = dvnode_scb;
+	call->out_scb = vnode_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1132,8 +1032,10 @@ int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1141,7 +1043,6 @@ int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
  */
 static int yfs_deliver_fs_symlink(struct afs_call *call)
 {
-	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
 	int ret;
 
@@ -1153,15 +1054,14 @@ static int yfs_deliver_fs_symlink(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_YFSFid(&bp, call->reply[1]);
-	ret = yfs_decode_status(call, &bp, call->reply[2], NULL, NULL, NULL);
+	xdr_decode_YFSFid(&bp, call->out_fid);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 	if (ret < 0)
 		return ret;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
-	xdr_decode_YFSVolSync(&bp, NULL);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 
 	_leave(" = 0 [done]");
 	return 0;
@@ -1183,9 +1083,9 @@ static const struct afs_call_type yfs_RXYFSSymlink = {
 int yfs_fs_symlink(struct afs_fs_cursor *fc,
 		   const char *name,
 		   const char *contents,
-		   u64 current_data_version,
+		   struct afs_status_cb *dvnode_scb,
 		   struct afs_fid *newfid,
-		   struct afs_file_status *newstatus)
+		   struct afs_status_cb *vnode_scb)
 {
 	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
@@ -1212,10 +1112,9 @@ int yfs_fs_symlink(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = dvnode;
-	call->reply[1] = newfid;
-	call->reply[2] = newstatus;
-	call->expected_version = current_data_version + 1;
+	call->out_dir_scb = dvnode_scb;
+	call->out_fid = newfid;
+	call->out_scb = vnode_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1228,8 +1127,10 @@ int yfs_fs_symlink(struct afs_fs_cursor *fc,
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &dvnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1237,8 +1138,6 @@ int yfs_fs_symlink(struct afs_fs_cursor *fc,
  */
 static int yfs_deliver_fs_rename(struct afs_call *call)
 {
-	struct afs_vnode *orig_dvnode = call->reply[0];
-	struct afs_vnode *new_dvnode = call->reply[1];
 	const __be32 *bp;
 	int ret;
 
@@ -1248,20 +1147,17 @@ static int yfs_deliver_fs_rename(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &orig_dvnode->status, orig_dvnode,
-				&call->expected_version, NULL);
+	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_dir_scb);
 	if (ret < 0)
 		return ret;
-	if (new_dvnode != orig_dvnode) {
-		ret = yfs_decode_status(call, &bp, &new_dvnode->status, new_dvnode,
-					&call->expected_version_2, NULL);
+	if (call->out_dir_scb != call->out_scb) {
+		ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 		if (ret < 0)
 			return ret;
 	}
 
-	xdr_decode_YFSVolSync(&bp, NULL);
+	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 	_leave(" = 0 [done]");
 	return 0;
 }
@@ -1283,8 +1179,8 @@ int yfs_fs_rename(struct afs_fs_cursor *fc,
 		  const char *orig_name,
 		  struct afs_vnode *new_dvnode,
 		  const char *new_name,
-		  u64 current_orig_data_version,
-		  u64 current_new_data_version)
+		  struct afs_status_cb *orig_dvnode_scb,
+		  struct afs_status_cb *new_dvnode_scb)
 {
 	struct afs_vnode *orig_dvnode = fc->vnode;
 	struct afs_call *call;
@@ -1310,10 +1206,8 @@ int yfs_fs_rename(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = orig_dvnode;
-	call->reply[1] = new_dvnode;
-	call->expected_version = current_orig_data_version + 1;
-	call->expected_version_2 = current_new_data_version + 1;
+	call->out_dir_scb = orig_dvnode_scb;
+	call->out_scb = new_dvnode_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1326,37 +1220,10 @@ int yfs_fs_rename(struct afs_fs_cursor *fc,
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &orig_dvnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
-}
-
-/*
- * Deliver reply data to a YFS.StoreData64 operation.
- */
-static int yfs_deliver_fs_store_data(struct afs_call *call)
-{
-	struct afs_vnode *vnode = call->reply[0];
-	const __be32 *bp;
-	int ret;
-
-	_enter("");
-
-	ret = afs_transfer_reply(call);
-	if (ret < 0)
-		return ret;
-
-	/* unmarshall the reply once we've received all of it */
-	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-				&call->expected_version, NULL);
-	if (ret < 0)
-		return ret;
-	xdr_decode_YFSVolSync(&bp, NULL);
-
-	afs_pages_written_back(vnode, call);
-
-	_leave(" = 0 [done]");
-	return 0;
+	trace_afs_make_fs_call2(call, &orig_dvnode->fid, orig_name, new_name);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1365,7 +1232,7 @@ static int yfs_deliver_fs_store_data(struct afs_call *call)
 static const struct afs_call_type yfs_RXYFSStoreData64 = {
 	.name		= "YFS.StoreData64",
 	.op		= yfs_FS_StoreData64,
-	.deliver	= yfs_deliver_fs_store_data,
+	.deliver	= yfs_deliver_status_and_volsync,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1374,7 +1241,8 @@ static const struct afs_call_type yfs_RXYFSStoreData64 = {
  */
 int yfs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 		      pgoff_t first, pgoff_t last,
-		      unsigned offset, unsigned to)
+		      unsigned offset, unsigned to,
+		      struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1412,13 +1280,12 @@ int yfs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 
 	call->key = fc->key;
 	call->mapping = mapping;
-	call->reply[0] = vnode;
 	call->first = first;
 	call->last = last;
 	call->first_offset = offset;
 	call->last_to = to;
 	call->send_pages = true;
-	call->expected_version = vnode->status.data_version + 1;
+	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1433,34 +1300,9 @@ int yfs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
-}
-
-/*
- * deliver reply data to an FS.StoreStatus
- */
-static int yfs_deliver_fs_store_status(struct afs_call *call)
-{
-	struct afs_vnode *vnode = call->reply[0];
-	const __be32 *bp;
-	int ret;
-
-	_enter("");
-
-	ret = afs_transfer_reply(call);
-	if (ret < 0)
-		return ret;
-
-	/* unmarshall the reply once we've received all of it */
-	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-				&call->expected_version, NULL);
-	if (ret < 0)
-		return ret;
-	xdr_decode_YFSVolSync(&bp, NULL);
-
-	_leave(" = 0 [done]");
-	return 0;
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1469,14 +1311,14 @@ static int yfs_deliver_fs_store_status(struct afs_call *call)
 static const struct afs_call_type yfs_RXYFSStoreStatus = {
 	.name		= "YFS.StoreStatus",
 	.op		= yfs_FS_StoreStatus,
-	.deliver	= yfs_deliver_fs_store_status,
+	.deliver	= yfs_deliver_status_and_volsync,
 	.destructor	= afs_flat_call_destructor,
 };
 
 static const struct afs_call_type yfs_RXYFSStoreData64_as_Status = {
 	.name		= "YFS.StoreData64",
 	.op		= yfs_FS_StoreData64,
-	.deliver	= yfs_deliver_fs_store_status,
+	.deliver	= yfs_deliver_status_and_volsync,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1484,7 +1326,8 @@ static const struct afs_call_type yfs_RXYFSStoreData64_as_Status = {
  * Set the attributes on a file, using YFS.StoreData64 rather than
  * YFS.StoreStatus so as to alter the file size also.
  */
-static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
+static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
+			       struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1505,8 +1348,7 @@ static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->expected_version = vnode->status.data_version + 1;
+	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1521,14 +1363,17 @@ static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
  * Set the attributes on a file, using YFS.StoreData64 if there's a change in
  * file size, and YFS.StoreStatus otherwise.
  */
-int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
+int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr,
+		   struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1536,7 +1381,7 @@ int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
 	__be32 *bp;
 
 	if (attr->ia_valid & ATTR_SIZE)
-		return yfs_fs_setattr_size(fc, attr);
+		return yfs_fs_setattr_size(fc, attr, scb);
 
 	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
@@ -1551,8 +1396,7 @@ int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->expected_version = vnode->status.data_version;
+	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1564,7 +1408,9 @@ int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1584,7 +1430,7 @@ static int yfs_deliver_fs_get_volume_status(struct afs_call *call)
 		call->unmarshall++;
 		afs_extract_to_buf(call, sizeof(struct yfs_xdr_YFSFetchVolumeStatus));
 
-		/* extract the returned status record */
+		/* Fall through - and extract the returned status record */
 	case 1:
 		_debug("extract status");
 		ret = afs_extract_data(call, true);
@@ -1592,11 +1438,11 @@ static int yfs_deliver_fs_get_volume_status(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		xdr_decode_YFSFetchVolumeStatus(&bp, call->reply[1]);
+		xdr_decode_YFSFetchVolumeStatus(&bp, call->out_volstatus);
 		call->unmarshall++;
 		afs_extract_to_tmp(call);
 
-		/* extract the volume name length */
+		/* Fall through - and extract the volume name length */
 	case 2:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1608,23 +1454,23 @@ static int yfs_deliver_fs_get_volume_status(struct afs_call *call)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_volname_len);
 		size = (call->count + 3) & ~3; /* It's padded */
-		afs_extract_begin(call, call->reply[2], size);
+		afs_extract_to_buf(call, size);
 		call->unmarshall++;
 
-		/* extract the volume name */
+		/* Fall through - and extract the volume name */
 	case 3:
 		_debug("extract volname");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
-		p = call->reply[2];
+		p = call->buffer;
 		p[call->count] = 0;
 		_debug("volname '%s'", p);
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
 
-		/* extract the offline message length */
+		/* Fall through - and extract the offline message length */
 	case 4:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1636,24 +1482,24 @@ static int yfs_deliver_fs_get_volume_status(struct afs_call *call)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_offline_msg_len);
 		size = (call->count + 3) & ~3; /* It's padded */
-		afs_extract_begin(call, call->reply[2], size);
+		afs_extract_to_buf(call, size);
 		call->unmarshall++;
 
-		/* extract the offline message */
+		/* Fall through - and extract the offline message */
 	case 5:
 		_debug("extract offline");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
-		p = call->reply[2];
+		p = call->buffer;
 		p[call->count] = 0;
 		_debug("offline '%s'", p);
 
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
 
-		/* extract the message of the day length */
+		/* Fall through - and extract the message of the day length */
 	case 6:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1665,22 +1511,23 @@ static int yfs_deliver_fs_get_volume_status(struct afs_call *call)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_motd_len);
 		size = (call->count + 3) & ~3; /* It's padded */
-		afs_extract_begin(call, call->reply[2], size);
+		afs_extract_to_buf(call, size);
 		call->unmarshall++;
 
-		/* extract the message of the day */
+		/* Fall through - and extract the message of the day */
 	case 7:
 		_debug("extract motd");
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
 
-		p = call->reply[2];
+		p = call->buffer;
 		p[call->count] = 0;
 		_debug("motd '%s'", p);
 
 		call->unmarshall++;
 
+		/* Fall through */
 	case 8:
 		break;
 	}
@@ -1690,23 +1537,13 @@ static int yfs_deliver_fs_get_volume_status(struct afs_call *call)
 }
 
 /*
- * Destroy a YFS.GetVolumeStatus call.
- */
-static void yfs_get_volume_status_call_destructor(struct afs_call *call)
-{
-	kfree(call->reply[2]);
-	call->reply[2] = NULL;
-	afs_flat_call_destructor(call);
-}
-
-/*
  * YFS.GetVolumeStatus operation type
  */
 static const struct afs_call_type yfs_RXYFSGetVolumeStatus = {
 	.name		= "YFS.GetVolumeStatus",
 	.op		= yfs_FS_GetVolumeStatus,
 	.deliver	= yfs_deliver_fs_get_volume_status,
-	.destructor	= yfs_get_volume_status_call_destructor,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -1719,28 +1556,21 @@ int yfs_fs_get_volume_status(struct afs_fs_cursor *fc,
 	struct afs_call *call;
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
-	void *tmpbuf;
 
 	_enter("");
-
-	tmpbuf = kmalloc(AFSOPAQUEMAX, GFP_KERNEL);
-	if (!tmpbuf)
-		return -ENOMEM;
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSGetVolumeStatus,
 				   sizeof(__be32) * 2 +
 				   sizeof(struct yfs_xdr_u64),
-				   sizeof(struct yfs_xdr_YFSFetchVolumeStatus) +
-				   sizeof(__be32));
-	if (!call) {
-		kfree(tmpbuf);
+				   max_t(size_t,
+					 sizeof(struct yfs_xdr_YFSFetchVolumeStatus) +
+					 sizeof(__be32),
+					 AFSOPAQUEMAX + 1));
+	if (!call)
 		return -ENOMEM;
-	}
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
-	call->reply[1] = vs;
-	call->reply[2] = tmpbuf;
+	call->out_volstatus = vs;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1751,34 +1581,9 @@ int yfs_fs_get_volume_status(struct afs_fs_cursor *fc,
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
-}
-
-/*
- * Deliver reply data to an YFS.SetLock, YFS.ExtendLock or YFS.ReleaseLock
- */
-static int yfs_deliver_fs_xxxx_lock(struct afs_call *call)
-{
-	struct afs_vnode *vnode = call->reply[0];
-	const __be32 *bp;
-	int ret;
-
-	_enter("{%u}", call->unmarshall);
-
-	ret = afs_transfer_reply(call);
-	if (ret < 0)
-		return ret;
-
-	/* unmarshall the reply once we've received all of it */
-	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, &vnode->status, vnode,
-				&call->expected_version, NULL);
-	if (ret < 0)
-		return ret;
-	xdr_decode_YFSVolSync(&bp, NULL);
-
-	_leave(" = 0 [done]");
-	return 0;
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1787,7 +1592,8 @@ static int yfs_deliver_fs_xxxx_lock(struct afs_call *call)
 static const struct afs_call_type yfs_RXYFSSetLock = {
 	.name		= "YFS.SetLock",
 	.op		= yfs_FS_SetLock,
-	.deliver	= yfs_deliver_fs_xxxx_lock,
+	.deliver	= yfs_deliver_status_and_volsync,
+	.done		= afs_lock_op_done,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1797,7 +1603,8 @@ static const struct afs_call_type yfs_RXYFSSetLock = {
 static const struct afs_call_type yfs_RXYFSExtendLock = {
 	.name		= "YFS.ExtendLock",
 	.op		= yfs_FS_ExtendLock,
-	.deliver	= yfs_deliver_fs_xxxx_lock,
+	.deliver	= yfs_deliver_status_and_volsync,
+	.done		= afs_lock_op_done,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1807,14 +1614,15 @@ static const struct afs_call_type yfs_RXYFSExtendLock = {
 static const struct afs_call_type yfs_RXYFSReleaseLock = {
 	.name		= "YFS.ReleaseLock",
 	.op		= yfs_FS_ReleaseLock,
-	.deliver	= yfs_deliver_fs_xxxx_lock,
+	.deliver	= yfs_deliver_status_and_volsync,
 	.destructor	= afs_flat_call_destructor,
 };
 
 /*
  * Set a lock on a file
  */
-int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
+int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type,
+		    struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1833,7 +1641,8 @@ int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
+	call->lvnode = vnode;
+	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1844,14 +1653,16 @@ int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_calli(call, &vnode->fid, type);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
  * extend a lock on a file
  */
-int yfs_fs_extend_lock(struct afs_fs_cursor *fc)
+int yfs_fs_extend_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1869,7 +1680,8 @@ int yfs_fs_extend_lock(struct afs_fs_cursor *fc)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
+	call->lvnode = vnode;
+	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1880,13 +1692,15 @@ int yfs_fs_extend_lock(struct afs_fs_cursor *fc)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
  * release a lock on a file
  */
-int yfs_fs_release_lock(struct afs_fs_cursor *fc)
+int yfs_fs_release_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -1904,7 +1718,8 @@ int yfs_fs_release_lock(struct afs_fs_cursor *fc)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->reply[0] = vnode;
+	call->lvnode = vnode;
+	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1915,38 +1730,9 @@ int yfs_fs_release_lock(struct afs_fs_cursor *fc)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
-}
-
-/*
- * Deliver reply data to an FS.FetchStatus with no vnode.
- */
-static int yfs_deliver_fs_fetch_status(struct afs_call *call)
-{
-	struct afs_file_status *status = call->reply[1];
-	struct afs_callback *callback = call->reply[2];
-	struct afs_volsync *volsync = call->reply[3];
-	struct afs_vnode *vnode = call->reply[0];
-	const __be32 *bp;
-	int ret;
-
-	ret = afs_transfer_reply(call);
-	if (ret < 0)
-		return ret;
-
-	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
-
-	/* unmarshall the reply once we've received all of it */
-	bp = call->buffer;
-	ret = yfs_decode_status(call, &bp, status, vnode,
-				&call->expected_version, NULL);
-	if (ret < 0)
-		return ret;
-	xdr_decode_YFSCallBack_raw(&bp, callback);
-	xdr_decode_YFSVolSync(&bp, volsync);
-
-	_leave(" = 0 [done]");
-	return 0;
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1955,7 +1741,7 @@ static int yfs_deliver_fs_fetch_status(struct afs_call *call)
 static const struct afs_call_type yfs_RXYFSFetchStatus = {
 	.name		= "YFS.FetchStatus",
 	.op		= yfs_FS_FetchStatus,
-	.deliver	= yfs_deliver_fs_fetch_status,
+	.deliver	= yfs_deliver_fs_status_cb_and_volsync,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1965,8 +1751,7 @@ static const struct afs_call_type yfs_RXYFSFetchStatus = {
 int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
 			struct afs_net *net,
 			struct afs_fid *fid,
-			struct afs_file_status *status,
-			struct afs_callback *callback,
+			struct afs_status_cb *scb,
 			struct afs_volsync *volsync)
 {
 	struct afs_call *call;
@@ -1987,11 +1772,8 @@ int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
 	}
 
 	call->key = fc->key;
-	call->reply[0] = NULL; /* vnode for fid[0] */
-	call->reply[1] = status;
-	call->reply[2] = callback;
-	call->reply[3] = volsync;
-	call->expected_version = 1; /* vnode->status.data_version */
+	call->out_scb = scb;
+	call->out_volsync = volsync;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2000,10 +1782,11 @@ int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
 	bp = xdr_encode_YFSFid(bp, fid);
 	yfs_check_req(call, bp);
 
-	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -2011,9 +1794,7 @@ int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
  */
 static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 {
-	struct afs_file_status *statuses;
-	struct afs_callback *callbacks;
-	struct afs_vnode *vnode = call->reply[0];
+	struct afs_status_cb *scb;
 	const __be32 *bp;
 	u32 tmp;
 	int ret;
@@ -2026,6 +1807,7 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		call->unmarshall++;
 
 		/* Extract the file status count and array in two steps */
+		/* Fall through */
 	case 1:
 		_debug("extract status count");
 		ret = afs_extract_data(call, true);
@@ -2043,6 +1825,7 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 	more_counts:
 		afs_extract_to_buf(call, sizeof(struct yfs_xdr_YFSFetchStatus));
 
+		/* Fall through */
 	case 2:
 		_debug("extract status array %u", call->count);
 		ret = afs_extract_data(call, true);
@@ -2050,10 +1833,8 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		statuses = call->reply[1];
-		ret = yfs_decode_status(call, &bp, &statuses[call->count],
-					call->count == 0 ? vnode : NULL,
-					NULL, NULL);
+		scb = &call->out_scb[call->count];
+		ret = xdr_decode_YFSFetchStatus(&bp, call, scb);
 		if (ret < 0)
 			return ret;
 
@@ -2066,6 +1847,7 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		afs_extract_to_tmp(call);
 
 		/* Extract the callback count and array in two steps */
+		/* Fall through */
 	case 3:
 		_debug("extract CB count");
 		ret = afs_extract_data(call, true);
@@ -2082,6 +1864,7 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 	more_cbs:
 		afs_extract_to_buf(call, sizeof(struct yfs_xdr_YFSCallBack));
 
+		/* Fall through */
 	case 4:
 		_debug("extract CB array");
 		ret = afs_extract_data(call, true);
@@ -2090,13 +1873,8 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		_debug("unmarshall CB array");
 		bp = call->buffer;
-		callbacks = call->reply[2];
-		xdr_decode_YFSCallBack_raw(&bp, &callbacks[call->count]);
-		statuses = call->reply[1];
-		if (call->count == 0 && vnode && statuses[0].abort_code == 0) {
-			bp = call->buffer;
-			xdr_decode_YFSCallBack(call, vnode, &bp);
-		}
+		scb = &call->out_scb[call->count];
+		xdr_decode_YFSCallBack(&bp, call, scb);
 		call->count++;
 		if (call->count < call->count2)
 			goto more_cbs;
@@ -2104,16 +1882,18 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		afs_extract_to_buf(call, sizeof(struct yfs_xdr_YFSVolSync));
 		call->unmarshall++;
 
+		/* Fall through */
 	case 5:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
 
 		bp = call->buffer;
-		xdr_decode_YFSVolSync(&bp, call->reply[3]);
+		xdr_decode_YFSVolSync(&bp, call->out_volsync);
 
 		call->unmarshall++;
 
+		/* Fall through */
 	case 6:
 		break;
 	}
@@ -2138,8 +1918,7 @@ static const struct afs_call_type yfs_RXYFSInlineBulkStatus = {
 int yfs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 			      struct afs_net *net,
 			      struct afs_fid *fids,
-			      struct afs_file_status *statuses,
-			      struct afs_callback *callbacks,
+			      struct afs_status_cb *statuses,
 			      unsigned int nr_fids,
 			      struct afs_volsync *volsync)
 {
@@ -2162,10 +1941,8 @@ int yfs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	}
 
 	call->key = fc->key;
-	call->reply[0] = NULL; /* vnode for fid[0] */
-	call->reply[1] = statuses;
-	call->reply[2] = callbacks;
-	call->reply[3] = volsync;
+	call->out_scb = statuses;
+	call->out_volsync = volsync;
 	call->count2 = nr_fids;
 
 	/* marshall the parameters */
@@ -2177,8 +1954,234 @@ int yfs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 		bp = xdr_encode_YFSFid(bp, &fids[i]);
 	yfs_check_req(call, bp);
 
-	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &fids[0]);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_set_fc_call(call, fc);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
+}
+
+/*
+ * Deliver reply data to an YFS.FetchOpaqueACL.
+ */
+static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
+{
+	struct yfs_acl *yacl = call->out_yacl;
+	struct afs_acl *acl;
+	const __be32 *bp;
+	unsigned int size;
+	int ret;
+
+	_enter("{%u}", call->unmarshall);
+
+	switch (call->unmarshall) {
+	case 0:
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+		/* Extract the file ACL length */
+	case 1:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		size = call->count2 = ntohl(call->tmp);
+		size = round_up(size, 4);
+
+		if (yacl->flags & YFS_ACL_WANT_ACL) {
+			acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+			if (!acl)
+				return -ENOMEM;
+			yacl->acl = acl;
+			acl->size = call->count2;
+			afs_extract_begin(call, acl->data, size);
+		} else {
+			iov_iter_discard(&call->iter, READ, size);
+		}
+		call->unmarshall++;
+
+		/* Extract the file ACL */
+	case 2:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+		/* Extract the volume ACL length */
+	case 3:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		size = call->count2 = ntohl(call->tmp);
+		size = round_up(size, 4);
+
+		if (yacl->flags & YFS_ACL_WANT_VOL_ACL) {
+			acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+			if (!acl)
+				return -ENOMEM;
+			yacl->vol_acl = acl;
+			acl->size = call->count2;
+			afs_extract_begin(call, acl->data, size);
+		} else {
+			iov_iter_discard(&call->iter, READ, size);
+		}
+		call->unmarshall++;
+
+		/* Extract the volume ACL */
+	case 4:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		afs_extract_to_buf(call,
+				   sizeof(__be32) * 2 +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSVolSync));
+		call->unmarshall++;
+
+		/* extract the metadata */
+	case 5:
+		ret = afs_extract_data(call, false);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		yacl->inherit_flag = ntohl(*bp++);
+		yacl->num_cleaned = ntohl(*bp++);
+		ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
+		if (ret < 0)
+			return ret;
+		xdr_decode_YFSVolSync(&bp, call->out_volsync);
+
+		call->unmarshall++;
+
+	case 6:
+		break;
+	}
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+void yfs_free_opaque_acl(struct yfs_acl *yacl)
+{
+	if (yacl) {
+		kfree(yacl->acl);
+		kfree(yacl->vol_acl);
+		kfree(yacl);
+	}
+}
+
+/*
+ * YFS.FetchOpaqueACL operation type
+ */
+static const struct afs_call_type yfs_RXYFSFetchOpaqueACL = {
+	.name		= "YFS.FetchOpaqueACL",
+	.op		= yfs_FS_FetchOpaqueACL,
+	.deliver	= yfs_deliver_fs_fetch_opaque_acl,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Fetch the YFS advanced ACLs for a file.
+ */
+struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *fc,
+					struct yfs_acl *yacl,
+					struct afs_status_cb *scb)
+{
+	struct afs_vnode *vnode = fc->vnode;
+	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
+	__be32 *bp;
+
+	_enter(",%x,{%llx:%llu},,",
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+
+	call = afs_alloc_flat_call(net, &yfs_RXYFSFetchOpaqueACL,
+				   sizeof(__be32) * 2 +
+				   sizeof(struct yfs_xdr_YFSFid),
+				   sizeof(__be32) * 2 +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSVolSync));
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	call->key = fc->key;
+	call->out_yacl = yacl;
+	call->out_scb = scb;
+	call->out_volsync = NULL;
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp = xdr_encode_u32(bp, YFSFETCHOPAQUEACL);
+	bp = xdr_encode_u32(bp, 0); /* RPC flags */
+	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	yfs_check_req(call, bp);
+
+	afs_use_fs_server(call, fc->cbi);
+	trace_afs_make_fs_call(call, &vnode->fid);
+	afs_make_call(&fc->ac, call, GFP_KERNEL);
+	return (struct yfs_acl *)afs_wait_for_call_to_complete(call, &fc->ac);
+}
+
+/*
+ * YFS.StoreOpaqueACL2 operation type
+ */
+static const struct afs_call_type yfs_RXYFSStoreOpaqueACL2 = {
+	.name		= "YFS.StoreOpaqueACL2",
+	.op		= yfs_FS_StoreOpaqueACL2,
+	.deliver	= yfs_deliver_status_and_volsync,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Fetch the YFS ACL for a file.
+ */
+int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *fc, const struct afs_acl *acl,
+			     struct afs_status_cb *scb)
+{
+	struct afs_vnode *vnode = fc->vnode;
+	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
+	size_t size;
+	__be32 *bp;
+
+	_enter(",%x,{%llx:%llu},,",
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+
+	size = round_up(acl->size, 4);
+	call = afs_alloc_flat_call(net, &yfs_RXYFSStoreStatus,
+				   sizeof(__be32) * 2 +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   sizeof(__be32) + size,
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSVolSync));
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return -ENOMEM;
+	}
+
+	call->key = fc->key;
+	call->out_scb = scb;
+	call->out_volsync = NULL;
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp = xdr_encode_u32(bp, YFSSTOREOPAQUEACL2);
+	bp = xdr_encode_u32(bp, 0); /* RPC flags */
+	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_u32(bp, acl->size);
+	memcpy(bp, acl->data, acl->size);
+	if (acl->size != size)
+		memset((void *)bp + acl->size, 0, size - acl->size);
+	yfs_check_req(call, bp);
+
+	trace_afs_make_fs_call(call, &vnode->fid);
+	afs_make_call(&fc->ac, call, GFP_KERNEL);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }

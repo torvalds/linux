@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * public header file of the frontend drivers for mobile DVB-T demodulators
  * DiBcom 3000M-B and DiBcom 3000P/M-C (http://www.dibcom.fr/)
@@ -8,17 +9,12 @@
  *
  * Copyright (C) 2004 Amaury Demol for DiBcom
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  * Acknowledgements
  *
  *  Amaury Demol from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
  *
  * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
- *
  */
 
 #ifndef DIB3000_H

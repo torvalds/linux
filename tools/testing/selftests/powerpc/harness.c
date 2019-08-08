@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <errno.h>
@@ -21,6 +21,7 @@
 
 #define KILL_TIMEOUT	5
 
+/* Setting timeout to -1 disables the alarm */
 static uint64_t timeout = 120;
 
 int run_test(int (test_function)(void), char *name)
@@ -43,8 +44,9 @@ int run_test(int (test_function)(void), char *name)
 
 	setpgid(pid, pid);
 
-	/* Wake us up in timeout seconds */
-	alarm(timeout);
+	if (timeout != -1)
+		/* Wake us up in timeout seconds */
+		alarm(timeout);
 	terminated = false;
 
 wait:

@@ -31,6 +31,7 @@
  */
 
 #include <linux/slab.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "mlx4_ib.h"
 
@@ -41,12 +42,13 @@ struct mlx4_ib_user_db_page {
 	int			refcnt;
 };
 
-int mlx4_ib_db_map_user(struct mlx4_ib_ucontext *context,
-			struct ib_udata *udata, unsigned long virt,
+int mlx4_ib_db_map_user(struct ib_udata *udata, unsigned long virt,
 			struct mlx4_db *db)
 {
 	struct mlx4_ib_user_db_page *page;
 	int err = 0;
+	struct mlx4_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx4_ib_ucontext, ibucontext);
 
 	mutex_lock(&context->db_page_mutex);
 

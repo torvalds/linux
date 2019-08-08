@@ -605,6 +605,8 @@ xfs_buf_item_unlock(
 #if defined(DEBUG) || defined(XFS_WARN)
 	bool			ordered = bip->bli_flags & XFS_BLI_ORDERED;
 	bool			dirty = bip->bli_flags & XFS_BLI_DIRTY;
+	bool			aborted = test_bit(XFS_LI_ABORTED,
+						   &lip->li_flags);
 #endif
 
 	trace_xfs_buf_item_unlock(bip);
@@ -633,7 +635,7 @@ xfs_buf_item_unlock(
 	released = xfs_buf_item_put(bip);
 	if (hold || (stale && !released))
 		return;
-	ASSERT(!stale || test_bit(XFS_LI_ABORTED, &lip->li_flags));
+	ASSERT(!stale || aborted);
 	xfs_buf_relse(bp);
 }
 

@@ -5,11 +5,12 @@ Please also refer to reset.txt in this directory for common reset
 controller binding usage.
 
 The reset controller registers are part of the system-ctl block on
-hi3660 SoC.
+hi3660 and hi3670 SoCs.
 
 Required properties:
-- compatible: should be
-		 "hisilicon,hi3660-reset"
+- compatible: should be one of the following:
+		 "hisilicon,hi3660-reset" for HI3660
+		 "hisilicon,hi3670-reset", "hisilicon,hi3660-reset" for HI3670
 - hisi,rst-syscon: phandle of the reset's syscon.
 - #reset-cells : Specifies the number of cells needed to encode a
   reset source.  The type shall be a <u32> and the value shall be 2.

@@ -274,7 +274,6 @@ struct iwl_rx_cmd_buffer {
 	bool _page_stolen;
 	u32 _rx_page_order;
 	unsigned int truesize;
-	u8 status;
 };
 
 static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)
@@ -768,6 +767,7 @@ struct iwl_self_init_dram {
  * @umac_error_event_table: addr of umac error table
  * @error_event_table_tlv_status: bitmap that indicates what error table
  *	pointers was recevied via TLV. use enum &iwl_error_event_table_status
+ * @hw_error: equals true if hw error interrupt was received from the FW
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -830,6 +830,7 @@ struct iwl_trans {
 	u32 lmac_error_event_table[2];
 	u32 umac_error_event_table;
 	unsigned int error_event_table_tlv_status;
+	bool hw_error;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

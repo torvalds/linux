@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nau8810.c  --  NAU8810 ALSA Soc Audio driver
  *
@@ -6,10 +7,6 @@
  * Author: David Lin <ctlin0@nuvoton.com>
  *
  * Based on WM8974.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -493,7 +490,7 @@ static int nau8810_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int nau88l0_calc_pll(unsigned int pll_in,
+static int nau8810_calc_pll(unsigned int pll_in,
 	unsigned int fs, struct nau8810_pll *pll_param)
 {
 	u64 f2, f2_max, pll_ratio;
@@ -505,7 +502,8 @@ static int nau88l0_calc_pll(unsigned int pll_in,
 	f2_max = 0;
 	scal_sel = ARRAY_SIZE(nau8810_mclk_scaler);
 	for (i = 0; i < ARRAY_SIZE(nau8810_mclk_scaler); i++) {
-		f2 = 256 * fs * 4 * nau8810_mclk_scaler[i] / 10;
+		f2 = 256ULL * fs * 4 * nau8810_mclk_scaler[i];
+		f2 = div_u64(f2, 10);
 		if (f2 > NAU_PLL_FREQ_MIN && f2 < NAU_PLL_FREQ_MAX &&
 			f2_max < f2) {
 			f2_max = f2;
@@ -542,7 +540,7 @@ static int nau8810_set_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	int ret, fs;
 
 	fs = freq_out / 256;
-	ret = nau88l0_calc_pll(freq_in, fs, pll_param);
+	ret = nau8810_calc_pll(freq_in, fs, pll_param);
 	if (ret < 0) {
 		dev_err(nau8810->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
@@ -667,6 +665,24 @@ static int nau8810_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct nau8810 *nau8810 = snd_soc_component_get_drvdata(component);
 	int val_len = 0, val_rate = 0, ret = 0;
+	unsigned int ctrl_val, bclk_fs, bclk_div;
+
+	/* Select BCLK configuration if the codec as master. */
+	regmap_read(nau8810->regmap, NAU8810_REG_CLOCK, &ctrl_val);
+	if (ctrl_val & NAU8810_CLKIO_MASTER) {
+		/* get the bclk and fs ratio */
+		bclk_fs = snd_soc_params_to_bclk(params) / params_rate(params);
+		if (bclk_fs <= 32)
+			bclk_div = NAU8810_BCLKDIV_8;
+		else if (bclk_fs <= 64)
+			bclk_div = NAU8810_BCLKDIV_4;
+		else if (bclk_fs <= 128)
+			bclk_div = NAU8810_BCLKDIV_2;
+		else
+			return -EINVAL;
+		regmap_update_bits(nau8810->regmap, NAU8810_REG_CLOCK,
+			NAU8810_BCLKSEL_MASK, bclk_div);
+	}
 
 	switch (params_width(params)) {
 	case 16:

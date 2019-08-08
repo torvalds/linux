@@ -21,6 +21,8 @@
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 
 /* RX-6110 Register definitions */
@@ -379,9 +381,16 @@ static const struct spi_device_id rx6110_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, rx6110_id);
 
+static const struct of_device_id rx6110_spi_of_match[] = {
+	{ .compatible = "epson,rx6110" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rx6110_spi_of_match);
+
 static struct spi_driver rx6110_driver = {
 	.driver = {
 		.name = RX6110_DRIVER_NAME,
+		.of_match_table = of_match_ptr(rx6110_spi_of_match),
 	},
 	.probe		= rx6110_probe,
 	.remove		= rx6110_remove,

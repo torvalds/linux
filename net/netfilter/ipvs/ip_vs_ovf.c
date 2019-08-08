@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS:        Overflow-Connection Scheduling module
  *
  * Authors:     Raducu Deaconu <rhadoo_io@yahoo.com>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Scheduler implements "overflow" loadbalancing according to number of active
  * connections , will keep all conections to the node with the highest weight
@@ -14,7 +10,6 @@
  * weight.
  * Note that this scheduler might not be suitable for UDP because it only uses
  * active connections
- *
  */
 
 #define KMSG_COMPONENT "IPVS"

@@ -446,10 +446,11 @@ static void pvrdma_free_qp(struct pvrdma_qp *qp)
 /**
  * pvrdma_destroy_qp - destroy a queue pair
  * @qp: the queue pair to destroy
+ * @udata: user data or null for kernel object
  *
  * @return: 0 on success.
  */
-int pvrdma_destroy_qp(struct ib_qp *qp)
+int pvrdma_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct pvrdma_qp *vqp = to_vqp(qp);
 	union pvrdma_cmd_req req;

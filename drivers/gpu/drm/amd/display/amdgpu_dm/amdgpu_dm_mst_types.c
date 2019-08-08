@@ -84,6 +84,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 {
 	ssize_t result = 0;
 	struct aux_payload payload;
+	enum aux_channel_operation_result operation_result;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
@@ -97,13 +98,27 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 	payload.mot = (msg->request & DP_AUX_I2C_MOT) != 0;
 	payload.defer_delay = 0;
 
-	result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service, &payload);
+	result = dc_link_aux_transfer_raw(TO_DM_AUX(aux)->ddc_service, &payload,
+				      &operation_result);
 
 	if (payload.write)
 		result = msg->size;
 
-	if (result < 0) /* DC doesn't know about kernel error codes */
-		result = -EIO;
+	if (result < 0)
+		switch (operation_result) {
+		case AUX_CHANNEL_OPERATION_SUCCEEDED:
+			break;
+		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+			result = -EIO;
+			break;
+		case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
+			result = -EBUSY;
+			break;
+		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+			result = -ETIMEDOUT;
+			break;
+		}
 
 	return result;
 }

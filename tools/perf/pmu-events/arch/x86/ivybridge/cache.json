@@ -1012,7 +1012,7 @@
         "EventName": "OFFCORE_RESPONSE.SPLIT_LOCK_UC_LOCK.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts requests where the address of an atomic lock instruction spans a cache line boundary or the lock instruction is executed on uncacheable address ",
+        "BriefDescription": "Counts requests where the address of an atomic lock instruction spans a cache line boundary or the lock instruction is executed on uncacheable address",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -1036,7 +1036,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all demand data reads ",
+        "BriefDescription": "Counts all demand data reads",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -1048,7 +1048,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all demand rfo's ",
+        "BriefDescription": "Counts all demand rfo's",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -1084,7 +1084,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all demand & prefetch prefetch RFOs ",
+        "BriefDescription": "Counts all demand & prefetch prefetch RFOs",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -1096,7 +1096,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_READS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all data/code/rfo references (demand & prefetch) ",
+        "BriefDescription": "Counts all data/code/rfo references (demand & prefetch)",
         "CounterHTOff": "0,1,2,3"
     }
 ]

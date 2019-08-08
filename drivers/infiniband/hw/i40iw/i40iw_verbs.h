@@ -94,8 +94,7 @@ struct i40iw_mr {
 	struct ib_umem *region;
 	u16 type;
 	u32 page_cnt;
-	u32 page_size;
-	u64 page_msk;
+	u64 page_size;
 	u32 npages;
 	u32 stag;
 	u64 length;

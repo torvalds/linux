@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Atmel Extensible DMA Controller (aka XDMAC on AT91 systems)
  *
  * Copyright (C) 2014 Atmel Corporation
  *
  * Author: Ludovic Desroches <ludovic.desroches@atmel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <asm/barrier.h>
@@ -308,6 +297,11 @@ static inline int at_xdmac_csize(u32 maxburst)
 	return csize;
 };
 
+static inline bool at_xdmac_chan_is_peripheral_xfer(u32 cfg)
+{
+	return cfg & AT_XDMAC_CC_TYPE_PER_TRAN;
+}
+
 static inline u8 at_xdmac_get_dwidth(u32 cfg)
 {
 	return (cfg & AT_XDMAC_CC_DWIDTH_MASK) >> AT_XDMAC_CC_DWIDTH_OFFSET;
@@ -389,7 +383,13 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 		 at_xdmac_chan_read(atchan, AT_XDMAC_CUBC));
 
 	at_xdmac_chan_write(atchan, AT_XDMAC_CID, 0xffffffff);
-	reg = AT_XDMAC_CIE_RBEIE | AT_XDMAC_CIE_WBEIE | AT_XDMAC_CIE_ROIE;
+	reg = AT_XDMAC_CIE_RBEIE | AT_XDMAC_CIE_WBEIE;
+	/*
+	 * Request Overflow Error is only for peripheral synchronized transfers
+	 */
+	if (at_xdmac_chan_is_peripheral_xfer(first->lld.mbr_cfg))
+		reg |= AT_XDMAC_CIE_ROIE;
+
 	/*
 	 * There is no end of list when doing cyclic dma, we need to get
 	 * an interrupt after each periods.
@@ -1575,6 +1575,46 @@ static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
 		dmaengine_desc_get_callback_invoke(txd, NULL);
 }
 
+static void at_xdmac_handle_error(struct at_xdmac_chan *atchan)
+{
+	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
+	struct at_xdmac_desc	*bad_desc;
+
+	/*
+	 * The descriptor currently at the head of the active list is
+	 * broken. Since we don't have any way to report errors, we'll
+	 * just have to scream loudly and try to continue with other
+	 * descriptors queued (if any).
+	 */
+	if (atchan->irq_status & AT_XDMAC_CIS_RBEIS)
+		dev_err(chan2dev(&atchan->chan), "read bus error!!!");
+	if (atchan->irq_status & AT_XDMAC_CIS_WBEIS)
+		dev_err(chan2dev(&atchan->chan), "write bus error!!!");
+	if (atchan->irq_status & AT_XDMAC_CIS_ROIS)
+		dev_err(chan2dev(&atchan->chan), "request overflow error!!!");
+
+	spin_lock_bh(&atchan->lock);
+
+	/* Channel must be disabled first as it's not done automatically */
+	at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
+	while (at_xdmac_read(atxdmac, AT_XDMAC_GS) & atchan->mask)
+		cpu_relax();
+
+	bad_desc = list_first_entry(&atchan->xfers_list,
+				    struct at_xdmac_desc,
+				    xfer_node);
+
+	spin_unlock_bh(&atchan->lock);
+
+	/* Print bad descriptor's details if needed */
+	dev_dbg(chan2dev(&atchan->chan),
+		"%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
+		__func__, &bad_desc->lld.mbr_sa, &bad_desc->lld.mbr_da,
+		bad_desc->lld.mbr_ubc);
+
+	/* Then continue with usual descriptor management */
+}
+
 static void at_xdmac_tasklet(unsigned long data)
 {
 	struct at_xdmac_chan	*atchan = (struct at_xdmac_chan *)data;
@@ -1594,19 +1634,19 @@ static void at_xdmac_tasklet(unsigned long data)
 		   || (atchan->irq_status & error_mask)) {
 		struct dma_async_tx_descriptor  *txd;
 
-		if (atchan->irq_status & AT_XDMAC_CIS_RBEIS)
-			dev_err(chan2dev(&atchan->chan), "read bus error!!!");
-		if (atchan->irq_status & AT_XDMAC_CIS_WBEIS)
-			dev_err(chan2dev(&atchan->chan), "write bus error!!!");
-		if (atchan->irq_status & AT_XDMAC_CIS_ROIS)
-			dev_err(chan2dev(&atchan->chan), "request overflow error!!!");
+		if (atchan->irq_status & error_mask)
+			at_xdmac_handle_error(atchan);
 
 		spin_lock(&atchan->lock);
 		desc = list_first_entry(&atchan->xfers_list,
 					struct at_xdmac_desc,
 					xfer_node);
 		dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
-		BUG_ON(!desc->active_xfer);
+		if (!desc->active_xfer) {
+			dev_err(chan2dev(&atchan->chan), "Xfer not active: exiting");
+			spin_unlock(&atchan->lock);
+			return;
+		}
 
 		txd = &desc->tx_dma_desc;
 

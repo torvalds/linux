@@ -35,7 +35,7 @@ board device tree, including the system base clock, as selected by XOM[0]
 pin of the SoC. Refer to generic fixed rate clock bindings
 documentation[1] for more information how to specify these clocks.
 
-[1] Documentation/devicetree/bindings/clock/fixed-clock.txt
+[1] Documentation/devicetree/bindings/clock/fixed-clock.yaml
 
 Example: Clock controller node:
 

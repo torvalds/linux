@@ -51,7 +51,6 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long org_sp_gr3)
 {
 	extern ftrace_func_t ftrace_trace_function;  /* depends on CONFIG_DYNAMIC_FTRACE */
-	extern int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace);
 
 	if (ftrace_trace_function != ftrace_stub) {
 		/* struct ftrace_ops *op, struct pt_regs *regs); */

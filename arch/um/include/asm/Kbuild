@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += barrier.h
 generic-y += bpf_perf_event.h
 generic-y += bug.h
@@ -16,6 +17,7 @@ generic-y += irq_work.h
 generic-y += kdebug.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
+generic-y += mmiowb.h
 generic-y += param.h
 generic-y += pci.h
 generic-y += percpu.h

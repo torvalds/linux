@@ -15,8 +15,37 @@
 #include <linux/err.h>
 #include <linux/ipc_namespace.h>
 
-#define IPCMNI 32768  /* <= MAX_INT limit for ipc arrays (including sysctl changes) */
-#define SEQ_MULTIPLIER	(IPCMNI)
+/*
+ * The IPC ID contains 2 separate numbers - index and sequence number.
+ * By default,
+ *   bits  0-14: index (32k, 15 bits)
+ *   bits 15-30: sequence number (64k, 16 bits)
+ *
+ * When IPCMNI extension mode is turned on, the composition changes:
+ *   bits  0-23: index (16M, 24 bits)
+ *   bits 24-30: sequence number (128, 7 bits)
+ */
+#define IPCMNI_SHIFT		15
+#define IPCMNI_EXTEND_SHIFT	24
+#define IPCMNI_EXTEND_MIN_CYCLE	(RADIX_TREE_MAP_SIZE * RADIX_TREE_MAP_SIZE)
+#define IPCMNI			(1 << IPCMNI_SHIFT)
+#define IPCMNI_EXTEND		(1 << IPCMNI_EXTEND_SHIFT)
+
+#ifdef CONFIG_SYSVIPC_SYSCTL
+extern int ipc_mni;
+extern int ipc_mni_shift;
+extern int ipc_min_cycle;
+
+#define ipcmni_seq_shift()	ipc_mni_shift
+#define IPCMNI_IDX_MASK		((1 << ipc_mni_shift) - 1)
+
+#else /* CONFIG_SYSVIPC_SYSCTL */
+
+#define ipc_mni			IPCMNI
+#define ipc_min_cycle		((int)RADIX_TREE_MAP_SIZE)
+#define ipcmni_seq_shift()	IPCMNI_SHIFT
+#define IPCMNI_IDX_MASK		((1 << IPCMNI_SHIFT) - 1)
+#endif /* CONFIG_SYSVIPC_SYSCTL */
 
 void sem_init(void);
 void msg_init(void);
@@ -96,9 +125,9 @@ struct pid_namespace *ipc_seq_pid_ns(struct seq_file *);
 #define IPC_MSG_IDS	1
 #define IPC_SHM_IDS	2
 
-#define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
-#define ipcid_to_seqx(id) ((id) / SEQ_MULTIPLIER)
-#define IPCID_SEQ_MAX min_t(int, INT_MAX/SEQ_MULTIPLIER, USHRT_MAX)
+#define ipcid_to_idx(id)  ((id) & IPCMNI_IDX_MASK)
+#define ipcid_to_seqx(id) ((id) >> ipcmni_seq_shift())
+#define ipcid_seq_max()	  (INT_MAX >> ipcmni_seq_shift())
 
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
@@ -123,8 +152,8 @@ static inline int ipc_get_maxidx(struct ipc_ids *ids)
 	if (ids->in_use == 0)
 		return -1;
 
-	if (ids->in_use == IPCMNI)
-		return IPCMNI - 1;
+	if (ids->in_use == ipc_mni)
+		return ipc_mni - 1;
 
 	return ids->max_idx;
 }
@@ -216,10 +245,10 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 
 static inline int sem_check_semmni(struct ipc_namespace *ns) {
 	/*
-	 * Check semmni range [0, IPCMNI]
+	 * Check semmni range [0, ipc_mni]
 	 * semmni is the last element of sem_ctls[4] array
 	 */
-	return ((ns->sem_ctls[3] < 0) || (ns->sem_ctls[3] > IPCMNI))
+	return ((ns->sem_ctls[3] < 0) || (ns->sem_ctls[3] > ipc_mni))
 		? -ERANGE : 0;
 }
 

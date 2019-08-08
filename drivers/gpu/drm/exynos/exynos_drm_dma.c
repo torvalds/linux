@@ -62,7 +62,7 @@ static int drm_iommu_attach_device(struct drm_device *drm_dev,
 	int ret;
 
 	if (get_dma_ops(priv->dma_dev) != get_dma_ops(subdrv_dev)) {
-		DRM_ERROR("Device %s lacks support for IOMMU\n",
+		DRM_DEV_ERROR(subdrv_dev, "Device %s lacks support for IOMMU\n",
 			  dev_name(subdrv_dev));
 		return -EINVAL;
 	}

@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for IMX074 CMOS Image Sensor from Sony
  *
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  *
  * Partially inspired by the IMX074 driver from the Android / MSM tree
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/v4l2-mediabus.h>

@@ -355,6 +355,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x67CF, &polaris10_device_info },	/* Polaris10 */
 	{ 0x67D0, &polaris10_vf_device_info },	/* Polaris10 vf*/
 	{ 0x67DF, &polaris10_device_info },	/* Polaris10 */
+	{ 0x6FDF, &polaris10_device_info },	/* Polaris10 */
 	{ 0x67E0, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67E1, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67E3, &polaris11_device_info },	/* Polaris11 */
@@ -462,10 +463,13 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
+	atomic_set(&kfd->compute_profile, 0);
 
 	mutex_init(&kfd->doorbell_mutex);
 	memset(&kfd->doorbell_available_index, 0,
 		sizeof(kfd->doorbell_available_index));
+
+	atomic_set(&kfd->sram_ecc_flag, 0);
 
 	return kfd;
 }
@@ -492,9 +496,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 {
 	unsigned int size;
 
-	kfd->mec_fw_version = kfd->kfd2kgd->get_fw_version(kfd->kgd,
+	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
 			KGD_ENGINE_MEC1);
-	kfd->sdma_fw_version = kfd->kfd2kgd->get_fw_version(kfd->kgd,
+	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
@@ -662,6 +666,9 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 		return ret;
 	count = atomic_dec_return(&kfd_locked);
 	WARN_ONCE(count != 0, "KFD reset ref. error");
+
+	atomic_set(&kfd->sram_ecc_flag, 0);
+
 	return 0;
 }
 
@@ -1023,6 +1030,27 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 
 	kfree(mem_obj);
 	return 0;
+}
+
+void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
+{
+	if (kfd)
+		atomic_inc(&kfd->sram_ecc_flag);
+}
+
+void kfd_inc_compute_active(struct kfd_dev *kfd)
+{
+	if (atomic_inc_return(&kfd->compute_profile) == 1)
+		amdgpu_amdkfd_set_compute_idle(kfd->kgd, false);
+}
+
+void kfd_dec_compute_active(struct kfd_dev *kfd)
+{
+	int count = atomic_dec_return(&kfd->compute_profile);
+
+	if (count == 0)
+		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
+	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
 #if defined(CONFIG_DEBUG_FS)

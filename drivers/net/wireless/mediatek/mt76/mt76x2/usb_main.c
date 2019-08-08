@@ -21,29 +21,24 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	mutex_lock(&dev->mt76.mutex);
-
 	ret = mt76x2u_mac_start(dev);
 	if (ret)
-		goto out;
+		return ret;
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
-out:
-	mutex_unlock(&dev->mt76.mutex);
-	return ret;
+	return 0;
 }
 
 static void mt76x2u_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	mt76u_stop_tx(&dev->mt76);
 	mt76x2u_stop_hw(dev);
-	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -57,12 +52,16 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 
 	mt76_set_channel(&dev->mt76);
 
+	dev->beacon_ops->pre_tbtt_enable(dev, false);
+
 	mt76x2_mac_stop(dev, false);
 
 	err = mt76x2u_phy_set_channel(dev, chandef);
 
 	mt76x2_mac_resume(dev);
 	mt76x02_edcca_init(dev, true);
+
+	dev->beacon_ops->pre_tbtt_enable(dev, true);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 	mt76_txq_schedule_all(&dev->mt76);
@@ -125,4 +124,6 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.get_txpower = mt76_get_txpower,
+	.set_tim = mt76_set_tim,
+	.release_buffered_frames = mt76_release_buffered_frames,
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config MTK_HSDMA
 	tristate "MediaTek High-Speed DMA controller support"

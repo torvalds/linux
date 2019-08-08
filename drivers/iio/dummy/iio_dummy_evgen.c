@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Companion module to the iio simple dummy example driver.
  * The purpose of this is to generate 'fake' event interrupts thus
@@ -196,7 +193,10 @@ static __init int iio_dummy_evgen_init(void)
 		return ret;
 	device_initialize(&iio_evgen_dev);
 	dev_set_name(&iio_evgen_dev, "iio_evgen");
-	return device_add(&iio_evgen_dev);
+	ret = device_add(&iio_evgen_dev);
+	if (ret)
+		put_device(&iio_evgen_dev);
+	return ret;
 }
 module_init(iio_dummy_evgen_init);
 

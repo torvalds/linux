@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # MIPS headers
 generated-y += syscall_table_32_o32.h
 generated-y += syscall_table_64_n32.h
@@ -19,7 +20,6 @@ generic-y += preempt.h
 generic-y += qrwlock.h
 generic-y += qspinlock.h
 generic-y += sections.h
-generic-y += segment.h
 generic-y += trace_clock.h
 generic-y += unaligned.h
 generic-y += user.h

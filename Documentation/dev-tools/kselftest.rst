@@ -7,12 +7,21 @@ directory. These are intended to be small tests to exercise individual code
 paths in the kernel. Tests are intended to be run after building, installing
 and booting a kernel.
 
+You can find additional information on Kselftest framework, how to
+write new tests using the framework on Kselftest wiki:
+
+https://kselftest.wiki.kernel.org/
+
 On some systems, hot-plug tests could hang forever waiting for cpu and
 memory to be ready to be offlined. A special hot-plug target is created
 to run the full range of hot-plug tests. In default mode, hot-plug tests run
 in safe mode with a limited scope. In limited mode, cpu-hotplug test is
 run on a single cpu as opposed to all hotplug capable cpus, and memory
 hotplug test is run on 2% of hotplug capable memory instead of 10%.
+
+kselftest runs as a userspace process.  Tests that can be written/run in
+userspace may wish to use the `Test Harness`_.  Tests that need to be
+run in kernel space may wish to use a `Test Module`_.
 
 Running the selftests (hotplug tests are run in limited mode)
 =============================================================
@@ -31,17 +40,32 @@ To build and run the tests with a single command, use::
 
 Note that some tests will require root privileges.
 
-Build and run from user specific object directory (make O=dir)::
+Kselftest supports saving output files in a separate directory and then
+running tests. To locate output files in a separate directory two syntaxes
+are supported. In both cases the working directory must be the root of the
+kernel src. This is applicable to "Running a subset of selftests" section
+below.
+
+To build, save output files in a separate directory with O= ::
 
   $ make O=/tmp/kselftest kselftest
 
-Build and run KBUILD_OUTPUT directory (make KBUILD_OUTPUT=)::
+To build, save output files in a separate directory with KBUILD_OUTPUT ::
 
-  $ make KBUILD_OUTPUT=/tmp/kselftest kselftest
+  $ export KBUILD_OUTPUT=/tmp/kselftest; make kselftest
 
-The above commands run the tests and print pass/fail summary to make it
-easier to understand the test results. Please find the detailed individual
-test results for each test in /tmp/testname file(s).
+The O= assignment takes precedence over the KBUILD_OUTPUT environment
+variable.
+
+The above commands by default run the tests and print full pass/fail report.
+Kselftest supports "summary" option to make it easier to understand the test
+results. Please find the detailed individual test results for each test in
+/tmp/testname file(s) when summary option is specified. This is applicable
+to "Running a subset of selftests" section below.
+
+To run kselftest with summary option enabled ::
+
+  $ make summary=1 kselftest
 
 Running a subset of selftests
 =============================
@@ -57,17 +81,13 @@ You can specify multiple tests to build and run::
 
   $  make TARGETS="size timers" kselftest
 
-Build and run from user specific object directory (make O=dir)::
+To build, save output files in a separate directory with O= ::
 
   $ make O=/tmp/kselftest TARGETS="size timers" kselftest
 
-Build and run KBUILD_OUTPUT directory (make KBUILD_OUTPUT=)::
+To build, save output files in a separate directory with KBUILD_OUTPUT ::
 
-  $ make KBUILD_OUTPUT=/tmp/kselftest TARGETS="size timers" kselftest
-
-The above commands run the tests and print pass/fail summary to make it
-easier to understand the test results. Please find the detailed individual
-test results for each test in /tmp/testname file(s).
+  $ export KBUILD_OUTPUT=/tmp/kselftest; make TARGETS="size timers" kselftest
 
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
@@ -161,11 +181,97 @@ Contributing new tests (details)
 
    e.g: tools/testing/selftests/android/config
 
+Test Module
+===========
+
+Kselftest tests the kernel from userspace.  Sometimes things need
+testing from within the kernel, one method of doing this is to create a
+test module.  We can tie the module into the kselftest framework by
+using a shell script test runner.  ``kselftest_module.sh`` is designed
+to facilitate this process.  There is also a header file provided to
+assist writing kernel modules that are for use with kselftest:
+
+- ``tools/testing/kselftest/kselftest_module.h``
+- ``tools/testing/kselftest/kselftest_module.sh``
+
+How to use
+----------
+
+Here we show the typical steps to create a test module and tie it into
+kselftest.  We use kselftests for lib/ as an example.
+
+1. Create the test module
+
+2. Create the test script that will run (load/unload) the module
+   e.g. ``tools/testing/selftests/lib/printf.sh``
+
+3. Add line to config file e.g. ``tools/testing/selftests/lib/config``
+
+4. Add test script to makefile  e.g. ``tools/testing/selftests/lib/Makefile``
+
+5. Verify it works:
+
+.. code-block:: sh
+
+   # Assumes you have booted a fresh build of this kernel tree
+   cd /path/to/linux/tree
+   make kselftest-merge
+   make modules
+   sudo make modules_install
+   make TARGETS=lib kselftest
+
+Example Module
+--------------
+
+A bare bones test module might look like this:
+
+.. code-block:: c
+
+   // SPDX-License-Identifier: GPL-2.0+
+
+   #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+   #include "../tools/testing/selftests/kselftest_module.h"
+
+   KSTM_MODULE_GLOBALS();
+
+   /*
+    * Kernel module for testing the foobinator
+    */
+
+   static int __init test_function()
+   {
+           ...
+   }
+
+   static void __init selftest(void)
+   {
+           KSTM_CHECK_ZERO(do_test_case("", 0));
+   }
+
+   KSTM_MODULE_LOADERS(test_foo);
+   MODULE_AUTHOR("John Developer <jd@fooman.org>");
+   MODULE_LICENSE("GPL");
+
+Example test script
+-------------------
+
+.. code-block:: sh
+
+    #!/bin/bash
+    # SPDX-License-Identifier: GPL-2.0+
+    $(dirname $0)/../kselftest_module.sh "foo" test_foo
+
+
 Test Harness
 ============
 
-The kselftest_harness.h file contains useful helpers to build tests.  The tests
-from tools/testing/selftests/seccomp/seccomp_bpf.c can be used as example.
+The kselftest_harness.h file contains useful helpers to build tests.  The
+test harness is for userspace testing, for kernel space testing see `Test
+Module`_ above.
+
+The tests from tools/testing/selftests/seccomp/seccomp_bpf.c can be used as
+example.
 
 Example
 -------

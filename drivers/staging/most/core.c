@@ -272,19 +272,6 @@ static ssize_t set_number_of_buffers_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.num_buffers);
 }
 
-static ssize_t set_number_of_buffers_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf,
-					   size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.num_buffers);
-
-	if (ret)
-		return ret;
-	return count;
-}
-
 static ssize_t set_buffer_size_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
@@ -292,19 +279,6 @@ static ssize_t set_buffer_size_show(struct device *dev,
 	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.buffer_size);
-}
-
-static ssize_t set_buffer_size_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf,
-				     size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.buffer_size);
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t set_direction_show(struct device *dev,
@@ -318,28 +292,6 @@ static ssize_t set_direction_show(struct device *dev,
 	else if (c->cfg.direction & MOST_CH_RX)
 		return snprintf(buf, PAGE_SIZE, "rx\n");
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
-}
-
-static ssize_t set_direction_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf,
-				   size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-
-	if (!strcmp(buf, "dir_rx\n")) {
-		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "rx\n")) {
-		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "dir_tx\n")) {
-		c->cfg.direction = MOST_CH_TX;
-	} else if (!strcmp(buf, "tx\n")) {
-		c->cfg.direction = MOST_CH_TX;
-	} else {
-		pr_info("WARN: invalid attribute settings\n");
-		return -EINVAL;
-	}
-	return count;
 }
 
 static ssize_t set_datatype_show(struct device *dev,
@@ -356,28 +308,6 @@ static ssize_t set_datatype_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
-static ssize_t set_datatype_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf,
-				  size_t count)
-{
-	int i;
-	struct most_channel *c = to_channel(dev);
-
-	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
-		if (!strcmp(buf, ch_data_type[i].name)) {
-			c->cfg.data_type = ch_data_type[i].most_ch_data_type;
-			break;
-		}
-	}
-
-	if (i == ARRAY_SIZE(ch_data_type)) {
-		pr_info("WARN: invalid attribute settings\n");
-		return -EINVAL;
-	}
-	return count;
-}
-
 static ssize_t set_subbuffer_size_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
@@ -385,19 +315,6 @@ static ssize_t set_subbuffer_size_show(struct device *dev,
 	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.subbuffer_size);
-}
-
-static ssize_t set_subbuffer_size_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf,
-					size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.subbuffer_size);
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t set_packets_per_xact_show(struct device *dev,
@@ -409,37 +326,12 @@ static ssize_t set_packets_per_xact_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.packets_per_xact);
 }
 
-static ssize_t set_packets_per_xact_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf,
-					  size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.packets_per_xact);
-
-	if (ret)
-		return ret;
-	return count;
-}
-
 static ssize_t set_dbr_size_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.dbr_size);
-}
-
-static ssize_t set_dbr_size_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.dbr_size);
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 #define to_dev_attr(a) container_of(a, struct device_attribute, attr)
@@ -469,13 +361,13 @@ static DEVICE_ATTR_RO(number_of_stream_buffers);
 static DEVICE_ATTR_RO(size_of_stream_buffer);
 static DEVICE_ATTR_RO(size_of_packet_buffer);
 static DEVICE_ATTR_RO(channel_starving);
-static DEVICE_ATTR_RW(set_buffer_size);
-static DEVICE_ATTR_RW(set_number_of_buffers);
-static DEVICE_ATTR_RW(set_direction);
-static DEVICE_ATTR_RW(set_datatype);
-static DEVICE_ATTR_RW(set_subbuffer_size);
-static DEVICE_ATTR_RW(set_packets_per_xact);
-static DEVICE_ATTR_RW(set_dbr_size);
+static DEVICE_ATTR_RO(set_buffer_size);
+static DEVICE_ATTR_RO(set_number_of_buffers);
+static DEVICE_ATTR_RO(set_direction);
+static DEVICE_ATTR_RO(set_datatype);
+static DEVICE_ATTR_RO(set_subbuffer_size);
+static DEVICE_ATTR_RO(set_packets_per_xact);
+static DEVICE_ATTR_RO(set_dbr_size);
 
 static struct attribute *channel_attrs[] = {
 	DEV_ATTR(available_directions),
@@ -701,6 +593,7 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 static
 inline int link_channel_to_component(struct most_channel *c,
 				     struct core_component *comp,
+				     char *name,
 				     char *comp_param)
 {
 	int ret;
@@ -714,7 +607,8 @@ inline int link_channel_to_component(struct most_channel *c,
 		return -ENOSPC;
 
 	*comp_ptr = comp;
-	ret = comp->probe_channel(c->iface, c->channel_id, &c->cfg, comp_param);
+	ret = comp->probe_channel(c->iface, c->channel_id, &c->cfg, name,
+				  comp_param);
 	if (ret) {
 		*comp_ptr = NULL;
 		return ret;
@@ -722,65 +616,118 @@ inline int link_channel_to_component(struct most_channel *c,
 	return 0;
 }
 
-/**
- * add_link_store - store function for add_link attribute
- * @drv: device driver
- * @buf: buffer
- * @len: buffer length
- *
- * This parses the string given by buf and splits it into
- * four substrings. Note: last substring is optional. In case a cdev
- * component is loaded the optional 4th substring will make up the name of
- * device node in the /dev directory. If omitted, the device node will
- * inherit the channel's name within sysfs.
- *
- * Searches for (device, channel) pair and probes the component
- *
- * Example:
- * (1) echo "mdev0:ch6:cdev:my_rxchannel" >add_link
- * (2) echo "mdev1:ep81:cdev" >add_link
- *
- * (1) would create the device node /dev/my_rxchannel
- * (2) would create the device node /dev/mdev1-ep81
- */
-static ssize_t add_link_store(struct device_driver *drv,
-			      const char *buf,
-			      size_t len)
+int most_set_cfg_buffer_size(char *mdev, char *mdev_ch, u16 val)
 {
-	struct most_channel *c;
-	struct core_component *comp;
-	char buffer[STRING_SIZE];
-	char *mdev;
-	char *mdev_ch;
-	char *comp_name;
-	char *comp_param;
-	char devnod_buf[STRING_SIZE];
-	int ret;
-	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
+	struct most_channel *c = get_channel(mdev, mdev_ch);
 
-	strlcpy(buffer, buf, max_len);
-	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, &comp_param);
-	if (ret)
-		return ret;
+	if (!c)
+		return -ENODEV;
+	c->cfg.buffer_size = val;
+	return 0;
+}
+
+int most_set_cfg_subbuffer_size(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.subbuffer_size = val;
+	return 0;
+}
+
+int most_set_cfg_dbr_size(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.dbr_size = val;
+	return 0;
+}
+
+int most_set_cfg_num_buffers(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.num_buffers = val;
+	return 0;
+}
+
+int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf)
+{
+	int i;
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
+		if (!strcmp(buf, ch_data_type[i].name)) {
+			c->cfg.data_type = ch_data_type[i].most_ch_data_type;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(ch_data_type))
+		pr_info("WARN: invalid attribute settings\n");
+	return 0;
+}
+
+int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	if (!strcmp(buf, "dir_rx\n")) {
+		c->cfg.direction = MOST_CH_RX;
+	} else if (!strcmp(buf, "rx\n")) {
+		c->cfg.direction = MOST_CH_RX;
+	} else if (!strcmp(buf, "dir_tx\n")) {
+		c->cfg.direction = MOST_CH_TX;
+	} else if (!strcmp(buf, "tx\n")) {
+		c->cfg.direction = MOST_CH_TX;
+	} else {
+		pr_info("Invalid direction\n");
+		return -ENODATA;
+	}
+	return 0;
+}
+
+int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.packets_per_xact = val;
+	return 0;
+}
+
+int most_cfg_complete(char *comp_name)
+{
+	struct core_component *comp;
+
 	comp = match_component(comp_name);
 	if (!comp)
 		return -ENODEV;
-	if (!comp_param || *comp_param == 0) {
-		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
-			 mdev_ch);
-		comp_param = devnod_buf;
-	}
 
-	c = get_channel(mdev, mdev_ch);
-	if (!c)
-		return -ENODEV;
-
-	ret = link_channel_to_component(c, comp, comp_param);
-	if (ret)
-		return ret;
-	return len;
+	return comp->cfg_complete();
 }
 
+int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
+		  char *comp_param)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+	struct core_component *comp = match_component(comp_name);
+
+	if (!c || !comp)
+		return -ENODEV;
+
+	return link_channel_to_component(c, comp, link_name, comp_param);
+}
 /**
  * remove_link_store - store function for remove_link attribute
  * @drv: device driver
@@ -823,17 +770,36 @@ static ssize_t remove_link_store(struct device_driver *drv,
 	return len;
 }
 
+int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
+{
+	struct most_channel *c;
+	struct core_component *comp;
+
+	comp = match_component(comp_name);
+	if (!comp)
+		return -ENODEV;
+	c = get_channel(mdev, mdev_ch);
+	if (!c)
+		return -ENODEV;
+
+	if (comp->disconnect_channel(c->iface, c->channel_id))
+		return -EIO;
+	if (c->pipe0.comp == comp)
+		c->pipe0.comp = NULL;
+	if (c->pipe1.comp == comp)
+		c->pipe1.comp = NULL;
+	return 0;
+}
+
 #define DRV_ATTR(_name)  (&driver_attr_##_name.attr)
 
 static DRIVER_ATTR_RO(links);
 static DRIVER_ATTR_RO(components);
-static DRIVER_ATTR_WO(add_link);
 static DRIVER_ATTR_WO(remove_link);
 
 static struct attribute *mc_attrs[] = {
 	DRV_ATTR(links),
 	DRV_ATTR(components),
-	DRV_ATTR(add_link),
 	DRV_ATTR(remove_link),
 	NULL,
 };
@@ -1431,7 +1397,7 @@ int most_register_interface(struct most_interface *iface)
 
 	INIT_LIST_HEAD(&iface->p->channel_list);
 	iface->p->dev_id = id;
-	strcpy(iface->p->name, iface->description);
+	strscpy(iface->p->name, iface->description, sizeof(iface->p->name));
 	iface->dev.init_name = iface->p->name;
 	iface->dev.bus = &mc.bus;
 	iface->dev.parent = &mc.dev;
@@ -1487,6 +1453,7 @@ int most_register_interface(struct most_interface *iface)
 	}
 	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
+	most_interface_register_notify(iface->description);
 	return 0;
 
 err_free_most_channel:
@@ -1621,7 +1588,7 @@ static int __init most_init(void)
 		err = -ENOMEM;
 		goto err_unregister_driver;
 	}
-
+	configfs_init();
 	return 0;
 
 err_unregister_driver:

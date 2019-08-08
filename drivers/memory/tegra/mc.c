@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -51,6 +48,9 @@
 #define MC_EMEM_ADR_CFG 0x54
 #define MC_EMEM_ADR_CFG_EMEM_NUMDEV BIT(0)
 
+#define MC_TIMING_CONTROL		0xfc
+#define MC_TIMING_UPDATE		BIT(0)
+
 static const struct of_device_id tegra_mc_of_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	{ .compatible = "nvidia,tegra20-mc-gart", .data = &tegra20_mc_soc },
@@ -74,7 +74,7 @@ static const struct of_device_id tegra_mc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_mc_of_match);
 
-static int terga_mc_block_dma_common(struct tegra_mc *mc,
+static int tegra_mc_block_dma_common(struct tegra_mc *mc,
 				     const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -90,13 +90,13 @@ static int terga_mc_block_dma_common(struct tegra_mc *mc,
 	return 0;
 }
 
-static bool terga_mc_dma_idling_common(struct tegra_mc *mc,
+static bool tegra_mc_dma_idling_common(struct tegra_mc *mc,
 				       const struct tegra_mc_reset *rst)
 {
 	return (mc_readl(mc, rst->status) & BIT(rst->bit)) != 0;
 }
 
-static int terga_mc_unblock_dma_common(struct tegra_mc *mc,
+static int tegra_mc_unblock_dma_common(struct tegra_mc *mc,
 				       const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -112,17 +112,17 @@ static int terga_mc_unblock_dma_common(struct tegra_mc *mc,
 	return 0;
 }
 
-static int terga_mc_reset_status_common(struct tegra_mc *mc,
+static int tegra_mc_reset_status_common(struct tegra_mc *mc,
 					const struct tegra_mc_reset *rst)
 {
 	return (mc_readl(mc, rst->control) & BIT(rst->bit)) != 0;
 }
 
-const struct tegra_mc_reset_ops terga_mc_reset_ops_common = {
-	.block_dma = terga_mc_block_dma_common,
-	.dma_idling = terga_mc_dma_idling_common,
-	.unblock_dma = terga_mc_unblock_dma_common,
-	.reset_status = terga_mc_reset_status_common,
+const struct tegra_mc_reset_ops tegra_mc_reset_ops_common = {
+	.block_dma = tegra_mc_block_dma_common,
+	.dma_idling = tegra_mc_dma_idling_common,
+	.unblock_dma = tegra_mc_unblock_dma_common,
+	.reset_status = tegra_mc_reset_status_common,
 };
 
 static inline struct tegra_mc *reset_to_mc(struct reset_controller_dev *rcdev)
@@ -282,24 +282,27 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 	u32 value;
 
 	/* compute the number of MC clock cycles per tick */
-	tick = mc->tick * clk_get_rate(mc->clk);
+	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
 	do_div(tick, NSEC_PER_SEC);
 
-	value = readl(mc->regs + MC_EMEM_ARB_CFG);
+	value = mc_readl(mc, MC_EMEM_ARB_CFG);
 	value &= ~MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK;
 	value |= MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(tick);
-	writel(value, mc->regs + MC_EMEM_ARB_CFG);
+	mc_writel(mc, value, MC_EMEM_ARB_CFG);
 
 	/* write latency allowance defaults */
 	for (i = 0; i < mc->soc->num_clients; i++) {
 		const struct tegra_mc_la *la = &mc->soc->clients[i].la;
 		u32 value;
 
-		value = readl(mc->regs + la->reg);
+		value = mc_readl(mc, la->reg);
 		value &= ~(la->mask << la->shift);
 		value |= (la->def & la->mask) << la->shift;
-		writel(value, mc->regs + la->reg);
+		mc_writel(mc, value, la->reg);
 	}
+
+	/* latch new values */
+	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
 
 	return 0;
 }

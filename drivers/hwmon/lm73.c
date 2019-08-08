@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LM73 Sensor driver
  * Based on LM75
@@ -9,10 +10,6 @@
  * Adrien Demarez <adrien.demarez@bolloretelecom.eu>
  * Jeremy Laine <jeremy.laine@bolloretelecom.eu>
  * Chris Verges <kg4ysn@gmail.com>
- *
- * This software program is licensed subject to the GNU General Public License
- * (GPL).Version 2,June 1991, available at
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
  */
 
 #include <linux/module.h>

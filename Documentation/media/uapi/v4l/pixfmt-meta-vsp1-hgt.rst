@@ -41,6 +41,10 @@ The Hue position **m** (0 - 5) of the bucket in the matrix depends on
 how the HGT Hue areas are configured. There are 6 user configurable Hue
 Areas which can be configured to cover overlapping Hue values:
 
+.. raw:: latex
+
+    \small
+
 ::
 
          Area 0       Area 1       Area 2       Area 3       Area 4       Area 5
@@ -52,6 +56,11 @@ Areas which can be configured to cover overlapping Hue values:
    /   \|      |/   \|      |/   \|      |/   \|      |/   \|      |/   \|      |/   \
   5U   0L      0U   1L      1U   2L      2U   3L      3U   4L      4U   5L      5U   0L
         <0..............................Hue Value............................255>
+
+
+.. raw:: latex
+
+    \normalsize
 
 When two consecutive areas don't overlap (n+1L is equal to nU) the boundary
 value is considered as part of the lower area.

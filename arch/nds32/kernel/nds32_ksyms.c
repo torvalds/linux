@@ -23,9 +23,3 @@ EXPORT_SYMBOL(memzero);
 EXPORT_SYMBOL(__arch_copy_from_user);
 EXPORT_SYMBOL(__arch_copy_to_user);
 EXPORT_SYMBOL(__arch_clear_user);
-
-/* cache handling */
-EXPORT_SYMBOL(cpu_icache_inval_all);
-EXPORT_SYMBOL(cpu_dcache_wbinval_all);
-EXPORT_SYMBOL(cpu_dma_inval_range);
-EXPORT_SYMBOL(cpu_dma_wb_range);

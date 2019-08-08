@@ -225,7 +225,6 @@ static int ftgpio_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 static int ftgpio_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct ftgpio_gpio *g;
 	int irq;
 	int ret;
@@ -236,8 +235,7 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 
 	g->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	g->base = devm_ioremap_resource(dev, res);
+	g->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(g->base))
 		return PTR_ERR(g->base);
 

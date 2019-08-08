@@ -234,25 +234,6 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	return 0;
 }
 
-static struct net_device *hns_roce_get_netdev(struct ib_device *ib_dev,
-					      u8 port_num)
-{
-	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
-	struct net_device *ndev;
-
-	if (port_num < 1 || port_num > hr_dev->caps.num_ports)
-		return NULL;
-
-	rcu_read_lock();
-
-	ndev = hr_dev->iboe.netdevs[port_num - 1];
-	if (ndev)
-		dev_hold(ndev);
-
-	rcu_read_unlock();
-	return ndev;
-}
-
 static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 			       struct ib_port_attr *props)
 {
@@ -455,9 +436,9 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.destroy_ah = hns_roce_destroy_ah,
 	.destroy_cq = hns_roce_ib_destroy_cq,
 	.disassociate_ucontext = hns_roce_disassociate_ucontext,
+	.fill_res_entry = hns_roce_fill_res_entry,
 	.get_dma_mr = hns_roce_get_dma_mr,
 	.get_link_layer = hns_roce_get_link_layer,
-	.get_netdev = hns_roce_get_netdev,
 	.get_port_immutable = hns_roce_port_immutable,
 	.mmap = hns_roce_mmap,
 	.modify_device = hns_roce_modify_device,
@@ -468,6 +449,8 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.query_pkey = hns_roce_query_pkey,
 	.query_port = hns_roce_query_port,
 	.reg_user_mr = hns_roce_reg_user_mr,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, hns_roce_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, hns_roce_ucontext, ibucontext),
 };
@@ -489,6 +472,8 @@ static const struct ib_device_ops hns_roce_dev_frmr_ops = {
 static const struct ib_device_ops hns_roce_dev_srq_ops = {
 	.create_srq = hns_roce_create_srq,
 	.destroy_srq = hns_roce_destroy_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, hns_roce_srq, ibsrq),
 };
 
 static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
@@ -497,6 +482,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	struct hns_roce_ib_iboe *iboe = NULL;
 	struct ib_device *ib_dev = NULL;
 	struct device *dev = hr_dev->dev;
+	unsigned int i;
 
 	iboe = &hr_dev->iboe;
 	spin_lock_init(&iboe->lock);
@@ -562,6 +548,15 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->driver_id = RDMA_DRIVER_HNS;
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
+	for (i = 0; i < hr_dev->caps.num_ports; i++) {
+		if (!hr_dev->iboe.netdevs[i])
+			continue;
+
+		ret = ib_device_set_netdev(ib_dev, hr_dev->iboe.netdevs[i],
+					   i + 1);
+		if (ret)
+			return ret;
+	}
 	ret = ib_register_device(ib_dev, "hns_%d");
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");

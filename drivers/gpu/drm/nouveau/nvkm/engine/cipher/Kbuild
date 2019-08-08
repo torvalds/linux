@@ -1,1 +1,2 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/engine/cipher/g84.o

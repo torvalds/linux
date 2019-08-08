@@ -524,7 +524,7 @@ void _hfi1_do_send(struct work_struct *work)
 
 /**
  * hfi1_do_send - perform a send on a QP
- * @work: contains a pointer to the QP
+ * @qp: a pointer to the QP
  * @in_thread: true if in a workqueue thread
  *
  * Process entries in the send work queue until credit or queue is

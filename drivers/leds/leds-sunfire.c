@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* leds-sunfire.c: SUNW,Ultra-Enterprise LED driver.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>

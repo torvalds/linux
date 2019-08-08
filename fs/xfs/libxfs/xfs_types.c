@@ -185,7 +185,7 @@ xfs_verify_rtbno(
 }
 
 /* Calculate the range of valid icount values. */
-static void
+void
 xfs_icount_range(
 	struct xfs_mount	*mp,
 	unsigned long long	*min,

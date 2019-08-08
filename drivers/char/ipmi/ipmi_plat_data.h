@@ -6,7 +6,10 @@
 
 #include <linux/ipmi.h>
 
+enum ipmi_plat_interface_type { IPMI_PLAT_IF_SI, IPMI_PLAT_IF_SSIF };
+
 struct ipmi_plat_data {
+	enum ipmi_plat_interface_type iftype;
 	unsigned int type; /* si_type for si, SI_INVALID for others */
 	unsigned int space; /* addr_space for si, intf# for ssif. */
 	unsigned long addr;

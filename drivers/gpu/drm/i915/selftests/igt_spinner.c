@@ -29,7 +29,7 @@ int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
 		goto err_hws;
 	}
 
-	i915_gem_object_set_cache_level(spin->hws, I915_CACHE_LLC);
+	i915_gem_object_set_cache_coherency(spin->hws, I915_CACHE_LLC);
 	vaddr = i915_gem_object_pin_map(spin->hws, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
@@ -143,6 +143,13 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
 
 	i915_gem_chipset_flush(spin->i915);
+
+	if (engine->emit_init_breadcrumb &&
+	    rq->timeline->has_initial_breadcrumb) {
+		err = engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto cancel_rq;
+	}
 
 	err = engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, 0);
 

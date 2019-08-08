@@ -85,7 +85,6 @@
 #define PPSMC_MSG_SetRccPfcPmeRestoreRegister   0x36
 #define PPSMC_Message_Count                     0x37
 
-
 typedef uint16_t PPSMC_Result;
 typedef int      PPSMC_Msg;
 

@@ -56,6 +56,7 @@ sections.
 RCU-preempt Expedited Grace Periods</a></h2>
 
 <p>
+<tt>CONFIG_PREEMPT=y</tt> kernels implement RCU-preempt.
 The overall flow of the handling of a given CPU by an RCU-preempt
 expedited grace period is shown in the following diagram:
 
@@ -139,6 +140,7 @@ or offline, among other things.
 RCU-sched Expedited Grace Periods</a></h2>
 
 <p>
+<tt>CONFIG_PREEMPT=n</tt> kernels implement RCU-sched.
 The overall flow of the handling of a given CPU by an RCU-sched
 expedited grace period is shown in the following diagram:
 
@@ -146,7 +148,7 @@ expedited grace period is shown in the following diagram:
 
 <p>
 As with RCU-preempt, RCU-sched's
-<tt>synchronize_sched_expedited()</tt> ignores offline and
+<tt>synchronize_rcu_expedited()</tt> ignores offline and
 idle CPUs, again because they are in remotely detectable
 quiescent states.
 However, because the

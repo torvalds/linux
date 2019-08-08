@@ -7,10 +7,94 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 
+static int
+komeda_plane_init_data_flow(struct drm_plane_state *st,
+			    struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_framebuffer *fb = st->fb;
+
+	memset(dflow, 0, sizeof(*dflow));
+
+	dflow->blending_zorder = st->zpos;
+
+	/* if format doesn't have alpha, fix blend mode to PIXEL_NONE */
+	dflow->pixel_blend_mode = fb->format->has_alpha ?
+		st->pixel_blend_mode : DRM_MODE_BLEND_PIXEL_NONE;
+	dflow->layer_alpha = st->alpha >> 8;
+
+	dflow->out_x = st->crtc_x;
+	dflow->out_y = st->crtc_y;
+	dflow->out_w = st->crtc_w;
+	dflow->out_h = st->crtc_h;
+
+	dflow->in_x = st->src_x >> 16;
+	dflow->in_y = st->src_y >> 16;
+	dflow->in_w = st->src_w >> 16;
+	dflow->in_h = st->src_h >> 16;
+
+	return 0;
+}
+
+/**
+ * komeda_plane_atomic_check - build input data flow
+ * @plane: DRM plane
+ * @state: the plane state object
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+static int
+komeda_plane_atomic_check(struct drm_plane *plane,
+			  struct drm_plane_state *state)
+{
+	struct komeda_plane *kplane = to_kplane(plane);
+	struct komeda_plane_state *kplane_st = to_kplane_st(state);
+	struct komeda_layer *layer = kplane->layer;
+	struct drm_crtc_state *crtc_st;
+	struct komeda_crtc_state *kcrtc_st;
+	struct komeda_data_flow_cfg dflow;
+	int err;
+
+	if (!state->crtc || !state->fb)
+		return 0;
+
+	crtc_st = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_st) || !crtc_st->enable) {
+		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
+		return -EINVAL;
+	}
+
+	/* crtc is inactive, skip the resource assignment */
+	if (!crtc_st->active)
+		return 0;
+
+	kcrtc_st = to_kcrtc_st(crtc_st);
+
+	err = komeda_plane_init_data_flow(state, &dflow);
+	if (err)
+		return err;
+
+	err = komeda_build_layer_data_flow(layer, kplane_st, kcrtc_st, &dflow);
+
+	return err;
+}
+
+/* plane doesn't represent a real HW, so there is no HW update for plane.
+ * komeda handles all the HW update in crtc->atomic_flush
+ */
+static void
+komeda_plane_atomic_update(struct drm_plane *plane,
+			   struct drm_plane_state *old_state)
+{
+}
+
 static const struct drm_plane_helper_funcs komeda_plane_helper_funcs = {
+	.atomic_check	= komeda_plane_atomic_check,
+	.atomic_update	= komeda_plane_atomic_update,
 };
 
 static void komeda_plane_destroy(struct drm_plane *plane)
@@ -20,7 +104,60 @@ static void komeda_plane_destroy(struct drm_plane *plane)
 	kfree(to_kplane(plane));
 }
 
+static void komeda_plane_reset(struct drm_plane *plane)
+{
+	struct komeda_plane_state *state;
+	struct komeda_plane *kplane = to_kplane(plane);
+
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+
+	kfree(plane->state);
+	plane->state = NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		state->base.rotation = DRM_MODE_ROTATE_0;
+		state->base.pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
+		state->base.alpha = DRM_BLEND_ALPHA_OPAQUE;
+		state->base.zpos = kplane->layer->base.id;
+		plane->state = &state->base;
+		plane->state->plane = plane;
+	}
+}
+
+static struct drm_plane_state *
+komeda_plane_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct komeda_plane_state *new;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane, &new->base);
+
+	return &new->base;
+}
+
+static void
+komeda_plane_atomic_destroy_state(struct drm_plane *plane,
+				  struct drm_plane_state *state)
+{
+	__drm_atomic_helper_plane_destroy_state(state);
+	kfree(to_kplane_st(state));
+}
+
 static const struct drm_plane_funcs komeda_plane_funcs = {
+	.update_plane		= drm_atomic_helper_update_plane,
+	.disable_plane		= drm_atomic_helper_disable_plane,
+	.destroy		= komeda_plane_destroy,
+	.reset			= komeda_plane_reset,
+	.atomic_duplicate_state	= komeda_plane_atomic_duplicate_state,
+	.atomic_destroy_state	= komeda_plane_atomic_destroy_state,
 };
 
 /* for komeda, which is pipeline can be share between crtcs */

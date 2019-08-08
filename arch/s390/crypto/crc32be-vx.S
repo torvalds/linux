@@ -207,5 +207,6 @@ ENTRY(crc32_be_vgfm_16)
 .Ldone:
 	VLGVF	%r2,%v2,3
 	BR_EX	%r14
+ENDPROC(crc32_be_vgfm_16)
 
 .previous

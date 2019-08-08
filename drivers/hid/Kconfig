@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # HID driver configuration
 #
@@ -230,6 +231,16 @@ config HID_COUGAR
 
 	Supported devices:
 	- Cougar 500k Gaming Keyboard
+
+config HID_MACALLY
+	tristate "Macally devices"
+	depends on HID
+	help
+	Support for Macally devices that are not fully compliant with the
+	HID standard.
+
+	supported devices:
+	- Macally ikey keyboard
 
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
@@ -511,6 +522,7 @@ config HID_LOGITECH
 
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
+	depends on USB_HID
 	depends on HIDRAW
 	depends on HID_LOGITECH
 	select HID_LOGITECH_HIDPP
@@ -1002,6 +1014,22 @@ config HID_UDRAW_PS3
 	---help---
 	  Say Y here if you want to use the THQ uDraw gaming tablet for
 	  the PS3.
+
+config HID_U2FZERO
+	tristate "U2F Zero LED and RNG support"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	depends on HW_RANDOM
+	help
+	  Support for the LED of the U2F Zero device.
+
+	  U2F Zero supports custom commands for blinking the LED
+	  and getting data from the internal hardware RNG.
+	  The internal hardware can be used to feed the enthropy pool.
+
+	  U2F Zero only supports blinking its LED, so this driver doesn't
+	  allow setting the brightness to anything but 1, which will
+	  trigger a single blink and immediately reset to back 0.
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"

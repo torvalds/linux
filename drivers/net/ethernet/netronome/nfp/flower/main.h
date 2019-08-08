@@ -5,6 +5,7 @@
 #define __NFP_FLOWER_H__ 1
 
 #include "cmsg.h"
+#include "../nfp_net.h"
 
 #include <linux/circ_buf.h>
 #include <linux/hashtable.h>
@@ -34,14 +35,14 @@ struct nfp_app;
 #define NFP_FL_MASK_REUSE_TIME_NS	40000
 #define NFP_FL_MASK_ID_LOCATION		1
 
-#define NFP_FL_VXLAN_PORT		4789
-#define NFP_FL_GENEVE_PORT		6081
-
 /* Extra features bitmap. */
 #define NFP_FL_FEATS_GENEVE		BIT(0)
 #define NFP_FL_NBI_MTU_SETTING		BIT(1)
 #define NFP_FL_FEATS_GENEVE_OPT		BIT(2)
 #define NFP_FL_FEATS_VLAN_PCP		BIT(3)
+#define NFP_FL_FEATS_VF_RLIM		BIT(4)
+#define NFP_FL_FEATS_FLOW_MOD		BIT(5)
+#define NFP_FL_FEATS_FLOW_MERGE		BIT(30)
 #define NFP_FL_FEATS_LAG		BIT(31)
 
 struct nfp_fl_mask_id {
@@ -118,6 +119,16 @@ struct nfp_fl_lag {
 };
 
 /**
+ * struct nfp_fl_internal_ports - Flower APP priv data for additional ports
+ * @port_ids:	Assignment of ids to any additional ports
+ * @lock:	Lock for extra ports list
+ */
+struct nfp_fl_internal_ports {
+	struct idr port_ids;
+	spinlock_t lock;
+};
+
+/**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
  * @app:		Back pointer to app
  * @nn:			Pointer to vNIC
@@ -131,6 +142,7 @@ struct nfp_fl_lag {
  * @flow_table:		Hash table used to store flower rules
  * @stats:		Stored stats updates for flower rules
  * @stats_lock:		Lock for flower rule stats updates
+ * @stats_ctx_table:	Hash table to map stats contexts to its flow rule
  * @cmsg_work:		Workqueue for control messages processing
  * @cmsg_skbs_high:	List of higher priority skbs for control message
  *			processing
@@ -146,6 +158,10 @@ struct nfp_fl_lag {
  * @non_repr_priv:	List of offloaded non-repr ports and their priv data
  * @active_mem_unit:	Current active memory unit for flower rules
  * @total_mem_units:	Total number of available memory units for flower rules
+ * @internal_ports:	Internal port ids used in offloaded rules
+ * @qos_stats_work:	Workqueue for qos stats processing
+ * @qos_rate_limiters:	Current active qos rate limiters
+ * @qos_stats_lock:	Lock on qos stats updates
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -160,6 +176,7 @@ struct nfp_flower_priv {
 	struct rhashtable flow_table;
 	struct nfp_fl_stats *stats;
 	spinlock_t stats_lock; /* lock stats */
+	struct rhashtable stats_ctx_table;
 	struct work_struct cmsg_work;
 	struct sk_buff_head cmsg_skbs_high;
 	struct sk_buff_head cmsg_skbs_low;
@@ -172,6 +189,24 @@ struct nfp_flower_priv {
 	struct list_head non_repr_priv;
 	unsigned int active_mem_unit;
 	unsigned int total_mem_units;
+	struct nfp_fl_internal_ports internal_ports;
+	struct delayed_work qos_stats_work;
+	unsigned int qos_rate_limiters;
+	spinlock_t qos_stats_lock; /* Protect the qos stats */
+};
+
+/**
+ * struct nfp_fl_qos - Flower APP priv data for quality of service
+ * @netdev_port_id:	NFP port number of repr with qos info
+ * @curr_stats:		Currently stored stats updates for qos info
+ * @prev_stats:		Previously stored updates for qos info
+ * @last_update:	Stored time when last stats were updated
+ */
+struct nfp_fl_qos {
+	u32 netdev_port_id;
+	struct nfp_stat_pair curr_stats;
+	struct nfp_stat_pair prev_stats;
+	u64 last_update;
 };
 
 /**
@@ -180,14 +215,18 @@ struct nfp_flower_priv {
  * @lag_port_flags:	Extended port flags to record lag state of repr
  * @mac_offloaded:	Flag indicating a MAC address is offloaded for repr
  * @offloaded_mac_addr:	MAC address that has been offloaded for repr
+ * @block_shared:	Flag indicating if offload applies to shared blocks
  * @mac_list:		List entry of reprs that share the same offloaded MAC
+ * @qos_table:		Stored info on filters implementing qos
  */
 struct nfp_flower_repr_priv {
 	struct nfp_repr *nfp_repr;
 	unsigned long lag_port_flags;
 	bool mac_offloaded;
 	u8 offloaded_mac_addr[ETH_ALEN];
+	bool block_shared;
 	struct list_head mac_list;
+	struct nfp_fl_qos qos_table;
 };
 
 /**
@@ -239,6 +278,25 @@ struct nfp_fl_payload {
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
+	struct list_head linked_flows;
+	bool in_hw;
+};
+
+struct nfp_fl_payload_link {
+	/* A link contains a pointer to a merge flow and an associated sub_flow.
+	 * Each merge flow will feature in 2 links to its underlying sub_flows.
+	 * A sub_flow will have at least 1 link to a merge flow or more if it
+	 * has been used to create multiple merge flows.
+	 *
+	 * For a merge flow, 'linked_flows' in its nfp_fl_payload struct lists
+	 * all links to sub_flows (sub_flow.flow) via merge.list.
+	 * For a sub_flow, 'linked_flows' gives all links to merge flows it has
+	 * formed (merge_flow.flow) via sub_flow.list.
+	 */
+	struct {
+		struct list_head list;
+		struct nfp_fl_payload *flow;
+	} merge_flow, sub_flow;
 };
 
 extern const struct rhashtable_params nfp_flower_table_params;
@@ -250,12 +308,40 @@ struct nfp_fl_stats_frame {
 	__be64 stats_cookie;
 };
 
+static inline bool
+nfp_flower_internal_port_can_offload(struct nfp_app *app,
+				     struct net_device *netdev)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+
+	if (!(app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE))
+		return false;
+	if (!netdev->rtnl_link_ops)
+		return false;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
+		return true;
+
+	return false;
+}
+
+/* The address of the merged flow acts as its cookie.
+ * Cookies supplied to us by TC flower are also addresses to allocated
+ * memory and thus this scheme should not generate any collisions.
+ */
+static inline bool nfp_flower_is_merge_flow(struct nfp_fl_payload *flow_pay)
+{
+	return flow_pay->tc_flower_cookie == (unsigned long)flow_pay;
+}
+
 int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 			     unsigned int host_ctx_split);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
+int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
+				     struct nfp_fl_payload *sub_flow1,
+				     struct nfp_fl_payload *sub_flow2);
 int nfp_flower_compile_flow_match(struct nfp_app *app,
 				  struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
@@ -270,12 +356,16 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 			      struct tc_cls_flower_offload *flow,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct net_device *netdev);
+void __nfp_modify_flow_metadata(struct nfp_flower_priv *priv,
+				struct nfp_fl_payload *nfp_flow);
 int nfp_modify_flow_metadata(struct nfp_app *app,
 			     struct nfp_fl_payload *nfp_flow);
 
 struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
 			   struct net_device *netdev);
+struct nfp_fl_payload *
+nfp_flower_get_fl_payload_from_ctx(struct nfp_app *app, u32 ctx_id);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
@@ -302,6 +392,11 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct nfp_fl_pre_lag *pre_act);
 int nfp_flower_lag_get_output_id(struct nfp_app *app,
 				 struct net_device *master);
+void nfp_flower_qos_init(struct nfp_app *app);
+void nfp_flower_qos_cleanup(struct nfp_app *app);
+int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
+				 struct tc_cls_matchall_offload *flow);
+void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 				       struct net_device *netdev,
 				       unsigned long event);
@@ -314,4 +409,6 @@ void
 __nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv);
 void
 nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
+u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
+				       struct net_device *netdev);
 #endif

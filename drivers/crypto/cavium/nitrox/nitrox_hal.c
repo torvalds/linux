@@ -437,6 +437,45 @@ void config_nps_core_vfcfg_mode(struct nitrox_device *ndev, enum vf_mode mode)
 	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, vfcfg.value);
 }
 
+static const char *get_core_option(u8 se_cores, u8 ae_cores)
+{
+	const char *option = "";
+
+	if (ae_cores == AE_MAX_CORES) {
+		switch (se_cores) {
+		case SE_MAX_CORES:
+			option = "60";
+			break;
+		case 40:
+			option = "60s";
+			break;
+		}
+	} else if (ae_cores == (AE_MAX_CORES / 2)) {
+		option = "30";
+	} else {
+		option = "60i";
+	}
+
+	return option;
+}
+
+static const char *get_feature_option(u8 zip_cores, int core_freq)
+{
+	if (zip_cores == 0)
+		return "";
+	else if (zip_cores < ZIP_MAX_CORES)
+		return "-C15";
+
+	if (core_freq >= 850)
+		return "-C45";
+	else if (core_freq >= 750)
+		return "-C35";
+	else if (core_freq >= 550)
+		return "-C25";
+
+	return "";
+}
+
 void nitrox_get_hwinfo(struct nitrox_device *ndev)
 {
 	union emu_fuse_map emu_fuse;
@@ -469,24 +508,14 @@ void nitrox_get_hwinfo(struct nitrox_device *ndev)
 		ndev->hw.zip_cores = ZIP_MAX_CORES - dead_cores;
 	}
 
-	/* determine the partname CNN55<cores>-<freq><pincount>-<rev>*/
-	if (ndev->hw.ae_cores == AE_MAX_CORES) {
-		switch (ndev->hw.se_cores) {
-		case SE_MAX_CORES:
-			i = snprintf(name, sizeof(name), "CNN5560");
-			break;
-		case 40:
-			i = snprintf(name, sizeof(name), "CNN5560s");
-			break;
-		}
-	} else if (ndev->hw.ae_cores == (AE_MAX_CORES / 2)) {
-		i = snprintf(name, sizeof(name), "CNN5530");
-	} else {
-		i = snprintf(name, sizeof(name), "CNN5560i");
-	}
-
-	snprintf(name + i, sizeof(name) - i, "-%3dBG676-1.%u",
-		 ndev->hw.freq, ndev->hw.revision_id);
+	/* determine the partname
+	 * CNN55<core option>-<freq><pincount>-<feature option>-<rev>
+	 */
+	snprintf(name, sizeof(name), "CNN55%s-%3dBG676%s-1.%u",
+		 get_core_option(ndev->hw.se_cores, ndev->hw.ae_cores),
+		 ndev->hw.freq,
+		 get_feature_option(ndev->hw.zip_cores, ndev->hw.freq),
+		 ndev->hw.revision_id);
 
 	/* copy partname */
 	strncpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));

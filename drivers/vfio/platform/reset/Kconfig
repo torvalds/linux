@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VFIO_PLATFORM_CALXEDAXGMAC_RESET
 	tristate "VFIO support for calxeda xgmac reset"
 	depends on VFIO_PLATFORM

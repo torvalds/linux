@@ -25,7 +25,7 @@ static void __init reset_tod_clock(void)
 		return;
 	/* TOD clock not running. Set the clock to Unix Epoch. */
 	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
-		disabled_wait(0);
+		disabled_wait();
 
 	memset(tod_clock_base, 0, 16);
 	*(__u64 *) &tod_clock_base[1] = TOD_UNIX_EPOCH;

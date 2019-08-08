@@ -324,8 +324,6 @@ static int at803x_config_intr(struct phy_device *phydev)
 
 static void at803x_link_change_notify(struct phy_device *phydev)
 {
-	struct at803x_priv *priv = phydev->priv;
-
 	/*
 	 * Conduct a hardware reset for AT8030 every time a link loss is
 	 * signalled. This is necessary to circumvent a hardware bug that
@@ -333,25 +331,19 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	 * in the FIFO. In such cases, the FIFO enters an error mode it
 	 * cannot recover from by software.
 	 */
-	if (phydev->state == PHY_NOLINK) {
-		if (phydev->mdio.reset && !priv->phy_reset) {
-			struct at803x_context context;
+	if (phydev->state == PHY_NOLINK && phydev->mdio.reset_gpio) {
+		struct at803x_context context;
 
-			at803x_context_save(phydev, &context);
+		at803x_context_save(phydev, &context);
 
-			phy_device_reset(phydev, 1);
-			msleep(1);
-			phy_device_reset(phydev, 0);
-			msleep(1);
+		phy_device_reset(phydev, 1);
+		msleep(1);
+		phy_device_reset(phydev, 0);
+		msleep(1);
 
-			at803x_context_restore(phydev, &context);
+		at803x_context_restore(phydev, &context);
 
-			phydev_dbg(phydev, "%s(): phy was reset\n",
-				   __func__);
-			priv->phy_reset = true;
-		}
-	} else {
-		priv->phy_reset = false;
+		phydev_dbg(phydev, "%s(): phy was reset\n", __func__);
 	}
 }
 
@@ -397,7 +389,7 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
-	.features		= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
 }, {
@@ -412,7 +404,7 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
-	.features		= PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
 }, {
@@ -426,7 +418,7 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
-	.features		= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.aneg_done		= at803x_aneg_done,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,

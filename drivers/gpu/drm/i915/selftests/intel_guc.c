@@ -111,7 +111,7 @@ static int validate_client(struct intel_guc_client *client,
 			dev_priv->preempt_context : dev_priv->kernel_context;
 
 	if (client->owner != ctx_owner ||
-	    client->engines != INTEL_INFO(dev_priv)->ring_mask ||
+	    client->engines != INTEL_INFO(dev_priv)->engine_mask ||
 	    client->priority != client_priority ||
 	    client->doorbell_id == GUC_DOORBELL_INVALID)
 		return -EINVAL;
@@ -261,7 +261,7 @@ static int igt_guc_doorbells(void *arg)
 
 	for (i = 0; i < ATTEMPTS; i++) {
 		clients[i] = guc_client_alloc(dev_priv,
-					      INTEL_INFO(dev_priv)->ring_mask,
+					      INTEL_INFO(dev_priv)->engine_mask,
 					      i % GUC_CLIENT_PRIORITY_NUM,
 					      dev_priv->kernel_context);
 

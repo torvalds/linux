@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/memory/tegra20-mc.h>
@@ -198,7 +195,7 @@ static const struct tegra_mc_reset tegra20_mc_resets[] = {
 	TEGRA20_MC_RESET(VI,     0x100, 0x178, 0x104, 14),
 };
 
-static int terga20_mc_hotreset_assert(struct tegra_mc *mc,
+static int tegra20_mc_hotreset_assert(struct tegra_mc *mc,
 				      const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -214,7 +211,7 @@ static int terga20_mc_hotreset_assert(struct tegra_mc *mc,
 	return 0;
 }
 
-static int terga20_mc_hotreset_deassert(struct tegra_mc *mc,
+static int tegra20_mc_hotreset_deassert(struct tegra_mc *mc,
 					const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -230,7 +227,7 @@ static int terga20_mc_hotreset_deassert(struct tegra_mc *mc,
 	return 0;
 }
 
-static int terga20_mc_block_dma(struct tegra_mc *mc,
+static int tegra20_mc_block_dma(struct tegra_mc *mc,
 				const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -246,19 +243,19 @@ static int terga20_mc_block_dma(struct tegra_mc *mc,
 	return 0;
 }
 
-static bool terga20_mc_dma_idling(struct tegra_mc *mc,
+static bool tegra20_mc_dma_idling(struct tegra_mc *mc,
 				  const struct tegra_mc_reset *rst)
 {
 	return mc_readl(mc, rst->status) == 0;
 }
 
-static int terga20_mc_reset_status(struct tegra_mc *mc,
+static int tegra20_mc_reset_status(struct tegra_mc *mc,
 				   const struct tegra_mc_reset *rst)
 {
 	return (mc_readl(mc, rst->reset) & BIT(rst->bit)) == 0;
 }
 
-static int terga20_mc_unblock_dma(struct tegra_mc *mc,
+static int tegra20_mc_unblock_dma(struct tegra_mc *mc,
 				  const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -274,13 +271,13 @@ static int terga20_mc_unblock_dma(struct tegra_mc *mc,
 	return 0;
 }
 
-const struct tegra_mc_reset_ops terga20_mc_reset_ops = {
-	.hotreset_assert = terga20_mc_hotreset_assert,
-	.hotreset_deassert = terga20_mc_hotreset_deassert,
-	.block_dma = terga20_mc_block_dma,
-	.dma_idling = terga20_mc_dma_idling,
-	.unblock_dma = terga20_mc_unblock_dma,
-	.reset_status = terga20_mc_reset_status,
+static const struct tegra_mc_reset_ops tegra20_mc_reset_ops = {
+	.hotreset_assert = tegra20_mc_hotreset_assert,
+	.hotreset_deassert = tegra20_mc_hotreset_deassert,
+	.block_dma = tegra20_mc_block_dma,
+	.dma_idling = tegra20_mc_dma_idling,
+	.unblock_dma = tegra20_mc_unblock_dma,
+	.reset_status = tegra20_mc_reset_status,
 };
 
 const struct tegra_mc_soc tegra20_mc_soc = {
@@ -290,7 +287,7 @@ const struct tegra_mc_soc tegra20_mc_soc = {
 	.client_id_mask = 0x3f,
 	.intmask = MC_INT_SECURITY_VIOLATION | MC_INT_INVALID_GART_PAGE |
 		   MC_INT_DECERR_EMEM,
-	.reset_ops = &terga20_mc_reset_ops,
+	.reset_ops = &tegra20_mc_reset_ops,
 	.resets = tegra20_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra20_mc_resets),
 };

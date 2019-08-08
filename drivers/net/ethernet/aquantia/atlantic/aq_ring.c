@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_ring.c: Definition of functions for Rx/Tx rings. */
@@ -12,9 +9,88 @@
 #include "aq_ring.h"
 #include "aq_nic.h"
 #include "aq_hw.h"
+#include "aq_hw_utils.h"
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+
+static inline void aq_free_rxpage(struct aq_rxpage *rxpage, struct device *dev)
+{
+	unsigned int len = PAGE_SIZE << rxpage->order;
+
+	dma_unmap_page(dev, rxpage->daddr, len, DMA_FROM_DEVICE);
+
+	/* Drop the ref for being in the ring. */
+	__free_pages(rxpage->page, rxpage->order);
+	rxpage->page = NULL;
+}
+
+static int aq_get_rxpage(struct aq_rxpage *rxpage, unsigned int order,
+			 struct device *dev)
+{
+	struct page *page;
+	dma_addr_t daddr;
+	int ret = -ENOMEM;
+
+	page = dev_alloc_pages(order);
+	if (unlikely(!page))
+		goto err_exit;
+
+	daddr = dma_map_page(dev, page, 0, PAGE_SIZE << order,
+			     DMA_FROM_DEVICE);
+
+	if (unlikely(dma_mapping_error(dev, daddr)))
+		goto free_page;
+
+	rxpage->page = page;
+	rxpage->daddr = daddr;
+	rxpage->order = order;
+	rxpage->pg_off = 0;
+
+	return 0;
+
+free_page:
+	__free_pages(page, order);
+
+err_exit:
+	return ret;
+}
+
+static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
+			  int order)
+{
+	int ret;
+
+	if (rxbuf->rxdata.page) {
+		/* One means ring is the only user and can reuse */
+		if (page_ref_count(rxbuf->rxdata.page) > 1) {
+			/* Try reuse buffer */
+			rxbuf->rxdata.pg_off += AQ_CFG_RX_FRAME_MAX;
+			if (rxbuf->rxdata.pg_off + AQ_CFG_RX_FRAME_MAX <=
+				(PAGE_SIZE << order)) {
+				self->stats.rx.pg_flips++;
+			} else {
+				/* Buffer exhausted. We have other users and
+				 * should release this page and realloc
+				 */
+				aq_free_rxpage(&rxbuf->rxdata,
+					       aq_nic_get_dev(self->aq_nic));
+				self->stats.rx.pg_losts++;
+			}
+		} else {
+			rxbuf->rxdata.pg_off = 0;
+			self->stats.rx.pg_reuses++;
+		}
+	}
+
+	if (!rxbuf->rxdata.page) {
+		ret = aq_get_rxpage(&rxbuf->rxdata, order,
+				    aq_nic_get_dev(self->aq_nic));
+		return ret;
+	}
+
+	return 0;
+}
 
 static struct aq_ring_s *aq_ring_alloc(struct aq_ring_s *self,
 				       struct aq_nic_s *aq_nic)
@@ -81,6 +157,11 @@ struct aq_ring_s *aq_ring_rx_alloc(struct aq_ring_s *self,
 	self->idx = idx;
 	self->size = aq_nic_cfg->rxds;
 	self->dx_size = aq_nic_cfg->aq_hw_caps->rxd_size;
+	self->page_order = fls(AQ_CFG_RX_FRAME_MAX / PAGE_SIZE +
+			       (AQ_CFG_RX_FRAME_MAX % PAGE_SIZE ? 1 : 0)) - 1;
+
+	if (aq_nic_cfg->rxpageorder > self->page_order)
+		self->page_order = aq_nic_cfg->rxpageorder;
 
 	self = aq_ring_alloc(self, aq_nic);
 	if (!self) {
@@ -139,10 +220,10 @@ void aq_ring_queue_stop(struct aq_ring_s *ring)
 bool aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
-	unsigned int budget = AQ_CFG_TX_CLEAN_BUDGET;
+	unsigned int budget;
 
-	for (; self->sw_head != self->hw_head && budget--;
-		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
+	for (budget = AQ_CFG_TX_CLEAN_BUDGET;
+	     budget && self->sw_head != self->hw_head; budget--) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
 		if (likely(buff->is_mapped)) {
@@ -167,6 +248,7 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 
 		buff->pa = 0U;
 		buff->eop_index = 0xffffU;
+		self->sw_head = aq_ring_next_dx(self, self->sw_head);
 	}
 
 	return !!budget;
@@ -201,90 +283,129 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		     int budget)
 {
 	struct net_device *ndev = aq_nic_get_ndev(self->aq_nic);
-	int err = 0;
 	bool is_rsc_completed = true;
+	int err = 0;
 
 	for (; (self->sw_head != self->hw_head) && budget;
 		self->sw_head = aq_ring_next_dx(self, self->sw_head),
 		--budget, ++(*work_done)) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
+		struct aq_ring_buff_s *buff_ = NULL;
 		struct sk_buff *skb = NULL;
 		unsigned int next_ = 0U;
 		unsigned int i = 0U;
-		struct aq_ring_buff_s *buff_ = NULL;
-
-		if (buff->is_error) {
-			__free_pages(buff->page, 0);
-			continue;
-		}
+		u16 hdr_len;
 
 		if (buff->is_cleaned)
 			continue;
 
 		if (!buff->is_eop) {
-			for (next_ = buff->next,
-			     buff_ = &self->buff_ring[next_]; true;
-			     next_ = buff_->next,
-			     buff_ = &self->buff_ring[next_]) {
+			buff_ = buff;
+			do {
+				next_ = buff_->next,
+				buff_ = &self->buff_ring[next_];
 				is_rsc_completed =
 					aq_ring_dx_in_range(self->sw_head,
 							    next_,
 							    self->hw_head);
 
-				if (unlikely(!is_rsc_completed)) {
-					is_rsc_completed = false;
+				if (unlikely(!is_rsc_completed))
 					break;
-				}
 
-				if (buff_->is_eop)
-					break;
-			}
+				buff->is_error |= buff_->is_error;
+
+			} while (!buff_->is_eop);
 
 			if (!is_rsc_completed) {
 				err = 0;
 				goto err_exit;
 			}
+			if (buff->is_error) {
+				buff_ = buff;
+				do {
+					next_ = buff_->next,
+					buff_ = &self->buff_ring[next_];
+
+					buff_->is_cleaned = true;
+				} while (!buff_->is_eop);
+
+				++self->stats.rx.errors;
+				continue;
+			}
 		}
+
+		if (buff->is_error) {
+			++self->stats.rx.errors;
+			continue;
+		}
+
+		dma_sync_single_range_for_cpu(aq_nic_get_dev(self->aq_nic),
+					      buff->rxdata.daddr,
+					      buff->rxdata.pg_off,
+					      buff->len, DMA_FROM_DEVICE);
 
 		/* for single fragment packets use build_skb() */
 		if (buff->is_eop &&
 		    buff->len <= AQ_CFG_RX_FRAME_MAX - AQ_SKB_ALIGN) {
-			skb = build_skb(page_address(buff->page),
+			skb = build_skb(aq_buf_vaddr(&buff->rxdata),
 					AQ_CFG_RX_FRAME_MAX);
 			if (unlikely(!skb)) {
 				err = -ENOMEM;
 				goto err_exit;
 			}
-
 			skb_put(skb, buff->len);
+			page_ref_inc(buff->rxdata.page);
 		} else {
-			skb = netdev_alloc_skb(ndev, ETH_HLEN);
+			skb = napi_alloc_skb(napi, AQ_CFG_RX_HDR_SIZE);
 			if (unlikely(!skb)) {
 				err = -ENOMEM;
 				goto err_exit;
 			}
-			skb_put(skb, ETH_HLEN);
-			memcpy(skb->data, page_address(buff->page), ETH_HLEN);
 
-			skb_add_rx_frag(skb, 0, buff->page, ETH_HLEN,
-					buff->len - ETH_HLEN,
-					SKB_TRUESIZE(buff->len - ETH_HLEN));
+			hdr_len = buff->len;
+			if (hdr_len > AQ_CFG_RX_HDR_SIZE)
+				hdr_len = eth_get_headlen(skb->dev,
+							  aq_buf_vaddr(&buff->rxdata),
+							  AQ_CFG_RX_HDR_SIZE);
+
+			memcpy(__skb_put(skb, hdr_len), aq_buf_vaddr(&buff->rxdata),
+			       ALIGN(hdr_len, sizeof(long)));
+
+			if (buff->len - hdr_len > 0) {
+				skb_add_rx_frag(skb, 0, buff->rxdata.page,
+						buff->rxdata.pg_off + hdr_len,
+						buff->len - hdr_len,
+						AQ_CFG_RX_FRAME_MAX);
+				page_ref_inc(buff->rxdata.page);
+			}
 
 			if (!buff->is_eop) {
-				for (i = 1U, next_ = buff->next,
-				     buff_ = &self->buff_ring[next_];
-				     true; next_ = buff_->next,
-				     buff_ = &self->buff_ring[next_], ++i) {
-					skb_add_rx_frag(skb, i,
-							buff_->page, 0,
+				buff_ = buff;
+				i = 1U;
+				do {
+					next_ = buff_->next,
+					buff_ = &self->buff_ring[next_];
+
+					dma_sync_single_range_for_cpu(
+							aq_nic_get_dev(self->aq_nic),
+							buff_->rxdata.daddr,
+							buff_->rxdata.pg_off,
 							buff_->len,
-							SKB_TRUESIZE(buff->len -
-							ETH_HLEN));
+							DMA_FROM_DEVICE);
+					skb_add_rx_frag(skb, i++,
+							buff_->rxdata.page,
+							buff_->rxdata.pg_off,
+							buff_->len,
+							AQ_CFG_RX_FRAME_MAX);
+					page_ref_inc(buff_->rxdata.page);
 					buff_->is_cleaned = 1;
 
-					if (buff_->is_eop)
-						break;
-				}
+					buff->is_ip_cso &= buff_->is_ip_cso;
+					buff->is_udp_cso &= buff_->is_udp_cso;
+					buff->is_tcp_cso &= buff_->is_tcp_cso;
+					buff->is_cso_err |= buff_->is_cso_err;
+
+				} while (!buff_->is_eop);
 			}
 		}
 
@@ -310,11 +431,14 @@ err_exit:
 
 int aq_ring_rx_fill(struct aq_ring_s *self)
 {
-	unsigned int pages_order = fls(AQ_CFG_RX_FRAME_MAX / PAGE_SIZE +
-		(AQ_CFG_RX_FRAME_MAX % PAGE_SIZE ? 1 : 0)) - 1;
+	unsigned int page_order = self->page_order;
 	struct aq_ring_buff_s *buff = NULL;
 	int err = 0;
 	int i = 0;
+
+	if (aq_ring_avail_dx(self) < min_t(unsigned int, AQ_CFG_RX_REFILL_THRES,
+					   self->size / 2))
+		return err;
 
 	for (i = aq_ring_avail_dx(self); i--;
 		self->sw_tail = aq_ring_next_dx(self, self->sw_tail)) {
@@ -323,30 +447,15 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 		buff->flags = 0U;
 		buff->len = AQ_CFG_RX_FRAME_MAX;
 
-		buff->page = alloc_pages(GFP_ATOMIC | __GFP_COMP, pages_order);
-		if (!buff->page) {
-			err = -ENOMEM;
+		err = aq_get_rxpages(self, buff, page_order);
+		if (err)
 			goto err_exit;
-		}
 
-		buff->pa = dma_map_page(aq_nic_get_dev(self->aq_nic),
-					buff->page, 0,
-					AQ_CFG_RX_FRAME_MAX, DMA_FROM_DEVICE);
-
-		if (dma_mapping_error(aq_nic_get_dev(self->aq_nic), buff->pa)) {
-			err = -ENOMEM;
-			goto err_exit;
-		}
-
+		buff->pa = aq_buf_daddr(&buff->rxdata);
 		buff = NULL;
 	}
 
 err_exit:
-	if (err < 0) {
-		if (buff && buff->page)
-			__free_pages(buff->page, 0);
-	}
-
 	return err;
 }
 
@@ -359,10 +468,7 @@ void aq_ring_rx_deinit(struct aq_ring_s *self)
 		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
-		dma_unmap_page(aq_nic_get_dev(self->aq_nic), buff->pa,
-			       AQ_CFG_RX_FRAME_MAX, DMA_FROM_DEVICE);
-
-		__free_pages(buff->page, 0);
+		aq_free_rxpage(&buff->rxdata, aq_nic_get_dev(self->aq_nic));
 	}
 
 err_exit:;

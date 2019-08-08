@@ -136,7 +136,7 @@ static void mlx5e_ipsec_set_swp(struct sk_buff *skb,
 				struct mlx5_wqe_eth_seg *eseg, u8 mode,
 				struct xfrm_offload *xo)
 {
-	u8 proto;
+	struct mlx5e_swp_spec swp_spec = {};
 
 	/* Tunnel Mode:
 	 * SWP:      OutL3       InL3  InL4
@@ -146,35 +146,23 @@ static void mlx5e_ipsec_set_swp(struct sk_buff *skb,
 	 * SWP:      OutL3       InL4
 	 *           InL3
 	 * Pkt: MAC  IP     ESP  L4
-	 *
-	 * Offsets are in 2-byte words, counting from start of frame
 	 */
-	eseg->swp_outer_l3_offset = skb_network_offset(skb) / 2;
-	if (skb->protocol == htons(ETH_P_IPV6))
-		eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L3_IPV6;
-
-	if (mode == XFRM_MODE_TUNNEL) {
-		eseg->swp_inner_l3_offset = skb_inner_network_offset(skb) / 2;
+	swp_spec.l3_proto = skb->protocol;
+	swp_spec.is_tun = mode == XFRM_MODE_TUNNEL;
+	if (swp_spec.is_tun) {
 		if (xo->proto == IPPROTO_IPV6) {
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
-			proto = inner_ipv6_hdr(skb)->nexthdr;
+			swp_spec.tun_l3_proto = htons(ETH_P_IPV6);
+			swp_spec.tun_l4_proto = inner_ipv6_hdr(skb)->nexthdr;
 		} else {
-			proto = inner_ip_hdr(skb)->protocol;
+			swp_spec.tun_l3_proto = htons(ETH_P_IP);
+			swp_spec.tun_l4_proto = inner_ip_hdr(skb)->protocol;
 		}
 	} else {
-		eseg->swp_inner_l3_offset = skb_network_offset(skb) / 2;
-		if (skb->protocol == htons(ETH_P_IPV6))
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
-		proto = xo->proto;
+		swp_spec.tun_l3_proto = skb->protocol;
+		swp_spec.tun_l4_proto = xo->proto;
 	}
-	switch (proto) {
-	case IPPROTO_UDP:
-		eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
-		/* Fall through */
-	case IPPROTO_TCP:
-		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
-		break;
-	}
+
+	mlx5e_set_eseg_swp(skb, eseg, &swp_spec);
 }
 
 void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,

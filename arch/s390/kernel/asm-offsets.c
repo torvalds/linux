@@ -16,6 +16,7 @@
 #include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
+#include <asm/stacktrace.h>
 
 int main(void)
 {

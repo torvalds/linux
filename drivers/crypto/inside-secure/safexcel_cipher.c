@@ -1039,13 +1039,12 @@ static int safexcel_cbc_des3_ede_decrypt(struct skcipher_request *req)
 static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
 				   const u8 *key, unsigned int len)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
-	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
+	int err;
 
-	if (len != DES3_EDE_KEY_SIZE) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
+	err = des3_verify_key(ctfm, key);
+	if (unlikely(err))
+		return err;
 
 	/* if context exits and key changed, need to invalidate it */
 	if (ctx->base.ctxr_dma) {

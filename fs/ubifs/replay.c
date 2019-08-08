@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -576,7 +564,6 @@ static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_h
 	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 
 	hash_desc->tfm = c->hash_tfm;
-	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ubifs_shash_copy_state(c, log_hash, hash_desc);
 	return crypto_shash_final(hash_desc, hash);
@@ -587,7 +574,6 @@ static int authenticate_sleb_hmac(struct ubifs_info *c, u8 *hash, u8 *hmac)
 	SHASH_DESC_ON_STACK(hmac_desc, c->hmac_tfm);
 
 	hmac_desc->tfm = c->hmac_tfm;
-	hmac_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_digest(hmac_desc, hash, c->hash_len, hmac);
 }

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "msm_gpu.h"
@@ -443,24 +432,15 @@ static void recover_worker(struct work_struct *work)
 	if (submit) {
 		struct task_struct *task;
 
+		/* Increment the fault counts */
+		gpu->global_faults++;
+		submit->queue->faults++;
+
 		task = get_pid_task(submit->pid, PIDTYPE_PID);
 		if (task) {
 			comm = kstrdup(task->comm, GFP_KERNEL);
-
-			/*
-			 * So slightly annoying, in other paths like
-			 * mmap'ing gem buffers, mmap_sem is acquired
-			 * before struct_mutex, which means we can't
-			 * hold struct_mutex across the call to
-			 * get_cmdline().  But submits are retired
-			 * from the same in-order workqueue, so we can
-			 * safely drop the lock here without worrying
-			 * about the submit going away.
-			 */
-			mutex_unlock(&dev->struct_mutex);
 			cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
 			put_task_struct(task);
-			mutex_lock(&dev->struct_mutex);
 		}
 
 		if (comm && cmd) {

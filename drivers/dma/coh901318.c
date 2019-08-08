@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * driver/dma/coh901318.c
  *
  * Copyright (C) 2007-2009 ST-Ericsson
- * License terms: GNU General Public License (GPL) version 2
  * DMA driver for COH 901 318
  * Author: Per Friden <per.friden@stericsson.com>
  */

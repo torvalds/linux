@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Link physical devices with ACPI devices support
  *
  * Copyright (c) 2005 David Shaohua Li <shaohua.li@intel.com>
  * Copyright (c) 2005 Intel Corp.
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/acpi_iort.h>

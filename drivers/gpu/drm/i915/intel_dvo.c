@@ -24,14 +24,20 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
+
 #include <linux/i2c.h>
 #include <linux/slab.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
-#include "i915_drv.h"
+
 #include "dvo.h"
+#include "i915_drv.h"
+#include "intel_connector.h"
+#include "intel_drv.h"
+#include "intel_dvo.h"
+#include "intel_panel.h"
 
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76

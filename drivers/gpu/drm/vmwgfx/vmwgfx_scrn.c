@@ -130,12 +130,9 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 	BUG_ON(!sou->buffer);
 
 	fifo_size = sizeof(*cmd);
-	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
-	/* The hardware has hung, nothing we can do about it here. */
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, fifo_size);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	memset(cmd, 0, fifo_size);
 	cmd->header.cmdType = SVGA_CMD_DEFINE_SCREEN;
@@ -182,12 +179,9 @@ static int vmw_sou_fifo_destroy(struct vmw_private *dev_priv,
 		return 0;
 
 	fifo_size = sizeof(*cmd);
-	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
-	/* the hardware has hung, nothing we can do about it here */
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, fifo_size);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	memset(cmd, 0, fifo_size);
 	cmd->header.cmdType = SVGA_CMD_DESTROY_SCREEN;
@@ -998,11 +992,9 @@ static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 	if (depth == 32)
 		depth = 24;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (!cmd) {
-		DRM_ERROR("Out of fifo space for dirty framebuffer command.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	cmd->header = SVGA_CMD_DEFINE_GMRFB;
 	cmd->body.format.bitsPerPixel = framebuffer->base.format->cpp[0] * 8;
@@ -1148,7 +1140,8 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_validation_add_resource(&val_ctx, srf, 0, NULL, NULL);
+	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_NONE,
+					  NULL, NULL);
 	if (ret)
 		return ret;
 

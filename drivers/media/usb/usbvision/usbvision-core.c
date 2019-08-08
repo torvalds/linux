@@ -1,22 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * usbvision-core.c - driver for NT100x USB video capture devices
- *
  *
  * Copyright (c) 1999-2005 Joerg Heckenbach <joerg@heckenbach-aw.de>
  *                         Dwaine Garden <dwainegarden@rogers.com>
  *
  * This module is part of usbvision driver project.
  * Updates to driver completed by Dwaine P. Garden
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -2302,6 +2292,9 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 					   sb_size,
 					   GFP_KERNEL,
 					   &urb->transfer_dma);
+		if (!usbvision->sbuf[buf_idx].data)
+			return -ENOMEM;
+
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);

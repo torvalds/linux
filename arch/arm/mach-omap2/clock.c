@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-omap2/clock.c
  *
@@ -7,10 +8,6 @@
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
  *  Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #undef DEBUG
 
@@ -118,6 +115,9 @@ void __init ti_clk_init_features(void)
 	/* Jitter correction only available on OMAP343X */
 	if (cpu_is_omap343x())
 		features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
+
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		features.flags |= TI_CLK_DEVICE_TYPE_GP;
 
 	/* Idlest value for interface clocks.
 	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.

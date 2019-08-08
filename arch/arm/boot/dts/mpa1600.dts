@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mpa1600.dts - Device Tree file for Phontech MPA 1600
  *
  *  Copyright (C) 2013 Joachim Eastwood <manabian@gmail.com>
- *
- * Licensed under GPLv2 only
  */
 /dts-v1/;
 #include "at91rm9200.dtsi"

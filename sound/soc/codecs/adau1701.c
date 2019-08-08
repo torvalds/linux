@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ADAU1701 SigmaDSP processor
  *
  * Copyright 2011 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
  *	based on an inital version by Cliff Cai <cliff.cai@analog.com>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>

@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sha1-ce-glue.c - SHA-1 secure hash using ARMv8 Crypto Extensions
  *
  * Copyright (C) 2014 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <asm/neon.h>
 #include <asm/simd.h>
 #include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/sha.h>
 #include <crypto/sha1_base.h>
 #include <linux/cpufeature.h>
@@ -38,7 +36,7 @@ static int sha1_ce_update(struct shash_desc *desc, const u8 *data,
 {
 	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sha1_update(desc, data, len);
 
 	sctx->finalize = 0;
@@ -56,7 +54,7 @@ static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
 	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
 	bool finalize = !sctx->sst.count && !(len % SHA1_BLOCK_SIZE);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sha1_finup(desc, data, len, out);
 
 	/*
@@ -78,7 +76,7 @@ static int sha1_ce_final(struct shash_desc *desc, u8 *out)
 {
 	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sha1_finup(desc, NULL, 0, out);
 
 	sctx->finalize = 0;

@@ -63,6 +63,15 @@ struct mtu3_request;
 #define MTU3_U2_IP_SLOT_DEFAULT 1
 
 /**
+ * IP TRUNK version
+ * from 0x1003 version, USB3 Gen2 is supported, two changes affect driver:
+ * 1. MAXPKT and MULTI bits layout of TXCSR1 and RXCSR1 are adjusted,
+ *    but not backward compatible
+ * 2. QMU extend buffer length supported
+ */
+#define MTU3_TRUNK_VERS_1003	0x1003
+
+/**
  * Normally the device works on HS or SS, to simplify fifo management,
  * devide fifo into some 512B parts, use bitmap to manage it; And
  * 128 bits size of bitmap is large enough, that means it can manage
@@ -135,45 +144,33 @@ struct mtu3_fifo_info {
  *	The format of TX GPD is a little different from RX one.
  *	And the size of GPD is 16 bytes.
  *
- * @flag:
+ * @dw0_info:
  *	bit0: Hardware Own (HWO)
  *	bit1: Buffer Descriptor Present (BDP), always 0, BD is not supported
  *	bit2: Bypass (BPS), 1: HW skips this GPD if HWO = 1
+ *	bit6: [EL] Zero Length Packet (ZLP), moved from @dw3_info[29]
  *	bit7: Interrupt On Completion (IOC)
- * @chksum: This is used to validate the contents of this GPD;
- *	If TXQ_CS_EN / RXQ_CS_EN bit is set, an interrupt is issued
- *	when checksum validation fails;
- *	Checksum value is calculated over the 16 bytes of the GPD by default;
- * @data_buf_len (RX ONLY): This value indicates the length of
- *	the assigned data buffer
- * @tx_ext_addr (TX ONLY): [3:0] are 4 extension bits of @buffer,
- *	[7:4] are 4 extension bits of @next_gpd
+ *	bit[31:16]: ([EL] bit[31:12]) allow data buffer length (RX ONLY),
+ *		the buffer length of the data to receive
+ *	bit[23:16]: ([EL] bit[31:24]) extension address (TX ONLY),
+ *		lower 4 bits are extension bits of @buffer,
+ *		upper 4 bits are extension bits of @next_gpd
  * @next_gpd: Physical address of the next GPD
  * @buffer: Physical address of the data buffer
- * @buf_len:
- *	(TX): This value indicates the length of the assigned data buffer
- *	(RX): The total length of data received
- * @ext_len: reserved
- * @rx_ext_addr(RX ONLY): [3:0] are 4 extension bits of @buffer,
- *	[7:4] are 4 extension bits of @next_gpd
- * @ext_flag:
- *	bit5 (TX ONLY): Zero Length Packet (ZLP),
+ * @dw3_info:
+ *	bit[15:0]: ([EL] bit[19:0]) data buffer length,
+ *		(TX): the buffer length of the data to transmit
+ *		(RX): The total length of data received
+ *	bit[23:16]: ([EL] bit[31:24]) extension address (RX ONLY),
+ *		lower 4 bits are extension bits of @buffer,
+ *		upper 4 bits are extension bits of @next_gpd
+ *	bit29: ([EL] abandoned) Zero Length Packet (ZLP) (TX ONLY)
  */
 struct qmu_gpd {
-	__u8 flag;
-	__u8 chksum;
-	union {
-		__le16 data_buf_len;
-		__le16 tx_ext_addr;
-	};
+	__le32 dw0_info;
 	__le32 next_gpd;
 	__le32 buffer;
-	__le16 buf_len;
-	union {
-		__u8 ext_len;
-		__u8 rx_ext_addr;
-	};
-	__u8 ext_flag;
+	__le32 dw3_info;
 } __packed;
 
 /**
@@ -316,6 +313,7 @@ static inline struct ssusb_mtk *dev_to_ssusb(struct device *dev)
  * @may_wakeup: means device's remote wakeup is enabled
  * @is_self_powered: is reported in device status and the config descriptor
  * @delayed_status: true when function drivers ask for delayed status
+ * @gen2cp: compatible with USB3 Gen2 IP
  * @ep0_req: dummy request used while handling standard USB requests
  *		for GET_STATUS and SET_SEL
  * @setup_buf: ep0 response buffer for GET_STATUS and SET_SEL requests
@@ -356,6 +354,7 @@ struct mtu3 {
 	unsigned u2_enable:1;
 	unsigned is_u3_ip:1;
 	unsigned delayed_status:1;
+	unsigned gen2cp:1;
 
 	u8 address;
 	u8 test_mode_nr;

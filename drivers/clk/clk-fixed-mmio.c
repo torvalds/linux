@@ -10,8 +10,9 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
+#include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 
 static struct clk_hw *fixed_mmio_clk_setup(struct device_node *node)

@@ -909,7 +909,6 @@ static int sata_rcar_probe(struct platform_device *pdev)
 
 	host = ata_host_alloc(dev, 1);
 	if (!host) {
-		dev_err(dev, "ata_host_alloc failed\n");
 		ret = -ENOMEM;
 		goto err_pm_put;
 	}

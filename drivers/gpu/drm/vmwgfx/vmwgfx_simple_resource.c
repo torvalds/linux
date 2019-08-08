@@ -239,17 +239,17 @@ vmw_simple_resource_lookup(struct ttm_object_file *tfile,
 
 	base = ttm_base_object_lookup(tfile, handle);
 	if (!base) {
-		DRM_ERROR("Invalid %s handle 0x%08lx.\n",
-			  func->res_func.type_name,
-			  (unsigned long) handle);
+		VMW_DEBUG_USER("Invalid %s handle 0x%08lx.\n",
+			       func->res_func.type_name,
+			       (unsigned long) handle);
 		return ERR_PTR(-ESRCH);
 	}
 
 	if (ttm_base_object_type(base) != func->ttm_res_type) {
 		ttm_base_object_unref(&base);
-		DRM_ERROR("Invalid type of %s handle 0x%08lx.\n",
-			  func->res_func.type_name,
-			  (unsigned long) handle);
+		VMW_DEBUG_USER("Invalid type of %s handle 0x%08lx.\n",
+			       func->res_func.type_name,
+			       (unsigned long) handle);
 		return ERR_PTR(-EINVAL);
 	}
 

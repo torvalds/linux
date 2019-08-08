@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/act_simple.c	Simple example of an action
  *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  * Authors:	Jamal Hadi Salim (2005-8)
- *
  */
 
 #include <linux/module.h>
@@ -104,7 +99,8 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_DEF_MAX, nla, simple_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_DEF_MAX, nla, simple_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 

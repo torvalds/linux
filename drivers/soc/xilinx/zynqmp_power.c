@@ -31,6 +31,7 @@ static const char *const suspend_modes[] = {
 };
 
 static enum pm_suspend_mode suspend_mode = PM_SUSPEND_MODE_STD;
+static const struct zynqmp_eemi_ops *eemi_ops;
 
 enum pm_api_cb_id {
 	PM_INIT_SUSPEND_CB = 30,
@@ -92,9 +93,8 @@ static ssize_t suspend_mode_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	int md, ret = -EINVAL;
-	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
 
-	if (!eemi_ops || !eemi_ops->set_suspend_mode)
+	if (!eemi_ops->set_suspend_mode)
 		return ret;
 
 	for (md = PM_SUSPEND_MODE_FIRST; md < ARRAY_SIZE(suspend_modes); md++)
@@ -120,9 +120,11 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 pm_api_version;
 
-	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
+	eemi_ops = zynqmp_pm_get_eemi_ops();
+	if (IS_ERR(eemi_ops))
+		return PTR_ERR(eemi_ops);
 
-	if (!eemi_ops || !eemi_ops->get_api_version || !eemi_ops->init_finalize)
+	if (!eemi_ops->get_api_version || !eemi_ops->init_finalize)
 		return -ENXIO;
 
 	eemi_ops->init_finalize();

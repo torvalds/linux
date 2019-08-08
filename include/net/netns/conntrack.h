@@ -24,9 +24,9 @@ struct nf_generic_net {
 
 struct nf_tcp_net {
 	unsigned int timeouts[TCP_CONNTRACK_TIMEOUT_MAX];
-	unsigned int tcp_loose;
-	unsigned int tcp_be_liberal;
-	unsigned int tcp_max_retrans;
+	int tcp_loose;
+	int tcp_be_liberal;
+	int tcp_max_retrans;
 };
 
 enum udp_conntrack {

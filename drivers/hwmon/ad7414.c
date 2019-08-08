@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * An hwmon driver for the Analog Devices AD7414
  *
@@ -12,11 +13,6 @@
  *
  * Based on ad7418.c
  * Copyright 2006 Tower Technologies, Alessandro Zummo <a.zummo at towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -215,7 +211,7 @@ static const struct i2c_device_id ad7414_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7414_id);
 
-static const struct of_device_id ad7414_of_match[] = {
+static const struct of_device_id __maybe_unused ad7414_of_match[] = {
 	{ .compatible = "ad,ad7414" },
 	{ },
 };

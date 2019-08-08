@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Cirrus Logic EP93xx SPI controller.
  *
@@ -10,10 +11,6 @@
  * For more information about the SPI controller see documentation on Cirrus
  * Logic web site:
  *     http://www.cirrus.com/en/pubs/manual/EP93xx_Users_Guide_UM1.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
@@ -28,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/scatterlist.h>
-#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/dma-ep93xx.h>
@@ -652,7 +648,6 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int error;
-	int i;
 
 	info = dev_get_platdata(&pdev->dev);
 	if (!info) {
@@ -676,6 +671,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
+	master->use_gpio_descriptors = true;
 	master->prepare_transfer_hardware = ep93xx_spi_prepare_hardware;
 	master->unprepare_transfer_hardware = ep93xx_spi_unprepare_hardware;
 	master->prepare_message = ep93xx_spi_prepare_message;
@@ -683,31 +679,11 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
-
-	master->num_chipselect = info->num_chipselect;
-	master->cs_gpios = devm_kcalloc(&master->dev,
-					master->num_chipselect, sizeof(int),
-					GFP_KERNEL);
-	if (!master->cs_gpios) {
-		error = -ENOMEM;
-		goto fail_release_master;
-	}
-
-	for (i = 0; i < master->num_chipselect; i++) {
-		master->cs_gpios[i] = info->chipselect[i];
-
-		if (!gpio_is_valid(master->cs_gpios[i]))
-			continue;
-
-		error = devm_gpio_request_one(&pdev->dev, master->cs_gpios[i],
-					      GPIOF_OUT_INIT_HIGH,
-					      "ep93xx-spi");
-		if (error) {
-			dev_err(&pdev->dev, "could not request cs gpio %d\n",
-				master->cs_gpios[i]);
-			goto fail_release_master;
-		}
-	}
+	/*
+	 * The SPI core will count the number of GPIO descriptors to figure
+	 * out the number of chip selects available on the platform.
+	 */
+	master->num_chipselect = 0;
 
 	platform_set_drvdata(pdev, master);
 

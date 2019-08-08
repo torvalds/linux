@@ -178,12 +178,6 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 	struct at91_usart_spi *aus = spi_master_get_devdata(spi->controller);
 	u32 *ausd = spi->controller_state;
 	unsigned int mr = at91_usart_spi_readl(aus, MR);
-	u8 bits = spi->bits_per_word;
-
-	if (bits != 8) {
-		dev_dbg(&spi->dev, "Only 8 bits per word are supported\n");
-		return -EINVAL;
-	}
 
 	if (spi->mode & SPI_CPOL)
 		mr |= US_MR_CPOL;
@@ -212,7 +206,7 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 
 	dev_dbg(&spi->dev,
 		"setup: bpw %u mode 0x%x -> mr %d %08x\n",
-		bits, spi->mode, spi->chip_select, mr);
+		spi->bits_per_word, spi->mode, spi->chip_select, mr);
 
 	return 0;
 }

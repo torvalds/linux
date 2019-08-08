@@ -56,7 +56,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map | cgroup | perf | net | feature }\n"
+		"       OBJECT := { prog | map | cgroup | perf | net | feature | btf }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -188,6 +188,7 @@ static const struct cmd cmds[] = {
 	{ "perf",	do_perf },
 	{ "net",	do_net },
 	{ "feature",	do_feature },
+	{ "btf",	do_btf },
 	{ "version",	do_version },
 	{ 0 }
 };

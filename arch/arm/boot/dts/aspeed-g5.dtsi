@@ -232,6 +232,10 @@
 				compatible = "aspeed,ast2500-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
+				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
+				resets = <&syscon ASPEED_RESET_CRT1>;
+				status = "disabled";
+				interrupts = <0x19>;
 			};
 
 			adc: adc@1e6e9000 {
@@ -240,6 +244,16 @@
 				clocks = <&syscon ASPEED_CLK_APB>;
 				resets = <&syscon ASPEED_RESET_ADC>;
 				#io-channel-cells = <1>;
+				status = "disabled";
+			};
+
+			video: video@1e700000 {
+				compatible = "aspeed,ast2500-video-engine";
+				reg = <0x1e700000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "vclk", "eclk";
+				interrupts = <7>;
 				status = "disabled";
 			};
 
@@ -258,6 +272,12 @@
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+			};
+
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2500-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
 			};
 
 			timer: timer@1e782000 {

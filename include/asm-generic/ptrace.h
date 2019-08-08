@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Common low level (register) ptrace helpers
  *
  * Copyright 2004-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __ASM_GENERIC_PTRACE_H__

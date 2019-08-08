@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TSC-40 serial touchscreen driver. It should be compatible with
  * TSC-10 and 25.
  *
  * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- * License: GPLv2 as published by the FSF.
  */
 
 #include <linux/kernel.h>

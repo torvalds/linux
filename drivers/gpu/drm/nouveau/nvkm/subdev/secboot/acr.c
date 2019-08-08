@@ -36,7 +36,7 @@ nvkm_acr_load_firmware(const struct nvkm_subdev *subdev, const char *name,
 	void *blob;
 	int ret;
 
-	ret = nvkm_firmware_get(subdev->device, name, &fw);
+	ret = nvkm_firmware_get(subdev, name, &fw);
 	if (ret)
 		return ERR_PTR(ret);
 	if (fw->size < min_size) {

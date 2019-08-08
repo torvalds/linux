@@ -68,7 +68,7 @@ static inline phys_addr_t pfn_t_to_phys(pfn_t pfn)
 
 static inline void *pfn_t_to_virt(pfn_t pfn)
 {
-	if (pfn_t_has_page(pfn))
+	if (pfn_t_has_page(pfn) && !is_device_private_page(pfn_t_to_page(pfn)))
 		return __va(pfn_t_to_phys(pfn));
 	return NULL;
 }

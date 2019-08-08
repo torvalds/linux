@@ -156,6 +156,7 @@ static int compat_drm_setunique(struct file *file, unsigned int cmd,
 	return -EINVAL;
 }
 
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 typedef struct drm_map32 {
 	u32 offset;		/* Requested physical address (0 for SAREA) */
 	u32 size;		/* Requested physical size (bytes) */
@@ -239,6 +240,7 @@ static int compat_drm_rmmap(struct file *file, unsigned int cmd,
 	map.handle = compat_ptr(handle);
 	return drm_ioctl_kernel(file, drm_legacy_rmmap_ioctl, &map, DRM_AUTH);
 }
+#endif
 
 typedef struct drm_client32 {
 	int idx;	/* Which client desired? */
@@ -301,6 +303,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 typedef struct drm_buf_desc32 {
 	int count;		 /* Number of buffers of this size */
 	int size;		 /* Size in bytes */
@@ -372,7 +375,10 @@ static int copy_one_buf32(void *data, int count, struct drm_buf_entry *from)
 			      .size = from->buf_size,
 			      .low_mark = from->low_mark,
 			      .high_mark = from->high_mark};
-	return copy_to_user(to + count, &v, offsetof(drm_buf_desc32_t, flags));
+
+	if (copy_to_user(to + count, &v, offsetof(drm_buf_desc32_t, flags)))
+		return -EFAULT;
+	return 0;
 }
 
 static int drm_legacy_infobufs32(struct drm_device *dev, void *data,
@@ -604,6 +610,7 @@ static int compat_drm_dma(struct file *file, unsigned int cmd,
 
 	return 0;
 }
+#endif
 
 #if IS_ENABLED(CONFIG_AGP)
 typedef struct drm_agp_mode32 {
@@ -748,6 +755,7 @@ static int compat_drm_agp_unbind(struct file *file, unsigned int cmd,
 }
 #endif /* CONFIG_AGP */
 
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 typedef struct drm_scatter_gather32 {
 	u32 size;	/**< In bytes -- will round to page boundary */
 	u32 handle;	/**< Used for mapping / unmapping */
@@ -788,7 +796,7 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 	return drm_ioctl_kernel(file, drm_legacy_sg_free, &request,
 				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
-
+#endif
 #if defined(CONFIG_X86)
 typedef struct drm_update_draw32 {
 	drm_drawable_t handle;
@@ -903,10 +911,13 @@ static struct {
 #define DRM_IOCTL32_DEF(n, f) [DRM_IOCTL_NR(n##32)] = {.fn = f, .name = #n}
 	DRM_IOCTL32_DEF(DRM_IOCTL_VERSION, compat_drm_version),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_UNIQUE, compat_drm_getunique),
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_MAP, compat_drm_getmap),
+#endif
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_CLIENT, compat_drm_getclient),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_STATS, compat_drm_getstats),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_MAP, compat_drm_addmap),
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
 	DRM_IOCTL32_DEF(DRM_IOCTL_MARK_BUFS, compat_drm_markbufs),
@@ -918,6 +929,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_SAREA_CTX, compat_drm_getsareactx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_RES_CTX, compat_drm_resctx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_DMA, compat_drm_dma),
+#endif
 #if IS_ENABLED(CONFIG_AGP)
 	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_ENABLE, compat_drm_agp_enable),
 	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_INFO, compat_drm_agp_info),
@@ -926,8 +938,10 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_BIND, compat_drm_agp_bind),
 	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_UNBIND, compat_drm_agp_unbind),
 #endif
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 	DRM_IOCTL32_DEF(DRM_IOCTL_SG_ALLOC, compat_drm_sg_alloc),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SG_FREE, compat_drm_sg_free),
+#endif
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
 	DRM_IOCTL32_DEF(DRM_IOCTL_UPDATE_DRAW, compat_drm_update_draw),
 #endif

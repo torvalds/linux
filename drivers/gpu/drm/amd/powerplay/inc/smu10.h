@@ -136,12 +136,14 @@
 #define FEATURE_CORE_CSTATES_MASK     (1 << FEATURE_CORE_CSTATES_BIT)
 
 /* Workload bits */
-#define WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT 0
-#define WORKLOAD_PPLIB_VIDEO_BIT          2
-#define WORKLOAD_PPLIB_VR_BIT             3
-#define WORKLOAD_PPLIB_COMPUTE_BIT        4
-#define WORKLOAD_PPLIB_CUSTOM_BIT         5
-#define WORKLOAD_PPLIB_COUNT              6
+#define WORKLOAD_DEFAULT_BIT              0
+#define WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT 1
+#define WORKLOAD_PPLIB_POWER_SAVING_BIT   2
+#define WORKLOAD_PPLIB_VIDEO_BIT          3
+#define WORKLOAD_PPLIB_VR_BIT             4
+#define WORKLOAD_PPLIB_COMPUTE_BIT        5
+#define WORKLOAD_PPLIB_CUSTOM_BIT         6
+#define WORKLOAD_PPLIB_COUNT              7
 
 typedef struct {
 	/* MP1_EXT_SCRATCH0 */

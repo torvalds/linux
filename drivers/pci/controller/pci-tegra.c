@@ -231,9 +231,9 @@ struct tegra_msi {
 	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
-	unsigned long pages;
 	struct mutex lock;
-	u64 phys;
+	void *virt;
+	dma_addr_t phys;
 	int irq;
 };
 
@@ -1536,7 +1536,7 @@ static int tegra_pcie_msi_setup(struct tegra_pcie *pcie)
 	err = platform_get_irq_byname(pdev, "msi");
 	if (err < 0) {
 		dev_err(dev, "failed to get IRQ: %d\n", err);
-		goto err;
+		goto free_irq_domain;
 	}
 
 	msi->irq = err;
@@ -1545,17 +1545,35 @@ static int tegra_pcie_msi_setup(struct tegra_pcie *pcie)
 			  tegra_msi_irq_chip.name, pcie);
 	if (err < 0) {
 		dev_err(dev, "failed to request IRQ: %d\n", err);
-		goto err;
+		goto free_irq_domain;
 	}
 
-	/* setup AFI/FPCI range */
-	msi->pages = __get_free_pages(GFP_KERNEL, 0);
-	msi->phys = virt_to_phys((void *)msi->pages);
+	/* Though the PCIe controller can address >32-bit address space, to
+	 * facilitate endpoints that support only 32-bit MSI target address,
+	 * the mask is set to 32-bit to make sure that MSI target address is
+	 * always a 32-bit address
+	 */
+	err = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (err < 0) {
+		dev_err(dev, "failed to set DMA coherent mask: %d\n", err);
+		goto free_irq;
+	}
+
+	msi->virt = dma_alloc_attrs(dev, PAGE_SIZE, &msi->phys, GFP_KERNEL,
+				    DMA_ATTR_NO_KERNEL_MAPPING);
+	if (!msi->virt) {
+		dev_err(dev, "failed to allocate DMA memory for MSI\n");
+		err = -ENOMEM;
+		goto free_irq;
+	}
+
 	host->msi = &msi->chip;
 
 	return 0;
 
-err:
+free_irq:
+	free_irq(msi->irq, pcie);
+free_irq_domain:
 	irq_domain_remove(msi->domain);
 	return err;
 }
@@ -1592,7 +1610,8 @@ static void tegra_pcie_msi_teardown(struct tegra_pcie *pcie)
 	struct tegra_msi *msi = &pcie->msi;
 	unsigned int i, irq;
 
-	free_pages(msi->pages, 0);
+	dma_free_attrs(pcie->dev, PAGE_SIZE, msi->virt, msi->phys,
+		       DMA_ATTR_NO_KERNEL_MAPPING);
 
 	if (msi->irq > 0)
 		free_irq(msi->irq, pcie);

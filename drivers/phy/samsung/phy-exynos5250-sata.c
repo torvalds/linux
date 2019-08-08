@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung SATA SerDes(PHY) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Authors: Girish K S <ks.giri@samsung.com>
  *         Yuvaraj Kumar C D <yuvaraj.cd@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>

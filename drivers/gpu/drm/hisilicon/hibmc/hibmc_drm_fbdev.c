@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Hisilicon Hibmc SoC drm driver
  *
  * Based on the bochs drm driver.
@@ -8,12 +9,6 @@
  *	Rongrong Zou <zourongrong@huawei.com>
  *	Rongrong Zou <zourongrong@gmail.com>
  *	Jianhua Li <lijianhua@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <drm/drm_crtc.h>
@@ -116,8 +111,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 		goto out_release_fbi;
 	}
 
-	info->par = hi_fbdev;
-
 	hi_fbdev->fb = hibmc_framebuffer_init(priv->dev, &mode_cmd, gobj);
 	if (IS_ERR(hi_fbdev->fb)) {
 		ret = PTR_ERR(hi_fbdev->fb);
@@ -129,14 +122,9 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	priv->fbdev->size = size;
 	hi_fbdev->helper.fb = &hi_fbdev->fb->fb;
 
-	strcpy(info->fix.id, "hibmcdrmfb");
-
 	info->fbops = &hibmc_drm_fb_ops;
 
-	drm_fb_helper_fill_fix(info, hi_fbdev->fb->fb.pitches[0],
-			       hi_fbdev->fb->fb.format->depth);
-	drm_fb_helper_fill_var(info, &priv->fbdev->helper, sizes->fb_width,
-			       sizes->fb_height);
+	drm_fb_helper_fill_info(info, &priv->fbdev->helper, sizes);
 
 	info->screen_base = bo->kmap.virtual;
 	info->screen_size = size;

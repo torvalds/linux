@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Multimedia device configuration
 #
@@ -31,14 +32,14 @@ comment "Multimedia core support"
 #
 config MEDIA_CAMERA_SUPPORT
 	bool "Cameras/video grabbers support"
-	---help---
+	help
 	  Enable support for webcams and video grabbers.
 
 	  Say Y when you have a webcam or a video capture grabber board.
 
 config MEDIA_ANALOG_TV_SUPPORT
 	bool "Analog TV support"
-	---help---
+	help
 	  Enable analog TV support.
 
 	  Say Y when you have a TV board with analog support or with a
@@ -50,7 +51,7 @@ config MEDIA_ANALOG_TV_SUPPORT
 
 config MEDIA_DIGITAL_TV_SUPPORT
 	bool "Digital TV support"
-	---help---
+	help
 	  Enable digital TV support.
 
 	  Say Y when you have a board with digital support or a board with
@@ -58,7 +59,7 @@ config MEDIA_DIGITAL_TV_SUPPORT
 
 config MEDIA_RADIO_SUPPORT
 	bool "AM/FM radio receivers/transmitters support"
-	---help---
+	help
 	  Enable AM/FM radio support.
 
 	  Additional info and docs are available on the web at
@@ -72,14 +73,14 @@ config MEDIA_RADIO_SUPPORT
 
 config MEDIA_SDR_SUPPORT
 	bool "Software defined radio support"
-	---help---
+	help
 	  Enable software defined radio support.
 
 	  Say Y when you have a software defined radio device.
 
 config MEDIA_CEC_SUPPORT
 	bool "HDMI CEC support"
-	---help---
+	help
 	  Enable support for HDMI CEC (Consumer Electronics Control),
 	  which is an optional HDMI feature.
 
@@ -96,7 +97,7 @@ source "drivers/media/cec/Kconfig"
 config MEDIA_CONTROLLER
 	bool "Media Controller API"
 	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
-	---help---
+	help
 	  Enable the media controller API used to query media devices internal
 	  topology and configure it dynamically.
 
@@ -105,7 +106,7 @@ config MEDIA_CONTROLLER
 config MEDIA_CONTROLLER_DVB
 	bool "Enable Media controller for DVB (EXPERIMENTAL)"
 	depends on MEDIA_CONTROLLER && DVB_CORE
-	---help---
+	help
 	  Enable the media controller API support for DVB.
 
 	  This is currently experimental.
@@ -114,7 +115,7 @@ config MEDIA_CONTROLLER_REQUEST_API
 	bool "Enable Media controller Request API (EXPERIMENTAL)"
 	depends on MEDIA_CONTROLLER && STAGING_MEDIA
 	default n
-	---help---
+	help
 	  DO NOT ENABLE THIS OPTION UNLESS YOU KNOW WHAT YOU'RE DOING.
 
 	  This option enables the Request API for the Media controller and V4L2
@@ -137,7 +138,7 @@ config VIDEO_DEV
 config VIDEO_V4L2_SUBDEV_API
 	bool "V4L2 sub-device userspace API"
 	depends on VIDEO_DEV && MEDIA_CONTROLLER
-	---help---
+	help
 	  Enables the V4L2 sub-device pad-level userspace API used to configure
 	  video format, size and frame rate between hardware blocks.
 

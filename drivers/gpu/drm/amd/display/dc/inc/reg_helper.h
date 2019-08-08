@@ -52,7 +52,7 @@
 
 /* macro to set register fields. */
 #define REG_SET_N(reg_name, n, initial_val, ...)	\
-		generic_reg_update_ex(CTX, \
+		generic_reg_set_ex(CTX, \
 				REG(reg_name), \
 				initial_val, \
 				n, __VA_ARGS__)
@@ -225,7 +225,6 @@
 #define REG_UPDATE_N(reg_name, n, ...)	\
 		generic_reg_update_ex(CTX, \
 				REG(reg_name), \
-				REG_READ(reg_name), \
 				n, __VA_ARGS__)
 
 #define REG_UPDATE(reg_name, field, val)	\
@@ -380,16 +379,11 @@
 /* macro to update a register field to specified values in given sequences.
  * useful when toggling bits
  */
-#define REG_UPDATE_SEQ(reg, field, value1, value2) \
-{	uint32_t val = REG_UPDATE(reg, field, value1); \
-	REG_SET(reg, val, field, value2); }
-
-/* macro to update fields in register 1 field at a time in given order */
-#define REG_UPDATE_1BY1_2(reg, f1, v1, f2, v2) \
+#define REG_UPDATE_SEQ_2(reg, f1, v1, f2, v2) \
 {	uint32_t val = REG_UPDATE(reg, f1, v1); \
 	REG_SET(reg, val, f2, v2); }
 
-#define REG_UPDATE_1BY1_3(reg, f1, v1, f2, v2, f3, v3) \
+#define REG_UPDATE_SEQ_3(reg, f1, v1, f2, v2, f3, v3) \
 {	uint32_t val = REG_UPDATE(reg, f1, v1); \
 	val = REG_SET(reg, val, f2, v2); \
 	REG_SET(reg, val, f3, v3); }

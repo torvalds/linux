@@ -206,6 +206,7 @@ struct nfs4_exception {
 	unsigned char delay : 1,
 		      recovering : 1,
 		      retry : 1;
+	bool interruptible;
 };
 
 struct nfs4_state_recovery_ops {

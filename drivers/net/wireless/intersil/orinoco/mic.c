@@ -65,7 +65,6 @@ int orinoco_mic(struct crypto_shash *tfm_michael, u8 *key,
 	hdr[ETH_ALEN * 2 + 3] = 0;
 
 	desc->tfm = tfm_michael;
-	desc->flags = 0;
 
 	err = crypto_shash_setkey(tfm_michael, key, MIC_KEYLEN);
 	if (err)

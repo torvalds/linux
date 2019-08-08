@@ -217,6 +217,7 @@ _bpftool()
     done
     cur=${words[cword]}
     prev=${words[cword - 1]}
+    pprev=${words[cword - 2]}
 
     local object=${words[1]} command=${words[2]}
 
@@ -272,17 +273,17 @@ _bpftool()
                                 "$cur" ) )
                             return 0
                             ;;
-                    *)
-                        _bpftool_once_attr 'file'
-                        if _bpftool_search_list 'xlated'; then
-                            COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
-                                "$cur" ) )
-                        else
-                            COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
-                                "$cur" ) )
-                        fi
-                        return 0
-                        ;;
+                        *)
+                            _bpftool_once_attr 'file'
+                            if _bpftool_search_list 'xlated'; then
+                                COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
+                                    "$cur" ) )
+                            else
+                                COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
+                                    "$cur" ) )
+                            fi
+                            return 0
+                            ;;
                     esac
                     ;;
                 pin)
@@ -370,7 +371,9 @@ _bpftool()
                                 lirc_mode2 cgroup/bind4 cgroup/bind6 \
                                 cgroup/connect4 cgroup/connect6 \
                                 cgroup/sendmsg4 cgroup/sendmsg6 \
-                                cgroup/post_bind4 cgroup/post_bind6" -- \
+                                cgroup/recvmsg4 cgroup/recvmsg6 \
+                                cgroup/post_bind4 cgroup/post_bind6 \
+                                cgroup/sysctl" -- \
                                                    "$cur" ) )
                             return 0
                             ;;
@@ -606,6 +609,51 @@ _bpftool()
                     ;;
             esac
             ;;
+        btf)
+            local PROG_TYPE='id pinned tag'
+            local MAP_TYPE='id pinned'
+            case $command in
+                dump)
+                    case $prev in
+                        $command)
+                            COMPREPLY+=( $( compgen -W "id map prog file" -- \
+                                "$cur" ) )
+                            return 0
+                            ;;
+                        prog)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        map)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            case $pprev in
+                                prog)
+                                    _bpftool_get_prog_ids
+                                    ;;
+                                map)
+                                    _bpftool_get_map_ids
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        *)
+                            if [[ $cword == 6 ]] && [[ ${words[3]} == "map" ]]; then
+                                 COMPREPLY+=( $( compgen -W 'key value kv all' -- \
+                                     "$cur" ) )
+                            fi
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'dump help' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
         cgroup)
             case $command in
                 show|list)
@@ -619,7 +667,7 @@ _bpftool()
                 attach|detach)
                     local ATTACH_TYPES='ingress egress sock_create sock_ops \
                         device bind4 bind6 post_bind4 post_bind6 connect4 \
-                        connect6 sendmsg4 sendmsg6'
+                        connect6 sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl'
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag'
                     case $prev in
@@ -629,7 +677,7 @@ _bpftool()
                             ;;
                         ingress|egress|sock_create|sock_ops|device|bind4|bind6|\
                         post_bind4|post_bind6|connect4|connect6|sendmsg4|\
-                        sendmsg6)
+                        sendmsg6|recvmsg4|recvmsg6|sysctl)
                             COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
                                 "$cur" ) )
                             return 0

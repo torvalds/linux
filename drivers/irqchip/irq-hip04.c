@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hisilicon HiP04 INTC
  *
  * Copyright (C) 2002-2014 ARM Limited.
  * Copyright (c) 2013-2014 Hisilicon Ltd.
  * Copyright (c) 2013-2014 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Interrupt architecture for the HIP04 INTC:
  *

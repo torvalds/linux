@@ -442,6 +442,21 @@ TEST_F(tls, multiple_send_single_recv)
 	EXPECT_EQ(memcmp(send_mem, recv_mem + send_len, send_len), 0);
 }
 
+TEST_F(tls, single_send_multiple_recv_non_align)
+{
+	const unsigned int total_len = 15;
+	const unsigned int recv_len = 10;
+	char recv_mem[recv_len * 2];
+	char send_mem[total_len];
+
+	EXPECT_GE(send(self->fd, send_mem, total_len, 0), 0);
+	memset(recv_mem, 0, total_len);
+
+	EXPECT_EQ(recv(self->cfd, recv_mem, recv_len, 0), recv_len);
+	EXPECT_EQ(recv(self->cfd, recv_mem + recv_len, recv_len, 0), 5);
+	EXPECT_EQ(memcmp(send_mem, recv_mem, total_len), 0);
+}
+
 TEST_F(tls, recv_partial)
 {
 	char const *test_str = "test_read_partial";
@@ -575,6 +590,25 @@ TEST_F(tls, recv_peek_large_buf_mult_recs)
 	EXPECT_EQ(memcmp(test_str, buf, len), 0);
 }
 
+TEST_F(tls, recv_lowat)
+{
+	char send_mem[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	char recv_mem[20];
+	int lowat = 8;
+
+	EXPECT_EQ(send(self->fd, send_mem, 10, 0), 10);
+	EXPECT_EQ(send(self->fd, send_mem, 5, 0), 5);
+
+	memset(recv_mem, 0, 20);
+	EXPECT_EQ(setsockopt(self->cfd, SOL_SOCKET, SO_RCVLOWAT,
+			     &lowat, sizeof(lowat)), 0);
+	EXPECT_EQ(recv(self->cfd, recv_mem, 1, MSG_WAITALL), 1);
+	EXPECT_EQ(recv(self->cfd, recv_mem + 1, 6, MSG_WAITALL), 6);
+	EXPECT_EQ(recv(self->cfd, recv_mem + 7, 10, 0), 8);
+
+	EXPECT_EQ(memcmp(send_mem, recv_mem, 10), 0);
+	EXPECT_EQ(memcmp(send_mem, recv_mem + 10, 5), 0);
+}
 
 TEST_F(tls, pollin)
 {

@@ -57,7 +57,7 @@
  * QIB_VERBOSE_TRACING define as 1 if you want additional tracing in
  * fastpath code
  * QIB_TRACE_REGWRITES define as 1 if you want register writes to be
- * traced in faspath code
+ * traced in fastpath code
  * _QIB_TRACING define as 0 if you want to remove all tracing in a
  * compilation unit
  */

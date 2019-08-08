@@ -27,6 +27,8 @@
 static DEFINE_SPINLOCK(airq_lists_lock);
 static struct hlist_head airq_lists[MAX_ISC+1];
 
+static struct kmem_cache *airq_iv_cache;
+
 /**
  * register_adapter_interrupt() - register adapter interrupt handler
  * @airq: pointer to adapter interrupt descriptor
@@ -95,7 +97,7 @@ static irqreturn_t do_airq_interrupt(int irq, void *dummy)
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(airq, head, list)
 		if ((*airq->lsi_ptr & airq->lsi_mask) != 0)
-			airq->handler(airq);
+			airq->handler(airq, !tpi_info->directed_irq);
 	rcu_read_unlock();
 
 	return IRQ_HANDLED;
@@ -129,10 +131,21 @@ struct airq_iv *airq_iv_create(unsigned long bits, unsigned long flags)
 	if (!iv)
 		goto out;
 	iv->bits = bits;
+	iv->flags = flags;
 	size = BITS_TO_LONGS(bits) * sizeof(unsigned long);
-	iv->vector = kzalloc(size, GFP_KERNEL);
-	if (!iv->vector)
-		goto out_free;
+
+	if (flags & AIRQ_IV_CACHELINE) {
+		if ((cache_line_size() * BITS_PER_BYTE) < bits)
+			goto out_free;
+
+		iv->vector = kmem_cache_zalloc(airq_iv_cache, GFP_KERNEL);
+		if (!iv->vector)
+			goto out_free;
+	} else {
+		iv->vector = kzalloc(size, GFP_KERNEL);
+		if (!iv->vector)
+			goto out_free;
+	}
 	if (flags & AIRQ_IV_ALLOC) {
 		iv->avail = kmalloc(size, GFP_KERNEL);
 		if (!iv->avail)
@@ -165,7 +178,10 @@ out_free:
 	kfree(iv->ptr);
 	kfree(iv->bitlock);
 	kfree(iv->avail);
-	kfree(iv->vector);
+	if (iv->flags & AIRQ_IV_CACHELINE)
+		kmem_cache_free(airq_iv_cache, iv->vector);
+	else
+		kfree(iv->vector);
 	kfree(iv);
 out:
 	return NULL;
@@ -181,7 +197,10 @@ void airq_iv_release(struct airq_iv *iv)
 	kfree(iv->data);
 	kfree(iv->ptr);
 	kfree(iv->bitlock);
-	kfree(iv->vector);
+	if (iv->flags & AIRQ_IV_CACHELINE)
+		kmem_cache_free(airq_iv_cache, iv->vector);
+	else
+		kfree(iv->vector);
 	kfree(iv->avail);
 	kfree(iv);
 }
@@ -275,3 +294,13 @@ unsigned long airq_iv_scan(struct airq_iv *iv, unsigned long start,
 	return bit;
 }
 EXPORT_SYMBOL(airq_iv_scan);
+
+static int __init airq_init(void)
+{
+	airq_iv_cache = kmem_cache_create("airq_iv_cache", cache_line_size(),
+					  cache_line_size(), 0, NULL);
+	if (!airq_iv_cache)
+		return -ENOMEM;
+	return 0;
+}
+subsys_initcall(airq_init);

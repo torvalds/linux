@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pcm_local.h - a local header file for snd-pcm module.
  *
  * Copyright (c) Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef __SOUND_CORE_PCM_LOCAL_H

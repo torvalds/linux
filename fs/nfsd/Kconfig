@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NFSD
 	tristate "NFS server support"
 	depends on INET

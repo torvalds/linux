@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 tve200_drm-y +=	tve200_display.o \
 		tve200_drv.o
 

@@ -25,7 +25,7 @@ static int read_inode(struct inode *inode, void *data)
 
 	if (unlikely(vi->data_mapping_mode >= EROFS_INODE_LAYOUT_MAX)) {
 		errln("unknown data mapping mode %u of nid %llu",
-			vi->data_mapping_mode, vi->nid);
+		      vi->data_mapping_mode, vi->nid);
 		DBG_BUGON(1);
 		return -EIO;
 	}
@@ -38,7 +38,7 @@ static int read_inode(struct inode *inode, void *data)
 
 		inode->i_mode = le16_to_cpu(v2->i_mode);
 		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-						S_ISLNK(inode->i_mode)) {
+		    S_ISLNK(inode->i_mode)) {
 			vi->raw_blkaddr = le32_to_cpu(v2->i_u.raw_blkaddr);
 		} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 			inode->i_rdev =
@@ -68,7 +68,7 @@ static int read_inode(struct inode *inode, void *data)
 
 		inode->i_mode = le16_to_cpu(v1->i_mode);
 		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-						S_ISLNK(inode->i_mode)) {
+		    S_ISLNK(inode->i_mode)) {
 			vi->raw_blkaddr = le32_to_cpu(v1->i_u.raw_blkaddr);
 		} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 			inode->i_rdev =
@@ -92,7 +92,7 @@ static int read_inode(struct inode *inode, void *data)
 		inode->i_size = le32_to_cpu(v1->i_size);
 	} else {
 		errln("unsupported on-disk inode version %u of nid %llu",
-			__inode_version(advise), vi->nid);
+		      __inode_version(advise), vi->nid);
 		DBG_BUGON(1);
 		return -EIO;
 	}
@@ -129,7 +129,7 @@ static int fill_inline_data(struct inode *inode, void *data,
 	if (S_ISLNK(inode->i_mode) && inode->i_size < PAGE_SIZE) {
 		char *lnk = erofs_kmalloc(sbi, inode->i_size + 1, GFP_KERNEL);
 
-		if (unlikely(lnk == NULL))
+		if (unlikely(!lnk))
 			return -ENOMEM;
 
 		m_pofs += vi->inode_isize + vi->xattr_isize;
@@ -173,7 +173,7 @@ static int fill_inode(struct inode *inode, int isdir)
 
 	if (IS_ERR(page)) {
 		errln("failed to get inode (nid: %llu) page, err %ld",
-			vi->nid, PTR_ERR(page));
+		      vi->nid, PTR_ERR(page));
 		return PTR_ERR(page);
 	}
 
@@ -260,16 +260,18 @@ static inline struct inode *erofs_iget_locked(struct super_block *sb,
 }
 
 struct inode *erofs_iget(struct super_block *sb,
-	erofs_nid_t nid, bool isdir)
+			 erofs_nid_t nid,
+			 bool isdir)
 {
 	struct inode *inode = erofs_iget_locked(sb, nid);
 
-	if (unlikely(inode == NULL))
+	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 
 	if (inode->i_state & I_NEW) {
 		int err;
 		struct erofs_vnode *vi = EROFS_V(inode);
+
 		vi->nid = nid;
 
 		err = fill_inode(inode, isdir);

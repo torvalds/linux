@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "bochs.h"
@@ -156,7 +153,6 @@ int bochs_mm_init(struct bochs_device *bochs)
 	ret = ttm_bo_device_init(&bochs->ttm.bdev,
 				 &bochs_bo_driver,
 				 bochs->dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -264,14 +260,9 @@ int bochs_bo_unpin(struct bochs_bo *bo)
 
 int bochs_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct bochs_device *bochs;
+	struct drm_file *file_priv = filp->private_data;
+	struct bochs_device *bochs = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	bochs = file_priv->minor->dev->dev_private;
 	return ttm_bo_mmap(filp, vma, &bochs->ttm.bdev);
 }
 

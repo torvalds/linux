@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HMS_ANYBUSS_BUS
+	tristate "HMS Anybus-S Bus Support"
+	select REGMAP
+	depends on OF && FIELDBUS_DEV
+	help
+	  Driver for the HMS Industrial Networks Anybus-S bus.
+	  You can attach a single Anybus-S compatible card to it, which
+	  typically provides fieldbus and industrial ethernet
+	  functionality.
+
+if HMS_ANYBUSS_BUS
+
+config ARCX_ANYBUS_CONTROLLER
+	tristate "Arcx Anybus-S Controller"
+	depends on OF && GPIOLIB && HAS_IOMEM && REGULATOR
+	help
+	  Select this to get support for the Arcx Anybus controller.
+	  It connects to the SoC via a parallel memory bus, and
+	  embeds up to two Anybus-S buses (slots).
+	  There is also a CAN power readout, unrelated to the Anybus,
+	  modelled as a regulator.
+
+config HMS_PROFINET
+	tristate "HMS Profinet IRT Controller (Anybus-S)"
+	depends on FIELDBUS_DEV && HMS_ANYBUSS_BUS
+	help
+	  If you say yes here you get support for the HMS Industrial
+	  Networks Profinet IRT Controller.
+
+	  It will be registered with the kernel as a fieldbus_dev,
+	  so userspace can interact with it via the fieldbus_dev userspace
+	  interface(s).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hms-profinet.
+
+	  If unsure, say N.
+
+endif

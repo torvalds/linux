@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * S3C2416/2450 CPUfreq Support
  *
@@ -6,10 +7,6 @@
  * based on s3c64xx_cpufreq.c
  *
  * Copyright 2009 Wolfson Microelectronics plc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

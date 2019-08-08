@@ -57,3 +57,6 @@ config HAVE_KVM_VCPU_ASYNC_IOCTL
 
 config HAVE_KVM_VCPU_RUN_PID_CHANGE
        bool
+
+config HAVE_KVM_NO_POLL
+       bool

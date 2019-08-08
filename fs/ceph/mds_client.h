@@ -326,6 +326,18 @@ struct ceph_snapid_map {
 };
 
 /*
+ * node for list of quotarealm inodes that are not visible from the filesystem
+ * mountpoint, but required to handle, e.g. quotas.
+ */
+struct ceph_quotarealm_inode {
+	struct rb_node node;
+	u64 ino;
+	unsigned long timeout; /* last time a lookup failed for this inode */
+	struct mutex mutex;
+	struct inode *inode;
+};
+
+/*
  * mds client state
  */
 struct ceph_mds_client {
@@ -344,6 +356,12 @@ struct ceph_mds_client {
 	int                     stopping;      /* true if shutting down */
 
 	atomic64_t		quotarealms_count; /* # realms with quota */
+	/*
+	 * We keep a list of inodes we don't see in the mountpoint but that we
+	 * need to track quota realms.
+	 */
+	struct rb_root		quotarealms_inodes;
+	struct mutex		quotarealms_inodes_mutex;
 
 	/*
 	 * snap_rwsem will cover cap linkage into snaprealms, and
@@ -447,8 +465,9 @@ extern int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 					   struct inode *dir);
 extern struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
-extern void ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
-				     struct ceph_mds_request *req);
+extern int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
+				    struct inode *dir,
+				    struct ceph_mds_request *req);
 extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 				struct inode *dir,
 				struct ceph_mds_request *req);
@@ -468,7 +487,17 @@ extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
 extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
+extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
+				     int (*cb)(struct inode *,
+					       struct ceph_cap *, void *),
+				     void *arg);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
+
+static inline void ceph_mdsc_free_path(char *path, int len)
+{
+	if (path)
+		__putname(path - (PATH_MAX - 1 - len));
+}
 
 extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
 				  int stop_on_nosnap);

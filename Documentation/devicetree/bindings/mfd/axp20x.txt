@@ -25,6 +25,7 @@ Required properties:
     * "x-powers,axp223"
     * "x-powers,axp803"
     * "x-powers,axp806"
+    * "x-powers,axp805", "x-powers,axp806"
     * "x-powers,axp809"
     * "x-powers,axp813"
 - reg: The I2C slave address or RSB hardware address for the AXP chip

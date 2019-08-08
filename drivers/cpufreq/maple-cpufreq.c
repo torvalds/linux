@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2011 Dmitry Eremin-Solenikov
  *  Copyright (C) 2002 - 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *  and                       Markus Demleitner <msdemlei@cl.uni-heidelberg.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This driver adds basic cpufreq support for SMU & 970FX based G5 Macs,
  * that is iMac G5 and latest single CPU desktop.
@@ -210,7 +207,7 @@ static int __init maple_cpufreq_init(void)
 	 */
 	valp = of_get_property(cpunode, "clock-frequency", NULL);
 	if (!valp)
-		return -ENODEV;
+		goto bail_noprops;
 	max_freq = (*valp)/1000;
 	maple_cpu_freqs[0].frequency = max_freq;
 	maple_cpu_freqs[1].frequency = max_freq/2;
@@ -230,10 +227,6 @@ static int __init maple_cpufreq_init(void)
 		maple_cpu_freqs[maple_pmode_cur].frequency/1000);
 
 	rc = cpufreq_register_driver(&maple_cpufreq_driver);
-
-	of_node_put(cpunode);
-
-	return rc;
 
 bail_noprops:
 	of_node_put(cpunode);

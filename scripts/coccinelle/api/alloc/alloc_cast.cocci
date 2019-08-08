@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Remove casting the values returned by memory allocation functions
 /// like kmalloc, kzalloc, kmem_cache_alloc, kmem_cache_zalloc etc.
 ///
@@ -8,8 +9,8 @@
 //# need some reformatting.
 //
 // Confidence: High
-// Copyright: (C) 2014 Himangi Saraogi GPLv2.
-// Copyright: (C) 2017 Himanshu Jha GPLv2.
+// Copyright: (C) 2014 Himangi Saraogi
+// Copyright: (C) 2017 Himanshu Jha
 // Comments:
 // Options: --no-includes --include-headers
 //

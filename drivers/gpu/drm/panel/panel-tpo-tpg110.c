@@ -118,7 +118,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 480 + 10 + 1 + 35,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "640x480 RGB",
@@ -135,7 +135,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 480 + 18 + 1 + 27,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "480x272 RGB",
@@ -152,7 +152,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 272 + 2 + 1 + 12,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "480x640 RGB",
@@ -169,7 +169,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 640 + 4 + 1 + 8,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "400x240 RGB",
@@ -186,7 +186,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 240 + 2 + 1 + 20,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 };
 
@@ -390,8 +390,6 @@ static int tpg110_get_modes(struct drm_panel *panel)
 	struct tpg110 *tpg = to_tpg110(panel);
 	struct drm_display_mode *mode;
 
-	strncpy(connector->display_info.name, tpg->panel_mode->name,
-		DRM_DISPLAY_INFO_LEN);
 	connector->display_info.width_mm = tpg->width;
 	connector->display_info.height_mm = tpg->height;
 	connector->display_info.bus_flags = tpg->panel_mode->bus_flags;

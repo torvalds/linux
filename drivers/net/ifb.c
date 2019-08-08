@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/net/ifb.c:
 
 	The purpose of this driver is to provide a device that allows
@@ -17,10 +18,6 @@
 	You need the tc action  mirror or redirect to feed this device
        	packets.
 
-	This program is free software; you can redistribute it and/or
-	modify it under the terms of the GNU General Public License
-	as published by the Free Software Foundation; either version
-	2 of the License, or (at your option) any later version.
 
   	Authors:	Jamal Hadi Salim (2005)
 

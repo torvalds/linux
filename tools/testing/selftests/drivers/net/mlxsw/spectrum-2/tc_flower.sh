@@ -12,6 +12,7 @@ ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	delta_two_masks_one_key_test delta_simple_rehash_test \
 	bloom_simple_test bloom_complex_test bloom_delta_test"
 NUM_NETIFS=2
+source $lib_dir/lib.sh
 source $lib_dir/tc_common.sh
 source $lib_dir/devlink_lib.sh
 

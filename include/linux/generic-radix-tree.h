@@ -2,7 +2,7 @@
 #define _LINUX_GENERIC_RADIX_TREE_H
 
 /**
- * DOC: Generic radix trees/sparse arrays:
+ * DOC: Generic radix trees/sparse arrays
  *
  * Very simple and minimalistic, supporting arbitrary size entries up to
  * PAGE_SIZE.

@@ -51,6 +51,12 @@
 		serial3 = &serial_3;
 	};
 
+	pmu: pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&combiner>;
+		interrupts = <2 2>, <3 2>;
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -167,12 +173,6 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 			reg = <0x10440000 0x1000>;
-		};
-
-		pmu: pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupt-parent = <&combiner>;
-			interrupts = <2 2>, <3 2>;
 		};
 
 		sys_reg: syscon@10010000 {
@@ -675,7 +675,7 @@
 			status = "disabled";
 		};
 
-		amba {
+		amba: amba {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";

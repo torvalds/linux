@@ -32,6 +32,7 @@ mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
+		.tx_aligned4_skbs = true,
 		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
@@ -106,7 +107,7 @@ mt76pci_remove(struct pci_dev *pdev)
 
 	mt76_unregister_device(mdev);
 	mt76x2_cleanup(dev);
-	ieee80211_free_hw(mdev->hw);
+	mt76_free_device(mdev);
 }
 
 MODULE_DEVICE_TABLE(pci, mt76pci_device_table);

@@ -3,7 +3,7 @@ config FB_OMAP2_DSS_INIT
 	bool
 
 config FB_OMAP2_DSS
-        tristate
+	tristate
 	select VIDEOMODE_HELPERS
 	select FB_OMAP2_DSS_INIT
 	select HDMI
@@ -53,7 +53,7 @@ config FB_OMAP2_DSS_RFBI
 
 config FB_OMAP2_DSS_VENC
 	bool "VENC support"
-        default y
+	default y
 	help
 	  OMAP Video Encoder support for S-Video and composite TV-out.
 
@@ -62,7 +62,7 @@ config FB_OMAP2_DSS_HDMI_COMMON
 
 config FB_OMAP4_DSS_HDMI
 	bool "HDMI support for OMAP4"
-        default y
+	default y
 	select FB_OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI support for OMAP4 based SoCs.

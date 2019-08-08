@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -19,21 +20,6 @@
  *   linux/fs/minix/dir.c
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -68,10 +54,6 @@
 #define NAMEI_RA_CHUNKS  2
 #define NAMEI_RA_BLOCKS  4
 #define NAMEI_RA_SIZE        (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
-
-static unsigned char ocfs2_filetype_table[] = {
-	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
-};
 
 static int ocfs2_do_extend_dir(struct super_block *sb,
 			       handle_t *handle,
@@ -1718,7 +1700,7 @@ int __ocfs2_add_entry(handle_t *handle,
 				de->rec_len = cpu_to_le16(OCFS2_DIR_REC_LEN(de->name_len));
 				de = de1;
 			}
-			de->file_type = OCFS2_FT_UNKNOWN;
+			de->file_type = FT_UNKNOWN;
 			if (blkno) {
 				de->inode = cpu_to_le64(blkno);
 				ocfs2_set_de_type(de, inode->i_mode);
@@ -1803,13 +1785,9 @@ static int ocfs2_dir_foreach_blk_id(struct inode *inode,
 		}
 		offset += le16_to_cpu(de->rec_len);
 		if (le64_to_cpu(de->inode)) {
-			unsigned char d_type = DT_UNKNOWN;
-
-			if (de->file_type < OCFS2_FT_MAX)
-				d_type = ocfs2_filetype_table[de->file_type];
-
 			if (!dir_emit(ctx, de->name, de->name_len,
-				      le64_to_cpu(de->inode), d_type))
+				      le64_to_cpu(de->inode),
+				      fs_ftype_to_dtype(de->file_type)))
 				goto out;
 		}
 		ctx->pos += le16_to_cpu(de->rec_len);
@@ -1900,14 +1878,10 @@ static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 				break;
 			}
 			if (le64_to_cpu(de->inode)) {
-				unsigned char d_type = DT_UNKNOWN;
-
-				if (de->file_type < OCFS2_FT_MAX)
-					d_type = ocfs2_filetype_table[de->file_type];
 				if (!dir_emit(ctx, de->name,
 						de->name_len,
 						le64_to_cpu(de->inode),
-						d_type)) {
+					fs_ftype_to_dtype(de->file_type))) {
 					brelse(bh);
 					return 0;
 				}

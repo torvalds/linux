@@ -535,7 +535,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 {
 	struct qxl_device *qdev = plane->dev->dev_private;
 	struct qxl_bo *bo = gem_to_qxl_bo(plane->state->fb->obj[0]);
-	struct qxl_bo *bo_old, *primary;
+	struct qxl_bo *primary;
 	struct drm_clip_rect norect = {
 	    .x1 = 0,
 	    .y1 = 0,
@@ -543,12 +543,6 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 	    .y2 = plane->state->fb->height
 	};
 	uint32_t dumb_shadow_offset = 0;
-
-	if (old_state->fb) {
-		bo_old = gem_to_qxl_bo(old_state->fb->obj[0]);
-	} else {
-		bo_old = NULL;
-	}
 
 	primary = bo->shadow ? bo->shadow : bo;
 

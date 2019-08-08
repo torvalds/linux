@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	include/asm-mips/dec/kn05.h
  *
@@ -7,11 +8,6 @@
  *	definitions.
  *
  *	Copyright (C) 2002, 2003, 2005, 2008  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	WARNING!  All this information is pure guesswork based on the
  *	ROM.  It is provided here in hope it will give someone some

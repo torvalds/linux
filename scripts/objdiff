@@ -1,11 +1,11 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
 
 # objdiff - a small script for validating that a commit or series of commits
 # didn't change object code.
 #
 # Copyright 2014, Jason Cooper <jason@lakedaemon.net>
 #
-# Licensed under the terms of the GNU GPL version 2
 
 # usage example:
 #

@@ -60,12 +60,19 @@
 		pinctrl-0 = <&bt_enable_l>, <&wifi_enable_h>;
 
 		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
+		 * Depending on the actual card populated GPIO4 D4 and D5
+		 * correspond to one of these signals on the module:
+		 *
+		 * D4:
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
+		 *
+		 * D5:
+		 * - BT_I2S_WS_BT_RFDISABLE_L
+		 * - No connect
 		 */
-		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>,
+			      <&gpio4 RK_PD5 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc_5v: vcc-5v {
@@ -92,6 +99,23 @@
 		regulator-always-on;
 		regulator-boot-on;
 		vin-supply = <&vcc_5v>;
+	};
+
+	vdd_logic: vdd-logic {
+		compatible = "pwm-regulator";
+		regulator-name = "vdd_logic";
+
+		pwms = <&pwm1 0 1994 0>;
+		pwm-supply = <&vcc33_sys>;
+
+		pwm-dutycycle-range = <0x7b 0>;
+		pwm-dutycycle-unit = <0x94>;
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <950000>;
+		regulator-max-microvolt = <1350000>;
+		regulator-ramp-delay = <4000>;
 	};
 };
 
@@ -193,8 +217,7 @@
 				regulator-max-microvolt = <1250000>;
 				regulator-ramp-delay = <6001>;
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1000000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -376,10 +399,6 @@
 &uart0 {
 	status = "okay";
 
-	/* We need to go faster than 24MHz, so adjust clock parents / rates */
-	assigned-clocks = <&cru SCLK_UART0>;
-	assigned-clock-rates = <48000000>;
-
 	/* Pins don't include flow control by default; add that in */
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
@@ -431,10 +450,14 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <
 		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
 		&global_pwroff
 	>;
 	pinctrl-1 = <
 		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
 		&global_pwroff
 	>;
 
@@ -458,13 +481,13 @@
 
 	buttons {
 		pwr_key_l: pwr-key-l {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	emmc {
 		emmc_reset: emmc-reset {
-			rockchip,pins = <2 9 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		/*
@@ -472,51 +495,51 @@
 		 * We also have external pulls, so disable the internal ones.
 		 */
 		emmc_clk: emmc-clk {
-			rockchip,pins = <3 18 RK_FUNC_2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <3 RK_PC2 2 &pcfg_pull_none_drv_8ma>;
 		};
 
 		emmc_cmd: emmc-cmd {
-			rockchip,pins = <3 16 RK_FUNC_2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <3 RK_PC0 2 &pcfg_pull_none_drv_8ma>;
 		};
 
 		emmc_bus8: emmc-bus8 {
-			rockchip,pins = <3 0 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 1 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 2 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 3 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 4 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 5 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 6 RK_FUNC_2 &pcfg_pull_none_drv_8ma>,
-					<3 7 RK_FUNC_2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <3 RK_PA0 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA1 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA2 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA3 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA4 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA5 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA6 2 &pcfg_pull_none_drv_8ma>,
+					<3 RK_PA7 2 &pcfg_pull_none_drv_8ma>;
 		};
 	};
 
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	reboot {
 		ap_warm_reset_h: ap-warm-reset-h {
-			rockchip,pins = <RK_GPIO0 13 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	recovery-switch {
 		rec_mode_l: rec-mode-l {
-			rockchip,pins = <0 9 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	sdio0 {
 		wifi_enable_h: wifienable-h {
-			rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		/* NOTE: mislabelled on schematic; should be bt_enable_h */
 		bt_enable_l: bt-enable-l {
-			rockchip,pins = <4 29 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		/*
@@ -524,30 +547,30 @@
 		 * We also have external pulls, so disable the internal ones.
 		 */
 		sdio0_bus4: sdio0-bus4 {
-			rockchip,pins = <4 20 RK_FUNC_1 &pcfg_pull_none_drv_8ma>,
-					<4 21 RK_FUNC_1 &pcfg_pull_none_drv_8ma>,
-					<4 22 RK_FUNC_1 &pcfg_pull_none_drv_8ma>,
-					<4 23 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <4 RK_PC4 1 &pcfg_pull_none_drv_8ma>,
+					<4 RK_PC5 1 &pcfg_pull_none_drv_8ma>,
+					<4 RK_PC6 1 &pcfg_pull_none_drv_8ma>,
+					<4 RK_PC7 1 &pcfg_pull_none_drv_8ma>;
 		};
 
 		sdio0_cmd: sdio0-cmd {
-			rockchip,pins = <4 24 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <4 RK_PD0 1 &pcfg_pull_none_drv_8ma>;
 		};
 
 		sdio0_clk: sdio0-clk {
-			rockchip,pins = <4 25 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <4 RK_PD1 1 &pcfg_pull_none_drv_8ma>;
 		};
 	};
 
 	tpm {
 		tpm_int_h: tpm-int-h {
-			rockchip,pins = <7 4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	write-protect {
 		fw_wp_ap: fw-wp-ap {
-			rockchip,pins = <7 6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

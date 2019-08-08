@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Context tracking: Probe on high level context boundaries such as kernel
  * and userspace. This includes syscalls and exceptions entry/exit.

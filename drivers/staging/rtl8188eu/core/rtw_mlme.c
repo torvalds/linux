@@ -1438,7 +1438,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 			goto exit;
 	}
 
-	if (*candidate == NULL || (*candidate)->network.Rssi < competitor->network.Rssi) {
+	if (!*candidate || (*candidate)->network.Rssi < competitor->network.Rssi) {
 		*candidate = competitor;
 		updated = true;
 	}
@@ -1632,8 +1632,7 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 	INIT_LIST_HEAD(&pcmd->list);
-	res = rtw_enqueue_cmd(pcmdpriv, pcmd);
-	return res;
+	return rtw_enqueue_cmd(pcmdpriv, pcmd);
 
 err_free_parm:
 	kfree(psetkeyparm);

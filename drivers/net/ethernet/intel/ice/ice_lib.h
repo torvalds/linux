@@ -35,11 +35,15 @@ int
 ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			  u16 rel_vmvf_num);
 
-int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena);
+int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
 
 void ice_vsi_delete(struct ice_vsi *vsi);
 
 int ice_vsi_clear(struct ice_vsi *vsi);
+
+#ifdef CONFIG_DCB
+int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
+#endif /* CONFIG_DCB */
 
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
@@ -62,6 +66,10 @@ void ice_vsi_free_q_vectors(struct ice_vsi *vsi);
 
 void ice_vsi_put_qs(struct ice_vsi *vsi);
 
+#ifdef CONFIG_DCB
+void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi);
+#endif /* CONFIG_DCB */
+
 void ice_vsi_dis_irq(struct ice_vsi *vsi);
 
 void ice_vsi_free_irq(struct ice_vsi *vsi);
@@ -70,8 +78,7 @@ void ice_vsi_free_rx_rings(struct ice_vsi *vsi);
 
 void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
 
-int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
-
 int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
 
+u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
 #endif /* !_ICE_LIB_H_ */

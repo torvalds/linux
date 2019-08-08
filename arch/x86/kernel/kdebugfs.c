@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Architecture specific debugfs files
  *
  * Copyright (C) 2007, Intel Corp.
  *	Huang Ying <ying.huang@intel.com>
- *
- * This file is released under the GPLv2.
  */
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>

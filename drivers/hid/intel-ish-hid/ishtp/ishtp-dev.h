@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Most ISHTP provider device and ISHTP logic declarations
  *
  * Copyright (c) 2003-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #ifndef _ISHTP_DEV_H_
@@ -77,32 +69,6 @@ struct ishtp_cl;
 struct ishtp_fw_client {
 	struct ishtp_client_properties props;
 	uint8_t client_id;
-};
-
-/**
- * struct ishtp_msg_data - ISHTP message data struct
- * @size:	Size of data in the *data
- * @data:	Pointer to data
- */
-struct ishtp_msg_data {
-	uint32_t size;
-	unsigned char *data;
-};
-
-/*
- * struct ishtp_cl_rb - request block structure
- * @list:	Link to list members
- * @cl:		ISHTP client instance
- * @buffer:	message header
- * @buf_idx:	Index into buffer
- * @read_time:	 unused at this time
- */
-struct ishtp_cl_rb {
-	struct list_head list;
-	struct ishtp_cl *cl;
-	struct ishtp_msg_data buffer;
-	unsigned long buf_idx;
-	unsigned long read_time;
 };
 
 /*
@@ -262,11 +228,6 @@ static inline unsigned long ishtp_secs_to_jiffies(unsigned long sec)
 static inline int ish_ipc_reset(struct ishtp_device *dev)
 {
 	return dev->ops->ipc_reset(dev);
-}
-
-static inline int ish_hw_reset(struct ishtp_device *dev)
-{
-	return dev->ops->hw_reset(dev);
 }
 
 /* Exported function */

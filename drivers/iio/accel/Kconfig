@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Accelerometer drivers
 #
@@ -6,28 +7,28 @@
 menu "Accelerometers"
 
 config ADIS16201
-        tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
-        depends on SPI
-        select IIO_ADIS_LIB
-        select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
-        help
-          Say Y here to build support for Analog Devices adis16201 dual-axis
-          digital inclinometer and accelerometer.
+	tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say Y here to build support for Analog Devices adis16201 dual-axis
+	  digital inclinometer and accelerometer.
 
-          To compile this driver as a module, say M here: the module will
-          be called adis16201.
+	  To compile this driver as a module, say M here: the module will
+	  be called adis16201.
 
 config ADIS16209
-        tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
-        depends on SPI
-        select IIO_ADIS_LIB
-        select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
-        help
-          Say Y here to build support for Analog Devices adis16209 dual-axis digital inclinometer
-          and accelerometer.
+	tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say Y here to build support for Analog Devices adis16209 dual-axis digital inclinometer
+	  and accelerometer.
 
-          To compile this driver as a module, say M here: the module will be
-          called adis16209.
+	  To compile this driver as a module, say M here: the module will be
+	  called adis16209.
 
 config ADXL345
 	tristate
@@ -100,16 +101,16 @@ config BMA180
 	  module will be called bma180.
 
 config BMA220
-    tristate "Bosch BMA220 3-Axis Accelerometer Driver"
+	tristate "Bosch BMA220 3-Axis Accelerometer Driver"
 	depends on SPI
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
-    help
-      Say yes here to add support for the Bosch BMA220 triaxial
-      acceleration sensor.
+	help
+	  Say yes here to add support for the Bosch BMA220 triaxial
+	  acceleration sensor.
 
-      To compile this driver as a module, choose M here: the
-      module will be called bma220_spi.
+	  To compile this driver as a module, choose M here: the
+	  module will be called bma220_spi.
 
 config BMC150_ACCEL
 	tristate "Bosch BMC150 Accelerometer Driver"
@@ -223,7 +224,7 @@ config IIO_ST_ACCEL_3AXIS
 	  Say yes here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
-	  LNG2DM, LIS3DE
+	  LNG2DM, LIS3DE, LIS2DE12
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:

@@ -21,7 +21,7 @@ static u32 mt76_mmio_rr(struct mt76_dev *dev, u32 offset)
 {
 	u32 val;
 
-	val = ioread32(dev->mmio.regs + offset);
+	val = readl(dev->mmio.regs + offset);
 	trace_reg_rr(dev, offset, val);
 
 	return val;
@@ -30,7 +30,7 @@ static u32 mt76_mmio_rr(struct mt76_dev *dev, u32 offset)
 static void mt76_mmio_wr(struct mt76_dev *dev, u32 offset, u32 val)
 {
 	trace_reg_wr(dev, offset, val);
-	iowrite32(val, dev->mmio.regs + offset);
+	writel(val, dev->mmio.regs + offset);
 }
 
 static u32 mt76_mmio_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
@@ -69,6 +69,19 @@ static int mt76_mmio_rd_rp(struct mt76_dev *dev, u32 base,
 
 	return 0;
 }
+
+void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr,
+		       u32 clear, u32 set)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->mmio.irq_lock, flags);
+	dev->mmio.irqmask &= ~clear;
+	dev->mmio.irqmask |= set;
+	mt76_mmio_wr(dev, addr, dev->mmio.irqmask);
+	spin_unlock_irqrestore(&dev->mmio.irq_lock, flags);
+}
+EXPORT_SYMBOL_GPL(mt76_set_irq_mask);
 
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 {

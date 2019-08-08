@@ -37,4 +37,17 @@ extern int regs_query_register_offset(const char *name);
 extern const char *regs_query_register_name(unsigned int offset);
 #define MAX_REG_OFFSET (offsetof(struct pt_regs, ipsw))
 
+#define kernel_stack_pointer(regs) ((regs)->gr[30])
+
+static inline unsigned long regs_get_register(struct pt_regs *regs,
+					      unsigned int offset)
+{
+	if (unlikely(offset > MAX_REG_OFFSET))
+		return 0;
+	return *(unsigned long *)((unsigned long)regs + offset);
+}
+
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
+int regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr);
+
 #endif

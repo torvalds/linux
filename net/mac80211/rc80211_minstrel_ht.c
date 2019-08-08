@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -51,8 +48,13 @@
 	MINSTREL_MAX_STREAMS * _sgi +	\
 	_streams - 1
 
+#define _MAX(a, b) (((a)>(b))?(a):(b))
+
+#define GROUP_SHIFT(duration)						\
+	_MAX(0, 16 - __builtin_clz(duration))
+
 /* MCS rate information for an MCS group */
-#define MCS_GROUP(_streams, _sgi, _ht40, _s)				\
+#define __MCS_GROUP(_streams, _sgi, _ht40, _s)				\
 	[GROUP_IDX(_streams, _sgi, _ht40)] = {				\
 	.streams = _streams,						\
 	.shift = _s,							\
@@ -72,6 +74,13 @@
 	}								\
 }
 
+#define MCS_GROUP_SHIFT(_streams, _sgi, _ht40)				\
+	GROUP_SHIFT(MCS_DURATION(_streams, _sgi, _ht40 ? 54 : 26))
+
+#define MCS_GROUP(_streams, _sgi, _ht40)				\
+	__MCS_GROUP(_streams, _sgi, _ht40,				\
+		    MCS_GROUP_SHIFT(_streams, _sgi, _ht40))
+
 #define VHT_GROUP_IDX(_streams, _sgi, _bw)				\
 	(MINSTREL_VHT_GROUP_0 +						\
 	 MINSTREL_MAX_STREAMS * 2 * (_bw) +				\
@@ -81,7 +90,7 @@
 #define BW2VBPS(_bw, r3, r2, r1)					\
 	(_bw == BW_80 ? r3 : _bw == BW_40 ? r2 : r1)
 
-#define VHT_GROUP(_streams, _sgi, _bw, _s)				\
+#define __VHT_GROUP(_streams, _sgi, _bw, _s)				\
 	[VHT_GROUP_IDX(_streams, _sgi, _bw)] = {			\
 	.streams = _streams,						\
 	.shift = _s,							\
@@ -114,6 +123,14 @@
 	}								\
 }
 
+#define VHT_GROUP_SHIFT(_streams, _sgi, _bw)				\
+	GROUP_SHIFT(MCS_DURATION(_streams, _sgi,			\
+				 BW2VBPS(_bw,  117,  54,  26)))
+
+#define VHT_GROUP(_streams, _sgi, _bw)					\
+	__VHT_GROUP(_streams, _sgi, _bw,				\
+		    VHT_GROUP_SHIFT(_streams, _sgi, _bw))
+
 #define CCK_DURATION(_bitrate, _short, _len)		\
 	(1000 * (10 /* SIFS */ +			\
 	 (_short ? 72 + 24 : 144 + 48) +		\
@@ -129,7 +146,7 @@
 	CCK_ACK_DURATION(55, _short) >> _s,		\
 	CCK_ACK_DURATION(110, _short) >> _s
 
-#define CCK_GROUP(_s)					\
+#define __CCK_GROUP(_s)					\
 	[MINSTREL_CCK_GROUP] = {			\
 		.streams = 1,				\
 		.flags = 0,				\
@@ -139,6 +156,12 @@
 			CCK_DURATION_LIST(true, _s)	\
 		}					\
 	}
+
+#define CCK_GROUP_SHIFT					\
+	GROUP_SHIFT(CCK_ACK_DURATION(10, false))
+
+#define CCK_GROUP __CCK_GROUP(CCK_GROUP_SHIFT)
+
 
 static bool minstrel_vht_only = true;
 module_param(minstrel_vht_only, bool, 0644);
@@ -154,47 +177,57 @@ MODULE_PARM_DESC(minstrel_vht_only,
  * BW -> SGI -> #streams
  */
 const struct mcs_group minstrel_mcs_groups[] = {
-	MCS_GROUP(1, 0, BW_20, 5),
-	MCS_GROUP(2, 0, BW_20, 4),
-	MCS_GROUP(3, 0, BW_20, 4),
+	MCS_GROUP(1, 0, BW_20),
+	MCS_GROUP(2, 0, BW_20),
+	MCS_GROUP(3, 0, BW_20),
+	MCS_GROUP(4, 0, BW_20),
 
-	MCS_GROUP(1, 1, BW_20, 5),
-	MCS_GROUP(2, 1, BW_20, 4),
-	MCS_GROUP(3, 1, BW_20, 4),
+	MCS_GROUP(1, 1, BW_20),
+	MCS_GROUP(2, 1, BW_20),
+	MCS_GROUP(3, 1, BW_20),
+	MCS_GROUP(4, 1, BW_20),
 
-	MCS_GROUP(1, 0, BW_40, 4),
-	MCS_GROUP(2, 0, BW_40, 4),
-	MCS_GROUP(3, 0, BW_40, 4),
+	MCS_GROUP(1, 0, BW_40),
+	MCS_GROUP(2, 0, BW_40),
+	MCS_GROUP(3, 0, BW_40),
+	MCS_GROUP(4, 0, BW_40),
 
-	MCS_GROUP(1, 1, BW_40, 4),
-	MCS_GROUP(2, 1, BW_40, 4),
-	MCS_GROUP(3, 1, BW_40, 4),
+	MCS_GROUP(1, 1, BW_40),
+	MCS_GROUP(2, 1, BW_40),
+	MCS_GROUP(3, 1, BW_40),
+	MCS_GROUP(4, 1, BW_40),
 
-	CCK_GROUP(8),
+	CCK_GROUP,
 
-	VHT_GROUP(1, 0, BW_20, 5),
-	VHT_GROUP(2, 0, BW_20, 4),
-	VHT_GROUP(3, 0, BW_20, 4),
+	VHT_GROUP(1, 0, BW_20),
+	VHT_GROUP(2, 0, BW_20),
+	VHT_GROUP(3, 0, BW_20),
+	VHT_GROUP(4, 0, BW_20),
 
-	VHT_GROUP(1, 1, BW_20, 5),
-	VHT_GROUP(2, 1, BW_20, 4),
-	VHT_GROUP(3, 1, BW_20, 4),
+	VHT_GROUP(1, 1, BW_20),
+	VHT_GROUP(2, 1, BW_20),
+	VHT_GROUP(3, 1, BW_20),
+	VHT_GROUP(4, 1, BW_20),
 
-	VHT_GROUP(1, 0, BW_40, 4),
-	VHT_GROUP(2, 0, BW_40, 4),
-	VHT_GROUP(3, 0, BW_40, 4),
+	VHT_GROUP(1, 0, BW_40),
+	VHT_GROUP(2, 0, BW_40),
+	VHT_GROUP(3, 0, BW_40),
+	VHT_GROUP(4, 0, BW_40),
 
-	VHT_GROUP(1, 1, BW_40, 4),
-	VHT_GROUP(2, 1, BW_40, 4),
-	VHT_GROUP(3, 1, BW_40, 4),
+	VHT_GROUP(1, 1, BW_40),
+	VHT_GROUP(2, 1, BW_40),
+	VHT_GROUP(3, 1, BW_40),
+	VHT_GROUP(4, 1, BW_40),
 
-	VHT_GROUP(1, 0, BW_80, 4),
-	VHT_GROUP(2, 0, BW_80, 4),
-	VHT_GROUP(3, 0, BW_80, 4),
+	VHT_GROUP(1, 0, BW_80),
+	VHT_GROUP(2, 0, BW_80),
+	VHT_GROUP(3, 0, BW_80),
+	VHT_GROUP(4, 0, BW_80),
 
-	VHT_GROUP(1, 1, BW_80, 4),
-	VHT_GROUP(2, 1, BW_80, 4),
-	VHT_GROUP(3, 1, BW_80, 4),
+	VHT_GROUP(1, 1, BW_80),
+	VHT_GROUP(2, 1, BW_80),
+	VHT_GROUP(3, 1, BW_80),
+	VHT_GROUP(4, 1, BW_80),
 };
 
 static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES] __read_mostly;
@@ -962,8 +995,6 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	}
 
 	if (mp->hw->max_rates >= 2) {
-		/*
-		 * At least 2 tx rates supported, use max_prob_rate next */
 		minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_prob_rate);
 	}
 

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/dma-buf/sync_file.c
  *
  * Copyright (C) 2012 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/export.h>
@@ -258,7 +249,8 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 
 			i_b++;
 		} else {
-			if (__dma_fence_is_later(pt_a->seqno, pt_b->seqno))
+			if (__dma_fence_is_later(pt_a->seqno, pt_b->seqno,
+						 pt_a->ops))
 				add_fence(fences, &i, pt_a);
 			else
 				add_fence(fences, &i, pt_b);

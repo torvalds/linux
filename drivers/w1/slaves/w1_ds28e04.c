@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	w1_ds28e04.c - w1 family 1C (DS28E04) driver
  *
  * Copyright (c) 2012 Markus Franke <franke.m@sebakmt.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>

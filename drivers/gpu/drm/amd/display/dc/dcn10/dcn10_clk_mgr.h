@@ -34,10 +34,6 @@ struct clk_bypass {
 	uint32_t dprefclk_bypass;
 };
 
-void dcn1_pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context);
-
 struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx);
 
 #endif //__DCN10_CLK_MGR_H__

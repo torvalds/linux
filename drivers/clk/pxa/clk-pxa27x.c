@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell PXA27x family clocks
  *
  * Copyright (C) 2014 Robert Jarzmik
  *
  * Heavily inspired from former arch/arm/mach-pxa/clock.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
  */
 #include <linux/clk-provider.h>
 #include <mach/pxa2xx-regs.h>

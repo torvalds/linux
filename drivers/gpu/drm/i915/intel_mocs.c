@@ -252,7 +252,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 {
 	bool result = false;
 
-	if (IS_ICELAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
 		table->size  = ARRAY_SIZE(icelake_mocs_table);
 		table->table = icelake_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
@@ -288,17 +288,17 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
 {
 	switch (engine_id) {
-	case RCS:
+	case RCS0:
 		return GEN9_GFX_MOCS(index);
-	case VCS:
+	case VCS0:
 		return GEN9_MFX0_MOCS(index);
-	case BCS:
+	case BCS0:
 		return GEN9_BLT_MOCS(index);
-	case VECS:
+	case VECS0:
 		return GEN9_VEBOX_MOCS(index);
-	case VCS2:
+	case VCS1:
 		return GEN9_MFX1_MOCS(index);
-	case VCS3:
+	case VCS2:
 		return GEN11_MFX2_MOCS(index);
 	default:
 		MISSING_CASE(engine_id);

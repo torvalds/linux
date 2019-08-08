@@ -230,7 +230,7 @@ acpi_get_table_header(char *signature,
 
 	for (i = 0, j = 0; i < acpi_gbl_root_table_list.current_table_count;
 	     i++) {
-		if (!ACPI_COMPARE_NAME
+		if (!ACPI_COMPARE_NAMESEG
 		    (&(acpi_gbl_root_table_list.tables[i].signature),
 		     signature)) {
 			continue;
@@ -323,7 +323,7 @@ acpi_get_table(char *signature,
 	     i++) {
 		table_desc = &acpi_gbl_root_table_list.tables[i];
 
-		if (!ACPI_COMPARE_NAME(&table_desc->signature, signature)) {
+		if (!ACPI_COMPARE_NAMESEG(&table_desc->signature, signature)) {
 			continue;
 		}
 

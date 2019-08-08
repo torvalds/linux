@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ec_sys.c
  *
  * Copyright (C) 2010 SUSE Products GmbH/Novell
  * Author:
  *      Thomas Renninger <trenn@suse.de>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #include <linux/kernel.h>

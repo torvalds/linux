@@ -1264,8 +1264,7 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 		module_if = &ipipe_modules[i];
 		from = *(void **)((void *)cfg + module_if->config_offset);
 
-		params = kmalloc(sizeof(struct ipipe_module_params),
-				 GFP_KERNEL);
+		params = kmalloc(sizeof(*params), GFP_KERNEL);
 		to = (void *)params + module_if->param_offset;
 		size = module_if->param_size;
 
@@ -1306,8 +1305,7 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 		module_if = &ipipe_modules[i];
 		to = *(void **)((void *)cfg + module_if->config_offset);
 
-		params = kmalloc(sizeof(struct ipipe_module_params),
-				 GFP_KERNEL);
+		params = kmalloc(sizeof(*params), GFP_KERNEL);
 		from = (void *)params + module_if->param_offset;
 		size = module_if->param_size;
 

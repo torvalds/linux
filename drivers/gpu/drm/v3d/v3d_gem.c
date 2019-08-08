@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/sched/signal.h>
@@ -24,7 +25,8 @@ v3d_init_core(struct v3d_dev *v3d, int core)
 	 * type.  If you want the default behavior, you can still put
 	 * "2" in the indirect texture state's output_type field.
 	 */
-	V3D_CORE_WRITE(core, V3D_CTL_MISCCFG, V3D_MISCCFG_OVRTMUOUT);
+	if (v3d->ver < 40)
+		V3D_CORE_WRITE(core, V3D_CTL_MISCCFG, V3D_MISCCFG_OVRTMUOUT);
 
 	/* Whenever we flush the L2T cache, we always want to flush
 	 * the whole thing.
@@ -69,7 +71,7 @@ v3d_idle_gca(struct v3d_dev *v3d)
 }
 
 static void
-v3d_reset_v3d(struct v3d_dev *v3d)
+v3d_reset_by_bridge(struct v3d_dev *v3d)
 {
 	int version = V3D_BRIDGE_READ(V3D_TOP_GR_BRIDGE_REVISION);
 
@@ -89,6 +91,15 @@ v3d_reset_v3d(struct v3d_dev *v3d)
 				 V3D_TOP_GR_BRIDGE_SW_INIT_1_V3D_CLK_108_SW_INIT);
 		V3D_BRIDGE_WRITE(V3D_TOP_GR_BRIDGE_SW_INIT_1, 0);
 	}
+}
+
+static void
+v3d_reset_v3d(struct v3d_dev *v3d)
+{
+	if (v3d->reset)
+		reset_control_reset(v3d->reset);
+	else
+		v3d_reset_by_bridge(v3d);
 
 	v3d_init_hw_state(v3d);
 }
@@ -190,7 +201,8 @@ v3d_attach_object_fences(struct v3d_bo **bos, int bo_count,
 
 	for (i = 0; i < bo_count; i++) {
 		/* XXX: Use shared fences for read-only objects. */
-		reservation_object_add_excl_fence(bos[i]->resv, fence);
+		reservation_object_add_excl_fence(bos[i]->base.base.resv,
+						  fence);
 	}
 }
 
@@ -199,12 +211,8 @@ v3d_unlock_bo_reservations(struct v3d_bo **bos,
 			   int bo_count,
 			   struct ww_acquire_ctx *acquire_ctx)
 {
-	int i;
-
-	for (i = 0; i < bo_count; i++)
-		ww_mutex_unlock(&bos[i]->resv->lock);
-
-	ww_acquire_fini(acquire_ctx);
+	drm_gem_unlock_reservations((struct drm_gem_object **)bos, bo_count,
+				    acquire_ctx);
 }
 
 /* Takes the reservation lock on all the BOs being referenced, so that
@@ -219,58 +227,19 @@ v3d_lock_bo_reservations(struct v3d_bo **bos,
 			 int bo_count,
 			 struct ww_acquire_ctx *acquire_ctx)
 {
-	int contended_lock = -1;
 	int i, ret;
 
-	ww_acquire_init(acquire_ctx, &reservation_ww_class);
-
-retry:
-	if (contended_lock != -1) {
-		struct v3d_bo *bo = bos[contended_lock];
-
-		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
-						       acquire_ctx);
-		if (ret) {
-			ww_acquire_done(acquire_ctx);
-			return ret;
-		}
-	}
-
-	for (i = 0; i < bo_count; i++) {
-		if (i == contended_lock)
-			continue;
-
-		ret = ww_mutex_lock_interruptible(&bos[i]->resv->lock,
-						  acquire_ctx);
-		if (ret) {
-			int j;
-
-			for (j = 0; j < i; j++)
-				ww_mutex_unlock(&bos[j]->resv->lock);
-
-			if (contended_lock != -1 && contended_lock >= i) {
-				struct v3d_bo *bo = bos[contended_lock];
-
-				ww_mutex_unlock(&bo->resv->lock);
-			}
-
-			if (ret == -EDEADLK) {
-				contended_lock = i;
-				goto retry;
-			}
-
-			ww_acquire_done(acquire_ctx);
-			return ret;
-		}
-	}
-
-	ww_acquire_done(acquire_ctx);
+	ret = drm_gem_lock_reservations((struct drm_gem_object **)bos,
+					bo_count, acquire_ctx);
+	if (ret)
+		return ret;
 
 	/* Reserve space for our shared (read-only) fence references,
 	 * before we commit the CL to the hardware.
 	 */
 	for (i = 0; i < bo_count; i++) {
-		ret = reservation_object_reserve_shared(bos[i]->resv, 1);
+		ret = reservation_object_reserve_shared(bos[i]->base.base.resv,
+							1);
 		if (ret) {
 			v3d_unlock_bo_reservations(bos, bo_count,
 						   acquire_ctx);
@@ -371,18 +340,18 @@ v3d_exec_cleanup(struct kref *ref)
 	dma_fence_put(exec->bin.in_fence);
 	dma_fence_put(exec->render.in_fence);
 
-	dma_fence_put(exec->bin.done_fence);
-	dma_fence_put(exec->render.done_fence);
+	dma_fence_put(exec->bin.irq_fence);
+	dma_fence_put(exec->render.irq_fence);
 
 	dma_fence_put(exec->bin_done_fence);
 	dma_fence_put(exec->render_done_fence);
 
 	for (i = 0; i < exec->bo_count; i++)
-		drm_gem_object_put_unlocked(&exec->bo[i]->base);
+		drm_gem_object_put_unlocked(&exec->bo[i]->base.base);
 	kvfree(exec->bo);
 
 	list_for_each_entry_safe(bo, save, &exec->unref_list, unref_head) {
-		drm_gem_object_put_unlocked(&bo->base);
+		drm_gem_object_put_unlocked(&bo->base.base);
 	}
 
 	pm_runtime_mark_last_busy(v3d->dev);
@@ -405,11 +374,11 @@ v3d_tfu_job_cleanup(struct kref *ref)
 	unsigned int i;
 
 	dma_fence_put(job->in_fence);
-	dma_fence_put(job->done_fence);
+	dma_fence_put(job->irq_fence);
 
 	for (i = 0; i < ARRAY_SIZE(job->bo); i++) {
 		if (job->bo[i])
-			drm_gem_object_put_unlocked(&job->bo[i]->base);
+			drm_gem_object_put_unlocked(&job->bo[i]->base.base);
 	}
 
 	pm_runtime_mark_last_busy(v3d->dev);
@@ -429,8 +398,6 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 {
 	int ret;
 	struct drm_v3d_wait_bo *args = data;
-	struct drm_gem_object *gem_obj;
-	struct v3d_bo *bo;
 	ktime_t start = ktime_get();
 	u64 delta_ns;
 	unsigned long timeout_jiffies =
@@ -439,21 +406,8 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
-	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
-	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -EINVAL;
-	}
-	bo = to_v3d_bo(gem_obj);
-
-	ret = reservation_object_wait_timeout_rcu(bo->resv,
-						  true, true,
-						  timeout_jiffies);
-
-	if (ret == 0)
-		ret = -ETIME;
-	else if (ret > 0)
-		ret = 0;
+	ret = drm_gem_reservation_object_wait(file_priv, args->handle,
+					      true, timeout_jiffies);
 
 	/* Decrement the user's timeout, in case we got interrupted
 	 * such that the ioctl will be restarted.
@@ -467,8 +421,6 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	/* Asked to wait beyond the jiffie/scheduler precision? */
 	if (ret == -ETIME && args->timeout_ns)
 		ret = -EAGAIN;
-
-	drm_gem_object_put_unlocked(gem_obj);
 
 	return ret;
 }

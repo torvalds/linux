@@ -12,7 +12,7 @@
 #define _XTENSA_IRQ_H
 
 #include <linux/init.h>
-#include <variant/core.h>
+#include <asm/core.h>
 
 #ifdef CONFIG_PLATFORM_NR_IRQS
 # define PLATFORM_NR_IRQS CONFIG_PLATFORM_NR_IRQS

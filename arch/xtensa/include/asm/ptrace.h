@@ -80,7 +80,7 @@ struct pt_regs {
 	unsigned long areg[16];
 };
 
-#include <variant/core.h>
+#include <asm/core.h>
 
 # define arch_has_single_step()	(1)
 # define task_pt_regs(tsk) ((struct pt_regs*) \

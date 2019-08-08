@@ -2,9 +2,10 @@
 #define __NET_FIB_NOTIFIER_H
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/notifier.h>
 #include <net/net_namespace.h>
+
+struct module;
 
 struct fib_notifier_info {
 	struct net *net;

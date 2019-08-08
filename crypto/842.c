@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API for the 842 software compression algorithm.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Copyright (C) IBM Corporation, 2011-2015
  *
@@ -144,7 +135,7 @@ static int __init crypto842_mod_init(void)
 
 	return ret;
 }
-module_init(crypto842_mod_init);
+subsys_initcall(crypto842_mod_init);
 
 static void __exit crypto842_mod_exit(void)
 {

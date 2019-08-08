@@ -410,15 +410,7 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 	if (p_bo_va_entry)
 		*p_bo_va_entry = bo_va_entry;
 
-	/* Allocate new page tables if needed and validate
-	 * them.
-	 */
-	ret = amdgpu_vm_alloc_pts(adev, vm, va, amdgpu_bo_size(bo));
-	if (ret) {
-		pr_err("Failed to allocate pts, err=%d\n", ret);
-		goto err_alloc_pts;
-	}
-
+	/* Allocate validate page tables if needed */
 	ret = vm_validate_pt_pd_bos(vm);
 	if (ret) {
 		pr_err("validate_pt_pd_bos() failed\n");
@@ -741,13 +733,7 @@ static int update_gpuvm_pte(struct amdgpu_device *adev,
 		struct amdgpu_sync *sync)
 {
 	int ret;
-	struct amdgpu_vm *vm;
-	struct amdgpu_bo_va *bo_va;
-	struct amdgpu_bo *bo;
-
-	bo_va = entry->bo_va;
-	vm = bo_va->base.vm;
-	bo = bo_va->base.bo;
+	struct amdgpu_bo_va *bo_va = entry->bo_va;
 
 	/* Update the page tables  */
 	ret = amdgpu_vm_bo_update(adev, bo_va, false);
@@ -906,7 +892,8 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 		pr_err("validate_pt_pd_bos() failed\n");
 		goto validate_pd_fail;
 	}
-	amdgpu_bo_sync_wait(vm->root.base.bo, AMDGPU_FENCE_OWNER_KFD, false);
+	ret = amdgpu_bo_sync_wait(vm->root.base.bo,
+				  AMDGPU_FENCE_OWNER_KFD, false);
 	if (ret)
 		goto wait_pd_fail;
 	amdgpu_bo_fence(vm->root.base.bo,

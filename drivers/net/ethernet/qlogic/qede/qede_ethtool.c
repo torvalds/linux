@@ -652,9 +652,9 @@ static void qede_get_drvinfo(struct net_device *ndev,
 {
 	char mfw[ETHTOOL_FWVERS_LEN], storm[ETHTOOL_FWVERS_LEN];
 	struct qede_dev *edev = netdev_priv(ndev);
+	char mbi[ETHTOOL_FWVERS_LEN];
 
 	strlcpy(info->driver, "qede", sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 
 	snprintf(storm, ETHTOOL_FWVERS_LEN, "%d.%d.%d.%d",
 		 edev->dev_info.common.fw_major,
@@ -668,13 +668,27 @@ static void qede_get_drvinfo(struct net_device *ndev,
 		 (edev->dev_info.common.mfw_rev >> 8) & 0xFF,
 		 edev->dev_info.common.mfw_rev & 0xFF);
 
-	if ((strlen(storm) + strlen(mfw) + strlen("mfw storm  ")) <
-	    sizeof(info->fw_version)) {
+	if ((strlen(storm) + strlen(DRV_MODULE_VERSION) + strlen("[storm]  ")) <
+	    sizeof(info->version))
+		snprintf(info->version, sizeof(info->version),
+			 "%s [storm %s]", DRV_MODULE_VERSION, storm);
+	else
+		snprintf(info->version, sizeof(info->version),
+			 "%s %s", DRV_MODULE_VERSION, storm);
+
+	if (edev->dev_info.common.mbi_version) {
+		snprintf(mbi, ETHTOOL_FWVERS_LEN, "%d.%d.%d",
+			 (edev->dev_info.common.mbi_version &
+			  QED_MBI_VERSION_2_MASK) >> QED_MBI_VERSION_2_OFFSET,
+			 (edev->dev_info.common.mbi_version &
+			  QED_MBI_VERSION_1_MASK) >> QED_MBI_VERSION_1_OFFSET,
+			 (edev->dev_info.common.mbi_version &
+			  QED_MBI_VERSION_0_MASK) >> QED_MBI_VERSION_0_OFFSET);
 		snprintf(info->fw_version, sizeof(info->fw_version),
-			 "mfw %s storm %s", mfw, storm);
+			 "mbi %s [mfw %s]", mbi, mfw);
 	} else {
 		snprintf(info->fw_version, sizeof(info->fw_version),
-			 "%s %s", mfw, storm);
+			 "mfw %s", mfw);
 	}
 
 	strlcpy(info->bus_info, pci_name(edev->pdev), sizeof(info->bus_info));
@@ -1525,14 +1539,6 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	wmb();
 	barrier();
 	writel(txq->tx_db.raw, txq->doorbell_addr);
-
-	/* mmiowb is needed to synchronize doorbell writes from more than one
-	 * processor. It guarantees that the write arrives to the device before
-	 * the queue lock is released and another start_xmit is called (possibly
-	 * on another CPU). Without this barrier, the next doorbell can bypass
-	 * this doorbell. This is applicable to IA64/Altix systems.
-	 */
-	mmiowb();
 
 	for (i = 0; i < QEDE_SELFTEST_POLL_COUNT; i++) {
 		if (qede_txq_has_work(txq))

@@ -41,7 +41,7 @@
  * @is_compressed: Is it a compressed format?
  * @multiplanar: Is it a multiplanar variant format? (e.g. NV12M)
  */
-struct v4l2_format_info {
+struct rockchip_vpu_v4l2_format_info {
 	u32 format;
 	u32 header_size;
 	u8 num_planes;
@@ -52,10 +52,10 @@ struct v4l2_format_info {
 	u8 multiplanar;
 };
 
-static const struct v4l2_format_info *
-v4l2_format_info(u32 format)
+static const struct rockchip_vpu_v4l2_format_info *
+rockchip_vpu_v4l2_format_info(u32 format)
 {
-	static const struct v4l2_format_info formats[] = {
+	static const struct rockchip_vpu_v4l2_format_info formats[] = {
 		{ .format = V4L2_PIX_FMT_YUV420M,	.num_planes = 3, .cpp = { 1, 1, 1 }, .hsub = 2, .vsub = 2, .multiplanar = 1 },
 		{ .format = V4L2_PIX_FMT_NV12M,		.num_planes = 2, .cpp = { 1, 2, 0 }, .hsub = 2, .vsub = 2, .multiplanar = 1 },
 		{ .format = V4L2_PIX_FMT_YUYV,		.num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1 },
@@ -76,11 +76,11 @@ static void
 fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt,
 	       int pixelformat, int width, int height)
 {
-	const struct v4l2_format_info *info;
+	const struct rockchip_vpu_v4l2_format_info *info;
 	struct v4l2_plane_pix_format *plane;
 	int i;
 
-	info = v4l2_format_info(pixelformat);
+	info = rockchip_vpu_v4l2_format_info(pixelformat);
 	if (!info)
 		return;
 
@@ -152,9 +152,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
 	struct rockchip_vpu_dev *vpu = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
 
 	strscpy(cap->driver, vpu->dev->driver->name, sizeof(cap->driver));
-	strscpy(cap->card, vpu->vfd_enc->name, sizeof(cap->card));
+	strscpy(cap->card, vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform: %s",
 		 vpu->dev->driver->name);
 	return 0;

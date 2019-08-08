@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 #  Makefile for the Bosch C_CAN controller drivers.
 #

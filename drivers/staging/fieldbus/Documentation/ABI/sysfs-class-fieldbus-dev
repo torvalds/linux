@@ -1,0 +1,62 @@
+What:		/sys/class/fieldbus_dev/fieldbus_devX/card_name
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		Human-readable name of the Fieldbus Device.
+
+What:		/sys/class/fieldbus_dev/fieldbus_devX/fieldbus_type
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		The type of fieldbus implemented by this device.
+		Possible values:
+			'unknown'
+			'profinet'
+
+What:		/sys/class/fieldbus_dev/fieldbus_devX/fieldbus_id
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		The unique fieldbus id associated with this device.
+		The exact format of this id is fieldbus type dependent, e.g.
+		a mac address for profinet.
+
+What:		/sys/class/fieldbus_dev/fieldbus_devX/read_area_size
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		The size, in bytes, of the Process Memory read area.
+		Note: this area is accessible by reading from the associated
+			character device (/dev/fieldbus_devX).
+
+What:		/sys/class/fieldbus_dev/fieldbus_devX/write_area_size
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		The size, in bytes, of the Process Memory write area.
+		Note: this area is accessible by writing to the associated
+			character device (/dev/fieldbus_devX)
+
+What:		/sys/class/fieldbus_dev/fieldbus_devX/online
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		Whether the fieldbus is online or offline.
+		Possible values:
+			'1' meaning 'online'
+			'0' meaning 'offline'
+		Note: an uevent is generated when this property changes.
+
+What:		/sys/class/fieldbus_dev/fieldbus_devX/enabled
+KernelVersion:	5.1 (staging)
+Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
+Description:
+		Whether the device is enabled (power on) or
+			disabled (power off).
+		Possible values:
+			'1' meaning enabled
+			'0' meaning disabled
+		Normally a r/o property, but optionally r/w:
+		Writing '1' enables the device (power on) with default
+			settings.
+		Writing '0' disables the card (power off).

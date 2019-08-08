@@ -284,7 +284,7 @@ struct nvmet_fabrics_ops {
 
 struct nvmet_req {
 	struct nvme_command	*cmd;
-	struct nvme_completion	*rsp;
+	struct nvme_completion	*cqe;
 	struct nvmet_sq		*sq;
 	struct nvmet_cq		*cq;
 	struct nvmet_ns		*ns;
@@ -322,7 +322,7 @@ extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
-	req->rsp->result.u32 = cpu_to_le32(result);
+	req->cqe->result.u32 = cpu_to_le32(result);
 }
 
 /*

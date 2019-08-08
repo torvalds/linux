@@ -163,7 +163,7 @@ static int ar7_wdt_open(struct inode *inode, struct file *file)
 	ar7_wdt_enable_wdt();
 	expect_close = 0;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int ar7_wdt_release(struct inode *inode, struct file *file)

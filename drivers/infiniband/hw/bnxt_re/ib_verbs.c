@@ -119,21 +119,6 @@ static int bnxt_re_build_sgl(struct ib_sge *ib_sg_list,
 }
 
 /* Device */
-struct net_device *bnxt_re_get_netdev(struct ib_device *ibdev, u8 port_num)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	struct net_device *netdev = NULL;
-
-	rcu_read_lock();
-	if (rdev)
-		netdev = rdev->netdev;
-	if (netdev)
-		dev_hold(netdev);
-
-	rcu_read_unlock();
-	return netdev;
-}
-
 int bnxt_re_query_device(struct ib_device *ibdev,
 			 struct ib_device_attr *ib_attr,
 			 struct ib_udata *udata)
@@ -375,8 +360,9 @@ int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
 
-	if ((attr->ndev) && is_vlan_dev(attr->ndev))
-		vlan_id = vlan_dev_vlan_id(attr->ndev);
+	rc = rdma_read_gid_l2_fields(attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
 
 	rc = bnxt_qplib_add_sgid(sgid_tbl, (struct bnxt_qplib_gid *)&attr->gid,
 				 rdev->qplib_res.netdev->dev_addr,
@@ -564,7 +550,7 @@ fail:
 }
 
 /* Protection Domains */
-void bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
+void bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -576,14 +562,12 @@ void bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 				      &pd->qplib_pd);
 }
 
-int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *ucontext,
-		     struct ib_udata *udata)
+int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ibdev = ibpd->device;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	struct bnxt_re_ucontext *ucntx = container_of(ucontext,
-						      struct bnxt_re_ucontext,
-						      ib_uctx);
+	struct bnxt_re_ucontext *ucntx = rdma_udata_to_drv_context(
+		udata, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_re_pd *pd = container_of(ibpd, struct bnxt_re_pd, ib_pd);
 	int rc;
 
@@ -635,20 +619,13 @@ fail:
 }
 
 /* Address Handles */
-int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
+void bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	struct bnxt_re_dev *rdev = ah->rdev;
-	int rc;
 
-	rc = bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah,
-				   !(flags & RDMA_DESTROY_AH_SLEEPABLE));
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to destroy HW AH");
-		return rc;
-	}
-	kfree(ah);
-	return 0;
+	bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah,
+			      !(flags & RDMA_DESTROY_AH_SLEEPABLE));
 }
 
 static u8 bnxt_re_stack_to_dev_nw_type(enum rdma_network_type ntype)
@@ -669,26 +646,22 @@ static u8 bnxt_re_stack_to_dev_nw_type(enum rdma_network_type ntype)
 	return nw_type;
 }
 
-struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
-				struct rdma_ah_attr *ah_attr,
-				u32 flags,
-				struct ib_udata *udata)
+int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr,
+		      u32 flags, struct ib_udata *udata)
 {
+	struct ib_pd *ib_pd = ib_ah->pd;
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	const struct ib_gid_attr *sgid_attr;
-	struct bnxt_re_ah *ah;
+	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	u8 nw_type;
 	int rc;
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH)) {
 		dev_err(rdev_to_dev(rdev), "Failed to alloc AH: GRH not set");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
 
 	ah->rdev = rdev;
 	ah->qplib_ah.pd = &pd->qplib_pd;
@@ -718,7 +691,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				  !(flags & RDMA_CREATE_AH_SLEEPABLE));
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to allocate HW AH");
-		goto fail;
+		return rc;
 	}
 
 	/* Write AVID to shared page. */
@@ -735,11 +708,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 		spin_unlock_irqrestore(&uctx->sh_lock, flag);
 	}
 
-	return &ah->ib_ah;
-
-fail:
-	kfree(ah);
-	return ERR_PTR(rc);
+	return 0;
 }
 
 int bnxt_re_modify_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
@@ -789,7 +758,7 @@ void bnxt_re_unlock_cqs(struct bnxt_re_qp *qp,
 }
 
 /* Queue Pairs */
-int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
+int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_re_dev *rdev = qp->rdev;
@@ -812,13 +781,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 	bnxt_qplib_free_qp_res(&rdev->qplib_res, &qp->qplib_qp);
 
 	if (ib_qp->qp_type == IB_QPT_GSI && rdev->qp1_sqp) {
-		rc = bnxt_qplib_destroy_ah(&rdev->qplib_res,
-					   &rdev->sqp_ah->qplib_ah, false);
-		if (rc) {
-			dev_err(rdev_to_dev(rdev),
-				"Failed to destroy HW AH for shadow QP");
-			return rc;
-		}
+		bnxt_qplib_destroy_ah(&rdev->qplib_res, &rdev->sqp_ah->qplib_ah,
+				      false);
 
 		bnxt_qplib_clean_qp(&qp->qplib_qp);
 		rc = bnxt_qplib_destroy_qp(&rdev->qplib_res,
@@ -895,8 +859,9 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		return PTR_ERR(umem);
 
 	qp->sumem = umem;
-	qplib_qp->sq.sglist = umem->sg_head.sgl;
-	qplib_qp->sq.nmap = umem->nmap;
+	qplib_qp->sq.sg_info.sglist = umem->sg_head.sgl;
+	qplib_qp->sq.sg_info.npages = ib_umem_num_pages(umem);
+	qplib_qp->sq.sg_info.nmap = umem->nmap;
 	qplib_qp->qp_handle = ureq.qp_handle;
 
 	if (!qp->qplib_qp.srq) {
@@ -907,8 +872,9 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		if (IS_ERR(umem))
 			goto rqfail;
 		qp->rumem = umem;
-		qplib_qp->rq.sglist = umem->sg_head.sgl;
-		qplib_qp->rq.nmap = umem->nmap;
+		qplib_qp->rq.sg_info.sglist = umem->sg_head.sgl;
+		qplib_qp->rq.sg_info.npages = ib_umem_num_pages(umem);
+		qplib_qp->rq.sg_info.nmap = umem->nmap;
 	}
 
 	qplib_qp->dpi = &cntx->dpi;
@@ -916,8 +882,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 rqfail:
 	ib_umem_release(qp->sumem);
 	qp->sumem = NULL;
-	qplib_qp->sq.sglist = NULL;
-	qplib_qp->sq.nmap = 0;
+	memset(&qplib_qp->sq.sg_info, 0, sizeof(qplib_qp->sq.sg_info));
 
 	return PTR_ERR(umem);
 }
@@ -1326,30 +1291,22 @@ static enum ib_mtu __to_ib_mtu(u32 mtu)
 }
 
 /* Shared Receive Queues */
-int bnxt_re_destroy_srq(struct ib_srq *ib_srq)
+void bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 {
 	struct bnxt_re_srq *srq = container_of(ib_srq, struct bnxt_re_srq,
 					       ib_srq);
 	struct bnxt_re_dev *rdev = srq->rdev;
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
 	struct bnxt_qplib_nq *nq = NULL;
-	int rc;
 
 	if (qplib_srq->cq)
 		nq = qplib_srq->cq->nq;
-	rc = bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Destroy HW SRQ failed!");
-		return rc;
-	}
-
+	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
 	if (srq->umem)
 		ib_umem_release(srq->umem);
-	kfree(srq);
 	atomic_dec(&rdev->srq_count);
 	if (nq)
 		nq->budget--;
-	return 0;
 }
 
 static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
@@ -1374,22 +1331,25 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 		return PTR_ERR(umem);
 
 	srq->umem = umem;
-	qplib_srq->nmap = umem->nmap;
-	qplib_srq->sglist = umem->sg_head.sgl;
+	qplib_srq->sg_info.sglist = umem->sg_head.sgl;
+	qplib_srq->sg_info.npages = ib_umem_num_pages(umem);
+	qplib_srq->sg_info.nmap = umem->nmap;
 	qplib_srq->srq_handle = ureq.srq_handle;
 	qplib_srq->dpi = &cntx->dpi;
 
 	return 0;
 }
 
-struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
-				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata)
+int bnxt_re_create_srq(struct ib_srq *ib_srq,
+		       struct ib_srq_init_attr *srq_init_attr,
+		       struct ib_udata *udata)
 {
+	struct ib_pd *ib_pd = ib_srq->pd;
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	struct bnxt_re_srq *srq;
+	struct bnxt_re_srq *srq =
+		container_of(ib_srq, struct bnxt_re_srq, ib_srq);
 	struct bnxt_qplib_nq *nq = NULL;
 	int rc, entries;
 
@@ -1404,11 +1364,6 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 		goto exit;
 	}
 
-	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq) {
-		rc = -ENOMEM;
-		goto exit;
-	}
 	srq->rdev = rdev;
 	srq->qplib_srq.pd = &pd->qplib_pd;
 	srq->qplib_srq.dpi = &rdev->dpi_privileged;
@@ -1454,14 +1409,13 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 		nq->budget++;
 	atomic_inc(&rdev->srq_count);
 
-	return &srq->ib_srq;
+	return 0;
 
 fail:
 	if (srq->umem)
 		ib_umem_release(srq->umem);
-	kfree(srq);
 exit:
-	return ERR_PTR(rc);
+	return rc;
 }
 
 int bnxt_re_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *srq_attr,
@@ -1684,8 +1638,11 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 				qp_attr->ah_attr.roce.dmac);
 
 		sgid_attr = qp_attr->ah_attr.grh.sgid_attr;
-		memcpy(qp->qplib_qp.smac, sgid_attr->ndev->dev_addr,
-		       ETH_ALEN);
+		rc = rdma_read_gid_l2_fields(sgid_attr, NULL,
+					     &qp->qplib_qp.smac[0]);
+		if (rc)
+			return rc;
+
 		nw_type = rdma_gid_attr_network_type(sgid_attr);
 		switch (nw_type) {
 		case RDMA_NETWORK_IPV4:
@@ -1904,8 +1861,10 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 
 	memset(&qp->qp1_hdr, 0, sizeof(qp->qp1_hdr));
 
-	if (is_vlan_dev(sgid_attr->ndev))
-		vlan_id = vlan_dev_vlan_id(sgid_attr->ndev);
+	rc = rdma_read_gid_l2_fields(sgid_attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
+
 	/* Get network header type for this GID */
 	nw_type = rdma_gid_attr_network_type(sgid_attr);
 	switch (nw_type) {
@@ -2558,7 +2517,7 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, const struct ib_recv_wr *wr,
 }
 
 /* Completion Queues */
-int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
+int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	int rc;
 	struct bnxt_re_cq *cq;
@@ -2587,7 +2546,6 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 
 struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
-				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
@@ -2614,12 +2572,10 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	if (entries > dev_attr->max_cq_wqes + 1)
 		entries = dev_attr->max_cq_wqes + 1;
 
-	if (context) {
+	if (udata) {
 		struct bnxt_re_cq_req req;
-		struct bnxt_re_ucontext *uctx = container_of
-						(context,
-						 struct bnxt_re_ucontext,
-						 ib_uctx);
+		struct bnxt_re_ucontext *uctx = rdma_udata_to_drv_context(
+			udata, struct bnxt_re_ucontext, ib_uctx);
 		if (ib_copy_from_udata(&req, udata, sizeof(req))) {
 			rc = -EFAULT;
 			goto fail;
@@ -2632,8 +2588,9 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 			rc = PTR_ERR(cq->umem);
 			goto fail;
 		}
-		cq->qplib_cq.sghead = cq->umem->sg_head.sgl;
-		cq->qplib_cq.nmap = cq->umem->nmap;
+		cq->qplib_cq.sg_info.sglist = cq->umem->sg_head.sgl;
+		cq->qplib_cq.sg_info.npages = ib_umem_num_pages(cq->umem);
+		cq->qplib_cq.sg_info.nmap = cq->umem->nmap;
 		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
 		cq->max_cql = min_t(u32, entries, MAX_CQL_PER_POLL);
@@ -2645,8 +2602,6 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		}
 
 		cq->qplib_cq.dpi = &rdev->dpi_privileged;
-		cq->qplib_cq.sghead = NULL;
-		cq->qplib_cq.nmap = 0;
 	}
 	/*
 	 * Allocating the NQ in a round robin fashion. nq_alloc_cnt is a
@@ -2671,7 +2626,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	atomic_inc(&rdev->cq_count);
 	spin_lock_init(&cq->cq_lock);
 
-	if (context) {
+	if (udata) {
 		struct bnxt_re_cq_resp resp;
 
 		resp.cqid = cq->qplib_cq.id;
@@ -2689,7 +2644,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	return &cq->ib_cq;
 
 c2fail:
-	if (context)
+	if (udata)
 		ib_umem_release(cq->umem);
 fail:
 	kfree(cq->cql);
@@ -3381,7 +3336,7 @@ fail:
 	return ERR_PTR(rc);
 }
 
-int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
+int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct bnxt_re_mr *mr = container_of(ib_mr, struct bnxt_re_mr, ib_mr);
 	struct bnxt_re_dev *rdev = mr->rdev;
@@ -3427,7 +3382,7 @@ int bnxt_re_map_mr_sg(struct ib_mr *ib_mr, struct scatterlist *sg, int sg_nents,
 }
 
 struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
-			       u32 max_num_sg)
+			       u32 max_num_sg, struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -3552,17 +3507,12 @@ static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
 			     int page_shift)
 {
 	u64 *pbl_tbl = pbl_tbl_orig;
-	u64 paddr;
-	u64 page_mask = (1ULL << page_shift) - 1;
-	struct sg_dma_page_iter sg_iter;
+	u64 page_size =  BIT_ULL(page_shift);
+	struct ib_block_iter biter;
 
-	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		paddr = sg_page_iter_dma_address(&sg_iter);
-		if (pbl_tbl == pbl_tbl_orig)
-			*pbl_tbl++ = paddr & ~page_mask;
-		else if ((paddr & page_mask) == 0)
-			*pbl_tbl++ = paddr;
-	}
+	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap, page_size)
+		*pbl_tbl++ = rdma_block_iter_dma_address(&biter);
+
 	return pbl_tbl - pbl_tbl_orig;
 }
 
@@ -3624,7 +3574,9 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		goto free_umem;
 	}
 
-	page_shift = PAGE_SHIFT;
+	page_shift = __ffs(ib_umem_find_best_pgsz(umem,
+				BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_2M,
+				virt_addr));
 
 	if (!bnxt_re_page_size_ok(page_shift)) {
 		dev_err(rdev_to_dev(rdev), "umem page size unsupported!");
@@ -3632,16 +3584,12 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		goto fail;
 	}
 
-	if (!umem->hugetlb && length > BNXT_RE_MAX_MR_SIZE_LOW) {
+	if (page_shift == BNXT_RE_PAGE_SHIFT_4K &&
+	    length > BNXT_RE_MAX_MR_SIZE_LOW) {
 		dev_err(rdev_to_dev(rdev), "Requested MR Sz:%llu Max sup:%llu",
 			length,	(u64)BNXT_RE_MAX_MR_SIZE_LOW);
 		rc = -EINVAL;
 		goto fail;
-	}
-	if (umem->hugetlb && length > BNXT_RE_PAGE_SIZE_2M) {
-		page_shift = BNXT_RE_PAGE_SHIFT_2M;
-		dev_warn(rdev_to_dev(rdev), "umem hugetlb set page_size %x",
-			 1 << page_shift);
 	}
 
 	/* Map umem buf ptrs to the PBL */
@@ -3709,7 +3657,7 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 	resp.chip_id0 = chip_met_rev_num;
 	/* Future extension of chip info */
 	resp.chip_id1 = 0;
-	/*Temp, Use idr_alloc instead */
+	/*Temp, Use xa_alloc instead */
 	resp.dev_id = rdev->en_dev->pdev->devfn;
 	resp.max_qp = rdev->qplib_ctx.qpc_count;
 	resp.pg_size = PAGE_SIZE;

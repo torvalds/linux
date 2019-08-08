@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright © 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**
@@ -40,7 +37,7 @@ static bool is_user_label(int label)
 	return label >= VC4_BO_TYPE_COUNT;
 }
 
-static void vc4_bo_stats_dump(struct vc4_dev *vc4)
+static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
 {
 	int i;
 
@@ -48,58 +45,35 @@ static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 		if (!vc4->bo_labels[i].num_allocated)
 			continue;
 
-		DRM_INFO("%30s: %6dkb BOs (%d)\n",
-			 vc4->bo_labels[i].name,
-			 vc4->bo_labels[i].size_allocated / 1024,
-			 vc4->bo_labels[i].num_allocated);
-	}
-
-	mutex_lock(&vc4->purgeable.lock);
-	if (vc4->purgeable.num)
-		DRM_INFO("%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
-			 vc4->purgeable.size / 1024, vc4->purgeable.num);
-
-	if (vc4->purgeable.purged_num)
-		DRM_INFO("%30s: %6zdkb BOs (%d)\n", "total purged BO",
-			 vc4->purgeable.purged_size / 1024,
-			 vc4->purgeable.purged_num);
-	mutex_unlock(&vc4->purgeable.lock);
-}
-
-#ifdef CONFIG_DEBUG_FS
-int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	int i;
-
-	mutex_lock(&vc4->bo_lock);
-	for (i = 0; i < vc4->num_labels; i++) {
-		if (!vc4->bo_labels[i].num_allocated)
-			continue;
-
-		seq_printf(m, "%30s: %6dkb BOs (%d)\n",
+		drm_printf(p, "%30s: %6dkb BOs (%d)\n",
 			   vc4->bo_labels[i].name,
 			   vc4->bo_labels[i].size_allocated / 1024,
 			   vc4->bo_labels[i].num_allocated);
 	}
-	mutex_unlock(&vc4->bo_lock);
 
 	mutex_lock(&vc4->purgeable.lock);
 	if (vc4->purgeable.num)
-		seq_printf(m, "%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
+		drm_printf(p, "%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
 			   vc4->purgeable.size / 1024, vc4->purgeable.num);
 
 	if (vc4->purgeable.purged_num)
-		seq_printf(m, "%30s: %6zdkb BOs (%d)\n", "total purged BO",
+		drm_printf(p, "%30s: %6zdkb BOs (%d)\n", "total purged BO",
 			   vc4->purgeable.purged_size / 1024,
 			   vc4->purgeable.purged_num);
 	mutex_unlock(&vc4->purgeable.lock);
+}
+
+static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	vc4_bo_stats_print(&p, vc4);
 
 	return 0;
 }
-#endif
 
 /* Takes ownership of *name and returns the appropriate slot for it in
  * the bo_labels[] array, extending it as necessary.
@@ -200,8 +174,6 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		kfree(bo->validated_shader);
 		bo->validated_shader = NULL;
 	}
-
-	reservation_object_fini(&bo->_resv);
 
 	drm_gem_cma_free_object(obj);
 }
@@ -427,8 +399,6 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].num_allocated++;
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].size_allocated += size;
 	mutex_unlock(&vc4->bo_lock);
-	bo->resv = &bo->_resv;
-	reservation_object_init(bo->resv);
 
 	return &bo->base.base;
 }
@@ -479,8 +449,9 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	}
 
 	if (IS_ERR(cma_obj)) {
+		struct drm_printer p = drm_info_printer(vc4->dev->dev);
 		DRM_ERROR("Failed to allocate from CMA:\n");
-		vc4_bo_stats_dump(vc4);
+		vc4_bo_stats_print(&p, vc4);
 		return ERR_PTR(-ENOMEM);
 	}
 	bo = to_vc4_bo(&cma_obj->base);
@@ -684,13 +655,6 @@ static void vc4_bo_cache_time_timer(struct timer_list *t)
 	schedule_work(&vc4->bo_cache.time_work);
 }
 
-struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct vc4_bo *bo = to_vc4_bo(obj);
-
-	return bo->resv;
-}
-
 struct dma_buf *
 vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 {
@@ -822,14 +786,12 @@ vc4_prime_import_sg_table(struct drm_device *dev,
 			  struct sg_table *sgt)
 {
 	struct drm_gem_object *obj;
-	struct vc4_bo *bo;
 
 	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj))
 		return obj;
 
-	bo = to_vc4_bo(obj);
-	bo->resv = attach->dmabuf->resv;
+	obj->resv = attach->dmabuf->resv;
 
 	return obj;
 }
@@ -1037,6 +999,8 @@ int vc4_bo_cache_init(struct drm_device *dev)
 		vc4->bo_labels[i].name = bo_type_names[i];
 
 	mutex_init(&vc4->bo_lock);
+
+	vc4_debugfs_add_file(dev, "bo_stats", vc4_bo_stats_debugfs, NULL);
 
 	INIT_LIST_HEAD(&vc4->bo_cache.time_list);
 

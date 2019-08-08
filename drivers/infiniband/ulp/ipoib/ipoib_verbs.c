@@ -279,8 +279,7 @@ void ipoib_event(struct ib_event_handler *handler,
 	ipoib_dbg(priv, "Event %d on device %s port %d\n", record->event,
 		  dev_name(&record->device->dev), record->element.port_num);
 
-	if (record->event == IB_EVENT_SM_CHANGE ||
-	    record->event == IB_EVENT_CLIENT_REREGISTER) {
+	if (record->event == IB_EVENT_CLIENT_REREGISTER) {
 		queue_work(ipoib_workqueue, &priv->flush_light);
 	} else if (record->event == IB_EVENT_PORT_ERR ||
 		   record->event == IB_EVENT_PORT_ACTIVE ||

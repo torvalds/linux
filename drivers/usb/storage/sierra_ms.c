@@ -194,8 +194,6 @@ int sierra_ms_init(struct us_data *us)
 		kfree(swocInfo);
 	}
 complete:
-	result = device_create_file(&us->pusb_intf->dev, &dev_attr_truinst);
-
-	return 0;
+	return device_create_file(&us->pusb_intf->dev, &dev_attr_truinst);
 }
 

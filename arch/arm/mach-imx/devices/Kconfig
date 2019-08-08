@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IMX_HAVE_PLATFORM_FEC
 	bool
 	default y if SOC_IMX25 || SOC_IMX27 || SOC_IMX35

@@ -282,7 +282,7 @@ void test_ni_sort_device_routes(void)
 
 void test_ni_find_route_set(void)
 {
-	unittest(ni_find_route_set(bad_dest, &DR) == NULL,
+	unittest(!ni_find_route_set(bad_dest, &DR),
 		 "check for nonexistent route_set\n");
 	unittest(ni_find_route_set(dest0, &DR) == &DR.routes[0],
 		 "find first route_set\n");

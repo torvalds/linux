@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ISCSI_TARGET_CXGB4
 	tristate "Chelsio iSCSI target offload driver"
 	depends on ISCSI_TARGET && CHELSIO_T4 && INET

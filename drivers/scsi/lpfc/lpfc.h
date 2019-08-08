@@ -942,6 +942,7 @@ struct lpfc_hba {
 	int brd_no;			/* FC board number */
 	char SerialNumber[32];		/* adapter Serial Number */
 	char OptionROMVersion[32];	/* adapter BIOS / Fcode version */
+	char BIOSVersion[16];		/* Boot BIOS version */
 	char ModelDesc[256];		/* Model Description */
 	char ModelName[80];		/* Model Name */
 	char ProgramType[256];		/* Program Type */

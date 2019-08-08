@@ -91,6 +91,13 @@ enum drm_driver_feature {
 	 * submission.
 	 */
 	DRIVER_SYNCOBJ                  = BIT(5),
+	/**
+	 * @DRIVER_SYNCOBJ_TIMELINE:
+	 *
+	 * Driver supports the timeline flavor of &drm_syncobj for explicit
+	 * synchronization of command submission.
+	 */
+	DRIVER_SYNCOBJ_TIMELINE         = BIT(6),
 
 	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
 
@@ -152,9 +159,9 @@ enum drm_driver_feature {
 /**
  * struct drm_driver - DRM driver structure
  *
- * This structure represent the common code for a family of cards. There will
- * one drm_device for each card present in this family. It contains lots of
- * vfunc entries, and a pile of those probably should be moved to more
+ * This structure represent the common code for a family of cards. There will be
+ * one &struct drm_device for each card present in this family. It contains lots
+ * of vfunc entries, and a pile of those probably should be moved to more
  * appropriate places like &drm_mode_config_funcs or into a new operations
  * structure for GEM drivers.
  */
@@ -718,6 +725,9 @@ extern unsigned int drm_debug;
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,
 		 struct device *parent);
+int devm_drm_dev_init(struct device *parent,
+		      struct drm_device *dev,
+		      struct drm_driver *driver);
 void drm_dev_fini(struct drm_device *dev);
 
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,

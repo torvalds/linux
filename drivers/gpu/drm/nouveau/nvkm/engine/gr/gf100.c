@@ -2115,12 +2115,10 @@ int
 gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 		 struct gf100_gr_fuc *fuc)
 {
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
 	const struct firmware *fw;
 	int ret;
 
-	ret = nvkm_firmware_get(device, fwname, &fw);
+	ret = nvkm_firmware_get(&gr->base.engine.subdev, fwname, &fw);
 	if (ret) {
 		ret = gf100_gr_ctor_fw_legacy(gr, fwname, fuc, ret);
 		if (ret)

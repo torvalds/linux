@@ -54,8 +54,8 @@
  */
 
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 	.text
 ENTRY(__xtensa_copy_user)

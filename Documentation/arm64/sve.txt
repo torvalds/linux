@@ -34,10 +34,39 @@ model features for SVE is included in Appendix A.
   following sections: software that needs to verify that those interfaces are
   present must check for HWCAP_SVE instead.
 
+* On hardware that supports the SVE2 extensions, HWCAP2_SVE2 will also
+  be reported in the AT_HWCAP2 aux vector entry.  In addition to this,
+  optional extensions to SVE2 may be reported by the presence of:
+
+	HWCAP2_SVE2
+	HWCAP2_SVEAES
+	HWCAP2_SVEPMULL
+	HWCAP2_SVEBITPERM
+	HWCAP2_SVESHA3
+	HWCAP2_SVESM4
+
+  This list may be extended over time as the SVE architecture evolves.
+
+  These extensions are also reported via the CPU ID register ID_AA64ZFR0_EL1,
+  which userspace can read using an MRS instruction.  See elf_hwcaps.txt and
+  cpu-feature-registers.txt for details.
+
 * Debuggers should restrict themselves to interacting with the target via the
   NT_ARM_SVE regset.  The recommended way of detecting support for this regset
   is to connect to a target process first and then attempt a
   ptrace(PTRACE_GETREGSET, pid, NT_ARM_SVE, &iov).
+
+* Whenever SVE scalable register values (Zn, Pn, FFR) are exchanged in memory
+  between userspace and the kernel, the register value is encoded in memory in
+  an endianness-invariant layout, with bits [(8 * i + 7) : (8 * i)] encoded at
+  byte offset i from the start of the memory representation.  This affects for
+  example the signal frame (struct sve_context) and ptrace interface
+  (struct user_sve_header) and associated data.
+
+  Beware that on big-endian systems this results in a different byte order than
+  for the FPSIMD V-registers, which are stored as single host-endian 128-bit
+  values, with bits [(127 - 8 * i) : (120 - 8 * i)] of the register encoded at
+  byte offset i.  (struct fpsimd_context, struct user_fpsimd_state).
 
 
 2.  Vector length terminology
@@ -106,6 +135,10 @@ the SVE instruction set architecture.
 * If the registers are present, the remainder of the record has a vl-dependent
   size and layout.  Macros SVE_SIG_* are defined [1] to facilitate access to
   the members.
+
+* Each scalable register (Zn, Pn, FFR) is stored in an endianness-invariant
+  layout, with bits [(8 * i + 7) : (8 * i)] stored at byte offset i from the
+  start of the register's representation in memory.
 
 * If the SVE context is too big to fit in sigcontext.__reserved[], then extra
   space is allocated on the stack, an extra_context record is written in

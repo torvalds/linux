@@ -20,8 +20,8 @@
 /*
  * Queue Numbering
  *
- * The external queues (DMA channels + CPU) MUST be before the internal queues
- * and each group (DMA channels + CPU and internal) must be contiguous inside
+ * The external queues (PCI DMA channels) MUST be before the internal queues
+ * and each group (PCI DMA channels and internal) must be contiguous inside
  * itself but there can be a gap between the two groups (although not
  * recommended)
  */
@@ -33,7 +33,7 @@ enum goya_queue_id {
 	GOYA_QUEUE_ID_DMA_3,
 	GOYA_QUEUE_ID_DMA_4,
 	GOYA_QUEUE_ID_CPU_PQ,
-	GOYA_QUEUE_ID_MME,
+	GOYA_QUEUE_ID_MME,	/* Internal queues start here */
 	GOYA_QUEUE_ID_TPC0,
 	GOYA_QUEUE_ID_TPC1,
 	GOYA_QUEUE_ID_TPC2,
@@ -45,11 +45,18 @@ enum goya_queue_id {
 	GOYA_QUEUE_ID_SIZE
 };
 
+enum hl_device_status {
+	HL_DEVICE_STATUS_OPERATIONAL,
+	HL_DEVICE_STATUS_IN_RESET,
+	HL_DEVICE_STATUS_MALFUNCTION
+};
+
 /* Opcode for management ioctl */
 #define HL_INFO_HW_IP_INFO	0
 #define HL_INFO_HW_EVENTS	1
 #define HL_INFO_DRAM_USAGE	2
 #define HL_INFO_HW_IDLE		3
+#define HL_INFO_DEVICE_STATUS	4
 
 #define HL_INFO_VERSION_MAX_LEN	128
 
@@ -79,6 +86,11 @@ struct hl_info_dram_usage {
 
 struct hl_info_hw_idle {
 	__u32 is_idle;
+	__u32 pad;
+};
+
+struct hl_info_device_status {
+	__u32 status;
 	__u32 pad;
 };
 
@@ -181,7 +193,10 @@ struct hl_cs_in {
 };
 
 struct hl_cs_out {
-	/* this holds the sequence number of the CS to pass to wait ioctl */
+	/*
+	 * seq holds the sequence number of the CS to pass to wait ioctl. All
+	 * values are valid except for 0 and ULLONG_MAX
+	 */
 	__u64 seq;
 	/* HL_CS_STATUS_* */
 	__u32 status;
@@ -320,6 +335,114 @@ union hl_mem_args {
 	struct hl_mem_out out;
 };
 
+#define HL_DEBUG_MAX_AUX_VALUES		10
+
+struct hl_debug_params_etr {
+	/* Address in memory to allocate buffer */
+	__u64 buffer_address;
+
+	/* Size of buffer to allocate */
+	__u64 buffer_size;
+
+	/* Sink operation mode: SW fifo, HW fifo, Circular buffer */
+	__u32 sink_mode;
+	__u32 pad;
+};
+
+struct hl_debug_params_etf {
+	/* Address in memory to allocate buffer */
+	__u64 buffer_address;
+
+	/* Size of buffer to allocate */
+	__u64 buffer_size;
+
+	/* Sink operation mode: SW fifo, HW fifo, Circular buffer */
+	__u32 sink_mode;
+	__u32 pad;
+};
+
+struct hl_debug_params_stm {
+	/* Two bit masks for HW event and Stimulus Port */
+	__u64 he_mask;
+	__u64 sp_mask;
+
+	/* Trace source ID */
+	__u32 id;
+
+	/* Frequency for the timestamp register */
+	__u32 frequency;
+};
+
+struct hl_debug_params_bmon {
+	/* Two address ranges that the user can request to filter */
+	__u64 start_addr0;
+	__u64 addr_mask0;
+
+	__u64 start_addr1;
+	__u64 addr_mask1;
+
+	/* Capture window configuration */
+	__u32 bw_win;
+	__u32 win_capture;
+
+	/* Trace source ID */
+	__u32 id;
+	__u32 pad;
+};
+
+struct hl_debug_params_spmu {
+	/* Event types selection */
+	__u64 event_types[HL_DEBUG_MAX_AUX_VALUES];
+
+	/* Number of event types selection */
+	__u32 event_types_num;
+	__u32 pad;
+};
+
+/* Opcode for ETR component */
+#define HL_DEBUG_OP_ETR		0
+/* Opcode for ETF component */
+#define HL_DEBUG_OP_ETF		1
+/* Opcode for STM component */
+#define HL_DEBUG_OP_STM		2
+/* Opcode for FUNNEL component */
+#define HL_DEBUG_OP_FUNNEL	3
+/* Opcode for BMON component */
+#define HL_DEBUG_OP_BMON	4
+/* Opcode for SPMU component */
+#define HL_DEBUG_OP_SPMU	5
+/* Opcode for timestamp */
+#define HL_DEBUG_OP_TIMESTAMP	6
+/* Opcode for setting the device into or out of debug mode. The enable
+ * variable should be 1 for enabling debug mode and 0 for disabling it
+ */
+#define HL_DEBUG_OP_SET_MODE	7
+
+struct hl_debug_args {
+	/*
+	 * Pointer to user input structure.
+	 * This field is relevant to specific opcodes.
+	 */
+	__u64 input_ptr;
+	/* Pointer to user output structure */
+	__u64 output_ptr;
+	/* Size of user input structure */
+	__u32 input_size;
+	/* Size of user output structure */
+	__u32 output_size;
+	/* HL_DEBUG_OP_* */
+	__u32 op;
+	/*
+	 * Register index in the component, taken from the debug_regs_index enum
+	 * in the various ASIC header files
+	 */
+	__u32 reg_idx;
+	/* Enable/disable */
+	__u32 enable;
+	/* Context ID - Currently not in use */
+	__u32 ctx_id;
+};
+
 /*
  * Various information operations such as:
  * - H/W IP information
@@ -361,6 +484,12 @@ union hl_mem_args {
  * Each JOB will be enqueued on a specific queue, according to the user's input.
  * There can be more then one JOB per queue.
  *
+ * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
+ * a second set is for "execution" phase and a third set is for "store" phase.
+ * The JOBS on the "restore" phase are enqueued only after context-switch
+ * (or if its the first CS for this context). The user can also order the
+ * driver to run the "restore" phase explicitly
+ *
  * There are two types of queues - external and internal. External queues
  * are DMA queues which transfer data from/to the Host. All other queues are
  * internal. The driver will get completion notifications from the device only
@@ -377,19 +506,18 @@ union hl_mem_args {
  * relevant queues. Therefore, the user mustn't assume the CS has been completed
  * or has even started to execute.
  *
- * Upon successful enqueue, the IOCTL returns an opaque handle which the user
+ * Upon successful enqueue, the IOCTL returns a sequence number which the user
  * can use with the "Wait for CS" IOCTL to check whether the handle's CS
  * external JOBS have been completed. Note that if the CS has internal JOBS
  * which can execute AFTER the external JOBS have finished, the driver might
  * report that the CS has finished executing BEFORE the internal JOBS have
  * actually finish executing.
  *
- * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
- * a second set is for "execution" phase and a third set is for "store" phase.
- * The JOBS on the "restore" phase are enqueued only after context-switch
- * (or if its the first CS for this context). The user can also order the
- * driver to run the "restore" phase explicitly
- *
+ * Even though the sequence number increments per CS, the user can NOT
+ * automatically assume that if CS with sequence number N finished, then CS
+ * with sequence number N-1 also finished. The user can make this assumption if
+ * and only if CS N and CS N-1 are exactly the same (same CBs for the same
+ * queues).
  */
 #define HL_IOCTL_CS			\
 		_IOWR('H', 0x03, union hl_cs_args)
@@ -444,7 +572,34 @@ union hl_mem_args {
 #define HL_IOCTL_MEMORY		\
 		_IOWR('H', 0x05, union hl_mem_args)
 
+/*
+ * Debug
+ * - Enable/disable the ETR/ETF/FUNNEL/STM/BMON/SPMU debug traces
+ *
+ * This IOCTL allows the user to get debug traces from the chip.
+ *
+ * Before the user can send configuration requests of the various
+ * debug/profile engines, it needs to set the device into debug mode.
+ * This is because the debug/profile infrastructure is shared component in the
+ * device and we can't allow multiple users to access it at the same time.
+ *
+ * Once a user set the device into debug mode, the driver won't allow other
+ * users to "work" with the device, i.e. open a FD. If there are multiple users
+ * opened on the device, the driver won't allow any user to debug the device.
+ *
+ * For each configuration request, the user needs to provide the register index
+ * and essential data such as buffer address and size.
+ *
+ * Once the user has finished using the debug/profile engines, he should
+ * set the device into non-debug mode, i.e. disable debug mode.
+ *
+ * The driver can decide to "kick out" the user if he abuses this interface.
+ *
+ */
+#define HL_IOCTL_DEBUG		\
+		_IOWR('H', 0x06, struct hl_debug_args)
+
 #define HL_COMMAND_START	0x01
-#define HL_COMMAND_END		0x06
+#define HL_COMMAND_END		0x07
 
 #endif /* HABANALABS_H_ */

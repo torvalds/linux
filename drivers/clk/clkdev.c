@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/clk/clkdev.c
  *
  *  Copyright (C) 2008 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Helper for the clk API to assist looking up a struct clk.
  */
@@ -72,25 +69,26 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 	return cl;
 }
 
+struct clk_hw *clk_find_hw(const char *dev_id, const char *con_id)
+{
+	struct clk_lookup *cl;
+	struct clk_hw *hw = ERR_PTR(-ENOENT);
+
+	mutex_lock(&clocks_mutex);
+	cl = clk_find(dev_id, con_id);
+	if (cl)
+		hw = cl->clk_hw;
+	mutex_unlock(&clocks_mutex);
+
+	return hw;
+}
+
 static struct clk *__clk_get_sys(struct device *dev, const char *dev_id,
 				 const char *con_id)
 {
-	struct clk_lookup *cl;
-	struct clk *clk = NULL;
+	struct clk_hw *hw = clk_find_hw(dev_id, con_id);
 
-	mutex_lock(&clocks_mutex);
-
-	cl = clk_find(dev_id, con_id);
-	if (!cl)
-		goto out;
-
-	clk = clk_hw_create_clk(dev, cl->clk_hw, dev_id, con_id);
-	if (IS_ERR(clk))
-		cl = NULL;
-out:
-	mutex_unlock(&clocks_mutex);
-
-	return cl ? clk : ERR_PTR(-ENOENT);
+	return clk_hw_create_clk(dev, hw, dev_id, con_id);
 }
 
 struct clk *clk_get_sys(const char *dev_id, const char *con_id)

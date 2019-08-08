@@ -1,28 +1,31 @@
-
-		     Linux USB HID gadget driver
+===========================
+Linux USB HID gadget driver
+===========================
 
 Introduction
+============
 
-	The HID Gadget driver provides emulation of USB Human Interface
-	Devices (HID). The basic HID handling is done in the kernel,
-	and HID reports can be sent/received through I/O on the
-	/dev/hidgX character devices.
+The HID Gadget driver provides emulation of USB Human Interface
+Devices (HID). The basic HID handling is done in the kernel,
+and HID reports can be sent/received through I/O on the
+/dev/hidgX character devices.
 
-	For more details about HID, see the developer page on
-	http://www.usb.org/developers/hidpage/
+For more details about HID, see the developer page on
+http://www.usb.org/developers/hidpage/
 
 Configuration
+=============
 
-	g_hid is a platform driver, so to use it you need to add
-	struct platform_device(s) to your platform code defining the
-	HID function descriptors you want to use - E.G. something
-	like:
+g_hid is a platform driver, so to use it you need to add
+struct platform_device(s) to your platform code defining the
+HID function descriptors you want to use - E.G. something
+like::
 
-#include <linux/platform_device.h>
-#include <linux/usb/g_hid.h>
+  #include <linux/platform_device.h>
+  #include <linux/usb/g_hid.h>
 
-/* hid descriptor for a keyboard */
-static struct hidg_func_descriptor my_hid_data = {
+  /* hid descriptor for a keyboard */
+  static struct hidg_func_descriptor my_hid_data = {
 	.subclass		= 0, /* No subclass */
 	.protocol		= 1, /* Keyboard */
 	.report_length		= 8,
@@ -61,85 +64,87 @@ static struct hidg_func_descriptor my_hid_data = {
 		0x81, 0x00,	/*   INPUT (Data,Ary,Abs)                 */
 		0xc0		/* END_COLLECTION                         */
 	}
-};
+  };
 
-static struct platform_device my_hid = {
+  static struct platform_device my_hid = {
 	.name			= "hidg",
 	.id			= 0,
 	.num_resources		= 0,
 	.resource		= 0,
 	.dev.platform_data	= &my_hid_data,
-};
+  };
 
-	You can add as many HID functions as you want, only limited by
-	the amount of interrupt endpoints your gadget driver supports.
+You can add as many HID functions as you want, only limited by
+the amount of interrupt endpoints your gadget driver supports.
 
 Configuration with configfs
+===========================
 
-	Instead of adding fake platform devices and drivers in order to pass
-	some data to the kernel, if HID is a part of a gadget composed with
-	configfs the hidg_func_descriptor.report_desc is passed to the kernel
-	by writing the appropriate stream of bytes to a configfs attribute.
+Instead of adding fake platform devices and drivers in order to pass
+some data to the kernel, if HID is a part of a gadget composed with
+configfs the hidg_func_descriptor.report_desc is passed to the kernel
+by writing the appropriate stream of bytes to a configfs attribute.
 
 Send and receive HID reports
+============================
 
-	HID reports can be sent/received using read/write on the
-	/dev/hidgX character devices. See below for an example program
-	to do this.
+HID reports can be sent/received using read/write on the
+/dev/hidgX character devices. See below for an example program
+to do this.
 
-	hid_gadget_test is a small interactive program to test the HID
-	gadget driver. To use, point it at a hidg device and set the
-	device type (keyboard / mouse / joystick) - E.G.:
+hid_gadget_test is a small interactive program to test the HID
+gadget driver. To use, point it at a hidg device and set the
+device type (keyboard / mouse / joystick) - E.G.::
 
-		# hid_gadget_test /dev/hidg0 keyboard
+	# hid_gadget_test /dev/hidg0 keyboard
 
-	You are now in the prompt of hid_gadget_test. You can type any
-	combination of options and values. Available options and
-	values are listed at program start. In keyboard mode you can
-	send up to six values.
+You are now in the prompt of hid_gadget_test. You can type any
+combination of options and values. Available options and
+values are listed at program start. In keyboard mode you can
+send up to six values.
 
-	For example type: g i s t r --left-shift
+For example type: g i s t r --left-shift
 
-	Hit return and the corresponding report will be sent by the
-	HID gadget.
+Hit return and the corresponding report will be sent by the
+HID gadget.
 
-	Another interesting example is the caps lock test. Type
-	--caps-lock and hit return. A report is then sent by the
-	gadget and you should receive the host answer, corresponding
-	to the caps lock LED status.
+Another interesting example is the caps lock test. Type
+--caps-lock and hit return. A report is then sent by the
+gadget and you should receive the host answer, corresponding
+to the caps lock LED status::
 
-		--caps-lock
-		recv report:2
+	--caps-lock
+	recv report:2
 
-	With this command:
+With this command::
 
-		# hid_gadget_test /dev/hidg1 mouse
+	# hid_gadget_test /dev/hidg1 mouse
 
-	You can test the mouse emulation. Values are two signed numbers.
+You can test the mouse emulation. Values are two signed numbers.
 
 
-Sample code
+Sample code::
 
-/* hid_gadget_test */
+    /* hid_gadget_test */
 
-#include <pthread.h>
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+    #include <pthread.h>
+    #include <string.h>
+    #include <stdio.h>
+    #include <ctype.h>
+    #include <fcntl.h>
+    #include <errno.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <unistd.h>
 
-#define BUF_LEN 512
+    #define BUF_LEN 512
 
-struct options {
+    struct options {
 	const char    *opt;
 	unsigned char val;
-};
+  };
 
-static struct options kmod[] = {
+  static struct options kmod[] = {
 	{.opt = "--left-ctrl",		.val = 0x01},
 	{.opt = "--right-ctrl",		.val = 0x10},
 	{.opt = "--left-shift",		.val = 0x02},
@@ -149,9 +154,9 @@ static struct options kmod[] = {
 	{.opt = "--left-meta",		.val = 0x08},
 	{.opt = "--right-meta",		.val = 0x80},
 	{.opt = NULL}
-};
+  };
 
-static struct options kval[] = {
+  static struct options kval[] = {
 	{.opt = "--return",	.val = 0x28},
 	{.opt = "--esc",	.val = 0x29},
 	{.opt = "--bckspc",	.val = 0x2a},
@@ -183,10 +188,10 @@ static struct options kval[] = {
 	{.opt = "--up",		.val = 0x52},
 	{.opt = "--num-lock",	.val = 0x53},
 	{.opt = NULL}
-};
+  };
 
-int keyboard_fill_report(char report[8], char buf[BUF_LEN], int *hold)
-{
+  int keyboard_fill_report(char report[8], char buf[BUF_LEN], int *hold)
+  {
 	char *tok = strtok(buf, " ");
 	int key = 0;
 	int i = 0;
@@ -229,17 +234,17 @@ int keyboard_fill_report(char report[8], char buf[BUF_LEN], int *hold)
 			fprintf(stderr, "unknown option: %s\n", tok);
 	}
 	return 8;
-}
+  }
 
-static struct options mmod[] = {
+  static struct options mmod[] = {
 	{.opt = "--b1", .val = 0x01},
 	{.opt = "--b2", .val = 0x02},
 	{.opt = "--b3", .val = 0x04},
 	{.opt = NULL}
-};
+  };
 
-int mouse_fill_report(char report[8], char buf[BUF_LEN], int *hold)
-{
+  int mouse_fill_report(char report[8], char buf[BUF_LEN], int *hold)
+  {
 	char *tok = strtok(buf, " ");
 	int mvt = 0;
 	int i = 0;
@@ -274,9 +279,9 @@ int mouse_fill_report(char report[8], char buf[BUF_LEN], int *hold)
 		fprintf(stderr, "unknown option: %s\n", tok);
 	}
 	return 3;
-}
+  }
 
-static struct options jmod[] = {
+  static struct options jmod[] = {
 	{.opt = "--b1",		.val = 0x10},
 	{.opt = "--b2",		.val = 0x20},
 	{.opt = "--b3",		.val = 0x40},
@@ -287,10 +292,10 @@ static struct options jmod[] = {
 	{.opt = "--hat4",	.val = 0x03},
 	{.opt = "--hatneutral",	.val = 0x04},
 	{.opt = NULL}
-};
+  };
 
-int joystick_fill_report(char report[8], char buf[BUF_LEN], int *hold)
-{
+  int joystick_fill_report(char report[8], char buf[BUF_LEN], int *hold)
+  {
 	char *tok = strtok(buf, " ");
 	int mvt = 0;
 	int i = 0;
@@ -326,10 +331,10 @@ int joystick_fill_report(char report[8], char buf[BUF_LEN], int *hold)
 		fprintf(stderr, "unknown option: %s\n", tok);
 	}
 	return 4;
-}
+  }
 
-void print_options(char c)
-{
+  void print_options(char c)
+  {
 	int i = 0;
 
 	if (c == 'k') {
@@ -358,10 +363,10 @@ void print_options(char c)
 		       "		three signed numbers\n"
 		       "--quit to close\n");
 	}
-}
+  }
 
-int main(int argc, const char *argv[])
-{
+  int main(int argc, const char *argv[])
+  {
 	const char *filename = NULL;
 	int fd = 0;
 	char buf[BUF_LEN];
@@ -449,4 +454,4 @@ int main(int argc, const char *argv[])
 
 	close(fd);
 	return 0;
-}
+  }

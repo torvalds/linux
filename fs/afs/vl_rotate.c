@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Handle vlserver selection and rotation.
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -43,11 +39,29 @@ bool afs_begin_vlserver_operation(struct afs_vl_cursor *vc, struct afs_cell *cel
 static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 {
 	struct afs_cell *cell = vc->cell;
+	unsigned int dns_lookup_count;
 
-	if (wait_on_bit(&cell->flags, AFS_CELL_FL_NO_LOOKUP_YET,
-			TASK_INTERRUPTIBLE)) {
-		vc->error = -ERESTARTSYS;
-		return false;
+	if (cell->dns_source == DNS_RECORD_UNAVAILABLE ||
+	    cell->dns_expiry <= ktime_get_real_seconds()) {
+		dns_lookup_count = smp_load_acquire(&cell->dns_lookup_count);
+		set_bit(AFS_CELL_FL_DO_LOOKUP, &cell->flags);
+		queue_work(afs_wq, &cell->manager);
+
+		if (cell->dns_source == DNS_RECORD_UNAVAILABLE) {
+			if (wait_var_event_interruptible(
+				    &cell->dns_lookup_count,
+				    smp_load_acquire(&cell->dns_lookup_count)
+				    != dns_lookup_count) < 0) {
+				vc->error = -ERESTARTSYS;
+				return false;
+			}
+		}
+
+		/* Status load is ordered after lookup counter load */
+		if (cell->dns_source == DNS_RECORD_UNAVAILABLE) {
+			vc->error = -EDESTADDRREQ;
+			return false;
+		}
 	}
 
 	read_lock(&cell->vl_servers_lock);
@@ -55,7 +69,7 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 		rcu_dereference_protected(cell->vl_servers,
 					  lockdep_is_held(&cell->vl_servers_lock)));
 	read_unlock(&cell->vl_servers_lock);
-	if (!vc->server_list || !vc->server_list->nr_servers)
+	if (!vc->server_list->nr_servers)
 		return false;
 
 	vc->untried = (1UL << vc->server_list->nr_servers) - 1;

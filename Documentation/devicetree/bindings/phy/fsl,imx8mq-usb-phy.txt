@@ -7,6 +7,9 @@ Required properties:
 - clocks:	phandles to the clocks for each clock listed in clock-names
 - clock-names:	must contain "phy"
 
+Optional properties:
+- vbus-supply: A phandle to the regulator for USB VBUS.
+
 Example:
 	usb3_phy0: phy@381f0040 {
 		compatible = "fsl,imx8mq-usb-phy";

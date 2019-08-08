@@ -433,9 +433,9 @@ static int isif_get_params(struct v4l2_subdev *sd, void *params)
 	return 0;
 }
 
-static int isif_validate_df_csc_params(struct vpfe_isif_df_csc *df_csc)
+static int isif_validate_df_csc_params(const struct vpfe_isif_df_csc *df_csc)
 {
-	struct vpfe_isif_color_space_conv *csc;
+	const struct vpfe_isif_color_space_conv *csc;
 	int err = -EINVAL;
 	int i;
 
@@ -481,7 +481,7 @@ static int isif_validate_df_csc_params(struct vpfe_isif_df_csc *df_csc)
 #define DM365_ISIF_MAX_DFCMEM0		0x1fff
 #define DM365_ISIF_MAX_DFCMEM1		0x1fff
 
-static int isif_validate_dfc_params(struct vpfe_isif_dfc *dfc)
+static int isif_validate_dfc_params(const struct vpfe_isif_dfc *dfc)
 {
 	int err = -EINVAL;
 	int i;
@@ -532,7 +532,7 @@ static int isif_validate_dfc_params(struct vpfe_isif_dfc *dfc)
 #define DM365_ISIF_MAX_CLVSV			0x1fff
 #define DM365_ISIF_MAX_HEIGHT_BLACK_REGION	0x1fff
 
-static int isif_validate_bclamp_params(struct vpfe_isif_black_clamp *bclamp)
+static int isif_validate_bclamp_params(const struct vpfe_isif_black_clamp *bclamp)
 {
 	int err = -EINVAL;
 
@@ -580,7 +580,7 @@ static int isif_validate_bclamp_params(struct vpfe_isif_black_clamp *bclamp)
 }
 
 static int
-isif_validate_raw_params(struct vpfe_isif_raw_config *params)
+isif_validate_raw_params(const struct vpfe_isif_raw_config *params)
 {
 	int ret;
 
@@ -593,20 +593,18 @@ isif_validate_raw_params(struct vpfe_isif_raw_config *params)
 	return isif_validate_bclamp_params(&params->bclamp);
 }
 
-static int isif_set_params(struct v4l2_subdev *sd, void *params)
+static int isif_set_params(struct v4l2_subdev *sd, const struct vpfe_isif_raw_config *params)
 {
 	struct vpfe_isif_device *isif = v4l2_get_subdevdata(sd);
-	struct vpfe_isif_raw_config isif_raw_params;
 	int ret = -EINVAL;
 
 	/* only raw module parameters can be set through the IOCTL */
 	if (isif->formats[ISIF_PAD_SINK].code != MEDIA_BUS_FMT_SGRBG12_1X12)
 		return ret;
 
-	memcpy(&isif_raw_params, params, sizeof(isif_raw_params));
-	if (!isif_validate_raw_params(&isif_raw_params)) {
-		memcpy(&isif->isif_cfg.bayer.config_params, &isif_raw_params,
-			sizeof(isif_raw_params));
+	if (!isif_validate_raw_params(params)) {
+		memcpy(&isif->isif_cfg.bayer.config_params, params,
+			sizeof(*params));
 		ret = 0;
 	}
 	return ret;

@@ -309,6 +309,48 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 	return ret;
 }
 
+static int btf_dumper_var(const struct btf_dumper *d, __u32 type_id,
+			  __u8 bit_offset, const void *data)
+{
+	const struct btf_type *t = btf__type_by_id(d->btf, type_id);
+	int ret;
+
+	jsonw_start_object(d->jw);
+	jsonw_name(d->jw, btf__name_by_offset(d->btf, t->name_off));
+	ret = btf_dumper_do_type(d, t->type, bit_offset, data);
+	jsonw_end_object(d->jw);
+
+	return ret;
+}
+
+static int btf_dumper_datasec(const struct btf_dumper *d, __u32 type_id,
+			      const void *data)
+{
+	struct btf_var_secinfo *vsi;
+	const struct btf_type *t;
+	int ret = 0, i, vlen;
+
+	t = btf__type_by_id(d->btf, type_id);
+	if (!t)
+		return -EINVAL;
+
+	vlen = BTF_INFO_VLEN(t->info);
+	vsi = (struct btf_var_secinfo *)(t + 1);
+
+	jsonw_start_object(d->jw);
+	jsonw_name(d->jw, btf__name_by_offset(d->btf, t->name_off));
+	jsonw_start_array(d->jw);
+	for (i = 0; i < vlen; i++) {
+		ret = btf_dumper_do_type(d, vsi[i].type, 0, data + vsi[i].offset);
+		if (ret)
+			break;
+	}
+	jsonw_end_array(d->jw);
+	jsonw_end_object(d->jw);
+
+	return ret;
+}
+
 static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 			      __u8 bit_offset, const void *data)
 {
@@ -341,6 +383,10 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
 		return btf_dumper_modifier(d, type_id, bit_offset, data);
+	case BTF_KIND_VAR:
+		return btf_dumper_var(d, type_id, bit_offset, data);
+	case BTF_KIND_DATASEC:
+		return btf_dumper_datasec(d, type_id, data);
 	default:
 		jsonw_printf(d->jw, "(unsupported-kind");
 		return -EINVAL;
@@ -377,6 +423,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 {
 	const struct btf_type *proto_type;
 	const struct btf_array *array;
+	const struct btf_var *var;
 	const struct btf_type *t;
 
 	if (!type_id) {
@@ -439,6 +486,18 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 		pos = btf_dump_func(btf, func_sig, proto_type, t, pos, size);
 		if (pos == -1)
 			return -1;
+		break;
+	case BTF_KIND_VAR:
+		var = (struct btf_var *)(t + 1);
+		if (var->linkage == BTF_VAR_STATIC)
+			BTF_PRINT_ARG("static ");
+		BTF_PRINT_TYPE(t->type);
+		BTF_PRINT_ARG(" %s",
+			      btf__name_by_offset(btf, t->name_off));
+		break;
+	case BTF_KIND_DATASEC:
+		BTF_PRINT_ARG("section (\"%s\") ",
+			      btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_UNKN:
 	default:

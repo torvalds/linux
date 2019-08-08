@@ -6,8 +6,9 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/err.h>
 #include <linux/device.h>
+#include <linux/io.h>
+#include <linux/err.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
 

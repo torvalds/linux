@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* xfrm6_protocol.c - Generic xfrm protocol multiplexer for ipv6.
  *
  * Copyright (C) 2013 secunet Security Networks AG
@@ -7,11 +8,6 @@
  *
  * Based on:
  * net/ipv4/xfrm4_protocol.c
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -46,7 +42,7 @@ static inline struct xfrm6_protocol __rcu **proto_handlers(u8 protocol)
 	     handler != NULL;				\
 	     handler = rcu_dereference(handler->next))	\
 
-int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
+static int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 {
 	int ret;
 	struct xfrm6_protocol *handler;
@@ -61,7 +57,6 @@ int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 
 	return 0;
 }
-EXPORT_SYMBOL(xfrm6_rcv_cb);
 
 static int xfrm6_esp_rcv(struct sk_buff *skb)
 {

@@ -141,15 +141,15 @@ void acpi_ut_repair_name(char *name)
 	 * Special case for the root node. This can happen if we get an
 	 * error during the execution of module-level code.
 	 */
-	if (ACPI_COMPARE_NAME(name, ACPI_ROOT_PATHNAME)) {
+	if (ACPI_COMPARE_NAMESEG(name, ACPI_ROOT_PATHNAME)) {
 		return;
 	}
 
-	ACPI_MOVE_NAME(&original_name, name);
+	ACPI_COPY_NAMESEG(&original_name, name);
 
 	/* Check each character in the name */
 
-	for (i = 0; i < ACPI_NAME_SIZE; i++) {
+	for (i = 0; i < ACPI_NAMESEG_SIZE; i++) {
 		if (acpi_ut_valid_name_char(name[i], i)) {
 			continue;
 		}

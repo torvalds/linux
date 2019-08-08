@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91-cosino.dtsi - Device Tree file for Cosino core module
  *
@@ -7,8 +8,6 @@
  * Derived from at91sam9x5ek.dtsi by:
  *	Copyright (C) 2012 Atmel,
  *	2012 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include "at91sam9g35.dtsi"

@@ -30,7 +30,7 @@ Detect Control IDs
 ``V4L2_CID_DETECT_MD_MODE (menu)``
     Sets the motion detection mode.
 
-.. tabularcolumns:: |p{7.5cm}|p{10.0cm}|
+.. tabularcolumns:: |p{7.7cm}|p{9.8cm}|
 
 .. flat-table::
     :header-rows:  0

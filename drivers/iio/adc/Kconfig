@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # ADC drivers
 #
@@ -123,6 +124,18 @@ config AD7768_1
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7768-1.
+
+config AD7780
+	tristate "Analog Devices AD7780 and similar ADCs driver"
+	depends on SPI
+	depends on GPIOLIB || COMPILE_TEST
+	select AD_SIGMA_DELTA
+	help
+	  Say yes here to build support for Analog Devices AD7170, AD7171,
+	  AD7780 and AD7781 SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7780.
 
 config AD7791
 	tristate "Analog Devices AD7791 ADC driver"
@@ -390,7 +403,7 @@ config HX711
 
 	  This driver uses two GPIOs, one acts as the clock and controls the
 	  channel selection and gain, the other one is used for the measurement
-          data
+	  data
 
 	  Currently the raw value is read from the chip and delivered.
 	  To get an actual weight one needs to subtract the
@@ -541,7 +554,7 @@ config MAX1363
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1363.
 
-config	MAX9611
+config MAX9611
 	tristate "Maxim max9611/max9612 ADC driver"
 	depends on I2C
 	help
@@ -585,17 +598,17 @@ config MCP3911
 	  called mcp3911.
 
 config MEDIATEK_MT6577_AUXADC
-        tristate "MediaTek AUXADC driver"
-        depends on ARCH_MEDIATEK || COMPILE_TEST
-        depends on HAS_IOMEM
-        help
-          Say yes here to enable support for MediaTek mt65xx AUXADC.
+	tristate "MediaTek AUXADC driver"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to enable support for MediaTek mt65xx AUXADC.
 
-          The driver supports immediate mode operation to read from one of sixteen
-          channels (external or internal).
+	  The driver supports immediate mode operation to read from one of sixteen
+	  channels (external or internal).
 
-          This driver can also be built as a module. If so, the module will be
-          called mt6577_auxadc.
+	  This driver can also be built as a module. If so, the module will be
+	  called mt6577_auxadc.
 
 config MEN_Z188_ADC
 	tristate "MEN 16z188 ADC IP Core support"
@@ -809,7 +822,9 @@ config STM32_DFSDM_ADC
 	depends on (ARCH_STM32 && OF) || COMPILE_TEST
 	select STM32_DFSDM_CORE
 	select REGMAP_MMIO
+	select IIO_BUFFER
 	select IIO_BUFFER_HW_CONSUMER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Select this option to support ADCSigma delta modulator for
 	  STMicroelectronics STM32 digital filter for sigma delta converter.
@@ -956,7 +971,7 @@ config TI_ADS1015
 
 config TI_ADS7950
 	tristate "Texas Instruments ADS7950 ADC driver"
-	depends on SPI
+	depends on SPI && GPIOLIB
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -966,6 +981,16 @@ config TI_ADS7950
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti-ads7950.
+
+config TI_ADS8344
+	tristate "Texas Instruments ADS8344"
+	depends on SPI && OF
+	help
+	  If you say yes here you get support for Texas Instruments ADS8344
+	  ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads8344.
 
 config TI_ADS8688
 	tristate "Texas Instruments ADS8688"

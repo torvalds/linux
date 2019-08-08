@@ -310,6 +310,12 @@
 	IGC_RXDEXT_STATERR_CXE |	\
 	IGC_RXDEXT_STATERR_RXE)
 
+#define IGC_MRQC_RSS_FIELD_IPV4_TCP	0x00010000
+#define IGC_MRQC_RSS_FIELD_IPV4		0x00020000
+#define IGC_MRQC_RSS_FIELD_IPV6_TCP_EX	0x00040000
+#define IGC_MRQC_RSS_FIELD_IPV6		0x00100000
+#define IGC_MRQC_RSS_FIELD_IPV6_TCP	0x00200000
+
 /* Header split receive */
 #define IGC_RFCTL_IPV6_EX_DIS	0x00010000
 #define IGC_RFCTL_LEF		0x00040000
@@ -324,6 +330,10 @@
 
 #define I225_RXPBSIZE_DEFAULT	0x000000A2 /* RXPBSIZE default */
 #define I225_TXPBSIZE_DEFAULT	0x04000014 /* TXPBSIZE default */
+
+/* Receive Checksum Control */
+#define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
+#define IGC_RXCSUM_PCSD		0x00002000   /* packet checksum disabled */
 
 /* GPY211 - I225 defines */
 #define GPY_MMD_MASK		0xFFFF0000
@@ -389,5 +399,12 @@
 #define IGC_MDIC_DEST		0x80000000
 
 #define IGC_N0_QUEUE -1
+
+#define IGC_MAX_MAC_HDR_LEN	127
+#define IGC_MAX_NETWORK_HDR_LEN	511
+
+#define IGC_VLAPQF_QUEUE_SEL(_n, q_idx) ((q_idx) << ((_n) * 4))
+#define IGC_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define IGC_VLAPQF_QUEUE_MASK	0x03
 
 #endif /* _IGC_DEFINES_H_ */

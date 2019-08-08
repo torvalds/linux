@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_atomic.h>
@@ -128,7 +117,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	if (WARN_ON(omap_crtc->enabled == enable))
 		return;
 
-	if (omap_crtc->pipe->output->output_type == OMAP_DISPLAY_TYPE_HDMI) {
+	if (omap_crtc->pipe->output->type == OMAP_DISPLAY_TYPE_HDMI) {
 		priv->dispc_ops->mgr_enable(priv->dispc, channel, enable);
 		omap_crtc->enabled = enable;
 		return;
@@ -390,6 +379,15 @@ static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
 					const struct drm_display_mode *mode)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct videomode vm = {0};
+	int r;
+
+	drm_display_mode_to_videomode(mode, &vm);
+	r = priv->dispc_ops->mgr_check_timings(priv->dispc, omap_crtc->channel,
+					       &vm);
+	if (r)
+		return r;
 
 	/* Check for bandwidth limit */
 	if (priv->max_bandwidth) {
@@ -657,7 +655,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 					&omap_crtc_funcs, NULL);
 	if (ret < 0) {
 		dev_err(dev->dev, "%s(): could not init crtc for: %s\n",
-			__func__, pipe->display->name);
+			__func__, pipe->output->name);
 		kfree(omap_crtc);
 		return ERR_PTR(ret);
 	}

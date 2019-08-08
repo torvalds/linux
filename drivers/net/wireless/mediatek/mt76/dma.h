@@ -16,6 +16,8 @@
 #ifndef __MT76_DMA_H
 #define __MT76_DMA_H
 
+#define DMA_DUMMY_DATA			((void *)~0)
+
 #define MT_RING_SIZE			0x10
 
 #define MT_DMA_CTL_SD_LEN1		GENMASK(13, 0)

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_utils.c: Definition of common functions for Atlantic hardware
@@ -335,13 +332,13 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 {
 	u32 val;
 	int err = 0;
-	bool is_locked;
 
-	is_locked = hw_atl_sem_ram_get(self);
-	if (!is_locked) {
-		err = -ETIME;
+	err = readx_poll_timeout_atomic(hw_atl_sem_ram_get, self,
+					val, val == 1U,
+					10U, 100000U);
+	if (err < 0)
 		goto err_exit;
-	}
+
 	if (IS_CHIP_FEATURE(REVISION_B1)) {
 		u32 offset = 0;
 
@@ -353,8 +350,8 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 			/* 1000 times by 10us = 10ms */
 			err = readx_poll_timeout_atomic(hw_atl_scrpad12_get,
 							self, val,
-							(val & 0xF0000000) ==
-							 0x80000000,
+							(val & 0xF0000000) !=
+							0x80000000,
 							10U, 10000U);
 		}
 	} else {
@@ -545,7 +542,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 		pmbox->stats.ubtc = pmbox->stats.uptc * mtu;
 		pmbox->stats.dpc = atomic_read(&self->dpc);
 	} else {
-		pmbox->stats.dpc = hw_atl_reg_rx_dma_stat_counter7get(self);
+		pmbox->stats.dpc = hw_atl_rpb_rx_dma_drop_pkt_cnt_get(self);
 	}
 
 err_exit:;
@@ -763,6 +760,7 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
 	struct hw_atl_utils_mbox mbox;
+	struct aq_stats_s *cs = &self->curr_stats;
 
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
@@ -789,10 +787,11 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(dpc);
 	}
 #undef AQ_SDELTA
-	self->curr_stats.dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counterlsw_get(self);
-	self->curr_stats.dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counterlsw_get(self);
+
+	cs->dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counter_get(self);
+	cs->dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counter_get(self);
+	cs->dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counter_get(self);
+	cs->dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counter_get(self);
 
 	memcpy(&self->last_stats, &mbox.stats, sizeof(mbox.stats));
 
@@ -960,6 +959,7 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_state = hw_atl_utils_mpi_set_state,
 	.update_link_status = hw_atl_utils_mpi_get_link_status,
 	.update_stats = hw_atl_utils_update_stats,
+	.get_phy_temp = NULL,
 	.set_power = aq_fw1x_set_power,
 	.set_eee_rate = NULL,
 	.get_eee_rate = NULL,

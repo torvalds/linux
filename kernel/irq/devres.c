@@ -220,9 +220,8 @@ devm_irq_alloc_generic_chip(struct device *dev, const char *name, int num_ct,
 			    irq_flow_handler_t handler)
 {
 	struct irq_chip_generic *gc;
-	unsigned long sz = sizeof(*gc) + num_ct * sizeof(struct irq_chip_type);
 
-	gc = devm_kzalloc(dev, sz, GFP_KERNEL);
+	gc = devm_kzalloc(dev, struct_size(gc, chip_types, num_ct), GFP_KERNEL);
 	if (gc)
 		irq_init_generic_chip(gc, name, num_ct,
 				      irq_base, reg_base, handler);

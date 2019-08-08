@@ -122,7 +122,7 @@ huge_gem_object(struct drm_i915_private *i915,
 	if (overflows_type(dma_size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = i915_gem_object_alloc(i915);
+	obj = i915_gem_object_alloc();
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

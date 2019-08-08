@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* acpi_thermal_rel.c driver for exporting ACPI thermal relationship
  *
  * Copyright (c) 2014 Intel Corp
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
  */
 
 /*
@@ -230,7 +226,7 @@ static void get_single_name(acpi_handle handle, char *name)
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)))
 		pr_warn("Failed to get device name from acpi handle\n");
 	else {
-		memcpy(name, buffer.pointer, ACPI_NAME_SIZE);
+		memcpy(name, buffer.pointer, ACPI_NAMESEG_SIZE);
 		kfree(buffer.pointer);
 	}
 }

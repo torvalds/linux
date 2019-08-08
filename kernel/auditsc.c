@@ -771,15 +771,13 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
-	if (!list_empty(list)) {
-		list_for_each_entry_rcu(e, list, list) {
-			if (audit_in_mask(&e->rule, ctx->major) &&
-			    audit_filter_rules(tsk, &e->rule, ctx, NULL,
-					       &state, false)) {
-				rcu_read_unlock();
-				ctx->current_state = state;
-				return state;
-			}
+	list_for_each_entry_rcu(e, list, list) {
+		if (audit_in_mask(&e->rule, ctx->major) &&
+		    audit_filter_rules(tsk, &e->rule, ctx, NULL,
+				       &state, false)) {
+			rcu_read_unlock();
+			ctx->current_state = state;
+			return state;
 		}
 	}
 	rcu_read_unlock();
@@ -798,9 +796,6 @@ static int audit_filter_inode_name(struct task_struct *tsk,
 	struct audit_entry *e;
 	enum audit_state state;
 
-	if (list_empty(list))
-		return 0;
-
 	list_for_each_entry_rcu(e, list, list) {
 		if (audit_in_mask(&e->rule, ctx->major) &&
 		    audit_filter_rules(tsk, &e->rule, ctx, n, &state, false)) {
@@ -808,7 +803,6 @@ static int audit_filter_inode_name(struct task_struct *tsk,
 			return 1;
 		}
 	}
-
 	return 0;
 }
 
@@ -840,6 +834,13 @@ static inline void audit_proctitle_free(struct audit_context *context)
 	context->proctitle.len = 0;
 }
 
+static inline void audit_free_module(struct audit_context *context)
+{
+	if (context->type == AUDIT_KERN_MODULE) {
+		kfree(context->module.name);
+		context->module.name = NULL;
+	}
+}
 static inline void audit_free_names(struct audit_context *context)
 {
 	struct audit_names *n, *next;
@@ -923,6 +924,7 @@ int audit_alloc(struct task_struct *tsk)
 
 static inline void audit_free_context(struct audit_context *context)
 {
+	audit_free_module(context);
 	audit_free_names(context);
 	unroll_tree_refs(context, NULL, 0);
 	free_tree_refs(context);
@@ -1139,7 +1141,8 @@ out:
 	kfree(buf_head);
 }
 
-void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
+static void audit_log_cap(struct audit_buffer *ab, char *prefix,
+			  kernel_cap_t *cap)
 {
 	int i;
 
@@ -1266,7 +1269,6 @@ static void show_special(struct audit_context *context, int *call_panic)
 		audit_log_format(ab, "name=");
 		if (context->module.name) {
 			audit_log_untrustedstring(ab, context->module.name);
-			kfree(context->module.name);
 		} else
 			audit_log_format(ab, "(null)");
 
@@ -1628,7 +1630,7 @@ void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
 			return;
 	}
 
-	context->arch	    = syscall_get_arch();
+	context->arch	    = syscall_get_arch(current);
 	context->major      = major;
 	context->argv[0]    = a1;
 	context->argv[1]    = a2;
@@ -1697,6 +1699,7 @@ void __audit_syscall_exit(int success, long return_code)
 	context->in_syscall = 0;
 	context->prio = context->state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
 
+	audit_free_module(context);
 	audit_free_names(context);
 	unroll_tree_refs(context, NULL, 0);
 	audit_free_aux(context);
@@ -1897,8 +1900,9 @@ static inline int audit_copy_fcaps(struct audit_names *name,
 }
 
 /* Copy inode data into an audit_names. */
-void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
-		      struct inode *inode, unsigned int flags)
+static void audit_copy_inode(struct audit_names *name,
+			     const struct dentry *dentry,
+			     struct inode *inode, unsigned int flags)
 {
 	name->ino   = inode->i_ino;
 	name->dev   = inode->i_sb->s_dev;
@@ -1935,18 +1939,16 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 		return;
 
 	rcu_read_lock();
-	if (!list_empty(list)) {
-		list_for_each_entry_rcu(e, list, list) {
-			for (i = 0; i < e->rule.field_count; i++) {
-				struct audit_field *f = &e->rule.fields[i];
+	list_for_each_entry_rcu(e, list, list) {
+		for (i = 0; i < e->rule.field_count; i++) {
+			struct audit_field *f = &e->rule.fields[i];
 
-				if (f->type == AUDIT_FSTYPE
-				    && audit_comparator(inode->i_sb->s_magic,
-							f->op, f->val)
-				    && e->rule.action == AUDIT_NEVER) {
-					rcu_read_unlock();
-					return;
-				}
+			if (f->type == AUDIT_FSTYPE
+			    && audit_comparator(inode->i_sb->s_magic,
+						f->op, f->val)
+			    && e->rule.action == AUDIT_NEVER) {
+				rcu_read_unlock();
+				return;
 			}
 		}
 	}
@@ -2045,7 +2047,7 @@ void __audit_inode_child(struct inode *parent,
 {
 	struct audit_context *context = audit_context();
 	struct inode *inode = d_backing_inode(dentry);
-	const char *dname = dentry->d_name.name;
+	const struct qstr *dname = &dentry->d_name;
 	struct audit_names *n, *found_parent = NULL, *found_child = NULL;
 	struct audit_entry *e;
 	struct list_head *list = &audit_filter_list[AUDIT_FILTER_FS];
@@ -2055,18 +2057,16 @@ void __audit_inode_child(struct inode *parent,
 		return;
 
 	rcu_read_lock();
-	if (!list_empty(list)) {
-		list_for_each_entry_rcu(e, list, list) {
-			for (i = 0; i < e->rule.field_count; i++) {
-				struct audit_field *f = &e->rule.fields[i];
+	list_for_each_entry_rcu(e, list, list) {
+		for (i = 0; i < e->rule.field_count; i++) {
+			struct audit_field *f = &e->rule.fields[i];
 
-				if (f->type == AUDIT_FSTYPE
-				    && audit_comparator(parent->i_sb->s_magic,
-							f->op, f->val)
-				    && e->rule.action == AUDIT_NEVER) {
-					rcu_read_unlock();
-					return;
-				}
+			if (f->type == AUDIT_FSTYPE
+			    && audit_comparator(parent->i_sb->s_magic,
+						f->op, f->val)
+			    && e->rule.action == AUDIT_NEVER) {
+				rcu_read_unlock();
+				return;
 			}
 		}
 	}
@@ -2099,7 +2099,7 @@ void __audit_inode_child(struct inode *parent,
 		    (n->type != type && n->type != AUDIT_TYPE_UNKNOWN))
 			continue;
 
-		if (!strcmp(dname, n->name->name) ||
+		if (!strcmp(dname->name, n->name->name) ||
 		    !audit_compare_dname_path(dname, n->name->name,
 						found_parent ?
 						found_parent->name_len :
@@ -2512,6 +2512,35 @@ void __audit_fanotify(unsigned int response)
 		AUDIT_FANOTIFY,	"resp=%u", response);
 }
 
+void __audit_tk_injoffset(struct timespec64 offset)
+{
+	audit_log(audit_context(), GFP_KERNEL, AUDIT_TIME_INJOFFSET,
+		  "sec=%lli nsec=%li",
+		  (long long)offset.tv_sec, offset.tv_nsec);
+}
+
+static void audit_log_ntp_val(const struct audit_ntp_data *ad,
+			      const char *op, enum audit_ntp_type type)
+{
+	const struct audit_ntp_val *val = &ad->vals[type];
+
+	if (val->newval == val->oldval)
+		return;
+
+	audit_log(audit_context(), GFP_KERNEL, AUDIT_TIME_ADJNTPVAL,
+		  "op=%s old=%lli new=%lli", op, val->oldval, val->newval);
+}
+
+void __audit_ntp_log(const struct audit_ntp_data *ad)
+{
+	audit_log_ntp_val(ad, "offset",	AUDIT_NTP_OFFSET);
+	audit_log_ntp_val(ad, "freq",	AUDIT_NTP_FREQ);
+	audit_log_ntp_val(ad, "status",	AUDIT_NTP_STATUS);
+	audit_log_ntp_val(ad, "tai",	AUDIT_NTP_TAI);
+	audit_log_ntp_val(ad, "tick",	AUDIT_NTP_TICK);
+	audit_log_ntp_val(ad, "adjust",	AUDIT_NTP_ADJUST);
+}
+
 static void audit_log_task(struct audit_buffer *ab)
 {
 	kuid_t auid, uid;
@@ -2580,7 +2609,7 @@ void audit_seccomp(unsigned long syscall, long signr, int code)
 		return;
 	audit_log_task(ab);
 	audit_log_format(ab, " sig=%ld arch=%x syscall=%ld compat=%d ip=0x%lx code=0x%x",
-			 signr, syscall_get_arch(), syscall,
+			 signr, syscall_get_arch(current), syscall,
 			 in_compat_syscall(), KSTK_EIP(current), code);
 	audit_log_end(ab);
 }

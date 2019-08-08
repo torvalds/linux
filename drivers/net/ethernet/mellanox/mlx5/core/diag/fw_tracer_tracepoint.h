@@ -47,7 +47,7 @@ TRACE_EVENT(mlx5_fw,
 	TP_ARGS(tracer, trace_timestamp, lost, event_id, msg),
 
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name(&tracer->dev->pdev->dev))
+		__string(dev_name, dev_name(tracer->dev->device))
 		__field(u64, trace_timestamp)
 		__field(bool, lost)
 		__field(u8, event_id)
@@ -55,7 +55,8 @@ TRACE_EVENT(mlx5_fw,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name(&tracer->dev->pdev->dev));
+		__assign_str(dev_name,
+			     dev_name(tracer->dev->device));
 		__entry->trace_timestamp = trace_timestamp;
 		__entry->lost = lost;
 		__entry->event_id = event_id;

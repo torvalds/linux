@@ -1,7 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config XFS_FS
 	tristate "XFS filesystem support"
 	depends on BLOCK
-	depends on (64BIT || LBDAF)
 	select EXPORTFS
 	select LIBCRC32C
 	select FS_IOMAP

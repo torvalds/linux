@@ -11,16 +11,24 @@ described here as well as properties that are not applicable.
 
 Required Properties:-
 
-compatibility: "ti,keystone-pcie"
-reg:	index 1 is the base address and length of DW application registers.
-	index 2 is the base address and length of PCI device ID register.
+compatibility: Should be "ti,keystone-pcie" for RC on Keystone2 SoC
+	       Should be "ti,am654-pcie-rc" for RC on AM654x SoC
+reg: Three register ranges as listed in the reg-names property
+reg-names: "dbics" for the DesignWare PCIe registers, "app" for the
+	   TI specific application registers, "config" for the
+	   configuration space address
 
 pcie_msi_intc : Interrupt controller device node for MSI IRQ chip
 	interrupt-cells: should be set to 1
 	interrupts: GIC interrupt lines connected to PCI MSI interrupt lines
+	(required if the compatible is "ti,keystone-pcie")
+msi-map: As specified in Documentation/devicetree/bindings/pci/pci-msi.txt
+	 (required if the compatible is "ti,am654-pcie-rc".
 
 ti,syscon-pcie-id : phandle to the device control module required to set device
 		    id and vendor id.
+ti,syscon-pcie-mode : phandle to the device control module required to configure
+		      PCI in either RC mode or EP mode.
 
  Example:
 	pcie_msi_intc: msi-interrupt-controller {
@@ -61,3 +69,47 @@ Optional properties:-
 DesignWare DT Properties not applicable for Keystone PCI
 
 1. pcie_bus clock-names not used.  Instead, a phandle to phys is used.
+
+AM654 PCIe Endpoint
+===================
+
+Required Properties:-
+
+compatibility: Should be "ti,am654-pcie-ep" for EP on AM654x SoC
+reg: Four register ranges as listed in the reg-names property
+reg-names: "dbics" for the DesignWare PCIe registers, "app" for the
+	   TI specific application registers, "atu" for the
+	   Address Translation Unit configuration registers and
+	   "addr_space" used to map remote RC address space
+num-ib-windows: As specified in
+		Documentation/devicetree/bindings/pci/designware-pcie.txt
+num-ob-windows: As specified in
+		Documentation/devicetree/bindings/pci/designware-pcie.txt
+num-lanes: As specified in
+	   Documentation/devicetree/bindings/pci/designware-pcie.txt
+power-domains: As documented by the generic PM domain bindings in
+	       Documentation/devicetree/bindings/power/power_domain.txt.
+ti,syscon-pcie-mode: phandle to the device control module required to configure
+		      PCI in either RC mode or EP mode.
+
+Optional properties:-
+
+phys: list of PHY specifiers (used by generic PHY framework)
+phy-names: must be "pcie-phy0", "pcie-phy1", "pcie-phyN".. based on the
+               number of lanes as specified in *num-lanes* property.
+("phys" and "phy-names" DT bindings are specified in
+Documentation/devicetree/bindings/phy/phy-bindings.txt)
+interrupts: platform interrupt for error interrupts.
+
+pcie-ep {
+	compatible = "ti,am654-pcie-ep";
+	reg =  <0x5500000 0x1000>, <0x5501000 0x1000>,
+	       <0x10000000 0x8000000>, <0x5506000 0x1000>;
+	reg-names = "app", "dbics", "addr_space", "atu";
+	power-domains = <&k3_pds 120>;
+	ti,syscon-pcie-mode = <&pcie0_mode>;
+	num-lanes = <1>;
+	num-ib-windows = <16>;
+	num-ob-windows = <16>;
+	interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;
+};

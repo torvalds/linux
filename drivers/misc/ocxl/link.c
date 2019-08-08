@@ -76,7 +76,7 @@ struct spa {
  * limited number of opencapi slots on a system and lookup is only
  * done when the device is probed
  */
-struct link {
+struct ocxl_link {
 	struct list_head list;
 	struct kref ref;
 	int domain;
@@ -163,7 +163,7 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 		if (fault->dsisr & SPA_XSL_S)
 			access |= _PAGE_WRITE;
 
-		if (REGION_ID(fault->dar) != USER_REGION_ID)
+		if (get_region_id(fault->dar) != USER_REGION_ID)
 			access |= _PAGE_PRIVILEGED;
 
 		local_irq_save(flags);
@@ -179,12 +179,12 @@ ack:
 
 static irqreturn_t xsl_fault_handler(int irq, void *data)
 {
-	struct link *link = (struct link *) data;
+	struct ocxl_link *link = (struct ocxl_link *) data;
 	struct spa *spa = link->spa;
 	u64 dsisr, dar, pe_handle;
 	struct pe_data *pe_data;
 	struct ocxl_process_element *pe;
-	int lpid, pid, tid;
+	int pid;
 	bool schedule = false;
 
 	read_irq(spa, &dsisr, &dar, &pe_handle);
@@ -192,9 +192,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 
 	WARN_ON(pe_handle > SPA_PE_MASK);
 	pe = spa->spa_mem + pe_handle;
-	lpid = be32_to_cpu(pe->lpid);
 	pid = be32_to_cpu(pe->pid);
-	tid = be32_to_cpu(pe->tid);
 	/* We could be reading all null values here if the PE is being
 	 * removed while an interrupt kicks in. It's not supposed to
 	 * happen if the driver notified the AFU to terminate the
@@ -256,7 +254,7 @@ static int map_irq_registers(struct pci_dev *dev, struct spa *spa)
 				&spa->reg_tfc, &spa->reg_pe_handle);
 }
 
-static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
+static int setup_xsl_irq(struct pci_dev *dev, struct ocxl_link *link)
 {
 	struct spa *spa = link->spa;
 	int rc;
@@ -311,7 +309,7 @@ err_xsl:
 	return rc;
 }
 
-static void release_xsl_irq(struct link *link)
+static void release_xsl_irq(struct ocxl_link *link)
 {
 	struct spa *spa = link->spa;
 
@@ -323,7 +321,7 @@ static void release_xsl_irq(struct link *link)
 	unmap_irq_registers(spa);
 }
 
-static int alloc_spa(struct pci_dev *dev, struct link *link)
+static int alloc_spa(struct pci_dev *dev, struct ocxl_link *link)
 {
 	struct spa *spa;
 
@@ -350,7 +348,7 @@ static int alloc_spa(struct pci_dev *dev, struct link *link)
 	return 0;
 }
 
-static void free_spa(struct link *link)
+static void free_spa(struct ocxl_link *link)
 {
 	struct spa *spa = link->spa;
 
@@ -364,12 +362,12 @@ static void free_spa(struct link *link)
 	}
 }
 
-static int alloc_link(struct pci_dev *dev, int PE_mask, struct link **out_link)
+static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_link)
 {
-	struct link *link;
+	struct ocxl_link *link;
 	int rc;
 
-	link = kzalloc(sizeof(struct link), GFP_KERNEL);
+	link = kzalloc(sizeof(struct ocxl_link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
 
@@ -405,7 +403,7 @@ err_free:
 	return rc;
 }
 
-static void free_link(struct link *link)
+static void free_link(struct ocxl_link *link)
 {
 	release_xsl_irq(link);
 	free_spa(link);
@@ -415,7 +413,7 @@ static void free_link(struct link *link)
 int ocxl_link_setup(struct pci_dev *dev, int PE_mask, void **link_handle)
 {
 	int rc = 0;
-	struct link *link;
+	struct ocxl_link *link;
 
 	mutex_lock(&links_list_lock);
 	list_for_each_entry(link, &links_list, list) {
@@ -442,7 +440,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_setup);
 
 static void release_xsl(struct kref *ref)
 {
-	struct link *link = container_of(ref, struct link, ref);
+	struct ocxl_link *link = container_of(ref, struct ocxl_link, ref);
 
 	list_del(&link->list);
 	/* call platform code before releasing data */
@@ -452,7 +450,7 @@ static void release_xsl(struct kref *ref)
 
 void ocxl_link_release(struct pci_dev *dev, void *link_handle)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 
 	mutex_lock(&links_list_lock);
 	kref_put(&link->ref, release_xsl);
@@ -488,7 +486,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 		void (*xsl_err_cb)(void *data, u64 addr, u64 dsisr),
 		void *xsl_err_data)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	int pe_handle, rc = 0;
@@ -558,7 +556,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_add_pe);
 
 int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	int pe_handle, rc;
@@ -594,7 +592,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 
 int ocxl_link_remove_pe(void *link_handle, int pasid)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	struct pe_data *pe_data;
@@ -666,7 +664,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_remove_pe);
 
 int ocxl_link_irq_alloc(void *link_handle, int *hw_irq, u64 *trigger_addr)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 	int rc, irq;
 	u64 addr;
 
@@ -687,7 +685,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_irq_alloc);
 
 void ocxl_link_free_irq(void *link_handle, int hw_irq)
 {
-	struct link *link = (struct link *) link_handle;
+	struct ocxl_link *link = (struct ocxl_link *) link_handle;
 
 	pnv_ocxl_free_xive_irq(hw_irq);
 	atomic_inc(&link->irq_available);

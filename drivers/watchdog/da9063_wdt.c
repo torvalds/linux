@@ -188,17 +188,18 @@ static const struct watchdog_ops da9063_watchdog_ops = {
 
 static int da9063_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct da9063 *da9063;
 	struct watchdog_device *wdd;
 
-	if (!pdev->dev.parent)
+	if (!dev->parent)
 		return -EINVAL;
 
-	da9063 = dev_get_drvdata(pdev->dev.parent);
+	da9063 = dev_get_drvdata(dev->parent);
 	if (!da9063)
 		return -EINVAL;
 
-	wdd = devm_kzalloc(&pdev->dev, sizeof(*wdd), GFP_KERNEL);
+	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
 	if (!wdd)
 		return -ENOMEM;
 
@@ -207,22 +208,24 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	wdd->min_timeout = DA9063_WDT_MIN_TIMEOUT;
 	wdd->max_timeout = DA9063_WDT_MAX_TIMEOUT;
 	wdd->min_hw_heartbeat_ms = DA9063_RESET_PROTECTION_MS;
-	wdd->timeout = DA9063_WDG_TIMEOUT;
-	wdd->parent = &pdev->dev;
-
+	wdd->parent = dev;
 	wdd->status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 
 	watchdog_set_restart_priority(wdd, 128);
-
 	watchdog_set_drvdata(wdd, da9063);
+
+	/* Set default timeout, maybe override it with DT value, scale it */
+	wdd->timeout = DA9063_WDG_TIMEOUT;
+	watchdog_init_timeout(wdd, 0, dev);
+	da9063_wdt_set_timeout(wdd, wdd->timeout);
 
 	/* Change the timeout to the default value if the watchdog is running */
 	if (da9063_wdt_is_running(da9063)) {
-		da9063_wdt_update_timeout(da9063, DA9063_WDG_TIMEOUT);
+		da9063_wdt_update_timeout(da9063, wdd->timeout);
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
-	return devm_watchdog_register_device(&pdev->dev, wdd);
+	return devm_watchdog_register_device(dev, wdd);
 }
 
 static struct platform_driver da9063_wdt_driver = {

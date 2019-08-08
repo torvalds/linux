@@ -266,7 +266,9 @@ static bool __vmw_piter_non_sg_next(struct vmw_piter *viter)
 
 static bool __vmw_piter_sg_next(struct vmw_piter *viter)
 {
-	return __sg_page_iter_next(&viter->iter);
+	bool ret = __vmw_piter_non_sg_next(viter);
+
+	return __sg_page_iter_dma_next(&viter->iter) && ret;
 }
 
 
@@ -283,12 +285,6 @@ static struct page *__vmw_piter_non_sg_page(struct vmw_piter *viter)
 {
 	return viter->pages[viter->i];
 }
-
-static struct page *__vmw_piter_sg_page(struct vmw_piter *viter)
-{
-	return sg_page_iter_page(&viter->iter);
-}
-
 
 /**
  * Helper functions to return the DMA address of the current page.
@@ -311,13 +307,7 @@ static dma_addr_t __vmw_piter_dma_addr(struct vmw_piter *viter)
 
 static dma_addr_t __vmw_piter_sg_addr(struct vmw_piter *viter)
 {
-	/*
-	 * FIXME: This driver wrongly mixes DMA and CPU SG list iteration and
-	 * needs revision. See
-	 * https://lore.kernel.org/lkml/20190104223531.GA1705@ziepe.ca/
-	 */
-	return sg_page_iter_dma_address(
-		container_of(&viter->iter, struct sg_dma_page_iter, base));
+	return sg_page_iter_dma_address(&viter->iter);
 }
 
 
@@ -336,26 +326,23 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
 {
 	viter->i = p_offset - 1;
 	viter->num_pages = vsgt->num_pages;
+	viter->page = &__vmw_piter_non_sg_page;
+	viter->pages = vsgt->pages;
 	switch (vsgt->mode) {
 	case vmw_dma_phys:
 		viter->next = &__vmw_piter_non_sg_next;
 		viter->dma_address = &__vmw_piter_phys_addr;
-		viter->page = &__vmw_piter_non_sg_page;
-		viter->pages = vsgt->pages;
 		break;
 	case vmw_dma_alloc_coherent:
 		viter->next = &__vmw_piter_non_sg_next;
 		viter->dma_address = &__vmw_piter_dma_addr;
-		viter->page = &__vmw_piter_non_sg_page;
 		viter->addrs = vsgt->addrs;
-		viter->pages = vsgt->pages;
 		break;
 	case vmw_dma_map_populate:
 	case vmw_dma_map_bind:
 		viter->next = &__vmw_piter_sg_next;
 		viter->dma_address = &__vmw_piter_sg_addr;
-		viter->page = &__vmw_piter_sg_page;
-		__sg_page_iter_start(&viter->iter, vsgt->sgt->sgl,
+		__sg_page_iter_start(&viter->iter.base, vsgt->sgt->sgl,
 				     vsgt->sgt->orig_nents, p_offset);
 		break;
 	default:
@@ -454,11 +441,11 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 		if (unlikely(ret != 0))
 			return ret;
 
-		ret = sg_alloc_table_from_pages(&vmw_tt->sgt, vsgt->pages,
-						vsgt->num_pages, 0,
-						(unsigned long)
-						vsgt->num_pages << PAGE_SHIFT,
-						GFP_KERNEL);
+		ret = __sg_alloc_table_from_pages
+			(&vmw_tt->sgt, vsgt->pages, vsgt->num_pages, 0,
+			 (unsigned long) vsgt->num_pages << PAGE_SHIFT,
+			 dma_get_max_seg_size(dev_priv->dev->dev),
+			 GFP_KERNEL);
 		if (unlikely(ret != 0))
 			goto out_sg_alloc_fail;
 

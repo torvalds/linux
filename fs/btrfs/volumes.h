@@ -45,6 +45,7 @@ struct btrfs_pending_bios {
 struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
+	struct list_head post_commit_list; /* chunk mutex */
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_fs_info *fs_info;
 
@@ -102,18 +103,12 @@ struct btrfs_device {
 	 * size of the device on the current transaction
 	 *
 	 * This variant is update when committing the transaction,
-	 * and protected by device_list_mutex
+	 * and protected by chunk mutex
 	 */
 	u64 commit_total_bytes;
 
 	/* bytes used on the current transaction */
 	u64 commit_bytes_used;
-	/*
-	 * used to manage the device which is resized
-	 *
-	 * It is protected by chunk_lock.
-	 */
-	struct list_head resized_list;
 
 	/* for sending down flush barriers */
 	struct bio *flush_bio;
@@ -123,7 +118,6 @@ struct btrfs_device {
 	struct scrub_ctx *scrub_ctx;
 
 	struct btrfs_work work;
-	struct rcu_head rcu;
 
 	/* readahead state */
 	atomic_t reada_in_flight;
@@ -139,6 +133,8 @@ struct btrfs_device {
 	/* Counter to record the change of device stats */
 	atomic_t dev_stats_ccnt;
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
+
+	struct extent_io_tree alloc_state;
 };
 
 /*
@@ -235,7 +231,6 @@ struct btrfs_fs_devices {
 	struct mutex device_list_mutex;
 	struct list_head devices;
 
-	struct list_head resized_devices;
 	/* devices not currently being allocated */
 	struct list_head alloc_list;
 
@@ -257,6 +252,15 @@ struct btrfs_fs_devices {
 };
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
+
+#define BTRFS_MAX_DEVS(info) ((BTRFS_MAX_ITEM_SIZE(info)	\
+			- sizeof(struct btrfs_chunk))		\
+			/ sizeof(struct btrfs_stripe) + 1)
+
+#define BTRFS_MAX_DEVS_SYS_CHUNK ((BTRFS_SYSTEM_CHUNK_ARRAY_SIZE	\
+				- 2 * sizeof(struct btrfs_disk_key)	\
+				- 2 * sizeof(struct btrfs_chunk))	\
+				/ sizeof(struct btrfs_stripe) + 1)
 
 /*
  * we need the mirror number and stripe index to be passed around
@@ -390,6 +394,7 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 		return BTRFS_MAP_WRITE;
 	default:
 		WARN_ON_ONCE(1);
+		/* fall through */
 	case REQ_OP_READ:
 		return BTRFS_MAP_READ;
 	}
@@ -449,22 +454,18 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_fs_info *fs_info, u64 chunk_offset);
-int find_free_dev_extent_start(struct btrfs_transaction *transaction,
-			 struct btrfs_device *device, u64 num_bytes,
-			 u64 search_start, u64 *start, u64 *max_avail);
-int find_free_dev_extent(struct btrfs_trans_handle *trans,
-			 struct btrfs_device *device, u64 num_bytes,
+int find_free_dev_extent_start(struct btrfs_device *device, u64 num_bytes,
+			       u64 search_start, u64 *start, u64 *max_avail);
+int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
 			struct btrfs_ioctl_get_dev_stats *stats);
 void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
-int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info);
+int btrfs_run_dev_stats(struct btrfs_trans_handle *trans);
 void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_device *srcdev);
-void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
-				      struct btrfs_device *srcdev);
+void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev);
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev);
 void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_path);
 int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
@@ -558,8 +559,7 @@ static inline enum btrfs_raid_types btrfs_bg_flags_to_raid_index(u64 flags)
 
 const char *get_raid_name(enum btrfs_raid_types type);
 
-void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
-void btrfs_update_commit_device_bytes_used(struct btrfs_transaction *trans);
+void btrfs_commit_device_sizes(struct btrfs_transaction *trans);
 
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);

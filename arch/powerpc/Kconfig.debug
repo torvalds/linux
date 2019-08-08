@@ -117,6 +117,14 @@ config XMON_DISASSEMBLY
 	  to say Y here, unless you're building for a memory-constrained
 	  system.
 
+config XMON_DEFAULT_RO_MODE
+	bool "Restrict xmon to read-only operations by default"
+	depends on XMON
+	default y
+	help
+          Operate xmon in read-only mode. The cmdline options 'xmon=rw' and
+          'xmon=ro' override this default.
+
 config DEBUGGER
 	bool
 	depends on KGDB || XMON
@@ -361,8 +369,32 @@ config PPC_PTDUMP
 
 	  If you are unsure, say N.
 
+config PPC_DEBUG_WX
+	bool "Warn on W+X mappings at boot"
+	depends on PPC_PTDUMP
+	help
+	  Generate a warning if any W+X mappings are found at boot.
+
+	  This is useful for discovering cases where the kernel is leaving
+	  W+X mappings after applying NX, as such mappings are a security risk.
+
+	  Note that even if the check fails, your kernel is possibly
+	  still fine, as W+X mappings are not a security hole in
+	  themselves, what they do is that they make the exploitation
+	  of other unfixed kernel bugs easier.
+
+	  There is no runtime or memory usage effect of this option
+	  once the kernel has booted up - it's a one time check.
+
+	  If in doubt, say "Y".
+
 config PPC_FAST_ENDIAN_SWITCH
 	bool "Deprecated fast endian-switch syscall"
         depends on DEBUG_KERNEL && PPC_BOOK3S_64
         help
 	  If you're unsure what this is, say N.
+
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN
+	default 0xe0000000

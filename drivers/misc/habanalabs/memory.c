@@ -109,7 +109,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 							page_size);
 			if (!phys_pg_pack->pages[i]) {
 				dev_err(hdev->dev,
-					"ioctl failed to allocate page\n");
+					"Failed to allocate device memory (out of memory)\n");
 				rc = -ENOMEM;
 				goto page_err;
 			}
@@ -675,11 +675,6 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 		total_npages += npages;
 
-		if (first) {
-			first = false;
-			dma_addr &= PAGE_MASK_2MB;
-		}
-
 		if ((npages % PGS_IN_2MB_PAGE) ||
 					(dma_addr & (PAGE_SIZE_2MB - 1)))
 			is_huge_page_opt = false;
@@ -704,7 +699,6 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	phys_pg_pack->total_size = total_npages * page_size;
 
 	j = 0;
-	first = true;
 	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
 		npages = get_sg_info(sg, &dma_addr);
 
@@ -758,10 +752,6 @@ static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
 
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
 		paddr = phys_pg_pack->pages[i];
-
-		/* For accessing the host we need to turn on bit 39 */
-		if (phys_pg_pack->created_from_userptr)
-			paddr += hdev->asic_prop.host_phys_base_address;
 
 		rc = hl_mmu_map(ctx, next_vaddr, paddr, page_size);
 		if (rc) {
@@ -1046,10 +1036,17 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 
 	mutex_lock(&ctx->mmu_lock);
 
-	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size)
+	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
 		if (hl_mmu_unmap(ctx, next_vaddr, page_size))
 			dev_warn_ratelimited(hdev->dev,
-				"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+			"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+
+		/* unmapping on Palladium can be really long, so avoid a CPU
+		 * soft lockup bug by sleeping a little between unmapping pages
+		 */
+		if (hdev->pldm)
+			usleep_range(500, 1000);
+	}
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
 
@@ -1083,6 +1080,64 @@ vm_type_err:
 	return rc;
 }
 
+static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_ctx *ctx = hpriv->ctx;
+	u64 device_addr = 0;
+	u32 handle = 0;
+	int rc;
+
+	switch (args->in.op) {
+	case HL_MEM_OP_ALLOC:
+		if (args->in.alloc.mem_size == 0) {
+			dev_err(hdev->dev,
+				"alloc size must be larger than 0\n");
+			rc = -EINVAL;
+			goto out;
+		}
+
+		/* Force contiguous as there are no real MMU
+		 * translations to overcome physical memory gaps
+		 */
+		args->in.flags |= HL_MEM_CONTIGUOUS;
+		rc = alloc_device_memory(ctx, &args->in, &handle);
+
+		memset(args, 0, sizeof(*args));
+		args->out.handle = (__u64) handle;
+		break;
+
+	case HL_MEM_OP_FREE:
+		rc = free_device_memory(ctx, args->in.free.handle);
+		break;
+
+	case HL_MEM_OP_MAP:
+		if (args->in.flags & HL_MEM_USERPTR) {
+			device_addr = args->in.map_host.host_virt_addr;
+			rc = 0;
+		} else {
+			rc = get_paddr_from_handle(ctx, &args->in,
+					&device_addr);
+		}
+
+		memset(args, 0, sizeof(*args));
+		args->out.device_virt_addr = device_addr;
+		break;
+
+	case HL_MEM_OP_UNMAP:
+		rc = 0;
+		break;
+
+	default:
+		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
+		rc = -ENOTTY;
+		break;
+	}
+
+out:
+	return rc;
+}
+
 int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_mem_args *args = data;
@@ -1094,104 +1149,54 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
 		dev_warn_ratelimited(hdev->dev,
-			"Device is disabled or in reset. Can't execute memory IOCTL\n");
+			"Device is %s. Can't execute MEMORY IOCTL\n",
+			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		return -EBUSY;
 	}
 
-	if (hdev->mmu_enable) {
-		switch (args->in.op) {
-		case HL_MEM_OP_ALLOC:
-			if (!hdev->dram_supports_virtual_memory) {
-				dev_err(hdev->dev,
-					"DRAM alloc is not supported\n");
-				rc = -EINVAL;
-				goto out;
-			}
-			if (args->in.alloc.mem_size == 0) {
-				dev_err(hdev->dev,
-					"alloc size must be larger than 0\n");
-				rc = -EINVAL;
-				goto out;
-			}
-			rc = alloc_device_memory(ctx, &args->in, &handle);
+	if (!hdev->mmu_enable)
+		return mem_ioctl_no_mmu(hpriv, args);
 
-			memset(args, 0, sizeof(*args));
-			args->out.handle = (__u64) handle;
-			break;
-
-		case HL_MEM_OP_FREE:
-			if (!hdev->dram_supports_virtual_memory) {
-				dev_err(hdev->dev,
-					"DRAM free is not supported\n");
-				rc = -EINVAL;
-				goto out;
-			}
-			rc = free_device_memory(ctx, args->in.free.handle);
-			break;
-
-		case HL_MEM_OP_MAP:
-			rc = map_device_va(ctx, &args->in, &device_addr);
-
-			memset(args, 0, sizeof(*args));
-			args->out.device_virt_addr = device_addr;
-			break;
-
-		case HL_MEM_OP_UNMAP:
-			rc = unmap_device_va(ctx,
-					args->in.unmap.device_virt_addr);
-			break;
-
-		default:
-			dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-			rc = -ENOTTY;
-			break;
+	switch (args->in.op) {
+	case HL_MEM_OP_ALLOC:
+		if (!hdev->dram_supports_virtual_memory) {
+			dev_err(hdev->dev, "DRAM alloc is not supported\n");
+			rc = -EINVAL;
+			goto out;
 		}
-	} else {
-		switch (args->in.op) {
-		case HL_MEM_OP_ALLOC:
-			if (args->in.alloc.mem_size == 0) {
-				dev_err(hdev->dev,
-					"alloc size must be larger than 0\n");
-				rc = -EINVAL;
-				goto out;
-			}
 
-			/* Force contiguous as there are no real MMU
-			 * translations to overcome physical memory gaps
-			 */
-			args->in.flags |= HL_MEM_CONTIGUOUS;
-			rc = alloc_device_memory(ctx, &args->in, &handle);
-
-			memset(args, 0, sizeof(*args));
-			args->out.handle = (__u64) handle;
-			break;
-
-		case HL_MEM_OP_FREE:
-			rc = free_device_memory(ctx, args->in.free.handle);
-			break;
-
-		case HL_MEM_OP_MAP:
-			if (args->in.flags & HL_MEM_USERPTR) {
-				device_addr = args->in.map_host.host_virt_addr;
-				rc = 0;
-			} else {
-				rc = get_paddr_from_handle(ctx, &args->in,
-						&device_addr);
-			}
-
-			memset(args, 0, sizeof(*args));
-			args->out.device_virt_addr = device_addr;
-			break;
-
-		case HL_MEM_OP_UNMAP:
-			rc = 0;
-			break;
-
-		default:
-			dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-			rc = -ENOTTY;
-			break;
+		if (args->in.alloc.mem_size == 0) {
+			dev_err(hdev->dev,
+				"alloc size must be larger than 0\n");
+			rc = -EINVAL;
+			goto out;
 		}
+		rc = alloc_device_memory(ctx, &args->in, &handle);
+
+		memset(args, 0, sizeof(*args));
+		args->out.handle = (__u64) handle;
+		break;
+
+	case HL_MEM_OP_FREE:
+		rc = free_device_memory(ctx, args->in.free.handle);
+		break;
+
+	case HL_MEM_OP_MAP:
+		rc = map_device_va(ctx, &args->in, &device_addr);
+
+		memset(args, 0, sizeof(*args));
+		args->out.device_virt_addr = device_addr;
+		break;
+
+	case HL_MEM_OP_UNMAP:
+		rc = unmap_device_va(ctx,
+				args->in.unmap.device_virt_addr);
+		break;
+
+	default:
+		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
+		rc = -ENOTTY;
+		break;
 	}
 
 out:

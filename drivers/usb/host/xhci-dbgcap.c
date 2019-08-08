@@ -421,8 +421,6 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	string_length = xhci_dbc_populate_strings(dbc->string);
 	xhci_dbc_init_contexts(xhci, string_length);
 
-	mmiowb();
-
 	xhci_dbc_eps_init(xhci);
 	dbc->state = DS_INITIALIZED;
 

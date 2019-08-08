@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2005-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/pci.h>
@@ -478,8 +475,6 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 		next = skb->next;
 		skb->next = NULL;
 
-		if (next)
-			skb->xmit_more = true;
 		efx_enqueue_skb(tx_queue, skb);
 		skb = next;
 	}
@@ -506,7 +501,7 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
 	unsigned int old_insert_count = tx_queue->insert_count;
-	bool xmit_more = skb->xmit_more;
+	bool xmit_more = netdev_xmit_more();
 	bool data_mapped = false;
 	unsigned int segments;
 	unsigned int skb_len;
@@ -533,7 +528,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		if (rc)
 			goto err;
 #ifdef EFX_USE_PIO
-	} else if (skb_len <= efx_piobuf_size && !skb->xmit_more &&
+	} else if (skb_len <= efx_piobuf_size && !xmit_more &&
 		   efx_nic_may_tx_pio(tx_queue)) {
 		/* Use PIO for short packets with an empty queue. */
 		if (efx_enqueue_skb_pio(tx_queue, skb))
@@ -559,8 +554,8 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb_len, xmit_more)) {
 		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
 
-		/* There could be packets left on the partner queue if those
-		 * SKBs had skb->xmit_more set. If we do not push those they
+		/* There could be packets left on the partner queue if
+		 * xmit_more was set. If we do not push those they
 		 * could be left for a long time and cause a netdev watchdog.
 		 */
 		if (txq2->xmit_more_available)
@@ -568,7 +563,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 		efx_nic_push_buffers(tx_queue);
 	} else {
-		tx_queue->xmit_more_available = skb->xmit_more;
+		tx_queue->xmit_more_available = xmit_more;
 	}
 
 	if (segments) {

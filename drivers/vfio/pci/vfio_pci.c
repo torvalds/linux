@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.  All rights reserved.
  *     Author: Alex Williamson <alex.williamson@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Derived from original vfio:
  * Copyright 2010 Cisco Systems, Inc.  All rights reserved.
@@ -12,6 +9,7 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
 
 #include <linux/device.h>
 #include <linux/eventfd.h>
@@ -287,12 +285,11 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	pci_save_state(pdev);
 	vdev->pci_saved_state = pci_store_saved_state(pdev);
 	if (!vdev->pci_saved_state)
-		pr_debug("%s: Couldn't store %s saved state\n",
-			 __func__, dev_name(&pdev->dev));
+		pci_dbg(pdev, "%s: Couldn't store saved state\n", __func__);
 
 	if (likely(!nointxmask)) {
 		if (vfio_pci_nointx(pdev)) {
-			dev_info(&pdev->dev, "Masking broken INTx support\n");
+			pci_info(pdev, "Masking broken INTx support\n");
 			vdev->nointx = true;
 			pci_intx(pdev, 0);
 		} else
@@ -336,8 +333,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	    IS_ENABLED(CONFIG_VFIO_PCI_IGD)) {
 		ret = vfio_pci_igd_init(vdev);
 		if (ret) {
-			dev_warn(&vdev->pdev->dev,
-				 "Failed to setup Intel IGD regions\n");
+			pci_warn(pdev, "Failed to setup Intel IGD regions\n");
 			goto disable_exit;
 		}
 	}
@@ -346,8 +342,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	    IS_ENABLED(CONFIG_VFIO_PCI_NVLINK2)) {
 		ret = vfio_pci_nvdia_v100_nvlink2_init(vdev);
 		if (ret && ret != -ENODEV) {
-			dev_warn(&vdev->pdev->dev,
-				 "Failed to setup NVIDIA NV2 RAM region\n");
+			pci_warn(pdev, "Failed to setup NVIDIA NV2 RAM region\n");
 			goto disable_exit;
 		}
 	}
@@ -356,8 +351,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	    IS_ENABLED(CONFIG_VFIO_PCI_NVLINK2)) {
 		ret = vfio_pci_ibm_npu2_init(vdev);
 		if (ret && ret != -ENODEV) {
-			dev_warn(&vdev->pdev->dev,
-					"Failed to setup NVIDIA NV2 ATSD region\n");
+			pci_warn(pdev, "Failed to setup NVIDIA NV2 ATSD region\n");
 			goto disable_exit;
 		}
 	}
@@ -429,8 +423,7 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	 * is just busy work.
 	 */
 	if (pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state)) {
-		pr_info("%s: Couldn't reload %s saved state\n",
-			__func__, dev_name(&pdev->dev));
+		pci_info(pdev, "%s: Couldn't reload saved state\n", __func__);
 
 		if (!vdev->reset_works)
 			goto out;
@@ -1255,17 +1248,18 @@ static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
 static void vfio_pci_request(void *device_data, unsigned int count)
 {
 	struct vfio_pci_device *vdev = device_data;
+	struct pci_dev *pdev = vdev->pdev;
 
 	mutex_lock(&vdev->igate);
 
 	if (vdev->req_trigger) {
 		if (!(count % 10))
-			dev_notice_ratelimited(&vdev->pdev->dev,
+			pci_notice_ratelimited(pdev,
 				"Relaying device request to user (#%u)\n",
 				count);
 		eventfd_signal(vdev->req_trigger, 1);
 	} else if (count == 0) {
-		dev_warn(&vdev->pdev->dev,
+		pci_warn(pdev,
 			"No device request channel registered, blocked until released by user\n");
 	}
 

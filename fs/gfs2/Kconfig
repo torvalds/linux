@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config GFS2_FS
 	tristate "GFS2 file system support"
-	depends on (64BIT || LBDAF)
 	select FS_POSIX_ACL
 	select CRC32
 	select LIBCRC32C

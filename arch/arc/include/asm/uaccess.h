@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg: June 2010
  *    -__clear_user( ) called multiple times during elf load was byte loop
@@ -742,6 +739,7 @@ extern long arc_strnlen_user_noinline(const char __user *src, long n);
 
 #endif
 
+#include <asm/segment.h>
 #include <asm-generic/uaccess.h>
 
 #endif

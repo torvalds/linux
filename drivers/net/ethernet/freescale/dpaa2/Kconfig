@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FSL_DPAA2_ETH
 	tristate "Freescale DPAA2 Ethernet"
 	depends on FSL_MC_BUS && FSL_MC_DPIO

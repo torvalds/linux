@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * STTS751 sensor driver
  *
@@ -8,16 +9,6 @@
  * Written by Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on  LM95241 driver and LM90 driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -85,7 +76,7 @@ static const struct i2c_device_id stts751_id[] = {
 	{ }
 };
 
-static const struct of_device_id stts751_of_match[] = {
+static const struct of_device_id __maybe_unused stts751_of_match[] = {
 	{ .compatible = "stts751" },
 	{ },
 };

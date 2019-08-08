@@ -108,18 +108,17 @@ static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
 	fwrt->dump.umac_err_id = 0;
 }
 
-void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    bool monitor_only, unsigned int delay);
 int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_dbg_trigger trig_type);
-int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-			enum iwl_fw_dbg_trigger trig,
-			const char *str, size_t len,
-			struct iwl_fw_dbg_trigger_tlv *trigger);
+int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
+			    enum iwl_fw_ini_trigger_id id);
+int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt, u32 legacy_trigger_id);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       u32 id, const char *str, size_t len);
+		       enum iwl_fw_dbg_trigger trig, const char *str,
+		       size_t len, struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...) __printf(3, 4);
@@ -229,10 +228,8 @@ iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_trigger *trig;
 	u32 usec;
 
-
-
-	if (!fwrt->trans->ini_valid || id >= IWL_FW_TRIGGER_ID_NUM ||
-	    !fwrt->dump.active_trigs[id].active)
+	if (!fwrt->trans->ini_valid || id == IWL_FW_TRIGGER_ID_INVALID ||
+	    id >= IWL_FW_TRIGGER_ID_NUM || !fwrt->dump.active_trigs[id].active)
 		return false;
 
 	trig = fwrt->dump.active_trigs[id].trig;
@@ -388,11 +385,13 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
 {
+	del_timer(&fwrt->dump.periodic_trig);
 	flush_delayed_work(&fwrt->dump.wk);
 }
 
 static inline void iwl_fw_cancel_dump(struct iwl_fw_runtime *fwrt)
 {
+	del_timer(&fwrt->dump.periodic_trig);
 	cancel_delayed_work_sync(&fwrt->dump.wk);
 }
 
@@ -461,4 +460,17 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 /* This bit is used to differentiate the legacy dump from the ini dump */
 #define INI_DUMP_BIT BIT(31)
 
+static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->trans->ini_valid && fwrt->trans->hw_error) {
+		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
+		fwrt->trans->hw_error = false;
+	} else {
+		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
+	}
+}
+
+void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t);
+
+void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
 #endif  /* __iwl_fw_dbg_h__ */

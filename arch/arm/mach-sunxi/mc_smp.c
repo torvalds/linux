@@ -89,6 +89,7 @@ static bool sunxi_core_is_cortex_a15(unsigned int core, unsigned int cluster)
 {
 	struct device_node *node;
 	int cpu = cluster * SUNXI_CPUS_PER_CLUSTER + core;
+	bool is_compatible;
 
 	node = of_cpu_device_node_get(cpu);
 
@@ -107,7 +108,9 @@ static bool sunxi_core_is_cortex_a15(unsigned int core, unsigned int cluster)
 		return false;
 	}
 
-	return of_device_is_compatible(node, "arm,cortex-a15");
+	is_compatible = of_device_is_compatible(node, "arm,cortex-a15");
+	of_node_put(node);
+	return is_compatible;
 }
 
 static int sunxi_cpu_power_switch_set(unsigned int cpu, unsigned int cluster,

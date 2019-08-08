@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  bytcr_rt5651.c - ASoc Machine driver for Intel Byt CR platform
  *  (derived from bytcr_rt5640.c)
  *
  *  Copyright (C) 2015 Intel Corp
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -79,14 +71,15 @@ enum {
 #define BYT_RT5651_SSP0_AIF2		BIT(21)
 #define BYT_RT5651_HP_LR_SWAPPED	BIT(22)
 #define BYT_RT5651_MONO_SPEAKER		BIT(23)
+#define BYT_RT5651_JD_NOT_INV		BIT(24)
 
 #define BYT_RT5651_DEFAULT_QUIRKS	(BYT_RT5651_MCLK_EN | \
 					 BYT_RT5651_JD1_1   | \
 					 BYT_RT5651_OVCD_TH_2000UA | \
 					 BYT_RT5651_OVCD_SF_0P75)
 
-/* jack-detect-source + dmic-en + ovcd-th + -sf + terminating empty entry */
-#define MAX_NO_PROPS 5
+/* jack-detect-source + inv + dmic-en + ovcd-th + -sf + terminating entry */
+#define MAX_NO_PROPS 6
 
 struct byt_rt5651_private {
 	struct clk *mclk;
@@ -101,8 +94,8 @@ static const struct acpi_gpio_mapping *byt_rt5651_gpios;
 static unsigned long byt_rt5651_quirk = BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN2_MAP;
 
-static unsigned int quirk_override;
-module_param_named(quirk, quirk_override, uint, 0444);
+static int quirk_override = -1;
+module_param_named(quirk, quirk_override, int, 0444);
 MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
@@ -137,6 +130,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk SSP0_AIF2 enabled\n");
 	if (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER)
 		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
+	if (byt_rt5651_quirk & BYT_RT5651_JD_NOT_INV)
+		dev_info(dev, "quirk JD_NOT_INV enabled\n");
 }
 
 #define BYT_CODEC_DAI1	"rt5651-aif1"
@@ -415,6 +410,18 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_MONO_SPEAKER),
 	},
 	{
+		/* Complet Electro Serv MY8307 */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Complet Electro Serv"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MY8307"),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_MONO_SPEAKER |
+					BYT_RT5651_JD_NOT_INV),
+	},
+	{
 		/* I.T.Works TW701, Ployer Momo7w and Trekstor ST70416-6
 		 * (these all use the same mainboard) */
 		.callback = byt_rt5651_quirk_cb,
@@ -524,6 +531,9 @@ static int byt_rt5651_add_codec_device_props(struct device *i2c_dev)
 
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,dmic-en");
+
+	if (byt_rt5651_quirk & BYT_RT5651_JD_NOT_INV)
+		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,jack-detect-not-inverted");
 
 	return device_add_properties(i2c_dev, props);
 }
@@ -867,8 +877,8 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
+	struct acpi_device *adev;
 	struct device *codec_dev;
-	const char *i2c_name = NULL;
 	const char *hp_swapped;
 	bool is_bytcr = false;
 	int ret_val = 0;
@@ -894,14 +904,16 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (!i2c_name) {
+	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
+	if (adev) {
+		snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
+			 "i2c-%s", acpi_dev_name(adev));
+		put_device(&adev->dev);
+		byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
+	} else {
 		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
 		return -ENODEV;
 	}
-	snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
-		"%s%s", "i2c-", i2c_name);
-	byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
 
 	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL,
 					    byt_rt5651_codec_name);
@@ -967,7 +979,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5651_quirk_table);
 
-	if (quirk_override) {
+	if (quirk_override != -1) {
 		dev_info(&pdev->dev, "Overriding quirk 0x%x => 0x%x\n",
 			 (unsigned int)byt_rt5651_quirk, quirk_override);
 		byt_rt5651_quirk = quirk_override;

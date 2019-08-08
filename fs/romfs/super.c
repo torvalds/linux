@@ -381,16 +381,9 @@ static struct inode *romfs_alloc_inode(struct super_block *sb)
 /*
  * return a spent inode to the slab cache
  */
-static void romfs_i_callback(struct rcu_head *head)
+static void romfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-
 	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
-}
-
-static void romfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, romfs_i_callback);
 }
 
 /*
@@ -439,7 +432,7 @@ static int romfs_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations romfs_super_ops = {
 	.alloc_inode	= romfs_alloc_inode,
-	.destroy_inode	= romfs_destroy_inode,
+	.free_inode	= romfs_free_inode,
 	.statfs		= romfs_statfs,
 	.remount_fs	= romfs_remount,
 };

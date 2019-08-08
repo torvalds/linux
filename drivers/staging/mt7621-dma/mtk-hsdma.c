@@ -264,8 +264,7 @@ static void mtk_hsdma_reset(struct mtk_hsdam_engine *hsdma,
 	/* init desc value */
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		chan->tx_ring[i].addr0 = 0;
-		chan->tx_ring[i].flags = HSDMA_DESC_LS0 |
-			HSDMA_DESC_DONE;
+		chan->tx_ring[i].flags = HSDMA_DESC_LS0 | HSDMA_DESC_DONE;
 	}
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		chan->rx_ring[i].addr0 = 0;
@@ -435,8 +434,7 @@ static irqreturn_t mtk_hsdma_irq(int irq, void *devid)
 	if (likely(status & HSDMA_INT_RX_Q0))
 		tasklet_schedule(&hsdma->task);
 	else
-		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n",
-			status);
+		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n", status);
 	/* clean intr bits */
 	mtk_hsdma_write(hsdma, HSDMA_REG_INT_STATUS, status);
 
@@ -667,7 +665,6 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 
 	hsdma = devm_kzalloc(&pdev->dev, sizeof(*hsdma), GFP_KERNEL);
 	if (!hsdma) {
-		dev_err(&pdev->dev, "alloc dma device failed\n");
 		return -EINVAL;
 	}
 

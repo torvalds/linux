@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PMBus chip drivers configuration
 #
@@ -53,6 +54,24 @@ config SENSORS_IR35221
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ir35521.
+
+config SENSORS_IR38064
+	tristate "Infineon IR38064"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  IR38064.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ir38064.
+
+config SENSORS_ISL68137
+	tristate "Intersil ISL68137"
+	help
+	  If you say yes here you get hardware monitoring support for Intersil
+	  ISL68137.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called isl68137.
 
 config SENSORS_LM25066
 	tristate "National Semiconductor LM25066 and compatibles"

@@ -316,7 +316,7 @@ ACPI thermal zones.
     |---temp[1-*]_input:	The current temperature of thermal zone [1-*]
     |---temp[1-*]_critical:	The critical trip point of thermal zone [1-*]
 
-Please read Documentation/hwmon/sysfs-interface for additional information.
+Please read Documentation/hwmon/sysfs-interface.rst for additional information.
 
 ***************************
 * Thermal zone attributes *

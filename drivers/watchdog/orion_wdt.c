@@ -349,13 +349,6 @@ static unsigned int orion_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 	return readl(dev->reg + dev->data->wdt_counter_offset) / dev->clk_rate;
 }
 
-static int orion_wdt_set_timeout(struct watchdog_device *wdt_dev,
-				 unsigned int timeout)
-{
-	wdt_dev->timeout = timeout;
-	return 0;
-}
-
 static const struct watchdog_info orion_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "Orion Watchdog",
@@ -366,7 +359,6 @@ static const struct watchdog_ops orion_wdt_ops = {
 	.start = orion_wdt_start,
 	.stop = orion_wdt_stop,
 	.ping = orion_wdt_ping,
-	.set_timeout = orion_wdt_set_timeout,
 	.get_timeleft = orion_wdt_get_timeleft,
 };
 
@@ -502,8 +494,7 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		   of_device_is_compatible(node, "marvell,armada-xp-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 
@@ -511,8 +502,7 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		   of_device_is_compatible(node, "marvell,armada-380-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 

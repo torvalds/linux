@@ -30,6 +30,7 @@ struct mlxsw_sib {
 	struct mlxsw_sib_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
+	u8 hw_id[ETH_ALEN];
 };
 
 struct mlxsw_sib_port {
@@ -100,6 +101,18 @@ mlxsw_sib_tx_v1_hdr_construct(struct sk_buff *skb,
 	mlxsw_tx_v1_hdr_control_tclass_set(txhdr, 1);
 	mlxsw_tx_v1_hdr_port_mid_set(txhdr, tx_info->local_port);
 	mlxsw_tx_v1_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_CONTROL);
+}
+
+static int mlxsw_sib_hw_id_get(struct mlxsw_sib *mlxsw_sib)
+{
+	char spad_pl[MLXSW_REG_SPAD_LEN] = {0};
+	int err;
+
+	err = mlxsw_reg_query(mlxsw_sib->core, MLXSW_REG(spad), spad_pl);
+	if (err)
+		return err;
+	mlxsw_reg_spad_base_mac_memcpy_from(spad_pl, mlxsw_sib->hw_id);
+	return 0;
 }
 
 static int
@@ -267,7 +280,9 @@ static int mlxsw_sib_port_create(struct mlxsw_sib *mlxsw_sib, u8 local_port,
 {
 	int err;
 
-	err = mlxsw_core_port_init(mlxsw_sib->core, local_port);
+	err = mlxsw_core_port_init(mlxsw_sib->core, local_port,
+				   module + 1, false, 0,
+				   mlxsw_sib->hw_id, sizeof(mlxsw_sib->hw_id));
 	if (err) {
 		dev_err(mlxsw_sib->bus_info->dev, "Port %d: Failed to init core port\n",
 			local_port);
@@ -438,6 +453,12 @@ static int mlxsw_sib_init(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_sib->core = mlxsw_core;
 	mlxsw_sib->bus_info = mlxsw_bus_info;
+
+	err = mlxsw_sib_hw_id_get(mlxsw_sib);
+	if (err) {
+		dev_err(mlxsw_sib->bus_info->dev, "Failed to get switch HW ID\n");
+		return err;
+	}
 
 	err = mlxsw_sib_ports_create(mlxsw_sib);
 	if (err) {

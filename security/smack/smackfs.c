@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007 Casey Schaufler <casey@schaufler-ca.com>
- *
- *	This program is free software; you can redistribute it and/or modify
- *  	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation, version 2.
  *
  * Authors:
  * 	Casey Schaufler <casey@schaufler-ca.com>
@@ -13,7 +10,6 @@
  *
  *	Karl MacMillan <kmacmillan@tresys.com>
  *	James Morris <jmorris@redhat.com>
- *
  */
 
 #include <linux/kernel.h>
@@ -67,7 +63,6 @@ enum smk_inos {
 /*
  * List locks
  */
-static DEFINE_MUTEX(smack_master_list_lock);
 static DEFINE_MUTEX(smack_cipso_lock);
 static DEFINE_MUTEX(smack_ambient_lock);
 static DEFINE_MUTEX(smk_net4addr_lock);
@@ -134,15 +129,7 @@ LIST_HEAD(smk_net6addr_list);
 
 /*
  * Rule lists are maintained for each label.
- * This master list is just for reading /smack/load and /smack/load2.
  */
-struct smack_master_list {
-	struct list_head	list;
-	struct smack_rule	*smk_rule;
-};
-
-static LIST_HEAD(smack_rule_list);
-
 struct smack_parsed_rule {
 	struct smack_known	*smk_subject;
 	struct smack_known	*smk_object;
@@ -211,7 +198,6 @@ static void smk_netlabel_audit_set(struct netlbl_audit *nap)
  * @srp: the rule to add or replace
  * @rule_list: the list of rules
  * @rule_lock: the rule list lock
- * @global: if non-zero, indicates a global rule
  *
  * Looks through the current subject/object/access list for
  * the subject/object pair and replaces the access that was
@@ -223,10 +209,9 @@ static void smk_netlabel_audit_set(struct netlbl_audit *nap)
  */
 static int smk_set_access(struct smack_parsed_rule *srp,
 				struct list_head *rule_list,
-				struct mutex *rule_lock, int global)
+				struct mutex *rule_lock)
 {
 	struct smack_rule *sp;
-	struct smack_master_list *smlp;
 	int found = 0;
 	int rc = 0;
 
@@ -247,7 +232,7 @@ static int smk_set_access(struct smack_parsed_rule *srp,
 	}
 
 	if (found == 0) {
-		sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+		sp = kmem_cache_zalloc(smack_rule_cache, GFP_KERNEL);
 		if (sp == NULL) {
 			rc = -ENOMEM;
 			goto out;
@@ -258,22 +243,6 @@ static int smk_set_access(struct smack_parsed_rule *srp,
 		sp->smk_access = srp->smk_access1 & ~srp->smk_access2;
 
 		list_add_rcu(&sp->list, rule_list);
-		/*
-		 * If this is a global as opposed to self and a new rule
-		 * it needs to get added for reporting.
-		 */
-		if (global) {
-			mutex_unlock(rule_lock);
-			smlp = kzalloc(sizeof(*smlp), GFP_KERNEL);
-			if (smlp != NULL) {
-				smlp->smk_rule = sp;
-				mutex_lock(&smack_master_list_lock);
-				list_add_rcu(&smlp->list, &smack_rule_list);
-				mutex_unlock(&smack_master_list_lock);
-			} else
-				rc = -ENOMEM;
-			return rc;
-		}
 	}
 
 out:
@@ -540,9 +509,9 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 
 		if (rule_list == NULL)
 			rc = smk_set_access(&rule, &rule.smk_subject->smk_rules,
-				&rule.smk_subject->smk_rules_lock, 1);
+				&rule.smk_subject->smk_rules_lock);
 		else
-			rc = smk_set_access(&rule, rule_list, rule_lock, 0);
+			rc = smk_set_access(&rule, rule_list, rule_lock);
 
 		if (rc)
 			goto out;
@@ -636,21 +605,23 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 
 static void *load2_seq_start(struct seq_file *s, loff_t *pos)
 {
-	return smk_seq_start(s, pos, &smack_rule_list);
+	return smk_seq_start(s, pos, &smack_known_list);
 }
 
 static void *load2_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	return smk_seq_next(s, v, pos, &smack_rule_list);
+	return smk_seq_next(s, v, pos, &smack_known_list);
 }
 
 static int load_seq_show(struct seq_file *s, void *v)
 {
 	struct list_head *list = v;
-	struct smack_master_list *smlp =
-		list_entry_rcu(list, struct smack_master_list, list);
+	struct smack_rule *srp;
+	struct smack_known *skp =
+		list_entry_rcu(list, struct smack_known, list);
 
-	smk_rule_show(s, smlp->smk_rule, SMK_LABELLEN);
+	list_for_each_entry_rcu(srp, &skp->smk_rules, list)
+		smk_rule_show(s, srp, SMK_LABELLEN);
 
 	return 0;
 }
@@ -2352,10 +2323,12 @@ static const struct file_operations smk_access_ops = {
 static int load2_seq_show(struct seq_file *s, void *v)
 {
 	struct list_head *list = v;
-	struct smack_master_list *smlp =
-		list_entry_rcu(list, struct smack_master_list, list);
+	struct smack_rule *srp;
+	struct smack_known *skp =
+		list_entry_rcu(list, struct smack_known, list);
 
-	smk_rule_show(s, smlp->smk_rule, SMK_LONGLABEL);
+	list_for_each_entry_rcu(srp, &skp->smk_rules, list)
+		smk_rule_show(s, srp, SMK_LONGLABEL);
 
 	return 0;
 }

@@ -119,8 +119,8 @@
 		      "Type aliasing is used to sanitize syscall arguments");\
 	asmlinkage long __s390x_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(__se_sys##name))));		\
-	ALLOW_ERROR_INJECTION(__s390x_sys##name, ERRNO);				\
-	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));		\
+	ALLOW_ERROR_INJECTION(__s390x_sys##name, ERRNO);			\
+	long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));			\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	__S390_SYS_STUBx(x, name, __VA_ARGS__)					\
 	asmlinkage long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))		\
