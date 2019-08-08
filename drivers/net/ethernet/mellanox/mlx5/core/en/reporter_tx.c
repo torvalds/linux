@@ -76,9 +76,6 @@ static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
 	u8 state;
 	int err;
 
-	if (!test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
-		return 0;
-
 	err = mlx5_core_query_sq_state(mdev, sq->sqn, &state);
 	if (err) {
 		netdev_err(dev, "Failed to query SQ 0x%x state. err = %d\n",
