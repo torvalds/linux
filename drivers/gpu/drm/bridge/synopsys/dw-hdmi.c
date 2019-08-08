@@ -231,6 +231,10 @@ struct dw_hdmi {
 	void __iomem *regs;
 	bool sink_is_hdmi;
 	bool sink_has_audio;
+	bool hpd_state;
+
+	struct delayed_work work;
+	struct workqueue_struct *workqueue;
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *default_state;
@@ -320,6 +324,47 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 	hdmi_modb(hdmi, data << shift, mask, reg);
 }
 
+static void repo_hpd_event(struct work_struct *p_work)
+{
+	struct dw_hdmi *hdmi = container_of(p_work, struct dw_hdmi, work.work);
+	enum drm_connector_status status = hdmi->hpd_state ?
+		connector_status_connected : connector_status_disconnected;
+
+	if (hdmi->bridge.dev) {
+		drm_helper_hpd_irq_event(hdmi->bridge.dev);
+		drm_bridge_hpd_notify(&hdmi->bridge, status);
+	}
+}
+
+static bool check_hdmi_irq(struct dw_hdmi *hdmi, int intr_stat,
+			   int phy_int_pol)
+{
+	int msecs;
+
+	/* To determine whether interrupt type is HPD */
+	if (!(intr_stat & HDMI_IH_PHY_STAT0_HPD))
+		return false;
+
+	if (phy_int_pol & HDMI_PHY_HPD) {
+		dev_dbg(hdmi->dev, "dw hdmi plug in\n");
+		msecs = 150;
+		hdmi->hpd_state = true;
+	} else {
+		dev_dbg(hdmi->dev, "dw hdmi plug out\n");
+		msecs = 20;
+		hdmi->hpd_state = false;
+	}
+	mod_delayed_work(hdmi->workqueue, &hdmi->work, msecs_to_jiffies(msecs));
+
+	return true;
+}
+
+static void init_hpd_work(struct dw_hdmi *hdmi)
+{
+	hdmi->workqueue = create_workqueue("hpd_queue");
+	INIT_DELAYED_WORK(&hdmi->work, repo_hpd_event);
+}
+
 static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 {
 	hdmi_writeb(hdmi, HDMI_PHY_I2CM_INT_ADDR_DONE_POL,
@@ -347,6 +392,9 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 	/* Mute DONE and ERROR interrupts */
 	hdmi_writeb(hdmi, HDMI_IH_I2CM_STAT0_ERROR | HDMI_IH_I2CM_STAT0_DONE,
 		    HDMI_IH_MUTE_I2CM_STAT0);
+
+	/* set SDA high level holding time */
+	hdmi_writeb(hdmi, 0x48, HDMI_I2CM_SDA_HOLD);
 }
 
 static bool dw_hdmi_i2c_unwedge(struct dw_hdmi *hdmi)
@@ -3266,20 +3314,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 		}
 	}
 
-	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
-		enum drm_connector_status status = phy_int_pol & HDMI_PHY_HPD
-						 ? connector_status_connected
-						 : connector_status_disconnected;
-
-		dev_dbg(hdmi->dev, "EVENT=%s\n",
-			status == connector_status_connected ?
-			"plugin" : "plugout");
-
-		if (hdmi->bridge.dev) {
-			drm_helper_hpd_irq_event(hdmi->bridge.dev);
-			drm_bridge_hpd_notify(&hdmi->bridge, status);
-		}
-	}
+	check_hdmi_irq(hdmi, intr_stat, phy_int_pol);
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
 	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
@@ -3731,6 +3766,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without",
 		 hdmi->phy.name);
 
+	init_hpd_work(hdmi);
 	dw_hdmi_init_hw(hdmi);
 
 	irq = platform_get_irq(pdev, 0);
