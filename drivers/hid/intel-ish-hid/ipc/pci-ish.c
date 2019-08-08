@@ -210,19 +210,11 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 {
 	struct pci_dev *pdev = to_pci_dev(ish_resume_device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
-	uint32_t fwsts;
 	int ret;
 
-	pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
-
-	/* Get ISH FW status */
-	fwsts = IPC_GET_ISH_FWSTS(dev->ops->get_fw_status(dev));
-
-	/*
-	 * If currently, in ISH FW, sensor app is loaded or beyond that,
-	 * it means ISH isn't powered off, in this case, send a resume message.
-	 */
-	if (fwsts >= FWSTS_SENSOR_APP_LOADED) {
+	/* Check the NO_D3 flag to distinguish the resume paths */
+	if (pdev->dev_flags & PCI_DEV_FLAGS_NO_D3) {
+		pdev->dev_flags &= ~PCI_DEV_FLAGS_NO_D3;
 		disable_irq_wake(pdev->irq);
 
 		ishtp_send_resume(dev);
@@ -232,16 +224,20 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 			ret = wait_event_interruptible_timeout(dev->resume_wait,
 				!dev->resume_flag,
 				msecs_to_jiffies(WAIT_FOR_RESUME_ACK_MS));
-	}
 
-	/*
-	 * If in ISH FW, sensor app isn't loaded yet, or no resume response.
-	 * That means this platform is not S0ix compatible, or something is
-	 * wrong with ISH FW. So on resume, full reboot of ISH processor will
-	 * happen, so need to go through init sequence again.
-	 */
-	if (dev->resume_flag)
+		/*
+		 * If the flag is not cleared, something is wrong with ISH FW.
+		 * So on resume, need to go through init sequence again.
+		 */
+		if (dev->resume_flag)
+			ish_init(dev);
+	} else {
+		/*
+		 * Resume from the D3, full reboot of ISH processor will happen,
+		 * so need to go through init sequence again.
+		 */
 		ish_init(dev);
+	}
 }
 
 /**
