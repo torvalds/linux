@@ -240,7 +240,6 @@ struct file_stats {
 	struct i915_address_space *vm;
 	unsigned long count;
 	u64 total, unbound;
-	u64 global, shared;
 	u64 active, inactive;
 	u64 closed;
 };
@@ -251,48 +250,64 @@ static int per_file_stats(int id, void *ptr, void *data)
 	struct file_stats *stats = data;
 	struct i915_vma *vma;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
 	stats->count++;
 	stats->total += obj->base.size;
 	if (!atomic_read(&obj->bind_count))
 		stats->unbound += obj->base.size;
-	if (obj->base.name || obj->base.dma_buf)
-		stats->shared += obj->base.size;
 
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (!drm_mm_node_allocated(&vma->node))
-			continue;
-
-		if (i915_vma_is_ggtt(vma)) {
-			stats->global += vma->node.size;
-		} else {
-			if (vma->vm != stats->vm)
+	spin_lock(&obj->vma.lock);
+	if (!stats->vm) {
+		for_each_ggtt_vma(vma, obj) {
+			if (!drm_mm_node_allocated(&vma->node))
 				continue;
+
+			if (i915_vma_is_active(vma))
+				stats->active += vma->node.size;
+			else
+				stats->inactive += vma->node.size;
+
+			if (i915_vma_is_closed(vma))
+				stats->closed += vma->node.size;
 		}
+	} else {
+		struct rb_node *p = obj->vma.tree.rb_node;
 
-		if (i915_vma_is_active(vma))
-			stats->active += vma->node.size;
-		else
-			stats->inactive += vma->node.size;
+		while (p) {
+			long cmp;
 
-		if (i915_vma_is_closed(vma))
-			stats->closed += vma->node.size;
+			vma = rb_entry(p, typeof(*vma), obj_node);
+			cmp = i915_vma_compare(vma, stats->vm, NULL);
+			if (cmp == 0) {
+				if (drm_mm_node_allocated(&vma->node)) {
+					if (i915_vma_is_active(vma))
+						stats->active += vma->node.size;
+					else
+						stats->inactive += vma->node.size;
+
+					if (i915_vma_is_closed(vma))
+						stats->closed += vma->node.size;
+				}
+				break;
+			}
+			if (cmp < 0)
+				p = p->rb_right;
+			else
+				p = p->rb_left;
+		}
 	}
+	spin_unlock(&obj->vma.lock);
 
 	return 0;
 }
 
 #define print_file_stats(m, name, stats) do { \
 	if (stats.count) \
-		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu global, %llu shared, %llu unbound, %llu closed)\n", \
+		seq_printf(m, "%s: %lu objects, %llu bytes (%llu active, %llu inactive, %llu unbound, %llu closed)\n", \
 			   name, \
 			   stats.count, \
 			   stats.total, \
 			   stats.active, \
 			   stats.inactive, \
-			   stats.global, \
-			   stats.shared, \
 			   stats.unbound, \
 			   stats.closed); \
 } while (0)
