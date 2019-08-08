@@ -1594,6 +1594,18 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 					  prefix, func_p->guar_num_vsi);
 			}
 			break;
+		case ICE_AQC_CAPS_DCB:
+			caps->dcb = (number == 1);
+			caps->active_tc_bitmap = logical_id;
+			caps->maxtc = phys_id;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "%s: DCB = %d\n", prefix, caps->dcb);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "%s: active TC bitmap = %d\n", prefix,
+				  caps->active_tc_bitmap);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "%s: TC max = %d\n", prefix, caps->maxtc);
+			break;
 		case ICE_AQC_CAPS_RSS:
 			caps->rss_table_size = number;
 			caps->rss_table_entry_width = logical_id;

@@ -413,7 +413,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*dcbcfg));
 
 	dcbcfg->etscfg.willing = 1;
-	dcbcfg->etscfg.maxtcs = 8;
+	dcbcfg->etscfg.maxtcs = hw->func_caps.common_cap.maxtc;
 	dcbcfg->etscfg.tcbwtable[0] = 100;
 	dcbcfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 
@@ -422,7 +422,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 	dcbcfg->etsrec.willing = 0;
 
 	dcbcfg->pfc.willing = 1;
-	dcbcfg->pfc.pfccap = IEEE_8021QAZ_MAX_TCS;
+	dcbcfg->pfc.pfccap = hw->func_caps.common_cap.maxtc;
 
 	dcbcfg->numapps = 1;
 	dcbcfg->app[0].selector = ICE_APP_SEL_ETHTYPE;
@@ -455,6 +455,9 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	if (err) {
 		/* FW LLDP is disabled, activate SW DCBX/LLDP mode */
 		dev_info(&pf->pdev->dev,
+			 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
+			 pf->hw.func_caps.common_cap.maxtc);
+		dev_info(&pf->pdev->dev,
 			 "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
 		port_info->is_sw_lldp = true;
 		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
@@ -484,6 +487,9 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	if (err)
 		goto dcb_init_err;
 
+	dev_info(&pf->pdev->dev,
+		 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
+		 pf->hw.func_caps.common_cap.maxtc);
 	dev_info(&pf->pdev->dev, "DCBX offload supported\n");
 	return err;
 

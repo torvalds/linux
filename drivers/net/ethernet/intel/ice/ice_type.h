@@ -139,6 +139,9 @@ struct ice_phy_info {
 /* Common HW capabilities for SW use */
 struct ice_hw_common_caps {
 	u32 valid_functions;
+	/* DCB capabilities */
+	u32 active_tc_bitmap;
+	u32 maxtc;
 
 	/* Tx/Rx queues */
 	u16 num_rxq;		/* Number/Total Rx queues */
