@@ -12,10 +12,11 @@
 selftest(sanitycheck, i915_live_sanitycheck) /* keep first (igt selfcheck) */
 selftest(uncore, intel_uncore_live_selftests)
 selftest(workarounds, intel_workarounds_live_selftests)
-selftest(timelines, intel_timeline_live_selftests)
+selftest(gt_engines, intel_engine_live_selftests)
+selftest(gt_timelines, intel_timeline_live_selftests)
+selftest(gt_contexts, intel_context_live_selftests)
 selftest(requests, i915_request_live_selftests)
 selftest(active, i915_active_live_selftests)
-selftest(gt_contexts, intel_context_live_selftests)
 selftest(objects, i915_gem_object_live_selftests)
 selftest(mman, i915_gem_mman_live_selftests)
 selftest(dmabuf, i915_gem_dmabuf_live_selftests)

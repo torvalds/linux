@@ -8,10 +8,12 @@
 #define INTEL_WAKEREF_H
 
 #include <linux/atomic.h>
+#include <linux/bits.h>
 #include <linux/mutex.h>
 #include <linux/refcount.h>
 #include <linux/stackdepot.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 #define INTEL_WAKEREF_BUG_ON(expr) BUG_ON(expr)
@@ -20,29 +22,42 @@
 #endif
 
 struct intel_runtime_pm;
+struct intel_wakeref;
 
 typedef depot_stack_handle_t intel_wakeref_t;
+
+struct intel_wakeref_ops {
+	int (*get)(struct intel_wakeref *wf);
+	int (*put)(struct intel_wakeref *wf);
+
+	unsigned long flags;
+#define INTEL_WAKEREF_PUT_ASYNC BIT(0)
+};
 
 struct intel_wakeref {
 	atomic_t count;
 	struct mutex mutex;
+
 	intel_wakeref_t wakeref;
+
+	struct intel_runtime_pm *rpm;
+	const struct intel_wakeref_ops *ops;
+
+	struct work_struct work;
 };
 
 void __intel_wakeref_init(struct intel_wakeref *wf,
+			  struct intel_runtime_pm *rpm,
+			  const struct intel_wakeref_ops *ops,
 			  struct lock_class_key *key);
-#define intel_wakeref_init(wf) do {					\
+#define intel_wakeref_init(wf, rpm, ops) do {				\
 	static struct lock_class_key __key;				\
 									\
-	__intel_wakeref_init((wf), &__key);				\
+	__intel_wakeref_init((wf), (rpm), (ops), &__key);		\
 } while (0)
 
-int __intel_wakeref_get_first(struct intel_runtime_pm *rpm,
-			      struct intel_wakeref *wf,
-			      int (*fn)(struct intel_wakeref *wf));
-int __intel_wakeref_put_last(struct intel_runtime_pm *rpm,
-			     struct intel_wakeref *wf,
-			     int (*fn)(struct intel_wakeref *wf));
+int __intel_wakeref_get_first(struct intel_wakeref *wf);
+void __intel_wakeref_put_last(struct intel_wakeref *wf);
 
 /**
  * intel_wakeref_get: Acquire the wakeref
@@ -61,12 +76,10 @@ int __intel_wakeref_put_last(struct intel_runtime_pm *rpm,
  * code otherwise.
  */
 static inline int
-intel_wakeref_get(struct intel_runtime_pm *rpm,
-		  struct intel_wakeref *wf,
-		  int (*fn)(struct intel_wakeref *wf))
+intel_wakeref_get(struct intel_wakeref *wf)
 {
 	if (unlikely(!atomic_inc_not_zero(&wf->count)))
-		return __intel_wakeref_get_first(rpm, wf, fn);
+		return __intel_wakeref_get_first(wf);
 
 	return 0;
 }
@@ -102,16 +115,12 @@ intel_wakeref_get_if_active(struct intel_wakeref *wf)
  * Returns: 0 if the wakeref was released successfully, or a negative error
  * code otherwise.
  */
-static inline int
-intel_wakeref_put(struct intel_runtime_pm *rpm,
-		  struct intel_wakeref *wf,
-		  int (*fn)(struct intel_wakeref *wf))
+static inline void
+intel_wakeref_put(struct intel_wakeref *wf)
 {
 	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
-	if (atomic_dec_and_mutex_lock(&wf->count, &wf->mutex))
-		return __intel_wakeref_put_last(rpm, wf, fn);
-
-	return 0;
+	if (unlikely(!atomic_add_unless(&wf->count, -1, 1)))
+		__intel_wakeref_put_last(wf);
 }
 
 /**
@@ -153,6 +162,19 @@ intel_wakeref_is_active(const struct intel_wakeref *wf)
 {
 	return READ_ONCE(wf->wakeref);
 }
+
+/**
+ * intel_wakeref_wait_for_idle: Wait until the wakeref is idle
+ * @wf: the wakeref
+ *
+ * Wait for the earlier asynchronous release of the wakeref. Note
+ * this will wait for any third party as well, so make sure you only wait
+ * when you have control over the wakeref and trust no one else is acquiring
+ * it.
+ *
+ * Return: 0 on success, error code if killed.
+ */
+int intel_wakeref_wait_for_idle(struct intel_wakeref *wf);
 
 struct intel_wakeref_auto {
 	struct intel_runtime_pm *rpm;

@@ -130,7 +130,9 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 		}
 	} while (i915_retire_requests(gt->i915) && result);
 
-	GEM_BUG_ON(gt->awake);
+	if (intel_gt_pm_wait_for_idle(gt))
+		result = false;
+
 	return result;
 }
 
@@ -160,13 +162,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	switch_to_kernel_context_sync(&i915->gt);
 
 	mutex_unlock(&i915->drm.struct_mutex);
-
-	/*
-	 * Assert that we successfully flushed all the work and
-	 * reset the GPU back to its idle, low power state.
-	 */
-	GEM_BUG_ON(i915->gt.awake);
-	flush_work(&i915->gem.idle_work);
 
 	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 
@@ -243,8 +238,6 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 void i915_gem_resume(struct drm_i915_private *i915)
 {
 	GEM_TRACE("\n");
-
-	WARN_ON(i915->gt.awake);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);

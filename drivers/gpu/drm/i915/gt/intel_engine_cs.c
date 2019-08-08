@@ -1577,5 +1577,6 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "mock_engine.c"
+#include "selftest_engine.c"
 #include "selftest_engine_cs.c"
 #endif

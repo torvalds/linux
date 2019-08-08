@@ -40,6 +40,7 @@
 #include "display/intel_psr.h"
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"
 #include "gt/uc/intel_guc_submission.h"
 
@@ -3665,6 +3666,9 @@ i915_drop_caches_set(void *data, u64 val)
 			i915_retire_requests(i915);
 
 		mutex_unlock(&i915->drm.struct_mutex);
+
+		if (ret == 0 && val & DROP_IDLE)
+			ret = intel_gt_pm_wait_for_idle(&i915->gt);
 	}
 
 	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(&i915->gt))

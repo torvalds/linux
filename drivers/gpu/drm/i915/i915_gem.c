@@ -893,19 +893,6 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 	}
 }
 
-static int wait_for_engines(struct intel_gt *gt)
-{
-	if (wait_for(intel_engines_are_idle(gt), I915_IDLE_ENGINES_TIMEOUT)) {
-		dev_err(gt->i915->drm.dev,
-			"Failed to idle engines, declaring wedged!\n");
-		GEM_TRACE_DUMP();
-		intel_gt_set_wedged(gt);
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static long
 wait_for_timelines(struct drm_i915_private *i915,
 		   unsigned int flags, long timeout)
@@ -953,26 +940,19 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			   unsigned int flags, long timeout)
 {
 	/* If the device is asleep, we have no requests outstanding */
-	if (!READ_ONCE(i915->gt.awake))
+	if (!intel_gt_pm_is_awake(&i915->gt))
 		return 0;
 
-	GEM_TRACE("flags=%x (%s), timeout=%ld%s, awake?=%s\n",
+	GEM_TRACE("flags=%x (%s), timeout=%ld%s\n",
 		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
-		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "",
-		  yesno(i915->gt.awake));
+		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "");
 
 	timeout = wait_for_timelines(i915, flags, timeout);
 	if (timeout < 0)
 		return timeout;
 
 	if (flags & I915_WAIT_LOCKED) {
-		int err;
-
 		lockdep_assert_held(&i915->drm.struct_mutex);
-
-		err = wait_for_engines(&i915->gt);
-		if (err)
-			return err;
 
 		i915_retire_requests(i915);
 	}

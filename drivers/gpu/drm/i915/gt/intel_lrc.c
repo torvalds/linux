@@ -140,6 +140,7 @@
 #include "i915_vgpu.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
+#include "intel_gt_pm.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
 #include "intel_reset.h"
@@ -557,6 +558,7 @@ execlists_schedule_in(struct i915_request *rq, int idx)
 		intel_context_get(ce);
 		ce->inflight = rq->engine;
 
+		intel_gt_pm_get(ce->inflight->gt);
 		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
 		intel_engine_context_in(ce->inflight);
 	}
@@ -589,6 +591,7 @@ execlists_schedule_out(struct i915_request *rq)
 	if (!intel_context_inflight_count(ce)) {
 		intel_engine_context_out(ce->inflight);
 		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+		intel_gt_pm_put(ce->inflight->gt);
 
 		/*
 		 * If this is part of a virtual engine, its next request may
@@ -2720,7 +2723,6 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 static void execlists_park(struct intel_engine_cs *engine)
 {
 	del_timer_sync(&engine->execlists.timer);
-	intel_engine_park(engine);
 }
 
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine)

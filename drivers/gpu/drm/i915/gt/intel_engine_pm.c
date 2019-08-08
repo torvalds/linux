@@ -37,28 +37,6 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	return 0;
 }
 
-void intel_engine_pm_get(struct intel_engine_cs *engine)
-{
-	intel_wakeref_get(&engine->i915->runtime_pm, &engine->wakeref, __engine_unpark);
-}
-
-void intel_engine_park(struct intel_engine_cs *engine)
-{
-	/*
-	 * We are committed now to parking this engine, make sure there
-	 * will be no more interrupts arriving later and the engine
-	 * is truly idle.
-	 */
-	if (wait_for(intel_engine_is_idle(engine), 10)) {
-		struct drm_printer p = drm_debug_printer(__func__);
-
-		dev_err(engine->i915->drm.dev,
-			"%s is not idle before parking\n",
-			engine->name);
-		intel_engine_dump(engine, &p, NULL);
-	}
-}
-
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
@@ -136,12 +114,18 @@ static int __engine_park(struct intel_wakeref *wf)
 	return 0;
 }
 
-void intel_engine_pm_put(struct intel_engine_cs *engine)
-{
-	intel_wakeref_put(&engine->i915->runtime_pm, &engine->wakeref, __engine_park);
-}
+static const struct intel_wakeref_ops wf_ops = {
+	.get = __engine_unpark,
+	.put = __engine_park,
+};
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)
 {
-	intel_wakeref_init(&engine->wakeref);
+	struct intel_runtime_pm *rpm = &engine->i915->runtime_pm;
+
+	intel_wakeref_init(&engine->wakeref, rpm, &wf_ops);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_engine_pm.c"
+#endif
