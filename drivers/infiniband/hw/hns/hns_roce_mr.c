@@ -517,7 +517,6 @@ static int hns_roce_mhop_alloc(struct hns_roce_dev *hr_dev, int npages,
 	if (mhop_num == HNS_ROCE_HOP_NUM_0)
 		return 0;
 
-	/* hop_num = 1 */
 	if (mhop_num == 1)
 		return pbl_1hop_alloc(hr_dev, npages, mr, pbl_bt_sz);
 

@@ -84,7 +84,6 @@
 #define HNS_ROCE_CEQ_ENTRY_SIZE			0x4
 #define HNS_ROCE_AEQ_ENTRY_SIZE			0x10
 
-/* 4G/4K = 1M */
 #define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
 #define HNS_ROCE_FLOW_LABEL_MASK		0xfffff
@@ -322,7 +321,7 @@ struct hns_roce_hem_table {
 	unsigned long	num_hem;
 	/* HEM entry record obj total num */
 	unsigned long	num_obj;
-	/*Single obj size */
+	/* Single obj size */
 	unsigned long	obj_size;
 	unsigned long	table_chunk_size;
 	int		lowmem;
@@ -343,7 +342,7 @@ struct hns_roce_mtt {
 
 struct hns_roce_buf_region {
 	int offset; /* page offset */
-	u32 count; /* page count*/
+	u32 count; /* page count */
 	int hopnum; /* addressing hop num */
 };
 
@@ -384,25 +383,25 @@ struct hns_roce_mr {
 	u64			size; /* Address range of MR */
 	u32			key; /* Key of MR */
 	u32			pd;   /* PD num of MR */
-	u32			access;/* Access permission of MR */
+	u32			access;	/* Access permission of MR */
 	u32			npages;
 	int			enabled; /* MR's active status */
 	int			type;	/* MR's register type */
-	u64			*pbl_buf;/* MR's PBL space */
+	u64			*pbl_buf;	/* MR's PBL space */
 	dma_addr_t		pbl_dma_addr;	/* MR's PBL space PA */
-	u32			pbl_size;/* PA number in the PBL */
-	u64			pbl_ba;/* page table address */
-	u32			l0_chunk_last_num;/* L0 last number */
-	u32			l1_chunk_last_num;/* L1 last number */
-	u64			**pbl_bt_l2;/* PBL BT L2 */
-	u64			**pbl_bt_l1;/* PBL BT L1 */
-	u64			*pbl_bt_l0;/* PBL BT L0 */
-	dma_addr_t		*pbl_l2_dma_addr;/* PBL BT L2 dma addr */
-	dma_addr_t		*pbl_l1_dma_addr;/* PBL BT L1 dma addr */
-	dma_addr_t		pbl_l0_dma_addr;/* PBL BT L0 dma addr */
-	u32			pbl_ba_pg_sz;/* BT chunk page size */
-	u32			pbl_buf_pg_sz;/* buf chunk page size */
-	u32			pbl_hop_num;/* multi-hop number */
+	u32			pbl_size;	/* PA number in the PBL */
+	u64			pbl_ba;		/* page table address */
+	u32			l0_chunk_last_num;	/* L0 last number */
+	u32			l1_chunk_last_num;	/* L1 last number */
+	u64			**pbl_bt_l2;	/* PBL BT L2 */
+	u64			**pbl_bt_l1;	/* PBL BT L1 */
+	u64			*pbl_bt_l0;	/* PBL BT L0 */
+	dma_addr_t		*pbl_l2_dma_addr;	/* PBL BT L2 dma addr */
+	dma_addr_t		*pbl_l1_dma_addr;	/* PBL BT L1 dma addr */
+	dma_addr_t		pbl_l0_dma_addr;	/* PBL BT L0 dma addr */
+	u32			pbl_ba_pg_sz;	/* BT chunk page size */
+	u32			pbl_buf_pg_sz;	/* buf chunk page size */
+	u32			pbl_hop_num;	/* multi-hop number */
 };
 
 struct hns_roce_mr_table {
@@ -425,16 +424,16 @@ struct hns_roce_wq {
 	u32		max_post;
 	int		max_gs;
 	int		offset;
-	int		wqe_shift;/* WQE size */
+	int		wqe_shift;	/* WQE size */
 	u32		head;
 	u32		tail;
 	void __iomem	*db_reg_l;
 };
 
 struct hns_roce_sge {
-	int		sge_cnt;  /* SGE num */
+	int		sge_cnt;	/* SGE num */
 	int		offset;
-	int		sge_shift;/* SGE size */
+	int		sge_shift;	/* SGE size */
 };
 
 struct hns_roce_buf_list {
@@ -750,7 +749,7 @@ struct hns_roce_eq {
 	struct hns_roce_dev		*hr_dev;
 	void __iomem			*doorbell;
 
-	int				type_flag;/* Aeq:1 ceq:0 */
+	int				type_flag; /* Aeq:1 ceq:0 */
 	int				eqn;
 	u32				entries;
 	int				log_entries;
@@ -796,22 +795,22 @@ struct hns_roce_caps {
 	int		local_ca_ack_delay;
 	int		num_uars;
 	u32		phy_num_uars;
-	u32		max_sq_sg;	/* 2 */
-	u32		max_sq_inline;	/* 32 */
-	u32		max_rq_sg;	/* 2 */
+	u32		max_sq_sg;
+	u32		max_sq_inline;
+	u32		max_rq_sg;
 	u32		max_extend_sg;
-	int		num_qps;	/* 256k */
+	int		num_qps;
 	int             reserved_qps;
 	int		num_qpc_timer;
 	int		num_cqc_timer;
 	u32		max_srq_sg;
 	int		num_srqs;
-	u32		max_wqes;	/* 16k */
+	u32		max_wqes;
 	u32		max_srqs;
 	u32		max_srq_wrs;
 	u32		max_srq_sges;
-	u32		max_sq_desc_sz;	/* 64 */
-	u32		max_rq_desc_sz;	/* 64 */
+	u32		max_sq_desc_sz;
+	u32		max_rq_desc_sz;
 	u32		max_srq_desc_sz;
 	int		max_qp_init_rdma;
 	int		max_qp_dest_rdma;
@@ -822,7 +821,7 @@ struct hns_roce_caps {
 	int		reserved_cqs;
 	int		reserved_srqs;
 	u32		max_srqwqes;
-	int		num_aeq_vectors;	/* 1 */
+	int		num_aeq_vectors;
 	int		num_comp_vectors;
 	int		num_other_vectors;
 	int		num_mtpts;
@@ -903,7 +902,7 @@ struct hns_roce_caps {
 	u32		sl_num;
 	u32		tsq_buf_pg_sz;
 	u32		tpq_buf_pg_sz;
-	u32		chunk_sz;	/* chunk size in non multihop mode*/
+	u32		chunk_sz;	/* chunk size in non multihop mode */
 	u64		flags;
 };
 
@@ -1033,8 +1032,8 @@ struct hns_roce_dev {
 	int			loop_idc;
 	u32			sdb_offset;
 	u32			odb_offset;
-	dma_addr_t		tptr_dma_addr; /*only for hw v1*/
-	u32			tptr_size; /*only for hw v1*/
+	dma_addr_t		tptr_dma_addr;	/* only for hw v1 */
+	u32			tptr_size;	/* only for hw v1 */
 	const struct hns_roce_hw *hw;
 	void			*priv;
 	struct workqueue_struct *irq_workq;
