@@ -389,6 +389,7 @@ config NUMA
 	depends on !IA64_HP_SIM && !FLATMEM
 	default y if IA64_SGI_SN2
 	select ACPI_NUMA if ACPI
+	select SMP
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
