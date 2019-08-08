@@ -155,6 +155,14 @@ struct ion_heap {
  */
 void ion_device_add_heap(struct ion_heap *heap);
 
+/* ion_buffer_zero - zeroes out an ion buffer respecting the ION_FLAGs.
+ *
+ * @buffer:		ion_buffer to zero
+ *
+ * Returns 0 on success, negative error otherwise.
+ */
+int ion_buffer_zero(struct ion_buffer *buffer);
+
 /**
  * some helpers for common operations on buffers using the sg_table
  * and vaddr fields
@@ -163,8 +171,9 @@ void *ion_heap_map_kernel(struct ion_heap *heap, struct ion_buffer *buffer);
 void ion_heap_unmap_kernel(struct ion_heap *heap, struct ion_buffer *buffer);
 int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 		      struct vm_area_struct *vma);
-int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
+int ion_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents,
+			 pgprot_t pgprot);
 
 /**
  * ion_heap_init_shrinker

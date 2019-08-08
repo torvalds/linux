@@ -133,6 +133,23 @@ struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
 	return buffer;
 }
 
+int ion_buffer_zero(struct ion_buffer *buffer)
+{
+	struct sg_table *table;
+	pgprot_t pgprot;
+
+	if (!buffer)
+		return -EINVAL;
+
+	table = buffer->sg_table;
+	if (buffer->flags & ION_FLAG_CACHED)
+		pgprot = PAGE_KERNEL;
+	else
+		pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	return ion_heap_sglist_zero(table->sgl, table->nents, pgprot);
+}
+
 void ion_buffer_release(struct ion_buffer *buffer)
 {
 	if (buffer->kmap_cnt > 0) {

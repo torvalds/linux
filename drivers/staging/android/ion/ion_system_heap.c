@@ -161,7 +161,7 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 
 	/* zero the buffer before goto page pool */
 	if (!(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE))
-		ion_heap_buffer_zero(buffer);
+		ion_buffer_zero(buffer);
 
 	for_each_sg(table->sgl, sg, table->nents, i)
 		free_buffer_page(sys_heap, buffer, sg_page(sg));

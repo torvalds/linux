@@ -52,5 +52,4 @@ extern struct dma_buf *ion_dmabuf_alloc(struct ion_device *dev, size_t len,
 					unsigned int flags);
 extern int ion_free(struct ion_buffer *buffer);
 
-
 #endif /* _ION_PRIVATE_H */
