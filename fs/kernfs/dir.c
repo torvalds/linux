@@ -1684,14 +1684,11 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 		kernfs_get(pos);
 
 		mutex_unlock(&kernfs_mutex);
-		if (unlikely(!dir_emit(ctx, name, len, ino, type))) {
-			kernfs_put(pos);
-			goto out;
-		}
+		if (!dir_emit(ctx, name, len, ino, type))
+			return 0;
 		mutex_lock(&kernfs_mutex);
 	}
 	mutex_unlock(&kernfs_mutex);
-out:
 	file->private_data = NULL;
 	ctx->pos = INT_MAX;
 	return 0;
