@@ -65,7 +65,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.num_of_events = prop->num_of_events;
 	memcpy(hw_ip.armcp_version,
 		prop->armcp_info.armcp_version, VERSION_MAX_LEN);
-	hw_ip.armcp_cpld_version = __le32_to_cpu(prop->armcp_info.cpld_version);
+	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;

@@ -26,7 +26,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev,
 	int rc, i, j;
 
 	for (i = 0 ; i < ARMCP_MAX_SENSORS ; i++) {
-		type = __le32_to_cpu(sensors_arr[i].type);
+		type = le32_to_cpu(sensors_arr[i].type);
 
 		if ((type == 0) && (sensors_arr[i].flags == 0))
 			break;
@@ -58,10 +58,10 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev,
 	}
 
 	for (i = 0 ; i < arr_size ; i++) {
-		type = __le32_to_cpu(sensors_arr[i].type);
+		type = le32_to_cpu(sensors_arr[i].type);
 		curr_arr = sensors_by_type[type];
 		curr_arr[sensors_by_type_next_index[type]++] =
-				__le32_to_cpu(sensors_arr[i].flags);
+				le32_to_cpu(sensors_arr[i].flags);
 	}
 
 	channels_info = kcalloc(num_active_sensor_types + 1,

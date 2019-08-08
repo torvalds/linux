@@ -267,7 +267,7 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 
 	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
 						cq_addr,
-						__le32_to_cpu(cq_pkt.data),
+						le32_to_cpu(cq_pkt.data),
 						q->hw_queue_id);
 
 	q->shadow_queue[hl_pi_2_offset(q->pi)] = job;
