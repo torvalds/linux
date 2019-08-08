@@ -9,6 +9,7 @@
 #include <linux/sizes.h>
 #include <linux/mutex.h>
 #include <linux/nd.h>
+#include "nd.h"
 
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
@@ -17,10 +18,11 @@ extern struct workqueue_struct *nvdimm_wq;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
-	wait_queue_head_t probe_wait;
+	wait_queue_head_t wait;
 	struct list_head list;
 	struct device dev;
 	int id, probe_active;
+	atomic_t ioctl_active;
 	struct list_head mapping_list;
 	struct mutex reconfig_mutex;
 	struct badrange badrange;
@@ -181,4 +183,71 @@ ssize_t nd_namespace_store(struct device *dev,
 		struct nd_namespace_common **_ndns, const char *buf,
 		size_t len);
 struct nd_pfn *to_nd_pfn_safe(struct device *dev);
+bool is_nvdimm_bus(struct device *dev);
+
+#ifdef CONFIG_PROVE_LOCKING
+extern struct class *nd_class;
+
+enum {
+	LOCK_BUS,
+	LOCK_NDCTL,
+	LOCK_REGION,
+	LOCK_DIMM = LOCK_REGION,
+	LOCK_NAMESPACE,
+	LOCK_CLAIM,
+};
+
+static inline void debug_nvdimm_lock(struct device *dev)
+{
+	if (is_nd_region(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_REGION);
+	else if (is_nvdimm(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_DIMM);
+	else if (is_nd_btt(dev) || is_nd_pfn(dev) || is_nd_dax(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_CLAIM);
+	else if (dev->parent && (is_nd_region(dev->parent)))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NAMESPACE);
+	else if (is_nvdimm_bus(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_BUS);
+	else if (dev->class && dev->class == nd_class)
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NDCTL);
+	else
+		dev_WARN(dev, "unknown lock level\n");
+}
+
+static inline void debug_nvdimm_unlock(struct device *dev)
+{
+	mutex_unlock(&dev->lockdep_mutex);
+}
+
+static inline void nd_device_lock(struct device *dev)
+{
+	device_lock(dev);
+	debug_nvdimm_lock(dev);
+}
+
+static inline void nd_device_unlock(struct device *dev)
+{
+	debug_nvdimm_unlock(dev);
+	device_unlock(dev);
+}
+#else
+static inline void nd_device_lock(struct device *dev)
+{
+	device_lock(dev);
+}
+
+static inline void nd_device_unlock(struct device *dev)
+{
+	device_unlock(dev);
+}
+
+static inline void debug_nvdimm_lock(struct device *dev)
+{
+}
+
+static inline void debug_nvdimm_unlock(struct device *dev)
+{
+}
+#endif
 #endif /* __ND_CORE_H__ */

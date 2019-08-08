@@ -403,6 +403,7 @@ static void drm_fb_helper_dirty_work(struct work_struct *work)
 	struct drm_clip_rect *clip = &helper->dirty_clip;
 	struct drm_clip_rect clip_copy;
 	unsigned long flags;
+	void *vaddr;
 
 	spin_lock_irqsave(&helper->dirty_lock, flags);
 	clip_copy = *clip;
@@ -412,10 +413,20 @@ static void drm_fb_helper_dirty_work(struct work_struct *work)
 
 	/* call dirty callback only when it has been really touched */
 	if (clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2) {
+
 		/* Generic fbdev uses a shadow buffer */
-		if (helper->buffer)
+		if (helper->buffer) {
+			vaddr = drm_client_buffer_vmap(helper->buffer);
+			if (IS_ERR(vaddr))
+				return;
 			drm_fb_helper_dirty_blit_real(helper, &clip_copy);
-		helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, &clip_copy, 1);
+		}
+		if (helper->fb->funcs->dirty)
+			helper->fb->funcs->dirty(helper->fb, NULL, 0, 0,
+						 &clip_copy, 1);
+
+		if (helper->buffer)
+			drm_client_buffer_vunmap(helper->buffer);
 	}
 }
 
@@ -604,6 +615,16 @@ void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_unlink_fbi);
 
+static bool drm_fbdev_use_shadow_fb(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_framebuffer *fb = fb_helper->fb;
+
+	return dev->mode_config.prefer_shadow_fbdev ||
+	       dev->mode_config.prefer_shadow ||
+	       fb->funcs->dirty;
+}
+
 static void drm_fb_helper_dirty(struct fb_info *info, u32 x, u32 y,
 				u32 width, u32 height)
 {
@@ -611,7 +632,7 @@ static void drm_fb_helper_dirty(struct fb_info *info, u32 x, u32 y,
 	struct drm_clip_rect *clip = &helper->dirty_clip;
 	unsigned long flags;
 
-	if (!helper->fb->funcs->dirty)
+	if (!drm_fbdev_use_shadow_fb(helper))
 		return;
 
 	spin_lock_irqsave(&helper->dirty_lock, flags);
@@ -2178,6 +2199,7 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct drm_framebuffer *fb;
 	struct fb_info *fbi;
 	u32 format;
+	void *vaddr;
 
 	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d)\n",
 		      sizes->surface_width, sizes->surface_height,
@@ -2200,16 +2222,10 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	fbi->fbops = &drm_fbdev_fb_ops;
 	fbi->screen_size = fb->height * fb->pitches[0];
 	fbi->fix.smem_len = fbi->screen_size;
-	fbi->screen_buffer = buffer->vaddr;
-	/* Shamelessly leak the physical address to user-space */
-#if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
-	if (drm_leak_fbdev_smem && fbi->fix.smem_start == 0)
-		fbi->fix.smem_start =
-			page_to_phys(virt_to_page(fbi->screen_buffer));
-#endif
+
 	drm_fb_helper_fill_info(fbi, fb_helper, sizes);
 
-	if (fb->funcs->dirty) {
+	if (drm_fbdev_use_shadow_fb(fb_helper)) {
 		struct fb_ops *fbops;
 		void *shadow;
 
@@ -2231,6 +2247,19 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 		fbi->fbdefio = &drm_fbdev_defio;
 
 		fb_deferred_io_init(fbi);
+	} else {
+		/* buffer is mapped for HW framebuffer */
+		vaddr = drm_client_buffer_vmap(fb_helper->buffer);
+		if (IS_ERR(vaddr))
+			return PTR_ERR(vaddr);
+
+		fbi->screen_buffer = vaddr;
+		/* Shamelessly leak the physical address to user-space */
+#if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
+		if (drm_leak_fbdev_smem && fbi->fix.smem_start == 0)
+			fbi->fix.smem_start =
+				page_to_phys(virt_to_page(fbi->screen_buffer));
+#endif
 	}
 
 	return 0;

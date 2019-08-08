@@ -148,7 +148,7 @@ struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
 };
 int amdgpu_ras_enable = -1;
-uint amdgpu_ras_mask = 0xffffffff;
+uint amdgpu_ras_mask = 0xfffffffb;
 
 /**
  * DOC: vramlimit (int)

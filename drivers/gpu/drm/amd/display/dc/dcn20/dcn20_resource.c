@@ -2643,6 +2643,10 @@ static void update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_
 
 	if (dc->bb_overrides.min_dcfclk_mhz > 0)
 		min_dcfclk = dc->bb_overrides.min_dcfclk_mhz;
+	else
+		// Accounting for SOC/DCF relationship, we can go as high as
+		// 506Mhz in Vmin.  We need to code 507 since SMU will round down to 506.
+		min_dcfclk = 507;
 
 	for (i = 0; i < num_states; i++) {
 		int min_fclk_required_by_uclk;

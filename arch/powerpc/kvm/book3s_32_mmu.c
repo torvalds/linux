@@ -239,6 +239,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 				case 2:
 				case 6:
 					pte->may_write = true;
+					/* fall through */
 				case 3:
 				case 5:
 				case 7:

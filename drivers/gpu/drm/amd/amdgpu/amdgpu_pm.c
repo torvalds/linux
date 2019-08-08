@@ -159,12 +159,16 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type pm;
 
-	if (is_support_sw_smu(adev) && adev->smu.ppt_funcs->get_current_power_state)
-		pm = amdgpu_smu_get_current_power_state(adev);
-	else if (adev->powerplay.pp_funcs->get_current_power_state)
+	if (is_support_sw_smu(adev)) {
+		if (adev->smu.ppt_funcs->get_current_power_state)
+			pm = amdgpu_smu_get_current_power_state(adev);
+		else
+			pm = adev->pm.dpm.user_state;
+	} else if (adev->powerplay.pp_funcs->get_current_power_state) {
 		pm = amdgpu_dpm_get_current_power_state(adev);
-	else
+	} else {
 		pm = adev->pm.dpm.user_state;
+	}
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			(pm == POWER_STATE_TYPE_BATTERY) ? "battery" :
@@ -191,7 +195,11 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 		goto fail;
 	}
 
-	if (adev->powerplay.pp_funcs->dispatch_tasks) {
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		adev->pm.dpm.user_state = state;
+		mutex_unlock(&adev->pm.mutex);
+	} else if (adev->powerplay.pp_funcs->dispatch_tasks) {
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_ENABLE_USER_STATE, &state);
 	} else {
 		mutex_lock(&adev->pm.mutex);
@@ -1734,7 +1742,7 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 		return -EINVAL;
 
 	if (is_support_sw_smu(adev)) {
-		err = smu_get_current_rpm(&adev->smu, &speed);
+		err = smu_get_fan_speed_rpm(&adev->smu, &speed);
 		if (err)
 			return err;
 	} else if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
@@ -1794,7 +1802,7 @@ static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
 		return -EINVAL;
 
 	if (is_support_sw_smu(adev)) {
-		err = smu_get_current_rpm(&adev->smu, &rpm);
+		err = smu_get_fan_speed_rpm(&adev->smu, &rpm);
 		if (err)
 			return err;
 	} else if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
@@ -3067,28 +3075,44 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK, (void *)&value64, &size))
 		seq_printf(m, "SMC Feature Mask: 0x%016llx\n", value64);
 
-	/* UVD clocks */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {
-		if (!value) {
-			seq_printf(m, "UVD: Disabled\n");
-		} else {
-			seq_printf(m, "UVD: Enabled\n");
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
-				seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
-				seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+	if (adev->asic_type > CHIP_VEGA20) {
+		/* VCN clocks */
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCN_POWER_STATE, (void *)&value, &size)) {
+			if (!value) {
+				seq_printf(m, "VCN: Disabled\n");
+			} else {
+				seq_printf(m, "VCN: Enabled\n");
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+			}
 		}
-	}
-	seq_printf(m, "\n");
+		seq_printf(m, "\n");
+	} else {
+		/* UVD clocks */
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {
+			if (!value) {
+				seq_printf(m, "UVD: Disabled\n");
+			} else {
+				seq_printf(m, "UVD: Enabled\n");
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+			}
+		}
+		seq_printf(m, "\n");
 
-	/* VCE clocks */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, (void *)&value, &size)) {
-		if (!value) {
-			seq_printf(m, "VCE: Disabled\n");
-		} else {
-			seq_printf(m, "VCE: Enabled\n");
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, (void *)&value, &size))
-				seq_printf(m, "\t%u MHz (ECCLK)\n", value/100);
+		/* VCE clocks */
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, (void *)&value, &size)) {
+			if (!value) {
+				seq_printf(m, "VCE: Disabled\n");
+			} else {
+				seq_printf(m, "VCE: Enabled\n");
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (ECCLK)\n", value/100);
+			}
 		}
 	}
 

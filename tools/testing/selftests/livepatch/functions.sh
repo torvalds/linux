@@ -13,6 +13,14 @@ function log() {
 	echo "$1" > /dev/kmsg
 }
 
+# skip(msg) - testing can't proceed
+#	msg - explanation
+function skip() {
+	log "SKIP: $1"
+	echo "SKIP: $1" >&2
+	exit 4
+}
+
 # die(msg) - game over, man
 #	msg - dying words
 function die() {
@@ -41,6 +49,12 @@ function loop_until() {
 		[[ $((i++)) -eq $MAX_RETRIES ]] && return 1
 		sleep $RETRY_INTERVAL
 	done
+}
+
+function assert_mod() {
+	local mod="$1"
+
+	modprobe --dry-run "$mod" &>/dev/null
 }
 
 function is_livepatch_mod() {
@@ -75,6 +89,9 @@ function __load_mod() {
 function load_mod() {
 	local mod="$1"; shift
 
+	assert_mod "$mod" ||
+		skip "unable to load module ${mod}, verify CONFIG_TEST_LIVEPATCH=m and run self-tests as root"
+
 	is_livepatch_mod "$mod" &&
 		die "use load_lp() to load the livepatch module $mod"
 
@@ -87,6 +104,9 @@ function load_mod() {
 #	params  - module parameters to pass to modprobe
 function load_lp_nowait() {
 	local mod="$1"; shift
+
+	assert_mod "$mod" ||
+		skip "unable to load module ${mod}, verify CONFIG_TEST_LIVEPATCH=m and run self-tests as root"
 
 	is_livepatch_mod "$mod" ||
 		die "module $mod is not a livepatch"

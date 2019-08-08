@@ -272,6 +272,7 @@ xfs_bulkstat_to_bstat(
 	struct xfs_bstat		*bs1,
 	const struct xfs_bulkstat	*bstat)
 {
+	/* memset is needed here because of padding holes in the structure. */
 	memset(bs1, 0, sizeof(struct xfs_bstat));
 	bs1->bs_ino = bstat->bs_ino;
 	bs1->bs_mode = bstat->bs_mode;
@@ -388,6 +389,8 @@ xfs_inumbers_to_inogrp(
 	struct xfs_inogrp		*ig1,
 	const struct xfs_inumbers	*ig)
 {
+	/* memset is needed here because of padding holes in the structure. */
+	memset(ig1, 0, sizeof(struct xfs_inogrp));
 	ig1->xi_startino = ig->xi_startino;
 	ig1->xi_alloccount = ig->xi_alloccount;
 	ig1->xi_allocmask = ig->xi_allocmask;

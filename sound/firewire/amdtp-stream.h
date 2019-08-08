@@ -170,6 +170,11 @@ struct amdtp_stream {
 	/* For backends to process data blocks. */
 	void *protocol;
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
+
+	// For domain.
+	int channel;
+	int speed;
+	struct list_head list;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
@@ -183,9 +188,7 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 				unsigned int data_block_quadlets);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s);
 
-int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed);
 void amdtp_stream_update(struct amdtp_stream *s);
-void amdtp_stream_stop(struct amdtp_stream *s);
 
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
@@ -266,5 +269,18 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 				  s->callbacked == true,
 				  msecs_to_jiffies(timeout)) > 0;
 }
+
+struct amdtp_domain {
+	struct list_head streams;
+};
+
+int amdtp_domain_init(struct amdtp_domain *d);
+void amdtp_domain_destroy(struct amdtp_domain *d);
+
+int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
+			    int channel, int speed);
+
+int amdtp_domain_start(struct amdtp_domain *d);
+void amdtp_domain_stop(struct amdtp_domain *d);
 
 #endif

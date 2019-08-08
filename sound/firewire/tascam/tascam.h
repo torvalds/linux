@@ -97,6 +97,8 @@ struct snd_tscm {
 	struct snd_firewire_tascam_change queue[SND_TSCM_QUEUE_COUNT];
 	unsigned int pull_pos;
 	unsigned int push_pos;
+
+	struct amdtp_domain domain;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull

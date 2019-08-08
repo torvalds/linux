@@ -894,7 +894,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
  * amdtp_stream_set_parameters() and it must be started before any PCM or MIDI
  * device can be started.
  */
-int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
+static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 {
 	static const struct {
 		unsigned int data_block;
@@ -1027,7 +1027,6 @@ err_unlock:
 
 	return err;
 }
-EXPORT_SYMBOL(amdtp_stream_start);
 
 /**
  * amdtp_stream_pcm_pointer - get the PCM buffer position
@@ -1098,7 +1097,7 @@ EXPORT_SYMBOL(amdtp_stream_update);
  * All PCM and MIDI devices of the stream must be stopped before the stream
  * itself can be stopped.
  */
-void amdtp_stream_stop(struct amdtp_stream *s)
+static void amdtp_stream_stop(struct amdtp_stream *s)
 {
 	mutex_lock(&s->mutex);
 
@@ -1118,7 +1117,6 @@ void amdtp_stream_stop(struct amdtp_stream *s)
 
 	mutex_unlock(&s->mutex);
 }
-EXPORT_SYMBOL(amdtp_stream_stop);
 
 /**
  * amdtp_stream_pcm_abort - abort the running PCM device
@@ -1136,3 +1134,91 @@ void amdtp_stream_pcm_abort(struct amdtp_stream *s)
 		snd_pcm_stop_xrun(pcm);
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_abort);
+
+/**
+ * amdtp_domain_init - initialize an AMDTP domain structure
+ * @d: the AMDTP domain to initialize.
+ */
+int amdtp_domain_init(struct amdtp_domain *d)
+{
+	INIT_LIST_HEAD(&d->streams);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_init);
+
+/**
+ * amdtp_domain_destroy - destroy an AMDTP domain structure
+ * @d: the AMDTP domain to destroy.
+ */
+void amdtp_domain_destroy(struct amdtp_domain *d)
+{
+	WARN_ON(!list_empty(&d->streams));
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
+
+/**
+ * amdtp_domain_add_stream - register isoc context into the domain.
+ * @d: the AMDTP domain.
+ * @s: the AMDTP stream.
+ * @channel: the isochronous channel on the bus.
+ * @speed: firewire speed code.
+ */
+int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
+			    int channel, int speed)
+{
+	struct amdtp_stream *tmp;
+
+	list_for_each_entry(tmp, &d->streams, list) {
+		if (s == tmp)
+			return -EBUSY;
+	}
+
+	list_add(&s->list, &d->streams);
+
+	s->channel = channel;
+	s->speed = speed;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
+
+/**
+ * amdtp_domain_start - start sending packets for isoc context in the domain.
+ * @d: the AMDTP domain.
+ */
+int amdtp_domain_start(struct amdtp_domain *d)
+{
+	struct amdtp_stream *s;
+	int err = 0;
+
+	list_for_each_entry(s, &d->streams, list) {
+		err = amdtp_stream_start(s, s->channel, s->speed);
+		if (err < 0)
+			break;
+	}
+
+	if (err < 0) {
+		list_for_each_entry(s, &d->streams, list)
+			amdtp_stream_stop(s);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_start);
+
+/**
+ * amdtp_domain_stop - stop sending packets for isoc context in the same domain.
+ * @d: the AMDTP domain to which the isoc contexts belong.
+ */
+void amdtp_domain_stop(struct amdtp_domain *d)
+{
+	struct amdtp_stream *s, *next;
+
+	list_for_each_entry_safe(s, next, &d->streams, list) {
+		list_del(&s->list);
+
+		amdtp_stream_stop(s);
+	}
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_stop);
