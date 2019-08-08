@@ -648,7 +648,7 @@ int r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	return 0;
 }
 
-s32 r8712_recv_entry(union recv_frame *precvframe)
+void r8712_recv_entry(union recv_frame *precvframe)
 {
 	struct _adapter *padapter;
 	struct recv_priv *precvpriv;
@@ -666,9 +666,8 @@ s32 r8712_recv_entry(union recv_frame *precvframe)
 	precvpriv->rx_pkts++;
 	precvpriv->rx_bytes += (uint)(precvframe->u.hdr.rx_tail -
 				precvframe->u.hdr.rx_data);
-	return ret;
+	return;
 _recv_entry_drop:
 	precvpriv->rx_drop++;
 	padapter->mppriv.rx_pktloss = precvpriv->rx_drop;
-	return ret;
 }
