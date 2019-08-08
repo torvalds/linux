@@ -25,23 +25,12 @@
 static int skl_alloc_dma_buf(struct device *dev,
 		struct snd_dma_buffer *dmab, size_t size)
 {
-	struct hdac_bus *bus = dev_get_drvdata(dev);
-
-	if (!bus)
-		return -ENODEV;
-
-	return  bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV, size, dmab);
+	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size, dmab);
 }
 
 static int skl_free_dma_buf(struct device *dev, struct snd_dma_buffer *dmab)
 {
-	struct hdac_bus *bus = dev_get_drvdata(dev);
-
-	if (!bus)
-		return -ENODEV;
-
-	bus->io_ops->dma_free_pages(bus, dmab);
-
+	snd_dma_free_pages(dmab);
 	return 0;
 }
 
