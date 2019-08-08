@@ -693,7 +693,7 @@ lqasc_serial_early_console_setup(struct earlycon_device *device,
 	device->con->write = lqasc_serial_early_console_write;
 	return 0;
 }
-OF_EARLYCON_DECLARE(lantiq, DRVNAME, lqasc_serial_early_console_setup);
+OF_EARLYCON_DECLARE(lantiq, "lantiq,asc", lqasc_serial_early_console_setup);
 
 static struct uart_driver lqasc_reg = {
 	.owner =	THIS_MODULE,
@@ -792,7 +792,7 @@ lqasc_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ltq_asc_match[] = {
-	{ .compatible = DRVNAME },
+	{ .compatible = "lantiq,asc" },
 	{},
 };
 
