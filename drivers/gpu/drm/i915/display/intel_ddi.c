@@ -2015,6 +2015,12 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	for_each_pipe(dev_priv, p) {
 		enum transcoder cpu_transcoder = (enum transcoder)p;
 		unsigned int port_mask, ddi_select;
+		intel_wakeref_t trans_wakeref;
+
+		trans_wakeref = intel_display_power_get_if_enabled(dev_priv,
+								   POWER_DOMAIN_TRANSCODER(cpu_transcoder));
+		if (!trans_wakeref)
+			continue;
 
 		if (INTEL_GEN(dev_priv) >= 12) {
 			port_mask = TGL_TRANS_DDI_PORT_MASK;
@@ -2025,6 +2031,8 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		}
 
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+		intel_display_power_put(dev_priv, POWER_DOMAIN_TRANSCODER(cpu_transcoder),
+					trans_wakeref);
 
 		if ((tmp & port_mask) != ddi_select)
 			continue;
