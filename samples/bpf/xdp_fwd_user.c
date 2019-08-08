@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		map_fd = bpf_map__fd(bpf_object__find_map_by_name(obj,
-								  "tx_port"));
+							"xdp_tx_ports"));
 		if (map_fd < 0) {
 			printf("map not found: %s\n", strerror(map_fd));
 			return 1;

@@ -23,7 +23,8 @@
 
 #define IPV6_FLOWINFO_MASK              cpu_to_be32(0x0FFFFFFF)
 
-struct bpf_map_def SEC("maps") tx_port = {
+/* For TX-traffic redirect requires net_device ifindex to be in this devmap */
+struct bpf_map_def SEC("maps") xdp_tx_ports = {
 	.type = BPF_MAP_TYPE_DEVMAP,
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
@@ -117,7 +118,7 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 
 		memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
 		memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
-		return bpf_redirect_map(&tx_port, fib_params.ifindex, 0);
+		return bpf_redirect_map(&xdp_tx_ports, fib_params.ifindex, 0);
 	}
 
 	return XDP_PASS;
