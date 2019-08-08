@@ -204,9 +204,20 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	struct hl_device *hdev = hpriv->hdev;
 	int rc;
 
-	/* We want to return device status even if it disabled or in reset */
-	if (args->op == HL_INFO_DEVICE_STATUS)
+	/*
+	 * Information is returned for the following opcodes even if the device
+	 * is disabled or in reset.
+	 */
+	switch (args->op) {
+	case HL_INFO_HW_IP_INFO:
+		return hw_ip_info(hdev, args);
+
+	case HL_INFO_DEVICE_STATUS:
 		return device_status_info(hdev, args);
+
+	default:
+		break;
+	}
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
 		dev_warn_ratelimited(dev,
@@ -216,10 +227,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	}
 
 	switch (args->op) {
-	case HL_INFO_HW_IP_INFO:
-		rc = hw_ip_info(hdev, args);
-		break;
-
 	case HL_INFO_HW_EVENTS:
 		rc = hw_events_info(hdev, args);
 		break;
