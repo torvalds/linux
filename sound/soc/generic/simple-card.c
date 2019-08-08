@@ -424,7 +424,7 @@ static int simple_parse_aux_devs(struct device_node *node,
 		aux_node = of_parse_phandle(node, PREFIX "aux-devs", i);
 		if (!aux_node)
 			return -EINVAL;
-		card->aux_dev[i].codec_of_node = aux_node;
+		card->aux_dev[i].dlc.of_node = aux_node;
 	}
 
 	card->num_aux_devs = n;
