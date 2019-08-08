@@ -571,4 +571,22 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 
+/* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
+ * WARN_ON()) for hw state sanity checks to check for unexpected conditions
+ * which may not necessarily be a user visible problem.  This will either
+ * WARN() or DRM_ERROR() depending on the verbose_checks moduleparam, to
+ * enable distros and users to tailor their preferred amount of i915 abrt
+ * spam.
+ */
+#define I915_STATE_WARN(condition, format...) ({			\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on))					\
+		if (!WARN(i915_modparams.verbose_state_checks, format))	\
+			DRM_ERROR(format);				\
+	unlikely(__ret_warn_on);					\
+})
+
+#define I915_STATE_WARN_ON(x)						\
+	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
+
 #endif
