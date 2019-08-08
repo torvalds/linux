@@ -23,6 +23,9 @@ enum gpio_lookup_flags;
 #ifdef CONFIG_GPIOLIB
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
+
+struct gpio_chip;
+
 /**
  * struct gpio_irq_chip - GPIO interrupt controller
  */
@@ -48,6 +51,84 @@ struct gpio_irq_chip {
 	 * Table of interrupt domain operations for this IRQ chip.
 	 */
 	const struct irq_domain_ops *domain_ops;
+
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+	/**
+	 * @fwnode:
+	 *
+	 * Firmware node corresponding to this gpiochip/irqchip, necessary
+	 * for hierarchical irqdomain support.
+	 */
+	struct fwnode_handle *fwnode;
+
+	/**
+	 * @parent_domain:
+	 *
+	 * If non-NULL, will be set as the parent of this GPIO interrupt
+	 * controller's IRQ domain to establish a hierarchical interrupt
+	 * domain. The presence of this will activate the hierarchical
+	 * interrupt support.
+	 */
+	struct irq_domain *parent_domain;
+
+	/**
+	 * @child_to_parent_hwirq:
+	 *
+	 * This callback translates a child hardware IRQ offset to a parent
+	 * hardware IRQ offset on a hierarchical interrupt chip. The child
+	 * hardware IRQs correspond to the GPIO index 0..ngpio-1 (see the
+	 * ngpio field of struct gpio_chip) and the corresponding parent
+	 * hardware IRQ and type (such as IRQ_TYPE_*) shall be returned by
+	 * the driver. The driver can calculate this from an offset or using
+	 * a lookup table or whatever method is best for this chip. Return
+	 * 0 on successful translation in the driver.
+	 *
+	 * If some ranges of hardware IRQs do not have a corresponding parent
+	 * HWIRQ, return -EINVAL, but also make sure to fill in @valid_mask and
+	 * @need_valid_mask to make these GPIO lines unavailable for
+	 * translation.
+	 */
+	int (*child_to_parent_hwirq)(struct gpio_chip *chip,
+				     unsigned int child_hwirq,
+				     unsigned int child_type,
+				     unsigned int *parent_hwirq,
+				     unsigned int *parent_type);
+
+	/**
+	 * @populate_parent_fwspec:
+	 *
+	 * This optional callback populates the &struct irq_fwspec for the
+	 * parent's IRQ domain. If this is not specified, then
+	 * &gpiochip_populate_parent_fwspec_twocell will be used. A four-cell
+	 * variant named &gpiochip_populate_parent_fwspec_fourcell is also
+	 * available.
+	 */
+	void (*populate_parent_fwspec)(struct gpio_chip *chip,
+				       struct irq_fwspec *fwspec,
+				       unsigned int parent_hwirq,
+				       unsigned int parent_type);
+
+	/**
+	 * @child_offset_to_irq:
+	 *
+	 * This optional callback is used to translate the child's GPIO line
+	 * offset on the GPIO chip to an IRQ number for the GPIO to_irq()
+	 * callback. If this is not specified, then a default callback will be
+	 * provided that returns the line offset.
+	 */
+	unsigned int (*child_offset_to_irq)(struct gpio_chip *chip,
+					    unsigned int pin);
+
+	/**
+	 * @child_irq_domain_ops:
+	 *
+	 * The IRQ domain operations that will be used for this GPIO IRQ
+	 * chip. If no operations are provided, then default callbacks will
+	 * be populated to setup the IRQ hierarchy. Some drivers need to
+	 * supply their own translate function.
+	 */
+	struct irq_domain_ops child_irq_domain_ops;
+#endif
 
 	/**
 	 * @handler:
@@ -448,6 +529,36 @@ struct bgpio_pdata {
 	int base;
 	int ngpio;
 };
+
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+
+void gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
+					     struct irq_fwspec *fwspec,
+					     unsigned int parent_hwirq,
+					     unsigned int parent_type);
+void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
+					      struct irq_fwspec *fwspec,
+					      unsigned int parent_hwirq,
+					      unsigned int parent_type);
+
+#else
+
+static void gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
+						    struct irq_fwspec *fwspec,
+						    unsigned int parent_hwirq,
+						    unsigned int parent_type)
+{
+}
+
+static void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
+						     struct irq_fwspec *fwspec,
+						     unsigned int parent_hwirq,
+						     unsigned int parent_type)
+{
+}
+
+#endif /* CONFIG_IRQ_DOMAIN_HIERARCHY */
+
 
 #if IS_ENABLED(CONFIG_GPIO_GENERIC)
 
