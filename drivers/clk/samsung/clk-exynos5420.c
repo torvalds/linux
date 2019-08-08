@@ -893,9 +893,6 @@ static const struct samsung_div_clock exynos5x_div_clks[] __initconst = {
 	/* GSCL Block */
 	DIV(0, "dout_gscl_blk_333", "aclk333_432_gscl", DIV2_RATIO0, 6, 2),
 
-	/* MSCL Block */
-	DIV(0, "dout_mscl_blk", "aclk400_mscl", DIV2_RATIO0, 28, 2),
-
 	/* PSGEN */
 	DIV(0, "dout_gen_blk", "mout_user_aclk266", DIV2_RATIO0, 8, 1),
 	DIV(0, "dout_jpg_blk", "aclk166", DIV2_RATIO0, 20, 1),
@@ -1159,17 +1156,6 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(CLK_FIMC_LITE3, "fimc_lite3", "aclk333_432_gscl",
 			GATE_IP_GSCL1, 17, 0, 0),
 
-	/* MSCL Block */
-	GATE(CLK_MSCL0, "mscl0", "aclk400_mscl", GATE_IP_MSCL, 0, 0, 0),
-	GATE(CLK_MSCL1, "mscl1", "aclk400_mscl", GATE_IP_MSCL, 1, 0, 0),
-	GATE(CLK_MSCL2, "mscl2", "aclk400_mscl", GATE_IP_MSCL, 2, 0, 0),
-	GATE(CLK_SMMU_MSCL0, "smmu_mscl0", "dout_mscl_blk",
-			GATE_IP_MSCL, 8, 0, 0),
-	GATE(CLK_SMMU_MSCL1, "smmu_mscl1", "dout_mscl_blk",
-			GATE_IP_MSCL, 9, 0, 0),
-	GATE(CLK_SMMU_MSCL2, "smmu_mscl2", "dout_mscl_blk",
-			GATE_IP_MSCL, 10, 0, 0),
-
 	/* ISP */
 	GATE(CLK_SCLK_UART_ISP, "sclk_uart_isp", "dout_uart_isp",
 			GATE_TOP_SCLK_ISP, 0, CLK_SET_RATE_PARENT, 0),
@@ -1278,6 +1264,28 @@ static struct exynos5_subcmu_reg_dump exynos5x_mfc_suspend_regs[] = {
 	{ DIV4_RATIO, 0, 0x3 },			/* DIV dout_mfc_blk */
 };
 
+static const struct samsung_gate_clock exynos5x_mscl_gate_clks[] __initconst = {
+	/* MSCL Block */
+	GATE(CLK_MSCL0, "mscl0", "aclk400_mscl", GATE_IP_MSCL, 0, 0, 0),
+	GATE(CLK_MSCL1, "mscl1", "aclk400_mscl", GATE_IP_MSCL, 1, 0, 0),
+	GATE(CLK_MSCL2, "mscl2", "aclk400_mscl", GATE_IP_MSCL, 2, 0, 0),
+	GATE(CLK_SMMU_MSCL0, "smmu_mscl0", "dout_mscl_blk",
+			GATE_IP_MSCL, 8, 0, 0),
+	GATE(CLK_SMMU_MSCL1, "smmu_mscl1", "dout_mscl_blk",
+			GATE_IP_MSCL, 9, 0, 0),
+	GATE(CLK_SMMU_MSCL2, "smmu_mscl2", "dout_mscl_blk",
+			GATE_IP_MSCL, 10, 0, 0),
+};
+
+static const struct samsung_div_clock exynos5x_mscl_div_clks[] __initconst = {
+	DIV(0, "dout_mscl_blk", "aclk400_mscl", DIV2_RATIO0, 28, 2),
+};
+
+static struct exynos5_subcmu_reg_dump exynos5x_mscl_suspend_regs[] = {
+	{ GATE_IP_MSCL, 0xffffffff, 0xffffffff }, /* MSCL gates */
+	{ SRC_TOP3, 0, BIT(4) },		/* MUX mout_user_aclk400_mscl */
+	{ DIV2_RATIO0, 0, 0x30000000 },		/* DIV dout_mscl_blk */
+};
 
 static const struct samsung_gate_clock exynos5800_mau_gate_clks[] __initconst = {
 	GATE(CLK_MAU_EPLL, "mau_epll", "mout_user_mau_epll",
@@ -1322,6 +1330,16 @@ static const struct exynos5_subcmu_info exynos5x_mfc_subcmu = {
 	.pd_name	= "MFC",
 };
 
+static const struct exynos5_subcmu_info exynos5x_mscl_subcmu = {
+	.div_clks	= exynos5x_mscl_div_clks,
+	.nr_div_clks	= ARRAY_SIZE(exynos5x_mscl_div_clks),
+	.gate_clks	= exynos5x_mscl_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(exynos5x_mscl_gate_clks),
+	.suspend_regs	= exynos5x_mscl_suspend_regs,
+	.nr_suspend_regs = ARRAY_SIZE(exynos5x_mscl_suspend_regs),
+	.pd_name	= "MSC",
+};
+
 static const struct exynos5_subcmu_info exynos5800_mau_subcmu = {
 	.gate_clks	= exynos5800_mau_gate_clks,
 	.nr_gate_clks	= ARRAY_SIZE(exynos5800_mau_gate_clks),
@@ -1334,12 +1352,14 @@ static const struct exynos5_subcmu_info *exynos5x_subcmus[] = {
 	&exynos5x_disp_subcmu,
 	&exynos5x_gsc_subcmu,
 	&exynos5x_mfc_subcmu,
+	&exynos5x_mscl_subcmu,
 };
 
 static const struct exynos5_subcmu_info *exynos5800_subcmus[] = {
 	&exynos5x_disp_subcmu,
 	&exynos5x_gsc_subcmu,
 	&exynos5x_mfc_subcmu,
+	&exynos5x_mscl_subcmu,
 	&exynos5800_mau_subcmu,
 };
 
