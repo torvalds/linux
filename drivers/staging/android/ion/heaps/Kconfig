@@ -6,6 +6,14 @@ config ION_SYSTEM_HEAP
 	  Choose this option to enable the Ion system heap. The system heap
 	  is backed by pages from the buddy allocator. If in doubt, say Y.
 
+config ION_SYSTEM_CONTIG_HEAP
+	bool "Ion system contig heap"
+	depends on ION
+	help
+	  Choose this option to enable Ion system contig heap. The system contig heap
+	  is backed by the pages from buddy allocator that are guaranteed to be physically
+	  contiguous. If in doubt, say Y.
+
 config ION_CMA_HEAP
 	bool "Ion CMA heap support"
 	depends on ION && DMA_CMA
