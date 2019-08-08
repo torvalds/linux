@@ -634,7 +634,6 @@ static int bu21013_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /**
  * bu21013_suspend() - suspend the touch screen controller
  * @dev: pointer to device structure
@@ -642,7 +641,7 @@ static int bu21013_remove(struct i2c_client *client)
  * This function is used to suspend the
  * touch panel controller and returns integer
  */
-static int bu21013_suspend(struct device *dev)
+static int __maybe_unused bu21013_suspend(struct device *dev)
 {
 	struct bu21013_ts *ts = dev_get_drvdata(dev);
 	struct i2c_client *client = ts->client;
@@ -665,7 +664,7 @@ static int bu21013_suspend(struct device *dev)
  * This function is used to resume the touch panel
  * controller and returns integer.
  */
-static int bu21013_resume(struct device *dev)
+static int __maybe_unused bu21013_resume(struct device *dev)
 {
 	struct bu21013_ts *ts = dev_get_drvdata(dev);
 	struct i2c_client *client = ts->client;
@@ -693,11 +692,7 @@ static int bu21013_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops bu21013_dev_pm_ops = {
-	.suspend = bu21013_suspend,
-	.resume  = bu21013_resume,
-};
-#endif
+static SIMPLE_DEV_PM_OPS(bu21013_dev_pm_ops, bu21013_suspend, bu21013_resume);
 
 static const struct i2c_device_id bu21013_id[] = {
 	{ DRIVER_TP, 0 },
@@ -708,9 +703,7 @@ MODULE_DEVICE_TABLE(i2c, bu21013_id);
 static struct i2c_driver bu21013_driver = {
 	.driver	= {
 		.name	=	DRIVER_TP,
-#ifdef CONFIG_PM
 		.pm	=	&bu21013_dev_pm_ops,
-#endif
 	},
 	.probe		=	bu21013_probe,
 	.remove		=	bu21013_remove,
