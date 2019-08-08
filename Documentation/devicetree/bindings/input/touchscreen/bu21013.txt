@@ -2,10 +2,11 @@
 
 Required properties:
  - compatible              : "rohm,bu21013_tp"
- - reg                     :  I2C device address
+ - reg                     : I2C device address
+ - reset-gpios             : GPIO pin enabling (selecting) chip (CS)
 
 Optional properties:
- - touch-gpio              : GPIO pin registering a touch event
+ - touch-gpios             : GPIO pin registering a touch event
  - <supply_name>-supply    : Phandle to a regulator supply
  - rohm,touch-max-x        : Maximum outward permitted limit in the X axis
  - rohm,touch-max-y        : Maximum outward permitted limit in the Y axis
