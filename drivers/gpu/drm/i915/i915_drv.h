@@ -2654,15 +2654,4 @@ i915_coherent_map_type(struct drm_i915_private *i915)
 	return HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
 }
 
-static inline void add_taint_for_CI(unsigned int taint)
-{
-	/*
-	 * The system is "ok", just about surviving for the user, but
-	 * CI results are now unreliable as the HW is very suspect.
-	 * CI checks the taint state after every test and will reboot
-	 * the machine if the kernel is tainted.
-	 */
-	add_taint(taint, LOCKDEP_STILL_OK);
-}
-
 #endif

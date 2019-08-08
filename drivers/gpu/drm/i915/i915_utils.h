@@ -382,4 +382,15 @@ static inline const char *enableddisabled(bool v)
 	return v ? "enabled" : "disabled";
 }
 
+static inline void add_taint_for_CI(unsigned int taint)
+{
+	/*
+	 * The system is "ok", just about surviving for the user, but
+	 * CI results are now unreliable as the HW is very suspect.
+	 * CI checks the taint state after every test and will reboot
+	 * the machine if the kernel is tainted.
+	 */
+	add_taint(taint, LOCKDEP_STILL_OK);
+}
+
 #endif /* !__I915_UTILS_H */
