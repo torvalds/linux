@@ -111,6 +111,12 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case FAMILY_RV:
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
+			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			break;
+		}
+#endif	/* DCN2_1 */
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev)) {
 			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
 			break;
@@ -120,12 +126,6 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			rv1_clk_mgr_construct(ctx, clk_mgr, pp_smu);
 			break;
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
-			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-			break;
-		}
-#endif	/* DCN2_1 */
 		break;
 #endif	/* Family RV */
 
