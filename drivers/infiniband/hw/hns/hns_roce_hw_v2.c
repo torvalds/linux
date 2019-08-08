@@ -239,7 +239,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_v2_db sq_db;
 	struct ib_qp_attr attr;
-	unsigned int sge_ind = 0;
+	unsigned int sge_ind;
 	unsigned int owner_bit;
 	unsigned long flags;
 	unsigned int ind;
@@ -4291,7 +4291,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	struct hns_roce_v2_qp_context *context;
 	struct hns_roce_v2_qp_context *qpc_mask;
 	struct device *dev = hr_dev->dev;
-	int ret = -EINVAL;
+	int ret;
 
 	context = kcalloc(2, sizeof(*context), GFP_ATOMIC);
 	if (!context)
