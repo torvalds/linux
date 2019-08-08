@@ -68,6 +68,7 @@
 #include "i915_debugfs.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_memcpy.h"
 #include "i915_perf.h"
 #include "i915_query.h"
 #include "i915_suspend.h"

@@ -28,6 +28,7 @@
 #include "gt/intel_engine.h"
 
 #include "i915_drv.h"
+#include "i915_memcpy.h"
 
 /**
  * DOC: batch buffer command parser

@@ -25,8 +25,9 @@
 #include <linux/debugfs.h>
 
 #include "gt/intel_gt.h"
-#include "intel_guc_log.h"
 #include "i915_drv.h"
+#include "i915_memcpy.h"
+#include "intel_guc_log.h"
 
 static void guc_log_capture_logs(struct intel_guc_log *log);
 
