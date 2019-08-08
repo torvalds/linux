@@ -2045,6 +2045,11 @@
 				};
 			};
 
+			vrtc: rtc@0a8 {
+				compatible = "amlogic,meson-vrtc";
+				reg = <0x0 0x000a8 0x0 0x4>;
+			};
+
 			cec_AO: cec@100 {
 				compatible = "amlogic,meson-gx-ao-cec";
 				reg = <0x0 0x00100 0x0 0x14>;
