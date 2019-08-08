@@ -1483,9 +1483,6 @@ struct drm_i915_private {
 	/* backlight registers and fields in struct intel_panel */
 	struct mutex backlight_lock;
 
-	/* LVDS info */
-	bool no_aux_handshake;
-
 	/* protects panel power sequencer state */
 	struct mutex pps_mutex;
 

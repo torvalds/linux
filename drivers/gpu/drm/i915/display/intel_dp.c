@@ -4147,10 +4147,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
 			 drm_dp_is_branch(intel_dp->dpcd));
 
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
-		dev_priv->no_aux_handshake = intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
-			DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
-
 	/*
 	 * Read the eDP display control registers.
 	 *
