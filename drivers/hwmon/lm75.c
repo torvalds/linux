@@ -235,6 +235,27 @@ static inline long lm75_reg_to_mc(s16 temp, u8 resolution)
 	return ((temp >> (16 - resolution)) * 1000) >> (resolution - 8);
 }
 
+static int lm75_write_config(struct lm75_data *data, u8 set_mask,
+			     u8 clr_mask)
+{
+	u8 value;
+
+	clr_mask |= LM75_SHUTDOWN;
+	value = data->current_conf & ~clr_mask;
+	value |= set_mask;
+
+	if (data->current_conf != value) {
+		s32 err;
+
+		err = i2c_smbus_write_byte_data(data->client, LM75_REG_CONF,
+						value);
+		if (err)
+			return err;
+		data->current_conf = value;
+	}
+	return 0;
+}
+
 static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
 		     u32 attr, int channel, long *val)
 {
@@ -396,7 +417,6 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct device *hwmon_dev;
 	struct lm75_data *data;
 	int status, err;
-	int new;
 	enum lm75_type kind;
 
 	if (client->dev.of_node)
@@ -436,16 +456,16 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return status;
 	}
 	data->orig_conf = status;
-	new = status & ~(data->params->clr_mask | LM75_SHUTDOWN);
-	new |= data->params->set_mask;
-	if (status != new)
-		i2c_smbus_write_byte_data(client, LM75_REG_CONF, new);
+	data->current_conf = status;
+
+	err = lm75_write_config(data, data->params->set_mask,
+				data->params->clr_mask);
+	if (err)
+		return err;
 
 	err = devm_add_action_or_reset(dev, lm75_remove, data);
 	if (err)
 		return err;
-
-	dev_dbg(dev, "Config %02x\n", new);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 data, &lm75_chip_info,
