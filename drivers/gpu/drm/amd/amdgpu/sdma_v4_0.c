@@ -68,6 +68,7 @@ MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 MODULE_FIRMWARE("amdgpu/picasso_sdma.bin");
 MODULE_FIRMWARE("amdgpu/raven2_sdma.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sdma.bin");
+MODULE_FIRMWARE("amdgpu/renoir_sdma.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
 #define SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK 0xFC000000L
@@ -451,6 +452,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
+		break;
+	case CHIP_RENOIR:
+		chip_name = "renoir";
 		break;
 	default:
 		BUG();
@@ -1640,7 +1644,7 @@ static int sdma_v4_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	if (adev->asic_type == CHIP_RAVEN)
+	if (adev->asic_type == CHIP_RAVEN || adev->asic_type == CHIP_RENOIR)
 		adev->sdma.num_instances = 1;
 	else if (adev->asic_type == CHIP_ARCTURUS)
 		adev->sdma.num_instances = 8;
