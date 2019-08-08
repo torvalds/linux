@@ -263,6 +263,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
 	engine->base.id = id;
 	engine->base.mask = BIT(id);
+	engine->base.instance = id;
 	engine->base.status_page.addr = (void *)(engine + 1);
 
 	engine->base.cops = &mock_context_ops;
@@ -280,6 +281,8 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	spin_lock_init(&engine->hw_lock);
 	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
+
+	intel_engine_add_user(&engine->base);
 
 	return &engine->base;
 }

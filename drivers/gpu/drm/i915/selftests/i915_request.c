@@ -339,7 +339,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 
 			mutex_lock(BKL);
 
-			ce = i915_gem_context_get_engine(ctx, t->engine->id);
+			ce = i915_gem_context_get_engine(ctx, t->engine->legacy_idx);
 			GEM_BUG_ON(IS_ERR(ce));
 			rq = t->request_alloc(ce);
 			intel_context_put(ce);

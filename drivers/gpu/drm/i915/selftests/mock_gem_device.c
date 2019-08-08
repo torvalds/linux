@@ -213,6 +213,7 @@ struct drm_i915_private *mock_gem_device(void)
 	if (mock_engine_init(i915->engine[RCS0]))
 		goto err_context;
 
+	intel_engines_driver_register(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	WARN_ON(i915_gemfs_init(i915));
