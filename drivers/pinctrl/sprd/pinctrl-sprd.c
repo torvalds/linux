@@ -925,8 +925,10 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 
 	for_each_child_of_node(np, child) {
 		ret = sprd_pinctrl_parse_groups(child, sprd_pctl, grp);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 
 		*temp++ = grp->name;
 		grp++;
@@ -935,8 +937,11 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 			for_each_child_of_node(child, sub_child) {
 				ret = sprd_pinctrl_parse_groups(sub_child,
 								sprd_pctl, grp);
-				if (ret)
+				if (ret) {
+					of_node_put(sub_child);
+					of_node_put(child);
 					return ret;
+				}
 
 				*temp++ = grp->name;
 				grp++;
