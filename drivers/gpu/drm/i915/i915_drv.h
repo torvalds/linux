@@ -104,27 +104,6 @@
 #define DRIVER_DATE		"20190730"
 #define DRIVER_TIMESTAMP	1564512624
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-
-int __i915_inject_load_error(struct drm_i915_private *i915, int err,
-			     const char *func, int line);
-#define i915_inject_load_error(_i915, _err) \
-	__i915_inject_load_error((_i915), (_err), __func__, __LINE__)
-bool i915_error_injected(void);
-
-#else
-
-#define i915_inject_load_error(_i915, _err) 0
-#define i915_error_injected() false
-
-#endif
-
-#define i915_inject_probe_failure(i915) i915_inject_load_error((i915), -ENODEV)
-
-#define i915_probe_error(i915, fmt, ...)				   \
-	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
-		      fmt, ##__VA_ARGS__)
-
 struct drm_i915_gem_object;
 
 enum hpd_pin {
@@ -2278,13 +2257,6 @@ intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 }
 
 /* i915_drv.c */
-void __printf(3, 4)
-__i915_printk(struct drm_i915_private *dev_priv, const char *level,
-	      const char *fmt, ...);
-
-#define i915_report_error(dev_priv, fmt, ...)				   \
-	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
-
 #ifdef CONFIG_COMPAT
 long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 #else

@@ -48,6 +48,7 @@ i915-y += i915_drv.o \
 	  i915_scatterlist.o \
 	  i915_suspend.o \
 	  i915_sysfs.o \
+	  i915_utils.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pch.o \
