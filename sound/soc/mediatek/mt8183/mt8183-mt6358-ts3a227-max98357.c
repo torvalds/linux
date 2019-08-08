@@ -343,7 +343,7 @@ static int
 mt8183_mt6358_ts3a227_max98357_headset_init(struct snd_soc_component *cpnt);
 
 static struct snd_soc_aux_dev mt8183_mt6358_ts3a227_max98357_headset_dev = {
-	.name = "Headset Chip",
+	.dlc = COMP_EMPTY(),
 	.init = mt8183_mt6358_ts3a227_max98357_headset_init,
 };
 
@@ -399,10 +399,10 @@ mt8183_mt6358_ts3a227_max98357_dev_probe(struct platform_device *pdev)
 		dai_link->platforms->of_node = platform_node;
 	}
 
-	mt8183_mt6358_ts3a227_max98357_headset_dev.codec_of_node =
+	mt8183_mt6358_ts3a227_max98357_headset_dev.dlc.of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "mediatek,headset-codec", 0);
-	if (mt8183_mt6358_ts3a227_max98357_headset_dev.codec_of_node) {
+	if (mt8183_mt6358_ts3a227_max98357_headset_dev.dlc.of_node) {
 		card->aux_dev = &mt8183_mt6358_ts3a227_max98357_headset_dev;
 		card->num_aux_devs = 1;
 	}
