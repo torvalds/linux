@@ -80,9 +80,9 @@ static void ext_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
 
 	bd = (struct hl_bd *) (uintptr_t) q->kernel_address;
 	bd += hl_pi_2_offset(q->pi);
-	bd->ctl = __cpu_to_le32(ctl);
-	bd->len = __cpu_to_le32(len);
-	bd->ptr = __cpu_to_le64(ptr);
+	bd->ctl = cpu_to_le32(ctl);
+	bd->len = cpu_to_le32(len);
+	bd->ptr = cpu_to_le64(ptr);
 
 	q->pi = hl_queue_inc_ptr(q->pi);
 	hdev->asic_funcs->ring_doorbell(hdev, q->hw_queue_id, q->pi);
@@ -249,7 +249,7 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 	len = job->job_cb_size;
 	ptr = cb->bus_address;
 
-	cq_pkt.data = __cpu_to_le32(
+	cq_pkt.data = cpu_to_le32(
 				((q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
 					& CQ_ENTRY_SHADOW_INDEX_MASK) |
 				(1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT) |

@@ -21,12 +21,12 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 	memset(&pkt, 0, sizeof(pkt));
 
 	if (curr)
-		pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FREQUENCY_CURR_GET <<
+		pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_CURR_GET <<
 						ARMCP_PKT_CTL_OPCODE_SHIFT);
 	else
-		pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FREQUENCY_GET <<
+		pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_GET <<
 						ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = __cpu_to_le32(pll_index);
+	pkt.pll_index = cpu_to_le32(pll_index);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						SET_CLK_PKT_TIMEOUT, &result);
@@ -48,10 +48,10 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FREQUENCY_SET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_SET <<
 					ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = __cpu_to_le32(pll_index);
-	pkt.value = __cpu_to_le64(freq);
+	pkt.pll_index = cpu_to_le32(pll_index);
+	pkt.value = cpu_to_le64(freq);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					SET_CLK_PKT_TIMEOUT, NULL);
@@ -70,7 +70,7 @@ u64 hl_get_max_power(struct hl_device *hdev)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_MAX_POWER_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -91,9 +91,9 @@ void hl_set_max_power(struct hl_device *hdev, u64 value)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_MAX_POWER_SET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_SET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.value = __cpu_to_le64(value);
+	pkt.value = cpu_to_le64(value);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					SET_PWR_PKT_TIMEOUT, NULL);
