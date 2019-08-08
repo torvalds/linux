@@ -104,13 +104,18 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 
 	rc = bpf_fib_lookup(ctx, &fib_params, sizeof(fib_params), flags);
 
-	/* verify egress index has xdp support
-	 * TO-DO bpf_map_lookup_elem(&tx_port, &key) fails with
-	 *       cannot pass map_type 14 into func bpf_map_lookup_elem#1:
-	 * NOTE: without verification that egress index supports XDP
-	 *       forwarding packets are dropped.
-	 */
 	if (rc == 0) {
+		/* Verify egress index has been configured as TX-port.
+		 * (Note: User can still have inserted an egress ifindex that
+		 * doesn't support XDP xmit, which will result in packet drops).
+		 *
+		 * Note: lookup in devmap supported since 0cdbb4b09a0.
+		 * If not supported will fail with:
+		 *  cannot pass map_type 14 into func bpf_map_lookup_elem#1:
+		 */
+		if (!bpf_map_lookup_elem(&xdp_tx_ports, &fib_params.ifindex))
+			return XDP_PASS;
+
 		if (h_proto == htons(ETH_P_IP))
 			ip_decrease_ttl(iph);
 		else if (h_proto == htons(ETH_P_IPV6))
