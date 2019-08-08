@@ -26,7 +26,6 @@
 #include "../pinconf.h"
 
 struct sh_pfc_pin_config {
-	u32 type;
 	bool mux_set;
 	bool gpio_enabled;
 };
@@ -354,16 +353,6 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	for (i = 0; i < grp->nr_pins; ++i) {
-		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
-		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
-
-		if (cfg->type != PINMUX_TYPE_NONE) {
-			ret = -EBUSY;
-			goto done;
-		}
-	}
-
-	for (i = 0; i < grp->nr_pins; ++i) {
 		ret = sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION);
 		if (ret < 0)
 			goto done;
@@ -395,14 +384,6 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	if (cfg->type != PINMUX_TYPE_NONE) {
-		dev_err(pfc->dev,
-			"Pin %u is busy, can't configure it as GPIO.\n",
-			offset);
-		ret = -EBUSY;
-		goto done;
-	}
-
 	if (!pfc->gpio) {
 		/* If GPIOs are handled externally the pin mux type need to be
 		 * set to GPIO here.
@@ -414,7 +395,6 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 			goto done;
 	}
 
-	cfg->type = PINMUX_TYPE_GPIO;
 	cfg->gpio_enabled = true;
 
 	ret = 0;
@@ -436,7 +416,6 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&pfc->lock, flags);
-	cfg->type = PINMUX_TYPE_NONE;
 	cfg->gpio_enabled = false;
 	spin_unlock_irqrestore(&pfc->lock, flags);
 }
@@ -450,7 +429,6 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	int new_type = input ? PINMUX_TYPE_INPUT : PINMUX_TYPE_OUTPUT;
 	int idx = sh_pfc_get_pin_index(pfc, offset);
 	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
-	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 	unsigned long flags;
 	unsigned int dir;
 	int ret;
@@ -469,8 +447,6 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	ret = sh_pfc_config_mux(pfc, pin->enum_id, new_type);
 	if (ret < 0)
 		goto done;
-
-	cfg->type = new_type;
 
 done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
@@ -794,13 +770,11 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 
 	for (i = 0; i < pfc->info->nr_pins; ++i) {
 		const struct sh_pfc_pin *info = &pfc->info->pins[i];
-		struct sh_pfc_pin_config *cfg = &pmx->configs[i];
 		struct pinctrl_pin_desc *pin = &pmx->pins[i];
 
 		/* If the pin number is equal to -1 all pins are considered */
 		pin->number = info->pin != (u16)-1 ? info->pin : i;
 		pin->name = info->name;
-		cfg->type = PINMUX_TYPE_NONE;
 	}
 
 	return 0;
