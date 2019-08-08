@@ -388,27 +388,32 @@ static int lm75_write_temp(struct device *dev, u32 attr, long temp)
 	return regmap_write(data->regmap, reg, (u16)temp);
 }
 
-static int lm75_write_chip(struct device *dev, u32 attr, long val)
+static int lm75_update_interval(struct device *dev, long val)
 {
 	struct lm75_data *data = dev_get_drvdata(dev);
 	u8 index;
 	s32 err;
 
+	index = find_closest(val, data->params->sample_times,
+			     (int)data->params->num_sample_times);
+
+	err = lm75_write_config(data, lm75_sample_set_masks[index],
+				LM75_SAMPLE_CLEAR_MASK);
+	if (err)
+		return err;
+
+	data->sample_time = data->params->sample_times[index];
+	if (data->params->resolutions)
+		data->resolution = data->params->resolutions[index];
+
+	return 0;
+}
+
+static int lm75_write_chip(struct device *dev, u32 attr, long val)
+{
 	switch (attr) {
 	case hwmon_chip_update_interval:
-		index = find_closest(val, data->params->sample_times,
-				     (int)data->params->num_sample_times);
-
-		err = lm75_write_config(data,
-					lm75_sample_set_masks[index],
-					LM75_SAMPLE_CLEAR_MASK);
-		if (err)
-			return err;
-		data->sample_time = data->params->sample_times[index];
-
-		if (data->params->resolutions)
-			data->resolution = data->params->resolutions[index];
-		break;
+		return lm75_update_interval(dev, val);
 	default:
 		return -EINVAL;
 	}
