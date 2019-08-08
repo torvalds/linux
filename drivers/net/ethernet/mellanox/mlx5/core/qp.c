@@ -162,7 +162,7 @@ static int rsc_event_notifier(struct notifier_block *nb,
 
 	common = mlx5_get_rsc(table, rsn);
 	if (!common) {
-		mlx5_core_warn(dev, "Async event for bogus resource 0x%x\n", rsn);
+		mlx5_core_dbg(dev, "Async event for unknown resource 0x%x\n", rsn);
 		return NOTIFY_OK;
 	}
 
