@@ -2418,16 +2418,6 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 	return ctx;
 }
 
-int i915_perf_open_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file);
-int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
-			       struct drm_file *file);
-int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file);
-void i915_oa_init_reg_state(struct intel_engine_cs *engine,
-			    struct intel_context *ce,
-			    u32 *reg_state);
-
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  u64 min_size, u64 alignment,
@@ -2508,12 +2498,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    u32 batch_start_offset,
 			    u32 batch_len,
 			    bool is_master);
-
-/* i915_perf.c */
-void i915_perf_init(struct drm_i915_private *dev_priv);
-void i915_perf_fini(struct drm_i915_private *dev_priv);
-void i915_perf_register(struct drm_i915_private *dev_priv);
-void i915_perf_unregister(struct drm_i915_private *dev_priv);
 
 /* i915_suspend.c */
 int i915_save_state(struct drm_i915_private *dev_priv);

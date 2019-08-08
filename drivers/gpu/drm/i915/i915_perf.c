@@ -200,6 +200,7 @@
 #include "gt/intel_lrc_reg.h"
 
 #include "i915_drv.h"
+#include "i915_perf.h"
 #include "oa/i915_oa_hsw.h"
 #include "oa/i915_oa_bdw.h"
 #include "oa/i915_oa_chv.h"
