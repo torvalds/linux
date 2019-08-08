@@ -274,10 +274,11 @@ static void intel_hid_pm_complete(struct device *device)
 
 static int intel_hid_pl_suspend_handler(struct device *device)
 {
-	if (pm_suspend_via_firmware()) {
+	intel_button_array_enable(device, false);
+
+	if (!pm_suspend_no_platform())
 		intel_hid_set_enable(device, false);
-		intel_button_array_enable(device, false);
-	}
+
 	return 0;
 }
 
@@ -285,10 +286,10 @@ static int intel_hid_pl_resume_handler(struct device *device)
 {
 	intel_hid_pm_complete(device);
 
-	if (pm_resume_via_firmware()) {
+	if (!pm_suspend_no_platform())
 		intel_hid_set_enable(device, true);
-		intel_button_array_enable(device, true);
-	}
+
+	intel_button_array_enable(device, true);
 	return 0;
 }
 
