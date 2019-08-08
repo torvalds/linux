@@ -2903,46 +2903,15 @@ static int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries,
 	return npolled;
 }
 
-static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_hem_table *table, int obj,
-			       int step_idx)
+static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
+			      int step_idx)
 {
-	struct device *dev = hr_dev->dev;
-	struct hns_roce_cmd_mailbox *mailbox;
-	struct hns_roce_hem_iter iter;
-	struct hns_roce_hem_mhop mhop;
-	struct hns_roce_hem *hem;
-	unsigned long mhop_obj = obj;
-	int i, j, k;
-	int ret = 0;
-	u64 hem_idx = 0;
-	u64 l1_idx = 0;
-	u64 bt_ba = 0;
-	u32 chunk_ba_num;
-	u32 hop_num;
-	u16 op = 0xff;
+	int op;
 
-	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
-		return 0;
+	if (type == HEM_TYPE_SCCC && step_idx)
+		return -EINVAL;
 
-	hns_roce_calc_hem_mhop(hr_dev, table, &mhop_obj, &mhop);
-	i = mhop.l0_idx;
-	j = mhop.l1_idx;
-	k = mhop.l2_idx;
-	hop_num = mhop.hop_num;
-	chunk_ba_num = mhop.bt_chunk_size / 8;
-
-	if (hop_num == 2) {
-		hem_idx = i * chunk_ba_num * chunk_ba_num + j * chunk_ba_num +
-			  k;
-		l1_idx = i * chunk_ba_num + j;
-	} else if (hop_num == 1) {
-		hem_idx = i * chunk_ba_num + j;
-	} else if (hop_num == HNS_ROCE_HOP_NUM_0) {
-		hem_idx = i;
-	}
-
-	switch (table->type) {
+	switch (type) {
 	case HEM_TYPE_QPC:
 		op = HNS_ROCE_CMD_WRITE_QPC_BT0;
 		break;
@@ -2965,15 +2934,55 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 		op = HNS_ROCE_CMD_WRITE_CQC_TIMER_BT0;
 		break;
 	default:
-		dev_warn(dev, "Table %d not to be written by mailbox!\n",
-			 table->type);
-		return 0;
+		dev_warn(hr_dev->dev,
+			 "Table %d not to be written by mailbox!\n", type);
+		return -EINVAL;
 	}
 
-	if (table->type == HEM_TYPE_SCCC && step_idx)
+	return op + step_idx;
+}
+
+static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_hem_table *table, int obj,
+			       int step_idx)
+{
+	struct hns_roce_cmd_mailbox *mailbox;
+	struct hns_roce_hem_iter iter;
+	struct hns_roce_hem_mhop mhop;
+	struct hns_roce_hem *hem;
+	unsigned long mhop_obj = obj;
+	int i, j, k;
+	int ret = 0;
+	u64 hem_idx = 0;
+	u64 l1_idx = 0;
+	u64 bt_ba = 0;
+	u32 chunk_ba_num;
+	u32 hop_num;
+	int op;
+
+	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
 		return 0;
 
-	op += step_idx;
+	hns_roce_calc_hem_mhop(hr_dev, table, &mhop_obj, &mhop);
+	i = mhop.l0_idx;
+	j = mhop.l1_idx;
+	k = mhop.l2_idx;
+	hop_num = mhop.hop_num;
+	chunk_ba_num = mhop.bt_chunk_size / 8;
+
+	if (hop_num == 2) {
+		hem_idx = i * chunk_ba_num * chunk_ba_num + j * chunk_ba_num +
+			  k;
+		l1_idx = i * chunk_ba_num + j;
+	} else if (hop_num == 1) {
+		hem_idx = i * chunk_ba_num + j;
+	} else if (hop_num == HNS_ROCE_HOP_NUM_0) {
+		hem_idx = i;
+	}
+
+	op = get_op_for_set_hem(hr_dev, table->type, step_idx);
+	if (op == -EINVAL)
+		return 0;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mailbox))
