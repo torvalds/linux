@@ -318,7 +318,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 	return prtnframe;
 }
 
-static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
+static void amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 {
 	int	a_len, padding_len;
 	u16	eth_type, nSubframe_Length;
@@ -416,7 +416,6 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 exit:
 	prframe->u.hdr.len = 0;
 	r8712_free_recvframe(prframe, pfree_recv_queue);
-	return _SUCCESS;
 }
 
 void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf)
@@ -506,7 +505,6 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	union recv_frame *prframe;
 	struct rx_pkt_attrib *pattrib;
 	int bPktInBuf = false;
-	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct  __queue *ppending_recvframe_queue =
 			 &preorder_ctrl->pending_recvframe_queue;
 
@@ -543,10 +541,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 							       prframe);
 				}
 			} else if (pattrib->amsdu == 1) {
-				if (amsdu_to_msdu(padapter, prframe) !=
-				    _SUCCESS)
-					r8712_free_recvframe(prframe,
-						   &precvpriv->free_recv_queue);
+				amsdu_to_msdu(padapter, prframe);
 			}
 			/* Update local variables. */
 			bPktInBuf = false;
