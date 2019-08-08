@@ -3101,8 +3101,12 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		 hdmi->phy.name);
 
 	ret = hdmi_readb(hdmi, HDMI_PHY_STAT0);
-	if (ret & (HDMI_PHY_TX_PHY_LOCK | HDMI_PHY_HPD))
+	if (ret & (HDMI_PHY_TX_PHY_LOCK | HDMI_PHY_HPD)) {
 		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
+		hdmi->disabled = false;
+		hdmi->bridge_is_on = true;
+		hdmi->phy.enabled = true;
+	}
 
 	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
