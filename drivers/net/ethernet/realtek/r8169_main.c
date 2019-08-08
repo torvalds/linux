@@ -6898,9 +6898,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* RTL8168e-vl has a HW issue with TSO */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_34) {
-		dev->vlan_features &= ~NETIF_F_ALL_TSO;
-		dev->hw_features &= ~NETIF_F_ALL_TSO;
-		dev->features &= ~NETIF_F_ALL_TSO;
+		dev->vlan_features &= ~(NETIF_F_ALL_TSO | NETIF_F_SG);
+		dev->hw_features &= ~(NETIF_F_ALL_TSO | NETIF_F_SG);
+		dev->features &= ~(NETIF_F_ALL_TSO | NETIF_F_SG);
 	}
 
 	dev->hw_features |= NETIF_F_RXALL;
