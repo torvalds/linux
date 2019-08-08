@@ -474,6 +474,7 @@ struct smu_funcs
 	int (*populate_smc_pptable)(struct smu_context *smu);
 	int (*check_fw_version)(struct smu_context *smu);
 	int (*powergate_sdma)(struct smu_context *smu, bool gate);
+	int (*powergate_vcn)(struct smu_context *smu, bool gate);
 	int (*write_pptable)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
@@ -552,6 +553,8 @@ struct smu_funcs
 	((smu)->funcs->setup_pptable ? (smu)->funcs->setup_pptable((smu)) : 0)
 #define smu_powergate_sdma(smu, gate) \
 	((smu)->funcs->powergate_sdma ? (smu)->funcs->powergate_sdma((smu), (gate)) : 0)
+#define smu_powergate_vcn(smu, gate) \
+	((smu)->funcs->powergate_vcn ? (smu)->funcs->powergate_vcn((smu), (gate)) : 0)
 #define smu_get_vbios_bootup_values(smu) \
 	((smu)->funcs->get_vbios_bootup_values ? (smu)->funcs->get_vbios_bootup_values((smu)) : 0)
 #define smu_get_clk_info_from_vbios(smu) \

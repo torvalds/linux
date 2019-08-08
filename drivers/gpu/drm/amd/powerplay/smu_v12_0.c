@@ -172,10 +172,22 @@ static int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 		return smu_send_smc_msg(smu, SMU_MSG_PowerUpSdma);
 }
 
+static int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
+{
+	if (!(smu->adev->flags & AMD_IS_APU))
+		return 0;
+
+	if (gate)
+		return smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+	else
+		return smu_send_smc_msg(smu, SMU_MSG_PowerUpVcn);
+}
+
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,
+	.powergate_vcn = smu_v12_0_powergate_vcn,
 	.send_smc_msg = smu_v12_0_send_msg,
 	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
 	.read_smc_arg = smu_v12_0_read_arg,
