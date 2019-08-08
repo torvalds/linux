@@ -475,7 +475,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 		pf->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
 		set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
-		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
 		return 0;
 	}
 
