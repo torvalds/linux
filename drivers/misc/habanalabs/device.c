@@ -151,50 +151,94 @@ static const struct file_operations hl_ctrl_ops = {
 	.compat_ioctl = hl_ioctl_control
 };
 
+static void device_release_func(struct device *dev)
+{
+	kfree(dev);
+}
+
 /*
- * device_setup_cdev - setup cdev and device for habanalabs device
+ * device_init_cdev - Initialize cdev and device for habanalabs device
  *
  * @hdev: pointer to habanalabs device structure
  * @hclass: pointer to the class object of the device
  * @minor: minor number of the specific device
  * @fpos: file operations to install for this device
  * @name: name of the device as it will appear in the filesystem
- * @cdev: pointer to the char device object that will be created
- * @dev: pointer to the device object that will be created
+ * @cdev: pointer to the char device object that will be initialized
+ * @dev: pointer to the device object that will be initialized
  *
- * Create a cdev and a Linux device for habanalabs's device. Need to be
- * called at the end of the habanalabs device initialization process,
- * because this function exposes the device to the user
+ * Initialize a cdev and a Linux device for habanalabs's device.
  */
-static int device_setup_cdev(struct hl_device *hdev, struct class *hclass,
+static int device_init_cdev(struct hl_device *hdev, struct class *hclass,
 				int minor, const struct file_operations *fops,
 				char *name, struct cdev *cdev,
 				struct device **dev)
 {
-	int err, devno = MKDEV(hdev->major, minor);
-
 	cdev_init(cdev, fops);
 	cdev->owner = THIS_MODULE;
-	err = cdev_add(cdev, devno, 1);
-	if (err) {
-		pr_err("Failed to add char device %s\n", name);
-		return err;
-	}
 
-	*dev = device_create(hclass, NULL, devno, NULL, "%s", name);
-	if (IS_ERR(*dev)) {
-		pr_err("Failed to create device %s\n", name);
-		err = PTR_ERR(*dev);
-		goto err_device_create;
-	}
+	*dev = kzalloc(sizeof(**dev), GFP_KERNEL);
+	if (!*dev)
+		return -ENOMEM;
 
+	device_initialize(*dev);
+	(*dev)->devt = MKDEV(hdev->major, minor);
+	(*dev)->class = hclass;
+	(*dev)->release = device_release_func;
 	dev_set_drvdata(*dev, hdev);
+	dev_set_name(*dev, "%s", name);
+
+	return 0;
+}
+
+static int device_cdev_sysfs_add(struct hl_device *hdev)
+{
+	int rc;
+
+	rc = cdev_device_add(&hdev->cdev, hdev->dev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to add a char device to the system\n");
+		return rc;
+	}
+
+	rc = cdev_device_add(&hdev->cdev_ctrl, hdev->dev_ctrl);
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to add a control char device to the system\n");
+		goto delete_cdev_device;
+	}
+
+	/* hl_sysfs_init() must be done after adding the device to the system */
+	rc = hl_sysfs_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize sysfs\n");
+		goto delete_ctrl_cdev_device;
+	}
+
+	hdev->cdev_sysfs_created = true;
 
 	return 0;
 
-err_device_create:
-	cdev_del(cdev);
-	return err;
+delete_ctrl_cdev_device:
+	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
+delete_cdev_device:
+	cdev_device_del(&hdev->cdev, hdev->dev);
+	return rc;
+}
+
+static void device_cdev_sysfs_del(struct hl_device *hdev)
+{
+	/* device_release() won't be called so must free devices explicitly */
+	if (!hdev->cdev_sysfs_created) {
+		kfree(hdev->dev_ctrl);
+		kfree(hdev->dev);
+		return;
+	}
+
+	hl_sysfs_fini(hdev);
+	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
+	cdev_device_del(&hdev->cdev, hdev->dev);
 }
 
 /*
@@ -898,13 +942,16 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 {
 	int i, rc, cq_ready_cnt;
 	char *name;
+	bool add_cdev_sysfs_on_err = false;
 
 	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id / 2);
-	if (!name)
-		return -ENOMEM;
+	if (!name) {
+		rc = -ENOMEM;
+		goto out_disabled;
+	}
 
-	/* Create device */
-	rc = device_setup_cdev(hdev, hclass, hdev->id, &hl_ops, name,
+	/* Initialize cdev and device structures */
+	rc = device_init_cdev(hdev, hclass, hdev->id, &hl_ops, name,
 				&hdev->cdev, &hdev->dev);
 
 	kfree(name);
@@ -915,22 +962,22 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->id / 2);
 	if (!name) {
 		rc = -ENOMEM;
-		goto release_device;
+		goto free_dev;
 	}
 
-	/* Create control device */
-	rc = device_setup_cdev(hdev, hclass, hdev->id_control, &hl_ctrl_ops,
+	/* Initialize cdev and device structures for control device */
+	rc = device_init_cdev(hdev, hclass, hdev->id_control, &hl_ctrl_ops,
 				name, &hdev->cdev_ctrl, &hdev->dev_ctrl);
 
 	kfree(name);
 
 	if (rc)
-		goto release_device;
+		goto free_dev;
 
 	/* Initialize ASIC function pointers and perform early init */
 	rc = device_early_init(hdev);
 	if (rc)
-		goto release_control_device;
+		goto free_dev_ctrl;
 
 	/*
 	 * Start calling ASIC initialization. First S/W then H/W and finally
@@ -1017,12 +1064,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto release_ctx;
 	}
 
-	rc = hl_sysfs_init(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "failed to initialize sysfs\n");
-		goto free_cb_pool;
-	}
-
 	hl_debugfs_add_device(hdev);
 
 	if (hdev->asic_funcs->get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
@@ -1030,6 +1071,12 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 			"H/W state is dirty, must reset before initializing\n");
 		hdev->asic_funcs->hw_fini(hdev, true);
 	}
+
+	/*
+	 * From this point, in case of an error, add char devices and create
+	 * sysfs nodes as part of the error flow, to allow debugging.
+	 */
+	add_cdev_sysfs_on_err = true;
 
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
@@ -1067,9 +1114,24 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	}
 
 	/*
-	 * hl_hwmon_init must be called after device_late_init, because only
+	 * Expose devices and sysfs nodes to user.
+	 * From here there is no need to add char devices and create sysfs nodes
+	 * in case of an error.
+	 */
+	add_cdev_sysfs_on_err = false;
+	rc = device_cdev_sysfs_add(hdev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to add char devices and sysfs nodes\n");
+		rc = 0;
+		goto out_disabled;
+	}
+
+	/*
+	 * hl_hwmon_init() must be called after device_late_init(), because only
 	 * there we get the information from the device about which
-	 * hwmon-related sensors the device supports
+	 * hwmon-related sensors the device supports.
+	 * Furthermore, it must be done after adding the device to the system.
 	 */
 	rc = hl_hwmon_init(hdev);
 	if (rc) {
@@ -1085,8 +1147,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	return 0;
 
-free_cb_pool:
-	hl_cb_pool_fini(hdev);
 release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
@@ -1105,14 +1165,14 @@ sw_fini:
 	hdev->asic_funcs->sw_fini(hdev);
 early_fini:
 	device_early_fini(hdev);
-release_control_device:
-	device_destroy(hclass, hdev->dev_ctrl->devt);
-	cdev_del(&hdev->cdev_ctrl);
-release_device:
-	device_destroy(hclass, hdev->dev->devt);
-	cdev_del(&hdev->cdev);
+free_dev_ctrl:
+	kfree(hdev->dev_ctrl);
+free_dev:
+	kfree(hdev->dev);
 out_disabled:
 	hdev->disabled = true;
+	if (add_cdev_sysfs_on_err)
+		device_cdev_sysfs_add(hdev);
 	if (hdev->pdev)
 		dev_err(&hdev->pdev->dev,
 			"Failed to initialize hl%d. Device is NOT usable !\n",
@@ -1178,8 +1238,6 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hl_debugfs_remove_device(hdev);
 
-	hl_sysfs_fini(hdev);
-
 	/*
 	 * Halt the engines and disable interrupts so we won't get any more
 	 * completions from H/W and we won't have any accesses from the
@@ -1222,11 +1280,8 @@ void hl_device_fini(struct hl_device *hdev)
 
 	device_early_fini(hdev);
 
-	/* Hide device from user */
-	device_destroy(hdev->dev_ctrl->class, hdev->dev_ctrl->devt);
-	cdev_del(&hdev->cdev_ctrl);
-	device_destroy(hdev->dev->class, hdev->dev->devt);
-	cdev_del(&hdev->cdev);
+	/* Hide devices and sysfs nodes from user */
+	device_cdev_sysfs_del(hdev);
 
 	pr_info("removed device successfully\n");
 }
