@@ -10908,6 +10908,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Odd Fixes
 F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
+F:	linux/soc/mmp/
 
 MMU GATHER AND TLB INVALIDATION
 M:	Will Deacon <will@kernel.org>

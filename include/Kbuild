@@ -633,6 +633,7 @@ header-test-			+= linux/soc/amlogic/meson-canvas.h
 header-test-			+= linux/soc/brcmstb/brcmstb.h
 header-test-			+= linux/soc/ixp4xx/npe.h
 header-test-			+= linux/soc/mediatek/infracfg.h
+header-test-			+= linux/soc/mmp/cputype.h
 header-test-			+= linux/soc/qcom/smd-rpm.h
 header-test-			+= linux/soc/qcom/smem.h
 header-test-			+= linux/soc/qcom/smem_state.h
