@@ -326,7 +326,7 @@ int r8712_init_drv_sw(struct _adapter *padapter)
 	return ret;
 }
 
-u8 r8712_free_drv_sw(struct _adapter *padapter)
+void r8712_free_drv_sw(struct _adapter *padapter)
 {
 	struct net_device *pnetdev = padapter->pnetdev;
 
@@ -341,7 +341,6 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	mp871xdeinit(padapter);
 	if (pnetdev)
 		free_netdev(pnetdev);
-	return _SUCCESS;
 }
 
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
