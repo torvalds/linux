@@ -750,7 +750,7 @@ int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 
 int r8712_xmit_enqueue(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	if (r8712_xmit_classifier(padapter, pxmitframe) == _FAIL) {
+	if (r8712_xmit_classifier(padapter, pxmitframe)) {
 		pxmitframe->pkt = NULL;
 		return _FAIL;
 	}

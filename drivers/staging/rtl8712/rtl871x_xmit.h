@@ -258,8 +258,8 @@ void r8712_free_xmitframe(struct xmit_priv *pxmitpriv,
 			  struct xmit_frame *pxmitframe);
 void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 				struct  __queue *pframequeue);
-sint r8712_xmit_classifier(struct _adapter *padapter,
-			    struct xmit_frame *pxmitframe);
+int r8712_xmit_classifier(struct _adapter *padapter,
+			  struct xmit_frame *pxmitframe);
 sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 			      struct xmit_frame *pxmitframe);
 sint _r8712_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);

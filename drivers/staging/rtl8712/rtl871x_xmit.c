@@ -894,8 +894,8 @@ static inline struct tx_servq *get_sta_pending(struct _adapter *padapter,
  * Will enqueue pxmitframe to the proper queue, and indicate it
  * to xx_pending list.....
  */
-sint r8712_xmit_classifier(struct _adapter *padapter,
-			   struct xmit_frame *pxmitframe)
+int r8712_xmit_classifier(struct _adapter *padapter,
+			  struct xmit_frame *pxmitframe)
 {
 	unsigned long irqL0;
 	struct  __queue *pstapending;
@@ -920,7 +920,7 @@ sint r8712_xmit_classifier(struct _adapter *padapter,
 		}
 	}
 	if (psta == NULL)
-		return _FAIL;
+		return -EINVAL;
 	ptxservq = get_sta_pending(padapter, &pstapending,
 		   psta, pattrib->priority);
 	spin_lock_irqsave(&pstapending->lock, irqL0);
@@ -929,7 +929,7 @@ sint r8712_xmit_classifier(struct _adapter *padapter,
 	list_add_tail(&pxmitframe->list, &ptxservq->sta_pending.queue);
 	ptxservq->qcnt++;
 	spin_unlock_irqrestore(&pstapending->lock, irqL0);
-	return _SUCCESS;
+	return 0;
 }
 
 static void alloc_hwxmits(struct _adapter *padapter)
