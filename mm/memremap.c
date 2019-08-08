@@ -91,6 +91,12 @@ static void dev_pagemap_cleanup(struct dev_pagemap *pgmap)
 		wait_for_completion(&pgmap->done);
 		percpu_ref_exit(pgmap->ref);
 	}
+	/*
+	 * Undo the pgmap ref assignment for the internal case as the
+	 * caller may re-enable the same pgmap.
+	 */
+	if (pgmap->ref == &pgmap->internal_ref)
+		pgmap->ref = NULL;
 }
 
 static void devm_memremap_pages_release(void *data)
