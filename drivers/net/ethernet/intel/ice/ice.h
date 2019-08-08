@@ -425,21 +425,15 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 }
 
 /**
- * ice_find_vsi_by_type - Find and return VSI of a given type
- * @pf: PF to search for VSI
- * @type: Value indicating type of VSI we are looking for
+ * ice_get_main_vsi - Get the PF VSI
+ * @pf: PF instance
+ *
+ * returns pf->vsi[0], which by definition is the PF VSI
  */
-static inline struct ice_vsi *
-ice_find_vsi_by_type(struct ice_pf *pf, enum ice_vsi_type type)
+static inline struct ice_vsi *ice_get_main_vsi(struct ice_pf *pf)
 {
-	int i;
-
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
-		struct ice_vsi *vsi = pf->vsi[i];
-
-		if (vsi && vsi->type == type)
-			return vsi;
-	}
+	if (pf->vsi)
+		return pf->vsi[0];
 
 	return NULL;
 }

@@ -120,7 +120,7 @@ static int ice_init_mac_fltr(struct ice_pf *pf)
 	u8 broadcast[ETH_ALEN];
 	struct ice_vsi *vsi;
 
-	vsi = ice_find_vsi_by_type(pf, ICE_VSI_PF);
+	vsi = ice_get_main_vsi(pf);
 	if (!vsi)
 		return -EINVAL;
 
@@ -826,7 +826,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	if (link_up == old_link && link_speed == old_link_speed)
 		return result;
 
-	vsi = ice_find_vsi_by_type(pf, ICE_VSI_PF);
+	vsi = ice_get_main_vsi(pf);
 	if (!vsi || !vsi->port_info)
 		return -EINVAL;
 
@@ -1439,7 +1439,7 @@ static void ice_check_media_subtask(struct ice_pf *pf)
 	struct ice_vsi *vsi;
 	int err;
 
-	vsi = ice_find_vsi_by_type(pf, ICE_VSI_PF);
+	vsi = ice_get_main_vsi(pf);
 	if (!vsi)
 		return;
 
