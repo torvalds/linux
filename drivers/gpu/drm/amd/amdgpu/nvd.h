@@ -306,6 +306,7 @@
 #define	PACKET3_GET_LOD_STATS				0x8E
 #define	PACKET3_DRAW_MULTI_PREAMBLE			0x8F
 #define	PACKET3_FRAME_CONTROL				0x90
+#			define FRAME_TMZ	(1 << 0)
 #			define FRAME_CMD(x) ((x) << 28)
 			/*
 			 * x=0: tmz_begin
