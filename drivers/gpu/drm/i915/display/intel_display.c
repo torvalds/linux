@@ -10354,10 +10354,9 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
 
 	if (INTEL_GEN(dev_priv) >= 12)
-		port = (tmp & TGL_TRANS_DDI_PORT_MASK) >>
-			TGL_TRANS_DDI_PORT_SHIFT;
+		port = TGL_TRANS_DDI_FUNC_CTL_VAL_TO_PORT(tmp);
 	else
-		port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
+		port = TRANS_DDI_FUNC_CTL_VAL_TO_PORT(tmp);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icelake_get_ddi_pll(dev_priv, port, pipe_config);
