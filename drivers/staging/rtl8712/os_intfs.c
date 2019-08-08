@@ -258,7 +258,7 @@ void r8712_stop_drv_timers(struct _adapter *padapter)
 	del_timer_sync(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
 }
 
-static u8 init_default_value(struct _adapter *padapter)
+static void init_default_value(struct _adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -292,7 +292,6 @@ static u8 init_default_value(struct _adapter *padapter)
 	r8712_init_registrypriv_dev_network(padapter);
 	r8712_update_registrypriv_dev_network(padapter);
 	/*misc.*/
-	return _SUCCESS;
 }
 
 u8 r8712_init_drv_sw(struct _adapter *padapter)
@@ -316,8 +315,7 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);
 	mp871xinit(padapter);
-	if (init_default_value(padapter) != _SUCCESS)
-		return _FAIL;
+	init_default_value(padapter);
 	r8712_InitSwLeds(padapter);
 	return _SUCCESS;
 }
