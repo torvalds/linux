@@ -980,7 +980,7 @@ _exit_recv_func:
 	return retval;
 }
 
-static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
+static void recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 {
 	u8 *pbuf, shift_sz = 0;
 	u8	frag, mf;
@@ -1007,7 +1007,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		/* In this case, it means the MAX_RECVBUF_SZ is too small to
 		 * get the data from 8712u.
 		 */
-		return _FAIL;
+		return;
 	}
 	do {
 		prxstat = (struct recv_stat *)pbuf;
@@ -1020,13 +1020,13 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
 		drvinfo_sz <<= 3;
 		if (pkt_len <= 0)
-			goto  _exit_recvbuf2recvframe;
+			return;
 		/* Qos data, wireless lan header length is 26 */
 		if ((le32_to_cpu(prxstat->rxdw0) >> 23) & 0x01)
 			shift_sz = 2;
 		precvframe = r8712_alloc_recvframe(pfree_recv_queue);
 		if (!precvframe)
-			goto  _exit_recvbuf2recvframe;
+			return;
 		INIT_LIST_HEAD(&precvframe->u.hdr.list);
 		precvframe->u.hdr.precvbuf = NULL; /*can't access the precvbuf*/
 		precvframe->u.hdr.len = 0;
@@ -1057,7 +1057,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		} else {
 			precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
 			if (!precvframe->u.hdr.pkt)
-				return _FAIL;
+				return;
 			precvframe->u.hdr.rx_head = pbuf;
 			precvframe->u.hdr.rx_data = pbuf;
 			precvframe->u.hdr.rx_tail = pbuf;
@@ -1077,8 +1077,6 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		precvframe = NULL;
 		pkt_copy = NULL;
 	} while ((transfer_len > 0) && pkt_cnt > 0);
-_exit_recvbuf2recvframe:
-	return _SUCCESS;
 }
 
 static void recv_tasklet(void *priv)
