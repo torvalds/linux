@@ -337,7 +337,6 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_cdns_priv *priv;
 	struct clk *clk;
-	size_t priv_size;
 	unsigned int nr_phy_params;
 	int ret;
 	struct device *dev = &pdev->dev;
@@ -351,8 +350,8 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 		return ret;
 
 	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_node);
-	priv_size = sizeof(*priv) + sizeof(priv->phy_params[0]) * nr_phy_params;
-	host = sdhci_pltfm_init(pdev, &sdhci_cdns_pltfm_data, priv_size);
+	host = sdhci_pltfm_init(pdev, &sdhci_cdns_pltfm_data,
+				struct_size(priv, phy_params, nr_phy_params));
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto disable_clk;
