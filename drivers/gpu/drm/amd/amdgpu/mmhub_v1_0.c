@@ -26,8 +26,6 @@
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 #include "mmhub/mmhub_1_0_default.h"
-#include "athub/athub_1_0_offset.h"
-#include "athub/athub_1_0_sh_mask.h"
 #include "vega10_enum.h"
 
 #include "soc15_common.h"
@@ -491,22 +489,6 @@ static void mmhub_v1_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 		WREG32_SOC15(MMHUB, 0, mmDAGB1_CNTL_MISC2, data2);
 }
 
-static void athub_update_medium_grain_clock_gating(struct amdgpu_device *adev,
-						   bool enable)
-{
-	uint32_t def, data;
-
-	def = data = RREG32_SOC15(ATHUB, 0, mmATHUB_MISC_CNTL);
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG))
-		data |= ATHUB_MISC_CNTL__CG_ENABLE_MASK;
-	else
-		data &= ~ATHUB_MISC_CNTL__CG_ENABLE_MASK;
-
-	if (def != data)
-		WREG32_SOC15(ATHUB, 0, mmATHUB_MISC_CNTL, data);
-}
-
 static void mmhub_v1_0_update_medium_grain_light_sleep(struct amdgpu_device *adev,
 						       bool enable)
 {
@@ -523,23 +505,6 @@ static void mmhub_v1_0_update_medium_grain_light_sleep(struct amdgpu_device *ade
 		WREG32_SOC15(MMHUB, 0, mmATC_L2_MISC_CG, data);
 }
 
-static void athub_update_medium_grain_light_sleep(struct amdgpu_device *adev,
-						  bool enable)
-{
-	uint32_t def, data;
-
-	def = data = RREG32_SOC15(ATHUB, 0, mmATHUB_MISC_CNTL);
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_LS) &&
-	    (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
-		data |= ATHUB_MISC_CNTL__CG_MEM_LS_ENABLE_MASK;
-	else
-		data &= ~ATHUB_MISC_CNTL__CG_MEM_LS_ENABLE_MASK;
-
-	if(def != data)
-		WREG32_SOC15(ATHUB, 0, mmATHUB_MISC_CNTL, data);
-}
-
 int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 			       enum amd_clockgating_state state)
 {
@@ -553,11 +518,7 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	case CHIP_RAVEN:
 		mmhub_v1_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
-		athub_update_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
 		mmhub_v1_0_update_medium_grain_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
-		athub_update_medium_grain_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	default:
@@ -569,18 +530,26 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 
 void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 {
-	int data;
+	int data, data1;
 
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;
 
+	data = RREG32_SOC15(MMHUB, 0, mmATC_L2_MISC_CG);
+
+	data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2);
+
 	/* AMD_CG_SUPPORT_MC_MGCG */
-	data = RREG32_SOC15(ATHUB, 0, mmATHUB_MISC_CNTL);
-	if (data & ATHUB_MISC_CNTL__CG_ENABLE_MASK)
+	if ((data & ATC_L2_MISC_CG__ENABLE_MASK) &&
+	    !(data1 & (DAGB0_CNTL_MISC2__DISABLE_WRREQ_CG_MASK |
+		       DAGB0_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
+		       DAGB0_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
+		       DAGB0_CNTL_MISC2__DISABLE_RDRET_CG_MASK |
+		       DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
+		       DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK)))
 		*flags |= AMD_CG_SUPPORT_MC_MGCG;
 
 	/* AMD_CG_SUPPORT_MC_LS */
-	data = RREG32_SOC15(MMHUB, 0, mmATC_L2_MISC_CG);
 	if (data & ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK)
 		*flags |= AMD_CG_SUPPORT_MC_LS;
 }
