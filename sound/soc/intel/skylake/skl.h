@@ -16,7 +16,6 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_codec.h>
 #include <sound/soc.h>
-#include "skl-nhlt.h"
 #include "skl-ssp-clk.h"
 #include "skl-sst-ipc.h"
 
@@ -167,13 +166,10 @@ struct skl_dsp_ops {
 int skl_platform_unregister(struct device *dev);
 int skl_platform_register(struct device *dev);
 
-struct nhlt_acpi_table *skl_nhlt_init(struct device *dev);
-void skl_nhlt_free(struct nhlt_acpi_table *addr);
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl_dev *skl, u32 instance,
 					u8 link_type, u8 s_fmt, u8 no_ch,
 					u32 s_rate, u8 dirn, u8 dev_type);
 
-int skl_get_dmic_geo(struct skl_dev *skl);
 int skl_nhlt_update_topology_bin(struct skl_dev *skl);
 int skl_init_dsp(struct skl_dev *skl);
 int skl_free_dsp(struct skl_dev *skl);
