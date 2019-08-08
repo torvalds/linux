@@ -5749,18 +5749,19 @@ static int __hns_roce_request_irq(struct hns_roce_dev *hr_dev, int irq_num,
 	}
 
 	/* irq contains: abnormal + AEQ + CEQ */
-	for (j = 0; j < irq_num; j++)
-		if (j < other_num)
-			snprintf((char *)hr_dev->irq_names[j],
-				 HNS_ROCE_INT_NAME_LEN, "hns-abn-%d", j);
-		else if (j < (other_num + aeq_num))
-			snprintf((char *)hr_dev->irq_names[j],
-				 HNS_ROCE_INT_NAME_LEN, "hns-aeq-%d",
-				 j - other_num);
-		else
-			snprintf((char *)hr_dev->irq_names[j],
-				 HNS_ROCE_INT_NAME_LEN, "hns-ceq-%d",
-				 j - other_num - aeq_num);
+	for (j = 0; j < other_num; j++)
+		snprintf((char *)hr_dev->irq_names[j],
+			 HNS_ROCE_INT_NAME_LEN, "hns-abn-%d", j);
+
+	for (j = other_num; j < (other_num + aeq_num); j++)
+		snprintf((char *)hr_dev->irq_names[j],
+			 HNS_ROCE_INT_NAME_LEN, "hns-aeq-%d",
+			 j - other_num);
+
+	for (j = (other_num + aeq_num); j < irq_num; j++)
+		snprintf((char *)hr_dev->irq_names[j],
+			 HNS_ROCE_INT_NAME_LEN, "hns-ceq-%d",
+			 j - other_num - aeq_num);
 
 	for (j = 0; j < irq_num; j++) {
 		if (j < other_num)
