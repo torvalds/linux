@@ -142,8 +142,57 @@ const char *intel_engine_class_repr(u8 class)
 	return uabi_names[class];
 }
 
+struct legacy_ring {
+	struct intel_gt *gt;
+	u8 class;
+	u8 instance;
+};
+
+static int legacy_ring_idx(const struct legacy_ring *ring)
+{
+	static const struct {
+		u8 base, max;
+	} map[] = {
+		[RENDER_CLASS] = { RCS0, 1 },
+		[COPY_ENGINE_CLASS] = { BCS0, 1 },
+		[VIDEO_DECODE_CLASS] = { VCS0, I915_MAX_VCS },
+		[VIDEO_ENHANCEMENT_CLASS] = { VECS0, I915_MAX_VECS },
+	};
+
+	if (GEM_DEBUG_WARN_ON(ring->class >= ARRAY_SIZE(map)))
+		return -1;
+
+	if (GEM_DEBUG_WARN_ON(ring->instance >= map[ring->class].max))
+		return -1;
+
+	return map[ring->class].base + ring->instance;
+}
+
+static void add_legacy_ring(struct legacy_ring *ring,
+			    struct intel_engine_cs *engine)
+{
+	int idx;
+
+	if (engine->gt != ring->gt || engine->class != ring->class) {
+		ring->gt = engine->gt;
+		ring->class = engine->class;
+		ring->instance = 0;
+	}
+
+	idx = legacy_ring_idx(ring);
+	if (unlikely(idx == -1))
+		return;
+
+	GEM_BUG_ON(idx >= ARRAY_SIZE(ring->gt->engine));
+	ring->gt->engine[idx] = engine;
+	ring->instance++;
+
+	engine->legacy_idx = idx;
+}
+
 void intel_engines_driver_register(struct drm_i915_private *i915)
 {
+	struct legacy_ring ring = {};
 	u8 uabi_instances[4] = {};
 	struct list_head *it, *next;
 	struct rb_node **p, *prev;
@@ -178,6 +227,9 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 		GEM_BUG_ON(intel_engine_lookup_user(i915,
 						    engine->uabi_class,
 						    engine->uabi_instance) != engine);
+
+		/* Fix up the mapping to match default execbuf::user_map[] */
+		add_legacy_ring(&ring, engine);
 
 		prev = &engine->uabi_node;
 		p = &prev->rb_right;

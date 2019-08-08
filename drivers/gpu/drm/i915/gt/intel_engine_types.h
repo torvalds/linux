@@ -264,8 +264,11 @@ struct intel_engine_cs {
 	char name[INTEL_ENGINE_CS_MAX_NAME];
 
 	enum intel_engine_id id;
+	enum intel_engine_id legacy_idx;
+
 	unsigned int hw_id;
 	unsigned int guc_id;
+
 	intel_engine_mask_t mask;
 
 	u8 class;

@@ -78,6 +78,7 @@ struct intel_gt {
 
 	u32 pm_guc_events;
 
+	struct intel_engine_cs *engine[I915_NUM_ENGINES];
 	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]
 					    [MAX_ENGINE_INSTANCE + 1];
 };

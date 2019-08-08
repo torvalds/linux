@@ -490,7 +490,7 @@ spinner_create_request(struct igt_spinner *spin,
 	struct intel_context *ce;
 	struct i915_request *rq;
 
-	ce = i915_gem_context_get_engine(ctx, engine->id);
+	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
 	if (IS_ERR(ce))
 		return ERR_CAST(ce);
 

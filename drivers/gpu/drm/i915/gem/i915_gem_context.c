@@ -159,7 +159,7 @@ lookup_user_engine(struct i915_gem_context *ctx,
 		if (!engine)
 			return ERR_PTR(-EINVAL);
 
-		idx = engine->id;
+		idx = engine->legacy_idx;
 	} else {
 		idx = ci->engine_instance;
 	}
@@ -279,6 +279,7 @@ static void free_engines_rcu(struct rcu_head *rcu)
 
 static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 {
+	const struct intel_gt *gt = &ctx->i915->gt;
 	struct intel_engine_cs *engine;
 	struct i915_gem_engines *e;
 	enum intel_engine_id id;
@@ -288,7 +289,7 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 		return ERR_PTR(-ENOMEM);
 
 	init_rcu_head(&e->rcu);
-	for_each_engine(engine, ctx->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 
 		ce = intel_context_create(ctx, engine);
@@ -298,8 +299,8 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 		}
 
 		e->engines[id] = ce;
+		e->num_engines = id + 1;
 	}
-	e->num_engines = id;
 
 	return e;
 }

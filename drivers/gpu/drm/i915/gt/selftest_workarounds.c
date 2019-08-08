@@ -250,7 +250,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(i915_gem_context_is_bannable(ctx));
 
-	ce = i915_gem_context_get_engine(ctx, engine->id);
+	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
 	GEM_BUG_ON(IS_ERR(ce));
 
 	rq = ERR_PTR(-ENODEV);

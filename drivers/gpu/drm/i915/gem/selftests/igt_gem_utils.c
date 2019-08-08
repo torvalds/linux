@@ -23,7 +23,7 @@ igt_request_alloc(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ce = i915_gem_context_get_engine(ctx, engine->id);
+	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
 	if (IS_ERR(ce))
 		return ERR_CAST(ce);
 
