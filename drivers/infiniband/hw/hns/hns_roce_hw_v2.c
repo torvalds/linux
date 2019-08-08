@@ -4938,7 +4938,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_eq *eq)
 {
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_aeqe *aeqe;
+	struct hns_roce_aeqe *aeqe = next_aeqe_sw_v2(eq);
 	int aeqe_found = 0;
 	int event_type;
 	int sub_type;
@@ -4946,8 +4946,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 	u32 qpn;
 	u32 cqn;
 
-	while ((aeqe = next_aeqe_sw_v2(eq))) {
-
+	while (aeqe) {
 		/* Make sure we read AEQ entry after we have checked the
 		 * ownership bit
 		 */
@@ -5016,6 +5015,8 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 			eq->cons_index = 0;
 		}
 		hns_roce_v2_init_irq_work(hr_dev, eq, qpn, cqn);
+
+		aeqe = next_aeqe_sw_v2(eq);
 	}
 
 	set_eq_cons_index_v2(eq);
@@ -5068,12 +5069,11 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_eq *eq)
 {
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_ceqe *ceqe;
+	struct hns_roce_ceqe *ceqe = next_ceqe_sw_v2(eq);
 	int ceqe_found = 0;
 	u32 cqn;
 
-	while ((ceqe = next_ceqe_sw_v2(eq))) {
-
+	while (ceqe) {
 		/* Make sure we read CEQ entry after we have checked the
 		 * ownership bit
 		 */
@@ -5092,6 +5092,8 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 			dev_warn(dev, "cons_index overflow, set back to 0.\n");
 			eq->cons_index = 0;
 		}
+
+		ceqe = next_ceqe_sw_v2(eq);
 	}
 
 	set_eq_cons_index_v2(eq);
