@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-#include "ion.h"
+#include "../ion.h"
 #include "ion_page_pool.h"
 
 #define NUM_ORDERS ARRAY_SIZE(orders)
