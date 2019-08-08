@@ -34,7 +34,7 @@ int lkl_test_nanosleep(void)
 	long ret;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	ret = lkl_sys_nanosleep(&ts, NULL);
+	ret = lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
 	clock_gettime(CLOCK_MONOTONIC, &stop);
 
 	delta = 1e9*(stop.tv_sec - start.tv_sec) +

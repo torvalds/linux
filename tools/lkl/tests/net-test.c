@@ -87,7 +87,7 @@ static int lkl_test_sleep(void)
 	};
 	int ret;
 
-	ret = lkl_sys_nanosleep(&ts, NULL);
+	ret = lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
 	if (ret < 0) {
 		lkl_test_logf("nanosleep error: %s\n", lkl_strerror(ret));
 		return TEST_FAILURE;

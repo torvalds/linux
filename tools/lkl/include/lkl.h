@@ -64,6 +64,14 @@ static inline int lkl_sys_fstatfs(unsigned int fd, struct lkl_statfs *buf)
 	return lkl_sys_fstatfs64(fd, sizeof(*buf), buf);
 }
 
+static inline int lkl_sys_nanosleep_time32(struct lkl_timespec *rqtp,
+					   struct lkl_timespec *rmtp)
+{
+	long p[6] = {(long)rqtp, (long)rmtp, 0, 0, 0, 0};
+
+	return lkl_syscall(__lkl__NR_nanosleep, p);
+}
+
 #endif
 
 static inline int lkl_sys_stat(const char *path, struct lkl_stat *buf)
@@ -281,7 +289,8 @@ static inline long lkl_sys_select(int n, lkl_fd_set *rfds, lkl_fd_set *wfds,
 		ts.tv_sec = extra_secs > max_time - tv->tv_sec ?
 			max_time : tv->tv_sec + extra_secs;
 	}
-	return lkl_sys_pselect6(n, rfds, wfds, efds, tv ? &ts : 0, data);
+	return lkl_sys_pselect6(n, rfds, wfds, efds, tv ?
+				(struct __lkl__kernel_timespec *)&ts : 0, data);
 }
 #endif
 
@@ -292,6 +301,7 @@ static inline long lkl_sys_select(int n, lkl_fd_set *rfds, lkl_fd_set *wfds,
 static inline long lkl_sys_poll(struct lkl_pollfd *fds, int n, int timeout)
 {
 	return lkl_sys_ppoll(fds, n, timeout >= 0 ?
+			     (struct __lkl__kernel_timespec *)
 			     &((struct lkl_timespec){ .tv_sec = timeout/1000,
 				   .tv_nsec = timeout%1000*1000000 }) : 0,
 			     0, _LKL_NSIG/8);

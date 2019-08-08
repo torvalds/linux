@@ -275,7 +275,8 @@ long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 	do {
 		err = lkl_sys_umount(path, flags);
 		if (err == -LKL_EBUSY) {
-			lkl_sys_nanosleep(&ts, NULL);
+			lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts,
+					  NULL);
 			timeout_ms -= incr / 1000000;
 		}
 	} while (err == -LKL_EBUSY && timeout_ms > 0);
