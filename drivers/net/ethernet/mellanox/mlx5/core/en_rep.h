@@ -165,6 +165,8 @@ struct mlx5e_encap_entry {
 	char *encap_header;
 	int encap_size;
 	refcount_t refcnt;
+	struct completion res_ready;
+	int compl_result;
 };
 
 struct mlx5e_rep_sq {
