@@ -2767,8 +2767,9 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			}
 
 			vf->num_vlan--;
-			/* Disable VLAN pruning when removing VLAN */
-			ice_cfg_vlan_pruning(vsi, false, false);
+			/* Disable VLAN pruning when the last VLAN is removed */
+			if (!vf->num_vlan)
+				ice_cfg_vlan_pruning(vsi, false, false);
 
 			/* Disable Unicast/Multicast VLAN promiscuous mode */
 			if (vlan_promisc) {
