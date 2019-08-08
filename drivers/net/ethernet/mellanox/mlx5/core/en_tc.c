@@ -199,6 +199,8 @@ struct mlx5e_mod_hdr_entry {
 	u32 mod_hdr_id;
 
 	refcount_t refcnt;
+	struct completion res_ready;
+	int compl_result;
 };
 
 #define MLX5_MH_ACT_SZ MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)
@@ -326,7 +328,8 @@ static void mlx5e_mod_hdr_put(struct mlx5e_priv *priv,
 	mutex_unlock(&tbl->lock);
 
 	WARN_ON(!list_empty(&mh->flows));
-	mlx5_modify_header_dealloc(priv->mdev, mh->mod_hdr_id);
+	if (mh->compl_result > 0)
+		mlx5_modify_header_dealloc(priv->mdev, mh->mod_hdr_id);
 
 	kfree(mh);
 }
@@ -359,13 +362,21 @@ static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 
 	mutex_lock(&tbl->lock);
 	mh = mlx5e_mod_hdr_get(tbl, &key, hash_key);
-	if (mh)
+	if (mh) {
+		mutex_unlock(&tbl->lock);
+		wait_for_completion(&mh->res_ready);
+
+		if (mh->compl_result < 0) {
+			err = -EREMOTEIO;
+			goto attach_header_err;
+		}
 		goto attach_flow;
+	}
 
 	mh = kzalloc(sizeof(*mh) + actions_size, GFP_KERNEL);
 	if (!mh) {
-		err = -ENOMEM;
-		goto out_err;
+		mutex_unlock(&tbl->lock);
+		return -ENOMEM;
 	}
 
 	mh->key.actions = (void *)mh + sizeof(*mh);
@@ -374,18 +385,23 @@ static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 	spin_lock_init(&mh->flows_lock);
 	INIT_LIST_HEAD(&mh->flows);
 	refcount_set(&mh->refcnt, 1);
+	init_completion(&mh->res_ready);
+
+	hash_add(tbl->hlist, &mh->mod_hdr_hlist, hash_key);
+	mutex_unlock(&tbl->lock);
 
 	err = mlx5_modify_header_alloc(priv->mdev, namespace,
 				       mh->key.num_actions,
 				       mh->key.actions,
 				       &mh->mod_hdr_id);
-	if (err)
-		goto out_err;
-
-	hash_add(tbl->hlist, &mh->mod_hdr_hlist, hash_key);
+	if (err) {
+		mh->compl_result = err;
+		goto alloc_header_err;
+	}
+	mh->compl_result = 1;
+	complete_all(&mh->res_ready);
 
 attach_flow:
-	mutex_unlock(&tbl->lock);
 	flow->mh = mh;
 	spin_lock(&mh->flows_lock);
 	list_add(&flow->mod_hdr, &mh->flows);
@@ -397,9 +413,10 @@ attach_flow:
 
 	return 0;
 
-out_err:
-	mutex_unlock(&tbl->lock);
-	kfree(mh);
+alloc_header_err:
+	complete_all(&mh->res_ready);
+attach_header_err:
+	mlx5e_mod_hdr_put(priv, mh, namespace);
 	return err;
 }
 
