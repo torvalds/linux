@@ -328,6 +328,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_GPIO_EVENT	   = 0x15,
 	MLX5_EVENT_TYPE_PORT_MODULE_EVENT  = 0x16,
 	MLX5_EVENT_TYPE_TEMP_WARN_EVENT    = 0x17,
+	MLX5_EVENT_TYPE_XRQ_ERROR	   = 0x18,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG	   = 0x19,
 	MLX5_EVENT_TYPE_GENERAL_EVENT	   = 0x22,
 	MLX5_EVENT_TYPE_MONITOR_COUNTER    = 0x24,
@@ -345,6 +346,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED = 0xe,
 
 	MLX5_EVENT_TYPE_DCT_DRAINED        = 0x1c,
+	MLX5_EVENT_TYPE_DCT_KEY_VIOLATION  = 0x1d,
 
 	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
 	MLX5_EVENT_TYPE_FPGA_QP_ERROR      = 0x21,
@@ -584,6 +586,12 @@ struct mlx5_eqe_cq_err {
 	u8	syndrome;
 };
 
+struct mlx5_eqe_xrq_err {
+	__be32	reserved1[5];
+	__be32	type_xrqn;
+	__be32	reserved2;
+};
+
 struct mlx5_eqe_port_state {
 	u8	reserved0[8];
 	u8	port;
@@ -698,6 +706,7 @@ union ev_data {
 	struct mlx5_eqe_pps		pps;
 	struct mlx5_eqe_dct             dct;
 	struct mlx5_eqe_temp_warning	temp_warning;
+	struct mlx5_eqe_xrq_err		xrq_err;
 } __packed;
 
 struct mlx5_eqe {

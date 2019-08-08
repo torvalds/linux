@@ -233,6 +233,8 @@ static bool is_legacy_obj_event_num(u16 event_num)
 	case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
 	case MLX5_EVENT_TYPE_COMP:
+	case MLX5_EVENT_TYPE_DCT_KEY_VIOLATION:
+	case MLX5_EVENT_TYPE_XRQ_ERROR:
 		return true;
 	default:
 		return false;
@@ -315,8 +317,10 @@ static u16 get_event_obj_type(unsigned long event_type, struct mlx5_eqe *eqe)
 	case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
 		return eqe->data.qp_srq.type;
 	case MLX5_EVENT_TYPE_CQ_ERROR:
+	case MLX5_EVENT_TYPE_XRQ_ERROR:
 		return 0;
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
+	case MLX5_EVENT_TYPE_DCT_KEY_VIOLATION:
 		return MLX5_EVENT_QUEUE_TYPE_DCT;
 	default:
 		return MLX5_GET(affiliated_event_header, &eqe->data, obj_type);
@@ -2300,7 +2304,11 @@ static u32 devx_get_obj_id_from_event(unsigned long event_type, void *data)
 	case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
 		obj_id = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 		break;
+	case MLX5_EVENT_TYPE_XRQ_ERROR:
+		obj_id = be32_to_cpu(eqe->data.xrq_err.type_xrqn) & 0xffffff;
+		break;
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
+	case MLX5_EVENT_TYPE_DCT_KEY_VIOLATION:
 		obj_id = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
 		break;
 	case MLX5_EVENT_TYPE_CQ_ERROR:
