@@ -354,6 +354,45 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 		return ret;
 	}
 
+	hda_dsp_ctrl_misc_clock_gating(sdev, false);
+
+	/* Reset stream-to-link mapping */
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
+
+	hda_dsp_ctrl_misc_clock_gating(sdev, true);
+#else
+
+	hda_dsp_ctrl_misc_clock_gating(sdev, false);
+
+	/* reset controller */
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: failed to reset controller during resume\n");
+		return ret;
+	}
+
+	/* take controller out of reset */
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: failed to ready controller during resume\n");
+		return ret;
+	}
+
+	/* enable hda bus irq */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
+				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN,
+				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN);
+
+	hda_dsp_ctrl_misc_clock_gating(sdev, true);
+#endif
+
+	/* enable ppcap interrupt */
+	hda_dsp_ctrl_ppcap_enable(sdev, true);
+	hda_dsp_ctrl_ppcap_int_enable(sdev, true);
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* check jack status */
 	if (runtime_resume)
