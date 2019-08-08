@@ -749,6 +749,12 @@ static struct mlx5e_etype_proto ttc_tunnel_rules[] = {
 	},
 };
 
+bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
+{
+	return (MLX5_CAP_ETH(mdev, tunnel_stateless_gre) &&
+		MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ft_field_support.inner_ip_version));
+}
+
 static u8 mlx5e_etype_to_ipv(u16 ethertype)
 {
 	if (ethertype == ETH_P_IP)

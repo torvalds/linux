@@ -98,6 +98,8 @@ enum mlx5e_tunnel_types {
 	MLX5E_NUM_TUNNEL_TT,
 };
 
+bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
+
 /* L3/L4 traffic type classifier */
 struct mlx5e_ttc_table {
 	struct mlx5e_flow_table  ft;
