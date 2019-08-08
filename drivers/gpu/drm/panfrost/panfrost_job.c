@@ -395,12 +395,7 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	/* panfrost_core_dump(pfdev); */
 
 	panfrost_devfreq_record_transition(pfdev, js);
-	panfrost_gpu_soft_reset(pfdev);
-
-	/* TODO: Re-enable all other address spaces */
-	panfrost_mmu_enable(pfdev, 0);
-	panfrost_gpu_power_on(pfdev);
-	panfrost_job_enable_interrupts(pfdev);
+	panfrost_device_reset(pfdev);
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++)
 		drm_sched_resubmit_jobs(&pfdev->js->queue[i].sched);

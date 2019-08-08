@@ -11,7 +11,6 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo);
 
 int panfrost_mmu_init(struct panfrost_device *pfdev);
 void panfrost_mmu_fini(struct panfrost_device *pfdev);
-
-void panfrost_mmu_enable(struct panfrost_device *pfdev, u32 as_nr);
+void panfrost_mmu_reset(struct panfrost_device *pfdev);
 
 #endif

@@ -105,14 +105,11 @@ static int mmu_hw_do_operation(struct panfrost_device *pfdev, u32 as_nr,
 	return ret;
 }
 
-void panfrost_mmu_enable(struct panfrost_device *pfdev, u32 as_nr)
+static void panfrost_mmu_enable(struct panfrost_device *pfdev, u32 as_nr)
 {
 	struct io_pgtable_cfg *cfg = &pfdev->mmu->pgtbl_cfg;
 	u64 transtab = cfg->arm_mali_lpae_cfg.transtab;
 	u64 memattr = cfg->arm_mali_lpae_cfg.memattr;
-
-	mmu_write(pfdev, MMU_INT_CLEAR, ~0);
-	mmu_write(pfdev, MMU_INT_MASK, ~0);
 
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), transtab & 0xffffffffUL);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), transtab >> 32);
@@ -135,6 +132,14 @@ static void mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
 	mmu_write(pfdev, AS_MEMATTR_HI(as_nr), 0);
 
 	write_cmd(pfdev, as_nr, AS_COMMAND_UPDATE);
+}
+
+void panfrost_mmu_reset(struct panfrost_device *pfdev)
+{
+	panfrost_mmu_enable(pfdev, 0);
+
+	mmu_write(pfdev, MMU_INT_CLEAR, ~0);
+	mmu_write(pfdev, MMU_INT_MASK, ~0);
 }
 
 static size_t get_pgsize(u64 addr, size_t size)
@@ -375,9 +380,6 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 		dev_err(pfdev->dev, "failed to request mmu irq");
 		return err;
 	}
-	mmu_write(pfdev, MMU_INT_CLEAR, ~0);
-	mmu_write(pfdev, MMU_INT_MASK, ~0);
-
 	pfdev->mmu->pgtbl_cfg = (struct io_pgtable_cfg) {
 		.pgsize_bitmap	= SZ_4K | SZ_2M,
 		.ias		= FIELD_GET(0xff, pfdev->features.mmu_features),
