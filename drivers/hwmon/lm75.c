@@ -16,6 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 #include "lm75.h"
 
 /*
@@ -325,15 +326,11 @@ static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
 	return 0;
 }
 
-static int lm75_write(struct device *dev, enum hwmon_sensor_types type,
-		      u32 attr, int channel, long temp)
+static int lm75_write_temp(struct device *dev, u32 attr, long temp)
 {
 	struct lm75_data *data = dev_get_drvdata(dev);
 	u8 resolution;
 	int reg;
-
-	if (type != hwmon_temp)
-		return -EINVAL;
 
 	switch (attr) {
 	case hwmon_temp_max:
@@ -362,13 +359,58 @@ static int lm75_write(struct device *dev, enum hwmon_sensor_types type,
 	return regmap_write(data->regmap, reg, (u16)temp);
 }
 
+static int lm75_write_chip(struct device *dev, u32 attr, long val)
+{
+	struct lm75_data *data = dev_get_drvdata(dev);
+	u8 index;
+	s32 err;
+
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		index = find_closest(val, data->params->sample_times,
+				     (int)data->params->num_sample_times);
+
+		err = lm75_write_config(data,
+					data->params->sample_set_masks[index],
+					data->params->sample_clr_mask);
+		if (err)
+			return err;
+		data->sample_time = data->params->sample_times[index];
+
+		if (data->params->resolutions)
+			data->resolution = data->params->resolutions[index];
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int lm75_write(struct device *dev, enum hwmon_sensor_types type,
+		      u32 attr, int channel, long val)
+{
+	switch (type) {
+	case hwmon_chip:
+		return lm75_write_chip(dev, attr, val);
+	case hwmon_temp:
+		return lm75_write_temp(dev, attr, val);
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
 			       u32 attr, int channel)
 {
+	const struct lm75_data *config_data = data;
+
 	switch (type) {
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
+			if (config_data->params->num_sample_times > 1)
+				return 0644;
 			return 0444;
 		}
 		break;
