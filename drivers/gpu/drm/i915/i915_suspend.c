@@ -31,6 +31,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_suspend.h"
 
 static void i915_save_display(struct drm_i915_private *dev_priv)
 {
