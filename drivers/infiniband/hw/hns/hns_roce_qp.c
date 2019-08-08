@@ -335,13 +335,13 @@ static int check_sq_size_with_integrity(struct hns_roce_dev *hr_dev,
 	if ((u32)(1 << ucmd->log_sq_bb_count) > hr_dev->caps.max_wqes ||
 	     ucmd->log_sq_stride > max_sq_stride ||
 	     ucmd->log_sq_stride < HNS_ROCE_IB_MIN_SQ_STRIDE) {
-		dev_err(hr_dev->dev, "check SQ size error!\n");
+		ibdev_err(&hr_dev->ib_dev, "check SQ size error!\n");
 		return -EINVAL;
 	}
 
 	if (cap->max_send_sge > hr_dev->caps.max_sq_sg) {
-		dev_err(hr_dev->dev, "SQ sge error! max_send_sge=%d\n",
-			cap->max_send_sge);
+		ibdev_err(&hr_dev->ib_dev, "SQ sge error! max_send_sge=%d\n",
+			  cap->max_send_sge);
 		return -EINVAL;
 	}
 
@@ -988,7 +988,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
-	struct device *dev = hr_dev->dev;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_sqp *hr_sqp;
 	struct hns_roce_qp *hr_qp;
 	int ret;
@@ -1002,8 +1002,8 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, 0,
 						hr_qp);
 		if (ret) {
-			dev_err(dev, "Create RC QP 0x%06lx failed(%d)\n",
-				hr_qp->qpn, ret);
+			ibdev_err(ibdev, "Create RC QP 0x%06lx failed(%d)\n",
+				  hr_qp->qpn, ret);
 			kfree(hr_qp);
 			return ERR_PTR(ret);
 		}
@@ -1015,7 +1015,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	case IB_QPT_GSI: {
 		/* Userspace is not allowed to create special QPs: */
 		if (udata) {
-			dev_err(dev, "not support usr space GSI\n");
+			ibdev_err(ibdev, "not support usr space GSI\n");
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -1037,7 +1037,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
 						hr_qp->ibqp.qp_num, hr_qp);
 		if (ret) {
-			dev_err(dev, "Create GSI QP failed!\n");
+			ibdev_err(ibdev, "Create GSI QP failed!\n");
 			kfree(hr_sqp);
 			return ERR_PTR(ret);
 		}
@@ -1045,7 +1045,8 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		break;
 	}
 	default:{
-		dev_err(dev, "not support QP type %d\n", init_attr->qp_type);
+		ibdev_err(ibdev, "not support QP type %d\n",
+			  init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
 	}
 	}
@@ -1075,7 +1076,6 @@ static int check_mtu_validate(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_qp *hr_qp,
 			      struct ib_qp_attr *attr, int attr_mask)
 {
-	struct device *dev = hr_dev->dev;
 	enum ib_mtu active_mtu;
 	int p;
 
@@ -1085,7 +1085,8 @@ static int check_mtu_validate(struct hns_roce_dev *hr_dev,
 	if ((hr_dev->caps.max_mtu >= IB_MTU_2048 &&
 	    attr->path_mtu > hr_dev->caps.max_mtu) ||
 	    attr->path_mtu < IB_MTU_256 || attr->path_mtu > active_mtu) {
-		dev_err(dev, "attr path_mtu(%d)invalid while modify qp",
+		ibdev_err(&hr_dev->ib_dev,
+			"attr path_mtu(%d)invalid while modify qp",
 			attr->path_mtu);
 		return -EINVAL;
 	}
@@ -1098,12 +1099,12 @@ static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
-	struct device *dev = hr_dev->dev;
 	int p;
 
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > hr_dev->caps.num_ports)) {
-		dev_err(dev, "attr port_num invalid.attr->port_num=%d\n",
+		ibdev_err(&hr_dev->ib_dev,
+			"attr port_num invalid.attr->port_num=%d\n",
 			attr->port_num);
 		return -EINVAL;
 	}
@@ -1111,7 +1112,8 @@ static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
 		if (attr->pkey_index >= hr_dev->caps.pkey_table_len[p]) {
-			dev_err(dev, "attr pkey_index invalid.attr->pkey_index=%d\n",
+			ibdev_err(&hr_dev->ib_dev,
+				"attr pkey_index invalid.attr->pkey_index=%d\n",
 				attr->pkey_index);
 			return -EINVAL;
 		}
@@ -1119,14 +1121,16 @@ static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
 	    attr->max_rd_atomic > hr_dev->caps.max_qp_init_rdma) {
-		dev_err(dev, "attr max_rd_atomic invalid.attr->max_rd_atomic=%d\n",
+		ibdev_err(&hr_dev->ib_dev,
+			"attr max_rd_atomic invalid.attr->max_rd_atomic=%d\n",
 			attr->max_rd_atomic);
 		return -EINVAL;
 	}
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
 	    attr->max_dest_rd_atomic > hr_dev->caps.max_qp_dest_rdma) {
-		dev_err(dev, "attr max_dest_rd_atomic invalid.attr->max_dest_rd_atomic=%d\n",
+		ibdev_err(&hr_dev->ib_dev,
+			"attr max_dest_rd_atomic invalid.attr->max_dest_rd_atomic=%d\n",
 			attr->max_dest_rd_atomic);
 		return -EINVAL;
 	}
@@ -1143,7 +1147,6 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	enum ib_qp_state cur_state, new_state;
-	struct device *dev = hr_dev->dev;
 	int ret = -EINVAL;
 
 	mutex_lock(&hr_qp->mutex);
@@ -1160,14 +1163,15 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			if (hr_qp->rdb_en == 1)
 				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
 		} else {
-			dev_warn(dev, "flush cqe is not supported in userspace!\n");
+			ibdev_warn(&hr_dev->ib_dev,
+				  "flush cqe is not supported in userspace!\n");
 			goto out;
 		}
 	}
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
 				attr_mask)) {
-		dev_err(dev, "ib_modify_qp_is_ok failed\n");
+		ibdev_err(&hr_dev->ib_dev, "ib_modify_qp_is_ok failed\n");
 		goto out;
 	}
 
@@ -1178,7 +1182,8 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
 		if (hr_dev->caps.min_wqes) {
 			ret = -EPERM;
-			dev_err(dev, "cur_state=%d new_state=%d\n", cur_state,
+			ibdev_err(&hr_dev->ib_dev,
+				"cur_state=%d new_state=%d\n", cur_state,
 				new_state);
 		} else {
 			ret = 0;
