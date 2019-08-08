@@ -92,6 +92,41 @@ err2:
 	return ERR_PTR(ret);
 }
 
+static int ion_clear_pages(struct page **pages, int num, pgprot_t pgprot)
+{
+	void *addr = vm_map_ram(pages, num, -1, pgprot);
+
+	if (!addr)
+		return -ENOMEM;
+	memset(addr, 0, PAGE_SIZE * num);
+	vm_unmap_ram(addr, num);
+
+	return 0;
+}
+
+static int ion_sglist_zero(struct scatterlist *sgl, unsigned int nents,
+			   pgprot_t pgprot)
+{
+	int p = 0;
+	int ret = 0;
+	struct sg_page_iter piter;
+	struct page *pages[32];
+
+	for_each_sg_page(sgl, &piter, nents, 0) {
+		pages[p++] = sg_page_iter_page(&piter);
+		if (p == ARRAY_SIZE(pages)) {
+			ret = ion_clear_pages(pages, p, pgprot);
+			if (ret)
+				return ret;
+			p = 0;
+		}
+	}
+	if (p)
+		ret = ion_clear_pages(pages, p, pgprot);
+
+	return ret;
+}
+
 struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
 				    unsigned int heap_id_mask,
 				    unsigned int flags)
@@ -147,7 +182,7 @@ int ion_buffer_zero(struct ion_buffer *buffer)
 	else
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
 
-	return ion_heap_sglist_zero(table->sgl, table->nents, pgprot);
+	return ion_sglist_zero(table->sgl, table->nents, pgprot);
 }
 
 void ion_buffer_release(struct ion_buffer *buffer)

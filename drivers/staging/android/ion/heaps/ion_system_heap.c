@@ -9,12 +9,12 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
+#include <linux/ion.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-#include "../ion.h"
 #include "ion_page_pool.h"
 
 #define NUM_ORDERS ARRAY_SIZE(orders)

@@ -7,14 +7,13 @@
  */
 
 #include <linux/device.h>
+#include <linux/ion.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/cma.h>
 #include <linux/scatterlist.h>
 #include <linux/highmem.h>
-
-#include "../ion.h"
 
 struct ion_cma_heap {
 	struct ion_heap heap;

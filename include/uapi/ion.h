@@ -13,26 +13,25 @@
 
 /**
  * enum ion_heap_types - list of all possible types of heaps
- * @ION_HEAP_TYPE_SYSTEM:	 memory allocated via vmalloc
+ * @ION_HEAP_TYPE_SYSTEM:        memory allocated via vmalloc
  * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
- * @ION_HEAP_TYPE_CARVEOUT:	 memory allocated from a prereserved
- *				 carveout heap, allocations are physically
- *				 contiguous
- * @ION_HEAP_TYPE_DMA:		 memory allocated via DMA API
- * @ION_NUM_HEAPS:		 helper for iterating over heaps, a bit mask
- *				 is used to identify the heaps, so only 32
- *				 total heap types are supported
+ * @ION_HEAP_TYPE_CARVEOUT:      memory allocated from a prereserved
+ *                               carveout heap, allocations are physically
+ *                               contiguous
+ * @ION_HEAP_TYPE_DMA:           memory allocated via DMA API
+ * @ION_HEAP_TYPE_MAX:		 helper for iterating over standard
+ *				 (not device specific) heaps
+ * @ION_NUM_HEAPS_IDS:           helper for iterating over heaps, a bit mask
+ *                               is used to identify the heaps, so only 32
+ *                               total heap types are supported
  */
 enum ion_heap_type {
-	ION_HEAP_TYPE_SYSTEM,
-	ION_HEAP_TYPE_SYSTEM_CONTIG,
-	ION_HEAP_TYPE_CARVEOUT,
-	ION_HEAP_TYPE_CHUNK,
-	ION_HEAP_TYPE_DMA,
-	ION_HEAP_TYPE_CUSTOM, /*
-			       * must be last so device specific heaps always
-			       * are at the end of this enum
-			       */
+	ION_HEAP_TYPE_SYSTEM = (1 << 0),
+	ION_HEAP_TYPE_SYSTEM_CONTIG = (1 << 1),
+	ION_HEAP_TYPE_CARVEOUT = (1 << 2),
+	ION_HEAP_TYPE_CHUNK = (1 << 3),
+	ION_HEAP_TYPE_DMA = (1 << 4),
+	ION_HEAP_TYPE_MAX = (1 << 15),
 };
 
 #define ION_NUM_HEAP_IDS		(sizeof(unsigned int) * 8)
@@ -46,7 +45,7 @@ enum ion_heap_type {
  * mappings of this buffer should be cached, ion will do cache maintenance
  * when the buffer is mapped for dma
  */
-#define ION_FLAG_CACHED 1
+#define ION_FLAG_CACHED		1
 
 /**
  * DOC: Ion Userspace API

@@ -246,7 +246,6 @@ void ion_device_add_heap(struct ion_heap *heap)
 			pr_err("%s: Failed to register shrinker\n", __func__);
 	}
 
-	heap->dev = dev;
 	heap->num_of_buffers = 0;
 	heap->num_of_alloc_bytes = 0;
 	heap->alloc_bytes_wm = 0;

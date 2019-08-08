@@ -61,18 +61,6 @@ static unsigned long ion_heap_shrink_scan(struct shrinker *shrinker,
 	return freed;
 }
 
-static int ion_heap_clear_pages(struct page **pages, int num, pgprot_t pgprot)
-{
-	void *addr = vm_map_ram(pages, num, -1, pgprot);
-
-	if (!addr)
-		return -ENOMEM;
-	memset(addr, 0, PAGE_SIZE * num);
-	vm_unmap_ram(addr, num);
-
-	return 0;
-}
-
 static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 				       bool skip_pools)
 {
@@ -209,38 +197,6 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	}
 
 	return 0;
-}
-
-int ion_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents,
-			 pgprot_t pgprot)
-{
-	int p = 0;
-	int ret = 0;
-	struct sg_page_iter piter;
-	struct page *pages[32];
-
-	for_each_sg_page(sgl, &piter, nents, 0) {
-		pages[p++] = sg_page_iter_page(&piter);
-		if (p == ARRAY_SIZE(pages)) {
-			ret = ion_heap_clear_pages(pages, p, pgprot);
-			if (ret)
-				return ret;
-			p = 0;
-		}
-	}
-	if (p)
-		ret = ion_heap_clear_pages(pages, p, pgprot);
-
-	return ret;
-}
-
-int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot)
-{
-	struct scatterlist sg;
-
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, page, size, 0);
-	return ion_heap_sglist_zero(&sg, 1, pgprot);
 }
 
 void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer *buffer)
