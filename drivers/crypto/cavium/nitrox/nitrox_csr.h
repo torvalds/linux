@@ -257,6 +257,117 @@ union aqm_grp_execmsk_hi {
 };
 
 /**
+ * struct aqmq_drbl - AQM Queue Doorbell Counter Registers
+ * @dbell_count: Doorbell Counter
+ */
+union aqmq_drbl {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_32_63 : 32;
+		u64 dbell_count : 32;
+#else
+		u64 dbell_count : 32;
+		u64 raz_32_63 : 32;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_qsz - AQM Queue Host Queue Size Registers
+ * @host_queue_size: Size, in numbers of 'aqmq_command_s' command
+ * of the Host Ring.
+ */
+union aqmq_qsz {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_32_63 : 32;
+		u64 host_queue_size : 32;
+#else
+		u64 host_queue_size : 32;
+		u64 raz_32_63 : 32;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_cmp_thr - AQM Queue Commands Completed Threshold Registers
+ * @commands_completed_threshold: Count of 'aqmq_command_s' commands executed
+ * by AE engines for which completion interrupt is asserted.
+ */
+union aqmq_cmp_thr {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_32_63 : 32;
+		u64 commands_completed_threshold : 32;
+#else
+		u64 commands_completed_threshold : 32;
+		u64 raz_32_63 : 32;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_cmp_cnt - AQM Queue Commands Completed Count Registers
+ * @resend: Bit to request completion interrupt Resend.
+ * @completion_status: Command completion status of the ring.
+ * @commands_completed_count: Count of 'aqmq_command_s' commands executed by
+ * AE engines.
+ */
+union aqmq_cmp_cnt {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_34_63 : 30;
+		u64 resend : 1;
+		u64 completion_status : 1;
+		u64 commands_completed_count : 32;
+#else
+		u64 commands_completed_count : 32;
+		u64 completion_status : 1;
+		u64 resend : 1;
+		u64 raz_34_63 : 30;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_en - AQM Queue Enable Registers
+ * @queue_status: 1 = AQMQ is enabled, 0 = AQMQ is disabled
+ */
+union aqmq_en {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_1_63 : 63;
+		u64 queue_enable : 1;
+#else
+		u64 queue_enable : 1;
+		u64 raz_1_63 : 63;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_activity_stat - AQM Queue Activity Status Registers
+ * @queue_active: 1 = AQMQ is active, 0 = AQMQ is quiescent
+ */
+union aqmq_activity_stat {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_1_63 : 63;
+		u64 queue_active : 1;
+#else
+		u64 queue_active : 1;
+		u64 raz_1_63 : 63;
+#endif
+	};
+};
+
+/**
  * struct emu_fuse_map - EMU Fuse Map Registers
  * @ae_fuse: Fuse settings for AE 19..0
  * @se_fuse: Fuse settings for SE 15..0

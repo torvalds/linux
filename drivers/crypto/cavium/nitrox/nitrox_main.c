@@ -387,7 +387,9 @@ static int nitrox_pf_hw_init(struct nitrox_device *ndev)
 	/* get cores information */
 	nitrox_get_hwinfo(ndev);
 
-	nitrox_config_nps_unit(ndev);
+	nitrox_config_nps_core_unit(ndev);
+	nitrox_config_aqm_unit(ndev);
+	nitrox_config_nps_pkt_unit(ndev);
 	nitrox_config_pom_unit(ndev);
 	nitrox_config_efl_unit(ndev);
 	/* configure IO units */
