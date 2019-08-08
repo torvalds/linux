@@ -1538,12 +1538,6 @@ static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	struct snd_soc_component *component;
 
-	/* remove me */
-	if (aux_dev->codec_name)
-		aux_dev->dlc.name = aux_dev->codec_name;
-	if (aux_dev->codec_of_node)
-		aux_dev->dlc.of_node = aux_dev->codec_of_node;
-
 	/* codecs, usually analog devices */
 	component = soc_find_component(&aux_dev->dlc);
 	if (!component)
