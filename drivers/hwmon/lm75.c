@@ -73,10 +73,6 @@ enum lm75_type {		/* keep sorted in alphabetical order */
  * @sample_times:	All the possible sample times to be set. Mandatory if
  *			num_sample_times is larger than 1. If set, number of
  *			entries must match num_sample_times.
- * @sample_set_masks:	All the set_masks for the possible sample times.
- *			Mandatory if num_sample_times is larger than 1.
- *			If set, number of entries must match num_sample_times.
- * @sample_clr_mask:	Clear mask used to set the sample time.
  */
 
 struct lm75_params {
@@ -88,8 +84,6 @@ struct lm75_params {
 	unsigned int		default_sample_time;
 	u8			num_sample_times;
 	const unsigned int	*sample_times;
-	const u8		*sample_set_masks;
-	u8			sample_clr_mask;
 };
 
 /* Addresses scanned */
@@ -115,6 +109,11 @@ struct lm75_data {
 };
 
 /*-----------------------------------------------------------------------*/
+
+static const u8 lm75_sample_set_masks[] = { 0 << 5, 1 << 5, 2 << 5, 3 << 5 };
+
+#define LM75_SAMPLE_CLEAR_MASK	(3 << 5)
+
 /* The structure below stores the configuration values of the supported devices.
  * In case of being supported multiple configurations, the default one must
  * always be the first element of the array
@@ -129,19 +128,28 @@ static const struct lm75_params device_params[] = {
 		.clr_mask = 3 << 5,
 		.set_mask = 2 << 5,	/* 11-bit mode */
 		.default_resolution = 11,
-		.default_sample_time = MSEC_PER_SEC,
+		.default_sample_time = 750,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 188, 375, 750, 1500 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[ds75] = {
 		.clr_mask = 3 << 5,
 		.set_mask = 2 << 5,	/* 11-bit mode */
 		.default_resolution = 11,
-		.default_sample_time = MSEC_PER_SEC,
+		.default_sample_time = 600,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 150, 300, 600, 1200 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[stds75] = {
 		.clr_mask = 3 << 5,
 		.set_mask = 2 << 5,	/* 11-bit mode */
 		.default_resolution = 11,
-		.default_sample_time = MSEC_PER_SEC,
+		.default_sample_time = 600,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 150, 300, 600, 1200 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[stlm75] = {
 		.default_resolution = 9,
@@ -150,7 +158,10 @@ static const struct lm75_params device_params[] = {
 	[ds7505] = {
 		.set_mask = 3 << 5,	/* 12-bit mode*/
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 4,
+		.default_sample_time = 200,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 25, 50, 100, 200 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[g751] = {
 		.default_resolution = 9,
@@ -194,19 +205,37 @@ static const struct lm75_params device_params[] = {
 		.clr_mask = 1 << 7,	/* not one-shot mode */
 		.default_resolution = 12,
 		.resolution_limits = 9,
-		.default_sample_time = MSEC_PER_SEC,
+		.default_sample_time = 240,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 75, 150, 300, 600 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp100] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
 		.clr_mask = 1 << 7,	/* not one-shot mode */
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC,
+		.default_sample_time = 320,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 75, 150, 300, 600 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp101] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
 		.clr_mask = 1 << 7,	/* not one-shot mode */
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC,
+		.default_sample_time = 320,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 75, 150, 300, 600 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
+	},
+	[tmp105] = {
+		.set_mask = 3 << 5,	/* 12-bit mode */
+		.clr_mask = 1 << 7,	/* not one-shot mode*/
+		.default_resolution = 12,
+		.default_sample_time = 220,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp112] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
@@ -214,36 +243,36 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 4,
 	},
-	[tmp105] = {
-		.set_mask = 3 << 5,	/* 12-bit mode */
-		.clr_mask = 1 << 7,	/* not one-shot mode*/
-		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 2,
-	},
 	[tmp175] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
 		.clr_mask = 1 << 7,	/* not one-shot mode*/
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 2,
+		.default_sample_time = 220,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp275] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
 		.clr_mask = 1 << 7,	/* not one-shot mode*/
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 2,
+		.default_sample_time = 220,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp75] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
 		.clr_mask = 1 << 7,	/* not one-shot mode*/
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 2,
+		.default_sample_time = 220,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp75b] = { /* not one-shot mode, Conversion rate 37Hz */
 		.clr_mask = 1 << 7 | 3 << 5,
 		.default_resolution = 12,
-		.sample_set_masks = (u8 []){ 0 << 5, 1 << 5, 2 << 5,
-			3 << 5 },
-		.sample_clr_mask = 3 << 5,
 		.default_sample_time = MSEC_PER_SEC / 37,
 		.sample_times = (unsigned int []){ MSEC_PER_SEC / 37,
 			MSEC_PER_SEC / 18,
@@ -371,8 +400,8 @@ static int lm75_write_chip(struct device *dev, u32 attr, long val)
 				     (int)data->params->num_sample_times);
 
 		err = lm75_write_config(data,
-					data->params->sample_set_masks[index],
-					data->params->sample_clr_mask);
+					lm75_sample_set_masks[index],
+					LM75_SAMPLE_CLEAR_MASK);
 		if (err)
 			return err;
 		data->sample_time = data->params->sample_times[index];
