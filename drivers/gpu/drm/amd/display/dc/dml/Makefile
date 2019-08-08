@@ -63,6 +63,10 @@ ifdef CONFIG_DRM_AMD_DC_DCN2_0
 DML += display_mode_vba.o dcn20/display_rq_dlg_calc_20.o dcn20/display_mode_vba_20.o
 DML += dcn20/display_rq_dlg_calc_20v2.o dcn20/display_mode_vba_20v2.o
 endif
+ifdef CONFIG_DRM_AMD_DC_DCN2_1
+DML += dcn21/display_rq_dlg_calc_21.o dcn21/display_mode_vba_21.o
+endif
+
 
 AMD_DAL_DML = $(addprefix $(AMDDALPATH)/dc/dml/,$(DML))
 
