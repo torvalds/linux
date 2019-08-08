@@ -644,6 +644,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 
+	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
 		DRM_DEBUG_DRIVER("%s head not reset to zero "
@@ -675,18 +676,15 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	intel_engine_reset_breadcrumbs(engine);
 
 	/* Enforce ordering by reading HEAD register back */
-	ENGINE_READ(engine, RING_HEAD);
+	ENGINE_POSTING_READ(engine, RING_HEAD);
 
-	/* Initialize the ring. This must happen _after_ we've cleared the ring
+	/*
+	 * Initialize the ring. This must happen _after_ we've cleared the ring
 	 * registers with the above sequence (the readback of the HEAD registers
 	 * also enforces ordering), otherwise the hw might lose the new ring
-	 * register values. */
+	 * register values.
+	 */
 	ENGINE_WRITE(engine, RING_START, i915_ggtt_offset(ring->vma));
-
-	/* WaClearRingBufHeadRegAtInit:ctg,elk */
-	if (ENGINE_READ(engine, RING_HEAD))
-		DRM_DEBUG_DRIVER("%s initialization failed [head=%08x], fudging\n",
-				 engine->name, ENGINE_READ(engine, RING_HEAD));
 
 	/* Check that the ring offsets point within the ring! */
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
