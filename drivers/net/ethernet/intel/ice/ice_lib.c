@@ -548,8 +548,8 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 	vsi->type = type;
 	vsi->back = pf;
 	set_bit(__ICE_DOWN, vsi->state);
+
 	vsi->idx = pf->next_vsi;
-	vsi->work_lmt = ICE_DFLT_IRQ_WORK;
 
 	if (type == ICE_VSI_VF)
 		ice_vsi_set_num_qs(vsi, vf_id);

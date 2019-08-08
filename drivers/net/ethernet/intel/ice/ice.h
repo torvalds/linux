@@ -247,9 +247,6 @@ struct ice_vsi {
 	u16 vsi_num;			/* HW (absolute) index of this VSI */
 	u16 idx;			/* software index in pf->vsi[] */
 
-	/* Interrupt thresholds */
-	u16 work_lmt;
-
 	s16 vf_id;			/* VF ID for SR-IOV VSIs */
 
 	u16 ethtype;			/* Ethernet protocol for pause frame */

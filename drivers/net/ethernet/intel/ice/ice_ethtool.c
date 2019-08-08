@@ -3214,12 +3214,6 @@ __ice_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 	if (ice_get_q_coalesce(vsi, ec, q_num))
 		return -EINVAL;
 
-	if (q_num < vsi->num_txq)
-		ec->tx_max_coalesced_frames_irq = vsi->work_lmt;
-
-	if (q_num < vsi->num_rxq)
-		ec->rx_max_coalesced_frames_irq = vsi->work_lmt;
-
 	return 0;
 }
 
@@ -3399,17 +3393,13 @@ __ice_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 			if (ice_set_q_coalesce(vsi, ec, i))
 				return -EINVAL;
 		}
-		goto set_work_lmt;
+		goto set_complete;
 	}
 
 	if (ice_set_q_coalesce(vsi, ec, q_num))
 		return -EINVAL;
 
-set_work_lmt:
-
-	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
-		vsi->work_lmt = max(ec->tx_max_coalesced_frames_irq,
-				    ec->rx_max_coalesced_frames_irq);
+set_complete:
 
 	return 0;
 }
