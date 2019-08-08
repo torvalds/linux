@@ -2956,9 +2956,10 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (hwmgr->display_config->num_display == 0)
 		disable_mclk_switching = false;
 	else
-		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) ||
-					  disable_mclk_switching_for_frame_lock ||
-					  smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time));
+		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
+					  !hwmgr->display_config->multi_monitor_in_sync) ||
+			disable_mclk_switching_for_frame_lock ||
+			smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time);
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
