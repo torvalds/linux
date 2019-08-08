@@ -1537,38 +1537,22 @@ static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	struct snd_soc_component *component;
-	struct snd_soc_dai_link_component dlc;
 
-	if (aux_dev->codec_of_node || aux_dev->codec_name) {
-		/* codecs, usually analog devices */
-		dlc.name = aux_dev->codec_name;
-		dlc.of_node = aux_dev->codec_of_node;
-		component = soc_find_component(&dlc);
-		if (!component) {
-			if (dlc.of_node)
-				dlc.name = of_node_full_name(dlc.of_node);
-			goto err_defer;
-		}
-	} else if (aux_dev->name) {
-		/* generic components */
-		dlc.name = aux_dev->name;
-		dlc.of_node = NULL;
-		component = soc_find_component(&dlc);
-		if (!component)
-			goto err_defer;
-	} else {
-		dev_err(card->dev, "ASoC: Invalid auxiliary device\n");
-		return -EINVAL;
-	}
+	/* remove me */
+	if (aux_dev->codec_name)
+		aux_dev->dlc.name = aux_dev->codec_name;
+	if (aux_dev->codec_of_node)
+		aux_dev->dlc.of_node = aux_dev->codec_of_node;
+
+	/* codecs, usually analog devices */
+	component = soc_find_component(&aux_dev->dlc);
+	if (!component)
+		return -EPROBE_DEFER;
 
 	component->init = aux_dev->init;
 	list_add(&component->card_aux_list, &card->aux_comp_list);
 
 	return 0;
-
-err_defer:
-	dev_err(card->dev, "ASoC: %s not registered\n", dlc.name);
-	return -EPROBE_DEFER;
 }
 
 static int soc_probe_aux_devices(struct snd_soc_card *card)

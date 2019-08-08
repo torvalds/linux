@@ -941,6 +941,7 @@ struct snd_soc_dai_link {
 #define COMP_CPU(_dai)			{ .dai_name = _dai, }
 #define COMP_CODEC(_name, _dai)		{ .name = _name, .dai_name = _dai, }
 #define COMP_PLATFORM(_name)		{ .name = _name }
+#define COMP_AUX(_name)			{ .name = _name }
 #define COMP_DUMMY()			{ .name = "snd-soc-dummy", .dai_name = "snd-soc-dummy-dai", }
 
 extern struct snd_soc_dai_link_component null_dailink_component[0];
@@ -970,6 +971,12 @@ struct snd_soc_aux_dev {
 	 */
 	const char *codec_name;
 	struct device_node *codec_of_node;
+
+	/*
+	 * name, codec_name, codec_of_node will be replaced
+	 * into dlc. don't use both in the same time
+	 */
+	struct snd_soc_dai_link_component dlc;
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_component *component);
