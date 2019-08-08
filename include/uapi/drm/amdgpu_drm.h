@@ -133,6 +133,11 @@ extern "C" {
  * releasing the memory
  */
 #define AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE	(1 << 9)
+/* Flag that BO will be encrypted and that the TMZ bit should be
+ * set in the PTEs when mapping this buffer via GPUVM or
+ * accessing it with various hw blocks
+ */
+#define AMDGPU_GEM_CREATE_ENCRYPTED		(1 << 10)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
