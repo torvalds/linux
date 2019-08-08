@@ -1070,6 +1070,72 @@ int to_hr_qp_type(int qp_type)
 	return transport_type;
 }
 
+static int check_mtu_validate(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_qp *hr_qp,
+			      struct ib_qp_attr *attr, int attr_mask)
+{
+	struct device *dev = hr_dev->dev;
+	enum ib_mtu active_mtu;
+	int p;
+
+	p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
+	    active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
+
+	if ((hr_dev->caps.max_mtu >= IB_MTU_2048 &&
+	    attr->path_mtu > hr_dev->caps.max_mtu) ||
+	    attr->path_mtu < IB_MTU_256 || attr->path_mtu > active_mtu) {
+		dev_err(dev, "attr path_mtu(%d)invalid while modify qp",
+			attr->path_mtu);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+				  int attr_mask)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct device *dev = hr_dev->dev;
+	int p;
+
+	if ((attr_mask & IB_QP_PORT) &&
+	    (attr->port_num == 0 || attr->port_num > hr_dev->caps.num_ports)) {
+		dev_err(dev, "attr port_num invalid.attr->port_num=%d\n",
+			attr->port_num);
+		return -EINVAL;
+	}
+
+	if (attr_mask & IB_QP_PKEY_INDEX) {
+		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
+		if (attr->pkey_index >= hr_dev->caps.pkey_table_len[p]) {
+			dev_err(dev, "attr pkey_index invalid.attr->pkey_index=%d\n",
+				attr->pkey_index);
+			return -EINVAL;
+		}
+	}
+
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
+	    attr->max_rd_atomic > hr_dev->caps.max_qp_init_rdma) {
+		dev_err(dev, "attr max_rd_atomic invalid.attr->max_rd_atomic=%d\n",
+			attr->max_rd_atomic);
+		return -EINVAL;
+	}
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
+	    attr->max_dest_rd_atomic > hr_dev->caps.max_qp_dest_rdma) {
+		dev_err(dev, "attr max_dest_rd_atomic invalid.attr->max_dest_rd_atomic=%d\n",
+			attr->max_dest_rd_atomic);
+		return -EINVAL;
+	}
+
+	if (attr_mask & IB_QP_PATH_MTU)
+		return check_mtu_validate(hr_dev, hr_qp, attr, attr_mask);
+
+	return 0;
+}
+
 int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       int attr_mask, struct ib_udata *udata)
 {
@@ -1078,15 +1144,12 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	enum ib_qp_state cur_state, new_state;
 	struct device *dev = hr_dev->dev;
 	int ret = -EINVAL;
-	int p;
-	enum ib_mtu active_mtu;
 
 	mutex_lock(&hr_qp->mutex);
 
 	cur_state = attr_mask & IB_QP_CUR_STATE ?
 		    attr->cur_qp_state : (enum ib_qp_state)hr_qp->state;
-	new_state = attr_mask & IB_QP_STATE ?
-		    attr->qp_state : cur_state;
+	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
 	if (ibqp->uobject &&
 	    (attr_mask & IB_QP_STATE) && new_state == IB_QPS_ERR) {
@@ -1107,51 +1170,9 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto out;
 	}
 
-	if ((attr_mask & IB_QP_PORT) &&
-	    (attr->port_num == 0 || attr->port_num > hr_dev->caps.num_ports)) {
-		dev_err(dev, "attr port_num invalid.attr->port_num=%d\n",
-			attr->port_num);
+	ret = hns_roce_check_qp_attr(ibqp, attr, attr_mask);
+	if (ret)
 		goto out;
-	}
-
-	if (attr_mask & IB_QP_PKEY_INDEX) {
-		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
-		if (attr->pkey_index >= hr_dev->caps.pkey_table_len[p]) {
-			dev_err(dev, "attr pkey_index invalid.attr->pkey_index=%d\n",
-				attr->pkey_index);
-			goto out;
-		}
-	}
-
-	if (attr_mask & IB_QP_PATH_MTU) {
-		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
-		active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
-
-		if ((hr_dev->caps.max_mtu == IB_MTU_4096 &&
-		    attr->path_mtu > IB_MTU_4096) ||
-		    (hr_dev->caps.max_mtu == IB_MTU_2048 &&
-		    attr->path_mtu > IB_MTU_2048) ||
-		    attr->path_mtu < IB_MTU_256 ||
-		    attr->path_mtu > active_mtu) {
-			dev_err(dev, "attr path_mtu(%d)invalid while modify qp",
-				attr->path_mtu);
-			goto out;
-		}
-	}
-
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
-	    attr->max_rd_atomic > hr_dev->caps.max_qp_init_rdma) {
-		dev_err(dev, "attr max_rd_atomic invalid.attr->max_rd_atomic=%d\n",
-			attr->max_rd_atomic);
-		goto out;
-	}
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
-	    attr->max_dest_rd_atomic > hr_dev->caps.max_qp_dest_rdma) {
-		dev_err(dev, "attr max_dest_rd_atomic invalid.attr->max_dest_rd_atomic=%d\n",
-			attr->max_dest_rd_atomic);
-		goto out;
-	}
 
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
 		if (hr_dev->caps.min_wqes) {
