@@ -2503,10 +2503,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 int i915_save_state(struct drm_i915_private *dev_priv);
 int i915_restore_state(struct drm_i915_private *dev_priv);
 
-/* i915_sysfs.c */
-void i915_setup_sysfs(struct drm_i915_private *dev_priv);
-void i915_teardown_sysfs(struct drm_i915_private *dev_priv);
-
 /* intel_device_info.c */
 static inline struct intel_device_info *
 mkwrite_device_info(struct drm_i915_private *dev_priv)

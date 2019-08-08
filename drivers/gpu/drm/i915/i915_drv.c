@@ -70,6 +70,7 @@
 #include "i915_irq.h"
 #include "i915_perf.h"
 #include "i915_query.h"
+#include "i915_sysfs.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_csr.h"
