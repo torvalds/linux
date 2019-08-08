@@ -3100,6 +3100,10 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without",
 		 hdmi->phy.name);
 
+	ret = hdmi_readb(hdmi, HDMI_PHY_STAT0);
+	if (ret & (HDMI_PHY_TX_PHY_LOCK | HDMI_PHY_HPD))
+		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
+
 	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
 
