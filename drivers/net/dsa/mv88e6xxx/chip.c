@@ -80,6 +80,29 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 	return 0;
 }
 
+int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
+			u16 mask, u16 val)
+{
+	u16 data;
+	int err;
+	int i;
+
+	/* There's no bus specific operation to wait for a mask */
+	for (i = 0; i < 16; i++) {
+		err = mv88e6xxx_read(chip, addr, reg, &data);
+		if (err)
+			return err;
+
+		if ((data & mask) == val)
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_err(chip->dev, "Timeout while waiting for switch\n");
+	return -ETIMEDOUT;
+}
+
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
 {
 	struct mv88e6xxx_mdio_bus *mdio_bus;
@@ -365,24 +388,7 @@ static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
 
 int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask)
 {
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		u16 val;
-		int err;
-
-		err = mv88e6xxx_read(chip, addr, reg, &val);
-		if (err)
-			return err;
-
-		if (!(val & mask))
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	dev_err(chip->dev, "Timeout while waiting for switch\n");
-	return -ETIMEDOUT;
+	return mv88e6xxx_wait_mask(chip, addr, reg, mask, 0x0000);
 }
 
 /* Indirect write to single pointer-data register with an Update bit */

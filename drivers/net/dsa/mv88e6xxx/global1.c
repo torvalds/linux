@@ -32,48 +32,27 @@ int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 	return mv88e6xxx_wait(chip, chip->info->global1_addr, reg, mask);
 }
 
+int mv88e6xxx_g1_wait_mask(struct mv88e6xxx_chip *chip, int reg,
+			   u16 mask, u16 val)
+{
+	return mv88e6xxx_wait_mask(chip, chip->info->global1_addr, reg,
+				   mask, val);
+}
+
 /* Offset 0x00: Switch Global Status Register */
 
 static int mv88e6185_g1_wait_ppu_disabled(struct mv88e6xxx_chip *chip)
 {
-	u16 state;
-	int i, err;
-
-	for (i = 0; i < 16; i++) {
-		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
-		if (err)
-			return err;
-
-		/* Check the value of the PPUState bits 15:14 */
-		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
-		if (state == MV88E6185_G1_STS_PPU_STATE_DISABLED)
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	return -ETIMEDOUT;
+	return mv88e6xxx_g1_wait_mask(chip, MV88E6XXX_G1_STS,
+				      MV88E6185_G1_STS_PPU_STATE_MASK,
+				      MV88E6185_G1_STS_PPU_STATE_DISABLED);
 }
 
 static int mv88e6185_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 {
-	u16 state;
-	int i, err;
-
-	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
-		if (err)
-			return err;
-
-		/* Check the value of the PPUState bits 15:14 */
-		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
-		if (state == MV88E6185_G1_STS_PPU_STATE_POLLING)
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	return -ETIMEDOUT;
+	return mv88e6xxx_g1_wait_mask(chip, MV88E6XXX_G1_STS,
+				      MV88E6185_G1_STS_PPU_STATE_MASK,
+				      MV88E6185_G1_STS_PPU_STATE_POLLING);
 }
 
 static int mv88e6352_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
