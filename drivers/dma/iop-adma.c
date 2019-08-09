@@ -22,8 +22,7 @@
 #include <linux/raid/pq.h>
 #include <linux/slab.h>
 
-#include <mach/adma.h>
-
+#include "iop-adma.h"
 #include "dmaengine.h"
 
 #define to_iop_adma_chan(chan) container_of(chan, struct iop_adma_chan, common)

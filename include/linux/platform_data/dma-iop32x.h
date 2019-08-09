@@ -17,6 +17,10 @@
 #endif
 #define iop_paranoia(x) BUG_ON(IOP_PARANOIA && (x))
 
+#define DMA0_ID 0
+#define DMA1_ID 1
+#define AAU_ID 2
+
 /**
  * struct iop_adma_device - internal representation of an ADMA device
  * @pdev: Platform device

@@ -6,8 +6,7 @@
 #define _ADMA_H
 #include <linux/types.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
-#include <asm/hardware/iop_adma.h>
+#include <linux/platform_data/dma-iop32x.h>
 
 /* Memory copy units */
 #define DMA_CCR(chan)		(chan->mmr_base + 0x0)
@@ -33,10 +32,6 @@
 #define AAU_EDCR0_IDX	8
 #define AAU_EDCR1_IDX	17
 #define AAU_EDCR2_IDX	26
-
-#define DMA0_ID 0
-#define DMA1_ID 1
-#define AAU_ID 2
 
 struct iop3xx_aau_desc_ctrl {
 	unsigned int int_en:1;

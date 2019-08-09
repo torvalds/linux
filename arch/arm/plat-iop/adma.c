@@ -6,8 +6,7 @@
 #include <linux/platform_device.h>
 #include <asm/hardware/iop3xx.h>
 #include <linux/dma-mapping.h>
-#include <mach/adma.h>
-#include <asm/hardware/iop_adma.h>
+#include <linux/platform_data/dma-iop32x.h>
 
 #define IRQ_DMA0_EOT IRQ_IOP32X_DMA0_EOT
 #define IRQ_DMA0_EOC IRQ_IOP32X_DMA0_EOC
