@@ -180,10 +180,9 @@ static void qla_nvme_ls_complete(struct work_struct *work)
 	kref_put(&priv->sp->cmd_kref, qla_nvme_release_ls_cmd_kref);
 }
 
-static void qla_nvme_sp_ls_done(void *ptr, int res)
+static void qla_nvme_sp_ls_done(srb_t *sp, int res)
 {
-	srb_t *sp = ptr;
-	struct nvme_private *priv;
+	struct nvme_private *priv = sp->priv;
 
 	if (WARN_ON_ONCE(kref_read(&sp->cmd_kref) == 0))
 		return;
@@ -191,17 +190,15 @@ static void qla_nvme_sp_ls_done(void *ptr, int res)
 	if (res)
 		res = -EINVAL;
 
-	priv = (struct nvme_private *)sp->priv;
 	priv->comp_status = res;
 	INIT_WORK(&priv->ls_work, qla_nvme_ls_complete);
 	schedule_work(&priv->ls_work);
 }
 
 /* it assumed that QPair lock is held. */
-static void qla_nvme_sp_done(void *ptr, int res)
+static void qla_nvme_sp_done(srb_t *sp, int res)
 {
-	srb_t *sp = ptr;
-	struct nvme_private *priv = (struct nvme_private *)sp->priv;
+	struct nvme_private *priv = sp->priv;
 
 	priv->comp_status = res;
 	kref_put(&sp->cmd_kref, qla_nvme_release_fcp_cmd_kref);

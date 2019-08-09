@@ -12,10 +12,8 @@
 #include <linux/bsg-lib.h>
 
 /* BSG support for ELS/CT pass through */
-void
-qla2x00_bsg_job_done(void *ptr, int res)
+void qla2x00_bsg_job_done(srb_t *sp, int res)
 {
-	srb_t *sp = ptr;
 	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 
@@ -25,10 +23,8 @@ qla2x00_bsg_job_done(void *ptr, int res)
 	sp->free(sp);
 }
 
-void
-qla2x00_bsg_sp_free(void *ptr)
+void qla2x00_bsg_sp_free(srb_t *sp)
 {
-	srb_t *sp = ptr;
 	struct qla_hw_data *ha = sp->vha->hw;
 	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_request *bsg_request = bsg_job->request;

@@ -6217,10 +6217,8 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 	return rval;
 }
 
-static void qla2x00_async_mb_sp_done(void *s, int res)
+static void qla2x00_async_mb_sp_done(srb_t *sp, int res)
 {
-	struct srb *sp = s;
-
 	sp->u.iocb_cmd.u.mbx.rc = res;
 
 	complete(&sp->u.iocb_cmd.u.mbx.comp);

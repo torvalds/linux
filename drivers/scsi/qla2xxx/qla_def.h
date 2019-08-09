@@ -614,8 +614,18 @@ typedef struct srb {
 		struct bsg_job *bsg_job;
 		struct srb_cmd scmd;
 	} u;
-	void (*done)(void *, int);
-	void (*free)(void *);
+	/*
+	 * Report completion status @res and call sp_put(@sp). @res is
+	 * an NVMe status code, a SCSI result (e.g. DID_OK << 16) or a
+	 * QLA_* status value.
+	 */
+	void (*done)(struct srb *sp, int res);
+	/* Stop the timer and free @sp. Only used by the FCP code. */
+	void (*free)(struct srb *sp);
+	/*
+	 * Call nvme_private->fd->done() and free @sp. Only used by the NVMe
+	 * code.
+	 */
 	void (*put_fn)(struct kref *kref);
 } srb_t;
 

@@ -1797,10 +1797,8 @@ qla2x00_fxdisc_iocb_timeout(void *data)
 	complete(&lio->u.fxiocb.fxiocb_comp);
 }
 
-static void
-qla2x00_fxdisc_sp_done(void *ptr, int res)
+static void qla2x00_fxdisc_sp_done(srb_t *sp, int res)
 {
-	srb_t *sp = ptr;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	complete(&lio->u.fxiocb.fxiocb_comp);

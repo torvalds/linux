@@ -559,10 +559,8 @@ static int qla24xx_post_nack_work(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return qla2x00_post_work(vha, e);
 }
 
-static
-void qla2x00_async_nack_sp_done(void *s, int res)
+static void qla2x00_async_nack_sp_done(srb_t *sp, int res)
 {
-	struct srb *sp = (struct srb *)s;
 	struct scsi_qla_host *vha = sp->vha;
 	unsigned long flags;
 
