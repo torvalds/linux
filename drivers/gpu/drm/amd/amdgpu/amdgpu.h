@@ -1037,8 +1037,6 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    uint32_t acc_flags);
 void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
 uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
-uint64_t amdgpu_mm_rreg64(struct amdgpu_device *adev, uint32_t reg);
-void amdgpu_mm_wreg64(struct amdgpu_device *adev, uint32_t reg, uint64_t v);
 
 u32 amdgpu_io_rreg(struct amdgpu_device *adev, u32 reg);
 void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
@@ -1066,8 +1064,6 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", amdgpu_mm_rreg(adev, (reg), 0))
 #define WREG32(reg, v) amdgpu_mm_wreg(adev, (reg), (v), 0)
 #define WREG32_IDX(reg, v) amdgpu_mm_wreg(adev, (reg), (v), AMDGPU_REGS_IDX)
-#define RREG64(reg) amdgpu_mm_rreg64(adev, (reg))
-#define WREG64(reg, v) amdgpu_mm_wreg64(adev, (reg), (v))
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define RREG32_PCIE(reg) adev->pcie_rreg(adev, (reg))

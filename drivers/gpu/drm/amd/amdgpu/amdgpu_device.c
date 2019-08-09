@@ -264,39 +264,6 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 }
 
 /**
- * amdgpu_mm_rreg64 - read a 64 bit memory mapped IO register
- *
- * @adev: amdgpu_device pointer
- * @reg: dword aligned register offset
- *
- * Returns the 64 bit value from the offset specified.
- */
-uint64_t amdgpu_mm_rreg64(struct amdgpu_device *adev, uint32_t reg)
-{
-	if ((reg * 4) < adev->rmmio_size)
-		return atomic64_read((atomic64_t *)(adev->rmmio + (reg * 4)));
-	else
-		BUG();
-}
-
-/**
- * amdgpu_mm_wreg64 - write to a 64 bit memory mapped IO register
- *
- * @adev: amdgpu_device pointer
- * @reg: dword aligned register offset
- * @v: 64 bit value to write to the register
- *
- * Writes the value specified to the offset specified.
- */
-void amdgpu_mm_wreg64(struct amdgpu_device *adev, uint32_t reg, uint64_t v)
-{
-	if ((reg * 4) < adev->rmmio_size)
-		atomic64_set((atomic64_t *)(adev->rmmio + (reg * 4)), v);
-	else
-		BUG();
-}
-
-/**
  * amdgpu_io_rreg - read an IO register
  *
  * @adev: amdgpu_device pointer
