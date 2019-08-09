@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim MAX77620 Watchdog Driver
  *
  * Copyright (C) 2016 NVIDIA CORPORATION. All rights reserved.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -185,13 +182,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(wdt_dev, wdt);
 
 	watchdog_stop_on_unregister(wdt_dev);
-	ret = devm_watchdog_register_device(dev, wdt_dev);
-	if (ret < 0) {
-		dev_err(dev, "watchdog registration failed: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return devm_watchdog_register_device(dev, wdt_dev);
 }
 
 static const struct platform_device_id max77620_wdt_devtype[] = {

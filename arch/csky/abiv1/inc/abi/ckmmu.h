@@ -78,6 +78,12 @@ static inline void tlb_invalid_all(void)
 	cpwcr("cpcr8", 0x04000000);
 }
 
+
+static inline void local_tlb_invalid_all(void)
+{
+	tlb_invalid_all();
+}
+
 static inline void tlb_invalid_indexed(void)
 {
 	cpwcr("cpcr8", 0x02000000);

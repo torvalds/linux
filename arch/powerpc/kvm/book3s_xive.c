@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017 Benjamin Herrenschmidt, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "xive-kvm: " fmt
@@ -1989,10 +1986,8 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 
 	xive->single_escalation = xive_native_has_single_escalation();
 
-	if (ret) {
-		kfree(xive);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

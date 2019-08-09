@@ -6,7 +6,7 @@
  * Copyright:	(C) 2012-2013  Linaro Limited
  *
  * This algorithm is described in more detail in
- * Documentation/arm/vlocks.txt.
+ * Documentation/arm/vlocks.rst.
  */
 
 #include <linux/linkage.h>

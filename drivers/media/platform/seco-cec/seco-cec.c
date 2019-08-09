@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 
 /* CEC Framework */
-#include <media/cec.h>
+#include <media/cec-notifier.h>
 
 #include "seco-cec.h"
 

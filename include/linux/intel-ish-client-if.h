@@ -103,6 +103,7 @@ void ishtp_put_device(struct ishtp_cl_device *cl_dev);
 void ishtp_get_device(struct ishtp_cl_device *cl_dev);
 void ishtp_set_drvdata(struct ishtp_cl_device *cl_device, void *data);
 void *ishtp_get_drvdata(struct ishtp_cl_device *cl_device);
+struct ishtp_cl_device *ishtp_dev_to_cl_device(struct device *dev);
 int ishtp_register_event_cb(struct ishtp_cl_device *device,
 				void (*read_cb)(struct ishtp_cl_device *));
 struct	ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,

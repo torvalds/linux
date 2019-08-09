@@ -40,7 +40,9 @@
 			NETIF_F_TSO |     \
 			NETIF_F_LRO |     \
 			NETIF_F_NTUPLE |  \
-			NETIF_F_HW_VLAN_CTAG_FILTER, \
+			NETIF_F_HW_VLAN_CTAG_FILTER | \
+			NETIF_F_HW_VLAN_CTAG_RX |     \
+			NETIF_F_HW_VLAN_CTAG_TX,      \
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true,		  \
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
@@ -244,6 +246,9 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 
 	/* LSO offloads*/
 	hw_atl_tdm_large_send_offload_en_set(self, 0xFFFFFFFFU);
+
+	/* Outer VLAN tag offload */
+	hw_atl_rpo_outer_vlan_tag_mode_set(self, 1U);
 
 /* LRO offloads */
 	{
@@ -487,6 +492,7 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 	unsigned int buff_pa_len = 0U;
 	unsigned int pkt_len = 0U;
 	unsigned int frag_count = 0U;
+	bool is_vlan = false;
 	bool is_gso = false;
 
 	buff = &ring->buff_ring[ring->sw_tail];
@@ -501,36 +507,44 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->sw_tail];
 
-		if (buff->is_txc) {
+		if (buff->is_gso) {
+			txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_TCP;
+			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
 			txd->ctl |= (buff->len_l3 << 31) |
-				(buff->len_l2 << 24) |
-				HW_ATL_B0_TXD_CTL_CMD_TCP |
-				HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
-			txd->ctl2 |= (buff->mss << 16) |
-				(buff->len_l4 << 8) |
-				(buff->len_l3 >> 1);
+				    (buff->len_l2 << 24);
+			txd->ctl2 |= (buff->mss << 16);
+			is_gso = true;
 
 			pkt_len -= (buff->len_l4 +
 				    buff->len_l3 +
 				    buff->len_l2);
-			is_gso = true;
-
 			if (buff->is_ipv6)
 				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_IPV6;
-		} else {
+			txd->ctl2 |= (buff->len_l4 << 8) |
+				     (buff->len_l3 >> 1);
+		}
+		if (buff->is_vlan) {
+			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
+			txd->ctl |= buff->vlan_tx_tag << 4;
+			is_vlan = true;
+		}
+		if (!buff->is_gso && !buff->is_vlan) {
 			buff_pa_len = buff->len;
 
 			txd->buf_addr = buff->pa;
 			txd->ctl |= (HW_ATL_B0_TXD_CTL_BLEN &
 						((u32)buff_pa_len << 4));
 			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXD;
+
 			/* PAY_LEN */
 			txd->ctl2 |= HW_ATL_B0_TXD_CTL2_LEN & (pkt_len << 14);
 
-			if (is_gso) {
-				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_LSO;
+			if (is_gso || is_vlan) {
+				/* enable tx context */
 				txd->ctl2 |= HW_ATL_B0_TXD_CTL2_CTX_EN;
 			}
+			if (is_gso)
+				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_LSO;
 
 			/* Tx checksum offloads */
 			if (buff->is_ip_cso)
@@ -539,13 +553,16 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 			if (buff->is_udp_cso || buff->is_tcp_cso)
 				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_TUCSO;
 
+			if (is_vlan)
+				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_VLAN;
+
 			if (unlikely(buff->is_eop)) {
 				txd->ctl |= HW_ATL_B0_TXD_CTL_EOP;
 				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_WB;
 				is_gso = false;
+				is_vlan = false;
 			}
 		}
-
 		ring->sw_tail = aq_ring_next_dx(ring, ring->sw_tail);
 	}
 
@@ -559,6 +576,7 @@ static int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self,
 {
 	u32 dma_desc_addr_lsw = (u32)aq_ring->dx_ring_pa;
 	u32 dma_desc_addr_msw = (u32)(((u64)aq_ring->dx_ring_pa) >> 32);
+	u32 vlan_rx_stripping = self->aq_nic_cfg->is_vlan_rx_strip;
 
 	hw_atl_rdm_rx_desc_en_set(self, false, aq_ring->idx);
 
@@ -578,7 +596,8 @@ static int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self,
 
 	hw_atl_rdm_rx_desc_head_buff_size_set(self, 0U, aq_ring->idx);
 	hw_atl_rdm_rx_desc_head_splitting_set(self, 0U, aq_ring->idx);
-	hw_atl_rpo_rx_desc_vlan_stripping_set(self, 0U, aq_ring->idx);
+	hw_atl_rpo_rx_desc_vlan_stripping_set(self, !!vlan_rx_stripping,
+					      aq_ring->idx);
 
 	/* Rx ring set mode */
 
@@ -681,11 +700,15 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->hw_head];
 
+		buff->flags = 0U;
+		buff->is_hash_l4 = 0U;
+
 		rx_stat = (0x0000003CU & rxd_wb->status) >> 2;
 
 		is_rx_check_sum_enabled = (rxd_wb->type >> 19) & 0x3U;
 
-		pkt_type = 0xFFU & (rxd_wb->type >> 4);
+		pkt_type = (rxd_wb->type & HW_ATL_B0_RXD_WB_STAT_PKTTYPE) >>
+			   HW_ATL_B0_RXD_WB_STAT_PKTTYPE_SHIFT;
 
 		if (is_rx_check_sum_enabled & BIT(0) &&
 		    (0x0U == (pkt_type & 0x3U)))
@@ -704,6 +727,13 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 		if (unlikely(rxd_wb->pkt_len <= 60)) {
 			buff->is_ip_cso = 0U;
 			buff->is_cso_err = 0U;
+		}
+
+		if (self->aq_nic_cfg->is_vlan_rx_strip &&
+		    ((pkt_type & HW_ATL_B0_RXD_WB_PKTTYPE_VLAN) ||
+		     (pkt_type & HW_ATL_B0_RXD_WB_PKTTYPE_VLAN_DOUBLE))) {
+			buff->is_vlan = 1;
+			buff->vlan_rx_tag = le16_to_cpu(rxd_wb->vlan);
 		}
 
 		if ((rx_stat & BIT(0)) || rxd_wb->type & 0x1000U) {
@@ -778,8 +808,15 @@ static int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
 					  unsigned int packet_filter)
 {
 	unsigned int i = 0U;
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 
-	hw_atl_rpfl2promiscuous_mode_en_set(self, IS_FILTER_ENABLED(IFF_PROMISC));
+	hw_atl_rpfl2promiscuous_mode_en_set(self,
+					    IS_FILTER_ENABLED(IFF_PROMISC));
+
+	hw_atl_rpf_vlan_prom_mode_en_set(self,
+				     IS_FILTER_ENABLED(IFF_PROMISC) ||
+				     cfg->is_vlan_force_promisc);
+
 	hw_atl_rpfl2multicast_flr_en_set(self,
 					 IS_FILTER_ENABLED(IFF_ALLMULTI), 0);
 
@@ -788,13 +825,13 @@ static int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
 
 	hw_atl_rpfl2broadcast_en_set(self, IS_FILTER_ENABLED(IFF_BROADCAST));
 
-	self->aq_nic_cfg->is_mc_list_enabled = IS_FILTER_ENABLED(IFF_MULTICAST);
+	cfg->is_mc_list_enabled = IS_FILTER_ENABLED(IFF_MULTICAST);
 
 	for (i = HW_ATL_B0_MAC_MIN; i < HW_ATL_B0_MAC_MAX; ++i)
 		hw_atl_rpfl2_uc_flr_en_set(self,
-					   (self->aq_nic_cfg->is_mc_list_enabled &&
-				    (i <= self->aq_nic_cfg->mc_list_count)) ?
-				    1U : 0U, i);
+					   (cfg->is_mc_list_enabled &&
+					    (i <= cfg->mc_list_count)) ?
+					   1U : 0U, i);
 
 	return aq_hw_err_from_flags(self);
 }
@@ -1086,7 +1123,7 @@ static int hw_atl_b0_hw_vlan_set(struct aq_hw_s *self,
 static int hw_atl_b0_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
 {
 	/* set promisc in case of disabing the vland filter */
-	hw_atl_rpf_vlan_prom_mode_en_set(self, !!!enable);
+	hw_atl_rpf_vlan_prom_mode_en_set(self, !enable);
 
 	return aq_hw_err_from_flags(self);
 }

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2002-2006 Novell, Inc.
  *	Jan Beulich <jbeulich@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * A simple API for unwinding kernel stacks.  This is used for
  * debugging and error reporting purposes.  The kernel doesn't need
@@ -182,11 +179,6 @@ static void init_unwind_hdr(struct unwind_table *table,
 static void *__init unw_hdr_alloc_early(unsigned long sz)
 {
 	return memblock_alloc_from(sz, sizeof(unsigned int), MAX_DMA_ADDRESS);
-}
-
-static void *unw_hdr_alloc(unsigned long sz)
-{
-	return kmalloc(sz, GFP_KERNEL);
 }
 
 static void init_unwind_table(struct unwind_table *table, const char *name,
@@ -369,6 +361,10 @@ ret_err:
 }
 
 #ifdef CONFIG_MODULES
+static void *unw_hdr_alloc(unsigned long sz)
+{
+	return kmalloc(sz, GFP_KERNEL);
+}
 
 static struct unwind_table *last_table;
 

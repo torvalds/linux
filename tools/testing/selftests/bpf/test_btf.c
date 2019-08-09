@@ -3417,6 +3417,94 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 1,
 	.max_entries = 4,
 },
+/*
+ * typedef int arr_t[16];
+ * struct s {
+ *	arr_t *a;
+ * };
+ */
+{
+	.descr = "struct->ptr->typedef->array->int size resolution",
+	.raw_types = {
+		BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [1] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_PTR_ENC(3),					/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_TYPE_ARRAY_ENC(5, 5, 16),			/* [4] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0s\0a\0arr_t"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "ptr_mod_chain_size_resolve_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int) * 16,
+	.key_type_id = 5 /* int */,
+	.value_type_id = 3 /* arr_t */,
+	.max_entries = 4,
+},
+/*
+ * typedef int arr_t[16][8][4];
+ * struct s {
+ *	arr_t *a;
+ * };
+ */
+{
+	.descr = "struct->ptr->typedef->multi-array->int size resolution",
+	.raw_types = {
+		BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [1] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_PTR_ENC(3),					/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_TYPE_ARRAY_ENC(5, 7, 16),			/* [4] */
+		BTF_TYPE_ARRAY_ENC(6, 7, 8),			/* [5] */
+		BTF_TYPE_ARRAY_ENC(7, 7, 4),			/* [6] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [7] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0s\0a\0arr_t"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "multi_arr_size_resolve_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int) * 16 * 8 * 4,
+	.key_type_id = 7 /* int */,
+	.value_type_id = 3 /* arr_t */,
+	.max_entries = 4,
+},
+/*
+ * typedef int int_t;
+ * typedef int_t arr3_t[4];
+ * typedef arr3_t arr2_t[8];
+ * typedef arr2_t arr1_t[16];
+ * struct s {
+ *	arr1_t *a;
+ * };
+ */
+{
+	.descr = "typedef/multi-arr mix size resolution",
+	.raw_types = {
+		BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [1] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_PTR_ENC(3),					/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_TYPE_ARRAY_ENC(5, 10, 16),			/* [4] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 6),			/* [5] */
+		BTF_TYPE_ARRAY_ENC(7, 10, 8),			/* [6] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 8),			/* [7] */
+		BTF_TYPE_ARRAY_ENC(9, 10, 4),			/* [8] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 10),			/* [9] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [10] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0s\0a\0arr1_t\0arr2_t\0arr3_t\0int_t"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "typedef_arra_mix_size_resolve_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int) * 16 * 8 * 4,
+	.key_type_id = 10 /* int */,
+	.value_type_id = 3 /* arr_t */,
+	.max_entries = 4,
+},
 
 }; /* struct btf_raw_test raw_tests[] */
 
@@ -4016,64 +4104,10 @@ struct btf_file_test {
 };
 
 static struct btf_file_test file_tests[] = {
-{
-	.file = "test_btf_haskv.o",
-},
-{
-	.file = "test_btf_nokv.o",
-	.btf_kv_notfound = true,
-},
+	{ .file = "test_btf_haskv.o", },
+	{ .file = "test_btf_newkv.o", },
+	{ .file = "test_btf_nokv.o", .btf_kv_notfound = true, },
 };
-
-static int file_has_btf_elf(const char *fn, bool *has_btf_ext)
-{
-	Elf_Scn *scn = NULL;
-	GElf_Ehdr ehdr;
-	int ret = 0;
-	int elf_fd;
-	Elf *elf;
-
-	if (CHECK(elf_version(EV_CURRENT) == EV_NONE,
-		  "elf_version(EV_CURRENT) == EV_NONE"))
-		return -1;
-
-	elf_fd = open(fn, O_RDONLY);
-	if (CHECK(elf_fd == -1, "open(%s): errno:%d", fn, errno))
-		return -1;
-
-	elf = elf_begin(elf_fd, ELF_C_READ, NULL);
-	if (CHECK(!elf, "elf_begin(%s): %s", fn, elf_errmsg(elf_errno()))) {
-		ret = -1;
-		goto done;
-	}
-
-	if (CHECK(!gelf_getehdr(elf, &ehdr), "!gelf_getehdr(%s)", fn)) {
-		ret = -1;
-		goto done;
-	}
-
-	while ((scn = elf_nextscn(elf, scn))) {
-		const char *sh_name;
-		GElf_Shdr sh;
-
-		if (CHECK(gelf_getshdr(scn, &sh) != &sh,
-			  "file:%s gelf_getshdr != &sh", fn)) {
-			ret = -1;
-			goto done;
-		}
-
-		sh_name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
-		if (!strcmp(sh_name, BTF_ELF_SEC))
-			ret = 1;
-		if (!strcmp(sh_name, BTF_EXT_ELF_SEC))
-			*has_btf_ext = true;
-	}
-
-done:
-	close(elf_fd);
-	elf_end(elf);
-	return ret;
-}
 
 static int do_test_file(unsigned int test_num)
 {
@@ -4081,6 +4115,7 @@ static int do_test_file(unsigned int test_num)
 	const char *expected_fnames[] = {"_dummy_tracepoint",
 					 "test_long_fname_1",
 					 "test_long_fname_2"};
+	struct btf_ext *btf_ext = NULL;
 	struct bpf_prog_info info = {};
 	struct bpf_object *obj = NULL;
 	struct bpf_func_info *finfo;
@@ -4095,15 +4130,19 @@ static int do_test_file(unsigned int test_num)
 	fprintf(stderr, "BTF libbpf test[%u] (%s): ", test_num,
 		test->file);
 
-	err = file_has_btf_elf(test->file, &has_btf_ext);
-	if (err == -1)
-		return err;
-
-	if (err == 0) {
-		fprintf(stderr, "SKIP. No ELF %s found", BTF_ELF_SEC);
-		skip_cnt++;
-		return 0;
+	btf = btf__parse_elf(test->file, &btf_ext);
+	if (IS_ERR(btf)) {
+		if (PTR_ERR(btf) == -ENOENT) {
+			fprintf(stderr, "SKIP. No ELF %s found", BTF_ELF_SEC);
+			skip_cnt++;
+			return 0;
+		}
+		return PTR_ERR(btf);
 	}
+	btf__free(btf);
+
+	has_btf_ext = btf_ext != NULL;
+	btf_ext__free(btf_ext);
 
 	obj = bpf_object__open(test->file);
 	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))

@@ -78,7 +78,7 @@ static inline unsigned long *
 get_stack_pointer(struct task_struct *task, struct pt_regs *regs)
 {
 	if (regs)
-		return (unsigned long *)kernel_stack_pointer(regs);
+		return (unsigned long *)regs->sp;
 
 	if (task == current)
 		return __builtin_frame_address(0);

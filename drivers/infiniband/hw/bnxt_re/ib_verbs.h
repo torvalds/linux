@@ -94,11 +94,11 @@ struct bnxt_re_qp {
 };
 
 struct bnxt_re_cq {
+	struct ib_cq		ib_cq;
 	struct bnxt_re_dev	*rdev;
 	spinlock_t              cq_lock;	/* protect cq */
 	u16			cq_count;
 	u16			cq_period;
-	struct ib_cq		ib_cq;
 	struct bnxt_qplib_cq	qplib_cq;
 	struct bnxt_qplib_cqe	*cql;
 #define MAX_CQL_PER_POLL	1024
@@ -190,10 +190,9 @@ int bnxt_re_post_send(struct ib_qp *qp, const struct ib_send_wr *send_wr,
 		      const struct ib_send_wr **bad_send_wr);
 int bnxt_re_post_recv(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
 		      const struct ib_recv_wr **bad_recv_wr);
-struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
-				const struct ib_cq_init_attr *attr,
-				struct ib_udata *udata);
-int bnxt_re_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
+int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		      struct ib_udata *udata);
+void bnxt_re_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int bnxt_re_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc);
 int bnxt_re_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *pd, int mr_access_flags);

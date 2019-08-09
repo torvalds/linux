@@ -26,6 +26,10 @@
 #include "txrx.h"
 #include "trace.h"
 
+/* Max number of entries (packets to complete) to update the hwtail of tx
+ * status ring. Should be power of 2
+ */
+#define WIL_EDMA_TX_SRING_UPDATE_HW_TAIL 128
 #define WIL_EDMA_MAX_DATA_OFFSET (2)
 /* RX buffer size must be aligned to 4 bytes */
 #define WIL_EDMA_RX_BUF_LEN_DEFAULT (2048)
@@ -268,6 +272,9 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 	struct device *dev = wil_to_dev(wil);
 	struct list_head *active = &wil->rx_buff_mgmt.active;
 	dma_addr_t pa;
+
+	if (!wil->rx_buff_mgmt.buff_arr)
+		return;
 
 	while (!list_empty(active)) {
 		struct wil_rx_buff *rx_buff =
@@ -734,7 +741,7 @@ static int wil_ring_init_tx_edma(struct wil6210_vif *vif, int ring_id,
 	txdata->enabled = 0;
 	spin_unlock_bh(&txdata->lock);
 	wil_ring_free_edma(wil, ring);
-	wil->ring2cid_tid[ring_id][0] = max_assoc_sta;
+	wil->ring2cid_tid[ring_id][0] = wil->max_assoc_sta;
 	wil->ring2cid_tid[ring_id][1] = 0;
 
  out:
@@ -944,7 +951,7 @@ again:
 	eop = wil_rx_status_get_eop(msg);
 
 	cid = wil_rx_status_get_cid(msg);
-	if (unlikely(!wil_val_in_range(cid, 0, max_assoc_sta))) {
+	if (unlikely(!wil_val_in_range(cid, 0, wil->max_assoc_sta))) {
 		wil_err(wil, "Corrupt cid=%d, sring->swhead=%d\n",
 			cid, sring->swhead);
 		rxdata->skipping = true;
@@ -1152,7 +1159,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 	struct wil_net_stats *stats;
 	struct wil_tx_enhanced_desc *_d;
 	unsigned int ring_id;
-	unsigned int num_descs;
+	unsigned int num_descs, num_statuses = 0;
 	int i;
 	u8 dr_bit; /* Descriptor Ready bit */
 	struct wil_ring_tx_status msg;
@@ -1199,7 +1206,8 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 		ndev = vif_to_ndev(vif);
 
 		cid = wil->ring2cid_tid[ring_id][0];
-		stats = (cid < max_assoc_sta ? &wil->sta[cid].stats : NULL);
+		stats = (cid < wil->max_assoc_sta) ? &wil->sta[cid].stats :
+						     NULL;
 
 		wil_dbg_txrx(wil,
 			     "tx_status: completed desc_ring (%d), num_descs (%d)\n",
@@ -1272,6 +1280,11 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 		}
 
 again:
+		num_statuses++;
+		if (num_statuses % WIL_EDMA_TX_SRING_UPDATE_HW_TAIL == 0)
+			/* update HW tail to allow HW to push new statuses */
+			wil_w(wil, sring->hwtail, sring->swhead);
+
 		wil_sring_advance_swhead(sring);
 
 		wil_get_next_tx_status_msg(sring, &msg);
@@ -1282,8 +1295,9 @@ again:
 	if (desc_cnt)
 		wil_update_net_queues(wil, vif, NULL, false);
 
-	/* Update the HW tail ptr (RD ptr) */
-	wil_w(wil, sring->hwtail, (sring->swhead - 1) % sring->size);
+	if (num_statuses % WIL_EDMA_TX_SRING_UPDATE_HW_TAIL != 0)
+		/* Update the HW tail ptr (RD ptr) */
+		wil_w(wil, sring->hwtail, (sring->swhead - 1) % sring->size);
 
 	return desc_cnt;
 }

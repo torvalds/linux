@@ -274,8 +274,6 @@
 #define POLL_PERIOD (NSEC_PER_SEC / POLL_FREQUENCY)
 
 /* for sysctl proc_dointvec_minmax of dev.i915.perf_stream_paranoid */
-static int zero;
-static int one = 1;
 static u32 i915_perf_stream_paranoid = true;
 
 /* The maximum exponent the hardware accepts is 63 (essentially it selects one
@@ -1569,28 +1567,10 @@ static void config_oa_regs(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int hsw_enable_metric_set(struct i915_perf_stream *stream)
+static void delay_after_mux(void)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
-	const struct i915_oa_config *oa_config = stream->oa_config;
-
-	/* PRM:
-	 *
-	 * OA unit is using “crclk” for its functionality. When trunk
-	 * level clock gating takes place, OA clock would be gated,
-	 * unable to count the events from non-render clock domain.
-	 * Render clock gating must be disabled when OA is enabled to
-	 * count the events from non-render domain. Unit level clock
-	 * gating for RCS should also be disabled.
-	 */
-	I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
-				    ~GEN7_DOP_CLOCK_GATE_ENABLE));
-	I915_WRITE(GEN6_UCGCTL1, (I915_READ(GEN6_UCGCTL1) |
-				  GEN6_CSUNIT_CLOCK_GATE_DISABLE));
-
-	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
-
-	/* It apparently takes a fairly long time for a new MUX
+	/*
+	 * It apparently takes a fairly long time for a new MUX
 	 * configuration to be be applied after these register writes.
 	 * This delay duration was derived empirically based on the
 	 * render_basic config but hopefully it covers the maximum
@@ -1612,6 +1592,30 @@ static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 	 * a delay at this location would mitigate any invalid reports.
 	 */
 	usleep_range(15000, 20000);
+}
+
+static int hsw_enable_metric_set(struct i915_perf_stream *stream)
+{
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	const struct i915_oa_config *oa_config = stream->oa_config;
+
+	/*
+	 * PRM:
+	 *
+	 * OA unit is using “crclk” for its functionality. When trunk
+	 * level clock gating takes place, OA clock would be gated,
+	 * unable to count the events from non-render clock domain.
+	 * Render clock gating must be disabled when OA is enabled to
+	 * count the events from non-render domain. Unit level clock
+	 * gating for RCS should also be disabled.
+	 */
+	I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
+				    ~GEN7_DOP_CLOCK_GATE_ENABLE));
+	I915_WRITE(GEN6_UCGCTL1, (I915_READ(GEN6_UCGCTL1) |
+				  GEN6_CSUNIT_CLOCK_GATE_DISABLE));
+
+	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
+	delay_after_mux();
 
 	config_oa_regs(dev_priv, oa_config->b_counter_regs,
 		       oa_config->b_counter_regs_len);
@@ -1837,6 +1841,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 		return ret;
 
 	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
+	delay_after_mux();
 
 	config_oa_regs(dev_priv, oa_config->b_counter_regs,
 		       oa_config->b_counter_regs_len);
@@ -2517,6 +2522,9 @@ static int i915_perf_release(struct inode *inode, struct file *file)
 	i915_perf_destroy_locked(stream);
 	mutex_unlock(&dev_priv->perf.lock);
 
+	/* Release the reference the perf stream kept on the driver. */
+	drm_dev_put(&dev_priv->drm);
+
 	return 0;
 }
 
@@ -2651,6 +2659,11 @@ i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 
 	if (!(param->flags & I915_PERF_FLAG_DISABLED))
 		i915_perf_enable_locked(stream);
+
+	/* Take a reference on the driver that will be kept with stream_fd
+	 * until its release.
+	 */
+	drm_dev_get(&dev_priv->drm);
 
 	return stream_fd;
 
@@ -3366,8 +3379,8 @@ static struct ctl_table oa_table[] = {
 	 .maxlen = sizeof(i915_perf_stream_paranoid),
 	 .mode = 0644,
 	 .proc_handler = proc_dointvec_minmax,
-	 .extra1 = &zero,
-	 .extra2 = &one,
+	 .extra1 = SYSCTL_ZERO,
+	 .extra2 = SYSCTL_ONE,
 	 },
 	{
 	 .procname = "oa_max_sample_rate",
@@ -3375,7 +3388,7 @@ static struct ctl_table oa_table[] = {
 	 .maxlen = sizeof(i915_oa_max_sample_rate),
 	 .mode = 0644,
 	 .proc_handler = proc_dointvec_minmax,
-	 .extra1 = &zero,
+	 .extra1 = SYSCTL_ZERO,
 	 .extra2 = &oa_sample_rate_hard_limit,
 	 },
 	{}
@@ -3479,9 +3492,13 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
 			dev_priv->perf.oa.ops.disable_metric_set = gen10_disable_metric_set;
 
-			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
-			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
-
+			if (IS_GEN(dev_priv, 10)) {
+				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
+				dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
+			} else {
+				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x124;
+				dev_priv->perf.oa.ctx_flexeu0_offset = 0x78e;
+			}
 			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 		}
 	}

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013,2017 Johan Hovold <johan@kernel.org>
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  *
  * Please report both successes and troubles to the author at omninet@kroah.com

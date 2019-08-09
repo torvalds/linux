@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This driver implements I2C master functionality using the LSI API2C
  * controller.
@@ -5,10 +6,6 @@
  * NOTE: The controller has a limitation in that it can only do transfers of
  * maximum 255 bytes at a time. If a larger transfer is attempted, error code
  * (-EINVAL) is returned.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
  */
 #include <linux/clk.h>
 #include <linux/clkdev.h>

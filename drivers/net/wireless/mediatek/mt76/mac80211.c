@@ -766,10 +766,21 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	*dbm = DIV_ROUND_UP(dev->txpower_cur, 2);
 
 	/* convert from per-chain power to combined
-	 * output on 2x2 devices
+	 * output power
 	 */
-	if (n_chains > 1)
+	switch (n_chains) {
+	case 4:
+		*dbm += 6;
+		break;
+	case 3:
+		*dbm += 4;
+		break;
+	case 2:
 		*dbm += 3;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -820,3 +831,50 @@ mt76_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_set_tim);
+
+void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
+	u8 *hdr, *pn = status->iv;
+
+	__skb_push(skb, 8);
+	memmove(skb->data, skb->data + 8, hdr_len);
+	hdr = skb->data + hdr_len;
+
+	hdr[0] = pn[5];
+	hdr[1] = pn[4];
+	hdr[2] = 0;
+	hdr[3] = 0x20 | (key_id << 6);
+	hdr[4] = pn[3];
+	hdr[5] = pn[2];
+	hdr[6] = pn[1];
+	hdr[7] = pn[0];
+
+	status->flag &= ~RX_FLAG_IV_STRIPPED;
+}
+EXPORT_SYMBOL_GPL(mt76_insert_ccmp_hdr);
+
+int mt76_get_rate(struct mt76_dev *dev,
+		  struct ieee80211_supported_band *sband,
+		  int idx, bool cck)
+{
+	int i, offset = 0, len = sband->n_bitrates;
+
+	if (cck) {
+		if (sband == &dev->sband_5g.sband)
+			return 0;
+
+		idx &= ~BIT(2); /* short preamble */
+	} else if (sband == &dev->sband_2g.sband) {
+		offset = 4;
+	}
+
+	for (i = offset; i < len; i++) {
+		if ((sband->bitrates[i].hw_value & GENMASK(7, 0)) == idx)
+			return i;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_get_rate);

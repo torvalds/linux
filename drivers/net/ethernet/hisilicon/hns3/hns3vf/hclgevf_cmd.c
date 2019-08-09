@@ -98,7 +98,6 @@ static void hclgevf_cmd_config_regs(struct hclgevf_cmq_ring *ring)
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, reg_val);
 
 		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
-		reg_val |= HCLGEVF_NIC_CMQ_ENABLE;
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, reg_val);
 
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
@@ -110,7 +109,6 @@ static void hclgevf_cmd_config_regs(struct hclgevf_cmq_ring *ring)
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_H_REG, reg_val);
 
 		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
-		reg_val |= HCLGEVF_NIC_CMQ_ENABLE;
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_DEPTH_REG, reg_val);
 
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
@@ -179,6 +177,38 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 		desc->flag &= cpu_to_le16(~HCLGEVF_CMD_FLAG_WR);
 }
 
+static int hclgevf_cmd_convert_err_code(u16 desc_ret)
+{
+	switch (desc_ret) {
+	case HCLGEVF_CMD_EXEC_SUCCESS:
+		return 0;
+	case HCLGEVF_CMD_NO_AUTH:
+		return -EPERM;
+	case HCLGEVF_CMD_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case HCLGEVF_CMD_QUEUE_FULL:
+		return -EXFULL;
+	case HCLGEVF_CMD_NEXT_ERR:
+		return -ENOSR;
+	case HCLGEVF_CMD_UNEXE_ERR:
+		return -ENOTBLK;
+	case HCLGEVF_CMD_PARA_ERR:
+		return -EINVAL;
+	case HCLGEVF_CMD_RESULT_ERR:
+		return -ERANGE;
+	case HCLGEVF_CMD_TIMEOUT:
+		return -ETIME;
+	case HCLGEVF_CMD_HILINK_ERR:
+		return -ENOLINK;
+	case HCLGEVF_CMD_QUEUE_ILLEGAL:
+		return -ENXIO;
+	case HCLGEVF_CMD_INVALID:
+		return -EBADR;
+	default:
+		return -EIO;
+	}
+}
+
 /* hclgevf_cmd_send - send command to command queue
  * @hw: pointer to the hw struct
  * @desc: prefilled descriptor for describing the command
@@ -190,6 +220,7 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 {
 	struct hclgevf_dev *hdev = (struct hclgevf_dev *)hw->hdev;
+	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
 	struct hclgevf_desc *desc_to_use;
 	bool complete = false;
 	u32 timeout = 0;
@@ -201,8 +232,17 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 
 	spin_lock_bh(&hw->cmq.csq.lock);
 
-	if (num > hclgevf_ring_space(&hw->cmq.csq) ||
-	    test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+	if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+		spin_unlock_bh(&hw->cmq.csq.lock);
+		return -EBUSY;
+	}
+
+	if (num > hclgevf_ring_space(&hw->cmq.csq)) {
+		/* If CMDQ ring is full, SW HEAD and HW HEAD may be different,
+		 * need update the SW HEAD pointer csq->next_to_clean
+		 */
+		csq->next_to_clean = hclgevf_read_dev(hw,
+						      HCLGEVF_NIC_CSQ_HEAD_REG);
 		spin_unlock_bh(&hw->cmq.csq.lock);
 		return -EBUSY;
 	}
@@ -251,11 +291,7 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 			else
 				retval = le16_to_cpu(desc[0].retval);
 
-			if ((enum hclgevf_cmd_return_status)retval ==
-			    HCLGEVF_CMD_EXEC_SUCCESS)
-				status = 0;
-			else
-				status = -EIO;
+			status = hclgevf_cmd_convert_err_code(retval);
 			hw->cmq.last_status = (enum hclgevf_cmd_status)retval;
 			ntc++;
 			handle++;
@@ -265,14 +301,13 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 	}
 
 	if (!complete)
-		status = -EAGAIN;
+		status = -EBADE;
 
 	/* Clean the command send queue */
 	handle = hclgevf_cmd_csq_clean(hw);
-	if (handle != num) {
+	if (handle != num)
 		dev_warn(&hdev->pdev->dev,
 			 "cleaned %d, need to clean %d\n", handle, num);
-	}
 
 	spin_unlock_bh(&hw->cmq.csq.lock);
 

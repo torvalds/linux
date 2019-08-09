@@ -1,22 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Exynos DRM Parallel output support.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
  *
  * Contacts: Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
-
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_probe_helper.h>
 
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include <video/of_videomode.h>
 #include <video/videomode.h>

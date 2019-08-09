@@ -89,7 +89,7 @@ increase the chances of your change being accepted.
   console. Excessive logging can seriously affect system performance.
 
 * Use devres functions whenever possible to allocate resources. For rationale
-  and supported functions, please see Documentation/driver-model/devres.txt.
+  and supported functions, please see Documentation/driver-api/driver-model/devres.rst.
   If a function is not supported by devres, consider using devm_add_action().
 
 * If the driver has a detect function, make sure it is silent. Debug messages

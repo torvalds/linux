@@ -239,7 +239,7 @@ int die_if_kernel(char *str, struct pt_regs *regs, long err)
 static void misaligned_instruction(struct pt_regs *regs)
 {
 	die_if_kernel("Misaligned Instruction", regs, 0);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 }
 
 /*
@@ -250,19 +250,19 @@ static void misaligned_instruction(struct pt_regs *regs)
 static void misaligned_data_load(struct pt_regs *regs)
 {
 	die_if_kernel("Misaligned Data Load", regs, 0);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 }
 
 static void misaligned_data_store(struct pt_regs *regs)
 {
 	die_if_kernel("Misaligned Data Store", regs, 0);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 }
 
 static void illegal_instruction(struct pt_regs *regs)
 {
 	die_if_kernel("Illegal Instruction", regs, 0);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 /*
@@ -272,7 +272,7 @@ static void illegal_instruction(struct pt_regs *regs)
 static void precise_bus_error(struct pt_regs *regs)
 {
 	die_if_kernel("Precise Bus Error", regs, 0);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 }
 
 /*
@@ -407,7 +407,7 @@ void do_trap0(struct pt_regs *regs)
 			 * may want to use a different trap0 flavor.
 			 */
 			force_sig_fault(SIGTRAP, TRAP_BRKPT,
-					(void __user *) pt_elr(regs), current);
+					(void __user *) pt_elr(regs));
 		} else {
 #ifdef CONFIG_KGDB
 			kgdb_handle_exception(pt_cause(regs), SIGTRAP,

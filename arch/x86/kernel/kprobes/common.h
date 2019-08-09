@@ -5,15 +5,10 @@
 /* Kprobes and Optprobes common header */
 
 #include <asm/asm.h>
-
-#ifdef CONFIG_FRAME_POINTER
-# define SAVE_RBP_STRING "	push %" _ASM_BP "\n" \
-			 "	mov  %" _ASM_SP ", %" _ASM_BP "\n"
-#else
-# define SAVE_RBP_STRING "	push %" _ASM_BP "\n"
-#endif
+#include <asm/frame.h>
 
 #ifdef CONFIG_X86_64
+
 #define SAVE_REGS_STRING			\
 	/* Skip cs, ip, orig_ax. */		\
 	"	subq $24, %rsp\n"		\
@@ -27,11 +22,13 @@
 	"	pushq %r10\n"			\
 	"	pushq %r11\n"			\
 	"	pushq %rbx\n"			\
-	SAVE_RBP_STRING				\
+	"	pushq %rbp\n"			\
 	"	pushq %r12\n"			\
 	"	pushq %r13\n"			\
 	"	pushq %r14\n"			\
-	"	pushq %r15\n"
+	"	pushq %r15\n"			\
+	ENCODE_FRAME_POINTER
+
 #define RESTORE_REGS_STRING			\
 	"	popq %r15\n"			\
 	"	popq %r14\n"			\
@@ -51,19 +48,22 @@
 	/* Skip orig_ax, ip, cs */		\
 	"	addq $24, %rsp\n"
 #else
+
 #define SAVE_REGS_STRING			\
 	/* Skip cs, ip, orig_ax and gs. */	\
-	"	subl $16, %esp\n"		\
+	"	subl $4*4, %esp\n"		\
 	"	pushl %fs\n"			\
 	"	pushl %es\n"			\
 	"	pushl %ds\n"			\
 	"	pushl %eax\n"			\
-	SAVE_RBP_STRING				\
+	"	pushl %ebp\n"			\
 	"	pushl %edi\n"			\
 	"	pushl %esi\n"			\
 	"	pushl %edx\n"			\
 	"	pushl %ecx\n"			\
-	"	pushl %ebx\n"
+	"	pushl %ebx\n"			\
+	ENCODE_FRAME_POINTER
+
 #define RESTORE_REGS_STRING			\
 	"	popl %ebx\n"			\
 	"	popl %ecx\n"			\
@@ -72,8 +72,8 @@
 	"	popl %edi\n"			\
 	"	popl %ebp\n"			\
 	"	popl %eax\n"			\
-	/* Skip ds, es, fs, gs, orig_ax, and ip. Note: don't pop cs here*/\
-	"	addl $24, %esp\n"
+	/* Skip ds, es, fs, gs, orig_ax, ip, and cs. */\
+	"	addl $7*4, %esp\n"
 #endif
 
 /* Ensure if the instruction can be boostable */

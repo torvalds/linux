@@ -61,6 +61,9 @@ static struct regulator_consumer_supply da830_evm_usb_supplies[] = {
 static struct regulator_init_data da830_evm_usb_vbus_data = {
 	.consumer_supplies	= da830_evm_usb_supplies,
 	.num_consumer_supplies	= ARRAY_SIZE(da830_evm_usb_supplies),
+	.constraints    = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
 };
 
 static struct fixed_voltage_config da830_evm_usb_vbus = {
@@ -88,7 +91,7 @@ static struct gpiod_lookup_table da830_evm_usb_oc_gpio_lookup = {
 static struct gpiod_lookup_table da830_evm_usb_vbus_gpio_lookup = {
 	.dev_id		= "reg-fixed-voltage.0",
 	.table = {
-		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_DRV, "vbus", 0),
+		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_DRV, NULL, 0),
 		{ }
 	},
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  skl-topology.c - Implements Platform component ALSA controls/widget
  *  handlers.
@@ -5,15 +6,6 @@
  *  Copyright (C) 2014-2015 Intel Corp
  *  Author: Jeeja KP <jeeja.kp@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/slab.h>
@@ -580,7 +572,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 	int ret = 0;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
-		uuid_le *uuid_mod;
+		guid_t *uuid_mod;
 		w = w_module->w;
 		mconfig = w->priv;
 
@@ -588,7 +580,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (mconfig->id.module_id < 0) {
 			dev_err(skl->skl_sst->dev,
 					"module %pUL id not populated\n",
-					(uuid_le *)mconfig->guid);
+					(guid_t *)mconfig->guid);
 			return -EIO;
 		}
 
@@ -622,7 +614,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
-		uuid_mod = (uuid_le *)mconfig->guid;
+		uuid_mod = (guid_t *)mconfig->guid;
 		mconfig->id.pvt_id = skl_get_pvt_id(ctx, uuid_mod,
 						mconfig->id.instance_id);
 		if (mconfig->id.pvt_id < 0)
@@ -661,9 +653,9 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 	struct skl_module_cfg *mconfig = NULL;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
-		uuid_le *uuid_mod;
+		guid_t *uuid_mod;
 		mconfig  = w_module->w->priv;
-		uuid_mod = (uuid_le *)mconfig->guid;
+		uuid_mod = (guid_t *)mconfig->guid;
 
 		if (mconfig->module->loadable && ctx->dsp->fw_ops.unload_mod &&
 			mconfig->m_state > SKL_MODULE_UNINIT) {
@@ -918,12 +910,12 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int skl_get_module_id(struct skl_sst *ctx, uuid_le *uuid)
+static int skl_get_module_id(struct skl_sst *ctx, guid_t *uuid)
 {
 	struct uuid_module *module;
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
-		if (uuid_le_cmp(*uuid, module->uuid) == 0)
+		if (guid_equal(uuid, &module->uuid))
 			return module->id;
 	}
 
@@ -941,9 +933,7 @@ static int skl_tplg_find_moduleid_from_uuid(struct skl *skl,
 
 	if (bc->set_params == SKL_PARAM_BIND && bc->max) {
 		uuid_params = (struct skl_kpb_params *)bc->params;
-		size = uuid_params->num_modules *
-			sizeof(struct skl_mod_inst_map) +
-			sizeof(uuid_params->num_modules);
+		size = struct_size(params, u.map, uuid_params->num_modules);
 
 		params = devm_kzalloc(bus->dev, size, GFP_KERNEL);
 		if (!params)
@@ -1494,22 +1484,18 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	struct skl *skl = get_skl_ctx(w->dapm->dev);
 
 	if (ac->params) {
+		/*
+		 * Widget data is expected to be stripped of T and L
+		 */
+		size -= 2 * sizeof(unsigned int);
+		data += 2;
+
 		if (size > ac->max)
 			return -EINVAL;
-
 		ac->size = size;
-		/*
-		 * if the param_is is of type Vendor, firmware expects actual
-		 * parameter id and size from the control.
-		 */
-		if (ac->param_id == SKL_PARAM_VENDOR_ID) {
-			if (copy_from_user(ac->params, data, size))
-				return -EFAULT;
-		} else {
-			if (copy_from_user(ac->params,
-					   data + 2, size))
-				return -EFAULT;
-		}
+
+		if (copy_from_user(ac->params, data, size))
+			return -EFAULT;
 
 		if (w->power)
 			return skl_set_module_params(skl->skl_sst,
@@ -2123,11 +2109,11 @@ static int skl_tplg_add_pipe(struct device *dev,
 	return 0;
 }
 
-static int skl_tplg_get_uuid(struct device *dev, u8 *guid,
+static int skl_tplg_get_uuid(struct device *dev, guid_t *guid,
 	      struct snd_soc_tplg_vendor_uuid_elem *uuid_tkn)
 {
 	if (uuid_tkn->token == SKL_TKN_UUID) {
-		memcpy(guid, &uuid_tkn->uuid, 16);
+		guid_copy(guid, (guid_t *)&uuid_tkn->uuid);
 		return 0;
 	}
 
@@ -2153,7 +2139,7 @@ static int skl_tplg_fill_pin(struct device *dev,
 		break;
 
 	case SKL_TKN_UUID:
-		ret = skl_tplg_get_uuid(dev, m_pin[pin_index].id.mod_uuid.b,
+		ret = skl_tplg_get_uuid(dev, &m_pin[pin_index].id.mod_uuid,
 			(struct snd_soc_tplg_vendor_uuid_elem *)tkn_elem);
 		if (ret < 0)
 			return ret;
@@ -2669,7 +2655,7 @@ static int skl_tplg_get_tokens(struct device *dev,
 
 		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
 			if (is_module_guid) {
-				ret = skl_tplg_get_uuid(dev, mconfig->guid,
+				ret = skl_tplg_get_uuid(dev, (guid_t *)mconfig->guid,
 							array->uuid);
 				is_module_guid = false;
 			} else {
@@ -3315,7 +3301,7 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
 		struct skl *skl)
 {
-	int tkn_count = 0, ret, size;
+	int tkn_count = 0, ret;
 	static int mod_idx, res_val_idx, intf_val_idx, dir, pin_idx;
 	struct skl_module_res *res = NULL;
 	struct skl_module_iface *fmt = NULL;
@@ -3323,6 +3309,7 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 	static struct skl_astate_param *astate_table;
 	static int astate_cfg_idx, count;
 	int i;
+	size_t size;
 
 	if (skl->modules) {
 		mod = skl->modules[mod_idx];
@@ -3366,8 +3353,8 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 			return -EINVAL;
 		}
 
-		size = tkn_elem->value * sizeof(struct skl_astate_param) +
-				sizeof(count);
+		size = struct_size(skl->cfg.astate_cfg, astate_table,
+				   tkn_elem->value);
 		skl->cfg.astate_cfg = devm_kzalloc(dev, size, GFP_KERNEL);
 		if (!skl->cfg.astate_cfg)
 			return -ENOMEM;
@@ -3487,7 +3474,7 @@ static int skl_tplg_get_manifest_uuid(struct device *dev,
 
 	if (uuid_tkn->token == SKL_TKN_UUID) {
 		mod = skl->modules[ref_count];
-		memcpy(&mod->uuid, &uuid_tkn->uuid, sizeof(uuid_tkn->uuid));
+		guid_copy(&mod->uuid, (guid_t *)&uuid_tkn->uuid);
 		ref_count++;
 	} else {
 		dev_err(dev, "Not an UUID token tkn %d\n", uuid_tkn->token);
@@ -3757,4 +3744,19 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 		skl_tplg_set_pipe_type(skl, ppl->pipe);
 
 	return 0;
+}
+
+void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
+{
+	struct skl *skl = bus_to_skl(bus);
+	struct skl_pipeline *ppl, *tmp;
+
+	if (!list_empty(&skl->ppl_list))
+		list_for_each_entry_safe(ppl, tmp, &skl->ppl_list, node)
+			list_del(&ppl->node);
+
+	/* clean up topology */
+	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+
+	release_firmware(skl->tplg);
 }

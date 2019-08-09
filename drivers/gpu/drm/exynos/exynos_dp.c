@@ -6,25 +6,24 @@
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
 
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/err.h>
+#include <linux/module.h>
+#include <linux/of_graph.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
-#include <drm/drmP.h>
+#include <drm/bridge/analogix_dp.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-
-#include <drm/bridge/analogix_dp.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_crtc.h"

@@ -172,11 +172,31 @@ registers which makes BPF inefficient virtual machine for 32-bit
 CPU architectures and 32-bit HW accelerators. Can true 32-bit registers
 be added to BPF in the future?
 
-A: NO. The first thing to improve performance on 32-bit archs is to teach
-LLVM to generate code that uses 32-bit subregisters. Then second step
-is to teach verifier to mark operations where zero-ing upper bits
-is unnecessary. Then JITs can take advantage of those markings and
-drastically reduce size of generated code and improve performance.
+A: NO.
+
+But some optimizations on zero-ing the upper 32 bits for BPF registers are
+available, and can be leveraged to improve the performance of JITed BPF
+programs for 32-bit architectures.
+
+Starting with version 7, LLVM is able to generate instructions that operate
+on 32-bit subregisters, provided the option -mattr=+alu32 is passed for
+compiling a program. Furthermore, the verifier can now mark the
+instructions for which zero-ing the upper bits of the destination register
+is required, and insert an explicit zero-extension (zext) instruction
+(a mov32 variant). This means that for architectures without zext hardware
+support, the JIT back-ends do not need to clear the upper bits for
+subregisters written by alu32 instructions or narrow loads. Instead, the
+back-ends simply need to support code generation for that mov32 variant,
+and to overwrite bpf_jit_needs_zext() to make it return "true" (in order to
+enable zext insertion in the verifier).
+
+Note that it is possible for a JIT back-end to have partial hardware
+support for zext. In that case, if verifier zext insertion is enabled,
+it could lead to the insertion of unnecessary zext instructions. Such
+instructions could be removed by creating a simple peephole inside the JIT
+back-end: if one instruction has hardware support for zext and if the next
+instruction is an explicit zext, then the latter can be skipped when doing
+the code generation.
 
 Q: Does BPF have a stable ABI?
 ------------------------------

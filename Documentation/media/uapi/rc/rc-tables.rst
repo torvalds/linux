@@ -54,7 +54,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 3
 
-       -  ``KEY_0``
+       -  ``KEY_NUMERIC_0``
 
        -  Keyboard digit 0
 
@@ -62,7 +62,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 4
 
-       -  ``KEY_1``
+       -  ``KEY_NUMERIC_1``
 
        -  Keyboard digit 1
 
@@ -70,7 +70,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 5
 
-       -  ``KEY_2``
+       -  ``KEY_NUMERIC_2``
 
        -  Keyboard digit 2
 
@@ -78,7 +78,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 6
 
-       -  ``KEY_3``
+       -  ``KEY_NUMERIC_3``
 
        -  Keyboard digit 3
 
@@ -86,7 +86,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 7
 
-       -  ``KEY_4``
+       -  ``KEY_NUMERIC_4``
 
        -  Keyboard digit 4
 
@@ -94,7 +94,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 8
 
-       -  ``KEY_5``
+       -  ``KEY_NUMERIC_5``
 
        -  Keyboard digit 5
 
@@ -102,7 +102,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 9
 
-       -  ``KEY_6``
+       -  ``KEY_NUMERIC_6``
 
        -  Keyboard digit 6
 
@@ -110,7 +110,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 10
 
-       -  ``KEY_7``
+       -  ``KEY_NUMERIC_7``
 
        -  Keyboard digit 7
 
@@ -118,7 +118,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 11
 
-       -  ``KEY_8``
+       -  ``KEY_NUMERIC_8``
 
        -  Keyboard digit 8
 
@@ -126,7 +126,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 12
 
-       -  ``KEY_9``
+       -  ``KEY_NUMERIC_9``
 
        -  Keyboard digit 9
 
@@ -196,7 +196,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_PAUSE``
 
-       -  Pause sroweam
+       -  Pause stream
 
        -  PAUSE / FREEZE
 
@@ -220,7 +220,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_STOP``
 
-       -  Stop sroweam
+       -  Stop stream
 
        -  STOP
 
@@ -228,7 +228,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_RECORD``
 
-       -  Start/stop recording sroweam
+       -  Start/stop recording stream
 
        -  CAPTURE / REC / RECORD/PAUSE
 
@@ -577,7 +577,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_CLEAR``
 
-       -  Stop sroweam and return to default input video/audio
+       -  Stop stream and return to default input video/audio
 
        -  CLEAR / RESET / BOSS KEY
 
@@ -593,7 +593,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_FAVORITES``
 
-       -  Open the favorites sroweam window
+       -  Open the favorites stream window
 
        -  TV WALL / Favorites
 

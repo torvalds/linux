@@ -758,7 +758,7 @@ static int tca6507_probe(struct i2c_client *client,
 	int err;
 	int i = 0;
 
-	adapter = to_i2c_adapter(client->dev.parent);
+	adapter = client->adapter;
 	pdata = dev_get_platdata(&client->dev);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))

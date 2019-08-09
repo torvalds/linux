@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * purgatory:  setup code
  *
@@ -5,9 +6,6 @@
  * Copyright (C) 2014 Red Hat Inc.
  *
  * This code has been taken from kexec-tools.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 #include <asm/purgatory.h>
 

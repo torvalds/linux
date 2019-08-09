@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# SPDX-License-Identifier: GPL-2.0-only
 # -*- coding: utf-8 -*-
 #
 """ This utility can be used to debug and tune the performance of the

@@ -45,7 +45,7 @@ enum i915_drm_suspend_mode {
  * to be disabled. This shouldn't happen and we'll print some error messages in
  * case it happens.
  *
- * For more, read the Documentation/power/runtime_pm.txt.
+ * For more, read the Documentation/power/runtime_pm.rst.
  */
 struct intel_runtime_pm {
 	atomic_t wakeref_count;

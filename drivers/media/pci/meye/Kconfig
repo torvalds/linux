@@ -2,7 +2,8 @@
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
 	depends on PCI && VIDEO_V4L2
-	depends on SONY_LAPTOP || COMPILE_TEST
+	depends on SONY_LAPTOP
+	depends on X86 || COMPILE_TEST
 	help
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in

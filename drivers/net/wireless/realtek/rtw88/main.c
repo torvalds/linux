@@ -20,7 +20,7 @@ EXPORT_SYMBOL(rtw_debug_mask);
 module_param_named(support_lps, rtw_fw_support_lps, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
-MODULE_PARM_DESC(support_lps, "Set Y to enable LPS support");
+MODULE_PARM_DESC(support_lps, "Set Y to enable Leisure Power Save support, to turn radio off between beacons");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
 static struct ieee80211_channel rtw_channeltable_2g[] = {
@@ -162,7 +162,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtwdev->stats.tx_cnt = 0;
 	rtwdev->stats.rx_cnt = 0;
 
-	rtw_iterate_vifs(rtwdev, rtw_vif_watch_dog_iter, &data);
+	/* use atomic version to avoid taking local->iflist_mtx mutex */
+	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_watch_dog_iter, &data);
 
 	/* fw supports only one station associated to enter lps, if there are
 	 * more than two stations associated to the AP, then we can not enter
@@ -197,14 +198,19 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
+	u8 *cch_by_bw = chan_params->cch_by_bw;
 	u32 primary_freq, center_freq;
 	u8 center_chan;
 	u8 bandwidth = RTW_CHANNEL_WIDTH_20;
 	u8 primary_chan_idx = 0;
+	u8 i;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
 	center_freq = chandef->center_freq1;
+
+	/* assign the center channel used while 20M bw is selected */
+	cch_by_bw[RTW_CHANNEL_WIDTH_20] = channel->hw_value;
 
 	switch (width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -232,6 +238,10 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = 3;
 				center_chan -= 6;
 			}
+			/* assign the center channel used
+			 * while 40M bw is selected
+			 */
+			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan + 4;
 		} else {
 			if (center_freq - primary_freq == 10) {
 				primary_chan_idx = 2;
@@ -240,6 +250,10 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = 4;
 				center_chan += 6;
 			}
+			/* assign the center channel used
+			 * while 40M bw is selected
+			 */
+			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan - 4;
 		}
 		break;
 	default:
@@ -250,6 +264,12 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 	chan_params->center_chan = center_chan;
 	chan_params->bandwidth = bandwidth;
 	chan_params->primary_chan_idx = primary_chan_idx;
+
+	/* assign the center channel used while current bw is selected */
+	cch_by_bw[bandwidth] = center_chan;
+
+	for (i = bandwidth + 1; i <= RTW_MAX_CHANNEL_WIDTH; i++)
+		cch_by_bw[i] = 0;
 }
 
 void rtw_set_channel(struct rtw_dev *rtwdev)
@@ -259,6 +279,7 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_channel_params ch_param;
 	u8 center_chan, bandwidth, primary_chan_idx;
+	u8 i;
 
 	rtw_get_channel_params(&hw->conf.chandef, &ch_param);
 	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
@@ -271,6 +292,10 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
 	hal->current_band_type = center_chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+
+	for (i = RTW_CHANNEL_WIDTH_20; i <= RTW_MAX_CHANNEL_WIDTH; i++)
+		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
+
 	chip->ops->set_channel(rtwdev, center_chan, bandwidth, primary_chan_idx);
 
 	rtw_phy_set_tx_power_level(rtwdev, center_chan);
@@ -307,6 +332,11 @@ void rtw_vif_port_config(struct rtw_dev *rtwdev,
 		addr = rtwvif->conf->aid.addr;
 		mask = rtwvif->conf->aid.mask;
 		rtw_write32_mask(rtwdev, addr, mask, rtwvif->aid);
+	}
+	if (config & PORT_SET_BCN_CTRL) {
+		addr = rtwvif->conf->bcn_ctrl.addr;
+		mask = rtwvif->conf->bcn_ctrl.mask;
+		rtw_write8_mask(rtwdev, addr, mask, rtwvif->bcn_ctrl);
 	}
 }
 
@@ -1041,7 +1071,7 @@ static int rtw_chip_board_info_setup(struct rtw_dev *rtwdev)
 
 	rtw_phy_setup_phy_cond(rtwdev, 0);
 
-	rtw_hw_init_tx_power(hal);
+	rtw_phy_init_tx_power(rtwdev);
 	rtw_load_table(rtwdev, rfe_def->phy_pg_tbl);
 	rtw_load_table(rtwdev, rfe_def->txpwr_lmt_tbl);
 	rtw_phy_tx_power_by_rate_config(hal);
@@ -1168,6 +1198,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
@@ -1176,6 +1207,8 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
+
+	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	rtw_set_supported_band(hw, rtwdev->chip);
 	SET_IEEE80211_PERM_ADDR(hw, rtwdev->efuse.addr);

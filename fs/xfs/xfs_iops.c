@@ -10,30 +10,20 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
 #include "xfs_inode.h"
-#include "xfs_bmap.h"
-#include "xfs_bmap_util.h"
 #include "xfs_acl.h"
 #include "xfs_quota.h"
-#include "xfs_error.h"
 #include "xfs_attr.h"
 #include "xfs_trans.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2.h"
-#include "xfs_trans_space.h"
 #include "xfs_iomap.h"
-#include "xfs_defer.h"
 
-#include <linux/capability.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
-#include <linux/iomap.h>
-#include <linux/slab.h>
 #include <linux/iversion.h>
 
 /*

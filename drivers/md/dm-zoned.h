@@ -115,7 +115,6 @@ enum {
 	DMZ_BUF,
 
 	/* Zone internal state */
-	DMZ_ACTIVE,
 	DMZ_RECLAIM,
 	DMZ_SEQ_WRITE_ERR,
 };
@@ -128,7 +127,6 @@ enum {
 #define dmz_is_empty(z)		((z)->wp_block == 0)
 #define dmz_is_offline(z)	test_bit(DMZ_OFFLINE, &(z)->flags)
 #define dmz_is_readonly(z)	test_bit(DMZ_READ_ONLY, &(z)->flags)
-#define dmz_is_active(z)	test_bit(DMZ_ACTIVE, &(z)->flags)
 #define dmz_in_reclaim(z)	test_bit(DMZ_RECLAIM, &(z)->flags)
 #define dmz_seq_write_err(z)	test_bit(DMZ_SEQ_WRITE_ERR, &(z)->flags)
 
@@ -188,8 +186,30 @@ void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone);
 unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd);
 
-void dmz_activate_zone(struct dm_zone *zone);
-void dmz_deactivate_zone(struct dm_zone *zone);
+/*
+ * Activate a zone (increment its reference count).
+ */
+static inline void dmz_activate_zone(struct dm_zone *zone)
+{
+	atomic_inc(&zone->refcount);
+}
+
+/*
+ * Deactivate a zone. This decrement the zone reference counter
+ * indicating that all BIOs to the zone have completed when the count is 0.
+ */
+static inline void dmz_deactivate_zone(struct dm_zone *zone)
+{
+	atomic_dec(&zone->refcount);
+}
+
+/*
+ * Test if a zone is active, that is, has a refcount > 0.
+ */
+static inline bool dmz_is_active(struct dm_zone *zone)
+{
+	return atomic_read(&zone->refcount);
+}
 
 int dmz_lock_zone_reclaim(struct dm_zone *zone);
 void dmz_unlock_zone_reclaim(struct dm_zone *zone);

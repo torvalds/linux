@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * tools/testing/selftests/kvm/lib/kvm_util_internal.h
  *
  * Copyright (C) 2018, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #ifndef SELFTEST_KVM_UTIL_INTERNAL_H
@@ -65,8 +64,6 @@ struct kvm_vm {
 };
 
 struct vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot,
-		int gdt_memslot);
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
 void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent);
 void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent);

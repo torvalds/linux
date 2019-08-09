@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Overview:
  *   Bad block table support for the NAND driver
  *
  *  Copyright © 2004 Thomas Gleixner (tglx@linutronix.de)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Description:
  *
@@ -54,7 +51,6 @@
  * Following assumptions are made:
  * - bbts start at a page boundary, if autolocated on a block boundary
  * - the space necessary for a bbt in FLASH does not exceed a block boundary
- *
  */
 
 #include <linux/slab.h>

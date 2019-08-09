@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Russell King
  *  Rewritten from the dovefb driver, and Armada510 manuals.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef ARMADA_HW_H
 #define ARMADA_HW_H
@@ -88,6 +85,16 @@ enum {
 	ADV_VSYNC_H_OFF	= 0xfff << 0,
 };
 
+/* LCD_CFG_RDREG4F - Armada 510 only */
+enum {
+	CFG_SRAM_WAIT	= BIT(11),
+	CFG_SMPN_FASTTX	= BIT(10),
+	CFG_DMA_ARB	= BIT(9),
+	CFG_DMA_WM_EN	= BIT(8),
+	CFG_DMA_WM_MASK	= 0xff,
+#define CFG_DMA_WM(x)	((x) & CFG_DMA_WM_MASK)
+};
+
 enum {
 	CFG_565		= 0,
 	CFG_1555	= 1,
@@ -169,6 +176,10 @@ enum {
 	SRAM_READ	= 0 << 14,
 	SRAM_WRITE	= 2 << 14,
 	SRAM_INIT	= 3 << 14,
+	SRAM_GAMMA_YR	= 0x0 << 8,
+	SRAM_GAMMA_UG	= 0x1 << 8,
+	SRAM_GAMMA_VB	= 0x2 << 8,
+	SRAM_PALETTE	= 0x3 << 8,
 	SRAM_HWC32_RAM1	= 0xc << 8,
 	SRAM_HWC32_RAM2	= 0xd << 8,
 	SRAM_HWC32_RAMR	= SRAM_HWC32_RAM1,
@@ -315,20 +326,5 @@ enum {
 	GRA_FF_ALLEMPTY		= 1 << 1,
 	PWRDN_IRQ_LEVEL		= 1 << 0,
 };
-
-static inline u32 armada_rect_hw_fp(struct drm_rect *r)
-{
-	return (drm_rect_height(r) & 0xffff0000) | drm_rect_width(r) >> 16;
-}
-
-static inline u32 armada_rect_hw(struct drm_rect *r)
-{
-	return drm_rect_height(r) << 16 | (drm_rect_width(r) & 0x0000ffff);
-}
-
-static inline u32 armada_rect_yx(struct drm_rect *r)
-{
-	return (r)->y1 << 16 | ((r)->x1 & 0x0000ffff);
-}
 
 #endif

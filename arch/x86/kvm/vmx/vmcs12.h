@@ -201,9 +201,10 @@ struct __packed vmcs12 {
 /*
  * VMCS12_SIZE is the number of bytes L1 should allocate for the VMXON region
  * and any VMCS region. Although only sizeof(struct vmcs12) are used by the
- * current implementation, 4K are reserved to avoid future complications.
+ * current implementation, 4K are reserved to avoid future complications and
+ * to preserve userspace ABI.
  */
-#define VMCS12_SIZE 0x1000
+#define VMCS12_SIZE		KVM_STATE_NESTED_VMX_VMCS_SIZE
 
 /*
  * VMCS12_MAX_FIELD_INDEX is the highest index value used in any
@@ -394,69 +395,48 @@ static inline short vmcs_field_to_offset(unsigned long field)
 
 #undef ROL16
 
-/*
- * Read a vmcs12 field. Since these can have varying lengths and we return
- * one type, we chose the biggest type (u64) and zero-extend the return value
- * to that size. Note that the caller, handle_vmread, might need to use only
- * some of the bits we return here (e.g., on 32-bit guests, only 32 bits of
- * 64-bit fields are to be returned).
- */
-static inline int vmcs12_read_any(struct vmcs12 *vmcs12,
-				  unsigned long field, u64 *ret)
+static inline u64 vmcs12_read_any(struct vmcs12 *vmcs12, unsigned long field,
+				  u16 offset)
 {
-	short offset = vmcs_field_to_offset(field);
-	char *p;
-
-	if (offset < 0)
-		return offset;
-
-	p = (char *)vmcs12 + offset;
+	char *p = (char *)vmcs12 + offset;
 
 	switch (vmcs_field_width(field)) {
 	case VMCS_FIELD_WIDTH_NATURAL_WIDTH:
-		*ret = *((natural_width *)p);
-		return 0;
+		return *((natural_width *)p);
 	case VMCS_FIELD_WIDTH_U16:
-		*ret = *((u16 *)p);
-		return 0;
+		return *((u16 *)p);
 	case VMCS_FIELD_WIDTH_U32:
-		*ret = *((u32 *)p);
-		return 0;
+		return *((u32 *)p);
 	case VMCS_FIELD_WIDTH_U64:
-		*ret = *((u64 *)p);
-		return 0;
+		return *((u64 *)p);
 	default:
-		WARN_ON(1);
-		return -ENOENT;
+		WARN_ON_ONCE(1);
+		return -1;
 	}
 }
 
-static inline int vmcs12_write_any(struct vmcs12 *vmcs12,
-				   unsigned long field, u64 field_value){
-	short offset = vmcs_field_to_offset(field);
+static inline void vmcs12_write_any(struct vmcs12 *vmcs12, unsigned long field,
+				    u16 offset, u64 field_value)
+{
 	char *p = (char *)vmcs12 + offset;
-
-	if (offset < 0)
-		return offset;
 
 	switch (vmcs_field_width(field)) {
 	case VMCS_FIELD_WIDTH_U16:
 		*(u16 *)p = field_value;
-		return 0;
+		break;
 	case VMCS_FIELD_WIDTH_U32:
 		*(u32 *)p = field_value;
-		return 0;
+		break;
 	case VMCS_FIELD_WIDTH_U64:
 		*(u64 *)p = field_value;
-		return 0;
+		break;
 	case VMCS_FIELD_WIDTH_NATURAL_WIDTH:
 		*(natural_width *)p = field_value;
-		return 0;
+		break;
 	default:
-		WARN_ON(1);
-		return -ENOENT;
+		WARN_ON_ONCE(1);
+		break;
 	}
-
 }
 
 #endif /* __KVM_X86_VMX_VMCS12_H */

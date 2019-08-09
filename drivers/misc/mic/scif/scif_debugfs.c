@@ -103,11 +103,6 @@ DEFINE_SHOW_ATTRIBUTE(scif_rma);
 void __init scif_init_debugfs(void)
 {
 	scif_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!scif_dbg) {
-		dev_err(scif_info.mdev.this_device,
-			"can't create debugfs dir scif\n");
-		return;
-	}
 
 	debugfs_create_file("scif_dev", 0444, scif_dbg, NULL, &scif_dev_fops);
 	debugfs_create_file("scif_rma", 0444, scif_dbg, NULL, &scif_rma_fops);

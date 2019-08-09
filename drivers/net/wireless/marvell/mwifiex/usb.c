@@ -1128,10 +1128,9 @@ static void mwifiex_usb_tx_aggr_tmo(struct timer_list *t)
 		from_timer(timer_context, t, hold_timer);
 	struct mwifiex_adapter *adapter = timer_context->adapter;
 	struct usb_tx_data_port *port = timer_context->port;
-	unsigned long flags;
 	int err = 0;
 
-	spin_lock_irqsave(&port->tx_aggr_lock, flags);
+	spin_lock_bh(&port->tx_aggr_lock);
 	err = mwifiex_usb_prepare_tx_aggr_skb(adapter, port, &skb_send);
 	if (err) {
 		mwifiex_dbg(adapter, ERROR,
@@ -1158,7 +1157,7 @@ done:
 	if (err == -1)
 		mwifiex_write_data_complete(adapter, skb_send, 0, -1);
 unlock:
-	spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+	spin_unlock_bh(&port->tx_aggr_lock);
 }
 
 /* This function write a command/data packet to card. */
@@ -1169,7 +1168,6 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_card_rec *card = adapter->card;
 	struct urb_context *context = NULL;
 	struct usb_tx_data_port *port = NULL;
-	unsigned long flags;
 	int idx, ret;
 
 	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
@@ -1211,10 +1209,10 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		}
 
 		if (adapter->bus_aggr.enable) {
-			spin_lock_irqsave(&port->tx_aggr_lock, flags);
+			spin_lock_bh(&port->tx_aggr_lock);
 			ret =  mwifiex_usb_aggr_tx_data(adapter, ep, skb,
 							tx_param, port);
-			spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+			spin_unlock_bh(&port->tx_aggr_lock);
 			return ret;
 		}
 

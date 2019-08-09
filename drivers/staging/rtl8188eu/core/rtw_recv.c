@@ -450,7 +450,7 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 		memcpy(&be_tmp, ptr, 2);
 		ether_type = ntohs(be_tmp);
 
-		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
+		if (psta && (psta->ieee8021x_blocked)) {
 			/* blocked */
 			/* only accept EAPOL frame */
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("########%s:psta->ieee8021x_blocked==1\n", __func__));
@@ -700,7 +700,7 @@ static int sta2sta_data_frame(struct adapter *adapter,
 	else
 		*psta = rtw_get_stainfo(pstapriv, sta_addr); /*  get ap_info */
 
-	if (*psta == NULL) {
+	if (!*psta) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("can't get psta under %s ; drop pkt\n", __func__));
 		ret = _FAIL;
 		goto exit;
@@ -764,7 +764,7 @@ static int ap2sta_data_frame(
 		else
 			*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); /*  get ap_info */
 
-		if (*psta == NULL) {
+		if (!*psta) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("ap2sta: can't get psta under STATION_MODE ; drop pkt\n"));
 			ret = _FAIL;
 			goto exit;
@@ -786,7 +786,7 @@ static int ap2sta_data_frame(
 	} else {
 		if (!memcmp(myhwaddr, pattrib->dst, ETH_ALEN) && !mcast) {
 			*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); /*  get sta_info */
-			if (*psta == NULL) {
+			if (!*psta) {
 				DBG_88E("issue_deauth to the ap =%pM for the reason(7)\n", (pattrib->bssid));
 
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
@@ -820,7 +820,7 @@ static int sta2ap_data_frame(struct adapter *adapter,
 		}
 
 		*psta = rtw_get_stainfo(pstapriv, pattrib->src);
-		if (*psta == NULL) {
+		if (!*psta) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("can't get psta under AP_MODE; drop pkt\n"));
 			DBG_88E("issue_deauth to sta=%pM for the reason(7)\n", (pattrib->src));
 
@@ -883,7 +883,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 		aid = GetAid(pframe);
 		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
 
-		if ((psta == NULL) || (psta->aid != aid))
+		if ((!psta) || (psta->aid != aid))
 			return _FAIL;
 
 		/* for rx pkt statistics */
@@ -1479,7 +1479,7 @@ struct recv_frame *recvframe_chk_defrag(struct adapter *padapter,
 		}
 	}
 
-	if ((prtnframe != NULL) && (prtnframe->attrib.privacy)) {
+	if (prtnframe && (prtnframe->attrib.privacy)) {
 		/* after defrag we must check tkip mic code */
 		if (recvframe_chkmic(padapter,  prtnframe) == _FAIL) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("recvframe_chkmic(padapter,  prtnframe)==_FAIL\n"));

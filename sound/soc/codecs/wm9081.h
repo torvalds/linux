@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef WM9081_H
 #define WM9081_H
 
@@ -7,10 +8,6 @@
  * Author: Mark Brown
  *
  * Copyright 2009 Wolfson Microelectronics plc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <sound/soc.h>

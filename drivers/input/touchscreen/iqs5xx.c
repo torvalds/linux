@@ -502,14 +502,6 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 		input_set_capability(input, EV_ABS, ABS_MT_POSITION_Y);
 		input_set_capability(input, EV_ABS, ABS_MT_PRESSURE);
 
-		error = input_mt_init_slots(input,
-				IQS5XX_NUM_CONTACTS, INPUT_MT_DIRECT);
-		if (error) {
-			dev_err(&client->dev,
-				"Failed to initialize slots: %d\n", error);
-			return error;
-		}
-
 		input_set_drvdata(input, iqs5xx);
 		iqs5xx->input = input;
 	}
@@ -591,9 +583,19 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 	if (error)
 		return error;
 
-	return iqs5xx_write_word(client,
-				 prop.swap_x_y ? IQS5XX_X_RES : IQS5XX_Y_RES,
-				 max_y);
+	error = iqs5xx_write_word(client,
+				  prop.swap_x_y ? IQS5XX_X_RES : IQS5XX_Y_RES,
+				  max_y);
+	if (error)
+		return error;
+
+	error = input_mt_init_slots(iqs5xx->input, IQS5XX_NUM_CONTACTS,
+				    INPUT_MT_DIRECT);
+	if (error)
+		dev_err(&client->dev, "Failed to initialize slots: %d\n",
+			error);
+
+	return error;
 }
 
 static int iqs5xx_dev_init(struct i2c_client *client)
@@ -1053,8 +1055,6 @@ static int iqs5xx_probe(struct i2c_client *client,
 	iqs5xx = devm_kzalloc(&client->dev, sizeof(*iqs5xx), GFP_KERNEL);
 	if (!iqs5xx)
 		return -ENOMEM;
-
-	dev_set_drvdata(&client->dev, iqs5xx);
 
 	i2c_set_clientdata(client, iqs5xx);
 	iqs5xx->client = client;

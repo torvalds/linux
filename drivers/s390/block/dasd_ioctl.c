@@ -333,6 +333,59 @@ out_err:
 	return rc;
 }
 
+static int dasd_release_space(struct dasd_device *device,
+			      struct format_data_t *rdata)
+{
+	if (!device->discipline->is_ese && !device->discipline->is_ese(device))
+		return -ENOTSUPP;
+	if (!device->discipline->release_space)
+		return -ENOTSUPP;
+
+	return device->discipline->release_space(device, rdata);
+}
+
+/*
+ * Release allocated space
+ */
+static int dasd_ioctl_release_space(struct block_device *bdev, void __user *argp)
+{
+	struct format_data_t rdata;
+	struct dasd_device *base;
+	int rc = 0;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+	if (!argp)
+		return -EINVAL;
+
+	base = dasd_device_from_gendisk(bdev->bd_disk);
+	if (!base)
+		return -ENODEV;
+	if (base->features & DASD_FEATURE_READONLY ||
+	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags)) {
+		rc = -EROFS;
+		goto out_err;
+	}
+	if (bdev != bdev->bd_contains) {
+		pr_warn("%s: The specified DASD is a partition and tracks cannot be released\n",
+			dev_name(&base->cdev->dev));
+		rc = -EINVAL;
+		goto out_err;
+	}
+
+	if (copy_from_user(&rdata, argp, sizeof(rdata))) {
+		rc = -EFAULT;
+		goto out_err;
+	}
+
+	rc = dasd_release_space(base, &rdata);
+
+out_err:
+	dasd_put_device(base);
+
+	return rc;
+}
+
 #ifdef CONFIG_DASD_PROFILE
 /*
  * Reset device profile information
@@ -594,6 +647,9 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	case BIODASDREADALLCMB:
 		rc = dasd_ioctl_readall_cmb(block, cmd, argp);
+		break;
+	case BIODASDRAS:
+		rc = dasd_ioctl_release_space(bdev, argp);
 		break;
 	default:
 		/* if the discipline has an ioctl method try it. */

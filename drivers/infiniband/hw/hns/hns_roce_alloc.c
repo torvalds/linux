@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include "hns_roce_device.h"
+#include <rdma/ib_umem.h>
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj)
 {
@@ -67,7 +68,6 @@ void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
 {
 	hns_roce_bitmap_free_range(bitmap, obj, 1, rr);
 }
-EXPORT_SYMBOL_GPL(hns_roce_bitmap_free);
 
 int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 				int align, unsigned long *obj)
@@ -174,7 +174,6 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		kfree(buf->page_list);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_buf_free);
 
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift)
@@ -235,6 +234,104 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 
 err_free:
 	hns_roce_buf_free(hr_dev, size, buf);
+	return -ENOMEM;
+}
+
+int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+			   int buf_cnt, int start, struct hns_roce_buf *buf)
+{
+	int i, end;
+	int total;
+
+	end = start + buf_cnt;
+	if (end > buf->npages) {
+		dev_err(hr_dev->dev,
+			"invalid kmem region,offset %d,buf_cnt %d,total %d!\n",
+			start, buf_cnt, buf->npages);
+		return -EINVAL;
+	}
+
+	total = 0;
+	for (i = start; i < end; i++)
+		if (buf->nbufs == 1)
+			bufs[total++] = buf->direct.map +
+					((dma_addr_t)i << buf->page_shift);
+		else
+			bufs[total++] = buf->page_list[i].map;
+
+	return total;
+}
+
+int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+			   int buf_cnt, int start, struct ib_umem *umem,
+			   int page_shift)
+{
+	struct ib_block_iter biter;
+	int total = 0;
+	int idx = 0;
+	u64 addr;
+
+	if (page_shift < PAGE_SHIFT) {
+		dev_err(hr_dev->dev, "invalid page shift %d!\n", page_shift);
+		return -EINVAL;
+	}
+
+	/* convert system page cnt to hw page cnt */
+	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap,
+			    1 << page_shift) {
+		addr = rdma_block_iter_dma_address(&biter);
+		if (idx >= start) {
+			bufs[total++] = addr;
+			if (total >= buf_cnt)
+				goto done;
+		}
+		idx++;
+	}
+
+done:
+	return total;
+}
+
+void hns_roce_init_buf_region(struct hns_roce_buf_region *region, int hopnum,
+			      int offset, int buf_cnt)
+{
+	if (hopnum == HNS_ROCE_HOP_NUM_0)
+		region->hopnum = 0;
+	else
+		region->hopnum = hopnum;
+
+	region->offset = offset;
+	region->count = buf_cnt;
+}
+
+void hns_roce_free_buf_list(dma_addr_t **bufs, int region_cnt)
+{
+	int i;
+
+	for (i = 0; i < region_cnt; i++) {
+		kfree(bufs[i]);
+		bufs[i] = NULL;
+	}
+}
+
+int hns_roce_alloc_buf_list(struct hns_roce_buf_region *regions,
+			    dma_addr_t **bufs, int region_cnt)
+{
+	struct hns_roce_buf_region *r;
+	int i;
+
+	for (i = 0; i < region_cnt; i++) {
+		r = &regions[i];
+		bufs[i] = kcalloc(r->count, sizeof(dma_addr_t), GFP_KERNEL);
+		if (!bufs[i])
+			goto err_alloc;
+	}
+
+	return 0;
+
+err_alloc:
+	hns_roce_free_buf_list(bufs, i);
+
 	return -ENOMEM;
 }
 

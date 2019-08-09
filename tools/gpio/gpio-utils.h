@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * GPIO tools - utility helpers library for the GPIO tools
  *
@@ -7,9 +8,6 @@
  * Copyright (c) 2010 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
  * Copyright (c) 2008 Jonathan Cameron
  * *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef _GPIO_UTILS_H_
 #define _GPIO_UTILS_H_

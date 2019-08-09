@@ -47,6 +47,7 @@ enum {
 enum {
 	MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT = BIT(0),
 	MLX5_FLOW_TABLE_TUNNEL_EN_DECAP = BIT(1),
+	MLX5_FLOW_TABLE_TERMINATION = BIT(2),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -87,10 +88,21 @@ struct mlx5_flow_group;
 struct mlx5_flow_namespace;
 struct mlx5_flow_handle;
 
+enum {
+	FLOW_CONTEXT_HAS_TAG = BIT(0),
+};
+
+struct mlx5_flow_context {
+	u32 flags;
+	u32 flow_tag;
+	u32 flow_source;
+};
+
 struct mlx5_flow_spec {
 	u8   match_criteria_enable;
 	u32  match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
 	u32  match_value[MLX5_ST_SZ_DW(fte_match_param)];
+	struct mlx5_flow_context flow_context;
 };
 
 enum {
@@ -172,13 +184,11 @@ struct mlx5_fs_vlan {
 #define MLX5_FS_VLAN_DEPTH	2
 
 enum {
-	FLOW_ACT_HAS_TAG   = BIT(0),
-	FLOW_ACT_NO_APPEND = BIT(1),
+	FLOW_ACT_NO_APPEND = BIT(0),
 };
 
 struct mlx5_flow_act {
 	u32 action;
-	u32 flow_tag;
 	u32 reformat_id;
 	u32 modify_id;
 	uintptr_t esp_id;
@@ -189,7 +199,6 @@ struct mlx5_flow_act {
 
 #define MLX5_DECLARE_FLOW_ACT(name) \
 	struct mlx5_flow_act name = { .action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,\
-				      .flow_tag = MLX5_FS_DEFAULT_FLOW_TAG, \
 				      .reformat_id = 0, \
 				      .modify_id = 0, \
 				      .flags =  0, }
@@ -199,7 +208,7 @@ struct mlx5_flow_act {
  */
 struct mlx5_flow_handle *
 mlx5_add_flow_rules(struct mlx5_flow_table *ft,
-		    struct mlx5_flow_spec *spec,
+		    const struct mlx5_flow_spec *spec,
 		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
 		    int num_dest);

@@ -240,9 +240,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 #ifdef CONFIG_CIFS_XATTR
 	seq_printf(m, ",XATTR");
 #endif
-#ifdef CONFIG_CIFS_ACL
 	seq_printf(m, ",ACL");
-#endif
 	seq_putc(m, '\n');
 	seq_printf(m, "CIFSMaxBufSize: %d\n", CIFSMaxBufSize);
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);

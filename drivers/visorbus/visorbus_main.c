@@ -171,10 +171,10 @@ struct visor_busdev {
 	u32 dev_no;
 };
 
-static int match_visorbus_dev_by_id(struct device *dev, void *data)
+static int match_visorbus_dev_by_id(struct device *dev, const void *data)
 {
 	struct visor_device *vdev = to_visor_device(dev);
-	struct visor_busdev *id = data;
+	const struct visor_busdev *id = data;
 
 	if (vdev->chipset_bus_no == id->bus_no &&
 	    vdev->chipset_dev_no == id->dev_no)

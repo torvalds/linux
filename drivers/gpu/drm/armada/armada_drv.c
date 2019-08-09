@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
 #include <linux/component.h>
@@ -100,6 +97,17 @@ static int armada_drm_bind(struct device *dev)
 		return ret;
 	}
 
+	/* Remove early framebuffers */
+	ret = drm_fb_helper_remove_conflicting_framebuffers(NULL,
+							    "armada-drm-fb",
+							    false);
+	if (ret) {
+		dev_err(dev, "[" DRM_NAME ":%s] can't kick out simple-fb: %d\n",
+			__func__, ret);
+		kfree(priv);
+		return ret;
+	}
+
 	priv->drm.dev_private = priv;
 
 	dev_set_drvdata(dev, &priv->drm);
@@ -171,6 +179,8 @@ static void armada_drm_unbind(struct device *dev)
 
 	drm_dev_unregister(&priv->drm);
 
+	drm_atomic_helper_shutdown(&priv->drm);
+
 	component_unbind_all(dev, &priv->drm);
 
 	drm_mode_config_cleanup(&priv->drm);
@@ -191,23 +201,15 @@ static int compare_dev_name(struct device *dev, void *data)
 }
 
 static void armada_add_endpoints(struct device *dev,
-	struct component_match **match, struct device_node *port)
+	struct component_match **match, struct device_node *dev_node)
 {
 	struct device_node *ep, *remote;
 
-	for_each_child_of_node(port, ep) {
+	for_each_endpoint_of_node(dev_node, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote || !of_device_is_available(remote)) {
-			of_node_put(remote);
-			continue;
-		} else if (!of_device_is_available(remote->parent)) {
-			dev_warn(dev, "parent device of %pOF is not available\n",
-				 remote);
-			of_node_put(remote);
-			continue;
-		}
-
-		drm_of_component_match_add(dev, match, compare_of, remote);
+		if (remote && of_device_is_available(remote))
+			drm_of_component_match_add(dev, match, compare_of,
+						   remote);
 		of_node_put(remote);
 	}
 }
@@ -229,7 +231,6 @@ static int armada_drm_probe(struct platform_device *pdev)
 
 	if (dev->platform_data) {
 		char **devices = dev->platform_data;
-		struct device_node *port;
 		struct device *d;
 		int i;
 
@@ -245,10 +246,8 @@ static int armada_drm_probe(struct platform_device *pdev)
 		for (i = 0; devices[i]; i++) {
 			d = bus_find_device_by_name(&platform_bus_type, NULL,
 						    devices[i]);
-			if (d && d->of_node) {
-				for_each_child_of_node(d->of_node, port)
-					armada_add_endpoints(dev, &match, port);
-			}
+			if (d && d->of_node)
+				armada_add_endpoints(dev, &match, d->of_node);
 			put_device(d);
 		}
 	}

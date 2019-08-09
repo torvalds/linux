@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef ARMADA_CRTC_H
 #define ARMADA_CRTC_H
@@ -39,10 +36,10 @@ struct armada_variant;
 struct armada_crtc {
 	struct drm_crtc		crtc;
 	const struct armada_variant *variant;
+	void			*variant_data;
 	unsigned		num;
 	void __iomem		*base;
 	struct clk		*clk;
-	struct clk		*extclk[2];
 	struct {
 		uint32_t	spu_v_h_total;
 		uint32_t	spu_v_porch;
@@ -74,6 +71,25 @@ struct armada_crtc {
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
+
+struct armada_clocking_params {
+	unsigned long permillage_min;
+	unsigned long permillage_max;
+	u32 settable;
+	u32 div_max;
+};
+
+struct armada_clk_result {
+	unsigned long desired_clk_hz;
+	struct clk *clk;
+	u32 div;
+};
+
+int armada_crtc_select_clock(struct armada_crtc *dcrtc,
+			     struct armada_clk_result *res,
+			     const struct armada_clocking_params *params,
+			     struct clk *clks[], size_t num_clks,
+			     unsigned long desired_khz);
 
 extern struct platform_driver armada_lcd_platform_driver;
 

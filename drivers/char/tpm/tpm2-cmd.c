@@ -297,7 +297,7 @@ struct tpm2_get_random_out {
  *
  * Return:
  *   size of the buffer on success,
- *   -errno otherwise
+ *   -errno otherwise (positive TPM return codes are masked to -EIO)
  */
 int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 {
@@ -324,8 +324,11 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 				       offsetof(struct tpm2_get_random_out,
 						buffer),
 				       "attempting get random");
-		if (err)
+		if (err) {
+			if (err > 0)
+				err = -EIO;
 			goto out;
+		}
 
 		out = (struct tpm2_get_random_out *)
 			&buf.data[TPM_HEADER_SIZE];
@@ -837,7 +840,7 @@ struct tpm2_pcr_selection {
 	u8  pcr_select[3];
 } __packed;
 
-static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
+ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 {
 	struct tpm2_pcr_selection pcr_selection;
 	struct tpm_buf buf;
@@ -1036,10 +1039,6 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		if (rc)
 			goto out;
 	}
-
-	rc = tpm2_get_pcr_allocation(chip);
-	if (rc)
-		goto out;
 
 	rc = tpm2_get_cc_attrs_tbl(chip);
 

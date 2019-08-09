@@ -8,7 +8,8 @@
 #include "reg.h"
 #include "debug.h"
 
-void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev, struct sk_buff *skb)
+static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
+				      struct sk_buff *skb)
 {
 	struct rtw_c2h_cmd *c2h;
 	u8 sub_cmd_id;
@@ -47,7 +48,8 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	}
 }
 
-void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev, u8 *h2c)
+static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
+				    u8 *h2c)
 {
 	u8 box;
 	u8 box_state;

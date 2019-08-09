@@ -37,6 +37,13 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 
+/* Keep the same order as in fs/proc/proc_sysctl.c */
+#define SYSCTL_ZERO	((void *)&sysctl_vals[0])
+#define SYSCTL_ONE	((void *)&sysctl_vals[1])
+#define SYSCTL_INT_MAX	((void *)&sysctl_vals[2])
+
+extern const int sysctl_vals[];
+
 typedef int proc_handler (struct ctl_table *ctl, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos);
 
@@ -63,6 +70,9 @@ extern int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int,
 				      void __user *, size_t *, loff_t *);
 extern int proc_do_large_bitmap(struct ctl_table *, int,
 				void __user *, size_t *, loff_t *);
+extern int proc_do_static_key(struct ctl_table *table, int write,
+			      void __user *buffer, size_t *lenp,
+			      loff_t *ppos);
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table

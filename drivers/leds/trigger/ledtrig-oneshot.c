@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * One-shot LED Trigger
  *
  * Copyright 2012, Fabio Baltieri <fabio.baltieri@gmail.com>
  *
  * Based on ledtrig-timer.c by Richard Purdie <rpurdie@openedhand.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

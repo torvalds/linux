@@ -15,10 +15,10 @@
 #include <string.h>
 #include <linux/bitmap.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 #include "perf.h"
 #include "svghelper.h"
-#include "util.h"
 #include "cpumap.h"
 
 static u64 first_time, last_time;

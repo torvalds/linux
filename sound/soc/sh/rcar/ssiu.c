@@ -60,11 +60,11 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 			  struct rsnd_priv *priv)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	u32 multi_ssi_slaves = rsnd_ssi_multi_slaves_runtime(io);
+	u32 ssis = rsnd_ssi_multi_slaves_runtime(io);
 	int use_busif = rsnd_ssi_use_busif(io);
 	int id = rsnd_mod_id(mod);
-	u32 mask1, val1;
-	u32 mask2, val2;
+	int is_clk_master = rsnd_rdai_is_clk_master(rdai);
+	u32 val1, val2;
 	int i;
 
 	/* clear status */
@@ -89,57 +89,53 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	rsnd_mod_bset(mod, SSI_MODE0, (1 << id), !use_busif << id);
 
 	/*
-	 * SSI_MODE1
+	 * SSI_MODE1 / SSI_MODE2
+	 *
+	 * FIXME
+	 * sharing/multi with SSI0 are mainly supported
 	 */
-	mask1 = (1 << 4) | (1 << 20);	/* mask sync bit */
-	mask2 = (1 << 4);		/* mask sync bit */
-	val1  = val2  = 0;
-	if (id == 8) {
+	val1 = rsnd_mod_read(mod, SSI_MODE1);
+	val2 = rsnd_mod_read(mod, SSI_MODE2);
+	if (rsnd_ssi_is_pin_sharing(io)) {
+
+		ssis |= (1 << id);
+
+	} else if (ssis) {
 		/*
-		 * SSI8 pin is sharing with SSI7, nothing to do.
+		 * Multi SSI
+		 *
+		 * set synchronized bit here
 		 */
-	} else if (rsnd_ssi_is_pin_sharing(io)) {
-		int shift = -1;
 
-		switch (id) {
-		case 1:
-			shift = 0;
-			break;
-		case 2:
-			shift = 2;
-			break;
-		case 4:
-			shift = 16;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		mask1 |= 0x3 << shift;
-		val1 = rsnd_rdai_is_clk_master(rdai) ?
-			0x2 << shift : 0x1 << shift;
-
-	} else if (multi_ssi_slaves) {
-
-		mask2 |= 0x00000007;
-		mask1 |= 0x0000000f;
-
-		switch (multi_ssi_slaves) {
-		case 0x0206: /* SSI0/1/2/9 */
-			val2 = (1 << 4) | /* SSI0129 sync */
-				(rsnd_rdai_is_clk_master(rdai) ? 0x2 : 0x1);
-			/* fall through */
-		case 0x0006: /* SSI0/1/2 */
-			val1 = rsnd_rdai_is_clk_master(rdai) ?
-				0xa : 0x5;
-
-			if (!val2)  /* SSI012 sync */
-				val1 |= (1 << 4);
-		}
+		/* SSI4 is synchronized with SSI3 */
+		if (ssis & (1 << 4))
+			val1 |= (1 << 20);
+		/* SSI012 are synchronized */
+		if (ssis == 0x0006)
+			val1 |= (1 << 4);
+		/* SSI0129 are synchronized */
+		if (ssis == 0x0206)
+			val2 |= (1 << 4);
 	}
 
-	rsnd_mod_bset(mod, SSI_MODE1, mask1, val1);
-	rsnd_mod_bset(mod, SSI_MODE2, mask2, val2);
+	/* SSI1 is sharing pin with SSI0 */
+	if (ssis & (1 << 1))
+		val1 |= is_clk_master ? 0x2 : 0x1;
+
+	/* SSI2 is sharing pin with SSI0 */
+	if (ssis & (1 << 2))
+		val1 |= is_clk_master ?	0x2 << 2 :
+					0x1 << 2;
+	/* SSI4 is sharing pin with SSI3 */
+	if (ssis & (1 << 4))
+		val1 |= is_clk_master ? 0x2 << 16 :
+					0x1 << 16;
+	/* SSI9 is sharing pin with SSI0 */
+	if (ssis & (1 << 9))
+		val2 |= is_clk_master ? 0x2 : 0x1;
+
+	rsnd_mod_bset(mod, SSI_MODE1, 0x0013001f, val1);
+	rsnd_mod_bset(mod, SSI_MODE2, 0x00000017, val2);
 
 	return 0;
 }

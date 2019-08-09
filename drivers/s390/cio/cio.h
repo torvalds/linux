@@ -113,6 +113,7 @@ struct subchannel {
 	enum sch_todo todo;
 	struct work_struct todo_work;
 	struct schib_config config;
+	char *driver_override; /* Driver name to force a match */
 } __attribute__ ((aligned(8)));
 
 DECLARE_PER_CPU_ALIGNED(struct irb, cio_irb);
@@ -134,6 +135,8 @@ extern int cio_commit_config(struct subchannel *sch);
 
 int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key);
 int cio_tm_intrg(struct subchannel *sch);
+
+extern int __init airq_init(void);
 
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE

@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # ftracetest - Ftrace test shell scripts
 #
 # Copyright (C) Hitachi Ltd., 2014
 #  Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 #
-# Released under the terms of the GPL v2.
 
 usage() { # errno [message]
 [ ! -z "$2" ] && echo $2
@@ -23,9 +23,15 @@ echo "		            If <dir> is -, all logs output in console only"
 exit $1
 }
 
+# default error
+err_ret=1
+
+# kselftest skip code is 4
+err_skip=4
+
 errexit() { # message
   echo "Error: $1" 1>&2
-  exit 1
+  exit $err_ret
 }
 
 # Ensuring user privilege
@@ -116,11 +122,31 @@ parse_opts() { # opts
 }
 
 # Parameters
-DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
-if [ -z "$DEBUGFS_DIR" ]; then
-    TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
-else
-    TRACING_DIR=$DEBUGFS_DIR/tracing
+TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
+if [ -z "$TRACING_DIR" ]; then
+    DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
+    if [ -z "$DEBUGFS_DIR" ]; then
+	# If tracefs exists, then so does /sys/kernel/tracing
+	if [ -d "/sys/kernel/tracing" ]; then
+	    mount -t tracefs nodev /sys/kernel/tracing ||
+	      errexit "Failed to mount /sys/kernel/tracing"
+	    TRACING_DIR="/sys/kernel/tracing"
+	# If debugfs exists, then so does /sys/kernel/debug
+	elif [ -d "/sys/kernel/debug" ]; then
+	    mount -t debugfs nodev /sys/kernel/debug ||
+	      errexit "Failed to mount /sys/kernel/debug"
+	    TRACING_DIR="/sys/kernel/debug/tracing"
+	else
+	    err_ret=$err_skip
+	    errexit "debugfs and tracefs are not configured in this kernel"
+	fi
+    else
+	TRACING_DIR="$DEBUGFS_DIR/tracing"
+    fi
+fi
+if [ ! -d "$TRACING_DIR" ]; then
+    err_ret=$err_skip
+    errexit "ftrace is not configured in this kernel"
 fi
 
 TOP_DIR=`absdir $0`

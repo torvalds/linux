@@ -1,12 +1,18 @@
 #ifndef _NET_FLOW_OFFLOAD_H
 #define _NET_FLOW_OFFLOAD_H
 
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <net/flow_dissector.h>
 
 struct flow_match {
 	struct flow_dissector	*dissector;
 	void			*mask;
 	void			*key;
+};
+
+struct flow_match_meta {
+	struct flow_dissector_key_meta *key, *mask;
 };
 
 struct flow_match_basic {
@@ -63,6 +69,8 @@ struct flow_match_enc_opts {
 
 struct flow_rule;
 
+void flow_rule_match_meta(const struct flow_rule *rule,
+			  struct flow_match_meta *out);
 void flow_rule_match_basic(const struct flow_rule *rule,
 			   struct flow_match_basic *out);
 void flow_rule_match_control(const struct flow_rule *rule,
@@ -122,6 +130,7 @@ enum flow_action_id {
 	FLOW_ACTION_QUEUE,
 	FLOW_ACTION_SAMPLE,
 	FLOW_ACTION_POLICE,
+	FLOW_ACTION_CT,
 };
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
@@ -171,6 +180,10 @@ struct flow_action_entry {
 			s64			burst;
 			u64			rate_bytes_ps;
 		} police;
+		struct {				/* FLOW_ACTION_CT */
+			int action;
+			u16 zone;
+		} ct;
 	};
 };
 
@@ -223,6 +236,115 @@ static inline void flow_stats_update(struct flow_stats *flow_stats,
 	flow_stats->pkts	+= pkts;
 	flow_stats->bytes	+= bytes;
 	flow_stats->lastused	= max_t(u64, flow_stats->lastused, lastused);
+}
+
+enum flow_block_command {
+	FLOW_BLOCK_BIND,
+	FLOW_BLOCK_UNBIND,
+};
+
+enum flow_block_binder_type {
+	FLOW_BLOCK_BINDER_TYPE_UNSPEC,
+	FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
+	FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
+};
+
+struct flow_block {
+	struct list_head cb_list;
+};
+
+struct netlink_ext_ack;
+
+struct flow_block_offload {
+	enum flow_block_command command;
+	enum flow_block_binder_type binder_type;
+	bool block_shared;
+	struct net *net;
+	struct flow_block *block;
+	struct list_head cb_list;
+	struct list_head *driver_block_list;
+	struct netlink_ext_ack *extack;
+};
+
+enum tc_setup_type;
+typedef int flow_setup_cb_t(enum tc_setup_type type, void *type_data,
+			    void *cb_priv);
+
+struct flow_block_cb {
+	struct list_head	driver_list;
+	struct list_head	list;
+	flow_setup_cb_t		*cb;
+	void			*cb_ident;
+	void			*cb_priv;
+	void			(*release)(void *cb_priv);
+	unsigned int		refcnt;
+};
+
+struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
+					  void *cb_ident, void *cb_priv,
+					  void (*release)(void *cb_priv));
+void flow_block_cb_free(struct flow_block_cb *block_cb);
+
+struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
+					   flow_setup_cb_t *cb, void *cb_ident);
+
+void *flow_block_cb_priv(struct flow_block_cb *block_cb);
+void flow_block_cb_incref(struct flow_block_cb *block_cb);
+unsigned int flow_block_cb_decref(struct flow_block_cb *block_cb);
+
+static inline void flow_block_cb_add(struct flow_block_cb *block_cb,
+				     struct flow_block_offload *offload)
+{
+	list_add_tail(&block_cb->list, &offload->cb_list);
+}
+
+static inline void flow_block_cb_remove(struct flow_block_cb *block_cb,
+					struct flow_block_offload *offload)
+{
+	list_move(&block_cb->list, &offload->cb_list);
+}
+
+bool flow_block_cb_is_busy(flow_setup_cb_t *cb, void *cb_ident,
+			   struct list_head *driver_block_list);
+
+int flow_block_cb_setup_simple(struct flow_block_offload *f,
+			       struct list_head *driver_list,
+			       flow_setup_cb_t *cb,
+			       void *cb_ident, void *cb_priv, bool ingress_only);
+
+enum flow_cls_command {
+	FLOW_CLS_REPLACE,
+	FLOW_CLS_DESTROY,
+	FLOW_CLS_STATS,
+	FLOW_CLS_TMPLT_CREATE,
+	FLOW_CLS_TMPLT_DESTROY,
+};
+
+struct flow_cls_common_offload {
+	u32 chain_index;
+	__be16 protocol;
+	u32 prio;
+	struct netlink_ext_ack *extack;
+};
+
+struct flow_cls_offload {
+	struct flow_cls_common_offload common;
+	enum flow_cls_command command;
+	unsigned long cookie;
+	struct flow_rule *rule;
+	struct flow_stats stats;
+	u32 classid;
+};
+
+static inline struct flow_rule *
+flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
+{
+	return flow_cmd->rule;
+}
+
+static inline void flow_block_init(struct flow_block *flow_block)
+{
+	INIT_LIST_HEAD(&flow_block->cb_list);
 }
 
 #endif /* _NET_FLOW_OFFLOAD_H */

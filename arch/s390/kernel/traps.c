@@ -45,7 +45,7 @@ int is_valid_bugaddr(unsigned long addr)
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
 	if (user_mode(regs)) {
-		force_sig_fault(si_signo, si_code, get_trap_ip(regs), current);
+		force_sig_fault(si_signo, si_code, get_trap_ip(regs));
 		report_user_fault(regs, si_signo, 0);
         } else {
                 const struct exception_table_entry *fixup;
@@ -79,7 +79,7 @@ void do_per_trap(struct pt_regs *regs)
 	if (!current->ptrace)
 		return;
 	force_sig_fault(SIGTRAP, TRAP_HWBKPT,
-		(void __force __user *) current->thread.per_event.address, current);
+		(void __force __user *) current->thread.per_event.address);
 }
 NOKPROBE_SYMBOL(do_per_trap);
 
@@ -165,7 +165,7 @@ void illegal_op(struct pt_regs *regs)
 			return;
 		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
 			if (current->ptrace)
-				force_sig_fault(SIGTRAP, TRAP_BRKPT, location, current);
+				force_sig_fault(SIGTRAP, TRAP_BRKPT, location);
 			else
 				signal = SIGILL;
 #ifdef CONFIG_UPROBES
@@ -229,17 +229,11 @@ void vector_exception(struct pt_regs *regs)
 
 void data_exception(struct pt_regs *regs)
 {
-	int signal = 0;
-
 	save_fpu_regs();
 	if (current->thread.fpu.fpc & FPC_DXC_MASK)
-		signal = SIGFPE;
-	else
-		signal = SIGILL;
-	if (signal == SIGFPE)
 		do_fp_trap(regs, current->thread.fpu.fpc);
-	else if (signal)
-		do_trap(regs, signal, ILL_ILLOPN, "data exception");
+	else
+		do_trap(regs, SIGILL, ILL_ILLOPN, "data exception");
 }
 
 void space_switch_exception(struct pt_regs *regs)

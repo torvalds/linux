@@ -24,6 +24,10 @@ config PINCTRL_TEGRA210
 	bool
 	select PINCTRL_TEGRA
 
+config PINCTRL_TEGRA194
+	bool
+	select PINCTRL_TEGRA
+
 config PINCTRL_TEGRA_XUSB
 	def_bool y if ARCH_TEGRA
 	select GENERIC_PHY

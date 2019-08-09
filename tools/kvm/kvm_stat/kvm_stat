@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # top-like utility for displaying kvm statistics
 #
@@ -8,8 +9,6 @@
 # Authors:
 #  Avi Kivity <avi@redhat.com>
 #
-# This work is licensed under the terms of the GNU GPL, version 2.  See
-# the COPYING file in the top-level directory.
 """The kvm_stat module outputs statistics about running KVM VMs
 
 Three different ways of output formatting are available:

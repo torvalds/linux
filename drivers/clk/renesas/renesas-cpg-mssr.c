@@ -112,14 +112,15 @@ static const u16 srcr[] = {
  * @dev: CPG/MSSR device
  * @base: CPG/MSSR register block base address
  * @rmw_lock: protects RMW register accesses
- * @clks: Array containing all Core and Module Clocks
+ * @np: Device node in DT for this CPG/MSSR module
  * @num_core_clks: Number of Core Clocks in clks[]
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
+ * @stbyctrl: This device has Standby Control Registers
  * @notifiers: Notifier chain to save/restore clock state for system resume
  * @smstpcr_saved[].mask: Mask of SMSTPCR[] bits under our control
  * @smstpcr_saved[].val: Saved values of SMSTPCR[]
- * @stbyctrl: This device has Standby Control Registers
+ * @clks: Array containing all Core and Module Clocks
  */
 struct cpg_mssr_priv {
 #ifdef CONFIG_RESET_CONTROLLER
@@ -130,7 +131,6 @@ struct cpg_mssr_priv {
 	spinlock_t rmw_lock;
 	struct device_node *np;
 
-	struct clk **clks;
 	unsigned int num_core_clks;
 	unsigned int num_mod_clks;
 	unsigned int last_dt_core_clk;
@@ -141,6 +141,8 @@ struct cpg_mssr_priv {
 		u32 mask;
 		u32 val;
 	} smstpcr_saved[ARRAY_SIZE(smstpcr)];
+
+	struct clk *clks[];
 };
 
 static struct cpg_mssr_priv *cpg_mssr_priv;
@@ -447,9 +449,8 @@ fail:
 
 struct cpg_mssr_clk_domain {
 	struct generic_pm_domain genpd;
-	struct device_node *np;
 	unsigned int num_core_pm_clks;
-	unsigned int core_pm_clks[0];
+	unsigned int core_pm_clks[];
 };
 
 static struct cpg_mssr_clk_domain *cpg_mssr_clk_domain;
@@ -459,7 +460,7 @@ static bool cpg_mssr_is_pm_clk(const struct of_phandle_args *clkspec,
 {
 	unsigned int i;
 
-	if (clkspec->np != pd->np || clkspec->args_count != 2)
+	if (clkspec->np != pd->genpd.dev.of_node || clkspec->args_count != 2)
 		return false;
 
 	switch (clkspec->args[0]) {
@@ -510,16 +511,12 @@ found:
 		return PTR_ERR(clk);
 
 	error = pm_clk_create(dev);
-	if (error) {
-		dev_err(dev, "pm_clk_create failed %d\n", error);
+	if (error)
 		goto fail_put;
-	}
 
 	error = pm_clk_add_clk(dev, clk);
-	if (error) {
-		dev_err(dev, "pm_clk_add_clk %pC failed %d\n", clk, error);
+	if (error)
 		goto fail_destroy;
-	}
 
 	return 0;
 
@@ -549,7 +546,6 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	if (!pd)
 		return -ENOMEM;
 
-	pd->np = np;
 	pd->num_core_pm_clks = num_core_pm_clks;
 	memcpy(pd->core_pm_clks, core_pm_clks, pm_size);
 
@@ -576,17 +572,11 @@ static int cpg_mssr_reset(struct reset_controller_dev *rcdev,
 	unsigned int reg = id / 32;
 	unsigned int bit = id % 32;
 	u32 bitmask = BIT(bit);
-	unsigned long flags;
-	u32 value;
 
 	dev_dbg(priv->dev, "reset %u%02u\n", reg, bit);
 
 	/* Reset module */
-	spin_lock_irqsave(&priv->rmw_lock, flags);
-	value = readl(priv->base + SRCR(reg));
-	value |= bitmask;
-	writel(value, priv->base + SRCR(reg));
-	spin_unlock_irqrestore(&priv->rmw_lock, flags);
+	writel(bitmask, priv->base + SRCR(reg));
 
 	/* Wait for at least one cycle of the RCLK clock (@ ca. 32 kHz) */
 	udelay(35);
@@ -603,16 +593,10 @@ static int cpg_mssr_assert(struct reset_controller_dev *rcdev, unsigned long id)
 	unsigned int reg = id / 32;
 	unsigned int bit = id % 32;
 	u32 bitmask = BIT(bit);
-	unsigned long flags;
-	u32 value;
 
 	dev_dbg(priv->dev, "assert %u%02u\n", reg, bit);
 
-	spin_lock_irqsave(&priv->rmw_lock, flags);
-	value = readl(priv->base + SRCR(reg));
-	value |= bitmask;
-	writel(value, priv->base + SRCR(reg));
-	spin_unlock_irqrestore(&priv->rmw_lock, flags);
+	writel(bitmask, priv->base + SRCR(reg));
 	return 0;
 }
 
@@ -896,7 +880,6 @@ static int __init cpg_mssr_common_init(struct device *dev,
 				       const struct cpg_mssr_info *info)
 {
 	struct cpg_mssr_priv *priv;
-	struct clk **clks = NULL;
 	unsigned int nclks, i;
 	int error;
 
@@ -906,7 +889,8 @@ static int __init cpg_mssr_common_init(struct device *dev,
 			return error;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
+	priv = kzalloc(struct_size(priv, clks, nclks), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -920,15 +904,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		goto out_err;
 	}
 
-	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
-	clks = kmalloc_array(nclks, sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		error = -ENOMEM;
-		goto out_err;
-	}
-
 	cpg_mssr_priv = priv;
-	priv->clks = clks;
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
@@ -936,7 +912,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	priv->stbyctrl = info->stbyctrl;
 
 	for (i = 0; i < nclks; i++)
-		clks[i] = ERR_PTR(-ENOENT);
+		priv->clks[i] = ERR_PTR(-ENOENT);
 
 	error = of_clk_add_provider(np, cpg_mssr_clk_src_twocell_get, priv);
 	if (error)
@@ -945,7 +921,6 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	return 0;
 
 out_err:
-	kfree(clks);
 	if (priv->base)
 		iounmap(priv->base);
 	kfree(priv);

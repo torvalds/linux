@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 Advanced Micro Devices, Inc.
  *
  * Author: Steven Kinney <Steven.Kinney@amd.com>
  * Author: Suravee Suthikulpanit <Suraveee.Suthikulpanit@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _PERF_EVENT_AMD_IOMMU_H_

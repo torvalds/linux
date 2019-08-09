@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cleancache frontend
  *
@@ -7,8 +8,6 @@
  *
  * Copyright (C) 2009-2010 Oracle Corp. All rights reserved.
  * Author: Dan Magenheimer
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #include <linux/module.h>
@@ -305,8 +304,7 @@ static int __init init_cleancache(void)
 {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *root = debugfs_create_dir("cleancache", NULL);
-	if (root == NULL)
-		return -ENXIO;
+
 	debugfs_create_u64("succ_gets", 0444, root, &cleancache_succ_gets);
 	debugfs_create_u64("failed_gets", 0444, root, &cleancache_failed_gets);
 	debugfs_create_u64("puts", 0444, root, &cleancache_puts);

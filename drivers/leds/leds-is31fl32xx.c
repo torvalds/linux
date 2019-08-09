@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for ISSI IS31FL32xx family of I2C LED controllers
  *
  * Copyright 2015 Allworx Corp.
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Datasheets:
  *   http://www.issi.com/US/product-analog-fxled-driver.shtml

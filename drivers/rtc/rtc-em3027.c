@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An rtc/i2c driver for the EM Microelectronic EM3027
  * Copyright 2011 CompuLab, Ltd.
@@ -5,10 +6,6 @@
  * Author: Mike Rapoport <mike@compulab.co.il>
  *
  * Based on rtc-ds1672.c by Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>

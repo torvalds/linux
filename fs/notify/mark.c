@@ -482,10 +482,13 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	conn->type = type;
 	conn->obj = connp;
 	/* Cache fsid of filesystem containing the object */
-	if (fsid)
+	if (fsid) {
 		conn->fsid = *fsid;
-	else
+		conn->flags = FSNOTIFY_CONN_FLAG_HAS_FSID;
+	} else {
 		conn->fsid.val[0] = conn->fsid.val[1] = 0;
+		conn->flags = 0;
+	}
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)
 		inode = igrab(fsnotify_conn_inode(conn));
 	/*
@@ -560,7 +563,12 @@ restart:
 		if (err)
 			return err;
 		goto restart;
-	} else if (fsid && (conn->fsid.val[0] || conn->fsid.val[1]) &&
+	} else if (fsid && !(conn->flags & FSNOTIFY_CONN_FLAG_HAS_FSID)) {
+		conn->fsid = *fsid;
+		/* Pairs with smp_rmb() in fanotify_get_fsid() */
+		smp_wmb();
+		conn->flags |= FSNOTIFY_CONN_FLAG_HAS_FSID;
+	} else if (fsid && (conn->flags & FSNOTIFY_CONN_FLAG_HAS_FSID) &&
 		   (fsid->val[0] != conn->fsid.val[0] ||
 		    fsid->val[1] != conn->fsid.val[1])) {
 		/*

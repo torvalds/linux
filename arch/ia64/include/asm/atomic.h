@@ -124,10 +124,10 @@ ATOMIC_FETCH_OP(xor, ^)
 #undef ATOMIC_OP
 
 #define ATOMIC64_OP(op, c_op)						\
-static __inline__ long							\
-ia64_atomic64_##op (__s64 i, atomic64_t *v)				\
+static __inline__ s64							\
+ia64_atomic64_##op (s64 i, atomic64_t *v)				\
 {									\
-	__s64 old, new;							\
+	s64 old, new;							\
 	CMPXCHG_BUGCHECK_DECL						\
 									\
 	do {								\
@@ -139,10 +139,10 @@ ia64_atomic64_##op (__s64 i, atomic64_t *v)				\
 }
 
 #define ATOMIC64_FETCH_OP(op, c_op)					\
-static __inline__ long							\
-ia64_atomic64_fetch_##op (__s64 i, atomic64_t *v)			\
+static __inline__ s64							\
+ia64_atomic64_fetch_##op (s64 i, atomic64_t *v)				\
 {									\
-	__s64 old, new;							\
+	s64 old, new;							\
 	CMPXCHG_BUGCHECK_DECL						\
 									\
 	do {								\
@@ -162,7 +162,7 @@ ATOMIC64_OPS(sub, -)
 
 #define atomic64_add_return(i,v)					\
 ({									\
-	long __ia64_aar_i = (i);					\
+	s64 __ia64_aar_i = (i);						\
 	__ia64_atomic_const(i)						\
 		? ia64_fetch_and_add(__ia64_aar_i, &(v)->counter)	\
 		: ia64_atomic64_add(__ia64_aar_i, v);			\
@@ -170,7 +170,7 @@ ATOMIC64_OPS(sub, -)
 
 #define atomic64_sub_return(i,v)					\
 ({									\
-	long __ia64_asr_i = (i);					\
+	s64 __ia64_asr_i = (i);						\
 	__ia64_atomic_const(i)						\
 		? ia64_fetch_and_add(-__ia64_asr_i, &(v)->counter)	\
 		: ia64_atomic64_sub(__ia64_asr_i, v);			\
@@ -178,7 +178,7 @@ ATOMIC64_OPS(sub, -)
 
 #define atomic64_fetch_add(i,v)						\
 ({									\
-	long __ia64_aar_i = (i);					\
+	s64 __ia64_aar_i = (i);						\
 	__ia64_atomic_const(i)						\
 		? ia64_fetchadd(__ia64_aar_i, &(v)->counter, acq)	\
 		: ia64_atomic64_fetch_add(__ia64_aar_i, v);		\
@@ -186,7 +186,7 @@ ATOMIC64_OPS(sub, -)
 
 #define atomic64_fetch_sub(i,v)						\
 ({									\
-	long __ia64_asr_i = (i);					\
+	s64 __ia64_asr_i = (i);						\
 	__ia64_atomic_const(i)						\
 		? ia64_fetchadd(-__ia64_asr_i, &(v)->counter, acq)	\
 		: ia64_atomic64_fetch_sub(__ia64_asr_i, v);		\

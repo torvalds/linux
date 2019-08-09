@@ -286,12 +286,7 @@ static struct kobj_attribute sys_ipl_secure_attr =
 static ssize_t ipl_has_secure_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *page)
 {
-	if (MACHINE_IS_LPAR)
-		return sprintf(page, "%i\n", !!sclp.has_sipl);
-	else if (MACHINE_IS_VM)
-		return sprintf(page, "%i\n", !!sclp.has_sipl_g2);
-	else
-		return sprintf(page, "%i\n", 0);
+	return sprintf(page, "%i\n", !!sclp.has_sipl);
 }
 
 static struct kobj_attribute sys_ipl_has_secure_attr =

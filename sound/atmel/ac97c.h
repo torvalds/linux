@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Register definitions for Atmel AC97C
  *
  * Copyright (C) 2005-2009 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 #ifndef __SOUND_ATMEL_AC97C_H
 #define __SOUND_ATMEL_AC97C_H

@@ -221,9 +221,9 @@ struct net_device *r8712_init_netdev(void)
 
 static u32 start_drv_threads(struct _adapter *padapter)
 {
-	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter, "%s",
+	padapter->cmd_thread = kthread_run(r8712_cmd_thread, padapter, "%s",
 					  padapter->pnetdev->name);
-	if (IS_ERR(padapter->cmdThread))
+	if (IS_ERR(padapter->cmd_thread))
 		return _FAIL;
 	return _SUCCESS;
 }
@@ -235,7 +235,7 @@ void r8712_stop_drv_threads(struct _adapter *padapter)
 
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
 	complete(&padapter->cmdpriv.cmd_queue_comp);
-	if (padapter->cmdThread)
+	if (padapter->cmd_thread)
 		wait_for_completion_interruptible(completion);
 	padapter->cmdpriv.cmd_seq = 1;
 }
@@ -297,10 +297,10 @@ static u8 init_default_value(struct _adapter *padapter)
 
 u8 r8712_init_drv_sw(struct _adapter *padapter)
 {
-	if ((r8712_init_cmd_priv(&padapter->cmdpriv)) == _FAIL)
+	if (r8712_init_cmd_priv(&padapter->cmdpriv))
 		return _FAIL;
 	padapter->cmdpriv.padapter = padapter;
-	if ((r8712_init_evt_priv(&padapter->evtpriv)) == _FAIL)
+	if (r8712_init_evt_priv(&padapter->evtpriv))
 		return _FAIL;
 	if (r8712_init_mlme_priv(padapter) == _FAIL)
 		return _FAIL;
@@ -310,7 +310,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	       sizeof(struct security_priv));
 	timer_setup(&padapter->securitypriv.tkip_timer,
 		    r8712_use_tkipkey_handler, 0);
-	_r8712_init_sta_priv(&padapter->stapriv);
+	if (_r8712_init_sta_priv(&padapter->stapriv))
+		return _FAIL;
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);

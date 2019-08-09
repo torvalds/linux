@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/apicdef.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include <linux/perf_event.h>
 #include "../perf_event.h"
@@ -56,7 +57,10 @@ struct intel_uncore_type {
 	unsigned fixed_ctr;
 	unsigned fixed_ctl;
 	unsigned box_ctl;
-	unsigned msr_offset;
+	union {
+		unsigned msr_offset;
+		unsigned mmio_offset;
+	};
 	unsigned num_shared_regs:8;
 	unsigned single_fixed:1;
 	unsigned pair_ctr_ctl:1;
@@ -108,7 +112,7 @@ struct intel_uncore_extra_reg {
 
 struct intel_uncore_box {
 	int pci_phys_id;
-	int pkgid;	/* Logical package ID */
+	int dieid;	/* Logical die ID */
 	int n_active;	/* number of active events */
 	int n_events;
 	int cpu;	/* cpu to collect events */
@@ -125,7 +129,7 @@ struct intel_uncore_box {
 	struct hrtimer hrtimer;
 	struct list_head list;
 	struct list_head active_list;
-	void *io_addr;
+	void __iomem *io_addr;
 	struct intel_uncore_extra_reg shared_regs[0];
 };
 
@@ -159,6 +163,7 @@ struct pci2phy_map {
 };
 
 struct pci2phy_map *__find_pci2phy_map(int segment);
+int uncore_pcibus_to_physid(struct pci_bus *bus);
 
 ssize_t uncore_event_show(struct kobject *kobj,
 			  struct kobj_attribute *attr, char *buf);
@@ -188,6 +193,13 @@ static inline bool uncore_pmc_fixed(int idx)
 static inline bool uncore_pmc_freerunning(int idx)
 {
 	return idx == UNCORE_PMC_IDX_FREERUNNING;
+}
+
+static inline
+unsigned int uncore_mmio_box_ctl(struct intel_uncore_box *box)
+{
+	return box->pmu->type->box_ctl +
+	       box->pmu->type->mmio_offset * box->pmu->pmu_idx;
 }
 
 static inline unsigned uncore_pci_box_ctl(struct intel_uncore_box *box)
@@ -330,7 +342,7 @@ unsigned uncore_msr_perf_ctr(struct intel_uncore_box *box, int idx)
 static inline
 unsigned uncore_fixed_ctl(struct intel_uncore_box *box)
 {
-	if (box->pci_dev)
+	if (box->pci_dev || box->io_addr)
 		return uncore_pci_fixed_ctl(box);
 	else
 		return uncore_msr_fixed_ctl(box);
@@ -339,7 +351,7 @@ unsigned uncore_fixed_ctl(struct intel_uncore_box *box)
 static inline
 unsigned uncore_fixed_ctr(struct intel_uncore_box *box)
 {
-	if (box->pci_dev)
+	if (box->pci_dev || box->io_addr)
 		return uncore_pci_fixed_ctr(box);
 	else
 		return uncore_msr_fixed_ctr(box);
@@ -348,7 +360,7 @@ unsigned uncore_fixed_ctr(struct intel_uncore_box *box)
 static inline
 unsigned uncore_event_ctl(struct intel_uncore_box *box, int idx)
 {
-	if (box->pci_dev)
+	if (box->pci_dev || box->io_addr)
 		return uncore_pci_event_ctl(box, idx);
 	else
 		return uncore_msr_event_ctl(box, idx);
@@ -357,7 +369,7 @@ unsigned uncore_event_ctl(struct intel_uncore_box *box, int idx)
 static inline
 unsigned uncore_perf_ctr(struct intel_uncore_box *box, int idx)
 {
-	if (box->pci_dev)
+	if (box->pci_dev || box->io_addr)
 		return uncore_pci_perf_ctr(box, idx);
 	else
 		return uncore_msr_perf_ctr(box, idx);
@@ -419,6 +431,16 @@ static inline bool is_freerunning_event(struct perf_event *event)
 	       (((cfg >> 8) & 0xff) >= UNCORE_FREERUNNING_UMASK_START);
 }
 
+/* Check and reject invalid config */
+static inline int uncore_freerunning_hw_config(struct intel_uncore_box *box,
+					       struct perf_event *event)
+{
+	if (is_freerunning_event(event))
+		return 0;
+
+	return -EINVAL;
+}
+
 static inline void uncore_disable_box(struct intel_uncore_box *box)
 {
 	if (box->pmu->type->ops->disable_box)
@@ -467,7 +489,7 @@ static inline void uncore_box_exit(struct intel_uncore_box *box)
 
 static inline bool uncore_box_is_fake(struct intel_uncore_box *box)
 {
-	return (box->pkgid < 0);
+	return (box->dieid < 0);
 }
 
 static inline struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event)
@@ -482,6 +504,9 @@ static inline struct intel_uncore_box *uncore_event_to_box(struct perf_event *ev
 
 struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu);
 u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *event);
+void uncore_mmio_exit_box(struct intel_uncore_box *box);
+u64 uncore_mmio_read_counter(struct intel_uncore_box *box,
+			     struct perf_event *event);
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box);
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box);
 void uncore_pmu_event_start(struct perf_event *event, int flags);
@@ -497,6 +522,7 @@ u64 uncore_shared_reg_config(struct intel_uncore_box *box, int idx);
 
 extern struct intel_uncore_type **uncore_msr_uncores;
 extern struct intel_uncore_type **uncore_pci_uncores;
+extern struct intel_uncore_type **uncore_mmio_uncores;
 extern struct pci_driver *uncore_pci_driver;
 extern raw_spinlock_t pci2phy_map_lock;
 extern struct list_head pci2phy_map_head;
@@ -528,6 +554,9 @@ int knl_uncore_pci_init(void);
 void knl_uncore_cpu_init(void);
 int skx_uncore_pci_init(void);
 void skx_uncore_cpu_init(void);
+int snr_uncore_pci_init(void);
+void snr_uncore_cpu_init(void);
+void snr_uncore_mmio_init(void);
 
 /* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

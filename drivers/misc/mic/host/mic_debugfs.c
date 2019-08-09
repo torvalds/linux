@@ -113,8 +113,6 @@ void mic_create_debug_dir(struct mic_device *mdev)
 
 	scnprintf(name, sizeof(name), "mic%d", mdev->id);
 	mdev->dbg_dir = debugfs_create_dir(name, mic_dbg);
-	if (!mdev->dbg_dir)
-		return;
 
 	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev,
 			    &mic_smpt_fops);
@@ -143,8 +141,6 @@ void mic_delete_debug_dir(struct mic_device *mdev)
 void __init mic_init_debugfs(void)
 {
 	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!mic_dbg)
-		pr_err("can't create debugfs dir\n");
 }
 
 /**

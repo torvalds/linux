@@ -578,17 +578,26 @@ static int authenticate_sb_node(struct ubifs_info *c,
 		return -EINVAL;
 	}
 
-	err = ubifs_hmac_wkm(c, hmac_wkm);
-	if (err)
-		return err;
-
-	if (ubifs_check_hmac(c, hmac_wkm, sup->hmac_wkm)) {
-		ubifs_err(c, "provided key does not fit");
-		return -ENOKEY;
+	/*
+	 * The super block node can either be authenticated by a HMAC or
+	 * by a signature in a ubifs_sig_node directly following the
+	 * super block node to support offline image creation.
+	 */
+	if (ubifs_hmac_zero(c, sup->hmac)) {
+		err = ubifs_sb_verify_signature(c, sup);
+	} else {
+		err = ubifs_hmac_wkm(c, hmac_wkm);
+		if (err)
+			return err;
+		if (ubifs_check_hmac(c, hmac_wkm, sup->hmac_wkm)) {
+			ubifs_err(c, "provided key does not fit");
+			return -ENOKEY;
+		}
+		err = ubifs_node_verify_hmac(c, sup, sizeof(*sup),
+					     offsetof(struct ubifs_sb_node,
+						      hmac));
 	}
 
-	err = ubifs_node_verify_hmac(c, sup, sizeof(*sup),
-				     offsetof(struct ubifs_sb_node, hmac));
 	if (err)
 		ubifs_err(c, "Failed to authenticate superblock: %d", err);
 
@@ -744,21 +753,16 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	}
 
 	/* Automatically increase file system size to the maximum size */
-	c->old_leb_cnt = c->leb_cnt;
 	if (c->leb_cnt < c->vi.size && c->leb_cnt < c->max_leb_cnt) {
+		int old_leb_cnt = c->leb_cnt;
+
 		c->leb_cnt = min_t(int, c->max_leb_cnt, c->vi.size);
-		if (c->ro_mount)
-			dbg_mnt("Auto resizing (ro) from %d LEBs to %d LEBs",
-				c->old_leb_cnt,	c->leb_cnt);
-		else {
-			dbg_mnt("Auto resizing (sb) from %d LEBs to %d LEBs",
-				c->old_leb_cnt, c->leb_cnt);
-			sup->leb_cnt = cpu_to_le32(c->leb_cnt);
-			err = ubifs_write_sb_node(c, sup);
-			if (err)
-				goto out;
-			c->old_leb_cnt = c->leb_cnt;
-		}
+		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
+
+		c->superblock_need_write = 1;
+
+		dbg_mnt("Auto resizing from %d LEBs to %d LEBs",
+			old_leb_cnt, c->leb_cnt);
 	}
 
 	c->log_bytes = (long long)c->log_lebs * c->leb_size;
@@ -916,9 +920,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	c->space_fixup = 0;
 	sup->flags &= cpu_to_le32(~UBIFS_FLG_SPACE_FIXUP);
 
-	err = ubifs_write_sb_node(c, sup);
-	if (err)
-		return err;
+	c->superblock_need_write = 1;
 
 	ubifs_msg(c, "free space fixup complete");
 	return err;

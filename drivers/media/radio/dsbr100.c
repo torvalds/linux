@@ -168,8 +168,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "dsbr100", sizeof(v->driver));
 	strscpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -378,6 +376,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->videodev.release = video_device_release_empty;
 	radio->videodev.lock = &radio->v4l2_lock;
 	radio->videodev.ctrl_handler = &radio->hdl;
+	radio->videodev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;

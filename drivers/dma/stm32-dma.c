@@ -1365,7 +1365,6 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	for (i = 0; i < STM32_DMA_MAX_CHANNELS; i++) {
 		chan = &dmadev->chan[i];
-		chan->irq = platform_get_irq(pdev, i);
 		ret = platform_get_irq(pdev, i);
 		if (ret < 0)  {
 			if (ret != -EPROBE_DEFER)

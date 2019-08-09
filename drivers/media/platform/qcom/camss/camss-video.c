@@ -703,7 +703,7 @@ static int video_s_input(struct file *file, void *fh, unsigned int input)
 
 static const struct v4l2_ioctl_ops msm_vid_ioctl_ops = {
 	.vidioc_querycap		= video_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane	= video_enum_fmt,
+	.vidioc_enum_fmt_vid_cap	= video_enum_fmt,
 	.vidioc_g_fmt_vid_cap_mplane	= video_g_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= video_s_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= video_try_fmt,

@@ -725,17 +725,15 @@ bool acpi_dev_found(const char *hid)
 EXPORT_SYMBOL(acpi_dev_found);
 
 struct acpi_dev_match_info {
-	const char *dev_name;
-	struct acpi_device *adev;
 	struct acpi_device_id hid[2];
 	const char *uid;
 	s64 hrv;
 };
 
-static int acpi_dev_match_cb(struct device *dev, void *data)
+static int acpi_dev_match_cb(struct device *dev, const void *data)
 {
 	struct acpi_device *adev = to_acpi_device(dev);
-	struct acpi_dev_match_info *match = data;
+	const struct acpi_dev_match_info *match = data;
 	unsigned long long hrv;
 	acpi_status status;
 
@@ -745,9 +743,6 @@ static int acpi_dev_match_cb(struct device *dev, void *data)
 	if (match->uid && (!adev->pnp.unique_id ||
 	    strcmp(adev->pnp.unique_id, match->uid)))
 		return 0;
-
-	match->dev_name = acpi_dev_name(adev);
-	match->adev = adev;
 
 	if (match->hrv == -1)
 		return 1;
@@ -818,7 +813,7 @@ acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 	match.hrv = hrv;
 
 	dev = bus_find_device(&acpi_bus_type, NULL, &match, acpi_dev_match_cb);
-	return dev ? match.adev : NULL;
+	return dev ? to_acpi_device(dev) : NULL;
 }
 EXPORT_SYMBOL(acpi_dev_get_first_match_dev);
 

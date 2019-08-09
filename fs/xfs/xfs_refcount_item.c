@@ -14,7 +14,6 @@
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_buf_item.h"
 #include "xfs_refcount_item.h"
 #include "xfs_log.h"
 #include "xfs_refcount.h"
@@ -95,15 +94,6 @@ xfs_cui_item_format(
 }
 
 /*
- * Pinning has no meaning for an cui item, so just return.
- */
-STATIC void
-xfs_cui_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
  * The unpin operation is the last place an CUI is manipulated in the log. It is
  * either inserted in the AIL or aborted in the event of a log I/O error. In
  * either case, the CUI transaction has been successfully committed to make it
@@ -122,71 +112,22 @@ xfs_cui_item_unpin(
 }
 
 /*
- * CUI items have no locking or pushing.  However, since CUIs are pulled from
- * the AIL when their corresponding CUDs are committed to disk, their situation
- * is very similar to being pinned.  Return XFS_ITEM_PINNED so that the caller
- * will eventually flush the log.  This should help in getting the CUI out of
- * the AIL.
- */
-STATIC uint
-xfs_cui_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The CUI has been either committed or aborted if the transaction has been
  * cancelled. If the transaction was cancelled, an CUD isn't going to be
  * constructed and thus we free the CUI here directly.
  */
 STATIC void
-xfs_cui_item_unlock(
+xfs_cui_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		xfs_cui_release(CUI_ITEM(lip));
+	xfs_cui_release(CUI_ITEM(lip));
 }
 
-/*
- * The CUI is logged only once and cannot be moved in the log, so simply return
- * the lsn at which it's been logged.
- */
-STATIC xfs_lsn_t
-xfs_cui_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	return lsn;
-}
-
-/*
- * The CUI dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_cui_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all cui log items.
- */
 static const struct xfs_item_ops xfs_cui_item_ops = {
 	.iop_size	= xfs_cui_item_size,
 	.iop_format	= xfs_cui_item_format,
-	.iop_pin	= xfs_cui_item_pin,
 	.iop_unpin	= xfs_cui_item_unpin,
-	.iop_unlock	= xfs_cui_item_unlock,
-	.iop_committed	= xfs_cui_item_committed,
-	.iop_push	= xfs_cui_item_push,
-	.iop_committing = xfs_cui_item_committing,
+	.iop_release	= xfs_cui_item_release,
 };
 
 /*
@@ -254,125 +195,249 @@ xfs_cud_item_format(
 }
 
 /*
- * Pinning has no meaning for an cud item, so just return.
- */
-STATIC void
-xfs_cud_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
- * Since pinning has no meaning for an cud item, unpinning does
- * not either.
- */
-STATIC void
-xfs_cud_item_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
-/*
- * There isn't much you can do to push on an cud item.  It is simply stuck
- * waiting for the log to be flushed to disk.
- */
-STATIC uint
-xfs_cud_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The CUD is either committed or aborted if the transaction is cancelled. If
  * the transaction is cancelled, drop our reference to the CUI and free the
  * CUD.
  */
 STATIC void
-xfs_cud_item_unlock(
+xfs_cud_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
-		xfs_cui_release(cudp->cud_cuip);
-		kmem_zone_free(xfs_cud_zone, cudp);
-	}
-}
-
-/*
- * When the cud item is committed to disk, all we need to do is delete our
- * reference to our partner cui item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from
- * further referencing this item.
- */
-STATIC xfs_lsn_t
-xfs_cud_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
-
-	/*
-	 * Drop the CUI reference regardless of whether the CUD has been
-	 * aborted. Once the CUD transaction is constructed, it is the sole
-	 * responsibility of the CUD to release the CUI (even if the CUI is
-	 * aborted due to log I/O error).
-	 */
 	xfs_cui_release(cudp->cud_cuip);
 	kmem_zone_free(xfs_cud_zone, cudp);
-
-	return (xfs_lsn_t)-1;
 }
 
-/*
- * The CUD dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_cud_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all cud log items.
- */
 static const struct xfs_item_ops xfs_cud_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_cud_item_size,
 	.iop_format	= xfs_cud_item_format,
-	.iop_pin	= xfs_cud_item_pin,
-	.iop_unpin	= xfs_cud_item_unpin,
-	.iop_unlock	= xfs_cud_item_unlock,
-	.iop_committed	= xfs_cud_item_committed,
-	.iop_push	= xfs_cud_item_push,
-	.iop_committing = xfs_cud_item_committing,
+	.iop_release	= xfs_cud_item_release,
 };
 
-/*
- * Allocate and initialize an cud item with the given number of extents.
- */
-struct xfs_cud_log_item *
-xfs_cud_init(
-	struct xfs_mount		*mp,
+static struct xfs_cud_log_item *
+xfs_trans_get_cud(
+	struct xfs_trans		*tp,
 	struct xfs_cui_log_item		*cuip)
-
 {
-	struct xfs_cud_log_item	*cudp;
+	struct xfs_cud_log_item		*cudp;
 
 	cudp = kmem_zone_zalloc(xfs_cud_zone, KM_SLEEP);
-	xfs_log_item_init(mp, &cudp->cud_item, XFS_LI_CUD, &xfs_cud_item_ops);
+	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
+			  &xfs_cud_item_ops);
 	cudp->cud_cuip = cuip;
 	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
 
+	xfs_trans_add_item(tp, &cudp->cud_item);
 	return cudp;
 }
+
+/*
+ * Finish an refcount update and log it to the CUD. Note that the
+ * transaction is marked dirty regardless of whether the refcount
+ * update succeeds or fails to support the CUI/CUD lifecycle rules.
+ */
+static int
+xfs_trans_log_finish_refcount_update(
+	struct xfs_trans		*tp,
+	struct xfs_cud_log_item		*cudp,
+	enum xfs_refcount_intent_type	type,
+	xfs_fsblock_t			startblock,
+	xfs_extlen_t			blockcount,
+	xfs_fsblock_t			*new_fsb,
+	xfs_extlen_t			*new_len,
+	struct xfs_btree_cur		**pcur)
+{
+	int				error;
+
+	error = xfs_refcount_finish_one(tp, type, startblock,
+			blockcount, new_fsb, new_len, pcur);
+
+	/*
+	 * Mark the transaction dirty, even on error. This ensures the
+	 * transaction is aborted, which:
+	 *
+	 * 1.) releases the CUI and frees the CUD
+	 * 2.) shuts down the filesystem
+	 */
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &cudp->cud_item.li_flags);
+
+	return error;
+}
+
+/* Sort refcount intents by AG. */
+static int
+xfs_refcount_update_diff_items(
+	void				*priv,
+	struct list_head		*a,
+	struct list_head		*b)
+{
+	struct xfs_mount		*mp = priv;
+	struct xfs_refcount_intent	*ra;
+	struct xfs_refcount_intent	*rb;
+
+	ra = container_of(a, struct xfs_refcount_intent, ri_list);
+	rb = container_of(b, struct xfs_refcount_intent, ri_list);
+	return  XFS_FSB_TO_AGNO(mp, ra->ri_startblock) -
+		XFS_FSB_TO_AGNO(mp, rb->ri_startblock);
+}
+
+/* Get an CUI. */
+STATIC void *
+xfs_refcount_update_create_intent(
+	struct xfs_trans		*tp,
+	unsigned int			count)
+{
+	struct xfs_cui_log_item		*cuip;
+
+	ASSERT(tp != NULL);
+	ASSERT(count > 0);
+
+	cuip = xfs_cui_init(tp->t_mountp, count);
+	ASSERT(cuip != NULL);
+
+	/*
+	 * Get a log_item_desc to point at the new item.
+	 */
+	xfs_trans_add_item(tp, &cuip->cui_item);
+	return cuip;
+}
+
+/* Set the phys extent flags for this reverse mapping. */
+static void
+xfs_trans_set_refcount_flags(
+	struct xfs_phys_extent		*refc,
+	enum xfs_refcount_intent_type	type)
+{
+	refc->pe_flags = 0;
+	switch (type) {
+	case XFS_REFCOUNT_INCREASE:
+	case XFS_REFCOUNT_DECREASE:
+	case XFS_REFCOUNT_ALLOC_COW:
+	case XFS_REFCOUNT_FREE_COW:
+		refc->pe_flags |= type;
+		break;
+	default:
+		ASSERT(0);
+	}
+}
+
+/* Log refcount updates in the intent item. */
+STATIC void
+xfs_refcount_update_log_item(
+	struct xfs_trans		*tp,
+	void				*intent,
+	struct list_head		*item)
+{
+	struct xfs_cui_log_item		*cuip = intent;
+	struct xfs_refcount_intent	*refc;
+	uint				next_extent;
+	struct xfs_phys_extent		*ext;
+
+	refc = container_of(item, struct xfs_refcount_intent, ri_list);
+
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &cuip->cui_item.li_flags);
+
+	/*
+	 * atomic_inc_return gives us the value after the increment;
+	 * we want to use it as an array index so we need to subtract 1 from
+	 * it.
+	 */
+	next_extent = atomic_inc_return(&cuip->cui_next_extent) - 1;
+	ASSERT(next_extent < cuip->cui_format.cui_nextents);
+	ext = &cuip->cui_format.cui_extents[next_extent];
+	ext->pe_startblock = refc->ri_startblock;
+	ext->pe_len = refc->ri_blockcount;
+	xfs_trans_set_refcount_flags(ext, refc->ri_type);
+}
+
+/* Get an CUD so we can process all the deferred refcount updates. */
+STATIC void *
+xfs_refcount_update_create_done(
+	struct xfs_trans		*tp,
+	void				*intent,
+	unsigned int			count)
+{
+	return xfs_trans_get_cud(tp, intent);
+}
+
+/* Process a deferred refcount update. */
+STATIC int
+xfs_refcount_update_finish_item(
+	struct xfs_trans		*tp,
+	struct list_head		*item,
+	void				*done_item,
+	void				**state)
+{
+	struct xfs_refcount_intent	*refc;
+	xfs_fsblock_t			new_fsb;
+	xfs_extlen_t			new_aglen;
+	int				error;
+
+	refc = container_of(item, struct xfs_refcount_intent, ri_list);
+	error = xfs_trans_log_finish_refcount_update(tp, done_item,
+			refc->ri_type,
+			refc->ri_startblock,
+			refc->ri_blockcount,
+			&new_fsb, &new_aglen,
+			(struct xfs_btree_cur **)state);
+	/* Did we run out of reservation?  Requeue what we didn't finish. */
+	if (!error && new_aglen > 0) {
+		ASSERT(refc->ri_type == XFS_REFCOUNT_INCREASE ||
+		       refc->ri_type == XFS_REFCOUNT_DECREASE);
+		refc->ri_startblock = new_fsb;
+		refc->ri_blockcount = new_aglen;
+		return -EAGAIN;
+	}
+	kmem_free(refc);
+	return error;
+}
+
+/* Clean up after processing deferred refcounts. */
+STATIC void
+xfs_refcount_update_finish_cleanup(
+	struct xfs_trans	*tp,
+	void			*state,
+	int			error)
+{
+	struct xfs_btree_cur	*rcur = state;
+
+	xfs_refcount_finish_one_cleanup(tp, rcur, error);
+}
+
+/* Abort all pending CUIs. */
+STATIC void
+xfs_refcount_update_abort_intent(
+	void				*intent)
+{
+	xfs_cui_release(intent);
+}
+
+/* Cancel a deferred refcount update. */
+STATIC void
+xfs_refcount_update_cancel_item(
+	struct list_head		*item)
+{
+	struct xfs_refcount_intent	*refc;
+
+	refc = container_of(item, struct xfs_refcount_intent, ri_list);
+	kmem_free(refc);
+}
+
+const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
+	.max_items	= XFS_CUI_MAX_FAST_EXTENTS,
+	.diff_items	= xfs_refcount_update_diff_items,
+	.create_intent	= xfs_refcount_update_create_intent,
+	.abort_intent	= xfs_refcount_update_abort_intent,
+	.log_item	= xfs_refcount_update_log_item,
+	.create_done	= xfs_refcount_update_create_done,
+	.finish_item	= xfs_refcount_update_finish_item,
+	.finish_cleanup = xfs_refcount_update_finish_cleanup,
+	.cancel_item	= xfs_refcount_update_cancel_item,
+};
 
 /*
  * Process a refcount update intent item that was recovered from the log.

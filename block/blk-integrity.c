@@ -383,7 +383,7 @@ static const struct blk_integrity_profile nop_profile = {
  * send/receive integrity metadata it must use this function to register
  * the capability with the block layer. The template is a blk_integrity
  * struct with values appropriate for the underlying hardware. See
- * Documentation/block/data-integrity.txt.
+ * Documentation/block/data-integrity.rst.
  */
 void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 {

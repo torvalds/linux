@@ -1,7 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  *
  * Copyright (C) 2017 Hari Bathini, IBM Corporation
  */
@@ -14,6 +12,10 @@
 #include <linux/perf_event.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
+
+#ifndef HAVE_SETNS_SUPPORT
+int setns(int fd, int nstype);
+#endif
 
 struct namespaces_event;
 

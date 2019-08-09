@@ -254,7 +254,7 @@ config AQUANTIA_PHY
 	---help---
 	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
-config ASIX_PHY
+config AX88796B_PHY
 	tristate "Asix PHYs"
 	help
 	  Currently supports the Asix Electronics PHY found in the X-Surf 100
@@ -415,6 +415,12 @@ config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
 	---help---
 	  Currently supports the DP83865 PHY.
+
+config NXP_TJA11XX_PHY
+	tristate "NXP TJA11xx PHYs support"
+	depends on HWMON
+	---help---
+	  Currently supports the NXP TJA1100 and TJA1101 PHY.
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"

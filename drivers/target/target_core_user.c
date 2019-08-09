@@ -1824,20 +1824,18 @@ static int tcmu_update_uio_info(struct tcmu_dev *udev)
 {
 	struct tcmu_hba *hba = udev->hba->hba_ptr;
 	struct uio_info *info;
-	size_t size, used;
 	char *str;
 
 	info = &udev->uio_info;
-	size = snprintf(NULL, 0, "tcm-user/%u/%s/%s", hba->host_id, udev->name,
-			udev->dev_config);
-	size += 1; /* for \0 */
-	str = kmalloc(size, GFP_KERNEL);
+
+	if (udev->dev_config[0])
+		str = kasprintf(GFP_KERNEL, "tcm-user/%u/%s/%s", hba->host_id,
+				udev->name, udev->dev_config);
+	else
+		str = kasprintf(GFP_KERNEL, "tcm-user/%u/%s", hba->host_id,
+				udev->name);
 	if (!str)
 		return -ENOMEM;
-
-	used = snprintf(str, size, "tcm-user/%u/%s", hba->host_id, udev->name);
-	if (udev->dev_config[0])
-		snprintf(str + used, size - used, "/%s", udev->dev_config);
 
 	/* If the old string exists, free it */
 	kfree(info->name);

@@ -83,6 +83,9 @@ static void ksz_mib_read_work(struct work_struct *work)
 	int i;
 
 	for (i = 0; i < dev->mib_port_cnt; i++) {
+		if (dsa_is_unused_port(dev->ds, i))
+			continue;
+
 		p = &dev->ports[i];
 		mib = &p->mib;
 		mutex_lock(&mib->cnt_mutex);
@@ -393,9 +396,7 @@ void ksz_disable_port(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL_GPL(ksz_disable_port);
 
-struct ksz_device *ksz_switch_alloc(struct device *base,
-				    const struct ksz_io_ops *ops,
-				    void *priv)
+struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 {
 	struct dsa_switch *ds;
 	struct ksz_device *swdev;
@@ -413,7 +414,6 @@ struct ksz_device *ksz_switch_alloc(struct device *base,
 
 	swdev->ds = ds;
 	swdev->priv = priv;
-	swdev->ops = ops;
 
 	return swdev;
 }
@@ -433,13 +433,12 @@ int ksz_switch_register(struct ksz_device *dev,
 		return PTR_ERR(dev->reset_gpio);
 
 	if (dev->reset_gpio) {
-		gpiod_set_value(dev->reset_gpio, 1);
+		gpiod_set_value_cansleep(dev->reset_gpio, 1);
 		mdelay(10);
-		gpiod_set_value(dev->reset_gpio, 0);
+		gpiod_set_value_cansleep(dev->reset_gpio, 0);
 	}
 
 	mutex_init(&dev->dev_mutex);
-	mutex_init(&dev->reg_mutex);
 	mutex_init(&dev->stats_mutex);
 	mutex_init(&dev->alu_mutex);
 	mutex_init(&dev->vlan_mutex);
@@ -460,6 +459,8 @@ int ksz_switch_register(struct ksz_device *dev,
 		ret = of_get_phy_mode(dev->dev->of_node);
 		if (ret >= 0)
 			dev->interface = ret;
+		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
+							 "microchip,synclko-125");
 	}
 
 	ret = dsa_register_switch(dev->ds);
@@ -484,7 +485,7 @@ void ksz_switch_remove(struct ksz_device *dev)
 	dsa_unregister_switch(dev->ds);
 
 	if (dev->reset_gpio)
-		gpiod_set_value(dev->reset_gpio, 1);
+		gpiod_set_value_cansleep(dev->reset_gpio, 1);
 
 }
 EXPORT_SYMBOL(ksz_switch_remove);

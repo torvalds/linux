@@ -12,10 +12,10 @@ REQUIREMENTS
 *  Minimum Python version of 3.4. Earlier 3.X versions may work but are not
    guaranteed.
 
-*  The kernel must have network namespace support
+*  The kernel must have network namespace support if using nsPlugin
 
 *  The kernel must have veth support available, as a veth pair is created
-   prior to running the tests.
+   prior to running the tests when using nsPlugin.
 
 *  The kernel must have the appropriate infrastructure enabled to run all tdc
    unit tests. See the config file in this directory for minimum required
@@ -53,8 +53,12 @@ commands being tested must be run as root.  The code that enforces
 execution by root uid has been moved into a plugin (see PLUGIN
 ARCHITECTURE, below).
 
-If nsPlugin is linked, all tests are executed inside a network
-namespace to prevent conflicts within the host.
+Tests that use a network device should have nsPlugin.py listed as a
+requirement for that test. nsPlugin executes all commands within a
+network namespace and creates a veth pair which may be used in those test
+cases. To disable execution within the namespace, pass the -N option
+to tdc when starting a test run; the veth pair will still be created
+by the plugin.
 
 Running tdc without any arguments will run all tests. Refer to the section
 on command line arguments for more information, or run:
@@ -154,8 +158,8 @@ action:
 netns:
   options for nsPlugin (run commands in net namespace)
 
-  -n, --namespace
-                        Run commands in namespace as specified in tdc_config.py
+  -N, --no-namespace
+                        Do not run commands in a network namespace.
 
 valgrind:
   options for valgrindPlugin (run command under test under Valgrind)
@@ -171,7 +175,8 @@ was in the tdc.py script has been moved into the plugins.
 
 The plugins are in the directory plugin-lib.  The are executed from
 directory plugins.  Put symbolic links from plugins to plugin-lib,
-and name them according to the order you want them to run.
+and name them according to the order you want them to run. This is not
+necessary if a test case being run requires a specific plugin to work.
 
 Example:
 
@@ -223,7 +228,8 @@ directory:
   - rootPlugin.py:
       implements the enforcement of running as root
   - nsPlugin.py:
-      sets up a network namespace and runs all commands in that namespace
+      sets up a network namespace and runs all commands in that namespace,
+      while also setting up dummy devices to be used in testing.
   - valgrindPlugin.py
       runs each command in the execute stage under valgrind,
       and checks for leaks.

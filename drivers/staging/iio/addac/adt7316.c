@@ -6,7 +6,8 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/irq.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -2154,7 +2155,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		chip->dac_bits = 8;
 
 	chip->ldac_pin = devm_gpiod_get_optional(dev, "adi,ldac",
-						GPIOD_OUT_LOW);
+						 GPIOD_OUT_LOW);
 	if (IS_ERR(chip->ldac_pin)) {
 		ret = PTR_ERR(chip->ldac_pin);
 		dev_err(dev, "Failed to request ldac GPIO: %d\n", ret);

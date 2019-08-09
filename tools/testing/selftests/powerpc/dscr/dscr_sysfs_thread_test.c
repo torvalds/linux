@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * POWER Data Stream Control Register (DSCR) sysfs thread test
  *
@@ -7,10 +8,6 @@
  * executing on individual CPUs on the system.
  *
  * Copyright 2015, Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 #define _GNU_SOURCE
 #include "dscr.h"

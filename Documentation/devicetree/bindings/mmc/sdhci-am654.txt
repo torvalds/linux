@@ -8,7 +8,10 @@ Only deviations are documented here.
   [3] Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
 Required Properties:
-	- compatible: should be "ti,am654-sdhci-5.1"
+	- compatible: should be one of:
+			"ti,am654-sdhci-5.1": SDHCI on AM654 device.
+			"ti,j721e-sdhci-8bit": 8 bit SDHCI on J721E device.
+			"ti,j721e-sdhci-4bit": 4 bit SDHCI on J721E device.
 	- reg: Must be two entries.
 		- The first should be the sdhci register space
 		- The second should the subsystem/phy register space
@@ -16,9 +19,13 @@ Required Properties:
 	- clock-names: Tuple including "clk_xin" and "clk_ahb"
 	- interrupts: Interrupt specifiers
 	- ti,otap-del-sel: Output Tap Delay select
+
+Optional Properties (Required for ti,am654-sdhci-5.1 and ti,j721e-sdhci-8bit):
 	- ti,trm-icp: DLL trim select
 	- ti,driver-strength-ohm: driver strength in ohms.
 				  Valid values are 33, 40, 50, 66 and 100 ohms.
+Optional Properties:
+	- ti,strobe-sel: strobe select delay for HS400 speed mode. Default value: 0x0.
 
 Example:
 

@@ -157,7 +157,7 @@ bad_area:
 	if (user_mode(regs)) {
 		current->thread.bad_vaddr = address;
 		current->thread.error_code = is_write;
-		force_sig_fault(SIGSEGV, code, (void *) address, current);
+		force_sig_fault(SIGSEGV, code, (void *) address);
 		return;
 	}
 	bad_page_fault(regs, address, SIGSEGV);
@@ -182,7 +182,7 @@ do_sigbus:
 	 * or user mode.
 	 */
 	current->thread.bad_vaddr = address;
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void *) address, current);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void *) address);
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))

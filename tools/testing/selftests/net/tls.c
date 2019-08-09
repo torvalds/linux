@@ -644,6 +644,32 @@ TEST_F(tls, poll_wait)
 	EXPECT_EQ(recv(self->cfd, recv_mem, send_len, MSG_WAITALL), send_len);
 }
 
+TEST_F(tls, poll_wait_split)
+{
+	struct pollfd fd = { 0, 0, 0 };
+	char send_mem[20] = {};
+	char recv_mem[15];
+
+	fd.fd = self->cfd;
+	fd.events = POLLIN;
+	/* Send 20 bytes */
+	EXPECT_EQ(send(self->fd, send_mem, sizeof(send_mem), 0),
+		  sizeof(send_mem));
+	/* Poll with inf. timeout */
+	EXPECT_EQ(poll(&fd, 1, -1), 1);
+	EXPECT_EQ(fd.revents & POLLIN, 1);
+	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), MSG_WAITALL),
+		  sizeof(recv_mem));
+
+	/* Now the remaining 5 bytes of record data are in TLS ULP */
+	fd.fd = self->cfd;
+	fd.events = POLLIN;
+	EXPECT_EQ(poll(&fd, 1, -1), 1);
+	EXPECT_EQ(fd.revents & POLLIN, 1);
+	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0),
+		  sizeof(send_mem) - sizeof(recv_mem));
+}
+
 TEST_F(tls, blocking)
 {
 	size_t data = 100000;

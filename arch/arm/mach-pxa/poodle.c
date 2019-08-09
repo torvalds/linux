@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/poodle.c
  *
@@ -5,10 +6,6 @@
  *
  * Based on:
  *  linux/arch/arm/mach-pxa/lubbock.c Author:	Nicolas Pitre
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  *
  * Change Log
  *  12-Dec-2002 Sharp Corporation for Poodle

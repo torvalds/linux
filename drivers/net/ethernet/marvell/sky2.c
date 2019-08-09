@@ -4917,6 +4917,13 @@ static const struct dmi_system_id msi_blacklist[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "P-79"),
 		},
 	},
+	{
+		.ident = "ASUS P5W DH Deluxe",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTEK COMPUTER INC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "P5W DH Deluxe"),
+		},
+	},
 	{}
 };
 

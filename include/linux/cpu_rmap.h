@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __LINUX_CPU_RMAP_H
 #define __LINUX_CPU_RMAP_H
 
 /*
  * cpu_rmap.c: CPU affinity reverse-map support
  * Copyright 2011 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/cpumask.h>

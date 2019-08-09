@@ -423,23 +423,6 @@ Description:
 		(e.g. driver restart on the VM which owns the VF).
 
 
-sysfs interface for NetEffect RNIC Low-Level iWARP driver (nes)
----------------------------------------------------------------
-
-What:		/sys/class/infiniband/nesX/hw_rev
-What:		/sys/class/infiniband/nesX/hca_type
-What:		/sys/class/infiniband/nesX/board_id
-Date:		Feb, 2008
-KernelVersion:	v2.6.25
-Contact:	linux-rdma@vger.kernel.org
-Description:
-		hw_rev:		(RO) Hardware revision number
-
-		hca_type:	(RO) Host Channel Adapter type (NEX020)
-
-		board_id:	(RO) Manufacturing board id
-
-
 sysfs interface for Chelsio T4/T5 RDMA driver (cxgb4)
 -----------------------------------------------------
 

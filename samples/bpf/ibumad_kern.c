@@ -31,15 +31,9 @@ struct bpf_map_def SEC("maps") write_count = {
 };
 
 #undef DEBUG
-#ifdef DEBUG
-#define bpf_debug(fmt, ...)                         \
-({                                                  \
-	char ____fmt[] = fmt;                       \
-	bpf_trace_printk(____fmt, sizeof(____fmt),  \
-			 ##__VA_ARGS__);            \
-})
-#else
-#define bpf_debug(fmt, ...)
+#ifndef DEBUG
+#undef bpf_printk
+#define bpf_printk(fmt, ...)
 #endif
 
 /* Taken from the current format defined in
@@ -86,7 +80,7 @@ int on_ib_umad_read_recv(struct ib_umad_rw_args *ctx)
 	u64 zero = 0, *val;
 	u8 class = ctx->mgmt_class;
 
-	bpf_debug("ib_umad read recv : class 0x%x\n", class);
+	bpf_printk("ib_umad read recv : class 0x%x\n", class);
 
 	val = bpf_map_lookup_elem(&read_count, &class);
 	if (!val) {
@@ -106,7 +100,7 @@ int on_ib_umad_read_send(struct ib_umad_rw_args *ctx)
 	u64 zero = 0, *val;
 	u8 class = ctx->mgmt_class;
 
-	bpf_debug("ib_umad read send : class 0x%x\n", class);
+	bpf_printk("ib_umad read send : class 0x%x\n", class);
 
 	val = bpf_map_lookup_elem(&read_count, &class);
 	if (!val) {
@@ -126,7 +120,7 @@ int on_ib_umad_write(struct ib_umad_rw_args *ctx)
 	u64 zero = 0, *val;
 	u8 class = ctx->mgmt_class;
 
-	bpf_debug("ib_umad write : class 0x%x\n", class);
+	bpf_printk("ib_umad write : class 0x%x\n", class);
 
 	val = bpf_map_lookup_elem(&write_count, &class);
 	if (!val) {

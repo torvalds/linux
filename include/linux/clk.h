@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/include/linux/clk.h
  *
  *  Copyright (C) 2004 ARM Limited.
  *  Written by Deep Blue Solutions Limited.
  *  Copyright (C) 2011-2012 Linaro Ltd <mturquette@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __LINUX_CLK_H
 #define __LINUX_CLK_H
@@ -332,6 +329,19 @@ int __must_check clk_bulk_get(struct device *dev, int num_clks,
  */
 int __must_check clk_bulk_get_all(struct device *dev,
 				  struct clk_bulk_data **clks);
+
+/**
+ * clk_bulk_get_optional - lookup and obtain a number of references to clock producer
+ * @dev: device for clock "consumer"
+ * @num_clks: the number of clk_bulk_data
+ * @clks: the clk_bulk_data table of consumer
+ *
+ * Behaves the same as clk_bulk_get() except where there is no clock producer.
+ * In this case, instead of returning -ENOENT, the function returns 0 and
+ * NULL for a clk for which a clock producer could not be determined.
+ */
+int __must_check clk_bulk_get_optional(struct device *dev, int num_clks,
+				       struct clk_bulk_data *clks);
 /**
  * devm_clk_bulk_get - managed get multiple clk consumers
  * @dev: device for clock "consumer"
@@ -346,6 +356,29 @@ int __must_check clk_bulk_get_all(struct device *dev,
  */
 int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
 				   struct clk_bulk_data *clks);
+/**
+ * devm_clk_bulk_get_optional - managed get multiple optional consumer clocks
+ * @dev: device for clock "consumer"
+ * @num_clks: the number of clk_bulk_data
+ * @clks: pointer to the clk_bulk_data table of consumer
+ *
+ * Behaves the same as devm_clk_bulk_get() except where there is no clock
+ * producer.  In this case, instead of returning -ENOENT, the function returns
+ * NULL for given clk. It is assumed all clocks in clk_bulk_data are optional.
+ *
+ * Returns 0 if all clocks specified in clk_bulk_data table are obtained
+ * successfully or for any clk there was no clk provider available, otherwise
+ * returns valid IS_ERR() condition containing errno.
+ * The implementation uses @dev and @clk_bulk_data.id to determine the
+ * clock consumer, and thereby the clock producer.
+ * The clock returned is stored in each @clk_bulk_data.clk field.
+ *
+ * Drivers must assume that the clock source is not enabled.
+ *
+ * clk_bulk_get should not be called from within interrupt context.
+ */
+int __must_check devm_clk_bulk_get_optional(struct device *dev, int num_clks,
+					    struct clk_bulk_data *clks);
 /**
  * devm_clk_bulk_get_all - managed get multiple clk consumers
  * @dev: device for clock "consumer"
@@ -718,6 +751,12 @@ static inline int __must_check clk_bulk_get(struct device *dev, int num_clks,
 	return 0;
 }
 
+static inline int __must_check clk_bulk_get_optional(struct device *dev,
+				int num_clks, struct clk_bulk_data *clks)
+{
+	return 0;
+}
+
 static inline int __must_check clk_bulk_get_all(struct device *dev,
 					 struct clk_bulk_data **clks)
 {
@@ -737,6 +776,12 @@ static inline struct clk *devm_clk_get_optional(struct device *dev,
 
 static inline int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
 						 struct clk_bulk_data *clks)
+{
+	return 0;
+}
+
+static inline int __must_check devm_clk_bulk_get_optional(struct device *dev,
+				int num_clks, struct clk_bulk_data *clks)
 {
 	return 0;
 }

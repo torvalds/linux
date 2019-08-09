@@ -23,6 +23,21 @@ struct btrfs_pending_bios {
 	struct bio *tail;
 };
 
+struct btrfs_io_geometry {
+	/* remaining bytes before crossing a stripe */
+	u64 len;
+	/* offset of logical address in chunk */
+	u64 offset;
+	/* length of single IO stripe */
+	u64 stripe_len;
+	/* number of stripe where address falls */
+	u64 stripe_nr;
+	/* offset of address in stripe */
+	u64 stripe_offset;
+	/* offset of raid56 stripe into the chunk */
+	u64 raid56_stripe_offset;
+};
+
 /*
  * Use sequence counter to get consistent device stat data on
  * 32-bit processors.
@@ -43,8 +58,8 @@ struct btrfs_pending_bios {
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
 
 struct btrfs_device {
-	struct list_head dev_list;
-	struct list_head dev_alloc_list;
+	struct list_head dev_list; /* device_list_mutex */
+	struct list_head dev_alloc_list; /* chunk mutex */
 	struct list_head post_commit_list; /* chunk mutex */
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_fs_info *fs_info;
@@ -229,9 +244,14 @@ struct btrfs_fs_devices {
 	 * this mutex lock.
 	 */
 	struct mutex device_list_mutex;
+
+	/* List of all devices, protected by device_list_mutex */
 	struct list_head devices;
 
-	/* devices not currently being allocated */
+	/*
+	 * Devices which can satisfy space allocation. Protected by
+	 * chunk_mutex
+	 */
 	struct list_head alloc_list;
 
 	struct btrfs_fs_devices *seed;
@@ -336,16 +356,16 @@ struct btrfs_device_info {
 };
 
 struct btrfs_raid_attr {
-	int sub_stripes;	/* sub_stripes info for map */
-	int dev_stripes;	/* stripes per dev */
-	int devs_max;		/* max devs to use */
-	int devs_min;		/* min devs needed */
-	int tolerated_failures; /* max tolerated fail devs */
-	int devs_increment;	/* ndevs has to be a multiple of this */
-	int ncopies;		/* how many copies to data has */
-	int nparity;		/* number of stripes worth of bytes to store
+	u8 sub_stripes;		/* sub_stripes info for map */
+	u8 dev_stripes;		/* stripes per dev */
+	u8 devs_max;		/* max devs to use */
+	u8 devs_min;		/* min devs needed */
+	u8 tolerated_failures;	/* max tolerated fail devs */
+	u8 devs_increment;	/* ndevs has to be a multiple of this */
+	u8 ncopies;		/* how many copies to data has */
+	u8 nparity;		/* number of stripes worth of bytes to store
 				 * parity information */
-	int mindev_error;	/* error code if min devs requisite is unmet */
+	u8 mindev_error;	/* error code if min devs requisite is unmet */
 	const char raid_name[8]; /* name of the raid */
 	u64 bg_flag;		/* block group flag of the raid */
 };
@@ -408,13 +428,14 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_bio **bbio_ret);
+int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
+		u64 logical, u64 len, struct btrfs_io_geometry *io_geom);
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 		     u64 physical, u64 **logical, int *naddrs, int *stripe_len);
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type);
-void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
-void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
+void btrfs_mapping_tree_free(struct extent_map_tree *tree);
 blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			   int mirror_num, int async_submit);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
@@ -557,8 +578,6 @@ static inline enum btrfs_raid_types btrfs_bg_flags_to_raid_index(u64 flags)
 	return BTRFS_RAID_SINGLE; /* BTRFS_BLOCK_GROUP_SINGLE */
 }
 
-const char *get_raid_name(enum btrfs_raid_types type);
-
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);
 
 struct list_head *btrfs_get_fs_uuids(void);
@@ -568,6 +587,7 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev);
 
 int btrfs_bg_type_to_factor(u64 flags);
+const char *btrfs_bg_type_to_raid_name(u64 flags);
 int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info);
 
 #endif

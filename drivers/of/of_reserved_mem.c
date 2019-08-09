@@ -324,6 +324,9 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 	if (!target)
 		return -ENODEV;
 
+	if (!of_device_is_available(target))
+		return 0;
+
 	rmem = __find_rmem(target);
 	of_node_put(target);
 

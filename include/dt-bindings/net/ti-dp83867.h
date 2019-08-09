@@ -48,4 +48,6 @@
 #define DP83867_CLK_O_SEL_CHN_C_TCLK		0xA
 #define DP83867_CLK_O_SEL_CHN_D_TCLK		0xB
 #define DP83867_CLK_O_SEL_REF_CLK		0xC
+/* Special flag to indicate clock should be off */
+#define DP83867_CLK_O_SEL_OFF			0xFFFFFFFF
 #endif

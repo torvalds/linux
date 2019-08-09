@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/balloon3.c
  *
@@ -7,10 +8,6 @@
  *  Created:	June, 2006
  *  Copyright:	Toby Churchill Ltd
  *  Derived from mainstone.c, by Nico Pitre
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/export.h>

@@ -15,13 +15,14 @@
 #include "drm_selftest.h"
 #include "test-drm_modeset_common.h"
 
+static const struct drm_connector no_connector = {};
+
 static int drm_cmdline_test_res(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -42,11 +43,10 @@ static int drm_cmdline_test_res(void *ignored)
 
 static int drm_cmdline_test_res_missing_x(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("x480",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -54,11 +54,10 @@ static int drm_cmdline_test_res_missing_x(void *ignored)
 
 static int drm_cmdline_test_res_missing_y(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("1024x",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -66,11 +65,10 @@ static int drm_cmdline_test_res_missing_y(void *ignored)
 
 static int drm_cmdline_test_res_bad_y(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("1024xtest",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -78,11 +76,10 @@ static int drm_cmdline_test_res_bad_y(void *ignored)
 
 static int drm_cmdline_test_res_missing_y_bpp(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("1024x-24",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -90,11 +87,10 @@ static int drm_cmdline_test_res_missing_y_bpp(void *ignored)
 
 static int drm_cmdline_test_res_vesa(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480M",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -115,11 +111,10 @@ static int drm_cmdline_test_res_vesa(void *ignored)
 
 static int drm_cmdline_test_res_vesa_rblank(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480MR",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -140,11 +135,10 @@ static int drm_cmdline_test_res_vesa_rblank(void *ignored)
 
 static int drm_cmdline_test_res_rblank(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480R",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -165,11 +159,10 @@ static int drm_cmdline_test_res_rblank(void *ignored)
 
 static int drm_cmdline_test_res_bpp(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -191,11 +184,10 @@ static int drm_cmdline_test_res_bpp(void *ignored)
 
 static int drm_cmdline_test_res_bad_bpp(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480-test",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -203,11 +195,10 @@ static int drm_cmdline_test_res_bad_bpp(void *ignored)
 
 static int drm_cmdline_test_res_refresh(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480@60",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -229,11 +220,10 @@ static int drm_cmdline_test_res_refresh(void *ignored)
 
 static int drm_cmdline_test_res_bad_refresh(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480@refresh",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -241,11 +231,10 @@ static int drm_cmdline_test_res_bad_refresh(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -268,11 +257,10 @@ static int drm_cmdline_test_res_bpp_refresh(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_interlaced(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60i",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -295,11 +283,10 @@ static int drm_cmdline_test_res_bpp_refresh_interlaced(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_margins(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60m",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -322,11 +309,10 @@ static int drm_cmdline_test_res_bpp_refresh_margins(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_force_off(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60d",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -349,11 +335,10 @@ static int drm_cmdline_test_res_bpp_refresh_force_off(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_force_on_off(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480-24@60de",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -361,11 +346,10 @@ static int drm_cmdline_test_res_bpp_refresh_force_on_off(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_force_on(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60e",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -388,11 +372,10 @@ static int drm_cmdline_test_res_bpp_refresh_force_on(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_force_on_analog(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60D",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -415,10 +398,11 @@ static int drm_cmdline_test_res_bpp_refresh_force_on_analog(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_force_on_digital(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
+	static const struct drm_connector connector = {
+		.connector_type = DRM_MODE_CONNECTOR_DVII,
+	};
 
-	connector.connector_type = DRM_MODE_CONNECTOR_DVII;
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60D",
 							   &connector,
 							   &mode));
@@ -443,11 +427,10 @@ static int drm_cmdline_test_res_bpp_refresh_force_on_digital(void *ignored)
 
 static int drm_cmdline_test_res_bpp_refresh_interlaced_margins_force_on(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24@60ime",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -470,11 +453,10 @@ static int drm_cmdline_test_res_bpp_refresh_interlaced_margins_force_on(void *ig
 
 static int drm_cmdline_test_res_margins_force_on(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480me",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -495,11 +477,10 @@ static int drm_cmdline_test_res_margins_force_on(void *ignored)
 
 static int drm_cmdline_test_res_vesa_margins(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480Mm",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -520,11 +501,10 @@ static int drm_cmdline_test_res_vesa_margins(void *ignored)
 
 static int drm_cmdline_test_res_invalid_mode(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480f",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -532,11 +512,10 @@ static int drm_cmdline_test_res_invalid_mode(void *ignored)
 
 static int drm_cmdline_test_res_bpp_wrong_place_mode(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480e-24",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -544,11 +523,10 @@ static int drm_cmdline_test_res_bpp_wrong_place_mode(void *ignored)
 
 static int drm_cmdline_test_name(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("NTSC",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(strcmp(mode.name, "NTSC"));
 	FAIL_ON(mode.refresh_specified);
@@ -559,11 +537,10 @@ static int drm_cmdline_test_name(void *ignored)
 
 static int drm_cmdline_test_name_bpp(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("NTSC-24",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(strcmp(mode.name, "NTSC"));
 
@@ -577,11 +554,10 @@ static int drm_cmdline_test_name_bpp(void *ignored)
 
 static int drm_cmdline_test_name_bpp_refresh(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("NTSC-24@60",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -589,11 +565,10 @@ static int drm_cmdline_test_name_bpp_refresh(void *ignored)
 
 static int drm_cmdline_test_name_refresh(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("NTSC@60",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -601,11 +576,10 @@ static int drm_cmdline_test_name_refresh(void *ignored)
 
 static int drm_cmdline_test_name_refresh_wrong_mode(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("NTSC@60m",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -613,11 +587,10 @@ static int drm_cmdline_test_name_refresh_wrong_mode(void *ignored)
 
 static int drm_cmdline_test_name_refresh_invalid_mode(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("NTSC@60f",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -625,11 +598,10 @@ static int drm_cmdline_test_name_refresh_invalid_mode(void *ignored)
 
 static int drm_cmdline_test_name_option(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("NTSC,rotate=180",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(strcmp(mode.name, "NTSC"));
@@ -640,11 +612,10 @@ static int drm_cmdline_test_name_option(void *ignored)
 
 static int drm_cmdline_test_name_bpp_option(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("NTSC-24,rotate=180",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(strcmp(mode.name, "NTSC"));
@@ -657,11 +628,10 @@ static int drm_cmdline_test_name_bpp_option(void *ignored)
 
 static int drm_cmdline_test_rotate_0(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,rotate=0",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -683,11 +653,10 @@ static int drm_cmdline_test_rotate_0(void *ignored)
 
 static int drm_cmdline_test_rotate_90(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,rotate=90",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -709,11 +678,10 @@ static int drm_cmdline_test_rotate_90(void *ignored)
 
 static int drm_cmdline_test_rotate_180(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,rotate=180",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -735,11 +703,10 @@ static int drm_cmdline_test_rotate_180(void *ignored)
 
 static int drm_cmdline_test_rotate_270(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,rotate=270",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -761,11 +728,10 @@ static int drm_cmdline_test_rotate_270(void *ignored)
 
 static int drm_cmdline_test_rotate_invalid_val(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480,rotate=42",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -773,11 +739,10 @@ static int drm_cmdline_test_rotate_invalid_val(void *ignored)
 
 static int drm_cmdline_test_rotate_truncated(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480,rotate=",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
@@ -785,11 +750,10 @@ static int drm_cmdline_test_rotate_truncated(void *ignored)
 
 static int drm_cmdline_test_hmirror(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,reflect_x",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -811,11 +775,10 @@ static int drm_cmdline_test_hmirror(void *ignored)
 
 static int drm_cmdline_test_vmirror(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,reflect_y",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -837,11 +800,10 @@ static int drm_cmdline_test_vmirror(void *ignored)
 
 static int drm_cmdline_test_margin_options(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,margin_right=14,margin_left=24,margin_bottom=36,margin_top=42",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -866,11 +828,10 @@ static int drm_cmdline_test_margin_options(void *ignored)
 
 static int drm_cmdline_test_multiple_options(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480,rotate=270,reflect_x",
-							   &connector,
+							   &no_connector,
 							   &mode));
 	FAIL_ON(!mode.specified);
 	FAIL_ON(mode.xres != 720);
@@ -892,11 +853,10 @@ static int drm_cmdline_test_multiple_options(void *ignored)
 
 static int drm_cmdline_test_invalid_option(void *ignored)
 {
-	struct drm_connector connector = { };
 	struct drm_cmdline_mode mode = { };
 
 	FAIL_ON(drm_mode_parse_command_line_for_connector("720x480,test=42",
-							  &connector,
+							  &no_connector,
 							  &mode));
 
 	return 0;
