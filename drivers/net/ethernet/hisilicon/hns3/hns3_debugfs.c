@@ -8,6 +8,7 @@
 #include "hns3_enet.h"
 
 #define HNS3_DBG_READ_LEN 256
+#define HNS3_DBG_WRITE_LEN 1024
 
 static struct dentry *hns3_dbgfs_root;
 
@@ -321,6 +322,9 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
 	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 		return 0;
+
+	if (count > HNS3_DBG_WRITE_LEN)
+		return -ENOSPC;
 
 	cmd_buf = kzalloc(count + 1, GFP_KERNEL);
 	if (!cmd_buf)
