@@ -39,6 +39,11 @@
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
 
+#define RTL_ADV_2500FULL			BIT(7)
+#define RTL_LPADV_10000FULL			BIT(11)
+#define RTL_LPADV_5000FULL			BIT(6)
+#define RTL_LPADV_2500FULL			BIT(5)
+
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
@@ -256,6 +261,53 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 	return ret;
 }
 
+static int rtl8125_get_features(struct phy_device *phydev)
+{
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 phydev->supported);
+
+	return genphy_read_abilities(phydev);
+}
+
+static int rtl8125_config_aneg(struct phy_device *phydev)
+{
+	int ret = 0;
+
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		u16 adv2500 = 0;
+
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				      phydev->advertising))
+			adv2500 = RTL_ADV_2500FULL;
+
+		ret = phy_modify_paged_changed(phydev, 0xa5d, 0x12,
+					       RTL_ADV_2500FULL, adv2500);
+		if (ret < 0)
+			return ret;
+	}
+
+	return __genphy_config_aneg(phydev, ret);
+}
+
+static int rtl8125_read_status(struct phy_device *phydev)
+{
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		int lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
+
+		if (lpadv < 0)
+			return lpadv;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			phydev->lp_advertising, lpadv & RTL_LPADV_10000FULL);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			phydev->lp_advertising, lpadv & RTL_LPADV_5000FULL);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			phydev->lp_advertising, lpadv & RTL_LPADV_2500FULL);
+	}
+
+	return genphy_read_status(phydev);
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
@@ -328,6 +380,16 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc800),
 		.name		= "Generic Realtek PHY",
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001cca50),
+		.name		= "RTL8125 2.5Gbps internal",
+		.get_features	= rtl8125_get_features,
+		.config_aneg	= rtl8125_config_aneg,
+		.read_status	= rtl8125_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
