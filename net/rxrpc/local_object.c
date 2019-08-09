@@ -407,11 +407,13 @@ void rxrpc_unuse_local(struct rxrpc_local *local)
 {
 	unsigned int au;
 
-	au = atomic_dec_return(&local->active_users);
-	if (au == 0)
-		rxrpc_queue_local(local);
-	else
-		rxrpc_put_local(local);
+	if (local) {
+		au = atomic_dec_return(&local->active_users);
+		if (au == 0)
+			rxrpc_queue_local(local);
+		else
+			rxrpc_put_local(local);
+	}
 }
 
 /*
