@@ -243,6 +243,10 @@ qla2x00_async_iocb_timeout(void *data)
 			sp->done(sp, QLA_FUNCTION_TIMEOUT);
 		}
 		break;
+	default:
+		WARN_ON_ONCE(true);
+		sp->done(sp, QLA_FUNCTION_TIMEOUT);
+		break;
 	}
 }
 
