@@ -990,6 +990,11 @@ struct mbx_cmd_32 {
 #define MBS_LINK_DOWN_ERROR		0x400B
 #define MBS_DIAG_ECHO_TEST_ERROR	0x400C
 
+static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
+{
+	return MBS_COMMAND_COMPLETE <= mbs && mbs <= MBS_DIAG_ECHO_TEST_ERROR;
+}
+
 /*
  * ISP mailbox asynchronous event status codes
  */
