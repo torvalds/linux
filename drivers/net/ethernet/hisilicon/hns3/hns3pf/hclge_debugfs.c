@@ -14,16 +14,8 @@ static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset)
 	struct hclge_desc desc[4];
 	int ret;
 
-	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_DFX_BD_NUM, true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_DFX_BD_NUM, true);
-	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_OPC_DFX_BD_NUM, true);
-	desc[2].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	hclge_cmd_setup_basic_desc(&desc[3], HCLGE_OPC_DFX_BD_NUM, true);
-
-	ret = hclge_cmd_send(&hdev->hw, desc, 4);
-	if (ret != HCLGE_CMD_EXEC_SUCCESS) {
+	ret = hclge_query_bd_num_cmd_send(hdev, desc);
+	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"get dfx bdnum fail, status is %d.\n", ret);
 		return ret;
