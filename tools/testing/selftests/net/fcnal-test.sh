@@ -998,13 +998,6 @@ ipv4_tcp_vrf()
 ipv4_tcp()
 {
 	log_section "IPv4/TCP"
-
-	which nettest >/dev/null
-	if [ $? -ne 0 ]; then
-		log_error "nettest not found; skipping tests"
-		return
-	fi
-
 	log_subsection "No VRF"
 	setup
 
@@ -1375,12 +1368,6 @@ ipv4_udp_vrf()
 
 ipv4_udp()
 {
-	which nettest >/dev/null
-	if [ $? -ne 0 ]; then
-		log_error "nettest not found; skipping tests"
-		return
-	fi
-
 	log_section "IPv4/UDP"
 	log_subsection "No VRF"
 
@@ -2314,13 +2301,6 @@ ipv6_tcp_vrf()
 ipv6_tcp()
 {
 	log_section "IPv6/TCP"
-
-	which nettest >/dev/null
-	if [ $? -ne 0 ]; then
-		log_error "nettest not found; skipping tests"
-		return
-	fi
-
 	log_subsection "No VRF"
 	setup
 
@@ -3156,12 +3136,6 @@ netfilter_icmp()
 
 ipv4_netfilter()
 {
-	which nettest >/dev/null
-	if [ $? -ne 0 ]; then
-		log_error "nettest not found; skipping tests"
-		return
-	fi
-
 	log_section "IPv4 Netfilter"
 	log_subsection "TCP reset"
 
@@ -3219,12 +3193,6 @@ netfilter_icmp6()
 
 ipv6_netfilter()
 {
-	which nettest >/dev/null
-	if [ $? -ne 0 ]; then
-		log_error "nettest not found; skipping tests"
-		return
-	fi
-
 	log_section "IPv6 Netfilter"
 	log_subsection "TCP reset"
 
@@ -3420,6 +3388,12 @@ elif [ "$TESTS" = "ipv4" ]; then
 	TESTS="$TESTS_IPV4"
 elif [ "$TESTS" = "ipv6" ]; then
 	TESTS="$TESTS_IPV6"
+fi
+
+which nettest >/dev/null
+if [ $? -ne 0 ]; then
+	echo "'nettest' command not found; skipping tests"
+	exit 0
 fi
 
 declare -i nfail=0
