@@ -615,7 +615,6 @@ int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-/* TODO: get 2 mmhub instances CG state */
 void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 {
 	int data, data1;
