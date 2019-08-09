@@ -936,7 +936,7 @@ struct audio *dce_audio_create(
 		unsigned int inst,
 		const struct dce_audio_registers *reg,
 		const struct dce_audio_shift *shifts,
-		const struct dce_aduio_mask *masks
+		const struct dce_audio_mask *masks
 		)
 {
 	struct dce_audio *audio = kzalloc(sizeof(*audio), GFP_KERNEL);
