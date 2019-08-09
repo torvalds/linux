@@ -1162,7 +1162,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 	struct sockcm_cookie sockc;
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
-	bool process_backlog = false;
+	int process_backlog = 0;
 	bool zc = false;
 	long timeo;
 
@@ -1254,9 +1254,10 @@ new_segment:
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
 
-			if (process_backlog && sk_flush_backlog(sk)) {
-				process_backlog = false;
-				goto restart;
+			if (unlikely(process_backlog >= 16)) {
+				process_backlog = 0;
+				if (sk_flush_backlog(sk))
+					goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
 			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
@@ -1264,7 +1265,7 @@ new_segment:
 			if (!skb)
 				goto wait_for_memory;
 
-			process_backlog = true;
+			process_backlog++;
 			skb->ip_summed = CHECKSUM_PARTIAL;
 
 			skb_entail(sk, skb);
