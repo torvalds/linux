@@ -10,6 +10,7 @@
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -101,6 +102,13 @@ int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
 
 	dev_err(chip->dev, "Timeout while waiting for switch\n");
 	return -ETIMEDOUT;
+}
+
+int mv88e6xxx_wait_bit(struct mv88e6xxx_chip *chip, int addr, int reg,
+		       int bit, int val)
+{
+	return mv88e6xxx_wait_mask(chip, addr, reg, BIT(bit),
+				   val ? BIT(bit) : 0x0000);
 }
 
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
@@ -2360,8 +2368,10 @@ static int mv88e6390_hidden_write(struct mv88e6xxx_chip *chip, int port,
 
 static int mv88e6390_hidden_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_wait(chip, PORT_RESERVED_1A_CTRL_PORT,
-			      PORT_RESERVED_1A, PORT_RESERVED_1A_BUSY);
+	int bit = __bf_shf(PORT_RESERVED_1A_BUSY);
+
+	return mv88e6xxx_wait_bit(chip, PORT_RESERVED_1A_CTRL_PORT,
+				  PORT_RESERVED_1A, bit, 0);
 }
 
 

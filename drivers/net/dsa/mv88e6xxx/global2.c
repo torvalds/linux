@@ -36,6 +36,13 @@ int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 	return mv88e6xxx_wait(chip, chip->info->global2_addr, reg, mask);
 }
 
+int mv88e6xxx_g2_wait_bit(struct mv88e6xxx_chip *chip, int reg, int
+			  bit, int val)
+{
+	return mv88e6xxx_wait_bit(chip, chip->info->global2_addr, reg,
+				  bit, val);
+}
+
 /* Offset 0x00: Interrupt Source Register */
 
 static int mv88e6xxx_g2_int_source(struct mv88e6xxx_chip *chip, u16 *src)
@@ -178,8 +185,9 @@ int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_g2_irl_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_IRL_CMD,
-				 MV88E6XXX_G2_IRL_CMD_BUSY);
+	int bit = __bf_shf(MV88E6XXX_G2_IRL_CMD_BUSY);
+
+	return mv88e6xxx_g2_wait_bit(chip, MV88E6XXX_G2_IRL_CMD, bit, 0);
 }
 
 static int mv88e6xxx_g2_irl_op(struct mv88e6xxx_chip *chip, u16 op, int port,
@@ -214,8 +222,9 @@ int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port)
 
 static int mv88e6xxx_g2_pvt_op_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_PVT_ADDR,
-				 MV88E6XXX_G2_PVT_ADDR_BUSY);
+	int bit = __bf_shf(MV88E6XXX_G2_PVT_ADDR_BUSY);
+
+	return mv88e6xxx_g2_wait_bit(chip, MV88E6XXX_G2_PVT_ADDR, bit, 0);
 }
 
 static int mv88e6xxx_g2_pvt_op(struct mv88e6xxx_chip *chip, int src_dev,
@@ -308,9 +317,16 @@ int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_g2_eeprom_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_EEPROM_CMD,
-				 MV88E6XXX_G2_EEPROM_CMD_BUSY |
-				 MV88E6XXX_G2_EEPROM_CMD_RUNNING);
+	int bit = __bf_shf(MV88E6XXX_G2_EEPROM_CMD_BUSY);
+	int err;
+
+	err = mv88e6xxx_g2_wait_bit(chip, MV88E6XXX_G2_EEPROM_CMD, bit, 0);
+	if (err)
+		return err;
+
+	bit = __bf_shf(MV88E6XXX_G2_EEPROM_CMD_RUNNING);
+
+	return mv88e6xxx_g2_wait_bit(chip, MV88E6XXX_G2_EEPROM_CMD, bit, 0);
 }
 
 static int mv88e6xxx_g2_eeprom_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
@@ -572,8 +588,9 @@ int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 
 static int mv88e6xxx_g2_smi_phy_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_SMI_PHY_CMD,
-				 MV88E6XXX_G2_SMI_PHY_CMD_BUSY);
+	int bit = __bf_shf(MV88E6XXX_G2_SMI_PHY_CMD_BUSY);
+
+	return mv88e6xxx_g2_wait_bit(chip, MV88E6XXX_G2_SMI_PHY_CMD, bit, 0);
 }
 
 static int mv88e6xxx_g2_smi_phy_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
