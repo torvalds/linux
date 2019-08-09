@@ -822,8 +822,8 @@ extern int qla82xx_device_state_handler(scsi_qla_host_t *);
 extern void qla8xxx_dev_failed_handler(scsi_qla_host_t *);
 extern void qla82xx_clear_qsnt_ready(scsi_qla_host_t *);
 
-extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
-				   size_t, char *);
+extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *, size_t,
+				   const char *);
 extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
 extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
 extern void qla82xx_start_iocbs(scsi_qla_host_t *);
