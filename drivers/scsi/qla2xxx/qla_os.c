@@ -845,9 +845,6 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	srb_t *sp;
 	int rval;
-	struct qla_qpair *qpair = NULL;
-	uint32_t tag;
-	uint16_t hwq;
 
 	if (unlikely(test_bit(UNLOADING, &base_vha->dpc_flags)) ||
 	    WARN_ON_ONCE(!rport)) {
@@ -856,6 +853,10 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	}
 
 	if (ha->mqenable) {
+		uint32_t tag;
+		uint16_t hwq;
+		struct qla_qpair *qpair = NULL;
+
 		tag = blk_mq_unique_tag(cmd->request);
 		hwq = blk_mq_unique_tag_to_hwq(tag);
 		qpair = ha->queue_pair_map[hwq];
