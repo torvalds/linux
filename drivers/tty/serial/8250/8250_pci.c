@@ -1803,6 +1803,30 @@ pci_wch_ch38x_setup(struct serial_private *priv,
 	return pci_default_setup(priv, board, port, idx);
 }
 
+static int
+pci_sunix_setup(struct serial_private *priv,
+		const struct pciserial_board *board,
+		struct uart_8250_port *port, int idx)
+{
+	int bar;
+	int offset;
+
+	port->port.flags |= UPF_FIXED_TYPE;
+	port->port.type = PORT_SUNIX;
+
+	if (idx < 4) {
+		bar = 0;
+		offset = idx * board->uart_offset;
+	} else {
+		bar = 1;
+		idx -= 4;
+		idx = div_s64_rem(idx, 4, &offset);
+		offset = idx * 64 + offset * board->uart_offset;
+	}
+
+	return setup_port(priv, port, bar, offset, 0);
+}
+
 #define PCI_VENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_SUBVENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_DEVICE_ID_OCTPRO		0x0001
@@ -2490,21 +2514,14 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup		= pci_timedia_setup,
 	},
 	/*
-	 * SUNIX (Timedia) cards
-	 * Do not "probe" for these cards as there is at least one combination
-	 * card that should be handled by parport_pc that doesn't match the
-	 * rule in pci_timedia_probe.
-	 * It is part number is MIO5079A but its subdevice ID is 0x0102.
-	 * There are some boards with part number SER5037AL that report
-	 * subdevice ID 0x0002.
+	 * Sunix PCI serial boards
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SUNIX,
 		.device		= PCI_DEVICE_ID_SUNIX_1999,
 		.subvendor	= PCI_VENDOR_ID_SUNIX,
 		.subdevice	= PCI_ANY_ID,
-		.init		= pci_timedia_init,
-		.setup		= pci_timedia_setup,
+		.setup		= pci_sunix_setup,
 	},
 	/*
 	 * Xircom cards
@@ -2965,6 +2982,11 @@ enum pci_board_num_t {
 	pbn_pericom_PI7C9X7952,
 	pbn_pericom_PI7C9X7954,
 	pbn_pericom_PI7C9X7958,
+	pbn_sunix_pci_1s,
+	pbn_sunix_pci_2s,
+	pbn_sunix_pci_4s,
+	pbn_sunix_pci_8s,
+	pbn_sunix_pci_16s,
 };
 
 /*
@@ -3748,6 +3770,31 @@ static struct pciserial_board pci_boards[] = {
 	[pbn_pericom_PI7C9X7958] = {
 		.flags          = FL_BASE0,
 		.num_ports      = 8,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[pbn_sunix_pci_1s] = {
+		.num_ports	= 1,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[pbn_sunix_pci_2s] = {
+		.num_ports	= 2,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[pbn_sunix_pci_4s] = {
+		.num_ports	= 4,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[pbn_sunix_pci_8s] = {
+		.num_ports	= 8,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[pbn_sunix_pci_16s] = {
+		.num_ports	= 16,
 		.base_baud      = 921600,
 		.uart_offset	= 0x8,
 	},
@@ -4788,17 +4835,29 @@ static const struct pci_device_id serial_pci_tbl[] = {
 		pbn_b0_bt_1_921600 },
 
 	/*
-	 * SUNIX (TIMEDIA)
+	 * Sunix PCI serial boards
 	 */
 	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
-		PCI_VENDOR_ID_SUNIX, PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xffff00,
-		pbn_b0_bt_1_921600 },
-
+		PCI_VENDOR_ID_SUNIX, 0x0001, 0, 0,
+		pbn_sunix_pci_1s },
 	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
-		PCI_VENDOR_ID_SUNIX, PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_MULTISERIAL << 8, 0xffff00,
-		pbn_b0_bt_1_921600 },
+		PCI_VENDOR_ID_SUNIX, 0x0002, 0, 0,
+		pbn_sunix_pci_2s },
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, 0x0004, 0, 0,
+		pbn_sunix_pci_4s },
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, 0x0084, 0, 0,
+		pbn_sunix_pci_4s },
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, 0x0008, 0, 0,
+		pbn_sunix_pci_8s },
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, 0x0088, 0, 0,
+		pbn_sunix_pci_8s },
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, 0x0010, 0, 0,
+		pbn_sunix_pci_16s },
 
 	/*
 	 * AFAVLAB serial card, from Harald Welte <laforge@gnumonks.org>
