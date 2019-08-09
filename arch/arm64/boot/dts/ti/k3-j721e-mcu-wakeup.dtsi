@@ -87,4 +87,38 @@
 		ti,sci-dst-id = <14>;
 		ti,sci-rm-range-girq = <0x5>;
 	};
+
+	wkup_gpio0: gpio@42110000 {
+		compatible = "ti,j721e-gpio", "ti,keystone-gpio";
+		reg = <0x0 0x42110000 0x0 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&wkup_gpio_intr>;
+		interrupts = <113 0>, <113 1>, <113 2>,
+			     <113 3>, <113 4>, <113 5>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		ti,ngpio = <84>;
+		ti,davinci-gpio-unbanked = <0>;
+		power-domains = <&k3_pds 113 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 113 0>;
+		clock-names = "gpio";
+	};
+
+	wkup_gpio1: gpio@42100000 {
+		compatible = "ti,j721e-gpio", "ti,keystone-gpio";
+		reg = <0x0 0x42100000 0x0 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&wkup_gpio_intr>;
+		interrupts = <114 0>, <114 1>, <114 2>,
+			     <114 3>, <114 4>, <114 5>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		ti,ngpio = <84>;
+		ti,davinci-gpio-unbanked = <0>;
+		power-domains = <&k3_pds 114 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 114 0>;
+		clock-names = "gpio";
+	};
 };
