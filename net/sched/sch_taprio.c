@@ -677,10 +677,6 @@ static const struct nla_policy entry_policy[TCA_TAPRIO_SCHED_ENTRY_MAX + 1] = {
 	[TCA_TAPRIO_SCHED_ENTRY_INTERVAL]  = { .type = NLA_U32 },
 };
 
-static const struct nla_policy entry_list_policy[TCA_TAPRIO_SCHED_MAX + 1] = {
-	[TCA_TAPRIO_SCHED_ENTRY] = { .type = NLA_NESTED },
-};
-
 static const struct nla_policy taprio_policy[TCA_TAPRIO_ATTR_MAX + 1] = {
 	[TCA_TAPRIO_ATTR_PRIOMAP]	       = {
 		.len = sizeof(struct tc_mqprio_qopt)
