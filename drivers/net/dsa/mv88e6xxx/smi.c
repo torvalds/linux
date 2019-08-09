@@ -64,7 +64,7 @@ static int mv88e6xxx_smi_direct_wait(struct mv88e6xxx_chip *chip,
 		if (err)
 			return err;
 
-		if (!!(data >> bit) == !!val)
+		if (!!(data & BIT(bit)) == !!val)
 			return 0;
 	}
 
