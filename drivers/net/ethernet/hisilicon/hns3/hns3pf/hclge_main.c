@@ -8207,28 +8207,15 @@ static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 {
 	int ret;
 
-	if (rx_en && tx_en)
-		hdev->fc_mode_last_time = HCLGE_FC_FULL;
-	else if (rx_en && !tx_en)
-		hdev->fc_mode_last_time = HCLGE_FC_RX_PAUSE;
-	else if (!rx_en && tx_en)
-		hdev->fc_mode_last_time = HCLGE_FC_TX_PAUSE;
-	else
-		hdev->fc_mode_last_time = HCLGE_FC_NONE;
-
 	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC)
 		return 0;
 
 	ret = hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
-	if (ret) {
-		dev_err(&hdev->pdev->dev, "configure pauseparam error, ret = %d.\n",
-			ret);
-		return ret;
-	}
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"configure pauseparam error, ret = %d.\n", ret);
 
-	hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
-
-	return 0;
+	return ret;
 }
 
 int hclge_cfg_flowctrl(struct hclge_dev *hdev)
@@ -8293,6 +8280,21 @@ static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 	}
 }
 
+static void hclge_record_user_pauseparam(struct hclge_dev *hdev,
+					 u32 rx_en, u32 tx_en)
+{
+	if (rx_en && tx_en)
+		hdev->fc_mode_last_time = HCLGE_FC_FULL;
+	else if (rx_en && !tx_en)
+		hdev->fc_mode_last_time = HCLGE_FC_RX_PAUSE;
+	else if (!rx_en && tx_en)
+		hdev->fc_mode_last_time = HCLGE_FC_TX_PAUSE;
+	else
+		hdev->fc_mode_last_time = HCLGE_FC_NONE;
+
+	hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
+}
+
 static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 				u32 rx_en, u32 tx_en)
 {
@@ -8317,6 +8319,8 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	}
 
 	hclge_set_flowctrl_adv(hdev, rx_en, tx_en);
+
+	hclge_record_user_pauseparam(hdev, rx_en, tx_en);
 
 	if (!auto_neg)
 		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
