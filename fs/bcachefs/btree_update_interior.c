@@ -194,7 +194,7 @@ found:
 		       : gc_pos_btree_root(as->btree_id)) >= 0 &&
 	    gc_pos_cmp(c->gc_pos, gc_phase(GC_PHASE_PENDING_DELETE)) < 0)
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&d->key),
-			      0, NULL, 0,
+			      0, 0, NULL, 0,
 			      BCH_BUCKET_MARK_OVERWRITE|
 			      BCH_BUCKET_MARK_GC);
 }
@@ -266,11 +266,12 @@ static void bch2_btree_node_free_ondisk(struct bch_fs *c,
 {
 	BUG_ON(!pending->index_update_done);
 
-	bch2_mark_key(c, bkey_i_to_s_c(&pending->key), 0, NULL, 0,
-		      BCH_BUCKET_MARK_OVERWRITE);
+	bch2_mark_key(c, bkey_i_to_s_c(&pending->key),
+		      0, 0, NULL, 0, BCH_BUCKET_MARK_OVERWRITE);
 
 	if (gc_visited(c, gc_phase(GC_PHASE_PENDING_DELETE)))
-		bch2_mark_key(c, bkey_i_to_s_c(&pending->key), 0, NULL, 0,
+		bch2_mark_key(c, bkey_i_to_s_c(&pending->key),
+			      0, 0, NULL, 0,
 			      BCH_BUCKET_MARK_OVERWRITE|
 			      BCH_BUCKET_MARK_GC);
 }
@@ -1077,11 +1078,11 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
-		      0, &fs_usage->u, 0,
+		      0, 0, &fs_usage->u, 0,
 		      BCH_BUCKET_MARK_INSERT);
 	if (gc_visited(c, gc_pos_btree_root(b->c.btree_id)))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
-				     0, NULL, 0,
+				     0, 0, NULL, 0,
 				     BCH_BUCKET_MARK_INSERT|
 				     BCH_BUCKET_MARK_GC);
 
@@ -1175,12 +1176,12 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
-			     0, &fs_usage->u, 0,
+			     0, 0, &fs_usage->u, 0,
 			     BCH_BUCKET_MARK_INSERT);
 
 	if (gc_visited(c, gc_pos_btree_node(b)))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
-				     0, NULL, 0,
+				     0, 0, NULL, 0,
 				     BCH_BUCKET_MARK_INSERT|
 				     BCH_BUCKET_MARK_GC);
 
@@ -2003,11 +2004,11 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 		fs_usage = bch2_fs_usage_scratch_get(c);
 
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
-			      0, &fs_usage->u, 0,
+			      0, 0, &fs_usage->u, 0,
 			      BCH_BUCKET_MARK_INSERT);
 		if (gc_visited(c, gc_pos_btree_root(b->c.btree_id)))
 			bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
-					     0, NULL, 0,
+					     0, 0, NULL, 0,
 					     BCH_BUCKET_MARK_INSERT||
 					     BCH_BUCKET_MARK_GC);
 

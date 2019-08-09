@@ -811,23 +811,24 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 }
 
 static s64 ptr_disk_sectors_delta(struct extent_ptr_decoded p,
-				  s64 delta)
+				  unsigned offset, s64 delta,
+				  unsigned flags)
 {
-	if (delta > 0) {
-		/*
-		 * marking a new extent, which _will have size_ @delta
-		 *
-		 * in the bch2_mark_update -> BCH_EXTENT_OVERLAP_MIDDLE
-		 * case, we haven't actually created the key we'll be inserting
-		 * yet (for the split) - so we don't want to be using
-		 * k->size/crc.live_size here:
-		 */
-		return __ptr_disk_sectors(p, delta);
-	} else {
-		BUG_ON(-delta > p.crc.live_size);
+	if (flags & BCH_BUCKET_MARK_OVERWRITE_SPLIT) {
+		BUG_ON(offset + -delta > p.crc.live_size);
 
-		return (s64) __ptr_disk_sectors(p, p.crc.live_size + delta) -
-			(s64) ptr_disk_sectors(p);
+		return -((s64) ptr_disk_sectors(p)) +
+			__ptr_disk_sectors(p, offset) +
+			__ptr_disk_sectors(p, p.crc.live_size -
+					   offset + delta);
+	} else if (flags & BCH_BUCKET_MARK_OVERWRITE) {
+		BUG_ON(offset + -delta > p.crc.live_size);
+
+		return -((s64) ptr_disk_sectors(p)) +
+			__ptr_disk_sectors(p, p.crc.live_size +
+					   delta);
+	} else {
+		return ptr_disk_sectors(p);
 	}
 }
 
@@ -1006,7 +1007,8 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 }
 
 static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
-			    s64 sectors, enum bch_data_type data_type,
+			    unsigned offset, s64 sectors,
+			    enum bch_data_type data_type,
 			    struct bch_fs_usage *fs_usage,
 			    unsigned journal_seq, unsigned flags)
 {
@@ -1027,7 +1029,7 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		s64 disk_sectors = data_type == BCH_DATA_BTREE
 			? sectors
-			: ptr_disk_sectors_delta(p, sectors);
+			: ptr_disk_sectors_delta(p, offset, sectors, flags);
 		bool stale = bch2_mark_pointer(c, p, disk_sectors, data_type,
 					fs_usage, journal_seq, flags);
 
@@ -1116,7 +1118,8 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 }
 
 int bch2_mark_key_locked(struct bch_fs *c,
-		   struct bkey_s_c k, s64 sectors,
+		   struct bkey_s_c k,
+		   unsigned offset, s64 sectors,
 		   struct bch_fs_usage *fs_usage,
 		   u64 journal_seq, unsigned flags)
 {
@@ -1137,11 +1140,11 @@ int bch2_mark_key_locked(struct bch_fs *c,
 			?  c->opts.btree_node_size
 			: -c->opts.btree_node_size;
 
-		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_BTREE,
+		ret = bch2_mark_extent(c, k, offset, sectors, BCH_DATA_BTREE,
 				fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_extent:
-		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
+		ret = bch2_mark_extent(c, k, offset, sectors, BCH_DATA_USER,
 				fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_stripe:
@@ -1172,14 +1175,14 @@ int bch2_mark_key_locked(struct bch_fs *c,
 }
 
 int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
-		  s64 sectors,
+		  unsigned offset, s64 sectors,
 		  struct bch_fs_usage *fs_usage,
 		  u64 journal_seq, unsigned flags)
 {
 	int ret;
 
 	percpu_down_read(&c->mark_lock);
-	ret = bch2_mark_key_locked(c, k, sectors,
+	ret = bch2_mark_key_locked(c, k, offset, sectors,
 				   fs_usage, journal_seq, flags);
 	percpu_up_read(&c->mark_lock);
 
@@ -1195,7 +1198,10 @@ inline int bch2_mark_overwrite(struct btree_trans *trans,
 {
 	struct bch_fs		*c = trans->c;
 	struct btree		*b = iter->l[0].b;
+	unsigned		offset = 0;
 	s64			sectors = 0;
+
+	flags |= BCH_BUCKET_MARK_OVERWRITE;
 
 	if (btree_node_is_extents(b)
 	    ? bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0
@@ -1205,35 +1211,33 @@ inline int bch2_mark_overwrite(struct btree_trans *trans,
 	if (btree_node_is_extents(b)) {
 		switch (bch2_extent_overlap(&new->k, old.k)) {
 		case BCH_EXTENT_OVERLAP_ALL:
+			offset = 0;
 			sectors = -((s64) old.k->size);
 			break;
 		case BCH_EXTENT_OVERLAP_BACK:
+			offset = bkey_start_offset(&new->k) -
+				bkey_start_offset(old.k);
 			sectors = bkey_start_offset(&new->k) -
 				old.k->p.offset;
 			break;
 		case BCH_EXTENT_OVERLAP_FRONT:
+			offset = 0;
 			sectors = bkey_start_offset(old.k) -
 				new->k.p.offset;
 			break;
 		case BCH_EXTENT_OVERLAP_MIDDLE:
-			sectors = old.k->p.offset - new->k.p.offset;
-			BUG_ON(sectors <= 0);
-
-			bch2_mark_key_locked(c, old, sectors,
-				fs_usage, trans->journal_res.seq,
-				BCH_BUCKET_MARK_INSERT|flags);
-
-			sectors = bkey_start_offset(&new->k) -
-				old.k->p.offset;
+			offset = bkey_start_offset(&new->k) -
+				bkey_start_offset(old.k);
+			sectors = -((s64) new->k.size);
+			flags |= BCH_BUCKET_MARK_OVERWRITE_SPLIT;
 			break;
 		}
 
 		BUG_ON(sectors >= 0);
 	}
 
-	return bch2_mark_key_locked(c, old, sectors, fs_usage,
-				    trans->journal_res.seq,
-				    BCH_BUCKET_MARK_OVERWRITE|flags) ?: 1;
+	return bch2_mark_key_locked(c, old, offset, sectors, fs_usage,
+				    trans->journal_res.seq, flags) ?: 1;
 }
 
 int bch2_mark_update(struct btree_trans *trans,
@@ -1251,10 +1255,12 @@ int bch2_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
+	EBUG_ON(btree_node_is_extents(b) &&
+		!bch2_extent_is_atomic(insert->k, insert->iter));
+
 	if (!(trans->flags & BTREE_INSERT_NOMARK_INSERT))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k),
-			bpos_min(insert->k->k.p, b->key.k.p).offset -
-			bkey_start_offset(&insert->k->k),
+			0, insert->k->k.size,
 			fs_usage, trans->journal_res.seq,
 			BCH_BUCKET_MARK_INSERT|flags);
 
@@ -1519,8 +1525,9 @@ out:
 }
 
 static int bch2_trans_mark_extent(struct btree_trans *trans,
-			struct bkey_s_c k,
-			s64 sectors, enum bch_data_type data_type)
+			struct bkey_s_c k, unsigned offset,
+			s64 sectors, unsigned flags,
+			enum bch_data_type data_type)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -1540,7 +1547,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		s64 disk_sectors = data_type == BCH_DATA_BTREE
 			? sectors
-			: ptr_disk_sectors_delta(p, sectors);
+			: ptr_disk_sectors_delta(p, offset, sectors, flags);
 
 		ret = bch2_trans_mark_pointer(trans, p, disk_sectors,
 					      data_type);
@@ -1575,7 +1582,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 }
 
 int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
-			s64 sectors, unsigned flags)
+			unsigned offset, s64 sectors, unsigned flags)
 {
 	struct replicas_delta_list *d;
 	struct bch_fs *c = trans->c;
@@ -1586,11 +1593,11 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 			?  c->opts.btree_node_size
 			: -c->opts.btree_node_size;
 
-		return bch2_trans_mark_extent(trans, k, sectors,
-					      BCH_DATA_BTREE);
+		return bch2_trans_mark_extent(trans, k, offset, sectors,
+					      flags, BCH_DATA_BTREE);
 	case KEY_TYPE_extent:
-		return bch2_trans_mark_extent(trans, k, sectors,
-					      BCH_DATA_USER);
+		return bch2_trans_mark_extent(trans, k, offset, sectors,
+					      flags, BCH_DATA_USER);
 	case KEY_TYPE_inode:
 		d = replicas_deltas_realloc(trans, 0);
 
@@ -1629,11 +1636,11 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
-	ret = bch2_trans_mark_key(trans,
-			bkey_i_to_s_c(insert),
-			bpos_min(insert->k.p, b->key.k.p).offset -
-			bkey_start_offset(&insert->k),
-			BCH_BUCKET_MARK_INSERT);
+	EBUG_ON(btree_node_is_extents(b) &&
+		!bch2_extent_is_atomic(insert, iter));
+
+	ret = bch2_trans_mark_key(trans, bkey_i_to_s_c(insert),
+			0, insert->k.size, BCH_BUCKET_MARK_INSERT);
 	if (ret)
 		return ret;
 
@@ -1641,7 +1648,9 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 						      KEY_TYPE_discard))) {
 		struct bkey		unpacked;
 		struct bkey_s_c		k;
+		unsigned		offset = 0;
 		s64			sectors = 0;
+		unsigned		flags = BCH_BUCKET_MARK_OVERWRITE;
 
 		k = bkey_disassemble(b, _k, &unpacked);
 
@@ -1653,35 +1662,32 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 		if (btree_node_is_extents(b)) {
 			switch (bch2_extent_overlap(&insert->k, k.k)) {
 			case BCH_EXTENT_OVERLAP_ALL:
+				offset = 0;
 				sectors = -((s64) k.k->size);
 				break;
 			case BCH_EXTENT_OVERLAP_BACK:
+				offset = bkey_start_offset(&insert->k) -
+					bkey_start_offset(k.k);
 				sectors = bkey_start_offset(&insert->k) -
 					k.k->p.offset;
 				break;
 			case BCH_EXTENT_OVERLAP_FRONT:
+				offset = 0;
 				sectors = bkey_start_offset(k.k) -
 					insert->k.p.offset;
 				break;
 			case BCH_EXTENT_OVERLAP_MIDDLE:
-				sectors = k.k->p.offset - insert->k.p.offset;
-				BUG_ON(sectors <= 0);
-
-				ret = bch2_trans_mark_key(trans, k, sectors,
-						BCH_BUCKET_MARK_INSERT);
-				if (ret)
-					return ret;
-
-				sectors = bkey_start_offset(&insert->k) -
-					k.k->p.offset;
+				offset = bkey_start_offset(&insert->k) -
+					bkey_start_offset(k.k);
+				sectors = -((s64) insert->k.size);
+				flags |= BCH_BUCKET_MARK_OVERWRITE_SPLIT;
 				break;
 			}
 
 			BUG_ON(sectors >= 0);
 		}
 
-		ret = bch2_trans_mark_key(trans, k, sectors,
-					  BCH_BUCKET_MARK_OVERWRITE);
+		ret = bch2_trans_mark_key(trans, k, offset, sectors, flags);
 		if (ret)
 			return ret;
 

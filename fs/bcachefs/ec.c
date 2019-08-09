@@ -1312,7 +1312,7 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 			break;
 		}
 
-		bch2_mark_key(c, k, 0, NULL, 0,
+		bch2_mark_key(c, k, 0, 0, NULL, 0,
 			      BCH_BUCKET_MARK_ALLOC_READ|
 			      BCH_BUCKET_MARK_NOATOMIC);
 	}

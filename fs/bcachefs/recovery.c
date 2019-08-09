@@ -295,7 +295,7 @@ retry:
 
 	if (split_compressed) {
 		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k),
-					  -((s64) k->k.size),
+					  0, -((s64) k->k.size),
 					  BCH_BUCKET_MARK_OVERWRITE) ?:
 		      bch2_trans_commit(&trans, &disk_res, NULL,
 					BTREE_INSERT_ATOMIC|
