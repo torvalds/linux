@@ -469,8 +469,8 @@ static sint xmitframe_swencrypt(struct _adapter *padapter,
 	return _SUCCESS;
 }
 
-static sint make_wlanhdr(struct _adapter *padapter, u8 *hdr,
-			 struct pkt_attrib *pattrib)
+static int make_wlanhdr(struct _adapter *padapter, u8 *hdr,
+			struct pkt_attrib *pattrib)
 {
 	u16 *qc;
 
@@ -509,7 +509,7 @@ static sint make_wlanhdr(struct _adapter *padapter, u8 *hdr,
 			memcpy(pwlanhdr->addr3, get_bssid(pmlmepriv),
 				ETH_ALEN);
 		} else {
-			return _FAIL;
+			return -EINVAL;
 		}
 
 		if (pattrib->encrypt)
@@ -547,7 +547,7 @@ static sint make_wlanhdr(struct _adapter *padapter, u8 *hdr,
 			}
 		}
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 static sint r8712_put_snap(u8 *data, u16 h_proto)
@@ -605,7 +605,7 @@ sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 	pbuf_start = pxmitframe->buf_addr;
 	ptxdesc = pbuf_start;
 	mem_start = pbuf_start + TXDESC_OFFSET;
-	if (make_wlanhdr(padapter, mem_start, pattrib) == _FAIL)
+	if (make_wlanhdr(padapter, mem_start, pattrib))
 		return _FAIL;
 	_r8712_open_pktfile(pkt, &pktfile);
 	_r8712_pktfile_read(&pktfile, NULL, (uint) pattrib->pkt_hdrlen);
