@@ -2247,15 +2247,15 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 
 static struct i915_request *active_request(struct i915_request *rq)
 {
-	const struct list_head * const list = &rq->engine->active.requests;
-	const struct intel_context * const context = rq->hw_context;
+	const struct list_head * const list = &rq->timeline->requests;
+	const struct intel_context * const ce = rq->hw_context;
 	struct i915_request *active = NULL;
 
-	list_for_each_entry_from_reverse(rq, list, sched.link) {
+	list_for_each_entry_from_reverse(rq, list, link) {
 		if (i915_request_completed(rq))
 			break;
 
-		if (rq->hw_context != context)
+		if (rq->hw_context != ce)
 			break;
 
 		active = rq;
