@@ -246,7 +246,7 @@ void r8712_do_queue_select(struct _adapter *padapter,
 }
 
 #ifdef CONFIG_R8712_TX_AGGR
-u8 r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
+void r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
 {
 	struct tx_desc *ptx_desc = (struct tx_desc *)pxmitbuf->pbuf;
 
@@ -260,8 +260,6 @@ u8 r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
 
 	/* dw1 */
 	ptx_desc->txdw1 |= cpu_to_le32((0x13 << QSEL_SHT) & 0x00001f00);
-
-	return _SUCCESS;
 }
 
 u8 r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
