@@ -87,6 +87,8 @@
 
 /* Vector0 interrupt CMDQ event source register(RW) */
 #define HCLGEVF_VECTOR0_CMDQ_SRC_REG	0x27100
+/* Vector0 interrupt CMDQ event status register(RO) */
+#define HCLGEVF_VECTOR0_CMDQ_STAT_REG	0x27104
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
 /* RST register bits for RESET event */
@@ -123,7 +125,7 @@
 #define HCLGEVF_S_IP_BIT		BIT(3)
 #define HCLGEVF_V_TAG_BIT		BIT(4)
 
-#define HCLGEVF_STATS_TIMER_INTERVAL	(36)
+#define HCLGEVF_STATS_TIMER_INTERVAL	36U
 
 enum hclgevf_evt_cause {
 	HCLGEVF_VECTOR0_EVENT_RST,

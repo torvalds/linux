@@ -58,10 +58,10 @@
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
 
 #define hnae3_dev_roce_supported(hdev) \
-	hnae3_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B)
+	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B)
 
 #define hnae3_dev_dcb_supported(hdev) \
-	hnae3_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
+	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
 
 #define hnae3_dev_fd_supported(hdev) \
 	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B)
@@ -89,6 +89,11 @@ struct hnae3_queue {
 	u32 buf_size;	/* size for hnae_desc->addr, preset by AE */
 	u16 tx_desc_num;/* total number of tx desc */
 	u16 rx_desc_num;/* total number of rx desc */
+};
+
+struct hns3_mac_stats {
+	u64 tx_pause_cnt;
+	u64 rx_pause_cnt;
 };
 
 /*hnae3 loop mode*/
@@ -298,6 +303,8 @@ struct hnae3_ae_dev {
  *   Remove multicast address from mac table
  * update_stats()
  *   Update Old network device statistics
+ * get_mac_stats()
+ *   get mac pause statistics including tx_cnt and rx_cnt
  * get_ethtool_stats()
  *   Get ethtool network device statistics
  * get_strings()
@@ -426,8 +433,8 @@ struct hnae3_ae_ops {
 	void (*update_stats)(struct hnae3_handle *handle,
 			     struct net_device_stats *net_stats);
 	void (*get_stats)(struct hnae3_handle *handle, u64 *data);
-	void (*get_mac_pause_stats)(struct hnae3_handle *handle, u64 *tx_cnt,
-				    u64 *rx_cnt);
+	void (*get_mac_stats)(struct hnae3_handle *handle,
+			      struct hns3_mac_stats *mac_stats);
 	void (*get_strings)(struct hnae3_handle *handle,
 			    u32 stringset, u8 *data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);

@@ -14,16 +14,8 @@ static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset)
 	struct hclge_desc desc[4];
 	int ret;
 
-	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_DFX_BD_NUM, true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_DFX_BD_NUM, true);
-	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_OPC_DFX_BD_NUM, true);
-	desc[2].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	hclge_cmd_setup_basic_desc(&desc[3], HCLGE_OPC_DFX_BD_NUM, true);
-
-	ret = hclge_cmd_send(&hdev->hw, desc, 4);
-	if (ret != HCLGE_CMD_EXEC_SUCCESS) {
+	ret = hclge_query_bd_num_cmd_send(hdev, desc);
+	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"get dfx bdnum fail, status is %d.\n", ret);
 		return ret;
@@ -1003,6 +995,33 @@ void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 	kfree(desc_src);
 }
 
+#define HCLGE_CMD_NCL_CONFIG_BD_NUM	5
+
+static void hclge_ncl_config_data_print(struct hclge_dev *hdev,
+					struct hclge_desc *desc, int *offset,
+					int *length)
+{
+#define HCLGE_CMD_DATA_NUM		6
+
+	int i;
+	int j;
+
+	for (i = 0; i < HCLGE_CMD_NCL_CONFIG_BD_NUM; i++) {
+		for (j = 0; j < HCLGE_CMD_DATA_NUM; j++) {
+			if (i == 0 && j == 0)
+				continue;
+
+			dev_info(&hdev->pdev->dev, "0x%04x | 0x%08x\n",
+				 *offset,
+				 le32_to_cpu(desc[i].data[j]));
+			*offset += sizeof(u32);
+			*length -= sizeof(u32);
+			if (*length <= 0)
+				return;
+		}
+	}
+}
+
 /* hclge_dbg_dump_ncl_config: print specified range of NCL_CONFIG file
  * @hdev: pointer to struct hclge_dev
  * @cmd_buf: string that contains offset and length
@@ -1012,17 +1031,13 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 {
 #define HCLGE_MAX_NCL_CONFIG_OFFSET	4096
 #define HCLGE_MAX_NCL_CONFIG_LENGTH	(20 + 24 * 4)
-#define HCLGE_CMD_DATA_NUM		6
 
-	struct hclge_desc desc[5];
-	u32 byte_offset;
-	int bd_num = 5;
+	struct hclge_desc desc[HCLGE_CMD_NCL_CONFIG_BD_NUM];
+	int bd_num = HCLGE_CMD_NCL_CONFIG_BD_NUM;
 	int offset;
 	int length;
 	int data0;
 	int ret;
-	int i;
-	int j;
 
 	ret = sscanf(cmd_buf, "%x %x", &offset, &length);
 	if (ret != 2 || offset >= HCLGE_MAX_NCL_CONFIG_OFFSET ||
@@ -1048,22 +1063,7 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 		if (ret)
 			return;
 
-		byte_offset = offset;
-		for (i = 0; i < bd_num; i++) {
-			for (j = 0; j < HCLGE_CMD_DATA_NUM; j++) {
-				if (i == 0 && j == 0)
-					continue;
-
-				dev_info(&hdev->pdev->dev, "0x%04x | 0x%08x\n",
-					 byte_offset,
-					 le32_to_cpu(desc[i].data[j]));
-				byte_offset += sizeof(u32);
-				length -= sizeof(u32);
-				if (length <= 0)
-					return;
-			}
-		}
-		offset += HCLGE_MAX_NCL_CONFIG_LENGTH;
+		hclge_ncl_config_data_print(hdev, desc, &offset, &length);
 	}
 }
 
