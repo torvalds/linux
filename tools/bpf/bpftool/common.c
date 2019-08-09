@@ -204,7 +204,11 @@ int do_pin_fd(int fd, const char *name)
 	if (err)
 		return err;
 
-	return bpf_obj_pin(fd, name);
+	err = bpf_obj_pin(fd, name);
+	if (err)
+		p_err("can't pin the object (%s): %s", name, strerror(errno));
+
+	return err;
 }
 
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
@@ -237,7 +241,7 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 
 	fd = get_fd_by_id(id);
 	if (fd < 0) {
-		p_err("can't get prog by id (%u): %s", id, strerror(errno));
+		p_err("can't open object by id (%u): %s", id, strerror(errno));
 		return -1;
 	}
 
