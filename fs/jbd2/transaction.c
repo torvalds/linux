@@ -1599,10 +1599,6 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 		} else {
 			__jbd2_journal_unfile_buffer(jh);
 			jbd2_journal_put_journal_head(jh);
-			if (!buffer_jbd(bh)) {
-				spin_unlock(&journal->j_list_lock);
-				goto not_jbd;
-			}
 		}
 		spin_unlock(&journal->j_list_lock);
 	} else if (jh->b_transaction) {
