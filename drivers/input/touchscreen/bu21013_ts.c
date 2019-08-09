@@ -547,44 +547,44 @@ static int bu21013_remove(struct i2c_client *client)
 
 static int __maybe_unused bu21013_suspend(struct device *dev)
 {
-	struct bu21013_ts *ts = dev_get_drvdata(dev);
-	struct i2c_client *client = ts->client;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bu21013_ts *ts = i2c_get_clientdata(client);
 
 	ts->touch_stopped = true;
-	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(client->irq);
-	else
-		disable_irq(client->irq);
+	mb();
+	disable_irq(client->irq);
 
-	regulator_disable(ts->regulator);
+	if (!device_may_wakeup(&client->dev))
+		regulator_disable(ts->regulator);
 
 	return 0;
 }
 
 static int __maybe_unused bu21013_resume(struct device *dev)
 {
-	struct bu21013_ts *ts = dev_get_drvdata(dev);
-	struct i2c_client *client = ts->client;
-	int retval;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bu21013_ts *ts = i2c_get_clientdata(client);
+	int error;
 
-	retval = regulator_enable(ts->regulator);
-	if (retval < 0) {
-		dev_err(&client->dev, "bu21013 regulator enable failed\n");
-		return retval;
-	}
+	if (!device_may_wakeup(&client->dev)) {
+		error = regulator_enable(ts->regulator);
+		if (error) {
+			dev_err(&client->dev,
+				"failed to re-enable regulator when resuming\n");
+			return error;
+		}
 
-	retval = bu21013_init_chip(ts);
-	if (retval < 0) {
-		dev_err(&client->dev, "bu21013 controller config failed\n");
-		return retval;
+		error = bu21013_init_chip(ts);
+		if (error) {
+			dev_err(&client->dev,
+				"failed to reinitialize chip when resuming\n");
+			return error;
+		}
 	}
 
 	ts->touch_stopped = false;
-
-	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(client->irq);
-	else
-		enable_irq(client->irq);
+	mb();
+	enable_irq(client->irq);
 
 	return 0;
 }
