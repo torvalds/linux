@@ -2199,17 +2199,14 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh,
 	 * holding the page lock. --sct
 	 */
 
-	if (!buffer_jbd(bh))
+	jh = jbd2_journal_grab_journal_head(bh);
+	if (!jh)
 		goto zap_buffer_unlocked;
 
 	/* OK, we have data buffer in journaled mode */
 	write_lock(&journal->j_state_lock);
 	jbd_lock_bh_state(bh);
 	spin_lock(&journal->j_list_lock);
-
-	jh = jbd2_journal_grab_journal_head(bh);
-	if (!jh)
-		goto zap_buffer_no_jh;
 
 	/*
 	 * We cannot remove the buffer from checkpoint lists until the
@@ -2332,7 +2329,6 @@ zap_buffer:
 	 */
 	jh->b_modified = 0;
 	jbd2_journal_put_journal_head(jh);
-zap_buffer_no_jh:
 	spin_unlock(&journal->j_list_lock);
 	jbd_unlock_bh_state(bh);
 	write_unlock(&journal->j_state_lock);
