@@ -794,6 +794,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 	unsigned long timeout;
 	unsigned long loopcounter;
 	int do_poll = 0;
+	bool warned = false;
 
  again:
 	timeout = jiffies + msecs_to_jiffies(1000);
@@ -813,9 +814,17 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		spin_unlock_irq(&bus->reg_lock);
 		if (time_after(jiffies, timeout))
 			break;
-		if (hbus->needs_damn_long_delay || loopcounter > 3000)
+#define LOOP_COUNT_MAX	3000
+		if (hbus->needs_damn_long_delay ||
+		    loopcounter > LOOP_COUNT_MAX) {
+			if (loopcounter > LOOP_COUNT_MAX && !warned) {
+				dev_dbg_ratelimited(chip->card->dev,
+						    "too slow response, last cmd=%#08x\n",
+						    bus->last_cmd[addr]);
+				warned = true;
+			}
 			msleep(2); /* temporary workaround */
-		else {
+		} else {
 			udelay(10);
 			cond_resched();
 		}
