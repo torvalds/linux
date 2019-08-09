@@ -46,7 +46,7 @@ static int mv88e6185_g1_wait_ppu_disabled(struct mv88e6xxx_chip *chip)
 
 		/* Check the value of the PPUState bits 15:14 */
 		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
-		if (state != MV88E6185_G1_STS_PPU_STATE_POLLING)
+		if (state == MV88E6185_G1_STS_PPU_STATE_DISABLED)
 			return 0;
 
 		usleep_range(1000, 2000);
