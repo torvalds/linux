@@ -40,6 +40,10 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 		return PTR_ERR_OR_ZERO(nsim_dev->ports_ddir) ?: -EINVAL;
 	debugfs_create_bool("fw_update_status", 0600, nsim_dev->ddir,
 			    &nsim_dev->fw_update_status);
+	debugfs_create_u32("max_macs", 0600, nsim_dev->ddir,
+			   &nsim_dev->max_macs);
+	debugfs_create_bool("test1", 0600, nsim_dev->ddir,
+			    &nsim_dev->test1);
 	return 0;
 }
 
@@ -196,6 +200,54 @@ out:
 	return err;
 }
 
+enum nsim_devlink_param_id {
+	NSIM_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	NSIM_DEVLINK_PARAM_ID_TEST1,
+};
+
+static const struct devlink_param nsim_devlink_params[] = {
+	DEVLINK_PARAM_GENERIC(MAX_MACS,
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, NULL),
+	DEVLINK_PARAM_DRIVER(NSIM_DEVLINK_PARAM_ID_TEST1,
+			     "test1", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL, NULL),
+};
+
+static void nsim_devlink_set_params_init_values(struct nsim_dev *nsim_dev,
+						struct devlink *devlink)
+{
+	union devlink_param_value value;
+
+	value.vu32 = nsim_dev->max_macs;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					   value);
+	value.vbool = nsim_dev->test1;
+	devlink_param_driverinit_value_set(devlink,
+					   NSIM_DEVLINK_PARAM_ID_TEST1,
+					   value);
+}
+
+static void nsim_devlink_param_load_driverinit_values(struct devlink *devlink)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+	union devlink_param_value saved_value;
+	int err;
+
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+						 &saved_value);
+	if (!err)
+		nsim_dev->max_macs = saved_value.vu32;
+	err = devlink_param_driverinit_value_get(devlink,
+						 NSIM_DEVLINK_PARAM_ID_TEST1,
+						 &saved_value);
+	if (!err)
+		nsim_dev->test1 = saved_value.vbool;
+}
+
 static int nsim_dev_reload(struct devlink *devlink,
 			   struct netlink_ext_ack *extack)
 {
@@ -218,6 +270,7 @@ static int nsim_dev_reload(struct devlink *devlink,
 				return err;
 		}
 	}
+	nsim_devlink_param_load_driverinit_values(devlink);
 
 	return 0;
 }
@@ -267,6 +320,9 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.flash_update = nsim_dev_flash_update,
 };
 
+#define NSIM_DEV_MAX_MACS_DEFAULT 32
+#define NSIM_DEV_TEST1_DEFAULT true
+
 static struct nsim_dev *
 nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 {
@@ -284,6 +340,8 @@ nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 	INIT_LIST_HEAD(&nsim_dev->port_list);
 	mutex_init(&nsim_dev->port_list_lock);
 	nsim_dev->fw_update_status = true;
+	nsim_dev->max_macs = NSIM_DEV_MAX_MACS_DEFAULT;
+	nsim_dev->test1 = NSIM_DEV_TEST1_DEFAULT;
 
 	nsim_dev->fib_data = nsim_fib_create();
 	if (IS_ERR(nsim_dev->fib_data)) {
@@ -299,18 +357,28 @@ nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 	if (err)
 		goto err_resources_unregister;
 
-	err = nsim_dev_debugfs_init(nsim_dev);
+	err = devlink_params_register(devlink, nsim_devlink_params,
+				      ARRAY_SIZE(nsim_devlink_params));
 	if (err)
 		goto err_dl_unregister;
+	nsim_devlink_set_params_init_values(nsim_dev, devlink);
+
+	err = nsim_dev_debugfs_init(nsim_dev);
+	if (err)
+		goto err_params_unregister;
 
 	err = nsim_bpf_dev_init(nsim_dev);
 	if (err)
 		goto err_debugfs_exit;
 
+	devlink_params_publish(devlink);
 	return nsim_dev;
 
 err_debugfs_exit:
 	nsim_dev_debugfs_exit(nsim_dev);
+err_params_unregister:
+	devlink_params_unregister(devlink, nsim_devlink_params,
+				  ARRAY_SIZE(nsim_devlink_params));
 err_dl_unregister:
 	devlink_unregister(devlink);
 err_resources_unregister:
@@ -328,6 +396,8 @@ static void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 
 	nsim_bpf_dev_exit(nsim_dev);
 	nsim_dev_debugfs_exit(nsim_dev);
+	devlink_params_unregister(devlink, nsim_devlink_params,
+				  ARRAY_SIZE(nsim_devlink_params));
 	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
 	nsim_fib_destroy(nsim_dev->fib_data);
