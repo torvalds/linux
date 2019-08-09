@@ -1312,7 +1312,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pldat->dma_buff_base_v == 0) {
+	if (pldat->dma_buff_base_v == NULL) {
 		ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret)
 			goto err_out_free_irq;
