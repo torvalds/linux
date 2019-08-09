@@ -57,7 +57,8 @@ struct altera_cvp_conf {
 	struct fpga_manager	*mgr;
 	struct pci_dev		*pci_dev;
 	void __iomem		*map;
-	void			(*write_data)(struct altera_cvp_conf *, u32);
+	void			(*write_data)(struct altera_cvp_conf *conf,
+					      u32 data);
 	char			mgr_name[64];
 	u8			numclks;
 };
