@@ -1760,6 +1760,14 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, dsp_st, dsp_st);
 
 	rb_swap = has_rb_swapped(fb->format->format);
+	/*
+	 * Px30 treats rgb888 as bgr888
+	 * so we reverse the rb swap to workaround
+	 */
+	if ((fb->format->format == DRM_FORMAT_RGB888 ||
+	     fb->format->format == DRM_FORMAT_BGR888) &&
+	    (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) == 6))
+		rb_swap = !rb_swap;
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
 	global_alpha_en = (vop_plane_state->global_alpha == 0xff) ? 0 : 1;
