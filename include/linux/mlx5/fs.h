@@ -127,6 +127,7 @@ struct mlx5_flow_destination {
 };
 
 struct mod_hdr_tbl {
+	struct mutex lock; /* protects hlist */
 	DECLARE_HASHTABLE(hlist, 8);
 };
 
