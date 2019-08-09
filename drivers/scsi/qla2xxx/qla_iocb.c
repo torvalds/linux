@@ -621,7 +621,7 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	}
 
 	cur_seg = scsi_sglist(cmd);
-	ctx = GET_CMD_CTX_SP(sp);
+	ctx = sp->u.scmd.ct6_ctx;
 
 	while (tot_dsds) {
 		avail_dsds = (tot_dsds > QLA_DSDS_PER_IOCB) ?
@@ -954,8 +954,7 @@ alloc_and_fill:
 
 			if (sp) {
 				list_add_tail(&dsd_ptr->list,
-				    &((struct crc_context *)
-					    sp->u.scmd.ctx)->dsd_list);
+					      &sp->u.scmd.crc_ctx->dsd_list);
 
 				sp->flags |= SRB_CRC_CTX_DSD_VALID;
 			} else {
@@ -1052,8 +1051,7 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp,
 
 			if (sp) {
 				list_add_tail(&dsd_ptr->list,
-				    &((struct crc_context *)
-					    sp->u.scmd.ctx)->dsd_list);
+					      &sp->u.scmd.crc_ctx->dsd_list);
 
 				sp->flags |= SRB_CRC_CTX_DSD_VALID;
 			} else {
@@ -1099,7 +1097,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 
 		sgl = scsi_prot_sglist(cmd);
 		vha = sp->vha;
-		difctx = sp->u.scmd.ctx;
+		difctx = sp->u.scmd.crc_ctx;
 		direction_to_device = cmd->sc_data_direction == DMA_TO_DEVICE;
 		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe021,
 		  "%s: scsi_cmnd: %p, crc_ctx: %p, sp: %p\n",
@@ -1439,7 +1437,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 		bundling = 0;
 
 	/* Allocate CRC context from global pool */
-	crc_ctx_pkt = sp->u.scmd.ctx =
+	crc_ctx_pkt = sp->u.scmd.crc_ctx =
 	    dma_pool_zalloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
 
 	if (!crc_ctx_pkt)
@@ -3188,7 +3186,7 @@ sufficient_dsds:
 				goto queuing_error;
 		}
 
-		ctx = sp->u.scmd.ctx =
+		ctx = sp->u.scmd.ct6_ctx =
 		    mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
 		if (!ctx) {
 			ql_log(ql_log_fatal, vha, 0x3010,
@@ -3384,9 +3382,9 @@ queuing_error:
 	if (tot_dsds)
 		scsi_dma_unmap(cmd);
 
-	if (sp->u.scmd.ctx) {
-		mempool_free(sp->u.scmd.ctx, ha->ctx_mempool);
-		sp->u.scmd.ctx = NULL;
+	if (sp->u.scmd.crc_ctx) {
+		mempool_free(sp->u.scmd.crc_ctx, ha->ctx_mempool);
+		sp->u.scmd.crc_ctx = NULL;
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 

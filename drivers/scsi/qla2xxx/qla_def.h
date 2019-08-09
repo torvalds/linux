@@ -317,7 +317,8 @@ struct srb_cmd {
 	uint32_t request_sense_length;
 	uint32_t fw_sense_length;
 	uint8_t *request_sense_ptr;
-	void *ctx;
+	struct ct6_dsd *ct6_ctx;
+	struct crc_context *crc_ctx;
 };
 
 /*
@@ -630,7 +631,6 @@ typedef struct srb {
 } srb_t;
 
 #define GET_CMD_SP(sp) (sp->u.scmd.cmd)
-#define GET_CMD_CTX_SP(sp) (sp->u.scmd.ctx)
 
 #define GET_CMD_SENSE_LEN(sp) \
 	(sp->u.scmd.request_sense_length)
