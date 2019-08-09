@@ -6,6 +6,7 @@
 
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
+#include <linux/iopoll.h>
 #include "stmmac.h"
 #include "dwxgmac2.h"
 
@@ -118,6 +119,23 @@ static void dwxgmac2_rx_queue_prio(struct mac_device_info *hw, u32 prio,
 	writel(value, ioaddr + reg);
 }
 
+static void dwxgmac2_tx_queue_prio(struct mac_device_info *hw, u32 prio,
+				   u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value, reg;
+
+	reg = (queue < 4) ? XGMAC_TC_PRTY_MAP0 : XGMAC_TC_PRTY_MAP1;
+	if (queue >= 4)
+		queue -= 4;
+
+	value = readl(ioaddr + reg);
+	value &= ~XGMAC_PSTC(queue);
+	value |= (prio << XGMAC_PSTC_SHIFT(queue)) & XGMAC_PSTC(queue);
+
+	writel(value, ioaddr + reg);
+}
+
 static void dwxgmac2_prog_mtl_rx_algorithms(struct mac_device_info *hw,
 					    u32 rx_alg)
 {
@@ -144,7 +162,9 @@ static void dwxgmac2_prog_mtl_tx_algorithms(struct mac_device_info *hw,
 					    u32 tx_alg)
 {
 	void __iomem *ioaddr = hw->pcsr;
+	bool ets = true;
 	u32 value;
+	int i;
 
 	value = readl(ioaddr + XGMAC_MTL_OPMODE);
 	value &= ~XGMAC_ETSALG;
@@ -160,10 +180,28 @@ static void dwxgmac2_prog_mtl_tx_algorithms(struct mac_device_info *hw,
 		value |= XGMAC_DWRR;
 		break;
 	default:
+		ets = false;
 		break;
 	}
 
 	writel(value, ioaddr + XGMAC_MTL_OPMODE);
+
+	/* Set ETS if desired */
+	for (i = 0; i < MTL_MAX_TX_QUEUES; i++) {
+		value = readl(ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(i));
+		value &= ~XGMAC_TSA;
+		if (ets)
+			value |= XGMAC_ETS;
+		writel(value, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(i));
+	}
+}
+
+static void dwxgmac2_set_mtl_tx_queue_weight(struct mac_device_info *hw,
+					     u32 weight, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+
+	writel(weight, ioaddr + XGMAC_MTL_TCx_QUANTUM_WEIGHT(queue));
 }
 
 static void dwxgmac2_map_mtl_to_dma(struct mac_device_info *hw, u32 queue,
@@ -402,17 +440,574 @@ static void dwxgmac2_set_mac_loopback(void __iomem *ioaddr, bool enable)
 	writel(value, ioaddr + XGMAC_RX_CONFIG);
 }
 
+static int dwxgmac2_rss_write_reg(void __iomem *ioaddr, bool is_key, int idx,
+				  u32 val)
+{
+	u32 ctrl = 0;
+
+	writel(val, ioaddr + XGMAC_RSS_DATA);
+	ctrl |= idx << XGMAC_RSSIA_SHIFT;
+	ctrl |= is_key ? XGMAC_ADDRT : 0x0;
+	ctrl |= XGMAC_OB;
+	writel(ctrl, ioaddr + XGMAC_RSS_ADDR);
+
+	return readl_poll_timeout(ioaddr + XGMAC_RSS_ADDR, ctrl,
+				  !(ctrl & XGMAC_OB), 100, 10000);
+}
+
+static int dwxgmac2_rss_configure(struct mac_device_info *hw,
+				  struct stmmac_rss *cfg, u32 num_rxq)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 *key = (u32 *)cfg->key;
+	int i, ret;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_RSS_CTRL);
+	if (!cfg->enable) {
+		value &= ~XGMAC_RSSE;
+		writel(value, ioaddr + XGMAC_RSS_CTRL);
+		return 0;
+	}
+
+	for (i = 0; i < (sizeof(cfg->key) / sizeof(u32)); i++) {
+		ret = dwxgmac2_rss_write_reg(ioaddr, true, i, *key++);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cfg->table); i++) {
+		ret = dwxgmac2_rss_write_reg(ioaddr, false, i, cfg->table[i]);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < num_rxq; i++)
+		dwxgmac2_map_mtl_to_dma(hw, i, XGMAC_QDDMACH);
+
+	value |= XGMAC_UDP4TE | XGMAC_TCP4TE | XGMAC_IP2TE | XGMAC_RSSE;
+	writel(value, ioaddr + XGMAC_RSS_CTRL);
+	return 0;
+}
+
+static void dwxgmac2_update_vlan_hash(struct mac_device_info *hw, u32 hash,
+				      bool is_double)
+{
+	void __iomem *ioaddr = hw->pcsr;
+
+	writel(hash, ioaddr + XGMAC_VLAN_HASH_TABLE);
+
+	if (hash) {
+		u32 value = readl(ioaddr + XGMAC_PACKET_FILTER);
+
+		value |= XGMAC_FILTER_VTFE;
+
+		writel(value, ioaddr + XGMAC_PACKET_FILTER);
+
+		value |= XGMAC_VLAN_VTHM | XGMAC_VLAN_ETV;
+		if (is_double) {
+			value |= XGMAC_VLAN_EDVLP;
+			value |= XGMAC_VLAN_ESVL;
+			value |= XGMAC_VLAN_DOVLTC;
+		}
+
+		writel(value, ioaddr + XGMAC_VLAN_TAG);
+	} else {
+		u32 value = readl(ioaddr + XGMAC_PACKET_FILTER);
+
+		value &= ~XGMAC_FILTER_VTFE;
+
+		writel(value, ioaddr + XGMAC_PACKET_FILTER);
+
+		value = readl(ioaddr + XGMAC_VLAN_TAG);
+
+		value &= ~(XGMAC_VLAN_VTHM | XGMAC_VLAN_ETV);
+		value &= ~(XGMAC_VLAN_EDVLP | XGMAC_VLAN_ESVL);
+		value &= ~XGMAC_VLAN_DOVLTC;
+		value &= ~XGMAC_VLAN_VID;
+
+		writel(value, ioaddr + XGMAC_VLAN_TAG);
+	}
+}
+
+struct dwxgmac3_error_desc {
+	bool valid;
+	const char *desc;
+	const char *detailed_desc;
+};
+
+#define STAT_OFF(field)		offsetof(struct stmmac_safety_stats, field)
+
+static void dwxgmac3_log_error(struct net_device *ndev, u32 value, bool corr,
+			       const char *module_name,
+			       const struct dwxgmac3_error_desc *desc,
+			       unsigned long field_offset,
+			       struct stmmac_safety_stats *stats)
+{
+	unsigned long loc, mask;
+	u8 *bptr = (u8 *)stats;
+	unsigned long *ptr;
+
+	ptr = (unsigned long *)(bptr + field_offset);
+
+	mask = value;
+	for_each_set_bit(loc, &mask, 32) {
+		netdev_err(ndev, "Found %s error in %s: '%s: %s'\n", corr ?
+				"correctable" : "uncorrectable", module_name,
+				desc[loc].desc, desc[loc].detailed_desc);
+
+		/* Update counters */
+		ptr[loc]++;
+	}
+}
+
+static const struct dwxgmac3_error_desc dwxgmac3_mac_errors[32]= {
+	{ true, "ATPES", "Application Transmit Interface Parity Check Error" },
+	{ true, "DPES", "Descriptor Cache Data Path Parity Check Error" },
+	{ true, "TPES", "TSO Data Path Parity Check Error" },
+	{ true, "TSOPES", "TSO Header Data Path Parity Check Error" },
+	{ true, "MTPES", "MTL Data Path Parity Check Error" },
+	{ true, "MTSPES", "MTL TX Status Data Path Parity Check Error" },
+	{ true, "MTBUPES", "MAC TBU Data Path Parity Check Error" },
+	{ true, "MTFCPES", "MAC TFC Data Path Parity Check Error" },
+	{ true, "ARPES", "Application Receive Interface Data Path Parity Check Error" },
+	{ true, "MRWCPES", "MTL RWC Data Path Parity Check Error" },
+	{ true, "MRRCPES", "MTL RCC Data Path Parity Check Error" },
+	{ true, "CWPES", "CSR Write Data Path Parity Check Error" },
+	{ true, "ASRPES", "AXI Slave Read Data Path Parity Check Error" },
+	{ true, "TTES", "TX FSM Timeout Error" },
+	{ true, "RTES", "RX FSM Timeout Error" },
+	{ true, "CTES", "CSR FSM Timeout Error" },
+	{ true, "ATES", "APP FSM Timeout Error" },
+	{ true, "PTES", "PTP FSM Timeout Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
+	{ true, "MSTTES", "Master Read/Write Timeout Error" },
+	{ true, "SLVTES", "Slave Read/Write Timeout Error" },
+	{ true, "ATITES", "Application Timeout on ATI Interface Error" },
+	{ true, "ARITES", "Application Timeout on ARI Interface Error" },
+	{ true, "FSMPES", "FSM State Parity Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
+	{ true, "CPI", "Control Register Parity Check Error" },
+};
+
+static void dwxgmac3_handle_mac_err(struct net_device *ndev,
+				    void __iomem *ioaddr, bool correctable,
+				    struct stmmac_safety_stats *stats)
+{
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_MAC_DPP_FSM_INT_STATUS);
+	writel(value, ioaddr + XGMAC_MAC_DPP_FSM_INT_STATUS);
+
+	dwxgmac3_log_error(ndev, value, correctable, "MAC",
+			   dwxgmac3_mac_errors, STAT_OFF(mac_errors), stats);
+}
+
+static const struct dwxgmac3_error_desc dwxgmac3_mtl_errors[32]= {
+	{ true, "TXCES", "MTL TX Memory Error" },
+	{ true, "TXAMS", "MTL TX Memory Address Mismatch Error" },
+	{ true, "TXUES", "MTL TX Memory Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 3 */
+	{ true, "RXCES", "MTL RX Memory Error" },
+	{ true, "RXAMS", "MTL RX Memory Address Mismatch Error" },
+	{ true, "RXUES", "MTL RX Memory Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 7 */
+	{ true, "ECES", "MTL EST Memory Error" },
+	{ true, "EAMS", "MTL EST Memory Address Mismatch Error" },
+	{ true, "EUES", "MTL EST Memory Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 11 */
+	{ true, "RPCES", "MTL RX Parser Memory Error" },
+	{ true, "RPAMS", "MTL RX Parser Memory Address Mismatch Error" },
+	{ true, "RPUES", "MTL RX Parser Memory Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 15 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 16 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 17 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 24 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+};
+
+static void dwxgmac3_handle_mtl_err(struct net_device *ndev,
+				    void __iomem *ioaddr, bool correctable,
+				    struct stmmac_safety_stats *stats)
+{
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_MTL_ECC_INT_STATUS);
+	writel(value, ioaddr + XGMAC_MTL_ECC_INT_STATUS);
+
+	dwxgmac3_log_error(ndev, value, correctable, "MTL",
+			   dwxgmac3_mtl_errors, STAT_OFF(mtl_errors), stats);
+}
+
+static const struct dwxgmac3_error_desc dwxgmac3_dma_errors[32]= {
+	{ true, "TCES", "DMA TSO Memory Error" },
+	{ true, "TAMS", "DMA TSO Memory Address Mismatch Error" },
+	{ true, "TUES", "DMA TSO Memory Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 3 */
+	{ true, "DCES", "DMA DCACHE Memory Error" },
+	{ true, "DAMS", "DMA DCACHE Address Mismatch Error" },
+	{ true, "DUES", "DMA DCACHE Memory Error" },
+	{ false, "UNKNOWN", "Unknown Error" }, /* 7 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 8 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 9 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 10 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 11 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 12 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 13 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 14 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 15 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 16 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 17 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 24 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
+	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+};
+
+static void dwxgmac3_handle_dma_err(struct net_device *ndev,
+				    void __iomem *ioaddr, bool correctable,
+				    struct stmmac_safety_stats *stats)
+{
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_DMA_ECC_INT_STATUS);
+	writel(value, ioaddr + XGMAC_DMA_ECC_INT_STATUS);
+
+	dwxgmac3_log_error(ndev, value, correctable, "DMA",
+			   dwxgmac3_dma_errors, STAT_OFF(dma_errors), stats);
+}
+
+static int dwxgmac3_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
+{
+	u32 value;
+
+	if (!asp)
+		return -EINVAL;
+
+	/* 1. Enable Safety Features */
+	writel(0x0, ioaddr + XGMAC_MTL_ECC_CONTROL);
+
+	/* 2. Enable MTL Safety Interrupts */
+	value = readl(ioaddr + XGMAC_MTL_ECC_INT_ENABLE);
+	value |= XGMAC_RPCEIE; /* RX Parser Memory Correctable Error */
+	value |= XGMAC_ECEIE; /* EST Memory Correctable Error */
+	value |= XGMAC_RXCEIE; /* RX Memory Correctable Error */
+	value |= XGMAC_TXCEIE; /* TX Memory Correctable Error */
+	writel(value, ioaddr + XGMAC_MTL_ECC_INT_ENABLE);
+
+	/* 3. Enable DMA Safety Interrupts */
+	value = readl(ioaddr + XGMAC_DMA_ECC_INT_ENABLE);
+	value |= XGMAC_DCEIE; /* Descriptor Cache Memory Correctable Error */
+	value |= XGMAC_TCEIE; /* TSO Memory Correctable Error */
+	writel(value, ioaddr + XGMAC_DMA_ECC_INT_ENABLE);
+
+	/* Only ECC Protection for External Memory feature is selected */
+	if (asp <= 0x1)
+		return 0;
+
+	/* 4. Enable Parity and Timeout for FSM */
+	value = readl(ioaddr + XGMAC_MAC_FSM_CONTROL);
+	value |= XGMAC_PRTYEN; /* FSM Parity Feature */
+	value |= XGMAC_TMOUTEN; /* FSM Timeout Feature */
+	writel(value, ioaddr + XGMAC_MAC_FSM_CONTROL);
+
+	return 0;
+}
+
+static int dwxgmac3_safety_feat_irq_status(struct net_device *ndev,
+					   void __iomem *ioaddr,
+					   unsigned int asp,
+					   struct stmmac_safety_stats *stats)
+{
+	bool err, corr;
+	u32 mtl, dma;
+	int ret = 0;
+
+	if (!asp)
+		return -EINVAL;
+
+	mtl = readl(ioaddr + XGMAC_MTL_SAFETY_INT_STATUS);
+	dma = readl(ioaddr + XGMAC_DMA_SAFETY_INT_STATUS);
+
+	err = (mtl & XGMAC_MCSIS) || (dma & XGMAC_MCSIS);
+	corr = false;
+	if (err) {
+		dwxgmac3_handle_mac_err(ndev, ioaddr, corr, stats);
+		ret |= !corr;
+	}
+
+	err = (mtl & (XGMAC_MEUIS | XGMAC_MECIS)) ||
+	      (dma & (XGMAC_MSUIS | XGMAC_MSCIS));
+	corr = (mtl & XGMAC_MECIS) || (dma & XGMAC_MSCIS);
+	if (err) {
+		dwxgmac3_handle_mtl_err(ndev, ioaddr, corr, stats);
+		ret |= !corr;
+	}
+
+	err = dma & (XGMAC_DEUIS | XGMAC_DECIS);
+	corr = dma & XGMAC_DECIS;
+	if (err) {
+		dwxgmac3_handle_dma_err(ndev, ioaddr, corr, stats);
+		ret |= !corr;
+	}
+
+	return ret;
+}
+
+static const struct dwxgmac3_error {
+	const struct dwxgmac3_error_desc *desc;
+} dwxgmac3_all_errors[] = {
+	{ dwxgmac3_mac_errors },
+	{ dwxgmac3_mtl_errors },
+	{ dwxgmac3_dma_errors },
+};
+
+static int dwxgmac3_safety_feat_dump(struct stmmac_safety_stats *stats,
+				     int index, unsigned long *count,
+				     const char **desc)
+{
+	int module = index / 32, offset = index % 32;
+	unsigned long *ptr = (unsigned long *)stats;
+
+	if (module >= ARRAY_SIZE(dwxgmac3_all_errors))
+		return -EINVAL;
+	if (!dwxgmac3_all_errors[module].desc[offset].valid)
+		return -EINVAL;
+	if (count)
+		*count = *(ptr + index);
+	if (desc)
+		*desc = dwxgmac3_all_errors[module].desc[offset].desc;
+	return 0;
+}
+
+static int dwxgmac3_rxp_disable(void __iomem *ioaddr)
+{
+	u32 val = readl(ioaddr + XGMAC_MTL_OPMODE);
+
+	val &= ~XGMAC_FRPE;
+	writel(val, ioaddr + XGMAC_MTL_OPMODE);
+
+	return 0;
+}
+
+static void dwxgmac3_rxp_enable(void __iomem *ioaddr)
+{
+	u32 val;
+
+	val = readl(ioaddr + XGMAC_MTL_OPMODE);
+	val |= XGMAC_FRPE;
+	writel(val, ioaddr + XGMAC_MTL_OPMODE);
+}
+
+static int dwxgmac3_rxp_update_single_entry(void __iomem *ioaddr,
+					    struct stmmac_tc_entry *entry,
+					    int pos)
+{
+	int ret, i;
+
+	for (i = 0; i < (sizeof(entry->val) / sizeof(u32)); i++) {
+		int real_pos = pos * (sizeof(entry->val) / sizeof(u32)) + i;
+		u32 val;
+
+		/* Wait for ready */
+		ret = readl_poll_timeout(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST,
+					 val, !(val & XGMAC_STARTBUSY), 1, 10000);
+		if (ret)
+			return ret;
+
+		/* Write data */
+		val = *((u32 *)&entry->val + i);
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_DATA);
+
+		/* Write pos */
+		val = real_pos & XGMAC_ADDR;
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Write OP */
+		val |= XGMAC_WRRDN;
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Start Write */
+		val |= XGMAC_STARTBUSY;
+		writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Wait for done */
+		ret = readl_poll_timeout(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST,
+					 val, !(val & XGMAC_STARTBUSY), 1, 10000);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static struct stmmac_tc_entry *
+dwxgmac3_rxp_get_next_entry(struct stmmac_tc_entry *entries,
+			    unsigned int count, u32 curr_prio)
+{
+	struct stmmac_tc_entry *entry;
+	u32 min_prio = ~0x0;
+	int i, min_prio_idx;
+	bool found = false;
+
+	for (i = count - 1; i >= 0; i--) {
+		entry = &entries[i];
+
+		/* Do not update unused entries */
+		if (!entry->in_use)
+			continue;
+		/* Do not update already updated entries (i.e. fragments) */
+		if (entry->in_hw)
+			continue;
+		/* Let last entry be updated last */
+		if (entry->is_last)
+			continue;
+		/* Do not return fragments */
+		if (entry->is_frag)
+			continue;
+		/* Check if we already checked this prio */
+		if (entry->prio < curr_prio)
+			continue;
+		/* Check if this is the minimum prio */
+		if (entry->prio < min_prio) {
+			min_prio = entry->prio;
+			min_prio_idx = i;
+			found = true;
+		}
+	}
+
+	if (found)
+		return &entries[min_prio_idx];
+	return NULL;
+}
+
+static int dwxgmac3_rxp_config(void __iomem *ioaddr,
+			       struct stmmac_tc_entry *entries,
+			       unsigned int count)
+{
+	struct stmmac_tc_entry *entry, *frag;
+	int i, ret, nve = 0;
+	u32 curr_prio = 0;
+	u32 old_val, val;
+
+	/* Force disable RX */
+	old_val = readl(ioaddr + XGMAC_RX_CONFIG);
+	val = old_val & ~XGMAC_CONFIG_RE;
+	writel(val, ioaddr + XGMAC_RX_CONFIG);
+
+	/* Disable RX Parser */
+	ret = dwxgmac3_rxp_disable(ioaddr);
+	if (ret)
+		goto re_enable;
+
+	/* Set all entries as NOT in HW */
+	for (i = 0; i < count; i++) {
+		entry = &entries[i];
+		entry->in_hw = false;
+	}
+
+	/* Update entries by reverse order */
+	while (1) {
+		entry = dwxgmac3_rxp_get_next_entry(entries, count, curr_prio);
+		if (!entry)
+			break;
+
+		curr_prio = entry->prio;
+		frag = entry->frag_ptr;
+
+		/* Set special fragment requirements */
+		if (frag) {
+			entry->val.af = 0;
+			entry->val.rf = 0;
+			entry->val.nc = 1;
+			entry->val.ok_index = nve + 2;
+		}
+
+		ret = dwxgmac3_rxp_update_single_entry(ioaddr, entry, nve);
+		if (ret)
+			goto re_enable;
+
+		entry->table_pos = nve++;
+		entry->in_hw = true;
+
+		if (frag && !frag->in_hw) {
+			ret = dwxgmac3_rxp_update_single_entry(ioaddr, frag, nve);
+			if (ret)
+				goto re_enable;
+			frag->table_pos = nve++;
+			frag->in_hw = true;
+		}
+	}
+
+	if (!nve)
+		goto re_enable;
+
+	/* Update all pass entry */
+	for (i = 0; i < count; i++) {
+		entry = &entries[i];
+		if (!entry->is_last)
+			continue;
+
+		ret = dwxgmac3_rxp_update_single_entry(ioaddr, entry, nve);
+		if (ret)
+			goto re_enable;
+
+		entry->table_pos = nve++;
+	}
+
+	/* Assume n. of parsable entries == n. of valid entries */
+	val = (nve << 16) & XGMAC_NPE;
+	val |= nve & XGMAC_NVE;
+	writel(val, ioaddr + XGMAC_MTL_RXP_CONTROL_STATUS);
+
+	/* Enable RX Parser */
+	dwxgmac3_rxp_enable(ioaddr);
+
+re_enable:
+	/* Re-enable RX */
+	writel(old_val, ioaddr + XGMAC_RX_CONFIG);
+	return ret;
+}
+
 const struct stmmac_ops dwxgmac210_ops = {
 	.core_init = dwxgmac2_core_init,
 	.set_mac = dwxgmac2_set_mac,
 	.rx_ipc = dwxgmac2_rx_ipc,
 	.rx_queue_enable = dwxgmac2_rx_queue_enable,
 	.rx_queue_prio = dwxgmac2_rx_queue_prio,
-	.tx_queue_prio = NULL,
+	.tx_queue_prio = dwxgmac2_tx_queue_prio,
 	.rx_queue_routing = NULL,
 	.prog_mtl_rx_algorithms = dwxgmac2_prog_mtl_rx_algorithms,
 	.prog_mtl_tx_algorithms = dwxgmac2_prog_mtl_tx_algorithms,
-	.set_mtl_tx_queue_weight = NULL,
+	.set_mtl_tx_queue_weight = dwxgmac2_set_mtl_tx_queue_weight,
 	.map_mtl_to_dma = dwxgmac2_map_mtl_to_dma,
 	.config_cbs = dwxgmac2_config_cbs,
 	.dump_regs = NULL,
@@ -431,7 +1026,13 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.pcs_get_adv_lp = NULL,
 	.debug = NULL,
 	.set_filter = dwxgmac2_set_filter,
+	.safety_feat_config = dwxgmac3_safety_feat_config,
+	.safety_feat_irq_status = dwxgmac3_safety_feat_irq_status,
+	.safety_feat_dump = dwxgmac3_safety_feat_dump,
 	.set_mac_loopback = dwxgmac2_set_mac_loopback,
+	.rss_configure = dwxgmac2_rss_configure,
+	.update_vlan_hash = dwxgmac2_update_vlan_hash,
+	.rxp_config = dwxgmac3_rxp_config,
 };
 
 int dwxgmac2_setup(struct stmmac_priv *priv)

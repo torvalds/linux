@@ -243,6 +243,12 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_tcp_err_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_err_octets),
+	STMMAC_MMC_STAT(mmc_tx_fpe_fragment_cntr),
+	STMMAC_MMC_STAT(mmc_tx_hold_req_cntr),
+	STMMAC_MMC_STAT(mmc_rx_packet_assembly_err_cntr),
+	STMMAC_MMC_STAT(mmc_rx_packet_smd_err_cntr),
+	STMMAC_MMC_STAT(mmc_rx_packet_assembly_ok_cntr),
+	STMMAC_MMC_STAT(mmc_rx_fpe_fragment_cntr),
 };
 #define STMMAC_MMC_STATS_LEN ARRAY_SIZE(stmmac_mmc)
 
@@ -758,6 +764,76 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
+static int stmmac_get_rxnfc(struct net_device *dev,
+			    struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	switch (rxnfc->cmd) {
+	case ETHTOOL_GRXRINGS:
+		rxnfc->data = priv->plat->rx_queues_to_use;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static u32 stmmac_get_rxfh_key_size(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	return sizeof(priv->rss.key);
+}
+
+static u32 stmmac_get_rxfh_indir_size(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	return ARRAY_SIZE(priv->rss.table);
+}
+
+static int stmmac_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+			   u8 *hfunc)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int i;
+
+	if (indir) {
+		for (i = 0; i < ARRAY_SIZE(priv->rss.table); i++)
+			indir[i] = priv->rss.table[i];
+	}
+
+	if (key)
+		memcpy(key, priv->rss.key, sizeof(priv->rss.key));
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	return 0;
+}
+
+static int stmmac_set_rxfh(struct net_device *dev, const u32 *indir,
+			   const u8 *key, const u8 hfunc)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int i;
+
+	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) && (hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+
+	if (indir) {
+		for (i = 0; i < ARRAY_SIZE(priv->rss.table); i++)
+			priv->rss.table[i] = indir[i];
+	}
+
+	if (key)
+		memcpy(priv->rss.key, key, sizeof(priv->rss.key));
+
+	return stmmac_rss_configure(priv, priv->hw, &priv->rss,
+				    priv->plat->rx_queues_to_use);
+}
+
 static int stmmac_get_ts_info(struct net_device *dev,
 			      struct ethtool_ts_info *info)
 {
@@ -849,6 +925,11 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.get_eee = stmmac_ethtool_op_get_eee,
 	.set_eee = stmmac_ethtool_op_set_eee,
 	.get_sset_count	= stmmac_get_sset_count,
+	.get_rxnfc = stmmac_get_rxnfc,
+	.get_rxfh_key_size = stmmac_get_rxfh_key_size,
+	.get_rxfh_indir_size = stmmac_get_rxfh_indir_size,
+	.get_rxfh = stmmac_get_rxfh,
+	.set_rxfh = stmmac_set_rxfh,
 	.get_ts_info = stmmac_get_ts_info,
 	.get_coalesce = stmmac_get_coalesce,
 	.set_coalesce = stmmac_set_coalesce,

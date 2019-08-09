@@ -86,6 +86,9 @@ struct stmmac_desc_ops {
 	void (*set_addr)(struct dma_desc *p, dma_addr_t addr);
 	/* clear descriptor */
 	void (*clear)(struct dma_desc *p);
+	/* RSS */
+	int (*get_rx_hash)(struct dma_desc *p, u32 *hash,
+			   enum pkt_hash_types *type);
 };
 
 #define stmmac_init_rx_desc(__priv, __args...) \
@@ -136,6 +139,8 @@ struct stmmac_desc_ops {
 	stmmac_do_void_callback(__priv, desc, set_addr, __args)
 #define stmmac_clear_desc(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, clear, __args)
+#define stmmac_get_rx_hash(__priv, __args...) \
+	stmmac_do_callback(__priv, desc, get_rx_hash, __args)
 
 struct stmmac_dma_cfg;
 struct dma_features;
@@ -249,6 +254,7 @@ struct rgmii_adv;
 struct stmmac_safety_stats;
 struct stmmac_tc_entry;
 struct stmmac_pps_cfg;
+struct stmmac_rss;
 
 /* Helpers to program the MAC core */
 struct stmmac_ops {
@@ -327,6 +333,12 @@ struct stmmac_ops {
 			       u32 sub_second_inc, u32 systime_flags);
 	/* Loopback for selftests */
 	void (*set_mac_loopback)(void __iomem *ioaddr, bool enable);
+	/* RSS */
+	int (*rss_configure)(struct mac_device_info *hw,
+			     struct stmmac_rss *cfg, u32 num_rxq);
+	/* VLAN */
+	void (*update_vlan_hash)(struct mac_device_info *hw, u32 hash,
+				 bool is_double);
 };
 
 #define stmmac_core_init(__priv, __args...) \
@@ -397,6 +409,10 @@ struct stmmac_ops {
 	stmmac_do_callback(__priv, mac, flex_pps_config, __args)
 #define stmmac_set_mac_loopback(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, set_mac_loopback, __args)
+#define stmmac_rss_configure(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, rss_configure, __args)
+#define stmmac_update_vlan_hash(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, update_vlan_hash, __args)
 
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
@@ -503,6 +519,7 @@ extern const struct stmmac_ops dwxgmac210_ops;
 extern const struct stmmac_dma_ops dwxgmac210_dma_ops;
 extern const struct stmmac_desc_ops dwxgmac210_desc_ops;
 extern const struct stmmac_mmc_ops dwmac_mmc_ops;
+extern const struct stmmac_mmc_ops dwxgmac_mmc_ops;
 
 #define GMAC_VERSION		0x00000020	/* GMAC CORE Version */
 #define GMAC4_VERSION		0x00000110	/* GMAC4+ CORE Version */
