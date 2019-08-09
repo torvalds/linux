@@ -5083,8 +5083,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 				   "%s %8phC mem alloc fail.\n",
 				   __func__, e->u.new_sess.port_name);
 
-			if (pla)
+			if (pla) {
+				list_del(&pla->list);
 				kmem_cache_free(qla_tgt_plogi_cachep, pla);
+			}
 			return;
 		}
 
@@ -5195,8 +5197,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 
 	if (free_fcport) {
 		qla2x00_free_fcport(fcport);
-		if (pla)
+		if (pla) {
+			list_del(&pla->list);
 			kmem_cache_free(qla_tgt_plogi_cachep, pla);
+		}
 	}
 }
 

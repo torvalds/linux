@@ -4796,8 +4796,10 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 			    __func__, sess->port_name, sec);
 		}
 
-		if (!conflict_sess)
+		if (!conflict_sess) {
+			list_del(&pla->list);
 			kmem_cache_free(qla_tgt_plogi_cachep, pla);
+		}
 
 		qlt_send_term_imm_notif(vha, iocb, 1);
 		goto out;
