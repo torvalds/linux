@@ -7,7 +7,6 @@
 #ifndef __QLA_NVME_H
 #define __QLA_NVME_H
 
-#include <linux/blk-mq.h>
 #include <uapi/scsi/fc/fc_fs.h>
 #include <uapi/scsi/fc/fc_els.h>
 #include <linux/nvme-fc-driver.h>
