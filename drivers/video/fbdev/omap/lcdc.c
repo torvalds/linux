@@ -713,7 +713,7 @@ static int omap_lcdc_init(struct omapfb_device *fbdev, int ext_mode,
 	}
 	clk_enable(lcdc.lcd_ck);
 
-	r = request_irq(OMAP_LCDC_IRQ, lcdc_irq_handler, 0, MODULE_NAME, fbdev);
+	r = request_irq(fbdev->int_irq, lcdc_irq_handler, 0, MODULE_NAME, fbdev);
 	if (r) {
 		dev_err(fbdev->dev, "unable to get IRQ\n");
 		goto fail2;
@@ -744,7 +744,7 @@ fail5:
 fail4:
 	omap_free_lcd_dma();
 fail3:
-	free_irq(OMAP_LCDC_IRQ, lcdc.fbdev);
+	free_irq(fbdev->int_irq, lcdc.fbdev);
 fail2:
 	clk_disable(lcdc.lcd_ck);
 fail1:
@@ -759,7 +759,7 @@ static void omap_lcdc_cleanup(void)
 		free_palette_ram();
 	free_fbmem();
 	omap_free_lcd_dma();
-	free_irq(OMAP_LCDC_IRQ, lcdc.fbdev);
+	free_irq(lcdc.fbdev->int_irq, lcdc.fbdev);
 	clk_disable(lcdc.lcd_ck);
 	clk_put(lcdc.lcd_ck);
 }
