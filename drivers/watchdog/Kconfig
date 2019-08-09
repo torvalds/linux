@@ -655,15 +655,6 @@ config STMP3XXX_RTC_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_rtc_wdt.
 
-config NUC900_WATCHDOG
-	tristate "Nuvoton NUC900 watchdog"
-	depends on ARCH_W90X900 || COMPILE_TEST
-	help
-	  Say Y here if to include support for the watchdog timer
-	  for the Nuvoton NUC900 series SoCs.
-	  To compile this driver as a module, choose M here: the
-	  module will be called nuc900_wdt.
-
 config TS4800_WATCHDOG
 	tristate "TS-4800 Watchdog"
 	depends on HAS_IOMEM && OF

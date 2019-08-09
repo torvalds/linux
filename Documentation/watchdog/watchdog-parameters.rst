@@ -366,16 +366,6 @@ nic7018_wdt:
 
 -------------------------------------------------
 
-nuc900_wdt:
-    heartbeat:
-	Watchdog heartbeats in seconds.
-	(default = 15)
-    nowayout:
-	Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-
--------------------------------------------------
-
 omap_wdt:
     timer_margin:
 	initial watchdog timeout (in seconds)
