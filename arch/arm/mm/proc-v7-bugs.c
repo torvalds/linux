@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/arm-smccc.h>
 #include <linux/kernel.h>
-#include <linux/psci.h>
 #include <linux/smp.h>
 
 #include <asm/cp15.h>
@@ -75,11 +74,8 @@ static void cpu_v7_spectre_init(void)
 	case ARM_CPU_PART_CORTEX_A72: {
 		struct arm_smccc_res res;
 
-		if (psci_ops.smccc_version == SMCCC_VERSION_1_0)
-			break;
-
-		switch (psci_ops.conduit) {
-		case PSCI_CONDUIT_HVC:
+		switch (arm_smccc_1_1_get_conduit()) {
+		case SMCCC_CONDUIT_HVC:
 			arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
 					  ARM_SMCCC_ARCH_WORKAROUND_1, &res);
 			if ((int)res.a0 != 0)
@@ -90,7 +86,7 @@ static void cpu_v7_spectre_init(void)
 			spectre_v2_method = "hypervisor";
 			break;
 
-		case PSCI_CONDUIT_SMC:
+		case SMCCC_CONDUIT_SMC:
 			arm_smccc_1_1_smc(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
 					  ARM_SMCCC_ARCH_WORKAROUND_1, &res);
 			if ((int)res.a0 != 0)
