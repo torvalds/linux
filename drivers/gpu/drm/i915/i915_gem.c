@@ -1653,8 +1653,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__pm(dev_priv);
 
-	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
-
 	spin_lock_init(&dev_priv->fb_tracking.lock);
 
 	err = i915_gemfs_init(dev_priv);

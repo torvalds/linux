@@ -2120,8 +2120,7 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 
 	/* Check whether the file_priv has already selected one ring. */
 	if ((int)file_priv->bsd_engine < 0)
-		file_priv->bsd_engine = atomic_fetch_xor(1,
-			 &dev_priv->mm.bsd_engine_dispatch_index);
+		file_priv->bsd_engine = get_random_int() & 1;
 
 	return file_priv->bsd_engine;
 }
