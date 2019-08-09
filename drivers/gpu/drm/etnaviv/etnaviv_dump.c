@@ -93,9 +93,9 @@ static void etnaviv_core_dump_registers(struct core_dump_iterator *iter,
 }
 
 static void etnaviv_core_dump_mmu(struct core_dump_iterator *iter,
-	struct etnaviv_gpu *gpu, size_t mmu_size)
+	struct etnaviv_iommu *mmu, size_t mmu_size)
 {
-	etnaviv_iommu_dump(gpu->mmu, iter->data);
+	etnaviv_iommu_dump(mmu, iter->data);
 
 	etnaviv_core_dump_header(iter, ETDUMP_BUF_MMU, iter->data + mmu_size);
 }
@@ -169,7 +169,7 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 	memset(iter.hdr, 0, iter.data - iter.start);
 
 	etnaviv_core_dump_registers(&iter, gpu);
-	etnaviv_core_dump_mmu(&iter, gpu, mmu_size);
+	etnaviv_core_dump_mmu(&iter, gpu->mmu, mmu_size);
 	etnaviv_core_dump_mem(&iter, ETDUMP_BUF_RING, gpu->buffer.vaddr,
 			      gpu->buffer.size,
 			      etnaviv_cmdbuf_get_va(&gpu->buffer));
