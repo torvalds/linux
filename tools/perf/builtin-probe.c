@@ -19,7 +19,6 @@
 #include "perf.h"
 #include "builtin.h"
 #include "namespaces.h"
-#include "util/util.h"
 #include "util/strlist.h"
 #include "util/strfilter.h"
 #include "util/symbol.h"
@@ -28,6 +27,7 @@
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
 #include "util/probe-file.h"
+#include <linux/zalloc.h>
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define DEFAULT_FUNC_FILTER "!_*"

@@ -12,6 +12,7 @@
 #include <subcmd/parse-options.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <errno.h>
 #include "bench.h"
 #include "futex.h"
@@ -217,7 +218,7 @@ int bench_futex_lock_pi(int argc, const char **argv)
 			       worker[i].tid, worker[i].futex, t);
 
 		if (multi)
-			free(worker[i].futex);
+			zfree(&worker[i].futex);
 	}
 
 	print_summary();

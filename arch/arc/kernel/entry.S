@@ -232,8 +232,8 @@ ENTRY(EV_Trap)
 	EXCEPTION_PROLOGUE
 
 	;============ TRAP 1   :breakpoints
-	; Check ECR for trap with arg (PROLOGUE ensures r9 has ECR)
-	bmsk.f 0, r9, 7
+	; Check ECR for trap with arg (PROLOGUE ensures r10 has ECR)
+	bmsk.f 0, r10, 7
 	bnz    trap_with_param
 
 	;============ TRAP  (no param): syscall top level

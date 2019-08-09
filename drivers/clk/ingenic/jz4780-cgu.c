@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <dt-bindings/clock/jz4780-cgu.h>
 #include "cgu.h"
+#include "pm.h"
 
 /* CGU register offsets */
 #define CGU_REG_CLOCKCONTROL	0x00
@@ -721,5 +722,7 @@ static void __init jz4780_cgu_init(struct device_node *np)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
 		return;
 	}
+
+	ingenic_cgu_register_syscore_ops(cgu);
 }
 CLK_OF_DECLARE(jz4780_cgu, "ingenic,jz4780-cgu", jz4780_cgu_init);

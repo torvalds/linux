@@ -747,7 +747,7 @@ bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 	return size <= size_default && (size & (size - 1)) == 0;
 }
 
-#define bpf_ctx_wide_store_ok(off, size, type, field)			\
+#define bpf_ctx_wide_access_ok(off, size, type, field)			\
 	(size == sizeof(__u64) &&					\
 	off >= offsetof(type, field) &&					\
 	off + sizeof(__u64) <= offsetofend(type, field) &&		\

@@ -16,7 +16,7 @@ int while_true(volatile struct pt_regs* ctx)
 	int i = 0;
 
 	while (true) {
-		if (ctx->rax & 1)
+		if (PT_REGS_RC(ctx) & 1)
 			i += 3;
 		else
 			i += 7;

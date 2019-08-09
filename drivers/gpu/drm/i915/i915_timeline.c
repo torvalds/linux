@@ -61,7 +61,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 
 	BUILD_BUG_ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
 
-	spin_lock(&gt->hwsp_lock);
+	spin_lock_irq(&gt->hwsp_lock);
 
 	/* hwsp_free_list only contains HWSP that have available cachelines */
 	hwsp = list_first_entry_or_null(&gt->hwsp_free_list,
@@ -69,7 +69,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 	if (!hwsp) {
 		struct i915_vma *vma;
 
-		spin_unlock(&gt->hwsp_lock);
+		spin_unlock_irq(&gt->hwsp_lock);
 
 		hwsp = kmalloc(sizeof(*hwsp), GFP_KERNEL);
 		if (!hwsp)
@@ -86,7 +86,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 		hwsp->free_bitmap = ~0ull;
 		hwsp->gt = gt;
 
-		spin_lock(&gt->hwsp_lock);
+		spin_lock_irq(&gt->hwsp_lock);
 		list_add(&hwsp->free_link, &gt->hwsp_free_list);
 	}
 
@@ -96,7 +96,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 	if (!hwsp->free_bitmap)
 		list_del(&hwsp->free_link);
 
-	spin_unlock(&gt->hwsp_lock);
+	spin_unlock_irq(&gt->hwsp_lock);
 
 	GEM_BUG_ON(hwsp->vma->private != hwsp);
 	return hwsp->vma;
@@ -105,8 +105,9 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 static void __idle_hwsp_free(struct i915_timeline_hwsp *hwsp, int cacheline)
 {
 	struct i915_gt_timelines *gt = hwsp->gt;
+	unsigned long flags;
 
-	spin_lock(&gt->hwsp_lock);
+	spin_lock_irqsave(&gt->hwsp_lock, flags);
 
 	/* As a cacheline becomes available, publish the HWSP on the freelist */
 	if (!hwsp->free_bitmap)
@@ -122,7 +123,7 @@ static void __idle_hwsp_free(struct i915_timeline_hwsp *hwsp, int cacheline)
 		kfree(hwsp);
 	}
 
-	spin_unlock(&gt->hwsp_lock);
+	spin_unlock_irqrestore(&gt->hwsp_lock, flags);
 }
 
 static void __idle_cacheline_free(struct i915_timeline_cacheline *cl)
@@ -250,7 +251,6 @@ int i915_timeline_init(struct drm_i915_private *i915,
 
 	timeline->fence_context = dma_fence_context_alloc(1);
 
-	spin_lock_init(&timeline->lock);
 	mutex_init(&timeline->mutex);
 
 	INIT_ACTIVE_REQUEST(&timeline->last_request);

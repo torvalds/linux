@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../util.h"
 #include "../string2.h"
 #include "../config.h"
 #include "../../perf.h"
@@ -17,6 +16,7 @@
 #include "keysyms.h"
 #include "../color.h"
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static int ui_browser__percent_color(struct ui_browser *browser,
 				     double percent, bool current)

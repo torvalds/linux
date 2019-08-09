@@ -881,6 +881,7 @@ static bool smu8_is_dpm_running(struct pp_hwmgr *hwmgr)
 }
 
 const struct pp_smumgr_func smu8_smu_funcs = {
+	.name = "smu8_smu",
 	.smu_init = smu8_smu_init,
 	.smu_fini = smu8_smu_fini,
 	.start_smu = smu8_start_smu,

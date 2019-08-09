@@ -388,6 +388,11 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fib_combine_itag(itag, &res);
 
 	dev_match = fib_info_nh_uses_dev(res.fi, dev);
+	/* This is not common, loopback packets retain skb_dst so normally they
+	 * would not even hit this slow path.
+	 */
+	dev_match = dev_match || (res.type == RTN_LOCAL &&
+				  dev == net->loopback_dev);
 	if (dev_match) {
 		ret = FIB_RES_NHC(res)->nhc_scope >= RT_SCOPE_HOST;
 		return ret;

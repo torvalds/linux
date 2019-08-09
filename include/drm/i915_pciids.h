@@ -559,7 +559,6 @@
 #define INTEL_ICL_PORT_F_IDS(info) \
 	INTEL_VGA_DEVICE(0x8A50, info), \
 	INTEL_VGA_DEVICE(0x8A5C, info), \
-	INTEL_VGA_DEVICE(0x8A5D, info), \
 	INTEL_VGA_DEVICE(0x8A59, info),	\
 	INTEL_VGA_DEVICE(0x8A58, info),	\
 	INTEL_VGA_DEVICE(0x8A52, info), \
@@ -573,7 +572,8 @@
 
 #define INTEL_ICL_11_IDS(info) \
 	INTEL_ICL_PORT_F_IDS(info), \
-	INTEL_VGA_DEVICE(0x8A51, info)
+	INTEL_VGA_DEVICE(0x8A51, info), \
+	INTEL_VGA_DEVICE(0x8A5D, info)
 
 /* EHL */
 #define INTEL_EHL_IDS(info) \

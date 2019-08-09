@@ -15,10 +15,10 @@
  */
 
 struct sighand_struct {
-	refcount_t		count;
-	struct k_sigaction	action[_NSIG];
 	spinlock_t		siglock;
+	refcount_t		count;
 	wait_queue_head_t	signalfd_wqh;
+	struct k_sigaction	action[_NSIG];
 };
 
 /*
@@ -420,7 +420,6 @@ void task_join_group_stop(struct task_struct *task);
 static inline void set_restore_sigmask(void)
 {
 	set_thread_flag(TIF_RESTORE_SIGMASK);
-	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
 }
 
 static inline void clear_tsk_restore_sigmask(struct task_struct *task)
@@ -451,7 +450,6 @@ static inline bool test_and_clear_restore_sigmask(void)
 static inline void set_restore_sigmask(void)
 {
 	current->restore_sigmask = true;
-	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
 }
 static inline void clear_tsk_restore_sigmask(struct task_struct *task)
 {
@@ -482,6 +480,16 @@ static inline void restore_saved_sigmask(void)
 {
 	if (test_and_clear_restore_sigmask())
 		__set_current_blocked(&current->saved_sigmask);
+}
+
+extern int set_user_sigmask(const sigset_t __user *umask, size_t sigsetsize);
+
+static inline void restore_saved_sigmask_unless(bool interrupted)
+{
+	if (interrupted)
+		WARN_ON(!test_thread_flag(TIF_SIGPENDING));
+	else
+		restore_saved_sigmask();
 }
 
 static inline sigset_t *sigmask_to_save(void)

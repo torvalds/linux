@@ -2,6 +2,7 @@
 #include <asm/bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -21,7 +22,7 @@
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
-#include "util.h"
+#include "util.h" /* O_CLOEXEC for older systems */
 #include "debug.h"
 #include "string2.h"
 #include "vdso.h"
@@ -433,7 +434,7 @@ static void dso__list_add(struct dso *dso)
 
 static void dso__list_del(struct dso *dso)
 {
-	list_del(&dso->data.open_entry);
+	list_del_init(&dso->data.open_entry);
 	WARN_ONCE(dso__data_open_cnt <= 0,
 		  "DSO data fd counter out of bounds.");
 	dso__data_open_cnt--;

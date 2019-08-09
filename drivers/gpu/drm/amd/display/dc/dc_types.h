@@ -104,7 +104,7 @@ struct dc_context {
 
 
 #define DC_MAX_EDID_BUFFER_SIZE 1024
-#define EDID_BLOCK_SIZE 128
+#define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
 
@@ -421,6 +421,39 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+/* writeback */
+struct dwb_stereo_params {
+	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
+	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
+	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
+	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
+};
+
+struct dc_dwb_cnv_params {
+	unsigned int		src_width;	/* input active width */
+	unsigned int		src_height;	/* input active height (half-active height in interlaced mode) */
+	unsigned int		crop_width;	/* cropped window width at cnv output */
+	bool			crop_en;	/* window cropping enable in cnv */
+	unsigned int		crop_height;	/* cropped window height at cnv output */
+	unsigned int		crop_x;		/* cropped window start x value at cnv output */
+	unsigned int		crop_y;		/* cropped window start y value at cnv output */
+	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
+};
+
+struct dc_dwb_params {
+	struct dc_dwb_cnv_params	cnv_params;	/* CNV source size and cropping window parameters */
+	unsigned int			dest_width;	/* Destination width */
+	unsigned int			dest_height;	/* Destination height */
+	enum dwb_scaler_mode		out_format;	/* default = YUV420 - TODO: limit this to 0 and 1 on dcn3 */
+	enum dwb_output_depth		output_depth;	/* output pixel depth - 8bpc or 10bpc */
+	enum dwb_capture_rate		capture_rate;	/* controls the frame capture rate */
+	struct scaling_taps 		scaler_taps;	/* Scaling taps */
+	enum dwb_subsample_position	subsample_position;
+	struct dc_transfer_func *out_transfer_func;
+};
+#endif
+
 /* audio*/
 
 union audio_sample_rates {
@@ -527,6 +560,9 @@ enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
+#endif
 };
 
 struct dc_info_packet {
@@ -536,6 +572,15 @@ struct dc_info_packet {
 	uint8_t hb2;
 	uint8_t hb3;
 	uint8_t sb[32];
+};
+
+struct dc_info_packet_128 {
+	bool valid;
+	uint8_t hb0;
+	uint8_t hb1;
+	uint8_t hb2;
+	uint8_t hb3;
+	uint8_t sb[128];
 };
 
 #define DC_PLANE_UPDATE_TIMES_MAX 10
@@ -680,4 +725,75 @@ struct AsicStateEx {
 	unsigned int phyClock;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* DSC DPCD capabilities */
+union dsc_slice_caps1 {
+	struct {
+		uint8_t NUM_SLICES_1 : 1;
+		uint8_t NUM_SLICES_2 : 1;
+		uint8_t RESERVED : 1;
+		uint8_t NUM_SLICES_4 : 1;
+		uint8_t NUM_SLICES_6 : 1;
+		uint8_t NUM_SLICES_8 : 1;
+		uint8_t NUM_SLICES_10 : 1;
+		uint8_t NUM_SLICES_12 : 1;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_slice_caps2 {
+	struct {
+		uint8_t NUM_SLICES_16 : 1;
+		uint8_t NUM_SLICES_20 : 1;
+		uint8_t NUM_SLICES_24 : 1;
+		uint8_t RESERVED : 5;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_formats {
+	struct {
+		uint8_t RGB : 1;
+		uint8_t YCBCR_444 : 1;
+		uint8_t YCBCR_SIMPLE_422 : 1;
+		uint8_t YCBCR_NATIVE_422 : 1;
+		uint8_t YCBCR_NATIVE_420 : 1;
+		uint8_t RESERVED : 3;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_depth {
+	struct {
+		uint8_t RESERVED1 : 1;
+		uint8_t COLOR_DEPTH_8_BPC : 1;
+		uint8_t COLOR_DEPTH_10_BPC : 1;
+		uint8_t COLOR_DEPTH_12_BPC : 1;
+		uint8_t RESERVED2 : 3;
+	} bits;
+	uint8_t raw;
+};
+
+struct dsc_dec_dpcd_caps {
+	bool is_dsc_supported;
+	uint8_t dsc_version;
+	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+	union dsc_slice_caps1 slice_caps1;
+	union dsc_slice_caps2 slice_caps2;
+	int32_t lb_bit_depth;
+	bool is_block_pred_supported;
+	int32_t edp_max_bits_per_pixel; /* Valid only in eDP */
+	union dsc_color_formats color_formats;
+	union dsc_color_depth color_depth;
+	int32_t throughput_mode_0_mps; /* In MPs */
+	int32_t throughput_mode_1_mps; /* In MPs */
+	int32_t max_slice_width;
+	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+
+	/* Extended DSC caps */
+	uint32_t branch_overall_throughput_0_mps; /* In MPs */
+	uint32_t branch_overall_throughput_1_mps; /* In MPs */
+	uint32_t branch_max_line_width;
+};
+#endif
 #endif /* DC_TYPES_H_ */

@@ -43,7 +43,7 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
-#include "dcn10_clk_mgr.h"
+#include "clk_mgr.h"
 
 static unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
 {

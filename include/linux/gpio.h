@@ -106,6 +106,7 @@ void devm_gpio_free(struct device *dev, unsigned int gpio);
 
 struct device;
 struct gpio_chip;
+struct pinctrl_dev;
 
 static inline bool gpio_is_valid(int number)
 {

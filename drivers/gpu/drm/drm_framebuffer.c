@@ -21,16 +21,21 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
-#include <drm/drm_auth.h>
-#include <drm/drm_framebuffer.h>
+#include <linux/uaccess.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_auth.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
 #include <drm/drm_util.h>
 
-#include "drm_internal.h"
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 /**
  * DOC: overview

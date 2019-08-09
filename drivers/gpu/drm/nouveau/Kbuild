@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: MIT
 ccflags-y += -I $(srctree)/$(src)/include
 ccflags-y += -I $(srctree)/$(src)/include/nvkm
 ccflags-y += -I $(srctree)/$(src)/nvkm

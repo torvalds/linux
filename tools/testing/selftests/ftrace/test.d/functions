@@ -91,8 +91,8 @@ initialize_ftrace() { # Reset ftrace to initial-state
     reset_events_filter
     reset_ftrace_filter
     disable_events
-    echo > set_event_pid	# event tracer is always on
-    echo > set_ftrace_pid
+    [ -f set_event_pid ] && echo > set_event_pid
+    [ -f set_ftrace_pid ] && echo > set_ftrace_pid
     [ -f set_ftrace_filter ] && echo | tee set_ftrace_*
     [ -f set_graph_function ] && echo | tee set_graph_*
     [ -f stack_trace_filter ] && echo > stack_trace_filter

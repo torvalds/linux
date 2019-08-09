@@ -77,8 +77,7 @@ extern void migrate_page_copy(struct page *newpage, struct page *page);
 extern int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page);
 extern int migrate_page_move_mapping(struct address_space *mapping,
-		struct page *newpage, struct page *page, enum migrate_mode mode,
-		int extra_count);
+		struct page *newpage, struct page *page, int extra_count);
 #else
 
 static inline void putback_movable_pages(struct list_head *l) {}

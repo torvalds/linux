@@ -684,7 +684,7 @@ static void tc_indr_block_ing_cmd(struct tc_indr_block_dev *indr_dev,
 		.command	= command,
 		.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
 		.net		= dev_net(indr_dev->dev),
-		.block_shared	= tcf_block_shared(indr_dev->block),
+		.block_shared	= tcf_block_non_null_shared(indr_dev->block),
 	};
 	INIT_LIST_HEAD(&bo.cb_list);
 
@@ -2152,6 +2152,7 @@ replay:
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false, rtnl_held);
 		tfilter_put(tp, fh);
+		q->flags &= ~TCQ_F_CAN_BYPASS;
 	}
 
 errout:

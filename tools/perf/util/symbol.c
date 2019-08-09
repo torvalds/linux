@@ -26,6 +26,7 @@
 #include "header.h"
 #include "path.h"
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 #include <elf.h>
 #include <limits.h>

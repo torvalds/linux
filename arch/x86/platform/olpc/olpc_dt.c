@@ -216,7 +216,7 @@ static u32 __init olpc_dt_get_board_revision(void)
 	return be32_to_cpu(rev);
 }
 
-int olpc_dt_compatible_match(phandle node, const char *compat)
+static int __init olpc_dt_compatible_match(phandle node, const char *compat)
 {
 	char buf[64], *p;
 	int plen, len;

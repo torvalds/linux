@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_OBJECT_H__
 #define __NVKM_OBJECT_H__
 #include <core/oclass.h>

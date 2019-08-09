@@ -35,7 +35,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 16384);
 	__type(key, __u32);
-	__u64 (*value)[PERF_MAX_STACK_DEPTH];
+	__type(value, stack_trace_t);
 } stack_amap SEC(".maps");
 
 /* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */

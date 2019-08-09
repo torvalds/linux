@@ -2287,7 +2287,7 @@ addr_scope_policy - INTEGER
 
 
 /proc/sys/net/core/*
-	Please see: Documentation/sysctl/net.txt for descriptions of these entries.
+	Please see: Documentation/admin-guide/sysctl/net.rst for descriptions of these entries.
 
 
 /proc/sys/net/unix/*

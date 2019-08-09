@@ -174,14 +174,14 @@ config PCIE_IPROC_MSI
 	  PCIe controller
 
 config PCIE_ALTERA
-	bool "Altera PCIe controller"
+	tristate "Altera PCIe controller"
 	depends on ARM || NIOS2 || ARM64 || COMPILE_TEST
 	help
 	  Say Y here if you want to enable PCIe controller support on Altera
 	  FPGA.
 
 config PCIE_ALTERA_MSI
-	bool "Altera PCIe MSI feature"
+	tristate "Altera PCIe MSI feature"
 	depends on PCIE_ALTERA
 	depends on PCI_MSI_IRQ_DOMAIN
 	help

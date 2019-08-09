@@ -4,7 +4,6 @@
 
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/util.h"
 #include "util/config.h"
 #include "util/map.h"
 #include "util/symbol.h"
@@ -26,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>

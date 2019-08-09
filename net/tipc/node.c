@@ -1807,6 +1807,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 	__skb_queue_head_init(&xmitq);
 
 	/* Ensure message is well-formed before touching the header */
+	TIPC_SKB_CB(skb)->validated = false;
 	if (unlikely(!tipc_msg_validate(&skb)))
 		goto discard;
 	hdr = buf_msg(skb);

@@ -86,7 +86,7 @@ struct bpf_test {
 	int fixup_sk_storage_map[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
-	uint32_t retval, retval_unpriv, insn_processed;
+	uint32_t insn_processed;
 	int prog_len;
 	enum {
 		UNDEF,
@@ -95,16 +95,20 @@ struct bpf_test {
 	} result, result_unpriv;
 	enum bpf_prog_type prog_type;
 	uint8_t flags;
-	__u8 data[TEST_DATA_LEN];
 	void (*fill_helper)(struct bpf_test *self);
 	uint8_t runs;
-	struct {
-		uint32_t retval, retval_unpriv;
-		union {
-			__u8 data[TEST_DATA_LEN];
-			__u64 data64[TEST_DATA_LEN / 8];
-		};
-	} retvals[MAX_TEST_RUNS];
+#define bpf_testdata_struct_t					\
+	struct {						\
+		uint32_t retval, retval_unpriv;			\
+		union {						\
+			__u8 data[TEST_DATA_LEN];		\
+			__u64 data64[TEST_DATA_LEN / 8];	\
+		};						\
+	}
+	union {
+		bpf_testdata_struct_t;
+		bpf_testdata_struct_t retvals[MAX_TEST_RUNS];
+	};
 	enum bpf_attach_type expected_attach_type;
 };
 
@@ -949,17 +953,8 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		uint32_t expected_val;
 		int i;
 
-		if (!test->runs) {
-			expected_val = unpriv && test->retval_unpriv ?
-				test->retval_unpriv : test->retval;
-
-			err = do_prog_test_run(fd_prog, unpriv, expected_val,
-					       test->data, sizeof(test->data));
-			if (err)
-				run_errs++;
-			else
-				run_successes++;
-		}
+		if (!test->runs)
+			test->runs = 1;
 
 		for (i = 0; i < test->runs; i++) {
 			if (unpriv && test->retvals[i].retval_unpriv)

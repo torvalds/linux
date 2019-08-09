@@ -11,7 +11,6 @@
 #include "perf.h"
 
 #include "util/build-id.h"
-#include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/config.h"
@@ -54,6 +53,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 struct switch_output {
 	bool		 enabled;
@@ -1110,7 +1110,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		rec->switch_output.cur_file = n;
 		if (rec->switch_output.filenames[n]) {
 			remove(rec->switch_output.filenames[n]);
-			free(rec->switch_output.filenames[n]);
+			zfree(&rec->switch_output.filenames[n]);
 		}
 		rec->switch_output.filenames[n] = new_filename;
 	} else {

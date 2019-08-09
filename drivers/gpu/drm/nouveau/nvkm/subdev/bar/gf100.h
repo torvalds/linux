@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __GF100_BAR_H__
 #define __GF100_BAR_H__
 #define gf100_bar(p) container_of((p), struct gf100_bar, base)

@@ -2563,7 +2563,7 @@ static struct dst_entry *rt6_check(struct rt6_info *rt,
 {
 	u32 rt_cookie = 0;
 
-	if ((from && !fib6_get_cookie_safe(from, &rt_cookie)) ||
+	if (!from || !fib6_get_cookie_safe(from, &rt_cookie) ||
 	    rt_cookie != cookie)
 		return NULL;
 
@@ -6031,9 +6031,6 @@ int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int zero;
-static int one = 1;
-
 static struct ctl_table ipv6_route_table_template[] = {
 	{
 		.procname	=	"flush",
@@ -6111,8 +6108,8 @@ static struct ctl_table ipv6_route_table_template[] = {
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	proc_dointvec_minmax,
-		.extra1		=	&zero,
-		.extra2		=	&one,
+		.extra1		=	SYSCTL_ZERO,
+		.extra2		=	SYSCTL_ONE,
 	},
 	{ }
 };

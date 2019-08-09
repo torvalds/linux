@@ -12,10 +12,10 @@
 #include "thread.h"
 #include "vdso.h"
 #include "build-id.h"
-#include "util.h"
 #include "debug.h"
 #include "machine.h"
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include "srcline.h"
 #include "namespaces.h"
 #include "unwind.h"
@@ -476,8 +476,11 @@ int map__fprintf_srccode(struct map *map, u64 addr,
 		goto out_free_line;
 
 	ret = fprintf(fp, "|%-8d %.*s", line, len, srccode);
-	state->srcfile = srcfile;
-	state->line = line;
+
+	if (state) {
+		state->srcfile = srcfile;
+		state->line = line;
+	}
 	return ret;
 
 out_free_line:

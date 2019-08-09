@@ -297,15 +297,11 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	status = acpi_tb_install_and_load_table(ACPI_PTR_TO_PHYSADDR(table),
 						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
 						FALSE, &table_index);
-
 	if (ACPI_SUCCESS(status)) {
-		/* Complete the initialization/resolution of package objects */
 
-		status = acpi_ns_walk_namespace(ACPI_TYPE_PACKAGE,
-						ACPI_ROOT_OBJECT,
-						ACPI_UINT32_MAX, 0,
-						acpi_ns_init_one_package,
-						NULL, NULL, NULL);
+		/* Complete the initialization/resolution of new objects */
+
+		acpi_ns_initialize_objects();
 	}
 
 	return_ACPI_STATUS(status);

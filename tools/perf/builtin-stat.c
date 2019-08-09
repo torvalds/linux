@@ -43,7 +43,6 @@
 #include "perf.h"
 #include "builtin.h"
 #include "util/cgroup.h"
-#include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/pmu.h"
@@ -67,6 +66,7 @@
 #include "asm/bug.h"
 
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include <api/fs/fs.h>
 #include <errno.h>
 #include <signal.h>
@@ -1349,8 +1349,8 @@ static int add_default_attributes(void)
 				fprintf(stderr,
 					"Cannot set up top down events %s: %d\n",
 					str, err);
-				free(str);
 				parse_events_print_error(&errinfo, str);
+				free(str);
 				return -1;
 			}
 		} else {
@@ -1586,7 +1586,7 @@ static void runtime_stat_delete(struct perf_stat_config *config)
 	for (i = 0; i < config->stats_num; i++)
 		runtime_stat__exit(&config->stats[i]);
 
-	free(config->stats);
+	zfree(&config->stats);
 }
 
 static const char * const stat_report_usage[] = {
@@ -2003,7 +2003,7 @@ int cmd_stat(int argc, const char **argv)
 	perf_stat__exit_aggr_mode();
 	perf_evlist__free_stats(evsel_list);
 out:
-	free(stat_config.walltime_run);
+	zfree(&stat_config.walltime_run);
 
 	if (smi_cost && smi_reset)
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);

@@ -15,7 +15,6 @@
 #include "strlist.h"
 #include "thread.h"
 #include "vdso.h"
-#include "util.h"
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -28,6 +27,7 @@
 #include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 #include <linux/mman.h>
+#include <linux/zalloc.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 
@@ -810,7 +810,7 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 out:
 	/* put the dso here, corresponding to  machine__findnew_module_dso */
 	dso__put(dso);
-	free(m.name);
+	zfree(&m.name);
 	return map;
 }
 
@@ -1350,7 +1350,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 			if (m.kmod)
 				ret = map_groups__set_module_path(mg, path, &m);
 
-			free(m.name);
+			zfree(&m.name);
 
 			if (ret)
 				goto out;

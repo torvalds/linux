@@ -26,6 +26,9 @@
  *  Created on: Aug 30, 2016
  *      Author: agrodzov
  */
+
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include <stdarg.h>
 
@@ -297,7 +300,7 @@ void generic_reg_wait(const struct dc_context *ctx,
 	int i;
 
 	/* something is terribly wrong if time out is > 200ms. (5Hz) */
-	ASSERT(delay_between_poll_us * time_out_num_tries <= 200000);
+	ASSERT(delay_between_poll_us * time_out_num_tries <= 3000000);
 
 	for (i = 0; i <= time_out_num_tries; i++) {
 		if (i) {

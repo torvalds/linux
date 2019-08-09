@@ -414,7 +414,7 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 		if (skb_copy_bits(skb, start, &hdr, sizeof(hdr)))
 			BUG();
 		if (nexthdr == NEXTHDR_AUTH)
-			hdrlen = (hdr.hdrlen+2)<<2;
+			hdrlen = ipv6_authlen(&hdr);
 		else
 			hdrlen = ipv6_optlen(&hdr);
 

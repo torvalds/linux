@@ -30,6 +30,7 @@
 #include "strlist.h"
 
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static bool no_buildid_cache;
 

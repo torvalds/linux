@@ -22,13 +22,14 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
-#include "radeon.h"
-#include "radeon_asic.h"
+#include <drm/drm_pci.h>
+
+#include "atom.h"
+#include "cypress_dpm.h"
 #include "evergreend.h"
 #include "r600_dpm.h"
-#include "cypress_dpm.h"
-#include "atom.h"
+#include "radeon.h"
+#include "radeon_asic.h"
 
 #define SMC_RAM_END 0x8000
 

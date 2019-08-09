@@ -7,6 +7,7 @@
 #define _FSL_EDMA_COMMON_H_
 
 #include <linux/dma-direction.h>
+#include <linux/platform_device.h>
 #include "virt-dma.h"
 
 #define EDMA_CR_EDBG		BIT(1)
@@ -140,17 +141,24 @@ enum edma_version {
 	v2, /* 64ch Coldfire */
 };
 
+struct fsl_edma_drvdata {
+	enum edma_version	version;
+	u32			dmamuxs;
+	int			(*setup_irq)(struct platform_device *pdev,
+					     struct fsl_edma_engine *fsl_edma);
+};
+
 struct fsl_edma_engine {
 	struct dma_device	dma_dev;
 	void __iomem		*membase;
 	void __iomem		*muxbase[DMAMUX_NR];
 	struct clk		*muxclk[DMAMUX_NR];
 	struct mutex		fsl_edma_mutex;
+	const struct fsl_edma_drvdata *drvdata;
 	u32			n_chans;
 	int			txirq;
 	int			errirq;
 	bool			big_endian;
-	enum edma_version	version;
 	struct edma_regs	regs;
 	struct fsl_edma_chan	chans[];
 };

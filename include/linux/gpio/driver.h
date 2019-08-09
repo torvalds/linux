@@ -586,6 +586,8 @@ void gpiochip_remove_pin_ranges(struct gpio_chip *chip);
 
 #else /* ! CONFIG_PINCTRL */
 
+struct pinctrl_dev;
+
 static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		       unsigned int gpio_offset, unsigned int pin_offset,

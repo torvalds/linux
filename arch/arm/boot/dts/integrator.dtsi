@@ -62,6 +62,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x24000000 0x02000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	fpga {

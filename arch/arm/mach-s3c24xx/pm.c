@@ -5,7 +5,7 @@
 //
 // S3C24XX Power Manager (Suspend-To-RAM) support
 //
-// See Documentation/arm/Samsung-S3C24XX/Suspend.txt for more information
+// See Documentation/arm/samsung-s3c24xx/suspend.rst for more information
 //
 // Parts based on arch/arm/mach-pxa/pm.c
 //

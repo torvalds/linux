@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* pci-pf-stub - simple stub driver for PCI SR-IOV PF device
  *
- * This driver is meant to act as a "whitelist" for devices that provde
+ * This driver is meant to act as a "whitelist" for devices that provide
  * SR-IOV functionality while at the same time not actually needing a
  * driver of their own.
  */

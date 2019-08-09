@@ -2,11 +2,12 @@
 #include <sys/param.h>
 #include <sys/utsname.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include <api/fs/fs.h>
+#include <linux/zalloc.h>
 
 #include "cputopo.h"
 #include "cpumap.h"
-#include "util.h"
 #include "env.h"
 
 #define CORE_SIB_FMT \
@@ -343,7 +344,7 @@ void numa_topology__delete(struct numa_topology *tp)
 	u32 i;
 
 	for (i = 0; i < tp->nr; i++)
-		free(tp->nodes[i].cpus);
+		zfree(&tp->nodes[i].cpus);
 
 	free(tp);
 }

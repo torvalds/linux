@@ -539,13 +539,13 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 		tmp = pgprot_noncached(tmp);
 #endif
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
-    defined(__powerpc__)
+    defined(__powerpc__) || defined(__mips__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
 #endif
-#if defined(__sparc__) || defined(__mips__)
+#if defined(__sparc__)
 	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;

@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/types.h>
+#include <linux/zalloc.h>
 
 #include "cs-etm.h"
 #include "../../perf.h"

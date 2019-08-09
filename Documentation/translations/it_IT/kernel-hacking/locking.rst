@@ -1404,7 +1404,7 @@ Riferimento per l'API dei Futex
 Approfondimenti
 ===============
 
--  ``Documentation/locking/spinlocks.txt``: la guida di Linus Torvalds agli
+-  ``Documentation/locking/spinlocks.rst``: la guida di Linus Torvalds agli
    spinlock del kernel.
 
 -  Unix Systems for Modern Architectures: Symmetric Multiprocessing and

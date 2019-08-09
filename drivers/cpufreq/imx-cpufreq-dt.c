@@ -44,10 +44,11 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 	 * According to datasheet minimum speed grading is not supported for
 	 * consumer parts so clamp to 1 to avoid warning for "no OPPs"
 	 *
-	 * Applies to 8mq and 8mm.
+	 * Applies to i.MX8M series SoCs.
 	 */
 	if (mkt_segment == 0 && speed_grade == 0 && (
 			of_machine_is_compatible("fsl,imx8mm") ||
+			of_machine_is_compatible("fsl,imx8mn") ||
 			of_machine_is_compatible("fsl,imx8mq")))
 		speed_grade = 1;
 

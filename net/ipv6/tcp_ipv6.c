@@ -984,8 +984,13 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 
 	if (sk) {
 		oif = sk->sk_bound_dev_if;
-		if (sk_fullsock(sk))
+		if (sk_fullsock(sk)) {
+			const struct ipv6_pinfo *np = tcp_inet6_sk(sk);
+
 			trace_tcp_send_reset(sk, skb);
+			if (np->repflow)
+				label = ip6_flowlabel(ipv6h);
+		}
 		if (sk->sk_state == TCP_TIME_WAIT)
 			label = cpu_to_be32(inet_twsk(sk)->tw_flowlabel);
 	} else {

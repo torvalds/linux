@@ -372,7 +372,7 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 /**
  * print_tainted - return a string to represent the kernel taint state.
  *
- * For individual taint flag meanings, see Documentation/sysctl/kernel.txt
+ * For individual taint flag meanings, see Documentation/admin-guide/sysctl/kernel.rst
  *
  * The string is overwritten by the next call to print_tainted(),
  * but is always NULL terminated.

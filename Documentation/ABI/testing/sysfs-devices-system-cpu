@@ -34,7 +34,7 @@ Description:	CPU topology files that describe kernel limits related to
 		present: cpus that have been identified as being present in
 		the system.
 
-		See Documentation/cputopology.txt for more information.
+		See Documentation/admin-guide/cputopology.rst for more information.
 
 
 What:		/sys/devices/system/cpu/probe
@@ -103,7 +103,7 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		thread_siblings_list: human-readable list of cpu#'s hardware
 		threads within the same core as cpu#
 
-		See Documentation/cputopology.txt for more information.
+		See Documentation/admin-guide/cputopology.rst for more information.
 
 
 What:		/sys/devices/system/cpu/cpuidle/current_driver

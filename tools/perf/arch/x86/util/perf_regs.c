@@ -2,9 +2,9 @@
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
+#include <linux/zalloc.h>
 
 #include "../../perf.h"
-#include "../../util/util.h"
 #include "../../util/perf_regs.h"
 #include "../../util/debug.h"
 

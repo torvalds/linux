@@ -212,6 +212,15 @@ out:
 	spin_unlock_irqrestore(&out->state_lock, flags);
 }
 
+static const char * const pipe_crc_sources[] = {"auto"};
+
+const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
+					size_t *count)
+{
+	*count = ARRAY_SIZE(pipe_crc_sources);
+	return pipe_crc_sources;
+}
+
 static int vkms_crc_parse_source(const char *src_name, bool *enabled)
 {
 	int ret = 0;

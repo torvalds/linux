@@ -1499,7 +1499,8 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	*match_level = MLX5_MATCH_NONE;
 
 	if (dissector->used_keys &
-	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
+	    ~(BIT(FLOW_DISSECTOR_KEY_META) |
+	      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
@@ -1522,11 +1523,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_OPTS)) {
+	if (mlx5e_get_tc_tun(filter_dev)) {
 		if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 			return -EOPNOTSUPP;
 
@@ -2647,6 +2644,10 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	family = ip_tunnel_info_af(tun_info);
 	key.ip_tun_key = &tun_info->key;
 	key.tc_tunnel = mlx5e_get_tc_tun(mirred_dev);
+	if (!key.tc_tunnel) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported tunnel");
+		return -EOPNOTSUPP;
+	}
 
 	hash_key = hash_encap_info(&key);
 

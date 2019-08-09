@@ -105,6 +105,10 @@ MODULE_PARM_DESC(perf_mode, "Performance mode (only for Aero adapters), options:
 		"default mode is 'balanced'"
 		);
 
+int event_log_level = MFI_EVT_CLASS_CRITICAL;
+module_param(event_log_level, int, 0644);
+MODULE_PARM_DESC(event_log_level, "Asynchronous event logging level- range is: -2(CLASS_DEBUG) to 4(CLASS_DEAD), Default: 2(CLASS_CRITICAL)");
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux.pdl@broadcom.com");
@@ -280,7 +284,7 @@ void megasas_set_dma_settings(struct megasas_instance *instance,
 	}
 }
 
-void
+static void
 megasas_issue_dcmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
 	instance->instancet->fire_cmd(instance,
@@ -404,7 +408,13 @@ megasas_decode_evt(struct megasas_instance *instance)
 	union megasas_evt_class_locale class_locale;
 	class_locale.word = le32_to_cpu(evt_detail->cl.word);
 
-	if (class_locale.members.class >= MFI_EVT_CLASS_CRITICAL)
+	if ((event_log_level < MFI_EVT_CLASS_DEBUG) ||
+	    (event_log_level > MFI_EVT_CLASS_DEAD)) {
+		printk(KERN_WARNING "megaraid_sas: provided event log level is out of range, setting it to default 2(CLASS_CRITICAL), permissible range is: -2 to 4\n");
+		event_log_level = MFI_EVT_CLASS_CRITICAL;
+	}
+
+	if (class_locale.members.class >= event_log_level)
 		dev_info(&instance->pdev->dev, "%d (%s/0x%04x/%s) - %s\n",
 			le32_to_cpu(evt_detail->seq_num),
 			format_timestamp(le32_to_cpu(evt_detail->time_stamp)),
@@ -2237,7 +2247,7 @@ megasas_internal_reset_defer_cmds(struct megasas_instance *instance);
 static void
 process_fw_state_change_wq(struct work_struct *work);
 
-void megasas_do_ocr(struct megasas_instance *instance)
+static void megasas_do_ocr(struct megasas_instance *instance)
 {
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1064R) ||
 	(instance->pdev->device == PCI_DEVICE_ID_DELL_PERC5) ||
@@ -3303,7 +3313,7 @@ static DEVICE_ATTR_RO(fw_cmds_outstanding);
 static DEVICE_ATTR_RO(dump_system_regs);
 static DEVICE_ATTR_RO(raid_map_id);
 
-struct device_attribute *megaraid_host_attrs[] = {
+static struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_fw_crash_buffer_size,
 	&dev_attr_fw_crash_buffer,
 	&dev_attr_fw_crash_state,
@@ -3334,6 +3344,7 @@ static struct scsi_host_template megasas_template = {
 	.shost_attrs = megaraid_host_attrs,
 	.bios_param = megasas_bios_param,
 	.change_queue_depth = scsi_change_queue_depth,
+	.max_segment_size = 0xffffffff,
 	.no_write_same = 1,
 };
 
@@ -5933,7 +5944,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 					instance->is_rdpq = (scratch_pad_1 & MR_RDPQ_MODE_OFFSET) ?
 								1 : 0;
 
-				if (!instance->msix_combined) {
+				if (instance->adapter_type >= INVADER_SERIES &&
+				    !instance->msix_combined) {
 					instance->msix_load_balance = true;
 					instance->smp_affinity_enable = false;
 				}
@@ -6546,7 +6558,8 @@ megasas_get_target_prop(struct megasas_instance *instance,
 	int ret;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
-	u16 targetId = (sdev->channel % 2) + sdev->id;
+	u16 targetId = ((sdev->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +
+			sdev->id;
 
 	cmd = megasas_get_cmd(instance);
 
@@ -8746,6 +8759,12 @@ static int __init megasas_init(void)
 	if (rval) {
 		printk(KERN_DEBUG "megasas: PCI hotplug registration failed \n");
 		goto err_pcidrv;
+	}
+
+	if ((event_log_level < MFI_EVT_CLASS_DEBUG) ||
+	    (event_log_level > MFI_EVT_CLASS_DEAD)) {
+		printk(KERN_WARNING "megarid_sas: provided event log level is out of range, setting it to default 2(CLASS_CRITICAL), permissible range is: -2 to 4\n");
+		event_log_level = MFI_EVT_CLASS_CRITICAL;
 	}
 
 	rval = driver_create_file(&megasas_pci_driver.driver,

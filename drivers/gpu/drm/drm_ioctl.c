@@ -28,16 +28,22 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drm_ioctl.h>
-#include <drm/drmP.h>
-#include <drm/drm_auth.h>
-#include "drm_legacy.h"
-#include "drm_internal.h"
-#include "drm_crtc_internal.h"
-
-#include <linux/pci.h>
 #include <linux/export.h>
 #include <linux/nospec.h>
+#include <linux/pci.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_auth.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_print.h>
+
+#include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 /**
  * DOC: getunique and setversion story
@@ -730,7 +736,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
  *     };
  *
  * Please make sure that you follow all the best practices from
- * ``Documentation/ioctl/botching-up-ioctls.txt``. Note that drm_ioctl()
+ * ``Documentation/ioctl/botching-up-ioctls.rst``. Note that drm_ioctl()
  * automatically zero-extends structures, hence make sure you can add more stuff
  * at the end, i.e. don't put a variable sized array there.
  *

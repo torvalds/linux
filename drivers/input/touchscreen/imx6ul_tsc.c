@@ -364,8 +364,6 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct imx6ul_tsc *tsc;
 	struct input_dev *input_dev;
-	struct resource *tsc_mem;
-	struct resource *adc_mem;
 	int err;
 	int tsc_irq;
 	int adc_irq;
@@ -403,16 +401,14 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tsc_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tsc->tsc_regs = devm_ioremap_resource(&pdev->dev, tsc_mem);
+	tsc->tsc_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tsc->tsc_regs)) {
 		err = PTR_ERR(tsc->tsc_regs);
 		dev_err(&pdev->dev, "failed to remap tsc memory: %d\n", err);
 		return err;
 	}
 
-	adc_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	tsc->adc_regs = devm_ioremap_resource(&pdev->dev, adc_mem);
+	tsc->adc_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(tsc->adc_regs)) {
 		err = PTR_ERR(tsc->adc_regs);
 		dev_err(&pdev->dev, "failed to remap adc memory: %d\n", err);

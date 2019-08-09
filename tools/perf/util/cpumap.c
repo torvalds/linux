@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "util.h"
 #include <api/fs/fs.h>
 #include "../perf.h"
 #include "cpumap.h"
@@ -11,6 +10,7 @@
 #include "asm/bug.h"
 
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static int max_cpu_num;
 static int max_present_cpu_num;

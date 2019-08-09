@@ -4,14 +4,13 @@
  * Copyright (C) 2017 Broadcom
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
-#include <drm/drm_probe_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 struct panel_bridge {
 	struct drm_bridge bridge;

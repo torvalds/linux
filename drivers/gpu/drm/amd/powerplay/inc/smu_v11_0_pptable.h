@@ -121,7 +121,7 @@ struct smu_11_0_powerplay_table
 {
       struct atom_common_table_header header;
       uint8_t  table_revision;
-      uint32_t table_size;                          //Driver portion table size. The offset to smc_pptable including header size
+      uint16_t table_size;                          //Driver portion table size. The offset to smc_pptable including header size
       uint32_t golden_pp_id;
       uint32_t golden_revision;
       uint16_t format_id;

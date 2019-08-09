@@ -16,12 +16,12 @@
 #include "util/tool.h"
 #include "util/sort.h"
 #include "util/symbol.h"
-#include "util/util.h"
 #include "util/data.h"
 #include "util/config.h"
 #include "util/time-utils.h"
 #include "util/annotate.h"
 #include "util/map.h"
+#include <linux/zalloc.h>
 
 #include <errno.h>
 #include <inttypes.h>

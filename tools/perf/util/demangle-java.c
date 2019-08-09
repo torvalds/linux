@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include "util.h"
 #include "debug.h"
 #include "symbol.h"
 
 #include "demangle-java.h"
 
 #include <linux/ctype.h>
+#include <linux/kernel.h>
 
 enum {
 	MODE_PREFIX = 0,

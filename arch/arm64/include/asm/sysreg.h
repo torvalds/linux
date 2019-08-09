@@ -9,7 +9,7 @@
 #ifndef __ASM_SYSREG_H
 #define __ASM_SYSREG_H
 
-#include <linux/const.h>
+#include <linux/bits.h>
 #include <linux/stringify.h>
 
 /*
@@ -478,31 +478,31 @@
 #define SYS_CNTV_CVAL_EL02		sys_reg(3, 5, 14, 3, 2)
 
 /* Common SCTLR_ELx flags. */
-#define SCTLR_ELx_DSSBS	(_BITUL(44))
-#define SCTLR_ELx_ENIA	(_BITUL(31))
-#define SCTLR_ELx_ENIB	(_BITUL(30))
-#define SCTLR_ELx_ENDA	(_BITUL(27))
-#define SCTLR_ELx_EE    (_BITUL(25))
-#define SCTLR_ELx_IESB	(_BITUL(21))
-#define SCTLR_ELx_WXN	(_BITUL(19))
-#define SCTLR_ELx_ENDB	(_BITUL(13))
-#define SCTLR_ELx_I	(_BITUL(12))
-#define SCTLR_ELx_SA	(_BITUL(3))
-#define SCTLR_ELx_C	(_BITUL(2))
-#define SCTLR_ELx_A	(_BITUL(1))
-#define SCTLR_ELx_M	(_BITUL(0))
+#define SCTLR_ELx_DSSBS	(BIT(44))
+#define SCTLR_ELx_ENIA	(BIT(31))
+#define SCTLR_ELx_ENIB	(BIT(30))
+#define SCTLR_ELx_ENDA	(BIT(27))
+#define SCTLR_ELx_EE    (BIT(25))
+#define SCTLR_ELx_IESB	(BIT(21))
+#define SCTLR_ELx_WXN	(BIT(19))
+#define SCTLR_ELx_ENDB	(BIT(13))
+#define SCTLR_ELx_I	(BIT(12))
+#define SCTLR_ELx_SA	(BIT(3))
+#define SCTLR_ELx_C	(BIT(2))
+#define SCTLR_ELx_A	(BIT(1))
+#define SCTLR_ELx_M	(BIT(0))
 
 #define SCTLR_ELx_FLAGS	(SCTLR_ELx_M  | SCTLR_ELx_A | SCTLR_ELx_C | \
 			 SCTLR_ELx_SA | SCTLR_ELx_I | SCTLR_ELx_IESB)
 
 /* SCTLR_EL2 specific flags. */
-#define SCTLR_EL2_RES1	((_BITUL(4))  | (_BITUL(5))  | (_BITUL(11)) | (_BITUL(16)) | \
-			 (_BITUL(18)) | (_BITUL(22)) | (_BITUL(23)) | (_BITUL(28)) | \
-			 (_BITUL(29)))
-#define SCTLR_EL2_RES0	((_BITUL(6))  | (_BITUL(7))  | (_BITUL(8))  | (_BITUL(9))  | \
-			 (_BITUL(10)) | (_BITUL(13)) | (_BITUL(14)) | (_BITUL(15)) | \
-			 (_BITUL(17)) | (_BITUL(20)) | (_BITUL(24)) | (_BITUL(26)) | \
-			 (_BITUL(27)) | (_BITUL(30)) | (_BITUL(31)) | \
+#define SCTLR_EL2_RES1	((BIT(4))  | (BIT(5))  | (BIT(11)) | (BIT(16)) | \
+			 (BIT(18)) | (BIT(22)) | (BIT(23)) | (BIT(28)) | \
+			 (BIT(29)))
+#define SCTLR_EL2_RES0	((BIT(6))  | (BIT(7))  | (BIT(8))  | (BIT(9))  | \
+			 (BIT(10)) | (BIT(13)) | (BIT(14)) | (BIT(15)) | \
+			 (BIT(17)) | (BIT(20)) | (BIT(24)) | (BIT(26)) | \
+			 (BIT(27)) | (BIT(30)) | (BIT(31)) | \
 			 (0xffffefffUL << 32))
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -524,23 +524,23 @@
 #endif
 
 /* SCTLR_EL1 specific flags. */
-#define SCTLR_EL1_UCI		(_BITUL(26))
-#define SCTLR_EL1_E0E		(_BITUL(24))
-#define SCTLR_EL1_SPAN		(_BITUL(23))
-#define SCTLR_EL1_NTWE		(_BITUL(18))
-#define SCTLR_EL1_NTWI		(_BITUL(16))
-#define SCTLR_EL1_UCT		(_BITUL(15))
-#define SCTLR_EL1_DZE		(_BITUL(14))
-#define SCTLR_EL1_UMA		(_BITUL(9))
-#define SCTLR_EL1_SED		(_BITUL(8))
-#define SCTLR_EL1_ITD		(_BITUL(7))
-#define SCTLR_EL1_CP15BEN	(_BITUL(5))
-#define SCTLR_EL1_SA0		(_BITUL(4))
+#define SCTLR_EL1_UCI		(BIT(26))
+#define SCTLR_EL1_E0E		(BIT(24))
+#define SCTLR_EL1_SPAN		(BIT(23))
+#define SCTLR_EL1_NTWE		(BIT(18))
+#define SCTLR_EL1_NTWI		(BIT(16))
+#define SCTLR_EL1_UCT		(BIT(15))
+#define SCTLR_EL1_DZE		(BIT(14))
+#define SCTLR_EL1_UMA		(BIT(9))
+#define SCTLR_EL1_SED		(BIT(8))
+#define SCTLR_EL1_ITD		(BIT(7))
+#define SCTLR_EL1_CP15BEN	(BIT(5))
+#define SCTLR_EL1_SA0		(BIT(4))
 
-#define SCTLR_EL1_RES1	((_BITUL(11)) | (_BITUL(20)) | (_BITUL(22)) | (_BITUL(28)) | \
-			 (_BITUL(29)))
-#define SCTLR_EL1_RES0  ((_BITUL(6))  | (_BITUL(10)) | (_BITUL(13)) | (_BITUL(17)) | \
-			 (_BITUL(27)) | (_BITUL(30)) | (_BITUL(31)) | \
+#define SCTLR_EL1_RES1	((BIT(11)) | (BIT(20)) | (BIT(22)) | (BIT(28)) | \
+			 (BIT(29)))
+#define SCTLR_EL1_RES0  ((BIT(6))  | (BIT(10)) | (BIT(13)) | (BIT(17)) | \
+			 (BIT(27)) | (BIT(30)) | (BIT(31)) | \
 			 (0xffffefffUL << 32))
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -756,13 +756,13 @@
 #define ZCR_ELx_LEN_SIZE	9
 #define ZCR_ELx_LEN_MASK	0x1ff
 
-#define CPACR_EL1_ZEN_EL1EN	(_BITUL(16)) /* enable EL1 access */
-#define CPACR_EL1_ZEN_EL0EN	(_BITUL(17)) /* enable EL0 access, if EL1EN set */
+#define CPACR_EL1_ZEN_EL1EN	(BIT(16)) /* enable EL1 access */
+#define CPACR_EL1_ZEN_EL0EN	(BIT(17)) /* enable EL0 access, if EL1EN set */
 #define CPACR_EL1_ZEN		(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
 
 
 /* Safe value for MPIDR_EL1: Bit31:RES1, Bit30:U:0, Bit24:MT:0 */
-#define SYS_MPIDR_SAFE_VAL	(_BITUL(31))
+#define SYS_MPIDR_SAFE_VAL	(BIT(31))
 
 #ifdef __ASSEMBLY__
 

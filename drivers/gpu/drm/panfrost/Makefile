@@ -7,6 +7,7 @@ panfrost-y := \
 	panfrost_gem.o \
 	panfrost_gpu.o \
 	panfrost_job.o \
-	panfrost_mmu.o
+	panfrost_mmu.o \
+	panfrost_perfcnt.o
 
 obj-$(CONFIG_DRM_PANFROST) += panfrost.o

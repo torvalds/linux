@@ -60,6 +60,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -74,13 +75,21 @@ static LIST_HEAD(service_processors);
 
 static struct inode *ibmasmfs_make_inode(struct super_block *sb, int mode);
 static void ibmasmfs_create_files (struct super_block *sb);
-static int ibmasmfs_fill_super (struct super_block *sb, void *data, int silent);
+static int ibmasmfs_fill_super(struct super_block *sb, struct fs_context *fc);
 
-
-static struct dentry *ibmasmfs_mount(struct file_system_type *fst,
-			int flags, const char *name, void *data)
+static int ibmasmfs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fst, flags, data, ibmasmfs_fill_super);
+	return get_tree_single(fc, ibmasmfs_fill_super);
+}
+
+static const struct fs_context_operations ibmasmfs_context_ops = {
+	.get_tree	= ibmasmfs_get_tree,
+};
+
+static int ibmasmfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &ibmasmfs_context_ops;
+	return 0;
 }
 
 static const struct super_operations ibmasmfs_s_ops = {
@@ -93,12 +102,12 @@ static const struct file_operations *ibmasmfs_dir_ops = &simple_dir_operations;
 static struct file_system_type ibmasmfs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "ibmasmfs",
-	.mount          = ibmasmfs_mount,
+	.init_fs_context = ibmasmfs_init_fs_context,
 	.kill_sb        = kill_litter_super,
 };
 MODULE_ALIAS_FS("ibmasmfs");
 
-static int ibmasmfs_fill_super (struct super_block *sb, void *data, int silent)
+static int ibmasmfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *root;
 

@@ -99,7 +99,7 @@ config SAMPLE_CONNECTOR
 	  When enabled, this builds both a sample kernel module for
 	  the connector interface and a user space tool to communicate
 	  with it.
-	  See also Documentation/connector/connector.txt
+	  See also Documentation/driver-api/connector.rst
 
 config SAMPLE_HIDRAW
 	bool "hidraw sample"

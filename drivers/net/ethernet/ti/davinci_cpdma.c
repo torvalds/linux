@@ -138,8 +138,8 @@ struct submit_info {
 	struct cpdma_chan *chan;
 	int directed;
 	void *token;
-	void *data;
-	int flags;
+	void *data_virt;
+	dma_addr_t data_dma;
 	int len;
 };
 
@@ -1043,12 +1043,12 @@ static int cpdma_chan_submit_si(struct submit_info *si)
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
 	cpdma_desc_to_port(chan, mode, si->directed);
 
-	if (si->flags & CPDMA_DMA_EXT_MAP) {
-		buffer = (dma_addr_t)si->data;
+	if (si->data_dma) {
+		buffer = si->data_dma;
 		dma_sync_single_for_device(ctlr->dev, buffer, len, chan->dir);
 		swlen |= CPDMA_DMA_EXT_MAP;
 	} else {
-		buffer = dma_map_single(ctlr->dev, si->data, len, chan->dir);
+		buffer = dma_map_single(ctlr->dev, si->data_virt, len, chan->dir);
 		ret = dma_mapping_error(ctlr->dev, buffer);
 		if (ret) {
 			cpdma_desc_free(ctlr->pool, desc, 1);
@@ -1086,10 +1086,10 @@ int cpdma_chan_idle_submit(struct cpdma_chan *chan, void *token, void *data,
 
 	si.chan = chan;
 	si.token = token;
-	si.data = data;
+	si.data_virt = data;
+	si.data_dma = 0;
 	si.len = len;
 	si.directed = directed;
-	si.flags = 0;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	if (chan->state == CPDMA_STATE_TEARDOWN) {
@@ -1111,10 +1111,10 @@ int cpdma_chan_idle_submit_mapped(struct cpdma_chan *chan, void *token,
 
 	si.chan = chan;
 	si.token = token;
-	si.data = (void *)data;
+	si.data_virt = NULL;
+	si.data_dma = data;
 	si.len = len;
 	si.directed = directed;
-	si.flags = CPDMA_DMA_EXT_MAP;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	if (chan->state == CPDMA_STATE_TEARDOWN) {
@@ -1136,10 +1136,10 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 
 	si.chan = chan;
 	si.token = token;
-	si.data = data;
+	si.data_virt = data;
+	si.data_dma = 0;
 	si.len = len;
 	si.directed = directed;
-	si.flags = 0;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	if (chan->state != CPDMA_STATE_ACTIVE) {
@@ -1161,10 +1161,10 @@ int cpdma_chan_submit_mapped(struct cpdma_chan *chan, void *token,
 
 	si.chan = chan;
 	si.token = token;
-	si.data = (void *)data;
+	si.data_virt = NULL;
+	si.data_dma = data;
 	si.len = len;
 	si.directed = directed;
-	si.flags = CPDMA_DMA_EXT_MAP;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	if (chan->state != CPDMA_STATE_ACTIVE) {

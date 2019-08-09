@@ -20,8 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "gmc_v8_0.h"
@@ -289,7 +292,7 @@ out:
  *
  * @adev: amdgpu_device pointer
  *
- * Load the GDDR MC ucode into the hw (CIK).
+ * Load the GDDR MC ucode into the hw (VI).
  * Returns 0 on success, error on failure.
  */
 static int gmc_v8_0_tonga_mc_load_microcode(struct amdgpu_device *adev)
@@ -443,7 +446,7 @@ static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  *
  * Set the location of vram, gart, and AGP in the GPU's
- * physical address space (CIK).
+ * physical address space (VI).
  */
 static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
 {
@@ -515,7 +518,7 @@ static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Look up the amount of vram, vram width, and decide how to place
- * vram and gart within the GPU's physical address space (CIK).
+ * vram and gart within the GPU's physical address space (VI).
  * Returns 0 for success.
  */
 static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
@@ -630,7 +633,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
  *
- * Flush the TLB for the requested page table (CIK).
+ * Flush the TLB for the requested page table (VI).
  */
 static void gmc_v8_0_flush_gpu_tlb(struct amdgpu_device *adev,
 				uint32_t vmid, uint32_t flush_type)
@@ -800,7 +803,7 @@ static void gmc_v8_0_set_prt(struct amdgpu_device *adev, bool enable)
  * This sets up the TLBs, programs the page tables for VMID0,
  * sets up the hw for VMIDs 1-15 which are allocated on
  * demand, and sets up the global locations for the LDS, GDS,
- * and GPUVM for FSA64 clients (CIK).
+ * and GPUVM for FSA64 clients (VI).
  * Returns 0 for success, errors for failure.
  */
 static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
@@ -948,7 +951,7 @@ static int gmc_v8_0_gart_init(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * This disables all VM page table (CIK).
+ * This disables all VM page table (VI).
  */
 static void gmc_v8_0_gart_disable(struct amdgpu_device *adev)
 {
@@ -978,7 +981,7 @@ static void gmc_v8_0_gart_disable(struct amdgpu_device *adev)
  * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
  * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
  *
- * Print human readable fault information (CIK).
+ * Print human readable fault information (VI).
  */
 static void gmc_v8_0_vm_decode_fault(struct amdgpu_device *adev, u32 status,
 				     u32 addr, u32 mc_client, unsigned pasid)

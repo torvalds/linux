@@ -172,7 +172,8 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					struct drm_framebuffer *fb,
 					int x, int y)
 {
-	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
+	struct drm_gem_vram_object *gbo =
+		drm_gem_vram_of_gem(to_vbox_framebuffer(fb)->obj);
 	struct vbox_private *vbox = crtc->dev->dev_private;
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
 	bool needs_modeset = drm_atomic_crtc_needs_modeset(crtc->state);
@@ -186,7 +187,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 
 	vbox_crtc->x = x;
 	vbox_crtc->y = y;
-	vbox_crtc->fb_offset = vbox_bo_gpu_offset(bo);
+	vbox_crtc->fb_offset = drm_gem_vram_offset(gbo);
 
 	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
 	if (needs_modeset && vbox_set_up_input_mapping(vbox)) {
@@ -302,14 +303,14 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 static int vbox_primary_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state)
 {
-	struct vbox_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int ret;
 
 	if (!new_state->fb)
 		return 0;
 
-	bo = gem_to_vbox_bo(to_vbox_framebuffer(new_state->fb)->obj);
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
+	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(new_state->fb)->obj);
+	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret)
 		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
 
@@ -319,13 +320,13 @@ static int vbox_primary_prepare_fb(struct drm_plane *plane,
 static void vbox_primary_cleanup_fb(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
-	struct vbox_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!old_state->fb)
 		return;
 
-	bo = gem_to_vbox_bo(to_vbox_framebuffer(old_state->fb)->obj);
-	vbox_bo_unpin(bo);
+	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(old_state->fb)->obj);
+	drm_gem_vram_unpin(gbo);
 }
 
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
@@ -385,7 +386,8 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 		container_of(plane->dev, struct vbox_private, ddev);
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(plane->state->crtc);
 	struct drm_framebuffer *fb = plane->state->fb;
-	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
+	struct drm_gem_vram_object *gbo =
+		drm_gem_vram_of_gem(to_vbox_framebuffer(fb)->obj);
 	u32 width = plane->state->crtc_w;
 	u32 height = plane->state->crtc_h;
 	size_t data_size, mask_size;
@@ -404,7 +406,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	vbox_crtc->cursor_enabled = true;
 
 	/* pinning is done in prepare/cleanup framebuffer */
-	src = vbox_bo_kmap(bo);
+	src = drm_gem_vram_kmap(gbo, true, NULL);
 	if (IS_ERR(src)) {
 		mutex_unlock(&vbox->hw_mutex);
 		DRM_WARN("Could not kmap cursor bo, skipping update\n");
@@ -420,7 +422,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	data_size = width * height * 4 + mask_size;
 
 	copy_cursor_image(src, vbox->cursor_data, width, height, mask_size);
-	vbox_bo_kunmap(bo);
+	drm_gem_vram_kunmap(gbo);
 
 	flags = VBOX_MOUSE_POINTER_VISIBLE | VBOX_MOUSE_POINTER_SHAPE |
 		VBOX_MOUSE_POINTER_ALPHA;
@@ -460,25 +462,25 @@ static void vbox_cursor_atomic_disable(struct drm_plane *plane,
 static int vbox_cursor_prepare_fb(struct drm_plane *plane,
 				  struct drm_plane_state *new_state)
 {
-	struct vbox_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!new_state->fb)
 		return 0;
 
-	bo = gem_to_vbox_bo(to_vbox_framebuffer(new_state->fb)->obj);
-	return vbox_bo_pin(bo, TTM_PL_FLAG_SYSTEM);
+	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(new_state->fb)->obj);
+	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_SYSTEM);
 }
 
 static void vbox_cursor_cleanup_fb(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
-	struct vbox_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!plane->state->fb)
 		return;
 
-	bo = gem_to_vbox_bo(to_vbox_framebuffer(plane->state->fb)->obj);
-	vbox_bo_unpin(bo);
+	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(plane->state->fb)->obj);
+	drm_gem_vram_unpin(gbo);
 }
 
 static const u32 vbox_cursor_plane_formats[] = {

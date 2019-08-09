@@ -597,7 +597,7 @@ mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 
 free_data:
-	kfree(cr_data);
+	kvfree(cr_data);
 	return err;
 }
 

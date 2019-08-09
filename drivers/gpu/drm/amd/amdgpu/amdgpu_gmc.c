@@ -24,6 +24,8 @@
  *
  */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include "amdgpu.h"
 
 /**

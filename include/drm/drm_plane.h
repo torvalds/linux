@@ -69,7 +69,7 @@ struct drm_plane_state {
 	 *
 	 * Optional fence to wait for before scanning out @fb. The core atomic
 	 * code will set this when userspace is using explicit fencing. Do not
-	 * write this directly for a driver's implicit fence, use
+	 * write this field directly for a driver's implicit fence, use
 	 * drm_atomic_set_fence_for_plane() to ensure that an explicit fence is
 	 * preserved.
 	 *

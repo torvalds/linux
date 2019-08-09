@@ -52,7 +52,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
-	int buffer_index = -1;
+	int buffer_index;
 	ssize_t ret;
 	size_t copy_amount;
 
@@ -134,7 +134,6 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(buffer_index);
-		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -262,7 +261,6 @@ out:
 				"%s(%pU): PUT buffer_index %d\n",
 				__func__, handle, buffer_index);
 		}
-		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;

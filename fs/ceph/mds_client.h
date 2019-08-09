@@ -69,6 +69,9 @@ struct ceph_mds_reply_info_in {
 	u64 max_bytes;
 	u64 max_files;
 	s32 dir_pin;
+	struct ceph_timespec btime;
+	struct ceph_timespec snap_btime;
+	u64 change_attr;
 };
 
 struct ceph_mds_reply_dir_entry {
@@ -504,7 +507,6 @@ extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
 
 extern void __ceph_mdsc_drop_dentry_lease(struct dentry *dentry);
 extern void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
-				     struct inode *inode,
 				     struct dentry *dentry, char action,
 				     u32 seq);
 

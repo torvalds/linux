@@ -638,13 +638,6 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  for Mediatek mt8135 based platforms on UART3.
 
-	config DEBUG_NETX_UART
-		bool "Kernel low-level debugging messages via NetX UART"
-		depends on ARCH_NETX
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on Hilscher NetX based platforms.
-
 	config DEBUG_NOMADIK_UART
 		bool "Kernel low-level debugging messages via NOMADIK UART"
 		depends on ARCH_NOMADIK

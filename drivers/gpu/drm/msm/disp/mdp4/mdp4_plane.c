@@ -4,6 +4,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <drm/drm_damage_helper.h>
 #include "mdp4_kms.h"
 
 #define DOWN_SCALE_MAX	8
@@ -379,6 +380,8 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &mdp4_plane_helper_funcs);
 
 	mdp4_plane_install_properties(plane, &plane->base);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
 

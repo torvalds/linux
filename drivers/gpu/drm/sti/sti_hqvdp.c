@@ -5,19 +5,25 @@
  */
 
 #include <linux/component.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
+#include <linux/module.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "sti_compositor.h"
+#include "sti_drv.h"
 #include "sti_hqvdp_lut.h"
 #include "sti_plane.h"
 #include "sti_vtg.h"
-#include "sti_drv.h"
 
 /* Firmware name */
 #define HQVDP_FMW_NAME          "hqvdp-stih407.bin"

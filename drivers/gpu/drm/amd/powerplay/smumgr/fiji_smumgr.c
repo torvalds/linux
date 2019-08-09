@@ -2304,6 +2304,8 @@ static uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU73_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU73_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU73_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU73_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
@@ -2641,6 +2643,7 @@ static int fiji_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func fiji_smu_funcs = {
+	.name = "fiji_smu",
 	.smu_init = &fiji_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &fiji_start_smu,

@@ -21,7 +21,7 @@
  *
  */
 #include <linux/hdmi.h>
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_audio.h"
 #include "sid.h"

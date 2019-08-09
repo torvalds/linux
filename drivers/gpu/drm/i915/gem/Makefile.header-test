@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Copyright © 2019 Intel Corporation
+
+# Test the headers are compilable as standalone units
+header_test := $(notdir $(wildcard $(src)/*.h))
+
+quiet_cmd_header_test = HDRTEST $@
+      cmd_header_test = echo "\#include \"$(<F)\"" > $@
+
+header_test_%.c: %.h
+	$(call cmd,header_test)
+
+extra-$(CONFIG_DRM_I915_WERROR) += \
+	$(foreach h,$(header_test),$(patsubst %.h,header_test_%.o,$(h)))
+
+clean-files += $(foreach h,$(header_test),$(patsubst %.h,header_test_%.c,$(h)))

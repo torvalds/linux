@@ -227,13 +227,8 @@ static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hsr_port *master;
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	if (master) {
-		skb->dev = master->dev;
-		hsr_forward_skb(skb, master);
-	} else {
-		atomic_long_inc(&dev->tx_dropped);
-		dev_kfree_skb_any(skb);
-	}
+	skb->dev = master->dev;
+	hsr_forward_skb(skb, master);
 	return NETDEV_TX_OK;
 }
 
@@ -348,7 +343,11 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_unlock();
 }
 
-void hsr_dev_destroy(struct net_device *hsr_dev)
+/* This has to be called after all the readers are gone.
+ * Otherwise we would have to check the return value of
+ * hsr_port_get_hsr().
+ */
+static void hsr_dev_destroy(struct net_device *hsr_dev)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *port;
@@ -364,8 +363,6 @@ void hsr_dev_destroy(struct net_device *hsr_dev)
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
 
-	synchronize_rcu();
-
 	hsr_del_self_node(&hsr->self_node_db);
 	hsr_del_nodes(&hsr->node_db);
 }
@@ -376,6 +373,7 @@ static const struct net_device_ops hsr_device_ops = {
 	.ndo_stop = hsr_dev_close,
 	.ndo_start_xmit = hsr_dev_xmit,
 	.ndo_fix_features = hsr_fix_features,
+	.ndo_uninit = hsr_dev_destroy,
 };
 
 static struct device_type hsr_type = {

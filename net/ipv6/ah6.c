@@ -464,7 +464,7 @@ static void ah6_input_done(struct crypto_async_request *base, int err)
 	struct ah_data *ahp = x->data;
 	struct ip_auth_hdr *ah = ip_auth_hdr(skb);
 	int hdr_len = skb_network_header_len(skb);
-	int ah_hlen = (ah->hdrlen + 2) << 2;
+	int ah_hlen = ipv6_authlen(ah);
 
 	if (err)
 		goto out;
@@ -546,7 +546,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	ahash = ahp->ahash;
 
 	nexthdr = ah->nexthdr;
-	ah_hlen = (ah->hdrlen + 2) << 2;
+	ah_hlen = ipv6_authlen(ah);
 
 	if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
 	    ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len))

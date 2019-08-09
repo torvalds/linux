@@ -81,7 +81,6 @@ mlx5e_ktls_type_check(struct mlx5_core_dev *mdev,
 		      struct tls_crypto_info *crypto_info) { return false; }
 #endif
 
-#ifdef CONFIG_MLX5_FPGA_TLS
 enum {
 	MLX5_ACCEL_TLS_TX = BIT(0),
 	MLX5_ACCEL_TLS_RX = BIT(1),
@@ -103,6 +102,7 @@ struct mlx5_ifc_tls_flow_bits {
 	u8         reserved_at_2[0x1e];
 };
 
+#ifdef CONFIG_MLX5_FPGA_TLS
 int mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
 			    struct tls_crypto_info *crypto_info,
 			    u32 start_offload_tcp_sn, u32 *p_swid,

@@ -431,7 +431,6 @@ static int load_flat_file(struct linux_binprm *bprm,
 	unsigned long len, memp, memp_size, extra, rlim;
 	__be32 __user *reloc;
 	u32 __user *rp;
-	struct inode *inode;
 	int i, rev, relocs;
 	loff_t fpos;
 	unsigned long start_code, end_code;
@@ -439,7 +438,6 @@ static int load_flat_file(struct linux_binprm *bprm,
 	int ret;
 
 	hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
-	inode = file_inode(bprm->file);
 
 	text_len  = ntohl(hdr->data_start);
 	data_len  = ntohl(hdr->data_end) - ntohl(hdr->data_start);

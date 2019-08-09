@@ -2,14 +2,19 @@
 /*
  * Copyright © 2017 Keith Packard <keithp@keithp.com>
  */
+#include <linux/file.h>
+#include <linux/uaccess.h>
 
-#include <drm/drmP.h>
-#include "drm_internal.h"
-#include "drm_legacy.h"
-#include "drm_crtc_internal.h"
-#include <drm/drm_lease.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_lease.h>
+#include <drm/drm_print.h>
+
+#include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 #define drm_for_each_lessee(lessee, lessor) \
 	list_for_each_entry((lessee), &(lessor)->lessees, lessee_list)

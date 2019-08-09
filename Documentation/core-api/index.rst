@@ -36,6 +36,7 @@ Core utilities
    memory-hotplug
    protection-keys
    ../RCU/index
+   gcc-plugins
 
 
 Interfaces for kernel debugging

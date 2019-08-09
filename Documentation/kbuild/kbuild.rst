@@ -18,7 +18,7 @@ This file lists all modules that are built into the kernel. This is used
 by modprobe to not fail when trying to load something builtin.
 
 modules.builtin.modinfo
---------------------------------------------------
+-----------------------
 This file contains modinfo from all modules that are built into the kernel.
 Unlike modinfo of a separate module, all fields are prefixed with module name.
 
@@ -38,12 +38,11 @@ Additional options to the assembler (for built-in and modules).
 
 AFLAGS_MODULE
 -------------
-Additional module specific options to use for $(AS).
+Additional assembler options for modules.
 
 AFLAGS_KERNEL
 -------------
-Additional options for $(AS) when used for assembler
-code for code that is compiled as built-in.
+Additional assembler options for built-in.
 
 KCFLAGS
 -------
@@ -153,6 +152,7 @@ Install script called when using "make install".
 The default name is "installkernel".
 
 The script will be called with the following arguments:
+
    - $1 - kernel version
    - $2 - kernel image file
    - $3 - kernel map file

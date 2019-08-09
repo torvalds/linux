@@ -46,15 +46,20 @@
  * The file takes a reference on the kref.
  */
 
-#include <drm/drmP.h>
+#include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/anon_inodes.h>
-#include <linux/sync_file.h>
 #include <linux/sched/signal.h>
+#include <linux/sync_file.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_print.h>
+#include <drm/drm_syncobj.h>
 
 #include "drm_internal.h"
-#include <drm/drm_syncobj.h>
 
 struct syncobj_wait_entry {
 	struct list_head node;

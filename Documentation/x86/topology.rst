@@ -9,7 +9,7 @@ representation in the kernel. Update/change when doing changes to the
 respective code.
 
 The architecture-agnostic topology definitions are in
-Documentation/cputopology.txt. This file holds x86-specific
+Documentation/admin-guide/cputopology.rst. This file holds x86-specific
 differences/specialities which must not necessarily apply to the generic
 definitions. Thus, the way to read up on Linux topology on x86 is to start
 with the generic one and look at this one in parallel for the x86 specifics.

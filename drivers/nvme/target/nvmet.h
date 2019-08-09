@@ -365,6 +365,7 @@ u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask);
 void nvmet_execute_async_event(struct nvmet_req *req);
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
+void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id);
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
@@ -492,4 +493,11 @@ static inline u32 nvmet_rw_len(struct nvmet_req *req)
 }
 
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
+
+/* Convert a 32-bit number to a 16-bit 0's based number */
+static inline __le16 to0based(u32 a)
+{
+	return cpu_to_le16(max(1U, min(1U << 16, a)) - 1);
+}
+
 #endif /* _NVMET_H */

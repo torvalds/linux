@@ -78,7 +78,7 @@ header-test-y	+= $(filter-out $(header-test-), \
 		$(wildcard $(addprefix $(srctree)/$(src)/, \
 		$(header-test-pattern-y)))))
 
-extra-$(CONFIG_HEADER_TEST) += $(addsuffix .s, $(header-test-y))
+extra-$(CONFIG_HEADER_TEST) += $(addsuffix .s, $(header-test-y) $(header-test-m))
 
 # Add subdir path
 

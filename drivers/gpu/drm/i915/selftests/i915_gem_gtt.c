@@ -25,10 +25,11 @@
 #include <linux/list_sort.h>
 #include <linux/prime_numbers.h>
 
-#include "../i915_selftest.h"
-#include "i915_random.h"
+#include "gem/selftests/mock_context.h"
 
-#include "mock_context.h"
+#include "i915_random.h"
+#include "i915_selftest.h"
+
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 
@@ -147,7 +148,7 @@ err:
 static int igt_ppgtt_alloc(void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 	u64 size, last, limit;
 	int err = 0;
 
@@ -156,7 +157,7 @@ static int igt_ppgtt_alloc(void *arg)
 	if (!HAS_PPGTT(dev_priv))
 		return 0;
 
-	ppgtt = __hw_ppgtt_create(dev_priv);
+	ppgtt = __ppgtt_create(dev_priv);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
@@ -208,7 +209,7 @@ static int igt_ppgtt_alloc(void *arg)
 
 err_ppgtt_cleanup:
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }
@@ -294,9 +295,9 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			mock_vma.node.size = BIT_ULL(size);
 			mock_vma.node.start = addr;
 
-			wakeref = intel_runtime_pm_get(i915);
+			wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
-			intel_runtime_pm_put(i915, wakeref);
+			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 		}
 		count = n;
 
@@ -998,7 +999,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 				      unsigned long end_time))
 {
 	struct drm_file *file;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
 	int err;
 
@@ -1020,7 +1021,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 
 	err = func(dev_priv, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
@@ -1170,7 +1171,7 @@ static int igt_ggtt_page(void *arg)
 	if (err)
 		goto out_unpin;
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	for (n = 0; n < count; n++) {
 		u64 offset = tmp.start + n * PAGE_SIZE;
@@ -1217,7 +1218,7 @@ static int igt_ggtt_page(void *arg)
 	kfree(order);
 out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	drm_mm_remove_node(&tmp);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -1232,7 +1233,7 @@ static void track_vma_bind(struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	obj->bind_count++; /* track for eviction later */
+	atomic_inc(&obj->bind_count); /* track for eviction later */
 	__i915_gem_object_pin_pages(obj);
 
 	vma->pages = obj->mm.pages;
@@ -1250,7 +1251,6 @@ static int exercise_mock(struct drm_i915_private *i915,
 {
 	const u64 limit = totalram_pages() << PAGE_SHIFT;
 	struct i915_gem_context *ctx;
-	struct i915_hw_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
 	int err;
 
@@ -1258,10 +1258,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 	if (!ctx)
 		return -ENOMEM;
 
-	ppgtt = ctx->ppgtt;
-	GEM_BUG_ON(!ppgtt);
-
-	err = func(i915, &ppgtt->vm, 0, min(ppgtt->vm.total, limit), end_time);
+	err = func(i915, ctx->vm, 0, min(ctx->vm->total, limit), end_time);
 
 	mock_context_close(ctx);
 	return err;

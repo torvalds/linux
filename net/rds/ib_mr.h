@@ -57,6 +57,9 @@ struct rds_ib_frmr {
 	struct ib_mr		*mr;
 	enum rds_ib_fr_state	fr_state;
 	bool			fr_inv;
+	wait_queue_head_t	fr_inv_done;
+	bool			fr_reg;
+	wait_queue_head_t	fr_reg_done;
 	struct ib_send_wr	fr_wr;
 	unsigned int		dma_npages;
 	unsigned int		sg_byte_len;
@@ -97,6 +100,7 @@ struct rds_ib_mr_pool {
 	struct llist_head	free_list;	/* unused MRs */
 	struct llist_head	clean_list;	/* unused & unmapped MRs */
 	wait_queue_head_t	flush_wait;
+	spinlock_t		clean_lock;	/* "clean_list" concurrency */
 
 	atomic_t		free_pinned;	/* memory pinned by free MRs */
 	unsigned long		max_items;

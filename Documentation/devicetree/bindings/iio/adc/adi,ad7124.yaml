@@ -114,42 +114,47 @@ patternProperties:
 
 examples:
   - |
-    adc@0 {
-      compatible = "adi,ad7124-4";
-      reg = <0>;
-      spi-max-frequency = <5000000>;
-      interrupts = <25 2>;
-      interrupt-parent = <&gpio>;
-      refin1-supply = <&adc_vref>;
-      clocks = <&ad7124_mclk>;
-      clock-names = "mclk";
-
+    spi {
       #address-cells = <1>;
       #size-cells = <0>;
 
-      channel@0 {
+      adc@0 {
+        compatible = "adi,ad7124-4";
         reg = <0>;
-        diff-channels = <0 1>;
-        adi,reference-select = <0>;
-        adi,buffered-positive;
-      };
+        spi-max-frequency = <5000000>;
+        interrupts = <25 2>;
+        interrupt-parent = <&gpio>;
+        refin1-supply = <&adc_vref>;
+        clocks = <&ad7124_mclk>;
+        clock-names = "mclk";
 
-      channel@1 {
-        reg = <1>;
-        bipolar;
-        diff-channels = <2 3>;
-        adi,reference-select = <0>;
-        adi,buffered-positive;
-        adi,buffered-negative;
-      };
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      channel@2 {
-        reg = <2>;
-        diff-channels = <4 5>;
-      };
+        channel@0 {
+          reg = <0>;
+          diff-channels = <0 1>;
+          adi,reference-select = <0>;
+          adi,buffered-positive;
+        };
 
-      channel@3 {
-        reg = <3>;
-        diff-channels = <6 7>;
+        channel@1 {
+          reg = <1>;
+          bipolar;
+          diff-channels = <2 3>;
+          adi,reference-select = <0>;
+          adi,buffered-positive;
+          adi,buffered-negative;
+        };
+
+        channel@2 {
+          reg = <2>;
+          diff-channels = <4 5>;
+        };
+
+        channel@3 {
+          reg = <3>;
+          diff-channels = <6 7>;
+        };
       };
     };

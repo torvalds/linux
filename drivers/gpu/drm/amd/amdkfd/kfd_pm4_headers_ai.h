@@ -120,7 +120,7 @@ struct pm4_mes_runlist {
 			uint32_t ib_size:20;
 			uint32_t chain:1;
 			uint32_t offload_polling:1;
-			uint32_t reserved2:1;
+			uint32_t chained_runlist_idle_disable:1;
 			uint32_t valid:1;
 			uint32_t process_cnt:4;
 			uint32_t reserved3:4;
@@ -176,8 +176,7 @@ struct pm4_mes_map_process {
 
 	union {
 		struct {
-			uint32_t num_gws:6;
-			uint32_t reserved7:1;
+			uint32_t num_gws:7;
 			uint32_t sdma_enable:1;
 			uint32_t num_oac:4;
 			uint32_t reserved8:4;
@@ -255,11 +254,6 @@ enum mes_map_queues_queue_type_enum {
 queue_type__mes_map_queues__low_latency_static_queue_vi = 3
 };
 
-enum mes_map_queues_alloc_format_enum {
-	alloc_format__mes_map_queues__one_per_pipe_vi = 0,
-alloc_format__mes_map_queues__all_on_one_pipe_vi = 1
-};
-
 enum mes_map_queues_engine_sel_enum {
 	engine_sel__mes_map_queues__compute_vi = 0,
 	engine_sel__mes_map_queues__sdma0_vi = 2,
@@ -277,9 +271,11 @@ struct pm4_mes_map_queues {
 		struct {
 			uint32_t reserved1:4;
 			enum mes_map_queues_queue_sel_enum queue_sel:2;
-			uint32_t reserved2:15;
+			uint32_t reserved5:6;
+			uint32_t gws_control_queue:1;
+			uint32_t reserved2:8;
 			enum mes_map_queues_queue_type_enum queue_type:3;
-			enum mes_map_queues_alloc_format_enum alloc_format:2;
+			uint32_t reserved3:2;
 			enum mes_map_queues_engine_sel_enum engine_sel:3;
 			uint32_t num_queues:3;
 		} bitfields2;

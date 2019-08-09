@@ -46,4 +46,9 @@ enum dc_status dce100_add_stream_to_ctx(
 		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream);
 
+struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream);
+
 #endif /* DCE100_RESOURCE_H_ */

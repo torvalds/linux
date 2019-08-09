@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
-#include "util.h"
 #include "string2.h"
 #include <sys/param.h>
 #include <sys/types.h>
@@ -15,6 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
+#include <linux/zalloc.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <linux/time64.h>
@@ -1052,7 +1052,7 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 
 	scnprintf(file, PATH_MAX, "%s/size", path);
 	if (sysfs__read_str(file, &cache->size, &len)) {
-		free(cache->type);
+		zfree(&cache->type);
 		return -1;
 	}
 
@@ -1061,8 +1061,8 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 
 	scnprintf(file, PATH_MAX, "%s/shared_cpu_list", path);
 	if (sysfs__read_str(file, &cache->map, &len)) {
-		free(cache->map);
-		free(cache->type);
+		zfree(&cache->map);
+		zfree(&cache->type);
 		return -1;
 	}
 

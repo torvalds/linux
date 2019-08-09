@@ -471,22 +471,22 @@ struct tb10x_port {
  * @base: register set base address.
  * @pingroups: pointer to an array of the pin groups this driver manages.
  * @pinfuncgrpcnt: number of pingroups in @pingroups.
- * @pinfuncs: pointer to an array of pin functions this driver manages.
  * @pinfuncnt: number of pin functions in @pinfuncs.
  * @mutex: mutex for exclusive access to a pin controller's state.
  * @ports: current state of each port.
  * @gpios: Indicates if a given pin is currently used as GPIO (1) or not (0).
+ * @pinfuncs: flexible array of pin functions this driver manages.
  */
 struct tb10x_pinctrl {
 	struct pinctrl_dev *pctl;
 	void *base;
 	const struct tb10x_pinfuncgrp *pingroups;
 	unsigned int pinfuncgrpcnt;
-	struct tb10x_of_pinfunc *pinfuncs;
 	unsigned int pinfuncnt;
 	struct mutex mutex;
 	struct tb10x_port ports[TB10X_PORTS];
 	DECLARE_BITMAP(gpios, MAX_PIN + 1);
+	struct tb10x_of_pinfunc pinfuncs[];
 };
 
 static inline void tb10x_pinctrl_set_config(struct tb10x_pinctrl *state,
@@ -759,15 +759,13 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	state = devm_kzalloc(dev, sizeof(struct tb10x_pinctrl) +
-					of_get_child_count(of_node)
-					* sizeof(struct tb10x_of_pinfunc),
-				GFP_KERNEL);
+	state = devm_kzalloc(dev, struct_size(state, pinfuncs,
+					      of_get_child_count(of_node)),
+			     GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, state);
-	state->pinfuncs = (struct tb10x_of_pinfunc *)(state + 1);
 	mutex_init(&state->mutex);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);

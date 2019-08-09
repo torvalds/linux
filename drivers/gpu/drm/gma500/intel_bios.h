@@ -9,8 +9,7 @@
 #ifndef _INTEL_BIOS_H_
 #define _INTEL_BIOS_H_
 
-#include <drm/drmP.h>
-#include <drm/drm_dp_helper.h>
+struct drm_device;
 
 struct vbt_header {
 	u8 signature[20];		/**< Always starts with 'VBT$' */
