@@ -860,8 +860,9 @@ qla27xx_driver_info(struct qla27xx_fwdt_template *tmp)
 {
 	uint8_t v[] = { 0, 0, 0, 0, 0, 0 };
 
-	sscanf(qla2x00_version_str, "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
-	    v+0, v+1, v+2, v+3, v+4, v+5);
+	WARN_ON_ONCE(sscanf(qla2x00_version_str,
+			    "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
+			    v+0, v+1, v+2, v+3, v+4, v+5) != 6);
 
 	tmp->driver_info[0] = v[3] << 24 | v[2] << 16 | v[1] << 8 | v[0];
 	tmp->driver_info[1] = v[5] << 8 | v[4];
