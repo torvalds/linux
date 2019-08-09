@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x08
+//#define SMU11_DRIVER_IF_VERSION 0x08
 
 #define PPTABLE_ARCTURUS_SMU_VERSION 4
 
