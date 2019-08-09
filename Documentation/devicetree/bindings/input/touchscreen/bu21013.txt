@@ -4,6 +4,8 @@ Required properties:
  - compatible              : "rohm,bu21013_tp"
  - reg                     : I2C device address
  - reset-gpios             : GPIO pin enabling (selecting) chip (CS)
+ - interrupt-parent        : the phandle for the gpio controller
+ - interrupts              : (gpio) interrupt to which the chip is connected
 
 Optional properties:
  - touch-gpios             : GPIO pin registering a touch event
@@ -19,7 +21,9 @@ Example:
 		bu21013_tp@5c {
 			compatible = "rohm,bu21013_tp";
 			reg = <0x5c>;
-			touch-gpio = <&gpio2 20 0x4>;
+			interrupt-parent = <&gpio2>;
+			interrupts <&20 IRQ_TYPE_LEVEL_LOW>;
+			touch-gpio = <&gpio2 20 GPIO_ACTIVE_LOW>;
 			avdd-supply = <&ab8500_ldo_aux1_reg>;
 
 			rohm,touch-max-x = <384>;

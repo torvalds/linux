@@ -141,7 +141,6 @@
  * @regulator: pointer to the Regulator used for touch screen
  * @cs_gpiod: chip select GPIO line
  * @int_gpiod: touch interrupt GPIO line
- * @irq: interrupt number the device is using
  * @touch_x_max: maximum X coordinate reported by the device
  * @touch_y_max: maximum Y coordinate reported by the device
  * @x_flip: indicates that the driver should invert X coordinate before
@@ -158,7 +157,6 @@ struct bu21013_ts {
 	struct regulator *regulator;
 	struct gpio_desc *cs_gpiod;
 	struct gpio_desc *int_gpiod;
-	unsigned int irq;
 	u32 touch_x_max;
 	u32 touch_y_max;
 	bool x_flip;
@@ -252,7 +250,8 @@ static irqreturn_t bu21013_gpio_irq(int irq, void *device_data)
 		if (unlikely(ts->touch_stopped))
 			break;
 
-		keep_polling = gpiod_get_value(ts->int_gpiod);
+		keep_polling = ts->int_gpiod ?
+			gpiod_get_value(ts->int_gpiod) : false;
 		if (keep_polling)
 			usleep_range(2000, 2500);
 	} while (keep_polling);
@@ -419,6 +418,11 @@ static int bu21013_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
+	if (!client->irq) {
+		dev_err(&client->dev, "No IRQ set up\n");
+		return -EINVAL;
+	}
+
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
@@ -491,14 +495,17 @@ static int bu21013_probe(struct i2c_client *client,
 	}
 
 	/* Named "INT" on the chip, DT binding is "touch" */
-	ts->int_gpiod = devm_gpiod_get(&client->dev, "touch", GPIOD_IN);
+	ts->int_gpiod = devm_gpiod_get_optional(&client->dev,
+						"touch", GPIOD_IN);
 	error = PTR_ERR_OR_ZERO(ts->int_gpiod);
 	if (error) {
 		if (error != -EPROBE_DEFER)
 			dev_err(&client->dev, "failed to get INT GPIO\n");
 		return error;
 	}
-	gpiod_set_consumer_name(ts->int_gpiod, "BU21013 INT");
+
+	if (ts->int_gpiod)
+		gpiod_set_consumer_name(ts->int_gpiod, "BU21013 INT");
 
 	/* configure the touch panel controller */
 	error = bu21013_init_chip(ts);
@@ -507,16 +514,12 @@ static int bu21013_probe(struct i2c_client *client,
 		return error;
 	}
 
-	ts->irq = gpiod_to_irq(ts->int_gpiod);
-	error = devm_request_threaded_irq(&client->dev, ts->irq,
+	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, bu21013_gpio_irq,
-					  IRQF_TRIGGER_FALLING |
-						IRQF_SHARED |
-						IRQF_ONESHOT,
-					  DRIVER_TP, ts);
+					  IRQF_ONESHOT, DRIVER_TP, ts);
 	if (error) {
 		dev_err(&client->dev, "request irq %d failed\n",
-			ts->irq);
+			client->irq);
 		return error;
 	}
 
@@ -549,9 +552,9 @@ static int __maybe_unused bu21013_suspend(struct device *dev)
 
 	ts->touch_stopped = true;
 	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(ts->irq);
+		enable_irq_wake(client->irq);
 	else
-		disable_irq(ts->irq);
+		disable_irq(client->irq);
 
 	regulator_disable(ts->regulator);
 
@@ -579,9 +582,9 @@ static int __maybe_unused bu21013_resume(struct device *dev)
 	ts->touch_stopped = false;
 
 	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(ts->irq);
+		disable_irq_wake(client->irq);
 	else
-		enable_irq(ts->irq);
+		enable_irq(client->irq);
 
 	return 0;
 }
