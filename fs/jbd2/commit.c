@@ -482,10 +482,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		if (jh->b_committed_data) {
 			struct buffer_head *bh = jh2bh(jh);
 
-			jbd_lock_bh_state(bh);
+			spin_lock(&jh->b_state_lock);
 			jbd2_free(jh->b_committed_data, bh->b_size);
 			jh->b_committed_data = NULL;
-			jbd_unlock_bh_state(bh);
+			spin_unlock(&jh->b_state_lock);
 		}
 		jbd2_journal_refile_buffer(journal, jh);
 	}
@@ -928,7 +928,7 @@ restart_loop:
 		 * done with it.
 		 */
 		get_bh(bh);
-		jbd_lock_bh_state(bh);
+		spin_lock(&jh->b_state_lock);
 		J_ASSERT_JH(jh,	jh->b_transaction == commit_transaction);
 
 		/*
@@ -1024,7 +1024,7 @@ restart_loop:
 		}
 		JBUFFER_TRACE(jh, "refile or unfile buffer");
 		drop_ref = __jbd2_journal_refile_buffer(jh);
-		jbd_unlock_bh_state(bh);
+		spin_unlock(&jh->b_state_lock);
 		if (drop_ref)
 			jbd2_journal_put_journal_head(jh);
 		if (try_to_free)
