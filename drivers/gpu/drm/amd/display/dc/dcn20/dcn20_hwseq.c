@@ -508,7 +508,7 @@ static void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 }
 
 
-static void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	DC_LOGGER_INIT(dc->ctx->logger);
 
@@ -688,7 +688,7 @@ bool dcn20_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	return true;
 }
 
-static bool dcn20_set_blend_lut(
+bool dcn20_set_blend_lut(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
@@ -710,7 +710,7 @@ static bool dcn20_set_blend_lut(
 	return result;
 }
 
-static bool dcn20_set_shaper_3dlut(
+bool dcn20_set_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
@@ -923,7 +923,7 @@ static void dcn20_power_on_plane(
 	}
 }
 
-static void dcn20_enable_plane(
+void dcn20_enable_plane(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
@@ -1021,7 +1021,7 @@ void dcn20_pipe_control_lock_global(
 	}
 }
 
-static void dcn20_pipe_control_lock(
+void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock)
