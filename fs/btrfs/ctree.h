@@ -1303,8 +1303,10 @@ struct btrfs_map_token {
 #define BTRFS_BYTES_TO_BLKS(fs_info, bytes) \
 				((bytes) >> (fs_info)->sb->s_blocksize_bits)
 
-static inline void btrfs_init_map_token (struct btrfs_map_token *token)
+static inline void btrfs_init_map_token(struct btrfs_map_token *token,
+					struct extent_buffer *eb)
 {
+	token->eb = eb;
 	token->kaddr = NULL;
 }
 
