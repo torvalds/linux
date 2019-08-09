@@ -529,53 +529,6 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 	return ctx;
 }
 
-/**
- * i915_gem_context_create_gvt - create a GVT GEM context
- * @dev: drm device *
- *
- * This function is used to create a GVT specific GEM context.
- *
- * Returns:
- * pointer to i915_gem_context on success, error pointer if failed
- *
- */
-struct i915_gem_context *
-i915_gem_context_create_gvt(struct drm_device *dev)
-{
-	struct i915_gem_context *ctx;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
-		return ERR_PTR(-ENODEV);
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ctx = i915_gem_create_context(to_i915(dev), 0);
-	if (IS_ERR(ctx))
-		goto out;
-
-	ret = i915_gem_context_pin_hw_id(ctx);
-	if (ret) {
-		context_close(ctx);
-		ctx = ERR_PTR(ret);
-		goto out;
-	}
-
-	ctx->file_priv = ERR_PTR(-EBADF);
-	i915_gem_context_set_closed(ctx); /* not user accessible */
-	i915_gem_context_clear_bannable(ctx);
-	i915_gem_context_set_force_single_submission(ctx);
-	if (!USES_GUC_SUBMISSION(to_i915(dev)))
-		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
-
-	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
-out:
-	mutex_unlock(&dev->struct_mutex);
-	return ctx;
-}
-
 static void
 destroy_kernel_context(struct i915_gem_context **ctxp)
 {

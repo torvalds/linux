@@ -1211,19 +1211,28 @@ i915_context_ppgtt_root_save(struct intel_vgpu_submission *s,
  */
 int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id i;
 	int ret;
 
-	ctx = i915_gem_context_create_gvt(&vgpu->gvt->dev_priv->drm);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	mutex_lock(&i915->drm.struct_mutex);
+
+	ctx = i915_gem_context_create_kernel(i915, I915_PRIORITY_MAX);
+	if (IS_ERR(ctx)) {
+		ret = PTR_ERR(ctx);
+		goto out_unlock;
+	}
+
+	i915_gem_context_set_force_single_submission(ctx);
+	if (!USES_GUC_SUBMISSION(i915))
+		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
 
 	i915_context_ppgtt_root_save(s, i915_vm_to_ppgtt(ctx->vm));
 
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+	for_each_engine(engine, i915, i) {
 		struct intel_context *ce;
 
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
@@ -1261,11 +1270,12 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	bitmap_zero(s->tlb_handle_pending, I915_NUM_ENGINES);
 
 	i915_gem_context_put(ctx);
+	mutex_unlock(&i915->drm.struct_mutex);
 	return 0;
 
 out_shadow_ctx:
 	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(ctx->vm));
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+	for_each_engine(engine, i915, i) {
 		if (IS_ERR(s->shadow[i]))
 			break;
 
@@ -1273,6 +1283,8 @@ out_shadow_ctx:
 		intel_context_put(s->shadow[i]);
 	}
 	i915_gem_context_put(ctx);
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
 }
 

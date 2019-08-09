@@ -141,8 +141,6 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 void i915_gem_context_close(struct drm_file *file);
 
 void i915_gem_context_release(struct kref *ctx_ref);
-struct i915_gem_context *
-i915_gem_context_create_gvt(struct drm_device *dev);
 
 int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file);
