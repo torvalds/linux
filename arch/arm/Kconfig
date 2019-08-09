@@ -263,7 +263,6 @@ config PHYS_OFFSET
 	default 0x00000000 if ARCH_EBSA110 || \
 			ARCH_FOOTBRIDGE || \
 			ARCH_INTEGRATOR || \
-			ARCH_IOP13XX || \
 			ARCH_REALVIEW
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
@@ -376,19 +375,6 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_IOP13XX
-	bool "IOP13xx-based"
-	depends on MMU
-	select CPU_XSC3
-	select NEED_MACH_MEMORY_H
-	select NEED_RET_TO_USER
-	select FORCE_PCI
-	select PLAT_IOP
-	select VMSPLIT_1G
-	select SPARSE_IRQ
-	help
-	  Support for Intel's IOP13XX (XScale) family of processors.
-
 config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
@@ -401,18 +387,6 @@ config ARCH_IOP32X
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
 	  processors.
-
-config ARCH_IOP33X
-	bool "IOP33x-based"
-	depends on MMU
-	select CPU_XSCALE
-	select GPIO_IOP
-	select GPIOLIB
-	select NEED_RET_TO_USER
-	select FORCE_PCI
-	select PLAT_IOP
-	help
-	  Support for Intel's IOP33X (XScale) family of processors.
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
@@ -706,11 +680,7 @@ source "arch/arm/mach-imx/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 
-source "arch/arm/mach-iop13xx/Kconfig"
-
 source "arch/arm/mach-iop32x/Kconfig"
-
-source "arch/arm/mach-iop33x/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 

@@ -26,15 +26,6 @@
 #include <asm/hardware/iop3xx.h>
 #include <asm/mach/arch.h>
 
-#ifdef CONFIG_ARCH_IOP32X
-#define IRQ_IOP3XX_I2C_0	IRQ_IOP32X_I2C_0
-#define IRQ_IOP3XX_I2C_1	IRQ_IOP32X_I2C_1
-#endif
-#ifdef CONFIG_ARCH_IOP33X
-#define IRQ_IOP3XX_I2C_0	IRQ_IOP33X_I2C_0
-#define IRQ_IOP3XX_I2C_1	IRQ_IOP33X_I2C_1
-#endif
-
 /*
  * Each of the I2C busses have corresponding GPIO lines, and the driver
  * need to access these directly to drive the bus low at times.
@@ -65,8 +56,8 @@ static struct resource iop3xx_i2c0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_IOP3XX_I2C_0,
-		.end	= IRQ_IOP3XX_I2C_0,
+		.start	= IRQ_IOP32X_I2C_0,
+		.end	= IRQ_IOP32X_I2C_0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -86,8 +77,8 @@ static struct resource iop3xx_i2c1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_IOP3XX_I2C_1,
-		.end	= IRQ_IOP3XX_I2C_1,
+		.start	= IRQ_IOP32X_I2C_1,
+		.end	= IRQ_IOP32X_I2C_1,
 		.flags	= IORESOURCE_IRQ,
 	}
 };

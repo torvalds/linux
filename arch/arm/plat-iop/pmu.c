@@ -8,14 +8,8 @@
 #include <mach/irqs.h>
 
 static struct resource pmu_resource = {
-#ifdef CONFIG_ARCH_IOP32X
 	.start	= IRQ_IOP32X_CORE_PMU,
 	.end	= IRQ_IOP32X_CORE_PMU,
-#endif
-#ifdef CONFIG_ARCH_IOP33X
-	.start	= IRQ_IOP33X_CORE_PMU,
-	.end	= IRQ_IOP33X_CORE_PMU,
-#endif
 	.flags	= IORESOURCE_IRQ,
 };
 

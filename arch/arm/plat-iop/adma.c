@@ -9,7 +9,6 @@
 #include <mach/adma.h>
 #include <asm/hardware/iop_adma.h>
 
-#ifdef CONFIG_ARCH_IOP32X
 #define IRQ_DMA0_EOT IRQ_IOP32X_DMA0_EOT
 #define IRQ_DMA0_EOC IRQ_IOP32X_DMA0_EOC
 #define IRQ_DMA0_ERR IRQ_IOP32X_DMA0_ERR
@@ -21,20 +20,7 @@
 #define IRQ_AA_EOT IRQ_IOP32X_AA_EOT
 #define IRQ_AA_EOC IRQ_IOP32X_AA_EOC
 #define IRQ_AA_ERR IRQ_IOP32X_AA_ERR
-#endif
-#ifdef CONFIG_ARCH_IOP33X
-#define IRQ_DMA0_EOT IRQ_IOP33X_DMA0_EOT
-#define IRQ_DMA0_EOC IRQ_IOP33X_DMA0_EOC
-#define IRQ_DMA0_ERR IRQ_IOP33X_DMA0_ERR
 
-#define IRQ_DMA1_EOT IRQ_IOP33X_DMA1_EOT
-#define IRQ_DMA1_EOC IRQ_IOP33X_DMA1_EOC
-#define IRQ_DMA1_ERR IRQ_IOP33X_DMA1_ERR
-
-#define IRQ_AA_EOT IRQ_IOP33X_AA_EOT
-#define IRQ_AA_EOC IRQ_IOP33X_AA_EOC
-#define IRQ_AA_ERR IRQ_IOP33X_AA_ERR
-#endif
 /* AAU and DMA Channels */
 static struct resource iop3xx_dma_0_resources[] = {
 	[0] = {
@@ -161,30 +147,14 @@ struct platform_device iop3xx_aau_channel = {
 
 static int __init iop3xx_adma_cap_init(void)
 {
-	#ifdef CONFIG_ARCH_IOP32X /* the 32x DMA does not perform CRC32C */
 	dma_cap_set(DMA_MEMCPY, iop3xx_dma_0_data.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, iop3xx_dma_0_data.cap_mask);
-	#else
-	dma_cap_set(DMA_MEMCPY, iop3xx_dma_0_data.cap_mask);
-	dma_cap_set(DMA_INTERRUPT, iop3xx_dma_0_data.cap_mask);
-	#endif
 
-	#ifdef CONFIG_ARCH_IOP32X /* the 32x DMA does not perform CRC32C */
 	dma_cap_set(DMA_MEMCPY, iop3xx_dma_1_data.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, iop3xx_dma_1_data.cap_mask);
-	#else
-	dma_cap_set(DMA_MEMCPY, iop3xx_dma_1_data.cap_mask);
-	dma_cap_set(DMA_INTERRUPT, iop3xx_dma_1_data.cap_mask);
-	#endif
 
-	#ifdef CONFIG_ARCH_IOP32X /* the 32x AAU does not perform zero sum */
 	dma_cap_set(DMA_XOR, iop3xx_aau_data.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, iop3xx_aau_data.cap_mask);
-	#else
-	dma_cap_set(DMA_XOR, iop3xx_aau_data.cap_mask);
-	dma_cap_set(DMA_XOR_VAL, iop3xx_aau_data.cap_mask);
-	dma_cap_set(DMA_INTERRUPT, iop3xx_aau_data.cap_mask);
-	#endif
 
 	return 0;
 }
