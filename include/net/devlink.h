@@ -702,7 +702,7 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 					     u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
 u32 devlink_region_shapshot_id_get(struct devlink *devlink);
-int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+int devlink_region_snapshot_create(struct devlink_region *region,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
 int devlink_info_serial_number_put(struct devlink_info_req *req,

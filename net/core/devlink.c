@@ -342,7 +342,6 @@ struct devlink_snapshot {
 	struct list_head list;
 	struct devlink_region *region;
 	devlink_snapshot_data_dest_t *data_destructor;
-	u64 data_len;
 	u8 *data;
 	u32 id;
 };
@@ -3748,8 +3747,8 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 	if (!snapshot)
 		return -EINVAL;
 
-	if (end_offset > snapshot->data_len || dump)
-		end_offset = snapshot->data_len;
+	if (end_offset > region->size || dump)
+		end_offset = region->size;
 
 	while (curr_offset < end_offset) {
 		u32 data_size;
@@ -6784,12 +6783,11 @@ EXPORT_SYMBOL_GPL(devlink_region_shapshot_id_get);
  *	The @snapshot_id should be obtained using the getter function.
  *
  *	@region: devlink region of the snapshot
- *	@data_len: size of snapshot data
  *	@data: snapshot data
  *	@snapshot_id: snapshot id to be created
  *	@data_destructor: pointer to destructor function to free data
  */
-int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+int devlink_region_snapshot_create(struct devlink_region *region,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor)
 {
@@ -6819,7 +6817,6 @@ int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 	snapshot->id = snapshot_id;
 	snapshot->region = region;
 	snapshot->data = data;
-	snapshot->data_len = data_len;
 	snapshot->data_destructor = data_destructor;
 
 	list_add_tail(&snapshot->list, &region->snapshot_list);
