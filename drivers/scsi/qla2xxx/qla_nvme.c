@@ -353,7 +353,6 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 {
 	unsigned long   flags;
 	uint32_t        *clr_ptr;
-	uint32_t        index;
 	uint32_t        handle;
 	struct cmd_nvme *cmd_pkt;
 	uint16_t        cnt, i;
@@ -377,17 +376,8 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	/* Acquire qpair specific lock */
 	spin_lock_irqsave(&qpair->qp_lock, flags);
 
-	/* Check for room in outstanding command list. */
-	handle = req->current_outstanding_cmd;
-	for (index = 1; index < req->num_outstanding_cmds; index++) {
-		handle++;
-		if (handle == req->num_outstanding_cmds)
-			handle = 1;
-		if (!req->outstanding_cmds[handle])
-			break;
-	}
-
-	if (index == req->num_outstanding_cmds) {
+	handle = qla2xxx_get_next_handle(req);
+	if (handle == 0) {
 		rval = -EBUSY;
 		goto queuing_error;
 	}

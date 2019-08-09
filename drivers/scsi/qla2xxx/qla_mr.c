@@ -3071,7 +3071,6 @@ qlafx00_start_scsi(srb_t *sp)
 {
 	int		nseg;
 	unsigned long   flags;
-	uint32_t        index;
 	uint32_t	handle;
 	uint16_t	cnt;
 	uint16_t	req_cnt;
@@ -3095,16 +3094,8 @@ qlafx00_start_scsi(srb_t *sp)
 	/* Acquire ring specific lock */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	/* Check for room in outstanding command list. */
-	handle = req->current_outstanding_cmd;
-	for (index = 1; index < req->num_outstanding_cmds; index++) {
-		handle++;
-		if (handle == req->num_outstanding_cmds)
-			handle = 1;
-		if (!req->outstanding_cmds[handle])
-			break;
-	}
-	if (index == req->num_outstanding_cmds)
+	handle = qla2xxx_get_next_handle(req);
+	if (handle == 0)
 		goto queuing_error;
 
 	/* Map the sg table so we have an accurate count of sg entries needed */
