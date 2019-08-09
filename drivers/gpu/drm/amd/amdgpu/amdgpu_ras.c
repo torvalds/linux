@@ -793,25 +793,8 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 {
 	struct amdgpu_ras *con =
 		container_of(attr, struct amdgpu_ras, features_attr);
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
-	struct ras_common_if head;
-	int ras_block_count = AMDGPU_RAS_BLOCK_COUNT;
-	int i, enabled;
-	ssize_t s;
 
-	s = scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
-
-	for (i = 0; i < ras_block_count; i++) {
-		head.block = i;
-		enabled = amdgpu_ras_is_feature_enabled(adev, &head);
-
-		s += scnprintf(&buf[s], PAGE_SIZE - s,
-				"%s ras feature mask: %s\n",
-				ras_block_str(i), enabled?"on":"off");
-	}
-
-	return s;
+	return scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
 }
 
 static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
