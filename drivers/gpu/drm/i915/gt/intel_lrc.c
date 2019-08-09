@@ -2821,9 +2821,6 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 
 int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 {
-	/* Intentionally left blank. */
-	engine->buffer = NULL;
-
 	tasklet_init(&engine->execlists.tasklet,
 		     execlists_submission_tasklet, (unsigned long)engine);
 	timer_setup(&engine->execlists.timer, execlists_submission_timer, 0);
@@ -3071,23 +3068,13 @@ err_unpin_ctx:
 	return ret;
 }
 
-static struct intel_timeline *
-get_timeline(struct i915_gem_context *ctx, struct intel_gt *gt)
-{
-	if (ctx->timeline)
-		return intel_timeline_get(ctx->timeline);
-	else
-		return intel_timeline_create(gt, NULL);
-}
-
 static int __execlists_context_alloc(struct intel_context *ce,
 				     struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
+	struct intel_ring *ring;
 	struct i915_vma *vma;
 	u32 context_size;
-	struct intel_ring *ring;
-	struct intel_timeline *timeline;
 	int ret;
 
 	GEM_BUG_ON(ce->state);
@@ -3109,15 +3096,19 @@ static int __execlists_context_alloc(struct intel_context *ce,
 		goto error_deref_obj;
 	}
 
-	timeline = get_timeline(ce->gem_context, engine->gt);
-	if (IS_ERR(timeline)) {
-		ret = PTR_ERR(timeline);
-		goto error_deref_obj;
+	if (!ce->timeline) {
+		struct intel_timeline *tl;
+
+		tl = intel_timeline_create(engine->gt, NULL);
+		if (IS_ERR(tl)) {
+			ret = PTR_ERR(tl);
+			goto error_deref_obj;
+		}
+
+		ce->timeline = tl;
 	}
 
-	ring = intel_engine_create_ring(engine, timeline,
-					(unsigned long)ce->ring);
-	intel_timeline_put(timeline);
+	ring = intel_engine_create_ring(engine, (unsigned long)ce->ring);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
 		goto error_deref_obj;

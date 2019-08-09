@@ -2182,7 +2182,7 @@ err_unpin:
 static void eb_unpin_context(struct i915_execbuffer *eb)
 {
 	struct intel_context *ce = eb->context;
-	struct intel_timeline *tl = ce->ring->timeline;
+	struct intel_timeline *tl = ce->timeline;
 
 	mutex_lock(&tl->mutex);
 	intel_context_exit(ce);

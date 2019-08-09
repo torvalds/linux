@@ -53,6 +53,7 @@ struct intel_context {
 
 	struct i915_vma *state;
 	struct intel_ring *ring;
+	struct intel_timeline *timeline;
 
 	unsigned long flags;
 #define CONTEXT_ALLOC_BIT 0

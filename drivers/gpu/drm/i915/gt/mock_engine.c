@@ -32,11 +32,6 @@
 #include "mock_engine.h"
 #include "selftests/mock_request.h"
 
-struct mock_ring {
-	struct intel_ring base;
-	struct intel_timeline timeline;
-};
-
 static void mock_timeline_pin(struct intel_timeline *tl)
 {
 	tl->pin_count++;
@@ -51,36 +46,22 @@ static void mock_timeline_unpin(struct intel_timeline *tl)
 static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 {
 	const unsigned long sz = PAGE_SIZE / 2;
-	struct mock_ring *ring;
+	struct intel_ring *ring;
 
 	ring = kzalloc(sizeof(*ring) + sz, GFP_KERNEL);
 	if (!ring)
 		return NULL;
 
-	if (intel_timeline_init(&ring->timeline, engine->gt, NULL)) {
-		kfree(ring);
-		return NULL;
-	}
+	kref_init(&ring->ref);
+	ring->size = sz;
+	ring->effective_size = sz;
+	ring->vaddr = (void *)(ring + 1);
+	atomic_set(&ring->pin_count, 1);
 
-	kref_init(&ring->base.ref);
-	ring->base.size = sz;
-	ring->base.effective_size = sz;
-	ring->base.vaddr = (void *)(ring + 1);
-	ring->base.timeline = &ring->timeline;
-	atomic_set(&ring->base.pin_count, 1);
+	INIT_LIST_HEAD(&ring->request_list);
+	intel_ring_update_space(ring);
 
-	INIT_LIST_HEAD(&ring->base.request_list);
-	intel_ring_update_space(&ring->base);
-
-	return &ring->base;
-}
-
-static void mock_ring_free(struct intel_ring *base)
-{
-	struct mock_ring *ring = container_of(base, typeof(*ring), base);
-
-	intel_timeline_fini(&ring->timeline);
-	kfree(ring);
+	return ring;
 }
 
 static struct i915_request *first_request(struct mock_engine *engine)
@@ -131,7 +112,6 @@ static void hw_delay_complete(struct timer_list *t)
 
 static void mock_context_unpin(struct intel_context *ce)
 {
-	mock_timeline_unpin(ce->ring->timeline);
 }
 
 static void mock_context_destroy(struct kref *ref)
@@ -140,8 +120,10 @@ static void mock_context_destroy(struct kref *ref)
 
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
-	if (test_bit(CONTEXT_ALLOC_BIT, &ce->flags))
-		mock_ring_free(ce->ring);
+	if (test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
+		kfree(ce->ring);
+		mock_timeline_unpin(ce->timeline);
+	}
 
 	intel_context_fini(ce);
 	intel_context_free(ce);
@@ -153,19 +135,21 @@ static int mock_context_alloc(struct intel_context *ce)
 	if (!ce->ring)
 		return -ENOMEM;
 
+	GEM_BUG_ON(ce->timeline);
+	ce->timeline = intel_timeline_create(ce->engine->gt, NULL);
+	if (IS_ERR(ce->timeline)) {
+		kfree(ce->engine);
+		return PTR_ERR(ce->timeline);
+	}
+
+	mock_timeline_pin(ce->timeline);
+
 	return 0;
 }
 
 static int mock_context_pin(struct intel_context *ce)
 {
-	int ret;
-
-	ret = intel_context_active_acquire(ce);
-	if (ret)
-		return ret;
-
-	mock_timeline_pin(ce->ring->timeline);
-	return 0;
+	return intel_context_active_acquire(ce);
 }
 
 static const struct intel_context_ops mock_context_ops = {

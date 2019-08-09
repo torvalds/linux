@@ -69,7 +69,6 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
-	struct intel_timeline *timeline;
 	struct list_head request_list;
 	struct list_head active_link;
 
@@ -286,8 +285,6 @@ struct intel_engine_cs {
 
 	struct intel_sseu sseu;
 
-	struct intel_ring *buffer;
-
 	struct {
 		spinlock_t lock;
 		struct list_head requests;
@@ -305,6 +302,11 @@ struct intel_engine_cs {
 	struct intel_wakeref wakeref;
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
+
+	struct {
+		struct intel_ring *ring;
+		struct intel_timeline *timeline;
+	} legacy;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the

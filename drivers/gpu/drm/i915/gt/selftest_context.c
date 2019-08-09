@@ -32,7 +32,7 @@ static int request_sync(struct i915_request *rq)
 
 static int context_sync(struct intel_context *ce)
 {
-	struct intel_timeline *tl = ce->ring->timeline;
+	struct intel_timeline *tl = ce->timeline;
 	int err = 0;
 
 	do {

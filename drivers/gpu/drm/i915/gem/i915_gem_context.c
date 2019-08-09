@@ -489,6 +489,29 @@ static void __assign_ppgtt(struct i915_gem_context *ctx,
 		i915_vm_put(vm);
 }
 
+static void __set_timeline(struct intel_timeline **dst,
+			   struct intel_timeline *src)
+{
+	struct intel_timeline *old = *dst;
+
+	*dst = src ? intel_timeline_get(src) : NULL;
+
+	if (old)
+		intel_timeline_put(old);
+}
+
+static void __apply_timeline(struct intel_context *ce, void *timeline)
+{
+	__set_timeline(&ce->timeline, timeline);
+}
+
+static void __assign_timeline(struct i915_gem_context *ctx,
+			      struct intel_timeline *timeline)
+{
+	__set_timeline(&ctx->timeline, timeline);
+	context_apply_all(ctx, __apply_timeline, timeline);
+}
+
 static struct i915_gem_context *
 i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 {
@@ -531,7 +554,8 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 			return ERR_CAST(timeline);
 		}
 
-		ctx->timeline = timeline;
+		__assign_timeline(ctx, timeline);
+		intel_timeline_put(timeline);
 	}
 
 	trace_i915_context_create(ctx);
@@ -1931,13 +1955,8 @@ unlock:
 static int clone_timeline(struct i915_gem_context *dst,
 			  struct i915_gem_context *src)
 {
-	if (src->timeline) {
-		GEM_BUG_ON(src->timeline == dst->timeline);
-
-		if (dst->timeline)
-			intel_timeline_put(dst->timeline);
-		dst->timeline = intel_timeline_get(src->timeline);
-	}
+	if (src->timeline)
+		__assign_timeline(dst, src->timeline);
 
 	return 0;
 }

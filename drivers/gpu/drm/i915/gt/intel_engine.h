@@ -196,9 +196,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine,
-			 struct intel_timeline *timeline,
-			 int size);
+intel_engine_create_ring(struct intel_engine_cs *engine, int size);
 int intel_ring_pin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);
 unsigned int intel_ring_update_space(struct intel_ring *ring);

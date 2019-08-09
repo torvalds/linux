@@ -246,7 +246,7 @@ static bool __active_del_barrier(struct i915_active *ref,
 	struct llist_node *head = NULL, *tail = NULL;
 	struct llist_node *pos, *next;
 
-	GEM_BUG_ON(node->timeline != engine->kernel_context->ring->timeline->fence_context);
+	GEM_BUG_ON(node->timeline != engine->kernel_context->timeline->fence_context);
 
 	/*
 	 * Rebuild the llist excluding our node. We may perform this
@@ -568,7 +568,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	 * i915_active_acquire_barrier()
 	 */
 	for_each_engine_masked(engine, i915, mask, tmp) {
-		u64 idx = engine->kernel_context->ring->timeline->fence_context;
+		u64 idx = engine->kernel_context->timeline->fence_context;
 		struct active_node *node;
 
 		node = reuse_idle_barrier(ref, idx);
@@ -665,7 +665,7 @@ void i915_request_add_active_barriers(struct i915_request *rq)
 	struct llist_node *node, *next;
 
 	GEM_BUG_ON(intel_engine_is_virtual(engine));
-	GEM_BUG_ON(rq->timeline != engine->kernel_context->ring->timeline);
+	GEM_BUG_ON(rq->timeline != engine->kernel_context->timeline);
 
 	/*
 	 * Attach the list of proto-fences to the in-flight request such

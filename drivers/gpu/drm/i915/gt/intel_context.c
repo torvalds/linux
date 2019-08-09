@@ -68,7 +68,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 			goto err;
 
 		GEM_TRACE("%s context:%llx pin ring:{head:%04x, tail:%04x}\n",
-			  ce->engine->name, ce->ring->timeline->fence_context,
+			  ce->engine->name, ce->timeline->fence_context,
 			  ce->ring->head, ce->ring->tail);
 
 		i915_gem_context_get(ce->gem_context); /* for ctx->ppgtt */
@@ -98,7 +98,7 @@ void intel_context_unpin(struct intel_context *ce)
 
 	if (likely(atomic_dec_and_test(&ce->pin_count))) {
 		GEM_TRACE("%s context:%llx retire\n",
-			  ce->engine->name, ce->ring->timeline->fence_context);
+			  ce->engine->name, ce->timeline->fence_context);
 
 		ce->ops->unpin(ce);
 
@@ -143,11 +143,12 @@ static void __intel_context_retire(struct i915_active *active)
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
 
 	GEM_TRACE("%s context:%llx retire\n",
-		  ce->engine->name, ce->ring->timeline->fence_context);
+		  ce->engine->name, ce->timeline->fence_context);
 
 	if (ce->state)
 		__context_unpin_state(ce->state);
 
+	intel_timeline_unpin(ce->timeline);
 	intel_ring_unpin(ce->ring);
 	intel_context_put(ce);
 }
@@ -163,15 +164,21 @@ static int __intel_context_active(struct i915_active *active)
 	if (err)
 		goto err_put;
 
+	err = intel_timeline_pin(ce->timeline);
+	if (err)
+		goto err_ring;
+
 	if (!ce->state)
 		return 0;
 
 	err = __context_pin_state(ce->state);
 	if (err)
-		goto err_ring;
+		goto err_timeline;
 
 	return 0;
 
+err_timeline:
+	intel_timeline_unpin(ce->timeline);
 err_ring:
 	intel_ring_unpin(ce->ring);
 err_put:
@@ -218,6 +225,8 @@ intel_context_init(struct intel_context *ce,
 
 	ce->gem_context = ctx;
 	ce->vm = i915_vm_get(ctx->vm ?: &engine->gt->ggtt->vm);
+	if (ctx->timeline)
+		ce->timeline = intel_timeline_get(ctx->timeline);
 
 	ce->engine = engine;
 	ce->ops = engine->cops;
@@ -235,6 +244,8 @@ intel_context_init(struct intel_context *ce,
 
 void intel_context_fini(struct intel_context *ce)
 {
+	if (ce->timeline)
+		intel_timeline_put(ce->timeline);
 	i915_vm_put(ce->vm);
 
 	mutex_destroy(&ce->pin_mutex);
@@ -279,7 +290,7 @@ void intel_context_exit_engine(struct intel_context *ce)
 int intel_context_prepare_remote_request(struct intel_context *ce,
 					 struct i915_request *rq)
 {
-	struct intel_timeline *tl = ce->ring->timeline;
+	struct intel_timeline *tl = ce->timeline;
 	int err;
 
 	/* Only suitable for use in remotely modifying this context */

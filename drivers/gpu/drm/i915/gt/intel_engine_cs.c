@@ -680,7 +680,6 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 		goto out_frame;
 
 	INIT_LIST_HEAD(&frame->ring.request_list);
-	frame->ring.timeline = &frame->timeline;
 	frame->ring.vaddr = frame->cs;
 	frame->ring.size = sizeof(frame->cs);
 	frame->ring.effective_size = frame->ring.size;
