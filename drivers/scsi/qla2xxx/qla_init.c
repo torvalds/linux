@@ -7562,8 +7562,12 @@ qla27xx_get_active_image(struct scsi_qla_host *vha,
 		goto check_sec_image;
 	}
 
-	qla24xx_read_flash_data(vha, (void *)(&pri_image_status),
-	    ha->flt_region_img_status_pri, sizeof(pri_image_status) >> 2);
+	if (qla24xx_read_flash_data(vha, (void *)(&pri_image_status),
+	    ha->flt_region_img_status_pri, sizeof(pri_image_status) >> 2) !=
+	    QLA_SUCCESS) {
+		WARN_ON_ONCE(true);
+		goto check_sec_image;
+	}
 	qla27xx_print_image(vha, "Primary image", &pri_image_status);
 
 	if (qla27xx_check_image_status_signature(&pri_image_status)) {
