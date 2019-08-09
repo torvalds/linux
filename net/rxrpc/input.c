@@ -196,15 +196,14 @@ send_extra_data:
  * Ping the other end to fill our RTT cache and to retrieve the rwind
  * and MTU parameters.
  */
-static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb,
-			    int skew)
+static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	ktime_t now = skb->tstamp;
 
 	if (call->peer->rtt_usage < 3 ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, sp->hdr.serial,
 				  true, true,
 				  rxrpc_propose_ack_ping_for_params);
 }
@@ -419,8 +418,7 @@ static void rxrpc_input_dup_data(struct rxrpc_call *call, rxrpc_seq_t seq,
 /*
  * Process a DATA packet, adding the packet to the Rx ring.
  */
-static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
-			     u16 skew)
+static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	enum rxrpc_call_state state;
@@ -600,11 +598,11 @@ skip:
 
 ack:
 	if (ack)
-		rxrpc_propose_ACK(call, ack, skew, ack_serial,
+		rxrpc_propose_ACK(call, ack, ack_serial,
 				  immediate_ack, true,
 				  rxrpc_propose_ack_input_data);
 	else
-		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, skew, serial,
+		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial,
 				  false, true,
 				  rxrpc_propose_ack_input_data);
 
@@ -822,8 +820,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
  * soft-ACK means that the packet may be discarded and retransmission
  * requested.  A phase is complete when all packets are hard-ACK'd.
  */
-static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
-			    u16 skew)
+static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -867,11 +864,11 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	if (buf.ack.reason == RXRPC_ACK_PING) {
 		_proto("Rx ACK %%%u PING Request", sp->hdr.serial);
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING_RESPONSE,
-				  skew, sp->hdr.serial, true, true,
+				  sp->hdr.serial, true, true,
 				  rxrpc_propose_ack_respond_to_ping);
 	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED,
-				  skew, sp->hdr.serial, true, true,
+				  sp->hdr.serial, true, true,
 				  rxrpc_propose_ack_respond_to_ack);
 	}
 
@@ -948,7 +945,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	    RXRPC_TX_ANNO_LAST &&
 	    summary.nr_acks == call->tx_top - hard_ack &&
 	    rxrpc_is_client_call(call))
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, sp->hdr.serial,
 				  false, true,
 				  rxrpc_propose_ack_ping_for_lost_reply);
 
@@ -1004,7 +1001,7 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
  * Process an incoming call packet.
  */
 static void rxrpc_input_call_packet(struct rxrpc_call *call,
-				    struct sk_buff *skb, u16 skew)
+				    struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned long timo;
@@ -1023,11 +1020,11 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
-		rxrpc_input_data(call, skb, skew);
+		rxrpc_input_data(call, skb);
 		break;
 
 	case RXRPC_PACKET_TYPE_ACK:
-		rxrpc_input_ack(call, skb, skew);
+		rxrpc_input_ack(call, skb);
 		break;
 
 	case RXRPC_PACKET_TYPE_BUSY:
@@ -1108,8 +1105,12 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 {
 	_enter("%p,%p", local, skb);
 
-	skb_queue_tail(&local->event_queue, skb);
-	rxrpc_queue_local(local);
+	if (rxrpc_get_local_maybe(local)) {
+		skb_queue_tail(&local->event_queue, skb);
+		rxrpc_queue_local(local);
+	} else {
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	}
 }
 
 /*
@@ -1119,8 +1120,12 @@ static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
 	CHECK_SLAB_OKAY(&local->usage);
 
-	skb_queue_tail(&local->reject_queue, skb);
-	rxrpc_queue_local(local);
+	if (rxrpc_get_local_maybe(local)) {
+		skb_queue_tail(&local->reject_queue, skb);
+		rxrpc_queue_local(local);
+	} else {
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	}
 }
 
 /*
@@ -1173,7 +1178,6 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	struct rxrpc_peer *peer = NULL;
 	struct rxrpc_sock *rx = NULL;
 	unsigned int channel;
-	int skew = 0;
 
 	_enter("%p", udp_sk);
 
@@ -1301,15 +1305,8 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 			goto out;
 		}
 
-		/* Note the serial number skew here */
-		skew = (int)sp->hdr.serial - (int)conn->hi_serial;
-		if (skew >= 0) {
-			if (skew > 0)
-				conn->hi_serial = sp->hdr.serial;
-		} else {
-			skew = -skew;
-			skew = min(skew, 65535);
-		}
+		if ((int)sp->hdr.serial - (int)conn->hi_serial > 0)
+			conn->hi_serial = sp->hdr.serial;
 
 		/* Call-bound packets are routed by connection channel. */
 		channel = sp->hdr.cid & RXRPC_CHANNELMASK;
@@ -1372,11 +1369,11 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		call = rxrpc_new_incoming_call(local, rx, skb);
 		if (!call)
 			goto reject_packet;
-		rxrpc_send_ping(call, skb, skew);
+		rxrpc_send_ping(call, skb);
 		mutex_unlock(&call->user_mutex);
 	}
 
-	rxrpc_input_call_packet(call, skb, skew);
+	rxrpc_input_call_packet(call, skb);
 	goto discard;
 
 discard:
