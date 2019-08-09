@@ -1770,7 +1770,9 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	}
 
 	if (named_mode) {
-		strncpy(mode->name, name, mode_end);
+		if (mode_end + 1 > DRM_DISPLAY_MODE_LEN)
+			return false;
+		strscpy(mode->name, name, mode_end + 1);
 	} else {
 		ret = drm_mode_parse_cmdline_res_mode(name, mode_end,
 						      parse_extras,
