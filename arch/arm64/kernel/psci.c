@@ -105,10 +105,6 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 
 const struct cpu_operations cpu_psci_ops = {
 	.name		= "psci",
-#ifdef CONFIG_CPU_IDLE
-	.cpu_init_idle	= psci_cpu_init_idle,
-	.cpu_suspend	= psci_cpu_suspend_enter,
-#endif
 	.cpu_init	= cpu_psci_cpu_init,
 	.cpu_prepare	= cpu_psci_cpu_prepare,
 	.cpu_boot	= cpu_psci_cpu_boot,

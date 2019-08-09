@@ -14,7 +14,7 @@ config ARM_CPUIDLE
           provided by architecture code.
 
 config ARM_PSCI_CPUIDLE
-	bool
+	bool "PSCI CPU idle Driver"
 	depends on ARM_PSCI_FW
 	select DT_IDLE_STATES
 	select CPU_IDLE_MULTIPLE_DRIVERS

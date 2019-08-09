@@ -436,16 +436,6 @@ int psci_cpu_suspend_enter(unsigned long index)
 
 	return ret;
 }
-
-/* ARM specific CPU idle operations */
-#ifdef CONFIG_ARM
-static const struct cpuidle_ops psci_cpuidle_ops __initconst = {
-	.suspend = psci_cpu_suspend_enter,
-	.init = psci_dt_cpu_init_idle,
-};
-
-CPUIDLE_METHOD_OF_DECLARE(psci, "psci", &psci_cpuidle_ops);
-#endif
 #endif
 
 static int psci_system_suspend(unsigned long unused)

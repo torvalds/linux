@@ -11,6 +11,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/psci.h>
 
 #include <asm/cpuidle.h>
 #include <asm/cpu_ops.h>
@@ -48,15 +49,15 @@ int arm_cpuidle_suspend(int index)
 
 int acpi_processor_ffh_lpi_probe(unsigned int cpu)
 {
-	return arm_cpuidle_init(cpu);
+	return psci_cpu_init_idle(cpu);
 }
 
 int acpi_processor_ffh_lpi_enter(struct acpi_lpi_state *lpi)
 {
 	if (ARM64_LPI_IS_RETENTION_STATE(lpi->arch_flags))
-		return CPU_PM_CPU_IDLE_ENTER_RETENTION(arm_cpuidle_suspend,
+		return CPU_PM_CPU_IDLE_ENTER_RETENTION(psci_cpu_suspend_enter,
 						lpi->index);
 	else
-		return CPU_PM_CPU_IDLE_ENTER(arm_cpuidle_suspend, lpi->index);
+		return CPU_PM_CPU_IDLE_ENTER(psci_cpu_suspend_enter, lpi->index);
 }
 #endif
