@@ -557,6 +557,13 @@ void mt76_txq_schedule_all(struct mt76_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76_txq_schedule_all);
 
+void mt76_tx_tasklet(unsigned long data)
+{
+	struct mt76_dev *dev = (struct mt76_dev *)data;
+
+	mt76_txq_schedule_all(dev);
+}
+
 void mt76_stop_tx_queues(struct mt76_dev *dev, struct ieee80211_sta *sta,
 			 bool send_bar)
 {

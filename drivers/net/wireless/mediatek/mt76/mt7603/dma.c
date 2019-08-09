@@ -135,14 +135,6 @@ mt7603_init_rx_queue(struct mt7603_dev *dev, struct mt76_queue *q,
 	return 0;
 }
 
-static void
-mt7603_tx_tasklet(unsigned long data)
-{
-	struct mt7603_dev *dev = (struct mt7603_dev *)data;
-
-	mt76_txq_schedule_all(&dev->mt76);
-}
-
 static int mt7603_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct mt7603_dev *dev;
@@ -180,9 +172,6 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 
 	init_waitqueue_head(&dev->mt76.mmio.mcu.wait);
 	skb_queue_head_init(&dev->mt76.mmio.mcu.res_q);
-
-	tasklet_init(&dev->mt76.tx_tasklet, mt7603_tx_tasklet,
-		     (unsigned long)dev);
 
 	mt76_clear(dev, MT_WPDMA_GLO_CFG,
 		   MT_WPDMA_GLO_CFG_TX_DMA_EN |

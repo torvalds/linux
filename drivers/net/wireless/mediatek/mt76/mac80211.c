@@ -283,6 +283,8 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	init_waitqueue_head(&dev->tx_wait);
 	skb_queue_head_init(&dev->status_list);
 
+	tasklet_init(&dev->tx_tasklet, mt76_tx_tasklet, (unsigned long)dev);
+
 	return dev;
 }
 EXPORT_SYMBOL_GPL(mt76_alloc_device);
