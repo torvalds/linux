@@ -455,7 +455,7 @@ struct srb_iocb {
 			struct els_logo_payload *els_logo_pyld;
 			dma_addr_t els_logo_pyld_dma;
 		} els_logo;
-		struct {
+		struct els_plogi {
 #define ELS_DCMD_PLOGI 0x3
 			uint32_t flags;
 			uint32_t els_cmd;

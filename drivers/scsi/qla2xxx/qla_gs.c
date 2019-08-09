@@ -3119,17 +3119,7 @@ void qla24xx_sp_unmap(scsi_qla_host_t *vha, srb_t *sp)
 
 	switch (sp->type) {
 	case SRB_ELS_DCMD:
-		if (c->u.els_plogi.els_plogi_pyld)
-			dma_free_coherent(&vha->hw->pdev->dev,
-			    c->u.els_plogi.tx_size,
-			    c->u.els_plogi.els_plogi_pyld,
-			    c->u.els_plogi.els_plogi_pyld_dma);
-
-		if (c->u.els_plogi.els_resp_pyld)
-			dma_free_coherent(&vha->hw->pdev->dev,
-			    c->u.els_plogi.rx_size,
-			    c->u.els_plogi.els_resp_pyld,
-			    c->u.els_plogi.els_resp_pyld_dma);
+		qla2x00_els_dcmd2_free(vha, &c->u.els_plogi);
 		break;
 	case SRB_CT_PTHRU_CMD:
 	default:

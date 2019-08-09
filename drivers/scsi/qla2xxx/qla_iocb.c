@@ -2717,6 +2717,21 @@ qla2x00_els_dcmd2_iocb_timeout(void *data)
 	sp->done(sp, QLA_FUNCTION_TIMEOUT);
 }
 
+void qla2x00_els_dcmd2_free(scsi_qla_host_t *vha, struct els_plogi *els_plogi)
+{
+	if (els_plogi->els_plogi_pyld)
+		dma_free_coherent(&vha->hw->pdev->dev,
+				  els_plogi->tx_size,
+				  els_plogi->els_plogi_pyld,
+				  els_plogi->els_plogi_pyld_dma);
+
+	if (els_plogi->els_resp_pyld)
+		dma_free_coherent(&vha->hw->pdev->dev,
+				  els_plogi->rx_size,
+				  els_plogi->els_resp_pyld,
+				  els_plogi->els_resp_pyld_dma);
+}
+
 static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 {
 	fc_port_t *fcport = sp->fcport;
@@ -2748,17 +2763,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 		if (!e) {
 			struct srb_iocb *elsio = &sp->u.iocb_cmd;
 
-			if (elsio->u.els_plogi.els_plogi_pyld)
-				dma_free_coherent(&sp->vha->hw->pdev->dev,
-				    elsio->u.els_plogi.tx_size,
-				    elsio->u.els_plogi.els_plogi_pyld,
-				    elsio->u.els_plogi.els_plogi_pyld_dma);
-
-			if (elsio->u.els_plogi.els_resp_pyld)
-				dma_free_coherent(&sp->vha->hw->pdev->dev,
-				    elsio->u.els_plogi.rx_size,
-				    elsio->u.els_plogi.els_resp_pyld,
-				    elsio->u.els_plogi.els_resp_pyld_dma);
+			qla2x00_els_dcmd2_free(vha, &elsio->u.els_plogi);
 			sp->free(sp);
 			return;
 		}
@@ -2858,18 +2863,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 out:
 	fcport->flags &= ~(FCF_ASYNC_SENT);
-	if (elsio->u.els_plogi.els_plogi_pyld)
-		dma_free_coherent(&sp->vha->hw->pdev->dev,
-		    elsio->u.els_plogi.tx_size,
-		    elsio->u.els_plogi.els_plogi_pyld,
-		    elsio->u.els_plogi.els_plogi_pyld_dma);
-
-	if (elsio->u.els_plogi.els_resp_pyld)
-		dma_free_coherent(&sp->vha->hw->pdev->dev,
-		    elsio->u.els_plogi.rx_size,
-		    elsio->u.els_plogi.els_resp_pyld,
-		    elsio->u.els_plogi.els_resp_pyld_dma);
-
+	qla2x00_els_dcmd2_free(vha, &elsio->u.els_plogi);
 	sp->free(sp);
 done:
 	return rval;
