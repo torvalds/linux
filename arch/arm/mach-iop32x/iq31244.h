@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * arch/arm/mach-iop32x/include/mach/iq31244.h
- *
  * Intel IQ31244 evaluation board registers
  */
 

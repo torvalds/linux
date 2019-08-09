@@ -1,8 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * arch/arm/mach-iop32x/include/mach/hardware.h
- */
-
 #ifndef __HARDWARE_H
 #define __HARDWARE_H
 
@@ -28,7 +24,7 @@ void iop32x_init_irq(void);
 /*
  * Generic chipset bits
  */
-#include "iop32x.h"
+#include "iop3xx.h"
 
 /*
  * Board specific bits

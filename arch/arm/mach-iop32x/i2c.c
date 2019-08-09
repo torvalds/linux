@@ -22,9 +22,11 @@
 #include <asm/mach/map.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
-#include <mach/hardware.h>
-#include <asm/hardware/iop3xx.h>
 #include <asm/mach/arch.h>
+
+#include "hardware.h"
+#include "iop3xx.h"
+#include "irqs.h"
 
 /*
  * Each of the I2C busses have corresponding GPIO lines, and the driver

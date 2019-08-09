@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2001 MontaVista Software, Inc.
  */
-#include <asm/hardware/iop3xx.h>
 #include <asm/system_misc.h>
-#include <mach/hardware.h>
+#include "hardware.h"
+#include "iop3xx.h"
 
 void iop3xx_restart(enum reboot_mode mode, const char *cmd)
 {

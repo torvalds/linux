@@ -10,7 +10,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/iop3xx.h>
+#include "iop3xx.h"
 
 /*
  * Standard IO mapping for all IOP3xx based systems.  Note that

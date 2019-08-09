@@ -17,9 +17,9 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/signal.h>
-#include <mach/hardware.h>
 #include <asm/mach/pci.h>
-#include <asm/hardware/iop3xx.h>
+#include "hardware.h"
+#include "iop3xx.h"
 
 // #define DEBUG
 

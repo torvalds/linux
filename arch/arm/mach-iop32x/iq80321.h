@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * arch/arm/mach-iop32x/include/mach/iq80321.h
- *
  * Intel IQ80321 evaluation board registers
  */
 

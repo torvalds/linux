@@ -19,12 +19,13 @@
 #include <linux/clockchips.h>
 #include <linux/export.h>
 #include <linux/sched_clock.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <mach/time.h>
+
+#include "hardware.h"
+#include "irqs.h"
 
 /*
  * Minimum clocksource/clockevent timer range in seconds
@@ -167,7 +168,7 @@ void __init iop_init_time(unsigned long tick_rate)
 	 */
 	write_tmr0(timer_ctl & ~IOP_TMR_EN);
 	write_tisr(1);
-	setup_irq(IRQ_IOP_TIMER0, &iop_timer_irq);
+	setup_irq(IRQ_IOP32X_TIMER0, &iop_timer_irq);
 	iop_clockevent.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&iop_clockevent, tick_rate,
 					0xf, 0xfffffffe);

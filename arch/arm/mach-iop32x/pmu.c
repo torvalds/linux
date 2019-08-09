@@ -5,7 +5,7 @@
  */
 
 #include <linux/platform_device.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 
 static struct resource pmu_resource = {
 	.start	= IRQ_IOP32X_CORE_PMU,
