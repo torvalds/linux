@@ -6377,7 +6377,7 @@ FRAMEBUFFER LAYER
 M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-fbdev@vger.kernel.org
-T:	git git://github.com/bzolnier/linux.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
 S:	Maintained
 F:	Documentation/fb/
