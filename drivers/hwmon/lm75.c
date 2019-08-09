@@ -95,6 +95,7 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 #define LM75_REG_CONF		0x01
 #define LM75_REG_HYST		0x02
 #define LM75_REG_MAX		0x03
+#define PCT2075_REG_IDLE	0x04
 
 /* Each client has this additional data */
 struct lm75_data {
@@ -199,6 +200,11 @@ static const struct lm75_params device_params[] = {
 	[pct2075] = {
 		.default_resolution = 11,
 		.default_sample_time = MSEC_PER_SEC / 10,
+		.num_sample_times = 31,
+		.sample_times = (unsigned int []){ 100, 200, 300, 400, 500, 600,
+		700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700,
+		1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700,
+		2800, 2900, 3000, 3100 },
 	},
 	[mcp980x] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
@@ -422,6 +428,13 @@ static int lm75_update_interval(struct device *dev, long val)
 			return err;
 		data->sample_time = data->params->sample_times[index];
 		break;
+	case pct2075:
+		err = i2c_smbus_write_byte_data(data->client, PCT2075_REG_IDLE,
+						index + 1);
+		if (err)
+			return err;
+		data->sample_time = data->params->sample_times[index];
+		break;
 	}
 	return 0;
 }
@@ -512,7 +525,7 @@ static bool lm75_is_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config lm75_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.max_register = LM75_REG_MAX,
+	.max_register = PCT2075_REG_IDLE,
 	.writeable_reg = lm75_is_writeable_reg,
 	.volatile_reg = lm75_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
