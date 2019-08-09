@@ -101,7 +101,6 @@ static int
 smu_v12_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 			      uint32_t param)
 {
-
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, index = 0;
 
@@ -128,27 +127,55 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 	return ret;
 }
 
+static int smu_v12_0_check_fw_status(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t mp1_fw_flags;
+
+	mp1_fw_flags = RREG32_PCIE(MP1_Public |
+		(smnMP1_FIRMWARE_FLAGS & 0xffffffff));
+
+	if ((mp1_fw_flags & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
+		MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED__SHIFT)
+		return 0;
+
+	return -EIO;
+}
+
 static int smu_v12_0_check_fw_version(struct smu_context *smu)
 {
-	uint32_t smu_version = 0xff;
+	uint32_t smc_if_version = 0xff;
 	int ret = 0;
 
 	ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
 	if (ret)
 		goto err;
 
-	ret = smu_read_smc_arg(smu, &smu_version);
+	ret = smu_read_smc_arg(smu, &smc_if_version);
 	if (ret)
 		goto err;
 
-	if (smu_version != smu->smc_if_version)
+	if (smc_if_version != smu->smc_if_version)
 		ret = -EINVAL;
 err:
 	return ret;
 }
 
+static int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
+{
+	if (!(smu->adev->flags & AMD_IS_APU))
+		return 0;
+
+	if (gate)
+		return smu_send_smc_msg(smu, SMU_MSG_PowerDownSdma);
+	else
+		return smu_send_smc_msg(smu, SMU_MSG_PowerUpSdma);
+}
+
 static const struct smu_funcs smu_v12_0_funcs = {
+	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
+	.powergate_sdma = smu_v12_0_powergate_sdma,
 	.send_smc_msg = smu_v12_0_send_msg,
 	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
 	.read_smc_arg = smu_v12_0_read_arg,

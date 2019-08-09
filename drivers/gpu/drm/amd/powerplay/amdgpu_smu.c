@@ -1263,6 +1263,9 @@ static int smu_hw_init(void *handle)
 		return ret;
 	}
 
+	if (adev->asic_type == CHIP_RENOIR)
+		smu_powergate_sdma(&adev->smu, false);
+
 	if (!smu->pm_enabled)
 		return 0;
 
@@ -1309,6 +1312,9 @@ static int smu_hw_fini(void *handle)
 	struct smu_context *smu = &adev->smu;
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
+
+	if (adev->asic_type == CHIP_RENOIR)
+		smu_powergate_sdma(&adev->smu, true);
 
 	kfree(table_context->driver_pptable);
 	table_context->driver_pptable = NULL;
