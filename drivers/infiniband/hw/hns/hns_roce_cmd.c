@@ -211,7 +211,6 @@ int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 	mutex_init(&hr_dev->cmd.hcr_mutex);
 	sema_init(&hr_dev->cmd.poll_sem, 1);
 	hr_dev->cmd.use_events = 0;
-	hr_dev->cmd.toggle = 1;
 	hr_dev->cmd.max_cmds = CMD_MAX_NUM;
 	hr_dev->cmd.pool = dma_pool_create("hns_roce_cmd", dev,
 					   HNS_ROCE_MAILBOX_SIZE,
