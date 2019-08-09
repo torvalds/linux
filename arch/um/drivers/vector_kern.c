@@ -186,6 +186,8 @@ static int get_transport_options(struct arglist *def)
 
 
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
+		return 0;
+	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
 		return (vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
 		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);

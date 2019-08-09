@@ -114,12 +114,76 @@ cleanup:
 
 #define PATH_NET_TUN "/dev/net/tun"
 
-static struct vector_fds *user_init_tap_fds(struct arglist *ifspec)
+
+static int create_tap_fd(char *iface)
+{
+	struct ifreq ifr;
+	int fd = -1;
+	int err = -ENOMEM, offload;
+
+	fd = open(PATH_NET_TUN, O_RDWR);
+	if (fd < 0) {
+		printk(UM_KERN_ERR "uml_tap: failed to open tun device\n");
+		goto tap_fd_cleanup;
+	}
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
+	strncpy((char *)&ifr.ifr_name, iface, sizeof(ifr.ifr_name) - 1);
+
+	err = ioctl(fd, TUNSETIFF, (void *) &ifr);
+	if (err != 0) {
+		printk(UM_KERN_ERR "uml_tap: failed to select tap interface\n");
+		goto tap_fd_cleanup;
+	}
+
+	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6;
+	ioctl(fd, TUNSETOFFLOAD, offload);
+	return fd;
+tap_fd_cleanup:
+	if (fd >= 0)
+		os_close_file(fd);
+	return err;
+}
+
+static int create_raw_fd(char *iface, int flags, int proto)
 {
 	struct ifreq ifr;
 	int fd = -1;
 	struct sockaddr_ll sock;
-	int err = -ENOMEM, offload;
+	int err = -ENOMEM;
+
+	fd = socket(AF_PACKET, SOCK_RAW, flags);
+	if (fd == -1) {
+		err = -errno;
+		goto raw_fd_cleanup;
+	}
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy((char *)&ifr.ifr_name, iface, sizeof(ifr.ifr_name) - 1);
+	if (ioctl(fd, SIOCGIFINDEX, (void *) &ifr) < 0) {
+		err = -errno;
+		goto raw_fd_cleanup;
+	}
+
+	sock.sll_family = AF_PACKET;
+	sock.sll_protocol = htons(proto);
+	sock.sll_ifindex = ifr.ifr_ifindex;
+
+	if (bind(fd,
+		(struct sockaddr *) &sock, sizeof(struct sockaddr_ll)) < 0) {
+		err = -errno;
+		goto raw_fd_cleanup;
+	}
+	return fd;
+raw_fd_cleanup:
+	printk(UM_KERN_ERR "user_init_raw: init failed, error %d", err);
+	if (fd >= 0)
+		os_close_file(fd);
+	return err;
+}
+
+static struct vector_fds *user_init_tap_fds(struct arglist *ifspec)
+{
+	int fd = -1;
 	char *iface;
 	struct vector_fds *result = NULL;
 
@@ -141,117 +205,88 @@ static struct vector_fds *user_init_tap_fds(struct arglist *ifspec)
 
 	/* TAP */
 
-	fd = open(PATH_NET_TUN, O_RDWR);
+	fd = create_tap_fd(iface);
 	if (fd < 0) {
-		printk(UM_KERN_ERR "uml_tap: failed to open tun device\n");
+		printk(UM_KERN_ERR "uml_tap: failed to create tun interface\n");
 		goto tap_cleanup;
 	}
 	result->tx_fd = fd;
-	memset(&ifr, 0, sizeof(ifr));
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
-	strncpy((char *)&ifr.ifr_name, iface, sizeof(ifr.ifr_name) - 1);
+	result->rx_fd = fd;
+	return result;
+tap_cleanup:
+	printk(UM_KERN_ERR "user_init_tap: init failed, error %d", fd);
+	if (result != NULL)
+		kfree(result);
+	return NULL;
+}
 
-	err = ioctl(fd, TUNSETIFF, (void *) &ifr);
-	if (err != 0) {
-		printk(UM_KERN_ERR "uml_tap: failed to select tap interface\n");
-		goto tap_cleanup;
+static struct vector_fds *user_init_hybrid_fds(struct arglist *ifspec)
+{
+	char *iface;
+	struct vector_fds *result = NULL;
+
+	iface = uml_vector_fetch_arg(ifspec, TOKEN_IFNAME);
+	if (iface == NULL) {
+		printk(UM_KERN_ERR "uml_tap: failed to parse interface spec\n");
+		goto hybrid_cleanup;
 	}
 
-	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6;
-	ioctl(fd, TUNSETOFFLOAD, offload);
+	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
+	if (result == NULL) {
+		printk(UM_KERN_ERR "uml_tap: failed to allocate file descriptors\n");
+		goto hybrid_cleanup;
+	}
+	result->rx_fd = -1;
+	result->tx_fd = -1;
+	result->remote_addr = NULL;
+	result->remote_addr_size = 0;
+
+	/* TAP */
+
+	result->tx_fd = create_tap_fd(iface);
+	if (result->tx_fd < 0) {
+		printk(UM_KERN_ERR "uml_tap: failed to create tun interface: %i\n", result->tx_fd);
+		goto hybrid_cleanup;
+	}
 
 	/* RAW */
 
-	fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	if (fd == -1) {
+	result->rx_fd = create_raw_fd(iface, ETH_P_ALL, ETH_P_ALL);
+	if (result->rx_fd == -1) {
 		printk(UM_KERN_ERR
-			"uml_tap: failed to create socket: %i\n", -errno);
-		goto tap_cleanup;
-	}
-	result->rx_fd = fd;
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy((char *)&ifr.ifr_name, iface, sizeof(ifr.ifr_name) - 1);
-	if (ioctl(fd, SIOCGIFINDEX, (void *) &ifr) < 0) {
-		printk(UM_KERN_ERR
-			"uml_tap: failed to set interface: %i\n", -errno);
-		goto tap_cleanup;
-	}
-
-	sock.sll_family = AF_PACKET;
-	sock.sll_protocol = htons(ETH_P_ALL);
-	sock.sll_ifindex = ifr.ifr_ifindex;
-
-	if (bind(fd,
-		(struct sockaddr *) &sock, sizeof(struct sockaddr_ll)) < 0) {
-		printk(UM_KERN_ERR
-			"user_init_tap: failed to bind raw pair, err %d\n",
-				-errno);
-		goto tap_cleanup;
+			"uml_tap: failed to create paired raw socket: %i\n", result->rx_fd);
+		goto hybrid_cleanup;
 	}
 	return result;
-tap_cleanup:
-	printk(UM_KERN_ERR "user_init_tap: init failed, error %d", err);
-	if (result != NULL) {
-		if (result->rx_fd >= 0)
-			os_close_file(result->rx_fd);
-		if (result->tx_fd >= 0)
-			os_close_file(result->tx_fd);
+hybrid_cleanup:
+	printk(UM_KERN_ERR "user_init_hybrid: init failed");
+	if (result != NULL)
 		kfree(result);
-	}
 	return NULL;
 }
 
 
 static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 {
-	struct ifreq ifr;
 	int rxfd = -1, txfd = -1;
-	struct sockaddr_ll sock;
 	int err = -ENOMEM;
 	char *iface;
 	struct vector_fds *result = NULL;
 
 	iface = uml_vector_fetch_arg(ifspec, TOKEN_IFNAME);
 	if (iface == NULL)
-		goto cleanup;
+		goto raw_cleanup;
 
-	rxfd = socket(AF_PACKET, SOCK_RAW, ETH_P_ALL);
+	rxfd = create_raw_fd(iface, ETH_P_ALL, ETH_P_ALL);
 	if (rxfd == -1) {
 		err = -errno;
-		goto cleanup;
+		goto raw_cleanup;
 	}
-	txfd = socket(AF_PACKET, SOCK_RAW, 0); /* Turn off RX on this fd */
+	txfd = create_raw_fd(iface, 0, ETH_P_IP); /* Turn off RX on this fd */
 	if (txfd == -1) {
 		err = -errno;
-		goto cleanup;
+		goto raw_cleanup;
 	}
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy((char *)&ifr.ifr_name, iface, sizeof(ifr.ifr_name) - 1);
-	if (ioctl(rxfd, SIOCGIFINDEX, (void *) &ifr) < 0) {
-		err = -errno;
-		goto cleanup;
-	}
-
-	sock.sll_family = AF_PACKET;
-	sock.sll_protocol = htons(ETH_P_ALL);
-	sock.sll_ifindex = ifr.ifr_ifindex;
-
-	if (bind(rxfd,
-		(struct sockaddr *) &sock, sizeof(struct sockaddr_ll)) < 0) {
-		err = -errno;
-		goto cleanup;
-	}
-
-	sock.sll_family = AF_PACKET;
-	sock.sll_protocol = htons(ETH_P_IP);
-	sock.sll_ifindex = ifr.ifr_ifindex;
-
-	if (bind(txfd,
-		(struct sockaddr *) &sock, sizeof(struct sockaddr_ll)) < 0) {
-		err = -errno;
-		goto cleanup;
-	}
-
 	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
 	if (result != NULL) {
 		result->rx_fd = rxfd;
@@ -260,13 +295,10 @@ static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 		result->remote_addr_size = 0;
 	}
 	return result;
-cleanup:
+raw_cleanup:
 	printk(UM_KERN_ERR "user_init_raw: init failed, error %d", err);
-	if (rxfd >= 0)
-		os_close_file(rxfd);
-	if (txfd >= 0)
-		os_close_file(txfd);
-	kfree(result);
+	if (result != NULL)
+		kfree(result);
 	return NULL;
 }
 
@@ -456,6 +488,8 @@ struct vector_fds *uml_vector_user_open(
 	}
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
 		return user_init_raw_fds(parsed);
+	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
+		return user_init_hybrid_fds(parsed);
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
 		return user_init_tap_fds(parsed);
 	if (strncmp(transport, TRANS_GRE, TRANS_GRE_LEN) == 0)
@@ -482,8 +516,9 @@ int uml_vector_sendmsg(int fd, void *hdr, int flags)
 int uml_vector_recvmsg(int fd, void *hdr, int flags)
 {
 	int n;
+	struct msghdr *msg = (struct msghdr *) hdr;
 
-	CATCH_EINTR(n = recvmsg(fd, (struct msghdr *) hdr,  flags));
+	CATCH_EINTR(n = readv(fd, msg->msg_iov, msg->msg_iovlen));
 	if ((n < 0) && (errno == EAGAIN))
 		return 0;
 	if (n >= 0)
