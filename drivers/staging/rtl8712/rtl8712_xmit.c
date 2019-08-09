@@ -262,7 +262,7 @@ void r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
 	ptx_desc->txdw1 |= cpu_to_le32((0x13 << QSEL_SHT) & 0x00001f00);
 }
 
-u8 r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
+void r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
 {
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)
 		pxmitbuf->priv_data;
@@ -276,8 +276,6 @@ u8 r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
 	pcmd_hdr->cmd_dw0 = cpu_to_le32((GEN_CMD_CODE(_AMSDU_TO_AMPDU) << 16) |
 					(pcmdpriv->cmd_seq << 24));
 	pcmdpriv->cmd_seq++;
-
-	return _SUCCESS;
 }
 
 u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
