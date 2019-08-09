@@ -2407,7 +2407,7 @@ static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 
 	for (prod_index = hr_cq->cons_index; get_sw_cqe_v2(hr_cq, prod_index);
 	     ++prod_index) {
-		if (prod_index == hr_cq->cons_index + hr_cq->ib_cq.cqe)
+		if (prod_index > hr_cq->cons_index + hr_cq->ib_cq.cqe)
 			break;
 	}
 
