@@ -6249,9 +6249,6 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 out_term2:
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags2);
 
-	if (sess)
-		ha->tgt.tgt_ops->put_sess(sess);
-
 out_term:
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_24xx_send_abts_resp(ha->base_qpair, &prm->abts,
