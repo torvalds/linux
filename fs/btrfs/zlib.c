@@ -437,4 +437,6 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.decompress_bio		= zlib_decompress_bio,
 	.decompress		= zlib_decompress,
 	.set_level              = zlib_set_level,
+	.max_level		= 9,
+	.default_level		= BTRFS_ZLIB_DEFAULT_LEVEL,
 };

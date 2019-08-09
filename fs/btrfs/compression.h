@@ -162,6 +162,10 @@ struct btrfs_compress_op {
 	 * if the level is out of bounds or the default if 0 is passed in.
 	 */
 	unsigned int (*set_level)(unsigned int level);
+
+	/* Maximum level supported by the compression algorithm */
+	unsigned int max_level;
+	unsigned int default_level;
 };
 
 /* The heuristic workspaces are managed via the 0th workspace manager */
