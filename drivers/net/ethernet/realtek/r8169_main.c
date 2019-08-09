@@ -5260,18 +5260,6 @@ static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
 	desc->opts1 &= ~cpu_to_le32(DescOwn | RsvdMask);
 }
 
-static void rtl8169_free_rx_databuff(struct rtl8169_private *tp,
-				     struct page **data_buff,
-				     struct RxDesc *desc)
-{
-	dma_unmap_page(tp_to_dev(tp), le64_to_cpu(desc->addr),
-		       R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
-
-	__free_pages(*data_buff, get_order(R8169_RX_BUF_SIZE));
-	*data_buff = NULL;
-	rtl8169_make_unusable_by_asic(desc);
-}
-
 static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 {
 	u32 eor = le32_to_cpu(desc->opts1) & RingEnd;
@@ -5312,11 +5300,13 @@ static void rtl8169_rx_clear(struct rtl8169_private *tp)
 {
 	unsigned int i;
 
-	for (i = 0; i < NUM_RX_DESC; i++) {
-		if (tp->Rx_databuff[i]) {
-			rtl8169_free_rx_databuff(tp, tp->Rx_databuff + i,
-					    tp->RxDescArray + i);
-		}
+	for (i = 0; i < NUM_RX_DESC && tp->Rx_databuff[i]; i++) {
+		dma_unmap_page(tp_to_dev(tp),
+			       le64_to_cpu(tp->RxDescArray[i].addr),
+			       R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
+		__free_pages(tp->Rx_databuff[i], get_order(R8169_RX_BUF_SIZE));
+		tp->Rx_databuff[i] = NULL;
+		rtl8169_make_unusable_by_asic(tp->RxDescArray + i);
 	}
 }
 
