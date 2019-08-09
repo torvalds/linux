@@ -301,15 +301,6 @@ ixp4xx_wdt:
 
 -------------------------------------------------
 
-ks8695_wdt:
-    wdt_time:
-	Watchdog time in seconds. (default=5)
-    nowayout:
-	Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-
--------------------------------------------------
-
 machzwd:
     nowayout:
 	Watchdog cannot be stopped once started
