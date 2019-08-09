@@ -2035,6 +2035,27 @@ static void gtt_write_workarounds(struct intel_gt *gt)
 				 GEN8_GAMW_ECO_DEV_RW_IA,
 				 0,
 				 GAMW_ECO_ENABLE_64K_IPS_FIELD);
+
+	if (IS_GEN_RANGE(i915, 8, 11)) {
+		bool can_use_gtt_cache = true;
+
+		/*
+		 * According to the BSpec if we use 2M/1G pages then we also
+		 * need to disable the GTT cache. At least on BDW we can see
+		 * visual corruption when using 2M pages, and not disabling the
+		 * GTT cache.
+		 */
+		if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_2M))
+			can_use_gtt_cache = false;
+
+		/* WaGttCachingOffByDefault */
+		intel_uncore_write(uncore,
+				   HSW_GTT_CACHE_EN,
+				   can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
+		WARN_ON_ONCE(can_use_gtt_cache &&
+			     intel_uncore_read(uncore,
+					       HSW_GTT_CACHE_EN) == 0);
+	}
 }
 
 int i915_ppgtt_init_hw(struct intel_gt *gt)
