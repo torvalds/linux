@@ -49,8 +49,10 @@ static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
 	 * register (1) as VM_MTE in the vma->vm_flags and (2) as
 	 * VM_MTE_ALLOWED. Note that the latter can only be set during the
 	 * mmap() call since mprotect() does not accept MAP_* flags.
+	 * Checking for VM_MTE only is sufficient since arch_validate_flags()
+	 * does not permit (VM_MTE & !VM_MTE_ALLOWED).
 	 */
-	if ((vm_flags & VM_MTE) && (vm_flags & VM_MTE_ALLOWED))
+	if (vm_flags & VM_MTE)
 		prot |= PTE_ATTRINDX(MT_NORMAL_TAGGED);
 
 	return __pgprot(prot);
@@ -71,5 +73,15 @@ static inline bool arch_validate_prot(unsigned long prot,
 	return (prot & ~supported) == 0;
 }
 #define arch_validate_prot(prot, addr) arch_validate_prot(prot, addr)
+
+static inline bool arch_validate_flags(unsigned long vm_flags)
+{
+	if (!system_supports_mte())
+		return true;
+
+	/* only allow VM_MTE if VM_MTE_ALLOWED has been set previously */
+	return !(vm_flags & VM_MTE) || (vm_flags & VM_MTE_ALLOWED);
+}
+#define arch_validate_flags(vm_flags) arch_validate_flags(vm_flags)
 
 #endif /* ! __ASM_MMAN_H__ */
