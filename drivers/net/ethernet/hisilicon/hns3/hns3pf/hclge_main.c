@@ -364,9 +364,13 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
 	u16 i, k, n;
 	int ret;
 
-	desc = kcalloc(desc_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	/* This may be called inside atomic sections,
+	 * so GFP_ATOMIC is more suitalbe here
+	 */
+	desc = kcalloc(desc_num, sizeof(struct hclge_desc), GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
+
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_STATS_MAC_ALL, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, desc_num);
 	if (ret) {
