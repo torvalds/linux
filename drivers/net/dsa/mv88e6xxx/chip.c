@@ -394,28 +394,6 @@ static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
 	mv88e6xxx_reg_unlock(chip);
 }
 
-int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask)
-{
-	return mv88e6xxx_wait_mask(chip, addr, reg, mask, 0x0000);
-}
-
-/* Indirect write to single pointer-data register with an Update bit */
-int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg, u16 update)
-{
-	u16 val;
-	int err;
-
-	/* Wait until the previous operation is completed */
-	err = mv88e6xxx_wait(chip, addr, reg, BIT(15));
-	if (err)
-		return err;
-
-	/* Set the Update bit to trigger a write operation */
-	val = BIT(15) | update;
-
-	return mv88e6xxx_write(chip, addr, reg, val);
-}
-
 int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			     int speed, int duplex, int pause,
 			     phy_interface_t mode)

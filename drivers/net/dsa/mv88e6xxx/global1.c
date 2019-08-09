@@ -27,11 +27,6 @@ int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
-int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
-{
-	return mv88e6xxx_wait(chip, chip->info->global1_addr, reg, mask);
-}
-
 int mv88e6xxx_g1_wait_bit(struct mv88e6xxx_chip *chip, int reg, int
 			  bit, int val)
 {

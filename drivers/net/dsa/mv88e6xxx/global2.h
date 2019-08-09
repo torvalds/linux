@@ -295,8 +295,6 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 
 int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
-int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update);
-int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
 int mv88e6xxx_g2_wait_bit(struct mv88e6xxx_chip *chip, int reg,
 			  int bit, int val);
 
@@ -374,16 +372,6 @@ static inline int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *v
 }
 
 static inline int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 {
 	return -EOPNOTSUPP;
 }

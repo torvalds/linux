@@ -249,7 +249,6 @@
 
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
-int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
 int mv88e6xxx_g1_wait_bit(struct mv88e6xxx_chip *chip, int reg, int
 			  bit, int val);
 int mv88e6xxx_g1_wait_mask(struct mv88e6xxx_chip *chip, int reg,
