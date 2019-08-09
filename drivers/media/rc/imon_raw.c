@@ -85,7 +85,7 @@ static void imon_ir_data(struct imon *imon)
 		offset = bit;
 	} while (offset > 0);
 
-	if (packet_no == 0x0a) {
+	if (packet_no == 0x0a && !imon->rcdev->idle) {
 		ir_raw_event_set_idle(imon->rcdev, true);
 		ir_raw_event_handle(imon->rcdev);
 	}
