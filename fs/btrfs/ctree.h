@@ -1335,17 +1335,10 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 void btrfs_set_token_##bits(struct extent_buffer *eb, const void *ptr,	\
 			    unsigned long off, u##bits val,		\
 			    struct btrfs_map_token *token);		\
-static inline u##bits btrfs_get_##bits(const struct extent_buffer *eb,	\
-				       const void *ptr,			\
-				       unsigned long off)		\
-{									\
-	return btrfs_get_token_##bits(eb, ptr, off, NULL);		\
-}									\
-static inline void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,\
-				    unsigned long off, u##bits val)	\
-{									\
-       btrfs_set_token_##bits(eb, ptr, off, val, NULL);			\
-}
+u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
+			 const void *ptr, unsigned long off);		\
+void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
+		      unsigned long off, u##bits val);
 
 DECLARE_BTRFS_SETGET_BITS(8)
 DECLARE_BTRFS_SETGET_BITS(16)
