@@ -87,6 +87,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_VF_RSRC		= 0x0024,
 	HCLGE_OPC_GET_CFG_PARAM		= 0x0025,
 	HCLGE_OPC_PF_RST_DONE		= 0x0026,
+	HCLGE_OPC_QUERY_VF_RST_RDY	= 0x0027,
 
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
@@ -586,6 +587,12 @@ enum hclge_promisc_type {
 struct hclge_config_mac_mode_cmd {
 	__le32 txrx_pad_fcs_loop_en;
 	u8 rsv[20];
+};
+
+struct hclge_pf_rst_sync_cmd {
+#define HCLGE_PF_RST_ALL_VF_RDY_B	0
+	u8 all_vf_ready;
+	u8 rsv[23];
 };
 
 #define HCLGE_CFG_SPEED_S		0

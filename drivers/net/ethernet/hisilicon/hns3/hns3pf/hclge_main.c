@@ -35,6 +35,9 @@
 #define BUF_RESERVE_PERCENT	90
 
 #define HCLGE_RESET_MAX_FAIL_CNT	5
+#define HCLGE_RESET_SYNC_TIME		100
+#define HCLGE_PF_RESET_SYNC_TIME	20
+#define HCLGE_PF_RESET_SYNC_CNT		1500
 
 /* Get DFX BD number offset */
 #define HCLGE_DFX_BIOS_BD_OFFSET        1
@@ -3184,6 +3187,39 @@ static int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
 	return 0;
 }
 
+int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
+{
+	struct hclge_pf_rst_sync_cmd *req;
+	struct hclge_desc desc;
+	int cnt = 0;
+	int ret;
+
+	req = (struct hclge_pf_rst_sync_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_VF_RST_RDY, true);
+
+	do {
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		/* for compatible with old firmware, wait
+		 * 100 ms for VF to stop IO
+		 */
+		if (ret == -EOPNOTSUPP) {
+			msleep(HCLGE_RESET_SYNC_TIME);
+			return 0;
+		} else if (ret) {
+			dev_err(&hdev->pdev->dev, "sync with VF fail %d!\n",
+				ret);
+			return ret;
+		} else if (req->all_vf_ready) {
+			return 0;
+		}
+		msleep(HCLGE_PF_RESET_SYNC_TIME);
+		hclge_cmd_reuse_desc(&desc, true);
+	} while (cnt++ < HCLGE_PF_RESET_SYNC_CNT);
+
+	dev_err(&hdev->pdev->dev, "sync with VF timeout!\n");
+	return -ETIME;
+}
+
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 {
 	struct hclge_desc desc;
@@ -3350,17 +3386,18 @@ static void hclge_reset_handshake(struct hclge_dev *hdev, bool enable)
 
 static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 {
-#define HCLGE_RESET_SYNC_TIME 100
-
 	u32 reg_val;
 	int ret = 0;
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
-		/* There is no mechanism for PF to know if VF has stopped IO
-		 * for now, just wait 100 ms for VF to stop IO
+		/* to confirm whether all running VF is ready
+		 * before request PF reset
 		 */
-		msleep(HCLGE_RESET_SYNC_TIME);
+		ret = hclge_func_reset_sync_vf(hdev);
+		if (ret)
+			return ret;
+
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -3377,10 +3414,13 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		hdev->rst_stats.pf_rst_cnt++;
 		break;
 	case HNAE3_FLR_RESET:
-		/* There is no mechanism for PF to know if VF has stopped IO
-		 * for now, just wait 100 ms for VF to stop IO
+		/* to confirm whether all running VF is ready
+		 * before request PF reset
 		 */
-		msleep(HCLGE_RESET_SYNC_TIME);
+		ret = hclge_func_reset_sync_vf(hdev);
+		if (ret)
+			return ret;
+
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 		set_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
 		hdev->rst_stats.flr_rst_cnt++;
