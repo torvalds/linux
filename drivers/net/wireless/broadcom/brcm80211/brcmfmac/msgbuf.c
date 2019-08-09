@@ -1468,7 +1468,6 @@ static int brcmf_msgbuf_stats_read(struct seq_file *seq, void *data)
 	seq_printf(seq, "\nh2d_flowrings: depth %u\n",
 		   BRCMF_H2D_TXFLOWRING_MAX_ITEM);
 	seq_puts(seq, "Active flowrings:\n");
-	hash = msgbuf->flow->hash;
 	for (i = 0; i < msgbuf->flow->nrofrings; i++) {
 		if (!msgbuf->flow->rings[i])
 			continue;
