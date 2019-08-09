@@ -737,7 +737,7 @@ static void dump_xframe(struct _adapter *padapter,
 	}
 }
 
-int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
+void r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	int res;
 
@@ -745,7 +745,6 @@ int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 	pxmitframe->pkt = NULL;
 	if (res == _SUCCESS)
 		dump_xframe(padapter, pxmitframe);
-	return res;
 }
 
 int r8712_xmit_enqueue(struct _adapter *padapter, struct xmit_frame *pxmitframe)

@@ -276,7 +276,7 @@ void r8712_free_xmitframe_ex(struct xmit_priv *pxmitpriv,
 int r8712_pre_xmit(struct _adapter *padapter, struct xmit_frame *pxmitframe);
 int r8712_xmit_enqueue(struct _adapter *padapter,
 		       struct xmit_frame *pxmitframe);
-int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe);
+void r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe);
 void r8712_xmit_bh(void *priv);
 
 void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,
