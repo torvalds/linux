@@ -287,12 +287,6 @@ config USB_EHCI_MV
 	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
 	  on-chip EHCI USB controller" for those.
 
-config USB_W90X900_EHCI
-	tristate "W90X900(W90P910) EHCI support"
-	depends on ARCH_W90X900
-	---help---
-		Enables support for the W90X900 USB controller
-
 config USB_CNS3XXX_EHCI
 	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
 	depends on ARCH_CNS3XXX
