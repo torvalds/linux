@@ -923,7 +923,9 @@ static void extent_err(const struct extent_buffer *eb, int slot,
 
 	btrfs_item_key_to_cpu(eb, &key, slot);
 	bytenr = key.objectid;
-	if (key.type == BTRFS_METADATA_ITEM_KEY)
+	if (key.type == BTRFS_METADATA_ITEM_KEY ||
+	    key.type == BTRFS_TREE_BLOCK_REF_KEY ||
+	    key.type == BTRFS_SHARED_BLOCK_REF_KEY)
 		len = eb->fs_info->nodesize;
 	else
 		len = key.offset;
@@ -1154,6 +1156,37 @@ static int check_extent_item(struct extent_buffer *leaf,
 	return 0;
 }
 
+static int check_simple_keyed_refs(struct extent_buffer *leaf,
+				   struct btrfs_key *key, int slot)
+{
+	u32 expect_item_size = 0;
+
+	if (key->type == BTRFS_SHARED_DATA_REF_KEY)
+		expect_item_size = sizeof(struct btrfs_shared_data_ref);
+
+	if (btrfs_item_size_nr(leaf, slot) != expect_item_size) {
+		generic_err(leaf, slot,
+		"invalid item size, have %u expect %u for key type %u",
+			    btrfs_item_size_nr(leaf, slot),
+			    expect_item_size, key->type);
+		return -EUCLEAN;
+	}
+	if (!IS_ALIGNED(key->objectid, leaf->fs_info->sectorsize)) {
+		generic_err(leaf, slot,
+"invalid key objectid for shared block ref, have %llu expect aligned to %u",
+			    key->objectid, leaf->fs_info->sectorsize);
+		return -EUCLEAN;
+	}
+	if (key->type != BTRFS_TREE_BLOCK_REF_KEY &&
+	    !IS_ALIGNED(key->offset, leaf->fs_info->sectorsize)) {
+		extent_err(leaf, slot,
+		"invalid tree parent bytenr, have %llu expect aligned to %u",
+			   key->offset, leaf->fs_info->sectorsize);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -1195,6 +1228,11 @@ static int check_leaf_item(struct extent_buffer *leaf,
 	case BTRFS_EXTENT_ITEM_KEY:
 	case BTRFS_METADATA_ITEM_KEY:
 		ret = check_extent_item(leaf, key, slot);
+		break;
+	case BTRFS_TREE_BLOCK_REF_KEY:
+	case BTRFS_SHARED_DATA_REF_KEY:
+	case BTRFS_SHARED_BLOCK_REF_KEY:
+		ret = check_simple_keyed_refs(leaf, key, slot);
 		break;
 	}
 	return ret;
