@@ -550,7 +550,6 @@ header-test-			+= linux/platform_data/sky81452-backlight.h
 header-test-			+= linux/platform_data/spi-davinci.h
 header-test-			+= linux/platform_data/spi-ep93xx.h
 header-test-			+= linux/platform_data/spi-mt65xx.h
-header-test-			+= linux/platform_data/spi-nuc900.h
 header-test-			+= linux/platform_data/st_sensors_pdata.h
 header-test-			+= linux/platform_data/ti-sysc.h
 header-test-			+= linux/platform_data/timer-ixp4xx.h
