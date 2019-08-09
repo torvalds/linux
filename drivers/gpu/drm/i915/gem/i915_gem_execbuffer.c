@@ -2102,6 +2102,12 @@ static int eb_submit(struct i915_execbuffer *eb)
 	return 0;
 }
 
+static int num_vcs_engines(const struct drm_i915_private *i915)
+{
+	return hweight64(INTEL_INFO(i915)->engine_mask &
+			 GENMASK_ULL(VCS0 + I915_MAX_VCS - 1, VCS0));
+}
+
 /*
  * Find one BSD ring to dispatch the corresponding BSD command.
  * The engine index is returned.
@@ -2200,7 +2206,7 @@ eb_select_legacy_ring(struct i915_execbuffer *eb,
 		return -1;
 	}
 
-	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(i915, VCS1)) {
+	if (user_ring_id == I915_EXEC_BSD && num_vcs_engines(i915) > 1) {
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {
