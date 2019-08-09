@@ -738,6 +738,8 @@ create_kernel_context(struct intel_engine_cs *engine)
 	if (IS_ERR(ce))
 		return ce;
 
+	ce->ring = __intel_context_ring_size(SZ_4K);
+
 	err = intel_context_pin(ce);
 	if (err) {
 		intel_context_put(ce);

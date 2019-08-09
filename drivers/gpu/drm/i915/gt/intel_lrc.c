@@ -3115,9 +3115,8 @@ static int __execlists_context_alloc(struct intel_context *ce,
 		goto error_deref_obj;
 	}
 
-	ring = intel_engine_create_ring(engine,
-					timeline,
-					ce->gem_context->ring_size);
+	ring = intel_engine_create_ring(engine, timeline,
+					(unsigned long)ce->ring);
 	intel_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);

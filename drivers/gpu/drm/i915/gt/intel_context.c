@@ -222,6 +222,7 @@ intel_context_init(struct intel_context *ce,
 	ce->engine = engine;
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
+	ce->ring = __intel_context_ring_size(SZ_16K);
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);

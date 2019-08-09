@@ -140,7 +140,7 @@ static void mock_context_destroy(struct kref *ref)
 
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
-	if (ce->ring)
+	if (test_bit(CONTEXT_ALLOC_BIT, &ce->flags))
 		mock_ring_free(ce->ring);
 
 	intel_context_fini(ce);

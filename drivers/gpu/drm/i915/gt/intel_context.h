@@ -136,4 +136,9 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 
 struct i915_request *intel_context_create_request(struct intel_context *ce);
 
+static inline struct intel_ring *__intel_context_ring_size(u64 sz)
+{
+	return u64_to_ptr(struct intel_ring, sz);
+}
+
 #endif /* __INTEL_CONTEXT_H__ */

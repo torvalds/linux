@@ -169,9 +169,6 @@ struct i915_gem_context {
 
 	struct i915_sched_attr sched;
 
-	/** ring_size: size for allocating the per-engine ring buffer */
-	u32 ring_size;
-
 	/** guilty_count: How many times this context has caused a GPU hang. */
 	atomic_t guilty_count;
 	/**

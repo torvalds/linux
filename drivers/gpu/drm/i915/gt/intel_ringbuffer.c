@@ -2350,7 +2350,7 @@ int intel_ring_submission_init(struct intel_engine_cs *engine)
 	}
 	GEM_BUG_ON(timeline->has_initial_breadcrumb);
 
-	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
+	ring = intel_engine_create_ring(engine, timeline, SZ_16K);
 	intel_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		err = PTR_ERR(ring);

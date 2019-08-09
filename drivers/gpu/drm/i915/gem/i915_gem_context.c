@@ -436,8 +436,6 @@ __create_context(struct drm_i915_private *i915)
 	i915_gem_context_set_bannable(ctx);
 	i915_gem_context_set_recoverable(ctx);
 
-	ctx->ring_size = 4 * PAGE_SIZE;
-
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
 
@@ -448,22 +446,34 @@ err_free:
 	return ERR_PTR(err);
 }
 
+static void
+context_apply_all(struct i915_gem_context *ctx,
+		  void (*fn)(struct intel_context *ce, void *data),
+		  void *data)
+{
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it)
+		fn(ce, data);
+	i915_gem_context_unlock_engines(ctx);
+}
+
+static void __apply_ppgtt(struct intel_context *ce, void *vm)
+{
+	i915_vm_put(ce->vm);
+	ce->vm = i915_vm_get(vm);
+}
+
 static struct i915_address_space *
 __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
 	struct i915_address_space *old = ctx->vm;
-	struct i915_gem_engines_iter it;
-	struct intel_context *ce;
 
 	GEM_BUG_ON(old && i915_vm_is_4lvl(vm) != i915_vm_is_4lvl(old));
 
 	ctx->vm = i915_vm_get(vm);
-
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
-		i915_vm_put(ce->vm);
-		ce->vm = i915_vm_get(vm);
-	}
-	i915_gem_context_unlock_engines(ctx);
+	context_apply_all(ctx, __apply_ppgtt, vm);
 
 	return old;
 }
@@ -560,7 +570,6 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 
 	i915_gem_context_clear_bannable(ctx);
 	ctx->sched.priority = I915_USER_PRIORITY(prio);
-	ctx->ring_size = PAGE_SIZE;
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
 
@@ -1544,6 +1553,7 @@ set_engines(struct i915_gem_context *ctx,
 	for (n = 0; n < num_engines; n++) {
 		struct i915_engine_class_instance ci;
 		struct intel_engine_cs *engine;
+		struct intel_context *ce;
 
 		if (copy_from_user(&ci, &user->engines[n], sizeof(ci))) {
 			__free_engines(set.engines, n);
@@ -1566,11 +1576,13 @@ set_engines(struct i915_gem_context *ctx,
 			return -ENOENT;
 		}
 
-		set.engines->engines[n] = intel_context_create(ctx, engine);
-		if (!set.engines->engines[n]) {
+		ce = intel_context_create(ctx, engine);
+		if (IS_ERR(ce)) {
 			__free_engines(set.engines, n);
-			return -ENOMEM;
+			return PTR_ERR(ce);
 		}
+
+		set.engines->engines[n] = ce;
 	}
 	set.engines->num_engines = num_engines;
 
