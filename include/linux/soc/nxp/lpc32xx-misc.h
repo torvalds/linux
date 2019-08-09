@@ -9,15 +9,20 @@
 #define __SOC_LPC32XX_MISC_H
 
 #include <linux/types.h>
+#include <linux/phy.h>
 
 #ifdef CONFIG_ARCH_LPC32XX
 extern u32 lpc32xx_return_iram(void __iomem **mapbase, dma_addr_t *dmaaddr);
+extern void lpc32xx_set_phy_interface_mode(phy_interface_t mode);
 #else
 static inline u32 lpc32xx_return_iram(void __iomem **mapbase, dma_addr_t *dmaaddr)
 {
 	*mapbase = NULL;
 	*dmaaddr = 0;
 	return 0;
+}
+static inline void lpc32xx_set_phy_interface_mode(phy_interface_t mode)
+{
 }
 #endif
 
