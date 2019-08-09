@@ -1118,10 +1118,9 @@ global_port_update:
 			struct event_arg ea;
 
 			memset(&ea, 0, sizeof(ea));
-			ea.event = FCME_RSCN;
 			ea.id.b24 = rscn_entry;
 			ea.id.b.rsvd_1 = rscn_entry >> 24;
-			qla2x00_fcport_event_handler(vha, &ea);
+			qla2x00_handle_rscn(vha, &ea);
 			qla2x00_post_aen_work(vha, FCH_EVT_RSCN, rscn_entry);
 		}
 		break;

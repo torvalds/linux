@@ -2363,22 +2363,6 @@ enum login_state {	/* FW control Target side */
 	DSC_LS_LOGO_PEND,
 };
 
-enum fcport_mgt_event {
-	FCME_RELOGIN = 1,
-	FCME_RSCN,
-	FCME_PLOGI_DONE,	/* Initiator side sent LLIOCB */
-	FCME_PRLI_DONE,
-	FCME_GNL_DONE,
-	FCME_GPSC_DONE,
-	FCME_GPDB_DONE,
-	FCME_GPNID_DONE,
-	FCME_GFFID_DONE,
-	FCME_ADISC_DONE,
-	FCME_GNNID_DONE,
-	FCME_GFPNID_DONE,
-	FCME_ELS_PLOGI_DONE,
-};
-
 enum rscn_addr_format {
 	RSCN_PORT_ADDR,
 	RSCN_AREA_ADDR,
@@ -2496,7 +2480,6 @@ typedef struct fc_port {
 #define QLA_FCPORT_FOUND	2
 
 struct event_arg {
-	enum fcport_mgt_event	event;
 	fc_port_t		*fcport;
 	srb_t			*sp;
 	port_id_t		id;

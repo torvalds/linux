@@ -5328,9 +5328,8 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 			} else {
 				if (vha->hw->current_topology != ISP_CFG_NL) {
 					memset(&ea, 0, sizeof(ea));
-					ea.event = FCME_RELOGIN;
 					ea.fcport = fcport;
-					qla2x00_fcport_event_handler(vha, &ea);
+					qla24xx_handle_relogin_event(vha, &ea);
 				} else if (vha->hw->current_topology ==
 				    ISP_CFG_NL) {
 					fcport->login_retry--;

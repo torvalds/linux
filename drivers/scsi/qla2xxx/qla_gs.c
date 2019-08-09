@@ -3031,11 +3031,10 @@ static void qla24xx_async_gpsc_sp_done(srb_t *sp, int res)
 		    be16_to_cpu(ct_rsp->rsp.gpsc.speed));
 	}
 	memset(&ea, 0, sizeof(ea));
-	ea.event = FCME_GPSC_DONE;
 	ea.rc = res;
 	ea.fcport = fcport;
 	ea.sp = sp;
-	qla2x00_fcport_event_handler(vha, &ea);
+	qla24xx_handle_gpsc_event(vha, &ea);
 
 done:
 	sp->free(sp);
@@ -3283,7 +3282,6 @@ static void qla2x00_async_gpnid_sp_done(srb_t *sp, int res)
 	ea.sp = sp;
 	ea.id = be_to_port_id(ct_req->req.port_id.port_id);
 	ea.rc = res;
-	ea.event = FCME_GPNID_DONE;
 
 	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	list_del(&sp->elem);
@@ -3302,7 +3300,7 @@ static void qla2x00_async_gpnid_sp_done(srb_t *sp, int res)
 		return;
 	}
 
-	qla2x00_fcport_event_handler(vha, &ea);
+	qla24xx_handle_gpnid_event(vha, &ea);
 
 	e = qla2x00_alloc_work(vha, QLA_EVT_UNMAP);
 	if (!e) {
@@ -3481,9 +3479,8 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 	ea.sp = sp;
 	ea.fcport = sp->fcport;
 	ea.rc = res;
-	ea.event = FCME_GFFID_DONE;
 
-	qla2x00_fcport_event_handler(vha, &ea);
+	qla24xx_handle_gffid_event(vha, &ea);
 	sp->free(sp);
 }
 
@@ -4263,13 +4260,12 @@ static void qla2x00_async_gnnid_sp_done(srb_t *sp, int res)
 	ea.fcport = fcport;
 	ea.sp = sp;
 	ea.rc = res;
-	ea.event = FCME_GNNID_DONE;
 
 	ql_dbg(ql_dbg_disc, vha, 0x204f,
 	    "Async done-%s res %x, WWPN %8phC %8phC\n",
 	    sp->name, res, fcport->port_name, fcport->node_name);
 
-	qla2x00_fcport_event_handler(vha, &ea);
+	qla24xx_handle_gnnid_event(vha, &ea);
 
 	sp->free(sp);
 }
@@ -4394,13 +4390,12 @@ static void qla2x00_async_gfpnid_sp_done(srb_t *sp, int res)
 	ea.fcport = fcport;
 	ea.sp = sp;
 	ea.rc = res;
-	ea.event = FCME_GFPNID_DONE;
 
 	ql_dbg(ql_dbg_disc, vha, 0x204f,
 	    "Async done-%s res %x, WWPN %8phC %8phC\n",
 	    sp->name, res, fcport->port_name, fcport->fabric_port_name);
 
-	qla2x00_fcport_event_handler(vha, &ea);
+	qla24xx_handle_gfpnid_event(vha, &ea);
 
 	sp->free(sp);
 }

@@ -2741,8 +2741,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 			memset(&ea, 0, sizeof(ea));
 			ea.fcport = fcport;
 			ea.rc = res;
-			ea.event = FCME_ELS_PLOGI_DONE;
-			qla2x00_fcport_event_handler(vha, &ea);
+			qla24xx_handle_plogi_done_event(vha, &ea);
 		}
 
 		e = qla2x00_alloc_work(vha, QLA_EVT_UNMAP);
