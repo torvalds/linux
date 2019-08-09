@@ -61,8 +61,6 @@ static inline u8 byte(const u32 x, const unsigned n)
 	return x >> (n << 3);
 }
 
-static const u32 rco_tab[10] = { 1, 2, 4, 8, 16, 32, 64, 128, 27, 54 };
-
 /* cacheline-aligned to facilitate prefetching into cache */
 __visible const u32 crypto_ft_tab[4][256] ____cacheline_aligned = {
 	{
