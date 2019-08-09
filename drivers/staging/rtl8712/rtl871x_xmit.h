@@ -249,8 +249,8 @@ struct	xmit_priv {
 	uint free_xmitbuf_cnt;
 };
 
-int r8712_free_xmitbuf(struct xmit_priv *pxmitpriv,
-		       struct xmit_buf *pxmitbuf);
+void r8712_free_xmitbuf(struct xmit_priv *pxmitpriv,
+			struct xmit_buf *pxmitbuf);
 struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv);
 void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len);
 struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv);
