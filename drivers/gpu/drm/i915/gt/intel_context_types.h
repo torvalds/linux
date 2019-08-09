@@ -23,6 +23,8 @@ struct intel_context;
 struct intel_ring;
 
 struct intel_context_ops {
+	int (*alloc)(struct intel_context *ce);
+
 	int (*pin)(struct intel_context *ce);
 	void (*unpin)(struct intel_context *ce);
 
@@ -51,6 +53,9 @@ struct intel_context {
 
 	struct i915_vma *state;
 	struct intel_ring *ring;
+
+	unsigned long flags;
+#define CONTEXT_ALLOC_BIT 0
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;

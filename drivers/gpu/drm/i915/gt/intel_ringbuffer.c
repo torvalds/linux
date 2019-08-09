@@ -1480,16 +1480,16 @@ err_obj:
 	return ERR_PTR(err);
 }
 
-static int ring_context_pin(struct intel_context *ce)
+static int ring_context_alloc(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
-	int err;
 
 	/* One ringbuffer to rule them all */
 	GEM_BUG_ON(!engine->buffer);
 	ce->ring = engine->buffer;
 
-	if (!ce->state && engine->context_size) {
+	GEM_BUG_ON(ce->state);
+	if (engine->context_size) {
 		struct i915_vma *vma;
 
 		vma = alloc_context_vma(engine);
@@ -1498,6 +1498,13 @@ static int ring_context_pin(struct intel_context *ce)
 
 		ce->state = vma;
 	}
+
+	return 0;
+}
+
+static int ring_context_pin(struct intel_context *ce)
+{
+	int err;
 
 	err = intel_context_active_acquire(ce);
 	if (err)
@@ -1520,6 +1527,8 @@ static void ring_context_reset(struct intel_context *ce)
 }
 
 static const struct intel_context_ops ring_context_ops = {
+	.alloc = ring_context_alloc,
+
 	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
 

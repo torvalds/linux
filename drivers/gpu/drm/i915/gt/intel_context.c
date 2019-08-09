@@ -53,6 +53,14 @@ int __intel_context_do_pin(struct intel_context *ce)
 	if (likely(!atomic_read(&ce->pin_count))) {
 		intel_wakeref_t wakeref;
 
+		if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
+			err = ce->ops->alloc(ce);
+			if (unlikely(err))
+				goto err;
+
+			__set_bit(CONTEXT_ALLOC_BIT, &ce->flags);
+		}
+
 		err = 0;
 		with_intel_runtime_pm(&ce->engine->i915->runtime_pm, wakeref)
 			err = ce->ops->pin(ce);

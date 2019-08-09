@@ -219,8 +219,9 @@ static struct virtual_engine *to_virtual_engine(struct intel_engine_cs *engine)
 	return container_of(engine, struct virtual_engine, base);
 }
 
-static int execlists_context_deferred_alloc(struct intel_context *ce,
-					    struct intel_engine_cs *engine);
+static int __execlists_context_alloc(struct intel_context *ce,
+				     struct intel_engine_cs *engine);
+
 static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_context *ce,
 				     struct intel_engine_cs *engine,
@@ -1614,9 +1615,6 @@ __execlists_context_pin(struct intel_context *ce,
 	void *vaddr;
 	int ret;
 
-	ret = execlists_context_deferred_alloc(ce, engine);
-	if (ret)
-		goto err;
 	GEM_BUG_ON(!ce->state);
 
 	ret = intel_context_active_acquire(ce);
@@ -1655,6 +1653,11 @@ static int execlists_context_pin(struct intel_context *ce)
 	return __execlists_context_pin(ce, ce->engine);
 }
 
+static int execlists_context_alloc(struct intel_context *ce)
+{
+	return __execlists_context_alloc(ce, ce->engine);
+}
+
 static void execlists_context_reset(struct intel_context *ce)
 {
 	/*
@@ -1678,6 +1681,8 @@ static void execlists_context_reset(struct intel_context *ce)
 }
 
 static const struct intel_context_ops execlists_context_ops = {
+	.alloc = execlists_context_alloc,
+
 	.pin = execlists_context_pin,
 	.unpin = execlists_context_unpin,
 
@@ -3075,8 +3080,8 @@ get_timeline(struct i915_gem_context *ctx, struct intel_gt *gt)
 		return intel_timeline_create(gt, NULL);
 }
 
-static int execlists_context_deferred_alloc(struct intel_context *ce,
-					    struct intel_engine_cs *engine)
+static int __execlists_context_alloc(struct intel_context *ce,
+				     struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
 	struct i915_vma *vma;
@@ -3085,9 +3090,7 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 	struct intel_timeline *timeline;
 	int ret;
 
-	if (ce->state)
-		return 0;
-
+	GEM_BUG_ON(ce->state);
 	context_size = round_up(engine->context_size, I915_GTT_PAGE_SIZE);
 
 	/*
@@ -3532,6 +3535,12 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 	}
 
 	ve->base.flags |= I915_ENGINE_IS_VIRTUAL;
+
+	err = __execlists_context_alloc(&ve->context, siblings[0]);
+	if (err)
+		goto err_put;
+
+	__set_bit(CONTEXT_ALLOC_BIT, &ve->context.flags);
 
 	return &ve->context;
 

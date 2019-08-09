@@ -147,15 +147,18 @@ static void mock_context_destroy(struct kref *ref)
 	intel_context_free(ce);
 }
 
+static int mock_context_alloc(struct intel_context *ce)
+{
+	ce->ring = mock_ring(ce->engine);
+	if (!ce->ring)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int mock_context_pin(struct intel_context *ce)
 {
 	int ret;
-
-	if (!ce->ring) {
-		ce->ring = mock_ring(ce->engine);
-		if (!ce->ring)
-			return -ENOMEM;
-	}
 
 	ret = intel_context_active_acquire(ce);
 	if (ret)
@@ -166,6 +169,8 @@ static int mock_context_pin(struct intel_context *ce)
 }
 
 static const struct intel_context_ops mock_context_ops = {
+	.alloc = mock_context_alloc,
+
 	.pin = mock_context_pin,
 	.unpin = mock_context_unpin,
 
