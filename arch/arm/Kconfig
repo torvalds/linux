@@ -264,7 +264,6 @@ config PHYS_OFFSET
 			ARCH_FOOTBRIDGE || \
 			ARCH_INTEGRATOR || \
 			ARCH_IOP13XX || \
-			ARCH_KS8695 || \
 			ARCH_REALVIEW
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
@@ -450,17 +449,6 @@ config ARCH_DOVE
 	select PM_GENERIC_DOMAINS if PM
 	help
 	  Support for the Marvell Dove SoC 88AP510
-
-config ARCH_KS8695
-	bool "Micrel/Kendin KS8695"
-	select CLKSRC_MMIO
-	select CPU_ARM922T
-	select GENERIC_CLOCKEVENTS
-	select GPIOLIB
-	select NEED_MACH_MEMORY_H
-	help
-	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
-	  System-on-Chip devices.
 
 config ARCH_W90X900
 	bool "Nuvoton W90X900 CPU"
@@ -743,8 +731,6 @@ source "arch/arm/mach-iop33x/Kconfig"
 source "arch/arm/mach-ixp4xx/Kconfig"
 
 source "arch/arm/mach-keystone/Kconfig"
-
-source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-mediatek/Kconfig"
 

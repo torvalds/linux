@@ -509,13 +509,6 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART1 serial port on KEYSTONE2 devices.
 
-	config DEBUG_KS8695_UART
-		bool "KS8695 Debug UART"
-		depends on ARCH_KS8695
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on KS8695.
-
 	config DEBUG_LPC18XX_UART0
 		bool "Kernel low-level debugging via LPC18xx/43xx UART0"
 		depends on ARCH_LPC18XX
@@ -1533,7 +1526,6 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6SX_UART || \
 				 DEBUG_IMX6UL_UART || \
 				 DEBUG_IMX7D_UART
-	default "debug/ks8695.S" if DEBUG_KS8695_UART
 	default "debug/msm.S" if DEBUG_QCOM_UARTDM
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/renesas-scif.S" if DEBUG_R7S72100_SCIF2
