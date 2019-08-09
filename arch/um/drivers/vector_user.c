@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/ether.h>
@@ -33,7 +34,8 @@
 
 #define ID_GRE 0
 #define ID_L2TPV3 1
-#define ID_MAX 1
+#define ID_BESS 2
+#define ID_MAX 2
 
 #define TOKEN_IFNAME "ifname"
 
@@ -43,7 +45,10 @@
 #define VNET_HDR_FAIL "could not enable vnet headers on fd %d"
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
 #define L2TPV3_BIND_FAIL "l2tpv3_open : could not bind socket err=%i"
+#define UNIX_BIND_FAIL "unix_open : could not bind socket err=%i"
 #define BPF_ATTACH_FAIL "Failed to attach filter size %d to %d, err %d\n"
+
+#define MAX_UN_LEN 107
 
 /* This is very ugly and brute force lookup, but it is done
  * only once at initialization so not worth doing hashes or
@@ -265,6 +270,85 @@ hybrid_cleanup:
 	return NULL;
 }
 
+static struct vector_fds *user_init_unix_fds(struct arglist *ifspec, int id)
+{
+	int fd = -1;
+	int socktype;
+	char *src, *dst;
+	struct vector_fds *result = NULL;
+	struct sockaddr_un *local_addr = NULL, *remote_addr = NULL;
+
+	src = uml_vector_fetch_arg(ifspec, "src");
+	dst = uml_vector_fetch_arg(ifspec, "dst");
+	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
+	if (result == NULL) {
+		printk(UM_KERN_ERR "unix open:cannot allocate remote addr");
+		goto unix_cleanup;
+	}
+	remote_addr = uml_kmalloc(sizeof(struct sockaddr_un), UM_GFP_KERNEL);
+	if (remote_addr == NULL) {
+		printk(UM_KERN_ERR "unix open:cannot allocate remote addr");
+		goto unix_cleanup;
+	}
+
+	switch (id) {
+	case ID_BESS:
+		socktype = SOCK_SEQPACKET;
+		if ((src != NULL) && (strlen(src) <= MAX_UN_LEN)) {
+			local_addr = uml_kmalloc(sizeof(struct sockaddr_un), UM_GFP_KERNEL);
+			if (local_addr == NULL) {
+				printk(UM_KERN_ERR "bess open:cannot allocate local addr");
+				goto unix_cleanup;
+			}
+			local_addr->sun_family = AF_UNIX;
+			memcpy(local_addr->sun_path, src, strlen(src) + 1);
+		}
+		if ((dst == NULL) || (strlen(dst) > MAX_UN_LEN))
+			goto unix_cleanup;
+		remote_addr->sun_family = AF_UNIX;
+		memcpy(remote_addr->sun_path, dst, strlen(dst) + 1);
+		break;
+	default:
+		printk(KERN_ERR "Unsupported unix socket type\n");
+		return NULL;
+	}
+
+	fd = socket(AF_UNIX, socktype, 0);
+	if (fd == -1) {
+		printk(UM_KERN_ERR
+			"unix open: could not open socket, error = %d",
+			-errno
+		);
+		goto unix_cleanup;
+	}
+	if (local_addr != NULL) {
+		if (bind(fd, (struct sockaddr *) local_addr, sizeof(struct sockaddr_un))) {
+			printk(UM_KERN_ERR UNIX_BIND_FAIL, errno);
+			goto unix_cleanup;
+		}
+	}
+	switch (id) {
+	case ID_BESS:
+		if (connect(fd, remote_addr, sizeof(struct sockaddr_un)) < 0) {
+			printk(UM_KERN_ERR "bess open:cannot connect to %s %i", remote_addr->sun_path, -errno);
+			goto unix_cleanup;
+		}
+		break;
+	}
+	result->rx_fd = fd;
+	result->tx_fd = fd;
+	result->remote_addr_size = sizeof(struct sockaddr_un);
+	result->remote_addr = remote_addr;
+	return result;
+unix_cleanup:
+	if (fd >= 0)
+		os_close_file(fd);
+	if (remote_addr != NULL)
+		kfree(remote_addr);
+	if (result != NULL)
+		kfree(result);
+	return NULL;
+}
 
 static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 {
@@ -496,6 +580,8 @@ struct vector_fds *uml_vector_user_open(
 		return user_init_socket_fds(parsed, ID_GRE);
 	if (strncmp(transport, TRANS_L2TPV3, TRANS_L2TPV3_LEN) == 0)
 		return user_init_socket_fds(parsed, ID_L2TPV3);
+	if (strncmp(transport, TRANS_BESS, TRANS_BESS_LEN) == 0)
+		return user_init_unix_fds(parsed, ID_BESS);
 	return NULL;
 }
 

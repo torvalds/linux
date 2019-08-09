@@ -25,6 +25,9 @@
 #define TRANS_HYBRID "hybrid"
 #define TRANS_HYBRID_LEN strlen(TRANS_HYBRID)
 
+#define TRANS_BESS "bess"
+#define TRANS_BESS_LEN strlen(TRANS_BESS)
+
 #ifndef IPPROTO_GRE
 #define IPPROTO_GRE 0x2F
 #endif

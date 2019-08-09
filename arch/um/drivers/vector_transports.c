@@ -465,6 +465,15 @@ static int build_tap_transport_data(struct vector_private *vp)
 }
 
 
+static int build_bess_transport_data(struct vector_private *vp)
+{
+	vp->form_header = NULL;
+	vp->verify_header = NULL;
+	vp->header_size = 0;
+	vp->rx_header_size = 0;
+	return 0;
+}
+
 int build_transport_data(struct vector_private *vp)
 {
 	char *transport = uml_vector_fetch_arg(vp->parsed, "transport");
@@ -479,6 +488,8 @@ int build_transport_data(struct vector_private *vp)
 		return build_tap_transport_data(vp);
 	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
 		return build_hybrid_transport_data(vp);
+	if (strncmp(transport, TRANS_BESS, TRANS_BESS_LEN) == 0)
+		return build_bess_transport_data(vp);
 	return 0;
 }
 
