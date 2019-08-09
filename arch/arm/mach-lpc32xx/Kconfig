@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	depends on ARCH_MULTI_V5
+	select ARM_AMBA
+	select CLKSRC_LPC32XX
+	select CPU_ARM926T
+	select GPIOLIB
+	help
+	  Support for the NXP LPC32XX family of processors
