@@ -21,6 +21,15 @@
 #ifndef __AMDGPU_UMC_H__
 #define __AMDGPU_UMC_H__
 
+/* implement 64 bits REG operations via 32 bits interface */
+#define RREG64_UMC(reg)	(RREG32(reg) | \
+				((uint64_t)RREG32((reg) + 1) << 32))
+#define WREG64_UMC(reg, v)	\
+	do {	\
+		WREG32((reg), lower_32_bits(v));	\
+		WREG32((reg) + 1, upper_32_bits(v));	\
+	} while (0)
+
 /*
  * void (*func)(struct amdgpu_device *adev, struct ras_err_data *err_data,
  *				uint32_t umc_reg_offset, uint32_t channel_index)
