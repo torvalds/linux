@@ -2726,7 +2726,7 @@ check_scsi_status:
 				"Port to be marked lost on fcport=%02x%02x%02x, current "
 				"port state= %s comp_status %x.\n", fcport->d_id.b.domain,
 				fcport->d_id.b.area, fcport->d_id.b.al_pa,
-				port_state_str[atomic_read(&fcport->state)],
+				port_state_str[FCS_ONLINE],
 				comp_status);
 
 			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
