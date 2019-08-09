@@ -4,6 +4,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/export.h>
