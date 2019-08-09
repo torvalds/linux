@@ -918,6 +918,7 @@ restart_loop:
 		transaction_t *cp_transaction;
 		struct buffer_head *bh;
 		int try_to_free = 0;
+		bool drop_ref;
 
 		jh = commit_transaction->t_forget;
 		spin_unlock(&journal->j_list_lock);
@@ -1022,8 +1023,10 @@ restart_loop:
 				try_to_free = 1;
 		}
 		JBUFFER_TRACE(jh, "refile or unfile buffer");
-		__jbd2_journal_refile_buffer(jh);
+		drop_ref = __jbd2_journal_refile_buffer(jh);
 		jbd_unlock_bh_state(bh);
+		if (drop_ref)
+			jbd2_journal_put_journal_head(jh);
 		if (try_to_free)
 			release_buffer_page(bh);	/* Drops bh reference */
 		else
