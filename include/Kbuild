@@ -568,7 +568,6 @@ header-test-			+= linux/platform_data/usb3503.h
 header-test-			+= linux/platform_data/ux500_wdt.h
 header-test-			+= linux/platform_data/video-clcd-versatile.h
 header-test-			+= linux/platform_data/video-imxfb.h
-header-test-			+= linux/platform_data/video-nuc900fb.h
 header-test-			+= linux/platform_data/video-pxafb.h
 header-test-			+= linux/platform_data/video_s3c.h
 header-test-			+= linux/platform_data/voltage-omap.h
