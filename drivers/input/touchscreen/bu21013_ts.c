@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -139,6 +140,7 @@
  * struct bu21013_ts - touch panel data structure
  * @client: pointer to the i2c client
  * @in_dev: pointer to the input device structure
+ * @props: the device coordinate transformation properties
  * @regulator: pointer to the Regulator used for touch screen
  * @cs_gpiod: chip select GPIO line
  * @int_gpiod: touch interrupt GPIO line
@@ -155,6 +157,7 @@
 struct bu21013_ts {
 	struct i2c_client *client;
 	struct input_dev *in_dev;
+	struct touchscreen_properties props;
 	struct regulator *regulator;
 	struct gpio_desc *cs_gpiod;
 	struct gpio_desc *int_gpiod;
@@ -201,19 +204,13 @@ static int bu21013_do_touch_report(struct bu21013_ts *ts)
 
 	for (i = 0; i < MAX_FINGERS; i++) {
 		const u8 *data = &buf[4 * i + 3];
-		struct input_mt_pos *p = &pos[finger_down_count];
+		unsigned int x, y;
 
-		p->x = data[0] << SHIFT_2 | (data[1] & MASK_BITS);
-		p->y = data[2] << SHIFT_2 | (data[3] & MASK_BITS);
-		if (p->x == 0 || p->y == 0)
-			continue;
-
-		finger_down_count++;
-
-		if (ts->x_flip)
-			p->x = ts->touch_x_max - p->x;
-		if (ts->y_flip)
-			p->y = ts->touch_y_max - p->y;
+		x = data[0] << SHIFT_2 | (data[1] & MASK_BITS);
+		y = data[2] << SHIFT_2 | (data[3] & MASK_BITS);
+		if (x != 0 && y != 0)
+			touchscreen_set_mt_pos(&pos[finger_down_count++],
+					       &ts->props, x, y);
 	}
 
 	if (finger_down_count == 2 &&
@@ -412,6 +409,8 @@ static int bu21013_probe(struct i2c_client *client,
 {
 	struct bu21013_ts *ts;
 	struct input_dev *in_dev;
+	struct input_absinfo *info;
+	u32 max_x = 0, max_y = 0;
 	int error;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -434,11 +433,6 @@ static int bu21013_probe(struct i2c_client *client,
 	ts->x_flip = device_property_read_bool(&client->dev, "rohm,flip-x");
 	ts->y_flip = device_property_read_bool(&client->dev, "rohm,flip-y");
 
-	device_property_read_u32(&client->dev, "rohm,touch-max-x",
-				 &ts->touch_x_max);
-	device_property_read_u32(&client->dev, "rohm,touch-max-y",
-				 &ts->touch_y_max);
-
 	in_dev = devm_input_allocate_device(&client->dev);
 	if (!in_dev) {
 		dev_err(&client->dev, "device memory alloc failed\n");
@@ -451,10 +445,28 @@ static int bu21013_probe(struct i2c_client *client,
 	in_dev->name = DRIVER_TP;
 	in_dev->id.bustype = BUS_I2C;
 
-	input_set_abs_params(in_dev, ABS_MT_POSITION_X,
-			     0, ts->touch_x_max, 0, 0);
-	input_set_abs_params(in_dev, ABS_MT_POSITION_Y,
-			     0, ts->touch_y_max, 0, 0);
+	device_property_read_u32(&client->dev, "rohm,touch-max-x", &max_x);
+	device_property_read_u32(&client->dev, "rohm,touch-max-y", &max_y);
+
+	input_set_abs_params(in_dev, ABS_MT_POSITION_X, 0, max_x, 0, 0);
+	input_set_abs_params(in_dev, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
+
+	touchscreen_parse_properties(in_dev, true, &ts->props);
+
+	/* Adjust for the legacy "flip" properties, if present */
+	if (!ts->props.invert_x &&
+	    device_property_read_bool(&client->dev, "rohm,flip-x")) {
+		info = &in_dev->absinfo[ABS_MT_POSITION_X];
+		info->maximum -= info->minimum;
+		info->minimum = 0;
+	}
+
+	if (!ts->props.invert_y &&
+	    device_property_read_bool(&client->dev, "rohm,flip-y")) {
+		info = &in_dev->absinfo[ABS_MT_POSITION_Y];
+		info->maximum -= info->minimum;
+		info->minimum = 0;
+	}
 
 	error = input_mt_init_slots(in_dev, MAX_FINGERS,
 				    INPUT_MT_DIRECT | INPUT_MT_TRACK |
