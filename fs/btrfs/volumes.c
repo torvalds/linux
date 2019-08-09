@@ -6023,7 +6023,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		return ret;
 
 	em = btrfs_get_chunk_map(fs_info, logical, *length);
-	ASSERT(em);
+	ASSERT(!IS_ERR(em));
 	map = em->map_lookup;
 
 	*length = geom.len;
