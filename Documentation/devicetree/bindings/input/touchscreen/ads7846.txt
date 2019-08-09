@@ -52,7 +52,7 @@ Optional properties:
 	ti,x-min			Minimum value on the X axis (u16).
 	ti,y-min			Minimum value on the Y axis (u16).
 	ti,x-max			Maximum value on the X axis (u16).
-	ti,y-max			Minimum value on the Y axis (u16).
+	ti,y-max			Maximum value on the Y axis (u16).
 	ti,pressure-min			Minimum reported pressure value
 					(threshold) - u16.
 	ti,pressure-max			Maximum reported pressure value (u16).
