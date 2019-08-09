@@ -226,9 +226,7 @@ qla2x00_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 	ct_rsp = &ha->ct_sns->p.rsp;
 
 	/* Prepare CT arguments -- port_id */
-	ct_req->req.port_id.port_id[0] = fcport->d_id.b.domain;
-	ct_req->req.port_id.port_id[1] = fcport->d_id.b.area;
-	ct_req->req.port_id.port_id[2] = fcport->d_id.b.al_pa;
+	ct_req->req.port_id.port_id = port_id_to_be_id(fcport->d_id);
 
 	/* Execute MS IOCB */
 	rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
@@ -242,9 +240,7 @@ qla2x00_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		rval = QLA_FUNCTION_FAILED;
 	} else {
 		/* Populate fc_port_t entry. */
-		fcport->d_id.b.domain = ct_rsp->rsp.ga_nxt.port_id[0];
-		fcport->d_id.b.area = ct_rsp->rsp.ga_nxt.port_id[1];
-		fcport->d_id.b.al_pa = ct_rsp->rsp.ga_nxt.port_id[2];
+		fcport->d_id = be_to_port_id(ct_rsp->rsp.ga_nxt.port_id);
 
 		memcpy(fcport->node_name, ct_rsp->rsp.ga_nxt.node_name,
 		    WWN_SIZE);
@@ -337,9 +333,7 @@ qla2x00_gid_pt(scsi_qla_host_t *vha, sw_info_t *list)
 		/* Set port IDs in switch info list. */
 		for (i = 0; i < ha->max_fibre_devices; i++) {
 			gid_data = &ct_rsp->rsp.gid_pt.entries[i];
-			list[i].d_id.b.domain = gid_data->port_id[0];
-			list[i].d_id.b.area = gid_data->port_id[1];
-			list[i].d_id.b.al_pa = gid_data->port_id[2];
+			list[i].d_id = be_to_port_id(gid_data->port_id);
 			memset(list[i].fabric_port_name, 0, WWN_SIZE);
 			list[i].fp_speed = PORT_SPEED_UNKNOWN;
 
@@ -403,9 +397,7 @@ qla2x00_gpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 		ct_rsp = &ha->ct_sns->p.rsp;
 
 		/* Prepare CT arguments -- port_id */
-		ct_req->req.port_id.port_id[0] = list[i].d_id.b.domain;
-		ct_req->req.port_id.port_id[1] = list[i].d_id.b.area;
-		ct_req->req.port_id.port_id[2] = list[i].d_id.b.al_pa;
+		ct_req->req.port_id.port_id = port_id_to_be_id(list[i].d_id);
 
 		/* Execute MS IOCB */
 		rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
@@ -472,9 +464,7 @@ qla2x00_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 		ct_rsp = &ha->ct_sns->p.rsp;
 
 		/* Prepare CT arguments -- port_id */
-		ct_req->req.port_id.port_id[0] = list[i].d_id.b.domain;
-		ct_req->req.port_id.port_id[1] = list[i].d_id.b.area;
-		ct_req->req.port_id.port_id[2] = list[i].d_id.b.al_pa;
+		ct_req->req.port_id.port_id = port_id_to_be_id(list[i].d_id);
 
 		/* Execute MS IOCB */
 		rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
@@ -639,9 +629,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	ct_req = qla2x00_prep_ct_req(ct_sns, RFT_ID_CMD, RFT_ID_RSP_SIZE);
 
 	/* Prepare CT arguments -- port_id, FC-4 types */
-	ct_req->req.rft_id.port_id[0] = vha->d_id.b.domain;
-	ct_req->req.rft_id.port_id[1] = vha->d_id.b.area;
-	ct_req->req.rft_id.port_id[2] = vha->d_id.b.al_pa;
+	ct_req->req.rft_id.port_id = port_id_to_be_id(vha->d_id);
 	ct_req->req.rft_id.fc4_types[2] = 0x01;		/* FCP-3 */
 
 	if (vha->flags.nvme_enabled)
@@ -737,9 +725,7 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	ct_req = qla2x00_prep_ct_req(ct_sns, RFF_ID_CMD, RFF_ID_RSP_SIZE);
 
 	/* Prepare CT arguments -- port_id, FC-4 feature, FC-4 type */
-	ct_req->req.rff_id.port_id[0] = d_id->b.domain;
-	ct_req->req.rff_id.port_id[1] = d_id->b.area;
-	ct_req->req.rff_id.port_id[2] = d_id->b.al_pa;
+	ct_req->req.rff_id.port_id = port_id_to_be_id(*d_id);
 	ct_req->req.rff_id.fc4_feature = fc4feature;
 	ct_req->req.rff_id.fc4_type = fc4type;		/* SCSI - FCP */
 
@@ -830,9 +816,7 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	ct_req = qla2x00_prep_ct_req(ct_sns, RNN_ID_CMD, RNN_ID_RSP_SIZE);
 
 	/* Prepare CT arguments -- port_id, node_name */
-	ct_req->req.rnn_id.port_id[0] = vha->d_id.b.domain;
-	ct_req->req.rnn_id.port_id[1] = vha->d_id.b.area;
-	ct_req->req.rnn_id.port_id[2] = vha->d_id.b.al_pa;
+	ct_req->req.rnn_id.port_id = port_id_to_be_id(vha->d_id);
 	memcpy(ct_req->req.rnn_id.node_name, vha->node_name, WWN_SIZE);
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RNN_ID_REQ_SIZE;
@@ -2728,9 +2712,7 @@ qla2x00_gfpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 		ct_rsp = &ha->ct_sns->p.rsp;
 
 		/* Prepare CT arguments -- port_id */
-		ct_req->req.port_id.port_id[0] = list[i].d_id.b.domain;
-		ct_req->req.port_id.port_id[1] = list[i].d_id.b.area;
-		ct_req->req.port_id.port_id[2] = list[i].d_id.b.al_pa;
+		ct_req->req.port_id.port_id = port_id_to_be_id(list[i].d_id);
 
 		/* Execute MS IOCB */
 		rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
@@ -2934,9 +2916,7 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 		ct_rsp = &ha->ct_sns->p.rsp;
 
 		/* Prepare CT arguments -- port_id */
-		ct_req->req.port_id.port_id[0] = list[i].d_id.b.domain;
-		ct_req->req.port_id.port_id[1] = list[i].d_id.b.area;
-		ct_req->req.port_id.port_id[2] = list[i].d_id.b.al_pa;
+		ct_req->req.port_id.port_id = port_id_to_be_id(list[i].d_id);
 
 		/* Execute MS IOCB */
 		rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
@@ -3293,20 +3273,18 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 	if (res)
 		ql_dbg(ql_dbg_disc, vha, 0x2066,
 		    "Async done-%s fail res %x rscn gen %d ID %3phC. %8phC\n",
-		    sp->name, res, sp->gen1, ct_req->req.port_id.port_id,
+		    sp->name, res, sp->gen1, &ct_req->req.port_id.port_id,
 		    ct_rsp->rsp.gpn_id.port_name);
 	else
 		ql_dbg(ql_dbg_disc, vha, 0x2066,
 		    "Async done-%s good rscn gen %d ID %3phC. %8phC\n",
-		    sp->name, sp->gen1, ct_req->req.port_id.port_id,
+		    sp->name, sp->gen1, &ct_req->req.port_id.port_id,
 		    ct_rsp->rsp.gpn_id.port_name);
 
 	memset(&ea, 0, sizeof(ea));
 	memcpy(ea.port_name, ct_rsp->rsp.gpn_id.port_name, WWN_SIZE);
 	ea.sp = sp;
-	ea.id.b.domain = ct_req->req.port_id.port_id[0];
-	ea.id.b.area = ct_req->req.port_id.port_id[1];
-	ea.id.b.al_pa = ct_req->req.port_id.port_id[2];
+	ea.id = be_to_port_id(ct_req->req.port_id.port_id);
 	ea.rc = res;
 	ea.event = FCME_GPNID_DONE;
 
@@ -3417,9 +3395,7 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	ct_req = qla2x00_prep_ct_req(ct_sns, GPN_ID_CMD, GPN_ID_RSP_SIZE);
 
 	/* GPN_ID req */
-	ct_req->req.port_id.port_id[0] = id->b.domain;
-	ct_req->req.port_id.port_id[1] = id->b.area;
-	ct_req->req.port_id.port_id[2] = id->b.al_pa;
+	ct_req->req.port_id.port_id = port_id_to_be_id(*id);
 
 	sp->u.iocb_cmd.u.ctarg.req_size = GPN_ID_REQ_SIZE;
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GPN_ID_RSP_SIZE;
@@ -3430,7 +3406,7 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 
 	ql_dbg(ql_dbg_disc, vha, 0x2067,
 	    "Async-%s hdl=%x ID %3phC.\n", sp->name,
-	    sp->handle, ct_req->req.port_id.port_id);
+	    sp->handle, &ct_req->req.port_id.port_id);
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
@@ -4332,9 +4308,7 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	    GNN_ID_RSP_SIZE);
 
 	/* GNN_ID req */
-	ct_req->req.port_id.port_id[0] = fcport->d_id.b.domain;
-	ct_req->req.port_id.port_id[1] = fcport->d_id.b.area;
-	ct_req->req.port_id.port_id[2] = fcport->d_id.b.al_pa;
+	ct_req->req.port_id.port_id = port_id_to_be_id(fcport->d_id);
 
 
 	/* req & rsp use the same buffer */
@@ -4464,9 +4438,7 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	    GFPN_ID_RSP_SIZE);
 
 	/* GFPN_ID req */
-	ct_req->req.port_id.port_id[0] = fcport->d_id.b.domain;
-	ct_req->req.port_id.port_id[1] = fcport->d_id.b.area;
-	ct_req->req.port_id.port_id[2] = fcport->d_id.b.al_pa;
+	ct_req->req.port_id.port_id = port_id_to_be_id(fcport->d_id);
 
 
 	/* req & rsp use the same buffer */

@@ -119,7 +119,7 @@ struct pt_ls4_rx_unsol {
 	uint32_t exchange_address;
 	uint8_t d_id[3];
 	uint8_t r_ctl;
-	uint8_t s_id[3];
+	be_id_t s_id;
 	uint8_t cs_ctl;
 	uint8_t f_ctl[3];
 	uint8_t type;
