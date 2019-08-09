@@ -377,6 +377,10 @@ struct ring_stats {
 			u64 restart_queue;
 			u64 tx_busy;
 			u64 tx_copy;
+			u64 tx_vlan_err;
+			u64 tx_l4_proto_err;
+			u64 tx_l2l3l4_err;
+			u64 tx_tso_err;
 		};
 		struct {
 			u64 rx_pkts;
