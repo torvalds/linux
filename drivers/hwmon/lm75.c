@@ -242,6 +242,8 @@ static const struct lm75_params device_params[] = {
 		.clr_mask = 1 << 7,	/* no one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 4,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 125, 250, 1000, 4000 },
 	},
 	[tmp175] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
@@ -391,21 +393,36 @@ static int lm75_write_temp(struct device *dev, u32 attr, long temp)
 static int lm75_update_interval(struct device *dev, long val)
 {
 	struct lm75_data *data = dev_get_drvdata(dev);
+	unsigned int reg;
 	u8 index;
 	s32 err;
 
 	index = find_closest(val, data->params->sample_times,
 			     (int)data->params->num_sample_times);
 
-	err = lm75_write_config(data, lm75_sample_set_masks[index],
-				LM75_SAMPLE_CLEAR_MASK);
-	if (err)
-		return err;
+	switch (data->kind) {
+	default:
+		err = lm75_write_config(data, lm75_sample_set_masks[index],
+					LM75_SAMPLE_CLEAR_MASK);
+		if (err)
+			return err;
 
-	data->sample_time = data->params->sample_times[index];
-	if (data->params->resolutions)
-		data->resolution = data->params->resolutions[index];
-
+		data->sample_time = data->params->sample_times[index];
+		if (data->params->resolutions)
+			data->resolution = data->params->resolutions[index];
+		break;
+	case tmp112:
+		err = regmap_read(data->regmap, LM75_REG_CONF, &reg);
+		if (err < 0)
+			return err;
+		reg &= ~0x00c0;
+		reg |= (3 - index) << 6;
+		err = regmap_write(data->regmap, LM75_REG_CONF, reg);
+		if (err < 0)
+			return err;
+		data->sample_time = data->params->sample_times[index];
+		break;
+	}
 	return 0;
 }
 
@@ -489,7 +506,7 @@ static bool lm75_is_writeable_reg(struct device *dev, unsigned int reg)
 
 static bool lm75_is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	return reg == LM75_REG_TEMP;
+	return reg == LM75_REG_TEMP || reg == LM75_REG_CONF;
 }
 
 static const struct regmap_config lm75_regmap_config = {
