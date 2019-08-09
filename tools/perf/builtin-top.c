@@ -264,6 +264,30 @@ out_unlock:
 	pthread_mutex_unlock(&notes->lock);
 }
 
+static void evlist__resort_hists(struct evlist *evlist)
+{
+	struct evsel *pos;
+
+	evlist__for_each_entry(evlist, pos) {
+		struct hists *hists = evsel__hists(pos);
+
+		hists__collapse_resort(hists, NULL);
+
+		/* Non-group events are considered as leader */
+		if (symbol_conf.event_group &&
+		    !perf_evsel__is_group_leader(pos)) {
+			struct hists *leader_hists = evsel__hists(pos->leader);
+
+			hists__match(leader_hists, hists);
+			hists__link(leader_hists, hists);
+		}
+	}
+
+	evlist__for_each_entry(evlist, pos) {
+		perf_evsel__output_resort(pos, NULL);
+	}
+}
+
 static void perf_top__print_sym_table(struct perf_top *top)
 {
 	char bf[160];
@@ -304,8 +328,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 		}
 	}
 
-	hists__collapse_resort(hists, NULL);
-	perf_evsel__output_resort(evsel, NULL);
+	evlist__resort_hists(top->evlist);
 
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
@@ -570,8 +593,7 @@ static void perf_top__sort_new_samples(void *arg)
 		}
 	}
 
-	hists__collapse_resort(hists, NULL);
-	perf_evsel__output_resort(evsel, NULL);
+	evlist__resort_hists(t->evlist);
 
 	if (t->lost || t->drop)
 		pr_warning("Too slow to read ring buffer (change period (-c/-F) or limit CPUs (-C)\n");
