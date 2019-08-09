@@ -1555,7 +1555,7 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *vha)
 	/* Attributes */
 	ct_req->req.rhba.attrs.count =
 	    cpu_to_be32(FDMI_HBA_ATTR_COUNT);
-	entries = ct_req->req.rhba.hba_identifier;
+	entries = &ct_req->req;
 
 	/* Nodename. */
 	eiter = entries + size;
@@ -1764,7 +1764,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha)
 
 	/* Attributes */
 	ct_req->req.rpa.attrs.count = cpu_to_be32(FDMI_PORT_ATTR_COUNT);
-	entries = ct_req->req.rpa.port_name;
+	entries = &ct_req->req;
 
 	/* FC4 types. */
 	eiter = entries + size;
@@ -1977,7 +1977,7 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 
 	/* Attributes */
 	ct_req->req.rhba2.attrs.count = cpu_to_be32(FDMIV2_HBA_ATTR_COUNT);
-	entries = ct_req->req.rhba2.hba_identifier;
+	entries = &ct_req->req;
 
 	/* Nodename. */
 	eiter = entries + size;
@@ -2336,7 +2336,7 @@ qla2x00_fdmiv2_rpa(scsi_qla_host_t *vha)
 
 	/* Attributes */
 	ct_req->req.rpa2.attrs.count = cpu_to_be32(FDMIV2_PORT_ATTR_COUNT);
-	entries = ct_req->req.rpa2.port_name;
+	entries = &ct_req->req;
 
 	/* FC4 types. */
 	eiter = entries + size;
