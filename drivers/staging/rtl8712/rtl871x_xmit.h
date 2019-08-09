@@ -264,8 +264,8 @@ sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 			      struct xmit_frame *pxmitframe);
 sint _r8712_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);
 void _r8712_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv);
-sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
-			 struct pkt_attrib *pattrib);
+int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
+			struct pkt_attrib *pattrib);
 int r8712_txframes_sta_ac_pending(struct _adapter *padapter,
 				  struct pkt_attrib *pattrib);
 int _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
