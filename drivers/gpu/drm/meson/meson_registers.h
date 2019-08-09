@@ -6,6 +6,8 @@
 #ifndef __MESON_REGISTERS_H
 #define __MESON_REGISTERS_H
 
+#include <linux/io.h>
+
 /* Shift all registers by 2 */
 #define _REG(reg)	((reg) << 2)
 

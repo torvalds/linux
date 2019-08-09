@@ -643,6 +643,17 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 void drm_dp_mst_topology_mgr_suspend(struct drm_dp_mst_topology_mgr *mgr);
 int __must_check
 drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr);
+
+ssize_t drm_dp_mst_dpcd_read(struct drm_dp_aux *aux,
+			     unsigned int offset, void *buffer, size_t size);
+ssize_t drm_dp_mst_dpcd_write(struct drm_dp_aux *aux,
+			      unsigned int offset, void *buffer, size_t size);
+
+int drm_dp_mst_connector_late_register(struct drm_connector *connector,
+				       struct drm_dp_mst_port *port);
+void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
+					   struct drm_dp_mst_port *port);
+
 struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
 								    struct drm_dp_mst_topology_mgr *mgr);
 int __must_check

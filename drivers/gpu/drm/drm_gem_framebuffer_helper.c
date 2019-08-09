@@ -271,11 +271,11 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * @plane: Plane
  * @state: Plane state the fence will be attached to
  *
- * This function prepares a GEM backed framebuffer for scanout by checking if
- * the plane framebuffer has a DMA-BUF attached. If it does, it extracts the
- * exclusive fence and attaches it to the plane state for the atomic helper to
- * wait on. This function can be used as the &drm_plane_helper_funcs.prepare_fb
- * callback.
+ * This function extracts the exclusive fence from &drm_gem_object.resv and
+ * attaches it to plane state for the atomic helper to wait on. This is
+ * necessary to correctly implement implicit synchronization for any buffers
+ * shared as a struct &dma_buf. This function can be used as the
+ * &drm_plane_helper_funcs.prepare_fb callback.
  *
  * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
  * gem based framebuffer drivers which have their buffers always pinned in
@@ -287,17 +287,15 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
 int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
-	struct dma_buf *dma_buf;
+	struct drm_gem_object *obj;
 	struct dma_fence *fence;
 
 	if (!state->fb)
 		return 0;
 
-	dma_buf = drm_gem_fb_get_obj(state->fb, 0)->dma_buf;
-	if (dma_buf) {
-		fence = reservation_object_get_excl_rcu(dma_buf->resv);
-		drm_atomic_set_fence_for_plane(state, fence);
-	}
+	obj = drm_gem_fb_get_obj(state->fb, 0);
+	fence = reservation_object_get_excl_rcu(obj->resv);
+	drm_atomic_set_fence_for_plane(state, fence);
 
 	return 0;
 }
@@ -309,10 +307,11 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_prepare_fb);
  * @pipe: Simple display pipe
  * @plane_state: Plane state
  *
- * This function uses drm_gem_fb_prepare_fb() to check if the plane FB has a
- * &dma_buf attached, extracts the exclusive fence and attaches it to plane
- * state for the atomic helper to wait on. Drivers can use this as their
- * &drm_simple_display_pipe_funcs.prepare_fb callback.
+ * This function uses drm_gem_fb_prepare_fb() to extract the exclusive fence
+ * from &drm_gem_object.resv and attaches it to plane state for the atomic
+ * helper to wait on. This is necessary to correctly implement implicit
+ * synchronization for any buffers shared as a struct &dma_buf. Drivers can use
+ * this as their &drm_simple_display_pipe_funcs.prepare_fb callback.
  *
  * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
  * explicit fencing in atomic modeset updates.
@@ -323,46 +322,3 @@ int drm_gem_fb_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pi
 	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 EXPORT_SYMBOL(drm_gem_fb_simple_display_pipe_prepare_fb);
-
-/**
- * drm_gem_fbdev_fb_create - Create a GEM backed &drm_framebuffer for fbdev
- *                           emulation
- * @dev: DRM device
- * @sizes: fbdev size description
- * @pitch_align: Optional pitch alignment
- * @obj: GEM object backing the framebuffer
- * @funcs: Optional vtable to be used for the new framebuffer object when the
- *         dirty callback is needed.
- *
- * This function creates a framebuffer from a &drm_fb_helper_surface_size
- * description for use in the &drm_fb_helper_funcs.fb_probe callback.
- *
- * Returns:
- * Pointer to a &drm_framebuffer on success or an error pointer on failure.
- */
-struct drm_framebuffer *
-drm_gem_fbdev_fb_create(struct drm_device *dev,
-			struct drm_fb_helper_surface_size *sizes,
-			unsigned int pitch_align, struct drm_gem_object *obj,
-			const struct drm_framebuffer_funcs *funcs)
-{
-	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-	mode_cmd.pitches[0] = sizes->surface_width *
-			      DIV_ROUND_UP(sizes->surface_bpp, 8);
-	if (pitch_align)
-		mode_cmd.pitches[0] = roundup(mode_cmd.pitches[0],
-					      pitch_align);
-	mode_cmd.pixel_format = drm_driver_legacy_fb_format(dev, sizes->surface_bpp,
-							    sizes->surface_depth);
-	if (obj->size < mode_cmd.pitches[0] * mode_cmd.height)
-		return ERR_PTR(-EINVAL);
-
-	if (!funcs)
-		funcs = &drm_gem_fb_funcs;
-
-	return drm_gem_fb_alloc(dev, &mode_cmd, &obj, 1, funcs);
-}
-EXPORT_SYMBOL(drm_gem_fbdev_fb_create);

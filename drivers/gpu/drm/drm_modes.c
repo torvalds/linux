@@ -1912,8 +1912,11 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	case HDMI_PICTURE_ASPECT_256_135:
 		out->flags |= DRM_MODE_FLAG_PIC_AR_256_135;
 		break;
-	case HDMI_PICTURE_ASPECT_RESERVED:
 	default:
+		WARN(1, "Invalid aspect ratio (0%x) on mode\n",
+		     in->picture_aspect_ratio);
+		/* fall through */
+	case HDMI_PICTURE_ASPECT_NONE:
 		out->flags |= DRM_MODE_FLAG_PIC_AR_NONE;
 		break;
 	}
@@ -1972,20 +1975,22 @@ int drm_mode_convert_umode(struct drm_device *dev,
 
 	switch (in->flags & DRM_MODE_FLAG_PIC_AR_MASK) {
 	case DRM_MODE_FLAG_PIC_AR_4_3:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_4_3;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_16_9:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_16_9;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_64_27:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_64_27;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_64_27;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_256_135:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_256_135;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
 		break;
-	default:
+	case DRM_MODE_FLAG_PIC_AR_NONE:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	out->status = drm_mode_validate_driver(dev, out);

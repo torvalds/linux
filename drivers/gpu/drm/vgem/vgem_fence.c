@@ -23,6 +23,8 @@
 #include <linux/dma-buf.h>
 #include <linux/reservation.h>
 
+#include <drm/drm_file.h>
+
 #include "vgem_drv.h"
 
 #define VGEM_FENCE_TIMEOUT (10*HZ)
@@ -100,22 +102,6 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
 	return &fence->base;
 }
 
-static int attach_dmabuf(struct drm_device *dev,
-			 struct drm_gem_object *obj)
-{
-	struct dma_buf *dmabuf;
-
-	if (obj->dma_buf)
-		return 0;
-
-	dmabuf = dev->driver->gem_prime_export(dev, obj, 0);
-	if (IS_ERR(dmabuf))
-		return PTR_ERR(dmabuf);
-
-	obj->dma_buf = dmabuf;
-	return 0;
-}
-
 /*
  * vgem_fence_attach_ioctl (DRM_IOCTL_VGEM_FENCE_ATTACH):
  *
@@ -157,10 +143,6 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	if (!obj)
 		return -ENOENT;
 
-	ret = attach_dmabuf(dev, obj);
-	if (ret)
-		goto err;
-
 	fence = vgem_fence_create(vfile, arg->flags);
 	if (!fence) {
 		ret = -ENOMEM;
@@ -168,7 +150,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	}
 
 	/* Check for a conflicting fence */
-	resv = obj->dma_buf->resv;
+	resv = obj->resv;
 	if (!reservation_object_test_signaled_rcu(resv,
 						  arg->flags & VGEM_FENCE_WRITE)) {
 		ret = -EBUSY;

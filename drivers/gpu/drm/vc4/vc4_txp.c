@@ -7,17 +7,19 @@
  *	Boris Brezillon <boris.brezillon@bootlin.com>
  */
 
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/drm_writeback.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_writeback.h>
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"

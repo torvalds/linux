@@ -178,8 +178,30 @@ static bool dma_fence_chain_signaled(struct dma_fence *fence)
 static void dma_fence_chain_release(struct dma_fence *fence)
 {
 	struct dma_fence_chain *chain = to_dma_fence_chain(fence);
+	struct dma_fence *prev;
 
-	dma_fence_put(rcu_dereference_protected(chain->prev, true));
+	/* Manually unlink the chain as much as possible to avoid recursion
+	 * and potential stack overflow.
+	 */
+	while ((prev = rcu_dereference_protected(chain->prev, true))) {
+		struct dma_fence_chain *prev_chain;
+
+		if (kref_read(&prev->refcount) > 1)
+		       break;
+
+		prev_chain = to_dma_fence_chain(prev);
+		if (!prev_chain)
+			break;
+
+		/* No need for atomic operations since we hold the last
+		 * reference to prev_chain.
+		 */
+		chain->prev = prev_chain->prev;
+		RCU_INIT_POINTER(prev_chain->prev, NULL);
+		dma_fence_put(prev);
+	}
+	dma_fence_put(prev);
+
 	dma_fence_put(chain->fence);
 	dma_fence_free(fence);
 }

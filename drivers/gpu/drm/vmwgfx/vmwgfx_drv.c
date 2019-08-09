@@ -186,7 +186,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_REF_SURFACE, vmw_surface_reference_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_EXECBUF, NULL, DRM_AUTH |
+	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl, DRM_AUTH |
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_obj_wait_ioctl,
 		      DRM_RENDER_ALLOW),
@@ -641,7 +641,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		INIT_LIST_HEAD(&dev_priv->res_lru[i]);
 	}
 
-	mutex_init(&dev_priv->init_mutex);
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	dev_priv->fence_queue_waiters = 0;
@@ -1121,15 +1120,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 			&vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (nr == DRM_COMMAND_BASE + DRM_VMW_EXECBUF) {
-			ret = (long) drm_ioctl_permit(ioctl->flags, file_priv);
-			if (unlikely(ret != 0))
-				return ret;
-
-			if (unlikely((cmd & (IOC_IN | IOC_OUT)) != IOC_IN))
-				goto out_io_encoding;
-
-			return (long) vmw_execbuf_ioctl(dev, arg, file_priv,
-							_IOC_SIZE(cmd));
+			return ioctl_func(filp, cmd, arg);
 		} else if (nr == DRM_COMMAND_BASE + DRM_VMW_UPDATE_LAYOUT) {
 			if (!drm_is_current_master(file_priv) &&
 			    !capable(CAP_SYS_ADMIN))
@@ -1179,10 +1170,6 @@ static long vmw_compat_ioctl(struct file *filp, unsigned int cmd,
 	return vmw_generic_ioctl(filp, cmd, arg, &drm_compat_ioctl);
 }
 #endif
-
-static void vmw_lastclose(struct drm_device *dev)
-{
-}
 
 static void vmw_master_init(struct vmw_master *vmaster)
 {
@@ -1551,10 +1538,9 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
+	DRIVER_MODESET | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
-	.lastclose = vmw_lastclose,
 	.get_vblank_counter = vmw_get_vblank_counter,
 	.enable_vblank = vmw_enable_vblank,
 	.disable_vblank = vmw_disable_vblank,

@@ -111,8 +111,10 @@ static int dumb_vga_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(&vga->connector,
 				 &dumb_vga_con_helper_funcs);
-	ret = drm_connector_init(bridge->dev, &vga->connector,
-				 &dumb_vga_con_funcs, DRM_MODE_CONNECTOR_VGA);
+	ret = drm_connector_init_with_ddc(bridge->dev, &vga->connector,
+					  &dumb_vga_con_funcs,
+					  DRM_MODE_CONNECTOR_VGA,
+					  vga->ddc);
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector\n");
 		return ret;

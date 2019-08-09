@@ -11,11 +11,10 @@
 #ifndef __XEN_DRM_FRONT_CONN_H_
 #define __XEN_DRM_FRONT_CONN_H_
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_encoder.h>
+#include <linux/types.h>
 
-#include <linux/wait.h>
+struct drm_connector;
+struct xen_drm_front_drm_info;
 
 struct xen_drm_front_drm_info;
 

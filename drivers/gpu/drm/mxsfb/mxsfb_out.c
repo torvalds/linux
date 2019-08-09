@@ -15,7 +15,6 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/drmP.h>
 
 #include "mxsfb_drv.h"
 

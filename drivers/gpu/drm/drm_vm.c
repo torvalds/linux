@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_vm.c
  * Memory mapping for DRM
  *

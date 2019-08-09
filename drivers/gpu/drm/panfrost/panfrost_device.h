@@ -43,6 +43,7 @@ struct panfrost_features {
 	u32 js_features[16];
 
 	u32 nr_core_groups;
+	u32 thread_tls_alloc;
 
 	unsigned long hw_features[64 / BITS_PER_LONG];
 	unsigned long hw_issues[64 / BITS_PER_LONG];

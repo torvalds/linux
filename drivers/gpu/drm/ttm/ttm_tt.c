@@ -48,7 +48,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	struct ttm_bo_device *bdev = bo->bdev;
 	uint32_t page_flags = 0;
 
-	reservation_object_assert_held(bo->resv);
+	reservation_object_assert_held(bo->base.resv);
 
 	if (bdev->need_dma32)
 		page_flags |= TTM_PAGE_FLAG_DMA32;

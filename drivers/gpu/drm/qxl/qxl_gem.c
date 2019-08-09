@@ -23,7 +23,6 @@
  *          Alon Levy
  */
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
 
 #include "qxl_drv.h"
@@ -64,7 +63,7 @@ int qxl_gem_object_create(struct qxl_device *qdev, int size,
 				  size, initial_domain, alignment, r);
 		return r;
 	}
-	*obj = &qbo->gem_base;
+	*obj = &qbo->tbo.base;
 
 	mutex_lock(&qdev->gem.mutex);
 	list_add_tail(&qbo->list, &qdev->gem.objects);

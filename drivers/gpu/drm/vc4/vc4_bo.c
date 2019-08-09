@@ -655,8 +655,7 @@ static void vc4_bo_cache_time_timer(struct timer_list *t)
 	schedule_work(&vc4->bo_cache.time_work);
 }
 
-struct dma_buf *
-vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
+struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 	struct dma_buf *dmabuf;
@@ -678,7 +677,7 @@ vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 		return ERR_PTR(ret);
 	}
 
-	dmabuf = drm_gem_prime_export(dev, obj, flags);
+	dmabuf = drm_gem_prime_export(obj, flags);
 	if (IS_ERR(dmabuf))
 		vc4_bo_dec_usecnt(bo);
 
@@ -790,8 +789,6 @@ vc4_prime_import_sg_table(struct drm_device *dev,
 	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj))
 		return obj;
-
-	obj->resv = attach->dmabuf->resv;
 
 	return obj;
 }

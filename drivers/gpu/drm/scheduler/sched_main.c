@@ -48,7 +48,8 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <uapi/linux/sched/types.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/spsc_queue.h>
 

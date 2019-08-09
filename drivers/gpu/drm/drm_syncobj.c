@@ -53,6 +53,7 @@
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
@@ -1297,14 +1298,14 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 			struct dma_fence *iter, *last_signaled = NULL;
 
 			dma_fence_chain_for_each(iter, fence) {
-				if (!iter)
-					break;
-				dma_fence_put(last_signaled);
-				last_signaled = dma_fence_get(iter);
-				if (!to_dma_fence_chain(last_signaled)->prev_seqno)
+				if (iter->context != fence->context) {
+					dma_fence_put(iter);
 					/* It is most likely that timeline has
 					 * unorder points. */
 					break;
+				}
+				dma_fence_put(last_signaled);
+				last_signaled = dma_fence_get(iter);
 			}
 			point = dma_fence_is_signaled(last_signaled) ?
 				last_signaled->seqno :

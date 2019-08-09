@@ -92,8 +92,6 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 
 	pobj = to_panfrost_bo(obj);
 
-	obj->resv = attach->dmabuf->resv;
-
 	panfrost_mmu_map(pobj);
 
 	return obj;

@@ -29,6 +29,8 @@
 #include <linux/sched/signal.h>
 #include <linux/dma-fence-array.h>
 
+#include <drm/drm_syncobj.h>
+
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
 #include "vc4_regs.h"

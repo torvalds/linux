@@ -35,11 +35,6 @@ struct nouveau_bo {
 
 	struct nouveau_drm_tile *tile;
 
-	/* Only valid if allocated via nouveau_gem_new() and iff you hold a
-	 * gem reference to it! For debugging, use gem.filp != NULL to test
-	 * whether it is valid. */
-	struct drm_gem_object gem;
-
 	/* protect by the ttm reservation lock */
 	int pin_refcnt;
 

@@ -163,7 +163,7 @@ static int radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 				continue;
 			}
 
-			r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
+			r = reservation_object_wait_timeout_rcu(bo->tbo.base.resv,
 				true, false, MAX_SCHEDULE_TIMEOUT);
 			if (r <= 0)
 				DRM_ERROR("(%ld) failed to wait for user bo\n", r);

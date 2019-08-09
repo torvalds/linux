@@ -1704,14 +1704,6 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (!state->allow_modeset)
-		return ret;
-
-	/*
-	 * Legacy path do not set allow_modeset properly like
-	 * @drm_atomic_helper_update_plane, This will result in unnecessary call
-	 * to vmw_kms_check_topology. So extra set of check.
-	 */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
 			need_modeset = true;

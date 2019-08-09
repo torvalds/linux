@@ -25,8 +25,13 @@
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include <drm/drmP.h>
+#include <linux/slab.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_irq.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 
 #define VIA_MM_ALIGN_SHIFT 4

@@ -27,14 +27,18 @@
 /*
  * Authors: Dave Airlie <airlied@redhat.com>
  */
+
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/pci.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include "ast_drv.h"
 
+#include "ast_drv.h"
 #include "ast_tables.h"
 
 static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
@@ -525,28 +529,16 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				int x, int y, int atomic)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
-	struct drm_gem_object *obj;
-	struct ast_framebuffer *ast_fb;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
-	void *base;
 
 	if (!atomic && fb) {
-		ast_fb = to_ast_framebuffer(fb);
-		obj = ast_fb->obj;
-		gbo = drm_gem_vram_of_gem(obj);
-
-		/* unmap if console */
-		if (&ast->fbdev->afb == ast_fb)
-			drm_gem_vram_kunmap(gbo);
+		gbo = drm_gem_vram_of_gem(fb->obj[0]);
 		drm_gem_vram_unpin(gbo);
 	}
 
-	ast_fb = to_ast_framebuffer(crtc->primary->fb);
-	obj = ast_fb->obj;
-	gbo = drm_gem_vram_of_gem(obj);
+	gbo = drm_gem_vram_of_gem(crtc->primary->fb->obj[0]);
 
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret)
@@ -555,17 +547,6 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 	if (gpu_addr < 0) {
 		ret = (int)gpu_addr;
 		goto err_drm_gem_vram_unpin;
-	}
-
-	if (&ast->fbdev->afb == ast_fb) {
-		/* if pushing console in kmap it */
-		base = drm_gem_vram_kmap(gbo, true, NULL);
-		if (IS_ERR(base)) {
-			ret = PTR_ERR(base);
-			DRM_ERROR("failed to kmap fbcon\n");
-		} else {
-			ast_fbdev_set_base(ast, gpu_addr);
-		}
 	}
 
 	ast_set_offset_reg(crtc);
@@ -624,14 +605,10 @@ static void ast_crtc_disable(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
-		struct ast_private *ast = crtc->dev->dev_private;
-		struct ast_framebuffer *ast_fb = to_ast_framebuffer(crtc->primary->fb);
-		struct drm_gem_object *obj = ast_fb->obj;
-		struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(obj);
+		struct drm_framebuffer *fb = crtc->primary->fb;
+		struct drm_gem_vram_object *gbo =
+			drm_gem_vram_of_gem(fb->obj[0]);
 
-		/* unmap if console */
-		if (&ast->fbdev->afb == ast_fb)
-			drm_gem_vram_kunmap(gbo);
 		drm_gem_vram_unpin(gbo);
 	}
 	crtc->primary->fb = NULL;
@@ -890,7 +867,14 @@ static int ast_connector_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	connector = &ast_connector->base;
-	drm_connector_init(dev, connector, &ast_connector_funcs, DRM_MODE_CONNECTOR_VGA);
+	ast_connector->i2c = ast_i2c_create(dev);
+	if (!ast_connector->i2c)
+		DRM_ERROR("failed to add ddc bus for connector\n");
+
+	drm_connector_init_with_ddc(dev, connector,
+				    &ast_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA,
+				    &ast_connector->i2c->adapter);
 
 	drm_connector_helper_add(connector, &ast_connector_helper_funcs);
 
@@ -903,10 +887,6 @@ static int ast_connector_init(struct drm_device *dev)
 
 	encoder = list_first_entry(&dev->mode_config.encoder_list, struct drm_encoder, head);
 	drm_connector_attach_encoder(connector, encoder);
-
-	ast_connector->i2c = ast_i2c_create(dev);
-	if (!ast_connector->i2c)
-		DRM_ERROR("failed to add ddc bus for connector\n");
 
 	return 0;
 }

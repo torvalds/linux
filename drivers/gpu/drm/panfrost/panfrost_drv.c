@@ -32,10 +32,42 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 	if (param->pad != 0)
 		return -EINVAL;
 
+#define PANFROST_FEATURE(name, member)			\
+	case DRM_PANFROST_PARAM_ ## name:		\
+		param->value = pfdev->features.member;	\
+		break
+#define PANFROST_FEATURE_ARRAY(name, member, max)			\
+	case DRM_PANFROST_PARAM_ ## name ## 0 ...			\
+		DRM_PANFROST_PARAM_ ## name ## max:			\
+		param->value = pfdev->features.member[param->param -	\
+			DRM_PANFROST_PARAM_ ## name ## 0];		\
+		break
+
 	switch (param->param) {
-	case DRM_PANFROST_PARAM_GPU_PROD_ID:
-		param->value = pfdev->features.id;
-		break;
+		PANFROST_FEATURE(GPU_PROD_ID, id);
+		PANFROST_FEATURE(GPU_REVISION, revision);
+		PANFROST_FEATURE(SHADER_PRESENT, shader_present);
+		PANFROST_FEATURE(TILER_PRESENT, tiler_present);
+		PANFROST_FEATURE(L2_PRESENT, l2_present);
+		PANFROST_FEATURE(STACK_PRESENT, stack_present);
+		PANFROST_FEATURE(AS_PRESENT, as_present);
+		PANFROST_FEATURE(JS_PRESENT, js_present);
+		PANFROST_FEATURE(L2_FEATURES, l2_features);
+		PANFROST_FEATURE(CORE_FEATURES, core_features);
+		PANFROST_FEATURE(TILER_FEATURES, tiler_features);
+		PANFROST_FEATURE(MEM_FEATURES, mem_features);
+		PANFROST_FEATURE(MMU_FEATURES, mmu_features);
+		PANFROST_FEATURE(THREAD_FEATURES, thread_features);
+		PANFROST_FEATURE(MAX_THREADS, max_threads);
+		PANFROST_FEATURE(THREAD_MAX_WORKGROUP_SZ,
+				thread_max_workgroup_sz);
+		PANFROST_FEATURE(THREAD_MAX_BARRIER_SZ,
+				thread_max_barrier_sz);
+		PANFROST_FEATURE(COHERENCY_FEATURES, coherency_features);
+		PANFROST_FEATURE_ARRAY(TEXTURE_FEATURES, texture_features, 3);
+		PANFROST_FEATURE_ARRAY(JS_FEATURES, js_features, 15);
+		PANFROST_FEATURE(NR_CORE_GROUPS, nr_core_groups);
+		PANFROST_FEATURE(THREAD_TLS_ALLOC, thread_tls_alloc);
 	default:
 		return -EINVAL;
 	}
@@ -357,8 +389,7 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 DEFINE_DRM_GEM_SHMEM_FOPS(panfrost_drm_driver_fops);
 
 static struct drm_driver panfrost_drm_driver = {
-	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_PRIME |
-				  DRIVER_SYNCOBJ,
+	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
 	.postclose		= panfrost_postclose,
 	.ioctls			= panfrost_drm_driver_ioctls,

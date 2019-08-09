@@ -27,6 +27,15 @@ Optional properties:
   - solomon,prechargep2: Length of precharge period (phase 2) in clock cycles.
                          This needs to be the higher, the higher the capacitance
                          of the OLED's pixels is
+  - solomon,dclk-div: Clock divisor 1 to 16
+  - solomon,dclk-frq: Clock frequency 0 to 15, higher value means higher
+                      frequency
+  - solomon,lookup-table: 8 bit value array of current drive pulse widths for
+                          BANK0, and colors A, B, and C. Each value in range
+                          of 31 to 63 for pulse widths of 32 to 64. Color D
+                          is always width 64.
+  - solomon,area-color-enable: Display uses color mode
+  - solomon,low-power. Display runs in low power mode
 
 [0]: Documentation/devicetree/bindings/pwm/pwm.txt
 
@@ -46,4 +55,5 @@ ssd1306: oled@3c {
         solomon,com-lrremap;
         solomon,com-invdir;
         solomon,com-offset = <32>;
+        solomon,lookup-table = /bits/ 8 <0x3f 0x3f 0x3f 0x3f>;
 };

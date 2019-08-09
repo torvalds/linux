@@ -65,8 +65,7 @@ u64 omap_gem_mmap_offset(struct drm_gem_object *obj);
 size_t omap_gem_mmap_size(struct drm_gem_object *obj);
 
 /* PRIME Interface */
-struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
-		struct drm_gem_object *obj, int flags);
+struct dma_buf *omap_gem_prime_export(struct drm_gem_object *obj, int flags);
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
 

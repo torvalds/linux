@@ -6,6 +6,7 @@
 
 #include <linux/component.h>
 #include <linux/of_graph.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_of.h>
 
@@ -37,64 +38,6 @@ static const struct tilcdc_panel_info panel_info_default = {
 		.raster_order           = 0,
 };
 
-static int tilcdc_external_mode_valid(struct drm_connector *connector,
-				      struct drm_display_mode *mode)
-{
-	struct tilcdc_drm_private *priv = connector->dev->dev_private;
-	int ret;
-
-	ret = tilcdc_crtc_mode_valid(priv->crtc, mode);
-	if (ret != MODE_OK)
-		return ret;
-
-	BUG_ON(priv->external_connector != connector);
-	BUG_ON(!priv->connector_funcs);
-
-	/* If the connector has its own mode_valid call it. */
-	if (!IS_ERR(priv->connector_funcs) &&
-	    priv->connector_funcs->mode_valid)
-		return priv->connector_funcs->mode_valid(connector, mode);
-
-	return MODE_OK;
-}
-
-static int tilcdc_add_external_connector(struct drm_device *dev,
-					 struct drm_connector *connector)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	struct drm_connector_helper_funcs *connector_funcs;
-
-	/* There should never be more than one connector */
-	if (WARN_ON(priv->external_connector))
-		return -EINVAL;
-
-	priv->external_connector = connector;
-	connector_funcs = devm_kzalloc(dev->dev, sizeof(*connector_funcs),
-				       GFP_KERNEL);
-	if (!connector_funcs)
-		return -ENOMEM;
-
-	/* connector->helper_private contains always struct
-	 * connector_helper_funcs pointer. For tilcdc crtc to have a
-	 * say if a specific mode is Ok, we need to install our own
-	 * helper functions. In our helper functions we copy
-	 * everything else but use our own mode_valid() (above).
-	 */
-	if (connector->helper_private) {
-		priv->connector_funcs =	connector->helper_private;
-		*connector_funcs = *priv->connector_funcs;
-	} else {
-		priv->connector_funcs = ERR_PTR(-ENOENT);
-	}
-	connector_funcs->mode_valid = tilcdc_external_mode_valid;
-	drm_connector_helper_add(connector, connector_funcs);
-
-	dev_dbg(dev->dev, "External connector '%s' connected\n",
-		connector->name);
-
-	return 0;
-}
-
 static
 struct drm_connector *tilcdc_encoder_find_connector(struct drm_device *ddev,
 						    struct drm_encoder *encoder)
@@ -115,7 +58,6 @@ struct drm_connector *tilcdc_encoder_find_connector(struct drm_device *ddev,
 int tilcdc_add_component_encoder(struct drm_device *ddev)
 {
 	struct tilcdc_drm_private *priv = ddev->dev_private;
-	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 
 	list_for_each_entry(encoder, &ddev->mode_config.encoder_list, head)
@@ -127,28 +69,17 @@ int tilcdc_add_component_encoder(struct drm_device *ddev)
 		return -ENODEV;
 	}
 
-	connector = tilcdc_encoder_find_connector(ddev, encoder);
+	priv->external_connector =
+		tilcdc_encoder_find_connector(ddev, encoder);
 
-	if (!connector)
+	if (!priv->external_connector)
 		return -ENODEV;
 
 	/* Only tda998x is supported at the moment. */
 	tilcdc_crtc_set_simulate_vesa_sync(priv->crtc, true);
 	tilcdc_crtc_set_panel_info(priv->crtc, &panel_info_tda998x);
 
-	return tilcdc_add_external_connector(ddev, connector);
-}
-
-void tilcdc_remove_external_device(struct drm_device *dev)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-
-	/* Restore the original helper functions, if any. */
-	if (IS_ERR(priv->connector_funcs))
-		drm_connector_helper_add(priv->external_connector, NULL);
-	else if (priv->connector_funcs)
-		drm_connector_helper_add(priv->external_connector,
-					 priv->connector_funcs);
+	return 0;
 }
 
 static const struct drm_encoder_funcs tilcdc_external_encoder_funcs = {
@@ -159,7 +90,6 @@ static
 int tilcdc_attach_bridge(struct drm_device *ddev, struct drm_bridge *bridge)
 {
 	struct tilcdc_drm_private *priv = ddev->dev_private;
-	struct drm_connector *connector;
 	int ret;
 
 	priv->external_encoder->possible_crtcs = BIT(0);
@@ -172,13 +102,12 @@ int tilcdc_attach_bridge(struct drm_device *ddev, struct drm_bridge *bridge)
 
 	tilcdc_crtc_set_panel_info(priv->crtc, &panel_info_default);
 
-	connector = tilcdc_encoder_find_connector(ddev, priv->external_encoder);
-	if (!connector)
+	priv->external_connector =
+		tilcdc_encoder_find_connector(ddev, priv->external_encoder);
+	if (!priv->external_connector)
 		return -ENODEV;
 
-	ret = tilcdc_add_external_connector(ddev, connector);
-
-	return ret;
+	return 0;
 }
 
 int tilcdc_attach_external_device(struct drm_device *ddev)

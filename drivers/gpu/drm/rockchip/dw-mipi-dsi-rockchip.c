@@ -6,10 +6,6 @@
  *      Nickey Yang <nickey.yang@rock-chips.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/bridge/dw_mipi_dsi.h>
-#include <drm/drm_of.h>
 #include <linux/clk.h>
 #include <linux/iopoll.h>
 #include <linux/math64.h>
@@ -18,7 +14,12 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+
 #include <video/mipi_display.h>
+
+#include <drm/bridge/dw_mipi_dsi.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"

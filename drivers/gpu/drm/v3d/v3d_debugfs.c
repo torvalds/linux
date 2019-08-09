@@ -6,7 +6,8 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"

@@ -6,12 +6,11 @@
  * Copyright (C) 2014 Endless Mobile
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/export.h>
+
 #include "meson_drv.h"
-#include "meson_vpp.h"
 #include "meson_registers.h"
+#include "meson_vpp.h"
 
 /**
  * DOC: Video Post Processing
