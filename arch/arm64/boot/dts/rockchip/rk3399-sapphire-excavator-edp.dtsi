@@ -384,7 +384,7 @@
 };
 
 &route_edp {
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl {
