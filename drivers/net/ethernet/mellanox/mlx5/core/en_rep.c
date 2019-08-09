@@ -781,9 +781,9 @@ static int mlx5e_rep_indr_register_block(struct mlx5e_rep_priv *rpriv,
 {
 	int err;
 
-	err = __tc_indr_block_cb_register(netdev, rpriv,
-					  mlx5e_rep_indr_setup_tc_cb,
-					  rpriv);
+	err = __flow_indr_block_cb_register(netdev, rpriv,
+					    mlx5e_rep_indr_setup_tc_cb,
+					    rpriv);
 	if (err) {
 		struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 
@@ -796,8 +796,8 @@ static int mlx5e_rep_indr_register_block(struct mlx5e_rep_priv *rpriv,
 static void mlx5e_rep_indr_unregister_block(struct mlx5e_rep_priv *rpriv,
 					    struct net_device *netdev)
 {
-	__tc_indr_block_cb_unregister(netdev, mlx5e_rep_indr_setup_tc_cb,
-				      rpriv);
+	__flow_indr_block_cb_unregister(netdev, mlx5e_rep_indr_setup_tc_cb,
+					rpriv);
 }
 
 static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,

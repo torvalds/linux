@@ -63,6 +63,10 @@ struct nft_rule;
 struct nft_flow_rule *nft_flow_rule_create(const struct nft_rule *rule);
 void nft_flow_rule_destroy(struct nft_flow_rule *flow);
 int nft_flow_rule_offload_commit(struct net *net);
+void nft_indr_block_get_and_ing_cmd(struct net_device *dev,
+				    flow_indr_block_bind_cb_t *cb,
+				    void *cb_priv,
+				    enum flow_block_command command);
 
 #define NFT_OFFLOAD_MATCH(__key, __base, __field, __len, __reg)		\
 	(__reg)->base_offset	=					\
