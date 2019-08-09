@@ -1483,7 +1483,6 @@ static int rockchip_drm_bind(struct device *dev)
 
 		s = to_rockchip_crtc_state(crtc->state);
 		if (is_support_hotplug(s->output_type)) {
-			s->crtc_primary_fb = crtc->primary->fb;
 			crtc->primary->fb = helper->fb;
 			drm_framebuffer_get(helper->fb);
 		}
@@ -1551,15 +1550,8 @@ static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_crtc *crtc;
 
-	drm_for_each_crtc(crtc, dev) {
-		struct rockchip_crtc_state *s = NULL;
-
-		s = to_rockchip_crtc_state(crtc->state);
-		if (s->crtc_primary_fb) {
-			crtc->primary->fb = s->crtc_primary_fb;
-			s->crtc_primary_fb = NULL;
-		}
-	}
+	drm_for_each_crtc(crtc, dev)
+		crtc->primary->fb = NULL;
 
 	return 0;
 }

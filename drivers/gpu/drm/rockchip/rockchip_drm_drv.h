@@ -121,7 +121,6 @@ struct rockchip_crtc_state {
 	int color_space;
 	int eotf;
 	struct rockchip_hdr_state hdr;
-	struct drm_framebuffer *crtc_primary_fb;
 };
 #define to_rockchip_crtc_state(s) \
 		container_of(s, struct rockchip_crtc_state, base)
