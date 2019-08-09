@@ -349,6 +349,13 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 	/* Assumes platform == cpu */
 	if (!dai_link->platforms->of_node)
 		dai_link->platforms->of_node = dai_link->cpus->of_node;
+
+	/*
+	 * DPCM BE can be no platform.
+	 * Alloced memory will be waste, but not leak.
+	 */
+	if (!dai_link->platforms->of_node)
+		dai_link->num_platforms = 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
