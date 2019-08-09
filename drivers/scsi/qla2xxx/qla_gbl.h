@@ -630,7 +630,7 @@ extern ulong qla27xx_fwdt_template_size(void *);
 
 extern void qla2xxx_dump_post_process(scsi_qla_host_t *, int);
 extern void ql_dump_regs(uint, scsi_qla_host_t *, uint);
-extern void ql_dump_buffer(uint, scsi_qla_host_t *, uint, void *, uint);
+extern void ql_dump_buffer(uint, scsi_qla_host_t *, uint, const void *, uint);
 /*
  * Global Function Prototypes in qla_gs.c source file.
  */
