@@ -290,4 +290,7 @@
 /* Sunix UART */
 #define PORT_SUNIX	121
 
+/* Freescale Linflex UART */
+#define PORT_LINFLEXUART	121
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
