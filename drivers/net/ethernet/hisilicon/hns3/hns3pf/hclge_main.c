@@ -750,14 +750,16 @@ static void hclge_get_stats(struct hnae3_handle *handle, u64 *data)
 	p = hclge_tqps_get_stats(handle, p);
 }
 
-static void hclge_get_mac_pause_stat(struct hnae3_handle *handle, u64 *tx_cnt,
-				     u64 *rx_cnt)
+static void hclge_get_mac_stat(struct hnae3_handle *handle,
+			       struct hns3_mac_stats *mac_stats)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	*tx_cnt = hdev->hw_stats.mac_stats.mac_tx_mac_pause_num;
-	*rx_cnt = hdev->hw_stats.mac_stats.mac_rx_mac_pause_num;
+	hclge_update_stats(handle, NULL);
+
+	mac_stats->tx_pause_cnt = hdev->hw_stats.mac_stats.mac_tx_mac_pause_num;
+	mac_stats->rx_pause_cnt = hdev->hw_stats.mac_stats.mac_rx_mac_pause_num;
 }
 
 static int hclge_parse_func_status(struct hclge_dev *hdev,
@@ -9798,7 +9800,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_mtu = hclge_set_mtu,
 	.reset_queue = hclge_reset_tqp,
 	.get_stats = hclge_get_stats,
-	.get_mac_pause_stats = hclge_get_mac_pause_stat,
+	.get_mac_stats = hclge_get_mac_stat,
 	.update_stats = hclge_update_stats,
 	.get_strings = hclge_get_strings,
 	.get_sset_count = hclge_get_sset_count,
