@@ -52,7 +52,9 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 	int size = sizeof(u##bits);					\
 	u##bits res;							\
 									\
-	if (token && token->kaddr && token->offset <= offset &&		\
+	ASSERT(token);							\
+									\
+	if (token->kaddr && token->offset <= offset &&			\
 	    token->eb == eb &&						\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
@@ -70,11 +72,9 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 	}								\
 	p = kaddr + part_offset - map_start;				\
 	res = get_unaligned_le##bits(p + off);				\
-	if (token) {							\
-		token->kaddr = kaddr;					\
-		token->offset = map_start;				\
-		token->eb = eb;						\
-	}								\
+	token->kaddr = kaddr;						\
+	token->offset = map_start;					\
+	token->eb = eb;							\
 	return res;							\
 }									\
 u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
@@ -116,7 +116,9 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 	unsigned long map_len;						\
 	int size = sizeof(u##bits);					\
 									\
-	if (token && token->kaddr && token->offset <= offset &&		\
+	ASSERT(token);							\
+									\
+	if (token->kaddr && token->offset <= offset &&			\
 	    token->eb == eb &&						\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
@@ -135,11 +137,9 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 	}								\
 	p = kaddr + part_offset - map_start;				\
 	put_unaligned_le##bits(val, p + off);				\
-	if (token) {							\
-		token->kaddr = kaddr;					\
-		token->offset = map_start;				\
-		token->eb = eb;						\
-	}								\
+	token->kaddr = kaddr;						\
+	token->offset = map_start;					\
+	token->eb = eb;							\
 }									\
 void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
 		      unsigned long off, u##bits val)			\
