@@ -711,32 +711,6 @@ static void set_irq_valid_mask(struct aspeed_gpio *gpio)
 	}
 }
 
-static int aspeed_gpio_setup_irqs(struct aspeed_gpio *gpio,
-		struct platform_device *pdev)
-{
-	int rc;
-
-	rc = platform_get_irq(pdev, 0);
-	if (rc < 0)
-		return rc;
-
-	gpio->irq = rc;
-
-	set_irq_valid_mask(gpio);
-
-	rc = gpiochip_irqchip_add(&gpio->chip, &aspeed_gpio_irqchip,
-			0, handle_bad_irq, IRQ_TYPE_NONE);
-	if (rc) {
-		dev_info(&pdev->dev, "Could not add irqchip\n");
-		return rc;
-	}
-
-	gpiochip_set_chained_irqchip(&gpio->chip, &aspeed_gpio_irqchip,
-				     gpio->irq, aspeed_gpio_irq_handler);
-
-	return 0;
-}
-
 static int aspeed_gpio_reset_tolerance(struct gpio_chip *chip,
 					unsigned int offset, bool enable)
 {
@@ -1189,7 +1163,6 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.set_config = aspeed_gpio_set_config;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
-	gpio->chip.irq.need_valid_mask = true;
 
 	/* Allocate a cache of the output registers */
 	banks = gpio->config->nr_gpios >> 5;
@@ -1212,16 +1185,41 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 		aspeed_gpio_change_cmd_source(gpio, bank, 3, GPIO_CMDSRC_ARM);
 	}
 
-	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
-	if (rc < 0)
-		return rc;
+	/* Optionally set up an irqchip if there is an IRQ */
+	rc = platform_get_irq(pdev, 0);
+	if (rc > 0) {
+		struct gpio_irq_chip *girq;
+
+		gpio->irq = rc;
+		girq = &gpio->chip.irq;
+		girq->chip = &aspeed_gpio_irqchip;
+		girq->parent_handler = aspeed_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = gpio->irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_bad_irq;
+		girq->need_valid_mask = true;
+	}
 
 	gpio->offset_timer =
 		devm_kzalloc(&pdev->dev, gpio->chip.ngpio, GFP_KERNEL);
 	if (!gpio->offset_timer)
 		return -ENOMEM;
 
-	return aspeed_gpio_setup_irqs(gpio, pdev);
+	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
+	if (rc < 0)
+		return rc;
+
+	/* Now the valid mask is allocated */
+	if (gpio->irq)
+		set_irq_valid_mask(gpio);
+
+	return 0;
 }
 
 static struct platform_driver aspeed_gpio_driver = {
