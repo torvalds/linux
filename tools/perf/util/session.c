@@ -1051,23 +1051,30 @@ static void callchain__printf(struct evsel *evsel,
 		       i, callchain->ips[i]);
 }
 
-static void branch_stack__printf(struct perf_sample *sample)
+static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 {
 	uint64_t i;
 
-	printf("... branch stack: nr:%" PRIu64 "\n", sample->branch_stack->nr);
+	printf("%s: nr:%" PRIu64 "\n",
+		!callstack ? "... branch stack" : "... branch callstack",
+		sample->branch_stack->nr);
 
 	for (i = 0; i < sample->branch_stack->nr; i++) {
 		struct branch_entry *e = &sample->branch_stack->entries[i];
 
-		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
-			i, e->from, e->to,
-			(unsigned short)e->flags.cycles,
-			e->flags.mispred ? "M" : " ",
-			e->flags.predicted ? "P" : " ",
-			e->flags.abort ? "A" : " ",
-			e->flags.in_tx ? "T" : " ",
-			(unsigned)e->flags.reserved);
+		if (!callstack) {
+			printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
+				i, e->from, e->to,
+				(unsigned short)e->flags.cycles,
+				e->flags.mispred ? "M" : " ",
+				e->flags.predicted ? "P" : " ",
+				e->flags.abort ? "A" : " ",
+				e->flags.in_tx ? "T" : " ",
+				(unsigned)e->flags.reserved);
+		} else {
+			printf("..... %2"PRIu64": %016" PRIx64 "\n",
+				i, i > 0 ? e->from : e->to);
+		}
 	}
 }
 
@@ -1217,8 +1224,8 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 	if (evsel__has_callchain(evsel))
 		callchain__printf(evsel, sample);
 
-	if ((sample_type & PERF_SAMPLE_BRANCH_STACK) && !perf_evsel__has_branch_callstack(evsel))
-		branch_stack__printf(sample);
+	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+		branch_stack__printf(sample, perf_evsel__has_branch_callstack(evsel));
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
 		regs_user__printf(sample);
