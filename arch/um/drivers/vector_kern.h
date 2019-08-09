@@ -116,6 +116,7 @@ struct vector_private {
 	bool rexmit_scheduled;
 	bool opened;
 	bool in_write_poll;
+	bool in_error;
 
 	/* ethtool stats */
 

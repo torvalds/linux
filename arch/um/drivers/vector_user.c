@@ -618,7 +618,7 @@ int uml_vector_writev(int fd, void *hdr, int iovcount)
 	int n;
 
 	CATCH_EINTR(n = writev(fd, (struct iovec *) hdr,  iovcount));
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && ((errno == EAGAIN) || (errno == ENOBUFS)))
 		return 0;
 	if (n >= 0)
 		return n;
@@ -635,7 +635,7 @@ int uml_vector_sendmmsg(
 	int n;
 
 	CATCH_EINTR(n = sendmmsg(fd, (struct mmsghdr *) msgvec, vlen, flags));
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && ((errno == EAGAIN) || (errno == ENOBUFS)))
 		return 0;
 	if (n >= 0)
 		return n;
