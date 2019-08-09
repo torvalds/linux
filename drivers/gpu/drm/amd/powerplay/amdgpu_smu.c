@@ -630,9 +630,13 @@ int smu_feature_update_enable_state(struct smu_context *smu, uint64_t feature_ma
 
 int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 {
+	struct amdgpu_device *adev = smu->adev;
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 	int ret = 0;
+
+	if (adev->flags & AMD_IS_APU)
+		return 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
 	if (feature_id < 0)
