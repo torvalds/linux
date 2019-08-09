@@ -191,16 +191,14 @@ struct scsi_qla_host *qlt_find_host_by_d_id(struct scsi_qla_host *vha,
 					    be_id_t d_id)
 {
 	struct scsi_qla_host *host;
-	uint32_t key = 0;
+	uint32_t key;
 
 	if (vha->d_id.b.area == d_id.area &&
 	    vha->d_id.b.domain == d_id.domain &&
 	    vha->d_id.b.al_pa == d_id.al_pa)
 		return vha;
 
-	key  = d_id.domain << 16;
-	key |= d_id.area << 8;
-	key |= d_id.al_pa;
+	key = be_to_port_id(d_id).b24;
 
 	host = btree_lookup32(&vha->hw->tgt.host_map, key);
 	if (!host)
