@@ -219,6 +219,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct tqmx86_gpio_data *gpio;
 	struct gpio_chip *chip;
+	struct gpio_irq_chip *girq;
 	void __iomem *io_base;
 	struct resource *res;
 	int ret, irq;
@@ -264,12 +265,6 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = devm_gpiochip_add_data(dev, chip, gpio);
-	if (ret) {
-		dev_err(dev, "Could not register GPIO chip\n");
-		goto out_pm_dis;
-	}
-
 	if (irq) {
 		struct irq_chip *irq_chip = &gpio->irq_chip;
 		u8 irq_status;
@@ -287,23 +282,35 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 		irq_status = tqmx86_gpio_read(gpio, TQMX86_GPIIS);
 		tqmx86_gpio_write(gpio, irq_status, TQMX86_GPIIS);
 
-		ret = gpiochip_irqchip_add(chip, irq_chip,
-					   0, handle_simple_irq,
-					   IRQ_TYPE_EDGE_BOTH);
-		if (ret) {
-			dev_err(dev, "Could not add irq chip\n");
+		girq = &chip->irq;
+		girq->chip = irq_chip;
+		girq->parent_handler = tqmx86_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			ret = -ENOMEM;
 			goto out_pm_dis;
 		}
+		girq->parents[0] = irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+	}
 
-		gpiochip_set_chained_irqchip(chip, irq_chip,
-					     irq, tqmx86_gpio_irq_handler);
+	ret = devm_gpiochip_add_data(dev, chip, gpio);
+	if (ret) {
+		dev_err(dev, "Could not register GPIO chip\n");
+		goto out_pm_dis;
 	}
 
 	/* Only GPIOs 4-7 are valid for interrupts. Clear the others */
-	clear_bit(0, chip->irq.valid_mask);
-	clear_bit(1, chip->irq.valid_mask);
-	clear_bit(2, chip->irq.valid_mask);
-	clear_bit(3, chip->irq.valid_mask);
+	if (irq) {
+		clear_bit(0, girq->valid_mask);
+		clear_bit(1, girq->valid_mask);
+		clear_bit(2, girq->valid_mask);
+		clear_bit(3, girq->valid_mask);
+	}
 
 	dev_info(dev, "GPIO functionality initialized with %d pins\n",
 		 chip->ngpio);
