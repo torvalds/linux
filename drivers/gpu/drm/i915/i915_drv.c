@@ -485,6 +485,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	intel_device_info_subplatform_init(dev_priv);
 
+	intel_uncore_mmio_debug_init_early(&dev_priv->mmio_debug);
 	intel_uncore_init_early(&dev_priv->uncore, dev_priv);
 
 	spin_lock_init(&dev_priv->irq_lock);
@@ -1785,7 +1786,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 out:
 	enable_rpm_wakeref_asserts(rpm);
-	if (!dev_priv->uncore.user_forcewake.count)
+	if (!dev_priv->uncore.user_forcewake_count)
 		intel_runtime_pm_driver_release(rpm);
 
 	return ret;

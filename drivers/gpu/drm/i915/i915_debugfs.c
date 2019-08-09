@@ -1149,7 +1149,7 @@ static int i915_forcewake_domains(struct seq_file *m, void *data)
 	unsigned int tmp;
 
 	seq_printf(m, "user.bypass_count = %u\n",
-		   uncore->user_forcewake.count);
+		   uncore->user_forcewake_count);
 
 	for_each_fw_domain(fw_domain, uncore, tmp)
 		seq_printf(m, "%s.wake_count = %u\n",

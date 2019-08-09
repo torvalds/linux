@@ -1369,6 +1369,7 @@ struct drm_i915_private {
 	resource_size_t stolen_usable_size;	/* Total size minus reserved ranges */
 
 	struct intel_uncore uncore;
+	struct intel_uncore_mmio_debug mmio_debug;
 
 	struct i915_virtual_gpu vgpu;
 
