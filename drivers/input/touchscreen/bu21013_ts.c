@@ -9,6 +9,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -181,11 +182,13 @@ static int bu21013_read_block_data(struct bu21013_ts *ts, u8 *buf)
 
 static int bu21013_do_touch_report(struct bu21013_ts *ts)
 {
-	u8	buf[LENGTH_OF_BUFFER];
-	unsigned int pos_x[2], pos_y[2];
-	bool	has_x_sensors, has_y_sensors;
-	int	finger_down_count = 0;
-	int	i;
+	struct input_dev *input = ts->in_dev;
+	struct input_mt_pos pos[MAX_FINGERS];
+	int slots[MAX_FINGERS];
+	u8 buf[LENGTH_OF_BUFFER];
+	bool has_x_sensors, has_y_sensors;
+	int finger_down_count = 0;
+	int i;
 
 	if (bu21013_read_block_data(ts, buf) < 0)
 		return -EINVAL;
@@ -197,39 +200,38 @@ static int bu21013_do_touch_report(struct bu21013_ts *ts)
 		return 0;
 
 	for (i = 0; i < MAX_FINGERS; i++) {
-		const u8 *p = &buf[4 * i + 3];
-		unsigned int x = p[0] << SHIFT_2 | (p[1] & MASK_BITS);
-		unsigned int y = p[2] << SHIFT_2 | (p[3] & MASK_BITS);
-		if (x == 0 || y == 0)
+		const u8 *data = &buf[4 * i + 3];
+		struct input_mt_pos *p = &pos[finger_down_count];
+
+		p->x = data[0] << SHIFT_2 | (data[1] & MASK_BITS);
+		p->y = data[2] << SHIFT_2 | (data[3] & MASK_BITS);
+		if (p->x == 0 || p->y == 0)
 			continue;
-		pos_x[finger_down_count] = x;
-		pos_y[finger_down_count] = y;
+
 		finger_down_count++;
+
+		if (ts->x_flip)
+			p->x = ts->touch_x_max - p->x;
+		if (ts->y_flip)
+			p->y = ts->touch_y_max - p->y;
 	}
 
-	if (finger_down_count) {
-		if (finger_down_count == 2 &&
-		    (abs(pos_x[0] - pos_x[1]) < DELTA_MIN ||
-		     abs(pos_y[0] - pos_y[1]) < DELTA_MIN)) {
-			return 0;
-		}
+	if (finger_down_count == 2 &&
+	    (abs(pos[0].x - pos[1].x) < DELTA_MIN ||
+	     abs(pos[0].y - pos[1].y) < DELTA_MIN)) {
+		return 0;
+	}
 
-		for (i = 0; i < finger_down_count; i++) {
-			if (ts->x_flip)
-				pos_x[i] = ts->touch_x_max - pos_x[i];
-			if (ts->y_flip)
-				pos_y[i] = ts->touch_y_max - pos_y[i];
+	input_mt_assign_slots(input, slots, pos, finger_down_count, DELTA_MIN);
+	for (i = 0; i < finger_down_count; i++) {
+		input_mt_slot(input, slots[i]);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
+		input_report_abs(input, ABS_MT_POSITION_X, pos[i].x);
+		input_report_abs(input, ABS_MT_POSITION_Y, pos[i].y);
+	}
 
-			input_report_abs(ts->in_dev,
-					 ABS_MT_POSITION_X, pos_x[i]);
-			input_report_abs(ts->in_dev,
-					 ABS_MT_POSITION_Y, pos_y[i]);
-			input_mt_sync(ts->in_dev);
-		}
-	} else
-		input_mt_sync(ts->in_dev);
-
-	input_sync(ts->in_dev);
+	input_mt_sync_frame(input);
+	input_sync(input);
 
 	return 0;
 }
@@ -443,20 +445,24 @@ static int bu21013_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 	ts->in_dev = in_dev;
+	input_set_drvdata(in_dev, ts);
 
 	/* register the device to input subsystem */
 	in_dev->name = DRIVER_TP;
 	in_dev->id.bustype = BUS_I2C;
 
-	__set_bit(EV_SYN, in_dev->evbit);
-	__set_bit(EV_KEY, in_dev->evbit);
-	__set_bit(EV_ABS, in_dev->evbit);
-
 	input_set_abs_params(in_dev, ABS_MT_POSITION_X,
 			     0, ts->touch_x_max, 0, 0);
 	input_set_abs_params(in_dev, ABS_MT_POSITION_Y,
 			     0, ts->touch_y_max, 0, 0);
-	input_set_drvdata(in_dev, ts);
+
+	error = input_mt_init_slots(in_dev, MAX_FINGERS,
+				    INPUT_MT_DIRECT | INPUT_MT_TRACK |
+					INPUT_MT_DROP_UNUSED);
+	if (error) {
+		dev_err(&client->dev, "failed to initialize MT slots");
+		return error;
+	}
 
 	ts->regulator = devm_regulator_get(&client->dev, "avdd");
 	if (IS_ERR(ts->regulator)) {
