@@ -170,9 +170,6 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 
 	mt76_dma_attach(&dev->mt76);
 
-	init_waitqueue_head(&dev->mt76.mmio.mcu.wait);
-	skb_queue_head_init(&dev->mt76.mmio.mcu.res_q);
-
 	mt76_clear(dev, MT_WPDMA_GLO_CFG,
 		   MT_WPDMA_GLO_CFG_TX_DMA_EN |
 		   MT_WPDMA_GLO_CFG_RX_DMA_EN |
