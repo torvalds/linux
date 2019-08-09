@@ -2664,6 +2664,34 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	    CC(is_noncanonical_address(vmcs12->host_idtr_base, vcpu)) ||
 	    CC(is_noncanonical_address(vmcs12->host_tr_base, vcpu)))
 		return -EINVAL;
+
+	if (!(vmcs12->host_ia32_efer & EFER_LMA) &&
+	    ((vmcs12->vm_entry_controls & VM_ENTRY_IA32E_MODE) ||
+	    (vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE))) {
+		return -EINVAL;
+	}
+
+	if ((vmcs12->host_ia32_efer & EFER_LMA) &&
+	    !(vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE)) {
+		return -EINVAL;
+	}
+
+	if (!(vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE) &&
+	    ((vmcs12->vm_entry_controls & VM_ENTRY_IA32E_MODE) ||
+	    (vmcs12->host_cr4 & X86_CR4_PCIDE) ||
+	    (((vmcs12->host_rip) >> 32) & 0xffffffff))) {
+		return -EINVAL;
+	}
+
+	if ((vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE) &&
+	    ((!(vmcs12->host_cr4 & X86_CR4_PAE)) ||
+	    (is_noncanonical_address(vmcs12->host_rip, vcpu)))) {
+		return -EINVAL;
+	}
+#else
+	if (vmcs12->vm_entry_controls & VM_ENTRY_IA32E_MODE ||
+	    vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE)
+		return -EINVAL;
 #endif
 
 	/*
