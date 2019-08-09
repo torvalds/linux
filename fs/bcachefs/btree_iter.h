@@ -242,7 +242,7 @@ static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 					    (_start), (_flags))) ?:	\
 		      PTR_ERR_OR_ZERO(((_k) =				\
 			__bch2_btree_iter_peek(_iter, _flags)).k);	\
-	     !ret && (_k).k;						\
+	     !_ret && (_k).k;						\
 	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
 			__bch2_btree_iter_next(_iter, _flags)).k))
 
