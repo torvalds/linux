@@ -789,6 +789,8 @@ qlt_plogi_ack_find_add(struct scsi_qla_host *vha, port_id_t *id,
 {
 	struct qlt_plogi_ack_t *pla;
 
+	lockdep_assert_held(&vha->hw->hardware_lock);
+
 	list_for_each_entry(pla, &vha->plogi_ack_list, list) {
 		if (pla->id.b24 == id->b24) {
 			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0x210d,
@@ -4713,6 +4715,8 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 	struct qlt_plogi_ack_t *pla;
 	unsigned long flags;
 
+	lockdep_assert_held(&vha->hw->hardware_lock);
+
 	wwn = wwn_to_u64(iocb->u.isp24.port_name);
 
 	port_id.b.domain = iocb->u.isp24.port_id[2];
@@ -4885,6 +4889,8 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 	uint16_t wd3_lo;
 	int res = 0;
 	unsigned long flags;
+
+	lockdep_assert_held(&ha->hardware_lock);
 
 	wwn = wwn_to_u64(iocb->u.isp24.port_name);
 
@@ -5161,6 +5167,8 @@ static void qlt_handle_imm_notify(struct scsi_qla_host *vha,
 	uint32_t add_flags = 0;
 	int send_notify_ack = 1;
 	uint16_t status;
+
+	lockdep_assert_held(&ha->hardware_lock);
 
 	status = le16_to_cpu(iocb->u.isp2x.status);
 	switch (status) {
