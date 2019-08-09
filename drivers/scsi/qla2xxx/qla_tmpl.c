@@ -429,7 +429,7 @@ qla27xx_fwdt_entry_t266(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd20a,
 	    "%s: reset risc [%lx]\n", __func__, *len);
 	if (buf)
-		qla24xx_soft_reset(vha->hw);
+		WARN_ON_ONCE(qla24xx_soft_reset(vha->hw) != QLA_SUCCESS);
 
 	return qla27xx_next_entry(ent);
 }
