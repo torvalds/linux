@@ -52,7 +52,7 @@ ifneq ($(EXTRA_LDFLAGS),)
 LDFLAGS += $(EXTRA_LDFLAGS)
 endif
 
-LIBS = -lelf $(LIBBPF)
+LIBS = -lelf -lz $(LIBBPF)
 
 INSTALL ?= install
 RM ?= rm -f
