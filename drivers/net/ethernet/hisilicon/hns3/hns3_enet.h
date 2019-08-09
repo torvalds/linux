@@ -195,7 +195,8 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_INITED			1
 
 #define HNS3_MAX_BD_SIZE			65535
-#define HNS3_MAX_BD_PER_FRAG			8
+#define HNS3_MAX_BD_NUM_NORMAL			8
+#define HNS3_MAX_BD_NUM_TSO			63
 #define HNS3_MAX_BD_PER_PKT			MAX_SKB_FRAGS
 
 #define HNS3_VECTOR_GL0_OFFSET			0x100

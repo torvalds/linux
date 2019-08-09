@@ -1186,28 +1186,20 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	return 0;
 }
 
-static int hns3_nic_bd_num(struct sk_buff *skb)
+static unsigned int hns3_nic_bd_num(struct sk_buff *skb)
 {
-	int size = skb_headlen(skb);
-	int i, bd_num;
+	unsigned int bd_num;
+	int i;
 
 	/* if the total len is within the max bd limit */
 	if (likely(skb->len <= HNS3_MAX_BD_SIZE))
 		return skb_shinfo(skb)->nr_frags + 1;
 
-	bd_num = hns3_tx_bd_count(size);
+	bd_num = hns3_tx_bd_count(skb_headlen(skb));
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		int frag_bd_num;
-
-		size = skb_frag_size(frag);
-		frag_bd_num = hns3_tx_bd_count(size);
-
-		if (unlikely(frag_bd_num > HNS3_MAX_BD_PER_FRAG))
-			return -ENOMEM;
-
-		bd_num += frag_bd_num;
+		bd_num += hns3_tx_bd_count(skb_frag_size(frag));
 	}
 
 	return bd_num;
@@ -1228,7 +1220,7 @@ static unsigned int hns3_gso_hdr_len(struct sk_buff *skb)
  */
 static bool hns3_skb_need_linearized(struct sk_buff *skb)
 {
-	int bd_limit = HNS3_MAX_BD_PER_FRAG - 1;
+	int bd_limit = HNS3_MAX_BD_NUM_NORMAL - 1;
 	unsigned int tot_len = 0;
 	int i;
 
@@ -1258,27 +1250,27 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 				  struct sk_buff **out_skb)
 {
 	struct sk_buff *skb = *out_skb;
-	int bd_num;
+	unsigned int bd_num;
 
 	bd_num = hns3_nic_bd_num(skb);
-	if (bd_num < 0)
-		return bd_num;
-
-	if (unlikely(bd_num > HNS3_MAX_BD_PER_FRAG)) {
+	if (unlikely(bd_num > HNS3_MAX_BD_NUM_NORMAL)) {
 		struct sk_buff *new_skb;
 
-		if (skb_is_gso(skb) && !hns3_skb_need_linearized(skb))
+		if (skb_is_gso(skb) && bd_num <= HNS3_MAX_BD_NUM_TSO &&
+		    !hns3_skb_need_linearized(skb))
 			goto out;
 
-		bd_num = hns3_tx_bd_count(skb->len);
-		if (unlikely(ring_space(ring) < bd_num))
-			return -EBUSY;
 		/* manual split the send packet */
 		new_skb = skb_copy(skb, GFP_ATOMIC);
 		if (!new_skb)
 			return -ENOMEM;
 		dev_kfree_skb_any(skb);
 		*out_skb = new_skb;
+
+		bd_num = hns3_nic_bd_num(new_skb);
+		if ((skb_is_gso(new_skb) && bd_num > HNS3_MAX_BD_NUM_TSO) ||
+		    (!skb_is_gso(new_skb) && bd_num > HNS3_MAX_BD_NUM_NORMAL))
+			return -ENOMEM;
 
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.tx_copy++;
