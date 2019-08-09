@@ -1469,9 +1469,9 @@ static int gmc_v9_0_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->asic_type == CHIP_ARCTURUS)
-		return 0;
-
-	mmhub_v1_0_set_clockgating(adev, state);
+		mmhub_v9_4_set_clockgating(adev, state);
+	else
+		mmhub_v1_0_set_clockgating(adev, state);
 
 	athub_v1_0_set_clockgating(adev, state);
 
@@ -1483,9 +1483,9 @@ static void gmc_v9_0_get_clockgating_state(void *handle, u32 *flags)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->asic_type == CHIP_ARCTURUS)
-		return;
-
-	mmhub_v1_0_get_clockgating(adev, flags);
+		mmhub_v9_4_get_clockgating(adev, flags);
+	else
+		mmhub_v1_0_get_clockgating(adev, flags);
 
 	athub_v1_0_get_clockgating(adev, flags);
 }

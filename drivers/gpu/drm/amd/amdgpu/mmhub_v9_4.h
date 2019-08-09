@@ -29,5 +29,8 @@ void mmhub_v9_4_gart_disable(struct amdgpu_device *adev);
 void mmhub_v9_4_set_fault_enable_default(struct amdgpu_device *adev,
 					 bool value);
 void mmhub_v9_4_init(struct amdgpu_device *adev);
+int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
+			       enum amd_clockgating_state state);
+void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags);
 
 #endif
