@@ -2436,7 +2436,7 @@ void hists__match(struct hists *leader, struct hists *other)
 {
 	struct rb_root_cached *root;
 	struct rb_node *nd;
-	struct hist_entry *pos, *pair;
+	struct hist_entry *pos, *pair, *pos_pair, *tmp_pair;
 
 	if (symbol_conf.report_hierarchy) {
 		/* hierarchy report always collapses entries */
@@ -2453,8 +2453,24 @@ void hists__match(struct hists *leader, struct hists *other)
 		pos  = rb_entry(nd, struct hist_entry, rb_node_in);
 		pair = hists__find_entry(other, pos);
 
-		if (pair && list_empty(&pair->pairs.node))
+		if (pair && list_empty(&pair->pairs.node)) {
+			list_for_each_entry_safe(pos_pair, tmp_pair, &pos->pairs.head, pairs.node) {
+				if (pos_pair->hists == other) {
+					/*
+					 * XXX maybe decayed entries can appear
+					 * here?  but then we would have use
+					 * after free, as decayed entries are
+					 * freed see hists__delete_entry
+					 */
+					BUG_ON(!pos_pair->dummy);
+					list_del_init(&pos_pair->pairs.node);
+					hist_entry__delete(pos_pair);
+					break;
+				}
+			}
+
 			hist_entry__add_pair(pair, pos);
+		}
 	}
 }
 
