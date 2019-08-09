@@ -475,7 +475,7 @@ static void wilc_wlan_deinitialize(struct net_device *dev)
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);
 
-		wilc_wlan_stop(wl);
+		wilc_wlan_stop(wl, vif);
 		wilc_wlan_cleanup(dev);
 		wlan_deinit_locks(dev);
 
@@ -573,7 +573,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 		return 0;
 
 fail_fw_start:
-		wilc_wlan_stop(wl);
+		wilc_wlan_stop(wl, vif);
 
 fail_irq_enable:
 		if (!wl->dev_irq_num &&
