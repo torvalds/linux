@@ -2704,12 +2704,12 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 
 	if (elsio->u.els_logo.els_cmd == ELS_DCMD_PLOGI) {
 		els_iocb->tx_byte_count = els_iocb->tx_len =
-			sizeof(struct els_plogi_payload);
+			cpu_to_le32(sizeof(struct els_plogi_payload));
 		put_unaligned_le64(elsio->u.els_plogi.els_plogi_pyld_dma,
 				   &els_iocb->tx_address);
 		els_iocb->rx_dsd_count = 1;
 		els_iocb->rx_byte_count = els_iocb->rx_len =
-			sizeof(struct els_plogi_payload);
+			cpu_to_le32(sizeof(struct els_plogi_payload));
 		put_unaligned_le64(elsio->u.els_plogi.els_resp_pyld_dma,
 				   &els_iocb->rx_address);
 
@@ -2718,7 +2718,8 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 		ql_dump_buffer(ql_log_info, vha, 0x0109,
 		    (uint8_t *)els_iocb, 0x70);
 	} else {
-		els_iocb->tx_byte_count = sizeof(struct els_logo_payload);
+		els_iocb->tx_byte_count =
+			cpu_to_le32(sizeof(struct els_logo_payload));
 		put_unaligned_le64(elsio->u.els_logo.els_logo_pyld_dma,
 				   &els_iocb->tx_address);
 		els_iocb->tx_len = cpu_to_le32(sizeof(struct els_logo_payload));
