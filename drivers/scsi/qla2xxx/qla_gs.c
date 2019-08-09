@@ -3467,54 +3467,54 @@ done:
 
 void qla24xx_handle_gffid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 {
-       fc_port_t *fcport = ea->fcport;
+	fc_port_t *fcport = ea->fcport;
 
-       qla24xx_post_gnl_work(vha, fcport);
+	qla24xx_post_gnl_work(vha, fcport);
 }
 
 void qla24xx_async_gffid_sp_done(void *s, int res)
 {
-       struct srb *sp = s;
-       struct scsi_qla_host *vha = sp->vha;
-       fc_port_t *fcport = sp->fcport;
-       struct ct_sns_rsp *ct_rsp;
-       struct event_arg ea;
+	struct srb *sp = s;
+	struct scsi_qla_host *vha = sp->vha;
+	fc_port_t *fcport = sp->fcport;
+	struct ct_sns_rsp *ct_rsp;
+	struct event_arg ea;
 
-       ql_dbg(ql_dbg_disc, vha, 0x2133,
-	   "Async done-%s res %x ID %x. %8phC\n",
-	   sp->name, res, fcport->d_id.b24, fcport->port_name);
+	ql_dbg(ql_dbg_disc, vha, 0x2133,
+	       "Async done-%s res %x ID %x. %8phC\n",
+	       sp->name, res, fcport->d_id.b24, fcport->port_name);
 
-       fcport->flags &= ~FCF_ASYNC_SENT;
-       ct_rsp = &fcport->ct_desc.ct_sns->p.rsp;
-       /*
-	* FC-GS-7, 5.2.3.12 FC-4 Features - format
-	* The format of the FC-4 Features object, as defined by the FC-4,
-	* Shall be an array of 4-bit values, one for each type code value
-	*/
-       if (!res) {
-	       if (ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET] & 0xf) {
-		       /* w1 b00:03 */
-		       fcport->fc4_type =
-			   ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
-		       fcport->fc4_type &= 0xf;
+	fcport->flags &= ~FCF_ASYNC_SENT;
+	ct_rsp = &fcport->ct_desc.ct_sns->p.rsp;
+	/*
+	 * FC-GS-7, 5.2.3.12 FC-4 Features - format
+	 * The format of the FC-4 Features object, as defined by the FC-4,
+	 * Shall be an array of 4-bit values, one for each type code value
+	 */
+	if (!res) {
+		if (ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET] & 0xf) {
+			/* w1 b00:03 */
+			fcport->fc4_type =
+			    ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
+			fcport->fc4_type &= 0xf;
 	       }
 
-	       if (ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET] & 0xf) {
-		       /* w5 [00:03]/28h */
-		       fcport->fc4f_nvme =
-			   ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET];
-		       fcport->fc4f_nvme &= 0xf;
-	       }
-       }
+		if (ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET] & 0xf) {
+			/* w5 [00:03]/28h */
+			fcport->fc4f_nvme =
+			    ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET];
+			fcport->fc4f_nvme &= 0xf;
+		}
+	}
 
-       memset(&ea, 0, sizeof(ea));
-       ea.sp = sp;
-       ea.fcport = sp->fcport;
-       ea.rc = res;
-       ea.event = FCME_GFFID_DONE;
+	memset(&ea, 0, sizeof(ea));
+	ea.sp = sp;
+	ea.fcport = sp->fcport;
+	ea.rc = res;
+	ea.event = FCME_GFFID_DONE;
 
-       qla2x00_fcport_event_handler(vha, &ea);
-       sp->free(sp);
+	qla2x00_fcport_event_handler(vha, &ea);
+	sp->free(sp);
 }
 
 /* Get FC4 Feature with Nport ID. */
