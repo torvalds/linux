@@ -438,7 +438,7 @@ int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
 	return BTRFS_REF_TYPE_INVALID;
 }
 
-static u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset)
+u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset)
 {
 	u32 high_crc = ~(u32)0;
 	u32 low_crc = ~(u32)0;
