@@ -732,7 +732,7 @@ extern int qlafx00_initialize_adapter(struct scsi_qla_host *);
 extern int qlafx00_soft_reset(scsi_qla_host_t *);
 extern int qlafx00_chip_diag(scsi_qla_host_t *);
 extern void qlafx00_config_rings(struct scsi_qla_host *);
-extern char *qlafx00_pci_info_str(struct scsi_qla_host *, char *);
+extern char *qlafx00_pci_info_str(struct scsi_qla_host *, char *, size_t);
 extern char *qlafx00_fw_version_str(struct scsi_qla_host *, char *, size_t);
 extern irqreturn_t qlafx00_intr_handler(int, void *);
 extern void qlafx00_enable_intrs(struct qla_hw_data *);
