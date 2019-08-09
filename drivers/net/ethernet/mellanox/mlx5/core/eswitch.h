@@ -377,8 +377,8 @@ struct mlx5_esw_flow_attr {
 		struct mlx5_termtbl_handle *termtbl;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
 	u32	mod_hdr_id;
-	u8	match_level;
-	u8	tunnel_match_level;
+	u8	inner_match_level;
+	u8	outer_match_level;
 	struct mlx5_fc *counter;
 	u32	chain;
 	u16	prio;
