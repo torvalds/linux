@@ -879,16 +879,12 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 
 static const struct of_device_id rpmh_regulator_match_table[] = {
 	{
-		.compatible = "qcom,pm8998-rpmh-regulators",
-		.data = pm8998_vreg_data,
-	},
-	{
-		.compatible = "qcom,pmi8998-rpmh-regulators",
-		.data = pmi8998_vreg_data,
-	},
-	{
 		.compatible = "qcom,pm8005-rpmh-regulators",
 		.data = pm8005_vreg_data,
+	},
+	{
+		.compatible = "qcom,pm8009-rpmh-regulators",
+		.data = pm8009_vreg_data,
 	},
 	{
 		.compatible = "qcom,pm8150-rpmh-regulators",
@@ -899,8 +895,12 @@ static const struct of_device_id rpmh_regulator_match_table[] = {
 		.data = pm8150l_vreg_data,
 	},
 	{
-		.compatible = "qcom,pm8009-rpmh-regulators",
-		.data = pm8009_vreg_data,
+		.compatible = "qcom,pm8998-rpmh-regulators",
+		.data = pm8998_vreg_data,
+	},
+	{
+		.compatible = "qcom,pmi8998-rpmh-regulators",
+		.data = pmi8998_vreg_data,
 	},
 	{}
 };
