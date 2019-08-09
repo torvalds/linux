@@ -133,9 +133,16 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 	drm_pci_free(obj->base.dev, obj->phys_handle);
 }
 
+static void phys_release(struct drm_i915_gem_object *obj)
+{
+	fput(obj->base.filp);
+}
+
 static const struct drm_i915_gem_object_ops i915_gem_phys_ops = {
 	.get_pages = i915_gem_object_get_pages_phys,
 	.put_pages = i915_gem_object_put_pages_phys,
+
+	.release = phys_release,
 };
 
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
