@@ -294,13 +294,6 @@
 			label = "MFC";
 		};
 
-		msc_pd: power-domain@10044120 {
-			compatible = "samsung,exynos4210-pd";
-			reg = <0x10044120 0x20>;
-			#power-domain-cells = <0>;
-			label = "MSC";
-		};
-
 		disp_pd: power-domain@100440c0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x100440C0 0x20>;
@@ -313,6 +306,13 @@
 			reg = <0x100440E0 0x20>;
 			#power-domain-cells = <0>;
 			label = "MAU";
+		};
+
+		msc_pd: power-domain@10044120 {
+			compatible = "samsung,exynos4210-pd";
+			reg = <0x10044120 0x20>;
+			#power-domain-cells = <0>;
+			label = "MSC";
 		};
 
 		pinctrl_0: pinctrl@13400000 {
