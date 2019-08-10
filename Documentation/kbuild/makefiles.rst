@@ -787,12 +787,6 @@ This will delete the directory debian in the toplevel directory, including all
 subdirectories.
 
 To exclude certain files from make clean, use the $(no-clean-files) variable.
-This is only a special case used in the top level Kbuild file:
-
-	Example::
-
-		#Kbuild
-		no-clean-files := $(bounds-file) $(offsets-file)
 
 Usually kbuild descends down in subdirectories due to "obj-* := dir/",
 but in the architecture makefiles where the kbuild infrastructure

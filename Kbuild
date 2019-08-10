@@ -57,6 +57,3 @@ quiet_cmd_atomics = CALL    $<
 
 old-atomics: scripts/atomic/check-atomics.sh FORCE
 	$(call cmd,atomics)
-
-# Keep these three files during make clean
-no-clean-files := $(bounds-file) $(offsets-file) $(timeconst-file)
