@@ -88,6 +88,7 @@ struct gs_console {
 	spinlock_t		lock;
 	struct usb_request	*req;
 	struct kfifo		buf;
+	size_t			missed;
 };
 
 /*
@@ -931,6 +932,15 @@ static void __gs_console_push(struct gs_console *cons)
 	if (!size)
 		return;
 
+	if (cons->missed && ep->maxpacket >= 64) {
+		char buf[64];
+		size_t len;
+
+		len = sprintf(buf, "\n[missed %zu bytes]\n", cons->missed);
+		kfifo_in(&cons->buf, buf, len);
+		cons->missed = 0;
+	}
+
 	req->length = size;
 	if (usb_ep_queue(ep, req, GFP_ATOMIC))
 		req->length = 0;
@@ -952,10 +962,13 @@ static void gs_console_write(struct console *co,
 {
 	struct gs_console *cons = container_of(co, struct gs_console, console);
 	unsigned long flags;
+	size_t n;
 
 	spin_lock_irqsave(&cons->lock, flags);
 
-	kfifo_in(&cons->buf, buf, count);
+	n = kfifo_in(&cons->buf, buf, count);
+	if (n < count)
+		cons->missed += count - n;
 
 	if (cons->req && !cons->req->length)
 		schedule_work(&cons->work);
