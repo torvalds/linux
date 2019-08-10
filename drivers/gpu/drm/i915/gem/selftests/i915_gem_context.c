@@ -156,70 +156,6 @@ out_unlock:
 	return err;
 }
 
-static struct i915_vma *
-gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
-{
-	struct drm_i915_gem_object *obj;
-	const int gen = INTEL_GEN(vma->vm->i915);
-	unsigned long n, size;
-	u32 *cmd;
-	int err;
-
-	size = (4 * count + 1) * sizeof(u32);
-	size = round_up(size, PAGE_SIZE);
-	obj = i915_gem_object_create_internal(vma->vm->i915, size);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(cmd)) {
-		err = PTR_ERR(cmd);
-		goto err;
-	}
-
-	GEM_BUG_ON(offset + (count - 1) * PAGE_SIZE > vma->node.size);
-	offset += vma->node.start;
-
-	for (n = 0; n < count; n++) {
-		if (gen >= 8) {
-			*cmd++ = MI_STORE_DWORD_IMM_GEN4;
-			*cmd++ = lower_32_bits(offset);
-			*cmd++ = upper_32_bits(offset);
-			*cmd++ = value;
-		} else if (gen >= 4) {
-			*cmd++ = MI_STORE_DWORD_IMM_GEN4 |
-				(gen < 6 ? MI_USE_GGTT : 0);
-			*cmd++ = 0;
-			*cmd++ = offset;
-			*cmd++ = value;
-		} else {
-			*cmd++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
-			*cmd++ = offset;
-			*cmd++ = value;
-		}
-		offset += PAGE_SIZE;
-	}
-	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_object_flush_map(obj);
-	i915_gem_object_unpin_map(obj);
-
-	vma = i915_vma_instance(obj, vma->vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto err;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
-		goto err;
-
-	return vma;
-
-err:
-	i915_gem_object_put(obj);
-	return ERR_PTR(err);
-}
-
 static unsigned long real_page_count(struct drm_i915_gem_object *obj)
 {
 	return huge_gem_object_phys_size(obj) >> PAGE_SHIFT;
@@ -236,10 +172,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		    unsigned int dw)
 {
 	struct i915_address_space *vm = ctx->vm ?: &engine->gt->ggtt->vm;
-	struct i915_request *rq;
 	struct i915_vma *vma;
-	struct i915_vma *batch;
-	unsigned int flags;
 	int err;
 
 	GEM_BUG_ON(obj->base.size > vm->total);
@@ -250,7 +183,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		return PTR_ERR(vma);
 
 	i915_gem_object_lock(obj);
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	err = i915_gem_object_set_to_gtt_domain(obj, true);
 	i915_gem_object_unlock(obj);
 	if (err)
 		return err;
@@ -259,70 +192,23 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	if (err)
 		return err;
 
-	/* Within the GTT the huge objects maps every page onto
+	/*
+	 * Within the GTT the huge objects maps every page onto
 	 * its 1024 real pages (using phys_pfn = dma_pfn % 1024).
 	 * We set the nth dword within the page using the nth
 	 * mapping via the GTT - this should exercise the GTT mapping
 	 * whilst checking that each context provides a unique view
 	 * into the object.
 	 */
-	batch = gpu_fill_dw(vma,
-			    (dw * real_page_count(obj)) << PAGE_SHIFT |
-			    (dw * sizeof(u32)),
-			    real_page_count(obj),
-			    dw);
-	if (IS_ERR(batch)) {
-		err = PTR_ERR(batch);
-		goto err_vma;
-	}
-
-	rq = igt_request_alloc(ctx, engine);
-	if (IS_ERR(rq)) {
-		err = PTR_ERR(rq);
-		goto err_batch;
-	}
-
-	flags = 0;
-	if (INTEL_GEN(vm->i915) <= 5)
-		flags |= I915_DISPATCH_SECURE;
-
-	err = engine->emit_bb_start(rq,
-				    batch->node.start, batch->node.size,
-				    flags);
-	if (err)
-		goto err_request;
-
-	i915_vma_lock(batch);
-	err = i915_vma_move_to_active(batch, rq, 0);
-	i915_vma_unlock(batch);
-	if (err)
-		goto skip_request;
-
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
-	if (err)
-		goto skip_request;
-
-	i915_request_add(rq);
-
-	i915_vma_unpin(batch);
-	i915_vma_close(batch);
-	i915_vma_put(batch);
-
+	err = igt_gpu_fill_dw(vma,
+			      ctx,
+			      engine,
+			      (dw * real_page_count(obj)) << PAGE_SHIFT |
+			      (dw * sizeof(u32)),
+			      real_page_count(obj),
+			      dw);
 	i915_vma_unpin(vma);
 
-	return 0;
-
-skip_request:
-	i915_request_skip(rq, err);
-err_request:
-	i915_request_add(rq);
-err_batch:
-	i915_vma_unpin(batch);
-	i915_vma_put(batch);
-err_vma:
-	i915_vma_unpin(vma);
 	return err;
 }
 
