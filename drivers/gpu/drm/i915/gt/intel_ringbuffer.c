@@ -1136,7 +1136,7 @@ i830_emit_bb_start(struct i915_request *rq,
 		 * stable batch scratch bo area (so that the CS never
 		 * stumbles over its tlb invalidation bug) ...
 		 */
-		*cs++ = SRC_COPY_BLT_CMD | BLT_WRITE_RGBA;
+		*cs++ = SRC_COPY_BLT_CMD | BLT_WRITE_RGBA | (6 - 2);
 		*cs++ = BLT_DEPTH_32 | BLT_ROP_SRC_COPY | 4096;
 		*cs++ = DIV_ROUND_UP(len, 4096) << 16 | 4096;
 		*cs++ = cs_offset;
