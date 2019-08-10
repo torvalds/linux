@@ -1724,7 +1724,6 @@ struct bnxt {
 	u8			switch_id[8];
 	struct bnxt_tc_info	*tc_info;
 	struct dentry		*debugfs_pdev;
-	struct dentry		*debugfs_dim;
 	struct device		*hwmon_dev;
 };
 

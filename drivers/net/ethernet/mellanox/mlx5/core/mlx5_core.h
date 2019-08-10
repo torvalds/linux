@@ -146,7 +146,7 @@ u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
 
 void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev);
 void mlx5_cmd_flush(struct mlx5_core_dev *dev);
-int mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam, u8 feature_group,

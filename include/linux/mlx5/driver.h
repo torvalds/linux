@@ -189,7 +189,6 @@ enum mlx5_coredev_type {
 };
 
 struct mlx5_field_desc {
-	struct dentry	       *dent;
 	int			i;
 };
 
@@ -242,11 +241,6 @@ struct mlx5_cmd_msg {
 
 struct mlx5_cmd_debug {
 	struct dentry	       *dbg_root;
-	struct dentry	       *dbg_in;
-	struct dentry	       *dbg_out;
-	struct dentry	       *dbg_outlen;
-	struct dentry	       *dbg_status;
-	struct dentry	       *dbg_run;
 	void		       *in_msg;
 	void		       *out_msg;
 	u8			status;
@@ -271,8 +265,6 @@ struct mlx5_cmd_stats {
 	u64		sum;
 	u64		n;
 	struct dentry  *root;
-	struct dentry  *avg;
-	struct dentry  *count;
 	/* protect command average calculations */
 	spinlock_t	lock;
 };
@@ -972,7 +964,7 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 
-int mlx5_qp_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_qp_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_qp_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
@@ -984,7 +976,7 @@ int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
 const char *mlx5_command_str(int command);
-int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
