@@ -1368,49 +1368,19 @@ static void clean_debug_files(struct mlx5_core_dev *dev)
 	debugfs_remove_recursive(dbg->dbg_root);
 }
 
-static int create_debugfs_files(struct mlx5_core_dev *dev)
+static void create_debugfs_files(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
-	int err = -ENOMEM;
-
-	if (!mlx5_debugfs_root)
-		return 0;
 
 	dbg->dbg_root = debugfs_create_dir("cmd", dev->priv.dbg_root);
-	if (!dbg->dbg_root)
-		return err;
 
-	dbg->dbg_in = debugfs_create_file("in", 0400, dbg->dbg_root,
-					  dev, &dfops);
-	if (!dbg->dbg_in)
-		goto err_dbg;
-
-	dbg->dbg_out = debugfs_create_file("out", 0200, dbg->dbg_root,
-					   dev, &dfops);
-	if (!dbg->dbg_out)
-		goto err_dbg;
-
-	dbg->dbg_outlen = debugfs_create_file("out_len", 0600, dbg->dbg_root,
-					      dev, &olfops);
-	if (!dbg->dbg_outlen)
-		goto err_dbg;
-
-	dbg->dbg_status = debugfs_create_u8("status", 0600, dbg->dbg_root,
-					    &dbg->status);
-	if (!dbg->dbg_status)
-		goto err_dbg;
-
-	dbg->dbg_run = debugfs_create_file("run", 0200, dbg->dbg_root, dev, &fops);
-	if (!dbg->dbg_run)
-		goto err_dbg;
+	debugfs_create_file("in", 0400, dbg->dbg_root, dev, &dfops);
+	debugfs_create_file("out", 0200, dbg->dbg_root, dev, &dfops);
+	debugfs_create_file("out_len", 0600, dbg->dbg_root, dev, &olfops);
+	debugfs_create_u8("status", 0600, dbg->dbg_root, &dbg->status);
+	debugfs_create_file("run", 0200, dbg->dbg_root, dev, &fops);
 
 	mlx5_cmdif_debugfs_init(dev);
-
-	return 0;
-
-err_dbg:
-	clean_debug_files(dev);
-	return err;
 }
 
 static void mlx5_cmd_change_mod(struct mlx5_core_dev *dev, int mode)
@@ -2007,16 +1977,9 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		goto err_cache;
 	}
 
-	err = create_debugfs_files(dev);
-	if (err) {
-		err = -ENOMEM;
-		goto err_wq;
-	}
+	create_debugfs_files(dev);
 
 	return 0;
-
-err_wq:
-	destroy_workqueue(cmd->wq);
 
 err_cache:
 	destroy_msg_cache(dev);

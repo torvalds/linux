@@ -411,7 +411,7 @@ void mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table;
-	int i, err;
+	int i;
 
 	eq_table = kvzalloc(sizeof(*eq_table), GFP_KERNEL);
 	if (!eq_table)
@@ -419,9 +419,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 
 	dev->priv.eq_table = eq_table;
 
-	err = mlx5_eq_debugfs_init(dev);
-	if (err)
-		goto kvfree_eq_table;
+	mlx5_eq_debugfs_init(dev);
 
 	mutex_init(&eq_table->lock);
 	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
@@ -429,11 +427,6 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 
 	eq_table->irq_table = dev->priv.irq_table;
 	return 0;
-
-kvfree_eq_table:
-	kvfree(eq_table);
-	dev->priv.eq_table = NULL;
-	return err;
 }
 
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev)

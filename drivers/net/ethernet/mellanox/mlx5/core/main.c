@@ -826,11 +826,7 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_eq_cleanup;
 	}
 
-	err = mlx5_cq_debugfs_init(dev);
-	if (err) {
-		mlx5_core_err(dev, "failed to initialize cq debugfs\n");
-		goto err_events_cleanup;
-	}
+	mlx5_cq_debugfs_init(dev);
 
 	mlx5_init_qp_table(dev);
 
@@ -891,7 +887,6 @@ err_tables_cleanup:
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
-err_events_cleanup:
 	mlx5_events_cleanup(dev);
 err_eq_cleanup:
 	mlx5_eq_table_cleanup(dev);
