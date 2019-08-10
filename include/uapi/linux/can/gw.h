@@ -93,10 +93,11 @@ enum {
 
 /* CAN frame elements that are affected by curr. 3 CAN frame modifications */
 #define CGW_MOD_ID	0x01
-#define CGW_MOD_DLC	0x02
+#define CGW_MOD_DLC	0x02		/* contains the data length in bytes */
+#define CGW_MOD_LEN	CGW_MOD_DLC	/* CAN FD length representation */
 #define CGW_MOD_DATA	0x04
 
-#define CGW_FRAME_MODS 3 /* ID DLC DATA */
+#define CGW_FRAME_MODS 3 /* ID DLC/LEN DATA */
 
 #define MAX_MODFUNCTIONS (CGW_MOD_FUNCS * CGW_FRAME_MODS)
 
