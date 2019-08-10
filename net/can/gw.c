@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 /* gw.c - CAN frame Gateway/Router/Bridge with netlink interface
  *
- * Copyright (c) 2017 Volkswagen Group Electronic Research
+ * Copyright (c) 2019 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
-#define CAN_GW_VERSION "20170425"
+#define CAN_GW_VERSION "20190810"
 #define CAN_GW_NAME "can-gw"
 
 MODULE_DESCRIPTION("PF_CAN netlink gateway");
@@ -156,16 +156,49 @@ struct cgw_job {
 
 MODFUNC(mod_and_id, cf->can_id &= mod->modframe.and.can_id)
 MODFUNC(mod_and_len, cf->len &= mod->modframe.and.len)
+MODFUNC(mod_and_flags, cf->flags &= mod->modframe.and.flags)
 MODFUNC(mod_and_data, *(u64 *)cf->data &= *(u64 *)mod->modframe.and.data)
 MODFUNC(mod_or_id, cf->can_id |= mod->modframe.or.can_id)
 MODFUNC(mod_or_len, cf->len |= mod->modframe.or.len)
+MODFUNC(mod_or_flags, cf->flags |= mod->modframe.or.flags)
 MODFUNC(mod_or_data, *(u64 *)cf->data |= *(u64 *)mod->modframe.or.data)
 MODFUNC(mod_xor_id, cf->can_id ^= mod->modframe.xor.can_id)
 MODFUNC(mod_xor_len, cf->len ^= mod->modframe.xor.len)
+MODFUNC(mod_xor_flags, cf->flags ^= mod->modframe.xor.flags)
 MODFUNC(mod_xor_data, *(u64 *)cf->data ^= *(u64 *)mod->modframe.xor.data)
 MODFUNC(mod_set_id, cf->can_id = mod->modframe.set.can_id)
 MODFUNC(mod_set_len, cf->len = mod->modframe.set.len)
+MODFUNC(mod_set_flags, cf->flags = mod->modframe.set.flags)
 MODFUNC(mod_set_data, *(u64 *)cf->data = *(u64 *)mod->modframe.set.data)
+
+static void mod_and_fddata(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	int i;
+
+	for (i = 0; i < CANFD_MAX_DLEN; i += 8)
+		*(u64 *)(cf->data + i) &= *(u64 *)(mod->modframe.and.data + i);
+}
+
+static void mod_or_fddata(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	int i;
+
+	for (i = 0; i < CANFD_MAX_DLEN; i += 8)
+		*(u64 *)(cf->data + i) |= *(u64 *)(mod->modframe.or.data + i);
+}
+
+static void mod_xor_fddata(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	int i;
+
+	for (i = 0; i < CANFD_MAX_DLEN; i += 8)
+		*(u64 *)(cf->data + i) ^= *(u64 *)(mod->modframe.xor.data + i);
+}
+
+static void mod_set_fddata(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	memcpy(cf->data, mod->modframe.set.data, CANFD_MAX_DLEN);
+}
 
 static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 {
@@ -179,9 +212,25 @@ static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 	*(u64 *)dst->data = *(u64 *)src->data;
 }
 
-static int cgw_chk_csum_parms(s8 fr, s8 to, s8 re)
+static void canfdframecpy(struct canfd_frame *dst, struct canfd_frame *src)
+{
+	/* Copy the struct members separately to ensure that no uninitialized
+	 * data are copied in the 2 bytes hole of the struct. This is needed
+	 * to make easy compares of the data in the struct cf_mod.
+	 */
+
+	dst->can_id = src->can_id;
+	dst->flags = src->flags;
+	dst->len = src->len;
+	memcpy(dst->data, src->data, CANFD_MAX_DLEN);
+}
+
+static int cgw_chk_csum_parms(s8 fr, s8 to, s8 re, struct rtcanmsg *r)
 {
 	s8 dlen = CAN_MAX_DLEN;
+
+	if (r->flags & CGW_FLAGS_CAN_FD)
+		dlen = CANFD_MAX_DLEN;
 
 	/* absolute dlc values 0 .. 7 => 0 .. 7, e.g. data [0]
 	 * relative to received dlc -1 .. -8 :
@@ -351,6 +400,15 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	struct sk_buff *nskb;
 	int modidx = 0;
 
+	/* process strictly Classic CAN or CAN FD frames */
+	if (gwj->flags & CGW_FLAGS_CAN_FD) {
+		if (skb->len != CANFD_MTU)
+			return;
+	} else {
+		if (skb->len != CAN_MTU)
+			return;
+	}
+
 	/* Do not handle CAN frames routed more than 'max_hops' times.
 	 * In general we should never catch this delimiter which is intended
 	 * to cover a misconfiguration protection (e.g. circular CAN routes).
@@ -419,23 +477,19 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		int max_len = nskb->len - offsetof(struct canfd_frame, data);
 
 		/* dlc may have changed, make sure it fits to the CAN frame */
-		if (cf->len > max_len)
-			goto out_delete;
+		if (cf->len > max_len) {
+			/* delete frame due to misconfiguration */
+			gwj->deleted_frames++;
+			kfree_skb(nskb);
+			return;
+		}
 
-		/* check for checksum updates in classic CAN length only */
-		if (gwj->mod.csumfunc.crc8) {
-			if (cf->len > 8)
-				goto out_delete;
-
+		/* check for checksum updates */
+		if (gwj->mod.csumfunc.crc8)
 			(*gwj->mod.csumfunc.crc8)(cf, &gwj->mod.csum.crc8);
-		}
 
-		if (gwj->mod.csumfunc.xor) {
-			if (cf->len > 8)
-				goto out_delete;
-
+		if (gwj->mod.csumfunc.xor)
 			(*gwj->mod.csumfunc.xor)(cf, &gwj->mod.csum.xor);
-		}
 	}
 
 	/* clear the skb timestamp if not configured the other way */
@@ -447,13 +501,6 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		gwj->dropped_frames++;
 	else
 		gwj->handled_frames++;
-
-	return;
-
- out_delete:
-	/* delete frame due to misconfiguration */
-	gwj->deleted_frames++;
-	kfree_skb(nskb);
 }
 
 static inline int cgw_register_filter(struct net *net, struct cgw_job *gwj)
@@ -535,7 +582,37 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 			goto cancel;
 	}
 
-	if (1) {
+	if (gwj->flags & CGW_FLAGS_CAN_FD) {
+		struct cgw_fdframe_mod mb;
+
+		if (gwj->mod.modtype.and) {
+			memcpy(&mb.cf, &gwj->mod.modframe.and, sizeof(mb.cf));
+			mb.modtype = gwj->mod.modtype.and;
+			if (nla_put(skb, CGW_FDMOD_AND, sizeof(mb), &mb) < 0)
+				goto cancel;
+		}
+
+		if (gwj->mod.modtype.or) {
+			memcpy(&mb.cf, &gwj->mod.modframe.or, sizeof(mb.cf));
+			mb.modtype = gwj->mod.modtype.or;
+			if (nla_put(skb, CGW_FDMOD_OR, sizeof(mb), &mb) < 0)
+				goto cancel;
+		}
+
+		if (gwj->mod.modtype.xor) {
+			memcpy(&mb.cf, &gwj->mod.modframe.xor, sizeof(mb.cf));
+			mb.modtype = gwj->mod.modtype.xor;
+			if (nla_put(skb, CGW_FDMOD_XOR, sizeof(mb), &mb) < 0)
+				goto cancel;
+		}
+
+		if (gwj->mod.modtype.set) {
+			memcpy(&mb.cf, &gwj->mod.modframe.set, sizeof(mb.cf));
+			mb.modtype = gwj->mod.modtype.set;
+			if (nla_put(skb, CGW_FDMOD_SET, sizeof(mb), &mb) < 0)
+				goto cancel;
+		}
+	} else {
 		struct cgw_frame_mod mb;
 
 		if (gwj->mod.modtype.and) {
@@ -645,6 +722,10 @@ static const struct nla_policy cgw_policy[CGW_MAX + 1] = {
 	[CGW_FILTER]	= { .len = sizeof(struct can_filter) },
 	[CGW_LIM_HOPS]	= { .type = NLA_U8 },
 	[CGW_MOD_UID]	= { .type = NLA_U32 },
+	[CGW_FDMOD_AND]	= { .len = sizeof(struct cgw_fdframe_mod) },
+	[CGW_FDMOD_OR]	= { .len = sizeof(struct cgw_fdframe_mod) },
+	[CGW_FDMOD_XOR]	= { .len = sizeof(struct cgw_fdframe_mod) },
+	[CGW_FDMOD_SET]	= { .len = sizeof(struct cgw_fdframe_mod) },
 };
 
 /* check for common and gwtype specific attributes */
@@ -652,6 +733,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			  u8 gwtype, void *gwtypeattr, u8 *limhops)
 {
 	struct nlattr *tb[CGW_MAX + 1];
+	struct rtcanmsg *r = nlmsg_data(nlh);
 	int modidx = 0;
 	int err = 0;
 
@@ -671,7 +753,85 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	}
 
 	/* check for AND/OR/XOR/SET modifications */
-	if (1) {
+	if (r->flags & CGW_FLAGS_CAN_FD) {
+		struct cgw_fdframe_mod mb;
+
+		if (tb[CGW_FDMOD_AND]) {
+			nla_memcpy(&mb, tb[CGW_FDMOD_AND], CGW_FDMODATTR_LEN);
+
+			canfdframecpy(&mod->modframe.and, &mb.cf);
+			mod->modtype.and = mb.modtype;
+
+			if (mb.modtype & CGW_MOD_ID)
+				mod->modfunc[modidx++] = mod_and_id;
+
+			if (mb.modtype & CGW_MOD_LEN)
+				mod->modfunc[modidx++] = mod_and_len;
+
+			if (mb.modtype & CGW_MOD_FLAGS)
+				mod->modfunc[modidx++] = mod_and_flags;
+
+			if (mb.modtype & CGW_MOD_DATA)
+				mod->modfunc[modidx++] = mod_and_fddata;
+		}
+
+		if (tb[CGW_FDMOD_OR]) {
+			nla_memcpy(&mb, tb[CGW_FDMOD_OR], CGW_FDMODATTR_LEN);
+
+			canfdframecpy(&mod->modframe.or, &mb.cf);
+			mod->modtype.or = mb.modtype;
+
+			if (mb.modtype & CGW_MOD_ID)
+				mod->modfunc[modidx++] = mod_or_id;
+
+			if (mb.modtype & CGW_MOD_LEN)
+				mod->modfunc[modidx++] = mod_or_len;
+
+			if (mb.modtype & CGW_MOD_FLAGS)
+				mod->modfunc[modidx++] = mod_or_flags;
+
+			if (mb.modtype & CGW_MOD_DATA)
+				mod->modfunc[modidx++] = mod_or_fddata;
+		}
+
+		if (tb[CGW_FDMOD_XOR]) {
+			nla_memcpy(&mb, tb[CGW_FDMOD_XOR], CGW_FDMODATTR_LEN);
+
+			canfdframecpy(&mod->modframe.xor, &mb.cf);
+			mod->modtype.xor = mb.modtype;
+
+			if (mb.modtype & CGW_MOD_ID)
+				mod->modfunc[modidx++] = mod_xor_id;
+
+			if (mb.modtype & CGW_MOD_LEN)
+				mod->modfunc[modidx++] = mod_xor_len;
+
+			if (mb.modtype & CGW_MOD_FLAGS)
+				mod->modfunc[modidx++] = mod_xor_flags;
+
+			if (mb.modtype & CGW_MOD_DATA)
+				mod->modfunc[modidx++] = mod_xor_fddata;
+		}
+
+		if (tb[CGW_FDMOD_SET]) {
+			nla_memcpy(&mb, tb[CGW_FDMOD_SET], CGW_FDMODATTR_LEN);
+
+			canfdframecpy(&mod->modframe.set, &mb.cf);
+			mod->modtype.set = mb.modtype;
+
+			if (mb.modtype & CGW_MOD_ID)
+				mod->modfunc[modidx++] = mod_set_id;
+
+			if (mb.modtype & CGW_MOD_LEN)
+				mod->modfunc[modidx++] = mod_set_len;
+
+			if (mb.modtype & CGW_MOD_FLAGS)
+				mod->modfunc[modidx++] = mod_set_flags;
+
+			if (mb.modtype & CGW_MOD_DATA)
+				mod->modfunc[modidx++] = mod_set_fddata;
+		}
+	} else {
 		struct cgw_frame_mod mb;
 
 		if (tb[CGW_MOD_AND]) {
@@ -745,7 +905,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			struct cgw_csum_crc8 *c = nla_data(tb[CGW_CS_CRC8]);
 
 			err = cgw_chk_csum_parms(c->from_idx, c->to_idx,
-						 c->result_idx);
+						 c->result_idx, r);
 			if (err)
 				return err;
 
@@ -768,7 +928,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			struct cgw_csum_xor *c = nla_data(tb[CGW_CS_XOR]);
 
 			err = cgw_chk_csum_parms(c->from_idx, c->to_idx,
-						 c->result_idx);
+						 c->result_idx, r);
 			if (err)
 				return err;
 
