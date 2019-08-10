@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "gt/intel_context.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_object_blt.h"
 
@@ -64,7 +65,7 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 		i915_gem_object_unlock(obj);
 	}
 
-	rq = i915_request_create(ce);
+	rq = intel_context_create_request(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_unpin;

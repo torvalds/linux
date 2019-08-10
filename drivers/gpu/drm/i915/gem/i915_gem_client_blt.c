@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "gt/intel_context.h"
 #include "i915_gem_client_blt.h"
 #include "i915_gem_object_blt.h"
 
@@ -175,7 +176,7 @@ static void clear_pages_worker(struct work_struct *work)
 	if (unlikely(err))
 		goto out_unlock;
 
-	rq = i915_request_create(w->ce);
+	rq = intel_context_create_request(w->ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_unpin;
