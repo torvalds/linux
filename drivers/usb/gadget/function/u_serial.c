@@ -104,7 +104,6 @@ struct gs_port {
 	struct gs_console	*console;
 #endif
 
-	bool			openclose;	/* open/close in progress */
 	u8			port_num;
 
 	struct list_head	read_pool;
@@ -588,81 +587,44 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 {
 	int		port_num = tty->index;
 	struct gs_port	*port;
-	int		status;
+	int		status = 0;
 
-	do {
-		mutex_lock(&ports[port_num].lock);
-		port = ports[port_num].port;
-		if (!port)
-			status = -ENODEV;
-		else {
-			spin_lock_irq(&port->port_lock);
+	mutex_lock(&ports[port_num].lock);
+	port = ports[port_num].port;
+	if (!port) {
+		status = -ENODEV;
+		goto out;
+	}
 
-			/* already open?  Great. */
-			if (port->port.count) {
-				status = 0;
-				port->port.count++;
-
-			/* currently opening/closing? wait ... */
-			} else if (port->openclose) {
-				status = -EBUSY;
-
-			/* ... else we do the work */
-			} else {
-				status = -EAGAIN;
-				port->openclose = true;
-			}
-			spin_unlock_irq(&port->port_lock);
-		}
-		mutex_unlock(&ports[port_num].lock);
-
-		switch (status) {
-		default:
-			/* fully handled */
-			return status;
-		case -EAGAIN:
-			/* must do the work */
-			break;
-		case -EBUSY:
-			/* wait for EAGAIN task to finish */
-			msleep(1);
-			/* REVISIT could have a waitchannel here, if
-			 * concurrent open performance is important
-			 */
-			break;
-		}
-	} while (status != -EAGAIN);
-
-	/* Do the "real open" */
 	spin_lock_irq(&port->port_lock);
 
 	/* allocate circular buffer on first open */
 	if (!kfifo_initialized(&port->port_write_buf)) {
 
 		spin_unlock_irq(&port->port_lock);
+
+		/*
+		 * portmaster's mutex still protects from simultaneous open(),
+		 * and close() can't happen, yet.
+		 */
+
 		status = kfifo_alloc(&port->port_write_buf,
 				     WRITE_BUF_SIZE, GFP_KERNEL);
-		spin_lock_irq(&port->port_lock);
-
 		if (status) {
 			pr_debug("gs_open: ttyGS%d (%p,%p) no buffer\n",
-				port->port_num, tty, file);
-			port->openclose = false;
-			goto exit_unlock_port;
+				 port_num, tty, file);
+			goto out;
 		}
+
+		spin_lock_irq(&port->port_lock);
 	}
 
-	/* REVISIT if REMOVED (ports[].port NULL), abort the open
-	 * to let rmmod work faster (but this way isn't wrong).
-	 */
-
-	/* REVISIT maybe wait for "carrier detect" */
+	/* already open?  Great. */
+	if (port->port.count++)
+		goto exit_unlock_port;
 
 	tty->driver_data = port;
 	port->port.tty = tty;
-
-	port->port.count = 1;
-	port->openclose = false;
 
 	/* if connected, start the I/O stream */
 	if (port->port_usb) {
@@ -677,20 +639,21 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
 
-	status = 0;
-
 exit_unlock_port:
 	spin_unlock_irq(&port->port_lock);
+out:
+	mutex_unlock(&ports[port_num].lock);
 	return status;
 }
 
-static int gs_writes_finished(struct gs_port *p)
+static int gs_close_flush_done(struct gs_port *p)
 {
 	int cond;
 
-	/* return true on disconnect or empty buffer */
+	/* return true on disconnect or empty buffer or if raced with open() */
 	spin_lock_irq(&p->port_lock);
-	cond = (p->port_usb == NULL) || !kfifo_len(&p->port_write_buf);
+	cond = p->port_usb == NULL || !kfifo_len(&p->port_write_buf) ||
+		p->port.count > 1;
 	spin_unlock_irq(&p->port_lock);
 
 	return cond;
@@ -704,6 +667,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	spin_lock_irq(&port->port_lock);
 
 	if (port->port.count != 1) {
+raced_with_open:
 		if (port->port.count == 0)
 			WARN_ON(1);
 		else
@@ -712,12 +676,6 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	}
 
 	pr_debug("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
-
-	/* mark port as closing but in use; we can drop port lock
-	 * and sleep if necessary
-	 */
-	port->openclose = true;
-	port->port.count = 0;
 
 	gser = port->port_usb;
 	if (gser && gser->disconnect)
@@ -729,9 +687,13 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	if (kfifo_len(&port->port_write_buf) > 0 && gser) {
 		spin_unlock_irq(&port->port_lock);
 		wait_event_interruptible_timeout(port->drain_wait,
-					gs_writes_finished(port),
+					gs_close_flush_done(port),
 					GS_CLOSE_TIMEOUT * HZ);
 		spin_lock_irq(&port->port_lock);
+
+		if (port->port.count != 1)
+			goto raced_with_open;
+
 		gser = port->port_usb;
 	}
 
@@ -744,9 +706,8 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	else
 		kfifo_reset(&port->port_write_buf);
 
+	port->port.count = 0;
 	port->port.tty = NULL;
-
-	port->openclose = false;
 
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
@@ -1207,8 +1168,9 @@ static int gs_closed(struct gs_port *port)
 	int cond;
 
 	spin_lock_irq(&port->port_lock);
-	cond = (port->port.count == 0) && !port->openclose;
+	cond = port->port.count == 0;
 	spin_unlock_irq(&port->port_lock);
+
 	return cond;
 }
 
@@ -1413,7 +1375,7 @@ void gserial_disconnect(struct gserial *gser)
 
 	port->port_usb = NULL;
 	gser->ioport = NULL;
-	if (port->port.count > 0 || port->openclose) {
+	if (port->port.count > 0) {
 		wake_up_interruptible(&port->drain_wait);
 		if (port->port.tty)
 			tty_hangup(port->port.tty);
@@ -1426,7 +1388,7 @@ void gserial_disconnect(struct gserial *gser)
 
 	/* finally, free any unused/unusable I/O buffers */
 	spin_lock_irqsave(&port->port_lock, flags);
-	if (port->port.count == 0 && !port->openclose)
+	if (port->port.count == 0)
 		kfifo_free(&port->port_write_buf);
 	gs_free_requests(gser->out, &port->read_pool, NULL);
 	gs_free_requests(gser->out, &port->read_queue, NULL);
