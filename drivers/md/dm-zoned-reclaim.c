@@ -37,7 +37,7 @@ enum {
 /*
  * Number of seconds of target BIO inactivity to consider the target idle.
  */
-#define DMZ_IDLE_PERIOD		(10UL * HZ)
+#define DMZ_IDLE_PERIOD			(10UL * HZ)
 
 /*
  * Percentage of unmapped (free) random zones below which reclaim starts
@@ -134,6 +134,9 @@ static int dmz_reclaim_copy(struct dmz_reclaim *zrc,
 		set_bit(DM_KCOPYD_WRITE_SEQ, &flags);
 
 	while (block < end_block) {
+		if (dev->flags & DMZ_BDEV_DYING)
+			return -EIO;
+
 		/* Get a valid region from the source zone */
 		ret = dmz_first_valid_block(zmd, src_zone, &block);
 		if (ret <= 0)
@@ -451,6 +454,9 @@ static void dmz_reclaim_work(struct work_struct *work)
 	unsigned int p_unmap_rnd;
 	int ret;
 
+	if (dmz_bdev_is_dying(zrc->dev))
+		return;
+
 	if (!dmz_should_reclaim(zrc)) {
 		mod_delayed_work(zrc->wq, &zrc->work, DMZ_IDLE_PERIOD);
 		return;
@@ -480,8 +486,16 @@ static void dmz_reclaim_work(struct work_struct *work)
 		      p_unmap_rnd, nr_unmap_rnd, nr_rnd);
 
 	ret = dmz_do_reclaim(zrc);
-	if (ret)
+	if (ret) {
 		dmz_dev_debug(zrc->dev, "Reclaim error %d\n", ret);
+		if (ret == -EIO)
+			/*
+			 * LLD might be performing some error handling sequence
+			 * at the underlying device. To not interfere, do not
+			 * attempt to schedule the next reclaim run immediately.
+			 */
+			return;
+	}
 
 	dmz_schedule_reclaim(zrc);
 }
