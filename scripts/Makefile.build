@@ -98,8 +98,7 @@ endif
 # ---------------------------------------------------------------------------
 
 # Default is built-in, unless we know otherwise
-$(foreach x, i ll lst o s symtypes, $(patsubst %.o,%.$(x),$(real-obj-m))): \
-	part-of-module := y
+part-of-module = $(if $(filter $(basename $@).o, $(real-obj-m)),y)
 
 modkern_cflags =                                          \
 	$(if $(part-of-module),                           \
