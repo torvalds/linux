@@ -301,6 +301,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 #else
 	{
 #endif
+		sk->sk_write_space = ctx->sk_write_space;
 		tls_ctx_free(ctx);
 		ctx = NULL;
 	}
