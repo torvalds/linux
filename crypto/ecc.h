@@ -29,9 +29,10 @@
 /* One digit is u64 qword. */
 #define ECC_CURVE_NIST_P192_DIGITS  3
 #define ECC_CURVE_NIST_P256_DIGITS  4
-#define ECC_MAX_DIGITS             (512 / 64)
+#define ECC_CURVE_NIST_P384_DIGITS  6
+#define ECC_MAX_DIGITS              (ECC_CURVE_NIST_P384_DIGITS)
 
-#define ECC_DIGITS_TO_BYTES_SHIFT 3
+#define ECC_DIGITS_TO_BYTES_SHIFT   (ECC_MAX_DIGITS-1)
 
 /**
  * struct ecc_point - elliptic curve point in affine coordinates
@@ -69,6 +70,22 @@ struct ecc_curve {
 	u64 *a;
 	u64 *b;
 };
+
+/**
+ * ecc_swap_digits() - Validate a given ECDH private key
+ *
+ * @in:		input 64bits
+ * @out:	output 64bits
+ * @ndigits:		curve's number of digits
+ *
+ */
+static inline void ecc_swap_digits(const u64 *in, u64 *out,
+				   unsigned int ndigits)
+{
+	int i;
+	for (i = 0; i < ndigits; i++)
+		out[i] = __swab64(in[ndigits - 1 - i]);
+}
 
 /**
  * ecc_is_key_valid() - Validate a given ECDH private key
@@ -211,6 +228,20 @@ void vli_from_le64(u64 *dest, const void *src, unsigned int ndigits);
 void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
 		 unsigned int ndigits);
 
+/**
+ * vli_mod_slow() - Computes result = product % mod, where product is 2N words long.
+ * Reference: Ken MacKay's micro-ecc.
+ * Currently only designed to work for curve_p or curve_n.
+ *
+ * @result:		where to write result value
+ * @product:	vli number to operate mod on
+ * @mod:		modulus
+ * @ndigits:		length of all vlis
+ *
+ * Note: Assumes that mod is big enough curve order.
+ */
+void vli_mod_slow(u64 *result, const u64 *input, const u64 *mod,
+				unsigned int ndigits);
 /**
  * vli_mod_mult_slow() - Modular multiplication
  *

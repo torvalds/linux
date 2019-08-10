@@ -251,6 +251,16 @@ config CRYPTO_ECDH
 	help
 	  Generic implementation of the ECDH algorithm
 
+config CRYPTO_ECDSA
+	tristate "ECDSA algorithm"
+	select CRYPTO_ECC
+	select CRYPTO_AKCIPHER
+	select CRYPTO_MANAGER
+	select MPILIB
+	select ASN1
+	help
+	  Generic implementation of the ECDSA eliptical curve public key algorithm.
+
 config CRYPTO_ECRDSA
 	tristate "EC-RDSA (GOST 34.10) algorithm"
 	select CRYPTO_ECC

@@ -50,6 +50,8 @@ static inline const struct ecc_curve *ecc_get_curve(unsigned int curve_id)
 		return fips_enabled ? NULL : &nist_p192;
 	case ECC_CURVE_NIST_P256:
 		return &nist_p256;
+	case ECC_CURVE_NIST_P384:
+		return &nist_p384;
 	default:
 		return NULL;
 	}
@@ -775,6 +777,126 @@ static void vli_mmod_fast_256(u64 *result, const u64 *product,
 	}
 }
 
+#define K64H 0xffFFffFF00000000ull
+#define K64L 0x00000000ffFFffFFull
+#define E64LL(x32,y32) (((u64)x32 << 32) | y32)
+#define SHL32(x64)   (x64 << 32)
+#define SHR32(x64)   (x64 >> 32)
+#define AND64H(x64)  (x64 & K64H)
+#define AND64L(x64)  (x64 & K64L)
+
+/* Computes result = product % curve_prime
+ * from "Mathematical routines for the NIST prime elliptic curves"
+ */
+static void vli_mmod_fast_384(u64 *result, const u64 *product,
+                              const u64 *curve_prime, u64 *tmp)
+{
+    int carry;
+    const unsigned int ndigits = 6;
+
+    /* t */
+    vli_set(result, product, ndigits);
+
+    /* s1 */
+    tmp[0] = 0;									     // 0 || 0
+    tmp[1] = 0;									     // 0 || 0
+    tmp[2] = E64LL(product[11], SHR32(product[10])); //a22||a21
+    tmp[3] = SHR32(product[11]);					 // 0 ||a23
+    tmp[4] = 0;									     // 0 || 0
+    tmp[5] = 0;									     // 0 || 0
+    carry = vli_lshift(tmp, tmp, 1, ndigits);
+    carry += vli_add(result, result, tmp, ndigits);
+
+    /* s2 */
+    tmp[0] = product[6];  //a13||a12
+    tmp[1] = product[7];  //a15||a14
+    tmp[2] = product[8];  //a17||a16
+    tmp[3] = product[9];  //a19||a18
+    tmp[4] = product[10]; //a21||a20
+    tmp[5] = product[11]; //a23||a22
+    carry += vli_add(result, result, tmp, ndigits);
+
+    /* s3 */
+    tmp[0] = E64LL(product[11], SHR32(product[10])); //a22||a21
+    tmp[1] = E64LL(product[6], SHR32(product[11]));  //a12||a23
+    tmp[2] = E64LL(product[7], SHR32(product[6]));   //a14||a13
+    tmp[3] = E64LL(product[8], SHR32(product[7]));   //a16||a15
+    tmp[4] = E64LL(product[9], SHR32(product[8]));   //a18||a17
+    tmp[5] = E64LL(product[10], SHR32(product[9]));  //a20||a19
+    carry += vli_add(result, result, tmp, ndigits);
+
+    /* s4 */
+    tmp[0] = AND64H(product[11]);       //a23|| 0
+    tmp[1] = SHL32(product[10]);	    //a20|| 0
+    tmp[2] = product[6];				//a13||a12
+    tmp[3] = product[7];				//a15||a14
+    tmp[4] = product[8];				//a17||a16
+    tmp[5] = product[9];				//a19||a18
+    carry += vli_add(result, result, tmp, ndigits);
+
+    /* s5 */
+    tmp[0] = 0;				//  0|| 0
+    tmp[1] = 0;				//  0|| 0
+    tmp[2] = product[10];	//a21||a20
+    tmp[3] = product[11];	//a23||a22
+    tmp[4] = 0;				//  0|| 0
+    tmp[5] = 0;				//  0|| 0
+    carry += vli_add(result, result, tmp, ndigits);
+
+    /* s6 */
+    tmp[0] = AND64L(product[10]);	       // 0 ||a20
+    tmp[1] = AND64H(product[10]);          //a21|| 0
+    tmp[2] = product[11];				   //a23||a22
+    tmp[3] = 0;							   // 0 || 0
+    tmp[4] = 0;							   // 0 || 0
+    tmp[5] = 0;							   // 0 || 0
+    carry += vli_add(result, result, tmp, ndigits);
+
+    /* d1 */
+    tmp[0] = E64LL(product[6], SHR32(product[11]));  //a12||a23
+    tmp[1] = E64LL(product[7], SHR32(product[6]));   //a14||a13
+    tmp[2] = E64LL(product[8], SHR32(product[7]));   //a16||a15
+    tmp[3] = E64LL(product[9], SHR32(product[8]));   //a18||a17
+    tmp[4] = E64LL(product[10], SHR32(product[9]));  //a20||a19
+    tmp[5] = E64LL(product[11], SHR32(product[10])); //a22||a21
+    carry -= vli_sub(result, result, tmp, ndigits);
+
+    /* d2 */
+    tmp[0] = SHL32(product[10]);				     //a20|| 0
+    tmp[1] = E64LL(product[11], SHR32(product[10])); //a22||a21
+    tmp[2] = SHR32(product[11]);				     // 0 ||a23
+    tmp[3] = 0;									     // 0 || 0
+    tmp[4] = 0;									     // 0 || 0
+    tmp[5] = 0;									     // 0 || 0
+    carry -= vli_sub(result, result, tmp, ndigits);
+
+    /* d3 */
+    tmp[0] = 0;					           // 0 || 0
+    tmp[1] = AND64H(product[11]);	       //a23|| 0
+    tmp[2] = SHR32(product[11]);	       // 0 ||a23
+    tmp[3] = 0;							   // 0 || 0
+    tmp[4] = 0;							   // 0 || 0
+    tmp[5] = 0;							   // 0 || 0
+    carry -= vli_sub(result, result, tmp, ndigits);
+
+    if (carry < 0) {
+        do {
+            carry += vli_add(result, result, curve_prime, ndigits);
+        } while (carry < 0);
+    } else {
+        while (carry || vli_cmp(curve_prime, result, ndigits) != 1)
+            carry -= vli_sub(result, result, curve_prime, ndigits);
+    }
+
+}
+#undef K64H
+#undef K64L
+#undef E64LL
+#undef SHL32
+#undef SHR32
+#undef AND64H
+#undef AND64L
+
 /* Computes result = product % curve_prime for different curve_primes.
  *
  * Note that curve_primes are distinguished just by heuristic check and
@@ -785,23 +907,6 @@ static bool vli_mmod_fast(u64 *result, u64 *product,
 {
 	u64 tmp[2 * ECC_MAX_DIGITS];
 
-	/* Currently, both NIST primes have -1 in lowest qword. */
-	if (curve_prime[0] != -1ull) {
-		/* Try to handle Pseudo-Marsenne primes. */
-		if (curve_prime[ndigits - 1] == -1ull) {
-			vli_mmod_special(result, product, curve_prime,
-					 ndigits);
-			return true;
-		} else if (curve_prime[ndigits - 1] == 1ull << 63 &&
-			   curve_prime[ndigits - 2] == 0) {
-			vli_mmod_special2(result, product, curve_prime,
-					  ndigits);
-			return true;
-		}
-		vli_mmod_barrett(result, product, curve_prime, ndigits);
-		return true;
-	}
-
 	switch (ndigits) {
 	case 3:
 		vli_mmod_fast_192(result, product, curve_prime, tmp);
@@ -809,7 +914,26 @@ static bool vli_mmod_fast(u64 *result, u64 *product,
 	case 4:
 		vli_mmod_fast_256(result, product, curve_prime, tmp);
 		break;
+	case 6:
+		vli_mmod_fast_384(result, product, curve_prime, tmp);
+		break;
 	default:
+		/* Currently, both NIST primes have -1 in lowest qword. */
+		if (curve_prime[0] != -1ull) {
+			/* Try to handle Pseudo-Marsenne primes. */
+			if (curve_prime[ndigits - 1] == -1ull) {
+				vli_mmod_special(result, product, curve_prime,
+						 ndigits);
+				return true;
+			} else if (curve_prime[ndigits - 1] == 1ull << 63 &&
+				   curve_prime[ndigits - 2] == 0) {
+				vli_mmod_special2(result, product, curve_prime,
+						  ndigits);
+				return true;
+			}
+			vli_mmod_barrett(result, product, curve_prime, ndigits);
+			return true;
+		}
 		pr_err_ratelimited("ecc: unsupported digits size!\n");
 		return false;
 	}
@@ -829,6 +953,16 @@ void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
 	vli_mmod_slow(result, product, mod, ndigits);
 }
 EXPORT_SYMBOL(vli_mod_mult_slow);
+
+/* Computes result = input % curve_prime. */
+void vli_mod_slow(u64 *result, const u64 *input,
+		       const u64 *mod, unsigned int ndigits)
+{
+	u64 product[ECC_MAX_DIGITS * 2] = {0};
+	vli_set(&product[0], input, ndigits);
+	vli_mmod_slow(result, product, mod, ndigits);
+}
+EXPORT_SYMBOL(vli_mod_slow);
 
 /* Computes result = (left * right) % curve_prime. */
 static void vli_mod_mult_fast(u64 *result, const u64 *left, const u64 *right,
@@ -1280,15 +1414,6 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 	apply_z(rx, ry, z, curve->p, ndigits);
 }
 EXPORT_SYMBOL(ecc_point_mult_shamir);
-
-static inline void ecc_swap_digits(const u64 *in, u64 *out,
-				   unsigned int ndigits)
-{
-	int i;
-
-	for (i = 0; i < ndigits; i++)
-		out[i] = __swab64(in[ndigits - 1 - i]);
-}
 
 static int __ecc_is_key_valid(const struct ecc_curve *curve,
 			      const u64 *private_key, unsigned int ndigits)

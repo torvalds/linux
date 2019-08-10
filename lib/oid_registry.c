@@ -92,6 +92,51 @@ enum OID look_up_OID(const void *data, size_t datasize)
 }
 EXPORT_SYMBOL_GPL(look_up_OID);
 
+int lookup_oid_digest_info(enum OID oid,
+		const char **digest_algo, u32 *digest_len, enum OID *digest_oid) {
+	int ret = 0;
+	switch (oid) {
+	case OID_md4WithRSAEncryption:
+		if (digest_algo) *digest_algo = "md4";
+		if (digest_oid) *digest_oid = OID_md4;
+		if (digest_len) *digest_len = 16;
+		break;
+	case OID_sha1WithRSAEncryption:
+	case OID_id_ecdsa_with_sha1:
+		if (digest_algo) *digest_algo = "sha1";
+		if (digest_oid) *digest_oid = OID_sha1;
+		if (digest_len) *digest_len = 20;
+		break;
+	case OID_sha224WithRSAEncryption:
+		if (digest_algo) *digest_algo = "sha224";
+		if (digest_oid) *digest_oid = OID_sha224;
+		if (digest_len) *digest_len = 28;
+		break;
+	case OID_sha256WithRSAEncryption:
+	case OID_id_ecdsa_with_sha256:
+		if (digest_algo) *digest_algo = "sha256";
+		if (digest_oid) *digest_oid = OID_sha256;
+		if (digest_len) *digest_len = 32;
+		break;
+	case OID_sha384WithRSAEncryption:
+	case OID_id_ecdsa_with_sha384:
+		if (digest_algo) *digest_algo = "sha384";
+		if (digest_oid) *digest_oid = OID_sha384;
+		if (digest_len) *digest_len = 48;
+		break;
+	case OID_sha512WithRSAEncryption:
+	case OID_id_ecdsa_with_sha512:
+		if (digest_algo) *digest_algo = "sha512";
+		if (digest_oid) *digest_oid = OID_sha512;
+		if (digest_len) *digest_len = 64;
+		break;
+	default:
+		ret = -1;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lookup_oid_digest_info);
+
 /*
  * sprint_OID - Print an Object Identifier into a buffer
  * @data: The encoded OID to print

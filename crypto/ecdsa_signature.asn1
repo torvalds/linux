@@ -1,0 +1,6 @@
+EcdsaSignature ::= SEQUENCE {
+    signatureR  INTEGER ({ ecdsa_parse_sig_r }),
+    signatureS  INTEGER ({ ecdsa_parse_sig_s })
+}
+
+EcdsaPubKey ::= BIT STRING ({ ecdsa_parse_pub_key })
