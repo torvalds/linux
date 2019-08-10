@@ -389,24 +389,17 @@ static const struct ethtool_ops mlx5e_uplink_rep_ethtool_ops = {
 	.set_pauseparam    = mlx5e_uplink_rep_set_pauseparam,
 };
 
-static int mlx5e_rep_get_port_parent_id(struct net_device *dev,
-					struct netdev_phys_item_id *ppid)
+static void mlx5e_rep_get_port_parent_id(struct net_device *dev,
+					 struct netdev_phys_item_id *ppid)
 {
-	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
 	u64 parent_id;
 
 	priv = netdev_priv(dev);
-	esw = priv->mdev->priv.eswitch;
-
-	if (esw->mode == MLX5_ESWITCH_NONE)
-		return -EOPNOTSUPP;
 
 	parent_id = mlx5_query_nic_system_image_guid(priv->mdev);
 	ppid->id_len = sizeof(parent_id);
 	memcpy(ppid->id, &parent_id, sizeof(parent_id));
-
-	return 0;
 }
 
 static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
@@ -613,12 +606,17 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 	neigh_connected = (nud_state & NUD_VALID) && !dead;
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
+		if (!mlx5e_encap_take(e))
+			continue;
+
 		encap_connected = !!(e->flags & MLX5_ENCAP_ENTRY_VALID);
 		priv = netdev_priv(e->out_dev);
 
 		if (encap_connected != neigh_connected ||
 		    !ether_addr_equal(e->h_dest, ha))
 			mlx5e_rep_update_flows(priv, e, neigh_connected, ha);
+
+		mlx5e_encap_put(priv, e);
 	}
 	mlx5e_rep_neigh_entry_release(nhe);
 	rtnl_unlock();
@@ -1748,37 +1746,46 @@ is_devlink_port_supported(const struct mlx5_core_dev *dev,
 	       mlx5_eswitch_is_vf_vport(dev->priv.eswitch, rpriv->rep->vport);
 }
 
+static unsigned int
+vport_to_devlink_port_index(const struct mlx5_core_dev *dev, u16 vport_num)
+{
+	return (MLX5_CAP_GEN(dev, vhca_id) << 16) | vport_num;
+}
+
 static int register_devlink_port(struct mlx5_core_dev *dev,
 				 struct mlx5e_rep_priv *rpriv)
 {
 	struct devlink *devlink = priv_to_devlink(dev);
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	struct netdev_phys_item_id ppid = {};
-	int ret;
+	unsigned int dl_port_index = 0;
 
 	if (!is_devlink_port_supported(dev, rpriv))
 		return 0;
 
-	ret = mlx5e_rep_get_port_parent_id(rpriv->netdev, &ppid);
-	if (ret)
-		return ret;
+	mlx5e_rep_get_port_parent_id(rpriv->netdev, &ppid);
 
-	if (rep->vport == MLX5_VPORT_UPLINK)
+	if (rep->vport == MLX5_VPORT_UPLINK) {
 		devlink_port_attrs_set(&rpriv->dl_port,
 				       DEVLINK_PORT_FLAVOUR_PHYSICAL,
 				       PCI_FUNC(dev->pdev->devfn), false, 0,
 				       &ppid.id[0], ppid.id_len);
-	else if (rep->vport == MLX5_VPORT_PF)
+		dl_port_index = vport_to_devlink_port_index(dev, rep->vport);
+	} else if (rep->vport == MLX5_VPORT_PF) {
 		devlink_port_attrs_pci_pf_set(&rpriv->dl_port,
 					      &ppid.id[0], ppid.id_len,
 					      dev->pdev->devfn);
-	else if (mlx5_eswitch_is_vf_vport(dev->priv.eswitch, rpriv->rep->vport))
+		dl_port_index = rep->vport;
+	} else if (mlx5_eswitch_is_vf_vport(dev->priv.eswitch,
+					    rpriv->rep->vport)) {
 		devlink_port_attrs_pci_vf_set(&rpriv->dl_port,
 					      &ppid.id[0], ppid.id_len,
 					      dev->pdev->devfn,
 					      rep->vport - 1);
+		dl_port_index = vport_to_devlink_port_index(dev, rep->vport);
+	}
 
-	return devlink_port_register(devlink, &rpriv->dl_port, rep->vport);
+	return devlink_port_register(devlink, &rpriv->dl_port, dl_port_index);
 }
 
 static void unregister_devlink_port(struct mlx5_core_dev *dev,

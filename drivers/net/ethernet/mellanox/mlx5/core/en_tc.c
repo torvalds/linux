@@ -39,6 +39,7 @@
 #include <linux/mlx5/device.h>
 #include <linux/rhashtable.h>
 #include <linux/refcount.h>
+#include <linux/completion.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
@@ -102,6 +103,7 @@ enum {
  *        container_of(helper item, containing struct type, helper field[index])
  */
 struct encap_flow_item {
+	struct mlx5e_encap_entry *e; /* attached encap instance */
 	struct list_head list;
 	int index;
 };
@@ -118,7 +120,9 @@ struct mlx5e_tc_flow {
 	 */
 	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5e_tc_flow    *peer_flow;
+	struct mlx5e_mod_hdr_entry *mh; /* attached mod header instance */
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
+	struct mlx5e_hairpin_entry *hpe; /* attached hairpin instance */
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	struct list_head	peer;    /* flows with peer flow */
 	struct list_head	unready; /* flows not ready to be offloaded (e.g due to missing route) */
@@ -161,12 +165,20 @@ struct mlx5e_hairpin_entry {
 	/* a node of a hash table which keeps all the  hairpin entries */
 	struct hlist_node hairpin_hlist;
 
+	/* protects flows list */
+	spinlock_t flows_lock;
 	/* flows sharing the same hairpin */
 	struct list_head flows;
+	/* hpe's that were not fully initialized when dead peer update event
+	 * function traversed them.
+	 */
+	struct list_head dead_peer_wait_list;
 
 	u16 peer_vhca_id;
 	u8 prio;
 	struct mlx5e_hairpin *hp;
+	refcount_t refcnt;
+	struct completion res_ready;
 };
 
 struct mod_hdr_key {
@@ -178,12 +190,18 @@ struct mlx5e_mod_hdr_entry {
 	/* a node of a hash table which keeps all the mod_hdr entries */
 	struct hlist_node mod_hdr_hlist;
 
+	/* protects flows list */
+	spinlock_t flows_lock;
 	/* flows sharing the same mod_hdr entry */
 	struct list_head flows;
 
 	struct mod_hdr_key key;
 
 	u32 mod_hdr_id;
+
+	refcount_t refcnt;
+	struct completion res_ready;
+	int compl_result;
 };
 
 #define MLX5_MH_ACT_SZ MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)
@@ -274,14 +292,61 @@ static inline int cmp_mod_hdr_info(struct mod_hdr_key *a,
 	return memcmp(a->actions, b->actions, a->num_actions * MLX5_MH_ACT_SZ);
 }
 
+static struct mod_hdr_tbl *
+get_mod_hdr_table(struct mlx5e_priv *priv, int namespace)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	return namespace == MLX5_FLOW_NAMESPACE_FDB ? &esw->offloads.mod_hdr :
+		&priv->fs.tc.mod_hdr;
+}
+
+static struct mlx5e_mod_hdr_entry *
+mlx5e_mod_hdr_get(struct mod_hdr_tbl *tbl, struct mod_hdr_key *key, u32 hash_key)
+{
+	struct mlx5e_mod_hdr_entry *mh, *found = NULL;
+
+	hash_for_each_possible(tbl->hlist, mh, mod_hdr_hlist, hash_key) {
+		if (!cmp_mod_hdr_info(&mh->key, key)) {
+			refcount_inc(&mh->refcnt);
+			found = mh;
+			break;
+		}
+	}
+
+	return found;
+}
+
+static void mlx5e_mod_hdr_put(struct mlx5e_priv *priv,
+			      struct mlx5e_mod_hdr_entry *mh,
+			      int namespace)
+{
+	struct mod_hdr_tbl *tbl = get_mod_hdr_table(priv, namespace);
+
+	if (!refcount_dec_and_mutex_lock(&mh->refcnt, &tbl->lock))
+		return;
+	hash_del(&mh->mod_hdr_hlist);
+	mutex_unlock(&tbl->lock);
+
+	WARN_ON(!list_empty(&mh->flows));
+	if (mh->compl_result > 0)
+		mlx5_modify_header_dealloc(priv->mdev, mh->mod_hdr_id);
+
+	kfree(mh);
+}
+
+static int get_flow_name_space(struct mlx5e_tc_flow *flow)
+{
+	return mlx5e_is_eswitch_flow(flow) ?
+		MLX5_FLOW_NAMESPACE_FDB : MLX5_FLOW_NAMESPACE_KERNEL;
+}
 static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
 				struct mlx5e_tc_flow_parse_attr *parse_attr)
 {
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int num_actions, actions_size, namespace, err;
-	bool found = false, is_eswitch_flow;
 	struct mlx5e_mod_hdr_entry *mh;
+	struct mod_hdr_tbl *tbl;
 	struct mod_hdr_key key;
 	u32 hash_key;
 
@@ -293,85 +358,82 @@ static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 
 	hash_key = hash_mod_hdr_info(&key);
 
-	is_eswitch_flow = mlx5e_is_eswitch_flow(flow);
-	if (is_eswitch_flow) {
-		namespace = MLX5_FLOW_NAMESPACE_FDB;
-		hash_for_each_possible(esw->offloads.mod_hdr_tbl, mh,
-				       mod_hdr_hlist, hash_key) {
-			if (!cmp_mod_hdr_info(&mh->key, &key)) {
-				found = true;
-				break;
-			}
+	namespace = get_flow_name_space(flow);
+	tbl = get_mod_hdr_table(priv, namespace);
+
+	mutex_lock(&tbl->lock);
+	mh = mlx5e_mod_hdr_get(tbl, &key, hash_key);
+	if (mh) {
+		mutex_unlock(&tbl->lock);
+		wait_for_completion(&mh->res_ready);
+
+		if (mh->compl_result < 0) {
+			err = -EREMOTEIO;
+			goto attach_header_err;
 		}
-	} else {
-		namespace = MLX5_FLOW_NAMESPACE_KERNEL;
-		hash_for_each_possible(priv->fs.tc.mod_hdr_tbl, mh,
-				       mod_hdr_hlist, hash_key) {
-			if (!cmp_mod_hdr_info(&mh->key, &key)) {
-				found = true;
-				break;
-			}
-		}
+		goto attach_flow;
 	}
 
-	if (found)
-		goto attach_flow;
-
 	mh = kzalloc(sizeof(*mh) + actions_size, GFP_KERNEL);
-	if (!mh)
+	if (!mh) {
+		mutex_unlock(&tbl->lock);
 		return -ENOMEM;
+	}
 
 	mh->key.actions = (void *)mh + sizeof(*mh);
 	memcpy(mh->key.actions, key.actions, actions_size);
 	mh->key.num_actions = num_actions;
+	spin_lock_init(&mh->flows_lock);
 	INIT_LIST_HEAD(&mh->flows);
+	refcount_set(&mh->refcnt, 1);
+	init_completion(&mh->res_ready);
+
+	hash_add(tbl->hlist, &mh->mod_hdr_hlist, hash_key);
+	mutex_unlock(&tbl->lock);
 
 	err = mlx5_modify_header_alloc(priv->mdev, namespace,
 				       mh->key.num_actions,
 				       mh->key.actions,
 				       &mh->mod_hdr_id);
-	if (err)
-		goto out_err;
-
-	if (is_eswitch_flow)
-		hash_add(esw->offloads.mod_hdr_tbl, &mh->mod_hdr_hlist, hash_key);
-	else
-		hash_add(priv->fs.tc.mod_hdr_tbl, &mh->mod_hdr_hlist, hash_key);
+	if (err) {
+		mh->compl_result = err;
+		goto alloc_header_err;
+	}
+	mh->compl_result = 1;
+	complete_all(&mh->res_ready);
 
 attach_flow:
+	flow->mh = mh;
+	spin_lock(&mh->flows_lock);
 	list_add(&flow->mod_hdr, &mh->flows);
-	if (is_eswitch_flow)
+	spin_unlock(&mh->flows_lock);
+	if (mlx5e_is_eswitch_flow(flow))
 		flow->esw_attr->mod_hdr_id = mh->mod_hdr_id;
 	else
 		flow->nic_attr->mod_hdr_id = mh->mod_hdr_id;
 
 	return 0;
 
-out_err:
-	kfree(mh);
+alloc_header_err:
+	complete_all(&mh->res_ready);
+attach_header_err:
+	mlx5e_mod_hdr_put(priv, mh, namespace);
 	return err;
 }
 
 static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
 				 struct mlx5e_tc_flow *flow)
 {
-	struct list_head *next = flow->mod_hdr.next;
-
 	/* flow wasn't fully initialized */
-	if (list_empty(&flow->mod_hdr))
+	if (!flow->mh)
 		return;
 
+	spin_lock(&flow->mh->flows_lock);
 	list_del(&flow->mod_hdr);
+	spin_unlock(&flow->mh->flows_lock);
 
-	if (list_empty(next)) {
-		struct mlx5e_mod_hdr_entry *mh;
-
-		mh = list_entry(next, struct mlx5e_mod_hdr_entry, flows);
-
-		mlx5_modify_header_dealloc(priv->mdev, mh->mod_hdr_id);
-		hash_del(&mh->mod_hdr_hlist);
-		kfree(mh);
-	}
+	mlx5e_mod_hdr_put(priv, flow->mh, get_flow_name_space(flow));
+	flow->mh = NULL;
 }
 
 static
@@ -635,11 +697,33 @@ static struct mlx5e_hairpin_entry *mlx5e_hairpin_get(struct mlx5e_priv *priv,
 
 	hash_for_each_possible(priv->fs.tc.hairpin_tbl, hpe,
 			       hairpin_hlist, hash_key) {
-		if (hpe->peer_vhca_id == peer_vhca_id && hpe->prio == prio)
+		if (hpe->peer_vhca_id == peer_vhca_id && hpe->prio == prio) {
+			refcount_inc(&hpe->refcnt);
 			return hpe;
+		}
 	}
 
 	return NULL;
+}
+
+static void mlx5e_hairpin_put(struct mlx5e_priv *priv,
+			      struct mlx5e_hairpin_entry *hpe)
+{
+	/* no more hairpin flows for us, release the hairpin pair */
+	if (!refcount_dec_and_mutex_lock(&hpe->refcnt, &priv->fs.tc.hairpin_tbl_lock))
+		return;
+	hash_del(&hpe->hairpin_hlist);
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
+
+	if (!IS_ERR_OR_NULL(hpe->hp)) {
+		netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
+			   dev_name(hpe->hp->pair->peer_mdev->device));
+
+		mlx5e_hairpin_destroy(hpe->hp);
+	}
+
+	WARN_ON(!list_empty(&hpe->flows));
+	kfree(hpe);
 }
 
 #define UNKNOWN_MATCH_PRIO 8
@@ -707,17 +791,37 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 				     extack);
 	if (err)
 		return err;
+
+	mutex_lock(&priv->fs.tc.hairpin_tbl_lock);
 	hpe = mlx5e_hairpin_get(priv, peer_id, match_prio);
-	if (hpe)
+	if (hpe) {
+		mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
+		wait_for_completion(&hpe->res_ready);
+
+		if (IS_ERR(hpe->hp)) {
+			err = -EREMOTEIO;
+			goto out_err;
+		}
 		goto attach_flow;
+	}
 
 	hpe = kzalloc(sizeof(*hpe), GFP_KERNEL);
-	if (!hpe)
+	if (!hpe) {
+		mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
 		return -ENOMEM;
+	}
 
+	spin_lock_init(&hpe->flows_lock);
 	INIT_LIST_HEAD(&hpe->flows);
+	INIT_LIST_HEAD(&hpe->dead_peer_wait_list);
 	hpe->peer_vhca_id = peer_id;
 	hpe->prio = match_prio;
+	refcount_set(&hpe->refcnt, 1);
+	init_completion(&hpe->res_ready);
+
+	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist,
+		 hash_hairpin_info(peer_id, match_prio));
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
 
 	params.log_data_size = 15;
 	params.log_data_size = min_t(u8, params.log_data_size,
@@ -739,19 +843,17 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	params.num_channels = link_speed64;
 
 	hp = mlx5e_hairpin_create(priv, &params, peer_ifindex);
+	hpe->hp = hp;
+	complete_all(&hpe->res_ready);
 	if (IS_ERR(hp)) {
 		err = PTR_ERR(hp);
-		goto create_hairpin_err;
+		goto out_err;
 	}
 
 	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d (log) data %d packets %d\n",
 		   hp->tirn, hp->pair->rqn[0],
 		   dev_name(hp->pair->peer_mdev->device),
 		   hp->pair->sqn[0], match_prio, params.log_data_size, params.log_num_packets);
-
-	hpe->hp = hp;
-	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist,
-		 hash_hairpin_info(peer_id, match_prio));
 
 attach_flow:
 	if (hpe->hp->num_channels > 1) {
@@ -760,39 +862,32 @@ attach_flow:
 	} else {
 		flow->nic_attr->hairpin_tirn = hpe->hp->tirn;
 	}
+
+	flow->hpe = hpe;
+	spin_lock(&hpe->flows_lock);
 	list_add(&flow->hairpin, &hpe->flows);
+	spin_unlock(&hpe->flows_lock);
 
 	return 0;
 
-create_hairpin_err:
-	kfree(hpe);
+out_err:
+	mlx5e_hairpin_put(priv, hpe);
 	return err;
 }
 
 static void mlx5e_hairpin_flow_del(struct mlx5e_priv *priv,
 				   struct mlx5e_tc_flow *flow)
 {
-	struct list_head *next = flow->hairpin.next;
-
 	/* flow wasn't fully initialized */
-	if (list_empty(&flow->hairpin))
+	if (!flow->hpe)
 		return;
 
+	spin_lock(&flow->hpe->flows_lock);
 	list_del(&flow->hairpin);
+	spin_unlock(&flow->hpe->flows_lock);
 
-	/* no more hairpin flows for us, release the hairpin pair */
-	if (list_empty(next)) {
-		struct mlx5e_hairpin_entry *hpe;
-
-		hpe = list_entry(next, struct mlx5e_hairpin_entry, flows);
-
-		netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
-			   dev_name(hpe->hp->pair->peer_mdev->device));
-
-		mlx5e_hairpin_destroy(hpe->hp);
-		hash_del(&hpe->hairpin_hlist);
-		kfree(hpe);
-	}
+	mlx5e_hairpin_put(priv, flow->hpe);
+	flow->hpe = NULL;
 }
 
 static int
@@ -1339,8 +1434,11 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
 		struct encap_flow_item *efi, *tmp;
-		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID))
+
+		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID) ||
+		    !mlx5e_encap_take(e))
 			continue;
+
 		list_for_each_entry_safe(efi, tmp, &e->flows, list) {
 			flow = container_of(efi, struct mlx5e_tc_flow,
 					    encaps[efi->index]);
@@ -1359,6 +1457,8 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 
 			mlx5e_flow_put(netdev_priv(e->out_dev), flow);
 		}
+
+		mlx5e_encap_put(netdev_priv(e->out_dev), e);
 		if (neigh_used)
 			break;
 	}
@@ -1378,29 +1478,51 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 	}
 }
 
+static void mlx5e_encap_dealloc(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)
+{
+	WARN_ON(!list_empty(&e->flows));
+	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
+
+	if (e->flags & MLX5_ENCAP_ENTRY_VALID)
+		mlx5_packet_reformat_dealloc(priv->mdev, e->encap_id);
+
+	kfree(e->encap_header);
+	kfree(e);
+}
+
+void mlx5e_encap_put(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	if (!refcount_dec_and_mutex_lock(&e->refcnt, &esw->offloads.encap_tbl_lock))
+		return;
+	hash_del_rcu(&e->encap_hlist);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+
+	mlx5e_encap_dealloc(priv, e);
+}
+
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow, int out_index)
 {
-	struct list_head *next = flow->encaps[out_index].list.next;
+	struct mlx5e_encap_entry *e = flow->encaps[out_index].e;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
 	/* flow wasn't fully initialized */
-	if (list_empty(&flow->encaps[out_index].list))
+	if (!e)
 		return;
 
+	mutex_lock(&esw->offloads.encap_tbl_lock);
 	list_del(&flow->encaps[out_index].list);
-	if (list_empty(next)) {
-		struct mlx5e_encap_entry *e;
-
-		e = list_entry(next, struct mlx5e_encap_entry, flows);
-		mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-
-		if (e->flags & MLX5_ENCAP_ENTRY_VALID)
-			mlx5_packet_reformat_dealloc(priv->mdev, e->encap_id);
-
-		hash_del_rcu(&e->encap_hlist);
-		kfree(e->encap_header);
-		kfree(e);
+	flow->encaps[out_index].e = NULL;
+	if (!refcount_dec_and_test(&e->refcnt)) {
+		mutex_unlock(&esw->offloads.encap_tbl_lock);
+		return;
 	}
+	hash_del_rcu(&e->encap_hlist);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+
+	mlx5e_encap_dealloc(priv, e);
 }
 
 static void __mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
@@ -2723,6 +2845,31 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 
 
 
+bool mlx5e_encap_take(struct mlx5e_encap_entry *e)
+{
+	return refcount_inc_not_zero(&e->refcnt);
+}
+
+static struct mlx5e_encap_entry *
+mlx5e_encap_get(struct mlx5e_priv *priv, struct encap_key *key,
+		uintptr_t hash_key)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_encap_entry *e;
+	struct encap_key e_key;
+
+	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
+				   encap_hlist, hash_key) {
+		e_key.ip_tun_key = &e->tun_info->key;
+		e_key.tc_tunnel = e->tunnel;
+		if (!cmp_encap_info(&e_key, key) &&
+		    mlx5e_encap_take(e))
+			return e;
+	}
+
+	return NULL;
+}
+
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct net_device *mirred_dev,
@@ -2735,11 +2882,10 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	const struct ip_tunnel_info *tun_info;
-	struct encap_key key, e_key;
+	struct encap_key key;
 	struct mlx5e_encap_entry *e;
 	unsigned short family;
 	uintptr_t hash_key;
-	bool found = false;
 	int err = 0;
 
 	parse_attr = attr->parse_attr;
@@ -2754,42 +2900,59 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	hash_key = hash_encap_info(&key);
 
-	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
-				   encap_hlist, hash_key) {
-		e_key.ip_tun_key = &e->tun_info->key;
-		e_key.tc_tunnel = e->tunnel;
-		if (!cmp_encap_info(&e_key, &key)) {
-			found = true;
-			break;
-		}
-	}
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	e = mlx5e_encap_get(priv, &key, hash_key);
 
 	/* must verify if encap is valid or not */
-	if (found)
+	if (e) {
+		mutex_unlock(&esw->offloads.encap_tbl_lock);
+		wait_for_completion(&e->res_ready);
+
+		/* Protect against concurrent neigh update. */
+		mutex_lock(&esw->offloads.encap_tbl_lock);
+		if (e->compl_result) {
+			err = -EREMOTEIO;
+			goto out_err;
+		}
 		goto attach_flow;
+	}
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
-	if (!e)
-		return -ENOMEM;
+	if (!e) {
+		err = -ENOMEM;
+		goto out_err;
+	}
+
+	refcount_set(&e->refcnt, 1);
+	init_completion(&e->res_ready);
 
 	e->tun_info = tun_info;
 	err = mlx5e_tc_tun_init_encap_attr(mirred_dev, priv, e, extack);
-	if (err)
+	if (err) {
+		kfree(e);
+		e = NULL;
 		goto out_err;
+	}
 
 	INIT_LIST_HEAD(&e->flows);
+	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
 
 	if (family == AF_INET)
 		err = mlx5e_tc_tun_create_header_ipv4(priv, mirred_dev, e);
 	else if (family == AF_INET6)
 		err = mlx5e_tc_tun_create_header_ipv6(priv, mirred_dev, e);
 
-	if (err)
+	/* Protect against concurrent neigh update. */
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	complete_all(&e->res_ready);
+	if (err) {
+		e->compl_result = err;
 		goto out_err;
-
-	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
+	}
 
 attach_flow:
+	flow->encaps[out_index].e = e;
 	list_add(&flow->encaps[out_index].list, &e->flows);
 	flow->encaps[out_index].index = out_index;
 	*encap_dev = e->out_dev;
@@ -2800,11 +2963,14 @@ attach_flow:
 	} else {
 		*encap_valid = false;
 	}
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
 
 	return err;
 
 out_err:
-	kfree(e);
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	if (e)
+		mlx5e_encap_put(priv, e);
 	return err;
 }
 
@@ -3743,7 +3909,8 @@ static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
 					      struct mlx5e_priv *peer_priv)
 {
 	struct mlx5_core_dev *peer_mdev = peer_priv->mdev;
-	struct mlx5e_hairpin_entry *hpe;
+	struct mlx5e_hairpin_entry *hpe, *tmp;
+	LIST_HEAD(init_wait_list);
 	u16 peer_vhca_id;
 	int bkt;
 
@@ -3752,9 +3919,18 @@ static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
 
 	peer_vhca_id = MLX5_CAP_GEN(peer_mdev, vhca_id);
 
-	hash_for_each(priv->fs.tc.hairpin_tbl, bkt, hpe, hairpin_hlist) {
-		if (hpe->peer_vhca_id == peer_vhca_id)
+	mutex_lock(&priv->fs.tc.hairpin_tbl_lock);
+	hash_for_each(priv->fs.tc.hairpin_tbl, bkt, hpe, hairpin_hlist)
+		if (refcount_inc_not_zero(&hpe->refcnt))
+			list_add(&hpe->dead_peer_wait_list, &init_wait_list);
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
+
+	list_for_each_entry_safe(hpe, tmp, &init_wait_list, dead_peer_wait_list) {
+		wait_for_completion(&hpe->res_ready);
+		if (!IS_ERR_OR_NULL(hpe->hp) && hpe->peer_vhca_id == peer_vhca_id)
 			hpe->hp->pair->peer_gone = true;
+
+		mlx5e_hairpin_put(priv, hpe);
 	}
 }
 
@@ -3791,7 +3967,9 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	int err;
 
 	mutex_init(&tc->t_lock);
-	hash_init(tc->mod_hdr_tbl);
+	mutex_init(&tc->mod_hdr.lock);
+	hash_init(tc->mod_hdr.hlist);
+	mutex_init(&tc->hairpin_tbl_lock);
 	hash_init(tc->hairpin_tbl);
 
 	err = rhashtable_init(&tc->ht, &tc_ht_params);
@@ -3822,6 +4000,9 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 
 	if (tc->netdevice_nb.notifier_call)
 		unregister_netdevice_notifier(&tc->netdevice_nb);
+
+	mutex_destroy(&tc->mod_hdr.lock);
+	mutex_destroy(&tc->hairpin_tbl_lock);
 
 	rhashtable_destroy(&tc->ht);
 
