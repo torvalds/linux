@@ -253,10 +253,10 @@ static int platform_suspend_prepare_late(suspend_state_t state)
 
 static int platform_suspend_prepare_noirq(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_TO_IDLE) {
-		if (s2idle_ops && s2idle_ops->prepare_late)
-			return s2idle_ops->prepare_late();
-	}
+	if (state == PM_SUSPEND_TO_IDLE)
+		return s2idle_ops && s2idle_ops->prepare_late ?
+			s2idle_ops->prepare_late() : 0;
+
 	return suspend_ops->prepare_late ? suspend_ops->prepare_late() : 0;
 }
 
@@ -265,8 +265,9 @@ static void platform_resume_noirq(suspend_state_t state)
 	if (state == PM_SUSPEND_TO_IDLE) {
 		if (s2idle_ops && s2idle_ops->restore_early)
 			s2idle_ops->restore_early();
-	} else if (suspend_ops->wake)
+	} else if (suspend_ops->wake) {
 		suspend_ops->wake();
+	}
 }
 
 static void platform_resume_early(suspend_state_t state)
