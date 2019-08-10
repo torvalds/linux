@@ -1180,7 +1180,7 @@ void gserial_free_line(unsigned char port_num)
 }
 EXPORT_SYMBOL_GPL(gserial_free_line);
 
-int gserial_alloc_line(unsigned char *line_num)
+int gserial_alloc_line_no_console(unsigned char *line_num)
 {
 	struct usb_cdc_line_coding	coding;
 	struct gs_port			*port;
@@ -1221,10 +1221,18 @@ int gserial_alloc_line(unsigned char *line_num)
 		goto err;
 	}
 	*line_num = port_num;
-
-	if (!port_num)
-		gs_console_init(port);
 err:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gserial_alloc_line_no_console);
+
+int gserial_alloc_line(unsigned char *line_num)
+{
+	int ret = gserial_alloc_line_no_console(line_num);
+
+	if (!ret && !*line_num)
+		gs_console_init(ports[*line_num].port);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gserial_alloc_line);
