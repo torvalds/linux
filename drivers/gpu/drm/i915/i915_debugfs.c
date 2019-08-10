@@ -1442,30 +1442,6 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_emon_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-	intel_wakeref_t wakeref;
-
-	if (!IS_GEN(i915, 5))
-		return -ENODEV;
-
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		unsigned long temp, chipset, gfx;
-
-		temp = i915_mch_val(i915);
-		chipset = i915_chipset_val(i915);
-		gfx = i915_gfx_val(i915);
-
-		seq_printf(m, "GMCH temp: %ld\n", temp);
-		seq_printf(m, "Chipset power: %ld\n", chipset);
-		seq_printf(m, "GFX power: %ld\n", gfx);
-		seq_printf(m, "Total power: %ld\n", chipset + gfx);
-	}
-
-	return 0;
-}
-
 static int i915_ring_freq_table(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4349,7 +4325,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_hangcheck_info", i915_hangcheck_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
-	{"i915_emon_status", i915_emon_status, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
 	{"i915_frontbuffer_tracking", i915_frontbuffer_tracking, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
