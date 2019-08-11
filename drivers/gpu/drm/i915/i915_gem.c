@@ -1463,8 +1463,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	intel_init_gt_powersave(dev_priv);
 
 	ret = intel_uc_init(&dev_priv->gt.uc);
-	if (ret)
+	if (ret) {
+		GEM_BUG_ON(ret == -EIO);
 		goto err_pm;
+	}
 
 	ret = i915_gem_init_hw(dev_priv);
 	if (ret)
@@ -1526,7 +1528,8 @@ err_gt:
 err_init_hw:
 	intel_uc_fini_hw(&dev_priv->gt.uc);
 err_uc_init:
-	intel_uc_fini(&dev_priv->gt.uc);
+	if (ret != -EIO)
+		intel_uc_fini(&dev_priv->gt.uc);
 err_pm:
 	if (ret != -EIO) {
 		intel_cleanup_gt_powersave(dev_priv);
@@ -1542,9 +1545,8 @@ err_unlock:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
-
 	if (ret != -EIO) {
+		intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 		i915_gem_cleanup_userptr(dev_priv);
 		intel_timelines_fini(dev_priv);
 	}
@@ -1553,8 +1555,8 @@ err_unlock:
 		mutex_lock(&dev_priv->drm.struct_mutex);
 
 		/*
-		 * Allow engine initialisation to fail by marking the GPU as
-		 * wedged. But we only want to do this where the GPU is angry,
+		 * Allow engines or uC initialisation to fail by marking the GPU
+		 * as wedged. But we only want to do this when the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
 		if (!intel_gt_is_wedged(&dev_priv->gt)) {

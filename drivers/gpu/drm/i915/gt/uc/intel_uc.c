@@ -530,15 +530,10 @@ err_log_capture:
 err_out:
 	__uc_sanitize(uc);
 
-	/*
-	 * Note that there is no fallback as either user explicitly asked for
-	 * the GuC or driver default option was to run with the GuC enabled.
-	 */
-	if (GEM_WARN_ON(ret == -EIO))
-		ret = -EINVAL;
-
 	i915_probe_error(i915, "GuC initialization failed %d\n", ret);
-	return ret;
+
+	/* We want to keep KMS alive */
+	return -EIO;
 }
 
 void intel_uc_fini_hw(struct intel_uc *uc)
