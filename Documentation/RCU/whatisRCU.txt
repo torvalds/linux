@@ -290,7 +290,7 @@ rcu_dereference()
 	at any time, including immediately after the rcu_dereference().
 	And, again like rcu_assign_pointer(), rcu_dereference() is
 	typically used indirectly, via the _rcu list-manipulation
-	primitives, such as list_for_each_entry_rcu().
+	primitives, such as list_for_each_entry_rcu() [2].
 
 	[1] The variant rcu_dereference_protected() can be used outside
 	of an RCU read-side critical section as long as the usage is
@@ -304,6 +304,14 @@ rcu_dereference()
 	by the caller. If the indicated protection is not provided,
 	a lockdep splat is emitted.  See Documentation/RCU/Design/Requirements/Requirements.rst
 	and the API's code comments for more details and example usage.
+
+	[2] If the list_for_each_entry_rcu() instance might be used by
+	update-side code as well as by RCU readers, then an additional
+	lockdep expression can be added to its list of arguments.
+	For example, given an additional "lock_is_held(&mylock)" argument,
+	the RCU lockdep code would complain only if this instance was
+	invoked outside of an RCU read-side critical section and without
+	the protection of mylock.
 
 The following diagram shows how each API communicates among the
 reader, updater, and reclaimer.
