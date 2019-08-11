@@ -241,11 +241,58 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
+static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
+{
+	int rc;
+
+	if (!try_module_get(THIS_MODULE)) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
+		return -ENODEV;
+	}
+
+	rc = register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to connect probe to kfree_skb() tracepoint");
+		goto err_module_put;
+	}
+
+	rc = register_trace_napi_poll(trace_napi_poll_hit, NULL);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to connect probe to napi_poll() tracepoint");
+		goto err_unregister_trace;
+	}
+
+	return 0;
+
+err_unregister_trace:
+	unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+err_module_put:
+	module_put(THIS_MODULE);
+	return rc;
+}
+
+static void net_dm_trace_off_set(void)
+{
+	struct dm_hw_stat_delta *new_stat, *temp;
+
+	unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
+	unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+
+	tracepoint_synchronize_unregister();
+
+	list_for_each_entry_safe(new_stat, temp, &hw_stats_list, list) {
+		if (new_stat->dev == NULL) {
+			list_del_rcu(&new_stat->list);
+			kfree_rcu(new_stat, rcu);
+		}
+	}
+
+	module_put(THIS_MODULE);
+}
+
 static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 {
 	int rc = 0;
-	struct dm_hw_stat_delta *new_stat = NULL;
-	struct dm_hw_stat_delta *temp;
 
 	if (state == trace_state) {
 		NL_SET_ERR_MSG_MOD(extack, "Trace state already set to requested state");
@@ -254,34 +301,10 @@ static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 
 	switch (state) {
 	case TRACE_ON:
-		if (!try_module_get(THIS_MODULE)) {
-			NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
-			rc = -ENODEV;
-			break;
-		}
-
-		rc |= register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
-		rc |= register_trace_napi_poll(trace_napi_poll_hit, NULL);
+		rc = net_dm_trace_on_set(extack);
 		break;
-
 	case TRACE_OFF:
-		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
-		rc |= unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
-
-		tracepoint_synchronize_unregister();
-
-		/*
-		 * Clean the device list
-		 */
-		list_for_each_entry_safe(new_stat, temp, &hw_stats_list, list) {
-			if (new_stat->dev == NULL) {
-				list_del_rcu(&new_stat->list);
-				kfree_rcu(new_stat, rcu);
-			}
-		}
-
-		module_put(THIS_MODULE);
-
+		net_dm_trace_off_set();
 		break;
 	default:
 		rc = 1;
