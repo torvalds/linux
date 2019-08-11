@@ -477,7 +477,7 @@ static int hi8435_probe(struct spi_device *spi)
 		hi8435_writeb(priv, HI8435_CTRL_REG, 0);
 	} else {
 		udelay(5);
-		gpiod_set_value(reset_gpio, 1);
+		gpiod_set_value_cansleep(reset_gpio, 1);
 	}
 
 	spi_set_drvdata(spi, idev);
