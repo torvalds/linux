@@ -3,7 +3,7 @@
  * Elliptic Curve Digital Signature Algorithm for Cryptographic API
  *
  * Copyright (C) 2019 Tribunal Superior Eleitoral. All Rights Reserved.
- * Written by Saulo Alessandre (saulo.alessandre@tse.jus.br||@gmail.com)
+ * Written by Saulo Alessandre (saulo.alessandre@tse.jus.br || @gmail.com)
  *
  * References:
  * Mathematical routines for the NIST prime elliptic curves April 05, 2010
@@ -66,10 +66,10 @@ static int check_digest_len(int len)
 	}
 }
 
-int ecdsa_parse_sig_r(void *context, size_t hdrlen, unsigned char tag,
-		      const void *value, size_t vlen)
+static int ecdsa_parse_sig_rs(struct ecdsa_sig_ctx *ctx, u64 * rs,
+			      size_t hdrlen, unsigned char tag,
+			      const void *value, size_t vlen)
 {
-	struct ecdsa_sig_ctx *ctx = context;
 	u8 ndigits;
 	// skip byte 0 if exists
 	const void *idx = value;
@@ -79,44 +79,34 @@ int ecdsa_parse_sig_r(void *context, size_t hdrlen, unsigned char tag,
 	}
 	ndigits = vlen / 8;
 	if (ndigits == ctx->ndigits)
-		ecc_swap_digits((const u64 *)idx, ctx->r, ndigits);
+		ecc_swap_digits((const u64 *)idx, rs, ndigits);
 	else {
 		u8 nvalue[ECDSA_MAX_SIG_SIZE];
 		const u8 start = (ctx->ndigits * 8) - vlen;
 		memset(nvalue, 0, start);
 		memcpy(nvalue + start, idx, vlen);
-		ecc_swap_digits((const u64 *)nvalue, ctx->r, ctx->ndigits);
+		ecc_swap_digits((const u64 *)nvalue, rs, ctx->ndigits);
 		vlen = ctx->ndigits * 8;
 	}
 	ctx->sig_size += vlen;
 	return 0;
 }
 
+int ecdsa_parse_sig_r(void *context, size_t hdrlen, unsigned char tag,
+		      const void *value, size_t vlen)
+{
+	struct ecdsa_sig_ctx *ctx = context;
+	return ecdsa_parse_sig_rs(ctx, ctx->r, hdrlen, tag, value, vlen);
+}
+
 int ecdsa_parse_sig_s(void *context, size_t hdrlen, unsigned char tag,
 		      const void *value, size_t vlen)
 {
 	struct ecdsa_sig_ctx *ctx = context;
-	const void *idx = value;
-	u8 ndigits;
-	// skip byte 0 if exists
-	if (*(u8 *) idx == 0x0) {
-		idx++;
-		vlen--;
-	}
-	ndigits = vlen / 8;
-	if (ndigits == ctx->ndigits)
-		ecc_swap_digits((const u64 *)idx, ctx->s, ndigits);
-	else {
-		u8 nvalue[ECDSA_MAX_SIG_SIZE];
-		const u8 start = (ctx->ndigits * 8) - vlen;
-		memset(nvalue, 0, start);
-		memcpy(nvalue + start, idx, vlen);
-		ecc_swap_digits((const u64 *)nvalue, ctx->s, ctx->ndigits);
-		vlen = ctx->ndigits * 8;
-	}
-	ctx->sig_size += vlen;
-	return 0;
+	return ecdsa_parse_sig_rs(ctx, ctx->s, hdrlen, tag, value, vlen);
 }
+
+#define ASN_TAG_SIZE	5
 
 static int ecdsa_verify(struct akcipher_request *req)
 {
