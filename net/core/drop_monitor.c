@@ -252,9 +252,16 @@ static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 
 	for_each_possible_cpu(cpu) {
 		struct per_cpu_dm_data *data = &per_cpu(dm_cpu_data, cpu);
+		struct sk_buff *skb;
 
 		INIT_WORK(&data->dm_alert_work, send_dm_alert);
 		timer_setup(&data->send_timer, sched_send_work, 0);
+		/* Allocate a new per-CPU skb for the summary alert message and
+		 * free the old one which might contain stale data from
+		 * previous tracing.
+		 */
+		skb = reset_per_cpu_data(data);
+		consume_skb(skb);
 	}
 
 	rc = register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
@@ -475,10 +482,7 @@ static int __init init_net_drop_monitor(void)
 
 	for_each_possible_cpu(cpu) {
 		data = &per_cpu(dm_cpu_data, cpu);
-		INIT_WORK(&data->dm_alert_work, send_dm_alert);
-		timer_setup(&data->send_timer, sched_send_work, 0);
 		spin_lock_init(&data->lock);
-		reset_per_cpu_data(data);
 	}
 
 	goto out;
