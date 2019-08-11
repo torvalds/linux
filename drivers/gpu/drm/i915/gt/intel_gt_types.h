@@ -73,8 +73,9 @@ struct intel_gt {
 
 	struct i915_vma *scratch;
 
-	u32 pm_imr;
+	spinlock_t irq_lock;
 	u32 pm_ier;
+	u32 pm_imr;
 
 	u32 pm_guc_events;
 

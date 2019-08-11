@@ -37,6 +37,7 @@
 #include "i915_trace.h"
 #include "intel_context.h"
 #include "intel_gt.h"
+#include "intel_gt_pm_irq.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 
@@ -1067,14 +1068,14 @@ hsw_vebox_irq_enable(struct intel_engine_cs *engine)
 	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
 	ENGINE_POSTING_READ(engine, RING_IMR);
 
-	gen6_unmask_pm_irq(engine->gt, engine->irq_enable_mask);
+	gen6_gt_pm_unmask_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
 hsw_vebox_irq_disable(struct intel_engine_cs *engine)
 {
 	ENGINE_WRITE(engine, RING_IMR, ~0);
-	gen6_mask_pm_irq(engine->gt, engine->irq_enable_mask);
+	gen6_gt_pm_mask_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static int
