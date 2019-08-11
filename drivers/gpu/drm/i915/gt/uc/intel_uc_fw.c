@@ -493,9 +493,6 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 {
 	int err;
 
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
-
 	/* make sure the status was cleared the last time we reset the uc */
 	GEM_BUG_ON(intel_uc_fw_is_loaded(uc_fw));
 
@@ -514,14 +511,9 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 		goto fail;
 
 	uc_fw->status = INTEL_UC_FIRMWARE_TRANSFERRED;
-	DRM_DEBUG_DRIVER("%s fw xfer completed\n",
-			 intel_uc_fw_type_repr(uc_fw->type));
-
-	DRM_INFO("%s: Loaded firmware %s (version %u.%u)\n",
-		 intel_uc_fw_type_repr(uc_fw->type),
-		 uc_fw->path,
-		 uc_fw->major_ver_found, uc_fw->minor_ver_found);
-
+	DRM_DEV_DEBUG_DRIVER(gt->i915->drm.dev, "%s firmware %s: %s\n",
+			     intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			     intel_uc_fw_status_repr(uc_fw->status));
 	return 0;
 
 fail:
