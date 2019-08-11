@@ -359,6 +359,11 @@ properties:
               - khadas,edge-v
           - const: rockchip,rk3399
 
+      - description: Mecer Xtreme Mini S6
+        items:
+          - const: mecer,xms6
+          - const: rockchip,rk3229
+
       - description: mqmaker MiQi
         items:
           - const: mqmaker,miqi
