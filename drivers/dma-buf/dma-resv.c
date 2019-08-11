@@ -32,7 +32,7 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/export.h>
 
 /**
@@ -50,16 +50,15 @@ DEFINE_WD_CLASS(reservation_ww_class);
 EXPORT_SYMBOL(reservation_ww_class);
 
 /**
- * reservation_object_list_alloc - allocate fence list
+ * dma_resv_list_alloc - allocate fence list
  * @shared_max: number of fences we need space for
  *
- * Allocate a new reservation_object_list and make sure to correctly initialize
+ * Allocate a new dma_resv_list and make sure to correctly initialize
  * shared_max.
  */
-static struct reservation_object_list *
-reservation_object_list_alloc(unsigned int shared_max)
+static struct dma_resv_list *dma_resv_list_alloc(unsigned int shared_max)
 {
-	struct reservation_object_list *list;
+	struct dma_resv_list *list;
 
 	list = kmalloc(offsetof(typeof(*list), shared[shared_max]), GFP_KERNEL);
 	if (!list)
@@ -72,12 +71,12 @@ reservation_object_list_alloc(unsigned int shared_max)
 }
 
 /**
- * reservation_object_list_free - free fence list
+ * dma_resv_list_free - free fence list
  * @list: list to free
  *
- * Free a reservation_object_list and make sure to drop all references.
+ * Free a dma_resv_list and make sure to drop all references.
  */
-static void reservation_object_list_free(struct reservation_object_list *list)
+static void dma_resv_list_free(struct dma_resv_list *list)
 {
 	unsigned int i;
 
@@ -91,24 +90,24 @@ static void reservation_object_list_free(struct reservation_object_list *list)
 }
 
 /**
- * reservation_object_init - initialize a reservation object
+ * dma_resv_init - initialize a reservation object
  * @obj: the reservation object
  */
-void reservation_object_init(struct reservation_object *obj)
+void dma_resv_init(struct dma_resv *obj)
 {
 	ww_mutex_init(&obj->lock, &reservation_ww_class);
 	RCU_INIT_POINTER(obj->fence, NULL);
 	RCU_INIT_POINTER(obj->fence_excl, NULL);
 }
-EXPORT_SYMBOL(reservation_object_init);
+EXPORT_SYMBOL(dma_resv_init);
 
 /**
- * reservation_object_fini - destroys a reservation object
+ * dma_resv_fini - destroys a reservation object
  * @obj: the reservation object
  */
-void reservation_object_fini(struct reservation_object *obj)
+void dma_resv_fini(struct dma_resv *obj)
 {
-	struct reservation_object_list *fobj;
+	struct dma_resv_list *fobj;
 	struct dma_fence *excl;
 
 	/*
@@ -120,32 +119,31 @@ void reservation_object_fini(struct reservation_object *obj)
 		dma_fence_put(excl);
 
 	fobj = rcu_dereference_protected(obj->fence, 1);
-	reservation_object_list_free(fobj);
+	dma_resv_list_free(fobj);
 	ww_mutex_destroy(&obj->lock);
 }
-EXPORT_SYMBOL(reservation_object_fini);
+EXPORT_SYMBOL(dma_resv_fini);
 
 /**
- * reservation_object_reserve_shared - Reserve space to add shared fences to
- * a reservation_object.
+ * dma_resv_reserve_shared - Reserve space to add shared fences to
+ * a dma_resv.
  * @obj: reservation object
  * @num_fences: number of fences we want to add
  *
- * Should be called before reservation_object_add_shared_fence().  Must
+ * Should be called before dma_resv_add_shared_fence().  Must
  * be called with obj->lock held.
  *
  * RETURNS
  * Zero for success, or -errno
  */
-int reservation_object_reserve_shared(struct reservation_object *obj,
-				      unsigned int num_fences)
+int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 {
-	struct reservation_object_list *old, *new;
+	struct dma_resv_list *old, *new;
 	unsigned int i, j, k, max;
 
-	reservation_object_assert_held(obj);
+	dma_resv_assert_held(obj);
 
-	old = reservation_object_get_list(obj);
+	old = dma_resv_get_list(obj);
 
 	if (old && old->shared_max) {
 		if ((old->shared_count + num_fences) <= old->shared_max)
@@ -157,7 +155,7 @@ int reservation_object_reserve_shared(struct reservation_object *obj,
 		max = 4;
 	}
 
-	new = reservation_object_list_alloc(max);
+	new = dma_resv_list_alloc(max);
 	if (!new)
 		return -ENOMEM;
 
@@ -171,7 +169,7 @@ int reservation_object_reserve_shared(struct reservation_object *obj,
 		struct dma_fence *fence;
 
 		fence = rcu_dereference_protected(old->shared[i],
-						  reservation_object_held(obj));
+						  dma_resv_held(obj));
 		if (dma_fence_is_signaled(fence))
 			RCU_INIT_POINTER(new->shared[--k], fence);
 		else
@@ -197,41 +195,40 @@ int reservation_object_reserve_shared(struct reservation_object *obj,
 		struct dma_fence *fence;
 
 		fence = rcu_dereference_protected(new->shared[i],
-						  reservation_object_held(obj));
+						  dma_resv_held(obj));
 		dma_fence_put(fence);
 	}
 	kfree_rcu(old, rcu);
 
 	return 0;
 }
-EXPORT_SYMBOL(reservation_object_reserve_shared);
+EXPORT_SYMBOL(dma_resv_reserve_shared);
 
 /**
- * reservation_object_add_shared_fence - Add a fence to a shared slot
+ * dma_resv_add_shared_fence - Add a fence to a shared slot
  * @obj: the reservation object
  * @fence: the shared fence to add
  *
  * Add a fence to a shared slot, obj->lock must be held, and
- * reservation_object_reserve_shared() has been called.
+ * dma_resv_reserve_shared() has been called.
  */
-void reservation_object_add_shared_fence(struct reservation_object *obj,
-					 struct dma_fence *fence)
+void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence)
 {
-	struct reservation_object_list *fobj;
+	struct dma_resv_list *fobj;
 	struct dma_fence *old;
 	unsigned int i, count;
 
 	dma_fence_get(fence);
 
-	reservation_object_assert_held(obj);
+	dma_resv_assert_held(obj);
 
-	fobj = reservation_object_get_list(obj);
+	fobj = dma_resv_get_list(obj);
 	count = fobj->shared_count;
 
 	for (i = 0; i < count; ++i) {
 
 		old = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(obj));
+						dma_resv_held(obj));
 		if (old->context == fence->context ||
 		    dma_fence_is_signaled(old))
 			goto replace;
@@ -247,25 +244,24 @@ replace:
 	smp_store_mb(fobj->shared_count, count);
 	dma_fence_put(old);
 }
-EXPORT_SYMBOL(reservation_object_add_shared_fence);
+EXPORT_SYMBOL(dma_resv_add_shared_fence);
 
 /**
- * reservation_object_add_excl_fence - Add an exclusive fence.
+ * dma_resv_add_excl_fence - Add an exclusive fence.
  * @obj: the reservation object
  * @fence: the shared fence to add
  *
  * Add a fence to the exclusive slot.  The obj->lock must be held.
  */
-void reservation_object_add_excl_fence(struct reservation_object *obj,
-				       struct dma_fence *fence)
+void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 {
-	struct dma_fence *old_fence = reservation_object_get_excl(obj);
-	struct reservation_object_list *old;
+	struct dma_fence *old_fence = dma_resv_get_excl(obj);
+	struct dma_resv_list *old;
 	u32 i = 0;
 
-	reservation_object_assert_held(obj);
+	dma_resv_assert_held(obj);
 
-	old = reservation_object_get_list(obj);
+	old = dma_resv_get_list(obj);
 	if (old)
 		i = old->shared_count;
 
@@ -282,41 +278,40 @@ void reservation_object_add_excl_fence(struct reservation_object *obj,
 	/* inplace update, no shared fences */
 	while (i--)
 		dma_fence_put(rcu_dereference_protected(old->shared[i],
-						reservation_object_held(obj)));
+						dma_resv_held(obj)));
 
 	dma_fence_put(old_fence);
 }
-EXPORT_SYMBOL(reservation_object_add_excl_fence);
+EXPORT_SYMBOL(dma_resv_add_excl_fence);
 
 /**
-* reservation_object_copy_fences - Copy all fences from src to dst.
+* dma_resv_copy_fences - Copy all fences from src to dst.
 * @dst: the destination reservation object
 * @src: the source reservation object
 *
 * Copy all fences from src to dst. dst-lock must be held.
 */
-int reservation_object_copy_fences(struct reservation_object *dst,
-				   struct reservation_object *src)
+int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 {
-	struct reservation_object_list *src_list, *dst_list;
+	struct dma_resv_list *src_list, *dst_list;
 	struct dma_fence *old, *new;
 	unsigned int i, shared_count;
 
-	reservation_object_assert_held(dst);
+	dma_resv_assert_held(dst);
 
 	rcu_read_lock();
 
 retry:
-	reservation_object_fences(src, &new, &src_list, &shared_count);
+	dma_resv_fences(src, &new, &src_list, &shared_count);
 	if (shared_count) {
 		rcu_read_unlock();
 
-		dst_list = reservation_object_list_alloc(shared_count);
+		dst_list = dma_resv_list_alloc(shared_count);
 		if (!dst_list)
 			return -ENOMEM;
 
 		rcu_read_lock();
-		reservation_object_fences(src, &new, &src_list, &shared_count);
+		dma_resv_fences(src, &new, &src_list, &shared_count);
 		if (!src_list || shared_count > dst_list->shared_max) {
 			kfree(dst_list);
 			goto retry;
@@ -332,7 +327,7 @@ retry:
 				continue;
 
 			if (!dma_fence_get_rcu(fence)) {
-				reservation_object_list_free(dst_list);
+				dma_resv_list_free(dst_list);
 				goto retry;
 			}
 
@@ -348,28 +343,28 @@ retry:
 	}
 
 	if (new && !dma_fence_get_rcu(new)) {
-		reservation_object_list_free(dst_list);
+		dma_resv_list_free(dst_list);
 		goto retry;
 	}
 	rcu_read_unlock();
 
-	src_list = reservation_object_get_list(dst);
-	old = reservation_object_get_excl(dst);
+	src_list = dma_resv_get_list(dst);
+	old = dma_resv_get_excl(dst);
 
 	preempt_disable();
 	rcu_assign_pointer(dst->fence_excl, new);
 	rcu_assign_pointer(dst->fence, dst_list);
 	preempt_enable();
 
-	reservation_object_list_free(src_list);
+	dma_resv_list_free(src_list);
 	dma_fence_put(old);
 
 	return 0;
 }
-EXPORT_SYMBOL(reservation_object_copy_fences);
+EXPORT_SYMBOL(dma_resv_copy_fences);
 
 /**
- * reservation_object_get_fences_rcu - Get an object's shared and exclusive
+ * dma_resv_get_fences_rcu - Get an object's shared and exclusive
  * fences without update side lock held
  * @obj: the reservation object
  * @pfence_excl: the returned exclusive fence (or NULL)
@@ -381,10 +376,10 @@ EXPORT_SYMBOL(reservation_object_copy_fences);
  * exclusive fence is not specified the fence is put into the array of the
  * shared fences as well. Returns either zero or -ENOMEM.
  */
-int reservation_object_get_fences_rcu(struct reservation_object *obj,
-				      struct dma_fence **pfence_excl,
-				      unsigned *pshared_count,
-				      struct dma_fence ***pshared)
+int dma_resv_get_fences_rcu(struct dma_resv *obj,
+			    struct dma_fence **pfence_excl,
+			    unsigned *pshared_count,
+			    struct dma_fence ***pshared)
 {
 	struct dma_fence **shared = NULL;
 	struct dma_fence *fence_excl;
@@ -392,14 +387,14 @@ int reservation_object_get_fences_rcu(struct reservation_object *obj,
 	int ret = 1;
 
 	do {
-		struct reservation_object_list *fobj;
+		struct dma_resv_list *fobj;
 		unsigned int i;
 		size_t sz = 0;
 
 		i = 0;
 
 		rcu_read_lock();
-		reservation_object_fences(obj, &fence_excl, &fobj,
+		dma_resv_fences(obj, &fence_excl, &fobj,
 					  &shared_count);
 
 		if (fence_excl && !dma_fence_get_rcu(fence_excl))
@@ -465,10 +460,10 @@ unlock:
 	*pshared = shared;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(reservation_object_get_fences_rcu);
+EXPORT_SYMBOL_GPL(dma_resv_get_fences_rcu);
 
 /**
- * reservation_object_wait_timeout_rcu - Wait on reservation's objects
+ * dma_resv_wait_timeout_rcu - Wait on reservation's objects
  * shared and/or exclusive fences.
  * @obj: the reservation object
  * @wait_all: if true, wait on all fences, else wait on just exclusive fence
@@ -479,11 +474,11 @@ EXPORT_SYMBOL_GPL(reservation_object_get_fences_rcu);
  * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
  * greater than zer on success.
  */
-long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
-					 bool wait_all, bool intr,
-					 unsigned long timeout)
+long dma_resv_wait_timeout_rcu(struct dma_resv *obj,
+			       bool wait_all, bool intr,
+			       unsigned long timeout)
 {
-	struct reservation_object_list *fobj;
+	struct dma_resv_list *fobj;
 	struct dma_fence *fence;
 	unsigned shared_count;
 	long ret = timeout ? timeout : 1;
@@ -493,7 +488,7 @@ retry:
 	rcu_read_lock();
 	i = -1;
 
-	reservation_object_fences(obj, &fence, &fobj, &shared_count);
+	dma_resv_fences(obj, &fence, &fobj, &shared_count);
 	if (fence && !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
 		if (!dma_fence_get_rcu(fence))
 			goto unlock_retry;
@@ -541,11 +536,10 @@ unlock_retry:
 	rcu_read_unlock();
 	goto retry;
 }
-EXPORT_SYMBOL_GPL(reservation_object_wait_timeout_rcu);
+EXPORT_SYMBOL_GPL(dma_resv_wait_timeout_rcu);
 
 
-static inline int
-reservation_object_test_signaled_single(struct dma_fence *passed_fence)
+static inline int dma_resv_test_signaled_single(struct dma_fence *passed_fence)
 {
 	struct dma_fence *fence, *lfence = passed_fence;
 	int ret = 1;
@@ -562,7 +556,7 @@ reservation_object_test_signaled_single(struct dma_fence *passed_fence)
 }
 
 /**
- * reservation_object_test_signaled_rcu - Test if a reservation object's
+ * dma_resv_test_signaled_rcu - Test if a reservation object's
  * fences have been signaled.
  * @obj: the reservation object
  * @test_all: if true, test all fences, otherwise only test the exclusive
@@ -571,10 +565,9 @@ reservation_object_test_signaled_single(struct dma_fence *passed_fence)
  * RETURNS
  * true if all fences signaled, else false
  */
-bool reservation_object_test_signaled_rcu(struct reservation_object *obj,
-					  bool test_all)
+bool dma_resv_test_signaled_rcu(struct dma_resv *obj, bool test_all)
 {
-	struct reservation_object_list *fobj;
+	struct dma_resv_list *fobj;
 	struct dma_fence *fence_excl;
 	unsigned shared_count;
 	int ret;
@@ -583,14 +576,14 @@ bool reservation_object_test_signaled_rcu(struct reservation_object *obj,
 retry:
 	ret = true;
 
-	reservation_object_fences(obj, &fence_excl, &fobj, &shared_count);
+	dma_resv_fences(obj, &fence_excl, &fobj, &shared_count);
 	if (test_all) {
 		unsigned i;
 
 		for (i = 0; i < shared_count; ++i) {
 			struct dma_fence *fence = rcu_dereference(fobj->shared[i]);
 
-			ret = reservation_object_test_signaled_single(fence);
+			ret = dma_resv_test_signaled_single(fence);
 			if (ret < 0)
 				goto retry;
 			else if (!ret)
@@ -599,7 +592,7 @@ retry:
 	}
 
 	if (!shared_count && fence_excl) {
-		ret = reservation_object_test_signaled_single(fence_excl);
+		ret = dma_resv_test_signaled_single(fence_excl);
 		if (ret < 0)
 			goto retry;
 	}
@@ -607,4 +600,4 @@ retry:
 	rcu_read_unlock();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(reservation_object_test_signaled_rcu);
+EXPORT_SYMBOL_GPL(dma_resv_test_signaled_rcu);

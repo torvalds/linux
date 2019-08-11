@@ -619,7 +619,7 @@ void radeon_sync_fence(struct radeon_sync *sync,
 		       struct radeon_fence *fence);
 int radeon_sync_resv(struct radeon_device *rdev,
 		     struct radeon_sync *sync,
-		     struct reservation_object *resv,
+		     struct dma_resv *resv,
 		     bool shared);
 int radeon_sync_rings(struct radeon_device *rdev,
 		      struct radeon_sync *sync,
@@ -1912,20 +1912,20 @@ struct radeon_asic {
 					     uint64_t src_offset,
 					     uint64_t dst_offset,
 					     unsigned num_gpu_pages,
-					     struct reservation_object *resv);
+					     struct dma_resv *resv);
 		u32 blit_ring_index;
 		struct radeon_fence *(*dma)(struct radeon_device *rdev,
 					    uint64_t src_offset,
 					    uint64_t dst_offset,
 					    unsigned num_gpu_pages,
-					    struct reservation_object *resv);
+					    struct dma_resv *resv);
 		u32 dma_ring_index;
 		/* method used for bo copy */
 		struct radeon_fence *(*copy)(struct radeon_device *rdev,
 					     uint64_t src_offset,
 					     uint64_t dst_offset,
 					     unsigned num_gpu_pages,
-					     struct reservation_object *resv);
+					     struct dma_resv *resv);
 		/* ring used for bo copies */
 		u32 copy_ring_index;
 	} copy;

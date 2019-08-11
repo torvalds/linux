@@ -169,7 +169,7 @@ static int vmw_cotable_unscrub(struct vmw_resource *res)
 	} *cmd;
 
 	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
-	reservation_object_assert_held(bo->base.resv);
+	dma_resv_assert_held(bo->base.resv);
 
 	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (!cmd)
@@ -311,7 +311,7 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 		return 0;
 
 	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
-	reservation_object_assert_held(bo->base.resv);
+	dma_resv_assert_held(bo->base.resv);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	if (!vcotbl->scrubbed)

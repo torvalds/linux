@@ -35,7 +35,7 @@
 static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 				    uint64_t saddr, uint64_t daddr,
 				    int flag, int n,
-				    struct reservation_object *resv)
+				    struct dma_resv *resv)
 {
 	unsigned long start_jiffies;
 	unsigned long end_jiffies;

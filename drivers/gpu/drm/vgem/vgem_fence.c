@@ -21,7 +21,7 @@
  */
 
 #include <linux/dma-buf.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 #include <drm/drm_file.h>
 
@@ -128,7 +128,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 {
 	struct drm_vgem_fence_attach *arg = data;
 	struct vgem_file *vfile = file->driver_priv;
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 	struct drm_gem_object *obj;
 	struct dma_fence *fence;
 	int ret;
@@ -151,7 +151,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 
 	/* Check for a conflicting fence */
 	resv = obj->resv;
-	if (!reservation_object_test_signaled_rcu(resv,
+	if (!dma_resv_test_signaled_rcu(resv,
 						  arg->flags & VGEM_FENCE_WRITE)) {
 		ret = -EBUSY;
 		goto err_fence;
@@ -159,12 +159,12 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 
 	/* Expose the fence via the dma-buf */
 	ret = 0;
-	reservation_object_lock(resv, NULL);
+	dma_resv_lock(resv, NULL);
 	if (arg->flags & VGEM_FENCE_WRITE)
-		reservation_object_add_excl_fence(resv, fence);
-	else if ((ret = reservation_object_reserve_shared(resv, 1)) == 0)
-		reservation_object_add_shared_fence(resv, fence);
-	reservation_object_unlock(resv);
+		dma_resv_add_excl_fence(resv, fence);
+	else if ((ret = dma_resv_reserve_shared(resv, 1)) == 0)
+		dma_resv_add_shared_fence(resv, fence);
+	dma_resv_unlock(resv);
 
 	/* Record the fence in our idr for later signaling */
 	if (ret == 0) {

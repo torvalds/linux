@@ -99,10 +99,10 @@ static void __i915_vma_retire(struct i915_active *ref)
 		return;
 
 	/* Prune the shared fence arrays iff completely idle (inc. external) */
-	if (reservation_object_trylock(obj->base.resv)) {
-		if (reservation_object_test_signaled_rcu(obj->base.resv, true))
-			reservation_object_add_excl_fence(obj->base.resv, NULL);
-		reservation_object_unlock(obj->base.resv);
+	if (dma_resv_trylock(obj->base.resv)) {
+		if (dma_resv_test_signaled_rcu(obj->base.resv, true))
+			dma_resv_add_excl_fence(obj->base.resv, NULL);
+		dma_resv_unlock(obj->base.resv);
 	}
 
 	/*
@@ -903,7 +903,7 @@ static void export_fence(struct i915_vma *vma,
 			 struct i915_request *rq,
 			 unsigned int flags)
 {
-	struct reservation_object *resv = vma->resv;
+	struct dma_resv *resv = vma->resv;
 
 	/*
 	 * Ignore errors from failing to allocate the new fence, we can't
@@ -911,9 +911,9 @@ static void export_fence(struct i915_vma *vma,
 	 * synchronisation leading to rendering corruption.
 	 */
 	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv, 1) == 0)
-		reservation_object_add_shared_fence(resv, &rq->fence);
+		dma_resv_add_excl_fence(resv, &rq->fence);
+	else if (dma_resv_reserve_shared(resv, 1) == 0)
+		dma_resv_add_shared_fence(resv, &rq->fence);
 }
 
 int i915_vma_move_to_active(struct i915_vma *vma,

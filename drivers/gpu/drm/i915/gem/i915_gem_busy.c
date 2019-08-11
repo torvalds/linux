@@ -82,7 +82,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_busy *args = data;
 	struct drm_i915_gem_object *obj;
-	struct reservation_object_list *list;
+	struct dma_resv_list *list;
 	unsigned int i, shared_count;
 	struct dma_fence *excl;
 	int err;
@@ -106,11 +106,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * Alternatively, we can trade that extra information on read/write
 	 * activity with
 	 *	args->busy =
-	 *		!reservation_object_test_signaled_rcu(obj->resv, true);
+	 *		!dma_resv_test_signaled_rcu(obj->resv, true);
 	 * to report the overall busyness. This is what the wait-ioctl does.
 	 *
 	 */
-	reservation_object_fences(obj->base.resv, &excl, &list, &shared_count);
+	dma_resv_fences(obj->base.resv, &excl, &list, &shared_count);
 
 	/* Translate the exclusive fence to the READ *and* WRITE engine */
 	args->busy = busy_check_writer(excl);

@@ -35,7 +35,7 @@
  */
 
 #include <linux/kref.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 #include <drm/drm_vma_manager.h>
 
@@ -276,7 +276,7 @@ struct drm_gem_object {
 	 *
 	 * Normally (@resv == &@_resv) except for imported GEM objects.
 	 */
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 
 	/**
 	 * @_resv:
@@ -285,7 +285,7 @@ struct drm_gem_object {
 	 *
 	 * This is unused for imported GEM objects.
 	 */
-	struct reservation_object _resv;
+	struct dma_resv _resv;
 
 	/**
 	 * @funcs:
@@ -390,7 +390,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 			   int count, struct drm_gem_object ***objs_out);
 struct drm_gem_object *drm_gem_object_lookup(struct drm_file *filp, u32 handle);
-long drm_gem_reservation_object_wait(struct drm_file *filep, u32 handle,
+long drm_gem_dma_resv_wait(struct drm_file *filep, u32 handle,
 				    bool wait_all, unsigned long timeout);
 int drm_gem_lock_reservations(struct drm_gem_object **objs, int count,
 			      struct ww_acquire_ctx *acquire_ctx);

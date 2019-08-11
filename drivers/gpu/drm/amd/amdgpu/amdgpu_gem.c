@@ -50,7 +50,7 @@ void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 			     int alignment, u32 initial_domain,
 			     u64 flags, enum ttm_bo_type type,
-			     struct reservation_object *resv,
+			     struct dma_resv *resv,
 			     struct drm_gem_object **obj)
 {
 	struct amdgpu_bo *bo;
@@ -215,7 +215,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	union drm_amdgpu_gem_create *args = data;
 	uint64_t flags = args->in.domain_flags;
 	uint64_t size = args->in.bo_size;
-	struct reservation_object *resv = NULL;
+	struct dma_resv *resv = NULL;
 	struct drm_gem_object *gobj;
 	uint32_t handle;
 	int r;
@@ -433,7 +433,7 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 	robj = gem_to_amdgpu_bo(gobj);
-	ret = reservation_object_wait_timeout_rcu(robj->tbo.base.resv, true, true,
+	ret = dma_resv_wait_timeout_rcu(robj->tbo.base.resv, true, true,
 						  timeout);
 
 	/* ret == 0 means not signaled,

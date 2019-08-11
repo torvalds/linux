@@ -274,7 +274,7 @@ panfrost_ioctl_wait_bo(struct drm_device *dev, void *data,
 	if (!gem_obj)
 		return -ENOENT;
 
-	ret = reservation_object_wait_timeout_rcu(gem_obj->resv, true,
+	ret = dma_resv_wait_timeout_rcu(gem_obj->resv, true,
 						  true, timeout);
 	if (!ret)
 		ret = timeout ? -ETIMEDOUT : -EBUSY;

@@ -6,7 +6,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/panfrost_drm.h>
 
@@ -199,7 +199,7 @@ static void panfrost_acquire_object_fences(struct drm_gem_object **bos,
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		implicit_fences[i] = reservation_object_get_excl_rcu(bos[i]->resv);
+		implicit_fences[i] = dma_resv_get_excl_rcu(bos[i]->resv);
 }
 
 static void panfrost_attach_object_fences(struct drm_gem_object **bos,
@@ -209,7 +209,7 @@ static void panfrost_attach_object_fences(struct drm_gem_object **bos,
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		reservation_object_add_excl_fence(bos[i]->resv, fence);
+		dma_resv_add_excl_fence(bos[i]->resv, fence);
 }
 
 int panfrost_job_push(struct panfrost_job *job)

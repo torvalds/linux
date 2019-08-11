@@ -409,7 +409,7 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
-	ret = drm_gem_reservation_object_wait(file_priv, args->handle,
+	ret = drm_gem_dma_resv_wait(file_priv, args->handle,
 					      true, timeout_jiffies);
 
 	/* Decrement the user's timeout, in case we got interrupted
@@ -495,7 +495,7 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 
 	for (i = 0; i < job->bo_count; i++) {
 		/* XXX: Use shared fences for read-only objects. */
-		reservation_object_add_excl_fence(job->bo[i]->resv,
+		dma_resv_add_excl_fence(job->bo[i]->resv,
 						  job->done_fence);
 	}
 

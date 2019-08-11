@@ -43,7 +43,7 @@
 #include <linux/mm_types.h>
 #include <linux/perf_event.h>
 #include <linux/pm_qos.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/shmem_fs.h>
 #include <linux/stackdepot.h>
 

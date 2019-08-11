@@ -279,7 +279,7 @@ static inline struct dma_fence *dma_fence_get(struct dma_fence *fence)
 }
 
 /**
- * dma_fence_get_rcu - get a fence from a reservation_object_list with
+ * dma_fence_get_rcu - get a fence from a dma_resv_list with
  *                     rcu read lock
  * @fence: fence to increase refcount of
  *
@@ -303,7 +303,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  * so long as the caller is using RCU on the pointer to the fence.
  *
  * An alternative mechanism is to employ a seqlock to protect a bunch of
- * fences, such as used by struct reservation_object. When using a seqlock,
+ * fences, such as used by struct dma_resv. When using a seqlock,
  * the seqlock must be taken before and checked after a reference to the
  * fence is acquired (as shown here).
  *

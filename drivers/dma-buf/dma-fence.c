@@ -60,7 +60,7 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
  *
  * - Then there's also implicit fencing, where the synchronization points are
  *   implicitly passed around as part of shared &dma_buf instances. Such
- *   implicit fences are stored in &struct reservation_object through the
+ *   implicit fences are stored in &struct dma_resv through the
  *   &dma_buf.resv pointer.
  */
 

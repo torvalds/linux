@@ -57,7 +57,7 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 	struct qxl_bo *bo;
 
 	list_for_each_entry(bo, &qdev->gem.objects, list) {
-		struct reservation_object_list *fobj;
+		struct dma_resv_list *fobj;
 		int rel;
 
 		rcu_read_lock();
