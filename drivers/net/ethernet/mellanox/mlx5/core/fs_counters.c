@@ -402,14 +402,9 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	struct mlx5_fc *counter;
 	struct mlx5_fc *tmp;
 
-	mlx5_fc_pool_cleanup(&fc_stats->fc_pool);
 	cancel_delayed_work_sync(&dev->priv.fc_stats.work);
 	destroy_workqueue(dev->priv.fc_stats.wq);
 	dev->priv.fc_stats.wq = NULL;
-
-	kfree(fc_stats->bulk_query_out);
-
-	idr_destroy(&fc_stats->counters_idr);
 
 	tmplist = llist_del_all(&fc_stats->addlist);
 	llist_for_each_entry_safe(counter, tmp, tmplist, addlist)
@@ -417,6 +412,10 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 
 	list_for_each_entry_safe(counter, tmp, &fc_stats->counters, list)
 		mlx5_fc_release(dev, counter);
+
+	mlx5_fc_pool_cleanup(&fc_stats->fc_pool);
+	idr_destroy(&fc_stats->counters_idr);
+	kfree(fc_stats->bulk_query_out);
 }
 
 int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
