@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <linux/delay.h>
-#include <linux/workqueue.h>
-#include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #define ILI210X_TOUCHES		2
 #define ILI211X_TOUCHES		10
 #define ILI251X_TOUCHES		10
-#define DEFAULT_POLL_PERIOD	20
+
+#define ILI2XXX_POLL_PERIOD	20
 
 /* Touchscreen commands */
 #define REG_TOUCHDATA		0x10
@@ -38,12 +38,11 @@ enum ili2xxx_model {
 struct ili210x {
 	struct i2c_client *client;
 	struct input_dev *input;
-	unsigned int poll_period;
-	struct delayed_work dwork;
 	struct gpio_desc *reset_gpio;
 	struct touchscreen_properties prop;
 	enum ili2xxx_model model;
 	unsigned int max_touches;
+	bool stop;
 };
 
 static int ili210x_read_reg(struct i2c_client *client, u8 reg, void *buf,
@@ -196,57 +195,54 @@ static bool ili210x_report_events(struct ili210x *priv, u8 *touchdata)
 	return contact;
 }
 
-static void ili210x_work(struct work_struct *work)
+static irqreturn_t ili210x_irq(int irq, void *irq_data)
 {
-	struct ili210x *priv = container_of(work, struct ili210x,
-					    dwork.work);
+	struct ili210x *priv = irq_data;
 	struct i2c_client *client = priv->client;
 	u8 touchdata[64] = { 0 };
 	s16 sum = 0;
 	bool touch;
-	int i, error = -EINVAL;
+	int i;
+	int error;
 
-	if (priv->model == MODEL_ILI210X) {
-		error = ili210x_read_reg(client, REG_TOUCHDATA,
-					 touchdata, sizeof(touchdata));
-	} else if (priv->model == MODEL_ILI211X) {
-		error = ili210x_read(client, touchdata, 43);
-		if (!error) {
-			/* This chip uses custom checksum at the end of data */
-			for (i = 0; i <= 41; i++)
-				sum = (sum + touchdata[i]) & 0xff;
-			if ((-sum & 0xff) != touchdata[42]) {
-				dev_err(&client->dev,
-					"CRC error (crc=0x%02x expected=0x%02x)\n",
-					sum, touchdata[42]);
-				return;
+	do {
+		if (priv->model == MODEL_ILI210X) {
+			error = ili210x_read_reg(client, REG_TOUCHDATA,
+						 touchdata, sizeof(touchdata));
+		} else if (priv->model == MODEL_ILI211X) {
+			error = ili210x_read(client, touchdata, 43);
+			if (!error) {
+				/*
+				 * This chip uses custom checksum at the end
+				 * of data.
+				 */
+				for (i = 0; i <= 41; i++)
+					sum = (sum + touchdata[i]) & 0xff;
+				if ((-sum & 0xff) != touchdata[42]) {
+					dev_err(&client->dev,
+						"CRC error (crc=0x%02x expected=0x%02x)\n",
+						sum, touchdata[42]);
+					break;
+				}
 			}
+		} else if (priv->model == MODEL_ILI251X) {
+			error = ili210x_read_reg(client, REG_TOUCHDATA,
+						 touchdata, 31);
+			if (!error && touchdata[0] == 2)
+				error = ili210x_read(client,
+						     &touchdata[31], 20);
 		}
-	} else if (priv->model == MODEL_ILI251X) {
-		error = ili210x_read_reg(client, REG_TOUCHDATA,
-					 touchdata, 31);
-		if (!error && touchdata[0] == 2)
-			error = ili210x_read(client, &touchdata[31], 20);
-	}
 
-	if (error) {
-		dev_err(&client->dev,
-			"Unable to get touchdata, err = %d\n", error);
-		return;
-	}
+		if (error) {
+			dev_err(&client->dev,
+				"Unable to get touchdata, err = %d\n", error);
+			break;
+		}
 
-	touch = ili210x_report_events(priv, touchdata);
-
-	if (touch)
-		schedule_delayed_work(&priv->dwork,
-				      msecs_to_jiffies(priv->poll_period));
-}
-
-static irqreturn_t ili210x_irq(int irq, void *irq_data)
-{
-	struct ili210x *priv = irq_data;
-
-	schedule_delayed_work(&priv->dwork, 0);
+		touch = ili210x_report_events(priv, touchdata);
+		if (touch)
+			msleep(ILI2XXX_POLL_PERIOD);
+	} while (!priv->stop && touch);
 
 	return IRQ_HANDLED;
 }
@@ -293,11 +289,12 @@ static void ili210x_power_down(void *data)
 	gpiod_set_value_cansleep(reset_gpio, 1);
 }
 
-static void ili210x_cancel_work(void *data)
+static void ili210x_stop(void *data)
 {
 	struct ili210x *priv = data;
 
-	cancel_delayed_work_sync(&priv->dwork);
+	/* Tell ISR to quit even if there is a contact. */
+	priv->stop = true;
 }
 
 static int ili210x_i2c_probe(struct i2c_client *client,
@@ -345,8 +342,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 
 	priv->client = client;
 	priv->input = input;
-	priv->poll_period = DEFAULT_POLL_PERIOD;
-	INIT_DELAYED_WORK(&priv->dwork, ili210x_work);
 	priv->reset_gpio = reset_gpio;
 	priv->model = model;
 	if (model == MODEL_ILI210X)
@@ -378,17 +373,17 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	touchscreen_parse_properties(input, true, &priv->prop);
 	input_mt_init_slots(input, priv->max_touches, INPUT_MT_DIRECT);
 
-	error = devm_add_action(dev, ili210x_cancel_work, priv);
-	if (error)
-		return error;
-
-	error = devm_request_irq(dev, client->irq, ili210x_irq, 0,
-				 client->name, priv);
+	error = devm_request_threaded_irq(dev, client->irq, NULL, ili210x_irq,
+					  IRQF_ONESHOT, client->name, priv);
 	if (error) {
 		dev_err(dev, "Unable to request touchscreen IRQ, err: %d\n",
 			error);
 		return error;
 	}
+
+	error = devm_add_action_or_reset(dev, ili210x_stop, priv);
+	if (error)
+		return error;
 
 	error = devm_device_add_group(dev, &ili210x_attr_group);
 	if (error) {
