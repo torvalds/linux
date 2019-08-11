@@ -107,6 +107,27 @@ const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 	return "<invalid>";
 }
 
+static inline int intel_uc_fw_status_to_error(enum intel_uc_fw_status status)
+{
+	switch (status) {
+	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
+	case INTEL_UC_FIRMWARE_UNINITIALIZED:
+		return -EPERM;
+	case INTEL_UC_FIRMWARE_MISSING:
+		return -ENOENT;
+	case INTEL_UC_FIRMWARE_ERROR:
+		return -ENOEXEC;
+	case INTEL_UC_FIRMWARE_FAIL:
+		return -EIO;
+	case INTEL_UC_FIRMWARE_SELECTED:
+	case INTEL_UC_FIRMWARE_AVAILABLE:
+	case INTEL_UC_FIRMWARE_TRANSFERRED:
+	case INTEL_UC_FIRMWARE_RUNNING:
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
 {
 	switch (type) {

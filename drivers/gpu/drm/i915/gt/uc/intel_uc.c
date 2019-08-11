@@ -436,6 +436,11 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	if (!intel_uc_supports_guc(uc))
 		return 0;
 
+	if (!intel_uc_fw_is_available(&guc->fw)) {
+		ret = intel_uc_fw_status_to_error(guc->fw.status);
+		goto err_out;
+	}
+
 	ret = uc_init_wopcm(uc);
 	if (ret)
 		goto err_out;
