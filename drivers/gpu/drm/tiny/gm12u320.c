@@ -422,7 +422,7 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 	return;
 err:
 	/* Do not log errors caused by module unload or device unplug */
-	if (ret != -ECONNRESET && ret != -ESHUTDOWN)
+	if (ret != -ENODEV && ret != -ECONNRESET && ret != -ESHUTDOWN)
 		GM12U320_ERR("Frame update error: %d\n", ret);
 }
 
