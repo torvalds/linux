@@ -899,6 +899,7 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
  * Return: 1 on found, 0 on not
  */
 int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
+			  ext4_lblk_t *next_lblk,
 			  struct extent_status *es)
 {
 	struct ext4_es_tree *tree;
@@ -948,6 +949,15 @@ out:
 		if (!ext4_es_is_referenced(es1))
 			ext4_es_set_referenced(es1);
 		stats->es_stats_cache_hits++;
+		if (next_lblk) {
+			node = rb_next(&es1->rb_node);
+			if (node) {
+				es1 = rb_entry(node, struct extent_status,
+					       rb_node);
+				*next_lblk = es1->es_lblk;
+			} else
+				*next_lblk = 0;
+		}
 	} else {
 		stats->es_stats_cache_misses++;
 	}

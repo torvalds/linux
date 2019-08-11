@@ -140,6 +140,7 @@ extern void ext4_es_find_extent_range(struct inode *inode,
 				      ext4_lblk_t lblk, ext4_lblk_t end,
 				      struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
+				 ext4_lblk_t *next_lblk,
 				 struct extent_status *es);
 extern bool ext4_es_scan_range(struct inode *inode,
 			       int (*matching_fn)(struct extent_status *es),
