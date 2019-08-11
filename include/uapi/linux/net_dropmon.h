@@ -75,6 +75,8 @@ enum net_dm_attr {
 	NET_DM_ATTR_PROTO,			/* u16 */
 	NET_DM_ATTR_PAYLOAD,			/* binary */
 	NET_DM_ATTR_PAD,
+	NET_DM_ATTR_TRUNC_LEN,			/* u32 */
+	NET_DM_ATTR_ORIG_LEN,			/* u32 */
 
 	__NET_DM_ATTR_MAX,
 	NET_DM_ATTR_MAX = __NET_DM_ATTR_MAX - 1

@@ -77,6 +77,7 @@ static unsigned long dm_hw_check_delta = 2*HZ;
 static LIST_HEAD(hw_stats_list);
 
 static enum net_dm_alert_mode net_dm_alert_mode = NET_DM_ALERT_MODE_SUMMARY;
+static u32 net_dm_trunc_len;
 
 struct net_dm_alert_ops {
 	void (*kfree_skb_probe)(void *ignore, struct sk_buff *skb,
@@ -334,6 +335,8 @@ static size_t net_dm_packet_report_size(size_t payload_len)
 	       net_dm_in_port_size() +
 	       /* NET_DM_ATTR_TIMESTAMP */
 	       nla_total_size(sizeof(struct timespec)) +
+	       /* NET_DM_ATTR_ORIG_LEN */
+	       nla_total_size(sizeof(u32)) +
 	       /* NET_DM_ATTR_PROTO */
 	       nla_total_size(sizeof(u16)) +
 	       /* NET_DM_ATTR_PAYLOAD */
@@ -391,6 +394,9 @@ static int net_dm_packet_report_fill(struct sk_buff *msg, struct sk_buff *skb,
 	    nla_put(msg, NET_DM_ATTR_TIMESTAMP, sizeof(ts), &ts))
 		goto nla_put_failure;
 
+	if (nla_put_u32(msg, NET_DM_ATTR_ORIG_LEN, skb->len))
+		goto nla_put_failure;
+
 	if (!payload_len)
 		goto out;
 
@@ -429,6 +435,8 @@ static void net_dm_packet_report(struct sk_buff *skb)
 
 	/* Ensure packet fits inside a single netlink attribute */
 	payload_len = min_t(size_t, skb->len, NET_DM_MAX_PACKET_SIZE);
+	if (net_dm_trunc_len)
+		payload_len = min_t(size_t, net_dm_trunc_len, payload_len);
 
 	msg = nlmsg_new(net_dm_packet_report_size(payload_len), GFP_KERNEL);
 	if (!msg)
@@ -627,6 +635,14 @@ static int net_dm_alert_mode_set(struct genl_info *info)
 	return 0;
 }
 
+static void net_dm_trunc_len_set(struct genl_info *info)
+{
+	if (!info->attrs[NET_DM_ATTR_TRUNC_LEN])
+		return;
+
+	net_dm_trunc_len = nla_get_u32(info->attrs[NET_DM_ATTR_TRUNC_LEN]);
+}
+
 static int net_dm_cmd_config(struct sk_buff *skb,
 			struct genl_info *info)
 {
@@ -641,6 +657,8 @@ static int net_dm_cmd_config(struct sk_buff *skb,
 	rc = net_dm_alert_mode_set(info);
 	if (rc)
 		return rc;
+
+	net_dm_trunc_len_set(info);
 
 	return 0;
 }
@@ -700,6 +718,7 @@ out:
 static const struct nla_policy net_dm_nl_policy[NET_DM_ATTR_MAX + 1] = {
 	[NET_DM_ATTR_UNSPEC] = { .strict_start_type = NET_DM_ATTR_UNSPEC + 1 },
 	[NET_DM_ATTR_ALERT_MODE] = { .type = NLA_U8 },
+	[NET_DM_ATTR_TRUNC_LEN] = { .type = NLA_U32 },
 };
 
 static const struct genl_ops dropmon_ops[] = {
