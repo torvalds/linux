@@ -51,12 +51,18 @@ static int trace_state = TRACE_OFF;
  */
 static DEFINE_MUTEX(net_dm_mutex);
 
+struct net_dm_stats {
+	u64 dropped;
+	struct u64_stats_sync syncp;
+};
+
 struct per_cpu_dm_data {
 	spinlock_t		lock;	/* Protects 'skb' and 'send_timer' */
 	struct sk_buff		*skb;
 	struct sk_buff_head	drop_queue;
 	struct work_struct	dm_alert_work;
 	struct timer_list	send_timer;
+	struct net_dm_stats	stats;
 };
 
 struct dm_hw_stat_delta {
@@ -300,6 +306,9 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 
 unlock_free:
 	spin_unlock_irqrestore(&data->drop_queue.lock, flags);
+	u64_stats_update_begin(&data->stats.syncp);
+	data->stats.dropped++;
+	u64_stats_update_end(&data->stats.syncp);
 	consume_skb(nskb);
 }
 
@@ -732,6 +741,93 @@ free_msg:
 	return rc;
 }
 
+static void net_dm_stats_read(struct net_dm_stats *stats)
+{
+	int cpu;
+
+	memset(stats, 0, sizeof(*stats));
+	for_each_possible_cpu(cpu) {
+		struct per_cpu_dm_data *data = &per_cpu(dm_cpu_data, cpu);
+		struct net_dm_stats *cpu_stats = &data->stats;
+		unsigned int start;
+		u64 dropped;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			dropped = cpu_stats->dropped;
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
+
+		stats->dropped += dropped;
+	}
+}
+
+static int net_dm_stats_put(struct sk_buff *msg)
+{
+	struct net_dm_stats stats;
+	struct nlattr *attr;
+
+	net_dm_stats_read(&stats);
+
+	attr = nla_nest_start(msg, NET_DM_ATTR_STATS);
+	if (!attr)
+		return -EMSGSIZE;
+
+	if (nla_put_u64_64bit(msg, NET_DM_ATTR_STATS_DROPPED,
+			      stats.dropped, NET_DM_ATTR_PAD))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, attr);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, attr);
+	return -EMSGSIZE;
+}
+
+static int net_dm_stats_fill(struct sk_buff *msg, struct genl_info *info)
+{
+	void *hdr;
+	int rc;
+
+	hdr = genlmsg_put(msg, info->snd_portid, info->snd_seq,
+			  &net_drop_monitor_family, 0, NET_DM_CMD_STATS_NEW);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	rc = net_dm_stats_put(msg);
+	if (rc)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int net_dm_cmd_stats_get(struct sk_buff *skb, struct genl_info *info)
+{
+	struct sk_buff *msg;
+	int rc;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	rc = net_dm_stats_fill(msg, info);
+	if (rc)
+		goto free_msg;
+
+	return genlmsg_reply(msg, info);
+
+free_msg:
+	nlmsg_free(msg);
+	return rc;
+}
+
 static int dropmon_net_event(struct notifier_block *ev_block,
 			     unsigned long event, void *ptr)
 {
@@ -799,6 +895,10 @@ static const struct genl_ops dropmon_ops[] = {
 		.cmd = NET_DM_CMD_CONFIG_GET,
 		.doit = net_dm_cmd_config_get,
 	},
+	{
+		.cmd = NET_DM_CMD_STATS_GET,
+		.doit = net_dm_cmd_stats_get,
+	},
 };
 
 static int net_dm_nl_pre_doit(const struct genl_ops *ops,
@@ -865,6 +965,7 @@ static int __init init_net_drop_monitor(void)
 		data = &per_cpu(dm_cpu_data, cpu);
 		spin_lock_init(&data->lock);
 		skb_queue_head_init(&data->drop_queue);
+		u64_stats_init(&data->stats.syncp);
 	}
 
 	goto out;
