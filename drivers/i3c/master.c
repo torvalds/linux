@@ -1041,8 +1041,10 @@ static int i3c_master_getmwl_locked(struct i3c_master_controller *master,
 	if (ret)
 		goto out;
 
-	if (dest.payload.len != sizeof(*mwl))
-		return -EIO;
+	if (dest.payload.len != sizeof(*mwl)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	info->max_write_len = be16_to_cpu(mwl->len);
 
