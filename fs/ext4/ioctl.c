@@ -1123,6 +1123,22 @@ resizefs_out:
 		return 0;
 	}
 
+	case EXT4_IOC_GETSTATE:
+	{
+		__u32	state = 0;
+
+		if (ext4_test_inode_state(inode, EXT4_STATE_EXT_PRECACHED))
+			state |= EXT4_STATE_FLAG_EXT_PRECACHED;
+		if (ext4_test_inode_state(inode, EXT4_STATE_NEW))
+			state |= EXT4_STATE_FLAG_NEW;
+		if (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
+			state |= EXT4_STATE_FLAG_NEWENTRY;
+		if (ext4_test_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE))
+			state |= EXT4_STATE_FLAG_DA_ALLOC_CLOSE;
+
+		return put_user(state, (__u32 __user *) arg);
+	}
+
 	case EXT4_IOC_FSGETXATTR:
 	{
 		struct fsxattr fa;
@@ -1242,6 +1258,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_SHUTDOWN:
 	case FS_IOC_GETFSMAP:
 	case EXT4_IOC_CLEAR_ES_CACHE:
+	case EXT4_IOC_GETSTATE:
 		break;
 	default:
 		return -ENOIOCTLCMD;
