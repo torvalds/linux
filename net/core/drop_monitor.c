@@ -75,6 +75,16 @@ static int dm_delay = 1;
 static unsigned long dm_hw_check_delta = 2*HZ;
 static LIST_HEAD(hw_stats_list);
 
+static enum net_dm_alert_mode net_dm_alert_mode = NET_DM_ALERT_MODE_SUMMARY;
+
+struct net_dm_alert_ops {
+	void (*kfree_skb_probe)(void *ignore, struct sk_buff *skb,
+				void *location);
+	void (*napi_poll_probe)(void *ignore, struct napi_struct *napi,
+				int work, int budget);
+	void (*work_item_func)(struct work_struct *work);
+};
+
 static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 {
 	size_t al;
@@ -241,9 +251,22 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
+static const struct net_dm_alert_ops net_dm_alert_summary_ops = {
+	.kfree_skb_probe	= trace_kfree_skb_hit,
+	.napi_poll_probe	= trace_napi_poll_hit,
+	.work_item_func		= send_dm_alert,
+};
+
+static const struct net_dm_alert_ops *net_dm_alert_ops_arr[] = {
+	[NET_DM_ALERT_MODE_SUMMARY]	= &net_dm_alert_summary_ops,
+};
+
 static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 {
+	const struct net_dm_alert_ops *ops;
 	int cpu, rc;
+
+	ops = net_dm_alert_ops_arr[net_dm_alert_mode];
 
 	if (!try_module_get(THIS_MODULE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
@@ -254,7 +277,7 @@ static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 		struct per_cpu_dm_data *data = &per_cpu(dm_cpu_data, cpu);
 		struct sk_buff *skb;
 
-		INIT_WORK(&data->dm_alert_work, send_dm_alert);
+		INIT_WORK(&data->dm_alert_work, ops->work_item_func);
 		timer_setup(&data->send_timer, sched_send_work, 0);
 		/* Allocate a new per-CPU skb for the summary alert message and
 		 * free the old one which might contain stale data from
@@ -264,13 +287,13 @@ static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 		consume_skb(skb);
 	}
 
-	rc = register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+	rc = register_trace_kfree_skb(ops->kfree_skb_probe, NULL);
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to connect probe to kfree_skb() tracepoint");
 		goto err_module_put;
 	}
 
-	rc = register_trace_napi_poll(trace_napi_poll_hit, NULL);
+	rc = register_trace_napi_poll(ops->napi_poll_probe, NULL);
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to connect probe to napi_poll() tracepoint");
 		goto err_unregister_trace;
@@ -279,7 +302,7 @@ static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 	return 0;
 
 err_unregister_trace:
-	unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+	unregister_trace_kfree_skb(ops->kfree_skb_probe, NULL);
 err_module_put:
 	module_put(THIS_MODULE);
 	return rc;
@@ -288,10 +311,13 @@ err_module_put:
 static void net_dm_trace_off_set(void)
 {
 	struct dm_hw_stat_delta *new_stat, *temp;
+	const struct net_dm_alert_ops *ops;
 	int cpu;
 
-	unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
-	unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+	ops = net_dm_alert_ops_arr[net_dm_alert_mode];
+
+	unregister_trace_napi_poll(ops->napi_poll_probe, NULL);
+	unregister_trace_kfree_skb(ops->kfree_skb_probe, NULL);
 
 	tracepoint_synchronize_unregister();
 

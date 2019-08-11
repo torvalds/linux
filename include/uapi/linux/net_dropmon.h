@@ -62,4 +62,13 @@ enum {
  * Our group identifiers
  */
 #define NET_DM_GRP_ALERT 1
+
+/**
+ * enum net_dm_alert_mode - Alert mode.
+ * @NET_DM_ALERT_MODE_SUMMARY: A summary of recent drops is sent to user space.
+ */
+enum net_dm_alert_mode {
+	NET_DM_ALERT_MODE_SUMMARY,
+};
+
 #endif
