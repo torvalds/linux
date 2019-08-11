@@ -78,6 +78,7 @@ static LIST_HEAD(hw_stats_list);
 
 static enum net_dm_alert_mode net_dm_alert_mode = NET_DM_ALERT_MODE_SUMMARY;
 static u32 net_dm_trunc_len;
+static u32 net_dm_queue_len = 1000;
 
 struct net_dm_alert_ops {
 	void (*kfree_skb_probe)(void *ignore, struct sk_buff *skb,
@@ -92,8 +93,6 @@ struct net_dm_skb_cb {
 };
 
 #define NET_DM_SKB_CB(__skb) ((struct net_dm_skb_cb *)&((__skb)->cb[0]))
-
-#define NET_DM_QUEUE_LEN 1000
 
 static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 {
@@ -289,7 +288,7 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 	data = this_cpu_ptr(&dm_cpu_data);
 
 	spin_lock_irqsave(&data->drop_queue.lock, flags);
-	if (skb_queue_len(&data->drop_queue) < NET_DM_QUEUE_LEN)
+	if (skb_queue_len(&data->drop_queue) < net_dm_queue_len)
 		__skb_queue_tail(&data->drop_queue, nskb);
 	else
 		goto unlock_free;
@@ -643,6 +642,14 @@ static void net_dm_trunc_len_set(struct genl_info *info)
 	net_dm_trunc_len = nla_get_u32(info->attrs[NET_DM_ATTR_TRUNC_LEN]);
 }
 
+static void net_dm_queue_len_set(struct genl_info *info)
+{
+	if (!info->attrs[NET_DM_ATTR_QUEUE_LEN])
+		return;
+
+	net_dm_queue_len = nla_get_u32(info->attrs[NET_DM_ATTR_QUEUE_LEN]);
+}
+
 static int net_dm_cmd_config(struct sk_buff *skb,
 			struct genl_info *info)
 {
@@ -659,6 +666,8 @@ static int net_dm_cmd_config(struct sk_buff *skb,
 		return rc;
 
 	net_dm_trunc_len_set(info);
+
+	net_dm_queue_len_set(info);
 
 	return 0;
 }
@@ -689,6 +698,9 @@ static int net_dm_config_fill(struct sk_buff *msg, struct genl_info *info)
 		goto nla_put_failure;
 
 	if (nla_put_u32(msg, NET_DM_ATTR_TRUNC_LEN, net_dm_trunc_len))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NET_DM_ATTR_QUEUE_LEN, net_dm_queue_len))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -763,6 +775,7 @@ static const struct nla_policy net_dm_nl_policy[NET_DM_ATTR_MAX + 1] = {
 	[NET_DM_ATTR_UNSPEC] = { .strict_start_type = NET_DM_ATTR_UNSPEC + 1 },
 	[NET_DM_ATTR_ALERT_MODE] = { .type = NLA_U8 },
 	[NET_DM_ATTR_TRUNC_LEN] = { .type = NLA_U32 },
+	[NET_DM_ATTR_QUEUE_LEN] = { .type = NLA_U32 },
 };
 
 static const struct genl_ops dropmon_ops[] = {
