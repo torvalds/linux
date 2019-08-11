@@ -1115,6 +1115,14 @@ resizefs_out:
 	case EXT4_IOC_GET_ENCRYPTION_POLICY:
 		return fscrypt_ioctl_get_policy(filp, (void __user *)arg);
 
+	case EXT4_IOC_CLEAR_ES_CACHE:
+	{
+		if (!inode_owner_or_capable(inode))
+			return -EACCES;
+		ext4_clear_inode_es(inode);
+		return 0;
+	}
+
 	case EXT4_IOC_FSGETXATTR:
 	{
 		struct fsxattr fa;
@@ -1233,6 +1241,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_GET_ENCRYPTION_POLICY:
 	case EXT4_IOC_SHUTDOWN:
 	case FS_IOC_GETFSMAP:
+	case EXT4_IOC_CLEAR_ES_CACHE:
 		break;
 	default:
 		return -ENOIOCTLCMD;

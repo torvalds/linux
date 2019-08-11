@@ -1374,6 +1374,34 @@ static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan)
 	return nr_shrunk;
 }
 
+/*
+ * Called to support EXT4_IOC_CLEAR_ES_CACHE.  We can only remove
+ * discretionary entries from the extent status cache.  (Some entries
+ * must be present for proper operations.)
+ */
+void ext4_clear_inode_es(struct inode *inode)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct extent_status *es;
+	struct ext4_es_tree *tree;
+	struct rb_node *node;
+
+	write_lock(&ei->i_es_lock);
+	tree = &EXT4_I(inode)->i_es_tree;
+	tree->cache_es = NULL;
+	node = rb_first(&tree->root);
+	while (node) {
+		es = rb_entry(node, struct extent_status, rb_node);
+		node = rb_next(node);
+		if (!ext4_es_is_delayed(es)) {
+			rb_erase(&es->rb_node, &tree->root);
+			ext4_es_free_extent(inode, es);
+		}
+	}
+	ext4_clear_inode_state(inode, EXT4_STATE_EXT_PRECACHED);
+	write_unlock(&ei->i_es_lock);
+}
+
 #ifdef ES_DEBUG__
 static void ext4_print_pending_tree(struct inode *inode)
 {
