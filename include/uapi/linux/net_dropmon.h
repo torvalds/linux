@@ -53,6 +53,7 @@ enum {
 	NET_DM_CMD_CONFIG,
 	NET_DM_CMD_START,
 	NET_DM_CMD_STOP,
+	NET_DM_CMD_PACKET_ALERT,
 	_NET_DM_CMD_MAX,
 };
 
@@ -63,12 +64,38 @@ enum {
  */
 #define NET_DM_GRP_ALERT 1
 
+enum net_dm_attr {
+	NET_DM_ATTR_UNSPEC,
+
+	NET_DM_ATTR_ALERT_MODE,			/* u8 */
+	NET_DM_ATTR_PC,				/* u64 */
+	NET_DM_ATTR_SYMBOL,			/* string */
+	NET_DM_ATTR_IN_PORT,			/* nested */
+	NET_DM_ATTR_TIMESTAMP,			/* struct timespec */
+	NET_DM_ATTR_PROTO,			/* u16 */
+	NET_DM_ATTR_PAYLOAD,			/* binary */
+	NET_DM_ATTR_PAD,
+
+	__NET_DM_ATTR_MAX,
+	NET_DM_ATTR_MAX = __NET_DM_ATTR_MAX - 1
+};
+
 /**
  * enum net_dm_alert_mode - Alert mode.
  * @NET_DM_ALERT_MODE_SUMMARY: A summary of recent drops is sent to user space.
+ * @NET_DM_ALERT_MODE_PACKET: Each dropped packet is sent to user space along
+ *                            with metadata.
  */
 enum net_dm_alert_mode {
 	NET_DM_ALERT_MODE_SUMMARY,
+	NET_DM_ALERT_MODE_PACKET,
+};
+
+enum {
+	NET_DM_ATTR_PORT_NETDEV_IFINDEX,	/* u32 */
+
+	__NET_DM_ATTR_PORT_MAX,
+	NET_DM_ATTR_PORT_MAX = __NET_DM_ATTR_PORT_MAX - 1
 };
 
 #endif
