@@ -1427,7 +1427,6 @@ struct drm_i915_private {
 		u32 irq_mask;
 		u32 de_irq_mask[I915_MAX_PIPES];
 	};
-	u32 gt_irq_mask;
 	u32 pm_rps_events;
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 

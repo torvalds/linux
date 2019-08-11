@@ -7,6 +7,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_gt.h"
+#include "intel_gt_irq.h"
 #include "intel_gt_pm_irq.h"
 
 static void write_pm_imr(struct intel_gt *gt)

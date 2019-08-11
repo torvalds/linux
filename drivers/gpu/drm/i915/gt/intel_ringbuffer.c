@@ -37,6 +37,7 @@
 #include "i915_trace.h"
 #include "intel_context.h"
 #include "intel_gt.h"
+#include "intel_gt_irq.h"
 #include "intel_gt_pm_irq.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
@@ -983,13 +984,13 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 static void
 gen5_irq_enable(struct intel_engine_cs *engine)
 {
-	gen5_enable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_enable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
 gen5_irq_disable(struct intel_engine_cs *engine)
 {
-	gen5_disable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_disable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
@@ -1050,14 +1051,14 @@ gen6_irq_enable(struct intel_engine_cs *engine)
 	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
 	ENGINE_POSTING_READ(engine, RING_IMR);
 
-	gen5_enable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_enable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
 gen6_irq_disable(struct intel_engine_cs *engine)
 {
 	ENGINE_WRITE(engine, RING_IMR, ~engine->irq_keep_mask);
-	gen5_disable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_disable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void

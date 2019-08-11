@@ -10,6 +10,7 @@
 #include <linux/types.h>
 
 #include "display/intel_display.h"
+#include "i915_reg.h"
 
 struct drm_crtc;
 struct drm_device;
@@ -19,6 +20,10 @@ struct intel_crtc;
 struct intel_crtc;
 struct intel_gt;
 struct intel_guc;
+struct intel_uncore;
+
+void gen11_rps_irq_handler(struct intel_gt *gt, u32 pm_iir);
+void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 
 void intel_irq_init(struct drm_i915_private *dev_priv);
 void intel_irq_fini(struct drm_i915_private *dev_priv);
@@ -126,5 +131,47 @@ void i945gm_disable_vblank(struct drm_crtc *crtc);
 void i965_disable_vblank(struct drm_crtc *crtc);
 void ilk_disable_vblank(struct drm_crtc *crtc);
 void bdw_disable_vblank(struct drm_crtc *crtc);
+
+void gen2_irq_reset(struct intel_uncore *uncore);
+void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
+		    i915_reg_t iir, i915_reg_t ier);
+
+void gen2_irq_init(struct intel_uncore *uncore,
+		   u32 imr_val, u32 ier_val);
+void gen3_irq_init(struct intel_uncore *uncore,
+		   i915_reg_t imr, u32 imr_val,
+		   i915_reg_t ier, u32 ier_val,
+		   i915_reg_t iir);
+
+#define GEN8_IRQ_RESET_NDX(uncore, type, which) \
+({ \
+	unsigned int which_ = which; \
+	gen3_irq_reset((uncore), GEN8_##type##_IMR(which_), \
+		       GEN8_##type##_IIR(which_), GEN8_##type##_IER(which_)); \
+})
+
+#define GEN3_IRQ_RESET(uncore, type) \
+	gen3_irq_reset((uncore), type##IMR, type##IIR, type##IER)
+
+#define GEN2_IRQ_RESET(uncore) \
+	gen2_irq_reset(uncore)
+
+#define GEN8_IRQ_INIT_NDX(uncore, type, which, imr_val, ier_val) \
+({ \
+	unsigned int which_ = which; \
+	gen3_irq_init((uncore), \
+		      GEN8_##type##_IMR(which_), imr_val, \
+		      GEN8_##type##_IER(which_), ier_val, \
+		      GEN8_##type##_IIR(which_)); \
+})
+
+#define GEN3_IRQ_INIT(uncore, type, imr_val, ier_val) \
+	gen3_irq_init((uncore), \
+		      type##IMR, imr_val, \
+		      type##IER, ier_val, \
+		      type##IIR)
+
+#define GEN2_IRQ_INIT(uncore, imr_val, ier_val) \
+	gen2_irq_init((uncore), imr_val, ier_val)
 
 #endif /* __I915_IRQ_H__ */

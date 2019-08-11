@@ -80,6 +80,7 @@ gt-y += \
 	gt/intel_engine_pm.o \
 	gt/intel_engine_user.o \
 	gt/intel_gt.o \
+	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \
 	gt/intel_gt_pm_irq.o \
 	gt/intel_hangcheck.o \
