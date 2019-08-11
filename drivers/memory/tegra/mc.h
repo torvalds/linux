@@ -6,20 +6,32 @@
 #ifndef MEMORY_TEGRA_MC_H
 #define MEMORY_TEGRA_MC_H
 
+#include <linux/bits.h>
 #include <linux/io.h>
 #include <linux/types.h>
 
 #include <soc/tegra/mc.h>
 
-#define MC_INT_DECERR_MTS (1 << 16)
-#define MC_INT_SECERR_SEC (1 << 13)
-#define MC_INT_DECERR_VPR (1 << 12)
-#define MC_INT_INVALID_APB_ASID_UPDATE (1 << 11)
-#define MC_INT_INVALID_SMMU_PAGE (1 << 10)
-#define MC_INT_ARBITRATION_EMEM (1 << 9)
-#define MC_INT_SECURITY_VIOLATION (1 << 8)
-#define MC_INT_INVALID_GART_PAGE (1 << 7)
-#define MC_INT_DECERR_EMEM (1 << 6)
+#define MC_INT_DECERR_MTS				BIT(16)
+#define MC_INT_SECERR_SEC				BIT(13)
+#define MC_INT_DECERR_VPR				BIT(12)
+#define MC_INT_INVALID_APB_ASID_UPDATE			BIT(11)
+#define MC_INT_INVALID_SMMU_PAGE			BIT(10)
+#define MC_INT_ARBITRATION_EMEM				BIT(9)
+#define MC_INT_SECURITY_VIOLATION			BIT(8)
+#define MC_INT_INVALID_GART_PAGE			BIT(7)
+#define MC_INT_DECERR_EMEM				BIT(6)
+
+#define MC_EMEM_ARB_OUTSTANDING_REQ			0x94
+#define MC_EMEM_ARB_OUTSTANDING_REQ_MAX_MASK		0x1ff
+#define MC_EMEM_ARB_OUTSTANDING_REQ_HOLDOFF_OVERRIDE	BIT(30)
+#define MC_EMEM_ARB_OUTSTANDING_REQ_LIMIT_ENABLE	BIT(31)
+
+#define MC_EMEM_ARB_OVERRIDE				0xe8
+#define MC_EMEM_ARB_OVERRIDE_EACK_MASK			0x3
+
+#define MC_TIMING_CONTROL				0xfc
+#define MC_TIMING_UPDATE				BIT(0)
 
 static inline u32 mc_readl(struct tegra_mc *mc, unsigned long offset)
 {
