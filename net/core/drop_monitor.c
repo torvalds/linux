@@ -243,11 +243,18 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 
 static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 {
-	int rc;
+	int cpu, rc;
 
 	if (!try_module_get(THIS_MODULE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
 		return -ENODEV;
+	}
+
+	for_each_possible_cpu(cpu) {
+		struct per_cpu_dm_data *data = &per_cpu(dm_cpu_data, cpu);
+
+		INIT_WORK(&data->dm_alert_work, send_dm_alert);
+		timer_setup(&data->send_timer, sched_send_work, 0);
 	}
 
 	rc = register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
@@ -274,11 +281,22 @@ err_module_put:
 static void net_dm_trace_off_set(void)
 {
 	struct dm_hw_stat_delta *new_stat, *temp;
+	int cpu;
 
 	unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
 	unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
 
 	tracepoint_synchronize_unregister();
+
+	/* Make sure we do not send notifications to user space after request
+	 * to stop tracing returns.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct per_cpu_dm_data *data = &per_cpu(dm_cpu_data, cpu);
+
+		del_timer_sync(&data->send_timer);
+		cancel_work_sync(&data->dm_alert_work);
+	}
 
 	list_for_each_entry_safe(new_stat, temp, &hw_stats_list, list) {
 		if (new_stat->dev == NULL) {
@@ -481,14 +499,10 @@ static void exit_net_drop_monitor(void)
 	/*
 	 * Because of the module_get/put we do in the trace state change path
 	 * we are guarnateed not to have any current users when we get here
-	 * all we need to do is make sure that we don't have any running timers
-	 * or pending schedule calls
 	 */
 
 	for_each_possible_cpu(cpu) {
 		data = &per_cpu(dm_cpu_data, cpu);
-		del_timer_sync(&data->send_timer);
-		cancel_work_sync(&data->dm_alert_work);
 		/*
 		 * At this point, we should have exclusive access
 		 * to this struct and can free the skb inside it
