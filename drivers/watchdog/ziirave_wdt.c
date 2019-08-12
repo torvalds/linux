@@ -271,7 +271,7 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	memcpy(packet + 3, data, len);
 
 	/* Packet checksum */
-	for (i = 0; i < ZIIRAVE_FIRM_PKT_TOTAL_SIZE - 1; i++)
+	for (i = 0; i < len + 3; i++)
 		checksum += packet[i];
 	packet[ZIIRAVE_FIRM_PKT_TOTAL_SIZE - 1] = checksum;
 
