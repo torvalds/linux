@@ -50,7 +50,7 @@
 #define PLA_TEREDO_WAKE_BASE	0xc0c4
 #define PLA_MAR			0xcd00
 #define PLA_BACKUP		0xd000
-#define PAL_BDC_CR		0xd1a0
+#define PLA_BDC_CR		0xd1a0
 #define PLA_TEREDO_TIMER	0xd2cc
 #define PLA_REALWOW_TIMER	0xd2e8
 #define PLA_SUSPEND_FLAG	0xd38a
@@ -274,7 +274,7 @@
 #define TEREDO_RS_EVENT_MASK	0x00fe
 #define OOB_TEREDO_EN		0x0001
 
-/* PAL_BDC_CR */
+/* PLA_BDC_CR */
 #define ALDPS_PROXY_MODE	0x0001
 
 /* PLA_EFUSE_CMD */
@@ -3191,9 +3191,9 @@ static void r8152b_enter_oob(struct r8152 *tp)
 
 	rtl_rx_vlan_en(tp, true);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PAL_BDC_CR);
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_BDC_CR);
 	ocp_data |= ALDPS_PROXY_MODE;
-	ocp_write_word(tp, MCU_TYPE_PLA, PAL_BDC_CR, ocp_data);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_BDC_CR, ocp_data);
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
 	ocp_data |= NOW_IS_OOB | DIS_MCU_CLROOB;
@@ -3577,9 +3577,9 @@ static void r8153_enter_oob(struct r8152 *tp)
 
 	rtl_rx_vlan_en(tp, true);
 
-	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PAL_BDC_CR);
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_BDC_CR);
 	ocp_data |= ALDPS_PROXY_MODE;
-	ocp_write_word(tp, MCU_TYPE_PLA, PAL_BDC_CR, ocp_data);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_BDC_CR, ocp_data);
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
 	ocp_data |= NOW_IS_OOB | DIS_MCU_CLROOB;

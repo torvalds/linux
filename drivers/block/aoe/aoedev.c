@@ -323,10 +323,14 @@ flush(const char __user *str, size_t cnt, int exiting)
 	}
 
 	flush_scheduled_work();
-	/* pass one: without sleeping, do aoedev_downdev */
+	/* pass one: do aoedev_downdev, which might sleep */
+restart1:
 	spin_lock_irqsave(&devlist_lock, flags);
 	for (d = devlist; d; d = d->next) {
 		spin_lock(&d->lock);
+		if (d->flags & DEVFL_TKILL)
+			goto cont;
+
 		if (exiting) {
 			/* unconditionally take each device down */
 		} else if (specified) {
@@ -338,8 +342,11 @@ flush(const char __user *str, size_t cnt, int exiting)
 		|| d->ref)
 			goto cont;
 
+		spin_unlock(&d->lock);
+		spin_unlock_irqrestore(&devlist_lock, flags);
 		aoedev_downdev(d);
 		d->flags |= DEVFL_TKILL;
+		goto restart1;
 cont:
 		spin_unlock(&d->lock);
 	}
@@ -348,7 +355,7 @@ cont:
 	/* pass two: call freedev, which might sleep,
 	 * for aoedevs marked with DEVFL_TKILL
 	 */
-restart:
+restart2:
 	spin_lock_irqsave(&devlist_lock, flags);
 	for (d = devlist; d; d = d->next) {
 		spin_lock(&d->lock);
@@ -357,7 +364,7 @@ restart:
 			spin_unlock(&d->lock);
 			spin_unlock_irqrestore(&devlist_lock, flags);
 			freedev(d);
-			goto restart;
+			goto restart2;
 		}
 		spin_unlock(&d->lock);
 	}

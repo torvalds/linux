@@ -1,6 +1,14 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# Author: Jesper Dangaard Brouer <hawk@kernel.org>
 
-TESTNAME=xdp_vlan
+# Allow wrapper scripts to name test
+if [ -z "$TESTNAME" ]; then
+    TESTNAME=xdp_vlan
+fi
+
+# Default XDP mode
+XDP_MODE=xdpgeneric
 
 usage() {
   echo "Testing XDP + TC eBPF VLAN manipulations: $TESTNAME"
@@ -9,7 +17,21 @@ usage() {
   echo "  -v | --verbose : Verbose"
   echo "  --flush        : Flush before starting (e.g. after --interactive)"
   echo "  --interactive  : Keep netns setup running after test-run"
+  echo "  --mode=XXX     : Choose XDP mode (xdp | xdpgeneric | xdpdrv)"
   echo ""
+}
+
+valid_xdp_mode()
+{
+	local mode=$1
+
+	case "$mode" in
+		xdpgeneric | xdpdrv | xdp)
+			return 0
+			;;
+		*)
+			return 1
+	esac
 }
 
 cleanup()
@@ -37,7 +59,7 @@ cleanup()
 
 # Using external program "getopt" to get --long-options
 OPTIONS=$(getopt -o hvfi: \
-    --long verbose,flush,help,interactive,debug -- "$@")
+    --long verbose,flush,help,interactive,debug,mode: -- "$@")
 if (( $? != 0 )); then
     usage
     echo "selftests: $TESTNAME [FAILED] Error calling getopt, unknown option?"
@@ -58,6 +80,11 @@ while true; do
 		;;
 	    -f | --flush )
 		cleanup
+		shift
+		;;
+	    --mode )
+		shift
+		XDP_MODE=$1
 		shift
 		;;
 	    -- )
@@ -81,8 +108,14 @@ if [ "$EUID" -ne 0 ]; then
 	exit 1
 fi
 
-ip link set dev lo xdp off 2>/dev/null > /dev/null
-if [ $? -ne 0 ];then
+valid_xdp_mode $XDP_MODE
+if [ $? -ne 0 ]; then
+	echo "selftests: $TESTNAME [FAILED] unknown XDP mode ($XDP_MODE)"
+	exit 1
+fi
+
+ip link set dev lo xdpgeneric off 2>/dev/null > /dev/null
+if [ $? -ne 0 ]; then
 	echo "selftests: $TESTNAME [SKIP] need ip xdp support"
 	exit 0
 fi
@@ -155,7 +188,7 @@ ip netns exec ns2 ip link set lo up
 # At this point, the hosts cannot reach each-other,
 # because ns2 are using VLAN tags on the packets.
 
-ip netns exec ns2 sh -c 'ping -W 1 -c 1 100.64.41.1 || echo "Okay ping fails"'
+ip netns exec ns2 sh -c 'ping -W 1 -c 1 100.64.41.1 || echo "Success: First ping must fail"'
 
 
 # Now we can use the test_xdp_vlan.c program to pop/push these VLAN tags
@@ -166,7 +199,7 @@ export FILE=test_xdp_vlan.o
 
 # First test: Remove VLAN by setting VLAN ID 0, using "xdp_vlan_change"
 export XDP_PROG=xdp_vlan_change
-ip netns exec ns1 ip link set $DEVNS1 xdp object $FILE section $XDP_PROG
+ip netns exec ns1 ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PROG
 
 # In ns1: egress use TC to add back VLAN tag 4011
 #  (del cmd)
@@ -177,8 +210,8 @@ ip netns exec ns1 tc filter add dev $DEVNS1 egress \
   prio 1 handle 1 bpf da obj $FILE sec tc_vlan_push
 
 # Now the namespaces can reach each-other, test with ping:
-ip netns exec ns2 ping -W 2 -c 3 $IPADDR1
-ip netns exec ns1 ping -W 2 -c 3 $IPADDR2
+ip netns exec ns2 ping -i 0.2 -W 2 -c 2 $IPADDR1
+ip netns exec ns1 ping -i 0.2 -W 2 -c 2 $IPADDR2
 
 # Second test: Replace xdp prog, that fully remove vlan header
 #
@@ -187,9 +220,9 @@ ip netns exec ns1 ping -W 2 -c 3 $IPADDR2
 # ETH_P_8021Q indication, and this cause overwriting of our changes.
 #
 export XDP_PROG=xdp_vlan_remove_outer2
-ip netns exec ns1 ip link set $DEVNS1 xdp off
-ip netns exec ns1 ip link set $DEVNS1 xdp object $FILE section $XDP_PROG
+ip netns exec ns1 ip link set $DEVNS1 $XDP_MODE off
+ip netns exec ns1 ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PROG
 
 # Now the namespaces should still be able reach each-other, test with ping:
-ip netns exec ns2 ping -W 2 -c 3 $IPADDR1
-ip netns exec ns1 ping -W 2 -c 3 $IPADDR2
+ip netns exec ns2 ping -i 0.2 -W 2 -c 2 $IPADDR1
+ip netns exec ns1 ping -i 0.2 -W 2 -c 2 $IPADDR2

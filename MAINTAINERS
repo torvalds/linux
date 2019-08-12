@@ -6344,7 +6344,7 @@ FPGA MANAGER FRAMEWORK
 M:	Moritz Fischer <mdf@kernel.org>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atull/linux-fpga.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mdf/linux-fpga.git
 Q:	http://patchwork.kernel.org/project/linux-fpga/list/
 F:	Documentation/fpga/
 F:	Documentation/driver-api/fpga/
@@ -6377,7 +6377,7 @@ FRAMEBUFFER LAYER
 M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-fbdev@vger.kernel.org
-T:	git git://github.com/bzolnier/linux.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
 S:	Maintained
 F:	Documentation/fb/
@@ -6826,13 +6826,6 @@ S:	Supported
 F:	Documentation/filesystems/gfs2*.txt
 F:	fs/gfs2/
 F:	include/uapi/linux/gfs2_ondisk.h
-
-GIGASET ISDN DRIVERS
-M:	Paul Bolle <pebolle@tiscali.nl>
-L:	gigaset307x-common@lists.sourceforge.net
-W:	http://gigaset307x.sourceforge.net/
-S:	Odd Fixes
-F:	drivers/staging/isdn/gigaset/
 
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
@@ -8049,6 +8042,7 @@ S:	Maintained
 F:	drivers/video/fbdev/i810/
 
 INTEL ASoC DRIVERS
+M:	Cezary Rojewski <cezary.rojewski@intel.com>
 M:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 M:	Liam Girdwood <liam.r.girdwood@linux.intel.com>
 M:	Jie Yang <yang.jie@linux.intel.com>
@@ -11149,6 +11143,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
+F:	include/uapi/linux/net_dropmon.h
 
 NETWORKING DRIVERS
 M:	"David S. Miller" <davem@davemloft.net>
@@ -11287,6 +11282,7 @@ M:	Aviad Yehezkel <aviadye@mellanox.com>
 M:	Dave Watson <davejwatson@fb.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/tls/*
@@ -16089,7 +16085,7 @@ S:	Maintained
 F:	drivers/net/ethernet/ti/netcp*
 
 TI PCM3060 ASoC CODEC DRIVER
-M:	Kirill Marinushkin <kmarinushkin@birdec.tech>
+M:	Kirill Marinushkin <kmarinushkin@birdec.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/pcm3060.txt
@@ -17565,7 +17561,6 @@ M:	Jakub Kicinski <jakub.kicinski@netronome.com>
 M:	Jesper Dangaard Brouer <hawk@kernel.org>
 M:	John Fastabend <john.fastabend@gmail.com>
 L:	netdev@vger.kernel.org
-L:	xdp-newbies@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	net/core/xdp.c
