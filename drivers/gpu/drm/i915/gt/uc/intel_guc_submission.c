@@ -517,21 +517,20 @@ static struct i915_request *schedule_in(struct i915_request *rq, int idx)
 {
 	trace_i915_request_in(rq, idx);
 
-	if (!rq->hw_context->inflight)
-		rq->hw_context->inflight = rq->engine;
-	intel_context_inflight_inc(rq->hw_context);
-	intel_gt_pm_get(rq->engine->gt);
+	/*
+	 * Currently we are not tracking the rq->context being inflight
+	 * (ce->inflight = rq->engine). It is only used by the execlists
+	 * backend at the moment, a similar counting strategy would be
+	 * required if we generalise the inflight tracking.
+	 */
 
+	intel_gt_pm_get(rq->engine->gt);
 	return i915_request_get(rq);
 }
 
 static void schedule_out(struct i915_request *rq)
 {
 	trace_i915_request_out(rq);
-
-	intel_context_inflight_dec(rq->hw_context);
-	if (!intel_context_inflight_count(rq->hw_context))
-		rq->hw_context->inflight = NULL;
 
 	intel_gt_pm_put(rq->engine->gt);
 	i915_request_put(rq);
@@ -556,6 +555,11 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 		last = NULL;
 	}
 
+	/*
+	 * We write directly into the execlists->inflight queue and don't use
+	 * the execlists->pending queue, as we don't have a distinct switch
+	 * event.
+	 */
 	port = first;
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
@@ -636,6 +640,19 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 	__tasklet_disable_sync_once(&execlists->tasklet);
 }
 
+static void
+cancel_port_requests(struct intel_engine_execlists * const execlists)
+{
+	struct i915_request * const *port, *rq;
+
+	/* Note we are only using the inflight and not the pending queue */
+
+	for (port = execlists->active; (rq = *port); port++)
+		schedule_out(rq);
+	execlists->active =
+		memset(execlists->inflight, 0, sizeof(execlists->inflight));
+}
+
 static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -644,7 +661,7 @@ static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 
 	spin_lock_irqsave(&engine->active.lock, flags);
 
-	execlists_cancel_port_requests(execlists);
+	cancel_port_requests(execlists);
 
 	/* Push back any incomplete requests for replay after the reset. */
 	rq = execlists_unwind_incomplete_requests(execlists);
@@ -687,7 +704,7 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 	spin_lock_irqsave(&engine->active.lock, flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
-	execlists_cancel_port_requests(execlists);
+	cancel_port_requests(execlists);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link) {

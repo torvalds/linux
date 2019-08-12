@@ -136,9 +136,6 @@ execlists_active(const struct intel_engine_execlists *execlists)
 	return READ_ONCE(*execlists->active);
 }
 
-void
-execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
-
 struct i915_request *
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
 

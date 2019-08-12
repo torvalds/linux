@@ -1297,8 +1297,8 @@ done:
 	}
 }
 
-void
-execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
+static void
+cancel_port_requests(struct intel_engine_execlists * const execlists)
 {
 	struct i915_request * const *port, *rq;
 
@@ -2355,7 +2355,7 @@ out_replay:
 
 unwind:
 	/* Push back any incomplete requests for replay after the reset. */
-	execlists_cancel_port_requests(execlists);
+	cancel_port_requests(execlists);
 	__unwind_incomplete_requests(engine);
 }
 
