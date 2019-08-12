@@ -23,6 +23,7 @@
 
 #define ZIIRAVE_TIMEOUT_MIN	3
 #define ZIIRAVE_TIMEOUT_MAX	255
+#define ZIIRAVE_TIMEOUT_DEFAULT	30
 
 #define ZIIRAVE_PING_VALUE	0x0
 
@@ -673,21 +674,20 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 			return val;
 		}
 
-		if (val < ZIIRAVE_TIMEOUT_MIN)
-			return -ENODEV;
+		if (val > ZIIRAVE_TIMEOUT_MAX ||
+		    val < ZIIRAVE_TIMEOUT_MIN)
+			val = ZIIRAVE_TIMEOUT_DEFAULT;
 
 		w_priv->wdd.timeout = val;
-	} else {
-		ret = ziirave_wdt_set_timeout(&w_priv->wdd,
-					      w_priv->wdd.timeout);
-		if (ret) {
-			dev_err(&client->dev, "Failed to set timeout\n");
-			return ret;
-		}
-
-		dev_info(&client->dev, "Timeout set to %ds\n",
-			 w_priv->wdd.timeout);
 	}
+
+	ret = ziirave_wdt_set_timeout(&w_priv->wdd, w_priv->wdd.timeout);
+	if (ret) {
+		dev_err(&client->dev, "Failed to set timeout\n");
+		return ret;
+	}
+
+	dev_info(&client->dev, "Timeout set to %ds\n", w_priv->wdd.timeout);
 
 	watchdog_set_nowayout(&w_priv->wdd, nowayout);
 
