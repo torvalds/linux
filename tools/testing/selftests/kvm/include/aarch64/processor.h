@@ -52,4 +52,8 @@ static inline void set_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id, uint
 	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
 }
 
+void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *init);
+void aarch64_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
+			      struct kvm_vcpu_init *init, void *guest_code);
+
 #endif /* SELFTEST_KVM_PROCESSOR_H */

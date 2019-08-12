@@ -673,6 +673,7 @@ static void anubis_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 static struct crypto_alg anubis_alg = {
 	.cra_name		=	"anubis",
+	.cra_driver_name	=	"anubis-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	ANUBIS_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct anubis_ctx),

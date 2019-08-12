@@ -56,6 +56,16 @@ static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *paren
 }
 
 /*
+ * Set the file size and block count.  Estimate the number of 512 bytes blocks
+ * used, rounded up to nearest 1K for consistency with other AFS clients.
+ */
+static void afs_set_i_size(struct afs_vnode *vnode, u64 size)
+{
+	i_size_write(&vnode->vfs_inode, size);
+	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
+}
+
+/*
  * Initialise an inode from the vnode status.
  */
 static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
@@ -124,12 +134,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
 		return afs_protocol_error(NULL, -EBADMSG, afs_eproto_file_type);
 	}
 
-	/*
-	 * Estimate 512 bytes  blocks used, rounded up to nearest 1K
-	 * for consistency with other AFS clients.
-	 */
-	inode->i_blocks		= ((i_size_read(inode) + 1023) >> 10) << 1;
-	i_size_write(&vnode->vfs_inode, status->size);
+	afs_set_i_size(vnode, status->size);
 
 	vnode->invalid_before	= status->data_version;
 	inode_set_iversion_raw(&vnode->vfs_inode, status->data_version);
@@ -207,11 +212,13 @@ static void afs_apply_status(struct afs_fs_cursor *fc,
 
 	if (expected_version &&
 	    *expected_version != status->data_version) {
-		kdebug("vnode modified %llx on {%llx:%llu} [exp %llx] %s",
-		       (unsigned long long) status->data_version,
-		       vnode->fid.vid, vnode->fid.vnode,
-		       (unsigned long long) *expected_version,
-		       fc->type ? fc->type->name : "???");
+		if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags))
+			pr_warn("kAFS: vnode modified {%llx:%llu} %llx->%llx %s\n",
+				vnode->fid.vid, vnode->fid.vnode,
+				(unsigned long long)*expected_version,
+				(unsigned long long)status->data_version,
+				fc->type ? fc->type->name : "???");
+
 		vnode->invalid_before = status->data_version;
 		if (vnode->status.type == AFS_FTYPE_DIR) {
 			if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
@@ -230,7 +237,7 @@ static void afs_apply_status(struct afs_fs_cursor *fc,
 
 	if (data_changed) {
 		inode_set_iversion_raw(&vnode->vfs_inode, status->data_version);
-		i_size_write(&vnode->vfs_inode, status->size);
+		afs_set_i_size(vnode, status->size);
 	}
 }
 
@@ -276,7 +283,7 @@ void afs_vnode_commit_status(struct afs_fs_cursor *fc,
 		if (scb->status.abort_code == VNOVNODE) {
 			set_bit(AFS_VNODE_DELETED, &vnode->flags);
 			clear_nlink(&vnode->vfs_inode);
-			__afs_break_callback(vnode);
+			__afs_break_callback(vnode, afs_cb_break_for_deleted);
 		}
 	} else {
 		if (scb->have_status)
@@ -587,8 +594,9 @@ bool afs_check_validity(struct afs_vnode *vnode)
 	struct afs_cb_interest *cbi;
 	struct afs_server *server;
 	struct afs_volume *volume = vnode->volume;
+	enum afs_cb_break_reason need_clear = afs_cb_break_no_break;
 	time64_t now = ktime_get_real_seconds();
-	bool valid, need_clear = false;
+	bool valid;
 	unsigned int cb_break, cb_s_break, cb_v_break;
 	int seq = 0;
 
@@ -606,13 +614,13 @@ bool afs_check_validity(struct afs_vnode *vnode)
 			    vnode->cb_v_break != cb_v_break) {
 				vnode->cb_s_break = cb_s_break;
 				vnode->cb_v_break = cb_v_break;
-				need_clear = true;
+				need_clear = afs_cb_break_for_vsbreak;
 				valid = false;
 			} else if (test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
-				need_clear = true;
+				need_clear = afs_cb_break_for_zap;
 				valid = false;
 			} else if (vnode->cb_expires_at - 10 <= now) {
-				need_clear = true;
+				need_clear = afs_cb_break_for_lapsed;
 				valid = false;
 			} else {
 				valid = true;
@@ -628,10 +636,12 @@ bool afs_check_validity(struct afs_vnode *vnode)
 
 	done_seqretry(&vnode->cb_lock, seq);
 
-	if (need_clear) {
+	if (need_clear != afs_cb_break_no_break) {
 		write_seqlock(&vnode->cb_lock);
 		if (cb_break == vnode->cb_break)
-			__afs_break_callback(vnode);
+			__afs_break_callback(vnode, need_clear);
+		else
+			trace_afs_cb_miss(&vnode->fid, need_clear);
 		write_sequnlock(&vnode->cb_lock);
 		valid = false;
 	}

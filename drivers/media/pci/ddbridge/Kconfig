@@ -36,7 +36,6 @@ config DVB_DDBRIDGE_MSIENABLE
 	bool "Enable Message Signaled Interrupts (MSI) per default (EXPERIMENTAL)"
 	depends on DVB_DDBRIDGE
 	depends on PCI_MSI
-	default n
 	help
 	  Use PCI MSI (Message Signaled Interrupts) per default. Enabling this
 	  might lead to I2C errors originating from the bridge in conjunction

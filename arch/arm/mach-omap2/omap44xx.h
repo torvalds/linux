@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*:
  * Address mappings and base address for OMAP4 interconnects
  * and peripherals.
@@ -5,10 +6,6 @@
  * Copyright (C) 2009 Texas Instruments
  *
  * Author: Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __ASM_ARCH_OMAP44XX_H
 #define __ASM_ARCH_OMAP44XX_H

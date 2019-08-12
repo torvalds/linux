@@ -1369,10 +1369,6 @@ static int __init genwqe_init_module(void)
 	class_genwqe->devnode = genwqe_devnode;
 
 	debugfs_genwqe = debugfs_create_dir(GENWQE_DEVNAME, NULL);
-	if (!debugfs_genwqe) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
 
 	rc = pci_register_driver(&genwqe_driver);
 	if (rc != 0) {
@@ -1384,7 +1380,6 @@ static int __init genwqe_init_module(void)
 
  err_out0:
 	debugfs_remove(debugfs_genwqe);
- err_out:
 	class_destroy(class_genwqe);
 	return rc;
 }

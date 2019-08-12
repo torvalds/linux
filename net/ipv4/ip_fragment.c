@@ -82,15 +82,13 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct ipq *qp = container_of(q, struct ipq, q);
-	struct netns_ipv4 *ipv4 = container_of(q->net, struct netns_ipv4,
-					       frags);
-	struct net *net = container_of(ipv4, struct net, ipv4);
+	struct net *net = q->fqdir->net;
 
 	const struct frag_v4_compare_key *key = a;
 
 	q->key.v4 = *key;
 	qp->ecn = 0;
-	qp->peer = q->net->max_dist ?
+	qp->peer = q->fqdir->max_dist ?
 		inet_getpeer_v4(net->ipv4.peers, key->saddr, key->vif, 1) :
 		NULL;
 }
@@ -142,9 +140,13 @@ static void ip_expire(struct timer_list *t)
 	int err;
 
 	qp = container_of(frag, struct ipq, q);
-	net = container_of(qp->q.net, struct net, ipv4.frags);
+	net = qp->q.fqdir->net;
 
 	rcu_read_lock();
+
+	if (qp->q.fqdir->dead)
+		goto out_rcu_unlock;
+
 	spin_lock(&qp->q.lock);
 
 	if (qp->q.flags & INET_FRAG_COMPLETE)
@@ -211,7 +213,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 	};
 	struct inet_frag_queue *q;
 
-	q = inet_frag_find(&net->ipv4.frags, &key);
+	q = inet_frag_find(net->ipv4.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -222,7 +224,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 static int ip_frag_too_far(struct ipq *qp)
 {
 	struct inet_peer *peer = qp->peer;
-	unsigned int max = qp->q.net->max_dist;
+	unsigned int max = qp->q.fqdir->max_dist;
 	unsigned int start, end;
 
 	int rc;
@@ -236,12 +238,8 @@ static int ip_frag_too_far(struct ipq *qp)
 
 	rc = qp->q.fragments_tail && (end - start) > max;
 
-	if (rc) {
-		struct net *net;
-
-		net = container_of(qp->q.net, struct net, ipv4.frags);
-		__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
-	}
+	if (rc)
+		__IP_INC_STATS(qp->q.fqdir->net, IPSTATS_MIB_REASMFAILS);
 
 	return rc;
 }
@@ -250,13 +248,13 @@ static int ip_frag_reinit(struct ipq *qp)
 {
 	unsigned int sum_truesize = 0;
 
-	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
+	if (!mod_timer(&qp->q.timer, jiffies + qp->q.fqdir->timeout)) {
 		refcount_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
 
 	sum_truesize = inet_frag_rbtree_purge(&qp->q.rb_fragments);
-	sub_frag_mem_limit(qp->q.net, sum_truesize);
+	sub_frag_mem_limit(qp->q.fqdir, sum_truesize);
 
 	qp->q.flags = 0;
 	qp->q.len = 0;
@@ -273,7 +271,7 @@ static int ip_frag_reinit(struct ipq *qp)
 /* Add new segment to existing queue. */
 static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
-	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
+	struct net *net = qp->q.fqdir->net;
 	int ihl, end, flags, offset;
 	struct sk_buff *prev_tail;
 	struct net_device *dev;
@@ -352,7 +350,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	qp->q.stamp = skb->tstamp;
 	qp->q.meat += skb->len;
 	qp->ecn |= ecn;
-	add_frag_mem_limit(qp->q.net, skb->truesize);
+	add_frag_mem_limit(qp->q.fqdir, skb->truesize);
 	if (offset == 0)
 		qp->q.flags |= INET_FRAG_FIRST_IN;
 
@@ -399,7 +397,7 @@ err:
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 			 struct sk_buff *prev_tail, struct net_device *dev)
 {
-	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
+	struct net *net = qp->q.fqdir->net;
 	struct iphdr *iph;
 	void *reasm_data;
 	int len, err;
@@ -544,30 +542,24 @@ static int dist_min;
 static struct ctl_table ip4_frags_ns_ctl_table[] = {
 	{
 		.procname	= "ipfrag_high_thresh",
-		.data		= &init_net.ipv4.frags.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.ipv4.frags.low_thresh
 	},
 	{
 		.procname	= "ipfrag_low_thresh",
-		.data		= &init_net.ipv4.frags.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.ipv4.frags.high_thresh
 	},
 	{
 		.procname	= "ipfrag_time",
-		.data		= &init_net.ipv4.frags.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ipfrag_max_dist",
-		.data		= &init_net.ipv4.frags.max_dist,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -600,13 +592,13 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		table[0].data = &net->ipv4.frags.high_thresh;
-		table[0].extra1 = &net->ipv4.frags.low_thresh;
-		table[1].data = &net->ipv4.frags.low_thresh;
-		table[1].extra2 = &net->ipv4.frags.high_thresh;
-		table[2].data = &net->ipv4.frags.timeout;
-		table[3].data = &net->ipv4.frags.max_dist;
 	}
+	table[0].data	= &net->ipv4.fqdir->high_thresh;
+	table[0].extra1	= &net->ipv4.fqdir->low_thresh;
+	table[1].data	= &net->ipv4.fqdir->low_thresh;
+	table[1].extra2	= &net->ipv4.fqdir->high_thresh;
+	table[2].data	= &net->ipv4.fqdir->timeout;
+	table[3].data	= &net->ipv4.fqdir->max_dist;
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (!hdr)
@@ -654,6 +646,9 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 {
 	int res;
 
+	res = fqdir_init(&net->ipv4.fqdir, &ip4_frags, net);
+	if (res < 0)
+		return res;
 	/* Fragment cache limits.
 	 *
 	 * The fragment memory accounting code, (tries to) account for
@@ -668,36 +663,38 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	 * we will prune down to 3MB, making room for approx 8 big 64K
 	 * fragments 8x128k.
 	 */
-	net->ipv4.frags.high_thresh = 4 * 1024 * 1024;
-	net->ipv4.frags.low_thresh  = 3 * 1024 * 1024;
+	net->ipv4.fqdir->high_thresh = 4 * 1024 * 1024;
+	net->ipv4.fqdir->low_thresh  = 3 * 1024 * 1024;
 	/*
 	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
 	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
 	 * by TTL.
 	 */
-	net->ipv4.frags.timeout = IP_FRAG_TIME;
+	net->ipv4.fqdir->timeout = IP_FRAG_TIME;
 
-	net->ipv4.frags.max_dist = 64;
-	net->ipv4.frags.f = &ip4_frags;
+	net->ipv4.fqdir->max_dist = 64;
 
-	res = inet_frags_init_net(&net->ipv4.frags);
-	if (res < 0)
-		return res;
 	res = ip4_frags_ns_ctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&net->ipv4.frags);
+		fqdir_exit(net->ipv4.fqdir);
 	return res;
+}
+
+static void __net_exit ipv4_frags_pre_exit_net(struct net *net)
+{
+	fqdir_pre_exit(net->ipv4.fqdir);
 }
 
 static void __net_exit ipv4_frags_exit_net(struct net *net)
 {
 	ip4_frags_ns_ctl_unregister(net);
-	inet_frags_exit_net(&net->ipv4.frags);
+	fqdir_exit(net->ipv4.fqdir);
 }
 
 static struct pernet_operations ip4_frags_ops = {
-	.init = ipv4_frags_init_net,
-	.exit = ipv4_frags_exit_net,
+	.init		= ipv4_frags_init_net,
+	.pre_exit	= ipv4_frags_pre_exit_net,
+	.exit		= ipv4_frags_exit_net,
 };
 
 

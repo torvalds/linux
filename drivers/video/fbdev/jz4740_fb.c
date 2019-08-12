@@ -457,7 +457,6 @@ static int jzfb_alloc_devmem(struct jzfb *jzfb)
 {
 	int max_videosize = 0;
 	struct fb_videomode *mode = jzfb->pdata->modes;
-	void *page;
 	int i;
 
 	for (i = 0; i < jzfb->pdata->num_modes; ++mode, ++i) {
@@ -481,12 +480,6 @@ static int jzfb_alloc_devmem(struct jzfb *jzfb)
 
 	if (!jzfb->vidmem)
 		goto err_free_framedesc;
-
-	for (page = jzfb->vidmem;
-		 page < jzfb->vidmem + PAGE_ALIGN(jzfb->vidmem_size);
-		 page += PAGE_SIZE) {
-		SetPageReserved(virt_to_page(page));
-	}
 
 	jzfb->framedesc->next = jzfb->framedesc_phys;
 	jzfb->framedesc->addr = jzfb->vidmem_phys;
@@ -535,10 +528,8 @@ static int jzfb_probe(struct platform_device *pdev)
 	}
 
 	fb = framebuffer_alloc(sizeof(struct jzfb), &pdev->dev);
-	if (!fb) {
-		dev_err(&pdev->dev, "Failed to allocate framebuffer device\n");
+	if (!fb)
 		return -ENOMEM;
-	}
 
 	fb->fbops = &jzfb_ops;
 	fb->flags = FBINFO_DEFAULT;

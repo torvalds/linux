@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/common/mcpm_entry.c -- entry point for multi-cluster PM
  *
  * Created by:  Nicolas Pitre, March 2012
  * Copyright:   (C) 2012-2013  Linaro Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -24,7 +21,7 @@
 /*
  * The public API for this code is documented in arch/arm/include/asm/mcpm.h.
  * For a comprehensive description of the main algorithm used here, please
- * see Documentation/arm/cluster-pm-race-avoidance.txt.
+ * see Documentation/arm/cluster-pm-race-avoidance.rst.
  */
 
 struct sync_struct mcpm_sync;

@@ -652,7 +652,10 @@ create:
 		rc = smc_lgr_create(smc, ini);
 		if (rc)
 			goto out;
+		lgr = conn->lgr;
+		write_lock_bh(&lgr->conns_lock);
 		smc_lgr_register_conn(conn); /* add smc conn to lgr */
+		write_unlock_bh(&lgr->conns_lock);
 	}
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
 	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;

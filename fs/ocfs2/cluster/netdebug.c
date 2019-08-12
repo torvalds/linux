@@ -38,10 +38,6 @@
 #define SHOW_SOCK_STATS		1
 
 static struct dentry *o2net_dentry;
-static struct dentry *sc_dentry;
-static struct dentry *nst_dentry;
-static struct dentry *stats_dentry;
-static struct dentry *nodes_dentry;
 
 static DEFINE_SPINLOCK(o2net_debug_lock);
 
@@ -490,36 +486,23 @@ static const struct file_operations nodes_fops = {
 
 void o2net_debugfs_exit(void)
 {
-	debugfs_remove(nodes_dentry);
-	debugfs_remove(stats_dentry);
-	debugfs_remove(sc_dentry);
-	debugfs_remove(nst_dentry);
-	debugfs_remove(o2net_dentry);
+	debugfs_remove_recursive(o2net_dentry);
 }
 
-int o2net_debugfs_init(void)
+void o2net_debugfs_init(void)
 {
 	umode_t mode = S_IFREG|S_IRUSR;
 
 	o2net_dentry = debugfs_create_dir(O2NET_DEBUG_DIR, NULL);
-	if (o2net_dentry)
-		nst_dentry = debugfs_create_file(NST_DEBUG_NAME, mode,
-					o2net_dentry, NULL, &nst_seq_fops);
-	if (nst_dentry)
-		sc_dentry = debugfs_create_file(SC_DEBUG_NAME, mode,
-					o2net_dentry, NULL, &sc_seq_fops);
-	if (sc_dentry)
-		stats_dentry = debugfs_create_file(STATS_DEBUG_NAME, mode,
-					o2net_dentry, NULL, &stats_seq_fops);
-	if (stats_dentry)
-		nodes_dentry = debugfs_create_file(NODES_DEBUG_NAME, mode,
-					o2net_dentry, NULL, &nodes_fops);
-	if (nodes_dentry)
-		return 0;
 
-	o2net_debugfs_exit();
-	mlog_errno(-ENOMEM);
-	return -ENOMEM;
+	debugfs_create_file(NST_DEBUG_NAME, mode, o2net_dentry, NULL,
+			    &nst_seq_fops);
+	debugfs_create_file(SC_DEBUG_NAME, mode, o2net_dentry, NULL,
+			    &sc_seq_fops);
+	debugfs_create_file(STATS_DEBUG_NAME, mode, o2net_dentry, NULL,
+			    &stats_seq_fops);
+	debugfs_create_file(NODES_DEBUG_NAME, mode, o2net_dentry, NULL,
+			    &nodes_fops);
 }
 
 #endif	/* CONFIG_DEBUG_FS */

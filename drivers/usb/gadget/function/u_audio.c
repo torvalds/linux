@@ -40,7 +40,7 @@ struct uac_rtd_params {
 
 	void *rbuf;
 
-	unsigned max_psize;	/* MaxPacketSize of endpoint */
+	unsigned int max_psize;	/* MaxPacketSize of endpoint */
 	struct uac_req *ureq;
 
 	spinlock_t lock;
@@ -78,7 +78,7 @@ static const struct snd_pcm_hardware uac_pcm_hardware = {
 
 static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	unsigned pending;
+	unsigned int pending;
 	unsigned long flags, flags2;
 	unsigned int hw_ptr;
 	int status = req->status;

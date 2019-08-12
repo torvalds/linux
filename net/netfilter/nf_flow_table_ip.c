@@ -439,9 +439,9 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 	struct nf_flowtable *flow_table = priv;
 	struct flow_offload_tuple tuple = {};
 	enum flow_offload_tuple_dir dir;
+	const struct in6_addr *nexthop;
 	struct flow_offload *flow;
 	struct net_device *outdev;
-	struct in6_addr *nexthop;
 	struct ipv6hdr *ip6h;
 	struct rt6_info *rt;
 

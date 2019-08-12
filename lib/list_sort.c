@@ -157,9 +157,11 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
  *
  * The number of pending lists of size 2^k is determined by the
  * state of bit k of "count" plus two extra pieces of information:
+ *
  * - The state of bit k-1 (when k == 0, consider bit -1 always set), and
  * - Whether the higher-order bits are zero or non-zero (i.e.
  *   is count >= 2^(k+1)).
+ *
  * There are six states we distinguish.  "x" represents some arbitrary
  * bits, and "y" represents some arbitrary non-zero bits:
  * 0:  00x: 0 pending of size 2^k;           x pending of sizes < 2^k

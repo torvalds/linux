@@ -33,8 +33,10 @@
 #ifndef __MLX5E_TLS_H__
 #define __MLX5E_TLS_H__
 
-#ifdef CONFIG_MLX5_EN_TLS
+#include "accel/tls.h"
+#include "en_accel/ktls.h"
 
+#ifdef CONFIG_MLX5_EN_TLS
 #include <net/tls.h>
 #include "en.h"
 
@@ -94,7 +96,12 @@ int mlx5e_tls_get_stats(struct mlx5e_priv *priv, u64 *data);
 
 #else
 
-static inline void mlx5e_tls_build_netdev(struct mlx5e_priv *priv) { }
+static inline void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
+{
+	if (mlx5_accel_is_ktls_device(priv->mdev))
+		mlx5e_ktls_build_netdev(priv);
+}
+
 static inline int mlx5e_tls_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tls_cleanup(struct mlx5e_priv *priv) { }
 static inline int mlx5e_tls_get_count(struct mlx5e_priv *priv) { return 0; }

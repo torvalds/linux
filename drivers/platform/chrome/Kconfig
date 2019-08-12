@@ -72,6 +72,19 @@ config CROS_EC_RPMSG
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_rpmsg.
 
+config CROS_EC_ISHTP
+	tristate "ChromeOS Embedded Controller (ISHTP)"
+	depends on MFD_CROS_EC
+	depends on INTEL_ISH_HID
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  firmware running on Intel Integrated Sensor Hub (ISH), using the
+	  ISH Transport protocol (ISH-TP). This uses a simple byte-level
+	  protocol with a checksum.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_ishtp.
+
 config CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
 	depends on MFD_CROS_EC && SPI
@@ -83,28 +96,17 @@ config CROS_EC_SPI
 	  'pre-amble' bytes before the response actually starts.
 
 config CROS_EC_LPC
-        tristate "ChromeOS Embedded Controller (LPC)"
-        depends on MFD_CROS_EC && ACPI && (X86 || COMPILE_TEST)
-        help
-          If you say Y here, you get support for talking to the ChromeOS EC
-          over an LPC bus. This uses a simple byte-level protocol with a
-          checksum. This is used for userspace access only. The kernel
-          typically has its own communication methods.
-
-          To compile this driver as a module, choose M here: the
-          module will be called cros_ec_lpc.
-
-config CROS_EC_LPC_MEC
-	bool "ChromeOS Embedded Controller LPC Microchip EC (MEC) variant"
-	depends on CROS_EC_LPC
-	default n
+	tristate "ChromeOS Embedded Controller (LPC)"
+	depends on MFD_CROS_EC && ACPI && (X86 || COMPILE_TEST)
 	help
-	  If you say Y here, a variant LPC protocol for the Microchip EC
-	  will be used. Note that this variant is not backward compatible
-	  with non-Microchip ECs.
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  over an LPC bus, including the LPC Microchip EC (MEC) variant.
+	  This uses a simple byte-level protocol with a checksum. This is
+	  used for userspace access only. The kernel typically has its own
+	  communication methods.
 
-	  If you have a ChromeOS Embedded Controller Microchip EC variant
-	  choose Y here.
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_lpcs.
 
 config CROS_EC_PROTO
         bool

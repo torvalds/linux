@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for TI BQ32000 RTC.
  *
  * Copyright (C) 2009 Semihalf.
  * Copyright (C) 2014 Pavel Machek <pavel@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * You can get hardware description at
  * http://www.ti.com/lit/ds/symlink/bq32000.pdf

@@ -83,8 +83,10 @@
 #define IWL_SCAN_ADWELL_MAX_BUDGET_FULL_SCAN 300
 /* adaptive dwell max budget time [TU] for directed scan */
 #define IWL_SCAN_ADWELL_MAX_BUDGET_DIRECTED_SCAN 100
-/* adaptive dwell default APs number */
-#define IWL_SCAN_ADWELL_DEFAULT_N_APS 2
+/* adaptive dwell default high band APs number */
+#define IWL_SCAN_ADWELL_DEFAULT_HB_N_APS 8
+/* adaptive dwell default low band APs number */
+#define IWL_SCAN_ADWELL_DEFAULT_LB_N_APS 2
 /* adaptive dwell default APs number in social channels (1, 6, 11) */
 #define IWL_SCAN_ADWELL_DEFAULT_N_APS_SOCIAL 10
 
@@ -1288,7 +1290,11 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 		cmd->v7.adwell_default_n_aps_social =
 			IWL_SCAN_ADWELL_DEFAULT_N_APS_SOCIAL;
 		cmd->v7.adwell_default_n_aps =
-			IWL_SCAN_ADWELL_DEFAULT_N_APS;
+			IWL_SCAN_ADWELL_DEFAULT_LB_N_APS;
+
+		if (iwl_mvm_is_adwell_hb_ap_num_supported(mvm))
+			cmd->v9.adwell_default_hb_n_aps =
+				IWL_SCAN_ADWELL_DEFAULT_HB_N_APS;
 
 		/* if custom max budget was configured with debugfs */
 		if (IWL_MVM_ADWELL_MAX_BUDGET)

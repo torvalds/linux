@@ -607,12 +607,11 @@ struct mwifiex_sta_node *
 mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
 	struct mwifiex_sta_node *node;
-	unsigned long flags;
 
 	if (!mac)
 		return NULL;
 
-	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+	spin_lock_bh(&priv->sta_list_spinlock);
 	node = mwifiex_get_sta_entry(priv, mac);
 	if (node)
 		goto done;
@@ -625,7 +624,7 @@ mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 	list_add_tail(&node->list, &priv->sta_list);
 
 done:
-	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+	spin_unlock_bh(&priv->sta_list_spinlock);
 	return node;
 }
 
@@ -662,9 +661,8 @@ mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
 void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
 	struct mwifiex_sta_node *node;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+	spin_lock_bh(&priv->sta_list_spinlock);
 
 	node = mwifiex_get_sta_entry(priv, mac);
 	if (node) {
@@ -672,7 +670,7 @@ void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 		kfree(node);
 	}
 
-	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+	spin_unlock_bh(&priv->sta_list_spinlock);
 	return;
 }
 
@@ -680,9 +678,8 @@ void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 void mwifiex_del_all_sta_list(struct mwifiex_private *priv)
 {
 	struct mwifiex_sta_node *node, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+	spin_lock_bh(&priv->sta_list_spinlock);
 
 	list_for_each_entry_safe(node, tmp, &priv->sta_list, list) {
 		list_del(&node->list);
@@ -690,7 +687,7 @@ void mwifiex_del_all_sta_list(struct mwifiex_private *priv)
 	}
 
 	INIT_LIST_HEAD(&priv->sta_list);
-	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+	spin_unlock_bh(&priv->sta_list_spinlock);
 	return;
 }
 

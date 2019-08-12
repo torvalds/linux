@@ -208,7 +208,7 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		gso_skb->destructor = NULL;
 
 	segs = skb_segment(gso_skb, features);
-	if (unlikely(IS_ERR_OR_NULL(segs))) {
+	if (IS_ERR_OR_NULL(segs)) {
 		if (copy_dtor)
 			gso_skb->destructor = sock_wfree;
 		return segs;
@@ -223,6 +223,11 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 
 	seg = segs;
 	uh = udp_hdr(seg);
+
+	/* preserve TX timestamp flags and TS key for first segment */
+	skb_shinfo(seg)->tskey = skb_shinfo(gso_skb)->tskey;
+	skb_shinfo(seg)->tx_flags |=
+			(skb_shinfo(gso_skb)->tx_flags & SKBTX_ANY_TSTAMP);
 
 	/* compute checksum adjustment based on old length versus new */
 	newlen = htons(sizeof(*uh) + mss);

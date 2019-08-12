@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP3/4 Voltage Processor (VP) structure and macro definitions
  *
@@ -9,10 +10,6 @@
  * Copyright (C) 2008, 2011 Nokia Corporation
  * Kalle Jokiniemi
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 #ifndef __ARCH_ARM_MACH_OMAP2_VP_H
 #define __ARCH_ARM_MACH_OMAP2_VP_H

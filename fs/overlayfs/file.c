@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Red Hat, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/cred.h>
@@ -409,36 +406,15 @@ static long ovl_real_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static unsigned int ovl_get_inode_flags(struct inode *inode)
-{
-	unsigned int flags = READ_ONCE(inode->i_flags);
-	unsigned int ovl_iflags = 0;
-
-	if (flags & S_SYNC)
-		ovl_iflags |= FS_SYNC_FL;
-	if (flags & S_APPEND)
-		ovl_iflags |= FS_APPEND_FL;
-	if (flags & S_IMMUTABLE)
-		ovl_iflags |= FS_IMMUTABLE_FL;
-	if (flags & S_NOATIME)
-		ovl_iflags |= FS_NOATIME_FL;
-
-	return ovl_iflags;
-}
-
 static long ovl_ioctl_set_flags(struct file *file, unsigned int cmd,
-				unsigned long arg)
+				unsigned long arg, unsigned int iflags)
 {
 	long ret;
 	struct inode *inode = file_inode(file);
-	unsigned int flags;
-	unsigned int old_flags;
+	unsigned int old_iflags;
 
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
-
-	if (get_user(flags, (int __user *) arg))
-		return -EFAULT;
 
 	ret = mnt_want_write_file(file);
 	if (ret)
@@ -448,8 +424,8 @@ static long ovl_ioctl_set_flags(struct file *file, unsigned int cmd,
 
 	/* Check the capability before cred override */
 	ret = -EPERM;
-	old_flags = ovl_get_inode_flags(inode);
-	if (((flags ^ old_flags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) &&
+	old_iflags = READ_ONCE(inode->i_flags);
+	if (((iflags ^ old_iflags) & (S_APPEND | S_IMMUTABLE)) &&
 	    !capable(CAP_LINUX_IMMUTABLE))
 		goto unlock;
 
@@ -469,6 +445,63 @@ unlock:
 
 }
 
+static unsigned int ovl_fsflags_to_iflags(unsigned int flags)
+{
+	unsigned int iflags = 0;
+
+	if (flags & FS_SYNC_FL)
+		iflags |= S_SYNC;
+	if (flags & FS_APPEND_FL)
+		iflags |= S_APPEND;
+	if (flags & FS_IMMUTABLE_FL)
+		iflags |= S_IMMUTABLE;
+	if (flags & FS_NOATIME_FL)
+		iflags |= S_NOATIME;
+
+	return iflags;
+}
+
+static long ovl_ioctl_set_fsflags(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	unsigned int flags;
+
+	if (get_user(flags, (int __user *) arg))
+		return -EFAULT;
+
+	return ovl_ioctl_set_flags(file, cmd, arg,
+				   ovl_fsflags_to_iflags(flags));
+}
+
+static unsigned int ovl_fsxflags_to_iflags(unsigned int xflags)
+{
+	unsigned int iflags = 0;
+
+	if (xflags & FS_XFLAG_SYNC)
+		iflags |= S_SYNC;
+	if (xflags & FS_XFLAG_APPEND)
+		iflags |= S_APPEND;
+	if (xflags & FS_XFLAG_IMMUTABLE)
+		iflags |= S_IMMUTABLE;
+	if (xflags & FS_XFLAG_NOATIME)
+		iflags |= S_NOATIME;
+
+	return iflags;
+}
+
+static long ovl_ioctl_set_fsxflags(struct file *file, unsigned int cmd,
+				   unsigned long arg)
+{
+	struct fsxattr fa;
+
+	memset(&fa, 0, sizeof(fa));
+	if (copy_from_user(&fa, (void __user *) arg, sizeof(fa)))
+		return -EFAULT;
+
+	return ovl_ioctl_set_flags(file, cmd, arg,
+				   ovl_fsxflags_to_iflags(fa.fsx_xflags));
+}
+
 static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
@@ -480,8 +513,11 @@ static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case FS_IOC_SETFLAGS:
+		ret = ovl_ioctl_set_fsflags(file, cmd, arg);
+		break;
+
 	case FS_IOC_FSSETXATTR:
-		ret = ovl_ioctl_set_flags(file, cmd, arg);
+		ret = ovl_ioctl_set_fsxflags(file, cmd, arg);
 		break;
 
 	default:

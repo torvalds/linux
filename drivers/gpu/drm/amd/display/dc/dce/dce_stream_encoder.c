@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dc_bios_types.h"
 #include "dce_stream_encoder.h"
 #include "reg_helper.h"
@@ -418,6 +420,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 			break;
 		case COLOR_SPACE_YCBCR709:
 		case COLOR_SPACE_YCBCR709_LIMITED:
+		case COLOR_SPACE_YCBCR709_BLACK:
 			misc0 = misc0 | 0x18; /* bit3=1, bit4=1 */
 			misc1 = misc1 & ~0x80; /* bit7 = 0*/
 			dynamic_range_ycbcr = 1; /*bt709*/
@@ -1121,19 +1124,6 @@ union audio_cea_channels {
 		uint32_t RC_RLC_FLC:1;
 		uint32_t RRC_FRC:1;
 	} channels;
-};
-
-struct audio_clock_info {
-	/* pixel clock frequency*/
-	uint32_t pixel_clock_in_10khz;
-	/* N - 32KHz audio */
-	uint32_t n_32khz;
-	/* CTS - 32KHz audio*/
-	uint32_t cts_32khz;
-	uint32_t n_44khz;
-	uint32_t cts_44khz;
-	uint32_t n_48khz;
-	uint32_t cts_48khz;
 };
 
 /* 25.2MHz/1.001*/

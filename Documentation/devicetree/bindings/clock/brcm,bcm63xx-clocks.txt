@@ -1,0 +1,22 @@
+Gated Clock Controller Bindings for MIPS based BCM63XX SoCs
+
+Required properties:
+- compatible: must be one of:
+	 "brcm,bcm3368-clocks"
+	 "brcm,bcm6328-clocks"
+	 "brcm,bcm6358-clocks"
+	 "brcm,bcm6362-clocks"
+	 "brcm,bcm6368-clocks"
+	 "brcm,bcm63268-clocks"
+
+- reg: Address and length of the register set
+- #clock-cells: must be <1>
+
+
+Example:
+
+clkctl: clock-controller@10000004 {
+	compatible = "brcm,bcm6328-clocks";
+	reg = <0x10000004 0x4>;
+	#clock-cells = <1>;
+};

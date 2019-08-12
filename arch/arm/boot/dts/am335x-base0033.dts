@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * am335x-base0033.dts - Device Tree file for IGEP AQUILA EXPANSION
  *
  * Copyright (C) 2013 ISEE 2007 SL - http://www.isee.biz
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "am335x-igep0033.dtsi"

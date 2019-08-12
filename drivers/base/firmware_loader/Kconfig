@@ -26,6 +26,9 @@ config FW_LOADER
 
 if FW_LOADER
 
+config FW_LOADER_PAGED_BUF
+	bool
+
 config EXTRA_FIRMWARE
 	string "Build named firmware blobs into the kernel binary"
 	help
@@ -67,6 +70,7 @@ config EXTRA_FIRMWARE_DIR
 
 config FW_LOADER_USER_HELPER
 	bool "Enable the firmware sysfs fallback mechanism"
+	select FW_LOADER_PAGED_BUF
 	help
 	  This option enables a sysfs loading facility to enable firmware
 	  loading to the kernel through userspace as a fallback mechanism
@@ -150,6 +154,20 @@ config FW_LOADER_USER_HELPER_FALLBACK
 	       /proc/sys/kernel/firmware_config/force_sysfs_fallback
 
 	  If you are unsure about this, say N here.
+
+config FW_LOADER_COMPRESS
+	bool "Enable compressed firmware support"
+	select FW_LOADER_PAGED_BUF
+	select XZ_DEC
+	help
+	  This option enables the support for loading compressed firmware
+	  files. The caller of firmware API receives the decompressed file
+	  content. The compressed file is loaded as a fallback, only after
+	  loading the raw file failed at first.
+
+	  Currently only XZ-compressed files are supported, and they have to
+	  be compressed with either none or crc32 integrity check type (pass
+	  "-C crc32" option to xz command).
 
 endif # FW_LOADER
 endmenu

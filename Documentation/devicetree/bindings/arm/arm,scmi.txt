@@ -6,7 +6,7 @@ that are provided by the hardware platform it is running on, including power
 and performance functions.
 
 This binding is intended to define the interface the firmware implementing
-the SCMI as described in ARM document number ARM DUI 0922B ("ARM System Control
+the SCMI as described in ARM document number ARM DEN 0056A ("ARM System Control
 and Management Interface Platform Design Document")[0] provide for OSPM in
 the device tree.
 

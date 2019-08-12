@@ -138,17 +138,13 @@ void hidma_debug_uninit(struct hidma_dev *dmadev)
 	debugfs_remove_recursive(dmadev->debugfs);
 }
 
-int hidma_debug_init(struct hidma_dev *dmadev)
+void hidma_debug_init(struct hidma_dev *dmadev)
 {
-	int rc = 0;
 	int chidx = 0;
 	struct list_head *position = NULL;
+	struct dentry *dir;
 
 	dmadev->debugfs = debugfs_create_dir(dev_name(dmadev->ddev.dev), NULL);
-	if (!dmadev->debugfs) {
-		rc = -ENODEV;
-		return rc;
-	}
 
 	/* walk through the virtual channel list */
 	list_for_each(position, &dmadev->ddev.channels) {
@@ -157,32 +153,13 @@ int hidma_debug_init(struct hidma_dev *dmadev)
 		chan = list_entry(position, struct hidma_chan,
 				  chan.device_node);
 		sprintf(chan->dbg_name, "chan%d", chidx);
-		chan->debugfs = debugfs_create_dir(chan->dbg_name,
+		dir = debugfs_create_dir(chan->dbg_name,
 						   dmadev->debugfs);
-		if (!chan->debugfs) {
-			rc = -ENOMEM;
-			goto cleanup;
-		}
-		chan->stats = debugfs_create_file("stats", S_IRUGO,
-						  chan->debugfs, chan,
-						  &hidma_chan_fops);
-		if (!chan->stats) {
-			rc = -ENOMEM;
-			goto cleanup;
-		}
+		debugfs_create_file("stats", S_IRUGO, dir, chan,
+				    &hidma_chan_fops);
 		chidx++;
 	}
 
-	dmadev->stats = debugfs_create_file("stats", S_IRUGO,
-					    dmadev->debugfs, dmadev,
-					    &hidma_dma_fops);
-	if (!dmadev->stats) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
-
-	return 0;
-cleanup:
-	hidma_debug_uninit(dmadev);
-	return rc;
+	debugfs_create_file("stats", S_IRUGO, dmadev->debugfs, dmadev,
+			    &hidma_dma_fops);
 }

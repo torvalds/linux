@@ -896,7 +896,7 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 	return ret;
 }
 
-const static struct omap_dm_timer_ops dmtimer_ops = {
+static const struct omap_dm_timer_ops dmtimer_ops = {
 	.request_by_node = omap_dm_timer_request_by_node,
 	.request_specific = omap_dm_timer_request_specific,
 	.request = omap_dm_timer_request,

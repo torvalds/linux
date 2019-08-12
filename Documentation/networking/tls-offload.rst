@@ -206,7 +206,11 @@ TX
 
 Segments transmitted from an offloaded socket can get out of sync
 in similar ways to the receive side-retransmissions - local drops
-are possible, though network reorders are not.
+are possible, though network reorders are not. There are currently
+two mechanisms for dealing with out of order segments.
+
+Crypto state rebuilding
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Whenever an out of order segment is transmitted the driver provides
 the device with enough information to perform cryptographic operations.
@@ -224,6 +228,35 @@ with the previous stream state - assuming that the out of order segment
 was just a retransmission. The former is simpler, and does not require
 retransmission detection therefore it is the recommended method until
 such time it is proven inefficient.
+
+Next record sync
+~~~~~~~~~~~~~~~~
+
+Whenever an out of order segment is detected the driver requests
+that the ``ktls`` software fallback code encrypt it. If the segment's
+sequence number is lower than expected the driver assumes retransmission
+and doesn't change device state. If the segment is in the future, it
+may imply a local drop, the driver asks the stack to sync the device
+to the next record state and falls back to software.
+
+Resync request is indicated with:
+
+.. code-block:: c
+
+  void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq)
+
+Until resync is complete driver should not access its expected TCP
+sequence number (as it will be updated from a different context).
+Following helper should be used to test if resync is complete:
+
+.. code-block:: c
+
+  bool tls_offload_tx_resync_pending(struct sock *sk)
+
+Next time ``ktls`` pushes a record it will first send its TCP sequence number
+and TLS record number to the driver. Stack will also make sure that
+the new record will start on a segment boundary (like it does when
+the connection is initially added).
 
 RX
 --
@@ -268,6 +301,9 @@ Device can only detect that segment 4 also contains a TLS header
 if it knows the length of the previous record from segment 2. In this case
 the device will lose synchronization with the stream.
 
+Stream scan resynchronization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 When the device gets out of sync and the stream reaches TCP sequence
 numbers more than a max size record past the expected TCP sequence number,
 the device starts scanning for a known header pattern. For example
@@ -297,6 +333,22 @@ periodic restart is not deemed necessary.
 Special care has to be taken if the confirmation request is passed
 asynchronously to the packet stream and record may get processed
 by the kernel before the confirmation request.
+
+Stack-driven resynchronization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The driver may also request the stack to perform resynchronization
+whenever it sees the records are no longer getting decrypted.
+If the connection is configured in this mode the stack automatically
+schedules resynchronization after it has received two completely encrypted
+records.
+
+The stack waits for the socket to drain and informs the device about
+the next expected record number and its TCP sequence number. If the
+records continue to be received fully encrypted stack retries the
+synchronization with an exponential back off (first after 2 encrypted
+records, then after 4 records, after 8, after 16... up until every
+128 records).
 
 Error handling
 ==============
@@ -379,7 +431,6 @@ by the driver:
    but did not arrive in the expected order
  * ``tx_tls_drop_no_sync_data`` - number of TX packets dropped because
    they arrived out of order and associated record could not be found
-   (see also :ref:`pre_tls_data`)
 
 Notable corner cases, exceptions and additional requirements
 ============================================================
@@ -462,21 +513,3 @@ Redirects leak clear text
 
 In the RX direction, if segment has already been decrypted by the device
 and it gets redirected or mirrored - clear text will be transmitted out.
-
-.. _pre_tls_data:
-
-Transmission of pre-TLS data
-----------------------------
-
-User can enqueue some already encrypted and framed records before enabling
-``ktls`` on the socket. Those records have to get sent as they are. This is
-perfectly easy to handle in the software case - such data will be waiting
-in the TCP layer, TLS ULP won't see it. In the offloaded case when pre-queued
-segment reaches transmission point it appears to be out of order (before the
-expected TCP sequence number) and the stack does not have a record information
-associated.
-
-All segments without record information cannot, however, be assumed to be
-pre-queued data, because a race condition exists between TCP stack queuing
-a retransmission, the driver seeing the retransmission and TCP ACK arriving
-for the retransmitted data.

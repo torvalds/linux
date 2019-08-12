@@ -33,15 +33,27 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <linux/export.h>
+#include <linux/pci.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
+
 #if defined(__ia64__)
 #include <linux/efi.h>
 #include <linux/slab.h>
 #endif
 #include <linux/mem_encrypt.h>
+
 #include <asm/pgtable.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 #include "drm_legacy.h"
 
@@ -62,7 +74,8 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 	/* We don't want graphics memory to be mapped encrypted */
 	tmp = pgprot_decrypted(tmp);
 
-#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__) || \
+    defined(__mips__)
 	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
 		tmp = pgprot_noncached(tmp);
 	else
@@ -73,7 +86,7 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
-#elif defined(__sparc__) || defined(__arm__) || defined(__mips__)
+#elif defined(__sparc__) || defined(__arm__)
 	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;

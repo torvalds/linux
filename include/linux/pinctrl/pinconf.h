@@ -11,7 +11,7 @@
 #ifndef __LINUX_PINCTRL_PINCONF_H
 #define __LINUX_PINCTRL_PINCONF_H
 
-#ifdef CONFIG_PINCONF
+#include <linux/types.h>
 
 struct pinctrl_dev;
 struct seq_file;
@@ -63,7 +63,5 @@ struct pinconf_ops {
 					    struct seq_file *s,
 					    unsigned long config);
 };
-
-#endif
 
 #endif /* __LINUX_PINCTRL_PINCONF_H */

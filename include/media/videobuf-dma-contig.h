@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * helper functions for physically contiguous capture buffers
  *
@@ -5,10 +6,6 @@
  * (i.e. the buffers must be linear in physical memory)
  *
  * Copyright (c) 2008 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
  */
 #ifndef _VIDEOBUF_DMA_CONTIG_H
 #define _VIDEOBUF_DMA_CONTIG_H

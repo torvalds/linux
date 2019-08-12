@@ -11,13 +11,20 @@
  */
 
 #include <linux/device.h>
-#include <linux/kdev_t.h>
-#include <linux/gfp.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/gfp.h>
+#include <linux/kdev_t.h>
+#include <linux/slab.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_print.h>
+#include <drm/drm_property.h>
 #include <drm/drm_sysfs.h>
-#include <drm/drmP.h>
+
 #include "drm_internal.h"
 
 #define to_drm_minor(d) dev_get_drvdata(d)
@@ -76,6 +83,7 @@ int drm_sysfs_init(void)
 	}
 
 	drm_class->devnode = drm_devnode;
+	drm_setup_hdcp_srm(drm_class);
 	return 0;
 }
 
@@ -88,6 +96,7 @@ void drm_sysfs_destroy(void)
 {
 	if (IS_ERR_OR_NULL(drm_class))
 		return;
+	drm_teardown_hdcp_srm(drm_class);
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 	drm_class = NULL;

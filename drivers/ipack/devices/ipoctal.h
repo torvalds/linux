@@ -15,7 +15,6 @@
 #define NR_CHANNELS		8
 #define IPOCTAL_MAX_BOARDS	16
 #define MAX_DEVICES		(NR_CHANNELS * IPOCTAL_MAX_BOARDS)
-#define RELEVANT_IFLAG(iflag) ((iflag) & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
 /**
  * struct ipoctal_stats -- Stats since last reset

@@ -7,7 +7,6 @@ obj-y				+= cache.o
 obj-y				+= context.o
 obj-y				+= extable.o
 obj-y				+= fault.o
-obj-y				+= gup.o
 obj-y				+= init.o
 obj-y				+= mmap.o
 obj-y				+= page.o

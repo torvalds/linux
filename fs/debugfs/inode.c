@@ -2,12 +2,15 @@
 /*
  *  inode.c - part of debugfs, a tiny little debug file system
  *
- *  Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
+ *  Copyright (C) 2004,2019 Greg Kroah-Hartman <greg@kroah.com>
  *  Copyright (C) 2004 IBM Inc.
+ *  Copyright (C) 2019 Linux Foundation <gregkh@linuxfoundation.org>
  *
  *  debugfs is for people to use instead of /proc or /sys.
  *  See ./Documentation/core-api/kernel-api.rst for more details.
  */
+
+#define pr_fmt(fmt)	"debugfs: " fmt
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -285,15 +288,17 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	struct dentry *dentry;
 	int error;
 
-	pr_debug("debugfs: creating file '%s'\n",name);
+	pr_debug("creating file '%s'\n", name);
 
 	if (IS_ERR(parent))
 		return parent;
 
 	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
 			      &debugfs_mount_count);
-	if (error)
+	if (error) {
+		pr_err("Unable to pin filesystem for file '%s'\n", name);
 		return ERR_PTR(error);
+	}
 
 	/* If the parent is not specified, we create it in the root.
 	 * We need the root dentry to do this, which is in the super
@@ -306,6 +311,12 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	inode_lock(d_inode(parent));
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry) && d_really_is_positive(dentry)) {
+		if (d_is_dir(dentry))
+			pr_err("Directory '%s' with parent '%s' already present!\n",
+			       name, parent->d_name.name);
+		else
+			pr_err("File '%s' in directory '%s' already present!\n",
+			       name, parent->d_name.name);
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
 	}
@@ -349,8 +360,11 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 		return dentry;
 
 	inode = debugfs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	if (unlikely(!inode)) {
+		pr_err("out of free dentries, can not create file '%s'\n",
+		       name);
 		return failed_creating(dentry);
+	}
 
 	inode->i_mode = mode;
 	inode->i_private = data;
@@ -511,8 +525,11 @@ struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 		return dentry;
 
 	inode = debugfs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	if (unlikely(!inode)) {
+		pr_err("out of free dentries, can not create directory '%s'\n",
+		       name);
 		return failed_creating(dentry);
+	}
 
 	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
 	inode->i_op = &simple_dir_inode_operations;
@@ -550,8 +567,11 @@ struct dentry *debugfs_create_automount(const char *name,
 		return dentry;
 
 	inode = debugfs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	if (unlikely(!inode)) {
+		pr_err("out of free dentries, can not create automount '%s'\n",
+		       name);
 		return failed_creating(dentry);
+	}
 
 	make_empty_dir_inode(inode);
 	inode->i_flags |= S_AUTOMOUNT;
@@ -606,6 +626,8 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 
 	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode)) {
+		pr_err("out of free dentries, can not create symlink '%s'\n",
+		       name);
 		kfree(link);
 		return failed_creating(dentry);
 	}
@@ -617,12 +639,9 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_symlink);
 
-static void __debugfs_remove_file(struct dentry *dentry, struct dentry *parent)
+static void __debugfs_file_removed(struct dentry *dentry)
 {
 	struct debugfs_fsdata *fsd;
-
-	simple_unlink(d_inode(parent), dentry);
-	d_delete(dentry);
 
 	/*
 	 * Paired with the closing smp_mb() implied by a successful
@@ -644,16 +663,18 @@ static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 
 	if (simple_positive(dentry)) {
 		dget(dentry);
-		if (!d_is_reg(dentry)) {
-			if (d_is_dir(dentry))
-				ret = simple_rmdir(d_inode(parent), dentry);
-			else
-				simple_unlink(d_inode(parent), dentry);
+		if (d_is_dir(dentry)) {
+			ret = simple_rmdir(d_inode(parent), dentry);
 			if (!ret)
-				d_delete(dentry);
+				fsnotify_rmdir(d_inode(parent), dentry);
 		} else {
-			__debugfs_remove_file(dentry, parent);
+			simple_unlink(d_inode(parent), dentry);
+			fsnotify_unlink(d_inode(parent), dentry);
 		}
+		if (!ret)
+			d_delete(dentry);
+		if (d_is_reg(dentry))
+			__debugfs_file_removed(dentry);
 		dput(dentry);
 	}
 	return ret;

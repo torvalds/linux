@@ -244,7 +244,7 @@ produce the name:
 Adding the ".litmus" suffix: SB+rfionceonce-poonceonces.litmus
 
 The descriptors that describe connections between consecutive accesses
-within the cycle through a given litmus test can be provided by the herd
+within the cycle through a given litmus test can be provided by the herd7
 tool (Rfi, Po, Fre, and so on) or by the linux-kernel.bell file (Once,
 Release, Acquire, and so on).
 

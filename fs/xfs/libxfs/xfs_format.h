@@ -1071,7 +1071,7 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 #define	XFS_INO_MASK(k)			(uint32_t)((1ULL << (k)) - 1)
 #define	XFS_INO_OFFSET_BITS(mp)		(mp)->m_sb.sb_inopblog
 #define	XFS_INO_AGBNO_BITS(mp)		(mp)->m_sb.sb_agblklog
-#define	XFS_INO_AGINO_BITS(mp)		(mp)->m_agino_log
+#define	XFS_INO_AGINO_BITS(mp)		((mp)->m_ino_geo.agino_log)
 #define	XFS_INO_AGNO_BITS(mp)		(mp)->m_agno_log
 #define	XFS_INO_BITS(mp)		\
 	XFS_INO_AGNO_BITS(mp) + XFS_INO_AGINO_BITS(mp)

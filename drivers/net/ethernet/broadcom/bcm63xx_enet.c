@@ -2659,7 +2659,6 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
-	memset(priv, 0, sizeof(*priv));
 
 	/* initialize default and fetch platform data */
 	priv->enet_is_sw = true;

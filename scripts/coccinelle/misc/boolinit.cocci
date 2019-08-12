@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Bool initializations should use true and false.  Bool tests don't need
 /// comparisons.  Based on contributions from Joe Perches, Rusty Russell
 /// and Bruce W Allan.
 ///
 // Confidence: High
-// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.  GPLv2.
+// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Options: --include-headers
 

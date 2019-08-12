@@ -64,7 +64,7 @@ static struct resource *get_pci_domain_busn_res(int domain_nr)
 	return &r->res;
 }
 
-static int find_anything(struct device *dev, void *data)
+static int find_anything(struct device *dev, const void *data)
 {
 	return 1;
 }
@@ -668,7 +668,7 @@ const unsigned char pcie_link_speed[] = {
 	PCIE_SPEED_5_0GT,		/* 2 */
 	PCIE_SPEED_8_0GT,		/* 3 */
 	PCIE_SPEED_16_0GT,		/* 4 */
-	PCI_SPEED_UNKNOWN,		/* 5 */
+	PCIE_SPEED_32_0GT,		/* 5 */
 	PCI_SPEED_UNKNOWN,		/* 6 */
 	PCI_SPEED_UNKNOWN,		/* 7 */
 	PCI_SPEED_UNKNOWN,		/* 8 */
@@ -1555,17 +1555,6 @@ static int pci_cfg_space_size_ext(struct pci_dev *dev)
 	return PCI_CFG_SPACE_EXP_SIZE;
 }
 
-#ifdef CONFIG_PCI_IOV
-static bool is_vf0(struct pci_dev *dev)
-{
-	if (pci_iov_virtfn_devfn(dev->physfn, 0) == dev->devfn &&
-	    pci_iov_virtfn_bus(dev->physfn, 0) == dev->bus->number)
-		return true;
-
-	return false;
-}
-#endif
-
 int pci_cfg_space_size(struct pci_dev *dev)
 {
 	int pos;
@@ -1573,9 +1562,18 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	u16 class;
 
 #ifdef CONFIG_PCI_IOV
-	/* Read cached value for all VFs except for VF0 */
-	if (dev->is_virtfn && !is_vf0(dev))
-		return dev->physfn->sriov->cfg_size;
+	/*
+	 * Per the SR-IOV specification (rev 1.1, sec 3.5), VFs are required to
+	 * implement a PCIe capability and therefore must implement extended
+	 * config space.  We can skip the NO_EXTCFG test below and the
+	 * reachability/aliasing test in pci_cfg_space_size_ext() by virtue of
+	 * the fact that the SR-IOV capability on the PF resides in extended
+	 * config space and must be accessible and non-aliased to have enabled
+	 * support for this VF.  This is a micro performance optimization for
+	 * systems supporting many VFs.
+	 */
+	if (dev->is_virtfn)
+		return PCI_CFG_SPACE_EXP_SIZE;
 #endif
 
 	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_EXTCFG)

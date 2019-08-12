@@ -15,10 +15,8 @@
 #include "panfrost_features.h"
 #include "panfrost_issues.h"
 #include "panfrost_gpu.h"
+#include "panfrost_perfcnt.h"
 #include "panfrost_regs.h"
-
-#define gpu_write(dev, reg, data) writel(data, dev->iomem + reg)
-#define gpu_read(dev, reg) readl(dev->iomem + reg)
 
 static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 {
@@ -42,6 +40,12 @@ static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 
 		gpu_write(pfdev, GPU_INT_MASK, 0);
 	}
+
+	if (state & GPU_IRQ_PERFCNT_SAMPLE_COMPLETED)
+		panfrost_perfcnt_sample_done(pfdev);
+
+	if (state & GPU_IRQ_CLEAN_CACHES_COMPLETED)
+		panfrost_perfcnt_clean_cache_done(pfdev);
 
 	gpu_write(pfdev, GPU_INT_CLEAR, state);
 

@@ -3,7 +3,6 @@
  * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
-#include "efa.h"
 #include "efa_com.h"
 #include "efa_com_cmd.h"
 
@@ -57,7 +56,7 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	res->send_sub_cq_idx = cmd_completion.send_sub_cq_idx;
 	res->recv_sub_cq_idx = cmd_completion.recv_sub_cq_idx;
 
-	return err;
+	return 0;
 }
 
 int efa_com_modify_qp(struct efa_com_dev *edev,
@@ -139,9 +138,11 @@ int efa_com_destroy_qp(struct efa_com_dev *edev,
 			       sizeof(qp_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
-	if (err)
+	if (err) {
 		ibdev_err(edev->efa_dev, "Failed to destroy qp-%u [%d]\n",
 			  qp_cmd.qp_handle, err);
+		return err;
+	}
 
 	return 0;
 }
@@ -179,7 +180,7 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	result->cq_idx = cmd_completion.cq_idx;
 	result->actual_depth = params->cq_depth;
 
-	return err;
+	return 0;
 }
 
 int efa_com_destroy_cq(struct efa_com_dev *edev,
@@ -199,9 +200,11 @@ int efa_com_destroy_cq(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&destroy_resp,
 			       sizeof(destroy_resp));
 
-	if (err)
+	if (err) {
 		ibdev_err(edev->efa_dev, "Failed to destroy CQ-%u [%d]\n",
 			  params->cq_idx, err);
+		return err;
+	}
 
 	return 0;
 }
@@ -273,10 +276,12 @@ int efa_com_dereg_mr(struct efa_com_dev *edev,
 			       sizeof(mr_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
-	if (err)
+	if (err) {
 		ibdev_err(edev->efa_dev,
 			  "Failed to de-register mr(lkey-%u) [%d]\n",
 			  mr_cmd.l_key, err);
+		return err;
+	}
 
 	return 0;
 }
@@ -301,7 +306,8 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
-		ibdev_err(edev->efa_dev, "Failed to create ah [%d]\n", err);
+		ibdev_err(edev->efa_dev, "Failed to create ah for %pI6 [%d]\n",
+			  ah_cmd.dest_addr, err);
 		return err;
 	}
 
@@ -327,9 +333,11 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 			       sizeof(ah_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
-	if (err)
+	if (err) {
 		ibdev_err(edev->efa_dev, "Failed to destroy ah-%d pd-%d [%d]\n",
 			  ah_cmd.ah, ah_cmd.pd, err);
+		return err;
+	}
 
 	return 0;
 }
@@ -387,10 +395,12 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 			       get_resp,
 			       sizeof(*get_resp));
 
-	if (err)
+	if (err) {
 		ibdev_err(edev->efa_dev,
 			  "Failed to submit get_feature command %d [%d]\n",
 			  feature_id, err);
+		return err;
+	}
 
 	return 0;
 }
@@ -534,10 +544,12 @@ static int efa_com_set_feature_ex(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)set_resp,
 			       sizeof(*set_resp));
 
-	if (err)
+	if (err) {
 		ibdev_err(edev->efa_dev,
 			  "Failed to submit set_feature command %d error: %d\n",
 			  feature_id, err);
+		return err;
+	}
 
 	return 0;
 }

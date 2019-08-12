@@ -58,10 +58,10 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	int ret = 0;
-	int ret1;
 	size_t size;
 	unsigned int bytes_per_pixel;
-	struct hibmc_bo *bo = NULL;
+	struct drm_gem_vram_object *gbo = NULL;
+	void *base;
 
 	DRM_DEBUG_DRIVER("surface width(%d), height(%d) and bpp(%d)\n",
 			 sizes->surface_width, sizes->surface_height,
@@ -83,26 +83,20 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 		return -ENOMEM;
 	}
 
-	bo = gem_to_hibmc_bo(gobj);
+	gbo = drm_gem_vram_of_gem(gobj);
 
-	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
+	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret) {
-		DRM_ERROR("failed to reserve ttm_bo: %d\n", ret);
+		DRM_ERROR("failed to pin fbcon: %d\n", ret);
 		goto out_unref_gem;
 	}
 
-	ret = hibmc_bo_pin(bo, TTM_PL_FLAG_VRAM, NULL);
-	if (ret) {
-		DRM_ERROR("failed to pin fbcon: %d\n", ret);
-		goto out_unreserve_ttm_bo;
-	}
-
-	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
-	if (ret) {
+	base = drm_gem_vram_kmap(gbo, true, NULL);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
 		DRM_ERROR("failed to kmap fbcon: %d\n", ret);
 		goto out_unpin_bo;
 	}
-	ttm_bo_unreserve(&bo->bo);
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -126,24 +120,17 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(info, &priv->fbdev->helper, sizes);
 
-	info->screen_base = bo->kmap.virtual;
+	info->screen_base = base;
 	info->screen_size = size;
 
-	info->fix.smem_start = bo->bo.mem.bus.offset + bo->bo.mem.bus.base;
+	info->fix.smem_start = gbo->bo.mem.bus.offset + gbo->bo.mem.bus.base;
 	info->fix.smem_len = size;
 	return 0;
 
 out_release_fbi:
-	ret1 = ttm_bo_reserve(&bo->bo, true, false, NULL);
-	if (ret1) {
-		DRM_ERROR("failed to rsv ttm_bo when release fbi: %d\n", ret1);
-		goto out_unref_gem;
-	}
-	ttm_bo_kunmap(&bo->kmap);
+	drm_gem_vram_kunmap(gbo);
 out_unpin_bo:
-	hibmc_bo_unpin(bo);
-out_unreserve_ttm_bo:
-	ttm_bo_unreserve(&bo->bo);
+	drm_gem_vram_unpin(gbo);
 out_unref_gem:
 	drm_gem_object_put_unlocked(gobj);
 

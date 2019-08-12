@@ -1388,7 +1388,7 @@ static int pxa_buffer_init(struct pxa_camera_dev *pcdev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 	buf->nb_planes = nb_channels;
 
 	ret = sg_split(sgt->sgl, sgt->nents, 0, nb_channels,

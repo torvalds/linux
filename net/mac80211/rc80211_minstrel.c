@@ -340,10 +340,6 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	int delta;
 	int sampling_ratio;
 
-	/* management/no-ack frames do not use rate control */
-	if (rate_control_send_low(sta, priv_sta, txrc))
-		return;
-
 	/* check multi-rate-retry capabilities & adjust lookaround_rate */
 	mrr_capable = mp->has_mrr &&
 		      !txrc->rts &&

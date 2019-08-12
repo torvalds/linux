@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An SPI driver for the Philips PCF2123 RTC
  * Copyright 2009 Cyber Switching, Inc.
@@ -9,10 +10,6 @@
  *
  * Thanks to Christian Pellegrin <chripell@fsfe.org> for
  * the sysfs contributions to this driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Please note that the CS is active high, so platform data
  * should look something like:
@@ -29,7 +26,6 @@
  *	},
  *	...
  *};
- *
  */
 
 #include <linux/bcd.h>
@@ -44,7 +40,7 @@
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
-#include <linux/sysfs.h>
+#include <linux/regmap.h>
 
 /* REGISTERS */
 #define PCF2123_REG_CTRL1	(0x00)	/* Control Register 1 */
@@ -99,6 +95,7 @@
 #define OFFSET_SIGN_BIT		6	/* 2's complement sign bit */
 #define OFFSET_COARSE		BIT(7)	/* Coarse mode offset */
 #define OFFSET_STEP		(2170)	/* Offset step in parts per billion */
+#define OFFSET_MASK		GENMASK(6, 0)	/* Offset value */
 
 /* READ/WRITE ADDRESS BITS */
 #define PCF2123_WRITE		BIT(4)
@@ -107,120 +104,35 @@
 
 static struct spi_driver pcf2123_driver;
 
-struct pcf2123_sysfs_reg {
-	struct device_attribute attr;
-	char name[2];
-};
-
 struct pcf2123_plat_data {
 	struct rtc_device *rtc;
-	struct pcf2123_sysfs_reg regs[16];
+	struct regmap *map;
 };
 
-/*
- * Causes a 30 nanosecond delay to ensure that the PCF2123 chip select
- * is released properly after an SPI write.  This function should be
- * called after EVERY read/write call over SPI.
- */
-static inline void pcf2123_delay_trec(void)
-{
-	ndelay(30);
-}
-
-static int pcf2123_read(struct device *dev, u8 reg, u8 *rxbuf, size_t size)
-{
-	struct spi_device *spi = to_spi_device(dev);
-	int ret;
-
-	reg |= PCF2123_READ;
-	ret = spi_write_then_read(spi, &reg, 1, rxbuf, size);
-	pcf2123_delay_trec();
-
-	return ret;
-}
-
-static int pcf2123_write(struct device *dev, u8 *txbuf, size_t size)
-{
-	struct spi_device *spi = to_spi_device(dev);
-	int ret;
-
-	txbuf[0] |= PCF2123_WRITE;
-	ret = spi_write(spi, txbuf, size);
-	pcf2123_delay_trec();
-
-	return ret;
-}
-
-static int pcf2123_write_reg(struct device *dev, u8 reg, u8 val)
-{
-	u8 txbuf[2];
-
-	txbuf[0] = reg;
-	txbuf[1] = val;
-	return pcf2123_write(dev, txbuf, sizeof(txbuf));
-}
-
-static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
-			    char *buffer)
-{
-	struct pcf2123_sysfs_reg *r;
-	u8 rxbuf[1];
-	unsigned long reg;
-	int ret;
-
-	r = container_of(attr, struct pcf2123_sysfs_reg, attr);
-
-	ret = kstrtoul(r->name, 16, &reg);
-	if (ret)
-		return ret;
-
-	ret = pcf2123_read(dev, reg, rxbuf, 1);
-	if (ret < 0)
-		return -EIO;
-
-	return sprintf(buffer, "0x%x\n", rxbuf[0]);
-}
-
-static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
-			     const char *buffer, size_t count)
-{
-	struct pcf2123_sysfs_reg *r;
-	unsigned long reg;
-	unsigned long val;
-
-	int ret;
-
-	r = container_of(attr, struct pcf2123_sysfs_reg, attr);
-
-	ret = kstrtoul(r->name, 16, &reg);
-	if (ret)
-		return ret;
-
-	ret = kstrtoul(buffer, 10, &val);
-	if (ret)
-		return ret;
-
-	ret = pcf2123_write_reg(dev, reg, val);
-	if (ret < 0)
-		return -EIO;
-	return count;
-}
+static const struct regmap_config pcf2123_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.read_flag_mask = PCF2123_READ,
+	.write_flag_mask = PCF2123_WRITE,
+	.max_register = PCF2123_REG_CTDWN_TMR,
+};
 
 static int pcf2123_read_offset(struct device *dev, long *offset)
 {
-	int ret;
-	s8 reg;
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	int ret, val;
+	unsigned int reg;
 
-	ret = pcf2123_read(dev, PCF2123_REG_OFFSET, &reg, 1);
-	if (ret < 0)
+	ret = regmap_read(pdata->map, PCF2123_REG_OFFSET, &reg);
+	if (ret)
 		return ret;
 
-	if (reg & OFFSET_COARSE)
-		reg <<= 1; /* multiply by 2 and sign extend */
-	else
-		reg = sign_extend32(reg, OFFSET_SIGN_BIT);
+	val = sign_extend32((reg & OFFSET_MASK), OFFSET_SIGN_BIT);
 
-	*offset = ((long)reg) * OFFSET_STEP;
+	if (reg & OFFSET_COARSE)
+		val *= 2;
+
+	*offset = ((long)val) * OFFSET_STEP;
 
 	return 0;
 }
@@ -237,6 +149,7 @@ static int pcf2123_read_offset(struct device *dev, long *offset)
  */
 static int pcf2123_set_offset(struct device *dev, long offset)
 {
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
 	s8 reg;
 
 	if (offset > OFFSET_STEP * 127)
@@ -244,7 +157,7 @@ static int pcf2123_set_offset(struct device *dev, long offset)
 	else if (offset < OFFSET_STEP * -128)
 		reg = -128;
 	else
-		reg = (s8)((offset + (OFFSET_STEP >> 1)) / OFFSET_STEP);
+		reg = DIV_ROUND_CLOSEST(offset, OFFSET_STEP);
 
 	/* choose fine offset only for odd values in the normal range */
 	if (reg & 1 && reg <= 63 && reg >= -64) {
@@ -256,16 +169,18 @@ static int pcf2123_set_offset(struct device *dev, long offset)
 		reg |= OFFSET_COARSE;
 	}
 
-	return pcf2123_write_reg(dev, PCF2123_REG_OFFSET, reg);
+	return regmap_write(pdata->map, PCF2123_REG_OFFSET, (unsigned int)reg);
 }
 
 static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
 	u8 rxbuf[7];
 	int ret;
 
-	ret = pcf2123_read(dev, PCF2123_REG_SC, rxbuf, sizeof(rxbuf));
-	if (ret < 0)
+	ret = regmap_bulk_read(pdata->map, PCF2123_REG_SC, rxbuf,
+				sizeof(rxbuf));
+	if (ret)
 		return ret;
 
 	if (rxbuf[0] & OSC_HAS_STOPPED) {
@@ -283,82 +198,168 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;	/* assume we are in 1970...2069 */
 
-	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
-			"mday=%d, mon=%d, year=%d, wday=%d\n",
-			__func__,
-			tm->tm_sec, tm->tm_min, tm->tm_hour,
-			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(dev, "%s: tm is %ptR\n", __func__, tm);
 
 	return 0;
 }
 
 static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	u8 txbuf[8];
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	u8 txbuf[7];
 	int ret;
 
-	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
-			"mday=%d, mon=%d, year=%d, wday=%d\n",
-			__func__,
-			tm->tm_sec, tm->tm_min, tm->tm_hour,
-			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(dev, "%s: tm is %ptR\n", __func__, tm);
 
 	/* Stop the counter first */
-	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_STOP);
-	if (ret < 0)
+	ret = regmap_write(pdata->map, PCF2123_REG_CTRL1, CTRL1_STOP);
+	if (ret)
 		return ret;
 
 	/* Set the new time */
-	txbuf[0] = PCF2123_REG_SC;
-	txbuf[1] = bin2bcd(tm->tm_sec & 0x7F);
-	txbuf[2] = bin2bcd(tm->tm_min & 0x7F);
-	txbuf[3] = bin2bcd(tm->tm_hour & 0x3F);
-	txbuf[4] = bin2bcd(tm->tm_mday & 0x3F);
-	txbuf[5] = tm->tm_wday & 0x07;
-	txbuf[6] = bin2bcd((tm->tm_mon + 1) & 0x1F); /* rtc mn 1-12 */
-	txbuf[7] = bin2bcd(tm->tm_year < 100 ? tm->tm_year : tm->tm_year - 100);
+	txbuf[0] = bin2bcd(tm->tm_sec & 0x7F);
+	txbuf[1] = bin2bcd(tm->tm_min & 0x7F);
+	txbuf[2] = bin2bcd(tm->tm_hour & 0x3F);
+	txbuf[3] = bin2bcd(tm->tm_mday & 0x3F);
+	txbuf[4] = tm->tm_wday & 0x07;
+	txbuf[5] = bin2bcd((tm->tm_mon + 1) & 0x1F); /* rtc mn 1-12 */
+	txbuf[6] = bin2bcd(tm->tm_year < 100 ? tm->tm_year : tm->tm_year - 100);
 
-	ret = pcf2123_write(dev, txbuf, sizeof(txbuf));
-	if (ret < 0)
+	ret = regmap_bulk_write(pdata->map, PCF2123_REG_SC, txbuf,
+				sizeof(txbuf));
+	if (ret)
 		return ret;
 
 	/* Start the counter */
-	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
-	if (ret < 0)
+	ret = regmap_write(pdata->map, PCF2123_REG_CTRL1, CTRL1_CLEAR);
+	if (ret)
 		return ret;
 
 	return 0;
 }
 
+static int pcf2123_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	u8 rxbuf[4];
+	int ret;
+	unsigned int val = 0;
+
+	ret = regmap_bulk_read(pdata->map, PCF2123_REG_ALRM_MN, rxbuf,
+				sizeof(rxbuf));
+	if (ret)
+		return ret;
+
+	alm->time.tm_min = bcd2bin(rxbuf[0] & 0x7F);
+	alm->time.tm_hour = bcd2bin(rxbuf[1] & 0x3F);
+	alm->time.tm_mday = bcd2bin(rxbuf[2] & 0x3F);
+	alm->time.tm_wday = bcd2bin(rxbuf[3] & 0x07);
+
+	dev_dbg(dev, "%s: alm is %ptR\n", __func__, &alm->time);
+
+	ret = regmap_read(pdata->map, PCF2123_REG_CTRL2, &val);
+	if (ret)
+		return ret;
+
+	alm->enabled = !!(val & CTRL2_AIE);
+
+	return 0;
+}
+
+static int pcf2123_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	u8 txbuf[4];
+	int ret;
+
+	dev_dbg(dev, "%s: alm is %ptR\n", __func__, &alm->time);
+
+	/* Ensure alarm flag is clear */
+	ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AF, 0);
+	if (ret)
+		return ret;
+
+	/* Disable alarm interrupt */
+	ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AIE, 0);
+	if (ret)
+		return ret;
+
+	/* Set new alarm */
+	txbuf[0] = bin2bcd(alm->time.tm_min & 0x7F);
+	txbuf[1] = bin2bcd(alm->time.tm_hour & 0x3F);
+	txbuf[2] = bin2bcd(alm->time.tm_mday & 0x3F);
+	txbuf[3] = bin2bcd(alm->time.tm_wday & 0x07);
+
+	ret = regmap_bulk_write(pdata->map, PCF2123_REG_ALRM_MN, txbuf,
+				sizeof(txbuf));
+	if (ret)
+		return ret;
+
+	/* Enable alarm interrupt */
+	if (alm->enabled)	{
+		ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2,
+						CTRL2_AIE, CTRL2_AIE);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct mutex *lock = &pdata->rtc->ops_lock;
+	unsigned int val = 0;
+	int ret = IRQ_NONE;
+
+	mutex_lock(lock);
+	regmap_read(pdata->map, PCF2123_REG_CTRL2, &val);
+
+	/* Alarm? */
+	if (val & CTRL2_AF) {
+		ret = IRQ_HANDLED;
+
+		/* Clear alarm flag */
+		regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AF, 0);
+
+		rtc_update_irq(pdata->rtc, 1, RTC_IRQF | RTC_AF);
+	}
+
+	mutex_unlock(lock);
+
+	return ret;
+}
+
 static int pcf2123_reset(struct device *dev)
 {
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
 	int ret;
-	u8  rxbuf[2];
+	unsigned int val = 0;
 
-	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_SW_RESET);
-	if (ret < 0)
+	ret = regmap_write(pdata->map, PCF2123_REG_CTRL1, CTRL1_SW_RESET);
+	if (ret)
 		return ret;
 
 	/* Stop the counter */
 	dev_dbg(dev, "stopping RTC\n");
-	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_STOP);
-	if (ret < 0)
+	ret = regmap_write(pdata->map, PCF2123_REG_CTRL1, CTRL1_STOP);
+	if (ret)
 		return ret;
 
 	/* See if the counter was actually stopped */
 	dev_dbg(dev, "checking for presence of RTC\n");
-	ret = pcf2123_read(dev, PCF2123_REG_CTRL1, rxbuf, sizeof(rxbuf));
-	if (ret < 0)
+	ret = regmap_read(pdata->map, PCF2123_REG_CTRL1, &val);
+	if (ret)
 		return ret;
 
-	dev_dbg(dev, "received data from RTC (0x%02X 0x%02X)\n",
-		rxbuf[0], rxbuf[1]);
-	if (!(rxbuf[0] & CTRL1_STOP))
+	dev_dbg(dev, "received data from RTC (0x%08X)\n", val);
+	if (!(val & CTRL1_STOP))
 		return -ENODEV;
 
 	/* Start the counter */
-	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
-	if (ret < 0)
+	ret = regmap_write(pdata->map, PCF2123_REG_CTRL1, CTRL1_CLEAR);
+	if (ret)
 		return ret;
 
 	return 0;
@@ -369,7 +370,8 @@ static const struct rtc_class_ops pcf2123_rtc_ops = {
 	.set_time	= pcf2123_rtc_set_time,
 	.read_offset	= pcf2123_read_offset,
 	.set_offset	= pcf2123_set_offset,
-
+	.read_alarm	= pcf2123_rtc_read_alarm,
+	.set_alarm	= pcf2123_rtc_set_alarm,
 };
 
 static int pcf2123_probe(struct spi_device *spi)
@@ -377,13 +379,20 @@ static int pcf2123_probe(struct spi_device *spi)
 	struct rtc_device *rtc;
 	struct rtc_time tm;
 	struct pcf2123_plat_data *pdata;
-	int ret, i;
+	int ret = 0;
 
 	pdata = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_plat_data),
 				GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 	spi->dev.platform_data = pdata;
+
+	pdata->map = devm_regmap_init_spi(spi, &pcf2123_regmap_config);
+
+	if (IS_ERR(pdata->map)) {
+		dev_err(&spi->dev, "regmap init failed.\n");
+		goto kfree_exit;
+	}
 
 	ret = pcf2123_rtc_read_time(&spi->dev, &tm);
 	if (ret < 0) {
@@ -409,45 +418,29 @@ static int pcf2123_probe(struct spi_device *spi)
 
 	pdata->rtc = rtc;
 
-	for (i = 0; i < 16; i++) {
-		sysfs_attr_init(&pdata->regs[i].attr.attr);
-		sprintf(pdata->regs[i].name, "%1x", i);
-		pdata->regs[i].attr.attr.mode = S_IRUGO | S_IWUSR;
-		pdata->regs[i].attr.attr.name = pdata->regs[i].name;
-		pdata->regs[i].attr.show = pcf2123_show;
-		pdata->regs[i].attr.store = pcf2123_store;
-		ret = device_create_file(&spi->dev, &pdata->regs[i].attr);
-		if (ret) {
-			dev_err(&spi->dev, "Unable to create sysfs %s\n",
-				pdata->regs[i].name);
-			goto sysfs_exit;
-		}
+	/* Register alarm irq */
+	if (spi->irq > 0) {
+		ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
+				pcf2123_rtc_irq,
+				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				pcf2123_driver.driver.name, &spi->dev);
+		if (!ret)
+			device_init_wakeup(&spi->dev, true);
+		else
+			dev_err(&spi->dev, "could not request irq.\n");
 	}
 
-	return 0;
+	/* The PCF2123's alarm only has minute accuracy. Must add timer
+	 * support to this driver to generate interrupts more than once
+	 * per minute.
+	 */
+	pdata->rtc->uie_unsupported = 1;
 
-sysfs_exit:
-	for (i--; i >= 0; i--)
-		device_remove_file(&spi->dev, &pdata->regs[i].attr);
+	return 0;
 
 kfree_exit:
 	spi->dev.platform_data = NULL;
 	return ret;
-}
-
-static int pcf2123_remove(struct spi_device *spi)
-{
-	struct pcf2123_plat_data *pdata = dev_get_platdata(&spi->dev);
-	int i;
-
-	if (pdata) {
-		for (i = 0; i < 16; i++)
-			if (pdata->regs[i].name[0])
-				device_remove_file(&spi->dev,
-						   &pdata->regs[i].attr);
-	}
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -465,7 +458,6 @@ static struct spi_driver pcf2123_driver = {
 			.of_match_table = of_match_ptr(pcf2123_dt_ids),
 	},
 	.probe	= pcf2123_probe,
-	.remove	= pcf2123_remove,
 };
 
 module_spi_driver(pcf2123_driver);

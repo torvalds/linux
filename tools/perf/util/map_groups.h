@@ -88,4 +88,6 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map, FILE 
 
 struct map *map_groups__find_by_name(struct map_groups *mg, const char *name);
 
+int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map);
+
 #endif // __PERF_MAP_GROUPS_H

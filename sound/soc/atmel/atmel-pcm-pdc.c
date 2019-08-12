@@ -393,11 +393,6 @@ int atmel_pcm_pdc_platform_register(struct device *dev)
 }
 EXPORT_SYMBOL(atmel_pcm_pdc_platform_register);
 
-void atmel_pcm_pdc_platform_unregister(struct device *dev)
-{
-}
-EXPORT_SYMBOL(atmel_pcm_pdc_platform_unregister);
-
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");
 MODULE_LICENSE("GPL");

@@ -101,6 +101,7 @@ probe_load(enum bpf_prog_type prog_type, const struct bpf_insn *insns,
 	case BPF_PROG_TYPE_SK_REUSEPORT:
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 	default:
 		break;
 	}
@@ -133,8 +134,8 @@ bool bpf_probe_prog_type(enum bpf_prog_type prog_type, __u32 ifindex)
 	return errno != EINVAL && errno != EOPNOTSUPP;
 }
 
-int libbpf__probe_raw_btf(const char *raw_types, size_t types_len,
-			  const char *str_sec, size_t str_len)
+int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
+			 const char *str_sec, size_t str_len)
 {
 	struct btf_header hdr = {
 		.magic = BTF_MAGIC,
@@ -157,14 +158,9 @@ int libbpf__probe_raw_btf(const char *raw_types, size_t types_len,
 	memcpy(raw_btf + hdr.hdr_len + hdr.type_len, str_sec, hdr.str_len);
 
 	btf_fd = bpf_load_btf(raw_btf, btf_len, NULL, 0, false);
-	if (btf_fd < 0) {
-		free(raw_btf);
-		return 0;
-	}
 
-	close(btf_fd);
 	free(raw_btf);
-	return 1;
+	return btf_fd;
 }
 
 static int load_sk_storage_btf(void)
@@ -190,7 +186,7 @@ static int load_sk_storage_btf(void)
 		BTF_MEMBER_ENC(23, 2, 32),/* struct bpf_spin_lock l; */
 	};
 
-	return libbpf__probe_raw_btf((char *)types, sizeof(types),
+	return libbpf__load_raw_btf((char *)types, sizeof(types),
 				     strs, sizeof(strs));
 }
 

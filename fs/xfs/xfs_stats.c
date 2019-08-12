@@ -4,7 +4,6 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
-#include <linux/proc_fs.h>
 
 struct xstats xfsstats;
 

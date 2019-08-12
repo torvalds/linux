@@ -24,9 +24,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/list.h>
+#include <linux/zalloc.h>
 
 #include "../perf.h"
-#include "util.h"
 #include "evlist.h"
 #include "dso.h"
 #include "map.h"
@@ -51,7 +51,7 @@
 #include "arm-spe.h"
 #include "s390-cpumsf.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include "symbol/kallsyms.h"
 
 static bool auxtrace__dont_decode(struct perf_session *session)
@@ -408,7 +408,7 @@ void auxtrace_queues__free(struct auxtrace_queues *queues)
 
 			buffer = list_entry(queues->queue_array[i].head.next,
 					    struct auxtrace_buffer, list);
-			list_del(&buffer->list);
+			list_del_init(&buffer->list);
 			auxtrace_buffer__free(buffer);
 		}
 	}
@@ -612,7 +612,7 @@ void auxtrace_index__free(struct list_head *head)
 	struct auxtrace_index *auxtrace_index, *n;
 
 	list_for_each_entry_safe(auxtrace_index, n, head, list) {
-		list_del(&auxtrace_index->list);
+		list_del_init(&auxtrace_index->list);
 		free(auxtrace_index);
 	}
 }
@@ -1001,7 +1001,8 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 	}
 
 	if (!str) {
-		itrace_synth_opts__set_default(synth_opts, false);
+		itrace_synth_opts__set_default(synth_opts,
+					       synth_opts->default_no_sample);
 		return 0;
 	}
 
@@ -1412,7 +1413,7 @@ void auxtrace_cache__free(struct auxtrace_cache *c)
 		return;
 
 	auxtrace_cache__drop(c);
-	free(c->hashtable);
+	zfree(&c->hashtable);
 	free(c);
 }
 
@@ -1458,12 +1459,11 @@ void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key)
 
 static void addr_filter__free_str(struct addr_filter *filt)
 {
-	free(filt->str);
+	zfree(&filt->str);
 	filt->action   = NULL;
 	filt->sym_from = NULL;
 	filt->sym_to   = NULL;
 	filt->filename = NULL;
-	filt->str      = NULL;
 }
 
 static struct addr_filter *addr_filter__new(void)

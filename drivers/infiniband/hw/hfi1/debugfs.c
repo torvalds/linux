@@ -987,9 +987,6 @@ static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	struct hfi1_pportdata *ppd;
 	int ret;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
-
 	ppd = private2ppd(fp);
 
 	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
@@ -1155,6 +1152,7 @@ static int exprom_wp_debugfs_release(struct inode *in, struct file *fp)
 { \
 	.name = nm, \
 	.ops = { \
+		.owner = THIS_MODULE, \
 		.read = readroutine, \
 		.write = writeroutine, \
 		.llseek = generic_file_llseek, \
@@ -1165,6 +1163,7 @@ static int exprom_wp_debugfs_release(struct inode *in, struct file *fp)
 { \
 	.name = nm, \
 	.ops = { \
+		.owner = THIS_MODULE, \
 		.read = readf, \
 		.write = writef, \
 		.llseek = generic_file_llseek, \

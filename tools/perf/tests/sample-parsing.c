@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

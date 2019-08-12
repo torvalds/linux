@@ -111,15 +111,10 @@ static const struct snd_dmaengine_pcm_config atmel_dmaengine_pcm_config = {
 
 int atmel_pcm_dma_platform_register(struct device *dev)
 {
-	return snd_dmaengine_pcm_register(dev, &atmel_dmaengine_pcm_config, 0);
+	return devm_snd_dmaengine_pcm_register(dev,
+					&atmel_dmaengine_pcm_config, 0);
 }
 EXPORT_SYMBOL(atmel_pcm_dma_platform_register);
-
-void atmel_pcm_dma_platform_unregister(struct device *dev)
-{
-	snd_dmaengine_pcm_unregister(dev);
-}
-EXPORT_SYMBOL(atmel_pcm_dma_platform_unregister);
 
 MODULE_AUTHOR("Bo Shen <voice.shen@atmel.com>");
 MODULE_DESCRIPTION("Atmel DMA based PCM module");

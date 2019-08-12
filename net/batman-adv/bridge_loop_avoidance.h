@@ -10,13 +10,12 @@
 #include "main.h"
 
 #include <linux/compiler.h>
+#include <linux/netdevice.h>
+#include <linux/netlink.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
-
-struct net_device;
-struct netlink_callback;
-struct seq_file;
-struct sk_buff;
 
 /**
  * batadv_bla_is_loopdetect_mac() - check if the mac address is from a loop

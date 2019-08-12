@@ -79,9 +79,11 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 
 /* DPRC command versioning */
 #define DPRC_CMD_BASE_VERSION			1
+#define DPRC_CMD_2ND_VERSION			2
 #define DPRC_CMD_ID_OFFSET			4
 
 #define DPRC_CMD(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_BASE_VERSION)
+#define DPRC_CMD_V2(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_2ND_VERSION)
 
 /* DPRC command IDs */
 #define DPRC_CMDID_CLOSE                        DPRC_CMD(0x800)
@@ -100,6 +102,7 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 #define DPRC_CMDID_GET_OBJ_COUNT                DPRC_CMD(0x159)
 #define DPRC_CMDID_GET_OBJ                      DPRC_CMD(0x15A)
 #define DPRC_CMDID_GET_OBJ_REG                  DPRC_CMD(0x15E)
+#define DPRC_CMDID_GET_OBJ_REG_V2               DPRC_CMD_V2(0x15E)
 #define DPRC_CMDID_SET_OBJ_IRQ                  DPRC_CMD(0x15F)
 
 struct dprc_cmd_open {
@@ -199,9 +202,16 @@ struct dprc_rsp_get_obj_region {
 	/* response word 0 */
 	__le64 pad;
 	/* response word 1 */
-	__le64 base_addr;
+	__le64 base_offset;
 	/* response word 2 */
 	__le32 size;
+	__le32 pad2;
+	/* response word 3 */
+	__le32 flags;
+	__le32 pad3;
+	/* response word 4 */
+	/* base_addr may be zero if older MC firmware is used */
+	__le64 base_addr;
 };
 
 struct dprc_cmd_set_obj_irq {
@@ -334,6 +344,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 /* Region flags */
 /* Cacheable - Indicates that region should be mapped as cacheable */
 #define DPRC_REGION_CACHEABLE	0x00000001
+#define DPRC_REGION_SHAREABLE	0x00000002
 
 /**
  * enum dprc_region_type - Region type
@@ -342,7 +353,8 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
  */
 enum dprc_region_type {
 	DPRC_REGION_TYPE_MC_PORTAL,
-	DPRC_REGION_TYPE_QBMAN_PORTAL
+	DPRC_REGION_TYPE_QBMAN_PORTAL,
+	DPRC_REGION_TYPE_QBMAN_MEM_BACKED_PORTAL
 };
 
 /**
@@ -360,6 +372,7 @@ struct dprc_region_desc {
 	u32 size;
 	u32 flags;
 	enum dprc_region_type type;
+	u64 base_address;
 };
 
 int dprc_get_obj_region(struct fsl_mc_io *mc_io,

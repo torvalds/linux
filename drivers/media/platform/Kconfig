@@ -6,7 +6,6 @@
 menuconfig V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
 	depends on MEDIA_CAMERA_SUPPORT
-	default n
 	help
 	  Say Y here to enable support for platform-specific V4L drivers.
 
@@ -155,7 +154,6 @@ config VIDEO_TI_CAL
 	depends on SOC_DRA7XX || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
-	default n
 	help
 	  Support for the TI CAL (Camera Adaptation Layer) block
 	  found on DRA72X SoC.
@@ -168,7 +166,6 @@ menuconfig V4L_MEM2MEM_DRIVERS
 	bool "Memory-to-memory multimedia devices"
 	depends on VIDEO_V4L2
 	depends on MEDIA_CAMERA_SUPPORT
-	default n
 	help
 	  Say Y here to enable selecting drivers for V4L devices that
 	  use system memory for both source and destination buffers, as opposed
@@ -236,7 +233,6 @@ config VIDEO_MEDIATEK_MDP
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_MEDIATEK_VPU
-	default n
 	help
 	    It is a v4l2 driver and present in Mediatek MT8173 SoCs.
 	    The driver supports for scaling and color space conversion.
@@ -252,7 +248,6 @@ config VIDEO_MEDIATEK_VCODEC
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_MEDIATEK_VPU
-	default n
 	help
 	    Mediatek video codec driver provides HW capability to
 	    encode and decode in a range of video formats
@@ -276,7 +271,6 @@ config VIDEO_SAMSUNG_S5P_G2D
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	default n
 	help
 	  This is a v4l2 driver for Samsung S5P and EXYNOS4 G2D
 	  2d graphics accelerator.
@@ -296,7 +290,6 @@ config VIDEO_SAMSUNG_S5P_MFC
 	depends on VIDEO_DEV && VIDEO_V4L2
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
-	default n
 	help
 	    MFC 5.1 and 6.x driver for V4L2
 
@@ -459,7 +452,6 @@ config VIDEO_ROCKCHIP_RGA
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
 	select V4L2_MEM2MEM_DEV
-	default n
 	help
 	  This is a v4l2 driver for Rockchip SOC RGA 2d graphics accelerator.
 	  Rockchip RGA is a separate 2D raster graphic acceleration unit.
@@ -477,7 +469,6 @@ config VIDEO_TI_VPE
 	select VIDEO_TI_VPDMA
 	select VIDEO_TI_SC
 	select VIDEO_TI_CSC
-	default n
 	help
 	  Support for the TI VPE(Video Processing Engine) block
 	  found on DRA7XX SoC.
@@ -530,7 +521,6 @@ config VIDEO_VIM2M
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
-	default n
 	help
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
@@ -542,7 +532,6 @@ endif #V4L_TEST_DRIVERS
 menuconfig DVB_PLATFORM_DRIVERS
 	bool "DVB platform devices"
 	depends on MEDIA_DIGITAL_TV_SUPPORT
-	default n
 	help
 	  Say Y here to enable support for platform-specific Digital TV drivers.
 
@@ -678,7 +667,6 @@ endif #CEC_PLATFORM_DRIVERS
 menuconfig SDR_PLATFORM_DRIVERS
 	bool "SDR platform devices"
 	depends on MEDIA_SDR_SUPPORT
-	default n
 	help
 	  Say Y here to enable support for platform-specific SDR Drivers.
 

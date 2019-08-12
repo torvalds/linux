@@ -5,13 +5,13 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_quota.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
@@ -92,18 +92,6 @@ xfs_qm_dquot_logitem_unpin(
 	ASSERT(atomic_read(&dqp->q_pincount) > 0);
 	if (atomic_dec_and_test(&dqp->q_pincount))
 		wake_up(&dqp->q_pinwait);
-}
-
-STATIC xfs_lsn_t
-xfs_qm_dquot_logitem_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	/*
-	 * We always re-log the entire dquot when it becomes dirty,
-	 * so, the latest copy _is_ the only one that matters.
-	 */
-	return lsn;
 }
 
 /*
@@ -209,24 +197,13 @@ out_unlock:
 	return rval;
 }
 
-/*
- * Unlock the dquot associated with the log item.
- * Clear the fields of the dquot and dquot log item that
- * are specific to the current transaction.  If the
- * hold flags is set, do not unlock the dquot.
- */
 STATIC void
-xfs_qm_dquot_logitem_unlock(
+xfs_qm_dquot_logitem_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-
-	/*
-	 * Clear the transaction pointer in the dquot
-	 */
-	dqp->q_transp = NULL;
 
 	/*
 	 * dquots are never 'held' from getting unlocked at the end of
@@ -237,30 +214,22 @@ xfs_qm_dquot_logitem_unlock(
 	xfs_dqunlock(dqp);
 }
 
-/*
- * this needs to stamp an lsn into the dquot, I think.
- * rpc's that look at user dquot's would then have to
- * push on the dependency recorded in the dquot
- */
 STATIC void
 xfs_qm_dquot_logitem_committing(
 	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
+	xfs_lsn_t		commit_lsn)
 {
+	return xfs_qm_dquot_logitem_release(lip);
 }
 
-/*
- * This is the ops vector for dquots
- */
 static const struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_size	= xfs_qm_dquot_logitem_size,
 	.iop_format	= xfs_qm_dquot_logitem_format,
 	.iop_pin	= xfs_qm_dquot_logitem_pin,
 	.iop_unpin	= xfs_qm_dquot_logitem_unpin,
-	.iop_unlock	= xfs_qm_dquot_logitem_unlock,
-	.iop_committed	= xfs_qm_dquot_logitem_committed,
+	.iop_release	= xfs_qm_dquot_logitem_release,
+	.iop_committing	= xfs_qm_dquot_logitem_committing,
 	.iop_push	= xfs_qm_dquot_logitem_push,
-	.iop_committing = xfs_qm_dquot_logitem_committing,
 	.iop_error	= xfs_dquot_item_error
 };
 
@@ -320,26 +289,6 @@ xfs_qm_qoff_logitem_format(
 }
 
 /*
- * Pinning has no meaning for an quotaoff item, so just return.
- */
-STATIC void
-xfs_qm_qoff_logitem_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
- * Since pinning has no meaning for an quotaoff item, unpinning does
- * not either.
- */
-STATIC void
-xfs_qm_qoff_logitem_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
-/*
  * There isn't much you can do to push a quotaoff item.  It is simply
  * stuck waiting for the log to be flushed to disk.
  */
@@ -349,28 +298,6 @@ xfs_qm_qoff_logitem_push(
 	struct list_head	*buffer_list)
 {
 	return XFS_ITEM_LOCKED;
-}
-
-/*
- * Quotaoff items have no locking or pushing, so return failure
- * so that the caller doesn't bother with us.
- */
-STATIC void
-xfs_qm_qoff_logitem_unlock(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
- * The quotaoff-start-item is logged only once and cannot be moved in the log,
- * so simply return the lsn at which it's been logged.
- */
-STATIC xfs_lsn_t
-xfs_qm_qoff_logitem_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	return lsn;
 }
 
 STATIC xfs_lsn_t
@@ -396,50 +323,17 @@ xfs_qm_qoffend_logitem_committed(
 	return (xfs_lsn_t)-1;
 }
 
-/*
- * XXX rcc - don't know quite what to do with this.  I think we can
- * just ignore it.  The only time that isn't the case is if we allow
- * the client to somehow see that quotas have been turned off in which
- * we can't allow that to get back until the quotaoff hits the disk.
- * So how would that happen?  Also, do we need different routines for
- * quotaoff start and quotaoff end?  I suspect the answer is yes but
- * to be sure, I need to look at the recovery code and see how quota off
- * recovery is handled (do we roll forward or back or do something else).
- * If we roll forwards or backwards, then we need two separate routines,
- * one that does nothing and one that stamps in the lsn that matters
- * (truly makes the quotaoff irrevocable).  If we do something else,
- * then maybe we don't need two.
- */
-STATIC void
-xfs_qm_qoff_logitem_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		commit_lsn)
-{
-}
-
 static const struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
-	.iop_pin	= xfs_qm_qoff_logitem_pin,
-	.iop_unpin	= xfs_qm_qoff_logitem_unpin,
-	.iop_unlock	= xfs_qm_qoff_logitem_unlock,
 	.iop_committed	= xfs_qm_qoffend_logitem_committed,
 	.iop_push	= xfs_qm_qoff_logitem_push,
-	.iop_committing = xfs_qm_qoff_logitem_committing
 };
 
-/*
- * This is the ops vector shared by all quotaoff-start log items.
- */
 static const struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
-	.iop_pin	= xfs_qm_qoff_logitem_pin,
-	.iop_unpin	= xfs_qm_qoff_logitem_unpin,
-	.iop_unlock	= xfs_qm_qoff_logitem_unlock,
-	.iop_committed	= xfs_qm_qoff_logitem_committed,
 	.iop_push	= xfs_qm_qoff_logitem_push,
-	.iop_committing = xfs_qm_qoff_logitem_committing
 };
 
 /*

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9M111/MT9M112/MT9M131 CMOS Image Sensor from Micron/Aptina
  *
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/videodev2.h>
 #include <linux/slab.h>
@@ -13,6 +10,7 @@
 #include <linux/log2.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -243,6 +241,7 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+	struct regulator *regulator;
 	bool is_streaming;
 	/* user point of view - 0: falling 1: rising edge */
 	unsigned int pclk_sample:1;
@@ -982,11 +981,23 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 	if (ret < 0)
 		return ret;
 
+	ret = regulator_enable(mt9m111->regulator);
+	if (ret < 0)
+		goto out_clk_disable;
+
 	ret = mt9m111_resume(mt9m111);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
-		v4l2_clk_disable(mt9m111->clk);
-	}
+	if (ret < 0)
+		goto out_regulator_disable;
+
+	return 0;
+
+out_regulator_disable:
+	regulator_disable(mt9m111->regulator);
+
+out_clk_disable:
+	v4l2_clk_disable(mt9m111->clk);
+
+	dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
 
 	return ret;
 }
@@ -994,6 +1005,7 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 static void mt9m111_power_off(struct mt9m111 *mt9m111)
 {
 	mt9m111_suspend(mt9m111);
+	regulator_disable(mt9m111->regulator);
 	v4l2_clk_disable(mt9m111->clk);
 }
 
@@ -1235,7 +1247,7 @@ static int mt9m111_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9m111 *mt9m111;
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -1248,13 +1260,22 @@ static int mt9m111_probe(struct i2c_client *client,
 	if (!mt9m111)
 		return -ENOMEM;
 
-	ret = mt9m111_probe_fw(client, mt9m111);
-	if (ret)
-		return ret;
+	if (dev_fwnode(&client->dev)) {
+		ret = mt9m111_probe_fw(client, mt9m111);
+		if (ret)
+			return ret;
+	}
 
 	mt9m111->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(mt9m111->clk))
 		return PTR_ERR(mt9m111->clk);
+
+	mt9m111->regulator = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(mt9m111->regulator)) {
+		dev_err(&client->dev, "regulator not found: %ld\n",
+			PTR_ERR(mt9m111->regulator));
+		return PTR_ERR(mt9m111->regulator);
+	}
 
 	/* Default HIGHPOWER context */
 	mt9m111->ctx = &context_b;

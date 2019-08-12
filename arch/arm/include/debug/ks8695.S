@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/include/debug/ks8695.S
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2006 Simtec Electronics
  *
  * KS8695 - Debug macros
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define KS8695_UART_PA	0x03ffe000

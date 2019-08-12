@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/video/cyber2000fb.c
  *
@@ -8,10 +9,6 @@
  *
  *  32 bit support, text color and panning fixes for modes != 8 bit
  *  Copyright (C) 2002 Denis Oliver Kropp <dok@directfb.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Integraphics CyberPro 2000, 2010 and 5000 frame buffer device
  *
@@ -61,7 +58,6 @@
 struct cfb_info {
 	struct fb_info		fb;
 	struct display_switch	*dispsw;
-	struct display		*display;
 	unsigned char		__iomem *region;
 	unsigned char		__iomem *regs;
 	u_int			id;
@@ -1642,10 +1638,6 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
 }
 
 /*
- * PCI specific support.
- */
-#ifdef CONFIG_PCI
-/*
  * We need to wake up the CyberPro, and make sure its in linear memory
  * mode.  Unfortunately, this is specific to the platform and card that
  * we are running on.
@@ -1861,7 +1853,6 @@ static struct pci_driver cyberpro_driver = {
 	.resume		= cyberpro_pci_resume,
 	.id_table	= cyberpro_pci_table
 };
-#endif
 
 /*
  * I don't think we can use the "module_init" stuff here because

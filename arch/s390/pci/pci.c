@@ -421,12 +421,12 @@ static void zpci_map_resources(struct pci_dev *pdev)
 		if (!len)
 			continue;
 
-		if (static_branch_likely(&have_mio))
+		if (zpci_use_mio(zdev))
 			pdev->resource[i].start =
 				(resource_size_t __force) zdev->bars[i].mio_wb;
 		else
-			pdev->resource[i].start =
-				(resource_size_t __force) pci_iomap(pdev, i, 0);
+			pdev->resource[i].start = (resource_size_t __force)
+				pci_iomap_range_fh(pdev, i, 0, 0);
 		pdev->resource[i].end = pdev->resource[i].start + len - 1;
 	}
 
@@ -444,18 +444,19 @@ static void zpci_map_resources(struct pci_dev *pdev)
 
 static void zpci_unmap_resources(struct pci_dev *pdev)
 {
+	struct zpci_dev *zdev = to_zpci(pdev);
 	resource_size_t len;
 	int i;
 
-	if (static_branch_likely(&have_mio))
+	if (zpci_use_mio(zdev))
 		return;
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
 		len = pci_resource_len(pdev, i);
 		if (!len)
 			continue;
-		pci_iounmap(pdev, (void __iomem __force *)
-			    pdev->resource[i].start);
+		pci_iounmap_fh(pdev, (void __iomem __force *)
+			       pdev->resource[i].start);
 	}
 }
 
@@ -528,7 +529,7 @@ static int zpci_setup_bus_resources(struct zpci_dev *zdev,
 		if (zdev->bars[i].val & 4)
 			flags |= IORESOURCE_MEM_64;
 
-		if (static_branch_likely(&have_mio))
+		if (zpci_use_mio(zdev))
 			addr = (unsigned long) zdev->bars[i].mio_wb;
 		else
 			addr = ZPCI_ADDR(entry);
@@ -889,8 +890,10 @@ static int __init pci_base_init(void)
 	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
-	if (test_facility(153) && !s390_pci_no_mio)
+	if (test_facility(153) && !s390_pci_no_mio) {
 		static_branch_enable(&have_mio);
+		ctl_set_bit(2, 5);
+	}
 
 	rc = zpci_debug_init();
 	if (rc)

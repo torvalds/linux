@@ -27,6 +27,9 @@
 static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
 
+#define MIRRED_RECURSION_LIMIT    4
+static DEFINE_PER_CPU(unsigned int, mirred_rec_level);
+
 static bool tcf_mirred_is_act_redirect(int action)
 {
 	return action == TCA_EGRESS_REDIR || action == TCA_INGRESS_REDIR;
@@ -210,12 +213,21 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	struct sk_buff *skb2 = skb;
 	bool m_mac_header_xmit;
 	struct net_device *dev;
+	unsigned int rec_level;
 	int retval, err = 0;
 	bool use_reinsert;
 	bool want_ingress;
 	bool is_redirect;
 	int m_eaction;
 	int mac_len;
+
+	rec_level = __this_cpu_inc_return(mirred_rec_level);
+	if (unlikely(rec_level > MIRRED_RECURSION_LIMIT)) {
+		net_warn_ratelimited("Packet exceeded mirred recursion limit on dev %s\n",
+				     netdev_name(skb->dev));
+		__this_cpu_dec(mirred_rec_level);
+		return TC_ACT_SHOT;
+	}
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
@@ -277,7 +289,9 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 		if (use_reinsert) {
 			res->ingress = want_ingress;
 			res->qstats = this_cpu_ptr(m->common.cpu_qstats);
-			return TC_ACT_REINSERT;
+			skb_tc_reinsert(skb, res);
+			__this_cpu_dec(mirred_rec_level);
+			return TC_ACT_CONSUMED;
 		}
 	}
 
@@ -292,6 +306,7 @@ out:
 		if (tcf_mirred_is_act_redirect(m_eaction))
 			retval = TC_ACT_SHOT;
 	}
+	__this_cpu_dec(mirred_rec_level);
 
 	return retval;
 }
@@ -411,6 +426,11 @@ static void tcf_mirred_put_dev(struct net_device *dev)
 	dev_put(dev);
 }
 
+static size_t tcf_mirred_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_mirred));
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.id		=	TCA_ID_MIRRED,
@@ -422,6 +442,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.init		=	tcf_mirred_init,
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
+	.get_fill_size	=	tcf_mirred_get_fill_size,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
 	.put_dev	=	tcf_mirred_put_dev,

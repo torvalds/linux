@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (c) 2014 Joachim Eastwood <manabian@gmail.com>
@@ -6,10 +7,6 @@
  * Copyright (c) 2010 Grant Erickson <marathon96@gmail.com>
  *
  * Also based on pwm-samsung.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  *
  * Description:
  *   This file is the core OMAP support for the generic, Linux

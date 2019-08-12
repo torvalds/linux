@@ -35,6 +35,64 @@ komeda_get_format_caps(struct komeda_format_caps_table *table,
 	return NULL;
 }
 
+/* Two assumptions
+ * 1. RGB always has YTR
+ * 2. Tiled RGB always has SC
+ */
+u64 komeda_supported_modifiers[] = {
+	/* AFBC_16x16 + features: YUV+RGB both */
+	AFBC_16x16(0),
+	/* SPARSE */
+	AFBC_16x16(_SPARSE),
+	/* YTR + (SPARSE) */
+	AFBC_16x16(_YTR | _SPARSE),
+	AFBC_16x16(_YTR),
+	/* SPLIT + SPARSE + YTR RGB only */
+	/* split mode is only allowed for sparse mode */
+	AFBC_16x16(_SPLIT | _SPARSE | _YTR),
+	/* TILED + (SPARSE) */
+	/* TILED YUV format only */
+	AFBC_16x16(_TILED | _SPARSE),
+	AFBC_16x16(_TILED),
+	/* TILED + SC + (SPLIT+SPARSE | SPARSE) + (YTR) */
+	AFBC_16x16(_TILED | _SC | _SPLIT | _SPARSE | _YTR),
+	AFBC_16x16(_TILED | _SC | _SPARSE | _YTR),
+	AFBC_16x16(_TILED | _SC | _YTR),
+	/* AFBC_32x8 + features: which are RGB formats only */
+	/* YTR + (SPARSE) */
+	AFBC_32x8(_YTR | _SPARSE),
+	AFBC_32x8(_YTR),
+	/* SPLIT + SPARSE + (YTR) */
+	/* split mode is only allowed for sparse mode */
+	AFBC_32x8(_SPLIT | _SPARSE | _YTR),
+	/* TILED + SC + (SPLIT+SPARSE | SPARSE) + YTR */
+	AFBC_32x8(_TILED | _SC | _SPLIT | _SPARSE | _YTR),
+	AFBC_32x8(_TILED | _SC | _SPARSE | _YTR),
+	AFBC_32x8(_TILED | _SC | _YTR),
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
+bool komeda_format_mod_supported(struct komeda_format_caps_table *table,
+				 u32 layer_type, u32 fourcc, u64 modifier,
+				 u32 rot)
+{
+	const struct komeda_format_caps *caps;
+
+	caps = komeda_get_format_caps(table, fourcc, modifier);
+	if (!caps)
+		return false;
+
+	if (!(caps->supported_layer_types & layer_type))
+		return false;
+
+	if (table->format_mod_supported)
+		return table->format_mod_supported(caps, layer_type, modifier,
+						   rot);
+
+	return true;
+}
+
 u32 *komeda_get_layer_fourcc_list(struct komeda_format_caps_table *table,
 				  u32 layer_type, u32 *n_fmts)
 {

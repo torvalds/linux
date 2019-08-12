@@ -199,12 +199,14 @@ const char *ceph_pr_addr(const struct ceph_entity_addr *addr)
 
 	switch (ss.ss_family) {
 	case AF_INET:
-		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%hu", &in4->sin_addr,
+		snprintf(s, MAX_ADDR_STR_LEN, "(%d)%pI4:%hu",
+			 le32_to_cpu(addr->type), &in4->sin_addr,
 			 ntohs(in4->sin_port));
 		break;
 
 	case AF_INET6:
-		snprintf(s, MAX_ADDR_STR_LEN, "[%pI6c]:%hu", &in6->sin6_addr,
+		snprintf(s, MAX_ADDR_STR_LEN, "(%d)[%pI6c]:%hu",
+			 le32_to_cpu(addr->type), &in6->sin6_addr,
 			 ntohs(in6->sin6_port));
 		break;
 
@@ -220,7 +222,7 @@ EXPORT_SYMBOL(ceph_pr_addr);
 static void encode_my_addr(struct ceph_messenger *msgr)
 {
 	memcpy(&msgr->my_enc_addr, &msgr->inst.addr, sizeof(msgr->my_enc_addr));
-	ceph_encode_addr(&msgr->my_enc_addr);
+	ceph_encode_banner_addr(&msgr->my_enc_addr);
 }
 
 /*
@@ -1732,12 +1734,14 @@ static int read_partial_banner(struct ceph_connection *con)
 	ret = read_partial(con, end, size, &con->actual_peer_addr);
 	if (ret <= 0)
 		goto out;
+	ceph_decode_banner_addr(&con->actual_peer_addr);
 
 	size = sizeof (con->peer_addr_for_me);
 	end += size;
 	ret = read_partial(con, end, size, &con->peer_addr_for_me);
 	if (ret <= 0)
 		goto out;
+	ceph_decode_banner_addr(&con->peer_addr_for_me);
 
 out:
 	return ret;
@@ -1887,7 +1891,8 @@ static int ceph_dns_resolve_name(const char *name, size_t namelen,
 		return -EINVAL;
 
 	/* do dns_resolve upcall */
-	ip_len = dns_query(NULL, name, end - name, NULL, &ip_addr, NULL, false);
+	ip_len = dns_query(current->nsproxy->net_ns,
+			   NULL, name, end - name, NULL, &ip_addr, NULL, false);
 	if (ip_len > 0)
 		ret = ceph_pton(ip_addr, ip_len, addr, -1, NULL);
 	else
@@ -1980,6 +1985,7 @@ int ceph_parse_ips(const char *c, const char *end,
 		}
 
 		addr_set_port(&addr[i], port);
+		addr[i].type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
 
 		dout("parse_ips got %s\n", ceph_pr_addr(&addr[i]));
 
@@ -2009,9 +2015,6 @@ static int process_banner(struct ceph_connection *con)
 
 	if (verify_hello(con) < 0)
 		return -1;
-
-	ceph_decode_addr(&con->actual_peer_addr);
-	ceph_decode_addr(&con->peer_addr_for_me);
 
 	/*
 	 * Make sure the other end is who we wanted.  note that the other

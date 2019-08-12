@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/pcmcia/pxa2xx_lubbock.c
  *
@@ -5,14 +6,9 @@
  * Created:	Jan 10, 2002
  * Copyright:	MontaVista Software Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Originally based upon linux/drivers/pcmcia/sa1100_neponset.c
  *
  * Lubbock PCMCIA specific routines.
- *
  */
 #include <linux/module.h>
 #include <linux/kernel.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * HiSilicon SoC Hardware event counters support
  *
@@ -6,10 +7,6 @@
  *         Shaokun Zhang <zhangshaokun@hisilicon.com>
  *
  * This code is based on the uncore PMUs like arm-cci and arm-ccn.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __HISI_UNCORE_PMU_H__
 #define __HISI_UNCORE_PMU_H__

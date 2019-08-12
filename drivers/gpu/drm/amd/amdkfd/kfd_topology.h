@@ -65,6 +65,7 @@ struct kfd_node_properties {
 	uint32_t max_waves_per_simd;
 	uint32_t lds_size_in_kb;
 	uint32_t gds_size_in_kb;
+	uint32_t num_gws;
 	uint32_t wave_front_size;
 	uint32_t array_count;
 	uint32_t simd_arrays_per_engine;
@@ -78,6 +79,8 @@ struct kfd_node_properties {
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
 	int32_t  drm_render_minor;
+	uint32_t num_sdma_engines;
+	uint32_t num_sdma_xgmi_engines;
 	uint16_t marketing_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 

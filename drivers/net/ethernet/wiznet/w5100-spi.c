@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/of_net.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 
 #include "w5100.h"
@@ -409,14 +410,32 @@ static const struct w5100_ops w5500_ops = {
 	.init = w5500_spi_init,
 };
 
+static const struct of_device_id w5100_of_match[] = {
+	{ .compatible = "wiznet,w5100", .data = (const void*)W5100, },
+	{ .compatible = "wiznet,w5200", .data = (const void*)W5200, },
+	{ .compatible = "wiznet,w5500", .data = (const void*)W5500, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, w5100_of_match);
+
 static int w5100_spi_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
+	const struct of_device_id *of_id;
 	const struct w5100_ops *ops;
+	kernel_ulong_t driver_data;
 	int priv_size;
 	const void *mac = of_get_mac_address(spi->dev.of_node);
 
-	switch (id->driver_data) {
+	if (spi->dev.of_node) {
+		of_id = of_match_device(w5100_of_match, &spi->dev);
+		if (!of_id)
+			return -ENODEV;
+		driver_data = (kernel_ulong_t)of_id->data;
+	} else {
+		driver_data = spi_get_device_id(spi)->driver_data;
+	}
+
+	switch (driver_data) {
 	case W5100:
 		ops = &w5100_spi_ops;
 		priv_size = 0;
@@ -453,6 +472,7 @@ static struct spi_driver w5100_spi_driver = {
 	.driver		= {
 		.name	= "w5100",
 		.pm	= &w5100_pm_ops,
+		.of_match_table = w5100_of_match,
 	},
 	.probe		= w5100_spi_probe,
 	.remove		= w5100_spi_remove,

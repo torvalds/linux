@@ -15,6 +15,21 @@
 /* Initial state of a cooling device during binding */
 #define THERMAL_NO_TARGET -1UL
 
+/* Init section thermal table */
+extern struct thermal_governor *__governor_thermal_table[];
+extern struct thermal_governor *__governor_thermal_table_end[];
+
+#define THERMAL_TABLE_ENTRY(table, name)			\
+	static typeof(name) *__thermal_table_entry_##name	\
+	__used __section(__##table##_thermal_table) = &name
+
+#define THERMAL_GOVERNOR_DECLARE(name)	THERMAL_TABLE_ENTRY(governor, name)
+
+#define for_each_governor_table(__governor)		\
+	for (__governor = __governor_thermal_table;	\
+	     __governor < __governor_thermal_table_end;	\
+	     __governor++)
+
 /*
  * This structure is used to describe the behavior of
  * a certain cooling device on a certain trip point
@@ -73,46 +88,6 @@ static inline void
 thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
 				    unsigned long new_state) {}
 #endif /* CONFIG_THERMAL_STATISTICS */
-
-#ifdef CONFIG_THERMAL_GOV_STEP_WISE
-int thermal_gov_step_wise_register(void);
-void thermal_gov_step_wise_unregister(void);
-#else
-static inline int thermal_gov_step_wise_register(void) { return 0; }
-static inline void thermal_gov_step_wise_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_STEP_WISE */
-
-#ifdef CONFIG_THERMAL_GOV_FAIR_SHARE
-int thermal_gov_fair_share_register(void);
-void thermal_gov_fair_share_unregister(void);
-#else
-static inline int thermal_gov_fair_share_register(void) { return 0; }
-static inline void thermal_gov_fair_share_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_FAIR_SHARE */
-
-#ifdef CONFIG_THERMAL_GOV_BANG_BANG
-int thermal_gov_bang_bang_register(void);
-void thermal_gov_bang_bang_unregister(void);
-#else
-static inline int thermal_gov_bang_bang_register(void) { return 0; }
-static inline void thermal_gov_bang_bang_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_BANG_BANG */
-
-#ifdef CONFIG_THERMAL_GOV_USER_SPACE
-int thermal_gov_user_space_register(void);
-void thermal_gov_user_space_unregister(void);
-#else
-static inline int thermal_gov_user_space_register(void) { return 0; }
-static inline void thermal_gov_user_space_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_USER_SPACE */
-
-#ifdef CONFIG_THERMAL_GOV_POWER_ALLOCATOR
-int thermal_gov_power_allocator_register(void);
-void thermal_gov_power_allocator_unregister(void);
-#else
-static inline int thermal_gov_power_allocator_register(void) { return 0; }
-static inline void thermal_gov_power_allocator_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_POWER_ALLOCATOR */
 
 /* device tree support */
 #ifdef CONFIG_THERMAL_OF

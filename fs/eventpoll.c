@@ -291,7 +291,7 @@ static LIST_HEAD(tfile_check_list);
 
 #include <linux/sysctl.h>
 
-static long zero;
+static long long_zero;
 static long long_max = LONG_MAX;
 
 struct ctl_table epoll_table[] = {
@@ -301,7 +301,7 @@ struct ctl_table epoll_table[] = {
 		.maxlen		= sizeof(max_user_watches),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &zero,
+		.extra1		= &long_zero,
 		.extra2		= &long_max,
 	},
 	{ }
@@ -2313,19 +2313,17 @@ SYSCALL_DEFINE6(epoll_pwait, int, epfd, struct epoll_event __user *, events,
 		size_t, sigsetsize)
 {
 	int error;
-	sigset_t ksigmask, sigsaved;
 
 	/*
 	 * If the caller wants a certain signal mask to be set during the wait,
 	 * we apply it here.
 	 */
-	error = set_user_sigmask(sigmask, &ksigmask, &sigsaved, sigsetsize);
+	error = set_user_sigmask(sigmask, sigsetsize);
 	if (error)
 		return error;
 
 	error = do_epoll_wait(epfd, events, maxevents, timeout);
-
-	restore_user_sigmask(sigmask, &sigsaved);
+	restore_saved_sigmask_unless(error == -EINTR);
 
 	return error;
 }
@@ -2338,19 +2336,17 @@ COMPAT_SYSCALL_DEFINE6(epoll_pwait, int, epfd,
 			compat_size_t, sigsetsize)
 {
 	long err;
-	sigset_t ksigmask, sigsaved;
 
 	/*
 	 * If the caller wants a certain signal mask to be set during the wait,
 	 * we apply it here.
 	 */
-	err = set_compat_user_sigmask(sigmask, &ksigmask, &sigsaved, sigsetsize);
+	err = set_compat_user_sigmask(sigmask, sigsetsize);
 	if (err)
 		return err;
 
 	err = do_epoll_wait(epfd, events, maxevents, timeout);
-
-	restore_user_sigmask(sigmask, &sigsaved);
+	restore_saved_sigmask_unless(err == -EINTR);
 
 	return err;
 }

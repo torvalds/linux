@@ -682,14 +682,12 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		u32 tmp;
 
 		rc = hl_poll_timeout_memory(hdev,
-			(u64) (uintptr_t) &ctx->thread_ctx_switch_wait_token,
-			jiffies_to_usecs(hdev->timeout_jiffies),
-			&tmp);
+			&ctx->thread_ctx_switch_wait_token, tmp, (tmp == 1),
+			100, jiffies_to_usecs(hdev->timeout_jiffies));
 
-		if (rc || !tmp) {
+		if (rc == -ETIMEDOUT) {
 			dev_err(hdev->dev,
-				"context switch phase didn't finish in time\n");
-			rc = -ETIMEDOUT;
+				"context switch phase timeout (%d)\n", tmp);
 			goto out;
 		}
 	}

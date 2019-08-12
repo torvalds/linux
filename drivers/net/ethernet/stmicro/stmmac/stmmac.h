@@ -14,12 +14,13 @@
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/pci.h>
 #include "common.h"
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/reset.h>
+#include <net/page_pool.h>
 
 struct stmmac_resources {
 	void __iomem *addr;
@@ -54,13 +55,19 @@ struct stmmac_tx_queue {
 	u32 mss;
 };
 
+struct stmmac_rx_buffer {
+	struct page *page;
+	dma_addr_t addr;
+};
+
 struct stmmac_rx_queue {
+	u32 rx_count_frames;
 	u32 queue_index;
+	struct page_pool *page_pool;
+	struct stmmac_rx_buffer *buf_pool;
 	struct stmmac_priv *priv_data;
 	struct dma_extended_desc *dma_erx;
 	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
-	struct sk_buff **rx_skbuff;
-	dma_addr_t *rx_skbuff_dma;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
 	u32 rx_zeroc_thresh;
@@ -110,6 +117,7 @@ struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
+	u32 rx_coal_frames;
 
 	int tx_coalesce;
 	int hwts_tx_en;
@@ -137,13 +145,14 @@ struct stmmac_priv {
 	/* Generic channel for NAPI */
 	struct stmmac_channel channel[STMMAC_CH_MAX];
 
-	bool oldlink;
 	int speed;
-	int oldduplex;
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
 	int mii_irq[PHY_MAX_ADDR];
+
+	struct phylink_config phylink_config;
+	struct phylink *phylink;
 
 	struct stmmac_extra_stats xstats ____cacheline_aligned_in_smp;
 	struct stmmac_safety_stats sstats;
@@ -218,5 +227,27 @@ int stmmac_dvr_probe(struct device *device,
 		     struct stmmac_resources *res);
 void stmmac_disable_eee_mode(struct stmmac_priv *priv);
 bool stmmac_eee_init(struct stmmac_priv *priv);
+
+#if IS_ENABLED(CONFIG_STMMAC_SELFTESTS)
+void stmmac_selftest_run(struct net_device *dev,
+			 struct ethtool_test *etest, u64 *buf);
+void stmmac_selftest_get_strings(struct stmmac_priv *priv, u8 *data);
+int stmmac_selftest_get_count(struct stmmac_priv *priv);
+#else
+static inline void stmmac_selftest_run(struct net_device *dev,
+				       struct ethtool_test *etest, u64 *buf)
+{
+	/* Not enabled */
+}
+static inline void stmmac_selftest_get_strings(struct stmmac_priv *priv,
+					       u8 *data)
+{
+	/* Not enabled */
+}
+static inline int stmmac_selftest_get_count(struct stmmac_priv *priv)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_STMMAC_SELFTESTS */
 
 #endif /* __STMMAC_H__ */

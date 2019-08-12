@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009, Lars-Peter Clausen <lars@metafoo.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -49,15 +41,17 @@ static const struct snd_soc_dapm_route qi_lb60_routes[] = {
 	{"Speaker", NULL, "ROUT"},
 };
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("jz4740-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("jz4740-codec", "jz4740-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("jz4740-i2s")));
+
 static struct snd_soc_dai_link qi_lb60_dai = {
 	.name = "jz4740",
 	.stream_name = "jz4740",
-	.cpu_dai_name = "jz4740-i2s",
-	.platform_name = "jz4740-i2s",
-	.codec_dai_name = "jz4740-hifi",
-	.codec_name = "jz4740-codec",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card qi_lb60_card = {
