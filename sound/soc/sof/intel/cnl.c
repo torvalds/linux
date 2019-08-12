@@ -101,8 +101,8 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		/*
 		 * This interrupt is not shared so no need to return IRQ_NONE.
 		 */
-		dev_err_ratelimited(sdev->dev,
-				    "error: nothing to do in IRQ thread\n");
+		dev_dbg_ratelimited(sdev->dev,
+				    "nothing to do in IPC IRQ thread\n");
 	}
 
 	/* re-enable IPC interrupt */
