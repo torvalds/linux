@@ -603,7 +603,7 @@ static int ziirave_wdt_init_duration(struct i2c_client *client)
 						   &reset_duration);
 		if (ret) {
 			dev_info(&client->dev,
-				 "Unable to set reset pulse duration, using default\n");
+			 "No reset pulse duration specified, using default\n");
 			return 0;
 		}
 	}
