@@ -3187,7 +3187,7 @@ static int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
 	return 0;
 }
 
-int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
+static int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
 {
 	struct hclge_pf_rst_sync_cmd *req;
 	struct hclge_desc desc;
