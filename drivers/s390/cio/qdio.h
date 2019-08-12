@@ -355,14 +355,10 @@ static inline int multicast_outbound(struct qdio_q *q)
 	for (i = 0; i < irq_ptr->nr_output_qs &&	\
 		({ q = irq_ptr->output_qs[i]; 1; }); i++)
 
-#define prev_buf(bufnr)	\
-	((bufnr + QDIO_MAX_BUFFERS_MASK) & QDIO_MAX_BUFFERS_MASK)
-#define next_buf(bufnr)	\
-	((bufnr + 1) & QDIO_MAX_BUFFERS_MASK)
-#define add_buf(bufnr, inc) \
-	((bufnr + inc) & QDIO_MAX_BUFFERS_MASK)
-#define sub_buf(bufnr, dec) \
-	((bufnr - dec) & QDIO_MAX_BUFFERS_MASK)
+#define add_buf(bufnr, inc)	QDIO_BUFNR((bufnr) + (inc))
+#define next_buf(bufnr)		add_buf(bufnr, 1)
+#define sub_buf(bufnr, dec)	QDIO_BUFNR((bufnr) - (dec))
+#define prev_buf(bufnr)		sub_buf(bufnr, 1)
 
 #define queue_irqs_enabled(q)			\
 	(test_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state) == 0)
