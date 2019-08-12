@@ -518,6 +518,10 @@ static struct dfl_feature_driver port_feature_drvs[] = {
 		.ops = &port_afu_ops,
 	},
 	{
+		.id_table = port_err_id_table,
+		.ops = &port_err_ops,
+	},
+	{
 		.ops = NULL,
 	}
 };
@@ -860,6 +864,7 @@ static int afu_remove(struct platform_device *pdev)
 static const struct attribute_group *afu_dev_groups[] = {
 	&port_hdr_group,
 	&port_afu_group,
+	&port_err_group,
 	NULL
 };
 

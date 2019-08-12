@@ -101,4 +101,9 @@ int afu_dma_unmap_region(struct dfl_feature_platform_data *pdata, u64 iova);
 struct dfl_afu_dma_region *
 afu_dma_region_find(struct dfl_feature_platform_data *pdata,
 		    u64 iova, u64 size);
+
+extern const struct dfl_feature_ops port_err_ops;
+extern const struct dfl_feature_id port_err_id_table[];
+extern const struct attribute_group port_err_group;
+
 #endif /* __DFL_AFU_H */
