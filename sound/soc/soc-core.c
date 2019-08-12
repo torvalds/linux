@@ -216,6 +216,8 @@ static void soc_init_card_debugfs(struct snd_soc_card *card)
 
 	debugfs_create_u32("dapm_pop_time", 0644, card->debugfs_card_root,
 			   &card->pop_time);
+
+	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
 }
 
 static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
@@ -699,9 +701,18 @@ int snd_soc_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_resume);
+
+static void soc_resume_init(struct snd_soc_card *card)
+{
+	/* deferred resume work */
+	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
+}
 #else
 #define snd_soc_suspend NULL
 #define snd_soc_resume NULL
+static inline void soc_resume_init(struct snd_soc_card *card)
+{
+}
 #endif
 
 static const struct snd_soc_dai_ops null_dai_ops = {
@@ -1304,14 +1315,17 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	if (component->driver->controls)
-		snd_soc_add_component_controls(component,
-					       component->driver->controls,
-					       component->driver->num_controls);
-	if (component->driver->dapm_routes)
-		snd_soc_dapm_add_routes(dapm,
-					component->driver->dapm_routes,
-					component->driver->num_dapm_routes);
+	ret = snd_soc_add_component_controls(component,
+					     component->driver->controls,
+					     component->driver->num_controls);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_dapm_add_routes(dapm,
+				      component->driver->dapm_routes,
+				      component->driver->num_dapm_routes);
+	if (ret < 0)
+		goto err_probe;
 
 	list_add(&dapm->list, &card->dapm_list);
 	/* see for_each_card_components */
@@ -1473,11 +1487,8 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_DEBUG_FS
 	/* add DPCM sysfs entries */
-	if (dai_link->dynamic)
-		soc_dpcm_debugfs_add(rtd);
-#endif
+	soc_dpcm_debugfs_add(rtd);
 
 	num = rtd->num;
 
@@ -1522,42 +1533,21 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 	return ret;
 }
 
-static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
+static int soc_bind_aux_dev(struct snd_soc_card *card,
+			    struct snd_soc_aux_dev *aux_dev)
 {
-	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	struct snd_soc_component *component;
-	struct snd_soc_dai_link_component dlc;
 
-	if (aux_dev->codec_of_node || aux_dev->codec_name) {
-		/* codecs, usually analog devices */
-		dlc.name = aux_dev->codec_name;
-		dlc.of_node = aux_dev->codec_of_node;
-		component = soc_find_component(&dlc);
-		if (!component) {
-			if (dlc.of_node)
-				dlc.name = of_node_full_name(dlc.of_node);
-			goto err_defer;
-		}
-	} else if (aux_dev->name) {
-		/* generic components */
-		dlc.name = aux_dev->name;
-		dlc.of_node = NULL;
-		component = soc_find_component(&dlc);
-		if (!component)
-			goto err_defer;
-	} else {
-		dev_err(card->dev, "ASoC: Invalid auxiliary device\n");
-		return -EINVAL;
-	}
+	/* codecs, usually analog devices */
+	component = soc_find_component(&aux_dev->dlc);
+	if (!component)
+		return -EPROBE_DEFER;
 
 	component->init = aux_dev->init;
+	/* see for_each_card_auxs */
 	list_add(&component->card_aux_list, &card->aux_comp_list);
 
 	return 0;
-
-err_defer:
-	dev_err(card->dev, "ASoC: %s not registered\n", dlc.name);
-	return -EPROBE_DEFER;
 }
 
 static int soc_probe_aux_devices(struct snd_soc_card *card)
@@ -1567,7 +1557,7 @@ static int soc_probe_aux_devices(struct snd_soc_card *card)
 	int ret;
 
 	for_each_comp_order(order) {
-		list_for_each_entry(comp, &card->aux_comp_list, card_aux_list) {
+		for_each_card_auxs(card, comp) {
 			if (comp->driver->probe_order == order) {
 				ret = soc_probe_component(card,	comp);
 				if (ret < 0) {
@@ -1589,8 +1579,7 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	int order;
 
 	for_each_comp_order(order) {
-		list_for_each_entry_safe(comp, _comp,
-			&card->aux_comp_list, card_aux_list) {
+		for_each_card_auxs_safe(card, comp, _comp) {
 
 			if (comp->driver->remove_order == order) {
 				soc_remove_component(comp);
@@ -1924,6 +1913,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *dai_link;
+	struct snd_soc_aux_dev *aux;
 	int ret, i, order;
 
 	mutex_lock(&client_mutex);
@@ -1954,8 +1944,8 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* bind aux_devs too */
-	for (i = 0; i < card->num_aux_devs; i++) {
-		ret = soc_bind_aux_dev(card, i);
+	for_each_card_pre_auxs(card, i, aux) {
+		ret = soc_bind_aux_dev(card, aux);
 		if (ret != 0)
 			goto probe_end;
 	}
@@ -1979,14 +1969,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	soc_init_card_debugfs(card);
 
-#ifdef CONFIG_DEBUG_FS
-	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
-#endif
-
-#ifdef CONFIG_PM_SLEEP
-	/* deferred resume work */
-	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
-#endif
+	soc_resume_init(card);
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, card->dapm_widgets,
 					card->num_dapm_widgets);
@@ -2055,17 +2038,20 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	snd_soc_dapm_link_dai_widgets(card);
 	snd_soc_dapm_connect_dai_link_widgets(card);
 
-	if (card->controls)
-		snd_soc_add_card_controls(card, card->controls,
-					  card->num_controls);
+	ret = snd_soc_add_card_controls(card, card->controls,
+					card->num_controls);
+	if (ret < 0)
+		goto probe_end;
 
-	if (card->dapm_routes)
-		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
-					card->num_dapm_routes);
+	ret = snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
+				      card->num_dapm_routes);
+	if (ret < 0)
+		goto probe_end;
 
-	if (card->of_dapm_routes)
-		snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
-					card->num_of_dapm_routes);
+	ret = snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
+				      card->num_of_dapm_routes);
+	if (ret < 0)
+		goto probe_end;
 
 	/* try to set some sane longname if DMI is available */
 	snd_soc_set_dmi_name(card, NULL);
@@ -2804,12 +2790,9 @@ static void snd_soc_try_rebind_card(void)
 {
 	struct snd_soc_card *card, *c;
 
-	if (!list_empty(&unbind_card_list)) {
-		list_for_each_entry_safe(card, c, &unbind_card_list, list) {
-			if (!snd_soc_bind_card(card))
-				list_del(&card->list);
-		}
-	}
+	list_for_each_entry_safe(card, c, &unbind_card_list, list)
+		if (!snd_soc_bind_card(card))
+			list_del(&card->list);
 }
 
 int snd_soc_add_component(struct device *dev,

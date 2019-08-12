@@ -144,11 +144,6 @@ out_fail_alloc:
 	return ret;
 }
 
-bool kvm_arch_has_vcpu_debugfs(void)
-{
-	return false;
-}
-
 int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
 {
 	return 0;
@@ -323,6 +318,17 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
 {
+	/*
+	 * If we're about to block (most likely because we've just hit a
+	 * WFI), we need to sync back the state of the GIC CPU interface
+	 * so that we have the lastest PMR and group enables. This ensures
+	 * that kvm_arch_vcpu_runnable has up-to-date data to decide
+	 * whether we have pending interrupts.
+	 */
+	preempt_disable();
+	kvm_vgic_vmcr_sync(vcpu);
+	preempt_enable();
+
 	kvm_vgic_v4_enable_doorbell(vcpu);
 }
 
@@ -339,6 +345,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	/* Set up the timer */
 	kvm_timer_vcpu_init(vcpu);
+
+	kvm_pmu_vcpu_init(vcpu);
 
 	kvm_arm_reset_debug_ptr(vcpu);
 

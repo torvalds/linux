@@ -160,7 +160,7 @@ static struct snd_soc_dai_link rk_dailink = {
 static int rk_98090_headset_init(struct snd_soc_component *component);
 
 static struct snd_soc_aux_dev rk_98090_headset_dev = {
-	.name = "Headset Chip",
+	.dlc = COMP_EMPTY(),
 	.init = rk_98090_headset_init,
 };
 
@@ -226,9 +226,9 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 
 	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
 
-	rk_98090_headset_dev.codec_of_node = of_parse_phandle(np,
+	rk_98090_headset_dev.dlc.of_node = of_parse_phandle(np,
 			"rockchip,headset-codec", 0);
-	if (!rk_98090_headset_dev.codec_of_node) {
+	if (!rk_98090_headset_dev.dlc.of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,headset-codec' missing/invalid\n");
 		return -EINVAL;
