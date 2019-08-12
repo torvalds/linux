@@ -1226,10 +1226,10 @@ static void rcu_prepare_kthreads(int cpu)
 #if !defined(CONFIG_RCU_FAST_NO_HZ)
 
 /*
- * Check to see if any future RCU-related work will need to be done
- * by the current CPU, even if none need be done immediately, returning
- * 1 if so.  This function is part of the RCU implementation; it is -not-
- * an exported member of the RCU API.
+ * Check to see if any future non-offloaded RCU-related work will need
+ * to be done by the current CPU, even if none need be done immediately,
+ * returning 1 if so.  This function is part of the RCU implementation;
+ * it is -not- an exported member of the RCU API.
  *
  * Because we not have RCU_FAST_NO_HZ, just check whether or not this
  * CPU has RCU callbacks queued.
@@ -1237,7 +1237,8 @@ static void rcu_prepare_kthreads(int cpu)
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
 	*nextevt = KTIME_MAX;
-	return !rcu_segcblist_empty(&this_cpu_ptr(&rcu_data)->cblist);
+	return !rcu_segcblist_empty(&this_cpu_ptr(&rcu_data)->cblist) &&
+	       !rcu_segcblist_is_offloaded(&this_cpu_ptr(&rcu_data)->cblist);
 }
 
 /*
@@ -1338,8 +1339,9 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 
 	lockdep_assert_irqs_disabled();
 
-	/* If no callbacks, RCU doesn't need the CPU. */
-	if (rcu_segcblist_empty(&rdp->cblist)) {
+	/* If no non-offloaded callbacks, RCU doesn't need the CPU. */
+	if (rcu_segcblist_empty(&rdp->cblist) ||
+	    rcu_segcblist_is_offloaded(&this_cpu_ptr(&rcu_data)->cblist)) {
 		*nextevt = KTIME_MAX;
 		return 0;
 	}
