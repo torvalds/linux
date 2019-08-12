@@ -4,7 +4,7 @@
  *
  * High-speed serial driver for NVIDIA Tegra SoCs
  *
- * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2019, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
  */
@@ -192,16 +192,34 @@ static void set_dtr(struct tegra_uart_port *tup, bool active)
 	}
 }
 
+static void set_loopbk(struct tegra_uart_port *tup, bool active)
+{
+	unsigned long mcr = tup->mcr_shadow;
+
+	if (active)
+		mcr |= UART_MCR_LOOP;
+	else
+		mcr &= ~UART_MCR_LOOP;
+
+	if (mcr != tup->mcr_shadow) {
+		tegra_uart_write(tup, mcr, UART_MCR);
+		tup->mcr_shadow = mcr;
+	}
+}
+
 static void tegra_uart_set_mctrl(struct uart_port *u, unsigned int mctrl)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
-	int dtr_enable;
+	int enable;
 
 	tup->rts_active = !!(mctrl & TIOCM_RTS);
 	set_rts(tup, tup->rts_active);
 
-	dtr_enable = !!(mctrl & TIOCM_DTR);
-	set_dtr(tup, dtr_enable);
+	enable = !!(mctrl & TIOCM_DTR);
+	set_dtr(tup, enable);
+
+	enable = !!(mctrl & TIOCM_LOOP);
+	set_loopbk(tup, enable);
 }
 
 static void tegra_uart_break_ctl(struct uart_port *u, int break_ctl)
