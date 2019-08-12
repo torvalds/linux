@@ -215,7 +215,6 @@ static int arcturus_get_smu_feature_index(struct smu_context *smc, uint32_t inde
 
 	mapping = arcturus_feature_mask_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU feature: %d\n", index);
 		return -EINVAL;
 	}
 
