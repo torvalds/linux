@@ -220,11 +220,13 @@ static int siw_qp_enable_crc(struct siw_qp *qp)
 {
 	struct siw_rx_stream *c_rx = &qp->rx_stream;
 	struct siw_iwarp_tx *c_tx = &qp->tx_ctx;
-	int size = crypto_shash_descsize(siw_crypto_shash) +
-			sizeof(struct shash_desc);
+	int size;
 
 	if (siw_crypto_shash == NULL)
 		return -ENOENT;
+
+	size = crypto_shash_descsize(siw_crypto_shash) +
+		sizeof(struct shash_desc);
 
 	c_tx->mpa_crc_hd = kzalloc(size, GFP_KERNEL);
 	c_rx->mpa_crc_hd = kzalloc(size, GFP_KERNEL);
