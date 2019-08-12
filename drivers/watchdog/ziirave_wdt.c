@@ -318,6 +318,8 @@ static int ziirave_firm_verify(struct watchdog_device *wdd,
 	u16 addr;
 
 	for (rec = (void *)fw->data; rec; rec = ihex_next_binrec(rec)) {
+		const u16 len = be16_to_cpu(rec->len);
+
 		addr = (be32_to_cpu(rec->addr) & 0xffff) >> 1;
 		if (addr < ZIIRAVE_FIRM_FLASH_MEMORY_START ||
 		    addr > ZIIRAVE_FIRM_FLASH_MEMORY_END)
@@ -331,7 +333,7 @@ static int ziirave_firm_verify(struct watchdog_device *wdd,
 			return ret;
 		}
 
-		for (i = 0; i < ARRAY_SIZE(data); i++) {
+		for (i = 0; i < len; i++) {
 			ret = i2c_smbus_read_byte_data(client,
 						ZIIRAVE_CMD_DOWNLOAD_READ_BYTE);
 			if (ret < 0) {
@@ -342,7 +344,7 @@ static int ziirave_firm_verify(struct watchdog_device *wdd,
 			data[i] = ret;
 		}
 
-		if (memcmp(data, rec->data, be16_to_cpu(rec->len))) {
+		if (memcmp(data, rec->data, len)) {
 			dev_err(&client->dev,
 				"Firmware mismatch at address 0x%04x\n", addr);
 			return -EINVAL;
