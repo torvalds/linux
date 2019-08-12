@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
+#include <endian.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
@@ -612,10 +613,10 @@ errout:
 
 static int bpf_object__check_endianness(struct bpf_object *obj)
 {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	if (obj->efile.ehdr.e_ident[EI_DATA] == ELFDATA2LSB)
 		return 0;
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#elif __BYTE_ORDER == __BIG_ENDIAN
 	if (obj->efile.ehdr.e_ident[EI_DATA] == ELFDATA2MSB)
 		return 0;
 #else
@@ -1377,8 +1378,13 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 		if (!has_datasec && kind == BTF_KIND_VAR) {
 			/* replace VAR with INT */
 			t->info = BTF_INFO_ENC(BTF_KIND_INT, 0, 0);
-			t->size = sizeof(int);
-			*(int *)(t+1) = BTF_INT_ENC(0, 0, 32);
+			/*
+			 * using size = 1 is the safest choice, 4 will be too
+			 * big and cause kernel BTF validation failure if
+			 * original variable took less than 4 bytes
+			 */
+			t->size = 1;
+			*(int *)(t+1) = BTF_INT_ENC(0, 0, 8);
 		} else if (!has_datasec && kind == BTF_KIND_DATASEC) {
 			/* replace DATASEC with STRUCT */
 			struct btf_var_secinfo *v = (void *)(t + 1);
@@ -1500,6 +1506,12 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 			   BTF_ELF_SEC, err);
 		btf__free(obj->btf);
 		obj->btf = NULL;
+		/* btf_ext can't exist without btf, so free it as well */
+		if (obj->btf_ext) {
+			btf_ext__free(obj->btf_ext);
+			obj->btf_ext = NULL;
+		}
+
 		if (bpf_object__is_btf_mandatory(obj))
 			return err;
 	}
@@ -4507,13 +4519,13 @@ struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
 				     const struct perf_buffer_opts *opts)
 {
 	struct perf_buffer_params p = {};
-	struct perf_event_attr attr = {
-		.config = PERF_COUNT_SW_BPF_OUTPUT,
-		.type = PERF_TYPE_SOFTWARE,
-		.sample_type = PERF_SAMPLE_RAW,
-		.sample_period = 1,
-		.wakeup_events = 1,
-	};
+	struct perf_event_attr attr = { 0, };
+
+	attr.config = PERF_COUNT_SW_BPF_OUTPUT,
+	attr.type = PERF_TYPE_SOFTWARE;
+	attr.sample_type = PERF_SAMPLE_RAW;
+	attr.sample_period = 1;
+	attr.wakeup_events = 1;
 
 	p.attr = &attr;
 	p.sample_cb = opts ? opts->sample_cb : NULL;
