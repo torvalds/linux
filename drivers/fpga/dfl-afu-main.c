@@ -508,6 +508,27 @@ static const struct dfl_feature_ops port_afu_ops = {
 	.init = port_afu_init,
 };
 
+static int port_stp_init(struct platform_device *pdev,
+			 struct dfl_feature *feature)
+{
+	struct resource *res = &pdev->resource[feature->resource_index];
+
+	return afu_mmio_region_add(dev_get_platdata(&pdev->dev),
+				   DFL_PORT_REGION_INDEX_STP,
+				   resource_size(res), res->start,
+				   DFL_PORT_REGION_MMAP | DFL_PORT_REGION_READ |
+				   DFL_PORT_REGION_WRITE);
+}
+
+static const struct dfl_feature_id port_stp_id_table[] = {
+	{.id = PORT_FEATURE_ID_STP,},
+	{0,}
+};
+
+static const struct dfl_feature_ops port_stp_ops = {
+	.init = port_stp_init,
+};
+
 static struct dfl_feature_driver port_feature_drvs[] = {
 	{
 		.id_table = port_hdr_id_table,
@@ -520,6 +541,10 @@ static struct dfl_feature_driver port_feature_drvs[] = {
 	{
 		.id_table = port_err_id_table,
 		.ops = &port_err_ops,
+	},
+	{
+		.id_table = port_stp_id_table,
+		.ops = &port_stp_ops,
 	},
 	{
 		.ops = NULL,
