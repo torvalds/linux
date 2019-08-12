@@ -51,6 +51,7 @@ static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 #define ZIIRAVE_FIRM_PKT_DATA_SIZE	16
 #define ZIIRAVE_FIRM_FLASH_MEMORY_START	0x1600
 #define ZIIRAVE_FIRM_FLASH_MEMORY_END	0x2bbf
+#define ZIIRAVE_FIRM_PAGE_SIZE		128
 
 /* Received and ready for next Download packet. */
 #define ZIIRAVE_FIRM_DOWNLOAD_ACK	1
@@ -244,27 +245,26 @@ static int ziirave_firm_write_byte(struct watchdog_device *wdd, u8 command,
  *     Data0 .. Data15: Array of 16 bytes of data.
  *     Checksum: Checksum byte to verify data integrity.
  */
-static int ziirave_firm_write_pkt(struct watchdog_device *wdd,
-				  const struct ihex_binrec *rec)
+static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
+				    u32 addr, const u8 *data, u8 len)
 {
+	const u16 addr16 = (u16)addr / 2;
 	struct i2c_client *client = to_i2c_client(wdd->parent);
 	u8 i, checksum = 0, packet[ZIIRAVE_FIRM_PKT_TOTAL_SIZE];
 	int ret;
-	u16 addr;
 
 	memset(packet, 0, ARRAY_SIZE(packet));
 
 	/* Packet length */
-	packet[0] = (u8)be16_to_cpu(rec->len);
+	packet[0] = len;
 	/* Packet address */
-	addr = (be32_to_cpu(rec->addr) & 0xffff) >> 1;
-	packet[1] = addr & 0xff;
-	packet[2] = (addr & 0xff00) >> 8;
+	packet[1] = addr16 & 0xff;
+	packet[2] = (addr16 & 0xff00) >> 8;
 
 	/* Packet data */
-	if (be16_to_cpu(rec->len) > ZIIRAVE_FIRM_PKT_DATA_SIZE)
+	if (len > ZIIRAVE_FIRM_PKT_DATA_SIZE)
 		return -EMSGSIZE;
-	memcpy(packet + 3, rec->data, be16_to_cpu(rec->len));
+	memcpy(packet + 3, data, len);
 
 	/* Packet checksum */
 	for (i = 0; i < ZIIRAVE_FIRM_PKT_TOTAL_SIZE - 1; i++)
@@ -276,9 +276,33 @@ static int ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	if (ret)
 		dev_err(&client->dev,
 		      "Failed to write firmware packet at address 0x%04x: %d\n",
-		      addr, ret);
+		      addr16, ret);
 
 	return ret;
+}
+
+static int ziirave_firm_write_pkt(struct watchdog_device *wdd,
+				  u32 addr, const u8 *data, u8 len)
+{
+	const u8 max_write_len = ZIIRAVE_FIRM_PAGE_SIZE -
+		(addr - ALIGN_DOWN(addr, ZIIRAVE_FIRM_PAGE_SIZE));
+	int ret;
+
+	if (len > max_write_len) {
+		/*
+		 * If data crossed page boundary we need to split this
+		 * write in two
+		 */
+		ret = __ziirave_firm_write_pkt(wdd, addr, data, max_write_len);
+		if (ret)
+			return ret;
+
+		addr += max_write_len;
+		data += max_write_len;
+		len  -= max_write_len;
+	}
+
+	return __ziirave_firm_write_pkt(wdd, addr, data, len);
 }
 
 static int ziirave_firm_verify(struct watchdog_device *wdd,
@@ -333,9 +357,8 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 			       const struct firmware *fw)
 {
 	struct i2c_client *client = to_i2c_client(wdd->parent);
-	int ret, words_till_page_break;
 	const struct ihex_binrec *rec;
-	struct ihex_binrec *rec_new;
+	int ret;
 
 	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_JUMP_TO_BOOTLOADER, 1,
 				      false);
@@ -366,68 +389,17 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 			return -EMSGSIZE;
 		}
 
-		/* Calculate words till page break */
-		words_till_page_break = (64 - ((be32_to_cpu(rec->addr) >> 1) &
-					 0x3f));
-		if ((be16_to_cpu(rec->len) >> 1) > words_till_page_break) {
-			/*
-			 * Data in passes page boundary, so we need to split in
-			 * two blocks of data. Create a packet with the first
-			 * block of data.
-			 */
-			rec_new = kzalloc(sizeof(struct ihex_binrec) +
-					  (words_till_page_break << 1),
-					  GFP_KERNEL);
-			if (!rec_new)
-				return -ENOMEM;
-
-			rec_new->len = cpu_to_be16(words_till_page_break << 1);
-			rec_new->addr = rec->addr;
-			memcpy(rec_new->data, rec->data,
-			       be16_to_cpu(rec_new->len));
-
-			ret = ziirave_firm_write_pkt(wdd, rec_new);
-			kfree(rec_new);
-			if (ret)
-				return ret;
-
-			/* Create a packet with the second block of data */
-			rec_new = kzalloc(sizeof(struct ihex_binrec) +
-					  be16_to_cpu(rec->len) -
-					  (words_till_page_break << 1),
-					  GFP_KERNEL);
-			if (!rec_new)
-				return -ENOMEM;
-
-			/* Remaining bytes */
-			rec_new->len = rec->len -
-				       cpu_to_be16(words_till_page_break << 1);
-
-			rec_new->addr = cpu_to_be32(be32_to_cpu(rec->addr) +
-					(words_till_page_break << 1));
-
-			memcpy(rec_new->data,
-			       rec->data + (words_till_page_break << 1),
-			       be16_to_cpu(rec_new->len));
-
-			ret = ziirave_firm_write_pkt(wdd, rec_new);
-			kfree(rec_new);
-			if (ret)
-				return ret;
-		} else {
-			ret = ziirave_firm_write_pkt(wdd, rec);
-			if (ret)
-				return ret;
-		}
+		ret = ziirave_firm_write_pkt(wdd, be32_to_cpu(rec->addr),
+					     rec->data, be16_to_cpu(rec->len));
+		if (ret)
+			return ret;
 	}
 
-	/* For end of download, the length field will be set to 0 */
-	rec_new = kzalloc(sizeof(struct ihex_binrec) + 1, GFP_KERNEL);
-	if (!rec_new)
-		return -ENOMEM;
-
-	ret = ziirave_firm_write_pkt(wdd, rec_new);
-	kfree(rec_new);
+	/*
+	 * Finish firmware download process by sending a zero length
+	 * payload
+	 */
+	ret = ziirave_firm_write_pkt(wdd, 0, NULL, 0);
 	if (ret) {
 		dev_err(&client->dev, "Failed to send EMPTY packet: %d\n", ret);
 		return ret;
