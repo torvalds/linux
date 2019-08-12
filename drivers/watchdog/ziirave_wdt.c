@@ -253,6 +253,13 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	u8 i, checksum = 0, packet[ZIIRAVE_FIRM_PKT_TOTAL_SIZE];
 	int ret;
 
+	/* Check max data size */
+	if (len > ZIIRAVE_FIRM_PKT_DATA_SIZE) {
+		dev_err(&client->dev, "Firmware packet too long (%d)\n",
+			len);
+		return -EMSGSIZE;
+	}
+
 	memset(packet, 0, ARRAY_SIZE(packet));
 
 	/* Packet length */
@@ -261,9 +268,6 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	packet[1] = addr16 & 0xff;
 	packet[2] = (addr16 & 0xff00) >> 8;
 
-	/* Packet data */
-	if (len > ZIIRAVE_FIRM_PKT_DATA_SIZE)
-		return -EMSGSIZE;
 	memcpy(packet + 3, data, len);
 
 	/* Packet checksum */
@@ -381,13 +385,6 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 		/* Zero length marks end of records */
 		if (!be16_to_cpu(rec->len))
 			break;
-
-		/* Check max data size */
-		if (be16_to_cpu(rec->len) > ZIIRAVE_FIRM_PKT_DATA_SIZE) {
-			dev_err(&client->dev, "Firmware packet too long (%d)\n",
-				be16_to_cpu(rec->len));
-			return -EMSGSIZE;
-		}
 
 		ret = ziirave_firm_write_pkt(wdd, be32_to_cpu(rec->addr),
 					     rec->data, be16_to_cpu(rec->len));
