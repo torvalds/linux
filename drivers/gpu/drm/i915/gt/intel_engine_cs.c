@@ -1008,16 +1008,12 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 static bool ring_is_idle(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	intel_wakeref_t wakeref;
 	bool idle = true;
 
 	if (I915_SELFTEST_ONLY(!engine->mmio_base))
 		return true;
 
-	/* If the whole device is asleep, the engine must be idle */
-	wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
-	if (!wakeref)
+	if (!intel_engine_pm_get_if_awake(engine))
 		return true;
 
 	/* First check that no commands are left in the ring */
@@ -1026,11 +1022,11 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 		idle = false;
 
 	/* No bit for gen2, so assume the CS parser is idle */
-	if (INTEL_GEN(dev_priv) > 2 &&
+	if (INTEL_GEN(engine->i915) > 2 &&
 	    !(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE))
 		idle = false;
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_engine_pm_put(engine);
 
 	return idle;
 }
