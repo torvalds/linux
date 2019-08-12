@@ -253,7 +253,6 @@ int axg_tdm_formatter_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct axg_tdm_formatter_driver *drv;
 	struct axg_tdm_formatter *formatter;
-	struct resource *res;
 	void __iomem *regs;
 	int ret;
 
@@ -269,8 +268,7 @@ int axg_tdm_formatter_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, formatter);
 	formatter->drv = drv;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
