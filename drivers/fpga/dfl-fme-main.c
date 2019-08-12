@@ -129,30 +129,6 @@ static struct attribute *fme_hdr_attrs[] = {
 };
 ATTRIBUTE_GROUPS(fme_hdr);
 
-static int fme_hdr_init(struct platform_device *pdev,
-			struct dfl_feature *feature)
-{
-	void __iomem *base = feature->ioaddr;
-	int ret;
-
-	dev_dbg(&pdev->dev, "FME HDR Init.\n");
-	dev_dbg(&pdev->dev, "FME cap %llx.\n",
-		(unsigned long long)readq(base + FME_HDR_CAP));
-
-	ret = device_add_groups(&pdev->dev, fme_hdr_groups);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void fme_hdr_uinit(struct platform_device *pdev,
-			  struct dfl_feature *feature)
-{
-	dev_dbg(&pdev->dev, "FME HDR UInit.\n");
-	device_remove_groups(&pdev->dev, fme_hdr_groups);
-}
-
 static long fme_hdr_ioctl_release_port(struct dfl_feature_platform_data *pdata,
 				       unsigned long arg)
 {
@@ -199,8 +175,6 @@ static const struct dfl_feature_id fme_hdr_id_table[] = {
 };
 
 static const struct dfl_feature_ops fme_hdr_ops = {
-	.init = fme_hdr_init,
-	.uinit = fme_hdr_uinit,
 	.ioctl = fme_hdr_ioctl,
 };
 
@@ -361,7 +335,8 @@ static int fme_remove(struct platform_device *pdev)
 
 static struct platform_driver fme_driver = {
 	.driver	= {
-		.name    = DFL_FPGA_FEATURE_DEV_FME,
+		.name       = DFL_FPGA_FEATURE_DEV_FME,
+		.dev_groups = fme_hdr_groups,
 	},
 	.probe   = fme_probe,
 	.remove  = fme_remove,
