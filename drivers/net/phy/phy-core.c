@@ -315,6 +315,34 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
 
+static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i = ARRAY_SIZE(settings);
+
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
+
+	while (--i >= 0) {
+		if (test_bit(settings[i].bit, common)) {
+			if (fdx_only && settings[i].duplex != DUPLEX_FULL)
+				continue;
+			return settings[i].speed;
+		}
+	}
+
+	return SPEED_UNKNOWN;
+}
+
+int phy_speed_down_core(struct phy_device *phydev)
+{
+	int min_common_speed = phy_resolve_min_speed(phydev, true);
+
+	if (min_common_speed == SPEED_UNKNOWN)
+		return -EINVAL;
+
+	return __set_linkmode_max_speed(min_common_speed, phydev->advertising);
+}
+
 static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
 {
