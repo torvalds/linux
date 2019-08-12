@@ -790,6 +790,25 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	chip->pinmux_is_supported = of_property_read_bool(dev->of_node,
 							"gpio-ranges");
 
+	/* optional GPIO interrupt support */
+	irq = platform_get_irq(pdev, 0);
+	if (irq) {
+		struct gpio_irq_chip *girq;
+
+		girq = &gc->irq;
+		girq->chip = &iproc_gpio_irq_chip;
+		girq->parent_handler = iproc_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+	}
+
 	ret = gpiochip_add_data(gc, chip);
 	if (ret < 0) {
 		dev_err(dev, "unable to add GPIO chip\n");
@@ -812,20 +831,6 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 				goto err_rm_gpiochip;
 			}
 		}
-	}
-
-	/* optional GPIO interrupt support */
-	irq = platform_get_irq(pdev, 0);
-	if (irq) {
-		ret = gpiochip_irqchip_add(gc, &iproc_gpio_irq_chip, 0,
-					   handle_simple_irq, IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(dev, "no GPIO irqchip\n");
-			goto err_rm_gpiochip;
-		}
-
-		gpiochip_set_chained_irqchip(gc, &iproc_gpio_irq_chip, irq,
-					     iproc_gpio_irq_handler);
 	}
 
 	return 0;
