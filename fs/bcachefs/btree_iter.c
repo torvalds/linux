@@ -86,7 +86,7 @@ void __bch2_btree_node_lock_write(struct btree *b, struct btree_iter *iter)
 	struct btree_iter *linked;
 	unsigned readers = 0;
 
-	EBUG_ON(btree_node_read_locked(iter, b->c.level));
+	EBUG_ON(!btree_node_intent_locked(iter, b->c.level));
 
 	trans_for_each_iter(iter->trans, linked)
 		if (linked->l[b->c.level].b == b &&
@@ -1779,6 +1779,12 @@ found:
 
 		iter->flags &= ~(BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
 		iter->flags |= flags & (BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
+
+		if ((iter->flags & BTREE_ITER_INTENT) &&
+		    !bch2_btree_iter_upgrade(iter, 1)) {
+			trace_trans_restart_upgrade(trans->ip);
+			return ERR_PTR(-EINTR);
+		}
 	}
 
 	BUG_ON(iter->btree_id != btree_id);
