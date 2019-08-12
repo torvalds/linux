@@ -51,8 +51,8 @@ static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 
 #define ZIIRAVE_FIRM_PKT_TOTAL_SIZE	20
 #define ZIIRAVE_FIRM_PKT_DATA_SIZE	16
-#define ZIIRAVE_FIRM_FLASH_MEMORY_START	0x1600
-#define ZIIRAVE_FIRM_FLASH_MEMORY_END	0x2bbf
+#define ZIIRAVE_FIRM_FLASH_MEMORY_START	(2 * 0x1600)
+#define ZIIRAVE_FIRM_FLASH_MEMORY_END	(2 * 0x2bbf)
 #define ZIIRAVE_FIRM_PAGE_SIZE		128
 
 /* Received and ready for next Download packet. */
@@ -195,12 +195,13 @@ static int ziirave_firm_wait_for_ack(struct watchdog_device *wdd)
 	return ret == ZIIRAVE_FIRM_DOWNLOAD_ACK ? 0 : -EIO;
 }
 
-static int ziirave_firm_set_read_addr(struct watchdog_device *wdd, u16 addr)
+static int ziirave_firm_set_read_addr(struct watchdog_device *wdd, u32 addr)
 {
 	struct i2c_client *client = to_i2c_client(wdd->parent);
+	const u16 addr16 = (u16)addr / 2;
 	u8 address[2];
 
-	put_unaligned_le16(addr, address);
+	put_unaligned_le16(addr16, address);
 
 	return i2c_smbus_write_block_data(client,
 					  ZIIRAVE_CMD_DOWNLOAD_SET_READ_ADDR,
@@ -234,6 +235,12 @@ static int ziirave_firm_write_byte(struct watchdog_device *wdd, u8 command,
 					     wait_for_ack);
 }
 
+static bool ziirave_firm_addr_readonly(u32 addr)
+{
+	return addr < ZIIRAVE_FIRM_FLASH_MEMORY_START ||
+	       addr > ZIIRAVE_FIRM_FLASH_MEMORY_END;
+}
+
 /*
  * ziirave_firm_write_pkt() - Build and write a firmware packet
  *
@@ -261,6 +268,16 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 		return -EMSGSIZE;
 	}
 
+	/*
+	 * Ignore packets that are targeting program memory outisde of
+	 * app partition, since they will be ignored by the
+	 * bootloader. At the same time, we need to make sure we'll
+	 * allow zero length packet that will be sent as the last step
+	 * of firmware update
+	 */
+	if (len && ziirave_firm_addr_readonly(addr))
+		return 0;
+
 	/* Packet length */
 	packet[0] = len;
 	/* Packet address */
@@ -279,7 +296,7 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	if (ret)
 		dev_err(&client->dev,
 		      "Failed to write firmware packet at address 0x%04x: %d\n",
-		      addr16, ret);
+		      addr, ret);
 
 	return ret;
 }
@@ -315,14 +332,12 @@ static int ziirave_firm_verify(struct watchdog_device *wdd,
 	const struct ihex_binrec *rec;
 	int i, ret;
 	u8 data[ZIIRAVE_FIRM_PKT_DATA_SIZE];
-	u16 addr;
 
 	for (rec = (void *)fw->data; rec; rec = ihex_next_binrec(rec)) {
 		const u16 len = be16_to_cpu(rec->len);
+		const u32 addr = be32_to_cpu(rec->addr);
 
-		addr = (be32_to_cpu(rec->addr) & 0xffff) >> 1;
-		if (addr < ZIIRAVE_FIRM_FLASH_MEMORY_START ||
-		    addr > ZIIRAVE_FIRM_FLASH_MEMORY_END)
+		if (ziirave_firm_addr_readonly(addr))
 			continue;
 
 		ret = ziirave_firm_set_read_addr(wdd, addr);
