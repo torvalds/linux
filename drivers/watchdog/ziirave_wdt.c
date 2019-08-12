@@ -203,7 +203,7 @@ static int ziirave_firm_set_read_addr(struct watchdog_device *wdd, u16 addr)
 
 	return i2c_smbus_write_block_data(client,
 					  ZIIRAVE_CMD_DOWNLOAD_SET_READ_ADDR,
-					  ARRAY_SIZE(address), address);
+					  sizeof(address), address);
 }
 
 static int ziirave_firm_write_block_data(struct watchdog_device *wdd,
@@ -260,7 +260,7 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 		return -EMSGSIZE;
 	}
 
-	memset(packet, 0, ARRAY_SIZE(packet));
+	memset(packet, 0, sizeof(packet));
 
 	/* Packet length */
 	packet[0] = len;
@@ -276,7 +276,7 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	packet[ZIIRAVE_FIRM_PKT_TOTAL_SIZE - 1] = checksum;
 
 	ret = ziirave_firm_write_block_data(wdd, ZIIRAVE_CMD_DOWNLOAD_PACKET,
-					    ARRAY_SIZE(packet), packet, true);
+					    sizeof(packet), packet, true);
 	if (ret)
 		dev_err(&client->dev,
 		      "Failed to write firmware packet at address 0x%04x: %d\n",
