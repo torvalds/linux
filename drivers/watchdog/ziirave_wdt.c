@@ -217,13 +217,6 @@ static int ziirave_firm_write_block_data(struct watchdog_device *wdd,
 	return ret;
 }
 
-static int ziirave_firm_write_byte(struct watchdog_device *wdd, u8 command,
-				   u8 byte, bool wait_for_ack)
-{
-	return ziirave_firm_write_block_data(wdd, command, 1, &byte,
-					     wait_for_ack);
-}
-
 static bool ziirave_firm_addr_readonly(u32 addr)
 {
 	return addr < ZIIRAVE_FIRM_FLASH_MEMORY_START ||
@@ -375,9 +368,15 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 
 	msleep(500);
 
-	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_DOWNLOAD_START, 1, true);
+	ret = i2c_smbus_write_byte(client, ZIIRAVE_CMD_DOWNLOAD_START);
 	if (ret) {
 		dev_err(&client->dev, "Failed to start download\n");
+		return ret;
+	}
+
+	ret = ziirave_firm_read_ack(wdd);
+	if (ret) {
+		dev_err(&client->dev, "No ACK for start download\n");
 		return ret;
 	}
 
