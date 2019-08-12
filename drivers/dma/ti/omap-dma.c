@@ -1666,7 +1666,6 @@ static bool omap_dma_filter_fn(struct dma_chan *chan, void *param)
 	}
 	return false;
 }
-EXPORT_SYMBOL_GPL(omap_dma_filter_fn);
 
 static int omap_dma_init(void)
 {

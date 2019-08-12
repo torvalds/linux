@@ -2600,7 +2600,6 @@ static bool edma_filter_fn(struct dma_chan *chan, void *param)
 	}
 	return match;
 }
-EXPORT_SYMBOL(edma_filter_fn);
 
 static int edma_init(void)
 {
