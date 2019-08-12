@@ -358,25 +358,30 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->parent = dev;
 
+	/* set up interrupts  */
+	if (irq_rc && irq_rc->start) {
+		struct gpio_irq_chip *girq;
+
+		girq = &gc->irq;
+		girq->chip = &lp_irqchip;
+		girq->parent_handler = lp_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = (unsigned)irq_rc->start;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+
+		lp_gpio_irq_init_hw(lg);
+	}
+
 	ret = devm_gpiochip_add_data(dev, gc, lg);
 	if (ret) {
 		dev_err(dev, "failed adding lp-gpio chip\n");
 		return ret;
-	}
-
-	/* set up interrupts  */
-	if (irq_rc && irq_rc->start) {
-		lp_gpio_irq_init_hw(lg);
-		ret = gpiochip_irqchip_add(gc, &lp_irqchip, 0,
-					   handle_simple_irq, IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(dev, "failed to add irqchip\n");
-			return ret;
-		}
-
-		gpiochip_set_chained_irqchip(gc, &lp_irqchip,
-					     (unsigned)irq_rc->start,
-					     lp_gpio_irq_handler);
 	}
 
 	pm_runtime_enable(dev);
