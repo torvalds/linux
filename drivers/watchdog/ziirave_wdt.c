@@ -602,7 +602,10 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 	struct ziirave_wdt_data *w_priv;
 	int val;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter,
+				     I2C_FUNC_SMBUS_BYTE |
+				     I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_WRITE_BLOCK_DATA))
 		return -ENODEV;
 
 	w_priv = devm_kzalloc(&client->dev, sizeof(*w_priv), GFP_KERNEL);
