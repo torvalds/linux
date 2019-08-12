@@ -792,6 +792,33 @@ void pci_p2pmem_publish(struct pci_dev *pdev, bool publish)
 }
 EXPORT_SYMBOL_GPL(pci_p2pmem_publish);
 
+static int __pci_p2pdma_map_sg(struct pci_p2pdma_pagemap *p2p_pgmap,
+		struct device *dev, struct scatterlist *sg, int nents)
+{
+	struct scatterlist *s;
+	phys_addr_t paddr;
+	int i;
+
+	/*
+	 * p2pdma mappings are not compatible with devices that use
+	 * dma_virt_ops. If the upper layers do the right thing
+	 * this should never happen because it will be prevented
+	 * by the check in pci_p2pdma_distance_many()
+	 */
+	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
+			 dev->dma_ops == &dma_virt_ops))
+		return 0;
+
+	for_each_sg(sg, s, nents, i) {
+		paddr = sg_phys(s);
+
+		s->dma_address = paddr - p2p_pgmap->bus_offset;
+		sg_dma_len(s) = s->length;
+	}
+
+	return nents;
+}
+
 /**
  * pci_p2pdma_map_sg - map a PCI peer-to-peer scatterlist for DMA
  * @dev: device doing the DMA request
@@ -808,30 +835,10 @@ EXPORT_SYMBOL_GPL(pci_p2pmem_publish);
 int pci_p2pdma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
-	struct pci_p2pdma_pagemap *p2p_pgmap;
-	struct scatterlist *s;
-	phys_addr_t paddr;
-	int i;
+	struct pci_p2pdma_pagemap *p2p_pgmap =
+		to_p2p_pgmap(sg_page(sg)->pgmap);
 
-	/*
-	 * p2pdma mappings are not compatible with devices that use
-	 * dma_virt_ops. If the upper layers do the right thing
-	 * this should never happen because it will be prevented
-	 * by the check in pci_p2pdma_distance_many()
-	 */
-	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
-			 dev->dma_ops == &dma_virt_ops))
-		return 0;
-
-	for_each_sg(sg, s, nents, i) {
-		p2p_pgmap = to_p2p_pgmap(sg_page(s)->pgmap);
-		paddr = sg_phys(s);
-
-		s->dma_address = paddr - p2p_pgmap->bus_offset;
-		sg_dma_len(s) = s->length;
-	}
-
-	return nents;
+	return __pci_p2pdma_map_sg(p2p_pgmap, dev, sg, nents);
 }
 EXPORT_SYMBOL_GPL(pci_p2pdma_map_sg_attrs);
 
