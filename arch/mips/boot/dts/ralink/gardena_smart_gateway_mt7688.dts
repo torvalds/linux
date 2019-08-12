@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2019 Stefan Roese <sr@denx.de>
+ */
+
+/dts-v1/;
+
+/include/ "mt7628a.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	compatible = "gardena,smart-gateway-mt7688", "ralink,mt7688a-soc",
+		     "ralink,mt7628a-soc";
+	model = "GARDENA smart Gateway (MT7688)";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinmux_gpio_gpio>;	/* GPIO11 */
+
+		user_btn1 {
+			label = "USER_BTN1";
+			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
+			linux,code =<KEY_PROG1> ;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinmux_pwm0_gpio>,	/* GPIO18 */
+			    <&pinmux_pwm1_gpio>,	/* GPIO19 */
+			    <&pinmux_sdmode_gpio>,	/* GPIO22..29 */
+			    <&pinmux_p0led_an_gpio>;	/* GPIO43 */
+		/*
+		 * <&pinmux_i2s_gpio> (covers GPIO0..3) is needed here as
+		 * well for GPIO3. But this is already claimed for uart1
+		 * (see below). So we can't include it in this LED node.
+		 */
+
+		power_blue {
+			label = "smartgw:power:blue";
+			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		power_green {
+			label = "smartgw:power:green";
+			gpios = <&gpio 19 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		power_red {
+			label = "smartgw:power:red";
+			gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		radio_blue {
+			label = "smartgw:radio:blue";
+			gpios = <&gpio 23 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		radio_green {
+			label = "smartgw:radio:green";
+			gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		radio_red {
+			label = "smartgw:radio:red";
+			gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		internet_blue {
+			label = "smartgw:internet:blue";
+			gpios = <&gpio 26 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		internet_green {
+			label = "smartgw:internet:green";
+			gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		internet_red {
+			label = "smartgw:internet:red";
+			gpios = <&gpio 28 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		ethernet_link {
+			label = "smartgw:eth:link";
+			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "netdev";
+		};
+
+		ethernet_activity {
+			label = "smartgw:eth:act";
+			gpios = <&gpio 43 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "netdev";
+		};
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+};
+
+&i2c {
+	status = "okay";
+};
+
+&spi {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinmux_spi_spi>, <&pinmux_spi_cs1_cs>;
+
+	m25p80@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0 0xa0000>;
+				read-only;
+			};
+
+			partition@a0000 {
+				label = "uboot_env0";
+				reg = <0xa0000 0x10000>;
+			};
+
+			partition@b0000 {
+				label = "uboot_env1";
+				reg = <0xb0000 0x10000>;
+			};
+
+			factory: partition@c0000 {
+				label = "factory";
+				reg = <0xc0000 0x10000>;
+				read-only;
+			};
+		};
+	};
+
+	nand_flash@1 {
+		compatible = "spi-nand";
+		linux,mtd-name = "gd5f";
+		reg = <1>;
+		spi-max-frequency = <40000000>;
+	};
+};
+
+&uart1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinmux_i2s_gpio>;		/* GPIO0..3 */
+
+	rts-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
+	cts-gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
+};
+
+&uart2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinmux_p2led_an_gpio>,	/* GPIO41 */
+		    <&pinmux_p3led_an_gpio>;	/* GPIO40 */
+
+	rts-gpios = <&gpio 40 GPIO_ACTIVE_LOW>;
+	cts-gpios = <&gpio 41 GPIO_ACTIVE_LOW>;
+};
+
+&watchdog {
+	status = "okay";
+};
