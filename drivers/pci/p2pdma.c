@@ -18,7 +18,6 @@
 #include <linux/percpu-refcount.h>
 #include <linux/random.h>
 #include <linux/seq_buf.h>
-#include <linux/iommu.h>
 #include <linux/xarray.h>
 
 enum pci_p2pdma_map_type {
@@ -327,9 +326,6 @@ static bool host_bridge_whitelist(struct pci_dev *a, struct pci_dev *b)
 {
 	struct pci_host_bridge *host_a = pci_find_host_bridge(a->bus);
 	struct pci_host_bridge *host_b = pci_find_host_bridge(b->bus);
-
-	if (iommu_present(a->dev.bus) || iommu_present(b->dev.bus))
-		return false;
 
 	if (host_a == host_b)
 		return __host_bridge_whitelist(host_a, true);
