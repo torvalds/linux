@@ -1059,18 +1059,6 @@ static void guc_interrupts_release(struct intel_gt *gt)
 	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
 }
 
-static void guc_submission_park(struct intel_engine_cs *engine)
-{
-	intel_engine_unpin_breadcrumbs_irq(engine);
-	engine->flags &= ~I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
-}
-
-static void guc_submission_unpark(struct intel_engine_cs *engine)
-{
-	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
-	intel_engine_pin_breadcrumbs_irq(engine);
-}
-
 static void guc_set_default_submission(struct intel_engine_cs *engine)
 {
 	/*
@@ -1088,8 +1076,8 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 
 	engine->execlists.tasklet.func = guc_submission_tasklet;
 
-	engine->park = guc_submission_park;
-	engine->unpark = guc_submission_unpark;
+	/* do not use execlists park/unpark */
+	engine->park = engine->unpark = NULL;
 
 	engine->reset.prepare = guc_reset_prepare;
 	engine->reset.reset = guc_reset;
@@ -1098,6 +1086,15 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 	engine->cancel_requests = guc_cancel_requests;
 
 	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
+	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
+
+	/*
+	 * For the breadcrumb irq to work we need the interrupts to stay
+	 * enabled. However, on all platforms on which we'll have support for
+	 * GuC submission we don't allow disabling the interrupts at runtime, so
+	 * we're always safe with the current flow.
+	 */
+	GEM_BUG_ON(engine->irq_enable || engine->irq_disable);
 }
 
 int intel_guc_submission_enable(struct intel_guc *guc)
