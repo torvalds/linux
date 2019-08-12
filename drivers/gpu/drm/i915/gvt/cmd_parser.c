@@ -1729,7 +1729,9 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 	return 1;
 }
 
-static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
+static int find_bb_size(struct parser_exec_state *s,
+			unsigned long *bb_size,
+			unsigned long *bb_end_cmd_offset)
 {
 	unsigned long gma = 0;
 	const struct cmd_info *info;
@@ -1741,6 +1743,7 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 		s->vgpu->gtt.ggtt_mm : s->workload->shadow_mm;
 
 	*bb_size = 0;
+	*bb_end_cmd_offset = 0;
 
 	/* get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
@@ -1776,6 +1779,10 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 				/* chained batch buffer */
 				bb_end = true;
 		}
+
+		if (bb_end)
+			*bb_end_cmd_offset = *bb_size;
+
 		cmd_len = get_cmd_length(info, cmd) << 2;
 		*bb_size += cmd_len;
 		gma += cmd_len;
@@ -1784,12 +1791,36 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 	return 0;
 }
 
+static int audit_bb_end(struct parser_exec_state *s, void *va)
+{
+	struct intel_vgpu *vgpu = s->vgpu;
+	u32 cmd = *(u32 *)va;
+	const struct cmd_info *info;
+
+	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
+	if (info == NULL) {
+		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+			cmd, get_opcode(cmd, s->ring_id),
+			(s->buf_addr_type == PPGTT_BUFFER) ?
+			"ppgtt" : "ggtt", s->ring_id, s->workload);
+		return -EBADRQC;
+	}
+
+	if ((info->opcode == OP_MI_BATCH_BUFFER_END) ||
+	    ((info->opcode == OP_MI_BATCH_BUFFER_START) &&
+	     (BATCH_BUFFER_2ND_LEVEL_BIT(cmd) == 0)))
+		return 0;
+
+	return -EBADRQC;
+}
+
 static int perform_bb_shadow(struct parser_exec_state *s)
 {
 	struct intel_vgpu *vgpu = s->vgpu;
 	struct intel_vgpu_shadow_bb *bb;
 	unsigned long gma = 0;
 	unsigned long bb_size;
+	unsigned long bb_end_cmd_offset;
 	int ret = 0;
 	struct intel_vgpu_mm *mm = (s->buf_addr_type == GTT_BUFFER) ?
 		s->vgpu->gtt.ggtt_mm : s->workload->shadow_mm;
@@ -1800,7 +1831,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (gma == INTEL_GVT_INVALID_ADDR)
 		return -EFAULT;
 
-	ret = find_bb_size(s, &bb_size);
+	ret = find_bb_size(s, &bb_size, &bb_end_cmd_offset);
 	if (ret)
 		return ret;
 
@@ -1855,6 +1886,10 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		ret = -EFAULT;
 		goto err_unmap;
 	}
+
+	ret = audit_bb_end(s, bb->va + start_offset + bb_end_cmd_offset);
+	if (ret)
+		goto err_unmap;
 
 	INIT_LIST_HEAD(&bb->list);
 	list_add(&bb->list, &s->workload->shadow_bb);
