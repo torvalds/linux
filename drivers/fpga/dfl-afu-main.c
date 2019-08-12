@@ -282,24 +282,17 @@ static struct attribute *port_hdr_attrs[] = {
 	&dev_attr_power_state.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(port_hdr);
+
+static const struct attribute_group port_hdr_group = {
+	.attrs = port_hdr_attrs,
+};
 
 static int port_hdr_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
 {
-	dev_dbg(&pdev->dev, "PORT HDR Init.\n");
-
 	port_reset(pdev);
 
-	return device_add_groups(&pdev->dev, port_hdr_groups);
-}
-
-static void port_hdr_uinit(struct platform_device *pdev,
-			   struct dfl_feature *feature)
-{
-	dev_dbg(&pdev->dev, "PORT HDR UInit.\n");
-
-	device_remove_groups(&pdev->dev, port_hdr_groups);
+	return 0;
 }
 
 static long
@@ -330,7 +323,6 @@ static const struct dfl_feature_id port_hdr_id_table[] = {
 
 static const struct dfl_feature_ops port_hdr_ops = {
 	.init = port_hdr_init,
-	.uinit = port_hdr_uinit,
 	.ioctl = port_hdr_ioctl,
 };
 
@@ -361,32 +353,37 @@ static struct attribute *port_afu_attrs[] = {
 	&dev_attr_afu_id.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(port_afu);
+
+static umode_t port_afu_attrs_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+
+	/*
+	 * sysfs entries are visible only if related private feature is
+	 * enumerated.
+	 */
+	if (!dfl_get_feature_by_id(dev, PORT_FEATURE_ID_AFU))
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group port_afu_group = {
+	.attrs      = port_afu_attrs,
+	.is_visible = port_afu_attrs_visible,
+};
 
 static int port_afu_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
 {
 	struct resource *res = &pdev->resource[feature->resource_index];
-	int ret;
 
-	dev_dbg(&pdev->dev, "PORT AFU Init.\n");
-
-	ret = afu_mmio_region_add(dev_get_platdata(&pdev->dev),
-				  DFL_PORT_REGION_INDEX_AFU, resource_size(res),
-				  res->start, DFL_PORT_REGION_READ |
-				  DFL_PORT_REGION_WRITE | DFL_PORT_REGION_MMAP);
-	if (ret)
-		return ret;
-
-	return device_add_groups(&pdev->dev, port_afu_groups);
-}
-
-static void port_afu_uinit(struct platform_device *pdev,
-			   struct dfl_feature *feature)
-{
-	dev_dbg(&pdev->dev, "PORT AFU UInit.\n");
-
-	device_remove_groups(&pdev->dev, port_afu_groups);
+	return afu_mmio_region_add(dev_get_platdata(&pdev->dev),
+				   DFL_PORT_REGION_INDEX_AFU,
+				   resource_size(res), res->start,
+				   DFL_PORT_REGION_MMAP | DFL_PORT_REGION_READ |
+				   DFL_PORT_REGION_WRITE);
 }
 
 static const struct dfl_feature_id port_afu_id_table[] = {
@@ -396,7 +393,6 @@ static const struct dfl_feature_id port_afu_id_table[] = {
 
 static const struct dfl_feature_ops port_afu_ops = {
 	.init = port_afu_init,
-	.uinit = port_afu_uinit,
 };
 
 static struct dfl_feature_driver port_feature_drvs[] = {
@@ -748,9 +744,16 @@ static int afu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct attribute_group *afu_dev_groups[] = {
+	&port_hdr_group,
+	&port_afu_group,
+	NULL
+};
+
 static struct platform_driver afu_driver = {
 	.driver	= {
-		.name    = DFL_FPGA_FEATURE_DEV_PORT,
+		.name	    = DFL_FPGA_FEATURE_DEV_PORT,
+		.dev_groups = afu_dev_groups,
 	},
 	.probe   = afu_probe,
 	.remove  = afu_remove,
