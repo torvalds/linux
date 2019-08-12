@@ -503,12 +503,20 @@ int intel_uc_init_hw(struct intel_uc *uc)
 			goto err_communication;
 	}
 
-	dev_info(i915->drm.dev, "GuC firmware version %u.%u\n",
-		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
-	dev_info(i915->drm.dev, "GuC submission %s\n",
+	dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
+		 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC), guc->fw.path,
+		 guc->fw.major_ver_found, guc->fw.minor_ver_found,
+		 "submission",
 		 enableddisabled(intel_uc_supports_guc_submission(uc)));
-	dev_info(i915->drm.dev, "HuC %s\n",
-		 enableddisabled(intel_huc_is_authenticated(huc)));
+
+	if (intel_uc_supports_huc(uc)) {
+		dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
+			 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
+			 huc->fw.path,
+			 huc->fw.major_ver_found, huc->fw.minor_ver_found,
+			 "authenticated",
+			 yesno(intel_huc_is_authenticated(huc)));
+	}
 
 	return 0;
 
