@@ -611,7 +611,7 @@ void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_NAV_USE_HDR(pdesc, 1);
 	} else {
 		SET_TX_DESC_HWSEQ_EN(pdesc, 1); /* Hw set sequence number */
-		SET_TX_DESC_PKT_ID(pdesc, 0x100); /* set bit3 to 1. */
+		SET_TX_DESC_PKT_ID(pdesc, BIT(3)); /* set bit3 to 1. */
 	}
 	SET_TX_DESC_USE_RATE(pdesc, 1); /* use data rate which is set by Sw */
 	SET_TX_DESC_OWN(pdesc, 1);
