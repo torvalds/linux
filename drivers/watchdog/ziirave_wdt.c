@@ -318,10 +318,6 @@ static int ziirave_firm_verify(struct watchdog_device *wdd,
 	u16 addr;
 
 	for (rec = (void *)fw->data; rec; rec = ihex_next_binrec(rec)) {
-		/* Zero length marks end of records */
-		if (!be16_to_cpu(rec->len))
-			break;
-
 		addr = (be32_to_cpu(rec->addr) & 0xffff) >> 1;
 		if (addr < ZIIRAVE_FIRM_FLASH_MEMORY_START ||
 		    addr > ZIIRAVE_FIRM_FLASH_MEMORY_END)
@@ -381,10 +377,6 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 	msleep(500);
 
 	for (rec = (void *)fw->data; rec; rec = ihex_next_binrec(rec)) {
-		/* Zero length marks end of records */
-		if (!be16_to_cpu(rec->len))
-			break;
-
 		ret = ziirave_firm_write_pkt(wdd, be32_to_cpu(rec->addr),
 					     rec->data, be16_to_cpu(rec->len));
 		if (ret)
