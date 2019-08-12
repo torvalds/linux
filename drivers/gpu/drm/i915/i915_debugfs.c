@@ -212,9 +212,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			}
 		}
 		if (vma->fence)
-			seq_printf(m, " , fence: %d%s",
-				   vma->fence->id,
-				   i915_active_request_isset(&vma->last_fence) ? "*" : "");
+			seq_printf(m, " , fence: %d", vma->fence->id);
 		seq_puts(m, ")");
 
 		spin_lock(&obj->vma.lock);

@@ -120,7 +120,6 @@ vma_create(struct drm_i915_gem_object *obj,
 
 	i915_active_init(vm->i915, &vma->active,
 			 __i915_vma_active, __i915_vma_retire);
-	INIT_ACTIVE_REQUEST(&vma->last_fence);
 
 	/* Declare ourselves safe for use inside shrinkers */
 	if (IS_ENABLED(CONFIG_LOCKDEP)) {
@@ -802,8 +801,6 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(vma->fence);
 
-	GEM_BUG_ON(i915_active_request_isset(&vma->last_fence));
-
 	mutex_lock(&vma->vm->mutex);
 	list_del(&vma->vm_link);
 	mutex_unlock(&vma->vm->mutex);
@@ -928,9 +925,6 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	obj->read_domains |= I915_GEM_GPU_DOMAINS;
 	obj->mm.dirty = true;
 
-	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		__i915_active_request_set(&vma->last_fence, rq);
-
 	GEM_BUG_ON(!i915_vma_is_active(vma));
 	return 0;
 }
@@ -961,14 +955,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 		 * before we are finished).
 		 */
 		__i915_vma_pin(vma);
-
 		ret = i915_active_wait(&vma->active);
-		if (ret)
-			goto unpin;
-
-		ret = i915_active_request_retire(&vma->last_fence,
-					      &vma->vm->i915->drm.struct_mutex);
-unpin:
 		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;

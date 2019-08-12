@@ -230,16 +230,14 @@ static int fence_update(struct i915_fence_reg *fence,
 			 i915_gem_object_get_tiling(vma->obj)))
 			return -EINVAL;
 
-		ret = i915_active_request_retire(&vma->last_fence,
-					     &vma->obj->base.dev->struct_mutex);
+		ret = i915_active_wait(&vma->active);
 		if (ret)
 			return ret;
 	}
 
 	old = xchg(&fence->vma, NULL);
 	if (old) {
-		ret = i915_active_request_retire(&old->last_fence,
-					     &old->obj->base.dev->struct_mutex);
+		ret = i915_active_wait(&old->active);
 		if (ret) {
 			fence->vma = old;
 			return ret;

@@ -111,7 +111,6 @@ struct i915_vma {
 #define I915_VMA_GGTT_WRITE	BIT(14)
 
 	struct i915_active active;
-	struct i915_active_request last_fence;
 
 	/**
 	 * Support different GGTT views into the same object.
