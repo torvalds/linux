@@ -38,6 +38,7 @@
 #include "../hw_gpio.h"
 #include "../hw_ddc.h"
 #include "../hw_hpd.h"
+#include "../hw_generic.h"
 
 /* function table */
 static const struct hw_factory_funcs funcs = {

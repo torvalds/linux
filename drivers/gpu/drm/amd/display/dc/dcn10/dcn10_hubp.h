@@ -249,7 +249,8 @@
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
 /* Mask/shift struct generation macro for all ASICs (including those with reduced functionality) */
-#define HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh)\
+/*1.x, 2.x, and 3.x*/
+#define HUBP_MASK_SH_LIST_DCN_SHARE_COMMON(mask_sh)\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
@@ -265,7 +266,6 @@
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, MAX_COMPRESSED_FRAGS, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, SW_MODE, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, META_LINEAR, mask_sh),\
-	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, RB_ALIGNED, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, PIPE_ALIGNED, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_PITCH, PITCH, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_PITCH, META_PITCH, mask_sh),\
@@ -372,11 +372,16 @@
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL0, QoS_RAMP_DISABLE, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL1, REFCYC_PER_REQ_DELIVERY_PRE, mask_sh),\
 	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, mask_sh)
-
-#define HUBP_MASK_SH_LIST_DCN(mask_sh)\
-	HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh),\
+/*2.x and 1.x only*/
+#define HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN_SHARE_COMMON(mask_sh),\
+	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, RB_ALIGNED, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MPTE_GROUP_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MPTE_GROUP_SIZE_C, mask_sh)
+
+/*2.x and 1.x only*/
+#define HUBP_MASK_SH_LIST_DCN(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh)
 
 /* Mask/shift struct generation macro for ASICs with VM */
 #define HUBP_MASK_SH_LIST_DCN_VM(mask_sh)\
@@ -434,7 +439,7 @@
 	HUBP_SF(CURSOR0_CURSOR_HOT_SPOT, CURSOR_HOT_SPOT_Y, mask_sh), \
 	HUBP_SF(CURSOR0_CURSOR_DST_OFFSET, CURSOR_DST_X_OFFSET, mask_sh)
 
-#define DCN_HUBP_REG_FIELD_LIST(type) \
+#define DCN_HUBP_REG_FIELD_BASE_LIST(type) \
 	type HUBP_BLANK_EN;\
 	type HUBP_DISABLE;\
 	type HUBP_TTU_DISABLE;\
@@ -459,7 +464,6 @@
 	type ROTATION_ANGLE;\
 	type H_MIRROR_EN;\
 	type SURFACE_PIXEL_FORMAT;\
-	type ALPHA_PLANE_EN;\
 	type SURFACE_FLIP_TYPE;\
 	type SURFACE_FLIP_MODE_FOR_STEREOSYNC;\
 	type SURFACE_FLIP_IN_STEREOSYNC;\
@@ -632,6 +636,10 @@
 	type CURSOR_DST_X_OFFSET; \
 	type OUTPUT_FP
 
+#define DCN_HUBP_REG_FIELD_LIST(type) \
+	DCN_HUBP_REG_FIELD_BASE_LIST(type);\
+	type ALPHA_PLANE_EN
+
 struct dcn_mi_registers {
 	HUBP_COMMON_REG_VARIABLE_LIST;
 };
@@ -677,7 +685,7 @@ void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror,
@@ -699,7 +707,7 @@ void hubp1_program_pixel_format(
 void hubp1_program_size(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	const union plane_size *plane_size,
+	const struct plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc);
 
 void hubp1_program_rotation(
@@ -760,5 +768,6 @@ void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
 void hubp1_init(struct hubp *hubp);
+void hubp1_read_state_common(struct hubp *hubp);
 
 #endif

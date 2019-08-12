@@ -115,41 +115,39 @@ struct rect {
 	int height;
 };
 
-union plane_size {
-	/* Grph or Video will be selected
-	 * based on format above:
-	 * Use Video structure if
-	 * format >= DalPixelFormat_VideoBegin
-	 * else use Grph structure
+struct plane_size {
+	/* Graphic surface pitch in pixels.
+	 * In LINEAR_GENERAL mode, pitch
+	 * is 32 pixel aligned.
 	 */
-	struct {
-		struct rect surface_size;
-		/* Graphic surface pitch in pixels.
-		 * In LINEAR_GENERAL mode, pitch
-		 * is 32 pixel aligned.
-		 */
-		int surface_pitch;
-	} grph;
+	int surface_pitch;
+	int chroma_pitch;
+	struct rect surface_size;
+	struct rect chroma_size;
 
-	struct {
-		struct rect luma_size;
-		/* Graphic surface pitch in pixels.
-		 * In LINEAR_GENERAL mode, pitch is
-		 * 32 pixel aligned.
-		 */
-		int luma_pitch;
+	union {
+		struct {
+			struct rect surface_size;
+			int surface_pitch;
+		} grph;
 
-		struct rect chroma_size;
-		/* Graphic surface pitch in pixels.
-		 * In LINEAR_GENERAL mode, pitch is
-		 * 32 pixel aligned.
-		 */
-		int chroma_pitch;
-	} video;
+		struct {
+			struct rect luma_size;
+			int luma_pitch;
+			struct rect chroma_size;
+			int chroma_pitch;
+		} video;
+	};
 };
 
 struct dc_plane_dcc_param {
 	bool enable;
+
+	int meta_pitch;
+	bool independent_64b_blks;
+
+	int meta_pitch_c;
+	bool independent_64b_blks_c;
 
 	union {
 		struct {
@@ -482,7 +480,6 @@ struct dc_gamma {
 	 * is_logical_identity indicates the given gamma ramp regardless of type is identity.
 	 */
 	bool is_identity;
-	bool is_logical_identity;
 };
 
 /* Used by both ipp amd opp functions*/
@@ -615,6 +612,7 @@ struct scaling_taps {
 	uint32_t h_taps;
 	uint32_t v_taps_c;
 	uint32_t h_taps_c;
+	bool integer_scaling;
 };
 
 enum dc_timing_standard {

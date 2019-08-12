@@ -35,7 +35,7 @@ AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/powerplay/,$(
 
 include $(AMD_POWERPLAY)
 
-POWER_MGR = amd_powerplay.o amdgpu_smu.o smu_v11_0.o vega20_ppt.o navi10_ppt.o
+POWER_MGR = amd_powerplay.o amdgpu_smu.o smu_v11_0.o vega20_ppt.o arcturus_ppt.o navi10_ppt.o
 
 AMD_PP_POWER = $(addprefix $(AMD_PP_PATH)/,$(POWER_MGR))
 

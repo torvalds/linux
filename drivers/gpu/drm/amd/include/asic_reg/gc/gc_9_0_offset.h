@@ -1700,6 +1700,8 @@
 #define mmTCP_BUFFER_ADDR_HASH_CNTL_BASE_IDX                                                           0
 #define mmTCP_EDC_CNT                                                                                  0x0b17
 #define mmTCP_EDC_CNT_BASE_IDX                                                                         0
+#define mmTCP_EDC_CNT_NEW                                                                              0x0b18
+#define mmTCP_EDC_CNT_NEW_BASE_IDX                                                                     0
 #define mmTC_CFG_L1_LOAD_POLICY0                                                                       0x0b1a
 #define mmTC_CFG_L1_LOAD_POLICY0_BASE_IDX                                                              0
 #define mmTC_CFG_L1_LOAD_POLICY1                                                                       0x0b1b

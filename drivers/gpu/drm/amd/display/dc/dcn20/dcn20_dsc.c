@@ -436,7 +436,7 @@ static void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 	reg_vals->ich_reset_at_eol            = 0;
 	reg_vals->alternate_ich_encoding_en   = 0;
 	reg_vals->rc_buffer_model_size        = 0;
-	reg_vals->disable_ich                 = 0;
+	/*reg_vals->disable_ich                 = 0;*/
 	reg_vals->dsc_dbg_en                  = 0;
 
 	for (i = 0; i < 4; i++)
@@ -518,9 +518,11 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 		ALTERNATE_ICH_ENCODING_EN, reg_vals->alternate_ich_encoding_en,
 		NUMBER_OF_SLICES_IN_VERTICAL_DIRECTION, reg_vals->num_slices_v - 1);
 
-	REG_SET_2(DSCC_CONFIG1, 0,
+	REG_SET(DSCC_CONFIG1, 0,
+			DSCC_RATE_CONTROL_BUFFER_MODEL_SIZE, reg_vals->rc_buffer_model_size);
+	/*REG_SET_2(DSCC_CONFIG1, 0,
 		DSCC_RATE_CONTROL_BUFFER_MODEL_SIZE, reg_vals->rc_buffer_model_size,
-		DSCC_DISABLE_ICH, reg_vals->disable_ich);
+		DSCC_DISABLE_ICH, reg_vals->disable_ich);*/
 
 	REG_SET_4(DSCC_INTERRUPT_CONTROL_STATUS, 0,
 		DSCC_RATE_CONTROL_BUFFER_MODEL0_OVERFLOW_OCCURRED_INT_EN, reg_vals->rc_buffer_model_overflow_int_en[0],

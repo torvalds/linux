@@ -568,6 +568,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		if (src->is_hsplit) {
 			for (k = j + 1; k < mode_lib->vba.cache_num_pipes; ++k) {
 				display_pipe_source_params_st *src_k = &pipes[k].pipe.src;
+				display_pipe_dest_params_st *dst_k = &pipes[k].pipe.dest;
 
 				if (src_k->is_hsplit && !visited[k]
 						&& src->hsplit_grp == src_k->hsplit_grp) {
@@ -575,12 +576,15 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 							mode_lib->vba.NumberOfActivePlanes;
 					mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes]++;
 					if (mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes]
-							== dm_horz)
+							== dm_horz) {
 						mode_lib->vba.ViewportWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_width;
-					else
+						mode_lib->vba.ScalerRecoutWidth[mode_lib->vba.NumberOfActivePlanes] +=
+								dst_k->recout_width;
+					} else {
 						mode_lib->vba.ViewportHeight[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_height;
+					}
 
 					visited[k] = true;
 				}

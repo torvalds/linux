@@ -1090,7 +1090,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	 */
 	if (flags & ALLOC_MEM_FLAGS_VRAM) {
 		domain = alloc_domain = AMDGPU_GEM_DOMAIN_VRAM;
-		alloc_flags = AMDGPU_GEM_CREATE_VRAM_CLEARED;
+		alloc_flags = AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE;
 		alloc_flags |= (flags & ALLOC_MEM_FLAGS_PUBLIC) ?
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED :
 			AMDGPU_GEM_CREATE_NO_CPU_ACCESS;

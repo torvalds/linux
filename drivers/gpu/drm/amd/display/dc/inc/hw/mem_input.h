@@ -149,7 +149,7 @@ struct mem_input_funcs {
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
-		union plane_size *plane_size,
+		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
 		bool horizontal_mirror);

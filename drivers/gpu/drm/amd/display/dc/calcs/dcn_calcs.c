@@ -329,7 +329,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 			dcc_support_pixel_format(pipe->plane_state->format, &bpe) ? 1 : 0;
 	}
 	input->src.dcc_rate            = 1;
-	input->src.meta_pitch          = pipe->plane_state->dcc.grph.meta_pitch;
+	input->src.meta_pitch          = pipe->plane_state->dcc.meta_pitch;
 	input->src.source_scan         = dm_horz;
 	input->src.sw_mode             = pipe->plane_state->tiling_info.gfx9.swizzle;
 

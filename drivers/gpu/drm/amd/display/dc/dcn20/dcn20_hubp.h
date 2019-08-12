@@ -72,8 +72,8 @@
 	SR(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB),\
 	SR(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB)
 
-#define HUBP_MASK_SH_LIST_DCN2_COMMON(mask_sh)\
-	HUBP_MASK_SH_LIST_DCN(mask_sh),\
+#define HUBP_MASK_SH_LIST_DCN2_SHARE_COMMON(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN_SHARE_COMMON(mask_sh),\
 	HUBP_MASK_SH_LIST_DCN_VM(mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_SURFACE_CONFIG, ROTATION_ANGLE, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_SURFACE_CONFIG, H_MIRROR_EN, mask_sh),\
@@ -127,13 +127,21 @@
 	HUBP_SF(HUBPREQ0_DCSURF_FLIP_CONTROL2, SURFACE_TRIPLE_BUFFER_ENABLE, mask_sh),\
 	HUBP_SF(HUBPREQ0_VMID_SETTINGS_0, VMID, mask_sh)
 
+/*DCN2.x and DCN1.x*/
+#define HUBP_MASK_SH_LIST_DCN2_COMMON(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN2_SHARE_COMMON(mask_sh),\
+	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, RB_ALIGNED, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MPTE_GROUP_SIZE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MPTE_GROUP_SIZE_C, mask_sh)
+
+/*DCN2.0 specific*/
 #define HUBP_MASK_SH_LIST_DCN20(mask_sh)\
 	HUBP_MASK_SH_LIST_DCN2_COMMON(mask_sh),\
 	HUBP_SF(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, DCN_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, mask_sh),\
 	HUBP_SF(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, mask_sh),\
 	HUBP_SF(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mask_sh)
 
-
+/*DCN2.x */
 #define DCN2_HUBP_REG_COMMON_VARIABLE_LIST \
 	HUBP_COMMON_REG_VARIABLE_LIST; \
 	uint32_t DMDATA_ADDRESS_HIGH; \
@@ -149,14 +157,11 @@
 	uint32_t FLIP_PARAMETERS_2;\
 	uint32_t DCN_CUR1_TTU_CNTL0;\
 	uint32_t DCN_CUR1_TTU_CNTL1;\
-	uint32_t VMID_SETTINGS_0;\
-	uint32_t FLIP_PARAMETERS_3;\
-	uint32_t FLIP_PARAMETERS_4;\
-	uint32_t VBLANK_PARAMETERS_5;\
-	uint32_t VBLANK_PARAMETERS_6
+	uint32_t VMID_SETTINGS_0
+
 
 #define DCN2_HUBP_REG_FIELD_VARIABLE_LIST(type) \
-	DCN_HUBP_REG_FIELD_LIST(type); \
+	DCN_HUBP_REG_FIELD_BASE_LIST(type); \
 	type DMDATA_ADDRESS_HIGH;\
 	type DMDATA_MODE;\
 	type DMDATA_UPDATED;\
@@ -262,15 +267,52 @@ bool hubp2_program_surface_flip_and_addr(
 	const struct dc_plane_address *address,
 	bool flip_immediate);
 
+void hubp2_dcc_control(struct hubp *hubp, bool enable,
+		bool independent_64b_blks);
+
+void hubp2_program_size(
+	struct hubp *hubp,
+	enum surface_pixel_format format,
+	const struct plane_size *plane_size,
+	struct dc_plane_dcc_param *dcc);
+
+void hubp2_program_rotation(
+	struct hubp *hubp,
+	enum dc_rotation_angle rotation,
+	bool horizontal_mirror);
+
+void hubp2_program_pixel_format(
+	struct hubp *hubp,
+	enum surface_pixel_format format);
+
 void hubp2_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror,
 	unsigned int compat_level);
+
+bool hubp2_is_flip_pending(struct hubp *hubp);
+
+void hubp2_set_blank(struct hubp *hubp, bool blank);
+
+void hubp2_cursor_set_position(
+		struct hubp *hubp,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param);
+
+void hubp2_clk_cntl(struct hubp *hubp, bool enable);
+
+void hubp2_vtg_sel(struct hubp *hubp, uint32_t otg_inst);
+
+void hubp2_clear_underflow(struct hubp *hubp);
+
+void hubp2_read_state_common(struct hubp *hubp);
+
+void hubp2_read_state(struct hubp *hubp);
 
 #endif /* __DC_MEM_INPUT_DCN20_H__ */
 

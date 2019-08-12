@@ -90,6 +90,13 @@ enum dc_post_cursor2 {
 	POST_CURSOR2_MAX_LEVEL = POST_CURSOR2_LEVEL3,
 };
 
+enum dc_dp_training_pattern {
+	DP_TRAINING_PATTERN_SEQUENCE_1 = 0,
+	DP_TRAINING_PATTERN_SEQUENCE_2,
+	DP_TRAINING_PATTERN_SEQUENCE_3,
+	DP_TRAINING_PATTERN_SEQUENCE_4,
+};
+
 struct dc_link_settings {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
@@ -109,6 +116,20 @@ struct dc_link_training_settings {
 	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 };
 
+struct dc_link_training_overrides {
+	enum dc_voltage_swing *voltage_swing;
+	enum dc_pre_emphasis *pre_emphasis;
+	enum dc_post_cursor2 *post_cursor2;
+
+	uint16_t *cr_pattern_time;
+	uint16_t *eq_pattern_time;
+	enum dc_dp_training_pattern *pattern_for_eq;
+
+	enum dc_link_spread *downspread;
+	bool *alternate_scrambler_reset;
+	bool *enhanced_framing;
+	bool *fec_enable;
+};
 
 union dpcd_rev {
 	struct {

@@ -63,6 +63,9 @@ struct hw_factory {
 		void (*define_ddc_registers)(
 				struct hw_gpio_pin *pin,
 				uint32_t en);
+		void (*define_generic_registers)(
+				struct hw_gpio_pin *pin,
+				uint32_t en);
 	} *funcs;
 };
 

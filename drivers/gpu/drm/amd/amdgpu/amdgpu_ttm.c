@@ -444,6 +444,22 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	if (r)
 		goto error;
 
+	/* clear the space being freed */
+	if (old_mem->mem_type == TTM_PL_VRAM &&
+	    (ttm_to_amdgpu_bo(bo)->flags &
+	     AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE)) {
+		struct dma_fence *wipe_fence = NULL;
+
+		r = amdgpu_fill_buffer(ttm_to_amdgpu_bo(bo), AMDGPU_POISON,
+				       NULL, &wipe_fence);
+		if (r) {
+			goto error;
+		} else if (wipe_fence) {
+			dma_fence_put(fence);
+			fence = wipe_fence;
+		}
+	}
+
 	/* Always block for VM page tables before committing the new location */
 	if (bo->type == ttm_bo_type_kernel)
 		r = ttm_bo_move_accel_cleanup(bo, fence, true, new_mem);
@@ -1599,6 +1615,7 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.move = &amdgpu_bo_move,
 	.verify_access = &amdgpu_verify_access,
 	.move_notify = &amdgpu_bo_move_notify,
+	.release_notify = &amdgpu_bo_release_notify,
 	.fault_reserve_notify = &amdgpu_bo_fault_reserve_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_free = &amdgpu_ttm_io_mem_free,

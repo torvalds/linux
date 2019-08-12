@@ -26,8 +26,6 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-
-#include "dcn20/dcn20_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
@@ -153,7 +151,14 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool enter_display_off = false;
 	bool dpp_clock_lowered = false;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
+	bool force_reset = false;
 
+	if (clk_mgr_base->clks.dispclk_khz == 0 ||
+		dc->debug.force_clock_mode & 0x1) {
+		//this is from resume or boot up, if forced_clock cfg option used, we bypass program dispclk and DPPCLK, but need set them for S3.
+		force_reset = true;
+		//force_clock_mode 0x1:  force reset the clock even it is the same clock as long as it is in Passive level.
+	}
 	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
 	if (dc->res_pool->pp_smu)
 		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
@@ -196,6 +201,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (should_update_pstate_support(safe_to_lower, new_clocks->p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
+		clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
 		clk_mgr_base->clks.p_state_change_support = new_clocks->p_state_change_support;
 		if (pp_smu && pp_smu->set_pstate_handshake_support)
 			pp_smu->set_pstate_handshake_support(&pp_smu->pp_smu, clk_mgr_base->clks.p_state_change_support);
@@ -225,7 +231,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		update_dispclk = true;
 	}
-	if (dc->config.forced_clocks == false) {
+	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			// if clock is being lowered, increase DTO before lowering refclk
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
@@ -303,6 +309,7 @@ void dcn2_init_clocks(struct clk_mgr *clk_mgr)
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 	// Assumption is that boot state always supports pstate
 	clk_mgr->clks.p_state_change_support = true;
+	clk_mgr->clks.prev_p_state_change_support = true;
 }
 
 void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
@@ -318,11 +325,32 @@ void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	}
 }
 
+void dcn2_get_clock(struct clk_mgr *clk_mgr,
+		struct dc_state *context,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg)
+{
+
+	if (clock_type == DC_CLOCK_TYPE_DISPCLK) {
+		clock_cfg->max_clock_khz = context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz;
+		clock_cfg->min_clock_khz = DCN_MINIMUM_DISPCLK_Khz;
+		clock_cfg->current_clock_khz = clk_mgr->clks.dispclk_khz;
+		clock_cfg->bw_requirequired_clock_khz = context->bw_ctx.bw.dcn.clk.bw_dispclk_khz;
+	}
+	if (clock_type == DC_CLOCK_TYPE_DPPCLK) {
+		clock_cfg->max_clock_khz = context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
+		clock_cfg->min_clock_khz = DCN_MINIMUM_DPPCLK_Khz;
+		clock_cfg->current_clock_khz = clk_mgr->clks.dppclk_khz;
+		clock_cfg->bw_requirequired_clock_khz = context->bw_ctx.bw.dcn.clk.bw_dppclk_khz;
+	}
+}
+
 static struct clk_mgr_funcs dcn2_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks,
 	.init_clocks = dcn2_init_clocks,
-	.enable_pme_wa = dcn2_enable_pme_wa
+	.enable_pme_wa = dcn2_enable_pme_wa,
+	.get_clock = dcn2_get_clock,
 };
 
 
