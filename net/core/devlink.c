@@ -6939,11 +6939,10 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 {
 	struct devlink_port *devlink_port;
 
-	/* RTNL mutex is held here which ensures that devlink_port
-	 * instance cannot disappear in the middle. No need to take
+	/* Caller must hold RTNL mutex or reference to dev, which ensures that
+	 * devlink_port instance cannot disappear in the middle. No need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
-	ASSERT_RTNL();
 	devlink_port = netdev_to_devlink_port(dev);
 	if (!devlink_port || !devlink_port->attrs.switch_port)
 		return -EOPNOTSUPP;
