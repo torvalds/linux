@@ -260,8 +260,6 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 		return -EMSGSIZE;
 	}
 
-	memset(packet, 0, sizeof(packet));
-
 	/* Packet length */
 	packet[0] = len;
 	/* Packet address */
@@ -269,6 +267,7 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	packet[2] = (addr16 & 0xff00) >> 8;
 
 	memcpy(packet + 3, data, len);
+	memset(packet + 3 + len, 0, ZIIRAVE_FIRM_PKT_DATA_SIZE - len);
 
 	/* Packet checksum */
 	for (i = 0; i < len + 3; i++)
