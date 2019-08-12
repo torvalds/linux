@@ -53,7 +53,7 @@
 #define MMC35240_CTRL1_BW_SHIFT		0
 
 #define MMC35240_WAIT_CHARGE_PUMP	50000	/* us */
-#define MMC53240_WAIT_SET_RESET		1000	/* us */
+#define MMC35240_WAIT_SET_RESET		1000	/* us */
 
 /*
  * Memsic OTP process code piece is put here for reference:
@@ -225,7 +225,7 @@ static int mmc35240_init(struct mmc35240_data *data)
 	ret = mmc35240_hw_set(data, true);
 	if (ret < 0)
 		return ret;
-	usleep_range(MMC53240_WAIT_SET_RESET, MMC53240_WAIT_SET_RESET + 1);
+	usleep_range(MMC35240_WAIT_SET_RESET, MMC35240_WAIT_SET_RESET + 1);
 
 	ret = mmc35240_hw_set(data, false);
 	if (ret < 0)

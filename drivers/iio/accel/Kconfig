@@ -202,9 +202,7 @@ config HID_SENSOR_ACCEL_3D
 
 config IIO_CROS_EC_ACCEL_LEGACY
 	tristate "ChromeOS EC Legacy Accelerometer Sensor"
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	select CROS_EC_LPC_REGISTER_DEVICE
+	depends on IIO_CROS_EC_SENSORS_CORE
 	help
 	  Say yes here to get support for accelerometers on Chromebook using
 	  legacy EC firmware.

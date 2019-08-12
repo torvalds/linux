@@ -540,11 +540,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	adc_priv->irqno = platform_get_irq(pdev, 0);
-	if (adc_priv->irqno <= 0) {
-		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		ret = -ENODEV;
-		return ret;
-	}
+	if (adc_priv->irqno <= 0)
+		return -ENODEV;
 
 	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
 				IPROC_ADC_AUXIN_SCAN_ENA, 0);

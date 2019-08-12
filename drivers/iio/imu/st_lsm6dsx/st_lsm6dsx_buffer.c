@@ -2,10 +2,10 @@
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
- * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM/ISM330DLC: The FIFO buffer can be
- * configured to store data from gyroscope and accelerometer. Samples are
- * queued without any tag according to a specific pattern based on
- * 'FIFO data sets' (6 bytes each):
+ * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM/ISM330DLC/LSM6DS3TR-C:
+ * The FIFO buffer can be configured to store data from gyroscope and
+ * accelerometer. Samples are queued without any tag according to a
+ * specific pattern based on 'FIFO data sets' (6 bytes each):
  *  - 1st data set is reserved for gyroscope data
  *  - 2nd data set is reserved for accelerometer data
  * The FIFO pattern changes depending on the ODRs and decimation factors
@@ -14,9 +14,10 @@
  * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated depending on the
  * value of the decimation factor and ODR set for each FIFO data set.
  *
- * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR: The FIFO buffer can be configured to
- * store data from gyroscope and accelerometer. Each sample is queued with
- * a tag (1B) indicating data source (gyroscope, accelerometer, hw timer).
+ * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX: The FIFO buffer can be
+ * configured to store data from gyroscope and accelerometer. Each sample
+ * is queued with a tag (1B) indicating data source (gyroscope, accelerometer,
+ * hw timer).
  *
  * FIFO supported modes:
  *  - BYPASS: FIFO disabled
@@ -670,7 +671,7 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 	count = hw->settings->fifo_ops.read_fifo(hw);
 	mutex_unlock(&hw->fifo_lock);
 
-	return !count ? IRQ_NONE : IRQ_HANDLED;
+	return count ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int st_lsm6dsx_buffer_preenable(struct iio_dev *iio_dev)

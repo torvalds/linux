@@ -504,88 +504,85 @@ static void sc27xx_adc_free_hwlock(void *_data)
 
 static int sc27xx_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct sc27xx_adc_data *sc27xx_data;
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*sc27xx_data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*sc27xx_data));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	sc27xx_data = iio_priv(indio_dev);
 
-	sc27xx_data->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	sc27xx_data->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!sc27xx_data->regmap) {
-		dev_err(&pdev->dev, "failed to get ADC regmap\n");
+		dev_err(dev, "failed to get ADC regmap\n");
 		return -ENODEV;
 	}
 
 	ret = of_property_read_u32(np, "reg", &sc27xx_data->base);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to get ADC base address\n");
+		dev_err(dev, "failed to get ADC base address\n");
 		return ret;
 	}
 
 	sc27xx_data->irq = platform_get_irq(pdev, 0);
-	if (sc27xx_data->irq < 0) {
-		dev_err(&pdev->dev, "failed to get ADC irq number\n");
+	if (sc27xx_data->irq < 0)
 		return sc27xx_data->irq;
-	}
 
 	ret = of_hwspin_lock_get_id(np, 0);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get hwspinlock id\n");
+		dev_err(dev, "failed to get hwspinlock id\n");
 		return ret;
 	}
 
 	sc27xx_data->hwlock = hwspin_lock_request_specific(ret);
 	if (!sc27xx_data->hwlock) {
-		dev_err(&pdev->dev, "failed to request hwspinlock\n");
+		dev_err(dev, "failed to request hwspinlock\n");
 		return -ENXIO;
 	}
 
-	ret = devm_add_action(&pdev->dev, sc27xx_adc_free_hwlock,
+	ret = devm_add_action_or_reset(dev, sc27xx_adc_free_hwlock,
 			      sc27xx_data->hwlock);
 	if (ret) {
-		sc27xx_adc_free_hwlock(sc27xx_data->hwlock);
-		dev_err(&pdev->dev, "failed to add hwspinlock action\n");
+		dev_err(dev, "failed to add hwspinlock action\n");
 		return ret;
 	}
 
 	init_completion(&sc27xx_data->completion);
-	sc27xx_data->dev = &pdev->dev;
+	sc27xx_data->dev = dev;
 
 	ret = sc27xx_adc_enable(sc27xx_data);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to enable ADC module\n");
+		dev_err(dev, "failed to enable ADC module\n");
 		return ret;
 	}
 
-	ret = devm_add_action(&pdev->dev, sc27xx_adc_disable, sc27xx_data);
+	ret = devm_add_action_or_reset(dev, sc27xx_adc_disable, sc27xx_data);
 	if (ret) {
-		sc27xx_adc_disable(sc27xx_data);
-		dev_err(&pdev->dev, "failed to add ADC disable action\n");
+		dev_err(dev, "failed to add ADC disable action\n");
 		return ret;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, sc27xx_data->irq, NULL,
+	ret = devm_request_threaded_irq(dev, sc27xx_data->irq, NULL,
 					sc27xx_adc_isr, IRQF_ONESHOT,
 					pdev->name, sc27xx_data);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request ADC irq\n");
+		dev_err(dev, "failed to request ADC irq\n");
 		return ret;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->name = dev_name(&pdev->dev);
+	indio_dev->dev.parent = dev;
+	indio_dev->name = dev_name(dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &sc27xx_info;
 	indio_dev->channels = sc27xx_channels;
 	indio_dev->num_channels = ARRAY_SIZE(sc27xx_channels);
-	ret = devm_iio_device_register(&pdev->dev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
-		dev_err(&pdev->dev, "could not register iio (ADC)");
+		dev_err(dev, "could not register iio (ADC)");
 
 	return ret;
 }

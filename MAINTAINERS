@@ -945,6 +945,14 @@ L:	linux-iio@vger.kernel.org
 F:	include/linux/iio/imu/adis.h
 F:	drivers/iio/imu/adis.c
 
+ANALOG DEVICES INC ADIS16460 DRIVER
+M:	Dragos Bogdan <dragos.bogdan@analog.com>
+S:	Supported
+L:	linux-iio@vger.kernel.org
+W:	http://ez.analog.com/community/linux-device-drivers
+F:	drivers/iio/imu/adis16460.c
+F:	Documentation/devicetree/bindings/iio/imu/adi,adis16460.yaml
+
 ANALOG DEVICES INC ADP5061 DRIVER
 M:	Stefan Popa <stefan.popa@analog.com>
 L:	linux-pm@vger.kernel.org
@@ -12775,6 +12783,12 @@ F:	drivers/input/serio/i8042-unicore32io.h
 F:	drivers/i2c/busses/i2c-puv3.c
 F:	drivers/video/fbdev/fb-puv3.c
 F:	drivers/rtc/rtc-puv3.c
+
+PLANTOWER PMS7003 AIR POLLUTION SENSOR DRIVER
+M:	Tomasz Duszynski <tduszyns@gmail.com>
+S:	Maintained
+F:	drivers/iio/chemical/pms7003.c
+F:	Documentation/devicetree/bindings/iio/chemical/plantower,pms7003.yaml
 
 PMBUS HARDWARE MONITORING DRIVERS
 M:	Guenter Roeck <linux@roeck-us.net>
