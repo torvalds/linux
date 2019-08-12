@@ -710,18 +710,18 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 			goto done;
 		}
 
-		/*
-		 * If the queue doesn't support SG gaps and adding this
-		 * offset would create a gap, disallow it.
-		 */
-		if (bvec_gap_to_prev(q, bvec, offset))
-			return 0;
-
 		if (page_is_mergeable(bvec, page, len, offset, &same_page) &&
 		    can_add_page_to_seg(q, bvec, page, len, offset)) {
 			bvec->bv_len += len;
 			goto done;
 		}
+
+		/*
+		 * If the queue doesn't support SG gaps and adding this segment
+		 * would create a gap, disallow it.
+		 */
+		if (bvec_gap_to_prev(q, bvec, offset))
+			return 0;
 	}
 
 	if (bio_full(bio, len))
