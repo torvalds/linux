@@ -76,6 +76,8 @@ config KEYBOARD_APPLESPI
 	depends on ACPI && EFI
 	depends on SPI
 	depends on X86 || COMPILE_TEST
+	depends on LEDS_CLASS
+	select CRC16
 	help
 	  Say Y here if you are running Linux on any Apple MacBook8,1 or later,
 	  or any MacBookPro13,* or MacBookPro14,*.
