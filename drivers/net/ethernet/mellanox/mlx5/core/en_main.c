@@ -1315,7 +1315,6 @@ static int mlx5e_open_txqsq(struct mlx5e_channel *c,
 	return 0;
 
 err_free_txqsq:
-	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	mlx5e_free_txqsq(sq);
 
 	return err;
@@ -1403,7 +1402,6 @@ int mlx5e_open_icosq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	return 0;
 
 err_free_icosq:
-	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	mlx5e_free_icosq(sq);
 
 	return err;
