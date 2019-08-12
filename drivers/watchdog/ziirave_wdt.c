@@ -671,7 +671,7 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 		if (ret)
 			return ret;
 
-		dev_info(&client->dev, "Timeout set to %ds.",
+		dev_info(&client->dev, "Timeout set to %ds\n",
 			 w_priv->wdd.timeout);
 	}
 
