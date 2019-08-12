@@ -1062,9 +1062,17 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 /*
  * address in this macro points always to a memory location in the
  * host's (server's) memory. That location is updated asynchronously
- * either by the direct access of the device or by another core
+ * either by the direct access of the device or by another core.
+ *
+ * To work both in LE and BE architectures, we need to distinguish between the
+ * two states (device or another core updates the memory location). Therefore,
+ * if mem_written_by_device is true, the host memory being polled will be
+ * updated directly by the device. If false, the host memory being polled will
+ * be updated by host CPU. Required so host knows whether or not the memory
+ * might need to be byte-swapped before returning value to caller.
  */
-#define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us) \
+#define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us, \
+				mem_written_by_device) \
 ({ \
 	ktime_t __timeout; \
 	/* timeout should be longer when working with simulator */ \
@@ -1077,10 +1085,14 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 		/* Verify we read updates done by other cores or by device */ \
 		mb(); \
 		(val) = *((u32 *) (uintptr_t) (addr)); \
+		if (mem_written_by_device) \
+			(val) = le32_to_cpu(val); \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
 			(val) = *((u32 *) (uintptr_t) (addr)); \
+			if (mem_written_by_device) \
+				(val) = le32_to_cpu(val); \
 			break; \
 		} \
 		if (sleep_us) \

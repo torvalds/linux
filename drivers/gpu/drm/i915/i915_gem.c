@@ -46,7 +46,6 @@
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_pm.h"
 #include "gem/i915_gemfs.h"
-#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"
 #include "gt/intel_reset.h"
@@ -1307,21 +1306,13 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_mocs_init_l3cc_table(dev_priv);
 
-	/* Only when the HW is re-initialised, can we replay the requests */
-	ret = intel_engines_resume(dev_priv);
-	if (ret)
-		goto cleanup_uc;
-
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	intel_engines_set_scheduler_caps(dev_priv);
 	return 0;
 
-cleanup_uc:
-	intel_uc_fini_hw(dev_priv);
 out:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-
 	return ret;
 }
 
@@ -1580,6 +1571,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_uc_init;
 
+	/* Only when the HW is re-initialised, can we replay the requests */
+	ret = intel_gt_resume(dev_priv);
+	if (ret)
+		goto err_init_hw;
+
 	/*
 	 * Despite its name intel_init_clock_gating applies both display
 	 * clock gating workarounds; GT mmio workarounds and the occasional
@@ -1593,20 +1589,20 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	ret = intel_engines_verify_workarounds(dev_priv);
 	if (ret)
-		goto err_init_hw;
+		goto err_gt;
 
 	ret = __intel_engines_record_defaults(dev_priv);
 	if (ret)
-		goto err_init_hw;
+		goto err_gt;
 
 	if (i915_inject_load_failure()) {
 		ret = -ENODEV;
-		goto err_init_hw;
+		goto err_gt;
 	}
 
 	if (i915_inject_load_failure()) {
 		ret = -EIO;
-		goto err_init_hw;
+		goto err_gt;
 	}
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
@@ -1620,7 +1616,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * HW as irrevisibly wedged, but keep enough state around that the
 	 * driver doesn't explode during runtime.
 	 */
-err_init_hw:
+err_gt:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	i915_gem_set_wedged(dev_priv);
@@ -1630,6 +1626,7 @@ err_init_hw:
 	i915_gem_drain_workqueue(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+err_init_hw:
 	intel_uc_fini_hw(dev_priv);
 err_uc_init:
 	intel_uc_fini(dev_priv);

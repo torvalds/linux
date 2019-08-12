@@ -1704,6 +1704,7 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 			grp->changed_side = 2;
 			break;
 		}
+		/* Else, fall through */
 	case MPCG_STATE_XID0IOWAIX:
 	case MPCG_STATE_XID7INITW:
 	case MPCG_STATE_XID7INITX:
