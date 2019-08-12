@@ -658,8 +658,10 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 	 */
 	if (w_priv->wdd.timeout == 0) {
 		val = i2c_smbus_read_byte_data(client, ZIIRAVE_WDT_TIMEOUT);
-		if (val < 0)
+		if (val < 0) {
+			dev_err(&client->dev, "Failed to read timeout\n");
 			return val;
+		}
 
 		if (val < ZIIRAVE_TIMEOUT_MIN)
 			return -ENODEV;
@@ -668,8 +670,10 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 	} else {
 		ret = ziirave_wdt_set_timeout(&w_priv->wdd,
 					      w_priv->wdd.timeout);
-		if (ret)
+		if (ret) {
+			dev_err(&client->dev, "Failed to set timeout\n");
 			return ret;
+		}
 
 		dev_info(&client->dev, "Timeout set to %ds\n",
 			 w_priv->wdd.timeout);
@@ -681,34 +685,46 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 
 	/* If in unconfigured state, set to stopped */
 	val = i2c_smbus_read_byte_data(client, ZIIRAVE_WDT_STATE);
-	if (val < 0)
+	if (val < 0) {
+		dev_err(&client->dev, "Failed to read state\n");
 		return val;
+	}
 
 	if (val == ZIIRAVE_STATE_INITIAL)
 		ziirave_wdt_stop(&w_priv->wdd);
 
 	ret = ziirave_wdt_init_duration(client);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "Failed to init duration\n");
 		return ret;
+	}
 
 	ret = ziirave_wdt_revision(client, &w_priv->firmware_rev,
 				   ZIIRAVE_WDT_FIRM_VER_MAJOR);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "Failed to read firmware version\n");
 		return ret;
+	}
 
 	ret = ziirave_wdt_revision(client, &w_priv->bootloader_rev,
 				   ZIIRAVE_WDT_BOOT_VER_MAJOR);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "Failed to read bootloader version\n");
 		return ret;
+	}
 
 	w_priv->reset_reason = i2c_smbus_read_byte_data(client,
 						ZIIRAVE_WDT_RESET_REASON);
-	if (w_priv->reset_reason < 0)
+	if (w_priv->reset_reason < 0) {
+		dev_err(&client->dev, "Failed to read reset reason\n");
 		return w_priv->reset_reason;
+	}
 
 	if (w_priv->reset_reason >= ARRAY_SIZE(ziirave_reasons) ||
-	    !ziirave_reasons[w_priv->reset_reason])
+	    !ziirave_reasons[w_priv->reset_reason]) {
+		dev_err(&client->dev, "Invalid reset reason\n");
 		return -ENODEV;
+	}
 
 	ret = watchdog_register_device(&w_priv->wdd);
 
