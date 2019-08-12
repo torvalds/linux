@@ -73,6 +73,7 @@ static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 #define ZIIRAVE_CMD_DOWNLOAD_PACKET		0x0e
 
 #define ZIIRAVE_CMD_JUMP_TO_BOOTLOADER_MAGIC	1
+#define ZIIRAVE_CMD_RESET_PROCESSOR_MAGIC	1
 
 #define ZIIRAVE_FW_VERSION_FMT	"02.%02u.%02u"
 #define ZIIRAVE_BL_VERSION_FMT	"01.%02u.%02u"
@@ -433,8 +434,9 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 	}
 
 	/* Reset the processor */
-	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_RESET_PROCESSOR, 1,
-				      false);
+	ret = i2c_smbus_write_byte_data(client,
+					ZIIRAVE_CMD_RESET_PROCESSOR,
+					ZIIRAVE_CMD_RESET_PROCESSOR_MAGIC);
 	if (ret) {
 		dev_err(&client->dev,
 			"Failed to reset the watchdog: %d\n", ret);
