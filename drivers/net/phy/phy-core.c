@@ -783,6 +783,29 @@ int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val)
 EXPORT_SYMBOL(phy_write_paged);
 
 /**
+ * phy_modify_paged_changed() - Function for modifying a paged register
+ * @phydev: a pointer to a &struct phy_device
+ * @page: the page for the phy
+ * @regnum: register number
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
+			     u16 mask, u16 set)
+{
+	int ret = 0, oldpage;
+
+	oldpage = phy_select_page(phydev, page);
+	if (oldpage >= 0)
+		ret = __phy_modify_changed(phydev, regnum, mask, set);
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+EXPORT_SYMBOL(phy_modify_paged_changed);
+
+/**
  * phy_modify_paged() - Convenience function for modifying a paged register
  * @phydev: a pointer to a &struct phy_device
  * @page: the page for the phy
@@ -795,12 +818,8 @@ EXPORT_SYMBOL(phy_write_paged);
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set)
 {
-	int ret = 0, oldpage;
+	int ret = phy_modify_paged_changed(phydev, page, regnum, mask, set);
 
-	oldpage = phy_select_page(phydev, page);
-	if (oldpage >= 0)
-		ret = __phy_modify(phydev, regnum, mask, set);
-
-	return phy_restore_page(phydev, oldpage, ret);
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(phy_modify_paged);

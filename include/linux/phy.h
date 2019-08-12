@@ -984,6 +984,8 @@ int phy_select_page(struct phy_device *phydev, int page);
 int phy_restore_page(struct phy_device *phydev, int oldpage, int ret);
 int phy_read_paged(struct phy_device *phydev, int page, u32 regnum);
 int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val);
+int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
+			     u16 mask, u16 set);
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set);
 
@@ -1069,7 +1071,7 @@ int genphy_read_abilities(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
 int genphy_config_eee_advert(struct phy_device *phydev);
-int genphy_config_aneg(struct phy_device *phydev);
+int __genphy_config_aneg(struct phy_device *phydev, bool changed);
 int genphy_aneg_done(struct phy_device *phydev);
 int genphy_update_link(struct phy_device *phydev);
 int genphy_read_status(struct phy_device *phydev);
@@ -1077,6 +1079,12 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
+
+static inline int genphy_config_aneg(struct phy_device *phydev)
+{
+	return __genphy_config_aneg(phydev, false);
+}
+
 static inline int genphy_no_soft_reset(struct phy_device *phydev)
 {
 	return 0;
