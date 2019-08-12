@@ -57,11 +57,6 @@ static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 
 /* Received and ready for next Download packet. */
 #define ZIIRAVE_FIRM_DOWNLOAD_ACK	1
-/* Currently writing to flash. Retry Download status in a moment! */
-#define ZIIRAVE_FIRM_DOWNLOAD_BUSY	2
-
-/* Wait for ACK timeout in ms */
-#define ZIIRAVE_FIRM_WAIT_FOR_ACK_TIMEOUT	50
 
 /* Firmware commands */
 #define ZIIRAVE_CMD_DOWNLOAD_START		0x10
@@ -175,25 +170,16 @@ static unsigned int ziirave_wdt_get_timeleft(struct watchdog_device *wdd)
 	return ret;
 }
 
-static int ziirave_firm_wait_for_ack(struct watchdog_device *wdd)
+static int ziirave_firm_read_ack(struct watchdog_device *wdd)
 {
 	struct i2c_client *client = to_i2c_client(wdd->parent);
 	int ret;
-	unsigned long timeout;
 
-	timeout = jiffies + msecs_to_jiffies(ZIIRAVE_FIRM_WAIT_FOR_ACK_TIMEOUT);
-	do {
-		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
-
-		usleep_range(5000, 10000);
-
-		ret = i2c_smbus_read_byte(client);
-		if (ret < 0) {
-			dev_err(&client->dev, "Failed to read byte\n");
-			return ret;
-		}
-	} while (ret == ZIIRAVE_FIRM_DOWNLOAD_BUSY);
+	ret = i2c_smbus_read_byte(client);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to read status byte\n");
+		return ret;
+	}
 
 	return ret == ZIIRAVE_FIRM_DOWNLOAD_ACK ? 0 : -EIO;
 }
@@ -226,7 +212,7 @@ static int ziirave_firm_write_block_data(struct watchdog_device *wdd,
 	}
 
 	if (wait_for_ack)
-		ret = ziirave_firm_wait_for_ack(wdd);
+		ret = ziirave_firm_read_ack(wdd);
 
 	return ret;
 }
