@@ -335,14 +335,18 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 
 	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_JUMP_TO_BOOTLOADER, 1,
 				      false);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "Failed to jump to bootloader\n");
 		return ret;
+	}
 
 	msleep(500);
 
 	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_DOWNLOAD_START, 1, true);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev, "Failed to start download\n");
 		return ret;
+	}
 
 	msleep(500);
 
@@ -438,14 +442,20 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 
 	/* End download operation */
 	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_DOWNLOAD_END, 1, false);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev,
+			"Failed to end firmware download: %d\n", ret);
 		return ret;
+	}
 
 	/* Reset the processor */
 	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_RESET_PROCESSOR, 1,
 				      false);
-	if (ret)
+	if (ret) {
+		dev_err(&client->dev,
+			"Failed to reset the watchdog: %d\n", ret);
 		return ret;
+	}
 
 	msleep(500);
 
