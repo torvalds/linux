@@ -402,18 +402,6 @@ static int pcm3168a_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		return -EINVAL;
 	}
 
-	if (io_params->tdm_slots && io_params->tdm_slots != slots) {
-		dev_err(component->dev, "Not matching slots %d vs %d\n",
-			io_params->tdm_slots, slots);
-		return -EINVAL;
-	}
-
-	if (io_params->slot_width && io_params->slot_width != slot_width) {
-		dev_err(component->dev, "Not matching slot_width %d vs %d\n",
-			io_params->slot_width, slot_width);
-		return -EINVAL;
-	}
-
 	io_params->tdm_slots = slots;
 	io_params->slot_width = slot_width;
 	/* Ignore the not relevant mask for the DAI/direction */
