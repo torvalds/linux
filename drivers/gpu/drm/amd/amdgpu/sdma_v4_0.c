@@ -2181,6 +2181,7 @@ static int sdma_v4_0_set_clockgating_state(void *handle,
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 	case CHIP_ARCTURUS:
+	case CHIP_RENOIR:
 		sdma_v4_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v4_0_update_medium_grain_light_sleep(adev,
