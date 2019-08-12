@@ -212,28 +212,6 @@ static void signal_irq_work(struct irq_work *work)
 	intel_engine_breadcrumbs_irq(engine);
 }
 
-void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-
-	spin_lock_irq(&b->irq_lock);
-	if (!b->irq_enabled++)
-		irq_enable(engine);
-	GEM_BUG_ON(!b->irq_enabled); /* no overflow! */
-	spin_unlock_irq(&b->irq_lock);
-}
-
-void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-
-	spin_lock_irq(&b->irq_lock);
-	GEM_BUG_ON(!b->irq_enabled); /* no underflow! */
-	if (!--b->irq_enabled)
-		irq_disable(engine);
-	spin_unlock_irq(&b->irq_lock);
-}
-
 static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
 {
 	struct intel_engine_cs *engine =
