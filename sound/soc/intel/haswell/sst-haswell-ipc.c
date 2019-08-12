@@ -2015,11 +2015,11 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 
 	if (payload_size <= SST_HSW_IPC_MAX_SHORT_PARAMETER_SIZE) {
 		/* short parameter, mailbox can contain data */
-		dev_dbg(dev, "transfer parameter size : %lu\n",
+		dev_dbg(dev, "transfer parameter size : %zu\n",
 			request.size);
 
 		request.size = ALIGN(payload_size, 4);
-		dev_dbg(dev, "transfer parameter aligned size : %lu\n",
+		dev_dbg(dev, "transfer parameter aligned size : %zu\n",
 			request.size);
 
 		parameter = kzalloc(request.size, GFP_KERNEL);
