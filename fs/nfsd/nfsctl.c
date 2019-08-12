@@ -1205,6 +1205,7 @@ out:
 	inode_unlock(dir);
 	return dentry;
 out_err:
+	dput(dentry);
 	dentry = ERR_PTR(ret);
 	goto out;
 }
