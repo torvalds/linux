@@ -566,7 +566,7 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 
 static const struct iommu_ops exynos_iommu_ops;
 
-static int __init exynos_sysmmu_probe(struct platform_device *pdev)
+static int exynos_sysmmu_probe(struct platform_device *pdev)
 {
 	int irq, ret;
 	struct device *dev = &pdev->dev;
