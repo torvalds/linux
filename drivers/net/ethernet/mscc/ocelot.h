@@ -23,6 +23,7 @@
 #include "ocelot_sys.h"
 #include "ocelot_qs.h"
 #include "ocelot_tc.h"
+#include "ocelot_ptp.h"
 
 #define PGID_AGGR    64
 #define PGID_SRC     80
@@ -71,6 +72,7 @@ enum ocelot_target {
 	SYS,
 	S2,
 	HSIO,
+	PTP,
 	TARGET_MAX,
 };
 
@@ -343,6 +345,13 @@ enum ocelot_reg {
 	S2_CACHE_ACTION_DAT,
 	S2_CACHE_CNT_DAT,
 	S2_CACHE_TG_DAT,
+	PTP_PIN_CFG = PTP << TARGET_OFFSET,
+	PTP_PIN_TOD_SEC_MSB,
+	PTP_PIN_TOD_SEC_LSB,
+	PTP_PIN_TOD_NSEC,
+	PTP_CFG_MISC,
+	PTP_CLK_CFG_ADJ_CFG,
+	PTP_CLK_CFG_ADJ_FREQ,
 };
 
 enum ocelot_regfield {

@@ -182,6 +182,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	struct {
 		enum ocelot_target id;
 		char *name;
+		u8 optional:1;
 	} res[] = {
 		{ SYS, "sys" },
 		{ REW, "rew" },
@@ -189,6 +190,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		{ ANA, "ana" },
 		{ QS, "qs" },
 		{ S2, "s2" },
+		{ PTP, "ptp", 1 },
 	};
 
 	if (!np && !pdev->dev.platform_data)
@@ -205,8 +207,14 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		struct regmap *target;
 
 		target = ocelot_io_platform_init(ocelot, pdev, res[i].name);
-		if (IS_ERR(target))
+		if (IS_ERR(target)) {
+			if (res[i].optional) {
+				ocelot->targets[res[i].id] = NULL;
+				continue;
+			}
+
 			return PTR_ERR(target);
+		}
 
 		ocelot->targets[res[i].id] = target;
 	}
