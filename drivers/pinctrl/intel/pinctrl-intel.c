@@ -220,47 +220,71 @@ static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned int pin)
 	return !(readl(hostown) & BIT(gpp_offset));
 }
 
-static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned int pin)
+/**
+ * enum - Locking variants of the pad configuration
+ *
+ * @PAD_UNLOCKED:	pad is fully controlled by the configuration registers
+ * @PAD_LOCKED:		pad configuration registers, except TX state, are locked
+ * @PAD_LOCKED_TX:	pad configuration TX state is locked
+ * @PAD_LOCKED_FULL:	pad configuration registers are locked completely
+ *
+ * Locking is considered as read-only mode for corresponding registers and
+ * their respective fields. That said, TX state bit is locked separately from
+ * the main locking scheme.
+ */
+enum {
+	PAD_UNLOCKED	= 0,
+	PAD_LOCKED	= 1,
+	PAD_LOCKED_TX	= 2,
+	PAD_LOCKED_FULL	= PAD_LOCKED | PAD_LOCKED_TX,
+};
+
+static int intel_pad_locked(struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	struct intel_community *community;
 	const struct intel_padgroup *padgrp;
 	unsigned int offset, gpp_offset;
 	u32 value;
+	int ret = PAD_UNLOCKED;
 
 	community = intel_get_community(pctrl, pin);
 	if (!community)
-		return true;
+		return PAD_LOCKED_FULL;
 	if (!community->padcfglock_offset)
-		return false;
+		return PAD_UNLOCKED;
 
 	padgrp = intel_community_get_padgroup(community, pin);
 	if (!padgrp)
-		return true;
+		return PAD_LOCKED_FULL;
 
 	gpp_offset = padgroup_offset(padgrp, pin);
 
 	/*
 	 * If PADCFGLOCK and PADCFGLOCKTX bits are both clear for this pad,
 	 * the pad is considered unlocked. Any other case means that it is
-	 * either fully or partially locked and we don't touch it.
+	 * either fully or partially locked.
 	 */
-	offset = community->padcfglock_offset + padgrp->reg_num * 8;
+	offset = community->padcfglock_offset + 0 + padgrp->reg_num * 8;
 	value = readl(community->regs + offset);
 	if (value & BIT(gpp_offset))
-		return true;
+		ret |= PAD_LOCKED;
 
 	offset = community->padcfglock_offset + 4 + padgrp->reg_num * 8;
 	value = readl(community->regs + offset);
 	if (value & BIT(gpp_offset))
-		return true;
+		ret |= PAD_LOCKED_TX;
 
-	return false;
+	return ret;
+}
+
+static bool intel_pad_is_unlocked(struct intel_pinctrl *pctrl, unsigned int pin)
+{
+	return (intel_pad_locked(pctrl, pin) & PAD_LOCKED) == PAD_UNLOCKED;
 }
 
 static bool intel_pad_usable(struct intel_pinctrl *pctrl, unsigned int pin)
 {
-	return intel_pad_owned_by_host(pctrl, pin) &&
-		!intel_pad_locked(pctrl, pin);
+	return intel_pad_owned_by_host(pctrl, pin) && intel_pad_is_unlocked(pctrl, pin);
 }
 
 static int intel_get_groups_count(struct pinctrl_dev *pctldev)
@@ -294,7 +318,8 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	void __iomem *padcfg;
 	u32 cfg0, cfg1, mode;
-	bool locked, acpi;
+	int locked;
+	bool acpi;
 
 	if (!intel_pad_owned_by_host(pctrl, pin)) {
 		seq_puts(s, "not available");
@@ -322,11 +347,16 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 
 	if (locked || acpi) {
 		seq_puts(s, " [");
-		if (locked) {
+		if (locked)
 			seq_puts(s, "LOCKED");
-			if (acpi)
-				seq_puts(s, ", ");
-		}
+		if ((locked & PAD_LOCKED_FULL) == PAD_LOCKED_TX)
+			seq_puts(s, " tx");
+		else if ((locked & PAD_LOCKED_FULL) == PAD_LOCKED_FULL)
+			seq_puts(s, " full");
+
+		if (locked && acpi)
+			seq_puts(s, ", ");
+
 		if (acpi)
 			seq_puts(s, "ACPI");
 		seq_puts(s, "]");
@@ -448,9 +478,14 @@ static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
-	if (!intel_pad_usable(pctrl, pin)) {
+	if (!intel_pad_owned_by_host(pctrl, pin)) {
 		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 		return -EBUSY;
+	}
+
+	if (!intel_pad_is_unlocked(pctrl, pin)) {
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+		return 0;
 	}
 
 	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
