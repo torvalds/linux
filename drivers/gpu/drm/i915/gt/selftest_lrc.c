@@ -913,6 +913,8 @@ static int live_suppress_self_preempt(void *arg)
 			goto err_wedged;
 		}
 
+		/* Keep postponing the timer to avoid premature slicing */
+		mod_timer(&engine->execlists.timer, jiffies + HZ);
 		for (depth = 0; depth < 8; depth++) {
 			rq_b = spinner_create_request(&b.spin,
 						      b.ctx, engine,
@@ -938,7 +940,8 @@ static int live_suppress_self_preempt(void *arg)
 		igt_spinner_end(&a.spin);
 
 		if (engine->execlists.preempt_hang.count) {
-			pr_err("Preemption recorded x%d, depth %d; should have been suppressed!\n",
+			pr_err("Preemption on %s recorded x%d, depth %d; should have been suppressed!\n",
+			       engine->name,
 			       engine->execlists.preempt_hang.count,
 			       depth);
 			err = -EINVAL;
