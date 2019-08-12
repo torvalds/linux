@@ -556,6 +556,8 @@ struct dc_callback_init {
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
+void dc_hardware_init(struct dc *dc);
+
 int dc_get_vmid_use_vector(struct dc *dc);
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 void dc_setup_vm_context(struct dc *dc, struct dc_virtual_addr_space_config *va_config, int vmid);

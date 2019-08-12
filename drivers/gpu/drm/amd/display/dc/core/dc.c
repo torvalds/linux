@@ -790,9 +790,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	if (false == construct(dc, init_params))
 		goto construct_fail;
 
-	/*TODO: separate HW and SW initialization*/
-	dc->hwss.init_hw(dc);
-
 	full_pipe_count = dc->res_pool->pipe_count;
 	if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
 		full_pipe_count--;
@@ -823,6 +820,11 @@ construct_fail:
 
 alloc_fail:
 	return NULL;
+}
+
+void dc_hardware_init(struct dc *dc)
+{
+	dc->hwss.init_hw(dc);
 }
 
 void dc_init_callbacks(struct dc *dc,
