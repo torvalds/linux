@@ -10,6 +10,7 @@
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -78,6 +79,36 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 		addr, reg, val);
 
 	return 0;
+}
+
+int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
+			u16 mask, u16 val)
+{
+	u16 data;
+	int err;
+	int i;
+
+	/* There's no bus specific operation to wait for a mask */
+	for (i = 0; i < 16; i++) {
+		err = mv88e6xxx_read(chip, addr, reg, &data);
+		if (err)
+			return err;
+
+		if ((data & mask) == val)
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_err(chip->dev, "Timeout while waiting for switch\n");
+	return -ETIMEDOUT;
+}
+
+int mv88e6xxx_wait_bit(struct mv88e6xxx_chip *chip, int addr, int reg,
+		       int bit, int val)
+{
+	return mv88e6xxx_wait_mask(chip, addr, reg, BIT(bit),
+				   val ? BIT(bit) : 0x0000);
 }
 
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
@@ -361,45 +392,6 @@ static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
 	mv88e6xxx_reg_lock(chip);
 	mv88e6xxx_g1_irq_free_common(chip);
 	mv88e6xxx_reg_unlock(chip);
-}
-
-int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask)
-{
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		u16 val;
-		int err;
-
-		err = mv88e6xxx_read(chip, addr, reg, &val);
-		if (err)
-			return err;
-
-		if (!(val & mask))
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	dev_err(chip->dev, "Timeout while waiting for switch\n");
-	return -ETIMEDOUT;
-}
-
-/* Indirect write to single pointer-data register with an Update bit */
-int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg, u16 update)
-{
-	u16 val;
-	int err;
-
-	/* Wait until the previous operation is completed */
-	err = mv88e6xxx_wait(chip, addr, reg, BIT(15));
-	if (err)
-		return err;
-
-	/* Set the Update bit to trigger a write operation */
-	val = BIT(15) | update;
-
-	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
 int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
@@ -2354,8 +2346,10 @@ static int mv88e6390_hidden_write(struct mv88e6xxx_chip *chip, int port,
 
 static int mv88e6390_hidden_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_wait(chip, PORT_RESERVED_1A_CTRL_PORT,
-			      PORT_RESERVED_1A, PORT_RESERVED_1A_BUSY);
+	int bit = __bf_shf(PORT_RESERVED_1A_BUSY);
+
+	return mv88e6xxx_wait_bit(chip, PORT_RESERVED_1A_CTRL_PORT,
+				  PORT_RESERVED_1A, bit, 0);
 }
 
 
