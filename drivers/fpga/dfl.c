@@ -271,11 +271,13 @@ static int dfl_feature_instance_init(struct platform_device *pdev,
 				     struct dfl_feature *feature,
 				     struct dfl_feature_driver *drv)
 {
-	int ret;
+	int ret = 0;
 
-	ret = drv->ops->init(pdev, feature);
-	if (ret)
-		return ret;
+	if (drv->ops->init) {
+		ret = drv->ops->init(pdev, feature);
+		if (ret)
+			return ret;
+	}
 
 	feature->ops = drv->ops;
 
