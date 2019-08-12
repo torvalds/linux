@@ -115,6 +115,8 @@ struct snd_bebob {
 
 	/* For BeBoB version quirk. */
 	unsigned int version;
+
+	struct amdtp_domain domain;
 };
 
 static inline int
