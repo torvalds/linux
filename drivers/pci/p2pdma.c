@@ -27,6 +27,7 @@ struct pci_p2pdma {
 
 struct pci_p2pdma_pagemap {
 	struct dev_pagemap pgmap;
+	struct pci_dev *provider;
 	u64 bus_offset;
 };
 
@@ -178,6 +179,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	pgmap->res.flags = pci_resource_flags(pdev, bar);
 	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
 
+	p2p_pgmap->provider = pdev;
 	p2p_pgmap->bus_offset = pci_bus_address(pdev, bar) -
 		pci_resource_start(pdev, bar);
 
