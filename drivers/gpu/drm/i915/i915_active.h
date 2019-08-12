@@ -90,25 +90,6 @@ i915_active_request_set(struct i915_active_request *active,
 			struct i915_request *rq);
 
 /**
- * i915_active_request_set_retire_fn - updates the retirement callback
- * @active - the active tracker
- * @fn - the routine called when the request is retired
- * @mutex - struct_mutex used to guard retirements
- *
- * i915_active_request_set_retire_fn() updates the function pointer that
- * is called when the final request associated with the @active tracker
- * is retired.
- */
-static inline void
-i915_active_request_set_retire_fn(struct i915_active_request *active,
-				  i915_active_retire_fn fn,
-				  struct mutex *mutex)
-{
-	lockdep_assert_held(mutex);
-	active->retire = fn ?: i915_active_retire_noop;
-}
-
-/**
  * i915_active_request_raw - return the active request
  * @active - the active tracker
  *
