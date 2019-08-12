@@ -26,7 +26,8 @@ RE_function = re.compile(r'([\w_][\w\d_]+\(\))')
 # just don't even try with these names.
 #
 Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
-              'select', 'poll', 'fork', 'execve', 'clone', 'ioctl']
+              'select', 'poll', 'fork', 'execve', 'clone', 'ioctl',
+              'socket' ]
 
 #
 # Find all occurrences of function() and try to replace them with
