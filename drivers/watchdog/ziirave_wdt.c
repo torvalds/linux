@@ -425,7 +425,7 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 	}
 
 	/* End download operation */
-	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_DOWNLOAD_END, 1, false);
+	ret = i2c_smbus_write_byte(client, ZIIRAVE_CMD_DOWNLOAD_END);
 	if (ret) {
 		dev_err(&client->dev,
 			"Failed to end firmware download: %d\n", ret);
