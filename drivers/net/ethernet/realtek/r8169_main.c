@@ -5681,6 +5681,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 		 */
 		smp_wmb();
 		netif_stop_queue(dev);
+		door_bell = true;
 	}
 
 	if (door_bell)
