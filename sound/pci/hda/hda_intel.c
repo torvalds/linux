@@ -84,8 +84,6 @@ enum {
 #define INTEL_SCH_HDA_DEVC      0x78
 #define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
 
-/* Define IN stream 0 FIFO size offset in VIA controller */
-#define VIA_IN_STREAM0_FIFO_SIZE_OFFSET	0x90
 /* Define VIA HD Audio Device ID*/
 #define VIA_HDAC_DEVICE_ID		0x3288
 
@@ -811,11 +809,7 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	mod_dma_pos = le32_to_cpu(*azx_dev->core.posbuf);
 	mod_dma_pos %= azx_dev->core.period_bytes;
 
-	/* azx_dev->fifo_size can't get FIFO size of in stream.
-	 * Get from base address + offset.
-	 */
-	fifo_size = readw(azx_bus(chip)->remap_addr +
-			  VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
+	fifo_size = azx_stream(azx_dev)->fifo_size - 1;
 
 	if (azx_dev->insufficient) {
 		/* Link position never gather than FIFO size */
