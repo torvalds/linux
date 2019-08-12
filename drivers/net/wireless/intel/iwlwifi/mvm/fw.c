@@ -420,6 +420,9 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	};
 	int ret;
 
+	if (mvm->trans->cfg->tx_with_siso_diversity)
+		init_cfg.init_flags |= cpu_to_le32(BIT(IWL_INIT_PHY));
+
 	lockdep_assert_held(&mvm->mutex);
 
 	mvm->rfkill_safe_init_done = false;
