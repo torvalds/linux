@@ -175,11 +175,8 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(wdog);
 
 	ret = devm_watchdog_register_device(dev, wdog);
- 
- 	if (ret) {
- 		dev_err(dev, "Failed to register watchdog device\n");
+	if (ret)
  		return ret;
- 	}
  
 	ret = imx_scu_irq_group_enable(SC_IRQ_GROUP_WDOG,
 				       SC_IRQ_WDOG,
