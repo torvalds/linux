@@ -197,26 +197,6 @@ static int ziirave_firm_set_read_addr(struct watchdog_device *wdd, u32 addr)
 					  sizeof(address), address);
 }
 
-static int ziirave_firm_write_block_data(struct watchdog_device *wdd,
-					 u8 command, u8 length, const u8 *data,
-					 bool wait_for_ack)
-{
-	struct i2c_client *client = to_i2c_client(wdd->parent);
-	int ret;
-
-	ret = i2c_smbus_write_block_data(client, command, length, data);
-	if (ret) {
-		dev_err(&client->dev,
-			"Failed to send command 0x%02x: %d\n", command, ret);
-		return ret;
-	}
-
-	if (wait_for_ack)
-		ret = ziirave_firm_read_ack(wdd);
-
-	return ret;
-}
-
 static bool ziirave_firm_addr_readonly(u32 addr)
 {
 	return addr < ZIIRAVE_FIRM_FLASH_MEMORY_START ||
@@ -273,8 +253,15 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 		checksum += packet[i];
 	packet[ZIIRAVE_FIRM_PKT_TOTAL_SIZE - 1] = checksum;
 
-	ret = ziirave_firm_write_block_data(wdd, ZIIRAVE_CMD_DOWNLOAD_PACKET,
-					    sizeof(packet), packet, true);
+	ret = i2c_smbus_write_block_data(client, ZIIRAVE_CMD_DOWNLOAD_PACKET,
+					 sizeof(packet), packet);
+	if (ret) {
+		dev_err(&client->dev,
+			"Failed to send DOWNLOAD_PACKET: %d\n", ret);
+		return ret;
+	}
+
+	ret = ziirave_firm_read_ack(wdd);
 	if (ret)
 		dev_err(&client->dev,
 		      "Failed to write firmware packet at address 0x%04x: %d\n",
