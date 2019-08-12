@@ -824,6 +824,21 @@ unlock:
 }
 #endif
 
+/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
+	{
+		.ident = "Meegopad T08",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR,
+					"To be filled by OEM."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+	},
+	{ }
+};
+
+#ifdef CONFIG_ACPI
 static const struct acpi_gpio_params first_gpio = { 0, 0, false };
 static const struct acpi_gpio_params second_gpio = { 1, 0, false };
 static const struct acpi_gpio_params third_gpio = { 2, 0, false };
@@ -842,21 +857,6 @@ static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
 	{ },
 };
 
-/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
-static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
-	{
-		.ident = "Meegopad T08",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR,
-					"To be filled by OEM."),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "T3 MRD"),
-			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V1.1"),
-		},
-	},
-	{ }
-};
-
-#ifdef CONFIG_ACPI
 static int bcm_resource(struct acpi_resource *ares, void *data)
 {
 	struct bcm_device *dev = data;
