@@ -22,14 +22,17 @@
 #include "dfl-afu.h"
 
 /**
- * port_enable - enable a port
+ * __afu_port_enable - enable a port by clear reset
  * @pdev: port platform device.
  *
  * Enable Port by clear the port soft reset bit, which is set by default.
  * The AFU is unable to respond to any MMIO access while in reset.
- * port_enable function should only be used after port_disable function.
+ * __afu_port_enable function should only be used after __afu_port_disable
+ * function.
+ *
+ * The caller needs to hold lock for protection.
  */
-static void port_enable(struct platform_device *pdev)
+void __afu_port_enable(struct platform_device *pdev)
 {
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
@@ -52,13 +55,14 @@ static void port_enable(struct platform_device *pdev)
 #define RST_POLL_TIMEOUT 1000 /* us */
 
 /**
- * port_disable - disable a port
+ * __afu_port_disable - disable a port by hold reset
  * @pdev: port platform device.
  *
- * Disable Port by setting the port soft reset bit, it puts the port into
- * reset.
+ * Disable Port by setting the port soft reset bit, it puts the port into reset.
+ *
+ * The caller needs to hold lock for protection.
  */
-static int port_disable(struct platform_device *pdev)
+int __afu_port_disable(struct platform_device *pdev)
 {
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
@@ -104,9 +108,9 @@ static int __port_reset(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = port_disable(pdev);
+	ret = __afu_port_disable(pdev);
 	if (!ret)
-		port_enable(pdev);
+		__afu_port_enable(pdev);
 
 	return ret;
 }
@@ -799,9 +803,9 @@ static int port_enable_set(struct platform_device *pdev, bool enable)
 
 	mutex_lock(&pdata->lock);
 	if (enable)
-		port_enable(pdev);
+		__afu_port_enable(pdev);
 	else
-		ret = port_disable(pdev);
+		ret = __afu_port_disable(pdev);
 	mutex_unlock(&pdata->lock);
 
 	return ret;

@@ -79,6 +79,10 @@ struct dfl_afu {
 	struct dfl_feature_platform_data *pdata;
 };
 
+/* hold pdata->lock when call __afu_port_enable/disable */
+void __afu_port_enable(struct platform_device *pdev);
+int __afu_port_disable(struct platform_device *pdev);
+
 void afu_mmio_region_init(struct dfl_feature_platform_data *pdata);
 int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
 			u32 region_index, u64 region_size, u64 phys, u32 flags);
