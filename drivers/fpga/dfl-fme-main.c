@@ -127,7 +127,10 @@ static struct attribute *fme_hdr_attrs[] = {
 	&dev_attr_socket_id.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(fme_hdr);
+
+static const struct attribute_group fme_hdr_group = {
+	.attrs = fme_hdr_attrs,
+};
 
 static long fme_hdr_ioctl_release_port(struct dfl_feature_platform_data *pdata,
 				       unsigned long arg)
@@ -186,6 +189,10 @@ static struct dfl_feature_driver fme_feature_drvs[] = {
 	{
 		.id_table = fme_pr_mgmt_id_table,
 		.ops = &fme_pr_mgmt_ops,
+	},
+	{
+		.id_table = fme_global_err_id_table,
+		.ops = &fme_global_err_ops,
 	},
 	{
 		.ops = NULL,
@@ -333,10 +340,16 @@ static int fme_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct attribute_group *fme_dev_groups[] = {
+	&fme_hdr_group,
+	&fme_global_err_group,
+	NULL
+};
+
 static struct platform_driver fme_driver = {
 	.driver	= {
 		.name       = DFL_FPGA_FEATURE_DEV_FME,
-		.dev_groups = fme_hdr_groups,
+		.dev_groups = fme_dev_groups,
 	},
 	.probe   = fme_probe,
 	.remove  = fme_remove,
