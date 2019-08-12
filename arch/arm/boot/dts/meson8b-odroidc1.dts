@@ -190,6 +190,12 @@
 	cpu-supply = <&vcck>;
 };
 
+&efuse {
+	ethernet_mac_address: mac@1b4 {
+		reg = <0x1b4 0x6>;
+	};
+};
+
 &ethmac {
 	status = "okay";
 
@@ -199,6 +205,9 @@
 	phy-mode = "rgmii";
 	phy-handle = <&eth_phy>;
 	amlogic,tx-delay-ns = <4>;
+
+	nvmem-cells = <&ethernet_mac_address>;
+	nvmem-cell-names = "mac-address";
 
 	mdio {
 		compatible = "snps,dwmac-mdio";
