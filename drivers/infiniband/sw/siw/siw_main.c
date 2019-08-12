@@ -612,6 +612,7 @@ static __init int siw_init_module(void)
 
 	if (!siw_create_tx_threads()) {
 		pr_info("siw: Could not start any TX thread\n");
+		rv = -ENOMEM;
 		goto out_error;
 	}
 	/*
