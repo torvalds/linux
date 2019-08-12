@@ -83,6 +83,7 @@ void hinic_txq_clean_stats(struct hinic_txq *txq)
 	txq_stats->tx_busy = 0;
 	txq_stats->tx_wake = 0;
 	txq_stats->tx_dropped = 0;
+	txq_stats->big_frags_pkts = 0;
 	u64_stats_update_end(&txq_stats->syncp);
 }
 
@@ -104,6 +105,7 @@ void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
 		stats->tx_busy = txq_stats->tx_busy;
 		stats->tx_wake = txq_stats->tx_wake;
 		stats->tx_dropped = txq_stats->tx_dropped;
+		stats->big_frags_pkts = txq_stats->big_frags_pkts;
 	} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
 	u64_stats_update_end(&stats->syncp);
 }
@@ -405,10 +407,20 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	return 1;
 }
 
+static void offload_vlan(struct hinic_sq_task *task, u32 *queue_info,
+			 u16 vlan_tag, u16 vlan_pri)
+{
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(vlan_tag, VLAN_TAG) |
+				HINIC_SQ_TASK_INFO0_SET(1U, VLAN_OFFLOAD);
+
+	*queue_info |= HINIC_SQ_CTRL_SET(vlan_pri, QUEUE_INFO_PRI);
+}
+
 static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 			    u32 *queue_info)
 {
 	enum hinic_offload_type offload = 0;
+	u16 vlan_tag;
 	int enabled;
 
 	enabled = offload_tso(task, queue_info, skb);
@@ -420,6 +432,13 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 			offload |= TX_OFFLOAD_CSUM;
 	} else {
 		return -EPROTONOSUPPORT;
+	}
+
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		vlan_tag = skb_vlan_tag_get(skb);
+		offload_vlan(task, queue_info, vlan_tag,
+			     vlan_tag >> VLAN_PRIO_SHIFT);
+		offload |= TX_OFFLOAD_VLAN;
 	}
 
 	if (offload)
@@ -464,6 +483,12 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	nr_sges = skb_shinfo(skb)->nr_frags + 1;
+	if (nr_sges > 17) {
+		u64_stats_update_begin(&txq->txq_stats.syncp);
+		txq->txq_stats.big_frags_pkts++;
+		u64_stats_update_end(&txq->txq_stats.syncp);
+	}
+
 	if (nr_sges > txq->max_sges) {
 		netdev_err(netdev, "Too many Tx sges\n");
 		goto skb_error;

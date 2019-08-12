@@ -73,7 +73,7 @@ operation.
 AQ is used for submitting management commands, and the
 results/responses are reported asynchronously through ACQ.
 
-ENA introduces a very small set of management commands with room for
+ENA introduces a small set of management commands with room for
 vendor-specific extensions. Most of the management operations are
 framed in a generic Get/Set feature command.
 
@@ -202,11 +202,14 @@ delay value to each level.
 The user can enable/disable adaptive moderation, modify the interrupt
 delay table and restore its default values through sysfs.
 
+RX copybreak:
+=============
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
 and can be configured by the ETHTOOL_STUNABLE command of the
 SIOCETHTOOL ioctl.
 
 SKB:
+====
 The driver-allocated SKB for frames received from Rx handling using
 NAPI context. The allocation method depends on the size of the packet.
 If the frame length is larger than rx_copybreak, napi_get_frags()

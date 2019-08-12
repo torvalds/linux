@@ -9,16 +9,16 @@
 #include <linux/module.h>
 
 static struct rc_map_table pinnacle_grey[] = {
-	{ 0x3a, KEY_0 },
-	{ 0x31, KEY_1 },
-	{ 0x32, KEY_2 },
-	{ 0x33, KEY_3 },
-	{ 0x34, KEY_4 },
-	{ 0x35, KEY_5 },
-	{ 0x36, KEY_6 },
-	{ 0x37, KEY_7 },
-	{ 0x38, KEY_8 },
-	{ 0x39, KEY_9 },
+	{ 0x3a, KEY_NUMERIC_0 },
+	{ 0x31, KEY_NUMERIC_1 },
+	{ 0x32, KEY_NUMERIC_2 },
+	{ 0x33, KEY_NUMERIC_3 },
+	{ 0x34, KEY_NUMERIC_4 },
+	{ 0x35, KEY_NUMERIC_5 },
+	{ 0x36, KEY_NUMERIC_6 },
+	{ 0x37, KEY_NUMERIC_7 },
+	{ 0x38, KEY_NUMERIC_8 },
+	{ 0x39, KEY_NUMERIC_9 },
 
 	{ 0x2f, KEY_POWER },
 

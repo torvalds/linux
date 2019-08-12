@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVBIOS_DCB_H__
 #define __NVBIOS_DCB_H__
 enum dcb_output_type {

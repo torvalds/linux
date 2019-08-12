@@ -55,16 +55,19 @@ static void dump_backtrace_entry(unsigned long where)
 	printk(" %pS\n", (void *)where);
 }
 
-static void __dump_instr(const char *lvl, struct pt_regs *regs)
+static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 	char str[sizeof("00000000 ") * 5 + 2 + 1], *p = str;
 	int i;
 
+	if (user_mode(regs))
+		return;
+
 	for (i = -4; i < 1; i++) {
 		unsigned int val, bad;
 
-		bad = get_user(val, &((u32 *)addr)[i]);
+		bad = aarch64_insn_read(&((u32 *)addr)[i], &val);
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%08x) " : "%08x ", val);
@@ -73,19 +76,8 @@ static void __dump_instr(const char *lvl, struct pt_regs *regs)
 			break;
 		}
 	}
-	printk("%sCode: %s\n", lvl, str);
-}
 
-static void dump_instr(const char *lvl, struct pt_regs *regs)
-{
-	if (!user_mode(regs)) {
-		mm_segment_t fs = get_fs();
-		set_fs(KERNEL_DS);
-		__dump_instr(lvl, regs);
-		set_fs(fs);
-	} else {
-		__dump_instr(lvl, regs);
-	}
+	printk("%sCode: %s\n", lvl, str);
 }
 
 void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
@@ -108,18 +100,17 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		return;
 
 	if (tsk == current) {
-		frame.fp = (unsigned long)__builtin_frame_address(0);
-		frame.pc = (unsigned long)dump_backtrace;
+		start_backtrace(&frame,
+				(unsigned long)__builtin_frame_address(0),
+				(unsigned long)dump_backtrace);
 	} else {
 		/*
 		 * task blocked in __switch_to
 		 */
-		frame.fp = thread_saved_fp(tsk);
-		frame.pc = thread_saved_pc(tsk);
+		start_backtrace(&frame,
+				thread_saved_fp(tsk),
+				thread_saved_pc(tsk));
 	}
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
 
 	printk("Call trace:\n");
 	do {
@@ -171,8 +162,7 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 	print_modules();
 	show_regs(regs);
 
-	if (!user_mode(regs))
-		dump_instr(KERN_EMERG, regs);
+	dump_kernel_instr(KERN_EMERG, regs);
 
 	return ret;
 }
@@ -242,16 +232,16 @@ void arm64_force_sig_fault(int signo, int code, void __user *addr,
 {
 	arm64_show_signal(signo, str);
 	if (signo == SIGKILL)
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 	else
-		force_sig_fault(signo, code, addr, current);
+		force_sig_fault(signo, code, addr);
 }
 
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
 			    const char *str)
 {
 	arm64_show_signal(SIGBUS, str);
-	force_sig_mceerr(code, addr, lsb, current);
+	force_sig_mceerr(code, addr, lsb);
 }
 
 void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr,
@@ -743,6 +733,7 @@ static const char *esr_class_str[] = {
 	[ESR_ELx_EC_CP14_LS]		= "CP14 LDC/STC",
 	[ESR_ELx_EC_FP_ASIMD]		= "ASIMD",
 	[ESR_ELx_EC_CP10_ID]		= "CP10 MRC/VMRS",
+	[ESR_ELx_EC_PAC]		= "PAC",
 	[ESR_ELx_EC_CP14_64]		= "CP14 MCRR/MRRC",
 	[ESR_ELx_EC_ILL]		= "PSTATE.IL",
 	[ESR_ELx_EC_SVC32]		= "SVC (AArch32)",
@@ -880,6 +871,10 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 		/*
 		 * The CPU can't make progress. The exception may have
 		 * been imprecise.
+		 *
+		 * Neoverse-N1 #1349291 means a non-KVM SError reported as
+		 * Unrecoverable should be treated as Uncontainable. We
+		 * call arm64_serror_panic() in both cases.
 		 */
 		return true;
 

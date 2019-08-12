@@ -16,7 +16,8 @@
  *   https://www.silabs.com/documents/public/application-notes/an495-cp2112-interface-specification.pdf
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
 #include <linux/hid.h>
 #include <linux/hidraw.h>
@@ -1195,7 +1196,9 @@ static int __maybe_unused cp2112_allocate_irq(struct cp2112_device *dev,
 		return -EINVAL;
 
 	dev->desc[pin] = gpiochip_request_own_desc(&dev->gc, pin,
-						   "HID/I2C:Event", 0);
+						   "HID/I2C:Event",
+						   GPIO_ACTIVE_HIGH,
+						   GPIOD_IN);
 	if (IS_ERR(dev->desc[pin])) {
 		dev_err(dev->gc.parent, "Failed to request GPIO\n");
 		return PTR_ERR(dev->desc[pin]);

@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/pci.h>
+
 #include "smumgr.h"
 #include "smu10_inc.h"
 #include "soc15_common.h"
@@ -291,6 +293,7 @@ static int smu10_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint1
 
 
 const struct pp_smumgr_func smu10_smu_funcs = {
+	.name = "smu10_smu",
 	.smu_init = &smu10_smu_init,
 	.smu_fini = &smu10_smu_fini,
 	.start_smu = &smu10_start_smu,

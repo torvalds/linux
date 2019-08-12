@@ -210,7 +210,6 @@ static int nic7018_probe(struct platform_device *pdev)
 	ret = watchdog_register_device(wdd);
 	if (ret) {
 		outb(LOCK, wdt->io_base + WDT_REG_LOCK);
-		dev_err(dev, "failed to register watchdog\n");
 		return ret;
 	}
 

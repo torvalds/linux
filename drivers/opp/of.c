@@ -138,7 +138,6 @@ err:
 static void _opp_table_free_required_tables(struct opp_table *opp_table)
 {
 	struct opp_table **required_opp_tables = opp_table->required_opp_tables;
-	struct device **genpd_virt_devs = opp_table->genpd_virt_devs;
 	int i;
 
 	if (!required_opp_tables)
@@ -152,10 +151,8 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 	}
 
 	kfree(required_opp_tables);
-	kfree(genpd_virt_devs);
 
 	opp_table->required_opp_count = 0;
-	opp_table->genpd_virt_devs = NULL;
 	opp_table->required_opp_tables = NULL;
 }
 
@@ -168,9 +165,8 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 					     struct device_node *opp_np)
 {
 	struct opp_table **required_opp_tables;
-	struct device **genpd_virt_devs = NULL;
 	struct device_node *required_np, *np;
-	int count, count_pd, i;
+	int count, i;
 
 	/* Traversing the first OPP node is all we need */
 	np = of_get_next_available_child(opp_np, NULL);
@@ -183,33 +179,11 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	if (!count)
 		goto put_np;
 
-	/*
-	 * Check the number of power-domains to know if we need to deal
-	 * with virtual devices. In some cases we have devices with multiple
-	 * power domains but with only one of them being scalable, hence
-	 * 'count' could be 1, but we still have to deal with multiple genpds
-	 * and virtual devices.
-	 */
-	count_pd = of_count_phandle_with_args(dev->of_node, "power-domains",
-					      "#power-domain-cells");
-	if (!count_pd)
-		goto put_np;
-
-	if (count_pd > 1) {
-		genpd_virt_devs = kcalloc(count, sizeof(*genpd_virt_devs),
-					GFP_KERNEL);
-		if (!genpd_virt_devs)
-			goto put_np;
-	}
-
 	required_opp_tables = kcalloc(count, sizeof(*required_opp_tables),
 				      GFP_KERNEL);
-	if (!required_opp_tables) {
-		kfree(genpd_virt_devs);
+	if (!required_opp_tables)
 		goto put_np;
-	}
 
-	opp_table->genpd_virt_devs = genpd_virt_devs;
 	opp_table->required_opp_tables = required_opp_tables;
 	opp_table->required_opp_count = count;
 

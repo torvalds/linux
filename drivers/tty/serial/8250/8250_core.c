@@ -14,6 +14,7 @@
  *	      serial8250_register_8250_port() ports
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
@@ -982,6 +983,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (uart && uart->port.type != PORT_8250_CIR) {
+		struct mctrl_gpios *gpios;
+
 		if (uart->port.dev)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
 
@@ -1015,6 +1018,22 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 		if (up->port.flags & UPF_FIXED_TYPE)
 			uart->port.type = up->port.type;
+
+		/*
+		 * Only call mctrl_gpio_init(), if the device has no ACPI
+		 * companion device
+		 */
+		if (!has_acpi_companion(uart->port.dev)) {
+			gpios = mctrl_gpio_init(&uart->port, 0);
+			if (IS_ERR(gpios)) {
+				if (PTR_ERR(gpios) != -ENOSYS) {
+					ret = PTR_ERR(gpios);
+					goto out_unlock;
+				}
+			} else {
+				uart->gpios = gpios;
+			}
+		}
 
 		serial8250_set_defaults(uart);
 
@@ -1082,6 +1101,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		}
 	}
 
+out_unlock:
 	mutex_unlock(&serial_mutex);
 
 	return ret;

@@ -128,8 +128,9 @@ int create_user_ns(struct cred *new)
 	ns->flags = parent_ns->flags;
 	mutex_unlock(&userns_state_mutex);
 
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-	init_rwsem(&ns->persistent_keyring_register_sem);
+#ifdef CONFIG_KEYS
+	INIT_LIST_HEAD(&ns->keyring_name_list);
+	init_rwsem(&ns->keyring_sem);
 #endif
 	ret = -ENOMEM;
 	if (!setup_userns_sysctls(ns))
@@ -191,9 +192,7 @@ static void free_user_ns(struct work_struct *work)
 			kfree(ns->projid_map.reverse);
 		}
 		retire_userns_sysctls(ns);
-#ifdef CONFIG_PERSISTENT_KEYRINGS
-		key_put(ns->persistent_keyring_register);
-#endif
+		key_free_user_ns(ns);
 		ns_free_inum(&ns->ns);
 		kmem_cache_free(user_ns_cachep, ns);
 		dec_user_namespaces(ucounts);

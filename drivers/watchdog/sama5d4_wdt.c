@@ -110,9 +110,7 @@ static int sama5d4_wdt_set_timeout(struct watchdog_device *wdd,
 	u32 value = WDT_SEC2TICKS(timeout);
 
 	wdt->mr &= ~AT91_WDT_WDV;
-	wdt->mr &= ~AT91_WDT_WDD;
 	wdt->mr |= AT91_WDT_SET_WDV(value);
-	wdt->mr |= AT91_WDT_SET_WDD(value);
 
 	/*
 	 * WDDIS has to be 0 when updating WDD/WDV. The datasheet states: When
@@ -248,7 +246,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	timeout = WDT_SEC2TICKS(wdd->timeout);
 
-	wdt->mr |= AT91_WDT_SET_WDD(timeout);
+	wdt->mr |= AT91_WDT_SET_WDD(WDT_SEC2TICKS(MAX_WDT_TIMEOUT));
 	wdt->mr |= AT91_WDT_SET_WDV(timeout);
 
 	ret = sama5d4_wdt_init(wdt);
@@ -259,10 +257,8 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	watchdog_stop_on_unregister(wdd);
 	ret = devm_watchdog_register_device(dev, wdd);
-	if (ret) {
-		dev_err(dev, "failed to register watchdog device\n");
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -279,7 +275,17 @@ static const struct of_device_id sama5d4_wdt_of_match[] = {
 MODULE_DEVICE_TABLE(of, sama5d4_wdt_of_match);
 
 #ifdef CONFIG_PM_SLEEP
-static int sama5d4_wdt_resume(struct device *dev)
+static int sama5d4_wdt_suspend_late(struct device *dev)
+{
+	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd))
+		sama5d4_wdt_stop(&wdt->wdd);
+
+	return 0;
+}
+
+static int sama5d4_wdt_resume_early(struct device *dev)
 {
 	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
 
@@ -290,12 +296,17 @@ static int sama5d4_wdt_resume(struct device *dev)
 	 */
 	sama5d4_wdt_init(wdt);
 
+	if (watchdog_active(&wdt->wdd))
+		sama5d4_wdt_start(&wdt->wdd);
+
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(sama5d4_wdt_pm_ops, NULL,
-			 sama5d4_wdt_resume);
+static const struct dev_pm_ops sama5d4_wdt_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(sama5d4_wdt_suspend_late,
+			sama5d4_wdt_resume_early)
+};
 
 static struct platform_driver sama5d4_wdt_driver = {
 	.probe		= sama5d4_wdt_probe,

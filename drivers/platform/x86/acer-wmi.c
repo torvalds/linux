@@ -259,7 +259,6 @@ struct acer_data {
 
 struct acer_debug {
 	struct dentry *root;
-	struct dentry *devices;
 	u32 wmid_devices;
 };
 
@@ -1002,6 +1001,7 @@ static acpi_status WMID_get_u32(u32 *value, u32 cap)
 			*value = tmp & 0x1;
 			return 0;
 		}
+		/* fall through */
 	default:
 		return AE_ERROR;
 	}
@@ -1328,6 +1328,7 @@ static acpi_status get_u32(u32 *value, u32 cap)
 			status = AMW0_get_u32(value, cap);
 			break;
 		}
+		/* fall through */
 	case ACER_WMID:
 		status = WMID_get_u32(value, cap);
 		break;
@@ -1370,6 +1371,7 @@ static acpi_status set_u32(u32 value, u32 cap)
 
 				return AMW0_set_u32(value, cap);
 			}
+			/* fall through */
 		case ACER_WMID:
 			return WMID_set_u32(value, cap);
 		case ACER_WMID_v2:
@@ -1379,6 +1381,7 @@ static acpi_status set_u32(u32 value, u32 cap)
 				return wmid_v2_set_u32(value, cap);
 			else if (wmi_has_guid(WMID_GUID2))
 				return WMID_set_u32(value, cap);
+			/* fall through */
 		default:
 			return AE_BAD_PARAMETER;
 		}
@@ -2148,29 +2151,15 @@ static struct platform_device *acer_platform_device;
 
 static void remove_debugfs(void)
 {
-	debugfs_remove(interface->debug.devices);
-	debugfs_remove(interface->debug.root);
+	debugfs_remove_recursive(interface->debug.root);
 }
 
-static int __init create_debugfs(void)
+static void __init create_debugfs(void)
 {
 	interface->debug.root = debugfs_create_dir("acer-wmi", NULL);
-	if (!interface->debug.root) {
-		pr_err("Failed to create debugfs directory");
-		return -ENOMEM;
-	}
 
-	interface->debug.devices = debugfs_create_u32("devices", S_IRUGO,
-					interface->debug.root,
-					&interface->debug.wmid_devices);
-	if (!interface->debug.devices)
-		goto error_debugfs;
-
-	return 0;
-
-error_debugfs:
-	remove_debugfs();
-	return -ENOMEM;
+	debugfs_create_u32("devices", S_IRUGO, interface->debug.root,
+			   &interface->debug.wmid_devices);
 }
 
 static int __init acer_wmi_init(void)
@@ -2300,9 +2289,7 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(WMID_GUID2)) {
 		interface->debug.wmid_devices = get_wmid_devices();
-		err = create_debugfs();
-		if (err)
-			goto error_create_debugfs;
+		create_debugfs();
 	}
 
 	/* Override any initial settings with values from the commandline */
@@ -2310,8 +2297,6 @@ static int __init acer_wmi_init(void)
 
 	return 0;
 
-error_create_debugfs:
-	platform_device_del(acer_platform_device);
 error_device_add:
 	platform_device_put(acer_platform_device);
 error_device_alloc:

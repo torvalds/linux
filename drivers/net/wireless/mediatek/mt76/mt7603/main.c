@@ -103,8 +103,7 @@ mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-static void
-mt7603_init_edcca(struct mt7603_dev *dev)
+void mt7603_init_edcca(struct mt7603_dev *dev)
 {
 	/* Set lower signal level to -65dBm */
 	mt76_rmw_field(dev, MT_RXTD(8), MT_RXTD_8_LOWER_SIGNAL, 0x23);
@@ -207,8 +206,11 @@ mt7603_config(struct ieee80211_hw *hw, u32 changed)
 	int ret = 0;
 
 	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
-		       IEEE80211_CONF_CHANGE_POWER))
+		       IEEE80211_CONF_CHANGE_POWER)) {
+		ieee80211_stop_queues(hw);
 		ret = mt7603_set_channel(dev, &hw->conf.chandef);
+		ieee80211_wake_queues(hw);
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		mutex_lock(&dev->mt76.mutex);

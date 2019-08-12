@@ -18,6 +18,8 @@ extern "C" {
 #define DRM_PANFROST_MMAP_BO			0x03
 #define DRM_PANFROST_GET_PARAM			0x04
 #define DRM_PANFROST_GET_BO_OFFSET		0x05
+#define DRM_PANFROST_PERFCNT_ENABLE		0x06
+#define DRM_PANFROST_PERFCNT_DUMP		0x07
 
 #define DRM_IOCTL_PANFROST_SUBMIT		DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_SUBMIT, struct drm_panfrost_submit)
 #define DRM_IOCTL_PANFROST_WAIT_BO		DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_WAIT_BO, struct drm_panfrost_wait_bo)
@@ -25,6 +27,15 @@ extern "C" {
 #define DRM_IOCTL_PANFROST_MMAP_BO		DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_MMAP_BO, struct drm_panfrost_mmap_bo)
 #define DRM_IOCTL_PANFROST_GET_PARAM		DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_GET_PARAM, struct drm_panfrost_get_param)
 #define DRM_IOCTL_PANFROST_GET_BO_OFFSET	DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_GET_BO_OFFSET, struct drm_panfrost_get_bo_offset)
+
+/*
+ * Unstable ioctl(s): only exposed when the unsafe unstable_ioctls module
+ * param is set to true.
+ * All these ioctl(s) are subject to deprecation, so please don't rely on
+ * them for anything but debugging purpose.
+ */
+#define DRM_IOCTL_PANFROST_PERFCNT_ENABLE	DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_PERFCNT_ENABLE, struct drm_panfrost_perfcnt_enable)
+#define DRM_IOCTL_PANFROST_PERFCNT_DUMP		DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_PERFCNT_DUMP, struct drm_panfrost_perfcnt_dump)
 
 #define PANFROST_JD_REQ_FS (1 << 0)
 /**
@@ -133,6 +144,19 @@ struct drm_panfrost_get_bo_offset {
 	__u32 handle;
 	__u32 pad;
 	__u64 offset;
+};
+
+struct drm_panfrost_perfcnt_enable {
+	__u32 enable;
+	/*
+	 * On bifrost we have 2 sets of counters, this parameter defines the
+	 * one to track.
+	 */
+	__u32 counterset;
+};
+
+struct drm_panfrost_perfcnt_dump {
+	__u64 buf_ptr;
 };
 
 #if defined(__cplusplus)

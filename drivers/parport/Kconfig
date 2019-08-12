@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 # Parport configuration.
 #

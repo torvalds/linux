@@ -110,8 +110,6 @@ typedef __u32			xfs_nlink_t;
 #define current_restore_flags_nested(sp, f)	\
 		(current->flags = ((current->flags & ~(f)) | (*(sp) & (f))))
 
-#define spinlock_destroy(lock)
-
 #define NBBY		8		/* number of bits per byte */
 
 /*
@@ -220,6 +218,9 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 	do_div(x, y);
 	return x;
 }
+
+int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
+		char *data, unsigned int op);
 
 #define ASSERT_ALWAYS(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))

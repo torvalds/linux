@@ -777,6 +777,12 @@ static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
 	return pci_platform_pm ? pci_platform_pm->get_state(dev) : PCI_UNKNOWN;
 }
 
+static inline void platform_pci_refresh_power_state(struct pci_dev *dev)
+{
+	if (pci_platform_pm && pci_platform_pm->refresh_state)
+		pci_platform_pm->refresh_state(dev);
+}
+
 static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 {
 	return pci_platform_pm ?
@@ -935,6 +941,21 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 	} else {
 		dev->current_state = state;
 	}
+}
+
+/**
+ * pci_refresh_power_state - Refresh the given device's power state data
+ * @dev: Target PCI device.
+ *
+ * Ask the platform to refresh the devices power state information and invoke
+ * pci_update_current_state() to update its current PCI power state.
+ */
+void pci_refresh_power_state(struct pci_dev *dev)
+{
+	if (platform_pci_power_manageable(dev))
+		platform_pci_refresh_power_state(dev);
+
+	pci_update_current_state(dev, dev->current_state);
 }
 
 /**
@@ -2065,6 +2086,13 @@ static void pci_pme_list_scan(struct work_struct *work)
 			 */
 			if (bridge && bridge->current_state != PCI_D0)
 				continue;
+			/*
+			 * If the device is in D3cold it should not be
+			 * polled either.
+			 */
+			if (pme_dev->dev->current_state == PCI_D3cold)
+				continue;
+
 			pci_pme_wakeup(pme_dev->dev, NULL);
 		} else {
 			list_del(&pme_dev->list);
@@ -2459,45 +2487,56 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_dev_run_wake);
 
 /**
- * pci_dev_keep_suspended - Check if the device can stay in the suspended state.
+ * pci_dev_need_resume - Check if it is necessary to resume the device.
  * @pci_dev: Device to check.
  *
- * Return 'true' if the device is runtime-suspended, it doesn't have to be
+ * Return 'true' if the device is not runtime-suspended or it has to be
  * reconfigured due to wakeup settings difference between system and runtime
- * suspend and the current power state of it is suitable for the upcoming
- * (system) transition.
- *
- * If the device is not configured for system wakeup, disable PME for it before
- * returning 'true' to prevent it from waking up the system unnecessarily.
+ * suspend, or the current power state of it is not suitable for the upcoming
+ * (system-wide) transition.
  */
-bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
+bool pci_dev_need_resume(struct pci_dev *pci_dev)
 {
 	struct device *dev = &pci_dev->dev;
-	bool wakeup = device_may_wakeup(dev);
+	pci_power_t target_state;
 
-	if (!pm_runtime_suspended(dev)
-	    || pci_target_state(pci_dev, wakeup) != pci_dev->current_state
-	    || platform_pci_need_resume(pci_dev))
-		return false;
+	if (!pm_runtime_suspended(dev) || platform_pci_need_resume(pci_dev))
+		return true;
+
+	target_state = pci_target_state(pci_dev, device_may_wakeup(dev));
 
 	/*
-	 * At this point the device is good to go unless it's been configured
-	 * to generate PME at the runtime suspend time, but it is not supposed
-	 * to wake up the system.  In that case, simply disable PME for it
-	 * (it will have to be re-enabled on exit from system resume).
-	 *
-	 * If the device's power state is D3cold and the platform check above
-	 * hasn't triggered, the device's configuration is suitable and we don't
-	 * need to manipulate it at all.
+	 * If the earlier platform check has not triggered, D3cold is just power
+	 * removal on top of D3hot, so no need to resume the device in that
+	 * case.
 	 */
+	return target_state != pci_dev->current_state &&
+		target_state != PCI_D3cold &&
+		pci_dev->current_state != PCI_D3hot;
+}
+
+/**
+ * pci_dev_adjust_pme - Adjust PME setting for a suspended device.
+ * @pci_dev: Device to check.
+ *
+ * If the device is suspended and it is not configured for system wakeup,
+ * disable PME for it to prevent it from waking up the system unnecessarily.
+ *
+ * Note that if the device's power state is D3cold and the platform check in
+ * pci_dev_need_resume() has not triggered, the device's configuration need not
+ * be changed.
+ */
+void pci_dev_adjust_pme(struct pci_dev *pci_dev)
+{
+	struct device *dev = &pci_dev->dev;
+
 	spin_lock_irq(&dev->power.lock);
 
-	if (pm_runtime_suspended(dev) && pci_dev->current_state < PCI_D3cold &&
-	    !wakeup)
+	if (pm_runtime_suspended(dev) && !device_may_wakeup(dev) &&
+	    pci_dev->current_state < PCI_D3cold)
 		__pci_pme_active(pci_dev, false);
 
 	spin_unlock_irq(&dev->power.lock);
-	return true;
 }
 
 /**
@@ -4501,7 +4540,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 
 	/*
 	 * Wait for Transaction Pending bit to clear.  A word-aligned test
-	 * is used, so we use the conrol offset rather than status and shift
+	 * is used, so we use the control offset rather than status and shift
 	 * the test bit to match.
 	 */
 	if (!pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
@@ -5621,7 +5660,9 @@ enum pci_bus_speed pcie_get_speed_cap(struct pci_dev *dev)
 	 */
 	pcie_capability_read_dword(dev, PCI_EXP_LNKCAP2, &lnkcap2);
 	if (lnkcap2) { /* PCIe r3.0-compliant */
-		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_16_0GB)
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_32_0GB)
+			return PCIE_SPEED_32_0GT;
+		else if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_16_0GB)
 			return PCIE_SPEED_16_0GT;
 		else if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
 			return PCIE_SPEED_8_0GT;

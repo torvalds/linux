@@ -9,6 +9,10 @@
 #ifndef MTK_ETH_H
 #define MTK_ETH_H
 
+#include <linux/dma-mapping.h>
+#include <linux/netdevice.h>
+#include <linux/of_net.h>
+#include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 
 #define MTK_QDMA_PAGE_SIZE	2048
@@ -359,17 +363,27 @@
 #define MT7622_ETH		7622
 #define MT7621_ETH		7621
 
+/* ethernet system control register */
+#define ETHSYS_SYSCFG		0x10
+#define SYSCFG_DRAM_TYPE_DDR2	BIT(4)
+
 /* ethernet subsystem config register */
 #define ETHSYS_SYSCFG0		0x14
 #define SYSCFG0_GE_MASK		0x3
 #define SYSCFG0_GE_MODE(x, y)	(x << (12 + (y * 2)))
-#define SYSCFG0_SGMII_MASK	(3 << 8)
-#define SYSCFG0_SGMII_GMAC1	((2 << 8) & GENMASK(9, 8))
-#define SYSCFG0_SGMII_GMAC2	((3 << 8) & GENMASK(9, 8))
+#define SYSCFG0_SGMII_MASK     GENMASK(9, 8)
+#define SYSCFG0_SGMII_GMAC1    ((2 << 8) & SYSCFG0_SGMII_MASK)
+#define SYSCFG0_SGMII_GMAC2    ((3 << 8) & SYSCFG0_SGMII_MASK)
+#define SYSCFG0_SGMII_GMAC1_V2 BIT(9)
+#define SYSCFG0_SGMII_GMAC2_V2 BIT(8)
+
 
 /* ethernet subsystem clock register */
 #define ETHSYS_CLKCFG0		0x2c
 #define ETHSYS_TRGMII_CLK_SEL362_5	BIT(11)
+#define ETHSYS_TRGMII_MT7621_MASK	(BIT(5) | BIT(6))
+#define ETHSYS_TRGMII_MT7621_APLL	BIT(6)
+#define ETHSYS_TRGMII_MT7621_DDR_PLL	BIT(5)
 
 /* ethernet reset control register */
 #define ETHSYS_RSTCTRL		0x34
@@ -392,6 +406,11 @@
 /* Register to power up QPHY */
 #define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
 #define	SGMII_PHYA_PWD		BIT(4)
+
+/* Infrasys subsystem config registers */
+#define INFRA_MISC2            0x70c
+#define CO_QPHY_SEL            BIT(0)
+#define GEPHY_MAC_SEL          BIT(1)
 
 struct mtk_rx_dma {
 	unsigned int rxd1;
@@ -457,15 +476,21 @@ enum mtk_tx_flags {
  */
 enum mtk_clks_map {
 	MTK_CLK_ETHIF,
+	MTK_CLK_SGMIITOP,
 	MTK_CLK_ESW,
 	MTK_CLK_GP0,
 	MTK_CLK_GP1,
 	MTK_CLK_GP2,
+	MTK_CLK_FE,
 	MTK_CLK_TRGPLL,
 	MTK_CLK_SGMII_TX_250M,
 	MTK_CLK_SGMII_RX_250M,
 	MTK_CLK_SGMII_CDR_REF,
 	MTK_CLK_SGMII_CDR_FB,
+	MTK_CLK_SGMII2_TX_250M,
+	MTK_CLK_SGMII2_RX_250M,
+	MTK_CLK_SGMII2_CDR_REF,
+	MTK_CLK_SGMII2_CDR_FB,
 	MTK_CLK_SGMII_CK,
 	MTK_CLK_ETH2PLL,
 	MTK_CLK_MAX
@@ -484,6 +509,19 @@ enum mtk_clks_map {
 				 BIT(MTK_CLK_SGMII_CK) | \
 				 BIT(MTK_CLK_ETH2PLL))
 #define MT7621_CLKS_BITMAP	(0)
+#define MT7629_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
+				 BIT(MTK_CLK_GP0) | BIT(MTK_CLK_GP1) | \
+				 BIT(MTK_CLK_GP2) | BIT(MTK_CLK_FE) | \
+				 BIT(MTK_CLK_SGMII_TX_250M) | \
+				 BIT(MTK_CLK_SGMII_RX_250M) | \
+				 BIT(MTK_CLK_SGMII_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII2_TX_250M) | \
+				 BIT(MTK_CLK_SGMII2_RX_250M) | \
+				 BIT(MTK_CLK_SGMII2_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII2_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII_CK) | \
+				 BIT(MTK_CLK_ETH2PLL) | BIT(MTK_CLK_SGMIITOP))
 
 enum mtk_dev_state {
 	MTK_HW_INIT,
@@ -554,21 +592,120 @@ struct mtk_rx_ring {
 	u32 crx_idx_reg;
 };
 
-#define MTK_TRGMII			BIT(0)
-#define MTK_GMAC1_TRGMII		(BIT(1) | MTK_TRGMII)
-#define MTK_ESW				BIT(4)
-#define MTK_GMAC1_ESW			(BIT(5) | MTK_ESW)
-#define MTK_SGMII			BIT(8)
-#define MTK_GMAC1_SGMII			(BIT(9) | MTK_SGMII)
-#define MTK_GMAC2_SGMII			(BIT(10) | MTK_SGMII)
-#define MTK_DUAL_GMAC_SHARED_SGMII	(BIT(11) | MTK_GMAC1_SGMII | \
-					 MTK_GMAC2_SGMII)
-#define MTK_HWLRO			BIT(12)
-#define MTK_SHARED_INT			BIT(13)
+enum mkt_eth_capabilities {
+	MTK_RGMII_BIT = 0,
+	MTK_TRGMII_BIT,
+	MTK_SGMII_BIT,
+	MTK_ESW_BIT,
+	MTK_GEPHY_BIT,
+	MTK_MUX_BIT,
+	MTK_INFRA_BIT,
+	MTK_SHARED_SGMII_BIT,
+	MTK_HWLRO_BIT,
+	MTK_SHARED_INT_BIT,
+	MTK_TRGMII_MT7621_CLK_BIT,
+
+	/* MUX BITS*/
+	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
+	MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY_BIT,
+	MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT,
+	MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT,
+	MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT,
+
+	/* PATH BITS */
+	MTK_ETH_PATH_GMAC1_RGMII_BIT,
+	MTK_ETH_PATH_GMAC1_TRGMII_BIT,
+	MTK_ETH_PATH_GMAC1_SGMII_BIT,
+	MTK_ETH_PATH_GMAC2_RGMII_BIT,
+	MTK_ETH_PATH_GMAC2_SGMII_BIT,
+	MTK_ETH_PATH_GMAC2_GEPHY_BIT,
+	MTK_ETH_PATH_GDM1_ESW_BIT,
+};
+
+/* Supported hardware group on SoCs */
+#define MTK_RGMII		BIT(MTK_RGMII_BIT)
+#define MTK_TRGMII		BIT(MTK_TRGMII_BIT)
+#define MTK_SGMII		BIT(MTK_SGMII_BIT)
+#define MTK_ESW			BIT(MTK_ESW_BIT)
+#define MTK_GEPHY		BIT(MTK_GEPHY_BIT)
+#define MTK_MUX			BIT(MTK_MUX_BIT)
+#define MTK_INFRA		BIT(MTK_INFRA_BIT)
+#define MTK_SHARED_SGMII	BIT(MTK_SHARED_SGMII_BIT)
+#define MTK_HWLRO		BIT(MTK_HWLRO_BIT)
+#define MTK_SHARED_INT		BIT(MTK_SHARED_INT_BIT)
+#define MTK_TRGMII_MT7621_CLK	BIT(MTK_TRGMII_MT7621_CLK_BIT)
+
+#define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
+	BIT(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
+#define MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY	\
+	BIT(MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY_BIT)
+#define MTK_ETH_MUX_U3_GMAC2_TO_QPHY		\
+	BIT(MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT)
+#define MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII	\
+	BIT(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT)
+#define MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII	\
+	BIT(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT)
+
+/* Supported path present on SoCs */
+#define MTK_ETH_PATH_GMAC1_RGMII	BIT(MTK_ETH_PATH_GMAC1_RGMII_BIT)
+#define MTK_ETH_PATH_GMAC1_TRGMII	BIT(MTK_ETH_PATH_GMAC1_TRGMII_BIT)
+#define MTK_ETH_PATH_GMAC1_SGMII	BIT(MTK_ETH_PATH_GMAC1_SGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_RGMII	BIT(MTK_ETH_PATH_GMAC2_RGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_SGMII	BIT(MTK_ETH_PATH_GMAC2_SGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_GEPHY	BIT(MTK_ETH_PATH_GMAC2_GEPHY_BIT)
+#define MTK_ETH_PATH_GDM1_ESW		BIT(MTK_ETH_PATH_GDM1_ESW_BIT)
+
+#define MTK_GMAC1_RGMII		(MTK_ETH_PATH_GMAC1_RGMII | MTK_RGMII)
+#define MTK_GMAC1_TRGMII	(MTK_ETH_PATH_GMAC1_TRGMII | MTK_TRGMII)
+#define MTK_GMAC1_SGMII		(MTK_ETH_PATH_GMAC1_SGMII | MTK_SGMII)
+#define MTK_GMAC2_RGMII		(MTK_ETH_PATH_GMAC2_RGMII | MTK_RGMII)
+#define MTK_GMAC2_SGMII		(MTK_ETH_PATH_GMAC2_SGMII | MTK_SGMII)
+#define MTK_GMAC2_GEPHY		(MTK_ETH_PATH_GMAC2_GEPHY | MTK_GEPHY)
+#define MTK_GDM1_ESW		(MTK_ETH_PATH_GDM1_ESW | MTK_ESW)
+
+/* MUXes present on SoCs */
+/* 0: GDM1 -> GMAC1, 1: GDM1 -> ESW */
+#define MTK_MUX_GDM1_TO_GMAC1_ESW (MTK_ETH_MUX_GDM1_TO_GMAC1_ESW | MTK_MUX)
+
+/* 0: GMAC2 -> GEPHY, 1: GMAC0 -> GePHY */
+#define MTK_MUX_GMAC2_GMAC0_TO_GEPHY    \
+	(MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY | MTK_MUX | MTK_INFRA)
+
+/* 0: U3 -> QPHY, 1: GMAC2 -> QPHY */
+#define MTK_MUX_U3_GMAC2_TO_QPHY        \
+	(MTK_ETH_MUX_U3_GMAC2_TO_QPHY | MTK_MUX | MTK_INFRA)
+
+/* 2: GMAC1 -> SGMII, 3: GMAC2 -> SGMII */
+#define MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII      \
+	(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII | MTK_MUX | \
+	MTK_SHARED_SGMII)
+
+/* 0: GMACx -> GEPHY, 1: GMACx -> SGMII where x is 1 or 2 */
+#define MTK_MUX_GMAC12_TO_GEPHY_SGMII   \
+	(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII | MTK_MUX)
+
 #define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
+
+#define MT7621_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | \
+		      MTK_GMAC2_RGMII | MTK_SHARED_INT | MTK_TRGMII_MT7621_CLK)
+
+#define MT7622_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_SGMII | MTK_GMAC2_RGMII | \
+		      MTK_GMAC2_SGMII | MTK_GDM1_ESW | \
+		      MTK_MUX_GDM1_TO_GMAC1_ESW | \
+		      MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII)
+
+#define MT7623_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | MTK_GMAC2_RGMII)
+
+#define MT7629_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
+		      MTK_GDM1_ESW | MTK_MUX_GDM1_TO_GMAC1_ESW | \
+		      MTK_MUX_GMAC2_GMAC0_TO_GEPHY | \
+		      MTK_MUX_U3_GMAC2_TO_QPHY | \
+		      MTK_MUX_GMAC12_TO_GEPHY_SGMII)
 
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
+ * @ana_rgc3:                   The offset for register ANA_RGC3 related to
+ *				sgmiisys syscon
  * @caps			Flags shown the extra capability for the SoC
  * @required_clks		Flags shown the bitmap for required clocks on
  *				the target SoC
@@ -576,6 +713,7 @@ struct mtk_rx_ring {
  *				the extra setup for those pins used by GMAC.
  */
 struct mtk_soc_data {
+	u32             ana_rgc3;
 	u32		caps;
 	u32		required_clks;
 	bool		required_pctl;
@@ -583,6 +721,26 @@ struct mtk_soc_data {
 
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
+
+#define MTK_SGMII_PHYSPEED_AN          BIT(31)
+#define MTK_SGMII_PHYSPEED_MASK        GENMASK(2, 0)
+#define MTK_SGMII_PHYSPEED_1000        BIT(0)
+#define MTK_SGMII_PHYSPEED_2500        BIT(1)
+#define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
+
+/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
+ *                     characteristics
+ * @regmap:            The register map pointing at the range used to setup
+ *                     SGMII modes
+ * @flags:             The enum refers to which mode the sgmii wants to run on
+ * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
+ */
+
+struct mtk_sgmii {
+	struct regmap   *regmap[MTK_MAX_DEVS];
+	u32             flags[MTK_MAX_DEVS];
+	u32             ana_rgc3;
+};
 
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
@@ -599,8 +757,8 @@ struct mtk_soc_data {
  * @msg_enable:		Ethtool msg level
  * @ethsys:		The register map pointing at the range used to setup
  *			MII modes
- * @sgmiisys:		The register map pointing at the range used to setup
- *			SGMII modes
+ * @infra:              The register map pointing at the range used to setup
+ *                      SGMII and GePHY path
  * @pctl:		The register map pointing at the range used to setup
  *			GMAC port drive/slew values
  * @dma_refcnt:		track how many netdevs are using the DMA engine
@@ -632,7 +790,8 @@ struct mtk_eth {
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
-	struct regmap			*sgmiisys;
+	struct regmap                   *infra;
+	struct mtk_sgmii                *sgmii;
 	struct regmap			*pctl;
 	bool				hwlro;
 	refcount_t			dma_refcnt;
@@ -682,5 +841,11 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
+
+int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
+		   u32 ana_rgc3);
+int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id);
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id);
+int mtk_setup_hw_path(struct mtk_eth *eth, int mac_id, int phymode);
 
 #endif /* MTK_ETH_H */

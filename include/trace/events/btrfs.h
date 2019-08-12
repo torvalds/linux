@@ -29,6 +29,7 @@ struct btrfs_qgroup_extent_record;
 struct btrfs_qgroup;
 struct extent_io_tree;
 struct prelim_ref;
+struct btrfs_space_info;
 
 TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS_NR);
 TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS);
@@ -2090,6 +2091,45 @@ DEFINE_BTRFS_LOCK_EVENT(btrfs_clear_lock_blocking_write);
 DEFINE_BTRFS_LOCK_EVENT(btrfs_try_tree_read_lock);
 DEFINE_BTRFS_LOCK_EVENT(btrfs_try_tree_write_lock);
 DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_lock_atomic);
+
+DECLARE_EVENT_CLASS(btrfs__space_info_update,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info,
+		 struct btrfs_space_info *sinfo, u64 old, s64 diff),
+
+	TP_ARGS(fs_info, sinfo, old, diff),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	type		)
+		__field(	u64,	old		)
+		__field(	s64,	diff		)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->type	= sinfo->flags;
+		__entry->old	= old;
+		__entry->diff	= diff;
+	),
+	TP_printk_btrfs("type=%s old=%llu diff=%lld",
+		__print_flags(__entry->type, "|", BTRFS_GROUP_FLAGS),
+		__entry->old, __entry->diff)
+);
+
+DEFINE_EVENT(btrfs__space_info_update, update_bytes_may_use,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info,
+		 struct btrfs_space_info *sinfo, u64 old, s64 diff),
+
+	TP_ARGS(fs_info, sinfo, old, diff)
+);
+
+DEFINE_EVENT(btrfs__space_info_update, update_bytes_pinned,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info,
+		 struct btrfs_space_info *sinfo, u64 old, s64 diff),
+
+	TP_ARGS(fs_info, sinfo, old, diff)
+);
 
 #endif /* _TRACE_BTRFS_H */
 

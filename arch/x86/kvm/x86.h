@@ -139,6 +139,11 @@ static inline int is_paging(struct kvm_vcpu *vcpu)
 	return likely(kvm_read_cr0_bits(vcpu, X86_CR0_PG));
 }
 
+static inline bool is_pae_paging(struct kvm_vcpu *vcpu)
+{
+	return !is_long_mode(vcpu) && is_pae(vcpu) && is_paging(vcpu);
+}
+
 static inline u32 bit(int bitno)
 {
 	return 1 << (bitno & 31);
@@ -296,6 +301,8 @@ extern unsigned int min_timer_period_us;
 
 extern bool enable_vmware_backdoor;
 
+extern int pi_inject_timer;
+
 extern struct static_key kvm_no_apic_vcpu;
 
 static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
@@ -331,6 +338,11 @@ static inline bool kvm_hlt_in_guest(struct kvm *kvm)
 static inline bool kvm_pause_in_guest(struct kvm *kvm)
 {
 	return kvm->arch.pause_in_guest;
+}
+
+static inline bool kvm_cstate_in_guest(struct kvm *kvm)
+{
+	return kvm->arch.cstate_in_guest;
 }
 
 DECLARE_PER_CPU(struct kvm_vcpu *, current_vcpu);

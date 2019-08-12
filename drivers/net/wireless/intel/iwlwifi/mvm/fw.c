@@ -238,7 +238,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	iwl_fw_lmac1_set_alive_err_table(mvm->trans, lmac_error_event_table);
 
 	if (lmac2)
-		mvm->trans->lmac_error_event_table[1] =
+		mvm->trans->dbg.lmac_error_event_table[1] =
 			le32_to_cpu(lmac2->dbg_ptrs.error_event_table_ptr);
 
 	umac_error_event_table = le32_to_cpu(umac->dbg_ptrs.error_info_addr);
@@ -275,6 +275,8 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
 		     le32_to_cpu(umac->umac_major),
 		     le32_to_cpu(umac->umac_minor));
+
+	iwl_fwrt_update_fw_versions(&mvm->fwrt, lmac1, umac);
 
 	return true;
 }
@@ -419,6 +421,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	mvm->rfkill_safe_init_done = false;
+
 	iwl_init_notification_wait(&mvm->notif_wait,
 				   &init_wait,
 				   init_complete,
@@ -537,8 +541,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON_ONCE(mvm->rfkill_safe_init_done))
-		return 0;
+	mvm->rfkill_safe_init_done = false;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
 				   &calib_wait,
@@ -681,15 +684,15 @@ static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg, *table, *data;
 	bool enabled;
-	int ret;
+	int ret, tbl_rev;
 
 	data = iwl_acpi_get_object(mvm->dev, ACPI_WRDS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
-					 ACPI_WRDS_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg)) {
+					 ACPI_WRDS_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}
@@ -718,15 +721,15 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg, *data;
 	bool enabled;
-	int i, n_profiles, ret;
+	int i, n_profiles, ret, tbl_rev;
 
 	data = iwl_acpi_get_object(mvm->dev, ACPI_EWRD_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
-					 ACPI_EWRD_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg)) {
+					 ACPI_EWRD_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}
@@ -752,7 +755,7 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 
 	for (i = 0; i < n_profiles; i++) {
 		/* the tables start at element 3 */
-		static int pos = 3;
+		int pos = 3;
 
 		/* The EWRD profiles officially go from 2 to 4, but we
 		 * save them in sar_profiles[1-3] (because we don't
@@ -777,7 +780,7 @@ out_free:
 static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg, *data;
-	int i, j, ret;
+	int i, j, ret, tbl_rev;
 	int idx = 1;
 
 	data = iwl_acpi_get_object(mvm->dev, ACPI_WGDS_METHOD);
@@ -785,12 +788,13 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 		return PTR_ERR(data);
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
-					 ACPI_WGDS_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg)) {
+					 ACPI_WGDS_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev > 1) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
 	}
 
+	mvm->geo_rev = tbl_rev;
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
 		for (j = 0; j < ACPI_GEO_TABLE_SIZE; j++) {
 			union acpi_object *entry;
@@ -858,6 +862,9 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 			return -ENOENT;
 		}
 
+		IWL_DEBUG_INFO(mvm,
+			       "SAR EWRD: chain %d profile index %d\n",
+			       i, profs[i]);
 		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
 		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
 			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
@@ -873,20 +880,53 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
 
+static bool iwl_mvm_sar_geo_support(struct iwl_mvm *mvm)
+{
+	/*
+	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
+	 * firmware versions.  Unfortunately, we don't have a TLV API
+	 * flag to rely on, so rely on the major version which is in
+	 * the first byte of ucode_ver.  This was implemented
+	 * initially on version 38 and then backported to 36, 29 and
+	 * 17.
+	 */
+	return IWL_UCODE_SERIAL(mvm->fw->ucode_ver) >= 38 ||
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 36 ||
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 29 ||
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 17;
+}
+
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
 	struct iwl_geo_tx_power_profiles_resp *resp;
 	int ret;
+	u16 len;
+	void *data;
+	struct iwl_geo_tx_power_profiles_cmd geo_cmd;
+	struct iwl_geo_tx_power_profiles_cmd_v1 geo_cmd_v1;
+	struct iwl_host_cmd cmd;
 
-	struct iwl_geo_tx_power_profiles_cmd geo_cmd = {
-		.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE),
-	};
-	struct iwl_host_cmd cmd = {
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
+		geo_cmd.ops =
+			cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE);
+		len = sizeof(geo_cmd);
+		data = &geo_cmd;
+	} else {
+		geo_cmd_v1.ops =
+			cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE);
+		len = sizeof(geo_cmd_v1);
+		data = &geo_cmd_v1;
+	}
+
+	cmd = (struct iwl_host_cmd){
 		.id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
-		.len = { sizeof(geo_cmd), },
+		.len = { len, },
 		.flags = CMD_WANT_SKB,
-		.data = { &geo_cmd },
+		.data = { data },
 	};
+
+	if (!iwl_mvm_sar_geo_support(mvm))
+		return -EOPNOTSUPP;
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret) {
@@ -913,13 +953,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	int ret, i, j;
 	u16 cmd_wide_id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
 
-	/*
-	 * This command is not supported on earlier firmware versions.
-	 * Unfortunately, we don't have a TLV API flag to rely on, so
-	 * rely on the major version which is in the first byte of
-	 * ucode_ver.
-	 */
-	if (IWL_UCODE_SERIAL(mvm->fw->ucode_ver) < 41)
+	if (!iwl_mvm_sar_geo_support(mvm))
 		return 0;
 
 	ret = iwl_mvm_sar_get_wgds_table(mvm);
@@ -955,6 +989,16 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 					i, j, value[1], value[2], value[0]);
 		}
 	}
+
+	cmd.table_revision = cpu_to_le32(mvm->geo_rev);
+
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
+		return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0,
+				sizeof(struct iwl_geo_tx_power_profiles_cmd_v1),
+				&cmd);
+	}
+
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0, sizeof(cmd), &cmd);
 }
 
@@ -1108,9 +1152,12 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 
 	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_EARLY);
 
+	mvm->rfkill_safe_init_done = false;
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
 	if (ret)
 		return ret;
+
+	mvm->rfkill_safe_init_done = true;
 
 	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_AFTER_ALIVE);
 
@@ -1144,7 +1191,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
-	if (!mvm->trans->ini_valid) {
+	if (!mvm->trans->dbg.ini_valid) {
 		mvm->fwrt.dump.conf = FW_DBG_INVALID;
 		/* if we have a destination, assume EARLY START */
 		if (mvm->fw->dbg.dest_tlv)

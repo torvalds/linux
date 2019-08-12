@@ -314,7 +314,7 @@ di allocazione di memoria sarà destinata al fallimento; questi fallimenti
 possono essere ridotti ad uno specifico pezzo di codice.  Procedere con
 l'inserimento dei fallimenti attivo permette al programmatore di verificare
 come il codice risponde quando le cose vanno male.  Consultate:
-Documentation/fault-injection/fault-injection.txt per avere maggiori
+Documentation/fault-injection/fault-injection.rst per avere maggiori
 informazioni su come utilizzare questo strumento.
 
 Altre tipologie di errori possono essere riscontrati con lo strumento di

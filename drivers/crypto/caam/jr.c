@@ -4,6 +4,7 @@
  * JobR backend functionality
  *
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
+ * Copyright 2019 NXP
  */
 
 #include <linux/of_irq.h>
@@ -23,6 +24,43 @@ struct jr_driver_data {
 } ____cacheline_aligned;
 
 static struct jr_driver_data driver_data;
+static DEFINE_MUTEX(algs_lock);
+static unsigned int active_devs;
+
+static void register_algs(struct device *dev)
+{
+	mutex_lock(&algs_lock);
+
+	if (++active_devs != 1)
+		goto algs_unlock;
+
+	caam_algapi_init(dev);
+	caam_algapi_hash_init(dev);
+	caam_pkc_init(dev);
+	caam_rng_init(dev);
+	caam_qi_algapi_init(dev);
+
+algs_unlock:
+	mutex_unlock(&algs_lock);
+}
+
+static void unregister_algs(void)
+{
+	mutex_lock(&algs_lock);
+
+	if (--active_devs != 0)
+		goto algs_unlock;
+
+	caam_qi_algapi_exit();
+
+	caam_rng_exit();
+	caam_pkc_exit();
+	caam_algapi_hash_exit();
+	caam_algapi_exit();
+
+algs_unlock:
+	mutex_unlock(&algs_lock);
+}
 
 static int caam_reset_hw_jr(struct device *dev)
 {
@@ -108,6 +146,9 @@ static int caam_jr_remove(struct platform_device *pdev)
 		dev_err(jrdev, "Device is busy\n");
 		return -EBUSY;
 	}
+
+	/* Unregister JR-based RNG & crypto algorithms */
+	unregister_algs();
 
 	/* Remove the node from Physical JobR list maintained by driver */
 	spin_lock(&driver_data.jr_alloc_lock);
@@ -540,6 +581,8 @@ static int caam_jr_probe(struct platform_device *pdev)
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	atomic_set(&jrpriv->tfm_count, 0);
+
+	register_algs(jrdev->parent);
 
 	return 0;
 }

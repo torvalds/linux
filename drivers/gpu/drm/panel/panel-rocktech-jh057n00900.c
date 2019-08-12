@@ -257,20 +257,12 @@ static int allpixelson_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(allpixelson_fops, NULL,
 			allpixelson_set, "%llu\n");
 
-static int jh057n_debugfs_init(struct jh057n *ctx)
+static void jh057n_debugfs_init(struct jh057n *ctx)
 {
-	struct dentry *f;
-
 	ctx->debugfs = debugfs_create_dir(DRV_NAME, NULL);
-	if (!ctx->debugfs)
-		return -ENOMEM;
 
-	f = debugfs_create_file("allpixelson", 0600,
-				ctx->debugfs, ctx, &allpixelson_fops);
-	if (!f)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file("allpixelson", 0600, ctx->debugfs, ctx,
+			    &allpixelson_fops);
 }
 
 static void jh057n_debugfs_remove(struct jh057n *ctx)

@@ -177,6 +177,7 @@ static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SECTOR_CFG,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.policy = wil_rf_sector_policy,
 		.doit = wil_rf_sector_get_cfg
 	},
 	{
@@ -184,6 +185,7 @@ static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_DMG_RF_SET_SECTOR_CFG,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.policy = wil_rf_sector_policy,
 		.doit = wil_rf_sector_set_cfg
 	},
 	{
@@ -192,6 +194,7 @@ static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
 			QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SELECTED_SECTOR,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.policy = wil_rf_sector_policy,
 		.doit = wil_rf_sector_get_selected
 	},
 	{
@@ -200,6 +203,7 @@ static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
 			QCA_NL80211_VENDOR_SUBCMD_DMG_RF_SET_SELECTED_SECTOR,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.policy = wil_rf_sector_policy,
 		.doit = wil_rf_sector_set_selected
 	},
 };
@@ -314,7 +318,8 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	memset(&reply, 0, sizeof(reply));
 
 	rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid, &cmd, sizeof(cmd),
-		      WMI_NOTIFY_REQ_DONE_EVENTID, &reply, sizeof(reply), 20);
+		      WMI_NOTIFY_REQ_DONE_EVENTID, &reply, sizeof(reply),
+		      WIL_WMI_CALL_GENERAL_TO_MS);
 	if (rc)
 		return rc;
 
@@ -380,8 +385,8 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "get_station: %pM CID %d MID %d\n", mac, cid,
 		     vif->mid);
-	if (cid < 0)
-		return cid;
+	if (!wil_cid_valid(wil, cid))
+		return -ENOENT;
 
 	rc = wil_cid_fill_sinfo(vif, cid, sinfo);
 
@@ -395,7 +400,7 @@ static int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx)
 {
 	int i;
 
-	for (i = 0; i < max_assoc_sta; i++) {
+	for (i = 0; i < wil->max_assoc_sta; i++) {
 		if (wil->sta[i].status == wil_sta_unused)
 			continue;
 		if (wil->sta[i].mid != mid)
@@ -417,7 +422,7 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 	int rc;
 	int cid = wil_find_cid_by_idx(wil, vif->mid, idx);
 
-	if (cid < 0)
+	if (!wil_cid_valid(wil, cid))
 		return -ENOENT;
 
 	ether_addr_copy(mac, wil->sta[cid].addr);
@@ -643,6 +648,16 @@ out:
 	return rc;
 }
 
+static bool wil_is_safe_switch(enum nl80211_iftype from,
+			       enum nl80211_iftype to)
+{
+	if (from == NL80211_IFTYPE_STATION &&
+	    to == NL80211_IFTYPE_P2P_CLIENT)
+		return true;
+
+	return false;
+}
+
 static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 				     struct net_device *ndev,
 				     enum nl80211_iftype type,
@@ -668,7 +683,8 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 	 * because it can cause significant disruption
 	 */
 	if (!wil_has_other_active_ifaces(wil, ndev, true, false) &&
-	    netif_running(ndev) && !wil_is_recovery_blocked(wil)) {
+	    netif_running(ndev) && !wil_is_recovery_blocked(wil) &&
+	    !wil_is_safe_switch(wdev->iftype, type)) {
 		wil_dbg_misc(wil, "interface is up. resetting...\n");
 		mutex_lock(&wil->mutex);
 		__wil_down(wil);
@@ -3022,7 +3038,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 			wil, vif->mid, WMI_INVALID_RF_SECTOR_INDEX,
 			sector_type, WIL_CID_ALL);
 		if (rc == -EINVAL) {
-			for (i = 0; i < max_assoc_sta; i++) {
+			for (i = 0; i < wil->max_assoc_sta; i++) {
 				if (wil->sta[i].mid != vif->mid)
 					continue;
 				rc = wil_rf_sector_wmi_set_selected(

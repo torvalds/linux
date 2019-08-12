@@ -98,7 +98,7 @@ static void vchan_complete(unsigned long arg)
 	}
 	spin_unlock_irq(&vc->lock);
 
-	dmaengine_desc_callback_invoke(&cb, NULL);
+	dmaengine_desc_callback_invoke(&cb, &vd->tx_result);
 
 	list_for_each_entry_safe(vd, _vd, &head, node) {
 		dmaengine_desc_get_callback(&vd->tx, &cb);
@@ -106,7 +106,7 @@ static void vchan_complete(unsigned long arg)
 		list_del(&vd->node);
 		vchan_vdesc_fini(vd);
 
-		dmaengine_desc_callback_invoke(&cb, NULL);
+		dmaengine_desc_callback_invoke(&cb, &vd->tx_result);
 	}
 }
 

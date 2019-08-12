@@ -25,7 +25,7 @@
 
 #include "bpf_load.h"
 #include "bpf_util.h"
-#include "bpf/libbpf.h"
+#include "libbpf.h"
 
 static void dump_counts(int fd)
 {

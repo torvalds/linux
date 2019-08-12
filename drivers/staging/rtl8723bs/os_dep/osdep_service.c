@@ -77,13 +77,13 @@ static int openFile(struct file **fpp, char *path, int flag, int mode)
 {
 	struct file *fp;
 
-	fp =filp_open(path, flag, mode);
+	fp = filp_open(path, flag, mode);
 	if (IS_ERR(fp)) {
 		*fpp = NULL;
 		return PTR_ERR(fp);
 	}
 	else {
-		*fpp =fp;
+		*fpp = fp;
 		return 0;
 	}
 }
@@ -106,10 +106,10 @@ static int readFile(struct file *fp, char *buf, int len)
 	if (!fp->f_op || !fp->f_op->read)
 		return -EPERM;
 
-	while (sum<len) {
+	while (sum < len) {
 		rlen = kernel_read(fp, buf + sum, len - sum, &fp->f_pos);
-		if (rlen>0)
-			sum+=rlen;
+		if (rlen > 0)
+			sum += rlen;
 		else if (0 != rlen)
 			return rlen;
 		else
@@ -131,7 +131,7 @@ static int isFileReadable(char *path)
 	int ret = 0;
 	char buf;
 
-	fp =filp_open(path, O_RDONLY, 0);
+	fp = filp_open(path, O_RDONLY, 0);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
 
@@ -151,7 +151,7 @@ static int isFileReadable(char *path)
 */
 static int retriveFromFile(char *path, u8 *buf, u32 sz)
 {
-	int ret =-1;
+	int ret = -1;
 	struct file *fp;
 
 	if (path && buf) {
@@ -160,7 +160,7 @@ static int retriveFromFile(char *path, u8 *buf, u32 sz)
 		if (ret == 0) {
 			DBG_871X("%s openFile path:%s fp =%p\n", __func__, path , fp);
 
-			ret =readFile(fp, buf, sz);
+			ret = readFile(fp, buf, sz);
 			closeFile(fp);
 
 			DBG_871X("%s readFile, ret:%d\n", __func__, ret);
@@ -197,8 +197,8 @@ int rtw_is_file_readable(char *path)
 */
 int rtw_retrive_from_file(char *path, u8 *buf, u32 sz)
 {
-	int ret =retriveFromFile(path, buf, sz);
-	return ret>= 0?ret:0;
+	int ret = retriveFromFile(path, buf, sz);
+	return ret >= 0 ? ret : 0;
 }
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv, void *old_priv)
@@ -211,8 +211,8 @@ struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv, void *old_p
 		goto RETURN;
 
 	pnpi = netdev_priv(pnetdev);
-	pnpi->priv =old_priv;
-	pnpi->sizeof_priv =sizeof_priv;
+	pnpi->priv = old_priv;
+	pnpi->sizeof_priv = sizeof_priv;
 
 RETURN:
 	return pnetdev;
@@ -236,7 +236,7 @@ struct net_device *rtw_alloc_etherdev(int sizeof_priv)
 		goto RETURN;
 	}
 
-	pnpi->sizeof_priv =sizeof_priv;
+	pnpi->sizeof_priv = sizeof_priv;
 RETURN:
 	return pnetdev;
 }
@@ -284,7 +284,7 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 	else
 		unregister_netdevice(cur_pnetdev);
 
-	rereg_priv->old_pnetdev =cur_pnetdev;
+	rereg_priv->old_pnetdev = cur_pnetdev;
 
 	pnetdev = rtw_init_netdev(padapter);
 	if (!pnetdev)  {
@@ -314,11 +314,6 @@ error:
 
 	return -1;
 
-}
-
-u64 rtw_modular64(u64 x, u64 y)
-{
-	return do_div(x, y);
 }
 
 void rtw_buf_free(u8 **buf, u32 *buf_len)
@@ -379,7 +374,7 @@ keep_ori:
  */
 inline bool rtw_cbuf_full(struct rtw_cbuf *cbuf)
 {
-	return (cbuf->write == cbuf->read-1)? true : false;
+	return (cbuf->write == cbuf->read - 1) ? true : false;
 }
 
 /**
@@ -390,7 +385,7 @@ inline bool rtw_cbuf_full(struct rtw_cbuf *cbuf)
  */
 inline bool rtw_cbuf_empty(struct rtw_cbuf *cbuf)
 {
-	return (cbuf->write == cbuf->read)? true : false;
+	return (cbuf->write == cbuf->read) ? true : false;
 }
 
 /**
@@ -408,7 +403,7 @@ bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf)
 
 	DBG_871X("%s on %u\n", __func__, cbuf->write);
 	cbuf->bufs[cbuf->write] = buf;
-	cbuf->write = (cbuf->write+1)%cbuf->size;
+	cbuf->write = (cbuf->write + 1) % cbuf->size;
 
 	return _SUCCESS;
 }
@@ -428,7 +423,7 @@ void *rtw_cbuf_pop(struct rtw_cbuf *cbuf)
 
         DBG_871X("%s on %u\n", __func__, cbuf->read);
 	buf = cbuf->bufs[cbuf->read];
-	cbuf->read = (cbuf->read+1)%cbuf->size;
+	cbuf->read = (cbuf->read + 1) % cbuf->size;
 
 	return buf;
 }

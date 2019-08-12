@@ -385,16 +385,13 @@ static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
 	struct cx18_open_id *id = fh2id(fh);
-	struct cx18_stream *s = video_drvdata(file);
 	struct cx18 *cx = id->cx;
 
 	strscpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strscpy(vcap->card, cx->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCI:%s", pci_name(cx->pci_dev));
-	vcap->capabilities = cx->v4l2_cap;	/* capabilities */
-	vcap->device_caps = s->v4l2_dev_caps;	/* device capabilities */
-	vcap->capabilities |= V4L2_CAP_DEVICE_CAPS;
+	vcap->capabilities = cx->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 

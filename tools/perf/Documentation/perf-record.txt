@@ -490,6 +490,17 @@ Configure all used events to run in kernel space.
 --all-user::
 Configure all used events to run in user space.
 
+--kernel-callchains::
+Collect callchains only from kernel space. I.e. this option sets
+perf_event_attr.exclude_callchain_user to 1.
+
+--user-callchains::
+Collect callchains only from user space. I.e. this option sets
+perf_event_attr.exclude_callchain_kernel to 1.
+
+Don't use both --kernel-callchains and --user-callchains at the same time or no
+callchains will be collected.
+
 --timestamp-filename
 Append timestamp to output file name.
 

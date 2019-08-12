@@ -11,12 +11,12 @@ Digital TV devices are implemented by several different drivers:
 
 - Frontend drivers that are usually implemented as two separate drivers:
 
-  - A tuner driver that implements the logic with commands the part of the
-    hardware with is responsible to tune into a digital TV transponder or
+  - A tuner driver that implements the logic which commands the part of
+    the hardware responsible for tuning into a digital TV transponder or
     physical channel. The output of a tuner is usually a baseband or
     Intermediate Frequency (IF) signal;
 
-  - A demodulator driver (a.k.a "demod") that implements the logic with
+  - A demodulator driver (a.k.a "demod") that implements the logic which
     commands the digital TV decoding hardware. The output of a demod is
     a digital stream, with multiple audio, video and data channels typically
     multiplexed using MPEG Transport Stream [#f1]_.

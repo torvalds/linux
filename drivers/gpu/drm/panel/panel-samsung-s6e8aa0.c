@@ -12,16 +12,20 @@
  * Andrzej Hajda <a.hajda@samsung.com>
 */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
-
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define LDI_MTP_LENGTH			24
 #define GAMMA_LEVEL_NUM			25

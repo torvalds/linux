@@ -1019,7 +1019,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf new;
-	unsigned long sol_tov = msecs_to_jiffies(FCOE_CTRL_SOL_TOV);
+	unsigned long sol_tov = msecs_to_jiffies(FCOE_CTLR_SOL_TOV);
 	int first = 0;
 	int mtu_valid;
 	int found = 0;
@@ -2005,7 +2005,7 @@ EXPORT_SYMBOL_GPL(fcoe_wwn_from_mac);
  */
 static inline struct fcoe_rport *fcoe_ctlr_rport(struct fc_rport_priv *rdata)
 {
-	return (struct fcoe_rport *)(rdata + 1);
+	return container_of(rdata, struct fcoe_rport, rdata);
 }
 
 /**
@@ -2269,7 +2269,7 @@ static void fcoe_ctlr_vn_start(struct fcoe_ctlr *fip)
  */
 static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 			      struct sk_buff *skb,
-			      struct fc_rport_priv *rdata)
+			      struct fcoe_rport *frport)
 {
 	struct fip_header *fiph;
 	struct fip_desc *desc = NULL;
@@ -2277,15 +2277,11 @@ static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 	struct fip_wwn_desc *wwn = NULL;
 	struct fip_vn_desc *vn = NULL;
 	struct fip_size_desc *size = NULL;
-	struct fcoe_rport *frport;
 	size_t rlen;
 	size_t dlen;
 	u32 desc_mask = 0;
 	u32 dtype;
 	u8 sub;
-
-	memset(rdata, 0, sizeof(*rdata) + sizeof(*frport));
-	frport = fcoe_ctlr_rport(rdata);
 
 	fiph = (struct fip_header *)skb->data;
 	frport->flags = ntohs(fiph->fip_flags);
@@ -2349,15 +2345,17 @@ static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 			if (dlen != sizeof(struct fip_wwn_desc))
 				goto len_err;
 			wwn = (struct fip_wwn_desc *)desc;
-			rdata->ids.node_name = get_unaligned_be64(&wwn->fd_wwn);
+			frport->rdata.ids.node_name =
+				get_unaligned_be64(&wwn->fd_wwn);
 			break;
 		case FIP_DT_VN_ID:
 			if (dlen != sizeof(struct fip_vn_desc))
 				goto len_err;
 			vn = (struct fip_vn_desc *)desc;
 			memcpy(frport->vn_mac, vn->fd_mac, ETH_ALEN);
-			rdata->ids.port_id = ntoh24(vn->fd_fc_id);
-			rdata->ids.port_name = get_unaligned_be64(&vn->fd_wwpn);
+			frport->rdata.ids.port_id = ntoh24(vn->fd_fc_id);
+			frport->rdata.ids.port_name =
+				get_unaligned_be64(&vn->fd_wwpn);
 			break;
 		case FIP_DT_FC4F:
 			if (dlen != sizeof(struct fip_fc4_feat))
@@ -2403,16 +2401,14 @@ static void fcoe_ctlr_vn_send_claim(struct fcoe_ctlr *fip)
 /**
  * fcoe_ctlr_vn_probe_req() - handle incoming VN2VN probe request.
  * @fip: The FCoE controller
- * @rdata: parsed remote port with frport from the probe request
+ * @frport: parsed FCoE rport from the probe request
  *
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
-				   struct fc_rport_priv *rdata)
+				   struct fcoe_rport *frport)
 {
-	struct fcoe_rport *frport = fcoe_ctlr_rport(rdata);
-
-	if (rdata->ids.port_id != fip->port_id)
+	if (frport->rdata.ids.port_id != fip->port_id)
 		return;
 
 	switch (fip->state) {
@@ -2432,7 +2428,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 		 * Probe's REC bit is not set.
 		 * If we don't reply, we will change our address.
 		 */
-		if (fip->lp->wwpn > rdata->ids.port_name &&
+		if (fip->lp->wwpn > frport->rdata.ids.port_name &&
 		    !(frport->flags & FIP_FL_REC_OR_P2P)) {
 			LIBFCOE_FIP_DBG(fip, "vn_probe_req: "
 					"port_id collision\n");
@@ -2456,14 +2452,14 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 /**
  * fcoe_ctlr_vn_probe_reply() - handle incoming VN2VN probe reply.
  * @fip: The FCoE controller
- * @rdata: parsed remote port with frport from the probe request
+ * @frport: parsed FCoE rport from the probe request
  *
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_probe_reply(struct fcoe_ctlr *fip,
-				   struct fc_rport_priv *rdata)
+				     struct fcoe_rport *frport)
 {
-	if (rdata->ids.port_id != fip->port_id)
+	if (frport->rdata.ids.port_id != fip->port_id)
 		return;
 	switch (fip->state) {
 	case FIP_ST_VNMP_START:
@@ -2486,11 +2482,11 @@ static void fcoe_ctlr_vn_probe_reply(struct fcoe_ctlr *fip,
 /**
  * fcoe_ctlr_vn_add() - Add a VN2VN entry to the list, based on a claim reply.
  * @fip: The FCoE controller
- * @new: newly-parsed remote port with frport as a template for new rdata
+ * @new: newly-parsed FCoE rport as a template for new rdata
  *
  * Called with ctlr_mutex held.
  */
-static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fc_rport_priv *new)
+static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fcoe_rport *new)
 {
 	struct fc_lport *lport = fip->lp;
 	struct fc_rport_priv *rdata;
@@ -2498,7 +2494,7 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fc_rport_priv *new)
 	struct fcoe_rport *frport;
 	u32 port_id;
 
-	port_id = new->ids.port_id;
+	port_id = new->rdata.ids.port_id;
 	if (port_id == fip->port_id)
 		return;
 
@@ -2515,22 +2511,28 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fc_rport_priv *new)
 	rdata->disc_id = lport->disc.disc_id;
 
 	ids = &rdata->ids;
-	if ((ids->port_name != -1 && ids->port_name != new->ids.port_name) ||
-	    (ids->node_name != -1 && ids->node_name != new->ids.node_name)) {
+	if ((ids->port_name != -1 &&
+	     ids->port_name != new->rdata.ids.port_name) ||
+	    (ids->node_name != -1 &&
+	     ids->node_name != new->rdata.ids.node_name)) {
 		mutex_unlock(&rdata->rp_mutex);
 		LIBFCOE_FIP_DBG(fip, "vn_add rport logoff %6.6x\n", port_id);
 		fc_rport_logoff(rdata);
 		mutex_lock(&rdata->rp_mutex);
 	}
-	ids->port_name = new->ids.port_name;
-	ids->node_name = new->ids.node_name;
+	ids->port_name = new->rdata.ids.port_name;
+	ids->node_name = new->rdata.ids.node_name;
 	mutex_unlock(&rdata->rp_mutex);
 
 	frport = fcoe_ctlr_rport(rdata);
 	LIBFCOE_FIP_DBG(fip, "vn_add rport %6.6x %s state %d\n",
 			port_id, frport->fcoe_len ? "old" : "new",
 			rdata->rp_state);
-	*frport = *fcoe_ctlr_rport(new);
+	frport->fcoe_len = new->fcoe_len;
+	frport->flags = new->flags;
+	frport->login_count = new->login_count;
+	memcpy(frport->enode_mac, new->enode_mac, ETH_ALEN);
+	memcpy(frport->vn_mac, new->vn_mac, ETH_ALEN);
 	frport->time = 0;
 }
 
@@ -2562,16 +2564,14 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
 /**
  * fcoe_ctlr_vn_claim_notify() - handle received FIP VN2VN Claim Notification
  * @fip: The FCoE controller
- * @new: newly-parsed remote port with frport as a template for new rdata
+ * @new: newly-parsed FCoE rport as a template for new rdata
  *
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
-				      struct fc_rport_priv *new)
+				      struct fcoe_rport *new)
 {
-	struct fcoe_rport *frport = fcoe_ctlr_rport(new);
-
-	if (frport->flags & FIP_FL_REC_OR_P2P) {
+	if (new->flags & FIP_FL_REC_OR_P2P) {
 		LIBFCOE_FIP_DBG(fip, "send probe req for P2P/REC\n");
 		fcoe_ctlr_vn_send(fip, FIP_SC_VN_PROBE_REQ, fcoe_all_vn2vn, 0);
 		return;
@@ -2580,7 +2580,7 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 	case FIP_ST_VNMP_START:
 	case FIP_ST_VNMP_PROBE1:
 	case FIP_ST_VNMP_PROBE2:
-		if (new->ids.port_id == fip->port_id) {
+		if (new->rdata.ids.port_id == fip->port_id) {
 			LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
 					"restart, state %d\n",
 					fip->state);
@@ -2589,8 +2589,8 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 		break;
 	case FIP_ST_VNMP_CLAIM:
 	case FIP_ST_VNMP_UP:
-		if (new->ids.port_id == fip->port_id) {
-			if (new->ids.port_name > fip->lp->wwpn) {
+		if (new->rdata.ids.port_id == fip->port_id) {
+			if (new->rdata.ids.port_name > fip->lp->wwpn) {
 				LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
 						"restart, port_id collision\n");
 				fcoe_ctlr_vn_restart(fip);
@@ -2602,15 +2602,16 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 			break;
 		}
 		LIBFCOE_FIP_DBG(fip, "vn_claim_notify: send reply to %x\n",
-				new->ids.port_id);
-		fcoe_ctlr_vn_send(fip, FIP_SC_VN_CLAIM_REP, frport->enode_mac,
-				  min((u32)frport->fcoe_len,
+				new->rdata.ids.port_id);
+		fcoe_ctlr_vn_send(fip, FIP_SC_VN_CLAIM_REP, new->enode_mac,
+				  min((u32)new->fcoe_len,
 				      fcoe_ctlr_fcoe_size(fip)));
 		fcoe_ctlr_vn_add(fip, new);
 		break;
 	default:
 		LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
-				"ignoring claim from %x\n", new->ids.port_id);
+				"ignoring claim from %x\n",
+				new->rdata.ids.port_id);
 		break;
 	}
 }
@@ -2618,15 +2619,15 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 /**
  * fcoe_ctlr_vn_claim_resp() - handle received Claim Response
  * @fip: The FCoE controller that received the frame
- * @new: newly-parsed remote port with frport from the Claim Response
+ * @new: newly-parsed FCoE rport from the Claim Response
  *
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_claim_resp(struct fcoe_ctlr *fip,
-				    struct fc_rport_priv *new)
+				    struct fcoe_rport *new)
 {
 	LIBFCOE_FIP_DBG(fip, "claim resp from from rport %x - state %s\n",
-			new->ids.port_id, fcoe_ctlr_state(fip->state));
+			new->rdata.ids.port_id, fcoe_ctlr_state(fip->state));
 	if (fip->state == FIP_ST_VNMP_UP || fip->state == FIP_ST_VNMP_CLAIM)
 		fcoe_ctlr_vn_add(fip, new);
 }
@@ -2634,28 +2635,28 @@ static void fcoe_ctlr_vn_claim_resp(struct fcoe_ctlr *fip,
 /**
  * fcoe_ctlr_vn_beacon() - handle received beacon.
  * @fip: The FCoE controller that received the frame
- * @new: newly-parsed remote port with frport from the Beacon
+ * @new: newly-parsed FCoE rport from the Beacon
  *
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
-				struct fc_rport_priv *new)
+				struct fcoe_rport *new)
 {
 	struct fc_lport *lport = fip->lp;
 	struct fc_rport_priv *rdata;
 	struct fcoe_rport *frport;
 
-	frport = fcoe_ctlr_rport(new);
-	if (frport->flags & FIP_FL_REC_OR_P2P) {
+	if (new->flags & FIP_FL_REC_OR_P2P) {
 		LIBFCOE_FIP_DBG(fip, "p2p beacon while in vn2vn mode\n");
 		fcoe_ctlr_vn_send(fip, FIP_SC_VN_PROBE_REQ, fcoe_all_vn2vn, 0);
 		return;
 	}
-	rdata = fc_rport_lookup(lport, new->ids.port_id);
+	rdata = fc_rport_lookup(lport, new->rdata.ids.port_id);
 	if (rdata) {
-		if (rdata->ids.node_name == new->ids.node_name &&
-		    rdata->ids.port_name == new->ids.port_name) {
+		if (rdata->ids.node_name == new->rdata.ids.node_name &&
+		    rdata->ids.port_name == new->rdata.ids.port_name) {
 			frport = fcoe_ctlr_rport(rdata);
+
 			LIBFCOE_FIP_DBG(fip, "beacon from rport %x\n",
 					rdata->ids.port_id);
 			if (!frport->time && fip->state == FIP_ST_VNMP_UP) {
@@ -2678,7 +2679,7 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 	 * Don't add the neighbor yet.
 	 */
 	LIBFCOE_FIP_DBG(fip, "beacon from new rport %x. sending claim notify\n",
-			new->ids.port_id);
+			new->rdata.ids.port_id);
 	if (time_after(jiffies,
 		       fip->sol_time + msecs_to_jiffies(FIP_VN_ANN_WAIT)))
 		fcoe_ctlr_vn_send_claim(fip);
@@ -2738,10 +2739,7 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fip_header *fiph;
 	enum fip_vn2vn_subcode sub;
-	struct {
-		struct fc_rport_priv rdata;
-		struct fcoe_rport frport;
-	} buf;
+	struct fcoe_rport frport = { };
 	int rc, vlan_id = 0;
 
 	fiph = (struct fip_header *)skb->data;
@@ -2757,7 +2755,7 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		goto drop;
 	}
 
-	rc = fcoe_ctlr_vn_parse(fip, skb, &buf.rdata);
+	rc = fcoe_ctlr_vn_parse(fip, skb, &frport);
 	if (rc) {
 		LIBFCOE_FIP_DBG(fip, "vn_recv vn_parse error %d\n", rc);
 		goto drop;
@@ -2766,19 +2764,19 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	mutex_lock(&fip->ctlr_mutex);
 	switch (sub) {
 	case FIP_SC_VN_PROBE_REQ:
-		fcoe_ctlr_vn_probe_req(fip, &buf.rdata);
+		fcoe_ctlr_vn_probe_req(fip, &frport);
 		break;
 	case FIP_SC_VN_PROBE_REP:
-		fcoe_ctlr_vn_probe_reply(fip, &buf.rdata);
+		fcoe_ctlr_vn_probe_reply(fip, &frport);
 		break;
 	case FIP_SC_VN_CLAIM_NOTIFY:
-		fcoe_ctlr_vn_claim_notify(fip, &buf.rdata);
+		fcoe_ctlr_vn_claim_notify(fip, &frport);
 		break;
 	case FIP_SC_VN_CLAIM_REP:
-		fcoe_ctlr_vn_claim_resp(fip, &buf.rdata);
+		fcoe_ctlr_vn_claim_resp(fip, &frport);
 		break;
 	case FIP_SC_VN_BEACON:
-		fcoe_ctlr_vn_beacon(fip, &buf.rdata);
+		fcoe_ctlr_vn_beacon(fip, &frport);
 		break;
 	default:
 		LIBFCOE_FIP_DBG(fip, "vn_recv unknown subcode %d\n", sub);
@@ -2802,21 +2800,17 @@ drop:
  */
 static int fcoe_ctlr_vlan_parse(struct fcoe_ctlr *fip,
 			      struct sk_buff *skb,
-			      struct fc_rport_priv *rdata)
+			      struct fcoe_rport *frport)
 {
 	struct fip_header *fiph;
 	struct fip_desc *desc = NULL;
 	struct fip_mac_desc *macd = NULL;
 	struct fip_wwn_desc *wwn = NULL;
-	struct fcoe_rport *frport;
 	size_t rlen;
 	size_t dlen;
 	u32 desc_mask = 0;
 	u32 dtype;
 	u8 sub;
-
-	memset(rdata, 0, sizeof(*rdata) + sizeof(*frport));
-	frport = fcoe_ctlr_rport(rdata);
 
 	fiph = (struct fip_header *)skb->data;
 	frport->flags = ntohs(fiph->fip_flags);
@@ -2871,7 +2865,8 @@ static int fcoe_ctlr_vlan_parse(struct fcoe_ctlr *fip,
 			if (dlen != sizeof(struct fip_wwn_desc))
 				goto len_err;
 			wwn = (struct fip_wwn_desc *)desc;
-			rdata->ids.node_name = get_unaligned_be64(&wwn->fd_wwn);
+			frport->rdata.ids.node_name =
+				get_unaligned_be64(&wwn->fd_wwn);
 			break;
 		default:
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
@@ -2957,13 +2952,13 @@ static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
 /**
  * fcoe_ctlr_vlan_disk_reply() - send FIP VLAN Discovery Notification.
  * @fip: The FCoE controller
+ * @frport: The newly-parsed FCoE rport from the Discovery Request
  *
  * Called with ctlr_mutex held.
  */
 static void fcoe_ctlr_vlan_disc_reply(struct fcoe_ctlr *fip,
-				      struct fc_rport_priv *rdata)
+				      struct fcoe_rport *frport)
 {
-	struct fcoe_rport *frport = fcoe_ctlr_rport(rdata);
 	enum fip_vlan_subcode sub = FIP_SC_VL_NOTE;
 
 	if (fip->mode == FIP_MODE_VN2VN)
@@ -2982,22 +2977,19 @@ static int fcoe_ctlr_vlan_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fip_header *fiph;
 	enum fip_vlan_subcode sub;
-	struct {
-		struct fc_rport_priv rdata;
-		struct fcoe_rport frport;
-	} buf;
+	struct fcoe_rport frport = { };
 	int rc;
 
 	fiph = (struct fip_header *)skb->data;
 	sub = fiph->fip_subcode;
-	rc = fcoe_ctlr_vlan_parse(fip, skb, &buf.rdata);
+	rc = fcoe_ctlr_vlan_parse(fip, skb, &frport);
 	if (rc) {
 		LIBFCOE_FIP_DBG(fip, "vlan_recv vlan_parse error %d\n", rc);
 		goto drop;
 	}
 	mutex_lock(&fip->ctlr_mutex);
 	if (sub == FIP_SC_VL_REQ)
-		fcoe_ctlr_vlan_disc_reply(fip, &buf.rdata);
+		fcoe_ctlr_vlan_disc_reply(fip, &frport);
 	mutex_unlock(&fip->ctlr_mutex);
 
 drop:

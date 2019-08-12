@@ -30,8 +30,104 @@
 static u32 df_v3_6_channel_number[] = {1, 2, 0, 4, 0, 8, 0,
 				       16, 32, 0, 0, 0, 2, 4, 8};
 
-static void df_v3_6_init(struct amdgpu_device *adev)
+/* init df format attrs */
+AMDGPU_PMU_ATTR(event,		"config:0-7");
+AMDGPU_PMU_ATTR(instance,	"config:8-15");
+AMDGPU_PMU_ATTR(umask,		"config:16-23");
+
+/* df format attributes  */
+static struct attribute *df_v3_6_format_attrs[] = {
+	&pmu_attr_event.attr,
+	&pmu_attr_instance.attr,
+	&pmu_attr_umask.attr,
+	NULL
+};
+
+/* df format attribute group */
+static struct attribute_group df_v3_6_format_attr_group = {
+	.name = "format",
+	.attrs = df_v3_6_format_attrs,
+};
+
+/* df event attrs */
+AMDGPU_PMU_ATTR(cake0_pcsout_txdata,
+		      "event=0x7,instance=0x46,umask=0x2");
+AMDGPU_PMU_ATTR(cake1_pcsout_txdata,
+		      "event=0x7,instance=0x47,umask=0x2");
+AMDGPU_PMU_ATTR(cake0_pcsout_txmeta,
+		      "event=0x7,instance=0x46,umask=0x4");
+AMDGPU_PMU_ATTR(cake1_pcsout_txmeta,
+		      "event=0x7,instance=0x47,umask=0x4");
+AMDGPU_PMU_ATTR(cake0_ftiinstat_reqalloc,
+		      "event=0xb,instance=0x46,umask=0x4");
+AMDGPU_PMU_ATTR(cake1_ftiinstat_reqalloc,
+		      "event=0xb,instance=0x47,umask=0x4");
+AMDGPU_PMU_ATTR(cake0_ftiinstat_rspalloc,
+		      "event=0xb,instance=0x46,umask=0x8");
+AMDGPU_PMU_ATTR(cake1_ftiinstat_rspalloc,
+		      "event=0xb,instance=0x47,umask=0x8");
+
+/* df event attributes  */
+static struct attribute *df_v3_6_event_attrs[] = {
+	&pmu_attr_cake0_pcsout_txdata.attr,
+	&pmu_attr_cake1_pcsout_txdata.attr,
+	&pmu_attr_cake0_pcsout_txmeta.attr,
+	&pmu_attr_cake1_pcsout_txmeta.attr,
+	&pmu_attr_cake0_ftiinstat_reqalloc.attr,
+	&pmu_attr_cake1_ftiinstat_reqalloc.attr,
+	&pmu_attr_cake0_ftiinstat_rspalloc.attr,
+	&pmu_attr_cake1_ftiinstat_rspalloc.attr,
+	NULL
+};
+
+/* df event attribute group */
+static struct attribute_group df_v3_6_event_attr_group = {
+	.name = "events",
+	.attrs = df_v3_6_event_attrs
+};
+
+/* df event attr groups  */
+const struct attribute_group *df_v3_6_attr_groups[] = {
+		&df_v3_6_format_attr_group,
+		&df_v3_6_event_attr_group,
+		NULL
+};
+
+/* get the number of df counters available */
+static ssize_t df_v3_6_get_df_cntr_avail(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
 {
+	struct amdgpu_device *adev;
+	struct drm_device *ddev;
+	int i, count;
+
+	ddev = dev_get_drvdata(dev);
+	adev = ddev->dev_private;
+	count = 0;
+
+	for (i = 0; i < DF_V3_6_MAX_COUNTERS; i++) {
+		if (adev->df_perfmon_config_assign_mask[i] == 0)
+			count++;
+	}
+
+	return snprintf(buf, PAGE_SIZE,	"%i\n", count);
+}
+
+/* device attr for available perfmon counters */
+static DEVICE_ATTR(df_cntr_avail, S_IRUGO, df_v3_6_get_df_cntr_avail, NULL);
+
+/* init perfmons */
+static void df_v3_6_sw_init(struct amdgpu_device *adev)
+{
+	int i, ret;
+
+	ret = device_create_file(adev->dev, &dev_attr_df_cntr_avail);
+	if (ret)
+		DRM_ERROR("failed to create file for available df counters\n");
+
+	for (i = 0; i < AMDGPU_MAX_DF_PERFMONS; i++)
+		adev->df_perfmon_config_assign_mask[i] = 0;
 }
 
 static void df_v3_6_enable_broadcast_mode(struct amdgpu_device *adev,
@@ -105,12 +201,303 @@ static void df_v3_6_get_clockgating_state(struct amdgpu_device *adev,
 		*flags |= AMD_CG_SUPPORT_DF_MGCG;
 }
 
+/* get assigned df perfmon ctr as int */
+static int df_v3_6_pmc_config_2_cntr(struct amdgpu_device *adev,
+				      uint64_t config)
+{
+	int i;
+
+	for (i = 0; i < DF_V3_6_MAX_COUNTERS; i++) {
+		if ((config & 0x0FFFFFFUL) ==
+					adev->df_perfmon_config_assign_mask[i])
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+/* get address based on counter assignment */
+static void df_v3_6_pmc_get_addr(struct amdgpu_device *adev,
+				 uint64_t config,
+				 int is_ctrl,
+				 uint32_t *lo_base_addr,
+				 uint32_t *hi_base_addr)
+{
+	int target_cntr = df_v3_6_pmc_config_2_cntr(adev, config);
+
+	if (target_cntr < 0)
+		return;
+
+	switch (target_cntr) {
+
+	case 0:
+		*lo_base_addr = is_ctrl ? smnPerfMonCtlLo0 : smnPerfMonCtrLo0;
+		*hi_base_addr = is_ctrl ? smnPerfMonCtlHi0 : smnPerfMonCtrHi0;
+		break;
+	case 1:
+		*lo_base_addr = is_ctrl ? smnPerfMonCtlLo1 : smnPerfMonCtrLo1;
+		*hi_base_addr = is_ctrl ? smnPerfMonCtlHi1 : smnPerfMonCtrHi1;
+		break;
+	case 2:
+		*lo_base_addr = is_ctrl ? smnPerfMonCtlLo2 : smnPerfMonCtrLo2;
+		*hi_base_addr = is_ctrl ? smnPerfMonCtlHi2 : smnPerfMonCtrHi2;
+		break;
+	case 3:
+		*lo_base_addr = is_ctrl ? smnPerfMonCtlLo3 : smnPerfMonCtrLo3;
+		*hi_base_addr = is_ctrl ? smnPerfMonCtlHi3 : smnPerfMonCtrHi3;
+		break;
+
+	}
+
+}
+
+/* get read counter address */
+static void df_v3_6_pmc_get_read_settings(struct amdgpu_device *adev,
+					  uint64_t config,
+					  uint32_t *lo_base_addr,
+					  uint32_t *hi_base_addr)
+{
+	df_v3_6_pmc_get_addr(adev, config, 0, lo_base_addr, hi_base_addr);
+}
+
+/* get control counter settings i.e. address and values to set */
+static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
+					  uint64_t config,
+					  uint32_t *lo_base_addr,
+					  uint32_t *hi_base_addr,
+					  uint32_t *lo_val,
+					  uint32_t *hi_val)
+{
+	df_v3_6_pmc_get_addr(adev, config, 1, lo_base_addr, hi_base_addr);
+
+	if ((*lo_base_addr == 0) || (*hi_base_addr == 0)) {
+		DRM_ERROR("[DF PMC] addressing not retrieved! Lo: %x, Hi: %x",
+				*lo_base_addr, *hi_base_addr);
+		return -ENXIO;
+	}
+
+	if (lo_val && hi_val) {
+		uint32_t eventsel, instance, unitmask;
+		uint32_t instance_10, instance_5432, instance_76;
+
+		eventsel = DF_V3_6_GET_EVENT(config) & 0x3f;
+		unitmask = DF_V3_6_GET_UNITMASK(config) & 0xf;
+		instance = DF_V3_6_GET_INSTANCE(config);
+
+		instance_10 = instance & 0x3;
+		instance_5432 = (instance >> 2) & 0xf;
+		instance_76 = (instance >> 6) & 0x3;
+
+		*lo_val = (unitmask << 8) | (instance_10 << 6) | eventsel;
+		*hi_val = (instance_76 << 29) | instance_5432;
+	}
+
+	return 0;
+}
+
+/* assign df performance counters for read */
+static int df_v3_6_pmc_assign_cntr(struct amdgpu_device *adev,
+				   uint64_t config,
+				   int *is_assigned)
+{
+	int i, target_cntr;
+
+	*is_assigned = 0;
+
+	target_cntr = df_v3_6_pmc_config_2_cntr(adev, config);
+
+	if (target_cntr >= 0) {
+		*is_assigned = 1;
+		return 0;
+	}
+
+	for (i = 0; i < DF_V3_6_MAX_COUNTERS; i++) {
+		if (adev->df_perfmon_config_assign_mask[i] == 0U) {
+			adev->df_perfmon_config_assign_mask[i] =
+							config & 0x0FFFFFFUL;
+			return 0;
+		}
+	}
+
+	return -ENOSPC;
+}
+
+/* release performance counter */
+static void df_v3_6_pmc_release_cntr(struct amdgpu_device *adev,
+				     uint64_t config)
+{
+	int target_cntr = df_v3_6_pmc_config_2_cntr(adev, config);
+
+	if (target_cntr >= 0)
+		adev->df_perfmon_config_assign_mask[target_cntr] = 0ULL;
+}
+
+
+static void df_v3_6_reset_perfmon_cntr(struct amdgpu_device *adev,
+					 uint64_t config)
+{
+	uint32_t lo_base_addr, hi_base_addr;
+
+	df_v3_6_pmc_get_read_settings(adev, config, &lo_base_addr,
+				      &hi_base_addr);
+
+	if ((lo_base_addr == 0) || (hi_base_addr == 0))
+		return;
+
+	WREG32_PCIE(lo_base_addr, 0UL);
+	WREG32_PCIE(hi_base_addr, 0UL);
+}
+
+
+static int df_v3_6_add_perfmon_cntr(struct amdgpu_device *adev,
+				      uint64_t config)
+{
+	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
+	int ret, is_assigned;
+
+	ret = df_v3_6_pmc_assign_cntr(adev, config, &is_assigned);
+
+	if (ret || is_assigned)
+		return ret;
+
+	ret = df_v3_6_pmc_get_ctrl_settings(adev,
+			config,
+			&lo_base_addr,
+			&hi_base_addr,
+			&lo_val,
+			&hi_val);
+
+	if (ret)
+		return ret;
+
+	DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x:%08x",
+			config, lo_base_addr, hi_base_addr, lo_val, hi_val);
+
+	WREG32_PCIE(lo_base_addr, lo_val);
+	WREG32_PCIE(hi_base_addr, hi_val);
+
+	return ret;
+}
+
+static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
+			     int is_enable)
+{
+	uint32_t lo_base_addr, hi_base_addr, lo_val;
+	int ret = 0;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+
+		df_v3_6_reset_perfmon_cntr(adev, config);
+
+		if (is_enable) {
+			ret = df_v3_6_add_perfmon_cntr(adev, config);
+		} else {
+			ret = df_v3_6_pmc_get_ctrl_settings(adev,
+					config,
+					&lo_base_addr,
+					&hi_base_addr,
+					NULL,
+					NULL);
+
+			if (ret)
+				return ret;
+
+			lo_val = RREG32_PCIE(lo_base_addr);
+
+			DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x",
+				config, lo_base_addr, hi_base_addr, lo_val);
+
+			WREG32_PCIE(lo_base_addr, lo_val | (1ULL << 22));
+		}
+
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int df_v3_6_pmc_stop(struct amdgpu_device *adev, uint64_t config,
+			    int is_disable)
+{
+	uint32_t lo_base_addr, hi_base_addr, lo_val;
+	int ret = 0;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		ret = df_v3_6_pmc_get_ctrl_settings(adev,
+			config,
+			&lo_base_addr,
+			&hi_base_addr,
+			NULL,
+			NULL);
+
+		if (ret)
+			return ret;
+
+		lo_val = RREG32_PCIE(lo_base_addr);
+
+		DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x",
+				config, lo_base_addr, hi_base_addr, lo_val);
+
+		WREG32_PCIE(lo_base_addr, lo_val & ~(1ULL << 22));
+
+		if (is_disable)
+			df_v3_6_pmc_release_cntr(adev, config);
+
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static void df_v3_6_pmc_get_count(struct amdgpu_device *adev,
+				  uint64_t config,
+				  uint64_t *count)
+{
+	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
+	*count = 0;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+
+		df_v3_6_pmc_get_read_settings(adev, config, &lo_base_addr,
+				      &hi_base_addr);
+
+		if ((lo_base_addr == 0) || (hi_base_addr == 0))
+			return;
+
+		lo_val = RREG32_PCIE(lo_base_addr);
+		hi_val = RREG32_PCIE(hi_base_addr);
+
+		*count  = ((hi_val | 0ULL) << 32) | (lo_val | 0ULL);
+
+		if (*count >= DF_V3_6_PERFMON_OVERFLOW)
+			*count = 0;
+
+		DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x:%08x",
+			config, lo_base_addr, hi_base_addr, lo_val, hi_val);
+
+		break;
+
+	default:
+		break;
+	}
+}
+
 const struct amdgpu_df_funcs df_v3_6_funcs = {
-	.init = df_v3_6_init,
+	.sw_init = df_v3_6_sw_init,
 	.enable_broadcast_mode = df_v3_6_enable_broadcast_mode,
 	.get_fb_channel_number = df_v3_6_get_fb_channel_number,
 	.get_hbm_channel_number = df_v3_6_get_hbm_channel_number,
 	.update_medium_grain_clock_gating =
 			df_v3_6_update_medium_grain_clock_gating,
 	.get_clockgating_state = df_v3_6_get_clockgating_state,
+	.pmc_start = df_v3_6_pmc_start,
+	.pmc_stop = df_v3_6_pmc_stop,
+	.pmc_get_count = df_v3_6_pmc_get_count
 };

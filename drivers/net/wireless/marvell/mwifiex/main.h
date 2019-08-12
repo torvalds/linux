@@ -124,6 +124,7 @@ enum {
 
 #define MWIFIEX_MAX_TOTAL_SCAN_TIME	(MWIFIEX_TIMER_10S - MWIFIEX_TIMER_1S)
 
+#define WPA_GTK_OUI_OFFSET				2
 #define RSN_GTK_OUI_OFFSET				2
 
 #define MWIFIEX_OUI_NOT_PRESENT			0
@@ -747,7 +748,7 @@ struct mwifiex_bss_prio_tbl {
 struct cmd_ctrl_node {
 	struct list_head list;
 	struct mwifiex_private *priv;
-	u32 cmd_oid;
+	u32 cmd_no;
 	u32 cmd_flag;
 	struct sk_buff *cmd_skb;
 	struct sk_buff *resp_skb;

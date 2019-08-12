@@ -63,23 +63,27 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"MIC1", NULL, "Mic (Internal)"},
 };
 
+SND_SOC_DAILINK_DEFS(ac97,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9705-codec", "wm9705-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(ac97_aux,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97-aux")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9705-codec", "wm9705-aux")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link e750_dai[] = {
 	{
 		.name = "AC97",
 		.stream_name = "AC97 HiFi",
-		.cpu_dai_name = "pxa2xx-ac97",
-		.codec_dai_name = "wm9705-hifi",
-		.platform_name = "pxa-pcm-audio",
-		.codec_name = "wm9705-codec",
+		SND_SOC_DAILINK_REG(ac97),
 		/* use ops to check startup state */
 	},
 	{
 		.name = "AC97 Aux",
 		.stream_name = "AC97 Aux",
-		.cpu_dai_name = "pxa2xx-ac97-aux",
-		.codec_dai_name = "wm9705-aux",
-		.platform_name = "pxa-pcm-audio",
-		.codec_name = "wm9705-codec",
+		SND_SOC_DAILINK_REG(ac97_aux),
 	},
 };
 

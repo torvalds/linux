@@ -388,7 +388,6 @@ void rtw_hal_notch_filter(struct adapter * adapter, bool enable);
 void rtw_hal_reset_security_engine(struct adapter * adapter);
 
 bool rtw_hal_c2h_valid(struct adapter *adapter, u8 *buf);
-s32 rtw_hal_c2h_evt_read(struct adapter *adapter, u8 *buf);
 s32 rtw_hal_c2h_handler(struct adapter *adapter, u8 *c2h_evt);
 c2h_id_filter rtw_hal_c2h_id_filter_ccx(struct adapter *adapter);
 

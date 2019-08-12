@@ -245,7 +245,7 @@ void uc32_notify_die(const char *str, struct pt_regs *regs,
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
 
-		force_sig_fault(sig, code, addr, current);
+		force_sig_fault(sig, code, addr);
 	} else
 		die(str, regs, err);
 }

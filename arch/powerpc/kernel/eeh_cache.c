@@ -18,6 +18,8 @@
 
 
 /**
+ * DOC: Overview
+ *
  * The pci address cache subsystem.  This subsystem places
  * PCI device address resources into a red-black tree, sorted
  * according to the address range, so that given only an i/o
@@ -34,6 +36,7 @@
  * than any hash algo I could think of for this problem, even
  * with the penalty of slow pointer chases for d-cache misses).
  */
+
 struct pci_io_addr_range {
 	struct rb_node rb_node;
 	resource_size_t addr_lo;

@@ -1093,9 +1093,6 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct minstrel_priv *mp = priv;
 	int sample_idx;
 
-	if (rate_control_send_low(sta, priv_sta, txrc))
-		return;
-
 	if (!msp->is_ht)
 		return mac80211_minstrel.get_rate(priv, sta, &msp->legacy, txrc);
 

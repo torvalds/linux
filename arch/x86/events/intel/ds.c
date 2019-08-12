@@ -337,7 +337,7 @@ static int alloc_pebs_buffer(int cpu)
 	struct debug_store *ds = hwev->ds;
 	size_t bsiz = x86_pmu.pebs_buffer_size;
 	int max, node = cpu_to_node(cpu);
-	void *buffer, *ibuffer, *cea;
+	void *buffer, *insn_buff, *cea;
 
 	if (!x86_pmu.pebs)
 		return 0;
@@ -351,12 +351,12 @@ static int alloc_pebs_buffer(int cpu)
 	 * buffer then.
 	 */
 	if (x86_pmu.intel_cap.pebs_format < 2) {
-		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
-		if (!ibuffer) {
+		insn_buff = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
+		if (!insn_buff) {
 			dsfree_pages(buffer, bsiz);
 			return -ENOMEM;
 		}
-		per_cpu(insn_buffer, cpu) = ibuffer;
+		per_cpu(insn_buffer, cpu) = insn_buff;
 	}
 	hwev->ds_pebs_vaddr = buffer;
 	/* Update the cpu entry area mapping */
@@ -851,7 +851,7 @@ struct event_constraint intel_skl_pebs_event_constraints[] = {
 
 struct event_constraint intel_icl_pebs_event_constraints[] = {
 	INTEL_FLAGS_UEVENT_CONSTRAINT(0x1c0, 0x100000000ULL),	/* INST_RETIRED.PREC_DIST */
-	INTEL_FLAGS_UEVENT_CONSTRAINT(0x0400, 0x400000000ULL),	/* SLOTS */
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x0400, 0x800000000ULL),	/* SLOTS */
 
 	INTEL_PLD_CONSTRAINT(0x1cd, 0xff),			/* MEM_TRANS_RETIRED.LOAD_LATENCY */
 	INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_LD(0x1d0, 0xf),	/* MEM_INST_RETIRED.LOAD */

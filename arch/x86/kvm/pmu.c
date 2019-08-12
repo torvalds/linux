@@ -19,6 +19,9 @@
 #include "lapic.h"
 #include "pmu.h"
 
+/* This is enough to filter the vast majority of currently defined events. */
+#define KVM_PMU_EVENT_FILTER_MAX_EVENTS 300
+
 /* NOTE:
  * - Each perf counter is defined as "struct kvm_pmc";
  * - There are two types of perf counters: general purpose (gp) and fixed.
@@ -128,8 +131,8 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 						 intr ? kvm_perf_overflow_intr :
 						 kvm_perf_overflow, pmc);
 	if (IS_ERR(event)) {
-		printk_once("kvm_pmu: event creation failed %ld\n",
-			    PTR_ERR(event));
+		pr_debug_ratelimited("kvm_pmu: event creation failed %ld for pmc->idx = %d\n",
+			    PTR_ERR(event), pmc->idx);
 		return;
 	}
 
@@ -141,6 +144,10 @@ void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 {
 	unsigned config, type = PERF_TYPE_RAW;
 	u8 event_select, unit_mask;
+	struct kvm *kvm = pmc->vcpu->kvm;
+	struct kvm_pmu_event_filter *filter;
+	int i;
+	bool allow_event = true;
 
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
 		printk_once("kvm pmu: pin control bit is ignored\n");
@@ -150,6 +157,22 @@ void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	pmc_stop_counter(pmc);
 
 	if (!(eventsel & ARCH_PERFMON_EVENTSEL_ENABLE) || !pmc_is_enabled(pmc))
+		return;
+
+	filter = srcu_dereference(kvm->arch.pmu_event_filter, &kvm->srcu);
+	if (filter) {
+		for (i = 0; i < filter->nevents; i++)
+			if (filter->events[i] ==
+			    (eventsel & AMD64_RAW_EVENT_MASK_NB))
+				break;
+		if (filter->action == KVM_PMU_EVENT_ALLOW &&
+		    i == filter->nevents)
+			allow_event = false;
+		if (filter->action == KVM_PMU_EVENT_DENY &&
+		    i < filter->nevents)
+			allow_event = false;
+	}
+	if (!allow_event)
 		return;
 
 	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
@@ -183,11 +206,23 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 {
 	unsigned en_field = ctrl & 0x3;
 	bool pmi = ctrl & 0x8;
+	struct kvm_pmu_event_filter *filter;
+	struct kvm *kvm = pmc->vcpu->kvm;
 
 	pmc_stop_counter(pmc);
 
 	if (!en_field || !pmc_is_enabled(pmc))
 		return;
+
+	filter = srcu_dereference(kvm->arch.pmu_event_filter, &kvm->srcu);
+	if (filter) {
+		if (filter->action == KVM_PMU_EVENT_DENY &&
+		    test_bit(idx, (ulong *)&filter->fixed_counter_bitmap))
+			return;
+		if (filter->action == KVM_PMU_EVENT_ALLOW &&
+		    !test_bit(idx, (ulong *)&filter->fixed_counter_bitmap))
+			return;
+	}
 
 	pmc_reprogram_counter(pmc, PERF_TYPE_HARDWARE,
 			      kvm_x86_ops->pmu_ops->find_fixed_event(idx),
@@ -261,10 +296,10 @@ static int kvm_pmu_rdpmc_vmware(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 		ctr_val = rdtsc();
 		break;
 	case VMWARE_BACKDOOR_PMC_REAL_TIME:
-		ctr_val = ktime_get_boot_ns();
+		ctr_val = ktime_get_boottime_ns();
 		break;
 	case VMWARE_BACKDOOR_PMC_APPARENT_TIME:
-		ctr_val = ktime_get_boot_ns() +
+		ctr_val = ktime_get_boottime_ns() +
 			vcpu->kvm->arch.kvmclock_offset;
 		break;
 	default:
@@ -347,4 +382,47 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 {
 	kvm_pmu_reset(vcpu);
+}
+
+int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
+{
+	struct kvm_pmu_event_filter tmp, *filter;
+	size_t size;
+	int r;
+
+	if (copy_from_user(&tmp, argp, sizeof(tmp)))
+		return -EFAULT;
+
+	if (tmp.action != KVM_PMU_EVENT_ALLOW &&
+	    tmp.action != KVM_PMU_EVENT_DENY)
+		return -EINVAL;
+
+	if (tmp.flags != 0)
+		return -EINVAL;
+
+	if (tmp.nevents > KVM_PMU_EVENT_FILTER_MAX_EVENTS)
+		return -E2BIG;
+
+	size = struct_size(filter, events, tmp.nevents);
+	filter = kmalloc(size, GFP_KERNEL_ACCOUNT);
+	if (!filter)
+		return -ENOMEM;
+
+	r = -EFAULT;
+	if (copy_from_user(filter, argp, size))
+		goto cleanup;
+
+	/* Ensure nevents can't be changed between the user copies. */
+	*filter = tmp;
+
+	mutex_lock(&kvm->lock);
+	rcu_swap_protected(kvm->arch.pmu_event_filter, filter,
+			   mutex_is_locked(&kvm->lock));
+	mutex_unlock(&kvm->lock);
+
+	synchronize_srcu_expedited(&kvm->srcu);
+	r = 0;
+cleanup:
+	kfree(filter);
+	return r;
 }

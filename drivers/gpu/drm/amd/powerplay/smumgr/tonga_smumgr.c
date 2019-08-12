@@ -23,6 +23,7 @@
 #include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
 
@@ -2611,6 +2612,8 @@ static uint32_t tonga_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU72_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU72_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU72_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU72_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
@@ -3114,8 +3117,6 @@ static int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	cgs_write_register(hwmgr->device, mmMC_SEQ_WR_CTL_2_LP,
 			cgs_read_register(hwmgr->device, mmMC_SEQ_WR_CTL_2));
 
-	memset(table, 0x00, sizeof(pp_atomctrl_mc_reg_table));
-
 	result = atomctrl_initialize_mc_reg_table(hwmgr, module_index, table);
 
 	if (!result)
@@ -3238,6 +3239,7 @@ static int tonga_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func tonga_smu_funcs = {
+	.name = "tonga_smu",
 	.smu_init = &tonga_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &tonga_start_smu,

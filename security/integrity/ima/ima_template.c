@@ -22,6 +22,7 @@ static struct ima_template_desc builtin_templates[] = {
 	{.name = IMA_TEMPLATE_IMA_NAME, .fmt = IMA_TEMPLATE_IMA_FMT},
 	{.name = "ima-ng", .fmt = "d-ng|n-ng"},
 	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
+	{.name = "ima-buf", .fmt = "d-ng|n-ng|buf"},
 	{.name = "", .fmt = ""},	/* placeholder for a custom format */
 };
 
@@ -39,14 +40,18 @@ static const struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_string},
 	{.field_id = "sig", .field_init = ima_eventsig_init,
 	 .field_show = ima_show_template_sig},
+	{.field_id = "buf", .field_init = ima_eventbuf_init,
+	 .field_show = ima_show_template_buf},
 };
-#define MAX_TEMPLATE_NAME_LEN 15
+
+/*
+ * Used when restoring measurements carried over from a kexec. 'd' and 'n' don't
+ * need to be accounted for since they shouldn't be defined in the same template
+ * description as 'd-ng' and 'n-ng' respectively.
+ */
+#define MAX_TEMPLATE_NAME_LEN sizeof("d-ng|n-ng|sig|buf")
 
 static struct ima_template_desc *ima_template;
-static struct ima_template_desc *lookup_template_desc(const char *name);
-static int template_desc_init_fields(const char *template_fmt,
-				     const struct ima_template_field ***fields,
-				     int *num_fields);
 
 static int __init ima_template_setup(char *str)
 {
@@ -104,7 +109,7 @@ static int __init ima_template_fmt_setup(char *str)
 }
 __setup("ima_template_fmt=", ima_template_fmt_setup);
 
-static struct ima_template_desc *lookup_template_desc(const char *name)
+struct ima_template_desc *lookup_template_desc(const char *name)
 {
 	struct ima_template_desc *template_desc;
 	int found = 0;
@@ -149,9 +154,9 @@ static int template_fmt_size(const char *template_fmt)
 	return j + 1;
 }
 
-static int template_desc_init_fields(const char *template_fmt,
-				     const struct ima_template_field ***fields,
-				     int *num_fields)
+int template_desc_init_fields(const char *template_fmt,
+			      const struct ima_template_field ***fields,
+			      int *num_fields)
 {
 	const char *template_fmt_ptr;
 	const struct ima_template_field *found_fields[IMA_TEMPLATE_NUM_FIELDS_MAX];

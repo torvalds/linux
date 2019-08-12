@@ -22,13 +22,9 @@
 	Stages of Variax startup procedure
 */
 enum {
-	VARIAX_STARTUP_INIT = 1,
 	VARIAX_STARTUP_VERSIONREQ,
-	VARIAX_STARTUP_WAIT,
 	VARIAX_STARTUP_ACTIVATE,
-	VARIAX_STARTUP_WORKQUEUE,
 	VARIAX_STARTUP_SETUP,
-	VARIAX_STARTUP_LAST = VARIAX_STARTUP_SETUP - 1
 };
 
 enum {
@@ -43,16 +39,11 @@ struct usb_line6_variax {
 	/* Buffer for activation code */
 	unsigned char *buffer_activate;
 
-	/* Handler for device initialization */
-	struct work_struct startup_work;
-
-	/* Timers for device initialization */
-	struct timer_list startup_timer1;
-	struct timer_list startup_timer2;
-
 	/* Current progress in startup procedure */
 	int startup_progress;
 };
+
+#define line6_to_variax(x)	container_of(x, struct usb_line6_variax, line6)
 
 #define VARIAX_OFFSET_ACTIVATE 7
 
@@ -77,11 +68,6 @@ static const char variax_activate[] = {
 	0xf7
 };
 
-/* forward declarations: */
-static void variax_startup2(struct timer_list *t);
-static void variax_startup4(struct timer_list *t);
-static void variax_startup5(struct timer_list *t);
-
 static void variax_activate_async(struct usb_line6_variax *variax, int a)
 {
 	variax->buffer_activate[VARIAX_OFFSET_ACTIVATE] = a;
@@ -96,74 +82,30 @@ static void variax_activate_async(struct usb_line6_variax *variax, int a)
 	context). After the last one has finished, the device is ready to use.
 */
 
-static void variax_startup1(struct usb_line6_variax *variax)
+static void variax_startup(struct usb_line6 *line6)
 {
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_INIT);
+	struct usb_line6_variax *variax = line6_to_variax(line6);
 
-	/* delay startup procedure: */
-	line6_start_timer(&variax->startup_timer1, VARIAX_STARTUP_DELAY1,
-			  variax_startup2);
-}
-
-static void variax_startup2(struct timer_list *t)
-{
-	struct usb_line6_variax *variax = from_timer(variax, t, startup_timer1);
-	struct usb_line6 *line6 = &variax->line6;
-
-	/* schedule another startup procedure until startup is complete: */
-	if (variax->startup_progress >= VARIAX_STARTUP_LAST)
-		return;
-
-	variax->startup_progress = VARIAX_STARTUP_VERSIONREQ;
-	line6_start_timer(&variax->startup_timer1, VARIAX_STARTUP_DELAY1,
-			  variax_startup2);
-
-	/* request firmware version: */
-	line6_version_request_async(line6);
-}
-
-static void variax_startup3(struct usb_line6_variax *variax)
-{
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_WAIT);
-
-	/* delay startup procedure: */
-	line6_start_timer(&variax->startup_timer2, VARIAX_STARTUP_DELAY3,
-			  variax_startup4);
-}
-
-static void variax_startup4(struct timer_list *t)
-{
-	struct usb_line6_variax *variax = from_timer(variax, t, startup_timer2);
-
-	CHECK_STARTUP_PROGRESS(variax->startup_progress,
-			       VARIAX_STARTUP_ACTIVATE);
-
-	/* activate device: */
-	variax_activate_async(variax, 1);
-	line6_start_timer(&variax->startup_timer2, VARIAX_STARTUP_DELAY4,
-			  variax_startup5);
-}
-
-static void variax_startup5(struct timer_list *t)
-{
-	struct usb_line6_variax *variax = from_timer(variax, t, startup_timer2);
-
-	CHECK_STARTUP_PROGRESS(variax->startup_progress,
-			       VARIAX_STARTUP_WORKQUEUE);
-
-	/* schedule work for global work queue: */
-	schedule_work(&variax->startup_work);
-}
-
-static void variax_startup6(struct work_struct *work)
-{
-	struct usb_line6_variax *variax =
-	    container_of(work, struct usb_line6_variax, startup_work);
-
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_SETUP);
-
-	/* ALSA audio interface: */
-	snd_card_register(variax->line6.card);
+	switch (variax->startup_progress) {
+	case VARIAX_STARTUP_VERSIONREQ:
+		/* repeat request until getting the response */
+		schedule_delayed_work(&line6->startup_work,
+				      msecs_to_jiffies(VARIAX_STARTUP_DELAY1));
+		/* request firmware version: */
+		line6_version_request_async(line6);
+		break;
+	case VARIAX_STARTUP_ACTIVATE:
+		/* activate device: */
+		variax_activate_async(variax, 1);
+		variax->startup_progress = VARIAX_STARTUP_SETUP;
+		schedule_delayed_work(&line6->startup_work,
+				      msecs_to_jiffies(VARIAX_STARTUP_DELAY4));
+		break;
+	case VARIAX_STARTUP_SETUP:
+		/* ALSA audio interface: */
+		snd_card_register(variax->line6.card);
+		break;
+	}
 }
 
 /*
@@ -171,7 +113,7 @@ static void variax_startup6(struct work_struct *work)
 */
 static void line6_variax_process_message(struct usb_line6 *line6)
 {
-	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
+	struct usb_line6_variax *variax = line6_to_variax(line6);
 	const unsigned char *buf = variax->line6.buffer_message;
 
 	switch (buf[0]) {
@@ -182,11 +124,19 @@ static void line6_variax_process_message(struct usb_line6 *line6)
 	case LINE6_SYSEX_BEGIN:
 		if (memcmp(buf + 1, variax_init_version + 1,
 			   sizeof(variax_init_version) - 1) == 0) {
-			variax_startup3(variax);
+			if (variax->startup_progress >= VARIAX_STARTUP_ACTIVATE)
+				break;
+			variax->startup_progress = VARIAX_STARTUP_ACTIVATE;
+			cancel_delayed_work(&line6->startup_work);
+			schedule_delayed_work(&line6->startup_work,
+					      msecs_to_jiffies(VARIAX_STARTUP_DELAY3));
 		} else if (memcmp(buf + 1, variax_init_done + 1,
 				  sizeof(variax_init_done) - 1) == 0) {
 			/* notify of complete initialization: */
-			variax_startup4(&variax->startup_timer2);
+			if (variax->startup_progress >= VARIAX_STARTUP_SETUP)
+				break;
+			cancel_delayed_work(&line6->startup_work);
+			schedule_delayed_work(&line6->startup_work, 0);
 		}
 		break;
 	}
@@ -197,11 +147,7 @@ static void line6_variax_process_message(struct usb_line6 *line6)
 */
 static void line6_variax_disconnect(struct usb_line6 *line6)
 {
-	struct usb_line6_variax *variax = (struct usb_line6_variax *)line6;
-
-	del_timer(&variax->startup_timer1);
-	del_timer(&variax->startup_timer2);
-	cancel_work_sync(&variax->startup_work);
+	struct usb_line6_variax *variax = line6_to_variax(line6);
 
 	kfree(variax->buffer_activate);
 }
@@ -212,15 +158,12 @@ static void line6_variax_disconnect(struct usb_line6 *line6)
 static int variax_init(struct usb_line6 *line6,
 		       const struct usb_device_id *id)
 {
-	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
+	struct usb_line6_variax *variax = line6_to_variax(line6);
 	int err;
 
 	line6->process_message = line6_variax_process_message;
 	line6->disconnect = line6_variax_disconnect;
-
-	timer_setup(&variax->startup_timer1, NULL, 0);
-	timer_setup(&variax->startup_timer2, NULL, 0);
-	INIT_WORK(&variax->startup_work, variax_startup6);
+	line6->startup = variax_startup;
 
 	/* initialize USB buffers: */
 	variax->buffer_activate = kmemdup(variax_activate,
@@ -235,7 +178,8 @@ static int variax_init(struct usb_line6 *line6,
 		return err;
 
 	/* initiate startup procedure: */
-	variax_startup1(variax);
+	schedule_delayed_work(&line6->startup_work,
+			      msecs_to_jiffies(VARIAX_STARTUP_DELAY1));
 	return 0;
 }
 
@@ -300,5 +244,5 @@ static struct usb_driver variax_driver = {
 
 module_usb_driver(variax_driver);
 
-MODULE_DESCRIPTION("Vairax Workbench USB driver");
+MODULE_DESCRIPTION("Variax Workbench USB driver");
 MODULE_LICENSE("GPL");

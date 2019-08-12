@@ -277,7 +277,7 @@ static void move_to_next_cpu(void)
 	 * of this thread, than stop migrating for the duration
 	 * of the current test.
 	 */
-	if (!cpumask_equal(current_mask, &current->cpus_allowed))
+	if (!cpumask_equal(current_mask, current->cpus_ptr))
 		goto disable;
 
 	get_online_cpus();

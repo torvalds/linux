@@ -291,7 +291,7 @@ int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 		goto out;
 
 	zdev->fh = fh;
-	if (zdev->mio_capable) {
+	if (zpci_use_mio(zdev)) {
 		rc = clp_set_pci_fn(&fh, nr_dma_as, CLP_SET_ENABLE_MIO);
 		zpci_dbg(3, "ena mio fid:%x, fh:%x, rc:%d\n", zdev->fid, fh, rc);
 		if (rc)

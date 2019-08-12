@@ -16,7 +16,6 @@ subdir-ccflags-y := -Wall -Wextra
 subdir-ccflags-y += $(call cc-disable-warning, unused-parameter)
 subdir-ccflags-y += $(call cc-disable-warning, type-limits)
 subdir-ccflags-y += $(call cc-disable-warning, missing-field-initializers)
-subdir-ccflags-y += $(call cc-disable-warning, implicit-fallthrough)
 subdir-ccflags-y += $(call cc-disable-warning, unused-but-set-variable)
 # clang warnings
 subdir-ccflags-y += $(call cc-disable-warning, sign-compare)
@@ -35,52 +34,93 @@ subdir-ccflags-y += \
 # Extra header tests
 include $(src)/Makefile.header-test
 
+subdir-ccflags-y += -I$(src)
+
 # Please keep these build lists sorted!
 
 # core driver code
 i915-y += i915_drv.o \
 	  i915_irq.o \
-	  i915_memcpy.o \
-	  i915_mm.o \
 	  i915_params.o \
 	  i915_pci.o \
-	  i915_reset.o \
+	  i915_scatterlist.o \
 	  i915_suspend.o \
-	  i915_sw_fence.o \
-	  i915_syncmap.o \
 	  i915_sysfs.o \
-	  i915_user_extensions.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
-	  intel_workarounds.o
+	  intel_sideband.o \
+	  intel_uncore.o \
+	  intel_wakeref.o
+
+# core library code
+i915-y += \
+	i915_memcpy.o \
+	i915_mm.o \
+	i915_sw_fence.o \
+	i915_syncmap.o \
+	i915_user_extensions.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
-i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
+i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o display/intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
-# GEM code
+# "Graphics Technology" (aka we talk to the gpu)
+obj-y += gt/
+gt-y += \
+	gt/intel_breadcrumbs.o \
+	gt/intel_context.o \
+	gt/intel_engine_cs.o \
+	gt/intel_engine_pm.o \
+	gt/intel_gt_pm.o \
+	gt/intel_hangcheck.o \
+	gt/intel_lrc.o \
+	gt/intel_reset.o \
+	gt/intel_ringbuffer.o \
+	gt/intel_mocs.o \
+	gt/intel_sseu.o \
+	gt/intel_workarounds.o
+gt-$(CONFIG_DRM_I915_SELFTEST) += \
+	gt/mock_engine.o
+i915-y += $(gt-y)
+
+# GEM (Graphics Execution Management) code
+obj-y += gem/
+gem-y += \
+	gem/i915_gem_busy.o \
+	gem/i915_gem_clflush.o \
+	gem/i915_gem_client_blt.o \
+	gem/i915_gem_context.o \
+	gem/i915_gem_dmabuf.o \
+	gem/i915_gem_domain.o \
+	gem/i915_gem_execbuffer.o \
+	gem/i915_gem_fence.o \
+	gem/i915_gem_internal.o \
+	gem/i915_gem_object.o \
+	gem/i915_gem_object_blt.o \
+	gem/i915_gem_mman.o \
+	gem/i915_gem_pages.o \
+	gem/i915_gem_phys.o \
+	gem/i915_gem_pm.o \
+	gem/i915_gem_shmem.o \
+	gem/i915_gem_shrinker.o \
+	gem/i915_gem_stolen.o \
+	gem/i915_gem_throttle.o \
+	gem/i915_gem_tiling.o \
+	gem/i915_gem_userptr.o \
+	gem/i915_gem_wait.o \
+	gem/i915_gemfs.o
 i915-y += \
+	  $(gem-y) \
 	  i915_active.o \
 	  i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
-	  i915_gem_clflush.o \
-	  i915_gem_context.o \
-	  i915_gem_dmabuf.o \
 	  i915_gem_evict.o \
-	  i915_gem_execbuffer.o \
 	  i915_gem_fence_reg.o \
 	  i915_gem_gtt.o \
-	  i915_gem_internal.o \
 	  i915_gem.o \
-	  i915_gem_object.o \
 	  i915_gem_render_state.o \
-	  i915_gem_shrinker.o \
-	  i915_gem_stolen.o \
-	  i915_gem_tiling.o \
-	  i915_gem_userptr.o \
-	  i915_gemfs.o \
 	  i915_globals.o \
 	  i915_query.o \
 	  i915_request.o \
@@ -88,14 +128,6 @@ i915-y += \
 	  i915_timeline.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
-	  intel_breadcrumbs.o \
-	  intel_context.o \
-	  intel_engine_cs.o \
-	  intel_hangcheck.o \
-	  intel_lrc.o \
-	  intel_mocs.o \
-	  intel_ringbuffer.o \
-	  intel_uncore.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
@@ -117,62 +149,71 @@ i915-y += intel_renderstate_gen6.o \
 	  intel_renderstate_gen9.o
 
 # modesetting core code
-i915-y += intel_audio.o \
-	  intel_atomic.o \
-	  intel_atomic_plane.o \
-	  intel_bios.o \
-	  intel_cdclk.o \
-	  intel_color.o \
-	  intel_combo_phy.o \
-	  intel_connector.o \
-	  intel_display.o \
-	  intel_dpio_phy.o \
-	  intel_dpll_mgr.o \
-	  intel_fbc.o \
-	  intel_fifo_underrun.o \
-	  intel_frontbuffer.o \
-	  intel_hdcp.o \
-	  intel_hotplug.o \
-	  intel_overlay.o \
-	  intel_psr.o \
-	  intel_quirks.o \
-	  intel_sideband.o \
-	  intel_sprite.o
-i915-$(CONFIG_ACPI)		+= intel_acpi.o intel_opregion.o
-i915-$(CONFIG_DRM_FBDEV_EMULATION)	+= intel_fbdev.o
+obj-y += display/
+i915-y += \
+	display/intel_atomic.o \
+	display/intel_atomic_plane.o \
+	display/intel_audio.o \
+	display/intel_bios.o \
+	display/intel_bw.o \
+	display/intel_cdclk.o \
+	display/intel_color.o \
+	display/intel_combo_phy.o \
+	display/intel_connector.o \
+	display/intel_display.o \
+	display/intel_display_power.o \
+	display/intel_dpio_phy.o \
+	display/intel_dpll_mgr.o \
+	display/intel_fbc.o \
+	display/intel_fifo_underrun.o \
+	display/intel_frontbuffer.o \
+	display/intel_hdcp.o \
+	display/intel_hotplug.o \
+	display/intel_lpe_audio.o \
+	display/intel_overlay.o \
+	display/intel_psr.o \
+	display/intel_quirks.o \
+	display/intel_sprite.o
+i915-$(CONFIG_ACPI) += \
+	display/intel_acpi.o \
+	display/intel_opregion.o
+i915-$(CONFIG_DRM_FBDEV_EMULATION) += \
+	display/intel_fbdev.o
 
 # modesetting output/encoder code
-i915-y += dvo_ch7017.o \
-	  dvo_ch7xxx.o \
-	  dvo_ivch.o \
-	  dvo_ns2501.o \
-	  dvo_sil164.o \
-	  dvo_tfp410.o \
-	  icl_dsi.o \
-	  intel_crt.o \
-	  intel_ddi.o \
-	  intel_dp_aux_backlight.o \
-	  intel_dp_link_training.o \
-	  intel_dp_mst.o \
-	  intel_dp.o \
-	  intel_dsi.o \
-	  intel_dsi_dcs_backlight.o \
-	  intel_dsi_vbt.o \
-	  intel_dvo.o \
-	  intel_hdmi.o \
-	  intel_i2c.o \
-	  intel_lspcon.o \
-	  intel_lvds.o \
-	  intel_panel.o \
-	  intel_sdvo.o \
-	  intel_tv.o \
-	  vlv_dsi.o \
-	  vlv_dsi_pll.o \
-	  intel_vdsc.o
+i915-y += \
+	display/dvo_ch7017.o \
+	display/dvo_ch7xxx.o \
+	display/dvo_ivch.o \
+	display/dvo_ns2501.o \
+	display/dvo_sil164.o \
+	display/dvo_tfp410.o \
+	display/icl_dsi.o \
+	display/intel_crt.o \
+	display/intel_ddi.o \
+	display/intel_dp.o \
+	display/intel_dp_aux_backlight.o \
+	display/intel_dp_link_training.o \
+	display/intel_dp_mst.o \
+	display/intel_dsi.o \
+	display/intel_dsi_dcs_backlight.o \
+	display/intel_dsi_vbt.o \
+	display/intel_dvo.o \
+	display/intel_gmbus.o \
+	display/intel_hdmi.o \
+	display/intel_lspcon.o \
+	display/intel_lvds.o \
+	display/intel_panel.o \
+	display/intel_sdvo.o \
+	display/intel_tv.o \
+	display/intel_vdsc.o \
+	display/vlv_dsi.o \
+	display/vlv_dsi_pll.o
 
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
+	gem/selftests/igt_gem_utils.o \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
 	selftests/igt_flush_test.o \
@@ -204,9 +245,6 @@ ifeq ($(CONFIG_DRM_I915_GVT),y)
 i915-y += intel_gvt.o
 include $(src)/gvt/Makefile
 endif
-
-# LPE Audio for VLV and CHT
-i915-y += intel_lpe_audio.o
 
 obj-$(CONFIG_DRM_I915) += i915.o
 obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o

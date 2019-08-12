@@ -11,7 +11,7 @@
 #include <linux/bitmap.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 
 /* Receive/transmit descriptor format */
 #define DESC_ADDR_HI_STATUS_LEN	0x00
@@ -702,7 +702,7 @@ struct bcm_sysport_net_dim {
 	u16			event_ctr;
 	unsigned long		packets;
 	unsigned long		bytes;
-	struct net_dim		dim;
+	struct dim		dim;
 };
 
 /* Software view of the TX ring */

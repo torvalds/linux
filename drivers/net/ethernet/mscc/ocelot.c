@@ -22,6 +22,7 @@
 #include <net/switchdev.h>
 
 #include "ocelot.h"
+#include "ocelot_ace.h"
 
 #define TABLE_UPDATE_SLEEP_US 10
 #define TABLE_UPDATE_TIMEOUT_US 100000
@@ -128,6 +129,13 @@ static void ocelot_mact_init(struct ocelot *ocelot)
 
 	/* Clear the MAC table */
 	ocelot_write(ocelot, MACACCESS_CMD_INIT, ANA_TABLES_MACACCESS);
+}
+
+static void ocelot_vcap_enable(struct ocelot *ocelot, struct ocelot_port *port)
+{
+	ocelot_write_gix(ocelot, ANA_PORT_VCAP_S2_CFG_S2_ENA |
+			 ANA_PORT_VCAP_S2_CFG_S2_IP6_CFG(0xa),
+			 ANA_PORT_VCAP_S2_CFG, port->chip_port);
 }
 
 static inline u32 ocelot_vlant_read_vlanaccess(struct ocelot *ocelot)
@@ -884,6 +892,13 @@ static int ocelot_set_features(struct net_device *dev,
 	struct ocelot_port *port = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
 
+	if ((dev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
+	    port->tc.offload_cnt) {
+		netdev_err(dev,
+			   "Cannot disable HW TC offload while offloads active\n");
+		return -EBUSY;
+	}
+
 	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER)
 		ocelot_vlan_mode(port, features);
 
@@ -917,6 +932,7 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_vlan_rx_kill_vid		= ocelot_vlan_rx_kill_vid,
 	.ndo_set_features		= ocelot_set_features,
 	.ndo_get_port_parent_id		= ocelot_get_port_parent_id,
+	.ndo_setup_tc			= ocelot_setup_tc,
 };
 
 static void ocelot_get_strings(struct net_device *netdev, u32 sset, u8 *data)
@@ -1636,8 +1652,9 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 	dev->netdev_ops = &ocelot_port_netdev_ops;
 	dev->ethtool_ops = &ocelot_ethtool_ops;
 
-	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXFCS;
-	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXFCS |
+		NETIF_F_HW_TC;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 
 	memcpy(dev->dev_addr, ocelot->base_mac, ETH_ALEN);
 	dev->dev_addr[ETH_ALEN - 1] += port;
@@ -1652,6 +1669,9 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 
 	/* Basic L2 initialization */
 	ocelot_vlan_port_apply(ocelot, ocelot_port);
+
+	/* Enable vcap lookups */
+	ocelot_vcap_enable(ocelot, ocelot_port);
 
 	return 0;
 
@@ -1687,6 +1707,7 @@ int ocelot_init(struct ocelot *ocelot)
 
 	ocelot_mact_init(ocelot);
 	ocelot_vlan_init(ocelot);
+	ocelot_ace_init(ocelot);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Clear all counters (5 groups) */
@@ -1797,8 +1818,10 @@ EXPORT_SYMBOL(ocelot_init);
 
 void ocelot_deinit(struct ocelot *ocelot)
 {
+	cancel_delayed_work(&ocelot->stats_work);
 	destroy_workqueue(ocelot->stats_queue);
 	mutex_destroy(&ocelot->stats_lock);
+	ocelot_ace_deinit();
 }
 EXPORT_SYMBOL(ocelot_deinit);
 

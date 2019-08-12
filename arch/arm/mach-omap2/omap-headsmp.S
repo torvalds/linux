@@ -55,6 +55,8 @@ ENDPROC(omap5_secondary_startup)
  * omap5_secondary_startup if the primary CPU was put into HYP mode by
  * the boot loader.
  */
+	.arch armv7-a
+	.arch_extension sec
 ENTRY(omap5_secondary_hyp_startup)
 wait_2:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
 	ldr	r0, [r2]

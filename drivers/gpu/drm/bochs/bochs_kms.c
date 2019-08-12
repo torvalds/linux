@@ -27,16 +27,17 @@ static const uint32_t bochs_formats[] = {
 static void bochs_plane_update(struct bochs_device *bochs,
 			       struct drm_plane_state *state)
 {
-	struct bochs_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!state->fb || !bochs->stride)
 		return;
 
-	bo = gem_to_bochs_bo(state->fb->obj[0]);
+	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
 	bochs_hw_setbase(bochs,
 			 state->crtc_x,
 			 state->crtc_y,
-			 bo->bo.offset);
+			 state->fb->pitches[0],
+			 state->fb->offsets[0] + gbo->bo.offset);
 	bochs_hw_setformat(bochs, state->fb->format);
 }
 
@@ -69,23 +70,23 @@ static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
 static int bochs_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *new_state)
 {
-	struct bochs_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!new_state->fb)
 		return 0;
-	bo = gem_to_bochs_bo(new_state->fb->obj[0]);
-	return bochs_bo_pin(bo, TTM_PL_FLAG_VRAM);
+	gbo = drm_gem_vram_of_gem(new_state->fb->obj[0]);
+	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 }
 
 static void bochs_pipe_cleanup_fb(struct drm_simple_display_pipe *pipe,
 				  struct drm_plane_state *old_state)
 {
-	struct bochs_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!old_state->fb)
 		return;
-	bo = gem_to_bochs_bo(old_state->fb->obj[0]);
-	bochs_bo_unpin(bo);
+	gbo = drm_gem_vram_of_gem(old_state->fb->obj[0]);
+	drm_gem_vram_unpin(gbo);
 }
 
 static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
@@ -190,6 +191,7 @@ int bochs_kms_init(struct bochs_device *bochs)
 	bochs->dev->mode_config.fb_base = bochs->fb_base;
 	bochs->dev->mode_config.preferred_depth = 24;
 	bochs->dev->mode_config.prefer_shadow = 0;
+	bochs->dev->mode_config.prefer_shadow_fbdev = 1;
 	bochs->dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
 	bochs->dev->mode_config.funcs = &bochs_mode_funcs;

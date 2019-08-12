@@ -6,7 +6,7 @@
 #
 
 util/python.c
-util/ctype.c
+../lib/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c
@@ -16,7 +16,9 @@ util/namespaces.c
 ../lib/bitmap.c
 ../lib/find_bit.c
 ../lib/hweight.c
+../lib/string.c
 ../lib/vsprintf.c
+../lib/zalloc.c
 util/thread_map.c
 util/util.c
 util/xyarray.c

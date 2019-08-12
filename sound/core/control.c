@@ -196,16 +196,12 @@ EXPORT_SYMBOL(snd_ctl_notify);
 static int snd_ctl_new(struct snd_kcontrol **kctl, unsigned int count,
 		       unsigned int access, struct snd_ctl_file *file)
 {
-	unsigned int size;
 	unsigned int idx;
 
 	if (count == 0 || count > MAX_CONTROL_COUNT)
 		return -EINVAL;
 
-	size  = sizeof(struct snd_kcontrol);
-	size += sizeof(struct snd_kcontrol_volatile) * count;
-
-	*kctl = kzalloc(size, GFP_KERNEL);
+	*kctl = kzalloc(struct_size(*kctl, vd, count), GFP_KERNEL);
 	if (!*kctl)
 		return -ENOMEM;
 

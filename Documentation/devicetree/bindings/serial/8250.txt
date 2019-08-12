@@ -53,6 +53,9 @@ Optional properties:
   programmable TX FIFO thresholds.
 - resets : phandle + reset specifier pairs
 - overrun-throttle-ms : how long to pause uart rx when input overrun is encountered.
+- {rts,cts,dtr,dsr,rng,dcd}-gpios: specify a GPIO for RTS/CTS/DTR/DSR/RI/DCD
+  line respectively. It will use specified GPIO instead of the peripheral
+  function pin for the UART feature. If unsure, don't specify this property.
 
 Note:
 * fsl,ns16550:
@@ -73,4 +76,20 @@ Example:
 		clock-frequency = <3686400>;
 		interrupts = <10>;
 		reg-shift = <2>;
+	};
+
+Example for OMAP UART using GPIO-based modem control signals:
+
+	uart4: serial@49042000 {
+		compatible = "ti,omap3-uart";
+		reg = <0x49042000 0x400>;
+		interrupts = <80>;
+		ti,hwmods = "uart4";
+		clock-frequency = <48000000>;
+		cts-gpios = <&gpio3 5 GPIO_ACTIVE_LOW>;
+		rts-gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+		dtr-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		dsr-gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+		dcd-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+		rng-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 	};

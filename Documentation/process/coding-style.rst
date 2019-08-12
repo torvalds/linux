@@ -686,7 +686,7 @@ filesystems) should advertise this prominently in their prompt string::
 	...
 
 For full documentation on the configuration files, see the file
-Documentation/kbuild/kconfig-language.txt.
+Documentation/kbuild/kconfig-language.rst.
 
 
 11) Data structures

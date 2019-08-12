@@ -16,7 +16,7 @@
 static bool __hyp_text __is_be(struct kvm_vcpu *vcpu)
 {
 	if (vcpu_mode_is_32bit(vcpu))
-		return !!(read_sysreg_el2(spsr) & PSR_AA32_E_BIT);
+		return !!(read_sysreg_el2(SYS_SPSR) & PSR_AA32_E_BIT);
 
 	return !!(read_sysreg(SCTLR_EL1) & SCTLR_ELx_EE);
 }

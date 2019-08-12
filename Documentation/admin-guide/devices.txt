@@ -2693,8 +2693,8 @@
 		 41 = /dev/ttySMX0		Motorola i.MX - port 0
 		 42 = /dev/ttySMX1		Motorola i.MX - port 1
 		 43 = /dev/ttySMX2		Motorola i.MX - port 2
-		 44 = /dev/ttyMM0		Marvell MPSC - port 0
-		 45 = /dev/ttyMM1		Marvell MPSC - port 1
+		 44 = /dev/ttyMM0		Marvell MPSC - port 0 (obsolete unused)
+		 45 = /dev/ttyMM1		Marvell MPSC - port 1 (obsolete unused)
 		 46 = /dev/ttyCPM0		PPC CPM (SCC or SMC) - port 0
 		    ...
 		 47 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5

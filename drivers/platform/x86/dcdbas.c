@@ -7,7 +7,7 @@
  *  and Host Control Actions (power cycle or power off after OS shutdown) on
  *  Dell systems.
  *
- *  See Documentation/dcdbas.txt for more information.
+ *  See Documentation/driver-api/dcdbas.rst for more information.
  *
  *  Copyright (C) 1995-2006 Dell Inc.
  */

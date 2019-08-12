@@ -103,7 +103,6 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 	context->out_param = out_param;
 	complete(&context->done);
 }
-EXPORT_SYMBOL_GPL(hns_roce_cmd_event);
 
 /* this should be called with "use_events" */
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
@@ -162,7 +161,7 @@ static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
 				  u8 op_modifier, u16 op, unsigned long timeout)
 {
-	int ret = 0;
+	int ret;
 
 	down(&hr_dev->cmd.event_sem);
 	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
@@ -204,7 +203,6 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_cmd_mbox);
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 {
@@ -291,7 +289,6 @@ struct hns_roce_cmd_mailbox
 
 	return mailbox;
 }
-EXPORT_SYMBOL_GPL(hns_roce_alloc_cmd_mailbox);
 
 void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmd_mailbox *mailbox)
@@ -302,4 +299,3 @@ void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 	dma_pool_free(hr_dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
-EXPORT_SYMBOL_GPL(hns_roce_free_cmd_mailbox);

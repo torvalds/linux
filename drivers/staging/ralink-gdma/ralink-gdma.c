@@ -814,9 +814,8 @@ static int gdma_dma_probe(struct platform_device *pdev)
 	dma_dev = devm_kzalloc(&pdev->dev,
 			       struct_size(dma_dev, chan, data->chancnt),
 			       GFP_KERNEL);
-	if (!dma_dev) {
+	if (!dma_dev)
 		return -EINVAL;
-	}
 	dma_dev->data = data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

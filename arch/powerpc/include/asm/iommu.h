@@ -314,13 +314,5 @@ extern bool iommu_fixed_is_weak;
 
 extern const struct dma_map_ops dma_iommu_ops;
 
-static inline unsigned long device_to_mask(struct device *dev)
-{
-	if (dev->dma_mask && *dev->dma_mask)
-		return *dev->dma_mask;
-	/* Assume devices without mask can take 32 bit addresses */
-	return 0xfffffffful;
-}
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_IOMMU_H */

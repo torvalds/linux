@@ -20,8 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_gfx.h"
@@ -1877,6 +1879,15 @@ static void gfx_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 	}
 	cik_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+
+	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
+	   acccess. These should be enabled by FW for target VMIDs. */
+	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
+		WREG32(amdgpu_gds_reg_offset[i].mem_base, 0);
+		WREG32(amdgpu_gds_reg_offset[i].mem_size, 0);
+		WREG32(amdgpu_gds_reg_offset[i].gws, 0);
+		WREG32(amdgpu_gds_reg_offset[i].oa, 0);
+	}
 }
 
 static void gfx_v7_0_config_init(struct amdgpu_device *adev)
@@ -2080,7 +2091,7 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i >= adev->usec_timeout)
 		r = -ETIMEDOUT;
@@ -4167,9 +4178,9 @@ static void gfx_v7_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
 }
 
 static void gfx_v7_0_select_me_pipe_q(struct amdgpu_device *adev,
-				  u32 me, u32 pipe, u32 q)
+				  u32 me, u32 pipe, u32 q, u32 vm)
 {
-	cik_srbm_select(adev, me, pipe, q, 0);
+	cik_srbm_select(adev, me, pipe, q, vm);
 }
 
 static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
@@ -4460,7 +4471,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
+				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP);
 		if (r)
 			return r;
 	}
@@ -4493,12 +4504,8 @@ static int gfx_v7_0_sw_init(void *handle)
 
 static int gfx_v7_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_bo_free_kernel(&adev->gds.oa_gfx_bo, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gds.gws_gfx_bo, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gds.gds_gfx_bo, NULL, NULL);
+	int i;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
@@ -4801,7 +4808,7 @@ static int gfx_v7_0_set_eop_interrupt_state(struct amdgpu_device *adev,
 					    enum amdgpu_interrupt_state state)
 {
 	switch (type) {
-	case AMDGPU_CP_IRQ_GFX_EOP:
+	case AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP:
 		gfx_v7_0_set_gfx_eop_interrupt_state(adev, state);
 		break;
 	case AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP:
@@ -5070,30 +5077,10 @@ static void gfx_v7_0_set_irq_funcs(struct amdgpu_device *adev)
 static void gfx_v7_0_set_gds_init(struct amdgpu_device *adev)
 {
 	/* init asci gds info */
-	adev->gds.mem.total_size = RREG32(mmGDS_VMID0_SIZE);
-	adev->gds.gws.total_size = 64;
-	adev->gds.oa.total_size = 16;
+	adev->gds.gds_size = RREG32(mmGDS_VMID0_SIZE);
+	adev->gds.gws_size = 64;
+	adev->gds.oa_size = 16;
 	adev->gds.gds_compute_max_wave_id = RREG32(mmGDS_COMPUTE_MAX_WAVE_ID);
-
-	if (adev->gds.mem.total_size == 64 * 1024) {
-		adev->gds.mem.gfx_partition_size = 4096;
-		adev->gds.mem.cs_partition_size = 4096;
-
-		adev->gds.gws.gfx_partition_size = 4;
-		adev->gds.gws.cs_partition_size = 4;
-
-		adev->gds.oa.gfx_partition_size = 4;
-		adev->gds.oa.cs_partition_size = 1;
-	} else {
-		adev->gds.mem.gfx_partition_size = 1024;
-		adev->gds.mem.cs_partition_size = 1024;
-
-		adev->gds.gws.gfx_partition_size = 16;
-		adev->gds.gws.cs_partition_size = 16;
-
-		adev->gds.oa.gfx_partition_size = 4;
-		adev->gds.oa.cs_partition_size = 4;
-	}
 }
 
 

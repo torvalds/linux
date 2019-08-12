@@ -7,12 +7,18 @@
  *	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/delay.h>
+#include <linux/highmem.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+
+#include "framebuffer.h"
 #include "gma_display.h"
+#include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_drv.h"
-#include "framebuffer.h"
 
 /**
  * Returns whether any output on the specified pipe is of the specified type

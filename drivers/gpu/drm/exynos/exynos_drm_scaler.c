@@ -5,22 +5,22 @@
  *	Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 
-#include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
+#include <linux/kernel.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
 #include <drm/exynos_drm.h>
-#include "regs-scaler.h"
-#include "exynos_drm_fb.h"
+
 #include "exynos_drm_drv.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_ipp.h"
+#include "regs-scaler.h"
 
 #define scaler_read(offset)		readl(scaler->regs + (offset))
 #define scaler_write(cfg, offset)	writel(cfg, scaler->regs + (offset))
@@ -94,12 +94,12 @@ static inline int scaler_reset(struct scaler_context *scaler)
 	scaler_write(SCALER_CFG_SOFT_RESET, SCALER_CFG);
 	do {
 		cpu_relax();
-	} while (retry > 1 &&
+	} while (--retry > 1 &&
 		 scaler_read(SCALER_CFG) & SCALER_CFG_SOFT_RESET);
 	do {
 		cpu_relax();
 		scaler_write(1, SCALER_INT_EN);
-	} while (retry > 0 && scaler_read(SCALER_INT_EN) != 1);
+	} while (--retry > 0 && scaler_read(SCALER_INT_EN) != 1);
 
 	return retry ? 0 : -EIO;
 }

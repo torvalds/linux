@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_IBUS_H__
 #define __NVKM_IBUS_H__
 #include <core/subdev.h>

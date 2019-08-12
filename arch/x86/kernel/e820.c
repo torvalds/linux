@@ -86,9 +86,9 @@ static bool _e820__mapped_any(struct e820_table *table,
 			continue;
 		if (entry->addr >= end || entry->addr + entry->size <= start)
 			continue;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 bool e820__mapped_raw_any(u64 start, u64 end, enum e820_type type)
@@ -1063,10 +1063,10 @@ static unsigned long __init e820_type_to_iores_desc(struct e820_entry *entry)
 	case E820_TYPE_NVS:		return IORES_DESC_ACPI_NV_STORAGE;
 	case E820_TYPE_PMEM:		return IORES_DESC_PERSISTENT_MEMORY;
 	case E820_TYPE_PRAM:		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
+	case E820_TYPE_RESERVED:	return IORES_DESC_RESERVED;
 	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
 	case E820_TYPE_RAM:		/* Fall-through: */
 	case E820_TYPE_UNUSABLE:	/* Fall-through: */
-	case E820_TYPE_RESERVED:	/* Fall-through: */
 	default:			return IORES_DESC_NONE;
 	}
 }

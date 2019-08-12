@@ -11,17 +11,17 @@
 #include <linux/kref.h>
 #include <linux/mm_types.h>
 
-#include <drm/drmP.h>
-#include <drm/gma_drm.h>
-#include "psb_reg.h"
-#include "psb_intel_drv.h"
+#include <drm/drm_device.h>
+
 #include "gma_display.h"
-#include "intel_bios.h"
 #include "gtt.h"
-#include "power.h"
-#include "opregion.h"
-#include "oaktrail.h"
+#include "intel_bios.h"
 #include "mmu.h"
+#include "oaktrail.h"
+#include "opregion.h"
+#include "power.h"
+#include "psb_intel_drv.h"
+#include "psb_reg.h"
 
 #define DRIVER_AUTHOR "Alan Cox <alan@linux.intel.com> and others"
 

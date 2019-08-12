@@ -24,14 +24,15 @@
  */
 
 #include <linux/list.h>
-#include <drm/drmP.h>
-#include <drm/drm_plane_helper.h>
-#include <drm/drm_rect.h>
+
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_rect.h>
 
 #define SUBPIXEL_MASK 0xffff
 

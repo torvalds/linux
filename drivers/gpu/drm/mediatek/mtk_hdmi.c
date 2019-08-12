@@ -333,6 +333,9 @@ static void mtk_hdmi_hw_send_info_frame(struct mtk_hdmi *hdmi, u8 *buffer,
 		ctrl_frame_en = VS_EN;
 		ctrl_reg = GRL_ACP_ISRC_CTRL;
 		break;
+	default:
+		dev_err(hdmi->dev, "Unknown infoframe type %d\n", frame_type);
+		return;
 	}
 	mtk_hdmi_clear_bits(hdmi, ctrl_reg, ctrl_frame_en);
 	mtk_hdmi_write(hdmi, GRL_INFOFRM_TYPE, frame_type);

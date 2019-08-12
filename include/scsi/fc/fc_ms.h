@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* * Copyright(c) 2011 Intel Corporation. All rights reserved.
+/*
+ * Copyright(c) 2011 Intel Corporation. All rights reserved.
  *
  * Maintained at www.Open-FCoE.org
  */

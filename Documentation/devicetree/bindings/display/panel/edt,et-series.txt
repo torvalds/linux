@@ -6,6 +6,22 @@ Display bindings for EDT Display Technology Corp. Displays which are
 compatible with the simple-panel binding, which is specified in
 simple-panel.txt
 
+3,5" QVGA TFT Panels
+--------------------
++-----------------+---------------------+-------------------------------------+
+| Identifier      | compatbile          | description                         |
++=================+=====================+=====================================+
+| ET035012DM6     | edt,et035012dm6     | 3.5" QVGA TFT LCD panel             |
++-----------------+---------------------+-------------------------------------+
+
+4,3" WVGA TFT Panels
+--------------------
+
++-----------------+---------------------+-------------------------------------+
+| Identifier      | compatbile          | description                         |
++=================+=====================+=====================================+
+| ETM0430G0DH6    | edt,etm0430g0dh6    | 480x272 TFT Display                 |
++-----------------+---------------------+-------------------------------------+
 
 5,7" WVGA TFT Panels
 --------------------

@@ -2752,6 +2752,24 @@ TRACE_EVENT(cfg80211_ready_on_channel_expired,
 		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG)
 );
 
+TRACE_EVENT(cfg80211_tx_mgmt_expired,
+	TP_PROTO(struct wireless_dev *wdev, u64 cookie,
+		 struct ieee80211_channel *chan),
+	TP_ARGS(wdev, cookie, chan),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u64, cookie)
+		CHAN_ENTRY
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->cookie = cookie;
+		CHAN_ASSIGN(chan);
+	),
+	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT,
+		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG)
+);
+
 TRACE_EVENT(cfg80211_new_sta,
 	TP_PROTO(struct net_device *netdev, const u8 *mac_addr,
 		 struct station_info *sinfo),

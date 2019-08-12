@@ -3,23 +3,19 @@
  * Copyright (c) 2004-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include <linux/compat.h>
-#include <linux/ioctl.h>
 #include <linux/mount.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
 #include <linux/fsmap.h>
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
+#include "xfs_iwalk.h"
 #include "xfs_itable.h"
-#include "xfs_error.h"
 #include "xfs_fsops.h"
-#include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_attr.h"
 #include "xfs_ioctl.h"
@@ -84,27 +80,26 @@ xfs_compat_growfs_rt_copyin(
 }
 
 STATIC int
-xfs_inumbers_fmt_compat(
-	void			__user *ubuffer,
-	const struct xfs_inogrp	*buffer,
-	long			count,
-	long			*written)
+xfs_fsinumbers_fmt_compat(
+	struct xfs_ibulk		*breq,
+	const struct xfs_inumbers	*ig)
 {
-	compat_xfs_inogrp_t	__user *p32 = ubuffer;
-	long			i;
+	struct compat_xfs_inogrp __user	*p32 = breq->ubuffer;
+	struct xfs_inogrp		ig1;
+	struct xfs_inogrp		*igrp = &ig1;
 
-	for (i = 0; i < count; i++) {
-		if (put_user(buffer[i].xi_startino,   &p32[i].xi_startino) ||
-		    put_user(buffer[i].xi_alloccount, &p32[i].xi_alloccount) ||
-		    put_user(buffer[i].xi_allocmask,  &p32[i].xi_allocmask))
-			return -EFAULT;
-	}
-	*written = count * sizeof(*p32);
-	return 0;
+	xfs_inumbers_to_inogrp(&ig1, ig);
+
+	if (put_user(igrp->xi_startino,   &p32->xi_startino) ||
+	    put_user(igrp->xi_alloccount, &p32->xi_alloccount) ||
+	    put_user(igrp->xi_allocmask,  &p32->xi_allocmask))
+		return -EFAULT;
+
+	return xfs_ibulk_advance(breq, sizeof(struct compat_xfs_inogrp));
 }
 
 #else
-#define xfs_inumbers_fmt_compat xfs_inumbers_fmt
+#define xfs_fsinumbers_fmt_compat xfs_fsinumbers_fmt
 #endif	/* BROKEN_X86_ALIGNMENT */
 
 STATIC int
@@ -121,11 +116,14 @@ xfs_ioctl32_bstime_copyin(
 	return 0;
 }
 
-/* xfs_bstat_t has differing alignment on intel, & bstime_t sizes everywhere */
+/*
+ * struct xfs_bstat has differing alignment on intel, & bstime_t sizes
+ * everywhere
+ */
 STATIC int
 xfs_ioctl32_bstat_copyin(
-	xfs_bstat_t		*bstat,
-	compat_xfs_bstat_t	__user *bstat32)
+	struct xfs_bstat		*bstat,
+	struct compat_xfs_bstat	__user	*bstat32)
 {
 	if (get_user(bstat->bs_ino,	&bstat32->bs_ino)	||
 	    get_user(bstat->bs_mode,	&bstat32->bs_mode)	||
@@ -171,16 +169,15 @@ xfs_bstime_store_compat(
 
 /* Return 0 on success or positive error (to xfs_bulkstat()) */
 STATIC int
-xfs_bulkstat_one_fmt_compat(
-	void			__user *ubuffer,
-	int			ubsize,
-	int			*ubused,
-	const xfs_bstat_t	*buffer)
+xfs_fsbulkstat_one_fmt_compat(
+	struct xfs_ibulk		*breq,
+	const struct xfs_bulkstat	*bstat)
 {
-	compat_xfs_bstat_t	__user *p32 = ubuffer;
+	struct compat_xfs_bstat	__user	*p32 = breq->ubuffer;
+	struct xfs_bstat		bs1;
+	struct xfs_bstat		*buffer = &bs1;
 
-	if (ubsize < sizeof(*p32))
-		return -ENOMEM;
+	xfs_bulkstat_to_bstat(breq->mp, &bs1, bstat);
 
 	if (put_user(buffer->bs_ino,	  &p32->bs_ino)		||
 	    put_user(buffer->bs_mode,	  &p32->bs_mode)	||
@@ -205,37 +202,24 @@ xfs_bulkstat_one_fmt_compat(
 	    put_user(buffer->bs_dmstate,  &p32->bs_dmstate)	||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))
 		return -EFAULT;
-	if (ubused)
-		*ubused = sizeof(*p32);
-	return 0;
-}
 
-STATIC int
-xfs_bulkstat_one_compat(
-	xfs_mount_t	*mp,		/* mount point for filesystem */
-	xfs_ino_t	ino,		/* inode number to get data for */
-	void		__user *buffer,	/* buffer to place output in */
-	int		ubsize,		/* size of buffer */
-	int		*ubused,	/* bytes used by me */
-	int		*stat)		/* BULKSTAT_RV_... */
-{
-	return xfs_bulkstat_one_int(mp, ino, buffer, ubsize,
-				    xfs_bulkstat_one_fmt_compat,
-				    ubused, stat);
+	return xfs_ibulk_advance(breq, sizeof(struct compat_xfs_bstat));
 }
 
 /* copied from xfs_ioctl.c */
 STATIC int
-xfs_compat_ioc_bulkstat(
+xfs_compat_ioc_fsbulkstat(
 	xfs_mount_t		  *mp,
 	unsigned int		  cmd,
-	compat_xfs_fsop_bulkreq_t __user *p32)
+	struct compat_xfs_fsop_bulkreq __user *p32)
 {
 	u32			addr;
-	xfs_fsop_bulkreq_t	bulkreq;
-	int			count;	/* # of records returned */
-	xfs_ino_t		inlast;	/* last inode number */
-	int			done;
+	struct xfs_fsop_bulkreq	bulkreq;
+	struct xfs_ibulk	breq = {
+		.mp		= mp,
+		.ocount		= 0,
+	};
+	xfs_ino_t		lastino;
 	int			error;
 
 	/*
@@ -244,9 +228,8 @@ xfs_compat_ioc_bulkstat(
 	 * to userpace memory via bulkreq.ubuffer.  Normally the compat
 	 * functions and structure size are the correct ones to use ...
 	 */
-	inumbers_fmt_pf inumbers_func = xfs_inumbers_fmt_compat;
-	bulkstat_one_pf	bs_one_func = xfs_bulkstat_one_compat;
-	size_t bs_one_size = sizeof(struct compat_xfs_bstat);
+	inumbers_fmt_pf		inumbers_func = xfs_fsinumbers_fmt_compat;
+	bulkstat_one_fmt_pf	bs_one_func = xfs_fsbulkstat_one_fmt_compat;
 
 #ifdef CONFIG_X86_X32
 	if (in_x32_syscall()) {
@@ -258,9 +241,8 @@ xfs_compat_ioc_bulkstat(
 		 * the data written out in compat layout will not match what
 		 * x32 userspace expects.
 		 */
-		inumbers_func = xfs_inumbers_fmt;
-		bs_one_func = xfs_bulkstat_one;
-		bs_one_size = sizeof(struct xfs_bstat);
+		inumbers_func = xfs_fsinumbers_fmt;
+		bs_one_func = xfs_fsbulkstat_one_fmt;
 	}
 #endif
 
@@ -284,40 +266,55 @@ xfs_compat_ioc_bulkstat(
 		return -EFAULT;
 	bulkreq.ocount = compat_ptr(addr);
 
-	if (copy_from_user(&inlast, bulkreq.lastip, sizeof(__s64)))
+	if (copy_from_user(&lastino, bulkreq.lastip, sizeof(__s64)))
 		return -EFAULT;
 
-	if ((count = bulkreq.icount) <= 0)
+	if (bulkreq.icount <= 0)
 		return -EINVAL;
 
 	if (bulkreq.ubuffer == NULL)
 		return -EINVAL;
 
-	if (cmd == XFS_IOC_FSINUMBERS_32) {
-		error = xfs_inumbers(mp, &inlast, &count,
-				bulkreq.ubuffer, inumbers_func);
-	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE_32) {
-		int res;
+	breq.ubuffer = bulkreq.ubuffer;
+	breq.icount = bulkreq.icount;
 
-		error = bs_one_func(mp, inlast, bulkreq.ubuffer,
-				bs_one_size, NULL, &res);
+	/*
+	 * FSBULKSTAT_SINGLE expects that *lastip contains the inode number
+	 * that we want to stat.  However, FSINUMBERS and FSBULKSTAT expect
+	 * that *lastip contains either zero or the number of the last inode to
+	 * be examined by the previous call and return results starting with
+	 * the next inode after that.  The new bulk request back end functions
+	 * take the inode to start with, so we have to compute the startino
+	 * parameter from lastino to maintain correct function.  lastino == 0
+	 * is a special case because it has traditionally meant "first inode
+	 * in filesystem".
+	 */
+	if (cmd == XFS_IOC_FSINUMBERS_32) {
+		breq.startino = lastino ? lastino + 1 : 0;
+		error = xfs_inumbers(&breq, inumbers_func);
+		lastino = breq.startino - 1;
+	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE_32) {
+		breq.startino = lastino;
+		breq.icount = 1;
+		error = xfs_bulkstat_one(&breq, bs_one_func);
+		lastino = breq.startino;
 	} else if (cmd == XFS_IOC_FSBULKSTAT_32) {
-		error = xfs_bulkstat(mp, &inlast, &count,
-			bs_one_func, bs_one_size,
-			bulkreq.ubuffer, &done);
-	} else
+		breq.startino = lastino ? lastino + 1 : 0;
+		error = xfs_bulkstat(&breq, bs_one_func);
+		lastino = breq.startino - 1;
+	} else {
 		error = -EINVAL;
+	}
 	if (error)
 		return error;
 
-	if (bulkreq.ocount != NULL) {
-		if (copy_to_user(bulkreq.lastip, &inlast,
-						sizeof(xfs_ino_t)))
-			return -EFAULT;
+	if (bulkreq.lastip != NULL &&
+	    copy_to_user(bulkreq.lastip, &lastino, sizeof(xfs_ino_t)))
+		return -EFAULT;
 
-		if (copy_to_user(bulkreq.ocount, &count, sizeof(count)))
-			return -EFAULT;
-	}
+	if (bulkreq.ocount != NULL &&
+	    copy_to_user(bulkreq.ocount, &breq.ocount, sizeof(__s32)))
+		return -EFAULT;
 
 	return 0;
 }
@@ -577,6 +574,8 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_ERROR_CLEARALL:
 	case FS_IOC_GETFSMAP:
 	case XFS_IOC_SCRUB_METADATA:
+	case XFS_IOC_BULKSTAT:
+	case XFS_IOC_INUMBERS:
 		return xfs_file_ioctl(filp, cmd, p);
 #if !defined(BROKEN_X86_ALIGNMENT) || defined(CONFIG_X86_X32)
 	/*
@@ -674,7 +673,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:
 	case XFS_IOC_FSINUMBERS_32:
-		return xfs_compat_ioc_bulkstat(mp, cmd, arg);
+		return xfs_compat_ioc_fsbulkstat(mp, cmd, arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_FSHANDLE_32: {

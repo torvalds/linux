@@ -792,7 +792,8 @@ struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 void pvr2_sysfs_class_destroy(struct pvr2_sysfs_class *clp)
 {
 	pvr2_sysfs_trace("Unregistering pvr2_sysfs_class id=%p", clp);
-	class_unregister(&clp->class);
+	if (clp)
+		class_unregister(&clp->class);
 }
 
 

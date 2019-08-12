@@ -13,7 +13,7 @@
 	compatible = "phicomm,k3", "brcm,bcm47094", "brcm,bcm4708";
 	model = "Phicomm K3";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x08000000
 		       0x88000000 0x18000000>;
@@ -21,8 +21,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		restart {
 			label = "Reset";

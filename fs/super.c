@@ -476,6 +476,14 @@ void generic_shutdown_super(struct super_block *sb)
 
 EXPORT_SYMBOL(generic_shutdown_super);
 
+bool mount_capable(struct fs_context *fc)
+{
+	if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT))
+		return capable(CAP_SYS_ADMIN);
+	else
+		return ns_capable(fc->user_ns, CAP_SYS_ADMIN);
+}
+
 /**
  * sget_fc - Find or create a superblock
  * @fc:	Filesystem context.
@@ -503,20 +511,6 @@ struct super_block *sget_fc(struct fs_context *fc,
 	struct user_namespace *user_ns = fc->global ? &init_user_ns : fc->user_ns;
 	int err;
 
-	if (!(fc->sb_flags & SB_KERNMOUNT) &&
-	    fc->purpose != FS_CONTEXT_FOR_SUBMOUNT) {
-		/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
-		 * over the namespace.
-		 */
-		if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
-			if (!capable(CAP_SYS_ADMIN))
-				return ERR_PTR(-EPERM);
-		} else {
-			if (!ns_capable(fc->user_ns, CAP_SYS_ADMIN))
-				return ERR_PTR(-EPERM);
-		}
-	}
-
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -543,6 +537,7 @@ retry:
 	}
 	fc->s_fs_info = NULL;
 	s->s_type = fc->fs_type;
+	s->s_iflags |= fc->s_iflags;
 	strlcpy(s->s_id, s->s_type->name, sizeof(s->s_id));
 	list_add_tail(&s->s_list, &super_blocks);
 	hlist_add_head(&s->s_instances, &s->s_type->fs_supers);
@@ -565,28 +560,31 @@ share_extant_sb:
 EXPORT_SYMBOL(sget_fc);
 
 /**
- *	sget_userns -	find or create a superblock
- *	@type:	filesystem type superblock should belong to
- *	@test:	comparison callback
- *	@set:	setup callback
- *	@flags:	mount flags
- *	@user_ns: User namespace for the super_block
- *	@data:	argument to each of them
+ *	sget	-	find or create a superblock
+ *	@type:	  filesystem type superblock should belong to
+ *	@test:	  comparison callback
+ *	@set:	  setup callback
+ *	@flags:	  mount flags
+ *	@data:	  argument to each of them
  */
-struct super_block *sget_userns(struct file_system_type *type,
+struct super_block *sget(struct file_system_type *type,
 			int (*test)(struct super_block *,void *),
 			int (*set)(struct super_block *,void *),
-			int flags, struct user_namespace *user_ns,
+			int flags,
 			void *data)
 {
+	struct user_namespace *user_ns = current_user_ns();
 	struct super_block *s = NULL;
 	struct super_block *old;
 	int err;
 
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) &&
-	    !(type->fs_flags & FS_USERNS_MOUNT) &&
-	    !capable(CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
+	/* We don't yet pass the user namespace of the parent
+	 * mount through to here so always use &init_user_ns
+	 * until that changes.
+	 */
+	if (flags & SB_SUBMOUNT)
+		user_ns = &init_user_ns;
+
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -627,39 +625,6 @@ retry:
 	register_shrinker_prepared(&s->s_shrink);
 	return s;
 }
-
-EXPORT_SYMBOL(sget_userns);
-
-/**
- *	sget	-	find or create a superblock
- *	@type:	  filesystem type superblock should belong to
- *	@test:	  comparison callback
- *	@set:	  setup callback
- *	@flags:	  mount flags
- *	@data:	  argument to each of them
- */
-struct super_block *sget(struct file_system_type *type,
-			int (*test)(struct super_block *,void *),
-			int (*set)(struct super_block *,void *),
-			int flags,
-			void *data)
-{
-	struct user_namespace *user_ns = current_user_ns();
-
-	/* We don't yet pass the user namespace of the parent
-	 * mount through to here so always use &init_user_ns
-	 * until that changes.
-	 */
-	if (flags & SB_SUBMOUNT)
-		user_ns = &init_user_ns;
-
-	/* Ensure the requestor has permissions over the target filesystem */
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	return sget_userns(type, test, set, flags, user_ns, data);
-}
-
 EXPORT_SYMBOL(sget);
 
 void drop_super(struct super_block *sb)
@@ -1147,50 +1112,6 @@ void kill_litter_super(struct super_block *sb)
 }
 EXPORT_SYMBOL(kill_litter_super);
 
-static int ns_test_super(struct super_block *sb, void *data)
-{
-	return sb->s_fs_info == data;
-}
-
-static int ns_set_super(struct super_block *sb, void *data)
-{
-	sb->s_fs_info = data;
-	return set_anon_super(sb, NULL);
-}
-
-struct dentry *mount_ns(struct file_system_type *fs_type,
-	int flags, void *data, void *ns, struct user_namespace *user_ns,
-	int (*fill_super)(struct super_block *, void *, int))
-{
-	struct super_block *sb;
-
-	/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
-	 * over the namespace.
-	 */
-	if (!(flags & SB_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	sb = sget_userns(fs_type, ns_test_super, ns_set_super, flags,
-			 user_ns, ns);
-	if (IS_ERR(sb))
-		return ERR_CAST(sb);
-
-	if (!sb->s_root) {
-		int err;
-		err = fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
-		if (err) {
-			deactivate_locked_super(sb);
-			return ERR_PTR(err);
-		}
-
-		sb->s_flags |= SB_ACTIVE;
-	}
-
-	return dget(sb->s_root);
-}
-
-EXPORT_SYMBOL(mount_ns);
-
 int set_anon_super_fc(struct super_block *sb, struct fs_context *fc)
 {
 	return set_anon_super(sb, NULL);
@@ -1273,6 +1194,22 @@ int vfs_get_super(struct fs_context *fc,
 	return 0;
 }
 EXPORT_SYMBOL(vfs_get_super);
+
+int get_tree_nodev(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc))
+{
+	return vfs_get_super(fc, vfs_get_independent_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_nodev);
+
+int get_tree_single(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc))
+{
+	return vfs_get_super(fc, vfs_get_single_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_single);
 
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)

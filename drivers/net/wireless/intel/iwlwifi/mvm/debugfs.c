@@ -467,6 +467,46 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_sta *sta,
+					 char *buf, size_t count,
+					 loff_t *ppos)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	int i;
+	u16 amsdu_len;
+
+	if (kstrtou16(buf, 0, &amsdu_len))
+		return -EINVAL;
+
+	if (amsdu_len) {
+		mvmsta->orig_amsdu_len = sta->max_amsdu_len;
+		sta->max_amsdu_len = amsdu_len;
+		for (i = 0; i < ARRAY_SIZE(sta->max_tid_amsdu_len); i++)
+			sta->max_tid_amsdu_len[i] = amsdu_len;
+	} else {
+		sta->max_amsdu_len = mvmsta->orig_amsdu_len;
+		mvmsta->orig_amsdu_len = 0;
+	}
+	return count;
+}
+
+static ssize_t iwl_dbgfs_amsdu_len_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	char buf[32];
+	int pos;
+
+	pos = scnprintf(buf, sizeof(buf), "current %d ", sta->max_amsdu_len);
+	pos += scnprintf(buf + pos, sizeof(buf) - pos, "stored %d\n",
+			 mvmsta->orig_amsdu_len);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 static ssize_t iwl_dbgfs_disable_power_off_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos)
@@ -1356,24 +1396,6 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 	return count;
 }
 
-static ssize_t iwl_dbgfs_max_amsdu_len_write(struct iwl_mvm *mvm,
-					     char *buf, size_t count,
-					     loff_t *ppos)
-{
-	unsigned int max_amsdu_len;
-	int ret;
-
-	ret = kstrtouint(buf, 0, &max_amsdu_len);
-	if (ret)
-		return ret;
-
-	if (max_amsdu_len > IEEE80211_MAX_MPDU_LEN_VHT_11454)
-		return -EINVAL;
-	mvm->max_amsdu_len = max_amsdu_len;
-
-	return count;
-}
-
 #define ADD_TEXT(...) pos += scnprintf(buf + pos, bufsz - pos, __VA_ARGS__)
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 static ssize_t iwl_dbgfs_bcast_filters_read(struct file *file,
@@ -1873,7 +1895,6 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
-MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
@@ -1890,6 +1911,8 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 #ifdef CONFIG_ACPI
 MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
 #endif
+
+MVM_DEBUGFS_READ_WRITE_STA_FILE_OPS(amsdu_len, 16);
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(he_sniffer_params, 32);
 
@@ -2032,8 +2055,10 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	if (iwl_mvm_has_tlc_offload(mvm))
+	if (iwl_mvm_has_tlc_offload(mvm)) {
 		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, 0400);
+	}
+	MVM_DEBUGFS_ADD_STA_FILE(amsdu_len, dir, 0600);
 }
 
 void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
@@ -2069,7 +2094,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(max_amsdu_len, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);

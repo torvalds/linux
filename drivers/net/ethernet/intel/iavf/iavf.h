@@ -109,7 +109,7 @@ struct iavf_q_vector {
 
 /* Helper macros to switch between ints/sec and what the register uses.
  * And yes, it's the same math going both ways.  The lowest value
- * supported by all of the i40e hardware is 8.
+ * supported by all of the iavf hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
 	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
@@ -171,6 +171,7 @@ enum iavf_state_t {
 	__IAVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
 	__IAVF_INIT_SW,		/* got resources, setting up structs */
 	__IAVF_RESETTING,		/* in reset */
+	__IAVF_COMM_FAILED,		/* communication with PF failed */
 	/* Below here, watchdog is running */
 	__IAVF_DOWN,			/* ready, can be opened */
 	__IAVF_DOWN_PENDING,		/* descending, waiting for watchdog */
@@ -216,7 +217,6 @@ struct iavf_cloud_filter {
 
 /* board specific private data structure */
 struct iavf_adapter {
-	struct timer_list watchdog_timer;
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
@@ -244,7 +244,7 @@ struct iavf_adapter {
 	int num_iwarp_msix;
 	int iwarp_base_vector;
 	u32 client_pending;
-	struct i40e_client_instance *cinst;
+	struct iavf_client_instance *cinst;
 	struct msix_entry *msix_entries;
 
 	u32 flags;
@@ -303,7 +303,7 @@ struct iavf_adapter {
 	enum iavf_state_t state;
 	unsigned long crit_section;
 
-	struct work_struct watchdog_task;
+	struct delayed_work watchdog_task;
 	bool netdev_registered;
 	bool link_up;
 	enum virtchnl_link_speed link_speed;
@@ -351,7 +351,7 @@ struct iavf_adapter {
 /* Ethtool Private Flags */
 
 /* lan device, used by client interface */
-struct i40e_device {
+struct iavf_device {
 	struct list_head list;
 	struct iavf_adapter *vf;
 };
@@ -359,6 +359,7 @@ struct i40e_device {
 /* needed by iavf_ethtool.c */
 extern char iavf_driver_name[];
 extern const char iavf_driver_version[];
+extern struct workqueue_struct *iavf_wq;
 
 int iavf_up(struct iavf_adapter *adapter);
 void iavf_down(struct iavf_adapter *adapter);
@@ -402,7 +403,7 @@ void iavf_enable_vlan_stripping(struct iavf_adapter *adapter);
 void iavf_disable_vlan_stripping(struct iavf_adapter *adapter);
 void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			      enum virtchnl_ops v_opcode,
-			      iavf_status v_retval, u8 *msg, u16 msglen);
+			      enum iavf_status v_retval, u8 *msg, u16 msglen);
 int iavf_config_rss(struct iavf_adapter *adapter);
 int iavf_lan_add_device(struct iavf_adapter *adapter);
 int iavf_lan_del_device(struct iavf_adapter *adapter);

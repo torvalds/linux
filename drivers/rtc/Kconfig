@@ -374,11 +374,11 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK805/RK808/RK818 RTC"
+	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK805, RK808 and RK818 PMIC.
+	  RTC of RK805, RK809 and RK817, RK808 and RK818 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
@@ -498,6 +498,14 @@ config RTC_DRV_M41T80_WDT
 	help
 	  If you say Y here you will get support for the
 	  watchdog timer in the ST M41T60 and M41T80 RTC chips series.
+config RTC_DRV_BD70528
+	tristate "ROHM BD70528 PMIC RTC"
+	help
+	  If you say Y here you will get support for the RTC
+	  on ROHM BD70528 Power Management IC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-bd70528.
 
 config RTC_DRV_BQ32K
 	tristate "TI BQ32000"
@@ -554,7 +562,7 @@ config RTC_DRV_TPS6586X
 
 config RTC_DRV_TPS65910
 	tristate "TI TPS65910 RTC driver"
-	depends on RTC_CLASS && MFD_TPS65910
+	depends on MFD_TPS65910
 	help
 	  If you say yes here you get support for the RTC on the
 	  TPS65910 chips.
@@ -812,6 +820,7 @@ config RTC_DRV_MAX6902
 
 config RTC_DRV_PCF2123
 	tristate "NXP PCF2123"
+	select REGMAP_SPI
 	help
 	  If you say yes here you get support for the NXP PCF2123
 	  RTC chip.

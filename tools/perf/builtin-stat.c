@@ -43,7 +43,6 @@
 #include "perf.h"
 #include "builtin.h"
 #include "util/cgroup.h"
-#include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/pmu.h"
@@ -67,6 +66,7 @@
 #include "asm/bug.h"
 
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include <api/fs/fs.h>
 #include <errno.h>
 #include <signal.h>
@@ -82,7 +82,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define DEFAULT_SEPARATOR	" "
 #define FREEZE_ON_SMI_PATH	"devices/cpu/freeze_on_smi"
@@ -607,7 +607,13 @@ try_again:
 	 * group leaders.
 	 */
 	read_counters(&(struct timespec) { .tv_nsec = t1-t0 });
-	perf_evlist__close(evsel_list);
+
+	/*
+	 * We need to keep evsel_list alive, because it's processed
+	 * later the evsel_list will be closed after.
+	 */
+	if (!STAT_RECORD)
+		perf_evlist__close(evsel_list);
 
 	return WEXITSTATUS(status);
 }
@@ -776,6 +782,8 @@ static struct option stat_options[] = {
 		    "stop workload and print counts after a timeout period in ms (>= 10ms)"),
 	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
+	OPT_SET_UINT(0, "per-die", &stat_config.aggr_mode,
+		     "aggregate counts per processor die", AGGR_DIE),
 	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
@@ -798,6 +806,12 @@ static int perf_stat__get_socket(struct perf_stat_config *config __maybe_unused,
 				 struct cpu_map *map, int cpu)
 {
 	return cpu_map__get_socket(map, cpu, NULL);
+}
+
+static int perf_stat__get_die(struct perf_stat_config *config __maybe_unused,
+			      struct cpu_map *map, int cpu)
+{
+	return cpu_map__get_die(map, cpu, NULL);
 }
 
 static int perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
@@ -840,6 +854,12 @@ static int perf_stat__get_socket_cached(struct perf_stat_config *config,
 	return perf_stat__get_aggr(config, perf_stat__get_socket, map, idx);
 }
 
+static int perf_stat__get_die_cached(struct perf_stat_config *config,
+					struct cpu_map *map, int idx)
+{
+	return perf_stat__get_aggr(config, perf_stat__get_die, map, idx);
+}
+
 static int perf_stat__get_core_cached(struct perf_stat_config *config,
 				      struct cpu_map *map, int idx)
 {
@@ -869,6 +889,13 @@ static int perf_stat_init_aggr_mode(void)
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_socket_cached;
+		break;
+	case AGGR_DIE:
+		if (cpu_map__build_die_map(evsel_list->cpus, &stat_config.aggr_map)) {
+			perror("cannot build die map");
+			return -1;
+		}
+		stat_config.aggr_get_id = perf_stat__get_die_cached;
 		break;
 	case AGGR_CORE:
 		if (cpu_map__build_core_map(evsel_list->cpus, &stat_config.aggr_map)) {
@@ -935,21 +962,55 @@ static int perf_env__get_socket(struct cpu_map *map, int idx, void *data)
 	return cpu == -1 ? -1 : env->cpu[cpu].socket_id;
 }
 
+static int perf_env__get_die(struct cpu_map *map, int idx, void *data)
+{
+	struct perf_env *env = data;
+	int die_id = -1, cpu = perf_env__get_cpu(env, map, idx);
+
+	if (cpu != -1) {
+		/*
+		 * Encode socket in bit range 15:8
+		 * die_id is relative to socket,
+		 * we need a global id. So we combine
+		 * socket + die id
+		 */
+		if (WARN_ONCE(env->cpu[cpu].socket_id >> 8, "The socket id number is too big.\n"))
+			return -1;
+
+		if (WARN_ONCE(env->cpu[cpu].die_id >> 8, "The die id number is too big.\n"))
+			return -1;
+
+		die_id = (env->cpu[cpu].socket_id << 8) | (env->cpu[cpu].die_id & 0xff);
+	}
+
+	return die_id;
+}
+
 static int perf_env__get_core(struct cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
 	int core = -1, cpu = perf_env__get_cpu(env, map, idx);
 
 	if (cpu != -1) {
-		int socket_id = env->cpu[cpu].socket_id;
-
 		/*
-		 * Encode socket in upper 16 bits
-		 * core_id is relative to socket, and
+		 * Encode socket in bit range 31:24
+		 * encode die id in bit range 23:16
+		 * core_id is relative to socket and die,
 		 * we need a global id. So we combine
-		 * socket + core id.
+		 * socket + die id + core id
 		 */
-		core = (socket_id << 16) | (env->cpu[cpu].core_id & 0xffff);
+		if (WARN_ONCE(env->cpu[cpu].socket_id >> 8, "The socket id number is too big.\n"))
+			return -1;
+
+		if (WARN_ONCE(env->cpu[cpu].die_id >> 8, "The die id number is too big.\n"))
+			return -1;
+
+		if (WARN_ONCE(env->cpu[cpu].core_id >> 16, "The core id number is too big.\n"))
+			return -1;
+
+		core = (env->cpu[cpu].socket_id << 24) |
+		       (env->cpu[cpu].die_id << 16) |
+		       (env->cpu[cpu].core_id & 0xffff);
 	}
 
 	return core;
@@ -959,6 +1020,12 @@ static int perf_env__build_socket_map(struct perf_env *env, struct cpu_map *cpus
 				      struct cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, perf_env__get_socket, env);
+}
+
+static int perf_env__build_die_map(struct perf_env *env, struct cpu_map *cpus,
+				   struct cpu_map **diep)
+{
+	return cpu_map__build_map(cpus, diep, perf_env__get_die, env);
 }
 
 static int perf_env__build_core_map(struct perf_env *env, struct cpu_map *cpus,
@@ -971,6 +1038,11 @@ static int perf_stat__get_socket_file(struct perf_stat_config *config __maybe_un
 				      struct cpu_map *map, int idx)
 {
 	return perf_env__get_socket(map, idx, &perf_stat.session->header.env);
+}
+static int perf_stat__get_die_file(struct perf_stat_config *config __maybe_unused,
+				   struct cpu_map *map, int idx)
+{
+	return perf_env__get_die(map, idx, &perf_stat.session->header.env);
 }
 
 static int perf_stat__get_core_file(struct perf_stat_config *config __maybe_unused,
@@ -990,6 +1062,13 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_socket_file;
+		break;
+	case AGGR_DIE:
+		if (perf_env__build_die_map(env, evsel_list->cpus, &stat_config.aggr_map)) {
+			perror("cannot build die map");
+			return -1;
+		}
+		stat_config.aggr_get_id = perf_stat__get_die_file;
 		break;
 	case AGGR_CORE:
 		if (perf_env__build_core_map(env, evsel_list->cpus, &stat_config.aggr_map)) {
@@ -1276,8 +1355,8 @@ static int add_default_attributes(void)
 				fprintf(stderr,
 					"Cannot set up top down events %s: %d\n",
 					str, err);
-				free(str);
 				parse_events_print_error(&errinfo, str);
+				free(str);
 				return -1;
 			}
 		} else {
@@ -1513,7 +1592,7 @@ static void runtime_stat_delete(struct perf_stat_config *config)
 	for (i = 0; i < config->stats_num; i++)
 		runtime_stat__exit(&config->stats[i]);
 
-	free(config->stats);
+	zfree(&config->stats);
 }
 
 static const char * const stat_report_usage[] = {
@@ -1541,6 +1620,8 @@ static int __cmd_report(int argc, const char **argv)
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_SET_UINT(0, "per-socket", &perf_stat.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
+	OPT_SET_UINT(0, "per-die", &perf_stat.aggr_mode,
+		     "aggregate counts per processor die", AGGR_DIE),
 	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT('A', "no-aggr", &perf_stat.aggr_mode,
@@ -1922,13 +2003,14 @@ int cmd_stat(int argc, const char **argv)
 			perf_session__write_header(perf_stat.session, evsel_list, fd, true);
 		}
 
+		perf_evlist__close(evsel_list);
 		perf_session__delete(perf_stat.session);
 	}
 
 	perf_stat__exit_aggr_mode();
 	perf_evlist__free_stats(evsel_list);
 out:
-	free(stat_config.walltime_run);
+	zfree(&stat_config.walltime_run);
 
 	if (smi_cost && smi_reset)
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);

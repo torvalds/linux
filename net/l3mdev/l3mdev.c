@@ -118,6 +118,8 @@ EXPORT_SYMBOL_GPL(l3mdev_fib_table_by_index);
  *			     local and multicast addresses
  *	@net: network namespace for device index lookup
  *	@fl6: IPv6 flow struct for lookup
+ *	This function does not hold refcnt on the returned dst.
+ *	Caller must hold rcu_read_lock().
  */
 
 struct dst_entry *l3mdev_link_scope_lookup(struct net *net,
@@ -126,9 +128,8 @@ struct dst_entry *l3mdev_link_scope_lookup(struct net *net,
 	struct dst_entry *dst = NULL;
 	struct net_device *dev;
 
+	WARN_ON_ONCE(!rcu_read_lock_held());
 	if (fl6->flowi6_oif) {
-		rcu_read_lock();
-
 		dev = dev_get_by_index_rcu(net, fl6->flowi6_oif);
 		if (dev && netif_is_l3_slave(dev))
 			dev = netdev_master_upper_dev_get_rcu(dev);
@@ -136,8 +137,6 @@ struct dst_entry *l3mdev_link_scope_lookup(struct net *net,
 		if (dev && netif_is_l3_master(dev) &&
 		    dev->l3mdev_ops->l3mdev_link_scope_lookup)
 			dst = dev->l3mdev_ops->l3mdev_link_scope_lookup(dev, fl6);
-
-		rcu_read_unlock();
 	}
 
 	return dst;

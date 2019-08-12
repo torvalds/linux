@@ -1576,7 +1576,7 @@ hw_id_show(struct device *dev, struct device_attribute *attr,
 		struct intel_vgpu *vgpu = (struct intel_vgpu *)
 			mdev_get_drvdata(mdev);
 		return sprintf(buf, "%u\n",
-			       vgpu->submission.shadow_ctx->hw_id);
+			       vgpu->submission.shadow[0]->gem_context->hw_id);
 	}
 	return sprintf(buf, "\n");
 }
@@ -1904,6 +1904,18 @@ static int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 
 	entry = __gvt_cache_find_gfn(info->vgpu, gfn);
 	if (!entry) {
+		ret = gvt_dma_map_page(vgpu, gfn, dma_addr, size);
+		if (ret)
+			goto err_unlock;
+
+		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr, size);
+		if (ret)
+			goto err_unmap;
+	} else if (entry->size != size) {
+		/* the same gfn with different size: unmap and re-map */
+		gvt_dma_unmap_page(vgpu, gfn, entry->dma_addr, entry->size);
+		__gvt_cache_remove_entry(vgpu, entry);
+
 		ret = gvt_dma_map_page(vgpu, gfn, dma_addr, size);
 		if (ret)
 			goto err_unlock;

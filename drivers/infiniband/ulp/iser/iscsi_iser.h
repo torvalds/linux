@@ -225,14 +225,6 @@ enum iser_desc_type {
 	ISCSI_TX_DATAOUT
 };
 
-/* Maximum number of work requests per task:
- * Data memory region local invalidate + fast registration
- * Protection memory region local invalidate + fast registration
- * Signature memory region local invalidate + fast registration
- * PDU send
- */
-#define ISER_MAX_WRS 7
-
 /**
  * struct iser_tx_desc - iSER TX descriptor
  *
@@ -245,11 +237,9 @@ enum iser_desc_type {
  *                 unsolicited data-out or control
  * @num_sge:       number sges used on this TX task
  * @mapped:        Is the task header mapped
- * @wr_idx:        Current WR index
- * @wrs:           Array of WRs per task
- * @data_reg:      Data buffer registration details
- * @prot_reg:      Protection buffer registration details
- * @sig_attrs:     Signature attributes
+ * reg_wr:         registration WR
+ * send_wr:        send WR
+ * inv_wr:         invalidate WR
  */
 struct iser_tx_desc {
 	struct iser_ctrl             iser_header;
@@ -260,15 +250,9 @@ struct iser_tx_desc {
 	int                          num_sge;
 	struct ib_cqe		     cqe;
 	bool			     mapped;
-	u8                           wr_idx;
-	union iser_wr {
-		struct ib_send_wr		send;
-		struct ib_reg_wr		fast_reg;
-		struct ib_sig_handover_wr	sig;
-	} wrs[ISER_MAX_WRS];
-	struct iser_mem_reg          data_reg;
-	struct iser_mem_reg          prot_reg;
-	struct ib_sig_attrs          sig_attrs;
+	struct ib_reg_wr	     reg_wr;
+	struct ib_send_wr	     send_wr;
+	struct ib_send_wr	     inv_wr;
 };
 
 #define ISER_RX_PAD_SIZE	(256 - (ISER_RX_PAYLOAD_SIZE + \
@@ -388,6 +372,7 @@ struct iser_device {
  *
  * @mr:         memory region
  * @fmr_pool:   pool of fmrs
+ * @sig_mr:     signature memory region
  * @page_vec:   fast reg page list used by fmr pool
  * @mr_valid:   is mr valid indicator
  */
@@ -396,23 +381,9 @@ struct iser_reg_resources {
 		struct ib_mr             *mr;
 		struct ib_fmr_pool       *fmr_pool;
 	};
+	struct ib_mr                     *sig_mr;
 	struct iser_page_vec             *page_vec;
 	u8				  mr_valid:1;
-};
-
-/**
- * struct iser_pi_context - Protection information context
- *
- * @rsc:             protection buffer registration resources
- * @sig_mr:          signature enable memory region
- * @sig_mr_valid:    is sig_mr valid indicator
- * @sig_protected:   is region protected indicator
- */
-struct iser_pi_context {
-	struct iser_reg_resources	rsc;
-	struct ib_mr                   *sig_mr;
-	u8                              sig_mr_valid:1;
-	u8                              sig_protected:1;
 };
 
 /**
@@ -420,12 +391,12 @@ struct iser_pi_context {
  *
  * @list:           entry in connection fastreg pool
  * @rsc:            data buffer registration resources
- * @pi_ctx:         protection information context
+ * @sig_protected:  is region protected indicator
  */
 struct iser_fr_desc {
 	struct list_head		  list;
 	struct iser_reg_resources	  rsc;
-	struct iser_pi_context		 *pi_ctx;
+	bool				  sig_protected;
 	struct list_head                  all_list;
 };
 
@@ -673,21 +644,6 @@ iser_reg_desc_get_fmr(struct ib_conn *ib_conn);
 void
 iser_reg_desc_put_fmr(struct ib_conn *ib_conn,
 		      struct iser_fr_desc *desc);
-
-static inline struct ib_send_wr *
-iser_tx_next_wr(struct iser_tx_desc *tx_desc)
-{
-	struct ib_send_wr *cur_wr = &tx_desc->wrs[tx_desc->wr_idx].send;
-	struct ib_send_wr *last_wr;
-
-	if (tx_desc->wr_idx) {
-		last_wr = &tx_desc->wrs[tx_desc->wr_idx - 1].send;
-		last_wr->next = cur_wr;
-	}
-	tx_desc->wr_idx++;
-
-	return cur_wr;
-}
 
 static inline struct iser_conn *
 to_iser_conn(struct ib_conn *ib_conn)

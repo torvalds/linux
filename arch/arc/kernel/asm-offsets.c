@@ -55,7 +55,14 @@ int main(void)
 	DEFINE(PT_r5, offsetof(struct pt_regs, r5));
 	DEFINE(PT_r6, offsetof(struct pt_regs, r6));
 	DEFINE(PT_r7, offsetof(struct pt_regs, r7));
+	DEFINE(PT_r8, offsetof(struct pt_regs, r8));
+	DEFINE(PT_r10, offsetof(struct pt_regs, r10));
+	DEFINE(PT_r26, offsetof(struct pt_regs, r26));
 	DEFINE(PT_ret, offsetof(struct pt_regs, ret));
+	DEFINE(PT_blink, offsetof(struct pt_regs, blink));
+	DEFINE(PT_lpe, offsetof(struct pt_regs, lp_end));
+	DEFINE(PT_lpc, offsetof(struct pt_regs, lp_count));
+	DEFINE(PT_user_r25, offsetof(struct pt_regs, user_r25));
 
 	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
 	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
