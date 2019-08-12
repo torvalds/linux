@@ -2728,7 +2728,7 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 
 static void execlists_park(struct intel_engine_cs *engine)
 {
-	del_timer_sync(&engine->execlists.timer);
+	del_timer(&engine->execlists.timer);
 }
 
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
