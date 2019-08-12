@@ -708,6 +708,9 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	rcu_assign_pointer(dev->wcid[idx], NULL);
 	synchronize_rcu();
 
+	for (i = 0; i < ARRAY_SIZE(wcid->aggr); i++)
+		mt76_rx_aggr_stop(dev, wcid, i);
+
 	if (dev->drv->sta_remove)
 		dev->drv->sta_remove(dev, vif, sta);
 
