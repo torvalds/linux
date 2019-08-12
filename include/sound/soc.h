@@ -941,6 +941,7 @@ struct snd_soc_dai_link {
 #define COMP_CPU(_dai)			{ .dai_name = _dai, }
 #define COMP_CODEC(_name, _dai)		{ .name = _name, .dai_name = _dai, }
 #define COMP_PLATFORM(_name)		{ .name = _name }
+#define COMP_AUX(_name)			{ .name = _name }
 #define COMP_DUMMY()			{ .name = "snd-soc-dummy", .dai_name = "snd-soc-dummy-dai", }
 
 extern struct snd_soc_dai_link_component null_dailink_component[0];
@@ -962,14 +963,11 @@ struct snd_soc_codec_conf {
 };
 
 struct snd_soc_aux_dev {
-	const char *name;		/* Codec name */
-
 	/*
 	 * specify multi-codec either by device name, or by
 	 * DT/OF node, but not both.
 	 */
-	const char *codec_name;
-	struct device_node *codec_of_node;
+	struct snd_soc_dai_link_component dlc;
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_component *component);
@@ -1058,8 +1056,6 @@ struct snd_soc_card {
 	int num_of_dapm_routes;
 	bool fully_routed;
 
-	struct work_struct deferred_resume_work;
-
 	/* lists of probed devices belonging to this card */
 	struct list_head component_dev_list;
 	struct list_head list;
@@ -1080,6 +1076,9 @@ struct snd_soc_card {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_card_root;
 #endif
+#ifdef CONFIG_PM_SLEEP
+	struct work_struct deferred_resume_work;
+#endif
 	u32 pop_time;
 
 	void *drvdata;
@@ -1087,6 +1086,10 @@ struct snd_soc_card {
 #define for_each_card_prelinks(card, i, link)				\
 	for ((i) = 0;							\
 	     ((i) < (card)->num_links) && ((link) = &(card)->dai_link[i]); \
+	     (i)++)
+#define for_each_card_pre_auxs(card, i, aux)				\
+	for ((i) = 0;							\
+	     ((i) < (card)->num_aux_devs) && ((aux) = &(card)->aux_dev[i]); \
 	     (i)++)
 
 #define for_each_card_links(card, link)				\
@@ -1098,6 +1101,12 @@ struct snd_soc_card {
 	list_for_each_entry(rtd, &(card)->rtd_list, list)
 #define for_each_card_rtds_safe(card, rtd, _rtd)	\
 	list_for_each_entry_safe(rtd, _rtd, &(card)->rtd_list, list)
+
+#define for_each_card_auxs(card, component)			\
+	list_for_each_entry(component, &card->aux_comp_list, card_aux_list)
+#define for_each_card_auxs_safe(card, component, _comp)	\
+	list_for_each_entry_safe(component, _comp,	\
+				 &card->aux_comp_list, card_aux_list)
 
 #define for_each_card_components(card, component)			\
 	list_for_each_entry(component, &(card)->component_dev_list, card_list)
