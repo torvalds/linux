@@ -1483,7 +1483,7 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 	ulist_init(roots);
 	ulist_init(tmp);
 
-	trans = btrfs_attach_transaction(root);
+	trans = btrfs_join_transaction_nostart(root);
 	if (IS_ERR(trans)) {
 		if (PTR_ERR(trans) != -ENOENT && PTR_ERR(trans) != -EROFS) {
 			ret = PTR_ERR(trans);
