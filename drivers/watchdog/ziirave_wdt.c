@@ -21,6 +21,8 @@
 #include <linux/version.h>
 #include <linux/watchdog.h>
 
+#include <asm/unaligned.h>
+
 #define ZIIRAVE_TIMEOUT_MIN	3
 #define ZIIRAVE_TIMEOUT_MAX	255
 #define ZIIRAVE_TIMEOUT_DEFAULT	30
@@ -198,8 +200,7 @@ static int ziirave_firm_set_read_addr(struct watchdog_device *wdd, u16 addr)
 	struct i2c_client *client = to_i2c_client(wdd->parent);
 	u8 address[2];
 
-	address[0] = addr & 0xff;
-	address[1] = (addr >> 8) & 0xff;
+	put_unaligned_le16(addr, address);
 
 	return i2c_smbus_write_block_data(client,
 					  ZIIRAVE_CMD_DOWNLOAD_SET_READ_ADDR,
@@ -263,8 +264,7 @@ static int __ziirave_firm_write_pkt(struct watchdog_device *wdd,
 	/* Packet length */
 	packet[0] = len;
 	/* Packet address */
-	packet[1] = addr16 & 0xff;
-	packet[2] = (addr16 & 0xff00) >> 8;
+	put_unaligned_le16(addr16, packet + 1);
 
 	memcpy(packet + 3, data, len);
 	memset(packet + 3 + len, 0, ZIIRAVE_FIRM_PKT_DATA_SIZE - len);
