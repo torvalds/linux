@@ -339,15 +339,7 @@ __upstream_bridge_distance(struct pci_dev *provider, struct pci_dev *client,
 	if (dist)
 		*dist = dist_a + dist_b;
 
-	/*
-	 * Allow the connection if both devices are on a whitelisted root
-	 * complex, but add an arbitrary large value to the distance.
-	 */
-	if (root_complex_whitelist(provider) &&
-	    root_complex_whitelist(client))
-		return PCI_P2PDMA_MAP_THRU_HOST_BRIDGE;
-
-	return PCI_P2PDMA_MAP_NOT_SUPPORTED;
+	return PCI_P2PDMA_MAP_THRU_HOST_BRIDGE;
 
 check_b_path_acs:
 	bb = b;
@@ -371,7 +363,7 @@ check_b_path_acs:
 		if (acs_redirects)
 			*acs_redirects = true;
 
-		return PCI_P2PDMA_MAP_NOT_SUPPORTED;
+		return PCI_P2PDMA_MAP_THRU_HOST_BRIDGE;
 	}
 
 	return PCI_P2PDMA_MAP_BUS_ADDR;
@@ -420,8 +412,18 @@ static enum pci_p2pdma_map_type
 upstream_bridge_distance(struct pci_dev *provider, struct pci_dev *client,
 		int *dist, bool *acs_redirects, struct seq_buf *acs_list)
 {
-	return __upstream_bridge_distance(provider, client, dist,
-					  acs_redirects, acs_list);
+	enum pci_p2pdma_map_type map_type;
+
+	map_type = __upstream_bridge_distance(provider, client, dist,
+					      acs_redirects, acs_list);
+
+	if (map_type == PCI_P2PDMA_MAP_THRU_HOST_BRIDGE) {
+		if (!root_complex_whitelist(provider) ||
+		    !root_complex_whitelist(client))
+			return PCI_P2PDMA_MAP_NOT_SUPPORTED;
+	}
+
+	return map_type;
 }
 
 static enum pci_p2pdma_map_type
