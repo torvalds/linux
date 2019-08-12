@@ -72,6 +72,8 @@ static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 #define ZIIRAVE_CMD_JUMP_TO_BOOTLOADER		0x0c
 #define ZIIRAVE_CMD_DOWNLOAD_PACKET		0x0e
 
+#define ZIIRAVE_CMD_JUMP_TO_BOOTLOADER_MAGIC	1
+
 #define ZIIRAVE_FW_VERSION_FMT	"02.%02u.%02u"
 #define ZIIRAVE_BL_VERSION_FMT	"01.%02u.%02u"
 
@@ -376,8 +378,9 @@ static int ziirave_firm_upload(struct watchdog_device *wdd,
 	const struct ihex_binrec *rec;
 	int ret;
 
-	ret = ziirave_firm_write_byte(wdd, ZIIRAVE_CMD_JUMP_TO_BOOTLOADER, 1,
-				      false);
+	ret = i2c_smbus_write_byte_data(client,
+					ZIIRAVE_CMD_JUMP_TO_BOOTLOADER,
+					ZIIRAVE_CMD_JUMP_TO_BOOTLOADER_MAGIC);
 	if (ret) {
 		dev_err(&client->dev, "Failed to jump to bootloader\n");
 		return ret;
