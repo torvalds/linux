@@ -66,8 +66,7 @@ enum xcan_reg {
 #define XCAN_FRAME_DLC_OFFSET(frame_base)	((frame_base) + 0x04)
 #define XCAN_FRAME_DW1_OFFSET(frame_base)	((frame_base) + 0x08)
 #define XCAN_FRAME_DW2_OFFSET(frame_base)	((frame_base) + 0x0C)
-#define XCANFD_FRAME_DW_OFFSET(frame_base, n)	(((frame_base) + 0x08) + \
-						 ((n) * XCAN_CANFD_FRAME_SIZE))
+#define XCANFD_FRAME_DW_OFFSET(frame_base)	((frame_base) + 0x08)
 
 #define XCAN_CANFD_FRAME_SIZE		0x48
 #define XCAN_TXMSG_FRAME_OFFSET(n)	(XCAN_TXMSG_BASE_OFFSET + \
@@ -589,7 +588,7 @@ static void xcan_write_frame(struct xcan_priv *priv, struct sk_buff *skb,
 	if (priv->devtype.cantype == XAXI_CANFD ||
 	    priv->devtype.cantype == XAXI_CANFD_2_0) {
 		for (i = 0; i < cf->len; i += 4) {
-			ramoff = XCANFD_FRAME_DW_OFFSET(frame_offset, dwindex) +
+			ramoff = XCANFD_FRAME_DW_OFFSET(frame_offset) +
 					(dwindex * XCANFD_DW_BYTES);
 			priv->write_reg(priv, ramoff,
 					be32_to_cpup((__be32 *)(cf->data + i)));
@@ -805,10 +804,8 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
 	struct net_device_stats *stats = &ndev->stats;
 	struct canfd_frame *cf;
 	struct sk_buff *skb;
-	u32 id_xcan, dlc, data[2] = {0, 0}, dwindex = 0, i, fsr, readindex;
+	u32 id_xcan, dlc, data[2] = {0, 0}, dwindex = 0, i, dw_offset;
 
-	fsr = priv->read_reg(priv, XCAN_FSR_OFFSET);
-	readindex = fsr & XCAN_FSR_RI_MASK;
 	id_xcan = priv->read_reg(priv, XCAN_FRAME_ID_OFFSET(frame_base));
 	dlc = priv->read_reg(priv, XCAN_FRAME_DLC_OFFSET(frame_base));
 	if (dlc & XCAN_DLCR_EDL_MASK)
@@ -852,26 +849,16 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
 	/* Check the frame received is FD or not*/
 	if (dlc & XCAN_DLCR_EDL_MASK) {
 		for (i = 0; i < cf->len; i += 4) {
-			if (priv->devtype.flags & XCAN_FLAG_CANFD_2)
-				data[0] = priv->read_reg(priv,
-					(XCAN_RXMSG_2_FRAME_OFFSET(readindex) +
-					(dwindex * XCANFD_DW_BYTES)));
-			else
-				data[0] = priv->read_reg(priv,
-					(XCAN_RXMSG_FRAME_OFFSET(readindex) +
-					(dwindex * XCANFD_DW_BYTES)));
+			dw_offset = XCANFD_FRAME_DW_OFFSET(frame_base) +
+					(dwindex * XCANFD_DW_BYTES);
+			data[0] = priv->read_reg(priv, dw_offset);
 			*(__be32 *)(cf->data + i) = cpu_to_be32(data[0]);
 			dwindex++;
 		}
 	} else {
 		for (i = 0; i < cf->len; i += 4) {
-			if (priv->devtype.flags & XCAN_FLAG_CANFD_2)
-				data[0] = priv->read_reg(priv,
-					XCAN_RXMSG_2_FRAME_OFFSET(readindex) +
-								  i);
-			else
-				data[0] = priv->read_reg(priv,
-					XCAN_RXMSG_FRAME_OFFSET(readindex) + i);
+			dw_offset = XCANFD_FRAME_DW_OFFSET(frame_base);
+			data[0] = priv->read_reg(priv, dw_offset + i);
 			*(__be32 *)(cf->data + i) = cpu_to_be32(data[0]);
 		}
 	}
