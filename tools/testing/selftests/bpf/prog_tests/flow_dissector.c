@@ -109,6 +109,8 @@ struct test tests[] = {
 			.iph.protocol = IPPROTO_TCP,
 			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
 			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
 		},
 		.keys = {
 			.nhoff = ETH_HLEN,
@@ -116,6 +118,8 @@ struct test tests[] = {
 			.addr_proto = ETH_P_IP,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IP),
+			.sport = 80,
+			.dport = 8080,
 		},
 	},
 	{
@@ -125,6 +129,8 @@ struct test tests[] = {
 			.iph.nexthdr = IPPROTO_TCP,
 			.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
 			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
 		},
 		.keys = {
 			.nhoff = ETH_HLEN,
@@ -132,6 +138,8 @@ struct test tests[] = {
 			.addr_proto = ETH_P_IPV6,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.sport = 80,
+			.dport = 8080,
 		},
 	},
 	{
@@ -143,6 +151,8 @@ struct test tests[] = {
 			.iph.protocol = IPPROTO_TCP,
 			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
 			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
 		},
 		.keys = {
 			.nhoff = ETH_HLEN + VLAN_HLEN,
@@ -150,6 +160,8 @@ struct test tests[] = {
 			.addr_proto = ETH_P_IP,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IP),
+			.sport = 80,
+			.dport = 8080,
 		},
 	},
 	{
@@ -161,6 +173,8 @@ struct test tests[] = {
 			.iph.nexthdr = IPPROTO_TCP,
 			.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
 			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
 		},
 		.keys = {
 			.nhoff = ETH_HLEN + VLAN_HLEN * 2,
@@ -169,6 +183,8 @@ struct test tests[] = {
 			.addr_proto = ETH_P_IPV6,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.sport = 80,
+			.dport = 8080,
 		},
 	},
 	{
@@ -487,7 +503,8 @@ void test_flow_dissector(void)
 			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
 		struct bpf_prog_test_run_attr tattr = {};
 		struct bpf_flow_keys flow_keys = {};
-		__u32 key = 0;
+		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
+			    tests[i].keys.dport;
 
 		/* For skb-less case we can't pass input flags; run
 		 * only the tests that have a matching set of flags.
@@ -504,6 +521,9 @@ void test_flow_dissector(void)
 
 		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+
+		err = bpf_map_delete_elem(keys_fd, &key);
+		CHECK_ATTR(err, tests[i].name, "bpf_map_delete_elem %d\n", err);
 	}
 
 	bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
