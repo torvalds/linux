@@ -1245,7 +1245,7 @@ sub dump_enum($$) {
     # strip #define macros inside enums
     $x =~ s@#\s*((define|ifdef)\s+|endif)[^;]*;@@gos;
 
-    if ($x =~ /enum\s+(\w+)\s*\{(.*)\}/) {
+    if ($x =~ /enum\s+(\w*)\s*\{(.*)\}/) {
 	$declaration_name = $1;
 	my $members = $2;
 	my %_members;
