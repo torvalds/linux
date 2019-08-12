@@ -4870,6 +4870,7 @@ static int gfx_v9_0_set_clockgating_state(void *handle,
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 	case CHIP_ARCTURUS:
+	case CHIP_RENOIR:
 		gfx_v9_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE ? true : false);
 		break;

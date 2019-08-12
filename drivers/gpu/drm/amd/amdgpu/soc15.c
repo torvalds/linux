@@ -1406,6 +1406,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		adev->nbio_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		adev->nbio_funcs->update_medium_grain_light_sleep(adev,
