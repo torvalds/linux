@@ -16,3 +16,4 @@ value must be one of the following values:
   ralink,mt7620a-soc
   ralink,mt7620n-soc
   ralink,mt7628a-soc
+  ralink,mt7688a-soc
