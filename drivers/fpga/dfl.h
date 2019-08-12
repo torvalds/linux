@@ -120,6 +120,10 @@
 #define PORT_HDR_CAP		0x30
 #define PORT_HDR_CTRL		0x38
 #define PORT_HDR_STS		0x40
+#define PORT_HDR_USRCLK_CMD0	0x50
+#define PORT_HDR_USRCLK_CMD1	0x58
+#define PORT_HDR_USRCLK_STS0	0x60
+#define PORT_HDR_USRCLK_STS1	0x68
 
 /* Port Capability Register Bitfield */
 #define PORT_CAP_PORT_NUM	GENMASK_ULL(1, 0)	/* ID of this port */
@@ -353,6 +357,11 @@ static inline bool dfl_feature_is_port(void __iomem *base)
 
 	return (FIELD_GET(DFH_TYPE, v) == DFH_TYPE_FIU) &&
 		(FIELD_GET(DFH_ID, v) == DFH_ID_FIU_PORT);
+}
+
+static inline u8 dfl_feature_revision(void __iomem *base)
+{
+	return (u8)FIELD_GET(DFH_REVISION, readq(base + DFH));
 }
 
 /**
