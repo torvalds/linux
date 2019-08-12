@@ -159,20 +159,19 @@ pages_pack_err:
 }
 
 /*
- * get_userptr_from_host_va - initialize userptr structure from given host
- *                            virtual address
- *
- * @hdev                : habanalabs device structure
- * @args                : parameters containing the virtual address and size
- * @p_userptr           : pointer to result userptr structure
+ * dma_map_host_va - DMA mapping of the given host virtual address.
+ * @hdev: habanalabs device structure
+ * @addr: the host virtual address of the memory area
+ * @size: the size of the memory area
+ * @p_userptr: pointer to result userptr structure
  *
  * This function does the following:
  * - Allocate userptr structure
  * - Pin the given host memory using the userptr structure
  * - Perform DMA mapping to have the DMA addresses of the pages
  */
-static int get_userptr_from_host_va(struct hl_device *hdev,
-		struct hl_mem_in *args, struct hl_userptr **p_userptr)
+static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
+				struct hl_userptr **p_userptr)
 {
 	struct hl_userptr *userptr;
 	int rc;
@@ -183,8 +182,7 @@ static int get_userptr_from_host_va(struct hl_device *hdev,
 		goto userptr_err;
 	}
 
-	rc = hl_pin_host_memory(hdev, args->map_host.host_virt_addr,
-			args->map_host.mem_size, userptr);
+	rc = hl_pin_host_memory(hdev, addr, size, userptr);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to pin host memory\n");
 		goto pin_err;
@@ -215,16 +213,16 @@ userptr_err:
 }
 
 /*
- * free_userptr - free userptr structure
- *
- * @hdev                : habanalabs device structure
- * @userptr             : userptr to free
+ * dma_unmap_host_va - DMA unmapping of the given host virtual address.
+ * @hdev: habanalabs device structure
+ * @userptr: userptr to free
  *
  * This function does the following:
  * - Unpins the physical pages
  * - Frees the userptr structure
  */
-static void free_userptr(struct hl_device *hdev, struct hl_userptr *userptr)
+static void dma_unmap_host_va(struct hl_device *hdev,
+				struct hl_userptr *userptr)
 {
 	hl_unpin_host_memory(hdev, userptr);
 	kfree(userptr);
@@ -253,10 +251,9 @@ static void dram_pg_pool_do_release(struct kref *ref)
 }
 
 /*
- * free_phys_pg_pack   - free physical page pack
- *
- * @hdev               : habanalabs device structure
- * @phys_pg_pack       : physical page pack to free
+ * free_phys_pg_pack - free physical page pack
+ * @hdev: habanalabs device structure
+ * @phys_pg_pack: physical page pack to free
  *
  * This function does the following:
  * - For DRAM memory only, iterate over the pack and free each physical block
@@ -264,7 +261,7 @@ static void dram_pg_pool_do_release(struct kref *ref)
  * - Free the hl_vm_phys_pg_pack structure
  */
 static void free_phys_pg_pack(struct hl_device *hdev,
-		struct hl_vm_phys_pg_pack *phys_pg_pack)
+				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_vm *vm = &hdev->vm;
 	u64 i;
@@ -631,20 +628,18 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
 
 /*
  * init_phys_pg_pack_from_userptr - initialize physical page pack from host
- *                                   memory
- *
- * @ctx                : current context
- * @userptr            : userptr to initialize from
- * @pphys_pg_pack      : res pointer
+ *                                  memory
+ * @asid: current context ASID
+ * @userptr: userptr to initialize from
+ * @pphys_pg_pack: result pointer
  *
  * This function does the following:
  * - Pin the physical pages related to the given virtual block
  * - Create a physical page pack from the physical pages related to the given
  *   virtual block
  */
-static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
-		struct hl_userptr *userptr,
-		struct hl_vm_phys_pg_pack **pphys_pg_pack)
+static int init_phys_pg_pack_from_userptr(u32 asid, struct hl_userptr *userptr,
+				struct hl_vm_phys_pg_pack **pphys_pg_pack)
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct scatterlist *sg;
@@ -660,7 +655,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 	phys_pg_pack->vm_type = userptr->vm_type;
 	phys_pg_pack->created_from_userptr = true;
-	phys_pg_pack->asid = ctx->asid;
+	phys_pg_pack->asid = asid;
 	atomic_set(&phys_pg_pack->mapping_cnt, 1);
 
 	/* Only if all dma_addrs are aligned to 2MB and their
@@ -731,19 +726,18 @@ page_pack_arr_mem_err:
 }
 
 /*
- * map_phys_page_pack - maps the physical page pack
- *
- * @ctx                : current context
- * @vaddr              : start address of the virtual area to map from
- * @phys_pg_pack       : the pack of physical pages to map to
+ * map_phys_pg_pack - maps the physical page pack.
+ * @ctx: current context
+ * @vaddr: start address of the virtual area to map from
+ * @phys_pg_pack: the pack of physical pages to map to
  *
  * This function does the following:
  * - Maps each chunk of virtual memory to matching physical chunk
  * - Stores number of successful mappings in the given argument
- * - Returns 0 on success, error code otherwise.
+ * - Returns 0 on success, error code otherwise
  */
-static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
-		struct hl_vm_phys_pg_pack *phys_pg_pack)
+static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
+				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_device *hdev = ctx->hdev;
 	u64 next_vaddr = vaddr, paddr, mapped_pg_cnt = 0, i;
@@ -781,6 +775,36 @@ err:
 	}
 
 	return rc;
+}
+
+/*
+ * unmap_phys_pg_pack - unmaps the physical page pack
+ * @ctx: current context
+ * @vaddr: start address of the virtual area to unmap
+ * @phys_pg_pack: the pack of physical pages to unmap
+ */
+static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
+				struct hl_vm_phys_pg_pack *phys_pg_pack)
+{
+	struct hl_device *hdev = ctx->hdev;
+	u64 next_vaddr, i;
+	u32 page_size;
+
+	page_size = phys_pg_pack->page_size;
+	next_vaddr = vaddr;
+
+	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
+		if (hl_mmu_unmap(ctx, next_vaddr, page_size))
+			dev_warn_ratelimited(hdev->dev,
+			"unmap failed for vaddr: 0x%llx\n", next_vaddr);
+
+		/*
+		 * unmapping on Palladium can be really long, so avoid a CPU
+		 * soft lockup bug by sleeping a little between unmapping pages
+		 */
+		if (hdev->pldm)
+			usleep_range(500, 1000);
+	}
 }
 
 static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
@@ -839,18 +863,21 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	*device_addr = 0;
 
 	if (is_userptr) {
-		rc = get_userptr_from_host_va(hdev, args, &userptr);
+		u64 addr = args->map_host.host_virt_addr,
+			size = args->map_host.mem_size;
+
+		rc = dma_map_host_va(hdev, addr, size, &userptr);
 		if (rc) {
 			dev_err(hdev->dev, "failed to get userptr from va\n");
 			return rc;
 		}
 
-		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
+		rc = init_phys_pg_pack_from_userptr(ctx->asid, userptr,
 				&phys_pg_pack);
 		if (rc) {
 			dev_err(hdev->dev,
 				"unable to init page pack for vaddr 0x%llx\n",
-				args->map_host.host_virt_addr);
+				addr);
 			goto init_page_pack_err;
 		}
 
@@ -909,7 +936,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	mutex_lock(&ctx->mmu_lock);
 
-	rc = map_phys_page_pack(ctx, ret_vaddr, phys_pg_pack);
+	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
 		mutex_unlock(&ctx->mmu_lock);
 		dev_err(hdev->dev, "mapping page pack failed for handle %u\n",
@@ -955,7 +982,7 @@ shared_err:
 		free_phys_pg_pack(hdev, phys_pg_pack);
 init_page_pack_err:
 	if (is_userptr)
-		free_userptr(hdev, userptr);
+		dma_unmap_host_va(hdev, userptr);
 
 	return rc;
 }
@@ -977,8 +1004,6 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 	struct hl_vm_hash_node *hnode = NULL;
 	struct hl_userptr *userptr = NULL;
 	enum vm_type_t *vm_type;
-	u64 next_vaddr, i;
-	u32 page_size;
 	bool is_userptr;
 	int rc;
 
@@ -1004,8 +1029,8 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 	if (*vm_type == VM_TYPE_USERPTR) {
 		is_userptr = true;
 		userptr = hnode->ptr;
-		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
-				&phys_pg_pack);
+		rc = init_phys_pg_pack_from_userptr(ctx->asid, userptr,
+							&phys_pg_pack);
 		if (rc) {
 			dev_err(hdev->dev,
 				"unable to init page pack for vaddr 0x%llx\n",
@@ -1029,24 +1054,11 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 		goto mapping_cnt_err;
 	}
 
-	page_size = phys_pg_pack->page_size;
-	vaddr &= ~(((u64) page_size) - 1);
-
-	next_vaddr = vaddr;
+	vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
 
 	mutex_lock(&ctx->mmu_lock);
 
-	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
-		if (hl_mmu_unmap(ctx, next_vaddr, page_size))
-			dev_warn_ratelimited(hdev->dev,
-			"unmap failed for vaddr: 0x%llx\n", next_vaddr);
-
-		/* unmapping on Palladium can be really long, so avoid a CPU
-		 * soft lockup bug by sleeping a little between unmapping pages
-		 */
-		if (hdev->pldm)
-			usleep_range(500, 1000);
-	}
+	unmap_phys_pg_pack(ctx, vaddr, phys_pg_pack);
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
 
@@ -1064,7 +1076,7 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 
 	if (is_userptr) {
 		free_phys_pg_pack(hdev, phys_pg_pack);
-		free_userptr(hdev, userptr);
+		dma_unmap_host_va(hdev, userptr);
 	}
 
 	return 0;
@@ -1203,56 +1215,16 @@ out:
 	return rc;
 }
 
-/*
- * hl_pin_host_memory - pins a chunk of host memory
- *
- * @hdev                : pointer to the habanalabs device structure
- * @addr                : the user-space virtual address of the memory area
- * @size                : the size of the memory area
- * @userptr	        : pointer to hl_userptr structure
- *
- * This function does the following:
- * - Pins the physical pages
- * - Create a SG list from those pages
- */
-int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
-			struct hl_userptr *userptr)
+static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
+				u32 npages, u64 start, u32 offset,
+				struct hl_userptr *userptr)
 {
-	u64 start, end;
-	u32 npages, offset;
 	int rc;
-
-	if (!size) {
-		dev_err(hdev->dev, "size to pin is invalid - %llu\n", size);
-		return -EINVAL;
-	}
 
 	if (!access_ok((void __user *) (uintptr_t) addr, size)) {
 		dev_err(hdev->dev, "user pointer is invalid - 0x%llx\n", addr);
 		return -EFAULT;
 	}
-
-	/*
-	 * If the combination of the address and size requested for this memory
-	 * region causes an integer overflow, return error.
-	 */
-	if (((addr + size) < addr) ||
-			PAGE_ALIGN(addr + size) < (addr + size)) {
-		dev_err(hdev->dev,
-			"user pointer 0x%llx + %llu causes integer overflow\n",
-			addr, size);
-		return -EINVAL;
-	}
-
-	start = addr & PAGE_MASK;
-	offset = addr & ~PAGE_MASK;
-	end = PAGE_ALIGN(addr + size);
-	npages = (end - start) >> PAGE_SHIFT;
-
-	userptr->size = size;
-	userptr->addr = addr;
-	userptr->dma_mapped = false;
-	INIT_LIST_HEAD(&userptr->job_node);
 
 	userptr->vec = frame_vector_create(npages);
 	if (!userptr->vec) {
@@ -1279,17 +1251,82 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 		goto put_framevec;
 	}
 
-	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
-	if (!userptr->sgt) {
-		rc = -ENOMEM;
-		goto put_framevec;
-	}
-
 	rc = sg_alloc_table_from_pages(userptr->sgt,
 					frame_vector_pages(userptr->vec),
 					npages, offset, size, GFP_ATOMIC);
 	if (rc < 0) {
 		dev_err(hdev->dev, "failed to create SG table from pages\n");
+		goto put_framevec;
+	}
+
+	return 0;
+
+put_framevec:
+	put_vaddr_frames(userptr->vec);
+destroy_framevec:
+	frame_vector_destroy(userptr->vec);
+	return rc;
+}
+
+/*
+ * hl_pin_host_memory - pins a chunk of host memory.
+ * @hdev: pointer to the habanalabs device structure
+ * @addr: the host virtual address of the memory area
+ * @size: the size of the memory area
+ * @userptr: pointer to hl_userptr structure
+ *
+ * This function does the following:
+ * - Pins the physical pages
+ * - Create an SG list from those pages
+ */
+int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
+					struct hl_userptr *userptr)
+{
+	u64 start, end;
+	u32 npages, offset;
+	int rc;
+
+	if (!size) {
+		dev_err(hdev->dev, "size to pin is invalid - %llu\n", size);
+		return -EINVAL;
+	}
+
+	/*
+	 * If the combination of the address and size requested for this memory
+	 * region causes an integer overflow, return error.
+	 */
+	if (((addr + size) < addr) ||
+			PAGE_ALIGN(addr + size) < (addr + size)) {
+		dev_err(hdev->dev,
+			"user pointer 0x%llx + %llu causes integer overflow\n",
+			addr, size);
+		return -EINVAL;
+	}
+
+	/*
+	 * This function can be called also from data path, hence use atomic
+	 * always as it is not a big allocation.
+	 */
+	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
+	if (!userptr->sgt)
+		return -ENOMEM;
+
+	start = addr & PAGE_MASK;
+	offset = addr & ~PAGE_MASK;
+	end = PAGE_ALIGN(addr + size);
+	npages = (end - start) >> PAGE_SHIFT;
+
+	userptr->size = size;
+	userptr->addr = addr;
+	userptr->dma_mapped = false;
+	INIT_LIST_HEAD(&userptr->job_node);
+
+	rc = get_user_memory(hdev, addr, size, npages, start, offset,
+				userptr);
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to get user memory for address 0x%llx\n",
+			addr);
 		goto free_sgt;
 	}
 
@@ -1299,34 +1336,28 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 free_sgt:
 	kfree(userptr->sgt);
-put_framevec:
-	put_vaddr_frames(userptr->vec);
-destroy_framevec:
-	frame_vector_destroy(userptr->vec);
 	return rc;
 }
 
 /*
- * hl_unpin_host_memory - unpins a chunk of host memory
- *
- * @hdev                : pointer to the habanalabs device structure
- * @userptr             : pointer to hl_userptr structure
+ * hl_unpin_host_memory - unpins a chunk of host memory.
+ * @hdev: pointer to the habanalabs device structure
+ * @userptr: pointer to hl_userptr structure
  *
  * This function does the following:
  * - Unpins the physical pages related to the host memory
  * - Free the SG list
  */
-int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
+void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 {
 	struct page **pages;
 
 	hl_debugfs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
-		hdev->asic_funcs->hl_dma_unmap_sg(hdev,
-				userptr->sgt->sgl,
-				userptr->sgt->nents,
-				userptr->dir);
+		hdev->asic_funcs->hl_dma_unmap_sg(hdev, userptr->sgt->sgl,
+							userptr->sgt->nents,
+							userptr->dir);
 
 	pages = frame_vector_pages(userptr->vec);
 	if (!IS_ERR(pages)) {
@@ -1342,8 +1373,6 @@ int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 
 	sg_free_table(userptr->sgt);
 	kfree(userptr->sgt);
-
-	return 0;
 }
 
 /*
@@ -1627,7 +1656,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	idr_for_each_entry(&vm->phys_pg_pack_handles, phys_pg_list, i)
 		if (phys_pg_list->asid == ctx->asid) {
 			dev_dbg(hdev->dev,
-				"page list 0x%p of asid %d is still alive\n",
+				"page list 0x%px of asid %d is still alive\n",
 				phys_pg_list, ctx->asid);
 			atomic64_sub(phys_pg_list->total_size,
 					&hdev->dram_used_mem);
