@@ -299,7 +299,7 @@ EXPORT_SYMBOL(can_send);
 /* af_can rx path */
 
 static struct can_dev_rcv_lists *find_dev_rcv_lists(struct net *net,
-						struct net_device *dev)
+						    struct net_device *dev)
 {
 	if (!dev)
 		return net->can.can_rx_alldev_list;
@@ -707,7 +707,7 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
-		   struct packet_type *pt, struct net_device *orig_dev)
+		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 
