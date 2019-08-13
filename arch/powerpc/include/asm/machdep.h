@@ -3,9 +3,6 @@
 #define _ASM_POWERPC_MACHDEP_H
 #ifdef __KERNEL__
 
-/*
- */
-
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
