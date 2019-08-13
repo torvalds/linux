@@ -209,8 +209,9 @@ int can_send(struct sk_buff *skb, int loop)
 		skb->protocol = htons(ETH_P_CANFD);
 		if (unlikely(cfd->len > CANFD_MAX_DLEN))
 			goto inval_skb;
-	} else
+	} else {
 		goto inval_skb;
+	}
 
 	/* Make sure the CAN frame can pass the selected CAN netdevice.
 	 * As structs can_frame and canfd_frame are similar, we can provide
@@ -753,8 +754,9 @@ int can_proto_register(const struct can_proto *cp)
 	if (rcu_access_pointer(proto_tab[proto])) {
 		pr_err("can: protocol %d already registered\n", proto);
 		err = -EBUSY;
-	} else
+	} else {
 		RCU_INIT_POINTER(proto_tab[proto], cp);
+	}
 
 	mutex_unlock(&proto_tab_lock);
 
@@ -812,15 +814,16 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 
 		d = dev->ml_priv;
 		if (d) {
-			if (d->entries)
+			if (d->entries) {
 				d->remove_on_zero_entries = 1;
-			else {
+			} else {
 				kfree(d);
 				dev->ml_priv = NULL;
 			}
-		} else
+		} else {
 			pr_err("can: notifier: receive list not found for dev "
 			       "%s\n", dev->name);
+		}
 
 		spin_unlock(&dev_net(dev)->can.can_rcvlists_lock);
 
