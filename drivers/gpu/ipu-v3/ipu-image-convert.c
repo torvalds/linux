@@ -836,12 +836,20 @@ static void find_seams(struct ipu_image_convert_ctx *ctx,
 		in_bottom, flipped_out_top, out_bottom);
 }
 
-static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
-				 struct ipu_image_convert_image *image)
+static int calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
+				struct ipu_image_convert_image *image)
 {
 	struct ipu_image_convert_chan *chan = ctx->chan;
 	struct ipu_image_convert_priv *priv = chan->priv;
+	unsigned int max_width = 1024;
+	unsigned int max_height = 1024;
 	unsigned int i;
+
+	if (image->type == IMAGE_CONVERT_IN) {
+		/* Up to 4096x4096 input tile size */
+		max_width <<= ctx->downsize_coeff_h;
+		max_height <<= ctx->downsize_coeff_v;
+	}
 
 	for (i = 0; i < ctx->num_tiles; i++) {
 		struct ipu_image_tile *tile;
@@ -872,7 +880,17 @@ static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
 			image->type == IMAGE_CONVERT_IN ? "Input" : "Output",
 			row, col,
 			tile->width, tile->height, tile->left, tile->top);
+
+		if (!tile->width || tile->width > max_width ||
+		    !tile->height || tile->height > max_height) {
+			dev_err(priv->ipu->dev, "invalid %s tile size: %ux%u\n",
+				image->type == IMAGE_CONVERT_IN ? "input" :
+				"output", tile->width, tile->height);
+			return -EINVAL;
+		}
 	}
+
+	return 0;
 }
 
 /*
@@ -2083,7 +2101,10 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 
 	find_seams(ctx, s_image, d_image);
 
-	calc_tile_dimensions(ctx, s_image);
+	ret = calc_tile_dimensions(ctx, s_image);
+	if (ret)
+		goto out_free;
+
 	ret = calc_tile_offsets(ctx, s_image);
 	if (ret)
 		goto out_free;
