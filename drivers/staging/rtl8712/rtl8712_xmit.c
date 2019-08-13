@@ -318,8 +318,8 @@ void r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 }
 
 
-u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+void r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
+			      struct xmit_frame *pxmitframe)
 {
 	/* linux complete context doesn't need to protect */
 	pxmitframe->pxmitbuf = pxmitbuf;
@@ -332,8 +332,6 @@ u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 	r8712_construct_txaggr_cmd_hdr(pxmitbuf);
 	r8712_append_mpdu_unit(pxmitbuf, pxmitframe);
 	pxmitbuf->aggr_nr = 1;
-
-	return _SUCCESS;
 }
 
 u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf,
