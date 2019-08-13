@@ -2807,15 +2807,61 @@ static int bpf_core_reloc_insn(struct bpf_program *prog, int insn_off,
 	return 0;
 }
 
+static struct btf *btf_load_raw(const char *path)
+{
+	struct btf *btf;
+	size_t read_cnt;
+	struct stat st;
+	void *data;
+	FILE *f;
+
+	if (stat(path, &st))
+		return ERR_PTR(-errno);
+
+	data = malloc(st.st_size);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	f = fopen(path, "rb");
+	if (!f) {
+		btf = ERR_PTR(-errno);
+		goto cleanup;
+	}
+
+	read_cnt = fread(data, 1, st.st_size, f);
+	fclose(f);
+	if (read_cnt < st.st_size) {
+		btf = ERR_PTR(-EBADF);
+		goto cleanup;
+	}
+
+	btf = btf__new(data, read_cnt);
+
+cleanup:
+	free(data);
+	return btf;
+}
+
 /*
  * Probe few well-known locations for vmlinux kernel image and try to load BTF
  * data out of it to use for target BTF.
  */
 static struct btf *bpf_core_find_kernel_btf(void)
 {
-	const char *locations[] = {
-		"/lib/modules/%1$s/vmlinux-%1$s",
-		"/usr/lib/modules/%1$s/kernel/vmlinux",
+	struct {
+		const char *path_fmt;
+		bool raw_btf;
+	} locations[] = {
+		/* try canonical vmlinux BTF through sysfs first */
+		{ "/sys/kernel/btf/vmlinux", true /* raw BTF */ },
+		/* fall back to trying to find vmlinux ELF on disk otherwise */
+		{ "/boot/vmlinux-%1$s" },
+		{ "/lib/modules/%1$s/vmlinux-%1$s" },
+		{ "/lib/modules/%1$s/build/vmlinux" },
+		{ "/usr/lib/modules/%1$s/kernel/vmlinux" },
+		{ "/usr/lib/debug/boot/vmlinux-%1$s" },
+		{ "/usr/lib/debug/boot/vmlinux-%1$s.debug" },
+		{ "/usr/lib/debug/lib/modules/%1$s/vmlinux" },
 	};
 	char path[PATH_MAX + 1];
 	struct utsname buf;
@@ -2825,14 +2871,18 @@ static struct btf *bpf_core_find_kernel_btf(void)
 	uname(&buf);
 
 	for (i = 0; i < ARRAY_SIZE(locations); i++) {
-		snprintf(path, PATH_MAX, locations[i], buf.release);
+		snprintf(path, PATH_MAX, locations[i].path_fmt, buf.release);
 
 		if (access(path, R_OK))
 			continue;
 
-		btf = btf__parse_elf(path, NULL);
-		pr_debug("kernel BTF load from '%s': %ld\n",
-			 path, PTR_ERR(btf));
+		if (locations[i].raw_btf)
+			btf = btf_load_raw(path);
+		else
+			btf = btf__parse_elf(path, NULL);
+
+		pr_debug("loading kernel BTF '%s': %ld\n",
+			 path, IS_ERR(btf) ? PTR_ERR(btf) : 0);
 		if (IS_ERR(btf))
 			continue;
 

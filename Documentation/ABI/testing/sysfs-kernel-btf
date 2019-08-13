@@ -6,7 +6,7 @@ Description:
 		Contains BTF type information and related data for kernel and
 		kernel modules.
 
-What:		/sys/kernel/btf/kernel
+What:		/sys/kernel/btf/vmlinux
 Date:		Aug 2019
 KernelVersion:	5.5
 Contact:	bpf@vger.kernel.org
