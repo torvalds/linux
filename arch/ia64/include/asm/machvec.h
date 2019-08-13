@@ -16,14 +16,11 @@
 struct device;
 
 typedef void ia64_mv_setup_t (char **);
-typedef void ia64_mv_dma_init (void);
 
 extern void machvec_setup (char **);
 
 # if defined (CONFIG_IA64_DIG)
 #  include <asm/machvec_dig.h>
-# elif defined(CONFIG_IA64_DIG_VTD)
-#  include <asm/machvec_dig_vtd.h>
 # elif defined (CONFIG_IA64_HP_ZX1)
 #  include <asm/machvec_hpzx1.h>
 # elif defined (CONFIG_IA64_SGI_UV)
@@ -35,7 +32,6 @@ extern void machvec_setup (char **);
 # else
 #  define ia64_platform_name	ia64_mv.name
 #  define platform_setup	ia64_mv.setup
-#  define platform_dma_init		ia64_mv.dma_init
 # endif
 
 /* __attribute__((__aligned__(16))) is required to make size of the
@@ -46,14 +42,12 @@ extern void machvec_setup (char **);
 struct ia64_machine_vector {
 	const char *name;
 	ia64_mv_setup_t *setup;
-	ia64_mv_dma_init *dma_init;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
 
 #define MACHVEC_INIT(name)			\
 {						\
 	#name,					\
 	platform_setup,				\
-	platform_dma_init,			\
 }
 
 extern struct ia64_machine_vector ia64_mv;
@@ -64,17 +58,12 @@ extern void machvec_init_from_cmdline(const char *cmdline);
 #  error Unknown configuration.  Update arch/ia64/include/asm/machvec.h.
 # endif /* CONFIG_IA64_GENERIC */
 
-extern void swiotlb_dma_init(void);
-
 /*
  * Define default versions so we can extend machvec for new platforms without having
  * to update the machvec files for all existing platforms.
  */
 #ifndef platform_setup
 # define platform_setup			machvec_setup
-#endif
-#ifndef platform_dma_init
-# define platform_dma_init		swiotlb_dma_init
 #endif
 
 #endif /* _ASM_IA64_MACHVEC_H */

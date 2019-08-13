@@ -9,6 +9,7 @@
 #include <linux/init.h>
 
 #include <linux/dma-noncoherent.h>
+#include <linux/dmar.h>
 #include <linux/efi.h>
 #include <linux/elf.h>
 #include <linux/memblock.h>
@@ -23,6 +24,7 @@
 #include <linux/proc_fs.h>
 #include <linux/bitops.h>
 #include <linux/kexec.h>
+#include <linux/swiotlb.h>
 
 #include <asm/dma.h>
 #include <asm/io.h>
@@ -633,11 +635,17 @@ mem_init (void)
 	BUG_ON(PTRS_PER_PTE * sizeof(pte_t) != PAGE_SIZE);
 
 	/*
-	 * This needs to be called _after_ the command line has been parsed but _before_
-	 * any drivers that may need the PCI DMA interface are initialized or bootmem has
-	 * been freed.
+	 * This needs to be called _after_ the command line has been parsed but
+	 * _before_ any drivers that may need the PCI DMA interface are
+	 * initialized or bootmem has been freed.
 	 */
-	platform_dma_init();
+#ifdef CONFIG_INTEL_IOMMU
+	detect_intel_iommu();
+	if (!iommu_detected)
+#endif
+#ifdef CONFIG_SWIOTLB
+		swiotlb_init(1);
+#endif
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);

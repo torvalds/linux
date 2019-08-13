@@ -146,11 +146,6 @@ config IA64_DIG
 	bool "DIG-compliant"
 	select SWIOTLB
 
-config IA64_DIG_VTD
-	bool "DIG+Intel+IOMMU"
-	select INTEL_IOMMU
-	select PCI_MSI
-
 config IA64_HP_ZX1
 	bool "HP-zx1/sx1000"
 	help

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/dma-direct.h>
-#include <linux/swiotlb.h>
 #include <linux/export.h>
 
 /* Set this to 1 if there is a HW IOMMU in the system */
@@ -26,10 +25,5 @@ long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
 		dma_addr_t dma_addr)
 {
 	return page_to_pfn(virt_to_page(cpu_addr));
-}
-
-void __init swiotlb_dma_init(void)
-{
-	swiotlb_init(1);
 }
 #endif

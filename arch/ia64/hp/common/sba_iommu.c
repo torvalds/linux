@@ -35,6 +35,7 @@
 #include <linux/iommu-helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/prefetch.h>
+#include <linux/swiotlb.h>
 
 #include <asm/delay.h>		/* ia64_get_itc() */
 #include <asm/io.h>
@@ -42,8 +43,6 @@
 #include <asm/dma.h>
 
 #include <asm/acpi-ext.h>
-
-extern int swiotlb_late_init_with_default_size (size_t size);
 
 #define PFX "IOC: "
 
@@ -2056,27 +2055,33 @@ static int __init acpi_sba_ioc_init_acpi(void)
 /* This has to run before acpi_scan_init(). */
 arch_initcall(acpi_sba_ioc_init_acpi);
 
+static int sba_dma_supported (struct device *dev, u64 mask)
+{
+	/* make sure it's at least 32bit capable */
+	return ((mask & 0xFFFFFFFFUL) == 0xFFFFFFFFUL);
+}
+
+static const struct dma_map_ops sba_dma_ops = {
+	.alloc			= sba_alloc_coherent,
+	.free			= sba_free_coherent,
+	.map_page		= sba_map_page,
+	.unmap_page		= sba_unmap_page,
+	.map_sg			= sba_map_sg_attrs,
+	.unmap_sg		= sba_unmap_sg_attrs,
+	.dma_supported		= sba_dma_supported,
+};
+
 static int __init
 sba_init(void)
 {
-	if (!ia64_platform_is("hpzx1"))
-		return 0;
-
-#if defined(CONFIG_IA64_GENERIC)
-	/* If we are booting a kdump kernel, the sba_iommu will
-	 * cause devices that were not shutdown properly to MCA
-	 * as soon as they are turned back on.  Our only option for
-	 * a successful kdump kernel boot is to use the swiotlb.
+	/*
+	 * If we are booting a kdump kernel, the sba_iommu will cause devices
+	 * that were not shutdown properly to MCA as soon as they are turned
+	 * back on.  Our only option for a successful kdump kernel boot is to
+	 * use swiotlb.
 	 */
-	if (is_kdump_kernel()) {
-		dma_ops = NULL;
-		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
-			panic("Unable to initialize software I/O TLB:"
-				  " Try machvec=dig boot option");
-		machvec_init("dig");
+	if (is_kdump_kernel())
 		return 0;
-	}
-#endif
 
 	/*
 	 * ioc_found should be populated by the acpi_sba_ioc_handler's .attach()
@@ -2085,28 +2090,18 @@ sba_init(void)
 	while (ioc_found)
 		acpi_sba_ioc_add(ioc_found);
 
-	if (!ioc_list) {
-#ifdef CONFIG_IA64_GENERIC
-		/*
-		 * If we didn't find something sba_iommu can claim, we
-		 * need to setup the swiotlb and switch to the dig machvec.
-		 */
-		dma_ops = NULL;
-		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
-			panic("Unable to find SBA IOMMU or initialize "
-			      "software I/O TLB: Try machvec=dig boot option");
-		machvec_init("dig");
-#else
-		panic("Unable to find SBA IOMMU: Try a generic or DIG kernel");
-#endif
+	if (!ioc_list)
 		return 0;
-	}
 
 	{
 		struct pci_bus *b = NULL;
 		while ((b = pci_find_next_bus(b)) != NULL)
 			sba_connect_bus(b);
 	}
+
+	/* no need for swiotlb with the iommu */
+	swiotlb_exit();
+	dma_ops = &sba_dma_ops;
 
 #ifdef CONFIG_PROC_FS
 	ioc_proc_init();
@@ -2121,12 +2116,6 @@ nosbagart(char *str)
 {
 	reserve_sba_gart = 0;
 	return 1;
-}
-
-static int sba_dma_supported (struct device *dev, u64 mask)
-{
-	/* make sure it's at least 32bit capable */
-	return ((mask & 0xFFFFFFFFUL) == 0xFFFFFFFFUL);
 }
 
 __setup("nosbagart", nosbagart);
@@ -2153,18 +2142,3 @@ sba_page_override(char *str)
 }
 
 __setup("sbapagesize=",sba_page_override);
-
-const struct dma_map_ops sba_dma_ops = {
-	.alloc			= sba_alloc_coherent,
-	.free			= sba_free_coherent,
-	.map_page		= sba_map_page,
-	.unmap_page		= sba_unmap_page,
-	.map_sg			= sba_map_sg_attrs,
-	.unmap_sg		= sba_unmap_sg_attrs,
-	.dma_supported		= sba_dma_supported,
-};
-
-void sba_dma_init(void)
-{
-	dma_ops = &sba_dma_ops;
-}
