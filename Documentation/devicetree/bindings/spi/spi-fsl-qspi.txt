@@ -34,7 +34,11 @@ qspi0: quadspi@40044000 {
 	clock-names = "qspi_en", "qspi";
 
 	flash0: s25fl128s@0 {
-		....
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,s25fl128s", "jedec,spi-nor";
+		spi-max-frequency = <50000000>;
+		reg = <0>;
 	};
 };
 
