@@ -407,6 +407,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			case CHIP_RAVEN:
 			case CHIP_ARCTURUS:
 			case CHIP_NAVI10:
+			case CHIP_NAVI14:
 				kfd_init_apertures_v9(pdd, id);
 				break;
 			default:

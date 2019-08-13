@@ -243,6 +243,7 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
 		pm->pmf = &kfd_v10_pm_funcs;
 		break;
 	default:
