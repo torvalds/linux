@@ -196,12 +196,12 @@ unsigned long get_wchan(struct task_struct *p)
 		goto out;
 	}
 	for (count = 0; count < 16; count++) {
-		sf = (struct stack_frame *) sf->back_chain;
+		sf = (struct stack_frame *)READ_ONCE_NOCHECK(sf->back_chain);
 		if (sf <= low || sf > high) {
 			return_address = 0;
 			goto out;
 		}
-		return_address = sf->gprs[8];
+		return_address = READ_ONCE_NOCHECK(sf->gprs[8]);
 		if (!in_sched_functions(return_address))
 			goto out;
 	}
