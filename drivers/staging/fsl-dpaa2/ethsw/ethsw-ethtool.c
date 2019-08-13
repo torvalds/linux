@@ -65,7 +65,7 @@ ethsw_get_link_ksettings(struct net_device *netdev,
 				     port_priv->idx,
 				     &state);
 	if (err) {
-		netdev_err(netdev, "ERROR %d getting link state", err);
+		netdev_err(netdev, "ERROR %d getting link state\n", err);
 		goto out;
 	}
 

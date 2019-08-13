@@ -722,12 +722,12 @@ static irqreturn_t ethsw_irq0_handler_thread(int irq_num, void *arg)
 	err = dpsw_get_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, &status);
 	if (err) {
-		dev_err(dev, "Can't get irq status (err %d)", err);
+		dev_err(dev, "Can't get irq status (err %d)\n", err);
 
 		err = dpsw_clear_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 					    DPSW_IRQ_INDEX_IF, 0xFFFFFFFF);
 		if (err)
-			dev_err(dev, "Can't clear irq status (err %d)", err);
+			dev_err(dev, "Can't clear irq status (err %d)\n", err);
 		goto out;
 	}
 
@@ -772,21 +772,21 @@ static int ethsw_setup_irqs(struct fsl_mc_device *sw_dev)
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(dev), dev);
 	if (err) {
-		dev_err(dev, "devm_request_threaded_irq(): %d", err);
+		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
 		goto free_irq;
 	}
 
 	err = dpsw_set_irq_mask(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				DPSW_IRQ_INDEX_IF, mask);
 	if (err) {
-		dev_err(dev, "dpsw_set_irq_mask(): %d", err);
+		dev_err(dev, "dpsw_set_irq_mask(): %d\n", err);
 		goto free_devm_irq;
 	}
 
 	err = dpsw_set_irq_enable(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, 1);
 	if (err) {
-		dev_err(dev, "dpsw_set_irq_enable(): %d", err);
+		dev_err(dev, "dpsw_set_irq_enable(): %d\n", err);
 		goto free_devm_irq;
 	}
 
