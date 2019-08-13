@@ -21,6 +21,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
