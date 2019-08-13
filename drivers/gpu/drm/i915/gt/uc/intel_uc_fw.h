@@ -42,7 +42,10 @@ enum intel_uc_fw_type {
  */
 struct intel_uc_fw {
 	enum intel_uc_fw_type type;
-	enum intel_uc_fw_status status;
+	union {
+		const enum intel_uc_fw_status status;
+		enum intel_uc_fw_status __status; /* no accidental overwrites */
+	};
 	const char *path;
 	bool user_overridden;
 	size_t size;
@@ -61,6 +64,17 @@ struct intel_uc_fw {
 	u32 rsa_size;
 	u32 ucode_size;
 };
+
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
+void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
+			       enum intel_uc_fw_status status);
+#else
+static inline void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
+					     enum intel_uc_fw_status status)
+{
+	uc_fw->__status = status;
+}
+#endif
 
 static inline
 const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
@@ -156,7 +170,7 @@ static inline bool intel_uc_fw_is_overridden(const struct intel_uc_fw *uc_fw)
 static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
 {
 	if (intel_uc_fw_is_loaded(uc_fw))
-		uc_fw->status = INTEL_UC_FIRMWARE_AVAILABLE;
+		intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_AVAILABLE);
 }
 
 /**

@@ -157,10 +157,10 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	if (ret)
 		goto out;
 
-	guc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_RUNNING);
 	return 0;
 
 out:
-	guc->fw.status = INTEL_UC_FIRMWARE_FAIL;
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_FAIL);
 	return ret;
 }

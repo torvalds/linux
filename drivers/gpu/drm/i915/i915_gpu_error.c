@@ -1474,8 +1474,8 @@ capture_uc_state(struct i915_gpu_state *error, struct compress *compress)
 	if (!error->device_info.has_gt_uc)
 		return;
 
-	error_uc->guc_fw = uc->guc.fw;
-	error_uc->huc_fw = uc->huc.fw;
+	memcpy(&error_uc->guc_fw, &uc->guc.fw, sizeof(uc->guc.fw));
+	memcpy(&error_uc->huc_fw, &uc->huc.fw, sizeof(uc->huc.fw));
 
 	/* Non-default firmware paths will be specified by the modparam.
 	 * As modparams are generally accesible from the userspace make

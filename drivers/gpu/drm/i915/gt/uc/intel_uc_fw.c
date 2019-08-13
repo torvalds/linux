@@ -11,6 +11,29 @@
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
 
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
+static inline struct intel_gt *__uc_fw_to_gt(struct intel_uc_fw *uc_fw)
+{
+	GEM_BUG_ON(uc_fw->status == INTEL_UC_FIRMWARE_UNINITIALIZED);
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
+		return container_of(uc_fw, struct intel_gt, uc.guc.fw);
+
+	GEM_BUG_ON(uc_fw->type != INTEL_UC_FW_TYPE_HUC);
+	return container_of(uc_fw, struct intel_gt, uc.huc.fw);
+}
+
+void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
+			       enum intel_uc_fw_status status)
+{
+	uc_fw->__status =  status;
+	DRM_DEV_DEBUG_DRIVER(__uc_fw_to_gt(uc_fw)->i915->drm.dev,
+			     "%s firmware -> %s\n",
+			     intel_uc_fw_type_repr(uc_fw->type),
+			     status == INTEL_UC_FIRMWARE_SELECTED ?
+			     uc_fw->path : intel_uc_fw_status_repr(status));
+}
+#endif
+
 /*
  * List of required GuC and HuC binaries per-platform.
  * Must be ordered based on platform + revid, from newer to older.
@@ -183,10 +206,9 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 		__uc_fw_user_override(uc_fw);
 	}
 
-	if (uc_fw->path && *uc_fw->path)
-		uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;
-	else
-		uc_fw->status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+	intel_uc_fw_change_status(uc_fw, uc_fw->path && *uc_fw->path ?
+				  INTEL_UC_FIRMWARE_SELECTED :
+				  INTEL_UC_FIRMWARE_NOT_SUPPORTED);
 }
 
 static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw,
@@ -343,20 +365,15 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 
 	uc_fw->obj = obj;
 	uc_fw->size = fw->size;
-	uc_fw->status = INTEL_UC_FIRMWARE_AVAILABLE;
-
-	DRM_DEV_DEBUG_DRIVER(dev, "%s firmware %s: %s\n",
-			     intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			     intel_uc_fw_status_repr(uc_fw->status));
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_AVAILABLE);
 
 	release_firmware(fw);
 	return 0;
 
 fail:
-	if (err == -ENOENT)
-		uc_fw->status = INTEL_UC_FIRMWARE_MISSING;
-	else
-		uc_fw->status = INTEL_UC_FIRMWARE_ERROR;
+	intel_uc_fw_change_status(uc_fw, err == -ENOENT ?
+				  INTEL_UC_FIRMWARE_MISSING :
+				  INTEL_UC_FIRMWARE_ERROR);
 
 	dev_notice(dev, "%s firmware %s: fetch failed with error %d\n",
 		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
@@ -491,17 +508,14 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	if (err)
 		goto fail;
 
-	uc_fw->status = INTEL_UC_FIRMWARE_TRANSFERRED;
-	DRM_DEV_DEBUG_DRIVER(gt->i915->drm.dev, "%s firmware %s: %s\n",
-			     intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			     intel_uc_fw_status_repr(uc_fw->status));
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_TRANSFERRED);
 	return 0;
 
 fail:
 	i915_probe_error(gt->i915, "Failed to load %s firmware %s (%d)\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 err);
-	uc_fw->status = INTEL_UC_FIRMWARE_FAIL;
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_FAIL);
 	return err;
 }
 
@@ -546,7 +560,7 @@ void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
 	if (obj)
 		i915_gem_object_put(obj);
 
-	uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_SELECTED);
 }
 
 /**

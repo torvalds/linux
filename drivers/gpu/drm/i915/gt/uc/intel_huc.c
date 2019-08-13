@@ -147,12 +147,12 @@ int intel_huc_auth(struct intel_huc *huc)
 		goto fail;
 	}
 
-	huc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_RUNNING);
 	return 0;
 
 fail:
 	i915_probe_error(gt->i915, "HuC: Authentication failed %d\n", ret);
-	huc->fw.status = INTEL_UC_FIRMWARE_FAIL;
+	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_FAIL);
 	return ret;
 }
 
