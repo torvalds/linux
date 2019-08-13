@@ -834,13 +834,13 @@ static int can_pernet_init(struct net *net)
 {
 	spin_lock_init(&net->can.can_rcvlists_lock);
 	net->can.can_rx_alldev_list =
-		kzalloc(sizeof(struct can_dev_rcv_lists), GFP_KERNEL);
+		kzalloc(sizeof(*net->can.can_rx_alldev_list), GFP_KERNEL);
 	if (!net->can.can_rx_alldev_list)
 		goto out;
-	net->can.can_stats = kzalloc(sizeof(struct s_stats), GFP_KERNEL);
+	net->can.can_stats = kzalloc(sizeof(*net->can.can_stats), GFP_KERNEL);
 	if (!net->can.can_stats)
 		goto out_free_alldev_list;
-	net->can.can_pstats = kzalloc(sizeof(struct s_pstats), GFP_KERNEL);
+	net->can.can_pstats = kzalloc(sizeof(*net->can.can_pstats), GFP_KERNEL);
 	if (!net->can.can_pstats)
 		goto out_free_can_stats;
 
