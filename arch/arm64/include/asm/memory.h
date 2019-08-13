@@ -252,7 +252,7 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
 #define __virt_to_phys_nodebug(x) ({					\
-	phys_addr_t __x = (phys_addr_t)(x);				\
+	phys_addr_t __x = (phys_addr_t)(__tag_reset(x));		\
 	__is_lm_address(__x) ? __lm_to_phys(__x) :			\
 			       __kimg_to_phys(__x);			\
 })
@@ -324,7 +324,8 @@ static inline void *phys_to_virt(phys_addr_t x)
 	((void *)__addr_tag);						\
 })
 
-#define virt_to_page(vaddr)	((struct page *)((__virt_to_pgoff(vaddr)) + VMEMMAP_START))
+#define virt_to_page(vaddr)	\
+	((struct page *)((__virt_to_pgoff(__tag_reset(vaddr))) + VMEMMAP_START))
 #endif
 
 #define virt_addr_valid(addr)	({					\
