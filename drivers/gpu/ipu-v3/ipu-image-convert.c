@@ -487,11 +487,22 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 	unsigned int min_diff = UINT_MAX;
 	unsigned int out_start;
 	unsigned int out_end;
+	unsigned int in_start;
+	unsigned int in_end;
 
 	/* Start within 1024 pixels of the right / bottom edge */
 	out_start = max_t(int, index * out_align, out_edge - 1024);
 	/* End before having to add more columns to the left / rows above */
 	out_end = min_t(unsigned int, out_edge, index * 1024 + 1);
+
+	/*
+	 * Limit input seam position to make sure that the downsized input tile
+	 * to the right or bottom does not exceed 1024 pixels.
+	 */
+	in_start = max_t(int, index * in_align,
+			 in_edge - (1024 << downsize_coeff));
+	in_end = min_t(unsigned int, in_edge,
+		       index * (1024 << downsize_coeff) + 1);
 
 	/*
 	 * Output tiles must start at a multiple of 8 bytes horizontally and
@@ -502,6 +513,7 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 	for (out_pos = out_start; out_pos < out_end; out_pos += out_align) {
 		unsigned int in_pos;
 		unsigned int in_pos_aligned;
+		unsigned int in_pos_rounded;
 		unsigned int abs_diff;
 
 		/*
@@ -522,9 +534,16 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 		 * start the input tile at, 19.13 fixed point.
 		 */
 		in_pos_aligned = round_closest(in_pos, 8192U * in_align);
+		/* Convert 19.13 fixed point to integer */
+		in_pos_rounded = in_pos_aligned / 8192U;
+
+		if (in_pos_rounded < in_start)
+			continue;
+		if (in_pos_rounded >= in_end)
+			break;
 
 		if ((in_burst > 1) &&
-		    (in_edge - in_pos_aligned / 8192U) % in_burst)
+		    (in_edge - in_pos_rounded) % in_burst)
 			continue;
 
 		if (in_pos < in_pos_aligned)
@@ -533,19 +552,18 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 			abs_diff = in_pos - in_pos_aligned;
 
 		if (abs_diff < min_diff) {
-			in_seam = in_pos_aligned;
+			in_seam = in_pos_rounded;
 			out_seam = out_pos;
 			min_diff = abs_diff;
 		}
 	}
 
 	*_out_seam = out_seam;
-	/* Convert 19.13 fixed point to integer seam position */
-	*_in_seam = DIV_ROUND_CLOSEST(in_seam, 8192U);
+	*_in_seam = in_seam;
 
-	dev_dbg(dev, "%s: out_seam %u(%u) in [%u, %u], in_seam %u(%u) diff %u.%03u\n",
+	dev_dbg(dev, "%s: out_seam %u(%u) in [%u, %u], in_seam %u(%u) in [%u, %u] diff %u.%03u\n",
 		__func__, out_seam, out_align, out_start, out_end,
-		*_in_seam, in_align, min_diff / 8192,
+		in_seam, in_align, in_start, in_end, min_diff / 8192,
 		DIV_ROUND_CLOSEST(min_diff % 8192 * 1000, 8192));
 }
 
