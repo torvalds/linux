@@ -69,15 +69,6 @@ config MTD_OF_PARTS
 	  the partition map from the children of the flash node,
 	  as described in Documentation/devicetree/bindings/mtd/partition.txt.
 
-config MTD_BCM63XX_PARTS
-	tristate "BCM63XX CFE partitioning support"
-	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
-	select CRC32
-	select MTD_PARSER_IMAGETAG
-	help
-	  This provides partition parsing for BCM63xx devices with CFE
-	  bootloaders.
-
 menu "Partition parsers"
 source "drivers/mtd/parsers/Kconfig"
 endmenu

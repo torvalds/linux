@@ -11,6 +11,15 @@ config MTD_BCM47XX_PARTS
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.
 
+config MTD_BCM63XX_PARTS
+	tristate "BCM63XX CFE partitioning parser"
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
+	select CRC32
+	select MTD_PARSER_IMAGETAG
+	help
+	  This provides partition parsing for BCM63xx devices with CFE
+	  bootloaders.
+
 config MTD_PARSER_IMAGETAG
 	tristate "Parser for BCM963XX Image Tag format partitions"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
