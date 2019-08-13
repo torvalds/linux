@@ -1205,14 +1205,14 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 
 	for (; i < data->count; i++) {
 		(*bps)[i] = (struct ras_badpage){
-			.bp = data->bps[i].bp,
+			.bp = data->bps[i].retired_page,
 			.size = AMDGPU_GPU_PAGE_SIZE,
 			.flags = 0,
 		};
 
 		if (data->last_reserved <= i)
 			(*bps)[i].flags = 1;
-		else if (data->bps[i].bo == NULL)
+		else if (data->bps_bo[i] == NULL)
 			(*bps)[i].flags = 2;
 	}
 
@@ -1306,30 +1306,40 @@ static int amdgpu_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 {
 	unsigned int old_space = data->count + data->space_left;
 	unsigned int new_space = old_space + pages;
-	unsigned int align_space = ALIGN(new_space, 1024);
-	void *tmp = kmalloc(align_space * sizeof(*data->bps), GFP_KERNEL);
+	unsigned int align_space = ALIGN(new_space, 512);
+	void *bps = kmalloc(align_space * sizeof(*data->bps), GFP_KERNEL);
+	struct amdgpu_bo **bps_bo =
+			kmalloc(align_space * sizeof(*data->bps_bo), GFP_KERNEL);
 
-	if (!tmp)
+	if (!bps || !bps_bo) {
+		kfree(bps);
+		kfree(bps_bo);
 		return -ENOMEM;
+	}
 
 	if (data->bps) {
-		memcpy(tmp, data->bps,
+		memcpy(bps, data->bps,
 				data->count * sizeof(*data->bps));
 		kfree(data->bps);
 	}
+	if (data->bps_bo) {
+		memcpy(bps_bo, data->bps_bo,
+				data->count * sizeof(*data->bps_bo));
+		kfree(data->bps_bo);
+	}
 
-	data->bps = tmp;
+	data->bps = bps;
+	data->bps_bo = bps_bo;
 	data->space_left += align_space - old_space;
 	return 0;
 }
 
 /* it deal with vram only. */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
-		unsigned long *bps, int pages)
+		struct eeprom_table_record *bps, int pages)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
-	int i = pages;
 	int ret = 0;
 
 	if (!con || !con->eh_data || !bps || pages <= 0)
@@ -1346,10 +1356,10 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			goto out;
 		}
 
-	while (i--)
-		data->bps[data->count++].bp = bps[i];
-
+	memcpy(&data->bps[data->count], bps, pages * sizeof(*data->bps));
+	data->count += pages;
 	data->space_left -= pages;
+
 out:
 	mutex_unlock(&con->recovery_lock);
 
@@ -1374,13 +1384,13 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 		goto out;
 	/* reserve vram at driver post stage. */
 	for (i = data->last_reserved; i < data->count; i++) {
-		bp = data->bps[i].bp;
+		bp = data->bps[i].retired_page;
 
 		if (amdgpu_ras_reserve_vram(adev, bp << PAGE_SHIFT,
 					PAGE_SIZE, &bo))
 			DRM_ERROR("RAS ERROR: reserve vram %llx fail\n", bp);
 
-		data->bps[i].bo = bo;
+		data->bps_bo[i] = bo;
 		data->last_reserved = i + 1;
 	}
 out:
@@ -1405,11 +1415,11 @@ static int amdgpu_ras_release_bad_pages(struct amdgpu_device *adev)
 		goto out;
 
 	for (i = data->last_reserved - 1; i >= 0; i--) {
-		bo = data->bps[i].bo;
+		bo = data->bps_bo[i];
 
 		amdgpu_ras_release_vram(adev, &bo);
 
-		data->bps[i].bo = bo;
+		data->bps_bo[i] = bo;
 		data->last_reserved = i;
 	}
 out:
@@ -1425,12 +1435,19 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	return 0;
 }
 
+/*
+ * read error record array in eeprom and reserve enough space for
+ * storing new bad pages
+ */
 static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 {
-	/* TODO
-	 * read the array to eeprom when SMU disabled.
-	 */
-	return 0;
+	struct eeprom_table_record *bps = NULL;
+	int ret;
+
+	ret = amdgpu_ras_add_bad_pages(adev, bps,
+				adev->umc.max_ras_err_cnt_per_query);
+
+	return ret;
 }
 
 static int amdgpu_ras_recovery_init(struct amdgpu_device *adev)

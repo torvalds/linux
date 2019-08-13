@@ -351,11 +351,10 @@ struct ras_err_data {
 };
 
 struct ras_err_handler_data {
-	/* point to bad pages array */
-	struct {
-		unsigned long bp;
-		struct amdgpu_bo *bo;
-	} *bps;
+	/* point to bad page records array */
+	struct eeprom_table_record *bps;
+	/* point to reserved bo array */
+	struct amdgpu_bo **bps_bo;
 	/* the count of entries */
 	int count;
 	/* the space can place new entries */
@@ -492,7 +491,7 @@ unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
-		unsigned long *bps, int pages);
+		struct eeprom_table_record *bps, int pages);
 
 int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev);
 
