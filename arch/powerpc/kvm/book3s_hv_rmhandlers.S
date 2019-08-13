@@ -2903,29 +2903,39 @@ kvm_cede_prodded:
 kvm_cede_exit:
 	ld	r9, HSTATE_KVM_VCPU(r13)
 #ifdef CONFIG_KVM_XICS
-	/* Abort if we still have a pending escalation */
-	lbz	r5, VCPU_XIVE_ESC_ON(r9)
-	cmpwi	r5, 0
-	beq	1f
-	li	r0, 0
-	stb	r0, VCPU_CEDED(r9)
-1:	/* Enable XIVE escalation */
-	li	r5, XIVE_ESB_SET_PQ_00
-	mfmsr	r0
-	andi.	r0, r0, MSR_DR		/* in real mode? */
-	beq	1f
+	/* are we using XIVE with single escalation? */
 	ld	r10, VCPU_XIVE_ESC_VADDR(r9)
 	cmpdi	r10, 0
 	beq	3f
-	ldx	r0, r10, r5
+	li	r6, XIVE_ESB_SET_PQ_00
+	/*
+	 * If we still have a pending escalation, abort the cede,
+	 * and we must set PQ to 10 rather than 00 so that we don't
+	 * potentially end up with two entries for the escalation
+	 * interrupt in the XIVE interrupt queue.  In that case
+	 * we also don't want to set xive_esc_on to 1 here in
+	 * case we race with xive_esc_irq().
+	 */
+	lbz	r5, VCPU_XIVE_ESC_ON(r9)
+	cmpwi	r5, 0
+	beq	4f
+	li	r0, 0
+	stb	r0, VCPU_CEDED(r9)
+	li	r6, XIVE_ESB_SET_PQ_10
+	b	5f
+4:	li	r0, 1
+	stb	r0, VCPU_XIVE_ESC_ON(r9)
+	/* make sure store to xive_esc_on is seen before xive_esc_irq runs */
+	sync
+5:	/* Enable XIVE escalation */
+	mfmsr	r0
+	andi.	r0, r0, MSR_DR		/* in real mode? */
+	beq	1f
+	ldx	r0, r10, r6
 	b	2f
 1:	ld	r10, VCPU_XIVE_ESC_RADDR(r9)
-	cmpdi	r10, 0
-	beq	3f
-	ldcix	r0, r10, r5
+	ldcix	r0, r10, r6
 2:	sync
-	li	r0, 1
-	stb	r0, VCPU_XIVE_ESC_ON(r9)
 #endif /* CONFIG_KVM_XICS */
 3:	b	guest_exit_cont
 
