@@ -161,11 +161,12 @@ static int fill_inode(struct inode *inode, int isdir)
 	int err;
 	erofs_blk_t blkaddr;
 	unsigned int ofs;
+	erofs_off_t inode_loc;
 
 	trace_erofs_fill_inode(inode, isdir);
-
-	blkaddr = erofs_blknr(iloc(sbi, vi->nid));
-	ofs = erofs_blkoff(iloc(sbi, vi->nid));
+	inode_loc = iloc(sbi, vi->nid);
+	blkaddr = erofs_blknr(inode_loc);
+	ofs = erofs_blkoff(inode_loc);
 
 	debugln("%s, reading inode nid %llu at %u of blkaddr %u",
 		__func__, vi->nid, ofs, blkaddr);
