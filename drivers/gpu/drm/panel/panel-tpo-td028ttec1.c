@@ -328,7 +328,7 @@ static int td028ttec1_probe(struct spi_device *spi)
 	int ret;
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
-	if (lcd == NULL)
+	if (!lcd)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, lcd);
