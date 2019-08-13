@@ -17,7 +17,7 @@
 #include <linux/numa.h>
 #include <asm/numa.h>
 
-#ifdef	CONFIG_ACPI
+
 extern int acpi_lapic;
 #define acpi_disabled 0	/* ACPI always enabled on IA64 */
 #define acpi_noirq 0	/* ACPI always enabled on IA64 */
@@ -28,7 +28,7 @@ static inline bool acpi_has_cpu_in_madt(void)
 {
 	return !!acpi_lapic;
 }
-#endif
+
 #define acpi_processor_cstate_check(x) (x) /* no idle limits on IA64 :) */
 static inline void disable_acpi(void) { }
 

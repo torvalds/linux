@@ -643,10 +643,8 @@ get_target_cpu (unsigned int gsi, int irq)
 	if (!cpu_online(smp_processor_id()))
 		return cpu_physical_id(smp_processor_id());
 
-#ifdef CONFIG_ACPI
 	if (cpe_vector > 0 && irq_to_vector(irq) == IA64_CPEP_VECTOR)
 		return get_cpei_target_cpu();
-#endif
 
 #ifdef CONFIG_NUMA
 	{
