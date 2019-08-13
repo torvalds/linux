@@ -319,7 +319,7 @@ static int mcp251x_spi_trans(struct spi_device *spi, int len)
 	return ret;
 }
 
-static u8 mcp251x_read_reg(struct spi_device *spi, uint8_t reg)
+static u8 mcp251x_read_reg(struct spi_device *spi, u8 reg)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	u8 val = 0;
@@ -333,8 +333,7 @@ static u8 mcp251x_read_reg(struct spi_device *spi, uint8_t reg)
 	return val;
 }
 
-static void mcp251x_read_2regs(struct spi_device *spi, uint8_t reg,
-		uint8_t *v1, uint8_t *v2)
+static void mcp251x_read_2regs(struct spi_device *spi, u8 reg, u8 *v1, u8 *v2)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
@@ -347,7 +346,7 @@ static void mcp251x_read_2regs(struct spi_device *spi, uint8_t reg,
 	*v2 = priv->spi_rx_buf[3];
 }
 
-static void mcp251x_write_reg(struct spi_device *spi, u8 reg, uint8_t val)
+static void mcp251x_write_reg(struct spi_device *spi, u8 reg, u8 val)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
@@ -359,7 +358,7 @@ static void mcp251x_write_reg(struct spi_device *spi, u8 reg, uint8_t val)
 }
 
 static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
-			       u8 mask, uint8_t val)
+			       u8 mask, u8 val)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
