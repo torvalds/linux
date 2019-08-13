@@ -35,7 +35,8 @@ static u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 static void recv_tasklet(void *priv);
 
-void r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
+void r8712_init_recv_priv(struct recv_priv *precvpriv,
+			  struct _adapter *padapter)
 {
 	int i;
 	struct recv_buf *precvbuf;
