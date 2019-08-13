@@ -7,7 +7,6 @@
 obj-$(CONFIG_MTD)		+= mtd.o
 mtd-y				:= mtdcore.o mtdsuper.o mtdconcat.o mtdpart.o mtdchar.o
 
-obj-$(CONFIG_MTD_CMDLINE_PARTS) += cmdlinepart.o
 obj-y				+= parsers/
 
 # 'Users' - code which presents functionality to userspace.
