@@ -403,6 +403,7 @@ static void panfrost_drm_mm_color_adjust(const struct drm_mm_node *node,
 static int
 panfrost_open(struct drm_device *dev, struct drm_file *file)
 {
+	int ret;
 	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_file_priv *panfrost_priv;
 
@@ -413,7 +414,28 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 	panfrost_priv->pfdev = pfdev;
 	file->driver_priv = panfrost_priv;
 
-	return panfrost_job_open(panfrost_priv);
+	spin_lock_init(&panfrost_priv->mm_lock);
+
+	/* 4G enough for now. can be 48-bit */
+	drm_mm_init(&panfrost_priv->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
+	panfrost_priv->mm.color_adjust = panfrost_drm_mm_color_adjust;
+
+	ret = panfrost_mmu_pgtable_alloc(panfrost_priv);
+	if (ret)
+		goto err_pgtable;
+
+	ret = panfrost_job_open(panfrost_priv);
+	if (ret)
+		goto err_job;
+
+	return 0;
+
+err_job:
+	panfrost_mmu_pgtable_free(panfrost_priv);
+err_pgtable:
+	drm_mm_takedown(&panfrost_priv->mm);
+	kfree(panfrost_priv);
+	return ret;
 }
 
 static void
@@ -424,6 +446,8 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 	panfrost_perfcnt_close(panfrost_priv);
 	panfrost_job_close(panfrost_priv);
 
+	panfrost_mmu_pgtable_free(panfrost_priv);
+	drm_mm_takedown(&panfrost_priv->mm);
 	kfree(panfrost_priv);
 }
 
@@ -496,13 +520,8 @@ static int panfrost_probe(struct platform_device *pdev)
 	ddev->dev_private = pfdev;
 	pfdev->ddev = ddev;
 
-	spin_lock_init(&pfdev->mm_lock);
 	mutex_init(&pfdev->shrinker_lock);
 	INIT_LIST_HEAD(&pfdev->shrinker_list);
-
-	/* 4G enough for now. can be 48-bit */
-	drm_mm_init(&pfdev->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
-	pfdev->mm.color_adjust = panfrost_drm_mm_color_adjust;
 
 	pm_runtime_use_autosuspend(pfdev->dev);
 	pm_runtime_set_autosuspend_delay(pfdev->dev, 50); /* ~3 frames */

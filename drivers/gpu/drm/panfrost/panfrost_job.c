@@ -153,6 +153,8 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 	if (WARN_ON(job_read(pfdev, JS_COMMAND_NEXT(js))))
 		goto end;
 
+	cfg = panfrost_mmu_as_get(pfdev, &job->file_priv->mmu);
+
 	panfrost_devfreq_record_transition(pfdev, js);
 	spin_lock_irqsave(&pfdev->hwaccess_lock, flags);
 
@@ -163,8 +165,7 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 
 	/* start MMU, medium priority, cache clean/flush on end, clean/flush on
 	 * start */
-	/* TODO: different address spaces */
-	cfg = JS_CONFIG_THREAD_PRI(8) |
+	cfg |= JS_CONFIG_THREAD_PRI(8) |
 		JS_CONFIG_START_FLUSH_CLEAN_INVALIDATE |
 		JS_CONFIG_END_FLUSH_CLEAN_INVALIDATE;
 
@@ -377,8 +378,9 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	if (dma_fence_is_signaled(job->done_fence))
 		return;
 
-	dev_err(pfdev->dev, "gpu sched timeout, js=%d, status=0x%x, head=0x%x, tail=0x%x, sched_job=%p",
+	dev_err(pfdev->dev, "gpu sched timeout, js=%d, config=0x%x, status=0x%x, head=0x%x, tail=0x%x, sched_job=%p",
 		js,
+		job_read(pfdev, JS_CONFIG(js)),
 		job_read(pfdev, JS_STATUS(js)),
 		job_read(pfdev, JS_HEAD_LO(js)),
 		job_read(pfdev, JS_TAIL_LO(js)),
@@ -448,8 +450,12 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 		}
 
 		if (status & JOB_INT_MASK_DONE(j)) {
+			struct panfrost_job *job = pfdev->jobs[j];
+
+			pfdev->jobs[j] = NULL;
+			panfrost_mmu_as_put(pfdev, &job->file_priv->mmu);
 			panfrost_devfreq_record_transition(pfdev, j);
-			dma_fence_signal(pfdev->jobs[j]->done_fence);
+			dma_fence_signal(job->done_fence);
 		}
 
 		status &= ~mask;
