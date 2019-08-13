@@ -53,7 +53,7 @@ struct receiver {
 	canid_t can_id;
 	canid_t mask;
 	unsigned long matches;
-	void (*func)(struct sk_buff *, void *);
+	void (*func)(struct sk_buff *skb, void *data);
 	void *data;
 	char *ident;
 	struct sock *sk;
