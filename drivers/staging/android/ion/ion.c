@@ -222,28 +222,36 @@ static int debug_shrink_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
 			debug_shrink_set, "%llu\n");
 
-void ion_device_add_heap(struct ion_heap *heap)
+int __ion_device_add_heap(struct ion_heap *heap, struct module *owner)
 {
 	struct ion_device *dev = internal_dev;
 	int ret;
 	struct dentry *heap_root;
 	char debug_name[64];
 
-	if (!heap->ops->allocate || !heap->ops->free)
-		pr_err("%s: can not add heap with invalid ops struct.\n",
-		       __func__);
+	if (!heap || !heap->ops || !heap->ops->allocate || !heap->ops->free) {
+		pr_err("%s: invalid heap or heap_ops\n", __func__);
+		ret = -EINVAL;
+		goto out;
+	}
 
+	heap->owner = owner;
 	spin_lock_init(&heap->free_lock);
 	spin_lock_init(&heap->stat_lock);
 	heap->free_list_size = 0;
 
-	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
-		ion_heap_init_deferred_free(heap);
+	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE) {
+		ret = ion_heap_init_deferred_free(heap);
+		if (ret)
+			goto out_heap_cleanup;
+	}
 
 	if ((heap->flags & ION_HEAP_FLAG_DEFER_FREE) || heap->ops->shrink) {
 		ret = ion_heap_init_shrinker(heap);
-		if (ret)
+		if (ret) {
 			pr_err("%s: Failed to register shrinker\n", __func__);
+			goto out_heap_cleanup;
+		}
 	}
 
 	heap->num_of_buffers = 0;
@@ -273,6 +281,7 @@ void ion_device_add_heap(struct ion_heap *heap)
 				    &debug_shrink_fops);
 	}
 
+	heap->debugfs_dir = heap_root;
 	down_write(&dev->lock);
 	heap->id = heap_id++;
 	/*
@@ -284,8 +293,37 @@ void ion_device_add_heap(struct ion_heap *heap)
 
 	dev->heap_cnt++;
 	up_write(&dev->lock);
+
+	return 0;
+
+out_heap_cleanup:
+	ion_heap_cleanup(heap);
+out:
+	return ret;
 }
-EXPORT_SYMBOL(ion_device_add_heap);
+EXPORT_SYMBOL_GPL(__ion_device_add_heap);
+
+void ion_device_remove_heap(struct ion_heap *heap)
+{
+	struct ion_device *dev = internal_dev;
+
+	if (!heap) {
+		pr_err("%s: Invalid argument\n", __func__);
+		return;
+	}
+
+	// take semaphore and remove the heap from dev->heap list
+	down_write(&dev->lock);
+	/* So no new allocations can happen from this heap */
+	plist_del(&heap->node, &dev->heaps);
+	if (ion_heap_cleanup(heap) != 0) {
+		pr_warn("%s: failed to cleanup heap (%s)\n",
+			__func__, heap->name);
+	}
+	debugfs_remove_recursive(heap->debugfs_dir);
+	up_write(&dev->lock);
+}
+EXPORT_SYMBOL(ion_device_remove_heap);
 
 static int ion_device_create(void)
 {

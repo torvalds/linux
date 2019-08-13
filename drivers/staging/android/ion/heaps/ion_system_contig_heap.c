@@ -11,6 +11,7 @@
 #include <linux/highmem.h>
 #include <linux/ion.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 
@@ -81,31 +82,22 @@ static struct ion_heap_ops kmalloc_ops = {
 	.map_user = ion_heap_map_user,
 };
 
-static struct ion_heap *__ion_system_contig_heap_create(void)
+static struct ion_heap contig_heap = {
+	.ops = &kmalloc_ops,
+	.type = ION_HEAP_TYPE_SYSTEM_CONTIG,
+	.name = "ion_system_contig_heap",
+};
+
+static int __init ion_system_contig_heap_init(void)
 {
-	struct ion_heap *heap;
-
-	heap = kzalloc(sizeof(*heap), GFP_KERNEL);
-	if (!heap)
-		return ERR_PTR(-ENOMEM);
-	heap->ops = &kmalloc_ops;
-	heap->type = ION_HEAP_TYPE_SYSTEM_CONTIG;
-	heap->name = "ion_system_contig_heap";
-
-	return heap;
+	return ion_device_add_heap(&contig_heap);
 }
 
-static int ion_system_contig_heap_create(void)
+static void __exit ion_system_contig_heap_exit(void)
 {
-	struct ion_heap *heap;
-
-	heap = __ion_system_contig_heap_create();
-	if (IS_ERR(heap))
-		return PTR_ERR(heap);
-
-	ion_device_add_heap(heap);
-
-	return 0;
+	ion_device_remove_heap(&contig_heap);
 }
-device_initcall(ion_system_contig_heap_create);
 
+module_init(ion_system_contig_heap_init);
+module_exit(ion_system_contig_heap_exit);
+MODULE_LICENSE("GPL v2");
