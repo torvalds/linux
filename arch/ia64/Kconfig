@@ -138,7 +138,6 @@ config IA64_GENERIC
 	  DIG-compliant		For DIG ("Developer's Interface Guide") compliant systems
 	  DIG+Intel+IOMMU	For DIG systems with Intel IOMMU
 	  HP-zx1/sx1000		For HP systems
-	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
 	  SGI-UV		For SGI UV systems
 
 	  If you don't know what to do, choose "generic".
@@ -157,16 +156,6 @@ config IA64_HP_ZX1
 	help
 	  Build a kernel that runs on HP zx1 and sx1000 systems.  This adds
 	  support for the HP I/O MMU.
-
-config IA64_HP_ZX1_SWIOTLB
-	bool "HP-zx1/sx1000 with software I/O TLB"
-	select SWIOTLB
-	help
-	  Build a kernel that runs on HP zx1 and sx1000 systems even when they
-	  have broken PCI devices which cannot DMA to full 32 bits.  Apart
-	  from support for the HP I/O MMU, this includes support for the software
-	  I/O TLB, which allows supporting the broken devices at the expense of
-	  wasting some kernel memory (about 2MB by default).
 
 config IA64_SGI_UV
 	bool "SGI-UV"
@@ -350,7 +339,7 @@ config ARCH_SPARSEMEM_ENABLE
 	select SPARSEMEM_VMEMMAP_ENABLE
 
 config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y if (IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
+	def_bool y if (IA64_GENERIC || IA64_HP_ZX1)
 	depends on ARCH_DISCONTIGMEM_ENABLE
 
 config NUMA

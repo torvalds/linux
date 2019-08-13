@@ -2059,7 +2059,7 @@ arch_initcall(acpi_sba_ioc_init_acpi);
 static int __init
 sba_init(void)
 {
-	if (!ia64_platform_is("hpzx1") && !ia64_platform_is("hpzx1_swiotlb"))
+	if (!ia64_platform_is("hpzx1"))
 		return 0;
 
 #if defined(CONFIG_IA64_GENERIC)
@@ -2101,19 +2101,6 @@ sba_init(void)
 #endif
 		return 0;
 	}
-
-#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_HP_ZX1_SWIOTLB)
-	/*
-	 * hpzx1_swiotlb needs to have a fairly small swiotlb bounce
-	 * buffer setup to support devices with smaller DMA masks than
-	 * sba_iommu can handle.
-	 */
-	if (ia64_platform_is("hpzx1_swiotlb")) {
-		extern void hwsw_init(void);
-
-		hwsw_init();
-	}
-#endif
 
 	{
 		struct pci_bus *b = NULL;

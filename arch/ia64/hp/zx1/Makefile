@@ -6,4 +6,4 @@
 # Copyright (C) Alex Williamson (alex_williamson@hp.com)
 #
 
-obj-$(CONFIG_IA64_GENERIC) += hpzx1_machvec.o hpzx1_swiotlb_machvec.o
+obj-$(CONFIG_IA64_GENERIC) += hpzx1_machvec.o

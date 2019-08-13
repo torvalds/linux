@@ -9,12 +9,6 @@ int iommu_detected __read_mostly;
 const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
-const struct dma_map_ops *dma_get_ops(struct device *dev)
-{
-	return dma_ops;
-}
-EXPORT_SYMBOL(dma_get_ops);
-
 #ifdef CONFIG_SWIOTLB
 void *arch_dma_alloc(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)

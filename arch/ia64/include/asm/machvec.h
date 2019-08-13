@@ -17,12 +17,6 @@ struct device;
 
 typedef void ia64_mv_setup_t (char **);
 typedef void ia64_mv_dma_init (void);
-typedef const struct dma_map_ops *ia64_mv_dma_get_ops(struct device *);
-
-static inline void
-machvec_noop (void)
-{
-}
 
 extern void machvec_setup (char **);
 
@@ -32,8 +26,6 @@ extern void machvec_setup (char **);
 #  include <asm/machvec_dig_vtd.h>
 # elif defined (CONFIG_IA64_HP_ZX1)
 #  include <asm/machvec_hpzx1.h>
-# elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
-#  include <asm/machvec_hpzx1_swiotlb.h>
 # elif defined (CONFIG_IA64_SGI_UV)
 #  include <asm/machvec_uv.h>
 # elif defined (CONFIG_IA64_GENERIC)
@@ -44,7 +36,6 @@ extern void machvec_setup (char **);
 #  define ia64_platform_name	ia64_mv.name
 #  define platform_setup	ia64_mv.setup
 #  define platform_dma_init		ia64_mv.dma_init
-#  define platform_dma_get_ops		ia64_mv.dma_get_ops
 # endif
 
 /* __attribute__((__aligned__(16))) is required to make size of the
@@ -56,7 +47,6 @@ struct ia64_machine_vector {
 	const char *name;
 	ia64_mv_setup_t *setup;
 	ia64_mv_dma_init *dma_init;
-	ia64_mv_dma_get_ops *dma_get_ops;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
 
 #define MACHVEC_INIT(name)			\
@@ -64,7 +54,6 @@ struct ia64_machine_vector {
 	#name,					\
 	platform_setup,				\
 	platform_dma_init,			\
-	platform_dma_get_ops,			\
 }
 
 extern struct ia64_machine_vector ia64_mv;
@@ -76,7 +65,6 @@ extern void machvec_init_from_cmdline(const char *cmdline);
 # endif /* CONFIG_IA64_GENERIC */
 
 extern void swiotlb_dma_init(void);
-extern const struct dma_map_ops *dma_get_ops(struct device *);
 
 /*
  * Define default versions so we can extend machvec for new platforms without having
@@ -87,9 +75,6 @@ extern const struct dma_map_ops *dma_get_ops(struct device *);
 #endif
 #ifndef platform_dma_init
 # define platform_dma_init		swiotlb_dma_init
-#endif
-#ifndef platform_dma_get_ops
-# define platform_dma_get_ops		dma_get_ops
 #endif
 
 #endif /* _ASM_IA64_MACHVEC_H */

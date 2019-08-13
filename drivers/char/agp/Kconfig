@@ -118,7 +118,7 @@ config AGP_I460
 
 config AGP_HP_ZX1
 	tristate "HP ZX1 chipset AGP support"
-	depends on AGP && (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC)
+	depends on AGP && (IA64_HP_ZX1 || IA64_GENERIC)
 	help
 	  This option gives you AGP GART support for the HP ZX1 chipset
 	  for IA64 processors.
