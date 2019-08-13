@@ -352,8 +352,8 @@ u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf,
 		(((struct tx_desc *)pxmitbuf->pbuf)->txdw0 & 0x0000ffff);
 }
 
-u8 r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+void r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
+			    struct xmit_frame *pxmitframe)
 {
 	struct _adapter *padapter = pxmitframe->padapter;
 	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
@@ -390,8 +390,6 @@ u8 r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 	}
 	r8712_write_port(pxmitframe->padapter, RTL8712_DMA_H2CCMD,
 			total_length + TXDESC_SIZE, (u8 *)pxmitframe);
-
-	return _SUCCESS;
 }
 
 #endif
