@@ -1588,23 +1588,21 @@ static int ethsw_probe_port(struct ethsw_core *ethsw, u16 port_idx)
 	port_netdev->min_mtu = ETH_MIN_MTU;
 	port_netdev->max_mtu = ETHSW_MAX_FRAME_LENGTH;
 
+	err = ethsw_port_init(port_priv, port_idx);
+	if (err)
+		goto err_port_probe;
+
 	err = register_netdev(port_netdev);
 	if (err < 0) {
 		dev_err(dev, "register_netdev error %d\n", err);
-		goto err_register_netdev;
+		goto err_port_probe;
 	}
 
 	ethsw->ports[port_idx] = port_priv;
 
-	err = ethsw_port_init(port_priv, port_idx);
-	if (err)
-		goto err_ethsw_port_init;
-
 	return 0;
 
-err_ethsw_port_init:
-	unregister_netdev(port_netdev);
-err_register_netdev:
+err_port_probe:
 	free_netdev(port_netdev);
 
 	return err;
