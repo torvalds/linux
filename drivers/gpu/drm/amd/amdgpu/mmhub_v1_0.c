@@ -21,17 +21,22 @@
  *
  */
 #include "amdgpu.h"
+#include "amdgpu_ras.h"
 #include "mmhub_v1_0.h"
 
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 #include "mmhub/mmhub_1_0_default.h"
+#include "mmhub/mmhub_9_4_0_offset.h"
 #include "vega10_enum.h"
 
 #include "soc15_common.h"
 
 #define mmDAGB0_CNTL_MISC2_RV 0x008f
 #define mmDAGB0_CNTL_MISC2_RV_BASE_IDX 0
+
+#define EA_EDC_CNT_MASK 0x3
+#define EA_EDC_CNT_SHIFT 0x2
 
 u64 mmhub_v1_0_get_fb_location(struct amdgpu_device *adev)
 {
@@ -557,6 +562,56 @@ void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 static void mmhub_v1_0_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
+	int i;
+	uint32_t ea0_edc_cnt, ea0_edc_cnt2;
+	uint32_t ea1_edc_cnt, ea1_edc_cnt2;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	/* EDC CNT will be cleared automatically after read */
+	ea0_edc_cnt = RREG32_SOC15(MMHUB, 0, mmMMEA0_EDC_CNT_VG20);
+	ea0_edc_cnt2 = RREG32_SOC15(MMHUB, 0, mmMMEA0_EDC_CNT2_VG20);
+	ea1_edc_cnt = RREG32_SOC15(MMHUB, 0, mmMMEA1_EDC_CNT_VG20);
+	ea1_edc_cnt2 = RREG32_SOC15(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20);
+
+	/* error count of each error type is recorded by 2 bits,
+	 * ce and ue count in EDC_CNT
+	 */
+	for (i = 0; i < 5; i++) {
+		err_data->ce_count += (ea0_edc_cnt & EA_EDC_CNT_MASK);
+		err_data->ce_count += (ea1_edc_cnt & EA_EDC_CNT_MASK);
+		ea0_edc_cnt >>= EA_EDC_CNT_SHIFT;
+		ea1_edc_cnt >>= EA_EDC_CNT_SHIFT;
+		err_data->ue_count += (ea0_edc_cnt & EA_EDC_CNT_MASK);
+		err_data->ue_count += (ea1_edc_cnt & EA_EDC_CNT_MASK);
+		ea0_edc_cnt >>= EA_EDC_CNT_SHIFT;
+		ea1_edc_cnt >>= EA_EDC_CNT_SHIFT;
+	}
+	/* successive ue count in EDC_CNT */
+	for (i = 0; i < 5; i++) {
+		err_data->ue_count += (ea0_edc_cnt & EA_EDC_CNT_MASK);
+		err_data->ue_count += (ea1_edc_cnt & EA_EDC_CNT_MASK);
+		ea0_edc_cnt >>= EA_EDC_CNT_SHIFT;
+		ea1_edc_cnt >>= EA_EDC_CNT_SHIFT;
+	}
+
+	/* ce and ue count in EDC_CNT2 */
+	for (i = 0; i < 3; i++) {
+		err_data->ce_count += (ea0_edc_cnt2 & EA_EDC_CNT_MASK);
+		err_data->ce_count += (ea1_edc_cnt2 & EA_EDC_CNT_MASK);
+		ea0_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
+		ea1_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
+		err_data->ue_count += (ea0_edc_cnt2 & EA_EDC_CNT_MASK);
+		err_data->ue_count += (ea1_edc_cnt2 & EA_EDC_CNT_MASK);
+		ea0_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
+		ea1_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
+	}
+	/* successive ue count in EDC_CNT2 */
+	for (i = 0; i < 6; i++) {
+		err_data->ue_count += (ea0_edc_cnt2 & EA_EDC_CNT_MASK);
+		err_data->ue_count += (ea1_edc_cnt2 & EA_EDC_CNT_MASK);
+		ea0_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
+		ea1_edc_cnt2 >>= EA_EDC_CNT_SHIFT;
+	}
 }
 
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
