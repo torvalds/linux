@@ -37,9 +37,7 @@ const char *acpi_get_sysname (void);
 #else
 static inline const char *acpi_get_sysname (void)
 {
-# if defined (CONFIG_IA64_HP_SIM)
-	return "hpsim";
-# elif defined (CONFIG_IA64_HP_ZX1)
+# if defined (CONFIG_IA64_HP_ZX1)
 	return "hpzx1";
 # elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
 	return "hpzx1_swiotlb";

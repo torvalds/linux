@@ -63,7 +63,6 @@
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
-#include <asm/hpsim.h>
 
 #if defined(CONFIG_SMP) && (IA64_CPU_SIZE > PAGE_SIZE)
 # error "struct cpuinfo_ia64 too big!"
@@ -461,16 +460,11 @@ io_port_init (void)
 static inline int __init
 early_console_setup (char *cmdline)
 {
-	int earlycons = 0;
-
 #ifdef CONFIG_EFI_PCDP
 	if (!efi_setup_pcdp_console(cmdline))
-		earlycons++;
+		return 0;
 #endif
-	if (!simcons_register())
-		earlycons++;
-
-	return (earlycons) ? 0 : -1;
+	return -1;
 }
 
 static inline void
@@ -608,9 +602,6 @@ setup_arch (char **cmdline_p)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
-#ifndef CONFIG_IA64_HP_SIM
-	check_sal_cache_flush();
-#endif
 	paging_init();
 
 	clear_sched_clock_stable();

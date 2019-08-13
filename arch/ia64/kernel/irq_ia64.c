@@ -53,7 +53,6 @@
 #define IRQ_USED		(1)
 #define IRQ_RSVD		(2)
 
-/* These can be overridden in platform_irq_init */
 int ia64_first_device_vector = IA64_DEF_FIRST_DEVICE_VECTOR;
 int ia64_last_device_vector = IA64_DEF_LAST_DEVICE_VECTOR;
 
@@ -648,7 +647,6 @@ init_IRQ (void)
 #ifdef CONFIG_PERFMON
 	pfm_init_percpu();
 #endif
-	platform_irq_init();
 }
 
 void

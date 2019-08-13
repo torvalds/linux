@@ -16,7 +16,6 @@
 struct device;
 
 typedef void ia64_mv_setup_t (char **);
-typedef void ia64_mv_irq_init_t (void);
 typedef void ia64_mv_dma_init (void);
 typedef const struct dma_map_ops *ia64_mv_dma_get_ops(struct device *);
 
@@ -27,9 +26,7 @@ machvec_noop (void)
 
 extern void machvec_setup (char **);
 
-# if defined (CONFIG_IA64_HP_SIM)
-#  include <asm/machvec_hpsim.h>
-# elif defined (CONFIG_IA64_DIG)
+# if defined (CONFIG_IA64_DIG)
 #  include <asm/machvec_dig.h>
 # elif defined(CONFIG_IA64_DIG_VTD)
 #  include <asm/machvec_dig_vtd.h>
@@ -46,7 +43,6 @@ extern void machvec_setup (char **);
 # else
 #  define ia64_platform_name	ia64_mv.name
 #  define platform_setup	ia64_mv.setup
-#  define platform_irq_init	ia64_mv.irq_init
 #  define platform_dma_init		ia64_mv.dma_init
 #  define platform_dma_get_ops		ia64_mv.dma_get_ops
 # endif
@@ -59,7 +55,6 @@ extern void machvec_setup (char **);
 struct ia64_machine_vector {
 	const char *name;
 	ia64_mv_setup_t *setup;
-	ia64_mv_irq_init_t *irq_init;
 	ia64_mv_dma_init *dma_init;
 	ia64_mv_dma_get_ops *dma_get_ops;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
@@ -68,7 +63,6 @@ struct ia64_machine_vector {
 {						\
 	#name,					\
 	platform_setup,				\
-	platform_irq_init,			\
 	platform_dma_init,			\
 	platform_dma_get_ops,			\
 }
@@ -90,9 +84,6 @@ extern const struct dma_map_ops *dma_get_ops(struct device *);
  */
 #ifndef platform_setup
 # define platform_setup			machvec_setup
-#endif
-#ifndef platform_irq_init
-# define platform_irq_init		machvec_noop
 #endif
 #ifndef platform_dma_init
 # define platform_dma_init		swiotlb_dma_init

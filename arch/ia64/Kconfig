@@ -10,11 +10,11 @@ config IA64
 	bool
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select ACPI if (!IA64_HP_SIM)
-	select ARCH_SUPPORTS_ACPI if (!IA64_HP_SIM)
+	select ACPI
+	select ARCH_SUPPORTS_ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
-	select FORCE_PCI if (!IA64_HP_SIM)
+	select FORCE_PCI
 	select PCI_DOMAINS if PCI
 	select PCI_SYSCALL if PCI
 	select HAVE_UNSTABLE_SCHED_CLOCK
@@ -140,7 +140,6 @@ config IA64_GENERIC
 	  HP-zx1/sx1000		For HP systems
 	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
 	  SGI-UV		For SGI UV systems
-	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
 
 	  If you don't know what to do, choose "generic".
 
@@ -180,11 +179,6 @@ config IA64_SGI_UV
 	  types of ia64 systems.  If you have an SGI UV system, it's safe
 	  to select this option.  If in doubt, select ia64 generic support
 	  instead.
-
-config IA64_HP_SIM
-	bool "Ski-simulator"
-	select SWIOTLB
-	depends on !PM
 
 endchoice
 
@@ -239,14 +233,7 @@ config IA64_PAGE_SIZE_64KB
 
 endchoice
 
-if IA64_HP_SIM
-config HZ
-	default 32
-endif
-
-if !IA64_HP_SIM
 source "kernel/Kconfig.hz"
-endif
 
 config IA64_BRL_EMU
 	bool
@@ -264,11 +251,6 @@ config IA64_CYCLONE
 	help
 	  Say Y here to enable support for IBM EXA Cyclone time source.
 	  If you're unsure, answer N.
-
-config IOSAPIC
-	bool
-	depends on !IA64_HP_SIM
-	default y
 
 config FORCE_MAX_ZONEORDER
 	int "MAX_ORDER (11 - 17)"  if !HUGETLB_PAGE
@@ -373,7 +355,7 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config NUMA
 	bool "NUMA support"
-	depends on !IA64_HP_SIM && !FLATMEM
+	depends on !FLATMEM
 	select ACPI_NUMA if ACPI
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
@@ -395,7 +377,7 @@ config NODES_SHIFT
 config VIRTUAL_MEM_MAP
 	bool "Virtual mem map"
 	depends on !SPARSEMEM
-	default y if !IA64_HP_SIM
+	default y
 	help
 	  Say Y to compile the kernel with support for a virtual mem map.
 	  This code also only takes effect if a memory hole of greater than
@@ -478,7 +460,7 @@ config IA64_HP_AML_NFW
 
 config KEXEC
 	bool "kexec system call"
-	depends on !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
+	depends on !SMP || HOTPLUG_CPU
 	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
@@ -496,7 +478,7 @@ config KEXEC
 
 config CRASH_DUMP
 	  bool "kernel crash dumps"
-	  depends on IA64_MCA_RECOVERY && !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
+	  depends on IA64_MCA_RECOVERY && (!SMP || HOTPLUG_CPU)
 	  help
 	    Generate crash dump after being started by kexec.
 
@@ -517,8 +499,6 @@ endmenu
 endif
 
 endmenu
-
-source "arch/ia64/hp/sim/Kconfig"
 
 config MSPEC
 	tristate "Memory special operations driver"
