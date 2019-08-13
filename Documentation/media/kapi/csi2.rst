@@ -49,9 +49,13 @@ where
 
 The transmitter drivers must, if possible, configure the CSI-2
 transmitter to *LP-11 mode* whenever the transmitter is powered on but
-not active. Some transmitters do this automatically but some have to
-be explicitly programmed to do so, and some are unable to do so
-altogether due to hardware constraints.
+not active, and maintain *LP-11 mode* until stream on. Only at stream
+on should the transmitter activate the clock on the clock lane and
+transition to *HS mode*.
+
+Some transmitters do this automatically but some have to be explicitly
+programmed to do so, and some are unable to do so altogether due to
+hardware constraints.
 
 Stopping the transmitter
 ^^^^^^^^^^^^^^^^^^^^^^^^
