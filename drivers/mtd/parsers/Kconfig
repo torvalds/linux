@@ -1,4 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config MTD_AR7_PARTS
+	tristate "TI AR7 partitioning parser"
+	help
+	  TI AR7 partitioning parser support
+
 config MTD_PARSER_IMAGETAG
 	tristate "Parser for BCM963XX Image Tag format partitions"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST

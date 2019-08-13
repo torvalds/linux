@@ -69,11 +69,6 @@ config MTD_OF_PARTS
 	  the partition map from the children of the flash node,
 	  as described in Documentation/devicetree/bindings/mtd/partition.txt.
 
-config MTD_AR7_PARTS
-	tristate "TI AR7 partitioning support"
-	help
-	  TI AR7 partitioning support
-
 config MTD_BCM63XX_PARTS
 	tristate "BCM63XX CFE partitioning support"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
