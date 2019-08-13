@@ -88,16 +88,21 @@ ethsw_set_link_ksettings(struct net_device *netdev,
 			 const struct ethtool_link_ksettings *link_ksettings)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_link_cfg cfg = {0};
-	int err = 0;
+	bool if_running;
+	int err = 0, ret;
 
-	/* Due to a temporary MC limitation, the DPSW port must be down
-	 * in order to be able to change link settings. Taking steps to let
-	 * the user know that.
-	 */
-	if (netif_running(netdev)) {
-		netdev_info(netdev, "Sorry, interface must be brought down first.\n");
-		return -EACCES;
+	/* Interface needs to be down to change link settings */
+	if_running = netif_running(netdev);
+	if (if_running) {
+		err = dpsw_if_disable(ethsw->mc_io, 0,
+				      ethsw->dpsw_handle,
+				      port_priv->idx);
+		if (err) {
+			netdev_err(netdev, "dpsw_if_disable err %d\n", err);
+			return err;
+		}
 	}
 
 	cfg.rate = link_ksettings->base.speed;
@@ -115,6 +120,15 @@ ethsw_set_link_ksettings(struct net_device *netdev,
 				   port_priv->idx,
 				   &cfg);
 
+	if (if_running) {
+		ret = dpsw_if_enable(ethsw->mc_io, 0,
+				     ethsw->dpsw_handle,
+				     port_priv->idx);
+		if (ret) {
+			netdev_err(netdev, "dpsw_if_enable err %d\n", ret);
+			return ret;
+		}
+	}
 	return err;
 }
 
