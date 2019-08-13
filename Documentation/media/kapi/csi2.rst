@@ -72,3 +72,10 @@ the transmitter up by using the
 :c:type:`v4l2_subdev_core_ops`->s_power() callback. This may take
 place either indirectly by using :c:func:`v4l2_pipeline_pm_use` or
 directly.
+
+Formats
+-------
+
+The media bus pixel codes document parallel formats. Should the pixel data be
+transported over a serial bus, the media bus pixel code that describes a
+parallel format that transfers a sample on a single clock cycle is used.

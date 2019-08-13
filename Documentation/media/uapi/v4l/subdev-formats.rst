@@ -85,6 +85,14 @@ formats in memory (a raw Bayer image won't be magically converted to
 JPEG just by storing it to memory), there is no one-to-one
 correspondence between them.
 
+The media bus pixel codes document parallel formats. Should the pixel data be
+transported over a serial bus, the media bus pixel code that describes a
+parallel format that transfers a sample on a single clock cycle is used. For
+instance, both MEDIA_BUS_FMT_BGR888_1X24 and MEDIA_BUS_FMT_BGR888_3X8 are used
+on parallel busses for transferring an 8 bits per sample BGR data, whereas on
+serial busses the data in this format is only referred to using
+MEDIA_BUS_FMT_BGR888_1X24. This is because there is effectively only a single
+way to transport that format on the serial busses.
 
 Packed RGB Formats
 ^^^^^^^^^^^^^^^^^^
