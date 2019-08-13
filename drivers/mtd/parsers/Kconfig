@@ -4,6 +4,13 @@ config MTD_AR7_PARTS
 	help
 	  TI AR7 partitioning parser support
 
+config MTD_BCM47XX_PARTS
+	tristate "BCM47XX partitioning parser"
+	depends on BCM47XX || ARCH_BCM_5301X
+	help
+	  This provides partitions parser for devices based on BCM47xx
+	  boards.
+
 config MTD_PARSER_IMAGETAG
 	tristate "Parser for BCM963XX Image Tag format partitions"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
