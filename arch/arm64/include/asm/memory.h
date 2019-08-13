@@ -12,10 +12,10 @@
 
 #include <linux/compiler.h>
 #include <linux/const.h>
+#include <linux/sizes.h>
 #include <linux/types.h>
 #include <asm/bug.h>
 #include <asm/page-def.h>
-#include <linux/sizes.h>
 
 /*
  * Size of the PCI I/O space. This must remain a power of two so that
@@ -66,8 +66,8 @@
 
 #define _VA_START(va)		(-(UL(1) << ((va) - 1)))
 
-#define KERNEL_START      _text
-#define KERNEL_END        _end
+#define KERNEL_START		_text
+#define KERNEL_END		_end
 
 #ifdef CONFIG_ARM64_VA_BITS_52
 #define MAX_USER_VA_BITS	52
@@ -132,14 +132,14 @@
  * 16 KB granule: 128 level 3 entries, with contiguous bit
  * 64 KB granule:  32 level 3 entries, with contiguous bit
  */
-#define SEGMENT_ALIGN			SZ_2M
+#define SEGMENT_ALIGN		SZ_2M
 #else
 /*
  *  4 KB granule:  16 level 3 entries, with contiguous bit
  * 16 KB granule:   4 level 3 entries, without contiguous bit
  * 64 KB granule:   1 level 3 entry
  */
-#define SEGMENT_ALIGN			SZ_64K
+#define SEGMENT_ALIGN		SZ_64K
 #endif
 
 /*
@@ -253,8 +253,7 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 
 #define __virt_to_phys_nodebug(x) ({					\
 	phys_addr_t __x = (phys_addr_t)(__tag_reset(x));		\
-	__is_lm_address(__x) ? __lm_to_phys(__x) :			\
-			       __kimg_to_phys(__x);			\
+	__is_lm_address(__x) ? __lm_to_phys(__x) : __kimg_to_phys(__x);	\
 })
 
 #define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
@@ -301,17 +300,17 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
-#define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))
-#define sym_to_pfn(x)	    __phys_to_pfn(__pa_symbol(x))
+#define virt_to_pfn(x)		__phys_to_pfn(__virt_to_phys((unsigned long)(x)))
+#define sym_to_pfn(x)		__phys_to_pfn(__pa_symbol(x))
 
 /*
- *  virt_to_page(k)	convert a _valid_ virtual address to struct page *
- *  virt_addr_valid(k)	indicates whether a virtual address is valid
+ *  virt_to_page(x)	convert a _valid_ virtual address to struct page *
+ *  virt_addr_valid(x)	indicates whether a virtual address is valid
  */
 #define ARCH_PFN_OFFSET		((unsigned long)PHYS_PFN_OFFSET)
 
 #if !defined(CONFIG_SPARSEMEM_VMEMMAP) || defined(CONFIG_DEBUG_VIRTUAL)
-#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
+#define virt_to_page(x)		pfn_to_page(virt_to_pfn(x))
 #else
 #define page_to_virt(x)	({						\
 	__typeof__(x) __page = x;					\
