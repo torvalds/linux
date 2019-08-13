@@ -698,8 +698,8 @@ struct rx_agg {
 	struct list_head list, info_list;
 	struct urb *urb;
 	struct r8152 *context;
+	struct page *page;
 	void *buffer;
-	void *head;
 };
 
 struct tx_agg {
@@ -1476,7 +1476,7 @@ static void free_rx_agg(struct r8152 *tp, struct rx_agg *agg)
 	list_del(&agg->info_list);
 
 	usb_free_urb(agg->urb);
-	kfree(agg->buffer);
+	__free_pages(agg->page, get_order(tp->rx_buf_sz));
 	kfree(agg);
 
 	atomic_dec(&tp->rx_count);
@@ -1486,28 +1486,19 @@ static struct rx_agg *alloc_rx_agg(struct r8152 *tp, gfp_t mflags)
 {
 	struct net_device *netdev = tp->netdev;
 	int node = netdev->dev.parent ? dev_to_node(netdev->dev.parent) : -1;
+	unsigned int order = get_order(tp->rx_buf_sz);
 	struct rx_agg *rx_agg;
 	unsigned long flags;
-	u8 *buf;
 
 	rx_agg = kmalloc_node(sizeof(*rx_agg), mflags, node);
 	if (!rx_agg)
 		return NULL;
 
-	buf = kmalloc_node(tp->rx_buf_sz, mflags, node);
-	if (!buf)
+	rx_agg->page = alloc_pages(mflags, order);
+	if (!rx_agg->page)
 		goto free_rx;
 
-	if (buf != rx_agg_align(buf)) {
-		kfree(buf);
-		buf = kmalloc_node(tp->rx_buf_sz + RX_ALIGN, mflags,
-				   node);
-		if (!buf)
-			goto free_rx;
-	}
-
-	rx_agg->buffer = buf;
-	rx_agg->head = rx_agg_align(buf);
+	rx_agg->buffer = page_address(rx_agg->page);
 
 	rx_agg->urb = usb_alloc_urb(0, mflags);
 	if (!rx_agg->urb)
@@ -1526,7 +1517,7 @@ static struct rx_agg *alloc_rx_agg(struct r8152 *tp, gfp_t mflags)
 	return rx_agg;
 
 free_buf:
-	kfree(rx_agg->buffer);
+	__free_pages(rx_agg->page, order);
 free_rx:
 	kfree(rx_agg);
 	return NULL;
@@ -2003,8 +1994,8 @@ static int rx_bottom(struct r8152 *tp, int budget)
 		if (urb->actual_length < ETH_ZLEN)
 			goto submit;
 
-		rx_desc = agg->head;
-		rx_data = agg->head;
+		rx_desc = agg->buffer;
+		rx_data = agg->buffer;
 		len_used += sizeof(struct rx_desc);
 
 		while (urb->actual_length > len_used) {
@@ -2051,7 +2042,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 find_next_rx:
 			rx_data = rx_agg_align(rx_data + pkt_len + ETH_FCS_LEN);
 			rx_desc = (struct rx_desc *)rx_data;
-			len_used = (int)(rx_data - (u8 *)agg->head);
+			len_used = (int)(rx_data - (u8 *)agg->buffer);
 			len_used += sizeof(struct rx_desc);
 		}
 
@@ -2162,7 +2153,7 @@ int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags)
 		return 0;
 
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_rcvbulkpipe(tp->udev, 1),
-			  agg->head, tp->rx_buf_sz,
+			  agg->buffer, tp->rx_buf_sz,
 			  (usb_complete_t)read_bulk_callback, agg);
 
 	ret = usb_submit_urb(agg->urb, mem_flags);
