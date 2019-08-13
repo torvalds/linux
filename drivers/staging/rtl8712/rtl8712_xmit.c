@@ -278,8 +278,8 @@ void r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
 	pcmdpriv->cmd_seq++;
 }
 
-u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+void r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
+			    struct xmit_frame *pxmitframe)
 {
 	struct _adapter *padapter = pxmitframe->padapter;
 	struct tx_desc *ptx_desc = (struct tx_desc *)pxmitbuf->pbuf;
@@ -315,8 +315,6 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 		((ptx_desc->txdw0 & 0x0000ffff) +
 			((TXDESC_SIZE + last_txcmdsz + padding_sz) &
 			 0x0000ffff)));
-
-	return _SUCCESS;
 }
 
 
@@ -332,8 +330,8 @@ u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 	/*RTL8712_DMA_H2CCMD */
 	r8712_construct_txaggr_cmd_desc(pxmitbuf);
 	r8712_construct_txaggr_cmd_hdr(pxmitbuf);
-	if (r8712_append_mpdu_unit(pxmitbuf, pxmitframe) == _SUCCESS)
-		pxmitbuf->aggr_nr = 1;
+	r8712_append_mpdu_unit(pxmitbuf, pxmitframe);
+	pxmitbuf->aggr_nr = 1;
 
 	return _SUCCESS;
 }
@@ -347,11 +345,10 @@ u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf,
 	/* buffer addr assoc */
 	pxmitframe->buf_addr = pxmitbuf->pbuf + TXDESC_SIZE +
 		(((struct tx_desc *)pxmitbuf->pbuf)->txdw0 & 0x0000ffff);
-	if (r8712_append_mpdu_unit(pxmitbuf, pxmitframe) == _SUCCESS) {
-		r8712_free_xmitframe_ex(&pxmitframe->padapter->xmitpriv,
-					pxmitframe);
-		pxmitbuf->aggr_nr++;
-	}
+	r8712_append_mpdu_unit(pxmitbuf, pxmitframe);
+	r8712_free_xmitframe_ex(&pxmitframe->padapter->xmitpriv,
+				pxmitframe);
+	pxmitbuf->aggr_nr++;
 
 	return TXDESC_SIZE +
 		(((struct tx_desc *)pxmitbuf->pbuf)->txdw0 & 0x0000ffff);
