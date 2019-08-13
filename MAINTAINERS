@@ -7671,7 +7671,7 @@ F:	drivers/crypto/nx/nx-aes*
 F:	drivers/crypto/nx/nx-sha*
 F:	drivers/crypto/nx/nx.*
 F:	drivers/crypto/nx/nx_csbcpb.h
-F:	drivers/crypto/nx/nx_debugfs.h
+F:	drivers/crypto/nx/nx_debugfs.c
 
 IBM Power Linux RAID adapter
 M:	Brian King <brking@us.ibm.com>
