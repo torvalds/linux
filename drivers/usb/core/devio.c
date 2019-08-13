@@ -44,6 +44,12 @@
 
 #include "usb.h"
 
+#ifdef CONFIG_PM
+#define MAYBE_CAP_SUSPEND	USBDEVFS_CAP_SUSPEND
+#else
+#define MAYBE_CAP_SUSPEND	0
+#endif
+
 #define USB_MAXBUS			64
 #define USB_DEVICE_MAX			(USB_MAXBUS * 128)
 #define USB_SG_SIZE			16384 /* split-size for large txs */
@@ -2310,7 +2316,8 @@ static int proc_get_capabilities(struct usb_dev_state *ps, void __user *arg)
 
 	caps = USBDEVFS_CAP_ZERO_PACKET | USBDEVFS_CAP_NO_PACKET_SIZE_LIM |
 			USBDEVFS_CAP_REAP_AFTER_DISCONNECT | USBDEVFS_CAP_MMAP |
-			USBDEVFS_CAP_DROP_PRIVILEGES | USBDEVFS_CAP_CONNINFO_EX;
+			USBDEVFS_CAP_DROP_PRIVILEGES |
+			USBDEVFS_CAP_CONNINFO_EX | MAYBE_CAP_SUSPEND;
 	if (!ps->dev->bus->no_stop_on_short)
 		caps |= USBDEVFS_CAP_BULK_CONTINUATION;
 	if (ps->dev->bus->sg_tablesize)
