@@ -12,7 +12,6 @@ obj-$(CONFIG_RAW_DRIVER)	+= raw.o
 obj-$(CONFIG_MSPEC)		+= mspec.o
 obj-$(CONFIG_UV_MMTIMER)	+= uv_mmtimer.o
 obj-$(CONFIG_IBM_BSR)		+= bsr.o
-obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
 
 obj-$(CONFIG_PRINTER)		+= lp.o
 
