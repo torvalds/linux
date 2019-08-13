@@ -260,11 +260,11 @@ __initcall(register_memory);
  * in kdump case. See the comment in sba_init() in sba_iommu.c.
  *
  * So, the only machvec that really supports loading the kdump kernel
- * over 4 GB is "sn2".
+ * over 4 GB is "uv".
  */
 static int __init check_crashkernel_memory(unsigned long pbase, size_t size)
 {
-	if (ia64_platform_is("sn2") || ia64_platform_is("uv"))
+	if (ia64_platform_is("uv"))
 		return 1;
 	else
 		return pbase < (1UL << 32);

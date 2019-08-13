@@ -57,7 +57,6 @@
 #include <asm/sal.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
-#include <asm/sn/arch.h>
 
 #define SMP_DEBUG 0
 
@@ -656,11 +655,6 @@ int __cpu_disable(void)
 	if (cpu == 0 && !bsp_remove_ok) {
 		printk ("Your platform does not support removal of BSP\n");
 		return (-EBUSY);
-	}
-
-	if (ia64_platform_is("sn2")) {
-		if (!sn_cpu_disable_allowed(cpu))
-			return -EBUSY;
 	}
 
 	set_cpu_online(cpu, false);

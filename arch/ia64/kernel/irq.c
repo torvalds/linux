@@ -73,17 +73,6 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 		irq_redir[irq] = (char) (redir & 0xff);
 	}
 }
-
-bool is_affinity_mask_valid(const struct cpumask *cpumask)
-{
-	if (ia64_platform_is("sn2")) {
-		/* Only allow one CPU to be specified in the smp_affinity mask */
-		if (cpumask_weight(cpumask) != 1)
-			return false;
-	}
-	return true;
-}
-
 #endif /* CONFIG_SMP */
 
 int __init arch_early_irq_init(void)

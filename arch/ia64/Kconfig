@@ -66,7 +66,6 @@ config 64BIT
 
 config ZONE_DMA32
 	def_bool y
-	depends on !IA64_SGI_SN2
 
 config QUICKLIST
 	bool
@@ -140,7 +139,6 @@ config IA64_GENERIC
 	  DIG+Intel+IOMMU	For DIG systems with Intel IOMMU
 	  HP-zx1/sx1000		For HP systems
 	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
-	  SGI-SN2		For SGI Altix systems
 	  SGI-UV		For SGI UV systems
 	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
 
@@ -170,17 +168,6 @@ config IA64_HP_ZX1_SWIOTLB
 	  from support for the HP I/O MMU, this includes support for the software
 	  I/O TLB, which allows supporting the broken devices at the expense of
 	  wasting some kernel memory (about 2MB by default).
-
-config IA64_SGI_SN2
-	bool "SGI-SN2"
-	select NUMA
-	select ACPI_NUMA
-	help
-	  Selecting this option will optimize the kernel for use on sn2 based
-	  systems, but the resulting kernel binary will not run on other
-	  types of ia64 systems.  If you have an SGI Altix system, it's safe
-	  to select this option.  If in doubt, select ia64 generic support
-	  instead.
 
 config IA64_SGI_UV
 	bool "SGI-UV"
@@ -381,13 +368,12 @@ config ARCH_SPARSEMEM_ENABLE
 	select SPARSEMEM_VMEMMAP_ENABLE
 
 config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
+	def_bool y if (IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB)
 	depends on ARCH_DISCONTIGMEM_ENABLE
 
 config NUMA
 	bool "NUMA support"
 	depends on !IA64_HP_SIM && !FLATMEM
-	default y if IA64_SGI_SN2
 	select ACPI_NUMA if ACPI
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
@@ -471,9 +457,6 @@ config IA64_MC_ERR_INJECT
 	  This is a useful tool for MCA testing.
 
 	  If you're unsure, do not select this option.
-
-config SGI_SN
-	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
 
 config IA64_ESI
 	bool "ESI (Extensible SAL Interface) support"

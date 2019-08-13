@@ -17,11 +17,9 @@
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
-#ifdef CONFIG_IA64_SGI_UV
 int sn_prom_type;
 long sn_coherency_id;
 EXPORT_SYMBOL_GPL(sn_coherency_id);
-#endif
 
 struct redir_addr {
 	unsigned long redirect;

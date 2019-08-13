@@ -101,8 +101,6 @@ extern void machvec_timer_interrupt (int, void *);
 #  include <asm/machvec_hpzx1.h>
 # elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
 #  include <asm/machvec_hpzx1_swiotlb.h>
-# elif defined (CONFIG_IA64_SGI_SN2)
-#  include <asm/machvec_sn2.h>
 # elif defined (CONFIG_IA64_SGI_UV)
 #  include <asm/machvec_uv.h>
 # elif defined (CONFIG_IA64_GENERIC)

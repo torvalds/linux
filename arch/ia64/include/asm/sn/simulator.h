@@ -8,7 +8,7 @@
 #ifndef _ASM_IA64_SN_SIMULATOR_H
 #define _ASM_IA64_SN_SIMULATOR_H
 
-#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_SN2) || defined(CONFIG_IA64_SGI_UV)
+#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_UV)
 #define SNMAGIC 0xaeeeeeee8badbeefL
 #define IS_MEDUSA()			({long sn; asm("mov %0=cpuid[%1]" : "=r"(sn) : "r"(2)); sn == SNMAGIC;})
 
