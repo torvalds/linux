@@ -151,9 +151,10 @@ xp_init_uv(void)
 	BUG_ON(!is_uv());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_UV;
+#ifdef CONFIG_X86
 	xp_partition_id = sn_partition_id;
 	xp_region_size = sn_region_size;
-
+#endif
 	xp_pa = xp_pa_uv;
 	xp_socket_pa = xp_socket_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;

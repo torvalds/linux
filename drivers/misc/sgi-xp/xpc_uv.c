@@ -48,6 +48,8 @@ struct uv_IO_APIC_route_entry {
 		__reserved_2	: 15,
 		dest		: 32;
 };
+
+#define sn_partition_id 0
 #endif
 
 static struct xpc_heartbeat_uv *xpc_heartbeat_uv;
