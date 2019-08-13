@@ -53,10 +53,16 @@ static inline struct llist_node *barrier_to_ll(struct active_node *node)
 }
 
 static inline struct intel_engine_cs *
+__barrier_to_engine(struct active_node *node)
+{
+	return (struct intel_engine_cs *)READ_ONCE(node->base.link.prev);
+}
+
+static inline struct intel_engine_cs *
 barrier_to_engine(struct active_node *node)
 {
 	GEM_BUG_ON(!is_barrier(&node->base));
-	return (struct intel_engine_cs *)node->base.link.prev;
+	return __barrier_to_engine(node);
 }
 
 static inline struct active_node *barrier_from_ll(struct llist_node *x)
@@ -239,10 +245,11 @@ void __i915_active_init(struct drm_i915_private *i915,
 	__mutex_init(&ref->mutex, "i915_active", key);
 }
 
-static bool __active_del_barrier(struct i915_active *ref,
-				 struct active_node *node)
+static bool ____active_del_barrier(struct i915_active *ref,
+				   struct active_node *node,
+				   struct intel_engine_cs *engine)
+
 {
-	struct intel_engine_cs *engine = barrier_to_engine(node);
 	struct llist_node *head = NULL, *tail = NULL;
 	struct llist_node *pos, *next;
 
@@ -278,6 +285,12 @@ static bool __active_del_barrier(struct i915_active *ref,
 		llist_add_batch(head, tail, &engine->barrier_tasks);
 
 	return !node;
+}
+
+static bool
+__active_del_barrier(struct i915_active *ref, struct active_node *node)
+{
+	return ____active_del_barrier(ref, node, barrier_to_engine(node));
 }
 
 int i915_active_ref(struct i915_active *ref,
@@ -517,6 +530,7 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 	for (p = prev; p; p = rb_next(p)) {
 		struct active_node *node =
 			rb_entry(p, struct active_node, node);
+		struct intel_engine_cs *engine;
 
 		if (node->timeline > idx)
 			break;
@@ -534,7 +548,10 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 		 * the barrier before we claim it, so we have to check
 		 * for success.
 		 */
-		if (is_barrier(&node->base) && __active_del_barrier(ref, node))
+		engine = __barrier_to_engine(node);
+		smp_rmb(); /* serialise with add_active_barriers */
+		if (is_barrier(&node->base) &&
+		    ____active_del_barrier(ref, node, engine))
 			goto match;
 	}
 
@@ -674,6 +691,7 @@ void i915_request_add_active_barriers(struct i915_request *rq)
 	 */
 	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
 		RCU_INIT_POINTER(barrier_from_ll(node)->base.request, rq);
+		smp_wmb(); /* serialise with reuse_idle_barrier */
 		list_add_tail((struct list_head *)node, &rq->active_list);
 	}
 }
