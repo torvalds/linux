@@ -489,9 +489,9 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 	unsigned int out_end;
 
 	/* Start within 1024 pixels of the right / bottom edge */
-	out_start = max_t(int, 0, out_edge - 1024);
+	out_start = max_t(int, index * out_align, out_edge - 1024);
 	/* End before having to add more columns to the left / rows above */
-	out_end = min_t(unsigned int, out_edge, index * 1024);
+	out_end = min_t(unsigned int, out_edge, index * 1024 + 1);
 
 	/*
 	 * Output tiles must start at a multiple of 8 bytes horizontally and
