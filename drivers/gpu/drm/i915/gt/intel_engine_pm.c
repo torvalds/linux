@@ -68,9 +68,15 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
-
 	i915_request_add_active_barriers(rq);
+
+	/* Install ourselves as a preemption barrier */
+	rq->sched.attr.priority = I915_PRIORITY_UNPREEMPTABLE;
 	__i915_request_commit(rq);
+
+	/* Release our exclusive hold on the engine */
+	__intel_wakeref_defer_park(&engine->wakeref);
+	__i915_request_queue(rq, NULL);
 
 	return false;
 }

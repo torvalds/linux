@@ -164,6 +164,17 @@ intel_wakeref_is_active(const struct intel_wakeref *wf)
 }
 
 /**
+ * __intel_wakeref_defer_park: Defer the current park callback
+ * @wf: the wakeref
+ */
+static inline void
+__intel_wakeref_defer_park(struct intel_wakeref *wf)
+{
+	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count));
+	atomic_set_release(&wf->count, 1);
+}
+
+/**
  * intel_wakeref_wait_for_idle: Wait until the wakeref is idle
  * @wf: the wakeref
  *

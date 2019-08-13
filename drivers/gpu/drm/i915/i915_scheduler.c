@@ -349,8 +349,7 @@ void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
 	unsigned long flags;
 
 	GEM_BUG_ON(bump & ~I915_PRIORITY_MASK);
-
-	if (READ_ONCE(rq->sched.attr.priority) == I915_PRIORITY_INVALID)
+	if (READ_ONCE(rq->sched.attr.priority) & bump)
 		return;
 
 	spin_lock_irqsave(&schedule_lock, flags);

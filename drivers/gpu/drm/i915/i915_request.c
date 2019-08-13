@@ -1186,6 +1186,12 @@ struct i915_request *__i915_request_commit(struct i915_request *rq)
 		list_add(&ring->active_link, &rq->i915->gt.active_rings);
 	rq->emitted_jiffies = jiffies;
 
+	return prev;
+}
+
+void __i915_request_queue(struct i915_request *rq,
+			  const struct i915_sched_attr *attr)
+{
 	/*
 	 * Let the backend know a new request has arrived that may need
 	 * to adjust the existing execution schedule due to a high priority
@@ -1199,43 +1205,15 @@ struct i915_request *__i915_request_commit(struct i915_request *rq)
 	 */
 	local_bh_disable();
 	i915_sw_fence_commit(&rq->semaphore);
-	if (engine->schedule) {
-		struct i915_sched_attr attr = rq->gem_context->sched;
-
-		/*
-		 * Boost actual workloads past semaphores!
-		 *
-		 * With semaphores we spin on one engine waiting for another,
-		 * simply to reduce the latency of starting our work when
-		 * the signaler completes. However, if there is any other
-		 * work that we could be doing on this engine instead, that
-		 * is better utilisation and will reduce the overall duration
-		 * of the current work. To avoid PI boosting a semaphore
-		 * far in the distance past over useful work, we keep a history
-		 * of any semaphore use along our dependency chain.
-		 */
-		if (!(rq->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
-			attr.priority |= I915_PRIORITY_NOSEMAPHORE;
-
-		/*
-		 * Boost priorities to new clients (new request flows).
-		 *
-		 * Allow interactive/synchronous clients to jump ahead of
-		 * the bulk clients. (FQ_CODEL)
-		 */
-		if (list_empty(&rq->sched.signalers_list))
-			attr.priority |= I915_PRIORITY_WAIT;
-
-		engine->schedule(rq, &attr);
-	}
+	if (attr && rq->engine->schedule)
+		rq->engine->schedule(rq, attr);
 	i915_sw_fence_commit(&rq->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
-
-	return prev;
 }
 
 void i915_request_add(struct i915_request *rq)
 {
+	struct i915_sched_attr attr = rq->gem_context->sched;
 	struct i915_request *prev;
 
 	lockdep_assert_held(&rq->timeline->mutex);
@@ -1244,6 +1222,32 @@ void i915_request_add(struct i915_request *rq)
 	trace_i915_request_add(rq);
 
 	prev = __i915_request_commit(rq);
+
+	/*
+	 * Boost actual workloads past semaphores!
+	 *
+	 * With semaphores we spin on one engine waiting for another,
+	 * simply to reduce the latency of starting our work when
+	 * the signaler completes. However, if there is any other
+	 * work that we could be doing on this engine instead, that
+	 * is better utilisation and will reduce the overall duration
+	 * of the current work. To avoid PI boosting a semaphore
+	 * far in the distance past over useful work, we keep a history
+	 * of any semaphore use along our dependency chain.
+	 */
+	if (!(rq->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN))
+		attr.priority |= I915_PRIORITY_NOSEMAPHORE;
+
+	/*
+	 * Boost priorities to new clients (new request flows).
+	 *
+	 * Allow interactive/synchronous clients to jump ahead of
+	 * the bulk clients. (FQ_CODEL)
+	 */
+	if (list_empty(&rq->sched.signalers_list))
+		attr.priority |= I915_PRIORITY_WAIT;
+
+	__i915_request_queue(rq, &attr);
 
 	/*
 	 * In typical scenarios, we do not expect the previous request on

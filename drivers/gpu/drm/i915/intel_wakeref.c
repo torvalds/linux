@@ -57,12 +57,10 @@ static void ____intel_wakeref_put_last(struct intel_wakeref *wf)
 	if (!atomic_dec_and_test(&wf->count))
 		goto unlock;
 
+	/* ops->put() must reschedule its own release on error/deferral */
 	if (likely(!wf->ops->put(wf))) {
 		rpm_put(wf);
 		wake_up_var(&wf->wakeref);
-	} else {
-		/* ops->put() must schedule its own release on deferral */
-		atomic_set_release(&wf->count, 1);
 	}
 
 unlock:

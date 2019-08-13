@@ -251,6 +251,8 @@ struct i915_request * __must_check
 i915_request_create(struct intel_context *ce);
 
 struct i915_request *__i915_request_commit(struct i915_request *request);
+void __i915_request_queue(struct i915_request *rq,
+			  const struct i915_sched_attr *attr);
 
 void i915_request_retire_upto(struct i915_request *rq);
 
