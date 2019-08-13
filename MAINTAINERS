@@ -11080,7 +11080,7 @@ NET_FAILOVER MODULE
 M:	Sridhar Samudrala <sridhar.samudrala@intel.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	driver/net/net_failover.c
+F:	drivers/net/net_failover.c
 F:	include/net/net_failover.h
 F:	Documentation/networking/net_failover.rst
 
