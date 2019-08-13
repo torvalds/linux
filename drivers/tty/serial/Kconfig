@@ -972,14 +972,6 @@ config SERIAL_JSM
 	  To compile this driver as a module, choose M here: the
 	  module will be called jsm.
 
-config SERIAL_SGI_IOC3
-	tristate "SGI Altix IOC3 serial support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC3
-	select SERIAL_CORE
-	help
-	  If you have an SGI Altix with an IOC3 serial card,
-	  say Y or M.  Otherwise, say N.
-
 config SERIAL_MSM
 	tristate "MSM on-chip serial port support"
 	depends on ARCH_QCOM
