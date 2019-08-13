@@ -30,6 +30,7 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+#include <linux/kdev_t.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/reboot.h>
@@ -41,6 +42,7 @@
 #include <linux/threads.h>
 #include <linux/screen_info.h>
 #include <linux/dmi.h>
+#include <linux/root_dev.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/efi.h>
@@ -598,6 +600,13 @@ setup_arch (char **cmdline_p)
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
 	if (!nomca)
 		ia64_mca_init();
+
+	/*
+	 * Default to /dev/sda2.  This assumes that the EFI partition
+	 * is physical disk 1 partition 1 and the Linux root disk is
+	 * physical disk 1 partition 2.
+	 */
+	ROOT_DEV = Root_SDA2;		/* default to second partition on first drive */
 
 	platform_setup(cmdline_p);
 	paging_init();
