@@ -1202,7 +1202,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 	unsigned long flags;
 	u64 addr;
 
-	if (engine->id == RCS0 && IS_GEN_RANGE(dev_priv, 4, 7))
+	if (engine->id == RENDER_CLASS && IS_GEN_RANGE(dev_priv, 4, 7))
 		drm_printf(m, "\tCCID: 0x%08x\n", ENGINE_READ(engine, CCID));
 	drm_printf(m, "\tRING_START: 0x%08x\n",
 		   ENGINE_READ(engine, RING_START));
