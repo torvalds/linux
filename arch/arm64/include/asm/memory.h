@@ -57,11 +57,13 @@
 #define PCI_IO_END		(VMEMMAP_START - SZ_2M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
 #define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
+
 #if VA_BITS > 48
 #define VA_BITS_MIN		(48)
 #else
 #define VA_BITS_MIN		(VA_BITS)
 #endif
+
 #define _VA_START(va)		(-(UL(1) << ((va) - 1)))
 
 #define KERNEL_START      _text
@@ -86,7 +88,7 @@
 #else
 #define KASAN_THREAD_SHIFT	0
 #define KASAN_SHADOW_END	(_VA_START(VA_BITS_MIN))
-#endif
+#endif /* CONFIG_KASAN */
 
 #define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
 
@@ -224,7 +226,7 @@ static inline unsigned long kaslr_offset(void)
 #define __tag_shifted(tag)	0UL
 #define __tag_reset(addr)	(addr)
 #define __tag_get(addr)		0
-#endif
+#endif /* CONFIG_KASAN_SW_TAGS */
 
 static inline const void *__tag_set(const void *addr, u8 tag)
 {
@@ -263,7 +265,7 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
 #define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
 #define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
-#endif
+#endif /* CONFIG_DEBUG_VIRTUAL */
 
 #define __phys_to_virt(x)	((unsigned long)((x) - physvirt_offset))
 #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
@@ -323,14 +325,14 @@ static inline void *phys_to_virt(phys_addr_t x)
 	u64 __addr = VMEMMAP_START + (__idx * sizeof(struct page));	\
 	(struct page *)__addr;						\
 })
-#endif
+#endif /* !CONFIG_SPARSEMEM_VMEMMAP || CONFIG_DEBUG_VIRTUAL */
 
 #define virt_addr_valid(addr)	({					\
 	__typeof__(addr) __addr = addr;					\
 	__is_lm_address(__addr) && pfn_valid(virt_to_pfn(__addr));	\
 })
 
-#endif
+#endif /* !ASSEMBLY */
 
 /*
  * Given that the GIC architecture permits ITS implementations that can only be
@@ -345,4 +347,4 @@ static inline void *phys_to_virt(phys_addr_t x)
 
 #include <asm-generic/memory_model.h>
 
-#endif
+#endif /* __ASM_MEMORY_H */
