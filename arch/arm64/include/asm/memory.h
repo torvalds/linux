@@ -242,11 +242,11 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 
 
 /*
- * The linear kernel range starts in the middle of the virtual adddress
+ * The linear kernel range starts at the bottom of the virtual address
  * space. Testing the top bit for the start of the region is a
- * sufficient check.
+ * sufficient check and avoids having to worry about the tag.
  */
-#define __is_lm_address(addr)	(!((addr) & BIT(vabits_actual - 1)))
+#define __is_lm_address(addr)	(!(((u64)addr) & BIT(vabits_actual - 1)))
 
 #define __lm_to_phys(addr)	(((addr) + physvirt_offset))
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
@@ -326,13 +326,13 @@ static inline void *phys_to_virt(phys_addr_t x)
 
 #define virt_to_page(vaddr)	((struct page *)((__virt_to_pgoff(vaddr)) + VMEMMAP_START))
 #endif
+
+#define virt_addr_valid(addr)	({					\
+	__typeof__(addr) __addr = addr;					\
+	__is_lm_address(__addr) && pfn_valid(virt_to_pfn(__addr));	\
+})
+
 #endif
-
-#define _virt_addr_is_linear(kaddr)	\
-	(__tag_reset((u64)(kaddr)) >= PAGE_OFFSET)
-
-#define virt_addr_valid(kaddr)		\
-	(_virt_addr_is_linear(kaddr) && pfn_valid(virt_to_pfn(kaddr)))
 
 /*
  * Given that the GIC architecture permits ITS implementations that can only be
