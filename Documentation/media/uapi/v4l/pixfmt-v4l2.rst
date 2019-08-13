@@ -44,7 +44,7 @@ Single-planar format structure
       - The pixel format or type of compression, set by the application.
 	This is a little endian
 	:ref:`four character code <v4l2-fourcc>`. V4L2 defines standard
-	RGB formats in :ref:`rgb-formats`, YUV formats in
+	RGB formats in :ref:`pixfmt-rgb`, YUV formats in
 	:ref:`yuv-formats`, and reserved codes in
 	:ref:`reserved-formats`
     * - __u32
