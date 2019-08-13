@@ -289,10 +289,7 @@ static void amdgpu_ctx_do_release(struct kref *ref)
 
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
 
-	num_entities = 0;
-	for (i = 0; i < AMDGPU_HW_IP_NUM; i++)
-		num_entities += amdgpu_ctx_num_entities[i];
-
+	num_entities = amdgpu_ctx_total_num_entities();
 	for (i = 0; i < num_entities; i++)
 		drm_sched_entity_destroy(&ctx->entities[0][i].entity);
 
