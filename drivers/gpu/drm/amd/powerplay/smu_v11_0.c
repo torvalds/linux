@@ -288,7 +288,7 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV14;
 		break;
 	default:
-		pr_err("smu unsuported asic type:%d.\n",smu->adev->asic_type);
+		pr_err("smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_INV;
 		break;
 	}
