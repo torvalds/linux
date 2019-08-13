@@ -1274,7 +1274,6 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	int ret = 0;
 	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
-	int clk_id;
 
 	if (!smu->pm_enabled)
 		return -EINVAL;
@@ -1309,16 +1308,8 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (clk_select == SMU_UCLK && smu->disable_uclk_switch)
 			return 0;
 
-		clk_id = smu_clk_get_index(smu, clk_select);
-		if (clk_id < 0) {
-			ret = -EINVAL;
-			goto failed;
-		}
-
-
 		mutex_lock(&smu->mutex);
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
-			(clk_id << 16) | clk_freq);
+		ret = smu_set_hard_freq_range(smu, clk_select, clk_freq, 0);
 		mutex_unlock(&smu->mutex);
 
 		if(clk_select == SMU_UCLK)
