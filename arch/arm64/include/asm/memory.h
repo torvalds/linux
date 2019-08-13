@@ -221,19 +221,19 @@ static inline unsigned long kaslr_offset(void)
 
 #ifdef CONFIG_KASAN_SW_TAGS
 #define __tag_shifted(tag)	((u64)(tag) << 56)
-#define __tag_set(addr, tag)	(__typeof__(addr))( \
-		((u64)(addr) & ~__tag_shifted(0xff)) | __tag_shifted(tag))
 #define __tag_reset(addr)	untagged_addr(addr)
 #define __tag_get(addr)		(__u8)((u64)(addr) >> 56)
 #else
-static inline const void *__tag_set(const void *addr, u8 tag)
-{
-	return addr;
-}
-
+#define __tag_shifted(tag)	0UL
 #define __tag_reset(addr)	(addr)
 #define __tag_get(addr)		0
 #endif
+
+static inline const void *__tag_set(const void *addr, u8 tag)
+{
+	u64 __addr = (u64)addr & ~__tag_shifted(0xff);
+	return (const void *)(__addr | __tag_shifted(tag));
+}
 
 /*
  * Physical vs virtual RAM address space conversion.  These are
