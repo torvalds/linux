@@ -78,6 +78,31 @@ static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /**
+ * Called before and after Link startup is carried out.
+ * @hba: host controller instance
+ * @status: notify stage (pre, post change)
+ *
+ * Return zero for success and non-zero for failure
+ */
+static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
+					enum ufs_notify_change_status status)
+{
+	if (status != PRE_CHANGE)
+		return 0;
+
+	/*
+	 * Some UFS devices have issues if LCC is enabled.
+	 * So we are setting PA_Local_TX_LCC_Enable to 0
+	 * before link startup which will make sure that both host
+	 * and device TX LCC are disabled once link startup is
+	 * completed.
+	 */
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0);
+
+	return 0;
+}
+
+/**
  * cdns_ufs_init - performs additional ufs initialization
  * @hba: host controller instance
  *
@@ -114,12 +139,14 @@ static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
 static const struct ufs_hba_variant_ops cdns_ufs_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.hce_enable_notify = cdns_ufs_hce_enable_notify,
+	.link_startup_notify = cdns_ufs_link_startup_notify,
 };
 
 static const struct ufs_hba_variant_ops cdns_ufs_m31_16nm_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.init = cdns_ufs_init,
 	.hce_enable_notify = cdns_ufs_hce_enable_notify,
+	.link_startup_notify = cdns_ufs_link_startup_notify,
 	.phy_initialization = cdns_ufs_m31_16nm_phy_initialization,
 };
 
