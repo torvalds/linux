@@ -22,7 +22,7 @@
 		clocks = <&cru SCLK_I2S1_OUT>;
 		clock-names = "clkin";
 		assigned-clocks = <&cru SCLK_I2S1_OUT>;
-		assigned-clock-rates = <12000000>;
+		assigned-clock-rates = <11289600>;
 		reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
 		status = "okay";
 
