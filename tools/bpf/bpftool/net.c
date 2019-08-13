@@ -343,6 +343,43 @@ static int do_attach(int argc, char **argv)
 	return 0;
 }
 
+static int do_detach(int argc, char **argv)
+{
+	enum net_attach_type attach_type;
+	int progfd, ifindex, err = 0;
+
+	/* parse detach args */
+	if (!REQ_ARGS(3))
+		return -EINVAL;
+
+	attach_type = parse_attach_type(*argv);
+	if (attach_type == net_attach_type_size) {
+		p_err("invalid net attach/detach type: %s", *argv);
+		return -EINVAL;
+	}
+	NEXT_ARG();
+
+	ifindex = net_parse_dev(&argc, &argv);
+	if (ifindex < 1)
+		return -EINVAL;
+
+	/* detach xdp prog */
+	progfd = -1;
+	if (is_prefix("xdp", attach_type_strings[attach_type]))
+		err = do_attach_detach_xdp(progfd, attach_type, ifindex, NULL);
+
+	if (err < 0) {
+		p_err("interface %s detach failed: %s",
+		      attach_type_strings[attach_type], strerror(-err));
+		return err;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+
+	return 0;
+}
+
 static int do_show(int argc, char **argv)
 {
 	struct bpf_attach_info attach_info = {};
@@ -422,6 +459,7 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %s %s { show | list } [dev <devname>]\n"
 		"       %s %s attach ATTACH_TYPE PROG dev <devname> [ overwrite ]\n"
+		"       %s %s detach ATTACH_TYPE dev <devname>\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_PROGRAM "\n"
@@ -432,7 +470,8 @@ static int do_help(int argc, char **argv)
 		"      to dump program attachments. For program types\n"
 		"      sk_{filter,skb,msg,reuseport} and lwt/seg6, please\n"
 		"      consult iproute2.\n",
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
@@ -441,6 +480,7 @@ static const struct cmd cmds[] = {
 	{ "show",	do_show },
 	{ "list",	do_show },
 	{ "attach",	do_attach },
+	{ "detach",	do_detach },
 	{ "help",	do_help },
 	{ 0 }
 };
