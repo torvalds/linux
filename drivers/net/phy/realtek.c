@@ -39,10 +39,15 @@
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
 
+#define RTL_SUPPORTS_5000FULL			BIT(14)
+#define RTL_SUPPORTS_2500FULL			BIT(13)
+#define RTL_SUPPORTS_10000FULL			BIT(0)
 #define RTL_ADV_2500FULL			BIT(7)
 #define RTL_LPADV_10000FULL			BIT(11)
 #define RTL_LPADV_5000FULL			BIT(6)
 #define RTL_LPADV_2500FULL			BIT(5)
+
+#define RTL_GENERIC_PHYID			0x001cc800
 
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
@@ -263,8 +268,18 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 
 static int rtl8125_get_features(struct phy_device *phydev)
 {
-	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-			 phydev->supported);
+	int val;
+
+	val = phy_read_paged(phydev, 0xa61, 0x13);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 phydev->supported, val & RTL_SUPPORTS_2500FULL);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 phydev->supported, val & RTL_SUPPORTS_5000FULL);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported, val & RTL_SUPPORTS_10000FULL);
 
 	return genphy_read_abilities(phydev);
 }
@@ -306,6 +321,29 @@ static int rtl8125_read_status(struct phy_device *phydev)
 	}
 
 	return genphy_read_status(phydev);
+}
+
+static bool rtlgen_supports_2_5gbps(struct phy_device *phydev)
+{
+	int val;
+
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0xa61);
+	val = phy_read(phydev, 0x13);
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0);
+
+	return val >= 0 && val & RTL_SUPPORTS_2500FULL;
+}
+
+static int rtlgen_match_phy_device(struct phy_device *phydev)
+{
+	return phydev->phy_id == RTL_GENERIC_PHYID &&
+	       !rtlgen_supports_2_5gbps(phydev);
+}
+
+static int rtl8125_match_phy_device(struct phy_device *phydev)
+{
+	return phydev->phy_id == RTL_GENERIC_PHYID &&
+	       rtlgen_supports_2_5gbps(phydev);
 }
 
 static struct phy_driver realtek_drvs[] = {
@@ -378,15 +416,15 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 	}, {
-		PHY_ID_MATCH_EXACT(0x001cc800),
-		.name		= "Generic Realtek PHY",
+		.name		= "Generic FE-GE Realtek PHY",
+		.match_phy_device = rtlgen_match_phy_device,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 	}, {
-		PHY_ID_MATCH_EXACT(0x001cca50),
 		.name		= "RTL8125 2.5Gbps internal",
+		.match_phy_device = rtl8125_match_phy_device,
 		.get_features	= rtl8125_get_features,
 		.config_aneg	= rtl8125_config_aneg,
 		.read_status	= rtl8125_read_status,
