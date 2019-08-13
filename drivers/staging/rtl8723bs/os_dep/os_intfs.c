@@ -445,12 +445,6 @@ static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state
 
 	DBG_871X_LEVEL(_drv_info_, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev), state);
 
-	switch (state) {
-	case NETDEV_CHANGENAME:
-		rtw_adapter_proc_replace(dev);
-		break;
-	}
-
 	return NOTIFY_DONE;
 }
 
@@ -475,7 +469,6 @@ static int rtw_ndev_init(struct net_device *dev)
 
 	DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
 	strncpy(adapter->old_ifname, dev->name, IFNAMSIZ);
-	rtw_adapter_proc_init(dev);
 
 	return 0;
 }
@@ -485,7 +478,6 @@ static void rtw_ndev_uninit(struct net_device *dev)
 	struct adapter *adapter = rtw_netdev_priv(dev);
 
 	DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
-	rtw_adapter_proc_deinit(dev);
 }
 
 static const struct net_device_ops rtw_netdev_ops = {

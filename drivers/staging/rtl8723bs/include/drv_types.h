@@ -576,8 +576,6 @@ struct adapter {
 	int bup;
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
-	struct proc_dir_entry *dir_dev;/*  for proc directory */
-	struct proc_dir_entry *dir_odm;
 
 	struct wireless_dev *rtw_wdev;
 	struct rtw_wdev_priv wdev_data;

@@ -1817,11 +1817,6 @@ static void rtw_btinfo_hdl(struct adapter *adapter, u8 *buf, u16 buf_len)
 		len = info->len;
 	}
 
-/* define DBG_PROC_SET_BTINFO_EVT */
-#ifdef DBG_PROC_SET_BTINFO_EVT
-	btinfo_evt_dump(RTW_DBGDUMP, info);
-#endif
-
 	/* transform BT-FW btinfo to WiFI-FW C2H format and notify */
 	if (cmd_idx == BTINFO_WIFI_FETCH)
 		buf[1] = 0;

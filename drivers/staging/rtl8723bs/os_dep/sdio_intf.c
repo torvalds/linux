@@ -620,12 +620,10 @@ static int __init rtw_drv_entry(void)
 #endif /*  BTCOEXVERSION */
 
 	sdio_drvpriv.drv_registered = true;
-	rtw_drv_proc_init();
 
 	ret = sdio_register_driver(&sdio_drvpriv.r871xs_drv);
 	if (ret != 0) {
 		sdio_drvpriv.drv_registered = false;
-		rtw_drv_proc_deinit();
 		rtw_ndev_notifier_unregister();
 		DBG_871X("%s: register driver failed!!(%d)\n", __func__, ret);
 		goto exit;
@@ -646,7 +644,6 @@ static void __exit rtw_drv_halt(void)
 
 	sdio_unregister_driver(&sdio_drvpriv.r871xs_drv);
 
-	rtw_drv_proc_deinit();
 	rtw_ndev_notifier_unregister();
 
 	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
