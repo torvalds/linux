@@ -469,6 +469,39 @@ early_console_setup (char *cmdline)
 	return -1;
 }
 
+static void __init
+screen_info_setup(void)
+{
+	unsigned int orig_x, orig_y, num_cols, num_rows, font_height;
+
+	memset(&screen_info, 0, sizeof(screen_info));
+
+	if (!ia64_boot_param->console_info.num_rows ||
+	    !ia64_boot_param->console_info.num_cols) {
+		printk(KERN_WARNING "invalid screen-info, guessing 80x25\n");
+		orig_x = 0;
+		orig_y = 0;
+		num_cols = 80;
+		num_rows = 25;
+		font_height = 16;
+	} else {
+		orig_x = ia64_boot_param->console_info.orig_x;
+		orig_y = ia64_boot_param->console_info.orig_y;
+		num_cols = ia64_boot_param->console_info.num_cols;
+		num_rows = ia64_boot_param->console_info.num_rows;
+		font_height = 400 / num_rows;
+	}
+
+	screen_info.orig_x = orig_x;
+	screen_info.orig_y = orig_y;
+	screen_info.orig_video_cols  = num_cols;
+	screen_info.orig_video_lines = num_rows;
+	screen_info.orig_video_points = font_height;
+	screen_info.orig_video_mode = 3;	/* XXX fake */
+	screen_info.orig_video_isVGA = 1;	/* XXX fake */
+	screen_info.orig_video_ega_bx = 3;	/* XXX fake */
+}
+
 static inline void
 mark_bsp_online (void)
 {
@@ -609,6 +642,7 @@ setup_arch (char **cmdline_p)
 	ROOT_DEV = Root_SDA2;		/* default to second partition on first drive */
 
 	platform_setup(cmdline_p);
+	screen_info_setup();
 	paging_init();
 
 	clear_sched_clock_stable();

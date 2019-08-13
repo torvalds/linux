@@ -26,37 +26,7 @@
 void __init
 dig_setup (char **cmdline_p)
 {
-	unsigned int orig_x, orig_y, num_cols, num_rows, font_height;
-
 #ifdef CONFIG_SMP
 	init_smp_config();
 #endif
-
-	memset(&screen_info, 0, sizeof(screen_info));
-
-	if (!ia64_boot_param->console_info.num_rows
-	    || !ia64_boot_param->console_info.num_cols)
-	{
-		printk(KERN_WARNING "dig_setup: warning: invalid screen-info, guessing 80x25\n");
-		orig_x = 0;
-		orig_y = 0;
-		num_cols = 80;
-		num_rows = 25;
-		font_height = 16;
-	} else {
-		orig_x = ia64_boot_param->console_info.orig_x;
-		orig_y = ia64_boot_param->console_info.orig_y;
-		num_cols = ia64_boot_param->console_info.num_cols;
-		num_rows = ia64_boot_param->console_info.num_rows;
-		font_height = 400 / num_rows;
-	}
-
-	screen_info.orig_x = orig_x;
-	screen_info.orig_y = orig_y;
-	screen_info.orig_video_cols  = num_cols;
-	screen_info.orig_video_lines = num_rows;
-	screen_info.orig_video_points = font_height;
-	screen_info.orig_video_mode = 3;	/* XXX fake */
-	screen_info.orig_video_isVGA = 1;	/* XXX fake */
-	screen_info.orig_video_ega_bx = 3;	/* XXX fake */
 }
