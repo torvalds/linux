@@ -1738,7 +1738,8 @@ int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 	int pid = -1, err;
 	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
 
-	if (perf_missing_features.write_backward && evsel->core.attr.write_backward)
+	if ((perf_missing_features.write_backward && evsel->core.attr.write_backward) ||
+	    (perf_missing_features.aux_output     && evsel->core.attr.aux_output))
 		return -EINVAL;
 
 	if (cpus == NULL) {
@@ -1912,7 +1913,11 @@ try_fallback:
 	 * Must probe features in the order they were added to the
 	 * perf_event_attr interface.
 	 */
-	if (!perf_missing_features.bpf_event && evsel->core.attr.bpf_event) {
+	if (!perf_missing_features.aux_output && evsel->core.attr.aux_output) {
+		perf_missing_features.aux_output = true;
+		pr_debug2("Kernel has no attr.aux_output support, bailing out\n");
+		goto out_close;
+	} else if (!perf_missing_features.bpf_event && evsel->core.attr.bpf_event) {
 		perf_missing_features.bpf_event = true;
 		pr_debug2("switching off bpf_event\n");
 		goto fallback_missing_features;
@@ -2926,6 +2931,8 @@ int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
 			return scnprintf(msg, size, "clockid feature not supported.");
 		if (perf_missing_features.clockid_wrong)
 			return scnprintf(msg, size, "wrong clockid (%d).", clockid);
+		if (perf_missing_features.aux_output)
+			return scnprintf(msg, size, "The 'aux_output' feature is not supported, update the kernel.");
 		break;
 	default:
 		break;

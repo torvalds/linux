@@ -184,6 +184,7 @@ struct perf_missing_features {
 	bool group_read;
 	bool ksymbol;
 	bool bpf_event;
+	bool aux_output;
 };
 
 extern struct perf_missing_features perf_missing_features;
