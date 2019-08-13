@@ -342,8 +342,8 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	return 0;
 }
 
-static sint xmitframe_addmic(struct _adapter *padapter,
-			     struct xmit_frame *pxmitframe)
+static int xmitframe_addmic(struct _adapter *padapter,
+			    struct xmit_frame *pxmitframe)
 {
 	u32	curfragnum, length;
 	u8	*pframe, *payload, mic[8];
@@ -372,7 +372,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 				if (!memcmp(psecuritypriv->XGrptxmickey
 				   [psecuritypriv->XGrpKeyid].skey,
 				   null_key, 16))
-					return _FAIL;
+					return -ENOMEM;
 				/*start to calculate the mic code*/
 				r8712_secmicsetkey(&micdata,
 					 psecuritypriv->
@@ -381,7 +381,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			} else {
 				if (!memcmp(&stainfo->tkiptxmickey.skey[0],
 					    null_key, 16))
-					return _FAIL;
+					return -ENOMEM;
 				/* start to calculate the mic code */
 				r8712_secmicsetkey(&micdata,
 					     &stainfo->tkiptxmickey.skey[0]);
@@ -442,7 +442,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			payload = payload - pattrib->last_txcmdsz + 8;
 		}
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 static sint xmitframe_swencrypt(struct _adapter *padapter,
@@ -696,7 +696,7 @@ sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 		memcpy(mem_start, pbuf_start + TXDESC_OFFSET, pattrib->hdrlen);
 	}
 
-	if (xmitframe_addmic(padapter, pxmitframe) == _FAIL)
+	if (xmitframe_addmic(padapter, pxmitframe))
 		return _FAIL;
 	xmitframe_swencrypt(padapter, pxmitframe);
 	return _SUCCESS;
