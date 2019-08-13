@@ -134,8 +134,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 		 * return -EPROTONOSUPPORT
 		 */
 		if (err)
-			printk_ratelimited(KERN_ERR "can: request_module "
-			       "(can-proto-%d) failed.\n", protocol);
+			pr_err_ratelimited("can: request_module (can-proto-%d) failed.\n",
+					   protocol);
 
 		cp = can_get_proto(protocol);
 	}
@@ -391,7 +391,6 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 	/* extra filterlists for the subscription of a single non-RTR can_id */
 	if (((*mask & CAN_EFF_RTR_FLAGS) == CAN_EFF_RTR_FLAGS) &&
 	    !(*can_id & CAN_RTR_FLAG)) {
-
 		if (*can_id & CAN_EFF_FLAG) {
 			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS))
 				return &d->rx_eff[effhash(*can_id)];
@@ -529,8 +528,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 
 	d = find_dev_rcv_lists(net, dev);
 	if (!d) {
-		pr_err("BUG: receive list not found for "
-		       "dev %s, id %03X, mask %03X\n",
+		pr_err("BUG: receive list not found for dev %s, id %03X, mask %03X\n",
 		       DNAME(dev), can_id, mask);
 		goto out;
 	}
@@ -553,8 +551,8 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	 */
 
 	if (!r) {
-		WARN(1, "BUG: receive list entry not found for dev %s, "
-		     "id %03X, mask %03X\n", DNAME(dev), can_id, mask);
+		WARN(1, "BUG: receive list entry not found for dev %s, id %03X, mask %03X\n",
+		     DNAME(dev), can_id, mask);
 		goto out;
 	}
 
@@ -797,7 +795,6 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 		return NOTIFY_DONE;
 
 	switch (msg) {
-
 	case NETDEV_REGISTER:
 
 		/* create new dev_rcv_lists for this device */
@@ -821,8 +818,8 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 				dev->ml_priv = NULL;
 			}
 		} else {
-			pr_err("can: notifier: receive list not found for dev "
-			       "%s\n", dev->name);
+			pr_err("can: notifier: receive list not found for dev %s\n",
+			       dev->name);
 		}
 
 		spin_unlock(&dev_net(dev)->can.can_rcvlists_lock);
