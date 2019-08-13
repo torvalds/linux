@@ -1219,11 +1219,20 @@ static void bch2_writepage_io_done(struct closure *cl)
 	struct bio *bio = &io->op.op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bvec;
+	unsigned i;
 
 	if (io->op.op.error) {
 		bio_for_each_segment_all(bvec, bio, iter) {
+			struct bch_page_state *s;
+
 			SetPageError(bvec->bv_page);
 			mapping_set_error(bvec->bv_page->mapping, -EIO);
+
+			lock_page(bvec->bv_page);
+			s = bch2_page_state(bvec->bv_page);
+			for (i = 0; i < PAGE_SECTORS; i++)
+				s->s[i].nr_replicas = 0;
+			unlock_page(bvec->bv_page);
 		}
 	}
 
