@@ -316,6 +316,14 @@ config DRM_PANEL_SITRONIX_ST7789V
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
 
+config DRM_PANEL_SONY_ACX565AKM
+	tristate "Sony ACX565AKM panel"
+	depends on GPIOLIB && OF && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sony ACX565AKM
+	  800x600 3.5" panel (found on the Nokia N900).
+
 config DRM_PANEL_TPO_TPG110
 	tristate "TPO TPG 800x400 panel"
 	depends on OF && SPI && GPIOLIB

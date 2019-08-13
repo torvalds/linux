@@ -140,7 +140,7 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 	struct ls037v7dw01_panel *lcd;
 
 	lcd = devm_kzalloc(&pdev->dev, sizeof(*lcd), GFP_KERNEL);
-	if (lcd == NULL)
+	if (!lcd)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, lcd);
