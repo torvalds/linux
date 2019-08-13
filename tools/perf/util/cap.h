@@ -24,4 +24,9 @@ static inline bool perf_cap__capable(int cap __maybe_unused)
 
 #endif /* HAVE_LIBCAP_SUPPORT */
 
+/* For older systems */
+#ifndef CAP_SYSLOG
+#define CAP_SYSLOG	34
+#endif
+
 #endif /* __PERF_CAP_H */
