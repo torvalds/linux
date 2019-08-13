@@ -365,8 +365,9 @@ static int raw_release(struct socket *sock)
 				raw_disable_allfilters(dev_net(dev), dev, sk);
 				dev_put(dev);
 			}
-		} else
+		} else {
 			raw_disable_allfilters(sock_net(sk), NULL, sk);
+		}
 	}
 
 	if (ro->count > 1)
@@ -446,8 +447,9 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 							       dev, sk);
 					dev_put(dev);
 				}
-			} else
+			} else {
 				raw_disable_allfilters(sock_net(sk), NULL, sk);
+			}
 		}
 		ro->ifindex = ifindex;
 		ro->bound = 1;
@@ -669,8 +671,9 @@ static int raw_getsockopt(struct socket *sock, int level, int optname,
 				len = fsize;
 			if (copy_to_user(optval, ro->filter, len))
 				err = -EFAULT;
-		} else
+		} else {
 			len = 0;
+		}
 		release_sock(sk);
 
 		if (!err)
@@ -737,8 +740,9 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 			return -EINVAL;
 
 		ifindex = addr->can_ifindex;
-	} else
+	} else {
 		ifindex = ro->ifindex;
+	}
 
 	dev = dev_get_by_index(sock_net(sk), ifindex);
 	if (!dev)
