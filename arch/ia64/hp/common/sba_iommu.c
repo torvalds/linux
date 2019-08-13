@@ -251,12 +251,8 @@ static SBA_INLINE void sba_free_range(struct ioc *, dma_addr_t, size_t);
 static u64 prefetch_spill_page;
 #endif
 
-#ifdef CONFIG_PCI
-# define GET_IOC(dev)	((dev_is_pci(dev))						\
+#define GET_IOC(dev)	((dev_is_pci(dev))						\
 			 ? ((struct ioc *) PCI_CONTROLLER(to_pci_dev(dev))->iommu) : NULL)
-#else
-# define GET_IOC(dev)	NULL
-#endif
 
 /*
 ** DMA_CHUNK_SIZE is used by the SCSI mid-layer to break up
@@ -1741,9 +1737,7 @@ ioc_sac_init(struct ioc *ioc)
 	controller->iommu = ioc;
 	sac->sysdata = controller;
 	sac->dma_mask = 0xFFFFFFFFUL;
-#ifdef CONFIG_PCI
 	sac->dev.bus = &pci_bus_type;
-#endif
 	ioc->sac_only_dev = sac;
 }
 
@@ -2121,13 +2115,11 @@ sba_init(void)
 	}
 #endif
 
-#ifdef CONFIG_PCI
 	{
 		struct pci_bus *b = NULL;
 		while ((b = pci_find_next_bus(b)) != NULL)
 			sba_connect_bus(b);
 	}
-#endif
 
 #ifdef CONFIG_PROC_FS
 	ioc_proc_init();
