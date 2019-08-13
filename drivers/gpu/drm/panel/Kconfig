@@ -282,6 +282,13 @@ config DRM_PANEL_SHARP_LQ101R1SX01
 	  To compile this driver as a module, choose M here: the module
 	  will be called panel-sharp-lq101r1sx01.
 
+config DRM_PANEL_SHARP_LS037V7DW01
+	tristate "Sharp LS037V7DW01 VGA LCD panel"
+	depends on GPIOLIB && OF && REGULATOR
+	help
+	  Say Y here if you want to enable support for Sharp LS037V7DW01 VGA
+	  (480x640) LCD panel (found on the TI SDP3430 board).
+
 config DRM_PANEL_SHARP_LS043T1LE01
 	tristate "Sharp LS043T1LE01 qHD video mode panel"
 	depends on OF
