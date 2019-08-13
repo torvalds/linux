@@ -20,6 +20,16 @@ config MTD_BCM63XX_PARTS
 	  This provides partition parsing for BCM63xx devices with CFE
 	  bootloaders.
 
+config MTD_OF_PARTS
+	tristate "OpenFirmware (device tree) partitioning parser"
+	default y
+	depends on OF
+	help
+	  This provides a open firmware device tree partition parser
+	  which derives the partition map from the children of the
+	  flash memory node, as described in
+	  Documentation/devicetree/bindings/mtd/partition.txt.
+
 config MTD_PARSER_IMAGETAG
 	tristate "Parser for BCM963XX Image Tag format partitions"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST

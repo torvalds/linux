@@ -60,15 +60,6 @@ config MTD_CMDLINE_PARTS
 
 	  If unsure, say 'N'.
 
-config MTD_OF_PARTS
-	tristate "OpenFirmware partitioning information support"
-	default y
-	depends on OF
-	help
-	  This provides a partition parsing function which derives
-	  the partition map from the children of the flash node,
-	  as described in Documentation/devicetree/bindings/mtd/partition.txt.
-
 menu "Partition parsers"
 source "drivers/mtd/parsers/Kconfig"
 endmenu
