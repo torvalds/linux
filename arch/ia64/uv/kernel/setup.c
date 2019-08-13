@@ -10,14 +10,12 @@
 
 #include <linux/module.h>
 #include <linux/percpu.h>
-#include <asm/sn/simulator.h>
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
 
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
-int sn_prom_type;
 long sn_coherency_id;
 EXPORT_SYMBOL_GPL(sn_coherency_id);
 
@@ -60,30 +58,11 @@ void __init uv_setup(char **cmdline_p)
 	int nid, cpu, m_val, n_val;
 	unsigned long mmr_base, lowmem_redir_base, lowmem_redir_size;
 
-	if (IS_MEDUSA()) {
-		lowmem_redir_base = 0;
-		lowmem_redir_size = 0;
-		node_id.v = 0;
-		m_n_config.s.m_skt = 37;
-		m_n_config.s.n_skt = 0;
-		mmr_base = 0;
-#if 0
-		/* Need BIOS calls - TDB */
-		if (!ia64_sn_is_fake_prom())
-			sn_prom_type = 1;
-		else
-#endif
-			sn_prom_type = 2;
-		printk(KERN_INFO "Running on medusa with %s PROM\n",
-					(sn_prom_type == 1) ? "real" : "fake");
-	} else {
-		get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
-		node_id.v = uv_read_local_mmr(UVH_NODE_ID);
-		m_n_config.v = uv_read_local_mmr(UVH_SI_ADDR_MAP_CONFIG);
-		mmr_base =
-			uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) &
-				~UV_MMR_ENABLE;
-	}
+	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
+	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
+	m_n_config.v = uv_read_local_mmr(UVH_SI_ADDR_MAP_CONFIG);
+	mmr_base = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) &
+			~UV_MMR_ENABLE;
 
 	m_val = m_n_config.s.m_skt;
 	n_val = m_n_config.s.n_skt;

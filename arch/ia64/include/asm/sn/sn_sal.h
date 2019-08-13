@@ -30,8 +30,6 @@
 #define SALRET_INVALID_ARG	(-2)
 #define SALRET_ERROR		(-3)
 
-#define SN_SAL_FAKE_PROM			   0x02009999
-
 /*
  * Returns the physical address of the partition's reserved page through
  * an iterative number of calls.
@@ -80,14 +78,6 @@ sn_change_memprotect(u64 paddr, u64 len, u64 perms, u64 *nasid_array)
 #define SN_MEMPROT_ACCESS_CLASS_3		0x14a290
 #define SN_MEMPROT_ACCESS_CLASS_6		0x084080
 #define SN_MEMPROT_ACCESS_CLASS_7		0x021080
-
-static inline int
-ia64_sn_is_fake_prom(void)
-{
-	struct ia64_sal_retval rv;
-	SAL_CALL_NOLOCK(rv, SN_SAL_FAKE_PROM, 0, 0, 0, 0, 0, 0, 0);
-	return (rv.status == 0);
-}
 
 union sn_watchlist_u {
 	u64     val;
