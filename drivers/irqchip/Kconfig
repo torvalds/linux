@@ -320,6 +320,7 @@ config INGENIC_TCU_IRQ
 	default MACH_INGENIC
 	depends on MIPS || COMPILE_TEST
 	select MFD_SYSCON
+	select GENERIC_IRQ_CHIP
 	help
 	  Support for interrupts in the Timer/Counter Unit (TCU) of the Ingenic
 	  JZ47xx SoCs.
