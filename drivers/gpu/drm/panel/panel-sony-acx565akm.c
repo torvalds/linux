@@ -31,10 +31,10 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
-#define CTRL_DISP_BRIGHTNESS_CTRL_ON		(1 << 5)
-#define CTRL_DISP_AMBIENT_LIGHT_CTRL_ON		(1 << 4)
-#define CTRL_DISP_BACKLIGHT_ON			(1 << 2)
-#define CTRL_DISP_AUTO_BRIGHTNESS_ON		(1 << 1)
+#define CTRL_DISP_BRIGHTNESS_CTRL_ON		BIT(5)
+#define CTRL_DISP_AMBIENT_LIGHT_CTRL_ON		BIT(4)
+#define CTRL_DISP_BACKLIGHT_ON			BIT(2)
+#define CTRL_DISP_AUTO_BRIGHTNESS_ON		BIT(1)
 
 #define MIPID_CMD_WRITE_CABC		0x55
 #define MIPID_CMD_READ_CABC		0x56
@@ -621,7 +621,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	int ret;
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
-	if (lcd == NULL)
+	if (!lcd)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, lcd);
