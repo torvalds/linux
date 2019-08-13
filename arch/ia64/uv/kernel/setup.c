@@ -16,9 +16,6 @@
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
-long sn_coherency_id;
-EXPORT_SYMBOL_GPL(sn_coherency_id);
-
 struct redir_addr {
 	unsigned long redirect;
 	unsigned long alias;
