@@ -11,7 +11,6 @@
 #include <asm/page.h>
 
 struct ia64_machine_vector ia64_mv = {
-	.mmiowb	= ___ia64_mmiowb
 };
 EXPORT_SYMBOL(ia64_mv);
 
@@ -69,9 +68,3 @@ machvec_setup (char **arg)
 {
 }
 EXPORT_SYMBOL(machvec_setup);
-
-void
-machvec_timer_interrupt (int irq, void *dev_id)
-{
-}
-EXPORT_SYMBOL(machvec_timer_interrupt);

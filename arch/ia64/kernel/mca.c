@@ -744,7 +744,7 @@ ia64_mca_cmc_vector_enable_keventd(struct work_struct *unused)
 static void
 ia64_mca_wakeup(int cpu)
 {
-	platform_send_ipi(cpu, IA64_MCA_WAKEUP_VECTOR, IA64_IPI_DM_INT, 0);
+	ia64_send_ipi(cpu, IA64_MCA_WAKEUP_VECTOR, IA64_IPI_DM_INT, 0);
 }
 
 /*
@@ -1490,7 +1490,7 @@ ia64_mca_cmc_int_caller(int cmc_irq, void *arg)
 	cpuid = cpumask_next(cpuid+1, cpu_online_mask);
 
 	if (cpuid < nr_cpu_ids) {
-		platform_send_ipi(cpuid, IA64_CMCP_VECTOR, IA64_IPI_DM_INT, 0);
+		ia64_send_ipi(cpuid, IA64_CMCP_VECTOR, IA64_IPI_DM_INT, 0);
 	} else {
 		/* If no log record, switch out of polling mode */
 		if (start_count == IA64_LOG_COUNT(SAL_INFO_TYPE_CMC)) {
@@ -1523,7 +1523,7 @@ static void
 ia64_mca_cmc_poll (struct timer_list *unused)
 {
 	/* Trigger a CMC interrupt cascade  */
-	platform_send_ipi(cpumask_first(cpu_online_mask), IA64_CMCP_VECTOR,
+	ia64_send_ipi(cpumask_first(cpu_online_mask), IA64_CMCP_VECTOR,
 							IA64_IPI_DM_INT, 0);
 }
 
@@ -1560,7 +1560,7 @@ ia64_mca_cpe_int_caller(int cpe_irq, void *arg)
 	cpuid = cpumask_next(cpuid+1, cpu_online_mask);
 
 	if (cpuid < NR_CPUS) {
-		platform_send_ipi(cpuid, IA64_CPEP_VECTOR, IA64_IPI_DM_INT, 0);
+		ia64_send_ipi(cpuid, IA64_CPEP_VECTOR, IA64_IPI_DM_INT, 0);
 	} else {
 		/*
 		 * If a log was recorded, increase our polling frequency,
@@ -1600,7 +1600,7 @@ static void
 ia64_mca_cpe_poll (struct timer_list *unused)
 {
 	/* Trigger a CPE interrupt cascade  */
-	platform_send_ipi(cpumask_first(cpu_online_mask), IA64_CPEP_VECTOR,
+	ia64_send_ipi(cpumask_first(cpu_online_mask), IA64_CPEP_VECTOR,
 							IA64_IPI_DM_INT, 0);
 }
 

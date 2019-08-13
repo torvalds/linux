@@ -167,8 +167,6 @@ timer_interrupt (int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	platform_timer_interrupt(irq, dev_id);
-
 	new_itm = local_cpu_data->itm_next;
 
 	if (!time_after(ia64_get_itc(), new_itm))

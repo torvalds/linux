@@ -467,7 +467,7 @@ do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 	Dprintk("Sending wakeup vector %lu to AP 0x%x/0x%x.\n", ap_wakeup_vector, cpu, sapicid);
 
 	set_brendez_area(cpu);
-	platform_send_ipi(cpu, ap_wakeup_vector, IA64_IPI_DM_INT, 0);
+	ia64_send_ipi(cpu, ap_wakeup_vector, IA64_IPI_DM_INT, 0);
 
 	/*
 	 * Wait 10s total for the AP to start

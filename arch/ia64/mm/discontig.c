@@ -396,8 +396,7 @@ static void __meminit scatter_node_data(void)
  *
  * Each node's per-node area has a copy of the global pg_data_t list, so
  * we copy that to each node here, as well as setting the per-cpu pointer
- * to the local node data structure.  The active_cpus field of the per-node
- * structure gets setup by the platform_cpu_init() function later.
+ * to the local node data structure.
  */
 static void __init initialize_pernode_data(void)
 {

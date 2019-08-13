@@ -1039,7 +1039,6 @@ cpu_init (void)
 		ia64_patch_phys_stack_reg(num_phys_stacked*8 + 8);
 		max_num_phys_stacked = num_phys_stacked;
 	}
-	platform_cpu_init();
 }
 
 void __init

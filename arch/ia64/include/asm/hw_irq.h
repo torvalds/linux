@@ -137,24 +137,8 @@ static inline void irq_complete_move(unsigned int irq) {}
 
 static inline void ia64_native_resend_irq(unsigned int vector)
 {
-	platform_send_ipi(smp_processor_id(), vector, IA64_IPI_DM_INT, 0);
+	ia64_send_ipi(smp_processor_id(), vector, IA64_IPI_DM_INT, 0);
 }
-
-/*
- * Default implementations for the irq-descriptor API:
- */
-#ifndef CONFIG_IA64_GENERIC
-static inline ia64_vector __ia64_irq_to_vector(int irq)
-{
-	return irq_cfg[irq].vector;
-}
-
-static inline unsigned int
-__ia64_local_vector_to_irq (ia64_vector vec)
-{
-	return __this_cpu_read(vector_irq[vec]);
-}
-#endif
 
 /*
  * Next follows the irq descriptor interface.  On IA-64, each CPU supports 256 interrupt
@@ -170,7 +154,7 @@ __ia64_local_vector_to_irq (ia64_vector vec)
 static inline ia64_vector
 irq_to_vector (int irq)
 {
-	return platform_irq_to_vector(irq);
+	return irq_cfg[irq].vector;
 }
 
 /*
@@ -181,7 +165,7 @@ irq_to_vector (int irq)
 static inline unsigned int
 local_vector_to_irq (ia64_vector vec)
 {
-	return platform_local_vector_to_irq(vec);
+	return __this_cpu_read(vector_irq[vec]);
 }
 
 #endif /* _ASM_IA64_HW_IRQ_H */

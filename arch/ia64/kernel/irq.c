@@ -35,18 +35,6 @@ void ack_bad_irq(unsigned int irq)
 	printk(KERN_ERR "Unexpected irq vector 0x%x on CPU %u!\n", irq, smp_processor_id());
 }
 
-#ifdef CONFIG_IA64_GENERIC
-ia64_vector __ia64_irq_to_vector(int irq)
-{
-	return irq_cfg[irq].vector;
-}
-
-unsigned int __ia64_local_vector_to_irq (ia64_vector vec)
-{
-	return __this_cpu_read(vector_irq[vec]);
-}
-#endif
-
 /*
  * Interrupt statistics:
  */
