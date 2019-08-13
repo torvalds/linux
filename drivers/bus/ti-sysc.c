@@ -54,15 +54,22 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @module_size: size of the interconnect target module
  * @module_va: virtual address of the interconnect target module
  * @offsets: register offsets from module base
+ * @mdata: ti-sysc to hwmod translation data for a module
  * @clocks: clocks used by the interconnect target module
  * @clock_roles: clock role names for the found clocks
  * @nr_clocks: number of clocks used by the interconnect target module
+ * @rsts: resets used by the interconnect target module
  * @legacy_mode: configured for legacy mode if set
  * @cap: interconnect target module capabilities
  * @cfg: interconnect target module configuration
+ * @cookie: data used by legacy platform callbacks
  * @name: name if available
  * @revision: interconnect target module revision
+ * @enabled: sysc runtime enabled status
  * @needs_resume: runtime resume needed on resume from suspend
+ * @child_needs_resume: runtime resume needed for child on resume from suspend
+ * @disable_on_idle: status flag used for disabling modules with resets
+ * @idle_work: work structure used to perform delayed idle on a module
  * @clk_enable_quirk: module specific clock enable quirk
  * @clk_disable_quirk: module specific clock disable quirk
  * @reset_done_quirk: module specific reset done quirk
