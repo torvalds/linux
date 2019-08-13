@@ -210,3 +210,5 @@ fi
 # Mimic maint-startnewrelease
 [ "$dry_run" -eq 0 ] && \
     hl "\n***** Now please inspect the commit before pushing *****"
+
+exit 0

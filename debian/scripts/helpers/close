@@ -3,7 +3,7 @@ export LC_ALL=C.UTF-8
 
 usage() {
 	cat << EOF
-Usage: ${P:-$(basename "$0")} [-h|--help] [-d|--dry-run] [-c|--include-config] [-s|--skip-master]
+Usage: ${P:-$(basename "$0")} [-h|--help] [-d|--dry-run] [-c|--include-config] [-s|--skip-master] [-b BASE_VERSION]
 
 Prepare the closing release commit. Include all the changelog entries
 in the current release, including the changes from the base
@@ -15,6 +15,10 @@ Optional arguments:
   -c, --include-config  Include config changes in the closing commit.
   -s, --skip-master     Skip master kernel changelog entries (used when
                         bootstraping new kernels).
+  -b BASE_VERSION       For derivatives and backports, force the changelog
+                        entries to have the base version as provided (used
+                        when changing the base derivative version of a
+                        backport).
   -h, --help            Show this help message and exit.
 
 Examples:
@@ -30,6 +34,7 @@ EOF
 dry_run=0
 commit_configs=0
 skip_master_entries=0
+base_version=
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 		-h|--help)
@@ -44,6 +49,10 @@ while [ "$#" -gt 0 ]; do
 			;;
 		-s|--skip-master)
 			skip_master_entries=1
+			;;
+		-b)
+			shift
+			base_version="$1"
 			;;
 		*)
 			usage
@@ -80,12 +89,17 @@ DEBIAN=
 # shellcheck disable=SC1091
 . debian/debian.env
 
-# Check if the "debian.<branch>/" directory exists.
+# Check if the "$DEBIAN" directory exists.
 if [ ! -d "$DEBIAN" ]; then
 	echo "You must run this script from the top directory of this repository."
 	exit 1
 fi
-branch="${DEBIAN#*.}"
+
+CONF="$DEBIAN/etc/update.conf"
+if [ -f "$CONF" ]; then
+	# shellcheck disable=SC1090
+	. "$CONF"
+fi
 
 # Check if changelog is open
 series=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SDistribution)
@@ -102,43 +116,37 @@ if [ "$commit_configs" -eq 0 ] && [ -n "$changes" ]; then
 	exit 1
 fi
 
-# Derivatives have at least one base kernel.
-if [ "$branch" != 'master' ]; then
-	# For backports, insert the changes from the base derivative.
-	# Straight derivatives and backports such as hwe and hwe-edge, should
-	# skip that step and fetch the entries directly from the master kernel.
-	version=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SVersion)
-	if [[ $version == *~* ]]; then
-		base_version=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SVersion -c1 -o1)
-		base_changelog="${DEBIAN%-*}/changelog"
-		if [ -f "$base_changelog" ] && [ "$DEBIAN" != "${DEBIAN%-*}" ]; then
-			run ./debian/scripts/misc/insert-ubuntu-changes "$DEBIAN/changelog" "${base_version%%~*}" "${version%%~*}" "$base_changelog"
-			skip_master_entries=1
-		fi
+# Derivatives and backports have a master kernel directory (DEBIAN_MASTER).
+if [ "$DEBIAN" != 'debian.master' ] && [ $skip_master_entries == 0 ]; then
+	if [ "$DEBIAN_MASTER" = "" ]; then
+		echo "DEBIAN_MASTER should be defined either in $DEBIAN/etc/update.conf or the environment"
+		exit 1
 	fi
 
-	if [ "$skip_master_entries" -eq 0 ]; then
-	    offset=0
-	    # Loop through each entry of the current changelog, searching for an
-	    # entry that refers to the master version used as base (ie a line
-	    # containing "[ Ubuntu: 4.15.0-39.42 ]"):
-	    while true; do
-		    changes=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SChanges -c1 -o"$offset")
-		    if ! [ "$changes" ]; then
-			    echo "Failed to retrieve base master version from changelog file: $DEBIAN/changelog"
-			    exit 1
-		    fi
-		    base_master_version=$(echo "$changes" | sed -n -r -e '/^\s.*\[ Ubuntu: ([0-9.-]*) \]$/{s//\1/p;q}')
-		    [ "$base_master_version" ] && break
-		    offset=$(( offset + 1 ))
-	    done
-	    master_version=$(dpkg-parsechangelog -ldebian.master/changelog -SVersion)
-	    if ! [ "$master_version" ]; then
-		    echo "Failed to retrieve current master version from changelog: $DEBIAN/changelog"
-		    exit 1
-	    fi
-	    run ./debian/scripts/misc/insert-ubuntu-changes "$DEBIAN/changelog" "$base_master_version" "$master_version"
+	if [ -z "${base_version}" ]; then
+		offset=0
+		# If not provided as an option, loop through each entry of the current changelog,
+		# searching for an entry that refers to the master version used as base
+		# (ie a line containing "[ Ubuntu: 4.15.0-39.42 ]"):
+		while true; do
+			changes=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SChanges -c1 -o"$offset")
+			if ! [ "$changes" ]; then
+				echo "Failed to retrieve base master version from changelog file: $DEBIAN/changelog"
+				exit 1
+			fi
+			base_version=$(echo "$changes" | sed -n -r -e '/^\s.*\[ Ubuntu: ([0-9.-]*) \]$/{s//\1/p;q}')
+			[ "$base_version" ] && break
+			offset=$(( offset + 1 ))
+		done
 	fi
+
+	master_version=$(dpkg-parsechangelog -l${DEBIAN_MASTER}/changelog -SVersion)
+	if ! [ "$master_version" ]; then
+		echo "Failed to retrieve current master version from changelog: $DEBIAN/changelog"
+		exit 1
+	fi
+	run ./debian/scripts/misc/insert-ubuntu-changes "$DEBIAN/changelog" "$base_version" "$master_version" \
+		"$DEBIAN_MASTER/changelog"
 fi
 
 # Insert local changes
