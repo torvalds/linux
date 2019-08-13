@@ -121,6 +121,7 @@ struct nbd_cmd {
 	struct mutex lock;
 	int index;
 	int cookie;
+	int retries;
 	blk_status_t status;
 	unsigned long flags;
 	u32 cmd_cookie;
@@ -407,10 +408,25 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 			nbd_config_put(nbd);
 			return BLK_EH_DONE;
 		}
-	} else {
-		dev_err_ratelimited(nbd_to_dev(nbd),
-				    "Connection timed out\n");
 	}
+
+	if (!nbd->tag_set.timeout) {
+		/*
+		 * Userspace sets timeout=0 to disable socket disconnection,
+		 * so just warn and reset the timer.
+		 */
+		cmd->retries++;
+		dev_info(nbd_to_dev(nbd), "Possible stuck request %p: control (%s@%llu,%uB). Runtime %u seconds\n",
+			req, nbdcmd_to_ascii(req_to_nbd_cmd_type(req)),
+			(unsigned long long)blk_rq_pos(req) << 9,
+			blk_rq_bytes(req), (req->timeout / HZ) * cmd->retries);
+
+		mutex_unlock(&cmd->lock);
+		nbd_config_put(nbd);
+		return BLK_EH_RESET_TIMER;
+	}
+
+	dev_err_ratelimited(nbd_to_dev(nbd), "Connection timed out\n");
 	set_bit(NBD_TIMEDOUT, &config->runtime_flags);
 	cmd->status = BLK_STS_IOERR;
 	mutex_unlock(&cmd->lock);
@@ -531,6 +547,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	}
 	cmd->index = index;
 	cmd->cookie = nsock->cookie;
+	cmd->retries = 0;
 	request.type = htonl(type | nbd_cmd_flags);
 	if (type != NBD_CMD_FLUSH) {
 		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
@@ -1254,7 +1271,8 @@ static bool nbd_is_valid_blksize(unsigned long blksize)
 static void nbd_set_cmd_timeout(struct nbd_device *nbd, u64 timeout)
 {
 	nbd->tag_set.timeout = timeout * HZ;
-	blk_queue_rq_timeout(nbd->disk->queue, timeout * HZ);
+	if (timeout)
+		blk_queue_rq_timeout(nbd->disk->queue, timeout * HZ);
 }
 
 /* Must be called with config_lock held */
@@ -1287,8 +1305,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		nbd_size_set(nbd, config->blksize, arg);
 		return 0;
 	case NBD_SET_TIMEOUT:
-		if (arg)
-			nbd_set_cmd_timeout(nbd, arg);
+		nbd_set_cmd_timeout(nbd, arg);
 		return 0;
 
 	case NBD_SET_FLAGS:
