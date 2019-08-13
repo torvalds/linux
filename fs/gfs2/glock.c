@@ -1788,8 +1788,8 @@ void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl, bool fsid)
 	unsigned long long dtime;
 	const struct gfs2_holder *gh;
 	char gflags_buf[32];
-	char fs_id_buf[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	char fs_id_buf[sizeof(sdp->sd_fsname) + 7];
 
 	memset(fs_id_buf, 0, sizeof(fs_id_buf));
 	if (fsid && sdp) /* safety precaution */
