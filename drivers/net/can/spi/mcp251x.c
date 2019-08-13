@@ -561,8 +561,7 @@ static int mcp251x_set_normal_mode(struct spi_device *spi)
 		while (mcp251x_read_reg(spi, CANSTAT) & CANCTRL_REQOP_MASK) {
 			schedule();
 			if (time_after(jiffies, timeout)) {
-				dev_err(&spi->dev, "MCP251x didn't"
-					" enter in normal mode\n");
+				dev_err(&spi->dev, "MCP251x didn't enter in normal mode\n");
 				return -EBUSY;
 			}
 		}
