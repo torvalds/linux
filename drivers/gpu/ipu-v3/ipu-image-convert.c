@@ -382,8 +382,11 @@ static inline int num_stripes(int dim)
 
 /*
  * Calculate downsizing coefficients, which are the same for all tiles,
- * and bilinear resizing coefficients, which are used to find the best
- * seam positions.
+ * and initial bilinear resizing coefficients, which are used to find the
+ * best seam positions.
+ * Also determine the number of tiles necessary to guarantee that no tile
+ * is larger than 1024 pixels in either dimension at the output and between
+ * IC downsizing and main processing sections.
  */
 static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 					  struct ipu_image *in,
@@ -397,6 +400,8 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	u32 resized_height = out->rect.height;
 	u32 resize_coeff_h;
 	u32 resize_coeff_v;
+	u32 cols;
+	u32 rows;
 
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		resized_width = out->rect.height;
@@ -407,14 +412,12 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	if (WARN_ON(resized_width == 0 || resized_height == 0))
 		return -EINVAL;
 
-	while (downsized_width > 1024 ||
-	       downsized_width >= resized_width * 2) {
+	while (downsized_width >= resized_width * 2) {
 		downsized_width >>= 1;
 		downsize_coeff_h++;
 	}
 
-	while (downsized_height > 1024 ||
-	       downsized_height >= resized_height * 2) {
+	while (downsized_height >= resized_height * 2) {
 		downsized_height >>= 1;
 		downsize_coeff_v++;
 	}
@@ -428,10 +431,18 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	resize_coeff_h = 8192 * (downsized_width - 1) / (resized_width - 1);
 	resize_coeff_v = 8192 * (downsized_height - 1) / (resized_height - 1);
 
+	/*
+	 * Both the output of the IC downsizing section before being passed to
+	 * the IC main processing section and the final output of the IC main
+	 * processing section must be <= 1024 pixels in both dimensions.
+	 */
+	cols = num_stripes(max_t(u32, downsized_width, resized_width));
+	rows = num_stripes(max_t(u32, downsized_height, resized_height));
+
 	dev_dbg(ctx->chan->priv->ipu->dev,
 		"%s: hscale: >>%u, *8192/%u vscale: >>%u, *8192/%u, %ux%u tiles\n",
 		__func__, downsize_coeff_h, resize_coeff_h, downsize_coeff_v,
-		resize_coeff_v, ctx->in.num_cols, ctx->in.num_rows);
+		resize_coeff_v, cols, rows);
 
 	if (downsize_coeff_h > 2 || downsize_coeff_v  > 2 ||
 	    resize_coeff_h > 0x3fff || resize_coeff_v > 0x3fff)
@@ -441,6 +452,8 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	ctx->downsize_coeff_v = downsize_coeff_v;
 	ctx->image_resize_coeff_h = resize_coeff_h;
 	ctx->image_resize_coeff_v = resize_coeff_v;
+	ctx->in.num_cols = cols;
+	ctx->in.num_rows = rows;
 
 	return 0;
 }
@@ -2038,31 +2051,31 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	ctx->chan = chan;
 	init_completion(&ctx->aborted);
 
+	ctx->rot_mode = rot_mode;
+
+	/* Sets ctx->in.num_rows/cols as well */
+	ret = calc_image_resize_coefficients(ctx, in, out);
+	if (ret)
+		goto out_free;
+
 	s_image = &ctx->in;
 	d_image = &ctx->out;
 
 	/* set tiling and rotation */
-	d_image->num_rows = num_stripes(out->pix.height);
-	d_image->num_cols = num_stripes(out->pix.width);
 	if (ipu_rot_mode_is_irt(rot_mode)) {
-		s_image->num_rows = d_image->num_cols;
-		s_image->num_cols = d_image->num_rows;
+		d_image->num_rows = s_image->num_cols;
+		d_image->num_cols = s_image->num_rows;
 	} else {
-		s_image->num_rows = d_image->num_rows;
-		s_image->num_cols = d_image->num_cols;
+		d_image->num_rows = s_image->num_rows;
+		d_image->num_cols = s_image->num_cols;
 	}
 
 	ctx->num_tiles = d_image->num_cols * d_image->num_rows;
-	ctx->rot_mode = rot_mode;
 
 	ret = fill_image(ctx, s_image, in, IMAGE_CONVERT_IN);
 	if (ret)
 		goto out_free;
 	ret = fill_image(ctx, d_image, out, IMAGE_CONVERT_OUT);
-	if (ret)
-		goto out_free;
-
-	ret = calc_image_resize_coefficients(ctx, in, out);
 	if (ret)
 		goto out_free;
 
