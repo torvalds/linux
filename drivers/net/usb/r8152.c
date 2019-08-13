@@ -26,7 +26,7 @@
 #include <linux/acpi.h>
 
 /* Information for net-next */
-#define NETNEXT_VERSION		"09"
+#define NETNEXT_VERSION		"10"
 
 /* Information for net */
 #define NET_VERSION		"10"
@@ -584,7 +584,7 @@ enum rtl_register_content {
 #define TX_ALIGN		4
 #define RX_ALIGN		8
 
-#define RTL8152_MAX_RX_AGG	(10 * RTL8152_MAX_RX)
+#define RTL8152_RX_MAX_PENDING	4096
 #define RTL8152_RXFG_HEADSZ	256
 
 #define INTR_LINK		0x0004
@@ -756,6 +756,9 @@ struct r8152 {
 	u32 tx_qlen;
 	u32 coalesce;
 	u32 rx_buf_sz;
+	u32 rx_copybreak;
+	u32 rx_pending;
+
 	u16 ocp_base;
 	u16 speed;
 	u8 *intr_buff;
@@ -1984,7 +1987,7 @@ static struct rx_agg *rtl_get_free_rx(struct r8152 *tp, gfp_t mflags)
 
 	spin_unlock_irqrestore(&tp->rx_lock, flags);
 
-	if (!agg_free && atomic_read(&tp->rx_count) < RTL8152_MAX_RX_AGG)
+	if (!agg_free && atomic_read(&tp->rx_count) < tp->rx_pending)
 		agg_free = alloc_rx_agg(tp, mflags);
 
 	return agg_free;
@@ -2064,10 +2067,10 @@ static int rx_bottom(struct r8152 *tp, int budget)
 			pkt_len -= ETH_FCS_LEN;
 			rx_data += sizeof(struct rx_desc);
 
-			if (!agg_free || RTL8152_RXFG_HEADSZ > pkt_len)
+			if (!agg_free || tp->rx_copybreak > pkt_len)
 				rx_frag_head_sz = pkt_len;
 			else
-				rx_frag_head_sz = RTL8152_RXFG_HEADSZ;
+				rx_frag_head_sz = tp->rx_copybreak;
 
 			skb = napi_alloc_skb(napi, rx_frag_head_sz);
 			if (!skb) {
@@ -5104,6 +5107,77 @@ static int rtl8152_set_coalesce(struct net_device *netdev,
 	return ret;
 }
 
+static int rtl8152_get_tunable(struct net_device *netdev,
+			       const struct ethtool_tunable *tunable, void *d)
+{
+	struct r8152 *tp = netdev_priv(netdev);
+
+	switch (tunable->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)d = tp->rx_copybreak;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int rtl8152_set_tunable(struct net_device *netdev,
+			       const struct ethtool_tunable *tunable,
+			       const void *d)
+{
+	struct r8152 *tp = netdev_priv(netdev);
+	u32 val;
+
+	switch (tunable->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		val = *(u32 *)d;
+		if (val < ETH_ZLEN) {
+			netif_err(tp, rx_err, netdev,
+				  "Invalid rx copy break value\n");
+			return -EINVAL;
+		}
+
+		if (tp->rx_copybreak != val) {
+			napi_disable(&tp->napi);
+			tp->rx_copybreak = val;
+			napi_enable(&tp->napi);
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static void rtl8152_get_ringparam(struct net_device *netdev,
+				  struct ethtool_ringparam *ring)
+{
+	struct r8152 *tp = netdev_priv(netdev);
+
+	ring->rx_max_pending = RTL8152_RX_MAX_PENDING;
+	ring->rx_pending = tp->rx_pending;
+}
+
+static int rtl8152_set_ringparam(struct net_device *netdev,
+				 struct ethtool_ringparam *ring)
+{
+	struct r8152 *tp = netdev_priv(netdev);
+
+	if (ring->rx_pending < (RTL8152_MAX_RX * 2))
+		return -EINVAL;
+
+	if (tp->rx_pending != ring->rx_pending) {
+		napi_disable(&tp->napi);
+		tp->rx_pending = ring->rx_pending;
+		napi_enable(&tp->napi);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops ops = {
 	.get_drvinfo = rtl8152_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -5121,6 +5195,10 @@ static const struct ethtool_ops ops = {
 	.set_eee = rtl_ethtool_set_eee,
 	.get_link_ksettings = rtl8152_get_link_ksettings,
 	.set_link_ksettings = rtl8152_set_link_ksettings,
+	.get_tunable = rtl8152_get_tunable,
+	.set_tunable = rtl8152_set_tunable,
+	.get_ringparam = rtl8152_get_ringparam,
+	.set_ringparam = rtl8152_set_ringparam,
 };
 
 static int rtl8152_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -5473,6 +5551,9 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->autoneg = AUTONEG_ENABLE;
 	tp->speed = tp->mii.supports_gmii ? SPEED_1000 : SPEED_100;
 	tp->duplex = DUPLEX_FULL;
+
+	tp->rx_copybreak = RTL8152_RXFG_HEADSZ;
+	tp->rx_pending = 10 * RTL8152_MAX_RX;
 
 	intf->needs_remote_wakeup = 1;
 
