@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mcs5000_ts.c - Touchscreen driver for MELFAS MCS-5000 controller
  *
@@ -5,12 +6,6 @@
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  *
  * Based on wm97xx-core.c
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>

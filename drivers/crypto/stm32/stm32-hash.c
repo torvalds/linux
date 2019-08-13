@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of STM32 Crypto driver for Linux.
  *
  * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
  * Author(s): Lionel DEBIEVE <lionel.debieve@st.com> for STMicroelectronics.
- *
- * License terms: GPL V2.0.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/clk.h>
@@ -352,7 +338,7 @@ static int stm32_hash_xmit_cpu(struct stm32_hash_dev *hdev,
 
 	len32 = DIV_ROUND_UP(length, sizeof(u32));
 
-	dev_dbg(hdev->dev, "%s: length: %d, final: %x len32 %i\n",
+	dev_dbg(hdev->dev, "%s: length: %zd, final: %x len32 %i\n",
 		__func__, length, final, len32);
 
 	hdev->flags |= HASH_FLAGS_CPU;
@@ -363,7 +349,7 @@ static int stm32_hash_xmit_cpu(struct stm32_hash_dev *hdev,
 		return -ETIMEDOUT;
 
 	if ((hdev->flags & HASH_FLAGS_HMAC) &&
-	    (hdev->flags & ~HASH_FLAGS_HMAC_KEY)) {
+	    (!(hdev->flags & HASH_FLAGS_HMAC_KEY))) {
 		hdev->flags |= HASH_FLAGS_HMAC_KEY;
 		stm32_hash_write_key(hdev);
 		if (stm32_hash_wait_busy(hdev))
@@ -461,8 +447,8 @@ static int stm32_hash_xmit_dma(struct stm32_hash_dev *hdev,
 
 	dma_async_issue_pending(hdev->dma_lch);
 
-	if (!wait_for_completion_interruptible_timeout(&hdev->dma_completion,
-						       msecs_to_jiffies(100)))
+	if (!wait_for_completion_timeout(&hdev->dma_completion,
+					 msecs_to_jiffies(100)))
 		err = -ETIMEDOUT;
 
 	if (dma_async_is_tx_complete(hdev->dma_lch, cookie,

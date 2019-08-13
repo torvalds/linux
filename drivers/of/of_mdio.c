@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OF helpers for the MDIO (Ethernet PHY) API
  *
  * Copyright (c) 2009 Secret Lab Technologies, Ltd.
- *
- * This file is released under the GPLv2
  *
  * This file provides helper functions for extracting PHY device information
  * out of the OpenFirmware device tree and using it to populate an mii_bus.
@@ -282,7 +281,7 @@ unregister:
 EXPORT_SYMBOL(of_mdiobus_register);
 
 /* Helper function for of_phy_find_device */
-static int of_phy_match(struct device *dev, void *phy_np)
+static int of_phy_match(struct device *dev, const void *phy_np)
 {
 	return dev->of_node == phy_np;
 }

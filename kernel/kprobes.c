@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Kernel Probes (KProbes)
  *  kernel/kprobes.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  *
@@ -2289,6 +2276,7 @@ static int __init init_kprobes(void)
 		init_test_probes();
 	return err;
 }
+subsys_initcall(init_kprobes);
 
 #ifdef CONFIG_DEBUG_FS
 static void report_probe(struct seq_file *pi, struct kprobe *p,
@@ -2583,36 +2571,21 @@ static const struct file_operations fops_kp = {
 
 static int __init debugfs_kprobe_init(void)
 {
-	struct dentry *dir, *file;
+	struct dentry *dir;
 	unsigned int value = 1;
 
 	dir = debugfs_create_dir("kprobes", NULL);
-	if (!dir)
-		return -ENOMEM;
 
-	file = debugfs_create_file("list", 0400, dir, NULL,
-				&debugfs_kprobes_operations);
-	if (!file)
-		goto error;
+	debugfs_create_file("list", 0400, dir, NULL,
+			    &debugfs_kprobes_operations);
 
-	file = debugfs_create_file("enabled", 0600, dir,
-					&value, &fops_kp);
-	if (!file)
-		goto error;
+	debugfs_create_file("enabled", 0600, dir, &value, &fops_kp);
 
-	file = debugfs_create_file("blacklist", 0400, dir, NULL,
-				&debugfs_kprobe_blacklist_ops);
-	if (!file)
-		goto error;
+	debugfs_create_file("blacklist", 0400, dir, NULL,
+			    &debugfs_kprobe_blacklist_ops);
 
 	return 0;
-
-error:
-	debugfs_remove(dir);
-	return -ENOMEM;
 }
 
 late_initcall(debugfs_kprobe_init);
 #endif /* CONFIG_DEBUG_FS */
-
-module_init(init_kprobes);

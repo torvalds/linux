@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the ADC present in the Atmel AT91 evaluation boards.
  *
  * Copyright 2011 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #include <linux/bitmap.h>
@@ -1360,7 +1359,7 @@ static int at91_adc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int at91_adc_suspend(struct device *dev)
 {
-	struct iio_dev *idev = platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *idev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(idev);
 
 	pinctrl_pm_select_sleep_state(dev);
@@ -1371,7 +1370,7 @@ static int at91_adc_suspend(struct device *dev)
 
 static int at91_adc_resume(struct device *dev)
 {
-	struct iio_dev *idev = platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *idev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(idev);
 
 	clk_prepare_enable(st->clk);

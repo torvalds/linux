@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/mm/kmap.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  * Copyright (C) 2002 - 2009  Paul Mundt
- *
- * Released under the terms of the GNU GPL v2.0.
  */
 #include <linux/mm.h>
 #include <linux/init.h>

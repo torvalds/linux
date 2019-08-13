@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Politecnico di Torino, Italy
  *                    TORSEC group -- http://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  *
  * File: ima_template_lib.c
  *      Library of supported template fields.
@@ -157,6 +153,12 @@ void ima_show_template_string(struct seq_file *m, enum ima_show_type show,
 }
 
 void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
+			   struct ima_field_data *field_data)
+{
+	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
+}
+
+void ima_show_template_buf(struct seq_file *m, enum ima_show_type show,
 			   struct ima_field_data *field_data)
 {
 	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
@@ -388,4 +390,19 @@ int ima_eventsig_init(struct ima_event_data *event_data,
 
 	return ima_write_template_field_data(xattr_value, event_data->xattr_len,
 					     DATA_FMT_HEX, field_data);
+}
+
+/*
+ *  ima_eventbuf_init - include the buffer(kexec-cmldine) as part of the
+ *  template data.
+ */
+int ima_eventbuf_init(struct ima_event_data *event_data,
+		      struct ima_field_data *field_data)
+{
+	if ((!event_data->buf) || (event_data->buf_len == 0))
+		return 0;
+
+	return ima_write_template_field_data(event_data->buf,
+					     event_data->buf_len, DATA_FMT_HEX,
+					     field_data);
 }

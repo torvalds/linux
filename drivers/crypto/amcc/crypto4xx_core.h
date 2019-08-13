@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /**
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This is the header file for AMCC Crypto offload Linux device driver for
  * use with Linux CryptoAPI.
@@ -182,10 +173,12 @@ int crypto4xx_setkey_rfc3686(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_encrypt_ctr(struct skcipher_request *req);
 int crypto4xx_decrypt_ctr(struct skcipher_request *req);
-int crypto4xx_encrypt_iv(struct skcipher_request *req);
-int crypto4xx_decrypt_iv(struct skcipher_request *req);
-int crypto4xx_encrypt_noiv(struct skcipher_request *req);
-int crypto4xx_decrypt_noiv(struct skcipher_request *req);
+int crypto4xx_encrypt_iv_stream(struct skcipher_request *req);
+int crypto4xx_decrypt_iv_stream(struct skcipher_request *req);
+int crypto4xx_encrypt_iv_block(struct skcipher_request *req);
+int crypto4xx_decrypt_iv_block(struct skcipher_request *req);
+int crypto4xx_encrypt_noiv_block(struct skcipher_request *req);
+int crypto4xx_decrypt_noiv_block(struct skcipher_request *req);
 int crypto4xx_rfc3686_encrypt(struct skcipher_request *req);
 int crypto4xx_rfc3686_decrypt(struct skcipher_request *req);
 int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);

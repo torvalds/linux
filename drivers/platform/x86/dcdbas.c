@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  dcdbas.c: Dell Systems Management Base Driver
  *
@@ -6,18 +7,9 @@
  *  and Host Control Actions (power cycle or power off after OS shutdown) on
  *  Dell systems.
  *
- *  See Documentation/dcdbas.txt for more information.
+ *  See Documentation/driver-api/dcdbas.rst for more information.
  *
  *  Copyright (C) 1995-2006 Dell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License v2.0 as published by
- *  the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>

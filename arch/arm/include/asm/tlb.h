@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/tlb.h
  *
  *  Copyright (C) 2002 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Experimentation shows that on a StrongARM, it appears to be faster
  *  to use the "invalidate whole tlb" rather than "invalidate single

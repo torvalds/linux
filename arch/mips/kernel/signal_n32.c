@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2003 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/cache.h>
 #include <linux/sched.h>
@@ -84,7 +71,7 @@ asmlinkage void sysn32_rt_sigreturn(void)
 	if (sig < 0)
 		goto badframe;
 	else if (sig)
-		force_sig(sig, current);
+		force_sig(sig);
 
 	if (compat_restore_altstack(&frame->rs_uc.uc_stack))
 		goto badframe;
@@ -100,7 +87,7 @@ asmlinkage void sysn32_rt_sigreturn(void)
 	/* Unreached */
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 }
 
 static int setup_rt_frame_n32(void *sig_return, struct ksignal *ksig,

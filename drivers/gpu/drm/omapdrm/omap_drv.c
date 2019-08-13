@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/of.h>
@@ -439,20 +428,6 @@ static int ioctl_get_param(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int ioctl_set_param(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct drm_omap_param *args = data;
-
-	switch (args->param) {
-	default:
-		DBG("unknown parameter %lld", args->param);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 #define OMAP_BO_USER_MASK	0x00ffffff	/* flags settable by userspace */
 
 static int ioctl_gem_new(struct drm_device *dev, void *data,
@@ -492,7 +467,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
 	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, ioctl_set_param,
+	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, drm_invalid_op,
 			  DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new,
 			  DRM_AUTH | DRM_RENDER_ALLOW),

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
@@ -35,7 +36,7 @@ static __init int memset16_selftest(void)
 fail:
 	kfree(p);
 	if (i < 256)
-		return (i << 24) | (j << 16) | k;
+		return (i << 24) | (j << 16) | k | 0x8000;
 	return 0;
 }
 
@@ -71,7 +72,7 @@ static __init int memset32_selftest(void)
 fail:
 	kfree(p);
 	if (i < 256)
-		return (i << 24) | (j << 16) | k;
+		return (i << 24) | (j << 16) | k | 0x8000;
 	return 0;
 }
 
@@ -107,7 +108,74 @@ static __init int memset64_selftest(void)
 fail:
 	kfree(p);
 	if (i < 256)
-		return (i << 24) | (j << 16) | k;
+		return (i << 24) | (j << 16) | k | 0x8000;
+	return 0;
+}
+
+static __init int strchr_selftest(void)
+{
+	const char *test_string = "abcdefghijkl";
+	const char *empty_string = "";
+	char *result;
+	int i;
+
+	for (i = 0; i < strlen(test_string) + 1; i++) {
+		result = strchr(test_string, test_string[i]);
+		if (result - test_string != i)
+			return i + 'a';
+	}
+
+	result = strchr(empty_string, '\0');
+	if (result != empty_string)
+		return 0x101;
+
+	result = strchr(empty_string, 'a');
+	if (result)
+		return 0x102;
+
+	result = strchr(test_string, 'z');
+	if (result)
+		return 0x103;
+
+	return 0;
+}
+
+static __init int strnchr_selftest(void)
+{
+	const char *test_string = "abcdefghijkl";
+	const char *empty_string = "";
+	char *result;
+	int i, j;
+
+	for (i = 0; i < strlen(test_string) + 1; i++) {
+		for (j = 0; j < strlen(test_string) + 2; j++) {
+			result = strnchr(test_string, j, test_string[i]);
+			if (j <= i) {
+				if (!result)
+					continue;
+				return ((i + 'a') << 8) | j;
+			}
+			if (result - test_string != i)
+				return ((i + 'a') << 8) | j;
+		}
+	}
+
+	result = strnchr(empty_string, 0, '\0');
+	if (result)
+		return 0x10001;
+
+	result = strnchr(empty_string, 1, '\0');
+	if (result != empty_string)
+		return 0x10002;
+
+	result = strnchr(empty_string, 1, 'a');
+	if (result)
+		return 0x10003;
+
+	result = strnchr(NULL, 0, '\0');
+	if (result)
+		return 0x10004;
+
 	return 0;
 }
 
@@ -127,6 +195,16 @@ static __init int string_selftest_init(void)
 
 	test = 3;
 	subtest = memset64_selftest();
+	if (subtest)
+		goto fail;
+
+	test = 4;
+	subtest = strchr_selftest();
+	if (subtest)
+		goto fail;
+
+	test = 5;
+	subtest = strnchr_selftest();
 	if (subtest)
 		goto fail;
 

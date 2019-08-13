@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HackRF driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -905,19 +896,13 @@ static int hackrf_querycap(struct file *file, void *fh,
 {
 	struct hackrf_dev *dev = video_drvdata(file);
 	struct usb_interface *intf = dev->intf;
-	struct video_device *vdev = video_devdata(file);
 
 	dev_dbg(&intf->dev, "\n");
 
-	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	if (vdev->vfl_dir == VFL_DIR_RX)
-		cap->device_caps |= V4L2_CAP_SDR_CAPTURE | V4L2_CAP_TUNER;
-	else
-		cap->device_caps |= V4L2_CAP_SDR_OUTPUT | V4L2_CAP_MODULATOR;
-
 	cap->capabilities = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_TUNER |
 			    V4L2_CAP_SDR_OUTPUT | V4L2_CAP_MODULATOR |
-			    V4L2_CAP_DEVICE_CAPS | cap->device_caps;
+			    V4L2_CAP_STREAMING | V4L2_CAP_READWRITE |
+			    V4L2_CAP_DEVICE_CAPS;
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, dev->rx_vdev.name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
@@ -1496,6 +1481,8 @@ static int hackrf_probe(struct usb_interface *intf,
 	dev->rx_vdev.ctrl_handler = &dev->rx_ctrl_handler;
 	dev->rx_vdev.lock = &dev->v4l2_lock;
 	dev->rx_vdev.vfl_dir = VFL_DIR_RX;
+	dev->rx_vdev.device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE |
+				   V4L2_CAP_SDR_CAPTURE | V4L2_CAP_TUNER;
 	video_set_drvdata(&dev->rx_vdev, dev);
 	ret = video_register_device(&dev->rx_vdev, VFL_TYPE_SDR, -1);
 	if (ret) {
@@ -1514,6 +1501,8 @@ static int hackrf_probe(struct usb_interface *intf,
 	dev->tx_vdev.ctrl_handler = &dev->tx_ctrl_handler;
 	dev->tx_vdev.lock = &dev->v4l2_lock;
 	dev->tx_vdev.vfl_dir = VFL_DIR_TX;
+	dev->tx_vdev.device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE |
+				   V4L2_CAP_SDR_OUTPUT | V4L2_CAP_MODULATOR;
 	video_set_drvdata(&dev->tx_vdev, dev);
 	ret = video_register_device(&dev->tx_vdev, VFL_TYPE_SDR, -1);
 	if (ret) {

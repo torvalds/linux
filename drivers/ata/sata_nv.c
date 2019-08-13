@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  sata_nv.c - NVIDIA nForce SATA
  *
  *  Copyright 2004 NVIDIA Corp.  All rights reserved.
  *  Copyright 2004 Andrew Chew
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
  *  as Documentation/driver-api/libata.rst
@@ -33,7 +18,6 @@
  *  similar to the ADMA specification (with some modifications).
  *  This allows the use of NCQ. Non-DMA-mapped ATA commands are still
  *  sent through the legacy interface.
- *
  */
 
 #include <linux/kernel.h>
@@ -1152,7 +1136,6 @@ static int nv_adma_port_start(struct ata_port *ap)
 				  &mem_dma, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
-	memset(mem, 0, NV_ADMA_PORT_PRIV_DMA_SZ);
 
 	/*
 	 * First item in chunk of DMA memory:
@@ -1962,7 +1945,6 @@ static int nv_swncq_port_start(struct ata_port *ap)
 				      &pp->prd_dma, GFP_KERNEL);
 	if (!pp->prd)
 		return -ENOMEM;
-	memset(pp->prd, 0, ATA_PRD_TBL_SZ * ATA_MAX_QUEUE);
 
 	ap->private_data = pp;
 	pp->sactive_block = ap->ioaddr.scr_addr + 4 * SCR_ACTIVE;

@@ -106,6 +106,14 @@ properties:
 
       - description: RZ/G2M (R8A774A1)
         items:
+          - enum:
+              - hoperun,hihope-rzg2m # HopeRun HiHope RZ/G2M platform
+          - const: renesas,r8a774a1
+
+      - items:
+          - enum:
+              - hoperun,hihope-rzg2-ex # HopeRun expansion board for HiHope RZ/G2 platforms
+          - const: hoperun,hihope-rzg2m
           - const: renesas,r8a774a1
 
       - description: RZ/G2E (R8A774C0)

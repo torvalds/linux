@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support code for Analog Devices Sigma-Delta ADCs
  *
  * Copyright 2012 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -358,7 +357,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 	ret = ad_sigma_delta_set_channel(sigma_delta,
 		indio_dev->channels[channel].address);
 	if (ret)
-		goto err_predisable;
+		return ret;
 
 	spi_bus_lock(sigma_delta->spi->master);
 	sigma_delta->bus_locked = true;
@@ -375,7 +374,6 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 
 err_unlock:
 	spi_bus_unlock(sigma_delta->spi->master);
-err_predisable:
 
 	return ret;
 }

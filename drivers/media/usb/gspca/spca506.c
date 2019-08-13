@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SPCA506 chip based cameras function
  * M Xhaard 15/04/2004 based on different work Mark Taylor and others
@@ -5,16 +6,6 @@
  *                "Firma Frank Gmbh" from  Saarbruecken
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define MODULE_NAME "spca506"

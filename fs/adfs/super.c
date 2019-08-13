@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/adfs/super.c
  *
  *  Copyright (C) 1997-1999 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/buffer_head.h>
 #include <linux/parser.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
@@ -20,25 +16,42 @@
 #include "dir_f.h"
 #include "dir_fplus.h"
 
+#define ADFS_SB_FLAGS SB_NOATIME
+
 #define ADFS_DEFAULT_OWNER_MASK S_IRWXU
 #define ADFS_DEFAULT_OTHER_MASK (S_IRWXG | S_IRWXO)
 
 void __adfs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 {
-	char error_buf[128];
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
-	va_end(args);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 
-	printk(KERN_CRIT "ADFS-fs error (device %s)%s%s: %s\n",
+	printk(KERN_CRIT "ADFS-fs error (device %s)%s%s: %pV\n",
 		sb->s_id, function ? ": " : "",
-		function ? function : "", error_buf);
+		function ? function : "", &vaf);
+
+	va_end(args);
+}
+
+void adfs_msg(struct super_block *sb, const char *pfx, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk("%sADFS-fs (%s): %pV\n", pfx, sb->s_id, &vaf);
+	va_end(args);
 }
 
 static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 {
+	unsigned int max_idlen;
 	int i;
 
 	/* sector size must be 256, 512 or 1024 bytes */
@@ -58,8 +71,13 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	if (le32_to_cpu(dr->disc_size_high) >> dr->log2secsize)
 		return 1;
 
-	/* idlen must be no greater than 19 v2 [1.0] */
-	if (dr->idlen > 19)
+	/*
+	 * Maximum idlen is limited to 16 bits for new directories by
+	 * the three-byte storage of an indirect disc address.  For
+	 * big directories, idlen must be no greater than 19 v2 [1.0]
+	 */
+	max_idlen = dr->format_version ? 19 : 16;
+	if (dr->idlen > max_idlen)
 		return 1;
 
 	/* reserved bytes should be zero */
@@ -155,10 +173,10 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(struct super_block *sb, char *options)
+static int parse_options(struct super_block *sb, struct adfs_sb_info *asb,
+			 char *options)
 {
 	char *p;
-	struct adfs_sb_info *asb = ADFS_SB(sb);
 	int option;
 
 	if (!options)
@@ -202,8 +220,9 @@ static int parse_options(struct super_block *sb, char *options)
 			asb->s_ftsuffix = option;
 			break;
 		default:
-			printk("ADFS-fs: unrecognised mount option \"%s\" "
-					"or missing value\n", p);
+			adfs_msg(sb, KERN_ERR,
+				 "unrecognised mount option \"%s\" or missing value",
+				 p);
 			return -EINVAL;
 		}
 	}
@@ -212,21 +231,31 @@ static int parse_options(struct super_block *sb, char *options)
 
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	struct adfs_sb_info temp_asb;
+	int ret;
+
 	sync_filesystem(sb);
-	*flags |= SB_NODIRATIME;
-	return parse_options(sb, data);
+	*flags |= ADFS_SB_FLAGS;
+
+	temp_asb = *ADFS_SB(sb);
+	ret = parse_options(sb, &temp_asb, data);
+	if (ret == 0)
+		*ADFS_SB(sb) = temp_asb;
+
+	return ret;
 }
 
 static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct adfs_sb_info *sbi = ADFS_SB(sb);
+	struct adfs_discrecord *dr = adfs_map_discrecord(sbi->s_map);
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
 	buf->f_type    = ADFS_SUPER_MAGIC;
 	buf->f_namelen = sbi->s_namelen;
 	buf->f_bsize   = sb->s_blocksize;
-	buf->f_blocks  = sbi->s_size;
+	buf->f_blocks  = adfs_disc_size(dr) >> sb->s_blocksize_bits;
 	buf->f_files   = sbi->s_ids_per_zone * sbi->s_map_size;
 	buf->f_bavail  =
 	buf->f_bfree   = adfs_map_free(sb);
@@ -330,8 +359,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 	i = zone - 1;
 	dm[0].dm_startblk = 0;
 	dm[0].dm_startbit = ADFS_DR_SIZE_BITS;
-	dm[i].dm_endbit   = (le32_to_cpu(dr->disc_size_high) << (32 - dr->log2bpmb)) +
-			    (le32_to_cpu(dr->disc_size) >> dr->log2bpmb) +
+	dm[i].dm_endbit   = (adfs_disc_size(dr) >> dr->log2bpmb) +
 			    (ADFS_DR_SIZE_BITS - i * zone_size);
 
 	if (adfs_checkmap(sb, dm))
@@ -347,27 +375,18 @@ error_free:
 	return ERR_PTR(-EIO);
 }
 
-static inline unsigned long adfs_discsize(struct adfs_discrecord *dr, int block_bits)
-{
-	unsigned long discsize;
-
-	discsize  = le32_to_cpu(dr->disc_size_high) << (32 - block_bits);
-	discsize |= le32_to_cpu(dr->disc_size) >> block_bits;
-
-	return discsize;
-}
-
 static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct adfs_discrecord *dr;
 	struct buffer_head *bh;
 	struct object_info root_obj;
 	unsigned char *b_data;
+	unsigned int blocksize;
 	struct adfs_sb_info *asb;
 	struct inode *root;
 	int ret = -EINVAL;
 
-	sb->s_flags |= SB_NODIRATIME;
+	sb->s_flags |= ADFS_SB_FLAGS;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
@@ -381,12 +400,12 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb->s_other_mask = ADFS_DEFAULT_OTHER_MASK;
 	asb->s_ftsuffix = 0;
 
-	if (parse_options(sb, data))
+	if (parse_options(sb, asb, data))
 		goto error;
 
 	sb_set_blocksize(sb, BLOCK_SIZE);
 	if (!(bh = sb_bread(sb, ADFS_DISCRECORD / BLOCK_SIZE))) {
-		adfs_error(sb, "unable to read superblock");
+		adfs_msg(sb, KERN_ERR, "error: unable to read superblock");
 		ret = -EIO;
 		goto error;
 	}
@@ -394,11 +413,8 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	b_data = bh->b_data + (ADFS_DISCRECORD % BLOCK_SIZE);
 
 	if (adfs_checkbblk(b_data)) {
-		if (!silent)
-			printk("VFS: Can't find an adfs filesystem on dev "
-				"%s.\n", sb->s_id);
 		ret = -EINVAL;
-		goto error_free_bh;
+		goto error_badfs;
 	}
 
 	dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
@@ -407,33 +423,33 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Do some sanity checks on the ADFS disc record
 	 */
 	if (adfs_checkdiscrecord(dr)) {
-		if (!silent)
-			printk("VPS: Can't find an adfs filesystem on dev "
-				"%s.\n", sb->s_id);
 		ret = -EINVAL;
-		goto error_free_bh;
+		goto error_badfs;
 	}
 
+	blocksize = 1 << dr->log2secsize;
 	brelse(bh);
-	if (sb_set_blocksize(sb, 1 << dr->log2secsize)) {
+
+	if (sb_set_blocksize(sb, blocksize)) {
 		bh = sb_bread(sb, ADFS_DISCRECORD / sb->s_blocksize);
 		if (!bh) {
-			adfs_error(sb, "couldn't read superblock on "
-				"2nd try.");
+			adfs_msg(sb, KERN_ERR,
+				 "error: couldn't read superblock on 2nd try.");
 			ret = -EIO;
 			goto error;
 		}
 		b_data = bh->b_data + (ADFS_DISCRECORD % sb->s_blocksize);
 		if (adfs_checkbblk(b_data)) {
-			adfs_error(sb, "disc record mismatch, very weird!");
+			adfs_msg(sb, KERN_ERR,
+				 "error: disc record mismatch, very weird!");
 			ret = -EINVAL;
 			goto error_free_bh;
 		}
 		dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
 	} else {
 		if (!silent)
-			printk(KERN_ERR "VFS: Unsupported blocksize on dev "
-				"%s.\n", sb->s_id);
+			adfs_msg(sb, KERN_ERR,
+				 "error: unsupported blocksize");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -446,8 +462,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb->s_idlen		= dr->idlen;
 	asb->s_map_size		= dr->nzones | (dr->nzones_high << 8);
 	asb->s_map2blk		= dr->log2bpmb - dr->log2secsize;
-	asb->s_size    		= adfs_discsize(dr, sb->s_blocksize_bits);
-	asb->s_version 		= dr->format_version;
 	asb->s_log2sharesize	= dr->log2sharesize;
 
 	asb->s_map = adfs_read_map(sb, dr);
@@ -463,9 +477,9 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &adfs_sops;
 
-	dr = (struct adfs_discrecord *)(asb->s_map[0].dm_bh->b_data + 4);
+	dr = adfs_map_discrecord(asb->s_map);
 
-	root_obj.parent_id = root_obj.file_id = le32_to_cpu(dr->root);
+	root_obj.parent_id = root_obj.indaddr = le32_to_cpu(dr->root);
 	root_obj.name_len  = 0;
 	/* Set root object date as 01 Jan 1987 00:00:00 */
 	root_obj.loadaddr  = 0xfff0003f;
@@ -473,13 +487,12 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	root_obj.size	   = ADFS_NEWDIR_SIZE;
 	root_obj.attr	   = ADFS_NDA_DIRECTORY   | ADFS_NDA_OWNER_READ |
 			     ADFS_NDA_OWNER_WRITE | ADFS_NDA_PUBLIC_READ;
-	root_obj.filetype  = -1;
 
 	/*
 	 * If this is a F+ disk with variable length directories,
 	 * get the root_size from the disc record.
 	 */
-	if (asb->s_version) {
+	if (dr->format_version) {
 		root_obj.size = le32_to_cpu(dr->root_size);
 		asb->s_dir     = &adfs_fplus_dir_ops;
 		asb->s_namelen = ADFS_FPLUS_NAME_LEN;
@@ -508,6 +521,11 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	return 0;
 
+error_badfs:
+	if (!silent)
+		adfs_msg(sb, KERN_ERR,
+			 "error: can't find an ADFS filesystem on dev %s.",
+			 sb->s_id);
 error_free_bh:
 	brelse(bh);
 error:

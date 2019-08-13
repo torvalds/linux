@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * mCube MC3230 3-Axis Accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * IIO driver for mCube MC3230; 7-bit I2C address: 0x4c.
  */

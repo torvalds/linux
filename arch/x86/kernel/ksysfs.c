@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Architecture specific sysfs attributes in /sys/kernel
  *
@@ -5,8 +6,6 @@
  *      Huang Ying <ying.huang@intel.com>
  * Copyright (C) 2013, 2013 Red Hat, Inc.
  *      Dave Young <dyoung@redhat.com>
- *
- * This file is released under the GPLv2
  */
 
 #include <linux/kobject.h>

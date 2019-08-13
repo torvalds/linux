@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TW5864
 	tristate "Techwell TW5864 video/audio grabber and encoder"
 	depends on VIDEO_DEV && PCI && VIDEO_V4L2

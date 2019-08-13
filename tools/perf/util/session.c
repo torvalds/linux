@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <traceevent/event-parse.h>
 #include <api/fs/fs.h>
 
@@ -18,7 +19,6 @@
 #include "session.h"
 #include "tool.h"
 #include "sort.h"
-#include "util.h"
 #include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
@@ -647,6 +647,26 @@ static void perf_event__throttle_swap(union perf_event *event,
 		swap_sample_id_all(event, &event->throttle + 1);
 }
 
+static void perf_event__namespaces_swap(union perf_event *event,
+					bool sample_id_all)
+{
+	u64 i;
+
+	event->namespaces.pid		= bswap_32(event->namespaces.pid);
+	event->namespaces.tid		= bswap_32(event->namespaces.tid);
+	event->namespaces.nr_namespaces	= bswap_64(event->namespaces.nr_namespaces);
+
+	for (i = 0; i < event->namespaces.nr_namespaces; i++) {
+		struct perf_ns_link_info *ns = &event->namespaces.link_info[i];
+
+		ns->dev = bswap_64(ns->dev);
+		ns->ino = bswap_64(ns->ino);
+	}
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->namespaces.link_info[i]);
+}
+
 static u8 revbyte(u8 b)
 {
 	int rev = (b >> 4) | ((b & 0xf) << 4);
@@ -887,6 +907,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_LOST_SAMPLES]	  = perf_event__all64_swap,
 	[PERF_RECORD_SWITCH]		  = perf_event__switch_swap,
 	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
+	[PERF_RECORD_NAMESPACES]	  = perf_event__namespaces_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1225,8 +1246,11 @@ static void dump_read(struct perf_evsel *evsel, union perf_event *event)
 		return;
 
 	printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
-	       evsel ? perf_evsel__name(evsel) : "FAIL",
+	       perf_evsel__name(evsel),
 	       event->read.value);
+
+	if (!evsel)
+		return;
 
 	read_format = evsel->attr.read_format;
 

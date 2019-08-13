@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Helper to resolve issues with configs that have SPI enabled but I2C
 # modular, meaning we can't build the codec driver in with I2C support.
 # We use an ordered list of conditional defaults to pick the appropriate
@@ -70,8 +71,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4341 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
+	select SND_SOC_CS47L35 if MFD_CS47L35
+	select SND_SOC_CS47L85 if MFD_CS47L85
+	select SND_SOC_CS47L90 if MFD_CS47L90
 	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
+	select SND_SOC_CX2072X if I2C
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA7218 if I2C
@@ -139,7 +144,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT274 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT1011 if I2C
 	select SND_SOC_RT1305 if I2C
+	select SND_SOC_RT1308 if I2C
 	select SND_SOC_RT5514 if I2C
 	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
@@ -282,10 +289,12 @@ config SND_SOC_WM_HUBS
 config SND_SOC_WM_ADSP
 	tristate
 	select SND_SOC_COMPRESS
+	default y if SND_SOC_MADERA=y
 	default y if SND_SOC_CS47L24=y
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_MADERA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
@@ -575,6 +584,15 @@ config SND_SOC_CS4349
 config SND_SOC_CS47L24
 	tristate
 
+config SND_SOC_CS47L35
+	tristate
+
+config SND_SOC_CS47L85
+	tristate
+
+config SND_SOC_CS47L90
+	tristate
+
 # Cirrus Logic Quad-Channel ADC
 config SND_SOC_CS53L30
 	tristate "Cirrus Logic CS53L30 CODEC"
@@ -583,6 +601,12 @@ config SND_SOC_CS53L30
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
+
+config SND_SOC_CX2072X
+	tristate "Conexant CX2072X CODEC"
+	depends on I2C
+	help
+	  Enable support for Conexant CX20721 and CX20723 codec chips.
 
 config SND_SOC_JZ4740_CODEC
 	depends on MIPS || COMPILE_TEST
@@ -696,6 +720,15 @@ config SND_SOC_LOCHNAGAR_SC
 	  This driver support the sound card functionality of the Cirrus
 	  Logic Lochnagar audio development board.
 
+config SND_SOC_MADERA
+	tristate
+	default y if SND_SOC_CS47L35=y
+	default y if SND_SOC_CS47L85=y
+	default y if SND_SOC_CS47L90=y
+	default m if SND_SOC_CS47L35=m
+	default m if SND_SOC_CS47L85=m
+	default m if SND_SOC_CS47L90=m
+
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
 	depends on I2C
@@ -707,7 +740,8 @@ config SND_SOC_MAX98095
        tristate
 
 config SND_SOC_MAX98357A
-       tristate
+	tristate "Maxim MAX98357A CODEC"
+	depends on GPIOLIB
 
 config SND_SOC_MAX98371
        tristate
@@ -869,7 +903,9 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
 	default y if SND_SOC_RT5682=y
+	default y if SND_SOC_RT1011=y
 	default y if SND_SOC_RT1305=y
+	default y if SND_SOC_RT1308=y
 	default m if SND_SOC_RT5514=m
 	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
@@ -883,7 +919,9 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
 	default m if SND_SOC_RT5682=m
+	default m if SND_SOC_RT1011=m
 	default m if SND_SOC_RT1305=m
+	default m if SND_SOC_RT1308=m
 
 config SND_SOC_RL6347A
 	tristate
@@ -906,7 +944,13 @@ config SND_SOC_RT298
 	tristate
 	depends on I2C
 
+config SND_SOC_RT1011
+	tristate
+
 config SND_SOC_RT1305
+	tristate
+
+config SND_SOC_RT1308
 	tristate
 
 config SND_SOC_RT5514

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * Hauppauge HD PVR USB driver
@@ -6,11 +7,6 @@
  *
  * IR device registration code is
  * Copyright (C) 2010	Andy Walls <awalls@md.metrocast.net>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #if IS_ENABLED(CONFIG_I2C)

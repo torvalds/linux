@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016, Rashmica Gupta, IBM Corp.
  *
@@ -8,11 +9,6 @@
  * Derived from the arm64 implementation:
  * Copyright (c) 2014, The Linux Foundation, Laura Abbott.
  * (C) Copyright 2008 Intel Corporation, Arjan van de Ven.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #include <linux/debugfs.h>
 #include <linux/fs.h>
@@ -277,7 +273,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (!pmd_none(*pmd) && !pmd_huge(*pmd))
+		if (!pmd_none(*pmd) && !pmd_is_leaf(*pmd))
 			/* pmd exists */
 			walk_pte(st, pmd, addr);
 		else
@@ -293,7 +289,7 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud) && !pud_huge(*pud))
+		if (!pud_none(*pud) && !pud_is_leaf(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
 		else
@@ -314,7 +310,7 @@ static void walk_pagetables(struct pg_state *st)
 	 * the hash pagetable.
 	 */
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++, addr += PGDIR_SIZE) {
-		if (!pgd_none(*pgd) && !pgd_huge(*pgd))
+		if (!pgd_none(*pgd) && !pgd_is_leaf(*pgd))
 			/* pgd exists */
 			walk_pud(st, pgd, addr);
 		else

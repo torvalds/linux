@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * coreboot_table.h
  *
@@ -6,21 +7,12 @@
  * Copyright 2014 Gerd Hoffmann <kraxel@redhat.com>
  * Copyright 2017 Google Inc.
  * Copyright 2017 Samuel Holland <samuel@sholland.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __COREBOOT_TABLE_H
 #define __COREBOOT_TABLE_H
 
-#include <linux/io.h>
+#include <linux/device.h>
 
 /* Coreboot table header structure */
 struct coreboot_table_header {
@@ -90,5 +82,14 @@ int coreboot_driver_register(struct coreboot_driver *driver);
 
 /* Unregister a driver that uses the data from a coreboot table. */
 void coreboot_driver_unregister(struct coreboot_driver *driver);
+
+/* module_coreboot_driver() - Helper macro for drivers that don't do
+ * anything special in module init/exit.  This eliminates a lot of
+ * boilerplate.  Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit()
+ */
+#define module_coreboot_driver(__coreboot_driver) \
+	module_driver(__coreboot_driver, coreboot_driver_register, \
+			coreboot_driver_unregister)
 
 #endif /* __COREBOOT_TABLE_H */

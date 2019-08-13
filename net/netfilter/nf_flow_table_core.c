@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -52,7 +53,6 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 	ft->dst_port = ctt->dst.u.tcp.port;
 
 	ft->iifidx = other_dst->dev->ifindex;
-	ft->oifidx = dst->dev->ifindex;
 	ft->dst_cache = dst;
 }
 

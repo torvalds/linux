@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for IBM Power 842 compression accelerator
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright (C) IBM Corporation, 2012
  *
@@ -869,7 +856,7 @@ static ssize_t nx842_##_name##_show(struct device *dev,		\
 	rcu_read_lock();						\
 	local_devdata = rcu_dereference(devdata);			\
 	if (local_devdata)						\
-		p = snprintf(buf, PAGE_SIZE, "%ld\n",			\
+		p = snprintf(buf, PAGE_SIZE, "%lld\n",			\
 		       atomic64_read(&local_devdata->counters->_name));	\
 	rcu_read_unlock();						\
 	return p;							\
@@ -922,7 +909,7 @@ static ssize_t nx842_timehist_show(struct device *dev,
 	}
 
 	for (i = 0; i < (NX842_HIST_SLOTS - 2); i++) {
-		bytes = snprintf(p, bytes_remain, "%u-%uus:\t%ld\n",
+		bytes = snprintf(p, bytes_remain, "%u-%uus:\t%lld\n",
 			       i ? (2<<(i-1)) : 0, (2<<i)-1,
 			       atomic64_read(&times[i]));
 		bytes_remain -= bytes;
@@ -930,7 +917,7 @@ static ssize_t nx842_timehist_show(struct device *dev,
 	}
 	/* The last bucket holds everything over
 	 * 2<<(NX842_HIST_SLOTS - 2) us */
-	bytes = snprintf(p, bytes_remain, "%uus - :\t%ld\n",
+	bytes = snprintf(p, bytes_remain, "%uus - :\t%lld\n",
 			2<<(NX842_HIST_SLOTS - 2),
 			atomic64_read(&times[(NX842_HIST_SLOTS - 1)]));
 	p += bytes;

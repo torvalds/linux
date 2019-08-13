@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/bond/bond_netlink.c - Netlink interface for bonding
  * Copyright (c) 2013 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -112,6 +108,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_AD_ACTOR_SYSTEM]	= { .type = NLA_BINARY,
 					    .len  = ETH_ALEN },
 	[IFLA_BOND_TLB_DYNAMIC_LB]	= { .type = NLA_U8 },
+	[IFLA_BOND_PEER_NOTIF_DELAY]    = { .type = NLA_U32 },
 };
 
 static const struct nla_policy bond_slave_policy[IFLA_BOND_SLAVE_MAX + 1] = {
@@ -216,6 +213,14 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 
 		bond_opt_initval(&newval, downdelay);
 		err = __bond_opt_set(bond, BOND_OPT_DOWNDELAY, &newval);
+		if (err)
+			return err;
+	}
+	if (data[IFLA_BOND_PEER_NOTIF_DELAY]) {
+		int delay = nla_get_u32(data[IFLA_BOND_PEER_NOTIF_DELAY]);
+
+		bond_opt_initval(&newval, delay);
+		err = __bond_opt_set(bond, BOND_OPT_PEER_NOTIF_DELAY, &newval);
 		if (err)
 			return err;
 	}
@@ -498,6 +503,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_USER_PORT_KEY */
 		nla_total_size(ETH_ALEN) + /* IFLA_BOND_AD_ACTOR_SYSTEM */
 		nla_total_size(sizeof(u8)) + /* IFLA_BOND_TLB_DYNAMIC_LB */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_PEER_NOTIF_DELAY */
 		0;
 }
 
@@ -538,6 +544,10 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_BOND_DOWNDELAY,
 			bond->params.downdelay * bond->params.miimon))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_BOND_PEER_NOTIF_DELAY,
+			bond->params.peer_notif_delay * bond->params.miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, bond->params.use_carrier))

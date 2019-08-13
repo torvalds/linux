@@ -579,6 +579,51 @@ static void hci_cc_read_local_commands(struct hci_dev *hdev,
 		memcpy(hdev->commands, rp->commands, sizeof(hdev->commands));
 }
 
+static void hci_cc_read_auth_payload_timeout(struct hci_dev *hdev,
+					     struct sk_buff *skb)
+{
+	struct hci_rp_read_auth_payload_to *rp = (void *)skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
+	if (conn)
+		conn->auth_payload_timeout = __le16_to_cpu(rp->timeout);
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_write_auth_payload_timeout(struct hci_dev *hdev,
+					      struct sk_buff *skb)
+{
+	struct hci_rp_write_auth_payload_to *rp = (void *)skb->data;
+	struct hci_conn *conn;
+	void *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_AUTH_PAYLOAD_TO);
+	if (!sent)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
+	if (conn)
+		conn->auth_payload_timeout = get_unaligned_le16(sent + 2);
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cc_read_local_features(struct hci_dev *hdev,
 				       struct sk_buff *skb)
 {
@@ -2975,6 +3020,25 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 	}
 
+	/* Set the default Authenticated Payload Timeout after
+	 * an LE Link is established. As per Core Spec v5.0, Vol 2, Part B
+	 * Section 3.3, the HCI command WRITE_AUTH_PAYLOAD_TIMEOUT should be
+	 * sent when the link is active and Encryption is enabled, the conn
+	 * type can be either LE or ACL and controller must support LMP Ping.
+	 * Ensure for AES-CCM encryption as well.
+	 */
+	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags) &&
+	    test_bit(HCI_CONN_AES_CCM, &conn->flags) &&
+	    ((conn->type == ACL_LINK && lmp_ping_capable(hdev)) ||
+	     (conn->type == LE_LINK && (hdev->le_features[0] & HCI_LE_PING)))) {
+		struct hci_cp_write_auth_payload_to cp;
+
+		cp.handle = cpu_to_le16(conn->handle);
+		cp.timeout = cpu_to_le16(hdev->auth_payload_timeout);
+		hci_send_cmd(conn->hdev, HCI_OP_WRITE_AUTH_PAYLOAD_TO,
+			     sizeof(cp), &cp);
+	}
+
 notify:
 	if (conn->state == BT_CONFIG) {
 		if (!ev->status)
@@ -3168,6 +3232,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_WRITE_SC_SUPPORT:
 		hci_cc_write_sc_support(hdev, skb);
+		break;
+
+	case HCI_OP_READ_AUTH_PAYLOAD_TO:
+		hci_cc_read_auth_payload_timeout(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_AUTH_PAYLOAD_TO:
+		hci_cc_write_auth_payload_timeout(hdev, skb);
 		break;
 
 	case HCI_OP_READ_LOCAL_VERSION:
@@ -5587,6 +5659,11 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 	if (!hcon || hcon->state != BT_CONNECTED)
 		return send_conn_param_neg_reply(hdev, handle,
 						 HCI_ERROR_UNKNOWN_CONN_ID);
+
+	if (min < hcon->le_conn_min_interval ||
+	    max > hcon->le_conn_max_interval)
+		return send_conn_param_neg_reply(hdev, handle,
+						 HCI_ERROR_INVALID_LL_PARAMS);
 
 	if (hci_check_conn_params(min, max, latency, timeout))
 		return send_conn_param_neg_reply(hdev, handle,

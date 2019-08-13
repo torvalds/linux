@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_llh.h: Declarations of bitfield and register access functions for
@@ -490,6 +487,11 @@ void hw_atl_rpo_ipv4header_crc_offload_en_set(struct aq_hw_s *aq_hw,
 void hw_atl_rpo_rx_desc_vlan_stripping_set(struct aq_hw_s *aq_hw,
 					   u32 rx_desc_vlan_stripping,
 					   u32 descriptor);
+
+void hw_atl_rpo_outer_vlan_tag_mode_set(void *context,
+					u32 outervlantagmode);
+
+u32 hw_atl_rpo_outer_vlan_tag_mode_get(void *context);
 
 /* set tcp/udp checksum offload enable */
 void hw_atl_rpo_tcp_udp_crc_offload_en_set(struct aq_hw_s *aq_hw,

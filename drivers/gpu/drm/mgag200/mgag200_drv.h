@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 Matt Turner.
- * Copyright 2012 Red Hat 
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
+ * Copyright 2012 Red Hat
  *
  * Authors: Matthew Garrett
  * 	    Matt Turner
@@ -17,13 +14,11 @@
 
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
 
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_vram_helper.h>
+
+#include <drm/drm_vram_mm_helper.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -117,7 +112,6 @@ struct mga_fbdev {
 	struct mga_framebuffer mfb;
 	void *sysram;
 	int size;
-	struct ttm_bo_kmap_obj mapping;
 	int x1, y1, x2, y2; /* dirty rect */
 	spinlock_t dirty_lock;
 };
@@ -159,13 +153,10 @@ struct mga_cursor {
 	   If either of these is NULL, then don't do hardware cursors, and
 	   fall back to software.
 	*/
-	struct mgag200_bo *pixels_1;
-	struct mgag200_bo *pixels_2;
-	u64 pixels_1_gpu_addr, pixels_2_gpu_addr;
+	struct drm_gem_vram_object *pixels_1;
+	struct drm_gem_vram_object *pixels_2;
 	/* The currently displayed icon, this points to one of pixels_1, or pixels_2 */
-	struct mgag200_bo *pixels_current;
-	/* The previously displayed icon */
-	struct mgag200_bo *pixels_prev;
+	struct drm_gem_vram_object *pixels_current;
 };
 
 struct mga_mc {
@@ -211,30 +202,9 @@ struct mga_device {
 
 	int fb_mtrr;
 
-	struct {
-		struct ttm_bo_device bdev;
-	} ttm;
-
 	/* SE model number stored in reg 0x1e24 */
 	u32 unique_rev_id;
 };
-
-
-struct mgag200_bo {
-	struct ttm_buffer_object bo;
-	struct ttm_placement placement;
-	struct ttm_bo_kmap_obj kmap;
-	struct drm_gem_object gem;
-	struct ttm_place placements[3];
-	int pin_count;
-};
-#define gem_to_mga_bo(gobj) container_of((gobj), struct mgag200_bo, gem)
-
-static inline struct mgag200_bo *
-mgag200_bo(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct mgag200_bo, bo);
-}
 
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
@@ -259,45 +229,15 @@ int mgag200_gem_create(struct drm_device *dev,
 int mgag200_dumb_create(struct drm_file *file,
 			struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-void mgag200_gem_free_object(struct drm_gem_object *obj);
-int
-mgag200_dumb_mmap_offset(struct drm_file *file,
-			 struct drm_device *dev,
-			 uint32_t handle,
-			 uint64_t *offset);
+
 				/* mgag200_i2c.c */
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
-void mgag200_ttm_placement(struct mgag200_bo *bo, int domain);
-
-static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, NULL);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p\n", bo);
-		return ret;
-	}
-	return 0;
-}
-
-static inline void mgag200_bo_unreserve(struct mgag200_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
-}
-
-int mgag200_bo_create(struct drm_device *dev, int size, int align,
-		      uint32_t flags, struct mgag200_bo **pastbo);
 int mgag200_mm_init(struct mga_device *mdev);
 void mgag200_mm_fini(struct mga_device *mdev);
 int mgag200_mmap(struct file *filp, struct vm_area_struct *vma);
-int mgag200_bo_pin(struct mgag200_bo *bo, u32 pl_flag, u64 *gpu_addr);
-int mgag200_bo_unpin(struct mgag200_bo *bo);
-int mgag200_bo_push_sysram(struct mgag200_bo *bo);
-			   /* mgag200_cursor.c */
+
 int mga_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 						uint32_t handle, uint32_t width, uint32_t height);
 int mga_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);

@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux network device link state notification
  *
  * Author:
  *     Stefan Rompf <sux@loplof.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -168,8 +163,15 @@ static void linkwatch_do_dev(struct net_device *dev)
 
 static void __linkwatch_run_queue(int urgent_only)
 {
+#define MAX_DO_DEV_PER_LOOP	100
+
+	int do_dev = MAX_DO_DEV_PER_LOOP;
 	struct net_device *dev;
 	LIST_HEAD(wrk);
+
+	/* Give urgent case more budget */
+	if (urgent_only)
+		do_dev += MAX_DO_DEV_PER_LOOP;
 
 	/*
 	 * Limit the number of linkwatch events to one
@@ -189,7 +191,7 @@ static void __linkwatch_run_queue(int urgent_only)
 	spin_lock_irq(&lweventlist_lock);
 	list_splice_init(&lweventlist, &wrk);
 
-	while (!list_empty(&wrk)) {
+	while (!list_empty(&wrk) && do_dev > 0) {
 
 		dev = list_first_entry(&wrk, struct net_device, link_watch_list);
 		list_del_init(&dev->link_watch_list);
@@ -200,8 +202,12 @@ static void __linkwatch_run_queue(int urgent_only)
 		}
 		spin_unlock_irq(&lweventlist_lock);
 		linkwatch_do_dev(dev);
+		do_dev--;
 		spin_lock_irq(&lweventlist_lock);
 	}
+
+	/* Add the remaining work back to lweventlist */
+	list_splice_init(&wrk, &lweventlist);
 
 	if (!list_empty(&lweventlist))
 		linkwatch_schedule_work(0);

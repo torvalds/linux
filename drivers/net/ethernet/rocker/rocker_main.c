@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/rocker/rocker.c - Rocker switch device driver
  * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -2212,6 +2208,10 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 
 			if (fen_info->fi->fib_nh_is_v6) {
 				NL_SET_ERR_MSG_MOD(info->extack, "IPv6 gateway with IPv4 route is not supported");
+				return notifier_from_errno(-EINVAL);
+			}
+			if (fen_info->fi->nh) {
+				NL_SET_ERR_MSG_MOD(info->extack, "IPv4 route with nexthop objects is not supported");
 				return notifier_from_errno(-EINVAL);
 			}
 		}

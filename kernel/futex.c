@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Fast Userspace Mutexes (which I call "Futexes!").
  *  (C) Rusty Russell, IBM 2002
@@ -29,20 +30,6 @@
  *
  *  "The futexes are also cursed."
  *  "But they come in a choice of three flavours!"
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/compat.h>
 #include <linux/slab.h>
@@ -482,6 +469,37 @@ enum futex_access {
 	FUTEX_READ,
 	FUTEX_WRITE
 };
+
+/**
+ * futex_setup_timer - set up the sleeping hrtimer.
+ * @time:	ptr to the given timeout value
+ * @timeout:	the hrtimer_sleeper structure to be set up
+ * @flags:	futex flags
+ * @range_ns:	optional range in ns
+ *
+ * Return: Initialized hrtimer_sleeper structure or NULL if no timeout
+ *	   value given
+ */
+static inline struct hrtimer_sleeper *
+futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
+		  int flags, u64 range_ns)
+{
+	if (!time)
+		return NULL;
+
+	hrtimer_init_on_stack(&timeout->timer, (flags & FLAGS_CLOCKRT) ?
+			      CLOCK_REALTIME : CLOCK_MONOTONIC,
+			      HRTIMER_MODE_ABS);
+	hrtimer_init_sleeper(timeout, current);
+
+	/*
+	 * If range_ns is 0, calling hrtimer_set_expires_range_ns() is
+	 * effectively the same as calling hrtimer_set_expires().
+	 */
+	hrtimer_set_expires_range_ns(&timeout->timer, *time, range_ns);
+
+	return timeout;
+}
 
 /**
  * get_futex_key() - Get parameters which are the keys for a futex
@@ -2692,7 +2710,7 @@ out:
 static int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
 		      ktime_t *abs_time, u32 bitset)
 {
-	struct hrtimer_sleeper timeout, *to = NULL;
+	struct hrtimer_sleeper timeout, *to;
 	struct restart_block *restart;
 	struct futex_hash_bucket *hb;
 	struct futex_q q = futex_q_init;
@@ -2702,17 +2720,8 @@ static int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
 		return -EINVAL;
 	q.bitset = bitset;
 
-	if (abs_time) {
-		to = &timeout;
-
-		hrtimer_init_on_stack(&to->timer, (flags & FLAGS_CLOCKRT) ?
-				      CLOCK_REALTIME : CLOCK_MONOTONIC,
-				      HRTIMER_MODE_ABS);
-		hrtimer_init_sleeper(to, current);
-		hrtimer_set_expires_range_ns(&to->timer, *abs_time,
-					     current->timer_slack_ns);
-	}
-
+	to = futex_setup_timer(abs_time, &timeout, flags,
+			       current->timer_slack_ns);
 retry:
 	/*
 	 * Prepare to wait on uaddr. On success, holds hb lock and increments
@@ -2792,7 +2801,7 @@ static long futex_wait_restart(struct restart_block *restart)
 static int futex_lock_pi(u32 __user *uaddr, unsigned int flags,
 			 ktime_t *time, int trylock)
 {
-	struct hrtimer_sleeper timeout, *to = NULL;
+	struct hrtimer_sleeper timeout, *to;
 	struct futex_pi_state *pi_state = NULL;
 	struct rt_mutex_waiter rt_waiter;
 	struct futex_hash_bucket *hb;
@@ -2805,13 +2814,7 @@ static int futex_lock_pi(u32 __user *uaddr, unsigned int flags,
 	if (refill_pi_state_cache())
 		return -ENOMEM;
 
-	if (time) {
-		to = &timeout;
-		hrtimer_init_on_stack(&to->timer, CLOCK_REALTIME,
-				      HRTIMER_MODE_ABS);
-		hrtimer_init_sleeper(to, current);
-		hrtimer_set_expires(&to->timer, *time);
-	}
+	to = futex_setup_timer(time, &timeout, FLAGS_CLOCKRT, 0);
 
 retry:
 	ret = get_futex_key(uaddr, flags & FLAGS_SHARED, &q.key, FUTEX_WRITE);
@@ -3208,7 +3211,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 				 u32 val, ktime_t *abs_time, u32 bitset,
 				 u32 __user *uaddr2)
 {
-	struct hrtimer_sleeper timeout, *to = NULL;
+	struct hrtimer_sleeper timeout, *to;
 	struct futex_pi_state *pi_state = NULL;
 	struct rt_mutex_waiter rt_waiter;
 	struct futex_hash_bucket *hb;
@@ -3225,15 +3228,8 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	if (!bitset)
 		return -EINVAL;
 
-	if (abs_time) {
-		to = &timeout;
-		hrtimer_init_on_stack(&to->timer, (flags & FLAGS_CLOCKRT) ?
-				      CLOCK_REALTIME : CLOCK_MONOTONIC,
-				      HRTIMER_MODE_ABS);
-		hrtimer_init_sleeper(to, current);
-		hrtimer_set_expires_range_ns(&to->timer, *abs_time,
-					     current->timer_slack_ns);
-	}
+	to = futex_setup_timer(abs_time, &timeout, flags,
+			       current->timer_slack_ns);
 
 	/*
 	 * The waiter is allocated on our stack, manipulated by the requeue

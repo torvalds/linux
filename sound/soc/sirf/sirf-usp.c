@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiRF USP in I2S/DSP mode
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 #include <linux/module.h>
 #include <linux/io.h>

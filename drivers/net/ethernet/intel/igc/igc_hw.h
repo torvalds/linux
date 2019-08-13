@@ -114,11 +114,8 @@ struct igc_nvm_operations {
 
 struct igc_phy_operations {
 	s32 (*acquire)(struct igc_hw *hw);
-	s32 (*check_polarity)(struct igc_hw *hw);
 	s32 (*check_reset_block)(struct igc_hw *hw);
 	s32 (*force_speed_duplex)(struct igc_hw *hw);
-	s32 (*get_cfg_done)(struct igc_hw *hw);
-	s32 (*get_cable_length)(struct igc_hw *hw);
 	s32 (*get_phy_info)(struct igc_hw *hw);
 	s32 (*read_reg)(struct igc_hw *hw, u32 address, u16 *data);
 	void (*release)(struct igc_hw *hw);

@@ -196,7 +196,7 @@ struct bnxt_tc_flow_node {
 };
 
 int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
-			 struct tc_cls_flower_offload *cls_flower);
+			 struct flow_cls_offload *cls_flower);
 int bnxt_init_tc(struct bnxt *bp);
 void bnxt_shutdown_tc(struct bnxt *bp);
 void bnxt_tc_flow_stats_work(struct bnxt *bp);
@@ -209,7 +209,7 @@ static inline bool bnxt_tc_flower_enabled(struct bnxt *bp)
 #else /* CONFIG_BNXT_FLOWER_OFFLOAD */
 
 static inline int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
-				       struct tc_cls_flower_offload *cls_flower)
+				       struct flow_cls_offload *cls_flower)
 {
 	return -EOPNOTSUPP;
 }

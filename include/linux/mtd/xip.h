@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MTD primitives for XIP support
  *
@@ -7,10 +8,6 @@
  *
  * This XIP support for MTD has been loosely inspired
  * by an earlier patch authored by David Woodhouse.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_MTD_XIP_H__

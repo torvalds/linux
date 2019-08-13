@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * AEAD: Authenticated Encryption with Associated Data
  * 
  * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_AEAD_H
@@ -322,21 +317,7 @@ static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
  *
  * Return: 0 if the cipher operation was successful; < 0 if an error occurred
  */
-static inline int crypto_aead_encrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct crypto_alg *alg = aead->base.__crt_alg;
-	unsigned int cryptlen = req->cryptlen;
-	int ret;
-
-	crypto_stats_get(alg);
-	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
-	else
-		ret = crypto_aead_alg(aead)->encrypt(req);
-	crypto_stats_aead_encrypt(cryptlen, alg, ret);
-	return ret;
-}
+int crypto_aead_encrypt(struct aead_request *req);
 
 /**
  * crypto_aead_decrypt() - decrypt ciphertext
@@ -360,23 +341,7 @@ static inline int crypto_aead_encrypt(struct aead_request *req)
  *	   integrity of the ciphertext or the associated data was violated);
  *	   < 0 if an error occurred.
  */
-static inline int crypto_aead_decrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct crypto_alg *alg = aead->base.__crt_alg;
-	unsigned int cryptlen = req->cryptlen;
-	int ret;
-
-	crypto_stats_get(alg);
-	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
-	else if (req->cryptlen < crypto_aead_authsize(aead))
-		ret = -EINVAL;
-	else
-		ret = crypto_aead_alg(aead)->decrypt(req);
-	crypto_stats_aead_decrypt(cryptlen, alg, ret);
-	return ret;
-}
+int crypto_aead_decrypt(struct aead_request *req);
 
 /**
  * DOC: Asynchronous AEAD Request Handle

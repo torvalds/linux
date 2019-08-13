@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     ioctl system call
     Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
     Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include "ivtv-driver.h"
@@ -746,18 +734,11 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 {
 	struct ivtv_open_id *id = fh2id(file->private_data);
 	struct ivtv *itv = id->itv;
-	struct ivtv_stream *s = &itv->streams[id->type];
 
 	strscpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strscpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->capabilities = itv->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
-	vcap->device_caps = s->caps;
-	if ((s->caps & V4L2_CAP_VIDEO_OUTPUT_OVERLAY) &&
-	    !itv->osd_video_pbase) {
-		vcap->capabilities &= ~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
-		vcap->device_caps &= ~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
-	}
 	return 0;
 }
 

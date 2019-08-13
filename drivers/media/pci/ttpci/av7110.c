@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * driver for the SAA7146 based AV110 cards (like the Fujitsu-Siemens DVB)
  * av7110.c: initialization and demux stuff
@@ -7,21 +8,6 @@
  *
  * originally based on code by:
  * Copyright (C) 1998,1999 Christian Theiss <mistert@rz.fh-augsburg.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
- *
  *
  * the project's page is at https://linuxtv.org
  */
@@ -232,7 +218,7 @@ static void recover_arm(struct av7110 *av7110)
 	restart_feeds(av7110);
 
 #if IS_ENABLED(CONFIG_DVB_AV7110_IR)
-	av7110_check_ir_config(av7110, true);
+	av7110_set_ir_config(av7110);
 #endif
 }
 
@@ -263,10 +249,6 @@ static int arm_thread(void *data)
 
 		if (!av7110->arm_ready)
 			continue;
-
-#if IS_ENABLED(CONFIG_DVB_AV7110_IR)
-		av7110_check_ir_config(av7110, false);
-#endif
 
 		if (mutex_lock_interruptible(&av7110->dcomlock))
 			break;
@@ -673,9 +655,11 @@ static void gpioirq(unsigned long cookie)
 		return;
 
 	case DATA_IRCOMMAND:
-		if (av7110->ir.ir_handler)
-			av7110->ir.ir_handler(av7110,
-				swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
+#if IS_ENABLED(CONFIG_DVB_AV7110_IR)
+		av7110_ir_handler(av7110,
+				  swahw32(irdebi(av7110, DEBINOSWAP, Reserved,
+						 0, 4)));
+#endif
 		iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 		break;
 

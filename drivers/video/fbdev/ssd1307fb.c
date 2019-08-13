@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Solomon SSD1307 OLED controller
  *
  * Copyright 2012 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #include <linux/backlight.h>
@@ -556,10 +555,8 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	}
 
 	info = framebuffer_alloc(sizeof(struct ssd1307fb_par), &client->dev);
-	if (!info) {
-		dev_err(&client->dev, "Couldn't allocate framebuffer.\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	par = info->par;
 	par->info = info;

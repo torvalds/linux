@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_HISI_HIBMC
 	tristate "DRM Support for Hisilicon Hibmc"
 	depends on DRM && PCI && MMU
 	select DRM_KMS_HELPER
-	select DRM_TTM
+	select DRM_VRAM_HELPER
 
 	help
 	  Choose this option if you have a Hisilicon Hibmc soc chipset.

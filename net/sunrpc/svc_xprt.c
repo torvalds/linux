@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/net/sunrpc/svc_xprt.c
  *
@@ -34,7 +35,7 @@ static void svc_delete_xprt(struct svc_xprt *xprt);
 /* apparently the "standard" is that clients close
  * idle connections after 5 minutes, servers after
  * 6 minutes
- *   http://www.connectathon.org/talks96/nfstcp.pdf
+ *   http://nfsv4bat.org/Documents/ConnectAThon/1996/nfstcp.pdf
  */
 static int svc_conn_age_period = 6*60;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /****************************************************************************
  *
  *  Filename: cpia2_usb.c
@@ -9,16 +10,6 @@
  *     This is a USB driver for CPia2 based video cameras.
  *     The infrastructure of this driver is based on the cpia usb driver by
  *     Jochen Scharrlach and Johannes Erdfeldt.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -902,7 +893,6 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 	cpia2_unregister_camera(cam);
 	v4l2_device_disconnect(&cam->v4l2_dev);
 	mutex_unlock(&cam->v4l2_lock);
-	v4l2_device_put(&cam->v4l2_dev);
 
 	if(cam->buffers) {
 		DBG("Wakeup waiting processes\n");
@@ -910,6 +900,8 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 		cam->curbuff->length = 0;
 		wake_up_interruptible(&cam->wq_stream);
 	}
+
+	v4l2_device_put(&cam->v4l2_dev);
 
 	LOG("CPiA2 camera disconnected.\n");
 }

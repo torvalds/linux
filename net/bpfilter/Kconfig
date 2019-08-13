@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig BPFILTER
 	bool "BPF based packet filtering framework (BPFILTER)"
 	depends on NET && BPF && INET
@@ -8,7 +9,7 @@ menuconfig BPFILTER
 if BPFILTER
 config BPFILTER_UMH
 	tristate "bpfilter kernel module with user mode helper"
-	depends on $(success,$(srctree)/scripts/cc-can-link.sh $(CC))
+	depends on CC_CAN_LINK
 	default m
 	help
 	  This builds bpfilter kernel module with embedded user mode helper

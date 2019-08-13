@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2013
  *
  * Author: Patrice Chotard <patrice.chotard@st.com>
- * License terms: GNU General Public License (GPL) version 2
  *
  * Driver allows to use AxB5xx unused pins to be used as GPIO
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/types.h>

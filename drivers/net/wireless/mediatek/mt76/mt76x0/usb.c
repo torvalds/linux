@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -191,7 +183,7 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 
 	/* check hw sg support in order to enable AMSDU */
 	if (dev->mt76.usb.sg_en)
-		hw->max_tx_fragments = MT_SG_MAX_SIZE;
+		hw->max_tx_fragments = MT_TX_SG_MAX_SIZE;
 	else
 		hw->max_tx_fragments = 1;
 

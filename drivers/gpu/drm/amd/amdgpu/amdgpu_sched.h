@@ -25,7 +25,10 @@
 #ifndef __AMDGPU_SCHED_H__
 #define __AMDGPU_SCHED_H__
 
-#include <drm/drmP.h>
+enum drm_sched_priority;
+
+struct drm_device;
+struct drm_file;
 
 enum drm_sched_priority amdgpu_to_sched_priority(int amdgpu_priority);
 int amdgpu_sched_ioctl(struct drm_device *dev, void *data,

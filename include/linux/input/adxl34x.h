@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/linux/input/adxl34x.h
  *
@@ -6,8 +7,6 @@
  * device's "struct device" holds this information.
  *
  * Copyright 2009 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __LINUX_INPUT_ADXL34X_H__

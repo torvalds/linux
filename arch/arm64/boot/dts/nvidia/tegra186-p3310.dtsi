@@ -4,7 +4,7 @@
 #include <dt-bindings/mfd/max77620.h>
 
 / {
-	model = "NVIDIA Tegra186 P3310 Processor Module";
+	model = "NVIDIA Jetson TX2";
 	compatible = "nvidia,p3310", "nvidia,tegra186";
 
 	aliases {
@@ -67,11 +67,51 @@
 		power-monitor@40 {
 			compatible = "ti,ina3221";
 			reg = <0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0x0>;
+				label = "VDD_SYS_GPU";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@1 {
+				reg = <0x1>;
+				label = "VDD_SYS_SOC";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				label = "VDD_3V8_WIFI";
+				shunt-resistor-micro-ohms = <10000>;
+			};
 		};
 
 		power-monitor@41 {
 			compatible = "ti,ina3221";
 			reg = <0x41>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0x0>;
+				label = "VDD_IN";
+				shunt-resistor-micro-ohms = <5000>;
+			};
+
+			channel@1 {
+				reg = <0x1>;
+				label = "VDD_SYS_CPU";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				label = "VDD_5V0_DDR";
+				shunt-resistor-micro-ohms = <10000>;
+			};
 		};
 	};
 
@@ -124,6 +164,17 @@
 
 	i2c@c250000 {
 		status = "okay";
+
+		/* module ID EEPROM */
+		eeprom@50 {
+			compatible = "atmel,24c02";
+			reg = <0x50>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
 	};
 
 	rtc@c2a0000 {

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * elf.c - ELF access library
  *
  * Adapted from kpatch (https://github.com/dynup/kpatch):
  * Copyright (C) 2013-2015 Josh Poimboeuf <jpoimboe@redhat.com>
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <sys/types.h>
@@ -290,7 +278,7 @@ static int read_symbols(struct elf *elf)
 			}
 
 			if (sym->offset == s->offset) {
-				if (sym->len == s->len && alias == sym)
+				if (sym->len && sym->len == s->len && alias == sym)
 					alias = s;
 
 				if (sym->len >= s->len) {
@@ -397,7 +385,7 @@ static int read_relas(struct elf *elf)
 			rela->offset = rela->rela.r_offset;
 			symndx = GELF_R_SYM(rela->rela.r_info);
 			rela->sym = find_symbol_by_index(elf, symndx);
-			rela->rela_sec = sec;
+			rela->sec = sec;
 			if (!rela->sym) {
 				WARN("can't find rela entry symbol %d for %s",
 				     symndx, sec->name);
@@ -413,7 +401,7 @@ static int read_relas(struct elf *elf)
 	return 0;
 }
 
-struct elf *elf_open(const char *name, int flags)
+struct elf *elf_read(const char *name, int flags)
 {
 	struct elf *elf;
 	Elf_Cmd cmd;
@@ -475,7 +463,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 {
 	struct section *sec, *shstrtab;
 	size_t size = entsize * nr;
-	struct Elf_Scn *s;
+	Elf_Scn *s;
 	Elf_Data *data;
 
 	sec = malloc(sizeof(*sec));

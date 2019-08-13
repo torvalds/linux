@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Interface the pinconfig portions of the pinctrl subsystem
  *
@@ -6,13 +7,11 @@
  * This interface is used in the core to keep track of pins.
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef __LINUX_PINCTRL_PINCONF_H
 #define __LINUX_PINCTRL_PINCONF_H
 
-#ifdef CONFIG_PINCONF
+#include <linux/types.h>
 
 struct pinctrl_dev;
 struct seq_file;
@@ -64,7 +63,5 @@ struct pinconf_ops {
 					    struct seq_file *s,
 					    unsigned long config);
 };
-
-#endif
 
 #endif /* __LINUX_PINCTRL_PINCONF_H */

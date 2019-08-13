@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x driver
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -258,8 +247,11 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
 		err = PTR_ERR(host->clk);
+
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get clock: %d\n", err);
+
 		return err;
 	}
 

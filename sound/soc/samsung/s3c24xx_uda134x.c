@@ -201,16 +201,18 @@ static const struct snd_soc_ops s3c24xx_uda134x_ops = {
 	.hw_params = s3c24xx_uda134x_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(uda134x,
+	DAILINK_COMP_ARRAY(COMP_CPU("s3c24xx-iis")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("uda134x-codec", "uda134x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("s3c24xx-iis")));
+
 static struct snd_soc_dai_link s3c24xx_uda134x_dai_link = {
 	.name = "UDA134X",
 	.stream_name = "UDA134X",
-	.codec_name = "uda134x-codec",
-	.codec_dai_name = "uda134x-hifi",
-	.cpu_dai_name = "s3c24xx-iis",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &s3c24xx_uda134x_ops,
-	.platform_name	= "s3c24xx-iis",
+	SND_SOC_DAILINK_REG(uda134x),
 };
 
 static struct snd_soc_card snd_soc_s3c24xx_uda134x = {

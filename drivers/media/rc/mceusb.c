@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for USB Windows Media Center Ed. eHome Infrared Transceivers
  *
@@ -19,18 +20,6 @@
  * remote/transceiver requirements and specification document, found at
  * download.microsoft.com, title
  * Windows-Media-Center-RC-IR-Collection-Green-Button-Specification-03-08-2011-V2.pdf
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/device.h>
@@ -1187,8 +1176,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK);
 			if (unlikely(!rawir.duration)) {
-				dev_warn(ir->dev, "nonsensical irdata %02x with duration 0",
-					 ir->buf_in[i]);
+				dev_dbg(ir->dev, "nonsensical irdata %02x with duration 0",
+					ir->buf_in[i]);
 				break;
 			}
 			if (rawir.pulse) {

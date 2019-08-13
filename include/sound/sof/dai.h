@@ -49,6 +49,7 @@ enum sof_ipc_dai_type {
 	SOF_DAI_INTEL_SSP,		/**< Intel SSP */
 	SOF_DAI_INTEL_DMIC,		/**< Intel DMIC */
 	SOF_DAI_INTEL_HDA,		/**< Intel HD/A */
+	SOF_DAI_INTEL_SOUNDWIRE,	/**< Intel SoundWire */
 };
 
 /* general purpose DAI configuration */

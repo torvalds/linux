@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS silly rename handling
  *
  * Copyright (C) 2019 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  * - Derived from NFS's sillyrename.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -64,11 +60,6 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 		if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
 			afs_edit_dir_add(dvnode, &new->d_name,
 					 &vnode->fid, afs_edit_dir_for_silly_1);
-
-		/* vfs_unlink and the like do not issue this when a file is
-		 * sillyrenamed, so do it here.
-		 */
-		fsnotify_nameremove(old, 0);
 	}
 
 	kfree(scb);

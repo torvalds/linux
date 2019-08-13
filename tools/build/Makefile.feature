@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 feature_dir := $(srctree)/tools/build/feature
 
 ifneq ($(OUTPUT),)
@@ -35,6 +36,7 @@ FEATURE_TESTS_BASIC :=                  \
         fortify-source                  \
         sync-compare-and-swap           \
         get_current_dir_name            \
+        gettid				\
         glibc                           \
         gtk2                            \
         gtk2-infobar                    \
@@ -51,6 +53,7 @@ FEATURE_TESTS_BASIC :=                  \
         libpython                       \
         libpython-version               \
         libslang                        \
+        libslang-include-subdir         \
         libcrypto                       \
         libunwind                       \
         pthread-attr-setaffinity-np     \
@@ -112,7 +115,6 @@ FEATURE_DISPLAY ?=              \
          numa_num_possible_cpus \
          libperl                \
          libpython              \
-         libslang               \
          libcrypto              \
          libunwind              \
          libdw-dwarf-unwind     \

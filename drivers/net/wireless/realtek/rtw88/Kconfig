@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig RTW88
 	tristate "Realtek 802.11ac wireless chips support"
 	depends on MAC80211

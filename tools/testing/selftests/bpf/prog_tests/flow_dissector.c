@@ -3,6 +3,7 @@
 #include <error.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <sys/uio.h>
 
 #define CHECK_FLOW_KEYS(desc, got, expected)				\
 	CHECK_ATTR(memcmp(&got, &expected, sizeof(got)) != 0,		\
@@ -242,12 +243,12 @@ void test_flow_dissector(void)
 	 */
 
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	CHECK(err, "bpf_prog_attach", "err %d errno %d", err, errno);
+	CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno);
 
 	tap_fd = create_tap("tap0");
-	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d", tap_fd, errno);
+	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
 	err = ifup("tap0");
-	CHECK(err, "ifup", "err %d errno %d", err, errno);
+	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_flow_keys flow_keys = {};
@@ -255,7 +256,7 @@ void test_flow_dissector(void)
 		__u32 key = 0;
 
 		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
-		CHECK(err < 0, "tx_tap", "err %d errno %d", err, errno);
+		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
 
 		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
 		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
@@ -264,5 +265,6 @@ void test_flow_dissector(void)
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
 	}
 
+	bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
 	bpf_object__close(obj);
 }

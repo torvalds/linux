@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Amlogic clock drivers
 
 obj-$(CONFIG_COMMON_CLK_MESON_AO_CLKC) += meson-aoclk.o

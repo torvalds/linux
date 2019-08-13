@@ -100,7 +100,7 @@ MODULE_DESCRIPTION("PCIe NTB Performance Measurement Tool");
 #define DMA_TRIES		100
 #define DMA_MDELAY		10
 
-#define MSG_TRIES		500
+#define MSG_TRIES		1000
 #define MSG_UDELAY_LOW		1000
 #define MSG_UDELAY_HIGH		2000
 
@@ -734,8 +734,6 @@ static void perf_disable_service(struct perf_ctx *perf)
 {
 	int pidx;
 
-	ntb_link_disable(perf->ntb);
-
 	if (perf->cmd_send == perf_msg_cmd_send) {
 		u64 inbits;
 
@@ -752,6 +750,16 @@ static void perf_disable_service(struct perf_ctx *perf)
 
 	for (pidx = 0; pidx < perf->pcnt; pidx++)
 		flush_work(&perf->peers[pidx].service);
+
+	for (pidx = 0; pidx < perf->pcnt; pidx++) {
+		struct perf_peer *peer = &perf->peers[pidx];
+
+		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx), 0);
+	}
+
+	ntb_db_clear(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+
+	ntb_link_disable(perf->ntb);
 }
 
 /*==============================================================================

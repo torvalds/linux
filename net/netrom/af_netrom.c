@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
@@ -872,7 +869,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	unsigned short frametype, flags, window, timeout;
 	int ret;
 
-	skb->sk = NULL;		/* Initially we don't know who it's for */
+	skb_orphan(skb);
 
 	/*
 	 *	skb->data points to the netrom frame start
@@ -971,6 +968,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	window = skb->data[20];
 
 	skb->sk             = make;
+	skb->destructor     = sock_efree;
 	make->sk_state	    = TCP_ESTABLISHED;
 
 	/* Fill in his circuit details */

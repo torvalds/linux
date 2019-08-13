@@ -66,16 +66,3 @@ sha@f8034000 {
 	dmas = <&dma1 2 17>;
 	dma-names = "tx";
 };
-
-* Eliptic Curve Cryptography (I2C)
-
-Required properties:
-- compatible : must be "atmel,atecc508a".
-- reg: I2C bus address of the device.
-- clock-frequency: must be present in the i2c controller node.
-
-Example:
-atecc508a@c0 {
-	compatible = "atmel,atecc508a";
-	reg = <0xC0>;
-};

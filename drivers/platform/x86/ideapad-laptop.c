@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ideapad-laptop.c - Lenovo IdeaPad ACPI Extras
  *
  *  Copyright © 2010 Intel Corporation
  *  Copyright © 2010 David Woodhouse <dwmw2@infradead.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -330,34 +316,15 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(debugfs_cfg);
 
-static int ideapad_debugfs_init(struct ideapad_private *priv)
+static void ideapad_debugfs_init(struct ideapad_private *priv)
 {
-	struct dentry *node;
+	struct dentry *dir;
 
-	priv->debug = debugfs_create_dir("ideapad", NULL);
-	if (priv->debug == NULL) {
-		pr_err("failed to create debugfs directory");
-		goto errout;
-	}
+	dir = debugfs_create_dir("ideapad", NULL);
+	priv->debug = dir;
 
-	node = debugfs_create_file("cfg", S_IRUGO, priv->debug, priv,
-				   &debugfs_cfg_fops);
-	if (!node) {
-		pr_err("failed to create cfg in debugfs");
-		goto errout;
-	}
-
-	node = debugfs_create_file("status", S_IRUGO, priv->debug, priv,
-				   &debugfs_status_fops);
-	if (!node) {
-		pr_err("failed to create status in debugfs");
-		goto errout;
-	}
-
-	return 0;
-
-errout:
-	return -ENOMEM;
+	debugfs_create_file("cfg", S_IRUGO, dir, priv, &debugfs_cfg_fops);
+	debugfs_create_file("status", S_IRUGO, dir, priv, &debugfs_status_fops);
 }
 
 static void ideapad_debugfs_exit(struct ideapad_private *priv)
@@ -1026,9 +993,7 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = ideapad_debugfs_init(priv);
-	if (ret)
-		goto debugfs_failed;
+	ideapad_debugfs_init(priv);
 
 	ret = ideapad_input_init(priv);
 	if (ret)
@@ -1085,7 +1050,6 @@ backlight_failed:
 	ideapad_input_exit(priv);
 input_failed:
 	ideapad_debugfs_exit(priv);
-debugfs_failed:
 	ideapad_sysfs_exit(priv);
 	return ret;
 }

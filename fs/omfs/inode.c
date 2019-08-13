@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Optimized MPEG FS - inode and super operations.
  * Copyright (C) 2006 Bob Copeland <me@bobcopeland.com>
- * Released under GPL v2.
  */
 #include <linux/module.h>
 #include <linux/sched.h>

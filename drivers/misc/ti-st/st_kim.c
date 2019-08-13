@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Shared Transport Line discipline driver Core
  *	Init Manager module responsible for GPIO control
  *	and firmware download
  *  Copyright (C) 2009-2010 Texas Instruments
  *  Author: Pavan Savoy <pavan_savoy@ti.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #define pr_fmt(fmt) "(stk) :" fmt
@@ -761,10 +748,6 @@ static int kim_probe(struct platform_device *pdev)
 	pr_info("sysfs entries created\n");
 
 	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
-	if (!kim_debugfs_dir) {
-		pr_err(" debugfs entries creation failed ");
-		return 0;
-	}
 
 	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
 				kim_gdata, &version_fops);

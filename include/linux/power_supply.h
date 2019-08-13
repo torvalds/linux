@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Universal power supply monitor class
  *
@@ -6,8 +7,6 @@
  *  Copyright © 2003  Ian Molton <spyro@f2s.com>
  *
  *  Modified: 2004, Oct     Szabolcs Gyurko
- *
- *  You may use this code as per GPL version 2
  */
 
 #ifndef __LINUX_POWER_SUPPLY_H__
@@ -129,6 +128,8 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD, /* in percents! */
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD, /* in percents! */
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
+	POWER_SUPPLY_PROP_INPUT_POWER_LIMIT,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_EMPTY_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
@@ -480,5 +481,18 @@ static inline bool power_supply_is_watt_property(enum power_supply_property psp)
 
 	return 0;
 }
+
+#ifdef CONFIG_POWER_SUPPLY_HWMON
+int power_supply_add_hwmon_sysfs(struct power_supply *psy);
+void power_supply_remove_hwmon_sysfs(struct power_supply *psy);
+#else
+static inline int power_supply_add_hwmon_sysfs(struct power_supply *psy)
+{
+	return 0;
+}
+
+static inline
+void power_supply_remove_hwmon_sysfs(struct power_supply *psy) {}
+#endif
 
 #endif /* __LINUX_POWER_SUPPLY_H__ */

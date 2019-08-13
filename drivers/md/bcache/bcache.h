@@ -705,8 +705,8 @@ struct cache_set {
 	atomic_long_t		writeback_keys_failed;
 
 	atomic_long_t		reclaim;
+	atomic_long_t		reclaimed_journal_buckets;
 	atomic_long_t		flush_write;
-	atomic_long_t		retry_flush_write;
 
 	enum			{
 		ON_ERROR_UNREGISTER,
@@ -726,8 +726,6 @@ struct cache_set {
 
 #define BUCKET_HASH_BITS	12
 	struct hlist_head	bucket_hash[1 << BUCKET_HASH_BITS];
-
-	DECLARE_HEAP(struct btree *, flush_btree);
 };
 
 struct bbio {
@@ -1006,7 +1004,7 @@ int bch_flash_dev_create(struct cache_set *c, uint64_t size);
 int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 			  uint8_t *set_uuid);
 void bch_cached_dev_detach(struct cached_dev *dc);
-void bch_cached_dev_run(struct cached_dev *dc);
+int bch_cached_dev_run(struct cached_dev *dc);
 void bcache_device_stop(struct bcache_device *d);
 
 void bch_cache_set_unregister(struct cache_set *c);

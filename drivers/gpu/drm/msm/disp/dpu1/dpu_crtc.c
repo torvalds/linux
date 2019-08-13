@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -694,14 +683,12 @@ end:
 
 static void dpu_crtc_reset(struct drm_crtc *crtc)
 {
-	struct dpu_crtc_state *cstate;
+	struct dpu_crtc_state *cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 
 	if (crtc->state)
 		dpu_crtc_destroy_state(crtc, crtc->state);
 
-	crtc->state = kzalloc(sizeof(*cstate), GFP_KERNEL);
-	if (crtc->state)
-		crtc->state->crtc = crtc;
+	__drm_atomic_helper_crtc_reset(crtc, &cstate->base);
 }
 
 /**
@@ -1235,19 +1222,14 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
 	struct drm_crtc *crtc = (struct drm_crtc *) s->private;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	int i;
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
 	seq_printf(s, "intf_mode: %d\n", dpu_crtc_get_intf_mode(crtc));
 	seq_printf(s, "core_clk_rate: %llu\n",
 			dpu_crtc->cur_perf.core_clk_rate);
-	for (i = DPU_CORE_PERF_DATA_BUS_ID_MNOC;
-			i < DPU_CORE_PERF_DATA_BUS_ID_MAX; i++) {
-		seq_printf(s, "bw_ctl[%d]: %llu\n", i,
-				dpu_crtc->cur_perf.bw_ctl[i]);
-		seq_printf(s, "max_per_pipe_ib[%d]: %llu\n", i,
-				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
-	}
+	seq_printf(s, "bw_ctl: %llu\n", dpu_crtc->cur_perf.bw_ctl);
+	seq_printf(s, "max_per_pipe_ib: %llu\n",
+				dpu_crtc->cur_perf.max_per_pipe_ib);
 
 	return 0;
 }
@@ -1266,10 +1248,7 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
-	if (!dpu_crtc->debugfs_root)
-		return -ENOMEM;
 
-	/* don't error check these */
 	debugfs_create_file("status", 0400,
 			dpu_crtc->debugfs_root,
 			dpu_crtc, &debugfs_status_fops);

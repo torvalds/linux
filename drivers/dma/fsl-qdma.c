@@ -113,6 +113,7 @@
 /* Field definition for Descriptor offset */
 #define QDMA_CCDF_STATUS		20
 #define QDMA_CCDF_OFFSET		20
+#define QDMA_SDDF_CMD(x)		(((u64)(x)) << 32)
 
 /* Field definition for safe loop count*/
 #define FSL_QDMA_HALT_COUNT		1500
@@ -341,6 +342,7 @@ static void fsl_qdma_free_chan_resources(struct dma_chan *chan)
 static void fsl_qdma_comp_fill_memcpy(struct fsl_qdma_comp *fsl_comp,
 				      dma_addr_t dst, dma_addr_t src, u32 len)
 {
+	u32 cmd;
 	struct fsl_qdma_format *sdf, *ddf;
 	struct fsl_qdma_format *ccdf, *csgf_desc, *csgf_src, *csgf_dest;
 
@@ -369,14 +371,14 @@ static void fsl_qdma_comp_fill_memcpy(struct fsl_qdma_comp *fsl_comp,
 	/* This entry is the last entry. */
 	qdma_csgf_set_f(csgf_dest, len);
 	/* Descriptor Buffer */
-	sdf->data =
-		cpu_to_le64(FSL_QDMA_CMD_RWTTYPE <<
-			    FSL_QDMA_CMD_RWTTYPE_OFFSET);
-	ddf->data =
-		cpu_to_le64(FSL_QDMA_CMD_RWTTYPE <<
-			    FSL_QDMA_CMD_RWTTYPE_OFFSET);
-	ddf->data |=
-		cpu_to_le64(FSL_QDMA_CMD_LWC << FSL_QDMA_CMD_LWC_OFFSET);
+	cmd = cpu_to_le32(FSL_QDMA_CMD_RWTTYPE <<
+			  FSL_QDMA_CMD_RWTTYPE_OFFSET);
+	sdf->data = QDMA_SDDF_CMD(cmd);
+
+	cmd = cpu_to_le32(FSL_QDMA_CMD_RWTTYPE <<
+			  FSL_QDMA_CMD_RWTTYPE_OFFSET);
+	cmd |= cpu_to_le32(FSL_QDMA_CMD_LWC << FSL_QDMA_CMD_LWC_OFFSET);
+	ddf->data = QDMA_SDDF_CMD(cmd);
 }
 
 /*
@@ -701,10 +703,8 @@ static irqreturn_t fsl_qdma_error_handler(int irq, void *dev_id)
 
 	intr = qdma_readl(fsl_qdma, status + FSL_QDMA_DEDR);
 
-	if (intr) {
+	if (intr)
 		dev_err(fsl_qdma->dma_dev.dev, "DMA transaction error!\n");
-		return IRQ_NONE;
-	}
 
 	qdma_writel(fsl_qdma, FSL_QDMA_DEDR_CLEAR, status + FSL_QDMA_DEDR);
 	return IRQ_HANDLED;

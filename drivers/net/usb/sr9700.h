@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * CoreChip-sz SR9700 one chip USB 1.1 Ethernet Devices
  *
  * Author : Liu Junliang <liujunliang_ljl@163.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #ifndef _SR9700_H

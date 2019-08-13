@@ -8,8 +8,8 @@
 #include "liburing.h"
 #include "barrier.h"
 
-static int __io_uring_get_completion(struct io_uring *ring,
-				     struct io_uring_cqe **cqe_ptr, int wait)
+static int __io_uring_get_cqe(struct io_uring *ring,
+			      struct io_uring_cqe **cqe_ptr, int wait)
 {
 	struct io_uring_cq *cq = &ring->cq;
 	const unsigned mask = *cq->kring_mask;
@@ -39,34 +39,25 @@ static int __io_uring_get_completion(struct io_uring *ring,
 			return -errno;
 	} while (1);
 
-	if (*cqe_ptr) {
-		*cq->khead = head + 1;
-		/*
-		 * Ensure that the kernel sees our new head, the kernel has
-		 * the matching read barrier.
-		 */
-		write_barrier();
-	}
-
 	return 0;
 }
 
 /*
- * Return an IO completion, if one is readily available
+ * Return an IO completion, if one is readily available. Returns 0 with
+ * cqe_ptr filled in on success, -errno on failure.
  */
-int io_uring_get_completion(struct io_uring *ring,
-			    struct io_uring_cqe **cqe_ptr)
+int io_uring_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 {
-	return __io_uring_get_completion(ring, cqe_ptr, 0);
+	return __io_uring_get_cqe(ring, cqe_ptr, 0);
 }
 
 /*
- * Return an IO completion, waiting for it if necessary
+ * Return an IO completion, waiting for it if necessary. Returns 0 with
+ * cqe_ptr filled in on success, -errno on failure.
  */
-int io_uring_wait_completion(struct io_uring *ring,
-			     struct io_uring_cqe **cqe_ptr)
+int io_uring_wait_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 {
-	return __io_uring_get_completion(ring, cqe_ptr, 1);
+	return __io_uring_get_cqe(ring, cqe_ptr, 1);
 }
 
 /*
@@ -78,7 +69,7 @@ int io_uring_submit(struct io_uring *ring)
 {
 	struct io_uring_sq *sq = &ring->sq;
 	const unsigned mask = *sq->kring_mask;
-	unsigned ktail, ktail_next, submitted;
+	unsigned ktail, ktail_next, submitted, to_submit;
 	int ret;
 
 	/*
@@ -100,7 +91,8 @@ int io_uring_submit(struct io_uring *ring)
 	 */
 	submitted = 0;
 	ktail = ktail_next = *sq->ktail;
-	while (sq->sqe_head < sq->sqe_tail) {
+	to_submit = sq->sqe_tail - sq->sqe_head;
+	while (to_submit--) {
 		ktail_next++;
 		read_barrier();
 
@@ -136,7 +128,7 @@ submit:
 	if (ret < 0)
 		return -errno;
 
-	return 0;
+	return ret;
 }
 
 /*

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*****************************************************************************/
 
 /*
@@ -5,24 +6,9 @@
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Please note that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
- *
  *
  *  Supported modems
  *
@@ -45,12 +31,10 @@
  *          built in DCD circuitry. The driver should therefore be configured
  *          for hardware DCD.
  *
- *
  *  Command line options (insmod command line)
  *
  *  mode     driver mode string. Valid choices are par96 and picpar.
  *  iobase   base address of the port; common values are 0x378, 0x278, 0x3bc
- *
  *
  *  History:
  *   0.1  26.06.1996  Adapted from baycom.c and made network driver interface

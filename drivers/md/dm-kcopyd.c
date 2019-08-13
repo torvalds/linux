@@ -28,10 +28,27 @@
 
 #include "dm-core.h"
 
-#define SUB_JOB_SIZE	128
 #define SPLIT_COUNT	8
 #define MIN_JOBS	8
-#define RESERVE_PAGES	(DIV_ROUND_UP(SUB_JOB_SIZE << SECTOR_SHIFT, PAGE_SIZE))
+
+#define DEFAULT_SUB_JOB_SIZE_KB 512
+#define MAX_SUB_JOB_SIZE_KB     1024
+
+static unsigned kcopyd_subjob_size_kb = DEFAULT_SUB_JOB_SIZE_KB;
+
+module_param(kcopyd_subjob_size_kb, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(kcopyd_subjob_size_kb, "Sub-job size for dm-kcopyd clients");
+
+static unsigned dm_get_kcopyd_subjob_size(void)
+{
+	unsigned sub_job_size_kb;
+
+	sub_job_size_kb = __dm_get_module_param(&kcopyd_subjob_size_kb,
+						DEFAULT_SUB_JOB_SIZE_KB,
+						MAX_SUB_JOB_SIZE_KB);
+
+	return sub_job_size_kb << 1;
+}
 
 /*-----------------------------------------------------------------
  * Each kcopyd client has its own little pool of preallocated
@@ -41,6 +58,7 @@ struct dm_kcopyd_client {
 	struct page_list *pages;
 	unsigned nr_reserved_pages;
 	unsigned nr_free_pages;
+	unsigned sub_job_size;
 
 	struct dm_io_client *io_client;
 
@@ -693,8 +711,8 @@ static void segment_complete(int read_err, unsigned long write_err,
 		progress = job->progress;
 		count = job->source.count - progress;
 		if (count) {
-			if (count > SUB_JOB_SIZE)
-				count = SUB_JOB_SIZE;
+			if (count > kc->sub_job_size)
+				count = kc->sub_job_size;
 
 			job->progress += count;
 		}
@@ -821,7 +839,7 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	job->master_job = job;
 	job->write_offset = 0;
 
-	if (job->source.count <= SUB_JOB_SIZE)
+	if (job->source.count <= kc->sub_job_size)
 		dispatch_job(job);
 	else {
 		job->progress = 0;
@@ -888,6 +906,7 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *throttle)
 {
 	int r;
+	unsigned reserve_pages;
 	struct dm_kcopyd_client *kc;
 
 	kc = kzalloc(sizeof(*kc), GFP_KERNEL);
@@ -912,9 +931,12 @@ struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *thro
 		goto bad_workqueue;
 	}
 
+	kc->sub_job_size = dm_get_kcopyd_subjob_size();
+	reserve_pages = DIV_ROUND_UP(kc->sub_job_size << SECTOR_SHIFT, PAGE_SIZE);
+
 	kc->pages = NULL;
 	kc->nr_reserved_pages = kc->nr_free_pages = 0;
-	r = client_reserve_pages(kc, RESERVE_PAGES);
+	r = client_reserve_pages(kc, reserve_pages);
 	if (r)
 		goto bad_client_pages;
 

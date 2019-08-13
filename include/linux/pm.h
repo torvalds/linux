@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  pm.h - Power management interface
  *
  *  Copyright (C) 2000 Andrew Henroid
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _LINUX_PM_H
@@ -284,7 +271,7 @@ typedef struct pm_message {
  * actions to be performed by a device driver's callbacks generally depend on
  * the platform and subsystem the device belongs to.
  *
- * Refer to Documentation/power/runtime_pm.txt for more information about the
+ * Refer to Documentation/power/runtime_pm.rst for more information about the
  * role of the @runtime_suspend(), @runtime_resume() and @runtime_idle()
  * callbacks in device runtime power management.
  */
@@ -773,7 +760,6 @@ extern int pm_generic_poweroff_late(struct device *dev);
 extern int pm_generic_poweroff(struct device *dev);
 extern void pm_generic_complete(struct device *dev);
 
-extern void dev_pm_skip_next_resume_phases(struct device *dev);
 extern bool dev_pm_may_skip_resume(struct device *dev);
 extern bool dev_pm_smart_suspend_and_suspended(struct device *dev);
 

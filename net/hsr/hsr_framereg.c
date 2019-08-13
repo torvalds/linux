@@ -104,7 +104,7 @@ int hsr_create_self_node(struct list_head *self_node_db,
 	return 0;
 }
 
-void hsr_del_node(struct list_head *self_node_db)
+void hsr_del_self_node(struct list_head *self_node_db)
 {
 	struct hsr_node *node;
 
@@ -115,6 +115,15 @@ void hsr_del_node(struct list_head *self_node_db)
 		list_del_rcu(&node->mac_list);
 		kfree(node);
 	}
+}
+
+void hsr_del_nodes(struct list_head *node_db)
+{
+	struct hsr_node *node;
+	struct hsr_node *tmp;
+
+	list_for_each_entry_safe(node, tmp, node_db, mac_list)
+		kfree(node);
 }
 
 /* Allocate an hsr_node and add it to node_db. 'addr' is the node's address_A;
@@ -365,6 +374,14 @@ void hsr_prune_nodes(struct timer_list *t)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {
+		/* Don't prune own node. Neither time_in[HSR_PT_SLAVE_A]
+		 * nor time_in[HSR_PT_SLAVE_B], will ever be updated for
+		 * the master port. Thus the master node will be repeatedly
+		 * pruned leading to packet loss.
+		 */
+		if (hsr_addr_is_self(hsr, node->macaddress_A))
+			continue;
+
 		/* Shorthand */
 		time_a = node->time_in[HSR_PT_SLAVE_A];
 		time_b = node->time_in[HSR_PT_SLAVE_B];

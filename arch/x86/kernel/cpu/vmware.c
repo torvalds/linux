@@ -157,7 +157,7 @@ static void __init vmware_platform_setup(void)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 		/* Skip lapic calibration since we know the bus frequency. */
-		lapic_timer_frequency = ecx / HZ;
+		lapic_timer_period = ecx / HZ;
 		pr_info("Host bus clock speed read from hypervisor : %u Hz\n",
 			ecx);
 #endif

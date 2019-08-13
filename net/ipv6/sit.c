@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPv6 over IPv4 tunnel device - Simple Internet Transition (SIT)
  *	Linux INET6 implementation
@@ -5,11 +6,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  *	Changes:
  * Roger Venning <r.venning@telstra.com>:	6to4 support
@@ -904,12 +900,17 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			   RT_TOS(tos), RT_SCOPE_UNIVERSE, IPPROTO_IPV6,
 			   0, dst, tiph->saddr, 0, 0,
 			   sock_net_uid(tunnel->net, NULL));
-	rt = ip_route_output_flow(tunnel->net, &fl4, NULL);
 
-	if (IS_ERR(rt)) {
-		dev->stats.tx_carrier_errors++;
-		goto tx_error_icmp;
+	rt = dst_cache_get_ip4(&tunnel->dst_cache, &fl4.saddr);
+	if (!rt) {
+		rt = ip_route_output_flow(tunnel->net, &fl4, NULL);
+		if (IS_ERR(rt)) {
+			dev->stats.tx_carrier_errors++;
+			goto tx_error_icmp;
+		}
+		dst_cache_set_ip4(&tunnel->dst_cache, &rt->dst, fl4.saddr);
 	}
+
 	if (rt->rt_type != RTN_UNICAST) {
 		ip_rt_put(rt);
 		dev->stats.tx_carrier_errors++;

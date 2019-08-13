@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  acpi_bus.h - ACPI Bus Driver ($Revision: 22 $)
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #ifndef __ACPI_BUS_H__
@@ -519,13 +506,16 @@ int acpi_bus_get_status(struct acpi_device *device);
 
 int acpi_bus_set_power(acpi_handle handle, int state);
 const char *acpi_power_state_string(int state);
-int acpi_device_get_power(struct acpi_device *device, int *state);
 int acpi_device_set_power(struct acpi_device *device, int state);
 int acpi_bus_init_power(struct acpi_device *device);
 int acpi_device_fix_up_power(struct acpi_device *device);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 int acpi_device_update_power(struct acpi_device *device, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
+int acpi_device_power_add_dependent(struct acpi_device *adev,
+				    struct device *dev);
+void acpi_device_power_remove_dependent(struct acpi_device *adev,
+					struct device *dev);
 
 #ifdef CONFIG_PM
 bool acpi_bus_can_wakeup(acpi_handle handle);
@@ -662,6 +652,12 @@ static inline int acpi_pm_set_bridge_wakeup(struct device *dev, bool enable)
 {
 	return -ENODEV;
 }
+#endif
+
+#ifdef CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT
+bool acpi_sleep_state_supported(u8 sleep_state);
+#else
+static inline bool acpi_sleep_state_supported(u8 sleep_state) { return false; }
 #endif
 
 #ifdef CONFIG_ACPI_SLEEP

@@ -1,22 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Authors: Joonyoung Shim <jy0922.shim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
-#include <drm/drmP.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/exynos_drm.h>
-#include "exynos_drm_drv.h"
+
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"

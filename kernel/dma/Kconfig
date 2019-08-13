@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config HAS_DMA
 	bool
@@ -45,6 +46,9 @@ config ARCH_HAS_DMA_COHERENT_TO_PFN
 	bool
 
 config ARCH_HAS_DMA_MMAP_PGPROT
+	bool
+
+config ARCH_HAS_FORCE_DMA_UNENCRYPTED
 	bool
 
 config DMA_NONCOHERENT_CACHE_SYNC

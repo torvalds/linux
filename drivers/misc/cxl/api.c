@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/pci.h>
@@ -13,6 +9,7 @@
 #include <misc/cxl.h>
 #include <linux/module.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/sched/mm.h>
 #include <linux/mmu_context.h>
 
@@ -37,21 +34,15 @@
 static int cxl_fs_cnt;
 static struct vfsmount *cxl_vfs_mount;
 
-static const struct dentry_operations cxl_fs_dops = {
-	.d_dname	= simple_dname,
-};
-
-static struct dentry *cxl_fs_mount(struct file_system_type *fs_type, int flags,
-				const char *dev_name, void *data)
+static int cxl_fs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "cxl:", NULL, &cxl_fs_dops,
-			CXL_PSEUDO_FS_MAGIC);
+	return init_pseudo(fc, CXL_PSEUDO_FS_MAGIC) ? 0 : -ENOMEM;
 }
 
 static struct file_system_type cxl_fs_type = {
 	.name		= "cxl",
 	.owner		= THIS_MODULE,
-	.mount		= cxl_fs_mount,
+	.init_fs_context = cxl_fs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 

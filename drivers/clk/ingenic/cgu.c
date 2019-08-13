@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ingenic SoC CGU driver
  *
  * Copyright (c) 2013-2015 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -384,8 +375,11 @@ ingenic_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		div_reg = readl(cgu->base + clk_info->div.reg);
 		div = (div_reg >> clk_info->div.shift) &
 		      GENMASK(clk_info->div.bits - 1, 0);
-		div += 1;
-		div *= clk_info->div.div;
+
+		if (clk_info->div.div_table)
+			div = clk_info->div.div_table[div];
+		else
+			div = (div + 1) * clk_info->div.div;
 
 		rate /= div;
 	} else if (clk_info->type & CGU_CLK_FIXDIV) {
@@ -395,16 +389,37 @@ ingenic_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	return rate;
 }
 
+static unsigned int
+ingenic_clk_calc_hw_div(const struct ingenic_cgu_clk_info *clk_info,
+			unsigned int div)
+{
+	unsigned int i;
+
+	for (i = 0; i < (1 << clk_info->div.bits)
+				&& clk_info->div.div_table[i]; i++) {
+		if (clk_info->div.div_table[i] >= div)
+			return i;
+	}
+
+	return i - 1;
+}
+
 static unsigned
 ingenic_clk_calc_div(const struct ingenic_cgu_clk_info *clk_info,
 		     unsigned long parent_rate, unsigned long req_rate)
 {
-	unsigned div;
+	unsigned int div, hw_div;
 
 	/* calculate the divide */
 	div = DIV_ROUND_UP(parent_rate, req_rate);
 
-	/* and impose hardware constraints */
+	if (clk_info->div.div_table) {
+		hw_div = ingenic_clk_calc_hw_div(clk_info, div);
+
+		return clk_info->div.div_table[hw_div];
+	}
+
+	/* Impose hardware constraints */
 	div = min_t(unsigned, div, 1 << clk_info->div.bits);
 	div = max_t(unsigned, div, 1);
 
@@ -447,7 +462,7 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	const struct ingenic_cgu_clk_info *clk_info;
 	const unsigned timeout = 100;
 	unsigned long rate, flags;
-	unsigned div, i;
+	unsigned int hw_div, div, i;
 	u32 reg, mask;
 	int ret = 0;
 
@@ -460,13 +475,18 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 		if (rate != req_rate)
 			return -EINVAL;
 
+		if (clk_info->div.div_table)
+			hw_div = ingenic_clk_calc_hw_div(clk_info, div);
+		else
+			hw_div = ((div / clk_info->div.div) - 1);
+
 		spin_lock_irqsave(&cgu->lock, flags);
 		reg = readl(cgu->base + clk_info->div.reg);
 
 		/* update the divide */
 		mask = GENMASK(clk_info->div.bits - 1, 0);
 		reg &= ~(mask << clk_info->div.shift);
-		reg |= ((div / clk_info->div.div) - 1) << clk_info->div.shift;
+		reg |= hw_div << clk_info->div.shift;
 
 		/* clear the stop bit */
 		if (clk_info->div.stop_bit != -1)

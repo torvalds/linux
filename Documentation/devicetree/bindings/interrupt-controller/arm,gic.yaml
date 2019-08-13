@@ -92,6 +92,8 @@ properties:
     minItems: 2
     maxItems: 4
 
+  ranges: true
+
   interrupts:
     description: Interrupt source of the parent interrupt controller on
       secondary GICs, or VGIC maintenance interrupt on primary GIC (see
@@ -197,28 +199,28 @@ examples:
     interrupt-controller@e1101000 {
       compatible = "arm,gic-400";
       #interrupt-cells = <3>;
-      #address-cells = <2>;
-      #size-cells = <2>;
+      #address-cells = <1>;
+      #size-cells = <1>;
       interrupt-controller;
       interrupts = <1 8 0xf04>;
-      ranges = <0 0 0 0xe1100000 0 0x100000>;
-      reg = <0x0 0xe1110000 0 0x01000>,
-            <0x0 0xe112f000 0 0x02000>,
-            <0x0 0xe1140000 0 0x10000>,
-            <0x0 0xe1160000 0 0x10000>;
+      ranges = <0 0xe1100000 0x100000>;
+      reg = <0xe1110000 0x01000>,
+            <0xe112f000 0x02000>,
+            <0xe1140000 0x10000>,
+            <0xe1160000 0x10000>;
 
-      v2m0: v2m@8000 {
+      v2m0: v2m@80000 {
         compatible = "arm,gic-v2m-frame";
         msi-controller;
-        reg = <0x0 0x80000 0 0x1000>;
+        reg = <0x80000 0x1000>;
       };
 
       //...
 
-      v2mN: v2m@9000 {
+      v2mN: v2m@90000 {
         compatible = "arm,gic-v2m-frame";
         msi-controller;
-        reg = <0x0 0x90000 0 0x1000>;
+        reg = <0x90000 0x1000>;
       };
     };
 ...

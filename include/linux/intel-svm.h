@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2015 Intel Corporation.
  *
  * Authors: David Woodhouse <David.Woodhouse@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_SVM_H__
@@ -57,7 +49,7 @@ struct svm_dev_ops {
 
 /**
  * intel_svm_bind_mm() - Bind the current process to a PASID
- * @dev:	Device to be granted acccess
+ * @dev:	Device to be granted access
  * @pasid:	Address for allocated PASID
  * @flags:	Flags. Later for requesting supervisor mode, etc.
  * @ops:	Callbacks to device driver

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * svghelper.c - helper functions for outputting svg
  *
@@ -5,11 +6,6 @@
  *
  * Authors:
  *     Arjan van de Ven <arjan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #include <inttypes.h>
@@ -19,10 +15,10 @@
 #include <string.h>
 #include <linux/bitmap.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 #include "perf.h"
 #include "svghelper.h"
-#include "util.h"
 #include "cpumap.h"
 
 static u64 first_time, last_time;

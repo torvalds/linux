@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Helper functions for handling target threads/cpus
  *
  * Copyright (C) 2012, LG Electronics, Namhyung Kim <namhyung.kim@lge.com>
- *
- * Released under the GPL v2.
  */
 
 #include "target.h"
@@ -11,8 +10,8 @@
 #include "debug.h"
 
 #include <pwd.h>
+#include <stdlib.h>
 #include <string.h>
-
 
 enum target_errno target__validate(struct target *target)
 {

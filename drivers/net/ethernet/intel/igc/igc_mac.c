@@ -8,7 +8,6 @@
 #include "igc_hw.h"
 
 /* forward declaration */
-static s32 igc_set_default_fc(struct igc_hw *hw);
 static s32 igc_set_fc_watermarks(struct igc_hw *hw);
 
 /**
@@ -96,13 +95,10 @@ s32 igc_setup_link(struct igc_hw *hw)
 		goto out;
 
 	/* If requested flow control is set to default, set flow control
-	 * based on the EEPROM flow control settings.
+	 * to the both 'rx' and 'tx' pause frames.
 	 */
-	if (hw->fc.requested_mode == igc_fc_default) {
-		ret_val = igc_set_default_fc(hw);
-		if (ret_val)
-			goto out;
-	}
+	if (hw->fc.requested_mode == igc_fc_default)
+		hw->fc.requested_mode = igc_fc_full;
 
 	/* We want to save off the original Flow Control configuration just
 	 * in case we get disconnected and then reconnected into a different
@@ -133,19 +129,6 @@ s32 igc_setup_link(struct igc_hw *hw)
 
 out:
 	return ret_val;
-}
-
-/**
- * igc_set_default_fc - Set flow control default values
- * @hw: pointer to the HW structure
- *
- * Read the EEPROM for the default values for flow control and store the
- * values.
- */
-static s32 igc_set_default_fc(struct igc_hw *hw)
-{
-	hw->fc.requested_mode = igc_fc_full;
-	return 0;
 }
 
 /**

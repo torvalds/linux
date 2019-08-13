@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NFS_FS
 	tristate "NFS client support"
 	depends on INET && FILE_LOCKING && MULTIUSER

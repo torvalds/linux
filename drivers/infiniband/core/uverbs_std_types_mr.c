@@ -128,6 +128,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 
 	mr->device  = pd->device;
 	mr->pd      = pd;
+	mr->type    = IB_MR_TYPE_DM;
 	mr->dm      = dm;
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
@@ -148,7 +149,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	return 0;
 
 err_dereg:
-	ib_dereg_mr_user(mr, &attrs->driver_udata);
+	ib_dereg_mr_user(mr, uverbs_get_cleared_udata(attrs));
 
 	return ret;
 }

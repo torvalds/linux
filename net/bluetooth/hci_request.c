@@ -1601,7 +1601,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	cp.own_addr_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
 	cp.tx_power = 127;
-	cp.handle = 0;
+	cp.handle = instance;
 
 	if (flags & MGMT_ADV_FLAG_SEC_2M) {
 		cp.primary_phy = HCI_ADV_PHY_1M;
@@ -1643,11 +1643,21 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	return 0;
 }
 
-void __hci_req_enable_ext_advertising(struct hci_request *req)
+int __hci_req_enable_ext_advertising(struct hci_request *req, u8 instance)
 {
+	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_ext_adv_enable *cp;
 	struct hci_cp_ext_adv_set *adv_set;
 	u8 data[sizeof(*cp) + sizeof(*adv_set) * 1];
+	struct adv_info *adv_instance;
+
+	if (instance > 0) {
+		adv_instance = hci_find_adv_instance(hdev, instance);
+		if (!adv_instance)
+			return -EINVAL;
+	} else {
+		adv_instance = NULL;
+	}
 
 	cp = (void *) data;
 	adv_set = (void *) cp->data;
@@ -1659,11 +1669,23 @@ void __hci_req_enable_ext_advertising(struct hci_request *req)
 
 	memset(adv_set, 0, sizeof(*adv_set));
 
-	adv_set->handle = 0;
+	adv_set->handle = instance;
+
+	/* Set duration per instance since controller is responsible for
+	 * scheduling it.
+	 */
+	if (adv_instance && adv_instance->duration) {
+		u16 duration = adv_instance->duration * MSEC_PER_SEC;
+
+		/* Time = N * 10 ms */
+		adv_set->duration = cpu_to_le16(duration / 10);
+	}
 
 	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_ENABLE,
 		    sizeof(*cp) + sizeof(*adv_set) * cp->num_of_sets,
 		    data);
+
+	return 0;
 }
 
 int __hci_req_start_ext_adv(struct hci_request *req, u8 instance)
@@ -1679,7 +1701,7 @@ int __hci_req_start_ext_adv(struct hci_request *req, u8 instance)
 		return err;
 
 	__hci_req_update_scan_rsp_data(req, instance);
-	__hci_req_enable_ext_advertising(req);
+	__hci_req_enable_ext_advertising(req, instance);
 
 	return 0;
 }
@@ -1723,10 +1745,13 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 		adv_instance->remaining_time =
 				adv_instance->remaining_time - timeout;
 
-	hdev->adv_instance_timeout = timeout;
-	queue_delayed_work(hdev->req_workqueue,
+	/* Only use work for scheduling instances with legacy advertising */
+	if (!ext_adv_capable(hdev)) {
+		hdev->adv_instance_timeout = timeout;
+		queue_delayed_work(hdev->req_workqueue,
 			   &hdev->adv_instance_expire,
 			   msecs_to_jiffies(timeout * 1000));
+	}
 
 	/* If we're just re-scheduling the same instance again then do not
 	 * execute any HCI commands. This happens when a single instance is
@@ -2744,7 +2769,8 @@ static int powered_update_hci(struct hci_request *req, unsigned long opt)
 				if (!ext_adv_capable(hdev))
 					__hci_req_enable_advertising(req);
 				else if (!err)
-					__hci_req_enable_ext_advertising(req);
+					__hci_req_enable_ext_advertising(req,
+									 0x00);
 			}
 		} else if (!list_empty(&hdev->adv_instances)) {
 			struct adv_info *adv_instance;

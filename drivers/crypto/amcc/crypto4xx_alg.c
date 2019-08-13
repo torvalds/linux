@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This file implements the Linux crypto algorithms.
  */
@@ -76,11 +67,15 @@ static void set_dynamic_sa_command_1(struct dynamic_sa_ctl *sa, u32 cm,
 }
 
 static inline int crypto4xx_crypt(struct skcipher_request *req,
-				  const unsigned int ivlen, bool decrypt)
+				  const unsigned int ivlen, bool decrypt,
+				  bool check_blocksize)
 {
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
 	__le32 iv[AES_IV_SIZE];
+
+	if (check_blocksize && !IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE))
+		return -EINVAL;
 
 	if (ivlen)
 		crypto4xx_memcpy_to_le32(iv, req->iv, ivlen);
@@ -90,24 +85,34 @@ static inline int crypto4xx_crypt(struct skcipher_request *req,
 		ctx->sa_len, 0, NULL);
 }
 
-int crypto4xx_encrypt_noiv(struct skcipher_request *req)
+int crypto4xx_encrypt_noiv_block(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, 0, false);
+	return crypto4xx_crypt(req, 0, false, true);
 }
 
-int crypto4xx_encrypt_iv(struct skcipher_request *req)
+int crypto4xx_encrypt_iv_stream(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, AES_IV_SIZE, false);
+	return crypto4xx_crypt(req, AES_IV_SIZE, false, false);
 }
 
-int crypto4xx_decrypt_noiv(struct skcipher_request *req)
+int crypto4xx_decrypt_noiv_block(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, 0, true);
+	return crypto4xx_crypt(req, 0, true, true);
 }
 
-int crypto4xx_decrypt_iv(struct skcipher_request *req)
+int crypto4xx_decrypt_iv_stream(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, AES_IV_SIZE, true);
+	return crypto4xx_crypt(req, AES_IV_SIZE, true, false);
+}
+
+int crypto4xx_encrypt_iv_block(struct skcipher_request *req)
+{
+	return crypto4xx_crypt(req, AES_IV_SIZE, false, true);
+}
+
+int crypto4xx_decrypt_iv_block(struct skcipher_request *req)
+{
+	return crypto4xx_crypt(req, AES_IV_SIZE, true, true);
 }
 
 /**
@@ -278,8 +283,8 @@ crypto4xx_ctr_crypt(struct skcipher_request *req, bool encrypt)
 		return ret;
 	}
 
-	return encrypt ? crypto4xx_encrypt_iv(req)
-		       : crypto4xx_decrypt_iv(req);
+	return encrypt ? crypto4xx_encrypt_iv_stream(req)
+		       : crypto4xx_decrypt_iv_stream(req);
 }
 
 static int crypto4xx_sk_setup_fallback(struct crypto4xx_ctx *ctx,

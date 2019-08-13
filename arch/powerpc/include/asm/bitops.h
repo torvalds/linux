@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * PowerPC atomic bit operations.
  *
@@ -26,11 +27,6 @@
  * The main difference is that bit 3-5 (64b) or 3-4 (32b) in the bit
  * number field needs to be reversed compared to the big-endian bit
  * fields. This can be achieved by XOR with 0x38 (64b) or 0x18 (32b).
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _ASM_POWERPC_BITOPS_H

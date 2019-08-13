@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RackMac vu-meter driver
  *
  * (c) Copyright 2006 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  *
  * Support the CPU-meter LEDs of the Xserve G5
  *
@@ -12,7 +11,6 @@
  * interface for fun. Also, the CPU-meter could be made nicer by being
  * a bit less "immediate" but giving instead a more average load over
  * time. Patches welcome :-)
- *
  */
 #undef DEBUG
 

@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -446,6 +435,9 @@ enum data_queue_flags {
  * @length: Number of frames in queue.
  * @index: Index pointers to entry positions in the queue,
  *	use &enum queue_index to get a specific index field.
+ * @wd_count: watchdog counter number of times entry does change
+ *      in the queue
+ * @wd_idx: index of queue entry saved by watchdog
  * @txop: maximum burst time.
  * @aifs: The aifs value for outgoing frames (field ignored in RX queue).
  * @cw_min: The cw min value for outgoing frames (field ignored in RX queue).
@@ -472,6 +464,9 @@ struct data_queue {
 	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
+
+	unsigned short wd_count;
+	unsigned int wd_idx;
 
 	unsigned short txop;
 	unsigned short aifs;

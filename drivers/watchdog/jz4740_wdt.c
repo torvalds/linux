@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2010, Paul Cercueil <paul@crapouillou.net>
  *  JZ4740 Watchdog driver
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
+#include <linux/mfd/ingenic-tcu.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -28,23 +20,16 @@
 
 #include <asm/mach-jz4740/timer.h>
 
-#define JZ_REG_WDT_TIMER_DATA     0x0
-#define JZ_REG_WDT_COUNTER_ENABLE 0x4
-#define JZ_REG_WDT_TIMER_COUNTER  0x8
-#define JZ_REG_WDT_TIMER_CONTROL  0xC
-
 #define JZ_WDT_CLOCK_PCLK 0x1
 #define JZ_WDT_CLOCK_RTC  0x2
 #define JZ_WDT_CLOCK_EXT  0x4
 
-#define JZ_WDT_CLOCK_DIV_SHIFT   3
-
-#define JZ_WDT_CLOCK_DIV_1    (0 << JZ_WDT_CLOCK_DIV_SHIFT)
-#define JZ_WDT_CLOCK_DIV_4    (1 << JZ_WDT_CLOCK_DIV_SHIFT)
-#define JZ_WDT_CLOCK_DIV_16   (2 << JZ_WDT_CLOCK_DIV_SHIFT)
-#define JZ_WDT_CLOCK_DIV_64   (3 << JZ_WDT_CLOCK_DIV_SHIFT)
-#define JZ_WDT_CLOCK_DIV_256  (4 << JZ_WDT_CLOCK_DIV_SHIFT)
-#define JZ_WDT_CLOCK_DIV_1024 (5 << JZ_WDT_CLOCK_DIV_SHIFT)
+#define JZ_WDT_CLOCK_DIV_1    (0 << TCU_TCSR_PRESCALE_LSB)
+#define JZ_WDT_CLOCK_DIV_4    (1 << TCU_TCSR_PRESCALE_LSB)
+#define JZ_WDT_CLOCK_DIV_16   (2 << TCU_TCSR_PRESCALE_LSB)
+#define JZ_WDT_CLOCK_DIV_64   (3 << TCU_TCSR_PRESCALE_LSB)
+#define JZ_WDT_CLOCK_DIV_256  (4 << TCU_TCSR_PRESCALE_LSB)
+#define JZ_WDT_CLOCK_DIV_1024 (5 << TCU_TCSR_PRESCALE_LSB)
 
 #define DEFAULT_HEARTBEAT 5
 #define MAX_HEARTBEAT     2048
@@ -72,7 +57,7 @@ static int jz4740_wdt_ping(struct watchdog_device *wdt_dev)
 {
 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
 
-	writew(0x0, drvdata->base + JZ_REG_WDT_TIMER_COUNTER);
+	writew(0x0, drvdata->base + TCU_REG_WDT_TCNT);
 	return 0;
 }
 
@@ -83,6 +68,7 @@ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
 	unsigned int rtc_clk_rate;
 	unsigned int timeout_value;
 	unsigned short clock_div = JZ_WDT_CLOCK_DIV_1;
+	u8 tcer;
 
 	rtc_clk_rate = clk_get_rate(drvdata->rtc_clk);
 
@@ -95,18 +81,19 @@ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
 			break;
 		}
 		timeout_value >>= 2;
-		clock_div += (1 << JZ_WDT_CLOCK_DIV_SHIFT);
+		clock_div += (1 << TCU_TCSR_PRESCALE_LSB);
 	}
 
-	writeb(0x0, drvdata->base + JZ_REG_WDT_COUNTER_ENABLE);
-	writew(clock_div, drvdata->base + JZ_REG_WDT_TIMER_CONTROL);
+	tcer = readb(drvdata->base + TCU_REG_WDT_TCER);
+	writeb(0x0, drvdata->base + TCU_REG_WDT_TCER);
+	writew(clock_div, drvdata->base + TCU_REG_WDT_TCSR);
 
-	writew((u16)timeout_value, drvdata->base + JZ_REG_WDT_TIMER_DATA);
-	writew(0x0, drvdata->base + JZ_REG_WDT_TIMER_COUNTER);
-	writew(clock_div | JZ_WDT_CLOCK_RTC,
-		drvdata->base + JZ_REG_WDT_TIMER_CONTROL);
+	writew((u16)timeout_value, drvdata->base + TCU_REG_WDT_TDR);
+	writew(0x0, drvdata->base + TCU_REG_WDT_TCNT);
+	writew(clock_div | JZ_WDT_CLOCK_RTC, drvdata->base + TCU_REG_WDT_TCSR);
 
-	writeb(0x1, drvdata->base + JZ_REG_WDT_COUNTER_ENABLE);
+	if (tcer & TCU_WDT_TCER_TCEN)
+		writeb(TCU_WDT_TCER_TCEN, drvdata->base + TCU_REG_WDT_TCER);
 
 	wdt_dev->timeout = new_timeout;
 	return 0;
@@ -114,8 +101,17 @@ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
 
 static int jz4740_wdt_start(struct watchdog_device *wdt_dev)
 {
+	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
+	u8 tcer;
+
+	tcer = readb(drvdata->base + TCU_REG_WDT_TCER);
+
 	jz4740_timer_enable_watchdog();
 	jz4740_wdt_set_timeout(wdt_dev, wdt_dev->timeout);
+
+	/* Start watchdog if it wasn't started already */
+	if (!(tcer & TCU_WDT_TCER_TCEN))
+		writeb(TCU_WDT_TCER_TCEN, drvdata->base + TCU_REG_WDT_TCER);
 
 	return 0;
 }
@@ -124,7 +120,7 @@ static int jz4740_wdt_stop(struct watchdog_device *wdt_dev)
 {
 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
 
-	writeb(0x0, drvdata->base + JZ_REG_WDT_COUNTER_ENABLE);
+	writeb(0x0, drvdata->base + TCU_REG_WDT_TCER);
 	jz4740_timer_disable_watchdog();
 
 	return 0;
@@ -196,11 +192,7 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(drvdata->rtc_clk);
 	}
 
-	ret = devm_watchdog_register_device(dev, &drvdata->wdt);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return devm_watchdog_register_device(dev, &drvdata->wdt);
 }
 
 static struct platform_driver jz4740_wdt_driver = {

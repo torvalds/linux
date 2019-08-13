@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -44,7 +41,7 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, const char *fmt, ...)
 	struct va_format vaf;
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW &&
-	    test_and_set_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+	    test_and_set_bit(SDF_WITHDRAWN, &sdp->sd_flags))
 		return 0;
 
 	if (fmt) {
@@ -181,9 +178,11 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 			 const char *function, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
+	char fs_id_buf[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	int rv;
 
-	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	sprintf(fs_id_buf, "fsid=%s: ", sdp->sd_fsname);
+	gfs2_rgrp_dump(NULL, rgd->rd_gl, fs_id_buf);
 	rv = gfs2_lm_withdraw(sdp,
 			      "fatal: filesystem consistency error\n"
 			      "  RG = %llu\n"
@@ -259,7 +258,7 @@ void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 			const char *function, char *file, unsigned int line,
 			bool withdraw)
 {
-	if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+	if (!test_bit(SDF_WITHDRAWN, &sdp->sd_flags))
 		fs_err(sdp,
 		       "fatal: I/O error\n"
 		       "  block = %llu\n"

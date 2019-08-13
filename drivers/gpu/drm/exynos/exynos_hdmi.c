@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Authors:
@@ -6,46 +7,39 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *
  * Based on drivers/media/video/s5p-tv/hdmi_drv.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_probe_helper.h>
-
-#include "regs-hdmi.h"
-
-#include <linux/kernel.h>
-#include <linux/wait.h>
-#include <linux/i2c.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/delay.h>
-#include <linux/pm_runtime.h>
+#include <drm/exynos_drm.h>
 #include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/regulator/consumer.h>
+#include <linux/hdmi.h>
+#include <linux/i2c.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
-#include <linux/hdmi.h>
-#include <linux/component.h>
-#include <linux/mfd/syscon.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <sound/hdmi-codec.h>
-#include <drm/exynos_drm.h>
+#include <linux/regulator/consumer.h>
+#include <linux/wait.h>
 
+#include <sound/hdmi-codec.h>
 #include <media/cec-notifier.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+
 #include "exynos_drm_crtc.h"
+#include "regs-hdmi.h"
 
 #define HOTPLUG_DEBOUNCE_MS		1100
 

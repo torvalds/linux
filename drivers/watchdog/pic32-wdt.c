@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PIC32 watchdog driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (c) 2016, Microchip Technology Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -225,10 +221,8 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(wdd, wdt);
 
 	ret = devm_watchdog_register_device(dev, wdd);
-	if (ret) {
-		dev_err(dev, "watchdog register failed, err %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, wdd);
 

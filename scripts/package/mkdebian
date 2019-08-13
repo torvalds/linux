@@ -197,6 +197,7 @@ Architecture: $debarch
 Description: Linux support headers for userspace development
  This package provides userspaces headers from the Linux kernel.  These headers
  are used by the installed headers for GNU glibc and other system libraries.
+Multi-Arch: same
 
 Package: $dbg_packagename
 Section: debug

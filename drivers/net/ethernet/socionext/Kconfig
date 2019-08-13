@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NET_VENDOR_SOCIONEXT
 	bool "Socionext ethernet drivers"
 	default y
@@ -25,6 +26,7 @@ config SNI_NETSEC
 	tristate "Socionext NETSEC ethernet support"
 	depends on (ARCH_SYNQUACER || COMPILE_TEST) && OF
 	select PHYLIB
+	select PAGE_POOL
 	select MII
 	---help---
 	  Enable to add support for the SocioNext NetSec Gigabit Ethernet

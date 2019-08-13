@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NET_VENDOR_ALACRITECH
 	bool "Alacritech devices"
 	default y

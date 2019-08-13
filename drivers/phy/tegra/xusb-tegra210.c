@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, NVIDIA CORPORATION.  All rights reserved.
  * Copyright (C) 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk.h>
@@ -2017,6 +2009,13 @@ static const struct tegra_xusb_padctl_ops tegra210_xusb_padctl_ops = {
 	.hsic_set_idle = tegra210_hsic_set_idle,
 };
 
+static const char * const tegra210_xusb_padctl_supply_names[] = {
+	"avdd-pll-utmip",
+	"avdd-pll-uerefe",
+	"dvdd-pex-pll",
+	"hvdd-pex-pll-e",
+};
+
 const struct tegra_xusb_padctl_soc tegra210_xusb_padctl_soc = {
 	.num_pads = ARRAY_SIZE(tegra210_pads),
 	.pads = tegra210_pads,
@@ -2035,6 +2034,8 @@ const struct tegra_xusb_padctl_soc tegra210_xusb_padctl_soc = {
 		},
 	},
 	.ops = &tegra210_xusb_padctl_ops,
+	.supply_names = tegra210_xusb_padctl_supply_names,
+	.num_supplies = ARRAY_SIZE(tegra210_xusb_padctl_supply_names),
 };
 EXPORT_SYMBOL_GPL(tegra210_xusb_padctl_soc);
 

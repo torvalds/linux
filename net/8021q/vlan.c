@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		802.1Q VLAN
  *		Ethernet-type device handling.
@@ -11,11 +12,6 @@
  *		Add HW acceleration hooks - David S. Miller <davem@redhat.com>;
  *		Correct all the locking - David S. Miller <davem@redhat.com>;
  *		Use hash table for VLAN groups - David S. Miller <davem@redhat.com>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

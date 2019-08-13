@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* binder_alloc.c
  *
  * Android IPC Subsystem
  *
  * Copyright (C) 2007-2017 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1128,15 +1119,16 @@ binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
 	return 0;
 }
 
-static void binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
-					bool to_buffer,
-					struct binder_buffer *buffer,
-					binder_size_t buffer_offset,
-					void *ptr,
-					size_t bytes)
+static int binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
+				       bool to_buffer,
+				       struct binder_buffer *buffer,
+				       binder_size_t buffer_offset,
+				       void *ptr,
+				       size_t bytes)
 {
 	/* All copies must be 32-bit aligned and 32-bit size */
-	BUG_ON(!check_buffer(alloc, buffer, buffer_offset, bytes));
+	if (!check_buffer(alloc, buffer, buffer_offset, bytes))
+		return -EINVAL;
 
 	while (bytes) {
 		unsigned long size;
@@ -1164,25 +1156,26 @@ static void binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
 		ptr = ptr + size;
 		buffer_offset += size;
 	}
+	return 0;
 }
 
-void binder_alloc_copy_to_buffer(struct binder_alloc *alloc,
-				 struct binder_buffer *buffer,
-				 binder_size_t buffer_offset,
-				 void *src,
-				 size_t bytes)
+int binder_alloc_copy_to_buffer(struct binder_alloc *alloc,
+				struct binder_buffer *buffer,
+				binder_size_t buffer_offset,
+				void *src,
+				size_t bytes)
 {
-	binder_alloc_do_buffer_copy(alloc, true, buffer, buffer_offset,
-				    src, bytes);
+	return binder_alloc_do_buffer_copy(alloc, true, buffer, buffer_offset,
+					   src, bytes);
 }
 
-void binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
-				   void *dest,
-				   struct binder_buffer *buffer,
-				   binder_size_t buffer_offset,
-				   size_t bytes)
+int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
+				  void *dest,
+				  struct binder_buffer *buffer,
+				  binder_size_t buffer_offset,
+				  size_t bytes)
 {
-	binder_alloc_do_buffer_copy(alloc, false, buffer, buffer_offset,
-				    dest, bytes);
+	return binder_alloc_do_buffer_copy(alloc, false, buffer, buffer_offset,
+					   dest, bytes);
 }
 

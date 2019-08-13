@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ------------------------------------------------------------
  * ibmvscsi.c
  * (C) Copyright IBM Corporation 1994, 2004
  * Authors: Colin DeVilbiss (devilbis@us.ibm.com)
  *          Santiago Leon (santil@us.ibm.com)
  *          Dave Boutcher (sleddog@us.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
  *
  * ------------------------------------------------------------
  * Emulation of a SCSI host adapter for Virtual I/O devices
@@ -828,7 +814,7 @@ static void ibmvscsi_reset_host(struct ibmvscsi_host_data *hostdata)
 	atomic_set(&hostdata->request_limit, 0);
 
 	purge_requests(hostdata, DID_ERROR);
-	hostdata->reset_crq = 1;
+	hostdata->action = IBMVSCSI_HOST_ACTION_RESET;
 	wake_up(&hostdata->work_wait_q);
 }
 
@@ -1179,7 +1165,8 @@ static void login_rsp(struct srp_event_struct *evt_struct)
 		   be32_to_cpu(evt_struct->xfer_iu->srp.login_rsp.req_lim_delta));
 
 	/* If we had any pending I/Os, kick them */
-	scsi_unblock_requests(hostdata->host);
+	hostdata->action = IBMVSCSI_HOST_ACTION_UNBLOCK;
+	wake_up(&hostdata->work_wait_q);
 }
 
 /**
@@ -1797,7 +1784,7 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			/* We need to re-setup the interpartition connection */
 			dev_info(hostdata->dev, "Re-enabling adapter!\n");
 			hostdata->client_migrated = 1;
-			hostdata->reenable_crq = 1;
+			hostdata->action = IBMVSCSI_HOST_ACTION_REENABLE;
 			purge_requests(hostdata, DID_REQUEUE);
 			wake_up(&hostdata->work_wait_q);
 		} else {
@@ -2050,6 +2037,16 @@ static struct device_attribute ibmvscsi_host_config = {
 	.show = show_host_config,
 };
 
+static int ibmvscsi_host_reset(struct Scsi_Host *shost, int reset_type)
+{
+	struct ibmvscsi_host_data *hostdata = shost_priv(shost);
+
+	dev_info(hostdata->dev, "Initiating adapter reset!\n");
+	ibmvscsi_reset_host(hostdata);
+
+	return 0;
+}
+
 static struct device_attribute *ibmvscsi_attrs[] = {
 	&ibmvscsi_host_vhost_loc,
 	&ibmvscsi_host_vhost_name,
@@ -2076,6 +2073,7 @@ static struct scsi_host_template driver_template = {
 	.eh_host_reset_handler = ibmvscsi_eh_host_reset_handler,
 	.slave_configure = ibmvscsi_slave_configure,
 	.change_queue_depth = ibmvscsi_change_queue_depth,
+	.host_reset = ibmvscsi_host_reset,
 	.cmd_per_lun = IBMVSCSI_CMDS_PER_LUN_DEFAULT,
 	.can_queue = IBMVSCSI_MAX_REQUESTS_DEFAULT,
 	.this_id = -1,
@@ -2105,48 +2103,75 @@ static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
 
 static void ibmvscsi_do_work(struct ibmvscsi_host_data *hostdata)
 {
+	unsigned long flags;
 	int rc;
 	char *action = "reset";
 
-	if (hostdata->reset_crq) {
-		smp_rmb();
-		hostdata->reset_crq = 0;
-
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
+	switch (hostdata->action) {
+	case IBMVSCSI_HOST_ACTION_UNBLOCK:
+		rc = 0;
+		break;
+	case IBMVSCSI_HOST_ACTION_RESET:
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		rc = ibmvscsi_reset_crq_queue(&hostdata->queue, hostdata);
+		spin_lock_irqsave(hostdata->host->host_lock, flags);
 		if (!rc)
 			rc = ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0);
 		vio_enable_interrupts(to_vio_dev(hostdata->dev));
-	} else if (hostdata->reenable_crq) {
-		smp_rmb();
+		break;
+	case IBMVSCSI_HOST_ACTION_REENABLE:
 		action = "enable";
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		rc = ibmvscsi_reenable_crq_queue(&hostdata->queue, hostdata);
-		hostdata->reenable_crq = 0;
+		spin_lock_irqsave(hostdata->host->host_lock, flags);
 		if (!rc)
 			rc = ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0);
-	} else
+		break;
+	case IBMVSCSI_HOST_ACTION_NONE:
+	default:
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		return;
+	}
+
+	hostdata->action = IBMVSCSI_HOST_ACTION_NONE;
 
 	if (rc) {
 		atomic_set(&hostdata->request_limit, -1);
 		dev_err(hostdata->dev, "error after %s\n", action);
 	}
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 
 	scsi_unblock_requests(hostdata->host);
 }
 
-static int ibmvscsi_work_to_do(struct ibmvscsi_host_data *hostdata)
+static int __ibmvscsi_work_to_do(struct ibmvscsi_host_data *hostdata)
 {
 	if (kthread_should_stop())
 		return 1;
-	else if (hostdata->reset_crq) {
-		smp_rmb();
-		return 1;
-	} else if (hostdata->reenable_crq) {
-		smp_rmb();
-		return 1;
+	switch (hostdata->action) {
+	case IBMVSCSI_HOST_ACTION_NONE:
+		return 0;
+	case IBMVSCSI_HOST_ACTION_RESET:
+	case IBMVSCSI_HOST_ACTION_REENABLE:
+	case IBMVSCSI_HOST_ACTION_UNBLOCK:
+	default:
+		break;
 	}
 
-	return 0;
+	return 1;
+}
+
+static int ibmvscsi_work_to_do(struct ibmvscsi_host_data *hostdata)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
+	rc = __ibmvscsi_work_to_do(hostdata);
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+
+	return rc;
 }
 
 static int ibmvscsi_work(void *data)

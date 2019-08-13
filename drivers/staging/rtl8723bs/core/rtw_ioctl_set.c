@@ -357,7 +357,7 @@ u8 rtw_set_802_11_connect(struct adapter *padapter, u8 *bssid, struct ndis_802_1
 	if (!bssid || rtw_validate_bssid(bssid) == false)
 		bssid_valid = false;
 
-	if (ssid_valid == false && bssid_valid == false) {
+	if (!ssid_valid && !bssid_valid) {
 		DBG_871X(FUNC_ADPT_FMT" ssid:%p, ssid_valid:%d, bssid:%p, bssid_valid:%d\n",
 			FUNC_ADPT_ARG(padapter), ssid, ssid_valid, bssid, bssid_valid);
 		status = _FAIL;

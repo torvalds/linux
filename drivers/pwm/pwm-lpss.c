@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Low Power Subsystem PWM controller driver
  *
@@ -7,10 +8,6 @@
  * Author: Chang Rebecca Swee Fun <rebecca.swee.fun.chang@intel.com>
  * Author: Chew Chiau Ee <chiau.ee.chew@intel.com>
  * Author: Alan Cox <alan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>

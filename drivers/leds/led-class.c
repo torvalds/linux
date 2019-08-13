@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LED Class Core
  *
  * Copyright (C) 2005 John Lenz <lenz@cs.wisc.edu>
  * Copyright (C) 2005-2007 Richard Purdie <rpurdie@openedhand.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/ctype.h>

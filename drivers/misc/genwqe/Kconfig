@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IBM Accelerator Family 'GenWQE'
 #
@@ -6,7 +7,6 @@ menuconfig GENWQE
 	tristate "GenWQE PCIe Accelerator"
 	depends on PCI && 64BIT
 	select CRC_ITU_T
-	default n
 	help
 	  Enables PCIe card driver for IBM GenWQE accelerators.
 	  The user-space interface is described in

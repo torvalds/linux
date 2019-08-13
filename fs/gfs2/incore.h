@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __INCORE_DOT_H__
@@ -243,7 +240,8 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
-	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl);
+	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl,
+			const char *fs_id_buf);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
 	const int go_type;
 	const unsigned long go_flags;
@@ -345,7 +343,6 @@ enum {
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
 	GLF_INODE_CREATING		= 16, /* Inode creation occurring */
-	GLF_REVOKES			= 17, /* Glock has revokes in queue */
 };
 
 struct gfs2_glock {
@@ -375,6 +372,7 @@ struct gfs2_glock {
 	struct list_head gl_lru;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
+	atomic_t gl_revokes;
 	struct delayed_work gl_work;
 	union {
 		/* For inode and iopen glocks only */
@@ -507,7 +505,6 @@ struct gfs2_trans {
 	unsigned int tr_num_buf_rm;
 	unsigned int tr_num_databuf_rm;
 	unsigned int tr_num_revoke;
-	unsigned int tr_num_revoke_rm;
 
 	struct list_head tr_list;
 	struct list_head tr_databuf;
@@ -612,7 +609,7 @@ struct gfs2_tune {
 enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
-	SDF_SHUTDOWN		= 2,
+	SDF_WITHDRAWN		= 2,
 	SDF_NOBARRIERS		= 3,
 	SDF_NORECOVERY		= 4,
 	SDF_DEMOTE		= 5,

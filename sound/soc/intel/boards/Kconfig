@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig SND_SOC_INTEL_MACH
 	bool "Intel Machine drivers"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
@@ -152,6 +153,18 @@ config SND_SOC_INTEL_CHT_BSW_NAU8824_MACH
 	help
 	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
 	  platforms with NAU88L24 audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_BYT_CHT_CX2072X_MACH
+	tristate "Baytrail & Cherrytrail with CX2072X codec"
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_ACPI
+	select SND_SOC_CX2072X
+	help
+	  This adds support for ASoC machine driver for Intel(R) Baytrail &
+	  Cherrytrail platforms with Conexant CX2072X audio codec.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
@@ -387,11 +400,11 @@ if SND_SOC_SOF_HDA_COMMON || SND_SOC_SOF_BAYTRAIL
 config SND_SOC_INTEL_SOF_RT5682_MACH
 	tristate "SOF with rt5682 codec in I2S Mode"
 	depends on I2C && ACPI
-	depends on (SND_SOC_SOF_HDA_COMMON && MFD_INTEL_LPSS) ||\
-		   (SND_SOC_SOF_BAYTRAIL && X86_INTEL_LPSS)
+	depends on (SND_SOC_SOF_HDA_COMMON && (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
+		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
 	select SND_SOC_RT5682
 	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI if SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_HDAC_HDMI
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with rt5682 codec.

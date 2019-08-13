@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8350.c -- WM8350 ALSA SoC audio driver
  *
  * Copyright (C) 2007-12 Wolfson Microelectronics PLC.
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

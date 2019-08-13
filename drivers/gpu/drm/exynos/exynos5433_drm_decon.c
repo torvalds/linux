@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/gpu/drm/exynos5433_drm_decon.c
  *
  * Copyright (C) 2015 Samsung Electronics Co.Ltd
  * Authors:
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Hyungwon Hwang <human.hwang@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundationr
  */
 
-#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/iopoll.h>
@@ -18,11 +14,15 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
-#include "exynos_drm_drv.h"
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "regs-decon5433.h"

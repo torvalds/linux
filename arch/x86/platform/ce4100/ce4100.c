@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel CE4100  platform specific setup code
  *
  * (C) Copyright 2010 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>

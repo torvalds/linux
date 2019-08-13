@@ -80,10 +80,10 @@ static struct ch_tc_flower_entry *ch_flower_lookup(struct adapter *adap,
 }
 
 static void cxgb4_process_flow_match(struct net_device *dev,
-				     struct tc_cls_flower_offload *cls,
+				     struct flow_cls_offload *cls,
 				     struct ch_filter_specification *fs)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	u16 addr_type = 0;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -197,6 +197,9 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->val.ivlan = vlan_tci;
 		fs->mask.ivlan = vlan_tci_mask;
 
+		fs->val.ivlan_vld = 1;
+		fs->mask.ivlan_vld = 1;
+
 		/* Chelsio adapters use ivlan_vld bit to match vlan packets
 		 * as 802.1Q. Also, when vlan tag is present in packets,
 		 * ethtype match is used then to match on ethtype of inner
@@ -207,8 +210,6 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		 * ethtype value with ethtype of inner header.
 		 */
 		if (fs->val.ethtype == ETH_P_8021Q) {
-			fs->val.ivlan_vld = 1;
-			fs->mask.ivlan_vld = 1;
 			fs->val.ethtype = 0;
 			fs->mask.ethtype = 0;
 		}
@@ -222,9 +223,9 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 }
 
 static int cxgb4_validate_flow_match(struct net_device *dev,
-				     struct tc_cls_flower_offload *cls)
+				     struct flow_cls_offload *cls)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_dissector *dissector = rule->match.dissector;
 	u16 ethtype_mask = 0;
 	u16 ethtype_key = 0;
@@ -377,10 +378,10 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 }
 
 static void cxgb4_process_flow_actions(struct net_device *in,
-				       struct tc_cls_flower_offload *cls,
+				       struct flow_cls_offload *cls,
 				       struct ch_filter_specification *fs)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_action_entry *act;
 	int i;
 
@@ -543,9 +544,9 @@ static bool valid_pedit_action(struct net_device *dev,
 }
 
 static int cxgb4_validate_flow_actions(struct net_device *dev,
-				       struct tc_cls_flower_offload *cls)
+				       struct flow_cls_offload *cls)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_action_entry *act;
 	bool act_redir = false;
 	bool act_pedit = false;
@@ -632,7 +633,7 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 }
 
 int cxgb4_tc_flower_replace(struct net_device *dev,
-			    struct tc_cls_flower_offload *cls)
+			    struct flow_cls_offload *cls)
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
@@ -708,7 +709,7 @@ free_entry:
 }
 
 int cxgb4_tc_flower_destroy(struct net_device *dev,
-			    struct tc_cls_flower_offload *cls)
+			    struct flow_cls_offload *cls)
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
@@ -782,7 +783,7 @@ static void ch_flower_stats_cb(struct timer_list *t)
 }
 
 int cxgb4_tc_flower_stats(struct net_device *dev,
-			  struct tc_cls_flower_offload *cls)
+			  struct flow_cls_offload *cls)
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_stats *ofld_stats;

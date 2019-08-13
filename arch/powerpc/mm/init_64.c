@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -11,12 +12,6 @@
  *
  *  Dave Engebretsen <engebret@us.ibm.com>
  *      Rework for PPC64 port.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #undef DEBUG
@@ -199,8 +194,11 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		 * fail due to alignment issues when using 16MB hugepages, so
 		 * fall back to system memory if the altmap allocation fail.
 		 */
-		if (altmap)
+		if (altmap) {
 			p = altmap_alloc_block_buf(page_size, altmap);
+			if (!p)
+				pr_debug("altmap block allocation failed, falling back to system memory");
+		}
 		if (!p)
 			p = vmemmap_alloc_block_buf(page_size, node);
 		if (!p)

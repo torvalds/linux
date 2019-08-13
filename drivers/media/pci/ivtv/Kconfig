@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
 	depends on VIDEO_V4L2 && PCI && I2C
@@ -31,7 +32,6 @@ config VIDEO_IVTV
 config VIDEO_IVTV_DEPRECATED_IOCTLS
 	bool "enable the DVB ioctls abuse on ivtv driver"
 	depends on VIDEO_IVTV
-	default n
 	help
 	  Enable the usage of the a DVB set of ioctls that were abused by
 	  IVTV driver for a while.
@@ -76,7 +76,6 @@ config VIDEO_FB_IVTV
 config VIDEO_FB_IVTV_FORCE_PAT
 	bool "force cx23415 framebuffer init with x86 PAT enabled"
 	depends on VIDEO_FB_IVTV && X86_PAT
-	default n
 	help
 	  With PAT enabled, the cx23415 framebuffer driver does not
 	  utilize write-combined caching on the framebuffer memory.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,21 +7,6 @@
  * Extent allocs and frees
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -6205,16 +6191,16 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 	if (le16_to_cpu(tl->tl_used)) {
 		trace_ocfs2_truncate_log_recovery_num(le16_to_cpu(tl->tl_used));
 
-		*tl_copy = kmalloc(tl_bh->b_size, GFP_KERNEL);
+		/*
+		 * Assuming the write-out below goes well, this copy will be
+		 * passed back to recovery for processing.
+		 */
+		*tl_copy = kmemdup(tl_bh->b_data, tl_bh->b_size, GFP_KERNEL);
 		if (!(*tl_copy)) {
 			status = -ENOMEM;
 			mlog_errno(status);
 			goto bail;
 		}
-
-		/* Assuming the write-out below goes well, this copy
-		 * will be passed back to recovery for processing. */
-		memcpy(*tl_copy, tl_bh->b_data, tl_bh->b_size);
 
 		/* All we need to do to clear the truncate log is set
 		 * tl_used. */

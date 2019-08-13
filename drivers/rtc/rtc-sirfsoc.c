@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiRFSoC Real Time Clock interface for Linux
  *
  * Copyright (c) 2013 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>

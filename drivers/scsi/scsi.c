@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  scsi.c Copyright (C) 1992 Drew Eckhardt
  *         Copyright (C) 1993, 1994, 1995, 1999 Eric Youngdale
@@ -85,15 +86,10 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-/* sd, scsi core and power management need to coordinate flushing async actions */
-ASYNC_DOMAIN(scsi_sd_probe_domain);
-EXPORT_SYMBOL(scsi_sd_probe_domain);
-
 /*
- * Separate domain (from scsi_sd_probe_domain) to maximize the benefit of
- * asynchronous system resume operations.  It is marked 'exclusive' to avoid
- * being included in the async_synchronize_full() that is invoked by
- * dpm_resume()
+ * Domain for asynchronous system resume operations.  It is marked 'exclusive'
+ * to avoid being included in the async_synchronize_full() that is invoked by
+ * dpm_resume().
  */
 ASYNC_DOMAIN_EXCLUSIVE(scsi_sd_pm_domain);
 EXPORT_SYMBOL(scsi_sd_pm_domain);
@@ -820,7 +816,6 @@ static void __exit exit_scsi(void)
 	scsi_exit_devinfo();
 	scsi_exit_procfs();
 	scsi_exit_queue();
-	async_unregister_domain(&scsi_sd_probe_domain);
 }
 
 subsys_initcall(init_scsi);

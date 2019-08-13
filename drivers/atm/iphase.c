@@ -2767,12 +2767,6 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
    case MEMDUMP:
    {
 	switch (ia_cmds.sub_cmd) {
-       	  case MEMDUMP_DEV:     
-	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
-	     if (copy_to_user(ia_cmds.buf, iadev, sizeof(IADEV)))
-                return -EFAULT;
-             ia_cmds.status = 0;
-             break;
           case MEMDUMP_SEGREG:
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
              tmps = (u16 __user *)ia_cmds.buf;

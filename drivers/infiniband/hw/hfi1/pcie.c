@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -449,10 +449,6 @@ error:
 static int hfi1_pcie_caps;
 module_param_named(pcie_caps, hfi1_pcie_caps, int, 0444);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
-
-uint aspm_mode = ASPM_MODE_DISABLED;
-module_param_named(aspm, aspm_mode, uint, 0444);
-MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
 /**
  * tune_pcie_caps() - Code to adjust PCIe capabilities.

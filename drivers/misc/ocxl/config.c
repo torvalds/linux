@@ -20,11 +20,14 @@
 #define OCXL_DVSEC_TEMPL_MMIO_GLOBAL_SZ  0x28
 #define OCXL_DVSEC_TEMPL_MMIO_PP         0x30
 #define OCXL_DVSEC_TEMPL_MMIO_PP_SZ      0x38
-#define OCXL_DVSEC_TEMPL_MEM_SZ          0x3C
-#define OCXL_DVSEC_TEMPL_WWID            0x40
+#define OCXL_DVSEC_TEMPL_ALL_MEM_SZ      0x3C
+#define OCXL_DVSEC_TEMPL_LPC_MEM_START   0x40
+#define OCXL_DVSEC_TEMPL_WWID            0x48
+#define OCXL_DVSEC_TEMPL_LPC_MEM_SZ      0x58
 
 #define OCXL_MAX_AFU_PER_FUNCTION 64
-#define OCXL_TEMPL_LEN            0x58
+#define OCXL_TEMPL_LEN_1_0        0x58
+#define OCXL_TEMPL_LEN_1_1        0x60
 #define OCXL_TEMPL_NAME_LEN       24
 #define OCXL_CFG_TIMEOUT     3
 
@@ -269,34 +272,72 @@ static int read_afu_info(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	return 0;
 }
 
+/**
+ * Read the template version from the AFU
+ * dev: the device for the AFU
+ * fn: the AFU offsets
+ * len: outputs the template length
+ * version: outputs the major<<8,minor version
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int read_template_version(struct pci_dev *dev, struct ocxl_fn_config *fn,
+		u16 *len, u16 *version)
+{
+	u32 val32;
+	u8 major, minor;
+	int rc;
+
+	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_VERSION, &val32);
+	if (rc)
+		return rc;
+
+	*len = EXTRACT_BITS(val32, 16, 31);
+	major = EXTRACT_BITS(val32, 8, 15);
+	minor = EXTRACT_BITS(val32, 0, 7);
+	*version = (major << 8) + minor;
+	return 0;
+}
+
 int ocxl_config_check_afu_index(struct pci_dev *dev,
 				struct ocxl_fn_config *fn, int afu_idx)
 {
-	u32 val;
-	int rc, templ_major, templ_minor, len;
+	int rc;
+	u16 templ_version;
+	u16 len, expected_len;
 
 	pci_write_config_byte(dev,
 			fn->dvsec_afu_info_pos + OCXL_DVSEC_AFU_INFO_AFU_IDX,
 			afu_idx);
-	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_VERSION, &val);
+
+	rc = read_template_version(dev, fn, &len, &templ_version);
 	if (rc)
 		return rc;
 
-	/* AFU index map can have holes */
-	if (!val)
+	/* AFU index map can have holes, in which case we read all 0's */
+	if (!templ_version && !len)
 		return 0;
 
-	templ_major = EXTRACT_BITS(val, 8, 15);
-	templ_minor = EXTRACT_BITS(val, 0, 7);
 	dev_dbg(&dev->dev, "AFU descriptor template version %d.%d\n",
-		templ_major, templ_minor);
+		templ_version >> 8, templ_version & 0xFF);
 
-	len = EXTRACT_BITS(val, 16, 31);
-	if (len != OCXL_TEMPL_LEN) {
-		dev_warn(&dev->dev,
-			"Unexpected template length in AFU information (%#x)\n",
-			len);
+	switch (templ_version) {
+	case 0x0005: // v0.5 was used prior to the spec approval
+	case 0x0100:
+		expected_len = OCXL_TEMPL_LEN_1_0;
+		break;
+	case 0x0101:
+		expected_len = OCXL_TEMPL_LEN_1_1;
+		break;
+	default:
+		dev_warn(&dev->dev, "Unknown AFU template version %#x\n",
+			templ_version);
+		expected_len = len;
 	}
+	if (len != expected_len)
+		dev_warn(&dev->dev,
+			"Unexpected template length %#x in AFU information, expected %#x for version %#x\n",
+			len, expected_len, templ_version);
 	return 1;
 }
 
@@ -434,6 +475,102 @@ static int validate_afu(struct pci_dev *dev, struct ocxl_afu_config *afu)
 	return 0;
 }
 
+/**
+ * Populate AFU metadata regarding LPC memory
+ * dev: the device for the AFU
+ * fn: the AFU offsets
+ * afu: the AFU struct to populate the LPC metadata into
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int read_afu_lpc_memory_info(struct pci_dev *dev,
+				struct ocxl_fn_config *fn,
+				struct ocxl_afu_config *afu)
+{
+	int rc;
+	u32 val32;
+	u16 templ_version;
+	u16 templ_len;
+	u64 total_mem_size = 0;
+	u64 lpc_mem_size = 0;
+
+	afu->lpc_mem_offset = 0;
+	afu->lpc_mem_size = 0;
+	afu->special_purpose_mem_offset = 0;
+	afu->special_purpose_mem_size = 0;
+	/*
+	 * For AFUs following template v1.0, the LPC memory covers the
+	 * total memory. Its size is a power of 2.
+	 *
+	 * For AFUs with template >= v1.01, the total memory size is
+	 * still a power of 2, but it is split in 2 parts:
+	 * - the LPC memory, whose size can now be anything
+	 * - the remainder memory is a special purpose memory, whose
+	 *   definition is AFU-dependent. It is not accessible through
+	 *   the usual commands for LPC memory
+	 */
+	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_ALL_MEM_SZ, &val32);
+	if (rc)
+		return rc;
+
+	val32 = EXTRACT_BITS(val32, 0, 7);
+	if (!val32)
+		return 0; /* No LPC memory */
+
+	/*
+	 * The configuration space spec allows for a memory size of up
+	 * to 2^255 bytes.
+	 *
+	 * Current generation hardware uses 56-bit physical addresses,
+	 * but we won't be able to get near close to that, as we won't
+	 * have a hole big enough in the memory map.  Let it pass in
+	 * the driver for now. We'll get an error from the firmware
+	 * when trying to configure something too big.
+	 */
+	total_mem_size = 1ull << val32;
+
+	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_LPC_MEM_START, &val32);
+	if (rc)
+		return rc;
+
+	afu->lpc_mem_offset = val32;
+
+	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_LPC_MEM_START + 4, &val32);
+	if (rc)
+		return rc;
+
+	afu->lpc_mem_offset |= (u64) val32 << 32;
+
+	rc = read_template_version(dev, fn, &templ_len, &templ_version);
+	if (rc)
+		return rc;
+
+	if (templ_version >= 0x0101) {
+		rc = read_afu_info(dev, fn,
+				OCXL_DVSEC_TEMPL_LPC_MEM_SZ, &val32);
+		if (rc)
+			return rc;
+		lpc_mem_size = val32;
+
+		rc = read_afu_info(dev, fn,
+				OCXL_DVSEC_TEMPL_LPC_MEM_SZ + 4, &val32);
+		if (rc)
+			return rc;
+		lpc_mem_size |= (u64) val32 << 32;
+	} else {
+		lpc_mem_size = total_mem_size;
+	}
+	afu->lpc_mem_size = lpc_mem_size;
+
+	if (lpc_mem_size < total_mem_size) {
+		afu->special_purpose_mem_offset =
+			afu->lpc_mem_offset + lpc_mem_size;
+		afu->special_purpose_mem_size =
+			total_mem_size - lpc_mem_size;
+	}
+	return 0;
+}
+
 int ocxl_config_read_afu(struct pci_dev *dev, struct ocxl_fn_config *fn,
 			struct ocxl_afu_config *afu, u8 afu_idx)
 {
@@ -467,10 +604,9 @@ int ocxl_config_read_afu(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	if (rc)
 		return rc;
 
-	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_MEM_SZ, &val32);
+	rc = read_afu_lpc_memory_info(dev, fn, afu);
 	if (rc)
 		return rc;
-	afu->log_mem_size = EXTRACT_BITS(val32, 0, 7);
 
 	rc = read_afu_control(dev, afu);
 	if (rc)
@@ -487,7 +623,12 @@ int ocxl_config_read_afu(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	dev_dbg(&dev->dev, "  pp mmio bar = %hhu\n", afu->pp_mmio_bar);
 	dev_dbg(&dev->dev, "  pp mmio offset = %#llx\n", afu->pp_mmio_offset);
 	dev_dbg(&dev->dev, "  pp mmio stride = %#x\n", afu->pp_mmio_stride);
-	dev_dbg(&dev->dev, "  mem size (log) = %hhu\n", afu->log_mem_size);
+	dev_dbg(&dev->dev, "  lpc_mem offset = %#llx\n", afu->lpc_mem_offset);
+	dev_dbg(&dev->dev, "  lpc_mem size = %#llx\n", afu->lpc_mem_size);
+	dev_dbg(&dev->dev, "  special purpose mem offset = %#llx\n",
+		afu->special_purpose_mem_offset);
+	dev_dbg(&dev->dev, "  special purpose mem size = %#llx\n",
+		afu->special_purpose_mem_size);
 	dev_dbg(&dev->dev, "  pasid supported (log) = %u\n",
 		afu->pasid_supported_log);
 	dev_dbg(&dev->dev, "  actag supported = %u\n",

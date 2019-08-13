@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_a0.c: Definition of Atlantic hardware specific functions. */
@@ -454,7 +451,7 @@ static int hw_atl_a0_hw_ring_tx_xmit(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->sw_tail];
 
-		if (buff->is_txc) {
+		if (buff->is_gso) {
 			txd->ctl |= (buff->len_l3 << 31) |
 				(buff->len_l2 << 24) |
 				HW_ATL_A0_TXD_CTL_CMD_TCP |

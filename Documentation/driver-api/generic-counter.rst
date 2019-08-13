@@ -251,7 +251,7 @@ for defining a counter device.
 .. kernel-doc:: include/linux/counter.h
    :internal:
 
-.. kernel-doc:: drivers/counter/generic-counter.c
+.. kernel-doc:: drivers/counter/counter.c
    :export:
 
 Implementation

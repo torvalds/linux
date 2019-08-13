@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_DDBRIDGE
 	tristate "Digital Devices bridge support"
 	depends on DVB_CORE && PCI && I2C
@@ -35,7 +36,6 @@ config DVB_DDBRIDGE_MSIENABLE
 	bool "Enable Message Signaled Interrupts (MSI) per default (EXPERIMENTAL)"
 	depends on DVB_DDBRIDGE
 	depends on PCI_MSI
-	default n
 	help
 	  Use PCI MSI (Message Signaled Interrupts) per default. Enabling this
 	  might lead to I2C errors originating from the bridge in conjunction

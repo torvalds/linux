@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
  *
  * Author: Keerthy <j-keerthy@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
  */
 
 #include <linux/interrupt.h>
@@ -32,6 +29,10 @@ static const struct of_device_id of_lp87565_match_table[] = {
 	{
 		.compatible = "ti,lp87565-q1",
 		.data = (void *)LP87565_DEVICE_TYPE_LP87565_Q1,
+	},
+	{
+		.compatible = "ti,lp87561-q1",
+		.data = (void *)LP87565_DEVICE_TYPE_LP87561_Q1,
 	},
 	{}
 };

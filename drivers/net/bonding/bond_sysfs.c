@@ -1,22 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2004-2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -342,6 +326,18 @@ static ssize_t bonding_show_updelay(struct device *d,
 }
 static DEVICE_ATTR(updelay, 0644,
 		   bonding_show_updelay, bonding_sysfs_store_option);
+
+static ssize_t bonding_show_peer_notif_delay(struct device *d,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n",
+		       bond->params.peer_notif_delay * bond->params.miimon);
+}
+static DEVICE_ATTR(peer_notif_delay, 0644,
+		   bonding_show_peer_notif_delay, bonding_sysfs_store_option);
 
 /* Show the LACP interval. */
 static ssize_t bonding_show_lacp(struct device *d,
@@ -734,6 +730,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_arp_ip_target.attr,
 	&dev_attr_downdelay.attr,
 	&dev_attr_updelay.attr,
+	&dev_attr_peer_notif_delay.attr,
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,

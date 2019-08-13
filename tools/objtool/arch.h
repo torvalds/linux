@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ARCH_H
@@ -23,22 +11,24 @@
 #include "elf.h"
 #include "cfi.h"
 
-#define INSN_JUMP_CONDITIONAL	1
-#define INSN_JUMP_UNCONDITIONAL	2
-#define INSN_JUMP_DYNAMIC	3
-#define INSN_CALL		4
-#define INSN_CALL_DYNAMIC	5
-#define INSN_RETURN		6
-#define INSN_CONTEXT_SWITCH	7
-#define INSN_STACK		8
-#define INSN_BUG		9
-#define INSN_NOP		10
-#define INSN_STAC		11
-#define INSN_CLAC		12
-#define INSN_STD		13
-#define INSN_CLD		14
-#define INSN_OTHER		15
-#define INSN_LAST		INSN_OTHER
+enum insn_type {
+	INSN_JUMP_CONDITIONAL,
+	INSN_JUMP_UNCONDITIONAL,
+	INSN_JUMP_DYNAMIC,
+	INSN_JUMP_DYNAMIC_CONDITIONAL,
+	INSN_CALL,
+	INSN_CALL_DYNAMIC,
+	INSN_RETURN,
+	INSN_CONTEXT_SWITCH,
+	INSN_STACK,
+	INSN_BUG,
+	INSN_NOP,
+	INSN_STAC,
+	INSN_CLAC,
+	INSN_STD,
+	INSN_CLD,
+	INSN_OTHER,
+};
 
 enum op_dest_type {
 	OP_DEST_REG,
@@ -80,7 +70,7 @@ void arch_initial_func_cfi_state(struct cfi_state *state);
 
 int arch_decode_instruction(struct elf *elf, struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
-			    unsigned int *len, unsigned char *type,
+			    unsigned int *len, enum insn_type *type,
 			    unsigned long *immediate, struct stack_op *op);
 
 bool arch_callee_saved_reg(unsigned char reg);

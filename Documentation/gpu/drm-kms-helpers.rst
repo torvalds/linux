@@ -181,6 +181,21 @@ Panel Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_panel_orientation_quirks.c
    :export:
 
+Panel Self Refresh Helper Reference
+===================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
+   :export:
+
+HDCP Helper Functions Reference
+===============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_hdcp.c
+   :export:
+
 Display Port Helper Functions Reference
 =======================================
 

@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Hash algorithms.
  * 
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_INTERNAL_HASH_H
@@ -199,12 +194,6 @@ static inline struct ahash_request *ahash_dequeue_request(
 	struct crypto_queue *queue)
 {
 	return ahash_request_cast(crypto_dequeue_request(queue));
-}
-
-static inline int ahash_tfm_in_queue(struct crypto_queue *queue,
-					  struct crypto_ahash *tfm)
-{
-	return crypto_tfm_in_queue(queue, crypto_ahash_tfm(tfm));
 }
 
 static inline void *crypto_shash_ctx(struct crypto_shash *tfm)

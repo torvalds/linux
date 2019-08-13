@@ -89,6 +89,11 @@ enum {
 	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
 	 */
 	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
+
+	/*
+	 * Enable legacy local memory.events.
+	 */
+	CGRP_ROOT_MEMORY_LOCAL_EVENTS = (1 << 5),
 };
 
 /* cftype->flags */
@@ -216,6 +221,7 @@ struct css_set {
 	 */
 	struct list_head tasks;
 	struct list_head mg_tasks;
+	struct list_head dying_tasks;
 
 	/* all css_task_iters currently walking this cset */
 	struct list_head task_iters;
@@ -618,7 +624,7 @@ struct cftype {
 
 /*
  * Control Group subsystem type.
- * See Documentation/cgroup-v1/cgroups.txt for details
+ * See Documentation/admin-guide/cgroup-v1/cgroups.rst for details
  */
 struct cgroup_subsys {
 	struct cgroup_subsys_state *(*css_alloc)(struct cgroup_subsys_state *parent_css);

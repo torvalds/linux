@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx Switch Port Registers support
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitfield.h>
@@ -294,6 +290,18 @@ int mv88e6185_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 	return mv88e6xxx_port_set_speed(chip, port, speed, false, false);
 }
 
+/* Support 10, 100 Mbps (e.g. 88E6250 family) */
+int mv88e6250_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
+{
+	if (speed == SPEED_MAX)
+		speed = 100;
+
+	if (speed > 100)
+		return -EOPNOTSUPP;
+
+	return mv88e6xxx_port_set_speed(chip, port, speed, false, false);
+}
+
 /* Support 10, 100, 200, 1000, 2500 Mbps (e.g. 88E6341) */
 int mv88e6341_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 {
@@ -517,6 +525,71 @@ int mv88e6352_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 		return err;
 
 	*cmode = reg & MV88E6XXX_PORT_STS_CMODE_MASK;
+
+	return 0;
+}
+
+int mv88e6250_port_link_state(struct mv88e6xxx_chip *chip, int port,
+			      struct phylink_link_state *state)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err)
+		return err;
+
+	if (port < 5) {
+		switch (reg & MV88E6250_PORT_STS_PORTMODE_MASK) {
+		case MV88E6250_PORT_STS_PORTMODE_PHY_10_HALF:
+			state->speed = SPEED_10;
+			state->duplex = DUPLEX_HALF;
+			break;
+		case MV88E6250_PORT_STS_PORTMODE_PHY_100_HALF:
+			state->speed = SPEED_100;
+			state->duplex = DUPLEX_HALF;
+			break;
+		case MV88E6250_PORT_STS_PORTMODE_PHY_10_FULL:
+			state->speed = SPEED_10;
+			state->duplex = DUPLEX_FULL;
+			break;
+		case MV88E6250_PORT_STS_PORTMODE_PHY_100_FULL:
+			state->speed = SPEED_100;
+			state->duplex = DUPLEX_FULL;
+			break;
+		default:
+			state->speed = SPEED_UNKNOWN;
+			state->duplex = DUPLEX_UNKNOWN;
+			break;
+		}
+	} else {
+		switch (reg & MV88E6250_PORT_STS_PORTMODE_MASK) {
+		case MV88E6250_PORT_STS_PORTMODE_MII_10_HALF:
+			state->speed = SPEED_10;
+			state->duplex = DUPLEX_HALF;
+			break;
+		case MV88E6250_PORT_STS_PORTMODE_MII_100_HALF:
+			state->speed = SPEED_100;
+			state->duplex = DUPLEX_HALF;
+			break;
+		case MV88E6250_PORT_STS_PORTMODE_MII_10_FULL:
+			state->speed = SPEED_10;
+			state->duplex = DUPLEX_FULL;
+			break;
+		case MV88E6250_PORT_STS_PORTMODE_MII_100_FULL:
+			state->speed = SPEED_100;
+			state->duplex = DUPLEX_FULL;
+			break;
+		default:
+			state->speed = SPEED_UNKNOWN;
+			state->duplex = DUPLEX_UNKNOWN;
+			break;
+		}
+	}
+
+	state->link = !!(reg & MV88E6250_PORT_STS_LINK);
+	state->an_enabled = 1;
+	state->an_complete = state->link;
 
 	return 0;
 }

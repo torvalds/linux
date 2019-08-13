@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * L2TPv3 IP encapsulation support for IPv6
  *
  * Copyright (c) 2012 Katalix Systems Ltd
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -540,7 +536,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			fl6.flowlabel = lsa->l2tp_flowinfo & IPV6_FLOWINFO_MASK;
 			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-				if (flowlabel == NULL)
+				if (IS_ERR(flowlabel))
 					return -EINVAL;
 			}
 		}
@@ -581,7 +577,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		}
 		if ((fl6.flowlabel & IPV6_FLOWLABEL_MASK) && !flowlabel) {
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (IS_ERR(flowlabel))
 				return -EINVAL;
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))

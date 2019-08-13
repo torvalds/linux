@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains common routines for dealing with free of page tables
  * Along with common page table handling code
@@ -14,11 +15,6 @@
  *
  *  Dave Engebretsen <engebret@us.ibm.com>
  *      Rework for PPC64 port.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -340,10 +336,11 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	if (pgd_none(pgd))
 		return NULL;
 
-	if (pgd_huge(pgd)) {
+	if (pgd_is_leaf(pgd)) {
 		ret_pte = (pte_t *)pgdp;
 		goto out;
 	}
+
 	if (is_hugepd(__hugepd(pgd_val(pgd)))) {
 		hpdp = (hugepd_t *)&pgd;
 		goto out_huge;
@@ -361,23 +358,37 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	if (pud_none(pud))
 		return NULL;
 
-	if (pud_huge(pud)) {
+	if (pud_is_leaf(pud)) {
 		ret_pte = (pte_t *)pudp;
 		goto out;
 	}
+
 	if (is_hugepd(__hugepd(pud_val(pud)))) {
 		hpdp = (hugepd_t *)&pud;
 		goto out_huge;
 	}
+
 	pdshift = PMD_SHIFT;
 	pmdp = pmd_offset(&pud, ea);
 	pmd  = READ_ONCE(*pmdp);
+
 	/*
-	 * A hugepage collapse is captured by pmd_none, because
-	 * it mark the pmd none and do a hpte invalidate.
+	 * A hugepage collapse is captured by this condition, see
+	 * pmdp_collapse_flush.
 	 */
 	if (pmd_none(pmd))
 		return NULL;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * A hugepage split is captured by this condition, see
+	 * pmdp_invalidate.
+	 *
+	 * Huge page modification can be caught here too.
+	 */
+	if (pmd_is_serializing(pmd))
+		return NULL;
+#endif
 
 	if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
 		if (is_thp)
@@ -385,15 +396,12 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 		ret_pte = (pte_t *)pmdp;
 		goto out;
 	}
-	/*
-	 * pmd_large check below will handle the swap pmd pte
-	 * we need to do both the check because they are config
-	 * dependent.
-	 */
-	if (pmd_huge(pmd) || pmd_large(pmd)) {
+
+	if (pmd_is_leaf(pmd)) {
 		ret_pte = (pte_t *)pmdp;
 		goto out;
 	}
+
 	if (is_hugepd(__hugepd(pmd_val(pmd)))) {
 		hpdp = (hugepd_t *)&pmd;
 		goto out_huge;

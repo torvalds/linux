@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * imr.c -- Intel Isolated Memory Region driver
  *
@@ -34,7 +35,6 @@
 #include <linux/types.h>
 
 struct imr_device {
-	struct dentry	*file;
 	bool		init;
 	struct mutex	lock;
 	int		max_imr;
@@ -230,13 +230,11 @@ DEFINE_SHOW_ATTRIBUTE(imr_dbgfs_state);
  * imr_debugfs_register - register debugfs hooks.
  *
  * @idev:	pointer to imr_device structure.
- * @return:	0 on success - errno on failure.
  */
-static int imr_debugfs_register(struct imr_device *idev)
+static void imr_debugfs_register(struct imr_device *idev)
 {
-	idev->file = debugfs_create_file("imr_state", 0444, NULL, idev,
-					 &imr_dbgfs_state_fops);
-	return PTR_ERR_OR_ZERO(idev->file);
+	debugfs_create_file("imr_state", 0444, NULL, idev,
+			    &imr_dbgfs_state_fops);
 }
 
 /**
@@ -581,7 +579,6 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 static int __init imr_init(void)
 {
 	struct imr_device *idev = &imr_dev;
-	int ret;
 
 	if (!x86_match_cpu(imr_ids) || !iosf_mbi_available())
 		return -ENODEV;
@@ -591,9 +588,7 @@ static int __init imr_init(void)
 	idev->init = true;
 
 	mutex_init(&idev->lock);
-	ret = imr_debugfs_register(idev);
-	if (ret != 0)
-		pr_warn("debugfs register failed!\n");
+	imr_debugfs_register(idev);
 	imr_fixup_memmap(idev);
 	return 0;
 }

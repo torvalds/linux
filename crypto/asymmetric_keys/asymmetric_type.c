@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Asymmetric public-key cryptography key type
  *
  * See Documentation/crypto/asymmetric-keys.txt
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 #include <keys/asymmetric-subtype.h>
 #include <keys/asymmetric-parser.h>
@@ -87,7 +83,7 @@ struct key *find_asymmetric_key(struct key *keyring,
 	pr_debug("Look up: \"%s\"\n", req);
 
 	ref = keyring_search(make_key_ref(keyring, 1),
-			     &key_type_asymmetric, req);
+			     &key_type_asymmetric, req, true);
 	if (IS_ERR(ref))
 		pr_debug("Request for key '%s' err %ld\n", req, PTR_ERR(ref));
 	kfree(req);

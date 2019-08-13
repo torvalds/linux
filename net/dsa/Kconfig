@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HAVE_NET_DSA
 	def_bool y
 	depends on INET && NETDEVICES && !S390
@@ -105,6 +106,7 @@ config NET_DSA_TAG_LAN9303
 config NET_DSA_TAG_SJA1105
 	tristate "Tag driver for NXP SJA1105 switches"
 	select NET_DSA_TAG_8021Q
+	select PACKING
 	help
 	  Say Y or M if you want to enable support for tagging frames with the
 	  NXP SJA1105 switch family. Both the native tagging protocol (which

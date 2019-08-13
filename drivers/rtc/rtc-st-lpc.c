@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * rtc-st-lpc.c - ST's LPC RTC, powered by the Low Power Timer
  *
@@ -7,11 +8,6 @@
  *         Lee Jones <lee.jones@linaro.org> for STMicroelectronics
  *
  * Based on the original driver written by Stuart Menefy.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -165,10 +161,6 @@ static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	st_rtc_read_time(dev, &now);
 	now_secs = rtc_tm_to_time64(&now);
 	alarm_secs = rtc_tm_to_time64(&t->time);
-
-	/* Invalid alarm time */
-	if (now_secs > alarm_secs)
-		return -EINVAL;
 
 	memcpy(&rtc->alarm, t, sizeof(struct rtc_wkalrm));
 

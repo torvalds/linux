@@ -203,7 +203,7 @@ static int __init dasd_feature_list(char *str)
 		else if (len == 8 && !strncmp(str, "failfast", 8))
 			features |= DASD_FEATURE_FAILFAST;
 		else {
-			pr_warn("%*s is not a supported device option\n",
+			pr_warn("%.*s is not a supported device option\n",
 				len, str);
 			rc = -EINVAL;
 		}
@@ -1642,6 +1642,35 @@ static DEVICE_ATTR(path_interval, 0644, dasd_path_interval_show,
 		   dasd_path_interval_store);
 
 
+#define DASD_DEFINE_ATTR(_name, _func)					\
+static ssize_t dasd_##_name##_show(struct device *dev,			\
+				   struct device_attribute *attr,	\
+				   char *buf)				\
+{									\
+	struct ccw_device *cdev = to_ccwdev(dev);			\
+	struct dasd_device *device = dasd_device_from_cdev(cdev);	\
+	int val = 0;							\
+									\
+	if (IS_ERR(device))						\
+		return -ENODEV;						\
+	if (device->discipline && _func)				\
+		val = _func(device);					\
+	dasd_put_device(device);					\
+									\
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);			\
+}									\
+static DEVICE_ATTR(_name, 0444, dasd_##_name##_show, NULL);		\
+
+DASD_DEFINE_ATTR(ese, device->discipline->is_ese);
+DASD_DEFINE_ATTR(extent_size, device->discipline->ext_size);
+DASD_DEFINE_ATTR(pool_id, device->discipline->ext_pool_id);
+DASD_DEFINE_ATTR(space_configured, device->discipline->space_configured);
+DASD_DEFINE_ATTR(space_allocated, device->discipline->space_allocated);
+DASD_DEFINE_ATTR(logical_capacity, device->discipline->logical_capacity);
+DASD_DEFINE_ATTR(warn_threshold, device->discipline->ext_pool_warn_thrshld);
+DASD_DEFINE_ATTR(cap_at_warnlevel, device->discipline->ext_pool_cap_at_warnlevel);
+DASD_DEFINE_ATTR(pool_oos, device->discipline->ext_pool_oos);
+
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
 	&dev_attr_discipline.attr,
@@ -1667,11 +1696,45 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_path_interval.attr,
 	&dev_attr_path_reset.attr,
 	&dev_attr_hpf.attr,
+	&dev_attr_ese.attr,
 	NULL,
 };
 
 static const struct attribute_group dasd_attr_group = {
 	.attrs = dasd_attrs,
+};
+
+static struct attribute *capacity_attrs[] = {
+	&dev_attr_space_configured.attr,
+	&dev_attr_space_allocated.attr,
+	&dev_attr_logical_capacity.attr,
+	NULL,
+};
+
+static const struct attribute_group capacity_attr_group = {
+	.name = "capacity",
+	.attrs = capacity_attrs,
+};
+
+static struct attribute *ext_pool_attrs[] = {
+	&dev_attr_pool_id.attr,
+	&dev_attr_extent_size.attr,
+	&dev_attr_warn_threshold.attr,
+	&dev_attr_cap_at_warnlevel.attr,
+	&dev_attr_pool_oos.attr,
+	NULL,
+};
+
+static const struct attribute_group ext_pool_attr_group = {
+	.name = "extent_pool",
+	.attrs = ext_pool_attrs,
+};
+
+static const struct attribute_group *dasd_attr_groups[] = {
+	&dasd_attr_group,
+	&capacity_attr_group,
+	&ext_pool_attr_group,
+	NULL,
 };
 
 /*
@@ -1715,16 +1778,15 @@ dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
 EXPORT_SYMBOL(dasd_set_feature);
 
 
-int
-dasd_add_sysfs_files(struct ccw_device *cdev)
+int dasd_add_sysfs_files(struct ccw_device *cdev)
 {
-	return sysfs_create_group(&cdev->dev.kobj, &dasd_attr_group);
+	return sysfs_create_groups(&cdev->dev.kobj, dasd_attr_groups);
 }
 
 void
 dasd_remove_sysfs_files(struct ccw_device *cdev)
 {
-	sysfs_remove_group(&cdev->dev.kobj, &dasd_attr_group);
+	sysfs_remove_groups(&cdev->dev.kobj, dasd_attr_groups);
 }
 
 

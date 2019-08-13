@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/mach-pxa/include/mach/zeus.h
  *
@@ -6,10 +7,6 @@
  *  Copyright:	Arcom Control Systems Ltd.
  *
  *  Maintained by: Marc Zyngier <maz@misterjones.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _MACH_ZEUS_H

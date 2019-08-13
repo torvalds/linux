@@ -1,0 +1,324 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2018 BayLibre, SAS
+ * Author: Maxime Jourdan <mjourdan@baylibre.com>
+ *
+ * The Elementary Stream Parser is a HW bitstream parser.
+ * It reads bitstream buffers and feeds them to the VIFIFO
+ */
+
+#include <linux/init.h>
+#include <linux/ioctl.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/reset.h>
+#include <linux/interrupt.h>
+#include <media/videobuf2-dma-contig.h>
+#include <media/v4l2-mem2mem.h>
+
+#include "dos_regs.h"
+#include "esparser.h"
+#include "vdec_helpers.h"
+
+/* PARSER REGS (CBUS) */
+#define PARSER_CONTROL 0x00
+	#define ES_PACK_SIZE_BIT	8
+	#define ES_WRITE		BIT(5)
+	#define ES_SEARCH		BIT(1)
+	#define ES_PARSER_START		BIT(0)
+#define PARSER_FETCH_ADDR	0x4
+#define PARSER_FETCH_CMD	0x8
+#define PARSER_CONFIG 0x14
+	#define PS_CFG_MAX_FETCH_CYCLE_BIT	0
+	#define PS_CFG_STARTCODE_WID_24_BIT	10
+	#define PS_CFG_MAX_ES_WR_CYCLE_BIT	12
+	#define PS_CFG_PFIFO_EMPTY_CNT_BIT	16
+#define PFIFO_WR_PTR 0x18
+#define PFIFO_RD_PTR 0x1c
+#define PARSER_SEARCH_PATTERN 0x24
+	#define ES_START_CODE_PATTERN 0x00000100
+#define PARSER_SEARCH_MASK 0x28
+	#define ES_START_CODE_MASK	0xffffff00
+	#define FETCH_ENDIAN_BIT	27
+#define PARSER_INT_ENABLE	0x2c
+	#define PARSER_INT_HOST_EN_BIT	8
+#define PARSER_INT_STATUS	0x30
+	#define PARSER_INTSTAT_SC_FOUND	1
+#define PARSER_ES_CONTROL	0x5c
+#define PARSER_VIDEO_START_PTR	0x80
+#define PARSER_VIDEO_END_PTR	0x84
+#define PARSER_VIDEO_WP		0x88
+#define PARSER_VIDEO_HOLE	0x90
+
+#define SEARCH_PATTERN_LEN	512
+
+static DECLARE_WAIT_QUEUE_HEAD(wq);
+static int search_done;
+
+static irqreturn_t esparser_isr(int irq, void *dev)
+{
+	int int_status;
+	struct amvdec_core *core = dev;
+
+	int_status = amvdec_read_parser(core, PARSER_INT_STATUS);
+	amvdec_write_parser(core, PARSER_INT_STATUS, int_status);
+
+	if (int_status & PARSER_INTSTAT_SC_FOUND) {
+		amvdec_write_parser(core, PFIFO_RD_PTR, 0);
+		amvdec_write_parser(core, PFIFO_WR_PTR, 0);
+		search_done = 1;
+		wake_up_interruptible(&wq);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/* Pad the packet to at least 4KiB bytes otherwise the VDEC unit won't trigger
+ * ISRs.
+ * Also append a start code 000001ff at the end to trigger
+ * the ESPARSER interrupt.
+ */
+static u32 esparser_pad_start_code(struct vb2_buffer *vb)
+{
+	u32 payload_size = vb2_get_plane_payload(vb, 0);
+	u32 pad_size = 0;
+	u8 *vaddr = vb2_plane_vaddr(vb, 0) + payload_size;
+
+	if (payload_size < ESPARSER_MIN_PACKET_SIZE) {
+		pad_size = ESPARSER_MIN_PACKET_SIZE - payload_size;
+		memset(vaddr, 0, pad_size);
+	}
+
+	memset(vaddr + pad_size, 0, SEARCH_PATTERN_LEN);
+	vaddr[pad_size]     = 0x00;
+	vaddr[pad_size + 1] = 0x00;
+	vaddr[pad_size + 2] = 0x01;
+	vaddr[pad_size + 3] = 0xff;
+
+	return pad_size;
+}
+
+static int
+esparser_write_data(struct amvdec_core *core, dma_addr_t addr, u32 size)
+{
+	amvdec_write_parser(core, PFIFO_RD_PTR, 0);
+	amvdec_write_parser(core, PFIFO_WR_PTR, 0);
+	amvdec_write_parser(core, PARSER_CONTROL,
+			    ES_WRITE |
+			    ES_PARSER_START |
+			    ES_SEARCH |
+			    (size << ES_PACK_SIZE_BIT));
+
+	amvdec_write_parser(core, PARSER_FETCH_ADDR, addr);
+	amvdec_write_parser(core, PARSER_FETCH_CMD,
+			    (7 << FETCH_ENDIAN_BIT) |
+			    (size + SEARCH_PATTERN_LEN));
+
+	search_done = 0;
+	return wait_event_interruptible_timeout(wq, search_done, (HZ / 5));
+}
+
+static u32 esparser_vififo_get_free_space(struct amvdec_session *sess)
+{
+	u32 vififo_usage;
+	struct amvdec_ops *vdec_ops = sess->fmt_out->vdec_ops;
+	struct amvdec_core *core = sess->core;
+
+	vififo_usage  = vdec_ops->vififo_level(sess);
+	vififo_usage += amvdec_read_parser(core, PARSER_VIDEO_HOLE);
+	vififo_usage += (6 * SZ_1K); // 6 KiB internal fifo
+
+	if (vififo_usage > sess->vififo_size) {
+		dev_warn(sess->core->dev,
+			 "VIFIFO usage (%u) > VIFIFO size (%u)\n",
+			 vififo_usage, sess->vififo_size);
+		return 0;
+	}
+
+	return sess->vififo_size - vififo_usage;
+}
+
+int esparser_queue_eos(struct amvdec_core *core, const u8 *data, u32 len)
+{
+	struct device *dev = core->dev;
+	void *eos_vaddr;
+	dma_addr_t eos_paddr;
+	int ret;
+
+	eos_vaddr = dma_alloc_coherent(dev, len + SEARCH_PATTERN_LEN,
+				       &eos_paddr, GFP_KERNEL);
+	if (!eos_vaddr)
+		return -ENOMEM;
+
+	memcpy(eos_vaddr, data, len);
+	ret = esparser_write_data(core, eos_paddr, len);
+	dma_free_coherent(dev, len + SEARCH_PATTERN_LEN,
+			  eos_vaddr, eos_paddr);
+
+	return ret;
+}
+
+static u32 esparser_get_offset(struct amvdec_session *sess)
+{
+	struct amvdec_core *core = sess->core;
+	u32 offset = amvdec_read_parser(core, PARSER_VIDEO_WP) -
+		     sess->vififo_paddr;
+
+	if (offset < sess->last_offset)
+		sess->wrap_count++;
+
+	sess->last_offset = offset;
+	offset += (sess->wrap_count * sess->vififo_size);
+
+	return offset;
+}
+
+static int
+esparser_queue(struct amvdec_session *sess, struct vb2_v4l2_buffer *vbuf)
+{
+	int ret;
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	struct amvdec_core *core = sess->core;
+	struct amvdec_codec_ops *codec_ops = sess->fmt_out->codec_ops;
+	u32 num_dst_bufs = 0;
+	u32 payload_size = vb2_get_plane_payload(vb, 0);
+	dma_addr_t phy = vb2_dma_contig_plane_dma_addr(vb, 0);
+	u32 offset;
+	u32 pad_size;
+
+	if (codec_ops->num_pending_bufs)
+		num_dst_bufs = codec_ops->num_pending_bufs(sess);
+
+	num_dst_bufs += v4l2_m2m_num_dst_bufs_ready(sess->m2m_ctx);
+
+	if (esparser_vififo_get_free_space(sess) < payload_size ||
+	    atomic_read(&sess->esparser_queued_bufs) >= num_dst_bufs)
+		return -EAGAIN;
+
+	v4l2_m2m_src_buf_remove_by_buf(sess->m2m_ctx, vbuf);
+
+	offset = esparser_get_offset(sess);
+
+	amvdec_add_ts_reorder(sess, vb->timestamp, offset);
+	dev_dbg(core->dev, "esparser: ts = %llu pld_size = %u offset = %08X\n",
+		vb->timestamp, payload_size, offset);
+
+	pad_size = esparser_pad_start_code(vb);
+	ret = esparser_write_data(core, phy, payload_size + pad_size);
+
+	if (ret <= 0) {
+		dev_warn(core->dev, "esparser: input parsing error\n");
+		amvdec_remove_ts(sess, vb->timestamp);
+		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
+		amvdec_write_parser(core, PARSER_FETCH_CMD, 0);
+
+		return 0;
+	}
+
+	/* We need to wait until we parse the first keyframe.
+	 * All buffers prior to the first keyframe must be dropped.
+	 */
+	if (!sess->keyframe_found)
+		usleep_range(1000, 2000);
+
+	if (sess->keyframe_found)
+		atomic_inc(&sess->esparser_queued_bufs);
+	else
+		amvdec_remove_ts(sess, vb->timestamp);
+
+	vbuf->flags = 0;
+	vbuf->field = V4L2_FIELD_NONE;
+	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
+
+	return 0;
+}
+
+void esparser_queue_all_src(struct work_struct *work)
+{
+	struct v4l2_m2m_buffer *buf, *n;
+	struct amvdec_session *sess =
+		container_of(work, struct amvdec_session, esparser_queue_work);
+
+	mutex_lock(&sess->lock);
+	v4l2_m2m_for_each_src_buf_safe(sess->m2m_ctx, buf, n) {
+		if (sess->should_stop)
+			break;
+
+		if (esparser_queue(sess, &buf->vb) < 0)
+			break;
+	}
+	mutex_unlock(&sess->lock);
+}
+
+int esparser_power_up(struct amvdec_session *sess)
+{
+	struct amvdec_core *core = sess->core;
+	struct amvdec_ops *vdec_ops = sess->fmt_out->vdec_ops;
+
+	reset_control_reset(core->esparser_reset);
+	amvdec_write_parser(core, PARSER_CONFIG,
+			    (10 << PS_CFG_PFIFO_EMPTY_CNT_BIT) |
+			    (1  << PS_CFG_MAX_ES_WR_CYCLE_BIT) |
+			    (16 << PS_CFG_MAX_FETCH_CYCLE_BIT));
+
+	amvdec_write_parser(core, PFIFO_RD_PTR, 0);
+	amvdec_write_parser(core, PFIFO_WR_PTR, 0);
+
+	amvdec_write_parser(core, PARSER_SEARCH_PATTERN,
+			    ES_START_CODE_PATTERN);
+	amvdec_write_parser(core, PARSER_SEARCH_MASK, ES_START_CODE_MASK);
+
+	amvdec_write_parser(core, PARSER_CONFIG,
+			    (10 << PS_CFG_PFIFO_EMPTY_CNT_BIT) |
+			    (1  << PS_CFG_MAX_ES_WR_CYCLE_BIT) |
+			    (16 << PS_CFG_MAX_FETCH_CYCLE_BIT) |
+			    (2  << PS_CFG_STARTCODE_WID_24_BIT));
+
+	amvdec_write_parser(core, PARSER_CONTROL,
+			    (ES_SEARCH | ES_PARSER_START));
+
+	amvdec_write_parser(core, PARSER_VIDEO_START_PTR, sess->vififo_paddr);
+	amvdec_write_parser(core, PARSER_VIDEO_END_PTR,
+			    sess->vififo_paddr + sess->vififo_size - 8);
+	amvdec_write_parser(core, PARSER_ES_CONTROL,
+			    amvdec_read_parser(core, PARSER_ES_CONTROL) & ~1);
+
+	if (vdec_ops->conf_esparser)
+		vdec_ops->conf_esparser(sess);
+
+	amvdec_write_parser(core, PARSER_INT_STATUS, 0xffff);
+	amvdec_write_parser(core, PARSER_INT_ENABLE,
+			    BIT(PARSER_INT_HOST_EN_BIT));
+
+	return 0;
+}
+
+int esparser_init(struct platform_device *pdev, struct amvdec_core *core)
+{
+	struct device *dev = &pdev->dev;
+	int ret;
+	int irq;
+
+	irq = platform_get_irq_byname(pdev, "esparser");
+	if (irq < 0) {
+		dev_err(dev, "Failed getting ESPARSER IRQ from dtb\n");
+		return irq;
+	}
+
+	ret = devm_request_irq(dev, irq, esparser_isr, IRQF_SHARED,
+			       "esparserirq", core);
+	if (ret) {
+		dev_err(dev, "Failed requesting ESPARSER IRQ\n");
+		return ret;
+	}
+
+	core->esparser_reset =
+		devm_reset_control_get_exclusive(dev, "esparser");
+	if (IS_ERR(core->esparser_reset)) {
+		dev_err(dev, "Failed to get esparser_reset\n");
+		return PTR_ERR(core->esparser_reset);
+	}
+
+	return 0;
+}

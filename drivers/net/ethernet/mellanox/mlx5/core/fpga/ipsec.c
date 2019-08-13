@@ -636,7 +636,8 @@ static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
 					   u8 match_criteria_enable,
 					   const u32 *match_c,
 					   const u32 *match_v,
-					   struct mlx5_flow_act *flow_act)
+					   struct mlx5_flow_act *flow_act,
+					   struct mlx5_flow_context *flow_context)
 {
 	const void *outer_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					   outer_headers);
@@ -655,7 +656,7 @@ static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
 	    (match_criteria_enable &
 	     ~(MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS)) ||
 	    (flow_act->action & ~(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT | MLX5_FLOW_CONTEXT_ACTION_ALLOW)) ||
-	     (flow_act->flags & FLOW_ACT_HAS_TAG))
+	     (flow_context->flags & FLOW_CONTEXT_HAS_TAG))
 		return false;
 
 	return true;
@@ -767,7 +768,8 @@ mlx5_fpga_ipsec_fs_create_sa_ctx(struct mlx5_core_dev *mdev,
 					    fg->mask.match_criteria_enable,
 					    fg->mask.match_criteria,
 					    fte->val,
-					    &fte->action))
+					    &fte->action,
+					    &fte->flow_context))
 		return ERR_PTR(-EINVAL);
 	else if (!mlx5_is_fpga_ipsec_rule(mdev,
 					  fg->mask.match_criteria_enable,

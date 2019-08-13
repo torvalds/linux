@@ -1057,7 +1057,7 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 	trace_seq_puts(s, "<stack trace>\n");
 
-	for (p = field->caller; p && *p != ULONG_MAX && p < end; p++) {
+	for (p = field->caller; p && p < end && *p != ULONG_MAX; p++) {
 
 		if (trace_seq_has_overflowed(s))
 			break;
@@ -1109,17 +1109,10 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 		unsigned long ip = field->caller[i];
 
-		if (ip == ULONG_MAX || trace_seq_has_overflowed(s))
+		if (!ip || trace_seq_has_overflowed(s))
 			break;
 
 		trace_seq_puts(s, " => ");
-
-		if (!ip) {
-			trace_seq_puts(s, "??");
-			trace_seq_putc(s, '\n');
-			continue;
-		}
-
 		seq_print_user_ip(s, mm, ip, flags);
 		trace_seq_putc(s, '\n');
 	}

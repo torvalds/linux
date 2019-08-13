@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_RAINSHADOW_CEC
 	tristate "RainShadow Tech HDMI CEC"
 	depends on USB_ACM

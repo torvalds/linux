@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  AMD CPU Microcode Update Driver for Linux
  *
@@ -17,9 +18,6 @@
  *
  *  Author: Jacob Shin <jacob.shin@amd.com>
  *  Fixes: Borislav Petkov <bp@suse.de>
- *
- *  Licensed under the terms of the GNU General Public
- *  License version 2. See file COPYING for details.
  */
 #define pr_fmt(fmt) "microcode: " fmt
 
@@ -61,7 +59,7 @@ static u8 amd_ucode_patch[PATCH_MAX_SIZE];
 
 /*
  * Microcode patch container file is prepended to the initrd in cpio
- * format. See Documentation/x86/microcode.txt
+ * format. See Documentation/x86/microcode.rst
  */
 static const char
 ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";

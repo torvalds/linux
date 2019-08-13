@@ -1770,7 +1770,6 @@ S: USA
 
 N: Dave Jones
 E: davej@codemonkey.org.uk
-W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
@@ -1800,7 +1799,7 @@ S: 2300 Copenhagen S.
 S: Denmark
 
 N: Jozsef Kadlecsik
-E: kadlec@blackhole.kfki.hu
+E: kadlec@netfilter.org
 P: 1024D/470DB964 4CB3 1A05 713E 9BF7 FAC5  5809 DD8C B7B1 470D B964
 D: netfilter: TCP window tracking code
 D: netfilter: raw table
@@ -3120,7 +3119,7 @@ S: France
 N: Rik van Riel
 E: riel@redhat.com
 W: http://www.surriel.com/
-D: Linux-MM site, Documentation/sysctl/*, swap/mm readaround
+D: Linux-MM site, Documentation/admin-guide/sysctl/*, swap/mm readaround
 D: kswapd fixes, random kernel hacker, rmap VM,
 D: nl.linux.org administrator, minor scheduler additions
 S: Red Hat Boston
@@ -3363,6 +3362,14 @@ S: Pengutronix
 S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
 S: Germany
+
+N: Martin Schwidefsky
+D: Martin was the most significant contributor to the initial s390
+D: port of the Linux Kernel and later the maintainer of the s390
+D: architecture backend for almost two decades.
+D: He passed away in 2019, and will be greatly missed.
+S: Germany
+W: https://lwn.net/Articles/789028/
 
 N: Marcel Selhorst
 E: tpmdd@selhorst.net

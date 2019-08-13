@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Filesystem access-by-fd.
  *
  * Copyright (C) 2017 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/fs_context.h>
@@ -230,6 +226,8 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 	case FSCONFIG_CMD_CREATE:
 		if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
 			return -EBUSY;
+		if (!mount_capable(fc))
+			return -EPERM;
 		fc->phase = FS_CONTEXT_CREATING;
 		ret = vfs_get_tree(fc);
 		if (ret)

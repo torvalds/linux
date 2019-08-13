@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * KVM_GET/SET_* tests
  *
  * Copyright (C) 2018, Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Tests for vCPU state save/restore, including nested guest state.
  */
@@ -21,8 +20,6 @@
 #include "vmx.h"
 
 #define VCPU_ID		5
-
-static bool have_nested_state;
 
 void l2_guest_code(void)
 {
@@ -122,7 +119,6 @@ void guest_code(struct vmx_pages *vmx_pages)
 
 int main(int argc, char *argv[])
 {
-	struct vmx_pages *vmx_pages = NULL;
 	vm_vaddr_t vmx_pages_gva = 0;
 
 	struct kvm_regs regs1, regs2;
@@ -132,8 +128,6 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	int stage;
 
-	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
-
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
@@ -142,7 +136,7 @@ int main(int argc, char *argv[])
 	vcpu_regs_get(vm, VCPU_ID, &regs1);
 
 	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		vmx_pages = vcpu_alloc_vmx(vm, &vmx_pages_gva);
+		vcpu_alloc_vmx(vm, &vmx_pages_gva);
 		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 	} else {
 		printf("will skip nested state checks\n");
@@ -182,7 +176,7 @@ int main(int argc, char *argv[])
 
 		/* Restore state in a new VM.  */
 		kvm_vm_restart(vm, O_RDWR);
-		vm_vcpu_add(vm, VCPU_ID, 0, 0);
+		vm_vcpu_add(vm, VCPU_ID);
 		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 		vcpu_load_state(vm, VCPU_ID, state);
 		run = vcpu_state(vm, VCPU_ID);

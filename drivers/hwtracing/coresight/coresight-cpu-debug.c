@@ -525,23 +525,12 @@ static const struct file_operations debug_func_knob_fops = {
 
 static int debug_func_init(void)
 {
-	struct dentry *file;
 	int ret;
 
 	/* Create debugfs node */
 	debug_debugfs_dir = debugfs_create_dir("coresight_cpu_debug", NULL);
-	if (!debug_debugfs_dir) {
-		pr_err("%s: unable to create debugfs directory\n", __func__);
-		return -ENOMEM;
-	}
-
-	file = debugfs_create_file("enable", 0644, debug_debugfs_dir, NULL,
-				   &debug_func_knob_fops);
-	if (!file) {
-		pr_err("%s: unable to create enable knob file\n", __func__);
-		ret = -ENOMEM;
-		goto err;
-	}
+	debugfs_create_file("enable", 0644, debug_debugfs_dir, NULL,
+			    &debug_func_knob_fops);
 
 	/* Register function to be called for panic */
 	ret = atomic_notifier_chain_register(&panic_notifier_list,
@@ -572,14 +561,16 @@ static int debug_probe(struct amba_device *adev, const struct amba_id *id)
 	struct device *dev = &adev->dev;
 	struct debug_drvdata *drvdata;
 	struct resource *res = &adev->res;
-	struct device_node *np = adev->dev.of_node;
 	int ret;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 
-	drvdata->cpu = np ? of_coresight_get_cpu(np) : 0;
+	drvdata->cpu = coresight_get_cpu(dev);
+	if (drvdata->cpu < 0)
+		return drvdata->cpu;
+
 	if (per_cpu(debug_drvdata, drvdata->cpu)) {
 		dev_err(dev, "CPU%d drvdata has already been initialized\n",
 			drvdata->cpu);

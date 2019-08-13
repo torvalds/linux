@@ -12,20 +12,14 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
-#include "xfs_alloc.h"
 #include "xfs_bmap.h"
-#include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
-#include "xfs_cksum.h"
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
 
@@ -126,7 +120,7 @@ xfs_da3_blkinfo_verify(
 	struct xfs_buf		*bp,
 	struct xfs_da3_blkinfo	*hdr3)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_da_blkinfo	*hdr = &hdr3->hdr;
 
 	if (!xfs_verify_magic16(bp, hdr->magic))
@@ -148,7 +142,7 @@ static xfs_failaddr_t
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_da_intnode	*hdr = bp->b_addr;
 	struct xfs_da3_icnode_hdr ichdr;
 	const struct xfs_dir_ops *ops;
@@ -186,7 +180,7 @@ static void
 xfs_da3_node_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;

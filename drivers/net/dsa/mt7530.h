@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2017 Sean Wang <sean.wang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __MT7530_H
@@ -252,6 +244,10 @@ enum mt7530_vlan_port_attr {
 
 /* Register for hw trap status */
 #define MT7530_HWTRAP			0x7800
+#define  HWTRAP_XTAL_MASK		(BIT(10) | BIT(9))
+#define  HWTRAP_XTAL_25MHZ		(BIT(10) | BIT(9))
+#define  HWTRAP_XTAL_40MHZ		(BIT(10))
+#define  HWTRAP_XTAL_20MHZ		(BIT(9))
 
 /* Register for hw trap modification */
 #define MT7530_MHWTRAP			0x7804

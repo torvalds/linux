@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Copyright (c) 2014 Linaro Ltd.
  * Copyright (c) 2014 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -1101,7 +1097,6 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id = NULL;
 	struct net_device *ndev;
 	struct hix5hd2_priv *priv;
-	struct resource *res;
 	struct mii_bus *bus;
 	const char *mac_addr;
 	int ret;
@@ -1123,15 +1118,13 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	}
 	priv->hw_cap = (unsigned long)of_id->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		ret = PTR_ERR(priv->base);
 		goto out_free_netdev;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->ctrl_base = devm_ioremap_resource(dev, res);
+	priv->ctrl_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->ctrl_base)) {
 		ret = PTR_ERR(priv->ctrl_base);
 		goto out_free_netdev;

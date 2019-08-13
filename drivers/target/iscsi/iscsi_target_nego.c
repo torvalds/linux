@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains main functions related to iSCSI Parameter negotiation.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/ctype.h>
@@ -160,22 +152,11 @@ static u32 iscsi_handle_authentication(
 
 	if (strstr("None", authtype))
 		return 1;
-#ifdef CANSRP
-	else if (strstr("SRP", authtype))
-		return srp_main_loop(conn, auth, in_buf, out_buf,
-				&in_length, out_length);
-#endif
 	else if (strstr("CHAP", authtype))
 		return chap_main_loop(conn, auth, in_buf, out_buf,
 				&in_length, out_length);
-	else if (strstr("SPKM1", authtype))
-		return 2;
-	else if (strstr("SPKM2", authtype))
-		return 2;
-	else if (strstr("KRB5", authtype))
-		return 2;
-	else
-		return 2;
+	/* SRP, SPKM1, SPKM2 and KRB5 are unsupported */
+	return 2;
 }
 
 static void iscsi_remove_failed_auth_entry(struct iscsi_conn *conn)

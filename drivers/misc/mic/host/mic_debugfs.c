@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2013 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel MIC Host driver.
- *
  */
 #include <linux/debugfs.h>
 #include <linux/pci.h>
@@ -125,8 +113,6 @@ void mic_create_debug_dir(struct mic_device *mdev)
 
 	scnprintf(name, sizeof(name), "mic%d", mdev->id);
 	mdev->dbg_dir = debugfs_create_dir(name, mic_dbg);
-	if (!mdev->dbg_dir)
-		return;
 
 	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev,
 			    &mic_smpt_fops);
@@ -155,8 +141,6 @@ void mic_delete_debug_dir(struct mic_device *mdev)
 void __init mic_init_debugfs(void)
 {
 	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!mic_dbg)
-		pr_err("can't create debugfs dir\n");
 }
 
 /**

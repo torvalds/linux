@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2015 Broadcom
  * Copyright (C) 2013 Red Hat
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**
@@ -128,7 +125,11 @@ static int vc4_open(struct drm_device *dev, struct drm_file *file)
 
 static void vc4_close(struct drm_device *dev, struct drm_file *file)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file = file->driver_priv;
+
+	if (vc4file->bin_bo_used)
+		vc4_v3d_bin_bo_put(vc4);
 
 	vc4_perfmon_close_file(vc4file);
 	kfree(vc4file);
@@ -273,6 +274,8 @@ static int vc4_drm_bind(struct device *dev)
 	vc4->dev = drm;
 	drm->dev_private = vc4;
 	INIT_LIST_HEAD(&vc4->debugfs_list);
+
+	mutex_init(&vc4->bin_bo_lock);
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)

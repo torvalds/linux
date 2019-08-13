@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HD audio interface patch for Creative CA0132 chip
  *
@@ -5,20 +6,6 @@
  *
  * Based on patch_ca0110.c
  * Copyright (c) 2008 Takashi Iwai <tiwai@suse.de>
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -2731,7 +2718,7 @@ static bool is_last(const struct dsp_image_seg *p)
 
 static size_t dsp_sizeof(const struct dsp_image_seg *p)
 {
-	return sizeof(*p) + p->count*sizeof(u32);
+	return struct_size(p, data, p->count);
 }
 
 static const struct dsp_image_seg *get_next_seg_ptr(
@@ -5993,7 +5980,7 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
 	int ch = get_amp_channels(kcontrol);
 	long *valp = ucontrol->value.integer.value;
 	hda_nid_t vnid = 0;
-	int changed = 1;
+	int changed;
 
 	switch (nid) {
 	case 0x02:

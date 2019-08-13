@@ -64,5 +64,8 @@ int xfs_finobt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
 		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
 extern xfs_extlen_t xfs_iallocbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
+int xfs_inobt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
+		xfs_agnumber_t agno, xfs_btnum_t btnum,
+		struct xfs_btree_cur **curpp, struct xfs_buf **agi_bpp);
 
 #endif	/* __XFS_IALLOC_BTREE_H__ */

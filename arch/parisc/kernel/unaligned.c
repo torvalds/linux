@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Unaligned memory access handler
  *
  *    Copyright (C) 2001 Randolph Chung <tausq@debian.org>
  *    Significantly tweaked by LaMont Jones <lamont@debian.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/jiffies.h>
@@ -690,14 +676,14 @@ void handle_unaligned(struct pt_regs *regs)
 		if (ret == ERR_PAGEFAULT)
 		{
 			force_sig_fault(SIGSEGV, SEGV_MAPERR,
-					(void __user *)regs->ior, current);
+					(void __user *)regs->ior);
 		}
 		else
 		{
 force_sigbus:
 			/* couldn't handle it ... */
 			force_sig_fault(SIGBUS, BUS_ADRALN,
-					(void __user *)regs->ior, current);
+					(void __user *)regs->ior);
 		}
 		
 		return;

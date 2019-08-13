@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * scsi_sysfs.c
  *
@@ -766,8 +767,13 @@ store_state_field(struct device *dev, struct device_attribute *attr,
 			break;
 		}
 	}
-	if (!state)
+	switch (state) {
+	case SDEV_RUNNING:
+	case SDEV_OFFLINE:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	mutex_lock(&sdev->state_mutex);
 	ret = scsi_device_set_state(sdev, state);

@@ -45,6 +45,30 @@ enum goya_queue_id {
 	GOYA_QUEUE_ID_SIZE
 };
 
+/*
+ * Engine Numbering
+ *
+ * Used in the "busy_engines_mask" field in `struct hl_info_hw_idle'
+ */
+
+enum goya_engine_id {
+	GOYA_ENGINE_ID_DMA_0 = 0,
+	GOYA_ENGINE_ID_DMA_1,
+	GOYA_ENGINE_ID_DMA_2,
+	GOYA_ENGINE_ID_DMA_3,
+	GOYA_ENGINE_ID_DMA_4,
+	GOYA_ENGINE_ID_MME_0,
+	GOYA_ENGINE_ID_TPC_0,
+	GOYA_ENGINE_ID_TPC_1,
+	GOYA_ENGINE_ID_TPC_2,
+	GOYA_ENGINE_ID_TPC_3,
+	GOYA_ENGINE_ID_TPC_4,
+	GOYA_ENGINE_ID_TPC_5,
+	GOYA_ENGINE_ID_TPC_6,
+	GOYA_ENGINE_ID_TPC_7,
+	GOYA_ENGINE_ID_SIZE
+};
+
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,
@@ -86,7 +110,11 @@ struct hl_info_dram_usage {
 
 struct hl_info_hw_idle {
 	__u32 is_idle;
-	__u32 pad;
+	/*
+	 * Bitmask of busy engines.
+	 * Bits definition is according to `enum <chip>_enging_id'.
+	 */
+	__u32 busy_engines_mask;
 };
 
 struct hl_info_device_status {
@@ -413,6 +441,10 @@ struct hl_debug_params_spmu {
 #define HL_DEBUG_OP_SPMU	5
 /* Opcode for timestamp */
 #define HL_DEBUG_OP_TIMESTAMP	6
+/* Opcode for setting the device into or out of debug mode. The enable
+ * variable should be 1 for enabling debug mode and 0 for disabling it
+ */
+#define HL_DEBUG_OP_SET_MODE	7
 
 struct hl_debug_args {
 	/*
@@ -574,8 +606,22 @@ struct hl_debug_args {
  *
  * This IOCTL allows the user to get debug traces from the chip.
  *
- * The user needs to provide the register index and essential data such as
- * buffer address and size.
+ * Before the user can send configuration requests of the various
+ * debug/profile engines, it needs to set the device into debug mode.
+ * This is because the debug/profile infrastructure is shared component in the
+ * device and we can't allow multiple users to access it at the same time.
+ *
+ * Once a user set the device into debug mode, the driver won't allow other
+ * users to "work" with the device, i.e. open a FD. If there are multiple users
+ * opened on the device, the driver won't allow any user to debug the device.
+ *
+ * For each configuration request, the user needs to provide the register index
+ * and essential data such as buffer address and size.
+ *
+ * Once the user has finished using the debug/profile engines, he should
+ * set the device into non-debug mode, i.e. disable debug mode.
+ *
+ * The driver can decide to "kick out" the user if he abuses this interface.
  *
  */
 #define HL_IOCTL_DEBUG		\

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pmic.c - Intel PMIC operation region driver
  *
  * Copyright (C) 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/export.h>
@@ -292,8 +284,6 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 						    intel_pmic_thermal_handler,
 						    NULL, opregion);
 	if (ACPI_FAILURE(status)) {
-		acpi_remove_address_space_handler(handle, PMIC_POWER_OPREGION_ID,
-						  intel_pmic_power_handler);
 		ret = -ENODEV;
 		goto out_remove_power_handler;
 	}

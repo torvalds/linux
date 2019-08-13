@@ -187,6 +187,7 @@ TRACE_EVENT(mlx5_fs_set_fte,
 		__field(u32, index)
 		__field(u32, action)
 		__field(u32, flow_tag)
+		__field(u32, flow_source)
 		__field(u8,  mask_enable)
 		__field(int, new_fte)
 		__array(u32, mask_outer, MLX5_ST_SZ_DW(fte_match_set_lyr_2_4))
@@ -204,7 +205,8 @@ TRACE_EVENT(mlx5_fs_set_fte,
 			   __entry->index = fte->index;
 			   __entry->action = fte->action.action;
 			   __entry->mask_enable = __entry->fg->mask.match_criteria_enable;
-			   __entry->flow_tag = fte->action.flow_tag;
+			   __entry->flow_tag = fte->flow_context.flow_tag;
+			   __entry->flow_source = fte->flow_context.flow_source;
 			   memcpy(__entry->mask_outer,
 				  MLX5_ADDR_OF(fte_match_param,
 					       &__entry->fg->mask.match_criteria,

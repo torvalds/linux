@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C)2003-2006 Helsinki University of Technology
  * Copyright (C)2003-2006 USAGI/WIDE Project
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 /*
  * Authors:
@@ -511,10 +499,8 @@ static void __exit mip6_fini(void)
 {
 	if (rawv6_mh_filter_unregister(mip6_mh_filter) < 0)
 		pr_info("%s: can't remove rawv6 mh filter\n", __func__);
-	if (xfrm_unregister_type(&mip6_rthdr_type, AF_INET6) < 0)
-		pr_info("%s: can't remove xfrm type(rthdr)\n", __func__);
-	if (xfrm_unregister_type(&mip6_destopt_type, AF_INET6) < 0)
-		pr_info("%s: can't remove xfrm type(destopt)\n", __func__);
+	xfrm_unregister_type(&mip6_rthdr_type, AF_INET6);
+	xfrm_unregister_type(&mip6_destopt_type, AF_INET6);
 }
 
 module_init(mip6_init);

@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * per net namespace data structures for nfsd
  *
  * Copyright (C) 2012, Jeff Layton <jlayton@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #ifndef __NFSD_NETNS_H__
@@ -54,6 +41,11 @@ struct nfsd_net {
 	struct lock_manager nfsd4_manager;
 	bool grace_ended;
 	time_t boot_time;
+
+	/* internal mount of the "nfsd" pseudofilesystem: */
+	struct vfsmount *nfsd_mnt;
+
+	struct dentry *nfsd_client_dir;
 
 	/*
 	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
@@ -119,6 +111,7 @@ struct nfsd_net {
 	 */
 	unsigned int max_connections;
 
+	u32 clientid_base;
 	u32 clientid_counter;
 	u32 clverifier_counter;
 
@@ -140,6 +133,44 @@ struct nfsd_net {
 	 */
 	bool *nfsd_versions;
 	bool *nfsd4_minorversions;
+
+	/*
+	 * Duplicate reply cache
+	 */
+	struct nfsd_drc_bucket   *drc_hashtbl;
+	struct kmem_cache        *drc_slab;
+
+	/* max number of entries allowed in the cache */
+	unsigned int             max_drc_entries;
+
+	/* number of significant bits in the hash value */
+	unsigned int             maskbits;
+	unsigned int             drc_hashsize;
+
+	/*
+	 * Stats and other tracking of on the duplicate reply cache.
+	 * These fields and the "rc" fields in nfsdstats are modified
+	 * with only the per-bucket cache lock, which isn't really safe
+	 * and should be fixed if we want the statistics to be
+	 * completely accurate.
+	 */
+
+	/* total number of entries */
+	atomic_t                 num_drc_entries;
+
+	/* cache misses due only to checksum comparison failures */
+	unsigned int             payload_misses;
+
+	/* amount of memory (in bytes) currently consumed by the DRC */
+	unsigned int             drc_mem_usage;
+
+	/* longest hash chain seen */
+	unsigned int             longest_chain;
+
+	/* size of cache when we saw the longest hash chain */
+	unsigned int             longest_chain_cachesize;
+
+	struct shrinker		nfsd_reply_cache_shrinker;
 };
 
 /* Simple check to find out if a given net was properly initialized */

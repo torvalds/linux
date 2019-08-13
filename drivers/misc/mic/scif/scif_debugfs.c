@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -112,11 +103,6 @@ DEFINE_SHOW_ATTRIBUTE(scif_rma);
 void __init scif_init_debugfs(void)
 {
 	scif_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!scif_dbg) {
-		dev_err(scif_info.mdev.this_device,
-			"can't create debugfs dir scif\n");
-		return;
-	}
 
 	debugfs_create_file("scif_dev", 0444, scif_dbg, NULL, &scif_dev_fops);
 	debugfs_create_file("scif_rma", 0444, scif_dbg, NULL, &scif_rma_fops);

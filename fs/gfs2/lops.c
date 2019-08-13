@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #include <linux/sched.h>
@@ -762,9 +759,27 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 
 		if (gfs2_meta_check(sdp, bh_ip))
 			error = -EIO;
-		else
-			mark_buffer_dirty(bh_ip);
+		else {
+			struct gfs2_meta_header *mh =
+				(struct gfs2_meta_header *)bh_ip->b_data;
 
+			if (mh->mh_type == cpu_to_be32(GFS2_METATYPE_RG)) {
+				struct gfs2_rgrpd *rgd;
+
+				rgd = gfs2_blk2rgrpd(sdp, blkno, false);
+				if (rgd && rgd->rd_addr == blkno &&
+				    rgd->rd_bits && rgd->rd_bits->bi_bh) {
+					fs_info(sdp, "Replaying 0x%llx but we "
+						"already have a bh!\n",
+						(unsigned long long)blkno);
+					fs_info(sdp, "busy:%d, pinned:%d\n",
+						buffer_busy(rgd->rd_bits->bi_bh) ? 1 : 0,
+						buffer_pinned(rgd->rd_bits->bi_bh));
+					gfs2_dump_glock(NULL, rgd->rd_gl, true);
+				}
+			}
+			mark_buffer_dirty(bh_ip);
+		}
 		brelse(bh_log);
 		brelse(bh_ip);
 
@@ -860,34 +875,19 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 static void revoke_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	struct list_head *head = &sdp->sd_log_revokes;
-	struct gfs2_bufdata *bd, *tmp;
+	struct gfs2_bufdata *bd;
+	struct gfs2_glock *gl;
 
-	/*
-	 * Glocks can be referenced repeatedly on the revoke list, but the list
-	 * only holds one reference.  All glocks on the list will have the
-	 * GLF_REVOKES flag set initially.
-	 */
-
-	list_for_each_entry_safe(bd, tmp, head, bd_list) {
-		struct gfs2_glock *gl = bd->bd_gl;
-
-		if (test_bit(GLF_REVOKES, &gl->gl_flags)) {
-			/* Keep each glock on the list exactly once. */
-			clear_bit(GLF_REVOKES, &gl->gl_flags);
-			continue;
+	while (!list_empty(head)) {
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
+		list_del_init(&bd->bd_list);
+		gl = bd->bd_gl;
+		if (atomic_dec_return(&gl->gl_revokes) == 0) {
+			clear_bit(GLF_LFLUSH, &gl->gl_flags);
+			gfs2_glock_queue_put(gl);
 		}
-		list_del(&bd->bd_list);
 		kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
-	list_for_each_entry_safe(bd, tmp, head, bd_list) {
-		struct gfs2_glock *gl = bd->bd_gl;
-
-		list_del(&bd->bd_list);
-		kmem_cache_free(gfs2_bufdata_cachep, bd);
-		clear_bit(GLF_LFLUSH, &gl->gl_flags);
-		gfs2_glock_queue_put(gl);
-	}
-	/* the list is empty now */
 }
 
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ingenic JZ4780 DMA controller
  *
  * Copyright (c) 2015 Imagination Technologies
  * Author: Alex Smith <alex@alex-smith.me.uk>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -160,7 +156,6 @@ struct jz4780_dma_dev {
 };
 
 struct jz4780_dma_filter_data {
-	struct device_node *of_node;
 	uint32_t transfer_type;
 	int channel;
 };
@@ -666,10 +661,11 @@ static enum dma_status jz4780_dma_tx_status(struct dma_chan *chan,
 	return status;
 }
 
-static void jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
-	struct jz4780_dma_chan *jzchan)
+static bool jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
+				struct jz4780_dma_chan *jzchan)
 {
 	uint32_t dcs;
+	bool ack = true;
 
 	spin_lock(&jzchan->vchan.lock);
 
@@ -692,12 +688,20 @@ static void jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 		if ((dcs & (JZ_DMA_DCS_AR | JZ_DMA_DCS_HLT)) == 0) {
 			if (jzchan->desc->type == DMA_CYCLIC) {
 				vchan_cyclic_callback(&jzchan->desc->vdesc);
-			} else {
+
+				jz4780_dma_begin(jzchan);
+			} else if (dcs & JZ_DMA_DCS_TT) {
 				vchan_cookie_complete(&jzchan->desc->vdesc);
 				jzchan->desc = NULL;
-			}
 
-			jz4780_dma_begin(jzchan);
+				jz4780_dma_begin(jzchan);
+			} else {
+				/* False positive - continue the transfer */
+				ack = false;
+				jz4780_dma_chn_writel(jzdma, jzchan->id,
+						      JZ_DMA_REG_DCS,
+						      JZ_DMA_DCS_CTE);
+			}
 		}
 	} else {
 		dev_err(&jzchan->vchan.chan.dev->device,
@@ -705,21 +709,23 @@ static void jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 	}
 
 	spin_unlock(&jzchan->vchan.lock);
+
+	return ack;
 }
 
 static irqreturn_t jz4780_dma_irq_handler(int irq, void *data)
 {
 	struct jz4780_dma_dev *jzdma = data;
-	uint32_t pending, dmac;
+	unsigned int nb_channels = jzdma->soc_data->nb_channels;
+	unsigned long pending;
+	uint32_t dmac;
 	int i;
 
 	pending = jz4780_dma_ctrl_readl(jzdma, JZ_DMA_REG_DIRQP);
 
-	for (i = 0; i < jzdma->soc_data->nb_channels; i++) {
-		if (!(pending & (1<<i)))
-			continue;
-
-		jz4780_dma_chan_irq(jzdma, &jzdma->chan[i]);
+	for_each_set_bit(i, &pending, nb_channels) {
+		if (jz4780_dma_chan_irq(jzdma, &jzdma->chan[i]))
+			pending &= ~BIT(i);
 	}
 
 	/* Clear halt and address error status of all channels. */
@@ -728,7 +734,7 @@ static irqreturn_t jz4780_dma_irq_handler(int irq, void *data)
 	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DMAC, dmac);
 
 	/* Clear interrupt pending status. */
-	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DIRQP, 0);
+	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DIRQP, pending);
 
 	return IRQ_HANDLED;
 }
@@ -765,8 +771,6 @@ static bool jz4780_dma_filter_fn(struct dma_chan *chan, void *param)
 	struct jz4780_dma_dev *jzdma = jz4780_dma_chan_parent(jzchan);
 	struct jz4780_dma_filter_data *data = param;
 
-	if (jzdma->dma_device.dev->of_node != data->of_node)
-		return false;
 
 	if (data->channel > -1) {
 		if (data->channel != jzchan->id)
@@ -790,7 +794,6 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args_count != 2)
 		return NULL;
 
-	data.of_node = ofdma->of_node;
 	data.transfer_type = dma_spec->args[0];
 	data.channel = dma_spec->args[1];
 
@@ -815,7 +818,8 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 		return dma_get_slave_channel(
 			&jzdma->chan[data.channel].vchan.chan);
 	} else {
-		return dma_request_channel(mask, jz4780_dma_filter_fn, &data);
+		return __dma_request_channel(&mask, jz4780_dma_filter_fn, &data,
+					     ofdma->of_node);
 	}
 }
 

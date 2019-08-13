@@ -192,6 +192,13 @@
 #define Q_BASE_ADDR_MASK		GENMASK_ULL(51, 5)
 #define Q_BASE_LOG2SIZE			GENMASK(4, 0)
 
+/* Ensure DMA allocations are naturally aligned */
+#ifdef CONFIG_CMA_ALIGNMENT
+#define Q_MAX_SZ_SHIFT			(PAGE_SHIFT + CONFIG_CMA_ALIGNMENT)
+#else
+#define Q_MAX_SZ_SHIFT			(PAGE_SHIFT + MAX_ORDER - 1)
+#endif
+
 /*
  * Stream table.
  *
@@ -289,8 +296,9 @@
 					FIELD_GET(ARM64_TCR_##fld, tcr))
 
 /* Command queue */
-#define CMDQ_ENT_DWORDS			2
-#define CMDQ_MAX_SZ_SHIFT		8
+#define CMDQ_ENT_SZ_SHIFT		4
+#define CMDQ_ENT_DWORDS			((1 << CMDQ_ENT_SZ_SHIFT) >> 3)
+#define CMDQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - CMDQ_ENT_SZ_SHIFT)
 
 #define CMDQ_CONS_ERR			GENMASK(30, 24)
 #define CMDQ_ERR_CERROR_NONE_IDX	0
@@ -336,14 +344,16 @@
 #define CMDQ_SYNC_1_MSIADDR_MASK	GENMASK_ULL(51, 2)
 
 /* Event queue */
-#define EVTQ_ENT_DWORDS			4
-#define EVTQ_MAX_SZ_SHIFT		7
+#define EVTQ_ENT_SZ_SHIFT		5
+#define EVTQ_ENT_DWORDS			((1 << EVTQ_ENT_SZ_SHIFT) >> 3)
+#define EVTQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - EVTQ_ENT_SZ_SHIFT)
 
 #define EVTQ_0_ID			GENMASK_ULL(7, 0)
 
 /* PRI queue */
-#define PRIQ_ENT_DWORDS			2
-#define PRIQ_MAX_SZ_SHIFT		8
+#define PRIQ_ENT_SZ_SHIFT		4
+#define PRIQ_ENT_DWORDS			((1 << PRIQ_ENT_SZ_SHIFT) >> 3)
+#define PRIQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - PRIQ_ENT_SZ_SHIFT)
 
 #define PRIQ_0_SID			GENMASK_ULL(31, 0)
 #define PRIQ_0_SSID			GENMASK_ULL(51, 32)
@@ -798,7 +808,7 @@ static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 /* High-level queue accessors */
 static int arm_smmu_cmdq_build_cmd(u64 *cmd, struct arm_smmu_cmdq_ent *ent)
 {
-	memset(cmd, 0, CMDQ_ENT_DWORDS << 3);
+	memset(cmd, 0, 1 << CMDQ_ENT_SZ_SHIFT);
 	cmd[0] |= FIELD_PREP(CMDQ_0_OP, ent->opcode);
 
 	switch (ent->opcode) {
@@ -1785,12 +1795,10 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
+		.coherent_walk	= smmu->features & ARM_SMMU_FEAT_COHERENCY,
 		.tlb		= &arm_smmu_gather_ops,
 		.iommu_dev	= smmu->dev,
 	};
-
-	if (smmu->features & ARM_SMMU_FEAT_COHERENCY)
-		pgtbl_cfg.quirks = IO_PGTABLE_QUIRK_NO_DMA;
 
 	if (smmu_domain->non_strict)
 		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
@@ -1884,9 +1892,13 @@ static int arm_smmu_enable_ats(struct arm_smmu_master *master)
 
 static void arm_smmu_disable_ats(struct arm_smmu_master *master)
 {
+	struct arm_smmu_cmdq_ent cmd;
+
 	if (!master->ats_enabled || !dev_is_pci(master->dev))
 		return;
 
+	arm_smmu_atc_inv_to_cmd(0, 0, 0, &cmd);
+	arm_smmu_atc_inv_master(master, &cmd);
 	pci_disable_ats(to_pci_dev(master->dev));
 	master->ats_enabled = false;
 }
@@ -1906,7 +1918,6 @@ static void arm_smmu_detach_dev(struct arm_smmu_master *master)
 	master->domain = NULL;
 	arm_smmu_install_ste_for_dev(master);
 
-	/* Disabling ATS invalidates all ATC entries */
 	arm_smmu_disable_ats(master);
 }
 
@@ -2023,7 +2034,7 @@ arm_smmu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 
 static struct platform_driver arm_smmu_driver;
 
-static int arm_smmu_match_node(struct device *dev, void *data)
+static int arm_smmu_match_node(struct device *dev, const void *data)
 {
 	return dev->fwnode == data;
 }
@@ -2270,15 +2281,30 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 				   struct arm_smmu_queue *q,
 				   unsigned long prod_off,
 				   unsigned long cons_off,
-				   size_t dwords)
+				   size_t dwords, const char *name)
 {
-	size_t qsz = ((1 << q->max_n_shift) * dwords) << 3;
+	size_t qsz;
 
-	q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma, GFP_KERNEL);
+	do {
+		qsz = ((1 << q->max_n_shift) * dwords) << 3;
+		q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma,
+					      GFP_KERNEL);
+		if (q->base || qsz < PAGE_SIZE)
+			break;
+
+		q->max_n_shift--;
+	} while (1);
+
 	if (!q->base) {
-		dev_err(smmu->dev, "failed to allocate queue (0x%zx bytes)\n",
-			qsz);
+		dev_err(smmu->dev,
+			"failed to allocate queue (0x%zx bytes) for %s\n",
+			qsz, name);
 		return -ENOMEM;
+	}
+
+	if (!WARN_ON(q->base_dma & (qsz - 1))) {
+		dev_info(smmu->dev, "allocated %u entries for %s\n",
+			 1 << q->max_n_shift, name);
 	}
 
 	q->prod_reg	= arm_smmu_page1_fixup(prod_off, smmu);
@@ -2300,13 +2326,15 @@ static int arm_smmu_init_queues(struct arm_smmu_device *smmu)
 	/* cmdq */
 	spin_lock_init(&smmu->cmdq.lock);
 	ret = arm_smmu_init_one_queue(smmu, &smmu->cmdq.q, ARM_SMMU_CMDQ_PROD,
-				      ARM_SMMU_CMDQ_CONS, CMDQ_ENT_DWORDS);
+				      ARM_SMMU_CMDQ_CONS, CMDQ_ENT_DWORDS,
+				      "cmdq");
 	if (ret)
 		return ret;
 
 	/* evtq */
 	ret = arm_smmu_init_one_queue(smmu, &smmu->evtq.q, ARM_SMMU_EVTQ_PROD,
-				      ARM_SMMU_EVTQ_CONS, EVTQ_ENT_DWORDS);
+				      ARM_SMMU_EVTQ_CONS, EVTQ_ENT_DWORDS,
+				      "evtq");
 	if (ret)
 		return ret;
 
@@ -2315,7 +2343,8 @@ static int arm_smmu_init_queues(struct arm_smmu_device *smmu)
 		return 0;
 
 	return arm_smmu_init_one_queue(smmu, &smmu->priq.q, ARM_SMMU_PRIQ_PROD,
-				       ARM_SMMU_PRIQ_CONS, PRIQ_ENT_DWORDS);
+				       ARM_SMMU_PRIQ_CONS, PRIQ_ENT_DWORDS,
+				       "priq");
 }
 
 static int arm_smmu_init_l1_strtab(struct arm_smmu_device *smmu)
@@ -2879,7 +2908,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		return -ENXIO;
 	}
 
-	/* Queue sizes, capped at 4k */
+	/* Queue sizes, capped to ensure natural alignment */
 	smmu->cmdq.q.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT,
 					 FIELD_GET(IDR1_CMDQS, reg));
 	if (!smmu->cmdq.q.max_n_shift) {

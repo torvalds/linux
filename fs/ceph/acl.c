@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/fs/ceph/acl.c
  *
  * Copyright (C) 2013 Guangliang Zhao, <lucienchao@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/ceph/ceph_debug.h>
@@ -172,7 +159,7 @@ out:
 }
 
 int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
-		       struct ceph_acls_info *info)
+		       struct ceph_acl_sec_ctx *as_ctx)
 {
 	struct posix_acl *acl, *default_acl;
 	size_t val_size1 = 0, val_size2 = 0;
@@ -247,9 +234,9 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 
 	kfree(tmp_buf);
 
-	info->acl = acl;
-	info->default_acl = default_acl;
-	info->pagelist = pagelist;
+	as_ctx->acl = acl;
+	as_ctx->default_acl = default_acl;
+	as_ctx->pagelist = pagelist;
 	return 0;
 
 out_err:
@@ -261,18 +248,10 @@ out_err:
 	return err;
 }
 
-void ceph_init_inode_acls(struct inode* inode, struct ceph_acls_info *info)
+void ceph_init_inode_acls(struct inode *inode, struct ceph_acl_sec_ctx *as_ctx)
 {
 	if (!inode)
 		return;
-	ceph_set_cached_acl(inode, ACL_TYPE_ACCESS, info->acl);
-	ceph_set_cached_acl(inode, ACL_TYPE_DEFAULT, info->default_acl);
-}
-
-void ceph_release_acls_info(struct ceph_acls_info *info)
-{
-	posix_acl_release(info->acl);
-	posix_acl_release(info->default_acl);
-	if (info->pagelist)
-		ceph_pagelist_release(info->pagelist);
+	ceph_set_cached_acl(inode, ACL_TYPE_ACCESS, as_ctx->acl);
+	ceph_set_cached_acl(inode, ACL_TYPE_DEFAULT, as_ctx->default_acl);
 }

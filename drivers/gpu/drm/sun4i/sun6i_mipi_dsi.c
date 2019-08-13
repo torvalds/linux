@@ -457,8 +457,9 @@ static void sun6i_dsi_setup_inst_loop(struct sun6i_dsi *dsi,
 	u16 delay = 50 - 1;
 
 	if (device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
-		delay = (mode->htotal - mode->hdisplay) * 150;
-		delay /= (mode->clock / 1000) * 8;
+		u32 hsync_porch = (mode->htotal - mode->hdisplay) * 150;
+
+		delay = (hsync_porch / ((mode->clock / 1000) * 8));
 		delay -= 50;
 	}
 
@@ -979,6 +980,7 @@ static ssize_t sun6i_dsi_transfer(struct mipi_dsi_host *host,
 	switch (msg->type) {
 	case MIPI_DSI_DCS_SHORT_WRITE:
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
 		ret = sun6i_dsi_dcs_write_short(dsi, msg);
 		break;
 

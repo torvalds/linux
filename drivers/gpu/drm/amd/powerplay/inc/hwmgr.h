@@ -190,6 +190,7 @@ struct phm_vce_clock_voltage_dependency_table {
 };
 
 struct pp_smumgr_func {
+	char *name;
 	int (*smu_init)(struct pp_hwmgr  *hwmgr);
 	int (*smu_fini)(struct pp_hwmgr  *hwmgr);
 	int (*start_smu)(struct pp_hwmgr  *hwmgr);
@@ -694,6 +695,7 @@ struct pp_thermal_controller_info {
 	uint8_t ucType;
 	uint8_t ucI2cLine;
 	uint8_t ucI2cAddress;
+	uint8_t use_hw_fan_control;
 	struct pp_fan_info fanInfo;
 	struct pp_advance_fan_control_parameters advanceFanControlParameters;
 };
@@ -782,6 +784,7 @@ struct pp_hwmgr {
 	uint32_t workload_mask;
 	uint32_t workload_prority[Workload_Policy_Max];
 	uint32_t workload_setting[Workload_Policy_Max];
+	bool gfxoff_state_changed_by_workload;
 };
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr);

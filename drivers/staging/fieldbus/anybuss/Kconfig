@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HMS_ANYBUSS_BUS
 	tristate "HMS Anybus-S Bus Support"
 	select REGMAP
@@ -13,6 +14,7 @@ if HMS_ANYBUSS_BUS
 config ARCX_ANYBUS_CONTROLLER
 	tristate "Arcx Anybus-S Controller"
 	depends on OF && GPIOLIB && HAS_IOMEM && REGULATOR
+	select REGMAP_MMIO
 	help
 	  Select this to get support for the Arcx Anybus controller.
 	  It connects to the SoC via a parallel memory bus, and

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config AFS_FS
 	tristate "Andrew File System support (AFS)"
 	depends on INET

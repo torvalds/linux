@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * irqchip.c: Common API for in kernel interrupt controllers
  * Copyright (c) 2007, Intel Corporation.
  * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  * Copyright (c) 2013, Alexander Graf <agraf@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * This file is derived from virt/kvm/irq_comm.c.
  *
@@ -196,9 +184,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	nr_rt_entries += 1;
 
-	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head)),
-		      GFP_KERNEL_ACCOUNT);
-
+	new = kzalloc(struct_size(new, map, nr_rt_entries), GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 

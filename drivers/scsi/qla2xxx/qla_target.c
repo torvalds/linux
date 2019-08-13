@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  qla_target.c SCSI LLD infrastructure for QLogic 22xx/23xx/24xx/25xx
  *
@@ -11,16 +12,6 @@
  *  Forward port and refactoring to modern qla2xxx and target/configfs
  *
  *  Copyright (C) 2010-2013 Nicholas A. Bellinger <nab@kernel.org>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation, version 2
- *  of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -1013,6 +1004,12 @@ void qlt_free_session_done(struct work_struct *work)
 				else
 					logout_started = true;
 			}
+		} /* if sess->logout_on_delete */
+
+		if (sess->nvme_flag & NVME_FLAG_REGISTERED &&
+		    !(sess->nvme_flag & NVME_FLAG_DELETING)) {
+			sess->nvme_flag |= NVME_FLAG_DELETING;
+			qla_nvme_unregister_remote_port(sess);
 		}
 	}
 
@@ -1164,14 +1161,8 @@ void qlt_unreg_sess(struct fc_port *sess)
 	sess->last_rscn_gen = sess->rscn_gen;
 	sess->last_login_gen = sess->login_gen;
 
-	if (sess->nvme_flag & NVME_FLAG_REGISTERED &&
-	    !(sess->nvme_flag & NVME_FLAG_DELETING)) {
-		sess->nvme_flag |= NVME_FLAG_DELETING;
-		schedule_work(&sess->nvme_del_work);
-	} else {
-		INIT_WORK(&sess->free_work, qlt_free_session_done);
-		schedule_work(&sess->free_work);
-	}
+	INIT_WORK(&sess->free_work, qlt_free_session_done);
+	schedule_work(&sess->free_work);
 }
 EXPORT_SYMBOL(qlt_unreg_sess);
 

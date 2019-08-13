@@ -44,33 +44,25 @@ static inline bool cpu_needs_post_dma_flush(struct device *dev)
 	}
 }
 
-void *arch_dma_alloc(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
+void arch_dma_prep_coherent(struct page *page, size_t size)
 {
-	void *ret;
-
-	ret = dma_direct_alloc_pages(dev, size, dma_handle, gfp, attrs);
-	if (ret && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
-		dma_cache_wback_inv((unsigned long) ret, size);
-		ret = (void *)UNCAC_ADDR(ret);
-	}
-
-	return ret;
+	dma_cache_wback_inv((unsigned long)page_address(page), size);
 }
 
-void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
-		dma_addr_t dma_addr, unsigned long attrs)
+void *uncached_kernel_address(void *addr)
 {
-	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
-		cpu_addr = (void *)CAC_ADDR((unsigned long)cpu_addr);
-	dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
+	return (void *)(__pa(addr) + UNCAC_BASE);
+}
+
+void *cached_kernel_address(void *addr)
+{
+	return __va(addr) - UNCAC_BASE;
 }
 
 long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
 		dma_addr_t dma_addr)
 {
-	unsigned long addr = CAC_ADDR((unsigned long)cpu_addr);
-	return page_to_pfn(virt_to_page((void *)addr));
+	return page_to_pfn(virt_to_page(cached_kernel_address(cpu_addr)));
 }
 
 pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,

@@ -136,6 +136,39 @@ The function will never sleep.
 
 ::
 
+  int hwspin_lock_timeout_raw(struct hwspinlock *hwlock, unsigned int timeout);
+
+Lock a previously-assigned hwspinlock with a timeout limit (specified in
+msecs). If the hwspinlock is already taken, the function will busy loop
+waiting for it to be released, but give up when the timeout elapses.
+
+Caution: User must protect the routine of getting hardware lock with mutex
+or spinlock to avoid dead-lock, that will let user can do some time-consuming
+or sleepable operations under the hardware lock.
+
+Returns 0 when successful and an appropriate error code otherwise (most
+notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+
+The function will never sleep.
+
+::
+
+  int hwspin_lock_timeout_in_atomic(struct hwspinlock *hwlock, unsigned int to);
+
+Lock a previously-assigned hwspinlock with a timeout limit (specified in
+msecs). If the hwspinlock is already taken, the function will busy loop
+waiting for it to be released, but give up when the timeout elapses.
+
+This function shall be called only from an atomic context and the timeout
+value shall not exceed a few msecs.
+
+Returns 0 when successful and an appropriate error code otherwise (most
+notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+
+The function will never sleep.
+
+::
+
   int hwspin_trylock(struct hwspinlock *hwlock);
 
 
@@ -186,6 +219,34 @@ The function will never sleep.
 
 ::
 
+  int hwspin_trylock_raw(struct hwspinlock *hwlock);
+
+Attempt to lock a previously-assigned hwspinlock, but immediately fail if
+it is already taken.
+
+Caution: User must protect the routine of getting hardware lock with mutex
+or spinlock to avoid dead-lock, that will let user can do some time-consuming
+or sleepable operations under the hardware lock.
+
+Returns 0 on success and an appropriate error code otherwise (most
+notably -EBUSY if the hwspinlock was already taken).
+The function will never sleep.
+
+::
+
+  int hwspin_trylock_in_atomic(struct hwspinlock *hwlock);
+
+Attempt to lock a previously-assigned hwspinlock, but immediately fail if
+it is already taken.
+
+This function shall be called only from an atomic context.
+
+Returns 0 on success and an appropriate error code otherwise (most
+notably -EBUSY if the hwspinlock was already taken).
+The function will never sleep.
+
+::
+
   void hwspin_unlock(struct hwspinlock *hwlock);
 
 Unlock a previously-locked hwspinlock. Always succeed, and can be called
@@ -219,6 +280,26 @@ Doing so is considered a bug (there is no protection against this).
 Upon a successful return from this function, preemption is reenabled,
 and the state of the local interrupts is restored to the state saved at
 the given flags. This function will never sleep.
+
+::
+
+  void hwspin_unlock_raw(struct hwspinlock *hwlock);
+
+Unlock a previously-locked hwspinlock.
+
+The caller should **never** unlock an hwspinlock which is already unlocked.
+Doing so is considered a bug (there is no protection against this).
+This function will never sleep.
+
+::
+
+  void hwspin_unlock_in_atomic(struct hwspinlock *hwlock);
+
+Unlock a previously-locked hwspinlock.
+
+The caller should **never** unlock an hwspinlock which is already unlocked.
+Doing so is considered a bug (there is no protection against this).
+This function will never sleep.
 
 ::
 

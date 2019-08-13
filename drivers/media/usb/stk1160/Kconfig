@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_STK1160_COMMON
 	tristate "STK1160 USB video capture support"
 	depends on VIDEO_DEV && I2C

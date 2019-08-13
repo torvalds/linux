@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * xfrm_policy.c
  *
@@ -580,9 +581,6 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 
 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
 	write_seqcount_begin(&xfrm_policy_hash_generation);
-
-	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
-				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
 
 	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
 				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
@@ -1279,13 +1277,17 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 
 		hlist_for_each_entry_safe(policy, n,
 					  &net->xfrm.policy_inexact[dir],
-					  bydst_inexact_list)
+					  bydst_inexact_list) {
+			hlist_del_rcu(&policy->bydst);
 			hlist_del_init(&policy->bydst_inexact_list);
+		}
 
 		hmask = net->xfrm.policy_bydst[dir].hmask;
 		odst = net->xfrm.policy_bydst[dir].table;
-		for (i = hmask; i >= 0; i--)
-			INIT_HLIST_HEAD(odst + i);
+		for (i = hmask; i >= 0; i--) {
+			hlist_for_each_entry_safe(policy, n, odst + i, bydst)
+				hlist_del_rcu(&policy->bydst);
+		}
 		if ((dir & XFRM_POLICY_MASK) == XFRM_POLICY_OUT) {
 			/* dir out => dst = remote, src = local */
 			net->xfrm.policy_bydst[dir].dbits4 = rbits4;
@@ -1313,8 +1315,6 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 		newpos = NULL;
 		chain = policy_hash_bysel(net, &policy->selector,
 					  policy->family, dir);
-
-		hlist_del_rcu(&policy->bydst);
 
 		if (!chain) {
 			void *p = xfrm_policy_inexact_insert(policy, dir, 0);
@@ -3264,7 +3264,8 @@ static void
 decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
+	int ihl = iph->ihl;
+	u8 *xprth = skb_network_header(skb) + ihl * 4;
 	struct flowi4 *fl4 = &fl->u.ip4;
 	int oif = 0;
 
@@ -3274,6 +3275,11 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 	memset(fl4, 0, sizeof(struct flowi4));
 	fl4->flowi4_mark = skb->mark;
 	fl4->flowi4_oif = reverse ? skb->skb_iif : oif;
+
+	fl4->flowi4_proto = iph->protocol;
+	fl4->daddr = reverse ? iph->saddr : iph->daddr;
+	fl4->saddr = reverse ? iph->daddr : iph->saddr;
+	fl4->flowi4_tos = iph->tos;
 
 	if (!ip_is_fragment(iph)) {
 		switch (iph->protocol) {
@@ -3286,7 +3292,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				__be16 *ports;
 
-				xprth = skb_network_header(skb) + iph->ihl * 4;
+				xprth = skb_network_header(skb) + ihl * 4;
 				ports = (__be16 *)xprth;
 
 				fl4->fl4_sport = ports[!!reverse];
@@ -3298,7 +3304,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 			    pskb_may_pull(skb, xprth + 2 - skb->data)) {
 				u8 *icmp;
 
-				xprth = skb_network_header(skb) + iph->ihl * 4;
+				xprth = skb_network_header(skb) + ihl * 4;
 				icmp = xprth;
 
 				fl4->fl4_icmp_type = icmp[0];
@@ -3310,7 +3316,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				__be32 *ehdr;
 
-				xprth = skb_network_header(skb) + iph->ihl * 4;
+				xprth = skb_network_header(skb) + ihl * 4;
 				ehdr = (__be32 *)xprth;
 
 				fl4->fl4_ipsec_spi = ehdr[0];
@@ -3321,7 +3327,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 			    pskb_may_pull(skb, xprth + 8 - skb->data)) {
 				__be32 *ah_hdr;
 
-				xprth = skb_network_header(skb) + iph->ihl * 4;
+				xprth = skb_network_header(skb) + ihl * 4;
 				ah_hdr = (__be32 *)xprth;
 
 				fl4->fl4_ipsec_spi = ah_hdr[1];
@@ -3332,7 +3338,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				__be16 *ipcomp_hdr;
 
-				xprth = skb_network_header(skb) + iph->ihl * 4;
+				xprth = skb_network_header(skb) + ihl * 4;
 				ipcomp_hdr = (__be16 *)xprth;
 
 				fl4->fl4_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
@@ -3344,7 +3350,7 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 				__be16 *greflags;
 				__be32 *gre_hdr;
 
-				xprth = skb_network_header(skb) + iph->ihl * 4;
+				xprth = skb_network_header(skb) + ihl * 4;
 				greflags = (__be16 *)xprth;
 				gre_hdr = (__be32 *)xprth;
 
@@ -3360,10 +3366,6 @@ decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
 			break;
 		}
 	}
-	fl4->flowi4_proto = iph->protocol;
-	fl4->daddr = reverse ? iph->saddr : iph->daddr;
-	fl4->saddr = reverse ? iph->daddr : iph->saddr;
-	fl4->flowi4_tos = iph->tos;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -3625,7 +3627,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		}
 		xfrm_nr = ti;
 		if (npols > 1) {
-			xfrm_tmpl_sort(stp, tpp, xfrm_nr, family, net);
+			xfrm_tmpl_sort(stp, tpp, xfrm_nr, family);
 			tpp = stp;
 		}
 

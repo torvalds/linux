@@ -1292,7 +1292,7 @@ static void _PHY_SaveADDARegisters8723B(
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 	PDM_ODM_T pDM_Odm = &pHalData->odmpriv;
 
-	if (ODM_CheckPowerStatus(padapter) == false)
+	if (!ODM_CheckPowerStatus(padapter))
 		return;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Save ADDA parameters.\n"));
@@ -1363,7 +1363,7 @@ static void _PHY_PathADDAOn8723B(
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("ADDA ON.\n"));
 
 	pathOn = 0x01c00014;
-	if (false == is2T) {
+	if (!is2T) {
 		pathOn = 0x01c00014;
 		PHY_SetBBReg(pDM_Odm->Adapter, ADDAReg[0], bMaskDWord, 0x01c00014);
 	} else {
@@ -1811,7 +1811,7 @@ void PHY_IQCalibrate_8723B(
 	u32 		StartTime;
 	s32			ProgressingTime;
 
-	if (ODM_CheckPowerStatus(padapter) == false)
+	if (!ODM_CheckPowerStatus(padapter))
 		return;
 
 	if (!(pDM_Odm->SupportAbility & ODM_RF_CALIBRATION))

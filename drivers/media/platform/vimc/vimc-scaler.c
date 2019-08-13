@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-scaler.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
@@ -158,7 +148,7 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
-		if (vsca->src_frame)
+		if (vsca->ved.stream)
 			return -EBUSY;
 
 		sink_fmt = &vsca->sink_fmt;
@@ -212,9 +202,6 @@ static int vimc_sca_s_stream(struct v4l2_subdev *sd, int enable)
 		u32 pixelformat = vsca->ved.stream->producer_pixfmt;
 		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
-
-		if (vsca->src_frame)
-			return 0;
 
 		if (!vimc_sca_is_pixfmt_supported(pixelformat)) {
 			dev_err(vsca->dev, "pixfmt (0x%08x) is not supported\n",
@@ -337,7 +324,7 @@ static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
 						    ved);
 
 	/* If the stream in this node is not active, just return */
-	if (!vsca->src_frame)
+	if (!ved->stream)
 		return ERR_PTR(-EINVAL);
 
 	vimc_sca_fill_src_frame(vsca, sink_frame);

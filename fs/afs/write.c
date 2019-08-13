@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* handling of writes to regular files and writing back to the server
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/backing-dev.h>
@@ -48,8 +44,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 		return 0;
 	}
 
-	req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
-		      GFP_KERNEL);
+	req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 

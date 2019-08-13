@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pstate.c: Native P state management for Intel processors
  *
  * (C) Copyright 2012 Intel Corporation
  * Author: Dirk Brandewie <dirk.j.brandewie@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -902,7 +898,6 @@ static void intel_pstate_update_policies(void)
 static void intel_pstate_update_max_freq(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
-	struct cpufreq_policy new_policy;
 	struct cpudata *cpudata;
 
 	if (!policy)
@@ -912,11 +907,7 @@ static void intel_pstate_update_max_freq(unsigned int cpu)
 	policy->cpuinfo.max_freq = global.turbo_disabled_mf ?
 			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
 
-	memcpy(&new_policy, policy, sizeof(*policy));
-	new_policy.max = min(policy->user_policy.max, policy->cpuinfo.max_freq);
-	new_policy.min = min(policy->user_policy.min, new_policy.max);
-
-	cpufreq_set_policy(policy, &new_policy);
+	refresh_frequency_limits(policy);
 
 	cpufreq_cpu_release(policy);
 }

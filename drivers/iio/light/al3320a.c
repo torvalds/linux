@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AL3320A - Dyna Image Ambient Light Sensor
  *
  * Copyright (c) 2014, Intel Corporation.
  *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
- *
  * IIO driver for AL3320A (7-bit I2C slave address 0x1C).
  *
  * TODO: interrupt support, thresholds
- *
  */
 
 #include <linux/module.h>

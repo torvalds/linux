@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OLPC-specific OFW device tree support code.
  *
@@ -9,11 +10,6 @@
  *
  *  Adapted for sparc by David S. Miller davem@davemloft.net
  *  Adapted for x86/OLPC by Andres Salomon <dilinger@queued.net>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -220,7 +216,7 @@ static u32 __init olpc_dt_get_board_revision(void)
 	return be32_to_cpu(rev);
 }
 
-int olpc_dt_compatible_match(phandle node, const char *compat)
+static int __init olpc_dt_compatible_match(phandle node, const char *compat)
 {
 	char buf[64], *p;
 	int plen, len;

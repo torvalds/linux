@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file implements an irqchip for OPAL events. Whenever there is
  * an interrupt that is handled by OPAL we get passed a list of events
@@ -5,11 +6,6 @@
  * interrupts to Linux so we implement an irqchip to handle them.
  *
  * Copyright Alistair Popple, IBM Corporation 2014.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/bitops.h>
 #include <linux/irq.h>

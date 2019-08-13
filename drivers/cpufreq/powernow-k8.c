@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   (c) 2003-2012 Advanced Micro Devices, Inc.
- *  Your use of this code is subject to the terms and conditions of the
- *  GNU general public license version 2. See "COPYING" or
- *  http://www.gnu.org/licenses/gpl.html
  *
  *  Maintainer:
  *  Andreas Herrmann <herrmann.der.user@googlemail.com>
@@ -11,7 +9,6 @@
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
  *  (C) 2004 Dominik Brodowski <linux@brodo.de>
  *  (C) 2004 Pavel Machek <pavel@ucw.cz>
- *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
  *
  *  Valuable input gratefully received from Dave Jones, Pavel Machek,

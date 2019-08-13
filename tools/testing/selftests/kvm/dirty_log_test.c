@@ -121,7 +121,6 @@ static void *vcpu_worker(void *data)
 	uint64_t *guest_array;
 	uint64_t pages_count = 0;
 	struct kvm_run *run;
-	struct ucall uc;
 
 	run = vcpu_state(vm, VCPU_ID);
 
@@ -131,7 +130,8 @@ static void *vcpu_worker(void *data)
 	while (!READ_ONCE(host_quit)) {
 		/* Let the guest dirty the random pages */
 		ret = _vcpu_run(vm, VCPU_ID);
-		if (get_ucall(vm, VCPU_ID, &uc) == UCALL_SYNC) {
+		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
+		if (get_ucall(vm, VCPU_ID, NULL) == UCALL_SYNC) {
 			pages_count += TEST_PAGES_PER_LOOP;
 			generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		} else {
@@ -292,7 +292,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	 * A little more than 1G of guest page sized pages.  Cover the
 	 * case where the size is not aligned to 64 pages.
 	 */
-	guest_num_pages = (1ul << (30 - guest_page_shift)) + 3;
+	guest_num_pages = (1ul << (30 - guest_page_shift)) + 16;
 	host_page_size = getpagesize();
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
@@ -426,8 +426,11 @@ int main(int argc, char *argv[])
 	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
 	bool mode_selected = false;
 	uint64_t phys_offset = 0;
-	unsigned int mode, host_ipa_limit;
+	unsigned int mode;
 	int opt, i;
+#ifdef __aarch64__
+	unsigned int host_ipa_limit;
+#endif
 
 #ifdef USE_CLEAR_DIRTY_LOG
 	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2)) {

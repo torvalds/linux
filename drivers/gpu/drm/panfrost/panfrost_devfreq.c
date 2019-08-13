@@ -142,6 +142,8 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	ret = dev_pm_opp_of_add_table(&pfdev->pdev->dev);
 	if (ret == -ENODEV) /* Optional, continue without devfreq */
 		return 0;
+	else if (ret)
+		return ret;
 
 	panfrost_devfreq_reset(pfdev);
 

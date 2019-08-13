@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/char/ds1620.c: Dallas Semiconductors DS1620
  *   thermometer driver (as used in the Rebel.com NetWinder)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig NET_NSH
 	tristate "Network Service Header (NSH) protocol"
 	default n

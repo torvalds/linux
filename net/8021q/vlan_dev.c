@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*-
  * INET		802.1Q VLAN
  *		Ethernet-type device handling.
@@ -12,12 +13,6 @@
  *              Oct 20, 2001:  Ard van Breeman:
  *                - Fix MC-list, finally.
  *                - Flush MC-list on VLAN destroy.
- *
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -373,6 +368,7 @@ static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		if (!net_eq(dev_net(dev), &init_net))
 			break;
+		/* fall through */
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
@@ -584,6 +580,7 @@ static int vlan_dev_init(struct net_device *dev)
 
 	dev->vlan_features = real_dev->vlan_features & ~NETIF_F_ALL_FCOE;
 	dev->hw_enc_features = vlan_tnl_features(real_dev);
+	dev->mpls_features = real_dev->mpls_features;
 
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;

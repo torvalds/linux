@@ -90,8 +90,10 @@
 
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 {
-#define PCI_DUMP_SIZE	64
-#define PREFIX_LEN	32
+#define PCI_DUMP_SIZE		352
+#define PCI_MEM_DUMP_SIZE	64
+#define PCI_PARENT_DUMP_SIZE	524
+#define PREFIX_LEN		32
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct pci_dev *pdev = trans_pcie->pci_dev;
 	u32 i, pos, alloc_size, *ptr, *buf;
@@ -102,11 +104,15 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 
 	/* Should be a multiple of 4 */
 	BUILD_BUG_ON(PCI_DUMP_SIZE > 4096 || PCI_DUMP_SIZE & 0x3);
+	BUILD_BUG_ON(PCI_MEM_DUMP_SIZE > 4096 || PCI_MEM_DUMP_SIZE & 0x3);
+	BUILD_BUG_ON(PCI_PARENT_DUMP_SIZE > 4096 || PCI_PARENT_DUMP_SIZE & 0x3);
+
 	/* Alloc a max size buffer */
-	if (PCI_ERR_ROOT_ERR_SRC +  4 > PCI_DUMP_SIZE)
-		alloc_size = PCI_ERR_ROOT_ERR_SRC +  4 + PREFIX_LEN;
-	else
-		alloc_size = PCI_DUMP_SIZE + PREFIX_LEN;
+	alloc_size = PCI_ERR_ROOT_ERR_SRC +  4 + PREFIX_LEN;
+	alloc_size = max_t(u32, alloc_size, PCI_DUMP_SIZE + PREFIX_LEN);
+	alloc_size = max_t(u32, alloc_size, PCI_MEM_DUMP_SIZE + PREFIX_LEN);
+	alloc_size = max_t(u32, alloc_size, PCI_PARENT_DUMP_SIZE + PREFIX_LEN);
+
 	buf = kmalloc(alloc_size, GFP_ATOMIC);
 	if (!buf)
 		return;
@@ -123,7 +129,7 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
 
 	IWL_ERR(trans, "iwlwifi device memory mapped registers:\n");
-	for (i = 0, ptr = buf; i < PCI_DUMP_SIZE; i += 4, ptr++)
+	for (i = 0, ptr = buf; i < PCI_MEM_DUMP_SIZE; i += 4, ptr++)
 		*ptr = iwl_read32(trans, i);
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
 
@@ -146,7 +152,7 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 
 	IWL_ERR(trans, "iwlwifi parent port (%s) config registers:\n",
 		pci_name(pdev));
-	for (i = 0, ptr = buf; i < PCI_DUMP_SIZE; i += 4, ptr++)
+	for (i = 0, ptr = buf; i < PCI_PARENT_DUMP_SIZE; i += 4, ptr++)
 		if (pci_read_config_dword(pdev, i, ptr))
 			goto err_read;
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
@@ -188,14 +194,14 @@ static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 {
 	int i;
 
-	for (i = 0; i < trans->num_blocks; i++) {
-		dma_free_coherent(trans->dev, trans->fw_mon[i].size,
-				  trans->fw_mon[i].block,
-				  trans->fw_mon[i].physical);
-		trans->fw_mon[i].block = NULL;
-		trans->fw_mon[i].physical = 0;
-		trans->fw_mon[i].size = 0;
-		trans->num_blocks--;
+	for (i = 0; i < trans->dbg.num_blocks; i++) {
+		dma_free_coherent(trans->dev, trans->dbg.fw_mon[i].size,
+				  trans->dbg.fw_mon[i].block,
+				  trans->dbg.fw_mon[i].physical);
+		trans->dbg.fw_mon[i].block = NULL;
+		trans->dbg.fw_mon[i].physical = 0;
+		trans->dbg.fw_mon[i].size = 0;
+		trans->dbg.num_blocks--;
 	}
 }
 
@@ -230,10 +236,10 @@ static void iwl_pcie_alloc_fw_monitor_block(struct iwl_trans *trans,
 			(unsigned long)BIT(power - 10),
 			(unsigned long)BIT(max_power - 10));
 
-	trans->fw_mon[trans->num_blocks].block = cpu_addr;
-	trans->fw_mon[trans->num_blocks].physical = phys;
-	trans->fw_mon[trans->num_blocks].size = size;
-	trans->num_blocks++;
+	trans->dbg.fw_mon[trans->dbg.num_blocks].block = cpu_addr;
+	trans->dbg.fw_mon[trans->dbg.num_blocks].physical = phys;
+	trans->dbg.fw_mon[trans->dbg.num_blocks].size = size;
+	trans->dbg.num_blocks++;
 }
 
 void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
@@ -254,7 +260,7 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 	 * This function allocats the default fw monitor.
 	 * The optional additional ones will be allocated in runtime
 	 */
-	if (trans->num_blocks)
+	if (trans->dbg.num_blocks)
 		return;
 
 	iwl_pcie_alloc_fw_monitor_block(trans, max_power, 11);
@@ -889,21 +895,21 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 
 void iwl_pcie_apply_destination(struct iwl_trans *trans)
 {
-	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
+	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg.dest_tlv;
 	int i;
 
-	if (trans->ini_valid) {
-		if (!trans->num_blocks)
+	if (trans->dbg.ini_valid) {
+		if (!trans->dbg.num_blocks)
 			return;
 
 		IWL_DEBUG_FW(trans,
 			     "WRT: applying DRAM buffer[0] destination\n");
 		iwl_write_umac_prph(trans, MON_BUFF_BASE_ADDR_VER2,
-				    trans->fw_mon[0].physical >>
+				    trans->dbg.fw_mon[0].physical >>
 				    MON_BUFF_SHIFT_VER2);
 		iwl_write_umac_prph(trans, MON_BUFF_END_ADDR_VER2,
-				    (trans->fw_mon[0].physical +
-				     trans->fw_mon[0].size - 256) >>
+				    (trans->dbg.fw_mon[0].physical +
+				     trans->dbg.fw_mon[0].size - 256) >>
 				    MON_BUFF_SHIFT_VER2);
 		return;
 	}
@@ -916,7 +922,7 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 	else
 		IWL_WARN(trans, "PCI should have external buffer debug\n");
 
-	for (i = 0; i < trans->dbg_n_dest_reg; i++) {
+	for (i = 0; i < trans->dbg.n_dest_reg; i++) {
 		u32 addr = le32_to_cpu(dest->reg_ops[i].addr);
 		u32 val = le32_to_cpu(dest->reg_ops[i].val);
 
@@ -955,18 +961,19 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 	}
 
 monitor:
-	if (dest->monitor_mode == EXTERNAL_MODE && trans->fw_mon[0].size) {
+	if (dest->monitor_mode == EXTERNAL_MODE && trans->dbg.fw_mon[0].size) {
 		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
-			       trans->fw_mon[0].physical >> dest->base_shift);
+			       trans->dbg.fw_mon[0].physical >>
+			       dest->base_shift);
 		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-				       (trans->fw_mon[0].physical +
-					trans->fw_mon[0].size - 256) >>
+				       (trans->dbg.fw_mon[0].physical +
+					trans->dbg.fw_mon[0].size - 256) >>
 						dest->end_shift);
 		else
 			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-				       (trans->fw_mon[0].physical +
-					trans->fw_mon[0].size) >>
+				       (trans->dbg.fw_mon[0].physical +
+					trans->dbg.fw_mon[0].size) >>
 						dest->end_shift);
 	}
 }
@@ -1003,12 +1010,12 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	    trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_pcie_alloc_fw_monitor(trans, 0);
 
-		if (trans->fw_mon[0].size) {
+		if (trans->dbg.fw_mon[0].size) {
 			iwl_write_prph(trans, MON_BUFF_BASE_ADDR,
-				       trans->fw_mon[0].physical >> 4);
+				       trans->dbg.fw_mon[0].physical >> 4);
 			iwl_write_prph(trans, MON_BUFF_END_ADDR,
-				       (trans->fw_mon[0].physical +
-					trans->fw_mon[0].size) >> 4);
+				       (trans->dbg.fw_mon[0].physical +
+					trans->dbg.fw_mon[0].size) >> 4);
 		}
 	} else if (iwl_pcie_dbg_on(trans)) {
 		iwl_pcie_apply_destination(trans);
@@ -1236,7 +1243,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	trans_pcie->is_down = true;
 
 	/* Stop dbgc before stopping device */
-	_iwl_fw_dbg_stop_recording(trans, NULL);
+	iwl_fw_dbg_stop_recording(trans, NULL);
 
 	/* tell the device to stop sending interrupts */
 	iwl_disable_interrupts(trans);
@@ -1698,10 +1705,40 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 	return 0;
 }
 
+static int iwl_trans_pcie_clear_persistence_bit(struct iwl_trans *trans)
+{
+	u32 hpm, wprot;
+
+	switch (trans->cfg->device_family) {
+	case IWL_DEVICE_FAMILY_9000:
+		wprot = PREG_PRPH_WPROT_9000;
+		break;
+	case IWL_DEVICE_FAMILY_22000:
+		wprot = PREG_PRPH_WPROT_22000;
+		break;
+	default:
+		return 0;
+	}
+
+	hpm = iwl_read_umac_prph_no_grab(trans, HPM_DEBUG);
+	if (hpm != 0xa5a5a5a0 && (hpm & PERSISTENCE_BIT)) {
+		u32 wprot_val = iwl_read_umac_prph_no_grab(trans, wprot);
+
+		if (wprot_val & PREG_WFPM_ACCESS) {
+			IWL_ERR(trans,
+				"Error, can not clear persistence bit\n");
+			return -EPERM;
+		}
+		iwl_write_umac_prph_no_grab(trans, HPM_DEBUG,
+					    hpm & ~PERSISTENCE_BIT);
+	}
+
+	return 0;
+}
+
 static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 hpm;
 	int err;
 
 	lockdep_assert_held(&trans_pcie->mutex);
@@ -1712,19 +1749,9 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 		return err;
 	}
 
-	hpm = iwl_read_umac_prph_no_grab(trans, HPM_DEBUG);
-	if (hpm != 0xa5a5a5a0 && (hpm & PERSISTENCE_BIT)) {
-		int wfpm_val = iwl_read_umac_prph_no_grab(trans,
-							  PREG_PRPH_WPROT_0);
-
-		if (wfpm_val & PREG_WFPM_ACCESS) {
-			IWL_ERR(trans,
-				"Error, can not clear persistence bit\n");
-			return -EPERM;
-		}
-		iwl_write_umac_prph_no_grab(trans, HPM_DEBUG,
-					    hpm & ~PERSISTENCE_BIT);
-	}
+	err = iwl_trans_pcie_clear_persistence_bit(trans);
+	if (err)
+		return err;
 
 	iwl_trans_pcie_sw_reset(trans);
 
@@ -2709,8 +2736,8 @@ static int iwl_dbgfs_monitor_data_open(struct inode *inode,
 	struct iwl_trans *trans = inode->i_private;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!trans->dbg_dest_tlv ||
-	    trans->dbg_dest_tlv->monitor_mode != EXTERNAL_MODE) {
+	if (!trans->dbg.dest_tlv ||
+	    trans->dbg.dest_tlv->monitor_mode != EXTERNAL_MODE) {
 		IWL_ERR(trans, "Debug destination is not set to DRAM\n");
 		return -ENOENT;
 	}
@@ -2757,22 +2784,22 @@ static ssize_t iwl_dbgfs_monitor_data_read(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	void *cpu_addr = (void *)trans->fw_mon[0].block, *curr_buf;
+	void *cpu_addr = (void *)trans->dbg.fw_mon[0].block, *curr_buf;
 	struct cont_rec *data = &trans_pcie->fw_mon_data;
 	u32 write_ptr_addr, wrap_cnt_addr, write_ptr, wrap_cnt;
 	ssize_t size, bytes_copied = 0;
 	bool b_full;
 
-	if (trans->dbg_dest_tlv) {
+	if (trans->dbg.dest_tlv) {
 		write_ptr_addr =
-			le32_to_cpu(trans->dbg_dest_tlv->write_ptr_reg);
-		wrap_cnt_addr = le32_to_cpu(trans->dbg_dest_tlv->wrap_count);
+			le32_to_cpu(trans->dbg.dest_tlv->write_ptr_reg);
+		wrap_cnt_addr = le32_to_cpu(trans->dbg.dest_tlv->wrap_count);
 	} else {
 		write_ptr_addr = MON_BUFF_WRPTR;
 		wrap_cnt_addr = MON_BUFF_CYCLE_CNT;
 	}
 
-	if (unlikely(!trans->dbg_rec_on))
+	if (unlikely(!trans->dbg.rec_on))
 		return 0;
 
 	mutex_lock(&data->mutex);
@@ -2796,7 +2823,7 @@ static ssize_t iwl_dbgfs_monitor_data_read(struct file *file,
 
 	} else if (data->prev_wrap_cnt == wrap_cnt - 1 &&
 		   write_ptr < data->prev_wr_ptr) {
-		size = trans->fw_mon[0].size - data->prev_wr_ptr;
+		size = trans->dbg.fw_mon[0].size - data->prev_wr_ptr;
 		curr_buf = cpu_addr + data->prev_wr_ptr;
 		b_full = iwl_write_to_user_buf(user_buf, count,
 					       curr_buf, &size,
@@ -3015,14 +3042,10 @@ iwl_trans_pcie_dump_pointers(struct iwl_trans *trans,
 		base_high = DBGC_CUR_DBGBUF_BASE_ADDR_MSB;
 		write_ptr = DBGC_CUR_DBGBUF_STATUS;
 		wrap_cnt = DBGC_DBGBUF_WRAP_AROUND;
-	} else if (trans->ini_valid) {
-		base = iwl_umac_prph(trans, MON_BUFF_BASE_ADDR_VER2);
-		write_ptr = iwl_umac_prph(trans, MON_BUFF_WRPTR_VER2);
-		wrap_cnt = iwl_umac_prph(trans, MON_BUFF_CYCLE_CNT_VER2);
-	} else if (trans->dbg_dest_tlv) {
-		write_ptr = le32_to_cpu(trans->dbg_dest_tlv->write_ptr_reg);
-		wrap_cnt = le32_to_cpu(trans->dbg_dest_tlv->wrap_count);
-		base = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
+	} else if (trans->dbg.dest_tlv) {
+		write_ptr = le32_to_cpu(trans->dbg.dest_tlv->write_ptr_reg);
+		wrap_cnt = le32_to_cpu(trans->dbg.dest_tlv->wrap_count);
+		base = le32_to_cpu(trans->dbg.dest_tlv->base_reg);
 	} else {
 		base = MON_BUFF_BASE_ADDR;
 		write_ptr = MON_BUFF_WRPTR;
@@ -3049,11 +3072,10 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 {
 	u32 len = 0;
 
-	if ((trans->num_blocks &&
+	if (trans->dbg.dest_tlv ||
+	    (trans->dbg.num_blocks &&
 	     (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000 ||
-	      trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210 ||
-	      trans->ini_valid)) ||
-	    (trans->dbg_dest_tlv && !trans->ini_valid)) {
+	      trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210))) {
 		struct iwl_fw_error_dump_fw_mon *fw_mon_data;
 
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FW_MONITOR);
@@ -3062,32 +3084,32 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 		iwl_trans_pcie_dump_pointers(trans, fw_mon_data);
 
 		len += sizeof(**data) + sizeof(*fw_mon_data);
-		if (trans->num_blocks) {
+		if (trans->dbg.num_blocks) {
 			memcpy(fw_mon_data->data,
-			       trans->fw_mon[0].block,
-			       trans->fw_mon[0].size);
+			       trans->dbg.fw_mon[0].block,
+			       trans->dbg.fw_mon[0].size);
 
-			monitor_len = trans->fw_mon[0].size;
-		} else if (trans->dbg_dest_tlv->monitor_mode == SMEM_MODE) {
+			monitor_len = trans->dbg.fw_mon[0].size;
+		} else if (trans->dbg.dest_tlv->monitor_mode == SMEM_MODE) {
 			u32 base = le32_to_cpu(fw_mon_data->fw_mon_base_ptr);
 			/*
 			 * Update pointers to reflect actual values after
 			 * shifting
 			 */
-			if (trans->dbg_dest_tlv->version) {
+			if (trans->dbg.dest_tlv->version) {
 				base = (iwl_read_prph(trans, base) &
 					IWL_LDBG_M2S_BUF_BA_MSK) <<
-				       trans->dbg_dest_tlv->base_shift;
+				       trans->dbg.dest_tlv->base_shift;
 				base *= IWL_M2S_UNIT_SIZE;
 				base += trans->cfg->smem_offset;
 			} else {
 				base = iwl_read_prph(trans, base) <<
-				       trans->dbg_dest_tlv->base_shift;
+				       trans->dbg.dest_tlv->base_shift;
 			}
 
 			iwl_trans_read_mem(trans, base, fw_mon_data->data,
 					   monitor_len / sizeof(u32));
-		} else if (trans->dbg_dest_tlv->monitor_mode == MARBH_MODE) {
+		} else if (trans->dbg.dest_tlv->monitor_mode == MARBH_MODE) {
 			monitor_len =
 				iwl_trans_pci_dump_marbh_monitor(trans,
 								 fw_mon_data,
@@ -3106,40 +3128,40 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 
 static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 {
-	if (trans->num_blocks) {
+	if (trans->dbg.num_blocks) {
 		*len += sizeof(struct iwl_fw_error_dump_data) +
 			sizeof(struct iwl_fw_error_dump_fw_mon) +
-			trans->fw_mon[0].size;
-		return trans->fw_mon[0].size;
-	} else if (trans->dbg_dest_tlv) {
+			trans->dbg.fw_mon[0].size;
+		return trans->dbg.fw_mon[0].size;
+	} else if (trans->dbg.dest_tlv) {
 		u32 base, end, cfg_reg, monitor_len;
 
-		if (trans->dbg_dest_tlv->version == 1) {
-			cfg_reg = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
+		if (trans->dbg.dest_tlv->version == 1) {
+			cfg_reg = le32_to_cpu(trans->dbg.dest_tlv->base_reg);
 			cfg_reg = iwl_read_prph(trans, cfg_reg);
 			base = (cfg_reg & IWL_LDBG_M2S_BUF_BA_MSK) <<
-				trans->dbg_dest_tlv->base_shift;
+				trans->dbg.dest_tlv->base_shift;
 			base *= IWL_M2S_UNIT_SIZE;
 			base += trans->cfg->smem_offset;
 
 			monitor_len =
 				(cfg_reg & IWL_LDBG_M2S_BUF_SIZE_MSK) >>
-				trans->dbg_dest_tlv->end_shift;
+				trans->dbg.dest_tlv->end_shift;
 			monitor_len *= IWL_M2S_UNIT_SIZE;
 		} else {
-			base = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
-			end = le32_to_cpu(trans->dbg_dest_tlv->end_reg);
+			base = le32_to_cpu(trans->dbg.dest_tlv->base_reg);
+			end = le32_to_cpu(trans->dbg.dest_tlv->end_reg);
 
 			base = iwl_read_prph(trans, base) <<
-			       trans->dbg_dest_tlv->base_shift;
+			       trans->dbg.dest_tlv->base_shift;
 			end = iwl_read_prph(trans, end) <<
-			      trans->dbg_dest_tlv->end_shift;
+			      trans->dbg.dest_tlv->end_shift;
 
 			/* Make "end" point to the actual end */
 			if (trans->cfg->device_family >=
 			    IWL_DEVICE_FAMILY_8000 ||
-			    trans->dbg_dest_tlv->monitor_mode == MARBH_MODE)
-				end += (1 << trans->dbg_dest_tlv->end_shift);
+			    trans->dbg.dest_tlv->monitor_mode == MARBH_MODE)
+				end += (1 << trans->dbg.dest_tlv->end_shift);
 			monitor_len = end - base;
 		}
 		*len += sizeof(struct iwl_fw_error_dump_data) +
@@ -3172,7 +3194,7 @@ static struct iwl_trans_dump_data
 	len = sizeof(*dump_data);
 
 	/* host commands */
-	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD))
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD) && cmdq)
 		len += sizeof(*data) +
 			cmdq->n_window * (sizeof(*txcmd) +
 					  TFD_MAX_PAYLOAD_SIZE);
@@ -3224,7 +3246,7 @@ static struct iwl_trans_dump_data
 	len = 0;
 	data = (void *)dump_data->data;
 
-	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD)) {
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD) && cmdq) {
 		u16 tfd_size = trans_pcie->tfd_size;
 
 		data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
@@ -3526,7 +3548,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			hw_step |= ENABLE_WFPM;
 			iwl_write_umac_prph_no_grab(trans, WFPM_CTRL_REG,
 						    hw_step);
-			hw_step = iwl_read_prph_no_grab(trans, AUX_MISC_REG);
+			hw_step = iwl_read_prph_no_grab(trans,
+							CNVI_AUX_MISC_CHIP);
 			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
 			if (hw_step == 0x3)
 				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |
@@ -3548,15 +3571,17 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			trans->cfg = &iwlax210_2ax_cfg_so_jf_a0;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_GF)) {
-			trans->cfg = &iwlax210_2ax_cfg_so_gf_a0;
+			trans->cfg = &iwlax211_2ax_cfg_so_gf_a0;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_GF4)) {
-			trans->cfg = &iwlax210_2ax_cfg_so_gf4_a0;
+			trans->cfg = &iwlax411_2ax_cfg_so_gf4_a0;
 		}
 	} else if (cfg == &iwl_ax101_cfg_qu_hr) {
-		if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
-		    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		    trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0) {
+		if ((CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
+		     CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
+		     trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0) ||
+		    (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
+		     CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR1))) {
 			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_b0;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 		    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
@@ -3577,7 +3602,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		   (trans->cfg != &iwl_ax200_cfg_cc ||
+		   ((trans->cfg != &iwl_ax200_cfg_cc &&
+		     trans->cfg != &killer1650x_2ax_cfg &&
+		     trans->cfg != &killer1650w_2ax_cfg &&
+		     trans->cfg != &iwl_ax201_cfg_quz_hr) ||
 		    trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0)) {
 		u32 hw_status;
 
@@ -3658,6 +3686,7 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
+	bool interrupts_enabled = test_bit(STATUS_INT_ENABLED, &trans->status);
 	u32 inta_addr, sw_err_bit;
 
 	if (trans_pcie->msix_enabled) {
@@ -3668,7 +3697,12 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 		sw_err_bit = CSR_INT_BIT_SW_ERR;
 	}
 
-	iwl_disable_interrupts(trans);
+	/* if the interrupts were already disabled, there is no point in
+	 * calling iwl_disable_interrupts
+	 */
+	if (interrupts_enabled)
+		iwl_disable_interrupts(trans);
+
 	iwl_force_nmi(trans);
 	while (time_after(timeout, jiffies)) {
 		u32 inta_hw = iwl_read32(trans, inta_addr);
@@ -3682,6 +3716,13 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 
 		mdelay(1);
 	}
-	iwl_enable_interrupts(trans);
+
+	/* enable interrupts only if there were already enabled before this
+	 * function to avoid a case were the driver enable interrupts before
+	 * proper configurations were made
+	 */
+	if (interrupts_enabled)
+		iwl_enable_interrupts(trans);
+
 	iwl_trans_fw_error(trans);
 }

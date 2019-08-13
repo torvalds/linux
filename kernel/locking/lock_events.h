@@ -31,12 +31,13 @@ enum lock_events {
 DECLARE_PER_CPU(unsigned long, lockevents[lockevent_num]);
 
 /*
- * Increment the PV qspinlock statistical counters
+ * Increment the statistical counters. use raw_cpu_inc() because of lower
+ * overhead and we don't care if we loose the occasional update.
  */
 static inline void __lockevent_inc(enum lock_events event, bool cond)
 {
 	if (cond)
-		__this_cpu_inc(lockevents[event]);
+		raw_cpu_inc(lockevents[event]);
 }
 
 #define lockevent_inc(ev)	  __lockevent_inc(LOCKEVENT_ ##ev, true)
@@ -44,7 +45,7 @@ static inline void __lockevent_inc(enum lock_events event, bool cond)
 
 static inline void __lockevent_add(enum lock_events event, int inc)
 {
-	__this_cpu_add(lockevents[event], inc);
+	raw_cpu_add(lockevents[event], inc);
 }
 
 #define lockevent_add(ev, c)	__lockevent_add(LOCKEVENT_ ##ev, c)

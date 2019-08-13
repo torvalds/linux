@@ -6,6 +6,7 @@
 #include <linux/blk-mq.h>
 #include <xen/xen.h>
 #include "blk-mq.h"
+#include "blk-mq-sched.h"
 
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
@@ -50,9 +51,6 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 		int node, int cmd_size, gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
-void blk_exit_queue(struct request_queue *q);
-void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
-			struct bio *bio);
 void blk_freeze_queue(struct request_queue *q);
 
 static inline void blk_queue_enter_live(struct request_queue *q)
@@ -99,6 +97,18 @@ static inline bool bvec_gap_to_prev(struct request_queue *q,
 	if (!queue_virt_boundary(q))
 		return false;
 	return __bvec_gap_to_prev(q, bprv, offset);
+}
+
+static inline void blk_rq_bio_prep(struct request *rq, struct bio *bio,
+		unsigned int nr_segs)
+{
+	rq->nr_phys_segments = nr_segs;
+	rq->__data_len = bio->bi_iter.bi_size;
+	rq->bio = rq->biotail = bio;
+	rq->ioprio = bio_prio(bio);
+
+	if (bio->bi_disk)
+		rq->rq_disk = bio->bi_disk;
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
@@ -154,14 +164,14 @@ static inline bool bio_integrity_endio(struct bio *bio)
 unsigned long blk_rq_timeout(unsigned long timeout);
 void blk_add_timer(struct request *req);
 
-bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
-			     struct bio *bio);
-bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
-			    struct bio *bio);
+bool bio_attempt_front_merge(struct request *req, struct bio *bio,
+		unsigned int nr_segs);
+bool bio_attempt_back_merge(struct request *req, struct bio *bio,
+		unsigned int nr_segs);
 bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 		struct bio *bio);
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			    struct request **same_queue_rq);
+		unsigned int nr_segs, struct request **same_queue_rq);
 
 void blk_account_io_start(struct request *req, bool new_io);
 void blk_account_io_completion(struct request *req, unsigned int bytes);
@@ -177,9 +187,16 @@ void blk_insert_flush(struct request *rq);
 int elevator_init_mq(struct request_queue *q);
 int elevator_switch_mq(struct request_queue *q,
 			      struct elevator_type *new_e);
-void elevator_exit(struct request_queue *, struct elevator_queue *);
+void __elevator_exit(struct request_queue *, struct elevator_queue *);
 int elv_register_queue(struct request_queue *q);
 void elv_unregister_queue(struct request_queue *q);
+
+static inline void elevator_exit(struct request_queue *q,
+		struct elevator_queue *e)
+{
+	blk_mq_sched_free_requests(q);
+	__elevator_exit(q, e);
+}
 
 struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
 
@@ -195,15 +212,17 @@ static inline int blk_should_fake_timeout(struct request_queue *q)
 }
 #endif
 
-int ll_back_merge_fn(struct request_queue *q, struct request *req,
-		     struct bio *bio);
-int ll_front_merge_fn(struct request_queue *q, struct request *req, 
-		      struct bio *bio);
+void __blk_queue_split(struct request_queue *q, struct bio **bio,
+		unsigned int *nr_segs);
+int ll_back_merge_fn(struct request *req, struct bio *bio,
+		unsigned int nr_segs);
+int ll_front_merge_fn(struct request *req,  struct bio *bio,
+		unsigned int nr_segs);
 struct request *attempt_back_merge(struct request_queue *q, struct request *rq);
 struct request *attempt_front_merge(struct request_queue *q, struct request *rq);
 int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 				struct request *next);
-void blk_recalc_rq_segments(struct request *rq);
+unsigned int blk_recalc_rq_segments(struct request *rq);
 void blk_rq_set_mixed_merge(struct request *rq);
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
 enum elv_merge blk_try_merge(struct request *rq, struct bio *bio);

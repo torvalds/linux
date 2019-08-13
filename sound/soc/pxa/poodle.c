@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * poodle.c  --  SoC audio for Poodle
  *
@@ -6,12 +7,6 @@
  *
  * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -224,16 +219,18 @@ static const struct snd_kcontrol_new wm8731_poodle_controls[] = {
 };
 
 /* poodle digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(wm8731,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8731.0-001b", "wm8731-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link poodle_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
-	.cpu_dai_name = "pxa2xx-i2s",
-	.codec_dai_name = "wm8731-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8731.0-001b",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &poodle_ops,
+	SND_SOC_DAILINK_REG(wm8731),
 };
 
 /* poodle audio machine driver */

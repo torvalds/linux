@@ -117,7 +117,7 @@ PM support:
 		implemented") error.  You should also try to make sure that your
 		driver uses as little power as possible when it's not doing
 		anything.  For the driver testing instructions see
-		Documentation/power/drivers-testing.txt and for a relatively
+		Documentation/power/drivers-testing.rst and for a relatively
 		complete overview of the power management issues related to
 		drivers see :ref:`Documentation/driver-api/pm/devices.rst <driverapi_pm_devices>`.
 

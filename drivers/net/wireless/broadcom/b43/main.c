@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -15,20 +16,6 @@
   Some parts of the code in this file are derived from the ipw2200
   driver  Copyright(c) 2003 - 2004 Intel Corporation.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -2603,17 +2590,12 @@ start_ieee80211:
 
 	err = ieee80211_register_hw(wl->hw);
 	if (err)
-		goto err_one_core_detach;
+		goto out;
 	wl->hw_registered = true;
 	b43_leds_register(wl->current_dev);
 
 	/* Register HW RNG driver */
 	b43_rng_init(wl);
-
-	goto out;
-
-err_one_core_detach:
-	b43_one_core_detach(dev->dev);
 
 out:
 	kfree(ctx);

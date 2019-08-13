@@ -4,13 +4,6 @@
  *
  * Copyright (c) 2017 Mentor Graphics Inc.
  */
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -65,12 +58,11 @@ struct vdic_pipeline_ops {
 #define S_ALIGN    1 /* multiple of 2 */
 
 struct vdic_priv {
-	struct device        *dev;
-	struct ipu_soc       *ipu;
-	struct imx_media_dev *md;
+	struct device *ipu_dev;
+	struct ipu_soc *ipu;
+
 	struct v4l2_subdev   sd;
 	struct media_pad pad[VDIC_NUM_PADS];
-	int ipu_id;
 
 	/* lock to protect all members below */
 	struct mutex lock;
@@ -144,8 +136,6 @@ static int vdic_get_ipu_resources(struct vdic_priv *priv)
 	int ret, err_chan;
 	struct ipuv3_channel *ch;
 	struct ipu_vdi *vdi;
-
-	priv->ipu = priv->md->ipu[priv->ipu_id];
 
 	vdi = ipu_vdi_get(priv->ipu);
 	if (IS_ERR(vdi)) {
@@ -511,7 +501,8 @@ static int vdic_s_stream(struct v4l2_subdev *sd, int enable)
 	if (priv->stream_count != !enable)
 		goto update_count;
 
-	dev_dbg(priv->dev, "stream %s\n", enable ? "ON" : "OFF");
+	dev_dbg(priv->ipu_dev, "%s: stream %s\n", sd->name,
+		enable ? "ON" : "OFF");
 
 	if (enable)
 		ret = vdic_start(priv);
@@ -617,14 +608,13 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 				      &sdformat->format.height,
 				      MIN_H, MAX_H_VDIC, H_ALIGN, S_ALIGN);
 
-		imx_media_fill_default_mbus_fields(&sdformat->format, infmt,
-						   true);
-
 		/* input must be interlaced! Choose SEQ_TB if not */
 		if (!V4L2_FIELD_HAS_BOTH(sdformat->format.field))
 			sdformat->format.field = V4L2_FIELD_SEQ_TB;
 		break;
 	}
+
+	imx_media_try_colorimetry(&sdformat->format, true);
 }
 
 static int vdic_set_fmt(struct v4l2_subdev *sd,
@@ -686,8 +676,8 @@ static int vdic_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *remote_sd;
 	int ret = 0;
 
-	dev_dbg(priv->dev, "link setup %s -> %s", remote->entity->name,
-		local->entity->name);
+	dev_dbg(priv->ipu_dev, "%s: link setup %s -> %s",
+		sd->name, remote->entity->name, local->entity->name);
 
 	mutex_lock(&priv->lock);
 
@@ -860,9 +850,6 @@ static int vdic_registered(struct v4l2_subdev *sd)
 	int i, ret;
 	u32 code;
 
-	/* get media device */
-	priv->md = dev_get_drvdata(sd->v4l2_dev->dev);
-
 	for (i = 0; i < VDIC_NUM_PADS; i++) {
 		priv->pad[i].flags = (i == VDIC_SRC_PAD_DIRECT) ?
 			MEDIA_PAD_FL_SOURCE : MEDIA_PAD_FL_SINK;
@@ -934,77 +921,53 @@ static const struct v4l2_subdev_internal_ops vdic_internal_ops = {
 	.unregistered = vdic_unregistered,
 };
 
-static int imx_vdic_probe(struct platform_device *pdev)
+struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
+					    struct device *ipu_dev,
+					    struct ipu_soc *ipu,
+					    u32 grp_id)
 {
-	struct imx_media_ipu_internal_sd_pdata *pdata;
 	struct vdic_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	platform_set_drvdata(pdev, &priv->sd);
-	priv->dev = &pdev->dev;
-
-	pdata = priv->dev->platform_data;
-	priv->ipu_id = pdata->ipu_id;
+	priv->ipu_dev = ipu_dev;
+	priv->ipu = ipu;
 
 	v4l2_subdev_init(&priv->sd, &vdic_subdev_ops);
 	v4l2_set_subdevdata(&priv->sd, priv);
 	priv->sd.internal_ops = &vdic_internal_ops;
 	priv->sd.entity.ops = &vdic_entity_ops;
 	priv->sd.entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
-	priv->sd.dev = &pdev->dev;
-	priv->sd.owner = THIS_MODULE;
+	priv->sd.owner = ipu_dev->driver->owner;
 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	/* get our group id */
-	priv->sd.grp_id = pdata->grp_id;
-	strscpy(priv->sd.name, pdata->sd_name, sizeof(priv->sd.name));
+	priv->sd.grp_id = grp_id;
+	imx_media_grp_id_to_sd_name(priv->sd.name, sizeof(priv->sd.name),
+				    priv->sd.grp_id, ipu_get_num(ipu));
 
 	mutex_init(&priv->lock);
 
-	ret = v4l2_async_register_subdev(&priv->sd);
+	ret = v4l2_device_register_subdev(v4l2_dev, &priv->sd);
 	if (ret)
 		goto free;
 
-	return 0;
+	return &priv->sd;
 free:
 	mutex_destroy(&priv->lock);
-	return ret;
+	return ERR_PTR(ret);
 }
 
-static int imx_vdic_remove(struct platform_device *pdev)
+int imx_media_vdic_unregister(struct v4l2_subdev *sd)
 {
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct vdic_priv *priv = v4l2_get_subdevdata(sd);
 
 	v4l2_info(sd, "Removing\n");
 
-	v4l2_async_unregister_subdev(sd);
+	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&priv->lock);
 	media_entity_cleanup(&sd->entity);
 
 	return 0;
 }
-
-static const struct platform_device_id imx_vdic_ids[] = {
-	{ .name = "imx-ipuv3-vdic" },
-	{ },
-};
-MODULE_DEVICE_TABLE(platform, imx_vdic_ids);
-
-static struct platform_driver imx_vdic_driver = {
-	.probe = imx_vdic_probe,
-	.remove = imx_vdic_remove,
-	.id_table = imx_vdic_ids,
-	.driver = {
-		.name = "imx-ipuv3-vdic",
-	},
-};
-module_platform_driver(imx_vdic_driver);
-
-MODULE_DESCRIPTION("i.MX VDIC subdev driver");
-MODULE_AUTHOR("Steve Longerbeam <steve_longerbeam@mentor.com>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-ipuv3-vdic");

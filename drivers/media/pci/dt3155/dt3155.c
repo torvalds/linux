@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *   Copyright (C) 2006-2010 by Marin Mitov                                *
  *   mitov@issp.bas.bg                                                     *
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
  *                                                                         *
  ***************************************************************************/
 
@@ -305,9 +297,6 @@ static int dt3155_querycap(struct file *filp, void *p,
 	strscpy(cap->driver, DT3155_NAME, sizeof(cap->driver));
 	strscpy(cap->card, DT3155_NAME " frame grabber", sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -498,6 +487,8 @@ static const struct video_device dt3155_vdev = {
 	.minor = -1,
 	.release = video_device_release_empty,
 	.tvnorms = V4L2_STD_ALL,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+		       V4L2_CAP_READWRITE,
 };
 
 static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)

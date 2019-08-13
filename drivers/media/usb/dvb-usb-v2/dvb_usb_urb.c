@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DVB USB framework
  *
  * Copyright (C) 2004-6 Patrick Boettcher <patrick.boettcher@posteo.de>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "dvb_usb_common.h"
@@ -37,14 +24,19 @@ static int dvb_usb_v2_generic_io(struct dvb_usb_device *d,
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
 			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
 			&actual_length, 2000);
-	if (ret < 0)
+	if (ret) {
 		dev_err(&d->udev->dev, "%s: usb_bulk_msg() failed=%d\n",
 				KBUILD_MODNAME, ret);
-	else
-		ret = actual_length != wlen ? -EIO : 0;
+		return ret;
+	}
+	if (actual_length != wlen) {
+		dev_err(&d->udev->dev, "%s: usb_bulk_msg() write length=%d, actual=%d\n",
+			KBUILD_MODNAME, wlen, actual_length);
+		return -EIO;
+	}
 
-	/* an answer is expected, and no error before */
-	if (!ret && rbuf && rlen) {
+	/* an answer is expected */
+	if (rbuf && rlen) {
 		if (d->props->generic_bulk_ctrl_delay)
 			usleep_range(d->props->generic_bulk_ctrl_delay,
 					d->props->generic_bulk_ctrl_delay

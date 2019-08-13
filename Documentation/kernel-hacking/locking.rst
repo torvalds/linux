@@ -451,7 +451,7 @@ to protect the cache and all the objects within it. Here's the code::
             if ((obj = kmalloc(sizeof(*obj), GFP_KERNEL)) == NULL)
                     return -ENOMEM;
 
-            strlcpy(obj->name, name, sizeof(obj->name));
+            strscpy(obj->name, name, sizeof(obj->name));
             obj->id = id;
             obj->popularity = 0;
 
@@ -660,7 +660,7 @@ Here is the code::
      }
 
     @@ -63,6 +94,7 @@
-             strlcpy(obj->name, name, sizeof(obj->name));
+             strscpy(obj->name, name, sizeof(obj->name));
              obj->id = id;
              obj->popularity = 0;
     +        obj->refcnt = 1; /* The cache holds a reference */
@@ -774,7 +774,7 @@ the lock is no longer used to protect the reference count itself.
      }
 
     @@ -94,7 +76,7 @@
-             strlcpy(obj->name, name, sizeof(obj->name));
+             strscpy(obj->name, name, sizeof(obj->name));
              obj->id = id;
              obj->popularity = 0;
     -        obj->refcnt = 1; /* The cache holds a reference */
@@ -1364,7 +1364,7 @@ Futex API reference
 Further reading
 ===============
 
--  ``Documentation/locking/spinlocks.txt``: Linus Torvalds' spinlocking
+-  ``Documentation/locking/spinlocks.rst``: Linus Torvalds' spinlocking
    tutorial in the kernel sources.
 
 -  Unix Systems for Modern Architectures: Symmetric Multiprocessing and

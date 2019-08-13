@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ChaCha and XChaCha stream ciphers, including ChaCha20 (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
  * Copyright (C) 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <asm/unaligned.h>
@@ -36,7 +32,7 @@ static void chacha_docrypt(u32 *state, u8 *dst, const u8 *src,
 }
 
 static int chacha_stream_xor(struct skcipher_request *req,
-			     struct chacha_ctx *ctx, u8 *iv)
+			     const struct chacha_ctx *ctx, const u8 *iv)
 {
 	struct skcipher_walk walk;
 	u32 state[16];
@@ -60,7 +56,7 @@ static int chacha_stream_xor(struct skcipher_request *req,
 	return err;
 }
 
-void crypto_chacha_init(u32 *state, struct chacha_ctx *ctx, u8 *iv)
+void crypto_chacha_init(u32 *state, const struct chacha_ctx *ctx, const u8 *iv)
 {
 	state[0]  = 0x61707865; /* "expa" */
 	state[1]  = 0x3320646e; /* "nd 3" */

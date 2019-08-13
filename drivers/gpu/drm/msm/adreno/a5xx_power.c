@@ -1,14 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/pm_opp.h>
@@ -31,6 +22,18 @@
 
 #define AGC_POWER_CONFIG_PRODUCTION_ID 1
 #define AGC_INIT_MSG_VALUE 0xBABEFACE
+
+/* AGC_LM_CONFIG (A540+) */
+#define AGC_LM_CONFIG (136/4)
+#define AGC_LM_CONFIG_GPU_VERSION_SHIFT 17
+#define AGC_LM_CONFIG_ENABLE_GPMU_ADAPTIVE 1
+#define AGC_LM_CONFIG_THROTTLE_DISABLE (2 << 8)
+#define AGC_LM_CONFIG_ISENSE_ENABLE (1 << 4)
+#define AGC_LM_CONFIG_ENABLE_ERROR (3 << 4)
+#define AGC_LM_CONFIG_LLM_ENABLED (1 << 16)
+#define AGC_LM_CONFIG_BCL_DISABLED (1 << 24)
+
+#define AGC_LEVEL_CONFIG (140/4)
 
 static struct {
 	uint32_t reg;
@@ -116,7 +119,7 @@ static inline uint32_t _get_mvolts(struct msm_gpu *gpu, uint32_t freq)
 }
 
 /* Setup thermal limit management */
-static void a5xx_lm_setup(struct msm_gpu *gpu)
+static void a530_lm_setup(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
@@ -165,6 +168,45 @@ static void a5xx_lm_setup(struct msm_gpu *gpu)
 	gpu_write(gpu, AGC_INIT_MSG_MAGIC, AGC_INIT_MSG_VALUE);
 }
 
+#define PAYLOAD_SIZE(_size) ((_size) * sizeof(u32))
+#define LM_DCVS_LIMIT 1
+#define LEVEL_CONFIG ~(0x303)
+
+static void a540_lm_setup(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	u32 config;
+
+	/* The battery current limiter isn't enabled for A540 */
+	config = AGC_LM_CONFIG_BCL_DISABLED;
+	config |= adreno_gpu->rev.patchid << AGC_LM_CONFIG_GPU_VERSION_SHIFT;
+
+	/* For now disable GPMU side throttling */
+	config |= AGC_LM_CONFIG_THROTTLE_DISABLE;
+
+	/* Until we get clock scaling 0 is always the active power level */
+	gpu_write(gpu, REG_A5XX_GPMU_GPMU_VOLTAGE, 0x80000000 | 0);
+
+	/* Fixed at 6000 for now */
+	gpu_write(gpu, REG_A5XX_GPMU_GPMU_PWR_THRESHOLD, 0x80000000 | 6000);
+
+	gpu_write(gpu, AGC_MSG_STATE, 0x80000001);
+	gpu_write(gpu, AGC_MSG_COMMAND, AGC_POWER_CONFIG_PRODUCTION_ID);
+
+	gpu_write(gpu, AGC_MSG_PAYLOAD(0), 5448);
+	gpu_write(gpu, AGC_MSG_PAYLOAD(1), 1);
+
+	gpu_write(gpu, AGC_MSG_PAYLOAD(2), _get_mvolts(gpu, gpu->fast_rate));
+	gpu_write(gpu, AGC_MSG_PAYLOAD(3), gpu->fast_rate / 1000000);
+
+	gpu_write(gpu, AGC_MSG_PAYLOAD(AGC_LM_CONFIG), config);
+	gpu_write(gpu, AGC_MSG_PAYLOAD(AGC_LEVEL_CONFIG), LEVEL_CONFIG);
+	gpu_write(gpu, AGC_MSG_PAYLOAD_SIZE,
+	PAYLOAD_SIZE(AGC_LEVEL_CONFIG + 1));
+
+	gpu_write(gpu, AGC_INIT_MSG_MAGIC, AGC_INIT_MSG_VALUE);
+}
+
 /* Enable SP/TP cpower collapse */
 static void a5xx_pc_init(struct msm_gpu *gpu)
 {
@@ -206,7 +248,8 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 		return -EINVAL;
 	}
 
-	gpu_write(gpu, REG_A5XX_GPMU_WFI_CONFIG, 0x4014);
+	if (adreno_is_a530(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_GPMU_WFI_CONFIG, 0x4014);
 
 	/* Kick off the GPMU */
 	gpu_write(gpu, REG_A5XX_GPMU_CM3_SYSRESET, 0x0);
@@ -220,12 +263,26 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 		DRM_ERROR("%s: GPMU firmware initialization timed out\n",
 			gpu->name);
 
+	if (!adreno_is_a530(adreno_gpu)) {
+		u32 val = gpu_read(gpu, REG_A5XX_GPMU_GENERAL_1);
+
+		if (val)
+			DRM_ERROR("%s: GPMU firmware initialization failed: %d\n",
+				  gpu->name, val);
+	}
+
 	return 0;
 }
 
 /* Enable limits management */
 static void a5xx_lm_enable(struct msm_gpu *gpu)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
+	/* This init sequence only applies to A530 */
+	if (!adreno_is_a530(adreno_gpu))
+		return;
+
 	gpu_write(gpu, REG_A5XX_GDPM_INT_MASK, 0x0);
 	gpu_write(gpu, REG_A5XX_GDPM_INT_EN, 0x0A);
 	gpu_write(gpu, REG_A5XX_GPMU_GPMU_VOLTAGE_INTR_EN_MASK, 0x01);
@@ -237,10 +294,14 @@ static void a5xx_lm_enable(struct msm_gpu *gpu)
 
 int a5xx_power_init(struct msm_gpu *gpu)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int ret;
 
 	/* Set up the limits management */
-	a5xx_lm_setup(gpu);
+	if (adreno_is_a530(adreno_gpu))
+		a530_lm_setup(gpu);
+	else
+		a540_lm_setup(gpu);
 
 	/* Set up SP/TP power collpase */
 	a5xx_pc_init(gpu);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 
  * User address space access functions.
  *
@@ -59,7 +60,7 @@ EXPORT_SYMBOL(clear_user);
  * but reuse __memcpy_mcsafe in case a new read error is encountered.
  * clac() is handled in _copy_to_iter_mcsafe().
  */
-__visible unsigned long
+__visible notrace unsigned long
 mcsafe_handle_tail(char *to, char *from, unsigned len)
 {
 	for (; len; --len, to++, from++) {

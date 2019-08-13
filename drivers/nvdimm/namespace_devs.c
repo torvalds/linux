@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/module.h>
 #include <linux/device.h>
@@ -1830,8 +1822,8 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 					&& !guid_equal(&nd_set->type_guid,
 						&nd_label->type_guid)) {
 				dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
-						nd_set->type_guid.b,
-						nd_label->type_guid.b);
+						&nd_set->type_guid,
+						&nd_label->type_guid);
 				continue;
 			}
 
@@ -2235,8 +2227,8 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 	if (namespace_label_has(ndd, type_guid)) {
 		if (!guid_equal(&nd_set->type_guid, &nd_label->type_guid)) {
 			dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
-					nd_set->type_guid.b,
-					nd_label->type_guid.b);
+					&nd_set->type_guid,
+					&nd_label->type_guid);
 			return ERR_PTR(-EAGAIN);
 		}
 

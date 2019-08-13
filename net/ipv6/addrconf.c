@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPv6 Address [auto]configuration
  *	Linux INET6 implementation
@@ -5,11 +6,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -2421,9 +2417,13 @@ static struct fib6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 		goto out;
 
 	for_each_fib6_node_rt_rcu(fn) {
-		if (rt->fib6_nh.fib_nh_dev->ifindex != dev->ifindex)
+		/* prefix routes only use builtin fib6_nh */
+		if (rt->nh)
 			continue;
-		if (no_gw && rt->fib6_nh.fib_nh_gw_family)
+
+		if (rt->fib6_nh->fib_nh_dev->ifindex != dev->ifindex)
+			continue;
+		if (no_gw && rt->fib6_nh->fib_nh_gw_family)
 			continue;
 		if ((rt->fib6_flags & flags) != flags)
 			continue;
@@ -3127,11 +3127,9 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 		struct in_device *in_dev = __in_dev_get_rtnl(dev);
 		if (in_dev && (dev->flags & IFF_UP)) {
 			struct in_ifaddr *ifa;
-
 			int flag = scope;
 
-			for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
-
+			in_dev_for_each_ifa_rtnl(ifa, in_dev) {
 				addr.s6_addr32[3] = ifa->ifa_local;
 
 				if (ifa->ifa_scope == RT_SCOPE_LINK)
@@ -5661,18 +5659,6 @@ static const struct nla_policy inet6_af_policy[IFLA_INET6_MAX + 1] = {
 	[IFLA_INET6_TOKEN]		= { .len = sizeof(struct in6_addr) },
 };
 
-static int inet6_validate_link_af(const struct net_device *dev,
-				  const struct nlattr *nla)
-{
-	struct nlattr *tb[IFLA_INET6_MAX + 1];
-
-	if (dev && !__in6_dev_get(dev))
-		return -EAFNOSUPPORT;
-
-	return nla_parse_nested_deprecated(tb, IFLA_INET6_MAX, nla,
-					   inet6_af_policy, NULL);
-}
-
 static int check_addr_gen_mode(int mode)
 {
 	if (mode != IN6_ADDR_GEN_MODE_EUI64 &&
@@ -5693,14 +5679,44 @@ static int check_stable_privacy(struct inet6_dev *idev, struct net *net,
 	return 1;
 }
 
+static int inet6_validate_link_af(const struct net_device *dev,
+				  const struct nlattr *nla)
+{
+	struct nlattr *tb[IFLA_INET6_MAX + 1];
+	struct inet6_dev *idev = NULL;
+	int err;
+
+	if (dev) {
+		idev = __in6_dev_get(dev);
+		if (!idev)
+			return -EAFNOSUPPORT;
+	}
+
+	err = nla_parse_nested_deprecated(tb, IFLA_INET6_MAX, nla,
+					  inet6_af_policy, NULL);
+	if (err)
+		return err;
+
+	if (!tb[IFLA_INET6_TOKEN] && !tb[IFLA_INET6_ADDR_GEN_MODE])
+		return -EINVAL;
+
+	if (tb[IFLA_INET6_ADDR_GEN_MODE]) {
+		u8 mode = nla_get_u8(tb[IFLA_INET6_ADDR_GEN_MODE]);
+
+		if (check_addr_gen_mode(mode) < 0)
+			return -EINVAL;
+		if (dev && check_stable_privacy(idev, dev_net(dev), mode) < 0)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 {
-	int err = -EINVAL;
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	struct nlattr *tb[IFLA_INET6_MAX + 1];
-
-	if (!idev)
-		return -EAFNOSUPPORT;
+	int err;
 
 	if (nla_parse_nested_deprecated(tb, IFLA_INET6_MAX, nla, NULL, NULL) < 0)
 		BUG();
@@ -5714,15 +5730,10 @@ static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 	if (tb[IFLA_INET6_ADDR_GEN_MODE]) {
 		u8 mode = nla_get_u8(tb[IFLA_INET6_ADDR_GEN_MODE]);
 
-		if (check_addr_gen_mode(mode) < 0 ||
-		    check_stable_privacy(idev, dev_net(dev), mode) < 0)
-			return -EINVAL;
-
 		idev->cnf.addr_gen_mode = mode;
-		err = 0;
 	}
 
-	return err;
+	return 0;
 }
 
 static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
@@ -6341,16 +6352,17 @@ void addrconf_disable_policy_idev(struct inet6_dev *idev, int val)
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
 		spin_lock(&ifa->lock);
 		if (ifa->rt) {
-			struct fib6_info *rt = ifa->rt;
+			/* host routes only use builtin fib6_nh */
+			struct fib6_nh *nh = ifa->rt->fib6_nh;
 			int cpu;
 
 			rcu_read_lock();
 			ifa->rt->dst_nopolicy = val ? true : false;
-			if (rt->rt6i_pcpu) {
+			if (nh->rt6i_pcpu) {
 				for_each_possible_cpu(cpu) {
 					struct rt6_info **rtp;
 
-					rtp = per_cpu_ptr(rt->rt6i_pcpu, cpu);
+					rtp = per_cpu_ptr(nh->rt6i_pcpu, cpu);
 					addrconf_set_nopolicy(*rtp, val);
 				}
 			}
@@ -6420,8 +6432,6 @@ int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
 }
 
 static int minus_one = -1;
-static const int zero = 0;
-static const int one = 1;
 static const int two_five_five = 255;
 
 static const struct ctl_table addrconf_sysctl[] = {
@@ -6438,7 +6448,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= (void *)&one,
+		.extra1		= (void *)SYSCTL_ONE,
 		.extra2		= (void *)&two_five_five,
 	},
 	{
@@ -6797,7 +6807,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= (void *)&zero,
+		.extra1		= (void *)SYSCTL_ZERO,
 		.extra2		= (void *)&two_five_five,
 	},
 	{

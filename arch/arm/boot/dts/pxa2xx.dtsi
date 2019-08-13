@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pxa2xx.dtsi - Device Tree Include file for Marvell PXA2xx family SoC
  *
  * Copyright (C) 2011 Marek Vasut <marek.vasut@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include "dt-bindings/clock/pxa-clock.h"

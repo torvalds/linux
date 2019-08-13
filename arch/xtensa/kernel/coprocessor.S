@@ -121,7 +121,9 @@
 
 ENTRY(coprocessor_flush)
 
-	entry	a1, 32
+	/* reserve 4 bytes on stack to save a0 */
+	abi_entry(4)
+
 	s32i	a0, a1, 0
 	movi	a0, .Lsave_cp_regs_jump_table
 	addx8	a3, a3, a0
@@ -131,7 +133,8 @@ ENTRY(coprocessor_flush)
 	beqz	a3, 1f
 	callx0	a3
 1:	l32i	a0, a1, 0
-	retw
+
+	abi_ret(4)
 
 ENDPROC(coprocessor_flush)
 

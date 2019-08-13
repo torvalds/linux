@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Realtek RTL2832U SDR driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
  *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * GNU Radio plugin "gr-kernel" for device usage will be on:
  * http://git.linuxtv.org/anttip/gr-kernel.git
- *
  */
 
 #include "rtl2832_sdr.h"
@@ -442,9 +428,6 @@ static int rtl2832_sdr_querycap(struct file *file, void *fh,
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, dev->vdev.name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
-			V4L2_CAP_READWRITE | V4L2_CAP_TUNER;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1256,6 +1239,8 @@ static struct video_device rtl2832_sdr_template = {
 	.release                  = video_device_release_empty,
 	.fops                     = &rtl2832_sdr_fops,
 	.ioctl_ops                = &rtl2832_sdr_ioctl_ops,
+	.device_caps		  = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
+				    V4L2_CAP_READWRITE | V4L2_CAP_TUNER,
 };
 
 static int rtl2832_sdr_s_ctrl(struct v4l2_ctrl *ctrl)

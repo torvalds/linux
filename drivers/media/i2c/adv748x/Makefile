@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 adv748x-objs	:= \
 		adv748x-afe.o \
 		adv748x-core.o \

@@ -110,8 +110,7 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG,
 				upper_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG,
-				(ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S) |
-				HCLGE_NIC_CMQ_ENABLE);
+				ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_HEAD_REG, 0);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_TAIL_REG, 0);
 	} else {
@@ -120,8 +119,7 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_BASEADDR_H_REG,
 				upper_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_DEPTH_REG,
-				(ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S) |
-				HCLGE_NIC_CMQ_ENABLE);
+				ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S);
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_HEAD_REG, 0);
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_TAIL_REG, 0);
 	}
@@ -175,7 +173,11 @@ static bool hclge_is_special_opcode(u16 opcode)
 			     HCLGE_OPC_STATS_MAC,
 			     HCLGE_OPC_STATS_MAC_ALL,
 			     HCLGE_OPC_QUERY_32_BIT_REG,
-			     HCLGE_OPC_QUERY_64_BIT_REG};
+			     HCLGE_OPC_QUERY_64_BIT_REG,
+			     HCLGE_QUERY_CLEAR_MPF_RAS_INT,
+			     HCLGE_QUERY_CLEAR_PF_RAS_INT,
+			     HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
+			     HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -186,12 +188,43 @@ static bool hclge_is_special_opcode(u16 opcode)
 	return false;
 }
 
+static int hclge_cmd_convert_err_code(u16 desc_ret)
+{
+	switch (desc_ret) {
+	case HCLGE_CMD_EXEC_SUCCESS:
+		return 0;
+	case HCLGE_CMD_NO_AUTH:
+		return -EPERM;
+	case HCLGE_CMD_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case HCLGE_CMD_QUEUE_FULL:
+		return -EXFULL;
+	case HCLGE_CMD_NEXT_ERR:
+		return -ENOSR;
+	case HCLGE_CMD_UNEXE_ERR:
+		return -ENOTBLK;
+	case HCLGE_CMD_PARA_ERR:
+		return -EINVAL;
+	case HCLGE_CMD_RESULT_ERR:
+		return -ERANGE;
+	case HCLGE_CMD_TIMEOUT:
+		return -ETIME;
+	case HCLGE_CMD_HILINK_ERR:
+		return -ENOLINK;
+	case HCLGE_CMD_QUEUE_ILLEGAL:
+		return -ENXIO;
+	case HCLGE_CMD_INVALID:
+		return -EBADR;
+	default:
+		return -EIO;
+	}
+}
+
 static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
 				  int num, int ntc)
 {
 	u16 opcode, desc_ret;
 	int handle;
-	int retval;
 
 	opcode = le16_to_cpu(desc[0].opcode);
 	for (handle = 0; handle < num; handle++) {
@@ -205,17 +238,9 @@ static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
 	else
 		desc_ret = le16_to_cpu(desc[0].retval);
 
-	if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
-		retval = 0;
-	else if (desc_ret == HCLGE_CMD_NO_AUTH)
-		retval = -EPERM;
-	else if (desc_ret == HCLGE_CMD_NOT_SUPPORTED)
-		retval = -EOPNOTSUPP;
-	else
-		retval = -EIO;
 	hw->cmq.last_status = desc_ret;
 
-	return retval;
+	return hclge_cmd_convert_err_code(desc_ret);
 }
 
 /**
@@ -230,6 +255,7 @@ static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 {
 	struct hclge_dev *hdev = container_of(hw, struct hclge_dev, hw);
+	struct hclge_cmq_ring *csq = &hw->cmq.csq;
 	struct hclge_desc *desc_to_use;
 	bool complete = false;
 	u32 timeout = 0;
@@ -239,8 +265,16 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 
 	spin_lock_bh(&hw->cmq.csq.lock);
 
-	if (num > hclge_ring_space(&hw->cmq.csq) ||
-	    test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
+	if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
+		spin_unlock_bh(&hw->cmq.csq.lock);
+		return -EBUSY;
+	}
+
+	if (num > hclge_ring_space(&hw->cmq.csq)) {
+		/* If CMDQ ring is full, SW HEAD and HW HEAD may be different,
+		 * need update the SW HEAD pointer csq->next_to_clean
+		 */
+		csq->next_to_clean = hclge_read_dev(hw, HCLGE_NIC_CSQ_HEAD_REG);
 		spin_unlock_bh(&hw->cmq.csq.lock);
 		return -EBUSY;
 	}
@@ -278,7 +312,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	}
 
 	if (!complete) {
-		retval = -EAGAIN;
+		retval = -EBADE;
 	} else {
 		retval = hclge_cmd_check_retval(hw, desc, num, ntc);
 	}

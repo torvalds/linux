@@ -45,7 +45,7 @@ mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 	if (!mac_stopped)
 		mt76x2_mac_resume(dev);
 	mt76x2_apply_gain_adj(dev);
-	mt76x02_edcca_init(dev, true);
+	mt76x02_edcca_init(dev);
 
 	dev->cal.channel_cal_done = true;
 }
@@ -55,9 +55,14 @@ void mt76x2u_phy_calibrate(struct work_struct *work)
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
+
+	mutex_lock(&dev->mt76.mutex);
+
 	mt76x2u_phy_channel_calibrate(dev, false);
 	mt76x2_phy_tssi_compensate(dev);
 	mt76x2_phy_update_channel_gain(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);

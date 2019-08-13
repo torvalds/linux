@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tools/testing/selftests/kvm/lib/x86_64/processor.c
  *
  * Copyright (C) 2018, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #define _GNU_SOURCE /* for program_invocation_name */
@@ -229,8 +228,6 @@ void sregs_dump(FILE *stream, struct kvm_sregs *sregs,
 
 void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 {
-	int rc;
-
 	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
@@ -549,7 +546,6 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	struct pageDirectoryPointerEntry *pdpe;
 	struct pageDirectoryEntry *pde;
 	struct pageTableEntry *pte;
-	void *hva;
 
 	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -582,6 +578,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 unmapped_gva:
 	TEST_ASSERT(false, "No mapping for vm virtual address, "
 		    "gva: 0x%lx", gva);
+	exit(EXIT_FAILURE);
 }
 
 static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt, int gdt_memslot,
@@ -612,7 +609,7 @@ static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
 	kvm_seg_fill_gdt_64bit(vm, segp);
 }
 
-void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
+static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 {
 	struct kvm_sregs sregs;
 
@@ -658,7 +655,8 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 				     DEFAULT_GUEST_STACK_VADDR_MIN, 0, 0);
 
 	/* Create VCPU */
-	vm_vcpu_add(vm, vcpuid, 0, 0);
+	vm_vcpu_add(vm, vcpuid);
+	vcpu_setup(vm, vcpuid, 0, 0);
 
 	/* Setup guest general purpose registers */
 	vcpu_regs_get(vm, vcpuid, &regs);
@@ -823,7 +821,7 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
 	/* Create VM */
-	vm = vm_create(VM_MODE_P52V48_4K,
+	vm = vm_create(VM_MODE_DEFAULT,
 		       DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
 		       O_RDWR);
 
@@ -1138,4 +1136,20 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
 			r);
 	}
+}
+
+bool is_intel_cpu(void)
+{
+	int eax, ebx, ecx, edx;
+	const uint32_t *chunk;
+	const int leaf = 0;
+
+	__asm__ __volatile__(
+		"cpuid"
+		: /* output */ "=a"(eax), "=b"(ebx),
+		  "=c"(ecx), "=d"(edx)
+		: /* input */ "0"(leaf), "2"(0));
+
+	chunk = (const uint32_t *)("GenuineIntel");
+	return (ebx == chunk[0] && edx == chunk[1] && ecx == chunk[2]);
 }

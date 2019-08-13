@@ -26,6 +26,7 @@
 #include "volumes.h"
 #include "qgroup.h"
 #include "compression.h"
+#include "delalloc-space.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*
@@ -1550,30 +1551,20 @@ static noinline int check_can_nocow(struct btrfs_inode *inode, loff_t pos,
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
-	struct btrfs_ordered_extent *ordered;
 	u64 lockstart, lockend;
 	u64 num_bytes;
 	int ret;
 
 	ret = btrfs_start_write_no_snapshotting(root);
 	if (!ret)
-		return -ENOSPC;
+		return -EAGAIN;
 
 	lockstart = round_down(pos, fs_info->sectorsize);
 	lockend = round_up(pos + *write_bytes,
 			   fs_info->sectorsize) - 1;
 
-	while (1) {
-		lock_extent(&inode->io_tree, lockstart, lockend);
-		ordered = btrfs_lookup_ordered_range(inode, lockstart,
-						     lockend - lockstart + 1);
-		if (!ordered) {
-			break;
-		}
-		unlock_extent(&inode->io_tree, lockstart, lockend);
-		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
-		btrfs_put_ordered_extent(ordered);
-	}
+	btrfs_lock_and_flush_ordered_range(&inode->io_tree, inode, lockstart,
+					   lockend, NULL);
 
 	num_bytes = lockend - lockstart + 1;
 	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
@@ -2068,6 +2059,18 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	u64 len;
 
 	/*
+	 * If the inode needs a full sync, make sure we use a full range to
+	 * avoid log tree corruption, due to hole detection racing with ordered
+	 * extent completion for adjacent ranges, and assertion failures during
+	 * hole detection.
+	 */
+	if (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+		     &BTRFS_I(inode)->runtime_flags)) {
+		start = 0;
+		end = LLONG_MAX;
+	}
+
+	/*
 	 * The range length can be represented by u64, we have to do the typecasts
 	 * to avoid signed overflow if it's [0, LLONG_MAX] eg. from fsync()
 	 */
@@ -2554,10 +2557,8 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 	ret = btrfs_punch_hole_lock_range(inode, lockstart, lockend,
 					  &cached_state);
-	if (ret) {
-		inode_unlock(inode);
+	if (ret)
 		goto out_only_mutex;
-	}
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -2711,6 +2712,11 @@ out_only_mutex:
 		 * for detecting, at fsync time, if the inode isn't yet in the
 		 * log tree or it's there but not up to date.
 		 */
+		struct timespec64 now = current_time(inode);
+
+		inode_inc_iversion(inode);
+		inode->i_mtime = now;
+		inode->i_ctime = now;
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
 			err = PTR_ERR(trans);
@@ -2791,9 +2797,9 @@ static int btrfs_fallocate_update_isize(struct inode *inode,
 }
 
 enum {
-	RANGE_BOUNDARY_WRITTEN_EXTENT = 0,
-	RANGE_BOUNDARY_PREALLOC_EXTENT = 1,
-	RANGE_BOUNDARY_HOLE = 2,
+	RANGE_BOUNDARY_WRITTEN_EXTENT,
+	RANGE_BOUNDARY_PREALLOC_EXTENT,
+	RANGE_BOUNDARY_HOLE,
 };
 
 static int btrfs_zero_range_check_range_boundary(struct inode *inode,

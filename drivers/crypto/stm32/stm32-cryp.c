@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) STMicroelectronics SA 2017
  * Author: Fabien Dessenne <fabien.dessenne@st.com>
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Auvitek AU0828 USB Bridge (Analog video support)
  *
  * Copyright (C) 2009 Devin Heitmueller <dheitmueller@linuxtv.org>
  * Copyright (C) 2005-2008 Auvitek International, Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * As published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Developer Notes:
@@ -1191,7 +1182,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 static int vidioc_querycap(struct file *file, void  *priv,
 			   struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
 	struct au0828_dev *dev = video_drvdata(file);
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
@@ -1202,16 +1192,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	usb_make_path(dev->usbdev, cap->bus_info, sizeof(cap->bus_info));
 
 	/* set the device capabilities */
-	cap->device_caps = V4L2_CAP_AUDIO |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING |
-		V4L2_CAP_TUNER;
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-	else
-		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS |
-		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE;
+	cap->capabilities =
+		V4L2_CAP_AUDIO | V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+		V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE |
+		V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -2000,6 +1984,9 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.queue = &dev->vb_vidq;
 	dev->vdev.queue->lock = &dev->vb_queue_lock;
+	dev->vdev.device_caps =
+		V4L2_CAP_AUDIO | V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+		V4L2_CAP_TUNER | V4L2_CAP_VIDEO_CAPTURE;
 	strscpy(dev->vdev.name, "au0828a video", sizeof(dev->vdev.name));
 
 	/* Setup the VBI device */
@@ -2008,6 +1995,9 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->vbi_dev.lock = &dev->lock;
 	dev->vbi_dev.queue = &dev->vb_vbiq;
 	dev->vbi_dev.queue->lock = &dev->vb_vbi_queue_lock;
+	dev->vbi_dev.device_caps =
+		V4L2_CAP_AUDIO | V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+		V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE;
 	strscpy(dev->vbi_dev.name, "au0828a vbi", sizeof(dev->vbi_dev.name));
 
 	/* Init entities at the Media Controller */

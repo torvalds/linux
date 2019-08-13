@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HYSDN
+	tristate "Hypercope HYSDN cards (Champ, Ergo, Metro) support (module only)"
+	depends on m && PROC_FS && PCI
+	help
+	  Say Y here if you have one of Hypercope's active PCI ISDN cards
+	  Champ, Ergo and Metro. You will then get a module called hysdn.
+	  Please read the file <file:Documentation/isdn/README.hysdn> for more
+	  information.
+
+config HYSDN_CAPI
+	bool "HYSDN CAPI 2.0 support"
+	depends on HYSDN && ISDN_CAPI
+	help
+	  Say Y here if you like to use Hypercope's CAPI 2.0 interface.

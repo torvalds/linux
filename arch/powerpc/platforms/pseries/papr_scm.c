@@ -28,6 +28,7 @@ struct papr_scm_priv {
 	uint64_t blocks;
 	uint64_t block_size;
 	int metadata_size;
+	bool is_volatile;
 
 	uint64_t bound_addr;
 
@@ -96,42 +97,102 @@ static int drc_pmem_unbind(struct papr_scm_priv *p)
 }
 
 static int papr_scm_meta_get(struct papr_scm_priv *p,
-			struct nd_cmd_get_config_data_hdr *hdr)
+			     struct nd_cmd_get_config_data_hdr *hdr)
 {
 	unsigned long data[PLPAR_HCALL_BUFSIZE];
+	unsigned long offset, data_offset;
+	int len, read;
 	int64_t ret;
 
-	if (hdr->in_offset >= p->metadata_size || hdr->in_length != 1)
+	if ((hdr->in_offset + hdr->in_length) >= p->metadata_size)
 		return -EINVAL;
 
-	ret = plpar_hcall(H_SCM_READ_METADATA, data, p->drc_index,
-			hdr->in_offset, 1);
+	for (len = hdr->in_length; len; len -= read) {
 
-	if (ret == H_PARAMETER) /* bad DRC index */
-		return -ENODEV;
-	if (ret)
-		return -EINVAL; /* other invalid parameter */
+		data_offset = hdr->in_length - len;
+		offset = hdr->in_offset + data_offset;
 
-	hdr->out_buf[0] = data[0] & 0xff;
+		if (len >= 8)
+			read = 8;
+		else if (len >= 4)
+			read = 4;
+		else if (len >= 2)
+			read = 2;
+		else
+			read = 1;
 
+		ret = plpar_hcall(H_SCM_READ_METADATA, data, p->drc_index,
+				  offset, read);
+
+		if (ret == H_PARAMETER) /* bad DRC index */
+			return -ENODEV;
+		if (ret)
+			return -EINVAL; /* other invalid parameter */
+
+		switch (read) {
+		case 8:
+			*(uint64_t *)(hdr->out_buf + data_offset) = be64_to_cpu(data[0]);
+			break;
+		case 4:
+			*(uint32_t *)(hdr->out_buf + data_offset) = be32_to_cpu(data[0] & 0xffffffff);
+			break;
+
+		case 2:
+			*(uint16_t *)(hdr->out_buf + data_offset) = be16_to_cpu(data[0] & 0xffff);
+			break;
+
+		case 1:
+			*(uint8_t *)(hdr->out_buf + data_offset) = (data[0] & 0xff);
+			break;
+		}
+	}
 	return 0;
 }
 
 static int papr_scm_meta_set(struct papr_scm_priv *p,
-			struct nd_cmd_set_config_hdr *hdr)
+			     struct nd_cmd_set_config_hdr *hdr)
 {
+	unsigned long offset, data_offset;
+	int len, wrote;
+	unsigned long data;
+	__be64 data_be;
 	int64_t ret;
 
-	if (hdr->in_offset >= p->metadata_size || hdr->in_length != 1)
+	if ((hdr->in_offset + hdr->in_length) >= p->metadata_size)
 		return -EINVAL;
 
-	ret = plpar_hcall_norets(H_SCM_WRITE_METADATA,
-			p->drc_index, hdr->in_offset, hdr->in_buf[0], 1);
+	for (len = hdr->in_length; len; len -= wrote) {
 
-	if (ret == H_PARAMETER) /* bad DRC index */
-		return -ENODEV;
-	if (ret)
-		return -EINVAL; /* other invalid parameter */
+		data_offset = hdr->in_length - len;
+		offset = hdr->in_offset + data_offset;
+
+		if (len >= 8) {
+			data = *(uint64_t *)(hdr->in_buf + data_offset);
+			data_be = cpu_to_be64(data);
+			wrote = 8;
+		} else if (len >= 4) {
+			data = *(uint32_t *)(hdr->in_buf + data_offset);
+			data &= 0xffffffff;
+			data_be = cpu_to_be32(data);
+			wrote = 4;
+		} else if (len >= 2) {
+			data = *(uint16_t *)(hdr->in_buf + data_offset);
+			data &= 0xffff;
+			data_be = cpu_to_be16(data);
+			wrote = 2;
+		} else {
+			data_be = *(uint8_t *)(hdr->in_buf + data_offset);
+			data_be &= 0xff;
+			wrote = 1;
+		}
+
+		ret = plpar_hcall_norets(H_SCM_WRITE_METADATA, p->drc_index,
+					 offset, data_be, wrote);
+		if (ret == H_PARAMETER) /* bad DRC index */
+			return -ENODEV;
+		if (ret)
+			return -EINVAL; /* other invalid parameter */
+	}
 
 	return 0;
 }
@@ -153,7 +214,7 @@ int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		get_size_hdr = buf;
 
 		get_size_hdr->status = 0;
-		get_size_hdr->max_xfer = 1;
+		get_size_hdr->max_xfer = 8;
 		get_size_hdr->config_size = p->metadata_size;
 		*cmd_rc = 0;
 		break;
@@ -248,7 +309,10 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	ndr_desc.nd_set = &p->nd_set;
 	set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 
-	p->region = nvdimm_pmem_region_create(p->bus, &ndr_desc);
+	if (p->is_volatile)
+		p->region = nvdimm_volatile_region_create(p->bus, &ndr_desc);
+	else
+		p->region = nvdimm_pmem_region_create(p->bus, &ndr_desc);
 	if (!p->region) {
 		dev_err(dev, "Error registering region %pR from %pOF\n",
 				ndr_desc.res, p->dn);
@@ -293,6 +357,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -304,11 +369,19 @@ static int papr_scm_probe(struct platform_device *pdev)
 	p->drc_index = drc_index;
 	p->block_size = block_size;
 	p->blocks = blocks;
+	p->is_volatile = !of_property_read_bool(dn, "ibm,cache-flush-required");
 
 	/* We just need to ensure that set cookies are unique across */
 	uuid_parse(uuid_str, (uuid_t *) uuid);
-	p->nd_set.cookie1 = uuid[0];
-	p->nd_set.cookie2 = uuid[1];
+	/*
+	 * cookie1 and cookie2 are not really little endian
+	 * we store a little endian representation of the
+	 * uuid str so that we can compare this with the label
+	 * area cookie irrespective of the endian config with which
+	 * the kernel is built.
+	 */
+	p->nd_set.cookie1 = cpu_to_le64(uuid[0]);
+	p->nd_set.cookie2 = cpu_to_le64(uuid[1]);
 
 	/* might be zero */
 	p->metadata_size = metadata_size;

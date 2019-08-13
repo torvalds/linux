@@ -1,3 +1,6 @@
+#ifndef _DRM_AUTH_H_
+#define _DRM_AUTH_H_
+
 /*
  * Internal Header for the Direct Rendering Manager
  *
@@ -25,8 +28,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _DRM_AUTH_H_
-#define _DRM_AUTH_H_
+#include <linux/idr.h>
+#include <linux/kref.h>
+#include <linux/wait.h>
+
+struct drm_file;
+struct drm_hw_lock;
 
 /*
  * Legacy DRI1 locking data structure. Only here instead of in drm_legacy.h for

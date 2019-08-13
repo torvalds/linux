@@ -141,7 +141,6 @@ static noinline void __machine_kdump(void *image)
 	 */
 	store_status(__do_machine_kdump, image);
 }
-#endif
 
 static unsigned long do_start_kdump(unsigned long addr)
 {
@@ -154,6 +153,8 @@ static unsigned long do_start_kdump(unsigned long addr)
 	__arch_local_irq_stosm(0x04); /* enable DAT */
 	return rc;
 }
+
+#endif /* CONFIG_CRASH_DUMP */
 
 /*
  * Check if kdump checksums are valid: We call purgatory with parameter "0"

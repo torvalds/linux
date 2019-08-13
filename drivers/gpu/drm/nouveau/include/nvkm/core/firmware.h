@@ -1,12 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FIRMWARE_H__
 #define __NVKM_FIRMWARE_H__
+#include <core/subdev.h>
 
-#include <core/device.h>
-
-int nvkm_firmware_get(struct nvkm_device *device, const char *fwname,
-		      const struct firmware **fw);
-
-void nvkm_firmware_put(const struct firmware *fw);
-
+int nvkm_firmware_get_version(const struct nvkm_subdev *, const char *fwname,
+			      int min_version, int max_version,
+			      const struct firmware **);
+int nvkm_firmware_get(const struct nvkm_subdev *, const char *fwname,
+		      const struct firmware **);
+void nvkm_firmware_put(const struct firmware *);
 #endif

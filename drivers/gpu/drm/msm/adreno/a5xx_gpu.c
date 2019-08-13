@@ -1,14 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -318,11 +309,17 @@ static const struct {
 
 void a5xx_set_hwcg(struct msm_gpu *gpu, bool state)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(a5xx_hwcg); i++)
 		gpu_write(gpu, a5xx_hwcg[i].offset,
 			state ? a5xx_hwcg[i].value : 0);
+
+	if (adreno_is_a540(adreno_gpu)) {
+		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_DELAY_GPMU, state ? 0x00000770 : 0);
+		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_HYST_GPMU, state ? 0x00000004 : 0);
+	}
 
 	gpu_write(gpu, REG_A5XX_RBBM_CLOCK_CNTL, state ? 0xAAA8AA00 : 0);
 	gpu_write(gpu, REG_A5XX_RBBM_ISDB_CNT, state ? 0x182 : 0x180);
@@ -507,6 +504,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 
 	gpu_write(gpu, REG_A5XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
 
+	if (adreno_is_a540(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000009);
+
 	/* Make all blocks contribute to the GPU BUSY perf counter */
 	gpu_write(gpu, REG_A5XX_RBBM_PERFCTR_GPU_BUSY_MASKED, 0xFFFFFFFF);
 
@@ -567,7 +567,10 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A5XX_UCHE_GMEM_RANGE_MAX_HI, 0x00000000);
 
 	gpu_write(gpu, REG_A5XX_CP_MEQ_THRESHOLDS, 0x40);
-	gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x40);
+	if (adreno_is_a530(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x40);
+	if (adreno_is_a540(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x400);
 	gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_2, 0x80000060);
 	gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_1, 0x40201B16);
 
@@ -592,6 +595,8 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Set the highest bank bit */
 	gpu_write(gpu, REG_A5XX_TPL1_MODE_CNTL, 2 << 7);
 	gpu_write(gpu, REG_A5XX_RB_MODE_CNTL, 2 << 1);
+	if (adreno_is_a540(adreno_gpu))
+		gpu_write(gpu, REG_A5XX_UCHE_DBG_ECO_CNTL_2, 2);
 
 	/* Protect registers from the CP */
 	gpu_write(gpu, REG_A5XX_CP_PROTECT_CNTL, 0x00000007);
@@ -641,6 +646,30 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write64(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_LO,
 		REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_HI, 0x00000000);
 	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_SIZE, 0x00000000);
+
+	/* Put the GPU into 64 bit by default */
+	gpu_write(gpu, REG_A5XX_CP_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_VSC_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_GRAS_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_RB_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_PC_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_HLSQ_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_VFD_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_VPC_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_UCHE_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_SP_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_TPL1_ADDR_MODE_CNTL, 0x1);
+	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_ADDR_MODE_CNTL, 0x1);
+
+	/*
+	 * VPC corner case with local memory load kill leads to corrupt
+	 * internal state. Normal Disable does not work for all a5x chips.
+	 * So do the following setting to disable it.
+	 */
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_LMLOADKILL_DISABLE) {
+		gpu_rmw(gpu, REG_A5XX_VPC_DBG_ECO_CNTL, 0, BIT(23));
+		gpu_rmw(gpu, REG_A5XX_HLSQ_DBG_ECO_CNTL, BIT(18), 0);
+	}
 
 	ret = adreno_hw_init(gpu);
 	if (ret)

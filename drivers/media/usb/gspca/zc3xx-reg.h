@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * zc030x registers
  *
@@ -5,8 +6,6 @@
  *
  * The register aliases used here came from this driver:
  *	http://zc0302.sourceforge.net/zc0302.php
- *
- * This code is placed under the terms of the GNU General Public License v2
  */
 
 /* Define the register map */

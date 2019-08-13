@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_ATMEL_SOC
 	tristate "SoC Audio for the Atmel System-on-Chip"
 	depends on HAS_IOMEM

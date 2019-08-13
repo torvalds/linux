@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Edirol UA-101/UA-1000 driver
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- * This driver is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2.
- *
- * This driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/init.h>

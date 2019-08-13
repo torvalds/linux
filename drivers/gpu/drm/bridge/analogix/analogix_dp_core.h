@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Header file for Analogix DP (Display Port) core interface driver.
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Jingoo Han <jg1.han@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #ifndef _ANALOGIX_DP_CORE_H
@@ -37,6 +33,8 @@
 #define DPCD_PRE_EMPHASIS_GET(x)		(((x) >> 3) & 0x3)
 #define DPCD_VOLTAGE_SWING_SET(x)		(((x) & 0x3) << 0)
 #define DPCD_VOLTAGE_SWING_GET(x)		(((x) >> 0) & 0x3)
+
+struct gpio_desc;
 
 enum link_lane_count_type {
 	LANE_COUNT1 = 1,
@@ -171,7 +169,7 @@ struct analogix_dp_device {
 	struct link_train	link_train;
 	struct phy		*phy;
 	int			dpms_mode;
-	int			hpd_gpio;
+	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
 	bool			psr_enable;
 	bool			fast_train_enable;
@@ -254,7 +252,7 @@ void analogix_dp_enable_scrambling(struct analogix_dp_device *dp);
 void analogix_dp_disable_scrambling(struct analogix_dp_device *dp);
 void analogix_dp_enable_psr_crc(struct analogix_dp_device *dp);
 int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
-			     struct edp_vsc_psr *vsc, bool blocking);
+			     struct dp_sdp *vsc, bool blocking);
 ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg);
 

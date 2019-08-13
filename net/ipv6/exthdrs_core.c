@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
  * not configured or static.
@@ -265,7 +266,7 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		} else if (nexthdr == NEXTHDR_AUTH) {
 			if (flags && (*flags & IP6_FH_F_AUTH) && (target < 0))
 				break;
-			hdrlen = (hp->hdrlen + 2) << 2;
+			hdrlen = ipv6_authlen(hp);
 		} else
 			hdrlen = ipv6_optlen(hp);
 

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/perf_event.h>
+#include <linux/sysfs.h>
 #include <linux/nospec.h>
 #include <asm/intel-family.h>
+#include "probe.h"
 
 enum perf_msr_id {
 	PERF_MSR_TSC			= 0,
@@ -12,32 +14,30 @@ enum perf_msr_id {
 	PERF_MSR_PTSC			= 5,
 	PERF_MSR_IRPERF			= 6,
 	PERF_MSR_THERM			= 7,
-	PERF_MSR_THERM_SNAP		= 8,
-	PERF_MSR_THERM_UNIT		= 9,
 	PERF_MSR_EVENT_MAX,
 };
 
-static bool test_aperfmperf(int idx)
+static bool test_aperfmperf(int idx, void *data)
 {
 	return boot_cpu_has(X86_FEATURE_APERFMPERF);
 }
 
-static bool test_ptsc(int idx)
+static bool test_ptsc(int idx, void *data)
 {
 	return boot_cpu_has(X86_FEATURE_PTSC);
 }
 
-static bool test_irperf(int idx)
+static bool test_irperf(int idx, void *data)
 {
 	return boot_cpu_has(X86_FEATURE_IRPERF);
 }
 
-static bool test_therm_status(int idx)
+static bool test_therm_status(int idx, void *data)
 {
 	return boot_cpu_has(X86_FEATURE_DTHERM);
 }
 
-static bool test_intel(int idx)
+static bool test_intel(int idx, void *data)
 {
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
 	    boot_cpu_data.x86 != 6)
@@ -98,37 +98,51 @@ static bool test_intel(int idx)
 	return false;
 }
 
-struct perf_msr {
-	u64	msr;
-	struct	perf_pmu_events_attr *attr;
-	bool	(*test)(int idx);
+PMU_EVENT_ATTR_STRING(tsc,				attr_tsc,		"event=0x00"	);
+PMU_EVENT_ATTR_STRING(aperf,				attr_aperf,		"event=0x01"	);
+PMU_EVENT_ATTR_STRING(mperf,				attr_mperf,		"event=0x02"	);
+PMU_EVENT_ATTR_STRING(pperf,				attr_pperf,		"event=0x03"	);
+PMU_EVENT_ATTR_STRING(smi,				attr_smi,		"event=0x04"	);
+PMU_EVENT_ATTR_STRING(ptsc,				attr_ptsc,		"event=0x05"	);
+PMU_EVENT_ATTR_STRING(irperf,				attr_irperf,		"event=0x06"	);
+PMU_EVENT_ATTR_STRING(cpu_thermal_margin,		attr_therm,		"event=0x07"	);
+PMU_EVENT_ATTR_STRING(cpu_thermal_margin.snapshot,	attr_therm_snap,	"1"		);
+PMU_EVENT_ATTR_STRING(cpu_thermal_margin.unit,		attr_therm_unit,	"C"		);
+
+static unsigned long msr_mask;
+
+PMU_EVENT_GROUP(events, aperf);
+PMU_EVENT_GROUP(events, mperf);
+PMU_EVENT_GROUP(events, pperf);
+PMU_EVENT_GROUP(events, smi);
+PMU_EVENT_GROUP(events, ptsc);
+PMU_EVENT_GROUP(events, irperf);
+
+static struct attribute *attrs_therm[] = {
+	&attr_therm.attr.attr,
+	&attr_therm_snap.attr.attr,
+	&attr_therm_unit.attr.attr,
+	NULL,
 };
 
-PMU_EVENT_ATTR_STRING(tsc,				evattr_tsc,		"event=0x00"	);
-PMU_EVENT_ATTR_STRING(aperf,				evattr_aperf,		"event=0x01"	);
-PMU_EVENT_ATTR_STRING(mperf,				evattr_mperf,		"event=0x02"	);
-PMU_EVENT_ATTR_STRING(pperf,				evattr_pperf,		"event=0x03"	);
-PMU_EVENT_ATTR_STRING(smi,				evattr_smi,		"event=0x04"	);
-PMU_EVENT_ATTR_STRING(ptsc,				evattr_ptsc,		"event=0x05"	);
-PMU_EVENT_ATTR_STRING(irperf,				evattr_irperf,		"event=0x06"	);
-PMU_EVENT_ATTR_STRING(cpu_thermal_margin,		evattr_therm,		"event=0x07"	);
-PMU_EVENT_ATTR_STRING(cpu_thermal_margin.snapshot,	evattr_therm_snap,	"1"		);
-PMU_EVENT_ATTR_STRING(cpu_thermal_margin.unit,		evattr_therm_unit,	"C"		);
+static struct attribute_group group_therm = {
+	.name  = "events",
+	.attrs = attrs_therm,
+};
 
 static struct perf_msr msr[] = {
-	[PERF_MSR_TSC]		= { 0,				&evattr_tsc,		NULL,			},
-	[PERF_MSR_APERF]	= { MSR_IA32_APERF,		&evattr_aperf,		test_aperfmperf,	},
-	[PERF_MSR_MPERF]	= { MSR_IA32_MPERF,		&evattr_mperf,		test_aperfmperf,	},
-	[PERF_MSR_PPERF]	= { MSR_PPERF,			&evattr_pperf,		test_intel,		},
-	[PERF_MSR_SMI]		= { MSR_SMI_COUNT,		&evattr_smi,		test_intel,		},
-	[PERF_MSR_PTSC]		= { MSR_F15H_PTSC,		&evattr_ptsc,		test_ptsc,		},
-	[PERF_MSR_IRPERF]	= { MSR_F17H_IRPERF,		&evattr_irperf,		test_irperf,		},
-	[PERF_MSR_THERM]	= { MSR_IA32_THERM_STATUS,	&evattr_therm,		test_therm_status,	},
-	[PERF_MSR_THERM_SNAP]	= { MSR_IA32_THERM_STATUS,	&evattr_therm_snap,	test_therm_status,	},
-	[PERF_MSR_THERM_UNIT]	= { MSR_IA32_THERM_STATUS,	&evattr_therm_unit,	test_therm_status,	},
+	[PERF_MSR_TSC]		= { .no_check = true,								},
+	[PERF_MSR_APERF]	= { MSR_IA32_APERF,		&group_aperf,		test_aperfmperf,	},
+	[PERF_MSR_MPERF]	= { MSR_IA32_MPERF,		&group_mperf,		test_aperfmperf,	},
+	[PERF_MSR_PPERF]	= { MSR_PPERF,			&group_pperf,		test_intel,		},
+	[PERF_MSR_SMI]		= { MSR_SMI_COUNT,		&group_smi,		test_intel,		},
+	[PERF_MSR_PTSC]		= { MSR_F15H_PTSC,		&group_ptsc,		test_ptsc,		},
+	[PERF_MSR_IRPERF]	= { MSR_F17H_IRPERF,		&group_irperf,		test_irperf,		},
+	[PERF_MSR_THERM]	= { MSR_IA32_THERM_STATUS,	&group_therm,		test_therm_status,	},
 };
 
-static struct attribute *events_attrs[PERF_MSR_EVENT_MAX + 1] = {
+static struct attribute *events_attrs[] = {
+	&attr_tsc.attr.attr,
 	NULL,
 };
 
@@ -153,6 +167,17 @@ static const struct attribute_group *attr_groups[] = {
 	NULL,
 };
 
+const struct attribute_group *attr_update[] = {
+	&group_aperf,
+	&group_mperf,
+	&group_pperf,
+	&group_smi,
+	&group_ptsc,
+	&group_irperf,
+	&group_therm,
+	NULL,
+};
+
 static int msr_event_init(struct perf_event *event)
 {
 	u64 cfg = event->attr.config;
@@ -169,7 +194,7 @@ static int msr_event_init(struct perf_event *event)
 
 	cfg = array_index_nospec((unsigned long)cfg, PERF_MSR_EVENT_MAX);
 
-	if (!msr[cfg].attr)
+	if (!(msr_mask & (1 << cfg)))
 		return -EINVAL;
 
 	event->hw.idx		= -1;
@@ -252,32 +277,17 @@ static struct pmu pmu_msr = {
 	.stop		= msr_event_stop,
 	.read		= msr_event_update,
 	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.attr_update	= attr_update,
 };
 
 static int __init msr_init(void)
 {
-	int i, j = 0;
-
 	if (!boot_cpu_has(X86_FEATURE_TSC)) {
 		pr_cont("no MSR PMU driver.\n");
 		return 0;
 	}
 
-	/* Probe the MSRs. */
-	for (i = PERF_MSR_TSC + 1; i < PERF_MSR_EVENT_MAX; i++) {
-		u64 val;
-
-		/* Virt sucks; you cannot tell if a R/O MSR is present :/ */
-		if (!msr[i].test(i) || rdmsrl_safe(msr[i].msr, &val))
-			msr[i].attr = NULL;
-	}
-
-	/* List remaining MSRs in the sysfs attrs. */
-	for (i = 0; i < PERF_MSR_EVENT_MAX; i++) {
-		if (msr[i].attr)
-			events_attrs[j++] = &msr[i].attr->attr.attr;
-	}
-	events_attrs[j] = NULL;
+	msr_mask = perf_msr_probe(msr, PERF_MSR_EVENT_MAX, true, NULL);
 
 	perf_pmu_register(&pmu_msr, "msr", -1);
 

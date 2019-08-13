@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kdebug.h>
 #include <linux/kprobes.h>
 #include <linux/export.h>

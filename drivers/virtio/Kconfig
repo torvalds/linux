@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIRTIO
 	tristate
 	---help---
@@ -42,6 +43,17 @@ config VIRTIO_PCI_LEGACY
 
 	  If unsure, say Y.
 
+config VIRTIO_PMEM
+	tristate "Support for virtio pmem driver"
+	depends on VIRTIO
+	depends on LIBNVDIMM
+	help
+	  This driver provides access to virtio-pmem devices, storage devices
+	  that are mapped into the physical address space - similar to NVDIMMs
+	   - with a virtio-based flushing interface.
+
+	  If unsure, say Y.
+
 config VIRTIO_BALLOON
 	tristate "Virtio balloon driver"
 	depends on VIRTIO
@@ -62,12 +74,12 @@ config VIRTIO_INPUT
 
 	 If unsure, say M.
 
- config VIRTIO_MMIO
+config VIRTIO_MMIO
 	tristate "Platform bus driver for memory mapped virtio devices"
 	depends on HAS_IOMEM && HAS_DMA
- 	select VIRTIO
- 	---help---
- 	 This drivers provides support for memory mapped virtio
+	select VIRTIO
+	---help---
+	 This drivers provides support for memory mapped virtio
 	 platform device driver.
 
  	 If unsure, say N.

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IOSF-SB MailBox Interface Driver
  * Copyright (c) 2013, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  *
  * The IOSF-SB is a fabric bus available on Atom based SOC's that uses a
  * mailbox interface (MBI) to communicate with multiple devices. This
@@ -470,31 +461,16 @@ static struct dentry *iosf_dbg;
 
 static void iosf_sideband_debug_init(void)
 {
-	struct dentry *d;
-
 	iosf_dbg = debugfs_create_dir("iosf_sb", NULL);
-	if (IS_ERR_OR_NULL(iosf_dbg))
-		return;
 
 	/* mdr */
-	d = debugfs_create_x32("mdr", 0660, iosf_dbg, &dbg_mdr);
-	if (!d)
-		goto cleanup;
+	debugfs_create_x32("mdr", 0660, iosf_dbg, &dbg_mdr);
 
 	/* mcrx */
-	d = debugfs_create_x32("mcrx", 0660, iosf_dbg, &dbg_mcrx);
-	if (!d)
-		goto cleanup;
+	debugfs_create_x32("mcrx", 0660, iosf_dbg, &dbg_mcrx);
 
 	/* mcr - initiates mailbox tranaction */
-	d = debugfs_create_file("mcr", 0660, iosf_dbg, &dbg_mcr, &iosf_mcr_fops);
-	if (!d)
-		goto cleanup;
-
-	return;
-
-cleanup:
-	debugfs_remove_recursive(d);
+	debugfs_create_file("mcr", 0660, iosf_dbg, &dbg_mcr, &iosf_mcr_fops);
 }
 
 static void iosf_debugfs_init(void)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_lsm6dsx i2c driver
  *
@@ -5,8 +6,6 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -36,8 +35,7 @@ static int st_lsm6dsx_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsx_probe(&client->dev, client->irq,
-				hw_id, id->name, regmap);
+	return st_lsm6dsx_probe(&client->dev, client->irq, hw_id, regmap);
 }
 
 static const struct of_device_id st_lsm6dsx_i2c_of_match[] = {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Intel SMP support routines.
  *
@@ -6,9 +7,6 @@
  *      (c) 2002,2003 Andi Kleen, SuSE Labs.
  *
  *	i386 and x86_64 integration by Glauber Costa <gcosta@redhat.com>
- *
- *	This code is released under the GNU General Public License version 2 or
- *	later.
  */
 
 #include <linux/init.h>
@@ -146,7 +144,7 @@ void native_send_call_func_ipi(const struct cpumask *mask)
 	}
 
 	cpumask_copy(allbutself, cpu_online_mask);
-	cpumask_clear_cpu(smp_processor_id(), allbutself);
+	__cpumask_clear_cpu(smp_processor_id(), allbutself);
 
 	if (cpumask_equal(mask, allbutself) &&
 	    cpumask_equal(cpu_online_mask, cpu_callout_mask))

@@ -1,15 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
    md.h : kernel internal structure of the Linux MD driver
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
-   You should have received a copy of the GNU General Public License
-   (for example /usr/src/linux/COPYING); if not, write to the Free
-   Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef _MD_MD_H
@@ -116,6 +109,14 @@ struct md_rdev {
 					   * for reporting to userspace and storing
 					   * in superblock.
 					   */
+
+	/*
+	 * The members for check collision of write behind IOs.
+	 */
+	struct list_head wb_list;
+	spinlock_t wb_list_lock;
+	wait_queue_head_t wb_io_wait;
+
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
 	struct kernfs_node *sysfs_state; /* handle for 'state'
@@ -200,6 +201,10 @@ enum flag_bits {
 				 * it didn't fail, so don't use FailFast
 				 * any more for metadata
 				 */
+	WBCollisionCheck,	/*
+				 * multiqueue device should check if there
+				 * is collision between write behind bios.
+				 */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
@@ -250,6 +255,14 @@ enum mddev_sb_flags {
 	MD_SB_CHANGE_CLEAN,	/* transition to or from 'clean' */
 	MD_SB_CHANGE_PENDING,	/* switch from 'clean' to 'active' in progress */
 	MD_SB_NEED_REWRITE,	/* metadata write needs to be repeated */
+};
+
+#define NR_WB_INFOS	8
+/* record current range of write behind IOs */
+struct wb_info {
+	sector_t lo;
+	sector_t hi;
+	struct list_head list;
 };
 
 struct mddev {
@@ -468,6 +481,7 @@ struct mddev {
 					  */
 	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
+	mempool_t *wb_info_pool;
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
@@ -716,6 +730,8 @@ extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
+extern void mddev_create_wb_pool(struct mddev *mddev, struct md_rdev *rdev,
+				 bool is_suspend);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
 struct md_rdev *md_find_rdev_rcu(struct mddev *mddev, dev_t dev);
 

@@ -363,10 +363,8 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_reboot(cdns_wdt_device);
 	watchdog_stop_on_unregister(cdns_wdt_device);
 	ret = devm_watchdog_register_device(dev, cdns_wdt_device);
-	if (ret) {
-		dev_err(dev, "Failed to register wdt device\n");
+	if (ret)
 		return ret;
-	}
 	platform_set_drvdata(pdev, wdt);
 
 	dev_info(dev, "Xilinx Watchdog Timer at %p with timeout %ds%s\n",

@@ -1,29 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Samsung Electronics Co.Ltd
  * Authors:
  *	Hyungwon Hwang <human.hwang@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundationr
  */
 
-#include <linux/platform_device.h>
-#include <video/of_videomode.h>
-#include <linux/of_address.h>
-#include <video/videomode.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_graph.h>
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/pm_runtime.h>
-#include <drm/drmP.h>
-#include <drm/drm_encoder.h>
+#include <linux/delay.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_graph.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+
+#include <video/of_videomode.h>
+#include <video/videomode.h>
+
+#include <drm/drm_encoder.h>
+#include <drm/drm_print.h>
 
 #include "exynos_drm_drv.h"
 

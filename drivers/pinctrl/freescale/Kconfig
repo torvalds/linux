@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_IMX
 	bool
 	select GENERIC_PINCTRL_GROUPS
@@ -128,6 +129,13 @@ config PINCTRL_IMX8MM
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mm pinctrl driver
+
+config PINCTRL_IMX8MN
+	bool "IMX8MN pinctrl driver"
+	depends on ARCH_MXC && ARM64
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mn pinctrl driver
 
 config PINCTRL_IMX8MQ
 	bool "IMX8MQ pinctrl driver"

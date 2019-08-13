@@ -87,7 +87,6 @@ void guest_code(struct vmx_pages *vmx_pages)
 
 int main(int argc, char *argv[])
 {
-	struct vmx_pages *vmx_pages = NULL;
 	vm_vaddr_t vmx_pages_gva = 0;
 
 	struct kvm_regs regs;
@@ -115,7 +114,7 @@ int main(int argc, char *argv[])
 	vcpu_set_msr(vm, VCPU_ID, MSR_IA32_SMBASE, SMRAM_GPA);
 
 	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		vmx_pages = vcpu_alloc_vmx(vm, &vmx_pages_gva);
+		vcpu_alloc_vmx(vm, &vmx_pages_gva);
 		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 	} else {
 		printf("will skip SMM test with VMX enabled\n");
@@ -145,7 +144,7 @@ int main(int argc, char *argv[])
 		state = vcpu_save_state(vm, VCPU_ID);
 		kvm_vm_release(vm);
 		kvm_vm_restart(vm, O_RDWR);
-		vm_vcpu_add(vm, VCPU_ID, 0, 0);
+		vm_vcpu_add(vm, VCPU_ID);
 		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 		vcpu_load_state(vm, VCPU_ID, state);
 		run = vcpu_state(vm, VCPU_ID);

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare Multimedia Card Interface driver
  *  (Based on NXP driver for lpc 31xx)
  *
  * Copyright (C) 2009 NXP Semiconductors
  * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/blkdev.h>
@@ -173,40 +169,18 @@ static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
 	struct mmc_host	*mmc = slot->mmc;
 	struct dw_mci *host = slot->host;
 	struct dentry *root;
-	struct dentry *node;
 
 	root = mmc->debugfs_root;
 	if (!root)
 		return;
 
-	node = debugfs_create_file("regs", S_IRUSR, root, host,
-				   &dw_mci_regs_fops);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_file("req", S_IRUSR, root, slot,
-				   &dw_mci_req_fops);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_x32("pending_events", S_IRUSR, root,
-				  (u32 *)&host->pending_events);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_x32("completed_events", S_IRUSR, root,
-				  (u32 *)&host->completed_events);
-	if (!node)
-		goto err;
-
-	return;
-
-err:
-	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
+	debugfs_create_file("regs", S_IRUSR, root, host, &dw_mci_regs_fops);
+	debugfs_create_file("req", S_IRUSR, root, slot, &dw_mci_req_fops);
+	debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
+	debugfs_create_x32("pending_events", S_IRUSR, root,
+			   (u32 *)&host->pending_events);
+	debugfs_create_x32("completed_events", S_IRUSR, root,
+			   (u32 *)&host->completed_events);
 }
 #endif /* defined(CONFIG_DEBUG_FS) */
 

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Jack-detection handling for HD-audio
  *
  * Copyright (c) 2011 Takashi Iwai <tiwai@suse.de>
- *
- * This driver is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -563,7 +559,7 @@ static void call_jack_callback(struct hda_codec *codec, unsigned int res,
 void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hda_jack_tbl *event;
-	int tag = (res >> AC_UNSOL_RES_TAG_SHIFT) & 0x7f;
+	int tag = (res & AC_UNSOL_RES_TAG) >> AC_UNSOL_RES_TAG_SHIFT;
 
 	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
 	if (!event)

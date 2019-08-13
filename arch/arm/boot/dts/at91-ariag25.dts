@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91-ariag25.dts - Device Tree file for Acme Systems Aria G25 (AT91SAM9G25 based)
  *
  * Copyright (C) 2013 Douglas Gilbert <dgilbert@interlog.com>,
  *                    Robert Nelson <robertcnelson@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "at91sam9g25.dtsi"

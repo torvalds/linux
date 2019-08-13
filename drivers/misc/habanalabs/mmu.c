@@ -241,8 +241,9 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 		hop2_pte_addr, hop3_pte_addr, pte_val;
 	int rc, i, j, hop3_allocated = 0;
 
-	if (!hdev->dram_supports_virtual_memory ||
-			!hdev->dram_default_page_mapping)
+	if ((!hdev->dram_supports_virtual_memory) ||
+			(!hdev->dram_default_page_mapping) ||
+			(ctx->asid == HL_KERNEL_ASID_ID))
 		return 0;
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
@@ -340,8 +341,9 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 		hop2_pte_addr, hop3_pte_addr;
 	int i, j;
 
-	if (!hdev->dram_supports_virtual_memory ||
-			!hdev->dram_default_page_mapping)
+	if ((!hdev->dram_supports_virtual_memory) ||
+			(!hdev->dram_default_page_mapping) ||
+			(ctx->asid == HL_KERNEL_ASID_ID))
 		return;
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
@@ -385,12 +387,8 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
  * @hdev: habanalabs device structure.
  *
  * This function does the following:
- * - Allocate max_asid zeroed hop0 pgts so no mapping is available.
- * - Enable MMU in H/W.
- * - Invalidate the MMU cache.
  * - Create a pool of pages for pgt_infos.
- *
- * This function depends on DMA QMAN to be working!
+ * - Create a shadow table for pgt
  *
  * Return: 0 for success, non-zero for failure.
  */
@@ -404,15 +402,12 @@ int hl_mmu_init(struct hl_device *hdev)
 
 	/* MMU H/W init was already done in device hw_init() */
 
-	mutex_init(&hdev->mmu_cache_lock);
-
 	hdev->mmu_pgt_pool =
 			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
 
 	if (!hdev->mmu_pgt_pool) {
 		dev_err(hdev->dev, "Failed to create page gen pool\n");
-		rc = -ENOMEM;
-		goto err_pool_create;
+		return -ENOMEM;
 	}
 
 	rc = gen_pool_add(hdev->mmu_pgt_pool, prop->mmu_pgt_addr +
@@ -436,8 +431,6 @@ int hl_mmu_init(struct hl_device *hdev)
 
 err_pool_add:
 	gen_pool_destroy(hdev->mmu_pgt_pool);
-err_pool_create:
-	mutex_destroy(&hdev->mmu_cache_lock);
 
 	return rc;
 }
@@ -459,7 +452,6 @@ void hl_mmu_fini(struct hl_device *hdev)
 
 	kvfree(hdev->mmu_shadow_hop0);
 	gen_pool_destroy(hdev->mmu_pgt_pool);
-	mutex_destroy(&hdev->mmu_cache_lock);
 
 	/* MMU H/W fini will be done in device hw_fini() */
 }
@@ -920,6 +912,10 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
 
 		return -EFAULT;
 	}
+
+	WARN_ONCE((phys_addr & (real_page_size - 1)),
+		"Mapping 0x%llx with page size of 0x%x is erroneous! Address must be divisible by page size",
+		phys_addr, real_page_size);
 
 	npages = page_size / real_page_size;
 	real_virt_addr = virt_addr;

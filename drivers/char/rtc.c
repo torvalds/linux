@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Real Time Clock interface for Linux
  *
@@ -19,11 +20,6 @@
  *	contains the interrupt status in the low byte and the number of
  *	interrupts since the last read in the remaining high bytes. The
  *	/dev/rtc interface can also be used with the select(2) call.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Based on other minimal char device drivers, like Alan's
  *	watchdog, Ted's random, etc. etc.

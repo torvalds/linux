@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * trimslice.c - TrimSlice machine ASoC driver
  *
@@ -7,21 +8,6 @@
  * Based on code copyright/by:
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2010-2011 - NVIDIA, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/module.h>
@@ -91,14 +77,19 @@ static const struct snd_soc_dapm_route trimslice_audio_map[] = {
 	{"RLINEIN", NULL, "Line In"},
 };
 
+SND_SOC_DAILINK_DEFS(single_dsp,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "tlv320aic23-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
-	.codec_dai_name = "tlv320aic23-hifi",
 	.ops = &trimslice_asoc_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S |
 		   SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(single_dsp),
 };
 
 static struct snd_soc_card snd_soc_trimslice = {
@@ -129,26 +120,26 @@ static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, trimslice);
 
-	trimslice_tlv320aic23_dai.codec_of_node = of_parse_phandle(np,
+	trimslice_tlv320aic23_dai.codecs->of_node = of_parse_phandle(np,
 			"nvidia,audio-codec", 0);
-	if (!trimslice_tlv320aic23_dai.codec_of_node) {
+	if (!trimslice_tlv320aic23_dai.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	trimslice_tlv320aic23_dai.cpu_of_node = of_parse_phandle(np,
+	trimslice_tlv320aic23_dai.cpus->of_node = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!trimslice_tlv320aic23_dai.cpu_of_node) {
+	if (!trimslice_tlv320aic23_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	trimslice_tlv320aic23_dai.platform_of_node =
-			trimslice_tlv320aic23_dai.cpu_of_node;
+	trimslice_tlv320aic23_dai.platforms->of_node =
+			trimslice_tlv320aic23_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
 	if (ret)

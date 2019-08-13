@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Parts came from builtin-{top,stat,record}.c, see those files for further
  * copyright notes.
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
-#include "util.h"
 #include <api/fs/fs.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -34,6 +32,7 @@
 #include <linux/hash.h>
 #include <linux/log2.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 
 #ifdef LACKS_SIGQUEUE_PROTOTYPE
 int sigqueue(pid_t pid, int sig, const union sigval value);

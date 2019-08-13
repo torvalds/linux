@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/sfp.h>
 
 #include "core.h"
 #include "core_env.h"
@@ -91,33 +92,20 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 		u16 temp;
 	} temp_thresh;
 	char mcia_pl[MLXSW_REG_MCIA_LEN] = {0};
-	char mtbr_pl[MLXSW_REG_MTBR_LEN] = {0};
-	u16 module_temp;
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	unsigned int module_temp;
 	bool qsfp;
 	int err;
 
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    1);
-	err = mlxsw_reg_query(core, MLXSW_REG(mtbr), mtbr_pl);
+	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
+			    false, false);
+	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
 		return err;
-
-	/* Don't read temperature thresholds for module with no valid info. */
-	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &module_temp, NULL);
-	switch (module_temp) {
-	case MLXSW_REG_MTBR_BAD_SENS_INFO: /* fall-through */
-	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
-	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
-	case MLXSW_REG_MTBR_INDEX_NA:
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, NULL);
+	if (!module_temp) {
 		*temp = 0;
 		return 0;
-	default:
-		/* Do not consider thresholds for zero temperature. */
-		if (MLXSW_REG_MTMP_TEMP_TO_MC(module_temp) == 0) {
-			*temp = 0;
-			return 0;
-		}
-		break;
 	}
 
 	/* Read Free Side Device Temperature Thresholds from page 03h
@@ -162,7 +150,7 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 {
 	u8 module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE];
 	u16 offset = MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE;
-	u8 module_rev_id, module_id;
+	u8 module_rev_id, module_id, diag_mon;
 	unsigned int read_size;
 	int err;
 
@@ -195,8 +183,21 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 		}
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
+		/* Verify if transceiver provides diagnostic monitoring page */
+		err = mlxsw_env_query_module_eeprom(mlxsw_core, module,
+						    SFP_DIAGMON, 1, &diag_mon,
+						    &read_size);
+		if (err)
+			return err;
+
+		if (read_size < 1)
+			return -EIO;
+
 		modinfo->type       = ETH_MODULE_SFF_8472;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		if (diag_mon)
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		else
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN / 2;
 		break;
 	default:
 		return -EINVAL;

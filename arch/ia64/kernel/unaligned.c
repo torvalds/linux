@@ -1537,6 +1537,6 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 	}
   force_sigbus:
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) ifa,
-			0, 0, 0, current);
+			0, 0, 0);
 	goto done;
 }

@@ -109,9 +109,7 @@ struct ceph_fs_client {
 	mempool_t *wb_pagevec_pool;
 	atomic_long_t writeback_count;
 
-	struct workqueue_struct *wb_wq;
-	struct workqueue_struct *pg_inv_wq;
-	struct workqueue_struct *trunc_wq;
+	struct workqueue_struct *inode_wq;
 	struct workqueue_struct *cap_wq;
 
 #ifdef CONFIG_DEBUG_FS
@@ -199,7 +197,8 @@ struct ceph_cap_snap {
 	u64 xattr_version;
 
 	u64 size;
-	struct timespec64 mtime, atime, ctime;
+	u64 change_attr;
+	struct timespec64 mtime, atime, ctime, btime;
 	u64 time_warp_seq;
 	u64 truncate_size;
 	u32 truncate_seq;
@@ -386,11 +385,11 @@ struct ceph_inode_info {
 	int i_snap_realm_counter; /* snap realm (if caps) */
 	struct list_head i_snap_realm_item;
 	struct list_head i_snap_flush_item;
+	struct timespec64 i_btime;
+	struct timespec64 i_snap_btime;
 
-	struct work_struct i_wb_work;  /* writeback work */
-	struct work_struct i_pg_inv_work;  /* page invalidation work */
-
-	struct work_struct i_vmtruncate_work;
+	struct work_struct i_work;
+	unsigned long  i_work_mask;
 
 #ifdef CONFIG_CEPH_FSCACHE
 	struct fscache_cookie *fscache;
@@ -513,6 +512,13 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 
 
 /*
+ * Masks of ceph inode work.
+ */
+#define CEPH_I_WORK_WRITEBACK		0 /* writeback */
+#define CEPH_I_WORK_INVALIDATE_PAGES	1 /* invalidate pages */
+#define CEPH_I_WORK_VMTRUNCATE		2 /* vmtruncate */
+
+/*
  * We set the ERROR_WRITE bit when we start seeing write errors on an inode
  * and then clear it when they start succeeding. Note that we do a lockless
  * check first, and only take the lock if it looks like it needs to be changed.
@@ -541,7 +547,12 @@ static inline void __ceph_dir_set_complete(struct ceph_inode_info *ci,
 					   long long release_count,
 					   long long ordered_count)
 {
-	smp_mb__before_atomic();
+	/*
+	 * Makes sure operations that setup readdir cache (update page
+	 * cache and i_size) are strongly ordered w.r.t. the following
+	 * atomic64_set() operations.
+	 */
+	smp_mb();
 	atomic64_set(&ci->i_complete_seq[0], release_count);
 	atomic64_set(&ci->i_complete_seq[1], ordered_count);
 }
@@ -873,9 +884,8 @@ static inline bool __ceph_have_pending_cap_snap(struct ceph_inode_info *ci)
 extern const struct inode_operations ceph_file_iops;
 
 extern struct inode *ceph_alloc_inode(struct super_block *sb);
-extern void ceph_destroy_inode(struct inode *inode);
+extern void ceph_evict_inode(struct inode *inode);
 extern void ceph_free_inode(struct inode *inode);
-extern int ceph_drop_inode(struct inode *inode);
 
 extern struct inode *ceph_get_inode(struct super_block *sb,
 				    struct ceph_vino vino);
@@ -896,9 +906,9 @@ extern int ceph_inode_holds_cap(struct inode *inode, int mask);
 extern bool ceph_inode_set_size(struct inode *inode, loff_t size);
 extern void __ceph_do_pending_vmtruncate(struct inode *inode);
 extern void ceph_queue_vmtruncate(struct inode *inode);
-
 extern void ceph_queue_invalidate(struct inode *inode);
 extern void ceph_queue_writeback(struct inode *inode);
+extern void ceph_async_iput(struct inode *inode);
 
 extern int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 			     int mask, bool force);
@@ -918,9 +928,19 @@ ssize_t __ceph_getxattr(struct inode *, const char *, void *, size_t);
 extern ssize_t ceph_listxattr(struct dentry *, char *, size_t);
 extern void __ceph_build_xattrs_blob(struct ceph_inode_info *ci);
 extern void __ceph_destroy_xattrs(struct ceph_inode_info *ci);
-extern void __init ceph_xattr_init(void);
-extern void ceph_xattr_exit(void);
 extern const struct xattr_handler *ceph_xattr_handlers[];
+
+struct ceph_acl_sec_ctx {
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	void *default_acl;
+	void *acl;
+#endif
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+	void *sec_ctx;
+	u32 sec_ctxlen;
+#endif
+	struct ceph_pagelist *pagelist;
+};
 
 #ifdef CONFIG_SECURITY
 extern bool ceph_security_xattr_deadlock(struct inode *in);
@@ -936,21 +956,32 @@ static inline bool ceph_security_xattr_wanted(struct inode *in)
 }
 #endif
 
-/* acl.c */
-struct ceph_acls_info {
-	void *default_acl;
-	void *acl;
-	struct ceph_pagelist *pagelist;
-};
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+extern int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
+				     struct ceph_acl_sec_ctx *ctx);
+extern void ceph_security_invalidate_secctx(struct inode *inode);
+#else
+static inline int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
+					    struct ceph_acl_sec_ctx *ctx)
+{
+	return 0;
+}
+static inline void ceph_security_invalidate_secctx(struct inode *inode)
+{
+}
+#endif
 
+void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx);
+
+/* acl.c */
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 
 struct posix_acl *ceph_get_acl(struct inode *, int);
 int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
-		       struct ceph_acls_info *info);
-void ceph_init_inode_acls(struct inode *inode, struct ceph_acls_info *info);
-void ceph_release_acls_info(struct ceph_acls_info *info);
+		       struct ceph_acl_sec_ctx *as_ctx);
+void ceph_init_inode_acls(struct inode *inode,
+			  struct ceph_acl_sec_ctx *as_ctx);
 
 static inline void ceph_forget_all_cached_acls(struct inode *inode)
 {
@@ -963,15 +994,12 @@ static inline void ceph_forget_all_cached_acls(struct inode *inode)
 #define ceph_set_acl NULL
 
 static inline int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
-				     struct ceph_acls_info *info)
+				     struct ceph_acl_sec_ctx *as_ctx)
 {
 	return 0;
 }
 static inline void ceph_init_inode_acls(struct inode *inode,
-					struct ceph_acls_info *info)
-{
-}
-static inline void ceph_release_acls_info(struct ceph_acls_info *info)
+					struct ceph_acl_sec_ctx *as_ctx)
 {
 }
 static inline int ceph_acl_chmod(struct dentry *dentry, struct inode *inode)
@@ -997,7 +1025,7 @@ extern void ceph_add_cap(struct inode *inode,
 			 unsigned cap, unsigned seq, u64 realmino, int flags,
 			 struct ceph_cap **new_cap);
 extern void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release);
-extern void __ceph_remove_caps(struct inode* inode);
+extern void __ceph_remove_caps(struct ceph_inode_info *ci);
 extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 			 struct ceph_cap *cap);
 extern int ceph_is_any_caps(struct inode *inode);
@@ -1099,7 +1127,7 @@ extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 				  int num_fcntl_locks, int num_flock_locks);
 
 /* debugfs.c */
-extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
+extern void ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 
 /* quota.c */

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Backlight driver for Analog Devices ADP8870 Backlight Devices
  *
  * Copyright 2009-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>

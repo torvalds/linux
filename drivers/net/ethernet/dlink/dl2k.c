@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  D-Link DL2000-based Gigabit Ethernet Adapter Linux driver */
 /*
     Copyright (c) 2001, 2002 by D-Link Corporation
     Written by Edward Peng.<edward_peng@dlink.com.tw>
     Created 03-May-2001, base on Linux' sundance.c.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
 */
 
 #define DRV_NAME	"DL2000/TC902x-based linux driver"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/page-writeback.c
  *
@@ -2428,7 +2429,6 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		this_cpu_inc(bdp_ratelimits);
 	}
 }
-EXPORT_SYMBOL(account_page_dirtied);
 
 /*
  * Helper function for deaccounting dirty page without writeback.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
 	depends on PCI && HAS_IOMEM && CFG80211
@@ -39,7 +40,7 @@ config IWLWIFI
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
 	  module will be called iwlwifi.
 
 if IWLWIFI

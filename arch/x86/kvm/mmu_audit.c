@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mmu_audit.c:
  *
@@ -11,10 +12,6 @@
  *   Avi Kivity   <avi@qumranet.com>
  *   Marcelo Tosatti <mtosatti@redhat.com>
  *   Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
  */
 
 #include <linux/ratelimit.h>

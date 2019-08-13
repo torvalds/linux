@@ -136,11 +136,11 @@ void skx_set_decode(skx_decode_f decode)
 	skx_decode = decode;
 }
 
-int skx_get_src_id(struct skx_dev *d, u8 *id)
+int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
 {
 	u32 reg;
 
-	if (pci_read_config_dword(d->util_all, 0xf0, &reg)) {
+	if (pci_read_config_dword(d->util_all, off, &reg)) {
 		skx_printk(KERN_ERR, "Failed to read src id\n");
 		return -ENODEV;
 	}

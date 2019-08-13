@@ -74,7 +74,8 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 		            le64_to_cpu(h->max_files));
 	spin_unlock(&ci->i_ceph_lock);
 
-	iput(inode);
+	/* avoid calling iput_final() in dispatch thread */
+	ceph_async_iput(inode);
 }
 
 static struct ceph_quotarealm_inode *
@@ -134,7 +135,7 @@ static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
 		return NULL;
 
 	mutex_lock(&qri->mutex);
-	if (qri->inode) {
+	if (qri->inode && ceph_is_any_caps(qri->inode)) {
 		/* A request has already returned the inode */
 		mutex_unlock(&qri->mutex);
 		return qri->inode;
@@ -145,7 +146,18 @@ static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
 		mutex_unlock(&qri->mutex);
 		return NULL;
 	}
-	in = ceph_lookup_inode(sb, realm->ino);
+	if (qri->inode) {
+		/* get caps */
+		int ret = __ceph_do_getattr(qri->inode, NULL,
+					    CEPH_STAT_CAP_INODE, true);
+		if (ret >= 0)
+			in = qri->inode;
+		else
+			in = ERR_PTR(ret);
+	}  else {
+		in = ceph_lookup_inode(sb, realm->ino);
+	}
+
 	if (IS_ERR(in)) {
 		pr_warn("Can't lookup inode %llx (err: %ld)\n",
 			realm->ino, PTR_ERR(in));
@@ -235,7 +247,8 @@ restart:
 
 		ci = ceph_inode(in);
 		has_quota = __ceph_has_any_quota(ci);
-		iput(in);
+		/* avoid calling iput_final() while holding mdsc->snap_rwsem */
+		ceph_async_iput(in);
 
 		next = realm->parent;
 		if (has_quota || !next)
@@ -372,7 +385,8 @@ restart:
 			pr_warn("Invalid quota check op (%d)\n", op);
 			exceeded = true; /* Just break the loop */
 		}
-		iput(in);
+		/* avoid calling iput_final() while holding mdsc->snap_rwsem */
+		ceph_async_iput(in);
 
 		next = realm->parent;
 		if (exceeded || !next)

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
  * linux/fs/devpts/inode.c
  *
  *  Copyright 1998-2004 H. Peter Anvin -- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * ------------------------------------------------------------------------- */
 
@@ -624,6 +621,7 @@ void devpts_pty_kill(struct dentry *dentry)
 
 	dentry->d_fsdata = NULL;
 	drop_nlink(dentry->d_inode);
+	fsnotify_unlink(d_inode(dentry->d_parent), dentry);
 	d_delete(dentry);
 	dput(dentry);	/* d_alloc_name() in devpts_pty_new() */
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* imm.c   --  low level driver for the IOMEGA MatchMaker
  * parallel port SCSI host adapter.
  * 
@@ -686,7 +687,7 @@ static int imm_completion(struct scsi_cmnd *cmd)
 		if (cmd->SCp.buffer && !cmd->SCp.this_residual) {
 			/* if scatter/gather, advance to the next segment */
 			if (cmd->SCp.buffers_residual--) {
-				cmd->SCp.buffer++;
+				cmd->SCp.buffer = sg_next(cmd->SCp.buffer);
 				cmd->SCp.this_residual =
 				    cmd->SCp.buffer->length;
 				cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * zswap.c - zswap driver file
  *
@@ -8,16 +9,6 @@
  * than reading from the swap device, can also improve workload performance.
  *
  * Copyright (C) 2012  Seth Jennings <sjenning@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1262,8 +1253,6 @@ static int __init zswap_debugfs_init(void)
 		return -ENODEV;
 
 	zswap_debugfs_root = debugfs_create_dir("zswap", NULL);
-	if (!zswap_debugfs_root)
-		return -ENOMEM;
 
 	debugfs_create_u64("pool_limit_hit", 0444,
 			   zswap_debugfs_root, &zswap_pool_limit_hit);

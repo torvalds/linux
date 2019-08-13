@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Remote Processor Framework
  *
@@ -11,15 +12,6 @@
  * Suman Anna <s-anna@ti.com>
  * Robert Tivy <rtivy@ti.com>
  * Armando Uribe De Leon <x0095078@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)    "%s: " fmt, __func__
@@ -520,6 +512,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	/* Initialise vdev subdevice */
 	snprintf(name, sizeof(name), "vdev%dbuffer", rvdev->index);
 	rvdev->dev.parent = rproc->dev.parent;
+	rvdev->dev.dma_pfn_offset = rproc->dev.parent->dma_pfn_offset;
 	rvdev->dev.release = rproc_rvdev_release;
 	dev_set_name(&rvdev->dev, "%s#%s", dev_name(rvdev->dev.parent), name);
 	dev_set_drvdata(&rvdev->dev, rvdev);
@@ -1065,6 +1058,20 @@ static int rproc_handle_resources(struct rproc *rproc,
 		}
 
 		dev_dbg(dev, "rsc: type %d\n", hdr->type);
+
+		if (hdr->type >= RSC_VENDOR_START &&
+		    hdr->type <= RSC_VENDOR_END) {
+			ret = rproc_handle_rsc(rproc, hdr->type, rsc,
+					       offset + sizeof(*hdr), avail);
+			if (ret == RSC_HANDLED)
+				continue;
+			else if (ret < 0)
+				break;
+
+			dev_warn(dev, "unsupported vendor resource %d\n",
+				 hdr->type);
+			continue;
+		}
 
 		if (hdr->type >= RSC_LAST) {
 			dev_warn(dev, "unsupported resource %d\n", hdr->type);

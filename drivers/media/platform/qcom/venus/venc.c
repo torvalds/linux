@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -616,8 +607,8 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 
 static const struct v4l2_ioctl_ops venc_ioctl_ops = {
 	.vidioc_querycap = venc_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane = venc_enum_fmt,
-	.vidioc_enum_fmt_vid_out_mplane = venc_enum_fmt,
+	.vidioc_enum_fmt_vid_cap = venc_enum_fmt,
+	.vidioc_enum_fmt_vid_out = venc_enum_fmt,
 	.vidioc_s_fmt_vid_cap_mplane = venc_s_fmt,
 	.vidioc_s_fmt_vid_out_mplane = venc_s_fmt,
 	.vidioc_g_fmt_vid_cap_mplane = venc_g_fmt,

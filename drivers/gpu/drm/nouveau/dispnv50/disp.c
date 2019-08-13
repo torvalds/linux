@@ -322,8 +322,13 @@ nv50_outp_atomic_check_view(struct drm_encoder *encoder,
 		switch (connector->connector_type) {
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_eDP:
-			/* Force use of scaler for non-EDID modes. */
-			if (adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
+			/* Don't force scaler for EDID modes with
+			 * same size as the native one (e.g. different
+			 * refresh rate)
+			 */
+			if (adjusted_mode->hdisplay == native_mode->hdisplay &&
+			    adjusted_mode->vdisplay == native_mode->vdisplay &&
+			    adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
 				break;
 			mode = native_mode;
 			asyc->scaler.full = true;
@@ -948,11 +953,12 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 
 static int
 nv50_mstc_atomic_check(struct drm_connector *connector,
-		       struct drm_connector_state *new_conn_state)
+		       struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = new_conn_state->state;
 	struct nv50_mstc *mstc = nv50_mstc(connector);
 	struct drm_dp_mst_topology_mgr *mgr = &mstc->mstm->mgr;
+	struct drm_connector_state *new_conn_state =
+		drm_atomic_get_new_connector_state(state, connector);
 	struct drm_connector_state *old_conn_state =
 		drm_atomic_get_old_connector_state(state, connector);
 	struct drm_crtc_state *crtc_state;

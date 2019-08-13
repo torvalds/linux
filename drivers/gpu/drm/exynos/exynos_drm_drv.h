@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* exynos_drm_drv.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
@@ -5,24 +6,25 @@
  *	Inki Dae <inki.dae@samsung.com>
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
-#include <drm/drmP.h>
 #include <linux/module.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_plane.h>
 
 #define MAX_CRTC	3
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 
 #define DEFAULT_WIN	0
+
+struct drm_crtc_state;
+struct drm_display_mode;
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * stk-webcam.c : Driver for Syntek 1125 USB webcam controller
  *
@@ -6,16 +7,6 @@
  *
  * Some parts are inspired from cafe_ccic.c
  * Copyright 2006-2007 Jonathan Corbet
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -807,10 +798,6 @@ static int stk_vidioc_querycap(struct file *filp,
 	strscpy(cap->driver, "stk", sizeof(cap->driver));
 	strscpy(cap->card, "stk", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
-		| V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1270,6 +1257,8 @@ static int stk_register_video_device(struct stk_camera *dev)
 	dev->vdev = stk_v4l_data;
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	dev->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				V4L2_CAP_STREAMING;
 	video_set_drvdata(&dev->vdev, dev);
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	NANO7240 SBC Watchdog device driver
  *
  *	Based on w83877f.c by Scott Jennings,
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation;
- *
- *	Software distributed under the License is distributed on an "AS IS"
- *	basis, WITHOUT WARRANTY OF ANY KIND, either express or
- *	implied. See the License for the specific language governing
- *	rights and limitations under the License.
- *
  *	(c) Copyright 2007  Gilles GIGAN <gilles.gigan@jcu.edu.au>
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
