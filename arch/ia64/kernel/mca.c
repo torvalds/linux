@@ -91,7 +91,6 @@
 #include <linux/gfp.h>
 
 #include <asm/delay.h>
-#include <asm/machvec.h>
 #include <asm/meminit.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>

@@ -28,7 +28,6 @@
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/machvec.h>
 #include <asm/numa.h>
 #include <asm/patch.h>
 #include <asm/pgalloc.h>

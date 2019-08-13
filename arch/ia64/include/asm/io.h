@@ -71,7 +71,6 @@ extern unsigned int num_io_spaces;
 #define HAVE_ARCH_PIO_SIZE
 
 #include <asm/intrinsics.h>
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm-generic/iomap.h>
 

@@ -52,7 +52,6 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 
-#include <asm/machvec.h>
 #include <asm/mca.h>
 #include <asm/meminit.h>
 #include <asm/page.h>
@@ -65,10 +64,13 @@
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
+#include <asm/uv/uv.h>
 
 #if defined(CONFIG_SMP) && (IA64_CPU_SIZE > PAGE_SIZE)
 # error "struct cpuinfo_ia64 too big!"
 #endif
+
+char ia64_platform_name[64];
 
 #ifdef CONFIG_SMP
 unsigned long __per_cpu_offset[NR_CPUS];
@@ -265,7 +267,7 @@ __initcall(register_memory);
  */
 static int __init check_crashkernel_memory(unsigned long pbase, size_t size)
 {
-	if (ia64_platform_is("uv"))
+	if (is_uv_system())
 		return 1;
 	else
 		return pbase < (1UL << 32);
@@ -558,15 +560,7 @@ setup_arch (char **cmdline_p)
 	efi_init();
 	io_port_init();
 
-#ifdef CONFIG_IA64_GENERIC
-	/* machvec needs to be parsed from the command line
-	 * before parse_early_param() is called to ensure
-	 * that ia64_mv is initialised before any command line
-	 * settings may cause console setup to occur
-	 */
-	machvec_init_from_cmdline(*cmdline_p);
-#endif
-
+	uv_probe_system_type();
 	parse_early_param();
 
 	if (early_console_setup(*cmdline_p) == 0)
@@ -641,7 +635,13 @@ setup_arch (char **cmdline_p)
 	 */
 	ROOT_DEV = Root_SDA2;		/* default to second partition on first drive */
 
-	platform_setup(cmdline_p);
+	if (is_uv_system())
+		uv_setup(cmdline_p);
+#ifdef CONFIG_SMP
+	else
+		init_smp_config();
+#endif
+
 	screen_info_setup();
 	paging_init();
 

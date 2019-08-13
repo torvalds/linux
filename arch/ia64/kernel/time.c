@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched/cputime.h>
 
-#include <asm/machvec.h>
 #include <asm/delay.h>
 #include <asm/hw_irq.h>
 #include <asm/ptrace.h>

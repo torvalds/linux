@@ -24,7 +24,6 @@
 #include <linux/memblock.h>
 #include <linux/export.h>
 
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm/io.h>
 #include <asm/sal.h>

@@ -36,7 +36,6 @@
 #include <linux/atomic.h>
 #include <asm/current.h>
 #include <asm/delay.h>
-#include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/page.h>

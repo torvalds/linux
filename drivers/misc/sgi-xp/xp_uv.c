@@ -17,7 +17,7 @@
 #include <asm/uv/uv_hub.h>
 #if defined CONFIG_X86_64
 #include <asm/uv/bios.h>
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#elif defined CONFIG_IA64_SGI_UV
 #include <asm/sn/sn_sal.h>
 #endif
 #include "../sgi-gru/grukservices.h"
@@ -99,7 +99,7 @@ xp_expand_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		return xpBiosError;
 	}
 
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#elif defined CONFIG_IA64_SGI_UV
 	u64 nasid_array;
 
 	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_1,
@@ -129,7 +129,7 @@ xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		return xpBiosError;
 	}
 
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#elif defined CONFIG_IA64_SGI_UV
 	u64 nasid_array;
 
 	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_0,

@@ -47,7 +47,6 @@
 #include <asm/delay.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/machvec.h>
 #include <asm/mca.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

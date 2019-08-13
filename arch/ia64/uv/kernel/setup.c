@@ -8,10 +8,16 @@
  * Copyright (C) 2008 Silicon Graphics, Inc. All rights reserved.
  */
 
+#include <linux/acpi.h>
+#include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
+#include <asm/uv/uv.h>
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
+
+bool ia64_is_uv;
+EXPORT_SYMBOL_GPL(ia64_is_uv);
 
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
@@ -45,6 +51,34 @@ static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 		}
 	}
 	BUG();
+}
+
+void __init uv_probe_system_type(void)
+{
+	struct acpi_table_rsdp *rsdp;
+	struct acpi_table_xsdt *xsdt;
+
+	if (efi.acpi20 == EFI_INVALID_TABLE_ADDR) {
+		pr_err("ACPI 2.0 RSDP not found.\n");
+		return;
+	}
+
+	rsdp = (struct acpi_table_rsdp *)__va(efi.acpi20);
+	if (strncmp(rsdp->signature, ACPI_SIG_RSDP, sizeof(ACPI_SIG_RSDP) - 1)) {
+		pr_err("ACPI 2.0 RSDP signature incorrect.\n");
+		return;
+	}
+
+	xsdt = (struct acpi_table_xsdt *)__va(rsdp->xsdt_physical_address);
+	if (strncmp(xsdt->header.signature, ACPI_SIG_XSDT,
+			sizeof(ACPI_SIG_XSDT) - 1)) {
+		pr_err("ACPI 2.0 XSDT signature incorrect.\n");
+		return;
+	}
+
+	if (!strcmp(xsdt->header.oem_id, "SGI") &&
+	    !strcmp(xsdt->header.oem_table_id + 4, "UV"))
+		ia64_is_uv = true;
 }
 
 void __init uv_setup(char **cmdline_p)

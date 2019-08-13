@@ -15,6 +15,5 @@ extern int iommu_detected;
 #define no_iommu		(1)
 #define iommu_detected		(0)
 #endif
-extern void machvec_init(const char *name);
 
 #endif

@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/dmar.h>
 #include <asm/iommu.h>
-#include <asm/machvec.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <asm/page.h>

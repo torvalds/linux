@@ -93,7 +93,6 @@
 #include <asm/hw_irq.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
-#include <asm/machvec.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 

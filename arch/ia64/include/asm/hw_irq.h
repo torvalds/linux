@@ -12,7 +12,6 @@
 #include <linux/types.h>
 #include <linux/profile.h>
 
-#include <asm/machvec.h>
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 
@@ -56,7 +55,7 @@ typedef u8 ia64_vector;
 extern int ia64_first_device_vector;
 extern int ia64_last_device_vector;
 
-#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined (CONFIG_IA64_DIG))
+#ifdef CONFIG_SMP
 /* Reserve the lower priority vector than device vectors for "move IRQ" IPI */
 #define IA64_IRQ_MOVE_VECTOR		0x30	/* "move IRQ" IPI */
 #define IA64_DEF_FIRST_DEVICE_VECTOR	0x31
@@ -127,7 +126,7 @@ extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect)
 extern void ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action);
 extern void destroy_and_reserve_irq (unsigned int irq);
 
-#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
+#ifdef CONFIG_SMP
 extern int irq_prepare_move(int irq, int cpu);
 extern void irq_complete_move(unsigned int irq);
 #else

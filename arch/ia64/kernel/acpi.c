@@ -31,7 +31,6 @@
 #include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm/numa.h>
 #include <asm/sal.h>
@@ -44,60 +43,6 @@ unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
 unsigned long acpi_wakeup_address = 0;
-
-#ifdef CONFIG_IA64_GENERIC
-static unsigned long __init acpi_find_rsdp(void)
-{
-	unsigned long rsdp_phys = 0;
-
-	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-		rsdp_phys = efi.acpi20;
-	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-		printk(KERN_WARNING PREFIX
-		       "v1.0/r0.71 tables no longer supported\n");
-	return rsdp_phys;
-}
-
-const char __init *
-acpi_get_sysname(void)
-{
-	unsigned long rsdp_phys;
-	struct acpi_table_rsdp *rsdp;
-	struct acpi_table_xsdt *xsdt;
-	struct acpi_table_header *hdr;
-
-	rsdp_phys = acpi_find_rsdp();
-	if (!rsdp_phys) {
-		printk(KERN_ERR
-		       "ACPI 2.0 RSDP not found, default to \"dig\"\n");
-		return "dig";
-	}
-
-	rsdp = (struct acpi_table_rsdp *)__va(rsdp_phys);
-	if (strncmp(rsdp->signature, ACPI_SIG_RSDP, sizeof(ACPI_SIG_RSDP) - 1)) {
-		printk(KERN_ERR
-		       "ACPI 2.0 RSDP signature incorrect, default to \"dig\"\n");
-		return "dig";
-	}
-
-	xsdt = (struct acpi_table_xsdt *)__va(rsdp->xsdt_physical_address);
-	hdr = &xsdt->header;
-	if (strncmp(hdr->signature, ACPI_SIG_XSDT, sizeof(ACPI_SIG_XSDT) - 1)) {
-		printk(KERN_ERR
-		       "ACPI 2.0 XSDT signature incorrect, default to \"dig\"\n");
-		return "dig";
-	}
-
-	if (!strcmp(hdr->oem_id, "HP")) {
-		return "hpzx1";
-	} else if (!strcmp(hdr->oem_id, "SGI")) {
-		if (!strcmp(hdr->oem_table_id + 4, "UV"))
-			return "uv";
-	}
-
-	return "dig";
-}
-#endif /* CONFIG_IA64_GENERIC */
 
 #define ACPI_MAX_PLATFORM_INTERRUPTS	256
 

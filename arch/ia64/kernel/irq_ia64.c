@@ -37,7 +37,6 @@
 #include <asm/intrinsics.h>
 #include <asm/io.h>
 #include <asm/hw_irq.h>
-#include <asm/machvec.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
@@ -249,7 +248,7 @@ void __setup_vector_irq(int cpu)
 	}
 }
 
-#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
+#ifdef CONFIG_SMP
 
 static enum vector_domain_type {
 	VECTOR_DOMAIN_NONE,
@@ -637,10 +636,8 @@ init_IRQ (void)
 	ia64_register_ipi();
 	register_percpu_irq(IA64_SPURIOUS_INT_VECTOR, NULL);
 #ifdef CONFIG_SMP
-#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG)
 	if (vector_domain_type != VECTOR_DOMAIN_NONE)
 		register_percpu_irq(IA64_IRQ_MOVE_VECTOR, &irq_move_irqaction);
-#endif
 #endif
 #ifdef CONFIG_PERFMON
 	pfm_init_percpu();

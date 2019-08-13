@@ -11,11 +11,13 @@ config IA64
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ACPI
+	select ACPI_NUMA if NUMA
 	select ARCH_SUPPORTS_ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select FORCE_PCI
 	select PCI_DOMAINS if PCI
+	select PCI_MSI
 	select PCI_SYSCALL if PCI
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_EXIT_THREAD
@@ -30,8 +32,8 @@ config IA64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_VIRT_CPU_ACCOUNTING
-	select ARCH_HAS_DMA_COHERENT_TO_PFN if SWIOTLB
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB
+	select ARCH_HAS_DMA_COHERENT_TO_PFN
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
@@ -45,6 +47,7 @@ config IA64
 	select ARCH_THREAD_STACK_ALLOCATOR
 	select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_TIME_VSYSCALL
+	select SWIOTLB
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
@@ -52,6 +55,7 @@ config IA64
 	select HAVE_ARCH_AUDITSYSCALL
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
+	select NUMA if !FLATMEM
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -120,53 +124,6 @@ config AUDIT_ARCH
 	default y
 
 choice
-	prompt "System type"
-	default IA64_GENERIC
-
-config IA64_GENERIC
-	bool "generic"
-	select NUMA
-	select ACPI_NUMA
-	select SWIOTLB
-	select PCI_MSI
-	help
-	  This selects the system type of your hardware.  A "generic" kernel
-	  will run on any supported IA-64 system.  However, if you configure
-	  a kernel for your specific system, it will be faster and smaller.
-
-	  generic		For any supported IA-64 system
-	  DIG-compliant		For DIG ("Developer's Interface Guide") compliant systems
-	  DIG+Intel+IOMMU	For DIG systems with Intel IOMMU
-	  HP-zx1/sx1000		For HP systems
-	  SGI-UV		For SGI UV systems
-
-	  If you don't know what to do, choose "generic".
-
-config IA64_DIG
-	bool "DIG-compliant"
-	select SWIOTLB
-
-config IA64_HP_ZX1
-	bool "HP-zx1/sx1000"
-	help
-	  Build a kernel that runs on HP zx1 and sx1000 systems.  This adds
-	  support for the HP I/O MMU.
-
-config IA64_SGI_UV
-	bool "SGI-UV"
-	select NUMA
-	select ACPI_NUMA
-	select SWIOTLB
-	help
-	  Selecting this option will optimize the kernel for use on UV based
-	  systems, but the resulting kernel binary will not run on other
-	  types of ia64 systems.  If you have an SGI UV system, it's safe
-	  to select this option.  If in doubt, select ia64 generic support
-	  instead.
-
-endchoice
-
-choice
 	prompt "Processor type"
 	default ITANIUM
 
@@ -229,6 +186,20 @@ config IA64_L1_CACHE_SHIFT
 	int
 	default "7" if MCKINLEY
 	default "6" if ITANIUM
+
+config IA64_SGI_UV
+	bool "SGI-UV support"
+	help
+	  Selecting this option will add specific support for running on SGI
+	  UV based systems.  If you have an SGI UV system or are building a
+	  distro kernel, select this option.
+
+config IA64_HP_SBA_IOMMU
+	bool "HP SBA IOMMU support"
+	default y
+	help
+	  Say Y here to add support for the SBA IOMMU found on HP zx1 and
+	  sx1000 systems.  If you're unsure, answer Y.
 
 config IA64_CYCLONE
 	bool "Cyclone (EXA) Time Source support"
@@ -334,13 +305,12 @@ config ARCH_SPARSEMEM_ENABLE
 	select SPARSEMEM_VMEMMAP_ENABLE
 
 config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y if (IA64_GENERIC || IA64_HP_ZX1)
+	def_bool y
 	depends on ARCH_DISCONTIGMEM_ENABLE
 
 config NUMA
 	bool "NUMA support"
 	depends on !FLATMEM
-	select ACPI_NUMA if ACPI
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
