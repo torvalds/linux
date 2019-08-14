@@ -4,43 +4,16 @@
  * Copyright (C) 2010 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2010 PetaLogix
  * Copyright (C) 2005 John Williams <jwilliams@itee.uq.edu.au>
- *
- * Based on PowerPC version derived from arch/arm/mm/consistent.c
- * Copyright (C) 2001 Dan Malek (dmalek@jlc.net)
- * Copyright (C) 2000 Russell King
  */
 
-#include <linux/export.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
 #include <linux/mm.h>
-#include <linux/swap.h>
-#include <linux/stddef.h>
-#include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/memblock.h>
-#include <linux/highmem.h>
-#include <linux/pci.h>
-#include <linux/interrupt.h>
-#include <linux/gfp.h>
 #include <linux/dma-noncoherent.h>
-
-#include <asm/pgalloc.h>
-#include <linux/io.h>
-#include <linux/hardirq.h>
-#include <linux/mmu_context.h>
-#include <asm/mmu.h>
-#include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/cpuinfo.h>
-#include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 
 void arch_dma_prep_coherent(struct page *page, size_t size)
 {
@@ -84,126 +57,9 @@ void *cached_kernel_address(void *ptr)
 	return (void *)(addr & ~UNCACHED_SHADOW_MASK);
 }
 #else /* CONFIG_MMU */
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, unsigned long attrs)
+static int __init atomic_pool_init(void)
 {
-	unsigned long order, vaddr;
-	void *ret;
-	unsigned int i, err = 0;
-	struct page *page, *end;
-	phys_addr_t pa;
-	struct vm_struct *area;
-	unsigned long va;
-
-	if (in_interrupt())
-		BUG();
-
-	/* Only allocate page size areas. */
-	size = PAGE_ALIGN(size);
-	order = get_order(size);
-
-	vaddr = __get_free_pages(gfp | __GFP_ZERO, order);
-	if (!vaddr)
-		return NULL;
-
-	/*
-	 * we need to ensure that there are no cachelines in use,
-	 * or worse dirty in this area.
-	 */
-	arch_dma_prep_coherent(virt_to_page((unsigned long)vaddr), size);
-
-	/* Allocate some common virtual space to map the new pages. */
-	area = get_vm_area(size, VM_ALLOC);
-	if (!area) {
-		free_pages(vaddr, order);
-		return NULL;
-	}
-	va = (unsigned long) area->addr;
-	ret = (void *)va;
-
-	/* This gives us the real physical address of the first page. */
-	*dma_handle = pa = __virt_to_phys(vaddr);
-
-	/*
-	 * free wasted pages.  We skip the first page since we know
-	 * that it will have count = 1 and won't require freeing.
-	 * We also mark the pages in use as reserved so that
-	 * remap_page_range works.
-	 */
-	page = virt_to_page(vaddr);
-	end = page + (1 << order);
-
-	split_page(page, order);
-
-	for (i = 0; i < size && err == 0; i += PAGE_SIZE) {
-		/* MS: This is the whole magic - use cache inhibit pages */
-		err = map_page(va + i, pa + i, _PAGE_KERNEL | _PAGE_NO_CACHE);
-
-		SetPageReserved(page);
-		page++;
-	}
-
-	/* Free the otherwise unused pages. */
-	while (page < end) {
-		__free_page(page);
-		page++;
-	}
-
-	if (err) {
-		free_pages(vaddr, order);
-		return NULL;
-	}
-
-	return ret;
+	return dma_atomic_pool_init(GFP_KERNEL, pgprot_noncached(PAGE_KERNEL));
 }
-
-static pte_t *consistent_virt_to_pte(void *vaddr)
-{
-	unsigned long addr = (unsigned long)vaddr;
-
-	return pte_offset_kernel(pmd_offset(pgd_offset_k(addr), addr), addr);
-}
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *vaddr,
-		dma_addr_t dma_addr)
-{
-	pte_t *ptep = consistent_virt_to_pte(vaddr);
-
-	if (pte_none(*ptep) || !pte_present(*ptep))
-		return 0;
-
-	return pte_pfn(*ptep);
-}
-
-/*
- * free page(s) as defined by the above mapping.
- */
-void arch_dma_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_addr, unsigned long attrs)
-{
-	struct page *page;
-
-	if (in_interrupt())
-		BUG();
-
-	size = PAGE_ALIGN(size);
-
-	do {
-		pte_t *ptep = consistent_virt_to_pte(vaddr);
-		unsigned long pfn;
-
-		if (!pte_none(*ptep) && pte_present(*ptep)) {
-			pfn = pte_pfn(*ptep);
-			pte_clear(&init_mm, (unsigned int)vaddr, ptep);
-			if (pfn_valid(pfn)) {
-				page = pfn_to_page(pfn);
-				__free_reserved_page(page);
-			}
-		}
-		vaddr += PAGE_SIZE;
-	} while (size -= PAGE_SIZE);
-
-	/* flush tlb */
-	flush_tlb_all();
-}
+postcore_initcall(atomic_pool_init);
 #endif /* CONFIG_MMU */
