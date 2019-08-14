@@ -150,7 +150,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 			      u32 index, dma_addr_t *hw_sgl_dma)
 {
 	struct hisi_acc_hw_sgl *curr_hw_sgl;
-	dma_addr_t curr_sgl_dma;
+	dma_addr_t curr_sgl_dma = 0;
 	struct acc_hw_sge *curr_hw_sge;
 	struct scatterlist *sg;
 	int sg_n = sg_nents(sgl);
