@@ -45,8 +45,8 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 	if (streq(name, SOCFPGA_MMC_CLK))
 		return perpll_src &= 0x3;
 	if (streq(name, SOCFPGA_NAND_CLK) ||
-			streq(name, SOCFPGA_NAND_X_CLK))
-			return (perpll_src >> 2) & 3;
+	    streq(name, SOCFPGA_NAND_X_CLK))
+		return (perpll_src >> 2) & 3;
 
 	/* QSPI clock */
 	return (perpll_src >> 4) & 3;
