@@ -10,6 +10,7 @@ ACPI Support
    namespace
    dsd/graph
    dsd/data-node-references
+   dsd/leds
    enumeration
    osi
    method-customizing
