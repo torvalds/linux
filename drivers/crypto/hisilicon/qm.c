@@ -347,7 +347,7 @@ static int qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
 	struct qm_mailbox mailbox;
 	int ret = 0;
 
-	dev_dbg(&qm->pdev->dev, "QM mailbox request to q%u: %u-%llx\n", queue,
+	dev_dbg(&qm->pdev->dev, "QM mailbox request to q%u: %u-%pad\n", queue,
 		cmd, dma_addr);
 
 	mailbox.w0 = cmd |
@@ -1137,7 +1137,7 @@ struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 			goto err_clear_bit;
 		}
 
-		dev_dbg(dev, "allocate qp dma buf(va=%pK, dma=%pad, size=%lx)\n",
+		dev_dbg(dev, "allocate qp dma buf(va=%pK, dma=%pad, size=%zx)\n",
 			qp->qdma.va, &qp->qdma.dma, qp->qdma.size);
 	}
 
@@ -1714,7 +1714,7 @@ int hisi_qm_start(struct hisi_qm *qm)
 				QMC_ALIGN(sizeof(struct qm_cqc) * qm->qp_num);
 		qm->qdma.va = dma_alloc_coherent(dev, qm->qdma.size,
 						 &qm->qdma.dma, GFP_KERNEL);
-		dev_dbg(dev, "allocate qm dma buf(va=%pK, dma=%pad, size=%lx)\n",
+		dev_dbg(dev, "allocate qm dma buf(va=%pK, dma=%pad, size=%zx)\n",
 			qm->qdma.va, &qm->qdma.dma, qm->qdma.size);
 		if (!qm->qdma.va)
 			return -ENOMEM;
