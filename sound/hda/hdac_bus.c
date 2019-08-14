@@ -12,6 +12,8 @@
 #include "local.h"
 #include "trace.h"
 
+static void snd_hdac_bus_process_unsol_events(struct work_struct *work);
+
 static const struct hdac_bus_ops default_ops = {
 	.command = snd_hdac_bus_send_cmd,
 	.get_response = snd_hdac_bus_get_response,
@@ -149,7 +151,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_queue_event);
 /*
  * process queued unsolicited events
  */
-void snd_hdac_bus_process_unsol_events(struct work_struct *work)
+static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 {
 	struct hdac_bus *bus = container_of(work, struct hdac_bus, unsol_work);
 	struct hdac_device *codec;
@@ -172,7 +174,6 @@ void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 			drv->unsol_event(codec, res);
 	}
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_process_unsol_events);
 
 /**
  * snd_hdac_bus_add_device - Add a codec to bus

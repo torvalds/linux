@@ -37,4 +37,7 @@ int snd_hdac_bus_add_device(struct hdac_bus *bus, struct hdac_device *codec);
 void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 				struct hdac_device *codec);
 
+int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
+		       unsigned int flags, unsigned int *res);
+
 #endif /* __HDAC_LOCAL_H */
