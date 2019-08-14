@@ -131,9 +131,8 @@ nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
 				  unsigned long *dst_pfns,
 				  unsigned long start,
 				  unsigned long end,
-				  void *private)
+				  struct nouveau_dmem_fault *fault)
 {
-	struct nouveau_dmem_fault *fault = private;
 	struct nouveau_drm *drm = fault->drm;
 	struct device *dev = drm->dev->dev;
 	unsigned long addr, i, npages = 0;
@@ -230,14 +229,9 @@ error:
 	}
 }
 
-void nouveau_dmem_fault_finalize_and_map(struct vm_area_struct *vma,
-					 const unsigned long *src_pfns,
-					 const unsigned long *dst_pfns,
-					 unsigned long start,
-					 unsigned long end,
-					 void *private)
+static void
+nouveau_dmem_fault_finalize_and_map(struct nouveau_dmem_fault *fault)
 {
-	struct nouveau_dmem_fault *fault = private;
 	struct nouveau_drm *drm = fault->drm;
 
 	if (fault->fence) {
@@ -257,29 +251,35 @@ void nouveau_dmem_fault_finalize_and_map(struct vm_area_struct *vma,
 	kfree(fault->dma);
 }
 
-static const struct migrate_vma_ops nouveau_dmem_fault_migrate_ops = {
-	.alloc_and_copy		= nouveau_dmem_fault_alloc_and_copy,
-	.finalize_and_map	= nouveau_dmem_fault_finalize_and_map,
-};
-
 static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 {
 	struct nouveau_dmem *dmem = page_to_dmem(vmf->page);
 	unsigned long src[1] = {0}, dst[1] = {0};
+	struct migrate_vma args = {
+		.vma		= vmf->vma,
+		.start		= vmf->address,
+		.end		= vmf->address + PAGE_SIZE,
+		.src		= src,
+		.dst		= dst,
+	};
 	struct nouveau_dmem_fault fault = { .drm = dmem->drm };
-	int ret;
 
 	/*
 	 * FIXME what we really want is to find some heuristic to migrate more
 	 * than just one page on CPU fault. When such fault happens it is very
 	 * likely that more surrounding page will CPU fault too.
 	 */
-	ret = migrate_vma(&nouveau_dmem_fault_migrate_ops, vmf->vma,
-			vmf->address, vmf->address + PAGE_SIZE,
-			src, dst, &fault);
-	if (ret)
+	if (migrate_vma_setup(&args) < 0)
 		return VM_FAULT_SIGBUS;
+	if (!args.cpages)
+		return 0;
 
+	nouveau_dmem_fault_alloc_and_copy(args.vma, src, dst, args.start,
+			args.end, &fault);
+	migrate_vma_pages(&args);
+	nouveau_dmem_fault_finalize_and_map(&fault);
+
+	migrate_vma_finalize(&args);
 	if (dst[0] == MIGRATE_PFN_ERROR)
 		return VM_FAULT_SIGBUS;
 
@@ -648,9 +648,8 @@ nouveau_dmem_migrate_alloc_and_copy(struct vm_area_struct *vma,
 				    unsigned long *dst_pfns,
 				    unsigned long start,
 				    unsigned long end,
-				    void *private)
+				    struct nouveau_migrate *migrate)
 {
-	struct nouveau_migrate *migrate = private;
 	struct nouveau_drm *drm = migrate->drm;
 	struct device *dev = drm->dev->dev;
 	unsigned long addr, i, npages = 0;
@@ -747,14 +746,9 @@ error:
 	}
 }
 
-void nouveau_dmem_migrate_finalize_and_map(struct vm_area_struct *vma,
-					   const unsigned long *src_pfns,
-					   const unsigned long *dst_pfns,
-					   unsigned long start,
-					   unsigned long end,
-					   void *private)
+static void
+nouveau_dmem_migrate_finalize_and_map(struct nouveau_migrate *migrate)
 {
-	struct nouveau_migrate *migrate = private;
 	struct nouveau_drm *drm = migrate->drm;
 
 	if (migrate->fence) {
@@ -779,10 +773,15 @@ void nouveau_dmem_migrate_finalize_and_map(struct vm_area_struct *vma,
 	 */
 }
 
-static const struct migrate_vma_ops nouveau_dmem_migrate_ops = {
-	.alloc_and_copy		= nouveau_dmem_migrate_alloc_and_copy,
-	.finalize_and_map	= nouveau_dmem_migrate_finalize_and_map,
-};
+static void nouveau_dmem_migrate_chunk(struct migrate_vma *args,
+		struct nouveau_migrate *migrate)
+{
+	nouveau_dmem_migrate_alloc_and_copy(args->vma, args->src, args->dst,
+			args->start, args->end, migrate);
+	migrate_vma_pages(args);
+	nouveau_dmem_migrate_finalize_and_map(migrate);
+	migrate_vma_finalize(args);
+}
 
 int
 nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
@@ -790,40 +789,45 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 			 unsigned long start,
 			 unsigned long end)
 {
-	unsigned long *src_pfns, *dst_pfns, npages;
-	struct nouveau_migrate migrate = {0};
-	unsigned long i, c, max;
-	int ret = 0;
+	unsigned long npages = (end - start) >> PAGE_SHIFT;
+	unsigned long max = min(SG_MAX_SINGLE_ALLOC, npages);
+	struct migrate_vma args = {
+		.vma		= vma,
+		.start		= start,
+	};
+	struct nouveau_migrate migrate = {
+		.drm		= drm,
+		.vma		= vma,
+		.npages		= npages,
+	};
+	unsigned long c, i;
+	int ret = -ENOMEM;
 
-	npages = (end - start) >> PAGE_SHIFT;
-	max = min(SG_MAX_SINGLE_ALLOC, npages);
-	src_pfns = kzalloc(sizeof(long) * max, GFP_KERNEL);
-	if (src_pfns == NULL)
-		return -ENOMEM;
-	dst_pfns = kzalloc(sizeof(long) * max, GFP_KERNEL);
-	if (dst_pfns == NULL) {
-		kfree(src_pfns);
-		return -ENOMEM;
-	}
+	args.src = kzalloc(sizeof(long) * max, GFP_KERNEL);
+	if (!args.src)
+		goto out;
+	args.dst = kzalloc(sizeof(long) * max, GFP_KERNEL);
+	if (!args.dst)
+		goto out_free_src;
 
-	migrate.drm = drm;
-	migrate.vma = vma;
-	migrate.npages = npages;
 	for (i = 0; i < npages; i += c) {
-		unsigned long next;
-
 		c = min(SG_MAX_SINGLE_ALLOC, npages);
-		next = start + (c << PAGE_SHIFT);
-		ret = migrate_vma(&nouveau_dmem_migrate_ops, vma, start,
-				  next, src_pfns, dst_pfns, &migrate);
+		args.end = start + (c << PAGE_SHIFT);
+		ret = migrate_vma_setup(&args);
 		if (ret)
-			goto out;
-		start = next;
+			goto out_free_dst;
+
+		if (args.cpages)
+			nouveau_dmem_migrate_chunk(&args, &migrate);
+		args.start = args.end;
 	}
 
+	ret = 0;
+out_free_dst:
+	kfree(args.dst);
+out_free_src:
+	kfree(args.src);
 out:
-	kfree(dst_pfns);
-	kfree(src_pfns);
 	return ret;
 }
 
