@@ -257,6 +257,13 @@ notrace void xmon_xive_do_dump(int cpu)
 	}
 #endif
 }
+
+int xmon_xive_get_irq_config(u32 irq, u32 *target, u8 *prio,
+			     u32 *sw_irq)
+{
+	return xive_ops->get_irq_config(irq, target, prio, sw_irq);
+}
+
 #endif /* CONFIG_XMON */
 
 static unsigned int xive_get_irq(void)
