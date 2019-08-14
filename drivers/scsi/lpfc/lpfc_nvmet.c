@@ -1790,12 +1790,8 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 			lpfc_nvmet_defer_release(phba, ctxp);
 			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 		}
-		if (ctxp->state == LPFC_NVMET_STE_RCV)
-			lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
-							 ctxp->oxid);
-		else
-			lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
-						       ctxp->oxid);
+		lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+					       ctxp->oxid);
 
 		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
 		return 0;
