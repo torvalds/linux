@@ -999,9 +999,9 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
 	phba->sli4_hba.hdwq[idx].nvme_cstat.io_cmpls++;
 
-	if (vport->localport) {
+	if (unlikely(status && vport->localport)) {
 		lport = (struct lpfc_nvme_lport *)vport->localport->private;
-		if (lport && status) {
+		if (lport) {
 			if (bf_get(lpfc_wcqe_c_xb, wcqe))
 				atomic_inc(&lport->cmpl_fcp_xb);
 			atomic_inc(&lport->cmpl_fcp_err);
@@ -1141,7 +1141,7 @@ out_err:
 		phba->ktime_last_cmd = lpfc_ncmd->ts_data_nvme;
 		lpfc_nvme_ktime(phba, lpfc_ncmd);
 	}
-	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
+	if (unlikely(phba->cpucheck_on & LPFC_CHECK_NVME_IO)) {
 		uint32_t cpu;
 		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
 		cpu = raw_smp_processor_id();
@@ -1475,7 +1475,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		goto out_fail;
 	}
 
-	if (vport->load_flag & FC_UNLOADING) {
+	if (unlikely(vport->load_flag & FC_UNLOADING)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6124 Fail IO, Driver unload\n");
 		atomic_inc(&lport->xmt_fcp_err);
