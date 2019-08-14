@@ -2552,7 +2552,7 @@ lpfc_fdmi_port_attr_max_frame(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 
 	hsp = (struct serv_parm *)&vport->fc_sparam;
-	ae->un.AttrInt = (((uint32_t) hsp->cmn.bbRcvSizeMsb) << 8) |
+	ae->un.AttrInt = (((uint32_t) hsp->cmn.bbRcvSizeMsb & 0x0F) << 8) |
 			  (uint32_t) hsp->cmn.bbRcvSizeLsb;
 	ae->un.AttrInt = cpu_to_be32(ae->un.AttrInt);
 	size = FOURBYTES + sizeof(uint32_t);
