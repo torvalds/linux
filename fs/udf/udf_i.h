@@ -42,12 +42,15 @@ struct udf_inode_info {
 	unsigned		i_efe : 1;	/* extendedFileEntry */
 	unsigned		i_use : 1;	/* unallocSpaceEntry */
 	unsigned		i_strat4096 : 1;
-	unsigned		reserved : 26;
+	unsigned		i_streamdir : 1;
+	unsigned		reserved : 25;
 	union {
 		struct short_ad	*i_sad;
 		struct long_ad		*i_lad;
 		__u8		*i_data;
 	} i_ext;
+	struct kernel_lb_addr	i_locStreamdir;
+	__u64			i_lenStreams;
 	struct rw_semaphore	i_data_sem;
 	struct udf_ext_cache cached_extent;
 	/* Spinlock for protecting extent cache */
