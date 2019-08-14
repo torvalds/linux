@@ -11676,6 +11676,7 @@ fcponly:
 			phba->nvme_support = 0;
 			phba->nvmet_support = 0;
 			phba->cfg_nvmet_mrq = 0;
+			phba->cfg_nvme_seg_cnt = 0;
 
 			/* If no FC4 type support, move to just SCSI support */
 			if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
