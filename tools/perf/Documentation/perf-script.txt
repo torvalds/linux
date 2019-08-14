@@ -420,8 +420,11 @@ include::itrace.txt[]
 --switch-on EVENT_NAME::
 	Only consider events after this event is found.
 
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
 --show-on-off-events::
-	Show the --switch-on event too.
+	Show the --switch-on/off events too.
 
 SEE ALSO
 --------

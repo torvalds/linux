@@ -1617,7 +1617,8 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 }
 
 struct evswitch {
-	struct evsel *on;
+	struct evsel *on,
+		     *off;
 	bool	     discarding;
 	bool	     show_on_off_events;
 };
@@ -1820,8 +1821,20 @@ static void process_event(struct perf_script *script,
 
 		if (!script->evswitch.show_on_off_events)
 			return;
+
+		goto print_it;
 	}
 
+	if (script->evswitch.off && !script->evswitch.discarding) {
+		if (script->evswitch.off != evsel)
+			goto print_it;
+
+		script->evswitch.discarding = true;
+
+		if (!script->evswitch.show_on_off_events)
+			return;
+	}
+print_it:
 	++es->samples;
 
 	perf_sample__fprintf_start(sample, thread, evsel,
@@ -3412,7 +3425,8 @@ int cmd_script(int argc, const char **argv)
 	struct utsname uts;
 	char *script_path = NULL;
 	const char **__argv;
-	const char *event_switch_on = NULL;
+	const char *event_switch_on  = NULL,
+		   *event_switch_off = NULL;
 	int i, j, err = 0;
 	struct perf_script script = {
 		.tool = {
@@ -3557,7 +3571,9 @@ int cmd_script(int argc, const char **argv)
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
 	OPT_STRING(0, "switch-on", &event_switch_on,
-		   "event", "Consider events from the first ocurrence of this event"),
+		   "event", "Consider events after the ocurrence of this event"),
+	OPT_STRING(0, "switch-off", &event_switch_off,
+		   "event", "Stop considering events after the ocurrence of this event"),
 	OPT_BOOLEAN(0, "show-on-off-events", &script.evswitch.show_on_off_events,
 		    "Show the on/off switch events, used with --switch-on"),
 	OPT_END()
@@ -3892,6 +3908,15 @@ int cmd_script(int argc, const char **argv)
 			goto out_delete;
 		}
 		script.evswitch.discarding = true;
+	}
+
+	if (event_switch_off) {
+		script.evswitch.off = perf_evlist__find_evsel_by_str(session->evlist, event_switch_off);
+		if (script.evswitch.off == NULL) {
+			fprintf(stderr, "switch-off event not found (%s)\n", event_switch_off);
+			err = -ENOENT;
+			goto out_delete;
+		}
 	}
 
 	err = __cmd_script(&script);
