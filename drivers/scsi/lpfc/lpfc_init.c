@@ -8876,7 +8876,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		}
 		qdesc->qe_valid = 1;
 		qdesc->hdwq = cpup->hdwq;
-		qdesc->chann = cpu; /* First CPU this EQ is affinitised to */
+		qdesc->chann = cpu; /* First CPU this EQ is affinitized to */
 		qdesc->last_cpu = qdesc->chann;
 
 		/* Save the allocated EQ in the Hardware Queue */
@@ -10723,7 +10723,7 @@ lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
 static void
 lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 {
-	int i, cpu, idx, new_cpu, start_cpu, first_cpu;
+	int i, cpu, idx, next_idx, new_cpu, start_cpu, first_cpu;
 	int max_phys_id, min_phys_id;
 	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
@@ -10765,8 +10765,8 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 #endif
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3328 CPU physid %d coreid %d\n",
-				cpup->phys_id, cpup->core_id);
+				"3328 CPU %d physid %d coreid %d flag x%x\n",
+				cpu, cpup->phys_id, cpup->core_id, cpup->flag);
 
 		if (cpup->phys_id > max_phys_id)
 			max_phys_id = cpup->phys_id;
@@ -10805,17 +10805,17 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 			cpup->eq = idx;
 			cpup->irq = pci_irq_vector(phba->pcidev, idx);
 
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"3336 Set Affinity: CPU %d "
-					"irq %d eq %d\n",
-					cpu, cpup->irq, cpup->eq);
-
 			/* If this is the first CPU thats assigned to this
 			 * vector, set LPFC_CPU_FIRST_IRQ.
 			 */
 			if (!i)
 				cpup->flag |= LPFC_CPU_FIRST_IRQ;
 			i++;
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3336 Set Affinity: CPU %d "
+					"irq %d eq %d flag x%x\n",
+					cpu, cpup->irq, cpup->eq, cpup->flag);
 		}
 	}
 
@@ -10929,69 +10929,103 @@ found_any:
 		}
 	}
 
+	/* Assign hdwq indices that are unique across all cpus in the map
+	 * that are also FIRST_CPUs.
+	 */
+	idx = 0;
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Only FIRST IRQs get a hdwq index assignment. */
+		if (!(cpup->flag & LPFC_CPU_FIRST_IRQ))
+			continue;
+
+		/* 1 to 1, the first LPFC_CPU_FIRST_IRQ cpus to a unique hdwq */
+		cpup->hdwq = idx;
+		idx++;
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3333 Set Affinity: CPU %d (phys %d core %d): "
+				"hdwq %d eq %d irq %d flg x%x\n",
+				cpu, cpup->phys_id, cpup->core_id,
+				cpup->hdwq, cpup->eq, cpup->irq, cpup->flag);
+	}
 	/* Finally we need to associate a hdwq with each cpu_map entry
 	 * This will be 1 to 1 - hdwq to cpu, unless there are less
 	 * hardware queues then CPUs. For that case we will just round-robin
 	 * the available hardware queues as they get assigned to CPUs.
+	 * The next_idx is the idx from the FIRST_CPU loop above to account
+	 * for irq_chann < hdwq.  The idx is used for round-robin assignments
+	 * and needs to start at 0.
 	 */
-	idx = 0;
+	next_idx = idx;
 	start_cpu = 0;
+	idx = 0;
 	for_each_present_cpu(cpu) {
 		cpup = &phba->sli4_hba.cpu_map[cpu];
-		if (idx >=  phba->cfg_hdw_queue) {
-			/* We need to reuse a Hardware Queue for another CPU,
-			 * so be smart about it and pick one that has its
-			 * IRQ/EQ mapped to the same phys_id (CPU package).
-			 * and core_id.
-			 */
-			new_cpu = start_cpu;
-			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
-				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
-				if ((new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY) &&
-				    (new_cpup->phys_id == cpup->phys_id) &&
-				    (new_cpup->core_id == cpup->core_id))
-					goto found_hdwq;
-				new_cpu = cpumask_next(
-					new_cpu, cpu_present_mask);
-				if (new_cpu == nr_cpumask_bits)
-					new_cpu = first_cpu;
-			}
 
-			/* If we can't match both phys_id and core_id,
-			 * settle for just a phys_id match.
-			 */
-			new_cpu = start_cpu;
-			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
-				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
-				if ((new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY) &&
-				    (new_cpup->phys_id == cpup->phys_id))
-					goto found_hdwq;
-				new_cpu = cpumask_next(
-					new_cpu, cpu_present_mask);
-				if (new_cpu == nr_cpumask_bits)
-					new_cpu = first_cpu;
-			}
+		/* FIRST cpus are already mapped. */
+		if (cpup->flag & LPFC_CPU_FIRST_IRQ)
+			continue;
 
-			/* Otherwise just round robin on cfg_hdw_queue */
-			cpup->hdwq = idx % phba->cfg_hdw_queue;
-			goto logit;
-found_hdwq:
-			/* We found an available entry, copy the IRQ info */
-			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu == nr_cpumask_bits)
-				start_cpu = first_cpu;
-			cpup->hdwq = new_cpup->hdwq;
-		} else {
-			/* 1 to 1, CPU to hdwq */
-			cpup->hdwq = idx;
+		/* If the cfg_irq_chann < cfg_hdw_queue, set the hdwq
+		 * of the unassigned cpus to the next idx so that all
+		 * hdw queues are fully utilized.
+		 */
+		if (next_idx < phba->cfg_hdw_queue) {
+			cpup->hdwq = next_idx;
+			next_idx++;
+			continue;
 		}
-logit:
+
+		/* Not a First CPU and all hdw_queues are used.  Reuse a
+		 * Hardware Queue for another CPU, so be smart about it
+		 * and pick one that has its IRQ/EQ mapped to the same phys_id
+		 * (CPU package) and core_id.
+		 */
+		new_cpu = start_cpu;
+		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+			new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+			if (new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY &&
+			    new_cpup->phys_id == cpup->phys_id &&
+			    new_cpup->core_id == cpup->core_id) {
+				goto found_hdwq;
+			}
+			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (new_cpu == nr_cpumask_bits)
+				new_cpu = first_cpu;
+		}
+
+		/* If we can't match both phys_id and core_id,
+		 * settle for just a phys_id match.
+		 */
+		new_cpu = start_cpu;
+		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+			new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+			if (new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY &&
+			    new_cpup->phys_id == cpup->phys_id)
+				goto found_hdwq;
+
+			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (new_cpu == nr_cpumask_bits)
+				new_cpu = first_cpu;
+		}
+
+		/* Otherwise just round robin on cfg_hdw_queue */
+		cpup->hdwq = idx % phba->cfg_hdw_queue;
+		idx++;
+		goto logit;
+ found_hdwq:
+		/* We found an available entry, copy the IRQ info */
+		start_cpu = cpumask_next(new_cpu, cpu_present_mask);
+		if (start_cpu == nr_cpumask_bits)
+			start_cpu = first_cpu;
+		cpup->hdwq = new_cpup->hdwq;
+ logit:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3335 Set Affinity: CPU %d (phys %d core %d): "
 				"hdwq %d eq %d irq %d flg x%x\n",
 				cpu, cpup->phys_id, cpup->core_id,
 				cpup->hdwq, cpup->eq, cpup->irq, cpup->flag);
-		idx++;
 	}
 
 	/* The cpu_map array will be used later during initialization
