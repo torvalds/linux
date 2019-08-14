@@ -403,6 +403,8 @@ struct phy_device {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
+	/* used with phy_speed_down */
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_old);
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
@@ -665,6 +667,7 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 		  unsigned long *mask);
 void of_set_phy_supported(struct phy_device *phydev);
 void of_set_phy_eee_broken(struct phy_device *phydev);
+int phy_speed_down_core(struct phy_device *phydev);
 
 /**
  * phy_is_started - Convenience function to check whether PHY is started
