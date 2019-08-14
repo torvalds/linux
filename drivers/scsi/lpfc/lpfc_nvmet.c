@@ -1026,7 +1026,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		 * WQE release CQE
 		 */
 		ctxp->flag |= LPFC_NVMET_DEFER_WQFULL;
-		wq = ctxp->hdwq->nvme_wq;
+		wq = ctxp->hdwq->io_wq;
 		pring = wq->pring;
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		list_add_tail(&nvmewqeq->list, &wq->wqfull_list);
@@ -1104,7 +1104,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
 						 ctxp->oxid);
-		wq = ctxp->hdwq->nvme_wq;
+		wq = ctxp->hdwq->io_wq;
 		lpfc_nvmet_wqfull_flush(phba, wq, ctxp);
 		return;
 	}
@@ -1918,7 +1918,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 	if (phba->targetport) {
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
-			wq = phba->sli4_hba.hdwq[qidx].nvme_wq;
+			wq = phba->sli4_hba.hdwq[qidx].io_wq;
 			lpfc_nvmet_wqfull_flush(phba, wq, NULL);
 		}
 		tgtp->tport_unreg_cmp = &tport_unreg_cmp;
@@ -3295,7 +3295,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	 */
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_NVME_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,

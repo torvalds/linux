@@ -537,29 +537,32 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
 
-		spin_lock(&qp->abts_scsi_buf_list_lock);
+		spin_lock(&qp->abts_io_buf_list_lock);
 		list_for_each_entry_safe(psb, next_psb,
-					 &qp->lpfc_abts_scsi_buf_list, list) {
+					 &qp->lpfc_abts_io_buf_list, list) {
+			if (psb->cur_iocbq.iocb_flag == LPFC_IO_NVME)
+				continue;
+
 			if (psb->rdata && psb->rdata->pnode &&
 			    psb->rdata->pnode->vport == vport)
 				psb->rdata = NULL;
 		}
-		spin_unlock(&qp->abts_scsi_buf_list_lock);
+		spin_unlock(&qp->abts_io_buf_list_lock);
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }
 
 /**
- * lpfc_sli4_fcp_xri_aborted - Fast-path process of fcp xri abort
+ * lpfc_sli4_io_xri_aborted - Fast-path process of fcp xri abort
  * @phba: pointer to lpfc hba data structure.
  * @axri: pointer to the fcp xri abort wcqe structure.
  *
  * This routine is invoked by the worker thread to process a SLI4 fast-path
- * FCP aborted xri.
+ * FCP or NVME aborted xri.
  **/
 void
-lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
-			  struct sli4_wcqe_xri_aborted *axri, int idx)
+lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
+			 struct sli4_wcqe_xri_aborted *axri, int idx)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
@@ -577,16 +580,25 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 
 	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&qp->abts_scsi_buf_list_lock);
+	spin_lock(&qp->abts_io_buf_list_lock);
 	list_for_each_entry_safe(psb, next_psb,
-		&qp->lpfc_abts_scsi_buf_list, list) {
+		&qp->lpfc_abts_io_buf_list, list) {
 		if (psb->cur_iocbq.sli4_xritag == xri) {
-			list_del(&psb->list);
-			qp->abts_scsi_io_bufs--;
+			list_del_init(&psb->list);
 			psb->exch_busy = 0;
 			psb->status = IOSTAT_SUCCESS;
-			spin_unlock(
-				&qp->abts_scsi_buf_list_lock);
+#ifdef BUILD_NVME
+			if (psb->cur_iocbq.iocb_flag == LPFC_IO_NVME) {
+				qp->abts_nvme_io_bufs--;
+				spin_unlock(&qp->abts_io_buf_list_lock);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
+				lpfc_sli4_nvme_xri_aborted(phba, axri, psb);
+				return;
+			}
+#endif
+			qp->abts_scsi_io_bufs--;
+			spin_unlock(&qp->abts_io_buf_list_lock);
+
 			if (psb->rdata && psb->rdata->pnode)
 				ndlp = psb->rdata->pnode;
 			else
@@ -605,12 +617,12 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			return;
 		}
 	}
-	spin_unlock(&qp->abts_scsi_buf_list_lock);
+	spin_unlock(&qp->abts_io_buf_list_lock);
 	for (i = 1; i <= phba->sli.last_iotag; i++) {
 		iocbq = phba->sli.iocbq_lookup[i];
 
-		if (!(iocbq->iocb_flag &  LPFC_IO_FCP) ||
-			(iocbq->iocb_flag & LPFC_IO_LIBDFC))
+		if (!(iocbq->iocb_flag & LPFC_IO_FCP) ||
+		    (iocbq->iocb_flag & LPFC_IO_LIBDFC))
 			continue;
 		if (iocbq->sli4_xritag != xri)
 			continue;
@@ -836,11 +848,11 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
 
 	qp = psb->hdwq;
 	if (psb->exch_busy) {
-		spin_lock_irqsave(&qp->abts_scsi_buf_list_lock, iflag);
+		spin_lock_irqsave(&qp->abts_io_buf_list_lock, iflag);
 		psb->pCmd = NULL;
-		list_add_tail(&psb->list, &qp->lpfc_abts_scsi_buf_list);
+		list_add_tail(&psb->list, &qp->lpfc_abts_io_buf_list);
 		qp->abts_scsi_io_bufs++;
-		spin_unlock_irqrestore(&qp->abts_scsi_buf_list_lock, iflag);
+		spin_unlock_irqrestore(&qp->abts_io_buf_list_lock, iflag);
 	} else {
 		lpfc_release_io_buf(phba, (struct lpfc_io_buf *)psb, qp);
 	}
@@ -4800,7 +4812,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3168 SCSI Layer abort requested I/O has been "
 			"flushed by LLD.\n");
@@ -4821,7 +4833,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	iocb = &lpfc_cmd->cur_iocbq;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].fcp_wq->pring;
+		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].io_wq->pring;
 		if (!pring_s4) {
 			ret = FAILED;
 			goto out_unlock_buf;

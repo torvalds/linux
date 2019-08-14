@@ -1830,7 +1830,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	 */
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_NVME_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6139 Driver in reset cleanup - flushing "
@@ -2091,11 +2091,11 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd)
 				lpfc_ncmd->cur_iocbq.sli4_xritag,
 				lpfc_ncmd->cur_iocbq.iotag);
 
-		spin_lock_irqsave(&qp->abts_nvme_buf_list_lock, iflag);
+		spin_lock_irqsave(&qp->abts_io_buf_list_lock, iflag);
 		list_add_tail(&lpfc_ncmd->list,
-			&qp->lpfc_abts_nvme_buf_list);
+			&qp->lpfc_abts_io_buf_list);
 		qp->abts_nvme_io_bufs++;
-		spin_unlock_irqrestore(&qp->abts_nvme_buf_list_lock, iflag);
+		spin_unlock_irqrestore(&qp->abts_io_buf_list_lock, iflag);
 	} else
 		lpfc_release_io_buf(phba, (struct lpfc_io_buf *)lpfc_ncmd, qp);
 }
@@ -2220,7 +2220,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 		if (unlikely(!ret)) {
 			pending = 0;
 			for (i = 0; i < phba->cfg_hdw_queue; i++) {
-				pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
+				pring = phba->sli4_hba.hdwq[i].io_wq->pring;
 				if (!pring)
 					continue;
 				if (pring->txcmplq_cnt)
@@ -2624,6 +2624,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * lpfc_sli4_nvme_xri_aborted - Fast-path process of NVME xri abort
  * @phba: pointer to lpfc hba data structure.
  * @axri: pointer to the fcp xri abort wcqe structure.
+ * @lpfc_ncmd: The nvme job structure for the request being aborted.
  *
  * This routine is invoked by the worker thread to process a SLI4 fast-path
  * NVME aborted xri.  Aborted NVME IO commands are completed to the transport
@@ -2631,59 +2632,33 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  **/
 void
 lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
-			   struct sli4_wcqe_xri_aborted *axri, int idx)
+			   struct sli4_wcqe_xri_aborted *axri,
+			   struct lpfc_io_buf *lpfc_ncmd)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
-	struct lpfc_io_buf *lpfc_ncmd, *next_lpfc_ncmd;
 	struct nvmefc_fcp_req *nvme_cmd = NULL;
-	struct lpfc_nodelist *ndlp;
-	struct lpfc_sli4_hdw_queue *qp;
-	unsigned long iflag = 0;
+	struct lpfc_nodelist *ndlp = lpfc_ncmd->ndlp;
 
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
-		return;
-	qp = &phba->sli4_hba.hdwq[idx];
-	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&qp->abts_nvme_buf_list_lock);
-	list_for_each_entry_safe(lpfc_ncmd, next_lpfc_ncmd,
-				 &qp->lpfc_abts_nvme_buf_list, list) {
-		if (lpfc_ncmd->cur_iocbq.sli4_xritag == xri) {
-			list_del_init(&lpfc_ncmd->list);
-			qp->abts_nvme_io_bufs--;
-			lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
-			lpfc_ncmd->status = IOSTAT_SUCCESS;
-			spin_unlock(&qp->abts_nvme_buf_list_lock);
 
-			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			ndlp = lpfc_ncmd->ndlp;
-			if (ndlp)
-				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
-
-			lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-					"6311 nvme_cmd x%px xri x%x tag x%x "
-					"abort complete and xri released\n",
-					lpfc_ncmd->nvmeCmd, xri,
-					lpfc_ncmd->cur_iocbq.iotag);
-
-			/* Aborted NVME commands are required to not complete
-			 * before the abort exchange command fully completes.
-			 * Once completed, it is available via the put list.
-			 */
-			if (lpfc_ncmd->nvmeCmd) {
-				nvme_cmd = lpfc_ncmd->nvmeCmd;
-				nvme_cmd->done(nvme_cmd);
-				lpfc_ncmd->nvmeCmd = NULL;
-			}
-			lpfc_release_nvme_buf(phba, lpfc_ncmd);
-			return;
-		}
-	}
-	spin_unlock(&qp->abts_nvme_buf_list_lock);
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	if (ndlp)
+		lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6312 XRI Aborted xri x%x not found\n", xri);
+			"6311 nvme_cmd %p xri x%x tag x%x abort complete and "
+			"xri released\n",
+			lpfc_ncmd->nvmeCmd, xri,
+			lpfc_ncmd->cur_iocbq.iotag);
 
+	/* Aborted NVME commands are required to not complete
+	 * before the abort exchange command fully completes.
+	 * Once completed, it is available via the put list.
+	 */
+	if (lpfc_ncmd->nvmeCmd) {
+		nvme_cmd = lpfc_ncmd->nvmeCmd;
+		nvme_cmd->done(nvme_cmd);
+		lpfc_ncmd->nvmeCmd = NULL;
+	}
+	lpfc_release_nvme_buf(phba, lpfc_ncmd);
 }
 
 /**
@@ -2705,13 +2680,13 @@ lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
 	if (phba->sli_rev < LPFC_SLI_REV4 || !phba->sli4_hba.hdwq)
 		return;
 
-	/* Cycle through all NVME rings and make sure all outstanding
+	/* Cycle through all IO rings and make sure all outstanding
 	 * WQEs have been removed from the txcmplqs.
 	 */
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
-		if (!phba->sli4_hba.hdwq[i].nvme_wq)
+		if (!phba->sli4_hba.hdwq[i].io_wq)
 			continue;
-		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
+		pring = phba->sli4_hba.hdwq[i].io_wq->pring;
 
 		if (!pring)
 			continue;

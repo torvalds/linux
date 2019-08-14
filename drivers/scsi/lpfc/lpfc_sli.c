@@ -3978,7 +3978,7 @@ lpfc_sli_abort_fcp_rings(struct lpfc_hba *phba)
 	/* Look on all the FCP Rings for the iotag */
 	if (phba->sli_rev >= LPFC_SLI_REV4) {
 		for (i = 0; i < phba->cfg_hdw_queue; i++) {
-			pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
+			pring = phba->sli4_hba.hdwq[i].io_wq->pring;
 			lpfc_sli_abort_iocb_ring(phba, pring);
 		}
 	} else {
@@ -3988,17 +3988,17 @@ lpfc_sli_abort_fcp_rings(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli_flush_fcp_rings - flush all iocbs in the fcp ring
+ * lpfc_sli_flush_io_rings - flush all iocbs in the IO ring
  * @phba: Pointer to HBA context object.
  *
- * This function flushes all iocbs in the fcp ring and frees all the iocb
+ * This function flushes all iocbs in the IO ring and frees all the iocb
  * objects in txq and txcmplq. This function will not issue abort iocbs
  * for all the iocb commands in txcmplq, they will just be returned with
  * IOERR_SLI_DOWN. This function is invoked with EEH when device's PCI
  * slot has been permanently disabled.
  **/
 void
-lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
+lpfc_sli_flush_io_rings(struct lpfc_hba *phba)
 {
 	LIST_HEAD(txq);
 	LIST_HEAD(txcmplq);
@@ -4009,13 +4009,13 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->hbalock);
 	/* Indicate the I/O queues are flushed */
-	phba->hba_flag |= HBA_FCP_IOQ_FLUSH;
+	phba->hba_flag |= HBA_IOQ_FLUSH;
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Look on all the FCP Rings for the iotag */
 	if (phba->sli_rev >= LPFC_SLI_REV4) {
 		for (i = 0; i < phba->cfg_hdw_queue; i++) {
-			pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
+			pring = phba->sli4_hba.hdwq[i].io_wq->pring;
 
 			spin_lock_irq(&pring->ring_lock);
 			/* Retrieve everything on txq */
@@ -4058,56 +4058,6 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 				      IOERR_SLI_DOWN);
 		/* Flush the txcmpq */
 		lpfc_sli_cancel_iocbs(phba, &txcmplq, IOSTAT_LOCAL_REJECT,
-				      IOERR_SLI_DOWN);
-	}
-}
-
-/**
- * lpfc_sli_flush_nvme_rings - flush all wqes in the nvme rings
- * @phba: Pointer to HBA context object.
- *
- * This function flushes all wqes in the nvme rings and frees all resources
- * in the txcmplq. This function does not issue abort wqes for the IO
- * commands in txcmplq, they will just be returned with
- * IOERR_SLI_DOWN. This function is invoked with EEH when device's PCI
- * slot has been permanently disabled.
- **/
-void
-lpfc_sli_flush_nvme_rings(struct lpfc_hba *phba)
-{
-	LIST_HEAD(txcmplq);
-	struct lpfc_sli_ring  *pring;
-	uint32_t i;
-	struct lpfc_iocbq *piocb, *next_iocb;
-
-	if ((phba->sli_rev < LPFC_SLI_REV4) ||
-	    !(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
-		return;
-
-	/* Hint to other driver operations that a flush is in progress. */
-	spin_lock_irq(&phba->hbalock);
-	phba->hba_flag |= HBA_NVME_IOQ_FLUSH;
-	spin_unlock_irq(&phba->hbalock);
-
-	/* Cycle through all NVME rings and complete each IO with
-	 * a local driver reason code.  This is a flush so no
-	 * abort exchange to FW.
-	 */
-	for (i = 0; i < phba->cfg_hdw_queue; i++) {
-		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
-
-		spin_lock_irq(&pring->ring_lock);
-		list_for_each_entry_safe(piocb, next_iocb,
-					 &pring->txcmplq, list)
-			piocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
-		/* Retrieve everything on the txcmplq */
-		list_splice_init(&pring->txcmplq, &txcmplq);
-		pring->txcmplq_cnt = 0;
-		spin_unlock_irq(&pring->ring_lock);
-
-		/* Flush the txcmpq &&&PAE */
-		lpfc_sli_cancel_iocbs(phba, &txcmplq,
-				      IOSTAT_LOCAL_REJECT,
 				      IOERR_SLI_DOWN);
 	}
 }
@@ -5603,10 +5553,8 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
 			qp = &sli4_hba->hdwq[qidx];
 			/* ARM the corresponding CQ */
-			sli4_hba->sli4_write_cq_db(phba, qp->fcp_cq, 0,
-						   LPFC_QUEUE_REARM);
-			sli4_hba->sli4_write_cq_db(phba, qp->nvme_cq, 0,
-						   LPFC_QUEUE_REARM);
+			sli4_hba->sli4_write_cq_db(phba, qp[qidx].io_cq, 0,
+						LPFC_QUEUE_REARM);
 		}
 
 		/* Loop thru all IRQ vectors */
@@ -7262,7 +7210,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	else
 		phba->hba_flag &= ~HBA_FIP_SUPPORT;
 
-	phba->hba_flag &= ~HBA_FCP_IOQ_FLUSH;
+	phba->hba_flag &= ~HBA_IOQ_FLUSH;
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
@@ -9930,7 +9878,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	/* Get the WQ */
 	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
 	    (piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-		wq = phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq;
+		wq = phba->sli4_hba.hdwq[piocb->hba_wqidx].io_wq;
 	} else {
 		wq = phba->sli4_hba.els_wq;
 	}
@@ -10077,7 +10025,7 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 			lpfc_cmd = (struct lpfc_io_buf *)piocb->context1;
 			piocb->hba_wqidx = lpfc_cmd->hdwq_no;
 		}
-		return phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq->pring;
+		return phba->sli4_hba.hdwq[piocb->hba_wqidx].io_wq->pring;
 	} else {
 		if (unlikely(!phba->sli4_hba.els_wq))
 			return NULL;
@@ -10530,7 +10478,7 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&psli->mboxq_cmpl);
 	/* Initialize list headers for txq and txcmplq as double linked lists */
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
-		pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
+		pring = phba->sli4_hba.hdwq[i].io_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_FCP_RING;
 		pring->txcmplq_cnt = 0;
@@ -10549,16 +10497,6 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 	spin_lock_init(&pring->ring_lock);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		for (i = 0; i < phba->cfg_hdw_queue; i++) {
-			pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
-			pring->flag = 0;
-			pring->ringno = LPFC_FCP_RING;
-			pring->txcmplq_cnt = 0;
-			INIT_LIST_HEAD(&pring->txq);
-			INIT_LIST_HEAD(&pring->txcmplq);
-			INIT_LIST_HEAD(&pring->iocb_continueq);
-			spin_lock_init(&pring->ring_lock);
-		}
 		pring = phba->sli4_hba.nvmels_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_ELS_RING;
@@ -11522,7 +11460,7 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 	int i;
 
 	/* all I/Os are in process of being flushed */
-	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH)
+	if (phba->hba_flag & HBA_IOQ_FLUSH)
 		return errcnt;
 
 	for (i = 1; i <= phba->sli.last_iotag; i++) {
@@ -11632,7 +11570,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 	spin_lock_irqsave(&phba->hbalock, iflags);
 
 	/* all I/Os are in process of being flushed */
-	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		return 0;
 	}
@@ -11656,7 +11594,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			pring_s4 =
-			    phba->sli4_hba.hdwq[iocbq->hba_wqidx].fcp_wq->pring;
+			    phba->sli4_hba.hdwq[iocbq->hba_wqidx].io_wq->pring;
 			if (!pring_s4) {
 				spin_unlock(&lpfc_cmd->buf_lock);
 				continue;
@@ -13365,8 +13303,13 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 	unsigned long iflags;
 
 	switch (cq->subtype) {
-	case LPFC_FCP:
-		lpfc_sli4_fcp_xri_aborted(phba, wcqe, cq->hdwq);
+	case LPFC_IO:
+		lpfc_sli4_io_xri_aborted(phba, wcqe, cq->hdwq);
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			/* Notify aborted XRI for NVME work queue */
+			if (phba->nvmet_support)
+				lpfc_sli4_nvmet_xri_aborted(phba, wcqe);
+		}
 		workposted = false;
 		break;
 	case LPFC_NVME_LS: /* NVME LS uses ELS resources */
@@ -13383,15 +13326,6 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 		phba->hba_flag |= ELS_XRI_ABORT_EVENT;
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		workposted = true;
-		break;
-	case LPFC_NVME:
-		/* Notify aborted XRI for NVME work queue */
-		if (phba->nvmet_support)
-			lpfc_sli4_nvmet_xri_aborted(phba, wcqe);
-		else
-			lpfc_sli4_nvme_xri_aborted(phba, wcqe, cq->hdwq);
-
-		workposted = false;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13720,7 +13654,7 @@ __lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
 						&delay);
 		break;
 	case LPFC_WCQ:
-		if (cq->subtype == LPFC_FCP || cq->subtype == LPFC_NVME)
+		if (cq->subtype == LPFC_IO)
 			workposted |= __lpfc_sli4_process_cq(phba, cq,
 						lpfc_sli4_fp_handle_cqe,
 						&delay);
@@ -14037,10 +13971,7 @@ lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		cq->CQ_wq++;
 		/* Process the WQ complete event */
 		phba->last_completion_time = jiffies;
-		if ((cq->subtype == LPFC_FCP) || (cq->subtype == LPFC_NVME))
-			lpfc_sli4_fp_handle_fcp_wcqe(phba, cq,
-				(struct lpfc_wcqe_complete *)&wcqe);
-		if (cq->subtype == LPFC_NVME_LS)
+		if (cq->subtype == LPFC_IO || cq->subtype == LPFC_NVME_LS)
 			lpfc_sli4_fp_handle_fcp_wcqe(phba, cq,
 				(struct lpfc_wcqe_complete *)&wcqe);
 		break;
@@ -19506,7 +19437,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 
 	if (phba->link_flag & LS_MDS_LOOPBACK) {
 		/* MDS WQE are posted only to first WQ*/
-		wq = phba->sli4_hba.hdwq[0].fcp_wq;
+		wq = phba->sli4_hba.hdwq[0].io_wq;
 		if (unlikely(!wq))
 			return 0;
 		pring = wq->pring;
@@ -19757,10 +19688,10 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	/* NVME_FCREQ and NVME_ABTS requests */
 	if (pwqe->iocb_flag & LPFC_IO_NVME) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
-		wq = qp->nvme_wq;
+		wq = qp->io_wq;
 		pring = wq->pring;
 
-		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->nvme_cq_map);
+		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->io_cq_map);
 
 		lpfc_qp_spin_lock_irqsave(&pring->ring_lock, iflags,
 					  qp, wq_access);
@@ -19777,7 +19708,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	/* NVMET requests */
 	if (pwqe->iocb_flag & LPFC_IO_NVMET) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
-		wq = qp->nvme_wq;
+		wq = qp->io_wq;
 		pring = wq->pring;
 
 		ctxp = pwqe->context2;
@@ -19788,7 +19719,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		}
 		bf_set(wqe_xri_tag, &pwqe->wqe.xmit_bls_rsp.wqe_com,
 		       pwqe->sli4_xritag);
-		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->nvme_cq_map);
+		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->io_cq_map);
 
 		lpfc_qp_spin_lock_irqsave(&pring->ring_lock, iflags,
 					  qp, wq_access);
@@ -19835,9 +19766,7 @@ void lpfc_snapshot_mxp(struct lpfc_hba *phba, u32 hwqid)
 	if (multixri_pool->stat_snapshot_taken == LPFC_MXP_SNAPSHOT_TAKEN) {
 		pvt_pool = &qp->p_multixri_pool->pvt_pool;
 		pbl_pool = &qp->p_multixri_pool->pbl_pool;
-		txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
-		if (qp->nvme_wq)
-			txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
+		txcmplq_cnt = qp->io_wq->pring->txcmplq_cnt;
 
 		multixri_pool->stat_pbl_count = pbl_pool->count;
 		multixri_pool->stat_pvt_count = pvt_pool->count;
@@ -19907,12 +19836,9 @@ void lpfc_adjust_high_watermark(struct lpfc_hba *phba, u32 hwqid)
 	watermark_max = xri_limit;
 	watermark_min = xri_limit / 2;
 
-	txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
+	txcmplq_cnt = qp->io_wq->pring->txcmplq_cnt;
 	abts_io_bufs = qp->abts_scsi_io_bufs;
-	if (qp->nvme_wq) {
-		txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
-		abts_io_bufs += qp->abts_nvme_io_bufs;
-	}
+	abts_io_bufs += qp->abts_nvme_io_bufs;
 
 	new_watermark = txcmplq_cnt + abts_io_bufs;
 	new_watermark = min(watermark_max, new_watermark);
@@ -20187,12 +20113,9 @@ void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd,
 		pbl_pool = &qp->p_multixri_pool->pbl_pool;
 		pvt_pool = &qp->p_multixri_pool->pvt_pool;
 
-		txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
+		txcmplq_cnt = qp->io_wq->pring->txcmplq_cnt;
 		abts_io_bufs = qp->abts_scsi_io_bufs;
-		if (qp->nvme_wq) {
-			txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
-			abts_io_bufs += qp->abts_nvme_io_bufs;
-		}
+		abts_io_bufs += qp->abts_nvme_io_bufs;
 
 		xri_owned = pvt_pool->count + txcmplq_cnt + abts_io_bufs;
 		xri_limit = qp->p_multixri_pool->xri_limit;

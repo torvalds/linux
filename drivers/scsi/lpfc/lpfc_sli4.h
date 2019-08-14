@@ -109,9 +109,8 @@ enum lpfc_sli4_queue_type {
 enum lpfc_sli4_queue_subtype {
 	LPFC_NONE,
 	LPFC_MBOX,
-	LPFC_FCP,
+	LPFC_IO,
 	LPFC_ELS,
-	LPFC_NVME,
 	LPFC_NVMET,
 	LPFC_NVME_LS,
 	LPFC_USOL
@@ -641,22 +640,17 @@ struct lpfc_eq_intr_info {
 struct lpfc_sli4_hdw_queue {
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_queue *hba_eq;  /* Event queues for HBA */
-	struct lpfc_queue *fcp_cq;  /* Fast-path FCP compl queue */
-	struct lpfc_queue *nvme_cq; /* Fast-path NVME compl queue */
-	struct lpfc_queue *fcp_wq;  /* Fast-path FCP work queue */
-	struct lpfc_queue *nvme_wq; /* Fast-path NVME work queue */
-	uint16_t fcp_cq_map;
-	uint16_t nvme_cq_map;
+	struct lpfc_queue *io_cq;   /* Fast-path FCP & NVME compl queue */
+	struct lpfc_queue *io_wq;   /* Fast-path FCP & NVME work queue */
+	uint16_t io_cq_map;
 
 	/* Keep track of IO buffers for this hardware queue */
 	spinlock_t io_buf_list_get_lock;  /* Common buf alloc list lock */
 	struct list_head lpfc_io_buf_list_get;
 	spinlock_t io_buf_list_put_lock;  /* Common buf free list lock */
 	struct list_head lpfc_io_buf_list_put;
-	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
-	struct list_head lpfc_abts_scsi_buf_list;
-	spinlock_t abts_nvme_buf_list_lock; /* list of aborted NVME IOs */
-	struct list_head lpfc_abts_nvme_buf_list;
+	spinlock_t abts_io_buf_list_lock; /* list of aborted IOs */
+	struct list_head lpfc_abts_io_buf_list;
 	uint32_t total_io_bufs;
 	uint32_t get_io_bufs;
 	uint32_t put_io_bufs;
@@ -852,8 +846,8 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue **cq_lookup;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
-	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
-	struct list_head lpfc_abts_scsi_buf_list;
+	spinlock_t abts_io_buf_list_lock; /* list of aborted SCSI IOs */
+	struct list_head lpfc_abts_io_buf_list;
 	struct list_head lpfc_nvmet_sgl_list;
 	spinlock_t abts_nvmet_buf_list_lock; /* list of aborted NVMET IOs */
 	struct list_head lpfc_abts_nvmet_ctx_list;
@@ -1058,10 +1052,11 @@ int lpfc_sli4_resume_rpi(struct lpfc_nodelist *,
 			void (*)(struct lpfc_hba *, LPFC_MBOXQ_t *), void *);
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);
-void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
-			       struct sli4_wcqe_xri_aborted *, int);
 void lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
-				struct sli4_wcqe_xri_aborted *axri, int idx);
+				struct sli4_wcqe_xri_aborted *axri,
+				struct lpfc_io_buf *lpfc_ncmd);
+void lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
+			      struct sli4_wcqe_xri_aborted *axri, int idx);
 void lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 				 struct sli4_wcqe_xri_aborted *axri);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,

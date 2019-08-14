@@ -734,14 +734,13 @@ struct lpfc_hba {
 #define HBA_AER_ENABLED		0x1000 /* AER enabled with HBA */
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
-#define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
+#define HBA_IOQ_FLUSH		0x8000 /* FCP/NVME I/O queues being flushed */
 #define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
 #define HBA_RECOVERABLE_UE	0x20000 /* Firmware supports recoverable UE */
 #define HBA_FORCED_LINK_SPEED	0x40000 /*
 					 * Firmware supports Forced Link Speed
 					 * capability
 					 */
-#define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
 
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/

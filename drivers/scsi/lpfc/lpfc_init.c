@@ -1082,8 +1082,8 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
 
-		spin_lock(&qp->abts_scsi_buf_list_lock);
-		list_splice_init(&qp->lpfc_abts_scsi_buf_list,
+		spin_lock(&qp->abts_io_buf_list_lock);
+		list_splice_init(&qp->lpfc_abts_io_buf_list,
 				 &aborts);
 
 		list_for_each_entry_safe(psb, psb_next, &aborts, list) {
@@ -1094,29 +1094,11 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 		spin_lock(&qp->io_buf_list_put_lock);
 		list_splice_init(&aborts, &qp->lpfc_io_buf_list_put);
 		qp->put_io_bufs += qp->abts_scsi_io_bufs;
+		qp->put_io_bufs += qp->abts_nvme_io_bufs;
 		qp->abts_scsi_io_bufs = 0;
+		qp->abts_nvme_io_bufs = 0;
 		spin_unlock(&qp->io_buf_list_put_lock);
-		spin_unlock(&qp->abts_scsi_buf_list_lock);
-
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			spin_lock(&qp->abts_nvme_buf_list_lock);
-			list_splice_init(&qp->lpfc_abts_nvme_buf_list,
-					 &nvme_aborts);
-			list_for_each_entry_safe(psb, psb_next, &nvme_aborts,
-						 list) {
-				psb->pCmd = NULL;
-				psb->status = IOSTAT_SUCCESS;
-				cnt++;
-			}
-			spin_lock(&qp->io_buf_list_put_lock);
-			qp->put_io_bufs += qp->abts_nvme_io_bufs;
-			qp->abts_nvme_io_bufs = 0;
-			list_splice_init(&nvme_aborts,
-					 &qp->lpfc_io_buf_list_put);
-			spin_unlock(&qp->io_buf_list_put_lock);
-			spin_unlock(&qp->abts_nvme_buf_list_lock);
-
-		}
+		spin_unlock(&qp->abts_io_buf_list_lock);
 	}
 	spin_unlock_irq(&phba->hbalock);
 
@@ -1546,8 +1528,7 @@ lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
-	lpfc_sli_flush_fcp_rings(phba);
-	lpfc_sli_flush_nvme_rings(phba);
+	lpfc_sli_flush_io_rings(phba);
 	lpfc_offline(phba);
 	lpfc_hba_down_post(phba);
 	lpfc_unblock_mgmt_io(phba);
@@ -1809,8 +1790,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
 	lpfc_offline_prep(phba, mbx_action);
-	lpfc_sli_flush_fcp_rings(phba);
-	lpfc_sli_flush_nvme_rings(phba);
+	lpfc_sli_flush_io_rings(phba);
 	lpfc_offline(phba);
 	/* release interrupt for possible resource change */
 	lpfc_sli4_disable_intr(phba);
@@ -3266,12 +3246,8 @@ static void lpfc_destroy_multixri_pools(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		lpfc_destroy_expedite_pool(phba);
 
-	if (!(phba->pport->load_flag & FC_UNLOADING)) {
-		lpfc_sli_flush_fcp_rings(phba);
-
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-			lpfc_sli_flush_nvme_rings(phba);
-	}
+	if (!(phba->pport->load_flag & FC_UNLOADING))
+		lpfc_sli_flush_io_rings(phba);
 
 	hwq_count = phba->cfg_hdw_queue;
 
@@ -6516,11 +6492,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/*
 	 * Initialize the SLI Layer to run with lpfc SLI4 HBAs.
 	 */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		/* Initialize the Abort scsi buffer list used by driver */
-		spin_lock_init(&phba->sli4_hba.abts_scsi_buf_list_lock);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
-	}
+	/* Initialize the Abort buffer list used by driver */
+	spin_lock_init(&phba->sli4_hba.abts_io_buf_list_lock);
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_io_buf_list);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		/* Initialize the Abort nvme buffer list used by driver */
@@ -8475,11 +8449,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		 */
 		qmin -= 4;
 
-		/* If NVME is configured, double the number of CQ/WQs needed */
-		if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
-		    !phba->nvmet_support)
-			qmin /= 2;
-
 		/* Check to see if there is enough for NVME */
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
@@ -8736,51 +8705,14 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 }
 
 static int
-lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
+lpfc_alloc_io_wq_cq(struct lpfc_hba *phba, int idx)
 {
 	struct lpfc_queue *qdesc;
+	u32 wqesize;
 	int cpu;
 
-	cpu = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
-				      phba->sli4_hba.cq_esize,
-				      LPFC_CQE_EXP_COUNT, cpu);
-	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0508 Failed allocate fast-path NVME CQ (%d)\n",
-				wqidx);
-		return 1;
-	}
-	qdesc->qe_valid = 1;
-	qdesc->hdwq = wqidx;
-	qdesc->chann = cpu;
-	phba->sli4_hba.hdwq[wqidx].nvme_cq = qdesc;
-
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
-				      LPFC_WQE128_SIZE, LPFC_WQE_EXP_COUNT,
-				      cpu);
-	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0509 Failed allocate fast-path NVME WQ (%d)\n",
-				wqidx);
-		return 1;
-	}
-	qdesc->hdwq = wqidx;
-	qdesc->chann = wqidx;
-	phba->sli4_hba.hdwq[wqidx].nvme_wq = qdesc;
-	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
-	return 0;
-}
-
-static int
-lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
-{
-	struct lpfc_queue *qdesc;
-	uint32_t wqesize;
-	int cpu;
-
-	cpu = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
-	/* Create Fast Path FCP CQs */
+	cpu = lpfc_find_cpu_handle(phba, idx, LPFC_FIND_BY_HDWQ);
+	/* Create Fast Path IO CQs */
 	if (phba->enab_exp_wqcq_pages)
 		/* Increase the CQ size when WQEs contain an embedded cdb */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
@@ -8793,15 +8725,15 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 					      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0499 Failed allocate fast-path FCP CQ (%d)\n", wqidx);
+			"0499 Failed allocate fast-path IO CQ (%d)\n", idx);
 		return 1;
 	}
 	qdesc->qe_valid = 1;
-	qdesc->hdwq = wqidx;
+	qdesc->hdwq = idx;
 	qdesc->chann = cpu;
-	phba->sli4_hba.hdwq[wqidx].fcp_cq = qdesc;
+	phba->sli4_hba.hdwq[idx].io_cq = qdesc;
 
-	/* Create Fast Path FCP WQs */
+	/* Create Fast Path IO WQs */
 	if (phba->enab_exp_wqcq_pages) {
 		/* Increase the WQ size when WQEs contain an embedded cdb */
 		wqesize = (phba->fcp_embed_io) ?
@@ -8816,13 +8748,13 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0503 Failed allocate fast-path FCP WQ (%d)\n",
-				wqidx);
+				"0503 Failed allocate fast-path IO WQ (%d)\n",
+				idx);
 		return 1;
 	}
-	qdesc->hdwq = wqidx;
-	qdesc->chann = wqidx;
-	phba->sli4_hba.hdwq[wqidx].fcp_wq = qdesc;
+	qdesc->hdwq = idx;
+	qdesc->chann = cpu;
+	phba->sli4_hba.hdwq[idx].io_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	return 0;
 }
@@ -8886,11 +8818,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			qp->get_io_bufs = 0;
 			qp->put_io_bufs = 0;
 			qp->total_io_bufs = 0;
-			spin_lock_init(&qp->abts_scsi_buf_list_lock);
-			INIT_LIST_HEAD(&qp->lpfc_abts_scsi_buf_list);
+			spin_lock_init(&qp->abts_io_buf_list_lock);
+			INIT_LIST_HEAD(&qp->lpfc_abts_io_buf_list);
 			qp->abts_scsi_io_bufs = 0;
-			spin_lock_init(&qp->abts_nvme_buf_list_lock);
-			INIT_LIST_HEAD(&qp->lpfc_abts_nvme_buf_list);
 			qp->abts_nvme_io_bufs = 0;
 			INIT_LIST_HEAD(&qp->sgl_list);
 			INIT_LIST_HEAD(&qp->cmd_rsp_buf_list);
@@ -8991,41 +8921,31 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		qp->hba_eq = phba->sli4_hba.hdwq[eqcpup->hdwq].hba_eq;
 	}
 
-	/* Allocate SCSI SLI4 CQ/WQs */
+	/* Allocate IO Path SLI4 CQ/WQs */
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
-		if (lpfc_alloc_fcp_wq_cq(phba, idx))
+		if (lpfc_alloc_io_wq_cq(phba, idx))
 			goto out_error;
 	}
 
-	/* Allocate NVME SLI4 CQ/WQs */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
-			if (lpfc_alloc_nvme_wq_cq(phba, idx))
-				goto out_error;
-		}
-
-		if (phba->nvmet_support) {
-			for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
-				cpu = lpfc_find_cpu_handle(phba, idx,
-							   LPFC_FIND_BY_HDWQ);
-				qdesc = lpfc_sli4_queue_alloc(
-						      phba,
+	if (phba->nvmet_support) {
+		for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
+			cpu = lpfc_find_cpu_handle(phba, idx,
+						   LPFC_FIND_BY_HDWQ);
+			qdesc = lpfc_sli4_queue_alloc(phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.cq_esize,
 						      phba->sli4_hba.cq_ecount,
 						      cpu);
-				if (!qdesc) {
-					lpfc_printf_log(
-						phba, KERN_ERR, LOG_INIT,
+			if (!qdesc) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3142 Failed allocate NVME "
 						"CQ Set (%d)\n", idx);
-					goto out_error;
-				}
-				qdesc->qe_valid = 1;
-				qdesc->hdwq = idx;
-				qdesc->chann = cpu;
-				phba->sli4_hba.nvmet_cqset[idx] = qdesc;
+				goto out_error;
 			}
+			qdesc->qe_valid = 1;
+			qdesc->hdwq = idx;
+			qdesc->chann = cpu;
+			phba->sli4_hba.nvmet_cqset[idx] = qdesc;
 		}
 	}
 
@@ -9056,7 +8976,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		goto out_error;
 	}
 	qdesc->qe_valid = 1;
-	qdesc->chann = 0;
+	qdesc->chann = cpu;
 	phba->sli4_hba.els_cq = qdesc;
 
 
@@ -9074,7 +8994,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				"0505 Failed allocate slow-path MQ\n");
 		goto out_error;
 	}
-	qdesc->chann = 0;
+	qdesc->chann = cpu;
 	phba->sli4_hba.mbx_wq = qdesc;
 
 	/*
@@ -9090,7 +9010,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				"0504 Failed allocate slow-path ELS WQ\n");
 		goto out_error;
 	}
-	qdesc->chann = 0;
+	qdesc->chann = cpu;
 	phba->sli4_hba.els_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 
@@ -9104,7 +9024,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					"6079 Failed allocate NVME LS CQ\n");
 			goto out_error;
 		}
-		qdesc->chann = 0;
+		qdesc->chann = cpu;
 		qdesc->qe_valid = 1;
 		phba->sli4_hba.nvmels_cq = qdesc;
 
@@ -9117,7 +9037,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					"6080 Failed allocate NVME LS WQ\n");
 			goto out_error;
 		}
-		qdesc->chann = 0;
+		qdesc->chann = cpu;
 		phba->sli4_hba.nvmels_wq = qdesc;
 		list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	}
@@ -9260,15 +9180,10 @@ lpfc_sli4_release_hdwq(struct lpfc_hba *phba)
 	/* Loop thru all Hardware Queues */
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		/* Free the CQ/WQ corresponding to the Hardware Queue */
-		lpfc_sli4_queue_free(hdwq[idx].fcp_cq);
-		lpfc_sli4_queue_free(hdwq[idx].nvme_cq);
-		lpfc_sli4_queue_free(hdwq[idx].fcp_wq);
-		lpfc_sli4_queue_free(hdwq[idx].nvme_wq);
-		hdwq[idx].hba_eq = NULL;
-		hdwq[idx].fcp_cq = NULL;
-		hdwq[idx].nvme_cq = NULL;
-		hdwq[idx].fcp_wq = NULL;
-		hdwq[idx].nvme_wq = NULL;
+		lpfc_sli4_queue_free(hdwq[idx].io_cq);
+		lpfc_sli4_queue_free(hdwq[idx].io_wq);
+		hdwq[idx].io_cq = NULL;
+		hdwq[idx].io_wq = NULL;
 		if (phba->cfg_xpsgl && !phba->nvmet_support)
 			lpfc_free_sgl_per_hdwq(phba, &hdwq[idx]);
 		lpfc_free_cmd_rsp_buf_per_hdwq(phba, &hdwq[idx]);
@@ -9471,8 +9386,7 @@ lpfc_setup_cq_lookup(struct lpfc_hba *phba)
 		list_for_each_entry(childq, &eq->child_list, list) {
 			if (childq->queue_id > phba->sli4_hba.cq_max)
 				continue;
-			if ((childq->subtype == LPFC_FCP) ||
-			    (childq->subtype == LPFC_NVME))
+			if (childq->subtype == LPFC_IO)
 				phba->sli4_hba.cq_lookup[childq->queue_id] =
 					childq;
 		}
@@ -9598,31 +9512,6 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	}
 
 	/* Loop thru all Hardware Queues */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
-			cpu = lpfc_find_cpu_handle(phba, qidx,
-						   LPFC_FIND_BY_HDWQ);
-			cpup = &phba->sli4_hba.cpu_map[cpu];
-
-			/* Create the CQ/WQ corresponding to the
-			 * Hardware Queue
-			 */
-			rc = lpfc_create_wq_cq(phba,
-					phba->sli4_hba.hdwq[cpup->hdwq].hba_eq,
-					qp[qidx].nvme_cq,
-					qp[qidx].nvme_wq,
-					&phba->sli4_hba.hdwq[qidx].nvme_cq_map,
-					qidx, LPFC_NVME);
-			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6123 Failed to setup fastpath "
-					"NVME WQ/CQ (%d), rc = 0x%x\n",
-					qidx, (uint32_t)rc);
-				goto out_destroy;
-			}
-		}
-	}
-
 	for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
 		cpu = lpfc_find_cpu_handle(phba, qidx, LPFC_FIND_BY_HDWQ);
 		cpup = &phba->sli4_hba.cpu_map[cpu];
@@ -9630,14 +9519,15 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		/* Create the CQ/WQ corresponding to the Hardware Queue */
 		rc = lpfc_create_wq_cq(phba,
 				       phba->sli4_hba.hdwq[cpup->hdwq].hba_eq,
-				       qp[qidx].fcp_cq,
-				       qp[qidx].fcp_wq,
-				       &phba->sli4_hba.hdwq[qidx].fcp_cq_map,
-				       qidx, LPFC_FCP);
+				       qp[qidx].io_cq,
+				       qp[qidx].io_wq,
+				       &phba->sli4_hba.hdwq[qidx].io_cq_map,
+				       qidx,
+				       LPFC_IO);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0535 Failed to setup fastpath "
-					"FCP WQ/CQ (%d), rc = 0x%x\n",
+					"IO WQ/CQ (%d), rc = 0x%x\n",
 					qidx, (uint32_t)rc);
 			goto out_destroy;
 		}
@@ -9937,10 +9827,8 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
 			/* Destroy the CQ/WQ corresponding to Hardware Queue */
 			qp = &phba->sli4_hba.hdwq[qidx];
-			lpfc_wq_destroy(phba, qp->fcp_wq);
-			lpfc_wq_destroy(phba, qp->nvme_wq);
-			lpfc_cq_destroy(phba, qp->fcp_cq);
-			lpfc_cq_destroy(phba, qp->nvme_cq);
+			lpfc_wq_destroy(phba, qp->io_wq);
+			lpfc_cq_destroy(phba, qp->io_cq);
 		}
 		/* Loop thru all IRQ vectors */
 		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
@@ -11397,11 +11285,10 @@ static void
 lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 {
 	struct lpfc_sli4_hdw_queue *qp;
-	int idx, ccnt, fcnt;
+	int idx, ccnt;
 	int wait_time = 0;
 	int io_xri_cmpl = 1;
 	int nvmet_xri_cmpl = 1;
-	int fcp_xri_cmpl = 1;
 	int els_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
 
 	/* Driver just aborted IOs during the hba_unset process.  Pause
@@ -11415,32 +11302,21 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 		lpfc_nvme_wait_for_io_drain(phba);
 
 	ccnt = 0;
-	fcnt = 0;
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
-		fcp_xri_cmpl = list_empty(
-			&qp->lpfc_abts_scsi_buf_list);
-		if (!fcp_xri_cmpl) /* if list is NOT empty */
-			fcnt++;
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			io_xri_cmpl = list_empty(
-				&qp->lpfc_abts_nvme_buf_list);
-			if (!io_xri_cmpl) /* if list is NOT empty */
-				ccnt++;
-		}
+		io_xri_cmpl = list_empty(&qp->lpfc_abts_io_buf_list);
+		if (!io_xri_cmpl) /* if list is NOT empty */
+			ccnt++;
 	}
 	if (ccnt)
 		io_xri_cmpl = 0;
-	if (fcnt)
-		fcp_xri_cmpl = 0;
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		nvmet_xri_cmpl =
 			list_empty(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 	}
 
-	while (!fcp_xri_cmpl || !els_xri_cmpl || !io_xri_cmpl ||
-	       !nvmet_xri_cmpl) {
+	while (!els_xri_cmpl || !io_xri_cmpl || !nvmet_xri_cmpl) {
 		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
 			if (!nvmet_xri_cmpl)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -11449,12 +11325,7 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 						wait_time/1000);
 			if (!io_xri_cmpl)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"6100 NVME XRI exchange busy "
-						"wait time: %d seconds.\n",
-						wait_time/1000);
-			if (!fcp_xri_cmpl)
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"2877 FCP XRI exchange busy "
+						"6100 IO XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
 			if (!els_xri_cmpl)
@@ -11470,24 +11341,15 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 		}
 
 		ccnt = 0;
-		fcnt = 0;
 		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 			qp = &phba->sli4_hba.hdwq[idx];
-			fcp_xri_cmpl = list_empty(
-				&qp->lpfc_abts_scsi_buf_list);
-			if (!fcp_xri_cmpl) /* if list is NOT empty */
-				fcnt++;
-			if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-				io_xri_cmpl = list_empty(
-				    &qp->lpfc_abts_nvme_buf_list);
-				if (!io_xri_cmpl) /* if list is NOT empty */
-					ccnt++;
-			}
+			io_xri_cmpl = list_empty(
+			    &qp->lpfc_abts_io_buf_list);
+			if (!io_xri_cmpl) /* if list is NOT empty */
+				ccnt++;
 		}
 		if (ccnt)
 			io_xri_cmpl = 0;
-		if (fcnt)
-			fcp_xri_cmpl = 0;
 
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 			nvmet_xri_cmpl = list_empty(
@@ -12282,7 +12144,7 @@ lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 	lpfc_scsi_dev_block(phba);
 
 	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
-	lpfc_sli_flush_fcp_rings(phba);
+	lpfc_sli_flush_io_rings(phba);
 
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
@@ -12312,7 +12174,7 @@ lpfc_sli_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 	lpfc_stop_hba_timers(phba);
 
 	/* Clean up all driver's outstanding SCSI I/Os */
-	lpfc_sli_flush_fcp_rings(phba);
+	lpfc_sli_flush_io_rings(phba);
 }
 
 /**
@@ -13084,12 +12946,8 @@ lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
 
-	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
-	lpfc_sli_flush_fcp_rings(phba);
-
-	/* Flush the outstanding NVME IOs if fc4 type enabled. */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		lpfc_sli_flush_nvme_rings(phba);
+	/* Flush all driver's outstanding I/Os as we are to reset */
+	lpfc_sli_flush_io_rings(phba);
 
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
@@ -13120,12 +12978,8 @@ lpfc_sli4_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
 
-	/* Clean up all driver's outstanding SCSI I/Os */
-	lpfc_sli_flush_fcp_rings(phba);
-
-	/* Flush the outstanding NVME IOs if fc4 type enabled. */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		lpfc_sli_flush_nvme_rings(phba);
+	/* Clean up all driver's outstanding I/Os */
+	lpfc_sli_flush_io_rings(phba);
 }
 
 /**
