@@ -106,6 +106,15 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	umem->dev = dev;
 	umem->queue_id = queue_id;
 
+	if (flags & XDP_USE_NEED_WAKEUP) {
+		umem->flags |= XDP_UMEM_USES_NEED_WAKEUP;
+		/* Tx needs to be explicitly woken up the first time.
+		 * Also for supporting drivers that do not implement this
+		 * feature. They will always have to call sendto().
+		 */
+		xsk_set_tx_need_wakeup(umem);
+	}
+
 	dev_hold(dev);
 
 	if (force_copy)
