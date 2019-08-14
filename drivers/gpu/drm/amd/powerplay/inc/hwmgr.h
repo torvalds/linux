@@ -189,6 +189,14 @@ struct phm_vce_clock_voltage_dependency_table {
 	struct phm_vce_clock_voltage_dependency_record entries[1];
 };
 
+
+enum SMU_ASIC_RESET_MODE
+{
+    SMU_ASIC_RESET_MODE_0,
+    SMU_ASIC_RESET_MODE_1,
+    SMU_ASIC_RESET_MODE_2,
+};
+
 struct pp_smumgr_func {
 	char *name;
 	int (*smu_init)(struct pp_hwmgr  *hwmgr);
@@ -345,6 +353,7 @@ struct pp_hwmgr_func {
 	int (*get_ppfeature_status)(struct pp_hwmgr *hwmgr, char *buf);
 	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
 	int (*set_mp1_state)(struct pp_hwmgr *hwmgr, enum pp_mp1_state mp1_state);
+	int (*asic_reset)(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode);
 };
 
 struct pp_table_func {
