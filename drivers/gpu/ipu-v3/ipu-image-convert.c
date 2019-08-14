@@ -1121,6 +1121,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 			       !(ctx->rot_mode & IPU_ROT_BIT_HFLIP);
 		u32 resized_width;
 		u32 resize_coeff_h;
+		u32 in_width;
 
 		tile_idx = col;
 		in_tile = &ctx->in.tile[tile_idx];
@@ -1138,33 +1139,35 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 		dev_dbg(priv->ipu->dev, "%s: column %u hscale: *8192/%u\n",
 			__func__, col, resize_coeff_h);
 
+		/*
+		 * With the horizontal scaling factor known, round up resized
+		 * width (output width or height) to burst size.
+		 */
+		resized_width = round_up(resized_width, 8);
+
+		/*
+		 * Calculate input width from the last accessed input pixel
+		 * given resized width and scaling coefficients. Round up to
+		 * burst size.
+		 */
+		last_output = resized_width - 1;
+		if (closest)
+			last_output++;
+		in_width = round_up(
+			(DIV_ROUND_UP(last_output * resize_coeff_h, 8192) + 1)
+			<< ctx->downsize_coeff_h, 8);
 
 		for (row = 0; row < ctx->in.num_rows; row++) {
 			tile_idx = row * ctx->in.num_cols + col;
 			in_tile = &ctx->in.tile[tile_idx];
 			out_tile = &ctx->out.tile[ctx->out_tile_map[tile_idx]];
 
-			/*
-			 * With the horizontal scaling factor known, round up
-			 * resized width (output width or height) to burst size.
-			 */
 			if (ipu_rot_mode_is_irt(ctx->rot_mode))
-				out_tile->height = round_up(resized_width, 8);
+				out_tile->height = resized_width;
 			else
-				out_tile->width = round_up(resized_width, 8);
+				out_tile->width = resized_width;
 
-			/*
-			 * Calculate input width from the last accessed input
-			 * pixel given resized width and scaling coefficients.
-			 * Round up to burst size.
-			 */
-			last_output = round_up(resized_width, 8) - 1;
-			if (closest)
-				last_output++;
-			in_tile->width = round_up(
-				(DIV_ROUND_UP(last_output * resize_coeff_h,
-					      8192) + 1)
-				<< ctx->downsize_coeff_h, 8);
+			in_tile->width = in_width;
 		}
 
 		ctx->resize_coeffs_h[col] = resize_coeff_h;
@@ -1175,6 +1178,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 			       !(ctx->rot_mode & IPU_ROT_BIT_VFLIP);
 		u32 resized_height;
 		u32 resize_coeff_v;
+		u32 in_height;
 
 		tile_idx = row * ctx->in.num_cols;
 		in_tile = &ctx->in.tile[tile_idx];
@@ -1192,33 +1196,35 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 		dev_dbg(priv->ipu->dev, "%s: row %u vscale: *8192/%u\n",
 			__func__, row, resize_coeff_v);
 
+		/*
+		 * With the vertical scaling factor known, round up resized
+		 * height (output width or height) to IDMAC limitations.
+		 */
+		resized_height = round_up(resized_height, 2);
+
+		/*
+		 * Calculate input width from the last accessed input pixel
+		 * given resized height and scaling coefficients. Align to
+		 * IDMAC restrictions.
+		 */
+		last_output = resized_height - 1;
+		if (closest)
+			last_output++;
+		in_height = round_up(
+			(DIV_ROUND_UP(last_output * resize_coeff_v, 8192) + 1)
+			<< ctx->downsize_coeff_v, 2);
+
 		for (col = 0; col < ctx->in.num_cols; col++) {
 			tile_idx = row * ctx->in.num_cols + col;
 			in_tile = &ctx->in.tile[tile_idx];
 			out_tile = &ctx->out.tile[ctx->out_tile_map[tile_idx]];
 
-			/*
-			 * With the vertical scaling factor known, round up
-			 * resized height (output width or height) to IDMAC
-			 * limitations.
-			 */
 			if (ipu_rot_mode_is_irt(ctx->rot_mode))
-				out_tile->width = round_up(resized_height, 2);
+				out_tile->width = resized_height;
 			else
-				out_tile->height = round_up(resized_height, 2);
+				out_tile->height = resized_height;
 
-			/*
-			 * Calculate input width from the last accessed input
-			 * pixel given resized height and scaling coefficients.
-			 * Align to IDMAC restrictions.
-			 */
-			last_output = round_up(resized_height, 2) - 1;
-			if (closest)
-				last_output++;
-			in_tile->height = round_up(
-				(DIV_ROUND_UP(last_output * resize_coeff_v,
-					      8192) + 1)
-				<< ctx->downsize_coeff_v, 2);
+			in_tile->height = in_height;
 		}
 
 		ctx->resize_coeffs_v[row] = resize_coeff_v;
