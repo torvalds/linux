@@ -327,14 +327,17 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 	if (!bo->base.pages) {
 		bo->sgts = kvmalloc_array(bo->base.base.size / SZ_2M,
 				     sizeof(struct sg_table), GFP_KERNEL | __GFP_ZERO);
-		if (!bo->sgts)
+		if (!bo->sgts) {
+			mutex_unlock(&bo->base.pages_lock);
 			return -ENOMEM;
+		}
 
 		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
 				       sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
 		if (!pages) {
 			kfree(bo->sgts);
 			bo->sgts = NULL;
+			mutex_unlock(&bo->base.pages_lock);
 			return -ENOMEM;
 		}
 		bo->base.pages = pages;
