@@ -2863,6 +2863,13 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, uns
 	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
 
+	if (vm->use_cpu_for_update)
+		vm->update_funcs = &amdgpu_vm_cpu_funcs;
+	else
+		vm->update_funcs = &amdgpu_vm_sdma_funcs;
+	dma_fence_put(vm->last_update);
+	vm->last_update = NULL;
+
 	if (vm->pasid) {
 		unsigned long flags;
 
