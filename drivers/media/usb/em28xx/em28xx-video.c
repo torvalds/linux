@@ -2199,7 +2199,7 @@ static int em28xx_v4l2_open(struct file *filp)
 /*
  * em28xx_v4l2_fini()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
  */
 static int em28xx_v4l2_fini(struct em28xx *dev)
 {
