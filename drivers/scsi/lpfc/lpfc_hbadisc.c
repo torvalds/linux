@@ -905,6 +905,8 @@ lpfc_linkdown(struct lpfc_hba *phba)
 			phba->trunk_link.link1.state = 0;
 			phba->trunk_link.link2.state = 0;
 			phba->trunk_link.link3.state = 0;
+			phba->sli4_hba.link_state.logical_speed =
+						LPFC_LINK_SPEED_UNKNOWN;
 		}
 		spin_lock_irq(shost->host_lock);
 		phba->pport->fc_flag &= ~FC_LBIT;
