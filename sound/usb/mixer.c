@@ -760,6 +760,8 @@ static int uac_mixer_unit_get_channels(struct mixer_build *state,
 		return -EINVAL;
 	if (!desc->bNrInPins)
 		return -EINVAL;
+	if (desc->bLength < sizeof(*desc) + desc->bNrInPins)
+		return -EINVAL;
 
 	switch (state->mixer->protocol) {
 	case UAC_VERSION_1:
