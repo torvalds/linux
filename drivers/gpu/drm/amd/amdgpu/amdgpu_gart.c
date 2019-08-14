@@ -312,7 +312,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     uint64_t flags)
 {
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-	unsigned i,t,p;
+	unsigned t,p;
 #endif
 	int r, i;
 
