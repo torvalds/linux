@@ -133,7 +133,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3181 dev_loss_callbk x%06x, rport %p flg x%x\n",
+			 "3181 dev_loss_callbk x%06x, rport x%px flg x%x\n",
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/* Don't defer this if we are in the process of deleting the vport
@@ -237,7 +237,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3182 dev_loss_tmo_handler x%06x, rport %p flg x%x\n",
+			 "3182 dev_loss_tmo_handler x%06x, rport x%px flg x%x\n",
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/*
@@ -3323,7 +3323,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 out:
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			 "0263 Discovery Mailbox error: state: 0x%x : %p %p\n",
+			 "0263 Discovery Mailbox error: state: 0x%x : x%px x%px\n",
 			 vport->port_state, sparam_mbox, cfglink_mbox);
 	lpfc_issue_clear_la(phba, vport);
 	return;
@@ -3535,7 +3535,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pmb->ctx_ndlp = NULL;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-			 "0002 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+			 "0002 rpi:%x DID:%x flg:%x %d map:%x x%px\n",
 			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 			 kref_read(&ndlp->kref),
 			 ndlp->nlp_usg_map, ndlp);
@@ -4047,7 +4047,7 @@ out:
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-			 "0003 rpi:%x DID:%x flg:%x %d map%x %p\n",
+			 "0003 rpi:%x DID:%x flg:%x %d map%x x%px\n",
 			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 			 kref_read(&ndlp->kref),
 			 ndlp->nlp_usg_map, ndlp);
@@ -4166,7 +4166,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3183 rport register x%06x, rport %p role x%x\n",
+			 "3183 rport register x%06x, rport x%px role x%x\n",
 			 ndlp->nlp_DID, rport, rport_ids.roles);
 
 	if ((rport->scsi_target_id != -1) &&
@@ -4190,7 +4190,7 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3184 rport unregister x%06x, rport %p\n",
+			 "3184 rport unregister x%06x, rport x%px\n",
 			 ndlp->nlp_DID, rport);
 
 	fc_remote_port_delete(rport);
@@ -4509,9 +4509,9 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (NLP_CHK_FREE_REQ(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0277 lpfc_enable_node: ndlp:x%p "
+				"0277 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		goto free_rpi;
 	}
@@ -4519,9 +4519,9 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (NLP_CHK_NODE_ACT(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0278 lpfc_enable_node: ndlp:x%p "
+				"0278 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		goto free_rpi;
 	}
@@ -4551,7 +4551,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0008 rpi:%x DID:%x flg:%x refcnt:%d "
-				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
+				 "map:%x x%px\n", ndlp->nlp_rpi, ndlp->nlp_DID,
 				 ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -4824,7 +4824,7 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	    (ndlp->nlp_defer_did != NLP_EVT_NOTHING_PENDING)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "1434 UNREG cmpl deferred logo x%x "
-				 "on NPort x%x Data: x%x %p\n",
+				 "on NPort x%x Data: x%x x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID,
 				 ndlp->nlp_defer_did, ndlp);
 
@@ -4874,7 +4874,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "1436 unreg_rpi SKIP UNREG x%x on "
 					 "NPort x%x deferred x%x  flg x%x "
-					 "Data: %p\n",
+					 "Data: x%px\n",
 					 ndlp->nlp_rpi, ndlp->nlp_DID,
 					 ndlp->nlp_defer_did,
 					 ndlp->nlp_flag, ndlp);
@@ -4924,7 +4924,8 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "1433 unreg_rpi UNREG x%x on "
-					 "NPort x%x deferred flg x%x Data:%p\n",
+					 "NPort x%x deferred flg x%x "
+					 "Data:x%px\n",
 					 ndlp->nlp_rpi, ndlp->nlp_DID,
 					 ndlp->nlp_flag, ndlp);
 
@@ -5065,16 +5066,16 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 ndlp->nlp_state, ndlp->nlp_rpi);
 	if (NLP_CHK_FREE_REQ(ndlp)) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0280 lpfc_cleanup_node: ndlp:x%p "
+				"0280 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		lpfc_dequeue_node(vport, ndlp);
 	} else {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0281 lpfc_cleanup_node: ndlp:x%p "
+				"0281 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		lpfc_disable_node(vport, ndlp);
 	}
@@ -5165,7 +5166,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * allocated by the firmware.
 		 */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-				 "0005 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+				 "0005 rpi:%x DID:%x flg:%x %d map:%x x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -5201,8 +5202,8 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * for registered rport so need to cleanup rport
 		 */
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0940 removed node x%p DID x%x "
-				" rport not null %p\n",
+				"0940 removed node x%px DID x%x "
+				" rport not null x%px\n",
 				ndlp, ndlp->nlp_DID, ndlp->rport);
 		rport = ndlp->rport;
 		rdata = rport->dd_data;
@@ -5329,7 +5330,7 @@ lpfc_findnode_mapped(struct lpfc_vport *vport)
 			spin_unlock_irqrestore(shost->host_lock, iflags);
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 					 "2025 FIND node DID "
-					 "Data: x%p x%x x%x x%x %p\n",
+					 "Data: x%px x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag, data1,
 					 ndlp->active_rrqs_xri_bitmap);
@@ -5996,7 +5997,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
-			 "0004 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+			 "0004 rpi:%x DID:%x flg:%x %d map:%x x%px\n",
 			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 			 kref_read(&ndlp->kref),
 			 ndlp->nlp_usg_map, ndlp);
@@ -6050,8 +6051,8 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (filter(ndlp, param)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "3185 FIND node filter %p DID "
-					 "ndlp %p did x%x flg x%x st x%x "
+					 "3185 FIND node filter %pf DID "
+					 "ndlp x%px did x%x flg x%x st x%x "
 					 "xri x%x type x%x rpi x%x\n",
 					 filter, ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag, ndlp->nlp_state,
@@ -6061,7 +6062,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 		}
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3186 FIND node filter %p NOT FOUND.\n", filter);
+			 "3186 FIND node filter %pf NOT FOUND.\n", filter);
 	return NULL;
 }
 
@@ -6186,7 +6187,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0007 rpi:%x DID:%x flg:%x refcnt:%d "
-				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
+				 "map:%x x%px\n", ndlp->nlp_rpi, ndlp->nlp_DID,
 				 ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -6224,8 +6225,9 @@ lpfc_nlp_release(struct kref *kref)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			"0279 lpfc_nlp_release: ndlp:x%p did %x "
+			"0279 %s: ndlp:x%px did %x "
 			"usgmap:x%x refcnt:%d rpi:%x\n",
+			__func__,
 			(void *)ndlp, ndlp->nlp_DID, ndlp->nlp_usg_map,
 			kref_read(&ndlp->kref), ndlp->nlp_rpi);
 
@@ -6272,9 +6274,9 @@ lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 		if (!NLP_CHK_NODE_ACT(ndlp) || NLP_CHK_FREE_ACK(ndlp)) {
 			spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 			lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
-				"0276 lpfc_nlp_get: ndlp:x%p "
+				"0276 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 			return NULL;
 		} else
@@ -6300,9 +6302,9 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 		return 1;
 
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-	"node put:        did:x%x flg:x%x refcnt:x%x",
-		ndlp->nlp_DID, ndlp->nlp_flag,
-		kref_read(&ndlp->kref));
+			"node put:        did:x%x flg:x%x refcnt:x%x",
+			ndlp->nlp_DID, ndlp->nlp_flag,
+			kref_read(&ndlp->kref));
 	phba = ndlp->phba;
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	/* Check the ndlp memory free acknowledge flag to avoid the
@@ -6312,9 +6314,9 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 	if (NLP_CHK_FREE_ACK(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
-				"0274 lpfc_nlp_put: ndlp:x%p "
+				"0274 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		return 1;
 	}
@@ -6325,9 +6327,9 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 	if (NLP_CHK_IACT_REQ(ndlp)) {
 		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 		lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
-				"0275 lpfc_nlp_put: ndlp:x%p "
+				"0275 %s: ndlp:x%px "
 				"usgmap:x%x refcnt:%d\n",
-				(void *)ndlp, ndlp->nlp_usg_map,
+				__func__, (void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
 		return 1;
 	}

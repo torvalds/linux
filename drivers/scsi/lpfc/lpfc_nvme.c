@@ -247,7 +247,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6073 Binding %s HdwQueue %d  (cpu %d) to "
-			 "hdw_queue %d qhandle %p\n", str,
+			 "hdw_queue %d qhandle x%px\n", str,
 			 qidx, qhandle->cpu_id, qhandle->index, qhandle);
 	*handle = (void *)qhandle;
 	return 0;
@@ -282,7 +282,7 @@ lpfc_nvme_delete_queue(struct nvme_fc_local_port *pnvme_lport,
 	vport = lport->vport;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			"6001 ENTER.  lpfc_pnvme %p, qidx x%x qhandle %p\n",
+			"6001 ENTER.  lpfc_pnvme x%px, qidx x%x qhandle x%px\n",
 			lport, qidx, handle);
 	kfree(handle);
 }
@@ -293,7 +293,7 @@ lpfc_nvme_localport_delete(struct nvme_fc_local_port *localport)
 	struct lpfc_nvme_lport *lport = localport->private;
 
 	lpfc_printf_vlog(lport->vport, KERN_INFO, LOG_NVME,
-			 "6173 localport %p delete complete\n",
+			 "6173 localport x%px delete complete\n",
 			 lport);
 
 	/* release any threads waiting for the unreg to complete */
@@ -332,7 +332,7 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	 * calling state machine to remove the node.
 	 */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			"6146 remoteport delete of remoteport %p\n",
+			"6146 remoteport delete of remoteport x%px\n",
 			remoteport);
 	spin_lock_irq(&vport->phba->hbalock);
 
@@ -383,8 +383,8 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	ndlp = (struct lpfc_nodelist *)cmdwqe->context1;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6047 nvme cmpl Enter "
-			 "Data %p DID %x Xri: %x status %x reason x%x cmd:%p "
-			 "lsreg:%p bmp:%p ndlp:%p\n",
+			 "Data %px DID %x Xri: %x status %x reason x%x "
+			 "cmd:x%px lsreg:x%px bmp:x%px ndlp:x%px\n",
 			 pnvme_lsreq, ndlp ? ndlp->nlp_DID : 0,
 			 cmdwqe->sli4_xritag, status,
 			 (wcqe->parameter & 0xffff),
@@ -404,7 +404,7 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	else
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
 				 "6046 nvme cmpl without done call back? "
-				 "Data %p DID %x Xri: %x status %x\n",
+				 "Data %px DID %x Xri: %x status %x\n",
 				pnvme_lsreq, ndlp ? ndlp->nlp_DID : 0,
 				cmdwqe->sli4_xritag, status);
 	if (ndlp) {
@@ -517,7 +517,8 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	/* Issue GEN REQ WQE for NPORT <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "6050 Issue GEN REQ WQE to NPORT x%x "
-			 "Data: x%x x%x wq:%p lsreq:%p bmp:%p xmit:%d 1st:%d\n",
+			 "Data: x%x x%x wq:x%px lsreq:x%px bmp:x%px "
+			 "xmit:%d 1st:%d\n",
 			 ndlp->nlp_DID, genwqe->iotag,
 			 vport->port_state,
 			genwqe, pnvme_lsreq, bmp, xmit_len, first_len);
@@ -595,7 +596,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 	ndlp = rport->ndlp;
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
-				 "6051 Remoteport %p, rport has invalid ndlp. "
+				 "6051 Remoteport x%px, rport has invalid ndlp. "
 				 "Failing LS Req\n", pnvme_rport);
 		return -ENODEV;
 	}
@@ -647,10 +648,10 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 
 	/* Expand print to include key fields. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			 "6149 Issue LS Req to DID 0x%06x lport %p, rport %p "
-			 "lsreq%p rqstlen:%d rsplen:%d %pad %pad\n",
-			 ndlp->nlp_DID,
-			 pnvme_lport, pnvme_rport,
+			 "6149 Issue LS Req to DID 0x%06x lport x%px, "
+			 "rport x%px lsreq x%px rqstlen:%d rsplen:%d "
+			 "%pad %pad\n",
+			 ndlp->nlp_DID, pnvme_lport, pnvme_rport,
 			 pnvme_lsreq, pnvme_lsreq->rqstlen,
 			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
 			 &pnvme_lsreq->rspdma);
@@ -666,8 +667,8 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 	if (ret != WQE_SUCCESS) {
 		atomic_inc(&lport->xmt_ls_err);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
-				 "6052 EXIT. issue ls wqe failed lport %p, "
-				 "rport %p lsreq%p Status %x DID %x\n",
+				 "6052 EXIT. issue ls wqe failed lport x%px, "
+				 "rport x%px lsreq x%px Status %x DID %x\n",
 				 pnvme_lport, pnvme_rport, pnvme_lsreq,
 				 ret, ndlp->nlp_DID);
 		lpfc_mbuf_free(vport->phba, bmp->virt, bmp->phys);
@@ -724,7 +725,7 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 
 	/* Expand print to include key fields. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
-			 "6040 ENTER.  lport %p, rport %p lsreq %p rqstlen:%d "
+			 "6040 ENTER.  lport x%px, rport x%px lsreq x%px rqstlen:%d "
 			 "rsplen:%d %pad %pad\n",
 			 pnvme_lport, pnvme_rport,
 			 pnvme_lsreq, pnvme_lsreq->rqstlen,
@@ -985,8 +986,8 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	if (!lpfc_ncmd->nvmeCmd) {
 		spin_unlock(&lpfc_ncmd->buf_lock);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
-				 "6066 Missing cmpl ptrs: lpfc_ncmd %p, "
-				 "nvmeCmd %p\n",
+				 "6066 Missing cmpl ptrs: lpfc_ncmd x%px, "
+				 "nvmeCmd x%px\n",
 				 lpfc_ncmd, lpfc_ncmd->nvmeCmd);
 
 		/* Release the lpfc_ncmd regardless of the missing elements. */
@@ -1101,8 +1102,8 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			if (lpfc_ncmd->result == IOERR_ABORT_REQUESTED)
 				lpfc_printf_vlog(vport, KERN_INFO,
 					 LOG_NVME_IOERR,
-					 "6032 Delay Aborted cmd %p "
-					 "nvme cmd %p, xri x%x, "
+					 "6032 Delay Aborted cmd x%px "
+					 "nvme cmd x%px, xri x%x, "
 					 "xb %d\n",
 					 lpfc_ncmd, nCmd,
 					 lpfc_ncmd->cur_iocbq.sli4_xritag,
@@ -1506,8 +1507,8 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	ndlp = rport->ndlp;
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_NVME_IOERR,
-				 "6053 Fail IO, ndlp not ready: rport %p "
-				  "ndlp %p, DID x%06x\n",
+				 "6053 Busy IO, ndlp not ready: rport x%px "
+				  "ndlp x%px, DID x%06x\n",
 				 rport, ndlp, pnvme_rport->port_id);
 		atomic_inc(&lport->xmt_fcp_err);
 		ret = -EBUSY;
@@ -1759,7 +1760,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* Announce entry to new IO submit field. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
 			 "6002 Abort Request to rport DID x%06x "
-			 "for nvme_fc_req %p\n",
+			 "for nvme_fc_req x%px\n",
 			 pnvme_rport->port_id,
 			 pnvme_fcreq);
 
@@ -1806,8 +1807,8 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	if (lpfc_nbuf->nvmeCmd != pnvme_fcreq) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6143 NVME req mismatch: "
-				 "lpfc_nbuf %p nvmeCmd %p, "
-				 "pnvme_fcreq %p.  Skipping Abort xri x%x\n",
+				 "lpfc_nbuf x%px nvmeCmd x%px, "
+				 "pnvme_fcreq x%px.  Skipping Abort xri x%x\n",
 				 lpfc_nbuf, lpfc_nbuf->nvmeCmd,
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
 		goto out_unlock;
@@ -1816,7 +1817,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* Don't abort IOs no longer on the pending queue. */
 	if (!(nvmereq_wqe->iocb_flag & LPFC_IO_ON_TXCMPLQ)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
-				 "6142 NVME IO req %p not queued - skipping "
+				 "6142 NVME IO req x%px not queued - skipping "
 				 "abort req xri x%x\n",
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
 		goto out_unlock;
@@ -1831,8 +1832,8 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	if (nvmereq_wqe->iocb_flag & LPFC_DRIVER_ABORTED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6144 Outstanding NVME I/O Abort Request "
-				 "still pending on nvme_fcreq %p, "
-				 "lpfc_ncmd %p xri x%x\n",
+				 "still pending on nvme_fcreq x%px, "
+				 "lpfc_ncmd %px xri x%x\n",
 				 pnvme_fcreq, lpfc_nbuf,
 				 nvmereq_wqe->sli4_xritag);
 		goto out_unlock;
@@ -1842,7 +1843,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	if (!abts_buf) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6136 No available abort wqes. Skipping "
-				 "Abts req for nvme_fcreq %p xri x%x\n",
+				 "Abts req for nvme_fcreq x%px xri x%x\n",
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
 		goto out_unlock;
 	}
@@ -1893,7 +1894,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	if (ret_val) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6137 Failed abts issue_wqe with status x%x "
-				 "for nvme_fcreq %p.\n",
+				 "for nvme_fcreq x%px.\n",
 				 ret_val, pnvme_fcreq);
 		lpfc_sli_release_iocbq(phba, abts_buf);
 		return;
@@ -2096,8 +2097,8 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	if (!ret) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME | LOG_NVME_DISC,
 				 "6005 Successfully registered local "
-				 "NVME port num %d, localP %p, private %p, "
-				 "sg_seg %d\n",
+				 "NVME port num %d, localP x%px, private "
+				 "x%px, sg_seg %d\n",
 				 localport->port_num, localport,
 				 localport->private,
 				 lpfc_nvme_template.max_sgl_segments);
@@ -2165,7 +2166,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 					pending += pring->txcmplq_cnt;
 			}
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
-					 "6176 Lport %p Localport %p wait "
+					 "6176 Lport x%px Localport x%px wait "
 					 "timed out. Pending %d. Renewing.\n",
 					 lport, vport->localport, pending);
 			continue;
@@ -2173,7 +2174,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 		break;
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
-			 "6177 Lport %p Localport %p Complete Success\n",
+			 "6177 Lport x%px Localport x%px Complete Success\n",
 			 lport, vport->localport);
 }
 #endif
@@ -2204,7 +2205,7 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 	lport = (struct lpfc_nvme_lport *)localport->private;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			 "6011 Destroying NVME localport %p\n",
+			 "6011 Destroying NVME localport x%px\n",
 			 localport);
 
 	/* lport's rport list is clear.  Unregister
@@ -2254,12 +2255,12 @@ lpfc_nvme_update_localport(struct lpfc_vport *vport)
 	lport = (struct lpfc_nvme_lport *)localport->private;
 	if (!lport) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME,
-				 "6171 Update NVME fail. localP %p, No lport\n",
+				 "6171 Update NVME fail. localP x%px, No lport\n",
 				 localport);
 		return;
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			 "6012 Update NVME lport %p did x%x\n",
+			 "6012 Update NVME lport x%px did x%x\n",
 			 localport, vport->fc_myDID);
 
 	localport->port_id = vport->fc_myDID;
@@ -2269,7 +2270,7 @@ lpfc_nvme_update_localport(struct lpfc_vport *vport)
 		localport->port_role = FC_PORT_ROLE_NVME_INITIATOR;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			 "6030 bound lport %p to DID x%06x\n",
+			 "6030 bound lport x%px to DID x%06x\n",
 			 lport, localport->port_id);
 #endif
 }
@@ -2350,8 +2351,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 						 LOG_NVME_DISC,
 						 "6014 Rebind lport to current "
-						 "remoteport %p wwpn 0x%llx, "
-						 "Data: x%x x%x %p %p x%x x%06x\n",
+						 "remoteport x%px wwpn 0x%llx, "
+						 "Data: x%x x%x x%px x%px x%x "
+						 " x%06x\n",
 						 remote_port,
 						 remote_port->port_name,
 						 remote_port->port_id,
@@ -2406,7 +2408,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				 "6022 Bind lport x%px to remoteport x%px "
 				 "rport x%px WWNN 0x%llx, "
 				 "Rport WWPN 0x%llx DID "
-				 "x%06x Role x%x, ndlp %p prev_ndlp %p\n",
+				 "x%06x Role x%x, ndlp %p prev_ndlp x%px\n",
 				 lport, remote_port, rport,
 				 rpinfo.node_name, rpinfo.port_name,
 				 rpinfo.port_id, rpinfo.port_role,
@@ -2515,7 +2517,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		goto input_err;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			 "6033 Unreg nvme remoteport %p, portname x%llx, "
+			 "6033 Unreg nvme remoteport x%px, portname x%llx, "
 			 "port_id x%06x, portstate x%x port type x%x\n",
 			 remoteport, remoteport->port_name,
 			 remoteport->port_id, remoteport->port_state,
@@ -2553,7 +2555,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  input_err:
 #endif
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
-			 "6168 State error: lport %p, rport%p FCID x%06x\n",
+			 "6168 State error: lport x%px, rport x%px FCID x%06x\n",
 			 vport->localport, ndlp->rport, ndlp->nlp_DID);
 }
 
@@ -2597,7 +2599,7 @@ lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
 				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-					"6311 nvme_cmd %p xri x%x tag x%x "
+					"6311 nvme_cmd x%px xri x%x tag x%x "
 					"abort complete and xri released\n",
 					lpfc_ncmd->nvmeCmd, xri,
 					lpfc_ncmd->cur_iocbq.iotag);

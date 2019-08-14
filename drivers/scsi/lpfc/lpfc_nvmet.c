@@ -1437,7 +1437,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 			infop = lpfc_get_ctx_list(phba, i, j);
 			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
 					"6408 TOTAL NVMET ctx for CPU %d "
-					"MRQ %d: cnt %d nextcpu %p\n",
+					"MRQ %d: cnt %d nextcpu x%px\n",
 					i, j, infop->nvmet_ctx_list_cnt,
 					infop->nvmet_ctx_next_cpu);
 		}
@@ -1500,7 +1500,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 				"6026 Registered NVME "
-				"targetport: %p, private %p "
+				"targetport: x%px, private x%px "
 				"portnm %llx nodenm %llx segs %d qs %d\n",
 				phba->targetport, tgtp,
 				pinfo.port_name, pinfo.node_name,
@@ -1555,7 +1555,7 @@ lpfc_nvmet_update_targetport(struct lpfc_hba *phba)
 		return 0;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			 "6007 Update NVMET port %p did x%x\n",
+			 "6007 Update NVMET port x%px did x%x\n",
 			 phba->targetport, vport->fc_myDID);
 
 	phba->targetport->port_id = vport->fc_myDID;
@@ -1926,7 +1926,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 		if (!wait_for_completion_timeout(tgtp->tport_unreg_cmp,
 					msecs_to_jiffies(LPFC_NVMET_WAIT_TMO)))
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-					"6179 Unreg targetport %p timeout "
+					"6179 Unreg targetport x%px timeout "
 					"reached.\n", phba->targetport);
 		lpfc_nvmet_cleanup_io_context(phba);
 	}
@@ -3109,7 +3109,7 @@ lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	atomic_inc(&tgtp->xmt_ls_abort_cmpl);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6083 Abort cmpl: ctx %p WCQE:%08x %08x %08x %08x\n",
+			"6083 Abort cmpl: ctx x%px WCQE:%08x %08x %08x %08x\n",
 			ctxp, wcqe->word0, wcqe->total_data_placed,
 			result, wcqe->word3);
 
