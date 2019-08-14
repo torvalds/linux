@@ -73,6 +73,7 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @clk_enable_quirk: module specific clock enable quirk
  * @clk_disable_quirk: module specific clock disable quirk
  * @reset_done_quirk: module specific reset done quirk
+ * @module_enable_quirk: module specific enable quirk
  */
 struct sysc {
 	struct device *dev;
@@ -98,6 +99,7 @@ struct sysc {
 	void (*clk_enable_quirk)(struct sysc *sysc);
 	void (*clk_disable_quirk)(struct sysc *sysc);
 	void (*reset_done_quirk)(struct sysc *sysc);
+	void (*module_enable_quirk)(struct sysc *sysc);
 };
 
 static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
@@ -928,6 +930,9 @@ set_autoidle:
 		sysc_write(ddata, ddata->offsets[SYSC_SYSCONFIG], reg);
 	}
 
+	if (ddata->module_enable_quirk)
+		ddata->module_enable_quirk(ddata);
+
 	return 0;
 }
 
@@ -1241,6 +1246,9 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_MODULE_QUIRK_I2C),
 	SYSC_QUIRK("i2c", 0, 0, 0x10, 0x90, 0x5040000a, 0xfffff0f0,
 		   SYSC_MODULE_QUIRK_I2C),
+	SYSC_QUIRK("gpu", 0x50000000, 0x14, -1, -1, 0x00010201, 0xffffffff, 0),
+	SYSC_QUIRK("gpu", 0x50000000, 0xfe00, 0xfe10, -1, 0x40000000 , 0xffffffff,
+		   SYSC_MODULE_QUIRK_SGX),
 	SYSC_QUIRK("wdt", 0, 0, 0x10, 0x14, 0x502a0500, 0xfffff0f0,
 		   SYSC_MODULE_QUIRK_WDT),
 
@@ -1258,6 +1266,7 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 	SYSC_QUIRK("dwc3", 0, 0, 0x10, -1, 0x500a0200, 0xffffffff, 0),
 	SYSC_QUIRK("epwmss", 0, 0, 0x4, -1, 0x47400001, 0xffffffff, 0),
 	SYSC_QUIRK("gpu", 0, 0x1fc00, 0x1fc10, -1, 0, 0, 0),
+	SYSC_QUIRK("gpu", 0, 0xfe00, 0xfe10, -1, 0x40000000 , 0xffffffff, 0),
 	SYSC_QUIRK("hsi", 0, 0, 0x10, 0x14, 0x50043101, 0xffffffff, 0),
 	SYSC_QUIRK("iss", 0, 0, 0x10, -1, 0x40000101, 0xffffffff, 0),
 	SYSC_QUIRK("lcdc", 0, 0, 0x54, -1, 0x4f201000, 0xffffffff, 0),
@@ -1409,6 +1418,15 @@ static void sysc_clk_disable_quirk_i2c(struct sysc *ddata)
 	sysc_clk_quirk_i2c(ddata, false);
 }
 
+/* 36xx SGX needs a quirk for to bypass OCP IPG interrupt logic */
+static void sysc_module_enable_quirk_sgx(struct sysc *ddata)
+{
+	int offset = 0xff08;	/* OCP_DEBUG_CONFIG */
+	u32 val = BIT(31);	/* THALIA_INT_BYPASS */
+
+	sysc_write(ddata, offset, val);
+}
+
 /* Watchdog timer needs a disable sequence after reset */
 static void sysc_reset_done_quirk_wdt(struct sysc *ddata)
 {
@@ -1450,6 +1468,9 @@ static void sysc_init_module_quirks(struct sysc *ddata)
 
 		return;
 	}
+
+	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_SGX)
+		ddata->module_enable_quirk = sysc_module_enable_quirk_sgx;
 
 	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_WDT)
 		ddata->reset_done_quirk = sysc_reset_done_quirk_wdt;
