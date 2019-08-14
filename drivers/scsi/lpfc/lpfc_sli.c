@@ -11097,6 +11097,9 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				irsp->ulpStatus, irsp->un.ulpWord[4]);
 
 		spin_unlock_irq(&phba->hbalock);
+		if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT &&
+		    irsp->un.ulpWord[4] == IOERR_SLI_ABORTED)
+			lpfc_sli_release_iocbq(phba, abort_iocb);
 	}
 release_iocb:
 	lpfc_sli_release_iocbq(phba, cmdiocb);
