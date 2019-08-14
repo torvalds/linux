@@ -1442,15 +1442,18 @@ rcu_torture_stats_print(void)
 		n_rcu_torture_barrier_error);
 
 	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
-	if (atomic_read(&n_rcu_torture_mberror) != 0 ||
-	    n_rcu_torture_barrier_error != 0 ||
-	    n_rcu_torture_boost_ktrerror != 0 ||
-	    n_rcu_torture_boost_rterror != 0 ||
-	    n_rcu_torture_boost_failure != 0 ||
+	if (atomic_read(&n_rcu_torture_mberror) ||
+	    n_rcu_torture_barrier_error || n_rcu_torture_boost_ktrerror ||
+	    n_rcu_torture_boost_rterror || n_rcu_torture_boost_failure ||
 	    i > 1) {
 		pr_cont("%s", "!!! ");
 		atomic_inc(&n_rcu_torture_error);
-		WARN_ON_ONCE(1);
+		WARN_ON_ONCE(atomic_read(&n_rcu_torture_mberror));
+		WARN_ON_ONCE(n_rcu_torture_barrier_error);  // rcu_barrier()
+		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // no boost kthread
+		WARN_ON_ONCE(n_rcu_torture_boost_rterror); // can't set RT prio
+		WARN_ON_ONCE(n_rcu_torture_boost_failure); // RCU boost failed
+		WARN_ON_ONCE(i > 1); // Too-short grace period
 	}
 	pr_cont("Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
