@@ -1546,6 +1546,8 @@ lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
+	lpfc_sli_flush_fcp_rings(phba);
+	lpfc_sli_flush_nvme_rings(phba);
 	lpfc_offline(phba);
 	lpfc_hba_down_post(phba);
 	lpfc_unblock_mgmt_io(phba);
@@ -1807,6 +1809,8 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
 	lpfc_offline_prep(phba, mbx_action);
+	lpfc_sli_flush_fcp_rings(phba);
+	lpfc_sli_flush_nvme_rings(phba);
 	lpfc_offline(phba);
 	/* release interrupt for possible resource change */
 	lpfc_sli4_disable_intr(phba);

@@ -1391,9 +1391,12 @@ lpfc_sli_cancel_iocbs(struct lpfc_hba *phba, struct list_head *iocblist,
 
 	while (!list_empty(iocblist)) {
 		list_remove_head(iocblist, piocb, struct lpfc_iocbq, list);
-		if (!piocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, piocb);
-		else {
+		if (!piocb->iocb_cmpl) {
+			if (piocb->iocb_flag & LPFC_IO_NVME)
+				lpfc_nvme_cancel_iocb(phba, piocb);
+			else
+				lpfc_sli_release_iocbq(phba, piocb);
+		} else {
 			piocb->iocb.ulpStatus = ulpstatus;
 			piocb->iocb.un.ulpWord[4] = ulpWord4;
 			(piocb->iocb_cmpl) (phba, piocb, piocb);

@@ -2668,3 +2668,50 @@ lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
 		}
 	}
 }
+
+void
+lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn)
+{
+#if (IS_ENABLED(CONFIG_NVME_FC))
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct nvmefc_fcp_req *nCmd;
+	struct lpfc_nvme_fcpreq_priv *freqpriv;
+
+	if (!pwqeIn->context1) {
+		lpfc_sli_release_iocbq(phba, pwqeIn);
+		return;
+	}
+	/* For abort iocb just return, IO iocb will do a done call */
+	if (bf_get(wqe_cmnd, &pwqeIn->wqe.gen_req.wqe_com) ==
+	    CMD_ABORT_XRI_CX) {
+		lpfc_sli_release_iocbq(phba, pwqeIn);
+		return;
+	}
+	lpfc_ncmd = (struct lpfc_io_buf *)pwqeIn->context1;
+
+	spin_lock(&lpfc_ncmd->buf_lock);
+	if (!lpfc_ncmd->nvmeCmd) {
+		spin_unlock(&lpfc_ncmd->buf_lock);
+		lpfc_release_nvme_buf(phba, lpfc_ncmd);
+		return;
+	}
+
+	nCmd = lpfc_ncmd->nvmeCmd;
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+			"6194 NVME Cancel xri %x\n",
+			lpfc_ncmd->cur_iocbq.sli4_xritag);
+
+	nCmd->transferred_length = 0;
+	nCmd->rcv_rsplen = 0;
+	nCmd->status = NVME_SC_INTERNAL;
+	freqpriv = nCmd->private;
+	freqpriv->nvme_buf = NULL;
+	lpfc_ncmd->nvmeCmd = NULL;
+
+	spin_unlock(&lpfc_ncmd->buf_lock);
+	nCmd->done(nCmd);
+
+	/* Call release with XB=1 to queue the IO into the abort list. */
+	lpfc_release_nvme_buf(phba, lpfc_ncmd);
+#endif
+}
