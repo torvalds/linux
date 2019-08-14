@@ -39,7 +39,6 @@ FILE *outf;
 int *fd_percpu;
 struct timeval interval_tv = {5, 0};
 struct timespec interval_ts = {5, 0};
-struct timespec one_msec = {0, 1000000};
 unsigned int num_iterations;
 unsigned int debug;
 unsigned int quiet;
@@ -2994,8 +2993,6 @@ static void signal_handler (int signal)
 			fprintf(stderr, "SIGUSR1\n");
 		break;
 	}
-	/* make sure this manually-invoked interval is at least 1ms long */
-	nanosleep(&one_msec, NULL);
 }
 
 void setup_signal_handler(void)
@@ -3046,8 +3043,6 @@ void do_sleep(void)
 			rest.tv_nsec = (tout.tv_usec % 1000000) * 1000;
 			nanosleep(&rest, NULL);
 		}
-		/* make sure this manually-invoked interval is at least 1ms long */
-		nanosleep(&one_msec, NULL);
 	}
 }
 
