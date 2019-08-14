@@ -548,5 +548,7 @@ static inline int z_erofs_init_zip_subsystem(void) { return 0; }
 static inline void z_erofs_exit_zip_subsystem(void) {}
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
+#define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */
+
 #endif	/* __EROFS_INTERNAL_H */
 

@@ -116,10 +116,12 @@ static struct page *find_target_block_classic(struct inode *dir,
 			struct erofs_qstr dname;
 
 			if (unlikely(!ndirents)) {
-				DBG_BUGON(1);
 				kunmap_atomic(de);
 				put_page(page);
-				page = ERR_PTR(-EIO);
+				errln("corrupted dir block %d @ nid %llu",
+				      mid, EROFS_V(dir)->nid);
+				DBG_BUGON(1);
+				page = ERR_PTR(-EFSCORRUPTED);
 				goto out;
 			}
 

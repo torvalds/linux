@@ -338,8 +338,9 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 	int err;
 
 	if (lcn < lookback_distance) {
+		errln("bogus lookback distance @ nid %llu", vi->nid);
 		DBG_BUGON(1);
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 
 	/* load extent head logical cluster if needed */
@@ -419,7 +420,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		if (unlikely(!m.lcn)) {
 			errln("invalid logical cluster 0 at nid %llu",
 			      vi->nid);
-			err = -EIO;
+			err = -EFSCORRUPTED;
 			goto unmap_out;
 		}
 		end = (m.lcn << lclusterbits) | m.clusterofs;

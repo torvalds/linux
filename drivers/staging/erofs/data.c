@@ -143,10 +143,12 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 			vi->xattr_isize + erofs_blkoff(map->m_la);
 		map->m_plen = inode->i_size - offset;
 
-		/* inline data should locate in one meta block */
+		/* inline data should be located in one meta block */
 		if (erofs_blkoff(map->m_pa) + map->m_plen > PAGE_SIZE) {
+			errln("inline data cross block boundary @ nid %llu",
+			      vi->nid);
 			DBG_BUGON(1);
-			err = -EIO;
+			err = -EFSCORRUPTED;
 			goto err_out;
 		}
 

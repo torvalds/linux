@@ -75,8 +75,9 @@ static int init_inode_xattrs(struct inode *inode)
 		goto out_unlock;
 	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
 		if (unlikely(vi->xattr_isize)) {
+			errln("bogus xattr ibody @ nid %llu", vi->nid);
 			DBG_BUGON(1);
-			ret = -EIO;
+			ret = -EFSCORRUPTED;
 			goto out_unlock;	/* xattr ondisk layout error */
 		}
 		ret = -ENOATTR;
@@ -237,7 +238,7 @@ static int xattr_foreach(struct xattr_iter *it,
 		/* xattr on-disk corruption: xattr entry beyond xattr_isize */
 		if (unlikely(*tlimit < entry_sz)) {
 			DBG_BUGON(1);
-			return -EIO;
+			return -EFSCORRUPTED;
 		}
 		*tlimit -= entry_sz;
 	}
