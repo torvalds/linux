@@ -84,10 +84,6 @@ static struct addr_marker address_markers[] = {
 #else
 	{ 0,	"Early I/O remap start" },
 	{ 0,	"Early I/O remap end" },
-#ifdef CONFIG_NOT_COHERENT_CACHE
-	{ 0,	"Consistent mem start" },
-	{ 0,	"Consistent mem end" },
-#endif
 #ifdef CONFIG_HIGHMEM
 	{ 0,	"Highmem PTEs start" },
 	{ 0,	"Highmem PTEs end" },
@@ -335,11 +331,6 @@ static void populate_markers(void)
 #else /* !CONFIG_PPC64 */
 	address_markers[i++].start_address = ioremap_bot;
 	address_markers[i++].start_address = IOREMAP_TOP;
-#ifdef CONFIG_NOT_COHERENT_CACHE
-	address_markers[i++].start_address = IOREMAP_TOP;
-	address_markers[i++].start_address = IOREMAP_TOP +
-					     CONFIG_CONSISTENT_SIZE;
-#endif
 #ifdef CONFIG_HIGHMEM
 	address_markers[i++].start_address = PKMAP_BASE;
 	address_markers[i++].start_address = PKMAP_ADDR(LAST_PKMAP);

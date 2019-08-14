@@ -302,10 +302,6 @@ void __init mem_init(void)
 	pr_info("  * 0x%08lx..0x%08lx  : highmem PTEs\n",
 		PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP));
 #endif /* CONFIG_HIGHMEM */
-#ifdef CONFIG_NOT_COHERENT_CACHE
-	pr_info("  * 0x%08lx..0x%08lx  : consistent mem\n",
-		IOREMAP_TOP, IOREMAP_TOP + CONFIG_CONSISTENT_SIZE);
-#endif /* CONFIG_NOT_COHERENT_CACHE */
 	if (ioremap_bot != IOREMAP_TOP)
 		pr_info("  * 0x%08lx..0x%08lx  : early ioremap\n",
 			ioremap_bot, IOREMAP_TOP);
