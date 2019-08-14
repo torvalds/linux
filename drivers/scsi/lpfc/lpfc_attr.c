@@ -3682,8 +3682,8 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 		if (rport)
 			remoteport = rport->remoteport;
 		spin_unlock(&vport->phba->hbalock);
-		if (remoteport)
-			nvme_fc_set_remoteport_devloss(rport->remoteport,
+		if (rport && remoteport)
+			nvme_fc_set_remoteport_devloss(remoteport,
 						       vport->cfg_devloss_tmo);
 #endif
 	}
