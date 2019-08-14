@@ -51,6 +51,8 @@ struct lpfc_sli2_slim;
 		cmnd for menlo needs nearly twice as for firmware
 		downloads using bsg */
 
+#define LPFC_DEFAULT_XPSGL_SIZE	256
+#define LPFC_MAX_SG_TABLESIZE	0xffff
 #define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
 #define LPFC_MAX_BG_SLI4_SEG_CNT_DIF 128 /* sg element count for BlockGuard */
 #define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
@@ -799,6 +801,7 @@ struct lpfc_hba {
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
 	uint32_t cfg_xri_rebalancing;
+	uint32_t cfg_xpsgl;
 	uint32_t cfg_enable_npiv;
 	uint32_t cfg_enable_rrq;
 	uint32_t cfg_topology;
@@ -904,6 +907,7 @@ struct lpfc_hba {
 	wait_queue_head_t    work_waitq;
 	struct task_struct   *worker_thread;
 	unsigned long data_flags;
+	uint32_t border_sge_num;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
@@ -986,6 +990,7 @@ struct lpfc_hba {
 	struct dma_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
 	struct dma_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
 	struct dma_pool *txrdy_payload_pool;
+	struct dma_pool *lpfc_cmd_rsp_buf_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;

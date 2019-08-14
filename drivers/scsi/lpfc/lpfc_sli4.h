@@ -680,6 +680,13 @@ struct lpfc_sli4_hdw_queue {
 	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
 	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
 #endif
+
+	/* Per HDWQ pool resources */
+	struct list_head sgl_list;
+	struct list_head cmd_rsp_buf_list;
+
+	/* Lock for syncing Per HDWQ pool resources */
+	spinlock_t hdwq_lock;
 };
 
 #ifdef LPFC_HDWQ_LOCK_STAT
@@ -1089,6 +1096,17 @@ int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_ras_dma_free(struct lpfc_hba *phba);
+struct sli4_hybrid_sgl *lpfc_get_sgl_per_hdwq(struct lpfc_hba *phba,
+					      struct lpfc_io_buf *buf);
+struct fcp_cmd_rsp_buf *lpfc_get_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+						      struct lpfc_io_buf *buf);
+int lpfc_put_sgl_per_hdwq(struct lpfc_hba *phba, struct lpfc_io_buf *buf);
+int lpfc_put_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+				  struct lpfc_io_buf *buf);
+void lpfc_free_sgl_per_hdwq(struct lpfc_hba *phba,
+			    struct lpfc_sli4_hdw_queue *hdwq);
+void lpfc_free_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+				    struct lpfc_sli4_hdw_queue *hdwq);
 static inline void *lpfc_sli4_qe(struct lpfc_queue *q, uint16_t idx)
 {
 	return q->q_pgs[idx / q->entry_cnt_per_pg] +

@@ -20233,6 +20233,13 @@ void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd,
 		spin_unlock_irqrestore(&qp->io_buf_list_put_lock,
 				       iflag);
 	}
+
+	if (phba->cfg_xpsgl && !phba->nvmet_support &&
+	    !list_empty(&lpfc_ncmd->dma_sgl_xtra_list))
+		lpfc_put_sgl_per_hdwq(phba, lpfc_ncmd);
+
+	if (!list_empty(&lpfc_ncmd->dma_cmd_rsp_list))
+		lpfc_put_cmd_rsp_buf_per_hdwq(phba, lpfc_ncmd);
 }
 
 /**
@@ -20446,4 +20453,289 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 	}
 
 	return lpfc_cmd;
+}
+
+/**
+ * lpfc_get_sgl_per_hdwq - Get one SGL chunk from hdwq's pool
+ * @phba: The HBA for which this call is being executed.
+ * @lpfc_buf: IO buf structure to append the SGL chunk
+ *
+ * This routine gets one SGL chunk buffer from hdwq's SGL chunk pool,
+ * and will allocate an SGL chunk if the pool is empty.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to sli4_hybrid_sgl - Success
+ **/
+struct sli4_hybrid_sgl *
+lpfc_get_sgl_per_hdwq(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_buf)
+{
+	struct sli4_hybrid_sgl *list_entry = NULL;
+	struct sli4_hybrid_sgl *tmp = NULL;
+	struct sli4_hybrid_sgl *allocated_sgl = NULL;
+	struct lpfc_sli4_hdw_queue *hdwq = lpfc_buf->hdwq;
+	struct list_head *buf_list = &hdwq->sgl_list;
+
+	spin_lock_irq(&hdwq->hdwq_lock);
+
+	if (likely(!list_empty(buf_list))) {
+		/* break off 1 chunk from the sgl_list */
+		list_for_each_entry_safe(list_entry, tmp,
+					 buf_list, list_node) {
+			list_move_tail(&list_entry->list_node,
+				       &lpfc_buf->dma_sgl_xtra_list);
+			break;
+		}
+	} else {
+		/* allocate more */
+		spin_unlock_irq(&hdwq->hdwq_lock);
+		tmp = kmalloc_node(sizeof(*tmp), GFP_ATOMIC,
+				   cpu_to_node(smp_processor_id()));
+		if (!tmp) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"8353 error kmalloc memory for HDWQ "
+					"%d %s\n",
+					lpfc_buf->hdwq_no, __func__);
+			return NULL;
+		}
+
+		tmp->dma_sgl = dma_pool_alloc(phba->lpfc_sg_dma_buf_pool,
+					      GFP_ATOMIC, &tmp->dma_phys_sgl);
+		if (!tmp->dma_sgl) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"8354 error pool_alloc memory for HDWQ "
+					"%d %s\n",
+					lpfc_buf->hdwq_no, __func__);
+			kfree(tmp);
+			return NULL;
+		}
+
+		spin_lock_irq(&hdwq->hdwq_lock);
+		list_add_tail(&tmp->list_node, &lpfc_buf->dma_sgl_xtra_list);
+	}
+
+	allocated_sgl = list_last_entry(&lpfc_buf->dma_sgl_xtra_list,
+					struct sli4_hybrid_sgl,
+					list_node);
+
+	spin_unlock_irq(&hdwq->hdwq_lock);
+
+	return allocated_sgl;
+}
+
+/**
+ * lpfc_put_sgl_per_hdwq - Put one SGL chunk into hdwq pool
+ * @phba: The HBA for which this call is being executed.
+ * @lpfc_buf: IO buf structure with the SGL chunk
+ *
+ * This routine puts one SGL chunk buffer into hdwq's SGL chunk pool.
+ *
+ * Return codes:
+ *   0 - Success
+ *   -EINVAL - Error
+ **/
+int
+lpfc_put_sgl_per_hdwq(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_buf)
+{
+	int rc = 0;
+	struct sli4_hybrid_sgl *list_entry = NULL;
+	struct sli4_hybrid_sgl *tmp = NULL;
+	struct lpfc_sli4_hdw_queue *hdwq = lpfc_buf->hdwq;
+	struct list_head *buf_list = &hdwq->sgl_list;
+
+	spin_lock_irq(&hdwq->hdwq_lock);
+
+	if (likely(!list_empty(&lpfc_buf->dma_sgl_xtra_list))) {
+		list_for_each_entry_safe(list_entry, tmp,
+					 &lpfc_buf->dma_sgl_xtra_list,
+					 list_node) {
+			list_move_tail(&list_entry->list_node,
+				       buf_list);
+		}
+	} else {
+		rc = -EINVAL;
+	}
+
+	spin_unlock_irq(&hdwq->hdwq_lock);
+	return rc;
+}
+
+/**
+ * lpfc_free_sgl_per_hdwq - Free all SGL chunks of hdwq pool
+ * @phba: phba object
+ * @hdwq: hdwq to cleanup sgl buff resources on
+ *
+ * This routine frees all SGL chunks of hdwq SGL chunk pool.
+ *
+ * Return codes:
+ *   None
+ **/
+void
+lpfc_free_sgl_per_hdwq(struct lpfc_hba *phba,
+		       struct lpfc_sli4_hdw_queue *hdwq)
+{
+	struct list_head *buf_list = &hdwq->sgl_list;
+	struct sli4_hybrid_sgl *list_entry = NULL;
+	struct sli4_hybrid_sgl *tmp = NULL;
+
+	spin_lock_irq(&hdwq->hdwq_lock);
+
+	/* Free sgl pool */
+	list_for_each_entry_safe(list_entry, tmp,
+				 buf_list, list_node) {
+		dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+			      list_entry->dma_sgl,
+			      list_entry->dma_phys_sgl);
+		list_del(&list_entry->list_node);
+		kfree(list_entry);
+	}
+
+	spin_unlock_irq(&hdwq->hdwq_lock);
+}
+
+/**
+ * lpfc_get_cmd_rsp_buf_per_hdwq - Get one CMD/RSP buffer from hdwq
+ * @phba: The HBA for which this call is being executed.
+ * @lpfc_buf: IO buf structure to attach the CMD/RSP buffer
+ *
+ * This routine gets one CMD/RSP buffer from hdwq's CMD/RSP pool,
+ * and will allocate an CMD/RSP buffer if the pool is empty.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to fcp_cmd_rsp_buf - Success
+ **/
+struct fcp_cmd_rsp_buf *
+lpfc_get_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+			      struct lpfc_io_buf *lpfc_buf)
+{
+	struct fcp_cmd_rsp_buf *list_entry = NULL;
+	struct fcp_cmd_rsp_buf *tmp = NULL;
+	struct fcp_cmd_rsp_buf *allocated_buf = NULL;
+	struct lpfc_sli4_hdw_queue *hdwq = lpfc_buf->hdwq;
+	struct list_head *buf_list = &hdwq->cmd_rsp_buf_list;
+
+	spin_lock_irq(&hdwq->hdwq_lock);
+
+	if (likely(!list_empty(buf_list))) {
+		/* break off 1 chunk from the list */
+		list_for_each_entry_safe(list_entry, tmp,
+					 buf_list,
+					 list_node) {
+			list_move_tail(&list_entry->list_node,
+				       &lpfc_buf->dma_cmd_rsp_list);
+			break;
+		}
+	} else {
+		/* allocate more */
+		spin_unlock_irq(&hdwq->hdwq_lock);
+		tmp = kmalloc_node(sizeof(*tmp), GFP_ATOMIC,
+				   cpu_to_node(smp_processor_id()));
+		if (!tmp) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"8355 error kmalloc memory for HDWQ "
+					"%d %s\n",
+					lpfc_buf->hdwq_no, __func__);
+			return NULL;
+		}
+
+		tmp->fcp_cmnd = dma_pool_alloc(phba->lpfc_cmd_rsp_buf_pool,
+						GFP_ATOMIC,
+						&tmp->fcp_cmd_rsp_dma_handle);
+
+		if (!tmp->fcp_cmnd) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"8356 error pool_alloc memory for HDWQ "
+					"%d %s\n",
+					lpfc_buf->hdwq_no, __func__);
+			kfree(tmp);
+			return NULL;
+		}
+
+		tmp->fcp_rsp = (struct fcp_rsp *)((uint8_t *)tmp->fcp_cmnd +
+				sizeof(struct fcp_cmnd));
+
+		spin_lock_irq(&hdwq->hdwq_lock);
+		list_add_tail(&tmp->list_node, &lpfc_buf->dma_cmd_rsp_list);
+	}
+
+	allocated_buf = list_last_entry(&lpfc_buf->dma_cmd_rsp_list,
+					struct fcp_cmd_rsp_buf,
+					list_node);
+
+	spin_unlock_irq(&hdwq->hdwq_lock);
+
+	return allocated_buf;
+}
+
+/**
+ * lpfc_put_cmd_rsp_buf_per_hdwq - Put one CMD/RSP buffer into hdwq pool
+ * @phba: The HBA for which this call is being executed.
+ * @lpfc_buf: IO buf structure with the CMD/RSP buf
+ *
+ * This routine puts one CMD/RSP buffer into executing CPU's CMD/RSP pool.
+ *
+ * Return codes:
+ *   0 - Success
+ *   -EINVAL - Error
+ **/
+int
+lpfc_put_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+			      struct lpfc_io_buf *lpfc_buf)
+{
+	int rc = 0;
+	struct fcp_cmd_rsp_buf *list_entry = NULL;
+	struct fcp_cmd_rsp_buf *tmp = NULL;
+	struct lpfc_sli4_hdw_queue *hdwq = lpfc_buf->hdwq;
+	struct list_head *buf_list = &hdwq->cmd_rsp_buf_list;
+
+	spin_lock_irq(&hdwq->hdwq_lock);
+
+	if (likely(!list_empty(&lpfc_buf->dma_cmd_rsp_list))) {
+		list_for_each_entry_safe(list_entry, tmp,
+					 &lpfc_buf->dma_cmd_rsp_list,
+					 list_node) {
+			list_move_tail(&list_entry->list_node,
+				       buf_list);
+		}
+	} else {
+		rc = -EINVAL;
+	}
+
+	spin_unlock_irq(&hdwq->hdwq_lock);
+	return rc;
+}
+
+/**
+ * lpfc_free_cmd_rsp_buf_per_hdwq - Free all CMD/RSP chunks of hdwq pool
+ * @phba: phba object
+ * @hdwq: hdwq to cleanup cmd rsp buff resources on
+ *
+ * This routine frees all CMD/RSP buffers of hdwq's CMD/RSP buf pool.
+ *
+ * Return codes:
+ *   None
+ **/
+void
+lpfc_free_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
+			       struct lpfc_sli4_hdw_queue *hdwq)
+{
+	struct list_head *buf_list = &hdwq->cmd_rsp_buf_list;
+	struct fcp_cmd_rsp_buf *list_entry = NULL;
+	struct fcp_cmd_rsp_buf *tmp = NULL;
+
+	spin_lock_irq(&hdwq->hdwq_lock);
+
+	/* Free cmd_rsp buf pool */
+	list_for_each_entry_safe(list_entry, tmp,
+				 buf_list,
+				 list_node) {
+		dma_pool_free(phba->lpfc_cmd_rsp_buf_pool,
+			      list_entry->fcp_cmnd,
+			      list_entry->fcp_cmd_rsp_dma_handle);
+		list_del(&list_entry->list_node);
+		kfree(list_entry);
+	}
+
+	spin_unlock_irq(&hdwq->hdwq_lock);
 }

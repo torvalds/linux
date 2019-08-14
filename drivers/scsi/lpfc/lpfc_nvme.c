@@ -1306,14 +1306,16 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 	struct nvmefc_fcp_req *nCmd = lpfc_ncmd->nvmeCmd;
 	union lpfc_wqe128 *wqe = &lpfc_ncmd->cur_iocbq.wqe;
 	struct sli4_sge *sgl = lpfc_ncmd->dma_sgl;
+	struct sli4_hybrid_sgl *sgl_xtra = NULL;
 	struct scatterlist *data_sg;
 	struct sli4_sge *first_data_sgl;
 	struct ulp_bde64 *bde;
-	dma_addr_t physaddr;
+	dma_addr_t physaddr = 0;
 	uint32_t num_bde = 0;
-	uint32_t dma_len;
+	uint32_t dma_len = 0;
 	uint32_t dma_offset = 0;
-	int nseg, i;
+	int nseg, i, j;
+	bool lsp_just_set = false;
 
 	/* Fix up the command and response DMA stuff. */
 	lpfc_nvme_adj_fcp_sgls(vport, lpfc_ncmd, nCmd);
@@ -1350,6 +1352,9 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 		 */
 		nseg = nCmd->sg_cnt;
 		data_sg = nCmd->first_sgl;
+
+		/* for tracking the segment boundaries */
+		j = 2;
 		for (i = 0; i < nseg; i++) {
 			if (data_sg == NULL) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
@@ -1358,23 +1363,76 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 				lpfc_ncmd->seg_cnt = 0;
 				return 1;
 			}
-			physaddr = data_sg->dma_address;
-			dma_len = data_sg->length;
-			sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
-			sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
-			sgl->word2 = le32_to_cpu(sgl->word2);
-			if ((num_bde + 1) == nseg)
-				bf_set(lpfc_sli4_sge_last, sgl, 1);
-			else
-				bf_set(lpfc_sli4_sge_last, sgl, 0);
-			bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
-			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
-			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->sge_len = cpu_to_le32(dma_len);
 
-			dma_offset += dma_len;
-			data_sg = sg_next(data_sg);
-			sgl++;
+			sgl->word2 = 0;
+			if ((num_bde + 1) == nseg) {
+				bf_set(lpfc_sli4_sge_last, sgl, 1);
+				bf_set(lpfc_sli4_sge_type, sgl,
+				       LPFC_SGE_TYPE_DATA);
+			} else {
+				bf_set(lpfc_sli4_sge_last, sgl, 0);
+
+				/* expand the segment */
+				if (!lsp_just_set &&
+				    !((j + 1) % phba->border_sge_num) &&
+				    ((nseg - 1) != i)) {
+					/* set LSP type */
+					bf_set(lpfc_sli4_sge_type, sgl,
+					       LPFC_SGE_TYPE_LSP);
+
+					sgl_xtra = lpfc_get_sgl_per_hdwq(
+							phba, lpfc_ncmd);
+
+					if (unlikely(!sgl_xtra)) {
+						lpfc_ncmd->seg_cnt = 0;
+						return 1;
+					}
+					sgl->addr_lo = cpu_to_le32(putPaddrLow(
+						       sgl_xtra->dma_phys_sgl));
+					sgl->addr_hi = cpu_to_le32(putPaddrHigh(
+						       sgl_xtra->dma_phys_sgl));
+
+				} else {
+					bf_set(lpfc_sli4_sge_type, sgl,
+					       LPFC_SGE_TYPE_DATA);
+				}
+			}
+
+			if (!(bf_get(lpfc_sli4_sge_type, sgl) &
+				     LPFC_SGE_TYPE_LSP)) {
+				if ((nseg - 1) == i)
+					bf_set(lpfc_sli4_sge_last, sgl, 1);
+
+				physaddr = data_sg->dma_address;
+				dma_len = data_sg->length;
+				sgl->addr_lo = cpu_to_le32(
+							 putPaddrLow(physaddr));
+				sgl->addr_hi = cpu_to_le32(
+							putPaddrHigh(physaddr));
+
+				bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
+				sgl->word2 = cpu_to_le32(sgl->word2);
+				sgl->sge_len = cpu_to_le32(dma_len);
+
+				dma_offset += dma_len;
+				data_sg = sg_next(data_sg);
+
+				sgl++;
+
+				lsp_just_set = false;
+			} else {
+				sgl->word2 = cpu_to_le32(sgl->word2);
+
+				sgl->sge_len = cpu_to_le32(
+						     phba->cfg_sg_dma_buf_size);
+
+				sgl = (struct sli4_sge *)sgl_xtra->dma_sgl;
+				i = i - 1;
+
+				lsp_just_set = true;
+			}
+
+			j++;
 		}
 		if (phba->cfg_enable_pbde) {
 			/* Use PBDE support for first SGL only, offset == 0 */

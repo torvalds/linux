@@ -72,8 +72,8 @@ lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
  * lpfc_mem_alloc - create and allocate all PCI and memory pools
  * @phba: HBA to allocate pools for
  *
- * Description: Creates and allocates PCI pools lpfc_sg_dma_buf_pool,
- * lpfc_mbuf_pool, lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
+ * Description: Creates and allocates PCI pools lpfc_mbuf_pool,
+ * lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
  * for LPFC_MBOXQ_t and lpfc_nodelist.  Also allocates the VPI bitmask.
  *
  * Notes: Not interrupt-safe.  Must be called with no locks held.  If any
@@ -89,36 +89,12 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 	int i;
 
-	if (phba->sli_rev == LPFC_SLI_REV4) {
-		/* Calculate alignment */
-		if (phba->cfg_sg_dma_buf_size < SLI4_PAGE_SIZE)
-			i = phba->cfg_sg_dma_buf_size;
-		else
-			i = SLI4_PAGE_SIZE;
-
-		phba->lpfc_sg_dma_buf_pool =
-			dma_pool_create("lpfc_sg_dma_buf_pool",
-					&phba->pcidev->dev,
-					phba->cfg_sg_dma_buf_size,
-					i, 0);
-		if (!phba->lpfc_sg_dma_buf_pool)
-			goto fail;
-
-	} else {
-		phba->lpfc_sg_dma_buf_pool =
-			dma_pool_create("lpfc_sg_dma_buf_pool",
-					&phba->pcidev->dev, phba->cfg_sg_dma_buf_size,
-					align, 0);
-
-		if (!phba->lpfc_sg_dma_buf_pool)
-			goto fail;
-	}
 
 	phba->lpfc_mbuf_pool = dma_pool_create("lpfc_mbuf_pool", &phba->pcidev->dev,
 							LPFC_BPL_SIZE,
 							align, 0);
 	if (!phba->lpfc_mbuf_pool)
-		goto fail_free_dma_buf_pool;
+		goto fail;
 
 	pool->elements = kmalloc_array(LPFC_MBUF_POOL_SIZE,
 				       sizeof(struct lpfc_dmabuf),
@@ -208,9 +184,6 @@ fail_free_drb_pool:
  fail_free_lpfc_mbuf_pool:
 	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
- fail_free_dma_buf_pool:
-	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
-	phba->lpfc_sg_dma_buf_pool = NULL;
  fail:
 	return -ENOMEM;
 }
@@ -287,10 +260,6 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
 
-	/* Free DMA buffer memory pool */
-	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
-	phba->lpfc_sg_dma_buf_pool = NULL;
-
 	/* Free Device Data memory pool */
 	if (phba->device_data_mem_pool) {
 		/* Ensure all objects have been returned to the pool */
@@ -362,6 +331,13 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 
 	/* Free and destroy all the allocated memory pools */
 	lpfc_mem_free(phba);
+
+	/* Free DMA buffer memory pool */
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
+
+	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
+	phba->lpfc_cmd_rsp_buf_pool = NULL;
 
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);

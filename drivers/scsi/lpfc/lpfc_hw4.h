@@ -2050,6 +2050,23 @@ struct sli4_sge {	/* SLI-4 */
 	uint32_t sge_len;
 };
 
+struct sli4_hybrid_sgl {
+	struct list_head list_node;
+	struct sli4_sge *dma_sgl;
+	dma_addr_t dma_phys_sgl;
+};
+
+struct fcp_cmd_rsp_buf {
+	struct list_head list_node;
+
+	/* for storing cmd/rsp dma alloc'ed virt_addr */
+	struct fcp_cmnd *fcp_cmnd;
+	struct fcp_rsp *fcp_rsp;
+
+	/* for storing this cmd/rsp's dma mapped phys addr from per CPU pool */
+	dma_addr_t fcp_cmd_rsp_dma_handle;
+};
+
 struct sli4_sge_diseed {	/* SLI-4 */
 	uint32_t ref_tag;
 	uint32_t ref_tag_tran;
@@ -3449,6 +3466,9 @@ struct lpfc_sli4_parameters {
 #define cfg_xib_SHIFT				4
 #define cfg_xib_MASK				0x00000001
 #define cfg_xib_WORD				word19
+#define cfg_xpsgl_SHIFT				6
+#define cfg_xpsgl_MASK				0x00000001
+#define cfg_xpsgl_WORD				word19
 #define cfg_eqdr_SHIFT				8
 #define cfg_eqdr_MASK				0x00000001
 #define cfg_eqdr_WORD				word19

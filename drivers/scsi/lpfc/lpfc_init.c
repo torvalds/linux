@@ -3650,6 +3650,9 @@ lpfc_io_free(struct lpfc_hba *phba)
 			qp->put_io_bufs--;
 			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			if (phba->cfg_xpsgl && !phba->nvmet_support)
+				lpfc_put_sgl_per_hdwq(phba, lpfc_ncmd);
+			lpfc_put_cmd_rsp_buf_per_hdwq(phba, lpfc_ncmd);
 			kfree(lpfc_ncmd);
 			qp->total_io_bufs--;
 		}
@@ -3663,6 +3666,9 @@ lpfc_io_free(struct lpfc_hba *phba)
 			qp->get_io_bufs--;
 			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			if (phba->cfg_xpsgl && !phba->nvmet_support)
+				lpfc_put_sgl_per_hdwq(phba, lpfc_ncmd);
+			lpfc_put_cmd_rsp_buf_per_hdwq(phba, lpfc_ncmd);
 			kfree(lpfc_ncmd);
 			qp->total_io_bufs--;
 		}
@@ -4138,21 +4144,29 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 			break;
 		}
 
-		/*
-		 * 4K Page alignment is CRITICAL to BlockGuard, double check
-		 * to be sure.
-		 */
-		if ((phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
-		    (((unsigned long)(lpfc_ncmd->data) &
-		    (unsigned long)(SLI4_PAGE_SIZE - 1)) != 0)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-					"3369 Memory alignment err: addr=%lx\n",
-					(unsigned long)lpfc_ncmd->data);
-			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
-				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
-			kfree(lpfc_ncmd);
-			break;
+		if (phba->cfg_xpsgl && !phba->nvmet_support) {
+			INIT_LIST_HEAD(&lpfc_ncmd->dma_sgl_xtra_list);
+		} else {
+			/*
+			 * 4K Page alignment is CRITICAL to BlockGuard, double
+			 * check to be sure.
+			 */
+			if ((phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
+			    (((unsigned long)(lpfc_ncmd->data) &
+			    (unsigned long)(SLI4_PAGE_SIZE - 1)) != 0)) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+						"3369 Memory alignment err: "
+						"addr=%lx\n",
+						(unsigned long)lpfc_ncmd->data);
+				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+					      lpfc_ncmd->data,
+					      lpfc_ncmd->dma_handle);
+				kfree(lpfc_ncmd);
+				break;
+			}
 		}
+
+		INIT_LIST_HEAD(&lpfc_ncmd->dma_cmd_rsp_list);
 
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
@@ -4330,7 +4344,11 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
-		shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
+
+		if (phba->cfg_xpsgl && !phba->nvmet_support)
+			shost->sg_tablesize = LPFC_MAX_SG_TABLESIZE;
+		else
+			shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
 	} else
 		/* SLI-3 has a limited number of hardware queues (3),
 		 * thus there is only one for FCP processing.
@@ -6348,6 +6366,24 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	if (lpfc_mem_alloc(phba, BPL_ALIGN_SZ))
 		return -ENOMEM;
 
+	phba->lpfc_sg_dma_buf_pool =
+		dma_pool_create("lpfc_sg_dma_buf_pool",
+				&phba->pcidev->dev, phba->cfg_sg_dma_buf_size,
+				BPL_ALIGN_SZ, 0);
+
+	if (!phba->lpfc_sg_dma_buf_pool)
+		goto fail_free_mem;
+
+	phba->lpfc_cmd_rsp_buf_pool =
+			dma_pool_create("lpfc_cmd_rsp_buf_pool",
+					&phba->pcidev->dev,
+					sizeof(struct fcp_cmnd) +
+					sizeof(struct fcp_rsp),
+					BPL_ALIGN_SZ, 0);
+
+	if (!phba->lpfc_cmd_rsp_buf_pool)
+		goto fail_free_dma_buf_pool;
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -6366,6 +6402,13 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	return 0;
+
+fail_free_dma_buf_pool:
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
+fail_free_mem:
+	lpfc_mem_free(phba);
+	return -ENOMEM;
 }
 
 /**
@@ -6464,102 +6507,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * we will associate a new ring, for each EQ/CQ/WQ tuple.
 	 * The WQ create will allocate the ring.
 	 */
-
-	/*
-	 * 1 for cmd, 1 for rsp, NVME adds an extra one
-	 * for boundary conditions in its max_sgl_segment template.
-	 */
-	extra = 2;
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		extra++;
-
-	/*
-	 * It doesn't matter what family our adapter is in, we are
-	 * limited to 2 Pages, 512 SGEs, for our SGL.
-	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
-	 */
-	max_buf_size = (2 * SLI4_PAGE_SIZE);
-
-	/*
-	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
-	 * used to create the sg_dma_buf_pool must be calculated.
-	 */
-	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
-		/*
-		 * The scsi_buf for a T10-DIF I/O holds the FCP cmnd,
-		 * the FCP rsp, and a SGE. Sice we have no control
-		 * over how many protection segments the SCSI Layer
-		 * will hand us (ie: there could be one for every block
-		 * in the IO), just allocate enough SGEs to accomidate
-		 * our max amount and we need to limit lpfc_sg_seg_cnt
-		 * to minimize the risk of running out.
-		 */
-		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-				sizeof(struct fcp_rsp) + max_buf_size;
-
-		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
-		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
-
-		/*
-		 * If supporting DIF, reduce the seg count for scsi to
-		 * allow room for the DIF sges.
-		 */
-		if (phba->cfg_enable_bg &&
-		    phba->cfg_sg_seg_cnt > LPFC_MAX_BG_SLI4_SEG_CNT_DIF)
-			phba->cfg_scsi_seg_cnt = LPFC_MAX_BG_SLI4_SEG_CNT_DIF;
-		else
-			phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
-
-	} else {
-		/*
-		 * The scsi_buf for a regular I/O holds the FCP cmnd,
-		 * the FCP rsp, a SGE for each, and a SGE for up to
-		 * cfg_sg_seg_cnt data segments.
-		 */
-		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-				sizeof(struct fcp_rsp) +
-				((phba->cfg_sg_seg_cnt + extra) *
-				sizeof(struct sli4_sge));
-
-		/* Total SGEs for scsi_sg_list */
-		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
-		phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
-
-		/*
-		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
-		 * need to post 1 page for the SGL.
-		 */
-	}
-
-	/* Limit to LPFC_MAX_NVME_SEG_CNT for NVME. */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
-			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
-					"6300 Reducing NVME sg segment "
-					"cnt to %d\n",
-					LPFC_MAX_NVME_SEG_CNT);
-			phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
-		} else
-			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
-	}
-
-	/* Initialize the host templates with the updated values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
-
-	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
-		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
-	else
-		phba->cfg_sg_dma_buf_size =
-			SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
-			"9087 sg_seg_cnt:%d dmabuf_size:%d "
-			"total:%d scsi:%d nvme:%d\n",
-			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
-			phba->cfg_total_seg_cnt,  phba->cfg_scsi_seg_cnt,
-			phba->cfg_nvme_seg_cnt);
 
 	/* Initialize buffer queue management fields */
 	INIT_LIST_HEAD(&phba->hbqs[LPFC_ELS_HBQ].hbq_buffer_list);
@@ -6781,6 +6728,131 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	/*
+	 * 1 for cmd, 1 for rsp, NVME adds an extra one
+	 * for boundary conditions in its max_sgl_segment template.
+	 */
+	extra = 2;
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+		extra++;
+
+	/*
+	 * It doesn't matter what family our adapter is in, we are
+	 * limited to 2 Pages, 512 SGEs, for our SGL.
+	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
+	 */
+	max_buf_size = (2 * SLI4_PAGE_SIZE);
+
+	/*
+	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
+	 * used to create the sg_dma_buf_pool must be calculated.
+	 */
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
+		/* Both cfg_enable_bg and cfg_external_dif code paths */
+
+		/*
+		 * The scsi_buf for a T10-DIF I/O holds the FCP cmnd,
+		 * the FCP rsp, and a SGE. Sice we have no control
+		 * over how many protection segments the SCSI Layer
+		 * will hand us (ie: there could be one for every block
+		 * in the IO), just allocate enough SGEs to accomidate
+		 * our max amount and we need to limit lpfc_sg_seg_cnt
+		 * to minimize the risk of running out.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+				sizeof(struct fcp_rsp) + max_buf_size;
+
+		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
+		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
+
+		/*
+		 * If supporting DIF, reduce the seg count for scsi to
+		 * allow room for the DIF sges.
+		 */
+		if (phba->cfg_enable_bg &&
+		    phba->cfg_sg_seg_cnt > LPFC_MAX_BG_SLI4_SEG_CNT_DIF)
+			phba->cfg_scsi_seg_cnt = LPFC_MAX_BG_SLI4_SEG_CNT_DIF;
+		else
+			phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
+
+	} else {
+		/*
+		 * The scsi_buf for a regular I/O holds the FCP cmnd,
+		 * the FCP rsp, a SGE for each, and a SGE for up to
+		 * cfg_sg_seg_cnt data segments.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+				sizeof(struct fcp_rsp) +
+				((phba->cfg_sg_seg_cnt + extra) *
+				sizeof(struct sli4_sge));
+
+		/* Total SGEs for scsi_sg_list */
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
+		phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
+
+		/*
+		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
+		 * need to post 1 page for the SGL.
+		 */
+	}
+
+	if (phba->cfg_xpsgl && !phba->nvmet_support)
+		phba->cfg_sg_dma_buf_size = LPFC_DEFAULT_XPSGL_SIZE;
+	else if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
+		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
+	else
+		phba->cfg_sg_dma_buf_size =
+				SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
+
+	phba->border_sge_num = phba->cfg_sg_dma_buf_size /
+			       sizeof(struct sli4_sge);
+
+	/* Limit to LPFC_MAX_NVME_SEG_CNT for NVME. */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
+					"6300 Reducing NVME sg segment "
+					"cnt to %d\n",
+					LPFC_MAX_NVME_SEG_CNT);
+			phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		} else
+			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
+	}
+
+	/* Initialize the host templates with the updated values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9087 sg_seg_cnt:%d dmabuf_size:%d "
+			"total:%d scsi:%d nvme:%d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
+			phba->cfg_total_seg_cnt,  phba->cfg_scsi_seg_cnt,
+			phba->cfg_nvme_seg_cnt);
+
+	if (phba->cfg_sg_dma_buf_size < SLI4_PAGE_SIZE)
+		i = phba->cfg_sg_dma_buf_size;
+	else
+		i = SLI4_PAGE_SIZE;
+
+	phba->lpfc_sg_dma_buf_pool =
+			dma_pool_create("lpfc_sg_dma_buf_pool",
+					&phba->pcidev->dev,
+					phba->cfg_sg_dma_buf_size,
+					i, 0);
+	if (!phba->lpfc_sg_dma_buf_pool)
+		goto out_free_bsmbx;
+
+	phba->lpfc_cmd_rsp_buf_pool =
+			dma_pool_create("lpfc_cmd_rsp_buf_pool",
+					&phba->pcidev->dev,
+					sizeof(struct fcp_cmnd) +
+					sizeof(struct fcp_rsp),
+					i, 0);
+	if (!phba->lpfc_cmd_rsp_buf_pool)
+		goto out_free_sg_dma_buf;
+
 	mempool_free(mboxq, phba->mbox_mem_pool);
 
 	/* Verify OAS is supported */
@@ -6792,12 +6864,12 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Verify all the SLI4 queues */
 	rc = lpfc_sli4_queue_verify(phba);
 	if (rc)
-		goto out_free_bsmbx;
+		goto out_free_cmd_rsp_buf;
 
 	/* Create driver internal CQE event pool */
 	rc = lpfc_sli4_cq_event_pool_create(phba);
 	if (rc)
-		goto out_free_bsmbx;
+		goto out_free_cmd_rsp_buf;
 
 	/* Initialize sgl lists per host */
 	lpfc_init_sgl_list(phba);
@@ -6888,6 +6960,12 @@ out_free_active_sgl:
 	lpfc_free_active_sgl(phba);
 out_destroy_cq_event_pool:
 	lpfc_sli4_cq_event_pool_destroy(phba);
+out_free_cmd_rsp_buf:
+	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
+	phba->lpfc_cmd_rsp_buf_pool = NULL;
+out_free_sg_dma_buf:
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
 out_free_bsmbx:
 	lpfc_destroy_bootstrap_mbox(phba);
 out_free_mem:
@@ -8814,6 +8892,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			spin_lock_init(&qp->abts_nvme_buf_list_lock);
 			INIT_LIST_HEAD(&qp->lpfc_abts_nvme_buf_list);
 			qp->abts_nvme_io_bufs = 0;
+			INIT_LIST_HEAD(&qp->sgl_list);
+			INIT_LIST_HEAD(&qp->cmd_rsp_buf_list);
+			spin_lock_init(&qp->hdwq_lock);
 		}
 	}
 
@@ -9188,6 +9269,9 @@ lpfc_sli4_release_hdwq(struct lpfc_hba *phba)
 		hdwq[idx].nvme_cq = NULL;
 		hdwq[idx].fcp_wq = NULL;
 		hdwq[idx].nvme_wq = NULL;
+		if (phba->cfg_xpsgl && !phba->nvmet_support)
+			lpfc_free_sgl_per_hdwq(phba, &hdwq[idx]);
+		lpfc_free_cmd_rsp_buf_per_hdwq(phba, &hdwq[idx]);
 	}
 	/* Loop thru all IRQ vectors */
 	for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
@@ -11646,6 +11730,9 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
+
+	/* Check for Extended Pre-Registered SGL support */
+	phba->cfg_xpsgl = bf_get(cfg_xpsgl, mbx_sli4_parameters);
 
 	/* Check for firmware nvme support */
 	rc = (bf_get(cfg_nvme, mbx_sli4_parameters) &&
