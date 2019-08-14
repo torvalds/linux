@@ -83,77 +83,6 @@
 };
 
 &i2c2 {
-	/* U11 */
-	gpio_exp_74: gpio@74 {
-		compatible = "ti,tca9539";
-		reg = <0x74>;
-		gpio-controller;
-		#gpio-cells = <2>;
-		interrupt-controller;
-		interrupt-parent = <&gpio6>;
-		interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
-
-		audio_out_off {
-			gpio-hog;
-			gpios = <0 GPIO_ACTIVE_HIGH>; /* P00 */
-			output-high;
-			line-name = "Audio_Out_OFF";
-		};
-
-		sd-wifi-mux {
-			gpio-hog;
-			gpios = <5 GPIO_ACTIVE_HIGH>;
-			output-low;	/* Connect WL1837 */
-			line-name = "SD WiFi mux";
-		};
-
-		hub_pwen {
-			gpio-hog;
-			gpios = <6 GPIO_ACTIVE_HIGH>;
-			output-high;
-			line-name = "HUB pwen";
-		};
-
-		hub_rst {
-			gpio-hog;
-			gpios = <7 GPIO_ACTIVE_HIGH>;
-			output-high;
-			line-name = "HUB rst";
-		};
-
-		otg_offvbusn {
-			gpio-hog;
-			gpios = <8 GPIO_ACTIVE_HIGH>;
-			output-low;
-			line-name = "OTG OFFVBUSn";
-		};
-
-		otg_extlpn {
-			gpio-hog;
-			gpios = <9 GPIO_ACTIVE_HIGH>;
-			output-high;
-			line-name = "OTG EXTLPn";
-		};
-
-		snd_rst {
-			gpio-hog;
-			gpios = <15 GPIO_ACTIVE_HIGH>; /* P17 */
-			output-high;
-			line-name = "SND_RST";
-		};
-	};
-
-	/* U5 */
-	gpio_exp_75: gpio@75 {
-		compatible = "ti,tca9539";
-		reg = <0x75>;
-		gpio-controller;
-		#gpio-cells = <2>;
-		interrupt-controller;
-		interrupt-parent = <&gpio6>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-	};
-
 	i2cswitch2: i2c-switch@71 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
@@ -203,9 +132,88 @@
 			};
 		};
 	};
+
+	/* U11 */
+	gpio_exp_74: gpio@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		interrupt-parent = <&gpio6>;
+		interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+
+		audio_out_off {
+			gpio-hog;
+			gpios = <0 GPIO_ACTIVE_HIGH>; /* P00 */
+			output-high;
+			line-name = "Audio_Out_OFF";
+		};
+
+		hub_pwen {
+			gpio-hog;
+			gpios = <6 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "HUB pwen";
+		};
+
+		hub_rst {
+			gpio-hog;
+			gpios = <7 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "HUB rst";
+		};
+
+		otg_extlpn {
+			gpio-hog;
+			gpios = <9 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "OTG EXTLPn";
+		};
+
+		otg_offvbusn {
+			gpio-hog;
+			gpios = <8 GPIO_ACTIVE_HIGH>;
+			output-low;
+			line-name = "OTG OFFVBUSn";
+		};
+
+		sd-wifi-mux {
+			gpio-hog;
+			gpios = <5 GPIO_ACTIVE_HIGH>;
+			output-low;	/* Connect WL1837 */
+			line-name = "SD WiFi mux";
+		};
+
+		snd_rst {
+			gpio-hog;
+			gpios = <15 GPIO_ACTIVE_HIGH>; /* P17 */
+			output-high;
+			line-name = "SND_RST";
+		};
+	};
+
+	/* U5 */
+	gpio_exp_75: gpio@75 {
+		compatible = "ti,tca9539";
+		reg = <0x75>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		interrupt-parent = <&gpio6>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+	};
 };
 
 &i2c4 {
+	i2cswitch4: i2c-switch@71 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x71>;
+		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
+	};
+
 	gpio_exp_76: gpio@76 {
 		compatible = "ti,tca9539";
 		reg = <0x76>;
@@ -224,14 +232,6 @@
 		interrupt-controller;
 		interrupt-parent = <&gpio5>;
 		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
-	};
-
-	i2cswitch4: i2c-switch@71 {
-		compatible = "nxp,pca9548";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x71>;
-		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -279,66 +279,15 @@
 		power-source = <3300>;
 	};
 
-	usb0_pins: usb0 {
-		groups = "usb0";
-		function = "usb0";
-	};
-
 	sound_pcm_pins: sound-pcm {
 		groups = "ssi349_ctrl", "ssi3_data", "ssi4_data";
 		function = "ssi";
 	};
-};
 
-&scif1 {
-	pinctrl-0 = <&scif1_pins>;
-	pinctrl-names = "default";
-	uart-has-rtscts;
-
-	status = "okay";
-};
-
-&sdhi3 {
-	pinctrl-0 = <&sdhi3_pins>;
-	pinctrl-names = "default";
-
-	vmmc-supply = <&wlan_en>;
-	vqmmc-supply = <&wlan_en>;
-	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
-	cap-power-off-card;
-	keep-power-in-suspend;
-	max-frequency = <26000000>;
-	status = "okay";
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-	wlcore: wlcore@2 {
-		compatible = "ti,wl1837";
-		reg = <2>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+	usb0_pins: usb0 {
+		groups = "usb0";
+		function = "usb0";
 	};
-};
-
-&usb2_phy0 {
-	pinctrl-0 = <&usb0_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
-&xhci0 {
-	status = "okay";
-};
-
-&sound_card {
-	dais = <&rsnd_port0	/* ak4613 */
-		&rsnd_port1	/* HDMI0  */
-		&rsnd_port2	/* pcm3168a playback */
-		&rsnd_port3	/* pcm3168a capture  */
-		>;
 };
 
 &rcar_sound {
@@ -377,6 +326,57 @@
 	};
 };
 
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+
+	status = "okay";
+};
+
+&sdhi3 {
+	pinctrl-0 = <&sdhi3_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&wlan_en>;
+	vqmmc-supply = <&wlan_en>;
+	bus-width = <4>;
+	no-1-8-v;
+	non-removable;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	max-frequency = <26000000>;
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&sound_card {
+	dais = <&rsnd_port0	/* ak4613 */
+		&rsnd_port1	/* HDMI0  */
+		&rsnd_port2	/* pcm3168a playback */
+		&rsnd_port3	/* pcm3168a capture  */
+		>;
+};
+
 &ssi4 {
 	shared-pin;
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&xhci0 {
+	status = "okay";
 };
