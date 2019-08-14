@@ -118,6 +118,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	struct lpfc_work_evt *evtp;
 	int  put_node;
 	int  put_rport;
+	unsigned long iflags;
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
@@ -170,22 +171,22 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	}
 
 	shost = lpfc_shost_from_vport(vport);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	ndlp->nlp_flag |= NLP_IN_DEV_LOSS;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 
 	/* We need to hold the node by incrementing the reference
 	 * count until this queued work is done
 	 */
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (evtp->evt_arg1) {
 		evtp->evt = LPFC_EVT_DEV_LOSS;
 		list_add_tail(&evtp->evt_listp, &phba->work_list);
 		lpfc_worker_wake_up(phba);
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
 	return;
 }
@@ -212,14 +213,15 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	int  put_node;
 	int warn_on = 0;
 	int fcf_inuse = 0;
+	unsigned long iflags;
 
 	rport = ndlp->rport;
 	vport = ndlp->vport;
 	shost = lpfc_shost_from_vport(vport);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 
 	if (!rport)
 		return fcf_inuse;
@@ -3115,8 +3117,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	int rc;
 	struct fcf_record *fcf_record;
 	uint32_t fc_flags = 0;
+	unsigned long iflags;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
 
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
@@ -3213,12 +3216,12 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		vport->fc_myDID = phba->fc_pref_DID;
 		fc_flags |= FC_LBIT;
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
 	if (fc_flags) {
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irqsave(shost->host_lock, iflags);
 		vport->fc_flag |= fc_flags;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irqrestore(shost->host_lock, iflags);
 	}
 
 	lpfc_linkup(phba);
@@ -3292,22 +3295,22 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		 * The driver is expected to do FIP/FCF. Call the port
 		 * and get the FCF Table.
 		 */
-		spin_lock_irq(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflags);
 		if (phba->hba_flag & FCF_TS_INPROG) {
-			spin_unlock_irq(&phba->hbalock);
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			return;
 		}
 		/* This is the initial FCF discovery scan */
 		phba->fcf.fcf_flag |= FCF_INIT_DISC;
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2778 Start FCF table scan at linkup\n");
 		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc) {
-			spin_lock_irq(&phba->hbalock);
+			spin_lock_irqsave(&phba->hbalock, iflags);
 			phba->fcf.fcf_flag &= ~FCF_INIT_DISC;
-			spin_unlock_irq(&phba->hbalock);
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			goto out;
 		}
 		/* Reset FCF roundrobin bmask for new discovery */
@@ -3366,6 +3369,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	uint8_t attn_type;
+	unsigned long iflags;
 
 	/* Unblock ELS traffic */
 	pring = lpfc_phba_elsring(phba);
@@ -3387,12 +3391,12 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	memcpy(&phba->alpa_map[0], mp->virt, 128);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	if (bf_get(lpfc_mbx_read_top_pb, la))
 		vport->fc_flag |= FC_BYPASSED_MODE;
 	else
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 
 	if (phba->fc_eventTag <= la->eventTag) {
 		phba->fc_stat.LinkMultiEvent++;
@@ -3403,12 +3407,12 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	phba->fc_eventTag = la->eventTag;
 	if (phba->sli_rev < LPFC_SLI_REV4) {
-		spin_lock_irq(&phba->hbalock);
+		spin_lock_irqsave(&phba->hbalock, iflags);
 		if (bf_get(lpfc_mbx_read_top_mm, la))
 			phba->sli.sli_flag |= LPFC_MENLO_MAINT;
 		else
 			phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
 	}
 
 	phba->link_events++;
@@ -4196,8 +4200,9 @@ static void
 lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	unsigned long iflags;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	switch (state) {
 	case NLP_STE_UNUSED_NODE:
 		vport->fc_unused_cnt += count;
@@ -4227,7 +4232,7 @@ lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 			vport->fc_npr_cnt += count;
 		break;
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 }
 
 static void
