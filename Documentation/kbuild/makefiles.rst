@@ -989,6 +989,20 @@ When kbuild executes, the following steps are followed (roughly):
 	top-level Makefile has set any other flags. This provides a
 	means for an architecture to override the defaults.
 
+    KBUILD_LDS
+
+	The linker script with full path. Assigned by the top-level Makefile.
+
+    KBUILD_VMLINUX_OBJS
+
+	All object files for vmlinux. They are linked to vmlinux in the same
+	order as listed in KBUILD_VMLINUX_OBJS.
+
+    KBUILD_VMLINUX_LIBS
+
+	All .a "lib" files for vmlinux. KBUILD_VMLINUX_OBJS and
+	KBUILD_VMLINUX_LIBS together specify all the object files used to
+	link vmlinux.
 
 6.2 Add prerequisites to archheaders
 ------------------------------------
