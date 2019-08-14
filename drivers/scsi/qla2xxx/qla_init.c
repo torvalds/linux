@@ -3032,103 +3032,113 @@ qla24xx_chip_diag(scsi_qla_host_t *vha)
 }
 
 static void
-qla2x00_alloc_offload_mem(scsi_qla_host_t *vha)
+qla2x00_init_fce_trace(scsi_qla_host_t *vha)
 {
 	int rval;
 	dma_addr_t tc_dma;
 	void *tc;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (!IS_FWI2_CAPABLE(ha))
+		return;
+
+	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
+	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return;
+
+	if (ha->fce) {
+		ql_dbg(ql_dbg_init, vha, 0x00bd,
+		       "%s: FCE Mem is already allocated.\n",
+		       __func__);
+		return;
+	}
+
+	/* Allocate memory for Fibre Channel Event Buffer. */
+	tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
+				GFP_KERNEL);
+	if (!tc) {
+		ql_log(ql_log_warn, vha, 0x00be,
+		       "Unable to allocate (%d KB) for FCE.\n",
+		       FCE_SIZE / 1024);
+		return;
+	}
+
+	rval = qla2x00_enable_fce_trace(vha, tc_dma, FCE_NUM_BUFFERS,
+					ha->fce_mb, &ha->fce_bufs);
+	if (rval) {
+		ql_log(ql_log_warn, vha, 0x00bf,
+		       "Unable to initialize FCE (%d).\n", rval);
+		dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc, tc_dma);
+		return;
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0x00c0,
+	       "Allocated (%d KB) for FCE...\n", FCE_SIZE / 1024);
+
+	ha->flags.fce_enabled = 1;
+	ha->fce_dma = tc_dma;
+	ha->fce = tc;
+}
+
+static void
+qla2x00_init_eft_trace(scsi_qla_host_t *vha)
+{
+	int rval;
+	dma_addr_t tc_dma;
+	void *tc;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_FWI2_CAPABLE(ha))
+		return;
+
 	if (ha->eft) {
 		ql_dbg(ql_dbg_init, vha, 0x00bd,
-		    "%s: Offload Mem is already allocated.\n",
+		    "%s: EFT Mem is already allocated.\n",
 		    __func__);
 		return;
 	}
 
-	if (IS_FWI2_CAPABLE(ha)) {
-		/* Allocate memory for Fibre Channel Event Buffer. */
-		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-		    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
-			goto try_eft;
-
-		if (ha->fce)
-			dma_free_coherent(&ha->pdev->dev,
-			    FCE_SIZE, ha->fce, ha->fce_dma);
-
-		/* Allocate memory for Fibre Channel Event Buffer. */
-		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
-					GFP_KERNEL);
-		if (!tc) {
-			ql_log(ql_log_warn, vha, 0x00be,
-			    "Unable to allocate (%d KB) for FCE.\n",
-			    FCE_SIZE / 1024);
-			goto try_eft;
-		}
-
-		rval = qla2x00_enable_fce_trace(vha, tc_dma, FCE_NUM_BUFFERS,
-		    ha->fce_mb, &ha->fce_bufs);
-		if (rval) {
-			ql_log(ql_log_warn, vha, 0x00bf,
-			    "Unable to initialize FCE (%d).\n", rval);
-			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
-			    tc_dma);
-			ha->flags.fce_enabled = 0;
-			goto try_eft;
-		}
-		ql_dbg(ql_dbg_init, vha, 0x00c0,
-		    "Allocate (%d KB) for FCE...\n", FCE_SIZE / 1024);
-
-		ha->flags.fce_enabled = 1;
-		ha->fce_dma = tc_dma;
-		ha->fce = tc;
-
-try_eft:
-		if (ha->eft)
-			dma_free_coherent(&ha->pdev->dev,
-			    EFT_SIZE, ha->eft, ha->eft_dma);
-
-		/* Allocate memory for Extended Trace Buffer. */
-		tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
-					GFP_KERNEL);
-		if (!tc) {
-			ql_log(ql_log_warn, vha, 0x00c1,
-			    "Unable to allocate (%d KB) for EFT.\n",
-			    EFT_SIZE / 1024);
-			goto eft_err;
-		}
-
-		rval = qla2x00_enable_eft_trace(vha, tc_dma, EFT_NUM_BUFFERS);
-		if (rval) {
-			ql_log(ql_log_warn, vha, 0x00c2,
-			    "Unable to initialize EFT (%d).\n", rval);
-			dma_free_coherent(&ha->pdev->dev, EFT_SIZE, tc,
-			    tc_dma);
-			goto eft_err;
-		}
-		ql_dbg(ql_dbg_init, vha, 0x00c3,
-		    "Allocated (%d KB) EFT ...\n", EFT_SIZE / 1024);
-
-		ha->eft_dma = tc_dma;
-		ha->eft = tc;
+	/* Allocate memory for Extended Trace Buffer. */
+	tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
+				GFP_KERNEL);
+	if (!tc) {
+		ql_log(ql_log_warn, vha, 0x00c1,
+		       "Unable to allocate (%d KB) for EFT.\n",
+		       EFT_SIZE / 1024);
+		return;
 	}
 
-eft_err:
-	return;
+	rval = qla2x00_enable_eft_trace(vha, tc_dma, EFT_NUM_BUFFERS);
+	if (rval) {
+		ql_log(ql_log_warn, vha, 0x00c2,
+		       "Unable to initialize EFT (%d).\n", rval);
+		dma_free_coherent(&ha->pdev->dev, EFT_SIZE, tc, tc_dma);
+		return;
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0x00c3,
+	       "Allocated (%d KB) EFT ...\n", EFT_SIZE / 1024);
+
+	ha->eft_dma = tc_dma;
+	ha->eft = tc;
+}
+
+static void
+qla2x00_alloc_offload_mem(scsi_qla_host_t *vha)
+{
+	qla2x00_init_fce_trace(vha);
+	qla2x00_init_eft_trace(vha);
 }
 
 void
 qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 {
-	int rval;
 	uint32_t dump_size, fixed_size, mem_size, req_q_size, rsp_q_size,
 	    eft_size, fce_size, mq_size;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
 	struct qla2xxx_fw_dump *fw_dump;
-	dma_addr_t tc_dma;
-	void *tc;
 
 	dump_size = fixed_size = mem_size = eft_size = fce_size = mq_size = 0;
 	req_q_size = rsp_q_size = 0;
@@ -3166,39 +3176,13 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		}
 		if (ha->tgt.atio_ring)
 			mq_size += ha->tgt.atio_q_length * sizeof(request_t);
-		/* Allocate memory for Fibre Channel Event Buffer. */
-		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-		    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
-			goto try_eft;
 
-		fce_size = sizeof(struct qla2xxx_fce_chain) + FCE_SIZE;
-try_eft:
+		qla2x00_init_fce_trace(vha);
+		if (ha->fce)
+			fce_size = sizeof(struct qla2xxx_fce_chain) + FCE_SIZE;
+		qla2x00_init_eft_trace(vha);
 		if (ha->eft)
-			dma_free_coherent(&ha->pdev->dev,
-			    EFT_SIZE, ha->eft, ha->eft_dma);
-
-		/* Allocate memory for Extended Trace Buffer. */
-		tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
-					 GFP_KERNEL);
-		if (!tc) {
-			ql_log(ql_log_warn, vha, 0x00c1,
-			    "Unable to allocate (%d KB) for EFT.\n",
-			    EFT_SIZE / 1024);
-			goto allocate;
-		}
-
-		rval = qla2x00_enable_eft_trace(vha, tc_dma, EFT_NUM_BUFFERS);
-		if (rval) {
-			ql_log(ql_log_warn, vha, 0x00c2,
-			    "Unable to initialize EFT (%d).\n", rval);
-			dma_free_coherent(&ha->pdev->dev, EFT_SIZE, tc,
-			    tc_dma);
-		}
-		ql_dbg(ql_dbg_init, vha, 0x00c3,
-		    "Allocated (%d KB) EFT ...\n", EFT_SIZE / 1024);
-		eft_size = EFT_SIZE;
-		ha->eft_dma = tc_dma;
-		ha->eft = tc;
+			eft_size = EFT_SIZE;
 	}
 
 	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
@@ -3220,24 +3204,22 @@ try_eft:
 			    j, fwdt->dump_size);
 			dump_size += fwdt->dump_size;
 		}
-		goto allocate;
+	} else {
+		req_q_size = req->length * sizeof(request_t);
+		rsp_q_size = rsp->length * sizeof(response_t);
+		dump_size = offsetof(struct qla2xxx_fw_dump, isp);
+		dump_size += fixed_size + mem_size + req_q_size + rsp_q_size
+			+ eft_size;
+		ha->chain_offset = dump_size;
+		dump_size += mq_size + fce_size;
+		if (ha->exchoffld_buf)
+			dump_size += sizeof(struct qla2xxx_offld_chain) +
+				ha->exchoffld_size;
+		if (ha->exlogin_buf)
+			dump_size += sizeof(struct qla2xxx_offld_chain) +
+				ha->exlogin_size;
 	}
 
-	req_q_size = req->length * sizeof(request_t);
-	rsp_q_size = rsp->length * sizeof(response_t);
-	dump_size = offsetof(struct qla2xxx_fw_dump, isp);
-	dump_size += fixed_size + mem_size + req_q_size + rsp_q_size + eft_size;
-	ha->chain_offset = dump_size;
-	dump_size += mq_size + fce_size;
-
-	if (ha->exchoffld_buf)
-		dump_size += sizeof(struct qla2xxx_offld_chain) +
-			ha->exchoffld_size;
-	if (ha->exlogin_buf)
-		dump_size += sizeof(struct qla2xxx_offld_chain) +
-			ha->exlogin_size;
-
-allocate:
 	if (!ha->fw_dump_len || dump_size > ha->fw_dump_alloc_len) {
 
 		ql_dbg(ql_dbg_init, vha, 0x00c5,
