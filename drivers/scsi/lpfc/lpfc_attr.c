@@ -5467,15 +5467,12 @@ LPFC_ATTR_RW(nvmet_fb_size, 0, 0, 65536,
  * lpfc_nvme_enable_fb: Enable NVME first burst on I and T functions.
  * For the Initiator (I), enabling this parameter means that an NVMET
  * PRLI response with FBA enabled and an FB_SIZE set to a nonzero value will be
- * processed by the initiator for subsequent NVME FCP IO. For the target
- * function (T), enabling this parameter qualifies the lpfc_nvmet_fb_size
- * driver parameter as the target function's first burst size returned to the
- * initiator in the target's NVME PRLI response. Parameter supported on physical
- * port only - no NPIV support.
+ * processed by the initiator for subsequent NVME FCP IO.
+ * Currently, this feature is not supported on the NVME target
  * Value range is [0,1]. Default value is 0 (disabled).
  */
 LPFC_ATTR_RW(nvme_enable_fb, 0, 0, 1,
-	     "Enable First Burst feature on I and T functions.");
+	     "Enable First Burst feature for NVME Initiator.");
 
 /*
 # lpfc_max_scsicmpl_time: Use scsi command completion time to control I/O queue
