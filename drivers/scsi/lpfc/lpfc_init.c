@@ -1262,6 +1262,7 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 	unsigned char *eqcnt = NULL;
 	uint32_t usdelay;
 	int i;
+	bool update = false;
 
 	if (!phba->cfg_auto_imax || phba->pport->load_flag & FC_UNLOADING)
 		return;
@@ -1275,20 +1276,29 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 	if (!eqcnt)
 		goto requeue;
 
-	/* Loop thru all IRQ vectors */
-	for (i = 0; i < phba->cfg_irq_chann; i++) {
-		/* Get the EQ corresponding to the IRQ vector */
-		eq = phba->sli4_hba.hba_eq_hdl[i].eq;
-		if (eq && eqcnt[eq->last_cpu] < 2)
-			eqcnt[eq->last_cpu]++;
-		continue;
-	}
+	if (phba->cfg_irq_chann > 1) {
+		/* Loop thru all IRQ vectors */
+		for (i = 0; i < phba->cfg_irq_chann; i++) {
+			/* Get the EQ corresponding to the IRQ vector */
+			eq = phba->sli4_hba.hba_eq_hdl[i].eq;
+			if (!eq)
+				continue;
+			if (eq->q_mode) {
+				update = true;
+				break;
+			}
+			if (eqcnt[eq->last_cpu] < 2)
+				eqcnt[eq->last_cpu]++;
+		}
+	} else
+		update = true;
 
 	for_each_present_cpu(i) {
-		if (phba->cfg_irq_chann > 1 && eqcnt[i] < 2)
-			continue;
-
 		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, i);
+		if (!update && eqcnt[i] < 2) {
+			eqi->icnt = 0;
+			continue;
+		}
 
 		usdelay = (eqi->icnt / LPFC_IMAX_THRESHOLD) *
 			   LPFC_EQ_DELAY_STEP;
