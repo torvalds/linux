@@ -11846,6 +11846,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/ov5647.c
 
+OMNIVISION OV5670 SENSOR DRIVER
+M:	Chiranjeevi Rapolu <chiranjeevi.rapolu@intel.com>
+M:	Hyungwoo Yang <hyungwoo.yang@intel.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/ov5670.c
+
 OMNIVISION OV5675 SENSOR DRIVER
 M:	Shawn Tu <shawnx.tu@intel.com>
 L:	linux-media@vger.kernel.org
