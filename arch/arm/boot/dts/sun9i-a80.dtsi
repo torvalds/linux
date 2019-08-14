@@ -331,8 +331,12 @@
 			snps,fixed-burst;
 			snps,force_sf_dma_mode;
 			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
+
+			mdio: mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		ehci0: usb@a00000 {

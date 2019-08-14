@@ -121,10 +121,6 @@
 	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -212,6 +208,12 @@
 		linux,code = <KEY_ENTER>;
 		channel = <0>;
 		voltage = <1398804>;
+	};
+};
+
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
 	};
 };
 

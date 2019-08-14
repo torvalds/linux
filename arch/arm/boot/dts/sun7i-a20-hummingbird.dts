@@ -104,14 +104,6 @@
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_vdd>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-		reset-gpios = <&pio 0 17 GPIO_ACTIVE_LOW>; /* PA17 */
-		reset-assert-us = <10000>;
-		/* wait 1s after reset, otherwise fail to read phy id */
-		reset-deassert-us = <1000000>;
-	};
 };
 
 &i2c0 {
@@ -143,6 +135,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
+};
+
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		reset-gpios = <&pio 0 17 GPIO_ACTIVE_LOW>; /* PA17 */
+		reset-assert-us = <10000>;
+		/* wait 1s after reset, otherwise fail to read phy id */
+		reset-deassert-us = <1000000>;
+	};
 };
 
 &mmc0 {

@@ -88,16 +88,18 @@
 	phy-mode = "mii";
 	phy-supply = <&reg_dldo1>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc0 {

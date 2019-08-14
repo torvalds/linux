@@ -1437,8 +1437,12 @@
 			snps,fixed-burst;
 			snps,force_sf_dma_mode;
 			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
+
+			gmac_mdio: mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		hstimer@1c60000 {

@@ -96,19 +96,21 @@
 	phy-mode = "rgmii";
 	phy-supply = <&reg_dldo1>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-		reset-gpios = <&pio 0 21 GPIO_ACTIVE_LOW>; /* PA21 */
-		reset-assert-us = <10000>;
-		reset-deassert-us = <30000>;
-	};
 };
 
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		reset-gpios = <&pio 0 21 GPIO_ACTIVE_LOW>; /* PA21 */
+		reset-assert-us = <10000>;
+		reset-deassert-us = <30000>;
+	};
 };
 
 &mmc0 {
