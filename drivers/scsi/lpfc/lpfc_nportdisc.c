@@ -614,7 +614,7 @@ lpfc_rcv_padisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 out:
 		/* If we are authenticated, move to the proper state */
-		if (ndlp->nlp_type & NLP_FCP_TARGET)
+		if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET))
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_MAPPED_NODE);
 		else
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
@@ -2903,18 +2903,21 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t(*func) (struct lpfc_vport *, struct lpfc_nodelist *, void *,
 			 uint32_t);
 	uint32_t got_ndlp = 0;
+	uint32_t data1;
 
 	if (lpfc_nlp_get(ndlp))
 		got_ndlp = 1;
 
 	cur_state = ndlp->nlp_state;
 
+	data1 = (((uint32_t)ndlp->nlp_fc4_type << 16) |
+		((uint32_t)ndlp->nlp_type));
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0211 DSM in event x%x on NPort x%x in "
 			 "state %d rpi x%x Data: x%x x%x\n",
 			 evt, ndlp->nlp_DID, cur_state, ndlp->nlp_rpi,
-			 ndlp->nlp_flag, ndlp->nlp_fc4_type);
+			 ndlp->nlp_flag, data1);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 		 "DSM in:          evt:%d ste:%d did:x%x",
@@ -2925,10 +2928,13 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* DSM out state <rc> on NPort <nlp_DID> */
 	if (got_ndlp) {
+		data1 = (((uint32_t)ndlp->nlp_fc4_type << 16) |
+			((uint32_t)ndlp->nlp_type));
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0212 DSM out state %d on NPort x%x "
-			 "rpi x%x Data: x%x\n",
-			 rc, ndlp->nlp_DID, ndlp->nlp_rpi, ndlp->nlp_flag);
+			 "rpi x%x Data: x%x x%x\n",
+			 rc, ndlp->nlp_DID, ndlp->nlp_rpi, ndlp->nlp_flag,
+			 data1);
 
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 			"DSM out:         ste:%d did:x%x flg:x%x",
