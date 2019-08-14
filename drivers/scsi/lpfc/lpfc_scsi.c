@@ -918,9 +918,10 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 			       "dma_map_sg.  Config %d, seg_cnt %d\n",
 			       __func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
 			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
-			return 1;
+			return 2;
 		}
 
 		/*
@@ -2430,7 +2431,10 @@ lpfc_bg_scsi_adjust_dl(struct lpfc_hba *phba,
  *
  * This is the protection/DIF aware version of
  * lpfc_scsi_prep_dma_buf(). It may be a good idea to combine the
- * two functions eventually, but for now, it's here
+ * two functions eventually, but for now, it's here.
+ * RETURNS 0 - SUCCESS,
+ *         1 - Failed DMA map, retry.
+ *         2 - Invalid scsi cmd or prot-type. Do not rety.
  **/
 static int
 lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
@@ -2444,6 +2448,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
+	int ret = 1;
 	struct lpfc_vport *vport = phba->pport;
 
 	/*
@@ -2467,8 +2472,11 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 		lpfc_cmd->seg_cnt = datasegcnt;
 
 		/* First check if data segment count from SCSI Layer is good */
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt)
+		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
+			ret = 2;
 			goto err;
+		}
 
 		prot_group_type = lpfc_prot_group_type(phba, scsi_cmnd);
 
@@ -2476,14 +2484,18 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 		case LPFC_PG_TYPE_NO_DIF:
 
 			/* Here we need to add a PDE5 and PDE6 to the count */
-			if ((lpfc_cmd->seg_cnt + 2) > phba->cfg_total_seg_cnt)
+			if ((lpfc_cmd->seg_cnt + 2) > phba->cfg_total_seg_cnt) {
+				ret = 2;
 				goto err;
+			}
 
 			num_bde = lpfc_bg_setup_bpl(phba, scsi_cmnd, bpl,
 					datasegcnt);
 			/* we should have 2 or more entries in buffer list */
-			if (num_bde < 2)
+			if (num_bde < 2) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_DIF_BUF:
@@ -2507,15 +2519,19 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			 * protection data segment.
 			 */
 			if ((lpfc_cmd->prot_seg_cnt * 4) >
-			    (phba->cfg_total_seg_cnt - 2))
+			    (phba->cfg_total_seg_cnt - 2)) {
+				ret = 2;
 				goto err;
+			}
 
 			num_bde = lpfc_bg_setup_bpl_prot(phba, scsi_cmnd, bpl,
 					datasegcnt, protsegcnt);
 			/* we should have 3 or more entries in buffer list */
 			if ((num_bde < 3) ||
-			    (num_bde > phba->cfg_total_seg_cnt))
+			    (num_bde > phba->cfg_total_seg_cnt)) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_INVALID:
@@ -2526,7 +2542,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 					"9022 Unexpected protection group %i\n",
 					prot_group_type);
-			return 1;
+			return 2;
 		}
 	}
 
@@ -2576,7 +2592,7 @@ err:
 
 	lpfc_cmd->seg_cnt = 0;
 	lpfc_cmd->prot_seg_cnt = 0;
-	return 1;
+	return ret;
 }
 
 /*
@@ -2962,7 +2978,8 @@ out:
  * field of @lpfc_cmd for device with SLI-4 interface spec.
  *
  * Return codes:
- *	1 - Error
+ *	2 - Error - Do not retry
+ *	1 - Error - Retry
  *	0 - Success
  **/
 static int
@@ -3012,9 +3029,10 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 				"dma_map_sg.  Config %d, seg_cnt %d\n",
 				__func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
 			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
-			return 1;
+			return 2;
 		}
 
 		/*
@@ -3110,6 +3128,10 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
  * This is the protection/DIF aware version of
  * lpfc_scsi_prep_dma_buf(). It may be a good idea to combine the
  * two functions eventually, but for now, it's here
+ * Return codes:
+ *	2 - Error - Do not retry
+ *	1 - Error - Retry
+ *	0 - Success
  **/
 static int
 lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
@@ -3123,6 +3145,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
+	int ret = 1;
 	struct lpfc_vport *vport = phba->pport;
 
 	/*
@@ -3152,23 +3175,30 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 		lpfc_cmd->seg_cnt = datasegcnt;
 
 		/* First check if data segment count from SCSI Layer is good */
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt)
+		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
+			ret = 2;
 			goto err;
+		}
 
 		prot_group_type = lpfc_prot_group_type(phba, scsi_cmnd);
 
 		switch (prot_group_type) {
 		case LPFC_PG_TYPE_NO_DIF:
 			/* Here we need to add a DISEED to the count */
-			if ((lpfc_cmd->seg_cnt + 1) > phba->cfg_total_seg_cnt)
+			if ((lpfc_cmd->seg_cnt + 1) > phba->cfg_total_seg_cnt) {
+				ret = 2;
 				goto err;
+			}
 
 			num_sge = lpfc_bg_setup_sgl(phba, scsi_cmnd, sgl,
 					datasegcnt);
 
 			/* we should have 2 or more entries in buffer list */
-			if (num_sge < 2)
+			if (num_sge < 2) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_DIF_BUF:
@@ -3191,16 +3221,20 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 			 * protection data segment.
 			 */
 			if ((lpfc_cmd->prot_seg_cnt * 3) >
-			    (phba->cfg_total_seg_cnt - 2))
+			    (phba->cfg_total_seg_cnt - 2)) {
+				ret = 2;
 				goto err;
+			}
 
 			num_sge = lpfc_bg_setup_sgl_prot(phba, scsi_cmnd, sgl,
 					datasegcnt, protsegcnt);
 
 			/* we should have 3 or more entries in buffer list */
 			if ((num_sge < 3) ||
-			    (num_sge > phba->cfg_total_seg_cnt))
+			    (num_sge > phba->cfg_total_seg_cnt)) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_INVALID:
@@ -3211,7 +3245,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 					"9083 Unexpected protection group %i\n",
 					prot_group_type);
-			return 1;
+			return 2;
 		}
 	}
 
@@ -3273,7 +3307,7 @@ err:
 
 	lpfc_cmd->seg_cnt = 0;
 	lpfc_cmd->prot_seg_cnt = 0;
-	return 1;
+	return ret;
 }
 
 /**
@@ -4454,8 +4488,12 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		err = lpfc_scsi_prep_dma_buf(phba, lpfc_cmd);
 	}
 
-	if (err)
+	if (err == 2) {
+		cmnd->result = DID_ERROR << 16;
+		goto out_fail_command_release_buf;
+	} else if (err) {
 		goto out_host_busy_free_buf;
+	}
 
 	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
@@ -4525,6 +4563,9 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
  out_tgt_busy:
 	return SCSI_MLQUEUE_TARGET_BUSY;
+
+ out_fail_command_release_buf:
+	lpfc_release_scsi_buf(phba, lpfc_cmd);
 
  out_fail_command:
 	cmnd->scsi_done(cmnd);
