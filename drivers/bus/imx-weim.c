@@ -187,8 +187,7 @@ static int __init weim_timing_setup(struct device *dev,
 	return 0;
 }
 
-static int __init weim_parse_dt(struct platform_device *pdev,
-				void __iomem *base)
+static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 {
 	const struct of_device_id *of_id = of_match_device(weim_id_table,
 							   &pdev->dev);
@@ -233,7 +232,7 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	return ret;
 }
 
-static int __init weim_probe(struct platform_device *pdev)
+static int weim_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct clk *clk;
@@ -270,8 +269,9 @@ static struct platform_driver weim_driver = {
 		.name		= "imx-weim",
 		.of_match_table	= weim_id_table,
 	},
+	.probe = weim_probe,
 };
-module_platform_driver_probe(weim_driver, weim_probe);
+module_platform_driver(weim_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor Inc.");
 MODULE_DESCRIPTION("i.MX EIM Controller Driver");
