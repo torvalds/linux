@@ -28,20 +28,20 @@
  *                a struct page array
  *
  * If we are configured with a 52-bit kernel VA then our VMEMMAP_SIZE
- * neads to cover the memory region from the beginning of the 52-bit
- * PAGE_OFFSET all the way to VA_START for 48-bit. This allows us to
+ * needs to cover the memory region from the beginning of the 52-bit
+ * PAGE_OFFSET all the way to PAGE_END for 48-bit. This allows us to
  * keep a constant PAGE_OFFSET and "fallback" to using the higher end
  * of the VMEMMAP where 52-bit support is not available in hardware.
  */
-#define VMEMMAP_SIZE ((_VA_START(VA_BITS_MIN) - PAGE_OFFSET) \
+#define VMEMMAP_SIZE ((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) \
 			>> (PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT))
 
 /*
- * PAGE_OFFSET - the virtual address of the start of the linear map (top
- *		 (VA_BITS - 1))
- * KIMAGE_VADDR - the virtual address of the start of the kernel image
+ * PAGE_OFFSET - the virtual address of the start of the linear map, at the
+ *               start of the TTBR1 address space.
+ * PAGE_END - the end of the linear map, where all other kernel mappings begin.
+ * KIMAGE_VADDR - the virtual address of the start of the kernel image.
  * VA_BITS - the maximum number of bits for virtual addresses.
- * VA_START - the first kernel virtual address.
  */
 #define VA_BITS			(CONFIG_ARM64_VA_BITS)
 #define _PAGE_OFFSET(va)	(-(UL(1) << (va)))
@@ -64,7 +64,7 @@
 #define VA_BITS_MIN		(VA_BITS)
 #endif
 
-#define _VA_START(va)		(-(UL(1) << ((va) - 1)))
+#define _PAGE_END(va)		(-(UL(1) << ((va) - 1)))
 
 #define KERNEL_START		_text
 #define KERNEL_END		_end
@@ -87,7 +87,7 @@
 #define KASAN_THREAD_SHIFT	1
 #else
 #define KASAN_THREAD_SHIFT	0
-#define KASAN_SHADOW_END	(_VA_START(VA_BITS_MIN))
+#define KASAN_SHADOW_END	(_PAGE_END(VA_BITS_MIN))
 #endif /* CONFIG_KASAN */
 
 #define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
@@ -173,7 +173,7 @@
 
 #ifndef __ASSEMBLY__
 extern u64			vabits_actual;
-#define VA_START		(_VA_START(vabits_actual))
+#define PAGE_END		(_PAGE_END(vabits_actual))
 
 #include <linux/bitops.h>
 #include <linux/mmdebug.h>

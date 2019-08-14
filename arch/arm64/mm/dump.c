@@ -28,7 +28,7 @@
 
 enum address_markers_idx {
 	PAGE_OFFSET_NR = 0,
-	VA_START_NR,
+	PAGE_END_NR,
 #ifdef CONFIG_KASAN
 	KASAN_START_NR,
 #endif
@@ -36,7 +36,7 @@ enum address_markers_idx {
 
 static struct addr_marker address_markers[] = {
 	{ PAGE_OFFSET,			"Linear Mapping start" },
-	{ 0 /* VA_START */,		"Linear Mapping end" },
+	{ 0 /* PAGE_END */,		"Linear Mapping end" },
 #ifdef CONFIG_KASAN
 	{ 0 /* KASAN_SHADOW_START */,	"Kasan shadow start" },
 	{ KASAN_SHADOW_END,		"Kasan shadow end" },
@@ -411,7 +411,7 @@ void ptdump_check_wx(void)
 
 static int ptdump_init(void)
 {
-	address_markers[VA_START_NR].start_address = VA_START;
+	address_markers[PAGE_END_NR].start_address = PAGE_END;
 #ifdef CONFIG_KASAN
 	address_markers[KASAN_START_NR].start_address = KASAN_SHADOW_START;
 #endif
