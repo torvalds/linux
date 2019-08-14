@@ -90,7 +90,7 @@ static void mux_configure8(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
 	iowrite8(val8, addr + off);
 }
 
-void mux_configure32(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
+static void mux_configure32(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
 		     u32 off, u32 slot, bool enable)
 {
 	u32 val;
