@@ -22,6 +22,7 @@
 #include <asm/mshyperv.h>
 
 static struct clock_event_device __percpu *hv_clock_event;
+static u64 hv_sched_clock_offset __ro_after_init;
 
 /*
  * If false, we're using the old mechanism for stimer0 interrupts
@@ -222,7 +223,7 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
-static u64 notrace read_hv_sched_clock_tsc(void)
+static u64 notrace read_hv_clock_tsc(struct clocksource *arg)
 {
 	u64 current_tick = hv_read_tsc_page(&tsc_pg);
 
@@ -232,9 +233,9 @@ static u64 notrace read_hv_sched_clock_tsc(void)
 	return current_tick;
 }
 
-static u64 read_hv_clock_tsc(struct clocksource *arg)
+static u64 read_hv_sched_clock_tsc(void)
 {
-	return read_hv_sched_clock_tsc();
+	return read_hv_clock_tsc(NULL) - hv_sched_clock_offset;
 }
 
 static struct clocksource hyperv_cs_tsc = {
@@ -246,7 +247,7 @@ static struct clocksource hyperv_cs_tsc = {
 };
 #endif
 
-static u64 notrace read_hv_sched_clock_msr(void)
+static u64 notrace read_hv_clock_msr(struct clocksource *arg)
 {
 	u64 current_tick;
 	/*
@@ -258,9 +259,9 @@ static u64 notrace read_hv_sched_clock_msr(void)
 	return current_tick;
 }
 
-static u64 read_hv_clock_msr(struct clocksource *arg)
+static u64 read_hv_sched_clock_msr(void)
 {
-	return read_hv_sched_clock_msr();
+	return read_hv_clock_msr(NULL) - hv_sched_clock_offset;
 }
 
 static struct clocksource hyperv_cs_msr = {
@@ -298,8 +299,9 @@ static bool __init hv_init_tsc_clocksource(void)
 	hv_set_clocksource_vdso(hyperv_cs_tsc);
 	clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
 
-	/* sched_clock_register is needed on ARM64 but is a no-op on x86 */
-	sched_clock_register(read_hv_sched_clock_tsc, 64, HV_CLOCK_HZ);
+	hv_sched_clock_offset = hyperv_cs->read(hyperv_cs);
+	hv_setup_sched_clock(read_hv_sched_clock_tsc);
+
 	return true;
 }
 #else
@@ -329,7 +331,7 @@ void __init hv_init_clocksource(void)
 	hyperv_cs = &hyperv_cs_msr;
 	clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
 
-	/* sched_clock_register is needed on ARM64 but is a no-op on x86 */
-	sched_clock_register(read_hv_sched_clock_msr, 64, HV_CLOCK_HZ);
+	hv_sched_clock_offset = hyperv_cs->read(hyperv_cs);
+	hv_setup_sched_clock(read_hv_sched_clock_msr);
 }
 EXPORT_SYMBOL_GPL(hv_init_clocksource);
