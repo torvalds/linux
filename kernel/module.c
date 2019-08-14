@@ -3728,7 +3728,6 @@ static int complete_formation(struct module *mod, struct load_info *info)
 
 	module_enable_ro(mod, false);
 	module_enable_nx(mod);
-	module_enable_x(mod);
 
 	/* Mark state as coming so strong_try_module_get() ignores us,
 	 * but kallsyms etc. can see us. */
@@ -3750,6 +3749,11 @@ static int prepare_coming_module(struct module *mod)
 	err = klp_module_coming(mod);
 	if (err)
 		return err;
+
+	/* Make module executable after ftrace is enabled */
+	mutex_lock(&module_mutex);
+	module_enable_x(mod);
+	mutex_unlock(&module_mutex);
 
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_COMING, mod);
