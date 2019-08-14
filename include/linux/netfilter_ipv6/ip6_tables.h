@@ -26,6 +26,7 @@
 extern void ip6t_init(void) __init;
 
 extern void *ip6t_alloc_initial_table(const struct xt_table *);
+#if IS_ENABLED(CONFIG_NETFILTER)
 int ip6t_register_table(struct net *net, const struct xt_table *table,
 			const struct ip6t_replace *repl,
 			const struct nf_hook_ops *ops, struct xt_table **res);
@@ -34,6 +35,7 @@ void ip6t_unregister_table(struct net *net, struct xt_table *table,
 extern unsigned int ip6t_do_table(struct sk_buff *skb,
 				  const struct nf_hook_state *state,
 				  struct xt_table *table);
+#endif
 
 /* Check for an extension */
 static inline int

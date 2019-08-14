@@ -35,12 +35,15 @@ struct xt_action_param {
 	union {
 		const void *matchinfo, *targinfo;
 	};
+#if IS_ENABLED(CONFIG_NETFILTER)
 	const struct nf_hook_state *state;
+#endif
 	int fragoff;
 	unsigned int thoff;
 	bool hotdrop;
 };
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 static inline struct net *xt_net(const struct xt_action_param *par)
 {
 	return par->state->net;
@@ -75,6 +78,7 @@ static inline u_int8_t xt_family(const struct xt_action_param *par)
 {
 	return par->state->pf;
 }
+#endif
 
 /**
  * struct xt_mtchk_param - parameters for match extensions'
@@ -446,7 +450,9 @@ xt_get_per_cpu_counter(struct xt_counters *cnt, unsigned int cpu)
 	return cnt;
 }
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 struct nf_hook_ops *xt_hook_ops_alloc(const struct xt_table *, nf_hookfn *);
+#endif
 
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>

@@ -3,9 +3,9 @@
 #define _NF_NAT_HELPER_H
 /* NAT protocol helper routines. */
 
+#include <linux/skbuff.h>
 #include <net/netfilter/nf_conntrack.h>
-
-struct sk_buff;
+#include <net/netfilter/nf_conntrack_expect.h>
 
 /* These return true or false. */
 bool __nf_nat_mangle_tcp_packet(struct sk_buff *skb, struct nf_conn *ct,

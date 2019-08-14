@@ -75,6 +75,7 @@ bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
 bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
 				      const struct nf_conntrack_tuple *orig);
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
 			    unsigned int dataoff,
 			    const struct nf_hook_state *state,
@@ -131,6 +132,7 @@ int nf_conntrack_gre_packet(struct nf_conn *ct,
 			    unsigned int dataoff,
 			    enum ip_conntrack_info ctinfo,
 			    const struct nf_hook_state *state);
+#endif
 
 void nf_conntrack_generic_init_net(struct net *net);
 void nf_conntrack_tcp_init_net(struct net *net);
@@ -176,6 +178,7 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 static inline struct nf_generic_net *nf_generic_pernet(struct net *net)
 {
        return &net->ct.nf_ct_proto.generic;
@@ -200,6 +203,7 @@ static inline struct nf_icmp_net *nf_icmpv6_pernet(struct net *net)
 {
        return &net->ct.nf_ct_proto.icmpv6;
 }
+#endif
 
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 static inline struct nf_dccp_net *nf_dccp_pernet(struct net *net)

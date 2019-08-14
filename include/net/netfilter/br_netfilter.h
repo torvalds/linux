@@ -2,16 +2,22 @@
 #ifndef _BR_NETFILTER_H_
 #define _BR_NETFILTER_H_
 
+#include <linux/netfilter.h>
+
 #include "../../../net/bridge/br_private.h"
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 {
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	struct nf_bridge_info *b = skb_ext_add(skb, SKB_EXT_BRIDGE_NF);
 
 	if (b)
 		memset(b, 0, sizeof(*b));
 
 	return b;
+#else
+	return NULL;
+#endif
 }
 
 void nf_bridge_update_protocol(struct sk_buff *skb);
@@ -36,15 +42,20 @@ int br_nf_pre_routing_finish_bridge(struct net *net, struct sock *sk, struct sk_
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	struct net_bridge_port *port;
 
 	port = br_port_get_rcu(dev);
 	return port ? &port->br->fake_rtable : NULL;
+#else
+	return NULL;
+#endif
 }
 
 struct net_device *setup_pre_routing(struct sk_buff *skb,
 				     const struct net *net);
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 #if IS_ENABLED(CONFIG_IPV6)
 int br_validate_ipv6(struct net *net, struct sk_buff *skb);
 unsigned int br_nf_pre_routing_ipv6(void *priv,
@@ -62,6 +73,7 @@ br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 {
 	return NF_ACCEPT;
 }
+#endif
 #endif
 
 #endif /* _BR_NETFILTER_H_ */

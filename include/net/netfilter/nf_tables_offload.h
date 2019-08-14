@@ -9,6 +9,7 @@ struct nft_offload_reg {
 	u32		len;
 	u32		base_offset;
 	u32		offset;
+	struct nft_data data;
 	struct nft_data	mask;
 };
 

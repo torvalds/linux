@@ -121,6 +121,7 @@ struct nf_conntrack_tuple_hash {
 	struct nf_conntrack_tuple tuple;
 };
 
+#if IS_ENABLED(CONFIG_NETFILTER)
 static inline bool __nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
 					   const struct nf_conntrack_tuple *t2)
 { 
@@ -183,5 +184,6 @@ nf_ct_tuple_mask_cmp(const struct nf_conntrack_tuple *t,
 	return nf_ct_tuple_src_mask_cmp(t, tuple, mask) &&
 	       __nf_ct_tuple_dst_equal(t, tuple);
 }
+#endif
 
 #endif /* _NF_CONNTRACK_TUPLE_H */
