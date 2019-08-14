@@ -480,10 +480,20 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0238 Process x%06x NameServer Rsp "
-					 "Data: x%x x%x x%x x%x\n", Did,
+					 "Data: x%x x%x x%x x%x x%x\n", Did,
 					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
-					 vport->fc_flag,
+					 ndlp->nlp_state, vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
+
+			/* if ndlp needs to be discovered and prior
+			 * state of ndlp hit devloss, change state to
+			 * allow rediscovery.
+			 */
+			if (ndlp->nlp_flag & NLP_NPR_2B_DISC &&
+			    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_NPR_NODE);
+			}
 		} else {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip1 GID_FTrsp: did:x%x flg:x%x cnt:%d",
@@ -751,9 +761,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    cpu_to_be16(SLI_CT_RESPONSE_FS_ACC)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "0208 NameServer Rsp Data: x%x x%x\n",
+					 "0208 NameServer Rsp Data: x%x x%x "
+					 "sz x%x\n",
 					 vport->fc_flag,
-					 CTreq->un.gid.Fc4Type);
+					 CTreq->un.gid.Fc4Type,
+					 irsp->un.genreq64.bdl.bdeSize);
 
 			lpfc_ns_rsp(vport,
 				    outp,
@@ -814,6 +826,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		}
 		vport->gidft_inp--;
 	}
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "4216 GID_FT cmpl inp %d disc %d\n",
+			 vport->gidft_inp, vport->num_disc_nodes);
+
 	/* Link up / RSCN discovery */
 	if ((vport->num_disc_nodes == 0) &&
 	    (vport->gidft_inp == 0)) {
