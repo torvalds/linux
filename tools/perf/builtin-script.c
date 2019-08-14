@@ -1616,6 +1616,11 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 	return 0;
 }
 
+struct evswitch {
+	struct evsel *on;
+	bool	     discarding;
+};
+
 struct perf_script {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -1628,6 +1633,7 @@ struct perf_script {
 	bool			show_bpf_events;
 	bool			allocated;
 	bool			per_event_dump;
+	struct evswitch		evswitch;
 	struct perf_cpu_map	*cpus;
 	struct perf_thread_map *threads;
 	int			name_width;
@@ -1804,6 +1810,13 @@ static void process_event(struct perf_script *script,
 
 	if (!show_event(sample, evsel, thread, al))
 		return;
+
+	if (script->evswitch.on && script->evswitch.discarding) {
+		if (script->evswitch.on != evsel)
+			return;
+
+		script->evswitch.discarding = false;
+	}
 
 	++es->samples;
 
@@ -3395,6 +3408,7 @@ int cmd_script(int argc, const char **argv)
 	struct utsname uts;
 	char *script_path = NULL;
 	const char **__argv;
+	const char *event_switch_on = NULL;
 	int i, j, err = 0;
 	struct perf_script script = {
 		.tool = {
@@ -3538,6 +3552,8 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/kallsyms"),
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
+	OPT_STRING(0, "switch-on", &event_switch_on,
+		   "event", "Consider events from the first ocurrence of this event"),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
@@ -3860,6 +3876,16 @@ int cmd_script(int argc, const char **argv)
 		itrace_synth_opts__set_time_range(&itrace_synth_opts,
 						  script.ptime_range,
 						  script.range_num);
+	}
+
+	if (event_switch_on) {
+		script.evswitch.on = perf_evlist__find_evsel_by_str(session->evlist, event_switch_on);
+		if (script.evswitch.on == NULL) {
+			fprintf(stderr, "switch-on event not found (%s)\n", event_switch_on);
+			err = -ENOENT;
+			goto out_delete;
+		}
+		script.evswitch.discarding = true;
 	}
 
 	err = __cmd_script(&script);
