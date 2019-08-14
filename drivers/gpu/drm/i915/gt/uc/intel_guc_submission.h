@@ -51,8 +51,6 @@ struct intel_guc_client {
 
 	/* Protects GuC client's WQ access */
 	spinlock_t wq_lock;
-	/* Per-engine counts of GuC submissions */
-	u64 submissions[I915_NUM_ENGINES];
 
 	/* For testing purposes, use nop WQ items instead of real ones */
 	I915_SELFTEST_DECLARE(bool use_nop_wqi);

@@ -1882,31 +1882,11 @@ static void i915_guc_log_info(struct seq_file *m,
 	}
 }
 
-static void i915_guc_client_info(struct seq_file *m,
-				 struct drm_i915_private *dev_priv,
-				 struct intel_guc_client *client)
-{
-	struct intel_engine_cs *engine;
-	u64 tot = 0;
-
-	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
-		client->priority, client->stage_id, client->proc_desc_offset);
-	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx\n",
-		client->doorbell_id, client->doorbell_offset);
-
-	for_each_uabi_engine(engine, dev_priv) {
-		u64 submissions = client->submissions[engine->guc_id];
-		tot += submissions;
-		seq_printf(m, "\tSubmissions: %llu %s\n",
-				submissions, engine->name);
-	}
-	seq_printf(m, "\tTotal: %llu\n", tot);
-}
-
 static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_guc *guc = &dev_priv->gt.uc.guc;
+	struct intel_guc_client *client = guc->execbuf_client;
 
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
@@ -1922,9 +1902,13 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
 	seq_printf(m, "Doorbell next cacheline: 0x%x\n", guc->db_cacheline);
 
-	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc->execbuf_client);
-	i915_guc_client_info(m, dev_priv, guc->execbuf_client);
-
+	seq_printf(m, "\nGuC execbuf client @ %p:\n", client);
+	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
+		   client->priority,
+		   client->stage_id,
+		   client->proc_desc_offset);
+	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx\n",
+		   client->doorbell_id, client->doorbell_offset);
 	/* Add more as required ... */
 
 	return 0;
