@@ -436,6 +436,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 		return 1;
 
 	wqe = &genwqe->wqe;
+	/* Initialize only 64 bytes */
 	memset(wqe, 0, sizeof(union lpfc_wqe));
 
 	genwqe->context3 = (uint8_t *)bmp;
@@ -1855,7 +1856,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* WQEs are reused.  Clear stale data and set key fields to
 	 * zero like ia, iaab, iaar, xri_tag, and ctxt_tag.
 	 */
-	memset(abts_wqe, 0, sizeof(union lpfc_wqe));
+	memset(abts_wqe, 0, sizeof(*abts_wqe));
 	bf_set(abort_cmd_criteria, &abts_wqe->abort_cmd, T_XRI_TAG);
 
 	/* word 7 */
@@ -1982,7 +1983,7 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		/* Fill in word 3 / sgl_len during cmd submission */
 
-		/* Initialize WQE */
+		/* Initialize 64 bytes only */
 		memset(wqe, 0, sizeof(union lpfc_wqe));
 
 		if (lpfc_ndlp_check_qdepth(phba, ndlp)) {

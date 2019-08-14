@@ -3330,7 +3330,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	/* WQEs are reused.  Clear stale data and set key fields to
 	 * zero like ia, iaab, iaar, xri_tag, and ctxt_tag.
 	 */
-	memset(abts_wqe, 0, sizeof(union lpfc_wqe));
+	memset(abts_wqe, 0, sizeof(*abts_wqe));
 
 	/* word 3 */
 	bf_set(abort_cmd_criteria, &abts_wqe->abort_cmd, T_XRI_TAG);

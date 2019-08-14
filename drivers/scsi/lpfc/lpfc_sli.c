@@ -9815,7 +9815,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		 * we re-construct this WQE here based on information in
 		 * iocbq from scratch.
 		 */
-		memset(wqe, 0, sizeof(union lpfc_wqe));
+		memset(wqe, 0, sizeof(*wqe));
 		/* OX_ID is invariable to who sent ABTS to CT exchange */
 		bf_set(xmit_bls_rsp64_oxid, &wqe->xmit_bls_rsp,
 		       bf_get(lpfc_abts_oxid, &iocbq->iocb.un.bls_rsp));
