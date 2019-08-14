@@ -1508,6 +1508,26 @@ static int pp_set_ppfeature_status(void *handle, uint64_t ppfeature_masks)
 	return ret;
 }
 
+static int pp_asic_reset_mode_2(void *handle)
+{
+	struct pp_hwmgr *hwmgr = handle;
+		int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->asic_reset == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->asic_reset(hwmgr, SMU_ASIC_RESET_MODE_2);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1564,4 +1584,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_asic_baco_state = pp_set_asic_baco_state,
 	.get_ppfeature_status = pp_get_ppfeature_status,
 	.set_ppfeature_status = pp_set_ppfeature_status,
+	.asic_reset_mode_2 = pp_asic_reset_mode_2,
 };

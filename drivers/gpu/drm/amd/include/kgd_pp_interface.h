@@ -310,6 +310,7 @@ struct amd_pm_funcs {
 	int (*set_asic_baco_state)(void *handle, int state);
 	int (*get_ppfeature_status)(void *handle, char *buf);
 	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
+	int (*asic_reset_mode_2)(void *handle);
 };
 
 #endif
