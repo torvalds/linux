@@ -1255,6 +1255,9 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 		       sizeof(uint32_t) * 8);
 		cstat->control_requests++;
 	}
+
+	if (pnode->nlp_nvme_info & NLP_NVME_NSLER)
+		bf_set(wqe_erp, &wqe->generic.wqe_com, 1);
 	/*
 	 * Finish initializing those WQE fields that are independent
 	 * of the nvme_cmnd request_buffer

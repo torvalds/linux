@@ -3480,6 +3480,10 @@ struct lpfc_sli4_parameters {
 #define cfg_bv1s_MASK                           0x00000001
 #define cfg_bv1s_WORD                           word19
 
+#define cfg_nsler_SHIFT                         12
+#define cfg_nsler_MASK                          0x00000001
+#define cfg_nsler_WORD                          word19
+
 	uint32_t word20;
 #define cfg_max_tow_xri_SHIFT			0
 #define cfg_max_tow_xri_MASK			0x0000ffff
@@ -4621,6 +4625,7 @@ struct lpfc_nvme_prli {
 #define prli_type_code_WORD             word1
 	uint32_t word_rsvd2;
 	uint32_t word_rsvd3;
+
 	uint32_t word4;
 #define prli_fba_SHIFT                  0
 #define prli_fba_MASK                   0x00000001
@@ -4637,6 +4642,9 @@ struct lpfc_nvme_prli {
 #define prli_conf_SHIFT                 7
 #define prli_conf_MASK                  0x00000001
 #define prli_conf_WORD                  word4
+#define prli_nsler_SHIFT		8
+#define prli_nsler_MASK			0x00000001
+#define prli_nsler_WORD			word4
 	uint32_t word5;
 #define prli_fb_sz_SHIFT                0
 #define prli_fb_sz_MASK                 0x0000ffff

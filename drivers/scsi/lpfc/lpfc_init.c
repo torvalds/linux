@@ -11846,6 +11846,14 @@ fcponly:
 	else
 		phba->mds_diags_support = 0;
 
+	/*
+	 * Check if the SLI port supports NSLER
+	 */
+	if (bf_get(cfg_nsler, mbx_sli4_parameters))
+		phba->nsler = 1;
+	else
+		phba->nsler = 0;
+
 	return 0;
 }
 

@@ -797,6 +797,7 @@ struct lpfc_hba {
 	uint8_t  mds_diags_support;
 	uint8_t  bbcredit_support;
 	uint8_t  enab_exp_wqcq_pages;
+	u8	 nsler; /* Firmware supports FC-NVMe-2 SLER */
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;

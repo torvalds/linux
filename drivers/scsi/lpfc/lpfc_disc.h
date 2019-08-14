@@ -112,6 +112,8 @@ struct lpfc_nodelist {
 	uint8_t         nlp_retry;		/* used for ELS retries */
 	uint8_t         nlp_fcp_info;	        /* class info, bits 0-3 */
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
+	u8		nlp_nvme_info;	        /* NVME NSLER Support */
+#define NLP_NVME_NSLER     0x1			/* NVME NSLER device */
 
 	uint16_t        nlp_usg_map;	/* ndlp management usage bitmap */
 #define NLP_USG_NODE_ACT_BIT	0x1	/* Indicate ndlp is actively used */

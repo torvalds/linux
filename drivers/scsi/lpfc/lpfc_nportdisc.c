@@ -799,8 +799,14 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			if (npr->writeXferRdyDis)
 				ndlp->nlp_flag |= NLP_FIRSTBURST;
 		}
-		if (npr->Retry)
+		if (npr->Retry && ndlp->nlp_type &
+					(NLP_FCP_INITIATOR | NLP_FCP_TARGET))
 			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+
+		if (npr->Retry && phba->nsler &&
+		    ndlp->nlp_type & (NLP_NVME_INITIATOR | NLP_NVME_TARGET))
+			ndlp->nlp_nvme_info |= NLP_NVME_NSLER;
+
 
 		/* If this driver is in nvme target mode, set the ndlp's fc4
 		 * type to NVME provided the PRLI response claims NVME FC4
@@ -2023,6 +2029,11 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* Complete setting up the remote ndlp personality. */
 		if (bf_get_be32(prli_init, nvpr))
 			ndlp->nlp_type |= NLP_NVME_INITIATOR;
+
+		if (phba->nsler && bf_get_be32(prli_nsler, nvpr))
+			ndlp->nlp_nvme_info |= NLP_NVME_NSLER;
+		else
+			ndlp->nlp_nvme_info &= ~NLP_NVME_NSLER;
 
 		/* Target driver cannot solicit NVME FB. */
 		if (bf_get_be32(prli_tgt, nvpr)) {
