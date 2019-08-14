@@ -1926,7 +1926,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"7624 Firmware not ready: Failing UE recovery,"
 				" waited %dSec", i);
-		lpfc_sli4_offline_eratt(phba);
+		phba->link_state = LPFC_HBA_ERROR;
 		break;
 
 	case LPFC_SLI_INTF_IF_TYPE_2:
@@ -2000,9 +2000,8 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		}
 		/* fall through for not able to recover */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3152 Unrecoverable error, bring the port "
-				"offline\n");
-		lpfc_sli4_offline_eratt(phba);
+				"3152 Unrecoverable error\n");
+		phba->link_state = LPFC_HBA_ERROR;
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:

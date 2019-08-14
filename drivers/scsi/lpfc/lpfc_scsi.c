@@ -5295,18 +5295,20 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 	lpfc_offline(phba);
 	rc = lpfc_sli_brdrestart(phba);
 	if (rc)
-		ret = FAILED;
+		goto error;
+
 	rc = lpfc_online(phba);
 	if (rc)
-		ret = FAILED;
+		goto error;
+
 	lpfc_unblock_mgmt_io(phba);
 
-	if (ret == FAILED) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "3323 Failed host reset, bring it offline\n");
-		lpfc_sli4_offline_eratt(phba);
-	}
 	return ret;
+error:
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			 "3323 Failed host reset\n");
+	lpfc_unblock_mgmt_io(phba);
+	return FAILED;
 }
 
 /**
