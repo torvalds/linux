@@ -841,7 +841,8 @@ lpfc_hdw_show(struct device *dev, struct device_attribute *attr, char *buf)
 	lpfc_vpd_t *vp = &phba->vpd;
 
 	lpfc_jedec_to_ascii(vp->rev.biuRev, hdw);
-	return scnprintf(buf, PAGE_SIZE, "%s\n", hdw);
+	return scnprintf(buf, PAGE_SIZE, "%s %08x %08x\n", hdw,
+			 vp->rev.smRev, vp->rev.smFwRev);
 }
 
 /**
