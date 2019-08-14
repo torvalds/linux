@@ -6413,6 +6413,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	if (rc)
 		return -ENODEV;
 
+	/* Allocate all driver workqueues here */
+
+	/* The lpfc_wq workqueue for deferred irq use */
+	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+
 	/*
 	 * Initialize timers used by driver
 	 */
@@ -6995,12 +7000,6 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		error = PTR_ERR(phba->worker_thread);
 		return error;
 	}
-
-	/* The lpfc_wq workqueue for deferred irq use, is only used for SLI4 */
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
-	else
-		phba->wq = NULL;
 
 	return 0;
 }
