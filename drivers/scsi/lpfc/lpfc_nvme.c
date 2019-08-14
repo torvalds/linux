@@ -2348,7 +2348,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				 */
 				lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 						 LOG_NVME_DISC,
-						 "6014 Rebinding lport to "
+						 "6014 Rebind lport to current "
 						 "remoteport %p wwpn 0x%llx, "
 						 "Data: x%x x%x %p %p x%x x%06x\n",
 						 remote_port,
@@ -2359,7 +2359,16 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 						 ndlp,
 						 ndlp->nlp_type,
 						 ndlp->nlp_DID);
-				return 0;
+
+				/* It's a complete rebind only if the driver
+				 * is registering with the same ndlp. Otherwise
+				 * the driver likely executed a node swap
+				 * prior to this registration and the ndlp to
+				 * remoteport binding needs to be redone.
+				 */
+				if (prev_ndlp == ndlp)
+					return 0;
+
 			}
 
 			/* Sever the ndlp<->rport association
@@ -2393,8 +2402,8 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		spin_unlock_irq(&vport->phba->hbalock);
 		lpfc_printf_vlog(vport, KERN_INFO,
 				 LOG_NVME_DISC | LOG_NODE,
-				 "6022 Binding new rport to "
-				 "lport %p Remoteport %p rport %p WWNN 0x%llx, "
+				 "6022 Bind lport x%px to remoteport x%px "
+				 "rport x%px WWNN 0x%llx, "
 				 "Rport WWPN 0x%llx DID "
 				 "x%06x Role x%x, ndlp %p prev_ndlp %p\n",
 				 lport, remote_port, rport,
