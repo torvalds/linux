@@ -223,8 +223,10 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 					    sizeof(long), GFP_KERNEL);
 		if (!req_q->req_bitmap) {
 			ret = -ENOMEM;
-			if (i == 1)
-				goto err_free_loop0;
+			if (i == 0)
+				return ret;
+
+			goto err_free_loop0;
 		}
 		rwlock_init(&req_q->req_lock);
 
