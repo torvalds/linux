@@ -5912,7 +5912,7 @@ lpfc_sg_seg_cnt_init(struct lpfc_hba *phba, int val)
  *       1  = MDS Diagnostics enabled
  * Value range is [0,1]. Default value is 0.
  */
-LPFC_ATTR_R(enable_mds_diags, 0, 0, 1, "Enable MDS Diagnostics");
+LPFC_ATTR_RW(enable_mds_diags, 0, 0, 1, "Enable MDS Diagnostics");
 
 /*
  * lpfc_ras_fwlog_buffsize: Firmware logging host buffer size

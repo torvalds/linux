@@ -9352,11 +9352,9 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		memset(wqe, 0, sizeof(union lpfc_wqe128));
 	/* Some of the fields are in the right position already */
 	memcpy(wqe, &iocbq->iocb, sizeof(union lpfc_wqe));
-	if (iocbq->iocb.ulpCommand != CMD_SEND_FRAME) {
-		/* The ct field has moved so reset */
-		wqe->generic.wqe_com.word7 = 0;
-		wqe->generic.wqe_com.word10 = 0;
-	}
+	/* The ct field has moved so reset */
+	wqe->generic.wqe_com.word7 = 0;
+	wqe->generic.wqe_com.word10 = 0;
 
 	abort_tag = (uint32_t) iocbq->iotag;
 	xritag = iocbq->sli4_xritag;
@@ -9862,6 +9860,15 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 
 		break;
 	case CMD_SEND_FRAME:
+		bf_set(wqe_cmnd, &wqe->generic.wqe_com, CMD_SEND_FRAME);
+		bf_set(wqe_sof, &wqe->generic.wqe_com, 0x2E); /* SOF byte */
+		bf_set(wqe_eof, &wqe->generic.wqe_com, 0x41); /* EOF byte */
+		bf_set(wqe_lenloc, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_xbl, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_xc, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_cmd_type, &wqe->generic.wqe_com, 0xA);
+		bf_set(wqe_cqid, &wqe->generic.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
 		bf_set(wqe_xri_tag, &wqe->generic.wqe_com, xritag);
 		bf_set(wqe_reqtag, &wqe->generic.wqe_com, iocbq->iotag);
 		return 0;
@@ -16940,6 +16947,8 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	struct fc_vft_header *fc_vft_hdr;
 	uint32_t *header = (uint32_t *) fc_hdr;
 
+#define FC_RCTL_MDS_DIAGS	0xF4
+
 	switch (fc_hdr->fh_r_ctl) {
 	case FC_RCTL_DD_UNCAT:		/* uncategorized information */
 	case FC_RCTL_DD_SOL_DATA:	/* solicited data */
@@ -17948,6 +17957,17 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	else
 		fcfi = bf_get(lpfc_rcqe_fcf_id,
 			      &dmabuf->cq_event.cqe.rcqe_cmpl);
+
+	if (fc_hdr->fh_r_ctl == 0xF4 && fc_hdr->fh_type == 0xFF) {
+		vport = phba->pport;
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"2023 MDS Loopback %d bytes\n",
+				bf_get(lpfc_rcqe_length,
+				       &dmabuf->cq_event.cqe.rcqe_cmpl));
+		/* Handle MDS Loopback frames */
+		lpfc_sli4_handle_mds_loopback(vport, dmabuf);
+		return;
+	}
 
 	/* d_id this frame is directed to */
 	did = sli4_did_from_fc_hdr(fc_hdr);
