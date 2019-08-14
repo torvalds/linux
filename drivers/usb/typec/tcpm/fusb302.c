@@ -1670,29 +1670,6 @@ static int init_gpio(struct fusb302_chip *chip)
 	return 0;
 }
 
-static int fusb302_composite_snk_pdo_array(struct fusb302_chip *chip)
-{
-	struct device *dev = chip->dev;
-	u32 max_uv, max_ua;
-
-	chip->snk_pdo[0] = PDO_FIXED(5000, 400, PDO_FIXED_FLAGS);
-
-	/*
-	 * As max_snk_ma/mv/mw is not needed for tcpc_config,
-	 * those settings should be passed in via sink PDO, so
-	 * "fcs, max-sink-*" properties will be deprecated, to
-	 * perserve compatibility with existing users of them,
-	 * we read those properties to convert them to be a var
-	 * PDO.
-	 */
-	if (device_property_read_u32(dev, "fcs,max-sink-microvolt", &max_uv) ||
-		device_property_read_u32(dev, "fcs,max-sink-microamp", &max_ua))
-		return 1;
-
-	chip->snk_pdo[1] = PDO_VAR(5000, max_uv / 1000, max_ua / 1000);
-	return 2;
-}
-
 static int fusb302_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1701,7 +1678,6 @@ static int fusb302_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	const char *name;
 	int ret = 0;
-	u32 v;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		dev_err(&client->dev,
@@ -1721,11 +1697,10 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->tcpc_dev.fwnode =
 		device_get_named_child_node(dev, "connector");
 
-	if (!device_property_read_u32(dev, "fcs,operating-sink-microwatt", &v))
-		chip->tcpc_config.operating_snk_mw = v / 1000;
-
 	/* Composite sink PDO */
-	chip->tcpc_config.nr_snk_pdo = fusb302_composite_snk_pdo_array(chip);
+	chip->snk_pdo[0] = PDO_FIXED(5000, 400, PDO_FIXED_FLAGS);
+
+	chip->tcpc_config.nr_snk_pdo = 1;
 	chip->tcpc_config.snk_pdo = chip->snk_pdo;
 
 	/*
