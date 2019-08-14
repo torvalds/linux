@@ -275,6 +275,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	case CHIP_NAVI10:
 		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV10;
 		break;
+	case CHIP_NAVI12:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV12;
+		break;
 	case CHIP_NAVI14:
 		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV14;
 		break;
