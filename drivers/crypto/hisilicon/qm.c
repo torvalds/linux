@@ -958,6 +958,7 @@ static const struct file_operations qm_regs_fops = {
 	.owner = THIS_MODULE,
 	.open = qm_regs_open,
 	.read = seq_read,
+	.release = single_release,
 };
 
 static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
