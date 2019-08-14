@@ -1151,7 +1151,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 		 * burst size.
 		 */
 		last_output = resized_width - 1;
-		if (closest)
+		if (closest && ((last_output * resize_coeff_h) % 8192))
 			last_output++;
 		in_width = round_up(
 			(DIV_ROUND_UP(last_output * resize_coeff_h, 8192) + 1)
@@ -1208,7 +1208,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 		 * IDMAC restrictions.
 		 */
 		last_output = resized_height - 1;
-		if (closest)
+		if (closest && ((last_output * resize_coeff_v) % 8192))
 			last_output++;
 		in_height = round_up(
 			(DIV_ROUND_UP(last_output * resize_coeff_v, 8192) + 1)
