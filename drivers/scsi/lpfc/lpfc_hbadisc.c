@@ -4480,9 +4480,21 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return NULL;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		rpi = lpfc_sli4_alloc_rpi(vport->phba);
-		if (rpi == LPFC_RPI_ALLOC_ERROR)
+		if (ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)
+			rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		else
+			rpi = ndlp->nlp_rpi;
+
+		if (rpi == LPFC_RPI_ALLOC_ERROR) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+					 "0359 %s: ndlp:x%px "
+					 "usgmap:x%x refcnt:%d FAILED RPI "
+					 " ALLOC\n",
+					 __func__,
+					 (void *)ndlp, ndlp->nlp_usg_map,
+					 kref_read(&ndlp->kref));
 			return NULL;
+		}
 	}
 
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
@@ -4541,6 +4553,14 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (state != NLP_STE_UNUSED_NODE)
 		lpfc_nlp_set_state(vport, ndlp, state);
+	else
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+				 "0013 rpi:%x DID:%x flg:%x refcnt:%d "
+				 "map:%x x%px STATE=UNUSED\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_flag,
+				 kref_read(&ndlp->kref),
+				 ndlp->nlp_usg_map, ndlp);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node enable:       did:x%x",
@@ -5249,15 +5269,15 @@ __lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (lpfc_matchdid(vport, ndlp, did)) {
-			data1 = (((uint32_t) ndlp->nlp_state << 24) |
-				 ((uint32_t) ndlp->nlp_xri << 16) |
-				 ((uint32_t) ndlp->nlp_type << 8) |
-				 ((uint32_t) ndlp->nlp_rpi & 0xff));
+			data1 = (((uint32_t)ndlp->nlp_state << 24) |
+				 ((uint32_t)ndlp->nlp_xri << 16) |
+				 ((uint32_t)ndlp->nlp_type << 8) |
+				 ((uint32_t)ndlp->nlp_usg_map & 0xff));
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 					 "0929 FIND node DID "
-					 "Data: x%p x%x x%x x%x %p\n",
+					 "Data: x%px x%x x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
-					 ndlp->nlp_flag, data1,
+					 ndlp->nlp_flag, data1, ndlp->nlp_rpi,
 					 ndlp->active_rrqs_xri_bitmap);
 			return ndlp;
 		}
@@ -5342,8 +5362,11 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		if (vport->phba->nvmet_support)
 			return NULL;
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
-		if (!ndlp)
+		if (!ndlp) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_SLI,
+					 "0014 Could not enable ndlp\n");
 			return NULL;
+		}
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);

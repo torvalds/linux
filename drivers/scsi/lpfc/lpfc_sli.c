@@ -2426,6 +2426,20 @@ lpfc_sli_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	return;
 }
 
+static void
+__lpfc_sli_rpi_release(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	unsigned long iflags;
+
+	if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
+		lpfc_sli4_free_rpi(vport->phba, ndlp->nlp_rpi);
+		spin_lock_irqsave(&vport->phba->ndlp_lock, iflags);
+		ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+		ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
+		spin_unlock_irqrestore(&vport->phba->ndlp_lock, iflags);
+	}
+	ndlp->nlp_flag &= ~NLP_UNREG_INP;
+}
 
 /**
  * lpfc_sli_def_mbox_cmpl - Default mailbox completion handler
@@ -2507,12 +2521,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 				lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 			} else {
-				if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
-					lpfc_sli4_free_rpi(vport->phba,
-							   ndlp->nlp_rpi);
-					ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
-				}
-				ndlp->nlp_flag &= ~NLP_UNREG_INP;
+				__lpfc_sli_rpi_release(vport, ndlp);
 			}
 			pmb->ctx_ndlp = NULL;
 		}
@@ -2587,14 +2596,7 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					lpfc_issue_els_plogi(
 						vport, ndlp->nlp_DID, 0);
 				} else {
-					if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
-						lpfc_sli4_free_rpi(
-							vport->phba,
-							ndlp->nlp_rpi);
-						ndlp->nlp_flag &=
-							~NLP_RELEASE_RPI;
-					}
-					ndlp->nlp_flag &= ~NLP_UNREG_INP;
+					__lpfc_sli_rpi_release(vport, ndlp);
 				}
 			}
 		}
@@ -18225,6 +18227,10 @@ __lpfc_sli4_free_rpi(struct lpfc_hba *phba, int rpi)
 	if (test_and_clear_bit(rpi, phba->sli4_hba.rpi_bmask)) {
 		phba->sli4_hba.rpi_count--;
 		phba->sli4_hba.max_cfg_param.rpi_used--;
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"2016 rpi %x not inuse\n",
+				rpi);
 	}
 }
 

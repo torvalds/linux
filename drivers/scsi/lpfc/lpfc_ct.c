@@ -462,6 +462,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 	struct lpfc_nodelist *ndlp;
 
 	if ((vport->port_type != LPFC_NPIV_PORT) ||
+	    (fc4_type == FC_TYPE_FCP) ||
 	    !(vport->ct_flags & FC_CT_RFF_ID) || !vport->cfg_restrict_login) {
 
 		ndlp = lpfc_setup_disc_node(vport, Did);
@@ -501,9 +502,9 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0239 Skip x%06x NameServer Rsp "
-					 "Data: x%x x%x\n", Did,
-					 vport->fc_flag,
-					 vport->fc_rscn_id_cnt);
+					 "Data: x%x x%x %p\n",
+					 Did, vport->fc_flag,
+					 vport->fc_rscn_id_cnt, ndlp);
 		}
 	} else {
 		if (!(vport->fc_flag & FC_RSCN_MODE) ||
