@@ -8857,7 +8857,6 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp,
 		const struct cred *cred)
 {
 	struct nfs4_reclaim_complete_data *calldata;
-	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RECLAIM_COMPLETE],
 		.rpc_cred = cred,
@@ -8866,7 +8865,7 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp,
 		.rpc_client = clp->cl_rpcclient,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_reclaim_complete_call_ops,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_NO_ROUND_ROBIN,
 	};
 	int status = -ENOMEM;
 
@@ -8881,15 +8880,7 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp,
 	msg.rpc_argp = &calldata->arg;
 	msg.rpc_resp = &calldata->res;
 	task_setup_data.callback_data = calldata;
-	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task)) {
-		status = PTR_ERR(task);
-		goto out;
-	}
-	status = rpc_wait_for_completion_task(task);
-	if (status == 0)
-		status = task->tk_status;
-	rpc_put_task(task);
+	status = nfs4_call_sync_custom(&task_setup_data);
 out:
 	dprintk("<-- %s status=%d\n", __func__, status);
 	return status;
