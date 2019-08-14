@@ -192,7 +192,6 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 
 	davinci_ks->irq = platform_get_irq(pdev, 0);
 	if (davinci_ks->irq < 0) {
-		dev_err(dev, "no key scan irq\n");
 		error = davinci_ks->irq;
 		goto fail2;
 	}

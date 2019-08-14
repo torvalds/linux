@@ -229,20 +229,14 @@ static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
 	int error;
 
 	axp20x_pek->irq_dbr = platform_get_irq_byname(pdev, "PEK_DBR");
-	if (axp20x_pek->irq_dbr < 0) {
-		dev_err(&pdev->dev, "No IRQ for PEK_DBR, error=%d\n",
-				axp20x_pek->irq_dbr);
+	if (axp20x_pek->irq_dbr < 0)
 		return axp20x_pek->irq_dbr;
-	}
 	axp20x_pek->irq_dbr = regmap_irq_get_virq(axp20x->regmap_irqc,
 						  axp20x_pek->irq_dbr);
 
 	axp20x_pek->irq_dbf = platform_get_irq_byname(pdev, "PEK_DBF");
-	if (axp20x_pek->irq_dbf < 0) {
-		dev_err(&pdev->dev, "No IRQ for PEK_DBF, error=%d\n",
-				axp20x_pek->irq_dbf);
+	if (axp20x_pek->irq_dbf < 0)
 		return axp20x_pek->irq_dbf;
-	}
 	axp20x_pek->irq_dbf = regmap_irq_get_virq(axp20x->regmap_irqc,
 						  axp20x_pek->irq_dbf);
 

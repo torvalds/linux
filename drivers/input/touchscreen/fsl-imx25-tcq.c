@@ -526,10 +526,8 @@ static int mx25_tcq_probe(struct platform_device *pdev)
 	}
 
 	priv->irq = platform_get_irq(pdev, 0);
-	if (priv->irq <= 0) {
-		dev_err(dev, "Failed to get IRQ\n");
+	if (priv->irq <= 0)
 		return priv->irq;
-	}
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev) {
