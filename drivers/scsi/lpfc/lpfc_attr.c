@@ -7066,6 +7066,21 @@ struct fc_function_template lpfc_vport_transport_functions = {
 };
 
 /**
+ * lpfc_get_hba_function_mode - Used to determine the HBA function in FCoE
+ * Mode
+ * @phba: lpfc_hba pointer.
+ **/
+static void
+lpfc_get_hba_function_mode(struct lpfc_hba *phba)
+{
+	/* If it's a SkyHawk FCoE adapter */
+	if (phba->pcidev->device == PCI_DEVICE_ID_SKYHAWK)
+		phba->hba_flag |= HBA_FCOE_MODE;
+	else
+		phba->hba_flag &= ~HBA_FCOE_MODE;
+}
+
+/**
  * lpfc_get_cfgparam - Used during probe_one to init the adapter structure
  * @phba: lpfc_hba pointer.
  **/
@@ -7121,8 +7136,18 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	else
 		phba->cfg_poll = lpfc_poll;
 
-	if (phba->cfg_enable_bg)
+	/* Get the function mode */
+	lpfc_get_hba_function_mode(phba);
+
+	/* BlockGuard allowed for FC only. */
+	if (phba->cfg_enable_bg && phba->hba_flag & HBA_FCOE_MODE) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0581 BlockGuard feature not supported\n");
+		/* If set, clear the BlockGuard support param */
+		phba->cfg_enable_bg = 0;
+	} else if (phba->cfg_enable_bg) {
 		phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
+	}
 
 	lpfc_suppress_rsp_init(phba, lpfc_suppress_rsp);
 
