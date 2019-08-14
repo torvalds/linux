@@ -11119,10 +11119,10 @@ vec_fail_out:
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to enable the MSI interrupt mode to device with
- * SLI-4 interface spec. The kernel function pci_enable_msi() is called
- * to enable the MSI vector. The device driver is responsible for calling
- * the request_irq() to register MSI vector with a interrupt the handler,
- * which is done in this function.
+ * SLI-4 interface spec. The kernel function pci_alloc_irq_vectors() is
+ * called to enable the MSI vector. The device driver is responsible for
+ * calling the request_irq() to register MSI vector with a interrupt the
+ * handler, which is done in this function.
  *
  * Return codes
  * 	0 - successful
@@ -11133,20 +11133,21 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 {
 	int rc, index;
 
-	rc = pci_enable_msi(phba->pcidev);
-	if (!rc)
+	rc = pci_alloc_irq_vectors(phba->pcidev, 1, 1,
+				   PCI_IRQ_MSI | PCI_IRQ_AFFINITY);
+	if (rc > 0)
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0487 PCI enable MSI mode success.\n");
 	else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0488 PCI enable MSI mode failed (%d)\n", rc);
-		return rc;
+		return rc ? rc : -1;
 	}
 
 	rc = request_irq(phba->pcidev->irq, lpfc_sli4_intr_handler,
 			 0, LPFC_DRIVER_NAME, phba);
 	if (rc) {
-		pci_disable_msi(phba->pcidev);
+		pci_free_irq_vectors(phba->pcidev);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0490 MSI request_irq failed (%d)\n", rc);
 		return rc;
