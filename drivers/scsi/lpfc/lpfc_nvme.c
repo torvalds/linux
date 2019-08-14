@@ -2317,9 +2317,13 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	spin_lock_irq(&vport->phba->hbalock);
 	oldrport = lpfc_ndlp_get_nrport(ndlp);
-	spin_unlock_irq(&vport->phba->hbalock);
-	if (!oldrport)
+	if (oldrport) {
+		prev_ndlp = oldrport->ndlp;
+		spin_unlock_irq(&vport->phba->hbalock);
+	} else {
+		spin_unlock_irq(&vport->phba->hbalock);
 		lpfc_nlp_get(ndlp);
+	}
 
 	ret = nvme_fc_register_remoteport(localport, &rpinfo, &remote_port);
 	if (!ret) {
@@ -2338,7 +2342,6 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			/* New remoteport record does not guarantee valid
 			 * host private memory area.
 			 */
-			prev_ndlp = oldrport->ndlp;
 			if (oldrport == remote_port->private) {
 				/* Same remoteport - ndlp should match.
 				 * Just reuse.
@@ -2352,7 +2355,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 						 remote_port->port_name,
 						 remote_port->port_id,
 						 remote_port->port_role,
-						 prev_ndlp,
+						 oldrport->ndlp,
 						 ndlp,
 						 ndlp->nlp_type,
 						 ndlp->nlp_DID);
