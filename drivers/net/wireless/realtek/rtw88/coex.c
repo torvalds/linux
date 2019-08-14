@@ -1059,7 +1059,7 @@ static void rtw_coex_set_ant_path(struct rtw_dev *rtwdev, bool force, u8 phase)
 		pos_type = COEX_SWITCH_TO_WLG_BT;
 		break;
 	default:
-		WARN_ON("unknown phase when setting antenna path\n");
+		WARN(1, "unknown phase when setting antenna path\n");
 		return;
 	}
 
