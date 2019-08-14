@@ -8,7 +8,7 @@
 
 /* TX data path */
 
-int mlx5e_xsk_async_xmit(struct net_device *dev, u32 qid);
+int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags);
 
 bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget);
 
