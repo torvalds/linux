@@ -10808,9 +10808,9 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 			pring = qp->pring;
 			if (!pring)
 				continue;
-			spin_lock_irq(&pring->ring_lock);
+			spin_lock(&pring->ring_lock);
 			list_splice_init(&pring->txq, &completions);
-			spin_unlock_irq(&pring->ring_lock);
+			spin_unlock(&pring->ring_lock);
 			if (pring == phba->sli4_hba.els_wq->pring) {
 				pring->flag |= LPFC_DEFERRED_RING_EVENT;
 				/* Set the lpfc data pending flag */
