@@ -68,7 +68,7 @@ static int fill_inode_lazy(struct inode *inode)
 	if (vi->z_algorithmtype[0] >= Z_EROFS_COMPRESSION_MAX) {
 		errln("unknown compression format %u for nid %llu, please upgrade kernel",
 		      vi->z_algorithmtype[0], vi->nid);
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto unmap_done;
 	}
 
@@ -79,7 +79,7 @@ static int fill_inode_lazy(struct inode *inode)
 	if (vi->z_physical_clusterbits[0] != LOG_BLOCK_SIZE) {
 		errln("unsupported physical clusterbits %u for nid %llu, please upgrade kernel",
 		      vi->z_physical_clusterbits[0], vi->nid);
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto unmap_done;
 	}
 
@@ -211,7 +211,7 @@ static int unpack_compacted_index(struct z_erofs_maprecorder *m,
 	else if (1 << amortizedshift == 2 && lclusterbits == 12)
 		vcnt = 16;
 	else
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	encodebits = ((vcnt << amortizedshift) - sizeof(__le32)) * 8 / vcnt;
 	base = round_down(eofs, vcnt << amortizedshift);
@@ -275,7 +275,7 @@ static int compacted_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 	int err;
 
 	if (lclusterbits != 12)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (lcn >= totalidx)
 		return -EINVAL;

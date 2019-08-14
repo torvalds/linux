@@ -74,13 +74,13 @@ static inline int erofs_getxattr(struct inode *inode, int index,
 				 const char *name, void *buffer,
 				 size_t buffer_size)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static inline ssize_t erofs_listxattr(struct dentry *dentry,
 				      char *buffer, size_t buffer_size)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 #endif	/* !CONFIG_EROFS_FS_XATTR */
 

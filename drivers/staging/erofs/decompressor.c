@@ -124,7 +124,7 @@ static int lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
 	int ret;
 
 	if (rq->inputsize > PAGE_SIZE)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	src = kmap_atomic(*rq->in);
 	inputmargin = 0;
