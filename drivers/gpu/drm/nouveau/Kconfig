@@ -89,7 +89,6 @@ config DRM_NOUVEAU_SVM
 	depends on MMU
 	depends on STAGING
 	select HMM_MIRROR
-	select MIGRATE_VMA_HELPER
 	select MMU_NOTIFIER
 	default n
 	help
