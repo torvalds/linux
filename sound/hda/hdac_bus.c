@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <sound/hdaudio.h>
+#include "local.h"
 #include "trace.h"
 
 static const struct hdac_bus_ops default_ops = {
@@ -196,7 +197,6 @@ int snd_hdac_bus_add_device(struct hdac_bus *bus, struct hdac_device *codec)
 	bus->num_codecs++;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_add_device);
 
 /**
  * snd_hdac_bus_remove_device - Remove a codec from bus
@@ -215,7 +215,6 @@ void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 	bus->num_codecs--;
 	flush_work(&bus->unsol_work);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_remove_device);
 
 #ifdef CONFIG_SND_HDA_ALIGNED_MMIO
 /* Helpers for aligned read/write of mmio space, for Tegra */
