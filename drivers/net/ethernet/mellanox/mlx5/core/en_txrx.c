@@ -81,6 +81,16 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
 }
 
+static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
+{
+	bool busy_xsk = false;
+
+	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
+	busy_xsk |= xskrq->post_wqes(xskrq);
+
+	return busy_xsk;
+}
+
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
@@ -122,8 +132,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (xsk_open) {
 		mlx5e_poll_ico_cq(&c->xskicosq.cq);
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
-		busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
-		busy_xsk |= xskrq->post_wqes(xskrq);
+		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
 	}
 
 	busy |= busy_xsk;
