@@ -1952,12 +1952,16 @@ static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (fill_nldev_handle(msg, device) ||
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port) ||
-	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_MODE, mode))
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_MODE, mode)) {
+		ret = -EMSGSIZE;
 		goto err_msg;
+	}
 
 	if ((mode == RDMA_COUNTER_MODE_AUTO) &&
-	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK, mask))
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK, mask)) {
+		ret = -EMSGSIZE;
 		goto err_msg;
+	}
 
 	nlmsg_end(msg, nlh);
 	ib_device_put(device);
