@@ -4805,6 +4805,10 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 		lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 	} else {
+		if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
+			lpfc_sli4_free_rpi(vport->phba, ndlp->nlp_rpi);
+			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+		}
 		ndlp->nlp_flag &= ~NLP_UNREG_INP;
 	}
 }
@@ -5104,6 +5108,8 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_del_init(&ndlp->els_retry_evt.evt_listp);
 	list_del_init(&ndlp->dev_loss_evt.evt_listp);
 	lpfc_cleanup_vports_rrqs(vport, ndlp);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->nlp_flag |= NLP_RELEASE_RPI;
 	lpfc_unreg_rpi(vport, ndlp);
 
 	return 0;
@@ -6201,8 +6207,6 @@ lpfc_nlp_release(struct kref *kref)
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	NLP_CLR_NODE_ACT(ndlp);
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 
 	/* free ndlp memory for final ndlp release */
 	if (NLP_CHK_FREE_REQ(ndlp)) {

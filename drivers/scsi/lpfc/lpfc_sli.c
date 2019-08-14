@@ -2507,6 +2507,11 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 				lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 			} else {
+				if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
+					lpfc_sli4_free_rpi(vport->phba,
+							   ndlp->nlp_rpi);
+					ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
+				}
 				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 			}
 			pmb->ctx_ndlp = NULL;
@@ -2582,6 +2587,13 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					lpfc_issue_els_plogi(
 						vport, ndlp->nlp_DID, 0);
 				} else {
+					if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
+						lpfc_sli4_free_rpi(
+							vport->phba,
+							ndlp->nlp_rpi);
+						ndlp->nlp_flag &=
+							~NLP_RELEASE_RPI;
+					}
 					ndlp->nlp_flag &= ~NLP_UNREG_INP;
 				}
 			}
