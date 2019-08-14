@@ -266,7 +266,7 @@ static int get_ifidx(const char *ifname)
 	int sd, rc;
 
 	if (!ifname || *ifname == '\0')
-		return 0;
+		return -1;
 
 	memset(&ifdata, 0, sizeof(ifdata));
 
@@ -275,14 +275,14 @@ static int get_ifidx(const char *ifname)
 	sd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (sd < 0) {
 		log_err_errno("socket failed");
-		return 0;
+		return -1;
 	}
 
 	rc = ioctl(sd, SIOCGIFINDEX, (char *)&ifdata);
 	close(sd);
 	if (rc != 0) {
 		log_err_errno("ioctl(SIOCGIFINDEX) failed");
-		return 0;
+		return -1;
 	}
 
 	return ifdata.ifr_ifindex;
@@ -419,20 +419,20 @@ static int set_multicast_if(int sd, int ifindex)
 	return rc;
 }
 
-static int set_membership(int sd, uint32_t grp, uint32_t addr, const char *dev)
+static int set_membership(int sd, uint32_t grp, uint32_t addr, int ifindex)
 {
 	uint32_t if_addr = addr;
 	struct ip_mreqn mreq;
 	int rc;
 
-	if (addr == htonl(INADDR_ANY) && !dev) {
+	if (addr == htonl(INADDR_ANY) && !ifindex) {
 		log_error("Either local address or device needs to be given for multicast membership\n");
 		return -1;
 	}
 
 	mreq.imr_multiaddr.s_addr = grp;
 	mreq.imr_address.s_addr = if_addr;
-	mreq.imr_ifindex = dev ? get_ifidx(dev) : 0;
+	mreq.imr_ifindex = ifindex;
 
 	rc = setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 	if (rc < 0) {
@@ -1048,7 +1048,7 @@ static int msock_init(struct sock_args *args, int server)
 
 	if (server &&
 	    set_membership(sd, args->grp.s_addr,
-			   args->local_addr.in.s_addr, args->dev))
+			   args->local_addr.in.s_addr, args->ifindex))
 		goto out_err;
 
 	return sd;
@@ -1685,15 +1685,16 @@ int main(int argc, char *argv[])
 
 			break;
 		case '2':
-			if (str_to_uint(optarg, 0, 0x7ffffff, &tmp) != 0) {
-				tmp = get_ifidx(optarg);
-				if (tmp < 0) {
+			if (str_to_uint(optarg, 0, INT_MAX, &tmp) == 0) {
+				args.expected_ifindex = (int)tmp;
+			} else {
+				args.expected_ifindex = get_ifidx(optarg);
+				if (args.expected_ifindex < 0) {
 					fprintf(stderr,
-						"Invalid device index\n");
+						"Invalid expected device\n");
 					return 1;
 				}
 			}
-			args.expected_ifindex = (int)tmp;
 			break;
 		case 'q':
 			quiet = 1;
