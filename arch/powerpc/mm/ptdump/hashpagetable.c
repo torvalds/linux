@@ -237,7 +237,6 @@ static int native_find(unsigned long ea, int psize, bool primary, u64 *v, u64
 	return -1;
 }
 
-#ifdef CONFIG_PPC_PSERIES
 static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *r)
 {
 	struct hash_pte ptes[4];
@@ -274,7 +273,6 @@ static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *
 	}
 	return -1;
 }
-#endif
 
 static void decode_r(int bps, unsigned long r, unsigned long *rpn, int *aps,
 		unsigned long *lp_bits)
@@ -316,10 +314,9 @@ static void decode_r(int bps, unsigned long r, unsigned long *rpn, int *aps,
 static int base_hpte_find(unsigned long ea, int psize, bool primary, u64 *v,
 			  u64 *r)
 {
-#ifdef CONFIG_PPC_PSERIES
-	if (firmware_has_feature(FW_FEATURE_LPAR))
+	if (IS_ENABLED(CONFIG_PPC_PSERIES) && firmware_has_feature(FW_FEATURE_LPAR))
 		return pseries_find(ea, psize, primary, v, r);
-#endif
+
 	return native_find(ea, psize, primary, v, r);
 }
 
@@ -386,12 +383,13 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 			psize = mmu_vmalloc_psize;
 		else
 			psize = mmu_io_psize;
-#ifdef CONFIG_PPC_64K_PAGES
+
 		/* check for secret 4K mappings */
-		if (((pteval & H_PAGE_COMBO) == H_PAGE_COMBO) ||
-			((pteval & H_PAGE_4K_PFN) == H_PAGE_4K_PFN))
+		if (IS_ENABLED(CONFIG_PPC_64K_PAGES) &&
+		    ((pteval & H_PAGE_COMBO) == H_PAGE_COMBO ||
+		     (pteval & H_PAGE_4K_PFN) == H_PAGE_4K_PFN))
 			psize = mmu_io_psize;
-#endif
+
 		/* check for hashpte */
 		status = hpte_find(st, addr, psize);
 
@@ -469,9 +467,10 @@ static void walk_linearmapping(struct pg_state *st)
 
 static void walk_vmemmap(struct pg_state *st)
 {
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
 	struct vmemmap_backing *ptr = vmemmap_list;
 
+	if (!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP))
+		return;
 	/*
 	 * Traverse the vmemmaped memory and dump pages that are in the hash
 	 * pagetable.
@@ -481,7 +480,6 @@ static void walk_vmemmap(struct pg_state *st)
 		ptr = ptr->list;
 	}
 	seq_puts(st->seq, "---[ vmemmap end ]---\n");
-#endif
 }
 
 static void populate_markers(void)
@@ -495,11 +493,7 @@ static void populate_markers(void)
 	address_markers[6].start_address = PHB_IO_END;
 	address_markers[7].start_address = IOREMAP_BASE;
 	address_markers[8].start_address = IOREMAP_END;
-#ifdef CONFIG_PPC_BOOK3S_64
 	address_markers[9].start_address =  H_VMEMMAP_START;
-#else
-	address_markers[9].start_address =  VMEMMAP_BASE;
-#endif
 }
 
 static int ptdump_show(struct seq_file *m, void *v)
