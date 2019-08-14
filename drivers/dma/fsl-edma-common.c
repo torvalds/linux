@@ -91,7 +91,7 @@ static void mux_configure8(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
 }
 
 static void mux_configure32(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
-		     u32 off, u32 slot, bool enable)
+			    u32 off, u32 slot, bool enable)
 {
 	u32 val;
 
@@ -104,7 +104,7 @@ static void mux_configure32(struct fsl_edma_chan *fsl_chan, void __iomem *addr,
 }
 
 void fsl_edma_chan_mux(struct fsl_edma_chan *fsl_chan,
-			unsigned int slot, bool enable)
+		       unsigned int slot, bool enable)
 {
 	u32 ch = fsl_chan->vchan.chan.chan_id;
 	void __iomem *muxaddr;
