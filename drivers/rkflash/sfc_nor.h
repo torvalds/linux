@@ -34,6 +34,9 @@
 #define MID_SPANSION            0x01
 #define MID_EON                 0x1C
 #define MID_ST                  0x20
+#define MID_XTX                 0x0B
+#define MID_PUYA                0x85
+#define MID_XMC                 0x20
 
 /*Command Set*/
 #define CMD_READ_JEDECID        (0x9F)
