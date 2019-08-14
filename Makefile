@@ -230,6 +230,8 @@ endif
 
 export KBUILD_CHECKSRC KBUILD_EXTMOD
 
+extmod-prefix = $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/)
+
 ifeq ($(abs_srctree),$(abs_objtree))
         # building in the source tree
         srctree := .
@@ -271,11 +273,13 @@ no-dot-config-targets := $(clean-targets) \
 			 %asm-generic kernelversion %src-pkg
 no-sync-config-targets := $(no-dot-config-targets) install %install \
 			   kernelrelease
+single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.s %.symtypes %/
 
 config-build	:=
 mixed-build	:=
 need-config	:= 1
 may-sync-config	:= 1
+single-build	:=
 
 ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
 	ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
@@ -300,6 +304,14 @@ ifeq ($(KBUILD_EXTMOD),)
 			mixed-build := 1
                 endif
         endif
+endif
+
+# We cannot build single targets and the others at the same time
+ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
+	single-build := 1
+	ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
+		mixed-build := 1
+	endif
 endif
 
 # For "make -j clean all", "make -j mrproper defconfig all", etc.
@@ -1003,7 +1015,7 @@ endif
 
 PHONY += prepare0
 
-export MODORDER := $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/)modules.order
+export MODORDER := $(extmod-prefix)modules.order
 
 ifeq ($(KBUILD_EXTMOD),)
 core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
@@ -1655,7 +1667,7 @@ endif # KBUILD_EXTMOD
 PHONY += descend $(build-dirs)
 descend: $(build-dirs)
 $(build-dirs): prepare
-	$(Q)$(MAKE) $(build)=$@ need-builtin=1 need-modorder=1
+	$(Q)$(MAKE) $(build)=$@ single-build=$(single-build) need-builtin=1 need-modorder=1
 
 clean-dirs := $(addprefix _clean_, $(clean-dirs))
 PHONY += $(clean-dirs) clean
@@ -1752,40 +1764,47 @@ tools/%: FORCE
 
 # Single targets
 # ---------------------------------------------------------------------------
-# Single targets are compatible with:
-# - build with mixed source and output
-# - build with separate output dir 'make O=...'
-# - external modules
+# To build individual files in subdirectories, you can do like this:
 #
-#  target-dir => where to store outputfile
-#  build-dir  => directory in kernel source tree to use
+#   make foo/bar/baz.s
+#
+# The supported suffixes for single-target are listed in 'single-targets'
+#
+# To build only under specific subdirectories, you can do like this:
+#
+#   make foo/bar/baz/
 
-build-target = $(if $(KBUILD_EXTMOD), $(KBUILD_EXTMOD)/)$@
-build-dir = $(patsubst %/,%,$(dir $(build-target)))
+ifdef single-build
 
-%.i: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target)
-%.ll: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target)
-%.lst: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target)
-%.o: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target)
-%.s: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target)
-%.symtypes: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target)
+single-all := $(filter $(single-targets), $(MAKECMDGOALS))
+
+# .ko is special because modpost is needed
+single-ko := $(sort $(filter %.ko, $(single-all)))
+single-no-ko := $(sort $(patsubst %.ko,%.mod, $(single-all)))
+
+$(single-ko): single_modpost
+	@:
+$(single-no-ko): descend
+	@:
+
 ifeq ($(KBUILD_EXTMOD),)
-# For the single build of an in-tree module, use a temporary file to avoid
+# For the single build of in-tree modules, use a temporary file to avoid
 # the situation of modules_install installing an invalid modules.order.
-%.ko: MODORDER := .modules.tmp
+MODORDER := .modules.tmp
 endif
-%.ko: prepare FORCE
-	$(Q)$(MAKE) $(build)=$(build-dir) $(build-target:.ko=.mod)
-	$(Q)echo $(build-target) > $(MODORDER)
+
+PHONY += single_modpost
+single_modpost: $(single-no-ko)
+	$(Q){ $(foreach m, $(single-ko), echo $(extmod-prefix)$m;) } > $(MODORDER)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
-%/: prepare FORCE
-	$(Q)$(MAKE) KBUILD_MODULES=1 $(build)=$(build-dir) need-modorder=1
+
+KBUILD_MODULES := 1
+
+export KBUILD_SINGLE_TARGETS := $(addprefix $(extmod-prefix), $(single-no-ko))
+
+single-build = $(if $(filter-out $@/, $(single-no-ko)),1)
+
+endif
 
 # FIXME Should go into a make.lib or something
 # ===========================================================================

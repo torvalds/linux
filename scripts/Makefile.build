@@ -52,7 +52,7 @@ ifndef obj
 $(warning kbuild: Makefile.build is included improperly)
 endif
 
-ifeq ($(MAKECMDGOALS)$(need-modorder),)
+ifeq ($(need-modorder),)
 ifneq ($(obj-m),)
 $(warning $(patsubst %.o,'%.ko',$(obj-m)) will not be built even though obj-m is specified.)
 $(warning You cannot use subdir-y/m to visit a module Makefile. Use obj-y/m instead.)
@@ -75,11 +75,6 @@ modorder-target := $(obj)/modules.order
 endif
 
 mod-targets := $(patsubst %.o, %.mod, $(obj-m))
-
-__build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
-	 $(if $(KBUILD_MODULES),$(obj-m) $(mod-targets) $(modorder-target)) \
-	 $(subdir-ym) $(always)
-	@:
 
 # Linus' kernel sanity checking tool
 ifeq ($(KBUILD_CHECKSRC),1)
@@ -487,12 +482,50 @@ targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
 	   $(call intermediate_targets, .lex.o, .lex.c) \
 	   $(call intermediate_targets, .tab.o, .tab.c .tab.h)
 
+# Build
+# ---------------------------------------------------------------------------
+
+ifdef single-build
+
+curdir-single := $(sort $(foreach x, $(KBUILD_SINGLE_TARGETS), \
+			$(if $(filter $(x) $(basename $(x)).o, $(targets)), $(x))))
+
+# Handle single targets without any rule: show "Nothing to be done for ..." or
+# "No rule to make target ..." depending on whether the target exists.
+unknown-single := $(filter-out $(addsuffix /%, $(subdir-ym)), \
+			$(filter $(obj)/%, \
+				$(filter-out $(curdir-single), \
+					$(KBUILD_SINGLE_TARGETS))))
+
+__build: $(curdir-single) $(subdir-ym)
+ifneq ($(unknown-single),)
+	$(Q)$(MAKE) -f /dev/null $(unknown-single)
+endif
+	@:
+
+ifeq ($(curdir-single),)
+# Nothing to do in this directory. Do not include any .*.cmd file for speed-up
+targets :=
+else
+targets += $(curdir-single)
+endif
+
+else
+
+__build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
+	 $(if $(KBUILD_MODULES),$(obj-m) $(mod-targets) $(modorder-target)) \
+	 $(subdir-ym) $(always)
+	@:
+
+endif
+
 # Descending
 # ---------------------------------------------------------------------------
 
 PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(build)=$@ \
+	$(if $(filter $@/, $(KBUILD_SINGLE_TARGETS)),single-build=) \
 	need-builtin=$(if $(filter $@/built-in.a, $(subdir-obj-y)),1) \
 	need-modorder=$(if $(need-modorder),$(if $(filter $@/modules.order, $(modorder)),1))
 
