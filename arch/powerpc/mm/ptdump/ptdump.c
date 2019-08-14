@@ -26,10 +26,6 @@
 
 #include "ptdump.h"
 
-#ifdef CONFIG_PPC32
-#define KERN_VIRT_START	0
-#endif
-
 /*
  * To visualise what is happening,
  *
@@ -362,12 +358,13 @@ static int ptdump_show(struct seq_file *m, void *v)
 	struct pg_state st = {
 		.seq = m,
 		.marker = address_markers,
+		.start_address = PAGE_OFFSET,
 	};
 
-	if (radix_enabled())
-		st.start_address = PAGE_OFFSET;
-	else
+#ifdef CONFIG_PPC64
+	if (!radix_enabled())
 		st.start_address = KERN_VIRT_START;
+#endif
 
 	/* Traverse kernel page tables */
 	walk_pagetables(&st);
@@ -405,12 +402,13 @@ void ptdump_check_wx(void)
 		.seq = NULL,
 		.marker = address_markers,
 		.check_wx = true,
+		.start_address = PAGE_OFFSET,
 	};
 
-	if (radix_enabled())
-		st.start_address = PAGE_OFFSET;
-	else
+#ifdef CONFIG_PPC64
+	if (!radix_enabled())
 		st.start_address = KERN_VIRT_START;
+#endif
 
 	walk_pagetables(&st);
 
