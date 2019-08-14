@@ -1619,6 +1619,7 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 struct evswitch {
 	struct evsel *on;
 	bool	     discarding;
+	bool	     show_on_off_events;
 };
 
 struct perf_script {
@@ -1816,6 +1817,9 @@ static void process_event(struct perf_script *script,
 			return;
 
 		script->evswitch.discarding = false;
+
+		if (!script->evswitch.show_on_off_events)
+			return;
 	}
 
 	++es->samples;
@@ -3554,6 +3558,8 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/modules"),
 	OPT_STRING(0, "switch-on", &event_switch_on,
 		   "event", "Consider events from the first ocurrence of this event"),
+	OPT_BOOLEAN(0, "show-on-off-events", &script.evswitch.show_on_off_events,
+		    "Show the on/off switch events, used with --switch-on"),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
