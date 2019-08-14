@@ -1207,6 +1207,39 @@ out:
 }
 
 /**
+ * lpfc_cmpl_els_link_down - Completion callback function for ELS command
+ *                           aborted during a link down
+ * @phba: pointer to lpfc hba data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @rspiocb: pointer to lpfc response iocb data structure.
+ *
+ */
+static void
+lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
+{
+	IOCB_t *irsp;
+	uint32_t *pcmd;
+	uint32_t cmd;
+
+	pcmd = (uint32_t *)(((struct lpfc_dmabuf *)cmdiocb->context2)->virt);
+	cmd = *pcmd;
+	irsp = &rspiocb->iocb;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"6445 ELS completes after LINK_DOWN: "
+			" Status %x/%x cmd x%x flg x%x\n",
+			irsp->ulpStatus, irsp->un.ulpWord[4], cmd,
+			cmdiocb->iocb_flag);
+
+	if (cmdiocb->iocb_flag & LPFC_IO_FABRIC) {
+		cmdiocb->iocb_flag &= ~LPFC_IO_FABRIC;
+		atomic_dec(&phba->fabric_iocb_count);
+	}
+	lpfc_els_free_iocb(phba, cmdiocb);
+}
+
+/**
  * lpfc_issue_els_flogi - Issue an flogi iocb command for a vport
  * @vport: pointer to a host virtual N_Port data structure.
  * @ndlp: pointer to a node-list data structure.
@@ -7960,18 +7993,40 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
+	/* First we need to issue aborts to outstanding cmds on txcmpl */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
 			continue;
 
 		if (piocb->vport != vport)
 			continue;
-		list_add_tail(&piocb->dlist, &abort_list);
+
+		/* On the ELS ring we can have ELS_REQUESTs or
+		 * GEN_REQUESTs waiting for a response.
+		 */
+		cmd = &piocb->iocb;
+		if (cmd->ulpCommand == CMD_ELS_REQUEST64_CR) {
+			list_add_tail(&piocb->dlist, &abort_list);
+
+			/* If the link is down when flushing ELS commands
+			 * the firmware will not complete them till after
+			 * the link comes back up. This may confuse
+			 * discovery for the new link up, so we need to
+			 * change the compl routine to just clean up the iocb
+			 * and avoid any retry logic.
+			 */
+			if (phba->link_state == LPFC_LINK_DOWN)
+				piocb->iocb_cmpl = lpfc_cmpl_els_link_down;
+		}
+		if (cmd->ulpCommand == CMD_GEN_REQUEST64_CR)
+			list_add_tail(&piocb->dlist, &abort_list);
 	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
-	/* Abort each iocb on the aborted list and remove the dlist links. */
+
+	/* Abort each txcmpl iocb on aborted list and remove the dlist links. */
 	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
 		spin_lock_irq(&phba->hbalock);
 		list_del_init(&piocb->dlist);
@@ -7987,6 +8042,9 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
+	/* No need to abort the txq list,
+	 * just queue them up for lpfc_sli_cancel_iocbs
+	 */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
 		cmd = &piocb->iocb;
 
@@ -8007,11 +8065,22 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 		list_del_init(&piocb->list);
 		list_add_tail(&piocb->list, &abort_list);
 	}
+
+	/* The same holds true for any FLOGI/FDISC on the fabric_iocb_list */
+	if (vport == phba->pport) {
+		list_for_each_entry_safe(piocb, tmp_iocb,
+					 &phba->fabric_iocb_list, list) {
+			cmd = &piocb->iocb;
+			list_del_init(&piocb->list);
+			list_add_tail(&piocb->list, &abort_list);
+		}
+	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Cancell all the IOCBs from the completions list */
+	/* Cancel all the IOCBs from the completions list */
 	lpfc_sli_cancel_iocbs(phba, &abort_list,
 			      IOSTAT_LOCAL_REJECT, IOERR_SLI_ABORTED);
 
