@@ -590,6 +590,7 @@ int mv88e6250_port_link_state(struct mv88e6xxx_chip *chip, int port,
 	state->link = !!(reg & MV88E6250_PORT_STS_LINK);
 	state->an_enabled = 1;
 	state->an_complete = state->link;
+	state->interface = PHY_INTERFACE_MODE_NA;
 
 	return 0;
 }
@@ -599,6 +600,43 @@ int mv88e6352_port_link_state(struct mv88e6xxx_chip *chip, int port,
 {
 	int err;
 	u16 reg;
+
+	switch (chip->ports[port].cmode) {
+	case MV88E6XXX_PORT_STS_CMODE_RGMII:
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL,
+					  &reg);
+		if (err)
+			return err;
+
+		if ((reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK) &&
+		    (reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK))
+			state->interface = PHY_INTERFACE_MODE_RGMII_ID;
+		else if (reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK)
+			state->interface = PHY_INTERFACE_MODE_RGMII_RXID;
+		else if (reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK)
+			state->interface = PHY_INTERFACE_MODE_RGMII_TXID;
+		else
+			state->interface = PHY_INTERFACE_MODE_RGMII;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+		state->interface = PHY_INTERFACE_MODE_1000BASEX;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_SGMII:
+		state->interface = PHY_INTERFACE_MODE_SGMII;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
+		state->interface = PHY_INTERFACE_MODE_2500BASEX;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_XAUI:
+		state->interface = PHY_INTERFACE_MODE_XAUI;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_RXAUI:
+		state->interface = PHY_INTERFACE_MODE_RXAUI;
+		break;
+	default:
+		/* we do not support other cmode values here */
+		state->interface = PHY_INTERFACE_MODE_NA;
+	}
 
 	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)

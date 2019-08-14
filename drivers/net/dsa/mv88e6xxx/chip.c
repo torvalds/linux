@@ -417,7 +417,9 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 	 */
 	if (state.link == link &&
 	    state.speed == speed &&
-	    state.duplex == duplex)
+	    state.duplex == duplex &&
+	    (state.interface == mode ||
+	     state.interface == PHY_INTERFACE_MODE_NA))
 		return 0;
 
 	/* Port's MAC control must not be changed unless the link is down */
