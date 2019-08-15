@@ -220,7 +220,6 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct crypto_authenc_keys keys;
 	struct crypto_aes_ctx aes;
-	u32 flags;
 	int err = -EINVAL;
 
 	if (crypto_authenc_extractkeys(&keys, key, len) != 0)
@@ -241,12 +240,7 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	/* Encryption key */
 	switch (ctx->alg) {
 	case SAFEXCEL_3DES:
-		if (keys.enckeylen != DES3_EDE_KEY_SIZE)
-			goto badkey;
-		flags = crypto_aead_get_flags(ctfm);
-		err = __des3_verify_key(&flags, keys.enckey);
-		crypto_aead_set_flags(ctfm, flags);
-
+		err = verify_aead_des3_key(ctfm, keys.enckey, keys.enckeylen);
 		if (unlikely(err))
 			goto badkey_expflags;
 		break;
@@ -1192,16 +1186,12 @@ static int safexcel_cbc_des_decrypt(struct skcipher_request *req)
 static int safexcel_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 			       unsigned int len)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
-	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 tmp[DES_EXPKEY_WORDS];
+	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
 	int ret;
 
-	ret = des_ekey(tmp, key);
-	if (!ret && (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
+	ret = verify_skcipher_des_key(ctfm, key);
+	if (ret)
+		return ret;
 
 	/* if context exits and key changed, need to invalidate it */
 	if (ctx->base.ctxr_dma)
@@ -1299,8 +1289,8 @@ static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
 	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
 	int err;
 
-	err = des3_verify_key(ctfm, key);
-	if (unlikely(err))
+	err = verify_skcipher_des3_key(ctfm, key);
+	if (err)
 		return err;
 
 	/* if context exits and key changed, need to invalidate it */
