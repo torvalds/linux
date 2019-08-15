@@ -266,7 +266,7 @@ static void timelines_init(struct intel_gt *gt)
 {
 	struct intel_gt_timelines *timelines = &gt->timelines;
 
-	mutex_init(&timelines->mutex);
+	spin_lock_init(&timelines->lock);
 	INIT_LIST_HEAD(&timelines->active_list);
 
 	spin_lock_init(&timelines->hwsp_lock);
@@ -345,9 +345,9 @@ void intel_timeline_enter(struct intel_timeline *tl)
 		return;
 	GEM_BUG_ON(!tl->active_count); /* overflow? */
 
-	mutex_lock(&timelines->mutex);
+	spin_lock(&timelines->lock);
 	list_add(&tl->link, &timelines->active_list);
-	mutex_unlock(&timelines->mutex);
+	spin_unlock(&timelines->lock);
 }
 
 void intel_timeline_exit(struct intel_timeline *tl)
@@ -358,9 +358,9 @@ void intel_timeline_exit(struct intel_timeline *tl)
 	if (--tl->active_count)
 		return;
 
-	mutex_lock(&timelines->mutex);
+	spin_lock(&timelines->lock);
 	list_del(&tl->link);
-	mutex_unlock(&timelines->mutex);
+	spin_unlock(&timelines->lock);
 
 	/*
 	 * Since this timeline is idle, all bariers upon which we were waiting
@@ -548,8 +548,6 @@ static void timelines_fini(struct intel_gt *gt)
 
 	GEM_BUG_ON(!list_empty(&timelines->active_list));
 	GEM_BUG_ON(!list_empty(&timelines->hwsp_free_list));
-
-	mutex_destroy(&timelines->mutex);
 }
 
 void intel_timelines_fini(struct drm_i915_private *i915)

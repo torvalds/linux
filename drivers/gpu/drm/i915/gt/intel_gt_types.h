@@ -40,7 +40,7 @@ struct intel_gt {
 	struct intel_uc uc;
 
 	struct intel_gt_timelines {
-		struct mutex mutex; /* protects list */
+		spinlock_t lock; /* protects active_list */
 		struct list_head active_list;
 
 		/* Pack multiple timelines' seqnos into the same page */

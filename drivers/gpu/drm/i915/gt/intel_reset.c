@@ -811,13 +811,15 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 *
 	 * No more can be submitted until we reset the wedged bit.
 	 */
-	mutex_lock(&timelines->mutex);
+	spin_lock(&timelines->lock);
 	list_for_each_entry(tl, &timelines->active_list, link) {
 		struct i915_request *rq;
 
 		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
+
+		spin_unlock(&timelines->lock);
 
 		/*
 		 * All internal dependencies (i915_requests) will have
@@ -828,8 +830,12 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		 */
 		dma_fence_default_wait(&rq->fence, false, MAX_SCHEDULE_TIMEOUT);
 		i915_request_put(rq);
+
+		/* Restart iteration after droping lock */
+		spin_lock(&timelines->lock);
+		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}
-	mutex_unlock(&timelines->mutex);
+	spin_unlock(&timelines->lock);
 
 	intel_gt_sanitize(gt, false);
 

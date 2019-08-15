@@ -897,18 +897,18 @@ static long
 wait_for_timelines(struct drm_i915_private *i915,
 		   unsigned int flags, long timeout)
 {
-	struct intel_gt_timelines *gt = &i915->gt.timelines;
+	struct intel_gt_timelines *timelines = &i915->gt.timelines;
 	struct intel_timeline *tl;
 
-	mutex_lock(&gt->mutex);
-	list_for_each_entry(tl, &gt->active_list, link) {
+	spin_lock(&timelines->lock);
+	list_for_each_entry(tl, &timelines->active_list, link) {
 		struct i915_request *rq;
 
 		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
 
-		mutex_unlock(&gt->mutex);
+		spin_unlock(&timelines->lock);
 
 		/*
 		 * "Race-to-idle".
@@ -928,10 +928,10 @@ wait_for_timelines(struct drm_i915_private *i915,
 			return timeout;
 
 		/* restart after reacquiring the lock */
-		mutex_lock(&gt->mutex);
-		tl = list_entry(&gt->active_list, typeof(*tl), link);
+		spin_lock(&timelines->lock);
+		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}
-	mutex_unlock(&gt->mutex);
+	spin_unlock(&timelines->lock);
 
 	return timeout;
 }
