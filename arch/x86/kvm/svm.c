@@ -2133,6 +2133,9 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	struct page *nested_msrpm_pages;
 	int err;
 
+	BUILD_BUG_ON_MSG(offsetof(struct vcpu_svm, vcpu) != 0,
+		"struct kvm_vcpu must be at offset 0 for arch usercopy region");
+
 	svm = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
 	if (!svm) {
 		err = -ENOMEM;

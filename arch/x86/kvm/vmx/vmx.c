@@ -6625,6 +6625,9 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	unsigned long *msr_bitmap;
 	int cpu;
 
+	BUILD_BUG_ON_MSG(offsetof(struct vcpu_vmx, vcpu) != 0,
+		"struct kvm_vcpu must be at offset 0 for arch usercopy region");
+
 	vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
