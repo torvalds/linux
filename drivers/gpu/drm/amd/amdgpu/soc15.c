@@ -1134,11 +1134,6 @@ static int soc15_common_early_init(void *handle)
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
 		}
-
-		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
-			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
-				AMD_PG_SUPPORT_CP |
-				AMD_PG_SUPPORT_RLC_SMU_HS;
 		break;
 	case CHIP_ARCTURUS:
 		adev->asic_funcs = &vega20_asic_funcs;
