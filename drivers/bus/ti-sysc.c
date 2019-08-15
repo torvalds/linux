@@ -613,8 +613,8 @@ static void sysc_check_quirk_stdout(struct sysc *ddata,
  * node but children have "ti,hwmods". These belong to the interconnect
  * target node and are managed by this driver.
  */
-static int sysc_check_one_child(struct sysc *ddata,
-				struct device_node *np)
+static void sysc_check_one_child(struct sysc *ddata,
+				 struct device_node *np)
 {
 	const char *name;
 
@@ -624,22 +624,14 @@ static int sysc_check_one_child(struct sysc *ddata,
 
 	sysc_check_quirk_stdout(ddata, np);
 	sysc_parse_dts_quirks(ddata, np, true);
-
-	return 0;
 }
 
-static int sysc_check_children(struct sysc *ddata)
+static void sysc_check_children(struct sysc *ddata)
 {
 	struct device_node *child;
-	int error;
 
-	for_each_child_of_node(ddata->dev->of_node, child) {
-		error = sysc_check_one_child(ddata, child);
-		if (error)
-			return error;
-	}
-
-	return 0;
+	for_each_child_of_node(ddata->dev->of_node, child)
+		sysc_check_one_child(ddata, child);
 }
 
 /*
@@ -792,9 +784,7 @@ static int sysc_map_and_check_registers(struct sysc *ddata)
 	if (error)
 		return error;
 
-	error = sysc_check_children(ddata);
-	if (error)
-		return error;
+	sysc_check_children(ddata);
 
 	error = sysc_parse_registers(ddata);
 	if (error)
