@@ -84,6 +84,7 @@ extern int noexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;
 extern unsigned long max_physmem_end;
+extern unsigned long __swsusp_reset_dma;
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)

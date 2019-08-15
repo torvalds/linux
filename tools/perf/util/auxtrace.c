@@ -539,9 +539,9 @@ int auxtrace_record__snapshot_start(struct auxtrace_record *itr)
 	return 0;
 }
 
-int auxtrace_record__snapshot_finish(struct auxtrace_record *itr)
+int auxtrace_record__snapshot_finish(struct auxtrace_record *itr, bool on_exit)
 {
-	if (itr && itr->snapshot_finish)
+	if (!on_exit && itr && itr->snapshot_finish)
 		return itr->snapshot_finish(itr);
 	return 0;
 }
@@ -576,6 +576,16 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 {
 	if (!str)
 		return 0;
+
+	/* PMU-agnostic options */
+	switch (*str) {
+	case 'e':
+		opts->auxtrace_snapshot_on_exit = true;
+		str++;
+		break;
+	default:
+		break;
+	}
 
 	if (itr)
 		return itr->parse_snapshot_options(itr, opts, str);
@@ -964,6 +974,7 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
 	synth_opts->transactions = true;
 	synth_opts->ptwrites = true;
 	synth_opts->pwr_events = true;
+	synth_opts->other_events = true;
 	synth_opts->errors = true;
 	if (no_sample) {
 		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
@@ -1060,6 +1071,9 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			break;
 		case 'p':
 			synth_opts->pwr_events = true;
+			break;
+		case 'o':
+			synth_opts->other_events = true;
 			break;
 		case 'e':
 			synth_opts->errors = true;
