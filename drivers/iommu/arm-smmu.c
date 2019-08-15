@@ -95,7 +95,7 @@
 #endif
 
 /* Translation context bank */
-#define ARM_SMMU_CB(smmu, n)	((smmu)->cb_base + ((n) << (smmu)->pgshift))
+#define ARM_SMMU_CB(smmu, n)	((smmu)->base + (((smmu)->numpage + (n)) << (smmu)->pgshift))
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
@@ -168,8 +168,8 @@ struct arm_smmu_device {
 	struct device			*dev;
 
 	void __iomem			*base;
-	void __iomem			*cb_base;
-	unsigned long			pgshift;
+	unsigned int			numpage;
+	unsigned int			pgshift;
 
 #define ARM_SMMU_FEAT_COHERENT_WALK	(1 << 0)
 #define ARM_SMMU_FEAT_STREAM_MATCH	(1 << 1)
@@ -1815,7 +1815,7 @@ static int arm_smmu_id_size_to_bits(int size)
 
 static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 {
-	unsigned long size;
+	unsigned int size;
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	u32 id;
 	bool cttw_reg, cttw_fw = smmu->features & ARM_SMMU_FEAT_COHERENT_WALK;
@@ -1899,7 +1899,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			return -ENOMEM;
 
 		dev_notice(smmu->dev,
-			   "\tstream matching with %lu register groups", size);
+			   "\tstream matching with %u register groups", size);
 	}
 	/* s2cr->type == 0 means translation, so initialise explicitly */
 	smmu->s2crs = devm_kmalloc_array(smmu->dev, size, sizeof(*smmu->s2crs),
@@ -1925,11 +1925,12 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 
 	/* Check for size mismatch of SMMU address space from mapped region */
 	size = 1 << (FIELD_GET(ID1_NUMPAGENDXB, id) + 1);
-	size <<= smmu->pgshift;
-	if (smmu->cb_base != gr0_base + size)
+	if (smmu->numpage != 2 * size << smmu->pgshift)
 		dev_warn(smmu->dev,
-			"SMMU address space size (0x%lx) differs from mapped region size (0x%tx)!\n",
-			size * 2, (smmu->cb_base - gr0_base) * 2);
+			"SMMU address space size (0x%x) differs from mapped region size (0x%x)!\n",
+			2 * size << smmu->pgshift, smmu->numpage);
+	/* Now properly encode NUMPAGE to subsequently derive SMMU_CB_BASE */
+	smmu->numpage = size;
 
 	smmu->num_s2_context_banks = FIELD_GET(ID1_NUMS2CB, id);
 	smmu->num_context_banks = FIELD_GET(ID1_NUMCB, id);
@@ -2200,7 +2201,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	smmu->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
-	smmu->cb_base = smmu->base + resource_size(res) / 2;
+	/*
+	 * The resource size should effectively match the value of SMMU_TOP;
+	 * stash that temporarily until we know PAGESIZE to validate it with.
+	 */
+	smmu->numpage = resource_size(res);
 
 	num_irqs = 0;
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, num_irqs))) {
