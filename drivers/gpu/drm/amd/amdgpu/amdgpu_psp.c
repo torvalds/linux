@@ -944,6 +944,60 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	return 0;
 }
 
+static void psp_print_fw_hdr(struct psp_context *psp,
+			     struct amdgpu_firmware_info *ucode)
+{
+	struct amdgpu_device *adev = psp->adev;
+	const struct sdma_firmware_header_v1_0 *sdma_hdr =
+		(const struct sdma_firmware_header_v1_0 *)
+		adev->sdma.instance[ucode->ucode_id - AMDGPU_UCODE_ID_SDMA0].fw->data;
+	const struct gfx_firmware_header_v1_0 *ce_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
+	const struct gfx_firmware_header_v1_0 *pfp_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
+	const struct gfx_firmware_header_v1_0 *me_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
+	const struct gfx_firmware_header_v1_0 *mec_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
+	const struct rlc_firmware_header_v2_0 *rlc_hdr =
+		(const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
+	const struct smc_firmware_header_v1_0 *smc_hdr =
+		(const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
+
+	switch (ucode->ucode_id) {
+	case AMDGPU_UCODE_ID_SDMA0:
+	case AMDGPU_UCODE_ID_SDMA1:
+	case AMDGPU_UCODE_ID_SDMA2:
+	case AMDGPU_UCODE_ID_SDMA3:
+	case AMDGPU_UCODE_ID_SDMA4:
+	case AMDGPU_UCODE_ID_SDMA5:
+	case AMDGPU_UCODE_ID_SDMA6:
+	case AMDGPU_UCODE_ID_SDMA7:
+		amdgpu_ucode_print_sdma_hdr(&sdma_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_CE:
+		amdgpu_ucode_print_gfx_hdr(&ce_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_PFP:
+		amdgpu_ucode_print_gfx_hdr(&pfp_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_ME:
+		amdgpu_ucode_print_gfx_hdr(&me_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_MEC1:
+		amdgpu_ucode_print_gfx_hdr(&mec_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_RLC_G:
+		amdgpu_ucode_print_rlc_hdr(&rlc_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_SMC:
+		amdgpu_ucode_print_smc_hdr(&smc_hdr->header);
+		break;
+	default:
+		break;
+	}
+}
+
 static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 				       struct psp_gfx_cmd_resp *cmd)
 {
@@ -1027,6 +1081,8 @@ out:
 		if (adev->asic_type == CHIP_RENOIR &&
 		    ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT)
 			continue;
+
+		psp_print_fw_hdr(psp, ucode);
 
 		ret = psp_execute_np_fw_load(psp, ucode);
 		if (ret)
