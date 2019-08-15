@@ -60,6 +60,10 @@ Authors, in alphabetical order:
 
   - Original author of the V4L2 API and documentation.
 
+- Figa, Tomasz <tfiga@chromium.org>
+
+  - Documented the memory-to-memory decoder interface.
+
 - H Schimek, Michael <mschimek@gmx.at>
 
   - Original author of the V4L2 API and documentation.
@@ -67,6 +71,10 @@ Authors, in alphabetical order:
 - Karicheri, Muralidharan <m-karicheri2@ti.com>
 
   - Documented the Digital Video timings API.
+
+- Osciak, Pawel <posciak@chromium.org>
+
+  - Documented the memory-to-memory decoder interface.
 
 - Osciak, Pawel <pawel@osciak.com>
 
@@ -92,7 +100,7 @@ Authors, in alphabetical order:
 
   - Designed and documented the VIDIOC_LOG_STATUS ioctl, the extended control ioctls, major parts of the sliced VBI API, the MPEG encoder and decoder APIs and the DV Timings API.
 
-**Copyright** |copy| 1999-2016: Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab, Pawel Osciak, Sakari Ailus & Antti Palosaari.
+**Copyright** |copy| 1999-2018: Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab, Pawel Osciak, Sakari Ailus & Antti Palosaari, Tomasz Figa
 
 Except when explicitly stated as GPL, programming examples within this
 part can be used and distributed without restrictions.
