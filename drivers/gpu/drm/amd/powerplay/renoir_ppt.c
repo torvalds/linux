@@ -156,11 +156,33 @@ static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
 	return 0;
 }
 
+/**
+ * This interface just for getting uclk ultimate freq and should't introduce
+ * other likewise function result in overmuch callback.
+ */
+static int renoir_get_dpm_uclk_limited(struct smu_context *smu, uint32_t *clock, bool max)
+{
+
+	DpmClocks_t *table = smu->smu_table.clocks_table;
+
+	if (!clock || !table)
+		return -EINVAL;
+
+	if (max)
+		*clock = table->FClocks[NUM_FCLK_DPM_LEVELS-1].Freq;
+	else
+		*clock = table->FClocks[0].Freq;
+
+	return 0;
+
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
 	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
+	.get_dpm_uclk_limited = renoir_get_dpm_uclk_limited,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)

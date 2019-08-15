@@ -231,9 +231,8 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			   uint32_t *min, uint32_t *max)
 {
-	int ret = 0, clk_id = 0;
-	uint32_t param = 0;
 	uint32_t clock_limit;
+	int ret = 0;
 
 	if (!min && !max)
 		return -EINVAL;
@@ -264,36 +263,11 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 
 		return 0;
 	}
-
-	mutex_lock(&smu->mutex);
-	clk_id = smu_clk_get_index(smu, clk_type);
-	if (clk_id < 0) {
-		ret = -EINVAL;
-		goto failed;
-	}
-
-	param = (clk_id & 0xffff) << 16;
-
-	if (max) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
-		if (ret)
-			goto failed;
-		ret = smu_read_smc_arg(smu, max);
-		if (ret)
-			goto failed;
-	}
-
-	if (min) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
-		if (ret)
-			goto failed;
-		ret = smu_read_smc_arg(smu, min);
-		if (ret)
-			goto failed;
-	}
-
-failed:
-	mutex_unlock(&smu->mutex);
+	/*
+	 * Todo: Use each asic(ASIC_ppt funcs) control the callbacks exposed to the
+	 * core driver and then have helpers for stuff that is common(SMU_v11_x | SMU_v12_x funcs).
+	 */
+	ret = smu_get_dpm_ultimate_freq(smu, clk_type, min, max);
 	return ret;
 }
 
