@@ -3,7 +3,7 @@
 
 lib_dir=$(dirname $0)/../../../net/forwarding
 
-ALL_TESTS="fw_flash_test params_test"
+ALL_TESTS="fw_flash_test params_test regions_test"
 NUM_NETIFS=0
 source $lib_dir/lib.sh
 
@@ -88,6 +88,58 @@ params_test()
 	check_value test1 post-reload false N
 
 	log_test "params test"
+}
+
+check_region_size()
+{
+	local name=$1
+	local size
+
+	size=$(devlink region show $DL_HANDLE/$name -j | jq -e -r '.[][].size')
+	check_err $? "Failed to get $name region size"
+	[ $size -eq 32768 ]
+	check_err $? "Invalid $name region size"
+}
+
+check_region_snapshot_count()
+{
+	local name=$1
+	local phase_name=$2
+	local expected_count=$3
+	local count
+
+	count=$(devlink region show $DL_HANDLE/$name -j | jq -e -r '.[][].snapshot | length')
+	[ $count -eq $expected_count ]
+	check_err $? "Unexpected $phase_name snapshot count"
+}
+
+regions_test()
+{
+	RET=0
+
+	local count
+
+	check_region_size dummy
+	check_region_snapshot_count dummy initial 0
+
+	echo ""> $DEBUGFS_DIR/take_snapshot
+	check_err $? "Failed to take first dummy region snapshot"
+	check_region_snapshot_count dummy post-first-snapshot 1
+
+	echo ""> $DEBUGFS_DIR/take_snapshot
+	check_err $? "Failed to take second dummy region snapshot"
+	check_region_snapshot_count dummy post-second-snapshot 2
+
+	echo ""> $DEBUGFS_DIR/take_snapshot
+	check_err $? "Failed to take third dummy region snapshot"
+	check_region_snapshot_count dummy post-third-snapshot 3
+
+	devlink region del $DL_HANDLE/dummy snapshot 1
+	check_err $? "Failed to delete first dummy region snapshot"
+
+	check_region_snapshot_count dummy post-first-delete 2
+
+	log_test "regions test"
 }
 
 setup_prepare()
