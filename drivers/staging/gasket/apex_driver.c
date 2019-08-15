@@ -659,7 +659,7 @@ static void apex_pci_remove(struct pci_dev *pci_dev)
 	pci_disable_device(pci_dev);
 }
 
-static struct gasket_driver_desc apex_desc = {
+static const struct gasket_driver_desc apex_desc = {
 	.name = "apex",
 	.driver_version = APEX_DRIVER_VERSION,
 	.major = 120,
