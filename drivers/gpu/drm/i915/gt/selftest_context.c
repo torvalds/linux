@@ -20,10 +20,13 @@ static int request_sync(struct i915_request *rq)
 
 	i915_request_add(rq);
 	timeout = i915_request_wait(rq, 0, HZ / 10);
-	if (timeout < 0)
+	if (timeout < 0) {
 		err = timeout;
-	else
+	} else {
+		mutex_lock(&rq->timeline->mutex);
 		i915_request_retire_upto(rq);
+		mutex_unlock(&rq->timeline->mutex);
+	}
 
 	i915_request_put(rq);
 
@@ -35,6 +38,7 @@ static int context_sync(struct intel_context *ce)
 	struct intel_timeline *tl = ce->timeline;
 	int err = 0;
 
+	mutex_lock(&tl->mutex);
 	do {
 		struct i915_request *rq;
 		long timeout;
@@ -55,6 +59,7 @@ static int context_sync(struct intel_context *ce)
 
 		i915_request_put(rq);
 	} while (!err);
+	mutex_unlock(&tl->mutex);
 
 	return err;
 }

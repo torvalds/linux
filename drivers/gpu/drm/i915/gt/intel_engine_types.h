@@ -69,9 +69,6 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
-	struct list_head request_list;
-	struct list_head active_link;
-
 	/*
 	 * As we have two types of rings, one global to the engine used
 	 * by ringbuffer submission and those that are exclusive to a

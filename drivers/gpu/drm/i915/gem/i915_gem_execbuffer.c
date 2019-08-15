@@ -735,63 +735,6 @@ static int eb_select_context(struct i915_execbuffer *eb)
 	return 0;
 }
 
-static struct i915_request *__eb_wait_for_ring(struct intel_ring *ring)
-{
-	struct i915_request *rq;
-
-	/*
-	 * Completely unscientific finger-in-the-air estimates for suitable
-	 * maximum user request size (to avoid blocking) and then backoff.
-	 */
-	if (intel_ring_update_space(ring) >= PAGE_SIZE)
-		return NULL;
-
-	/*
-	 * Find a request that after waiting upon, there will be at least half
-	 * the ring available. The hysteresis allows us to compete for the
-	 * shared ring and should mean that we sleep less often prior to
-	 * claiming our resources, but not so long that the ring completely
-	 * drains before we can submit our next request.
-	 */
-	list_for_each_entry(rq, &ring->request_list, ring_link) {
-		if (__intel_ring_space(rq->postfix,
-				       ring->emit, ring->size) > ring->size / 2)
-			break;
-	}
-	if (&rq->ring_link == &ring->request_list)
-		return NULL; /* weird, we will check again later for real */
-
-	return i915_request_get(rq);
-}
-
-static int eb_wait_for_ring(const struct i915_execbuffer *eb)
-{
-	struct i915_request *rq;
-	int ret = 0;
-
-	/*
-	 * Apply a light amount of backpressure to prevent excessive hogs
-	 * from blocking waiting for space whilst holding struct_mutex and
-	 * keeping all of their resources pinned.
-	 */
-
-	rq = __eb_wait_for_ring(eb->context->ring);
-	if (rq) {
-		mutex_unlock(&eb->i915->drm.struct_mutex);
-
-		if (i915_request_wait(rq,
-				      I915_WAIT_INTERRUPTIBLE,
-				      MAX_SCHEDULE_TIMEOUT) < 0)
-			ret = -EINTR;
-
-		i915_request_put(rq);
-
-		mutex_lock(&eb->i915->drm.struct_mutex);
-	}
-
-	return ret;
-}
-
 static int eb_lookup_vmas(struct i915_execbuffer *eb)
 {
 	struct radix_tree_root *handles_vma = &eb->gem_context->handles_vma;
@@ -2134,8 +2077,73 @@ static const enum intel_engine_id user_ring_map[] = {
 	[I915_EXEC_VEBOX]	= VECS0
 };
 
-static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
+static struct i915_request *eb_throttle(struct intel_context *ce)
 {
+	struct intel_ring *ring = ce->ring;
+	struct intel_timeline *tl = ce->timeline;
+	struct i915_request *rq;
+
+	/*
+	 * Completely unscientific finger-in-the-air estimates for suitable
+	 * maximum user request size (to avoid blocking) and then backoff.
+	 */
+	if (intel_ring_update_space(ring) >= PAGE_SIZE)
+		return NULL;
+
+	/*
+	 * Find a request that after waiting upon, there will be at least half
+	 * the ring available. The hysteresis allows us to compete for the
+	 * shared ring and should mean that we sleep less often prior to
+	 * claiming our resources, but not so long that the ring completely
+	 * drains before we can submit our next request.
+	 */
+	list_for_each_entry(rq, &tl->requests, link) {
+		if (rq->ring != ring)
+			continue;
+
+		if (__intel_ring_space(rq->postfix,
+				       ring->emit, ring->size) > ring->size / 2)
+			break;
+	}
+	if (&rq->link == &tl->requests)
+		return NULL; /* weird, we will check again later for real */
+
+	return i915_request_get(rq);
+}
+
+static int
+__eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
+{
+	int err;
+
+	if (likely(atomic_inc_not_zero(&ce->pin_count)))
+		return 0;
+
+	err = mutex_lock_interruptible(&eb->i915->drm.struct_mutex);
+	if (err)
+		return err;
+
+	err = __intel_context_do_pin(ce);
+	mutex_unlock(&eb->i915->drm.struct_mutex);
+
+	return err;
+}
+
+static void
+__eb_unpin_context(struct i915_execbuffer *eb, struct intel_context *ce)
+{
+	if (likely(atomic_add_unless(&ce->pin_count, -1, 1)))
+		return;
+
+	mutex_lock(&eb->i915->drm.struct_mutex);
+	intel_context_unpin(ce);
+	mutex_unlock(&eb->i915->drm.struct_mutex);
+}
+
+static int __eb_pin_engine(struct i915_execbuffer *eb, struct intel_context *ce)
+{
+	struct intel_timeline *tl;
+	struct i915_request *rq;
 	int err;
 
 	/*
@@ -2151,7 +2159,7 @@ static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	err = intel_context_pin(ce);
+	err = __eb_pin_context(eb, ce);
 	if (err)
 		return err;
 
@@ -2163,23 +2171,43 @@ static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
 	 * until the timeline is idle, which in turn releases the wakeref
 	 * taken on the engine, and the parent device.
 	 */
-	err = intel_context_timeline_lock(ce);
-	if (err)
+	tl = intel_context_timeline_lock(ce);
+	if (IS_ERR(tl)) {
+		err = PTR_ERR(tl);
 		goto err_unpin;
+	}
 
 	intel_context_enter(ce);
-	intel_context_timeline_unlock(ce);
+	rq = eb_throttle(ce);
+
+	intel_context_timeline_unlock(tl);
+
+	if (rq) {
+		if (i915_request_wait(rq,
+				      I915_WAIT_INTERRUPTIBLE,
+				      MAX_SCHEDULE_TIMEOUT) < 0) {
+			i915_request_put(rq);
+			err = -EINTR;
+			goto err_exit;
+		}
+
+		i915_request_put(rq);
+	}
 
 	eb->engine = ce->engine;
 	eb->context = ce;
 	return 0;
 
+err_exit:
+	mutex_lock(&tl->mutex);
+	intel_context_exit(ce);
+	intel_context_timeline_unlock(tl);
 err_unpin:
-	intel_context_unpin(ce);
+	__eb_unpin_context(eb, ce);
 	return err;
 }
 
-static void eb_unpin_context(struct i915_execbuffer *eb)
+static void eb_unpin_engine(struct i915_execbuffer *eb)
 {
 	struct intel_context *ce = eb->context;
 	struct intel_timeline *tl = ce->timeline;
@@ -2188,7 +2216,7 @@ static void eb_unpin_context(struct i915_execbuffer *eb)
 	intel_context_exit(ce);
 	mutex_unlock(&tl->mutex);
 
-	intel_context_unpin(ce);
+	__eb_unpin_context(eb, ce);
 }
 
 static unsigned int
@@ -2233,9 +2261,9 @@ eb_select_legacy_ring(struct i915_execbuffer *eb,
 }
 
 static int
-eb_select_engine(struct i915_execbuffer *eb,
-		 struct drm_file *file,
-		 struct drm_i915_gem_execbuffer2 *args)
+eb_pin_engine(struct i915_execbuffer *eb,
+	      struct drm_file *file,
+	      struct drm_i915_gem_execbuffer2 *args)
 {
 	struct intel_context *ce;
 	unsigned int idx;
@@ -2250,7 +2278,7 @@ eb_select_engine(struct i915_execbuffer *eb,
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
-	err = eb_pin_context(eb, ce);
+	err = __eb_pin_engine(eb, ce);
 	intel_context_put(ce);
 
 	return err;
@@ -2468,16 +2496,12 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (unlikely(err))
 		goto err_destroy;
 
-	err = i915_mutex_lock_interruptible(dev);
-	if (err)
+	err = eb_pin_engine(&eb, file, args);
+	if (unlikely(err))
 		goto err_context;
 
-	err = eb_select_engine(&eb, file, args);
-	if (unlikely(err))
-		goto err_unlock;
-
-	err = eb_wait_for_ring(&eb); /* may temporarily drop struct_mutex */
-	if (unlikely(err))
+	err = i915_mutex_lock_interruptible(dev);
+	if (err)
 		goto err_engine;
 
 	err = eb_relocate(&eb);
@@ -2635,10 +2659,9 @@ err_batch_unpin:
 err_vma:
 	if (eb.exec)
 		eb_release_vmas(&eb);
-err_engine:
-	eb_unpin_context(&eb);
-err_unlock:
 	mutex_unlock(&dev->struct_mutex);
+err_engine:
+	eb_unpin_engine(&eb);
 err_context:
 	i915_gem_context_put(eb.gem_context);
 err_destroy:

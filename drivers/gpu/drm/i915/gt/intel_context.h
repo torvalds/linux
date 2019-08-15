@@ -12,6 +12,7 @@
 #include "i915_active.h"
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
+#include "intel_timeline_types.h"
 
 void intel_context_init(struct intel_context *ce,
 			struct i915_gem_context *ctx,
@@ -118,17 +119,24 @@ static inline void intel_context_put(struct intel_context *ce)
 	kref_put(&ce->ref, ce->ops->destroy);
 }
 
-static inline int __must_check
+static inline struct intel_timeline *__must_check
 intel_context_timeline_lock(struct intel_context *ce)
 	__acquires(&ce->timeline->mutex)
 {
-	return mutex_lock_interruptible(&ce->timeline->mutex);
+	struct intel_timeline *tl = ce->timeline;
+	int err;
+
+	err = mutex_lock_interruptible(&tl->mutex);
+	if (err)
+		return ERR_PTR(err);
+
+	return tl;
 }
 
-static inline void intel_context_timeline_unlock(struct intel_context *ce)
-	__releases(&ce->timeline->mutex)
+static inline void intel_context_timeline_unlock(struct intel_timeline *tl)
+	__releases(&tl->mutex)
 {
-	mutex_unlock(&ce->timeline->mutex);
+	mutex_unlock(&tl->mutex);
 }
 
 int intel_context_prepare_remote_request(struct intel_context *ce,

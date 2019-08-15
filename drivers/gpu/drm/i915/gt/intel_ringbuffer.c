@@ -1250,7 +1250,7 @@ void intel_ring_unpin(struct intel_ring *ring)
 		return;
 
 	/* Discard any unused bytes beyond that submitted to hw. */
-	intel_ring_reset(ring, ring->tail);
+	intel_ring_reset(ring, ring->emit);
 
 	i915_vma_unset_ggtt_write(vma);
 	if (i915_vma_is_map_and_fenceable(vma))
@@ -1311,7 +1311,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&ring->ref);
-	INIT_LIST_HEAD(&ring->request_list);
 
 	ring->size = size;
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -1865,7 +1864,10 @@ static int ring_request_alloc(struct i915_request *request)
 	return 0;
 }
 
-static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
+static noinline int
+wait_for_space(struct intel_ring *ring,
+	       struct intel_timeline *tl,
+	       unsigned int bytes)
 {
 	struct i915_request *target;
 	long timeout;
@@ -1873,15 +1875,18 @@ static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 	if (intel_ring_update_space(ring) >= bytes)
 		return 0;
 
-	GEM_BUG_ON(list_empty(&ring->request_list));
-	list_for_each_entry(target, &ring->request_list, ring_link) {
+	GEM_BUG_ON(list_empty(&tl->requests));
+	list_for_each_entry(target, &tl->requests, link) {
+		if (target->ring != ring)
+			continue;
+
 		/* Would completion of this request free enough space? */
 		if (bytes <= __intel_ring_space(target->postfix,
 						ring->emit, ring->size))
 			break;
 	}
 
-	if (WARN_ON(&target->ring_link == &ring->request_list))
+	if (GEM_WARN_ON(&target->link == &tl->requests))
 		return -ENOSPC;
 
 	timeout = i915_request_wait(target,
@@ -1948,7 +1953,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 		 */
 		GEM_BUG_ON(!rq->reserved_space);
 
-		ret = wait_for_space(ring, total_bytes);
+		ret = wait_for_space(ring, rq->timeline, total_bytes);
 		if (unlikely(ret))
 			return ERR_PTR(ret);
 	}

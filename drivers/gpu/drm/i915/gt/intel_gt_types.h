@@ -48,8 +48,6 @@ struct intel_gt {
 		struct list_head hwsp_free_list;
 	} timelines;
 
-	struct list_head active_rings;
-
 	struct intel_wakeref wakeref;
 
 	struct list_head closed_vma;
