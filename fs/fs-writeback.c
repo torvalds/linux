@@ -224,10 +224,28 @@ static void wb_wait_for_completion(struct backing_dev_info *bdi,
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-/* parameters for foreign inode detection, see wb_detach_inode() */
+/*
+ * Parameters for foreign inode detection, see wbc_detach_inode() to see
+ * how they're used.
+ *
+ * These paramters are inherently heuristical as the detection target
+ * itself is fuzzy.  All we want to do is detaching an inode from the
+ * current owner if it's being written to by some other cgroups too much.
+ *
+ * The current cgroup writeback is built on the assumption that multiple
+ * cgroups writing to the same inode concurrently is very rare and a mode
+ * of operation which isn't well supported.  As such, the goal is not
+ * taking too long when a different cgroup takes over an inode while
+ * avoiding too aggressive flip-flops from occasional foreign writes.
+ *
+ * We record, very roughly, 2s worth of IO time history and if more than
+ * half of that is foreign, trigger the switch.  The recording is quantized
+ * to 16 slots.  To avoid tiny writes from swinging the decision too much,
+ * writes smaller than 1/8 of avg size are ignored.
+ */
 #define WB_FRN_TIME_SHIFT	13	/* 1s = 2^13, upto 8 secs w/ 16bit */
 #define WB_FRN_TIME_AVG_SHIFT	3	/* avg = avg * 7/8 + new * 1/8 */
-#define WB_FRN_TIME_CUT_DIV	2	/* ignore rounds < avg / 2 */
+#define WB_FRN_TIME_CUT_DIV	8	/* ignore rounds < avg / 8 */
 #define WB_FRN_TIME_PERIOD	(2 * (1 << WB_FRN_TIME_SHIFT))	/* 2s */
 
 #define WB_FRN_HIST_SLOTS	16	/* inode->i_wb_frn_history is 16bit */
