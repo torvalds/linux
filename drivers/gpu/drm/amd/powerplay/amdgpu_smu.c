@@ -636,7 +636,7 @@ int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 	int ret = 0;
 
 	if (adev->flags & AMD_IS_APU)
-		return 0;
+		return 1;
 
 	feature_id = smu_feature_get_index(smu, mask);
 	if (feature_id < 0)
