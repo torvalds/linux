@@ -3,7 +3,7 @@
 
 lib_dir=$(dirname $0)/../../../net/forwarding
 
-ALL_TESTS="fw_flash_test"
+ALL_TESTS="fw_flash_test params_test"
 NUM_NETIFS=0
 source $lib_dir/lib.sh
 
@@ -28,6 +28,66 @@ fw_flash_test()
 	check_err $? "Failed to flash with status updates off"
 
 	log_test "fw flash test"
+}
+
+param_get()
+{
+	local name=$1
+
+	cmd_jq "devlink dev param show $DL_HANDLE name $name -j" \
+	       '.[][][].values[] | select(.cmode == "driverinit").value'
+}
+
+param_set()
+{
+	local name=$1
+	local value=$2
+
+	devlink dev param set $DL_HANDLE name $name cmode driverinit value $value
+}
+
+check_value()
+{
+	local name=$1
+	local phase_name=$2
+	local expected_param_value=$3
+	local expected_debugfs_value=$4
+	local value
+
+	value=$(param_get $name)
+	check_err $? "Failed to get $name param value"
+	[ "$value" == "$expected_param_value" ]
+	check_err $? "Unexpected $phase_name $name param value"
+	value=$(<$DEBUGFS_DIR/$name)
+	check_err $? "Failed to get $name debugfs value"
+	[ "$value" == "$expected_debugfs_value" ]
+	check_err $? "Unexpected $phase_name $name debugfs value"
+}
+
+params_test()
+{
+	RET=0
+
+	local max_macs
+	local test1
+
+	check_value max_macs initial 32 32
+	check_value test1 initial true Y
+
+	param_set max_macs 16
+	check_err $? "Failed to set max_macs param value"
+	param_set test1 false
+	check_err $? "Failed to set test1 param value"
+
+	check_value max_macs post-set 16 32
+	check_value test1 post-set false Y
+
+	devlink dev reload $DL_HANDLE
+
+	check_value max_macs post-reload 16 16
+	check_value test1 post-reload false N
+
+	log_test "params test"
 }
 
 setup_prepare()
