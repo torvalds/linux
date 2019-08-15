@@ -1215,10 +1215,8 @@ static void clear_ncl(struct inode *inode)
 	struct nfsdfs_client *ncl = inode->i_private;
 
 	inode->i_private = NULL;
-	synchronize_rcu();
 	kref_put(&ncl->cl_ref, ncl->cl_release);
 }
-
 
 static struct nfsdfs_client *__get_nfsdfs_client(struct inode *inode)
 {
@@ -1233,9 +1231,9 @@ struct nfsdfs_client *get_nfsdfs_client(struct inode *inode)
 {
 	struct nfsdfs_client *nc;
 
-	rcu_read_lock();
+	inode_lock_shared(inode);
 	nc = __get_nfsdfs_client(inode);
-	rcu_read_unlock();
+	inode_unlock_shared(inode);
 	return nc;
 }
 /* from __rpc_unlink */
