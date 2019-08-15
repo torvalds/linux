@@ -1366,6 +1366,69 @@ out:
 	return ret;
 }
 
+/*
+ * write error record array to eeprom, the function should be
+ * protected by recovery_lock
+ */
+static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_err_handler_data *data;
+	struct amdgpu_ras_eeprom_control *control =
+					&adev->psp.ras.ras->eeprom_control;
+	int save_count;
+
+	if (!con || !con->eh_data)
+		return 0;
+
+	data = con->eh_data;
+	save_count = data->count - control->num_recs;
+	/* only new entries are saved */
+	if (save_count > 0)
+		if (amdgpu_ras_eeprom_process_recods(&con->eeprom_control,
+							&data->bps[control->num_recs],
+							true,
+							save_count)) {
+			DRM_ERROR("Failed to save EEPROM table data!");
+			return -EIO;
+		}
+
+	return 0;
+}
+
+/*
+ * read error record array in eeprom and reserve enough space for
+ * storing new bad pages
+ */
+static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_eeprom_control *control =
+					&adev->psp.ras.ras->eeprom_control;
+	struct eeprom_table_record *bps = NULL;
+	int ret = 0;
+
+	/* no bad page record, skip eeprom access */
+	if (!control->num_recs)
+		return ret;
+
+	bps = kcalloc(control->num_recs, sizeof(*bps), GFP_KERNEL);
+	if (!bps)
+		return -ENOMEM;
+
+	if (amdgpu_ras_eeprom_process_recods(control, bps, false,
+		control->num_recs)) {
+		DRM_ERROR("Failed to load EEPROM table records!");
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = amdgpu_ras_add_bad_pages(adev, bps, control->num_recs);
+
+out:
+	kfree(bps);
+	return ret;
+}
+
 /* called in gpu recovery/init */
 int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 {
@@ -1373,7 +1436,7 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 	struct ras_err_handler_data *data;
 	uint64_t bp;
 	struct amdgpu_bo *bo;
-	int i;
+	int i, ret = 0;
 
 	if (!con || !con->eh_data)
 		return 0;
@@ -1393,9 +1456,12 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 		data->bps_bo[i] = bo;
 		data->last_reserved = i + 1;
 	}
+
+	/* continue to save bad pages to eeprom even reesrve_vram fails */
+	ret = amdgpu_ras_save_bad_pages(adev);
 out:
 	mutex_unlock(&con->recovery_lock);
-	return 0;
+	return ret;
 }
 
 /* called when driver unload */
@@ -1427,33 +1493,11 @@ out:
 	return 0;
 }
 
-static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
-{
-	/* TODO
-	 * write the array to eeprom when SMU disabled.
-	 */
-	return 0;
-}
-
-/*
- * read error record array in eeprom and reserve enough space for
- * storing new bad pages
- */
-static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
-{
-	struct eeprom_table_record *bps = NULL;
-	int ret;
-
-	ret = amdgpu_ras_add_bad_pages(adev, bps,
-				adev->umc.max_ras_err_cnt_per_query);
-
-	return ret;
-}
-
 static int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data = &con->eh_data;
+	int ret;
 
 	*data = kmalloc(sizeof(**data),
 			GFP_KERNEL|__GFP_ZERO);
@@ -1465,8 +1509,18 @@ static int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	atomic_set(&con->in_recovery, 0);
 	con->adev = adev;
 
-	amdgpu_ras_load_bad_pages(adev);
-	amdgpu_ras_reserve_bad_pages(adev);
+	ret = amdgpu_ras_eeprom_init(&adev->psp.ras.ras->eeprom_control);
+	if (ret)
+		return ret;
+
+	if (adev->psp.ras.ras->eeprom_control.num_recs) {
+		ret = amdgpu_ras_load_bad_pages(adev);
+		if (ret)
+			return ret;
+		ret = amdgpu_ras_reserve_bad_pages(adev);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -1477,7 +1531,6 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 	struct ras_err_handler_data *data = con->eh_data;
 
 	cancel_work_sync(&con->recovery_work);
-	amdgpu_ras_save_bad_pages(adev);
 	amdgpu_ras_release_bad_pages(adev);
 
 	mutex_lock(&con->recovery_lock);
