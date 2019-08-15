@@ -866,8 +866,10 @@ static int rza1_dt_node_pin_count(struct device_node *np)
 	npins = 0;
 	for_each_child_of_node(np, child) {
 		of_pins = of_find_property(child, "pinmux", NULL);
-		if (!of_pins)
+		if (!of_pins) {
+			of_node_put(child);
 			return -EINVAL;
+		}
 
 		npins += of_pins->length / sizeof(u32);
 	}
@@ -1025,8 +1027,10 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 		for_each_child_of_node(np, child) {
 			ret = rza1_parse_pinmux_node(rza1_pctl, child, mux_conf,
 						     grpin);
-			if (ret < 0)
+			if (ret < 0) {
+				of_node_put(child);
 				return ret;
+			}
 
 			grpin += ret;
 			mux_conf += ret;
@@ -1272,8 +1276,10 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 
 		ret = rza1_parse_gpiochip(rza1_pctl, child, &gpio_chips[i],
 					  &gpio_ranges[i]);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 
 		++i;
 	}
