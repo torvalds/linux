@@ -54,10 +54,6 @@
 
 #include <linux/videodev2.h>
 
-MODULE_AUTHOR("Bill Dirks, Justin Schoeman, Gerd Knorr");
-MODULE_DESCRIPTION("misc helper functions for v4l2 device drivers");
-MODULE_LICENSE("GPL");
-
 /*
  *
  *	V 4 L 2   D R I V E R   H E L P E R   A P I
