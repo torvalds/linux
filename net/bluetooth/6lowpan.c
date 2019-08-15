@@ -583,7 +583,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= bt_xmit,
 };
 
-static struct header_ops header_ops = {
+static const struct header_ops header_ops = {
 	.create	= header_create,
 };
 
