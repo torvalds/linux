@@ -3543,12 +3543,7 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/kallsyms"),
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
-	OPT_STRING(0, "switch-on", &script.evswitch.on_name,
-		   "event", "Consider events after the ocurrence of this event"),
-	OPT_STRING(0, "switch-off", &script.evswitch.off_name,
-		   "event", "Stop considering events after the ocurrence of this event"),
-	OPT_BOOLEAN(0, "show-on-off-events", &script.evswitch.show_on_off_events,
-		    "Show the on/off switch events, used with --switch-on"),
+	OPTS_EVSWITCH(&script.evswitch),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
