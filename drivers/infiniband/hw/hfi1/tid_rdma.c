@@ -2945,8 +2945,15 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	 */
 	spin_lock(&qp->s_lock);
 	qpriv = qp->priv;
+	if (qpriv->r_tid_tail == HFI1_QP_WQE_INVALID ||
+	    qpriv->r_tid_tail == qpriv->r_tid_head)
+		goto unlock;
 	e = &qp->s_ack_queue[qpriv->r_tid_tail];
+	if (e->opcode != TID_OP(WRITE_REQ))
+		goto unlock;
 	req = ack_to_tid_req(e);
+	if (req->comp_seg == req->cur_seg)
+		goto unlock;
 	flow = &req->flows[req->clear_tail];
 	trace_hfi1_eflags_err_write(qp, rcv_type, rte, psn);
 	trace_hfi1_rsp_handle_kdeth_eflags(qp, psn);
