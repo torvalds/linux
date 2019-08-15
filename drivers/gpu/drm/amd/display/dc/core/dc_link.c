@@ -79,7 +79,6 @@ static void destruct(struct dc_link *link)
 	int i;
 
 	if (link->hpd_gpio != NULL) {
-		dal_gpio_close(link->hpd_gpio);
 		dal_gpio_destroy_irq(&link->hpd_gpio);
 		link->hpd_gpio = NULL;
 	}

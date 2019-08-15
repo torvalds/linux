@@ -117,13 +117,13 @@ struct dc_caps {
 	struct dc_plane_cap planes[MAX_PLANES];
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dc_bug_wa {
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
+#endif
 	bool skip_clock_update;
 };
-#endif
 
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -463,9 +463,7 @@ struct dc {
 	struct dc_config config;
 	struct dc_debug_options debug;
 	struct dc_bounding_box_overrides bb_overrides;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dc_bug_wa work_arounds;
-#endif
 	struct dc_context *ctx;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	struct dc_phy_addr_space_config vm_pa_config;
