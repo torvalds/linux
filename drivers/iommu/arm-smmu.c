@@ -504,7 +504,7 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 		reg += leaf ? ARM_SMMU_CB_S1_TLBIVAL : ARM_SMMU_CB_S1_TLBIVA;
 
 		if (cfg->fmt != ARM_SMMU_CTX_FMT_AARCH64) {
-			iova &= ~12UL;
+			iova = (iova >> 12) << 12;
 			iova |= cfg->asid;
 			do {
 				writel_relaxed(iova, reg);
