@@ -68,10 +68,8 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
 
-#define SVM_FEATURE_NPT            (1 <<  0)
 #define SVM_FEATURE_LBRV           (1 <<  1)
 #define SVM_FEATURE_SVML           (1 <<  2)
-#define SVM_FEATURE_NRIP           (1 <<  3)
 #define SVM_FEATURE_TSC_RATE       (1 <<  4)
 #define SVM_FEATURE_VMCB_CLEAN     (1 <<  5)
 #define SVM_FEATURE_FLUSH_ASID     (1 <<  6)
@@ -5933,6 +5931,8 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 	guest_cpuid_clear(vcpu, X86_FEATURE_X2APIC);
 }
 
+#define F(x) bit(X86_FEATURE_##x)
+
 static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 {
 	switch (func) {
@@ -5944,6 +5944,11 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 		if (nested)
 			entry->ecx |= (1 << 2); /* Set SVM bit */
 		break;
+	case 0x80000008:
+		if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
+		     boot_cpu_has(X86_FEATURE_AMD_SSBD))
+			entry->ebx |= F(VIRT_SSBD);
+		break;
 	case 0x8000000A:
 		entry->eax = 1; /* SVM revision 1 */
 		entry->ebx = 8; /* Lets support 8 ASIDs in case we add proper
@@ -5954,11 +5959,11 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 
 		/* Support next_rip if host supports it */
 		if (boot_cpu_has(X86_FEATURE_NRIPS))
-			entry->edx |= SVM_FEATURE_NRIP;
+			entry->edx |= F(NRIPS);
 
 		/* Support NPT for the guest if enabled */
 		if (npt_enabled)
-			entry->edx |= SVM_FEATURE_NPT;
+			entry->edx |= F(NPT);
 
 		break;
 	case 0x8000001F:
