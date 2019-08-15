@@ -225,6 +225,8 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return r;
 	}
 
+	pci_set_master(pdev);
+
 	r = pcim_iomap_regions(pdev, 1 << 0, pci_name(pdev));
 	if (r) {
 		dev_err(&pdev->dev, "I/O memory remapping failed\n");
@@ -235,18 +237,24 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	if (!dev)
 		return -ENOMEM;
 
+	r = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (r < 0)
+		return r;
+
 	dev->clk = NULL;
 	dev->controller = controller;
 	dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
-	dev->irq = pdev->irq;
+	dev->irq = pci_irq_vector(pdev, 0);
 	dev->flags |= controller->flags;
 
 	if (controller->setup) {
 		r = controller->setup(pdev, controller);
-		if (r)
+		if (r) {
+			pci_free_irq_vectors(pdev);
 			return r;
+		}
 	}
 
 	dev->functionality = controller->functionality |
@@ -274,8 +282,10 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	adap->nr = controller->bus_num;
 
 	r = i2c_dw_probe(dev);
-	if (r)
+	if (r) {
+		pci_free_irq_vectors(pdev);
 		return r;
+	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -294,6 +304,7 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 	pm_runtime_get_noresume(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);
+	pci_free_irq_vectors(pdev);
 }
 
 /* work with hotplug and coldplug */
