@@ -242,10 +242,9 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_EXIDS		(1 << 12)
 	u32				features;
 
-#define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
-	u32				options;
 	enum arm_smmu_arch_version	version;
 	enum arm_smmu_implementation	model;
+	const struct arm_smmu_impl	*impl;
 
 	u32				num_context_banks;
 	u32				num_s2_context_banks;
@@ -281,6 +280,75 @@ struct arm_smmu_device {
 
 
 /* Implementation details, yay! */
+struct arm_smmu_impl {
+	u32 (*read_reg)(struct arm_smmu_device *smmu, int page, int offset);
+	void (*write_reg)(struct arm_smmu_device *smmu, int page, int offset,
+			  u32 val);
+	u64 (*read_reg64)(struct arm_smmu_device *smmu, int page, int offset);
+	void (*write_reg64)(struct arm_smmu_device *smmu, int page, int offset,
+			    u64 val);
+};
+
+static inline void __iomem *arm_smmu_page(struct arm_smmu_device *smmu, int n)
+{
+	return smmu->base + (n << smmu->pgshift);
+}
+
+static inline u32 arm_smmu_readl(struct arm_smmu_device *smmu, int page, int offset)
+{
+	if (smmu->impl && unlikely(smmu->impl->read_reg))
+		return smmu->impl->read_reg(smmu, page, offset);
+	return readl_relaxed(arm_smmu_page(smmu, page) + offset);
+}
+
+static inline void arm_smmu_writel(struct arm_smmu_device *smmu, int page,
+				   int offset, u32 val)
+{
+	if (smmu->impl && unlikely(smmu->impl->write_reg))
+		smmu->impl->write_reg(smmu, page, offset, val);
+	else
+		writel_relaxed(val, arm_smmu_page(smmu, page) + offset);
+}
+
+static inline u64 arm_smmu_readq(struct arm_smmu_device *smmu, int page, int offset)
+{
+	if (smmu->impl && unlikely(smmu->impl->read_reg64))
+		return smmu->impl->read_reg64(smmu, page, offset);
+	return readq_relaxed(arm_smmu_page(smmu, page) + offset);
+}
+
+static inline void arm_smmu_writeq(struct arm_smmu_device *smmu, int page,
+				   int offset, u64 val)
+{
+	if (smmu->impl && unlikely(smmu->impl->write_reg64))
+		smmu->impl->write_reg64(smmu, page, offset, val);
+	else
+		writeq_relaxed(val, arm_smmu_page(smmu, page) + offset);
+}
+
+#define ARM_SMMU_GR0		0
+#define ARM_SMMU_GR1		1
+#define ARM_SMMU_CB(s, n)	((s)->numpage + (n))
+
+#define arm_smmu_gr0_read(s, o)		\
+	arm_smmu_readl((s), ARM_SMMU_GR0, (o))
+#define arm_smmu_gr0_write(s, o, v)	\
+	arm_smmu_writel((s), ARM_SMMU_GR0, (o), (v))
+
+#define arm_smmu_gr1_read(s, o)		\
+	arm_smmu_readl((s), ARM_SMMU_GR1, (o))
+#define arm_smmu_gr1_write(s, o, v)	\
+	arm_smmu_writel((s), ARM_SMMU_GR1, (o), (v))
+
+#define arm_smmu_cb_read(s, n, o)	\
+	arm_smmu_readl((s), ARM_SMMU_CB((s), (n)), (o))
+#define arm_smmu_cb_write(s, n, o, v)	\
+	arm_smmu_writel((s), ARM_SMMU_CB((s), (n)), (o), (v))
+#define arm_smmu_cb_readq(s, n, o)	\
+	arm_smmu_readq((s), ARM_SMMU_CB((s), (n)), (o))
+#define arm_smmu_cb_writeq(s, n, o, v)	\
+	arm_smmu_writeq((s), ARM_SMMU_CB((s), (n)), (o), (v))
+
 struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu);
 
 #endif /* _ARM_SMMU_H */
