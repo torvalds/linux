@@ -1302,6 +1302,7 @@ static const struct regmap_config anx78xx_regmap_config = {
 };
 
 static const u16 anx78xx_chipid_list[] = {
+	0x7808,
 	0x7812,
 	0x7814,
 	0x7818,
@@ -1464,7 +1465,10 @@ MODULE_DEVICE_TABLE(i2c, anx78xx_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id anx78xx_match_table[] = {
+	{ .compatible = "analogix,anx7808", },
+	{ .compatible = "analogix,anx7812", },
 	{ .compatible = "analogix,anx7814", },
+	{ .compatible = "analogix,anx7818", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, anx78xx_match_table);
