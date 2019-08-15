@@ -2216,6 +2216,16 @@ static void rtl8168g_config_eee_phy(struct rtl8169_private *tp)
 	phy_modify_paged(tp->phydev, 0x0a43, 0x11, 0, BIT(4));
 }
 
+static void rtl8168h_config_eee_phy(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+
+	rtl8168g_config_eee_phy(tp);
+
+	phy_modify_paged(phydev, 0xa4a, 0x11, 0x0000, 0x0200);
+	phy_modify_paged(phydev, 0xa42, 0x14, 0x0000, 0x0080);
+}
+
 static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
@@ -3283,7 +3293,7 @@ static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp)
 	phy_modify_paged(tp->phydev, 0x0a44, 0x11, BIT(7), 0);
 
 	rtl8168g_disable_aldps(tp);
-	rtl8168g_config_eee_phy(tp);
+	rtl8168h_config_eee_phy(tp);
 	rtl_enable_eee(tp);
 }
 
