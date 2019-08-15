@@ -1053,7 +1053,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	int ret;
 
 	if (INTEL_GEN(i915) <= 2) {
-		DRM_INFO("PMU not supported for this GPU.");
+		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
 		return;
 	}
 
