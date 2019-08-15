@@ -1382,15 +1382,10 @@ int radeon_device_init(struct radeon_device *rdev,
 		dma_bits = 32;
 #endif
 
-	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(&rdev->pdev->dev, DMA_BIT_MASK(dma_bits));
 	if (r) {
-		dma_bits = 32;
 		pr_warn("radeon: No suitable DMA available\n");
-	}
-	r = pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
-		pr_warn("radeon: No coherent DMA available\n");
+		return r;
 	}
 	rdev->need_swiotlb = drm_need_swiotlb(dma_bits);
 
