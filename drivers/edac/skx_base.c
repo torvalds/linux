@@ -46,7 +46,8 @@ static struct skx_dev *get_skx_dev(struct pci_bus *bus, u8 idx)
 }
 
 enum munittype {
-	CHAN0, CHAN1, CHAN2, SAD_ALL, UTIL_ALL, SAD
+	CHAN0, CHAN1, CHAN2, SAD_ALL, UTIL_ALL, SAD,
+	ERRCHAN0, ERRCHAN1, ERRCHAN2,
 };
 
 struct munit {
@@ -68,6 +69,9 @@ static const struct munit skx_all_munits[] = {
 	{ 0x2040, { PCI_DEVFN(10, 0), PCI_DEVFN(12, 0) }, 2, 2, CHAN0 },
 	{ 0x2044, { PCI_DEVFN(10, 4), PCI_DEVFN(12, 4) }, 2, 2, CHAN1 },
 	{ 0x2048, { PCI_DEVFN(11, 0), PCI_DEVFN(13, 0) }, 2, 2, CHAN2 },
+	{ 0x2043, { PCI_DEVFN(10, 3), PCI_DEVFN(12, 3) }, 2, 2, ERRCHAN0 },
+	{ 0x2047, { PCI_DEVFN(10, 7), PCI_DEVFN(12, 7) }, 2, 2, ERRCHAN1 },
+	{ 0x204b, { PCI_DEVFN(11, 3), PCI_DEVFN(13, 3) }, 2, 2, ERRCHAN2 },
 	{ 0x208e, { }, 1, 0, SAD },
 	{ }
 };
@@ -104,9 +108,17 @@ static int get_all_munits(const struct munit *m)
 		}
 
 		switch (m->mtype) {
-		case CHAN0: case CHAN1: case CHAN2:
+		case CHAN0:
+		case CHAN1:
+		case CHAN2:
 			pci_dev_get(pdev);
 			d->imc[i].chan[m->mtype].cdev = pdev;
+			break;
+		case ERRCHAN0:
+		case ERRCHAN1:
+		case ERRCHAN2:
+			pci_dev_get(pdev);
+			d->imc[i].chan[m->mtype - ERRCHAN0].edev = pdev;
 			break;
 		case SAD_ALL:
 			pci_dev_get(pdev);
@@ -215,6 +227,39 @@ static int skx_get_dimm_config(struct mem_ctl_info *mci)
 
 #define SKX_ILV_REMOTE(tgt)	(((tgt) & 8) == 0)
 #define SKX_ILV_TARGET(tgt)	((tgt) & 7)
+
+static void skx_show_retry_rd_err_log(struct decoded_addr *res,
+				      char *msg, int len)
+{
+	u32 log0, log1, log2, log3, log4;
+	u32 corr0, corr1, corr2, corr3;
+	struct pci_dev *edev;
+	int n;
+
+	edev = res->dev->imc[res->imc].chan[res->channel].edev;
+
+	pci_read_config_dword(edev, 0x154, &log0);
+	pci_read_config_dword(edev, 0x148, &log1);
+	pci_read_config_dword(edev, 0x150, &log2);
+	pci_read_config_dword(edev, 0x15c, &log3);
+	pci_read_config_dword(edev, 0x114, &log4);
+
+	n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.8x %.8x %.8x]",
+		     log0, log1, log2, log3, log4);
+
+	pci_read_config_dword(edev, 0x104, &corr0);
+	pci_read_config_dword(edev, 0x108, &corr1);
+	pci_read_config_dword(edev, 0x10c, &corr2);
+	pci_read_config_dword(edev, 0x110, &corr3);
+
+	if (len - n > 0)
+		snprintf(msg + n, len - n,
+			 " correrrcnt[%.4x %.4x %.4x %.4x %.4x %.4x %.4x %.4x]",
+			 corr0 & 0xffff, corr0 >> 16,
+			 corr1 & 0xffff, corr1 >> 16,
+			 corr2 & 0xffff, corr2 >> 16,
+			 corr3 & 0xffff, corr3 >> 16);
+}
 
 static bool skx_sad_decode(struct decoded_addr *res)
 {
@@ -659,7 +704,7 @@ static int __init skx_init(void)
 		}
 	}
 
-	skx_set_decode(skx_decode);
+	skx_set_decode(skx_decode, skx_show_retry_rd_err_log);
 
 	if (nvdimm_count && skx_adxl_get() == -ENODEV)
 		skx_printk(KERN_NOTICE, "Only decoding DDR4 address!\n");

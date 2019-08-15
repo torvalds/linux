@@ -37,6 +37,7 @@ static char *adxl_msg;
 
 static char skx_msg[MSG_SIZE];
 static skx_decode_f skx_decode;
+static skx_show_retry_log_f skx_show_retry_rd_err_log;
 static u64 skx_tolm, skx_tohm;
 static LIST_HEAD(dev_edac_list);
 
@@ -150,9 +151,10 @@ static bool skx_adxl_decode(struct decoded_addr *res)
 	return true;
 }
 
-void skx_set_decode(skx_decode_f decode)
+void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log)
 {
 	skx_decode = decode;
+	skx_show_retry_rd_err_log = show_retry_log;
 }
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
@@ -481,6 +483,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
 	bool recoverable;
+	int len;
 	u32 core_err_cnt = GET_BITFIELD(m->status, 38, 52);
 	u32 mscod = GET_BITFIELD(m->status, 16, 31);
 	u32 errcode = GET_BITFIELD(m->status, 0, 15);
@@ -537,12 +540,12 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 		}
 	}
 	if (adxl_component_count) {
-		snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
+		len = snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
 			 mscod, errcode, adxl_msg);
 	} else {
-		snprintf(skx_msg, MSG_SIZE,
+		len = snprintf(skx_msg, MSG_SIZE,
 			 "%s%s err_code:0x%04x:0x%04x socket:%d imc:%d rank:%d bg:%d ba:%d row:0x%x col:0x%x",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
@@ -550,6 +553,9 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			 res->socket, res->imc, res->rank,
 			 res->bank_group, res->bank_address, res->row, res->column);
 	}
+
+	if (skx_show_retry_rd_err_log)
+		skx_show_retry_rd_err_log(res, skx_msg + len, MSG_SIZE - len);
 
 	edac_dbg(0, "%s\n", skx_msg);
 
