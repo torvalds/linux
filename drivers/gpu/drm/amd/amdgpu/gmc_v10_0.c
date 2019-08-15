@@ -592,7 +592,6 @@ static unsigned gmc_v10_0_get_vbios_fb_size(struct amdgpu_device *adev)
 static int gmc_v10_0_sw_init(void *handle)
 {
 	int r;
-	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfxhub_v2_0_init(adev);
@@ -642,26 +641,10 @@ static int gmc_v10_0_sw_init(void *handle)
 	else
 		adev->gmc.stolen_size = 9 * 1024 *1024;
 
-	/*
-	 * Set DMA mask + need_dma32 flags.
-	 * PCIE - can handle 44-bits.
-	 * IGP - can handle 44-bits
-	 * PCI - dma32 for legacy pci gart, 44 bits on navi10
-	 */
-	adev->need_dma32 = false;
-	dma_bits = adev->need_dma32 ? 32 : 44;
-
-	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {
-		adev->need_dma32 = true;
-		dma_bits = 32;
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
-	}
-
-	r = pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
-		printk(KERN_WARNING "amdgpu: No coherent DMA available.\n");
+		return r;
 	}
 
 	r = gmc_v10_0_mc_init(adev);
