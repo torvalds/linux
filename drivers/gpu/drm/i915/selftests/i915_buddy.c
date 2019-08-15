@@ -665,6 +665,7 @@ static int igt_buddy_alloc_range(void *arg)
 		if (!block) {
 			pr_err("alloc_range has no blocks\n");
 			err = -EINVAL;
+			break;
 		}
 
 		if (i915_buddy_block_offset(block) != offset) {
