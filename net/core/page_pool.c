@@ -61,7 +61,7 @@ static int page_pool_init(struct page_pool *pool,
 struct page_pool *page_pool_create(const struct page_pool_params *params)
 {
 	struct page_pool *pool;
-	int err = 0;
+	int err;
 
 	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, params->nid);
 	if (!pool)
