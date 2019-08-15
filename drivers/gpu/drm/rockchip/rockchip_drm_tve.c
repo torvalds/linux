@@ -305,7 +305,6 @@ static const struct drm_encoder_funcs rockchip_tve_encoder_funcs = {
 };
 
 static const struct drm_connector_funcs rockchip_tve_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = rockchip_tve_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = rockchip_tve_connector_destroy,
@@ -536,7 +535,7 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	drm_connector_helper_add(connector,
 				 &rockchip_tve_connector_helper_funcs);
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		dev_dbg(tve->dev, "failed to attach connector and encoder\n");
 		goto err_free_connector;
@@ -607,7 +606,6 @@ struct platform_driver rockchip_tve_driver = {
 		   .of_match_table = of_match_ptr(rockchip_tve_dt_ids),
 	},
 };
-module_platform_driver(rockchip_tve_driver);
 
 MODULE_AUTHOR("Algea Cao <Algea.cao@rock-chips.com>");
 MODULE_DESCRIPTION("ROCKCHIP TVE Driver");
