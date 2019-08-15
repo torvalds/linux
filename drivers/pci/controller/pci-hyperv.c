@@ -2590,7 +2590,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 	 * (2) There will be no overlap between domains (after fixing possible
 	 * collisions) in the same VM.
 	 */
-	dom_req = hdev->dev_instance.b[8] << 8 | hdev->dev_instance.b[9];
+	dom_req = hdev->dev_instance.b[5] << 8 | hdev->dev_instance.b[4];
 	dom = hv_get_dom_num(dom_req);
 
 	if (dom == HVPCI_DOM_INVALID) {
