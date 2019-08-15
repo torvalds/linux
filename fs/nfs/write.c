@@ -599,18 +599,6 @@ static void nfs_write_error(struct nfs_page *req, int error)
 	nfs_release_request(req);
 }
 
-static bool
-nfs_error_is_fatal_on_server(int err)
-{
-	switch (err) {
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-		return false;
-	}
-	return nfs_error_is_fatal(err);
-}
-
 /*
  * Find an associated nfs write request, and prepare to flush it out
  * May return an error if the user signalled nfs_wait_on_request().
