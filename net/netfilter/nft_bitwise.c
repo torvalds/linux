@@ -135,8 +135,8 @@ static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
 
-	if (memcmp(&priv->xor, &zero, sizeof(priv->xor) ||
-	    priv->sreg != priv->dreg))
+	if (memcmp(&priv->xor, &zero, sizeof(priv->xor)) ||
+	    priv->sreg != priv->dreg)
 		return -EOPNOTSUPP;
 
 	memcpy(&ctx->regs[priv->dreg].mask, &priv->mask, sizeof(priv->mask));
