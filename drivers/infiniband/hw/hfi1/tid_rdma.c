@@ -2740,8 +2740,11 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 
 		wqe = do_rc_completion(qp, wqe, ibp);
 		if (qp->s_acked == qp->s_tail)
-			break;
+			goto s_unlock;
 	}
+
+	if (qp->s_acked == qp->s_tail)
+		goto s_unlock;
 
 	/* Handle the eflags for the request */
 	if (wqe->wr.opcode != IB_WR_TID_RDMA_READ)
