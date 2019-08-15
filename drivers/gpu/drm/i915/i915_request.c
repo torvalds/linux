@@ -1203,12 +1203,10 @@ void __i915_request_queue(struct i915_request *rq,
 	 * decide whether to preempt the entire chain so that it is ready to
 	 * run at the earliest possible convenience.
 	 */
-	local_bh_disable();
 	i915_sw_fence_commit(&rq->semaphore);
 	if (attr && rq->engine->schedule)
 		rq->engine->schedule(rq, attr);
 	i915_sw_fence_commit(&rq->submit);
-	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 }
 
 void i915_request_add(struct i915_request *rq)
@@ -1247,7 +1245,9 @@ void i915_request_add(struct i915_request *rq)
 	if (list_empty(&rq->sched.signalers_list))
 		attr.priority |= I915_PRIORITY_WAIT;
 
+	local_bh_disable();
 	__i915_request_queue(rq, &attr);
+	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 
 	/*
 	 * In typical scenarios, we do not expect the previous request on
