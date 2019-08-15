@@ -455,10 +455,8 @@ dentry(void)
 	test("foo", "%pd", &test_dentry[0]);
 	test("foo", "%pd2", &test_dentry[0]);
 
-	/* test the null/invalid pointer case for dentry */
 	test("(null)", "%pd", NULL);
 	test("(efault)", "%pd", PTR_INVALID);
-	/* test the null/invalid pointer case for file */
 	test("(null)", "%pD", NULL);
 	test("(efault)", "%pD", PTR_INVALID);
 
