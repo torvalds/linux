@@ -2,6 +2,7 @@
 // Copyright (C) 2019, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
 
 #include "evswitch.h"
+#include "evlist.h"
 
 bool evswitch__discard(struct evswitch *evswitch, struct evsel *evsel)
 {
@@ -28,4 +29,26 @@ bool evswitch__discard(struct evswitch *evswitch, struct evsel *evsel)
 	}
 
 	return false;
+}
+
+int evswitch__init(struct evswitch *evswitch, struct evlist *evlist, FILE *fp)
+{
+	if (evswitch->on_name) {
+		evswitch->on = perf_evlist__find_evsel_by_str(evlist, evswitch->on_name);
+		if (evswitch->on == NULL) {
+			fprintf(fp, "switch-on event not found (%s)\n", evswitch->on_name);
+			return -ENOENT;
+		}
+		evswitch->discarding = true;
+	}
+
+	if (evswitch->off_name) {
+		evswitch->off = perf_evlist__find_evsel_by_str(evlist, evswitch->off_name);
+		if (evswitch->off == NULL) {
+			fprintf(fp, "switch-off event not found (%s)\n", evswitch->off_name);
+			return -ENOENT;
+		}
+	}
+
+	return 0;
 }

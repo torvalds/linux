@@ -3868,24 +3868,9 @@ int cmd_script(int argc, const char **argv)
 						  script.range_num);
 	}
 
-	if (script.evswitch.on_name) {
-		script.evswitch.on = perf_evlist__find_evsel_by_str(session->evlist, script.evswitch.on_name);
-		if (script.evswitch.on == NULL) {
-			fprintf(stderr, "switch-on event not found (%s)\n", script.evswitch.on_name);
-			err = -ENOENT;
-			goto out_delete;
-		}
-		script.evswitch.discarding = true;
-	}
-
-	if (script.evswitch.off_name) {
-		script.evswitch.off = perf_evlist__find_evsel_by_str(session->evlist, script.evswitch.off_name);
-		if (script.evswitch.off == NULL) {
-			fprintf(stderr, "switch-off event not found (%s)\n", script.evswitch.off_name);
-			err = -ENOENT;
-			goto out_delete;
-		}
-	}
+	err = evswitch__init(&script.evswitch, session->evlist, stderr);
+	if (err)
+		goto out_delete;
 
 	err = __cmd_script(&script);
 
