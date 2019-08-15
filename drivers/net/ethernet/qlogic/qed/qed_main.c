@@ -67,6 +67,8 @@
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
 #define QED_RDMA_SRQS                   QED_ROCE_QPS
+#define QED_NVM_CFG_SET_FLAGS		0xE
+#define QED_NVM_CFG_SET_PF_FLAGS	0x1E
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -2231,6 +2233,69 @@ static int qed_nvm_flash_image_validate(struct qed_dev *cdev,
 	return 0;
 }
 
+/* Binary file format -
+ *     /----------------------------------------------------------------------\
+ * 0B  |                       0x5 [command index]                            |
+ * 4B  | Entity ID     | Reserved        |  Number of config attributes       |
+ * 8B  | Config ID                       | Length        | Value              |
+ *     |                                                                      |
+ *     \----------------------------------------------------------------------/
+ * There can be several cfg_id-Length-Value sets as specified by 'Number of...'.
+ * Entity ID - A non zero entity value for which the config need to be updated.
+ *
+ * The API parses config attributes from the user provided buffer and flashes
+ * them to the respective NVM path using Management FW inerface.
+ */
+static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	u8 entity_id, len, buf[32];
+	struct qed_ptt *ptt;
+	u16 cfg_id, count;
+	int rc = 0, i;
+	u32 flags;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	/* NVM CFG ID attribute header */
+	*data += 4;
+	entity_id = **data;
+	*data += 2;
+	count = *((u16 *)*data);
+	*data += 2;
+
+	DP_VERBOSE(cdev, NETIF_MSG_DRV,
+		   "Read config ids: entity id %02x num _attrs = %0d\n",
+		   entity_id, count);
+	/* NVM CFG ID attributes */
+	for (i = 0; i < count; i++) {
+		cfg_id = *((u16 *)*data);
+		*data += 2;
+		len = **data;
+		(*data)++;
+		memcpy(buf, *data, len);
+		*data += len;
+
+		flags = entity_id ? QED_NVM_CFG_SET_PF_FLAGS :
+			QED_NVM_CFG_SET_FLAGS;
+
+		DP_VERBOSE(cdev, NETIF_MSG_DRV,
+			   "cfg_id = %d len = %d\n", cfg_id, len);
+		rc = qed_mcp_nvm_set_cfg(hwfn, ptt, cfg_id, entity_id, flags,
+					 buf, len);
+		if (rc) {
+			DP_ERR(cdev, "Error %d configuring %d\n", rc, cfg_id);
+			break;
+		}
+	}
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
 static int qed_nvm_flash(struct qed_dev *cdev, const char *name)
 {
 	const struct firmware *image;
@@ -2271,6 +2336,9 @@ static int qed_nvm_flash(struct qed_dev *cdev, const char *name)
 		case QED_NVM_FLASH_CMD_NVM_CHANGE:
 			rc = qed_nvm_flash_image_access(cdev, &data,
 							&check_resp);
+			break;
+		case QED_NVM_FLASH_CMD_NVM_CFG_ID:
+			rc = qed_nvm_flash_cfg_write(cdev, &data);
 			break;
 		default:
 			DP_ERR(cdev, "Unknown command %08x\n", cmd_type);
