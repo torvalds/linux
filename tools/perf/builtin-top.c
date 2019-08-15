@@ -1148,8 +1148,11 @@ static int deliver_event(struct ordered_events *qe,
 	evsel = perf_evlist__id2evsel(session->evlist, sample.id);
 	assert(evsel != NULL);
 
-	if (event->header.type == PERF_RECORD_SAMPLE)
+	if (event->header.type == PERF_RECORD_SAMPLE) {
+		if (evswitch__discard(&top->evswitch, evsel))
+			return 0;
 		++top->samples;
+	}
 
 	switch (sample.cpumode) {
 	case PERF_RECORD_MISC_USER:
@@ -1534,6 +1537,7 @@ int cmd_top(int argc, const char **argv)
 			"number of thread to run event synthesize"),
 	OPT_BOOLEAN(0, "namespaces", &opts->record_namespaces,
 		    "Record namespaces events"),
+	OPTS_EVSWITCH(&top.evswitch),
 	OPT_END()
 	};
 	struct evlist *sb_evlist = NULL;
@@ -1566,6 +1570,10 @@ int cmd_top(int argc, const char **argv)
 		pr_err("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
 	}
+
+	status = evswitch__init(&top.evswitch, top.evlist, stderr);
+	if (status)
+		goto out_delete_evlist;
 
 	if (symbol_conf.report_hierarchy) {
 		/* disable incompatible options */
