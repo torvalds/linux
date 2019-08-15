@@ -100,6 +100,7 @@ void __exit skx_adxl_put(void)
 
 static bool skx_adxl_decode(struct decoded_addr *res)
 {
+	struct skx_dev *d;
 	int i, len = 0;
 
 	if (res->addr >= skx_tohm || (res->addr >= skx_tolm &&
@@ -117,6 +118,24 @@ static bool skx_adxl_decode(struct decoded_addr *res)
 	res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
 	res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
 	res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+
+	if (res->imc > NUM_IMC - 1) {
+		skx_printk(KERN_ERR, "Bad imc %d\n", res->imc);
+		return false;
+	}
+
+	list_for_each_entry(d, &dev_edac_list, list) {
+		if (d->imc[0].src_id == res->socket) {
+			res->dev = d;
+			break;
+		}
+	}
+
+	if (!res->dev) {
+		skx_printk(KERN_ERR, "No device for src_id %d imc %d\n",
+			   res->socket, res->imc);
+		return false;
+	}
 
 	for (i = 0; i < adxl_component_count; i++) {
 		if (adxl_values[i] == ~0x0ull)
@@ -452,24 +471,6 @@ static void skx_unregister_mci(struct skx_imc *imc)
 	edac_mc_free(mci);
 }
 
-static struct mem_ctl_info *get_mci(int src_id, int lmc)
-{
-	struct skx_dev *d;
-
-	if (lmc > NUM_IMC - 1) {
-		skx_printk(KERN_ERR, "Bad lmc %d\n", lmc);
-		return NULL;
-	}
-
-	list_for_each_entry(d, &dev_edac_list, list) {
-		if (d->imc[0].src_id == src_id)
-			return d->imc[lmc].mci;
-	}
-
-	skx_printk(KERN_ERR, "No mci for src_id %d lmc %d\n", src_id, lmc);
-	return NULL;
-}
-
 static void skx_mce_output_error(struct mem_ctl_info *mci,
 				 const struct mce *m,
 				 struct decoded_addr *res)
@@ -580,14 +581,11 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (adxl_component_count) {
 		if (!skx_adxl_decode(&res))
 			return NOTIFY_DONE;
-
-		mci = get_mci(res.socket, res.imc);
-	} else {
-		if (!skx_decode || !skx_decode(&res))
-			return NOTIFY_DONE;
-
-		mci = res.dev->imc[res.imc].mci;
+	} else if (!skx_decode || !skx_decode(&res)) {
+		return NOTIFY_DONE;
 	}
+
+	mci = res.dev->imc[res.imc].mci;
 
 	if (!mci)
 		return NOTIFY_DONE;
