@@ -190,10 +190,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 						MLX5_FLOW_DEST_VPORT_VHCA_ID;
 				if (attr->dests[j].flags & MLX5_ESW_DEST_ENCAP) {
 					flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-					flow_act.reformat_id = attr->dests[j].encap_id;
+					flow_act.pkt_reformat = attr->dests[j].pkt_reformat;
 					dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
-					dest[i].vport.reformat_id =
-						attr->dests[j].encap_id;
+					dest[i].vport.pkt_reformat =
+						attr->dests[j].pkt_reformat;
 				}
 				i++;
 			}
@@ -213,7 +213,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		flow_act.modify_id = attr->mod_hdr_id;
+		flow_act.modify_hdr = attr->modify_hdr;
 
 	fdb = esw_get_prio_table(esw, attr->chain, attr->prio, !!split);
 	if (IS_ERR(fdb)) {
@@ -276,7 +276,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 		if (attr->dests[i].flags & MLX5_ESW_DEST_ENCAP) {
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
-			dest[i].vport.reformat_id = attr->dests[i].encap_id;
+			dest[i].vport.pkt_reformat = attr->dests[i].pkt_reformat;
 		}
 	}
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
@@ -1734,7 +1734,7 @@ static int esw_vport_ingress_prio_tag_config(struct mlx5_eswitch *esw,
 
 	if (vport->ingress.modify_metadata_rule) {
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-		flow_act.modify_id = vport->ingress.modify_metadata_id;
+		flow_act.modify_hdr = vport->ingress.modify_metadata;
 	}
 
 	vport->ingress.allow_rule =
@@ -1770,9 +1770,11 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	MLX5_SET(set_action_in, action, data,
 		 mlx5_eswitch_get_vport_metadata_for_match(esw, vport->vport));
 
-	err = mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
-				       1, action, &vport->ingress.modify_metadata_id);
-	if (err) {
+	vport->ingress.modify_metadata =
+		mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
+					 1, action);
+	if (IS_ERR(vport->ingress.modify_metadata)) {
+		err = PTR_ERR(vport->ingress.modify_metadata);
 		esw_warn(esw->dev,
 			 "failed to alloc modify header for vport %d ingress acl (%d)\n",
 			 vport->vport, err);
@@ -1780,7 +1782,7 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_MOD_HDR | MLX5_FLOW_CONTEXT_ACTION_ALLOW;
-	flow_act.modify_id = vport->ingress.modify_metadata_id;
+	flow_act.modify_hdr = vport->ingress.modify_metadata;
 	vport->ingress.modify_metadata_rule = mlx5_add_flow_rules(vport->ingress.acl,
 								  &spec, &flow_act, NULL, 0);
 	if (IS_ERR(vport->ingress.modify_metadata_rule)) {
@@ -1794,7 +1796,7 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 
 out:
 	if (err)
-		mlx5_modify_header_dealloc(esw->dev, vport->ingress.modify_metadata_id);
+		mlx5_modify_header_dealloc(esw->dev, vport->ingress.modify_metadata);
 	return err;
 }
 
@@ -1803,7 +1805,7 @@ void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 {
 	if (vport->ingress.modify_metadata_rule) {
 		mlx5_del_flow_rules(vport->ingress.modify_metadata_rule);
-		mlx5_modify_header_dealloc(esw->dev, vport->ingress.modify_metadata_id);
+		mlx5_modify_header_dealloc(esw->dev, vport->ingress.modify_metadata);
 
 		vport->ingress.modify_metadata_rule = NULL;
 	}

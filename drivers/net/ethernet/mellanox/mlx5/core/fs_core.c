@@ -1415,7 +1415,8 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 		     ((d1->vport.flags & MLX5_FLOW_DEST_VPORT_VHCA_ID) ?
 		      (d1->vport.vhca_id == d2->vport.vhca_id) : true) &&
 		     ((d1->vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID) ?
-		      (d1->vport.reformat_id == d2->vport.reformat_id) : true)) ||
+		      (d1->vport.pkt_reformat->id ==
+		       d2->vport.pkt_reformat->id) : true)) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
 		     d1->ft == d2->ft) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
@@ -2888,3 +2889,105 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(mlx5_fs_remove_rx_underlay_qpn);
+
+static struct mlx5_flow_root_namespace
+*get_root_namespace(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type ns_type)
+{
+	struct mlx5_flow_namespace *ns;
+
+	if (ns_type == MLX5_FLOW_NAMESPACE_ESW_EGRESS ||
+	    ns_type == MLX5_FLOW_NAMESPACE_ESW_INGRESS)
+		ns = mlx5_get_flow_vport_acl_namespace(dev, ns_type, 0);
+	else
+		ns = mlx5_get_flow_namespace(dev, ns_type);
+	if (!ns)
+		return NULL;
+
+	return find_root(&ns->node);
+}
+
+struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+						 u8 ns_type, u8 num_actions,
+						 void *modify_actions)
+{
+	struct mlx5_flow_root_namespace *root;
+	struct mlx5_modify_hdr *modify_hdr;
+	int err;
+
+	root = get_root_namespace(dev, ns_type);
+	if (!root)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	modify_hdr = kzalloc(sizeof(*modify_hdr), GFP_KERNEL);
+	if (!modify_hdr)
+		return ERR_PTR(-ENOMEM);
+
+	modify_hdr->ns_type = ns_type;
+	err = root->cmds->modify_header_alloc(root, ns_type, num_actions,
+					      modify_actions, modify_hdr);
+	if (err) {
+		kfree(modify_hdr);
+		return ERR_PTR(err);
+	}
+
+	return modify_hdr;
+}
+EXPORT_SYMBOL(mlx5_modify_header_alloc);
+
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
+				struct mlx5_modify_hdr *modify_hdr)
+{
+	struct mlx5_flow_root_namespace *root;
+
+	root = get_root_namespace(dev, modify_hdr->ns_type);
+	if (WARN_ON(!root))
+		return;
+	root->cmds->modify_header_dealloc(root, modify_hdr);
+	kfree(modify_hdr);
+}
+EXPORT_SYMBOL(mlx5_modify_header_dealloc);
+
+struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
+						     int reformat_type,
+						     size_t size,
+						     void *reformat_data,
+						     enum mlx5_flow_namespace_type ns_type)
+{
+	struct mlx5_pkt_reformat *pkt_reformat;
+	struct mlx5_flow_root_namespace *root;
+	int err;
+
+	root = get_root_namespace(dev, ns_type);
+	if (!root)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	pkt_reformat = kzalloc(sizeof(*pkt_reformat), GFP_KERNEL);
+	if (!pkt_reformat)
+		return ERR_PTR(-ENOMEM);
+
+	pkt_reformat->ns_type = ns_type;
+	pkt_reformat->reformat_type = reformat_type;
+	err = root->cmds->packet_reformat_alloc(root, reformat_type, size,
+						reformat_data, ns_type,
+						pkt_reformat);
+	if (err) {
+		kfree(pkt_reformat);
+		return ERR_PTR(err);
+	}
+
+	return pkt_reformat;
+}
+EXPORT_SYMBOL(mlx5_packet_reformat_alloc);
+
+void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				  struct mlx5_pkt_reformat *pkt_reformat)
+{
+	struct mlx5_flow_root_namespace *root;
+
+	root = get_root_namespace(dev, pkt_reformat->ns_type);
+	if (WARN_ON(!root))
+		return;
+	root->cmds->packet_reformat_dealloc(root, pkt_reformat);
+	kfree(pkt_reformat);
+}
+EXPORT_SYMBOL(mlx5_packet_reformat_dealloc);

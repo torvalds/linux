@@ -38,6 +38,17 @@
 #include <linux/rhashtable.h>
 #include <linux/llist.h>
 
+struct mlx5_modify_hdr {
+	enum mlx5_flow_namespace_type ns_type;
+	u32 id;
+};
+
+struct mlx5_pkt_reformat {
+	enum mlx5_flow_namespace_type ns_type;
+	int reformat_type; /* from mlx5_ifc */
+	u32 id;
+};
+
 /* FS_TYPE_PRIO_CHAINS is a PRIO that will have namespaces only,
  * and those are in parallel to one another when going over them to connect
  * a new flow table. Meaning the last flow table in a TYPE_PRIO prio in one

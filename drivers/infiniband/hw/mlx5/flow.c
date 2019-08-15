@@ -322,11 +322,11 @@ void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction)
 	switch (maction->flow_action_raw.sub_type) {
 	case MLX5_IB_FLOW_ACTION_MODIFY_HEADER:
 		mlx5_modify_header_dealloc(maction->flow_action_raw.dev->mdev,
-					   maction->flow_action_raw.action_id);
+					   maction->flow_action_raw.modify_hdr);
 		break;
 	case MLX5_IB_FLOW_ACTION_PACKET_REFORMAT:
 		mlx5_packet_reformat_dealloc(maction->flow_action_raw.dev->mdev,
-			maction->flow_action_raw.action_id);
+					     maction->flow_action_raw.pkt_reformat);
 		break;
 	case MLX5_IB_FLOW_ACTION_DECAP:
 		break;
@@ -352,10 +352,11 @@ mlx5_ib_create_modify_header(struct mlx5_ib_dev *dev,
 	if (!maction)
 		return ERR_PTR(-ENOMEM);
 
-	ret = mlx5_modify_header_alloc(dev->mdev, namespace, num_actions, in,
-				       &maction->flow_action_raw.action_id);
+	maction->flow_action_raw.modify_hdr =
+		mlx5_modify_header_alloc(dev->mdev, namespace, num_actions, in);
 
-	if (ret) {
+	if (IS_ERR(maction->flow_action_raw.modify_hdr)) {
+		ret = PTR_ERR(maction->flow_action_raw.modify_hdr);
 		kfree(maction);
 		return ERR_PTR(ret);
 	}
@@ -479,11 +480,13 @@ static int mlx5_ib_flow_action_create_packet_reformat_ctx(
 	if (ret)
 		return ret;
 
-	ret = mlx5_packet_reformat_alloc(dev->mdev, prm_prt, len,
-					 in, namespace,
-					 &maction->flow_action_raw.action_id);
-	if (ret)
+	maction->flow_action_raw.pkt_reformat =
+		mlx5_packet_reformat_alloc(dev->mdev, prm_prt, len,
+					   in, namespace);
+	if (IS_ERR(maction->flow_action_raw.pkt_reformat)) {
+		ret = PTR_ERR(maction->flow_action_raw.pkt_reformat);
 		return ret;
+	}
 
 	maction->flow_action_raw.sub_type =
 		MLX5_IB_FLOW_ACTION_PACKET_REFORMAT;

@@ -75,6 +75,24 @@ struct mlx5_flow_cmds {
 			      struct mlx5_flow_table *ft,
 			      u32 underlay_qpn,
 			      bool disconnect);
+
+	int (*packet_reformat_alloc)(struct mlx5_flow_root_namespace *ns,
+				     int reformat_type,
+				     size_t size,
+				     void *reformat_data,
+				     enum mlx5_flow_namespace_type namespace,
+				     struct mlx5_pkt_reformat *pkt_reformat);
+
+	void (*packet_reformat_dealloc)(struct mlx5_flow_root_namespace *ns,
+					struct mlx5_pkt_reformat *pkt_reformat);
+
+	int (*modify_header_alloc)(struct mlx5_flow_root_namespace *ns,
+				   u8 namespace, u8 num_actions,
+				   void *modify_actions,
+				   struct mlx5_modify_hdr *modify_hdr);
+
+	void (*modify_header_dealloc)(struct mlx5_flow_root_namespace *ns,
+				      struct mlx5_modify_hdr *modify_hdr);
 };
 
 int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id);

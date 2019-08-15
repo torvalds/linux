@@ -2658,7 +2658,8 @@ int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 			if (action->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 				return -EINVAL;
 			action->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-			action->modify_id = maction->flow_action_raw.action_id;
+			action->modify_hdr =
+				maction->flow_action_raw.modify_hdr;
 			return 0;
 		}
 		if (maction->flow_action_raw.sub_type ==
@@ -2675,8 +2676,8 @@ int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 				return -EINVAL;
 			action->action |=
 				MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-			action->reformat_id =
-				maction->flow_action_raw.action_id;
+			action->pkt_reformat =
+				maction->flow_action_raw.pkt_reformat;
 			return 0;
 		}
 		/* fall through */

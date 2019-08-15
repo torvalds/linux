@@ -868,7 +868,10 @@ struct mlx5_ib_flow_action {
 		struct {
 			struct mlx5_ib_dev *dev;
 			u32 sub_type;
-			u32 action_id;
+			union {
+				struct mlx5_modify_hdr *modify_hdr;
+				struct mlx5_pkt_reformat *pkt_reformat;
+			};
 		} flow_action_raw;
 	};
 };
