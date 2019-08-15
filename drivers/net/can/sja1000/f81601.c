@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 #include <linux/can/dev.h>
 #include <linux/io.h>
-#include <linux/version.h>
 
 #include "sja1000.h"
 

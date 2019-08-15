@@ -7,7 +7,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pci.h>
@@ -643,7 +642,7 @@ static int kvaser_pciefd_bus_on(struct kvaser_pciefd_can *can)
 
 static void kvaser_pciefd_pwm_stop(struct kvaser_pciefd_can *can)
 {
-	int top, trigger;
+	u8 top;
 	u32 pwm_ctrl;
 	unsigned long irq;
 
@@ -651,12 +650,8 @@ static void kvaser_pciefd_pwm_stop(struct kvaser_pciefd_can *can)
 	pwm_ctrl = ioread32(can->reg_base + KVASER_PCIEFD_KCAN_PWM_REG);
 	top = (pwm_ctrl >> KVASER_PCIEFD_KCAN_PWM_TOP_SHIFT) & 0xff;
 
-	trigger = (100 * top + 50) / 100;
-	if (trigger < 0)
-		trigger = 0;
-
-	pwm_ctrl = trigger & 0xff;
-	pwm_ctrl |= (top & 0xff) << KVASER_PCIEFD_KCAN_PWM_TOP_SHIFT;
+	/* Set duty cycle to zero */
+	pwm_ctrl |= top;
 	iowrite32(pwm_ctrl, can->reg_base + KVASER_PCIEFD_KCAN_PWM_REG);
 	spin_unlock_irqrestore(&can->lock, irq);
 }

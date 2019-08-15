@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
-/*
- * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+/* Copyright (c) 2002-2007 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +53,7 @@ struct receiver {
 	canid_t can_id;
 	canid_t mask;
 	unsigned long matches;
-	void (*func)(struct sk_buff *, void *);
+	void (*func)(struct sk_buff *skb, void *data);
 	void *data;
 	char *ident;
 	struct sock *sk;
