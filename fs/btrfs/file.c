@@ -1882,7 +1882,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	u64 start_pos;
 	u64 end_pos;
 	ssize_t num_written = 0;
-	bool sync = (file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host);
+	const bool sync = iocb->ki_flags & IOCB_DSYNC;
 	ssize_t err;
 	loff_t pos;
 	size_t count;
