@@ -16,6 +16,7 @@
 #include "util/trace-event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evswitch.h"
 #include "util/sort.h"
 #include "util/data.h"
 #include "util/auxtrace.h"
@@ -1615,13 +1616,6 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 
 	return 0;
 }
-
-struct evswitch {
-	struct evsel *on,
-		     *off;
-	bool	     discarding;
-	bool	     show_on_off_events;
-};
 
 struct perf_script {
 	struct perf_tool	tool;
