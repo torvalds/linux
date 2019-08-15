@@ -346,7 +346,7 @@ static int __init rcar_sysc_pd_init(void)
 	if (info->init) {
 		error = info->init();
 		if (error)
-			return error;
+			goto out_put;
 	}
 
 	has_cpg_mstp = of_find_compatible_node(NULL, NULL,
