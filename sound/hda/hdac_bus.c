@@ -4,6 +4,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/export.h>
@@ -19,13 +20,11 @@ static const struct hdac_bus_ops default_ops = {
  * snd_hdac_bus_init - initialize a HD-audio bas bus
  * @bus: the pointer to bus object
  * @ops: bus verb operators
- * @io_ops: lowlevel I/O operators
  *
  * Returns 0 if successful, or a negative error code.
  */
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
-		      const struct hdac_bus_ops *ops,
-		      const struct hdac_io_ops *io_ops)
+		      const struct hdac_bus_ops *ops)
 {
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
@@ -33,7 +32,7 @@ int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
 		bus->ops = ops;
 	else
 		bus->ops = &default_ops;
-	bus->io_ops = io_ops;
+	bus->dma_type = SNDRV_DMA_TYPE_DEV;
 	INIT_LIST_HEAD(&bus->stream_list);
 	INIT_LIST_HEAD(&bus->codec_list);
 	INIT_WORK(&bus->unsol_work, snd_hdac_bus_process_unsol_events);
@@ -217,3 +216,33 @@ void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 	flush_work(&bus->unsol_work);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_remove_device);
+
+#ifdef CONFIG_SND_HDA_ALIGNED_MMIO
+/* Helpers for aligned read/write of mmio space, for Tegra */
+unsigned int snd_hdac_aligned_read(void __iomem *addr, unsigned int mask)
+{
+	void __iomem *aligned_addr =
+		(void __iomem *)((unsigned long)(addr) & ~0x3);
+	unsigned int shift = ((unsigned long)(addr) & 0x3) << 3;
+	unsigned int v;
+
+	v = readl(aligned_addr);
+	return (v >> shift) & mask;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_aligned_read);
+
+void snd_hdac_aligned_write(unsigned int val, void __iomem *addr,
+			    unsigned int mask)
+{
+	void __iomem *aligned_addr =
+		(void __iomem *)((unsigned long)(addr) & ~0x3);
+	unsigned int shift = ((unsigned long)(addr) & 0x3) << 3;
+	unsigned int v;
+
+	v = readl(aligned_addr);
+	v &= ~(mask << shift);
+	v |= val << shift;
+	writel(v, aligned_addr);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_aligned_write);
+#endif /* CONFIG_SND_HDA_ALIGNED_MMIO */

@@ -9,7 +9,6 @@
 #define __CNL_SST_DSP_H__
 
 struct sst_dsp;
-struct skl_sst;
 struct sst_dsp_device;
 struct sst_generic_ipc;
 
@@ -97,8 +96,8 @@ void cnl_ipc_free(struct sst_generic_ipc *ipc);
 
 int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		     const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
-		     struct skl_sst **dsp);
-int cnl_sst_init_fw(struct device *dev, struct skl_sst *ctx);
-void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
+		     struct skl_dev **dsp);
+int cnl_sst_init_fw(struct device *dev, struct skl_dev *skl);
+void cnl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl);
 
 #endif /*__CNL_SST_DSP_H__*/

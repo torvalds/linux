@@ -401,7 +401,6 @@ static int axg_spdifout_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct axg_spdifout *priv;
-	struct resource *res;
 	void __iomem *regs;
 	int ret;
 
@@ -410,8 +409,7 @@ static int axg_spdifout_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
