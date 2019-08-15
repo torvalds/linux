@@ -41,7 +41,7 @@ struct intel_timeline {
 	 * but the pin_count is protected by a combination of serialisation
 	 * from the intel_context caller plus internal atomicity.
 	 */
-	unsigned int pin_count;
+	atomic_t pin_count;
 	unsigned int active_count;
 
 	const u32 *hwsp_seqno;

@@ -34,13 +34,13 @@
 
 static void mock_timeline_pin(struct intel_timeline *tl)
 {
-	tl->pin_count++;
+	atomic_inc(&tl->pin_count);
 }
 
 static void mock_timeline_unpin(struct intel_timeline *tl)
 {
-	GEM_BUG_ON(!tl->pin_count);
-	tl->pin_count--;
+	GEM_BUG_ON(!atomic_read(&tl->pin_count));
+	atomic_dec(&tl->pin_count);
 }
 
 static struct intel_ring *mock_ring(struct intel_engine_cs *engine)

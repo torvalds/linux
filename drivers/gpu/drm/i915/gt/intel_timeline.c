@@ -211,9 +211,9 @@ int intel_timeline_init(struct intel_timeline *timeline,
 	void *vaddr;
 
 	kref_init(&timeline->kref);
+	atomic_set(&timeline->pin_count, 0);
 
 	timeline->gt = gt;
-	timeline->pin_count = 0;
 
 	timeline->has_initial_breadcrumb = !hwsp;
 	timeline->hwsp_cacheline = NULL;
@@ -280,7 +280,7 @@ void intel_timelines_init(struct drm_i915_private *i915)
 
 void intel_timeline_fini(struct intel_timeline *timeline)
 {
-	GEM_BUG_ON(timeline->pin_count);
+	GEM_BUG_ON(atomic_read(&timeline->pin_count));
 	GEM_BUG_ON(!list_empty(&timeline->requests));
 
 	if (timeline->hwsp_cacheline)
@@ -314,33 +314,31 @@ int intel_timeline_pin(struct intel_timeline *tl)
 {
 	int err;
 
-	if (tl->pin_count++)
+	if (atomic_add_unless(&tl->pin_count, 1, 0))
 		return 0;
-	GEM_BUG_ON(!tl->pin_count);
-	GEM_BUG_ON(tl->active_count);
 
 	err = i915_vma_pin(tl->hwsp_ggtt, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
-		goto unpin;
+		return err;
 
 	tl->hwsp_offset =
 		i915_ggtt_offset(tl->hwsp_ggtt) +
 		offset_in_page(tl->hwsp_offset);
 
 	cacheline_acquire(tl->hwsp_cacheline);
+	if (atomic_fetch_inc(&tl->pin_count)) {
+		cacheline_release(tl->hwsp_cacheline);
+		__i915_vma_unpin(tl->hwsp_ggtt);
+	}
 
 	return 0;
-
-unpin:
-	tl->pin_count = 0;
-	return err;
 }
 
 void intel_timeline_enter(struct intel_timeline *tl)
 {
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
 
-	GEM_BUG_ON(!tl->pin_count);
+	GEM_BUG_ON(!atomic_read(&tl->pin_count));
 	if (tl->active_count++)
 		return;
 	GEM_BUG_ON(!tl->active_count); /* overflow? */
@@ -372,7 +370,7 @@ void intel_timeline_exit(struct intel_timeline *tl)
 
 static u32 timeline_advance(struct intel_timeline *tl)
 {
-	GEM_BUG_ON(!tl->pin_count);
+	GEM_BUG_ON(!atomic_read(&tl->pin_count));
 	GEM_BUG_ON(tl->seqno & tl->has_initial_breadcrumb);
 
 	return tl->seqno += 1 + tl->has_initial_breadcrumb;
@@ -523,11 +521,10 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 void intel_timeline_unpin(struct intel_timeline *tl)
 {
-	GEM_BUG_ON(!tl->pin_count);
-	if (--tl->pin_count)
+	GEM_BUG_ON(!atomic_read(&tl->pin_count));
+	if (!atomic_dec_and_test(&tl->pin_count))
 		return;
 
-	GEM_BUG_ON(tl->active_count);
 	cacheline_release(tl->hwsp_cacheline);
 
 	__i915_vma_unpin(tl->hwsp_ggtt);
