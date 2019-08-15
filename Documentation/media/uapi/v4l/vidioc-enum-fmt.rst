@@ -127,6 +127,14 @@ one until ``EINVAL`` is returned.
       - This format is not native to the device but emulated through
 	software (usually libv4l2), where possible try to use a native
 	format instead for better performance.
+    * - ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
+      - 0x0004
+      - The hardware decoder for this compressed bytestream format (aka coded
+	format) is capable of parsing a continuous bytestream. Applications do
+	not need to parse the bytestream themselves to find the boundaries
+	between frames/fields. This flag can only be used in combination with
+	the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to compressed
+	formats only. This flag is valid for stateful decoders only.
 
 
 Return Value
