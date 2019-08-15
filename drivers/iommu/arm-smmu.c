@@ -54,12 +54,6 @@
  */
 #define QCOM_DUMMY_VAL -1
 
-#define ARM_MMU500_ACTLR_CPRE		(1 << 1)
-
-#define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
-#define ARM_MMU500_ACR_S2CRB_TLBEN	(1 << 10)
-#define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
-
 #define TLB_LOOP_TIMEOUT		1000000	/* 1s! */
 #define TLB_SPIN_COUNT			10
 
@@ -1574,7 +1568,7 @@ static struct iommu_ops arm_smmu_ops = {
 static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 {
 	int i;
-	u32 reg, major;
+	u32 reg;
 
 	/* clear global FSR */
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sGFSR);
@@ -1587,38 +1581,10 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	for (i = 0; i < smmu->num_mapping_groups; ++i)
 		arm_smmu_write_sme(smmu, i);
 
-	if (smmu->model == ARM_MMU500) {
-		/*
-		 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
-		 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
-		 * bit is only present in MMU-500r2 onwards.
-		 */
-		reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_ID7);
-		major = FIELD_GET(ID7_MAJOR, reg);
-		reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sACR);
-		if (major >= 2)
-			reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
-		/*
-		 * Allow unmatched Stream IDs to allocate bypass
-		 * TLB entries for reduced latency.
-		 */
-		reg |= ARM_MMU500_ACR_SMTNMB_TLBEN | ARM_MMU500_ACR_S2CRB_TLBEN;
-		arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_sACR, reg);
-	}
-
 	/* Make sure all context banks are disabled and clear CB_FSR  */
 	for (i = 0; i < smmu->num_context_banks; ++i) {
 		arm_smmu_write_context_bank(smmu, i);
 		arm_smmu_cb_write(smmu, i, ARM_SMMU_CB_FSR, FSR_FAULT);
-		/*
-		 * Disable MMU-500's not-particularly-beneficial next-page
-		 * prefetcher for the sake of errata #841119 and #826419.
-		 */
-		if (smmu->model == ARM_MMU500) {
-			reg = arm_smmu_cb_read(smmu, i, ARM_SMMU_CB_ACTLR);
-			reg &= ~ARM_MMU500_ACTLR_CPRE;
-			arm_smmu_cb_write(smmu, i, ARM_SMMU_CB_ACTLR, reg);
-		}
 	}
 
 	/* Invalidate the TLB, just in case */
@@ -1651,6 +1617,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	if (smmu->features & ARM_SMMU_FEAT_EXIDS)
 		reg |= sCR0_EXIDENABLE;
+
+	if (smmu->impl && smmu->impl->reset)
+		smmu->impl->reset(smmu);
 
 	/* Push the button */
 	arm_smmu_tlb_sync_global(smmu);
