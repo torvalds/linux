@@ -95,6 +95,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-snapstream-firefly.o \
 			rc-streamzap.o \
 			rc-tango.o \
+			rc-tanix-tx3mini.o \
 			rc-tbs-nec.o \
 			rc-technisat-ts35.o \
 			rc-technisat-usb2.o \
