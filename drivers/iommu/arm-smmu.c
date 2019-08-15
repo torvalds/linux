@@ -155,8 +155,6 @@ struct arm_smmu_domain {
 	struct iommu_domain		domain;
 };
 
-static atomic_t cavium_smmu_context_count = ATOMIC_INIT(0);
-
 static bool using_legacy_binding, using_generic_binding;
 
 static inline int arm_smmu_rpm_get(struct arm_smmu_device *smmu)
@@ -1804,18 +1802,6 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	}
 	dev_notice(smmu->dev, "\t%u context banks (%u stage-2 only)\n",
 		   smmu->num_context_banks, smmu->num_s2_context_banks);
-	/*
-	 * Cavium CN88xx erratum #27704.
-	 * Ensure ASID and VMID allocation is unique across all SMMUs in
-	 * the system.
-	 */
-	if (smmu->model == CAVIUM_SMMUV2) {
-		smmu->cavium_id_base =
-			atomic_add_return(smmu->num_context_banks,
-					  &cavium_smmu_context_count);
-		smmu->cavium_id_base -= smmu->num_context_banks;
-		dev_notice(smmu->dev, "\tenabling workaround for Cavium erratum 27704\n");
-	}
 	smmu->cbs = devm_kcalloc(smmu->dev, smmu->num_context_banks,
 				 sizeof(*smmu->cbs), GFP_KERNEL);
 	if (!smmu->cbs)
@@ -1883,6 +1869,9 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	if (smmu->features & ARM_SMMU_FEAT_TRANS_S2)
 		dev_notice(smmu->dev, "\tStage-2: %lu-bit IPA -> %lu-bit PA\n",
 			   smmu->ipa_size, smmu->pa_size);
+
+	if (smmu->impl && smmu->impl->cfg_probe)
+		return smmu->impl->cfg_probe(smmu);
 
 	return 0;
 }

@@ -287,6 +287,7 @@ struct arm_smmu_impl {
 	u64 (*read_reg64)(struct arm_smmu_device *smmu, int page, int offset);
 	void (*write_reg64)(struct arm_smmu_device *smmu, int page, int offset,
 			    u64 val);
+	int (*cfg_probe)(struct arm_smmu_device *smmu);
 };
 
 static inline void __iomem *arm_smmu_page(struct arm_smmu_device *smmu, int n)
