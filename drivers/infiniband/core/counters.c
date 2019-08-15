@@ -424,7 +424,7 @@ static struct ib_qp *rdma_counter_get_qp(struct ib_device *dev, u32 qp_num)
 	return qp;
 
 err:
-	rdma_restrack_put(&qp->res);
+	rdma_restrack_put(res);
 	return NULL;
 }
 
