@@ -1356,15 +1356,18 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 
 	/* Map slave addresses of ANX7814 */
 	for (i = 0; i < I2C_NUM_ADDRESSES; i++) {
-		anx78xx->i2c_dummy[i] = i2c_new_dummy(client->adapter,
-						anx78xx_i2c_addresses[i] >> 1);
-		if (!anx78xx->i2c_dummy[i]) {
-			err = -ENOMEM;
-			DRM_ERROR("Failed to reserve I2C bus %02x\n",
-				  anx78xx_i2c_addresses[i]);
+		struct i2c_client *i2c_dummy;
+
+		i2c_dummy = i2c_new_dummy_device(client->adapter,
+						 anx78xx_i2c_addresses[i] >> 1);
+		if (IS_ERR(i2c_dummy)) {
+			err = PTR_ERR(i2c_dummy);
+			DRM_ERROR("Failed to reserve I2C bus %02x: %d\n",
+				  anx78xx_i2c_addresses[i], err);
 			goto err_unregister_i2c;
 		}
 
+		anx78xx->i2c_dummy[i] = i2c_dummy;
 		anx78xx->map[i] = devm_regmap_init_i2c(anx78xx->i2c_dummy[i],
 						       &anx78xx_regmap_config);
 		if (IS_ERR(anx78xx->map[i])) {
