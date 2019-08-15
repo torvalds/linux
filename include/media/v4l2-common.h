@@ -211,6 +211,13 @@ unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd);
  */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
 
+/**
+ * v4l2_i2c_subdev_unregister - Unregister a v4l2_subdev
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ */
+void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd);
+
 #else
 
 static inline struct v4l2_subdev *
@@ -249,6 +256,9 @@ v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 {
 	return NULL;
 }
+
+static inline void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd)
+{}
 
 #endif
 

@@ -8,6 +8,26 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 
+void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	/*
+	 * We need to unregister the i2c client
+	 * explicitly. We cannot rely on
+	 * i2c_del_adapter to always unregister
+	 * clients for us, since if the i2c bus is a
+	 * platform bus, then it is never deleted.
+	 *
+	 * Device tree or ACPI based devices must not
+	 * be unregistered as they have not been
+	 * registered by us, and would not be
+	 * re-created by just probing the V4L2 driver.
+	 */
+	if (client && !client->dev.of_node && !client->dev.fwnode)
+		i2c_unregister_device(client);
+}
+
 void v4l2_i2c_subdev_set_name(struct v4l2_subdev *sd, struct i2c_client *client,
 			      const char *devname, const char *postfix)
 {
