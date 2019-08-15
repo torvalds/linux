@@ -733,6 +733,13 @@ static bool rtl_is_8168evl_up(struct rtl8169_private *tp)
 	       tp->mac_version != RTL_GIGA_MAC_VER_39;
 }
 
+static bool rtl_supports_eee(struct rtl8169_private *tp)
+{
+	return tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
+	       tp->mac_version != RTL_GIGA_MAC_VER_37 &&
+	       tp->mac_version != RTL_GIGA_MAC_VER_39;
+}
+
 struct rtl_cond {
 	bool (*check)(struct rtl8169_private *);
 	const char *msg;
@@ -1945,144 +1952,40 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	return 0;
 }
 
-static int rtl_get_eee_supp(struct rtl8169_private *tp)
-{
-	struct phy_device *phydev = tp->phydev;
-	int ret;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34:
-	case RTL_GIGA_MAC_VER_35:
-	case RTL_GIGA_MAC_VER_36:
-	case RTL_GIGA_MAC_VER_38:
-		ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		ret = phy_read_paged(phydev, 0x0a5c, 0x12);
-		break;
-	default:
-		ret = -EPROTONOSUPPORT;
-		break;
-	}
-
-	return ret;
-}
-
-static int rtl_get_eee_lpadv(struct rtl8169_private *tp)
-{
-	struct phy_device *phydev = tp->phydev;
-	int ret;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34:
-	case RTL_GIGA_MAC_VER_35:
-	case RTL_GIGA_MAC_VER_36:
-	case RTL_GIGA_MAC_VER_38:
-		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE);
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		ret = phy_read_paged(phydev, 0x0a5d, 0x11);
-		break;
-	default:
-		ret = -EPROTONOSUPPORT;
-		break;
-	}
-
-	return ret;
-}
-
-static int rtl_get_eee_adv(struct rtl8169_private *tp)
-{
-	struct phy_device *phydev = tp->phydev;
-	int ret;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34:
-	case RTL_GIGA_MAC_VER_35:
-	case RTL_GIGA_MAC_VER_36:
-	case RTL_GIGA_MAC_VER_38:
-		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		ret = phy_read_paged(phydev, 0x0a5d, 0x10);
-		break;
-	default:
-		ret = -EPROTONOSUPPORT;
-		break;
-	}
-
-	return ret;
-}
-
-static int rtl_set_eee_adv(struct rtl8169_private *tp, int val)
-{
-	struct phy_device *phydev = tp->phydev;
-	int ret = 0;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34:
-	case RTL_GIGA_MAC_VER_35:
-	case RTL_GIGA_MAC_VER_36:
-	case RTL_GIGA_MAC_VER_38:
-		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		phy_write_paged(phydev, 0x0a5d, 0x10, val);
-		break;
-	default:
-		ret = -EPROTONOSUPPORT;
-		break;
-	}
-
-	return ret;
-}
-
 static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct device *d = tp_to_dev(tp);
 	int ret;
 
+	if (!rtl_supports_eee(tp))
+		return -EOPNOTSUPP;
+
 	pm_runtime_get_noresume(d);
 
 	if (!pm_runtime_active(d)) {
 		ret = -EOPNOTSUPP;
-		goto out;
+	} else {
+		ret = phy_ethtool_get_eee(tp->phydev, data);
 	}
 
-	/* Get Supported EEE */
-	ret = rtl_get_eee_supp(tp);
-	if (ret < 0)
-		goto out;
-	data->supported = mmd_eee_cap_to_ethtool_sup_t(ret);
-
-	/* Get advertisement EEE */
-	ret = rtl_get_eee_adv(tp);
-	if (ret < 0)
-		goto out;
-	data->advertised = mmd_eee_adv_to_ethtool_adv_t(ret);
-	data->eee_enabled = !!data->advertised;
-
-	/* Get LP advertisement EEE */
-	ret = rtl_get_eee_lpadv(tp);
-	if (ret < 0)
-		goto out;
-	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(ret);
-	data->eee_active = !!(data->advertised & data->lp_advertised);
-out:
 	pm_runtime_put_noidle(d);
-	return ret < 0 ? ret : 0;
+
+	return ret;
 }
 
 static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct device *d = tp_to_dev(tp);
-	int old_adv, adv = 0, cap, ret;
+	int ret;
+
+	if (!rtl_supports_eee(tp))
+		return -EOPNOTSUPP;
 
 	pm_runtime_get_noresume(d);
 
-	if (!dev->phydev || !pm_runtime_active(d)) {
+	if (!pm_runtime_active(d)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2093,38 +1996,10 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 		goto out;
 	}
 
-	/* Get Supported EEE */
-	ret = rtl_get_eee_supp(tp);
-	if (ret < 0)
-		goto out;
-	cap = ret;
-
-	ret = rtl_get_eee_adv(tp);
-	if (ret < 0)
-		goto out;
-	old_adv = ret;
-
-	if (data->eee_enabled) {
-		adv = !data->advertised ? cap :
-		      ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap;
-		/* Mask prohibited EEE modes */
-		adv &= ~dev->phydev->eee_broken_modes;
-	}
-
-	if (old_adv != adv) {
-		ret = rtl_set_eee_adv(tp, adv);
-		if (ret < 0)
-			goto out;
-
-		/* Restart autonegotiation so the new modes get sent to the
-		 * link partner.
-		 */
-		ret = phy_restart_aneg(dev->phydev);
-	}
-
+	ret = phy_ethtool_set_eee(tp->phydev, data);
 out:
 	pm_runtime_put_noidle(d);
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 static const struct ethtool_ops rtl8169_ethtool_ops = {
@@ -2151,10 +2026,11 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 
 static void rtl_enable_eee(struct rtl8169_private *tp)
 {
-	int supported = rtl_get_eee_supp(tp);
+	struct phy_device *phydev = tp->phydev;
+	int supported = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
 
 	if (supported > 0)
-		rtl_set_eee_adv(tp, supported);
+		phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, supported);
 }
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp)
