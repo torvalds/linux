@@ -280,10 +280,12 @@ int __init i915_global_context_init(void)
 void intel_context_enter_engine(struct intel_context *ce)
 {
 	intel_engine_pm_get(ce->engine);
+	intel_timeline_enter(ce->timeline);
 }
 
 void intel_context_exit_engine(struct intel_context *ce)
 {
+	intel_timeline_exit(ce->timeline);
 	intel_engine_pm_put(ce->engine);
 }
 

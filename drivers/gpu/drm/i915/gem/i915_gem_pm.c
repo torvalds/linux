@@ -37,7 +37,6 @@ static void i915_gem_park(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id)
 		call_idle_barriers(engine); /* cleanup after wedging */
 
-	intel_timelines_park(i915);
 	i915_vma_parked(i915);
 
 	i915_globals_park();

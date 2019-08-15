@@ -278,63 +278,10 @@ void intel_timelines_init(struct drm_i915_private *i915)
 	timelines_init(&i915->gt);
 }
 
-static void timeline_add_to_active(struct intel_timeline *tl)
-{
-	struct intel_gt_timelines *gt = &tl->gt->timelines;
-
-	mutex_lock(&gt->mutex);
-	list_add(&tl->link, &gt->active_list);
-	mutex_unlock(&gt->mutex);
-}
-
-static void timeline_remove_from_active(struct intel_timeline *tl)
-{
-	struct intel_gt_timelines *gt = &tl->gt->timelines;
-
-	mutex_lock(&gt->mutex);
-	list_del(&tl->link);
-	mutex_unlock(&gt->mutex);
-}
-
-static void timelines_park(struct intel_gt *gt)
-{
-	struct intel_gt_timelines *timelines = &gt->timelines;
-	struct intel_timeline *timeline;
-
-	mutex_lock(&timelines->mutex);
-	list_for_each_entry(timeline, &timelines->active_list, link) {
-		/*
-		 * All known fences are completed so we can scrap
-		 * the current sync point tracking and start afresh,
-		 * any attempt to wait upon a previous sync point
-		 * will be skipped as the fence was signaled.
-		 */
-		i915_syncmap_free(&timeline->sync);
-	}
-	mutex_unlock(&timelines->mutex);
-}
-
-/**
- * intel_timelines_park - called when the driver idles
- * @i915: the drm_i915_private device
- *
- * When the driver is completely idle, we know that all of our sync points
- * have been signaled and our tracking is then entirely redundant. Any request
- * to wait upon an older sync point will be completed instantly as we know
- * the fence is signaled and therefore we will not even look them up in the
- * sync point map.
- */
-void intel_timelines_park(struct drm_i915_private *i915)
-{
-	timelines_park(&i915->gt);
-}
-
 void intel_timeline_fini(struct intel_timeline *timeline)
 {
 	GEM_BUG_ON(timeline->pin_count);
 	GEM_BUG_ON(!list_empty(&timeline->requests));
-
-	i915_syncmap_free(&timeline->sync);
 
 	if (timeline->hwsp_cacheline)
 		cacheline_free(timeline->hwsp_cacheline);
@@ -370,6 +317,7 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	if (tl->pin_count++)
 		return 0;
 	GEM_BUG_ON(!tl->pin_count);
+	GEM_BUG_ON(tl->active_count);
 
 	err = i915_vma_pin(tl->hwsp_ggtt, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
@@ -380,13 +328,46 @@ int intel_timeline_pin(struct intel_timeline *tl)
 		offset_in_page(tl->hwsp_offset);
 
 	cacheline_acquire(tl->hwsp_cacheline);
-	timeline_add_to_active(tl);
 
 	return 0;
 
 unpin:
 	tl->pin_count = 0;
 	return err;
+}
+
+void intel_timeline_enter(struct intel_timeline *tl)
+{
+	struct intel_gt_timelines *timelines = &tl->gt->timelines;
+
+	GEM_BUG_ON(!tl->pin_count);
+	if (tl->active_count++)
+		return;
+	GEM_BUG_ON(!tl->active_count); /* overflow? */
+
+	mutex_lock(&timelines->mutex);
+	list_add(&tl->link, &timelines->active_list);
+	mutex_unlock(&timelines->mutex);
+}
+
+void intel_timeline_exit(struct intel_timeline *tl)
+{
+	struct intel_gt_timelines *timelines = &tl->gt->timelines;
+
+	GEM_BUG_ON(!tl->active_count);
+	if (--tl->active_count)
+		return;
+
+	mutex_lock(&timelines->mutex);
+	list_del(&tl->link);
+	mutex_unlock(&timelines->mutex);
+
+	/*
+	 * Since this timeline is idle, all bariers upon which we were waiting
+	 * must also be complete and so we can discard the last used barriers
+	 * without loss of information.
+	 */
+	i915_syncmap_free(&tl->sync);
 }
 
 static u32 timeline_advance(struct intel_timeline *tl)
@@ -546,15 +527,8 @@ void intel_timeline_unpin(struct intel_timeline *tl)
 	if (--tl->pin_count)
 		return;
 
-	timeline_remove_from_active(tl);
+	GEM_BUG_ON(tl->active_count);
 	cacheline_release(tl->hwsp_cacheline);
-
-	/*
-	 * Since this timeline is idle, all bariers upon which we were waiting
-	 * must also be complete and so we can discard the last used barriers
-	 * without loss of information.
-	 */
-	i915_syncmap_free(&tl->sync);
 
 	__i915_vma_unpin(tl->hwsp_ggtt);
 }

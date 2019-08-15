@@ -25,7 +25,25 @@ struct intel_timeline {
 
 	struct mutex mutex; /* protects the flow of requests */
 
+	/*
+	 * pin_count and active_count track essentially the same thing:
+	 * How many requests are in flight or may be under construction.
+	 *
+	 * We need two distinct counters so that we can assign different
+	 * lifetimes to the events for different use-cases. For example,
+	 * we want to permanently keep the timeline pinned for the kernel
+	 * context so that we can issue requests at any time without having
+	 * to acquire space in the GGTT. However, we want to keep tracking
+	 * the activity (to be able to detect when we become idle) along that
+	 * permanently pinned timeline and so end up requiring two counters.
+	 *
+	 * Note that the active_count is protected by the intel_timeline.mutex,
+	 * but the pin_count is protected by a combination of serialisation
+	 * from the intel_context caller plus internal atomicity.
+	 */
 	unsigned int pin_count;
+	unsigned int active_count;
+
 	const u32 *hwsp_seqno;
 	struct i915_vma *hwsp_ggtt;
 	u32 hwsp_offset;

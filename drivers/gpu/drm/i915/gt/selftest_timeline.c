@@ -816,8 +816,6 @@ static int live_hwsp_recycle(void *arg)
 
 			if (err)
 				goto out;
-
-			intel_timelines_park(i915); /* Encourage recycling! */
 		} while (!__igt_timeout(end_time, NULL));
 	}
 

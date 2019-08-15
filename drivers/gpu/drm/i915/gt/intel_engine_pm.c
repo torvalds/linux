@@ -66,6 +66,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		/* Context switch failed, hope for the best! Maybe reset? */
 		return true;
 
+	intel_timeline_enter(rq->timeline);
+
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
 	i915_request_add_active_barriers(rq);
