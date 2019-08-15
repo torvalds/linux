@@ -382,8 +382,7 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 	for (i = 0; i < RDMA_RESTRACK_MAX; i++) {
 		if (!names[i])
 			continue;
-		curr = rdma_restrack_count(device, i,
-					   task_active_pid_ns(current));
+		curr = rdma_restrack_count(device, i);
 		ret = fill_res_info_entry(msg, names[i], curr);
 		if (ret)
 			goto err;
