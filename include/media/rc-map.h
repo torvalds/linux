@@ -271,6 +271,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_WINFAST_USBII_DELUXE      "rc-winfast-usbii-deluxe"
 #define RC_MAP_SU3000                    "rc-su3000"
 #define RC_MAP_XBOX_DVD                  "rc-xbox-dvd"
+#define RC_MAP_X96MAX                    "rc-x96max"
 #define RC_MAP_ZX_IRDEC                  "rc-zx-irdec"
 
 /*
