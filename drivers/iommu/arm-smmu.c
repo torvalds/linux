@@ -20,6 +20,7 @@
 #include <linux/acpi.h>
 #include <linux/acpi_iort.h>
 #include <linux/atomic.h>
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
@@ -1019,7 +1020,7 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 {
 	struct arm_smmu_smr *smr = smmu->smrs + idx;
-	u32 reg = smr->id << SMR_ID_SHIFT | smr->mask << SMR_MASK_SHIFT;
+	u32 reg = FIELD_PREP(SMR_ID, smr->id) | FIELD_PREP(SMR_MASK, smr->mask);
 
 	if (!(smmu->features & ARM_SMMU_FEAT_EXIDS) && smr->valid)
 		reg |= SMR_VALID;
@@ -1029,9 +1030,9 @@ static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
 {
 	struct arm_smmu_s2cr *s2cr = smmu->s2crs + idx;
-	u32 reg = (s2cr->type & S2CR_TYPE_MASK) << S2CR_TYPE_SHIFT |
-		  (s2cr->cbndx & S2CR_CBNDX_MASK) << S2CR_CBNDX_SHIFT |
-		  (s2cr->privcfg & S2CR_PRIVCFG_MASK) << S2CR_PRIVCFG_SHIFT;
+	u32 reg = FIELD_PREP(S2CR_TYPE, s2cr->type) |
+		  FIELD_PREP(S2CR_CBNDX, s2cr->cbndx) |
+		  FIELD_PREP(S2CR_PRIVCFG, s2cr->privcfg);
 
 	if (smmu->features & ARM_SMMU_FEAT_EXIDS && smmu->smrs &&
 	    smmu->smrs[idx].valid)
@@ -1063,15 +1064,15 @@ static void arm_smmu_test_smr_masks(struct arm_smmu_device *smmu)
 	 * bits are set, so check each one separately. We can reject
 	 * masters later if they try to claim IDs outside these masks.
 	 */
-	smr = smmu->streamid_mask << SMR_ID_SHIFT;
+	smr = FIELD_PREP(SMR_ID, smmu->streamid_mask);
 	writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
 	smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
-	smmu->streamid_mask = smr >> SMR_ID_SHIFT;
+	smmu->streamid_mask = FIELD_GET(SMR_ID, smr);
 
-	smr = smmu->streamid_mask << SMR_MASK_SHIFT;
+	smr = FIELD_PREP(SMR_MASK, smmu->streamid_mask);
 	writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
 	smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
-	smmu->smr_mask_mask = smr >> SMR_MASK_SHIFT;
+	smmu->smr_mask_mask = FIELD_GET(SMR_MASK, smr);
 }
 
 static int arm_smmu_find_sme(struct arm_smmu_device *smmu, u16 id, u16 mask)
@@ -1140,8 +1141,8 @@ static int arm_smmu_master_alloc_smes(struct device *dev)
 	mutex_lock(&smmu->stream_map_mutex);
 	/* Figure out a viable stream map entry allocation */
 	for_each_cfg_sme(fwspec, i, idx) {
-		u16 sid = fwspec->ids[i];
-		u16 mask = fwspec->ids[i] >> SMR_MASK_SHIFT;
+		u16 sid = FIELD_GET(SMR_ID, fwspec->ids[i]);
+		u16 mask = FIELD_GET(SMR_MASK, fwspec->ids[i]);
 
 		if (idx != INVALID_SMENDX) {
 			ret = -EEXIST;
@@ -1466,8 +1467,8 @@ static int arm_smmu_add_device(struct device *dev)
 
 	ret = -EINVAL;
 	for (i = 0; i < fwspec->num_ids; i++) {
-		u16 sid = fwspec->ids[i];
-		u16 mask = fwspec->ids[i] >> SMR_MASK_SHIFT;
+		u16 sid = FIELD_GET(SMR_ID, fwspec->ids[i]);
+		u16 mask = FIELD_GET(SMR_MASK, fwspec->ids[i]);
 
 		if (sid & ~smmu->streamid_mask) {
 			dev_err(dev, "stream ID 0x%x out of range for SMMU (0x%x)\n",
@@ -1648,12 +1649,12 @@ static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	u32 mask, fwid = 0;
 
 	if (args->args_count > 0)
-		fwid |= (u16)args->args[0];
+		fwid |= FIELD_PREP(SMR_ID, args->args[0]);
 
 	if (args->args_count > 1)
-		fwid |= (u16)args->args[1] << SMR_MASK_SHIFT;
+		fwid |= FIELD_PREP(SMR_MASK, args->args[1]);
 	else if (!of_property_read_u32(args->np, "stream-match-mask", &mask))
-		fwid |= (u16)mask << SMR_MASK_SHIFT;
+		fwid |= FIELD_PREP(SMR_MASK, mask);
 
 	return iommu_fwspec_add_ids(dev, &fwid, 1);
 }
@@ -1728,7 +1729,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		 * bit is only present in MMU-500r2 onwards.
 		 */
 		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
-		major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
+		major = FIELD_GET(ID7_MAJOR, reg);
 		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sACR);
 		if (major >= 2)
 			reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
@@ -1780,7 +1781,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	reg &= ~sCR0_FB;
 
 	/* Don't upgrade barriers */
-	reg &= ~(sCR0_BSU_MASK << sCR0_BSU_SHIFT);
+	reg &= ~(sCR0_BSU);
 
 	if (smmu->features & ARM_SMMU_FEAT_VMID16)
 		reg |= sCR0_VMID16EN;
@@ -1879,12 +1880,12 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		smmu->features |= ARM_SMMU_FEAT_EXIDS;
 		size = 1 << 16;
 	} else {
-		size = 1 << ((id >> ID0_NUMSIDB_SHIFT) & ID0_NUMSIDB_MASK);
+		size = 1 << FIELD_GET(ID0_NUMSIDB, id);
 	}
 	smmu->streamid_mask = size - 1;
 	if (id & ID0_SMS) {
 		smmu->features |= ARM_SMMU_FEAT_STREAM_MATCH;
-		size = (id >> ID0_NUMSMRG_SHIFT) & ID0_NUMSMRG_MASK;
+		size = FIELD_GET(ID0_NUMSMRG, id);
 		if (size == 0) {
 			dev_err(smmu->dev,
 				"stream-matching supported, but no SMRs present!\n");
@@ -1923,15 +1924,15 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	smmu->pgshift = (id & ID1_PAGESIZE) ? 16 : 12;
 
 	/* Check for size mismatch of SMMU address space from mapped region */
-	size = 1 << (((id >> ID1_NUMPAGENDXB_SHIFT) & ID1_NUMPAGENDXB_MASK) + 1);
+	size = 1 << (FIELD_GET(ID1_NUMPAGENDXB, id) + 1);
 	size <<= smmu->pgshift;
 	if (smmu->cb_base != gr0_base + size)
 		dev_warn(smmu->dev,
 			"SMMU address space size (0x%lx) differs from mapped region size (0x%tx)!\n",
 			size * 2, (smmu->cb_base - gr0_base) * 2);
 
-	smmu->num_s2_context_banks = (id >> ID1_NUMS2CB_SHIFT) & ID1_NUMS2CB_MASK;
-	smmu->num_context_banks = (id >> ID1_NUMCB_SHIFT) & ID1_NUMCB_MASK;
+	smmu->num_s2_context_banks = FIELD_GET(ID1_NUMS2CB, id);
+	smmu->num_context_banks = FIELD_GET(ID1_NUMCB, id);
 	if (smmu->num_s2_context_banks > smmu->num_context_banks) {
 		dev_err(smmu->dev, "impossible number of S2 context banks!\n");
 		return -ENODEV;
@@ -1957,11 +1958,11 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 
 	/* ID2 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID2);
-	size = arm_smmu_id_size_to_bits((id >> ID2_IAS_SHIFT) & ID2_IAS_MASK);
+	size = arm_smmu_id_size_to_bits(FIELD_GET(ID2_IAS, id));
 	smmu->ipa_size = size;
 
 	/* The output mask is also applied for bypass */
-	size = arm_smmu_id_size_to_bits((id >> ID2_OAS_SHIFT) & ID2_OAS_MASK);
+	size = arm_smmu_id_size_to_bits(FIELD_GET(ID2_OAS, id));
 	smmu->pa_size = size;
 
 	if (id & ID2_VMID16)
@@ -1981,7 +1982,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		if (smmu->version == ARM_SMMU_V1_64K)
 			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH64_64K;
 	} else {
-		size = (id >> ID2_UBS_SHIFT) & ID2_UBS_MASK;
+		size = FIELD_GET(ID2_UBS, id);
 		smmu->va_size = arm_smmu_id_size_to_bits(size);
 		if (id & ID2_PTFS_4K)
 			smmu->features |= ARM_SMMU_FEAT_FMT_AARCH64_4K;
