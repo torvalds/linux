@@ -2740,12 +2740,10 @@ static u32 *emit_preempt_busywait(struct i915_request *request, u32 *cs)
 	return cs;
 }
 
-static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
+static __always_inline u32*
+gen8_emit_fini_breadcrumb_footer(struct i915_request *request,
+				 u32 *cs)
 {
-	cs = gen8_emit_ggtt_write(cs,
-				  request->fence.seqno,
-				  request->timeline->hwsp_offset,
-				  0);
 	*cs++ = MI_USER_INTERRUPT;
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
@@ -2758,29 +2756,48 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 	return gen8_emit_wa_tail(request, cs);
 }
 
+static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
+{
+	cs = gen8_emit_ggtt_write(cs,
+				  request->fence.seqno,
+				  request->timeline->hwsp_offset,
+				  0);
+
+	return gen8_emit_fini_breadcrumb_footer(request, cs);
+}
+
 static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 {
-	/* XXX flush+write+CS_STALL all in one upsets gem_concurrent_blt:kbl */
 	cs = gen8_emit_ggtt_write_rcs(cs,
 				      request->fence.seqno,
 				      request->timeline->hwsp_offset,
 				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
 				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
 				      PIPE_CONTROL_DC_FLUSH_ENABLE);
+
+	/* XXX flush+write+CS_STALL all in one upsets gem_concurrent_blt:kbl */
 	cs = gen8_emit_pipe_control(cs,
 				    PIPE_CONTROL_FLUSH_ENABLE |
 				    PIPE_CONTROL_CS_STALL,
 				    0);
-	*cs++ = MI_USER_INTERRUPT;
 
-	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	if (intel_engine_has_semaphores(request->engine))
-		cs = emit_preempt_busywait(request, cs);
+	return gen8_emit_fini_breadcrumb_footer(request, cs);
+}
 
-	request->tail = intel_ring_offset(request, cs);
-	assert_ring_tail_valid(request->ring, request->tail);
+static u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *request,
+					   u32 *cs)
+{
+	cs = gen8_emit_ggtt_write_rcs(cs,
+				      request->fence.seqno,
+				      request->timeline->hwsp_offset,
+				      PIPE_CONTROL_CS_STALL |
+				      PIPE_CONTROL_TILE_CACHE_FLUSH |
+				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+				      PIPE_CONTROL_DC_FLUSH_ENABLE |
+				      PIPE_CONTROL_FLUSH_ENABLE);
 
-	return gen8_emit_wa_tail(request, cs);
+	return gen8_emit_fini_breadcrumb_footer(request, cs);
 }
 
 static void execlists_park(struct intel_engine_cs *engine)
@@ -2876,6 +2893,21 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
+static void rcs_submission_override(struct intel_engine_cs *engine)
+{
+	switch (INTEL_GEN(engine->i915)) {
+	case 12:
+	case 11:
+		engine->emit_flush = gen11_emit_flush_render;
+		engine->emit_fini_breadcrumb = gen11_emit_fini_breadcrumb_rcs;
+		break;
+	default:
+		engine->emit_flush = gen8_emit_flush_render;
+		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
+		break;
+	}
+}
+
 int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 {
 	tasklet_init(&engine->execlists.tasklet,
@@ -2885,13 +2917,8 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 
-	if (engine->class == RENDER_CLASS) {
-		if (INTEL_GEN(engine->i915) >= 11)
-			engine->emit_flush = gen11_emit_flush_render;
-		else
-			engine->emit_flush = gen8_emit_flush_render;
-		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
-	}
+	if (engine->class == RENDER_CLASS)
+		rcs_submission_override(engine);
 
 	return 0;
 }
