@@ -41,7 +41,12 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_H264``
       - 'H264'
-      - H264 video elementary stream with start codes.
+      - H264 Access Unit.
+	The decoder expects one Access Unit per buffer.
+	The encoder generates one Access Unit per buffer.
+	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
+	then the decoder has no requirements since it can parse all the
+	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-H264-NO-SC:
 
       - ``V4L2_PIX_FMT_H264_NO_SC``
@@ -89,12 +94,20 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_MPEG1``
       - 'MPG1'
-      - MPEG1 video elementary stream.
+      - MPEG1 Picture. Each buffer starts with a Picture header, followed
+	by other headers as needed and ending with the Picture data.
+	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
+	then the decoder has no requirements since it can parse all the
+	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-MPEG2:
 
       - ``V4L2_PIX_FMT_MPEG2``
       - 'MPG2'
-      - MPEG2 video elementary stream.
+      - MPEG2 Picture. Each buffer starts with a Picture header, followed
+	by other headers as needed and ending with the Picture data.
+	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
+	then the decoder has no requirements since it can parse all the
+	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-MPEG2-SLICE:
 
       - ``V4L2_PIX_FMT_MPEG2_SLICE``
@@ -135,7 +148,9 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_VP8``
       - 'VP80'
-      - VP8 video elementary stream.
+      - VP8 compressed video frame. The encoder generates one
+	compressed frame per buffer, and the decoder requires one
+	compressed frame per buffer.
     * .. _V4L2-PIX-FMT-VP8-FRAME:
 
       - ``V4L2_PIX_FMT_VP8_FRAME``
@@ -160,12 +175,19 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_VP9``
       - 'VP90'
-      - VP9 video elementary stream.
+      - VP9 compressed video frame. The encoder generates one
+	compressed frame per buffer, and the decoder requires one
+	compressed frame per buffer.
     * .. _V4L2-PIX-FMT-HEVC:
 
       - ``V4L2_PIX_FMT_HEVC``
       - 'HEVC'
-      - HEVC/H.265 video elementary stream.
+      - HEVC/H.265 Access Unit.
+	The decoder expects one Access Unit per buffer.
+	The encoder generates one Access Unit per buffer.
+	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
+	then the decoder has no	requirements since it can parse all the
+	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-FWHT:
 
       - ``V4L2_PIX_FMT_FWHT``
@@ -173,6 +195,8 @@ Compressed Formats
       - Video elementary stream using a codec based on the Fast Walsh Hadamard
         Transform. This codec is implemented by the vicodec ('Virtual Codec')
 	driver. See the codec-fwht.h header for more details.
+	:ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
+	since the decoder can parse all the information from the raw bytestream.
     * .. _V4L2-PIX-FMT-FWHT-STATELESS:
 
       - ``V4L2_PIX_FMT_FWHT_STATELESS``
