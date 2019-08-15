@@ -347,7 +347,7 @@ struct ras_err_data {
 	unsigned long ue_count;
 	unsigned long ce_count;
 	unsigned long err_addr_cnt;
-	uint64_t *err_addr;
+	struct eeprom_table_record *err_addr;
 };
 
 struct ras_err_handler_data {

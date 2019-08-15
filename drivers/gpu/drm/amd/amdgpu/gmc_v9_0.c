@@ -247,21 +247,43 @@ static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 		struct ras_err_data *err_data,
 		struct amdgpu_iv_entry *entry)
 {
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
-		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-		if (adev->umc.funcs->query_ras_error_count)
-			adev->umc.funcs->query_ras_error_count(adev, err_data);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return AMDGPU_RAS_SUCCESS;
+
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+	if (adev->umc.funcs &&
+	    adev->umc.funcs->query_ras_error_count)
+	    adev->umc.funcs->query_ras_error_count(adev, err_data);
+
+	if (adev->umc.funcs &&
+	    adev->umc.funcs->query_ras_error_address &&
+	    adev->umc.max_ras_err_cnt_per_query) {
+		err_data->err_addr =
+			kcalloc(adev->umc.max_ras_err_cnt_per_query,
+				sizeof(struct eeprom_table_record), GFP_KERNEL);
+		/* still call query_ras_error_address to clear error status
+		 * even NOMEM error is encountered
+		 */
+		if(!err_data->err_addr)
+			DRM_WARN("Failed to alloc memory for umc error address record!\n");
+
 		/* umc query_ras_error_address is also responsible for clearing
 		 * error status
 		 */
-		if (adev->umc.funcs->query_ras_error_address)
-			adev->umc.funcs->query_ras_error_address(adev, err_data);
-
-		/* only uncorrectable error needs gpu reset */
-		if (err_data->ue_count)
-			amdgpu_ras_reset_gpu(adev, 0);
+		adev->umc.funcs->query_ras_error_address(adev, err_data);
 	}
 
+	/* only uncorrectable error needs gpu reset */
+	if (err_data->ue_count) {
+		if (err_data->err_addr_cnt &&
+		    amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
+						err_data->err_addr_cnt))
+			DRM_WARN("Failed to add ras bad page!\n");
+
+		amdgpu_ras_reset_gpu(adev, 0);
+	}
+
+	kfree(err_data->err_addr);
 	return AMDGPU_RAS_SUCCESS;
 }
 
