@@ -1171,13 +1171,17 @@ static struct inode *nfsd_get_inode(struct super_block *sb, umode_t mode)
 	return inode;
 }
 
-static int __nfsd_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int __nfsd_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode, struct nfsdfs_client *ncl)
 {
 	struct inode *inode;
 
 	inode = nfsd_get_inode(dir->i_sb, mode);
 	if (!inode)
 		return -ENOMEM;
+	if (ncl) {
+		inode->i_private = ncl;
+		kref_get(&ncl->cl_ref);
+	}
 	d_add(dentry, inode);
 	inc_nlink(dir);
 	fsnotify_mkdir(dir, dentry);
@@ -1194,13 +1198,9 @@ static struct dentry *nfsd_mkdir(struct dentry *parent, struct nfsdfs_client *nc
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
 		goto out_err;
-	ret = __nfsd_mkdir(d_inode(parent), dentry, S_IFDIR | 0600);
+	ret = __nfsd_mkdir(d_inode(parent), dentry, S_IFDIR | 0600, ncl);
 	if (ret)
 		goto out_err;
-	if (ncl) {
-		d_inode(dentry)->i_private = ncl;
-		kref_get(&ncl->cl_ref);
-	}
 out:
 	inode_unlock(dir);
 	return dentry;
