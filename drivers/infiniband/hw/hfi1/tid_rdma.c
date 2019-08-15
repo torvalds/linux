@@ -2574,18 +2574,9 @@ void hfi1_kern_read_tid_flow_free(struct rvt_qp *qp)
 	hfi1_kern_clear_hw_flow(priv->rcd, qp);
 }
 
-static bool tid_rdma_tid_err(struct hfi1_ctxtdata *rcd,
-			     struct hfi1_packet *packet, u8 rcv_type,
-			     u8 opcode)
+static bool tid_rdma_tid_err(struct hfi1_packet *packet, u8 rcv_type)
 {
 	struct rvt_qp *qp = packet->qp;
-	struct hfi1_qp_priv *qpriv = qp->priv;
-	u32 ipsn;
-	struct ib_other_headers *ohdr = packet->ohdr;
-	struct rvt_ack_entry *e;
-	struct tid_rdma_request *req;
-	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
-	u32 i;
 
 	if (rcv_type >= RHF_RCV_TYPE_IB)
 		goto done;
@@ -2602,41 +2593,9 @@ static bool tid_rdma_tid_err(struct hfi1_ctxtdata *rcd,
 	if (rcv_type == RHF_RCV_TYPE_EAGER) {
 		hfi1_restart_rc(qp, qp->s_last_psn + 1, 1);
 		hfi1_schedule_send(qp);
-		goto done_unlock;
 	}
 
-	/*
-	 * For TID READ response, error out QP after freeing the tid
-	 * resources.
-	 */
-	if (opcode == TID_OP(READ_RESP)) {
-		ipsn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.r_rsp.verbs_psn));
-		if (cmp_psn(ipsn, qp->s_last_psn) > 0 &&
-		    cmp_psn(ipsn, qp->s_psn) < 0) {
-			hfi1_kern_read_tid_flow_free(qp);
-			spin_unlock(&qp->s_lock);
-			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-			goto done;
-		}
-		goto done_unlock;
-	}
-
-	/*
-	 * Error out the qp for TID RDMA WRITE
-	 */
-	hfi1_kern_clear_hw_flow(qpriv->rcd, qp);
-	for (i = 0; i < rvt_max_atomic(rdi); i++) {
-		e = &qp->s_ack_queue[i];
-		if (e->opcode == TID_OP(WRITE_REQ)) {
-			req = ack_to_tid_req(e);
-			hfi1_kern_exp_rcv_clear_all(req);
-		}
-	}
-	spin_unlock(&qp->s_lock);
-	rvt_rc_error(qp, IB_WC_LOC_LEN_ERR);
-	goto done;
-
-done_unlock:
+	/* Since no payload is delivered, just drop the packet */
 	spin_unlock(&qp->s_lock);
 done:
 	return true;
@@ -2925,7 +2884,7 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 		if (lnh == HFI1_LRH_GRH)
 			goto r_unlock;
 
-		if (tid_rdma_tid_err(rcd, packet, rcv_type, opcode))
+		if (tid_rdma_tid_err(packet, rcv_type))
 			goto r_unlock;
 	}
 
