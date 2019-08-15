@@ -150,7 +150,7 @@ config CRYPTO_DES_S390
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
@@ -215,7 +215,7 @@ config CRYPTO_DEV_MARVELL_CESA
 	tristate "Marvell's Cryptographic Engine driver"
 	depends on PLAT_ORION || ARCH_MVEBU
 	select CRYPTO_LIB_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
 	select SRAM
@@ -227,7 +227,7 @@ config CRYPTO_DEV_MARVELL_CESA
 
 config CRYPTO_DEV_NIAGARA2
        tristate "Niagara2 Stream Processing Unit driver"
-       select CRYPTO_DES
+       select CRYPTO_LIB_DES
        select CRYPTO_BLKCIPHER
        select CRYPTO_HASH
        select CRYPTO_MD5
@@ -244,7 +244,7 @@ config CRYPTO_DEV_NIAGARA2
 
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	select HW_RANDOM if CRYPTO_DEV_HIFN_795X_RNG
 	depends on PCI
@@ -300,7 +300,7 @@ config CRYPTO_DEV_TALITOS2
 config CRYPTO_DEV_IXP4XX
 	tristate "Driver for IXP4xx crypto hardware acceleration"
 	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
@@ -366,7 +366,7 @@ config CRYPTO_DEV_OMAP_AES
 config CRYPTO_DEV_OMAP_DES
 	tristate "Support for OMAP DES/3DES hw engine"
 	depends on ARCH_OMAP2PLUS
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_ENGINE
 	help
@@ -384,7 +384,7 @@ config CRYPTO_DEV_PICOXCELL
 	select CRYPTO_AES
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_SEQIV
@@ -497,7 +497,7 @@ config CRYPTO_DEV_ATMEL_AES
 config CRYPTO_DEV_ATMEL_TDES
 	tristate "Support for Atmel DES/TDES hw accelerator"
 	depends on ARCH_AT91 || COMPILE_TEST
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	help
 	  Some Atmel processors have DES/TDES hw accelerator.
@@ -595,7 +595,7 @@ config CRYPTO_DEV_QCE
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_ECB
 	select CRYPTO_CBC
 	select CRYPTO_XTS
@@ -643,7 +643,7 @@ config CRYPTO_DEV_SUN4I_SS
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	help
 	  Some Allwinner SoC have a crypto accelerator named
@@ -666,7 +666,7 @@ config CRYPTO_DEV_ROCKCHIP
 	tristate "Rockchip's Cryptographic Engine driver"
 	depends on OF && ARCH_ROCKCHIP
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
@@ -703,7 +703,7 @@ config CRYPTO_DEV_BCM_SPU
 	depends on MAILBOX
 	default m
 	select CRYPTO_AUTHENC
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
@@ -722,7 +722,7 @@ config CRYPTO_DEV_SAFEXCEL
 	select CRYPTO_LIB_AES
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_HASH
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
@@ -760,7 +760,7 @@ config CRYPTO_DEV_CCREE
 	default n
 	select CRYPTO_HASH
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_SHA1
