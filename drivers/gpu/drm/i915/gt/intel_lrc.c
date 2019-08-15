@@ -2655,6 +2655,62 @@ static int gen8_emit_flush_render(struct i915_request *request,
 	return 0;
 }
 
+static int gen11_emit_flush_render(struct i915_request *request,
+				   u32 mode)
+{
+	struct intel_engine_cs *engine = request->engine;
+	const u32 scratch_addr =
+		intel_gt_scratch_offset(engine->gt,
+					INTEL_GT_SCRATCH_FIELD_RENDER_FLUSH);
+
+	if (mode & EMIT_FLUSH) {
+		u32 *cs;
+		u32 flags = 0;
+
+		flags |= PIPE_CONTROL_CS_STALL;
+
+		flags |= PIPE_CONTROL_TILE_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
+		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+		flags |= PIPE_CONTROL_QW_WRITE;
+		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+
+		cs = intel_ring_begin(request, 6);
+		if (IS_ERR(cs))
+			return PTR_ERR(cs);
+
+		cs = gen8_emit_pipe_control(cs, flags, scratch_addr);
+		intel_ring_advance(request, cs);
+	}
+
+	if (mode & EMIT_INVALIDATE) {
+		u32 *cs;
+		u32 flags = 0;
+
+		flags |= PIPE_CONTROL_CS_STALL;
+
+		flags |= PIPE_CONTROL_TLB_INVALIDATE;
+		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_QW_WRITE;
+		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+
+		cs = intel_ring_begin(request, 6);
+		if (IS_ERR(cs))
+			return PTR_ERR(cs);
+
+		cs = gen8_emit_pipe_control(cs, flags, scratch_addr);
+		intel_ring_advance(request, cs);
+	}
+
+	return 0;
+}
+
 /*
  * Reserve space for 2 NOOPs at the end of each request to be
  * used as a workaround for not being allowed to do lite
@@ -2829,7 +2885,10 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	logical_ring_default_irqs(engine);
 
 	if (engine->class == RENDER_CLASS) {
-		engine->emit_flush = gen8_emit_flush_render;
+		if (INTEL_GEN(engine->i915) >= 11)
+			engine->emit_flush = gen11_emit_flush_render;
+		else
+			engine->emit_flush = gen8_emit_flush_render;
 		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
 	}
 
