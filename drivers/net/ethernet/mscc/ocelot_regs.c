@@ -234,6 +234,16 @@ static const u32 ocelot_s2_regmap[] = {
 	REG(S2_CACHE_TG_DAT,               0x000388),
 };
 
+static const u32 ocelot_ptp_regmap[] = {
+	REG(PTP_PIN_CFG,                   0x000000),
+	REG(PTP_PIN_TOD_SEC_MSB,           0x000004),
+	REG(PTP_PIN_TOD_SEC_LSB,           0x000008),
+	REG(PTP_PIN_TOD_NSEC,              0x00000c),
+	REG(PTP_CFG_MISC,                  0x0000a0),
+	REG(PTP_CLK_CFG_ADJ_CFG,           0x0000a4),
+	REG(PTP_CLK_CFG_ADJ_FREQ,          0x0000a8),
+};
+
 static const u32 *ocelot_regmap[] = {
 	[ANA] = ocelot_ana_regmap,
 	[QS] = ocelot_qs_regmap,
@@ -241,6 +251,7 @@ static const u32 *ocelot_regmap[] = {
 	[REW] = ocelot_rew_regmap,
 	[SYS] = ocelot_sys_regmap,
 	[S2] = ocelot_s2_regmap,
+	[PTP] = ocelot_ptp_regmap,
 };
 
 static const struct reg_field ocelot_regfields[] = {
