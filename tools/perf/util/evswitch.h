@@ -9,6 +9,7 @@ struct evsel;
 
 struct evswitch {
 	struct evsel *on, *off;
+	const char   *on_name, *off_name;
 	bool	     discarding;
 	bool	     show_on_off_events;
 };

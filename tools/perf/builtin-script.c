@@ -3400,8 +3400,6 @@ int cmd_script(int argc, const char **argv)
 	struct utsname uts;
 	char *script_path = NULL;
 	const char **__argv;
-	const char *event_switch_on  = NULL,
-		   *event_switch_off = NULL;
 	int i, j, err = 0;
 	struct perf_script script = {
 		.tool = {
@@ -3545,9 +3543,9 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/kallsyms"),
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
-	OPT_STRING(0, "switch-on", &event_switch_on,
+	OPT_STRING(0, "switch-on", &script.evswitch.on_name,
 		   "event", "Consider events after the ocurrence of this event"),
-	OPT_STRING(0, "switch-off", &event_switch_off,
+	OPT_STRING(0, "switch-off", &script.evswitch.off_name,
 		   "event", "Stop considering events after the ocurrence of this event"),
 	OPT_BOOLEAN(0, "show-on-off-events", &script.evswitch.show_on_off_events,
 		    "Show the on/off switch events, used with --switch-on"),
@@ -3875,20 +3873,20 @@ int cmd_script(int argc, const char **argv)
 						  script.range_num);
 	}
 
-	if (event_switch_on) {
-		script.evswitch.on = perf_evlist__find_evsel_by_str(session->evlist, event_switch_on);
+	if (script.evswitch.on_name) {
+		script.evswitch.on = perf_evlist__find_evsel_by_str(session->evlist, script.evswitch.on_name);
 		if (script.evswitch.on == NULL) {
-			fprintf(stderr, "switch-on event not found (%s)\n", event_switch_on);
+			fprintf(stderr, "switch-on event not found (%s)\n", script.evswitch.on_name);
 			err = -ENOENT;
 			goto out_delete;
 		}
 		script.evswitch.discarding = true;
 	}
 
-	if (event_switch_off) {
-		script.evswitch.off = perf_evlist__find_evsel_by_str(session->evlist, event_switch_off);
+	if (script.evswitch.off_name) {
+		script.evswitch.off = perf_evlist__find_evsel_by_str(session->evlist, script.evswitch.off_name);
 		if (script.evswitch.off == NULL) {
-			fprintf(stderr, "switch-off event not found (%s)\n", event_switch_off);
+			fprintf(stderr, "switch-off event not found (%s)\n", script.evswitch.off_name);
 			err = -ENOENT;
 			goto out_delete;
 		}
