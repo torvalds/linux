@@ -33,6 +33,7 @@ enum dw_pci_ctl_id_t {
 	baytrail,
 	cherrytrail,
 	haswell,
+	elkhartlake,
 };
 
 struct dw_scl_sda_cfg {
@@ -167,6 +168,14 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.functionality = I2C_FUNC_10BIT_ADDR,
 		.flags = MODEL_CHERRYTRAIL,
 		.scl_sda_cfg = &byt_config,
+	},
+	[elkhartlake] = {
+		.bus_num = -1,
+		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
+		.tx_fifo_depth = 32,
+		.rx_fifo_depth = 32,
+		.functionality = I2C_FUNC_10BIT_ADDR,
+		.clk_khz = 100000,
 	},
 };
 
@@ -340,6 +349,15 @@ static const struct pci_device_id i2_designware_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x22C5), cherrytrail },
 	{ PCI_VDEVICE(INTEL, 0x22C6), cherrytrail },
 	{ PCI_VDEVICE(INTEL, 0x22C7), cherrytrail },
+	/* Elkhart Lake (PSE I2C) */
+	{ PCI_VDEVICE(INTEL, 0x4bb9), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bba), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbb), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbc), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbd), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbe), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbf), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bc0), elkhartlake },
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, i2_designware_pci_ids);
