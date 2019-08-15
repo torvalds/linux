@@ -469,6 +469,9 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		swp_entry_t entry = pte_to_swp_entry(pte);
 
 		if (!non_swap_entry(entry)) {
+			cpu_flags = pte_to_hmm_pfn_flags(range, pte);
+			hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
+					   &fault, &write_fault);
 			if (fault || write_fault)
 				goto fault;
 			return 0;
