@@ -1241,7 +1241,7 @@ static bool calc_pll_max_vco_construct(
 			init_data->bp == NULL)
 		return false;
 
-	if (init_data->bp->fw_info_valid)
+	if (!init_data->bp->fw_info_valid)
 		return false;
 
 	fw_info = &init_data->bp->fw_info;
