@@ -424,21 +424,6 @@ config ARCH_DOVE
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
-config ARCH_LPC32XX
-	bool "NXP LPC32XX"
-	select ARM_AMBA
-	select CLKDEV_LOOKUP
-	select CLKSRC_LPC32XX
-	select COMMON_CLK
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_IRQ_MULTI_HANDLER
-	select GPIOLIB
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for the NXP LPC32XX family of processors
-
 config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
@@ -685,6 +670,8 @@ source "arch/arm/mach-iop32x/Kconfig"
 source "arch/arm/mach-ixp4xx/Kconfig"
 
 source "arch/arm/mach-keystone/Kconfig"
+
+source "arch/arm/mach-lpc32xx/Kconfig"
 
 source "arch/arm/mach-mediatek/Kconfig"
 
