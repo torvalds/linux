@@ -1032,10 +1032,8 @@ static int io_import_fixed(struct io_ring_ctx *ctx, int rw,
 
 			iter->bvec = bvec + seg_skip;
 			iter->nr_segs -= seg_skip;
-			iter->count -= (seg_skip << PAGE_SHIFT);
+			iter->count -= bvec->bv_len + offset;
 			iter->iov_offset = offset & ~PAGE_MASK;
-			if (iter->iov_offset)
-				iter->count -= iter->iov_offset;
 		}
 	}
 
