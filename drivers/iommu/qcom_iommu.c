@@ -7,6 +7,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
@@ -247,16 +248,16 @@ static int qcom_iommu_init_domain(struct iommu_domain *domain,
 		/* TTBRs */
 		iommu_writeq(ctx, ARM_SMMU_CB_TTBR0,
 				pgtbl_cfg.arm_lpae_s1_cfg.ttbr[0] |
-				((u64)ctx->asid << TTBRn_ASID_SHIFT));
+				FIELD_PREP(TTBRn_ASID, ctx->asid));
 		iommu_writeq(ctx, ARM_SMMU_CB_TTBR1,
 				pgtbl_cfg.arm_lpae_s1_cfg.ttbr[1] |
-				((u64)ctx->asid << TTBRn_ASID_SHIFT));
+				FIELD_PREP(TTBRn_ASID, ctx->asid));
 
-		/* TTBCR */
-		iommu_writel(ctx, ARM_SMMU_CB_TTBCR2,
+		/* TCR */
+		iommu_writel(ctx, ARM_SMMU_CB_TCR2,
 				(pgtbl_cfg.arm_lpae_s1_cfg.tcr >> 32) |
-				TTBCR2_SEP_UPSTREAM);
-		iommu_writel(ctx, ARM_SMMU_CB_TTBCR,
+				FIELD_PREP(TCR2_SEP, TCR2_SEP_UPSTREAM));
+		iommu_writel(ctx, ARM_SMMU_CB_TCR,
 				pgtbl_cfg.arm_lpae_s1_cfg.tcr);
 
 		/* MAIRs (stage-1 only) */

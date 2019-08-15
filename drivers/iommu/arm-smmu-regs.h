@@ -129,19 +129,59 @@ enum arm_smmu_cbar_type {
 #define CBA2R_VA64			BIT(0)
 
 #define ARM_SMMU_CB_SCTLR		0x0
+#define SCTLR_S1_ASIDPNE		BIT(12)
+#define SCTLR_CFCFG			BIT(7)
+#define SCTLR_CFIE			BIT(6)
+#define SCTLR_CFRE			BIT(5)
+#define SCTLR_E				BIT(4)
+#define SCTLR_AFE			BIT(2)
+#define SCTLR_TRE			BIT(1)
+#define SCTLR_M				BIT(0)
+
 #define ARM_SMMU_CB_ACTLR		0x4
+
 #define ARM_SMMU_CB_RESUME		0x8
-#define ARM_SMMU_CB_TTBCR2		0x10
+#define RESUME_TERMINATE		BIT(0)
+
+#define ARM_SMMU_CB_TCR2		0x10
+#define TCR2_SEP			GENMASK(17, 15)
+#define TCR2_SEP_UPSTREAM		0x7
+#define TCR2_AS				BIT(4)
+
 #define ARM_SMMU_CB_TTBR0		0x20
 #define ARM_SMMU_CB_TTBR1		0x28
-#define ARM_SMMU_CB_TTBCR		0x30
+#define TTBRn_ASID			GENMASK_ULL(63, 48)
+
+#define ARM_SMMU_CB_TCR			0x30
 #define ARM_SMMU_CB_CONTEXTIDR		0x34
 #define ARM_SMMU_CB_S1_MAIR0		0x38
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
+
 #define ARM_SMMU_CB_PAR			0x50
+#define CB_PAR_F			BIT(0)
+
 #define ARM_SMMU_CB_FSR			0x58
+#define FSR_MULTI			BIT(31)
+#define FSR_SS				BIT(30)
+#define FSR_UUT				BIT(8)
+#define FSR_ASF				BIT(7)
+#define FSR_TLBLKF			BIT(6)
+#define FSR_TLBMCF			BIT(5)
+#define FSR_EF				BIT(4)
+#define FSR_PF				BIT(3)
+#define FSR_AFF				BIT(2)
+#define FSR_TF				BIT(1)
+
+#define FSR_IGN				(FSR_AFF | FSR_ASF | \
+					 FSR_TLBMCF | FSR_TLBLKF)
+#define FSR_FAULT			(FSR_MULTI | FSR_SS | FSR_UUT | \
+					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
+
 #define ARM_SMMU_CB_FAR			0x60
+
 #define ARM_SMMU_CB_FSYNR0		0x68
+#define FSYNR0_WNR			BIT(4)
+
 #define ARM_SMMU_CB_S1_TLBIVA		0x600
 #define ARM_SMMU_CB_S1_TLBIASID		0x610
 #define ARM_SMMU_CB_S1_TLBIVAL		0x620
@@ -150,46 +190,8 @@ enum arm_smmu_cbar_type {
 #define ARM_SMMU_CB_TLBSYNC		0x7f0
 #define ARM_SMMU_CB_TLBSTATUS		0x7f4
 #define ARM_SMMU_CB_ATS1PR		0x800
+
 #define ARM_SMMU_CB_ATSR		0x8f0
-
-#define SCTLR_S1_ASIDPNE		(1 << 12)
-#define SCTLR_CFCFG			(1 << 7)
-#define SCTLR_CFIE			(1 << 6)
-#define SCTLR_CFRE			(1 << 5)
-#define SCTLR_E				(1 << 4)
-#define SCTLR_AFE			(1 << 2)
-#define SCTLR_TRE			(1 << 1)
-#define SCTLR_M				(1 << 0)
-
-#define CB_PAR_F			(1 << 0)
-
-#define ATSR_ACTIVE			(1 << 0)
-
-#define RESUME_RETRY			(0 << 0)
-#define RESUME_TERMINATE		(1 << 0)
-
-#define TTBCR2_SEP_SHIFT		15
-#define TTBCR2_SEP_UPSTREAM		(0x7 << TTBCR2_SEP_SHIFT)
-#define TTBCR2_AS			(1 << 4)
-
-#define TTBRn_ASID_SHIFT		48
-
-#define FSR_MULTI			(1 << 31)
-#define FSR_SS				(1 << 30)
-#define FSR_UUT				(1 << 8)
-#define FSR_ASF				(1 << 7)
-#define FSR_TLBLKF			(1 << 6)
-#define FSR_TLBMCF			(1 << 5)
-#define FSR_EF				(1 << 4)
-#define FSR_PF				(1 << 3)
-#define FSR_AFF				(1 << 2)
-#define FSR_TF				(1 << 1)
-
-#define FSR_IGN				(FSR_AFF | FSR_ASF | \
-					 FSR_TLBMCF | FSR_TLBLKF)
-#define FSR_FAULT			(FSR_MULTI | FSR_SS | FSR_UUT | \
-					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
-
-#define FSYNR0_WNR			(1 << 4)
+#define ATSR_ACTIVE			BIT(0)
 
 #endif /* _ARM_SMMU_REGS_H */
