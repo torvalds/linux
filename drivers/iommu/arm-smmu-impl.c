@@ -48,24 +48,59 @@ const struct arm_smmu_impl calxeda_impl = {
 };
 
 
+struct cavium_smmu {
+	struct arm_smmu_device smmu;
+	u32 id_base;
+};
+
 static int cavium_cfg_probe(struct arm_smmu_device *smmu)
 {
 	static atomic_t context_count = ATOMIC_INIT(0);
+	struct cavium_smmu *cs = container_of(smmu, struct cavium_smmu, smmu);
 	/*
 	 * Cavium CN88xx erratum #27704.
 	 * Ensure ASID and VMID allocation is unique across all SMMUs in
 	 * the system.
 	 */
-	smmu->cavium_id_base = atomic_fetch_add(smmu->num_context_banks,
-						   &context_count);
+	cs->id_base = atomic_fetch_add(smmu->num_context_banks, &context_count);
 	dev_notice(smmu->dev, "\tenabling workaround for Cavium erratum 27704\n");
+
+	return 0;
+}
+
+int cavium_init_context(struct arm_smmu_domain *smmu_domain)
+{
+	struct cavium_smmu *cs = container_of(smmu_domain->smmu,
+					      struct cavium_smmu, smmu);
+
+	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2)
+		smmu_domain->cfg.vmid += cs->id_base;
+	else
+		smmu_domain->cfg.asid += cs->id_base;
 
 	return 0;
 }
 
 const struct arm_smmu_impl cavium_impl = {
 	.cfg_probe = cavium_cfg_probe,
+	.init_context = cavium_init_context,
 };
+
+struct arm_smmu_device *cavium_smmu_impl_init(struct arm_smmu_device *smmu)
+{
+	struct cavium_smmu *cs;
+
+	cs = devm_kzalloc(smmu->dev, sizeof(*cs), GFP_KERNEL);
+	if (!cs)
+		return ERR_PTR(-ENOMEM);
+
+	cs->smmu = *smmu;
+	cs->smmu.impl = &cavium_impl;
+
+	devm_kfree(smmu->dev, smmu);
+
+	return &cs->smmu;
+}
 
 
 #define ARM_MMU500_ACTLR_CPRE		(1 << 1)
@@ -126,8 +161,7 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 		smmu->impl = &arm_mmu500_impl;
 		break;
 	case CAVIUM_SMMUV2:
-		smmu->impl = &cavium_impl;
-		break;
+		return cavium_smmu_impl_init(smmu);
 	default:
 		break;
 	}
