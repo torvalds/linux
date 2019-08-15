@@ -27,6 +27,7 @@
 #include "util/env.h"
 #include "util/event.h"
 #include "util/evlist.h"
+#include "util/evswitch.h"
 #include <subcmd/exec-cmd.h>
 #include "util/machine.h"
 #include "util/map.h"
@@ -106,6 +107,7 @@ struct trace {
 	unsigned long		nr_events;
 	unsigned long		nr_events_printed;
 	unsigned long		max_events;
+	struct evswitch		evswitch;
 	struct strlist		*ev_qualifier;
 	struct {
 		size_t		nr;
@@ -2680,6 +2682,9 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 		return;
 	}
 
+	if (evswitch__discard(&trace->evswitch, evsel))
+		return;
+
 	trace__set_base_time(trace, evsel, sample);
 
 	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT &&
@@ -4157,6 +4162,7 @@ int cmd_trace(int argc, const char **argv)
 	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,
 		     "ms to wait before starting measurement after program "
 		     "start"),
+	OPTS_EVSWITCH(&trace.evswitch),
 	OPT_END()
 	};
 	bool __maybe_unused max_stack_user_set = true;
@@ -4379,6 +4385,10 @@ init_augmented_syscall_tp:
 			goto out;
 		}
 	}
+
+	err = evswitch__init(&trace.evswitch, trace.evlist, stderr);
+	if (err)
+		goto out_close;
 
 	err = target__validate(&trace.opts.target);
 	if (err) {
