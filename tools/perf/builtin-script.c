@@ -1807,28 +1807,9 @@ static void process_event(struct perf_script *script,
 	if (!show_event(sample, evsel, thread, al))
 		return;
 
-	if (script->evswitch.on && script->evswitch.discarding) {
-		if (script->evswitch.on != evsel)
-			return;
+	if (evswitch__discard(&script->evswitch, evsel))
+		return;
 
-		script->evswitch.discarding = false;
-
-		if (!script->evswitch.show_on_off_events)
-			return;
-
-		goto print_it;
-	}
-
-	if (script->evswitch.off && !script->evswitch.discarding) {
-		if (script->evswitch.off != evsel)
-			goto print_it;
-
-		script->evswitch.discarding = true;
-
-		if (!script->evswitch.show_on_off_events)
-			return;
-	}
-print_it:
 	++es->samples;
 
 	perf_sample__fprintf_start(sample, thread, evsel,

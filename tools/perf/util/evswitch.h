@@ -13,4 +13,6 @@ struct evswitch {
 	bool	     show_on_off_events;
 };
 
+bool evswitch__discard(struct evswitch *evswitch, struct evsel *evsel);
+
 #endif /* __PERF_EVSWITCH_H */
