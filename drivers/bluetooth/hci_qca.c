@@ -1307,7 +1307,7 @@ static int qca_setup(struct hci_uart *hu)
 	return ret;
 }
 
-static struct hci_uart_proto qca_proto = {
+static const struct hci_uart_proto qca_proto = {
 	.id		= HCI_UART_QCA,
 	.name		= "QCA",
 	.manufacturer	= 29,
