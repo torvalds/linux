@@ -579,7 +579,7 @@ appropriate to ensure that the device is not put back to sleep during the
 probe. This can happen with systems such as the network device layer.
 
 It may be desirable to suspend the device once ->probe() has finished.
-Therefore the driver core uses the asynchronous pm_request_idle() to submit a
+Therefore, the driver core uses the asynchronous pm_request_idle() to submit a
 request to execute the subsystem-level idle callback for the device at that
 time.  A driver that makes use of the runtime autosuspend feature, may want to
 update the last busy mark before returning from ->probe().
