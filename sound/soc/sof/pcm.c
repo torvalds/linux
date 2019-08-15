@@ -675,6 +675,9 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	case SOF_DAI_INTEL_HDA:
 		/* do nothing for HDA dai_link */
 		break;
+	case SOF_DAI_INTEL_ALH:
+		/* do nothing for ALH dai_link */
+		break;
 	default:
 		dev_err(sdev->dev, "error: invalid DAI type %d\n",
 			dai->dai_config->type);
