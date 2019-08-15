@@ -803,7 +803,7 @@ static struct i2c_algorithm bcm_iproc_algo = {
 	.unreg_slave = bcm_iproc_i2c_unreg_slave,
 };
 
-static struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
+static const struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
 	.max_read_len = M_RX_MAX_READ_LEN,
 };
 
