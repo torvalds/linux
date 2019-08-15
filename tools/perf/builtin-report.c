@@ -25,6 +25,7 @@
 #include "util/debug.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evswitch.h"
 #include "util/header.h"
 #include "util/session.h"
 #include "util/tool.h"
@@ -60,6 +61,7 @@
 struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
+	struct evswitch		evswitch;
 	bool			use_tui, use_gtk, use_stdio;
 	bool			show_full_info;
 	bool			show_threads;
@@ -242,6 +244,9 @@ static int process_sample_event(struct perf_tool *tool,
 					  sample->time)) {
 		return 0;
 	}
+
+	if (evswitch__discard(&rep->evswitch, evsel))
+		return 0;
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -1189,6 +1194,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_CALLBACK(0, "time-quantum", &symbol_conf.time_quantum, "time (ms|us|ns|s)",
 		     "Set time quantum for time sort key (default 100ms)",
 		     parse_time_quantum),
+	OPTS_EVSWITCH(&report.evswitch),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1256,6 +1262,10 @@ repeat:
 	session = perf_session__new(&data, false, &report.tool);
 	if (session == NULL)
 		return -1;
+
+	ret = evswitch__init(&report.evswitch, session->evlist, stderr);
+	if (ret)
+		return ret;
 
 	if (zstd_init(&(session->zstd_data), 0) < 0)
 		pr_warning("Decompression initialization failed. Reported data may be incomplete.\n");
