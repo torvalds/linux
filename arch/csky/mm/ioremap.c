@@ -8,12 +8,12 @@
 
 #include <asm/pgtable.h>
 
-void __iomem *ioremap(phys_addr_t addr, size_t size)
+static void __iomem *__ioremap_caller(phys_addr_t addr, size_t size,
+				      pgprot_t prot, void *caller)
 {
 	phys_addr_t last_addr;
 	unsigned long offset, vaddr;
 	struct vm_struct *area;
-	pgprot_t prot;
 
 	last_addr = addr + size - 1;
 	if (!size || last_addr < addr)
@@ -23,13 +23,11 @@ void __iomem *ioremap(phys_addr_t addr, size_t size)
 	addr &= PAGE_MASK;
 	size = PAGE_ALIGN(size + offset);
 
-	area = get_vm_area_caller(size, VM_ALLOC, __builtin_return_address(0));
+	area = get_vm_area_caller(size, VM_IOREMAP, caller);
 	if (!area)
 		return NULL;
 
 	vaddr = (unsigned long)area->addr;
-
-	prot = pgprot_noncached(PAGE_KERNEL);
 
 	if (ioremap_page_range(vaddr, vaddr + size, addr, prot)) {
 		free_vm_area(area);
@@ -38,7 +36,20 @@ void __iomem *ioremap(phys_addr_t addr, size_t size)
 
 	return (void __iomem *)(vaddr + offset);
 }
-EXPORT_SYMBOL(ioremap);
+
+void __iomem *__ioremap(phys_addr_t phys_addr, size_t size, pgprot_t prot)
+{
+	return __ioremap_caller(phys_addr, size, prot,
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(__ioremap);
+
+void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size)
+{
+	return __ioremap_caller(phys_addr, size, PAGE_KERNEL,
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_cache);
 
 void iounmap(void __iomem *addr)
 {
