@@ -831,6 +831,29 @@ static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
 	return -EINVAL;
 }
 
+/**
+ * intel_pin_to_gpio() - Translate from pin number to GPIO offset
+ * @pctrl: Pinctrl structure
+ * @pin: pin number
+ *
+ * Translate the pin number of pinctrl to GPIO offset
+ */
+static int intel_pin_to_gpio(struct intel_pinctrl *pctrl, int pin)
+{
+	const struct intel_community *community;
+	const struct intel_padgroup *padgrp;
+
+	community = intel_get_community(pctrl, pin);
+	if (!community)
+		return -EINVAL;
+
+	padgrp = intel_community_get_padgroup(community, pin);
+	if (!padgrp)
+		return -EINVAL;
+
+	return pin - padgrp->base + padgrp->gpio_base;
+}
+
 static int intel_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
@@ -1468,7 +1491,7 @@ static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned int 
 	 * them alone.
 	 */
 	if (pd->mux_owner || pd->gpio_owner ||
-	    gpiochip_line_is_irq(&pctrl->chip, pin))
+	    gpiochip_line_is_irq(&pctrl->chip, intel_pin_to_gpio(pctrl, pin)))
 		return true;
 
 	return false;
