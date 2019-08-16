@@ -963,8 +963,7 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 	     "Unexpected DBuf power power state (0x%08x)\n", tmp);
 }
 
-static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
-					  struct i915_power_well *power_well)
+static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = {};
 
@@ -986,6 +985,12 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 		 * so we need to restore it manually.
 		 */
 		intel_combo_phy_init(dev_priv);
+}
+
+static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	gen9_disable_dc_states(dev_priv);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
@@ -4510,7 +4515,7 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_disable_dc_states(dev_priv);
 
 	gen9_dbuf_disable(dev_priv);
 
@@ -4571,7 +4576,7 @@ static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_disable_dc_states(dev_priv);
 
 	gen9_dbuf_disable(dev_priv);
 
@@ -4631,7 +4636,7 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_disable_dc_states(dev_priv);
 
 	/* 1. Disable all display engine functions -> aready done */
 
@@ -4698,7 +4703,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_disable_dc_states(dev_priv);
 
 	/* 1. Disable all display engine functions -> aready done */
 
