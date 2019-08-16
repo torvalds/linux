@@ -911,19 +911,22 @@ static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_fun
 	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
 };
 
+static void dw_hdmi_rockchip_genphy_disable(struct dw_hdmi *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	while (hdmi->phy->power_count > 0)
+		phy_power_off(hdmi->phy);
+}
+
 static int dw_hdmi_rockchip_genphy_init(struct dw_hdmi *dw_hdmi, void *data,
 			     struct drm_display_mode *mode)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
+	dw_hdmi_rockchip_genphy_disable(dw_hdmi, data);
+	dw_hdmi_set_high_tmds_clock_ratio(dw_hdmi);
 	return phy_power_on(hdmi->phy);
-}
-
-static void dw_hdmi_rockchip_genphy_disable(struct dw_hdmi *dw_hdmi, void *data)
-{
-	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
-
-	phy_power_off(hdmi->phy);
 }
 
 static void dw_hdmi_rk3228_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
