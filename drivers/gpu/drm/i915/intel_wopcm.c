@@ -100,7 +100,8 @@ static inline u32 context_reserved_size(struct drm_i915_private *i915)
 		return 0;
 }
 
-static inline int gen9_check_dword_gap(u32 guc_wopcm_base, u32 guc_wopcm_size)
+static inline bool gen9_check_dword_gap(struct drm_i915_private *i915,
+					u32 guc_wopcm_base, u32 guc_wopcm_size)
 {
 	u32 offset;
 
@@ -112,16 +113,18 @@ static inline int gen9_check_dword_gap(u32 guc_wopcm_base, u32 guc_wopcm_size)
 	offset = guc_wopcm_base + GEN9_GUC_WOPCM_OFFSET;
 	if (offset > guc_wopcm_size ||
 	    (guc_wopcm_size - offset) < sizeof(u32)) {
-		DRM_ERROR("GuC WOPCM size %uKiB is too small. %uKiB needed.\n",
-			  guc_wopcm_size / 1024,
-			  (u32)(offset + sizeof(u32)) / 1024);
-		return -E2BIG;
+		dev_err(i915->drm.dev,
+			"WOPCM: invalid GuC region size: %uK < %uK\n",
+			guc_wopcm_size / SZ_1K,
+			(u32)(offset + sizeof(u32)) / SZ_1K);
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
-static inline int gen9_check_huc_fw_fits(u32 guc_wopcm_size, u32 huc_fw_size)
+static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
+					  u32 guc_wopcm_size, u32 huc_fw_size)
 {
 	/*
 	 * On Gen9 & CNL A0, hardware requires the total available GuC WOPCM
@@ -129,29 +132,30 @@ static inline int gen9_check_huc_fw_fits(u32 guc_wopcm_size, u32 huc_fw_size)
 	 * firmware uploading would fail.
 	 */
 	if (huc_fw_size > guc_wopcm_size - GUC_WOPCM_RESERVED) {
-		DRM_ERROR("HuC FW (%uKiB) won't fit in GuC WOPCM (%uKiB).\n",
-			  huc_fw_size / 1024,
-			  (guc_wopcm_size - GUC_WOPCM_RESERVED) / 1024);
-		return -E2BIG;
+		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
+			(guc_wopcm_size - GUC_WOPCM_RESERVED) / SZ_1K,
+			huc_fw_size / 1024);
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 static inline bool check_hw_restrictions(struct drm_i915_private *i915,
 					 u32 guc_wopcm_base, u32 guc_wopcm_size,
 					 u32 huc_fw_size)
 {
-	int err = 0;
+	if (IS_GEN(i915, 9) && !gen9_check_dword_gap(i915, guc_wopcm_base,
+						     guc_wopcm_size))
+		return false;
 
-	if (IS_GEN(i915, 9))
-		err = gen9_check_dword_gap(guc_wopcm_base, guc_wopcm_size);
+	if ((IS_GEN(i915, 9) ||
+	     IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)) &&
+	    !gen9_check_huc_fw_fits(i915, guc_wopcm_size, huc_fw_size))
+		return false;
 
-	if (!err &&
-	    (IS_GEN(i915, 9) || IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)))
-		err = gen9_check_huc_fw_fits(guc_wopcm_size, huc_fw_size);
-
-	return !err;
+	return true;
 }
 
 static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
