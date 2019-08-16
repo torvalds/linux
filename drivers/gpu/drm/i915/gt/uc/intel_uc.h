@@ -39,14 +39,29 @@ static inline bool intel_uc_supports_guc(struct intel_uc *uc)
 	return intel_guc_is_supported(&uc->guc);
 }
 
+static inline bool intel_uc_uses_guc(struct intel_uc *uc)
+{
+	return intel_guc_is_enabled(&uc->guc);
+}
+
 static inline bool intel_uc_supports_guc_submission(struct intel_uc *uc)
+{
+	return intel_guc_is_submission_supported(&uc->guc);
+}
+
+static inline bool intel_uc_uses_guc_submission(struct intel_uc *uc)
 {
 	return intel_guc_is_submission_supported(&uc->guc);
 }
 
 static inline bool intel_uc_supports_huc(struct intel_uc *uc)
 {
-	return intel_huc_is_supported(&uc->huc);
+	return intel_uc_supports_guc(uc);
+}
+
+static inline bool intel_uc_uses_huc(struct intel_uc *uc)
+{
+	return intel_huc_is_enabled(&uc->huc);
 }
 
 #endif

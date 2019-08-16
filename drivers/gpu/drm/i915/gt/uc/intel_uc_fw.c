@@ -206,8 +206,9 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 		__uc_fw_user_override(uc_fw);
 	}
 
-	intel_uc_fw_change_status(uc_fw, uc_fw->path && *uc_fw->path ?
+	intel_uc_fw_change_status(uc_fw, uc_fw->path ? *uc_fw->path ?
 				  INTEL_UC_FIRMWARE_SELECTED :
+				  INTEL_UC_FIRMWARE_DISABLED :
 				  INTEL_UC_FIRMWARE_NOT_SUPPORTED);
 }
 
@@ -266,7 +267,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	int err;
 
 	GEM_BUG_ON(!i915->wopcm.size);
-	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
+	GEM_BUG_ON(!intel_uc_fw_is_enabled(uc_fw));
 
 	err = i915_inject_load_error(i915, -ENXIO);
 	if (err)

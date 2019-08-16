@@ -18,9 +18,30 @@ struct intel_gt;
 /* Home of GuC, HuC and DMC firmwares */
 #define INTEL_UC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/i915"
 
+/*
+ * +------------+---------------------------------------------------+
+ * |   PHASE    |           FIRMWARE STATUS TRANSITIONS             |
+ * +============+===================================================+
+ * |            |               UNINITIALIZED                       |
+ * +------------+-               /   |   \                         -+
+ * |            |   DISABLED <--/    |    \--> NOT_SUPPORTED        |
+ * | init_early |                    V                              |
+ * |            |                 SELECTED                          |
+ * +------------+-               /   |   \                         -+
+ * |            |    MISSING <--/    |    \--> ERROR                |
+ * |   fetch    |                    |                              |
+ * |            |        /------> AVAILABLE <---<-----------\       |
+ * +------------+-       \         /    \        \           \     -+
+ * |            |         FAIL <--<      \--> TRANSFERRED     \     |
+ * |   upload   |                  \           /   \          /     |
+ * |            |                   \---------/     \--> RUNNING    |
+ * +------------+---------------------------------------------------+
+ */
+
 enum intel_uc_fw_status {
-	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW or disabled */
+	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW */
 	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
+	INTEL_UC_FIRMWARE_DISABLED, /* disabled */
 	INTEL_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
 	INTEL_UC_FIRMWARE_MISSING, /* blob not found on the system */
 	INTEL_UC_FIRMWARE_ERROR, /* invalid format or version */
@@ -84,6 +105,8 @@ const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 		return "N/A";
 	case INTEL_UC_FIRMWARE_UNINITIALIZED:
 		return "UNINITIALIZED";
+	case INTEL_UC_FIRMWARE_DISABLED:
+		return "DISABLED";
 	case INTEL_UC_FIRMWARE_SELECTED:
 		return "SELECTED";
 	case INTEL_UC_FIRMWARE_MISSING:
@@ -106,7 +129,10 @@ static inline int intel_uc_fw_status_to_error(enum intel_uc_fw_status status)
 {
 	switch (status) {
 	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
+		return -ENODEV;
 	case INTEL_UC_FIRMWARE_UNINITIALIZED:
+		return -EACCES;
+	case INTEL_UC_FIRMWARE_DISABLED:
 		return -EPERM;
 	case INTEL_UC_FIRMWARE_MISSING:
 		return -ENOENT;
@@ -142,6 +168,16 @@ __intel_uc_fw_status(struct intel_uc_fw *uc_fw)
 	return uc_fw->status;
 }
 
+static inline bool intel_uc_fw_is_supported(struct intel_uc_fw *uc_fw)
+{
+	return __intel_uc_fw_status(uc_fw) != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+}
+
+static inline bool intel_uc_fw_is_enabled(struct intel_uc_fw *uc_fw)
+{
+	return __intel_uc_fw_status(uc_fw) > INTEL_UC_FIRMWARE_DISABLED;
+}
+
 static inline bool intel_uc_fw_is_available(struct intel_uc_fw *uc_fw)
 {
 	return __intel_uc_fw_status(uc_fw) >= INTEL_UC_FIRMWARE_AVAILABLE;
@@ -155,11 +191,6 @@ static inline bool intel_uc_fw_is_loaded(struct intel_uc_fw *uc_fw)
 static inline bool intel_uc_fw_is_running(struct intel_uc_fw *uc_fw)
 {
 	return __intel_uc_fw_status(uc_fw) == INTEL_UC_FIRMWARE_RUNNING;
-}
-
-static inline bool intel_uc_fw_supported(struct intel_uc_fw *uc_fw)
-{
-	return __intel_uc_fw_status(uc_fw) != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 }
 
 static inline bool intel_uc_fw_is_overridden(const struct intel_uc_fw *uc_fw)

@@ -154,7 +154,12 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 
 static inline bool intel_guc_is_supported(struct intel_guc *guc)
 {
-	return intel_uc_fw_supported(&guc->fw);
+	return intel_uc_fw_is_supported(&guc->fw);
+}
+
+static inline bool intel_guc_is_enabled(struct intel_guc *guc)
+{
+	return intel_uc_fw_is_enabled(&guc->fw);
 }
 
 static inline bool intel_guc_is_running(struct intel_guc *guc)
