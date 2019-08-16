@@ -92,6 +92,27 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_NUM,
 };
 
+/*
+ * i915_power_well_id:
+ *
+ * IDs used to look up power wells. Power wells accessed directly bypassing
+ * the power domains framework must be assigned a unique ID. The rest of power
+ * wells must be assigned DISP_PW_ID_NONE.
+ */
+enum i915_power_well_id {
+	DISP_PW_ID_NONE,
+
+	VLV_DISP_PW_DISP2D,
+	BXT_DISP_PW_DPIO_CMN_A,
+	VLV_DISP_PW_DPIO_CMN_BC,
+	GLK_DISP_PW_DPIO_CMN_C,
+	CHV_DISP_PW_DPIO_CMN_D,
+	HSW_DISP_PW_GLOBAL,
+	SKL_DISP_PW_MISC_IO,
+	SKL_DISP_PW_1,
+	SKL_DISP_PW_2,
+};
+
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
 #define POWER_DOMAIN_PIPE_PANEL_FITTER(pipe) \
 		((pipe) + POWER_DOMAIN_PIPE_A_PANEL_FITTER)

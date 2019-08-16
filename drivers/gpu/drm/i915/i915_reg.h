@@ -1163,27 +1163,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define PUNIT_REG_ISPSSPM0			0x39
 #define PUNIT_REG_ISPSSPM1			0x3a
 
-/*
- * i915_power_well_id:
- *
- * IDs used to look up power wells. Power wells accessed directly bypassing
- * the power domains framework must be assigned a unique ID. The rest of power
- * wells must be assigned DISP_PW_ID_NONE.
- */
-enum i915_power_well_id {
-	DISP_PW_ID_NONE,
-
-	VLV_DISP_PW_DISP2D,
-	BXT_DISP_PW_DPIO_CMN_A,
-	VLV_DISP_PW_DPIO_CMN_BC,
-	GLK_DISP_PW_DPIO_CMN_C,
-	CHV_DISP_PW_DPIO_CMN_D,
-	HSW_DISP_PW_GLOBAL,
-	SKL_DISP_PW_MISC_IO,
-	SKL_DISP_PW_1,
-	SKL_DISP_PW_2,
-};
-
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
 #define   PUNIT_PWRGT_MASK(pw_idx)		(3 << ((pw_idx) * 2))
