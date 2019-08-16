@@ -231,29 +231,22 @@ void *eeh_pe_traverse(struct eeh_pe *root,
  * The function is used to traverse the devices of the specified
  * PE and its child PEs.
  */
-void *eeh_pe_dev_traverse(struct eeh_pe *root,
+void eeh_pe_dev_traverse(struct eeh_pe *root,
 			  eeh_edev_traverse_func fn, void *flag)
 {
 	struct eeh_pe *pe;
 	struct eeh_dev *edev, *tmp;
-	void *ret;
 
 	if (!root) {
 		pr_warn("%s: Invalid PE %p\n",
 			__func__, root);
-		return NULL;
+		return;
 	}
 
 	/* Traverse root PE */
-	eeh_for_each_pe(root, pe) {
-		eeh_pe_for_each_dev(pe, edev, tmp) {
-			ret = fn(edev, flag);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return NULL;
+	eeh_for_each_pe(root, pe)
+		eeh_pe_for_each_dev(pe, edev, tmp)
+			fn(edev, flag);
 }
 
 /**
@@ -602,13 +595,11 @@ void eeh_pe_mark_isolated(struct eeh_pe *root)
 }
 EXPORT_SYMBOL_GPL(eeh_pe_mark_isolated);
 
-static void *__eeh_pe_dev_mode_mark(struct eeh_dev *edev, void *flag)
+static void __eeh_pe_dev_mode_mark(struct eeh_dev *edev, void *flag)
 {
 	int mode = *((int *)flag);
 
 	edev->mode |= mode;
-
-	return NULL;
 }
 
 /**
@@ -827,7 +818,7 @@ static void eeh_restore_device_bars(struct eeh_dev *edev)
  * the expansion ROM base address, the latency timer, and etc.
  * from the saved values in the device node.
  */
-static void *eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
+static void eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 {
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
@@ -839,8 +830,6 @@ static void *eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 
 	if (eeh_ops->restore_config && pdn)
 		eeh_ops->restore_config(pdn);
-
-	return NULL;
 }
 
 /**

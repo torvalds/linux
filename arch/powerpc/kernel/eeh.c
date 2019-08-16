@@ -705,7 +705,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	return rc;
 }
 
-static void *eeh_disable_and_save_dev_state(struct eeh_dev *edev,
+static void eeh_disable_and_save_dev_state(struct eeh_dev *edev,
 					    void *userdata)
 {
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
@@ -716,7 +716,7 @@ static void *eeh_disable_and_save_dev_state(struct eeh_dev *edev,
 	 * state for the specified device
 	 */
 	if (!pdev || pdev == dev)
-		return NULL;
+		return;
 
 	/* Ensure we have D0 power state */
 	pci_set_power_state(pdev, PCI_D0);
@@ -729,18 +729,16 @@ static void *eeh_disable_and_save_dev_state(struct eeh_dev *edev,
 	 * interrupt from the device
 	 */
 	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
-
-	return NULL;
 }
 
-static void *eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
+static void eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
 {
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
 
 	if (!pdev)
-		return NULL;
+		return;
 
 	/* Apply customization from firmware */
 	if (pdn && eeh_ops->restore_config)
@@ -749,8 +747,6 @@ static void *eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
 	/* The caller should restore state for the specified device */
 	if (pdev != dev)
 		pci_restore_state(pdev);
-
-	return NULL;
 }
 
 int eeh_restore_vf_config(struct pci_dn *pdn)
@@ -876,7 +872,7 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
  * the indicated device and its children so that the bunch of the
  * devices could be reset properly.
  */
-static void *eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
+static void eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
 {
 	struct pci_dev *dev;
 	unsigned int *freset = (unsigned int *)flag;
@@ -884,8 +880,6 @@ static void *eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
 	dev = eeh_dev_to_pci_dev(edev);
 	if (dev)
 		*freset |= dev->needs_freset;
-
-	return NULL;
 }
 
 static void eeh_pe_refreeze_passed(struct eeh_pe *root)

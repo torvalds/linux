@@ -197,12 +197,12 @@ static void eeh_enable_irq(struct eeh_dev *edev)
 	}
 }
 
-static void *eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
+static void eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
 {
 	struct pci_dev *pdev;
 
 	if (!edev)
-		return NULL;
+		return;
 
 	/*
 	 * We cannot access the config space on some adapters.
@@ -212,14 +212,13 @@ static void *eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
 	 * device is created.
 	 */
 	if (edev->pe && (edev->pe->state & EEH_PE_CFG_RESTRICTED))
-		return NULL;
+		return;
 
 	pdev = eeh_dev_to_pci_dev(edev);
 	if (!pdev)
-		return NULL;
+		return;
 
 	pci_save_state(pdev);
-	return NULL;
 }
 
 static void eeh_set_channel_state(struct eeh_pe *root, enum pci_channel_state s)
@@ -385,12 +384,12 @@ static enum pci_ers_result eeh_report_reset(struct eeh_dev *edev,
 	return driver->err_handler->slot_reset(pdev);
 }
 
-static void *eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
+static void eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
 {
 	struct pci_dev *pdev;
 
 	if (!edev)
-		return NULL;
+		return;
 
 	/*
 	 * The content in the config space isn't saved because
@@ -402,15 +401,14 @@ static void *eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
 		if (list_is_last(&edev->entry, &edev->pe->edevs))
 			eeh_pe_restore_bars(edev->pe);
 
-		return NULL;
+		return;
 	}
 
 	pdev = eeh_dev_to_pci_dev(edev);
 	if (!pdev)
-		return NULL;
+		return;
 
 	pci_restore_state(pdev);
-	return NULL;
 }
 
 /**
@@ -491,7 +489,7 @@ static void *eeh_add_virt_device(struct eeh_dev *edev)
 	return NULL;
 }
 
-static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
+static void eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 {
 	struct pci_driver *driver;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
@@ -506,7 +504,7 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	 */
 	if (!eeh_edev_actionable(edev) ||
 	    (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE))
-		return NULL;
+		return;
 
 	if (rmv_data) {
 		driver = eeh_pcid_get(dev);
@@ -515,7 +513,7 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 			    driver->err_handler->error_detected &&
 			    driver->err_handler->slot_reset) {
 				eeh_pcid_put(dev);
-				return NULL;
+				return;
 			}
 			eeh_pcid_put(dev);
 		}
@@ -548,8 +546,6 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 		pci_stop_and_remove_bus_device(dev);
 		pci_unlock_rescan_remove();
 	}
-
-	return NULL;
 }
 
 static void *eeh_pe_detach_dev(struct eeh_pe *pe, void *userdata)
