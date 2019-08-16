@@ -224,7 +224,7 @@ void parse_boot_command_line(void)
 		args = next_arg(args, &param, &val);
 
 		if (!strcmp(param, "mem")) {
-			memory_end = memparse(val, NULL);
+			memory_end = round_down(memparse(val, NULL), PAGE_SIZE);
 			memory_end_set = 1;
 		}
 
