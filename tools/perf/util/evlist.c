@@ -398,26 +398,9 @@ int perf_evlist__enable_event_idx(struct evlist *evlist,
 		return perf_evlist__enable_event_thread(evlist, evsel, idx);
 }
 
-static int __perf_evlist__add_pollfd(struct evlist *evlist, int fd,
-				     struct mmap *map, short revent)
+int evlist__add_pollfd(struct evlist *evlist, int fd)
 {
-	int pos = fdarray__add(&evlist->core.pollfd, fd, revent | POLLERR | POLLHUP);
-	/*
-	 * Save the idx so that when we filter out fds POLLHUP'ed we can
-	 * close the associated evlist->mmap[] entry.
-	 */
-	if (pos >= 0) {
-		evlist->core.pollfd.priv[pos].ptr = map;
-
-		fcntl(fd, F_SETFL, O_NONBLOCK);
-	}
-
-	return pos;
-}
-
-int perf_evlist__add_pollfd(struct evlist *evlist, int fd)
-{
-	return __perf_evlist__add_pollfd(evlist, fd, NULL, POLLIN);
+	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN);
 }
 
 static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
@@ -429,7 +412,7 @@ static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
 		perf_mmap__put(map);
 }
 
-int perf_evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
+int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
 {
 	return fdarray__filter(&evlist->core.pollfd, revents_and_mask,
 			       perf_evlist__munmap_filtered, NULL);
@@ -708,7 +691,7 @@ static int evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 		 * Therefore don't add it for polling.
 		 */
 		if (!evsel->core.system_wide &&
-		    __perf_evlist__add_pollfd(evlist, fd, &maps[idx], revent) < 0) {
+		     perf_evlist__add_pollfd(&evlist->core, fd, &maps[idx], revent) < 0) {
 			perf_mmap__put(&maps[idx]);
 			return -1;
 		}

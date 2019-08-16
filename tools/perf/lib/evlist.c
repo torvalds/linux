@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <poll.h>
 #include <perf/cpumap.h>
 #include <perf/threadmap.h>
 #include <api/fd/array.h>
@@ -259,4 +262,17 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 		return -ENOMEM;
 
 	return 0;
+}
+
+int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd,
+			    void *ptr, short revent)
+{
+	int pos = fdarray__add(&evlist->pollfd, fd, revent | POLLERR | POLLHUP);
+
+	if (pos >= 0) {
+		evlist->pollfd.priv[pos].ptr = ptr;
+		fcntl(fd, F_SETFL, O_NONBLOCK);
+	}
+
+	return pos;
 }

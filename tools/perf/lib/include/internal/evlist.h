@@ -25,6 +25,8 @@ struct perf_evlist {
 };
 
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
+int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd,
+			    void *ptr, short revent);
 
 /**
  * __perf_evlist__for_each_entry - iterate thru all the evsels
