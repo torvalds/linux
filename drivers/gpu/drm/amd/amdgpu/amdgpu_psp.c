@@ -144,8 +144,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	memcpy(psp->cmd_buf_mem, cmd, sizeof(struct psp_gfx_cmd_resp));
 
 	index = atomic_inc_return(&psp->fence_value);
-	ret = psp_cmd_submit(psp, ucode, psp->cmd_buf_mc_addr,
-			     fence_mc_addr, index);
+	ret = psp_cmd_submit(psp, psp->cmd_buf_mc_addr, fence_mc_addr, index);
 	if (ret) {
 		atomic_dec(&psp->fence_value);
 		mutex_unlock(&psp->mutex);
