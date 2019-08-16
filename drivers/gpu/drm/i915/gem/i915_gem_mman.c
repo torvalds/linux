@@ -101,9 +101,6 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		up_write(&mm->mmap_sem);
 		if (IS_ERR_VALUE(addr))
 			goto err;
-
-		/* This may race, but that's ok, it only gets set */
-		WRITE_ONCE(obj->frontbuffer_ggtt_origin, ORIGIN_CPU);
 	}
 	i915_gem_object_put(obj);
 
@@ -283,7 +280,6 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		 * Userspace is now writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
 		 */
-		obj->frontbuffer_ggtt_origin = ORIGIN_CPU;
 
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
 		if (IS_ERR(vma) && !view.type) {

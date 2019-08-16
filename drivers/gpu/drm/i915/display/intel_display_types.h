@@ -84,6 +84,7 @@ enum intel_broadcast_rgb {
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
+	struct intel_frontbuffer *frontbuffer;
 	struct intel_rotation_info rot_info;
 
 	/* for each plane in the normal GTT view */

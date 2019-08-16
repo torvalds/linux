@@ -551,13 +551,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	return 0;
 }
 
-static inline enum fb_op_origin
-fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
-{
-	return (domain == I915_GEM_DOMAIN_GTT ?
-		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
-}
-
 /**
  * Called when user space prepares to use an object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
@@ -661,9 +654,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	i915_gem_object_unlock(obj);
 
-	if (write_domain != 0)
-		intel_fb_obj_invalidate(obj,
-					fb_write_origin(obj, write_domain));
+	if (write_domain)
+		intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -783,7 +775,7 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 	}
 
 out:
-	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
+	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
 	obj->mm.dirty = true;
 	/* return with the pages pinned */
 	return 0;

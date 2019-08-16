@@ -138,7 +138,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct intel_engine_cs *engine;
 	struct i915_vma *vma;
-	unsigned int frontbuffer_bits;
 	int pin_count = 0;
 
 	seq_printf(m, "%pK: %c%c%c%c %8zdKiB %02x %02x %s%s%s",
@@ -228,10 +227,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	engine = i915_gem_object_last_write_engine(obj);
 	if (engine)
 		seq_printf(m, " (%s)", engine->name);
-
-	frontbuffer_bits = atomic_read(&obj->frontbuffer_bits);
-	if (frontbuffer_bits)
-		seq_printf(m, " (frontbuffer: 0x%03x)", frontbuffer_bits);
 }
 
 struct file_stats {

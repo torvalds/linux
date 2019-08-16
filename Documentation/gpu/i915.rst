@@ -91,9 +91,6 @@ Frontbuffer Tracking
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.c
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem.c
-   :functions: i915_gem_track_fb
-
 Display FIFO Underrun Reporting
 -------------------------------
 

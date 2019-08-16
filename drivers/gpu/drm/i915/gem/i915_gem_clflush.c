@@ -49,7 +49,7 @@ static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 {
 	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 	drm_clflush_sg(obj->mm.pages);
-	intel_fb_obj_flush(obj, ORIGIN_CPU);
+	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
 }
 
 static void i915_clflush_work(struct work_struct *work)

@@ -139,17 +139,19 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	void *vaddr = obj->phys_handle->vaddr + args->offset;
 	char __user *user_data = u64_to_user_ptr(args->data_ptr);
 
-	/* We manually control the domain here and pretend that it
+	/*
+	 * We manually control the domain here and pretend that it
 	 * remains coherent i.e. in the GTT domain, like shmem_pwrite.
 	 */
-	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
+	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+
 	if (copy_from_user(vaddr, user_data, args->size))
 		return -EFAULT;
 
 	drm_clflush_virt_range(vaddr, args->size);
 	intel_gt_chipset_flush(&to_i915(obj->base.dev)->gt);
 
-	intel_fb_obj_flush(obj, ORIGIN_CPU);
+	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
 	return 0;
 }
 
@@ -594,7 +596,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		goto out_unpin;
 	}
 
-	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
+	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
 
 	user_data = u64_to_user_ptr(args->data_ptr);
 	offset = args->offset;
@@ -636,7 +638,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		user_data += page_length;
 		offset += page_length;
 	}
-	intel_fb_obj_flush(obj, ORIGIN_CPU);
+	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
 
 	i915_gem_object_unlock_fence(obj, fence);
 out_unpin:
@@ -729,7 +731,7 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 		offset = 0;
 	}
 
-	intel_fb_obj_flush(obj, ORIGIN_CPU);
+	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
 	i915_gem_object_unlock_fence(obj, fence);
 
 	return ret;
@@ -1761,39 +1763,6 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 		kfree(file_priv);
 
 	return ret;
-}
-
-/**
- * i915_gem_track_fb - update frontbuffer tracking
- * @old: current GEM buffer for the frontbuffer slots
- * @new: new GEM buffer for the frontbuffer slots
- * @frontbuffer_bits: bitmask of frontbuffer slots
- *
- * This updates the frontbuffer tracking bits @frontbuffer_bits by clearing them
- * from @old and setting them in @new. Both @old and @new can be NULL.
- */
-void i915_gem_track_fb(struct drm_i915_gem_object *old,
-		       struct drm_i915_gem_object *new,
-		       unsigned frontbuffer_bits)
-{
-	/* Control of individual bits within the mask are guarded by
-	 * the owning plane->mutex, i.e. we can never see concurrent
-	 * manipulation of individual bits. But since the bitfield as a whole
-	 * is updated using RMW, we need to use atomics in order to update
-	 * the bits.
-	 */
-	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES >
-		     BITS_PER_TYPE(atomic_t));
-
-	if (old) {
-		WARN_ON(!(atomic_read(&old->frontbuffer_bits) & frontbuffer_bits));
-		atomic_andnot(frontbuffer_bits, &old->frontbuffer_bits);
-	}
-
-	if (new) {
-		WARN_ON(atomic_read(&new->frontbuffer_bits) & frontbuffer_bits);
-		atomic_or(frontbuffer_bits, &new->frontbuffer_bits);
-	}
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

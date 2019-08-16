@@ -46,16 +46,6 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj)
 	return kmem_cache_free(global.slab_objects, obj);
 }
 
-static void
-frontbuffer_retire(struct i915_active_request *active,
-		   struct i915_request *request)
-{
-	struct drm_i915_gem_object *obj =
-		container_of(active, typeof(*obj), frontbuffer_write);
-
-	intel_fb_obj_flush(obj, ORIGIN_CS);
-}
-
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops)
 {
@@ -71,10 +61,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	init_rcu_head(&obj->rcu);
 
 	obj->ops = ops;
-
-	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
-	i915_active_request_init(&obj->frontbuffer_write,
-				 NULL, frontbuffer_retire);
 
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);
@@ -187,7 +173,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		GEM_BUG_ON(atomic_read(&obj->bind_count));
 		GEM_BUG_ON(obj->userfault_count);
-		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
 		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
 		atomic_set(&obj->mm.pages_pin_count, 0);
@@ -230,6 +215,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
+	GEM_BUG_ON(i915_gem_object_is_framebuffer(obj));
+
 	/*
 	 * Before we free the object, make sure any pure RCU-only
 	 * read-side critical sections are complete, e.g.
@@ -261,13 +248,6 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		queue_work(i915->wq, &i915->mm.free_work);
 }
 
-static inline enum fb_op_origin
-fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
-{
-	return (domain == I915_GEM_DOMAIN_GTT ?
-		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
-}
-
 static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
 	return !(obj->cache_level == I915_CACHE_NONE ||
@@ -290,8 +270,7 @@ i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
 		for_each_ggtt_vma(vma, obj)
 			intel_gt_flush_ggtt_writes(vma->vm->gt);
 
-		intel_fb_obj_flush(obj,
-				   fb_write_origin(obj, I915_GEM_DOMAIN_GTT));
+		intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
 
 		for_each_ggtt_vma(vma, obj) {
 			if (vma->iomap)

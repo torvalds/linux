@@ -281,9 +281,9 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 
 	WARN_ON(overlay->old_vma);
 
-	i915_gem_track_fb(overlay->vma ? overlay->vma->obj : NULL,
-			  vma ? vma->obj : NULL,
-			  INTEL_FRONTBUFFER_OVERLAY(pipe));
+	intel_frontbuffer_track(overlay->vma ? overlay->vma->obj->frontbuffer : NULL,
+				vma ? vma->obj->frontbuffer : NULL,
+				INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	intel_frontbuffer_flip_prepare(overlay->i915,
 				       INTEL_FRONTBUFFER_OVERLAY(pipe));
@@ -768,7 +768,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
 	}
-	intel_fb_obj_flush(new_bo, ORIGIN_DIRTYFB);
+	intel_frontbuffer_flush(new_bo->frontbuffer, ORIGIN_DIRTYFB);
 
 	ret = i915_vma_put_fence(vma);
 	if (ret)

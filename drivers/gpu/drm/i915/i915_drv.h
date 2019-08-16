@@ -2355,10 +2355,6 @@ int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
 		      u32 handle, u64 *offset);
 int i915_gem_mmap_gtt_version(void);
 
-void i915_gem_track_fb(struct drm_i915_gem_object *old,
-		       struct drm_i915_gem_object *new,
-		       unsigned frontbuffer_bits);
-
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
