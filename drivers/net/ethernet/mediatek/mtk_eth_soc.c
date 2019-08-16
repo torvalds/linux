@@ -1122,11 +1122,11 @@ static int mtk_napi_tx(struct napi_struct *napi, int budget)
 	int tx_done = 0;
 
 	mtk_handle_status_irq(eth);
-	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QMTK_INT_STATUS);
+	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QDMA_INT_STATUS);
 	tx_done = mtk_poll_tx(eth, budget);
 
 	if (unlikely(netif_msg_intr(eth))) {
-		status = mtk_r32(eth, MTK_QMTK_INT_STATUS);
+		status = mtk_r32(eth, MTK_QDMA_INT_STATUS);
 		mask = mtk_r32(eth, MTK_QDMA_INT_MASK);
 		dev_info(eth->dev,
 			 "done tx %d, intr 0x%08x/0x%x\n",
@@ -1136,7 +1136,7 @@ static int mtk_napi_tx(struct napi_struct *napi, int budget)
 	if (tx_done == budget)
 		return budget;
 
-	status = mtk_r32(eth, MTK_QMTK_INT_STATUS);
+	status = mtk_r32(eth, MTK_QDMA_INT_STATUS);
 	if (status & MTK_TX_DONE_INT)
 		return budget;
 
@@ -1747,7 +1747,7 @@ static irqreturn_t mtk_handle_irq(int irq, void *_eth)
 			mtk_handle_irq_rx(irq, _eth);
 	}
 	if (mtk_r32(eth, MTK_QDMA_INT_MASK) & MTK_TX_DONE_INT) {
-		if (mtk_r32(eth, MTK_QMTK_INT_STATUS) & MTK_TX_DONE_INT)
+		if (mtk_r32(eth, MTK_QDMA_INT_STATUS) & MTK_TX_DONE_INT)
 			mtk_handle_irq_tx(irq, _eth);
 	}
 
