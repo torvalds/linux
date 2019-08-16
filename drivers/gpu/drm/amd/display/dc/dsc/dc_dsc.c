@@ -512,6 +512,7 @@ static bool setup_dsc_config(
 		const struct dsc_enc_caps *dsc_enc_caps,
 		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
+		int min_slice_height_override,
 		struct dc_dsc_config *dsc_cfg)
 {
 	struct dsc_enc_caps dsc_common_caps;
@@ -680,7 +681,10 @@ static bool setup_dsc_config(
 
 	// Slice height (i.e. number of slices per column): start with policy and pick the first one that height is divisible by.
 	// For 4:2:0 make sure the slice height is divisible by 2 as well.
-	slice_height = min(dsc_policy.min_sice_height, pic_height);
+	if (min_slice_height_override == 0)
+		slice_height = min(dsc_policy.min_sice_height, pic_height);
+	else
+		slice_height = min(min_slice_height_override, pic_height);
 
 	while (slice_height < pic_height && (pic_height % slice_height != 0 ||
 		(timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 && slice_height % 2 != 0)))
@@ -820,10 +824,8 @@ bool dc_dsc_compute_bandwidth_range(
 			timing->pixel_encoding, &dsc_common_caps);
 
 	if (is_dsc_possible)
-		is_dsc_possible = setup_dsc_config(dsc_sink_caps,
-				&dsc_enc_caps,
-				0,
-				timing, &config);
+		is_dsc_possible = setup_dsc_config(dsc_sink_caps, &dsc_enc_caps, 0, timing,
+					dc->debug.dsc_min_slice_height_override, &config);
 
 	if (is_dsc_possible)
 		get_dsc_bandwidth_range(min_bpp, max_bpp, &dsc_common_caps, timing, range);
@@ -845,7 +847,7 @@ bool dc_dsc_compute_config(
 	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
 			&dsc_enc_caps,
 			target_bandwidth_kbps,
-			timing, dsc_cfg);
+			timing, dc->debug.dsc_min_slice_height_override, dsc_cfg);
 	return is_dsc_possible;
 }
 #endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */

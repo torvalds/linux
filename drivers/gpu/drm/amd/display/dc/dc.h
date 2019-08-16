@@ -347,6 +347,7 @@ struct dc_debug_options {
 	bool disable_hubp_power_gate;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool disable_dsc_power_gate;
+	int dsc_min_slice_height_override;
 #endif
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
