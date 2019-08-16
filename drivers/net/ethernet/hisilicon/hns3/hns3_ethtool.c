@@ -704,7 +704,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
-static int hns3_check_ksettings_param(struct net_device *netdev,
+static int hns3_check_ksettings_param(const struct net_device *netdev,
 				      const struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);

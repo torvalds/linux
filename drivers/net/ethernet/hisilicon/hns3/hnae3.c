@@ -46,7 +46,7 @@ void hnae3_set_client_init_flag(struct hnae3_client *client,
 EXPORT_SYMBOL(hnae3_set_client_init_flag);
 
 static int hnae3_get_client_init_flag(struct hnae3_client *client,
-				       struct hnae3_ae_dev *ae_dev)
+				      struct hnae3_ae_dev *ae_dev)
 {
 	int inited = 0;
 

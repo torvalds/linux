@@ -1128,6 +1128,7 @@ static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
 	else if (media_type == HNAE3_MEDIA_TYPE_BACKPLANE)
 		hclge_parse_backplane_link_mode(hdev, speed_ability);
 }
+
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 {
 	struct hclge_cfg_param_cmd *req;
@@ -4364,8 +4365,8 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hnae3_ring_chain_node *node;
 	struct hclge_desc desc;
-	struct hclge_ctrl_vector_chain_cmd *req
-		= (struct hclge_ctrl_vector_chain_cmd *)desc.data;
+	struct hclge_ctrl_vector_chain_cmd *req =
+		(struct hclge_ctrl_vector_chain_cmd *)desc.data;
 	enum hclge_cmd_status status;
 	enum hclge_opcode_type op;
 	u16 tqp_type_and_id;
@@ -8656,7 +8657,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 		}
 	}
 
-	return ret;
+	return 0;
 
 clear_nic:
 	hdev->nic_client = NULL;
