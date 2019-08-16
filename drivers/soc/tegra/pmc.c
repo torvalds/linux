@@ -88,6 +88,8 @@
 
 #define PMC_CPUPWRGOOD_TIMER		0xc8
 #define PMC_CPUPWROFF_TIMER		0xcc
+#define PMC_COREPWRGOOD_TIMER		0x3c
+#define PMC_COREPWROFF_TIMER		0xe0
 
 #define PMC_PWR_DET_VALUE		0xe4
 
@@ -2303,7 +2305,7 @@ static const struct tegra_pmc_regs tegra20_pmc_regs = {
 
 static void tegra20_pmc_init(struct tegra_pmc *pmc)
 {
-	u32 value;
+	u32 value, osc, pmu, off;
 
 	/* Always enable CPU power request */
 	value = tegra_pmc_readl(pmc, PMC_CNTRL);
@@ -2329,6 +2331,16 @@ static void tegra20_pmc_init(struct tegra_pmc *pmc)
 	value = tegra_pmc_readl(pmc, PMC_CNTRL);
 	value |= PMC_CNTRL_SYSCLK_OE;
 	tegra_pmc_writel(pmc, value, PMC_CNTRL);
+
+	/* program core timings which are applicable only for suspend state */
+	if (pmc->suspend_mode != TEGRA_SUSPEND_NONE) {
+		osc = DIV_ROUND_UP(pmc->core_osc_time * 8192, 1000000);
+		pmu = DIV_ROUND_UP(pmc->core_pmu_time * 32768, 1000000);
+		off = DIV_ROUND_UP(pmc->core_off_time * 32768, 1000000);
+		tegra_pmc_writel(pmc, ((osc << 8) & 0xff00) | (pmu & 0xff),
+				 PMC_COREPWRGOOD_TIMER);
+		tegra_pmc_writel(pmc, off, PMC_COREPWROFF_TIMER);
+	}
 }
 
 static void tegra20_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
