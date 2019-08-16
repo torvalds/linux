@@ -341,7 +341,6 @@ static int asus_wmi_get_devstate_bits(struct asus_wmi *asus,
 	int err;
 
 	err = asus_wmi_get_devstate(asus, dev_id, &retval);
-
 	if (err < 0)
 		return err;
 
@@ -493,7 +492,6 @@ static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
 	asus = container_of(led_cdev, struct asus_wmi, kbd_led);
 
 	retval = kbd_led_read(asus, &value, NULL);
-
 	if (retval < 0)
 		return retval;
 
@@ -1277,7 +1275,6 @@ static ssize_t pwm1_store(struct device *dev,
 	int ret;
 
 	ret = kstrtouint(buf, 10, &value);
-
 	if (ret)
 		return ret;
 
@@ -1359,7 +1356,6 @@ static ssize_t pwm1_enable_store(struct device *dev,
 	u32 retval;
 
 	ret = kstrtouint(buf, 10, &state);
-
 	if (ret)
 		return ret;
 
@@ -1418,7 +1414,6 @@ static ssize_t asus_hwmon_temp1(struct device *dev,
 	int err;
 
 	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_THERMAL_CTRL, &value);
-
 	if (err < 0)
 		return err;
 
@@ -1557,7 +1552,6 @@ static int fan_boost_mode_write(struct asus_wmi *asus)
 	pr_info("Set fan boost mode: %u\n", value);
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_FAN_BOOST_MODE, value,
 				    &retval);
-
 	if (err) {
 		pr_warn("Failed to set fan boost mode: %d\n", err);
 		return err;
@@ -1640,6 +1634,7 @@ static DEVICE_ATTR_RW(fan_boost_mode);
 static int read_backlight_power(struct asus_wmi *asus)
 {
 	int ret;
+
 	if (asus->driver->quirks->store_backlight_power)
 		ret = !asus->driver->panel_power;
 	else
@@ -1658,7 +1653,6 @@ static int read_brightness_max(struct asus_wmi *asus)
 	int err;
 
 	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_BRIGHTNESS, &retval);
-
 	if (err < 0)
 		return err;
 
@@ -1678,7 +1672,6 @@ static int read_brightness(struct backlight_device *bd)
 	int err;
 
 	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_BRIGHTNESS, &retval);
-
 	if (err < 0)
 		return err;
 
@@ -1768,7 +1761,6 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 		return max;
 
 	power = read_backlight_power(asus);
-
 	if (power == -ENODEV)
 		power = FB_BLANK_UNBLANK;
 	else if (power < 0)
@@ -1934,7 +1926,6 @@ static void asus_wmi_notify(u32 value, void *context)
 
 	for (i = 0; i < WMI_EVENT_QUEUE_SIZE + 1; i++) {
 		code = asus_wmi_get_event_code(value);
-
 		if (code < 0) {
 			pr_warn("Failed to get notify code: %d\n", code);
 			return;
@@ -1963,7 +1954,6 @@ static int asus_wmi_notify_queue_flush(struct asus_wmi *asus)
 
 	for (i = 0; i < WMI_EVENT_QUEUE_SIZE + 1; i++) {
 		code = asus_wmi_get_event_code(WMI_EVENT_VALUE_ATK);
-
 		if (code < 0) {
 			pr_warn("Failed to get event during flush: %d\n", code);
 			return code;
@@ -2252,7 +2242,6 @@ static int show_dsts(struct seq_file *m, void *data)
 	u32 retval = -1;
 
 	err = asus_wmi_get_devstate(asus, asus->debug.dev_id, &retval);
-
 	if (err < 0)
 		return err;
 
@@ -2269,7 +2258,6 @@ static int show_devs(struct seq_file *m, void *data)
 
 	err = asus_wmi_set_devstate(asus->debug.dev_id, asus->debug.ctrl_param,
 				    &retval);
-
 	if (err < 0)
 		return err;
 
