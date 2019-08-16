@@ -112,6 +112,8 @@ static const struct vmw_res_func vmw_legacy_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = false,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 1,
 	.type_name = "legacy surfaces",
 	.backup_placement = &vmw_srf_placement,
 	.create = &vmw_legacy_srf_create,
@@ -124,6 +126,8 @@ static const struct vmw_res_func vmw_gb_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = true,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 2,
 	.type_name = "guest backed surfaces",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_gb_surface_create,
@@ -914,12 +918,6 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 	} else {
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
-
-		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
-			DRM_ERROR("Locked master refused legacy "
-				  "surface reference.\n");
-			return -EACCES;
-		}
 
 		handle = u_handle;
 	}
