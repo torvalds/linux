@@ -52,9 +52,9 @@ Compressed Formats
       - ``V4L2_PIX_FMT_H264_MVC``
       - 'M264'
       - H264 MVC video elementary stream.
-    * .. _V4L2-PIX-FMT-H264-SLICE-RAW:
+    * .. _V4L2-PIX-FMT-H264-SLICE:
 
-      - ``V4L2_PIX_FMT_H264_SLICE_RAW``
+      - ``V4L2_PIX_FMT_H264_SLICE``
       - 'S264'
       - H264 parsed slice data, without the start code and as
 	extracted from the H264 bitstream.  This format is adapted for
