@@ -396,7 +396,7 @@
 		};
 
 		uart0: serial@7e201000 {
-			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
+			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x7e201000 0x200>;
 			interrupts = <2 25>;
 			clocks = <&clocks BCM2835_CLOCK_UART>,
