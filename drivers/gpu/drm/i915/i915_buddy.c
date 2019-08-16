@@ -3,6 +3,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/kmemleak.h>
 #include <linux/slab.h>
 
 #include "i915_buddy.h"
@@ -304,6 +305,7 @@ i915_buddy_alloc(struct i915_buddy_mm *mm, unsigned int order)
 	}
 
 	mark_allocated(block);
+	kmemleak_update_trace(block);
 	return block;
 
 out_free:
