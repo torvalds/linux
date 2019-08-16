@@ -378,7 +378,8 @@ static enum tcpm_state tcpm_default_state(struct tcpm_port *port)
 			return SNK_UNATTACHED;
 		else if (port->try_role == TYPEC_SOURCE)
 			return SRC_UNATTACHED;
-		else if (port->tcpc->config->default_role == TYPEC_SINK)
+		else if (port->tcpc->config &&
+			 port->tcpc->config->default_role == TYPEC_SINK)
 			return SNK_UNATTACHED;
 		/* Fall through to return SRC_UNATTACHED */
 	} else if (port->port_type == TYPEC_PORT_SNK) {
@@ -585,7 +586,20 @@ static void tcpm_debugfs_init(struct tcpm_port *port)
 
 static void tcpm_debugfs_exit(struct tcpm_port *port)
 {
+	int i;
+
+	mutex_lock(&port->logbuffer_lock);
+	for (i = 0; i < LOG_BUFFER_ENTRIES; i++) {
+		kfree(port->logbuffer[i]);
+		port->logbuffer[i] = NULL;
+	}
+	mutex_unlock(&port->logbuffer_lock);
+
 	debugfs_remove(port->dentry);
+	if (list_empty(&rootdir->d_subdirs)) {
+		debugfs_remove(rootdir);
+		rootdir = NULL;
+	}
 }
 
 #else
@@ -1094,7 +1108,8 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 			break;
 		case CMD_ATTENTION:
 			/* Attention command does not have response */
-			typec_altmode_attention(adev, p[1]);
+			if (adev)
+				typec_altmode_attention(adev, p[1]);
 			return 0;
 		default:
 			break;
@@ -1146,20 +1161,26 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 			}
 			break;
 		case CMD_ENTER_MODE:
-			typec_altmode_update_active(pdev, true);
+			if (adev && pdev) {
+				typec_altmode_update_active(pdev, true);
 
-			if (typec_altmode_vdm(adev, p[0], &p[1], cnt)) {
-				response[0] = VDO(adev->svid, 1, CMD_EXIT_MODE);
-				response[0] |= VDO_OPOS(adev->mode);
-				return 1;
+				if (typec_altmode_vdm(adev, p[0], &p[1], cnt)) {
+					response[0] = VDO(adev->svid, 1,
+							  CMD_EXIT_MODE);
+					response[0] |= VDO_OPOS(adev->mode);
+					return 1;
+				}
 			}
 			return 0;
 		case CMD_EXIT_MODE:
-			typec_altmode_update_active(pdev, false);
+			if (adev && pdev) {
+				typec_altmode_update_active(pdev, false);
 
-			/* Back to USB Operation */
-			WARN_ON(typec_altmode_notify(adev, TYPEC_STATE_USB,
-						     NULL));
+				/* Back to USB Operation */
+				WARN_ON(typec_altmode_notify(adev,
+							     TYPEC_STATE_USB,
+							     NULL));
+			}
 			break;
 		default:
 			break;
@@ -1169,8 +1190,10 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 		switch (cmd) {
 		case CMD_ENTER_MODE:
 			/* Back to USB Operation */
-			WARN_ON(typec_altmode_notify(adev, TYPEC_STATE_USB,
-						     NULL));
+			if (adev)
+				WARN_ON(typec_altmode_notify(adev,
+							     TYPEC_STATE_USB,
+							     NULL));
 			break;
 		default:
 			break;
@@ -1181,7 +1204,8 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 	}
 
 	/* Informing the alternate mode drivers about everything */
-	typec_altmode_vdm(adev, p[0], &p[1], cnt);
+	if (adev)
+		typec_altmode_vdm(adev, p[0], &p[1], cnt);
 
 	return rlen;
 }
@@ -4083,7 +4107,7 @@ static int tcpm_try_role(const struct typec_capability *cap, int role)
 	mutex_lock(&port->lock);
 	if (tcpc->try_role)
 		ret = tcpc->try_role(tcpc, role);
-	if (!ret && !tcpc->config->try_role_hw)
+	if (!ret && (!tcpc->config || !tcpc->config->try_role_hw))
 		port->try_role = role;
 	port->try_src_count = 0;
 	port->try_snk_count = 0;
@@ -4730,7 +4754,7 @@ static int tcpm_copy_caps(struct tcpm_port *port,
 	port->typec_caps.prefer_role = tcfg->default_role;
 	port->typec_caps.type = tcfg->type;
 	port->typec_caps.data = tcfg->data;
-	port->self_powered = port->tcpc->config->self_powered;
+	port->self_powered = tcfg->self_powered;
 
 	return 0;
 }

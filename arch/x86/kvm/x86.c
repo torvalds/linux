@@ -9336,6 +9336,22 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_running(vcpu) || kvm_vcpu_has_events(vcpu);
 }
 
+bool kvm_arch_dy_runnable(struct kvm_vcpu *vcpu)
+{
+	if (READ_ONCE(vcpu->arch.pv.pv_unhalted))
+		return true;
+
+	if (kvm_test_request(KVM_REQ_NMI, vcpu) ||
+		kvm_test_request(KVM_REQ_SMI, vcpu) ||
+		 kvm_test_request(KVM_REQ_EVENT, vcpu))
+		return true;
+
+	if (vcpu->arch.apicv_active && kvm_x86_ops->dy_apicv_has_pending_interrupt(vcpu))
+		return true;
+
+	return false;
+}
+
 bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.preempted_in_kernel;

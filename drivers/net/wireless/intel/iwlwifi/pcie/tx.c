@@ -403,6 +403,8 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 					 DMA_TO_DEVICE);
 	}
 
+	meta->tbs = 0;
+
 	if (trans->cfg->use_tfh) {
 		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
 

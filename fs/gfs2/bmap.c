@@ -392,6 +392,19 @@ static int fillup_metapath(struct gfs2_inode *ip, struct metapath *mp, int h)
 	return mp->mp_aheight - x - 1;
 }
 
+static sector_t metapath_to_block(struct gfs2_sbd *sdp, struct metapath *mp)
+{
+	sector_t factor = 1, block = 0;
+	int hgt;
+
+	for (hgt = mp->mp_fheight - 1; hgt >= 0; hgt--) {
+		if (hgt < mp->mp_aheight)
+			block += mp->mp_list[hgt] * factor;
+		factor *= sdp->sd_inptrs;
+	}
+	return block;
+}
+
 static void release_metapath(struct metapath *mp)
 {
 	int i;
@@ -432,60 +445,84 @@ static inline unsigned int gfs2_extent_length(struct buffer_head *bh, __be64 *pt
 	return ptr - first;
 }
 
-typedef const __be64 *(*gfs2_metadata_walker)(
-		struct metapath *mp,
-		const __be64 *start, const __be64 *end,
-		u64 factor, void *data);
+enum walker_status { WALK_STOP, WALK_FOLLOW, WALK_CONTINUE };
 
-#define WALK_STOP ((__be64 *)0)
-#define WALK_NEXT ((__be64 *)1)
+/*
+ * gfs2_metadata_walker - walk an indirect block
+ * @mp: Metapath to indirect block
+ * @ptrs: Number of pointers to look at
+ *
+ * When returning WALK_FOLLOW, the walker must update @mp to point at the right
+ * indirect block to follow.
+ */
+typedef enum walker_status (*gfs2_metadata_walker)(struct metapath *mp,
+						   unsigned int ptrs);
 
-static int gfs2_walk_metadata(struct inode *inode, sector_t lblock,
-		u64 len, struct metapath *mp, gfs2_metadata_walker walker,
-		void *data)
+/*
+ * gfs2_walk_metadata - walk a tree of indirect blocks
+ * @inode: The inode
+ * @mp: Starting point of walk
+ * @max_len: Maximum number of blocks to walk
+ * @walker: Called during the walk
+ *
+ * Returns 1 if the walk was stopped by @walker, 0 if we went past @max_len or
+ * past the end of metadata, and a negative error code otherwise.
+ */
+
+static int gfs2_walk_metadata(struct inode *inode, struct metapath *mp,
+		u64 max_len, gfs2_metadata_walker walker)
 {
-	struct metapath clone;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	const __be64 *start, *end, *ptr;
 	u64 factor = 1;
 	unsigned int hgt;
-	int ret = 0;
+	int ret;
 
-	for (hgt = ip->i_height - 1; hgt >= mp->mp_aheight; hgt--)
+	/*
+	 * The walk starts in the lowest allocated indirect block, which may be
+	 * before the position indicated by @mp.  Adjust @max_len accordingly
+	 * to avoid a short walk.
+	 */
+	for (hgt = mp->mp_fheight - 1; hgt >= mp->mp_aheight; hgt--) {
+		max_len += mp->mp_list[hgt] * factor;
+		mp->mp_list[hgt] = 0;
 		factor *= sdp->sd_inptrs;
+	}
 
 	for (;;) {
-		u64 step;
+		u16 start = mp->mp_list[hgt];
+		enum walker_status status;
+		unsigned int ptrs;
+		u64 len;
 
 		/* Walk indirect block. */
-		start = metapointer(hgt, mp);
-		end = metaend(hgt, mp);
-
-		step = (end - start) * factor;
-		if (step > len)
-			end = start + DIV_ROUND_UP_ULL(len, factor);
-
-		ptr = walker(mp, start, end, factor, data);
-		if (ptr == WALK_STOP)
+		ptrs = (hgt >= 1 ? sdp->sd_inptrs : sdp->sd_diptrs) - start;
+		len = ptrs * factor;
+		if (len > max_len)
+			ptrs = DIV_ROUND_UP_ULL(max_len, factor);
+		status = walker(mp, ptrs);
+		switch (status) {
+		case WALK_STOP:
+			return 1;
+		case WALK_FOLLOW:
+			BUG_ON(mp->mp_aheight == mp->mp_fheight);
+			ptrs = mp->mp_list[hgt] - start;
+			len = ptrs * factor;
 			break;
-		if (step >= len)
+		case WALK_CONTINUE:
 			break;
-		len -= step;
-		if (ptr != WALK_NEXT) {
-			BUG_ON(!*ptr);
-			mp->mp_list[hgt] += ptr - start;
-			goto fill_up_metapath;
 		}
+		if (len >= max_len)
+			break;
+		max_len -= len;
+		if (status == WALK_FOLLOW)
+			goto fill_up_metapath;
 
 lower_metapath:
 		/* Decrease height of metapath. */
-		if (mp != &clone) {
-			clone_metapath(&clone, mp);
-			mp = &clone;
-		}
 		brelse(mp->mp_bh[hgt]);
 		mp->mp_bh[hgt] = NULL;
+		mp->mp_list[hgt] = 0;
 		if (!hgt)
 			break;
 		hgt--;
@@ -493,10 +530,7 @@ lower_metapath:
 
 		/* Advance in metadata tree. */
 		(mp->mp_list[hgt])++;
-		start = metapointer(hgt, mp);
-		end = metaend(hgt, mp);
-		if (start >= end) {
-			mp->mp_list[hgt] = 0;
+		if (mp->mp_list[hgt] >= sdp->sd_inptrs) {
 			if (!hgt)
 				break;
 			goto lower_metapath;
@@ -504,44 +538,36 @@ lower_metapath:
 
 fill_up_metapath:
 		/* Increase height of metapath. */
-		if (mp != &clone) {
-			clone_metapath(&clone, mp);
-			mp = &clone;
-		}
 		ret = fillup_metapath(ip, mp, ip->i_height - 1);
 		if (ret < 0)
-			break;
+			return ret;
 		hgt += ret;
 		for (; ret; ret--)
 			do_div(factor, sdp->sd_inptrs);
 		mp->mp_aheight = hgt + 1;
 	}
-	if (mp == &clone)
-		release_metapath(mp);
-	return ret;
+	return 0;
 }
 
-struct gfs2_hole_walker_args {
-	u64 blocks;
-};
-
-static const __be64 *gfs2_hole_walker(struct metapath *mp,
-		const __be64 *start, const __be64 *end,
-		u64 factor, void *data)
+static enum walker_status gfs2_hole_walker(struct metapath *mp,
+					   unsigned int ptrs)
 {
-	struct gfs2_hole_walker_args *args = data;
-	const __be64 *ptr;
+	const __be64 *start, *ptr, *end;
+	unsigned int hgt;
+
+	hgt = mp->mp_aheight - 1;
+	start = metapointer(hgt, mp);
+	end = start + ptrs;
 
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr) {
-			args->blocks += (ptr - start) * factor;
+			mp->mp_list[hgt] += ptr - start;
 			if (mp->mp_aheight == mp->mp_fheight)
 				return WALK_STOP;
-			return ptr;  /* increase height */
+			return WALK_FOLLOW;
 		}
 	}
-	args->blocks += (end - start) * factor;
-	return WALK_NEXT;
+	return WALK_CONTINUE;
 }
 
 /**
@@ -559,12 +585,24 @@ static const __be64 *gfs2_hole_walker(struct metapath *mp,
 static int gfs2_hole_size(struct inode *inode, sector_t lblock, u64 len,
 			  struct metapath *mp, struct iomap *iomap)
 {
-	struct gfs2_hole_walker_args args = { };
-	int ret = 0;
+	struct metapath clone;
+	u64 hole_size;
+	int ret;
 
-	ret = gfs2_walk_metadata(inode, lblock, len, mp, gfs2_hole_walker, &args);
-	if (!ret)
-		iomap->length = args.blocks << inode->i_blkbits;
+	clone_metapath(&clone, mp);
+	ret = gfs2_walk_metadata(inode, &clone, len, gfs2_hole_walker);
+	if (ret < 0)
+		goto out;
+
+	if (ret == 1)
+		hole_size = metapath_to_block(GFS2_SB(inode), &clone) - lblock;
+	else
+		hole_size = len;
+	iomap->length = hole_size << inode->i_blkbits;
+	ret = 0;
+
+out:
+	release_metapath(&clone);
 	return ret;
 }
 

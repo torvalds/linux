@@ -78,6 +78,7 @@ enum {
 	POS_FIX_VIACOMBO,
 	POS_FIX_COMBO,
 	POS_FIX_SKL,
+	POS_FIX_FIFO,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -149,7 +150,7 @@ module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "DMA pointer read method."
-		 "(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO, 5 = SKL+).");
+		 "(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO, 5 = SKL+, 6 = FIFO).");
 module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
@@ -349,6 +350,11 @@ enum {
 /* quirks for ATI HDMI with snoop off */
 #define AZX_DCAPS_PRESET_ATI_HDMI_NS \
 	(AZX_DCAPS_PRESET_ATI_HDMI | AZX_DCAPS_SNOOP_OFF)
+
+/* quirks for AMD SB */
+#define AZX_DCAPS_PRESET_AMD_SB \
+	(AZX_DCAPS_NO_TCSEL | AZX_DCAPS_SYNC_WRITE | AZX_DCAPS_AMD_WORKAROUND |\
+	 AZX_DCAPS_SNOOP_TYPE(ATI) | AZX_DCAPS_PM_RUNTIME)
 
 /* quirks for Nvidia */
 #define AZX_DCAPS_PRESET_NVIDIA \
@@ -918,6 +924,49 @@ static unsigned int azx_via_get_position(struct azx *chip,
 
 	/* Calculate real DMA position we want */
 	return bound_pos + mod_dma_pos;
+}
+
+#define AMD_FIFO_SIZE	32
+
+/* get the current DMA position with FIFO size correction */
+static unsigned int azx_get_pos_fifo(struct azx *chip, struct azx_dev *azx_dev)
+{
+	struct snd_pcm_substream *substream = azx_dev->core.substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned int pos, delay;
+
+	pos = snd_hdac_stream_get_pos_lpib(azx_stream(azx_dev));
+	if (!runtime)
+		return pos;
+
+	runtime->delay = AMD_FIFO_SIZE;
+	delay = frames_to_bytes(runtime, AMD_FIFO_SIZE);
+	if (azx_dev->insufficient) {
+		if (pos < delay) {
+			delay = pos;
+			runtime->delay = bytes_to_frames(runtime, pos);
+		} else {
+			azx_dev->insufficient = 0;
+		}
+	}
+
+	/* correct the DMA position for capture stream */
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		if (pos < delay)
+			pos += azx_dev->core.bufsize;
+		pos -= delay;
+	}
+
+	return pos;
+}
+
+static int azx_get_delay_from_fifo(struct azx *chip, struct azx_dev *azx_dev,
+				   unsigned int pos)
+{
+	struct snd_pcm_substream *substream = azx_dev->core.substream;
+
+	/* just read back the calculated value in the above */
+	return substream->runtime->delay;
 }
 
 static unsigned int azx_skl_get_dpib_pos(struct azx *chip,
@@ -1528,6 +1577,7 @@ static int check_position_fix(struct azx *chip, int fix)
 	case POS_FIX_VIACOMBO:
 	case POS_FIX_COMBO:
 	case POS_FIX_SKL:
+	case POS_FIX_FIFO:
 		return fix;
 	}
 
@@ -1543,6 +1593,10 @@ static int check_position_fix(struct azx *chip, int fix)
 	if (chip->driver_type == AZX_DRIVER_VIA) {
 		dev_dbg(chip->card->dev, "Using VIACOMBO position fix\n");
 		return POS_FIX_VIACOMBO;
+	}
+	if (chip->driver_caps & AZX_DCAPS_AMD_WORKAROUND) {
+		dev_dbg(chip->card->dev, "Using FIFO position fix\n");
+		return POS_FIX_FIFO;
 	}
 	if (chip->driver_caps & AZX_DCAPS_POSFIX_LPIB) {
 		dev_dbg(chip->card->dev, "Using LPIB position fix\n");
@@ -1564,6 +1618,7 @@ static void assign_position_fix(struct azx *chip, int fix)
 		[POS_FIX_VIACOMBO] = azx_via_get_position,
 		[POS_FIX_COMBO] = azx_get_pos_lpib,
 		[POS_FIX_SKL] = azx_get_pos_skl,
+		[POS_FIX_FIFO] = azx_get_pos_fifo,
 	};
 
 	chip->get_position[0] = chip->get_position[1] = callbacks[fix];
@@ -1578,6 +1633,9 @@ static void assign_position_fix(struct azx *chip, int fix)
 			azx_get_delay_from_lpib;
 	}
 
+	if (fix == POS_FIX_FIFO)
+		chip->get_delay[0] = chip->get_delay[1] =
+			azx_get_delay_from_fifo;
 }
 
 /*
@@ -2594,6 +2652,9 @@ static const struct pci_device_id azx_ids[] = {
 	/* AMD Hudson */
 	{ PCI_DEVICE(0x1022, 0x780d),
 	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB },
+	/* AMD, X370 & co */
+	{ PCI_DEVICE(0x1022, 0x1457),
+	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_AMD_SB },
 	/* AMD Stoney */
 	{ PCI_DEVICE(0x1022, 0x157a),
 	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB |
