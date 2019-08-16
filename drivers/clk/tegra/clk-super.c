@@ -124,9 +124,21 @@ out:
 	return err;
 }
 
+static void clk_super_mux_restore_context(struct clk_hw *hw)
+{
+	int parent_id;
+
+	parent_id = clk_hw_get_parent_index(hw);
+	if (WARN_ON(parent_id < 0))
+		return;
+
+	clk_super_set_parent(hw, parent_id);
+}
+
 static const struct clk_ops tegra_clk_super_mux_ops = {
 	.get_parent = clk_super_get_parent,
 	.set_parent = clk_super_set_parent,
+	.restore_context = clk_super_mux_restore_context,
 };
 
 static long clk_super_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -162,12 +174,27 @@ static int clk_super_set_rate(struct clk_hw *hw, unsigned long rate,
 	return super->div_ops->set_rate(div_hw, rate, parent_rate);
 }
 
+static void clk_super_restore_context(struct clk_hw *hw)
+{
+	struct tegra_clk_super_mux *super = to_clk_super_mux(hw);
+	struct clk_hw *div_hw = &super->frac_div.hw;
+	int parent_id;
+
+	parent_id = clk_hw_get_parent_index(hw);
+	if (WARN_ON(parent_id < 0))
+		return;
+
+	super->div_ops->restore_context(div_hw);
+	clk_super_set_parent(hw, parent_id);
+}
+
 const struct clk_ops tegra_clk_super_ops = {
 	.get_parent = clk_super_get_parent,
 	.set_parent = clk_super_set_parent,
 	.set_rate = clk_super_set_rate,
 	.round_rate = clk_super_round_rate,
 	.recalc_rate = clk_super_recalc_rate,
+	.restore_context = clk_super_restore_context,
 };
 
 struct clk *tegra_clk_register_super_mux(const char *name,
