@@ -4,6 +4,7 @@ hantro-vpu-y += \
 		hantro_drv.o \
 		hantro_v4l2.o \
 		hantro_h1_jpeg_enc.o \
+		hantro_g1_h264_dec.o \
 		hantro_g1_mpeg2_dec.o \
 		hantro_g1_vp8_dec.o \
 		rk3399_vpu_hw_jpeg_enc.o \
