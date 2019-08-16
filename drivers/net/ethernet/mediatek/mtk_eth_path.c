@@ -315,6 +315,10 @@ int mtk_setup_hw_path(struct mtk_eth *eth, int mac_id, int phymode)
 {
 	int err;
 
+	/* No mux'ing for MT7628/88 */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+		return 0;
+
 	switch (phymode) {
 	case PHY_INTERFACE_MODE_TRGMII:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
