@@ -1235,7 +1235,7 @@ static bool calc_pll_max_vco_construct(
 			struct calc_pll_clock_source_init_data *init_data)
 {
 	uint32_t i;
-	struct dc_firmware_info *fw_info = &init_data->bp->fw_info;
+	struct dc_firmware_info *fw_info;
 	if (calc_pll_cs == NULL ||
 			init_data == NULL ||
 			init_data->bp == NULL)
@@ -1244,6 +1244,7 @@ static bool calc_pll_max_vco_construct(
 	if (init_data->bp->fw_info_valid)
 		return false;
 
+	fw_info = &init_data->bp->fw_info;
 	calc_pll_cs->ctx = init_data->ctx;
 	calc_pll_cs->ref_freq_khz = fw_info->pll_info.crystal_frequency;
 	calc_pll_cs->min_vco_khz =
