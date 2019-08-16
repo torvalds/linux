@@ -81,15 +81,15 @@ int __init exynos_chipid_early_init(void)
 	soc_dev_attr->soc_id = product_id_to_soc_id(product_id);
 	if (!soc_dev_attr->soc_id) {
 		pr_err("Unknown SoC\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err;
 	}
 
 	/* please note that the actual registration will be deferred */
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
-		kfree(soc_dev_attr->revision);
-		kfree(soc_dev_attr);
-		return PTR_ERR(soc_dev);
+		ret = PTR_ERR(soc_dev);
+		goto err;
 	}
 
 	/* it is too early to use dev_info() here (soc_dev is NULL) */
@@ -97,5 +97,11 @@ int __init exynos_chipid_early_init(void)
 		soc_dev_attr->soc_id, product_id, revision);
 
 	return 0;
+
+err:
+	kfree(soc_dev_attr->revision);
+	kfree(soc_dev_attr);
+	return ret;
 }
+
 early_initcall(exynos_chipid_early_init);
