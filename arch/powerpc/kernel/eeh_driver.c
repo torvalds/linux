@@ -257,20 +257,27 @@ static void eeh_set_irq_state(struct eeh_pe *root, bool enable)
 }
 
 typedef enum pci_ers_result (*eeh_report_fn)(struct eeh_dev *,
+					     struct pci_dev *,
 					     struct pci_driver *);
 static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 			       enum pci_ers_result *result)
 {
+	struct pci_dev *pdev;
 	struct pci_driver *driver;
 	enum pci_ers_result new_result;
 
-	if (!edev->pdev) {
+	pci_lock_rescan_remove();
+	pdev = edev->pdev;
+	if (pdev)
+		get_device(&pdev->dev);
+	pci_unlock_rescan_remove();
+	if (!pdev) {
 		eeh_edev_info(edev, "no device");
 		return;
 	}
-	device_lock(&edev->pdev->dev);
+	device_lock(&pdev->dev);
 	if (eeh_edev_actionable(edev)) {
-		driver = eeh_pcid_get(edev->pdev);
+		driver = eeh_pcid_get(pdev);
 
 		if (!driver)
 			eeh_edev_info(edev, "no driver");
@@ -279,7 +286,7 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		else if (edev->mode & EEH_DEV_NO_HANDLER)
 			eeh_edev_info(edev, "driver bound too late");
 		else {
-			new_result = fn(edev, driver);
+			new_result = fn(edev, pdev, driver);
 			eeh_edev_info(edev, "%s driver reports: '%s'",
 				      driver->name,
 				      pci_ers_result_name(new_result));
@@ -288,12 +295,15 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 							       new_result);
 		}
 		if (driver)
-			eeh_pcid_put(edev->pdev);
+			eeh_pcid_put(pdev);
 	} else {
-		eeh_edev_info(edev, "not actionable (%d,%d,%d)", !!edev->pdev,
+		eeh_edev_info(edev, "not actionable (%d,%d,%d)", !!pdev,
 			      !eeh_dev_removed(edev), !eeh_pe_passed(edev->pe));
 	}
-	device_unlock(&edev->pdev->dev);
+	device_unlock(&pdev->dev);
+	if (edev->pdev != pdev)
+		eeh_edev_warn(edev, "Device changed during processing!\n");
+	put_device(&pdev->dev);
 }
 
 static void eeh_pe_report(const char *name, struct eeh_pe *root,
@@ -320,20 +330,20 @@ static void eeh_pe_report(const char *name, struct eeh_pe *root,
  * Report an EEH error to each device driver.
  */
 static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
+					    struct pci_dev *pdev,
 					    struct pci_driver *driver)
 {
 	enum pci_ers_result rc;
-	struct pci_dev *dev = edev->pdev;
 
 	if (!driver->err_handler->error_detected)
 		return PCI_ERS_RESULT_NONE;
 
 	eeh_edev_info(edev, "Invoking %s->error_detected(IO frozen)",
 		      driver->name);
-	rc = driver->err_handler->error_detected(dev, pci_channel_io_frozen);
+	rc = driver->err_handler->error_detected(pdev, pci_channel_io_frozen);
 
 	edev->in_error = true;
-	pci_uevent_ers(dev, PCI_ERS_RESULT_NONE);
+	pci_uevent_ers(pdev, PCI_ERS_RESULT_NONE);
 	return rc;
 }
 
@@ -346,12 +356,13 @@ static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
  * are now enabled.
  */
 static enum pci_ers_result eeh_report_mmio_enabled(struct eeh_dev *edev,
+						   struct pci_dev *pdev,
 						   struct pci_driver *driver)
 {
 	if (!driver->err_handler->mmio_enabled)
 		return PCI_ERS_RESULT_NONE;
 	eeh_edev_info(edev, "Invoking %s->mmio_enabled()", driver->name);
-	return driver->err_handler->mmio_enabled(edev->pdev);
+	return driver->err_handler->mmio_enabled(pdev);
 }
 
 /**
@@ -365,12 +376,13 @@ static enum pci_ers_result eeh_report_mmio_enabled(struct eeh_dev *edev,
  * driver can work again while the device is recovered.
  */
 static enum pci_ers_result eeh_report_reset(struct eeh_dev *edev,
+					    struct pci_dev *pdev,
 					    struct pci_driver *driver)
 {
 	if (!driver->err_handler->slot_reset || !edev->in_error)
 		return PCI_ERS_RESULT_NONE;
 	eeh_edev_info(edev, "Invoking %s->slot_reset()", driver->name);
-	return driver->err_handler->slot_reset(edev->pdev);
+	return driver->err_handler->slot_reset(pdev);
 }
 
 static void *eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
@@ -411,13 +423,14 @@ static void *eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
  * to make the recovered device work again.
  */
 static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
+					     struct pci_dev *pdev,
 					     struct pci_driver *driver)
 {
 	if (!driver->err_handler->resume || !edev->in_error)
 		return PCI_ERS_RESULT_NONE;
 
 	eeh_edev_info(edev, "Invoking %s->resume()", driver->name);
-	driver->err_handler->resume(edev->pdev);
+	driver->err_handler->resume(pdev);
 
 	pci_uevent_ers(edev->pdev, PCI_ERS_RESULT_RECOVERED);
 #ifdef CONFIG_PCI_IOV
@@ -436,6 +449,7 @@ static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
  * dead, and that no further recovery attempts will be made on it.
  */
 static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
+					      struct pci_dev *pdev,
 					      struct pci_driver *driver)
 {
 	enum pci_ers_result rc;
@@ -445,10 +459,10 @@ static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
 
 	eeh_edev_info(edev, "Invoking %s->error_detected(permanent failure)",
 		      driver->name);
-	rc = driver->err_handler->error_detected(edev->pdev,
+	rc = driver->err_handler->error_detected(pdev,
 						 pci_channel_io_perm_failure);
 
-	pci_uevent_ers(edev->pdev, PCI_ERS_RESULT_DISCONNECT);
+	pci_uevent_ers(pdev, PCI_ERS_RESULT_DISCONNECT);
 	return rc;
 }
 
