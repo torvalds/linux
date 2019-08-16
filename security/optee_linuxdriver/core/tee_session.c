@@ -680,7 +680,6 @@ static void _update_client_tee_cmd(struct tee_session *sess,
 
 	BUG_ON(!cmd_io);
 	BUG_ON(!cmd_io->op);
-	BUG_ON(!cmd_io->op->params);
 	BUG_ON(!cmd);
 	BUG_ON(!sess->ctx);
 	ctx = sess->ctx;
