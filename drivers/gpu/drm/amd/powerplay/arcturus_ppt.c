@@ -463,7 +463,8 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 			return ret;
 		}
 	} else {
-		single_dpm_table->count = 0;
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 	}
 	arcturus_init_single_dpm_state(&(single_dpm_table->dpm_state));
 
