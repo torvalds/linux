@@ -113,7 +113,6 @@
 struct tcan4x5x_priv {
 	struct regmap *regmap;
 	struct spi_device *spi;
-	struct mutex tcan4x5x_lock; /* SPI device lock */
 
 	struct m_can_classdev *mcan_dev;
 
@@ -465,8 +464,6 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 
 	priv->regmap = devm_regmap_init(&spi->dev, &tcan4x5x_bus,
 					&spi->dev, &tcan4x5x_regmap);
-
-	mutex_init(&priv->tcan4x5x_lock);
 
 	tcan4x5x_power_enable(priv->power, 1);
 
