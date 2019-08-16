@@ -464,12 +464,7 @@ static void do_kbd_led_set(struct led_classdev *led_cdev, int value)
 	asus = container_of(led_cdev, struct asus_wmi, kbd_led);
 	max_level = asus->kbd_led.max_brightness;
 
-	if (value > max_level)
-		value = max_level;
-	else if (value < 0)
-		value = 0;
-
-	asus->kbd_led_wk = value;
+	asus->kbd_led_wk = clamp_val(value, 0, max_level);
 	kbd_led_update(asus);
 }
 
