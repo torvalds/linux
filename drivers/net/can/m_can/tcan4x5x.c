@@ -178,7 +178,7 @@ static int regmap_spi_gather_write(void *context, const void *reg,
 		{ .tx_buf = val, .len = val_len, },
 	};
 
-	addr = TCAN4X5X_WRITE_CMD | (*((u16 *)reg) << 8) | val_len >> 3;
+	addr = TCAN4X5X_WRITE_CMD | (*((u16 *)reg) << 8) | val_len >> 2;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t[0], &m);
@@ -192,7 +192,7 @@ static int tcan4x5x_regmap_write(void *context, const void *data, size_t count)
 	u16 *reg = (u16 *)(data);
 	const u32 *val = data + 4;
 
-	return regmap_spi_gather_write(context, reg, 4, val, count);
+	return regmap_spi_gather_write(context, reg, 4, val, count - 4);
 }
 
 static int regmap_spi_async_write(void *context,
