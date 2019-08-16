@@ -222,6 +222,9 @@ struct smu_bios_boot_up_values
 	uint16_t			vdd_gfx;
 	uint8_t				cooling_id;
 	uint32_t			pp_table_id;
+	uint32_t			format_revision;
+	uint32_t			content_revision;
+	uint32_t			fclk;
 };
 
 enum smu_table_id
