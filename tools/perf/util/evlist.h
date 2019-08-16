@@ -175,7 +175,7 @@ int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 			 bool auxtrace_overwrite, int nr_cblocks,
 			 int affinity, int flush, int comp_level);
 int evlist__mmap(struct evlist *evlist, unsigned int pages);
-void perf_evlist__munmap(struct evlist *evlist);
+void evlist__munmap(struct evlist *evlist);
 
 size_t evlist__mmap_size(unsigned long pages);
 

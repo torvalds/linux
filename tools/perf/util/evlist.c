@@ -149,7 +149,7 @@ void evlist__delete(struct evlist *evlist)
 	if (evlist == NULL)
 		return;
 
-	perf_evlist__munmap(evlist);
+	evlist__munmap(evlist);
 	evlist__close(evlist);
 	perf_cpu_map__put(evlist->core.cpus);
 	perf_thread_map__put(evlist->core.threads);
@@ -673,7 +673,7 @@ static int perf_evlist__resume(struct evlist *evlist)
 	return perf_evlist__set_paused(evlist, false);
 }
 
-static void perf_evlist__munmap_nofree(struct evlist *evlist)
+static void evlist__munmap_nofree(struct evlist *evlist)
 {
 	int i;
 
@@ -686,9 +686,9 @@ static void perf_evlist__munmap_nofree(struct evlist *evlist)
 			perf_mmap__munmap(&evlist->overwrite_mmap[i]);
 }
 
-void perf_evlist__munmap(struct evlist *evlist)
+void evlist__munmap(struct evlist *evlist)
 {
-	perf_evlist__munmap_nofree(evlist);
+	evlist__munmap_nofree(evlist);
 	zfree(&evlist->mmap);
 	zfree(&evlist->overwrite_mmap);
 }
@@ -835,7 +835,7 @@ static int evlist__mmap_per_cpu(struct evlist *evlist,
 	return 0;
 
 out_unmap:
-	perf_evlist__munmap_nofree(evlist);
+	evlist__munmap_nofree(evlist);
 	return -1;
 }
 
@@ -861,7 +861,7 @@ static int evlist__mmap_per_thread(struct evlist *evlist,
 	return 0;
 
 out_unmap:
-	perf_evlist__munmap_nofree(evlist);
+	evlist__munmap_nofree(evlist);
 	return -1;
 }
 
