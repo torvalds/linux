@@ -677,6 +677,10 @@ static int tegra_pinctrl_resume(struct device *dev)
 			writel_relaxed(*backup_regs++, regs++);
 	}
 
+	/* flush all the prior writes */
+	readl_relaxed(pmx->regs[0]);
+	/* wait for pinctrl register read to complete */
+	rmb();
 	return 0;
 }
 
