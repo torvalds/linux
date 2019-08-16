@@ -1334,6 +1334,7 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 				     struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
+	u32 read_size;
 
 	switch (si->off) {
 	case offsetof(struct bpf_sysctl, write):
@@ -1365,7 +1366,9 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 				treg, si->dst_reg,
 				offsetof(struct bpf_sysctl_kern, ppos));
 			*insn++ = BPF_STX_MEM(
-				BPF_SIZEOF(u32), treg, si->src_reg, 0);
+				BPF_SIZEOF(u32), treg, si->src_reg,
+				bpf_ctx_narrow_access_offset(
+					0, sizeof(u32), sizeof(loff_t)));
 			*insn++ = BPF_LDX_MEM(
 				BPF_DW, treg, si->dst_reg,
 				offsetof(struct bpf_sysctl_kern, tmp_reg));
@@ -1374,8 +1377,11 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 				BPF_FIELD_SIZEOF(struct bpf_sysctl_kern, ppos),
 				si->dst_reg, si->src_reg,
 				offsetof(struct bpf_sysctl_kern, ppos));
+			read_size = bpf_size_to_bytes(BPF_SIZE(si->code));
 			*insn++ = BPF_LDX_MEM(
-				BPF_SIZE(si->code), si->dst_reg, si->dst_reg, 0);
+				BPF_SIZE(si->code), si->dst_reg, si->dst_reg,
+				bpf_ctx_narrow_access_offset(
+					0, read_size, sizeof(loff_t)));
 		}
 		*target_size = sizeof(u32);
 		break;
