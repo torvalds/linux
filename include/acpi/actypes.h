@@ -1265,12 +1265,13 @@ typedef enum {
 #define ACPI_OSI_WIN_VISTA_SP2          0x0A
 #define ACPI_OSI_WIN_7                  0x0B
 #define ACPI_OSI_WIN_8                  0x0C
-#define ACPI_OSI_WIN_10                 0x0D
-#define ACPI_OSI_WIN_10_RS1             0x0E
-#define ACPI_OSI_WIN_10_RS2             0x0F
-#define ACPI_OSI_WIN_10_RS3             0x10
-#define ACPI_OSI_WIN_10_RS4             0x11
-#define ACPI_OSI_WIN_10_RS5             0x12
+#define ACPI_OSI_WIN_8_1                0x0D
+#define ACPI_OSI_WIN_10                 0x0E
+#define ACPI_OSI_WIN_10_RS1             0x0F
+#define ACPI_OSI_WIN_10_RS2             0x10
+#define ACPI_OSI_WIN_10_RS3             0x11
+#define ACPI_OSI_WIN_10_RS4             0x12
+#define ACPI_OSI_WIN_10_RS5             0x13
 
 /* Definitions of getopt */
 
