@@ -442,8 +442,8 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 
 /* Owner IDs are used to track namespace nodes for selective deletion */
 
-typedef u8 acpi_owner_id;
-#define ACPI_OWNER_ID_MAX               0xFF
+typedef u16 acpi_owner_id;
+#define ACPI_OWNER_ID_MAX               0xFFF	/* 4095 possible owner IDs */
 
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
