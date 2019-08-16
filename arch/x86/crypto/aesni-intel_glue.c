@@ -609,7 +609,8 @@ static int xts_encrypt(struct skcipher_request *req)
 	return glue_xts_req_128bit(&aesni_enc_xts, req,
 				   XTS_TWEAK_CAST(aesni_xts_tweak),
 				   aes_ctx(ctx->raw_tweak_ctx),
-				   aes_ctx(ctx->raw_crypt_ctx));
+				   aes_ctx(ctx->raw_crypt_ctx),
+				   false);
 }
 
 static int xts_decrypt(struct skcipher_request *req)
@@ -620,7 +621,8 @@ static int xts_decrypt(struct skcipher_request *req)
 	return glue_xts_req_128bit(&aesni_dec_xts, req,
 				   XTS_TWEAK_CAST(aesni_xts_tweak),
 				   aes_ctx(ctx->raw_tweak_ctx),
-				   aes_ctx(ctx->raw_crypt_ctx));
+				   aes_ctx(ctx->raw_crypt_ctx),
+				   true);
 }
 
 static int
