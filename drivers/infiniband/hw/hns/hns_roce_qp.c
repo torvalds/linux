@@ -1091,7 +1091,7 @@ static int check_mtu_validate(struct hns_roce_dev *hr_dev,
 	int p;
 
 	p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
-	    active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
+	active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
 
 	if ((hr_dev->caps.max_mtu >= IB_MTU_2048 &&
 	    attr->path_mtu > hr_dev->caps.max_mtu) ||
