@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
- * Copyright © 2017-2018 Intel Corporation
+ * Copyright © 2017-2019 Intel Corporation
  */
 
 #include "intel_wopcm.h"
