@@ -1771,7 +1771,7 @@ static const struct hc_driver imx21_hc_driver = {
 	.product_desc = "IMX21 USB Host Controller",
 	.hcd_priv_size = sizeof(struct imx21),
 
-	.flags = HCD_USB11,
+	.flags = HCD_DMA | HCD_USB11,
 	.irq = imx21_irq,
 
 	.reset = imx21_hc_reset,

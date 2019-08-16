@@ -3088,9 +3088,6 @@ static int oxu_reset(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&oxu->urb_list);
 	oxu->urb_len = 0;
 
-	/* FIMXE */
-	hcd->self.controller->dma_mask = NULL;
-
 	if (oxu->is_otg) {
 		oxu->caps = hcd->regs + OXU_OTG_CAP_OFFSET;
 		oxu->regs = hcd->regs + OXU_OTG_CAP_OFFSET + \

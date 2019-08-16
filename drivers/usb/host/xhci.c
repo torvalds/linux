@@ -5217,7 +5217,7 @@ static const struct hc_driver xhci_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq =			xhci_irq,
-	.flags =		HCD_MEMORY | HCD_USB3 | HCD_SHARED,
+	.flags =		HCD_MEMORY | HCD_DMA | HCD_USB3 | HCD_SHARED,
 
 	/*
 	 * basic lifecycle operations

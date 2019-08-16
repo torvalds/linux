@@ -2454,7 +2454,6 @@ struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 	hcd->self.controller = dev;
 	hcd->self.sysdev = sysdev;
 	hcd->self.bus_name = bus_name;
-	hcd->self.uses_dma = (sysdev->dma_mask != NULL);
 
 	timer_setup(&hcd->rh_timer, rh_timer_func, 0);
 #ifdef CONFIG_PM

@@ -33,7 +33,7 @@ static const struct hc_driver ehci_sh_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq				= ehci_irq,
-	.flags				= HCD_USB2 | HCD_MEMORY | HCD_BH,
+	.flags				= HCD_USB2 | HCD_DMA | HCD_MEMORY | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
