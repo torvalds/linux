@@ -1042,9 +1042,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
 
-	if (adev->flags & AMD_IS_APU)
-		return 0;
-
 	if (smu_is_dpm_running(smu) && adev->in_suspend) {
 		pr_info("dpm has been enabled\n");
 		return 0;
