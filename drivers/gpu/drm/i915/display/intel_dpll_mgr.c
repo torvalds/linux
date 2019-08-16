@@ -1000,11 +1000,7 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(regs[id].ctl,
 		   I915_READ(regs[id].ctl) | LCPLL_PLL_ENABLE);
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    DPLL_STATUS,
-				    DPLL_LOCK(id),
-				    DPLL_LOCK(id),
-				    5))
+	if (intel_de_wait_for_set(dev_priv, DPLL_STATUS, DPLL_LOCK(id), 5))
 		DRM_ERROR("DPLL %d not locked\n", id);
 }
 
@@ -2016,11 +2012,8 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 2. Wait for DPLL power state enabled in DPLL_ENABLE. */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    CNL_DPLL_ENABLE(id),
-				    PLL_POWER_STATE,
-				    PLL_POWER_STATE,
-				    5))
+	if (intel_de_wait_for_set(dev_priv, CNL_DPLL_ENABLE(id),
+				  PLL_POWER_STATE, 5))
 		DRM_ERROR("PLL %d Power not enabled\n", id);
 
 	/*
@@ -2057,11 +2050,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 7. Wait for PLL lock status in DPLL_ENABLE. */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    CNL_DPLL_ENABLE(id),
-				    PLL_LOCK,
-				    PLL_LOCK,
-				    5))
+	if (intel_de_wait_for_set(dev_priv, CNL_DPLL_ENABLE(id), PLL_LOCK, 5))
 		DRM_ERROR("PLL %d not locked\n", id);
 
 	/*
@@ -2105,11 +2094,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 4. Wait for PLL not locked status in DPLL_ENABLE. */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    CNL_DPLL_ENABLE(id),
-				    PLL_LOCK,
-				    0,
-				    5))
+	if (intel_de_wait_for_clear(dev_priv, CNL_DPLL_ENABLE(id), PLL_LOCK, 5))
 		DRM_ERROR("PLL %d locked\n", id);
 
 	/*
@@ -2127,11 +2112,8 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 7. Wait for DPLL power state disabled in DPLL_ENABLE. */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    CNL_DPLL_ENABLE(id),
-				    PLL_POWER_STATE,
-				    0,
-				    5))
+	if (intel_de_wait_for_clear(dev_priv, CNL_DPLL_ENABLE(id),
+				    PLL_POWER_STATE, 5))
 		DRM_ERROR("PLL %d Power not disabled\n", id);
 }
 
@@ -3252,8 +3234,7 @@ static void icl_pll_power_enable(struct drm_i915_private *dev_priv,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_wait_for_register(&dev_priv->uncore, enable_reg,
-				    PLL_POWER_STATE, PLL_POWER_STATE, 1))
+	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_POWER_STATE, 1))
 		DRM_ERROR("PLL %d Power not enabled\n", pll->info->id);
 }
 
@@ -3268,8 +3249,7 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(enable_reg, val);
 
 	/* Timeout is actually 600us. */
-	if (intel_wait_for_register(&dev_priv->uncore, enable_reg,
-				    PLL_LOCK, PLL_LOCK, 1))
+	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_LOCK, 1))
 		DRM_ERROR("PLL %d not locked\n", pll->info->id);
 }
 
@@ -3364,8 +3344,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(enable_reg, val);
 
 	/* Timeout is actually 1us. */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    enable_reg, PLL_LOCK, 0, 1))
+	if (intel_de_wait_for_clear(dev_priv, enable_reg, PLL_LOCK, 1))
 		DRM_ERROR("PLL %d locked\n", pll->info->id);
 
 	/* DVFS post sequence would be here. See the comment above. */
@@ -3378,8 +3357,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	 * The spec says we need to "wait" but it also says it should be
 	 * immediate.
 	 */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    enable_reg, PLL_POWER_STATE, 0, 1))
+	if (intel_de_wait_for_clear(dev_priv, enable_reg, PLL_POWER_STATE, 1))
 		DRM_ERROR("PLL %d Power not disabled\n", pll->info->id);
 }
 

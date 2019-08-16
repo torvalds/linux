@@ -2505,6 +2505,20 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 #define I915_READ_FW(reg__) __I915_REG_OP(read_fw, dev_priv, (reg__))
 #define I915_WRITE_FW(reg__, val__) __I915_REG_OP(write_fw, dev_priv, (reg__), (val__))
 
+/* register wait wrappers for display regs */
+#define intel_de_wait_for_register(dev_priv_, reg_, mask_, value_, timeout_) \
+	intel_wait_for_register(&(dev_priv_)->uncore, \
+				(reg_), (mask_), (value_), (timeout_))
+
+#define intel_de_wait_for_set(dev_priv_, reg_, mask_, timeout_) ({	\
+	u32 mask__ = (mask_);						\
+	intel_de_wait_for_register((dev_priv_), (reg_),			\
+				   mask__, mask__, (timeout_)); \
+})
+
+#define intel_de_wait_for_clear(dev_priv_, reg_, mask_, timeout_) \
+	intel_de_wait_for_register((dev_priv_), (reg_), (mask_), 0, (timeout_))
+
 /* i915_mm.c */
 int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,

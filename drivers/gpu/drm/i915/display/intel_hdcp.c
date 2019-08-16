@@ -245,8 +245,7 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 static int intel_write_sha_text(struct drm_i915_private *dev_priv, u32 sha_text)
 {
 	I915_WRITE(HDCP_SHA_TEXT, sha_text);
-	if (intel_wait_for_register(&dev_priv->uncore, HDCP_REP_CTL,
-				    HDCP_SHA1_READY, HDCP_SHA1_READY, 1)) {
+	if (intel_de_wait_for_set(dev_priv, HDCP_REP_CTL, HDCP_SHA1_READY, 1)) {
 		DRM_ERROR("Timed out waiting for SHA1 ready\n");
 		return -ETIMEDOUT;
 	}
@@ -476,9 +475,8 @@ int intel_hdcp_validate_v_prime(struct intel_digital_port *intel_dig_port,
 
 	/* Tell the HW we're done with the hash and wait for it to ACK */
 	I915_WRITE(HDCP_REP_CTL, rep_ctl | HDCP_SHA1_COMPLETE_HASH);
-	if (intel_wait_for_register(&dev_priv->uncore, HDCP_REP_CTL,
-				    HDCP_SHA1_COMPLETE,
-				    HDCP_SHA1_COMPLETE, 1)) {
+	if (intel_de_wait_for_set(dev_priv, HDCP_REP_CTL,
+				  HDCP_SHA1_COMPLETE, 1)) {
 		DRM_ERROR("Timed out waiting for SHA1 complete\n");
 		return -ETIMEDOUT;
 	}
@@ -621,9 +619,8 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	I915_WRITE(PORT_HDCP_CONF(port), HDCP_CONF_CAPTURE_AN);
 
 	/* Wait for An to be acquired */
-	if (intel_wait_for_register(&dev_priv->uncore, PORT_HDCP_STATUS(port),
-				    HDCP_STATUS_AN_READY,
-				    HDCP_STATUS_AN_READY, 1)) {
+	if (intel_de_wait_for_set(dev_priv, PORT_HDCP_STATUS(port),
+				  HDCP_STATUS_AN_READY, 1)) {
 		DRM_ERROR("Timed out waiting for An\n");
 		return -ETIMEDOUT;
 	}
@@ -707,9 +704,9 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	}
 
 	/* Wait for encryption confirmation */
-	if (intel_wait_for_register(&dev_priv->uncore, PORT_HDCP_STATUS(port),
-				    HDCP_STATUS_ENC, HDCP_STATUS_ENC,
-				    ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait_for_set(dev_priv, PORT_HDCP_STATUS(port),
+				  HDCP_STATUS_ENC,
+				  ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		DRM_ERROR("Timed out waiting for encryption\n");
 		return -ETIMEDOUT;
 	}
@@ -739,8 +736,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 
 	hdcp->hdcp_encrypted = false;
 	I915_WRITE(PORT_HDCP_CONF(port), 0);
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    PORT_HDCP_STATUS(port), ~0, 0,
+	if (intel_de_wait_for_clear(dev_priv, PORT_HDCP_STATUS(port), ~0,
 				    ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		DRM_ERROR("Failed to disable HDCP, timeout clearing status\n");
 		return -ETIMEDOUT;
@@ -1519,10 +1515,9 @@ static int hdcp2_enable_encryption(struct intel_connector *connector)
 			   CTL_LINK_ENCRYPTION_REQ);
 	}
 
-	ret = intel_wait_for_register(&dev_priv->uncore, HDCP2_STATUS_DDI(port),
-				      LINK_ENCRYPTION_STATUS,
-				      LINK_ENCRYPTION_STATUS,
-				      ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
+	ret = intel_de_wait_for_set(dev_priv, HDCP2_STATUS_DDI(port),
+				    LINK_ENCRYPTION_STATUS,
+				    ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
 
 	return ret;
 }
@@ -1540,8 +1535,8 @@ static int hdcp2_disable_encryption(struct intel_connector *connector)
 	I915_WRITE(HDCP2_CTL_DDI(port),
 		   I915_READ(HDCP2_CTL_DDI(port)) & ~CTL_LINK_ENCRYPTION_REQ);
 
-	ret = intel_wait_for_register(&dev_priv->uncore, HDCP2_STATUS_DDI(port),
-				      LINK_ENCRYPTION_STATUS, 0x0,
+	ret = intel_de_wait_for_clear(dev_priv, HDCP2_STATUS_DDI(port),
+				      LINK_ENCRYPTION_STATUS,
 				      ENCRYPT_STATUS_CHANGE_TIMEOUT_MS);
 	if (ret == -ETIMEDOUT)
 		DRM_DEBUG_KMS("Disable Encryption Timedout");

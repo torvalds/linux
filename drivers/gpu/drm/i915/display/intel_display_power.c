@@ -319,11 +319,8 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 	int pw_idx = power_well->desc->hsw.idx;
 
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    regs->driver,
-				    HSW_PWR_WELL_CTL_STATE(pw_idx),
-				    HSW_PWR_WELL_CTL_STATE(pw_idx),
-				    1)) {
+	if (intel_de_wait_for_set(dev_priv, regs->driver,
+				  HSW_PWR_WELL_CTL_STATE(pw_idx), 1)) {
 		DRM_DEBUG_KMS("%s power well enable timeout\n",
 			      power_well->desc->name);
 
@@ -380,9 +377,8 @@ static void gen9_wait_for_power_well_fuses(struct drm_i915_private *dev_priv,
 					   enum skl_power_gate pg)
 {
 	/* Timeout 5us for PG#0, for other PGs 1us */
-	WARN_ON(intel_wait_for_register(&dev_priv->uncore, SKL_FUSE_STATUS,
-					SKL_FUSE_PG_DIST_STATUS(pg),
-					SKL_FUSE_PG_DIST_STATUS(pg), 1));
+	WARN_ON(intel_de_wait_for_set(dev_priv, SKL_FUSE_STATUS,
+				      SKL_FUSE_PG_DIST_STATUS(pg), 1));
 }
 
 static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
@@ -1380,11 +1376,8 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	 * The PHY may be busy with some initial calibration and whatnot,
 	 * so the power state can take a while to actually change.
 	 */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    DISPLAY_PHY_STATUS,
-				    phy_status_mask,
-				    phy_status,
-				    10))
+	if (intel_de_wait_for_register(dev_priv, DISPLAY_PHY_STATUS,
+				       phy_status_mask, phy_status, 10))
 		DRM_ERROR("Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
 			  I915_READ(DISPLAY_PHY_STATUS) & phy_status_mask,
 			   phy_status, dev_priv->chv_phy_control);
@@ -1415,11 +1408,8 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, true);
 
 	/* Poll for phypwrgood signal */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    DISPLAY_PHY_STATUS,
-				    PHY_POWERGOOD(phy),
-				    PHY_POWERGOOD(phy),
-				    1))
+	if (intel_de_wait_for_set(dev_priv, DISPLAY_PHY_STATUS,
+				  PHY_POWERGOOD(phy), 1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
 	vlv_dpio_get(dev_priv);
@@ -4332,8 +4322,7 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 	I915_WRITE(LCPLL_CTL, val);
 	POSTING_READ(LCPLL_CTL);
 
-	if (intel_wait_for_register(&dev_priv->uncore, LCPLL_CTL,
-				    LCPLL_PLL_LOCK, 0, 1))
+	if (intel_de_wait_for_clear(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 1))
 		DRM_ERROR("LCPLL still locked\n");
 
 	val = hsw_read_dcomp(dev_priv);
@@ -4388,8 +4377,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	val &= ~LCPLL_PLL_DISABLE;
 	I915_WRITE(LCPLL_CTL, val);
 
-	if (intel_wait_for_register(&dev_priv->uncore, LCPLL_CTL,
-				    LCPLL_PLL_LOCK, LCPLL_PLL_LOCK, 5))
+	if (intel_de_wait_for_set(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
 		DRM_ERROR("LCPLL not locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
