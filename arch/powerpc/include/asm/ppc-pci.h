@@ -74,6 +74,8 @@ static inline const char *eeh_driver_name(struct pci_dev *pdev)
 
 #endif /* CONFIG_EEH */
 
+#define PCI_BUSNO(bdfn) ((bdfn >> 8) & 0xff)
+
 #else /* CONFIG_PCI */
 static inline void init_pci_config_tokens(void) { }
 #endif /* !CONFIG_PCI */
