@@ -20,15 +20,20 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/jack.h>
-#include "../../codecs/hdac_hdmi.h"
 #include "../../codecs/pcm512x.h"
-#include "../atom/sst-atom-controls.h"
 
 struct bxt_card_private {
 	struct list_head hdmi_pcm_list;
+	bool common_hdmi_codec_drv;
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI) || \
+	IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+
+#include "../../codecs/hdac_hdmi.h"
+#include "../atom/sst-atom-controls.h"
+#include "hda_dsp_common.h"
+
 static struct snd_soc_jack broxton_hdmi[3];
 
 struct bxt_hdmi_pcm {
@@ -57,12 +62,12 @@ static int broxton_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 #define NAME_SIZE	32
-static int bxt_card_late_probe(struct snd_soc_card *card)
+static int hdmi_jack_create_controls(struct snd_soc_card *card)
 {
 	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct bxt_hdmi_pcm *pcm;
 	struct snd_soc_component *component = NULL;
-	int err, i = 0;
+	int err = 0, i = 0;
 	char jack_name[NAME_SIZE];
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
@@ -72,7 +77,6 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		err = snd_soc_card_jack_new(card, jack_name,
 					    SND_JACK_AVOUT, &broxton_hdmi[i],
 					    NULL, 0);
-
 		if (err)
 			return err;
 
@@ -84,8 +88,28 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		i++;
 	}
 
+	return err;
+}
+
+static int bxt_card_late_probe(struct snd_soc_card *card)
+{
+	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
+	struct snd_soc_component *component;
+	struct bxt_hdmi_pcm *pcm;
+	int err;
+
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct bxt_hdmi_pcm,
+			       head);
+	component = pcm->codec_dai->component;
 	if (!component)
 		return -EINVAL;
+
+	if (ctx->common_hdmi_codec_drv)
+		return hda_dsp_hdmi_build_controls(card, component);
+
+	err = hdmi_jack_create_controls(card);
+	if (err < 0)
+		return err;
 
 	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
@@ -175,6 +199,9 @@ SND_SOC_DAILINK_DEF(ssp5_codec,
 SND_SOC_DAILINK_DEF(platform,
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("0000:00:0e.0")));
 
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI) || \
+	IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+
 SND_SOC_DAILINK_DEF(idisp1_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("iDisp1 Pin")));
 SND_SOC_DAILINK_DEF(idisp1_codec,
@@ -189,6 +216,8 @@ SND_SOC_DAILINK_DEF(idisp3_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("iDisp3 Pin")));
 SND_SOC_DAILINK_DEF(idisp3_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi3")));
+
+#endif
 
 static struct snd_soc_dai_link dailink[] = {
 	/* CODEC<->CODEC link */
@@ -206,7 +235,8 @@ static struct snd_soc_dai_link dailink[] = {
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ssp5_pin, ssp5_codec, platform),
 	},
-#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI) || \
+	IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_COMMON_HDMI_CODEC)
 	{
 		.name = "iDisp1",
 		.id = 1,
@@ -264,7 +294,8 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+	if (IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI) ||
+	    IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
 		INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	mach = (&pdev->dev)->platform_data;
@@ -276,6 +307,8 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 							mach->mach_params.platform);
 	if (ret_val)
 		return ret_val;
+
+	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(dailink); i++) {
