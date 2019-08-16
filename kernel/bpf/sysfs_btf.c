@@ -30,17 +30,12 @@ static struct kobject *btf_kobj;
 
 static int __init btf_vmlinux_init(void)
 {
-	int err;
-
 	if (!_binary__btf_vmlinux_bin_start)
 		return 0;
 
 	btf_kobj = kobject_create_and_add("btf", kernel_kobj);
-	if (IS_ERR(btf_kobj)) {
-		err = PTR_ERR(btf_kobj);
-		btf_kobj = NULL;
-		return err;
-	}
+	if (!btf_kobj)
+		return -ENOMEM;
 
 	bin_attr_btf_vmlinux.size = _binary__btf_vmlinux_bin_end -
 				    _binary__btf_vmlinux_bin_start;
