@@ -68,6 +68,7 @@
 #include "display/intel_display_power.h"
 #include "display/intel_dpll_mgr.h"
 #include "display/intel_frontbuffer.h"
+#include "display/intel_gmbus.h"
 #include "display/intel_opregion.h"
 
 #include "gem/i915_gem_context_types.h"
