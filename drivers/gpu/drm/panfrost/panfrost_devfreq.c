@@ -160,10 +160,16 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		DRM_DEV_ERROR(&pfdev->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		ret = PTR_ERR(pfdev->devfreq.devfreq);
 		pfdev->devfreq.devfreq = NULL;
+		dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 		return ret;
 	}
 
 	return 0;
+}
+
+void panfrost_devfreq_fini(struct panfrost_device *pfdev)
+{
+	dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 }
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)
