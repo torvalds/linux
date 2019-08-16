@@ -143,7 +143,7 @@ int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
-int amdgpu_noretry;
+int amdgpu_noretry = 1;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -611,7 +611,7 @@ MODULE_PARM_DESC(mes,
 module_param_named(mes, amdgpu_mes, int, 0444);
 
 MODULE_PARM_DESC(noretry,
-	"Disable retry faults (0 = retry enabled (default), 1 = retry disabled)");
+	"Disable retry faults (0 = retry enabled, 1 = retry disabled (default))");
 module_param_named(noretry, amdgpu_noretry, int, 0644);
 
 #ifdef CONFIG_HSA_AMD
