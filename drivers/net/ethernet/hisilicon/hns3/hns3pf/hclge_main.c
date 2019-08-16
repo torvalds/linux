@@ -6380,6 +6380,8 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	for (i = 0; i < handle->kinfo.num_tqps; i++)
 		hclge_reset_tqp(handle, i);
 
+	hclge_config_mac_tnl_int(hdev, false);
+
 	/* Mac disable */
 	hclge_cfg_mac_mode(hdev, false);
 
