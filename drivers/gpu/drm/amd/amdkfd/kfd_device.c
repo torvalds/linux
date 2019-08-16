@@ -490,6 +490,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x738C, &arcturus_device_info },	/* Arcturus */
 	{ 0x7388, &arcturus_device_info },	/* Arcturus */
 	{ 0x738E, &arcturus_device_info },	/* Arcturus */
+	{ 0x7390, &arcturus_device_info },	/* Arcturus vf */
 	{ 0x7310, &navi10_device_info },	/* Navi10 */
 	{ 0x7312, &navi10_device_info },	/* Navi10 */
 	{ 0x7318, &navi10_device_info },	/* Navi10 */
