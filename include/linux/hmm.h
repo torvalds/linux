@@ -84,15 +84,12 @@
  * @notifiers: count of active mmu notifiers
  */
 struct hmm {
-	struct mm_struct	*mm;
-	struct kref		kref;
+	struct mmu_notifier	mmu_notifier;
 	spinlock_t		ranges_lock;
 	struct list_head	ranges;
 	struct list_head	mirrors;
-	struct mmu_notifier	mmu_notifier;
 	struct rw_semaphore	mirrors_sem;
 	wait_queue_head_t	wq;
-	struct rcu_head		rcu;
 	long			notifiers;
 };
 
@@ -409,13 +406,6 @@ long hmm_range_dma_unmap(struct hmm_range *range,
  */
 #define HMM_RANGE_DEFAULT_TIMEOUT 1000
 
-/* Below are for HMM internal use only! Not to be used by device driver! */
-static inline void hmm_mm_init(struct mm_struct *mm)
-{
-	mm->hmm = NULL;
-}
-#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-static inline void hmm_mm_init(struct mm_struct *mm) {}
 #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 
 #endif /* LINUX_HMM_H */
