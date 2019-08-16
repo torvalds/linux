@@ -379,8 +379,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 	/* Check if the PE number is valid */
 	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
-		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%x\n",
-		       __func__, config_addr, pdn->phb->global_number);
+		eeh_edev_err(edev, "PE#0 is invalid for this PHB!\n");
 		return -EINVAL;
 	}
 
@@ -398,12 +397,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 		/* Put the edev to PE */
 		list_add_tail(&edev->entry, &pe->edevs);
-		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
-			 pdn->phb->global_number,
-			 pdn->busno,
-			 PCI_SLOT(pdn->devfn),
-			 PCI_FUNC(pdn->devfn),
-			 pe->addr);
+		eeh_edev_dbg(edev, "Added to bus PE\n");
 		return 0;
 	} else if (pe && (pe->type & EEH_PE_INVALID)) {
 		list_add_tail(&edev->entry, &pe->edevs);
@@ -420,13 +414,8 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 			parent = parent->parent;
 		}
 
-		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Device "
-			 "PE#%x, Parent PE#%x\n",
-			 pdn->phb->global_number,
-			 pdn->busno,
-			 PCI_SLOT(pdn->devfn),
-			 PCI_FUNC(pdn->devfn),
-			 pe->addr, pe->parent->addr);
+		eeh_edev_dbg(edev, "Added to device PE (parent: PE#%x)\n",
+			     pe->parent->addr);
 		return 0;
 	}
 
@@ -468,13 +457,8 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	list_add_tail(&pe->child, &parent->child_list);
 	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
-	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
-		 "Device PE#%x, Parent PE#%x\n",
-		 pdn->phb->global_number,
-		 pdn->busno,
-		 PCI_SLOT(pdn->devfn),
-		 PCI_FUNC(pdn->devfn),
-		 pe->addr, pe->parent->addr);
+	eeh_edev_dbg(edev, "Added to device PE (parent: PE#%x)\n",
+		     pe->parent->addr);
 
 	return 0;
 }
@@ -492,15 +476,10 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent, *child;
 	int cnt;
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	pe = eeh_dev_to_pe(edev);
 	if (!pe) {
-		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
-			 __func__,  pdn->phb->global_number,
-			 pdn->busno,
-			 PCI_SLOT(pdn->devfn),
-			 PCI_FUNC(pdn->devfn));
+		eeh_edev_dbg(edev, "No PE found for device.\n");
 		return -EEXIST;
 	}
 
@@ -717,17 +696,13 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	if (!(edev->mode & (EEH_DEV_ROOT_PORT | EEH_DEV_DS_PORT)))
 		return;
 
-	pr_debug("%s: Check PCIe link for %04x:%02x:%02x.%01x ...\n",
-		 __func__, pdn->phb->global_number,
-		 pdn->busno,
-		 PCI_SLOT(pdn->devfn),
-		 PCI_FUNC(pdn->devfn));
+	eeh_edev_dbg(edev, "Checking PCIe link...\n");
 
 	/* Check slot status */
 	cap = edev->pcie_cap;
 	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
-		pr_debug("  No card in the slot (0x%04x) !\n", val);
+		eeh_edev_dbg(edev, "No card in the slot (0x%04x) !\n", val);
 		return;
 	}
 
@@ -736,7 +711,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	if (val & PCI_EXP_SLTCAP_PCP) {
 		eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCTL, 2, &val);
 		if (val & PCI_EXP_SLTCTL_PCC) {
-			pr_debug("  In power-off state, power it on ...\n");
+			eeh_edev_dbg(edev, "In power-off state, power it on ...\n");
 			val &= ~(PCI_EXP_SLTCTL_PCC | PCI_EXP_SLTCTL_PIC);
 			val |= (0x0100 & PCI_EXP_SLTCTL_PIC);
 			eeh_ops->write_config(pdn, cap + PCI_EXP_SLTCTL, 2, val);
@@ -752,7 +727,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	/* Check link */
 	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCAP, 4, &val);
 	if (!(val & PCI_EXP_LNKCAP_DLLLARC)) {
-		pr_debug("  No link reporting capability (0x%08x) \n", val);
+		eeh_edev_dbg(edev, "No link reporting capability (0x%08x) \n", val);
 		msleep(1000);
 		return;
 	}
@@ -769,10 +744,10 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	}
 
 	if (val & PCI_EXP_LNKSTA_DLLLA)
-		pr_debug("  Link up (%s)\n",
+		eeh_edev_dbg(edev, "Link up (%s)\n",
 			 (val & PCI_EXP_LNKSTA_CLS_2_5GB) ? "2.5GB" : "5GB");
 	else
-		pr_debug("  Link not ready (0x%04x)\n", val);
+		eeh_edev_dbg(edev, "Link not ready (0x%04x)\n", val);
 }
 
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))

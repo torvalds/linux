@@ -456,12 +456,9 @@ static void *eeh_add_virt_device(struct eeh_dev *edev)
 {
 	struct pci_driver *driver;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	if (!(edev->physfn)) {
-		pr_warn("%s: EEH dev %04x:%02x:%02x.%01x not for VF\n",
-			__func__, pdn->phb->global_number, pdn->busno,
-			PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
+		eeh_edev_warn(edev, "Not for VF\n");
 		return NULL;
 	}
 
@@ -475,7 +472,7 @@ static void *eeh_add_virt_device(struct eeh_dev *edev)
 	}
 
 #ifdef CONFIG_PCI_IOV
-	pci_iov_add_virtfn(edev->physfn, pdn->vf_index);
+	pci_iov_add_virtfn(edev->physfn, eeh_dev_to_pdn(edev)->vf_index);
 #endif
 	return NULL;
 }

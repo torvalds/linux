@@ -44,7 +44,7 @@ void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
 	if (eeh_has_flag(EEH_FORCE_DISABLED))
 		return;
 
-	pr_debug("%s: EEH: Setting up device %s.\n", __func__, pci_name(pdev));
+	dev_dbg(&pdev->dev, "EEH: Setting up device\n");
 	eeh_add_device_early(pdn);
 	eeh_add_device_late(pdev);
 	eeh_sysfs_add_device(pdev);
@@ -370,10 +370,6 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	int ret;
 	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
-	pr_debug("%s: probing %04x:%02x:%02x.%01x\n",
-		__func__, hose->global_number, pdn->busno,
-		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
-
 	/*
 	 * When probing the root bridge, which doesn't have any
 	 * subordinate PCI devices. We don't have OF node for
@@ -386,6 +382,8 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Skip for PCI-ISA bridge */
 	if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
 		return NULL;
+
+	eeh_edev_dbg(edev, "Probing device\n");
 
 	/* Initialize eeh device */
 	edev->class_code = pdn->class_code;
@@ -412,9 +410,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Create PE */
 	ret = eeh_add_to_parent_pe(edev);
 	if (ret) {
-		pr_warn("%s: Can't add PCI dev %04x:%02x:%02x.%01x to parent PE (%x)\n",
-			__func__, hose->global_number, pdn->busno,
-			PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn), ret);
+		eeh_edev_warn(edev, "Failed to add device to PE (code %d)\n", ret);
 		return NULL;
 	}
 
@@ -472,10 +468,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Save memory bars */
 	eeh_save_bars(edev);
 
-	pr_debug("%s: EEH enabled on %02x:%02x.%01x PHB#%x-PE#%x\n",
-		__func__, pdn->busno, PCI_SLOT(pdn->devfn),
-		PCI_FUNC(pdn->devfn), edev->pe->phb->global_number,
-		edev->pe->addr);
+	eeh_edev_dbg(edev, "EEH enabled on device\n");
 
 	return NULL;
 }

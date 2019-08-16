@@ -49,7 +49,7 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 	if (eeh_has_flag(EEH_FORCE_DISABLED))
 		return;
 
-	pr_debug("%s: EEH: Setting up device %s.\n", __func__, pci_name(pdev));
+	dev_dbg(&pdev->dev, "EEH: Setting up device\n");
 #ifdef CONFIG_PCI_IOV
 	if (pdev->is_virtfn) {
 		struct pci_dn *physfn_pdn;
@@ -238,10 +238,6 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	int enable = 0;
 	int ret;
 
-	pr_debug("%s: probing %04x:%02x:%02x.%01x\n",
-		__func__, pdn->phb->global_number, pdn->busno,
-		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
-
 	/* Retrieve OF node and eeh device */
 	edev = pdn_to_eeh_dev(pdn);
 	if (!edev || edev->pe)
@@ -254,6 +250,8 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Skip for PCI-ISA bridge */
         if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
 		return NULL;
+
+	eeh_edev_dbg(edev, "Probing device\n");
 
 	/*
 	 * Update class code and mode of eeh device. We need
@@ -284,12 +282,10 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 
 	/* Enable EEH on the device */
+	eeh_edev_dbg(edev, "Enabling EEH on device\n");
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (ret) {
-		pr_debug("%s: EEH failed to enable on %02x:%02x.%01x PHB#%x-PE#%x (code %d)\n",
-			__func__, pdn->busno, PCI_SLOT(pdn->devfn),
-			PCI_FUNC(pdn->devfn), pe.phb->global_number,
-			pe.addr, ret);
+		eeh_edev_dbg(edev, "EEH failed to enable on device (code %d)\n", ret);
 	} else {
 		/* Retrieve PE address */
 		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
@@ -314,11 +310,8 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 			edev->pe_config_addr = pdn_to_eeh_dev(pdn->parent)->pe_config_addr;
 			eeh_add_to_parent_pe(edev);
 		}
-		pr_debug("%s: EEH %s on %02x:%02x.%01x PHB#%x-PE#%x (code %d)\n",
-			__func__, (enable ? "enabled" : "unsupported"),
-			pdn->busno, PCI_SLOT(pdn->devfn),
-			PCI_FUNC(pdn->devfn), pe.phb->global_number,
-			pe.addr, ret);
+		eeh_edev_dbg(edev, "EEH is %s on device (code %d)\n",
+			     (enable ? "enabled" : "unsupported"), ret);
 	}
 
 	/* Save memory bars */

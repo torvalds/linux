@@ -470,8 +470,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!pe) {
 		eeh_stats.ignored_check++;
-		pr_debug("EEH: Ignored check for %s\n",
-			eeh_pci_name(dev));
+		eeh_edev_dbg(edev, "Ignored check\n");
 		return 0;
 	}
 
@@ -511,12 +510,11 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 			if (dn)
 				location = of_get_property(dn, "ibm,loc-code",
 						NULL);
-			printk(KERN_ERR "EEH: %d reads ignored for recovering device at "
-				"location=%s driver=%s pci addr=%s\n",
+			eeh_edev_err(edev, "%d reads ignored for recovering device at location=%s driver=%s\n",
 				pe->check_count,
 				location ? location : "unknown",
-				eeh_driver_name(dev), eeh_pci_name(dev));
-			printk(KERN_ERR "EEH: Might be infinite loop in %s driver\n",
+				eeh_driver_name(dev));
+			eeh_edev_err(edev, "Might be infinite loop in %s driver\n",
 				eeh_driver_name(dev));
 			dump_stack();
 		}
@@ -1188,12 +1186,11 @@ void eeh_add_device_late(struct pci_dev *dev)
 	if (!dev)
 		return;
 
-	pr_debug("EEH: Adding device %s\n", pci_name(dev));
-
 	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
 	edev = pdn_to_eeh_dev(pdn);
+	eeh_edev_dbg(edev, "Adding device\n");
 	if (edev->pdev == dev) {
-		pr_debug("EEH: Device %s already referenced!\n", pci_name(dev));
+		eeh_edev_dbg(edev, "Device already referenced!\n");
 		return;
 	}
 
@@ -1296,10 +1293,10 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev = pci_dev_to_eeh_dev(dev);
 
 	/* Unregister the device with the EEH/PCI address search system */
-	pr_debug("EEH: Removing device %s\n", pci_name(dev));
+	dev_dbg(&dev->dev, "EEH: Removing device\n");
 
 	if (!edev || !edev->pdev || !edev->pe) {
-		pr_debug("EEH: Not referenced !\n");
+		dev_dbg(&dev->dev, "EEH: Device not referenced!\n");
 		return;
 	}
 

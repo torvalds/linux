@@ -148,8 +148,8 @@ eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 	piar->pcidev = dev;
 	piar->flags = flags;
 
-	pr_debug("PIAR: insert range=[%pap:%pap] dev=%s\n",
-		 &alo, &ahi, pci_name(dev));
+	eeh_edev_dbg(piar->edev, "PIAR: insert range=[%pap:%pap]\n",
+		 &alo, &ahi);
 
 	rb_link_node(&piar->rb_node, parent, p);
 	rb_insert_color(&piar->rb_node, &pci_io_addr_cache_root.rb_root);
@@ -229,8 +229,8 @@ restart:
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
 
 		if (piar->pcidev == dev) {
-			pr_debug("PIAR: remove range=[%pap:%pap] dev=%s\n",
-				 &piar->addr_lo, &piar->addr_hi, pci_name(dev));
+			eeh_edev_dbg(piar->edev, "PIAR: remove range=[%pap:%pap]\n",
+				 &piar->addr_lo, &piar->addr_hi);
 			rb_erase(n, &pci_io_addr_cache_root.rb_root);
 			kfree(piar);
 			goto restart;
