@@ -82,10 +82,6 @@ static inline void print_system_hash_info(void) {}
 
 #else /* CONFIG_PPC_MMU_NOHASH */
 
-extern void hash_preload(struct mm_struct *mm, unsigned long ea,
-			 bool is_exec, unsigned long trap);
-
-
 extern void _tlbie(unsigned long address);
 extern void _tlbia(void);
 
@@ -94,6 +90,9 @@ void print_system_hash_info(void);
 #endif /* CONFIG_PPC_MMU_NOHASH */
 
 #ifdef CONFIG_PPC32
+
+void hash_preload(struct mm_struct *mm, unsigned long ea,
+		  bool is_exec, unsigned long trap);
 
 extern void mapin_ram(void);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
