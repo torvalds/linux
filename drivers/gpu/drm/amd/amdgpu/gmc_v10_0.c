@@ -136,6 +136,14 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
 
 	if (!amdgpu_sriov_vf(adev)) {
+		/*
+		 * Issue a dummy read to wait for the status register to
+		 * be updated to avoid reading an incorrect value due to
+		 * the new fast GRBM interface.
+		 */
+		if (entry->vmid_src == AMDGPU_GFXHUB_0)
+			RREG32(hub->vm_l2_pro_fault_status);
+
 		status = RREG32(hub->vm_l2_pro_fault_status);
 		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 	}
@@ -228,6 +236,13 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	unsigned int i;
 
 	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
+
+	/*
+	 * Issue a dummy read to wait for the ACK register to be cleared
+	 * to avoid a false ACK due to the new fast GRBM interface.
+	 */
+	if (vmhub == AMDGPU_GFXHUB_0)
+		RREG32_NO_KIQ(hub->vm_inv_eng0_req + eng);
 
 	/* Wait for ACK with a delay.*/
 	for (i = 0; i < adev->usec_timeout; i++) {
