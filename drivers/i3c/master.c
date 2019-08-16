@@ -123,7 +123,7 @@ static struct i3c_dev_desc *dev_to_i3cdesc(struct device *dev)
 	if (dev->type == &i3c_device_type)
 		return dev_to_i3cdev(dev)->desc;
 
-	master = container_of(dev, struct i3c_master_controller, dev);
+	master = dev_to_i3cmaster(dev);
 
 	return master->this;
 }
