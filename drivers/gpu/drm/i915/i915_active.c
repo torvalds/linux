@@ -169,10 +169,11 @@ node_retire(struct i915_active_request *base, struct i915_request *rq)
 }
 
 static struct i915_active_request *
-active_instance(struct i915_active *ref, u64 idx)
+active_instance(struct i915_active *ref, struct intel_timeline *tl)
 {
 	struct active_node *node, *prealloc;
 	struct rb_node **p, *parent;
+	u64 idx = tl->fence_context;
 
 	/*
 	 * We track the most recently used timeline to skip a rbtree search
@@ -211,7 +212,7 @@ active_instance(struct i915_active *ref, u64 idx)
 	}
 
 	node = prealloc;
-	i915_active_request_init(&node->base, NULL, node_retire);
+	i915_active_request_init(&node->base, &tl->mutex, NULL, node_retire);
 	node->ref = ref;
 	node->timeline = idx;
 
@@ -294,18 +295,20 @@ __active_del_barrier(struct i915_active *ref, struct active_node *node)
 }
 
 int i915_active_ref(struct i915_active *ref,
-		    u64 timeline,
+		    struct intel_timeline *tl,
 		    struct i915_request *rq)
 {
 	struct i915_active_request *active;
 	int err;
+
+	lockdep_assert_held(&tl->mutex);
 
 	/* Prevent reaping in case we malloc/wait while building the tree */
 	err = i915_active_acquire(ref);
 	if (err)
 		return err;
 
-	active = active_instance(ref, timeline);
+	active = active_instance(ref, tl);
 	if (!active) {
 		err = -ENOMEM;
 		goto out;
@@ -596,6 +599,10 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 				goto unwind;
 			}
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+			node->base.lock =
+				&engine->kernel_context->timeline->mutex;
+#endif
 			RCU_INIT_POINTER(node->base.request, NULL);
 			node->base.retire = node_retire;
 			node->timeline = idx;
@@ -700,6 +707,10 @@ int i915_active_request_set(struct i915_active_request *active,
 			    struct i915_request *rq)
 {
 	int err;
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	lockdep_assert_held(active->lock);
+#endif
 
 	/* Must maintain ordering wrt previous active requests */
 	err = i915_request_await_active_request(rq, active);

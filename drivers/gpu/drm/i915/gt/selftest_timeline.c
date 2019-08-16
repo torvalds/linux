@@ -689,7 +689,9 @@ static int live_hwsp_wrap(void *arg)
 
 		tl->seqno = -4u;
 
+		mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
 		err = intel_timeline_get_seqno(tl, rq, &seqno[0]);
+		mutex_unlock(&tl->mutex);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
@@ -704,7 +706,9 @@ static int live_hwsp_wrap(void *arg)
 		}
 		hwsp_seqno[0] = tl->hwsp_seqno;
 
+		mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
 		err = intel_timeline_get_seqno(tl, rq, &seqno[1]);
+		mutex_unlock(&tl->mutex);
 		if (err) {
 			i915_request_add(rq);
 			goto out;

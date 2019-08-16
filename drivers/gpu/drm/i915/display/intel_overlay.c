@@ -230,7 +230,7 @@ alloc_request(struct intel_overlay *overlay, void (*fn)(struct intel_overlay *))
 	if (IS_ERR(rq))
 		return rq;
 
-	err = i915_active_ref(&overlay->last_flip, rq->fence.context, rq);
+	err = i915_active_ref(&overlay->last_flip, rq->timeline, rq);
 	if (err) {
 		i915_request_add(rq);
 		return ERR_PTR(err);

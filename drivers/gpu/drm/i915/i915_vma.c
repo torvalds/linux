@@ -903,14 +903,14 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	err = i915_active_ref(&vma->active, rq->fence.context, rq);
+	err = i915_active_ref(&vma->active, rq->timeline, rq);
 	if (unlikely(err))
 		return err;
 
 	if (flags & EXEC_OBJECT_WRITE) {
 		if (intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CS))
 			i915_active_ref(&obj->frontbuffer->write,
-					rq->fence.context,
+					rq->timeline,
 					rq);
 
 		reservation_object_add_excl_fence(vma->resv, &rq->fence);

@@ -254,7 +254,7 @@ int intel_timeline_init(struct intel_timeline *timeline,
 
 	mutex_init(&timeline->mutex);
 
-	INIT_ACTIVE_REQUEST(&timeline->last_request);
+	INIT_ACTIVE_REQUEST(&timeline->last_request, &timeline->mutex);
 	INIT_LIST_HEAD(&timeline->requests);
 
 	i915_syncmap_init(&timeline->sync);
@@ -440,8 +440,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	 * free it after the current request is retired, which ensures that
 	 * all writes into the cacheline from previous requests are complete.
 	 */
-	err = i915_active_ref(&tl->hwsp_cacheline->active,
-			      tl->fence_context, rq);
+	err = i915_active_ref(&tl->hwsp_cacheline->active, tl, rq);
 	if (err)
 		goto err_cacheline;
 
@@ -492,7 +491,7 @@ int intel_timeline_get_seqno(struct intel_timeline *tl,
 static int cacheline_ref(struct intel_timeline_cacheline *cl,
 			 struct i915_request *rq)
 {
-	return i915_active_ref(&cl->active, rq->fence.context, rq);
+	return i915_active_ref(&cl->active, rq->timeline, rq);
 }
 
 int intel_timeline_read_hwsp(struct i915_request *from,

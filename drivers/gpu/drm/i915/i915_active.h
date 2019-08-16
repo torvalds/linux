@@ -58,15 +58,20 @@ void i915_active_retire_noop(struct i915_active_request *active,
  */
 static inline void
 i915_active_request_init(struct i915_active_request *active,
+			 struct mutex *lock,
 			 struct i915_request *rq,
 			 i915_active_retire_fn retire)
 {
 	RCU_INIT_POINTER(active->request, rq);
 	INIT_LIST_HEAD(&active->link);
 	active->retire = retire ?: i915_active_retire_noop;
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	active->lock = lock;
+#endif
 }
 
-#define INIT_ACTIVE_REQUEST(name) i915_active_request_init((name), NULL, NULL)
+#define INIT_ACTIVE_REQUEST(name, lock) \
+	i915_active_request_init((name), (lock), NULL, NULL)
 
 /**
  * i915_active_request_set - updates the tracker to watch the current request
@@ -81,6 +86,9 @@ static inline void
 __i915_active_request_set(struct i915_active_request *active,
 			  struct i915_request *request)
 {
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	lockdep_assert_held(active->lock);
+#endif
 	list_move(&active->link, &request->active_list);
 	rcu_assign_pointer(active->request, request);
 }
@@ -362,7 +370,7 @@ void __i915_active_init(struct drm_i915_private *i915,
 } while (0)
 
 int i915_active_ref(struct i915_active *ref,
-		    u64 timeline,
+		    struct intel_timeline *tl,
 		    struct i915_request *rq);
 
 int i915_active_wait(struct i915_active *ref);

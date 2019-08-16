@@ -18,7 +18,7 @@ static inline int
 intel_engine_pool_mark_active(struct intel_engine_pool_node *node,
 			      struct i915_request *rq)
 {
-	return i915_active_ref(&node->active, rq->fence.context, rq);
+	return i915_active_ref(&node->active, rq->timeline, rq);
 }
 
 static inline void

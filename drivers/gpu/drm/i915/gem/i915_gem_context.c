@@ -908,7 +908,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		if (emit)
 			err = emit(rq, data);
 		if (err == 0)
-			err = i915_active_ref(&cb->base, rq->fence.context, rq);
+			err = i915_active_ref(&cb->base, rq->timeline, rq);
 
 		i915_request_add(rq);
 		if (err)

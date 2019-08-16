@@ -306,10 +306,10 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 
 		/* Queue this switch after current activity by this context. */
 		err = i915_active_request_set(&tl->last_request, rq);
+		mutex_unlock(&tl->mutex);
 		if (err)
-			goto unlock;
+			return err;
 	}
-	lockdep_assert_held(&tl->mutex);
 
 	/*
 	 * Guarantee context image and the timeline remains pinned until the
@@ -319,12 +319,7 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	 * words transfer the pinned ce object to tracked active request.
 	 */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	err = i915_active_ref(&ce->active, rq->fence.context, rq);
-
-unlock:
-	if (rq->timeline != tl)
-		mutex_unlock(&tl->mutex);
-	return err;
+	return i915_active_ref(&ce->active, rq->timeline, rq);
 }
 
 struct i915_request *intel_context_create_request(struct intel_context *ce)
