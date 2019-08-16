@@ -201,6 +201,10 @@ _bpftool()
             _bpftool_get_prog_tags
             return 0
             ;;
+        dev)
+            _sysfs_get_netdevs
+            return 0
+            ;;
         file|pinned)
             _filedir
             return 0
@@ -399,10 +403,6 @@ _bpftool()
                             _filedir
                             return 0
                             ;;
-                        dev)
-                            _sysfs_get_netdevs
-                            return 0
-                            ;;
                         *)
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
                             _bpftool_once_attr 'type'
@@ -496,10 +496,6 @@ _bpftool()
                             return 0
                             ;;
                         key|value|flags|name|entries)
-                            return 0
-                            ;;
-                        dev)
-                            _sysfs_get_netdevs
                             return 0
                             ;;
                         *)
@@ -778,18 +774,67 @@ _bpftool()
             esac
             ;;
         net)
+            local PROG_TYPE='id pinned tag'
+            local ATTACH_TYPES='xdp xdpgeneric xdpdrv xdpoffload'
             case $command in
+                show|list)
+                    [[ $prev != "$command" ]] && return 0
+                    COMPREPLY=( $( compgen -W 'dev' -- "$cur" ) )
+                    return 0
+                    ;;
+                attach)
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        5)
+                            case $prev in
+                                id)
+                                    _bpftool_get_prog_ids
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        6)
+                            COMPREPLY=( $( compgen -W 'dev' -- "$cur" ) )
+                            return 0
+                            ;;
+                        8)
+                            _bpftool_once_attr 'overwrite'
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                detach)
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            COMPREPLY=( $( compgen -W 'dev' -- "$cur" ) )
+                            return 0
+                            ;;
+                    esac
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'help \
-                            show list' -- "$cur" ) )
+                            show list attach detach' -- "$cur" ) )
                     ;;
             esac
             ;;
         feature)
             case $command in
                 probe)
-                    [[ $prev == "dev" ]] && _sysfs_get_netdevs && return 0
                     [[ $prev == "prefix" ]] && return 0
                     if _bpftool_search_list 'macros'; then
                         COMPREPLY+=( $( compgen -W 'prefix' -- "$cur" ) )
