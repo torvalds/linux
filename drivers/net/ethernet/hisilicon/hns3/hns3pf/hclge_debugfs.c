@@ -897,14 +897,17 @@ static void hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
 	dev_info(&hdev->pdev->dev, " read result tcam key %s(%u):\n",
 		 sel_x ? "x" : "y", loc);
 
+	/* tcam_data0 ~ tcam_data1 */
 	req = (u32 *)req1->tcam_data;
 	for (i = 0; i < 2; i++)
 		dev_info(&hdev->pdev->dev, "%08x\n", *req++);
 
+	/* tcam_data2 ~ tcam_data7 */
 	req = (u32 *)req2->tcam_data;
 	for (i = 0; i < 6; i++)
 		dev_info(&hdev->pdev->dev, "%08x\n", *req++);
 
+	/* tcam_data8 ~ tcam_data12 */
 	req = (u32 *)req3->tcam_data;
 	for (i = 0; i < 5; i++)
 		dev_info(&hdev->pdev->dev, "%08x\n", *req++);

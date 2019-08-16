@@ -635,7 +635,7 @@ static void hns3_get_ksettings(struct hnae3_handle *h,
 					     &cmd->base.speed,
 					     &cmd->base.duplex);
 
-	/* 2.get link mode*/
+	/* 2.get link mode */
 	if (ops->get_link_mode)
 		ops->get_link_mode(h,
 				   cmd->link_modes.supported,

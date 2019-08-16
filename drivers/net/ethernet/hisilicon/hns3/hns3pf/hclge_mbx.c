@@ -479,7 +479,7 @@ static void hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
 
 	hclge_reset_vf_queue(vport, queue_id);
 
-	/* send response msg to VF after queue reset complete*/
+	/* send response msg to VF after queue reset complete */
 	hclge_gen_resp_to_vf(vport, mbx_req, 0, NULL, 0);
 }
 

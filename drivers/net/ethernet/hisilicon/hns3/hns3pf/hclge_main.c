@@ -2810,9 +2810,9 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	 * defer the processing of the mailbox events. Since, we would have not
 	 * cleared RX CMDQ event this time we would receive again another
 	 * interrupt from H/W just for the mailbox.
+	 *
+	 * check for vector0 reset event sources
 	 */
-
-	/* check for vector0 reset event sources */
 	if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & rst_src_reg) {
 		dev_info(&hdev->pdev->dev, "IMP reset interrupt\n");
 		set_bit(HNAE3_IMP_RESET, &hdev->reset_pending);
@@ -8000,7 +8000,7 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 		return -EBUSY;
 	}
 
-	/* When port base vlan enabled, we use port base vlan as the vlan
+	/* when port base vlan enabled, we use port base vlan as the vlan
 	 * filter entry. In this case, we don't update vlan filter table
 	 * when user add new vlan or remove exist vlan, just update the vport
 	 * vlan list. The vlan id in vlan list will be writen in vlan filter
@@ -8019,7 +8019,7 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			hclge_add_vport_vlan_table(vport, vlan_id,
 						   writen_to_tbl);
 	} else if (is_kill) {
-		/* When remove hw vlan filter failed, record the vlan id,
+		/* when remove hw vlan filter failed, record the vlan id,
 		 * and try to remove it from hw later, to be consistence
 		 * with stack
 		 */

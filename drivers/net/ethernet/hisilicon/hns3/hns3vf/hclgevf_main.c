@@ -1269,7 +1269,7 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 				   HCLGE_MBX_VLAN_FILTER, msg_data,
 				   HCLGEVF_VLAN_MBX_MSG_LEN, false, NULL, 0);
 
-	/* When remove hw vlan filter failed, record the vlan id,
+	/* when remove hw vlan filter failed, record the vlan id,
 	 * and try to remove it from hw later, to be consistence
 	 * with stack.
 	 */
@@ -1561,7 +1561,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 
 	rtnl_lock();
 
-	/* now, re-initialize the nic client and ae device*/
+	/* now, re-initialize the nic client and ae device */
 	ret = hclgevf_reset_stack(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "failed to reset VF stack\n");
@@ -1784,9 +1784,8 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 * 1b and 2. cases but we will not get any intimation about 1a
 		 * from PF as cmdq would be in unreliable state i.e. mailbox
 		 * communication between PF and VF would be broken.
-		 */
-
-		/* if we are never geting into pending state it means either:
+		 *
+		 * if we are never geting into pending state it means either:
 		 * 1. PF is not receiving our request which could be due to IMP
 		 *    reset
 		 * 2. PF is screwed
