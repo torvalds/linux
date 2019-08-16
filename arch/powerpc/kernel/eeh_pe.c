@@ -383,32 +383,34 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * components.
 	 */
 	pe = eeh_pe_get(pdn->phb, edev->pe_config_addr, config_addr);
-	if (pe && !(pe->type & EEH_PE_INVALID)) {
-		/* Mark the PE as type of PCI bus */
-		pe->type = EEH_PE_BUS;
-		edev->pe = pe;
+	if (pe) {
+		if (pe->type & EEH_PE_INVALID) {
+			list_add_tail(&edev->entry, &pe->edevs);
+			edev->pe = pe;
+			/*
+			 * We're running to here because of PCI hotplug caused by
+			 * EEH recovery. We need clear EEH_PE_INVALID until the top.
+			 */
+			parent = pe;
+			while (parent) {
+				if (!(parent->type & EEH_PE_INVALID))
+					break;
+				parent->type &= ~EEH_PE_INVALID;
+				parent = parent->parent;
+			}
 
-		/* Put the edev to PE */
-		list_add_tail(&edev->entry, &pe->edevs);
-		eeh_edev_dbg(edev, "Added to bus PE\n");
-		return 0;
-	} else if (pe && (pe->type & EEH_PE_INVALID)) {
-		list_add_tail(&edev->entry, &pe->edevs);
-		edev->pe = pe;
-		/*
-		 * We're running to here because of PCI hotplug caused by
-		 * EEH recovery. We need clear EEH_PE_INVALID until the top.
-		 */
-		parent = pe;
-		while (parent) {
-			if (!(parent->type & EEH_PE_INVALID))
-				break;
-			parent->type &= ~EEH_PE_INVALID;
-			parent = parent->parent;
+			eeh_edev_dbg(edev,
+				     "Added to device PE (parent: PE#%x)\n",
+				     pe->parent->addr);
+		} else {
+			/* Mark the PE as type of PCI bus */
+			pe->type = EEH_PE_BUS;
+			edev->pe = pe;
+
+			/* Put the edev to PE */
+			list_add_tail(&edev->entry, &pe->edevs);
+			eeh_edev_dbg(edev, "Added to bus PE\n");
 		}
-
-		eeh_edev_dbg(edev, "Added to device PE (parent: PE#%x)\n",
-			     pe->parent->addr);
 		return 0;
 	}
 
