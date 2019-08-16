@@ -43,6 +43,7 @@
 #include "amdgpu_dm.h"
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "amdgpu_dm_hdcp.h"
+#include <drm/drm_hdcp.h>
 #endif
 #include "amdgpu_pm.h"
 
@@ -5581,7 +5582,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 			&aconnector->base);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 		if (adev->asic_type >= CHIP_RAVEN)
-			drm_connector_attach_content_protection_property(&aconnector->base, false);
+			drm_connector_attach_content_protection_property(&aconnector->base, true);
 #endif
 	}
 }
@@ -5832,6 +5833,12 @@ static bool is_content_protection_different(struct drm_connector_state *state,
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
+	if (old_state->hdcp_content_type != state->hdcp_content_type &&
+	    state->content_protection != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
+		state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		return true;
+	}
+
 	/* CP is being re enabled, ignore this */
 	if (old_state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED &&
 	    state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
@@ -5864,11 +5871,14 @@ static void update_content_protection(struct drm_connector_state *state, const s
 				      struct hdcp_workqueue *hdcp_w)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	bool disable_type1 = state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 ? true : false;
 
-	if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
-		hdcp_add_display(hdcp_w, aconnector->dc_link->link_index, aconnector);
-	else if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+	if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
+		hdcp_reset_display(hdcp_w, aconnector->dc_link->link_index);
+		hdcp_add_display(hdcp_w, aconnector->dc_link->link_index, aconnector, disable_type1);
+	} else if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
 		hdcp_remove_display(hdcp_w, aconnector->dc_link->link_index, aconnector->base.index);
+	}
 
 }
 #endif

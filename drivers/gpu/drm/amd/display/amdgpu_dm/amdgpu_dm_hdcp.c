@@ -87,7 +87,8 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 
 }
 
-void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index, struct amdgpu_dm_connector *aconnector)
+void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index, struct amdgpu_dm_connector *aconnector,
+		      bool disable_type1)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
@@ -95,6 +96,8 @@ void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index,
 
 	mutex_lock(&hdcp_w->mutex);
 	hdcp_w->aconnector = aconnector;
+
+	hdcp_w->link.adjust.hdcp2.disable_type1 = disable_type1;
 
 	mod_hdcp_add_display(&hdcp_w->hdcp, link, display, &hdcp_w->output);
 
@@ -190,10 +193,16 @@ static void event_property_update(struct work_struct *work)
 		}
 	}
 
-	if (hdcp_work->encryption_status != MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF)
-		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
-	else
+	if (hdcp_work->encryption_status != MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF) {
+		if (aconnector->base.state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 &&
+		    hdcp_work->encryption_status <= MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON)
+			drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
+		else if (aconnector->base.state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE1 &&
+			 hdcp_work->encryption_status == MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON)
+			drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
+	} else {
 		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_DESIRED);
+	}
 
 
 	mutex_unlock(&hdcp_work->mutex);
