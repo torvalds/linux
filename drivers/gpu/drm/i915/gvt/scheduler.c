@@ -1528,9 +1528,9 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 			if (!intel_gvt_ggtt_validate_range(vgpu,
 				workload->wa_ctx.indirect_ctx.guest_gma,
 				workload->wa_ctx.indirect_ctx.size)) {
-				kmem_cache_free(s->workloads, workload);
 				gvt_vgpu_err("invalid wa_ctx at: 0x%lx\n",
 				    workload->wa_ctx.indirect_ctx.guest_gma);
+				kmem_cache_free(s->workloads, workload);
 				return ERR_PTR(-EINVAL);
 			}
 		}
@@ -1542,9 +1542,9 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 			if (!intel_gvt_ggtt_validate_range(vgpu,
 				workload->wa_ctx.per_ctx.guest_gma,
 				CACHELINE_BYTES)) {
-				kmem_cache_free(s->workloads, workload);
 				gvt_vgpu_err("invalid per_ctx at: 0x%lx\n",
 					workload->wa_ctx.per_ctx.guest_gma);
+				kmem_cache_free(s->workloads, workload);
 				return ERR_PTR(-EINVAL);
 			}
 		}
