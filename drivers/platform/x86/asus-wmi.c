@@ -1989,32 +1989,25 @@ static int asus_wmi_notify_queue_flush(struct asus_wmi *asus)
 
 /* Sysfs **********************************************************************/
 
-static int parse_arg(const char *buf, unsigned long count, int *val)
-{
-	if (!count)
-		return 0;
-	if (sscanf(buf, "%i", val) != 1)
-		return -EINVAL;
-	return count;
-}
-
 static ssize_t store_sys_wmi(struct asus_wmi *asus, int devid,
 			     const char *buf, size_t count)
 {
 	u32 retval;
-	int rv, err, value;
+	int err, value;
 
 	value = asus_wmi_get_devstate_simple(asus, devid);
 	if (value < 0)
 		return value;
 
-	rv = parse_arg(buf, count, &value);
-	err = asus_wmi_set_devstate(devid, value, &retval);
+	err = kstrtoint(buf, 0, &value);
+	if (err)
+		return err;
 
+	err = asus_wmi_set_devstate(devid, value, &retval);
 	if (err < 0)
 		return err;
 
-	return rv;
+	return count;
 }
 
 static ssize_t show_sys_wmi(struct asus_wmi *asus, int devid, char *buf)
@@ -2063,8 +2056,10 @@ static ssize_t cpufv_store(struct device *dev, struct device_attribute *attr,
 {
 	int value, rv;
 
-	if (!count || sscanf(buf, "%i", &value) != 1)
-		return -EINVAL;
+	rv = kstrtoint(buf, 0, &value);
+	if (rv)
+		return rv;
+
 	if (value < 0 || value > 2)
 		return -EINVAL;
 
