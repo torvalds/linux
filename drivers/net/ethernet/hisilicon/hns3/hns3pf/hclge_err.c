@@ -1557,8 +1557,8 @@ int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
 
 static void hclge_handle_rocee_ras_error(struct hnae3_ae_dev *ae_dev)
 {
-	enum hnae3_reset_type reset_type = HNAE3_NONE_RESET;
 	struct hclge_dev *hdev = ae_dev->priv;
+	enum hnae3_reset_type reset_type;
 
 	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
 	    hdev->pdev->revision < 0x21)

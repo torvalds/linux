@@ -749,7 +749,7 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
-	int ret = 0;
+	int ret;
 
 	/* Chip don't support this mode. */
 	if (cmd->base.speed == SPEED_1000 && cmd->base.duplex == DUPLEX_HALF)

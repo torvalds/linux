@@ -43,7 +43,7 @@ static int hclgevf_cmd_csq_clean(struct hclgevf_hw *hw)
 {
 	struct hclgevf_dev *hdev = container_of(hw, struct hclgevf_dev, hw);
 	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
-	int clean = 0;
+	int clean;
 	u32 head;
 
 	head = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG);

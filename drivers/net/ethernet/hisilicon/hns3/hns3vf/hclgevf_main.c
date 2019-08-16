@@ -2302,7 +2302,7 @@ static void hclgevf_uninit_msi(struct hclgevf_dev *hdev)
 
 static int hclgevf_misc_irq_init(struct hclgevf_dev *hdev)
 {
-	int ret = 0;
+	int ret;
 
 	hclgevf_get_misc_vector(hdev);
 
