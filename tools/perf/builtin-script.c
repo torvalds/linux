@@ -16,6 +16,7 @@
 #include "util/trace-event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evswitch.h"
 #include "util/sort.h"
 #include "util/data.h"
 #include "util/auxtrace.h"
@@ -1628,6 +1629,7 @@ struct perf_script {
 	bool			show_bpf_events;
 	bool			allocated;
 	bool			per_event_dump;
+	struct evswitch		evswitch;
 	struct perf_cpu_map	*cpus;
 	struct perf_thread_map *threads;
 	int			name_width;
@@ -1803,6 +1805,9 @@ static void process_event(struct perf_script *script,
 		return;
 
 	if (!show_event(sample, evsel, thread, al))
+		return;
+
+	if (evswitch__discard(&script->evswitch, evsel))
 		return;
 
 	++es->samples;
@@ -3538,6 +3543,7 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/kallsyms"),
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
+	OPTS_EVSWITCH(&script.evswitch),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
@@ -3861,6 +3867,10 @@ int cmd_script(int argc, const char **argv)
 						  script.ptime_range,
 						  script.range_num);
 	}
+
+	err = evswitch__init(&script.evswitch, session->evlist, stderr);
+	if (err)
+		goto out_delete;
 
 	err = __cmd_script(&script);
 
