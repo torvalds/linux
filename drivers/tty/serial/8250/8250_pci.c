@@ -1827,6 +1827,22 @@ pci_sunix_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, 0);
 }
 
+static int
+pci_moxa_setup(struct serial_private *priv,
+		const struct pciserial_board *board,
+		struct uart_8250_port *port, int idx)
+{
+	unsigned int bar = FL_GET_BASE(board->flags);
+	int offset;
+
+	if (board->num_ports == 4 && idx == 3)
+		offset = 7 * board->uart_offset;
+	else
+		offset = idx * board->uart_offset;
+
+	return setup_port(priv, port, bar, offset, 0);
+}
+
 #define PCI_VENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_SUBVENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_DEVICE_ID_OCTPRO		0x0001
@@ -1931,6 +1947,18 @@ pci_sunix_setup(struct serial_private *priv,
 #define PCIE_DEVICE_ID_NI_PXIE8431_4858	0x74C4
 #define PCIE_DEVICE_ID_NI_PXIE8431_48516	0x74C3
 
+#define	PCI_DEVICE_ID_MOXA_CP102E	0x1024
+#define	PCI_DEVICE_ID_MOXA_CP102EL	0x1025
+#define	PCI_DEVICE_ID_MOXA_CP104EL_A	0x1045
+#define	PCI_DEVICE_ID_MOXA_CP114EL	0x1144
+#define	PCI_DEVICE_ID_MOXA_CP116E_A_A	0x1160
+#define	PCI_DEVICE_ID_MOXA_CP116E_A_B	0x1161
+#define	PCI_DEVICE_ID_MOXA_CP118EL_A	0x1182
+#define	PCI_DEVICE_ID_MOXA_CP118E_A_I	0x1183
+#define	PCI_DEVICE_ID_MOXA_CP132EL	0x1322
+#define	PCI_DEVICE_ID_MOXA_CP134EL_A	0x1342
+#define	PCI_DEVICE_ID_MOXA_CP138E_A	0x1381
+#define	PCI_DEVICE_ID_MOXA_CP168EL_A	0x1683
 
 /* Unknown vendors/cards - this should not be in linux/pci_ids.h */
 #define PCI_SUBDEVICE_ID_UNKNOWN_0x1584	0x1584
@@ -2781,6 +2809,16 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup		= pci_fintek_setup,
 		.init		= pci_fintek_init,
 	},
+	/*
+	 * MOXA
+	 */
+	{
+		.vendor		= PCI_VENDOR_ID_MOXA,
+		.device		= PCI_ANY_ID,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_moxa_setup,
+	},
 
 	/*
 	 * Default "match everything" terminator entry
@@ -2987,6 +3025,9 @@ enum pci_board_num_t {
 	pbn_sunix_pci_4s,
 	pbn_sunix_pci_8s,
 	pbn_sunix_pci_16s,
+	pbn_moxa8250_2p,
+	pbn_moxa8250_4p,
+	pbn_moxa8250_8p,
 };
 
 /*
@@ -3798,6 +3839,24 @@ static struct pciserial_board pci_boards[] = {
 		.base_baud      = 921600,
 		.uart_offset	= 0x8,
 	},
+	[pbn_moxa8250_2p] = {
+		.flags		= FL_BASE1,
+		.num_ports      = 2,
+		.base_baud      = 921600,
+		.uart_offset	= 0x200,
+	},
+	[pbn_moxa8250_4p] = {
+		.flags		= FL_BASE1,
+		.num_ports      = 4,
+		.base_baud      = 921600,
+		.uart_offset	= 0x200,
+	},
+	[pbn_moxa8250_8p] = {
+		.flags		= FL_BASE1,
+		.num_ports      = 8,
+		.base_baud      = 921600,
+		.uart_offset	= 0x200,
+	},
 };
 
 static const struct pci_device_id blacklist[] = {
@@ -3810,20 +3869,6 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_DEVICE(0x4348, 0x7053), }, /* WCH CH353 2S1P */
 	{ PCI_DEVICE(0x4348, 0x5053), }, /* WCH CH353 1S1P */
 	{ PCI_DEVICE(0x1c00, 0x3250), }, /* WCH CH382 2S1P */
-
-	/* Moxa Smartio MUE boards handled by 8250_moxa */
-	{ PCI_VDEVICE(MOXA, 0x1024), },
-	{ PCI_VDEVICE(MOXA, 0x1025), },
-	{ PCI_VDEVICE(MOXA, 0x1045), },
-	{ PCI_VDEVICE(MOXA, 0x1144), },
-	{ PCI_VDEVICE(MOXA, 0x1160), },
-	{ PCI_VDEVICE(MOXA, 0x1161), },
-	{ PCI_VDEVICE(MOXA, 0x1182), },
-	{ PCI_VDEVICE(MOXA, 0x1183), },
-	{ PCI_VDEVICE(MOXA, 0x1322), },
-	{ PCI_VDEVICE(MOXA, 0x1342), },
-	{ PCI_VDEVICE(MOXA, 0x1381), },
-	{ PCI_VDEVICE(MOXA, 0x1683), },
 
 	/* Intel platforms with MID UART */
 	{ PCI_VDEVICE(INTEL, 0x081b), },
@@ -5406,6 +5451,46 @@ static const struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8433_4854,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_ni8431_4 },
+
+	/*
+	 * MOXA
+	 */
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP102E,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_2p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP102EL,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_2p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP104EL_A,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_4p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP114EL,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_4p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP116E_A_A,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_8p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP116E_A_B,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_8p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP118EL_A,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_8p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP118E_A_I,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_8p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP132EL,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_2p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP134EL_A,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_4p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP138E_A,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_8p },
+	{	PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_CP168EL_A,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_moxa8250_8p },
 
 	/*
 	* ADDI-DATA GmbH communication cards <info@addi-data.com>
