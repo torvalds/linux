@@ -107,6 +107,10 @@
 	};
 };
 
+&rng {
+	status = "okay";
+};
+
 &video_phy {
 	status = "okay";
 };

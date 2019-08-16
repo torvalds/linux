@@ -53,6 +53,10 @@
 	/delete-node/ opp-768000000;
 };
 
+&rng {
+	status = "okay";
+};
+
 &soc_thermal {
 	trips {
 		threshold: trip-point-0 {
