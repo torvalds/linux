@@ -1255,9 +1255,6 @@ int bch2_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
-	EBUG_ON(btree_node_is_extents(b) &&
-		!bch2_extent_is_atomic(insert->k, insert->iter));
-
 	if (!(trans->flags & BTREE_INSERT_NOMARK_INSERT))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k),
 			0, insert->k->k.size,
@@ -1635,9 +1632,6 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
-
-	EBUG_ON(btree_node_is_extents(b) &&
-		!bch2_extent_is_atomic(insert, iter));
 
 	ret = bch2_trans_mark_key(trans, bkey_i_to_s_c(insert),
 			0, insert->k.size, BCH_BUCKET_MARK_INSERT);

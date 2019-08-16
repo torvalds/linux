@@ -247,6 +247,7 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 	struct disk_reservation disk_res =
 		bch2_disk_reservation_init(c, 0);
 	struct bkey_i *split;
+	struct bpos atomic_end;
 	bool split_compressed = false;
 	int ret;
 
@@ -273,9 +274,14 @@ retry:
 		if (ret)
 			goto err;
 
+		ret = bch2_extent_atomic_end(&trans, split_iter,
+					     k, &atomic_end);
+		if (ret)
+			goto err;
+
 		if (!split_compressed &&
 		    bch2_extent_is_compressed(bkey_i_to_s_c(k)) &&
-		    !bch2_extent_is_atomic(k, split_iter)) {
+		    bkey_cmp(atomic_end, k->k.p) < 0) {
 			ret = bch2_disk_reservation_add(c, &disk_res,
 					k->k.size *
 					bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(k)),
@@ -287,7 +293,7 @@ retry:
 
 		bkey_copy(split, k);
 		bch2_cut_front(split_iter->pos, split);
-		bch2_extent_trim_atomic(split, split_iter);
+		bch2_cut_back(atomic_end, &split->k);
 
 		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(split_iter, split));
 		bch2_btree_iter_set_pos(iter, split->k.p);

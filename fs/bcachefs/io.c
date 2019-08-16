@@ -274,6 +274,8 @@ int bch2_write_index_default(struct bch_write_op *op)
 	bch2_verify_keylist_sorted(keys);
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
+retry:
+	bch2_trans_begin(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(&bch2_keylist_front(keys)->k),
@@ -284,7 +286,9 @@ int bch2_write_index_default(struct bch_write_op *op)
 
 		bkey_copy(&split.k, bch2_keylist_front(keys));
 
-		bch2_extent_trim_atomic(&split.k, iter);
+		ret = bch2_extent_trim_atomic(&split.k, iter);
+		if (ret)
+			break;
 
 		bch2_trans_update(&trans,
 				  BTREE_INSERT_ENTRY(iter, &split.k));
@@ -300,6 +304,11 @@ int bch2_write_index_default(struct bch_write_op *op)
 		else
 			bch2_keylist_pop_front(keys);
 	} while (!bch2_keylist_empty(keys));
+
+	if (ret == -EINTR) {
+		ret = 0;
+		goto retry;
+	}
 
 	bch2_trans_exit(&trans);
 

@@ -400,8 +400,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 		BUG_ON(i->iter->level);
 		BUG_ON(bkey_cmp(bkey_start_pos(&i->k->k), i->iter->pos));
 		EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
-			!bch2_extent_is_atomic(i->k, i->iter));
-
+			bkey_cmp(i->k->k.p, i->iter->l[0].b->key.k.p) > 0);
 		EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
 			!(trans->flags & BTREE_INSERT_ATOMIC));
 	}
@@ -1031,7 +1030,10 @@ retry:
 			/* create the biggest key we can */
 			bch2_key_resize(&delete.k, max_sectors);
 			bch2_cut_back(end, &delete.k);
-			bch2_extent_trim_atomic(&delete, iter);
+
+			ret = bch2_extent_trim_atomic(&delete, iter);
+			if (ret)
+				break;
 		}
 
 		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &delete));

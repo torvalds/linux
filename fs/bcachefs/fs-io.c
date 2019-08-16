@@ -310,7 +310,9 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	bch2_extent_trim_atomic(k, extent_iter);
+	ret = bch2_extent_trim_atomic(k, extent_iter);
+	if (ret)
+		return ret;
 
 	ret = sum_sector_overwrites(trans, extent_iter,
 				    k, &allocating,
@@ -2634,7 +2636,9 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 		bch2_cut_front(src->pos, &copy.k);
 		copy.k.k.p.offset -= len >> 9;
 
-		bch2_extent_trim_atomic(&copy.k, dst);
+		ret = bch2_extent_trim_atomic(&copy.k, dst);
+		if (ret)
+			goto bkey_err;
 
 		BUG_ON(bkey_cmp(dst->pos, bkey_start_pos(&copy.k.k)));
 
