@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <pthread.h>
 
 #include <linux/filter.h>
@@ -32,6 +33,30 @@ static void send_byte(int fd)
 
 	if (write(fd, &b, sizeof(b)) != 1)
 		error(1, errno, "Failed to send single byte");
+}
+
+static int wait_for_ack(int fd, int retries)
+{
+	struct tcp_info info;
+	socklen_t optlen;
+	int i, err;
+
+	for (i = 0; i < retries; i++) {
+		optlen = sizeof(info);
+		err = getsockopt(fd, SOL_TCP, TCP_INFO, &info, &optlen);
+		if (err < 0) {
+			log_err("Failed to lookup TCP stats");
+			return err;
+		}
+
+		if (info.tcpi_unacked == 0)
+			return 0;
+
+		usleep(10);
+	}
+
+	log_err("Did not receive ACK");
+	return -1;
 }
 
 static int verify_sk(int map_fd, int client_fd, const char *msg, __u32 invoked,
@@ -149,6 +174,11 @@ static int run_test(int cgroup_fd, int server_fd)
 			 /*icsk_retransmits=*/0);
 
 	send_byte(client_fd);
+	if (wait_for_ack(client_fd, 100) < 0) {
+		err = -1;
+		goto close_client_fd;
+	}
+
 
 	err += verify_sk(map_fd, client_fd, "first payload byte",
 			 /*invoked=*/2,
@@ -157,6 +187,7 @@ static int run_test(int cgroup_fd, int server_fd)
 			 /*delivered_ce=*/0,
 			 /*icsk_retransmits=*/0);
 
+close_client_fd:
 	close(client_fd);
 
 close_bpf_object:
