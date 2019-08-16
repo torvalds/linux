@@ -1835,6 +1835,105 @@ hdmi_get_tmdsclock(struct dw_hdmi *hdmi, unsigned long mpixelclock)
 	return tmdsclock;
 }
 
+#define HDR_LSB(n) ((n) & 0xff)
+#define HDR_MSB(n) (((n) & 0xff00) >> 8)
+
+/* Set Dynamic Range and Mastering Infoframe */
+static void hdmi_config_hdr_infoframe(struct dw_hdmi *hdmi)
+{
+	struct hdmi_drm_infoframe frame;
+	struct hdr_static_metadata *hdr_metadata;
+	struct drm_connector_state *conn_state = hdmi->connector.state;
+	int ret;
+
+	/* Dynamic Range and Mastering Infoframe is introduced in v2.11a. */
+	if (hdmi->version < 0x211a) {
+		DRM_ERROR("Not support DRM Infoframe\n");
+		return;
+	}
+
+	hdmi_modb(hdmi, HDMI_FC_PACKET_DRM_TX_DEN,
+		  HDMI_FC_PACKET_DRM_TX_EN_MASK, HDMI_FC_PACKET_TX_EN);
+
+	if (!hdmi->connector.hdr_sink_metadata.hdmi_type1.eotf) {
+		DRM_DEBUG("No need to set HDR metadata in infoframe\n");
+		return;
+	}
+
+	if (!conn_state->hdr_output_metadata) {
+		DRM_DEBUG("source metadata not set yet\n");
+		return;
+	}
+
+	hdr_metadata = (struct hdr_static_metadata *)
+		conn_state->hdr_output_metadata->data;
+
+	if (!(hdmi->connector.hdr_sink_metadata.hdmi_type1.eotf &
+	    BIT(hdr_metadata->eotf))) {
+		DRM_ERROR("Not support EOTF %d\n", hdr_metadata->eotf);
+		return;
+	}
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(&frame, conn_state);
+	if (ret < 0) {
+		DRM_ERROR("couldn't set HDR metadata in infoframe\n");
+		return;
+	}
+
+	hdmi_writeb(hdmi, 1, HDMI_FC_DRM_HB0);
+	hdmi_writeb(hdmi, frame.length, HDMI_FC_DRM_HB1);
+	hdmi_writeb(hdmi, frame.eotf, HDMI_FC_DRM_PB0);
+	hdmi_writeb(hdmi, frame.metadata_type, HDMI_FC_DRM_PB1);
+	hdmi_writeb(hdmi, HDR_LSB(frame.display_primaries[0].x),
+		    HDMI_FC_DRM_PB2);
+	hdmi_writeb(hdmi, HDR_MSB(frame.display_primaries[0].x),
+		    HDMI_FC_DRM_PB3);
+	hdmi_writeb(hdmi, HDR_LSB(frame.display_primaries[0].y),
+		    HDMI_FC_DRM_PB4);
+	hdmi_writeb(hdmi, HDR_MSB(frame.display_primaries[0].y),
+		    HDMI_FC_DRM_PB5);
+	hdmi_writeb(hdmi, HDR_LSB(frame.display_primaries[1].x),
+		    HDMI_FC_DRM_PB6);
+	hdmi_writeb(hdmi, HDR_MSB(frame.display_primaries[1].x),
+		    HDMI_FC_DRM_PB7);
+	hdmi_writeb(hdmi, HDR_LSB(frame.display_primaries[1].y),
+		    HDMI_FC_DRM_PB8);
+	hdmi_writeb(hdmi, HDR_MSB(frame.display_primaries[1].y),
+		    HDMI_FC_DRM_PB9);
+	hdmi_writeb(hdmi, HDR_LSB(frame.display_primaries[2].x),
+		    HDMI_FC_DRM_PB10);
+	hdmi_writeb(hdmi, HDR_MSB(frame.display_primaries[2].x),
+		    HDMI_FC_DRM_PB11);
+	hdmi_writeb(hdmi, HDR_LSB(frame.display_primaries[2].y),
+		    HDMI_FC_DRM_PB12);
+	hdmi_writeb(hdmi, HDR_MSB(frame.display_primaries[2].y),
+		    HDMI_FC_DRM_PB13);
+	hdmi_writeb(hdmi, HDR_LSB(frame.white_point.x), HDMI_FC_DRM_PB14);
+	hdmi_writeb(hdmi, HDR_MSB(frame.white_point.x), HDMI_FC_DRM_PB15);
+	hdmi_writeb(hdmi, HDR_LSB(frame.white_point.y), HDMI_FC_DRM_PB16);
+	hdmi_writeb(hdmi, HDR_MSB(frame.white_point.y), HDMI_FC_DRM_PB17);
+	hdmi_writeb(hdmi, HDR_LSB(frame.max_display_mastering_luminance),
+		    HDMI_FC_DRM_PB18);
+	hdmi_writeb(hdmi, HDR_MSB(frame.max_display_mastering_luminance),
+		    HDMI_FC_DRM_PB19);
+	hdmi_writeb(hdmi, HDR_LSB(frame.min_display_mastering_luminance),
+		    HDMI_FC_DRM_PB20);
+	hdmi_writeb(hdmi, HDR_MSB(frame.min_display_mastering_luminance),
+		    HDMI_FC_DRM_PB21);
+	hdmi_writeb(hdmi, HDR_LSB(frame.max_cll), HDMI_FC_DRM_PB22);
+	hdmi_writeb(hdmi, HDR_MSB(frame.max_cll), HDMI_FC_DRM_PB23);
+	hdmi_writeb(hdmi, HDR_LSB(frame.max_fall), HDMI_FC_DRM_PB24);
+	hdmi_writeb(hdmi, HDR_MSB(frame.max_fall), HDMI_FC_DRM_PB25);
+	hdmi_writeb(hdmi, 1, HDMI_FC_DRM_UP);
+	hdmi_modb(hdmi, HDMI_FC_PACKET_DRM_TX_EN,
+		  HDMI_FC_PACKET_DRM_TX_EN_MASK, HDMI_FC_PACKET_TX_EN);
+
+	if (conn_state->hdr_metadata_changed)
+		conn_state->hdr_metadata_changed = false;
+
+	DRM_DEBUG("%s eotf %d end\n", __func__, hdr_metadata->eotf);
+}
+
 static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			     const struct drm_display_mode *mode)
 {
@@ -2201,6 +2300,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 		/* HDMI Initialization Step F - Configure AVI InfoFrame */
 		hdmi_config_AVI(hdmi, mode);
 		hdmi_config_vendor_specific_infoframe(hdmi, mode);
+		hdmi_config_hdr_infoframe(hdmi);
 	} else {
 		dev_dbg(hdmi->dev, "%s DVI mode\n", __func__);
 	}
@@ -2493,6 +2593,9 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 		dw_hdmi_setup(hdmi, &hdmi->previous_mode);
 		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
 		hdmi->hdmi_data.update = false;
+	} else if (connector->state->hdr_metadata_changed &&
+		   hdmi->sink_is_hdmi) {
+		hdmi_config_hdr_infoframe(hdmi);
 	}
 }
 

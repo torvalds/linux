@@ -3823,6 +3823,7 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 	if (state->hdr_output_metadata)
 		drm_property_blob_get(state->hdr_output_metadata);
 
+	state->hdr_metadata_changed = false;
 	/* Don't copy over a writeback job, they are used only once */
 	state->writeback_job = NULL;
 }
