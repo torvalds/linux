@@ -409,6 +409,9 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 		return 0x2b;
 	/* csi uyvy 422 */
 	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		return 0x1e;
 	case MEDIA_BUS_FMT_RGB888_1X24: {
 		if (cmd_mode_en) /* dsi command mode*/
@@ -996,7 +999,7 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	struct rkcif_vdev_node *node = &stream->vnode;
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	struct rkcif_buffer *buf;
+	struct rkcif_buffer *buf = NULL;
 	int ret;
 
 	stream->stopping = true;
@@ -1016,21 +1019,16 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 			 ret);
 
 	/* release buffers */
-	if (stream->curr_buf) {
-		list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
-		stream->curr_buf = NULL;
-	}
-	if (stream->next_buf) {
-		list_add_tail(&stream->next_buf->queue, &stream->buf_head);
-		stream->next_buf = NULL;
-	}
-
-	if (stream->next_buf)
-		vb2_buffer_done(&stream->next_buf->vb.vb2_buf,
-				VB2_BUF_STATE_QUEUED);
 	if (stream->curr_buf)
-		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
-				VB2_BUF_STATE_QUEUED);
+		list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
+
+	if (stream->next_buf &&
+	    stream->next_buf != stream->curr_buf)
+		list_add_tail(&stream->next_buf->queue, &stream->buf_head);
+
+	stream->curr_buf = NULL;
+	stream->next_buf = NULL;
+
 	while (!list_empty(&stream->buf_head)) {
 		buf = list_first_entry(&stream->buf_head,
 				       struct rkcif_buffer, queue);
@@ -2179,7 +2177,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		intstat = read_cif_reg(base, CIF_INTSTAT);
 		cif_frmst = read_cif_reg(base, CIF_FRAME_STATUS);
 		lastline = CIF_FETCH_Y_LAST_LINE(read_cif_reg(base, CIF_LAST_LINE));
-		lastpix = read_cif_reg(base, CIF_LAST_PIX);
+		lastpix =  CIF_FETCH_Y_LAST_LINE(read_cif_reg(base, CIF_LAST_PIX));
 		ctl = read_cif_reg(base, CIF_CTRL);
 
 		if (cif_dev->chip_id == CHIP_RK1808_CIF)

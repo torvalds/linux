@@ -203,8 +203,9 @@ err_stream_off:
 /***************************** media controller *******************************/
 static int rkcif_create_links(struct rkcif_device *dev)
 {
-	unsigned int s, pad, id, stream_num = 0;
 	int ret;
+	u32 flags;
+	unsigned int s, pad, id, stream_num = 0;
 
 	if (dev->chip_id == CHIP_RK1808_CIF)
 		stream_num = RKCIF_MULTI_STREAMS_NUM;
@@ -214,31 +215,53 @@ static int rkcif_create_links(struct rkcif_device *dev)
 	/* sensor links(or mipi-phy) */
 	for (s = 0; s < dev->num_sensors; ++s) {
 		struct rkcif_sensor_info *sensor = &dev->sensors[s];
+		struct media_entity *source_entity, *sink_entity;
 
 		for (pad = 0; pad < sensor->sd->entity.num_pads; pad++) {
 			if (sensor->sd->entity.pads[pad].flags &
-					MEDIA_PAD_FL_SOURCE) {
+				MEDIA_PAD_FL_SOURCE) {
 				if (pad == sensor->sd->entity.num_pads) {
 					dev_err(dev->dev,
 						"failed to find src pad for %s\n",
 						sensor->sd->name);
 
-					return -ENXIO;
+					break;
+				}
+
+				if ((sensor->mbus.type == V4L2_MBUS_BT656 ||
+				     sensor->mbus.type == V4L2_MBUS_PARALLEL) &&
+				    dev->chip_id == CHIP_RK1808_CIF) {
+					source_entity = &sensor->sd->entity;
+					sink_entity = &dev->stream[RKCIF_STREAM_DVP].vnode.vdev.entity;
+
+					ret = media_entity_create_link(source_entity,
+								       pad,
+								       sink_entity,
+								       0,
+								       MEDIA_LNK_FL_ENABLED);
+					if (ret)
+						dev_err(dev->dev, "failed to create link for %s\n",
+							sensor->sd->name);
+					break;
 				}
 
 				for (id = 0; id < stream_num; id++) {
-					ret = media_entity_create_link(&sensor->sd->entity,
+					source_entity = &sensor->sd->entity;
+					sink_entity = &dev->stream[id].vnode.vdev.entity;
+
+					(dev->chip_id != CHIP_RK1808_CIF) | (id == pad - 1) ?
+					(flags = MEDIA_LNK_FL_ENABLED) : (flags = 0);
+
+					ret = media_entity_create_link(source_entity,
 								       pad,
-								       &dev->stream[id].vnode.vdev.entity,
+								       sink_entity,
 								       0,
-								       (dev->chip_id != CHIP_RK1808_CIF) |
-								       (id == pad - 1) ?
-								       MEDIA_LNK_FL_ENABLED : 0);
+								       flags);
 					if (ret) {
 						dev_err(dev->dev,
 							"failed to create link for %s\n",
 							sensor->sd->name);
-						return ret;
+						break;
 					}
 				}
 			}
