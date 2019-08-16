@@ -974,29 +974,33 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 {
 	struct timing_generator *tg;
 	struct dc_link *link = sink->link;
-	unsigned int enc_inst, tg_inst;
+	unsigned int enc_inst, tg_inst, i;
+
+	// Seamless port only support single DP and EDP so far
+	if (sink->sink_signal != SIGNAL_TYPE_DISPLAY_PORT &&
+		sink->sink_signal != SIGNAL_TYPE_EDP)
+		return false;
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
 		return false;
 
-	/* Check for which front end is used by this encoder.
-	 * Note the inst is 1 indexed, where 0 is undefined.
-	 * Note that DIG_FE can source from different OTG but our
-	 * current implementation always map 1-to-1, so this code makes
-	 * the same assumption and doesn't check OTG source.
-	 */
 	enc_inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
-	/* Instance should be within the range of the pool */
-	if (enc_inst >= dc->res_pool->pipe_count)
+	if (enc_inst == ENGINE_ID_UNKNOWN)
 		return false;
 
-	if (enc_inst >= dc->res_pool->stream_enc_count)
-		return false;
+	for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
+		if (dc->res_pool->stream_enc[i]->id == enc_inst) {
+			tg_inst = dc->res_pool->stream_enc[i]->funcs->dig_source_otg(
+				dc->res_pool->stream_enc[i]);
+			break;
+		}
+	}
 
-	tg_inst = dc->res_pool->stream_enc[enc_inst]->funcs->dig_source_otg(
-		dc->res_pool->stream_enc[enc_inst]);
+	// tg_inst not found
+	if (i == dc->res_pool->stream_enc_count)
+		return false;
 
 	if (tg_inst >= dc->res_pool->timing_generator_count)
 		return false;

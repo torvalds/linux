@@ -519,7 +519,7 @@ static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *lin
 }
 
 
-static void read_edp_current_link_settings_on_detect(struct dc_link *link)
+static void read_current_link_settings_on_detect(struct dc_link *link)
 {
 	union lane_count_set lane_count_set = { {0} };
 	uint8_t link_bw_set;
@@ -554,17 +554,23 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 			&link_bw_set, sizeof(link_bw_set));
 
 	if (link_bw_set == 0) {
-		/* If standard link rates are not being used,
-		 * Read DPCD 00115h to find the link rate set used
-		 */
-		core_link_read_dpcd(link, DP_LINK_RATE_SET,
-				&link_rate_set, sizeof(link_rate_set));
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			/* If standard link rates are not being used,
+			 * Read DPCD 00115h to find the edp link rate set used
+			 */
+			core_link_read_dpcd(link, DP_LINK_RATE_SET,
+					&link_rate_set, sizeof(link_rate_set));
 
-		if (link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
-			link->cur_link_settings.link_rate =
-				link->dpcd_caps.edp_supported_link_rates[link_rate_set];
-			link->cur_link_settings.link_rate_set = link_rate_set;
-			link->cur_link_settings.use_link_rate_set = true;
+			// edp_supported_link_rates_count = 0 for DP
+			if (link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+				link->cur_link_settings.link_rate =
+						link->dpcd_caps.edp_supported_link_rates[link_rate_set];
+				link->cur_link_settings.link_rate_set = link_rate_set;
+				link->cur_link_settings.use_link_rate_set = true;
+			}
+		} else {
+			// Link Rate not found. Seamless boot may not work.
+			ASSERT(false);
 		}
 	} else {
 		link->cur_link_settings.link_rate = link_bw_set;
@@ -752,6 +758,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	struct dpcd_caps prev_dpcd_caps;
 	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
+	bool perform_dp_seamless_boot = false;
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	if (dc_is_virtual_signal(link->connector_signal))
@@ -808,15 +815,15 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_EDP: {
-			read_edp_current_link_settings_on_detect(link);
+			read_current_link_settings_on_detect(link);
 			detect_edp_sink_caps(link);
-			sink_caps.transaction_type =
-				DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
+			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
 			sink_caps.signal = SIGNAL_TYPE_EDP;
 			break;
 		}
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
+
 			/* wa HPD high coming too early*/
 			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
 
@@ -868,6 +875,17 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				if (prev_sink != NULL)
 					dc_sink_release(prev_sink);
 				return false;
+			}
+
+			// For seamless boot, to skip verify link cap, we read UEFI settings and set them as verified.
+			if (reason == DETECT_REASON_BOOT &&
+					dc_ctx->dc->config.power_down_display_on_boot == false &&
+					link->link_status.link_active == true)
+				perform_dp_seamless_boot = true;
+
+			if (perform_dp_seamless_boot) {
+				read_current_link_settings_on_detect(link);
+				link->verified_link_cap = link->reported_link_cap;
 			}
 
 			break;
@@ -954,10 +972,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			 *  two link trainings
 			 */
 
-			/* deal with non-mst cases */
-			dp_verify_link_cap_with_retries(link,
-					&link->reported_link_cap,
-					LINK_TRAINING_MAX_VERIFY_RETRY);
+			// verify link cap for SST non-seamless boot
+			if (!perform_dp_seamless_boot)
+				dp_verify_link_cap_with_retries(link,
+						&link->reported_link_cap,
+						LINK_TRAINING_MAX_VERIFY_RETRY);
 		} else {
 			// If edid is the same, then discard new sink and revert back to original sink
 			if (same_edid) {

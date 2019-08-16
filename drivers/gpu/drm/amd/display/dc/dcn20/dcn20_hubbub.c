@@ -588,7 +588,7 @@ static void hubbub2_program_watermarks(
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 180);
 
-	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
+	hubbub->funcs->allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
 }
 
 static const struct hubbub_funcs hubbub2_funcs = {
@@ -600,7 +600,8 @@ static const struct hubbub_funcs hubbub2_funcs = {
 	.get_dcc_compression_cap = hubbub2_get_dcc_compression_cap,
 	.wm_read_state = hubbub2_wm_read_state,
 	.get_dchub_ref_freq = hubbub2_get_dchub_ref_freq,
-	.program_watermarks = hubbub2_program_watermarks
+	.program_watermarks = hubbub2_program_watermarks,
+	.allow_self_refresh_control = hubbub1_allow_self_refresh_control
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,
