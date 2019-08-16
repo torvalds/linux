@@ -314,6 +314,48 @@ static const struct hantro_ctrl controls[] = {
 		.cfg = {
 			.id = V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER,
 		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS,
+		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS,
+		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_SPS,
+		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_PPS,
+		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX,
+		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE,
+			.min = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
+			.def = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
+			.max = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
+		},
+	}, {
+		.codec = HANTRO_H264_DECODER,
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_START_CODE,
+			.min = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
+			.def = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
+			.max = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
+		},
+	}, {
 	},
 };
 
