@@ -190,6 +190,21 @@ static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 				     huc_fw_size);
 }
 
+static bool __wopcm_regs_locked(struct intel_uncore *uncore,
+				u32 *guc_wopcm_base, u32 *guc_wopcm_size)
+{
+	u32 reg_base = intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET);
+	u32 reg_size = intel_uncore_read(uncore, GUC_WOPCM_SIZE);
+
+	if (!(reg_size & GUC_WOPCM_SIZE_LOCKED) ||
+	    !(reg_base & GUC_WOPCM_OFFSET_VALID))
+		return false;
+
+	*guc_wopcm_base = reg_base & GUC_WOPCM_OFFSET_MASK;
+	*guc_wopcm_size = reg_size & GUC_WOPCM_SIZE_MASK;
+	return true;
+}
+
 /**
  * intel_wopcm_init() - Initialize the WOPCM structure.
  * @wopcm: pointer to intel_wopcm.
@@ -203,8 +218,9 @@ static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 void intel_wopcm_init(struct intel_wopcm *wopcm)
 {
 	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
-	u32 guc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.guc.fw);
-	u32 huc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.huc.fw);
+	struct intel_gt *gt = &i915->gt;
+	u32 guc_fw_size = intel_uc_fw_get_upload_size(&gt->uc.guc.fw);
+	u32 huc_fw_size = intel_uc_fw_get_upload_size(&gt->uc.huc.fw);
 	u32 ctx_rsvd = context_reserved_size(i915);
 	u32 guc_wopcm_base;
 	u32 guc_wopcm_size;
@@ -221,6 +237,14 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 
 	if (i915_inject_probe_failure(i915))
 		return;
+
+	if (__wopcm_regs_locked(gt->uncore, &guc_wopcm_base, &guc_wopcm_size)) {
+		DRM_DEV_DEBUG_DRIVER(i915->drm.dev,
+				     "GuC WOPCM is already locked [%uK, %uK)\n",
+				     guc_wopcm_base / SZ_1K,
+				     guc_wopcm_size / SZ_1K);
+		goto check;
+	}
 
 	/*
 	 * Aligned value of guc_wopcm_base will determine available WOPCM space
@@ -242,6 +266,7 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "Calculated GuC WOPCM [%uK, %uK)\n",
 			     guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 
+check:
 	if (__check_layout(i915, wopcm->size, guc_wopcm_base, guc_wopcm_size,
 			   guc_fw_size, huc_fw_size)) {
 		wopcm->guc.base = guc_wopcm_base;
