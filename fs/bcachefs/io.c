@@ -1041,6 +1041,7 @@ static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 
 noinline
 static struct promote_op *__promote_alloc(struct bch_fs *c,
+					  enum btree_id btree_id,
 					  struct bpos pos,
 					  struct extent_ptr_decoded *pick,
 					  struct bch_io_opts opts,
@@ -1097,6 +1098,7 @@ static struct promote_op *__promote_alloc(struct bch_fs *c,
 			(struct data_opts) {
 				.target = opts.promote_target
 			},
+			btree_id,
 			bkey_s_c_null);
 	BUG_ON(ret);
 
@@ -1134,7 +1136,11 @@ static inline struct promote_op *promote_alloc(struct bch_fs *c,
 	if (!should_promote(c, k, pos, opts, flags))
 		return NULL;
 
-	promote = __promote_alloc(c, pos, pick, opts, sectors, rbio);
+	promote = __promote_alloc(c,
+				  k.k->type == KEY_TYPE_reflink_v
+				  ? BTREE_ID_REFLINK
+				  : BTREE_ID_EXTENTS,
+				  pos, pick, opts, sectors, rbio);
 	if (!promote)
 		return NULL;
 
@@ -1278,18 +1284,25 @@ retry:
 			   POS(inode, bvec_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k, ret) {
 		BKEY_PADDED(k) tmp;
-		unsigned bytes, offset_into_extent;
+		unsigned bytes, sectors, offset_into_extent;
 
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
 
-		bch2_trans_unlock(&trans);
-
 		offset_into_extent = iter->pos.offset -
 			bkey_start_offset(k.k);
+		sectors = k.k->size - offset_into_extent;
 
-		bytes = min_t(unsigned, bvec_iter_sectors(bvec_iter),
-			      (k.k->size - offset_into_extent)) << 9;
+		ret = bch2_read_indirect_extent(&trans, iter,
+					&offset_into_extent, &tmp.k);
+		if (ret)
+			break;
+
+		sectors = min(sectors, k.k->size - offset_into_extent);
+
+		bch2_trans_unlock(&trans);
+
+		bytes = min(sectors, bvec_iter_sectors(bvec_iter)) << 9;
 		swap(bvec_iter.bi_size, bytes);
 
 		ret = __bch2_read_extent(c, rbio, bvec_iter, k,
@@ -1569,6 +1582,48 @@ static void bch2_read_endio(struct bio *bio)
 	bch2_rbio_punt(rbio, __bch2_read_endio, context, wq);
 }
 
+int bch2_read_indirect_extent(struct btree_trans *trans,
+			      struct btree_iter *extent_iter,
+			      unsigned *offset_into_extent,
+			      struct bkey_i *orig_k)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	u64 reflink_offset;
+	int ret;
+
+	if (orig_k->k.type != KEY_TYPE_reflink_p)
+		return 0;
+
+	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k)->v.idx) +
+		*offset_into_extent;
+
+	iter = __bch2_trans_get_iter(trans, BTREE_ID_REFLINK,
+				     POS(0, reflink_offset),
+				     BTREE_ITER_SLOTS, 1);
+	ret = PTR_ERR_OR_ZERO(iter);
+	if (ret)
+		return ret;
+
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (k.k->type != KEY_TYPE_reflink_v) {
+		__bcache_io_error(trans->c,
+				"pointer to nonexistent indirect extent");
+		ret = -EIO;
+		goto err;
+	}
+
+	*offset_into_extent = iter->pos.offset - bkey_start_offset(k.k);
+	bkey_reassemble(orig_k, k);
+err:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
 int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		       struct bvec_iter iter, struct bkey_s_c k,
 		       unsigned offset_into_extent,
@@ -1644,6 +1699,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		pos.offset += offset_into_extent;
 		pick.ptr.offset += pick.crc.offset +
 			offset_into_extent;
+		offset_into_extent		= 0;
 		pick.crc.compressed_size	= bvec_iter_sectors(iter);
 		pick.crc.uncompressed_size	= bvec_iter_sectors(iter);
 		pick.crc.offset			= 0;
@@ -1829,25 +1885,47 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	rbio->c = c;
 	rbio->start_time = local_clock();
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
-			   POS(inode, rbio->bio.bi_iter.bi_sector),
-			   BTREE_ITER_SLOTS, k, ret) {
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   POS(inode, rbio->bio.bi_iter.bi_sector),
+				   BTREE_ITER_SLOTS);
+
+	while (1) {
 		BKEY_PADDED(k) tmp;
-		unsigned bytes, offset_into_extent;
+		unsigned bytes, sectors, offset_into_extent;
+
+		bch2_btree_iter_set_pos(iter,
+				POS(inode, rbio->bio.bi_iter.bi_sector));
+
+		k = bch2_btree_iter_peek_slot(iter);
+		ret = bkey_err(k);
+		if (ret)
+			goto err;
+
+		bkey_reassemble(&tmp.k, k);
+		k = bkey_i_to_s_c(&tmp.k);
+
+		offset_into_extent = iter->pos.offset -
+			bkey_start_offset(k.k);
+		sectors = k.k->size - offset_into_extent;
+
+		ret = bch2_read_indirect_extent(&trans, iter,
+					&offset_into_extent, &tmp.k);
+		if (ret)
+			goto err;
+
+		/*
+		 * With indirect extents, the amount of data to read is the min
+		 * of the original extent and the indirect extent:
+		 */
+		sectors = min(sectors, k.k->size - offset_into_extent);
 
 		/*
 		 * Unlock the iterator while the btree node's lock is still in
 		 * cache, before doing the IO:
 		 */
-		bkey_reassemble(&tmp.k, k);
-		k = bkey_i_to_s_c(&tmp.k);
 		bch2_trans_unlock(&trans);
 
-		offset_into_extent = iter->pos.offset -
-			bkey_start_offset(k.k);
-
-		bytes = min_t(unsigned, bio_sectors(&rbio->bio),
-			      (k.k->size - offset_into_extent)) << 9;
+		bytes = min(sectors, bio_sectors(&rbio->bio)) << 9;
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 
 		if (rbio->bio.bi_iter.bi_size == bytes)
@@ -1856,21 +1934,18 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		bch2_read_extent(c, rbio, k, offset_into_extent, flags);
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
-			return;
+			break;
 
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 		bio_advance(&rbio->bio, bytes);
 	}
-
-	/*
-	 * If we get here, it better have been because there was an error
-	 * reading a btree node
-	 */
-	BUG_ON(!ret);
-	bcache_io_error(c, &rbio->bio, "btree IO error: %i", ret);
-
+out:
 	bch2_trans_exit(&trans);
+	return;
+err:
+	bcache_io_error(c, &rbio->bio, "btree IO error: %i", ret);
 	bch2_rbio_done(rbio);
+	goto out;
 }
 
 void bch2_fs_io_exit(struct bch_fs *c)

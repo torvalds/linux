@@ -521,7 +521,8 @@ static inline bool update_triggers_transactional(struct btree_trans *trans,
 {
 	return likely(!(trans->flags & BTREE_INSERT_MARK_INMEM)) &&
 		(i->iter->btree_id == BTREE_ID_EXTENTS ||
-		 i->iter->btree_id == BTREE_ID_INODES);
+		 i->iter->btree_id == BTREE_ID_INODES ||
+		 i->iter->btree_id == BTREE_ID_REFLINK);
 }
 
 static inline bool update_has_triggers(struct btree_trans *trans,

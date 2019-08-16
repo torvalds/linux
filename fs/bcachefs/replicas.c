@@ -113,6 +113,7 @@ void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
 		extent_to_replicas(k, e);
 		break;
 	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v:
 		e->data_type = BCH_DATA_USER;
 		extent_to_replicas(k, e);
 		break;

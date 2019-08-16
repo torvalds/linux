@@ -361,6 +361,7 @@ enum gc_phase {
 	GC_PHASE_BTREE_XATTRS,
 	GC_PHASE_BTREE_ALLOC,
 	GC_PHASE_BTREE_QUOTAS,
+	GC_PHASE_BTREE_REFLINK,
 
 	GC_PHASE_PENDING_DELETE,
 	GC_PHASE_ALLOC,
@@ -749,6 +750,9 @@ struct bch_fs {
 
 	struct work_struct	ec_stripe_delete_work;
 	struct llist_head	ec_stripe_delete_list;
+
+	/* REFLINK */
+	u64			reflink_hint;
 
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;

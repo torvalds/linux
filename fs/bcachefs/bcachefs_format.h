@@ -340,7 +340,9 @@ static inline void bkey_init(struct bkey *k)
 	x(xattr,		11)			\
 	x(alloc,		12)			\
 	x(quota,		13)			\
-	x(stripe,		14)
+	x(stripe,		14)			\
+	x(reflink_p,		15)			\
+	x(reflink_v,		16)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -895,6 +897,24 @@ struct bch_stripe {
 	struct bch_extent_ptr	ptrs[0];
 } __attribute__((packed, aligned(8)));
 
+/* Reflink: */
+
+struct bch_reflink_p {
+	struct bch_val		v;
+	__le64			idx;
+
+	__le32			reservation_generation;
+	__u8			nr_replicas;
+	__u8			pad[3];
+};
+
+struct bch_reflink_v {
+	struct bch_val		v;
+	__le64			refcount;
+	union bch_extent_entry	start[0];
+	__u64			_data[0];
+};
+
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
@@ -1297,6 +1317,7 @@ enum bch_sb_features {
 	BCH_FEATURE_ATOMIC_NLINK	= 3, /* should have gone under compat */
 	BCH_FEATURE_EC			= 4,
 	BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3 = 5,
+	BCH_FEATURE_REFLINK		= 6,
 	BCH_FEATURE_NR,
 };
 
@@ -1487,7 +1508,8 @@ LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
 	x(XATTRS,	3, "xattrs")			\
 	x(ALLOC,	4, "alloc")			\
 	x(QUOTAS,	5, "quotas")			\
-	x(EC,		6, "erasure_coding")
+	x(EC,		6, "erasure_coding")		\
+	x(REFLINK,	7, "reflink")
 
 enum btree_id {
 #define x(kwd, val, name) BTREE_ID_##kwd = val,

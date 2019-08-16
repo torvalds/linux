@@ -25,6 +25,7 @@ struct data_opts {
 };
 
 struct migrate_write {
+	enum btree_id		btree_id;
 	enum data_cmd		data_cmd;
 	struct data_opts	data_opts;
 
@@ -44,7 +45,7 @@ int bch2_migrate_write_init(struct bch_fs *, struct migrate_write *,
 			    struct write_point_specifier,
 			    struct bch_io_opts,
 			    enum data_cmd, struct data_opts,
-			    struct bkey_s_c);
+			    enum btree_id, struct bkey_s_c);
 
 typedef enum data_cmd (*move_pred_fn)(struct bch_fs *, void *,
 				struct bkey_s_c,

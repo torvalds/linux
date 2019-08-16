@@ -236,7 +236,8 @@ static void replay_now_at(struct journal *j, u64 seq)
 		bch2_journal_pin_put(j, j->replay_journal_seq++);
 }
 
-static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
+static int bch2_extent_replay_key(struct bch_fs *c, enum btree_id btree_id,
+				  struct bkey_i *k)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter, *split_iter;
@@ -255,7 +256,7 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 retry:
 	bch2_trans_begin(&trans);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, btree_id,
 				   bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
 
@@ -341,22 +342,17 @@ static int bch2_journal_replay(struct bch_fs *c,
 	for_each_journal_key(keys, i) {
 		replay_now_at(j, keys.journal_seq_base + i->journal_seq);
 
-		switch (i->btree_id) {
-		case BTREE_ID_ALLOC:
+		if (i->btree_id == BTREE_ID_ALLOC)
 			ret = bch2_alloc_replay_key(c, i->k);
-			break;
-		case BTREE_ID_EXTENTS:
-			ret = bch2_extent_replay_key(c, i->k);
-			break;
-		default:
+		else if (btree_node_type_is_extents(i->btree_id))
+			ret = bch2_extent_replay_key(c, i->btree_id, i->k);
+		else
 			ret = bch2_btree_insert(c, i->btree_id, i->k,
 						NULL, NULL,
 						BTREE_INSERT_NOFAIL|
 						BTREE_INSERT_LAZY_RW|
 						BTREE_INSERT_JOURNAL_REPLAY|
 						BTREE_INSERT_NOMARK);
-			break;
-		}
 
 		if (ret) {
 			bch_err(c, "journal replay: error %d while replaying key",

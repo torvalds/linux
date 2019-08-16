@@ -972,7 +972,7 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 		spin_unlock(&c->ec_stripes_heap_lock);
 		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
 				    (u64) p.idx);
-		return -1;
+		return -EIO;
 	}
 
 	BUG_ON(m->r.e.data_type != data_type);
@@ -1144,6 +1144,7 @@ int bch2_mark_key_locked(struct bch_fs *c,
 				fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v:
 		ret = bch2_mark_extent(c, k, offset, sectors, BCH_DATA_USER,
 				fs_usage, journal_seq, flags);
 		break;
@@ -1304,7 +1305,8 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 	    xchg(&warned_disk_usage, 1))
 		return;
 
-	pr_err("disk usage increased more than %llu sectors reserved", disk_res_sectors);
+	bch_err(c, "disk usage increased more than %llu sectors reserved",
+		disk_res_sectors);
 
 	trans_for_each_update_iter(trans, i) {
 		struct btree_iter	*iter = i->iter;
@@ -1319,7 +1321,7 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 		node_iter = iter->l[0].iter;
 		while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
-							      KEY_TYPE_discard))) {
+							KEY_TYPE_discard))) {
 			struct bkey		unpacked;
 			struct bkey_s_c		k;
 
@@ -1471,6 +1473,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			struct bch_extent_stripe_ptr p,
 			s64 sectors, enum bch_data_type data_type)
 {
+	struct bch_fs *c = trans->c;
 	struct bch_replicas_padded r;
 	struct btree_iter *iter;
 	struct bkey_i *new_k;
@@ -1487,10 +1490,10 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 		return ret;
 
 	if (k.k->type != KEY_TYPE_stripe) {
-		bch_err_ratelimited(trans->c,
-				    "pointer to nonexistent stripe %llu",
-				    (u64) p.idx);
-		ret = -1;
+		bch2_fs_inconsistent(c,
+			"pointer to nonexistent stripe %llu",
+			(u64) p.idx);
+		ret = -EIO;
 		goto out;
 	}
 
@@ -1578,6 +1581,84 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	return 0;
 }
 
+static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
+			struct bkey_s_c_reflink_p p,
+			u64 idx, unsigned sectors,
+			unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter *iter;
+	struct bkey_i *new_k;
+	struct bkey_s_c k;
+	struct bkey_i_reflink_v *r_v;
+	s64 ret;
+
+	ret = trans_get_key(trans, BTREE_ID_REFLINK,
+			    POS(0, idx), &iter, &k);
+	if (ret)
+		return ret;
+
+	if (k.k->type != KEY_TYPE_reflink_v) {
+		bch2_fs_inconsistent(c,
+			"%llu:%llu len %u points to nonexistent indirect extent %llu",
+			p.k->p.inode, p.k->p.offset, p.k->size, idx);
+		ret = -EIO;
+		goto err;
+	}
+
+	if ((flags & BCH_BUCKET_MARK_OVERWRITE) &&
+	    (bkey_start_offset(k.k) < idx ||
+	     k.k->p.offset > idx + sectors))
+		goto out;
+
+	bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
+	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
+
+	new_k = trans_update_key(trans, iter, k.k->u64s);
+	ret = PTR_ERR_OR_ZERO(new_k);
+	if (ret)
+		goto err;
+
+	bkey_reassemble(new_k, k);
+	r_v = bkey_i_to_reflink_v(new_k);
+
+	le64_add_cpu(&r_v->v.refcount,
+		     !(flags & BCH_BUCKET_MARK_OVERWRITE) ? 1 : -1);
+
+	if (!r_v->v.refcount) {
+		r_v->k.type = KEY_TYPE_deleted;
+		set_bkey_val_u64s(&r_v->k, 0);
+	}
+out:
+	ret = k.k->p.offset - idx;
+err:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
+static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
+			struct bkey_s_c_reflink_p p, unsigned offset,
+			s64 sectors, unsigned flags)
+{
+	u64 idx = le64_to_cpu(p.v->idx) + offset;
+	s64 ret = 0;
+
+	sectors = abs(sectors);
+	BUG_ON(offset + sectors > p.k->size);
+
+	while (sectors) {
+		ret = __bch2_trans_mark_reflink_p(trans, p, idx, sectors, flags);
+		if (ret < 0)
+			break;
+
+		idx += ret;
+		sectors = max_t(s64, 0LL, sectors - ret);
+		ret = 0;
+	}
+
+	return ret;
+}
+
 int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 			unsigned offset, s64 sectors, unsigned flags)
 {
@@ -1593,6 +1674,7 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 		return bch2_trans_mark_extent(trans, k, offset, sectors,
 					      flags, BCH_DATA_BTREE);
 	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v:
 		return bch2_trans_mark_extent(trans, k, offset, sectors,
 					      flags, BCH_DATA_USER);
 	case KEY_TYPE_inode:
@@ -1616,6 +1698,10 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 		d->fs_usage.persistent_reserved[replicas - 1]	+= sectors;
 		return 0;
 	}
+	case KEY_TYPE_reflink_p:
+		return bch2_trans_mark_reflink_p(trans,
+					bkey_s_c_to_reflink_p(k),
+					offset, sectors, flags);
 	default:
 		return 0;
 	}

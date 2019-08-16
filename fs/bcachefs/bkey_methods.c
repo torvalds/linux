@@ -10,6 +10,7 @@
 #include "extents.h"
 #include "inode.h"
 #include "quota.h"
+#include "reflink.h"
 #include "xattr.h"
 
 const char * const bch2_bkey_types[] = {

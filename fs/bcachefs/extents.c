@@ -744,7 +744,8 @@ void __bch2_cut_front(struct bpos where, struct bkey_s k)
 	case KEY_TYPE_error:
 	case KEY_TYPE_cookie:
 		break;
-	case KEY_TYPE_extent: {
+	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v: {
 		struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 		union bch_extent_entry *entry;
 		bool seen_crc = false;
@@ -772,6 +773,12 @@ void __bch2_cut_front(struct bpos where, struct bkey_s k)
 				seen_crc = true;
 		}
 
+		break;
+	}
+	case KEY_TYPE_reflink_p: {
+		struct bkey_s_reflink_p p = bkey_s_to_reflink_p(k);
+
+		le64_add_cpu(&p.v->idx, sub);
 		break;
 	}
 	case KEY_TYPE_reservation:
@@ -968,6 +975,33 @@ static int __bch2_extent_atomic_end(struct btree_trans *trans,
 		}
 
 		break;
+	case KEY_TYPE_reflink_p: {
+		struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
+		u64 idx = le64_to_cpu(p.v->idx);
+		unsigned sectors = end->offset - bkey_start_offset(p.k);
+		struct btree_iter *iter;
+		struct bkey_s_c r_k;
+
+		for_each_btree_key(trans, iter,
+				   BTREE_ID_REFLINK, POS(0, idx + offset),
+				   BTREE_ITER_SLOTS, r_k, ret) {
+			if (bkey_cmp(bkey_start_pos(r_k.k),
+				     POS(0, idx + sectors)) >= 0)
+				break;
+
+			*nr_iters += 1;
+			if (*nr_iters >= max_iters) {
+				struct bpos pos = bkey_start_pos(k.k);
+				pos.offset += r_k.k->p.offset - idx;
+
+				*end = bpos_min(*end, pos);
+				break;
+			}
+		}
+
+		bch2_trans_iter_put(trans, iter);
+		break;
+	}
 	}
 
 	return ret;
@@ -1561,17 +1595,17 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 	return false;
 }
 
-void bch2_extent_mark_replicas_cached(struct bch_fs *c,
-				      struct bkey_s_extent e,
-				      unsigned target,
-				      unsigned nr_desired_replicas)
+void bch2_bkey_mark_replicas_cached(struct bch_fs *c, struct bkey_s k,
+				    unsigned target,
+				    unsigned nr_desired_replicas)
 {
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 	union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
-	int extra = bch2_bkey_durability(c, e.s_c) - nr_desired_replicas;
+	int extra = bch2_bkey_durability(c, k.s_c) - nr_desired_replicas;
 
 	if (target && extra > 0)
-		extent_for_each_ptr_decode(e, p, entry) {
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			int n = bch2_extent_ptr_durability(c, p);
 
 			if (n && n <= extra &&
@@ -1582,7 +1616,7 @@ void bch2_extent_mark_replicas_cached(struct bch_fs *c,
 		}
 
 	if (extra > 0)
-		extent_for_each_ptr_decode(e, p, entry) {
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			int n = bch2_extent_ptr_durability(c, p);
 
 			if (n && n <= extra) {

@@ -44,6 +44,7 @@ bcachefs-y		:=	\
 	quota.o			\
 	rebalance.o		\
 	recovery.o		\
+	reflink.o		\
 	replicas.o		\
 	siphash.o		\
 	six.o			\

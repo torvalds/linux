@@ -99,6 +99,9 @@ struct bch_devs_mask;
 struct cache_promote_op;
 struct extent_ptr_decoded;
 
+int bch2_read_indirect_extent(struct btree_trans *, struct btree_iter *,
+			      unsigned *, struct bkey_i *);
+
 enum bch_read_flags {
 	BCH_READ_RETRY_IF_STALE		= 1 << 0,
 	BCH_READ_MAY_PROMOTE		= 1 << 1,

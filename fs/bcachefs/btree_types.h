@@ -464,7 +464,13 @@ static inline enum btree_node_type btree_node_type(struct btree *b)
 
 static inline bool btree_node_type_is_extents(enum btree_node_type type)
 {
-	return type == BKEY_TYPE_EXTENTS;
+	switch (type) {
+	case BKEY_TYPE_EXTENTS:
+	case BKEY_TYPE_REFLINK:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static inline bool btree_node_is_extents(struct btree *b)
@@ -480,6 +486,7 @@ static inline bool btree_node_type_needs_gc(enum btree_node_type type)
 	case BKEY_TYPE_EXTENTS:
 	case BKEY_TYPE_INODES:
 	case BKEY_TYPE_EC:
+	case BKEY_TYPE_REFLINK:
 		return true;
 	default:
 		return false;
