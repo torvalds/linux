@@ -688,7 +688,7 @@ int amdgpu_ras_error_cure(struct amdgpu_device *adev,
 }
 
 /* get the total error counts on all IPs */
-int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -696,7 +696,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 	struct ras_err_data data = {0, 0};
 
 	if (!con)
-		return -EINVAL;
+		return 0;
 
 	list_for_each_entry(obj, &con->head, node) {
 		struct ras_query_if info = {
@@ -704,7 +704,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		};
 
 		if (amdgpu_ras_error_query(adev, &info))
-			return -EINVAL;
+			return 0;
 
 		data.ce_count += info.ce_count;
 		data.ue_count += info.ue_count;

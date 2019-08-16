@@ -351,7 +351,7 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 {
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr;
-	uint32_t ras_counter;
+	unsigned long ras_counter;
 
 	if (!fpriv)
 		return -EINVAL;
