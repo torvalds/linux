@@ -903,7 +903,7 @@ static struct mtk_rx_ring *mtk_get_rx_ring(struct mtk_eth *eth)
 
 	for (i = 0; i < MTK_MAX_RX_RING_NUM; i++) {
 		ring = &eth->rx_ring[i];
-		idx = NEXT_RX_DESP_IDX(ring->calc_idx, ring->dma_size);
+		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		if (ring->dma[idx].rxd2 & RX_DMA_DONE) {
 			ring->calc_idx_update = true;
 			return ring;
@@ -952,7 +952,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		if (unlikely(!ring))
 			goto rx_done;
 
-		idx = NEXT_RX_DESP_IDX(ring->calc_idx, ring->dma_size);
+		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		rxd = &ring->dma[idx];
 		data = ring->data[idx];
 
