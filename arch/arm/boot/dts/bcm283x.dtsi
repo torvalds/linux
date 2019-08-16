@@ -650,22 +650,16 @@
 	};
 
 	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		/* The oscillator is the root of the clock tree. */
-		clk_osc: clock@3 {
+		clk_osc: clk-osc {
 			compatible = "fixed-clock";
-			reg = <3>;
 			#clock-cells = <0>;
 			clock-output-names = "osc";
 			clock-frequency = <19200000>;
 		};
 
-		clk_usb: clock@4 {
+		clk_usb: clk-usb {
 			compatible = "fixed-clock";
-			reg = <4>;
 			#clock-cells = <0>;
 			clock-output-names = "otg";
 			clock-frequency = <480000000>;
