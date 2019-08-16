@@ -60,8 +60,9 @@ Compressed Formats
 	extracted from the H264 bitstream.  This format is adapted for
 	stateless video decoders that implement an H264 pipeline
 	(using the :ref:`mem2mem` and :ref:`media-request-api`).
-	This pixelformat has a modifier that must be set at least once
-	through the ``V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE`` control.
+	This pixelformat has two modifiers that must be set at least once
+	through the ``V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE``
+        and ``V4L2_CID_MPEG_VIDEO_H264_START_CODE`` controls.
 	In addition, metadata associated with the frame to decode are
 	required to be passed through the ``V4L2_CID_MPEG_VIDEO_H264_SPS``,
 	``V4L2_CID_MPEG_VIDEO_H264_PPS``,
