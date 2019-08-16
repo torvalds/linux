@@ -55,6 +55,20 @@
 #define RST_DEVICES_SET_Y		0x2a8
 #define RST_DEVICES_CLR_Y		0x2ac
 
+/*
+ * Tegra CLK_OUT_ENB registers have some undefined bits which are not used and
+ * any accidental write of 1 to these bits can cause PSLVERR.
+ * So below are the valid mask defines for each CLK_OUT_ENB register used to
+ * turn ON only the valid clocks.
+ */
+#define TEGRA210_CLK_ENB_VLD_MSK_L	0xdcd7dff9
+#define TEGRA210_CLK_ENB_VLD_MSK_H	0x87d1f3e7
+#define TEGRA210_CLK_ENB_VLD_MSK_U	0xf3fed3fa
+#define TEGRA210_CLK_ENB_VLD_MSK_V	0xffc18cfb
+#define TEGRA210_CLK_ENB_VLD_MSK_W	0x793fb7ff
+#define TEGRA210_CLK_ENB_VLD_MSK_X	0x3fe66fff
+#define TEGRA210_CLK_ENB_VLD_MSK_Y	0xfc1fc7ff
+
 /**
  * struct tegra_clk_sync_source - external clock source from codec
  *
@@ -880,6 +894,8 @@ int div_frac_get(unsigned long rate, unsigned parent_rate, u8 width,
 		 u8 frac_width, u8 flags);
 void tegra_clk_osc_resume(void __iomem *clk_base);
 void tegra_clk_set_pllp_out_cpu(bool enable);
+void tegra_clk_periph_suspend(void);
+void tegra_clk_periph_resume(void);
 
 
 /* Combined read fence with delay */

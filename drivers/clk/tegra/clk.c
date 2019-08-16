@@ -22,6 +22,7 @@ struct tegra_cpu_car_ops *tegra_cpu_car_ops = &dummy_car_ops;
 
 int *periph_clk_enb_refcnt;
 static int periph_banks;
+static u32 *periph_state_ctx;
 static struct clk **clks;
 static int clk_num;
 static struct clk_onecell_data clk_data;
@@ -168,6 +169,52 @@ void tegra_clk_set_pllp_out_cpu(bool enable)
 	writel_relaxed(val, clk_base + CLK_OUT_ENB_Y);
 }
 
+void tegra_clk_periph_suspend(void)
+{
+	unsigned int i, idx;
+
+	idx = 0;
+	for (i = 0; i < periph_banks; i++, idx++)
+		periph_state_ctx[idx] =
+			readl_relaxed(clk_base + periph_regs[i].enb_reg);
+
+	for (i = 0; i < periph_banks; i++, idx++)
+		periph_state_ctx[idx] =
+			readl_relaxed(clk_base + periph_regs[i].rst_reg);
+}
+
+void tegra_clk_periph_resume(void)
+{
+	unsigned int i, idx;
+
+	idx = 0;
+	for (i = 0; i < periph_banks; i++, idx++)
+		writel_relaxed(periph_state_ctx[idx],
+			       clk_base + periph_regs[i].enb_reg);
+	/*
+	 * All non-boot peripherals will be in reset state on resume.
+	 * Wait for 5us of reset propagation delay before de-asserting
+	 * the peripherals based on the saved context.
+	 */
+	fence_udelay(5, clk_base);
+
+	for (i = 0; i < periph_banks; i++, idx++)
+		writel_relaxed(periph_state_ctx[idx],
+			       clk_base + periph_regs[i].rst_reg);
+
+	fence_udelay(2, clk_base);
+}
+
+static int tegra_clk_periph_ctx_init(int banks)
+{
+	periph_state_ctx = kcalloc(2 * banks, sizeof(*periph_state_ctx),
+				   GFP_KERNEL);
+	if (!periph_state_ctx)
+		return -ENOMEM;
+
+	return 0;
+}
+
 struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 {
 	clk_base = regs;
@@ -188,6 +235,14 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 		kfree(periph_clk_enb_refcnt);
 
 	clk_num = num;
+
+	if (IS_ENABLED(CONFIG_PM_SLEEP)) {
+		if (tegra_clk_periph_ctx_init(banks)) {
+			kfree(periph_clk_enb_refcnt);
+			kfree(clks);
+			return NULL;
+		}
+	}
 
 	return clks;
 }
