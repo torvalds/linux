@@ -119,7 +119,7 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma);
 
 static void gen6_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
-	struct intel_uncore *uncore = &ggtt->vm.i915->uncore;
+	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 
 	/*
 	 * Note that as an uncached mmio write, this will flush the
@@ -130,7 +130,7 @@ static void gen6_ggtt_invalidate(struct i915_ggtt *ggtt)
 
 static void guc_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
-	struct intel_uncore *uncore = &ggtt->vm.i915->uncore;
+	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 
 	gen6_ggtt_invalidate(ggtt);
 	intel_uncore_write_fw(uncore, GEN8_GTCR, GEN8_GTCR_INVALIDATE);
