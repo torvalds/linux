@@ -13760,7 +13760,8 @@ F:	include/linux/hid-roccat*
 F:	Documentation/ABI/*/sysfs-driver-hid-roccat*
 
 ROCKCHIP RASTER 2D GRAPHIC ACCELERATION UNIT DRIVER
-M:	Jacob chen <jacob2.chen@rock-chips.com>
+M:	Jacob Chen <jacob-chen@iotwrt.com>
+M:	Ezequiel Garcia <ezequiel@collabora.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/platform/rockchip/rga/
