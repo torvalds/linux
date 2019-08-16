@@ -45,11 +45,14 @@
 #define MDIO_AN_ADVERTISE	16	/* AN advertising (base page) */
 #define MDIO_AN_LPA		19	/* AN LP abilities (base page) */
 #define MDIO_PCS_EEE_ABLE	20	/* EEE Capability register */
+#define MDIO_PCS_EEE_ABLE2	21	/* EEE Capability register 2 */
 #define MDIO_PMA_NG_EXTABLE	21	/* 2.5G/5G PMA/PMD extended ability */
 #define MDIO_PCS_EEE_WK_ERR	22	/* EEE wake error counter */
 #define MDIO_PHYXS_LNSTAT	24	/* PHY XGXS lane state */
 #define MDIO_AN_EEE_ADV		60	/* EEE advertisement */
 #define MDIO_AN_EEE_LPABLE	61	/* EEE link partner ability */
+#define MDIO_AN_EEE_ADV2	62	/* EEE advertisement 2 */
+#define MDIO_AN_EEE_LPABLE2	63	/* EEE link partner ability 2 */
 
 /* Media-dependent registers. */
 #define MDIO_PMA_10GBT_SWAPPOL	130	/* 10GBASE-T pair swap & polarity */
@@ -276,6 +279,13 @@
 #define MDIO_EEE_1000KX		0x0010	/* 1000KX EEE cap */
 #define MDIO_EEE_10GKX4		0x0020	/* 10G KX4 EEE cap */
 #define MDIO_EEE_10GKR		0x0040	/* 10G KR EEE cap */
+#define MDIO_EEE_40GR_FW	0x0100	/* 40G R fast wake */
+#define MDIO_EEE_40GR_DS	0x0200	/* 40G R deep sleep */
+#define MDIO_EEE_100GR_FW	0x1000	/* 100G R fast wake */
+#define MDIO_EEE_100GR_DS	0x2000	/* 100G R deep sleep */
+
+#define MDIO_EEE_2_5GT		0x0001	/* 2.5GT EEE cap */
+#define MDIO_EEE_5GT		0x0002	/* 5GT EEE cap */
 
 /* 2.5G/5G Extended abilities register. */
 #define MDIO_PMA_NG_EXTABLE_2_5GBT	0x0001	/* 2.5GBASET ability */
