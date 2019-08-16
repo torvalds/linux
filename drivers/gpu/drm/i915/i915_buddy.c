@@ -171,15 +171,10 @@ out_free_list:
 
 void i915_buddy_fini(struct i915_buddy_mm *mm)
 {
-	int err = 0;
 	int i;
 
 	for (i = 0; i < mm->n_roots; ++i) {
-		if (!i915_buddy_block_is_free(mm->roots[i])) {
-			err = -EBUSY;
-			continue;
-		}
-
+		GEM_WARN_ON(!i915_buddy_block_is_free(mm->roots[i]));
 		i915_block_free(mm->roots[i]);
 	}
 
