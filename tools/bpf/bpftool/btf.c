@@ -449,7 +449,7 @@ static int do_dump(int argc, char **argv)
 
 		btf_id = strtoul(*argv, &endptr, 0);
 		if (*endptr) {
-			p_err("can't parse %s as ID", **argv);
+			p_err("can't parse %s as ID", *argv);
 			return -1;
 		}
 		NEXT_ARG();

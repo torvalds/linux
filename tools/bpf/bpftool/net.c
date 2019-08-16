@@ -226,7 +226,7 @@ static int query_flow_dissector(struct bpf_attach_info *attach_info)
 
 	fd = open("/proc/self/ns/net", O_RDONLY);
 	if (fd < 0) {
-		p_err("can't open /proc/self/ns/net: %d",
+		p_err("can't open /proc/self/ns/net: %s",
 		      strerror(errno));
 		return -1;
 	}
