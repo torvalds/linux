@@ -16,6 +16,7 @@
 #include "uc/intel_uc.h"
 
 #include "i915_vma.h"
+#include "intel_engine_types.h"
 #include "intel_reset_types.h"
 #include "intel_wakeref.h"
 

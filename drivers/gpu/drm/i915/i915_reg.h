@@ -272,30 +272,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
 #define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
 
-/* Engine ID */
-
-#define RCS0_HW		0
-#define VCS0_HW		1
-#define BCS0_HW		2
-#define VECS0_HW	3
-#define VCS1_HW		4
-#define VCS2_HW		6
-#define VCS3_HW		7
-#define VECS1_HW	12
-
-/* Engine class */
-
-#define RENDER_CLASS		0
-#define VIDEO_DECODE_CLASS	1
-#define VIDEO_ENHANCEMENT_CLASS	2
-#define COPY_ENGINE_CLASS	3
-#define OTHER_CLASS		4
-#define MAX_ENGINE_CLASS	4
-
-#define OTHER_GUC_INSTANCE	0
-#define OTHER_GTPM_INSTANCE	1
-#define MAX_ENGINE_INSTANCE    3
-
 /* PCI config space */
 
 #define MCHBAR_I915 0x44
@@ -7505,6 +7481,9 @@ enum {
 #define  GEN11_INTR_ENGINE_CLASS(x)	(((x) & GENMASK(18, 16)) >> 16)
 #define  GEN11_INTR_ENGINE_INSTANCE(x)	(((x) & GENMASK(25, 20)) >> 20)
 #define  GEN11_INTR_ENGINE_INTR(x)	((x) & 0xffff)
+/* irq instances for OTHER_CLASS */
+#define OTHER_GUC_INSTANCE	0
+#define OTHER_GTPM_INSTANCE	1
 
 #define GEN11_INTR_IDENTITY_REG(x)	_MMIO(0x190060 + ((x) * 4))
 

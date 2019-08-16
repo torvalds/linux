@@ -26,6 +26,26 @@
 #include "intel_wakeref.h"
 #include "intel_workarounds_types.h"
 
+/* Legacy HW Engine ID */
+
+#define RCS0_HW		0
+#define VCS0_HW		1
+#define BCS0_HW		2
+#define VECS0_HW	3
+#define VCS1_HW		4
+#define VCS2_HW		6
+#define VCS3_HW		7
+#define VECS1_HW	12
+
+/* Gen11+ HW Engine class + instance */
+#define RENDER_CLASS		0
+#define VIDEO_DECODE_CLASS	1
+#define VIDEO_ENHANCEMENT_CLASS	2
+#define COPY_ENGINE_CLASS	3
+#define OTHER_CLASS		4
+#define MAX_ENGINE_CLASS	4
+#define MAX_ENGINE_INSTANCE	3
+
 #define I915_MAX_SLICES	3
 #define I915_MAX_SUBSLICES 8
 
