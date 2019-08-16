@@ -341,17 +341,17 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 			       "ACPI_TYPE", "NODES", "OBJECTS");
 
 		for (i = 0; i < ACPI_TYPE_NS_NODE_MAX; i++) {
-			acpi_os_printf("%16.16s % 10ld% 10ld\n",
+			acpi_os_printf("%16.16s % 10u% 10u\n",
 				       acpi_ut_get_type_name(i),
 				       acpi_gbl_node_type_count[i],
 				       acpi_gbl_obj_type_count[i]);
 		}
 
-		acpi_os_printf("%16.16s % 10ld% 10ld\n", "Misc/Unknown",
+		acpi_os_printf("%16.16s % 10u% 10u\n", "Misc/Unknown",
 			       acpi_gbl_node_type_count_misc,
 			       acpi_gbl_obj_type_count_misc);
 
-		acpi_os_printf("%16.16s % 10ld% 10ld\n", "TOTALS:",
+		acpi_os_printf("%16.16s % 10u% 10u\n", "TOTALS:",
 			       acpi_gbl_num_nodes, acpi_gbl_num_objects);
 		break;
 
@@ -379,18 +379,16 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 	case CMD_STAT_MISC:
 
 		acpi_os_printf("\nMiscellaneous Statistics:\n\n");
-		acpi_os_printf("Calls to AcpiPsFind:.. ........% 7ld\n",
-			       acpi_gbl_ps_find_count);
-		acpi_os_printf("Calls to AcpiNsLookup:..........% 7ld\n",
-			       acpi_gbl_ns_lookup_count);
+		acpi_os_printf("%-28s:     %7lu\n", "Calls to AcpiPsFind",
+			       (u64)acpi_gbl_ps_find_count);
+		acpi_os_printf("%-28s:     %7lu\n", "Calls to AcpiNsLookup",
+			       (u64)acpi_gbl_ns_lookup_count);
 
-		acpi_os_printf("\n");
-
-		acpi_os_printf("Mutex usage:\n\n");
+		acpi_os_printf("\nMutex usage:\n\n");
 		for (i = 0; i < ACPI_NUM_MUTEX; i++) {
-			acpi_os_printf("%-28s:     % 7ld\n",
+			acpi_os_printf("%-28s:     %7lu\n",
 				       acpi_ut_get_mutex_name(i),
-				       acpi_gbl_mutex_info[i].use_count);
+				       (u64)acpi_gbl_mutex_info[i].use_count);
 		}
 		break;
 

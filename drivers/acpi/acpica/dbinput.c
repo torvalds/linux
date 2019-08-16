@@ -593,7 +593,7 @@ static u32 acpi_db_get_line(char *input_buffer)
 	     input_buffer)) {
 		acpi_os_printf
 		    ("Buffer overflow while parsing input line (max %u characters)\n",
-		     sizeof(acpi_gbl_db_parsed_buf));
+		     (u32)sizeof(acpi_gbl_db_parsed_buf));
 		return (0);
 	}
 
