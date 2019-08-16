@@ -1148,8 +1148,6 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 		break;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		break;
-	case -EAGAIN:
-		return -NFS4ERR_RESET_TO_PNFS;
 	/* Invalidate Layout errors */
 	case -NFS4ERR_PNFS_NO_LAYOUT:
 	case -ESTALE:           /* mapped NFS4ERR_STALE */
@@ -1210,7 +1208,6 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 	case -EBADHANDLE:
 	case -ELOOP:
 	case -ENOSPC:
-	case -EAGAIN:
 		break;
 	case -EJUKEBOX:
 		nfs_inc_stats(lseg->pls_layout->plh_inode, NFSIOS_DELAY);
@@ -1443,16 +1440,6 @@ static void ff_layout_read_prepare_v4(struct rpc_task *task, void *data)
 		return;
 
 	ff_layout_read_prepare_common(task, hdr);
-}
-
-static void
-ff_layout_io_prepare_transmit(struct rpc_task *task,
-		void *data)
-{
-	struct nfs_pgio_header *hdr = data;
-
-	if (!pnfs_is_valid_lseg(hdr->lseg))
-		rpc_exit(task, -EAGAIN);
 }
 
 static void ff_layout_read_call_done(struct rpc_task *task, void *data)
@@ -1740,7 +1727,6 @@ static void ff_layout_commit_release(void *data)
 
 static const struct rpc_call_ops ff_layout_read_call_ops_v3 = {
 	.rpc_call_prepare = ff_layout_read_prepare_v3,
-	.rpc_call_prepare_transmit = ff_layout_io_prepare_transmit,
 	.rpc_call_done = ff_layout_read_call_done,
 	.rpc_count_stats = ff_layout_read_count_stats,
 	.rpc_release = ff_layout_read_release,
@@ -1748,7 +1734,6 @@ static const struct rpc_call_ops ff_layout_read_call_ops_v3 = {
 
 static const struct rpc_call_ops ff_layout_read_call_ops_v4 = {
 	.rpc_call_prepare = ff_layout_read_prepare_v4,
-	.rpc_call_prepare_transmit = ff_layout_io_prepare_transmit,
 	.rpc_call_done = ff_layout_read_call_done,
 	.rpc_count_stats = ff_layout_read_count_stats,
 	.rpc_release = ff_layout_read_release,
@@ -1756,7 +1741,6 @@ static const struct rpc_call_ops ff_layout_read_call_ops_v4 = {
 
 static const struct rpc_call_ops ff_layout_write_call_ops_v3 = {
 	.rpc_call_prepare = ff_layout_write_prepare_v3,
-	.rpc_call_prepare_transmit = ff_layout_io_prepare_transmit,
 	.rpc_call_done = ff_layout_write_call_done,
 	.rpc_count_stats = ff_layout_write_count_stats,
 	.rpc_release = ff_layout_write_release,
@@ -1764,7 +1748,6 @@ static const struct rpc_call_ops ff_layout_write_call_ops_v3 = {
 
 static const struct rpc_call_ops ff_layout_write_call_ops_v4 = {
 	.rpc_call_prepare = ff_layout_write_prepare_v4,
-	.rpc_call_prepare_transmit = ff_layout_io_prepare_transmit,
 	.rpc_call_done = ff_layout_write_call_done,
 	.rpc_count_stats = ff_layout_write_count_stats,
 	.rpc_release = ff_layout_write_release,
