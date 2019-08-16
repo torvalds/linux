@@ -375,7 +375,11 @@ int snor_disable_QE(struct SFNOR_DEV *p_dev)
 	u8 status;
 
 	if (p_dev->manufacturer == MID_GIGADEV ||
-	    p_dev->manufacturer == MID_WINBOND) {
+	    p_dev->manufacturer == MID_WINBOND ||
+	    p_dev->manufacturer == MID_XTX ||
+	    p_dev->manufacturer == MID_MACRONIX ||
+	    p_dev->manufacturer == MID_PUYA ||
+	    p_dev->manufacturer == MID_XMC) {
 		reg_index = p_dev->QE_bits >> 3;
 		bit_offset = p_dev->QE_bits & 0x7;
 		ret = snor_read_status(reg_index, &status);
@@ -652,6 +656,7 @@ int snor_init(struct SFNOR_DEV *p_dev)
 		p_dev->prog_lines = DATA_LINES_X1;
 		p_dev->read_lines = DATA_LINES_X1;
 		p_dev->QE_bits = g_spi_flash_info->QE_bits;
+		p_dev->addr_mode = ADDR_MODE_3BYTE;
 
 		i = g_spi_flash_info->feature & FEA_READ_STATUE_MASK;
 		if (i == 0)
