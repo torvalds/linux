@@ -910,6 +910,23 @@ static inline unsigned int gen8_pd_top_count(const struct i915_address_space *vm
 	return (vm->total + (1ull << shift) - 1) >> shift;
 }
 
+static inline struct i915_page_directory *
+gen8_pdp_for_page_index(struct i915_address_space * const vm, const u64 idx)
+{
+	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(vm);
+
+	if (vm->top == 2)
+		return ppgtt->pd;
+	else
+		return i915_pd_entry(ppgtt->pd, gen8_pd_index(idx, vm->top));
+}
+
+static inline struct i915_page_directory *
+gen8_pdp_for_page_address(struct i915_address_space * const vm, const u64 addr)
+{
+	return gen8_pdp_for_page_index(vm, addr >> GEN8_PTE_SHIFT);
+}
+
 static void __gen8_ppgtt_cleanup(struct i915_address_space *vm,
 				 struct i915_page_directory *pd,
 				 int count, int lvl)
@@ -1136,12 +1153,12 @@ static inline struct sgt_dma {
 }
 
 static __always_inline u64
-gen8_ppgtt_insert_pte_entries(struct i915_ppgtt *ppgtt,
-			      struct i915_page_directory *pdp,
-			      struct sgt_dma *iter,
-			      u64 idx,
-			      enum i915_cache_level cache_level,
-			      u32 flags)
+gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
+		      struct i915_page_directory *pdp,
+		      struct sgt_dma *iter,
+		      u64 idx,
+		      enum i915_cache_level cache_level,
+		      u32 flags)
 {
 	struct i915_page_directory *pd;
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
@@ -1182,35 +1199,21 @@ gen8_ppgtt_insert_pte_entries(struct i915_ppgtt *ppgtt,
 	return idx;
 }
 
-static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
-				   struct i915_vma *vma,
+static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
+				   struct sgt_dma *iter,
 				   enum i915_cache_level cache_level,
 				   u32 flags)
-{
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	struct sgt_dma iter = sgt_dma(vma);
-
-	gen8_ppgtt_insert_pte_entries(ppgtt, ppgtt->pd, &iter,
-				      vma->node.start >> GEN8_PTE_SHIFT,
-				      cache_level, flags);
-
-	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
-}
-
-static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
-					   struct i915_page_directory *pml4,
-					   struct sgt_dma *iter,
-					   enum i915_cache_level cache_level,
-					   u32 flags)
 {
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
 	u64 start = vma->node.start;
 	dma_addr_t rem = iter->sg->length;
 
+	GEM_BUG_ON(!i915_vm_is_4lvl(vma->vm));
+
 	do {
-		struct i915_page_directory *pdp =
-			i915_pd_entry(pml4, __gen8_pte_index(start, 3));
-		struct i915_page_directory *pd =
+		struct i915_page_directory * const pdp =
+			gen8_pdp_for_page_address(vma->vm, start);
+		struct i915_page_directory * const pd =
 			i915_pd_entry(pdp, __gen8_pte_index(start, 2));
 		gen8_pte_t encode = pte_encode;
 		unsigned int maybe_64K = -1;
@@ -1316,26 +1319,26 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 	} while (iter->sg);
 }
 
-static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
-				   struct i915_vma *vma,
-				   enum i915_cache_level cache_level,
-				   u32 flags)
+static void gen8_ppgtt_insert(struct i915_address_space *vm,
+			      struct i915_vma *vma,
+			      enum i915_cache_level cache_level,
+			      u32 flags)
 {
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(vm);
 	struct sgt_dma iter = sgt_dma(vma);
-	struct i915_page_directory * const pml4 = ppgtt->pd;
 
 	if (vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
-		gen8_ppgtt_insert_huge_entries(vma, pml4, &iter, cache_level,
-					       flags);
-	} else {
+		gen8_ppgtt_insert_huge(vma, &iter, cache_level, flags);
+	} else  {
 		u64 idx = vma->node.start >> GEN8_PTE_SHIFT;
 
-		while ((idx = gen8_ppgtt_insert_pte_entries(ppgtt,
-							    i915_pd_entry(pml4, gen8_pd_index(idx, 3)),
-							    &iter, idx, cache_level,
-							    flags)))
-			;
+		do {
+			struct i915_page_directory * const pdp =
+				gen8_pdp_for_page_index(vm, idx);
+
+			idx = gen8_ppgtt_insert_pte(ppgtt, pdp, &iter, idx,
+						    cache_level, flags);
+		} while (idx);
 
 		vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 	}
@@ -1494,18 +1497,15 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 		goto err_free_scratch;
 	}
 
-	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		ppgtt->vm.insert_entries = gen8_ppgtt_insert_4lvl;
-	} else {
+	if (!i915_vm_is_4lvl(&ppgtt->vm)) {
 		if (intel_vgpu_active(i915)) {
 			err = gen8_preallocate_top_level_pdp(ppgtt);
 			if (err)
 				goto err_free_pd;
 		}
-
-		ppgtt->vm.insert_entries = gen8_ppgtt_insert_3lvl;
 	}
 
+	ppgtt->vm.insert_entries = gen8_ppgtt_insert;
 	ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc;
 	ppgtt->vm.clear_range = gen8_ppgtt_clear;
 
