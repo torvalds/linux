@@ -547,7 +547,7 @@ xfs_file_compat_ioctl(
 	struct inode		*inode = file_inode(filp);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	void			__user *arg = (void __user *)p;
+	void			__user *arg = compat_ptr(p);
 	int			error;
 
 	trace_xfs_file_compat_ioctl(ip);
@@ -655,6 +655,6 @@ xfs_file_compat_ioctl(
 		return xfs_compat_fssetdm_by_handle(filp, arg);
 	default:
 		/* try the native version */
-		return xfs_file_ioctl(filp, cmd, p);
+		return xfs_file_ioctl(filp, cmd, (unsigned long)arg);
 	}
 }
