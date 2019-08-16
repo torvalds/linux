@@ -543,14 +543,14 @@ void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
 
 #else
 
-static void gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
+static inline void gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *chip,
 						    struct irq_fwspec *fwspec,
 						    unsigned int parent_hwirq,
 						    unsigned int parent_type)
 {
 }
 
-static void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
+static inline void gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
 						     struct irq_fwspec *fwspec,
 						     unsigned int parent_hwirq,
 						     unsigned int parent_type)
