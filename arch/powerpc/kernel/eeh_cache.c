@@ -258,6 +258,17 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev)
 }
 
 /**
+ * eeh_addr_cache_init - Initialize a cache of I/O addresses
+ *
+ * Initialize a cache of pci i/o addresses.  This cache will be used to
+ * find the pci device that corresponds to a given address.
+ */
+void eeh_addr_cache_init(void)
+{
+	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
+}
+
+/**
  * eeh_addr_cache_build - Build a cache of I/O addresses
  *
  * Build a cache of pci i/o addresses.  This cache will be used to
@@ -271,8 +282,6 @@ void eeh_addr_cache_build(void)
 	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 	struct pci_dev *dev = NULL;
-
-	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
 
 	for_each_pci_dev(dev) {
 		pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);

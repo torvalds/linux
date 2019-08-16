@@ -274,6 +274,7 @@ int __init eeh_ops_register(struct eeh_ops *ops);
 int __exit eeh_ops_unregister(const char *name);
 int eeh_check_failure(const volatile void __iomem *token);
 int eeh_dev_check_failure(struct eeh_dev *edev);
+void eeh_addr_cache_init(void);
 void eeh_addr_cache_build(void);
 void eeh_add_device_early(struct pci_dn *);
 void eeh_add_device_tree_early(struct pci_dn *);
@@ -331,6 +332,8 @@ static inline int eeh_check_failure(const volatile void __iomem *token)
 }
 
 #define eeh_dev_check_failure(x) (0)
+
+static inline void eeh_addr_cache_init(void) { }
 
 static inline void eeh_addr_cache_build(void) { }
 
