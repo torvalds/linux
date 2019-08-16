@@ -107,6 +107,7 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "qcom,apq8096", },
 	{ .compatible = "qcom,msm8996", },
 
+	{ .compatible = "rockchip,px30", },
 	{ .compatible = "rockchip,rk2928", },
 	{ .compatible = "rockchip,rk3036", },
 	{ .compatible = "rockchip,rk3066a", },
@@ -114,6 +115,7 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "rockchip,rk3188", },
 	{ .compatible = "rockchip,rk3228", },
 	{ .compatible = "rockchip,rk3288", },
+	{ .compatible = "rockchip,rk3326", },
 	{ .compatible = "rockchip,rk3328", },
 	{ .compatible = "rockchip,rk3366", },
 	{ .compatible = "rockchip,rk3368", },
