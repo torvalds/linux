@@ -878,22 +878,13 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	return ret;
 }
 
-static const struct smu_temperature_range arcturus_thermal_policy[] =
-{
-	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
-	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
-};
-
 static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 						struct smu_temperature_range *range)
 {
-
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
 	if (!range)
 		return -EINVAL;
-
-	memcpy(range, &arcturus_thermal_policy[0], sizeof(struct smu_temperature_range));
 
 	range->max = pptable->TedgeLimit *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
@@ -907,7 +898,6 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	range->mem_emergency_max = (pptable->TmemLimit + CTF_OFFSET_HBM)*
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-
 
 	return 0;
 }

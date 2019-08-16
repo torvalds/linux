@@ -3113,14 +3113,18 @@ static int vega20_get_thermal_temperature_range(struct smu_context *smu,
 	if (!range || !powerplay_table)
 		return -EINVAL;
 
-	/* The unit is temperature */
-	range->min = 0;
-	range->max = powerplay_table->usSoftwareShutdownTemp;
-	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE);
-	range->hotspot_crit_max = pptable->ThotspotLimit;
-	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT);
-	range->mem_crit_max = pptable->ThbmLimit;
-	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM);
+	range->max = powerplay_table->usSoftwareShutdownTemp *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->ThotspotLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->ThbmLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 
 	return 0;

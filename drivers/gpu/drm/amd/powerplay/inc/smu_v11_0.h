@@ -63,6 +63,12 @@
 #define WORKLOAD_MAP(profile, workload) \
 	[profile] = {1, (workload)}
 
+static const struct smu_temperature_range smu11_thermal_policy[] =
+{
+	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
+	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
+};
+
 struct smu_11_0_cmn2aisc_mapping {
 	int	valid_mapping;
 	int	map_to;

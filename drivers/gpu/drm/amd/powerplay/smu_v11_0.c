@@ -1127,23 +1127,17 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 }
 
 static int smu_v11_0_set_thermal_range(struct smu_context *smu,
-				       struct smu_temperature_range *range)
+				       struct smu_temperature_range range)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int low = SMU_THERMAL_MINIMUM_ALERT_TEMP;
 	int high = SMU_THERMAL_MAXIMUM_ALERT_TEMP;
 	uint32_t val;
 
-	if (!range)
-		return -EINVAL;
-
-	if (low < range->min)
-		low = range->min;
-	if (high > range->max)
-		high = range->max;
-
-	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP, range->min);
-	high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP, range->max);
+	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
+			range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
+	high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+			range.max / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
 
 	if (low > high)
 		return -EINVAL;
@@ -1179,27 +1173,20 @@ static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 {
 	int ret = 0;
-	struct smu_temperature_range range = {
-		TEMP_RANGE_MIN,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MIN,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MIN,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MAX};
+	struct smu_temperature_range range;
 	struct amdgpu_device *adev = smu->adev;
 
 	if (!smu->pm_enabled)
 		return ret;
+
+	memcpy(&range, &smu11_thermal_policy[0], sizeof(struct smu_temperature_range));
 
 	ret = smu_get_thermal_temperature_range(smu, &range);
 	if (ret)
 		return ret;
 
 	if (smu->smu_table.thermal_controller_type) {
-		ret = smu_v11_0_set_thermal_range(smu, &range);
+		ret = smu_v11_0_set_thermal_range(smu, range);
 		if (ret)
 			return ret;
 
@@ -1212,17 +1199,15 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 			return ret;
 	}
 
-	adev->pm.dpm.thermal.min_temp = range.min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_temp = range.max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.min_mem_temp = range.mem_min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.min_temp = range.min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_temp = range.max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.min_temp = range.min;
+	adev->pm.dpm.thermal.max_temp = range.max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
 
 	return ret;
 }

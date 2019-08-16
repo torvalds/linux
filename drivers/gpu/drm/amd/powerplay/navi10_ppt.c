@@ -1504,9 +1504,8 @@ static int navi10_get_thermal_temperature_range(struct smu_context *smu,
 	if (!range || !powerplay_table)
 		return -EINVAL;
 
-	/* The unit is temperature */
-	range->min = 0;
-	range->max = powerplay_table->software_shutdown_temp;
+	range->max = powerplay_table->software_shutdown_temp *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
 }
