@@ -1087,7 +1087,8 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 	 * precludes optimising to use semaphores serialisation of a single
 	 * timeline across engines.
 	 */
-	prev = rcu_dereference_protected(timeline->last_request.request, 1);
+	prev = rcu_dereference_protected(timeline->last_request.request,
+					 lockdep_is_held(&timeline->mutex));
 	if (prev && !i915_request_completed(prev)) {
 		if (is_power_of_2(prev->engine->mask | rq->engine->mask))
 			i915_sw_fence_await_sw_fence(&rq->submit,

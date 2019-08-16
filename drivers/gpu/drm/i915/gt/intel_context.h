@@ -89,17 +89,20 @@ void intel_context_exit_engine(struct intel_context *ce);
 
 static inline void intel_context_enter(struct intel_context *ce)
 {
+	lockdep_assert_held(&ce->timeline->mutex);
 	if (!ce->active_count++)
 		ce->ops->enter(ce);
 }
 
 static inline void intel_context_mark_active(struct intel_context *ce)
 {
+	lockdep_assert_held(&ce->timeline->mutex);
 	++ce->active_count;
 }
 
 static inline void intel_context_exit(struct intel_context *ce)
 {
+	lockdep_assert_held(&ce->timeline->mutex);
 	GEM_BUG_ON(!ce->active_count);
 	if (!--ce->active_count)
 		ce->ops->exit(ce);

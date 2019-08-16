@@ -37,6 +37,16 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	return 0;
 }
 
+static inline void __timeline_mark_lock(struct intel_context *ce)
+{
+	mutex_acquire(&ce->timeline->mutex.dep_map, 2, 0, _THIS_IP_);
+}
+
+static inline void __timeline_mark_unlock(struct intel_context *ce)
+{
+	mutex_release(&ce->timeline->mutex.dep_map, 0, _THIS_IP_);
+}
+
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
@@ -61,6 +71,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * retiring the last request, thus all rings should be empty and
 	 * all timelines idle.
 	 */
+	__timeline_mark_lock(engine->kernel_context);
+
 	rq = __i915_request_create(engine->kernel_context, GFP_NOWAIT);
 	if (IS_ERR(rq))
 		/* Context switch failed, hope for the best! Maybe reset? */
@@ -79,6 +91,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	/* Release our exclusive hold on the engine */
 	__intel_wakeref_defer_park(&engine->wakeref);
 	__i915_request_queue(rq, NULL);
+
+	__timeline_mark_unlock(engine->kernel_context);
 
 	return false;
 }
