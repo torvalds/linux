@@ -287,6 +287,7 @@ int led_classdev_register_ext(struct device *parent,
 		ret = led_add_brightness_hw_changed(led_cdev);
 		if (ret) {
 			device_unregister(led_cdev->dev);
+			led_cdev->dev = NULL;
 			mutex_unlock(&led_cdev->led_access);
 			return ret;
 		}
@@ -332,6 +333,9 @@ EXPORT_SYMBOL_GPL(led_classdev_register_ext);
  */
 void led_classdev_unregister(struct led_classdev *led_cdev)
 {
+	if (IS_ERR_OR_NULL(led_cdev->dev))
+		return;
+
 #ifdef CONFIG_LEDS_TRIGGERS
 	down_write(&led_cdev->trigger_lock);
 	if (led_cdev->trigger)
