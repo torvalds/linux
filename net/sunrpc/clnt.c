@@ -2005,6 +2005,9 @@ call_bind_status(struct rpc_task *task)
 		task->tk_rebind_retry--;
 		rpc_delay(task, 3*HZ);
 		goto retry_timeout;
+	case -ENOBUFS:
+		rpc_delay(task, HZ >> 2);
+		goto retry_timeout;
 	case -EAGAIN:
 		goto retry_timeout;
 	case -ETIMEDOUT:
@@ -2028,7 +2031,6 @@ call_bind_status(struct rpc_task *task)
 	case -ENETDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
-	case -ENOBUFS:
 	case -EPIPE:
 		dprintk("RPC: %5u remote rpcbind unreachable: %d\n",
 				task->tk_pid, task->tk_status);
@@ -2131,8 +2133,6 @@ call_connect_status(struct rpc_task *task)
 	case -ENETDOWN:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
-	case -EADDRINUSE:
-	case -ENOBUFS:
 	case -EPIPE:
 		xprt_conditional_disconnect(task->tk_rqstp->rq_xprt,
 					    task->tk_rqstp->rq_connect_cookie);
@@ -2141,9 +2141,13 @@ call_connect_status(struct rpc_task *task)
 		/* retry with existing socket, after a delay */
 		rpc_delay(task, 3*HZ);
 		/* fall through */
+	case -EADDRINUSE:
 	case -ENOTCONN:
 	case -EAGAIN:
 	case -ETIMEDOUT:
+		goto out_retry;
+	case -ENOBUFS:
+		rpc_delay(task, HZ >> 2);
 		goto out_retry;
 	}
 	rpc_call_rpcerror(task, status);
