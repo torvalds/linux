@@ -445,15 +445,14 @@ static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
 	if (retval == 0x8000)
 		retval = 0;
 
-	if (retval >= 0) {
-		if (level)
-			*level = retval & 0x7F;
-		if (env)
-			*env = (retval >> 8) & 0x7F;
-		retval = 0;
-	}
+	if (retval < 0)
+		return retval;
 
-	return retval;
+	if (level)
+		*level = retval & 0x7F;
+	if (env)
+		*env = (retval >> 8) & 0x7F;
+	return 0;
 }
 
 static void do_kbd_led_set(struct led_classdev *led_cdev, int value)
@@ -767,15 +766,13 @@ static int asus_register_rfkill_notifier(struct asus_wmi *asus, char *node)
 	acpi_handle handle;
 
 	status = acpi_get_handle(NULL, node, &handle);
-
-	if (ACPI_SUCCESS(status)) {
-		status = acpi_install_notify_handler(handle,
-						     ACPI_SYSTEM_NOTIFY,
-						     asus_rfkill_notify, asus);
-		if (ACPI_FAILURE(status))
-			pr_warn("Failed to register notify on %s\n", node);
-	} else
+	if (ACPI_FAILURE(status))
 		return -ENODEV;
+
+	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					     asus_rfkill_notify, asus);
+	if (ACPI_FAILURE(status))
+		pr_warn("Failed to register notify on %s\n", node);
 
 	return 0;
 }
@@ -786,15 +783,13 @@ static void asus_unregister_rfkill_notifier(struct asus_wmi *asus, char *node)
 	acpi_handle handle;
 
 	status = acpi_get_handle(NULL, node, &handle);
+	if (ACPI_FAILURE(status))
+		return;
 
-	if (ACPI_SUCCESS(status)) {
-		status = acpi_remove_notify_handler(handle,
-						    ACPI_SYSTEM_NOTIFY,
-						    asus_rfkill_notify);
-		if (ACPI_FAILURE(status))
-			pr_err("Error removing rfkill notify handler %s\n",
-			       node);
-	}
+	status = acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					    asus_rfkill_notify);
+	if (ACPI_FAILURE(status))
+		pr_err("Error removing rfkill notify handler %s\n", node);
 }
 
 static int asus_get_adapter_status(struct hotplug_slot *hotplug_slot,
