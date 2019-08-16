@@ -15,6 +15,12 @@ properties:
     const: '/'
   compatible:
     oneOf:
+      - description: BCM2711 based Boards
+        items:
+          - enum:
+              - raspberrypi,4-model-b
+          - const: brcm,bcm2711
+
       - description: BCM2835 based Boards
         items:
           - enum:
