@@ -1192,7 +1192,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 
-	if (!dev || !eeh_enabled())
+	if (!dev)
 		return;
 
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
@@ -1248,6 +1248,8 @@ void eeh_add_device_tree_late(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
+	if (eeh_has_flag(EEH_FORCE_DISABLED))
+		return;
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		eeh_add_device_late(dev);
 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {

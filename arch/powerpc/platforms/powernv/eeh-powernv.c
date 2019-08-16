@@ -41,7 +41,7 @@ void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	struct pci_dn *pdn = pci_get_pdn(pdev);
 
-	if (!pdev->is_virtfn)
+	if (eeh_has_flag(EEH_FORCE_DISABLED))
 		return;
 
 	pr_debug("%s: EEH: Setting up device %s.\n", __func__, pci_name(pdev));
@@ -196,6 +196,25 @@ PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
 
 #endif /* CONFIG_DEBUG_FS */
 
+void pnv_eeh_enable_phbs(void)
+{
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+
+	list_for_each_entry(hose, &hose_list, list_node) {
+		phb = hose->private_data;
+		/*
+		 * If EEH is enabled, we're going to rely on that.
+		 * Otherwise, we restore to conventional mechanism
+		 * to clear frozen PE during PCI config access.
+		 */
+		if (eeh_enabled())
+			phb->flags |= PNV_PHB_FLAG_EEH;
+		else
+			phb->flags &= ~PNV_PHB_FLAG_EEH;
+	}
+}
+
 /**
  * pnv_eeh_post_init - EEH platform dependent post initialization
  *
@@ -234,18 +253,10 @@ int pnv_eeh_post_init(void)
 	if (!eeh_enabled())
 		disable_irq(eeh_event_irq);
 
+	pnv_eeh_enable_phbs();
+
 	list_for_each_entry(hose, &hose_list, list_node) {
 		phb = hose->private_data;
-
-		/*
-		 * If EEH is enabled, we're going to rely on that.
-		 * Otherwise, we restore to conventional mechanism
-		 * to clear frozen PE during PCI config access.
-		 */
-		if (eeh_enabled())
-			phb->flags |= PNV_PHB_FLAG_EEH;
-		else
-			phb->flags &= ~PNV_PHB_FLAG_EEH;
 
 		/* Create debugfs entries */
 #ifdef CONFIG_DEBUG_FS
@@ -454,7 +465,11 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * Enable EEH explicitly so that we will do EEH check
 	 * while accessing I/O stuff
 	 */
-	eeh_add_flag(EEH_ENABLED);
+	if (!eeh_has_flag(EEH_ENABLED)) {
+		enable_irq(eeh_event_irq);
+		pnv_eeh_enable_phbs();
+		eeh_add_flag(EEH_ENABLED);
+	}
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
