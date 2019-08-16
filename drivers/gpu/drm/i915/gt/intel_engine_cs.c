@@ -1459,7 +1459,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 
 		for (port = execlists->pending; (rq = *port); port++) {
 			/* Exclude any contexts already counted in active */
-			if (intel_context_inflight_count(rq->hw_context) == 1)
+			if (!intel_context_inflight_count(rq->hw_context))
 				engine->stats.active++;
 		}
 

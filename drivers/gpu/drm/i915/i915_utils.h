@@ -161,17 +161,15 @@ __check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
 	((typeof(ptr))((unsigned long)(ptr) | __bits));			\
 })
 
-#define ptr_count_dec(p_ptr) do {					\
-	typeof(p_ptr) __p = (p_ptr);					\
-	unsigned long __v = (unsigned long)(*__p);			\
-	*__p = (typeof(*p_ptr))(--__v);					\
-} while (0)
+#define ptr_dec(ptr) ({							\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v - 1);						\
+})
 
-#define ptr_count_inc(p_ptr) do {					\
-	typeof(p_ptr) __p = (p_ptr);					\
-	unsigned long __v = (unsigned long)(*__p);			\
-	*__p = (typeof(*p_ptr))(++__v);					\
-} while (0)
+#define ptr_inc(ptr) ({							\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v + 1);						\
+})
 
 #define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
 #define page_unmask_bits(ptr) ptr_unmask_bits(ptr, PAGE_SHIFT)

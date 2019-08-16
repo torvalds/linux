@@ -547,27 +547,39 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 				   status, rq);
 }
 
+static inline struct intel_engine_cs *
+__execlists_schedule_in(struct i915_request *rq)
+{
+	struct intel_engine_cs * const engine = rq->engine;
+	struct intel_context * const ce = rq->hw_context;
+
+	intel_context_get(ce);
+
+	intel_gt_pm_get(engine->gt);
+	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
+	intel_engine_context_in(engine);
+
+	return engine;
+}
+
 static inline struct i915_request *
 execlists_schedule_in(struct i915_request *rq, int idx)
 {
-	struct intel_context *ce = rq->hw_context;
-	int count;
+	struct intel_context * const ce = rq->hw_context;
+	struct intel_engine_cs *old;
 
+	GEM_BUG_ON(!intel_engine_pm_is_awake(rq->engine));
 	trace_i915_request_in(rq, idx);
 
-	count = intel_context_inflight_count(ce);
-	if (!count) {
-		intel_context_get(ce);
-		ce->inflight = rq->engine;
+	old = READ_ONCE(ce->inflight);
+	do {
+		if (!old) {
+			WRITE_ONCE(ce->inflight, __execlists_schedule_in(rq));
+			break;
+		}
+	} while (!try_cmpxchg(&ce->inflight, &old, ptr_inc(old)));
 
-		intel_gt_pm_get(ce->inflight->gt);
-		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
-		intel_engine_context_in(ce->inflight);
-	}
-
-	intel_context_inflight_inc(ce);
 	GEM_BUG_ON(intel_context_inflight(ce) != rq->engine);
-
 	return i915_request_get(rq);
 }
 
@@ -581,35 +593,45 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 }
 
 static inline void
+__execlists_schedule_out(struct i915_request *rq,
+			 struct intel_engine_cs * const engine)
+{
+	struct intel_context * const ce = rq->hw_context;
+
+	intel_engine_context_out(engine);
+	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+	intel_gt_pm_put(engine->gt);
+
+	/*
+	 * If this is part of a virtual engine, its next request may
+	 * have been blocked waiting for access to the active context.
+	 * We have to kick all the siblings again in case we need to
+	 * switch (e.g. the next request is not runnable on this
+	 * engine). Hopefully, we will already have submitted the next
+	 * request before the tasklet runs and do not need to rebuild
+	 * each virtual tree and kick everyone again.
+	 */
+	if (ce->engine != engine)
+		kick_siblings(rq, ce);
+
+	intel_context_put(ce);
+}
+
+static inline void
 execlists_schedule_out(struct i915_request *rq)
 {
-	struct intel_context *ce = rq->hw_context;
-
-	GEM_BUG_ON(!intel_context_inflight_count(ce));
+	struct intel_context * const ce = rq->hw_context;
+	struct intel_engine_cs *cur, *old;
 
 	trace_i915_request_out(rq);
+	GEM_BUG_ON(intel_context_inflight(ce) != rq->engine);
 
-	intel_context_inflight_dec(ce);
-	if (!intel_context_inflight_count(ce)) {
-		intel_engine_context_out(ce->inflight);
-		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
-		intel_gt_pm_put(ce->inflight->gt);
-
-		/*
-		 * If this is part of a virtual engine, its next request may
-		 * have been blocked waiting for access to the active context.
-		 * We have to kick all the siblings again in case we need to
-		 * switch (e.g. the next request is not runnable on this
-		 * engine). Hopefully, we will already have submitted the next
-		 * request before the tasklet runs and do not need to rebuild
-		 * each virtual tree and kick everyone again.
-		 */
-		ce->inflight = NULL;
-		if (rq->engine != ce->engine)
-			kick_siblings(rq, ce);
-
-		intel_context_put(ce);
-	}
+	old = READ_ONCE(ce->inflight);
+	do
+		cur = ptr_unmask_bits(old, 2) ? ptr_dec(old) : NULL;
+	while (!try_cmpxchg(&ce->inflight, &old, cur));
+	if (!cur)
+		__execlists_schedule_out(rq, old);
 
 	i915_request_put(rq);
 }
@@ -683,6 +705,9 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 	struct intel_context *ce = NULL;
 
 	trace_ports(execlists, msg, execlists->pending);
+
+	if (!execlists->pending[0])
+		return false;
 
 	if (execlists->pending[execlists_num_ports(execlists)])
 		return false;
@@ -941,12 +966,24 @@ need_timeslice(struct intel_engine_cs *engine, const struct i915_request *rq)
 	return hint >= effective_prio(rq);
 }
 
-static bool
-enable_timeslice(struct intel_engine_cs *engine)
+static int
+switch_prio(struct intel_engine_cs *engine, const struct i915_request *rq)
 {
-	struct i915_request *last = last_active(&engine->execlists);
+	if (list_is_last(&rq->sched.link, &engine->active.requests))
+		return INT_MIN;
 
-	return last && need_timeslice(engine, last);
+	return rq_prio(list_next_entry(rq, sched.link));
+}
+
+static bool
+enable_timeslice(const struct intel_engine_execlists *execlists)
+{
+	const struct i915_request *rq = *execlists->active;
+
+	if (i915_request_completed(rq))
+		return false;
+
+	return execlists->switch_priority_hint >= effective_prio(rq);
 }
 
 static void record_preemption(struct intel_engine_execlists *execlists)
@@ -1292,6 +1329,8 @@ done:
 		*port = execlists_schedule_in(last, port - execlists->pending);
 		memset(port + 1, 0, (last_port - port) * sizeof(*port));
 		execlists_submit_ports(engine);
+		execlists->switch_priority_hint =
+			switch_prio(engine, *execlists->pending);
 	} else {
 		ring_set_paused(engine, 0);
 	}
@@ -1356,7 +1395,6 @@ static void process_csb(struct intel_engine_cs *engine)
 	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
-	lockdep_assert_held(&engine->active.lock);
 	GEM_BUG_ON(USES_GUC_SUBMISSION(engine->i915));
 
 	/*
@@ -1427,15 +1465,14 @@ static void process_csb(struct intel_engine_cs *engine)
 				       execlists->pending,
 				       execlists_num_ports(execlists) *
 				       sizeof(*execlists->pending));
-			execlists->pending[0] = NULL;
 
-			trace_ports(execlists, "promoted", execlists->active);
-
-			if (enable_timeslice(engine))
+			if (enable_timeslice(execlists))
 				mod_timer(&execlists->timer, jiffies + 1);
 
 			if (!inject_preempt_hang(execlists))
 				ring_set_paused(engine, 0);
+
+			WRITE_ONCE(execlists->pending[0], NULL);
 			break;
 
 		case CSB_COMPLETE: /* port0 completed, advanced to port1 */
@@ -1479,8 +1516,6 @@ static void process_csb(struct intel_engine_cs *engine)
 static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
 {
 	lockdep_assert_held(&engine->active.lock);
-
-	process_csb(engine);
 	if (!engine->execlists.pending[0])
 		execlists_dequeue(engine);
 }
@@ -1494,9 +1529,12 @@ static void execlists_submission_tasklet(unsigned long data)
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->active.lock, flags);
-	__execlists_submission_tasklet(engine);
-	spin_unlock_irqrestore(&engine->active.lock, flags);
+	process_csb(engine);
+	if (!READ_ONCE(engine->execlists.pending[0])) {
+		spin_lock_irqsave(&engine->active.lock, flags);
+		__execlists_submission_tasklet(engine);
+		spin_unlock_irqrestore(&engine->active.lock, flags);
+	}
 }
 
 static void execlists_submission_timer(struct timer_list *timer)
