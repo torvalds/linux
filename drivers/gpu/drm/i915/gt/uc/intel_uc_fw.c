@@ -265,6 +265,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	size_t size;
 	int err;
 
+	GEM_BUG_ON(!i915->wopcm.size);
 	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
 
 	err = i915_inject_load_error(i915, -ENXIO);
@@ -321,6 +322,16 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, size);
 		err = -ENOEXEC;
+		goto fail;
+	}
+
+	/* Sanity check whether this fw is not larger than whole WOPCM memory */
+	size = __intel_uc_fw_get_upload_size(uc_fw);
+	if (unlikely(size >= i915->wopcm.size)) {
+		dev_warn(dev, "%s firmware %s: invalid size: %zu > %zu\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 size, (size_t)i915->wopcm.size);
+		err = -E2BIG;
 		goto fail;
 	}
 

@@ -181,21 +181,11 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	GEM_BUG_ON(!wopcm->size);
 	GEM_BUG_ON(wopcm->guc.base);
 	GEM_BUG_ON(wopcm->guc.size);
+	GEM_BUG_ON(guc_fw_size >= wopcm->size);
+	GEM_BUG_ON(huc_fw_size >= wopcm->size);
 
 	if (i915_inject_probe_failure(i915))
 		return;
-
-	if (guc_fw_size >= wopcm->size) {
-		DRM_ERROR("GuC FW (%uKiB) is too big to fit in WOPCM.",
-			  guc_fw_size / 1024);
-		return;
-	}
-
-	if (huc_fw_size >= wopcm->size) {
-		DRM_ERROR("HuC FW (%uKiB) is too big to fit in WOPCM.",
-			  huc_fw_size / 1024);
-		return;
-	}
 
 	guc_wopcm_base = ALIGN(huc_fw_size + WOPCM_RESERVED_SIZE,
 			       GUC_WOPCM_OFFSET_ALIGNMENT);

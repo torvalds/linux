@@ -173,6 +173,11 @@ static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
 		intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_AVAILABLE);
 }
 
+static inline u32 __intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
+{
+	return sizeof(struct uc_css_header) + uc_fw->ucode_size;
+}
+
 /**
  * intel_uc_fw_get_upload_size() - Get size of firmware needed to be uploaded.
  * @uc_fw: uC firmware.
@@ -186,7 +191,7 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 	if (!intel_uc_fw_is_available(uc_fw))
 		return 0;
 
-	return sizeof(struct uc_css_header) + uc_fw->ucode_size;
+	return __intel_uc_fw_get_upload_size(uc_fw);
 }
 
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
