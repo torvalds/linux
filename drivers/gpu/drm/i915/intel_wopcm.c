@@ -87,7 +87,7 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 	else
 		wopcm->size = GEN9_WOPCM_SIZE;
 
-	DRM_DEBUG_DRIVER("WOPCM size: %uKiB\n", wopcm->size / 1024);
+	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "WOPCM: %uK\n", wopcm->size / 1024);
 }
 
 static inline u32 context_reserved_size(struct drm_i915_private *i915)
@@ -138,9 +138,9 @@ static inline int gen9_check_huc_fw_fits(u32 guc_wopcm_size, u32 huc_fw_size)
 	return 0;
 }
 
-static inline int check_hw_restriction(struct drm_i915_private *i915,
-				       u32 guc_wopcm_base, u32 guc_wopcm_size,
-				       u32 huc_fw_size)
+static inline bool check_hw_restrictions(struct drm_i915_private *i915,
+					 u32 guc_wopcm_base, u32 guc_wopcm_size,
+					 u32 huc_fw_size)
 {
 	int err = 0;
 
@@ -151,7 +151,43 @@ static inline int check_hw_restriction(struct drm_i915_private *i915,
 	    (IS_GEN(i915, 9) || IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)))
 		err = gen9_check_huc_fw_fits(guc_wopcm_size, huc_fw_size);
 
-	return err;
+	return !err;
+}
+
+static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
+				  u32 guc_wopcm_base, u32 guc_wopcm_size,
+				  u32 guc_fw_size, u32 huc_fw_size)
+{
+	const u32 ctx_rsvd = context_reserved_size(i915);
+	u32 size;
+
+	size = wopcm_size - ctx_rsvd;
+	if (unlikely(range_overflows(guc_wopcm_base, guc_wopcm_size, size))) {
+		dev_err(i915->drm.dev,
+			"WOPCM: invalid GuC region layout: %uK + %uK > %uK\n",
+			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K,
+			size / SZ_1K);
+		return false;
+	}
+
+	size = guc_fw_size + GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
+	if (unlikely(guc_wopcm_size < size)) {
+		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC),
+			guc_wopcm_size / SZ_1K, size / SZ_1K);
+		return false;
+	}
+
+	size = huc_fw_size + WOPCM_RESERVED_SIZE;
+	if (unlikely(guc_wopcm_base < size)) {
+		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
+			guc_wopcm_base / SZ_1K, size / SZ_1K);
+		return false;
+	}
+
+	return check_hw_restrictions(i915, guc_wopcm_base, guc_wopcm_size,
+				     huc_fw_size);
 }
 
 /**
@@ -172,8 +208,6 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	u32 ctx_rsvd = context_reserved_size(i915);
 	u32 guc_wopcm_base;
 	u32 guc_wopcm_size;
-	u32 guc_wopcm_rsvd;
-	int err;
 
 	if (!guc_fw_size)
 		return;
@@ -183,39 +217,36 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	GEM_BUG_ON(wopcm->guc.size);
 	GEM_BUG_ON(guc_fw_size >= wopcm->size);
 	GEM_BUG_ON(huc_fw_size >= wopcm->size);
+	GEM_BUG_ON(ctx_rsvd + WOPCM_RESERVED_SIZE >= wopcm->size);
 
 	if (i915_inject_probe_failure(i915))
 		return;
 
-	guc_wopcm_base = ALIGN(huc_fw_size + WOPCM_RESERVED_SIZE,
-			       GUC_WOPCM_OFFSET_ALIGNMENT);
-	if ((guc_wopcm_base + ctx_rsvd) >= wopcm->size) {
-		DRM_ERROR("GuC WOPCM base (%uKiB) is too big.\n",
-			  guc_wopcm_base / 1024);
-		return;
-	}
+	/*
+	 * Aligned value of guc_wopcm_base will determine available WOPCM space
+	 * for HuC firmware and mandatory reserved area.
+	 */
+	guc_wopcm_base = huc_fw_size + WOPCM_RESERVED_SIZE;
+	guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
 
-	guc_wopcm_size = wopcm->size - guc_wopcm_base - ctx_rsvd;
+	/*
+	 * Need to clamp guc_wopcm_base now to make sure the following math is
+	 * correct. Formal check of whole WOPCM layout will be done below.
+	 */
+	guc_wopcm_base = min(guc_wopcm_base, wopcm->size - ctx_rsvd);
+
+	/* Aligned remainings of usable WOPCM space can be assigned to GuC. */
+	guc_wopcm_size = wopcm->size - ctx_rsvd - guc_wopcm_base;
 	guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
 
-	DRM_DEBUG_DRIVER("Calculated GuC WOPCM Region: [%uKiB, %uKiB)\n",
-			 guc_wopcm_base / 1024, guc_wopcm_size / 1024);
+	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "Calculated GuC WOPCM [%uK, %uK)\n",
+			     guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 
-	guc_wopcm_rsvd = GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
-	if ((guc_fw_size + guc_wopcm_rsvd) > guc_wopcm_size) {
-		DRM_ERROR("Need %uKiB WOPCM for GuC, %uKiB available.\n",
-			  (guc_fw_size + guc_wopcm_rsvd) / 1024,
-			  guc_wopcm_size / 1024);
-		return;
+	if (__check_layout(i915, wopcm->size, guc_wopcm_base, guc_wopcm_size,
+			   guc_fw_size, huc_fw_size)) {
+		wopcm->guc.base = guc_wopcm_base;
+		wopcm->guc.size = guc_wopcm_size;
+		GEM_BUG_ON(!wopcm->guc.base);
+		GEM_BUG_ON(!wopcm->guc.size);
 	}
-
-	err = check_hw_restriction(i915, guc_wopcm_base, guc_wopcm_size,
-				   huc_fw_size);
-	if (err)
-		return;
-
-	wopcm->guc.base = guc_wopcm_base;
-	wopcm->guc.size = guc_wopcm_size;
-	GEM_BUG_ON(!wopcm->guc.base);
-	GEM_BUG_ON(!wopcm->guc.size);
 }
