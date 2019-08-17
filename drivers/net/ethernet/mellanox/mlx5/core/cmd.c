@@ -190,10 +190,10 @@ static int verify_block_sig(struct mlx5_cmd_prot_block *block)
 	int xor_len = sizeof(*block) - sizeof(block->data) - 1;
 
 	if (xor8_buf(block, rsvd0_off, xor_len) != 0xff)
-		return -EINVAL;
+		return -EHWPOISON;
 
 	if (xor8_buf(block, 0, sizeof(*block)) != 0xff)
-		return -EINVAL;
+		return -EHWPOISON;
 
 	return 0;
 }
@@ -259,12 +259,12 @@ static int verify_signature(struct mlx5_cmd_work_ent *ent)
 
 	sig = xor8_buf(ent->lay, 0, sizeof(*ent->lay));
 	if (sig != 0xff)
-		return -EINVAL;
+		return -EHWPOISON;
 
 	for (i = 0; i < n && next; i++) {
 		err = verify_block_sig(next->buf);
 		if (err)
-			return err;
+			return -EHWPOISON;
 
 		next = next->next;
 	}
@@ -479,7 +479,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_ALLOC_SF:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
-		return -EIO;
+		return -ENOLINK;
 	default:
 		mlx5_core_err(dev, "Unknown FW command (%d)\n", op);
 		return -EINVAL;
@@ -1101,16 +1101,27 @@ out_err:
 /*  Notes:
  *    1. Callback functions may not sleep
  *    2. page queue commands do not support asynchrous completion
+ *
+ * return value in case (!callback):
+ *	ret < 0 : Command execution couldn't be submitted by driver
+ *	ret > 0 : Command execution couldn't be performed by firmware
+ *	ret == 0: Command was executed by FW, Caller must check FW outbox status.
+ *
+ * return value in case (callback):
+ *	ret < 0 : Command execution couldn't be submitted by driver
+ *	ret == 0: Command will be submitted to FW for execution
+ *		  and the callback will be called for further status updates
  */
 static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 			   struct mlx5_cmd_msg *out, void *uout, int uout_size,
 			   mlx5_cmd_cbk_t callback,
-			   void *context, int page_queue, u8 *status,
+			   void *context, int page_queue,
 			   u8 token, bool force_polling)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
 	struct mlx5_cmd_stats *stats;
+	u8 status = 0;
 	int err = 0;
 	s64 ds;
 	u16 op;
@@ -1141,12 +1152,12 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 		cmd_work_handler(&ent->work);
 	} else if (!queue_work(cmd->wq, &ent->work)) {
 		mlx5_core_warn(dev, "failed to queue work\n");
-		err = -ENOMEM;
+		err = -EALREADY;
 		goto out_free;
 	}
 
 	if (callback)
-		goto out; /* mlx5_cmd_comp_handler() will put(ent) */
+		return 0; /* mlx5_cmd_comp_handler() will put(ent) */
 
 	err = wait_func(dev, ent);
 	if (err == -ETIMEDOUT || err == -ECANCELED)
@@ -1164,12 +1175,11 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 	mlx5_core_dbg_mask(dev, 1 << MLX5_CMD_TIME,
 			   "fw exec time for %s is %lld nsec\n",
 			   mlx5_command_str(op), ds);
-	*status = ent->status;
 
 out_free:
+	status = ent->status;
 	cmd_ent_put(ent);
-out:
-	return err;
+	return err ? : status;
 }
 
 static ssize_t dbg_write(struct file *filp, const char __user *buf,
@@ -1719,7 +1729,7 @@ void mlx5_cmd_flush(struct mlx5_core_dev *dev)
 		up(&cmd->sem);
 }
 
-static int status_to_err(u8 status)
+static int deliv_status_to_err(u8 status)
 {
 	switch (status) {
 	case MLX5_CMD_DELIVERY_STAT_OK:
@@ -1787,22 +1797,25 @@ static int is_manage_pages(void *in)
 	return MLX5_GET(mbox_in, in, opcode) == MLX5_CMD_OP_MANAGE_PAGES;
 }
 
+/*  Notes:
+ *    1. Callback functions may not sleep
+ *    2. Page queue commands do not support asynchrous completion
+ */
 static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		    int out_size, mlx5_cmd_cbk_t callback, void *context,
 		    bool force_polling)
 {
-	struct mlx5_cmd_msg *inb;
-	struct mlx5_cmd_msg *outb;
+	u16 opcode = MLX5_GET(mbox_in, in, opcode);
+	struct mlx5_cmd_msg *inb, *outb;
 	int pages_queue;
 	gfp_t gfp;
-	int err;
-	u8 status = 0;
-	u32 drv_synd;
-	u16 opcode;
 	u8 token;
+	int err;
 
-	opcode = MLX5_GET(mbox_in, in, opcode);
 	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, opcode)) {
+		u32 drv_synd;
+		u8 status;
+
 		err = mlx5_internal_err_ret_value(dev, opcode, &drv_synd, &status);
 		MLX5_SET(mbox_out, out, status, status);
 		MLX5_SET(mbox_out, out, syndrome, drv_synd);
@@ -1833,26 +1846,22 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	}
 
 	err = mlx5_cmd_invoke(dev, inb, outb, out, out_size, callback, context,
-			      pages_queue, &status, token, force_polling);
+			      pages_queue, token, force_polling);
+	if (callback)
+		return err;
+
+	if (err > 0) /* Failed in FW, command didn't execute */
+		err = deliv_status_to_err(err);
+
 	if (err)
 		goto out_out;
 
-	mlx5_core_dbg(dev, "err %d, status %d\n", err, status);
-	if (status) {
-		err = status_to_err(status);
-		goto out_out;
-	}
-
-	if (!callback)
-		err = mlx5_copy_from_msg(out, outb, out_size);
-
+	/* command completed by FW */
+	err = mlx5_copy_from_msg(out, outb, out_size);
 out_out:
-	if (!callback)
-		mlx5_free_cmd_msg(dev, outb);
-
+	mlx5_free_cmd_msg(dev, outb);
 out_in:
-	if (!callback)
-		free_msg(dev, inb);
+	free_msg(dev, inb);
 	return err;
 }
 
