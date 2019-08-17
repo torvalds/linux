@@ -26,6 +26,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <net/drop_monitor.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
 
@@ -43,6 +44,7 @@
  * netlink alerts
  */
 static int trace_state = TRACE_OFF;
+static bool monitor_hw;
 
 /* net_dm_mutex
  *
@@ -93,6 +95,8 @@ struct net_dm_alert_ops {
 	void (*napi_poll_probe)(void *ignore, struct napi_struct *napi,
 				int work, int budget);
 	void (*work_item_func)(struct work_struct *work);
+	void (*hw_probe)(struct sk_buff *skb,
+			 const struct net_dm_hw_metadata *hw_metadata);
 };
 
 struct net_dm_skb_cb {
@@ -267,10 +271,17 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
+static void
+net_dm_hw_summary_probe(struct sk_buff *skb,
+			const struct net_dm_hw_metadata *hw_metadata)
+{
+}
+
 static const struct net_dm_alert_ops net_dm_alert_summary_ops = {
 	.kfree_skb_probe	= trace_kfree_skb_hit,
 	.napi_poll_probe	= trace_napi_poll_hit,
 	.work_item_func		= send_dm_alert,
+	.hw_probe		= net_dm_hw_summary_probe,
 };
 
 static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
@@ -482,16 +493,33 @@ static void net_dm_packet_work(struct work_struct *work)
 		net_dm_packet_report(skb);
 }
 
+static void
+net_dm_hw_packet_probe(struct sk_buff *skb,
+		       const struct net_dm_hw_metadata *hw_metadata)
+{
+}
+
 static const struct net_dm_alert_ops net_dm_alert_packet_ops = {
 	.kfree_skb_probe	= net_dm_packet_trace_kfree_skb_hit,
 	.napi_poll_probe	= net_dm_packet_trace_napi_poll_hit,
 	.work_item_func		= net_dm_packet_work,
+	.hw_probe		= net_dm_hw_packet_probe,
 };
 
 static const struct net_dm_alert_ops *net_dm_alert_ops_arr[] = {
 	[NET_DM_ALERT_MODE_SUMMARY]	= &net_dm_alert_summary_ops,
 	[NET_DM_ALERT_MODE_PACKET]	= &net_dm_alert_packet_ops,
 };
+
+void net_dm_hw_report(struct sk_buff *skb,
+		      const struct net_dm_hw_metadata *hw_metadata)
+{
+	if (!monitor_hw)
+		return;
+
+	net_dm_alert_ops_arr[net_dm_alert_mode]->hw_probe(skb, hw_metadata);
+}
+EXPORT_SYMBOL_GPL(net_dm_hw_report);
 
 static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 {
