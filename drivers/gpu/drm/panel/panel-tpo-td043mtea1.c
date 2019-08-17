@@ -116,7 +116,7 @@ static void td043mtea1_write_gamma(struct td043mtea1_panel *lcd)
 	td043mtea1_write(lcd, 0x13, val);
 
 	/* gamma bits [7:0] */
-	for (val = i = 0; i < 12; i++)
+	for (i = 0; i < 12; i++)
 		td043mtea1_write(lcd, 0x14 + i, gamma[i] & 0xff);
 }
 
