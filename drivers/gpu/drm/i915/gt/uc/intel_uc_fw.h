@@ -141,6 +141,7 @@ static inline int intel_uc_fw_status_to_error(enum intel_uc_fw_status status)
 	case INTEL_UC_FIRMWARE_FAIL:
 		return -EIO;
 	case INTEL_UC_FIRMWARE_SELECTED:
+		return -ESTALE;
 	case INTEL_UC_FIRMWARE_AVAILABLE:
 	case INTEL_UC_FIRMWARE_TRANSFERRED:
 	case INTEL_UC_FIRMWARE_RUNNING:

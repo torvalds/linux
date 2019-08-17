@@ -305,15 +305,9 @@ int intel_uc_init(struct intel_uc *uc)
 		return ret;
 
 	if (intel_uc_uses_huc(uc)) {
-		ret = intel_huc_init(huc);
-		if (ret)
-			goto out_huc;
+		intel_huc_init(huc);
 	}
 
-	return 0;
-
-out_huc:
-	intel_uc_fw_cleanup_fetch(&huc->fw);
 	return 0;
 }
 

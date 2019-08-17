@@ -77,11 +77,12 @@ static void intel_huc_rsa_data_destroy(struct intel_huc *huc)
 
 int intel_huc_init(struct intel_huc *huc)
 {
+	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 	int err;
 
 	err = intel_uc_fw_init(&huc->fw);
 	if (err)
-		return err;
+		goto out;
 
 	/*
 	 * HuC firmware image is outside GuC accessible range.
@@ -96,6 +97,9 @@ int intel_huc_init(struct intel_huc *huc)
 
 out_fini:
 	intel_uc_fw_fini(&huc->fw);
+out:
+	intel_uc_fw_cleanup_fetch(&huc->fw);
+	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "failed with %d\n", err);
 	return err;
 }
 

@@ -542,9 +542,11 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 		return -ENOEXEC;
 
 	err = i915_gem_object_pin_pages(uc_fw->obj);
-	if (err)
+	if (err) {
 		DRM_DEBUG_DRIVER("%s fw pin-pages err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
+		intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_FAIL);
+	}
 
 	return err;
 }
