@@ -2862,6 +2862,19 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	return 0;
 }
 
+static void tgl_setup_private_ppat(struct drm_i915_private *dev_priv)
+{
+	/* TGL doesn't support LLC or AGE settings */
+	I915_WRITE(GEN12_PAT_INDEX(0), GEN8_PPAT_WB);
+	I915_WRITE(GEN12_PAT_INDEX(1), GEN8_PPAT_WC);
+	I915_WRITE(GEN12_PAT_INDEX(2), GEN8_PPAT_WT);
+	I915_WRITE(GEN12_PAT_INDEX(3), GEN8_PPAT_UC);
+	I915_WRITE(GEN12_PAT_INDEX(4), GEN8_PPAT_WB);
+	I915_WRITE(GEN12_PAT_INDEX(5), GEN8_PPAT_WB);
+	I915_WRITE(GEN12_PAT_INDEX(6), GEN8_PPAT_WB);
+	I915_WRITE(GEN12_PAT_INDEX(7), GEN8_PPAT_WB);
+}
+
 static void cnl_setup_private_ppat(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GEN10_PAT_INDEX(0), GEN8_PPAT_WB | GEN8_PPAT_LLC);
@@ -2942,7 +2955,9 @@ static void setup_private_pat(struct drm_i915_private *dev_priv)
 {
 	GEM_BUG_ON(INTEL_GEN(dev_priv) < 8);
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (INTEL_GEN(dev_priv) >= 12)
+		tgl_setup_private_ppat(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 10)
 		cnl_setup_private_ppat(dev_priv);
 	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
 		chv_setup_private_ppat(dev_priv);
