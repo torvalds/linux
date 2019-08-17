@@ -7016,19 +7016,29 @@ static void bnxt_hwrm_clear_vnic_rss(struct bnxt *bp)
 		bnxt_hwrm_vnic_set_rss(bp, i, false);
 }
 
-static void bnxt_hwrm_resource_free(struct bnxt *bp, bool close_path,
-				    bool irq_re_init)
+static void bnxt_clear_vnic(struct bnxt *bp)
 {
-	if (bp->vnic_info) {
-		bnxt_hwrm_clear_vnic_filter(bp);
+	if (!bp->vnic_info)
+		return;
+
+	bnxt_hwrm_clear_vnic_filter(bp);
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
 		/* clear all RSS setting before free vnic ctx */
 		bnxt_hwrm_clear_vnic_rss(bp);
 		bnxt_hwrm_vnic_ctx_free(bp);
-		/* before free the vnic, undo the vnic tpa settings */
-		if (bp->flags & BNXT_FLAG_TPA)
-			bnxt_set_tpa(bp, false);
-		bnxt_hwrm_vnic_free(bp);
 	}
+	/* before free the vnic, undo the vnic tpa settings */
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, false);
+	bnxt_hwrm_vnic_free(bp);
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		bnxt_hwrm_vnic_ctx_free(bp);
+}
+
+static void bnxt_hwrm_resource_free(struct bnxt *bp, bool close_path,
+				    bool irq_re_init)
+{
+	bnxt_clear_vnic(bp);
 	bnxt_hwrm_ring_free(bp, close_path);
 	bnxt_hwrm_ring_grp_free(bp);
 	if (irq_re_init) {
