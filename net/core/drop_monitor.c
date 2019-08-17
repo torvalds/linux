@@ -76,6 +76,7 @@ struct dm_hw_stat_delta {
 static struct genl_family net_drop_monitor_family;
 
 static DEFINE_PER_CPU(struct per_cpu_dm_data, dm_cpu_data);
+static DEFINE_PER_CPU(struct per_cpu_dm_data, dm_hw_cpu_data);
 
 static int dm_hit_limit = 64;
 static int dm_delay = 1;
@@ -966,6 +967,22 @@ static void net_dm_cpu_data_fini(int cpu)
 	__net_dm_cpu_data_fini(data);
 }
 
+static void net_dm_hw_cpu_data_init(int cpu)
+{
+	struct per_cpu_dm_data *hw_data;
+
+	hw_data = &per_cpu(dm_hw_cpu_data, cpu);
+	__net_dm_cpu_data_init(hw_data);
+}
+
+static void net_dm_hw_cpu_data_fini(int cpu)
+{
+	struct per_cpu_dm_data *hw_data;
+
+	hw_data = &per_cpu(dm_hw_cpu_data, cpu);
+	__net_dm_cpu_data_fini(hw_data);
+}
+
 static int __init init_net_drop_monitor(void)
 {
 	int cpu, rc;
@@ -992,8 +1009,10 @@ static int __init init_net_drop_monitor(void)
 
 	rc = 0;
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
 		net_dm_cpu_data_init(cpu);
+		net_dm_hw_cpu_data_init(cpu);
+	}
 
 	goto out;
 
@@ -1014,8 +1033,10 @@ static void exit_net_drop_monitor(void)
 	 * we are guarnateed not to have any current users when we get here
 	 */
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
+		net_dm_hw_cpu_data_fini(cpu);
 		net_dm_cpu_data_fini(cpu);
+	}
 
 	BUG_ON(genl_unregister_family(&net_drop_monitor_family));
 }
