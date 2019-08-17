@@ -496,6 +496,10 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	switch (state) {
 	case FENCE_COMPLETE:
 		trace_i915_request_submit(request);
+
+		if (unlikely(fence->error))
+			i915_request_skip(request, fence->error);
+
 		/*
 		 * We need to serialize use of the submit_request() callback
 		 * with its hotplugging performed during an emergency
@@ -1048,6 +1052,9 @@ void i915_request_skip(struct i915_request *rq, int error)
 	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
 	dma_fence_set_error(&rq->fence, error);
 
+	if (rq->infix == rq->postfix)
+		return;
+
 	/*
 	 * As this request likely depends on state from the lost
 	 * context, clear out all the user operations leaving the
@@ -1059,6 +1066,7 @@ void i915_request_skip(struct i915_request *rq, int error)
 		head = 0;
 	}
 	memset(vaddr + head, 0, rq->postfix - head);
+	rq->infix = rq->postfix;
 }
 
 static struct i915_request *
