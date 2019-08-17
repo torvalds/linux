@@ -55,6 +55,16 @@ struct xdp_umem {
 	struct list_head xsk_list;
 };
 
+/* Nodes are linked in the struct xdp_sock map_list field, and used to
+ * track which maps a certain socket reside in.
+ */
+struct xsk_map;
+struct xsk_map_node {
+	struct list_head node;
+	struct xsk_map *map;
+	struct xdp_sock **map_entry;
+};
+
 struct xdp_sock {
 	/* struct sock must be the first member of struct xdp_sock */
 	struct sock sk;
@@ -80,6 +90,9 @@ struct xdp_sock {
 	/* Protects generic receive. */
 	spinlock_t rx_lock;
 	u64 rx_dropped;
+	struct list_head map_list;
+	/* Protects map_list */
+	spinlock_t map_list_lock;
 };
 
 struct xdp_buff;
@@ -105,6 +118,11 @@ void xsk_set_tx_need_wakeup(struct xdp_umem *umem);
 void xsk_clear_rx_need_wakeup(struct xdp_umem *umem);
 void xsk_clear_tx_need_wakeup(struct xdp_umem *umem);
 bool xsk_umem_uses_need_wakeup(struct xdp_umem *umem);
+
+void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
+			     struct xdp_sock **map_entry);
+int xsk_map_inc(struct xsk_map *map);
+void xsk_map_put(struct xsk_map *map);
 
 static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
