@@ -58,9 +58,26 @@ struct net_dm_stats {
 	struct u64_stats_sync syncp;
 };
 
+#define NET_DM_MAX_HW_TRAP_NAME_LEN 40
+
+struct net_dm_hw_entry {
+	char trap_name[NET_DM_MAX_HW_TRAP_NAME_LEN];
+	u32 count;
+};
+
+struct net_dm_hw_entries {
+	u32 num_entries;
+	struct net_dm_hw_entry entries[0];
+};
+
 struct per_cpu_dm_data {
-	spinlock_t		lock;	/* Protects 'skb' and 'send_timer' */
-	struct sk_buff		*skb;
+	spinlock_t		lock;	/* Protects 'skb', 'hw_entries' and
+					 * 'send_timer'
+					 */
+	union {
+		struct sk_buff			*skb;
+		struct net_dm_hw_entries	*hw_entries;
+	};
 	struct sk_buff_head	drop_queue;
 	struct work_struct	dm_alert_work;
 	struct timer_list	send_timer;
@@ -275,16 +292,189 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
+static struct net_dm_hw_entries *
+net_dm_hw_reset_per_cpu_data(struct per_cpu_dm_data *hw_data)
+{
+	struct net_dm_hw_entries *hw_entries;
+	unsigned long flags;
+
+	hw_entries = kzalloc(struct_size(hw_entries, entries, dm_hit_limit),
+			     GFP_KERNEL);
+	if (!hw_entries) {
+		/* If the memory allocation failed, we try to perform another
+		 * allocation in 1/10 second. Otherwise, the probe function
+		 * will constantly bail out.
+		 */
+		mod_timer(&hw_data->send_timer, jiffies + HZ / 10);
+	}
+
+	spin_lock_irqsave(&hw_data->lock, flags);
+	swap(hw_data->hw_entries, hw_entries);
+	spin_unlock_irqrestore(&hw_data->lock, flags);
+
+	return hw_entries;
+}
+
+static int net_dm_hw_entry_put(struct sk_buff *msg,
+			       const struct net_dm_hw_entry *hw_entry)
+{
+	struct nlattr *attr;
+
+	attr = nla_nest_start(msg, NET_DM_ATTR_HW_ENTRY);
+	if (!attr)
+		return -EMSGSIZE;
+
+	if (nla_put_string(msg, NET_DM_ATTR_HW_TRAP_NAME, hw_entry->trap_name))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NET_DM_ATTR_HW_TRAP_COUNT, hw_entry->count))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, attr);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, attr);
+	return -EMSGSIZE;
+}
+
+static int net_dm_hw_entries_put(struct sk_buff *msg,
+				 const struct net_dm_hw_entries *hw_entries)
+{
+	struct nlattr *attr;
+	int i;
+
+	attr = nla_nest_start(msg, NET_DM_ATTR_HW_ENTRIES);
+	if (!attr)
+		return -EMSGSIZE;
+
+	for (i = 0; i < hw_entries->num_entries; i++) {
+		int rc;
+
+		rc = net_dm_hw_entry_put(msg, &hw_entries->entries[i]);
+		if (rc)
+			goto nla_put_failure;
+	}
+
+	nla_nest_end(msg, attr);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, attr);
+	return -EMSGSIZE;
+}
+
+static int
+net_dm_hw_summary_report_fill(struct sk_buff *msg,
+			      const struct net_dm_hw_entries *hw_entries)
+{
+	struct net_dm_alert_msg anc_hdr = { 0 };
+	void *hdr;
+	int rc;
+
+	hdr = genlmsg_put(msg, 0, 0, &net_drop_monitor_family, 0,
+			  NET_DM_CMD_ALERT);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	/* We need to put the ancillary header in order not to break user
+	 * space.
+	 */
+	if (nla_put(msg, NLA_UNSPEC, sizeof(anc_hdr), &anc_hdr))
+		goto nla_put_failure;
+
+	rc = net_dm_hw_entries_put(msg, hw_entries);
+	if (rc)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static void net_dm_hw_summary_work(struct work_struct *work)
+{
+	struct net_dm_hw_entries *hw_entries;
+	struct per_cpu_dm_data *hw_data;
+	struct sk_buff *msg;
+	int rc;
+
+	hw_data = container_of(work, struct per_cpu_dm_data, dm_alert_work);
+
+	hw_entries = net_dm_hw_reset_per_cpu_data(hw_data);
+	if (!hw_entries)
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		goto out;
+
+	rc = net_dm_hw_summary_report_fill(msg, hw_entries);
+	if (rc) {
+		nlmsg_free(msg);
+		goto out;
+	}
+
+	genlmsg_multicast(&net_drop_monitor_family, msg, 0, 0, GFP_KERNEL);
+
+out:
+	kfree(hw_entries);
+}
+
 static void
 net_dm_hw_summary_probe(struct sk_buff *skb,
 			const struct net_dm_hw_metadata *hw_metadata)
 {
+	struct net_dm_hw_entries *hw_entries;
+	struct net_dm_hw_entry *hw_entry;
+	struct per_cpu_dm_data *hw_data;
+	unsigned long flags;
+	int i;
+
+	hw_data = this_cpu_ptr(&dm_hw_cpu_data);
+	spin_lock_irqsave(&hw_data->lock, flags);
+	hw_entries = hw_data->hw_entries;
+
+	if (!hw_entries)
+		goto out;
+
+	for (i = 0; i < hw_entries->num_entries; i++) {
+		hw_entry = &hw_entries->entries[i];
+		if (!strncmp(hw_entry->trap_name, hw_metadata->trap_name,
+			     NET_DM_MAX_HW_TRAP_NAME_LEN - 1)) {
+			hw_entry->count++;
+			goto out;
+		}
+	}
+	if (WARN_ON_ONCE(hw_entries->num_entries == dm_hit_limit))
+		goto out;
+
+	hw_entry = &hw_entries->entries[hw_entries->num_entries];
+	strlcpy(hw_entry->trap_name, hw_metadata->trap_name,
+		NET_DM_MAX_HW_TRAP_NAME_LEN - 1);
+	hw_entry->count = 1;
+	hw_entries->num_entries++;
+
+	if (!timer_pending(&hw_data->send_timer)) {
+		hw_data->send_timer.expires = jiffies + dm_delay * HZ;
+		add_timer(&hw_data->send_timer);
+	}
+
+out:
+	spin_unlock_irqrestore(&hw_data->lock, flags);
 }
 
 static const struct net_dm_alert_ops net_dm_alert_summary_ops = {
 	.kfree_skb_probe	= trace_kfree_skb_hit,
 	.napi_poll_probe	= trace_napi_poll_hit,
 	.work_item_func		= send_dm_alert,
+	.hw_work_item_func	= net_dm_hw_summary_work,
 	.hw_probe		= net_dm_hw_summary_probe,
 };
 
@@ -1309,6 +1499,7 @@ static void net_dm_hw_cpu_data_fini(int cpu)
 	struct per_cpu_dm_data *hw_data;
 
 	hw_data = &per_cpu(dm_hw_cpu_data, cpu);
+	kfree(hw_data->hw_entries);
 	__net_dm_cpu_data_fini(hw_data);
 }
 

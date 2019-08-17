@@ -87,6 +87,9 @@ enum net_dm_attr {
 	NET_DM_ATTR_ORIGIN,			/* u16 */
 	NET_DM_ATTR_HW_TRAP_GROUP_NAME,		/* string */
 	NET_DM_ATTR_HW_TRAP_NAME,		/* string */
+	NET_DM_ATTR_HW_ENTRIES,			/* nested */
+	NET_DM_ATTR_HW_ENTRY,			/* nested */
+	NET_DM_ATTR_HW_TRAP_COUNT,		/* u32 */
 
 	__NET_DM_ATTR_MAX,
 	NET_DM_ATTR_MAX = __NET_DM_ATTR_MAX - 1
