@@ -14,6 +14,7 @@ Contents:
    device_drivers/index
    dsa/index
    devlink-info-versions
+   devlink-trap
    ieee802154
    kapi
    z8530book
