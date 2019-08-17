@@ -633,6 +633,11 @@ static int set_all_monitor_traces(int state, struct netlink_ext_ack *extack)
 	return rc;
 }
 
+static bool net_dm_is_monitoring(void)
+{
+	return trace_state == TRACE_ON || monitor_hw;
+}
+
 static int net_dm_alert_mode_get_from_info(struct genl_info *info,
 					   enum net_dm_alert_mode *p_alert_mode)
 {
@@ -694,8 +699,8 @@ static int net_dm_cmd_config(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 	int rc;
 
-	if (trace_state == TRACE_ON) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot configure drop monitor while tracing is on");
+	if (net_dm_is_monitoring()) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot configure drop monitor during monitoring");
 		return -EBUSY;
 	}
 
