@@ -16,6 +16,7 @@
 struct xdp_ring {
 	u32 producer ____cacheline_aligned_in_smp;
 	u32 consumer ____cacheline_aligned_in_smp;
+	u32 flags;
 };
 
 /* Used for the RX and TX queues for packets */

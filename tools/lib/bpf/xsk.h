@@ -32,6 +32,7 @@ struct name { \
 	__u32 *producer; \
 	__u32 *consumer; \
 	void *ring; \
+	__u32 *flags; \
 }
 
 DEFINE_XSK_RING(xsk_ring_prod);
@@ -74,6 +75,11 @@ xsk_ring_cons__rx_desc(const struct xsk_ring_cons *rx, __u32 idx)
 	const struct xdp_desc *descs = (const struct xdp_desc *)rx->ring;
 
 	return &descs[idx & rx->mask];
+}
+
+static inline int xsk_ring_prod__needs_wakeup(const struct xsk_ring_prod *r)
+{
+	return *r->flags & XDP_RING_NEED_WAKEUP;
 }
 
 static inline __u32 xsk_prod_nb_free(struct xsk_ring_prod *r, __u32 nb)
