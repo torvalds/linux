@@ -3046,6 +3046,10 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 	default:
 		MISSING_CASE(INTEL_GEN(engine->i915));
 		/* fall through */
+	case 12:
+		indirect_ctx_offset =
+			GEN12_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+		break;
 	case 11:
 		indirect_ctx_offset =
 			GEN11_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
