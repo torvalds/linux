@@ -21,6 +21,16 @@
 static inline void __bch2_btree_node_iter_advance(struct btree_node_iter *,
 						  struct btree *);
 
+static inline unsigned __btree_node_iter_used(struct btree_node_iter *iter)
+{
+	unsigned n = ARRAY_SIZE(iter->data);
+
+	while (n && __btree_node_iter_set_end(iter, n - 1))
+		--n;
+
+	return n;
+}
+
 struct bset_tree *bch2_bkey_to_bset(struct btree *b, struct bkey_packed *k)
 {
 	return bch2_bkey_to_bset_inlined(b, k);
@@ -98,7 +108,8 @@ void bch2_dump_btree_node_iter(struct btree *b,
 {
 	struct btree_node_iter_set *set;
 
-	printk(KERN_ERR "btree node iter with %u sets:\n", b->nsets);
+	printk(KERN_ERR "btree node iter with %u/%u sets:\n",
+	       __btree_node_iter_used(iter), b->nsets);
 
 	btree_node_iter_for_each(iter, set) {
 		struct bkey_packed *k = __btree_node_offset_to_key(b, set->k);
@@ -107,8 +118,8 @@ void bch2_dump_btree_node_iter(struct btree *b,
 		char buf[100];
 
 		bch2_bkey_to_text(&PBUF(buf), &uk);
-		printk(KERN_ERR "set %zu key %zi/%u: %s\n", t - b->set,
-		       k->_data - bset(b, t)->_data, bset(b, t)->u64s, buf);
+		printk(KERN_ERR "set %zu key %u: %s\n",
+		       t - b->set, set->k, buf);
 	}
 }
 
@@ -170,7 +181,11 @@ void bch2_btree_node_iter_verify(struct btree_node_iter *iter,
 				 struct btree *b)
 {
 	struct btree_node_iter_set *set, *s2;
+	struct bkey_packed *k, *p;
 	struct bset_tree *t;
+
+	if (bch2_btree_node_iter_end(iter))
+		return;
 
 	/* Verify no duplicates: */
 	btree_node_iter_for_each(iter, set)
@@ -192,6 +207,18 @@ found:
 	btree_node_iter_for_each(iter, set)
 		BUG_ON(set != iter->data &&
 		       btree_node_iter_cmp(b, set[-1], set[0]) > 0);
+
+	k = bch2_btree_node_iter_peek_all(iter, b);
+
+	for_each_bset(b, t) {
+		if (iter->data[0].end == t->end_offset)
+			continue;
+
+		p = bch2_bkey_prev_all(b, t,
+			bch2_btree_node_iter_bset_pos(iter, b, t));
+
+		BUG_ON(p && bkey_iter_cmp(b, k, p) < 0);
+	}
 }
 
 void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
@@ -1650,16 +1677,6 @@ void bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 	}
 
 	__bch2_btree_node_iter_advance(iter, b);
-}
-
-static inline unsigned __btree_node_iter_used(struct btree_node_iter *iter)
-{
-	unsigned n = ARRAY_SIZE(iter->data);
-
-	while (n && __btree_node_iter_set_end(iter, n - 1))
-		--n;
-
-	return n;
 }
 
 /*

@@ -1477,6 +1477,8 @@ recheck:
 		EBUG_ON(bkey_cmp(k.k->p, iter->pos) < 0);
 		EBUG_ON(bkey_deleted(k.k));
 		iter->uptodate = BTREE_ITER_UPTODATE;
+
+		__bch2_btree_iter_verify(iter, l->b);
 		return k;
 	}
 
@@ -1507,6 +1509,8 @@ recheck:
 
 	iter->k	= n;
 	iter->uptodate = BTREE_ITER_UPTODATE;
+
+	__bch2_btree_iter_verify(iter, l->b);
 	return (struct bkey_s_c) { &iter->k, NULL };
 }
 
@@ -1539,19 +1543,18 @@ recheck:
 		goto recheck;
 	}
 
-	if (k.k &&
-	    !bkey_deleted(k.k) &&
-	    !bkey_cmp(iter->pos, k.k->p)) {
-		iter->uptodate = BTREE_ITER_UPTODATE;
-		return k;
-	} else {
+	if (!k.k ||
+	    bkey_deleted(k.k) ||
+	    bkey_cmp(iter->pos, k.k->p)) {
 		/* hole */
 		bkey_init(&iter->k);
 		iter->k.p = iter->pos;
-
-		iter->uptodate = BTREE_ITER_UPTODATE;
-		return (struct bkey_s_c) { &iter->k, NULL };
+		k = (struct bkey_s_c) { &iter->k, NULL };
 	}
+
+	iter->uptodate = BTREE_ITER_UPTODATE;
+	__bch2_btree_iter_verify(iter, l->b);
+	return k;
 }
 
 struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
