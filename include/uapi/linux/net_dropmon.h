@@ -83,6 +83,15 @@ enum net_dm_attr {
 	NET_DM_ATTR_ORIG_LEN,			/* u32 */
 	NET_DM_ATTR_QUEUE_LEN,			/* u32 */
 	NET_DM_ATTR_STATS,			/* nested */
+	NET_DM_ATTR_HW_STATS,			/* nested */
+	NET_DM_ATTR_ORIGIN,			/* u16 */
+	NET_DM_ATTR_HW_TRAP_GROUP_NAME,		/* string */
+	NET_DM_ATTR_HW_TRAP_NAME,		/* string */
+	NET_DM_ATTR_HW_ENTRIES,			/* nested */
+	NET_DM_ATTR_HW_ENTRY,			/* nested */
+	NET_DM_ATTR_HW_TRAP_COUNT,		/* u32 */
+	NET_DM_ATTR_SW_DROPS,			/* flag */
+	NET_DM_ATTR_HW_DROPS,			/* flag */
 
 	__NET_DM_ATTR_MAX,
 	NET_DM_ATTR_MAX = __NET_DM_ATTR_MAX - 1
@@ -101,6 +110,7 @@ enum net_dm_alert_mode {
 
 enum {
 	NET_DM_ATTR_PORT_NETDEV_IFINDEX,	/* u32 */
+	NET_DM_ATTR_PORT_NETDEV_NAME,		/* string */
 
 	__NET_DM_ATTR_PORT_MAX,
 	NET_DM_ATTR_PORT_MAX = __NET_DM_ATTR_PORT_MAX - 1
@@ -111,6 +121,11 @@ enum {
 
 	__NET_DM_ATTR_STATS_MAX,
 	NET_DM_ATTR_STATS_MAX = __NET_DM_ATTR_STATS_MAX - 1
+};
+
+enum net_dm_origin {
+	NET_DM_ORIGIN_SW,
+	NET_DM_ORIGIN_HW,
 };
 
 #endif
