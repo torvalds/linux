@@ -4,19 +4,21 @@
 ##############################################################################
 # Defines
 
-DEVLINK_DEV=$(devlink port show "${NETIFS[p1]}" -j \
-		     | jq -r '.port | keys[]' | cut -d/ -f-2)
-if [ -z "$DEVLINK_DEV" ]; then
-	echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
-	exit 1
-fi
-if [[ "$(echo $DEVLINK_DEV | grep -c pci)" -eq 0 ]]; then
-	echo "SKIP: devlink device's bus is not PCI"
-	exit 1
-fi
+if [[ ! -v DEVLINK_DEV ]]; then
+	DEVLINK_DEV=$(devlink port show "${NETIFS[p1]}" -j \
+			     | jq -r '.port | keys[]' | cut -d/ -f-2)
+	if [ -z "$DEVLINK_DEV" ]; then
+		echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
+		exit 1
+	fi
+	if [[ "$(echo $DEVLINK_DEV | grep -c pci)" -eq 0 ]]; then
+		echo "SKIP: devlink device's bus is not PCI"
+		exit 1
+	fi
 
-DEVLINK_VIDDID=$(lspci -s $(echo $DEVLINK_DEV | cut -d"/" -f2) \
-		 -n | cut -d" " -f3)
+	DEVLINK_VIDDID=$(lspci -s $(echo $DEVLINK_DEV | cut -d"/" -f2) \
+			 -n | cut -d" " -f3)
+fi
 
 ##############################################################################
 # Sanity checks
