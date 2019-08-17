@@ -789,7 +789,7 @@ static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 			cmd_status_str(status), status, syndrome, err);
 }
 
-static int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *out)
+int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *out)
 {
 	/* aborted due to PCI error or via reset flow mlx5_cmd_trigger_completions() */
 	if (err == -ENXIO) {
@@ -806,7 +806,7 @@ static int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *ou
 	}
 
 	/* driver or FW delivery error */
-	if (err)
+	if (err != -EREMOTEIO && err)
 		return err;
 
 	/* check outbox status */
@@ -816,6 +816,7 @@ static int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *ou
 
 	return err;
 }
+EXPORT_SYMBOL(mlx5_cmd_check);
 
 static void dump_command(struct mlx5_core_dev *dev,
 			 struct mlx5_cmd_work_ent *ent, int input)
@@ -1870,6 +1871,38 @@ out_in:
 }
 
 /**
+ * mlx5_cmd_do - Executes a fw command, wait for completion.
+ * Unlike mlx5_cmd_exec, this function will not translate or intercept
+ * outbox.status and will return -EREMOTEIO when
+ * outbox.status != MLX5_CMD_STAT_OK
+ *
+ * @dev: mlx5 core device
+ * @in: inbox mlx5_ifc command buffer
+ * @in_size: inbox buffer size
+ * @out: outbox mlx5_ifc buffer
+ * @out_size: outbox size
+ *
+ * @return:
+ * -EREMOTEIO : Command executed by FW, outbox.status != MLX5_CMD_STAT_OK.
+ *              Caller must check FW outbox status.
+ *   0 : Command execution successful, outbox.status == MLX5_CMD_STAT_OK.
+ * < 0 : Command execution couldn't be performed by firmware or driver
+ */
+int mlx5_cmd_do(struct mlx5_core_dev *dev, void *in, int in_size, void *out, int out_size)
+{
+	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
+
+	if (err) /* -EREMOTEIO is preserved */
+		return err == -EREMOTEIO ? -EIO : err;
+
+	if (MLX5_GET(mbox_out, out, status) != MLX5_CMD_STAT_OK)
+		return -EREMOTEIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(mlx5_cmd_do);
+
+/**
  * mlx5_cmd_exec - Executes a fw command, wait for completion
  *
  * @dev: mlx5 core device
@@ -1878,17 +1911,46 @@ out_in:
  * @out: outbox mlx5_ifc buffer
  * @out_size: outbox size
  *
- * @return: 0 if no error, FW command execution was successful,
+ * @return: 0 if no error, FW command execution was successful
  *          and outbox status is ok.
  */
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size)
 {
-	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
+	int err = mlx5_cmd_do(dev, in, in_size, out, out_size);
 
 	return mlx5_cmd_check(dev, err, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec);
+
+/**
+ * mlx5_cmd_exec_polling - Executes a fw command, poll for completion
+ *	Needed for driver force teardown, when command completion EQ
+ *	will not be available to complete the command
+ *
+ * @dev: mlx5 core device
+ * @in: inbox mlx5_ifc command buffer
+ * @in_size: inbox buffer size
+ * @out: outbox mlx5_ifc buffer
+ * @out_size: outbox size
+ *
+ * @return: 0 if no error, FW command execution was successful
+ *          and outbox status is ok.
+ */
+int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
+			  void *out, int out_size)
+{
+	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
+
+	if (err) /* -EREMOTEIO is preserved */
+		return err == -EREMOTEIO ? -EIO : err;
+
+	if (MLX5_GET(mbox_out, out, status) != MLX5_CMD_STAT_OK)
+		err = -EREMOTEIO;
+
+	return mlx5_cmd_check(dev, err, in, out);
+}
+EXPORT_SYMBOL(mlx5_cmd_exec_polling);
 
 void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
 			     struct mlx5_async_ctx *ctx)
@@ -1943,15 +2005,6 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 	return ret;
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_cb);
-
-int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
-			  void *out, int out_size)
-{
-	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
-
-	return mlx5_cmd_check(dev, err, in, out);
-}
-EXPORT_SYMBOL(mlx5_cmd_exec_polling);
 
 static void destroy_msg_cache(struct mlx5_core_dev *dev)
 {
