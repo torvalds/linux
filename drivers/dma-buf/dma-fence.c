@@ -129,25 +129,16 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
 int dma_fence_signal_locked(struct dma_fence *fence)
 {
 	struct dma_fence_cb *cur, *tmp;
-	int ret = 0;
 
 	lockdep_assert_held(fence->lock);
 
-	if (WARN_ON(!fence))
+	if (unlikely(test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+				      &fence->flags)))
 		return -EINVAL;
 
-	if (test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-		ret = -EINVAL;
-
-		/*
-		 * we might have raced with the unlocked dma_fence_signal,
-		 * still run through all callbacks
-		 */
-	} else {
-		fence->timestamp = ktime_get();
-		set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
-		trace_dma_fence_signaled(fence);
-	}
+	fence->timestamp = ktime_get();
+	set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
+	trace_dma_fence_signaled(fence);
 
 	if (!list_empty(&fence->cb_list)) {
 		list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
@@ -156,7 +147,8 @@ int dma_fence_signal_locked(struct dma_fence *fence)
 		}
 		INIT_LIST_HEAD(&fence->cb_list);
 	}
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL(dma_fence_signal_locked);
 
@@ -176,28 +168,16 @@ EXPORT_SYMBOL(dma_fence_signal_locked);
 int dma_fence_signal(struct dma_fence *fence)
 {
 	unsigned long flags;
+	int ret;
 
 	if (!fence)
 		return -EINVAL;
 
-	if (test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return -EINVAL;
+	spin_lock_irqsave(fence->lock, flags);
+	ret = dma_fence_signal_locked(fence);
+	spin_unlock_irqrestore(fence->lock, flags);
 
-	fence->timestamp = ktime_get();
-	set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
-	trace_dma_fence_signaled(fence);
-
-	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags)) {
-		struct dma_fence_cb *cur, *tmp;
-
-		spin_lock_irqsave(fence->lock, flags);
-		list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
-			list_del_init(&cur->node);
-			cur->func(fence, cur);
-		}
-		spin_unlock_irqrestore(fence->lock, flags);
-	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(dma_fence_signal);
 
