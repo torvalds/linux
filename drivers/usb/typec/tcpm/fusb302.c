@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/usb.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/pd.h>
@@ -206,23 +207,19 @@ static int fusb302_debug_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(fusb302_debug);
 
-static struct dentry *rootdir;
-
 static void fusb302_debugfs_init(struct fusb302_chip *chip)
 {
-	mutex_init(&chip->logbuffer_lock);
-	if (!rootdir)
-		rootdir = debugfs_create_dir("fusb302", NULL);
+	char name[NAME_MAX];
 
-	chip->dentry = debugfs_create_file(dev_name(chip->dev),
-					   S_IFREG | 0444, rootdir,
+	mutex_init(&chip->logbuffer_lock);
+	snprintf(name, NAME_MAX, "fusb302-%s", dev_name(chip->dev));
+	chip->dentry = debugfs_create_file(name, S_IFREG | 0444, usb_debug_root,
 					   chip, &fusb302_debug_fops);
 }
 
 static void fusb302_debugfs_exit(struct fusb302_chip *chip)
 {
 	debugfs_remove(chip->dentry);
-	debugfs_remove(rootdir);
 }
 
 #else
