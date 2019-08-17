@@ -952,12 +952,81 @@ static const struct net_dm_alert_ops *net_dm_alert_ops_arr[] = {
 void net_dm_hw_report(struct sk_buff *skb,
 		      const struct net_dm_hw_metadata *hw_metadata)
 {
+	rcu_read_lock();
+
 	if (!monitor_hw)
-		return;
+		goto out;
 
 	net_dm_alert_ops_arr[net_dm_alert_mode]->hw_probe(skb, hw_metadata);
+
+out:
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(net_dm_hw_report);
+
+static int net_dm_hw_monitor_start(struct netlink_ext_ack *extack)
+{
+	const struct net_dm_alert_ops *ops;
+	int cpu;
+
+	if (monitor_hw) {
+		NL_SET_ERR_MSG_MOD(extack, "Hardware monitoring already enabled");
+		return -EAGAIN;
+	}
+
+	ops = net_dm_alert_ops_arr[net_dm_alert_mode];
+
+	if (!try_module_get(THIS_MODULE)) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
+		return -ENODEV;
+	}
+
+	for_each_possible_cpu(cpu) {
+		struct per_cpu_dm_data *hw_data = &per_cpu(dm_hw_cpu_data, cpu);
+		struct net_dm_hw_entries *hw_entries;
+
+		INIT_WORK(&hw_data->dm_alert_work, ops->hw_work_item_func);
+		timer_setup(&hw_data->send_timer, sched_send_work, 0);
+		hw_entries = net_dm_hw_reset_per_cpu_data(hw_data);
+		kfree(hw_entries);
+	}
+
+	monitor_hw = true;
+
+	return 0;
+}
+
+static void net_dm_hw_monitor_stop(struct netlink_ext_ack *extack)
+{
+	int cpu;
+
+	if (!monitor_hw)
+		NL_SET_ERR_MSG_MOD(extack, "Hardware monitoring already disabled");
+
+	monitor_hw = false;
+
+	/* After this call returns we are guaranteed that no CPU is processing
+	 * any hardware drops.
+	 */
+	synchronize_rcu();
+
+	for_each_possible_cpu(cpu) {
+		struct per_cpu_dm_data *hw_data = &per_cpu(dm_hw_cpu_data, cpu);
+		struct sk_buff *skb;
+
+		del_timer_sync(&hw_data->send_timer);
+		cancel_work_sync(&hw_data->dm_alert_work);
+		while ((skb = __skb_dequeue(&hw_data->drop_queue))) {
+			struct net_dm_hw_metadata *hw_metadata;
+
+			hw_metadata = NET_DM_SKB_CB(skb)->hw_metadata;
+			net_dm_hw_metadata_free(hw_metadata);
+			consume_skb(skb);
+		}
+	}
+
+	module_put(THIS_MODULE);
+}
 
 static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 {
@@ -1153,14 +1222,61 @@ static int net_dm_cmd_config(struct sk_buff *skb,
 	return 0;
 }
 
+static int net_dm_monitor_start(bool set_sw, bool set_hw,
+				struct netlink_ext_ack *extack)
+{
+	bool sw_set = false;
+	int rc;
+
+	if (set_sw) {
+		rc = set_all_monitor_traces(TRACE_ON, extack);
+		if (rc)
+			return rc;
+		sw_set = true;
+	}
+
+	if (set_hw) {
+		rc = net_dm_hw_monitor_start(extack);
+		if (rc)
+			goto err_monitor_hw;
+	}
+
+	return 0;
+
+err_monitor_hw:
+	if (sw_set)
+		set_all_monitor_traces(TRACE_OFF, extack);
+	return rc;
+}
+
+static void net_dm_monitor_stop(bool set_sw, bool set_hw,
+				struct netlink_ext_ack *extack)
+{
+	if (set_hw)
+		net_dm_hw_monitor_stop(extack);
+	if (set_sw)
+		set_all_monitor_traces(TRACE_OFF, extack);
+}
+
 static int net_dm_cmd_trace(struct sk_buff *skb,
 			struct genl_info *info)
 {
+	bool set_sw = !!info->attrs[NET_DM_ATTR_SW_DROPS];
+	bool set_hw = !!info->attrs[NET_DM_ATTR_HW_DROPS];
+	struct netlink_ext_ack *extack = info->extack;
+
+	/* To maintain backward compatibility, we start / stop monitoring of
+	 * software drops if no flag is specified.
+	 */
+	if (!set_sw && !set_hw)
+		set_sw = true;
+
 	switch (info->genlhdr->cmd) {
 	case NET_DM_CMD_START:
-		return set_all_monitor_traces(TRACE_ON, info->extack);
+		return net_dm_monitor_start(set_sw, set_hw, extack);
 	case NET_DM_CMD_STOP:
-		return set_all_monitor_traces(TRACE_OFF, info->extack);
+		net_dm_monitor_stop(set_sw, set_hw, extack);
+		return 0;
 	}
 
 	return -EOPNOTSUPP;
@@ -1392,6 +1508,8 @@ static const struct nla_policy net_dm_nl_policy[NET_DM_ATTR_MAX + 1] = {
 	[NET_DM_ATTR_ALERT_MODE] = { .type = NLA_U8 },
 	[NET_DM_ATTR_TRUNC_LEN] = { .type = NLA_U32 },
 	[NET_DM_ATTR_QUEUE_LEN] = { .type = NLA_U32 },
+	[NET_DM_ATTR_SW_DROPS]	= {. type = NLA_FLAG },
+	[NET_DM_ATTR_HW_DROPS]	= {. type = NLA_FLAG },
 };
 
 static const struct genl_ops dropmon_ops[] = {
