@@ -65,17 +65,31 @@ struct dma_fence_cb;
 struct dma_fence {
 	spinlock_t *lock;
 	const struct dma_fence_ops *ops;
-	/* We clear the callback list on kref_put so that by the time we
-	 * release the fence it is unused. No one should be adding to the cb_list
-	 * that they don't themselves hold a reference for.
+	/*
+	 * We clear the callback list on kref_put so that by the time we
+	 * release the fence it is unused. No one should be adding to the
+	 * cb_list that they don't themselves hold a reference for.
+	 *
+	 * The lifetime of the timestamp is similarly tied to both the
+	 * rcu freelist and the cb_list. The timestamp is only set upon
+	 * signaling while simultaneously notifying the cb_list. Ergo, we
+	 * only use either the cb_list of timestamp. Upon destruction,
+	 * neither are accessible, and so we can use the rcu. This means
+	 * that the cb_list is *only* valid until the signal bit is set,
+	 * and to read either you *must* hold a reference to the fence,
+	 * and not just the rcu_read_lock.
+	 *
+	 * Listed in chronological order.
 	 */
 	union {
-		struct rcu_head rcu;
 		struct list_head cb_list;
+		/* @cb_list replaced by @timestamp on dma_fence_signal() */
+		ktime_t timestamp;
+		/* @timestamp replaced by @rcu on dma_fence_release() */
+		struct rcu_head rcu;
 	};
 	u64 context;
 	u64 seqno;
-	ktime_t timestamp;
 	unsigned long flags;
 	struct kref refcount;
 	int error;

@@ -184,6 +184,9 @@ static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 
 	spin_lock(f->lock);
 
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &f->flags))
+		goto out;
+
 	if (intr && signal_pending(current)) {
 		ret = -ERESTARTSYS;
 		goto out;

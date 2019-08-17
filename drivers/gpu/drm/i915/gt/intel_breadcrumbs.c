@@ -112,18 +112,18 @@ __dma_fence_signal__timestamp(struct dma_fence *fence, ktime_t timestamp)
 }
 
 static void
-__dma_fence_signal__notify(struct dma_fence *fence)
+__dma_fence_signal__notify(struct dma_fence *fence,
+			   const struct list_head *list)
 {
 	struct dma_fence_cb *cur, *tmp;
 
 	lockdep_assert_held(fence->lock);
 	lockdep_assert_irqs_disabled();
 
-	list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
+	list_for_each_entry_safe(cur, tmp, list, node) {
 		INIT_LIST_HEAD(&cur->node);
 		cur->func(fence, cur);
 	}
-	INIT_LIST_HEAD(&fence->cb_list);
 }
 
 void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
@@ -185,11 +185,12 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 	list_for_each_safe(pos, next, &signal) {
 		struct i915_request *rq =
 			list_entry(pos, typeof(*rq), signal_link);
-
-		__dma_fence_signal__timestamp(&rq->fence, timestamp);
+		struct list_head cb_list;
 
 		spin_lock(&rq->lock);
-		__dma_fence_signal__notify(&rq->fence);
+		list_replace(&rq->fence.cb_list, &cb_list);
+		__dma_fence_signal__timestamp(&rq->fence, timestamp);
+		__dma_fence_signal__notify(&rq->fence, &cb_list);
 		spin_unlock(&rq->lock);
 
 		i915_request_put(rq);
