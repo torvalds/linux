@@ -164,6 +164,7 @@ u32 intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		default:
 			MISSING_CASE(INTEL_GEN(dev_priv));
 			return DEFAULT_LR_CONTEXT_RENDER_SIZE;
+		case 12:
 		case 11:
 			return GEN11_LR_CONTEXT_RENDER_SIZE;
 		case 10:
