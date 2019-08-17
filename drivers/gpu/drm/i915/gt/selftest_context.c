@@ -5,6 +5,7 @@
  */
 
 #include "i915_selftest.h"
+#include "intel_engine_pm.h"
 #include "intel_gt.h"
 
 #include "gem/selftests/mock_context.h"
@@ -61,6 +62,145 @@ static int context_sync(struct intel_context *ce)
 	} while (!err);
 	mutex_unlock(&tl->mutex);
 
+	return err;
+}
+
+static int __live_context_size(struct intel_engine_cs *engine,
+			       struct i915_gem_context *fixme)
+{
+	struct intel_context *ce;
+	struct i915_request *rq;
+	void *vaddr;
+	int err;
+
+	ce = intel_context_create(fixme, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	err = intel_context_pin(ce);
+	if (err)
+		goto err;
+
+	vaddr = i915_gem_object_pin_map(ce->state->obj,
+					i915_coherent_map_type(engine->i915));
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		intel_context_unpin(ce);
+		goto err;
+	}
+
+	/*
+	 * Note that execlists also applies a redzone which it checks on
+	 * context unpin when debugging. We are using the same location
+	 * and same poison value so that our checks overlap. Despite the
+	 * redundancy, we want to keep this little selftest so that we
+	 * get coverage of any and all submission backends, and we can
+	 * always extend this test to ensure we trick the HW into a
+	 * compromising position wrt to the various sections that need
+	 * to be written into the context state.
+	 *
+	 * TLDR; this overlaps with the execlists redzone.
+	 */
+	if (HAS_EXECLISTS(engine->i915))
+		vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
+
+	vaddr += engine->context_size - I915_GTT_PAGE_SIZE;
+	memset(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE);
+
+	rq = intel_context_create_request(ce);
+	intel_context_unpin(ce);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	err = request_sync(rq);
+	if (err)
+		goto err_unpin;
+
+	/* Force the context switch */
+	rq = i915_request_create(engine->kernel_context);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+	err = request_sync(rq);
+	if (err)
+		goto err_unpin;
+
+	if (memchr_inv(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE)) {
+		pr_err("%s context overwrote trailing red-zone!", engine->name);
+		err = -EINVAL;
+	}
+
+err_unpin:
+	i915_gem_object_unpin_map(ce->state->obj);
+err:
+	intel_context_put(ce);
+	return err;
+}
+
+static int live_context_size(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	struct i915_gem_context *fixme;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/*
+	 * Check that our context sizes are correct by seeing if the
+	 * HW tries to write past the end of one.
+	 */
+
+	mutex_lock(&gt->i915->drm.struct_mutex);
+
+	fixme = kernel_context(gt->i915);
+	if (IS_ERR(fixme)) {
+		err = PTR_ERR(fixme);
+		goto unlock;
+	}
+
+	for_each_engine(engine, gt->i915, id) {
+		struct {
+			struct drm_i915_gem_object *state;
+			void *pinned;
+		} saved;
+
+		if (!engine->context_size)
+			continue;
+
+		intel_engine_pm_get(engine);
+
+		/*
+		 * Hide the old default state -- we lie about the context size
+		 * and get confused when the default state is smaller than
+		 * expected. For our do nothing request, inheriting the
+		 * active state is sufficient, we are only checking that we
+		 * don't use more than we planned.
+		 */
+		saved.state = fetch_and_zero(&engine->default_state);
+		saved.pinned = fetch_and_zero(&engine->pinned_default_state);
+
+		/* Overlaps with the execlists redzone */
+		engine->context_size += I915_GTT_PAGE_SIZE;
+
+		err = __live_context_size(engine, fixme);
+
+		engine->context_size -= I915_GTT_PAGE_SIZE;
+
+		engine->pinned_default_state = saved.pinned;
+		engine->default_state = saved.state;
+
+		intel_engine_pm_put(engine);
+
+		if (err)
+			break;
+	}
+
+	kernel_context_close(fixme);
+unlock:
+	mutex_unlock(&gt->i915->drm.struct_mutex);
 	return err;
 }
 
@@ -303,6 +443,7 @@ unlock:
 int intel_context_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(live_context_size),
 		SUBTEST(live_active_context),
 		SUBTEST(live_remote_context),
 	};

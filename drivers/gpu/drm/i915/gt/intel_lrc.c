@@ -1617,8 +1617,38 @@ static void execlists_context_destroy(struct kref *kref)
 	intel_context_free(ce);
 }
 
+static void
+set_redzone(void *vaddr, const struct intel_engine_cs *engine)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return;
+
+	vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
+	vaddr += engine->context_size;
+
+	memset(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE);
+}
+
+static void
+check_redzone(const void *vaddr, const struct intel_engine_cs *engine)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return;
+
+	vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
+	vaddr += engine->context_size;
+
+	if (memchr_inv(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE))
+		dev_err_once(engine->i915->drm.dev,
+			     "%s context redzone overwritten!\n",
+			     engine->name);
+}
+
 static void execlists_context_unpin(struct intel_context *ce)
 {
+	check_redzone((void *)ce->lrc_reg_state - LRC_STATE_PN * PAGE_SIZE,
+		      ce->engine);
+
 	i915_gem_context_unpin_hw_id(ce->gem_context);
 	i915_gem_object_unpin_map(ce->state->obj);
 	intel_ring_reset(ce->ring, ce->ring->tail);
@@ -3157,6 +3187,8 @@ populate_lr_context(struct intel_context *ce,
 		return ret;
 	}
 
+	set_redzone(vaddr, engine);
+
 	if (engine->default_state) {
 		/*
 		 * We only want to copy over the template context state;
@@ -3211,6 +3243,8 @@ static int __execlists_context_alloc(struct intel_context *ce,
 	 * for our own use and for sharing with the GuC.
 	 */
 	context_size += LRC_HEADER_PAGES * PAGE_SIZE;
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		context_size += I915_GTT_PAGE_SIZE; /* for redzone */
 
 	ctx_obj = i915_gem_object_create_shmem(engine->i915, context_size);
 	if (IS_ERR(ctx_obj))
