@@ -541,7 +541,9 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 static bool
 transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
 {
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (INTEL_GEN(dev_priv) < 9)
+		return false;
+	else if (INTEL_GEN(dev_priv) >= 12)
 		return trans == TRANSCODER_A;
 	else
 		return trans == TRANSCODER_EDP;
@@ -667,8 +669,9 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (transcoder_has_psr2(dev_priv, dev_priv->psr.transcoder))
 		WARN_ON(I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder)) & EDP_PSR2_ENABLE);
+
 	WARN_ON(I915_READ(EDP_PSR_CTL(dev_priv->psr.transcoder)) & EDP_PSR_ENABLE);
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
@@ -821,7 +824,7 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	if (!dev_priv->psr.active) {
-		if (INTEL_GEN(dev_priv) >= 9) {
+		if (transcoder_has_psr2(dev_priv, dev_priv->psr.transcoder)) {
 			val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
 			WARN_ON(val & EDP_PSR2_ENABLE);
 		}
