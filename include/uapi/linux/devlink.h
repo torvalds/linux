@@ -107,6 +107,16 @@ enum devlink_command {
 	DEVLINK_CMD_FLASH_UPDATE_END,		/* notification only */
 	DEVLINK_CMD_FLASH_UPDATE_STATUS,	/* notification only */
 
+	DEVLINK_CMD_TRAP_GET,		/* can dump */
+	DEVLINK_CMD_TRAP_SET,
+	DEVLINK_CMD_TRAP_NEW,
+	DEVLINK_CMD_TRAP_DEL,
+
+	DEVLINK_CMD_TRAP_GROUP_GET,	/* can dump */
+	DEVLINK_CMD_TRAP_GROUP_SET,
+	DEVLINK_CMD_TRAP_GROUP_NEW,
+	DEVLINK_CMD_TRAP_GROUP_DEL,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -192,6 +202,47 @@ enum devlink_param_cmode {
 enum devlink_param_fw_load_policy_value {
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER,
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH,
+};
+
+enum {
+	DEVLINK_ATTR_STATS_RX_PACKETS,		/* u64 */
+	DEVLINK_ATTR_STATS_RX_BYTES,		/* u64 */
+
+	__DEVLINK_ATTR_STATS_MAX,
+	DEVLINK_ATTR_STATS_MAX = __DEVLINK_ATTR_STATS_MAX - 1
+};
+
+/**
+ * enum devlink_trap_action - Packet trap action.
+ * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is not
+ *                            sent to the CPU.
+ * @DEVLINK_TRAP_ACTION_TRAP: The sole copy of the packet is sent to the CPU.
+ */
+enum devlink_trap_action {
+	DEVLINK_TRAP_ACTION_DROP,
+	DEVLINK_TRAP_ACTION_TRAP,
+};
+
+/**
+ * enum devlink_trap_type - Packet trap type.
+ * @DEVLINK_TRAP_TYPE_DROP: Trap reason is a drop. Trapped packets are only
+ *                          processed by devlink and not injected to the
+ *                          kernel's Rx path.
+ * @DEVLINK_TRAP_TYPE_EXCEPTION: Trap reason is an exception. Packet was not
+ *                               forwarded as intended due to an exception
+ *                               (e.g., missing neighbour entry) and trapped to
+ *                               control plane for resolution. Trapped packets
+ *                               are processed by devlink and injected to
+ *                               the kernel's Rx path.
+ */
+enum devlink_trap_type {
+	DEVLINK_TRAP_TYPE_DROP,
+	DEVLINK_TRAP_TYPE_EXCEPTION,
+};
+
+enum {
+	/* Trap can report input port as metadata */
+	DEVLINK_ATTR_TRAP_METADATA_TYPE_IN_PORT,
 };
 
 enum devlink_attr {
@@ -347,6 +398,17 @@ enum devlink_attr {
 
 	DEVLINK_ATTR_PORT_PCI_PF_NUMBER,	/* u16 */
 	DEVLINK_ATTR_PORT_PCI_VF_NUMBER,	/* u16 */
+
+	DEVLINK_ATTR_STATS,				/* nested */
+
+	DEVLINK_ATTR_TRAP_NAME,				/* string */
+	/* enum devlink_trap_action */
+	DEVLINK_ATTR_TRAP_ACTION,			/* u8 */
+	/* enum devlink_trap_type */
+	DEVLINK_ATTR_TRAP_TYPE,				/* u8 */
+	DEVLINK_ATTR_TRAP_GENERIC,			/* flag */
+	DEVLINK_ATTR_TRAP_METADATA,			/* nested */
+	DEVLINK_ATTR_TRAP_GROUP_NAME,			/* string */
 
 	/* add new attributes above here, update the policy in devlink.c */
 
