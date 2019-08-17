@@ -716,7 +716,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(dev_priv) <= 11) {
+	} else if (INTEL_GEN(dev_priv) <= 12) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
 		u32 freq = 0;
 
