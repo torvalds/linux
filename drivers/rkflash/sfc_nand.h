@@ -5,16 +5,23 @@
 #ifndef __SFC_NAND_H
 #define __SFC_NAND_H
 
+#include "flash_com.h"
+
+#ifdef CONFIG_RK_SFC_NAND_MTD
+#include <linux/mtd/mtd.h>
+#endif
+
 #define SFC_NAND_STRESS_TEST_EN		0
 
-#define SFC_NAND_PROG_ERASE_ERROR	-2
-#define SFC_NAND_HW_ERROR		-1
+#define SFC_NAND_PROG_ERASE_ERROR	2
+#define SFC_NAND_HW_ERROR		1
 #define SFC_NAND_ECC_ERROR		NAND_ERROR
 #define SFC_NAND_ECC_REFRESH		NAND_STS_REFRESH
 #define SFC_NAND_ECC_OK			NAND_STS_OK
 
 #define SFC_NAND_PAGE_MAX_SIZE		4224
 #define SFC_NAND_SECTOR_FULL_SIZE	528
+#define SFC_NAND_SECTOR_SIZE		512
 
 #define FEA_READ_STATUE_MASK    (0x3 << 0)
 #define FEA_STATUE_MODE1        0
@@ -87,6 +94,10 @@ struct SFNAND_DEV {
 	u8 prog_lines;
 	u8 page_read_cmd;
 	u8 page_prog_cmd;
+#ifdef CONFIG_RK_SFC_NAND_MTD
+	struct mtd_info mtd;
+	u8 *dma_buf;
+#endif
 };
 
 struct nand_info {
@@ -117,8 +128,10 @@ struct nand_info {
 	u32 (*ecc_status)(void);
 };
 
+#ifndef CONFIG_RK_SFC_NOR_MTD
 extern struct nand_phy_info	g_nand_phy_info;
 extern struct nand_ops		g_nand_ops;
+#endif
 
 u32 sfc_nand_init(void);
 void sfc_nand_deinit(void);
@@ -128,5 +141,12 @@ u32 sfc_nand_ecc_status_sp2(void);
 u32 sfc_nand_ecc_status_sp3(void);
 u32 sfc_nand_ecc_status_sp4(void);
 u32 sfc_nand_ecc_status_sp5(void);
+u32 sfc_nand_erase_block(u8 cs, u32 addr);
+u32 sfc_nand_prog_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
+u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
+u32 sfc_nand_check_bad_block(u8 cs, u32 addr);
+u32 sfc_nand_mark_bad_block(u8 cs, u32 addr);
+
+int sfc_nand_mtd_init(struct SFNAND_DEV *p_dev);
 
 #endif

@@ -755,6 +755,8 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
 		flash_vendor_dev_ops_register(rkflash_vendor_read,
 					      rkflash_vendor_write);
+	} else if (g_flash_type == FLASH_TYPE_SFC_NAND) {
+		/* TO-DO */
 	} else {
 #if defined(CONFIG_RK_NANDC_NAND) || defined(CONFIG_RK_SFC_NAND)
 		rk_sftl_vendor_dev_ops_register(rkflash_vendor_read,
@@ -770,9 +772,13 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 		}
 #endif
 	}
-#ifdef CONFIG_RK_SFC_NOR_MTD
+#if defined(CONFIG_RK_SFC_NOR_MTD) || defined(CONFIG_RK_SFC_NAND_MTD)
 	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
 		pr_info("sfc_nor flash registered as a mtd device\n");
+		rkflash_dev_initialised = 1;
+		return 0;
+	} else if (g_flash_type == FLASH_TYPE_SFC_NAND) {
+		pr_info("sfc_nand flash registered as a mtd device\n");
 		rkflash_dev_initialised = 1;
 		return 0;
 	}

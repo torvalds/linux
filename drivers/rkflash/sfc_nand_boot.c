@@ -16,8 +16,10 @@ int snand_init(void __iomem *reg_addr)
 
 	sfc_init(reg_addr);
 	ret = sfc_nand_init();
+#ifndef CONFIG_RK_SFC_NAND_MTD
 	if (ret == 0)
 		ret = sftl_init();
+#endif
 
 	return ret;
 }
