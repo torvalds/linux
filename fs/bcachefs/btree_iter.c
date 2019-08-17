@@ -1436,8 +1436,7 @@ __bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
 
 recheck:
 	while ((k = __btree_iter_peek_all(iter, l, &iter->k)).k &&
-	       bkey_deleted(k.k) &&
-	       bkey_cmp(bkey_start_pos(k.k), iter->pos) == 0)
+	       bkey_cmp(k.k->p, iter->pos) <= 0)
 		bch2_btree_node_iter_advance(&l->iter, l->b);
 
 	/*
