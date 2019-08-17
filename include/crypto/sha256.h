@@ -17,7 +17,7 @@
  * kexec_file purgatory. In other cases you should use the implementation in
  * crypto/.
  *
- * For details see lib/sha256.c
+ * For details see lib/crypto/sha256.c
  */
 
 extern int sha256_init(struct sha256_state *sctx);

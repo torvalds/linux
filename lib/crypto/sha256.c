@@ -12,8 +12,8 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/sha256.h>
 #include <linux/string.h>
+#include <crypto/sha256.h>
 #include <asm/byteorder.h>
 
 static inline u32 Ch(u32 x, u32 y, u32 z)
