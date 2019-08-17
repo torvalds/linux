@@ -63,7 +63,7 @@ struct dma_fence_cb;
  * been completed, or never called at all.
  */
 struct dma_fence {
-	struct kref refcount;
+	spinlock_t *lock;
 	const struct dma_fence_ops *ops;
 	/* We clear the callback list on kref_put so that by the time we
 	 * release the fence it is unused. No one should be adding to the cb_list
@@ -73,11 +73,11 @@ struct dma_fence {
 		struct rcu_head rcu;
 		struct list_head cb_list;
 	};
-	spinlock_t *lock;
 	u64 context;
 	u64 seqno;
-	unsigned long flags;
 	ktime_t timestamp;
+	unsigned long flags;
+	struct kref refcount;
 	int error;
 };
 
