@@ -1464,11 +1464,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	intel_init_gt_powersave(dev_priv);
 
-	ret = intel_uc_init(&dev_priv->gt.uc);
-	if (ret) {
-		GEM_BUG_ON(ret == -EIO);
-		goto err_pm;
-	}
+	intel_uc_init(&dev_priv->gt.uc);
 
 	ret = i915_gem_init_hw(dev_priv);
 	if (ret)
@@ -1530,10 +1526,8 @@ err_gt:
 err_init_hw:
 	intel_uc_fini_hw(&dev_priv->gt.uc);
 err_uc_init:
-	if (ret != -EIO)
-		intel_uc_fini(&dev_priv->gt.uc);
-err_pm:
 	if (ret != -EIO) {
+		intel_uc_fini(&dev_priv->gt.uc);
 		intel_cleanup_gt_powersave(dev_priv);
 		intel_engines_cleanup(dev_priv);
 	}

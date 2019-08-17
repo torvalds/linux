@@ -105,6 +105,9 @@ out:
 
 void intel_huc_fini(struct intel_huc *huc)
 {
+	if (!intel_uc_fw_is_available(&huc->fw))
+		return;
+
 	intel_huc_rsa_data_destroy(huc);
 	intel_uc_fw_fini(&huc->fw);
 }

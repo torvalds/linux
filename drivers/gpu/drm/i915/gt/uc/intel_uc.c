@@ -288,27 +288,26 @@ void intel_uc_cleanup_firmwares(struct intel_uc *uc)
 	intel_uc_fw_cleanup_fetch(&uc->guc.fw);
 }
 
-int intel_uc_init(struct intel_uc *uc)
+void intel_uc_init(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 	struct intel_huc *huc = &uc->huc;
 	int ret;
 
 	if (!intel_uc_uses_guc(uc))
-		return 0;
+		return;
 
 	/* XXX: GuC submission is unavailable for now */
 	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
 
 	ret = intel_guc_init(guc);
-	if (ret)
-		return ret;
-
-	if (intel_uc_uses_huc(uc)) {
-		intel_huc_init(huc);
+	if (ret) {
+		intel_uc_fw_cleanup_fetch(&huc->fw);
+		return;
 	}
 
-	return 0;
+	if (intel_uc_uses_huc(uc))
+		intel_huc_init(huc);
 }
 
 void intel_uc_fini(struct intel_uc *uc)

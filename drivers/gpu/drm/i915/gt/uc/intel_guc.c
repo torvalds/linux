@@ -310,6 +310,9 @@ void intel_guc_fini(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
+	if (!intel_uc_fw_is_available(&guc->fw))
+		return;
+
 	i915_ggtt_disable_guc(gt->ggtt);
 
 	if (intel_guc_is_submission_supported(guc))
