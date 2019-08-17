@@ -356,10 +356,6 @@ static int adin_config_init(struct phy_device *phydev)
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
-	rc = genphy_config_init(phydev);
-	if (rc < 0)
-		return rc;
-
 	rc = adin_config_rgmii_mode(phydev);
 	if (rc < 0)
 		return rc;
