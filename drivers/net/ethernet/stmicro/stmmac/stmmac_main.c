@@ -2617,6 +2617,10 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			stmmac_enable_sph(priv, priv->ioaddr, 1, chan);
 	}
 
+	/* VLAN Tag Insertion */
+	if (priv->dma_cap.vlins)
+		stmmac_enable_vlan(priv, priv->hw, STMMAC_VLAN_INSERT);
+
 	/* Start the ball rolling... */
 	stmmac_start_all_dma(priv);
 
@@ -2794,6 +2798,33 @@ static int stmmac_release(struct net_device *dev)
 	return 0;
 }
 
+static bool stmmac_vlan_insert(struct stmmac_priv *priv, struct sk_buff *skb,
+			       struct stmmac_tx_queue *tx_q)
+{
+	u16 tag = 0x0, inner_tag = 0x0;
+	u32 inner_type = 0x0;
+	struct dma_desc *p;
+
+	if (!priv->dma_cap.vlins)
+		return false;
+	if (!skb_vlan_tag_present(skb))
+		return false;
+	if (skb->vlan_proto == htons(ETH_P_8021AD)) {
+		inner_tag = skb_vlan_tag_get(skb);
+		inner_type = STMMAC_VLAN_INSERT;
+	}
+
+	tag = skb_vlan_tag_get(skb);
+
+	p = tx_q->dma_tx + tx_q->cur_tx;
+	if (stmmac_set_desc_vlan_tag(priv, p, tag, inner_tag, inner_type))
+		return false;
+
+	stmmac_set_tx_owner(priv, p);
+	tx_q->cur_tx = STMMAC_GET_ENTRY(tx_q->cur_tx, DMA_TX_SIZE);
+	return true;
+}
+
 /**
  *  stmmac_tso_allocator - close entry point of the driver
  *  @priv: driver private structure
@@ -2873,12 +2904,13 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	u32 queue = skb_get_queue_mapping(skb);
-	unsigned int first_entry;
 	struct stmmac_tx_queue *tx_q;
+	unsigned int first_entry;
 	int tmp_pay_len = 0;
 	u32 pay_len, mss;
 	u8 proto_hdr_len;
 	dma_addr_t des;
+	bool has_vlan;
 	int i;
 
 	tx_q = &priv->tx_queue[queue];
@@ -2920,11 +2952,17 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb->data_len);
 	}
 
+	/* Check if VLAN can be inserted by HW */
+	has_vlan = stmmac_vlan_insert(priv, skb, tx_q);
+
 	first_entry = tx_q->cur_tx;
 	WARN_ON(tx_q->tx_skbuff[first_entry]);
 
 	desc = tx_q->dma_tx + first_entry;
 	first = desc;
+
+	if (has_vlan)
+		stmmac_set_desc_vlan(priv, first, STMMAC_VLAN_INSERT);
 
 	/* first descriptor: fill Headers on Buf1 */
 	des = dma_map_single(priv->device, skb->data, skb_headlen(skb),
@@ -3085,6 +3123,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int first_entry;
 	unsigned int enh_desc;
 	dma_addr_t des;
+	bool has_vlan;
 	int entry;
 
 	tx_q = &priv->tx_queue[queue];
@@ -3110,6 +3149,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
+	/* Check if VLAN can be inserted by HW */
+	has_vlan = stmmac_vlan_insert(priv, skb, tx_q);
+
 	entry = tx_q->cur_tx;
 	first_entry = entry;
 	WARN_ON(tx_q->tx_skbuff[first_entry]);
@@ -3122,6 +3164,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		desc = tx_q->dma_tx + entry;
 
 	first = desc;
+
+	if (has_vlan)
+		stmmac_set_desc_vlan(priv, first, STMMAC_VLAN_INSERT);
 
 	enh_desc = priv->plat->enh_desc;
 	/* To program the descriptors according to the size of the frame */
@@ -4472,6 +4517,11 @@ int stmmac_dvr_probe(struct device *device,
 	if (priv->dma_cap.vlhash) {
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 		ndev->features |= NETIF_F_HW_VLAN_STAG_FILTER;
+	}
+	if (priv->dma_cap.vlins) {
+		ndev->features |= NETIF_F_HW_VLAN_CTAG_TX;
+		if (priv->dma_cap.dvlan)
+			ndev->features |= NETIF_F_HW_VLAN_STAG_TX;
 	}
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);

@@ -358,6 +358,8 @@ struct dma_features {
 	unsigned int rssen;
 	unsigned int vlhash;
 	unsigned int sphen;
+	unsigned int vlins;
+	unsigned int dvlan;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
@@ -388,6 +390,12 @@ struct dma_features {
 /* Receive Side Scaling */
 #define STMMAC_RSS_HASH_KEY_SIZE	40
 #define STMMAC_RSS_MAX_TABLE_SIZE	256
+
+/* VLAN */
+#define STMMAC_VLAN_NONE	0x0
+#define STMMAC_VLAN_REMOVE	0x1
+#define STMMAC_VLAN_INSERT	0x2
+#define STMMAC_VLAN_REPLACE	0x3
 
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;

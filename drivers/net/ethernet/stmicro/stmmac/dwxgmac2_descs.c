@@ -305,6 +305,39 @@ static void dwxgmac2_set_sarc(struct dma_desc *p, u32 sarc_type)
 	p->des3 |= cpu_to_le32(sarc_type & XGMAC_TDES3_SAIC);
 }
 
+static void dwxgmac2_set_vlan_tag(struct dma_desc *p, u16 tag, u16 inner_tag,
+				  u32 inner_type)
+{
+	p->des0 = 0;
+	p->des1 = 0;
+	p->des2 = 0;
+	p->des3 = 0;
+
+	/* Inner VLAN */
+	if (inner_type) {
+		u32 des = inner_tag << XGMAC_TDES2_IVT_SHIFT;
+
+		des &= XGMAC_TDES2_IVT;
+		p->des2 = cpu_to_le32(des);
+
+		des = inner_type << XGMAC_TDES3_IVTIR_SHIFT;
+		des &= XGMAC_TDES3_IVTIR;
+		p->des3 = cpu_to_le32(des | XGMAC_TDES3_IVLTV);
+	}
+
+	/* Outer VLAN */
+	p->des3 |= cpu_to_le32(tag & XGMAC_TDES3_VT);
+	p->des3 |= cpu_to_le32(XGMAC_TDES3_VLTV);
+
+	p->des3 |= cpu_to_le32(XGMAC_TDES3_CTXT);
+}
+
+static void dwxgmac2_set_vlan(struct dma_desc *p, u32 type)
+{
+	type <<= XGMAC_TDES2_VTIR_SHIFT;
+	p->des2 |= cpu_to_le32(type & XGMAC_TDES2_VTIR);
+}
+
 const struct stmmac_desc_ops dwxgmac210_desc_ops = {
 	.tx_status = dwxgmac2_get_tx_status,
 	.rx_status = dwxgmac2_get_rx_status,
@@ -332,4 +365,6 @@ const struct stmmac_desc_ops dwxgmac210_desc_ops = {
 	.get_rx_header_len = dwxgmac2_get_rx_header_len,
 	.set_sec_addr = dwxgmac2_set_sec_addr,
 	.set_sarc = dwxgmac2_set_sarc,
+	.set_vlan_tag = dwxgmac2_set_vlan_tag,
+	.set_vlan = dwxgmac2_set_vlan,
 };
