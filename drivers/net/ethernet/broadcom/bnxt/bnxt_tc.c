@@ -1285,9 +1285,7 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 		goto free_node;
 
 	bnxt_tc_set_src_fid(bp, flow, src_fid);
-
-	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
-		bnxt_tc_set_flow_dir(bp, flow, src_fid);
+	bnxt_tc_set_flow_dir(bp, flow, flow->src_fid);
 
 	if (!bnxt_tc_can_offload(bp, flow)) {
 		rc = -EOPNOTSUPP;
