@@ -221,6 +221,22 @@ int sha256_init(struct sha256_state *sctx)
 }
 EXPORT_SYMBOL(sha256_init);
 
+int sha224_init(struct sha256_state *sctx)
+{
+	sctx->state[0] = SHA224_H0;
+	sctx->state[1] = SHA224_H1;
+	sctx->state[2] = SHA224_H2;
+	sctx->state[3] = SHA224_H3;
+	sctx->state[4] = SHA224_H4;
+	sctx->state[5] = SHA224_H5;
+	sctx->state[6] = SHA224_H6;
+	sctx->state[7] = SHA224_H7;
+	sctx->count = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(sha224_init);
+
 int sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 {
 	unsigned int partial, done;
@@ -252,7 +268,13 @@ int sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 }
 EXPORT_SYMBOL(sha256_update);
 
-int sha256_final(struct sha256_state *sctx, u8 *out)
+int sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+{
+	return sha256_update(sctx, data, len);
+}
+EXPORT_SYMBOL(sha224_update);
+
+static int __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
 {
 	__be32 *dst = (__be32 *)out;
 	__be64 bits;
@@ -272,7 +294,7 @@ int sha256_final(struct sha256_state *sctx, u8 *out)
 	sha256_update(sctx, (const u8 *)&bits, sizeof(bits));
 
 	/* Store state in digest */
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < digest_words; i++)
 		put_unaligned_be32(sctx->state[i], &dst[i]);
 
 	/* Zeroize sensitive information. */
@@ -280,4 +302,15 @@ int sha256_final(struct sha256_state *sctx, u8 *out)
 
 	return 0;
 }
+
+int sha256_final(struct sha256_state *sctx, u8 *out)
+{
+	return __sha256_final(sctx, out, 8);
+}
 EXPORT_SYMBOL(sha256_final);
+
+int sha224_final(struct sha256_state *sctx, u8 *out)
+{
+	return __sha256_final(sctx, out, 7);
+}
+EXPORT_SYMBOL(sha224_final);
