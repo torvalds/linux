@@ -934,9 +934,40 @@ static struct notifier_block dropmon_net_notifier = {
 	.notifier_call = dropmon_net_event
 };
 
-static int __init init_net_drop_monitor(void)
+static void __net_dm_cpu_data_init(struct per_cpu_dm_data *data)
+{
+	spin_lock_init(&data->lock);
+	skb_queue_head_init(&data->drop_queue);
+	u64_stats_init(&data->stats.syncp);
+}
+
+static void __net_dm_cpu_data_fini(struct per_cpu_dm_data *data)
+{
+	WARN_ON(!skb_queue_empty(&data->drop_queue));
+}
+
+static void net_dm_cpu_data_init(int cpu)
 {
 	struct per_cpu_dm_data *data;
+
+	data = &per_cpu(dm_cpu_data, cpu);
+	__net_dm_cpu_data_init(data);
+}
+
+static void net_dm_cpu_data_fini(int cpu)
+{
+	struct per_cpu_dm_data *data;
+
+	data = &per_cpu(dm_cpu_data, cpu);
+	/* At this point, we should have exclusive access
+	 * to this struct and can free the skb inside it.
+	 */
+	consume_skb(data->skb);
+	__net_dm_cpu_data_fini(data);
+}
+
+static int __init init_net_drop_monitor(void)
+{
 	int cpu, rc;
 
 	pr_info("Initializing network drop monitor service\n");
@@ -961,12 +992,8 @@ static int __init init_net_drop_monitor(void)
 
 	rc = 0;
 
-	for_each_possible_cpu(cpu) {
-		data = &per_cpu(dm_cpu_data, cpu);
-		spin_lock_init(&data->lock);
-		skb_queue_head_init(&data->drop_queue);
-		u64_stats_init(&data->stats.syncp);
-	}
+	for_each_possible_cpu(cpu)
+		net_dm_cpu_data_init(cpu);
 
 	goto out;
 
@@ -978,7 +1005,6 @@ out:
 
 static void exit_net_drop_monitor(void)
 {
-	struct per_cpu_dm_data *data;
 	int cpu;
 
 	BUG_ON(unregister_netdevice_notifier(&dropmon_net_notifier));
@@ -988,15 +1014,8 @@ static void exit_net_drop_monitor(void)
 	 * we are guarnateed not to have any current users when we get here
 	 */
 
-	for_each_possible_cpu(cpu) {
-		data = &per_cpu(dm_cpu_data, cpu);
-		/*
-		 * At this point, we should have exclusive access
-		 * to this struct and can free the skb inside it
-		 */
-		kfree_skb(data->skb);
-		WARN_ON(!skb_queue_empty(&data->drop_queue));
-	}
+	for_each_possible_cpu(cpu)
+		net_dm_cpu_data_fini(cpu);
 
 	BUG_ON(genl_unregister_family(&net_drop_monitor_family));
 }
