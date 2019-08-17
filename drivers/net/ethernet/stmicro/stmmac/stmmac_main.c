@@ -3503,6 +3503,7 @@ read_again:
 				len = hlen;
 
 				prefetch(page_address(buf->sec_page));
+				priv->xstats.rx_split_hdr_pkt_n++;
 			}
 
 			skb = napi_alloc_skb(&ch->rx_napi, len);
