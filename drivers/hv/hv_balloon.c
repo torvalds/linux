@@ -23,6 +23,7 @@
 #include <linux/percpu_counter.h>
 
 #include <linux/hyperv.h>
+#include <asm/hyperv-tlfs.h>
 
 #define CREATE_TRACE_POINTS
 #include "hv_trace_balloon.h"
@@ -341,8 +342,6 @@ struct dm_unballoon_response {
  *
  * mem_range: Memory range to hot add.
  *
- * On Linux we currently don't support this since we cannot hot add
- * arbitrary granularity of memory.
  */
 
 struct dm_hot_add {
@@ -477,7 +476,7 @@ module_param(pressure_report_delay, uint, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(pressure_report_delay, "Delay in secs in reporting pressure");
 static atomic_t trans_id = ATOMIC_INIT(0);
 
-static int dm_ring_size = (5 * PAGE_SIZE);
+static int dm_ring_size = 20 * 1024;
 
 /*
  * Driver specific state.
@@ -493,10 +492,10 @@ enum hv_dm_state {
 };
 
 
-static __u8 recv_buffer[PAGE_SIZE];
-static __u8 balloon_up_send_buffer[PAGE_SIZE];
-#define PAGES_IN_2M	512
-#define HA_CHUNK (32 * 1024)
+static __u8 recv_buffer[HV_HYP_PAGE_SIZE];
+static __u8 balloon_up_send_buffer[HV_HYP_PAGE_SIZE];
+#define PAGES_IN_2M (2 * 1024 * 1024 / PAGE_SIZE)
+#define HA_CHUNK (128 * 1024 * 1024 / PAGE_SIZE)
 
 struct hv_dynmem_device {
 	struct hv_device *dev;
@@ -1076,7 +1075,7 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 			__u64 *max_page_count = (__u64 *)&info_hdr[1];
 
 			pr_info("Max. dynamic memory size: %llu MB\n",
-				(*max_page_count) >> (20 - PAGE_SHIFT));
+				(*max_page_count) >> (20 - HV_HYP_PAGE_SHIFT));
 		}
 
 		break;
@@ -1218,7 +1217,7 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
 
 	for (i = 0; (i * alloc_unit) < num_pages; i++) {
 		if (bl_resp->hdr.size + sizeof(union dm_mem_page_range) >
-			PAGE_SIZE)
+			HV_HYP_PAGE_SIZE)
 			return i * alloc_unit;
 
 		/*
@@ -1274,9 +1273,9 @@ static void balloon_up(struct work_struct *dummy)
 
 	/*
 	 * We will attempt 2M allocations. However, if we fail to
-	 * allocate 2M chunks, we will go back to 4k allocations.
+	 * allocate 2M chunks, we will go back to PAGE_SIZE allocations.
 	 */
-	alloc_unit = 512;
+	alloc_unit = PAGES_IN_2M;
 
 	avail_pages = si_mem_available();
 	floor = compute_balloon_floor();
@@ -1292,7 +1291,7 @@ static void balloon_up(struct work_struct *dummy)
 	}
 
 	while (!done) {
-		memset(balloon_up_send_buffer, 0, PAGE_SIZE);
+		memset(balloon_up_send_buffer, 0, HV_HYP_PAGE_SIZE);
 		bl_resp = (struct dm_balloon_response *)balloon_up_send_buffer;
 		bl_resp->hdr.type = DM_BALLOON_RESPONSE;
 		bl_resp->hdr.size = sizeof(struct dm_balloon_response);
@@ -1491,7 +1490,7 @@ static void balloon_onchannelcallback(void *context)
 
 	memset(recv_buffer, 0, sizeof(recv_buffer));
 	vmbus_recvpacket(dev->channel, recv_buffer,
-			 PAGE_SIZE, &recvlen, &requestid);
+			 HV_HYP_PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		dm_msg = (struct dm_message *)recv_buffer;
