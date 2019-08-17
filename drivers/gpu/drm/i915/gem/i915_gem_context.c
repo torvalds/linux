@@ -173,7 +173,9 @@ static inline int new_hw_id(struct drm_i915_private *i915, gfp_t gfp)
 
 	lockdep_assert_held(&i915->contexts.mutex);
 
-	if (INTEL_GEN(i915) >= 11)
+	if (INTEL_GEN(i915) >= 12)
+		max = GEN12_MAX_CONTEXT_HW_ID;
+	else if (INTEL_GEN(i915) >= 11)
 		max = GEN11_MAX_CONTEXT_HW_ID;
 	else if (USES_GUC_SUBMISSION(i915))
 		/*

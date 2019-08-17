@@ -1602,6 +1602,8 @@ struct drm_i915_private {
 #define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
 #define MAX_GUC_CONTEXT_HW_ID (1 << 20) /* exclusive */
 #define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
+/* in Gen12 ID 0x7FF is reserved to indicate idle */
+#define GEN12_MAX_CONTEXT_HW_ID	(GEN11_MAX_CONTEXT_HW_ID - 1)
 		struct list_head hw_id_list;
 	} contexts;
 
