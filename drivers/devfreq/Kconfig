@@ -131,6 +131,12 @@ config ARM_TEGRA20_DEVFREQ
 	  It reads Memory Controller counters and adjusts the operating
 	  frequencies and voltages with OPP support.
 
+config ARM_ROCKCHIP_BUS_DEVFREQ
+	tristate "ARM ROCKCHIP BUS DEVFREQ Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This adds the DEVFREQ driver for the ROCKCHIP BUS.
+
 config ARM_RK3399_DMC_DEVFREQ
 	tristate "ARM RK3399 DMC DEVFREQ Driver"
 	depends on (ARCH_ROCKCHIP && HAVE_ARM_SMCCC) || \
