@@ -1071,25 +1071,22 @@ out_nfserr:
 __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
+	struct nfsd_file	*nf;
 	struct file *file;
-	struct raparms	*ra;
 	__be32 err;
 
 	trace_nfsd_read_start(rqstp, fhp, offset, *count);
-	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
+	err = nfsd_file_acquire(rqstp, fhp, NFSD_MAY_READ, &nf);
 	if (err)
 		return err;
 
-	ra = nfsd_init_raparms(file);
-
+	file = nf->nf_file;
 	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
 		err = nfsd_splice_read(rqstp, fhp, file, offset, count);
 	else
 		err = nfsd_readv(rqstp, fhp, file, offset, vec, vlen, count);
 
-	if (ra)
-		nfsd_put_raparams(file, ra);
-	fput(file);
+	nfsd_file_put(nf);
 
 	trace_nfsd_read_done(rqstp, fhp, offset, *count);
 
