@@ -85,10 +85,10 @@ struct hnae3_queue {
 	void __iomem *io_base;
 	struct hnae3_ae_algo *ae_algo;
 	struct hnae3_handle *handle;
-	int tqp_index;	/* index in a handle */
-	u32 buf_size;	/* size for hnae_desc->addr, preset by AE */
-	u16 tx_desc_num;/* total number of tx desc */
-	u16 rx_desc_num;/* total number of rx desc */
+	int tqp_index;		/* index in a handle */
+	u32 buf_size;		/* size for hnae_desc->addr, preset by AE */
+	u16 tx_desc_num;	/* total number of tx desc */
+	u16 rx_desc_num;	/* total number of rx desc */
 };
 
 struct hns3_mac_stats {
@@ -96,7 +96,7 @@ struct hns3_mac_stats {
 	u64 rx_pause_cnt;
 };
 
-/*hnae3 loop mode*/
+/* hnae3 loop mode */
 enum hnae3_loop {
 	HNAE3_LOOP_APP,
 	HNAE3_LOOP_SERIAL_SERDES,
@@ -621,7 +621,7 @@ struct hnae3_handle {
 	struct pci_dev *pdev;
 	void *priv;
 	struct hnae3_ae_algo *ae_algo;  /* the class who provides this handle */
-	u64 flags; /* Indicate the capabilities for this handle*/
+	u64 flags; /* Indicate the capabilities for this handle */
 
 	union {
 		struct net_device *netdev; /* first member */

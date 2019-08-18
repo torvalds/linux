@@ -302,7 +302,7 @@ struct hns3_desc_cb {
 	dma_addr_t dma; /* dma address of this desc */
 	void *buf;      /* cpu addr for a desc */
 
-	/* priv data for the desc, e.g. skb when use with ip stack*/
+	/* priv data for the desc, e.g. skb when use with ip stack */
 	void *priv;
 	u32 page_offset;
 	u32 length;     /* length of the buffer */
@@ -325,11 +325,11 @@ enum hns3_pkt_l3type {
 	HNS3_L3_TYPE_MAC_PAUSE,
 	HNS3_L3_TYPE_PFC_PAUSE,/* 0x9*/
 
-	/* reserved for 0xA~0xB*/
+	/* reserved for 0xA~0xB */
 
 	HNS3_L3_TYPE_CNM = 0xc,
 
-	/* reserved for 0xD~0xE*/
+	/* reserved for 0xD~0xE */
 
 	HNS3_L3_TYPE_PARSE_FAIL	= 0xf /* must be last */
 };
@@ -354,7 +354,7 @@ enum hns3_pkt_ol3type {
 	HNS3_OL3_TYPE_IPV4_OPT = 4,
 	HNS3_OL3_TYPE_IPV6_EXT,
 
-	/* reserved for 0x6~0xE*/
+	/* reserved for 0x6~0xE */
 
 	HNS3_OL3_TYPE_PARSE_FAIL = 0xf	/* must be last */
 };

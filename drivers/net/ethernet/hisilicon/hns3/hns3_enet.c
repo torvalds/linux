@@ -229,9 +229,9 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
 	/* initialize the configuration for interrupt coalescing.
 	 * 1. GL (Interrupt Gap Limiter)
 	 * 2. RL (Interrupt Rate Limiter)
+	 *
+	 * Default: enable interrupt coalescing self-adaptive and GL
 	 */
-
-	/* Default: enable interrupt coalescing self-adaptive and GL */
 	tqp_vector->tx_group.coal.gl_adapt_enable = 1;
 	tqp_vector->rx_group.coal.gl_adapt_enable = 1;
 
@@ -4207,8 +4207,8 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 static void hns3_store_coal(struct hns3_nic_priv *priv)
 {
 	/* ethtool only support setting and querying one coal
-	 * configuation for now, so save the vector 0' coal
-	 * configuation here in order to restore it.
+	 * configuration for now, so save the vector 0' coal
+	 * configuration here in order to restore it.
 	 */
 	memcpy(&priv->tx_coal, &priv->tqp_vector[0].tx_group.coal,
 	       sizeof(struct hns3_enet_coalesce));

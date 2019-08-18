@@ -1128,6 +1128,7 @@ static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
 	else if (media_type == HNAE3_MEDIA_TYPE_BACKPLANE)
 		hclge_parse_backplane_link_mode(hdev, speed_ability);
 }
+
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 {
 	struct hclge_cfg_param_cmd *req;
@@ -2810,9 +2811,9 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	 * defer the processing of the mailbox events. Since, we would have not
 	 * cleared RX CMDQ event this time we would receive again another
 	 * interrupt from H/W just for the mailbox.
+	 *
+	 * check for vector0 reset event sources
 	 */
-
-	/* check for vector0 reset event sources */
 	if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & rst_src_reg) {
 		dev_info(&hdev->pdev->dev, "IMP reset interrupt\n");
 		set_bit(HNAE3_IMP_RESET, &hdev->reset_pending);
@@ -4364,8 +4365,8 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hnae3_ring_chain_node *node;
 	struct hclge_desc desc;
-	struct hclge_ctrl_vector_chain_cmd *req
-		= (struct hclge_ctrl_vector_chain_cmd *)desc.data;
+	struct hclge_ctrl_vector_chain_cmd *req =
+		(struct hclge_ctrl_vector_chain_cmd *)desc.data;
 	enum hclge_cmd_status status;
 	enum hclge_opcode_type op;
 	u16 tqp_type_and_id;
@@ -6379,6 +6380,8 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	for (i = 0; i < handle->kinfo.num_tqps; i++)
 		hclge_reset_tqp(handle, i);
 
+	hclge_config_mac_tnl_int(hdev, false);
+
 	/* Mac disable */
 	hclge_cfg_mac_mode(hdev, false);
 
@@ -8000,7 +8003,7 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 		return -EBUSY;
 	}
 
-	/* When port base vlan enabled, we use port base vlan as the vlan
+	/* when port base vlan enabled, we use port base vlan as the vlan
 	 * filter entry. In this case, we don't update vlan filter table
 	 * when user add new vlan or remove exist vlan, just update the vport
 	 * vlan list. The vlan id in vlan list will be writen in vlan filter
@@ -8019,7 +8022,7 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			hclge_add_vport_vlan_table(vport, vlan_id,
 						   writen_to_tbl);
 	} else if (is_kill) {
-		/* When remove hw vlan filter failed, record the vlan id,
+		/* when remove hw vlan filter failed, record the vlan id,
 		 * and try to remove it from hw later, to be consistence
 		 * with stack
 		 */
@@ -8656,7 +8659,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 		}
 	}
 
-	return ret;
+	return 0;
 
 clear_nic:
 	hdev->nic_client = NULL;
