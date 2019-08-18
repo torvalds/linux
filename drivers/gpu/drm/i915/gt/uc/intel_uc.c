@@ -400,6 +400,15 @@ err_out:
 	return err;
 }
 
+static bool uc_is_wopcm_locked(struct intel_uc *uc)
+{
+	struct intel_gt *gt = uc_to_gt(uc);
+	struct intel_uncore *uncore = gt->uncore;
+
+	return (intel_uncore_read(uncore, GUC_WOPCM_SIZE) & GUC_WOPCM_SIZE_LOCKED) ||
+	       (intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET) & GUC_WOPCM_OFFSET_VALID);
+}
+
 int intel_uc_init_hw(struct intel_uc *uc)
 {
 	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
@@ -410,11 +419,19 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	if (!intel_uc_supports_guc(uc))
 		return 0;
 
-	if (!intel_uc_uses_guc(uc))
+	/*
+	 * We can silently continue without GuC only if it was never enabled
+	 * before on this system after reboot, otherwise we risk GPU hangs.
+	 * To check if GuC was loaded before we look at WOPCM registers.
+	 */
+	if (!intel_uc_uses_guc(uc) && !uc_is_wopcm_locked(uc))
 		return 0;
 
 	if (!intel_uc_fw_is_available(&guc->fw)) {
-		ret = intel_uc_fw_status_to_error(guc->fw.status);
+		ret = uc_is_wopcm_locked(uc) ||
+		      intel_uc_fw_is_overridden(&guc->fw) ||
+		      intel_uc_supports_guc_submission(uc) ?
+		      intel_uc_fw_status_to_error(guc->fw.status) : 0;
 		goto err_out;
 	}
 
@@ -506,6 +523,12 @@ err_log_capture:
 	__uc_capture_load_err_log(uc);
 err_out:
 	__uc_sanitize(uc);
+
+	if (!ret) {
+		dev_notice(i915->drm.dev, "GuC is uninitialized\n");
+		/* We want to run without GuC submission */
+		return 0;
+	}
 
 	i915_probe_error(i915, "GuC initialization failed %d\n", ret);
 
