@@ -235,10 +235,8 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	/* register RTC and exit */
 	rtc->ops = &puv3_rtcops;
 	ret = rtc_register_device(rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "cannot attach rtc\n");
+	if (ret)
 		goto err_nortc;
-	}
 
 	/* platform setup code should have handled this; sigh */
 	if (!device_can_wakeup(&pdev->dev))

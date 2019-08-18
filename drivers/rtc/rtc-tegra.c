@@ -332,10 +332,8 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	}
 
 	ret = rtc_register_device(info->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register device: %d\n", ret);
+	if (ret)
 		goto disable_clk;
-	}
 
 	dev_notice(&pdev->dev, "Tegra internal Real Time Clock\n");
 

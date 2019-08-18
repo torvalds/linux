@@ -295,10 +295,9 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	info->rtc_dev->range_max = U32_MAX;
 
 	ret = rtc_register_device(info->rtc_dev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
+	if (ret)
 		goto out_rtc;
-	}
+
 	/*
 	 * enable internal XO instead of internal 3.25MHz clock since it can
 	 * free running in PMIC power-down state.

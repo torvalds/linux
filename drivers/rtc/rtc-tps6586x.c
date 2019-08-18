@@ -259,7 +259,6 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
-		dev_err(&pdev->dev, "RTC allocate device: ret %d\n", ret);
 		goto fail_rtc_register;
 	}
 
@@ -280,10 +279,8 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	disable_irq(rtc->irq);
 
 	ret = rtc_register_device(rtc->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "RTC device register: ret %d\n", ret);
+	if (ret)
 		goto fail_rtc_register;
-	}
 
 	return 0;
 

@@ -476,11 +476,7 @@ static int bd70528_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = rtc_register_device(rtc);
-	if (ret)
-		dev_err(&pdev->dev, "Registering RTC failed\n");
-
-	return ret;
+	return rtc_register_device(rtc);
 }
 
 static struct platform_driver bd70528_rtc = {

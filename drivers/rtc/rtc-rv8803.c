@@ -564,9 +564,8 @@ static int rv8803_probe(struct i2c_client *client,
 		dev_warn(&client->dev, "An alarm maybe have been missed.\n");
 
 	rv8803->rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(rv8803->rtc)) {
+	if (IS_ERR(rv8803->rtc))
 		return PTR_ERR(rv8803->rtc);
-	}
 
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,

@@ -472,15 +472,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 
 	chip->rtc->ops = &sunxi_rtc_ops;
 
-	ret = rtc_register_device(chip->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register device\n");
-		return ret;
-	}
-
-	dev_info(&pdev->dev, "RTC enabled\n");
-
-	return 0;
+	return rtc_register_device(chip->rtc);
 }
 
 static struct platform_driver sunxi_rtc_driver = {

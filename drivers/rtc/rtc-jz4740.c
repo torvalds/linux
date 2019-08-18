@@ -360,10 +360,8 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(rtc->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register rtc device: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_request_irq(&pdev->dev, rtc->irq, jz4740_rtc_irq, 0,
 				pdev->name, rtc);

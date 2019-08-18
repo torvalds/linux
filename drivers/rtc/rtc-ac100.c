@@ -610,15 +610,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = rtc_register_device(chip->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register device\n");
-		return ret;
-	}
-
-	dev_info(&pdev->dev, "RTC enabled\n");
-
-	return 0;
+	return rtc_register_device(chip->rtc);
 }
 
 static int ac100_rtc_remove(struct platform_device *pdev)
