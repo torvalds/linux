@@ -1776,6 +1776,11 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.hold_mask = CM_PLLD_HOLDCORE,
 		.fixed_divider = 1,
 		.flags = CLK_SET_RATE_PARENT),
+	/*
+	 * VPU firmware assumes that PLLD_PER isn't disabled by the ARM core.
+	 * Otherwise this could cause firmware lookups. That's why we mark
+	 * it as critical.
+	 */
 	[BCM2835_PLLD_PER]	= REGISTER_PLL_DIV(
 		SOC_ALL,
 		.name = "plld_per",
@@ -1785,7 +1790,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.load_mask = CM_PLLD_LOADPER,
 		.hold_mask = CM_PLLD_HOLDPER,
 		.fixed_divider = 1,
-		.flags = CLK_SET_RATE_PARENT),
+		.flags = CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	[BCM2835_PLLD_DSI0]	= REGISTER_PLL_DIV(
 		SOC_ALL,
 		.name = "plld_dsi0",
