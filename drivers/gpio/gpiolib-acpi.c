@@ -29,7 +29,7 @@
  * @irq:	  Linux IRQ number for the event, for request_ / free_irq
  * @irqflags:     flags to pass to request_irq when requesting the IRQ
  * @irq_is_wake:  If the ACPI flags indicate the IRQ is a wakeup source
- * @is_requested: True if request_irq has been done
+ * @irq_requested:True if request_irq has been done
  * @desc:	  gpio_desc for the GPIO pin for this event
  */
 struct acpi_gpio_event {
@@ -469,6 +469,9 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 static int
 __acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 {
+	const enum gpiod_flags mask =
+		GPIOD_FLAGS_BIT_DIR_SET | GPIOD_FLAGS_BIT_DIR_OUT |
+		GPIOD_FLAGS_BIT_DIR_VAL;
 	int ret = 0;
 
 	/*
@@ -489,7 +492,7 @@ __acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 		if (((*flags & GPIOD_FLAGS_BIT_DIR_SET) && (diff & GPIOD_FLAGS_BIT_DIR_OUT)) ||
 		    ((*flags & GPIOD_FLAGS_BIT_DIR_OUT) && (diff & GPIOD_FLAGS_BIT_DIR_VAL)))
 			ret = -EINVAL;
-		*flags = update;
+		*flags = (*flags & ~mask) | (update & mask);
 	}
 	return ret;
 }
@@ -530,17 +533,24 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
 		return 1;
 
-	if (lookup->n++ == lookup->index && !lookup->desc) {
+	if (!lookup->desc) {
 		const struct acpi_resource_gpio *agpio = &ares->data.gpio;
-		int pin_index = lookup->pin_index;
+		bool gpioint = agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
+		int pin_index;
 
+		if (lookup->info.quirks & ACPI_GPIO_QUIRK_ONLY_GPIOIO && gpioint)
+			lookup->index++;
+
+		if (lookup->n++ != lookup->index)
+			return 1;
+
+		pin_index = lookup->pin_index;
 		if (pin_index >= agpio->pin_table_length)
 			return 1;
 
 		lookup->desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
 					      agpio->pin_table[pin_index]);
-		lookup->info.gpioint =
-			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
+		lookup->info.gpioint = gpioint;
 
 		/*
 		 * Polarity and triggering are only specified for GpioInt
@@ -892,7 +902,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		 * event but only if the access here is ACPI_READ. In that
 		 * case we "borrow" the event GPIO instead.
 		 */
-		if (!found && agpio->sharable == ACPI_SHARED &&
+		if (!found && agpio->shareable == ACPI_SHARED &&
 		     function == ACPI_READ) {
 			struct acpi_gpio_event *event;
 

@@ -36,15 +36,14 @@
 struct pagevec;
 struct afs_call;
 
-struct afs_mount_params {
-	bool			rwpath;		/* T if the parent should be considered R/W */
+struct afs_fs_context {
 	bool			force;		/* T to force cell type */
 	bool			autocell;	/* T if set auto mount operation */
 	bool			dyn_root;	/* T if dynamic root */
+	bool			no_cell;	/* T if the source is "none" (for dynroot) */
 	afs_voltype_t		type;		/* type of volume requested */
-	int			volnamesz;	/* size of volume name */
+	unsigned int		volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
-	struct net		*net_ns;	/* Network namespace in effect */
 	struct afs_net		*net;		/* the AFS net namespace stuff */
 	struct afs_cell		*cell;		/* cell in which to find volume */
 	struct afs_volume	*volume;	/* volume record */
@@ -475,7 +474,6 @@ struct afs_server {
 	time64_t		put_time;	/* Time at which last put */
 	time64_t		update_at;	/* Time at which to next update the record */
 	unsigned long		flags;
-#define AFS_SERVER_FL_NEW	0		/* New server, don't inc cb_s_break */
 #define AFS_SERVER_FL_NOT_READY	1		/* The record is not ready for use */
 #define AFS_SERVER_FL_NOT_FOUND	2		/* VL server says no such server */
 #define AFS_SERVER_FL_VL_FAIL	3		/* Failed to access VL server */
@@ -828,7 +826,7 @@ static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest
 
 static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
 {
-	return vnode->cb_break + vnode->cb_s_break + vnode->cb_v_break;
+	return vnode->cb_break + vnode->cb_v_break;
 }
 
 static inline bool afs_cb_is_broken(unsigned int cb_break,
@@ -836,7 +834,6 @@ static inline bool afs_cb_is_broken(unsigned int cb_break,
 				    const struct afs_cb_interest *cbi)
 {
 	return !cbi || cb_break != (vnode->cb_break +
-				    cbi->server->cb_s_break +
 				    vnode->volume->cb_v_break);
 }
 
@@ -1274,7 +1271,7 @@ static inline struct afs_volume *__afs_get_volume(struct afs_volume *volume)
 	return volume;
 }
 
-extern struct afs_volume *afs_create_volume(struct afs_mount_params *);
+extern struct afs_volume *afs_create_volume(struct afs_fs_context *);
 extern void afs_activate_volume(struct afs_volume *);
 extern void afs_deactivate_volume(struct afs_volume *);
 extern void afs_put_volume(struct afs_cell *, struct afs_volume *);

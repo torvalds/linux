@@ -50,6 +50,12 @@ void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
 #endif /* DEBUG */
 EXPORT_SYMBOL(caam_dump_sg);
 
+bool caam_little_end;
+EXPORT_SYMBOL(caam_little_end);
+
+bool caam_imx;
+EXPORT_SYMBOL(caam_imx);
+
 static const struct {
 	u8 value;
 	const char *error_text;

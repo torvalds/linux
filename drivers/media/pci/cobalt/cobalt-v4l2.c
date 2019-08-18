@@ -375,7 +375,7 @@ static void cobalt_dma_stop_streaming(struct cobalt_stream *s)
 	}
 	spin_unlock_irqrestore(&s->irqlock, flags);
 
-	/* Wait 100 milisecond for DMA to finish, abort on timeout. */
+	/* Wait 100 millisecond for DMA to finish, abort on timeout. */
 	if (!wait_event_timeout(s->q.done_wq, is_dma_done(s),
 				msecs_to_jiffies(timeout_msec))) {
 		omni_sg_dma_abort_channel(s);

@@ -1,5 +1,3 @@
-include include/uapi/asm-generic/Kbuild.asm
-
 generated-y += unistd_n32.h
 generated-y += unistd_n64.h
 generated-y += unistd_o32.h

@@ -192,8 +192,8 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 
 /**
  * @brief - Doorbell Recovery handler.
- *          Run DB_REAL_DEAL doorbell recovery in case of PF overflow
- *          (and flush DORQ if needed), otherwise run DB_REC_ONCE.
+ *          Run doorbell recovery in case of PF overflow (and flush DORQ if
+ *          needed).
  *
  * @param p_hwfn
  * @param p_ptt
@@ -430,5 +430,8 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			  u8 timer_res, u16 sb_id, bool tx);
 
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
+
+int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt);
 
 #endif

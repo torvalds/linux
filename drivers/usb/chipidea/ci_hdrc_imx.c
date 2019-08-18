@@ -7,10 +7,8 @@
 
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/dma-mapping.h>
 #include <linux/usb/chipidea.h>
 #include <linux/usb/of.h>
 #include <linux/clk.h>
@@ -152,8 +150,8 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 		dev_warn(dev, "No over current polarity defined\n");
 	}
 
-	if (of_find_property(np, "external-vbus-divider", NULL))
-		data->evdo = 1;
+	data->pwr_pol = of_property_read_bool(np, "power-active-high");
+	data->evdo = of_property_read_bool(np, "external-vbus-divider");
 
 	if (of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI)
 		data->ulpi = 1;

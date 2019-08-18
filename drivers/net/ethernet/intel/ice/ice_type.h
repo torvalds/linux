@@ -90,6 +90,7 @@ enum ice_vsi_type {
 struct ice_link_status {
 	/* Refer to ice_aq_phy_type for bits definition */
 	u64 phy_type_low;
+	u64 phy_type_high;
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
@@ -118,6 +119,7 @@ struct ice_phy_info {
 	struct ice_link_status link_info;
 	struct ice_link_status link_info_old;
 	u64 phy_type_low;
+	u64 phy_type_high;
 	enum ice_media_type media_type;
 	u8 get_link_info;
 };
@@ -272,7 +274,6 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	struct list_head agg_list;	/* lists all aggregator */
 	u8 lport;
 #define ICE_LPORT_MASK		0xff
 	u8 is_vf;
@@ -326,6 +327,7 @@ struct ice_hw {
 	u8 max_cgds;
 	u8 sw_entry_point_layer;
 	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
+	struct list_head agg_list;	/* lists all aggregator */
 
 	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */

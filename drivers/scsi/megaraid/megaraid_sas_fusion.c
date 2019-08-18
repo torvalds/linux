@@ -937,11 +937,9 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 {
 	int i;
 	struct megasas_header *frame_hdr = &cmd->frame->hdr;
-	struct fusion_context *fusion;
 
 	u32 msecs = seconds * 1000;
 
-	fusion = instance->ctrl_context;
 	/*
 	 * Wait for cmd_status to change
 	 */
@@ -1074,6 +1072,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	drv_ops->mfi_capabilities.support_qd_throttling = 1;
 	drv_ops->mfi_capabilities.support_pd_map_target_id = 1;
 	drv_ops->mfi_capabilities.support_nvme_passthru = 1;
+	drv_ops->mfi_capabilities.support_fw_exposed_dev_list = 1;
 
 	if (instance->consistent_mask_64bit)
 		drv_ops->mfi_capabilities.support_64bit_mode = 1;
@@ -1330,7 +1329,6 @@ megasas_sync_map_info(struct megasas_instance *instance)
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
 	u16 num_lds;
-	u32 size_sync_info;
 	struct fusion_context *fusion;
 	struct MR_LD_TARGET_SYNC *ci = NULL;
 	struct MR_DRV_RAID_MAP_ALL *map;
@@ -1358,8 +1356,6 @@ megasas_sync_map_info(struct megasas_instance *instance)
 	num_lds = le16_to_cpu(map->raidMap.ldCount);
 
 	dcmd = &cmd->frame->dcmd;
-
-	size_sync_info = sizeof(struct MR_LD_TARGET_SYNC) *num_lds;
 
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
 
@@ -1639,14 +1635,11 @@ static inline void megasas_free_ioc_init_cmd(struct megasas_instance *instance)
 u32
 megasas_init_adapter_fusion(struct megasas_instance *instance)
 {
-	struct megasas_register_set __iomem *reg_set;
 	struct fusion_context *fusion;
 	u32 scratch_pad_1;
 	int i = 0, count;
 
 	fusion = instance->ctrl_context;
-
-	reg_set = instance->reg_set;
 
 	megasas_fusion_update_can_queue(instance, PROBE_CONTEXT);
 
@@ -1926,7 +1919,6 @@ static bool
 megasas_is_prp_possible(struct megasas_instance *instance,
 			struct scsi_cmnd *scmd, int sge_count)
 {
-	struct fusion_context *fusion;
 	int i;
 	u32 data_length = 0;
 	struct scatterlist *sg_scmd;
@@ -1935,7 +1927,6 @@ megasas_is_prp_possible(struct megasas_instance *instance,
 
 	mr_nvme_pg_size = max_t(u32, instance->nvme_page_size,
 				MR_DEFAULT_NVME_PAGE_SIZE);
-	fusion = instance->ctrl_context;
 	data_length = scsi_bufflen(scmd);
 	sg_scmd = scsi_sglist(scmd);
 
@@ -2048,11 +2039,8 @@ megasas_make_prp_nvme(struct megasas_instance *instance, struct scsi_cmnd *scmd,
 	u32 first_prp_len;
 	bool build_prp = false;
 	int data_len = scsi_bufflen(scmd);
-	struct fusion_context *fusion;
 	u32 mr_nvme_pg_size = max_t(u32, instance->nvme_page_size,
 					MR_DEFAULT_NVME_PAGE_SIZE);
-
-	fusion = instance->ctrl_context;
 
 	build_prp = megasas_is_prp_possible(instance, scmd, sge_count);
 
@@ -2621,7 +2609,6 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	u32 start_lba_lo, start_lba_hi, device_id, datalength = 0;
 	u32 scsi_buff_len;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request;
-	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	struct IO_REQUEST_INFO io_info;
 	struct fusion_context *fusion;
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
@@ -2643,8 +2630,6 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	rctx->virtual_disk_tgt_id = cpu_to_le16(device_id);
 	rctx->status = 0;
 	rctx->ex_status = 0;
-
-	req_desc = (union MEGASAS_REQUEST_DESCRIPTOR_UNION *)cmd->request_desc;
 
 	start_lba_lo = 0;
 	start_lba_hi = 0;
@@ -3246,9 +3231,6 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 	struct megasas_cmd_fusion *cmd, *r1_cmd = NULL;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u32 index;
-	struct fusion_context *fusion;
-
-	fusion = instance->ctrl_context;
 
 	if ((megasas_cmd_type(scmd) == READ_WRITE_LDIO) &&
 		instance->ldio_threshold &&
@@ -4401,14 +4383,11 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 {
 	struct megasas_instance *instance;
 	u16 smid, devhandle;
-	struct fusion_context *fusion;
 	int ret;
 	struct MR_PRIV_DEVICE *mr_device_priv_data;
 	mr_device_priv_data = scmd->device->hostdata;
 
-
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
-	fusion = instance->ctrl_context;
 
 	scmd_printk(KERN_INFO, scmd, "task abort called for scmd(%p)\n", scmd);
 	scsi_print_command(scmd);
@@ -4427,7 +4406,6 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 		ret = SUCCESS;
 		goto out;
 	}
-
 
 	if (!mr_device_priv_data->is_tm_capable) {
 		ret = FAILED;
@@ -4487,12 +4465,10 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	struct megasas_instance *instance;
 	int ret = FAILED;
 	u16 devhandle;
-	struct fusion_context *fusion;
 	struct MR_PRIV_DEVICE *mr_device_priv_data;
 	mr_device_priv_data = scmd->device->hostdata;
 
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
-	fusion = instance->ctrl_context;
 
 	sdev_printk(KERN_INFO, scmd->device,
 		    "target reset called for scmd(%p)\n", scmd);
@@ -4511,7 +4487,6 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 		ret = SUCCESS;
 		goto out;
 	}
-
 
 	if (!mr_device_priv_data->is_tm_capable) {
 		ret = FAILED;

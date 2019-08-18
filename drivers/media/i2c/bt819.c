@@ -164,12 +164,12 @@ static int bt819_init(struct v4l2_subdev *sd)
 		0x0e, 0xb4,	/* 0x0e Chroma Gain (V) msb */
 		0x0f, 0x00,	/* 0x0f Hue control */
 		0x12, 0x04,	/* 0x12 Output Format */
-		0x13, 0x20,	/* 0x13 Vertial Scaling msb 0x00
+		0x13, 0x20,	/* 0x13 Vertical Scaling msb 0x00
 					   chroma comb OFF, line drop scaling, interlace scaling
 					   BUG? Why does turning the chroma comb on fuck up color?
 					   Bug in the bt819 stepping on my board?
 					*/
-		0x14, 0x00,	/* 0x14 Vertial Scaling lsb */
+		0x14, 0x00,	/* 0x14 Vertical Scaling lsb */
 		0x16, 0x07,	/* 0x16 Video Timing Polarity
 					   ACTIVE=active low
 					   FIELD: high=odd,

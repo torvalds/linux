@@ -56,6 +56,9 @@ static const u32 supported_pixformats[] = {
 	V4L2_PIX_FMT_NV16,
 	V4L2_PIX_FMT_NV61,
 	V4L2_PIX_FMT_YUV422P,
+	V4L2_PIX_FMT_RGB565,
+	V4L2_PIX_FMT_RGB565X,
+	V4L2_PIX_FMT_JPEG,
 };
 
 static bool is_pixformat_valid(unsigned int pixformat)

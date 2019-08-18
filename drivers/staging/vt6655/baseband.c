@@ -1704,13 +1704,9 @@ static const unsigned short awcFrameTime[MAX_RATE] = {
  * Return Value: FrameTime
  *
  */
-unsigned int
-BBuGetFrameTime(
-	unsigned char byPreambleType,
-	unsigned char byPktType,
-	unsigned int cbFrameLength,
-	unsigned short wRate
-)
+unsigned int BBuGetFrameTime(unsigned char byPreambleType,
+			     unsigned char byPktType,
+			     unsigned int cbFrameLength, unsigned short wRate)
 {
 	unsigned int uFrameTime;
 	unsigned int uPreamble;

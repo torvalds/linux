@@ -62,6 +62,7 @@
 #define ARM_INST_ADDS_I		0x02900000
 
 #define ARM_INST_AND_R		0x00000000
+#define ARM_INST_ANDS_R		0x00100000
 #define ARM_INST_AND_I		0x02000000
 
 #define ARM_INST_BIC_R		0x01c00000
@@ -172,6 +173,7 @@
 #define ARM_ADC_I(rd, rn, imm)	_AL3_I(ARM_INST_ADC, rd, rn, imm)
 
 #define ARM_AND_R(rd, rn, rm)	_AL3_R(ARM_INST_AND, rd, rn, rm)
+#define ARM_ANDS_R(rd, rn, rm)	_AL3_R(ARM_INST_ANDS, rd, rn, rm)
 #define ARM_AND_I(rd, rn, imm)	_AL3_I(ARM_INST_AND, rd, rn, imm)
 
 #define ARM_BIC_R(rd, rn, rm)	_AL3_R(ARM_INST_BIC, rd, rn, rm)

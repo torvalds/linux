@@ -919,6 +919,9 @@ static void __init resource_init(void)
 			end = HIGHMEM_START - 1;
 
 		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct resource));
 
 		res->start = start;
 		res->end = end;
@@ -1011,12 +1014,7 @@ unsigned long fw_passed_dtb;
 struct dentry *mips_debugfs_dir;
 static int __init debugfs_mips(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_dir("mips", NULL);
-	if (!d)
-		return -ENOMEM;
-	mips_debugfs_dir = d;
+	mips_debugfs_dir = debugfs_create_dir("mips", NULL);
 	return 0;
 }
 arch_initcall(debugfs_mips);

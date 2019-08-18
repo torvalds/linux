@@ -124,6 +124,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 		struct amdgpu_ring *rings[AMDGPU_MAX_RINGS];
 		struct drm_sched_rq *rqs[AMDGPU_MAX_RINGS];
 		unsigned num_rings;
+		unsigned num_rqs = 0;
 
 		switch (i) {
 		case AMDGPU_HW_IP_GFX:
@@ -166,12 +167,16 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			break;
 		}
 
-		for (j = 0; j < num_rings; ++j)
-			rqs[j] = &rings[j]->sched.sched_rq[priority];
+		for (j = 0; j < num_rings; ++j) {
+			if (!rings[j]->adev)
+				continue;
+
+			rqs[num_rqs++] = &rings[j]->sched.sched_rq[priority];
+		}
 
 		for (j = 0; j < amdgpu_ctx_num_entities[i]; ++j)
 			r = drm_sched_entity_init(&ctx->entities[i][j].entity,
-						  rqs, num_rings, &ctx->guilty);
+						  rqs, num_rqs, &ctx->guilty);
 		if (r)
 			goto error_cleanup_entities;
 	}

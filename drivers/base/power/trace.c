@@ -7,6 +7,8 @@
  * devices may be working.
  */
 
+#define pr_fmt(fmt) "PM: " fmt
+
 #include <linux/pm-trace.h>
 #include <linux/export.h>
 #include <linux/rtc.h>

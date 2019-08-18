@@ -451,7 +451,8 @@ static int lklfuse_utimens(const char *path, const struct timespec tv[2])
 	ts[1].tv_sec = tv[0].tv_sec;
 	ts[1].tv_nsec = tv[0].tv_nsec;
 
-	return lkl_sys_utimensat(-1, path, ts, LKL_AT_SYMLINK_NOFOLLOW);
+	return lkl_sys_utimensat(-1, path, (struct __lkl__kernel_timespec *)ts,
+				 LKL_AT_SYMLINK_NOFOLLOW);
 }
 
 static int lklfuse_fallocate(const char *path, int mode, off_t offset,

@@ -398,16 +398,6 @@ __v4l2_find_nearest_size(const void *array, size_t array_size,
 }
 EXPORT_SYMBOL_GPL(__v4l2_find_nearest_size);
 
-void v4l2_get_timestamp(struct timeval *tv)
-{
-	struct timespec ts;
-
-	ktime_get_ts(&ts);
-	tv->tv_sec = ts.tv_sec;
-	tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-}
-EXPORT_SYMBOL_GPL(v4l2_get_timestamp);
-
 int v4l2_g_parm_cap(struct video_device *vdev,
 		    struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 {

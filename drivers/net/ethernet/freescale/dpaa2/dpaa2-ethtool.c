@@ -48,6 +48,7 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] xdp drop",
 	"[drv] xdp tx",
 	"[drv] xdp tx errors",
+	"[drv] xdp redirect",
 	/* FQ stats */
 	"[qbman] rx pending frames",
 	"[qbman] rx pending bytes",

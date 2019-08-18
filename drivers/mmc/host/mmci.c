@@ -1127,6 +1127,12 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 	writel(c, base + MMCICOMMAND);
 }
 
+static void mmci_stop_command(struct mmci_host *host)
+{
+	host->stop_abort.error = 0;
+	mmci_start_command(host, &host->stop_abort, 0);
+}
+
 static void
 mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	      unsigned int status)
@@ -1196,10 +1202,16 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 			/* The error clause is handled above, success! */
 			data->bytes_xfered = data->blksz * data->blocks;
 
-		if (!data->stop || (host->mrq->sbc && !data->error))
+		if (!data->stop) {
+			if (host->variant->cmdreg_stop && data->error)
+				mmci_stop_command(host);
+			else
+				mmci_request_end(host, data->mrq);
+		} else if (host->mrq->sbc && !data->error) {
 			mmci_request_end(host, data->mrq);
-		else
+		} else {
 			mmci_start_command(host, data->stop, 0);
+		}
 	}
 }
 
@@ -1298,6 +1310,10 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 			mmci_dma_error(host);
 
 			mmci_stop_data(host);
+			if (host->variant->cmdreg_stop && cmd->error) {
+				mmci_stop_command(host);
+				return;
+			}
 		}
 		mmci_request_end(host, host->mrq);
 	} else if (sbc) {
@@ -1956,6 +1972,11 @@ static int mmci_probe(struct amba_device *dev,
 		mmc->max_busy_timeout = 0;
 	}
 
+	/* Prepare a CMD12 - needed to clear the DPSM on some variants. */
+	host->stop_abort.opcode = MMC_STOP_TRANSMISSION;
+	host->stop_abort.arg = 0;
+	host->stop_abort.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
 	mmc->ops = &mmci_ops;
 
 	/* We support these PM capabilities. */
@@ -2011,7 +2032,7 @@ static int mmci_probe(struct amba_device *dev,
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 	}

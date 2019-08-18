@@ -6,6 +6,7 @@
 #include <string.h>
 #include <linux/kernel.h>
 #include <linux/mman.h>
+#include <linux/time64.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -17,6 +18,7 @@
 #include "util.h"
 #include "debug.h"
 #include "machine.h"
+#include "map.h"
 #include "symbol.h"
 #include "strlist.h"
 #include "intlist.h"
@@ -38,15 +40,18 @@ int vmlinux_path__nr_entries;
 char **vmlinux_path;
 
 struct symbol_conf symbol_conf = {
+	.nanosecs		= false,
 	.use_modules		= true,
 	.try_vmlinux_path	= true,
 	.demangle		= true,
 	.demangle_kernel	= false,
 	.cumulate_callchain	= true,
+	.time_quantum		= 100 * NSEC_PER_MSEC, /* 100ms */
 	.show_hist_headers	= true,
 	.symfs			= "",
 	.event_group		= true,
 	.inline_name		= true,
+	.res_sample		= 0,
 };
 
 static enum dso_binary_type binary_type_symtab[] = {
@@ -163,7 +168,7 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 	return arch__choose_best_symbol(syma, symb);
 }
 
-void symbols__fixup_duplicate(struct rb_root *symbols)
+void symbols__fixup_duplicate(struct rb_root_cached *symbols)
 {
 	struct rb_node *nd;
 	struct symbol *curr, *next;
@@ -171,7 +176,7 @@ void symbols__fixup_duplicate(struct rb_root *symbols)
 	if (symbol_conf.allow_aliases)
 		return;
 
-	nd = rb_first(symbols);
+	nd = rb_first_cached(symbols);
 
 	while (nd) {
 		curr = rb_entry(nd, struct symbol, rb_node);
@@ -186,20 +191,20 @@ again:
 			continue;
 
 		if (choose_best_symbol(curr, next) == SYMBOL_A) {
-			rb_erase(&next->rb_node, symbols);
+			rb_erase_cached(&next->rb_node, symbols);
 			symbol__delete(next);
 			goto again;
 		} else {
 			nd = rb_next(&curr->rb_node);
-			rb_erase(&curr->rb_node, symbols);
+			rb_erase_cached(&curr->rb_node, symbols);
 			symbol__delete(curr);
 		}
 	}
 }
 
-void symbols__fixup_end(struct rb_root *symbols)
+void symbols__fixup_end(struct rb_root_cached *symbols)
 {
-	struct rb_node *nd, *prevnd = rb_first(symbols);
+	struct rb_node *nd, *prevnd = rb_first_cached(symbols);
 	struct symbol *curr, *prev;
 
 	if (prevnd == NULL)
@@ -282,25 +287,27 @@ void symbol__delete(struct symbol *sym)
 	free(((void *)sym) - symbol_conf.priv_size);
 }
 
-void symbols__delete(struct rb_root *symbols)
+void symbols__delete(struct rb_root_cached *symbols)
 {
 	struct symbol *pos;
-	struct rb_node *next = rb_first(symbols);
+	struct rb_node *next = rb_first_cached(symbols);
 
 	while (next) {
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, symbols);
+		rb_erase_cached(&pos->rb_node, symbols);
 		symbol__delete(pos);
 	}
 }
 
-void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel)
+void __symbols__insert(struct rb_root_cached *symbols,
+		       struct symbol *sym, bool kernel)
 {
-	struct rb_node **p = &symbols->rb_node;
+	struct rb_node **p = &symbols->rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	const u64 ip = sym->start;
 	struct symbol *s;
+	bool leftmost = true;
 
 	if (kernel) {
 		const char *name = sym->name;
@@ -318,26 +325,28 @@ void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel)
 		s = rb_entry(parent, struct symbol, rb_node);
 		if (ip < s->start)
 			p = &(*p)->rb_left;
-		else
+		else {
 			p = &(*p)->rb_right;
+			leftmost = false;
+		}
 	}
 	rb_link_node(&sym->rb_node, parent, p);
-	rb_insert_color(&sym->rb_node, symbols);
+	rb_insert_color_cached(&sym->rb_node, symbols, leftmost);
 }
 
-void symbols__insert(struct rb_root *symbols, struct symbol *sym)
+void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym)
 {
 	__symbols__insert(symbols, sym, false);
 }
 
-static struct symbol *symbols__find(struct rb_root *symbols, u64 ip)
+static struct symbol *symbols__find(struct rb_root_cached *symbols, u64 ip)
 {
 	struct rb_node *n;
 
 	if (symbols == NULL)
 		return NULL;
 
-	n = symbols->rb_node;
+	n = symbols->rb_root.rb_node;
 
 	while (n) {
 		struct symbol *s = rb_entry(n, struct symbol, rb_node);
@@ -353,9 +362,9 @@ static struct symbol *symbols__find(struct rb_root *symbols, u64 ip)
 	return NULL;
 }
 
-static struct symbol *symbols__first(struct rb_root *symbols)
+static struct symbol *symbols__first(struct rb_root_cached *symbols)
 {
-	struct rb_node *n = rb_first(symbols);
+	struct rb_node *n = rb_first_cached(symbols);
 
 	if (n)
 		return rb_entry(n, struct symbol, rb_node);
@@ -363,9 +372,9 @@ static struct symbol *symbols__first(struct rb_root *symbols)
 	return NULL;
 }
 
-static struct symbol *symbols__last(struct rb_root *symbols)
+static struct symbol *symbols__last(struct rb_root_cached *symbols)
 {
-	struct rb_node *n = rb_last(symbols);
+	struct rb_node *n = rb_last(&symbols->rb_root);
 
 	if (n)
 		return rb_entry(n, struct symbol, rb_node);
@@ -383,11 +392,12 @@ static struct symbol *symbols__next(struct symbol *sym)
 	return NULL;
 }
 
-static void symbols__insert_by_name(struct rb_root *symbols, struct symbol *sym)
+static void symbols__insert_by_name(struct rb_root_cached *symbols, struct symbol *sym)
 {
-	struct rb_node **p = &symbols->rb_node;
+	struct rb_node **p = &symbols->rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct symbol_name_rb_node *symn, *s;
+	bool leftmost = true;
 
 	symn = container_of(sym, struct symbol_name_rb_node, sym);
 
@@ -396,19 +406,21 @@ static void symbols__insert_by_name(struct rb_root *symbols, struct symbol *sym)
 		s = rb_entry(parent, struct symbol_name_rb_node, rb_node);
 		if (strcmp(sym->name, s->sym.name) < 0)
 			p = &(*p)->rb_left;
-		else
+		else {
 			p = &(*p)->rb_right;
+			leftmost = false;
+		}
 	}
 	rb_link_node(&symn->rb_node, parent, p);
-	rb_insert_color(&symn->rb_node, symbols);
+	rb_insert_color_cached(&symn->rb_node, symbols, leftmost);
 }
 
-static void symbols__sort_by_name(struct rb_root *symbols,
-				  struct rb_root *source)
+static void symbols__sort_by_name(struct rb_root_cached *symbols,
+				  struct rb_root_cached *source)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(source); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(source); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
 		symbols__insert_by_name(symbols, pos);
 	}
@@ -431,7 +443,7 @@ int symbol__match_symbol_name(const char *name, const char *str,
 		return arch__compare_symbol_names(name, str);
 }
 
-static struct symbol *symbols__find_by_name(struct rb_root *symbols,
+static struct symbol *symbols__find_by_name(struct rb_root_cached *symbols,
 					    const char *name,
 					    enum symbol_tag_include includes)
 {
@@ -441,7 +453,7 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 	if (symbols == NULL)
 		return NULL;
 
-	n = symbols->rb_node;
+	n = symbols->rb_root.rb_node;
 
 	while (n) {
 		int cmp;
@@ -644,7 +656,7 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 {
 	struct symbol *sym;
 	struct dso *dso = arg;
-	struct rb_root *root = &dso->symbols;
+	struct rb_root_cached *root = &dso->symbols;
 
 	if (!symbol_type__filter(type))
 		return 0;
@@ -681,14 +693,14 @@ static int map_groups__split_kallsyms_for_kcore(struct map_groups *kmaps, struct
 	struct map *curr_map;
 	struct symbol *pos;
 	int count = 0;
-	struct rb_root old_root = dso->symbols;
-	struct rb_root *root = &dso->symbols;
-	struct rb_node *next = rb_first(root);
+	struct rb_root_cached old_root = dso->symbols;
+	struct rb_root_cached *root = &dso->symbols;
+	struct rb_node *next = rb_first_cached(root);
 
 	if (!kmaps)
 		return -1;
 
-	*root = RB_ROOT;
+	*root = RB_ROOT_CACHED;
 
 	while (next) {
 		char *module;
@@ -696,8 +708,8 @@ static int map_groups__split_kallsyms_for_kcore(struct map_groups *kmaps, struct
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
 
-		rb_erase_init(&pos->rb_node, &old_root);
-
+		rb_erase_cached(&pos->rb_node, &old_root);
+		RB_CLEAR_NODE(&pos->rb_node);
 		module = strchr(pos->name, '\t');
 		if (module)
 			*module = '\0';
@@ -710,6 +722,8 @@ static int map_groups__split_kallsyms_for_kcore(struct map_groups *kmaps, struct
 		}
 
 		pos->start -= curr_map->start - curr_map->pgoff;
+		if (pos->end > curr_map->end)
+			pos->end = curr_map->end;
 		if (pos->end)
 			pos->end -= curr_map->start - curr_map->pgoff;
 		symbols__insert(&curr_map->dso->symbols, pos);
@@ -734,8 +748,8 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 	struct map *curr_map = initial_map;
 	struct symbol *pos;
 	int count = 0, moved = 0;
-	struct rb_root *root = &dso->symbols;
-	struct rb_node *next = rb_first(root);
+	struct rb_root_cached *root = &dso->symbols;
+	struct rb_node *next = rb_first_cached(root);
 	int kernel_range = 0;
 	bool x86_64;
 
@@ -849,7 +863,7 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 		}
 add_symbol:
 		if (curr_map != initial_map) {
-			rb_erase(&pos->rb_node, root);
+			rb_erase_cached(&pos->rb_node, root);
 			symbols__insert(&curr_map->dso->symbols, pos);
 			++moved;
 		} else
@@ -857,7 +871,7 @@ add_symbol:
 
 		continue;
 discard_symbol:
-		rb_erase(&pos->rb_node, root);
+		rb_erase_cached(&pos->rb_node, root);
 		symbol__delete(pos);
 	}
 
@@ -1441,6 +1455,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
 		return true;
 
+	case DSO_BINARY_TYPE__BPF_PROG_INFO:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 	default:
 		return false;

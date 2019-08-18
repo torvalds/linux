@@ -19,20 +19,4 @@
 #define TWD_TIMER_CONTROL_PERIODIC	(1 << 1)
 #define TWD_TIMER_CONTROL_IT_ENABLE	(1 << 2)
 
-#include <linux/ioport.h>
-
-struct twd_local_timer {
-	struct resource	res[2];
-};
-
-#define DEFINE_TWD_LOCAL_TIMER(name,base,irq)	\
-struct twd_local_timer name __initdata = {	\
-	.res	= {				\
-		DEFINE_RES_MEM(base, 0x10),	\
-		DEFINE_RES_IRQ(irq),		\
-	},					\
-};
-
-int twd_local_timer_register(struct twd_local_timer *);
-
 #endif

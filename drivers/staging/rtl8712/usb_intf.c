@@ -196,10 +196,6 @@ static int r871x_suspend(struct usb_interface *pusb_intf, pm_message_t state)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	netdev_info(pnetdev, "Suspending...\n");
-	if (!pnetdev || !netif_running(pnetdev)) {
-		netdev_info(pnetdev, "Unable to suspend\n");
-		return 0;
-	}
 	padapter->bSuspended = true;
 	rtl871x_intf_stop(padapter);
 	if (pnetdev->netdev_ops->ndo_stop)
@@ -221,10 +217,6 @@ static int r871x_resume(struct usb_interface *pusb_intf)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	netdev_info(pnetdev,  "Resuming...\n");
-	if (!pnetdev || !netif_running(pnetdev)) {
-		netdev_info(pnetdev, "Unable to resume\n");
-		return 0;
-	}
 	netif_device_attach(pnetdev);
 	if (pnetdev->netdev_ops->ndo_open)
 		pnetdev->netdev_ops->ndo_open(pnetdev);
@@ -232,13 +224,6 @@ static int r871x_resume(struct usb_interface *pusb_intf)
 	rtl871x_intf_resume(padapter);
 	return 0;
 }
-
-static int r871x_reset_resume(struct usb_interface *pusb_intf)
-{
-	/* dummy routine */
-	return 0;
-}
-
 #endif
 
 static struct drv_priv drvpriv = {
@@ -249,7 +234,6 @@ static struct drv_priv drvpriv = {
 #ifdef CONFIG_PM
 	.r871xu_drv.suspend = r871x_suspend,
 	.r871xu_drv.resume = r871x_resume,
-	.r871xu_drv.reset_resume = r871x_reset_resume,
 #endif
 };
 

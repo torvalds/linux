@@ -35,6 +35,7 @@
 #define RXE_LOC_H
 
 /* rxe_av.c */
+void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av);
 
 int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr);
 
@@ -231,7 +232,7 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_attr *attr, enum ib_srq_attr_mask mask,
 		      struct rxe_modify_srq_cmd *ucmd);
 
-void rxe_release(struct kref *kref);
+void rxe_dealloc(struct ib_device *ib_dev);
 
 int rxe_completer(void *arg);
 int rxe_requester(void *arg);
@@ -239,11 +240,9 @@ int rxe_responder(void *arg);
 
 u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 
-void rxe_resp_queue_pkt(struct rxe_dev *rxe,
-			struct rxe_qp *qp, struct sk_buff *skb);
+void rxe_resp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb);
 
-void rxe_comp_queue_pkt(struct rxe_dev *rxe,
-			struct rxe_qp *qp, struct sk_buff *skb);
+void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb);
 
 static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 {

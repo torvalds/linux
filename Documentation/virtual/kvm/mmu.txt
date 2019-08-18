@@ -142,7 +142,7 @@ Shadow pages contain the following information:
     If clear, this page corresponds to a guest page table denoted by the gfn
     field.
   role.quadrant:
-    When role.cr4_pae=0, the guest uses 32-bit gptes while the host uses 64-bit
+    When role.gpte_is_8_bytes=0, the guest uses 32-bit gptes while the host uses 64-bit
     sptes.  That means a guest page table contains more ptes than the host,
     so multiple shadow pages are needed to shadow one guest page.
     For first-level shadow pages, role.quadrant can be 0 or 1 and denotes the
@@ -158,9 +158,9 @@ Shadow pages contain the following information:
     The page is invalid and should not be used.  It is a root page that is
     currently pinned (by a cpu hardware register pointing to it); once it is
     unpinned it will be destroyed.
-  role.cr4_pae:
-    Contains the value of cr4.pae for which the page is valid (e.g. whether
-    32-bit or 64-bit gptes are in use).
+  role.gpte_is_8_bytes:
+    Reflects the size of the guest PTE for which the page is valid, i.e. '1'
+    if 64-bit gptes are in use, '0' if 32-bit gptes are in use.
   role.nxe:
     Contains the value of efer.nxe for which the page is valid.
   role.cr0_wp:
@@ -173,6 +173,9 @@ Shadow pages contain the following information:
     Contains the value of cr4.smap && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
+  role.ept_sp:
+    This is a virtual flag to denote a shadowed nested EPT page.  ept_sp
+    is true if "cr0_wp && smap_andnot_wp", an otherwise invalid combination.
   role.smm:
     Is 1 if the page is valid in system management mode.  This field
     determines which of the kvm_memslots array was used to build this
@@ -224,10 +227,6 @@ Shadow pages contain the following information:
     A bitmap indicating which sptes in spt point (directly or indirectly) at
     pages that may be unsynchronized.  Used to quickly locate all unsychronized
     pages reachable from a given page.
-  mmu_valid_gen:
-    Generation number of the page.  It is compared with kvm->arch.mmu_valid_gen
-    during hash table lookup, and used to skip invalidated shadow pages (see
-    "Zapping all pages" below.)
   clear_spte_count:
     Only present on 32-bit hosts, where a 64-bit spte cannot be written
     atomically.  The reader uses this while running out of the MMU lock
@@ -402,27 +401,6 @@ causes its disallow_lpage to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
 artificially inflated ->disallow_lpages so they can never be instantiated.
 
-Zapping all pages (page generation count)
-=========================================
-
-For the large memory guests, walking and zapping all pages is really slow
-(because there are a lot of pages), and also blocks memory accesses of
-all VCPUs because it needs to hold the MMU lock.
-
-To make it be more scalable, kvm maintains a global generation number
-which is stored in kvm->arch.mmu_valid_gen.  Every shadow page stores
-the current global generation-number into sp->mmu_valid_gen when it
-is created.  Pages with a mismatching generation number are "obsolete".
-
-When KVM need zap all shadow pages sptes, it just simply increases the global
-generation-number then reload root shadow pages on all vcpus.  As the VCPUs
-create new shadow page tables, the old pages are not used because of the
-mismatching generation number.
-
-KVM then walks through all pages and zaps obsolete pages.  While the zap
-operation needs to take the MMU lock, the lock can be released periodically
-so that the VCPUs can make progress.
-
 Fast invalidation of MMIO sptes
 ===============================
 
@@ -435,8 +413,7 @@ shadow pages, and is made more scalable with a similar technique.
 MMIO sptes have a few spare bits, which are used to store a
 generation number.  The global generation number is stored in
 kvm_memslots(kvm)->generation, and increased whenever guest memory info
-changes.  This generation number is distinct from the one described in
-the previous section.
+changes.
 
 When KVM finds an MMIO spte, it checks the generation number of the spte.
 If the generation number of the spte does not equal the global generation
@@ -452,13 +429,16 @@ stored into the MMIO spte.  Thus, the MMIO spte might be created based on
 out-of-date information, but with an up-to-date generation number.
 
 To avoid this, the generation number is incremented again after synchronize_srcu
-returns; thus, the low bit of kvm_memslots(kvm)->generation is only 1 during a
+returns; thus, bit 63 of kvm_memslots(kvm)->generation set to 1 only during a
 memslot update, while some SRCU readers might be using the old copy.  We do not
 want to use an MMIO sptes created with an odd generation number, and we can do
-this without losing a bit in the MMIO spte.  The low bit of the generation
-is not stored in MMIO spte, and presumed zero when it is extracted out of the
-spte.  If KVM is unlucky and creates an MMIO spte while the low bit is 1,
-the next access to the spte will always be a cache miss.
+this without losing a bit in the MMIO spte.  The "update in-progress" bit of the
+generation is not stored in MMIO spte, and is so is implicitly zero when the
+generation is extracted out of the spte.  If KVM is unlucky and creates an MMIO
+spte while an update is in-progress, the next access to the spte will always be
+a cache miss.  For example, a subsequent access during the update window will
+miss due to the in-progress flag diverging, while an access after the update
+window closes will have a higher generation number (as compared to the spte).
 
 
 Further reading

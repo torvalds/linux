@@ -925,7 +925,7 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 			/* Free the original skb. */
 			pci_unmap_single(yp->pci_dev, le32_to_cpu(yp->tx_ring[entry].addr),
 				skb->len, PCI_DMA_TODEVICE);
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			yp->tx_skbuff[entry] = NULL;
 		}
 		if (yp->tx_full &&
@@ -983,7 +983,7 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 				pci_unmap_single(yp->pci_dev,
 					yp->tx_ring[entry<<1].addr, skb->len,
 					PCI_DMA_TODEVICE);
-				dev_kfree_skb_irq(skb);
+				dev_consume_skb_irq(skb);
 				yp->tx_skbuff[entry] = 0;
 				/* Mark status as empty. */
 				yp->tx_status[entry].tx_errs = 0;

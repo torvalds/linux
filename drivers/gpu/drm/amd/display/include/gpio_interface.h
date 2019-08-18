@@ -59,6 +59,14 @@ enum gpio_result dal_gpio_change_mode(
 	struct gpio *gpio,
 	enum gpio_mode mode);
 
+/* Lock Pin */
+enum gpio_result dal_gpio_lock_pin(
+	struct gpio *gpio);
+
+/* Unlock Pin */
+enum gpio_result dal_gpio_unlock_pin(
+	struct gpio *gpio);
+
 /* Get the GPIO id */
 enum gpio_id dal_gpio_get_id(
 	const struct gpio *gpio);

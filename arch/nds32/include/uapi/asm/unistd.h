@@ -3,6 +3,8 @@
 
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYNC_FILE_RANGE2
+#define __ARCH_WANT_SET_GET_RLIMIT
+#define __ARCH_WANT_TIME32_SYSCALLS
 
 /* Use the standard ABI for syscalls */
 #include <asm-generic/unistd.h>

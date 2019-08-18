@@ -17,7 +17,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "omap_drv.h"
 
@@ -305,14 +305,9 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	drm_mode_destroy(dev, new_mode);
 
 done:
-	DBG("connector: mode %s: "
-			"%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
+	DBG("connector: mode %s: " DRM_MODE_FMT,
 			(ret == MODE_OK) ? "valid" : "invalid",
-			mode->base.id, mode->name, mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal, mode->type, mode->flags);
+			DRM_MODE_ARG(mode));
 
 	return ret;
 }

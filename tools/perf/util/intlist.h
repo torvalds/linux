@@ -45,7 +45,7 @@ static inline unsigned int intlist__nr_entries(const struct intlist *ilist)
 /* For intlist iteration */
 static inline struct int_node *intlist__first(struct intlist *ilist)
 {
-	struct rb_node *rn = rb_first(&ilist->rblist.entries);
+	struct rb_node *rn = rb_first_cached(&ilist->rblist.entries);
 	return rn ? rb_entry(rn, struct int_node, rb_node) : NULL;
 }
 static inline struct int_node *intlist__next(struct int_node *in)

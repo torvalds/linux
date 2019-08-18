@@ -77,3 +77,4 @@ Pressure sensors:
 - st,lps22hb-press
 - st,lps33hw
 - st,lps35hw
+- st,lps22hh

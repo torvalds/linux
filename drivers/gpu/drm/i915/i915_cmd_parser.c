@@ -865,7 +865,7 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	int cmd_table_count;
 	int ret;
 
-	if (!IS_GEN7(engine->i915))
+	if (!IS_GEN(engine->i915, 7))
 		return;
 
 	switch (engine->id) {

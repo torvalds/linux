@@ -9,6 +9,7 @@ Contents:
    netdev-FAQ
    af_xdp
    batman-adv
+   bpf_flow_dissector
    can
    can_ucan_protocol
    device_drivers/freescale/dpaa2/index
@@ -24,14 +25,21 @@ Contents:
    device_drivers/intel/i40e
    device_drivers/intel/iavf
    device_drivers/intel/ice
+   devlink-info-versions
+   ieee802154
    kapi
    z8530book
    msg_zerocopy
    failover
    net_failover
+   phy
+   sfp-phylink
    alias
    bridge
    snmp_counter
+   checksum-offloads
+   segmentation-offloads
+   scaling
 
 .. only::  subproject
 

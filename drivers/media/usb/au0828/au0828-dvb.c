@@ -566,7 +566,7 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 	dvb->frontend = NULL;
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card. No other function in this file needs
  * to change.
  */

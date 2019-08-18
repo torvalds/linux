@@ -40,17 +40,24 @@ mkdir $T
 cat > $T/init << '__EOF___'
 #!/bin/sh
 # Run in userspace a few milliseconds every second.  This helps to
-# exercise the NO_HZ_FULL portions of RCU.
+# exercise the NO_HZ_FULL portions of RCU.  The 192 instances of "a" was
+# empirically shown to give a nice multi-millisecond burst of user-mode
+# execution on a 2GHz CPU, as desired.  Modern CPUs will vary from a
+# couple of milliseconds up to perhaps 100 milliseconds, which is an
+# acceptable range.
+#
+# Why not calibrate an exact delay?  Because within this initrd, we
+# are restricted to Bourne-shell builtins, which as far as I know do not
+# provide any means of obtaining a fine-grained timestamp.
+
+a4="a a a a"
+a16="$a4 $a4 $a4 $a4"
+a64="$a16 $a16 $a16 $a16"
+a192="$a64 $a64 $a64"
 while :
 do
 	q=
-	for i in \
-		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
-		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
-		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
-		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
-		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
-		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a
+	for i in $a192
 	do
 		q="$q $i"
 	done
@@ -124,8 +131,8 @@ if echo -e "#if __x86_64__||__i386__||__i486__||__i586__||__i686__" \
    | grep -q '^yes'; then
 	# architecture supported by nolibc
         ${CROSS_COMPILE}gcc -fno-asynchronous-unwind-tables -fno-ident \
-		-nostdlib -include ../bin/nolibc.h -lgcc -s -static -Os \
-		-o init init.c
+		-nostdlib -include ../../../../include/nolibc/nolibc.h \
+		-lgcc -s -static -Os -o init init.c
 else
 	${CROSS_COMPILE}gcc -s -static -Os -o init init.c
 fi

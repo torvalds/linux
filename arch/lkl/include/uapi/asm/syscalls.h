@@ -160,6 +160,7 @@ struct sockaddr {
 #include <linux/virtio_net.h>
 #include <linux/virtio_ring.h>
 #include <linux/pkt_sched.h>
+#include <linux/io_uring.h>
 
 struct user_msghdr {
 	void		__user *msg_name;	/* ptr to socket address structure */
@@ -288,36 +289,36 @@ long lkl_sys_halt(void);
 	}
 
 #if __BITS_PER_LONG == 32
-#define LKL_SYSCALLx(x, name, ...)				       \
-	static inline						       \
-	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))	       \
-	{							       \
-		struct {					       \
-			unsigned int size;				       \
-			long long value;			       \
+#define LKL_SYSCALLx(x, name, ...)					\
+	static inline							\
+	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))		\
+	{								\
+		struct {						\
+			unsigned int size;				\
+			long long value;				\
 		} lkl_params[x] = { __MAP(x, __SC_TABLE, __VA_ARGS__) }; \
-		long params[6], i, k;				       \
-		for (i = k = 0;i < x && k < 6;i++, k++) {	       \
-			if (lkl_params[i].size > sizeof(long) &&       \
-			    k + 1 < 6) {     	   		       \
-				params[k] =			       \
-					(long)(lkl_params[i].value & (-1UL));	   \
-				k++;				       \
-				params[k] =			       \
+		long sys_params[6], i, k;				\
+		for (i = k = 0; i < x && k < 6; i++, k++) {		\
+			if (lkl_params[i].size > sizeof(long) &&	\
+			    k + 1 < 6) {				\
+				sys_params[k] =				\
+					(long)(lkl_params[i].value & (-1UL)); \
+				k++;					\
+				sys_params[k] =				\
 					(long)(lkl_params[i].value >> __BITS_PER_LONG); \
-			} else {				       \
-				params[k] = (long)(lkl_params[i].value); \
-			}					       \
-		}						       \
-		return lkl_syscall(__lkl__NR##name, params);	       \
+			} else {					\
+				sys_params[k] = (long)(lkl_params[i].value); \
+			}						\
+		}							\
+		return lkl_syscall(__lkl__NR##name, sys_params);	\
 	}
 #else
-#define LKL_SYSCALLx(x, name, ...)				       \
-       	static inline						       \
-	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))	       \
-	{							       \
-		long params[6] = { __MAP(x, __SC_LONG, __VA_ARGS__) }; \
-		return lkl_syscall(__lkl__NR##name, params);	       \
+#define LKL_SYSCALLx(x, name, ...)					\
+	static inline							\
+	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))		\
+	{								\
+		long lkl_params[6] = { __MAP(x, __SC_LONG, __VA_ARGS__) }; \
+		return lkl_syscall(__lkl__NR##name, lkl_params);	\
 	}
 #endif
 

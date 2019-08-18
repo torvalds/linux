@@ -80,7 +80,7 @@ struct hns_ppe_cb {
 	struct hns_ppe_hw_stats hw_stats;
 
 	u8 index;	/* index in a ppe common device */
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 	int virq;
 	u32 rss_indir_table[HNS_PPEV2_RSS_IND_TBL_SIZE]; /*shadow indir tab */
 	u32 rss_key[HNS_PPEV2_RSS_KEY_NUM]; /* rss hash key */
@@ -89,7 +89,7 @@ struct hns_ppe_cb {
 struct ppe_common_cb {
 	struct device *dev;
 	struct dsaf_device *dsaf_dev;
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 
 	enum ppe_common_mode ppe_mode;
 

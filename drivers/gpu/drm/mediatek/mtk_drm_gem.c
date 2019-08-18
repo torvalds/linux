@@ -241,3 +241,49 @@ err_gem_free:
 	kfree(mtk_gem);
 	return ERR_PTR(ret);
 }
+
+void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
+{
+	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+	struct sg_table *sgt;
+	struct sg_page_iter iter;
+	unsigned int npages;
+	unsigned int i = 0;
+
+	if (mtk_gem->kvaddr)
+		return mtk_gem->kvaddr;
+
+	sgt = mtk_gem_prime_get_sg_table(obj);
+	if (IS_ERR(sgt))
+		return NULL;
+
+	npages = obj->size >> PAGE_SHIFT;
+	mtk_gem->pages = kcalloc(npages, sizeof(*mtk_gem->pages), GFP_KERNEL);
+	if (!mtk_gem->pages)
+		goto out;
+
+	for_each_sg_page(sgt->sgl, &iter, sgt->orig_nents, 0) {
+		mtk_gem->pages[i++] = sg_page_iter_page(&iter);
+		if (i > npages)
+			break;
+	}
+	mtk_gem->kvaddr = vmap(mtk_gem->pages, npages, VM_MAP,
+			       pgprot_writecombine(PAGE_KERNEL));
+
+out:
+	kfree((void *)sgt);
+
+	return mtk_gem->kvaddr;
+}
+
+void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+
+	if (!mtk_gem->pages)
+		return;
+
+	vunmap(vaddr);
+	mtk_gem->kvaddr = 0;
+	kfree((void *)mtk_gem->pages);
+}

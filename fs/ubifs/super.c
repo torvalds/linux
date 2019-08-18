@@ -276,14 +276,12 @@ static void ubifs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ubifs_inode *ui = ubifs_inode(inode);
+	kfree(ui->data);
 	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
 static void ubifs_destroy_inode(struct inode *inode)
 {
-	struct ubifs_inode *ui = ubifs_inode(inode);
-
-	kfree(ui->data);
 	call_rcu(&inode->i_rcu, ubifs_i_callback);
 }
 
@@ -2146,7 +2144,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_UBIFS_FS_XATTR
 	sb->s_xattr = ubifs_xattr_handlers;
 #endif
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 	sb->s_cop = &ubifs_crypt_operations;
 #endif
 

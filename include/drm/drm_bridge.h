@@ -196,8 +196,8 @@ struct drm_bridge_funcs {
 	 * the DRM framework will have to be extended with DRM bridge states.
 	 */
 	void (*mode_set)(struct drm_bridge *bridge,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode);
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode);
 	/**
 	 * @pre_enable:
 	 *
@@ -310,8 +310,8 @@ enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
 void drm_bridge_disable(struct drm_bridge *bridge);
 void drm_bridge_post_disable(struct drm_bridge *bridge);
 void drm_bridge_mode_set(struct drm_bridge *bridge,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode);
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode);
 void drm_bridge_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_enable(struct drm_bridge *bridge);
 

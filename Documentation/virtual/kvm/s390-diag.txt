@@ -68,7 +68,8 @@ Subcode 3 - virtio-ccw notification
     identifier, it is ignored.
 
     After completion of the DIAGNOSE call, general register 2 may contain
-    a 64bit identifier (in the kvm_io_bus cookie case).
+    a 64bit identifier (in the kvm_io_bus cookie case), or a negative
+    error value, if an internal error occurred.
 
     See also the virtio standard for a discussion of this hypercall.
 

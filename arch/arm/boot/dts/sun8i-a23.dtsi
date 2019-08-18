@@ -62,8 +62,24 @@
 	};
 };
 
+&be0 {
+	compatible = "allwinner,sun8i-a23-display-backend";
+};
+
 &ccu {
 	compatible = "allwinner,sun8i-a23-ccu";
+};
+
+&de {
+	compatible = "allwinner,sun8i-a23-display-engine";
+};
+
+&drc0 {
+	compatible = "allwinner,sun8i-a23-drc";
+};
+
+&fe0 {
+	compatible = "allwinner,sun8i-a23-display-frontend";
 };
 
 &pio {
@@ -71,6 +87,10 @@
 	interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&tcon0 {
+	compatible = "allwinner,sun8i-a23-tcon";
 };
 
 &usb_otg {

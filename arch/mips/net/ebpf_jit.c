@@ -186,8 +186,9 @@ enum which_ebpf_reg {
  * separate frame pointer, so BPF_REG_10 relative accesses are
  * adjusted to be $sp relative.
  */
-int ebpf_to_mips_reg(struct jit_ctx *ctx, const struct bpf_insn *insn,
-		     enum which_ebpf_reg w)
+static int ebpf_to_mips_reg(struct jit_ctx *ctx,
+			    const struct bpf_insn *insn,
+			    enum which_ebpf_reg w)
 {
 	int ebpf_reg = (w == src_reg || w == src_reg_no_fp) ?
 		insn->src_reg : insn->dst_reg;

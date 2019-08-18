@@ -105,6 +105,7 @@ struct autofs_wait_queue {
 
 #define AUTOFS_SBI_CATATONIC	0x0001
 #define AUTOFS_SBI_STRICTEXPIRE 0x0002
+#define AUTOFS_SBI_IGNORE	0x0004
 
 struct autofs_sb_info {
 	u32 magic;
@@ -215,6 +216,8 @@ static inline int autofs_prepare_pipe(struct file *pipe)
 		return -EINVAL;
 	/* We want a packet pipe */
 	pipe->f_flags |= O_DIRECT;
+	/* We don't expect -EAGAIN */
+	pipe->f_flags &= ~O_NONBLOCK;
 	return 0;
 }
 

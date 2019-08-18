@@ -1008,3 +1008,16 @@ int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
 				 &hw_ci, sizeof(hw_ci), NULL,
 				 NULL, HINIC_MGMT_MSG_SYNC);
 }
+
+/**
+ * hinic_hwdev_set_msix_state- set msix state
+ * @hwdev: the NIC HW device
+ * @msix_index: IRQ corresponding index number
+ * @flag: msix state
+ *
+ **/
+void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
+				enum hinic_msix_state flag)
+{
+	hinic_set_msix_state(hwdev->hwif, msix_index, flag);
+}

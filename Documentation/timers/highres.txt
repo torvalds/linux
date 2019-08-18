@@ -231,7 +231,7 @@ in the idle period to make sure that jiffies are up to date and the interrupt
 handler has not to deal with an eventually stale jiffy value.
 
 The dynamic tick feature provides statistical values which are exported to
-userspace via /proc/stats and can be made available for enhanced power
+userspace via /proc/stat and can be made available for enhanced power
 management control.
 
 The implementation leaves room for further development like full tickless

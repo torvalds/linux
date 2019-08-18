@@ -117,7 +117,10 @@ int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest)
 		return -EINVAL;
 
 	/* whatever mask they set, we just allow one CPU */
-	cpu_dest = cpumask_first_and(dest, cpu_online_mask);
+	cpu_dest = cpumask_next_and(d->irq & (num_online_cpus()-1),
+					dest, cpu_online_mask);
+	if (cpu_dest >= nr_cpu_ids)
+		cpu_dest = cpumask_first_and(dest, cpu_online_mask);
 
 	return cpu_dest;
 }
@@ -175,10 +178,16 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 # endif
 #endif
 #ifdef CONFIG_SMP
-	seq_printf(p, "%*s: ", prec, "RES");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
-	seq_puts(p, "  Rescheduling interrupts\n");
+	if (num_online_cpus() > 1) {
+		seq_printf(p, "%*s: ", prec, "RES");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
+		seq_puts(p, "  Rescheduling interrupts\n");
+		seq_printf(p, "%*s: ", prec, "CAL");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", irq_stats(j)->irq_call_count);
+		seq_puts(p, "  Function call interrupts\n");
+	}
 #endif
 	seq_printf(p, "%*s: ", prec, "UAH");
 	for_each_online_cpu(j)

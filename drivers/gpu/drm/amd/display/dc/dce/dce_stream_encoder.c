@@ -288,9 +288,18 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 #endif
 
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-
+	struct dc_crtc_timing hw_crtc_timing = *crtc_timing;
+	if (hw_crtc_timing.flags.INTERLACE) {
+		/*the input timing is in VESA spec format with Interlace flag =1*/
+		hw_crtc_timing.v_total /= 2;
+		hw_crtc_timing.v_border_top /= 2;
+		hw_crtc_timing.v_addressable /= 2;
+		hw_crtc_timing.v_border_bottom /= 2;
+		hw_crtc_timing.v_front_porch /= 2;
+		hw_crtc_timing.v_sync_width /= 2;
+	}
 	/* set pixel encoding */
-	switch (crtc_timing->pixel_encoding) {
+	switch (hw_crtc_timing.pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
 				DP_PIXEL_ENCODING_TYPE_YCBCR422);
@@ -299,8 +308,8 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
 				DP_PIXEL_ENCODING_TYPE_YCBCR444);
 
-		if (crtc_timing->flags.Y_ONLY)
-			if (crtc_timing->display_color_depth != COLOR_DEPTH_666)
+		if (hw_crtc_timing.flags.Y_ONLY)
+			if (hw_crtc_timing.display_color_depth != COLOR_DEPTH_666)
 				/* HW testing only, no use case yet.
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits */
@@ -335,7 +344,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 
 	/* set color depth */
 
-	switch (crtc_timing->display_color_depth) {
+	switch (hw_crtc_timing.display_color_depth) {
 	case COLOR_DEPTH_666:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
 				0);
@@ -363,7 +372,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	switch (crtc_timing->display_color_depth) {
+	switch (hw_crtc_timing.display_color_depth) {
 	case COLOR_DEPTH_666:
 		colorimetry_bpc = 0;
 		break;
@@ -401,9 +410,9 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 			misc0 = misc0 | 0x8; /* bit3=1, bit4=0 */
 			misc1 = misc1 & ~0x80; /* bit7 = 0*/
 			dynamic_range_ycbcr = 0; /*bt601*/
-			if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 				misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
-			else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
+			else if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR444)
 				misc0 = misc0 | 0x4; /* bit2=1, bit1=0 */
 			break;
 		case COLOR_SPACE_YCBCR709:
@@ -411,9 +420,9 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 			misc0 = misc0 | 0x18; /* bit3=1, bit4=1 */
 			misc1 = misc1 & ~0x80; /* bit7 = 0*/
 			dynamic_range_ycbcr = 1; /*bt709*/
-			if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 				misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
-			else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
+			else if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR444)
 				misc0 = misc0 | 0x4; /* bit2=1, bit1=0 */
 			break;
 		case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
@@ -453,27 +462,27 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	 */
 		if (REG(DP_MSA_TIMING_PARAM1))
 			REG_SET_2(DP_MSA_TIMING_PARAM1, 0,
-					DP_MSA_HTOTAL, crtc_timing->h_total,
-					DP_MSA_VTOTAL, crtc_timing->v_total);
+					DP_MSA_HTOTAL, hw_crtc_timing.h_total,
+					DP_MSA_VTOTAL, hw_crtc_timing.v_total);
 #endif
 
 		/* calcuate from vesa timing parameters
 		 * h_active_start related to leading edge of sync
 		 */
 
-		h_blank = crtc_timing->h_total - crtc_timing->h_border_left -
-				crtc_timing->h_addressable - crtc_timing->h_border_right;
+		h_blank = hw_crtc_timing.h_total - hw_crtc_timing.h_border_left -
+				hw_crtc_timing.h_addressable - hw_crtc_timing.h_border_right;
 
-		h_back_porch = h_blank - crtc_timing->h_front_porch -
-				crtc_timing->h_sync_width;
+		h_back_porch = h_blank - hw_crtc_timing.h_front_porch -
+				hw_crtc_timing.h_sync_width;
 
 		/* start at begining of left border */
-		h_active_start = crtc_timing->h_sync_width + h_back_porch;
+		h_active_start = hw_crtc_timing.h_sync_width + h_back_porch;
 
 
-		v_active_start = crtc_timing->v_total - crtc_timing->v_border_top -
-				crtc_timing->v_addressable - crtc_timing->v_border_bottom -
-				crtc_timing->v_front_porch;
+		v_active_start = hw_crtc_timing.v_total - hw_crtc_timing.v_border_top -
+				hw_crtc_timing.v_addressable - hw_crtc_timing.v_border_bottom -
+				hw_crtc_timing.v_front_porch;
 
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -486,21 +495,21 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		if (REG(DP_MSA_TIMING_PARAM3))
 			REG_SET_4(DP_MSA_TIMING_PARAM3, 0,
 					DP_MSA_HSYNCWIDTH,
-					crtc_timing->h_sync_width,
+					hw_crtc_timing.h_sync_width,
 					DP_MSA_HSYNCPOLARITY,
-					!crtc_timing->flags.HSYNC_POSITIVE_POLARITY,
+					!hw_crtc_timing.flags.HSYNC_POSITIVE_POLARITY,
 					DP_MSA_VSYNCWIDTH,
-					crtc_timing->v_sync_width,
+					hw_crtc_timing.v_sync_width,
 					DP_MSA_VSYNCPOLARITY,
-					!crtc_timing->flags.VSYNC_POSITIVE_POLARITY);
+					!hw_crtc_timing.flags.VSYNC_POSITIVE_POLARITY);
 
 		/* HWDITH include border or overscan */
 		if (REG(DP_MSA_TIMING_PARAM4))
 			REG_SET_2(DP_MSA_TIMING_PARAM4, 0,
-				DP_MSA_HWIDTH, crtc_timing->h_border_left +
-				crtc_timing->h_addressable + crtc_timing->h_border_right,
-				DP_MSA_VHEIGHT, crtc_timing->v_border_top +
-				crtc_timing->v_addressable + crtc_timing->v_border_bottom);
+				DP_MSA_HWIDTH, hw_crtc_timing.h_border_left +
+				hw_crtc_timing.h_addressable + hw_crtc_timing.h_border_right,
+				DP_MSA_VHEIGHT, hw_crtc_timing.v_border_top +
+				hw_crtc_timing.v_addressable + hw_crtc_timing.v_border_bottom);
 #endif
 	}
 #endif
@@ -662,7 +671,7 @@ static void dce110_stream_encoder_dvi_set_stream_attribute(
 	cntl.signal = is_dual_link ?
 			SIGNAL_TYPE_DVI_DUAL_LINK : SIGNAL_TYPE_DVI_SINGLE_LINK;
 	cntl.enable_dp_audio = false;
-	cntl.pixel_clock = crtc_timing->pix_clk_khz;
+	cntl.pixel_clock = crtc_timing->pix_clk_100hz / 10;
 	cntl.lanes_number = (is_dual_link) ? LANE_COUNT_EIGHT : LANE_COUNT_FOUR;
 
 	if (enc110->base.bp->funcs->encoder_control(
@@ -686,7 +695,7 @@ static void dce110_stream_encoder_lvds_set_stream_attribute(
 	cntl.engine_id = enc110->base.id;
 	cntl.signal = SIGNAL_TYPE_LVDS;
 	cntl.enable_dp_audio = false;
-	cntl.pixel_clock = crtc_timing->pix_clk_khz;
+	cntl.pixel_clock = crtc_timing->pix_clk_100hz / 10;
 	cntl.lanes_number = LANE_COUNT_FOUR;
 
 	if (enc110->base.bp->funcs->encoder_control(
@@ -1575,6 +1584,14 @@ static void setup_stereo_sync(
 	REG_UPDATE(DIG_FE_CNTL, DIG_STEREOSYNC_GATE_EN, !enable);
 }
 
+static void dig_connect_to_otg(
+	struct stream_encoder *enc,
+	int tg_inst)
+{
+	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE(DIG_FE_CNTL, DIG_SOURCE_SELECT, tg_inst);
+}
 
 static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.dp_set_stream_attribute =
@@ -1609,7 +1626,7 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.hdmi_audio_disable = dce110_se_hdmi_audio_disable,
 	.setup_stereo_sync  = setup_stereo_sync,
 	.set_avmute = dce110_stream_encoder_set_avmute,
-
+	.dig_connect_to_otg  = dig_connect_to_otg,
 };
 
 void dce110_stream_encoder_construct(

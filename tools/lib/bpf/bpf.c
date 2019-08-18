@@ -22,6 +22,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <memory.h>
 #include <unistd.h>
 #include <asm/unistd.h>
@@ -214,23 +215,35 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 {
 	void *finfo = NULL, *linfo = NULL;
 	union bpf_attr attr;
+	__u32 log_level;
 	__u32 name_len;
 	int fd;
 
-	if (!load_attr)
+	if (!load_attr || !log_buf != !log_buf_sz)
+		return -EINVAL;
+
+	log_level = load_attr->log_level;
+	if (log_level > 2 || (log_level && !log_buf))
 		return -EINVAL;
 
 	name_len = load_attr->name ? strlen(load_attr->name) : 0;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = load_attr->prog_type;
 	attr.expected_attach_type = load_attr->expected_attach_type;
 	attr.insn_cnt = (__u32)load_attr->insns_cnt;
 	attr.insns = ptr_to_u64(load_attr->insns);
 	attr.license = ptr_to_u64(load_attr->license);
-	attr.log_buf = ptr_to_u64(NULL);
-	attr.log_size = 0;
-	attr.log_level = 0;
+
+	attr.log_level = log_level;
+	if (log_level) {
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_buf_sz;
+	} else {
+		attr.log_buf = ptr_to_u64(NULL);
+		attr.log_size = 0;
+	}
+
 	attr.kern_version = load_attr->kern_version;
 	attr.prog_ifindex = load_attr->prog_ifindex;
 	attr.prog_btf_fd = load_attr->prog_btf_fd;
@@ -286,7 +299,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 			goto done;
 	}
 
-	if (!log_buf || !log_buf_sz)
+	if (log_level || !log_buf)
 		goto done;
 
 	/* Try again with log */
@@ -327,7 +340,7 @@ int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = type;
 	attr.insn_cnt = (__u32)insns_cnt;
 	attr.insns = ptr_to_u64(insns);
@@ -347,7 +360,7 @@ int bpf_map_update_elem(int fd, const void *key, const void *value,
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.value = ptr_to_u64(value);
@@ -360,10 +373,23 @@ int bpf_map_lookup_elem(int fd, const void *key, void *value)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.value = ptr_to_u64(value);
+
+	return sys_bpf(BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
+}
+
+int bpf_map_lookup_elem_flags(int fd, const void *key, void *value, __u64 flags)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.value = ptr_to_u64(value);
+	attr.flags = flags;
 
 	return sys_bpf(BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
 }
@@ -372,7 +398,7 @@ int bpf_map_lookup_and_delete_elem(int fd, const void *key, void *value)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.value = ptr_to_u64(value);
@@ -384,7 +410,7 @@ int bpf_map_delete_elem(int fd, const void *key)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 
@@ -395,7 +421,7 @@ int bpf_map_get_next_key(int fd, const void *key, void *next_key)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.next_key = ptr_to_u64(next_key);
@@ -407,7 +433,7 @@ int bpf_obj_pin(int fd, const char *pathname)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.pathname = ptr_to_u64((void *)pathname);
 	attr.bpf_fd = fd;
 
@@ -418,7 +444,7 @@ int bpf_obj_get(const char *pathname)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.pathname = ptr_to_u64((void *)pathname);
 
 	return sys_bpf(BPF_OBJ_GET, &attr, sizeof(attr));
@@ -429,7 +455,7 @@ int bpf_prog_attach(int prog_fd, int target_fd, enum bpf_attach_type type,
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.target_fd	   = target_fd;
 	attr.attach_bpf_fd = prog_fd;
 	attr.attach_type   = type;
@@ -442,7 +468,7 @@ int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.target_fd	 = target_fd;
 	attr.attach_type = type;
 
@@ -453,7 +479,7 @@ int bpf_prog_detach2(int prog_fd, int target_fd, enum bpf_attach_type type)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.target_fd	 = target_fd;
 	attr.attach_bpf_fd = prog_fd;
 	attr.attach_type = type;
@@ -467,7 +493,7 @@ int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
 	union bpf_attr attr;
 	int ret;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.query.target_fd	= target_fd;
 	attr.query.attach_type	= type;
 	attr.query.query_flags	= query_flags;
@@ -488,7 +514,7 @@ int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 	union bpf_attr attr;
 	int ret;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.test.prog_fd = prog_fd;
 	attr.test.data_in = ptr_to_u64(data);
 	attr.test.data_out = ptr_to_u64(data_out);
@@ -513,7 +539,7 @@ int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr)
 	if (!test_attr->data_out && test_attr->data_size_out > 0)
 		return -EINVAL;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.test.prog_fd = test_attr->prog_fd;
 	attr.test.data_in = ptr_to_u64(test_attr->data_in);
 	attr.test.data_out = ptr_to_u64(test_attr->data_out);
@@ -533,7 +559,7 @@ int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
 	union bpf_attr attr;
 	int err;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.start_id = start_id;
 
 	err = sys_bpf(BPF_PROG_GET_NEXT_ID, &attr, sizeof(attr));
@@ -548,7 +574,7 @@ int bpf_map_get_next_id(__u32 start_id, __u32 *next_id)
 	union bpf_attr attr;
 	int err;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.start_id = start_id;
 
 	err = sys_bpf(BPF_MAP_GET_NEXT_ID, &attr, sizeof(attr));
@@ -562,7 +588,7 @@ int bpf_prog_get_fd_by_id(__u32 id)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.prog_id = id;
 
 	return sys_bpf(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
@@ -572,7 +598,7 @@ int bpf_map_get_fd_by_id(__u32 id)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.map_id = id;
 
 	return sys_bpf(BPF_MAP_GET_FD_BY_ID, &attr, sizeof(attr));
@@ -582,7 +608,7 @@ int bpf_btf_get_fd_by_id(__u32 id)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.btf_id = id;
 
 	return sys_bpf(BPF_BTF_GET_FD_BY_ID, &attr, sizeof(attr));
@@ -593,7 +619,7 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 	union bpf_attr attr;
 	int err;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.info.bpf_fd = prog_fd;
 	attr.info.info_len = *info_len;
 	attr.info.info = ptr_to_u64(info);
@@ -609,7 +635,7 @@ int bpf_raw_tracepoint_open(const char *name, int prog_fd)
 {
 	union bpf_attr attr;
 
-	bzero(&attr, sizeof(attr));
+	memset(&attr, 0, sizeof(attr));
 	attr.raw_tracepoint.name = ptr_to_u64(name);
 	attr.raw_tracepoint.prog_fd = prog_fd;
 

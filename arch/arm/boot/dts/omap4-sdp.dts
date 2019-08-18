@@ -26,6 +26,9 @@
 	};
 
 	vdd_eth: fixedregulator-vdd-eth {
+		pinctrl-names = "default";
+		pinctrl-0 = <&enet_enable_gpio>;
+
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_ETH";
 		regulator-min-microvolt = <3300000>;
@@ -352,6 +355,29 @@
 			OMAP4_IOPAD(0x152, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat3.sdmmc5_dat3 */
 		>;
 	};
+
+	/* gpio_48 for ENET_ENABLE */
+	enet_enable_gpio: pinmux_enet_enable_gpio {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x070, PIN_OUTPUT_PULLDOWN | MUX_MODE3)	/* gpmc_a24.gpio_48 */
+		>;
+	};
+
+	ks8851_pins: pinmux_ks8851_pins {
+		pinctrl-single,pins = <
+			/* ENET_INT */
+			OMAP4_IOPAD(0x054, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_ad10.gpio_34 */
+			/*
+			 * Misterious pin which makes the ethernet working
+			 * The legacy board file requested this pin on boot
+			 * (ETH_KS8851_QUART) and set it to high, similarly to
+			 * the ENET_ENABLE pin.
+			 * We could use gpio-hog to keep it high, but let's use
+			 * it as a reset GPIO for ks8851.
+			 */
+			OMAP4_IOPAD(0x13a, PIN_OUTPUT_PULLUP | MUX_MODE3)	/* mcspi1_cs1.gpio_138 */
+		>;
+	};
 };
 
 &i2c1 {
@@ -452,12 +478,16 @@
 	pinctrl-0 = <&mcspi1_pins>;
 
 	eth@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ks8851_pins>;
+
 		compatible = "ks8851";
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>; /* gpio line 34 */
 		vdd-supply = <&vdd_eth>;
+		reset-gpios = <&gpio5 10 GPIO_ACTIVE_HIGH>;
 	};
 };
 

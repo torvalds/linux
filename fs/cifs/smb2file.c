@@ -68,13 +68,15 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 
 
 	 if (oparms->tcon->use_resilient) {
-		nr_ioctl_req.Timeout = 0; /* use server default (120 seconds) */
+		/* default timeout is 0, servers pick default (120 seconds) */
+		nr_ioctl_req.Timeout =
+			cpu_to_le32(oparms->tcon->handle_timeout);
 		nr_ioctl_req.Reserved = 0;
 		rc = SMB2_ioctl(xid, oparms->tcon, fid->persistent_fid,
 			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY,
 			true /* is_fsctl */,
 			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
-			NULL, NULL /* no return info */);
+			CIFSMaxBufSize, NULL, NULL /* no return info */);
 		if (rc == -EOPNOTSUPP) {
 			cifs_dbg(VFS,
 			     "resiliency not supported by server, disabling\n");

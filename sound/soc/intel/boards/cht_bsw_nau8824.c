@@ -25,6 +25,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include <sound/jack.h>
 #include <linux/input.h>
 #include "../atom/sst-atom-controls.h"
@@ -246,12 +247,23 @@ static struct snd_soc_card snd_soc_card_cht = {
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	struct cht_mc_private *drv;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	int ret_val;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 	snd_soc_card_set_drvdata(&snd_soc_card_cht, drv);
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret_val = snd_soc_fixup_dai_links_platform_name(&snd_soc_card_cht,
+							platform_name);
+	if (ret_val)
+		return ret_val;
 
 	/* register the soc card */
 	snd_soc_card_cht.dev = &pdev->dev;

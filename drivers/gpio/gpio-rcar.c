@@ -40,6 +40,7 @@ struct gpio_rcar_priv {
 	struct irq_chip irq_chip;
 	unsigned int irq_parent;
 	atomic_t wakeup_path;
+	bool has_outdtsel;
 	bool has_both_edge_trigger;
 	struct gpio_rcar_bank_info bank_info;
 };
@@ -55,6 +56,7 @@ struct gpio_rcar_priv {
 #define POSNEG 0x20	/* Positive/Negative Logic Select Register */
 #define EDGLEVEL 0x24	/* Edge/level Select Register */
 #define FILONOFF 0x28	/* Chattering Prevention On/Off Register */
+#define OUTDTSEL 0x40	/* Output Data Select Register */
 #define BOTHEDGE 0x4c	/* One Edge/Both Edge Select Register */
 
 #define RCAR_MAX_GPIO_PER_BANK		32
@@ -235,6 +237,10 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 	/* Select Input Mode or Output Mode in INOUTSEL */
 	gpio_rcar_modify_bit(p, INOUTSEL, gpio, output);
 
+	/* Select General Output Register to output data in OUTDTSEL */
+	if (p->has_outdtsel && output)
+		gpio_rcar_modify_bit(p, OUTDTSEL, gpio, false);
+
 	spin_unlock_irqrestore(&p->lock, flags);
 }
 
@@ -336,14 +342,17 @@ static int gpio_rcar_direction_output(struct gpio_chip *chip, unsigned offset,
 }
 
 struct gpio_rcar_info {
+	bool has_outdtsel;
 	bool has_both_edge_trigger;
 };
 
 static const struct gpio_rcar_info gpio_rcar_info_gen1 = {
+	.has_outdtsel = false,
 	.has_both_edge_trigger = false,
 };
 
 static const struct gpio_rcar_info gpio_rcar_info_gen2 = {
+	.has_outdtsel = true,
 	.has_both_edge_trigger = true,
 };
 
@@ -403,10 +412,11 @@ static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 	int ret;
 
 	info = of_device_get_match_data(p->dev);
+	p->has_outdtsel = info->has_outdtsel;
+	p->has_both_edge_trigger = info->has_both_edge_trigger;
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args);
 	*npins = ret == 0 ? args.args[2] : RCAR_MAX_GPIO_PER_BANK;
-	p->has_both_edge_trigger = info->has_both_edge_trigger;
 
 	if (*npins == 0 || *npins > RCAR_MAX_GPIO_PER_BANK) {
 		dev_warn(p->dev, "Invalid number of gpio lines %u, using %u\n",

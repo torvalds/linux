@@ -153,9 +153,7 @@ struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 		goto err_srq;
 	}
 
-	srq->umem = ib_umem_get(pd->uobject->context,
-				ucmd.buf_addr,
-				ucmd.buf_size, 0, 0);
+	srq->umem = ib_umem_get(udata, ucmd.buf_addr, ucmd.buf_size, 0, 0);
 	if (IS_ERR(srq->umem)) {
 		ret = PTR_ERR(srq->umem);
 		goto err_srq;

@@ -17,8 +17,10 @@ void btrfs_tree_unlock(struct extent_buffer *eb);
 void btrfs_tree_read_lock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb);
-void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw);
-void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw);
+void btrfs_set_lock_blocking_read(struct extent_buffer *eb);
+void btrfs_set_lock_blocking_write(struct extent_buffer *eb);
+void btrfs_clear_lock_blocking_read(struct extent_buffer *eb);
+void btrfs_clear_lock_blocking_write(struct extent_buffer *eb);
 void btrfs_assert_tree_locked(struct extent_buffer *eb);
 int btrfs_try_tree_read_lock(struct extent_buffer *eb);
 int btrfs_try_tree_write_lock(struct extent_buffer *eb);
@@ -37,13 +39,4 @@ static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
 		BUG();
 }
 
-static inline void btrfs_set_lock_blocking(struct extent_buffer *eb)
-{
-	btrfs_set_lock_blocking_rw(eb, BTRFS_WRITE_LOCK);
-}
-
-static inline void btrfs_clear_lock_blocking(struct extent_buffer *eb)
-{
-	btrfs_clear_lock_blocking_rw(eb, BTRFS_WRITE_LOCK_BLOCKING);
-}
 #endif

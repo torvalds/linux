@@ -108,12 +108,8 @@ static void __init MMU_setup(void)
 		__map_without_bats = 1;
 		__map_without_ltlbs = 1;
 	}
-#ifdef CONFIG_STRICT_KERNEL_RWX
-	if (rodata_enabled) {
-		__map_without_bats = 1;
+	if (strict_kernel_rwx_enabled() && !IS_ENABLED(CONFIG_PPC_8xx))
 		__map_without_ltlbs = 1;
-	}
-#endif
 }
 
 /*

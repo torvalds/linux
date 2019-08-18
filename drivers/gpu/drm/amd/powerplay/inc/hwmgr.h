@@ -47,6 +47,11 @@ enum DISPLAY_GAP {
 };
 typedef enum DISPLAY_GAP DISPLAY_GAP;
 
+enum BACO_STATE {
+	BACO_STATE_OUT = 0,
+	BACO_STATE_IN,
+};
+
 struct vi_dpm_level {
 	bool enabled;
 	uint32_t value;
@@ -251,7 +256,6 @@ struct pp_hwmgr_func {
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
-	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*pre_display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
@@ -334,6 +338,11 @@ struct pp_hwmgr_func {
 	int (*enable_mgpu_fan_boost)(struct pp_hwmgr *hwmgr);
 	int (*set_hard_min_dcefclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
+	int (*get_asic_baco_capability)(struct pp_hwmgr *hwmgr, bool *cap);
+	int (*get_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
+	int (*set_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
+	int (*get_ppfeature_status)(struct pp_hwmgr *hwmgr, char *buf);
+	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
 };
 
 struct pp_table_func {
@@ -678,6 +687,7 @@ struct pp_advance_fan_control_parameters {
 	uint32_t  ulTargetGfxClk;
 	uint16_t  usZeroRPMStartTemperature;
 	uint16_t  usZeroRPMStopTemperature;
+	uint16_t  usMGpuThrottlingRPMLimit;
 };
 
 struct pp_thermal_controller_info {

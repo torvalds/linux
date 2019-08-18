@@ -528,7 +528,7 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 
 	dev->vbi_mode.bulk_ctl.buf = NULL;
 

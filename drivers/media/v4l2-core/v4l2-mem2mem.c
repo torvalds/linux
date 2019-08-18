@@ -131,7 +131,7 @@ struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL(v4l2_m2m_get_vq);
 
-void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
+struct vb2_v4l2_buffer *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
@@ -149,7 +149,7 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_next_buf);
 
-void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
+struct vb2_v4l2_buffer *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
@@ -167,7 +167,7 @@ void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_last_buf);
 
-void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
+struct vb2_v4l2_buffer *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
@@ -617,35 +617,34 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	__poll_t rc = 0;
 	unsigned long flags;
 
+	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
+	dst_q = v4l2_m2m_get_dst_vq(m2m_ctx);
+
+	poll_wait(file, &src_q->done_wq, wait);
+	poll_wait(file, &dst_q->done_wq, wait);
+
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
 
+		poll_wait(file, &fh->wait, wait);
 		if (v4l2_event_pending(fh))
 			rc = EPOLLPRI;
-		else if (req_events & EPOLLPRI)
-			poll_wait(file, &fh->wait, wait);
 		if (!(req_events & (EPOLLOUT | EPOLLWRNORM | EPOLLIN | EPOLLRDNORM)))
 			return rc;
 	}
-
-	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
-	dst_q = v4l2_m2m_get_dst_vq(m2m_ctx);
 
 	/*
 	 * There has to be at least one buffer queued on each queued_list, which
 	 * means either in driver already or waiting for driver to claim it
 	 * and start processing.
 	 */
-	if ((!src_q->streaming || list_empty(&src_q->queued_list))
-		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
+	if ((!src_q->streaming || src_q->error ||
+	     list_empty(&src_q->queued_list)) &&
+	    (!dst_q->streaming || dst_q->error ||
+	     list_empty(&dst_q->queued_list))) {
 		rc |= EPOLLERR;
 		goto end;
 	}
-
-	spin_lock_irqsave(&src_q->done_lock, flags);
-	if (list_empty(&src_q->done_list))
-		poll_wait(file, &src_q->done_wq, wait);
-	spin_unlock_irqrestore(&src_q->done_lock, flags);
 
 	spin_lock_irqsave(&dst_q->done_lock, flags);
 	if (list_empty(&dst_q->done_list)) {
@@ -657,8 +656,6 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 			spin_unlock_irqrestore(&dst_q->done_lock, flags);
 			return rc | EPOLLIN | EPOLLRDNORM;
 		}
-
-		poll_wait(file, &dst_q->done_wq, wait);
 	}
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
@@ -974,6 +971,27 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
+
+void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
+				struct vb2_v4l2_buffer *cap_vb,
+				bool copy_frame_flags)
+{
+	u32 mask = V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+
+	if (copy_frame_flags)
+		mask |= V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_PFRAME |
+			V4L2_BUF_FLAG_BFRAME;
+
+	cap_vb->vb2_buf.timestamp = out_vb->vb2_buf.timestamp;
+
+	if (out_vb->flags & V4L2_BUF_FLAG_TIMECODE)
+		cap_vb->timecode = out_vb->timecode;
+	cap_vb->field = out_vb->field;
+	cap_vb->flags &= ~mask;
+	cap_vb->flags |= out_vb->flags & mask;
+	cap_vb->vb2_buf.copied_timestamp = 1;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_buf_copy_metadata);
 
 void v4l2_m2m_request_queue(struct media_request *req)
 {

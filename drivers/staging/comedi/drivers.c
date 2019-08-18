@@ -394,11 +394,13 @@ unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_dio_update_state);
 
 /**
- * comedi_bytes_per_scan() - Get length of asynchronous command "scan" in bytes
+ * comedi_bytes_per_scan_cmd() - Get length of asynchronous command "scan" in
+ * bytes
  * @s: COMEDI subdevice.
+ * @cmd: COMEDI command.
  *
  * Determines the overall scan length according to the subdevice type and the
- * number of channels in the scan.
+ * number of channels in the scan for the specified command.
  *
  * For digital input, output or input/output subdevices, samples for
  * multiple channels are assumed to be packed into one or more unsigned
@@ -408,9 +410,9 @@ EXPORT_SYMBOL_GPL(comedi_dio_update_state);
  *
  * Returns the overall scan length in bytes.
  */
-unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
+unsigned int comedi_bytes_per_scan_cmd(struct comedi_subdevice *s,
+				       struct comedi_cmd *cmd)
 {
-	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_samples;
 	unsigned int bits_per_sample;
 
@@ -426,6 +428,29 @@ unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
 		break;
 	}
 	return comedi_samples_to_bytes(s, num_samples);
+}
+EXPORT_SYMBOL_GPL(comedi_bytes_per_scan_cmd);
+
+/**
+ * comedi_bytes_per_scan() - Get length of asynchronous command "scan" in bytes
+ * @s: COMEDI subdevice.
+ *
+ * Determines the overall scan length according to the subdevice type and the
+ * number of channels in the scan for the current command.
+ *
+ * For digital input, output or input/output subdevices, samples for
+ * multiple channels are assumed to be packed into one or more unsigned
+ * short or unsigned int values according to the subdevice's %SDF_LSAMPL
+ * flag.  For other types of subdevice, samples are assumed to occupy a
+ * whole unsigned short or unsigned int according to the %SDF_LSAMPL flag.
+ *
+ * Returns the overall scan length in bytes.
+ */
+unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
+{
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	return comedi_bytes_per_scan_cmd(s, cmd);
 }
 EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
 

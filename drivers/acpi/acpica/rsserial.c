@@ -39,7 +39,7 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
 	 AML_OFFSET(gpio.flags),
 	 0},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.gpio.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.gpio.shareable),
 	 AML_OFFSET(gpio.int_flags),
 	 3},
 
@@ -128,7 +128,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_function[13] = {
 	 AML_OFFSET(pin_function.revision_id),
 	 1},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_function.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_function.shareable),
 	 AML_OFFSET(pin_function.flags),
 	 0},
 
@@ -518,7 +518,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_config[14] = {
 	 AML_OFFSET(pin_config.revision_id),
 	 1},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_config.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_config.shareable),
 	 AML_OFFSET(pin_config.flags),
 	 0},
 
@@ -658,7 +658,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_group_function[13] = {
 	 AML_OFFSET(pin_group_function.revision_id),
 	 1},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_function.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_function.shareable),
 	 AML_OFFSET(pin_group_function.flags),
 	 0},
 
@@ -735,7 +735,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_group_config[14] = {
 	 AML_OFFSET(pin_group_config.revision_id),
 	 1},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_config.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_config.shareable),
 	 AML_OFFSET(pin_group_config.flags),
 	 0},
 

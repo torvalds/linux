@@ -1665,7 +1665,10 @@ static int ms_copy_page(struct rtsx_chip *chip, u16 old_blk, u16 new_blk,
 			return STATUS_FAIL;
 		}
 
-		ms_read_extra_data(chip, old_blk, i, extra, MS_EXTRA_SIZE);
+		retval = ms_read_extra_data(chip, old_blk, i, extra,
+					    MS_EXTRA_SIZE);
+		if (retval != STATUS_SUCCESS)
+			return STATUS_FAIL;
 
 		retval = ms_set_rw_reg_addr(chip, OverwriteFlag,
 					    MS_EXTRA_SIZE, SystemParm, 6);

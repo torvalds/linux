@@ -23,8 +23,8 @@
 
 #  include <asm/unistd_64.h>
 #  include <asm/unistd_64_x32.h>
-#  define __ARCH_WANT_COMPAT_SYS_TIME
-#  define __ARCH_WANT_SYS_UTIME32
+#  define __ARCH_WANT_SYS_TIME
+#  define __ARCH_WANT_SYS_UTIME
 #  define __ARCH_WANT_COMPAT_SYS_PREADV64
 #  define __ARCH_WANT_COMPAT_SYS_PWRITEV64
 #  define __ARCH_WANT_COMPAT_SYS_PREADV64V2
@@ -48,8 +48,8 @@
 # define __ARCH_WANT_SYS_SIGPENDING
 # define __ARCH_WANT_SYS_SIGPROCMASK
 # define __ARCH_WANT_SYS_SOCKETCALL
-# define __ARCH_WANT_SYS_TIME
-# define __ARCH_WANT_SYS_UTIME
+# define __ARCH_WANT_SYS_TIME32
+# define __ARCH_WANT_SYS_UTIME32
 # define __ARCH_WANT_SYS_WAITPID
 # define __ARCH_WANT_SYS_FORK
 # define __ARCH_WANT_SYS_VFORK

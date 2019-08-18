@@ -2195,7 +2195,6 @@ static int snd_rme_controls_create(struct usb_mixer_interface *mixer)
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 {
 	int err = 0;
-	struct snd_info_entry *entry;
 
 	err = snd_usb_soundblaster_remote_init(mixer);
 	if (err < 0)
@@ -2214,9 +2213,8 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		err = snd_audigy2nx_controls_create(mixer);
 		if (err < 0)
 			break;
-		if (!snd_card_proc_new(mixer->chip->card, "audigy2nx", &entry))
-			snd_info_set_text_ops(entry, mixer,
-					      snd_audigy2nx_proc_read);
+		snd_card_ro_proc_new(mixer->chip->card, "audigy2nx",
+				     mixer, snd_audigy2nx_proc_read);
 		break;
 
 	/* EMU0204 */

@@ -1454,21 +1454,14 @@ static void pcxhr_proc_ltc(struct snd_info_entry *entry,
 
 static void pcxhr_proc_init(struct snd_pcxhr *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "info", &entry))
-		snd_info_set_text_ops(entry, chip, pcxhr_proc_info);
-	if (! snd_card_proc_new(chip->card, "sync", &entry))
-		snd_info_set_text_ops(entry, chip, pcxhr_proc_sync);
+	snd_card_ro_proc_new(chip->card, "info", chip, pcxhr_proc_info);
+	snd_card_ro_proc_new(chip->card, "sync", chip, pcxhr_proc_sync);
 	/* gpio available on stereo sound cards only */
-	if (chip->mgr->is_hr_stereo &&
-	    !snd_card_proc_new(chip->card, "gpio", &entry)) {
-		snd_info_set_text_ops(entry, chip, pcxhr_proc_gpio_read);
-		entry->c.text.write = pcxhr_proc_gpo_write;
-		entry->mode |= 0200;
-	}
-	if (!snd_card_proc_new(chip->card, "ltc", &entry))
-		snd_info_set_text_ops(entry, chip, pcxhr_proc_ltc);
+	if (chip->mgr->is_hr_stereo)
+		snd_card_rw_proc_new(chip->card, "gpio", chip,
+				     pcxhr_proc_gpio_read,
+				     pcxhr_proc_gpo_write);
+	snd_card_ro_proc_new(chip->card, "ltc", chip, pcxhr_proc_ltc);
 }
 /* end of proc interface */
 

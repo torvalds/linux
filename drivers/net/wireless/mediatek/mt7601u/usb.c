@@ -303,6 +303,10 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	mac_rev = mt7601u_rr(dev, MT_MAC_CSR0);
 	dev_info(dev->dev, "ASIC revision: %08x MAC revision: %08x\n",
 		 asic_rev, mac_rev);
+	if ((asic_rev >> 16) != 0x7601) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	/* Note: vendor driver skips this check for MT7601U */
 	if (!(mt7601u_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))

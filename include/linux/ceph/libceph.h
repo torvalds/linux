@@ -294,6 +294,8 @@ extern void ceph_destroy_client(struct ceph_client *client);
 extern int __ceph_open_session(struct ceph_client *client,
 			       unsigned long started);
 extern int ceph_open_session(struct ceph_client *client);
+int ceph_wait_for_latest_osdmap(struct ceph_client *client,
+				unsigned long timeout);
 
 /* pagevec.c */
 extern void ceph_release_page_vector(struct page **pages, int num_pages);

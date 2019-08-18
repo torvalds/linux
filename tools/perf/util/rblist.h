@@ -20,7 +20,7 @@
  */
 
 struct rblist {
-	struct rb_root entries;
+	struct rb_root_cached entries;
 	unsigned int   nr_entries;
 
 	int (*node_cmp)(struct rb_node *rbn, const void *entry);

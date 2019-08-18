@@ -44,6 +44,7 @@
  *  @int_pin_cfg;	Controls interrupt pin configuration.
  *  @accl_offset:	Controls the accelerometer calibration offset.
  *  @gyro_offset:	Controls the gyroscope calibration offset.
+ *  @i2c_if:		Controls the i2c interface
  */
 struct inv_mpu6050_reg_map {
 	u8 sample_rate_div;
@@ -65,6 +66,7 @@ struct inv_mpu6050_reg_map {
 	u8 int_pin_cfg;
 	u8 accl_offset;
 	u8 gyro_offset;
+	u8 i2c_if;
 };
 
 /*device enum */
@@ -77,6 +79,7 @@ enum inv_devices {
 	INV_MPU9250,
 	INV_MPU9255,
 	INV_ICM20608,
+	INV_ICM20602,
 	INV_NUM_PARTS
 };
 
@@ -195,6 +198,10 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_PWR_ACCL_STBY       0x38
 #define INV_MPU6050_BIT_PWR_GYRO_STBY       0x07
 
+/* ICM20602 register */
+#define INV_ICM20602_REG_I2C_IF             0x70
+#define INV_ICM20602_BIT_I2C_IF_DIS         0x40
+
 #define INV_MPU6050_REG_FIFO_COUNT_H        0x72
 #define INV_MPU6050_REG_FIFO_R_W            0x74
 
@@ -261,6 +268,7 @@ struct inv_mpu6050_state {
 #define INV_MPU9255_WHOAMI_VALUE		0x73
 #define INV_MPU6515_WHOAMI_VALUE		0x74
 #define INV_ICM20608_WHOAMI_VALUE		0xAF
+#define INV_ICM20602_WHOAMI_VALUE		0x12
 
 /* scan element definition */
 enum inv_mpu6050_scan {

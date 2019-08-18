@@ -1371,6 +1371,7 @@ int snd_pmac_tumbler_init(struct snd_pmac *chip)
 				mix->anded_reset = 1;
 			if (of_get_property(np, "layout-id", NULL))
 				mix->reset_on_sleep = 0;
+			of_node_put(np);
 			break;
 		}
 	}

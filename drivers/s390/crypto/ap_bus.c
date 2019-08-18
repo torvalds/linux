@@ -810,10 +810,17 @@ static int ap_device_remove(struct device *dev)
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = ap_dev->drv;
 
+	/* prepare ap queue device removal */
 	if (is_queue_dev(dev))
-		ap_queue_remove(to_ap_queue(dev));
+		ap_queue_prepare_remove(to_ap_queue(dev));
+
+	/* driver's chance to clean up gracefully */
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
+
+	/* now do the ap queue device remove */
+	if (is_queue_dev(dev))
+		ap_queue_remove(to_ap_queue(dev));
 
 	/* Remove queue/card from list of active queues/cards */
 	spin_lock_bh(&ap_list_lock);
@@ -859,6 +866,16 @@ void ap_bus_force_rescan(void)
 	flush_work(&ap_scan_work);
 }
 EXPORT_SYMBOL(ap_bus_force_rescan);
+
+/*
+* A config change has happened, force an ap bus rescan.
+*/
+void ap_bus_cfg_chg(void)
+{
+	AP_DBF(DBF_INFO, "%s config change, forcing bus rescan\n", __func__);
+
+	ap_bus_force_rescan();
+}
 
 /*
  * hex2bitmap() - parse hex mask string and set bitmap.
@@ -1336,6 +1353,16 @@ static int __match_queue_device_with_qid(struct device *dev, void *data)
 }
 
 /*
+ * Helper function to be used with bus_find_dev
+ * matches any queue device with given queue id
+ */
+static int __match_queue_device_with_queue_id(struct device *dev, void *data)
+{
+	return is_queue_dev(dev)
+		&& AP_QID_QUEUE(to_ap_queue(dev)->qid) == (int)(long) data;
+}
+
+/*
  * Helper function for ap_scan_bus().
  * Does the scan bus job for the given adapter id.
  */
@@ -1435,8 +1462,13 @@ static void _ap_scan_bus_adapter(int id)
 				borked = aq->state == AP_STATE_BORKED;
 				spin_unlock_bh(&aq->lock);
 			}
-			if (borked)	/* Remove broken device */
+			if (borked) {
+				/* Remove broken device */
+				AP_DBF(DBF_DEBUG,
+				       "removing broken queue=%02x.%04x\n",
+				       id, dom);
 				device_unregister(dev);
+			}
 			put_device(dev);
 			continue;
 		}
@@ -1506,7 +1538,7 @@ static void ap_scan_bus(struct work_struct *unused)
 		struct device *dev =
 			bus_find_device(&ap_bus_type, NULL,
 					(void *)(long) ap_domain_index,
-					__match_queue_device_with_qid);
+					__match_queue_device_with_queue_id);
 		if (dev)
 			put_device(dev);
 		else

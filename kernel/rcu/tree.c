@@ -1,27 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Read-Copy Update mechanism for mutual exclusion
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
  *
  * Authors: Dipankar Sarma <dipankar@in.ibm.com>
  *	    Manfred Spraul <manfred@colorfullife.com>
- *	    Paul E. McKenney <paulmck@linux.vnet.ibm.com> Hierarchical version
+ *	    Paul E. McKenney <paulmck@linux.ibm.com> Hierarchical version
  *
- * Based on the original work by Paul McKenney <paulmck@us.ibm.com>
+ * Based on the original work by Paul McKenney <paulmck@linux.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  *
  * For detailed explanation of Read-Copy Update mechanism see -
@@ -62,6 +49,8 @@
 #include <linux/suspend.h>
 #include <linux/ftrace.h>
 #include <linux/tick.h>
+#include <linux/sysrq.h>
+#include <linux/kprobes.h>
 
 #include "tree.h"
 #include "rcu.h"
@@ -115,6 +104,9 @@ int num_rcu_lvl[] = NUM_RCU_LVL_INIT;
 int rcu_num_nodes __read_mostly = NUM_RCU_NODES; /* Total # rcu_nodes in use. */
 /* panic() on RCU Stall sysctl. */
 int sysctl_panic_on_rcu_stall __read_mostly;
+/* Commandeer a sysrq key to dump RCU's tree. */
+static bool sysrq_rcu;
+module_param(sysrq_rcu, bool, 0444);
 
 /*
  * The rcu_scheduler_active variable is initialized to the value
@@ -479,7 +471,6 @@ module_param_cb(jiffies_till_next_fqs, &next_fqs_jiffies_ops, &jiffies_till_next
 module_param(rcu_kick_kthreads, bool, 0644);
 
 static void force_qs_rnp(int (*f)(struct rcu_data *rdp));
-static void force_quiescent_state(void);
 static int rcu_pending(void);
 
 /*
@@ -504,13 +495,12 @@ unsigned long rcu_exp_batches_completed(void)
 EXPORT_SYMBOL_GPL(rcu_exp_batches_completed);
 
 /*
- * Force a quiescent state.
+ * Return the root node of the rcu_state structure.
  */
-void rcu_force_quiescent_state(void)
+static struct rcu_node *rcu_get_root(void)
 {
-	force_quiescent_state();
+	return &rcu_state.node[0];
 }
-EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
  * Convert a ->gp_state value to a character string.
@@ -529,19 +519,30 @@ void show_rcu_gp_kthreads(void)
 {
 	int cpu;
 	unsigned long j;
+	unsigned long ja;
+	unsigned long jr;
+	unsigned long jw;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	j = jiffies - READ_ONCE(rcu_state.gp_activity);
-	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %ld\n",
+	j = jiffies;
+	ja = j - READ_ONCE(rcu_state.gp_activity);
+	jr = j - READ_ONCE(rcu_state.gp_req_activity);
+	jw = j - READ_ONCE(rcu_state.gp_wake_time);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %lu ->gp_req_activity %lu ->gp_wake_time %lu ->gp_wake_seq %ld ->gp_seq %ld ->gp_seq_needed %ld ->gp_flags %#x\n",
 		rcu_state.name, gp_state_getname(rcu_state.gp_state),
-		rcu_state.gp_state, rcu_state.gp_kthread->state, j);
+		rcu_state.gp_state,
+		rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL,
+		ja, jr, jw, (long)READ_ONCE(rcu_state.gp_wake_seq),
+		(long)READ_ONCE(rcu_state.gp_seq),
+		(long)READ_ONCE(rcu_get_root()->gp_seq_needed),
+		READ_ONCE(rcu_state.gp_flags));
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
 			continue;
-		pr_info("\trcu_node %d:%d ->gp_seq %lu ->gp_seq_needed %lu\n",
-			rnp->grplo, rnp->grphi, rnp->gp_seq,
-			rnp->gp_seq_needed);
+		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld\n",
+			rnp->grplo, rnp->grphi, (long)rnp->gp_seq,
+			(long)rnp->gp_seq_needed);
 		if (!rcu_is_leaf_node(rnp))
 			continue;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
@@ -550,13 +551,34 @@ void show_rcu_gp_kthreads(void)
 			    ULONG_CMP_GE(rcu_state.gp_seq,
 					 rdp->gp_seq_needed))
 				continue;
-			pr_info("\tcpu %d ->gp_seq_needed %lu\n",
-				cpu, rdp->gp_seq_needed);
+			pr_info("\tcpu %d ->gp_seq_needed %ld\n",
+				cpu, (long)rdp->gp_seq_needed);
 		}
 	}
 	/* sched_show_task(rcu_state.gp_kthread); */
 }
 EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);
+
+/* Dump grace-period-request information due to commandeered sysrq. */
+static void sysrq_show_rcu(int key)
+{
+	show_rcu_gp_kthreads();
+}
+
+static struct sysrq_key_op sysrq_rcudump_op = {
+	.handler = sysrq_show_rcu,
+	.help_msg = "show-rcu(y)",
+	.action_msg = "Show RCU tree",
+	.enable_mask = SYSRQ_ENABLE_DUMP,
+};
+
+static int __init rcu_sysrq_init(void)
+{
+	if (sysrq_rcu)
+		return register_sysrq_key('y', &sysrq_rcudump_op);
+	return 0;
+}
+early_initcall(rcu_sysrq_init);
 
 /*
  * Send along grace-period-related data for rcutorture diagnostics.
@@ -566,8 +588,6 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 {
 	switch (test_type) {
 	case RCU_FLAVOR:
-	case RCU_BH_FLAVOR:
-	case RCU_SCHED_FLAVOR:
 		*flags = READ_ONCE(rcu_state.gp_flags);
 		*gp_seq = rcu_seq_current(&rcu_state.gp_seq);
 		break;
@@ -576,14 +596,6 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	}
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
-
-/*
- * Return the root node of the rcu_state structure.
- */
-static struct rcu_node *rcu_get_root(void)
-{
-	return &rcu_state.node[0];
-}
 
 /*
  * Enter an RCU extended quiescent state, which can be either the
@@ -701,7 +713,6 @@ static __always_inline void rcu_nmi_exit_common(bool irq)
 
 /**
  * rcu_nmi_exit - inform RCU of exit from NMI context
- * @irq: Is this call from rcu_irq_exit?
  *
  * If you add or remove a call to rcu_nmi_exit(), be sure to test
  * with CONFIG_RCU_EQS_DEBUG=y.
@@ -872,6 +883,7 @@ void rcu_nmi_enter(void)
 {
 	rcu_nmi_enter_common(false);
 }
+NOKPROBE_SYMBOL(rcu_nmi_enter);
 
 /**
  * rcu_irq_enter - inform RCU that current CPU is entering irq away from idle
@@ -1115,7 +1127,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	}
 
 	/*
-	 * NO_HZ_FULL CPUs can run in-kernel without rcu_check_callbacks!
+	 * NO_HZ_FULL CPUs can run in-kernel without rcu_sched_clock_irq!
 	 * The above code handles this, but only for straight cond_resched().
 	 * And some in-kernel loops check need_resched() before calling
 	 * cond_resched(), which defeats the above code for CPUs that are
@@ -1181,7 +1193,7 @@ static void rcu_check_gp_kthread_starvation(void)
 		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx ->cpu=%d\n",
 		       rcu_state.name, j,
 		       (long)rcu_seq_current(&rcu_state.gp_seq),
-		       rcu_state.gp_flags,
+		       READ_ONCE(rcu_state.gp_flags),
 		       gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
 		       gpk ? gpk->state : ~0, gpk ? task_cpu(gpk) : -1);
 		if (gpk) {
@@ -1310,7 +1322,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	panic_on_rcu_stall();
 
-	force_quiescent_state();  /* Kick them all. */
+	rcu_force_quiescent_state();  /* Kick them all. */
 }
 
 static void print_cpu_stall(void)
@@ -1557,17 +1569,28 @@ static bool rcu_future_gp_cleanup(struct rcu_node *rnp)
 }
 
 /*
- * Awaken the grace-period kthread.  Don't do a self-awaken, and don't
- * bother awakening when there is nothing for the grace-period kthread
- * to do (as in several CPUs raced to awaken, and we lost), and finally
- * don't try to awaken a kthread that has not yet been created.
+ * Awaken the grace-period kthread.  Don't do a self-awaken (unless in
+ * an interrupt or softirq handler), and don't bother awakening when there
+ * is nothing for the grace-period kthread to do (as in several CPUs raced
+ * to awaken, and we lost), and finally don't try to awaken a kthread that
+ * has not yet been created.  If all those checks are passed, track some
+ * debug information and awaken.
+ *
+ * So why do the self-wakeup when in an interrupt or softirq handler
+ * in the grace-period kthread's context?  Because the kthread might have
+ * been interrupted just as it was going to sleep, and just after the final
+ * pre-sleep check of the awaken condition.  In this case, a wakeup really
+ * is required, and is therefore supplied.
  */
 static void rcu_gp_kthread_wake(void)
 {
-	if (current == rcu_state.gp_kthread ||
+	if ((current == rcu_state.gp_kthread &&
+	     !in_interrupt() && !in_serving_softirq()) ||
 	    !READ_ONCE(rcu_state.gp_flags) ||
 	    !rcu_state.gp_kthread)
 		return;
+	WRITE_ONCE(rcu_state.gp_wake_time, jiffies);
+	WRITE_ONCE(rcu_state.gp_wake_seq, READ_ONCE(rcu_state.gp_seq));
 	swake_up_one(&rcu_state.gp_wq);
 }
 
@@ -1711,7 +1734,7 @@ static bool __note_gp_changes(struct rcu_node *rnp, struct rcu_data *rdp)
 		zero_cpu_stall_ticks(rdp);
 	}
 	rdp->gp_seq = rnp->gp_seq;  /* Remember new grace-period state. */
-	if (ULONG_CMP_GE(rnp->gp_seq_needed, rdp->gp_seq_needed) || rdp->gpwrap)
+	if (ULONG_CMP_LT(rdp->gp_seq_needed, rnp->gp_seq_needed) || rdp->gpwrap)
 		rdp->gp_seq_needed = rnp->gp_seq_needed;
 	WRITE_ONCE(rdp->gpwrap, false);
 	rcu_gpnum_ovf(rnp, rdp);
@@ -1939,7 +1962,7 @@ static void rcu_gp_fqs_loop(void)
 		if (!ret) {
 			rcu_state.jiffies_force_qs = jiffies + j;
 			WRITE_ONCE(rcu_state.jiffies_kick_kthreads,
-				   jiffies + 3 * j);
+				   jiffies + (j ? 3 * j : 2));
 		}
 		trace_rcu_grace_period(rcu_state.name,
 				       READ_ONCE(rcu_state.gp_seq),
@@ -2497,14 +2520,14 @@ static void rcu_do_batch(struct rcu_data *rdp)
 }
 
 /*
- * Check to see if this CPU is in a non-context-switch quiescent state
- * (user mode or idle loop for rcu, non-softirq execution for rcu_bh).
- * Also schedule RCU core processing.
- *
- * This function must be called from hardirq context.  It is normally
- * invoked from the scheduling-clock interrupt.
+ * This function is invoked from each scheduling-clock interrupt,
+ * and checks to see if this CPU is in a non-context-switch quiescent
+ * state, for example, user mode or idle loop.  It also schedules RCU
+ * core processing.  If the current grace period has gone on too long,
+ * it will ask the scheduler to manufacture a context switch for the sole
+ * purpose of providing a providing the needed quiescent state.
  */
-void rcu_check_callbacks(int user)
+void rcu_sched_clock_irq(int user)
 {
 	trace_rcu_utilization(TPS("Start scheduler-tick"));
 	raw_cpu_inc(rcu_data.ticks_this_gp);
@@ -2517,7 +2540,7 @@ void rcu_check_callbacks(int user)
 		}
 		__this_cpu_write(rcu_data.rcu_urgent_qs, false);
 	}
-	rcu_flavor_check_callbacks(user);
+	rcu_flavor_sched_clock_irq(user);
 	if (rcu_pending())
 		invoke_rcu_core();
 
@@ -2578,7 +2601,7 @@ static void force_qs_rnp(int (*f)(struct rcu_data *rdp))
  * Force quiescent states on reluctant CPUs, and also detect which
  * CPUs are in dyntick-idle mode.
  */
-static void force_quiescent_state(void)
+void rcu_force_quiescent_state(void)
 {
 	unsigned long flags;
 	bool ret;
@@ -2610,6 +2633,7 @@ static void force_quiescent_state(void)
 	raw_spin_unlock_irqrestore_rcu_node(rnp_old, flags);
 	rcu_gp_kthread_wake();
 }
+EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
  * This function checks for grace-period requests that fail to motivate
@@ -2657,16 +2681,11 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
-	pr_alert("%s: g%ld->%ld gar:%lu ga:%lu f%#x gs:%d %s->state:%#lx\n",
-		 __func__, (long)READ_ONCE(rcu_state.gp_seq),
-		 (long)READ_ONCE(rnp_root->gp_seq_needed),
-		 j - rcu_state.gp_req_activity, j - rcu_state.gp_activity,
-		 rcu_state.gp_flags, rcu_state.gp_state, rcu_state.name,
-		 rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL);
 	WARN_ON(1);
 	if (rnp_root != rnp)
 		raw_spin_unlock_rcu_node(rnp_root);
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	show_rcu_gp_kthreads();
 }
 
 /*
@@ -2711,12 +2730,8 @@ void rcu_fwd_progress_check(unsigned long j)
 }
 EXPORT_SYMBOL_GPL(rcu_fwd_progress_check);
 
-/*
- * This does the RCU core processing work for the specified rcu_data
- * structures.  This may be called only from the CPU to whom the rdp
- * belongs.
- */
-static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
+/* Perform RCU core processing work for the current CPU.  */
+static __latent_entropy void rcu_core(struct softirq_action *unused)
 {
 	unsigned long flags;
 	struct rcu_data *rdp = raw_cpu_ptr(&rcu_data);
@@ -2801,9 +2816,9 @@ static void __call_rcu_core(struct rcu_data *rdp, struct rcu_head *head,
 
 	/*
 	 * Force the grace period if too many callbacks or too long waiting.
-	 * Enforce hysteresis, and don't invoke force_quiescent_state()
+	 * Enforce hysteresis, and don't invoke rcu_force_quiescent_state()
 	 * if some other CPU has recently done so.  Also, don't bother
-	 * invoking force_quiescent_state() if the newly enqueued callback
+	 * invoking rcu_force_quiescent_state() if the newly enqueued callback
 	 * is the only one waiting for a grace period to complete.
 	 */
 	if (unlikely(rcu_segcblist_n_cbs(&rdp->cblist) >
@@ -2820,7 +2835,7 @@ static void __call_rcu_core(struct rcu_data *rdp, struct rcu_head *head,
 			rdp->blimit = LONG_MAX;
 			if (rcu_state.n_force_qs == rdp->n_force_qs_snap &&
 			    rcu_segcblist_first_pend_cb(&rdp->cblist) != head)
-				force_quiescent_state();
+				rcu_force_quiescent_state();
 			rdp->n_force_qs_snap = rcu_state.n_force_qs;
 			rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
 		}
@@ -2889,9 +2904,6 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
 			rcu_segcblist_init(&rdp->cblist);
 	}
 	rcu_segcblist_enqueue(&rdp->cblist, head, lazy);
-	if (!lazy)
-		rcu_idle_count_callbacks_posted();
-
 	if (__is_kfree_rcu_offset((unsigned long)func))
 		trace_rcu_kfree_callback(rcu_state.name, head,
 					 (unsigned long)func,
@@ -2960,6 +2972,79 @@ void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 	__call_rcu(head, func, -1, 1);
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
+
+/*
+ * During early boot, any blocking grace-period wait automatically
+ * implies a grace period.  Later on, this is never the case for PREEMPT.
+ *
+ * Howevr, because a context switch is a grace period for !PREEMPT, any
+ * blocking grace-period wait automatically implies a grace period if
+ * there is only one CPU online at any point time during execution of
+ * either synchronize_rcu() or synchronize_rcu_expedited().  It is OK to
+ * occasionally incorrectly indicate that there are multiple CPUs online
+ * when there was in fact only one the whole time, as this just adds some
+ * overhead: RCU still operates correctly.
+ */
+static int rcu_blocking_is_gp(void)
+{
+	int ret;
+
+	if (IS_ENABLED(CONFIG_PREEMPT))
+		return rcu_scheduler_active == RCU_SCHEDULER_INACTIVE;
+	might_sleep();  /* Check for RCU read-side critical section. */
+	preempt_disable();
+	ret = num_online_cpus() <= 1;
+	preempt_enable();
+	return ret;
+}
+
+/**
+ * synchronize_rcu - wait until a grace period has elapsed.
+ *
+ * Control will return to the caller some time after a full grace
+ * period has elapsed, in other words after all currently executing RCU
+ * read-side critical sections have completed.  Note, however, that
+ * upon return from synchronize_rcu(), the caller might well be executing
+ * concurrently with new RCU read-side critical sections that began while
+ * synchronize_rcu() was waiting.  RCU read-side critical sections are
+ * delimited by rcu_read_lock() and rcu_read_unlock(), and may be nested.
+ * In addition, regions of code across which interrupts, preemption, or
+ * softirqs have been disabled also serve as RCU read-side critical
+ * sections.  This includes hardware interrupt handlers, softirq handlers,
+ * and NMI handlers.
+ *
+ * Note that this guarantee implies further memory-ordering guarantees.
+ * On systems with more than one CPU, when synchronize_rcu() returns,
+ * each CPU is guaranteed to have executed a full memory barrier since
+ * the end of its last RCU read-side critical section whose beginning
+ * preceded the call to synchronize_rcu().  In addition, each CPU having
+ * an RCU read-side critical section that extends beyond the return from
+ * synchronize_rcu() is guaranteed to have executed a full memory barrier
+ * after the beginning of synchronize_rcu() and before the beginning of
+ * that RCU read-side critical section.  Note that these guarantees include
+ * CPUs that are offline, idle, or executing in user mode, as well as CPUs
+ * that are executing in the kernel.
+ *
+ * Furthermore, if CPU A invoked synchronize_rcu(), which returned
+ * to its caller on CPU B, then both CPU A and CPU B are guaranteed
+ * to have executed a full memory barrier during the execution of
+ * synchronize_rcu() -- even if CPU A and CPU B are the same CPU (but
+ * again only if the system has more than one CPU).
+ */
+void synchronize_rcu(void)
+{
+	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
+			 lock_is_held(&rcu_lock_map) ||
+			 lock_is_held(&rcu_sched_lock_map),
+			 "Illegal synchronize_rcu() in RCU read-side critical section");
+	if (rcu_blocking_is_gp())
+		return;
+	if (rcu_gp_is_expedited())
+		synchronize_rcu_expedited();
+	else
+		wait_rcu_gp(call_rcu);
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 /**
  * get_state_synchronize_rcu - Snapshot current RCU state
@@ -3046,28 +3131,6 @@ static int rcu_pending(void)
 
 	/* nothing to do */
 	return 0;
-}
-
-/*
- * Return true if the specified CPU has any callback.  If all_lazy is
- * non-NULL, store an indication of whether all callbacks are lazy.
- * (If there are no callbacks, all of them are deemed to be lazy.)
- */
-static bool rcu_cpu_has_callbacks(bool *all_lazy)
-{
-	bool al = true;
-	bool hc = false;
-	struct rcu_data *rdp;
-
-	rdp = this_cpu_ptr(&rcu_data);
-	if (!rcu_segcblist_empty(&rdp->cblist)) {
-		hc = true;
-		if (rcu_segcblist_n_nonlazy_cbs(&rdp->cblist))
-			al = false;
-	}
-	if (all_lazy)
-		*all_lazy = al;
-	return hc;
 }
 
 /*
@@ -3299,7 +3362,7 @@ int rcutree_prepare_cpu(unsigned int cpu)
 	trace_rcu_grace_period(rcu_state.name, rdp->gp_seq, TPS("cpuonl"));
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	rcu_prepare_kthreads(cpu);
-	rcu_spawn_all_nocb_kthreads(cpu);
+	rcu_spawn_cpu_nocb_kthread(cpu);
 
 	return 0;
 }
@@ -3329,8 +3392,6 @@ int rcutree_online_cpu(unsigned int cpu)
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rnp->ffmask |= rdp->grpmask;
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-	if (IS_ENABLED(CONFIG_TREE_SRCU))
-		srcu_online_cpu(cpu);
 	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
 		return 0; /* Too early in boot for scheduler work. */
 	sync_sched_exp_online_cleanup(cpu);
@@ -3355,8 +3416,6 @@ int rcutree_offline_cpu(unsigned int cpu)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 
 	rcutree_affinity_setting(cpu, cpu);
-	if (IS_ENABLED(CONFIG_TREE_SRCU))
-		srcu_offline_cpu(cpu);
 	return 0;
 }
 
@@ -3777,7 +3836,7 @@ void __init rcu_init(void)
 	rcu_init_one();
 	if (dump_tree)
 		rcu_dump_rcu_node_tree();
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+	open_softirq(RCU_SOFTIRQ, rcu_core);
 
 	/*
 	 * We don't need protection against CPU-hotplug here because

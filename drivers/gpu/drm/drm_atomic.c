@@ -698,6 +698,7 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 
 /**
  * drm_atomic_private_obj_init - initialize private object
+ * @dev: DRM device this object will be attached to
  * @obj: private object
  * @state: initial private object state
  * @funcs: pointer to the struct of function pointers that identify the object
@@ -707,14 +708,18 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * driver private object that needs its own atomic state.
  */
 void
-drm_atomic_private_obj_init(struct drm_private_obj *obj,
+drm_atomic_private_obj_init(struct drm_device *dev,
+			    struct drm_private_obj *obj,
 			    struct drm_private_state *state,
 			    const struct drm_private_state_funcs *funcs)
 {
 	memset(obj, 0, sizeof(*obj));
 
+	drm_modeset_lock_init(&obj->lock);
+
 	obj->state = state;
 	obj->funcs = funcs;
+	list_add_tail(&obj->head, &dev->mode_config.privobj_list);
 }
 EXPORT_SYMBOL(drm_atomic_private_obj_init);
 
@@ -727,7 +732,9 @@ EXPORT_SYMBOL(drm_atomic_private_obj_init);
 void
 drm_atomic_private_obj_fini(struct drm_private_obj *obj)
 {
+	list_del(&obj->head);
 	obj->funcs->atomic_destroy_state(obj, obj->state);
+	drm_modeset_lock_fini(&obj->lock);
 }
 EXPORT_SYMBOL(drm_atomic_private_obj_fini);
 
@@ -737,8 +744,8 @@ EXPORT_SYMBOL(drm_atomic_private_obj_fini);
  * @obj: private object to get the state for
  *
  * This function returns the private object state for the given private object,
- * allocating the state if needed. It does not grab any locks as the caller is
- * expected to care of any required locking.
+ * allocating the state if needed. It will also grab the relevant private
+ * object lock to make sure that the state is consistent.
  *
  * RETURNS:
  *
@@ -748,7 +755,7 @@ struct drm_private_state *
 drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 				 struct drm_private_obj *obj)
 {
-	int index, num_objs, i;
+	int index, num_objs, i, ret;
 	size_t size;
 	struct __drm_private_objs_state *arr;
 	struct drm_private_state *obj_state;
@@ -756,6 +763,10 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	for (i = 0; i < state->num_private_objs; i++)
 		if (obj == state->private_objs[i].ptr)
 			return state->private_objs[i].state;
+
+	ret = drm_modeset_lock(&obj->lock, state->acquire_ctx);
+	if (ret)
+		return ERR_PTR(ret);
 
 	num_objs = state->num_private_objs + 1;
 	size = sizeof(*state->private_objs) * num_objs;

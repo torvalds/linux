@@ -78,16 +78,6 @@ config KASAN_SW_TAGS
 
 endchoice
 
-config KASAN_EXTRA
-	bool "KASAN: extra checks"
-	depends on KASAN_GENERIC && DEBUG_KERNEL && !COMPILE_TEST
-	help
-	  This enables further checks in generic KASAN, for now it only
-	  includes the address-use-after-scope check that can lead to
-	  excessive kernel stack usage, frame size warnings and longer
-	  compile time.
-	  See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81715
-
 choice
 	prompt "Instrumentation type"
 	depends on KASAN

@@ -40,7 +40,7 @@
 		spi2 = &cspi3;
 	};
 
-	aitc: aitc-interrupt-controller@e0000000 {
+	aitc: aitc-interrupt-controller@10040000 {
 		compatible = "fsl,imx27-aitc", "fsl,avic";
 		interrupt-controller;
 		#interrupt-cells = <1>;

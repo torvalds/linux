@@ -1056,11 +1056,7 @@ static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	 */
 	if (current->flags & PF_VCPU) {
 		mm = KVM_GUEST_KERNEL_MODE(vcpu) ? kern_mm : user_mm;
-		if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) &
-		    asid_version_mask(cpu))
-			get_new_mmu_context(mm, cpu);
-		write_c0_entryhi(cpu_asid(cpu, mm));
-		TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
+		check_switch_mmu_context(mm);
 		kvm_mips_suspend_mm(cpu);
 		ehb();
 	}
@@ -1074,11 +1070,7 @@ static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 
 	if (current->flags & PF_VCPU) {
 		/* Restore normal Linux process memory map */
-		if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
-		     asid_version_mask(cpu)))
-			get_new_mmu_context(current->mm, cpu);
-		write_c0_entryhi(cpu_asid(cpu, current->mm));
-		TLBMISS_HANDLER_SETUP_PGD(current->mm->pgd);
+		check_switch_mmu_context(current->mm);
 		kvm_mips_resume_mm(cpu);
 		ehb();
 	}
@@ -1106,14 +1098,14 @@ static void kvm_trap_emul_check_requests(struct kvm_vcpu *vcpu, int cpu,
 		kvm_mips_flush_gva_pt(kern_mm->pgd, KMF_GPA | KMF_KERN);
 		kvm_mips_flush_gva_pt(user_mm->pgd, KMF_GPA | KMF_USER);
 		for_each_possible_cpu(i) {
-			cpu_context(i, kern_mm) = 0;
-			cpu_context(i, user_mm) = 0;
+			set_cpu_context(i, kern_mm, 0);
+			set_cpu_context(i, user_mm, 0);
 		}
 
 		/* Generate new ASID for current mode */
 		if (reload_asid) {
 			mm = KVM_GUEST_KERNEL_MODE(vcpu) ? kern_mm : user_mm;
-			get_new_mmu_context(mm, cpu);
+			get_new_mmu_context(mm);
 			htw_stop();
 			write_c0_entryhi(cpu_asid(cpu, mm));
 			TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
@@ -1219,7 +1211,7 @@ static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 		if (gasid != vcpu->arch.last_user_gasid) {
 			kvm_mips_flush_gva_pt(user_mm->pgd, KMF_USER);
 			for_each_possible_cpu(i)
-				cpu_context(i, user_mm) = 0;
+				set_cpu_context(i, user_mm, 0);
 			vcpu->arch.last_user_gasid = gasid;
 		}
 	}
@@ -1228,9 +1220,7 @@ static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 	 * Check if ASID is stale. This may happen due to a TLB flush request or
 	 * a lazy user MM invalidation.
 	 */
-	if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) &
-	    asid_version_mask(cpu))
-		get_new_mmu_context(mm, cpu);
+	check_mmu_context(mm);
 }
 
 static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
@@ -1266,11 +1256,7 @@ static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	cpu = smp_processor_id();
 
 	/* Restore normal Linux process memory map */
-	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
-	     asid_version_mask(cpu)))
-		get_new_mmu_context(current->mm, cpu);
-	write_c0_entryhi(cpu_asid(cpu, current->mm));
-	TLBMISS_HANDLER_SETUP_PGD(current->mm->pgd);
+	check_switch_mmu_context(current->mm);
 	kvm_mips_resume_mm(cpu);
 
 	htw_start();

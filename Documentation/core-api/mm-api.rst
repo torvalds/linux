@@ -35,7 +35,7 @@ users will want to use a plain ``GFP_KERNEL``.
    :doc: Reclaim modifiers
 
 .. kernel-doc:: include/linux/gfp.h
-   :doc: Common combinations
+   :doc: Useful GFP flag combinations
 
 The Slab Cache
 ==============

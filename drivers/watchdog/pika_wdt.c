@@ -225,7 +225,7 @@ static int __init pikawdt_init(void)
 {
 	struct device_node *np;
 	void __iomem *fpga;
-	static u32 post1;
+	u32 post1;
 	int ret;
 
 	np = of_find_compatible_node(NULL, NULL, "pika,fpga");

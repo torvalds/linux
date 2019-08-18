@@ -101,6 +101,18 @@ enum gpio_mode dal_gpio_get_mode(
 	return gpio->mode;
 }
 
+enum gpio_result dal_gpio_lock_pin(
+	struct gpio *gpio)
+{
+	return dal_gpio_service_lock(gpio->service, gpio->id, gpio->en);
+}
+
+enum gpio_result dal_gpio_unlock_pin(
+	struct gpio *gpio)
+{
+	return dal_gpio_service_unlock(gpio->service, gpio->id, gpio->en);
+}
+
 enum gpio_result dal_gpio_change_mode(
 	struct gpio *gpio,
 	enum gpio_mode mode)

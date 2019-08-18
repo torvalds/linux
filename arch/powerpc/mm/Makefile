@@ -45,13 +45,13 @@ obj-$(CONFIG_NOT_COHERENT_CACHE) += dma-noncoherent.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
 obj-$(CONFIG_SPAPR_TCE_IOMMU)	+= mmu_context_iommu.o
-obj-$(CONFIG_PPC_PTDUMP)	+= dump_linuxpagetables.o
-ifdef CONFIG_PPC_PTDUMP
-obj-$(CONFIG_4xx)		+= dump_linuxpagetables-generic.o
-obj-$(CONFIG_PPC_8xx)		+= dump_linuxpagetables-8xx.o
-obj-$(CONFIG_PPC_BOOK3E_MMU)	+= dump_linuxpagetables-generic.o
-obj-$(CONFIG_PPC_BOOK3S_32)	+= dump_linuxpagetables-generic.o dump_bats.o dump_sr.o
-obj-$(CONFIG_PPC_BOOK3S_64)	+= dump_linuxpagetables-book3s64.o
-endif
-obj-$(CONFIG_PPC_HTDUMP)	+= dump_hashpagetable.o
+obj-$(CONFIG_PPC_PTDUMP)	+= ptdump/
 obj-$(CONFIG_PPC_MEM_KEYS)	+= pkeys.o
+
+# Disable kcov instrumentation on sensitive code
+# This is necessary for booting with kcov enabled on book3e machines
+KCOV_INSTRUMENT_tlb_nohash.o := n
+KCOV_INSTRUMENT_fsl_booke_mmu.o := n
+
+# Instrumenting the SLB fault path can lead to duplicate SLB entries
+KCOV_INSTRUMENT_slb.o := n

@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <linux/time64.h>
 #include <math.h>
+#include "color.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "stat.h"

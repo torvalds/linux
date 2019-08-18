@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Helper functions used by the EFI stub on multiple
  * architectures. This should be #included by the EFI stub
  * implementation files.
  *
  * Copyright 2011 Intel Corporation; author Matt Fleming
- *
- * This file is part of the Linux kernel, and is made available
- * under the terms of the GNU General Public License version 2.
- *
  */
 
 #include <linux/efi.h>
@@ -34,6 +31,7 @@ static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 
 static int __section(.data) __nokaslr;
 static int __section(.data) __quiet;
+static int __section(.data) __novamap;
 
 int __pure nokaslr(void)
 {
@@ -42,6 +40,10 @@ int __pure nokaslr(void)
 int __pure is_quiet(void)
 {
 	return __quiet;
+}
+int __pure novamap(void)
+{
+	return __novamap;
 }
 
 #define EFI_MMAP_NR_SLACK_SLOTS	8
@@ -480,6 +482,11 @@ efi_status_t efi_parse_options(char const *cmdline)
 		if (!strncmp(str, "nochunk", 7)) {
 			str += strlen("nochunk");
 			__chunk_size = -1UL;
+		}
+
+		if (!strncmp(str, "novamap", 7)) {
+			str += strlen("novamap");
+			__novamap = 1;
 		}
 
 		/* Group words together, delimited by "," */

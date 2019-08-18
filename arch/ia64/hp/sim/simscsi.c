@@ -105,7 +105,8 @@ simscsi_interrupt (unsigned long val)
 		atomic_dec(&num_reqs);
 		queue[rd].sc = NULL;
 		if (DBG)
-			printk("simscsi_interrupt: done with %ld\n", sc->serial_number);
+			printk("simscsi_interrupt: done with %u\n",
+			       sc->request->tag);
 		(*sc->scsi_done)(sc);
 		rd = (rd + 1) % SIMSCSI_REQ_QUEUE_LEN;
 	}
@@ -214,8 +215,8 @@ simscsi_queuecommand_lck (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *)
 	register long sp asm ("sp");
 
 	if (DBG)
-		printk("simscsi_queuecommand: target=%d,cmnd=%u,sc=%lu,sp=%lx,done=%p\n",
-		       target_id, sc->cmnd[0], sc->serial_number, sp, done);
+		printk("simscsi_queuecommand: target=%d,cmnd=%u,sc=%u,sp=%lx,done=%p\n",
+		       target_id, sc->cmnd[0], sc->request->tag, sp, done);
 #endif
 
 	sc->result = DID_BAD_TARGET << 16;

@@ -63,66 +63,165 @@ static const u32 mlx5e_link_speed[MLX5E_LINK_MODES_NUMBER] = {
 	[MLX5E_50GBASE_KR2]       = 50000,
 };
 
-u32 mlx5e_port_ptys2speed(u32 eth_proto_oper)
+static const u32 mlx5e_ext_link_speed[MLX5E_EXT_LINK_MODES_NUMBER] = {
+	[MLX5E_SGMII_100M]			= 100,
+	[MLX5E_1000BASE_X_SGMII]		= 1000,
+	[MLX5E_5GBASE_R]			= 5000,
+	[MLX5E_10GBASE_XFI_XAUI_1]		= 10000,
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4]		= 40000,
+	[MLX5E_25GAUI_1_25GBASE_CR_KR]		= 25000,
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2]	= 50000,
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR]	= 50000,
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4]		= 100000,
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4]	= 200000,
+	[MLX5E_400GAUI_8]			= 400000,
+};
+
+static void mlx5e_port_get_speed_arr(struct mlx5_core_dev *mdev,
+				     const u32 **arr, u32 *size)
+{
+	bool ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+
+	*size = ext ? ARRAY_SIZE(mlx5e_ext_link_speed) :
+		      ARRAY_SIZE(mlx5e_link_speed);
+	*arr  = ext ? mlx5e_ext_link_speed : mlx5e_link_speed;
+}
+
+int mlx5_port_query_eth_proto(struct mlx5_core_dev *dev, u8 port, bool ext,
+			      struct mlx5e_port_eth_proto *eproto)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	if (!eproto)
+		return -EINVAL;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, port);
+	if (err)
+		return err;
+
+	eproto->cap   = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
+					   eth_proto_capability);
+	eproto->admin = MLX5_GET_ETH_PROTO(ptys_reg, out, ext, eth_proto_admin);
+	eproto->oper  = MLX5_GET_ETH_PROTO(ptys_reg, out, ext, eth_proto_oper);
+	return 0;
+}
+
+void mlx5_port_query_eth_autoneg(struct mlx5_core_dev *dev, u8 *an_status,
+				 u8 *an_disable_cap, u8 *an_disable_admin)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+
+	*an_status = 0;
+	*an_disable_cap = 0;
+	*an_disable_admin = 0;
+
+	if (mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, 1))
+		return;
+
+	*an_status = MLX5_GET(ptys_reg, out, an_status);
+	*an_disable_cap = MLX5_GET(ptys_reg, out, an_disable_cap);
+	*an_disable_admin = MLX5_GET(ptys_reg, out, an_disable_admin);
+}
+
+int mlx5_port_set_eth_ptys(struct mlx5_core_dev *dev, bool an_disable,
+			   u32 proto_admin, bool ext)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
+	u8 an_disable_admin;
+	u8 an_disable_cap;
+	u8 an_status;
+
+	mlx5_port_query_eth_autoneg(dev, &an_status, &an_disable_cap,
+				    &an_disable_admin);
+	if (!an_disable_cap && an_disable)
+		return -EPERM;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, an_disable_admin, an_disable);
+	MLX5_SET(ptys_reg, in, proto_mask, MLX5_PTYS_EN);
+	if (ext)
+		MLX5_SET(ptys_reg, in, ext_eth_proto_admin, proto_admin);
+	else
+		MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
+
+	return mlx5_core_access_reg(dev, in, sizeof(in), out,
+			    sizeof(out), MLX5_REG_PTYS, 0, 1);
+}
+
+u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper)
 {
 	unsigned long temp = eth_proto_oper;
+	const u32 *table;
 	u32 speed = 0;
+	u32 max_size;
 	int i;
 
-	i = find_first_bit(&temp, MLX5E_LINK_MODES_NUMBER);
-	if (i < MLX5E_LINK_MODES_NUMBER)
-		speed = mlx5e_link_speed[i];
-
+	mlx5e_port_get_speed_arr(mdev, &table, &max_size);
+	i = find_first_bit(&temp, max_size);
+	if (i < max_size)
+		speed = table[i];
 	return speed;
 }
 
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
-	u32 eth_proto_oper;
+	struct mlx5e_port_eth_proto eproto;
+	bool ext;
 	int err;
 
-	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
+	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+	err = mlx5_port_query_eth_proto(mdev, 1, ext, &eproto);
 	if (err)
-		return err;
+		goto out;
 
-	eth_proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
-	*speed = mlx5e_port_ptys2speed(eth_proto_oper);
+	*speed = mlx5e_port_ptys2speed(mdev, eproto.oper);
 	if (!(*speed))
 		err = -EINVAL;
 
+out:
 	return err;
 }
 
 int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
+	struct mlx5e_port_eth_proto eproto;
 	u32 max_speed = 0;
-	u32 proto_cap;
+	const u32 *table;
+	u32 max_size;
+	bool ext;
 	int err;
 	int i;
 
-	err = mlx5_query_port_proto_cap(mdev, &proto_cap, MLX5_PTYS_EN);
+	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+	err = mlx5_port_query_eth_proto(mdev, 1, ext, &eproto);
 	if (err)
 		return err;
 
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i)
-		if (proto_cap & MLX5E_PROT_MASK(i))
-			max_speed = max(max_speed, mlx5e_link_speed[i]);
+	mlx5e_port_get_speed_arr(mdev, &table, &max_size);
+	for (i = 0; i < max_size; ++i)
+		if (eproto.cap & MLX5E_PROT_MASK(i))
+			max_speed = max(max_speed, table[i]);
 
 	*speed = max_speed;
 	return 0;
 }
 
-u32 mlx5e_port_speed2linkmodes(u32 speed)
+u32 mlx5e_port_speed2linkmodes(struct mlx5_core_dev *mdev, u32 speed)
 {
 	u32 link_modes = 0;
+	const u32 *table;
+	u32 max_size;
 	int i;
 
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
-		if (mlx5e_link_speed[i] == speed)
+	mlx5e_port_get_speed_arr(mdev, &table, &max_size);
+	for (i = 0; i < max_size; ++i) {
+		if (table[i] == speed)
 			link_modes |= MLX5E_PROT_MASK(i);
 	}
-
 	return link_modes;
 }
 

@@ -19,86 +19,178 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/user_namespace.h>
+#include <linux/fs_context.h>
 #include <linux/mount.h>
 #include <linux/pid_namespace.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
 #include <linux/cred.h>
+#include <linux/magic.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 
-enum {
-	Opt_gid, Opt_hidepid, Opt_err,
+struct proc_fs_context {
+	struct pid_namespace	*pid_ns;
+	unsigned int		mask;
+	int			hidepid;
+	int			gid;
 };
 
-static const match_table_t tokens = {
-	{Opt_hidepid, "hidepid=%u"},
-	{Opt_gid, "gid=%u"},
-	{Opt_err, NULL},
+enum proc_param {
+	Opt_gid,
+	Opt_hidepid,
 };
 
-int proc_parse_options(char *options, struct pid_namespace *pid)
+static const struct fs_parameter_spec proc_param_specs[] = {
+	fsparam_u32("gid",	Opt_gid),
+	fsparam_u32("hidepid",	Opt_hidepid),
+	{}
+};
+
+static const struct fs_parameter_description proc_fs_parameters = {
+	.name		= "proc",
+	.specs		= proc_param_specs,
+};
+
+static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int option;
+	struct proc_fs_context *ctx = fc->fs_private;
+	struct fs_parse_result result;
+	int opt;
 
-	if (!options)
-		return 1;
+	opt = fs_parse(fc, &proc_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-		if (!*p)
-			continue;
+	switch (opt) {
+	case Opt_gid:
+		ctx->gid = result.uint_32;
+		break;
 
-		args[0].to = args[0].from = NULL;
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_gid:
-			if (match_int(&args[0], &option))
-				return 0;
-			pid->pid_gid = make_kgid(current_user_ns(), option);
-			break;
-		case Opt_hidepid:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < HIDEPID_OFF ||
-			    option > HIDEPID_INVISIBLE) {
-				pr_err("proc: hidepid value must be between 0 and 2.\n");
-				return 0;
-			}
-			pid->hide_pid = option;
-			break;
-		default:
-			pr_err("proc: unrecognized mount option \"%s\" "
-			       "or missing value\n", p);
-			return 0;
-		}
+	case Opt_hidepid:
+		ctx->hidepid = result.uint_32;
+		if (ctx->hidepid < HIDEPID_OFF ||
+		    ctx->hidepid > HIDEPID_INVISIBLE)
+			return invalf(fc, "proc: hidepid value must be between 0 and 2.\n");
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
-	return 1;
+	ctx->mask |= 1 << opt;
+	return 0;
 }
 
-int proc_remount(struct super_block *sb, int *flags, char *data)
+static void proc_apply_options(struct super_block *s,
+			       struct fs_context *fc,
+			       struct pid_namespace *pid_ns,
+			       struct user_namespace *user_ns)
 {
+	struct proc_fs_context *ctx = fc->fs_private;
+
+	if (ctx->mask & (1 << Opt_gid))
+		pid_ns->pid_gid = make_kgid(user_ns, ctx->gid);
+	if (ctx->mask & (1 << Opt_hidepid))
+		pid_ns->hide_pid = ctx->hidepid;
+}
+
+static int proc_fill_super(struct super_block *s, struct fs_context *fc)
+{
+	struct pid_namespace *pid_ns = get_pid_ns(s->s_fs_info);
+	struct inode *root_inode;
+	int ret;
+
+	proc_apply_options(s, fc, pid_ns, current_user_ns());
+
+	/* User space would break if executables or devices appear on proc */
+	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_NOEXEC | SB_I_NODEV;
+	s->s_flags |= SB_NODIRATIME | SB_NOSUID | SB_NOEXEC;
+	s->s_blocksize = 1024;
+	s->s_blocksize_bits = 10;
+	s->s_magic = PROC_SUPER_MAGIC;
+	s->s_op = &proc_sops;
+	s->s_time_gran = 1;
+
+	/*
+	 * procfs isn't actually a stacking filesystem; however, there is
+	 * too much magic going on inside it to permit stacking things on
+	 * top of it
+	 */
+	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
+	
+	/* procfs dentries and inodes don't require IO to create */
+	s->s_shrink.seeks = 0;
+
+	pde_get(&proc_root);
+	root_inode = proc_get_inode(s, &proc_root);
+	if (!root_inode) {
+		pr_err("proc_fill_super: get root inode failed\n");
+		return -ENOMEM;
+	}
+
+	s->s_root = d_make_root(root_inode);
+	if (!s->s_root) {
+		pr_err("proc_fill_super: allocate dentry failed\n");
+		return -ENOMEM;
+	}
+
+	ret = proc_setup_self(s);
+	if (ret) {
+		return ret;
+	}
+	return proc_setup_thread_self(s);
+}
+
+static int proc_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb = fc->root->d_sb;
 	struct pid_namespace *pid = sb->s_fs_info;
 
 	sync_filesystem(sb);
-	return !proc_parse_options(data, pid);
+
+	proc_apply_options(sb, fc, pid, current_user_ns());
+	return 0;
 }
 
-static struct dentry *proc_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int proc_get_tree(struct fs_context *fc)
 {
-	struct pid_namespace *ns;
+	struct proc_fs_context *ctx = fc->fs_private;
 
-	if (flags & SB_KERNMOUNT) {
-		ns = data;
-		data = NULL;
-	} else {
-		ns = task_active_pid_ns(current);
-	}
+	put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(ctx->pid_ns->user_ns);
+	fc->s_fs_info = ctx->pid_ns;
+	return vfs_get_super(fc, vfs_get_keyed_super, proc_fill_super);
+}
 
-	return mount_ns(fs_type, flags, data, ns, ns->user_ns, proc_fill_super);
+static void proc_fs_context_free(struct fs_context *fc)
+{
+	struct proc_fs_context *ctx = fc->fs_private;
+
+	if (ctx->pid_ns)
+		put_pid_ns(ctx->pid_ns);
+	kfree(ctx);
+}
+
+static const struct fs_context_operations proc_fs_context_ops = {
+	.free		= proc_fs_context_free,
+	.parse_param	= proc_parse_param,
+	.get_tree	= proc_get_tree,
+	.reconfigure	= proc_reconfigure,
+};
+
+static int proc_init_fs_context(struct fs_context *fc)
+{
+	struct proc_fs_context *ctx;
+
+	ctx = kzalloc(sizeof(struct proc_fs_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->pid_ns = get_pid_ns(task_active_pid_ns(current));
+	fc->fs_private = ctx;
+	fc->ops = &proc_fs_context_ops;
+	return 0;
 }
 
 static void proc_kill_sb(struct super_block *sb)
@@ -115,10 +207,11 @@ static void proc_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type proc_fs_type = {
-	.name		= "proc",
-	.mount		= proc_mount,
-	.kill_sb	= proc_kill_sb,
-	.fs_flags	= FS_USERNS_MOUNT,
+	.name			= "proc",
+	.init_fs_context	= proc_init_fs_context,
+	.parameters		= &proc_fs_parameters,
+	.kill_sb		= proc_kill_sb,
+	.fs_flags		= FS_USERNS_MOUNT,
 };
 
 void __init proc_root_init(void)
@@ -154,9 +247,9 @@ static int proc_root_getattr(const struct path *path, struct kstat *stat,
 
 static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
 {
-	if (!proc_pid_lookup(dir, dentry, flags))
+	if (!proc_pid_lookup(dentry, flags))
 		return NULL;
-	
+
 	return proc_lookup(dir, dentry, flags);
 }
 
@@ -209,9 +302,28 @@ struct proc_dir_entry proc_root = {
 
 int pid_ns_prepare_proc(struct pid_namespace *ns)
 {
+	struct proc_fs_context *ctx;
+	struct fs_context *fc;
 	struct vfsmount *mnt;
 
-	mnt = kern_mount_data(&proc_fs_type, ns);
+	fc = fs_context_for_mount(&proc_fs_type, SB_KERNMOUNT);
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
+
+	if (fc->user_ns != ns->user_ns) {
+		put_user_ns(fc->user_ns);
+		fc->user_ns = get_user_ns(ns->user_ns);
+	}
+
+	ctx = fc->fs_private;
+	if (ctx->pid_ns != ns) {
+		put_pid_ns(ctx->pid_ns);
+		get_pid_ns(ns);
+		ctx->pid_ns = ns;
+	}
+
+	mnt = fc_mount(fc);
+	put_fs_context(fc);
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 

@@ -653,14 +653,37 @@ static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
 	return np;
 }
 
-static void cvm_set_rgmii_delay(struct device_node *np, int iface, int port)
+static void cvm_set_rgmii_delay(struct octeon_ethernet *priv, int iface,
+				int port)
 {
+	struct device_node *np = priv->of_node;
 	u32 delay_value;
+	bool rx_delay;
+	bool tx_delay;
 
-	if (!of_property_read_u32(np, "rx-delay", &delay_value))
+	/* By default, both RX/TX delay is enabled in
+	 * __cvmx_helper_rgmii_enable().
+	 */
+	rx_delay = true;
+	tx_delay = true;
+
+	if (!of_property_read_u32(np, "rx-delay", &delay_value)) {
 		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, iface), delay_value);
-	if (!of_property_read_u32(np, "tx-delay", &delay_value))
+		rx_delay = delay_value > 0;
+	}
+	if (!of_property_read_u32(np, "tx-delay", &delay_value)) {
 		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, iface), delay_value);
+		tx_delay = delay_value > 0;
+	}
+
+	if (!rx_delay && !tx_delay)
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
+	else if (!rx_delay)
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII_RXID;
+	else if (!tx_delay)
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII_TXID;
+	else
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII;
 }
 
 static int cvm_oct_probe(struct platform_device *pdev)
@@ -825,6 +848,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			priv->port = port;
 			priv->queue = cvmx_pko_get_base_queue(priv->port);
 			priv->fau = fau - cvmx_pko_get_num_queues(port) * 4;
+			priv->phy_mode = PHY_INTERFACE_MODE_NA;
 			for (qos = 0; qos < 16; qos++)
 				skb_queue_head_init(&priv->tx_free_list[qos]);
 			for (qos = 0; qos < cvmx_pko_get_num_queues(port);
@@ -856,6 +880,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
+				priv->phy_mode = PHY_INTERFACE_MODE_SGMII;
 				dev->netdev_ops = &cvm_oct_sgmii_netdev_ops;
 				strcpy(dev->name, "eth%d");
 				break;
@@ -865,11 +890,16 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				strcpy(dev->name, "spi%d");
 				break;
 
-			case CVMX_HELPER_INTERFACE_MODE_RGMII:
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
+				priv->phy_mode = PHY_INTERFACE_MODE_GMII;
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
 				strcpy(dev->name, "eth%d");
-				cvm_set_rgmii_delay(priv->of_node, interface,
+				break;
+
+			case CVMX_HELPER_INTERFACE_MODE_RGMII:
+				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
+				strcpy(dev->name, "eth%d");
+				cvm_set_rgmii_delay(priv, interface,
 						    port_index);
 				break;
 			}

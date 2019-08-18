@@ -44,10 +44,10 @@ including the Netfilter hooks and the flowtable fastpath bypass.
      /         \    /          \     |Routing |   /            \
   -->  ingress  ---> prerouting ---> |decision|   | postrouting |--> neigh_xmit
      \_________/    \__________/     ----------   \____________/          ^
-       |      ^          |               |               ^                |
-   flowtable  |          |          ____\/___            |                |
-       |      |          |         /         \           |                |
-    __\/___   |          --------->| forward |------------                |
+       |      ^                          |               ^                |
+   flowtable  |                     ____\/___            |                |
+       |      |                    /         \           |                |
+    __\/___   |                    | forward |------------                |
     |-----|   |                    \_________/                            |
     |-----|   |                 'flow offload' rule                       |
     |-----|   |                   adds entry to                           |

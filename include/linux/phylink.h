@@ -149,6 +149,13 @@ int mac_link_state(struct net_device *ndev,
  *   configuration word. Nothing is advertised by the MAC. The MAC is
  *   responsible for reading the configuration word and configuring
  *   itself accordingly.
+ *
+ * Implementations are expected to update the MAC to reflect the
+ * requested settings - i.o.w., if nothing has changed between two
+ * calls, no action is expected.  If only flow control settings have
+ * changed, flow control should be updated *without* taking the link
+ * down.  This "update" behaviour is critical to avoid bouncing the
+ * link up status.
  */
 void mac_config(struct net_device *ndev, unsigned int mode,
 		const struct phylink_link_state *state);
@@ -220,6 +227,7 @@ void phylink_ethtool_get_pauseparam(struct phylink *,
 int phylink_ethtool_set_pauseparam(struct phylink *,
 				   struct ethtool_pauseparam *);
 int phylink_get_eee_err(struct phylink *);
+int phylink_init_eee(struct phylink *, bool);
 int phylink_ethtool_get_eee(struct phylink *, struct ethtool_eee *);
 int phylink_ethtool_set_eee(struct phylink *, struct ethtool_eee *);
 int phylink_mii_ioctl(struct phylink *, struct ifreq *, int);

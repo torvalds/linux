@@ -45,9 +45,9 @@ static ssize_t qcom_rmtfs_mem_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf);
 
-static DEVICE_ATTR(phys_addr, 0400, qcom_rmtfs_mem_show, NULL);
-static DEVICE_ATTR(size, 0400, qcom_rmtfs_mem_show, NULL);
-static DEVICE_ATTR(client_id, 0400, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(phys_addr, 0444, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(size, 0444, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(client_id, 0444, qcom_rmtfs_mem_show, NULL);
 
 static ssize_t qcom_rmtfs_mem_show(struct device *dev,
 			      struct device_attribute *attr,
@@ -132,6 +132,11 @@ static int qcom_rmtfs_mem_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static struct class rmtfs_class = {
+	.owner          = THIS_MODULE,
+	.name           = "rmtfs",
+};
+
 static const struct file_operations qcom_rmtfs_mem_fops = {
 	.owner = THIS_MODULE,
 	.open = qcom_rmtfs_mem_open,
@@ -199,6 +204,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 
 	dev_set_name(&rmtfs_mem->dev, "qcom_rmtfs_mem%d", client_id);
 	rmtfs_mem->dev.id = client_id;
+	rmtfs_mem->dev.class = &rmtfs_class;
 	rmtfs_mem->dev.devt = MKDEV(MAJOR(qcom_rmtfs_mem_major), client_id);
 
 	ret = cdev_device_add(&rmtfs_mem->cdev, &rmtfs_mem->dev);
@@ -277,32 +283,42 @@ static struct platform_driver qcom_rmtfs_mem_driver = {
 	},
 };
 
-static int qcom_rmtfs_mem_init(void)
+static int __init qcom_rmtfs_mem_init(void)
 {
 	int ret;
+
+	ret = class_register(&rmtfs_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&qcom_rmtfs_mem_major, 0,
 				  QCOM_RMTFS_MEM_DEV_MAX, "qcom_rmtfs_mem");
 	if (ret < 0) {
 		pr_err("qcom_rmtfs_mem: failed to allocate char dev region\n");
-		return ret;
+		goto unregister_class;
 	}
 
 	ret = platform_driver_register(&qcom_rmtfs_mem_driver);
 	if (ret < 0) {
 		pr_err("qcom_rmtfs_mem: failed to register rmtfs_mem driver\n");
-		unregister_chrdev_region(qcom_rmtfs_mem_major,
-					 QCOM_RMTFS_MEM_DEV_MAX);
+		goto unregister_chrdev;
 	}
 
+	return 0;
+
+unregister_chrdev:
+	unregister_chrdev_region(qcom_rmtfs_mem_major, QCOM_RMTFS_MEM_DEV_MAX);
+unregister_class:
+	class_unregister(&rmtfs_class);
 	return ret;
 }
 module_init(qcom_rmtfs_mem_init);
 
-static void qcom_rmtfs_mem_exit(void)
+static void __exit qcom_rmtfs_mem_exit(void)
 {
 	platform_driver_unregister(&qcom_rmtfs_mem_driver);
 	unregister_chrdev_region(qcom_rmtfs_mem_major, QCOM_RMTFS_MEM_DEV_MAX);
+	class_unregister(&rmtfs_class);
 }
 module_exit(qcom_rmtfs_mem_exit);
 

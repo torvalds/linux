@@ -1091,8 +1091,7 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 	return lan9303_enable_processing_port(chip, port);
 }
 
-static void lan9303_port_disable(struct dsa_switch *ds, int port,
-				 struct phy_device *phy)
+static void lan9303_port_disable(struct dsa_switch *ds, int port)
 {
 	struct lan9303 *chip = ds->priv;
 

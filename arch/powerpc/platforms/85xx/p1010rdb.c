@@ -55,7 +55,6 @@ static void __init p1010_rdb_setup_arch(void)
 }
 
 machine_arch_initcall(p1010_rdb, mpc85xx_common_publish_devices);
-machine_arch_initcall(p1010_rdb, swiotlb_setup_bus_notifier);
 
 /*
  * Called very early, device-tree isn't unflattened

@@ -295,7 +295,7 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 		dsize = AST_VHUB_HUB_DESC_SIZE;
 		memcpy(ep->buf, &ast_vhub_hub_desc, dsize);
 		BUILD_BUG_ON(dsize > sizeof(ast_vhub_hub_desc));
-	BUILD_BUG_ON(AST_VHUB_HUB_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
+		BUILD_BUG_ON(AST_VHUB_HUB_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
 		break;
 	default:
 		return std_req_stall;

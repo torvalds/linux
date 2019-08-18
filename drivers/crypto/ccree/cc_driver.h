@@ -111,13 +111,11 @@ struct cc_crypto_req {
  * @cc_base:	virt address of the CC registers
  * @irq:	device IRQ number
  * @irq_mask:	Interrupt mask shadow (1 for masked interrupts)
- * @fw_ver:	SeP loaded firmware version
  */
 struct cc_drvdata {
 	void __iomem *cc_base;
 	int irq;
 	u32 irq_mask;
-	u32 fw_ver;
 	struct completion hw_queue_avail; /* wait for HW queue availability */
 	struct platform_device *plat_dev;
 	cc_sram_addr_t mlli_sram_addr;

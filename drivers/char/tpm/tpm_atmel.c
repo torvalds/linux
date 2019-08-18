@@ -105,7 +105,7 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		iowrite8(buf[i], priv->iobase);
 	}
 
-	return count;
+	return 0;
 }
 
 static void tpm_atml_cancel(struct tpm_chip *chip)

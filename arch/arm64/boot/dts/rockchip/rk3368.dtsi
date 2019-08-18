@@ -73,7 +73,7 @@
 
 		cpu_l0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -81,7 +81,7 @@
 
 		cpu_l1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -89,7 +89,7 @@
 
 		cpu_l2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -97,7 +97,7 @@
 
 		cpu_l3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -105,7 +105,7 @@
 
 		cpu_b0: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -113,7 +113,7 @@
 
 		cpu_b1: cpu@101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -121,7 +121,7 @@
 
 		cpu_b2: cpu@102 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
@@ -129,7 +129,7 @@
 
 		cpu_b3: cpu@103 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */

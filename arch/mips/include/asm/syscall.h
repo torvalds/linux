@@ -116,9 +116,10 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
+	unsigned int i = 0;
+	unsigned int n = 6;
 	int ret;
 
 	/* O32 ABI syscall() */

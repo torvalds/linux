@@ -135,6 +135,8 @@ Required properties:
 - clocks:	contains a phandle to the syscon node describing the clocks.
 		There should then be one cell representing the clock to use
 
+Optional properties:
+
 - memory-region: A phandle to a reserved_memory region to be used for the LPC
 		to AHB mapping
 

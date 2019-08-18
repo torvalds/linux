@@ -75,6 +75,9 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_FLOW_DISSECTOR]		= "flow_dissector",
 };
 
+extern const char * const map_type_name[];
+extern const size_t map_type_name_size;
+
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
 	BPF_OBJ_PROG,
@@ -145,6 +148,7 @@ int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
 int do_net(int argc, char **arg);
 int do_tracelog(int argc, char **arg);
+int do_feature(int argc, char **argv);
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);

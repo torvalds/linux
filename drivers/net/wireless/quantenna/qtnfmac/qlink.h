@@ -1,25 +1,12 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #ifndef _QTN_QLINK_H_
 #define _QTN_QLINK_H_
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		11
+#define QLINK_PROTO_VER		13
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -81,6 +68,7 @@ enum qlink_hw_capab {
 	QLINK_HW_CAPAB_PWR_MGMT			= BIT(4),
 	QLINK_HW_CAPAB_OBSS_SCAN		= BIT(5),
 	QLINK_HW_CAPAB_SCAN_DWELL		= BIT(6),
+	QLINK_HW_CAPAB_SAE			= BIT(8),
 };
 
 enum qlink_iface_type {
@@ -105,7 +93,8 @@ struct qlink_intf_info {
 	__le16 if_type;
 	__le16 vlanid;
 	u8 mac_addr[ETH_ALEN];
-	u8 rsvd[2];
+	u8 use4addr;
+	u8 rsvd[1];
 } __packed;
 
 enum qlink_sta_flags {
@@ -262,6 +251,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_DISCONNECT		= 0x0061,
 	QLINK_CMD_PM_SET		= 0x0062,
 	QLINK_CMD_WOWLAN_SET		= 0x0063,
+	QLINK_CMD_EXTERNAL_AUTH		= 0x0066,
 };
 
 /**
@@ -489,6 +479,20 @@ struct qlink_cmd_connect {
 	u8 mfp;
 	u8 pbss;
 	u8 rsvd[2];
+	u8 payload[0];
+} __packed;
+
+/**
+ * struct qlink_cmd_external_auth - data for QLINK_CMD_EXTERNAL_AUTH command
+ *
+ * @bssid: BSSID of the BSS to connect to
+ * @status: authentication status code
+ * @payload: variable portion of connection request.
+ */
+struct qlink_cmd_external_auth {
+	struct qlink_cmd chdr;
+	u8 bssid[ETH_ALEN];
+	__le16 status;
 	u8 payload[0];
 } __packed;
 
@@ -733,6 +737,7 @@ enum qlink_cmd_result {
 	QLINK_CMD_RESULT_EALREADY,
 	QLINK_CMD_RESULT_EADDRINUSE,
 	QLINK_CMD_RESULT_EADDRNOTAVAIL,
+	QLINK_CMD_RESULT_EBUSY,
 };
 
 /**
@@ -936,6 +941,7 @@ enum qlink_event_type {
 	QLINK_EVENT_BSS_LEAVE		= 0x0027,
 	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
 	QLINK_EVENT_RADAR		= 0x0029,
+	QLINK_EVENT_EXTERNAL_AUTH	= 0x0030,
 };
 
 /**
@@ -986,13 +992,16 @@ struct qlink_event_sta_deauth {
 /**
  * struct qlink_event_bss_join - data for QLINK_EVENT_BSS_JOIN event
  *
+ * @chan: new operating channel definition
  * @bssid: BSSID of a BSS which interface tried to joined.
  * @status: status of joining attempt, see &enum ieee80211_statuscode.
  */
 struct qlink_event_bss_join {
 	struct qlink_event ehdr;
+	struct qlink_chandef chan;
 	u8 bssid[ETH_ALEN];
 	__le16 status;
+	u8 ies[0];
 } __packed;
 
 /**
@@ -1108,6 +1117,24 @@ struct qlink_event_radar {
 	u8 rsvd[3];
 } __packed;
 
+/**
+ * struct qlink_event_external_auth - data for QLINK_EVENT_EXTERNAL_AUTH event
+ *
+ * @ssid: SSID announced by BSS
+ * @ssid_len: SSID length
+ * @bssid: BSSID of the BSS to connect to
+ * @akm_suite: AKM suite for external authentication
+ * @action: action type/trigger for external authentication
+ */
+struct qlink_event_external_auth {
+	struct qlink_event ehdr;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+	u8 bssid[ETH_ALEN];
+	__le32 akm_suite;
+	u8 action;
+} __packed;
+
 /* QLINK TLVs (Type-Length Values) definitions
  */
 
@@ -1182,7 +1209,7 @@ struct qlink_iface_limit_record {
 
 struct qlink_tlv_frag_rts_thr {
 	struct qlink_tlv_hdr hdr;
-	__le16 thr;
+	__le32 thr;
 } __packed;
 
 struct qlink_tlv_rlimit {

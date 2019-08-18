@@ -441,7 +441,7 @@ static int shbuf_setup_backstore(struct xen_snd_front_pcm_stream_info *stream,
 {
 	int i;
 
-	stream->buffer = alloc_pages_exact(stream->buffer_sz, GFP_KERNEL);
+	stream->buffer = alloc_pages_exact(buffer_sz, GFP_KERNEL);
 	if (!stream->buffer)
 		return -ENOMEM;
 

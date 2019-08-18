@@ -4437,7 +4437,12 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_init_cmd(chip);
 		rtsx_add_cmd(chip, CHECK_REG_CMD, 0xFD30, 0x02, 0x02);
 
-		rtsx_send_cmd(chip, SD_CARD, 250);
+		retval = rtsx_send_cmd(chip, SD_CARD, 250);
+		if (retval < 0) {
+			write_err = true;
+			rtsx_clear_sd_error(chip);
+			goto sd_execute_write_cmd_failed;
+		}
 
 		retval = sd_update_lock_status(chip);
 		if (retval != STATUS_SUCCESS) {

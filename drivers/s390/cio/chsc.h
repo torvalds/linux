@@ -164,6 +164,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp);
 int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd);
 int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
 	      u64 summary_indicator_addr, u64 subchannel_indicator_addr);
+int chsc_sgib(u32 origin);
 int chsc_error_from_response(int response);
 
 int chsc_siosl(struct subchannel_id schid);

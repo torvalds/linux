@@ -134,7 +134,6 @@ EXPORT_SYMBOL(devm_iounmap);
 void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
 {
 	resource_size_t size;
-	const char *name;
 	void __iomem *dest_ptr;
 
 	BUG_ON(!dev);
@@ -145,9 +144,8 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
 	}
 
 	size = resource_size(res);
-	name = res->name ?: dev_name(dev);
 
-	if (!devm_request_mem_region(dev, res->start, size, name)) {
+	if (!devm_request_mem_region(dev, res->start, size, dev_name(dev))) {
 		dev_err(dev, "can't request region for resource %pR\n", res);
 		return IOMEM_ERR_PTR(-EBUSY);
 	}

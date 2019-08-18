@@ -101,7 +101,8 @@ static void msm_hdmi_config_avi_infoframe(struct hdmi *hdmi)
 	u32 val;
 	int len;
 
-	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						 hdmi->connector, mode);
 
 	len = hdmi_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (len < 0) {
@@ -207,8 +208,8 @@ static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 }
 
 static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-		 struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode)
+		 const struct drm_display_mode *mode,
+		 const struct drm_display_mode *adjusted_mode)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;

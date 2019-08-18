@@ -240,8 +240,8 @@ static void mmpcam_calc_dphy(struct mcam_camera *mcam)
 	 *  bit 8 ~ bit 15: HS_SETTLE
 	 *   Time interval during which the HS
 	 *   receiver shall ignore any Data Lane
-	 *   HS transistions.
-	 *   The vaule has been calibrated on
+	 *   HS transitions.
+	 *   The value has been calibrated on
 	 *   different boards. It seems to work well.
 	 *
 	 *  More detail please refer

@@ -16,9 +16,10 @@ static int switch_to_context(struct drm_i915_private *i915,
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = 0;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
@@ -32,7 +33,7 @@ static int switch_to_context(struct drm_i915_private *i915,
 		i915_request_add(rq);
 	}
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 
 	return err;
 }
@@ -65,7 +66,9 @@ static void trash_stolen(struct drm_i915_private *i915)
 
 static void simulate_hibernate(struct drm_i915_private *i915)
 {
-	intel_runtime_pm_get(i915);
+	intel_wakeref_t wakeref;
+
+	wakeref = intel_runtime_pm_get(i915);
 
 	/*
 	 * As a final sting in the tail, invalidate stolen. Under a real S4,
@@ -76,7 +79,7 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 	 */
 	trash_stolen(i915);
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 }
 
 static int pm_prepare(struct drm_i915_private *i915)
@@ -93,39 +96,39 @@ static int pm_prepare(struct drm_i915_private *i915)
 
 static void pm_suspend(struct drm_i915_private *i915)
 {
-	intel_runtime_pm_get(i915);
+	intel_wakeref_t wakeref;
 
-	i915_gem_suspend_gtt_mappings(i915);
-	i915_gem_suspend_late(i915);
-
-	intel_runtime_pm_put(i915);
+	with_intel_runtime_pm(i915, wakeref) {
+		i915_gem_suspend_gtt_mappings(i915);
+		i915_gem_suspend_late(i915);
+	}
 }
 
 static void pm_hibernate(struct drm_i915_private *i915)
 {
-	intel_runtime_pm_get(i915);
+	intel_wakeref_t wakeref;
 
-	i915_gem_suspend_gtt_mappings(i915);
+	with_intel_runtime_pm(i915, wakeref) {
+		i915_gem_suspend_gtt_mappings(i915);
 
-	i915_gem_freeze(i915);
-	i915_gem_freeze_late(i915);
-
-	intel_runtime_pm_put(i915);
+		i915_gem_freeze(i915);
+		i915_gem_freeze_late(i915);
+	}
 }
 
 static void pm_resume(struct drm_i915_private *i915)
 {
+	intel_wakeref_t wakeref;
+
 	/*
 	 * Both suspend and hibernate follow the same wakeup path and assume
 	 * that runtime-pm just works.
 	 */
-	intel_runtime_pm_get(i915);
-
-	intel_engines_sanitize(i915);
-	i915_gem_sanitize(i915);
-	i915_gem_resume(i915);
-
-	intel_runtime_pm_put(i915);
+	with_intel_runtime_pm(i915, wakeref) {
+		intel_engines_sanitize(i915, false);
+		i915_gem_sanitize(i915);
+		i915_gem_resume(i915);
+	}
 }
 
 static int igt_gem_suspend(void *arg)

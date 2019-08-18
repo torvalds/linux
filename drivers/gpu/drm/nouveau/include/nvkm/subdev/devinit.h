@@ -31,5 +31,5 @@ int gf100_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 int gm107_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 int gm200_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 int gv100_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
-int tu104_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int tu102_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 #endif

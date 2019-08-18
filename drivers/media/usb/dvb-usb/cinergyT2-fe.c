@@ -33,7 +33,7 @@
  *  This function is probably reusable and may better get placed in a support
  *  library.
  *
- *  We replace errornous fields by default TPS fields (the ones with value 0).
+ *  We replace erroneous fields by default TPS fields (the ones with value 0).
  */
 
 static uint16_t compute_tps(struct dtv_frontend_properties *op)

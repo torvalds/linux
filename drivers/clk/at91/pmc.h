@@ -71,9 +71,11 @@ struct clk_pll_characteristics {
 };
 
 struct clk_programmable_layout {
+	u8 pres_mask;
 	u8 pres_shift;
 	u8 css_mask;
 	u8 have_slck_mck;
+	u8 is_pres_direct;
 };
 
 extern const struct clk_programmable_layout at91rm9200_programmable_layout;

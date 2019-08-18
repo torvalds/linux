@@ -177,6 +177,7 @@ static void pblk_prepare_resubmit(struct pblk *pblk, unsigned int sentry,
 		 * re-map these entries
 		 */
 		line = pblk_ppa_to_line(pblk, w_ctx->ppa);
+		atomic_dec(&line->sec_to_update);
 		kref_put(&line->ref, pblk_line_put);
 	}
 	spin_unlock(&pblk->trans_lock);

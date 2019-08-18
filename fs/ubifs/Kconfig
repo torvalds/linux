@@ -8,6 +8,7 @@ config UBIFS_FS
 	select CRYPTO_LZO if UBIFS_FS_LZO
 	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
 	select CRYPTO_HASH_INFO
+	select UBIFS_FS_XATTR if FS_ENCRYPTION
 	depends on MTD_UBI
 	help
 	  UBIFS is a file system for flash devices which works on top of UBI.
@@ -59,17 +60,6 @@ config UBIFS_FS_XATTR
 	  the kernel or by users (see the attr(5) manual page).
 
 	  If unsure, say Y.
-
-config UBIFS_FS_ENCRYPTION
-	bool "UBIFS Encryption"
-	depends on UBIFS_FS_XATTR && BLOCK
-	select FS_ENCRYPTION
-	default n
-	help
-	  Enable encryption of UBIFS files and directories. This
-	  feature is similar to ecryptfs, but it is more memory
-	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
 
 config UBIFS_FS_SECURITY
 	bool "UBIFS Security Labels"

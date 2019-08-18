@@ -1290,9 +1290,6 @@ static int core_scsi3_check_implicit_release(
 	return ret;
 }
 
-/*
- * Called with struct t10_reservation->registration_lock held.
- */
 static void __core_scsi3_free_registration(
 	struct se_device *dev,
 	struct t10_pr_registration *pr_reg,
@@ -1307,6 +1304,8 @@ static void __core_scsi3_free_registration(
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
 	struct se_dev_entry *deve;
 	char i_buf[PR_REG_ISID_ID_LEN];
+
+	lockdep_assert_held(&pr_tmpl->registration_lock);
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
@@ -2450,9 +2449,6 @@ core_scsi3_emulate_pro_reserve(struct se_cmd *cmd, int type, int scope,
 	}
 }
 
-/*
- * Called with struct se_device->dev_reservation_lock held.
- */
 static void __core_scsi3_complete_pro_release(
 	struct se_device *dev,
 	struct se_node_acl *se_nacl,
@@ -2463,6 +2459,8 @@ static void __core_scsi3_complete_pro_release(
 	const struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
 	int pr_res_type = 0, pr_res_scope = 0;
+
+	lockdep_assert_held(&dev->dev_reservation_lock);
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
@@ -2760,9 +2758,6 @@ core_scsi3_emulate_pro_clear(struct se_cmd *cmd, u64 res_key)
 	return 0;
 }
 
-/*
- * Called with struct se_device->dev_reservation_lock held.
- */
 static void __core_scsi3_complete_pro_preempt(
 	struct se_device *dev,
 	struct t10_pr_registration *pr_reg,
@@ -2774,6 +2769,8 @@ static void __core_scsi3_complete_pro_preempt(
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
 	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
+
+	lockdep_assert_held(&dev->dev_reservation_lock);
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);

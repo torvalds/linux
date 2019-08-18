@@ -13,7 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/platform_data/clk-lpss.h>
+#include <linux/platform_data/x86/clk-lpss.h>
 #include <linux/platform_device.h>
 
 static int lpt_clk_probe(struct platform_device *pdev)

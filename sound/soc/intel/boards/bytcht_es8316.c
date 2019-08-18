@@ -19,13 +19,20 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+#include <linux/acpi.h>
+#include <linux/clk.h>
+#include <linux/device.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/device.h>
 #include <linux/slab.h>
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/platform_sst_audio.h>
-#include <linux/clk.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -35,27 +42,96 @@
 
 struct byt_cht_es8316_private {
 	struct clk *mclk;
+	struct snd_soc_jack jack;
+	struct gpio_desc *speaker_en_gpio;
+	bool speaker_en;
 };
 
-static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
+enum {
+	BYT_CHT_ES8316_INTMIC_IN1_MAP,
+	BYT_CHT_ES8316_INTMIC_IN2_MAP,
+};
 
-	/*
-	 * The codec supports two analog microphone inputs. I have only
-	 * tested MIC1. A DMIC route could also potentially be added
-	 * if such functionality is found on another platform.
-	 */
-	SND_SOC_DAPM_MIC("Microphone 1", NULL),
-	SND_SOC_DAPM_MIC("Microphone 2", NULL),
+#define BYT_CHT_ES8316_MAP(quirk)		((quirk) & GENMASK(3, 0))
+#define BYT_CHT_ES8316_SSP0			BIT(16)
+#define BYT_CHT_ES8316_MONO_SPEAKER		BIT(17)
+
+static int quirk;
+
+static int quirk_override = -1;
+module_param_named(quirk, quirk_override, int, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
+
+static void log_quirks(struct device *dev)
+{
+	if (BYT_CHT_ES8316_MAP(quirk) == BYT_CHT_ES8316_INTMIC_IN1_MAP)
+		dev_info(dev, "quirk IN1_MAP enabled");
+	if (BYT_CHT_ES8316_MAP(quirk) == BYT_CHT_ES8316_INTMIC_IN2_MAP)
+		dev_info(dev, "quirk IN2_MAP enabled");
+	if (quirk & BYT_CHT_ES8316_SSP0)
+		dev_info(dev, "quirk SSP0 enabled");
+	if (quirk & BYT_CHT_ES8316_MONO_SPEAKER)
+		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
+}
+
+static int byt_cht_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_card *card = w->dapm->card;
+	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		priv->speaker_en = true;
+	else
+		priv->speaker_en = false;
+
+	gpiod_set_value_cansleep(priv->speaker_en_gpio, priv->speaker_en);
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
+	SND_SOC_DAPM_SPK("Speaker", NULL),
+	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Internal Mic", NULL),
+
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+			    byt_cht_es8316_speaker_power_event,
+			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
 
 static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
-	{"MIC1", NULL, "Microphone 1"},
-	{"MIC2", NULL, "Microphone 2"},
-
 	{"Headphone", NULL, "HPOL"},
 	{"Headphone", NULL, "HPOR"},
 
+	/*
+	 * There is no separate speaker output instead the speakers are muxed to
+	 * the HP outputs. The mux is controlled by the "Speaker Power" supply.
+	 */
+	{"Speaker", NULL, "HPOL"},
+	{"Speaker", NULL, "HPOR"},
+	{"Speaker", NULL, "Speaker Power"},
+};
+
+static const struct snd_soc_dapm_route byt_cht_es8316_intmic_in1_map[] = {
+	{"MIC1", NULL, "Internal Mic"},
+	{"MIC2", NULL, "Headset Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_cht_es8316_intmic_in2_map[] = {
+	{"MIC2", NULL, "Internal Mic"},
+	{"MIC1", NULL, "Headset Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_cht_es8316_ssp0_map[] = {
+	{"Playback", NULL, "ssp0 Tx"},
+	{"ssp0 Tx", NULL, "modem_out"},
+	{"modem_in", NULL, "ssp0 Rx"},
+	{"ssp0 Rx", NULL, "Capture"},
+};
+
+static const struct snd_soc_dapm_route byt_cht_es8316_ssp2_map[] = {
 	{"Playback", NULL, "ssp2 Tx"},
 	{"ssp2 Tx", NULL, "codec_out0"},
 	{"ssp2 Tx", NULL, "codec_out1"},
@@ -65,18 +141,59 @@ static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
 };
 
 static const struct snd_kcontrol_new byt_cht_es8316_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Speaker"),
 	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Microphone 1"),
-	SOC_DAPM_PIN_SWITCH("Microphone 2"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+	SOC_DAPM_PIN_SWITCH("Internal Mic"),
+};
+
+static struct snd_soc_jack_pin byt_cht_es8316_jack_pins[] = {
+	{
+		.pin	= "Headphone",
+		.mask	= SND_JACK_HEADPHONE,
+	},
+	{
+		.pin	= "Headset Mic",
+		.mask	= SND_JACK_MICROPHONE,
+	},
 };
 
 static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 {
+	struct snd_soc_component *codec = runtime->codec_dai->component;
 	struct snd_soc_card *card = runtime->card;
 	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
+	const struct snd_soc_dapm_route *custom_map;
+	int num_routes;
 	int ret;
 
 	card->dapm.idle_bias_off = true;
+
+	switch (BYT_CHT_ES8316_MAP(quirk)) {
+	case BYT_CHT_ES8316_INTMIC_IN1_MAP:
+	default:
+		custom_map = byt_cht_es8316_intmic_in1_map;
+		num_routes = ARRAY_SIZE(byt_cht_es8316_intmic_in1_map);
+		break;
+	case BYT_CHT_ES8316_INTMIC_IN2_MAP:
+		custom_map = byt_cht_es8316_intmic_in2_map;
+		num_routes = ARRAY_SIZE(byt_cht_es8316_intmic_in2_map);
+		break;
+	}
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
+
+	if (quirk & BYT_CHT_ES8316_SSP0) {
+		custom_map = byt_cht_es8316_ssp0_map;
+		num_routes = ARRAY_SIZE(byt_cht_es8316_ssp0_map);
+	} else {
+		custom_map = byt_cht_es8316_ssp2_map;
+		num_routes = ARRAY_SIZE(byt_cht_es8316_ssp2_map);
+	}
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
 
 	/*
 	 * The firmware might enable the clock at boot (this information
@@ -105,6 +222,18 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
+	ret = snd_soc_card_jack_new(card, "Headset",
+				    SND_JACK_HEADSET | SND_JACK_BTN_0,
+				    &priv->jack, byt_cht_es8316_jack_pins,
+				    ARRAY_SIZE(byt_cht_es8316_jack_pins));
+	if (ret) {
+		dev_err(card->dev, "jack creation failed %d\n", ret);
+		return ret;
+	}
+
+	snd_jack_set_key(priv->jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_soc_component_set_jack(codec, &priv->jack, NULL);
+
 	return 0;
 }
 
@@ -123,14 +252,21 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 			SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
-	int ret;
+	int ret, bits;
 
 	/* The DSP will covert the FE rate to 48k, stereo */
 	rate->min = rate->max = 48000;
 	channels->min = channels->max = 2;
 
-	/* set SSP2 to 24-bit */
-	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+	if (quirk & BYT_CHT_ES8316_SSP0) {
+		/* set SSP0 to 16-bit */
+		params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
+		bits = 16;
+	} else {
+		/* set SSP2 to 24-bit */
+		params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+		bits = 24;
+	}
 
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
@@ -147,7 +283,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0x3, 0x3, 2, 24);
+	ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0x3, 0x3, 2, bits);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set I2S config, err %d\n", ret);
 		return ret;
@@ -218,6 +354,59 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 
 
 /* SoC card */
+static char codec_name[SND_ACPI_I2C_ID_LEN];
+static char long_name[50]; /* = "bytcht-es8316-*-spk-*-mic" */
+
+static int byt_cht_es8316_suspend(struct snd_soc_card *card)
+{
+	struct snd_soc_component *component;
+
+	for_each_card_components(card, component) {
+		if (!strcmp(component->name, codec_name)) {
+			dev_dbg(component->dev, "disabling jack detect before suspend\n");
+			snd_soc_component_set_jack(component, NULL, NULL);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int byt_cht_es8316_resume(struct snd_soc_card *card)
+{
+	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
+	struct snd_soc_component *component;
+
+	for_each_card_components(card, component) {
+		if (!strcmp(component->name, codec_name)) {
+			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
+			snd_soc_component_set_jack(component, &priv->jack, NULL);
+			break;
+		}
+	}
+
+	/*
+	 * Some Cherry Trail boards with an ES8316 codec have a bug in their
+	 * ACPI tables where the MSSL1680 touchscreen's _PS0 and _PS3 methods
+	 * wrongly also set the speaker-enable GPIO to 1/0. Testing has shown
+	 * that this really is a bug and the GPIO has no influence on the
+	 * touchscreen at all.
+	 *
+	 * The silead.c touchscreen driver does not support runtime suspend, so
+	 * the GPIO can only be changed underneath us during a system suspend.
+	 * This resume() function runs from a pm complete() callback, and thus
+	 * is guaranteed to run after the touchscreen driver/ACPI-subsys has
+	 * brought the touchscreen back up again (and thus changed the GPIO).
+	 *
+	 * So to work around this we pass GPIOD_FLAGS_BIT_NONEXCLUSIVE when
+	 * requesting the GPIO and we set its value here to undo any changes
+	 * done by the touchscreen's broken _PS0 ACPI method.
+	 */
+	gpiod_set_value_cansleep(priv->speaker_en_gpio, priv->speaker_en);
+
+	return 0;
+}
+
 static struct snd_soc_card byt_cht_es8316_card = {
 	.name = "bytcht-es8316",
 	.owner = THIS_MODULE,
@@ -230,24 +419,40 @@ static struct snd_soc_card byt_cht_es8316_card = {
 	.controls = byt_cht_es8316_controls,
 	.num_controls = ARRAY_SIZE(byt_cht_es8316_controls),
 	.fully_routed = true,
+	.suspend_pre = byt_cht_es8316_suspend,
+	.resume_post = byt_cht_es8316_resume,
 };
 
-static char codec_name[SND_ACPI_I2C_ID_LEN];
+static const struct x86_cpu_id baytrail_cpu_ids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Valleyview */
+	{}
+};
+
+static const struct acpi_gpio_params first_gpio = { 0, 0, false };
+
+static const struct acpi_gpio_mapping byt_cht_es8316_gpios[] = {
+	{ "speaker-enable-gpios", &first_gpio, 1 },
+	{ },
+};
 
 static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 {
+	static const char * const mic_name[] = { "in1", "in2" };
 	struct byt_cht_es8316_private *priv;
+	struct device *dev = &pdev->dev;
 	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	const char *i2c_name = NULL;
+	struct device *codec_dev;
 	int dai_index = 0;
 	int i;
 	int ret = 0;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	mach = (&pdev->dev)->platform_data;
+	mach = dev->platform_data;
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(byt_cht_es8316_dais); i++) {
 		if (!strcmp(byt_cht_es8316_dais[i].codec_name,
@@ -265,26 +470,94 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		byt_cht_es8316_dais[dai_index].codec_name = codec_name;
 	}
 
-	/* register the soc card */
-	byt_cht_es8316_card.dev = &pdev->dev;
-	snd_soc_card_set_drvdata(&byt_cht_es8316_card, priv);
+	/* override plaform name, if required */
+	platform_name = mach->mach_params.platform;
 
-	priv->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
+	ret = snd_soc_fixup_dai_links_platform_name(&byt_cht_es8316_card,
+						    platform_name);
+	if (ret)
+		return ret;
+
+	/* Check for BYTCR or other platform and setup quirks */
+	if (x86_match_cpu(baytrail_cpu_ids) &&
+	    mach->mach_params.acpi_ipc_irq_index == 0) {
+		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
+		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
+			BYT_CHT_ES8316_MONO_SPEAKER;
+	} else {
+		/* Others default to internal-mic-in1-map, mono-speaker */
+		quirk = BYT_CHT_ES8316_INTMIC_IN1_MAP |
+			BYT_CHT_ES8316_MONO_SPEAKER;
+	}
+	if (quirk_override != -1) {
+		dev_info(dev, "Overriding quirk 0x%x => 0x%x\n", quirk,
+			 quirk_override);
+		quirk = quirk_override;
+	}
+	log_quirks(dev);
+
+	if (quirk & BYT_CHT_ES8316_SSP0)
+		byt_cht_es8316_dais[dai_index].cpu_dai_name = "ssp0-port";
+
+	/* get the clock */
+	priv->mclk = devm_clk_get(dev, "pmc_plt_clk_3");
 	if (IS_ERR(priv->mclk)) {
 		ret = PTR_ERR(priv->mclk);
-		dev_err(&pdev->dev,
-			"Failed to get MCLK from pmc_plt_clk_3: %d\n",
-			ret);
+		dev_err(dev, "clk_get pmc_plt_clk_3 failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = devm_snd_soc_register_card(&pdev->dev, &byt_cht_es8316_card);
+	/* get speaker enable GPIO */
+	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL, codec_name);
+	if (!codec_dev)
+		return -EPROBE_DEFER;
+
+	devm_acpi_dev_add_driver_gpios(codec_dev, byt_cht_es8316_gpios);
+	priv->speaker_en_gpio =
+		gpiod_get_index(codec_dev, "speaker-enable", 0,
+				/* see comment in byt_cht_es8316_resume */
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	put_device(codec_dev);
+
+	if (IS_ERR(priv->speaker_en_gpio)) {
+		ret = PTR_ERR(priv->speaker_en_gpio);
+		switch (ret) {
+		case -ENOENT:
+			priv->speaker_en_gpio = NULL;
+			break;
+		default:
+			dev_err(dev, "get speaker GPIO failed: %d\n", ret);
+			/* fall through */
+		case -EPROBE_DEFER:
+			return ret;
+		}
+	}
+
+	/* register the soc card */
+	snprintf(long_name, sizeof(long_name), "bytcht-es8316-%s-spk-%s-mic",
+		 (quirk & BYT_CHT_ES8316_MONO_SPEAKER) ? "mono" : "stereo",
+		 mic_name[BYT_CHT_ES8316_MAP(quirk)]);
+	byt_cht_es8316_card.long_name = long_name;
+	byt_cht_es8316_card.dev = dev;
+	snd_soc_card_set_drvdata(&byt_cht_es8316_card, priv);
+
+	ret = devm_snd_soc_register_card(dev, &byt_cht_es8316_card);
 	if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card failed %d\n", ret);
+		gpiod_put(priv->speaker_en_gpio);
+		dev_err(dev, "snd_soc_register_card failed: %d\n", ret);
 		return ret;
 	}
 	platform_set_drvdata(pdev, &byt_cht_es8316_card);
-	return ret;
+	return 0;
+}
+
+static int snd_byt_cht_es8316_mc_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
+
+	gpiod_put(priv->speaker_en_gpio);
+	return 0;
 }
 
 static struct platform_driver snd_byt_cht_es8316_mc_driver = {
@@ -292,6 +565,7 @@ static struct platform_driver snd_byt_cht_es8316_mc_driver = {
 		.name = "bytcht_es8316",
 	},
 	.probe = snd_byt_cht_es8316_mc_probe,
+	.remove = snd_byt_cht_es8316_mc_remove,
 };
 
 module_platform_driver(snd_byt_cht_es8316_mc_driver);

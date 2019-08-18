@@ -51,7 +51,6 @@
 #define PSR_SET_WAITLOOP 0x31
 #define MCP_INIT_DMCU 0x88
 #define MCP_INIT_IRAM 0x89
-#define MCP_DMCU_VERSION 0x90
 #define MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK   0x00000001L
 
 static bool dce_dmcu_init(struct dmcu *dmcu)
@@ -317,37 +316,10 @@ static void dce_get_psr_wait_loop(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-static void dcn10_get_dmcu_state(struct dmcu *dmcu)
-{
-	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
-	uint32_t dmcu_state_offset = 0xf6;
-
-	/* Enable write access to IRAM */
-	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
-			IRAM_HOST_ACCESS_EN, 1,
-			IRAM_RD_ADDR_AUTO_INC, 1);
-
-	REG_WAIT(DMU_MEM_PWR_CNTL, DMCU_IRAM_MEM_PWR_STATE, 0, 2, 10);
-
-	/* Write address to IRAM_RD_ADDR in DMCU_IRAM_RD_CTRL */
-	REG_WRITE(DMCU_IRAM_RD_CTRL, dmcu_state_offset);
-
-	/* Read data from IRAM_RD_DATA in DMCU_IRAM_RD_DATA*/
-	dmcu->dmcu_state = REG_READ(DMCU_IRAM_RD_DATA);
-
-	/* Disable write access to IRAM to allow dynamic sleep state */
-	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
-			IRAM_HOST_ACCESS_EN, 0,
-			IRAM_RD_ADDR_AUTO_INC, 0);
-}
-
 static void dcn10_get_dmcu_version(struct dmcu *dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	uint32_t dmcu_version_offset = 0xf1;
-
-	/* Clear scratch */
-	REG_WRITE(DC_DMCU_SCRATCH, 0);
 
 	/* Enable write access to IRAM */
 	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
@@ -359,84 +331,73 @@ static void dcn10_get_dmcu_version(struct dmcu *dmcu)
 	/* Write address to IRAM_RD_ADDR and read from DATA register */
 	REG_WRITE(DMCU_IRAM_RD_CTRL, dmcu_version_offset);
 	dmcu->dmcu_version.interface_version = REG_READ(DMCU_IRAM_RD_DATA);
-	dmcu->dmcu_version.year = ((REG_READ(DMCU_IRAM_RD_DATA) << 8) |
+	dmcu->dmcu_version.abm_version = REG_READ(DMCU_IRAM_RD_DATA);
+	dmcu->dmcu_version.psr_version = REG_READ(DMCU_IRAM_RD_DATA);
+	dmcu->dmcu_version.build_version = ((REG_READ(DMCU_IRAM_RD_DATA) << 8) |
 						REG_READ(DMCU_IRAM_RD_DATA));
-	dmcu->dmcu_version.month = REG_READ(DMCU_IRAM_RD_DATA);
-	dmcu->dmcu_version.date = REG_READ(DMCU_IRAM_RD_DATA);
 
 	/* Disable write access to IRAM to allow dynamic sleep state */
 	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
 			IRAM_HOST_ACCESS_EN, 0,
 			IRAM_RD_ADDR_AUTO_INC, 0);
-
-	/* Send MCP command message to DMCU to get version reply from FW.
-	 * We expect this version should match the one in IRAM, otherwise
-	 * something is wrong with DMCU and we should fail and disable UC.
-	 */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
-
-	/* Set command to get DMCU version from microcontroller */
-	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
-			MCP_DMCU_VERSION);
-
-	/* Notify microcontroller of new command */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
-
-	/* Ensure command has been executed before continuing */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
-
-	/* Somehow version does not match, so fail and return version 0 */
-	if (dmcu->dmcu_version.interface_version != REG_READ(DC_DMCU_SCRATCH))
-		dmcu->dmcu_version.interface_version = 0;
 }
 
 static bool dcn10_dmcu_init(struct dmcu *dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+	bool status = false;
 
-	/* DMCU FW should populate the scratch register if running */
-	if (REG_READ(DC_DMCU_SCRATCH) == 0)
-		return false;
+	/*  Definition of DC_DMCU_SCRATCH
+	 *  0 : firmare not loaded
+	 *  1 : PSP load DMCU FW but not initialized
+	 *  2 : Firmware already initialized
+	 */
+	dmcu->dmcu_state = REG_READ(DC_DMCU_SCRATCH);
 
-	/* Check state is uninitialized */
-	dcn10_get_dmcu_state(dmcu);
+	switch (dmcu->dmcu_state) {
+	case DMCU_UNLOADED:
+		status = false;
+		break;
+	case DMCU_LOADED_UNINITIALIZED:
+		/* Wait until microcontroller is ready to process interrupt */
+		REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
 
-	/* If microcontroller is already initialized, do nothing */
-	if (dmcu->dmcu_state == DMCU_RUNNING)
-		return true;
+		/* Set initialized ramping boundary value */
+		REG_WRITE(MASTER_COMM_DATA_REG1, 0xFFFF);
 
-	/* Retrieve and cache the DMCU firmware version. */
-	dcn10_get_dmcu_version(dmcu);
-
-	/* Check interface version to confirm firmware is loaded and running */
-	if (dmcu->dmcu_version.interface_version == 0)
-		return false;
-
-	/* Wait until microcontroller is ready to process interrupt */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
-
-	/* Set initialized ramping boundary value */
-	REG_WRITE(MASTER_COMM_DATA_REG1, 0xFFFF);
-
-	/* Set command to initialize microcontroller */
-	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
+		/* Set command to initialize microcontroller */
+		REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
 			MCP_INIT_DMCU);
 
-	/* Notify microcontroller of new command */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+		/* Notify microcontroller of new command */
+		REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
-	/* Ensure command has been executed before continuing */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
+		/* Ensure command has been executed before continuing */
+		REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
 
-	// Check state is initialized
-	dcn10_get_dmcu_state(dmcu);
+		// Check state is initialized
+		dmcu->dmcu_state = REG_READ(DC_DMCU_SCRATCH);
 
-	// If microcontroller is not in running state, fail
-	if (dmcu->dmcu_state != DMCU_RUNNING)
-		return false;
+		// If microcontroller is not in running state, fail
+		if (dmcu->dmcu_state == DMCU_RUNNING) {
+			/* Retrieve and cache the DMCU firmware version. */
+			dcn10_get_dmcu_version(dmcu);
+			status = true;
+		} else
+			status = false;
 
-	return true;
+		break;
+	case DMCU_RUNNING:
+		status = true;
+		break;
+	default:
+		status = false;
+		break;
+	}
+
+	return status;
 }
+
 
 static bool dcn10_dmcu_load_iram(struct dmcu *dmcu,
 		unsigned int start_offset,

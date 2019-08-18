@@ -224,12 +224,13 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		goto err;
 
-	ucontext = ib_dev->ops.alloc_ucontext(ib_dev, &attrs->driver_udata);
-	if (IS_ERR(ucontext)) {
-		ret = PTR_ERR(ucontext);
+	ucontext = rdma_zalloc_drv_obj(ib_dev, ib_ucontext);
+	if (!ucontext) {
+		ret = -ENOMEM;
 		goto err_alloc;
 	}
 
+	ucontext->res.type = RDMA_RESTRACK_CTX;
 	ucontext->device = ib_dev;
 	ucontext->cg_obj = cg_obj;
 	/* ufile is required when some objects are released */
@@ -238,15 +239,8 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	ucontext->closing = false;
 	ucontext->cleanup_retryable = false;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	mutex_init(&ucontext->per_mm_list_lock);
 	INIT_LIST_HEAD(&ucontext->per_mm_list);
-	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
-		ucontext->invalidate_range = NULL;
-
-#endif
-
-	resp.num_comp_vectors = file->device->num_comp_vectors;
 
 	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0)
@@ -259,14 +253,21 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 		goto err_fd;
 	}
 
+	resp.num_comp_vectors = file->device->num_comp_vectors;
+
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto err_file;
 
-	fd_install(resp.async_fd, filp);
+	ret = ib_dev->ops.alloc_ucontext(ucontext, &attrs->driver_udata);
+	if (ret)
+		goto err_file;
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
+		ucontext->invalidate_range = NULL;
 
-	ucontext->res.type = RDMA_RESTRACK_CTX;
 	rdma_restrack_uadd(&ucontext->res);
+
+	fd_install(resp.async_fd, filp);
 
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
@@ -286,7 +287,7 @@ err_fd:
 	put_unused_fd(resp.async_fd);
 
 err_free:
-	ib_dev->ops.dealloc_ucontext(ucontext);
+	kfree(ucontext);
 
 err_alloc:
 	ib_rdmacg_uncharge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);
@@ -410,9 +411,9 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->ops.alloc_pd(ib_dev, uobj->context, &attrs->driver_udata);
-	if (IS_ERR(pd)) {
-		ret = PTR_ERR(pd);
+	pd = rdma_zalloc_drv_obj(ib_dev, ib_pd);
+	if (!pd) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -420,11 +421,15 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	pd->uobject = uobj;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
+	pd->res.type = RDMA_RESTRACK_PD;
+
+	ret = ib_dev->ops.alloc_pd(pd, uobj->context, &attrs->driver_udata);
+	if (ret)
+		goto err_alloc;
 
 	uobj->object = pd;
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
-	pd->res.type = RDMA_RESTRACK_PD;
 	rdma_restrack_uadd(&pd->res);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
@@ -435,7 +440,9 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 
 err_copy:
 	ib_dealloc_pd(pd);
-
+	pd = NULL;
+err_alloc:
+	kfree(pd);
 err:
 	uobj_alloc_abort(uobj);
 	return ret;
@@ -822,14 +829,13 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 					    cmd.length, cmd.hca_va,
 					    cmd.access_flags, pd,
 					    &attrs->driver_udata);
-	if (!ret) {
-		if (cmd.flags & IB_MR_REREG_PD) {
-			atomic_inc(&pd->usecnt);
-			mr->pd = pd;
-			atomic_dec(&old_pd->usecnt);
-		}
-	} else {
+	if (ret)
 		goto put_uobj_pd;
+
+	if (cmd.flags & IB_MR_REREG_PD) {
+		atomic_inc(&pd->usecnt);
+		mr->pd = pd;
+		atomic_dec(&old_pd->usecnt);
 	}
 
 	memset(&resp, 0, sizeof(resp));
@@ -882,6 +888,11 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 	if (!pd) {
 		ret = -EINVAL;
 		goto err_free;
+	}
+
+	if (cmd.mw_type != IB_MW_TYPE_1 && cmd.mw_type != IB_MW_TYPE_2) {
+		ret = -EINVAL;
+		goto err_put;
 	}
 
 	mw = pd->device->ops.alloc_mw(pd, cmd.mw_type, &attrs->driver_udata);
@@ -1184,11 +1195,10 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 		ret = -EFAULT;
 		goto out_put;
 	}
+	ret = 0;
 
 	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
 		ret = uverbs_output_written(attrs, UVERBS_ATTR_CORE_OUT);
-
-	ret = 0;
 
 out_put:
 	uobj_put_obj_read(cq);
@@ -2632,7 +2642,7 @@ void flow_resources_add(struct ib_uflow_resources *uflow_res,
 }
 EXPORT_SYMBOL(flow_resources_add);
 
-static int kern_spec_to_ib_spec_action(const struct uverbs_attr_bundle *attrs,
+static int kern_spec_to_ib_spec_action(struct uverbs_attr_bundle *attrs,
 				       struct ib_uverbs_flow_spec *kern_spec,
 				       union ib_flow_spec *ib_spec,
 				       struct ib_uflow_resources *uflow_res)
@@ -3618,7 +3628,6 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs)
 
 	copy_query_dev_fields(ucontext, &resp.base, &attr);
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	resp.odp_caps.general_caps = attr.odp_caps.general_caps;
 	resp.odp_caps.per_transport_caps.rc_odp_caps =
 		attr.odp_caps.per_transport_caps.rc_odp_caps;
@@ -3626,7 +3635,7 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs)
 		attr.odp_caps.per_transport_caps.uc_odp_caps;
 	resp.odp_caps.per_transport_caps.ud_odp_caps =
 		attr.odp_caps.per_transport_caps.ud_odp_caps;
-#endif
+	resp.xrc_odp_caps = attr.odp_caps.per_transport_caps.xrc_odp_caps;
 
 	resp.timestamp_mask = attr.timestamp_mask;
 	resp.hca_core_clock = attr.hca_core_clock;

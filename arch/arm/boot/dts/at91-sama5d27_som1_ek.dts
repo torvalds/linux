@@ -109,6 +109,10 @@
 				status = "okay";
 			};
 
+			qspi1: spi@f0024000 {
+				status = "okay";
+			};
+
 			spi0: spi@f8000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0_default>;

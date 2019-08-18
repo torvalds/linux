@@ -5,25 +5,32 @@ The Definitive KVM (Kernel-based Virtual Machine) API Documentation
 ----------------------
 
 The kvm API is a set of ioctls that are issued to control various aspects
-of a virtual machine.  The ioctls belong to three classes
+of a virtual machine.  The ioctls belong to three classes:
 
  - System ioctls: These query and set global attributes which affect the
    whole kvm subsystem.  In addition a system ioctl is used to create
-   virtual machines
+   virtual machines.
 
  - VM ioctls: These query and set attributes that affect an entire virtual
    machine, for example memory layout.  In addition a VM ioctl is used to
-   create virtual cpus (vcpus).
+   create virtual cpus (vcpus) and devices.
 
-   Only run VM ioctls from the same process (address space) that was used
-   to create the VM.
+   VM ioctls must be issued from the same process (address space) that was
+   used to create the VM.
 
  - vcpu ioctls: These query and set attributes that control the operation
    of a single virtual cpu.
 
-   Only run vcpu ioctls from the same thread that was used to create the
-   vcpu.
+   vcpu ioctls should be issued from the same thread that was used to create
+   the vcpu, except for asynchronous vcpu ioctl that are marked as such in
+   the documentation.  Otherwise, the first ioctl after switching threads
+   could see a performance impact.
 
+ - device ioctls: These query and set attributes that control the operation
+   of a single device.
+
+   device ioctls must be issued from the same process (address space) that
+   was used to create the VM.
 
 2. File descriptors
 -------------------
@@ -32,17 +39,51 @@ The kvm API is centered around file descriptors.  An initial
 open("/dev/kvm") obtains a handle to the kvm subsystem; this handle
 can be used to issue system ioctls.  A KVM_CREATE_VM ioctl on this
 handle will create a VM file descriptor which can be used to issue VM
-ioctls.  A KVM_CREATE_VCPU ioctl on a VM fd will create a virtual cpu
-and return a file descriptor pointing to it.  Finally, ioctls on a vcpu
-fd can be used to control the vcpu, including the important task of
-actually running guest code.
+ioctls.  A KVM_CREATE_VCPU or KVM_CREATE_DEVICE ioctl on a VM fd will
+create a virtual cpu or device and return a file descriptor pointing to
+the new resource.  Finally, ioctls on a vcpu or device fd can be used
+to control the vcpu or device.  For vcpus, this includes the important
+task of actually running guest code.
 
 In general file descriptors can be migrated among processes by means
 of fork() and the SCM_RIGHTS facility of unix domain socket.  These
 kinds of tricks are explicitly not supported by kvm.  While they will
 not cause harm to the host, their actual behavior is not guaranteed by
-the API.  The only supported use is one virtual machine per process,
-and one vcpu per thread.
+the API.  See "General description" for details on the ioctl usage
+model that is supported by KVM.
+
+It is important to note that althought VM ioctls may only be issued from
+the process that created the VM, a VM's lifecycle is associated with its
+file descriptor, not its creator (process).  In other words, the VM and
+its resources, *including the associated address space*, are not freed
+until the last reference to the VM's file descriptor has been released.
+For example, if fork() is issued after ioctl(KVM_CREATE_VM), the VM will
+not be freed until both the parent (original) process and its child have
+put their references to the VM's file descriptor.
+
+Because a VM's resources are not freed until the last reference to its
+file descriptor is released, creating additional references to a VM via
+via fork(), dup(), etc... without careful consideration is strongly
+discouraged and may have unwanted side effects, e.g. memory allocated
+by and on behalf of the VM's process may not be freed/unaccounted when
+the VM is shut down.
+
+
+It is important to note that althought VM ioctls may only be issued from
+the process that created the VM, a VM's lifecycle is associated with its
+file descriptor, not its creator (process).  In other words, the VM and
+its resources, *including the associated address space*, are not freed
+until the last reference to the VM's file descriptor has been released.
+For example, if fork() is issued after ioctl(KVM_CREATE_VM), the VM will
+not be freed until both the parent (original) process and its child have
+put their references to the VM's file descriptor.
+
+Because a VM's resources are not freed until the last reference to its
+file descriptor is released, creating additional references to a VM via
+via fork(), dup(), etc... without careful consideration is strongly
+discouraged and may have unwanted side effects, e.g. memory allocated
+by and on behalf of the VM's process may not be freed/unaccounted when
+the VM is shut down.
 
 
 3. Extensions
@@ -280,7 +321,7 @@ cpu's hardware control block.
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in/out)
 Returns: 0 on success, -1 on error
@@ -498,10 +539,14 @@ c) KVM_INTERRUPT_SET_LEVEL
 Note that any value for 'irq' other than the ones stated above is invalid
 and incurs unexpected behavior.
 
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
+
 MIPS:
 
 Queues an external interrupt to be injected into the virtual CPU. A negative
 interrupt number dequeues the interrupt.
+
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 
 4.17 KVM_DEBUG_GUEST
@@ -1069,14 +1114,12 @@ struct kvm_userspace_memory_region {
 #define KVM_MEM_LOG_DIRTY_PAGES	(1UL << 0)
 #define KVM_MEM_READONLY	(1UL << 1)
 
-This ioctl allows the user to create or modify a guest physical memory
-slot.  When changing an existing slot, it may be moved in the guest
-physical memory space, or its flags may be modified.  It may not be
-resized.  Slots may not overlap in guest physical address space.
-Bits 0-15 of "slot" specifies the slot id and this value should be
-less than the maximum number of user memory slots supported per VM.
-The maximum allowed slots can be queried using KVM_CAP_NR_MEMSLOTS,
-if this capability is supported by the architecture.
+This ioctl allows the user to create, modify or delete a guest physical
+memory slot.  Bits 0-15 of "slot" specify the slot id and this value
+should be less than the maximum number of user memory slots supported per
+VM.  The maximum allowed slots can be queried using KVM_CAP_NR_MEMSLOTS,
+if this capability is supported by the architecture.  Slots may not
+overlap in guest physical address space.
 
 If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 of "slot"
 specifies the address space which is being modified.  They must be
@@ -1084,6 +1127,10 @@ less than the value that KVM_CHECK_EXTENSION returns for the
 KVM_CAP_MULTI_ADDRESS_SPACE capability.  Slots in separate address spaces
 are unrelated; the restriction on overlapping slots only applies within
 each address space.
+
+Deleting a slot is done by passing zero for memory_size.  When changing
+an existing slot, it may be moved in the guest physical memory space,
+or its flags may be modified, but it may not be resized.
 
 Memory for the region is taken starting at the address denoted by the
 field userspace_addr, which must point at user addressable memory for
@@ -2476,7 +2523,7 @@ KVM_S390_MCHK (vm, vcpu) - machine check interrupt; cr 14 bits in parm,
                            machine checks needing further payload are not
                            supported by this ioctl)
 
-Note that the vcpu ioctl is asynchronous to vcpu execution.
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 4.78 KVM_PPC_GET_HTAB_FD
 
@@ -3025,8 +3072,7 @@ KVM_S390_INT_EMERGENCY - sigp emergency; parameters in .emerg
 KVM_S390_INT_EXTERNAL_CALL - sigp external call; parameters in .extcall
 KVM_S390_MCHK - machine check interrupt; parameters in .mchk
 
-
-Note that the vcpu ioctl is asynchronous to vcpu execution.
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 4.94 KVM_S390_GET_IRQ_STATE
 
@@ -3764,7 +3810,7 @@ to I/O ports.
 4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
 
 Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
-Architectures: x86
+Architectures: x86, arm, arm64, mips
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in)
 Returns: 0 on success, -1 on error
@@ -3784,8 +3830,9 @@ The ioctl clears the dirty status of pages in a memory slot, according to
 the bitmap that is passed in struct kvm_clear_dirty_log's dirty_bitmap
 field.  Bit 0 of the bitmap corresponds to page "first_page" in the
 memory slot, and num_pages is the size in bits of the input bitmap.
-Both first_page and num_pages must be a multiple of 64.  For each bit
-that is set in the input bitmap, the corresponding page is marked "clean"
+first_page must be a multiple of 64; num_pages must also be a multiple of
+64 unless first_page + num_pages is the size of the memory slot.  For each
+bit that is set in the input bitmap, the corresponding page is marked "clean"
 in KVM's dirty bitmap, and dirty tracking is re-enabled for that page
 (for example via write-protection, or by clearing the dirty bit in
 a page table entry).
@@ -4753,7 +4800,7 @@ and injected exceptions.
 
 7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
 
-Architectures: all
+Architectures: x86, arm, arm64, mips
 Parameters: args[0] whether feature should be enabled or not
 
 With this capability enabled, KVM_GET_DIRTY_LOG will not automatically

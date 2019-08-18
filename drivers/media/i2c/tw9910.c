@@ -584,6 +584,14 @@ static int tw9910_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static void tw9910_set_gpio_value(struct gpio_desc *desc, int value)
+{
+	if (desc) {
+		gpiod_set_value(desc, value);
+		usleep_range(500, 1000);
+	}
+}
+
 static int tw9910_power_on(struct tw9910_priv *priv)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
@@ -595,10 +603,7 @@ static int tw9910_power_on(struct tw9910_priv *priv)
 			return ret;
 	}
 
-	if (priv->pdn_gpio) {
-		gpiod_set_value(priv->pdn_gpio, 0);
-		usleep_range(500, 1000);
-	}
+	tw9910_set_gpio_value(priv->pdn_gpio, 0);
 
 	/*
 	 * FIXME: The reset signal is connected to a shared GPIO on some
@@ -610,14 +615,14 @@ static int tw9910_power_on(struct tw9910_priv *priv)
 					     GPIOD_OUT_LOW);
 	if (IS_ERR(priv->rstb_gpio)) {
 		dev_info(&client->dev, "Unable to get GPIO \"rstb\"");
+		clk_disable_unprepare(priv->clk);
+		tw9910_set_gpio_value(priv->pdn_gpio, 1);
 		return PTR_ERR(priv->rstb_gpio);
 	}
 
 	if (priv->rstb_gpio) {
-		gpiod_set_value(priv->rstb_gpio, 1);
-		usleep_range(500, 1000);
-		gpiod_set_value(priv->rstb_gpio, 0);
-		usleep_range(500, 1000);
+		tw9910_set_gpio_value(priv->rstb_gpio, 1);
+		tw9910_set_gpio_value(priv->rstb_gpio, 0);
 
 		gpiod_put(priv->rstb_gpio);
 	}
@@ -628,11 +633,7 @@ static int tw9910_power_on(struct tw9910_priv *priv)
 static int tw9910_power_off(struct tw9910_priv *priv)
 {
 	clk_disable_unprepare(priv->clk);
-
-	if (priv->pdn_gpio) {
-		gpiod_set_value(priv->pdn_gpio, 1);
-		usleep_range(500, 1000);
-	}
+	tw9910_set_gpio_value(priv->pdn_gpio, 1);
 
 	return 0;
 }
@@ -1000,7 +1001,7 @@ static int tw9910_remove(struct i2c_client *client)
 	if (priv->pdn_gpio)
 		gpiod_put(priv->pdn_gpio);
 	clk_put(priv->clk);
-	v4l2_device_unregister_subdev(&priv->subdev);
+	v4l2_async_unregister_subdev(&priv->subdev);
 
 	return 0;
 }

@@ -17,6 +17,7 @@
  */
 
 #include <linux/host1x.h>
+#include <linux/iommu.h>
 #include <linux/slab.h>
 
 #include <trace/events/host1x.h>
@@ -60,15 +61,37 @@ static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
 static void submit_gathers(struct host1x_job *job)
 {
 	struct host1x_cdma *cdma = &job->channel->cdma;
+#if HOST1X_HW < 6
+	struct device *dev = job->channel->dev;
+#endif
 	unsigned int i;
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
-		u32 op1 = host1x_opcode_gather(g->words);
-		u32 op2 = g->base + g->offset;
+		dma_addr_t addr = g->base + g->offset;
+		u32 op2, op3;
 
-		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
-		host1x_cdma_push(cdma, op1, op2);
+		op2 = lower_32_bits(addr);
+		op3 = upper_32_bits(addr);
+
+		trace_write_gather(cdma, g->bo, g->offset, g->words);
+
+		if (op3 != 0) {
+#if HOST1X_HW >= 6
+			u32 op1 = host1x_opcode_gather_wide(g->words);
+			u32 op4 = HOST1X_OPCODE_NOP;
+
+			host1x_cdma_push_wide(cdma, op1, op2, op3, op4);
+#else
+			dev_err(dev, "invalid gather for push buffer %pad\n",
+				&addr);
+			continue;
+#endif
+		} else {
+			u32 op1 = host1x_opcode_gather(g->words);
+
+			host1x_cdma_push(cdma, op1, op2);
+		}
 	}
 }
 
@@ -87,6 +110,20 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 				HOST1X_UCLASS_LOAD_SYNCPT_BASE, 1),
 			 HOST1X_UCLASS_LOAD_SYNCPT_BASE_BASE_INDX_F(id) |
 			 HOST1X_UCLASS_LOAD_SYNCPT_BASE_VALUE_F(value));
+}
+
+static void host1x_channel_set_streamid(struct host1x_channel *channel)
+{
+#if HOST1X_HW >= 6
+	u32 sid = 0x7f;
+#ifdef CONFIG_IOMMU_API
+	struct iommu_fwspec *spec = dev_iommu_fwspec_get(channel->dev->parent);
+	if (spec)
+		sid = spec->ids[0] & 0xffff;
+#endif
+
+	host1x_ch_writel(channel, sid, HOST1X_CHANNEL_SMMU_STREAMID);
+#endif
 }
 
 static int channel_submit(struct host1x_job *job)
@@ -119,6 +156,8 @@ static int channel_submit(struct host1x_job *job)
 		err = -ENOMEM;
 		goto error;
 	}
+
+	host1x_channel_set_streamid(ch);
 
 	/* begin a CDMA submit */
 	err = host1x_cdma_begin(&ch->cdma, job);

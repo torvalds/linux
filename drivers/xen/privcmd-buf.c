@@ -140,8 +140,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
-	vma_priv = kzalloc(sizeof(*vma_priv) + count * sizeof(void *),
-			   GFP_KERNEL);
+	vma_priv = kzalloc(struct_size(vma_priv, pages, count), GFP_KERNEL);
 	if (!vma_priv)
 		return -ENOMEM;
 

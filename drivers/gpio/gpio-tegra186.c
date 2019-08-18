@@ -529,8 +529,8 @@ static int tegra186_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#define TEGRA_MAIN_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA_MAIN_GPIO_PORT_##port] = {			\
+#define TEGRA186_MAIN_GPIO_PORT(port, base, count, controller)	\
+	[TEGRA186_MAIN_GPIO_PORT_##port] = {			\
 		.name = #port,					\
 		.offset = base,					\
 		.pins = count,					\
@@ -538,29 +538,29 @@ static int tegra186_gpio_remove(struct platform_device *pdev)
 	}
 
 static const struct tegra_gpio_port tegra186_main_ports[] = {
-	TEGRA_MAIN_GPIO_PORT( A, 0x2000, 7, 2),
-	TEGRA_MAIN_GPIO_PORT( B, 0x3000, 7, 3),
-	TEGRA_MAIN_GPIO_PORT( C, 0x3200, 7, 3),
-	TEGRA_MAIN_GPIO_PORT( D, 0x3400, 6, 3),
-	TEGRA_MAIN_GPIO_PORT( E, 0x2200, 8, 2),
-	TEGRA_MAIN_GPIO_PORT( F, 0x2400, 6, 2),
-	TEGRA_MAIN_GPIO_PORT( G, 0x4200, 6, 4),
-	TEGRA_MAIN_GPIO_PORT( H, 0x1000, 7, 1),
-	TEGRA_MAIN_GPIO_PORT( I, 0x0800, 8, 0),
-	TEGRA_MAIN_GPIO_PORT( J, 0x5000, 8, 5),
-	TEGRA_MAIN_GPIO_PORT( K, 0x5200, 1, 5),
-	TEGRA_MAIN_GPIO_PORT( L, 0x1200, 8, 1),
-	TEGRA_MAIN_GPIO_PORT( M, 0x5600, 6, 5),
-	TEGRA_MAIN_GPIO_PORT( N, 0x0000, 7, 0),
-	TEGRA_MAIN_GPIO_PORT( O, 0x0200, 4, 0),
-	TEGRA_MAIN_GPIO_PORT( P, 0x4000, 7, 4),
-	TEGRA_MAIN_GPIO_PORT( Q, 0x0400, 6, 0),
-	TEGRA_MAIN_GPIO_PORT( R, 0x0a00, 6, 0),
-	TEGRA_MAIN_GPIO_PORT( T, 0x0600, 4, 0),
-	TEGRA_MAIN_GPIO_PORT( X, 0x1400, 8, 1),
-	TEGRA_MAIN_GPIO_PORT( Y, 0x1600, 7, 1),
-	TEGRA_MAIN_GPIO_PORT(BB, 0x2600, 2, 2),
-	TEGRA_MAIN_GPIO_PORT(CC, 0x5400, 4, 5),
+	TEGRA186_MAIN_GPIO_PORT( A, 0x2000, 7, 2),
+	TEGRA186_MAIN_GPIO_PORT( B, 0x3000, 7, 3),
+	TEGRA186_MAIN_GPIO_PORT( C, 0x3200, 7, 3),
+	TEGRA186_MAIN_GPIO_PORT( D, 0x3400, 6, 3),
+	TEGRA186_MAIN_GPIO_PORT( E, 0x2200, 8, 2),
+	TEGRA186_MAIN_GPIO_PORT( F, 0x2400, 6, 2),
+	TEGRA186_MAIN_GPIO_PORT( G, 0x4200, 6, 4),
+	TEGRA186_MAIN_GPIO_PORT( H, 0x1000, 7, 1),
+	TEGRA186_MAIN_GPIO_PORT( I, 0x0800, 8, 0),
+	TEGRA186_MAIN_GPIO_PORT( J, 0x5000, 8, 5),
+	TEGRA186_MAIN_GPIO_PORT( K, 0x5200, 1, 5),
+	TEGRA186_MAIN_GPIO_PORT( L, 0x1200, 8, 1),
+	TEGRA186_MAIN_GPIO_PORT( M, 0x5600, 6, 5),
+	TEGRA186_MAIN_GPIO_PORT( N, 0x0000, 7, 0),
+	TEGRA186_MAIN_GPIO_PORT( O, 0x0200, 4, 0),
+	TEGRA186_MAIN_GPIO_PORT( P, 0x4000, 7, 4),
+	TEGRA186_MAIN_GPIO_PORT( Q, 0x0400, 6, 0),
+	TEGRA186_MAIN_GPIO_PORT( R, 0x0a00, 6, 0),
+	TEGRA186_MAIN_GPIO_PORT( T, 0x0600, 4, 0),
+	TEGRA186_MAIN_GPIO_PORT( X, 0x1400, 8, 1),
+	TEGRA186_MAIN_GPIO_PORT( Y, 0x1600, 7, 1),
+	TEGRA186_MAIN_GPIO_PORT(BB, 0x2600, 2, 2),
+	TEGRA186_MAIN_GPIO_PORT(CC, 0x5400, 4, 5),
 };
 
 static const struct tegra_gpio_soc tegra186_main_soc = {
@@ -569,8 +569,8 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	.name = "tegra186-gpio",
 };
 
-#define TEGRA_AON_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA_AON_GPIO_PORT_##port] = {			\
+#define TEGRA186_AON_GPIO_PORT(port, base, count, controller)	\
+	[TEGRA186_AON_GPIO_PORT_##port] = {			\
 		.name = #port,					\
 		.offset = base,					\
 		.pins = count,					\
@@ -578,14 +578,14 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	}
 
 static const struct tegra_gpio_port tegra186_aon_ports[] = {
-	TEGRA_AON_GPIO_PORT( S, 0x0200, 5, 0),
-	TEGRA_AON_GPIO_PORT( U, 0x0400, 6, 0),
-	TEGRA_AON_GPIO_PORT( V, 0x0800, 8, 0),
-	TEGRA_AON_GPIO_PORT( W, 0x0a00, 8, 0),
-	TEGRA_AON_GPIO_PORT( Z, 0x0e00, 4, 0),
-	TEGRA_AON_GPIO_PORT(AA, 0x0c00, 8, 0),
-	TEGRA_AON_GPIO_PORT(EE, 0x0600, 3, 0),
-	TEGRA_AON_GPIO_PORT(FF, 0x0000, 5, 0),
+	TEGRA186_AON_GPIO_PORT( S, 0x0200, 5, 0),
+	TEGRA186_AON_GPIO_PORT( U, 0x0400, 6, 0),
+	TEGRA186_AON_GPIO_PORT( V, 0x0800, 8, 0),
+	TEGRA186_AON_GPIO_PORT( W, 0x0a00, 8, 0),
+	TEGRA186_AON_GPIO_PORT( Z, 0x0e00, 4, 0),
+	TEGRA186_AON_GPIO_PORT(AA, 0x0c00, 8, 0),
+	TEGRA186_AON_GPIO_PORT(EE, 0x0600, 3, 0),
+	TEGRA186_AON_GPIO_PORT(FF, 0x0000, 5, 0),
 };
 
 static const struct tegra_gpio_soc tegra186_aon_soc = {

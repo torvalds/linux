@@ -29,7 +29,6 @@
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10
 #define EMC_TIMING_CONTROL		0x28
-#define EMC_REFRESH			0x70
 #define EMC_NOP				0xdc
 #define EMC_SELF_REF			0xe0
 #define EMC_MRW				0xe8
@@ -44,6 +43,8 @@
 #define EMC_ZQ_CAL			0x2ec
 #define EMC_XM2VTTGENPADCTRL		0x310
 #define EMC_XM2VTTGENPADCTRL2		0x314
+
+#define MC_EMEM_ARB_CFG			0x90
 
 #define PMC_CTRL			0x0
 #define PMC_CTRL_SIDE_EFFECT_LP0 (1 << 14) /* enter LP0 when CPU pwr gated */
@@ -419,6 +420,22 @@ _pll_m_c_x_done:
 	movweq	r0, #:lower16:TEGRA124_EMC_BASE
 	movteq	r0, #:upper16:TEGRA124_EMC_BASE
 
+	cmp	r10, #TEGRA30
+	moveq	r2, #0x20
+	movweq	r4, #:lower16:TEGRA_MC_BASE
+	movteq	r4, #:upper16:TEGRA_MC_BASE
+	cmp	r10, #TEGRA114
+	moveq	r2, #0x34
+	movweq	r4, #:lower16:TEGRA114_MC_BASE
+	movteq	r4, #:upper16:TEGRA114_MC_BASE
+	cmp	r10, #TEGRA124
+	moveq	r2, #0x20
+	movweq	r4, #:lower16:TEGRA124_MC_BASE
+	movteq	r4, #:upper16:TEGRA124_MC_BASE
+
+	ldr	r1, [r5, r2]		@ restore MC_EMEM_ARB_CFG
+	str	r1, [r4, #MC_EMEM_ARB_CFG]
+
 exit_self_refresh:
 	ldr	r1, [r5, #0xC]		@ restore EMC_XM2VTTGENPADCTRL
 	str	r1, [r0, #EMC_XM2VTTGENPADCTRL]
@@ -459,7 +476,6 @@ emc_wait_auto_cal_onetime:
 	cmp	r10, #TEGRA30
 	streq	r1, [r0, #EMC_NOP]
 	streq	r1, [r0, #EMC_NOP]
-	streq	r1, [r0, #EMC_REFRESH]
 
 	emc_device_mask r1, r0
 
@@ -521,6 +537,8 @@ zcal_done:
 	ldr	r1, [r5, #0x0]		@ restore EMC_CFG
 	str	r1, [r0, #EMC_CFG]
 
+	emc_timing_update r1, r0
+
 	/* Tegra114 had dual EMC channel, now config the other one */
 	cmp	r10, #TEGRA114
 	bne	__no_dual_emc_chanl
@@ -546,6 +564,7 @@ tegra30_sdram_pad_address:
 	.word	TEGRA_PMC_BASE + PMC_IO_DPD_STATUS			@0x14
 	.word	TEGRA_CLK_RESET_BASE + CLK_RESET_CLK_SOURCE_MSELECT	@0x18
 	.word	TEGRA_CLK_RESET_BASE + CLK_RESET_SCLK_BURST		@0x1c
+	.word	TEGRA_MC_BASE + MC_EMEM_ARB_CFG				@0x20
 tegra30_sdram_pad_address_end:
 
 tegra114_sdram_pad_address:
@@ -562,6 +581,7 @@ tegra114_sdram_pad_address:
 	.word	TEGRA_EMC1_BASE + EMC_AUTO_CAL_INTERVAL			@0x28
 	.word	TEGRA_EMC1_BASE + EMC_XM2VTTGENPADCTRL			@0x2c
 	.word	TEGRA_EMC1_BASE + EMC_XM2VTTGENPADCTRL2			@0x30
+	.word	TEGRA114_MC_BASE + MC_EMEM_ARB_CFG			@0x34
 tegra114_sdram_pad_adress_end:
 
 tegra124_sdram_pad_address:
@@ -573,6 +593,7 @@ tegra124_sdram_pad_address:
 	.word	TEGRA_PMC_BASE + PMC_IO_DPD_STATUS			@0x14
 	.word	TEGRA_CLK_RESET_BASE + CLK_RESET_CLK_SOURCE_MSELECT	@0x18
 	.word	TEGRA_CLK_RESET_BASE + CLK_RESET_SCLK_BURST		@0x1c
+	.word	TEGRA124_MC_BASE + MC_EMEM_ARB_CFG			@0x20
 tegra124_sdram_pad_address_end:
 
 tegra30_sdram_pad_size:

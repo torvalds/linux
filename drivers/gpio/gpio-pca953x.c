@@ -65,7 +65,7 @@
 
 #define PCA_INT			0x0100
 #define PCA_PCAL		0x0200
-#define PCA_LATCH_INT (PCA_PCAL | PCA_INT)
+#define PCA_LATCH_INT		(PCA_PCAL | PCA_INT)
 #define PCA953X_TYPE		0x1000
 #define PCA957X_TYPE		0x2000
 #define PCA_TYPE_MASK		0xF000
@@ -88,8 +88,9 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9575", 16 | PCA957X_TYPE | PCA_INT, },
 	{ "pca9698", 40 | PCA953X_TYPE, },
 
-	{ "pcal6524", 24 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
-	{ "pcal9555a", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
+	{ "pcal6416", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
+	{ "pcal6524", 24 | PCA953X_TYPE | PCA_LATCH_INT, },
+	{ "pcal9555a", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
 
 	{ "max7310", 8  | PCA953X_TYPE, },
 	{ "max7312", 16 | PCA953X_TYPE | PCA_INT, },
@@ -108,7 +109,7 @@ static const struct i2c_device_id pca953x_id[] = {
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
 
 static const struct acpi_device_id pca953x_acpi_ids[] = {
-	{ "INT3491", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
+	{ "INT3491", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
@@ -150,6 +151,7 @@ struct pca953x_chip {
 	u8 irq_stat[MAX_BANK];
 	u8 irq_trig_raise[MAX_BANK];
 	u8 irq_trig_fall[MAX_BANK];
+	struct irq_chip irq_chip;
 #endif
 
 	struct i2c_client *client;
@@ -178,6 +180,8 @@ static int pca953x_bank_shift(struct pca953x_chip *chip)
 #define PCA957x_BANK_OUTPUT	BIT(5)
 
 #define PCAL9xxx_BANK_IN_LATCH	BIT(8 + 2)
+#define PCAL9xxx_BANK_PULL_EN	BIT(8 + 3)
+#define PCAL9xxx_BANK_PULL_SEL	BIT(8 + 4)
 #define PCAL9xxx_BANK_IRQ_MASK	BIT(8 + 5)
 #define PCAL9xxx_BANK_IRQ_STAT	BIT(8 + 6)
 
@@ -199,6 +203,8 @@ static int pca953x_bank_shift(struct pca953x_chip *chip)
  * - Extended set, above 0x40, often chip specific.
  *   - PCAL6524/PCAL9555A with custom PCAL IRQ handling:
  *     Input latch register		0x40 + 2 * bank_size	RW
+ *     Pull-up/pull-down enable reg	0x40 + 3 * bank_size    RW
+ *     Pull-up/pull-down select reg	0x40 + 4 * bank_size    RW
  *     Interrupt mask register		0x40 + 5 * bank_size	RW
  *     Interrupt status register	0x40 + 6 * bank_size	R
  *
@@ -247,7 +253,8 @@ static bool pca953x_readable_register(struct device *dev, unsigned int reg)
 	}
 
 	if (chip->driver_data & PCA_PCAL) {
-		bank |= PCAL9xxx_BANK_IN_LATCH | PCAL9xxx_BANK_IRQ_MASK |
+		bank |= PCAL9xxx_BANK_IN_LATCH | PCAL9xxx_BANK_PULL_EN |
+			PCAL9xxx_BANK_PULL_SEL | PCAL9xxx_BANK_IRQ_MASK |
 			PCAL9xxx_BANK_IRQ_STAT;
 	}
 
@@ -268,7 +275,8 @@ static bool pca953x_writeable_register(struct device *dev, unsigned int reg)
 	}
 
 	if (chip->driver_data & PCA_PCAL)
-		bank |= PCAL9xxx_BANK_IN_LATCH | PCAL9xxx_BANK_IRQ_MASK;
+		bank |= PCAL9xxx_BANK_IN_LATCH | PCAL9xxx_BANK_PULL_EN |
+			PCAL9xxx_BANK_PULL_SEL | PCAL9xxx_BANK_IRQ_MASK;
 
 	return pca953x_check_register(chip, reg, bank);
 }
@@ -473,6 +481,61 @@ exit:
 	mutex_unlock(&chip->i2c_lock);
 }
 
+static int pca953x_gpio_set_pull_up_down(struct pca953x_chip *chip,
+					 unsigned int offset,
+					 unsigned long config)
+{
+	u8 pull_en_reg = pca953x_recalc_addr(chip, PCAL953X_PULL_EN, offset,
+					     true, false);
+	u8 pull_sel_reg = pca953x_recalc_addr(chip, PCAL953X_PULL_SEL, offset,
+					      true, false);
+	u8 bit = BIT(offset % BANK_SZ);
+	int ret;
+
+	/*
+	 * pull-up/pull-down configuration requires PCAL extended
+	 * registers
+	 */
+	if (!(chip->driver_data & PCA_PCAL))
+		return -ENOTSUPP;
+
+	mutex_lock(&chip->i2c_lock);
+
+	/* Disable pull-up/pull-down */
+	ret = regmap_write_bits(chip->regmap, pull_en_reg, bit, 0);
+	if (ret)
+		goto exit;
+
+	/* Configure pull-up/pull-down */
+	if (config == PIN_CONFIG_BIAS_PULL_UP)
+		ret = regmap_write_bits(chip->regmap, pull_sel_reg, bit, bit);
+	else if (config == PIN_CONFIG_BIAS_PULL_DOWN)
+		ret = regmap_write_bits(chip->regmap, pull_sel_reg, bit, 0);
+	if (ret)
+		goto exit;
+
+	/* Enable pull-up/pull-down */
+	ret = regmap_write_bits(chip->regmap, pull_en_reg, bit, bit);
+
+exit:
+	mutex_unlock(&chip->i2c_lock);
+	return ret;
+}
+
+static int pca953x_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
+				   unsigned long config)
+{
+	struct pca953x_chip *chip = gpiochip_get_data(gc);
+
+	switch (config) {
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		return pca953x_gpio_set_pull_up_down(chip, offset, config);
+	default:
+		return -ENOTSUPP;
+	}
+}
+
 static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 {
 	struct gpio_chip *gc;
@@ -485,6 +548,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->set = pca953x_gpio_set_value;
 	gc->get_direction = pca953x_gpio_get_direction;
 	gc->set_multiple = pca953x_gpio_set_multiple;
+	gc->set_config = pca953x_gpio_set_config;
 	gc->can_sleep = true;
 
 	gc->base = chip->gpio_start;
@@ -510,6 +574,14 @@ static void pca953x_irq_unmask(struct irq_data *d)
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
 
 	chip->irq_mask[d->hwirq / BANK_SZ] |= 1 << (d->hwirq % BANK_SZ);
+}
+
+static int pca953x_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct pca953x_chip *chip = gpiochip_get_data(gc);
+
+	return irq_set_irq_wake(chip->client->irq, on);
 }
 
 static void pca953x_irq_bus_lock(struct irq_data *d)
@@ -587,22 +659,13 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 
 static void pca953x_irq_shutdown(struct irq_data *d)
 {
-	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct pca953x_chip *chip = gpiochip_get_data(gc);
 	u8 mask = 1 << (d->hwirq % BANK_SZ);
 
 	chip->irq_trig_raise[d->hwirq / BANK_SZ] &= ~mask;
 	chip->irq_trig_fall[d->hwirq / BANK_SZ] &= ~mask;
 }
-
-static struct irq_chip pca953x_irq_chip = {
-	.name			= "pca953x",
-	.irq_mask		= pca953x_irq_mask,
-	.irq_unmask		= pca953x_irq_unmask,
-	.irq_bus_lock		= pca953x_irq_bus_lock,
-	.irq_bus_sync_unlock	= pca953x_irq_bus_sync_unlock,
-	.irq_set_type		= pca953x_irq_set_type,
-	.irq_shutdown		= pca953x_irq_shutdown,
-};
 
 static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
 {
@@ -699,55 +762,64 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 			     int irq_base)
 {
 	struct i2c_client *client = chip->client;
+	struct irq_chip *irq_chip = &chip->irq_chip;
 	int reg_direction[MAX_BANK];
 	int ret, i;
 
-	if (client->irq && irq_base != -1
-			&& (chip->driver_data & PCA_INT)) {
-		ret = pca953x_read_regs(chip,
-					chip->regs->input, chip->irq_stat);
-		if (ret)
-			return ret;
+	if (!client->irq)
+		return 0;
 
-		/*
-		 * There is no way to know which GPIO line generated the
-		 * interrupt.  We have to rely on the previous read for
-		 * this purpose.
-		 */
-		regmap_bulk_read(chip->regmap, chip->regs->direction,
-				 reg_direction, NBANK(chip));
-		for (i = 0; i < NBANK(chip); i++)
-			chip->irq_stat[i] &= reg_direction[i];
-		mutex_init(&chip->irq_lock);
+	if (irq_base == -1)
+		return 0;
 
-		ret = devm_request_threaded_irq(&client->dev,
-					client->irq,
-					   NULL,
-					   pca953x_irq_handler,
-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT |
-						   IRQF_SHARED,
-					   dev_name(&client->dev), chip);
-		if (ret) {
-			dev_err(&client->dev, "failed to request irq %d\n",
-				client->irq);
-			return ret;
-		}
+	if (!(chip->driver_data & PCA_INT))
+		return 0;
 
-		ret =  gpiochip_irqchip_add_nested(&chip->gpio_chip,
-						   &pca953x_irq_chip,
-						   irq_base,
-						   handle_simple_irq,
-						   IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(&client->dev,
-				"could not connect irqchip to gpiochip\n");
-			return ret;
-		}
+	ret = pca953x_read_regs(chip, chip->regs->input, chip->irq_stat);
+	if (ret)
+		return ret;
 
-		gpiochip_set_nested_irqchip(&chip->gpio_chip,
-					    &pca953x_irq_chip,
-					    client->irq);
+	/*
+	 * There is no way to know which GPIO line generated the
+	 * interrupt.  We have to rely on the previous read for
+	 * this purpose.
+	 */
+	regmap_bulk_read(chip->regmap, chip->regs->direction, reg_direction,
+			 NBANK(chip));
+	for (i = 0; i < NBANK(chip); i++)
+		chip->irq_stat[i] &= reg_direction[i];
+	mutex_init(&chip->irq_lock);
+
+	ret = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, pca953x_irq_handler,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT |
+					IRQF_SHARED,
+					dev_name(&client->dev), chip);
+	if (ret) {
+		dev_err(&client->dev, "failed to request irq %d\n",
+			client->irq);
+		return ret;
 	}
+
+	irq_chip->name = dev_name(&chip->client->dev);
+	irq_chip->irq_mask = pca953x_irq_mask;
+	irq_chip->irq_unmask = pca953x_irq_unmask;
+	irq_chip->irq_set_wake = pca953x_irq_set_wake;
+	irq_chip->irq_bus_lock = pca953x_irq_bus_lock;
+	irq_chip->irq_bus_sync_unlock = pca953x_irq_bus_sync_unlock;
+	irq_chip->irq_set_type = pca953x_irq_set_type;
+	irq_chip->irq_shutdown = pca953x_irq_shutdown;
+
+	ret =  gpiochip_irqchip_add_nested(&chip->gpio_chip, irq_chip,
+					   irq_base, handle_simple_irq,
+					   IRQ_TYPE_NONE);
+	if (ret) {
+		dev_err(&client->dev,
+			"could not connect irqchip to gpiochip\n");
+		return ret;
+	}
+
+	gpiochip_set_nested_irqchip(&chip->gpio_chip, irq_chip, client->irq);
 
 	return 0;
 }

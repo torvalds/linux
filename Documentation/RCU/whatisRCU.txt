@@ -302,7 +302,7 @@ rcu_dereference()
 	must prohibit.	The rcu_dereference_protected() variant takes
 	a lockdep expression to indicate which locks must be acquired
 	by the caller. If the indicated protection is not provided,
-	a lockdep splat is emitted.  See RCU/Design/Requirements.html
+	a lockdep splat is emitted.  See RCU/Design/Requirements/Requirements.html
 	and the API's code comments for more details and example usage.
 
 The following diagram shows how each API communicates among the
@@ -560,7 +560,7 @@ presents two such "toy" implementations of RCU, one that is implemented
 in terms of familiar locking primitives, and another that more closely
 resembles "classic" RCU.  Both are way too simple for real-world use,
 lacking both functionality and performance.  However, they are useful
-in getting a feel for how RCU works.  See kernel/rcupdate.c for a
+in getting a feel for how RCU works.  See kernel/rcu/update.c for a
 production-quality implementation, and see:
 
 	http://www.rdrop.com/users/paulmck/RCU

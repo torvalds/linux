@@ -7,7 +7,7 @@
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *		Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+ *		Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 #ifndef __UVC_VIDEO_H__
 #define __UVC_VIDEO_H__

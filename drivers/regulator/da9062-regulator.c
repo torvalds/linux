@@ -126,7 +126,7 @@ static int da9062_set_current_limit(struct regulator_dev *rdev,
 	const struct da9062_regulator_info *rinfo = regl->info;
 	int n, tval;
 
-	for (n = 0; n < rinfo->n_current_limits; n++) {
+	for (n = rinfo->n_current_limits - 1; n >= 0; n--) {
 		tval = rinfo->current_limits[n];
 		if (tval >= min_ua && tval <= max_ua)
 			return regmap_field_write(regl->ilimit, n);
@@ -992,7 +992,6 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	const struct da9062_regulator_info *rinfo;
 	int irq, n, ret;
-	size_t size;
 	int max_regulators;
 
 	switch (chip->chip_type) {
@@ -1010,9 +1009,8 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate memory required by usable regulators */
-	size = sizeof(struct da9062_regulators) +
-		max_regulators * sizeof(struct da9062_regulator);
-	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators, regulator,
+				  max_regulators), GFP_KERNEL);
 	if (!regulators)
 		return -ENOMEM;
 
@@ -1029,31 +1027,50 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 		regl->desc.type = REGULATOR_VOLTAGE;
 		regl->desc.owner = THIS_MODULE;
 
-		if (regl->info->mode.reg)
+		if (regl->info->mode.reg) {
 			regl->mode = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->mode);
-		if (regl->info->suspend.reg)
+			if (IS_ERR(regl->mode))
+				return PTR_ERR(regl->mode);
+		}
+
+		if (regl->info->suspend.reg) {
 			regl->suspend = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->suspend);
-		if (regl->info->sleep.reg)
+			if (IS_ERR(regl->suspend))
+				return PTR_ERR(regl->suspend);
+		}
+
+		if (regl->info->sleep.reg) {
 			regl->sleep = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->sleep);
-		if (regl->info->suspend_sleep.reg)
+			if (IS_ERR(regl->sleep))
+				return PTR_ERR(regl->sleep);
+		}
+
+		if (regl->info->suspend_sleep.reg) {
 			regl->suspend_sleep = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->suspend_sleep);
-		if (regl->info->ilimit.reg)
+			if (IS_ERR(regl->suspend_sleep))
+				return PTR_ERR(regl->suspend_sleep);
+		}
+
+		if (regl->info->ilimit.reg) {
 			regl->ilimit = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->ilimit);
+			if (IS_ERR(regl->ilimit))
+				return PTR_ERR(regl->ilimit);
+		}
 
 		/* Register regulator */
 		memset(&config, 0, sizeof(config));

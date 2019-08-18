@@ -39,7 +39,7 @@ struct rdmacg_device {
  * APIs for RDMA/IB stack to publish when a device wants to
  * participate in resource accounting
  */
-int rdmacg_register_device(struct rdmacg_device *device);
+void rdmacg_register_device(struct rdmacg_device *device);
 void rdmacg_unregister_device(struct rdmacg_device *device);
 
 /* APIs for RDMA/IB stack to charge/uncharge pool specific resources */

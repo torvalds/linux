@@ -21,17 +21,25 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-
-#include <asm/mach-ath79/ar71xx_regs.h>
-#include <asm/mach-ath79/ath79_spi_platform.h>
+#include <linux/platform_data/spi-ath79.h>
 
 #define DRV_NAME	"ath79-spi"
 
 #define ATH79_SPI_RRW_DELAY_FACTOR	12000
 #define MHZ				(1000 * 1000)
+
+#define AR71XX_SPI_REG_FS		0x00	/* Function Select */
+#define AR71XX_SPI_REG_CTRL		0x04	/* SPI Control */
+#define AR71XX_SPI_REG_IOC		0x08	/* SPI I/O Control */
+#define AR71XX_SPI_REG_RDS		0x0c	/* Read Data Shift */
+
+#define AR71XX_SPI_FS_GPIO		BIT(0)	/* Enable GPIO mode */
+
+#define AR71XX_SPI_IOC_DO		BIT(0)	/* Data Out pin */
+#define AR71XX_SPI_IOC_CLK		BIT(8)	/* CLK pin */
+#define AR71XX_SPI_IOC_CS(n)		BIT(16 + (n))
 
 struct ath79_spi {
 	struct spi_bitbang	bitbang;
@@ -67,31 +75,14 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int cs_high = (spi->mode & SPI_CS_HIGH) ? is_active : !is_active;
+	u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
 
-	if (is_active) {
-		/* set initial clock polarity */
-		if (spi->mode & SPI_CPOL)
-			sp->ioc_base |= AR71XX_SPI_IOC_CLK;
-		else
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CLK;
+	if (cs_high)
+		sp->ioc_base |= cs_bit;
+	else
+		sp->ioc_base &= ~cs_bit;
 
-		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
-	}
-
-	if (gpio_is_valid(spi->cs_gpio)) {
-		/* SPI is normally active-low */
-		gpio_set_value_cansleep(spi->cs_gpio, cs_high);
-	} else {
-		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
-
-		if (cs_high)
-			sp->ioc_base |= cs_bit;
-		else
-			sp->ioc_base &= ~cs_bit;
-
-		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
-	}
-
+	ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 }
 
 static void ath79_spi_enable(struct ath79_spi *sp)
@@ -103,6 +94,9 @@ static void ath79_spi_enable(struct ath79_spi *sp)
 	sp->reg_ctrl = ath79_spi_rr(sp, AR71XX_SPI_REG_CTRL);
 	sp->ioc_base = ath79_spi_rr(sp, AR71XX_SPI_REG_IOC);
 
+	/* clear clk and mosi in the base state */
+	sp->ioc_base &= ~(AR71XX_SPI_IOC_DO | AR71XX_SPI_IOC_CLK);
+
 	/* TODO: setup speed? */
 	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, 0x43);
 }
@@ -113,66 +107,6 @@ static void ath79_spi_disable(struct ath79_spi *sp)
 	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, sp->reg_ctrl);
 	/* disable GPIO mode */
 	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, 0);
-}
-
-static int ath79_spi_setup_cs(struct spi_device *spi)
-{
-	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
-	int status;
-
-	status = 0;
-	if (gpio_is_valid(spi->cs_gpio)) {
-		unsigned long flags;
-
-		flags = GPIOF_DIR_OUT;
-		if (spi->mode & SPI_CS_HIGH)
-			flags |= GPIOF_INIT_LOW;
-		else
-			flags |= GPIOF_INIT_HIGH;
-
-		status = gpio_request_one(spi->cs_gpio, flags,
-					  dev_name(&spi->dev));
-	} else {
-		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
-
-		if (spi->mode & SPI_CS_HIGH)
-			sp->ioc_base &= ~cs_bit;
-		else
-			sp->ioc_base |= cs_bit;
-
-		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
-	}
-
-	return status;
-}
-
-static void ath79_spi_cleanup_cs(struct spi_device *spi)
-{
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_free(spi->cs_gpio);
-}
-
-static int ath79_spi_setup(struct spi_device *spi)
-{
-	int status = 0;
-
-	if (!spi->controller_state) {
-		status = ath79_spi_setup_cs(spi);
-		if (status)
-			return status;
-	}
-
-	status = spi_bitbang_setup(spi);
-	if (status && !spi->controller_state)
-		ath79_spi_cleanup_cs(spi);
-
-	return status;
-}
-
-static void ath79_spi_cleanup(struct spi_device *spi)
-{
-	ath79_spi_cleanup_cs(spi);
-	spi_bitbang_cleanup(spi);
 }
 
 static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned int nsecs,
@@ -225,9 +159,10 @@ static int ath79_spi_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 
+	master->use_gpio_descriptors = true;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
-	master->setup = ath79_spi_setup;
-	master->cleanup = ath79_spi_cleanup;
+	master->setup = spi_bitbang_setup;
+	master->cleanup = spi_bitbang_cleanup;
 	if (pdata) {
 		master->bus_num = pdata->bus_num;
 		master->num_chipselect = pdata->num_chipselect;
@@ -236,7 +171,6 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	sp->bitbang.master = master;
 	sp->bitbang.chipselect = ath79_spi_chipselect;
 	sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
-	sp->bitbang.setup_transfer = spi_bitbang_setup_transfer;
 	sp->bitbang.flags = SPI_CS_HIGH;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);

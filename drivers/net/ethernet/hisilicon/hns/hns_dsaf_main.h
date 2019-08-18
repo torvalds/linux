@@ -467,4 +467,6 @@ int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
 int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port);
 
+int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
+
 #endif /* __HNS_DSAF_MAIN_H__ */

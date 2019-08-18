@@ -133,8 +133,8 @@ static struct vop_hw_ops vop_hw_ops = {
 	.get_dp = __mic_get_dp,
 	.get_remote_dp = __mic_get_remote_dp,
 	.send_intr = __mic_send_intr,
-	.ioremap = __mic_ioremap,
-	.iounmap = __mic_iounmap,
+	.remap = __mic_ioremap,
+	.unmap = __mic_iounmap,
 };
 
 static inline struct mic_device *scdev_to_mdev(struct scif_hw_dev *scdev)
@@ -315,8 +315,8 @@ static struct scif_hw_ops scif_hw_ops = {
 	.ack_interrupt = ___mic_ack_interrupt,
 	.next_db = ___mic_next_db,
 	.send_intr = ___mic_send_intr,
-	.ioremap = ___mic_ioremap,
-	.iounmap = ___mic_iounmap,
+	.remap = ___mic_ioremap,
+	.unmap = ___mic_iounmap,
 };
 
 static inline struct mic_device *mbdev_to_mdev(struct mbus_device *mbdev)

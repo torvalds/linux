@@ -105,16 +105,17 @@ void rose_write_internal(struct sock *sk, int frametype)
 	struct sk_buff *skb;
 	unsigned char  *dptr;
 	unsigned char  lci1, lci2;
-	char buffer[100];
-	int len, faclen = 0;
+	int maxfaclen = 0;
+	int len, faclen;
+	int reserve;
 
-	len = AX25_BPQ_HEADER_LEN + AX25_MAX_HEADER_LEN + ROSE_MIN_LEN + 1;
+	reserve = AX25_BPQ_HEADER_LEN + AX25_MAX_HEADER_LEN + 1;
+	len = ROSE_MIN_LEN;
 
 	switch (frametype) {
 	case ROSE_CALL_REQUEST:
 		len   += 1 + ROSE_ADDR_LEN + ROSE_ADDR_LEN;
-		faclen = rose_create_facilities(buffer, rose);
-		len   += faclen;
+		maxfaclen = 256;
 		break;
 	case ROSE_CALL_ACCEPTED:
 	case ROSE_CLEAR_REQUEST:
@@ -123,15 +124,16 @@ void rose_write_internal(struct sock *sk, int frametype)
 		break;
 	}
 
-	if ((skb = alloc_skb(len, GFP_ATOMIC)) == NULL)
+	skb = alloc_skb(reserve + len + maxfaclen, GFP_ATOMIC);
+	if (!skb)
 		return;
 
 	/*
 	 *	Space for AX.25 header and PID.
 	 */
-	skb_reserve(skb, AX25_BPQ_HEADER_LEN + AX25_MAX_HEADER_LEN + 1);
+	skb_reserve(skb, reserve);
 
-	dptr = skb_put(skb, skb_tailroom(skb));
+	dptr = skb_put(skb, len);
 
 	lci1 = (rose->lci >> 8) & 0x0F;
 	lci2 = (rose->lci >> 0) & 0xFF;
@@ -146,7 +148,8 @@ void rose_write_internal(struct sock *sk, int frametype)
 		dptr   += ROSE_ADDR_LEN;
 		memcpy(dptr, &rose->source_addr, ROSE_ADDR_LEN);
 		dptr   += ROSE_ADDR_LEN;
-		memcpy(dptr, buffer, faclen);
+		faclen = rose_create_facilities(dptr, rose);
+		skb_put(skb, faclen);
 		dptr   += faclen;
 		break;
 

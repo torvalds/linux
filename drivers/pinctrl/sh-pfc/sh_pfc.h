@@ -126,7 +126,8 @@ struct pinmux_cfg_reg {
  * one for each possible combination of the register field bit values.
  */
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
-	.reg = r, .reg_width = r_width, .field_width = f_width,		\
+	.reg = r, .reg_width = r_width,					\
+	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width),	\
 	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])
 
 /*

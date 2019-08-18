@@ -353,6 +353,7 @@ struct cache_features {
 	enum cache_metadata_mode mode;
 	enum cache_io_mode io_mode;
 	unsigned metadata_version;
+	bool discard_passdown:1;
 };
 
 struct cache_stats {
@@ -1899,7 +1900,11 @@ static bool process_discard_bio(struct cache *cache, struct bio *bio)
 		b = to_dblock(from_dblock(b) + 1);
 	}
 
-	bio_endio(bio);
+	if (cache->features.discard_passdown) {
+		remap_to_origin(cache, bio);
+		generic_make_request(bio);
+	} else
+		bio_endio(bio);
 
 	return false;
 }
@@ -2233,13 +2238,14 @@ static void init_features(struct cache_features *cf)
 	cf->mode = CM_WRITE;
 	cf->io_mode = CM_IO_WRITEBACK;
 	cf->metadata_version = 1;
+	cf->discard_passdown = true;
 }
 
 static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 			  char **error)
 {
 	static const struct dm_arg _args[] = {
-		{0, 2, "Invalid number of cache feature arguments"},
+		{0, 3, "Invalid number of cache feature arguments"},
 	};
 
 	int r, mode_ctr = 0;
@@ -2273,6 +2279,9 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 
 		else if (!strcasecmp(arg, "metadata2"))
 			cf->metadata_version = 2;
+
+		else if (!strcasecmp(arg, "no_discard_passdown"))
+			cf->discard_passdown = false;
 
 		else {
 			*error = "Unrecognised cache feature requested";
@@ -2496,7 +2505,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	ti->num_discard_bios = 1;
 	ti->discards_supported = true;
-	ti->split_discard_bios = false;
 
 	ti->per_io_data_size = sizeof(struct per_bio_data);
 
@@ -3120,6 +3128,39 @@ static void cache_resume(struct dm_target *ti)
 	do_waker(&cache->waker.work);
 }
 
+static void emit_flags(struct cache *cache, char *result,
+		       unsigned maxlen, ssize_t *sz_ptr)
+{
+	ssize_t sz = *sz_ptr;
+	struct cache_features *cf = &cache->features;
+	unsigned count = (cf->metadata_version == 2) + !cf->discard_passdown + 1;
+
+	DMEMIT("%u ", count);
+
+	if (cf->metadata_version == 2)
+		DMEMIT("metadata2 ");
+
+	if (writethrough_mode(cache))
+		DMEMIT("writethrough ");
+
+	else if (passthrough_mode(cache))
+		DMEMIT("passthrough ");
+
+	else if (writeback_mode(cache))
+		DMEMIT("writeback ");
+
+	else {
+		DMEMIT("unknown ");
+		DMERR("%s: internal error: unknown io mode: %d",
+		      cache_device_name(cache), (int) cf->io_mode);
+	}
+
+	if (!cf->discard_passdown)
+		DMEMIT("no_discard_passdown ");
+
+	*sz_ptr = sz;
+}
+
 /*
  * Status format:
  *
@@ -3186,25 +3227,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		       (unsigned) atomic_read(&cache->stats.promotion),
 		       (unsigned long) atomic_read(&cache->nr_dirty));
 
-		if (cache->features.metadata_version == 2)
-			DMEMIT("2 metadata2 ");
-		else
-			DMEMIT("1 ");
-
-		if (writethrough_mode(cache))
-			DMEMIT("writethrough ");
-
-		else if (passthrough_mode(cache))
-			DMEMIT("passthrough ");
-
-		else if (writeback_mode(cache))
-			DMEMIT("writeback ");
-
-		else {
-			DMERR("%s: internal error: unknown io mode: %d",
-			      cache_device_name(cache), (int) cache->features.io_mode);
-			goto err;
-		}
+		emit_flags(cache, result, maxlen, &sz);
 
 		DMEMIT("2 migration_threshold %llu ", (unsigned long long) cache->migration_threshold);
 
@@ -3433,14 +3456,62 @@ static int cache_iterate_devices(struct dm_target *ti,
 	return r;
 }
 
+static bool origin_dev_supports_discard(struct block_device *origin_bdev)
+{
+	struct request_queue *q = bdev_get_queue(origin_bdev);
+
+	return q && blk_queue_discard(q);
+}
+
+/*
+ * If discard_passdown was enabled verify that the origin device
+ * supports discards.  Disable discard_passdown if not.
+ */
+static void disable_passdown_if_not_supported(struct cache *cache)
+{
+	struct block_device *origin_bdev = cache->origin_dev->bdev;
+	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
+	const char *reason = NULL;
+	char buf[BDEVNAME_SIZE];
+
+	if (!cache->features.discard_passdown)
+		return;
+
+	if (!origin_dev_supports_discard(origin_bdev))
+		reason = "discard unsupported";
+
+	else if (origin_limits->max_discard_sectors < cache->sectors_per_block)
+		reason = "max discard sectors smaller than a block";
+
+	if (reason) {
+		DMWARN("Origin device (%s) %s: Disabling discard passdown.",
+		       bdevname(origin_bdev, buf), reason);
+		cache->features.discard_passdown = false;
+	}
+}
+
 static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 {
+	struct block_device *origin_bdev = cache->origin_dev->bdev;
+	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
+
+	if (!cache->features.discard_passdown) {
+		/* No passdown is done so setting own virtual limits */
+		limits->max_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
+						    cache->origin_sectors);
+		limits->discard_granularity = cache->discard_block_size << SECTOR_SHIFT;
+		return;
+	}
+
 	/*
-	 * FIXME: these limits may be incompatible with the cache device
+	 * cache_iterate_devices() is stacking both origin and fast device limits
+	 * but discards aren't passed to fast device, so inherit origin's limits.
 	 */
-	limits->max_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
-					    cache->origin_sectors);
-	limits->discard_granularity = cache->discard_block_size << SECTOR_SHIFT;
+	limits->max_discard_sectors = origin_limits->max_discard_sectors;
+	limits->max_hw_discard_sectors = origin_limits->max_hw_discard_sectors;
+	limits->discard_granularity = origin_limits->discard_granularity;
+	limits->discard_alignment = origin_limits->discard_alignment;
+	limits->discard_misaligned = origin_limits->discard_misaligned;
 }
 
 static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
@@ -3457,6 +3528,8 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		blk_limits_io_min(limits, cache->sectors_per_block << SECTOR_SHIFT);
 		blk_limits_io_opt(limits, cache->sectors_per_block << SECTOR_SHIFT);
 	}
+
+	disable_passdown_if_not_supported(cache);
 	set_discard_limits(cache, limits);
 }
 
@@ -3464,7 +3537,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {2, 0, 0},
+	.version = {2, 1, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,

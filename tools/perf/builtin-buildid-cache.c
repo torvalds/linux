@@ -416,8 +416,8 @@ int cmd_buildid_cache(int argc, const char **argv)
 		nsi = nsinfo__new(ns_id);
 
 	if (missing_filename) {
-		data.file.path = missing_filename;
-		data.force     = force;
+		data.path  = missing_filename;
+		data.force = force;
 
 		session = perf_session__new(&data, false, NULL);
 		if (session == NULL)

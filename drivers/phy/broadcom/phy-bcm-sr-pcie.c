@@ -78,8 +78,8 @@ struct sr_pcie_phy_core {
 static const u8 pipemux_table[] = {
 	/* PIPEMUX = 0, EP 1x16 */
 	0x00,
-	/* PIPEMUX = 1, EP 2x8 */
-	0x00,
+	/* PIPEMUX = 1, EP 1x8 + RC 1x8, core 7 */
+	0x80,
 	/* PIPEMUX = 2, EP 4x4 */
 	0x00,
 	/* PIPEMUX = 3, RC 2x8, cores 0, 7 */

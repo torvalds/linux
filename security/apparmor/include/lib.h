@@ -16,6 +16,7 @@
 
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/lsm_hooks.h>
 
 #include "match.h"
 
@@ -54,6 +55,9 @@ char *aa_split_fqname(char *args, char **ns_name);
 const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 			     size_t *ns_len);
 void aa_info_message(const char *str);
+
+/* Security blob offsets */
+extern struct lsm_blob_sizes apparmor_blob_sizes;
 
 /**
  * aa_strneq - compare null terminated @str to a non null terminated substring

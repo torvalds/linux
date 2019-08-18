@@ -3099,7 +3099,7 @@ If you block forever in one of a given domain's SRCU read-side critical
 sections, then that domain's grace periods will also be blocked forever.
 Of course, one good way to block forever is to deadlock, which can
 happen if any operation in a given domain's SRCU read-side critical
-section can block waiting, either directly or indirectly, for that domain's
+section can wait, either directly or indirectly, for that domain's
 grace period to elapse.
 For example, this results in a self-deadlock:
 
@@ -3139,12 +3139,18 @@ API, which, in combination with <tt>srcu_read_unlock()</tt>,
 guarantees a full memory barrier.
 
 <p>
-Also unlike other RCU flavors, SRCU's callbacks-wait function
-<tt>srcu_barrier()</tt> may be invoked from CPU-hotplug notifiers,
-though this is not necessarily a good idea.
-The reason that this is possible is that SRCU is insensitive
-to whether or not a CPU is online, which means that <tt>srcu_barrier()</tt>
-need not exclude CPU-hotplug operations.
+Also unlike other RCU flavors, <tt>synchronize_srcu()</tt> may <b>not</b>
+be invoked from CPU-hotplug notifiers, due to the fact that SRCU grace
+periods make use of timers and the possibility of timers being temporarily
+&ldquo;stranded&rdquo; on the outgoing CPU.
+This stranding of timers means that timers posted to the outgoing CPU
+will not fire until late in the CPU-hotplug process.
+The problem is that if a notifier is waiting on an SRCU grace period,
+that grace period is waiting on a timer, and that timer is stranded on the
+outgoing CPU, then the notifier will never be awakened, in other words,
+deadlock has occurred.
+This same situation of course also prohibits <tt>srcu_barrier()</tt>
+from being invoked from CPU-hotplug notifiers.
 
 <p>
 SRCU also differs from other RCU flavors in that SRCU's expedited and

@@ -78,7 +78,6 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
-	disable-wp;
 	non-removable;
 	vmmc-supply = <&vcc_io>;
 	vqmmc-supply = <&vcc18_flash>;

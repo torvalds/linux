@@ -86,7 +86,7 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 		return -EFAULT;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
 	set_fs(old_fs);
 
@@ -111,7 +111,7 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 
 	ip -= 4;
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
 	set_fs(old_fs);
 
@@ -135,7 +135,7 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
 		return -EFAULT;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
 	set_fs(old_fs);
 

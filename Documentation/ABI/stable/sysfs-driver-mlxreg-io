@@ -21,7 +21,19 @@ Description:	These files show with which CPLD versions have been burned
 		The files are read only.
 
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
-							cpld3_version
+							fan_dir
+
+Date:		December 2018
+KernelVersion:	5.0
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file shows the system fans direction:
+		forward direction - relevant bit is set 0;
+		reversed direction - relevant bit is set 1.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/
+							jtag_enable
 
 Date:		November 2018
 KernelVersion:	5.0

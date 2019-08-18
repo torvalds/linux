@@ -98,7 +98,7 @@ static int isl6421_set_voltage(struct dvb_frontend *fe,
 	if (ret != 2)
 		return -EIO;
 
-	/* Store off status now incase future commands fail */
+	/* Store off status now in case future commands fail */
 	isl6421->is_off = is_off;
 
 	/* On overflow, the device will try again after 900 ms (typically) */

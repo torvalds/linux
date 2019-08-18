@@ -133,6 +133,19 @@ config IR_IMON_DECODER
 	   remote control and you would like to use it with a raw IR
 	   receiver, or if you wish to use an encoder to transmit this IR.
 
+config IR_RCMM_DECODER
+	tristate "Enable IR raw decoder for the RC-MM protocol"
+	depends on RC_CORE
+	help
+	   Enable this option when you have IR with RC-MM protocol, and
+	   you need the software decoder. The driver supports 12,
+	   24 and 32 bits RC-MM variants. You can enable or disable the
+	   different modes using the following RC protocol keywords:
+	   'rc-mm-12', 'rc-mm-24' and 'rc-mm-32'.
+
+	   To compile this driver as a module, choose M here: the module
+	   will be called ir-rcmm-decoder.
+
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES
@@ -240,7 +253,7 @@ config IR_FINTEK
 	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
-	   /transciever made by Fintek. This chip is found on assorted
+	   /transceiver made by Fintek. This chip is found on assorted
 	   Jetway motherboards (and of course, possibly others).
 
 	   To compile this driver as a module, choose M here: the
@@ -274,7 +287,7 @@ config IR_NUVOTON
 	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
-	   /transciever made by Nuvoton (formerly Winbond). This chip is
+	   /transceiver made by Nuvoton (formerly Winbond). This chip is
 	   found in the ASRock ION 330HT, as well as assorted Intel
 	   DP55-series motherboards (and of course, possibly others).
 

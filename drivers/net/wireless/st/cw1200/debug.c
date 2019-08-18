@@ -371,28 +371,14 @@ int cw1200_debug_init(struct cw1200_common *priv)
 
 	d->debugfs_phy = debugfs_create_dir("cw1200",
 					    priv->hw->wiphy->debugfsdir);
-	if (!d->debugfs_phy)
-		goto err;
-
-	if (!debugfs_create_file("status", 0400, d->debugfs_phy,
-				 priv, &cw1200_status_fops))
-		goto err;
-
-	if (!debugfs_create_file("counters", 0400, d->debugfs_phy,
-				 priv, &cw1200_counters_fops))
-		goto err;
-
-	if (!debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy,
-				 priv, &fops_wsm_dumps))
-		goto err;
+	debugfs_create_file("status", 0400, d->debugfs_phy, priv,
+			    &cw1200_status_fops);
+	debugfs_create_file("counters", 0400, d->debugfs_phy, priv,
+			    &cw1200_counters_fops);
+	debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy, priv,
+			    &fops_wsm_dumps);
 
 	return 0;
-
-err:
-	priv->debug = NULL;
-	debugfs_remove_recursive(d->debugfs_phy);
-	kfree(d);
-	return ret;
 }
 
 void cw1200_debug_release(struct cw1200_common *priv)

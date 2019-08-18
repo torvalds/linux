@@ -207,7 +207,6 @@ struct srpt_rw_ctx {
  * @rw_ctxs:     RDMA read/write contexts.
  * @imm_sg:      Scatterlist for immediate data.
  * @rdma_cqe:    RDMA completion queue element.
- * @free_list:   Node in srpt_rdma_ch.free_list.
  * @state:       I/O context state.
  * @cmd:         Target core command data structure.
  * @sense_data:  SCSI sense data.
@@ -227,7 +226,6 @@ struct srpt_send_ioctx {
 	struct scatterlist	imm_sg;
 
 	struct ib_cqe		rdma_cqe;
-	struct list_head	free_list;
 	enum srpt_command_state	state;
 	struct se_cmd		cmd;
 	u8			n_rdma;
@@ -277,7 +275,6 @@ enum rdma_ch_state {
  * @req_lim_delta: Number of credits not yet sent back to the initiator.
  * @imm_data_offset: Offset from start of SRP_CMD for immediate data.
  * @spinlock:      Protects free_list and state.
- * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
  * @using_rdma_cm: Whether the RDMA/CM or IB/CM is used for this channel.
  * @processing_wait_list: Whether or not cmd_wait_list is being processed.
@@ -318,7 +315,6 @@ struct srpt_rdma_ch {
 	atomic_t		req_lim_delta;
 	u16			imm_data_offset;
 	spinlock_t		spinlock;
-	struct list_head	free_list;
 	enum rdma_ch_state	state;
 	struct kmem_cache	*rsp_buf_cache;
 	struct srpt_send_ioctx	**ioctx_ring;

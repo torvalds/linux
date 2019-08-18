@@ -57,8 +57,6 @@
 		compatible = "gpio-keys-polled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_joystick_pins>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		poll-interval = <100>;
 		autorepeat;
 

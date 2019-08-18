@@ -703,6 +703,17 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 	int qed_status = 0;
 	u32 offset = 0;
 
+	if (p_hwfn->cdev->recov_in_prog) {
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_HW,
+			   "Recovery is in progress. Avoid DMAE transaction [{src: addr 0x%llx, type %d}, {dst: addr 0x%llx, type %d}, size %d].\n",
+			   src_addr, src_type, dst_addr, dst_type,
+			   size_in_dwords);
+
+		/* Let the flow complete w/o any error handling */
+		return 0;
+	}
+
 	qed_dmae_opcode(p_hwfn,
 			(src_type == QED_DMAE_ADDRESS_GRC),
 			(dst_type == QED_DMAE_ADDRESS_GRC),

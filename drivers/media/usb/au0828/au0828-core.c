@@ -234,7 +234,7 @@ static void au0828_media_graph_notify(struct media_entity *new,
 	if (!new) {
 		/*
 		 * Called during au0828 probe time to connect
-		 * entites that were created prior to registering
+		 * entities that were created prior to registering
 		 * the notify handler. Find mixer and decoder.
 		*/
 		media_device_for_each_entity(entity, dev->media_dev) {

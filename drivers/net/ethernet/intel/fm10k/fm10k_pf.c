@@ -1148,7 +1148,7 @@ static void fm10k_iov_update_stats_pf(struct fm10k_hw *hw,
  *  @results: Pointer array to message, results[0] is pointer to message
  *  @mbx: Pointer to mailbox information structure
  *
- *  This function is a default handler for MSI-X requests from the VF.  The
+ *  This function is a default handler for MSI-X requests from the VF. The
  *  assumption is that in this case it is acceptable to just directly
  *  hand off the message from the VF to the underlying shared code.
  **/

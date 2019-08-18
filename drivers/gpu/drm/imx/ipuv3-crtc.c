@@ -4,19 +4,19 @@
  *
  * Copyright (C) 2011 Sascha Hauer, Pengutronix
  */
+#include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/module.h>
-#include <linux/export.h>
 #include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <linux/clk.h>
-#include <linux/errno.h>
-#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include <video/imx-ipu-v3.h>
 #include "imx-drm.h"
@@ -34,6 +34,7 @@ struct ipu_crtc {
 	struct ipu_dc		*dc;
 	struct ipu_di		*di;
 	int			irq;
+	struct drm_pending_vblank_event *event;
 };
 
 static inline struct ipu_crtc *to_ipu_crtc(struct drm_crtc *crtc)
@@ -70,7 +71,7 @@ static void ipu_crtc_disable_planes(struct ipu_crtc *ipu_crtc,
 	if (disable_partial)
 		ipu_plane_disable(ipu_crtc->plane[1], true);
 	if (disable_full)
-		ipu_plane_disable(ipu_crtc->plane[0], false);
+		ipu_plane_disable(ipu_crtc->plane[0], true);
 }
 
 static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -173,8 +174,31 @@ static const struct drm_crtc_funcs ipu_crtc_funcs = {
 static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 {
 	struct ipu_crtc *ipu_crtc = dev_id;
+	struct drm_crtc *crtc = &ipu_crtc->base;
+	unsigned long flags;
+	int i;
 
-	drm_crtc_handle_vblank(&ipu_crtc->base);
+	drm_crtc_handle_vblank(crtc);
+
+	if (ipu_crtc->event) {
+		for (i = 0; i < ARRAY_SIZE(ipu_crtc->plane); i++) {
+			struct ipu_plane *plane = ipu_crtc->plane[i];
+
+			if (!plane)
+				continue;
+
+			if (ipu_plane_atomic_update_pending(&plane->base))
+				break;
+		}
+
+		if (i == ARRAY_SIZE(ipu_crtc->plane)) {
+			spin_lock_irqsave(&crtc->dev->event_lock, flags);
+			drm_crtc_send_vblank_event(crtc, ipu_crtc->event);
+			ipu_crtc->event = NULL;
+			drm_crtc_vblank_put(crtc);
+			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		}
+	}
 
 	return IRQ_HANDLED;
 }
@@ -223,8 +247,10 @@ static void ipu_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
+		struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
 		WARN_ON(drm_crtc_vblank_get(crtc));
-		drm_crtc_arm_vblank_event(crtc, crtc->state->event);
+		ipu_crtc->event = crtc->state->event;
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);

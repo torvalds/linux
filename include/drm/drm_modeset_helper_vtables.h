@@ -418,6 +418,8 @@ struct drm_crtc_helper_funcs {
 	 * Drivers can use the @old_crtc_state input parameter if the operations
 	 * needed to enable the CRTC don't depend solely on the new state but
 	 * also on the transition between the old state and the new state.
+	 *
+	 * This function is optional.
 	 */
 	void (*atomic_enable)(struct drm_crtc *crtc,
 			      struct drm_crtc_state *old_crtc_state);
@@ -441,6 +443,8 @@ struct drm_crtc_helper_funcs {
 	 * parameter @old_crtc_state which could be used to access the old
 	 * state. Atomic drivers should consider to use this one instead
 	 * of @disable.
+	 *
+	 * This function is optional.
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
 			       struct drm_crtc_state *old_crtc_state);
@@ -1013,7 +1017,7 @@ struct drm_plane_helper_funcs {
 	 * @prepare_fb:
 	 *
 	 * This hook is to prepare a framebuffer for scanout by e.g. pinning
-	 * it's backing storage or relocating it into a contiguous block of
+	 * its backing storage or relocating it into a contiguous block of
 	 * VRAM. Other possible preparatory work includes flushing caches.
 	 *
 	 * This function must not block for outstanding rendering, since it is

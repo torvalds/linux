@@ -88,7 +88,7 @@ static struct wmi_driver intel_wmi_thunderbolt_driver = {
 
 module_wmi_driver(intel_wmi_thunderbolt_driver);
 
-MODULE_ALIAS("wmi:" INTEL_WMI_THUNDERBOLT_GUID);
+MODULE_DEVICE_TABLE(wmi, intel_wmi_thunderbolt_id_table);
 MODULE_AUTHOR("Mario Limonciello <mario.limonciello@dell.com>");
 MODULE_DESCRIPTION("Intel WMI Thunderbolt force power driver");
 MODULE_LICENSE("GPL v2");

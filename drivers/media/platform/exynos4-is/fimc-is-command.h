@@ -18,7 +18,7 @@
 
 #define FIMC_IS_COMMAND_VER	110 /* FIMC-IS command set version 1.10 */
 
-/* Enumeration of commands beetween the FIMC-IS and the host processor. */
+/* Enumeration of commands between the FIMC-IS and the host processor. */
 
 /* HOST to FIMC-IS */
 #define HIC_PREVIEW_STILL	0x0001

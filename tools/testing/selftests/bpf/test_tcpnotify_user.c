@@ -148,17 +148,17 @@ int main(int argc, char **argv)
 	pthread_create(&tid, NULL, poller_thread, (void *)&pmu_fd);
 
 	sprintf(test_script,
-		"/usr/sbin/iptables -A INPUT -p tcp --dport %d -j DROP",
+		"iptables -A INPUT -p tcp --dport %d -j DROP",
 		TESTPORT);
 	system(test_script);
 
 	sprintf(test_script,
-		"/usr/bin/nc 127.0.0.1 %d < /etc/passwd > /dev/null 2>&1 ",
+		"nc 127.0.0.1 %d < /etc/passwd > /dev/null 2>&1 ",
 		TESTPORT);
 	system(test_script);
 
 	sprintf(test_script,
-		"/usr/sbin/iptables -D INPUT -p tcp --dport %d -j DROP",
+		"iptables -D INPUT -p tcp --dport %d -j DROP",
 		TESTPORT);
 	system(test_script);
 

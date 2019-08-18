@@ -164,8 +164,6 @@ static noinline __init void setup_lowcore_early(void)
 
 static noinline __init void setup_facility_list(void)
 {
-	stfle(S390_lowcore.stfle_fac_list,
-	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	memcpy(S390_lowcore.alt_stfle_fac_list,
 	       S390_lowcore.stfle_fac_list,
 	       sizeof(S390_lowcore.alt_stfle_fac_list));

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion_system_heap.c
+ * ION Memory Allocator system heap exporter
  *
  * Copyright (C) 2011 Google, Inc.
  */
@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+
 #include "ion.h"
 
 #define NUM_ORDERS ARRAY_SIZE(orders)
@@ -223,10 +224,10 @@ static void ion_system_heap_destroy_pools(struct ion_page_pool **pools)
 static int ion_system_heap_create_pools(struct ion_page_pool **pools)
 {
 	int i;
-	gfp_t gfp_flags = low_order_gfp_flags;
 
 	for (i = 0; i < NUM_ORDERS; i++) {
 		struct ion_page_pool *pool;
+		gfp_t gfp_flags = low_order_gfp_flags;
 
 		if (orders[i] > 4)
 			gfp_flags = high_order_gfp_flags;
@@ -236,6 +237,7 @@ static int ion_system_heap_create_pools(struct ion_page_pool **pools)
 			goto err_create_pool;
 		pools[i] = pool;
 	}
+
 	return 0;
 
 err_create_pool:
@@ -274,6 +276,7 @@ static int ion_system_heap_create(void)
 	heap->name = "ion_system_heap";
 
 	ion_device_add_heap(heap);
+
 	return 0;
 }
 device_initcall(ion_system_heap_create);
@@ -355,6 +358,7 @@ static struct ion_heap *__ion_system_contig_heap_create(void)
 	heap->ops = &kmalloc_ops;
 	heap->type = ION_HEAP_TYPE_SYSTEM_CONTIG;
 	heap->name = "ion_system_contig_heap";
+
 	return heap;
 }
 
@@ -367,7 +371,7 @@ static int ion_system_contig_heap_create(void)
 		return PTR_ERR(heap);
 
 	ion_device_add_heap(heap);
+
 	return 0;
 }
 device_initcall(ion_system_contig_heap_create);
-

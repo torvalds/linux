@@ -80,6 +80,9 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 		       "    falling back to system-wide allocation\n",
 		       __func__, nid);
 		arena = memblock_alloc(sizeof(*arena), SMP_CACHE_BYTES);
+		if (!arena)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(*arena));
 	}
 
 	arena->ptes = memblock_alloc_node(sizeof(*arena), align, nid);
@@ -87,13 +90,22 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 		printk("%s: couldn't allocate arena ptes from node %d\n"
 		       "    falling back to system-wide allocation\n",
 		       __func__, nid);
-		arena->ptes = memblock_alloc_from(mem_size, align, 0);
+		arena->ptes = memblock_alloc(mem_size, align);
+		if (!arena->ptes)
+			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+			      __func__, mem_size, align);
 	}
 
 #else /* CONFIG_DISCONTIGMEM */
 
 	arena = memblock_alloc(sizeof(*arena), SMP_CACHE_BYTES);
-	arena->ptes = memblock_alloc_from(mem_size, align, 0);
+	if (!arena)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*arena));
+	arena->ptes = memblock_alloc(mem_size, align);
+	if (!arena->ptes)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, mem_size, align);
 
 #endif /* CONFIG_DISCONTIGMEM */
 

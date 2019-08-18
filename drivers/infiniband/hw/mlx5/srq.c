@@ -47,6 +47,8 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_srq ucmd = {};
+	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
 	size_t ucmdlen;
 	int err;
 	int npages;
@@ -71,16 +73,14 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		return -EINVAL;
 
 	if (in->type != IB_SRQT_BASIC) {
-		err = get_srq_user_index(to_mucontext(pd->uobject->context),
-					 &ucmd, udata->inlen, &uidx);
+		err = get_srq_user_index(ucontext, &ucmd, udata->inlen, &uidx);
 		if (err)
 			return err;
 	}
 
 	srq->wq_sig = !!(ucmd.flags & MLX5_SRQ_FLAG_SIGNATURE);
 
-	srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr, buf_size,
-				0, 0);
+	srq->umem = ib_umem_get(udata, ucmd.buf_addr, buf_size, 0, 0);
 	if (IS_ERR(srq->umem)) {
 		mlx5_ib_dbg(dev, "failed umem get, size %d\n", buf_size);
 		err = PTR_ERR(srq->umem);
@@ -104,8 +104,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 
 	mlx5_ib_populate_pas(dev, srq->umem, page_shift, in->pas, 0);
 
-	err = mlx5_ib_db_map_user(to_mucontext(pd->uobject->context),
-				  ucmd.db_addr, &srq->db);
+	err = mlx5_ib_db_map_user(ucontext, udata, ucmd.db_addr, &srq->db);
 	if (err) {
 		mlx5_ib_dbg(dev, "map doorbell failed\n");
 		goto err_in;

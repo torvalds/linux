@@ -598,7 +598,7 @@ static int pktdma_init_chan(struct knav_dma_device *dma,
 
 	INIT_LIST_HEAD(&chan->list);
 	chan->dma	= dma;
-	chan->direction	= DMA_NONE;
+	chan->direction	= DMA_TRANS_NONE;
 	atomic_set(&chan->ref_count, 0);
 	spin_lock_init(&chan->lock);
 

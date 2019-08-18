@@ -139,7 +139,7 @@ static int debugging = 1;
 #define OSST_TIMEOUT (200 * HZ)
 #define OSST_LONG_TIMEOUT (1800 * HZ)
 
-#define TAPE_NR(x) (iminor(x) & ~(-1 << ST_MODE_SHIFT))
+#define TAPE_NR(x) (iminor(x) & ((1 << ST_MODE_SHIFT)-1))
 #define TAPE_MODE(x) ((iminor(x) & ST_MODE_MASK) >> ST_MODE_SHIFT)
 #define TAPE_REWIND(x) ((iminor(x) & 0x80) == 0)
 #define TAPE_IS_RAW(x) (TAPE_MODE(x) & (ST_NBR_MODES >> 1))

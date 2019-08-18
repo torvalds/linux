@@ -473,20 +473,17 @@ static void mtk_mdp_prepare_addr(struct mtk_mdp_ctx *ctx,
 static void mtk_mdp_m2m_get_bufs(struct mtk_mdp_ctx *ctx)
 {
 	struct mtk_mdp_frame *s_frame, *d_frame;
-	struct vb2_buffer *src_vb, *dst_vb;
 	struct vb2_v4l2_buffer *src_vbuf, *dst_vbuf;
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
 
-	src_vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
-	mtk_mdp_prepare_addr(ctx, src_vb, s_frame, &s_frame->addr);
+	src_vbuf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
+	mtk_mdp_prepare_addr(ctx, &src_vbuf->vb2_buf, s_frame, &s_frame->addr);
 
-	dst_vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
-	mtk_mdp_prepare_addr(ctx, dst_vb, d_frame, &d_frame->addr);
+	dst_vbuf = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
+	mtk_mdp_prepare_addr(ctx, &dst_vbuf->vb2_buf, d_frame, &d_frame->addr);
 
-	src_vbuf = to_vb2_v4l2_buffer(src_vb);
-	dst_vbuf = to_vb2_v4l2_buffer(dst_vb);
 	dst_vbuf->vb2_buf.timestamp = src_vbuf->vb2_buf.timestamp;
 }
 
@@ -494,17 +491,14 @@ static void mtk_mdp_process_done(void *priv, int vb_state)
 {
 	struct mtk_mdp_dev *mdp = priv;
 	struct mtk_mdp_ctx *ctx;
-	struct vb2_buffer *src_vb, *dst_vb;
-	struct vb2_v4l2_buffer *src_vbuf = NULL, *dst_vbuf = NULL;
+	struct vb2_v4l2_buffer *src_vbuf, *dst_vbuf;
 
 	ctx = v4l2_m2m_get_curr_priv(mdp->m2m_dev);
 	if (!ctx)
 		return;
 
-	src_vb = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
-	src_vbuf = to_vb2_v4l2_buffer(src_vb);
-	dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
-	dst_vbuf = to_vb2_v4l2_buffer(dst_vb);
+	src_vbuf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+	dst_vbuf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
 	dst_vbuf->vb2_buf.timestamp = src_vbuf->vb2_buf.timestamp;
 	dst_vbuf->timecode = src_vbuf->timecode;

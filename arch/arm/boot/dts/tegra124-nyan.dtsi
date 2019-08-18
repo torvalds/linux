@@ -370,7 +370,7 @@
 		spi-max-frequency = <25000000>;
 
 		flash@0 {
-			compatible = "winbond,w25q32dw";
+			compatible = "winbond,w25q32dw", "jedec,spi-nor";
 			spi-max-frequency = <25000000>;
 			reg = <0>;
 		};

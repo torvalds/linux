@@ -61,10 +61,10 @@ static int hdpvr_i2c_read(struct hdpvr_device *dev, int bus,
 		return -EINVAL;
 
 	if (wlen) {
-		memcpy(&dev->i2c_buf, wdata, wlen);
+		memcpy(dev->i2c_buf, wdata, wlen);
 		ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
 				      REQTYPE_I2C_WRITE, CTRL_WRITE_REQUEST,
-				      (bus << 8) | addr, 0, &dev->i2c_buf,
+				      (bus << 8) | addr, 0, dev->i2c_buf,
 				      wlen, 1000);
 		if (ret < 0)
 			return ret;
@@ -72,10 +72,10 @@ static int hdpvr_i2c_read(struct hdpvr_device *dev, int bus,
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_READ, CTRL_READ_REQUEST,
-			      (bus << 8) | addr, 0, &dev->i2c_buf, len, 1000);
+			      (bus << 8) | addr, 0, dev->i2c_buf, len, 1000);
 
 	if (ret == len) {
-		memcpy(data, &dev->i2c_buf, len);
+		memcpy(data, dev->i2c_buf, len);
 		ret = 0;
 	} else if (ret >= 0)
 		ret = -EIO;
@@ -91,17 +91,17 @@ static int hdpvr_i2c_write(struct hdpvr_device *dev, int bus,
 	if (len > sizeof(dev->i2c_buf))
 		return -EINVAL;
 
-	memcpy(&dev->i2c_buf, data, len);
+	memcpy(dev->i2c_buf, data, len);
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_WRITE, CTRL_WRITE_REQUEST,
-			      (bus << 8) | addr, 0, &dev->i2c_buf, len, 1000);
+			      (bus << 8) | addr, 0, dev->i2c_buf, len, 1000);
 
 	if (ret < 0)
 		return ret;
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_WRITE_STATT, CTRL_READ_REQUEST,
-			      0, 0, &dev->i2c_buf, 2, 1000);
+			      0, 0, dev->i2c_buf, 2, 1000);
 
 	if ((ret == 2) && (dev->i2c_buf[1] == (len - 1)))
 		ret = 0;

@@ -8,9 +8,11 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_print.h>
 #include <drm/tinydrm/tinydrm.h>
 
 struct tinydrm_connector {
@@ -107,36 +109,6 @@ tinydrm_connector_create(struct drm_device *drm,
 
 	return connector;
 }
-
-/**
- * tinydrm_display_pipe_update - Display pipe update helper
- * @pipe: Simple display pipe
- * @old_state: Old plane state
- *
- * This function does a full framebuffer flush if the plane framebuffer
- * has changed. It also handles vblank events. Drivers can use this as their
- * &drm_simple_display_pipe_funcs->update callback.
- */
-void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
-				 struct drm_plane_state *old_state)
-{
-	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
-	struct drm_framebuffer *fb = pipe->plane.state->fb;
-	struct drm_crtc *crtc = &tdev->pipe.crtc;
-
-	if (fb && (fb != old_state->fb)) {
-		if (tdev->fb_dirty)
-			tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
-	}
-
-	if (crtc->state->event) {
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		spin_unlock_irq(&crtc->dev->event_lock);
-		crtc->state->event = NULL;
-	}
-}
-EXPORT_SYMBOL(tinydrm_display_pipe_update);
 
 static int tinydrm_rotate_mode(struct drm_display_mode *mode,
 			       unsigned int rotation)

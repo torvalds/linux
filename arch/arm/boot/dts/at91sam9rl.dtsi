@@ -7,7 +7,6 @@
  * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/clock/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -15,6 +14,8 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel AT91SAM9RL family SoC";
 	compatible = "atmel,at91sam9rl", "atmel,at91sam9";
 	interrupt-parent = <&aic>;
@@ -48,6 +49,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x04000000>;
 	};
 

@@ -191,6 +191,11 @@
 };
 
 &pio {
+	vcc-pa-supply = <&reg_vcc3v3>;
+	vcc-pc-supply = <&reg_vcc3v3>;
+	vcc-pe-supply = <&reg_vcc3v3>;
+	vcc-pf-supply = <&reg_vcc3v3>;
+	vcc-pg-supply = <&reg_vcc3v3>;
 	gpio-line-names =
 		/* PA */
 		"ERXD3", "ERXD2", "ERXD1", "ERXD0", "ETXD3",

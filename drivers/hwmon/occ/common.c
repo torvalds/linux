@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright IBM Corp 2019
 
 #include <linux/device.h>
 #include <linux/hwmon.h>
@@ -889,6 +890,8 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 				s++;
 			}
 		}
+
+		s = (sensors->power.num_sensors * 4) + 1;
 	} else {
 		for (i = 0; i < sensors->power.num_sensors; ++i) {
 			s = i + 1;
@@ -917,11 +920,11 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 						     show_power, NULL, 3, i);
 			attr++;
 		}
+
+		s = sensors->power.num_sensors + 1;
 	}
 
 	if (sensors->caps.num_sensors >= 1) {
-		s = sensors->power.num_sensors + 1;
-
 		snprintf(attr->name, sizeof(attr->name), "power%d_label", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_caps, NULL,
 					     0, 0);

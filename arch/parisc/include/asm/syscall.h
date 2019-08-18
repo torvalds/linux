@@ -18,29 +18,15 @@ static inline long syscall_get_nr(struct task_struct *tsk,
 }
 
 static inline void syscall_get_arguments(struct task_struct *tsk,
-					 struct pt_regs *regs, unsigned int i,
-					 unsigned int n, unsigned long *args)
+					 struct pt_regs *regs,
+					 unsigned long *args)
 {
-	BUG_ON(i);
-
-	switch (n) {
-	case 6:
-		args[5] = regs->gr[21];
-	case 5:
-		args[4] = regs->gr[22];
-	case 4:
-		args[3] = regs->gr[23];
-	case 3:
-		args[2] = regs->gr[24];
-	case 2:
-		args[1] = regs->gr[25];
-	case 1:
-		args[0] = regs->gr[26];
-	case 0:
-		break;
-	default:
-		BUG();
-	}
+	args[5] = regs->gr[21];
+	args[4] = regs->gr[22];
+	args[3] = regs->gr[23];
+	args[2] = regs->gr[24];
+	args[1] = regs->gr[25];
+	args[0] = regs->gr[26];
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,

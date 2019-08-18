@@ -92,6 +92,9 @@ enum pp_clock_type {
 	PP_SCLK,
 	PP_MCLK,
 	PP_PCIE,
+	PP_SOCCLK,
+	PP_FCLK,
+	PP_DCEFCLK,
 	OD_SCLK,
 	OD_MCLK,
 	OD_VDDC_CURVE,
@@ -281,6 +284,11 @@ struct amd_pm_funcs {
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
+	int (*get_asic_baco_capability)(void *handle, bool *cap);
+	int (*get_asic_baco_state)(void *handle, int *state);
+	int (*set_asic_baco_state)(void *handle, int state);
+	int (*get_ppfeature_status)(void *handle, char *buf);
+	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 };
 
 #endif

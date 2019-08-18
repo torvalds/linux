@@ -31,11 +31,18 @@
 #define MRT6_TABLE	(MRT6_BASE+9)	/* Specify mroute table ID		*/
 #define MRT6_ADD_MFC_PROXY	(MRT6_BASE+10)	/* Add a (*,*|G) mfc entry	*/
 #define MRT6_DEL_MFC_PROXY	(MRT6_BASE+11)	/* Del a (*,*|G) mfc entry	*/
-#define MRT6_MAX	(MRT6_BASE+11)
+#define MRT6_FLUSH	(MRT6_BASE+12)	/* Flush all mfc entries and/or vifs	*/
+#define MRT6_MAX	(MRT6_BASE+12)
 
 #define SIOCGETMIFCNT_IN6	SIOCPROTOPRIVATE	/* IP protocol privates */
 #define SIOCGETSGCNT_IN6	(SIOCPROTOPRIVATE+1)
 #define SIOCGETRPF	(SIOCPROTOPRIVATE+2)
+
+/* MRT6_FLUSH optional flags */
+#define MRT6_FLUSH_MFC	1	/* Flush multicast entries */
+#define MRT6_FLUSH_MFC_STATIC	2	/* Flush static multicast entries */
+#define MRT6_FLUSH_MIFS	4	/* Flushing multicast vifs */
+#define MRT6_FLUSH_MIFS_STATIC	8	/* Flush static multicast vifs */
 
 #define MAXMIFS		32
 typedef unsigned long mifbitmap_t;	/* User mode code depends on this lot */

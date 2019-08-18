@@ -52,36 +52,17 @@ int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 }
 EXPORT_SYMBOL_GPL(mmc_app_cmd);
 
-/**
- *	mmc_wait_for_app_cmd - start an application command and wait for
- 			       completion
- *	@host: MMC host to start command
- *	@card: Card to send MMC_APP_CMD to
- *	@cmd: MMC command to start
- *	@retries: maximum number of retries
- *
- *	Sends a MMC_APP_CMD, checks the card response, sends the command
- *	in the parameter and waits for it to complete. Return any error
- *	that occurred while the command was executing.  Do not attempt to
- *	parse the response.
- */
-int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
-	struct mmc_command *cmd, int retries)
+static int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
+				struct mmc_command *cmd)
 {
 	struct mmc_request mrq = {};
-
-	int i, err;
-
-	if (retries < 0)
-		retries = MMC_CMD_RETRIES;
-
-	err = -EIO;
+	int i, err = -EIO;
 
 	/*
 	 * We have to resend MMC_APP_CMD for each attempt so
 	 * we cannot use the retries field in mmc_command.
 	 */
-	for (i = 0;i <= retries;i++) {
+	for (i = 0; i <= MMC_CMD_RETRIES; i++) {
 		err = mmc_app_cmd(host, card);
 		if (err) {
 			/* no point in retrying; no APP commands allowed */
@@ -116,8 +97,6 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 	return err;
 }
 
-EXPORT_SYMBOL(mmc_wait_for_app_cmd);
-
 int mmc_app_set_bus_width(struct mmc_card *card, int width)
 {
 	struct mmc_command cmd = {};
@@ -136,7 +115,7 @@ int mmc_app_set_bus_width(struct mmc_card *card, int width)
 		return -EINVAL;
 	}
 
-	return mmc_wait_for_app_cmd(card->host, card, &cmd, MMC_CMD_RETRIES);
+	return mmc_wait_for_app_cmd(card->host, card, &cmd);
 }
 
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
@@ -152,7 +131,7 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
 	for (i = 100; i; i--) {
-		err = mmc_wait_for_app_cmd(host, NULL, &cmd, MMC_CMD_RETRIES);
+		err = mmc_wait_for_app_cmd(host, NULL, &cmd);
 		if (err)
 			break;
 

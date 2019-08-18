@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.08"
+#define DC_VER "3.2.17"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -255,6 +255,8 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
+	unsigned int force_odm_combine; //bit vector based on otg inst
+	unsigned int force_fclk_khz;
 };
 
 struct dc_debug_data {
@@ -262,7 +264,6 @@ struct dc_debug_data {
 	uint32_t i2cErrorCount;
 	uint32_t auxErrorCount;
 };
-
 
 struct dc_state;
 struct resource_pool;
@@ -339,8 +340,13 @@ struct dc_init_data {
 	uint32_t log_mask;
 };
 
-struct dc *dc_create(const struct dc_init_data *init_params);
+struct dc_callback_init {
+	uint8_t reserved;
+};
 
+struct dc *dc_create(const struct dc_init_data *init_params);
+void dc_init_callbacks(struct dc *dc,
+		const struct dc_callback_init *init_params);
 void dc_destroy(struct dc **dc);
 
 /*******************************************************************************
@@ -440,6 +446,7 @@ union surface_update_flags {
 		uint32_t coeff_reduction_change:1;
 		uint32_t output_tf_change:1;
 		uint32_t pixel_format_change:1;
+		uint32_t plane_size_change:1;
 
 		/* Full updates */
 		uint32_t new_plane:1;
@@ -495,6 +502,9 @@ struct dc_plane_state {
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;
+
+	/* HACK: Workaround for forcing full reprogramming under some conditions */
+	bool force_full_update;
 
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
@@ -587,6 +597,10 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
+bool dc_validate_seamless_boot_timing(struct dc *dc,
+				const struct dc_sink *sink,
+				struct dc_crtc_timing *crtc_timing);
+
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
@@ -652,6 +666,7 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
+	uint8_t link_rate_set;
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
@@ -742,6 +757,9 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+unsigned int dc_get_current_backlight_pwm(struct dc *dc);
+unsigned int dc_get_target_backlight_pwm(struct dc *dc);
+
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

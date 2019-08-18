@@ -130,38 +130,31 @@ v3d_flush_l3(struct v3d_dev *v3d)
 	}
 }
 
-/* Invalidates the (read-only) L2 cache. */
+/* Invalidates the (read-only) L2C cache.  This was the L2 cache for
+ * uniforms and instructions on V3D 3.2.
+ */
 static void
-v3d_invalidate_l2(struct v3d_dev *v3d, int core)
+v3d_invalidate_l2c(struct v3d_dev *v3d, int core)
 {
+	if (v3d->ver > 32)
+		return;
+
 	V3D_CORE_WRITE(core, V3D_CTL_L2CACTL,
 		       V3D_L2CACTL_L2CCLR |
 		       V3D_L2CACTL_L2CENA);
-}
-
-static void
-v3d_invalidate_l1td(struct v3d_dev *v3d, int core)
-{
-	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL, V3D_L2TCACTL_TMUWCF);
-	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
-		       V3D_L2TCACTL_L2TFLS), 100)) {
-		DRM_ERROR("Timeout waiting for L1T write combiner flush\n");
-	}
 }
 
 /* Invalidates texture L2 cachelines */
 static void
 v3d_flush_l2t(struct v3d_dev *v3d, int core)
 {
-	v3d_invalidate_l1td(v3d, core);
-
+	/* While there is a busy bit (V3D_L2TCACTL_L2TFLS), we don't
+	 * need to wait for completion before dispatching the job --
+	 * L2T accesses will be stalled until the flush has completed.
+	 */
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL,
 		       V3D_L2TCACTL_L2TFLS |
 		       V3D_SET_FIELD(V3D_L2TCACTL_FLM_FLUSH, V3D_L2TCACTL_FLM));
-	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
-		       V3D_L2TCACTL_L2TFLS), 100)) {
-		DRM_ERROR("Timeout waiting for L2T flush\n");
-	}
 }
 
 /* Invalidates the slice caches.  These are read-only caches. */
@@ -175,35 +168,18 @@ v3d_invalidate_slices(struct v3d_dev *v3d, int core)
 		       V3D_SET_FIELD(0xf, V3D_SLCACTL_ICC));
 }
 
-/* Invalidates texture L2 cachelines */
-static void
-v3d_invalidate_l2t(struct v3d_dev *v3d, int core)
-{
-	V3D_CORE_WRITE(core,
-		       V3D_CTL_L2TCACTL,
-		       V3D_L2TCACTL_L2TFLS |
-		       V3D_SET_FIELD(V3D_L2TCACTL_FLM_CLEAR, V3D_L2TCACTL_FLM));
-	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
-		       V3D_L2TCACTL_L2TFLS), 100)) {
-		DRM_ERROR("Timeout waiting for L2T invalidate\n");
-	}
-}
-
 void
 v3d_invalidate_caches(struct v3d_dev *v3d)
 {
+	/* Invalidate the caches from the outside in.  That way if
+	 * another CL's concurrent use of nearby memory were to pull
+	 * an invalidated cacheline back in, we wouldn't leave stale
+	 * data in the inner cache.
+	 */
 	v3d_flush_l3(v3d);
-
-	v3d_invalidate_l2(v3d, 0);
-	v3d_invalidate_slices(v3d, 0);
+	v3d_invalidate_l2c(v3d, 0);
 	v3d_flush_l2t(v3d, 0);
-}
-
-void
-v3d_flush_caches(struct v3d_dev *v3d)
-{
-	v3d_invalidate_l1td(v3d, 0);
-	v3d_invalidate_l2t(v3d, 0);
+	v3d_invalidate_slices(v3d, 0);
 }
 
 static void

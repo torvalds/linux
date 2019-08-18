@@ -53,6 +53,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
+#include <rdma/uverbs_ioctl.h>
 #include "qp.h"
 #include "vt.h"
 #include "trace.h"
@@ -854,6 +855,7 @@ static void rvt_init_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qp->s_mig_state = IB_MIG_MIGRATED;
 	qp->r_head_ack_queue = 0;
 	qp->s_tail_ack_queue = 0;
+	qp->s_acked_ack_queue = 0;
 	qp->s_num_rd_atomic = 0;
 	if (qp->r_rq.wq) {
 		qp->r_rq.wq->head = 0;
@@ -955,6 +957,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	size_t sg_list_sz;
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
+	struct rvt_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct rvt_ucontext, ibucontext);
 	void *priv = NULL;
 	size_t sqsize;
 
@@ -1128,7 +1132,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
 			qp->ip = rvt_create_mmap_info(rdi, s,
-						      ibpd->uobject->context,
+						      &ucontext->ibucontext,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);
@@ -1642,11 +1646,11 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
-	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
 	kfree(qp->s_ack_queue);
 	rdma_destroy_ah_attr(&qp->remote_ah_attr);
 	rdma_destroy_ah_attr(&qp->alt_ah_attr);
+	vfree(qp->s_wq);
 	kfree(qp);
 	return 0;
 }
@@ -2393,11 +2397,12 @@ static inline unsigned long rvt_aeth_to_usec(u32 aeth)
 }
 
 /*
- *  rvt_add_retry_timer - add/start a retry timer
+ *  rvt_add_retry_timer_ext - add/start a retry timer
  *  @qp - the QP
+ *  @shift - timeout shift to wait for multiple packets
  *  add a retry timer on the QP
  */
-void rvt_add_retry_timer(struct rvt_qp *qp)
+void rvt_add_retry_timer_ext(struct rvt_qp *qp, u8 shift)
 {
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -2405,11 +2410,11 @@ void rvt_add_retry_timer(struct rvt_qp *qp)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
        /* 4.096 usec. * (1 << qp->timeout) */
-	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
-			     rdi->busy_jiffies;
+	qp->s_timer.expires = jiffies + rdi->busy_jiffies +
+			      (qp->timeout_jiffies << shift);
 	add_timer(&qp->s_timer);
 }
-EXPORT_SYMBOL(rvt_add_retry_timer);
+EXPORT_SYMBOL(rvt_add_retry_timer_ext);
 
 /**
  * rvt_add_rnr_timer - add/start an rnr timer
@@ -2785,6 +2790,18 @@ again:
 }
 EXPORT_SYMBOL(rvt_copy_sge);
 
+static enum ib_wc_status loopback_qp_drop(struct rvt_ibport *rvp,
+					  struct rvt_qp *sqp)
+{
+	rvp->n_pkt_drops++;
+	/*
+	 * For RC, the requester would timeout and retry so
+	 * shortcut the timeouts and just signal too many retries.
+	 */
+	return sqp->ibqp.qp_type == IB_QPT_RC ?
+		IB_WC_RETRY_EXC_ERR : IB_WC_SUCCESS;
+}
+
 /**
  * ruc_loopback - handle UC and RC loopback requests
  * @sqp: the sending QP
@@ -2857,17 +2874,14 @@ again:
 	}
 	spin_unlock_irqrestore(&sqp->s_lock, flags);
 
-	if (!qp || !(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) ||
+	if (!qp) {
+		send_status = loopback_qp_drop(rvp, sqp);
+		goto serr_no_r_lock;
+	}
+	spin_lock_irqsave(&qp->r_lock, flags);
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) ||
 	    qp->ibqp.qp_type != sqp->ibqp.qp_type) {
-		rvp->n_pkt_drops++;
-		/*
-		 * For RC, the requester would timeout and retry so
-		 * shortcut the timeouts and just signal too many retries.
-		 */
-		if (sqp->ibqp.qp_type == IB_QPT_RC)
-			send_status = IB_WC_RETRY_EXC_ERR;
-		else
-			send_status = IB_WC_SUCCESS;
+		send_status = loopback_qp_drop(rvp, sqp);
 		goto serr;
 	}
 
@@ -2893,18 +2907,8 @@ again:
 		goto send_comp;
 
 	case IB_WR_SEND_WITH_INV:
-		if (!rvt_invalidate_rkey(qp, wqe->wr.ex.invalidate_rkey)) {
-			wc.wc_flags = IB_WC_WITH_INVALIDATE;
-			wc.ex.invalidate_rkey = wqe->wr.ex.invalidate_rkey;
-		}
-		goto send;
-
 	case IB_WR_SEND_WITH_IMM:
-		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.ex.imm_data = wqe->wr.ex.imm_data;
-		/* FALLTHROUGH */
 	case IB_WR_SEND:
-send:
 		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0)
 			goto op_err;
@@ -2912,6 +2916,22 @@ send:
 			goto rnr_nak;
 		if (wqe->length > qp->r_len)
 			goto inv_err;
+		switch (wqe->wr.opcode) {
+		case IB_WR_SEND_WITH_INV:
+			if (!rvt_invalidate_rkey(qp,
+						 wqe->wr.ex.invalidate_rkey)) {
+				wc.wc_flags = IB_WC_WITH_INVALIDATE;
+				wc.ex.invalidate_rkey =
+					wqe->wr.ex.invalidate_rkey;
+			}
+			break;
+		case IB_WR_SEND_WITH_IMM:
+			wc.wc_flags = IB_WC_WITH_IMM;
+			wc.ex.imm_data = wqe->wr.ex.imm_data;
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case IB_WR_RDMA_WRITE_WITH_IMM:
@@ -2988,34 +3008,12 @@ do_write:
 
 	sge = &sqp->s_sge.sge;
 	while (sqp->s_len) {
-		u32 len = sqp->s_len;
+		u32 len = rvt_get_sge_length(sge, sqp->s_len);
 
-		if (len > sge->length)
-			len = sge->length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
 		WARN_ON_ONCE(len == 0);
 		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr,
 			     len, release, copy_last);
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (!release)
-				rvt_put_mr(sge->mr);
-			if (--sqp->s_sge.num_sge)
-				*sge = *sqp->s_sge.sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
+		rvt_update_sge(&sqp->s_sge, len, !release);
 		sqp->s_len -= len;
 	}
 	if (release)
@@ -3041,6 +3039,7 @@ do_write:
 		     wqe->wr.send_flags & IB_SEND_SOLICITED);
 
 send_comp:
+	spin_unlock_irqrestore(&qp->r_lock, flags);
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	rvp->n_loop_pkts++;
 flush_send:
@@ -3067,6 +3066,7 @@ rnr_nak:
 	}
 	if (sqp->s_rnr_retry_cnt < 7)
 		sqp->s_rnr_retry--;
+	spin_unlock_irqrestore(&qp->r_lock, flags);
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
@@ -3095,6 +3095,8 @@ err:
 	rvt_rc_error(qp, wc.status);
 
 serr:
+	spin_unlock_irqrestore(&qp->r_lock, flags);
+serr_no_r_lock:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	rvt_send_complete(sqp, wqe, send_status);
 	if (sqp->ibqp.qp_type == IB_QPT_RC) {

@@ -330,7 +330,7 @@ int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle)
 /*
  * Register the notification bitmap with the host.
  */
-bool vmci_dbell_register_notification_bitmap(u32 bitmap_ppn)
+bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn)
 {
 	int result;
 	struct vmci_notify_bm_set_msg bitmap_set_msg;
@@ -340,11 +340,14 @@ bool vmci_dbell_register_notification_bitmap(u32 bitmap_ppn)
 	bitmap_set_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
 	bitmap_set_msg.hdr.payload_size = sizeof(bitmap_set_msg) -
 	    VMCI_DG_HEADERSIZE;
-	bitmap_set_msg.bitmap_ppn = bitmap_ppn;
+	if (vmci_use_ppn64())
+		bitmap_set_msg.bitmap_ppn64 = bitmap_ppn;
+	else
+		bitmap_set_msg.bitmap_ppn32 = (u32) bitmap_ppn;
 
 	result = vmci_send_datagram(&bitmap_set_msg.hdr);
 	if (result != VMCI_SUCCESS) {
-		pr_devel("Failed to register (PPN=%u) as notification bitmap (error=%d)\n",
+		pr_devel("Failed to register (PPN=%llu) as notification bitmap (error=%d)\n",
 			 bitmap_ppn, result);
 		return false;
 	}

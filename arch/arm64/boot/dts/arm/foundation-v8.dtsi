@@ -7,6 +7,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
 /memreserve/ 0x80000000 0x00010000;
 
 / {
@@ -67,26 +69,26 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 0xf08>,
-			     <1 14 0xf08>,
-			     <1 11 0xf08>,
-			     <1 10 0xf08>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <100000000>;
 	};
 
 	pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <0 60 4>,
-			     <0 61 4>,
-			     <0 62 4>,
-			     <0 63 4>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	watchdog@2a440000 {
 		compatible = "arm,sbsa-gwdt";
 		reg = <0x0 0x2a440000 0 0x1000>,
 			<0x0 0x2a450000 0 0x1000>;
-		interrupts = <0 27 4>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		timeout-sec = <30>;
 	};
 
@@ -105,49 +107,49 @@
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
-		interrupt-map = <0 0  0 &gic 0 0 0  0 4>,
-				<0 0  1 &gic 0 0 0  1 4>,
-				<0 0  2 &gic 0 0 0  2 4>,
-				<0 0  3 &gic 0 0 0  3 4>,
-				<0 0  4 &gic 0 0 0  4 4>,
-				<0 0  5 &gic 0 0 0  5 4>,
-				<0 0  6 &gic 0 0 0  6 4>,
-				<0 0  7 &gic 0 0 0  7 4>,
-				<0 0  8 &gic 0 0 0  8 4>,
-				<0 0  9 &gic 0 0 0  9 4>,
-				<0 0 10 &gic 0 0 0 10 4>,
-				<0 0 11 &gic 0 0 0 11 4>,
-				<0 0 12 &gic 0 0 0 12 4>,
-				<0 0 13 &gic 0 0 0 13 4>,
-				<0 0 14 &gic 0 0 0 14 4>,
-				<0 0 15 &gic 0 0 0 15 4>,
-				<0 0 16 &gic 0 0 0 16 4>,
-				<0 0 17 &gic 0 0 0 17 4>,
-				<0 0 18 &gic 0 0 0 18 4>,
-				<0 0 19 &gic 0 0 0 19 4>,
-				<0 0 20 &gic 0 0 0 20 4>,
-				<0 0 21 &gic 0 0 0 21 4>,
-				<0 0 22 &gic 0 0 0 22 4>,
-				<0 0 23 &gic 0 0 0 23 4>,
-				<0 0 24 &gic 0 0 0 24 4>,
-				<0 0 25 &gic 0 0 0 25 4>,
-				<0 0 26 &gic 0 0 0 26 4>,
-				<0 0 27 &gic 0 0 0 27 4>,
-				<0 0 28 &gic 0 0 0 28 4>,
-				<0 0 29 &gic 0 0 0 29 4>,
-				<0 0 30 &gic 0 0 0 30 4>,
-				<0 0 31 &gic 0 0 0 31 4>,
-				<0 0 32 &gic 0 0 0 32 4>,
-				<0 0 33 &gic 0 0 0 33 4>,
-				<0 0 34 &gic 0 0 0 34 4>,
-				<0 0 35 &gic 0 0 0 35 4>,
-				<0 0 36 &gic 0 0 0 36 4>,
-				<0 0 37 &gic 0 0 0 37 4>,
-				<0 0 38 &gic 0 0 0 38 4>,
-				<0 0 39 &gic 0 0 0 39 4>,
-				<0 0 40 &gic 0 0 0 40 4>,
-				<0 0 41 &gic 0 0 0 41 4>,
-				<0 0 42 &gic 0 0 0 42 4>;
+		interrupt-map = <0 0  0 &gic 0 0 GIC_SPI  0 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  1 &gic 0 0 GIC_SPI  1 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  2 &gic 0 0 GIC_SPI  2 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  3 &gic 0 0 GIC_SPI  3 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  4 &gic 0 0 GIC_SPI  4 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  5 &gic 0 0 GIC_SPI  5 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  6 &gic 0 0 GIC_SPI  6 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  7 &gic 0 0 GIC_SPI  7 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  8 &gic 0 0 GIC_SPI  8 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  9 &gic 0 0 GIC_SPI  9 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 10 &gic 0 0 GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 11 &gic 0 0 GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 12 &gic 0 0 GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 13 &gic 0 0 GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 14 &gic 0 0 GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 15 &gic 0 0 GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 16 &gic 0 0 GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 17 &gic 0 0 GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 18 &gic 0 0 GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 19 &gic 0 0 GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 20 &gic 0 0 GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 21 &gic 0 0 GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 22 &gic 0 0 GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 23 &gic 0 0 GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 24 &gic 0 0 GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 25 &gic 0 0 GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 26 &gic 0 0 GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 27 &gic 0 0 GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 28 &gic 0 0 GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 29 &gic 0 0 GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 30 &gic 0 0 GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 31 &gic 0 0 GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 32 &gic 0 0 GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 33 &gic 0 0 GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 34 &gic 0 0 GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 35 &gic 0 0 GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 36 &gic 0 0 GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 37 &gic 0 0 GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 38 &gic 0 0 GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 39 &gic 0 0 GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 40 &gic 0 0 GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 41 &gic 0 0 GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 42 &gic 0 0 GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 
 		ethernet@2,02000000 {
 			compatible = "smsc,lan91c111";

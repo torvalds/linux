@@ -85,6 +85,7 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.enable_hpd = dcn10_link_encoder_enable_hpd,
 	.disable_hpd = dcn10_link_encoder_disable_hpd,
 	.is_dig_enabled = dcn10_is_dig_enabled,
+	.get_dig_frontend = dcn10_get_dig_frontend,
 	.destroy = dcn10_link_encoder_destroy
 };
 
@@ -440,7 +441,7 @@ static uint8_t get_frontend_source(
 	}
 }
 
-void configure_encoder(
+void enc1_configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings)
 {
@@ -495,6 +496,15 @@ bool dcn10_is_dig_enabled(struct link_encoder *enc)
 	return value;
 }
 
+unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+
+	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
+	return value;
+}
+
 static void link_encoder_disable(struct dcn10_link_encoder *enc10)
 {
 	/* reset training pattern */
@@ -543,12 +553,12 @@ bool dcn10_link_encoder_validate_dvi_output(
 	if ((connector_signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
 		connector_signal == SIGNAL_TYPE_HDMI_TYPE_A) &&
 		signal != SIGNAL_TYPE_HDMI_TYPE_A &&
-		crtc_timing->pix_clk_khz > TMDS_MAX_PIXEL_CLOCK)
+		crtc_timing->pix_clk_100hz > (TMDS_MAX_PIXEL_CLOCK * 10))
 		return false;
-	if (crtc_timing->pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
+	if (crtc_timing->pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
 		return false;
 
-	if (crtc_timing->pix_clk_khz > max_pixel_clock)
+	if (crtc_timing->pix_clk_100hz > (max_pixel_clock * 10))
 		return false;
 
 	/* DVI supports 6/8bpp single-link and 10/16bpp dual-link */
@@ -571,7 +581,7 @@ bool dcn10_link_encoder_validate_dvi_output(
 static bool dcn10_link_encoder_validate_hdmi_output(
 	const struct dcn10_link_encoder *enc10,
 	const struct dc_crtc_timing *crtc_timing,
-	int adjusted_pix_clk_khz)
+	int adjusted_pix_clk_100hz)
 {
 	enum dc_color_depth max_deep_color =
 			enc10->base.features.max_hdmi_deep_color;
@@ -581,11 +591,11 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 
 	if (crtc_timing->display_color_depth < COLOR_DEPTH_888)
 		return false;
-	if (adjusted_pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
+	if (adjusted_pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
 		return false;
 
-	if ((adjusted_pix_clk_khz == 0) ||
-		(adjusted_pix_clk_khz > enc10->base.features.max_hdmi_pixel_clock))
+	if ((adjusted_pix_clk_100hz == 0) ||
+		(adjusted_pix_clk_100hz > (enc10->base.features.max_hdmi_pixel_clock * 10)))
 		return false;
 
 	/* DCE11 HW does not support 420 */
@@ -594,7 +604,7 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 		return false;
 
 	if (!enc10->base.features.flags.bits.HDMI_6GB_EN &&
-		adjusted_pix_clk_khz >= 300000)
+		adjusted_pix_clk_100hz >= 3000000)
 		return false;
 	if (enc10->base.ctx->dc->debug.hdmi20_disable &&
 		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
@@ -738,7 +748,7 @@ bool dcn10_link_encoder_validate_output_with_stream(
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 		is_valid = dcn10_link_encoder_validate_dvi_output(
 			enc10,
-			stream->sink->link->connector_signal,
+			stream->link->connector_signal,
 			stream->signal,
 			&stream->timing);
 	break;
@@ -746,7 +756,7 @@ bool dcn10_link_encoder_validate_output_with_stream(
 		is_valid = dcn10_link_encoder_validate_hdmi_output(
 				enc10,
 				&stream->timing,
-				stream->phy_pix_clk);
+				stream->phy_pix_clk * 10);
 	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
@@ -910,7 +920,7 @@ void dcn10_link_encoder_enable_dp_output(
 	 * but it's not passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
-	configure_encoder(enc10, link_settings);
+	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
@@ -949,7 +959,7 @@ void dcn10_link_encoder_enable_dp_mst_output(
 	 * but it's not passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
-	configure_encoder(enc10, link_settings);
+	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = ENGINE_ID_UNKNOWN;

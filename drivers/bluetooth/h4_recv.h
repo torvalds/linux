@@ -60,11 +60,12 @@ static inline struct sk_buff *h4_recv_buf(struct hci_dev *hdev,
 					  const struct h4_recv_pkt *pkts,
 					  int pkts_count)
 {
+	/* Check for error from previous call */
+	if (IS_ERR(skb))
+		skb = NULL;
+
 	while (count) {
 		int i, len;
-
-		if (!count)
-			break;
 
 		if (!skb) {
 			for (i = 0; i < pkts_count; i++) {

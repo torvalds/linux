@@ -24,29 +24,6 @@
 #define PCI_CAP_PCIE_START	PCI_BRIDGE_CONF_END
 #define PCI_CAP_PCIE_END	(PCI_CAP_PCIE_START + PCI_EXP_SLTSTA2 + 2)
 
-/*
- * Initialize a pci_bridge_emul structure to represent a fake PCI
- * bridge configuration space. The caller needs to have initialized
- * the PCI configuration space with whatever values make sense
- * (typically at least vendor, device, revision), the ->ops pointer,
- * and optionally ->data and ->has_pcie.
- */
-void pci_bridge_emul_init(struct pci_bridge_emul *bridge)
-{
-	bridge->conf.class_revision |= PCI_CLASS_BRIDGE_PCI << 16;
-	bridge->conf.header_type = PCI_HEADER_TYPE_BRIDGE;
-	bridge->conf.cache_line_size = 0x10;
-	bridge->conf.status = PCI_STATUS_CAP_LIST;
-
-	if (bridge->has_pcie) {
-		bridge->conf.capabilities_pointer = PCI_CAP_PCIE_START;
-		bridge->pcie_conf.cap_id = PCI_CAP_ID_EXP;
-		/* Set PCIe v2, root port, slot support */
-		bridge->pcie_conf.cap = PCI_EXP_TYPE_ROOT_PORT << 4 | 2 |
-			PCI_EXP_FLAGS_SLOT;
-	}
-}
-
 struct pci_bridge_reg_behavior {
 	/* Read-only bits */
 	u32 ro;
@@ -284,6 +261,61 @@ const static struct pci_bridge_reg_behavior pcie_cap_regs_behavior[] = {
 };
 
 /*
+ * Initialize a pci_bridge_emul structure to represent a fake PCI
+ * bridge configuration space. The caller needs to have initialized
+ * the PCI configuration space with whatever values make sense
+ * (typically at least vendor, device, revision), the ->ops pointer,
+ * and optionally ->data and ->has_pcie.
+ */
+int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
+			 unsigned int flags)
+{
+	bridge->conf.class_revision |= PCI_CLASS_BRIDGE_PCI << 16;
+	bridge->conf.header_type = PCI_HEADER_TYPE_BRIDGE;
+	bridge->conf.cache_line_size = 0x10;
+	bridge->conf.status = PCI_STATUS_CAP_LIST;
+	bridge->pci_regs_behavior = kmemdup(pci_regs_behavior,
+					    sizeof(pci_regs_behavior),
+					    GFP_KERNEL);
+	if (!bridge->pci_regs_behavior)
+		return -ENOMEM;
+
+	if (bridge->has_pcie) {
+		bridge->conf.capabilities_pointer = PCI_CAP_PCIE_START;
+		bridge->pcie_conf.cap_id = PCI_CAP_ID_EXP;
+		/* Set PCIe v2, root port, slot support */
+		bridge->pcie_conf.cap = PCI_EXP_TYPE_ROOT_PORT << 4 | 2 |
+			PCI_EXP_FLAGS_SLOT;
+		bridge->pcie_cap_regs_behavior =
+			kmemdup(pcie_cap_regs_behavior,
+				sizeof(pcie_cap_regs_behavior),
+				GFP_KERNEL);
+		if (!bridge->pcie_cap_regs_behavior) {
+			kfree(bridge->pci_regs_behavior);
+			return -ENOMEM;
+		}
+	}
+
+	if (flags & PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR) {
+		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].ro = ~0;
+		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].rw = 0;
+	}
+
+	return 0;
+}
+
+/*
+ * Cleanup a pci_bridge_emul structure that was previously initilized
+ * using pci_bridge_emul_init().
+ */
+void pci_bridge_emul_cleanup(struct pci_bridge_emul *bridge)
+{
+	if (bridge->has_pcie)
+		kfree(bridge->pcie_cap_regs_behavior);
+	kfree(bridge->pci_regs_behavior);
+}
+
+/*
  * Should be called by the PCI controller driver when reading the PCI
  * configuration space of the fake bridge. It will call back the
  * ->ops->read_base or ->ops->read_pcie operations.
@@ -312,11 +344,11 @@ int pci_bridge_emul_conf_read(struct pci_bridge_emul *bridge, int where,
 		reg -= PCI_CAP_PCIE_START;
 		read_op = bridge->ops->read_pcie;
 		cfgspace = (u32 *) &bridge->pcie_conf;
-		behavior = pcie_cap_regs_behavior;
+		behavior = bridge->pcie_cap_regs_behavior;
 	} else {
 		read_op = bridge->ops->read_base;
 		cfgspace = (u32 *) &bridge->conf;
-		behavior = pci_regs_behavior;
+		behavior = bridge->pci_regs_behavior;
 	}
 
 	if (read_op)
@@ -383,11 +415,11 @@ int pci_bridge_emul_conf_write(struct pci_bridge_emul *bridge, int where,
 		reg -= PCI_CAP_PCIE_START;
 		write_op = bridge->ops->write_pcie;
 		cfgspace = (u32 *) &bridge->pcie_conf;
-		behavior = pcie_cap_regs_behavior;
+		behavior = bridge->pcie_cap_regs_behavior;
 	} else {
 		write_op = bridge->ops->write_base;
 		cfgspace = (u32 *) &bridge->conf;
-		behavior = pci_regs_behavior;
+		behavior = bridge->pci_regs_behavior;
 	}
 
 	/* Keep all bits, except the RW bits */

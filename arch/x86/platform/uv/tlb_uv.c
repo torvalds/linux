@@ -2010,8 +2010,7 @@ static void make_per_cpu_thp(struct bau_control *smaster)
 	int cpu;
 	size_t hpsz = sizeof(struct hub_and_pnode) * num_possible_cpus();
 
-	smaster->thp = kmalloc_node(hpsz, GFP_KERNEL, smaster->osnode);
-	memset(smaster->thp, 0, hpsz);
+	smaster->thp = kzalloc_node(hpsz, GFP_KERNEL, smaster->osnode);
 	for_each_present_cpu(cpu) {
 		smaster->thp[cpu].pnode = uv_cpu_hub_info(cpu)->pnode;
 		smaster->thp[cpu].uvhub = uv_cpu_hub_info(cpu)->numa_blade_id;
@@ -2135,15 +2134,12 @@ static int __init summarize_uvhub_sockets(int nuvhubs,
 static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
 {
 	unsigned char *uvhub_mask;
-	void *vp;
 	struct uvhub_desc *uvhub_descs;
 
 	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
 		timeout_us = calculate_destination_timeout();
 
-	vp = kmalloc_array(nuvhubs, sizeof(struct uvhub_desc), GFP_KERNEL);
-	uvhub_descs = (struct uvhub_desc *)vp;
-	memset(uvhub_descs, 0, nuvhubs * sizeof(struct uvhub_desc));
+	uvhub_descs = kcalloc(nuvhubs, sizeof(struct uvhub_desc), GFP_KERNEL);
 	uvhub_mask = kzalloc((nuvhubs+7)/8, GFP_KERNEL);
 
 	if (get_cpu_topology(base_part_pnode, uvhub_descs, uvhub_mask))

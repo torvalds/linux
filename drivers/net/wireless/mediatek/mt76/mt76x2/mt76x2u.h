@@ -29,14 +29,12 @@
 
 extern const struct ieee80211_ops mt76x2u_ops;
 
-struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev);
 int mt76x2u_register_device(struct mt76x02_dev *dev);
 int mt76x2u_init_hardware(struct mt76x02_dev *dev);
 void mt76x2u_cleanup(struct mt76x02_dev *dev);
 void mt76x2u_stop_hw(struct mt76x02_dev *dev);
 
 int mt76x2u_mac_reset(struct mt76x02_dev *dev);
-void mt76x2u_mac_resume(struct mt76x02_dev *dev);
 int mt76x2u_mac_start(struct mt76x02_dev *dev);
 int mt76x2u_mac_stop(struct mt76x02_dev *dev);
 

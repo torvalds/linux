@@ -237,7 +237,7 @@ static struct fixed_voltage_config mx27ads_lcd_regulator_pdata = {
 static struct gpiod_lookup_table mx27ads_lcd_regulator_gpiod_table = {
 	.dev_id = "reg-fixed-voltage.0", /* Let's hope ID 0 is what we get */
 	.table = {
-		GPIO_LOOKUP("LCD", 0, NULL, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("LCD", 0, NULL, GPIO_ACTIVE_LOW),
 		{ },
 	},
 };

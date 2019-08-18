@@ -57,10 +57,11 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 #define is_geminilake(codec) (((codec)->core.vendor_id == 0x8086280d) || \
 				((codec)->core.vendor_id == 0x80862800))
 #define is_cannonlake(codec) ((codec)->core.vendor_id == 0x8086280c)
+#define is_icelake(codec) ((codec)->core.vendor_id == 0x8086280f)
 #define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec) \
 				|| is_skylake(codec) || is_broxton(codec) \
-				|| is_kabylake(codec)) || is_geminilake(codec) \
-				|| is_cannonlake(codec)
+				|| is_kabylake(codec) || is_geminilake(codec) \
+				|| is_cannonlake(codec) || is_icelake(codec))
 #define is_valleyview(codec) ((codec)->core.vendor_id == 0x80862882)
 #define is_cherryview(codec) ((codec)->core.vendor_id == 0x80862883)
 #define is_valleyview_plus(codec) (is_valleyview(codec) || is_cherryview(codec))
@@ -181,6 +182,8 @@ struct hdmi_spec {
 
 	struct hdac_chmap chmap;
 	hda_nid_t vendor_nid;
+	const int *port_map;
+	int port_num;
 };
 
 #ifdef CONFIG_SND_HDA_COMPONENT
@@ -1865,7 +1868,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hda_nid_t pin_nid;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	bool non_pcm;
-	int pinctl;
+	int pinctl, stripe;
 	int err = 0;
 
 	mutex_lock(&spec->pcm_lock);
@@ -1908,6 +1911,14 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	mutex_lock(&per_pin->lock);
 	per_pin->channels = substream->runtime->channels;
 	per_pin->setup = true;
+
+	if (get_wcaps(codec, cvt_nid) & AC_WCAP_STRIPE) {
+		stripe = snd_hdac_get_stream_stripe_ctl(&codec->bus->core,
+							substream);
+		snd_hda_codec_write(codec, cvt_nid, 0,
+				    AC_VERB_SET_STRIPE_CONTROL,
+				    stripe);
+	}
 
 	hdmi_setup_audio_infoframe(codec, per_pin, non_pcm);
 	mutex_unlock(&per_pin->lock);
@@ -2410,12 +2421,11 @@ static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
 	snd_hda_override_conn_list(codec, nid, spec->num_cvts, spec->cvt_nids);
 }
 
-#define INTEL_VENDOR_NID 0x08
-#define INTEL_GLK_VENDOR_NID 0x0B
-#define INTEL_GET_VENDOR_VERB 0xf81
-#define INTEL_SET_VENDOR_VERB 0x781
-#define INTEL_EN_DP12			0x02 /* enable DP 1.2 features */
-#define INTEL_EN_ALL_PIN_CVTS	0x01 /* enable 2nd & 3rd pins and convertors */
+#define INTEL_GET_VENDOR_VERB	0xf81
+#define INTEL_GET_VENDOR_VERB	0xf81
+#define INTEL_SET_VENDOR_VERB	0x781
+#define INTEL_EN_DP12		0x02	/* enable DP 1.2 features */
+#define INTEL_EN_ALL_PIN_CVTS	0x01	/* enable 2nd & 3rd pins and convertors */
 
 static void intel_haswell_enable_all_pins(struct hda_codec *codec,
 					  bool update_tree)
@@ -2495,11 +2505,29 @@ static int intel_base_nid(struct hda_codec *codec)
 
 static int intel_pin2port(void *audio_ptr, int pin_nid)
 {
-	int base_nid = intel_base_nid(audio_ptr);
+	struct hda_codec *codec = audio_ptr;
+	struct hdmi_spec *spec = codec->spec;
+	int base_nid, i;
 
-	if (WARN_ON(pin_nid < base_nid || pin_nid >= base_nid + 3))
-		return -1;
-	return pin_nid - base_nid + 1; /* intel port is 1-based */
+	if (!spec->port_num) {
+		base_nid = intel_base_nid(codec);
+		if (WARN_ON(pin_nid < base_nid || pin_nid >= base_nid + 3))
+			return -1;
+		return pin_nid - base_nid + 1; /* intel port is 1-based */
+	}
+
+	/*
+	 * looking for the pin number in the mapping table and return
+	 * the index which indicate the port number
+	 */
+	for (i = 0; i < spec->port_num; i++) {
+		if (pin_nid == spec->port_map[i])
+			return i + 1;
+	}
+
+	/* return -1 if pin number exceeds our expectation */
+	codec_info(codec, "Can't find the HDMI/DP port for pin %d\n", pin_nid);
+	return -1;
 }
 
 static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
@@ -2600,7 +2628,8 @@ static int parse_intel_hdmi(struct hda_codec *codec)
 }
 
 /* Intel Haswell and onwards; audio component with eld notifier */
-static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid)
+static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid,
+				 const int *port_map, int port_num)
 {
 	struct hdmi_spec *spec;
 	int err;
@@ -2612,6 +2641,8 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid)
 	codec->dp_mst = true;
 	spec->dyn_pcm_assign = true;
 	spec->vendor_nid = vendor_nid;
+	spec->port_map = port_map;
+	spec->port_num = port_num;
 
 	intel_haswell_enable_all_pins(codec, true);
 	intel_haswell_fixup_enable_dp12(codec);
@@ -2630,12 +2661,23 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid)
 
 static int patch_i915_hsw_hdmi(struct hda_codec *codec)
 {
-	return intel_hsw_common_init(codec, INTEL_VENDOR_NID);
+	return intel_hsw_common_init(codec, 0x08, NULL, 0);
 }
 
 static int patch_i915_glk_hdmi(struct hda_codec *codec)
 {
-	return intel_hsw_common_init(codec, INTEL_GLK_VENDOR_NID);
+	return intel_hsw_common_init(codec, 0x0b, NULL, 0);
+}
+
+static int patch_i915_icl_hdmi(struct hda_codec *codec)
+{
+	/*
+	 * pin to port mapping table where the value indicate the pin number and
+	 * the index indicate the port number with 1 base.
+	 */
+	static const int map[] = {0x4, 0x6, 0x8, 0xa, 0xb};
+
+	return intel_hsw_common_init(codec, 0x02, map, ARRAY_SIZE(map));
 }
 
 /* Intel Baytrail and Braswell; with eld notifier */
@@ -3878,6 +3920,7 @@ HDA_CODEC_ENTRY(0x11069f81, "VX900 HDMI/DP",	patch_via_hdmi),
 HDA_CODEC_ENTRY(0x11069f84, "VX11 HDMI/DP",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x11069f85, "VX11 HDMI/DP",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80860054, "IbexPeak HDMI",	patch_i915_cpt_hdmi),
+HDA_CODEC_ENTRY(0x80862800, "Geminilake HDMI",	patch_i915_glk_hdmi),
 HDA_CODEC_ENTRY(0x80862801, "Bearlake HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862802, "Cantiga HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862803, "Eaglelake HDMI",	patch_generic_hdmi),
@@ -3891,7 +3934,7 @@ HDA_CODEC_ENTRY(0x8086280a, "Broxton HDMI",	patch_i915_hsw_hdmi),
 HDA_CODEC_ENTRY(0x8086280b, "Kabylake HDMI",	patch_i915_hsw_hdmi),
 HDA_CODEC_ENTRY(0x8086280c, "Cannonlake HDMI",	patch_i915_glk_hdmi),
 HDA_CODEC_ENTRY(0x8086280d, "Geminilake HDMI",	patch_i915_glk_hdmi),
-HDA_CODEC_ENTRY(0x80862800, "Geminilake HDMI",	patch_i915_glk_hdmi),
+HDA_CODEC_ENTRY(0x8086280f, "Icelake HDMI",	patch_i915_icl_hdmi),
 HDA_CODEC_ENTRY(0x80862880, "CedarTrail HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_i915_byt_hdmi),
 HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_i915_byt_hdmi),

@@ -432,6 +432,13 @@ static struct omap_hwmod dm81xx_i2c2_hwmod = {
 	.class		= &i2c_class,
 };
 
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__i2c2 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_i2c2_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
 static struct omap_hwmod_class_sysconfig dm81xx_elm_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0010,
@@ -441,13 +448,6 @@ static struct omap_hwmod_class_sysconfig dm81xx_elm_sysc = {
 				SYSS_HAS_RESET_STATUS,
 	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_ocp_if dm81xx_l4_ls__i2c2 = {
-	.master		= &dm81xx_l4_ls_hwmod,
-	.slave		= &dm81xx_i2c2_hwmod,
-	.clk		= "sysclk6_ck",
-	.user		= OCP_USER_MPU,
 };
 
 static struct omap_hwmod_class dm81xx_elm_hwmod_class = {
@@ -535,6 +535,58 @@ static struct omap_hwmod dm81xx_gpio2_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio2 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_gpio2_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_opt_clk gpio3_opt_clks[] = {
+	{ .role = "dbclk", .clk = "sysclk18_ck" },
+};
+
+static struct omap_hwmod dm81xx_gpio3_hwmod = {
+	.name		= "gpio3",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.class		= &dm81xx_gpio_hwmod_class,
+	.main_clk	= "sysclk6_ck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_ALWON_GPIO_1_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.opt_clks	= gpio3_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
+};
+
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio3 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_gpio3_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_opt_clk gpio4_opt_clks[] = {
+	{ .role = "dbclk", .clk = "sysclk18_ck" },
+};
+
+static struct omap_hwmod dm81xx_gpio4_hwmod = {
+	.name		= "gpio4",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.class		= &dm81xx_gpio_hwmod_class,
+	.main_clk	= "sysclk6_ck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_ALWON_GPIO_1_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.opt_clks	= gpio4_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
+};
+
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio4 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_gpio4_hwmod,
 	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
@@ -1133,9 +1185,69 @@ static struct omap_hwmod dm81xx_mcspi1_hwmod = {
 	.class		= &dm816x_mcspi_class,
 };
 
+static struct omap_hwmod dm81xx_mcspi2_hwmod = {
+	.name		= "mcspi2",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.main_clk	= "sysclk10_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_ALWON_SPI_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.class		= &dm816x_mcspi_class,
+};
+
+static struct omap_hwmod dm81xx_mcspi3_hwmod = {
+	.name		= "mcspi3",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.main_clk	= "sysclk10_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_ALWON_SPI_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.class		= &dm816x_mcspi_class,
+};
+
+static struct omap_hwmod dm81xx_mcspi4_hwmod = {
+	.name		= "mcspi4",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.main_clk	= "sysclk10_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_ALWON_SPI_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.class		= &dm816x_mcspi_class,
+};
+
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__mcspi1 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_mcspi1_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__mcspi2 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_mcspi2_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__mcspi3 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_mcspi3_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__mcspi4 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_mcspi4_hwmod,
 	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
@@ -1378,8 +1490,13 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__i2c2,
 	&dm81xx_l4_ls__gpio1,
 	&dm81xx_l4_ls__gpio2,
+	&dm81xx_l4_ls__gpio3,
+	&dm81xx_l4_ls__gpio4,
 	&dm81xx_l4_ls__elm,
 	&dm81xx_l4_ls__mcspi1,
+	&dm81xx_l4_ls__mcspi2,
+	&dm81xx_l4_ls__mcspi3,
+	&dm81xx_l4_ls__mcspi4,
 	&dm814x_l4_ls__mmc1,
 	&dm814x_l4_ls__mmc2,
 	&ti81xx_l4_ls__rtc,

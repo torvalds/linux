@@ -94,6 +94,12 @@ struct host1x_intr_ops {
 	int (*free_syncpt_irq)(struct host1x *host);
 };
 
+struct host1x_sid_entry {
+	unsigned int base;
+	unsigned int offset;
+	unsigned int limit;
+};
+
 struct host1x_info {
 	unsigned int nb_channels; /* host1x: number of channels supported */
 	unsigned int nb_pts; /* host1x: number of syncpoints supported */
@@ -103,6 +109,8 @@ struct host1x_info {
 	unsigned int sync_offset; /* offset of syncpoint registers */
 	u64 dma_mask; /* mask of addressable memory */
 	bool has_hypervisor; /* has hypervisor registers */
+	unsigned int num_sid_entries;
+	const struct host1x_sid_entry *sid_table;
 };
 
 struct host1x {

@@ -3,7 +3,7 @@
  *
  * Module Name: nsparse - namespace interface to AML parser
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -253,61 +253,19 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	ACPI_FUNCTION_TRACE(ns_parse_table);
 
-	if (acpi_gbl_execute_tables_as_methods) {
-		/*
-		 * This case executes the AML table as one large control method.
-		 * The point of this is to execute any module-level code in-place
-		 * as the table is parsed. Some AML code depends on this behavior.
-		 *
-		 * It is a run-time option at this time, but will eventually become
-		 * the default.
-		 *
-		 * Note: This causes the table to only have a single-pass parse.
-		 * However, this is compatible with other ACPI implementations.
-		 */
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
-				      "%s: **** Start table execution pass\n",
-				      ACPI_GET_FUNCTION_NAME));
+	/*
+	 * Executes the AML table as one large control method.
+	 * The point of this is to execute any module-level code in-place
+	 * as the table is parsed. Some AML code depends on this behavior.
+	 *
+	 * Note: This causes the table to only have a single-pass parse.
+	 * However, this is compatible with other ACPI implementations.
+	 */
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+			      "%s: **** Start table execution pass\n",
+			      ACPI_GET_FUNCTION_NAME));
 
-		status = acpi_ns_execute_table(table_index, start_node);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	} else {
-		/*
-		 * AML Parse, pass 1
-		 *
-		 * In this pass, we load most of the namespace. Control methods
-		 * are not parsed until later. A parse tree is not created.
-		 * Instead, each Parser Op subtree is deleted when it is finished.
-		 * This saves a great deal of memory, and allows a small cache of
-		 * parse objects to service the entire parse. The second pass of
-		 * the parse then performs another complete parse of the AML.
-		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));
-
-		status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1,
-						    table_index, start_node);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-
-		/*
-		 * AML Parse, pass 2
-		 *
-		 * In this pass, we resolve forward references and other things
-		 * that could not be completed during the first pass.
-		 * Another complete parse of the AML is performed, but the
-		 * overhead of this is compensated for by the fact that the
-		 * parse objects are all cached.
-		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 2\n"));
-		status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2,
-						    table_index, start_node);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
+	status = acpi_ns_execute_table(table_index, start_node);
 
 	return_ACPI_STATUS(status);
 }

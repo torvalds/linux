@@ -36,6 +36,7 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_pma.h>
 #include "mlx5_ib.h"
+#include "cmd.h"
 
 enum {
 	MLX5_IB_VENDOR_CLASS1 = 0x9,
@@ -51,9 +52,10 @@ static bool can_do_mad_ifc(struct mlx5_ib_dev *dev, u8 port_num,
 	return dev->mdev->port_caps[port_num - 1].has_smi;
 }
 
-int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
-		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		 const void *in_mad, void *response_mad)
+static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
+			int ignore_bkey, u8 port, const struct ib_wc *in_wc,
+			const struct ib_grh *in_grh, const void *in_mad,
+			void *response_mad)
 {
 	u8 op_modifier = 0;
 
@@ -68,7 +70,8 @@ int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 	if (ignore_bkey || !in_wc)
 		op_modifier |= 0x2;
 
-	return mlx5_core_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier, port);
+	return mlx5_cmd_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier,
+				port);
 }
 
 static int process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,

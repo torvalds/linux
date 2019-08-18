@@ -50,9 +50,8 @@ static int max31722_set_mode(struct max31722_data *data, u8 mode)
 	return 0;
 }
 
-static ssize_t max31722_show_temp(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+static ssize_t max31722_temp_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	ssize_t ret;
 	struct max31722_data *data = dev_get_drvdata(dev);
@@ -64,8 +63,7 @@ static ssize_t max31722_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", (s16)le16_to_cpu(ret) * 125 / 32);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
-			  max31722_show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, max31722_temp, 0);
 
 static struct attribute *max31722_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

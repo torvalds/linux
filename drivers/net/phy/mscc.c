@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Driver for Microsemi VSC85xx PHYs
  *

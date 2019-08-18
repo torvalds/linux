@@ -38,6 +38,7 @@ int proc_setup_self(struct super_block *s)
 	struct inode *root_inode = d_inode(s->s_root);
 	struct pid_namespace *ns = proc_pid_ns(root_inode);
 	struct dentry *self;
+	int ret = -ENOMEM;
 	
 	inode_lock(root_inode);
 	self = d_alloc_name(s->s_root, "self");
@@ -51,20 +52,19 @@ int proc_setup_self(struct super_block *s)
 			inode->i_gid = GLOBAL_ROOT_GID;
 			inode->i_op = &proc_self_inode_operations;
 			d_add(self, inode);
+			ret = 0;
 		} else {
 			dput(self);
-			self = ERR_PTR(-ENOMEM);
 		}
-	} else {
-		self = ERR_PTR(-ENOMEM);
 	}
 	inode_unlock(root_inode);
-	if (IS_ERR(self)) {
+
+	if (ret)
 		pr_err("proc_fill_super: can't allocate /proc/self\n");
-		return PTR_ERR(self);
-	}
-	ns->proc_self = self;
-	return 0;
+	else
+		ns->proc_self = self;
+
+	return ret;
 }
 
 void __init proc_self_init(void)

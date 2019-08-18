@@ -454,9 +454,6 @@ struct rds_ib_mr *rds_ib_try_reuse_ibmr(struct rds_ib_mr_pool *pool)
 	struct rds_ib_mr *ibmr = NULL;
 	int iter = 0;
 
-	if (atomic_read(&pool->dirty_count) >= pool->max_items_soft / 10)
-		queue_delayed_work(rds_ib_mr_wq, &pool->flush_worker, 10);
-
 	while (1) {
 		ibmr = rds_ib_reuse_mr(pool);
 		if (ibmr)

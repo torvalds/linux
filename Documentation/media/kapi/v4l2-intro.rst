@@ -11,7 +11,7 @@ hardware: most devices have multiple ICs, export multiple device nodes in
 Especially the fact that V4L2 drivers have to setup supporting ICs to
 do audio/video muxing/encoding/decoding makes it more complex than most.
 Usually these ICs are connected to the main bridge driver through one or
-more I2C busses, but other busses can also be used. Such devices are
+more I2C buses, but other buses can also be used. Such devices are
 called 'sub-devices'.
 
 For a long time the framework was limited to the video_device struct for

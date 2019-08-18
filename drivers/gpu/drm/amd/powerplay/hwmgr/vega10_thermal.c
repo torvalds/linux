@@ -556,6 +556,43 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	return ret;
 }
 
+int vega10_enable_mgpu_fan_boost(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	PPTable_t *table = &(data->smc_state_table.pp_table);
+	int ret;
+
+	if (!data->smu_features[GNLD_FAN_CONTROL].supported)
+		return 0;
+
+	if (!hwmgr->thermal_controller.advanceFanControlParameters.
+			usMGpuThrottlingRPMLimit)
+		return 0;
+
+	table->FanThrottlingRpm = hwmgr->thermal_controller.
+			advanceFanControlParameters.usMGpuThrottlingRPMLimit;
+
+	ret = smum_smc_table_manager(hwmgr,
+				(uint8_t *)(&(data->smc_state_table.pp_table)),
+				PPTABLE, false);
+	if (ret) {
+		pr_info("Failed to update fan control table in pptable!");
+		return ret;
+	}
+
+	ret = vega10_disable_fan_control_feature(hwmgr);
+	if (ret) {
+		pr_info("Attempt to disable SMC fan control feature failed!");
+		return ret;
+	}
+
+	ret = vega10_enable_fan_control_feature(hwmgr);
+	if (ret)
+		pr_info("Attempt to enable SMC fan control feature failed!");
+
+	return ret;
+}
+
 /**
 * Start the fan control on the SMC.
 * @param    hwmgr  the address of the powerplay hardware manager.

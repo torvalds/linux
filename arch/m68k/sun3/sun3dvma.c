@@ -269,6 +269,9 @@ void __init dvma_init(void)
 
 	iommu_use = memblock_alloc(IOMMU_TOTAL_ENTRIES * sizeof(unsigned long),
 				   SMP_CACHE_BYTES);
+	if (!iommu_use)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      IOMMU_TOTAL_ENTRIES * sizeof(unsigned long));
 
 	dvma_unmap_iommu(DVMA_START, DVMA_SIZE);
 

@@ -331,7 +331,7 @@ static void pcm1796_init(struct oxygen *chip)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	data->pcm1796_regs[0][18 - PCM1796_REG_BASE] =
-		PCM1796_DMF_DISABLED | PCM1796_FMT_24_I2S | PCM1796_ATLD;
+		PCM1796_FMT_24_I2S | PCM1796_ATLD;
 	if (!data->broken_i2c)
 		data->pcm1796_regs[0][18 - PCM1796_REG_BASE] |= PCM1796_MUTE;
 	data->pcm1796_regs[0][19 - PCM1796_REG_BASE] =
@@ -621,6 +621,23 @@ static void update_pcm1796_oversampling(struct oxygen *chip)
 		pcm1796_write_cached(chip, i, 20, reg);
 }
 
+static void update_pcm1796_deemph(struct oxygen *chip)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int i;
+	u8 reg;
+
+	reg = data->pcm1796_regs[0][18 - PCM1796_REG_BASE] & ~PCM1796_DMF_MASK;
+	if (data->current_rate == 48000)
+		reg |= PCM1796_DMF_48;
+	else if (data->current_rate == 44100)
+		reg |= PCM1796_DMF_441;
+	else if (data->current_rate == 32000)
+		reg |= PCM1796_DMF_32;
+	for (i = 0; i < data->dacs; ++i)
+		pcm1796_write_cached(chip, i, 18, reg);
+}
+
 static void set_pcm1796_params(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params)
 {
@@ -629,6 +646,7 @@ static void set_pcm1796_params(struct oxygen *chip,
 	msleep(1);
 	data->current_rate = params_rate(params);
 	update_pcm1796_oversampling(chip);
+	update_pcm1796_deemph(chip);
 }
 
 static void update_pcm1796_volume(struct oxygen *chip)
@@ -653,9 +671,11 @@ static void update_pcm1796_mute(struct oxygen *chip)
 	unsigned int i;
 	u8 value;
 
-	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_I2S | PCM1796_ATLD;
+	value = data->pcm1796_regs[0][18 - PCM1796_REG_BASE];
 	if (chip->dac_mute)
 		value |= PCM1796_MUTE;
+	else
+		value &= ~PCM1796_MUTE;
 	for (i = 0; i < data->dacs; ++i)
 		pcm1796_write_cached(chip, i, 18, value);
 }
@@ -775,6 +795,49 @@ static const struct snd_kcontrol_new rolloff_control = {
 	.info = rolloff_info,
 	.get = rolloff_get,
 	.put = rolloff_put,
+};
+
+static int deemph_get(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
+
+	value->value.integer.value[0] =
+		!!(data->pcm1796_regs[0][18 - PCM1796_REG_BASE] & PCM1796_DME);
+	return 0;
+}
+
+static int deemph_put(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int i;
+	int changed;
+	u8 reg;
+
+	mutex_lock(&chip->mutex);
+	reg = data->pcm1796_regs[0][18 - PCM1796_REG_BASE];
+	if (!value->value.integer.value[0])
+		reg &= ~PCM1796_DME;
+	else
+		reg |= PCM1796_DME;
+	changed = reg != data->pcm1796_regs[0][18 - PCM1796_REG_BASE];
+	if (changed) {
+		for (i = 0; i < data->dacs; ++i)
+			pcm1796_write(chip, i, 18, reg);
+	}
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new deemph_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "De-emphasis Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = deemph_get,
+	.put = deemph_put,
 };
 
 static const struct snd_kcontrol_new hdav_hdmi_control = {
@@ -1009,6 +1072,10 @@ static int add_pcm1796_controls(struct oxygen *chip)
 	if (!data->broken_i2c) {
 		err = snd_ctl_add(chip->card,
 				  snd_ctl_new1(&rolloff_control, chip));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(chip->card,
+				  snd_ctl_new1(&deemph_control, chip));
 		if (err < 0)
 			return err;
 	}

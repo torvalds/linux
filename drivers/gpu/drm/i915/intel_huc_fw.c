@@ -23,8 +23,8 @@
  */
 
 #define BXT_HUC_FW_MAJOR 01
-#define BXT_HUC_FW_MINOR 07
-#define BXT_BLD_NUM 1398
+#define BXT_HUC_FW_MINOR 8
+#define BXT_BLD_NUM 2893
 
 #define SKL_HUC_FW_MAJOR 01
 #define SKL_HUC_FW_MINOR 07
@@ -76,9 +76,6 @@ static void huc_fw_select(struct intel_uc_fw *huc_fw)
 		huc_fw->path = I915_KBL_HUC_UCODE;
 		huc_fw->major_ver_wanted = KBL_HUC_FW_MAJOR;
 		huc_fw->minor_ver_wanted = KBL_HUC_FW_MINOR;
-	} else {
-		DRM_WARN("%s: No firmware known for this platform!\n",
-			 intel_uc_fw_type_repr(huc_fw->type));
 	}
 }
 

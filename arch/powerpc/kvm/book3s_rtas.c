@@ -33,7 +33,7 @@ static void kvm_rtas_set_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 	server = be32_to_cpu(args->args[1]);
 	priority = be32_to_cpu(args->args[2]);
 
-	if (xive_enabled())
+	if (xics_on_xive())
 		rc = kvmppc_xive_set_xive(vcpu->kvm, irq, server, priority);
 	else
 		rc = kvmppc_xics_set_xive(vcpu->kvm, irq, server, priority);
@@ -56,7 +56,7 @@ static void kvm_rtas_get_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 	irq = be32_to_cpu(args->args[0]);
 
 	server = priority = 0;
-	if (xive_enabled())
+	if (xics_on_xive())
 		rc = kvmppc_xive_get_xive(vcpu->kvm, irq, &server, &priority);
 	else
 		rc = kvmppc_xics_get_xive(vcpu->kvm, irq, &server, &priority);
@@ -83,7 +83,7 @@ static void kvm_rtas_int_off(struct kvm_vcpu *vcpu, struct rtas_args *args)
 
 	irq = be32_to_cpu(args->args[0]);
 
-	if (xive_enabled())
+	if (xics_on_xive())
 		rc = kvmppc_xive_int_off(vcpu->kvm, irq);
 	else
 		rc = kvmppc_xics_int_off(vcpu->kvm, irq);
@@ -105,7 +105,7 @@ static void kvm_rtas_int_on(struct kvm_vcpu *vcpu, struct rtas_args *args)
 
 	irq = be32_to_cpu(args->args[0]);
 
-	if (xive_enabled())
+	if (xics_on_xive())
 		rc = kvmppc_xive_int_on(vcpu->kvm, irq);
 	else
 		rc = kvmppc_xics_int_on(vcpu->kvm, irq);

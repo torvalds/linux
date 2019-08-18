@@ -80,8 +80,8 @@ static struct device_node *of_coresight_get_port_parent(struct device_node *ep)
 	 * Skip one-level up to the real device node, if we
 	 * are using the new bindings.
 	 */
-	if (!of_node_cmp(parent->name, "in-ports") ||
-	    !of_node_cmp(parent->name, "out-ports"))
+	if (of_node_name_eq(parent, "in-ports") ||
+	    of_node_name_eq(parent, "out-ports"))
 		parent = of_get_next_parent(parent);
 
 	return parent;

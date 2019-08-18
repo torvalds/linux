@@ -114,6 +114,7 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 		break;
 	case CREDS_CHECK:
 		iint->ima_creds_status = status;
+		break;
 	case FILE_CHECK:
 	case POST_SETATTR:
 		iint->ima_file_status = status;

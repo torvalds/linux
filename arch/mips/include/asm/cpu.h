@@ -422,6 +422,7 @@ enum cpu_type_enum {
 				MBIT_ULL(55)	/* CPU shares FTLB entries with another */
 #define MIPS_CPU_MT_PER_TC_PERF_COUNTERS \
 				MBIT_ULL(56)	/* CPU has perf counters implemented per TC (MIPSMT ASE) */
+#define MIPS_CPU_MMID		MBIT_ULL(57)	/* CPU supports MemoryMapIDs */
 
 /*
  * CPU ASE encodings
