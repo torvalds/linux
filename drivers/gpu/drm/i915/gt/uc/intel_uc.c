@@ -457,12 +457,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 		if (ret)
 			goto err_out;
 
-		if (intel_uc_uses_huc(uc)) {
-			ret = intel_huc_fw_upload(huc);
-			if (ret && intel_uc_fw_is_overridden(&huc->fw))
-				goto err_out;
-		}
-
+		intel_huc_fw_upload(huc);
 		intel_guc_ads_reset(guc);
 		intel_guc_write_params(guc);
 		ret = intel_guc_fw_upload(guc);
@@ -481,11 +476,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	if (ret)
 		goto err_log_capture;
 
-	if (intel_uc_fw_is_loaded(&huc->fw)) {
-		ret = intel_huc_auth(huc);
-		if (ret && intel_uc_fw_is_overridden(&huc->fw))
-			goto err_communication;
-	}
+	intel_huc_auth(huc);
 
 	ret = intel_guc_sample_forcewake(guc);
 	if (ret)

@@ -129,8 +129,10 @@ int intel_huc_auth(struct intel_huc *huc)
 	struct intel_guc *guc = &gt->uc.guc;
 	int ret;
 
-	GEM_BUG_ON(!intel_uc_fw_is_loaded(&huc->fw));
 	GEM_BUG_ON(intel_huc_is_authenticated(huc));
+
+	if (!intel_uc_fw_is_loaded(&huc->fw))
+		return -ENOEXEC;
 
 	ret = i915_inject_load_error(gt->i915, -ENXIO);
 	if (ret)
