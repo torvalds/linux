@@ -232,7 +232,7 @@ static void dspi_push_rx(struct fsl_dspi *dspi, u32 rxdata)
 	if (!dspi->rx)
 		return;
 
-	/* Mask of undefined bits */
+	/* Mask off undefined bits */
 	rxdata &= (1 << dspi->bits_per_word) - 1;
 
 	if (dspi->bytes_per_word == 1)
@@ -642,7 +642,7 @@ static void dspi_eoq_read(struct fsl_dspi *dspi)
 {
 	int fifo_size = DSPI_FIFO_SIZE;
 
-	/* Read one FIFO entry at and push to rx buffer */
+	/* Read one FIFO entry and push to rx buffer */
 	while ((dspi->rx < dspi->rx_end) && fifo_size--)
 		dspi_push_rx(dspi, fifo_read(dspi));
 }
