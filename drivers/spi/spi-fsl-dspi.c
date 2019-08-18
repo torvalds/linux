@@ -471,18 +471,19 @@ static void dspi_release_dma(struct fsl_dspi *dspi)
 	struct fsl_dspi_dma *dma = dspi->dma;
 	struct device *dev = &dspi->pdev->dev;
 
-	if (dma) {
-		if (dma->chan_tx) {
-			dma_unmap_single(dev, dma->tx_dma_phys,
-					DSPI_DMA_BUFSIZE, DMA_TO_DEVICE);
-			dma_release_channel(dma->chan_tx);
-		}
+	if (!dma)
+		return;
 
-		if (dma->chan_rx) {
-			dma_unmap_single(dev, dma->rx_dma_phys,
-					DSPI_DMA_BUFSIZE, DMA_FROM_DEVICE);
-			dma_release_channel(dma->chan_rx);
-		}
+	if (dma->chan_tx) {
+		dma_unmap_single(dev, dma->tx_dma_phys,
+				 DSPI_DMA_BUFSIZE, DMA_TO_DEVICE);
+		dma_release_channel(dma->chan_tx);
+	}
+
+	if (dma->chan_rx) {
+		dma_unmap_single(dev, dma->rx_dma_phys,
+				 DSPI_DMA_BUFSIZE, DMA_FROM_DEVICE);
+		dma_release_channel(dma->chan_rx);
 	}
 }
 
