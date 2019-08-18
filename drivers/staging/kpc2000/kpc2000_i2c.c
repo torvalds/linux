@@ -123,9 +123,9 @@ struct i2c_device {
 
 // FIXME!
 #undef inb_p
-#define inb_p(a) readq((void *)a)
+#define inb_p(a) readq((void __iomem *)a)
 #undef outb_p
-#define outb_p(d, a) writeq(d, (void *)a)
+#define outb_p(d, a) writeq(d, (void __iomem *)a)
 
 /* Make sure the SMBus host is ready to start transmitting.
  * Return 0 if it is, -EBUSY if it is not.
