@@ -3167,7 +3167,7 @@ mlx5e_flow_esw_attr_init(struct mlx5_esw_flow_attr *esw_attr,
 
 	esw_attr->parse_attr = parse_attr;
 	esw_attr->chain = f->common.chain_index;
-	esw_attr->prio = TC_H_MAJ(f->common.prio) >> 16;
+	esw_attr->prio = f->common.prio;
 
 	esw_attr->in_rep = in_rep;
 	esw_attr->in_mdev = in_mdev;
