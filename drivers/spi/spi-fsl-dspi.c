@@ -57,7 +57,19 @@
 #define SPI_SR				0x2c
 #define SPI_SR_TCFQF			BIT(31)
 #define SPI_SR_EOQF			BIT(28)
-#define SPI_SR_CLEAR			0x9aaf0000
+#define SPI_SR_TFUF			BIT(27)
+#define SPI_SR_TFFF			BIT(25)
+#define SPI_SR_CMDTCF			BIT(23)
+#define SPI_SR_SPEF			BIT(21)
+#define SPI_SR_RFOF			BIT(19)
+#define SPI_SR_TFIWF			BIT(18)
+#define SPI_SR_RFDF			BIT(17)
+#define SPI_SR_CMDFFF			BIT(16)
+#define SPI_SR_CLEAR			(SPI_SR_TCFQF | SPI_SR_EOQF | \
+					SPI_SR_TFUF | SPI_SR_TFFF | \
+					SPI_SR_CMDTCF | SPI_SR_SPEF | \
+					SPI_SR_RFOF | SPI_SR_TFIWF | \
+					SPI_SR_RFDF | SPI_SR_CMDFFF)
 
 #define SPI_RSER_TFFFE			BIT(25)
 #define SPI_RSER_TFFFD			BIT(24)
