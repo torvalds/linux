@@ -2028,14 +2028,16 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
 
 static int i915_guc_log_relay_open(struct inode *inode, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *i915 = inode->i_private;
+	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc_log *log = &guc->log;
 
-	if (!USES_GUC(dev_priv))
+	if (!intel_guc_is_running(guc))
 		return -ENODEV;
 
-	file->private_data = &dev_priv->gt.uc.guc.log;
+	file->private_data = log;
 
-	return intel_guc_log_relay_open(&dev_priv->gt.uc.guc.log);
+	return intel_guc_log_relay_open(log);
 }
 
 static ssize_t
@@ -2047,16 +2049,15 @@ i915_guc_log_relay_write(struct file *filp,
 	struct intel_guc_log *log = filp->private_data;
 
 	intel_guc_log_relay_flush(log);
-
 	return cnt;
 }
 
 static int i915_guc_log_relay_release(struct inode *inode, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *i915 = inode->i_private;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 
-	intel_guc_log_relay_close(&dev_priv->gt.uc.guc.log);
-
+	intel_guc_log_relay_close(&guc->log);
 	return 0;
 }
 

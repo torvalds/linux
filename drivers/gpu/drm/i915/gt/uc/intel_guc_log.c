@@ -372,6 +372,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	int ret;
 
 	lockdep_assert_held(&log->relay.lock);
+	GEM_BUG_ON(!log->vma);
 
 	 /* Keep the size of sub buffers same as shared log buffer */
 	subbuf_size = log->vma->size;
@@ -553,6 +554,9 @@ bool intel_guc_log_relay_enabled(const struct intel_guc_log *log)
 int intel_guc_log_relay_open(struct intel_guc_log *log)
 {
 	int ret;
+
+	if (!log->vma)
+		return -ENODEV;
 
 	mutex_lock(&log->relay.lock);
 
