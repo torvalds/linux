@@ -366,6 +366,12 @@ static inline u8 wil_rx_status_get_mcs(void *msg)
 			    16, 21);
 }
 
+static inline u8 wil_rx_status_get_cb_mode(void *msg)
+{
+	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d1,
+			    22, 23);
+}
+
 static inline u16 wil_rx_status_get_flow_id(void *msg)
 {
 	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,

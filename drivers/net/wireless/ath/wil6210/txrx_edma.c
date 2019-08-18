@@ -1023,6 +1023,8 @@ skipping:
 		stats->last_mcs_rx = wil_rx_status_get_mcs(msg);
 		if (stats->last_mcs_rx < ARRAY_SIZE(stats->rx_per_mcs))
 			stats->rx_per_mcs[stats->last_mcs_rx]++;
+
+		stats->last_cb_mode_rx  = wil_rx_status_get_cb_mode(msg);
 	}
 
 	if (!wil->use_rx_hw_reordering && !wil->use_compressed_rx_status &&

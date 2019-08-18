@@ -2163,8 +2163,8 @@ int wmi_rbufcap_cfg(struct wil6210_priv *wil, bool enable, u16 threshold)
 	return rc;
 }
 
-int wmi_pcp_start(struct wil6210_vif *vif,
-		  int bi, u8 wmi_nettype, u8 chan, u8 hidden_ssid, u8 is_go)
+int wmi_pcp_start(struct wil6210_vif *vif, int bi, u8 wmi_nettype,
+		  u8 chan, u8 wmi_edmg_chan, u8 hidden_ssid, u8 is_go)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc;
@@ -2174,6 +2174,7 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
+		.edmg_channel = wmi_edmg_chan,
 		.pcp_max_assoc_sta = wil->max_assoc_sta,
 		.hidden_ssid = hidden_ssid,
 		.is_go = is_go,
