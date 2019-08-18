@@ -39,9 +39,9 @@
 
 #define SPI_CTAR(x)			(0x0c + (((x) & GENMASK(1, 0)) * 4))
 #define SPI_CTAR_FMSZ(x)		(((x) << 27) & GENMASK(30, 27))
-#define SPI_CTAR_CPOL(x)		(((x) << 26) & GENMASK(26, 26))
-#define SPI_CTAR_CPHA(x)		(((x) << 25) & GENMASK(25, 25))
-#define SPI_CTAR_LSBFE(x)		(((x) << 24) & GENMASK(24, 24))
+#define SPI_CTAR_CPOL			BIT(26)
+#define SPI_CTAR_CPHA			BIT(25)
+#define SPI_CTAR_LSBFE			BIT(24)
 #define SPI_CTAR_PCSSCK(x)		(((x) << 22) & GENMASK(23, 22))
 #define SPI_CTAR_PASC(x)		(((x) << 20) & GENMASK(21, 20))
 #define SPI_CTAR_PDT(x)			(((x) << 18) & GENMASK(19, 18))
@@ -587,7 +587,7 @@ static void dspi_tcfq_write(struct fsl_dspi *dspi)
 		 */
 		u32 data = dspi_pop_tx(dspi);
 
-		if (dspi->cur_chip->ctar_val & SPI_CTAR_LSBFE(1)) {
+		if (dspi->cur_chip->ctar_val & SPI_CTAR_LSBFE) {
 			/* LSB */
 			tx_fifo_write(dspi, data & 0xFFFF);
 			tx_fifo_write(dspi, data >> 16);
@@ -791,18 +791,22 @@ static int dspi_setup(struct spi_device *spi)
 	/* Set After SCK delay scale values */
 	ns_delay_scale(&pasc, &asc, sck_cs_delay, clkrate);
 
-	chip->ctar_val = SPI_CTAR_CPOL(spi->mode & SPI_CPOL ? 1 : 0)
-		| SPI_CTAR_CPHA(spi->mode & SPI_CPHA ? 1 : 0);
+	chip->ctar_val = 0;
+	if (spi->mode & SPI_CPOL)
+		chip->ctar_val |= SPI_CTAR_CPOL;
+	if (spi->mode & SPI_CPHA)
+		chip->ctar_val |= SPI_CTAR_CPHA;
 
 	if (!spi_controller_is_slave(dspi->master)) {
-		chip->ctar_val |= SPI_CTAR_LSBFE(spi->mode &
-						 SPI_LSB_FIRST ? 1 : 0)
-			| SPI_CTAR_PCSSCK(pcssck)
-			| SPI_CTAR_CSSCK(cssck)
-			| SPI_CTAR_PASC(pasc)
-			| SPI_CTAR_ASC(asc)
-			| SPI_CTAR_PBR(pbr)
-			| SPI_CTAR_BR(br);
+		chip->ctar_val |= SPI_CTAR_PCSSCK(pcssck) |
+				  SPI_CTAR_CSSCK(cssck) |
+				  SPI_CTAR_PASC(pasc) |
+				  SPI_CTAR_ASC(asc) |
+				  SPI_CTAR_PBR(pbr) |
+				  SPI_CTAR_BR(br);
+
+		if (spi->mode & SPI_LSB_FIRST)
+			chip->ctar_val |= SPI_CTAR_LSBFE;
 	}
 
 	spi_set_ctldata(spi, chip);
@@ -968,9 +972,10 @@ static const struct regmap_config dspi_xspi_regmap_config[] = {
 
 static void dspi_init(struct fsl_dspi *dspi)
 {
-	unsigned int mcr = SPI_MCR_PCSIS |
-		(dspi->devtype_data->xspi_mode ? SPI_MCR_XSPI : 0);
+	unsigned int mcr = SPI_MCR_PCSIS;
 
+	if (dspi->devtype_data->xspi_mode)
+		mcr |= SPI_MCR_XSPI;
 	if (!spi_controller_is_slave(dspi->master))
 		mcr |= SPI_MCR_MASTER;
 
