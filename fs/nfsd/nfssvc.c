@@ -27,6 +27,7 @@
 #include "cache.h"
 #include "vfs.h"
 #include "netns.h"
+#include "filecache.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
@@ -313,6 +314,9 @@ static int nfsd_startup_generic(int nrservs)
 	if (nfsd_users++)
 		return 0;
 
+	ret = nfsd_file_cache_init();
+	if (ret)
+		goto dec_users;
 	/*
 	 * Readahead param cache - will no-op if it already exists.
 	 * (Note therefore results will be suboptimal if number of
@@ -320,7 +324,7 @@ static int nfsd_startup_generic(int nrservs)
 	 */
 	ret = nfsd_racache_init(2*nrservs);
 	if (ret)
-		goto dec_users;
+		goto out_file_cache;
 
 	ret = nfs4_state_start();
 	if (ret)
@@ -329,6 +333,8 @@ static int nfsd_startup_generic(int nrservs)
 
 out_racache:
 	nfsd_racache_shutdown();
+out_file_cache:
+	nfsd_file_cache_shutdown();
 dec_users:
 	nfsd_users--;
 	return ret;
@@ -340,6 +346,7 @@ static void nfsd_shutdown_generic(void)
 		return;
 
 	nfs4_state_shutdown();
+	nfsd_file_cache_shutdown();
 	nfsd_racache_shutdown();
 }
 
