@@ -268,8 +268,8 @@ static void dspi_rx_dma_callback(void *arg)
 
 static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 {
-	struct fsl_dspi_dma *dma = dspi->dma;
 	struct device *dev = &dspi->pdev->dev;
+	struct fsl_dspi_dma *dma = dspi->dma;
 	int time_left;
 	int i;
 
@@ -346,9 +346,9 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 
 static int dspi_dma_xfer(struct fsl_dspi *dspi)
 {
-	struct fsl_dspi_dma *dma = dspi->dma;
-	struct device *dev = &dspi->pdev->dev;
 	struct spi_message *message = dspi->cur_msg;
+	struct device *dev = &dspi->pdev->dev;
+	struct fsl_dspi_dma *dma = dspi->dma;
 	int curr_remaining_bytes;
 	int bytes_per_buffer;
 	int ret = 0;
@@ -383,9 +383,9 @@ exit:
 
 static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 {
-	struct fsl_dspi_dma *dma;
-	struct dma_slave_config cfg;
 	struct device *dev = &dspi->pdev->dev;
+	struct dma_slave_config cfg;
+	struct fsl_dspi_dma *dma;
 	int ret;
 
 	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
@@ -527,10 +527,10 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 static void ns_delay_scale(char *psc, char *sc, int delay_ns,
 			   unsigned long clkrate)
 {
-	int pscale_tbl[4] = {1, 3, 5, 7};
 	int scale_needed, scale, minscale = INT_MAX;
-	int i, j;
+	int pscale_tbl[4] = {1, 3, 5, 7};
 	u32 remainder;
+	int i, j;
 
 	scale_needed = div_u64_rem((u64)delay_ns * clkrate, NSEC_PER_SEC,
 				   &remainder);
@@ -652,9 +652,9 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 {
 	struct fsl_dspi *dspi = spi_controller_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
+	enum dspi_trans_mode trans_mode;
 	struct spi_transfer *transfer;
 	int status = 0;
-	enum dspi_trans_mode trans_mode;
 
 	message->actual_length = 0;
 
@@ -752,12 +752,12 @@ out:
 
 static int dspi_setup(struct spi_device *spi)
 {
-	struct chip_data *chip;
 	struct fsl_dspi *dspi = spi_controller_get_devdata(spi->controller);
-	struct fsl_dspi_platform_data *pdata;
-	u32 cs_sck_delay = 0, sck_cs_delay = 0;
 	unsigned char br = 0, pbr = 0, pcssck = 0, cssck = 0;
+	u32 cs_sck_delay = 0, sck_cs_delay = 0;
+	struct fsl_dspi_platform_data *pdata;
 	unsigned char pasc = 0, asc = 0;
+	struct chip_data *chip;
 	unsigned long clkrate;
 
 	/* Only alloc on first setup */
@@ -990,13 +990,13 @@ static void dspi_init(struct fsl_dspi *dspi)
 static int dspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	const struct regmap_config *regmap_config;
+	struct fsl_dspi_platform_data *pdata;
 	struct spi_controller *ctlr;
+	int ret, cs_num, bus_num;
 	struct fsl_dspi *dspi;
 	struct resource *res;
-	const struct regmap_config *regmap_config;
 	void __iomem *base;
-	struct fsl_dspi_platform_data *pdata;
-	int ret, cs_num, bus_num;
 
 	ctlr = spi_alloc_master(&pdev->dev, sizeof(struct fsl_dspi));
 	if (!ctlr)
