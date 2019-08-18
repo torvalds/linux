@@ -28,35 +28,35 @@
 #define DSPI_DMA_BUFSIZE		(DSPI_FIFO_SIZE * 1024)
 
 #define SPI_MCR				0x00
-#define SPI_MCR_MASTER			(1 << 31)
+#define SPI_MCR_MASTER			BIT(31)
 #define SPI_MCR_PCSIS			(0x3F << 16)
-#define SPI_MCR_CLR_TXF			(1 << 11)
-#define SPI_MCR_CLR_RXF			(1 << 10)
-#define SPI_MCR_XSPI			(1 << 3)
+#define SPI_MCR_CLR_TXF			BIT(11)
+#define SPI_MCR_CLR_RXF			BIT(10)
+#define SPI_MCR_XSPI			BIT(3)
 
 #define SPI_TCR				0x08
-#define SPI_TCR_GET_TCNT(x)		(((x) & 0xffff0000) >> 16)
+#define SPI_TCR_GET_TCNT(x)		(((x) & GENMASK(31, 16)) >> 16)
 
-#define SPI_CTAR(x)			(0x0c + (((x) & 0x3) * 4))
-#define SPI_CTAR_FMSZ(x)		(((x) & 0x0000000f) << 27)
-#define SPI_CTAR_CPOL(x)		((x) << 26)
-#define SPI_CTAR_CPHA(x)		((x) << 25)
-#define SPI_CTAR_LSBFE(x)		((x) << 24)
-#define SPI_CTAR_PCSSCK(x)		(((x) & 0x00000003) << 22)
-#define SPI_CTAR_PASC(x)		(((x) & 0x00000003) << 20)
-#define SPI_CTAR_PDT(x)			(((x) & 0x00000003) << 18)
-#define SPI_CTAR_PBR(x)			(((x) & 0x00000003) << 16)
-#define SPI_CTAR_CSSCK(x)		(((x) & 0x0000000f) << 12)
-#define SPI_CTAR_ASC(x)			(((x) & 0x0000000f) << 8)
-#define SPI_CTAR_DT(x)			(((x) & 0x0000000f) << 4)
-#define SPI_CTAR_BR(x)			((x) & 0x0000000f)
+#define SPI_CTAR(x)			(0x0c + (((x) & GENMASK(1, 0)) * 4))
+#define SPI_CTAR_FMSZ(x)		(((x) << 27) & GENMASK(30, 27))
+#define SPI_CTAR_CPOL(x)		(((x) << 26) & GENMASK(26, 26))
+#define SPI_CTAR_CPHA(x)		(((x) << 25) & GENMASK(25, 25))
+#define SPI_CTAR_LSBFE(x)		(((x) << 24) & GENMASK(24, 24))
+#define SPI_CTAR_PCSSCK(x)		(((x) << 22) & GENMASK(23, 22))
+#define SPI_CTAR_PASC(x)		(((x) << 20) & GENMASK(21, 20))
+#define SPI_CTAR_PDT(x)			(((x) << 18) & GENMASK(19, 18))
+#define SPI_CTAR_PBR(x)			(((x) << 16) & GENMASK(17, 16))
+#define SPI_CTAR_CSSCK(x)		(((x) << 12) & GENMASK(15, 12))
+#define SPI_CTAR_ASC(x)			(((x) << 8) & GENMASK(11, 8))
+#define SPI_CTAR_DT(x)			(((x) << 4) & GENMASK(7, 4))
+#define SPI_CTAR_BR(x)			((x) & GENMASK(3, 0))
 #define SPI_CTAR_SCALE_BITS		0xf
 
 #define SPI_CTAR0_SLAVE			0x0c
 
 #define SPI_SR				0x2c
-#define SPI_SR_EOQF			0x10000000
-#define SPI_SR_TCFQF			0x80000000
+#define SPI_SR_TCFQF			BIT(31)
+#define SPI_SR_EOQF			BIT(28)
 #define SPI_SR_CLEAR			0x9aaf0000
 
 #define SPI_RSER_TFFFE			BIT(25)
@@ -65,15 +65,15 @@
 #define SPI_RSER_RFDFD			BIT(16)
 
 #define SPI_RSER			0x30
-#define SPI_RSER_EOQFE			0x10000000
-#define SPI_RSER_TCFQE			0x80000000
+#define SPI_RSER_TCFQE			BIT(31)
+#define SPI_RSER_EOQFE			BIT(28)
 
 #define SPI_PUSHR			0x34
-#define SPI_PUSHR_CMD_CONT		(1 << 15)
-#define SPI_PUSHR_CMD_CTAS(x)		(((x) & 0x0003) << 12)
-#define SPI_PUSHR_CMD_EOQ		(1 << 11)
-#define SPI_PUSHR_CMD_CTCNT		(1 << 10)
-#define SPI_PUSHR_CMD_PCS(x)		((1 << x) & 0x003f)
+#define SPI_PUSHR_CMD_CONT		BIT(15)
+#define SPI_PUSHR_CMD_CTAS(x)		(((x) << 12 & GENMASK(14, 12)))
+#define SPI_PUSHR_CMD_EOQ		BIT(11)
+#define SPI_PUSHR_CMD_CTCNT		BIT(10)
+#define SPI_PUSHR_CMD_PCS(x)		(BIT(x) & GENMASK(5, 0))
 
 #define SPI_PUSHR_SLAVE			0x34
 
@@ -88,7 +88,7 @@
 #define SPI_RXFR2			0x84
 #define SPI_RXFR3			0x88
 
-#define SPI_CTARE(x)			(0x11c + (((x) & 0x3) * 4))
+#define SPI_CTARE(x)			(0x11c + (((x) & GENMASK(1, 0)) * 4))
 #define SPI_CTARE_FMSZE(x)		(((x) & 0x1) << 16)
 #define SPI_CTARE_DTCP(x)		((x) & 0x7ff)
 
