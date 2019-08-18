@@ -262,7 +262,8 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info,
 	/* IEEE80211_RADIOTAP_RATE rate */
 	if (status && status->rate && !(status->rate->flags &
 					(RATE_INFO_FLAGS_MCS |
-					 RATE_INFO_FLAGS_60G |
+					 RATE_INFO_FLAGS_DMG |
+					 RATE_INFO_FLAGS_EDMG |
 					 RATE_INFO_FLAGS_VHT_MCS |
 					 RATE_INFO_FLAGS_HE_MCS)))
 		len += 2;
@@ -329,7 +330,8 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 
 	if (status && status->rate) {
 		if (!(status->rate->flags & (RATE_INFO_FLAGS_MCS |
-					     RATE_INFO_FLAGS_60G |
+					     RATE_INFO_FLAGS_DMG |
+					     RATE_INFO_FLAGS_EDMG |
 					     RATE_INFO_FLAGS_VHT_MCS |
 					     RATE_INFO_FLAGS_HE_MCS)))
 			legacy_rate = status->rate->legacy;

@@ -52,6 +52,11 @@
 #define NL80211_MULTICAST_GROUP_NAN		"nan"
 #define NL80211_MULTICAST_GROUP_TESTMODE	"testmode"
 
+#define NL80211_EDMG_BW_CONFIG_MIN	4
+#define NL80211_EDMG_BW_CONFIG_MAX	15
+#define NL80211_EDMG_CHANNELS_MIN	1
+#define NL80211_EDMG_CHANNELS_MAX	0x3c /* 0b00111100 */
+
 /**
  * DOC: Station handling
  *
@@ -2361,6 +2366,13 @@ enum nl80211_commands {
  * @NL80211_ATTR_HE_OBSS_PD: nested attribute for OBSS Packet Detection
  *	functionality.
  *
+ * @NL80211_ATTR_WIPHY_EDMG_CHANNELS: bitmap that indicates the 2.16 GHz
+ *	channel(s) that are allowed to be used for EDMG transmissions.
+ *	Defined by IEEE P802.11ay/D4.0 section 9.4.2.251. (u8 attribute)
+ * @NL80211_ATTR_WIPHY_EDMG_BW_CONFIG: Channel BW Configuration subfield encodes
+ *	the allowed channel bandwidth configurations. (u8 attribute)
+ *	Defined by IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2819,6 +2831,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_TWT_RESPONDER,
 
 	NL80211_ATTR_HE_OBSS_PD,
+
+	NL80211_ATTR_WIPHY_EDMG_CHANNELS,
+	NL80211_ATTR_WIPHY_EDMG_BW_CONFIG,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3431,6 +3446,12 @@ enum nl80211_band_iftype_attr {
  * @NL80211_BAND_ATTR_VHT_CAPA: VHT capabilities, as in the HT information IE
  * @NL80211_BAND_ATTR_IFTYPE_DATA: nested array attribute, with each entry using
  *	attributes from &enum nl80211_band_iftype_attr
+ * @NL80211_BAND_ATTR_EDMG_CHANNELS: bitmap that indicates the 2.16 GHz
+ *	channel(s) that are allowed to be used for EDMG transmissions.
+ *	Defined by IEEE P802.11ay/D4.0 section 9.4.2.251.
+ * @NL80211_BAND_ATTR_EDMG_BW_CONFIG: Channel BW Configuration subfield encodes
+ *	the allowed channel bandwidth configurations.
+ *	Defined by IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13.
  * @NL80211_BAND_ATTR_MAX: highest band attribute currently defined
  * @__NL80211_BAND_ATTR_AFTER_LAST: internal use
  */
@@ -3447,6 +3468,9 @@ enum nl80211_band_attr {
 	NL80211_BAND_ATTR_VHT_MCS_SET,
 	NL80211_BAND_ATTR_VHT_CAPA,
 	NL80211_BAND_ATTR_IFTYPE_DATA,
+
+	NL80211_BAND_ATTR_EDMG_CHANNELS,
+	NL80211_BAND_ATTR_EDMG_BW_CONFIG,
 
 	/* keep last */
 	__NL80211_BAND_ATTR_AFTER_LAST,
