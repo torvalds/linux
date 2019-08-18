@@ -753,8 +753,8 @@ in-kernel irqchip (GIC), and for in-kernel irqchip can tell the GIC to
 use PPIs designated for specific cpus.  The irq field is interpreted
 like this:
 
-  bits:  | 31 ... 24 | 23  ... 16 | 15    ...    0 |
-  field: | irq_type  | vcpu_index |     irq_id     |
+  bits:  |  31 ... 28  | 27 ... 24 | 23  ... 16 | 15 ... 0 |
+  field: | vcpu2_index | irq_type  | vcpu_index |  irq_id  |
 
 The irq_type field has the following values:
 - irq_type[0]: out-of-kernel GIC: irq_id 0 is IRQ, irq_id 1 is FIQ
@@ -765,6 +765,14 @@ The irq_type field has the following values:
 (The irq_id field thus corresponds nicely to the IRQ ID in the ARM GIC specs)
 
 In both cases, level is used to assert/deassert the line.
+
+When KVM_CAP_ARM_IRQ_LINE_LAYOUT_2 is supported, the target vcpu is
+identified as (256 * vcpu2_index + vcpu_index). Otherwise, vcpu2_index
+must be zero.
+
+Note that on arm/arm64, the KVM_CAP_IRQCHIP capability only conditions
+injection of interrupts for the in-kernel irqchip. KVM_IRQ_LINE can always
+be used for a userspace interrupt controller.
 
 struct kvm_irq_level {
 	union {
