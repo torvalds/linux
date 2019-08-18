@@ -1006,7 +1006,6 @@ static int dspi_probe(struct platform_device *pdev)
 	dspi->pdev = pdev;
 	dspi->master = master;
 
-	master->transfer = NULL;
 	master->setup = dspi_setup;
 	master->transfer_one_message = dspi_transfer_one_message;
 	master->dev.of_node = pdev->dev.of_node;
