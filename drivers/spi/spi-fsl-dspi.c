@@ -647,6 +647,63 @@ static void dspi_eoq_read(struct fsl_dspi *dspi)
 		dspi_push_rx(dspi, fifo_read(dspi));
 }
 
+static irqreturn_t dspi_interrupt(int irq, void *dev_id)
+{
+	struct fsl_dspi *dspi = (struct fsl_dspi *)dev_id;
+	struct spi_message *msg = dspi->cur_msg;
+	enum dspi_trans_mode trans_mode;
+	u32 spi_sr, spi_tcr;
+	u16 spi_tcnt;
+
+	regmap_read(dspi->regmap, SPI_SR, &spi_sr);
+	regmap_write(dspi->regmap, SPI_SR, spi_sr);
+
+
+	if (spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF)) {
+		/* Get transfer counter (in number of SPI transfers). It was
+		 * reset to 0 when transfer(s) were started.
+		 */
+		regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
+		spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
+		/* Update total number of bytes that were transferred */
+		msg->actual_length += spi_tcnt * dspi->bytes_per_word;
+
+		trans_mode = dspi->devtype_data->trans_mode;
+		switch (trans_mode) {
+		case DSPI_EOQ_MODE:
+			dspi_eoq_read(dspi);
+			break;
+		case DSPI_TCFQ_MODE:
+			dspi_tcfq_read(dspi);
+			break;
+		default:
+			dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
+				trans_mode);
+				return IRQ_HANDLED;
+		}
+
+		if (!dspi->len) {
+			dspi->waitflags = 1;
+			wake_up_interruptible(&dspi->waitq);
+		} else {
+			switch (trans_mode) {
+			case DSPI_EOQ_MODE:
+				dspi_eoq_write(dspi);
+				break;
+			case DSPI_TCFQ_MODE:
+				dspi_tcfq_write(dspi);
+				break;
+			default:
+				dev_err(&dspi->pdev->dev,
+					"unsupported trans_mode %u\n",
+					trans_mode);
+			}
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int dspi_transfer_one_message(struct spi_controller *ctlr,
 				     struct spi_message *message)
 {
@@ -823,63 +880,6 @@ static void dspi_cleanup(struct spi_device *spi)
 		spi->controller->bus_num, spi->chip_select);
 
 	kfree(chip);
-}
-
-static irqreturn_t dspi_interrupt(int irq, void *dev_id)
-{
-	struct fsl_dspi *dspi = (struct fsl_dspi *)dev_id;
-	struct spi_message *msg = dspi->cur_msg;
-	enum dspi_trans_mode trans_mode;
-	u32 spi_sr, spi_tcr;
-	u16 spi_tcnt;
-
-	regmap_read(dspi->regmap, SPI_SR, &spi_sr);
-	regmap_write(dspi->regmap, SPI_SR, spi_sr);
-
-
-	if (spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF)) {
-		/* Get transfer counter (in number of SPI transfers). It was
-		 * reset to 0 when transfer(s) were started.
-		 */
-		regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
-		spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
-		/* Update total number of bytes that were transferred */
-		msg->actual_length += spi_tcnt * dspi->bytes_per_word;
-
-		trans_mode = dspi->devtype_data->trans_mode;
-		switch (trans_mode) {
-		case DSPI_EOQ_MODE:
-			dspi_eoq_read(dspi);
-			break;
-		case DSPI_TCFQ_MODE:
-			dspi_tcfq_read(dspi);
-			break;
-		default:
-			dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
-				trans_mode);
-				return IRQ_HANDLED;
-		}
-
-		if (!dspi->len) {
-			dspi->waitflags = 1;
-			wake_up_interruptible(&dspi->waitq);
-		} else {
-			switch (trans_mode) {
-			case DSPI_EOQ_MODE:
-				dspi_eoq_write(dspi);
-				break;
-			case DSPI_TCFQ_MODE:
-				dspi_tcfq_write(dspi);
-				break;
-			default:
-				dev_err(&dspi->pdev->dev,
-					"unsupported trans_mode %u\n",
-					trans_mode);
-			}
-		}
-	}
-
-	return IRQ_HANDLED;
 }
 
 static const struct of_device_id fsl_dspi_dt_ids[] = {
