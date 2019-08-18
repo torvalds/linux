@@ -2995,5 +2995,54 @@ EXPORT_SYMBOL(mlx5_packet_reformat_dealloc);
 int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_root_namespace *peer_ns)
 {
+	if (peer_ns && ns->mode != peer_ns->mode) {
+		mlx5_core_err(ns->dev,
+			      "Can't peer namespace of different steering mode\n");
+		return -EINVAL;
+	}
+
 	return ns->cmds->set_peer(ns, peer_ns);
+}
+
+/* This function should be called only at init stage of the namespace.
+ * It is not safe to call this function while steering operations
+ * are executed in the namespace.
+ */
+int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
+				 enum mlx5_flow_steering_mode mode)
+{
+	struct mlx5_flow_root_namespace *root;
+	const struct mlx5_flow_cmds *cmds;
+	int err;
+
+	root = find_root(&ns->node);
+	if (&root->ns != ns)
+	/* Can't set cmds to non root namespace */
+		return -EINVAL;
+
+	if (root->table_type != FS_FT_FDB)
+		return -EOPNOTSUPP;
+
+	if (root->mode == mode)
+		return 0;
+
+	if (mode == MLX5_FLOW_STEERING_MODE_SMFS)
+		cmds = mlx5_fs_cmd_get_dr_cmds();
+	else
+		cmds = mlx5_fs_cmd_get_fw_cmds();
+	if (!cmds)
+		return -EOPNOTSUPP;
+
+	err = cmds->create_ns(root);
+	if (err) {
+		mlx5_core_err(root->dev, "Failed to create flow namespace (%d)\n",
+			      err);
+		return err;
+	}
+
+	root->cmds->destroy_ns(root);
+	root->cmds = cmds;
+	root->mode = mode;
+
+	return 0;
 }

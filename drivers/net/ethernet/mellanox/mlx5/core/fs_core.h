@@ -98,9 +98,15 @@ enum fs_fte_status {
 	FS_FTE_STATUS_EXISTING = 1UL << 0,
 };
 
+enum mlx5_flow_steering_mode {
+	MLX5_FLOW_STEERING_MODE_DMFS,
+	MLX5_FLOW_STEERING_MODE_SMFS
+};
+
 struct mlx5_flow_steering {
 	struct mlx5_core_dev *dev;
-	struct kmem_cache               *fgs_cache;
+	enum   mlx5_flow_steering_mode	mode;
+	struct kmem_cache		*fgs_cache;
 	struct kmem_cache               *ftes_cache;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
@@ -235,6 +241,7 @@ struct mlx5_flow_group {
 
 struct mlx5_flow_root_namespace {
 	struct mlx5_flow_namespace	ns;
+	enum   mlx5_flow_steering_mode	mode;
 	struct mlx5_fs_dr_domain	fs_dr_domain;
 	enum   fs_flow_table_type	table_type;
 	struct mlx5_core_dev		*dev;
@@ -257,6 +264,9 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
 
 int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_root_namespace *peer_ns);
+
+int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
+				 enum mlx5_flow_steering_mode mode);
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
