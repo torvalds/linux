@@ -264,6 +264,8 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info)
 	/* IEEE80211_RADIOTAP_RATE rate */
 	if (info->status.rates[0].idx >= 0 &&
 	    !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
+					     RATE_INFO_FLAGS_DMG |
+					     RATE_INFO_FLAGS_EDMG |
 					     IEEE80211_TX_RC_VHT_MCS)))
 		len += 2;
 
@@ -315,6 +317,8 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_RATE */
 	if (info->status.rates[0].idx >= 0 &&
 	    !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
+					     RATE_INFO_FLAGS_DMG |
+					     RATE_INFO_FLAGS_EDMG |
 					     IEEE80211_TX_RC_VHT_MCS))) {
 		u16 rate;
 
