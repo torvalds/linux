@@ -5554,7 +5554,7 @@ nfs4_check_olstateid(struct nfs4_ol_stateid *ols, int flags)
 
 static __be32
 nfs4_check_file(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfs4_stid *s,
-		struct file **filpp, bool *tmp_file, int flags)
+		struct nfsd_file **nfp, int flags)
 {
 	int acc = (flags & RD_STATE) ? NFSD_MAY_READ : NFSD_MAY_WRITE;
 	struct nfsd_file *nf;
@@ -5564,19 +5564,17 @@ nfs4_check_file(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfs4_stid *s,
 	if (nf) {
 		status = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
 				acc | NFSD_MAY_OWNER_OVERRIDE);
-		if (status)
+		if (status) {
+			nfsd_file_put(nf);
 			goto out;
+		}
 	} else {
 		status = nfsd_file_acquire(rqstp, fhp, acc, &nf);
 		if (status)
 			return status;
-
-		if (tmp_file)
-			*tmp_file = true;
 	}
-	*filpp = get_file(nf->nf_file);
+	*nfp = nf;
 out:
-	nfsd_file_put(nf);
 	return status;
 }
 
@@ -5586,7 +5584,7 @@ out:
 __be32
 nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, struct svc_fh *fhp,
-		stateid_t *stateid, int flags, struct file **filpp, bool *tmp_file)
+		stateid_t *stateid, int flags, struct nfsd_file **nfp)
 {
 	struct inode *ino = d_inode(fhp->fh_dentry);
 	struct net *net = SVC_NET(rqstp);
@@ -5594,10 +5592,8 @@ nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 	struct nfs4_stid *s = NULL;
 	__be32 status;
 
-	if (filpp)
-		*filpp = NULL;
-	if (tmp_file)
-		*tmp_file = false;
+	if (nfp)
+		*nfp = NULL;
 
 	if (grace_disallows_io(net, ino))
 		return nfserr_grace;
@@ -5634,8 +5630,8 @@ nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 	status = nfs4_check_fh(fhp, s);
 
 done:
-	if (!status && filpp)
-		status = nfs4_check_file(rqstp, fhp, s, filpp, tmp_file, flags);
+	if (status == nfs_ok && nfp)
+		status = nfs4_check_file(rqstp, fhp, s, nfp, flags);
 out:
 	if (s)
 		nfs4_put_stid(s);
