@@ -516,7 +516,7 @@ struct nfs4_file {
 	 */
 	atomic_t		fi_access[2];
 	u32			fi_share_deny;
-	struct file		*fi_deleg_file;
+	struct nfsd_file	*fi_deleg_file;
 	int			fi_delegees;
 	struct knfsd_fh		fi_fhandle;
 	bool			fi_had_conflict;
@@ -565,7 +565,7 @@ struct nfs4_layout_stateid {
 	spinlock_t			ls_lock;
 	struct list_head		ls_layouts;
 	u32				ls_layout_type;
-	struct file			*ls_file;
+	struct nfsd_file		*ls_file;
 	struct nfsd4_callback		ls_recall;
 	stateid_t			ls_recall_sid;
 	bool				ls_recalled;
@@ -657,7 +657,7 @@ static inline void get_nfs4_file(struct nfs4_file *fi)
 {
 	refcount_inc(&fi->fi_ref);
 }
-struct file *find_any_file(struct nfs4_file *f);
+struct nfsd_file *find_any_file(struct nfs4_file *f);
 
 /* grace period management */
 void nfsd4_end_grace(struct nfsd_net *nn);
