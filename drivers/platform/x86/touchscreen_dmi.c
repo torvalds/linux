@@ -934,6 +934,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Trekstor Primebook C11B (same touchscreen as the C11) */
+		.driver_data = (void *)&trekstor_primebook_c11_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PRIMEBOOK C11B"),
+		},
+	},
+	{
 		/* Trekstor Primebook C13 */
 		.driver_data = (void *)&trekstor_primebook_c13_data,
 		.matches = {
