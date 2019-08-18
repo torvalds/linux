@@ -2122,6 +2122,7 @@ static int fdp1_open(struct file *file)
 	if (ctx->hdl.error) {
 		ret = ctx->hdl.error;
 		v4l2_ctrl_handler_free(&ctx->hdl);
+		kfree(ctx);
 		goto done;
 	}
 
