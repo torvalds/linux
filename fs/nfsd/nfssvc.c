@@ -317,22 +317,12 @@ static int nfsd_startup_generic(int nrservs)
 	ret = nfsd_file_cache_init();
 	if (ret)
 		goto dec_users;
-	/*
-	 * Readahead param cache - will no-op if it already exists.
-	 * (Note therefore results will be suboptimal if number of
-	 * threads is modified after nfsd start.)
-	 */
-	ret = nfsd_racache_init(2*nrservs);
-	if (ret)
-		goto out_file_cache;
 
 	ret = nfs4_state_start();
 	if (ret)
-		goto out_racache;
+		goto out_file_cache;
 	return 0;
 
-out_racache:
-	nfsd_racache_shutdown();
 out_file_cache:
 	nfsd_file_cache_shutdown();
 dec_users:
@@ -347,7 +337,6 @@ static void nfsd_shutdown_generic(void)
 
 	nfs4_state_shutdown();
 	nfsd_file_cache_shutdown();
-	nfsd_racache_shutdown();
 }
 
 static bool nfsd_needs_lockd(struct nfsd_net *nn)
