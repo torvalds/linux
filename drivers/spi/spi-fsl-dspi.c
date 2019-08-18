@@ -9,24 +9,14 @@
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/err.h>
-#include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/math64.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <linux/sched.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-fsl-dspi.h>
-#include <linux/spi/spi_bitbang.h>
-#include <linux/time.h>
 
 #define DRIVER_NAME			"fsl-dspi"
 
@@ -80,21 +70,14 @@
 
 #define SPI_PUSHR			0x34
 #define SPI_PUSHR_CMD_CONT		(1 << 15)
-#define SPI_PUSHR_CONT			(SPI_PUSHR_CMD_CONT << 16)
 #define SPI_PUSHR_CMD_CTAS(x)		(((x) & 0x0003) << 12)
-#define SPI_PUSHR_CTAS(x)		(SPI_PUSHR_CMD_CTAS(x) << 16)
 #define SPI_PUSHR_CMD_EOQ		(1 << 11)
-#define SPI_PUSHR_EOQ			(SPI_PUSHR_CMD_EOQ << 16)
 #define SPI_PUSHR_CMD_CTCNT		(1 << 10)
-#define SPI_PUSHR_CTCNT			(SPI_PUSHR_CMD_CTCNT << 16)
 #define SPI_PUSHR_CMD_PCS(x)		((1 << x) & 0x003f)
-#define SPI_PUSHR_PCS(x)		(SPI_PUSHR_CMD_PCS(x) << 16)
-#define SPI_PUSHR_TXDATA(x)		((x) & 0x0000ffff)
 
 #define SPI_PUSHR_SLAVE			0x34
 
 #define SPI_POPR			0x38
-#define SPI_POPR_RXDATA(x)		((x) & 0x0000ffff)
 
 #define SPI_TXFR0			0x3c
 #define SPI_TXFR1			0x40
@@ -112,20 +95,11 @@
 #define SPI_SREX			0x13c
 
 #define SPI_FRAME_BITS(bits)		SPI_CTAR_FMSZ((bits) - 1)
-#define SPI_FRAME_BITS_MASK		SPI_CTAR_FMSZ(0xf)
-#define SPI_FRAME_BITS_16		SPI_CTAR_FMSZ(0xf)
-#define SPI_FRAME_BITS_8		SPI_CTAR_FMSZ(0x7)
-
 #define SPI_FRAME_EBITS(bits)		SPI_CTARE_FMSZE(((bits) - 1) >> 4)
-#define SPI_FRAME_EBITS_MASK		SPI_CTARE_FMSZE(1)
 
 /* Register offsets for regmap_pushr */
 #define PUSHR_CMD			0x0
 #define PUSHR_TX			0x2
-
-#define SPI_CS_INIT			0x01
-#define SPI_CS_ASSERT			0x02
-#define SPI_CS_DROP			0x04
 
 #define DMA_COMPLETION_TIMEOUT		msecs_to_jiffies(3000)
 
