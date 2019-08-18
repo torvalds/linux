@@ -131,9 +131,14 @@ static int superblock_read(struct super_block *sb)
 	sbi->build_time_nsec = le32_to_cpu(layout->build_time_nsec);
 
 	memcpy(&sb->s_uuid, layout->uuid, sizeof(layout->uuid));
-	memcpy(sbi->volume_name, layout->volume_name,
-	       sizeof(layout->volume_name));
 
+	ret = strscpy(sbi->volume_name, layout->volume_name,
+		      sizeof(layout->volume_name));
+	if (ret < 0) {	/* -E2BIG */
+		errln("bad volume name without NIL terminator");
+		ret = -EFSCORRUPTED;
+		goto out;
+	}
 	ret = 0;
 out:
 	brelse(bh);
