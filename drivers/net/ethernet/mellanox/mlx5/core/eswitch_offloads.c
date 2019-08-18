@@ -1068,6 +1068,13 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 		err = -EOPNOTSUPP;
 		goto ns_err;
 	}
+	esw->fdb_table.offloads.ns = root_ns;
+	err = mlx5_flow_namespace_set_mode(root_ns,
+					   esw->dev->priv.steering->mode);
+	if (err) {
+		esw_warn(dev, "Failed to set FDB namespace steering mode\n");
+		goto ns_err;
+	}
 
 	max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
 			    MLX5_CAP_GEN(dev, max_flow_counter_15_0);
@@ -1207,6 +1214,8 @@ send_vport_err:
 	esw_destroy_offloads_fast_fdb_tables(esw);
 	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 slow_fdb_err:
+	/* Holds true only as long as DMFS is the default */
+	mlx5_flow_namespace_set_mode(root_ns, MLX5_FLOW_STEERING_MODE_DMFS);
 ns_err:
 	kvfree(flow_group_in);
 	return err;
@@ -1226,6 +1235,9 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 
 	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 	esw_destroy_offloads_fast_fdb_tables(esw);
+	/* Holds true only as long as DMFS is the default */
+	mlx5_flow_namespace_set_mode(esw->fdb_table.offloads.ns,
+				     MLX5_FLOW_STEERING_MODE_DMFS);
 }
 
 static int esw_create_offloads_table(struct mlx5_eswitch *esw, int nvports)
@@ -1623,13 +1635,42 @@ static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
 	esw_del_fdb_peer_miss_rules(esw);
 }
 
+static int mlx5_esw_offloads_set_ns_peer(struct mlx5_eswitch *esw,
+					 struct mlx5_eswitch *peer_esw,
+					 bool pair)
+{
+	struct mlx5_flow_root_namespace *peer_ns;
+	struct mlx5_flow_root_namespace *ns;
+	int err;
+
+	peer_ns = peer_esw->dev->priv.steering->fdb_root_ns;
+	ns = esw->dev->priv.steering->fdb_root_ns;
+
+	if (pair) {
+		err = mlx5_flow_namespace_set_peer(ns, peer_ns);
+		if (err)
+			return err;
+
+		mlx5_flow_namespace_set_peer(peer_ns, ns);
+		if (err) {
+			mlx5_flow_namespace_set_peer(ns, NULL);
+			return err;
+		}
+	} else {
+		mlx5_flow_namespace_set_peer(ns, NULL);
+		mlx5_flow_namespace_set_peer(peer_ns, NULL);
+	}
+
+	return 0;
+}
+
 static int mlx5_esw_offloads_devcom_event(int event,
 					  void *my_data,
 					  void *event_data)
 {
 	struct mlx5_eswitch *esw = my_data;
-	struct mlx5_eswitch *peer_esw = event_data;
 	struct mlx5_devcom *devcom = esw->dev->priv.devcom;
+	struct mlx5_eswitch *peer_esw = event_data;
 	int err;
 
 	switch (event) {
@@ -1638,9 +1679,12 @@ static int mlx5_esw_offloads_devcom_event(int event,
 		    mlx5_eswitch_vport_match_metadata_enabled(peer_esw))
 			break;
 
-		err = mlx5_esw_offloads_pair(esw, peer_esw);
+		err = mlx5_esw_offloads_set_ns_peer(esw, peer_esw, true);
 		if (err)
 			goto err_out;
+		err = mlx5_esw_offloads_pair(esw, peer_esw);
+		if (err)
+			goto err_peer;
 
 		err = mlx5_esw_offloads_pair(peer_esw, esw);
 		if (err)
@@ -1656,6 +1700,7 @@ static int mlx5_esw_offloads_devcom_event(int event,
 		mlx5_devcom_set_paired(devcom, MLX5_DEVCOM_ESW_OFFLOADS, false);
 		mlx5_esw_offloads_unpair(peer_esw);
 		mlx5_esw_offloads_unpair(esw);
+		mlx5_esw_offloads_set_ns_peer(esw, peer_esw, false);
 		break;
 	}
 
@@ -1663,7 +1708,8 @@ static int mlx5_esw_offloads_devcom_event(int event,
 
 err_pair:
 	mlx5_esw_offloads_unpair(esw);
-
+err_peer:
+	mlx5_esw_offloads_set_ns_peer(esw, peer_esw, false);
 err_out:
 	mlx5_core_err(esw->dev, "esw offloads devcom event failure, event %u err %d",
 		      event, err);
@@ -2115,9 +2161,10 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 	else
 		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 
+	mlx5_rdma_enable_roce(esw->dev);
 	err = esw_offloads_steering_init(esw);
 	if (err)
-		return err;
+		goto err_steering_init;
 
 	err = esw_set_passing_vport_metadata(esw, true);
 	if (err)
@@ -2132,8 +2179,6 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 	esw_offloads_devcom_init(esw);
 	mutex_init(&esw->offloads.termtbl_mutex);
 
-	mlx5_rdma_enable_roce(esw->dev);
-
 	return 0;
 
 err_reps:
@@ -2141,6 +2186,8 @@ err_reps:
 	esw_set_passing_vport_metadata(esw, false);
 err_vport_metadata:
 	esw_offloads_steering_cleanup(esw);
+err_steering_init:
+	mlx5_rdma_disable_roce(esw->dev);
 	return err;
 }
 
@@ -2165,12 +2212,12 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 
 void esw_offloads_disable(struct mlx5_eswitch *esw)
 {
-	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);
 	esw_offloads_unload_all_reps(esw);
 	mlx5_eswitch_disable_pf_vf_vports(esw);
 	esw_set_passing_vport_metadata(esw, false);
 	esw_offloads_steering_cleanup(esw);
+	mlx5_rdma_disable_roce(esw->dev);
 	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 }
 
