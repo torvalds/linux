@@ -7,6 +7,8 @@
 #ifndef __MFD_MT6397_CORE_H__
 #define __MFD_MT6397_CORE_H__
 
+#include <linux/mutex.h>
+
 enum chip_id {
 	MT6323_CHIP_ID = 0x23,
 	MT6391_CHIP_ID = 0x91,
