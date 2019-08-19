@@ -136,8 +136,10 @@
 #define EIP197_PE_IN_TBUF_THRES(n)		(0x0100 + (0x2000 * (n)))
 #define EIP197_PE_ICE_SCRATCH_RAM(n)		(0x0800 + (0x2000 * (n)))
 #define EIP197_PE_ICE_PUE_CTRL(n)		(0x0c80 + (0x2000 * (n)))
+#define EIP197_PE_ICE_PUTF_CTRL(n)		(0x0d00 + (0x2000 * (n)))
 #define EIP197_PE_ICE_SCRATCH_CTRL(n)		(0x0d04 + (0x2000 * (n)))
 #define EIP197_PE_ICE_FPP_CTRL(n)		(0x0d80 + (0x2000 * (n)))
+#define EIP197_PE_ICE_PPTF_CTRL(n)		(0x0e00 + (0x2000 * (n)))
 #define EIP197_PE_ICE_RAM_CTRL(n)		(0x0ff0 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_TOKEN_CTRL(n)		(0x1000 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_FUNCTION_EN(n)		(0x1004 + (0x2000 * (n)))
@@ -227,6 +229,11 @@
 /* EIP197_HIA_DFE/DSE_THR_CTRL */
 #define EIP197_DxE_THR_CTRL_EN			BIT(30)
 #define EIP197_DxE_THR_CTRL_RESET_PE		BIT(31)
+
+/* EIP197_PE_ICE_PUE/FPP_CTRL */
+#define EIP197_PE_ICE_UENG_START_OFFSET(n)	((n) << 16)
+#define EIP197_PE_ICE_UENG_INIT_ALIGN_MASK	0x7ff0
+#define EIP197_PE_ICE_UENG_DEBUG_RESET		BIT(3)
 
 /* EIP197_HIA_AIC_G_ENABLED_STAT */
 #define EIP197_G_IRQ_DFE(n)			BIT((n) << 1)
@@ -502,6 +509,11 @@ struct safexcel_command_desc {
 /*
  * Internal structures & functions
  */
+
+#define EIP197_FW_TERMINAL_NOPS		2
+#define EIP197_FW_START_POLLCNT		16
+#define EIP197_FW_PUE_READY		0x14
+#define EIP197_FW_FPP_READY		0x18
 
 enum eip197_fw {
 	FW_IFPP = 0,

@@ -108,44 +108,143 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 	writel(val, priv->base + EIP197_TRC_PARAMS);
 }
 
-static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
-				  const struct firmware *fw, int pe, u32 ctrl,
-				  u32 prog_en)
+static void eip197_init_firmware(struct safexcel_crypto_priv *priv)
+{
+	int pe, i;
+	u32 val;
+
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Configure the token FIFO's */
+		writel(3, EIP197_PE(priv) + EIP197_PE_ICE_PUTF_CTRL(pe));
+		writel(0, EIP197_PE(priv) + EIP197_PE_ICE_PPTF_CTRL(pe));
+
+		/* Clear the ICE scratchpad memory */
+		val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
+		val |= EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_TIMER |
+		       EIP197_PE_ICE_SCRATCH_CTRL_TIMER_EN |
+		       EIP197_PE_ICE_SCRATCH_CTRL_SCRATCH_ACCESS |
+		       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
+		writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
+
+		/* clear the scratchpad RAM using 32 bit writes only */
+		for (i = 0; i < EIP197_NUM_OF_SCRATCH_BLOCKS; i++)
+			writel(0, EIP197_PE(priv) +
+				  EIP197_PE_ICE_SCRATCH_RAM(pe) + (i<<2));
+
+		/* Reset the IFPP engine to make its program mem accessible */
+		writel(EIP197_PE_ICE_x_CTRL_SW_RESET |
+		       EIP197_PE_ICE_x_CTRL_CLR_ECC_CORR |
+		       EIP197_PE_ICE_x_CTRL_CLR_ECC_NON_CORR,
+		       EIP197_PE(priv) + EIP197_PE_ICE_FPP_CTRL(pe));
+
+		/* Reset the IPUE engine to make its program mem accessible */
+		writel(EIP197_PE_ICE_x_CTRL_SW_RESET |
+		       EIP197_PE_ICE_x_CTRL_CLR_ECC_CORR |
+		       EIP197_PE_ICE_x_CTRL_CLR_ECC_NON_CORR,
+		       EIP197_PE(priv) + EIP197_PE_ICE_PUE_CTRL(pe));
+
+		/* Enable access to all IFPP program memories */
+		writel(EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN,
+		       EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
+	}
+
+}
+
+static int eip197_write_firmware(struct safexcel_crypto_priv *priv,
+				  const struct firmware *fw)
 {
 	const u32 *data = (const u32 *)fw->data;
-	u32 val;
 	int i;
-
-	/* Reset the engine to make its program memory accessible */
-	writel(EIP197_PE_ICE_x_CTRL_SW_RESET |
-	       EIP197_PE_ICE_x_CTRL_CLR_ECC_CORR |
-	       EIP197_PE_ICE_x_CTRL_CLR_ECC_NON_CORR,
-	       EIP197_PE(priv) + ctrl);
-
-	/* Enable access to the program memory */
-	writel(prog_en, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
 
 	/* Write the firmware */
 	for (i = 0; i < fw->size / sizeof(u32); i++)
 		writel(be32_to_cpu(data[i]),
 		       priv->base + EIP197_CLASSIFICATION_RAMS + i * sizeof(u32));
 
-	/* Disable access to the program memory */
-	writel(0, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
+	/* Exclude final 2 NOPs from size */
+	return i - EIP197_FW_TERMINAL_NOPS;
+}
 
-	/* Release engine from reset */
-	val = readl(EIP197_PE(priv) + ctrl);
-	val &= ~EIP197_PE_ICE_x_CTRL_SW_RESET;
-	writel(val, EIP197_PE(priv) + ctrl);
+/*
+ * If FW is actual production firmware, then poll for its initialization
+ * to complete and check if it is good for the HW, otherwise just return OK.
+ */
+static bool poll_fw_ready(struct safexcel_crypto_priv *priv, int fpp)
+{
+	int pe, pollcnt;
+	u32 base, pollofs;
+
+	if (fpp)
+		pollofs  = EIP197_FW_FPP_READY;
+	else
+		pollofs  = EIP197_FW_PUE_READY;
+
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		base = EIP197_PE_ICE_SCRATCH_RAM(pe);
+		pollcnt = EIP197_FW_START_POLLCNT;
+		while (pollcnt &&
+		       (readl_relaxed(EIP197_PE(priv) + base +
+			      pollofs) != 1)) {
+			pollcnt--;
+		}
+		if (!pollcnt) {
+			dev_err(priv->dev, "FW(%d) for PE %d failed to start\n",
+				fpp, pe);
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool eip197_start_firmware(struct safexcel_crypto_priv *priv,
+				  int ipuesz, int ifppsz, int minifw)
+{
+	int pe;
+	u32 val;
+
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Disable access to all program memory */
+		writel(0, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
+
+		/* Start IFPP microengines */
+		if (minifw)
+			val = 0;
+		else
+			val = EIP197_PE_ICE_UENG_START_OFFSET((ifppsz - 1) &
+					EIP197_PE_ICE_UENG_INIT_ALIGN_MASK) |
+				EIP197_PE_ICE_UENG_DEBUG_RESET;
+		writel(val, EIP197_PE(priv) + EIP197_PE_ICE_FPP_CTRL(pe));
+
+		/* Start IPUE microengines */
+		if (minifw)
+			val = 0;
+		else
+			val = EIP197_PE_ICE_UENG_START_OFFSET((ipuesz - 1) &
+					EIP197_PE_ICE_UENG_INIT_ALIGN_MASK) |
+				EIP197_PE_ICE_UENG_DEBUG_RESET;
+		writel(val, EIP197_PE(priv) + EIP197_PE_ICE_PUE_CTRL(pe));
+	}
+
+	/* For miniFW startup, there is no initialization, so always succeed */
+	if (minifw)
+		return true;
+
+	/* Wait until all the firmwares have properly started up */
+	if (!poll_fw_ready(priv, 1))
+		return false;
+	if (!poll_fw_ready(priv, 0))
+		return false;
+
+	return true;
 }
 
 static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 {
 	const char *fw_name[] = {"ifpp.bin", "ipue.bin"};
 	const struct firmware *fw[FW_NB];
-	char fw_path[31], *dir = NULL;
+	char fw_path[37], *dir = NULL;
 	int i, j, ret = 0, pe;
-	u32 val;
+	int ipuesz, ifppsz, minifw = 0;
 
 	if (priv->version == EIP197D_MRVL)
 		dir = "eip197d";
@@ -155,50 +254,55 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 	else
 		return -ENODEV;
 
+retry_fw:
 	for (i = 0; i < FW_NB; i++) {
-		snprintf(fw_path, 31, "inside-secure/%s/%s", dir, fw_name[i]);
-		ret = request_firmware(&fw[i], fw_path, priv->dev);
+		snprintf(fw_path, 37, "inside-secure/%s/%s", dir, fw_name[i]);
+		ret = firmware_request_nowarn(&fw[i], fw_path, priv->dev);
 		if (ret) {
-			if (priv->version != EIP197B_MRVL)
+			if (minifw || priv->version != EIP197B_MRVL)
 				goto release_fw;
 
 			/* Fallback to the old firmware location for the
 			 * EIP197b.
 			 */
-			ret = request_firmware(&fw[i], fw_name[i], priv->dev);
-			if (ret) {
-				dev_err(priv->dev,
-					"Failed to request firmware %s (%d)\n",
-					fw_name[i], ret);
+			ret = firmware_request_nowarn(&fw[i], fw_name[i],
+						      priv->dev);
+			if (ret)
 				goto release_fw;
-			}
 		}
 	}
 
-	for (pe = 0; pe < priv->config.pes; pe++) {
-		/* Clear the scratchpad memory */
-		val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
-		val |= EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_TIMER |
-		       EIP197_PE_ICE_SCRATCH_CTRL_TIMER_EN |
-		       EIP197_PE_ICE_SCRATCH_CTRL_SCRATCH_ACCESS |
-		       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
-		writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
+	eip197_init_firmware(priv);
 
-		memset_io(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM(pe), 0,
-			  EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
+	ifppsz = eip197_write_firmware(priv, fw[FW_IFPP]);
 
-		eip197_write_firmware(priv, fw[FW_IFPP], pe,
-				      EIP197_PE_ICE_FPP_CTRL(pe),
-				      EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN);
+	/* Enable access to IPUE program memories */
+	for (pe = 0; pe < priv->config.pes; pe++)
+		writel(EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN,
+		       EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
 
-		eip197_write_firmware(priv, fw[FW_IPUE], pe,
-				      EIP197_PE_ICE_PUE_CTRL(pe),
-				      EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN);
+	ipuesz = eip197_write_firmware(priv, fw[FW_IPUE]);
+
+	if (eip197_start_firmware(priv, ipuesz, ifppsz, minifw)) {
+		dev_dbg(priv->dev, "Firmware loaded successfully");
+		return 0;
 	}
+
+	ret = -ENODEV;
 
 release_fw:
 	for (j = 0; j < i; j++)
 		release_firmware(fw[j]);
+
+	if (!minifw) {
+		/* Retry with minifw path */
+		dev_dbg(priv->dev, "Firmware set not (fully) present or init failed, falling back to BCLA mode\n");
+		dir = "eip197_minifw";
+		minifw = 1;
+		goto retry_fw;
+	}
+
+	dev_dbg(priv->dev, "Firmware load failed.\n");
 
 	return ret;
 }
