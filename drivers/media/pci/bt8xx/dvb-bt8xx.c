@@ -393,7 +393,7 @@ static struct mt352_config advbt771_samsung_tdtc9251dh0_config = {
 	.demod_init = advbt771_samsung_tdtc9251dh0_demod_init,
 };
 
-static struct dst_config dst_config = {
+static const struct dst_config dst_config = {
 	.demod_address = 0x55,
 };
 
