@@ -414,6 +414,9 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	int freq, ret;
 
 	mcan_class = m_can_class_allocate_dev(&spi->dev);
+	if (!mcan_class)
+		return -ENOMEM;
+
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
