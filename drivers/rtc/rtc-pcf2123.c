@@ -390,10 +390,9 @@ static int pcf2123_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, pcf2123);
 
 	pcf2123->map = devm_regmap_init_spi(spi, &pcf2123_regmap_config);
-
 	if (IS_ERR(pcf2123->map)) {
 		dev_err(&spi->dev, "regmap init failed.\n");
-		goto kfree_exit;
+		return PTR_ERR(pcf2123->map);
 	}
 
 	ret = pcf2123_rtc_read_time(&spi->dev, &tm);
@@ -401,7 +400,7 @@ static int pcf2123_probe(struct spi_device *spi)
 		ret = pcf2123_reset(&spi->dev);
 		if (ret < 0) {
 			dev_err(&spi->dev, "chip not found\n");
-			goto kfree_exit;
+			return ret;
 		}
 	}
 
@@ -414,8 +413,7 @@ static int pcf2123_probe(struct spi_device *spi)
 
 	if (IS_ERR(rtc)) {
 		dev_err(&spi->dev, "failed to register.\n");
-		ret = PTR_ERR(rtc);
-		goto kfree_exit;
+		return PTR_ERR(rtc);
 	}
 
 	pcf2123->rtc = rtc;
@@ -440,9 +438,6 @@ static int pcf2123_probe(struct spi_device *spi)
 	pcf2123->rtc->uie_unsupported = 1;
 
 	return 0;
-
-kfree_exit:
-	return ret;
 }
 
 #ifdef CONFIG_OF
