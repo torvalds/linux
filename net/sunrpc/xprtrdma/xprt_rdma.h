@@ -360,19 +360,18 @@ rpcrdma_mr_pop(struct list_head *list)
  * One of these is associated with a transport instance
  */
 struct rpcrdma_buffer {
-	spinlock_t		rb_mrlock;	/* protect rb_mrs list */
+	spinlock_t		rb_lock;
+	struct list_head	rb_send_bufs;
+	struct list_head	rb_recv_bufs;
 	struct list_head	rb_mrs;
-	struct list_head	rb_all_mrs;
 
 	unsigned long		rb_sc_head;
 	unsigned long		rb_sc_tail;
 	unsigned long		rb_sc_last;
 	struct rpcrdma_sendctx	**rb_sc_ctxs;
 
-	spinlock_t		rb_lock;	/* protect buf lists */
-	struct list_head	rb_send_bufs;
-	struct list_head	rb_recv_bufs;
 	struct list_head	rb_allreqs;
+	struct list_head	rb_all_mrs;
 
 	u32			rb_max_requests;
 	u32			rb_credits;	/* most recent credit grant */

@@ -106,10 +106,10 @@ frwr_mr_recycle_worker(struct work_struct *work)
 		mr->mr_dir = DMA_NONE;
 	}
 
-	spin_lock(&r_xprt->rx_buf.rb_mrlock);
+	spin_lock(&r_xprt->rx_buf.rb_lock);
 	list_del(&mr->mr_all);
 	r_xprt->rx_stats.mrs_recycled++;
-	spin_unlock(&r_xprt->rx_buf.rb_mrlock);
+	spin_unlock(&r_xprt->rx_buf.rb_lock);
 
 	frwr_release_mr(mr);
 }
