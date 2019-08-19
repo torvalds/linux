@@ -135,6 +135,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SENDMSG_CONNECT	126
 #define SCTP_EVENT	127
 #define SCTP_ASCONF_SUPPORTED	128
+#define SCTP_AUTH_SUPPORTED	129
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
