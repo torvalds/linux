@@ -119,7 +119,7 @@ static const struct regmap_config pcf2123_regmap_config = {
 
 static int pcf2123_read_offset(struct device *dev, long *offset)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	int ret, val;
 	unsigned int reg;
 
@@ -149,7 +149,7 @@ static int pcf2123_read_offset(struct device *dev, long *offset)
  */
 static int pcf2123_set_offset(struct device *dev, long offset)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	s8 reg;
 
 	if (offset > OFFSET_STEP * 127)
@@ -174,7 +174,7 @@ static int pcf2123_set_offset(struct device *dev, long offset)
 
 static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	u8 rxbuf[7];
 	int ret;
 
@@ -205,7 +205,7 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	u8 txbuf[7];
 	int ret;
 
@@ -248,7 +248,7 @@ static int pcf2123_rtc_alarm_irq_enable(struct device *dev, unsigned int en)
 
 static int pcf2123_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	u8 rxbuf[4];
 	int ret;
 	unsigned int val = 0;
@@ -276,7 +276,7 @@ static int pcf2123_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static int pcf2123_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	u8 txbuf[4];
 	int ret;
 
@@ -308,7 +308,7 @@ static int pcf2123_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	struct mutex *lock = &pdata->rtc->ops_lock;
 	unsigned int val = 0;
 	int ret = IRQ_NONE;
@@ -333,7 +333,7 @@ static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
 
 static int pcf2123_reset(struct device *dev)
 {
-	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct pcf2123_plat_data *pdata = dev_get_drvdata(dev);
 	int ret;
 	unsigned int val = 0;
 
@@ -386,7 +386,8 @@ static int pcf2123_probe(struct spi_device *spi)
 				GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	spi->dev.platform_data = pdata;
+
+	dev_set_drvdata(&spi->dev, pdata);
 
 	pdata->map = devm_regmap_init_spi(spi, &pcf2123_regmap_config);
 
@@ -419,6 +420,7 @@ static int pcf2123_probe(struct spi_device *spi)
 
 	pdata->rtc = rtc;
 
+
 	/* Register alarm irq */
 	if (spi->irq > 0) {
 		ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
@@ -440,7 +442,6 @@ static int pcf2123_probe(struct spi_device *spi)
 	return 0;
 
 kfree_exit:
-	spi->dev.platform_data = NULL;
 	return ret;
 }
 
