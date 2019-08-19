@@ -142,12 +142,14 @@ __active_retire(struct i915_active *ref)
 	if (!retire)
 		return;
 
-	ref->retire(ref);
-
 	rbtree_postorder_for_each_entry_safe(it, n, &root, node) {
 		GEM_BUG_ON(i915_active_request_isset(&it->base));
 		kmem_cache_free(global.slab_cache, it);
 	}
+
+	/* After the final retire, the entire struct may be freed */
+	if (ref->retire)
+		ref->retire(ref);
 }
 
 static void
