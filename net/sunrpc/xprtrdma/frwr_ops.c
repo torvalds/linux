@@ -129,7 +129,7 @@ void frwr_reset(struct rpcrdma_req *req)
 	struct rpcrdma_mr *mr;
 
 	while ((mr = rpcrdma_mr_pop(&req->rl_registered)))
-		rpcrdma_mr_unmap_and_put(mr);
+		rpcrdma_mr_put(mr);
 }
 
 /**
@@ -453,7 +453,7 @@ void frwr_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
 			list_del_init(&mr->mr_list);
 			trace_xprtrdma_mr_remoteinv(mr);
-			rpcrdma_mr_unmap_and_put(mr);
+			rpcrdma_mr_put(mr);
 			break;	/* only one invalidated MR per RPC */
 		}
 }
@@ -463,7 +463,7 @@ static void __frwr_release_mr(struct ib_wc *wc, struct rpcrdma_mr *mr)
 	if (wc->status != IB_WC_SUCCESS)
 		rpcrdma_mr_recycle(mr);
 	else
-		rpcrdma_mr_unmap_and_put(mr);
+		rpcrdma_mr_put(mr);
 }
 
 /**
