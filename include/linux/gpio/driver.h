@@ -404,15 +404,6 @@ struct gpio_chip {
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
 	/**
-	 * @need_valid_mask:
-	 *
-	 * If set core allocates @valid_mask with all its values initialized
-	 * with init_valid_mask() or set to one if init_valid_mask() is not
-	 * defined
-	 */
-	bool need_valid_mask;
-
-	/**
 	 * @valid_mask:
 	 *
 	 * If not %NULL holds bitmask of GPIOs which are valid to be used

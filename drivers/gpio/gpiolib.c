@@ -363,9 +363,7 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *chip)
 
 static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
 {
-	if (of_gpio_need_valid_mask(gc))
-		gc->need_valid_mask = true;
-	if (!gc->need_valid_mask)
+	if (!(of_gpio_need_valid_mask(gc) || gc->init_valid_mask))
 		return 0;
 
 	gc->valid_mask = gpiochip_allocate_mask(gc);

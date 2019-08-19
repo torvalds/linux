@@ -654,7 +654,6 @@ static const struct gpio_chip msm_gpio_template = {
 	.request          = gpiochip_generic_request,
 	.free             = gpiochip_generic_free,
 	.dbg_show         = msm_gpio_dbg_show,
-	.init_valid_mask  = msm_gpio_init_valid_mask,
 };
 
 /* For dual-edge interrupts in software, since some hardware has no
@@ -1016,7 +1015,8 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
 	chip->of_node = pctrl->dev->of_node;
-	chip->need_valid_mask = msm_gpio_needs_valid_mask(pctrl);
+	if (msm_gpio_needs_valid_mask(pctrl))
+		chip->init_valid_mask = msm_gpio_init_valid_mask;
 
 	pctrl->irq_chip.name = "msmgpio";
 	pctrl->irq_chip.irq_enable = msm_gpio_irq_enable;

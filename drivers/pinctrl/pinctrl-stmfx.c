@@ -662,7 +662,6 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->gpio_chip.ngpio = pctl->pctl_desc.npins;
 	pctl->gpio_chip.can_sleep = true;
 	pctl->gpio_chip.of_node = np;
-	pctl->gpio_chip.need_valid_mask = true;
 	pctl->gpio_chip.init_valid_mask = stmfx_pinctrl_gpio_init_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctl->dev, &pctl->gpio_chip, pctl);
