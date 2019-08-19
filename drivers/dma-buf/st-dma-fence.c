@@ -557,7 +557,7 @@ int dma_fence(void)
 	};
 	int ret;
 
-	pr_info("sizeof(dma_fence)=%lu\n", sizeof(struct dma_fence));
+	pr_info("sizeof(dma_fence)=%zu\n", sizeof(struct dma_fence));
 
 	slab_fences = KMEM_CACHE(mock_fence,
 				 SLAB_TYPESAFE_BY_RCU |
