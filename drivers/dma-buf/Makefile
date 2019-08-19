@@ -5,5 +5,8 @@ obj-$(CONFIG_SYNC_FILE)		+= sync_file.o
 obj-$(CONFIG_SW_SYNC)		+= sw_sync.o sync_debug.o
 obj-$(CONFIG_UDMABUF)		+= udmabuf.o
 
-dmabuf_selftests-y := selftest.o
+dmabuf_selftests-y := \
+	selftest.o \
+	st-dma-fence.o
+
 obj-$(CONFIG_DMABUF_SELFTESTS)	+= dmabuf_selftests.o

@@ -10,3 +10,4 @@
  * Tests are executed in order by igt/dmabuf_selftest
  */
 selftest(sanitycheck, __sanitycheck__) /* keep first (igt selfcheck) */
+selftest(dma_fence, dma_fence)
