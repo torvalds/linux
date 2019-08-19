@@ -1980,6 +1980,13 @@ static struct clk_core *clk_propagate_rate_change(struct clk_core *core,
 			fail_clk = core;
 	}
 
+	if (core->ops->pre_rate_change) {
+		ret = core->ops->pre_rate_change(core->hw, core->rate,
+						 core->new_rate);
+		if (ret)
+			fail_clk = core;
+	}
+
 	hlist_for_each_entry(child, &core->children, child_node) {
 		/* Skip children who will be reparented to another clock */
 		if (child->new_parent && child->new_parent != core)
@@ -2081,6 +2088,9 @@ static void clk_change_rate(struct clk_core *core)
 
 	if (core->flags & CLK_RECALC_NEW_RATES)
 		(void)clk_calc_new_rates(core, core->new_rate);
+
+	if (core->ops->post_rate_change)
+		core->ops->post_rate_change(core->hw, old_rate, core->rate);
 
 	/*
 	 * Use safe iteration, as change_rate can actually swap parents
