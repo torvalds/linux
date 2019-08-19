@@ -361,6 +361,9 @@ int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct ksz_device *dev = ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	/* setup slave port */
 	dev->dev_ops->port_setup(dev, port, false);
 	if (dev->dev_ops->phy_setup)
@@ -377,6 +380,9 @@ EXPORT_SYMBOL_GPL(ksz_enable_port);
 void ksz_disable_port(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	dev->on_ports &= ~(1 << port);
 	dev->live_ports &= ~(1 << port);

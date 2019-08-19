@@ -642,6 +642,9 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	int err;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	if (!dsa_is_cpu_port(ds, port)) {
 		err = gswip_add_single_port_br(priv, port, true);
 		if (err)
@@ -677,6 +680,9 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 static void gswip_port_disable(struct dsa_switch *ds, int port)
 {
 	struct gswip_priv *priv = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	if (!dsa_is_cpu_port(ds, port)) {
 		gswip_mdio_mask(priv, GSWIP_MDIO_PHY_LINK_DOWN,

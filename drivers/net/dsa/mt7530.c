@@ -726,6 +726,9 @@ mt7530_port_enable(struct dsa_switch *ds, int port,
 {
 	struct mt7530_priv *priv = ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	mutex_lock(&priv->reg_mutex);
 
 	/* Setup the MAC for the user port */
@@ -750,6 +753,9 @@ static void
 mt7530_port_disable(struct dsa_switch *ds, int port)
 {
 	struct mt7530_priv *priv = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	mutex_lock(&priv->reg_mutex);
 

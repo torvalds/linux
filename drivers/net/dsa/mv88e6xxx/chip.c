@@ -2267,6 +2267,9 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_serdes_power(chip, port, true);
@@ -2282,6 +2285,9 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	mv88e6xxx_reg_lock(chip);
 
