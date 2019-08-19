@@ -65,16 +65,18 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	spin_lock(&priv->mm_lock);
 	ret = drm_mm_insert_node_generic(&priv->mm, &bo->node,
 					 size >> PAGE_SHIFT, align, color, 0);
+	spin_unlock(&priv->mm_lock);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (!bo->is_heap) {
 		ret = panfrost_mmu_map(bo);
-		if (ret)
+		if (ret) {
+			spin_lock(&priv->mm_lock);
 			drm_mm_remove_node(&bo->node);
+			spin_unlock(&priv->mm_lock);
+		}
 	}
-out:
-	spin_unlock(&priv->mm_lock);
 	return ret;
 }
 
