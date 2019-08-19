@@ -131,7 +131,7 @@ again:
 	case 96:
 		/* not all buffers processed */
 		qperf_inc(q, eqbs_partial);
-		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS part:%02x",
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "EQBS part:%02x",
 			tmp_count);
 		return count - tmp_count;
 	case 97:
