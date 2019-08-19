@@ -949,7 +949,7 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 		struct rpcrdma_mr *mr;
 		int rc;
 
-		mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+		mr = kzalloc(sizeof(*mr), GFP_NOFS);
 		if (!mr)
 			break;
 

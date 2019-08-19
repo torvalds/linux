@@ -147,11 +147,14 @@ int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	struct ib_mr *frmr;
 	int rc;
 
+	/* NB: ib_alloc_mr and device drivers typically allocate
+	 *     memory with GFP_KERNEL.
+	 */
 	frmr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype, depth);
 	if (IS_ERR(frmr))
 		goto out_mr_err;
 
-	sg = kcalloc(depth, sizeof(*sg), GFP_KERNEL);
+	sg = kcalloc(depth, sizeof(*sg), GFP_NOFS);
 	if (!sg)
 		goto out_list_err;
 
@@ -171,8 +174,6 @@ out_mr_err:
 	return rc;
 
 out_list_err:
-	dprintk("RPC:       %s: sg allocation failure\n",
-		__func__);
 	ib_dereg_mr(frmr);
 	return -ENOMEM;
 }
