@@ -34,6 +34,9 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 BPF_OBJ_FILES = $(patsubst %.c,%.o, $(notdir $(wildcard progs/*.c)))
 TEST_GEN_FILES = $(BPF_OBJ_FILES)
 
+BTF_C_FILES = $(wildcard progs/btf_dump_test_case_*.c)
+TEST_FILES = $(BTF_C_FILES)
+
 # Also test sub-register code-gen if LLVM has eBPF v3 processor support which
 # contains both ALU32 and JMP32 instructions.
 SUBREG_CODEGEN := $(shell echo "int cal(int a) { return a > 0; }" | \
