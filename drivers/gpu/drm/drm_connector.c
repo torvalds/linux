@@ -90,6 +90,9 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
 	{ DRM_MODE_CONNECTOR_WRITEBACK, "Writeback" },
 };
 
+DRM_ENUM_NAME_FN(drm_get_connector_name, drm_connector_enum_list)
+EXPORT_SYMBOL(drm_get_connector_name);
+
 void drm_connector_ida_init(void)
 {
 	int i;
