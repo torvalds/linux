@@ -222,7 +222,9 @@ int intel_renderstate_emit(struct i915_request *rq)
 	}
 
 	i915_vma_lock(so.vma);
-	err = i915_vma_move_to_active(so.vma, rq, 0);
+	err = i915_request_await_object(rq, so.vma->obj, false);
+	if (err == 0)
+		err = i915_vma_move_to_active(so.vma, rq, 0);
 	i915_vma_unlock(so.vma);
 err_unpin:
 	i915_vma_unpin(so.vma);

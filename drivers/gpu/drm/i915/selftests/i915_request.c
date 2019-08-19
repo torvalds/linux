@@ -876,7 +876,9 @@ static int live_all_engines(void *arg)
 		request[id]->batch = batch;
 
 		i915_vma_lock(batch);
-		err = i915_vma_move_to_active(batch, request[id], 0);
+		err = i915_request_await_object(request[id], batch->obj, 0);
+		if (err == 0)
+			err = i915_vma_move_to_active(batch, request[id], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
 

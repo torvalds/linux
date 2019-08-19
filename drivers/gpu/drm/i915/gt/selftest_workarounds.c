@@ -113,7 +113,9 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	}
 
 	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_request_await_object(rq, vma->obj, true);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(vma);
 	if (err)
 		goto err_req;

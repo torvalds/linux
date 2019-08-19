@@ -118,7 +118,10 @@ static int move_to_active(struct i915_vma *vma,
 	int err;
 
 	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, flags);
+	err = i915_request_await_object(rq, vma->obj,
+					flags & EXEC_OBJECT_WRITE);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, flags);
 	i915_vma_unlock(vma);
 
 	return err;
@@ -1237,7 +1240,10 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 	}
 
 	i915_vma_lock(arg.vma);
-	err = i915_vma_move_to_active(arg.vma, rq, flags);
+	err = i915_request_await_object(rq, arg.vma->obj,
+					flags & EXEC_OBJECT_WRITE);
+	if (err == 0)
+		err = i915_vma_move_to_active(arg.vma, rq, flags);
 	i915_vma_unlock(arg.vma);
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)

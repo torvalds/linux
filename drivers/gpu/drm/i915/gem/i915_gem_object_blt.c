@@ -106,7 +106,9 @@ int intel_emit_vma_mark_active(struct i915_vma *vma, struct i915_request *rq)
 	int err;
 
 	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, 0);
+	err = i915_request_await_object(rq, vma->obj, false);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, 0);
 	i915_vma_unlock(vma);
 	if (unlikely(err))
 		return err;
@@ -171,7 +173,9 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 	}
 
 	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_request_await_object(rq, vma->obj, true);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(vma);
 	if (unlikely(err))
 		goto out_request;

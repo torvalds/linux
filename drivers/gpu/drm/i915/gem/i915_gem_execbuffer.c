@@ -1192,8 +1192,9 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto skip_request;
 
 	i915_vma_lock(batch);
-	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
-	err = i915_vma_move_to_active(batch, rq, 0);
+	err = i915_request_await_object(rq, batch->obj, false);
+	if (err == 0)
+		err = i915_vma_move_to_active(batch, rq, 0);
 	i915_vma_unlock(batch);
 	if (err)
 		goto skip_request;

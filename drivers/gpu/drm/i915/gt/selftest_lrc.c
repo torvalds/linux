@@ -1459,11 +1459,13 @@ static int smoke_submit(struct preempt_smoke *smoke,
 
 	if (vma) {
 		i915_vma_lock(vma);
-		err = rq->engine->emit_bb_start(rq,
-						vma->node.start,
-						PAGE_SIZE, 0);
+		err = i915_request_await_object(rq, vma->obj, false);
 		if (!err)
 			err = i915_vma_move_to_active(vma, rq, 0);
+		if (!err)
+			err = rq->engine->emit_bb_start(rq,
+							vma->node.start,
+							PAGE_SIZE, 0);
 		i915_vma_unlock(vma);
 	}
 
