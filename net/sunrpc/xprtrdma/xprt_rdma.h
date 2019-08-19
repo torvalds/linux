@@ -360,7 +360,7 @@ rpcrdma_mr_pop(struct list_head *list)
 struct rpcrdma_buffer {
 	spinlock_t		rb_mrlock;	/* protect rb_mrs list */
 	struct list_head	rb_mrs;
-	struct list_head	rb_all;
+	struct list_head	rb_all_mrs;
 
 	unsigned long		rb_sc_head;
 	unsigned long		rb_sc_tail;

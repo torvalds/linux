@@ -944,8 +944,6 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	unsigned int count;
-	LIST_HEAD(free);
-	LIST_HEAD(all);
 
 	for (count = 0; count < ia->ri_max_segs; count++) {
 		struct rpcrdma_mr *mr;
@@ -963,15 +961,13 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 
 		mr->mr_xprt = r_xprt;
 
-		list_add(&mr->mr_list, &free);
-		list_add(&mr->mr_all, &all);
+		spin_lock(&buf->rb_mrlock);
+		list_add(&mr->mr_list, &buf->rb_mrs);
+		list_add(&mr->mr_all, &buf->rb_all_mrs);
+		spin_unlock(&buf->rb_mrlock);
 	}
 
-	spin_lock(&buf->rb_mrlock);
-	list_splice(&free, &buf->rb_mrs);
-	list_splice(&all, &buf->rb_all);
 	r_xprt->rx_stats.mrs_allocated += count;
-	spin_unlock(&buf->rb_mrlock);
 	trace_xprtrdma_createmrs(r_xprt, count);
 }
 
@@ -1089,7 +1085,7 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	spin_lock_init(&buf->rb_mrlock);
 	spin_lock_init(&buf->rb_lock);
 	INIT_LIST_HEAD(&buf->rb_mrs);
-	INIT_LIST_HEAD(&buf->rb_all);
+	INIT_LIST_HEAD(&buf->rb_all_mrs);
 	INIT_DELAYED_WORK(&buf->rb_refresh_worker,
 			  rpcrdma_mr_refresh_worker);
 
@@ -1156,15 +1152,11 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 
 	count = 0;
 	spin_lock(&buf->rb_mrlock);
-	while (!list_empty(&buf->rb_all)) {
-		mr = list_entry(buf->rb_all.next, struct rpcrdma_mr, mr_all);
+	while ((mr = list_first_entry_or_null(&buf->rb_all_mrs,
+					      struct rpcrdma_mr,
+					      mr_all)) != NULL) {
 		list_del(&mr->mr_all);
-
 		spin_unlock(&buf->rb_mrlock);
-
-		/* Ensure MW is not on any rl_registered list */
-		if (!list_empty(&mr->mr_list))
-			list_del(&mr->mr_list);
 
 		frwr_release_mr(mr);
 		count++;
@@ -1172,8 +1164,6 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 	}
 	spin_unlock(&buf->rb_mrlock);
 	r_xprt->rx_stats.mrs_allocated = 0;
-
-	dprintk("RPC:       %s: released %u MRs\n", __func__, count);
 }
 
 /**
