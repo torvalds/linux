@@ -2454,11 +2454,6 @@ void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 	rtw_coex_wl_ccklock_detect(rtwdev);
 }
 
-void rtw_coex_coex_dm_reset(struct rtw_dev *rtwdev)
-{
-	__rtw_coex_init_hw_config(rtwdev, false);
-}
-
 void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
