@@ -284,6 +284,34 @@ struct vop {
 	struct vop_win win[];
 };
 
+/*
+ * bus-format types.
+ */
+struct drm_bus_format_enum_list {
+	int type;
+	const char *name;
+};
+
+static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
+	{ DRM_MODE_CONNECTOR_Unknown, "Unknown" },
+	{ MEDIA_BUS_FMT_RGB565_1X16, "RGB565_1X16" },
+	{ MEDIA_BUS_FMT_RGB666_1X18, "RGB666_1X18" },
+	{ MEDIA_BUS_FMT_RGB666_1X24_CPADHI, "RGB666_1X24_CPADHI" },
+	{ MEDIA_BUS_FMT_RGB666_1X7X3_SPWG, "RGB666_1X7X3_SPWG" },
+	{ MEDIA_BUS_FMT_RGB666_1X7X3_JEIDA, "RGB666_1X7X3_JEIDA" },
+	{ MEDIA_BUS_FMT_YUV8_1X24, "YUV8_1X24" },
+	{ MEDIA_BUS_FMT_UYYVYY8_0_5X24, "UYYVYY8_0_5X24" },
+	{ MEDIA_BUS_FMT_YUV10_1X30, "YUV10_1X30" },
+	{ MEDIA_BUS_FMT_UYYVYY10_0_5X30, "UYYVYY10_0_5X30" },
+	{ MEDIA_BUS_FMT_SRGB888_3X8, "SRGB888_3X8" },
+	{ MEDIA_BUS_FMT_SRGB888_DUMMY_4X8, "SRGB888_DUMMY_4X8" },
+	{ MEDIA_BUS_FMT_RGB888_1X24, "RGB888_1X24" },
+	{ MEDIA_BUS_FMT_RGB888_1X7X4_SPWG, "RGB888_1X7X4_SPWG" },
+	{ MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA, "RGB888_1X7X4_JEIDA" },
+};
+
+static DRM_ENUM_NAME_FN(drm_get_bus_format_name, drm_bus_format_enum_list)
+
 static void vop_lock(struct vop *vop)
 {
 	mutex_lock(&vop->vop_lock);
@@ -2209,9 +2237,12 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	if (!crtc_state->active)
 		return 0;
 
-	DEBUG_PRINT("    Connector: todo\n");
-	DEBUG_PRINT("\toverlay_mode[%d] bus_format[%x] output_mode[%x]",
-		    state->yuv_overlay, state->bus_format, state->output_mode);
+	DEBUG_PRINT("    Connector: %s\n",
+		    drm_get_connector_name(state->output_type));
+	DEBUG_PRINT("\tbus_format[%x]: %s\n", state->bus_format,
+		    drm_get_bus_format_name(state->bus_format));
+	DEBUG_PRINT("\toverlay_mode[%d] output_mode[%x]",
+		    state->yuv_overlay, state->output_mode);
 	DEBUG_PRINT(" color_space[%d]\n",
 		    state->color_space);
 	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
