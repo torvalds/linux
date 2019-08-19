@@ -347,7 +347,7 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 }
 
 /*
- * Scan a jumbo packet to validate its structure and to work out how many
+ * Scan a data packet to validate its structure and to work out how many
  * subpackets it contains.
  *
  * A jumbo packet is a collection of consecutive packets glued together with
@@ -358,16 +358,21 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
  * the last are RXRPC_JUMBO_DATALEN in size.  The last subpacket may be of any
  * size.
  */
-static bool rxrpc_validate_jumbo(struct sk_buff *skb)
+static bool rxrpc_validate_data(struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len = skb->len;
-	int nr_jumbo = 1;
 	u8 flags = sp->hdr.flags;
 
-	do {
-		nr_jumbo++;
+	for (;;) {
+		if (flags & RXRPC_REQUEST_ACK)
+			__set_bit(sp->nr_subpackets, sp->rx_req_ack);
+		sp->nr_subpackets++;
+
+		if (!(flags & RXRPC_JUMBO_PACKET))
+			break;
+
 		if (len - offset < RXRPC_JUMBO_SUBPKTLEN)
 			goto protocol_error;
 		if (flags & RXRPC_LAST_PACKET)
@@ -376,9 +381,10 @@ static bool rxrpc_validate_jumbo(struct sk_buff *skb)
 		if (skb_copy_bits(skb, offset, &flags, 1) < 0)
 			goto protocol_error;
 		offset += sizeof(struct rxrpc_jumbo_header);
-	} while (flags & RXRPC_JUMBO_PACKET);
+	}
 
-	sp->nr_jumbo = nr_jumbo;
+	if (flags & RXRPC_LAST_PACKET)
+		sp->rx_flags |= RXRPC_SKB_INCL_LAST;
 	return true;
 
 protocol_error:
@@ -1237,8 +1243,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		if (sp->hdr.callNumber == 0 ||
 		    sp->hdr.seq == 0)
 			goto bad_message;
-		if (sp->hdr.flags & RXRPC_JUMBO_PACKET &&
-		    !rxrpc_validate_jumbo(skb))
+		if (!rxrpc_validate_data(skb))
 			goto bad_message;
 		break;
 
