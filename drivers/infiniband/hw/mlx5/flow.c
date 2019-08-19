@@ -32,6 +32,9 @@ mlx5_ib_ft_type_to_namespace(enum mlx5_ib_uapi_flow_table_type table_type,
 	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_FDB:
 		*namespace = MLX5_FLOW_NAMESPACE_FDB;
 		break;
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_RX:
+		*namespace = MLX5_FLOW_NAMESPACE_RDMA_RX;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -101,6 +104,11 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !dest_devx)
 		return -EINVAL;
 
+	/* Allow only DEVX object or QP as dest when inserting to RDMA_RX */
+	if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) &&
+	    ((!dest_devx && !dest_qp) || (dest_devx && dest_qp)))
+		return -EINVAL;
+
 	if (dest_devx) {
 		devx_obj = uverbs_attr_get_obj(
 			attrs, MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
@@ -112,8 +120,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		 */
 		if (!mlx5_ib_devx_is_flow_dest(devx_obj, &dest_id, &dest_type))
 			return -EINVAL;
-		/* Allow only flow table as dest when inserting to FDB */
-		if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
+		/* Allow only flow table as dest when inserting to FDB or RDMA_RX */
+		if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB ||
+		     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) &&
 		    dest_type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
 			return -EINVAL;
 	} else if (dest_qp) {
