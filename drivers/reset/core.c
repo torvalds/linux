@@ -334,7 +334,6 @@ EXPORT_SYMBOL_GPL(reset_control_reset);
  * internal state to be reset, but must be prepared for this to happen.
  * Consumers must not use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
- * return 0.
  *
  * If rstc is NULL it is an optional reset and the function will just
  * return 0.
@@ -393,7 +392,6 @@ EXPORT_SYMBOL_GPL(reset_control_assert);
  * After calling this function, the reset is guaranteed to be deasserted.
  * Consumers must not use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
- * return 0.
  *
  * If rstc is NULL it is an optional reset and the function will just
  * return 0.
