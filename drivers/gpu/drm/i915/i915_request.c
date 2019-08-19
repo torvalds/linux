@@ -915,7 +915,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 			continue;
 
 		/* Squash repeated waits to the same timelines */
-		if (fence->context != rq->i915->mm.unordered_timeline &&
+		if (fence->context &&
 		    intel_timeline_sync_is_later(rq->timeline, fence))
 			continue;
 
@@ -929,7 +929,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 			return ret;
 
 		/* Record the latest fence used against each timeline */
-		if (fence->context != rq->i915->mm.unordered_timeline)
+		if (fence->context)
 			intel_timeline_sync_set(rq->timeline, fence);
 	} while (--nchild);
 

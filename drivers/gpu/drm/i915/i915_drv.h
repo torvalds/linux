@@ -748,8 +748,6 @@ struct i915_gem_mm {
 	 */
 	struct workqueue_struct *userptr_wq;
 
-	u64 unordered_timeline;
-
 	/** Bit 6 swizzling required for X tiling */
 	u32 bit_6_swizzle_x;
 	/** Bit 6 swizzling required for Y tiling */

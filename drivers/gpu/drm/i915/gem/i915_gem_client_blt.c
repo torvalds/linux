@@ -267,7 +267,6 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 				     struct i915_page_sizes *page_sizes,
 				     u32 value)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct clear_pages_work *work;
 	struct i915_sleeve *sleeve;
 	int err;
@@ -290,11 +289,7 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 
 	init_irq_work(&work->irq_work, clear_pages_signal_irq_worker);
 
-	dma_fence_init(&work->dma,
-		       &clear_pages_work_ops,
-		       &fence_lock,
-		       i915->mm.unordered_timeline,
-		       0);
+	dma_fence_init(&work->dma, &clear_pages_work_ops, &fence_lock, 0, 0);
 	i915_sw_fence_init(&work->wait, clear_pages_work_notify);
 
 	i915_gem_object_lock(obj);

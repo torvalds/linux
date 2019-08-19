@@ -1411,8 +1411,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		mkwrite_device_info(dev_priv)->page_sizes =
 			I915_GTT_PAGE_SIZE_4K;
 
-	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
-
 	intel_timelines_init(dev_priv);
 
 	ret = i915_gem_init_userptr(dev_priv);

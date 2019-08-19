@@ -134,8 +134,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 		dma_fence_init(&clflush->dma,
 			       &i915_clflush_ops,
 			       &clflush_lock,
-			       to_i915(obj->base.dev)->mm.unordered_timeline,
-			       0);
+			       0, 0);
 		i915_sw_fence_init(&clflush->wait, i915_clflush_notify);
 
 		clflush->obj = i915_gem_object_get(obj);
