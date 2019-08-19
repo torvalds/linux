@@ -314,13 +314,13 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 		 */
 		umem_odp->interval_tree.last--;
 
-		umem_odp->page_list = vzalloc(
-			array_size(sizeof(*umem_odp->page_list), pages));
+		umem_odp->page_list = kvcalloc(
+			pages, sizeof(*umem_odp->page_list), GFP_KERNEL);
 		if (!umem_odp->page_list)
 			return -ENOMEM;
 
-		umem_odp->dma_list =
-			vzalloc(array_size(sizeof(*umem_odp->dma_list), pages));
+		umem_odp->dma_list = kvcalloc(
+			pages, sizeof(*umem_odp->dma_list), GFP_KERNEL);
 		if (!umem_odp->dma_list) {
 			ret = -ENOMEM;
 			goto out_page_list;
@@ -354,9 +354,9 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 
 out_unlock:
 	mutex_unlock(&ctx->per_mm_list_lock);
-	vfree(umem_odp->dma_list);
+	kvfree(umem_odp->dma_list);
 out_page_list:
-	vfree(umem_odp->page_list);
+	kvfree(umem_odp->page_list);
 	return ret;
 }
 
@@ -532,8 +532,8 @@ void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
 					    ib_umem_end(umem_odp));
 		remove_umem_from_per_mm(umem_odp);
-		vfree(umem_odp->dma_list);
-		vfree(umem_odp->page_list);
+		kvfree(umem_odp->dma_list);
+		kvfree(umem_odp->page_list);
 	}
 	put_per_mm(umem_odp);
 	mmdrop(umem_odp->umem.owning_mm);
