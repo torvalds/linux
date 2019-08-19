@@ -26,7 +26,7 @@ struct aegis128_state {
 	uint8x16_t v[5];
 };
 
-extern const uint8x16x4_t crypto_aes_sbox[];
+extern const uint8_t crypto_aes_sbox[];
 
 static struct aegis128_state aegis128_load_state_neon(const void *state)
 {
@@ -55,39 +55,39 @@ uint8x16_t aegis_aes_round(uint8x16_t w)
 
 #ifdef CONFIG_ARM64
 	if (!__builtin_expect(aegis128_have_aes_insn, 1)) {
-		static const uint8x16_t shift_rows = {
+		static const uint8_t shift_rows[] = {
 			0x0, 0x5, 0xa, 0xf, 0x4, 0x9, 0xe, 0x3,
 			0x8, 0xd, 0x2, 0x7, 0xc, 0x1, 0x6, 0xb,
 		};
-		static const uint8x16_t ror32by8 = {
+		static const uint8_t ror32by8[] = {
 			0x1, 0x2, 0x3, 0x0, 0x5, 0x6, 0x7, 0x4,
 			0x9, 0xa, 0xb, 0x8, 0xd, 0xe, 0xf, 0xc,
 		};
 		uint8x16_t v;
 
 		// shift rows
-		w = vqtbl1q_u8(w, shift_rows);
+		w = vqtbl1q_u8(w, vld1q_u8(shift_rows));
 
 		// sub bytes
-		if (!IS_ENABLED(CONFIG_CC_IS_GCC)) {
-			v = vqtbl4q_u8(crypto_aes_sbox[0], w);
-			v = vqtbx4q_u8(v, crypto_aes_sbox[1], w - 0x40);
-			v = vqtbx4q_u8(v, crypto_aes_sbox[2], w - 0x80);
-			v = vqtbx4q_u8(v, crypto_aes_sbox[3], w - 0xc0);
-		} else {
-			asm("tbl %0.16b, {v16.16b-v19.16b}, %1.16b" : "=w"(v) : "w"(w));
-			w -= 0x40;
-			asm("tbx %0.16b, {v20.16b-v23.16b}, %1.16b" : "+w"(v) : "w"(w));
-			w -= 0x40;
-			asm("tbx %0.16b, {v24.16b-v27.16b}, %1.16b" : "+w"(v) : "w"(w));
-			w -= 0x40;
-			asm("tbx %0.16b, {v28.16b-v31.16b}, %1.16b" : "+w"(v) : "w"(w));
-		}
+#ifndef CONFIG_CC_IS_GCC
+		v = vqtbl4q_u8(vld1q_u8_x4(crypto_aes_sbox), w);
+		v = vqtbx4q_u8(v, vld1q_u8_x4(crypto_aes_sbox + 0x40), w - 0x40);
+		v = vqtbx4q_u8(v, vld1q_u8_x4(crypto_aes_sbox + 0x80), w - 0x80);
+		v = vqtbx4q_u8(v, vld1q_u8_x4(crypto_aes_sbox + 0xc0), w - 0xc0);
+#else
+		asm("tbl %0.16b, {v16.16b-v19.16b}, %1.16b" : "=w"(v) : "w"(w));
+		w -= 0x40;
+		asm("tbx %0.16b, {v20.16b-v23.16b}, %1.16b" : "+w"(v) : "w"(w));
+		w -= 0x40;
+		asm("tbx %0.16b, {v24.16b-v27.16b}, %1.16b" : "+w"(v) : "w"(w));
+		w -= 0x40;
+		asm("tbx %0.16b, {v28.16b-v31.16b}, %1.16b" : "+w"(v) : "w"(w));
+#endif
 
 		// mix columns
 		w = (v << 1) ^ (uint8x16_t)(((int8x16_t)v >> 7) & 0x1b);
 		w ^= (uint8x16_t)vrev32q_u16((uint16x8_t)v);
-		w ^= vqtbl1q_u8(v ^ w, ror32by8);
+		w ^= vqtbl1q_u8(v ^ w, vld1q_u8(ror32by8));
 
 		return w;
 	}
