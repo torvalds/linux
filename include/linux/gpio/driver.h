@@ -363,7 +363,9 @@ struct gpio_chip {
 	void			(*dbg_show)(struct seq_file *s,
 						struct gpio_chip *chip);
 
-	int			(*init_valid_mask)(struct gpio_chip *chip);
+	int			(*init_valid_mask)(struct gpio_chip *chip,
+						   unsigned long *valid_mask,
+						   unsigned int ngpios);
 
 	int			base;
 	u16			ngpio;

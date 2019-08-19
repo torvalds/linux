@@ -375,10 +375,12 @@ static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
 	return 0;
 }
 
-static int gpiochip_init_valid_mask(struct gpio_chip *gpiochip)
+static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 {
-	if (gpiochip->init_valid_mask)
-		return gpiochip->init_valid_mask(gpiochip);
+	if (gc->init_valid_mask)
+		return gc->init_valid_mask(gc,
+					   gc->valid_mask,
+					   gc->ngpio);
 
 	return 0;
 }
