@@ -26,6 +26,8 @@
 #ifndef DC_HW_TYPES_H
 #define DC_HW_TYPES_H
 
+#ifndef AMD_EDID_UTILITY
+
 #include "os_types.h"
 #include "fixed31_32.h"
 #include "signal_types.h"
@@ -587,6 +589,8 @@ struct scaling_taps {
 	bool integer_scaling;
 };
 
+#endif /* AMD_EDID_UTILITY */
+
 enum dc_timing_standard {
 	DC_TIMING_STANDARD_UNDEFINED,
 	DC_TIMING_STANDARD_DMT,
@@ -708,30 +712,6 @@ enum dc_timing_3d_format {
 	TIMING_3D_FORMAT_MAX,
 };
 
-enum trigger_delay {
-	TRIGGER_DELAY_NEXT_PIXEL = 0,
-	TRIGGER_DELAY_NEXT_LINE,
-};
-
-enum crtc_event {
-	CRTC_EVENT_VSYNC_RISING = 0,
-	CRTC_EVENT_VSYNC_FALLING
-};
-
-struct crtc_trigger_info {
-	bool enabled;
-	struct dc_stream_state *event_source;
-	enum crtc_event event;
-	enum trigger_delay delay;
-};
-
-struct dc_crtc_timing_adjust {
-	uint32_t v_total_min;
-	uint32_t v_total_max;
-	uint32_t v_total_mid;
-	uint32_t v_total_mid_frame_num;
-};
-
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 struct dc_dsc_config {
 	uint32_t num_slices_h; /* Number of DSC slices - horizontal */
@@ -774,6 +754,33 @@ struct dc_crtc_timing {
 	struct dc_dsc_config dsc_cfg;
 #endif
 };
+
+#ifndef AMD_EDID_UTILITY
+
+enum trigger_delay {
+	TRIGGER_DELAY_NEXT_PIXEL = 0,
+	TRIGGER_DELAY_NEXT_LINE,
+};
+
+enum crtc_event {
+	CRTC_EVENT_VSYNC_RISING = 0,
+	CRTC_EVENT_VSYNC_FALLING
+};
+
+struct crtc_trigger_info {
+	bool enabled;
+	struct dc_stream_state *event_source;
+	enum crtc_event event;
+	enum trigger_delay delay;
+};
+
+struct dc_crtc_timing_adjust {
+	uint32_t v_total_min;
+	uint32_t v_total_max;
+	uint32_t v_total_mid;
+	uint32_t v_total_mid_frame_num;
+};
+
 
 /* Passed on init */
 enum vram_type {
@@ -844,6 +851,8 @@ struct tg_color {
 	uint16_t color_g_y;
 	uint16_t color_b_cb;
 };
+
+#endif /* AMD_EDID_UTILITY */
 
 #endif /* DC_HW_TYPES_H */
 

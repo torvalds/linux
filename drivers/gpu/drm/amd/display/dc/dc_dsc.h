@@ -30,6 +30,7 @@
 #define DP_DSC_BRANCH_OVERALL_THROUGHPUT_0  0x0a0   /* DP 1.4a SCR */
 #define DP_DSC_BRANCH_OVERALL_THROUGHPUT_1  0x0a1
 #define DP_DSC_BRANCH_MAX_LINE_WIDTH        0x0a2
+#include "dc_types.h"
 
 struct dc_dsc_bw_range {
 	uint32_t min_kbps; /* Bandwidth if min_target_bpp_x16 is used */
@@ -39,13 +40,21 @@ struct dc_dsc_bw_range {
 	uint32_t stream_kbps; /* Uncompressed stream bandwidth */
 };
 
+struct display_stream_compressor {
+	const struct dsc_funcs *funcs;
+#ifndef AMD_EDID_UTILITY
+	struct dc_context *ctx;
+	int inst;
+#endif
+};
 
 bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,
 		const uint8_t *dpcd_dsc_ext_data,
 		struct dsc_dec_dpcd_caps *dsc_sink_caps);
 
 bool dc_dsc_compute_bandwidth_range(
-		const struct dc *dc,
+		const struct display_stream_compressor *dsc,
+		const uint32_t dsc_min_slice_height_override,
 		const uint32_t min_kbps,
 		const uint32_t max_kbps,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
@@ -53,8 +62,9 @@ bool dc_dsc_compute_bandwidth_range(
 		struct dc_dsc_bw_range *range);
 
 bool dc_dsc_compute_config(
-		const struct dc *dc,
+		const struct display_stream_compressor *dsc,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
+		const uint32_t dsc_min_slice_height_override,
 		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);

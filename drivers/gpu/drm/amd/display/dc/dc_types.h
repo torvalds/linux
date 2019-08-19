@@ -25,6 +25,11 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
+#ifndef AMD_EDID_UTILITY
+/* AND EdidUtility only needs a portion
+ * of this file, including the rest only
+ * causes additional issues.
+ */
 #include "os_types.h"
 #include "fixed31_32.h"
 #include "irq_types.h"
@@ -745,6 +750,9 @@ struct dc_clock_config {
 	uint32_t current_clock_khz;/*current clock in use*/
 };
 
+#endif /*AMD_EDID_UTILITY*/
+//AMD EDID UTILITY does not need any of the above structures
+
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* DSC DPCD capabilities */
 union dsc_slice_caps1 {
@@ -816,4 +824,5 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_max_line_width;
 };
 #endif
+
 #endif /* DC_TYPES_H_ */
