@@ -296,10 +296,6 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 	girq->handler = handle_bad_irq;
 	girq->parents[0] = irq;
 
-	ret = devm_gpiochip_add_data(dev, &g->gc, g);
-	if (ret)
-		goto dis_clk;
-
 	/* Disable, unmask and clear all interrupts */
 	writel(0x0, g->base + GPIO_INT_EN);
 	writel(0x0, g->base + GPIO_INT_MASK);
@@ -307,6 +303,10 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 
 	/* Clear any use of debounce */
 	writel(0x0, g->base + GPIO_DEBOUNCE_EN);
+
+	ret = devm_gpiochip_add_data(dev, &g->gc, g);
+	if (ret)
+		goto dis_clk;
 
 	platform_set_drvdata(pdev, g);
 	dev_info(dev, "FTGPIO010 @%p registered\n", g->base);
