@@ -162,8 +162,7 @@ next_key:
 	return key;
 }
 
-int ui__question_window(const char *title, const char *text,
-			const char *exit_msg, int delay_secs)
+void __ui__info_window(const char *title, const char *text, const char *exit_msg)
 {
 	int x, y;
 	int max_len = 0, nr_lines = 0;
@@ -185,8 +184,6 @@ int ui__question_window(const char *title, const char *text,
 		t = sep + 1;
 	}
 
-	pthread_mutex_lock(&ui__lock);
-
 	max_len += 2;
 	nr_lines += 2;
 	if (exit_msg)
@@ -206,19 +203,29 @@ int ui__question_window(const char *title, const char *text,
 	max_len -= 2;
 	SLsmg_write_wrapped_string((unsigned char *)text, y, x,
 				   nr_lines, max_len, 1);
-	SLsmg_gotorc(y + nr_lines - 2, x);
-	SLsmg_write_nstring((char *)" ", max_len);
-	SLsmg_gotorc(y + nr_lines - 1, x);
 	if (exit_msg) {
 		SLsmg_gotorc(y + nr_lines - 2, x);
 		SLsmg_write_nstring((char *)" ", max_len);
 		SLsmg_gotorc(y + nr_lines - 1, x);
 		SLsmg_write_nstring((char *)exit_msg, max_len);
 	}
+}
+
+void ui__info_window(const char *title, const char *text)
+{
+	pthread_mutex_lock(&ui__lock);
+	__ui__info_window(title, text, NULL);
 	SLsmg_refresh();
-
 	pthread_mutex_unlock(&ui__lock);
+}
 
+int ui__question_window(const char *title, const char *text,
+			const char *exit_msg, int delay_secs)
+{
+	pthread_mutex_lock(&ui__lock);
+	__ui__info_window(title, text, exit_msg);
+	SLsmg_refresh();
+	pthread_mutex_unlock(&ui__lock);
 	return ui__getch(delay_secs);
 }
 
