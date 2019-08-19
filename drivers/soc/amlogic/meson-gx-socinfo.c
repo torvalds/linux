@@ -141,8 +141,10 @@ static int __init meson_gx_socinfo_init(void)
 	}
 
 	/* check if chip-id is available */
-	if (!of_property_read_bool(np, "amlogic,has-chip-id"))
+	if (!of_property_read_bool(np, "amlogic,has-chip-id")) {
+		of_node_put(np);
 		return -ENODEV;
+	}
 
 	/* node should be a syscon */
 	regmap = syscon_node_to_regmap(np);
