@@ -185,6 +185,19 @@ int wakeup_source_sysfs_add(struct device *parent, struct wakeup_source *ws)
 EXPORT_SYMBOL_GPL(wakeup_source_sysfs_add);
 
 /**
+ * pm_wakeup_source_sysfs_add - Add wakeup_source attributes to sysfs
+ * for a device if they're missing.
+ * @parent: Device given wakeup source is associated with
+ */
+int pm_wakeup_source_sysfs_add(struct device *parent)
+{
+	if (!parent->power.wakeup || parent->power.wakeup->dev)
+		return 0;
+
+	return wakeup_source_sysfs_add(parent, parent->power.wakeup);
+}
+
+/**
  * wakeup_source_sysfs_remove - Remove wakeup_source attributes from sysfs.
  * @ws: Wakeup source to be removed from sysfs.
  */
