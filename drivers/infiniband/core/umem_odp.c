@@ -96,7 +96,7 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
 		 */
 		ib_umem_notifier_start_account(umem_odp);
 		complete_all(&umem_odp->notifier_completion);
-		umem_odp->umem.context->invalidate_range(
+		umem_odp->umem.context->device->ops.invalidate_range(
 			umem_odp, ib_umem_start(umem_odp),
 			ib_umem_end(umem_odp));
 	}
@@ -109,7 +109,7 @@ static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
 					     u64 start, u64 end, void *cookie)
 {
 	ib_umem_notifier_start_account(item);
-	item->umem.context->invalidate_range(item, start, end);
+	item->umem.context->device->ops.invalidate_range(item, start, end);
 	return 0;
 }
 
@@ -385,7 +385,7 @@ struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_udata *udata,
 
 	if (!context)
 		return ERR_PTR(-EIO);
-	if (WARN_ON_ONCE(!context->invalidate_range))
+	if (WARN_ON_ONCE(!context->device->ops.invalidate_range))
 		return ERR_PTR(-EINVAL);
 
 	umem_odp = kzalloc(sizeof(*umem_odp), GFP_KERNEL);
@@ -479,7 +479,7 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 		return ERR_PTR(-EIO);
 
 	if (WARN_ON_ONCE(!(access & IB_ACCESS_ON_DEMAND)) ||
-	    WARN_ON_ONCE(!context->invalidate_range))
+	    WARN_ON_ONCE(!context->device->ops.invalidate_range))
 		return ERR_PTR(-EINVAL);
 
 	umem_odp = kzalloc(sizeof(struct ib_umem_odp), GFP_KERNEL);
@@ -607,7 +607,7 @@ out:
 
 	if (remove_existing_mapping) {
 		ib_umem_notifier_start_account(umem_odp);
-		context->invalidate_range(
+		dev->ops.invalidate_range(
 			umem_odp,
 			ib_umem_start(umem_odp) +
 				(page_index << umem_odp->page_shift),
