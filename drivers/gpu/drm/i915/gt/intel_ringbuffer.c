@@ -1234,8 +1234,7 @@ err_unpin:
 
 void intel_ring_reset(struct intel_ring *ring, u32 tail)
 {
-	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
-
+	tail = intel_ring_wrap(ring, tail);
 	ring->tail = tail;
 	ring->head = tail;
 	ring->emit = tail;
