@@ -555,7 +555,7 @@ static int xsdfec_reg2_write(struct xsdfec_dev *xsdfec, u32 nlayers, u32 nmqc,
 		 XSDFEC_REG2_NO_FINAL_PARITY_MASK);
 	if (max_schedule &
 	    ~(XSDFEC_REG2_MAX_SCHEDULE_MASK >> XSDFEC_REG2_MAX_SCHEDULE_LSB))
-		dev_dbg(xsdfec->dev, "Max Schdule exceeds 2 bits");
+		dev_dbg(xsdfec->dev, "Max Schedule exceeds 2 bits");
 	max_schedule = ((max_schedule << XSDFEC_REG2_MAX_SCHEDULE_LSB) &
 			XSDFEC_REG2_MAX_SCHEDULE_MASK);
 
