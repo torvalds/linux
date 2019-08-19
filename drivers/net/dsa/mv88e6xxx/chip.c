@@ -2151,16 +2151,6 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	/* Enable the SERDES interface for DSA and CPU ports. Normal
-	 * ports SERDES are enabled when the port is enabled, thus
-	 * saving a bit of power.
-	 */
-	if ((dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))) {
-		err = mv88e6xxx_serdes_power(chip, port, true);
-		if (err)
-			return err;
-	}
-
 	/* Port Control 2: don't force a good FCS, set the maximum frame size to
 	 * 10240 bytes, disable 802.1q tags checking, don't discard tagged or
 	 * untagged frames on this port, do a destination address lookup on all
@@ -2267,9 +2257,6 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (!dsa_is_user_port(ds, port))
-		return 0;
-
 	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_serdes_power(chip, port, true);
@@ -2285,9 +2272,6 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-
-	if (!dsa_is_user_port(ds, port))
-		return;
 
 	mv88e6xxx_reg_lock(chip);
 
@@ -2461,25 +2445,14 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	/* Setup Switch Port Registers */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		if (dsa_is_unused_port(ds, i))
+			continue;
+
 		/* Prevent the use of an invalid port. */
-		if (mv88e6xxx_is_invalid_port(chip, i) &&
-		    !dsa_is_unused_port(ds, i)) {
+		if (mv88e6xxx_is_invalid_port(chip, i)) {
 			dev_err(chip->dev, "port %d is invalid\n", i);
 			err = -EINVAL;
 			goto unlock;
-		}
-
-		if (dsa_is_unused_port(ds, i)) {
-			err = mv88e6xxx_port_set_state(chip, i,
-						       BR_STATE_DISABLED);
-			if (err)
-				goto unlock;
-
-			err = mv88e6xxx_serdes_power(chip, i, false);
-			if (err)
-				goto unlock;
-
-			continue;
 		}
 
 		err = mv88e6xxx_setup_port(chip, i);
