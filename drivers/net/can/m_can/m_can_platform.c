@@ -63,6 +63,9 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	int irq, ret = 0;
 
 	mcan_class = m_can_class_allocate_dev(&pdev->dev);
+	if (!mcan_class)
+		return -ENOMEM;
+
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
