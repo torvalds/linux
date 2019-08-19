@@ -37,15 +37,33 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_LOCKDEP)
+
 static inline void __timeline_mark_lock(struct intel_context *ce)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	mutex_acquire(&ce->timeline->mutex.dep_map, 2, 0, _THIS_IP_);
+	local_irq_restore(flags);
 }
 
 static inline void __timeline_mark_unlock(struct intel_context *ce)
 {
 	mutex_release(&ce->timeline->mutex.dep_map, 0, _THIS_IP_);
 }
+
+#else
+
+static inline void __timeline_mark_lock(struct intel_context *ce)
+{
+}
+
+static inline void __timeline_mark_unlock(struct intel_context *ce)
+{
+}
+
+#endif /* !IS_ENABLED(CONFIG_LOCKDEP) */
 
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
