@@ -543,6 +543,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
+
+	/* The new Tx API does not allow to pass the key or keyid of a MPDU to
+	 * the hw, preventing us to control which key(id) to use per MPDU.
+	 * Till that's fixed we can't use Extended Key ID for the newer cards.
+	 */
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_EXT_KEY_ID);
 	hw->wiphy->features |= NL80211_FEATURE_HT_IBSS;
 
 	hw->wiphy->regulatory_flags |= REGULATORY_ENABLE_RELAX_NO_IR;
