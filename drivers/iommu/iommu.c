@@ -119,6 +119,11 @@ static int __init iommu_subsys_init(void)
 			iommu_set_default_passthrough(false);
 		else
 			iommu_set_default_translated(false);
+
+		if (iommu_default_passthrough() && sme_active()) {
+			pr_info("SME detected - Disabling default IOMMU Passthrough\n");
+			iommu_set_default_translated(false);
+		}
 	}
 
 	pr_info("Default domain type: %s %s\n",
