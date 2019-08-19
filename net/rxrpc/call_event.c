@@ -43,8 +43,7 @@ static void rxrpc_propose_ping(struct rxrpc_call *call,
  * propose an ACK be sent
  */
 static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-				u16 skew, u32 serial, bool immediate,
-				bool background,
+				u32 serial, bool immediate, bool background,
 				enum rxrpc_propose_ack_trace why)
 {
 	enum rxrpc_propose_ack_outcome outcome = rxrpc_propose_ack_use;
@@ -69,14 +68,12 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		if (RXRPC_ACK_UPDATEABLE & (1 << ack_reason)) {
 			outcome = rxrpc_propose_ack_update;
 			call->ackr_serial = serial;
-			call->ackr_skew = skew;
 		}
 		if (!immediate)
 			goto trace;
 	} else if (prior > rxrpc_ack_priority[call->ackr_reason]) {
 		call->ackr_reason = ack_reason;
 		call->ackr_serial = serial;
-		call->ackr_skew = skew;
 	} else {
 		outcome = rxrpc_propose_ack_subsume;
 	}
@@ -137,11 +134,11 @@ trace:
  * propose an ACK be sent, locking the call structure
  */
 void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-		       u16 skew, u32 serial, bool immediate, bool background,
+		       u32 serial, bool immediate, bool background,
 		       enum rxrpc_propose_ack_trace why)
 {
 	spin_lock_bh(&call->lock);
-	__rxrpc_propose_ACK(call, ack_reason, skew, serial,
+	__rxrpc_propose_ACK(call, ack_reason, serial,
 			    immediate, background, why);
 	spin_unlock_bh(&call->lock);
 }
@@ -239,7 +236,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 		ack_ts = ktime_sub(now, call->acks_latest_ts);
 		if (ktime_to_ns(ack_ts) < call->peer->rtt)
 			goto out;
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
 		rxrpc_send_ack_packet(call, true, NULL);
 		goto out;
@@ -372,7 +369,7 @@ recheck_state:
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_keepalive, now);
 		cmpxchg(&call->keepalive_at, t, now + MAX_JIFFY_OFFSET);
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, true,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, true,
 				  rxrpc_propose_ack_ping_for_keepalive);
 		set_bit(RXRPC_CALL_EV_PING, &call->events);
 	}
@@ -407,7 +404,7 @@ recheck_state:
 	send_ack = NULL;
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events)) {
 		call->acks_lost_top = call->tx_top;
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
 		send_ack = &call->acks_lost_ping;
 	}
