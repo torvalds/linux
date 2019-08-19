@@ -408,16 +408,11 @@ static int pcf2123_probe(struct spi_device *spi)
 			(spi->max_speed_hz + 500) / 1000);
 
 	/* Finalize the initialization */
-	rtc = devm_rtc_device_register(&spi->dev, pcf2123_driver.driver.name,
-			&pcf2123_rtc_ops, THIS_MODULE);
-
-	if (IS_ERR(rtc)) {
-		dev_err(&spi->dev, "failed to register.\n");
+	rtc = devm_rtc_allocate_device(&spi->dev);
+	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-	}
 
 	pcf2123->rtc = rtc;
-
 
 	/* Register alarm irq */
 	if (spi->irq > 0) {
@@ -435,7 +430,12 @@ static int pcf2123_probe(struct spi_device *spi)
 	 * support to this driver to generate interrupts more than once
 	 * per minute.
 	 */
-	pcf2123->rtc->uie_unsupported = 1;
+	rtc->uie_unsupported = 1;
+	rtc->ops = &pcf2123_rtc_ops;
+
+	ret = rtc_register_device(rtc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
