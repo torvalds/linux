@@ -1531,7 +1531,7 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
 			goto release_wrs;
 
-		trace_xprtrdma_post_recv(rep->rr_recv_wr.wr_cqe);
+		trace_xprtrdma_post_recv(rep);
 		++count;
 	}
 

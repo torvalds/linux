@@ -623,21 +623,21 @@ TRACE_EVENT(xprtrdma_post_send,
 
 TRACE_EVENT(xprtrdma_post_recv,
 	TP_PROTO(
-		const struct ib_cqe *cqe
+		const struct rpcrdma_rep *rep
 	),
 
-	TP_ARGS(cqe),
+	TP_ARGS(rep),
 
 	TP_STRUCT__entry(
-		__field(const void *, cqe)
+		__field(const void *, rep)
 	),
 
 	TP_fast_assign(
-		__entry->cqe = cqe;
+		__entry->rep = rep;
 	),
 
-	TP_printk("cqe=%p",
-		__entry->cqe
+	TP_printk("rep=%p",
+		__entry->rep
 	)
 );
 
@@ -715,14 +715,15 @@ TRACE_EVENT(xprtrdma_wc_receive,
 	TP_ARGS(wc),
 
 	TP_STRUCT__entry(
-		__field(const void *, cqe)
+		__field(const void *, rep)
 		__field(u32, byte_len)
 		__field(unsigned int, status)
 		__field(u32, vendor_err)
 	),
 
 	TP_fast_assign(
-		__entry->cqe = wc->wr_cqe;
+		__entry->rep = container_of(wc->wr_cqe, struct rpcrdma_rep,
+					    rr_cqe);
 		__entry->status = wc->status;
 		if (wc->status) {
 			__entry->byte_len = 0;
@@ -733,8 +734,8 @@ TRACE_EVENT(xprtrdma_wc_receive,
 		}
 	),
 
-	TP_printk("cqe=%p %u bytes: %s (%u/0x%x)",
-		__entry->cqe, __entry->byte_len,
+	TP_printk("rep=%p %u bytes: %s (%u/0x%x)",
+		__entry->rep, __entry->byte_len,
 		rdma_show_wc_status(__entry->status),
 		__entry->status, __entry->vendor_err
 	)
