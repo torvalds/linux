@@ -1600,6 +1600,23 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
+/*
+ * Make sure max resize/output resolution is smaller than
+ * isp sub device output size. This assumes it's not
+ * recommended to use ISP scale-up function to get output size
+ * that exceeds sensor max resolution.
+ */
+static void restrict_rsz_resolution(struct rkisp1_device *dev,
+				    const struct stream_config *config,
+				    struct v4l2_rect *max_rsz)
+{
+	struct v4l2_rect *input_win;
+
+	input_win = rkisp1_get_isp_sd_win(&dev->isp_sdev);
+	max_rsz->width = min_t(int, input_win->width, config->max_rsz_width);
+	max_rsz->height = min_t(int, input_win->height, config->max_rsz_height);
+}
+
 static int rkisp1_set_fmt(struct rkisp1_stream *stream,
 			   struct v4l2_pix_format_mplane *pixm,
 			   bool try)
@@ -1624,15 +1641,16 @@ static int rkisp1_set_fmt(struct rkisp1_stream *stream,
 	}
 
 	if (stream->id != RKISP1_STREAM_RAW) {
+		struct v4l2_rect max_rsz;
+
 		other_stream =
 			&stream->ispdev->stream[!stream->id ^ 1];
 		/* do checks on resolution */
+		restrict_rsz_resolution(stream->ispdev, config, &max_rsz);
 		pixm->width = clamp_t(u32, pixm->width,
-			config->min_rsz_width,
-			config->max_rsz_width);
+				      config->min_rsz_width, max_rsz.width);
 		pixm->height = clamp_t(u32, pixm->height,
-			config->min_rsz_height,
-			config->max_rsz_height);
+				       config->min_rsz_height, max_rsz.height);
 	} else {
 		other_stream =
 			&stream->ispdev->stream[RKISP1_STREAM_MP];
