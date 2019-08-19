@@ -184,9 +184,6 @@ EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 /**
  * ib_umem_get - Pin and DMA map userspace memory.
  *
- * If access flags indicate ODP memory, avoid pinning. Instead, stores
- * the mm for future page fault handling in conjunction with MMU notifiers.
- *
  * @udata: userspace context to pin memory for
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
@@ -231,35 +228,18 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
 
-	if (access & IB_ACCESS_ON_DEMAND) {
-		umem = kzalloc(sizeof(struct ib_umem_odp), GFP_KERNEL);
-		if (!umem)
-			return ERR_PTR(-ENOMEM);
-		umem->is_odp = 1;
-	} else {
-		umem = kzalloc(sizeof(*umem), GFP_KERNEL);
-		if (!umem)
-			return ERR_PTR(-ENOMEM);
-	}
+	if (access & IB_ACCESS_ON_DEMAND)
+		return ERR_PTR(-EOPNOTSUPP);
 
+	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	if (!umem)
+		return ERR_PTR(-ENOMEM);
 	umem->context    = context;
 	umem->length     = size;
 	umem->address    = addr;
 	umem->writable   = ib_access_writable(access);
 	umem->owning_mm = mm = current->mm;
 	mmgrab(mm);
-
-	if (access & IB_ACCESS_ON_DEMAND) {
-		if (WARN_ON_ONCE(!context->invalidate_range)) {
-			ret = -EINVAL;
-			goto umem_kfree;
-		}
-
-		ret = ib_umem_odp_get(to_ib_umem_odp(umem), access);
-		if (ret)
-			goto umem_kfree;
-		return umem;
-	}
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list) {

@@ -335,6 +335,7 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 				     &per_mm->umem_tree);
 		up_write(&per_mm->umem_rwsem);
 	}
+	mmgrab(umem_odp->umem.owning_mm);
 
 	return 0;
 
@@ -389,9 +390,6 @@ struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_udata *udata,
 		kfree(umem_odp);
 		return ERR_PTR(ret);
 	}
-
-	mmgrab(umem->owning_mm);
-
 	return umem_odp;
 }
 EXPORT_SYMBOL(ib_umem_odp_alloc_implicit);
@@ -435,27 +433,51 @@ struct ib_umem_odp *ib_umem_odp_alloc_child(struct ib_umem_odp *root,
 		kfree(odp_data);
 		return ERR_PTR(ret);
 	}
-
-	mmgrab(umem->owning_mm);
-
 	return odp_data;
 }
 EXPORT_SYMBOL(ib_umem_odp_alloc_child);
 
 /**
- * ib_umem_odp_get - Complete ib_umem_get()
+ * ib_umem_odp_get - Create a umem_odp for a userspace va
  *
- * @umem_odp: The partially configured umem from ib_umem_get()
- * @addr: The starting userspace VA
- * @access: ib_reg_mr access flags
+ * @udata: userspace context to pin memory for
+ * @addr: userspace virtual address to start at
+ * @size: length of region to pin
+ * @access: IB_ACCESS_xxx flags for memory being pinned
+ *
+ * The driver should use when the access flags indicate ODP memory. It avoids
+ * pinning, instead, stores the mm for future page fault handling in
+ * conjunction with MMU notifiers.
  */
-int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
+struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
+				    size_t size, int access)
 {
-	/*
-	 * NOTE: This must called in a process context where umem->owning_mm
-	 * == current->mm
-	 */
-	struct mm_struct *mm = umem_odp->umem.owning_mm;
+	struct ib_umem_odp *umem_odp;
+	struct ib_ucontext *context;
+	struct mm_struct *mm;
+	int ret;
+
+	if (!udata)
+		return ERR_PTR(-EIO);
+
+	context = container_of(udata, struct uverbs_attr_bundle, driver_udata)
+			  ->context;
+	if (!context)
+		return ERR_PTR(-EIO);
+
+	if (WARN_ON_ONCE(!(access & IB_ACCESS_ON_DEMAND)) ||
+	    WARN_ON_ONCE(!context->invalidate_range))
+		return ERR_PTR(-EINVAL);
+
+	umem_odp = kzalloc(sizeof(struct ib_umem_odp), GFP_KERNEL);
+	if (!umem_odp)
+		return ERR_PTR(-ENOMEM);
+
+	umem_odp->umem.context = context;
+	umem_odp->umem.length = size;
+	umem_odp->umem.address = addr;
+	umem_odp->umem.writable = ib_access_writable(access);
+	umem_odp->umem.owning_mm = mm = current->mm;
 
 	umem_odp->page_shift = PAGE_SHIFT;
 	if (access & IB_ACCESS_HUGETLB) {
@@ -466,15 +488,24 @@ int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
 		vma = find_vma(mm, ib_umem_start(umem_odp));
 		if (!vma || !is_vm_hugetlb_page(vma)) {
 			up_read(&mm->mmap_sem);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_free;
 		}
 		h = hstate_vma(vma);
 		umem_odp->page_shift = huge_page_shift(h);
 		up_read(&mm->mmap_sem);
 	}
 
-	return ib_init_umem_odp(umem_odp, NULL);
+	ret = ib_init_umem_odp(umem_odp, NULL);
+	if (ret)
+		goto err_free;
+	return umem_odp;
+
+err_free:
+	kfree(umem_odp);
+	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL(ib_umem_odp_get);
 
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 {
