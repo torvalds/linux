@@ -3274,6 +3274,7 @@ void i915_ggtt_disable_guc(struct i915_ggtt *ggtt)
 static void ggtt_restore_mappings(struct i915_ggtt *ggtt)
 {
 	struct i915_vma *vma, *vn;
+	bool flush = false;
 
 	intel_gt_check_and_clear_faults(ggtt->vm.gt);
 
@@ -3298,10 +3299,9 @@ static void ggtt_restore_mappings(struct i915_ggtt *ggtt)
 		WARN_ON(i915_vma_bind(vma,
 				      obj ? obj->cache_level : 0,
 				      PIN_UPDATE));
-		if (obj) {
-			i915_gem_object_lock(obj);
-			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
-			i915_gem_object_unlock(obj);
+		if (obj) { /* only used during resume => exclusive access */
+			flush |= fetch_and_zero(&obj->write_domain);
+			obj->read_domains |= I915_GEM_DOMAIN_GTT;
 		}
 
 lock:
@@ -3312,6 +3312,9 @@ lock:
 	ggtt->invalidate(ggtt);
 
 	mutex_unlock(&ggtt->vm.mutex);
+
+	if (flush)
+		wbinvd_on_all_cpus();
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *i915)
