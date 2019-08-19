@@ -126,12 +126,10 @@ frwr_mr_recycle_worker(struct work_struct *work)
  */
 void frwr_reset(struct rpcrdma_req *req)
 {
-	while (!list_empty(&req->rl_registered)) {
-		struct rpcrdma_mr *mr;
+	struct rpcrdma_mr *mr;
 
-		mr = rpcrdma_mr_pop(&req->rl_registered);
+	while ((mr = rpcrdma_mr_pop(&req->rl_registered)))
 		rpcrdma_mr_unmap_and_put(mr);
-	}
 }
 
 /**
@@ -532,8 +530,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 */
 	frwr = NULL;
 	prev = &first;
-	while (!list_empty(&req->rl_registered)) {
-		mr = rpcrdma_mr_pop(&req->rl_registered);
+	while ((mr = rpcrdma_mr_pop(&req->rl_registered))) {
 
 		trace_xprtrdma_mr_localinv(mr);
 		r_xprt->rx_stats.local_inv_needed++;
@@ -632,8 +629,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 */
 	frwr = NULL;
 	prev = &first;
-	while (!list_empty(&req->rl_registered)) {
-		mr = rpcrdma_mr_pop(&req->rl_registered);
+	while ((mr = rpcrdma_mr_pop(&req->rl_registered))) {
 
 		trace_xprtrdma_mr_localinv(mr);
 		r_xprt->rx_stats.local_inv_needed++;

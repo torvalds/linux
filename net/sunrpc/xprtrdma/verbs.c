@@ -1213,13 +1213,11 @@ struct rpcrdma_mr *
 rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct rpcrdma_mr *mr = NULL;
+	struct rpcrdma_mr *mr;
 
 	spin_lock(&buf->rb_mrlock);
-	if (!list_empty(&buf->rb_mrs))
-		mr = rpcrdma_mr_pop(&buf->rb_mrs);
+	mr = rpcrdma_mr_pop(&buf->rb_mrs);
 	spin_unlock(&buf->rb_mrlock);
-
 	if (!mr)
 		goto out_nomrs;
 	return mr;

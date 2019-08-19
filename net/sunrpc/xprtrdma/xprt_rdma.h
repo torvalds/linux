@@ -338,7 +338,7 @@ rpcr_to_rdmar(const struct rpc_rqst *rqst)
 static inline void
 rpcrdma_mr_push(struct rpcrdma_mr *mr, struct list_head *list)
 {
-	list_add_tail(&mr->mr_list, list);
+	list_add(&mr->mr_list, list);
 }
 
 static inline struct rpcrdma_mr *
@@ -346,8 +346,9 @@ rpcrdma_mr_pop(struct list_head *list)
 {
 	struct rpcrdma_mr *mr;
 
-	mr = list_first_entry(list, struct rpcrdma_mr, mr_list);
-	list_del_init(&mr->mr_list);
+	mr = list_first_entry_or_null(list, struct rpcrdma_mr, mr_list);
+	if (mr)
+		list_del_init(&mr->mr_list);
 	return mr;
 }
 
