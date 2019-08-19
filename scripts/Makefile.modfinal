@@ -17,12 +17,12 @@ modules := $(sort $(shell cat $(MODORDER)))
 __modfinal: $(modules)
 	@:
 
-# modname is set to make c_flags define KBUILD_MODNAME
+# modname and part-of-module are set to make c_flags define proper module flags
 modname = $(notdir $(@:.mod.o=))
+part-of-module = y
 
 quiet_cmd_cc_o_c = CC [M]  $@
-      cmd_cc_o_c = $(CC) $(c_flags) $(KBUILD_CFLAGS_MODULE) $(CFLAGS_MODULE) \
-		   -c -o $@ $<
+      cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
 
 %.mod.o: %.mod.c FORCE
 	$(call if_changed_dep,cc_o_c)
