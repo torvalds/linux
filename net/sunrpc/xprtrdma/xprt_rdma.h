@@ -47,6 +47,7 @@
 #include <linux/atomic.h>		/* atomic_t, etc */
 #include <linux/kref.h>			/* struct kref */
 #include <linux/workqueue.h>		/* struct work_struct */
+#include <linux/llist.h>
 
 #include <rdma/rdma_cm.h>		/* RDMA connection api */
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */
@@ -200,7 +201,7 @@ struct rpcrdma_rep {
 	struct rpc_rqst		*rr_rqst;
 	struct xdr_buf		rr_hdrbuf;
 	struct xdr_stream	rr_stream;
-	struct list_head	rr_list;
+	struct llist_node	rr_node;
 	struct ib_recv_wr	rr_recv_wr;
 };
 
@@ -362,7 +363,6 @@ rpcrdma_mr_pop(struct list_head *list)
 struct rpcrdma_buffer {
 	spinlock_t		rb_lock;
 	struct list_head	rb_send_bufs;
-	struct list_head	rb_recv_bufs;
 	struct list_head	rb_mrs;
 
 	unsigned long		rb_sc_head;
@@ -372,6 +372,8 @@ struct rpcrdma_buffer {
 
 	struct list_head	rb_allreqs;
 	struct list_head	rb_all_mrs;
+
+	struct llist_head	rb_free_reps;
 
 	u32			rb_max_requests;
 	u32			rb_credits;	/* most recent credit grant */
