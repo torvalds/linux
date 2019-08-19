@@ -4,11 +4,10 @@
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/sched.h>
-#include <linux/timex.h>
 #include <linux/alarmtimer.h>
 
-struct siginfo;
+struct kernel_siginfo;
+struct task_struct;
 
 struct cpu_timer_list {
 	struct list_head entry;
