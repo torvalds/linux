@@ -91,14 +91,13 @@ static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 /* Returns the first page of an ODP umem. */
 static inline unsigned long ib_umem_start(struct ib_umem_odp *umem_odp)
 {
-	return ALIGN_DOWN(umem_odp->umem.address, 1UL << umem_odp->page_shift);
+	return umem_odp->interval_tree.start;
 }
 
 /* Returns the address of the page after the last one of an ODP umem. */
 static inline unsigned long ib_umem_end(struct ib_umem_odp *umem_odp)
 {
-	return ALIGN(umem_odp->umem.address + umem_odp->umem.length,
-		     1UL << umem_odp->page_shift);
+	return umem_odp->interval_tree.last + 1;
 }
 
 static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)

@@ -287,19 +287,32 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 
 	umem_odp->umem.is_odp = 1;
 	if (!umem_odp->is_implicit_odp) {
-		size_t pages = ib_umem_odp_num_pages(umem_odp);
+		size_t page_size = 1UL << umem_odp->page_shift;
+		size_t pages;
 
+		umem_odp->interval_tree.start =
+			ALIGN_DOWN(umem_odp->umem.address, page_size);
+		if (check_add_overflow(umem_odp->umem.address,
+				       umem_odp->umem.length,
+				       &umem_odp->interval_tree.last))
+			return -EOVERFLOW;
+		umem_odp->interval_tree.last =
+			ALIGN(umem_odp->interval_tree.last, page_size);
+		if (unlikely(umem_odp->interval_tree.last < page_size))
+			return -EOVERFLOW;
+
+		pages = (umem_odp->interval_tree.last -
+			 umem_odp->interval_tree.start) >>
+			umem_odp->page_shift;
 		if (!pages)
 			return -EINVAL;
 
 		/*
 		 * Note that the representation of the intervals in the
 		 * interval tree considers the ending point as contained in
-		 * the interval, while the function ib_umem_end returns the
-		 * first address which is not contained in the umem.
+		 * the interval.
 		 */
-		umem_odp->interval_tree.start = ib_umem_start(umem_odp);
-		umem_odp->interval_tree.last = ib_umem_end(umem_odp) - 1;
+		umem_odp->interval_tree.last--;
 
 		umem_odp->page_list = vzalloc(
 			array_size(sizeof(*umem_odp->page_list), pages));
