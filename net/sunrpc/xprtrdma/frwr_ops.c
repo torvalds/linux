@@ -291,30 +291,24 @@ size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt)
  * @nsegs: number of segments remaining
  * @writing: true when RDMA Write will be used
  * @xid: XID of RPC using the registered memory
- * @out: initialized MR
+ * @mr: MR to fill in
  *
  * Prepare a REG_MR Work Request to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  *
  * Returns the next segment or a negative errno pointer.
- * On success, the prepared MR is planted in @out.
+ * On success, @mr is filled in.
  */
 struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 				struct rpcrdma_mr_seg *seg,
 				int nsegs, bool writing, __be32 xid,
-				struct rpcrdma_mr **out)
+				struct rpcrdma_mr *mr)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	bool holes_ok = ia->ri_mrtype == IB_MR_TYPE_SG_GAPS;
-	struct rpcrdma_mr *mr;
-	struct ib_mr *ibmr;
 	struct ib_reg_wr *reg_wr;
+	struct ib_mr *ibmr;
 	int i, n;
 	u8 key;
-
-	mr = rpcrdma_mr_get(r_xprt);
-	if (!mr)
-		goto out_getmr_err;
 
 	if (nsegs > ia->ri_max_frwr_depth)
 		nsegs = ia->ri_max_frwr_depth;
@@ -330,7 +324,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 
 		++seg;
 		++i;
-		if (holes_ok)
+		if (ia->ri_mrtype == IB_MR_TYPE_SG_GAPS)
 			continue;
 		if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
@@ -365,22 +359,15 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	mr->mr_offset = ibmr->iova;
 	trace_xprtrdma_mr_map(mr);
 
-	*out = mr;
 	return seg;
-
-out_getmr_err:
-	xprt_wait_for_buffer_space(&r_xprt->rx_xprt);
-	return ERR_PTR(-EAGAIN);
 
 out_dmamap_err:
 	mr->mr_dir = DMA_NONE;
 	trace_xprtrdma_frwr_sgerr(mr, i);
-	rpcrdma_mr_put(mr);
 	return ERR_PTR(-EIO);
 
 out_mapmr_err:
 	trace_xprtrdma_frwr_maperr(mr, n);
-	rpcrdma_mr_recycle(mr);
 	return ERR_PTR(-EIO);
 }
 

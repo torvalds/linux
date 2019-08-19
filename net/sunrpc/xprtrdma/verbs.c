@@ -408,7 +408,7 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 	struct rpcrdma_req *req;
 	struct rpcrdma_rep *rep;
 
-	cancel_delayed_work_sync(&buf->rb_refresh_worker);
+	cancel_work_sync(&buf->rb_refresh_worker);
 
 	/* This is similar to rpcrdma_ep_destroy, but:
 	 * - Don't cancel the connect worker.
@@ -975,7 +975,7 @@ static void
 rpcrdma_mr_refresh_worker(struct work_struct *work)
 {
 	struct rpcrdma_buffer *buf = container_of(work, struct rpcrdma_buffer,
-						  rb_refresh_worker.work);
+						  rb_refresh_worker);
 	struct rpcrdma_xprt *r_xprt = container_of(buf, struct rpcrdma_xprt,
 						   rx_buf);
 
@@ -1086,8 +1086,7 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	spin_lock_init(&buf->rb_lock);
 	INIT_LIST_HEAD(&buf->rb_mrs);
 	INIT_LIST_HEAD(&buf->rb_all_mrs);
-	INIT_DELAYED_WORK(&buf->rb_refresh_worker,
-			  rpcrdma_mr_refresh_worker);
+	INIT_WORK(&buf->rb_refresh_worker, rpcrdma_mr_refresh_worker);
 
 	rpcrdma_mrs_create(r_xprt);
 
@@ -1177,7 +1176,7 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
-	cancel_delayed_work_sync(&buf->rb_refresh_worker);
+	cancel_work_sync(&buf->rb_refresh_worker);
 
 	rpcrdma_sendctxs_destroy(buf);
 
@@ -1218,19 +1217,7 @@ rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt)
 	spin_lock(&buf->rb_mrlock);
 	mr = rpcrdma_mr_pop(&buf->rb_mrs);
 	spin_unlock(&buf->rb_mrlock);
-	if (!mr)
-		goto out_nomrs;
 	return mr;
-
-out_nomrs:
-	trace_xprtrdma_nomrs(r_xprt);
-	if (r_xprt->rx_ep.rep_connected != -ENODEV)
-		schedule_delayed_work(&buf->rb_refresh_worker, 0);
-
-	/* Allow the reply handler and refresh worker to run */
-	cond_resched();
-
-	return NULL;
 }
 
 /**
