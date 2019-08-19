@@ -443,8 +443,10 @@ static int pcf2123_probe(struct spi_device *spi)
 
 #ifdef CONFIG_OF
 static const struct of_device_id pcf2123_dt_ids[] = {
-	{ .compatible = "nxp,rtc-pcf2123", },
+	{ .compatible = "nxp,pcf2123", },
 	{ .compatible = "microcrystal,rv2123", },
+	/* Deprecated, do not use */
+	{ .compatible = "nxp,rtc-pcf2123", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pcf2123_dt_ids);
