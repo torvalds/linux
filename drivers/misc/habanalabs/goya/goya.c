@@ -2729,9 +2729,10 @@ void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 				GOYA_ASYNC_EVENT_ID_PI_UPDATE);
 }
 
-void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val)
+void goya_pqe_write(struct hl_device *hdev, __le64 *pqe, struct hl_bd *bd)
 {
-	/* Not needed in Goya */
+	/* The QMANs are on the SRAM so need to copy to IO space */
+	memcpy_toio((void __iomem *) pqe, bd, sizeof(struct hl_bd));
 }
 
 static void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
@@ -3313,9 +3314,11 @@ static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 	int rc;
 
 	dev_dbg(hdev->dev, "DMA packet details:\n");
-	dev_dbg(hdev->dev, "source == 0x%llx\n", user_dma_pkt->src_addr);
-	dev_dbg(hdev->dev, "destination == 0x%llx\n", user_dma_pkt->dst_addr);
-	dev_dbg(hdev->dev, "size == %u\n", user_dma_pkt->tsize);
+	dev_dbg(hdev->dev, "source == 0x%llx\n",
+		le64_to_cpu(user_dma_pkt->src_addr));
+	dev_dbg(hdev->dev, "destination == 0x%llx\n",
+		le64_to_cpu(user_dma_pkt->dst_addr));
+	dev_dbg(hdev->dev, "size == %u\n", le32_to_cpu(user_dma_pkt->tsize));
 
 	ctl = le32_to_cpu(user_dma_pkt->ctl);
 	user_dir = (ctl & GOYA_PKT_LIN_DMA_CTL_DMA_DIR_MASK) >>
@@ -3344,9 +3347,11 @@ static int goya_validate_dma_pkt_mmu(struct hl_device *hdev,
 				struct packet_lin_dma *user_dma_pkt)
 {
 	dev_dbg(hdev->dev, "DMA packet details:\n");
-	dev_dbg(hdev->dev, "source == 0x%llx\n", user_dma_pkt->src_addr);
-	dev_dbg(hdev->dev, "destination == 0x%llx\n", user_dma_pkt->dst_addr);
-	dev_dbg(hdev->dev, "size == %u\n", user_dma_pkt->tsize);
+	dev_dbg(hdev->dev, "source == 0x%llx\n",
+		le64_to_cpu(user_dma_pkt->src_addr));
+	dev_dbg(hdev->dev, "destination == 0x%llx\n",
+		le64_to_cpu(user_dma_pkt->dst_addr));
+	dev_dbg(hdev->dev, "size == %u\n", le32_to_cpu(user_dma_pkt->tsize));
 
 	/*
 	 * WA for HW-23.
@@ -3386,7 +3391,8 @@ static int goya_validate_wreg32(struct hl_device *hdev,
 
 	dev_dbg(hdev->dev, "WREG32 packet details:\n");
 	dev_dbg(hdev->dev, "reg_offset == 0x%x\n", reg_offset);
-	dev_dbg(hdev->dev, "value      == 0x%x\n", wreg_pkt->value);
+	dev_dbg(hdev->dev, "value      == 0x%x\n",
+		le32_to_cpu(wreg_pkt->value));
 
 	if (reg_offset != (mmDMA_CH_0_WR_COMP_ADDR_LO & 0x1FFF)) {
 		dev_err(hdev->dev, "WREG32 packet with illegal address 0x%x\n",
@@ -3428,12 +3434,13 @@ static int goya_validate_cb(struct hl_device *hdev,
 	while (cb_parsed_length < parser->user_cb_size) {
 		enum packet_id pkt_id;
 		u16 pkt_size;
-		void *user_pkt;
+		struct goya_packet *user_pkt;
 
-		user_pkt = (void *) (uintptr_t)
+		user_pkt = (struct goya_packet *) (uintptr_t)
 			(parser->user_cb->kernel_address + cb_parsed_length);
 
-		pkt_id = (enum packet_id) (((*(u64 *) user_pkt) &
+		pkt_id = (enum packet_id) (
+				(le64_to_cpu(user_pkt->header) &
 				PACKET_HEADER_PACKET_ID_MASK) >>
 					PACKET_HEADER_PACKET_ID_SHIFT);
 
@@ -3453,7 +3460,8 @@ static int goya_validate_cb(struct hl_device *hdev,
 			 * need to validate here as well because patch_cb() is
 			 * not called in MMU path while this function is called
 			 */
-			rc = goya_validate_wreg32(hdev, parser, user_pkt);
+			rc = goya_validate_wreg32(hdev,
+				parser, (struct packet_wreg32 *) user_pkt);
 			break;
 
 		case PACKET_WREG_BULK:
@@ -3481,10 +3489,10 @@ static int goya_validate_cb(struct hl_device *hdev,
 		case PACKET_LIN_DMA:
 			if (is_mmu)
 				rc = goya_validate_dma_pkt_mmu(hdev, parser,
-						user_pkt);
+					(struct packet_lin_dma *) user_pkt);
 			else
 				rc = goya_validate_dma_pkt_no_mmu(hdev, parser,
-						user_pkt);
+					(struct packet_lin_dma *) user_pkt);
 			break;
 
 		case PACKET_MSG_LONG:
@@ -3657,15 +3665,16 @@ static int goya_patch_cb(struct hl_device *hdev,
 		enum packet_id pkt_id;
 		u16 pkt_size;
 		u32 new_pkt_size = 0;
-		void *user_pkt, *kernel_pkt;
+		struct goya_packet *user_pkt, *kernel_pkt;
 
-		user_pkt = (void *) (uintptr_t)
+		user_pkt = (struct goya_packet *) (uintptr_t)
 			(parser->user_cb->kernel_address + cb_parsed_length);
-		kernel_pkt = (void *) (uintptr_t)
+		kernel_pkt = (struct goya_packet *) (uintptr_t)
 			(parser->patched_cb->kernel_address +
 					cb_patched_cur_length);
 
-		pkt_id = (enum packet_id) (((*(u64 *) user_pkt) &
+		pkt_id = (enum packet_id) (
+				(le64_to_cpu(user_pkt->header) &
 				PACKET_HEADER_PACKET_ID_MASK) >>
 					PACKET_HEADER_PACKET_ID_SHIFT);
 
@@ -3680,15 +3689,18 @@ static int goya_patch_cb(struct hl_device *hdev,
 
 		switch (pkt_id) {
 		case PACKET_LIN_DMA:
-			rc = goya_patch_dma_packet(hdev, parser, user_pkt,
-						kernel_pkt, &new_pkt_size);
+			rc = goya_patch_dma_packet(hdev, parser,
+					(struct packet_lin_dma *) user_pkt,
+					(struct packet_lin_dma *) kernel_pkt,
+					&new_pkt_size);
 			cb_patched_cur_length += new_pkt_size;
 			break;
 
 		case PACKET_WREG_32:
 			memcpy(kernel_pkt, user_pkt, pkt_size);
 			cb_patched_cur_length += pkt_size;
-			rc = goya_validate_wreg32(hdev, parser, kernel_pkt);
+			rc = goya_validate_wreg32(hdev, parser,
+					(struct packet_wreg32 *) kernel_pkt);
 			break;
 
 		case PACKET_WREG_BULK:
@@ -4352,6 +4364,8 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 	size_t total_pkt_size;
 	long result;
 	int rc;
+	int irq_num_entries, irq_arr_index;
+	__le32 *goya_irq_arr;
 
 	total_pkt_size = sizeof(struct armcp_unmask_irq_arr_packet) +
 			irq_arr_size;
@@ -4369,8 +4383,16 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 	if (!pkt)
 		return -ENOMEM;
 
-	pkt->length = cpu_to_le32(irq_arr_size / sizeof(irq_arr[0]));
-	memcpy(&pkt->irqs, irq_arr, irq_arr_size);
+	irq_num_entries = irq_arr_size / sizeof(irq_arr[0]);
+	pkt->length = cpu_to_le32(irq_num_entries);
+
+	/* We must perform any necessary endianness conversation on the irq
+	 * array being passed to the goya hardware
+	 */
+	for (irq_arr_index = 0, goya_irq_arr = (__le32 *) &pkt->irqs;
+			irq_arr_index < irq_num_entries ; irq_arr_index++)
+		goya_irq_arr[irq_arr_index] =
+				cpu_to_le32(irq_arr[irq_arr_index]);
 
 	pkt->armcp_pkt.ctl = cpu_to_le32(ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY <<
 						ARMCP_PKT_CTL_OPCODE_SHIFT);
@@ -5042,7 +5064,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.resume = goya_resume,
 	.cb_mmap = goya_cb_mmap,
 	.ring_doorbell = goya_ring_doorbell,
-	.flush_pq_write = goya_flush_pq_write,
+	.pqe_write = goya_pqe_write,
 	.asic_dma_alloc_coherent = goya_dma_alloc_coherent,
 	.asic_dma_free_coherent = goya_dma_free_coherent,
 	.get_int_queue_base = goya_get_int_queue_base,
