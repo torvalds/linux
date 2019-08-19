@@ -169,15 +169,15 @@ static void __init set_preferred_console(void)
 static int __init conmode_setup(char *str)
 {
 #if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
-	if (strncmp(str, "hwc", 4) == 0 || strncmp(str, "sclp", 5) == 0)
+	if (!strcmp(str, "hwc") || !strcmp(str, "sclp"))
                 SET_CONSOLE_SCLP;
 #endif
 #if defined(CONFIG_TN3215_CONSOLE)
-	if (strncmp(str, "3215", 5) == 0)
+	if (!strcmp(str, "3215"))
 		SET_CONSOLE_3215;
 #endif
 #if defined(CONFIG_TN3270_CONSOLE)
-	if (strncmp(str, "3270", 5) == 0)
+	if (!strcmp(str, "3270"))
 		SET_CONSOLE_3270;
 #endif
 	set_preferred_console();
@@ -212,7 +212,7 @@ static void __init conmode_default(void)
 #endif
 			return;
 		}
-		if (strncmp(ptr + 8, "3270", 4) == 0) {
+		if (str_has_prefix(ptr + 8, "3270")) {
 #if defined(CONFIG_TN3270_CONSOLE)
 			SET_CONSOLE_3270;
 #elif defined(CONFIG_TN3215_CONSOLE)
@@ -220,7 +220,7 @@ static void __init conmode_default(void)
 #elif defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 			SET_CONSOLE_SCLP;
 #endif
-		} else if (strncmp(ptr + 8, "3215", 4) == 0) {
+		} else if (str_has_prefix(ptr + 8, "3215")) {
 #if defined(CONFIG_TN3215_CONSOLE)
 			SET_CONSOLE_3215;
 #elif defined(CONFIG_TN3270_CONSOLE)
