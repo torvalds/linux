@@ -407,6 +407,12 @@ config MTD_NAND_MTK
 	  Enables support for NAND controller on MTK SoCs.
 	  This controller is found on mt27xx, mt81xx, mt65xx SoCs.
 
+config MTD_NAND_MXIC
+	tristate "Macronix raw NAND controller"
+	depends on HAS_IOMEM || COMPILE_TEST
+	help
+	  This selects the Macronix raw NAND controller driver.
+
 config MTD_NAND_TEGRA
 	tristate "NVIDIA Tegra NAND controller"
 	depends on ARCH_TEGRA || COMPILE_TEST
