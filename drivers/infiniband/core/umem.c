@@ -326,15 +326,6 @@ umem_kfree:
 }
 EXPORT_SYMBOL(ib_umem_get);
 
-static void __ib_umem_release_tail(struct ib_umem *umem)
-{
-	mmdrop(umem->owning_mm);
-	if (umem->is_odp)
-		kfree(to_ib_umem_odp(umem));
-	else
-		kfree(umem);
-}
-
 /**
  * ib_umem_release - release memory pinned with ib_umem_get
  * @umem: umem struct to release
@@ -343,17 +334,14 @@ void ib_umem_release(struct ib_umem *umem)
 {
 	if (!umem)
 		return;
-
-	if (umem->is_odp) {
-		ib_umem_odp_release(to_ib_umem_odp(umem));
-		__ib_umem_release_tail(umem);
-		return;
-	}
+	if (umem->is_odp)
+		return ib_umem_odp_release(to_ib_umem_odp(umem));
 
 	__ib_umem_release(umem->context->device, umem, 1);
 
 	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
-	__ib_umem_release_tail(umem);
+	mmdrop(umem->owning_mm);
+	kfree(umem);
 }
 EXPORT_SYMBOL(ib_umem_release);
 

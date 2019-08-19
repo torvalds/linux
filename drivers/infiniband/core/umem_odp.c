@@ -523,7 +523,10 @@ void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 		vfree(umem_odp->page_list);
 	}
 	put_per_mm(umem_odp);
+	mmdrop(umem_odp->umem.owning_mm);
+	kfree(umem_odp);
 }
+EXPORT_SYMBOL(ib_umem_odp_release);
 
 /*
  * Map for DMA and insert a single page into the on-demand paging page tables.

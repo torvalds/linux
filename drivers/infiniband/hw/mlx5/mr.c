@@ -1629,7 +1629,7 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		 * so that there will not be any invalidations in
 		 * flight, looking at the *mr struct.
 		 */
-		ib_umem_release(umem);
+		ib_umem_odp_release(umem_odp);
 		atomic_sub(npages, &dev->mdev->priv.reg_pages);
 
 		/* Avoid double-freeing the umem. */

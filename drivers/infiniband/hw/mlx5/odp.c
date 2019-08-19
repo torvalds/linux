@@ -206,7 +206,7 @@ static void mr_leaf_free_action(struct work_struct *work)
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
 
-	ib_umem_release(&odp->umem);
+	ib_umem_odp_release(odp);
 	if (imr->live)
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
@@ -472,7 +472,7 @@ next_mr:
 					mr->access_flags);
 		if (IS_ERR(mtt)) {
 			mutex_unlock(&odp_mr->umem_mutex);
-			ib_umem_release(&odp->umem);
+			ib_umem_odp_release(odp);
 			return ERR_CAST(mtt);
 		}
 
@@ -526,7 +526,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 
 	imr = implicit_mr_alloc(&pd->ibpd, umem_odp, 1, access_flags);
 	if (IS_ERR(imr)) {
-		ib_umem_release(&umem_odp->umem);
+		ib_umem_odp_release(umem_odp);
 		return ERR_CAST(imr);
 	}
 
