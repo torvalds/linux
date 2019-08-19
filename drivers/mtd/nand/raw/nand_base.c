@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Overview:
  *   This is the generic MTD driver for NAND flash devices. It should be
@@ -20,11 +21,6 @@
  *	Check, if mtd->ecctype should be set to MTD_ECC_HW
  *	if we have HW ECC support.
  *	BBT table is not serialized, has to be fixed
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -4666,7 +4662,6 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 	memorg = nanddev_get_memorg(&chip->base);
 	memorg->planes_per_lun = 1;
 	memorg->luns_per_target = 1;
-	memorg->ntargets = 1;
 
 	/*
 	 * Reset the chip, required by some chips (e.g. Micron MT29FxGxxxxx)
@@ -5030,6 +5025,8 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	ret = nand_legacy_check_hooks(chip);
 	if (ret)
 		return ret;
+
+	memorg->ntargets = maxchips;
 
 	/* Read the flash type */
 	ret = nand_detect(chip, table);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 subdevice driver for OmniVision OV6650 Camera Sensor
  *
@@ -18,10 +19,6 @@
  * Hardware specific bits initially based on former work by Matt Callow
  * drivers/media/video/omap/sensor_ov6650.c
  * Copyright (C) 2006 Matt Callow
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bitops.h>
@@ -1009,7 +1006,6 @@ static int ov6650_probe(struct i2c_client *client,
 	priv->colorspace  = V4L2_COLORSPACE_JPEG;
 
 	priv->subdev.internal_ops = &ov6650_internal_ops;
-	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	ret = v4l2_async_register_subdev(&priv->subdev);
 	if (ret)

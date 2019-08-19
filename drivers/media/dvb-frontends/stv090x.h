@@ -57,6 +57,7 @@ struct stv090x_config {
 	enum stv090x_device	device;
 	enum stv090x_mode	demod_mode;
 	enum stv090x_clkmode	clk_mode;
+	enum stv090x_demodulator demod;
 
 	u32 xtal; /* default: 8000000 */
 	u8 address; /* default: 0x68 */
@@ -93,6 +94,8 @@ struct stv090x_config {
 	/* dir = 0 -> output, dir = 1 -> input/open-drain */
 	int (*set_gpio)(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
 			u8 xor_value);
+
+	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *i2c);
 };
 
 #if IS_REACHABLE(CONFIG_DVB_STV090x)

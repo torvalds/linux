@@ -11,6 +11,14 @@ Required properties:
 	- ti,fifo-depth - Transmitt FIFO depth- see dt-bindings/net/ti-dp83867.h
 		for applicable values
 
+Note: If the interface type is PHY_INTERFACE_MODE_RGMII the TX/RX clock delays
+      will be left at their default values, as set by the PHY's pin strapping.
+      The default strapping will use a delay of 2.00 ns.  Thus
+      PHY_INTERFACE_MODE_RGMII, by default, does not behave as RGMII with no
+      internal delay, but as PHY_INTERFACE_MODE_RGMII_ID.  The device tree
+      should use "rgmii-id" if internal delays are desired as this may be
+      changed in future to cause "rgmii" mode to disable delays.
+
 Optional property:
 	- ti,min-output-impedance - MAC Interface Impedance control to set
 				    the programmable output impedance to
@@ -25,8 +33,10 @@ Optional property:
 				    software needs to take when this pin is
 				    strapped in these modes. See data manual
 				    for details.
-	- ti,clk-output-sel - Muxing option for CLK_OUT pin - see dt-bindings/net/ti-dp83867.h
-				    for applicable values.
+	- ti,clk-output-sel - Muxing option for CLK_OUT pin.  See dt-bindings/net/ti-dp83867.h
+			      for applicable values.  The CLK_OUT pin can also
+			      be disabled by this property.  When omitted, the
+			      PHY's default will be left as is.
 
 Note: ti,min-output-impedance and ti,max-output-impedance are mutually
       exclusive. When both properties are present ti,max-output-impedance

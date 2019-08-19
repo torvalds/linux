@@ -58,24 +58,24 @@ struct branch {
 	u32 delta;
 } __attribute__((packed));
 
-static unsigned paravirt_patch_call(void *insnbuf, const void *target,
+static unsigned paravirt_patch_call(void *insn_buff, const void *target,
 				    unsigned long addr, unsigned len)
 {
-	struct branch *b = insnbuf;
-	unsigned long delta = (unsigned long)target - (addr+5);
+	const int call_len = 5;
+	struct branch *b = insn_buff;
+	unsigned long delta = (unsigned long)target - (addr+call_len);
 
-	if (len < 5) {
-#ifdef CONFIG_RETPOLINE
-		WARN_ONCE(1, "Failing to patch indirect CALL in %ps\n", (void *)addr);
-#endif
-		return len;	/* call too long for patch site */
+	if (len < call_len) {
+		pr_warn("paravirt: Failed to patch indirect CALL at %ps\n", (void *)addr);
+		/* Kernel might not be viable if patching fails, bail out: */
+		BUG_ON(1);
 	}
 
 	b->opcode = 0xe8; /* call */
 	b->delta = delta;
-	BUILD_BUG_ON(sizeof(*b) != 5);
+	BUILD_BUG_ON(sizeof(*b) != call_len);
 
-	return 5;
+	return call_len;
 }
 
 #ifdef CONFIG_PARAVIRT_XXL
@@ -85,10 +85,10 @@ u64 notrace _paravirt_ident_64(u64 x)
 	return x;
 }
 
-static unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
+static unsigned paravirt_patch_jmp(void *insn_buff, const void *target,
 				   unsigned long addr, unsigned len)
 {
-	struct branch *b = insnbuf;
+	struct branch *b = insn_buff;
 	unsigned long delta = (unsigned long)target - (addr+5);
 
 	if (len < 5) {
@@ -113,7 +113,7 @@ void __init native_pv_lock_init(void)
 		static_branch_disable(&virt_spin_lock_key);
 }
 
-unsigned paravirt_patch_default(u8 type, void *insnbuf,
+unsigned paravirt_patch_default(u8 type, void *insn_buff,
 				unsigned long addr, unsigned len)
 {
 	/*
@@ -125,36 +125,36 @@ unsigned paravirt_patch_default(u8 type, void *insnbuf,
 
 	if (opfunc == NULL)
 		/* If there's no function, patch it with a ud2a (BUG) */
-		ret = paravirt_patch_insns(insnbuf, len, ud2a, ud2a+sizeof(ud2a));
+		ret = paravirt_patch_insns(insn_buff, len, ud2a, ud2a+sizeof(ud2a));
 	else if (opfunc == _paravirt_nop)
 		ret = 0;
 
 #ifdef CONFIG_PARAVIRT_XXL
 	/* identity functions just return their single argument */
 	else if (opfunc == _paravirt_ident_64)
-		ret = paravirt_patch_ident_64(insnbuf, len);
+		ret = paravirt_patch_ident_64(insn_buff, len);
 
 	else if (type == PARAVIRT_PATCH(cpu.iret) ||
 		 type == PARAVIRT_PATCH(cpu.usergs_sysret64))
 		/* If operation requires a jmp, then jmp */
-		ret = paravirt_patch_jmp(insnbuf, opfunc, addr, len);
+		ret = paravirt_patch_jmp(insn_buff, opfunc, addr, len);
 #endif
 	else
 		/* Otherwise call the function. */
-		ret = paravirt_patch_call(insnbuf, opfunc, addr, len);
+		ret = paravirt_patch_call(insn_buff, opfunc, addr, len);
 
 	return ret;
 }
 
-unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
+unsigned paravirt_patch_insns(void *insn_buff, unsigned len,
 			      const char *start, const char *end)
 {
 	unsigned insn_len = end - start;
 
-	if (insn_len > len || start == NULL)
-		insn_len = len;
-	else
-		memcpy(insnbuf, start, insn_len);
+	/* Alternative instruction is too large for the patch site and we cannot continue: */
+	BUG_ON(insn_len > len || start == NULL);
+
+	memcpy(insn_buff, start, insn_len);
 
 	return insn_len;
 }

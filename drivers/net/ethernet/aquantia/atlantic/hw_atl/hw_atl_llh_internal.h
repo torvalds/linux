@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_llh_internal.h: Preprocessor definitions
@@ -1385,6 +1382,24 @@
 #define HW_ATL_RPOL4CHK_EN_WIDTH 1
 /* default value of bitfield l4_chk_en */
 #define HW_ATL_RPOL4CHK_EN_DEFAULT 0x0
+
+/* RX outer_vl_ins_mode Bitfield Definitions
+ * Preprocessor definitions for the bitfield "outer_vl_ins_mode".
+ * PORT="pif_rpo_outer_vl_mode_i"
+ */
+
+/* Register address for bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_ADR 0x00005580
+/* Bitmask for bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_MSK 0x00000004
+/* Inverted bitmask for bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_MSKN 0xFFFFFFFB
+/* Lower bit position of bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_SHIFT 2
+/* Width of bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_WIDTH 1
+/* Default value of bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_DEFAULT 0x0
 
 /* rx reg_res_dsbl bitfield definitions
  * preprocessor definitions for the bitfield "reg_res_dsbl".

@@ -7,7 +7,6 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/authenc.h>
-#include <crypto/crypto_wq.h>
 #include <crypto/des.h>
 #include <crypto/xts.h>
 #include <linux/crypto.h>

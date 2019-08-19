@@ -70,6 +70,7 @@ configure specific aspects of kernel behavior to your liking.
    ras
    bcache
    ext4
+   binderfs
    pm/index
    thunderbolt
    LSM/index

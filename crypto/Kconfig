@@ -61,7 +61,6 @@ config CRYPTO_BLKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
 	select CRYPTO_RNG2
-	select CRYPTO_WORKQUEUE
 
 config CRYPTO_HASH
 	tristate
@@ -137,10 +136,11 @@ config CRYPTO_USER
 	  Userspace configuration for cryptographic instantiations such as
 	  cbc(aes).
 
+if CRYPTO_MANAGER2
+
 config CRYPTO_MANAGER_DISABLE_TESTS
 	bool "Disable run-time self tests"
 	default y
-	depends on CRYPTO_MANAGER2
 	help
 	  Disable run-time self tests that normally take place at
 	  algorithm registration.
@@ -155,14 +155,10 @@ config CRYPTO_MANAGER_EXTRA_TESTS
 	  This is intended for developer use only, as these tests take much
 	  longer to run than the normal self tests.
 
+endif	# if CRYPTO_MANAGER2
+
 config CRYPTO_GF128MUL
-	tristate "GF(2^128) multiplication functions"
-	help
-	  Efficient table driven implementation of multiplications in the
-	  field GF(2^128).  This is needed by some cypher modes. This
-	  option will be selected automatically if you select such a
-	  cipher mode.  Only select this option by hand if you expect to load
-	  an external module that requires these functions.
+	tristate
 
 config CRYPTO_NULL
 	tristate "Null algorithms"
@@ -186,15 +182,11 @@ config CRYPTO_PCRYPT
 	  This converts an arbitrary crypto algorithm into a parallel
 	  algorithm that executes in kernel threads.
 
-config CRYPTO_WORKQUEUE
-       tristate
-
 config CRYPTO_CRYPTD
 	tristate "Software async crypto daemon"
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
-	select CRYPTO_WORKQUEUE
 	help
 	  This is a generic software asynchronous crypto daemon that
 	  converts an arbitrary synchronous software crypto algorithm
@@ -279,6 +271,7 @@ config CRYPTO_CCM
 	select CRYPTO_CTR
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
+	select CRYPTO_MANAGER
 	help
 	  Support for Counter with CBC MAC. Required for IPsec.
 
@@ -288,6 +281,7 @@ config CRYPTO_GCM
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
 	select CRYPTO_NULL
+	select CRYPTO_MANAGER
 	help
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
@@ -297,6 +291,7 @@ config CRYPTO_CHACHA20POLY1305
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select CRYPTO_AEAD
+	select CRYPTO_MANAGER
 	help
 	  ChaCha20-Poly1305 AEAD support, RFC7539.
 
@@ -411,6 +406,7 @@ config CRYPTO_SEQIV
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_NULL
 	select CRYPTO_RNG_DEFAULT
+	select CRYPTO_MANAGER
 	help
 	  This IV generator generates an IV based on a sequence number by
 	  xoring it with a salt.  This algorithm is mainly useful for CTR
@@ -420,7 +416,7 @@ config CRYPTO_ECHAINIV
 	select CRYPTO_AEAD
 	select CRYPTO_NULL
 	select CRYPTO_RNG_DEFAULT
-	default m
+	select CRYPTO_MANAGER
 	help
 	  This IV generator generates an IV based on the encryption of
 	  a sequence number xored with a salt.  This is the default
@@ -456,6 +452,7 @@ config CRYPTO_CTR
 config CRYPTO_CTS
 	tristate "CTS support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	help
 	  CTS: Cipher Text Stealing
 	  This is the Cipher Text Stealing mode as described by
@@ -521,6 +518,7 @@ config CRYPTO_XTS
 config CRYPTO_KEYWRAP
 	tristate "Key wrapping support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	help
 	  Support for key wrapping (NIST SP800-38F / RFC3394) without
 	  padding.
@@ -551,6 +549,7 @@ config CRYPTO_ADIANTUM
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select CRYPTO_NHPOLY1305
+	select CRYPTO_MANAGER
 	help
 	  Adiantum is a tweakable, length-preserving encryption mode
 	  designed for fast and secure disk encryption, especially on
@@ -683,6 +682,14 @@ config CRYPTO_CRC32_MIPS
 	  CRC32c and CRC32 CRC algorithms implemented using mips crypto
 	  instructions, when available.
 
+
+config CRYPTO_XXHASH
+	tristate "xxHash hash algorithm"
+	select CRYPTO_HASH
+	select XXHASH
+	help
+	  xxHash non-cryptographic hash algorithm. Extremely fast, working at
+	  speeds close to RAM limits.
 
 config CRYPTO_CRCT10DIF
 	tristate "CRCT10DIF algorithm"
@@ -1230,9 +1237,13 @@ config CRYPTO_ANUBIS
 	  <https://www.cosic.esat.kuleuven.be/nessie/reports/>
 	  <http://www.larc.usp.br/~pbarreto/AnubisPage.html>
 
+config CRYPTO_LIB_ARC4
+	tristate
+
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_LIB_ARC4
 	help
 	  ARC4 cipher algorithm.
 

@@ -35,7 +35,7 @@ enum ice_ctl_q {
 #define ICE_CTL_Q_SQ_CMD_TIMEOUT	250  /* msecs */
 
 struct ice_ctl_q_ring {
-	void *dma_head;			/* Virtual address to dma head */
+	void *dma_head;			/* Virtual address to DMA head */
 	struct ice_dma_mem desc_buf;	/* descriptor ring memory */
 	void *cmd_buf;			/* command buffer memory */
 

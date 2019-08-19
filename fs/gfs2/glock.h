@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __GLOCK_DOT_H__
@@ -202,8 +199,11 @@ extern int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 			     struct gfs2_holder *gh);
 extern int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
-extern void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl);
-#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) { gfs2_dump_glock(NULL, gl); BUG(); } } while(0)
+extern void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl,
+			    bool fsid);
+#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) {		\
+			gfs2_dump_glock(NULL, gl, true);	\
+			BUG(); } } while(0)
 extern __printf(2, 3)
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
@@ -269,7 +269,7 @@ static inline void glock_set_object(struct gfs2_glock *gl, void *object)
 {
 	spin_lock(&gl->gl_lockref.lock);
 	if (gfs2_assert_warn(gl->gl_name.ln_sbd, gl->gl_object == NULL))
-		gfs2_dump_glock(NULL, gl);
+		gfs2_dump_glock(NULL, gl, true);
 	gl->gl_object = object;
 	spin_unlock(&gl->gl_lockref.lock);
 }
@@ -281,7 +281,7 @@ static inline void glock_set_object(struct gfs2_glock *gl, void *object)
  *
  * I'd love to similarly add this:
  *	else if (gfs2_assert_warn(gl->gl_sbd, gl->gl_object == object))
- *		gfs2_dump_glock(NULL, gl);
+ *		gfs2_dump_glock(NULL, gl, true);
  * Unfortunately, that's not possible because as soon as gfs2_delete_inode
  * frees the block in the rgrp, another process can reassign it for an I_NEW
  * inode in gfs2_create_inode because that calls new_inode, not gfs2_iget.

@@ -16,7 +16,7 @@ config USB_EMI62
 	  This code is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called audio. If you want to compile it as a
-	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 config USB_EMI26
 	tristate "EMI 2|6 USB Audio interface support"
@@ -67,7 +67,7 @@ config USB_LEGOTOWER
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called legousbtower. If you want to compile it as
 	  a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.
+	  <file:Documentation/kbuild/modules.rst>.
 
 config USB_LCD
 	tristate "USB LCD driver support"

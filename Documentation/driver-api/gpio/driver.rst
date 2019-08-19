@@ -235,7 +235,7 @@ means that a pull up or pull-down resistor is available on the output of the
 GPIO line, and this resistor is software controlled.
 
 In discrete designs, a pull-up or pull-down resistor is simply soldered on
-the circuit board. This is not something we deal or model in software. The
+the circuit board. This is not something we deal with or model in software. The
 most you will think about these lines is that they will very likely be
 configured as open drain or open source (see the section above).
 
@@ -292,18 +292,18 @@ We can divide GPIO irqchips in two broad categories:
 
 - HIERARCHICAL INTERRUPT CHIPS: this means that each GPIO line has a dedicated
   irq line to a parent interrupt controller one level up. There is no need
-  to inquire the GPIO hardware to figure out which line has figured, but it
-  may still be necessary to acknowledge the interrupt and set up the
-  configuration such as edge sensitivity.
+  to inquire the GPIO hardware to figure out which line has fired, but it
+  may still be necessary to acknowledge the interrupt and set up configuration
+  such as edge sensitivity.
 
 Realtime considerations: a realtime compliant GPIO driver should not use
 spinlock_t or any sleepable APIs (like PM runtime) as part of its irqchip
 implementation.
 
-- spinlock_t should be replaced with raw_spinlock_t [1].
+- spinlock_t should be replaced with raw_spinlock_t.[1]
 - If sleepable APIs have to be used, these can be done from the .irq_bus_lock()
   and .irq_bus_unlock() callbacks, as these are the only slowpath callbacks
-  on an irqchip. Create the callbacks if needed [2].
+  on an irqchip. Create the callbacks if needed.[2]
 
 
 Cascaded GPIO irqchips
@@ -361,7 +361,7 @@ Cascaded GPIO irqchips usually fall in one of three categories:
 
   Realtime considerations: this kind of handlers will be forced threaded on -RT,
   and as result the IRQ core will complain that generic_handle_irq() is called
-  with IRQ enabled and the same work around as for "CHAINED GPIO irqchips" can
+  with IRQ enabled and the same work-around as for "CHAINED GPIO irqchips" can
   be applied.
 
 - NESTED THREADED GPIO IRQCHIPS: these are off-chip GPIO expanders and any
@@ -418,7 +418,7 @@ symbol:
 
 If there is a need to exclude certain GPIO lines from the IRQ domain handled by
 these helpers, we can set .irq.need_valid_mask of the gpiochip before
-[devm_]gpiochip_add_data() is called. This allocates an .irq.valid_mask with as
+``[devm_]gpiochip_add_data()`` is called. This allocates an .irq.valid_mask with as
 many bits set as there are GPIO lines in the chip, each bit representing line
 0..n-1. Drivers can exclude GPIO lines by clearing bits from this mask. The mask
 must be filled in before gpiochip_irqchip_add() or gpiochip_irqchip_add_nested()

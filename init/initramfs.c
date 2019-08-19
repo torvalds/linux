@@ -617,7 +617,7 @@ static inline void clean_rootfs(void)
 #endif /* CONFIG_BLK_DEV_RAM */
 
 #ifdef CONFIG_BLK_DEV_RAM
-static void populate_initrd_image(char *err)
+static void __init populate_initrd_image(char *err)
 {
 	ssize_t written;
 	int fd;
@@ -637,7 +637,7 @@ static void populate_initrd_image(char *err)
 	ksys_close(fd);
 }
 #else
-static void populate_initrd_image(char *err)
+static void __init populate_initrd_image(char *err)
 {
 	printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
 }

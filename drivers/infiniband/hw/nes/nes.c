@@ -183,7 +183,13 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 
 						rcu_read_lock();
 						in = __in_dev_get_rcu(upper_dev);
-						nesvnic->local_ipaddr = in->ifa_list->ifa_address;
+						if (in) {
+							struct in_ifaddr *ifa;
+
+							ifa = rcu_dereference(in->ifa_list);
+							if (ifa)
+								nesvnic->local_ipaddr = ifa->ifa_address;
+						}
 						rcu_read_unlock();
 					} else {
 						nesvnic->local_ipaddr = ifa->ifa_address;

@@ -241,7 +241,7 @@ Guest mitigation mechanisms
    For further information about confining guests to a single or to a group
    of cores consult the cpusets documentation:
 
-   https://www.kernel.org/doc/Documentation/cgroup-v1/cpusets.txt
+   https://www.kernel.org/doc/Documentation/cgroup-v1/cpusets.rst
 
 .. _interrupt_isolation:
 

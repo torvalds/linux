@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Old U-boot compatibility for Katmai
  *
@@ -8,10 +9,6 @@
  * Copyright 2007 David Gibson, IBM Corporation.
  *   Based on cuboot-83xx.c, which is:
  * Copyright (c) 2007 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include "ops.h"

@@ -173,9 +173,6 @@ static void rtl_get_rate(void *ppriv, struct ieee80211_sta *sta,
 	u8 try_per_rate, i, rix;
 	bool not_data = !ieee80211_is_data(fc);
 
-	if (rate_control_send_low(sta, priv_sta, txrc))
-		return;
-
 	rix = _rtl_rc_get_highest_rix(rtlpriv, sta, skb, not_data);
 	try_per_rate = 1;
 	_rtl_rc_rate_set_series(rtlpriv, sta, &rates[0], txrc,

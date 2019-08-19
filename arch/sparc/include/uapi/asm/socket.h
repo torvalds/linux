@@ -115,6 +115,8 @@
 #define SO_RCVTIMEO_NEW          0x0044
 #define SO_SNDTIMEO_NEW          0x0045
 
+#define SO_DETACH_REUSEPORT_BPF  0x0047
+
 #if !defined(__KERNEL__)
 
 

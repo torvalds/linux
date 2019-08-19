@@ -189,10 +189,8 @@ mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
 	mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
 		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
 
-	if (dev->tbtt_count >= 64) {
+	if (dev->tbtt_count >= 64)
 		dev->tbtt_count = 0;
-		return;
-	}
 }
 EXPORT_SYMBOL_GPL(mt76x02_resync_beacon_timer);
 

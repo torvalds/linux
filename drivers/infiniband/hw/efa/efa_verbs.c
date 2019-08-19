@@ -204,6 +204,7 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 			     void *obj, u64 address, u64 length, u8 mmap_flag)
 {
 	struct efa_mmap_entry *entry;
+	u32 next_mmap_page;
 	int err;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -216,15 +217,19 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	entry->mmap_flag = mmap_flag;
 
 	xa_lock(&ucontext->mmap_xa);
+	if (check_add_overflow(ucontext->mmap_xa_page,
+			       (u32)(length >> PAGE_SHIFT),
+			       &next_mmap_page))
+		goto err_unlock;
+
 	entry->mmap_page = ucontext->mmap_xa_page;
-	ucontext->mmap_xa_page += DIV_ROUND_UP(length, PAGE_SIZE);
+	ucontext->mmap_xa_page = next_mmap_page;
 	err = __xa_insert(&ucontext->mmap_xa, entry->mmap_page, entry,
 			  GFP_KERNEL);
+	if (err)
+		goto err_unlock;
+
 	xa_unlock(&ucontext->mmap_xa);
-	if (err){
-		kfree(entry);
-		return EFA_MMAP_INVALID;
-	}
 
 	ibdev_dbg(
 		&dev->ibdev,
@@ -232,6 +237,12 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		entry->obj, entry->address, entry->length, get_mmap_key(entry));
 
 	return get_mmap_key(entry);
+
+err_unlock:
+	xa_unlock(&ucontext->mmap_xa);
+	kfree(entry);
+	return EFA_MMAP_INVALID;
+
 }
 
 int efa_query_device(struct ib_device *ibdev,
@@ -1728,7 +1739,6 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 		ibdev_dbg(&dev->ibdev, "Mapping executable pages is not permitted\n");
 		return -EPERM;
 	}
-	vma->vm_flags &= ~VM_MAYEXEC;
 
 	return __efa_mmap(dev, ucontext, vma, key, length);
 }

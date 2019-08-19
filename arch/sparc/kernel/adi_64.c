@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* adi_64.c: support for ADI (Application Data Integrity) feature on
  * sparc m7 and newer processors. This feature is also known as
  * SSM (Silicon Secured Memory).
  *
  * Copyright (C) 2016 Oracle and/or its affiliates. All rights reserved.
  * Author: Khalid Aziz (khalid.aziz@oracle.com)
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 #include <linux/init.h>
 #include <linux/slab.h>

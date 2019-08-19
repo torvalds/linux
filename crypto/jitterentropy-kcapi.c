@@ -56,11 +56,6 @@ void jent_entropy_collector_free(struct rand_data *entropy_collector);
  * Helper function
  ***************************************************************************/
 
-__u64 jent_rol64(__u64 word, unsigned int shift)
-{
-	return rol64(word, shift);
-}
-
 void *jent_zalloc(unsigned int len)
 {
 	return kzalloc(len, GFP_KERNEL);
@@ -198,7 +193,7 @@ static void __exit jent_mod_exit(void)
 	crypto_unregister_rng(&jent_alg);
 }
 
-subsys_initcall(jent_mod_init);
+module_init(jent_mod_init);
 module_exit(jent_mod_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");

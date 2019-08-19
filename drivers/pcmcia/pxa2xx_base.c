@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*======================================================================
 
   Device driver for the PCMCIA control functionality of PXA2xx
   microprocessors.
 
-    The contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL")
 
     (c) Ian Molton (spyro@f2s.com) 2003
     (c) Stefan Eletzhofer (stefan.eletzhofer@inquant.de) 2003,4

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap iommu: debugfs interface
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -239,17 +236,6 @@ DEBUG_FOPS_RO(regs);
 DEFINE_SHOW_ATTRIBUTE(tlb);
 DEFINE_SHOW_ATTRIBUTE(pagetable);
 
-#define __DEBUG_ADD_FILE(attr, mode)					\
-	{								\
-		struct dentry *dent;					\
-		dent = debugfs_create_file(#attr, mode, obj->debug_dir,	\
-					   obj, &attr##_fops);	        \
-		if (!dent)						\
-			goto err;					\
-	}
-
-#define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 0400)
-
 void omap_iommu_debugfs_add(struct omap_iommu *obj)
 {
 	struct dentry *d;
@@ -257,23 +243,13 @@ void omap_iommu_debugfs_add(struct omap_iommu *obj)
 	if (!iommu_debug_root)
 		return;
 
-	obj->debug_dir = debugfs_create_dir(obj->name, iommu_debug_root);
-	if (!obj->debug_dir)
-		return;
+	d = debugfs_create_dir(obj->name, iommu_debug_root);
+	obj->debug_dir = d;
 
-	d = debugfs_create_u32("nr_tlb_entries", 0400, obj->debug_dir,
-			       &obj->nr_tlb_entries);
-	if (!d)
-		return;
-
-	DEBUG_ADD_FILE_RO(regs);
-	DEBUG_ADD_FILE_RO(tlb);
-	DEBUG_ADD_FILE_RO(pagetable);
-
-	return;
-
-err:
-	debugfs_remove_recursive(obj->debug_dir);
+	debugfs_create_u32("nr_tlb_entries", 0400, d, &obj->nr_tlb_entries);
+	debugfs_create_file("regs", 0400, d, obj, &regs_fops);
+	debugfs_create_file("tlb", 0400, d, obj, &tlb_fops);
+	debugfs_create_file("pagetable", 0400, d, obj, &pagetable_fops);
 }
 
 void omap_iommu_debugfs_remove(struct omap_iommu *obj)
@@ -287,8 +263,6 @@ void omap_iommu_debugfs_remove(struct omap_iommu *obj)
 void __init omap_iommu_debugfs_init(void)
 {
 	iommu_debug_root = debugfs_create_dir("omap_iommu", NULL);
-	if (!iommu_debug_root)
-		pr_err("can't create debugfs dir\n");
 }
 
 void __exit omap_iommu_debugfs_exit(void)

@@ -113,19 +113,6 @@ struct object_info {
 	__u16		filetype;
 };
 
-/* RISC OS 12-bit filetype converts to ,xyz hex filename suffix */
-static inline int append_filetype_suffix(char *buf, __u16 filetype)
-{
-	if (filetype == 0xffff)	/* no explicit 12-bit file type was set */
-		return 0;
-
-	*buf++ = ',';
-	*buf++ = hex_asc_lo(filetype >> 8);
-	*buf++ = hex_asc_lo(filetype >> 4);
-	*buf++ = hex_asc_lo(filetype >> 0);
-	return 4;
-}
-
 struct adfs_dir_ops {
 	int	(*read)(struct super_block *sb, unsigned int id, unsigned int sz, struct adfs_dir *dir);
 	int	(*setpos)(struct adfs_dir *dir, unsigned int fpos);
@@ -172,6 +159,7 @@ extern const struct dentry_operations adfs_dentry_operations;
 extern const struct adfs_dir_ops adfs_f_dir_ops;
 extern const struct adfs_dir_ops adfs_fplus_dir_ops;
 
+void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj);
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);
 

@@ -27,6 +27,7 @@
 #include <net/route.h>
 #include <net/tcp.h>
 #include <net/ip_fib.h>
+#include <net/nexthop.h>
 #include <net/fib_rules.h>
 
 struct fib4_rule {
@@ -141,8 +142,11 @@ static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg
 	struct fib_result *result = (struct fib_result *) arg->result;
 	struct net_device *dev = NULL;
 
-	if (result->fi)
-		dev = result->fi->fib_dev;
+	if (result->fi) {
+		struct fib_nh_common *nhc = fib_info_nhc(result->fi, 0);
+
+		dev = nhc->nhc_dev;
+	}
 
 	/* do not accept result if the route does
 	 * not meet the required prefix length

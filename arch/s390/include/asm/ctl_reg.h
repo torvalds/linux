@@ -55,7 +55,7 @@
 		: "i" (low), "i" (high));				\
 } while (0)
 
-static inline void __ctl_set_bit(unsigned int cr, unsigned int bit)
+static __always_inline void __ctl_set_bit(unsigned int cr, unsigned int bit)
 {
 	unsigned long reg;
 
@@ -64,7 +64,7 @@ static inline void __ctl_set_bit(unsigned int cr, unsigned int bit)
 	__ctl_load(reg, cr, cr);
 }
 
-static inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
+static __always_inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
 {
 	unsigned long reg;
 
@@ -112,13 +112,8 @@ union ctlreg2 {
 	};
 };
 
-#ifdef CONFIG_SMP
-# define ctl_set_bit(cr, bit) smp_ctl_set_bit(cr, bit)
-# define ctl_clear_bit(cr, bit) smp_ctl_clear_bit(cr, bit)
-#else
-# define ctl_set_bit(cr, bit) __ctl_set_bit(cr, bit)
-# define ctl_clear_bit(cr, bit) __ctl_clear_bit(cr, bit)
-#endif
+#define ctl_set_bit(cr, bit) smp_ctl_set_bit(cr, bit)
+#define ctl_clear_bit(cr, bit) smp_ctl_clear_bit(cr, bit)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_CTL_REG_H */

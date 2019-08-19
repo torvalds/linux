@@ -189,6 +189,13 @@ events, you need to enable it.
   echo 1 > /sys/kernel/debug/tracing/events/kprobes/myprobe/enable
   echo 1 > /sys/kernel/debug/tracing/events/kprobes/myretprobe/enable
 
+Use the following command to start tracing in an interval.
+::
+
+    # echo 1 > tracing_on
+    Open something...
+    # echo 0 > tracing_on
+
 And you can see the traced information via /sys/kernel/debug/tracing/trace.
 ::
 

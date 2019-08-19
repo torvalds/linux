@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * amdtp-tascam.c - a part of driver for TASCAM FireWire series
  *
  * Copyright (c) 2015 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include <sound/pcm.h>
@@ -224,7 +223,7 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		return 0;
 
 	/* Use fixed value for FDF field. */
-	s->fdf = 0x00;
+	s->ctx_data.rx.fdf = 0x00;
 
 	/* This protocol uses fixed number of data channels for PCM samples. */
 	p = s->protocol;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-at91/pm_slow_clock.S
  *
@@ -5,11 +6,6 @@
  *
  * AT91SAM9 support:
  *  Copyright (C) 2007 Anti Sullin <anti.sullin@artecdesign.ee>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/linkage.h>
 #include <linux/clk/at91_pmc.h>

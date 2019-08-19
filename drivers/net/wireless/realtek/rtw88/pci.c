@@ -487,10 +487,10 @@ static void rtw_pci_stop(struct rtw_dev *rtwdev)
 }
 
 static u8 ac_to_hwq[] = {
-	[0] = RTW_TX_QUEUE_VO,
-	[1] = RTW_TX_QUEUE_VI,
-	[2] = RTW_TX_QUEUE_BE,
-	[3] = RTW_TX_QUEUE_BK,
+	[IEEE80211_AC_VO] = RTW_TX_QUEUE_VO,
+	[IEEE80211_AC_VI] = RTW_TX_QUEUE_VI,
+	[IEEE80211_AC_BE] = RTW_TX_QUEUE_BE,
+	[IEEE80211_AC_BK] = RTW_TX_QUEUE_BK,
 };
 
 static u8 rtw_hw_queue_mapping(struct sk_buff *skb)
@@ -504,6 +504,8 @@ static u8 rtw_hw_queue_mapping(struct sk_buff *skb)
 		queue = RTW_TX_QUEUE_BCN;
 	else if (unlikely(ieee80211_is_mgmt(fc) || ieee80211_is_ctl(fc)))
 		queue = RTW_TX_QUEUE_MGMT;
+	else if (WARN_ON_ONCE(q_mapping >= ARRAY_SIZE(ac_to_hwq)))
+		queue = ac_to_hwq[IEEE80211_AC_BE];
 	else
 		queue = ac_to_hwq[q_mapping];
 

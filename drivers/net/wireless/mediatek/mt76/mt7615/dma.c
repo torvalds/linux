@@ -93,18 +93,33 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 static void mt7615_tx_tasklet(unsigned long data)
 {
 	struct mt7615_dev *dev = (struct mt7615_dev *)data;
+
+	mt76_txq_schedule_all(&dev->mt76);
+}
+
+static int mt7615_poll_tx(struct napi_struct *napi, int budget)
+{
 	static const u8 queue_map[] = {
 		MT_TXQ_MCU,
 		MT_TXQ_BE
 	};
+	struct mt7615_dev *dev;
 	int i;
+
+	dev = container_of(napi, struct mt7615_dev, mt76.tx_napi);
 
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++)
 		mt76_queue_tx_cleanup(dev, queue_map[i], false);
 
-	mt76_txq_schedule_all(&dev->mt76);
+	if (napi_complete_done(napi, 0))
+		mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
-	mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
+	for (i = 0; i < ARRAY_SIZE(queue_map); i++)
+		mt76_queue_tx_cleanup(dev, queue_map[i], false);
+
+	tasklet_schedule(&dev->mt76.tx_tasklet);
+
+	return 0;
 }
 
 int mt7615_dma_init(struct mt7615_dev *dev)
@@ -177,6 +192,10 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	ret = mt76_init_queues(dev);
 	if (ret < 0)
 		return ret;
+
+	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+			  mt7615_poll_tx, NAPI_POLL_WEIGHT);
+	napi_enable(&dev->mt76.tx_napi);
 
 	mt76_poll(dev, MT_WPDMA_GLO_CFG,
 		  MT_WPDMA_GLO_CFG_TX_DMA_BUSY |

@@ -39,7 +39,7 @@
 #include "session.h"
 #include "string2.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define PERFPROBE_GROUP "probe"
 

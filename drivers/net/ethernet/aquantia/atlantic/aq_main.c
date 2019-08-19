@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_main.c: Main file for aQuantia Linux driver. */
@@ -111,10 +108,15 @@ err_exit:
 static int aq_ndev_set_features(struct net_device *ndev,
 				netdev_features_t features)
 {
+	bool is_vlan_rx_strip = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
+	bool is_vlan_tx_insert = !!(features & NETIF_F_HW_VLAN_CTAG_TX);
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *aq_cfg = aq_nic_get_cfg(aq_nic);
+	bool need_ndev_restart = false;
+	struct aq_nic_cfg_s *aq_cfg;
 	bool is_lro = false;
 	int err = 0;
+
+	aq_cfg = aq_nic_get_cfg(aq_nic);
 
 	if (!(features & NETIF_F_NTUPLE)) {
 		if (aq_nic->ndev->features & NETIF_F_NTUPLE) {
@@ -138,16 +140,31 @@ static int aq_ndev_set_features(struct net_device *ndev,
 
 		if (aq_cfg->is_lro != is_lro) {
 			aq_cfg->is_lro = is_lro;
-
-			if (netif_running(ndev)) {
-				aq_ndev_close(ndev);
-				aq_ndev_open(ndev);
-			}
+			need_ndev_restart = true;
 		}
 	}
-	if ((aq_nic->ndev->features ^ features) & NETIF_F_RXCSUM)
+
+	if ((aq_nic->ndev->features ^ features) & NETIF_F_RXCSUM) {
 		err = aq_nic->aq_hw_ops->hw_set_offload(aq_nic->aq_hw,
 							aq_cfg);
+
+		if (unlikely(err))
+			goto err_exit;
+	}
+
+	if (aq_cfg->is_vlan_rx_strip != is_vlan_rx_strip) {
+		aq_cfg->is_vlan_rx_strip = is_vlan_rx_strip;
+		need_ndev_restart = true;
+	}
+	if (aq_cfg->is_vlan_tx_insert != is_vlan_tx_insert) {
+		aq_cfg->is_vlan_tx_insert = is_vlan_tx_insert;
+		need_ndev_restart = true;
+	}
+
+	if (need_ndev_restart && netif_running(ndev)) {
+		aq_ndev_close(ndev);
+		aq_ndev_open(ndev);
+	}
 
 err_exit:
 	return err;

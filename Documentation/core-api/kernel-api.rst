@@ -33,6 +33,9 @@ String Conversions
 .. kernel-doc:: lib/kstrtox.c
    :export:
 
+.. kernel-doc:: lib/string_helpers.c
+   :export:
+
 String Manipulation
 -------------------
 
@@ -137,6 +140,15 @@ Base 2 log and power Functions
 
 .. kernel-doc:: include/linux/log2.h
    :internal:
+
+Integer power Functions
+-----------------------
+
+.. kernel-doc:: lib/math/int_pow.c
+   :export:
+
+.. kernel-doc:: lib/math/int_sqrt.c
+   :export:
 
 Division Functions
 ------------------
@@ -357,8 +369,6 @@ Read-Copy Update (RCU)
 .. kernel-doc:: include/linux/rcupdate.h
 
 .. kernel-doc:: kernel/rcu/tree.c
-
-.. kernel-doc:: kernel/rcu/tree_plugin.h
 
 .. kernel-doc:: kernel/rcu/tree_exp.h
 

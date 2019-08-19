@@ -5676,8 +5676,8 @@ out_mutex:
 }
 
 /**
- * ext4_swap_extents - Swap extents between two inodes
- *
+ * ext4_swap_extents() - Swap extents between two inodes
+ * @handle: handle for this transaction
  * @inode1:	First inode
  * @inode2:	Second inode
  * @lblk1:	Start block for first inode

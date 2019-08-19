@@ -18,6 +18,8 @@
 #include <asm/mach/pci.h>
 #include <asm/system_info.h>
 
+#include "irqs.h"
+
 #define SLOT_ETHA		0x0B	/* IDSEL = AD21 */
 #define SLOT_ETHB		0x0C	/* IDSEL = AD20 */
 #define SLOT_MPCI		0x0D	/* IDSEL = AD19 */

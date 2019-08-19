@@ -64,6 +64,15 @@ config SENSORS_IR38064
 	  This driver can also be built as a module. If so, the module will
 	  be called ir38064.
 
+config SENSORS_IRPS5401
+	tristate "Infineon IRPS5401"
+	help
+	  If you say yes here you get hardware monitoring support for the
+	  Infineon IRPS5401 controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called irps5401.
+
 config SENSORS_ISL68137
 	tristate "Intersil ISL68137"
 	help
@@ -153,6 +162,15 @@ config SENSORS_MAX8688
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max8688.
+
+config SENSORS_PXE1610
+	tristate "Infineon PXE1610"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  PXE1610.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pxe1610.
 
 config SENSORS_TPS40422
 	tristate "TI TPS40422"

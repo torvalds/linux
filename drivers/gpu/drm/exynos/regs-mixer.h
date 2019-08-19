@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  *  Cloned from drivers/media/video/s5p-tv/regs-mixer.h
@@ -6,10 +7,6 @@
  * http://www.samsung.com/
  *
  * Mixer register header file for Samsung Mixer driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 #ifndef SAMSUNG_REGS_MIXER_H
 #define SAMSUNG_REGS_MIXER_H

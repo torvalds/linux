@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * KVM PMU support for Intel CPUs
  *
@@ -6,10 +7,6 @@
  * Authors:
  *   Avi Kivity   <avi@redhat.com>
  *   Gleb Natapov <gleb@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
  */
 #include <linux/types.h>
 #include <linux/kvm_host.h>

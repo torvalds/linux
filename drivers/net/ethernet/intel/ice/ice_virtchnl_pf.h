@@ -49,29 +49,34 @@ struct ice_vf {
 	struct ice_pf *pf;
 
 	s16 vf_id;			/* VF ID in the PF space */
-	u32 driver_caps;		/* reported by VF driver */
+	u16 lan_vsi_idx;		/* index into PF struct */
 	int first_vector_idx;		/* first vector index of this VF */
 	struct ice_sw *vf_sw_id;	/* switch ID the VF VSIs connect to */
 	struct virtchnl_version_info vf_ver;
+	u32 driver_caps;		/* reported by VF driver */
 	struct virtchnl_ether_addr dflt_lan_addr;
 	u16 port_vlan_id;
-	u8 pf_set_mac;			/* VF MAC address set by VMM admin */
-	u8 trusted;
-	u16 lan_vsi_idx;		/* index into PF struct */
+	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
+	u8 trusted:1;
+	u8 spoofchk:1;
+	u8 link_forced:1;
+	u8 link_up:1;			/* only valid if VF link is forced */
+	/* VSI indices - actual VSI pointers are maintained in the PF structure
+	 * When assigned, these will be non-zero, because VSI 0 is always
+	 * the main LAN VSI for the PF.
+	 */
 	u16 lan_vsi_num;		/* ID as used by firmware */
+	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
+	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
+
 	u64 num_mdd_events;		/* number of MDD events detected */
 	u64 num_inval_msgs;		/* number of continuous invalid msgs */
 	u64 num_valid_msgs;		/* number of valid msgs detected */
 	unsigned long vf_caps;		/* VF's adv. capabilities */
-	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
-	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
-	u8 link_forced;
-	u8 link_up;			/* only valid if VF link is forced */
-	u8 spoofchk;
+	u8 num_req_qs;			/* num of queue pairs requested by VF */
 	u16 num_mac;
 	u16 num_vlan;
 	u16 num_vf_qs;			/* num of queue configured per VF */
-	u8 num_req_qs;			/* num of queue pairs requested by VF */
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -96,6 +101,8 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted);
 int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state);
 
 int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
+
+int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -161,5 +168,11 @@ ice_set_vf_link_state(struct net_device __always_unused *netdev,
 	return -EOPNOTSUPP;
 }
 
+static inline int
+ice_calc_vf_reg_idx(struct ice_vf __always_unused *vf,
+		    struct ice_q_vector __always_unused *q_vector)
+{
+	return 0;
+}
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VIRTCHNL_PF_H_ */

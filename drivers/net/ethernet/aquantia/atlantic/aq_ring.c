@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_ring.c: Definition of functions for Rx/Tx rings. */
@@ -411,6 +408,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 				} while (!buff_->is_eop);
 			}
 		}
+
+		if (buff->is_vlan)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       buff->vlan_rx_tag);
 
 		skb->protocol = eth_type_trans(skb, ndev);
 

@@ -83,7 +83,6 @@ static inline int notify_page_fault(struct pt_regs *regs)
 
 /*
  * Find out which address space caused the exception.
- * Access register mode is impossible, ignore space == 3.
  */
 static enum fault_type get_fault_type(struct pt_regs *regs)
 {
@@ -107,6 +106,10 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 			return KERNEL_FAULT;
 		}
 		return VDSO_FAULT;
+	}
+	if (trans_exc_code == 1) {
+		/* access register mode, not used in the kernel */
+		return USER_FAULT;
 	}
 	/* home space exception -> access via kernel ASCE */
 	return KERNEL_FAULT;
@@ -245,8 +248,7 @@ static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 {
 	report_user_fault(regs, SIGSEGV, 1);
 	force_sig_fault(SIGSEGV, si_code,
-			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK),
-			current);
+			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
 const struct exception_table_entry *s390_search_extables(unsigned long addr)
@@ -307,8 +309,7 @@ static noinline void do_sigbus(struct pt_regs *regs)
 	 * or user mode.
 	 */
 	force_sig_fault(SIGBUS, BUS_ADRERR,
-			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK),
-			current);
+			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
 static noinline int signal_return(struct pt_regs *regs)

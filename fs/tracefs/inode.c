@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  inode.c - part of tracefs, a pseudo file system for activating tracing
  *
@@ -5,12 +6,7 @@
  *
  *  Copyright (C) 2014 Red Hat Inc, author: Steven Rostedt <srostedt@redhat.com>
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  * tracefs is the file system that is used by the tracing infrastructure.
- *
  */
 
 #include <linux/module.h>
@@ -509,9 +505,12 @@ static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
 			switch (dentry->d_inode->i_mode & S_IFMT) {
 			case S_IFDIR:
 				ret = simple_rmdir(parent->d_inode, dentry);
+				if (!ret)
+					fsnotify_rmdir(parent->d_inode, dentry);
 				break;
 			default:
 				simple_unlink(parent->d_inode, dentry);
+				fsnotify_unlink(parent->d_inode, dentry);
 				break;
 			}
 			if (!ret)

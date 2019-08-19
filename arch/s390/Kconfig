@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+config ARCH_HAS_MEM_ENCRYPT
+        def_bool y
+
 config MMU
 	def_bool y
 
@@ -30,7 +33,7 @@ config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
 config GENERIC_LOCKBREAK
-	def_bool y if SMP && PREEMPT
+	def_bool y if PREEMPT
 
 config PGSTE
 	def_bool y if KVM
@@ -113,7 +116,6 @@ config S390
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_CPU_DEVICES if !SMP
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
@@ -187,6 +189,8 @@ config S390
 	select VIRT_CPU_ACCOUNTING
 	select ARCH_HAS_SCALED_CPUTIME
 	select HAVE_NMI
+	select SWIOTLB
+	select GENERIC_ALLOCATOR
 
 
 config SCHED_OMIT_FRAME_POINTER
@@ -399,27 +403,10 @@ config SYSVIPC_COMPAT
 
 config SMP
 	def_bool y
-	prompt "Symmetric multi-processing support"
-	---help---
-	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, like most personal computers, say N. If
-	  you have a system with more than one CPU, say Y.
-
-	  If you say N here, the kernel will run on uni- and multiprocessor
-	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
-	  uniprocessor machines. On a uniprocessor machine, the kernel
-	  will run faster if you say N here.
-
-	  See also the SMP-HOWTO available at
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Even if you don't know what to do here, say Y.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-512)"
 	range 2 512
-	depends on SMP
 	default "64"
 	help
 	  This allows you to specify the maximum number of CPUs which this
@@ -431,12 +418,6 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	def_bool y
-	prompt "Support for hot-pluggable CPUs"
-	depends on SMP
-	help
-	  Say Y here to be able to turn CPUs off and on. CPUs
-	  can be controlled through /sys/devices/system/cpu/cpu#.
-	  Say N if you want to disable CPU hotplug.
 
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
@@ -448,7 +429,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && SCHED_TOPOLOGY
+	depends on SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
@@ -523,7 +504,6 @@ config SCHED_DRAWER
 config SCHED_TOPOLOGY
 	def_bool y
 	prompt "Topology scheduler support"
-	depends on SMP
 	select SCHED_SMT
 	select SCHED_MC
 	select SCHED_BOOK
@@ -763,7 +743,7 @@ config PCI_NR_FUNCTIONS
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
 
-endif	# PCI
+endif # PCI
 
 config HAS_IOMEM
 	def_bool PCI
@@ -829,16 +809,15 @@ menu "Dump support"
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
-	depends on SMP
 	select KEXEC
 	help
 	  Generate crash dump after being started by kexec.
 	  Crash dump kernels are loaded in the main kernel with kexec-tools
 	  into a specially reserved region and then later executed after
 	  a crash by kdump/kexec.
-	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+	  Refer to <file:Documentation/s390/zfcpdump.rst> for more details on this.
 	  This option also enables s390 zfcpdump.
-	  See also <file:Documentation/s390/zfcpdump.txt>
+	  See also <file:Documentation/s390/zfcpdump.rst>
 
 endmenu
 

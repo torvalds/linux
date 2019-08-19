@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mmc/s3cmci.h - Samsung S3C MCI driver
  *
@@ -5,10 +6,6 @@
  *
  * Current driver maintained by Ben Dooks and Simtec Electronics
  *  Copyright (C) 2008 Simtec Electronics <ben-linux@fluff.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

@@ -4819,7 +4819,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.set_dram_bar_base = goya_set_ddr_bar_base,
 	.init_iatu = goya_init_iatu,
 	.rreg = hl_rreg,
-	.wreg = hl_wreg
+	.wreg = hl_wreg,
+	.halt_coresight = goya_halt_coresight
 };
 
 /*
