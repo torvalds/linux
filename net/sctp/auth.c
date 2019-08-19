@@ -389,7 +389,7 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 	/* If we don't support AUTH, or peer is not capable
 	 * we don't need to do anything.
 	 */
-	if (!asoc->ep->auth_enable || !asoc->peer.auth_capable)
+	if (!asoc->peer.auth_capable)
 		return 0;
 
 	/* If the key_id is non-zero and we couldn't find an
@@ -675,7 +675,7 @@ int sctp_auth_send_cid(enum sctp_cid chunk, const struct sctp_association *asoc)
 	if (!asoc)
 		return 0;
 
-	if (!asoc->ep->auth_enable || !asoc->peer.auth_capable)
+	if (!asoc->peer.auth_capable)
 		return 0;
 
 	return __sctp_auth_cid(chunk, asoc->peer.peer_chunks);
@@ -687,7 +687,7 @@ int sctp_auth_recv_cid(enum sctp_cid chunk, const struct sctp_association *asoc)
 	if (!asoc)
 		return 0;
 
-	if (!asoc->ep->auth_enable)
+	if (!asoc->peer.auth_capable)
 		return 0;
 
 	return __sctp_auth_cid(chunk,
@@ -831,10 +831,15 @@ int sctp_auth_set_key(struct sctp_endpoint *ep,
 	/* Try to find the given key id to see if
 	 * we are doing a replace, or adding a new key
 	 */
-	if (asoc)
+	if (asoc) {
+		if (!asoc->peer.auth_capable)
+			return -EACCES;
 		sh_keys = &asoc->endpoint_shared_keys;
-	else
+	} else {
+		if (!ep->auth_enable)
+			return -EACCES;
 		sh_keys = &ep->endpoint_shared_keys;
+	}
 
 	key_for_each(shkey, sh_keys) {
 		if (shkey->key_id == auth_key->sca_keynumber) {
@@ -875,10 +880,15 @@ int sctp_auth_set_active_key(struct sctp_endpoint *ep,
 	int found = 0;
 
 	/* The key identifier MUST correst to an existing key */
-	if (asoc)
+	if (asoc) {
+		if (!asoc->peer.auth_capable)
+			return -EACCES;
 		sh_keys = &asoc->endpoint_shared_keys;
-	else
+	} else {
+		if (!ep->auth_enable)
+			return -EACCES;
 		sh_keys = &ep->endpoint_shared_keys;
+	}
 
 	key_for_each(key, sh_keys) {
 		if (key->key_id == key_id) {
@@ -911,11 +921,15 @@ int sctp_auth_del_key_id(struct sctp_endpoint *ep,
 	 * The key identifier MUST correst to an existing key
 	 */
 	if (asoc) {
+		if (!asoc->peer.auth_capable)
+			return -EACCES;
 		if (asoc->active_key_id == key_id)
 			return -EINVAL;
 
 		sh_keys = &asoc->endpoint_shared_keys;
 	} else {
+		if (!ep->auth_enable)
+			return -EACCES;
 		if (ep->active_key_id == key_id)
 			return -EINVAL;
 
@@ -950,11 +964,15 @@ int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 	 * The key identifier MUST correst to an existing key
 	 */
 	if (asoc) {
+		if (!asoc->peer.auth_capable)
+			return -EACCES;
 		if (asoc->active_key_id == key_id)
 			return -EINVAL;
 
 		sh_keys = &asoc->endpoint_shared_keys;
 	} else {
+		if (!ep->auth_enable)
+			return -EACCES;
 		if (ep->active_key_id == key_id)
 			return -EINVAL;
 
