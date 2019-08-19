@@ -305,6 +305,47 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	return ret;
 }
 
+static int rtl8125_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
+{
+	int ret = rtlgen_read_mmd(phydev, devnum, regnum);
+
+	if (ret != -EOPNOTSUPP)
+		return ret;
+
+	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE2) {
+		rtl821x_write_page(phydev, 0xa6e);
+		ret = __phy_read(phydev, 0x16);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
+		rtl821x_write_page(phydev, 0xa6d);
+		ret = __phy_read(phydev, 0x12);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE2) {
+		rtl821x_write_page(phydev, 0xa6d);
+		ret = __phy_read(phydev, 0x10);
+		rtl821x_write_page(phydev, 0);
+	}
+
+	return ret;
+}
+
+static int rtl8125_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
+			     u16 val)
+{
+	int ret = rtlgen_write_mmd(phydev, devnum, regnum, val);
+
+	if (ret != -EOPNOTSUPP)
+		return ret;
+
+	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
+		rtl821x_write_page(phydev, 0xa6d);
+		ret = __phy_write(phydev, 0x12, val);
+		rtl821x_write_page(phydev, 0);
+	}
+
+	return ret;
+}
+
 static int rtl8125_get_features(struct phy_device *phydev)
 {
 	int val;
@@ -473,8 +514,8 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
-		.read_mmd	= rtlgen_read_mmd,
-		.write_mmd	= rtlgen_write_mmd,
+		.read_mmd	= rtl8125_read_mmd,
+		.write_mmd	= rtl8125_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",
