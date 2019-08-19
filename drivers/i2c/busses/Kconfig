@@ -1320,6 +1320,9 @@ config I2C_ICY
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-icy.
 
+	  If you have a 2019 edition board with an LTC2990 sensor at address
+	  0x4c, loading the module 'ltc2990' is sufficient to enable it.
+
 config I2C_MLXCPLD
 	tristate "Mellanox I2C driver"
 	depends on X86_64

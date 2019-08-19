@@ -53,6 +53,8 @@ struct icy_i2c {
 
 	void __iomem *reg_s0;
 	void __iomem *reg_s1;
+	struct fwnode_handle *ltc2990_fwnode;
+	struct i2c_client *ltc2990_client;
 };
 
 /*
@@ -94,11 +96,34 @@ static void icy_pcf_waitforpin(void *data)
 /*
  * Main i2c-icy part
  */
+static unsigned short const icy_ltc2990_addresses[] = {
+	0x4c, 0x4d, 0x4e, 0x4f, I2C_CLIENT_END
+};
+
+/*
+ * Additional sensors exposed once this property is applied:
+ *
+ * in1 will be the voltage of the 5V rail, divided by 2.
+ * in2 will be the voltage of the 12V rail, divided by 4.
+ * temp3 will be measured using a PCB loop next the chip.
+ */
+static const u32 icy_ltc2990_meas_mode[] = {0, 3};
+
+static const struct property_entry icy_ltc2990_props[] = {
+	PROPERTY_ENTRY_U32_ARRAY("lltc,meas-mode", icy_ltc2990_meas_mode),
+	{ }
+};
+
 static int icy_probe(struct zorro_dev *z,
 		     const struct zorro_device_id *ent)
 {
 	struct icy_i2c *i2c;
 	struct i2c_algo_pcf_data *algo_data;
+	struct fwnode_handle *new_fwnode;
+	struct i2c_board_info ltc2990_info = {
+		.type		= "ltc2990",
+		.addr		= 0x4c,
+	};
 
 	i2c = devm_kzalloc(&z->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -140,12 +165,44 @@ static int icy_probe(struct zorro_dev *z,
 	dev_info(&z->dev, "ICY I2C controller at %pa, IRQ not implemented\n",
 		 &z->resource.start);
 
+	/*
+	 * The 2019 a1k.org PCBs have an LTC2990 at 0x4c, so start
+	 * it automatically once ltc2990 is modprobed.
+	 *
+	 * in0 is the voltage of the internal 5V power supply.
+	 * temp1 is the temperature inside the chip.
+	 *
+	 * See property_entry above for in1, in2, temp3.
+	 */
+	new_fwnode = fwnode_create_software_node(icy_ltc2990_props, NULL);
+	if (IS_ERR(new_fwnode)) {
+		dev_info(&z->dev, "Failed to create fwnode for LTC2990, error: %ld\n",
+			 PTR_ERR(new_fwnode));
+	} else {
+		/*
+		 * Store the fwnode so we can destroy it on .remove().
+		 * Only store it on success, as fwnode_remove_software_node()
+		 * is NULL safe, but not PTR_ERR safe.
+		 */
+		i2c->ltc2990_fwnode = new_fwnode;
+		ltc2990_info.fwnode = new_fwnode;
+
+		i2c->ltc2990_client =
+			i2c_new_probed_device(&i2c->adapter,
+					      &ltc2990_info,
+					      icy_ltc2990_addresses,
+					      NULL);
+	}
+
 	return 0;
 }
 
 static void icy_remove(struct zorro_dev *z)
 {
 	struct icy_i2c *i2c = dev_get_drvdata(&z->dev);
+
+	i2c_unregister_device(i2c->ltc2990_client);
+	fwnode_remove_software_node(i2c->ltc2990_fwnode);
 
 	i2c_del_adapter(&i2c->adapter);
 }
