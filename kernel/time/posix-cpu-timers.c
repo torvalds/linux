@@ -412,9 +412,10 @@ static void cleanup_timers_list(struct list_head *head)
 }
 
 /*
- * Clean out CPU timers still ticking when a thread exited.  The task
- * pointer is cleared, and the expiry time is replaced with the residual
- * time for later timer_gettime calls to return.
+ * Clean out CPU timers which are still armed when a thread exits. The
+ * timers are only removed from the list. No other updates are done. The
+ * corresponding posix timers are still accessible, but cannot be rearmed.
+ *
  * This must be called with the siglock held.
  */
 static void cleanup_timers(struct list_head *head)
