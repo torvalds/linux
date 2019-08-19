@@ -69,6 +69,14 @@ struct ib_umem_odp {
 	/* Tree tracking */
 	struct interval_tree_node interval_tree;
 
+	/*
+	 * An implicit odp umem cannot be DMA mapped, has 0 length, and serves
+	 * only as an anchor for the driver to hold onto the per_mm. FIXME:
+	 * This should be removed and drivers should work with the per_mm
+	 * directly.
+	 */
+	bool is_implicit_odp;
+
 	struct completion	notifier_completion;
 	int			dying;
 	unsigned int		page_shift;

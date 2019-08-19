@@ -584,7 +584,7 @@ static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 	struct ib_umem_odp *odp;
 	size_t size;
 
-	if (!odp_mr->page_list) {
+	if (odp_mr->is_implicit_odp) {
 		odp = implicit_mr_get_data(mr, io_virt, bcnt);
 
 		if (IS_ERR(odp))
