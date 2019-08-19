@@ -72,31 +72,34 @@ static void ib_umem_notifier_end_account(struct ib_umem_odp *umem_odp)
 	mutex_unlock(&umem_odp->umem_mutex);
 }
 
-static int ib_umem_notifier_release_trampoline(struct ib_umem_odp *umem_odp,
-					       u64 start, u64 end, void *cookie)
-{
-	/*
-	 * Increase the number of notifiers running, to
-	 * prevent any further fault handling on this MR.
-	 */
-	ib_umem_notifier_start_account(umem_odp);
-	complete_all(&umem_odp->notifier_completion);
-	umem_odp->umem.context->invalidate_range(
-		umem_odp, ib_umem_start(umem_odp), ib_umem_end(umem_odp));
-	return 0;
-}
-
 static void ib_umem_notifier_release(struct mmu_notifier *mn,
 				     struct mm_struct *mm)
 {
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
+	struct rb_node *node;
 
 	down_read(&per_mm->umem_rwsem);
-	if (per_mm->active)
-		rbt_ib_umem_for_each_in_range(
-			&per_mm->umem_tree, 0, ULLONG_MAX,
-			ib_umem_notifier_release_trampoline, true, NULL);
+	if (!per_mm->active)
+		goto out;
+
+	for (node = rb_first_cached(&per_mm->umem_tree); node;
+	     node = rb_next(node)) {
+		struct ib_umem_odp *umem_odp =
+			rb_entry(node, struct ib_umem_odp, interval_tree.rb);
+
+		/*
+		 * Increase the number of notifiers running, to prevent any
+		 * further fault handling on this MR.
+		 */
+		ib_umem_notifier_start_account(umem_odp);
+		complete_all(&umem_odp->notifier_completion);
+		umem_odp->umem.context->invalidate_range(
+			umem_odp, ib_umem_start(umem_odp),
+			ib_umem_end(umem_odp));
+	}
+
+out:
 	up_read(&per_mm->umem_rwsem);
 }
 
@@ -756,4 +759,3 @@ int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
 
 	return ret_val;
 }
-EXPORT_SYMBOL(rbt_ib_umem_for_each_in_range);

@@ -539,34 +539,31 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	return imr;
 }
 
-static int mr_leaf_free(struct ib_umem_odp *umem_odp, u64 start, u64 end,
-			void *cookie)
-{
-	struct mlx5_ib_mr *mr = umem_odp->private, *imr = cookie;
-
-	if (mr->parent != imr)
-		return 0;
-
-	ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
-				    ib_umem_end(umem_odp));
-
-	if (umem_odp->dying)
-		return 0;
-
-	WRITE_ONCE(umem_odp->dying, 1);
-	atomic_inc(&imr->num_leaf_free);
-	schedule_work(&umem_odp->work);
-
-	return 0;
-}
-
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 {
 	struct ib_ucontext_per_mm *per_mm = mr_to_per_mm(imr);
+	struct rb_node *node;
 
 	down_read(&per_mm->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, 0, ULLONG_MAX,
-				      mr_leaf_free, true, imr);
+	for (node = rb_first_cached(&per_mm->umem_tree); node;
+	     node = rb_next(node)) {
+		struct ib_umem_odp *umem_odp =
+			rb_entry(node, struct ib_umem_odp, interval_tree.rb);
+		struct mlx5_ib_mr *mr = umem_odp->private;
+
+		if (mr->parent != imr)
+			continue;
+
+		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
+					    ib_umem_end(umem_odp));
+
+		if (umem_odp->dying)
+			continue;
+
+		WRITE_ONCE(umem_odp->dying, 1);
+		atomic_inc(&imr->num_leaf_free);
+		schedule_work(&umem_odp->work);
+	}
 	up_read(&per_mm->umem_rwsem);
 
 	wait_event(imr->q_leaf_free, !atomic_read(&imr->num_leaf_free));
