@@ -348,9 +348,14 @@ static struct rpcrdma_mr_seg *rpcrdma_mr_prepare(struct rpcrdma_xprt *r_xprt,
 						 int nsegs, bool writing,
 						 struct rpcrdma_mr **mr)
 {
-	*mr = rpcrdma_mr_get(r_xprt);
-	if (!*mr)
-		goto out_getmr_err;
+	*mr = rpcrdma_mr_pop(&req->rl_free_mrs);
+	if (!*mr) {
+		*mr = rpcrdma_mr_get(r_xprt);
+		if (!*mr)
+			goto out_getmr_err;
+		trace_xprtrdma_mr_get(req);
+		(*mr)->mr_req = req;
+	}
 
 	rpcrdma_mr_push(*mr, &req->rl_registered);
 	return frwr_map(r_xprt, seg, nsegs, writing, req->rl_slot.rq_xid, *mr);

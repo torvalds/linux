@@ -234,20 +234,20 @@ struct rpcrdma_sendctx {
  * An external memory region is any buffer or page that is registered
  * on the fly (ie, not pre-registered).
  */
-struct rpcrdma_req;
 struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
 	struct completion		fr_linv_done;
-	struct rpcrdma_req		*fr_req;
 	union {
 		struct ib_reg_wr	fr_regwr;
 		struct ib_send_wr	fr_invwr;
 	};
 };
 
+struct rpcrdma_req;
 struct rpcrdma_mr {
 	struct list_head	mr_list;
+	struct rpcrdma_req	*mr_req;
 	struct scatterlist	*mr_sg;
 	int			mr_nents;
 	enum dma_data_direction	mr_dir;
@@ -325,7 +325,8 @@ struct rpcrdma_req {
 	struct list_head	rl_all;
 	struct kref		rl_kref;
 
-	struct list_head	rl_registered;	/* registered segments */
+	struct list_head	rl_free_mrs;
+	struct list_head	rl_registered;
 	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
 };
 
