@@ -349,11 +349,7 @@ $(obj)/%.s: $(src)/%.S FORCE
 quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
       cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $<
 
-ifdef CONFIG_MODVERSIONS
-
-ASM_PROTOTYPES := $(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/asm-prototypes.h)
-
-ifneq ($(ASM_PROTOTYPES),)
+ifdef CONFIG_ASM_MODVERSIONS
 
 # versioning matches the C process described above, with difference that
 # we parse asm-prototypes.h C header to get function definitions.
@@ -368,7 +364,6 @@ cmd_modversions_S =								\
 		mv -f $(@D)/.tmp_$(@F) $@;					\
 		rm -f $(@D)/.tmp_$(@F:.o=.ver);					\
 	fi
-endif
 endif
 
 $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
