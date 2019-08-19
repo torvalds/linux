@@ -1682,12 +1682,10 @@ void bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 /*
  * Expensive:
  */
-struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *iter,
-						     struct btree *b,
-						     unsigned min_key_type)
+struct bkey_packed *bch2_btree_node_iter_prev_all(struct btree_node_iter *iter,
+						  struct btree *b)
 {
 	struct bkey_packed *k, *prev = NULL;
-	struct bkey_packed *orig_pos = bch2_btree_node_iter_peek_all(iter, b);
 	struct btree_node_iter_set *set;
 	struct bset_tree *t;
 	unsigned end = 0;
@@ -1695,9 +1693,8 @@ struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *ite
 	bch2_btree_node_iter_verify(iter, b);
 
 	for_each_bset(b, t) {
-		k = bch2_bkey_prev_filter(b, t,
-			bch2_btree_node_iter_bset_pos(iter, b, t),
-			min_key_type);
+		k = bch2_bkey_prev_all(b, t,
+			bch2_btree_node_iter_bset_pos(iter, b, t));
 		if (k &&
 		    (!prev || bkey_iter_cmp(b, k, prev) > 0)) {
 			prev = k;
@@ -1706,7 +1703,7 @@ struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *ite
 	}
 
 	if (!prev)
-		goto out;
+		return NULL;
 
 	/*
 	 * We're manually memmoving instead of just calling sort() to ensure the
@@ -1727,18 +1724,20 @@ found:
 
 	iter->data[0].k = __btree_node_key_to_offset(b, prev);
 	iter->data[0].end = end;
-out:
-	if (btree_keys_expensive_checks(b)) {
-		struct btree_node_iter iter2 = *iter;
 
-		if (prev)
-			__bch2_btree_node_iter_advance(&iter2, b);
+	bch2_btree_node_iter_verify(iter, b);
+	return prev;
+}
 
-		while ((k = bch2_btree_node_iter_peek_all(&iter2, b)) != orig_pos) {
-			BUG_ON(k->type >= min_key_type);
-			__bch2_btree_node_iter_advance(&iter2, b);
-		}
-	}
+struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *iter,
+						     struct btree *b,
+						     unsigned min_key_type)
+{
+	struct bkey_packed *prev;
+
+	do {
+		prev = bch2_btree_node_iter_prev_all(iter, b);
+	} while (prev && prev->type < min_key_type);
 
 	return prev;
 }

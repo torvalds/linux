@@ -543,14 +543,10 @@ bch2_btree_node_iter_next_all(struct btree_node_iter *iter, struct btree *b)
 	return ret;
 }
 
+struct bkey_packed *bch2_btree_node_iter_prev_all(struct btree_node_iter *,
+						  struct btree *);
 struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *,
 						     struct btree *, unsigned);
-
-static inline struct bkey_packed *
-bch2_btree_node_iter_prev_all(struct btree_node_iter *iter, struct btree *b)
-{
-	return bch2_btree_node_iter_prev_filter(iter, b, 0);
-}
 
 static inline struct bkey_packed *
 bch2_btree_node_iter_prev(struct btree_node_iter *iter, struct btree *b)
