@@ -7,17 +7,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ip matchall action ok",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action ok",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol ip matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -28,17 +28,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 root handle 1: prio"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: handle 0x1 prio 1 protocol ip matchall action ok",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol ip matchall action ok",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent 1: handle 1 prio 1 protocol ip matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 1 prio 1 protocol ip matchall",
         "matchPattern": "^filter parent 1: protocol ip pref 1 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 root handle 1: prio",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -49,17 +49,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall action drop",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall action drop",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol ipv6 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ipv6 matchall",
         "matchPattern": "^filter parent ffff: protocol ipv6 pref 1 matchall.*handle 0x1.*gact action drop.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -70,17 +70,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 root handle 1: prio"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: handle 0x1 prio 1 protocol ipv6 matchall action drop",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol ipv6 matchall action drop",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent 1: handle 1 prio 1 protocol ipv6 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 1 prio 1 protocol ipv6 matchall",
         "matchPattern": "^filter parent 1: protocol ipv6 pref 1 matchall.*handle 0x1.*gact action drop.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 root handle 1: prio",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -91,17 +91,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 65535 protocol ipv4 matchall action pass",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 65535 protocol ipv4 matchall action pass",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 65535 protocol ipv4 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 65535 protocol ipv4 matchall",
         "matchPattern": "^filter parent ffff: protocol ip pref 65535 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -112,17 +112,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 root handle 1: prio"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: handle 0x1 prio 65535 protocol ipv4 matchall action pass",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 65535 protocol ipv4 matchall action pass",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent 1: handle 1 prio 65535 protocol ipv4 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 1 prio 65535 protocol ipv4 matchall",
         "matchPattern": "^filter parent 1: protocol ip pref 65535 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 root handle 1: prio",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -133,17 +133,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 655355 protocol ipv4 matchall action pass",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 655355 protocol ipv4 matchall action pass",
         "expExitCode": "255",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 655355 protocol ipv4 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 655355 protocol ipv4 matchall",
         "matchPattern": "^filter parent ffff: protocol ip pref 655355 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -154,17 +154,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 root handle 1: prio"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: handle 0x1 prio 655355 protocol ipv4 matchall action pass",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 655355 protocol ipv4 matchall action pass",
         "expExitCode": "255",
-        "verifyCmd": "$TC filter get dev $DEV1 parent 1: handle 1 prio 655355 protocol ipv4 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 1 prio 655355 protocol ipv4 matchall",
         "matchPattern": "^filter parent 1: protocol ip pref 655355 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DEV1 root handle 1: prio",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -175,17 +175,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0xffffffff prio 1 protocol all matchall action continue",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0xffffffff prio 1 protocol all matchall action continue",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 0xffffffff prio 1 protocol all matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 0xffffffff prio 1 protocol all matchall",
         "matchPattern": "^filter parent ffff: protocol all pref 1 matchall.*handle 0xffffffff.*gact action continue.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -196,17 +196,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 root handle 1: prio"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: handle 0xffffffff prio 1 protocol all matchall action continue",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0xffffffff prio 1 protocol all matchall action continue",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent 1: handle 0xffffffff prio 1 protocol all matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 0xffffffff prio 1 protocol all matchall",
         "matchPattern": "^filter parent 1: protocol all pref 1 matchall.*handle 0xffffffff.*gact action continue.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 root handle 1: prio",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -217,17 +217,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 0x1 prio 1 protocol all matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall",
         "matchPattern": "^filter parent ffff: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*not_in_hw.*gact action reclassify.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -238,17 +238,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 root handle 1: prio"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent 1: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent 1: handle 0x1 prio 1 protocol all matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 0x1 prio 1 protocol all matchall",
         "matchPattern": "^filter parent 1: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*not_in_hw.*gact action reclassify.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 root handle 1: prio",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -259,17 +259,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 1:1 action pass",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 1:1 action pass",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
         "matchPattern": "^filter parent ffff: protocol ipv6 pref 1 matchall.*handle 0x1.*flowid 1:1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -280,17 +280,17 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 6789defg action pass",
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 6789defg action pass",
         "expExitCode": "1",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
         "matchPattern": "^filter protocol ipv6 pref 1 matchall.*handle 0x1.*flowid 6789defg.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -301,18 +301,18 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 1:2 action pass"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 1:2 action pass"
         ],
-        "cmdUnderTest": "$TC filter del dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
+        "cmdUnderTest": "$TC filter del dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall",
         "matchPattern": "^filter protocol ipv6 pref 1 matchall.*handle 0x1.*flowid 1:2.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -323,21 +323,21 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol all matchall classid 1:2 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x2 prio 2 protocol all matchall classid 1:3 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x3 prio 3 protocol all matchall classid 1:4 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x4 prio 4 protocol all matchall classid 1:5 action pass"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall classid 1:2 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol all matchall classid 1:3 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x3 prio 3 protocol all matchall classid 1:4 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x4 prio 4 protocol all matchall classid 1:5 action pass"
         ],
-        "cmdUnderTest": "$TC filter del dev $DEV1 parent ffff:",
+        "cmdUnderTest": "$TC filter del dev $DUMMY parent ffff:",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter show dev $DEV1 parent ffff:",
+        "verifyCmd": "$TC filter show dev $DUMMY parent ffff:",
         "matchPattern": "^filter protocol all pref.*matchall.*handle.*flowid.*gact action pass",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -348,21 +348,21 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol all matchall classid 1:2 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x2 prio 2 protocol all matchall classid 1:3 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x3 prio 3 protocol all matchall classid 1:4 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x4 prio 4 protocol all matchall classid 1:5 action pass"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall classid 1:2 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol all matchall classid 1:3 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x3 prio 3 protocol all matchall classid 1:4 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x4 prio 4 protocol all matchall classid 1:5 action pass"
         ],
-        "cmdUnderTest": "$TC filter del dev $DEV1 parent ffff: protocol all handle 0x2 prio 2 matchall",
+        "cmdUnderTest": "$TC filter del dev $DUMMY parent ffff: protocol all handle 0x2 prio 2 matchall",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter show dev $DEV1 parent ffff:",
+        "verifyCmd": "$TC filter show dev $DUMMY parent ffff:",
         "matchPattern": "^filter protocol all pref 2 matchall.*handle 0x2 flowid 1:2.*gact action pass",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -373,19 +373,19 @@
             "matchall"
         ],
         "setup": [
-            "$IP link add dev $DEV1 type dummy || /bin/true",
-            "$TC qdisc add dev $DEV1 ingress",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol all chain 1 matchall classid 1:1 action pass",
-            "$TC filter add dev $DEV1 parent ffff: handle 0x1 prio 1 protocol ipv4 chain 2 matchall classid 1:3 action continue"
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all chain 1 matchall classid 1:1 action pass",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv4 chain 2 matchall classid 1:3 action continue"
         ],
-        "cmdUnderTest": "$TC filter del dev $DEV1 parent ffff: chain 2",
+        "cmdUnderTest": "$TC filter del dev $DUMMY parent ffff: chain 2",
         "expExitCode": "0",
-        "verifyCmd": "$TC filter show dev $DEV1 parent ffff:",
+        "verifyCmd": "$TC filter show dev $DUMMY parent ffff:",
         "matchPattern": "^filter protocol all pref 1 matchall chain 1 handle 0x1 flowid 1:1.*gact action pass",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DEV1 ingress",
-            "$IP link del dev $DEV1 type dummy"
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP link del dev $DUMMY type dummy"
         ]
     }
 ]
