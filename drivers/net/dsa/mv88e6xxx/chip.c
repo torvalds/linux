@@ -2057,10 +2057,26 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 				  bool on)
 {
-	if (chip->info->ops->serdes_power)
-		return chip->info->ops->serdes_power(chip, port, on);
+	int err;
 
-	return 0;
+	if (!chip->info->ops->serdes_power)
+		return 0;
+
+	if (on) {
+		err = chip->info->ops->serdes_power(chip, port, true);
+		if (err)
+			return err;
+
+		if (chip->info->ops->serdes_irq_setup)
+			err = chip->info->ops->serdes_irq_setup(chip, port);
+	} else {
+		if (chip->info->ops->serdes_irq_free)
+			chip->info->ops->serdes_irq_free(chip, port);
+
+		err = chip->info->ops->serdes_power(chip, port, false);
+	}
+
+	return err;
 }
 
 static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
@@ -2258,12 +2274,7 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-
 	err = mv88e6xxx_serdes_power(chip, port, true);
-
-	if (!err && chip->info->ops->serdes_irq_setup)
-		err = chip->info->ops->serdes_irq_setup(chip, port);
-
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -2274,13 +2285,8 @@ static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 
 	mv88e6xxx_reg_lock(chip);
-
-	if (chip->info->ops->serdes_irq_free)
-		chip->info->ops->serdes_irq_free(chip, port);
-
 	if (mv88e6xxx_serdes_power(chip, port, false))
 		dev_err(chip->dev, "failed to power off SERDES\n");
-
 	mv88e6xxx_reg_unlock(chip);
 }
 
