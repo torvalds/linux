@@ -1325,6 +1325,7 @@ struct sctp_endpoint {
 	__u8  auth_enable:1,
 	      intl_enable:1,
 	      prsctp_enable:1,
+	      asconf_enable:1,
 	      reconf_enable:1;
 
 	__u8  strreset_enable;
