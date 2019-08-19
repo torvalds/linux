@@ -233,7 +233,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		ix = call->tx_hard_ack & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
 		annotation = call->rxtx_annotations[ix];
-		rxrpc_see_skb(skb, rxrpc_skb_tx_rotated);
+		rxrpc_see_skb(skb, rxrpc_skb_rotated);
 		call->rxtx_buffer[ix] = NULL;
 		call->rxtx_annotations[ix] = 0;
 		skb->next = list;
@@ -258,7 +258,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		skb = list;
 		list = skb->next;
 		skb_mark_not_on_list(skb);
-		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 	}
 
 	return rot_last;
@@ -443,7 +443,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 
 	state = READ_ONCE(call->state);
 	if (state >= RXRPC_CALL_COMPLETE) {
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		return;
 	}
 
@@ -559,7 +559,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		 * and also rxrpc_fill_out_ack().
 		 */
 		if (!terminal)
-			rxrpc_get_skb(skb, rxrpc_skb_rx_got);
+			rxrpc_get_skb(skb, rxrpc_skb_got);
 		call->rxtx_annotations[ix] = annotation;
 		smp_wmb();
 		call->rxtx_buffer[ix] = skb;
@@ -620,7 +620,7 @@ ack:
 
 unlock:
 	spin_unlock(&call->input_lock);
-	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
 	_leave(" [queued]");
 }
 
@@ -1056,7 +1056,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 		break;
 	}
 
-	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
 no_free:
 	_leave("");
 }
@@ -1119,7 +1119,7 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 		skb_queue_tail(&local->event_queue, skb);
 		rxrpc_queue_local(local);
 	} else {
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 	}
 }
 
@@ -1134,7 +1134,7 @@ static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		skb_queue_tail(&local->reject_queue, skb);
 		rxrpc_queue_local(local);
 	} else {
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 	}
 }
 
@@ -1198,7 +1198,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	if (skb->tstamp == 0)
 		skb->tstamp = ktime_get_real();
 
-	rxrpc_new_skb(skb, rxrpc_skb_rx_received);
+	rxrpc_new_skb(skb, rxrpc_skb_received);
 
 	skb_pull(skb, sizeof(struct udphdr));
 
@@ -1215,7 +1215,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		static int lose;
 		if ((lose++ & 7) == 7) {
 			trace_rxrpc_rx_lose(sp);
-			rxrpc_free_skb(skb, rxrpc_skb_rx_lost);
+			rxrpc_free_skb(skb, rxrpc_skb_lost);
 			return 0;
 		}
 	}
@@ -1389,7 +1389,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	goto out;
 
 discard:
-	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
 out:
 	trace_rxrpc_rx_done(0, 0);
 	return 0;

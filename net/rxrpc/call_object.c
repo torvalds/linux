@@ -429,9 +429,7 @@ static void rxrpc_cleanup_ring(struct rxrpc_call *call)
 	int i;
 
 	for (i = 0; i < RXRPC_RXTX_BUFF_SIZE; i++) {
-		rxrpc_free_skb(call->rxtx_buffer[i],
-			       (call->tx_phase ? rxrpc_skb_tx_cleaned :
-				rxrpc_skb_rx_cleaned));
+		rxrpc_free_skb(call->rxtx_buffer[i], rxrpc_skb_cleaned);
 		call->rxtx_buffer[i] = NULL;
 	}
 }
@@ -587,7 +585,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 	ASSERTCMP(call->conn, ==, NULL);
 
 	rxrpc_cleanup_ring(call);
-	rxrpc_free_skb(call->tx_pending, rxrpc_skb_tx_cleaned);
+	rxrpc_free_skb(call->tx_pending, rxrpc_skb_cleaned);
 
 	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }
