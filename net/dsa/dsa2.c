@@ -264,6 +264,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
+		dsa_port_disable(dp);
 		break;
 	case DSA_PORT_TYPE_CPU:
 		memset(dlp, 0, sizeof(*dlp));
@@ -276,6 +277,10 @@ static int dsa_port_setup(struct dsa_port *dp)
 		err = dsa_port_link_register_of(dp);
 		if (err)
 			return err;
+
+		err = dsa_port_enable(dp, NULL);
+		if (err)
+			return err;
 		break;
 	case DSA_PORT_TYPE_DSA:
 		memset(dlp, 0, sizeof(*dlp));
@@ -286,6 +291,10 @@ static int dsa_port_setup(struct dsa_port *dp)
 			return err;
 
 		err = dsa_port_link_register_of(dp);
+		if (err)
+			return err;
+
+		err = dsa_port_enable(dp, NULL);
 		if (err)
 			return err;
 		break;
@@ -317,11 +326,13 @@ static void dsa_port_teardown(struct dsa_port *dp)
 	case DSA_PORT_TYPE_UNUSED:
 		break;
 	case DSA_PORT_TYPE_CPU:
+		dsa_port_disable(dp);
 		dsa_tag_driver_put(dp->tag_ops);
 		devlink_port_unregister(dlp);
 		dsa_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_DSA:
+		dsa_port_disable(dp);
 		devlink_port_unregister(dlp);
 		dsa_port_link_unregister_of(dp);
 		break;
