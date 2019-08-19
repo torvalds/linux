@@ -37,11 +37,6 @@
 #include <rdma/ib_verbs.h>
 #include <linux/interval_tree.h>
 
-struct umem_odp_node {
-	u64 __subtree_last;
-	struct rb_node rb;
-};
-
 struct ib_umem_odp {
 	struct ib_umem umem;
 	struct ib_ucontext_per_mm *per_mm;
@@ -72,7 +67,7 @@ struct ib_umem_odp {
 	int npages;
 
 	/* Tree tracking */
-	struct umem_odp_node	interval_tree;
+	struct interval_tree_node interval_tree;
 
 	struct completion	notifier_completion;
 	int			dying;
@@ -163,8 +158,17 @@ int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
  * Find first region intersecting with address range.
  * Return NULL if not found
  */
-struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root_cached *root,
-				       u64 addr, u64 length);
+static inline struct ib_umem_odp *
+rbt_ib_umem_lookup(struct rb_root_cached *root, u64 addr, u64 length)
+{
+	struct interval_tree_node *node;
+
+	node = interval_tree_iter_first(root, addr, addr + length - 1);
+	if (!node)
+		return NULL;
+	return container_of(node, struct ib_umem_odp, interval_tree);
+
+}
 
 static inline int ib_umem_mmu_notifier_retry(struct ib_umem_odp *umem_odp,
 					     unsigned long mmu_seq)
