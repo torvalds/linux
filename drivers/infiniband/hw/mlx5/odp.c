@@ -601,7 +601,7 @@ next_mr:
 	start_idx = (io_virt - (mr->mmkey.iova & page_mask)) >> page_shift;
 	access_mask = ODP_READ_ALLOWED_BIT;
 
-	if (prefetch && !downgrade && !mr->umem->writable) {
+	if (prefetch && !downgrade && !odp->umem.writable) {
 		/* prefetch with write-access must
 		 * be supported by the MR
 		 */
@@ -609,7 +609,7 @@ next_mr:
 		goto out;
 	}
 
-	if (mr->umem->writable && !downgrade)
+	if (odp->umem.writable && !downgrade)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;
 
 	current_seq = READ_ONCE(odp->notifiers_seq);
@@ -619,8 +619,8 @@ next_mr:
 	 */
 	smp_rmb();
 
-	ret = ib_umem_odp_map_dma_pages(to_ib_umem_odp(mr->umem), io_virt, size,
-					access_mask, current_seq);
+	ret = ib_umem_odp_map_dma_pages(odp, io_virt, size, access_mask,
+					current_seq);
 
 	if (ret < 0)
 		goto out;
@@ -628,8 +628,7 @@ next_mr:
 	np = ret;
 
 	mutex_lock(&odp->umem_mutex);
-	if (!ib_umem_mmu_notifier_retry(to_ib_umem_odp(mr->umem),
-					current_seq)) {
+	if (!ib_umem_mmu_notifier_retry(odp, current_seq)) {
 		/*
 		 * No need to check whether the MTTs really belong to
 		 * this MR, since ib_umem_odp_map_dma_pages already
