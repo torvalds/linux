@@ -78,4 +78,6 @@ void nft_indr_block_get_and_ing_cmd(struct net_device *dev,
 	(__reg)->key		= __key;				\
 	memset(&(__reg)->mask, 0xff, (__reg)->len);
 
+int nft_chain_offload_priority(struct nft_base_chain *basechain);
+
 #endif
