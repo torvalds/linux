@@ -140,8 +140,10 @@ etnaviv_iommuv1_context_alloc(struct etnaviv_iommu_global *global)
 	}
 
 	v1_context = kzalloc(sizeof(*v1_context), GFP_KERNEL);
-	if (!v1_context)
+	if (!v1_context) {
+		mutex_unlock(&global->lock);
 		return NULL;
+	}
 
 	v1_context->pgtable_cpu = dma_alloc_wc(global->dev, PT_SIZE,
 					       &v1_context->pgtable_dma,
