@@ -98,9 +98,6 @@ void ibdev_info(const struct ib_device *ibdev, const char *format, ...);
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define ibdev_dbg(__dev, format, args...)                       \
 	dynamic_ibdev_dbg(__dev, format, ##args)
-#elif defined(DEBUG)
-#define ibdev_dbg(__dev, format, args...)                       \
-	ibdev_printk(KERN_DEBUG, __dev, format, ##args)
 #else
 __printf(2, 3) __cold
 static inline
