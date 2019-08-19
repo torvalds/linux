@@ -1012,9 +1012,9 @@ static void acpi_s2idle_wake(void)
 		acpi_os_wait_events_complete(); /* synchronize EC GPE processing */
 		acpi_ec_flush_work();
 		acpi_os_wait_events_complete(); /* synchronize Notify handling */
-	}
 
-	rearm_wake_irq(acpi_sci_irq);
+		rearm_wake_irq(acpi_sci_irq);
+	}
 }
 
 static void acpi_s2idle_restore_early(void)
