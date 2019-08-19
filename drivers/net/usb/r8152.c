@@ -2094,10 +2094,10 @@ static int rx_bottom(struct r8152 *tp, int budget)
 			skb->protocol = eth_type_trans(skb, netdev);
 			rtl_rx_vlan_tag(rx_desc, skb);
 			if (work_done < budget) {
-				napi_gro_receive(napi, skb);
 				work_done++;
 				stats->rx_packets++;
 				stats->rx_bytes += skb->len;
+				napi_gro_receive(napi, skb);
 			} else {
 				__skb_queue_tail(&tp->rx_queue, skb);
 			}
