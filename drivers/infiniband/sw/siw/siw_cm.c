@@ -1515,7 +1515,7 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 		}
 	}
 error:
-	siw_dbg_qp(qp, "failed: %d\n", rv);
+	siw_dbg(id->device, "failed: %d\n", rv);
 
 	if (cep) {
 		siw_socket_disassoc(s);
@@ -1540,7 +1540,8 @@ error:
 	} else if (s) {
 		sock_release(s);
 	}
-	siw_qp_put(qp);
+	if (qp)
+		siw_qp_put(qp);
 
 	return rv;
 }
