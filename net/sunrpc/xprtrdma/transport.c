@@ -494,9 +494,9 @@ xprt_rdma_timer(struct rpc_xprt *xprt, struct rpc_task *task)
  * @reconnect_timeout: reconnect timeout after server disconnects
  *
  */
-static void xprt_rdma_tcp_set_connect_timeout(struct rpc_xprt *xprt,
-					      unsigned long connect_timeout,
-					      unsigned long reconnect_timeout)
+static void xprt_rdma_set_connect_timeout(struct rpc_xprt *xprt,
+					  unsigned long connect_timeout,
+					  unsigned long reconnect_timeout)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
@@ -805,7 +805,7 @@ static const struct rpc_xprt_ops xprt_rdma_procs = {
 	.send_request		= xprt_rdma_send_request,
 	.close			= xprt_rdma_close,
 	.destroy		= xprt_rdma_destroy,
-	.set_connect_timeout	= xprt_rdma_tcp_set_connect_timeout,
+	.set_connect_timeout	= xprt_rdma_set_connect_timeout,
 	.print_stats		= xprt_rdma_print_stats,
 	.enable_swap		= xprt_rdma_enable_swap,
 	.disable_swap		= xprt_rdma_disable_swap,
