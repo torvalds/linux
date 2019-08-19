@@ -1234,7 +1234,7 @@ release_exit:
 static int tce_iommu_attach_group(void *iommu_data,
 		struct iommu_group *iommu_group)
 {
-	int ret;
+	int ret = 0;
 	struct tce_container *container = iommu_data;
 	struct iommu_table_group *table_group;
 	struct tce_iommu_group *tcegrp = NULL;
@@ -1287,13 +1287,13 @@ static int tce_iommu_attach_group(void *iommu_data,
 			!table_group->ops->release_ownership) {
 		if (container->v2) {
 			ret = -EPERM;
-			goto unlock_exit;
+			goto free_exit;
 		}
 		ret = tce_iommu_take_ownership(container, table_group);
 	} else {
 		if (!container->v2) {
 			ret = -EPERM;
-			goto unlock_exit;
+			goto free_exit;
 		}
 		ret = tce_iommu_take_ownership_ddw(container, table_group);
 		if (!tce_groups_attached(container) && !container->tables[0])
@@ -1305,10 +1305,11 @@ static int tce_iommu_attach_group(void *iommu_data,
 		list_add(&tcegrp->next, &container->group_list);
 	}
 
-unlock_exit:
+free_exit:
 	if (ret && tcegrp)
 		kfree(tcegrp);
 
+unlock_exit:
 	mutex_unlock(&container->lock);
 
 	return ret;
