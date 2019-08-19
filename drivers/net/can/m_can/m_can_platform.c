@@ -16,24 +16,21 @@ struct m_can_plat_priv {
 
 static u32 iomap_read_reg(struct m_can_classdev *cdev, int reg)
 {
-	struct m_can_plat_priv *priv =
-			(struct m_can_plat_priv *)cdev->device_data;
+	struct m_can_plat_priv *priv = cdev->device_data;
 
 	return readl(priv->base + reg);
 }
 
 static u32 iomap_read_fifo(struct m_can_classdev *cdev, int offset)
 {
-	struct m_can_plat_priv *priv =
-			(struct m_can_plat_priv *)cdev->device_data;
+	struct m_can_plat_priv *priv = cdev->device_data;
 
 	return readl(priv->mram_base + offset);
 }
 
 static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
-	struct m_can_plat_priv *priv =
-			(struct m_can_plat_priv *)cdev->device_data;
+	struct m_can_plat_priv *priv = cdev->device_data;
 
 	writel(val, priv->base + reg);
 
@@ -42,8 +39,7 @@ static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 
 static int iomap_write_fifo(struct m_can_classdev *cdev, int offset, int val)
 {
-	struct m_can_plat_priv *priv =
-			(struct m_can_plat_priv *)cdev->device_data;
+	struct m_can_plat_priv *priv = cdev->device_data;
 
 	writel(val, priv->mram_base + offset);
 
