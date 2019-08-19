@@ -15,6 +15,11 @@
 #include "regs-sys.h"
 #include "regs-usb-hsotg-phy.h"
 
+enum samsung_usb_phy_type {
+	USB_PHY_TYPE_DEVICE,
+	USB_PHY_TYPE_HOST,
+};
+
 static int s3c_usb_otgphy_init(struct platform_device *pdev)
 {
 	struct clk *xusbxti;
