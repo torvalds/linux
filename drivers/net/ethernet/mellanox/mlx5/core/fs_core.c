@@ -182,6 +182,26 @@ static struct init_tree_node egress_root_fs = {
 	}
 };
 
+#define RDMA_RX_BYPASS_PRIO 0
+#define RDMA_RX_KERNEL_PRIO 1
+static struct init_tree_node rdma_rx_root_fs = {
+	.type = FS_TYPE_NAMESPACE,
+	.ar_size = 2,
+	.children = (struct init_tree_node[]) {
+		[RDMA_RX_BYPASS_PRIO] =
+		ADD_PRIO(0, MLX5_BY_PASS_NUM_REGULAR_PRIOS, 0,
+			 FS_CHAINING_CAPS,
+			 ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
+				ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_REGULAR_PRIOS,
+						  BY_PASS_PRIO_NUM_LEVELS))),
+		[RDMA_RX_KERNEL_PRIO] =
+		ADD_PRIO(0, MLX5_BY_PASS_NUM_REGULAR_PRIOS + 1, 0,
+			 FS_CHAINING_CAPS,
+			 ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_SWITCH_DOMAIN,
+				ADD_MULTIPLE_PRIO(1, 1))),
+	}
+};
+
 enum fs_i_lock_class {
 	FS_LOCK_GRANDPARENT,
 	FS_LOCK_PARENT,
@@ -2067,16 +2087,18 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 		if (steering->sniffer_tx_root_ns)
 			return &steering->sniffer_tx_root_ns->ns;
 		return NULL;
-	case MLX5_FLOW_NAMESPACE_RDMA_RX:
-		if (steering->rdma_rx_root_ns)
-			return &steering->rdma_rx_root_ns->ns;
-		return NULL;
 	default:
 		break;
 	}
 
 	if (type == MLX5_FLOW_NAMESPACE_EGRESS) {
 		root_ns = steering->egress_root_ns;
+	} else if (type == MLX5_FLOW_NAMESPACE_RDMA_RX) {
+		root_ns = steering->rdma_rx_root_ns;
+		prio = RDMA_RX_BYPASS_PRIO;
+	} else if (type == MLX5_FLOW_NAMESPACE_RDMA_RX_KERNEL) {
+		root_ns = steering->rdma_rx_root_ns;
+		prio = RDMA_RX_KERNEL_PRIO;
 	} else { /* Must be NIC RX */
 		root_ns = steering->root_ns;
 		prio = type;
@@ -2507,18 +2529,25 @@ static int init_sniffer_rx_root_ns(struct mlx5_flow_steering *steering)
 
 static int init_rdma_rx_root_ns(struct mlx5_flow_steering *steering)
 {
-	struct fs_prio *prio;
+	int err;
 
 	steering->rdma_rx_root_ns = create_root_ns(steering, FS_FT_RDMA_RX);
 	if (!steering->rdma_rx_root_ns)
 		return -ENOMEM;
 
-	steering->rdma_rx_root_ns->ns.def_miss_action =
-		MLX5_FLOW_TABLE_MISS_ACTION_SWITCH_DOMAIN;
+	err = init_root_tree(steering, &rdma_rx_root_fs,
+			     &steering->rdma_rx_root_ns->ns.node);
+	if (err)
+		goto out_err;
 
-	/* Create single prio */
-	prio = fs_create_prio(&steering->rdma_rx_root_ns->ns, 0, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	set_prio_attrs(steering->rdma_rx_root_ns);
+
+	return 0;
+
+out_err:
+	cleanup_root_ns(steering->rdma_rx_root_ns);
+	steering->rdma_rx_root_ns = NULL;
+	return err;
 }
 static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 {
