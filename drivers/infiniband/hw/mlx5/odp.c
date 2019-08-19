@@ -384,7 +384,7 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 }
 
 static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
-					    struct ib_umem *umem,
+					    struct ib_umem_odp *umem_odp,
 					    bool ksm, int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
@@ -402,7 +402,7 @@ static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
 	mr->dev = dev;
 	mr->access_flags = access_flags;
 	mr->mmkey.iova = 0;
-	mr->umem = umem;
+	mr->umem = &umem_odp->umem;
 
 	if (ksm) {
 		err = mlx5_ib_update_xlt(mr, 0,
@@ -462,14 +462,13 @@ next_mr:
 		if (nentries)
 			nentries++;
 	} else {
-		odp = ib_alloc_odp_umem(odp_mr, addr,
-					MLX5_IMR_MTT_SIZE);
+		odp = ib_umem_odp_alloc_child(odp_mr, addr, MLX5_IMR_MTT_SIZE);
 		if (IS_ERR(odp)) {
 			mutex_unlock(&odp_mr->umem_mutex);
 			return ERR_CAST(odp);
 		}
 
-		mtt = implicit_mr_alloc(mr->ibmr.pd, &odp->umem, 0,
+		mtt = implicit_mr_alloc(mr->ibmr.pd, odp, 0,
 					mr->access_flags);
 		if (IS_ERR(mtt)) {
 			mutex_unlock(&odp_mr->umem_mutex);
@@ -519,19 +518,19 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 					     int access_flags)
 {
 	struct mlx5_ib_mr *imr;
-	struct ib_umem *umem;
+	struct ib_umem_odp *umem_odp;
 
-	umem = ib_umem_get(udata, 0, 0, access_flags, 0);
-	if (IS_ERR(umem))
-		return ERR_CAST(umem);
+	umem_odp = ib_umem_odp_alloc_implicit(udata, access_flags);
+	if (IS_ERR(umem_odp))
+		return ERR_CAST(umem_odp);
 
-	imr = implicit_mr_alloc(&pd->ibpd, umem, 1, access_flags);
+	imr = implicit_mr_alloc(&pd->ibpd, umem_odp, 1, access_flags);
 	if (IS_ERR(imr)) {
-		ib_umem_release(umem);
+		ib_umem_release(&umem_odp->umem);
 		return ERR_CAST(imr);
 	}
 
-	imr->umem = umem;
+	imr->umem = &umem_odp->umem;
 	init_waitqueue_head(&imr->q_leaf_free);
 	atomic_set(&imr->num_leaf_free, 0);
 	atomic_set(&imr->num_pending_prefetch, 0);
