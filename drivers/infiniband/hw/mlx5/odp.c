@@ -184,7 +184,7 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 	for (i = 0; i < nentries; i++, pklm++) {
 		pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
 		va = (offset + i) * MLX5_IMR_MTT_SIZE;
-		if (odp && odp->umem.address == va) {
+		if (odp && ib_umem_start(odp) == va) {
 			struct mlx5_ib_mr *mtt = odp->private;
 
 			pklm->key = cpu_to_be32(mtt->ibmr.lkey);
@@ -494,7 +494,7 @@ next_mr:
 	addr += MLX5_IMR_MTT_SIZE;
 	if (unlikely(addr < io_virt + bcnt)) {
 		odp = odp_next(odp);
-		if (odp && odp->umem.address != addr)
+		if (odp && ib_umem_start(odp) != addr)
 			odp = NULL;
 		goto next_mr;
 	}
@@ -662,7 +662,7 @@ next_mr:
 
 		io_virt += size;
 		next = odp_next(odp);
-		if (unlikely(!next || next->umem.address != io_virt)) {
+		if (unlikely(!next || ib_umem_start(next) != io_virt)) {
 			mlx5_ib_dbg(dev, "next implicit leaf removed at 0x%llx. got %p\n",
 				    io_virt, next);
 			return -EAGAIN;
