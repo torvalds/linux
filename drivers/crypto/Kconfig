@@ -393,7 +393,7 @@ config CRYPTO_DEV_PICOXCELL
 	  Picochip picoXcell SoC devices. Select this for IPSEC ESP offload
 	  and for 3gpp Layer 2 ciphering support.
 
-	  Saying m here will build a module named pipcoxcell_crypto.
+	  Saying m here will build a module named picoxcell_crypto.
 
 config CRYPTO_DEV_SAHARA
 	tristate "Support for SAHARA crypto accelerator"
