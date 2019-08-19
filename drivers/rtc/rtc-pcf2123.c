@@ -238,6 +238,14 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static int pcf2123_rtc_alarm_irq_enable(struct device *dev, unsigned int en)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+
+	return regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AIE,
+				  en ? CTRL2_AIE : 0);
+}
+
 static int pcf2123_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
@@ -295,15 +303,7 @@ static int pcf2123_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	if (ret)
 		return ret;
 
-	/* Enable alarm interrupt */
-	if (alm->enabled)	{
-		ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2,
-						CTRL2_AIE, CTRL2_AIE);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return pcf2123_rtc_alarm_irq_enable(dev, alm->enabled);
 }
 
 static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
@@ -372,6 +372,7 @@ static const struct rtc_class_ops pcf2123_rtc_ops = {
 	.set_offset	= pcf2123_set_offset,
 	.read_alarm	= pcf2123_rtc_read_alarm,
 	.set_alarm	= pcf2123_rtc_set_alarm,
+	.alarm_irq_enable = pcf2123_rtc_alarm_irq_enable,
 };
 
 static int pcf2123_probe(struct spi_device *spi)
