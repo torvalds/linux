@@ -23,6 +23,14 @@ int do_dw_dma_enable(struct dw_dma_chip *chip);
 
 extern bool dw_dma_filter(struct dma_chan *chan, void *param);
 
+#ifdef CONFIG_ACPI
+void dw_dma_acpi_controller_register(struct dw_dma *dw);
+void dw_dma_acpi_controller_free(struct dw_dma *dw);
+#else /* !CONFIG_ACPI */
+static inline void dw_dma_acpi_controller_register(struct dw_dma *dw) {}
+static inline void dw_dma_acpi_controller_free(struct dw_dma *dw) {}
+#endif /* !CONFIG_ACPI */
+
 struct dw_dma_chip_pdata {
 	const struct dw_dma_platform_data *pdata;
 	int (*probe)(struct dw_dma_chip *chip);

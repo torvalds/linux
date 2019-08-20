@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/of_dma.h>
 #include <linux/acpi.h>
-#include <linux/acpi_dma.h>
 
 #include "internal.h"
 
@@ -54,57 +53,6 @@ static struct dma_chan *dw_dma_of_xlate(struct of_phandle_args *dma_spec,
 	/* TODO: there should be a simpler way to do this */
 	return dma_request_channel(cap, dw_dma_filter, &slave);
 }
-
-#ifdef CONFIG_ACPI
-static bool dw_dma_acpi_filter(struct dma_chan *chan, void *param)
-{
-	struct acpi_dma_spec *dma_spec = param;
-	struct dw_dma_slave slave = {
-		.dma_dev = dma_spec->dev,
-		.src_id = dma_spec->slave_id,
-		.dst_id = dma_spec->slave_id,
-		.m_master = 0,
-		.p_master = 1,
-	};
-
-	return dw_dma_filter(chan, &slave);
-}
-
-static void dw_dma_acpi_controller_register(struct dw_dma *dw)
-{
-	struct device *dev = dw->dma.dev;
-	struct acpi_dma_filter_info *info;
-	int ret;
-
-	if (!has_acpi_companion(dev))
-		return;
-
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return;
-
-	dma_cap_zero(info->dma_cap);
-	dma_cap_set(DMA_SLAVE, info->dma_cap);
-	info->filter_fn = dw_dma_acpi_filter;
-
-	ret = acpi_dma_controller_register(dev, acpi_dma_simple_xlate, info);
-	if (ret)
-		dev_err(dev, "could not register acpi_dma_controller\n");
-}
-
-static void dw_dma_acpi_controller_free(struct dw_dma *dw)
-{
-	struct device *dev = dw->dma.dev;
-
-	if (!has_acpi_companion(dev))
-		return;
-
-	acpi_dma_controller_free(dev);
-}
-#else /* !CONFIG_ACPI */
-static inline void dw_dma_acpi_controller_register(struct dw_dma *dw) {}
-static inline void dw_dma_acpi_controller_free(struct dw_dma *dw) {}
-#endif /* !CONFIG_ACPI */
 
 #ifdef CONFIG_OF
 static struct dw_dma_platform_data *
