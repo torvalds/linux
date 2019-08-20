@@ -97,11 +97,46 @@ amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	return 0;
 }
 
-int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
+int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
+					struct dm_crtc_state *dm_crtc_state,
+					enum amdgpu_dm_pipe_crc_source source)
 {
 	struct amdgpu_device *adev = crtc->dev->dev_private;
+	struct dc_stream_state *stream_state = dm_crtc_state->stream;
+	bool enable = amdgpu_dm_is_valid_crc_source(source);
+	int ret = 0;
+
+	/* Configuration will be deferred to stream enable. */
+	if (!stream_state)
+		return 0;
+
+	mutex_lock(&adev->dm.dc_lock);
+
+	/* Enable CRTC CRC generation if necessary. */
+	if (dm_is_crc_source_crtc(source)) {
+		if (!dc_stream_configure_crc(stream_state->ctx->dc,
+					     stream_state, enable, enable)) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+	}
+
+	/* Configure dithering */
+	if (!dm_need_crc_dither(source))
+		dc_stream_set_dither_option(stream_state, DITHER_OPTION_TRUN8);
+	else
+		dc_stream_set_dither_option(stream_state,
+					    DITHER_OPTION_DEFAULT);
+
+unlock:
+	mutex_unlock(&adev->dm.dc_lock);
+
+	return ret;
+}
+
+int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
+{
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
-	struct dc_stream_state *stream_state = crtc_state->stream;
 	struct drm_dp_aux *aux = NULL;
 	bool enable = false;
 	bool enabled = false;
@@ -115,14 +150,8 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		return -EINVAL;
 	}
 
-	if (!stream_state) {
-		DRM_ERROR("No stream state for CRTC%d\n", crtc->index);
-		return -EINVAL;
-	}
-
 	enable = amdgpu_dm_is_valid_crc_source(source);
 
-	mutex_lock(&adev->dm.dc_lock);
 	/*
 	 * USER REQ SRC | CURRENT SRC | BEHAVIOR
 	 * -----------------------------
@@ -155,7 +184,6 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 		if (!aconn) {
 			DRM_DEBUG_DRIVER("No amd connector matching CRTC-%d\n", crtc->index);
-			mutex_unlock(&adev->dm.dc_lock);
 			return -EINVAL;
 		}
 
@@ -163,24 +191,12 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 		if (!aux) {
 			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
-			mutex_unlock(&adev->dm.dc_lock);
-			return -EINVAL;
-		}
-	} else if (dm_is_crc_source_crtc(source)) {
-		if (!dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
-					     enable, enable)) {
-			mutex_unlock(&adev->dm.dc_lock);
 			return -EINVAL;
 		}
 	}
 
-	/* configure dithering */
-	if (!dm_need_crc_dither(source))
-		dc_stream_set_dither_option(stream_state, DITHER_OPTION_TRUN8);
-	else if (!dm_need_crc_dither(crtc_state->crc_src))
-		dc_stream_set_dither_option(stream_state, DITHER_OPTION_DEFAULT);
-
-	mutex_unlock(&adev->dm.dc_lock);
+	if (amdgpu_dm_crtc_configure_crc_source(crtc, crtc_state, source))
+		return -EINVAL;
 
 	/*
 	 * Reading the CRC requires the vblank interrupt handler to be
