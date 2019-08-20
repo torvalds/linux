@@ -146,20 +146,24 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 
 	if (fuse->soc->probe) {
 		err = fuse->soc->probe(fuse);
-		if (err < 0) {
-			fuse->base = base;
-			return err;
-		}
+		if (err < 0)
+			goto restore;
 	}
 
 	if (tegra_fuse_create_sysfs(&pdev->dev, fuse->soc->info->size,
-				    fuse->soc->info))
-		return -ENODEV;
+				    fuse->soc->info)) {
+		err = -ENODEV;
+		goto restore;
+	}
 
 	/* release the early I/O memory mapping */
 	iounmap(base);
 
 	return 0;
+
+restore:
+	fuse->base = base;
+	return err;
 }
 
 static struct platform_driver tegra_fuse_driver = {
