@@ -102,7 +102,6 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_state *stream_state = crtc_state->stream;
-	struct amdgpu_dm_connector *aconn;
 	struct drm_dp_aux *aux = NULL;
 	bool enable = false;
 	bool enabled = false;
@@ -138,9 +137,21 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	 * DPRX DITHER  | XXXX        | Enable DPRX CRC, need 'aux', set dither
 	 */
 	if (dm_is_crc_source_dprx(source) ||
-		(source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE &&
-		 dm_is_crc_source_dprx(crtc_state->crc_src))) {
-		aconn = stream_state->link->priv;
+	    (source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE &&
+	     dm_is_crc_source_dprx(crtc_state->crc_src))) {
+		struct amdgpu_dm_connector *aconn = NULL;
+		struct drm_connector *connector;
+		struct drm_connector_list_iter conn_iter;
+
+		drm_connector_list_iter_begin(crtc->dev, &conn_iter);
+		drm_for_each_connector_iter(connector, &conn_iter) {
+			if (!connector->state || connector->state->crtc != crtc)
+				continue;
+
+			aconn = to_amdgpu_dm_connector(connector);
+			break;
+		}
+		drm_connector_list_iter_end(&conn_iter);
 
 		if (!aconn) {
 			DRM_DEBUG_DRIVER("No amd connector matching CRTC-%d\n", crtc->index);
