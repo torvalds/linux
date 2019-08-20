@@ -2133,7 +2133,7 @@ psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 			"BUF_ON",
 			"TG_ON"
 		};
-		val = I915_READ(EDP_PSR2_STATUS);
+		val = I915_READ(EDP_PSR2_STATUS(dev_priv->psr.transcoder));
 		status_val = (val & EDP_PSR2_STATUS_STATE_MASK) >>
 			      EDP_PSR2_STATUS_STATE_SHIFT;
 		if (status_val < ARRAY_SIZE(live_status))
@@ -2149,7 +2149,7 @@ psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 			"SRDOFFACK",
 			"SRDENT_ON",
 		};
-		val = I915_READ(EDP_PSR_STATUS);
+		val = I915_READ(EDP_PSR_STATUS(dev_priv->psr.transcoder));
 		status_val = (val & EDP_PSR_STATUS_STATE_MASK) >>
 			      EDP_PSR_STATUS_STATE_SHIFT;
 		if (status_val < ARRAY_SIZE(live_status))
@@ -2192,10 +2192,10 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		goto unlock;
 
 	if (psr->psr2_enabled) {
-		val = I915_READ(EDP_PSR2_CTL);
+		val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
 		enabled = val & EDP_PSR2_ENABLE;
 	} else {
-		val = I915_READ(EDP_PSR_CTL);
+		val = I915_READ(EDP_PSR_CTL(dev_priv->psr.transcoder));
 		enabled = val & EDP_PSR_ENABLE;
 	}
 	seq_printf(m, "Source PSR ctl: %s [0x%08x]\n",
@@ -2208,7 +2208,8 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
 	 */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		val = I915_READ(EDP_PSR_PERF_CNT) & EDP_PSR_PERF_CNT_MASK;
+		val = I915_READ(EDP_PSR_PERF_CNT(dev_priv->psr.transcoder));
+		val &= EDP_PSR_PERF_CNT_MASK;
 		seq_printf(m, "Performance counter: %u\n", val);
 	}
 
@@ -2226,8 +2227,11 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		 * Reading all 3 registers before hand to minimize crossing a
 		 * frame boundary between register reads
 		 */
-		for (frame = 0; frame < PSR2_SU_STATUS_FRAMES; frame += 3)
-			su_frames_val[frame / 3] = I915_READ(PSR2_SU_STATUS(frame));
+		for (frame = 0; frame < PSR2_SU_STATUS_FRAMES; frame += 3) {
+			val = I915_READ(PSR2_SU_STATUS(dev_priv->psr.transcoder,
+						       frame));
+			su_frames_val[frame / 3] = val;
+		}
 
 		seq_puts(m, "Frame:\tPSR2 SU blocks:\n");
 

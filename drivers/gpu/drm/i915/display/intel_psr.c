@@ -390,7 +390,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 
 	BUILD_BUG_ON(sizeof(aux_msg) > 20);
 	for (i = 0; i < sizeof(aux_msg); i += 4)
-		I915_WRITE(EDP_PSR_AUX_DATA(i >> 2),
+		I915_WRITE(EDP_PSR_AUX_DATA(dev_priv->psr.transcoder, i >> 2),
 			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
@@ -401,7 +401,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 
 	/* Select only valid bits for SRD_AUX_CTL */
 	aux_ctl &= psr_aux_mask;
-	I915_WRITE(EDP_PSR_AUX_CTL, aux_ctl);
+	I915_WRITE(EDP_PSR_AUX_CTL(dev_priv->psr.transcoder), aux_ctl);
 }
 
 static void intel_psr_enable_sink(struct intel_dp *intel_dp)
@@ -491,8 +491,9 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	if (INTEL_GEN(dev_priv) >= 8)
 		val |= EDP_PSR_CRC_ENABLE;
 
-	val |= I915_READ(EDP_PSR_CTL) & EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK;
-	I915_WRITE(EDP_PSR_CTL, val);
+	val |= (I915_READ(EDP_PSR_CTL(dev_priv->psr.transcoder)) &
+		EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK);
+	I915_WRITE(EDP_PSR_CTL(dev_priv->psr.transcoder), val);
 }
 
 static void hsw_activate_psr2(struct intel_dp *intel_dp)
@@ -528,9 +529,9 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
 	 * recommending keep this bit unset while PSR2 is enabled.
 	 */
-	I915_WRITE(EDP_PSR_CTL, 0);
+	I915_WRITE(EDP_PSR_CTL(dev_priv->psr.transcoder), 0);
 
-	I915_WRITE(EDP_PSR2_CTL, val);
+	I915_WRITE(EDP_PSR2_CTL(dev_priv->psr.transcoder), val);
 }
 
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
@@ -606,10 +607,9 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 
 	/*
 	 * HSW spec explicitly says PSR is tied to port A.
-	 * BDW+ platforms with DDI implementation of PSR have different
-	 * PSR registers per transcoder and we only implement transcoder EDP
-	 * ones. Since by Display design transcoder EDP is tied to port A
-	 * we can safely escape based on the port A.
+	 * BDW+ platforms have a instance of PSR registers per transcoder but
+	 * for now it only supports one instance of PSR, so lets keep it
+	 * hardcoded to PORT_A
 	 */
 	if (dig_port->base.port != PORT_A) {
 		DRM_DEBUG_KMS("PSR condition failed: Port not supported\n");
@@ -649,8 +649,8 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		WARN_ON(I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE);
-	WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
+		WARN_ON(I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder)) & EDP_PSR2_ENABLE);
+	WARN_ON(I915_READ(EDP_PSR_CTL(dev_priv->psr.transcoder)) & EDP_PSR_ENABLE);
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
@@ -720,19 +720,37 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (INTEL_GEN(dev_priv) < 11)
 		mask |= EDP_PSR_DEBUG_MASK_DISP_REG_WRITE;
 
-	I915_WRITE(EDP_PSR_DEBUG, mask);
+	I915_WRITE(EDP_PSR_DEBUG(dev_priv->psr.transcoder), mask);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 				    const struct intel_crtc_state *crtc_state)
 {
 	struct intel_dp *intel_dp = dev_priv->psr.dp;
+	u32 val;
 
 	WARN_ON(dev_priv->psr.enabled);
 
 	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	dev_priv->psr.transcoder = crtc_state->cpu_transcoder;
+
+	/*
+	 * If a PSR error happened and the driver is reloaded, the EDP_PSR_IIR
+	 * will still keep the error set even after the reset done in the
+	 * irq_preinstall and irq_uninstall hooks.
+	 * And enabling in this situation cause the screen to freeze in the
+	 * first time that PSR HW tries to activate so lets keep PSR disabled
+	 * to avoid any rendering problems.
+	 */
+	val = I915_READ(EDP_PSR_IIR);
+	val &= EDP_PSR_ERROR(edp_psr_shift(dev_priv->psr.transcoder));
+	if (val) {
+		dev_priv->psr.sink_not_reliable = true;
+		DRM_DEBUG_KMS("PSR interruption error set, not enabling PSR\n");
+		return;
+	}
 
 	DRM_DEBUG_KMS("Enabling PSR%s\n",
 		      dev_priv->psr.psr2_enabled ? "2" : "1");
@@ -782,20 +800,27 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	if (!dev_priv->psr.active) {
-		if (INTEL_GEN(dev_priv) >= 9)
-			WARN_ON(I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE);
-		WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
+		if (INTEL_GEN(dev_priv) >= 9) {
+			val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
+			WARN_ON(val & EDP_PSR2_ENABLE);
+		}
+
+		val = I915_READ(EDP_PSR_CTL(dev_priv->psr.transcoder));
+		WARN_ON(val & EDP_PSR_ENABLE);
+
 		return;
 	}
 
 	if (dev_priv->psr.psr2_enabled) {
-		val = I915_READ(EDP_PSR2_CTL);
+		val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
 		WARN_ON(!(val & EDP_PSR2_ENABLE));
-		I915_WRITE(EDP_PSR2_CTL, val & ~EDP_PSR2_ENABLE);
+		val &= ~EDP_PSR2_ENABLE;
+		I915_WRITE(EDP_PSR2_CTL(dev_priv->psr.transcoder), val);
 	} else {
-		val = I915_READ(EDP_PSR_CTL);
+		val = I915_READ(EDP_PSR_CTL(dev_priv->psr.transcoder));
 		WARN_ON(!(val & EDP_PSR_ENABLE));
-		I915_WRITE(EDP_PSR_CTL, val & ~EDP_PSR_ENABLE);
+		val &= ~EDP_PSR_ENABLE;
+		I915_WRITE(EDP_PSR_CTL(dev_priv->psr.transcoder), val);
 	}
 	dev_priv->psr.active = false;
 }
@@ -817,10 +842,10 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	intel_psr_exit(dev_priv);
 
 	if (dev_priv->psr.psr2_enabled) {
-		psr_status = EDP_PSR2_STATUS;
+		psr_status = EDP_PSR2_STATUS(dev_priv->psr.transcoder);
 		psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
 	} else {
-		psr_status = EDP_PSR_STATUS;
+		psr_status = EDP_PSR_STATUS(dev_priv->psr.transcoder);
 		psr_status_mask = EDP_PSR_STATUS_STATE_MASK;
 	}
 
@@ -963,7 +988,8 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 	 * defensive enough to cover everything.
 	 */
 
-	return __intel_wait_for_register(&dev_priv->uncore, EDP_PSR_STATUS,
+	return __intel_wait_for_register(&dev_priv->uncore,
+					 EDP_PSR_STATUS(dev_priv->psr.transcoder),
 					 EDP_PSR_STATUS_STATE_MASK,
 					 EDP_PSR_STATUS_STATE_IDLE, 2, 50,
 					 out_value);
@@ -979,10 +1005,10 @@ static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 		return false;
 
 	if (dev_priv->psr.psr2_enabled) {
-		reg = EDP_PSR2_STATUS;
+		reg = EDP_PSR2_STATUS(dev_priv->psr.transcoder);
 		mask = EDP_PSR2_STATUS_STATE_MASK;
 	} else {
-		reg = EDP_PSR_STATUS;
+		reg = EDP_PSR_STATUS(dev_priv->psr.transcoder);
 		mask = EDP_PSR_STATUS_STATE_MASK;
 	}
 
@@ -1208,35 +1234,23 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
  */
 void intel_psr_init(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
 	if (!HAS_PSR(dev_priv))
 		return;
-
-	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
-		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
 
 	if (!dev_priv->psr.sink_support)
 		return;
 
+	if (IS_HASWELL(dev_priv))
+		/*
+		 * HSW don't have PSR registers on the same space as transcoder
+		 * so set this to a value that when subtract to the register
+		 * in transcoder space results in the right offset for HSW
+		 */
+		dev_priv->hsw_psr_mmio_adjust = _SRD_CTL_EDP - _HSW_EDP_PSR_BASE;
+
 	if (i915_modparams.enable_psr == -1)
 		if (INTEL_GEN(dev_priv) < 9 || !dev_priv->vbt.psr.enable)
 			i915_modparams.enable_psr = 0;
-
-	/*
-	 * If a PSR error happened and the driver is reloaded, the EDP_PSR_IIR
-	 * will still keep the error set even after the reset done in the
-	 * irq_preinstall and irq_uninstall hooks.
-	 * And enabling in this situation cause the screen to freeze in the
-	 * first time that PSR HW tries to activate so lets keep PSR disabled
-	 * to avoid any rendering problems.
-	 */
-	val = I915_READ(EDP_PSR_IIR);
-	val &= EDP_PSR_ERROR(edp_psr_shift(TRANSCODER_EDP));
-	if (val) {
-		DRM_DEBUG_KMS("PSR interruption error set\n");
-		dev_priv->psr.sink_not_reliable = true;
-	}
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
