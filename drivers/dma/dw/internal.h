@@ -23,4 +23,32 @@ int do_dw_dma_enable(struct dw_dma_chip *chip);
 
 extern bool dw_dma_filter(struct dma_chan *chan, void *param);
 
+struct dw_dma_chip_pdata {
+	const struct dw_dma_platform_data *pdata;
+	int (*probe)(struct dw_dma_chip *chip);
+	int (*remove)(struct dw_dma_chip *chip);
+	struct dw_dma_chip *chip;
+};
+
+static __maybe_unused const struct dw_dma_chip_pdata dw_dma_chip_pdata = {
+	.probe = dw_dma_probe,
+	.remove = dw_dma_remove,
+};
+
+static const struct dw_dma_platform_data idma32_pdata = {
+	.nr_channels = 8,
+	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
+	.chan_priority = CHAN_PRIORITY_ASCENDING,
+	.block_size = 131071,
+	.nr_masters = 1,
+	.data_width = {4},
+	.multi_block = {1, 1, 1, 1, 1, 1, 1, 1},
+};
+
+static __maybe_unused const struct dw_dma_chip_pdata idma32_chip_pdata = {
+	.pdata = &idma32_pdata,
+	.probe = idma32_dma_probe,
+	.remove = idma32_dma_remove,
+};
+
 #endif /* _DMA_DW_INTERNAL_H */
