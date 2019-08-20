@@ -1222,9 +1222,18 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	if (!iommu->clocks)
 		return -ENOMEM;
 
-	for (i = 0; i < iommu->num_clocks; ++i)
-		iommu->clocks[i].id = rk_iommu_clocks[i];
-
+	for (i = 0; i < iommu->num_clocks; ++i) {
+		err = of_property_match_string(dev->of_node, "clock-names",
+					       rk_iommu_clocks[i]);
+		if (err < 0) {
+			if (!strcmp(rk_iommu_clocks[i], "iface")) {
+				iommu->clocks[i].id = "hclk";
+				dev_warn(dev, "iommu hclk need to update to iface\n");
+			}
+		} else {
+			iommu->clocks[i].id = rk_iommu_clocks[i];
+		}
+	}
 	/*
 	 * iommu clocks should be present for all new devices and devicetrees
 	 * but there are older devicetrees without clocks out in the wild.
