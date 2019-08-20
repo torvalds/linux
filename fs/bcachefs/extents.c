@@ -915,6 +915,16 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 	    bch2_extent_merge_inline(c, iter, bkey_to_packed(insert), k, false))
 		return;
 
+	/*
+	 * may have skipped past some deleted extents greater than the insert
+	 * key, before we got to a non deleted extent and knew we could bail out
+	 * rewind the iterator a bit if necessary:
+	 */
+	node_iter = l->iter;
+	while ((k = bch2_btree_node_iter_prev_all(&node_iter, l->b)) &&
+	       bkey_cmp_left_packed(l->b, k, &insert->k.p) > 0)
+		l->iter = node_iter;
+
 	k = bch2_btree_node_iter_bset_pos(&l->iter, l->b, bset_tree_last(l->b));
 
 	bch2_bset_insert(l->b, &l->iter, k, insert, 0);
@@ -1202,19 +1212,6 @@ next:
 		if (overlap == BCH_EXTENT_OVERLAP_FRONT ||
 		    overlap == BCH_EXTENT_OVERLAP_MIDDLE)
 			break;
-	}
-
-	/*
-	 * may have skipped past some deleted extents greater than the insert
-	 * key, before we got to a non deleted extent and knew we could bail out
-	 * rewind the iterator a bit if necessary:
-	 */
-	{
-		struct btree_node_iter node_iter = l->iter;
-
-		while ((_k = bch2_btree_node_iter_prev_all(&node_iter, l->b)) &&
-		       bkey_cmp_left_packed(l->b, _k, &insert->k.p) > 0)
-			l->iter = node_iter;
 	}
 }
 
