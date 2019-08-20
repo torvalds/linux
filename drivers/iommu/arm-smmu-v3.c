@@ -1286,6 +1286,22 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 	}
 }
 
+/*
+ * This is the actual insertion function, and provides the following
+ * ordering guarantees to callers:
+ *
+ * - There is a dma_wmb() before publishing any commands to the queue.
+ *   This can be relied upon to order prior writes to data structures
+ *   in memory (such as a CD or an STE) before the command.
+ *
+ * - On completion of a CMD_SYNC, there is a control dependency.
+ *   This can be relied upon to order subsequent writes to memory (e.g.
+ *   freeing an IOVA) after completion of the CMD_SYNC.
+ *
+ * - Command insertion is totally ordered, so if two CPUs each race to
+ *   insert their own list of commands then all of the commands from one
+ *   CPU will appear before any of the commands from the other CPU.
+ */
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
