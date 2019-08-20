@@ -5820,7 +5820,7 @@ struct hdcp2_dp_msg_data {
 	u32 timeout2; /* Added for non_paired situation */
 };
 
-static struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
+static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
 	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0 },
 	{ HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
 	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
@@ -5908,7 +5908,7 @@ int hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
 
 static ssize_t
 intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
-			    struct hdcp2_dp_msg_data *hdcp2_msg_data)
+			    const struct hdcp2_dp_msg_data *hdcp2_msg_data)
 {
 	struct intel_dp *dp = &intel_dig_port->dp;
 	struct intel_hdcp *hdcp = &dp->attached_connector->hdcp;
@@ -5947,7 +5947,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
 	return ret;
 }
 
-static struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
+static const struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
 {
 	int i;
 
@@ -5967,7 +5967,7 @@ int intel_dp_hdcp2_write_msg(struct intel_digital_port *intel_dig_port,
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_write, len;
-	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(*byte);
 	if (!hdcp2_msg_data)
@@ -6031,7 +6031,7 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *intel_dig_port,
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_recv, len;
-	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(msg_id);
 	if (!hdcp2_msg_data)
