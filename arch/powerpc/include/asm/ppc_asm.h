@@ -347,12 +347,12 @@ n:
 
 #define LOAD_REG_IMMEDIATE(reg, expr) __LOAD_REG_IMMEDIATE reg, expr
 
-#define LOAD_REG_IMMEDIATE_SYM(reg,expr)	\
-	lis     reg,(expr)@highest;		\
-	ori     reg,reg,(expr)@higher;	\
-	rldicr  reg,reg,32,31;		\
-	oris    reg,reg,(expr)@__AS_ATHIGH;	\
-	ori     reg,reg,(expr)@l;
+#define LOAD_REG_IMMEDIATE_SYM(reg, tmp, expr)	\
+	lis	tmp, (expr)@highest;		\
+	lis	reg, (expr)@__AS_ATHIGH;	\
+	ori	tmp, tmp, (expr)@higher;	\
+	ori	reg, reg, (expr)@l;		\
+	rldimi	reg, tmp, 32, 0
 
 #define LOAD_REG_ADDR(reg,name)			\
 	ld	reg,name@got(r2)
