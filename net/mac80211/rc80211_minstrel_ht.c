@@ -486,7 +486,7 @@ minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
 	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_ewma;
 	tmp_mcs_tp = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
-	if (tmp_cck_tp > tmp_mcs_tp) {
+	if (tmp_cck_tp_rate && tmp_cck_tp > tmp_mcs_tp) {
 		for(i = 0; i < MAX_THR_RATES; i++) {
 			minstrel_ht_sort_best_tp_rates(mi, tmp_cck_tp_rate[i],
 						       tmp_mcs_tp_rate);
@@ -558,11 +558,19 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	mi->sample_slow = 0;
 	mi->sample_count = 0;
 
-	/* Initialize global rate indexes */
-	for(j = 0; j < MAX_THR_RATES; j++){
-		tmp_mcs_tp_rate[j] = 0;
-		tmp_cck_tp_rate[j] = 0;
-	}
+	memset(tmp_mcs_tp_rate, 0, sizeof(tmp_mcs_tp_rate));
+	memset(tmp_cck_tp_rate, 0, sizeof(tmp_cck_tp_rate));
+	if (mi->supported[MINSTREL_CCK_GROUP])
+		for (j = 0; j < ARRAY_SIZE(tmp_cck_tp_rate); j++)
+			tmp_cck_tp_rate[j] = MINSTREL_CCK_GROUP * MCS_GROUP_RATES;
+
+	if (mi->supported[MINSTREL_VHT_GROUP_0])
+		index = MINSTREL_VHT_GROUP_0 * MCS_GROUP_RATES;
+	else
+		index = MINSTREL_HT_GROUP_0 * MCS_GROUP_RATES;
+
+	for (j = 0; j < ARRAY_SIZE(tmp_mcs_tp_rate); j++)
+		tmp_mcs_tp_rate[j] = index;
 
 	/* Find best rate sets within all MCS groups*/
 	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
