@@ -373,7 +373,7 @@ static int test_wait_timeout(void *arg)
 	struct wait_timer wt;
 	int err = -EINVAL;
 
-	timer_setup(&wt.timer, wait_timer, 0);
+	timer_setup_on_stack(&wt.timer, wait_timer, 0);
 
 	wt.f = mock_fence();
 	if (!wt.f)
@@ -399,6 +399,7 @@ static int test_wait_timeout(void *arg)
 	err = 0;
 err_free:
 	del_timer_sync(&wt.timer);
+	destroy_timer_on_stack(&wt.timer);
 	dma_fence_signal(wt.f);
 	dma_fence_put(wt.f);
 	return err;
