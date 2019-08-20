@@ -31,6 +31,21 @@ static inline void dw_dma_acpi_controller_register(struct dw_dma *dw) {}
 static inline void dw_dma_acpi_controller_free(struct dw_dma *dw) {}
 #endif /* !CONFIG_ACPI */
 
+struct platform_device;
+
+#ifdef CONFIG_OF
+struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev);
+void dw_dma_of_controller_register(struct dw_dma *dw);
+void dw_dma_of_controller_free(struct dw_dma *dw);
+#else
+static inline struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
+{
+	return NULL;
+}
+static inline void dw_dma_of_controller_register(struct dw_dma *dw) {}
+static inline void dw_dma_of_controller_free(struct dw_dma *dw) {}
+#endif
+
 struct dw_dma_chip_pdata {
 	const struct dw_dma_platform_data *pdata;
 	int (*probe)(struct dw_dma_chip *chip);
