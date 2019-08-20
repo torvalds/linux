@@ -959,13 +959,6 @@ When kbuild executes, the following steps are followed (roughly):
 	$(KBUILD_ARFLAGS) set by the top level Makefile to "D" (deterministic
 	mode) if this option is supported by $(AR).
 
-    ARCH_CPPFLAGS, ARCH_AFLAGS, ARCH_CFLAGS   Overrides the kbuild defaults
-
-	These variables are appended to the KBUILD_CPPFLAGS,
-	KBUILD_AFLAGS, and KBUILD_CFLAGS, respectively, after the
-	top-level Makefile has set any other flags. This provides a
-	means for an architecture to override the defaults.
-
     KBUILD_LDS
 
 	The linker script with full path. Assigned by the top-level Makefile.
