@@ -36,7 +36,7 @@ void __trace_hcall_entry(unsigned long opcode, unsigned long *args);
 void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf);
 
 /* Ultravisor */
-#ifdef CONFIG_PPC_POWERNV
+#if defined(CONFIG_PPC_POWERNV) || defined(CONFIG_PPC_SVM)
 long ucall_norets(unsigned long opcode, ...);
 #else
 static inline long ucall_norets(unsigned long opcode, ...)
