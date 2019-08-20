@@ -925,6 +925,14 @@ static const struct of_device_id sh_cmt_of_table[] __maybe_unused = {
 		.data = &sh_cmt_info[SH_CMT0_RCAR_GEN2]
 	},
 	{
+		.compatible = "renesas,r8a7740-cmt1",
+		.data = &sh_cmt_info[SH_CMT_48BIT]
+	},
+	{
+		.compatible = "renesas,sh73a0-cmt1",
+		.data = &sh_cmt_info[SH_CMT_48BIT]
+	},
+	{
 		.compatible = "renesas,rcar-gen2-cmt0",
 		.data = &sh_cmt_info[SH_CMT0_RCAR_GEN2]
 	},
