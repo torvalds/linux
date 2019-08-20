@@ -119,8 +119,6 @@ enum opal_uid {
 	OPAL_UID_HEXFF,
 };
 
-#define OPAL_METHOD_LENGTH 8
-
 /* Enum for indexing the OPALMETHOD array */
 enum opal_method {
 	OPAL_PROPERTIES,
