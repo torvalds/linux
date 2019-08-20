@@ -26,8 +26,8 @@ extern void flush_dcache_page(struct page *);
 #define flush_icache_page(vma, page)		cache_wbinv_all()
 #define flush_icache_range(start, end)		cache_wbinv_range(start, end)
 
-#define flush_icache_user_range(vma, pg, adr, len) \
-				cache_wbinv_range(adr, adr + len)
+#define flush_icache_user_range(vma,page,addr,len) \
+	flush_dcache_page(page)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 do { \
