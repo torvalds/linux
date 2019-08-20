@@ -97,6 +97,9 @@ enum lsm_event {
  * potentially a moving target. It is easy to misuse this information
  * in a way that could break userspace. Please be careful not to do
  * so.
+ *
+ * If you add to this, remember to extend lockdown_reasons in
+ * security/lockdown/lockdown.c.
  */
 enum lockdown_reason {
 	LOCKDOWN_NONE,
