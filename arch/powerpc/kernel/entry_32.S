@@ -230,7 +230,7 @@ transfer_to_handler_cont:
 	 */
 	lis	r12,reenable_mmu@h
 	ori	r12,r12,reenable_mmu@l
-	LOAD_MSR_KERNEL(r0, MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r0, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r0
 	SYNC
@@ -304,7 +304,7 @@ stack_ovf:
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
 	lis	r9,StackOverflow@ha
 	addi	r9,r9,StackOverflow@l
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
 	mtspr	SPRN_NRI, r0
 #endif
@@ -324,7 +324,7 @@ trace_syscall_entry_irq_off:
 	bl	trace_hardirqs_on
 
 	/* Now enable for real */
-	LOAD_MSR_KERNEL(r10, MSR_KERNEL | MSR_EE)
+	LOAD_REG_IMMEDIATE(r10, MSR_KERNEL | MSR_EE)
 	mtmsr	r10
 
 	REST_GPR(0, r1)
@@ -394,7 +394,7 @@ ret_from_syscall:
 #endif
 	mr	r6,r3
 	/* disable interrupts so current_thread_info()->flags can't change */
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
+	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
 	/* Note: We don't bother telling lockdep about it */
 	SYNC
 	MTMSRD(r10)
@@ -824,7 +824,7 @@ ret_from_except:
 	 * can't change between when we test it and when we return
 	 * from the interrupt. */
 	/* Note: We don't bother telling lockdep about it */
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
 	SYNC			/* Some chip revs have problems here... */
 	MTMSRD(r10)		/* disable interrupts */
 
@@ -991,7 +991,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	 * can restart the exception exit path at the label
 	 * exc_exit_restart below.  -- paulus
 	 */
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL & ~MSR_RI)
+	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL & ~MSR_RI)
 	SYNC
 	MTMSRD(r10)		/* clear the RI bit */
 	.globl exc_exit_restart
@@ -1066,7 +1066,7 @@ exc_exit_restart_end:
 	REST_NVGPRS(r1);						\
 	lwz	r3,_MSR(r1);						\
 	andi.	r3,r3,MSR_PR;						\
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL);				\
+	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL);				\
 	bne	user_exc_return;					\
 	lwz	r0,GPR0(r1);						\
 	lwz	r2,GPR2(r1);						\
@@ -1236,7 +1236,7 @@ recheck:
 	 * neither. Those disable/enable cycles used to peek at
 	 * TI_FLAGS aren't advertised.
 	 */
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
 	SYNC
 	MTMSRD(r10)		/* disable interrupts */
 	lwz	r9,TI_FLAGS(r2)
@@ -1329,7 +1329,7 @@ _GLOBAL(enter_rtas)
 	lwz	r4,RTASBASE(r4)
 	mfmsr	r9
 	stw	r9,8(r1)
-	LOAD_MSR_KERNEL(r0,MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r0,MSR_KERNEL)
 	SYNC			/* disable interrupts so SRR0/1 */
 	MTMSRD(r0)		/* don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
