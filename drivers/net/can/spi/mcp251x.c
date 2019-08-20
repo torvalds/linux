@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * CAN bus driver for Microchip 251x/25625 CAN Controller with SPI Interface
+/* CAN bus driver for Microchip 251x/25625 CAN Controller with SPI Interface
  *
  * MCP2510 support and bug fixes by Christian Pellegrin
  * <chripell@evolware.org>
@@ -48,7 +47,6 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/dma-mapping.h>
 #include <linux/freezer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -74,7 +72,6 @@
 #define RTS_TXB1		0x02
 #define RTS_TXB2		0x04
 #define INSTRUCTION_RTS(n)	(0x80 | ((n) & 0x07))
-
 
 /* MPC251x registers */
 #define CANSTAT	      0x0e
@@ -191,8 +188,7 @@
 #define SET_BYTE(val, byte)			\
 	(((val) & 0xff) << ((byte) * 8))
 
-/*
- * Buffer size required for the largest SPI transfer (i.e., reading a
+/* Buffer size required for the largest SPI transfer (i.e., reading a
  * frame)
  */
 #define CAN_FRAME_MAX_DATA_LEN	8
@@ -204,10 +200,6 @@
 #define MCP251X_OST_DELAY_MS	(5)
 
 #define DEVICE_NAME "mcp251x"
-
-static int mcp251x_enable_dma; /* Enable SPI DMA. Default: 0 (Off) */
-module_param(mcp251x_enable_dma, int, 0444);
-MODULE_PARM_DESC(mcp251x_enable_dma, "Enable SPI DMA. Default: 0 (Off)");
 
 static const struct can_bittiming_const mcp251x_bittiming_const = {
 	.name = DEVICE_NAME,
@@ -237,8 +229,6 @@ struct mcp251x_priv {
 
 	u8 *spi_tx_buf;
 	u8 *spi_rx_buf;
-	dma_addr_t spi_tx_dma;
-	dma_addr_t spi_rx_dma;
 
 	struct sk_buff *tx_skb;
 	int tx_len;
@@ -282,8 +272,7 @@ static void mcp251x_clean(struct net_device *net)
 	priv->tx_len = 0;
 }
 
-/*
- * Note about handling of error return of mcp251x_spi_trans: accessing
+/* Note about handling of error return of mcp251x_spi_trans: accessing
  * registers via SPI is not really different conceptually than using
  * normal I/O assembler instructions, although it's much more
  * complicated from a practical POV. So it's not advisable to always
@@ -308,13 +297,6 @@ static int mcp251x_spi_trans(struct spi_device *spi, int len)
 	int ret;
 
 	spi_message_init(&m);
-
-	if (mcp251x_enable_dma) {
-		t.tx_dma = priv->spi_tx_dma;
-		t.rx_dma = priv->spi_rx_dma;
-		m.is_dma_mapped = 1;
-	}
-
 	spi_message_add_tail(&t, &m);
 
 	ret = spi_sync(spi, &m);
@@ -323,7 +305,7 @@ static int mcp251x_spi_trans(struct spi_device *spi, int len)
 	return ret;
 }
 
-static u8 mcp251x_read_reg(struct spi_device *spi, uint8_t reg)
+static u8 mcp251x_read_reg(struct spi_device *spi, u8 reg)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	u8 val = 0;
@@ -337,8 +319,7 @@ static u8 mcp251x_read_reg(struct spi_device *spi, uint8_t reg)
 	return val;
 }
 
-static void mcp251x_read_2regs(struct spi_device *spi, uint8_t reg,
-		uint8_t *v1, uint8_t *v2)
+static void mcp251x_read_2regs(struct spi_device *spi, u8 reg, u8 *v1, u8 *v2)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
@@ -351,7 +332,7 @@ static void mcp251x_read_2regs(struct spi_device *spi, uint8_t reg,
 	*v2 = priv->spi_rx_buf[3];
 }
 
-static void mcp251x_write_reg(struct spi_device *spi, u8 reg, uint8_t val)
+static void mcp251x_write_reg(struct spi_device *spi, u8 reg, u8 val)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
@@ -363,7 +344,7 @@ static void mcp251x_write_reg(struct spi_device *spi, u8 reg, uint8_t val)
 }
 
 static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
-			       u8 mask, uint8_t val)
+			       u8 mask, u8 val)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
@@ -565,8 +546,7 @@ static int mcp251x_set_normal_mode(struct spi_device *spi)
 		while (mcp251x_read_reg(spi, CANSTAT) & CANCTRL_REQOP_MASK) {
 			schedule();
 			if (time_after(jiffies, timeout)) {
-				dev_err(&spi->dev, "MCP251x didn't"
-					" enter in normal mode\n");
+				dev_err(&spi->dev, "MCP251x didn't enter in normal mode\n");
 				return -EBUSY;
 			}
 		}
@@ -612,7 +592,7 @@ static int mcp251x_setup(struct net_device *net, struct spi_device *spi)
 static int mcp251x_hw_reset(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
-	u8 reg;
+	unsigned long timeout;
 	int ret;
 
 	/* Wait for oscillator startup timer after power up */
@@ -626,10 +606,19 @@ static int mcp251x_hw_reset(struct spi_device *spi)
 	/* Wait for oscillator startup timer after reset */
 	mdelay(MCP251X_OST_DELAY_MS);
 
-	reg = mcp251x_read_reg(spi, CANSTAT);
-	if ((reg & CANCTRL_REQOP_MASK) != CANCTRL_REQOP_CONF)
-		return -ENODEV;
+	/* Wait for reset to finish */
+	timeout = jiffies + HZ;
+	while ((mcp251x_read_reg(spi, CANSTAT) & CANCTRL_REQOP_MASK) !=
+	       CANCTRL_REQOP_CONF) {
+		usleep_range(MCP251X_OST_DELAY_MS * 1000,
+			     MCP251X_OST_DELAY_MS * 1000 * 2);
 
+		if (time_after(jiffies, timeout)) {
+			dev_err(&spi->dev,
+				"MCP251x didn't enter in conf mode after reset\n");
+			return -EBUSY;
+		}
+	}
 	return 0;
 }
 
@@ -799,7 +788,8 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 			 * (The MCP2515/25625 does this automatically.)
 			 */
 			if (mcp251x_is_2510(spi))
-				mcp251x_write_bits(spi, CANINTF, CANINTF_RX0IF, 0x00);
+				mcp251x_write_bits(spi, CANINTF,
+						   CANINTF_RX0IF, 0x00);
 		}
 
 		/* receive buffer 1 */
@@ -900,7 +890,6 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 			}
 			netif_wake_queue(net);
 		}
-
 	}
 	mutex_unlock(&priv->mcp_lock);
 	return IRQ_HANDLED;
@@ -910,7 +899,7 @@ static int mcp251x_open(struct net_device *net)
 {
 	struct mcp251x_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_FALLING;
+	unsigned long flags = 0;
 	int ret;
 
 	ret = open_candev(net);
@@ -926,8 +915,12 @@ static int mcp251x_open(struct net_device *net)
 	priv->tx_skb = NULL;
 	priv->tx_len = 0;
 
+	if (!spi->dev.of_node)
+		flags = IRQF_TRIGGER_FALLING;
+
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
-				   flags | IRQF_ONESHOT, DEVICE_NAME, priv);
+				   flags | IRQF_ONESHOT, dev_name(&spi->dev),
+				   priv);
 	if (ret) {
 		dev_err(&spi->dev, "failed to acquire irq %d\n", spi->irq);
 		goto out_close;
@@ -1090,43 +1083,18 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->spi = spi;
 	mutex_init(&priv->mcp_lock);
 
-	/* If requested, allocate DMA buffers */
-	if (mcp251x_enable_dma) {
-		spi->dev.coherent_dma_mask = ~0;
-
-		/*
-		 * Minimum coherent DMA allocation is PAGE_SIZE, so allocate
-		 * that much and share it between Tx and Rx DMA buffers.
-		 */
-		priv->spi_tx_buf = dmam_alloc_coherent(&spi->dev,
-						       PAGE_SIZE,
-						       &priv->spi_tx_dma,
-						       GFP_DMA);
-
-		if (priv->spi_tx_buf) {
-			priv->spi_rx_buf = (priv->spi_tx_buf + (PAGE_SIZE / 2));
-			priv->spi_rx_dma = (dma_addr_t)(priv->spi_tx_dma +
-							(PAGE_SIZE / 2));
-		} else {
-			/* Fall back to non-DMA */
-			mcp251x_enable_dma = 0;
-		}
+	priv->spi_tx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
+					GFP_KERNEL);
+	if (!priv->spi_tx_buf) {
+		ret = -ENOMEM;
+		goto error_probe;
 	}
 
-	/* Allocate non-DMA buffers */
-	if (!mcp251x_enable_dma) {
-		priv->spi_tx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
-						GFP_KERNEL);
-		if (!priv->spi_tx_buf) {
-			ret = -ENOMEM;
-			goto error_probe;
-		}
-		priv->spi_rx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
-						GFP_KERNEL);
-		if (!priv->spi_rx_buf) {
-			ret = -ENOMEM;
-			goto error_probe;
-		}
+	priv->spi_rx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
+					GFP_KERNEL);
+	if (!priv->spi_rx_buf) {
+		ret = -ENOMEM;
+		goto error_probe;
 	}
 
 	SET_NETDEV_DEV(net, &spi->dev);
@@ -1135,7 +1103,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	ret = mcp251x_hw_probe(spi);
 	if (ret) {
 		if (ret == -ENODEV)
-			dev_err(&spi->dev, "Cannot initialize MCP%x. Wrong wiring?\n", priv->model);
+			dev_err(&spi->dev, "Cannot initialize MCP%x. Wrong wiring?\n",
+				priv->model);
 		goto error_probe;
 	}
 
@@ -1189,8 +1158,7 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 
 	priv->force_quit = 1;
 	disable_irq(spi->irq);
-	/*
-	 * Note: at this point neither IST nor workqueues are running.
+	/* Note: at this point neither IST nor workqueues are running.
 	 * open/stop cannot be called anyway so locking is not needed
 	 */
 	if (netif_running(net)) {

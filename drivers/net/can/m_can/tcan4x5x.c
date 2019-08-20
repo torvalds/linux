@@ -113,7 +113,6 @@
 struct tcan4x5x_priv {
 	struct regmap *regmap;
 	struct spi_device *spi;
-	struct mutex tcan4x5x_lock; /* SPI device lock */
 
 	struct m_can_classdev *mcan_dev;
 
@@ -179,7 +178,7 @@ static int regmap_spi_gather_write(void *context, const void *reg,
 		{ .tx_buf = val, .len = val_len, },
 	};
 
-	addr = TCAN4X5X_WRITE_CMD | (*((u16 *)reg) << 8) | val_len >> 3;
+	addr = TCAN4X5X_WRITE_CMD | (*((u16 *)reg) << 8) | val_len >> 2;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t[0], &m);
@@ -193,7 +192,7 @@ static int tcan4x5x_regmap_write(void *context, const void *data, size_t count)
 	u16 *reg = (u16 *)(data);
 	const u32 *val = data + 4;
 
-	return regmap_spi_gather_write(context, reg, 4, val, count);
+	return regmap_spi_gather_write(context, reg, 4, val, count - 4);
 }
 
 static int regmap_spi_async_write(void *context,
@@ -234,7 +233,7 @@ static struct regmap_bus tcan4x5x_bus = {
 
 static u32 tcan4x5x_read_reg(struct m_can_classdev *cdev, int reg)
 {
-	struct tcan4x5x_priv *priv = (struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *priv = cdev->device_data;
 	u32 val;
 
 	tcan4x5x_check_wake(priv);
@@ -246,7 +245,7 @@ static u32 tcan4x5x_read_reg(struct m_can_classdev *cdev, int reg)
 
 static u32 tcan4x5x_read_fifo(struct m_can_classdev *cdev, int addr_offset)
 {
-	struct tcan4x5x_priv *priv = (struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *priv = cdev->device_data;
 	u32 val;
 
 	tcan4x5x_check_wake(priv);
@@ -258,7 +257,7 @@ static u32 tcan4x5x_read_fifo(struct m_can_classdev *cdev, int addr_offset)
 
 static int tcan4x5x_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
-	struct tcan4x5x_priv *priv = (struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *priv = cdev->device_data;
 
 	tcan4x5x_check_wake(priv);
 
@@ -268,8 +267,7 @@ static int tcan4x5x_write_reg(struct m_can_classdev *cdev, int reg, int val)
 static int tcan4x5x_write_fifo(struct m_can_classdev *cdev,
 			       int addr_offset, int val)
 {
-	struct tcan4x5x_priv *priv =
-			(struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *priv = cdev->device_data;
 
 	tcan4x5x_check_wake(priv);
 
@@ -290,8 +288,7 @@ static int tcan4x5x_power_enable(struct regulator *reg, int enable)
 static int tcan4x5x_write_tcan_reg(struct m_can_classdev *cdev,
 				   int reg, int val)
 {
-	struct tcan4x5x_priv *priv =
-			(struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *priv = cdev->device_data;
 
 	tcan4x5x_check_wake(priv);
 
@@ -300,8 +297,7 @@ static int tcan4x5x_write_tcan_reg(struct m_can_classdev *cdev,
 
 static int tcan4x5x_clear_interrupts(struct m_can_classdev *cdev)
 {
-	struct tcan4x5x_priv *tcan4x5x =
-				(struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *tcan4x5x = cdev->device_data;
 	int ret;
 
 	tcan4x5x_check_wake(tcan4x5x);
@@ -331,8 +327,7 @@ static int tcan4x5x_clear_interrupts(struct m_can_classdev *cdev)
 
 static int tcan4x5x_init(struct m_can_classdev *cdev)
 {
-	struct tcan4x5x_priv *tcan4x5x =
-				(struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *tcan4x5x = cdev->device_data;
 	int ret;
 
 	tcan4x5x_check_wake(tcan4x5x);
@@ -359,8 +354,7 @@ static int tcan4x5x_init(struct m_can_classdev *cdev)
 
 static int tcan4x5x_parse_config(struct m_can_classdev *cdev)
 {
-	struct tcan4x5x_priv *tcan4x5x =
-				(struct tcan4x5x_priv *)cdev->device_data;
+	struct tcan4x5x_priv *tcan4x5x = cdev->device_data;
 
 	tcan4x5x->interrupt_gpio = devm_gpiod_get(cdev->dev, "data-ready",
 						  GPIOD_IN);
@@ -420,6 +414,9 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	int freq, ret;
 
 	mcan_class = m_can_class_allocate_dev(&spi->dev);
+	if (!mcan_class)
+		return -ENOMEM;
+
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -465,8 +462,6 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 
 	priv->regmap = devm_regmap_init(&spi->dev, &tcan4x5x_bus,
 					&spi->dev, &tcan4x5x_regmap);
-
-	mutex_init(&priv->tcan4x5x_lock);
 
 	tcan4x5x_power_enable(priv->power, 1);
 
