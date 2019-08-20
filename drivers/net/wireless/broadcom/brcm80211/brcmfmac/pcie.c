@@ -794,7 +794,8 @@ static void brcmf_pcie_bus_console_read(struct brcmf_pciedev_info *devinfo,
 		if (ch == '\n') {
 			console->log_str[console->log_idx] = 0;
 			if (error)
-				brcmf_err(bus, "CONSOLE: %s", console->log_str);
+				__brcmf_err(bus, __func__, "CONSOLE: %s",
+					    console->log_str);
 			else
 				pr_debug("CONSOLE: %s", console->log_str);
 			console->log_idx = 0;

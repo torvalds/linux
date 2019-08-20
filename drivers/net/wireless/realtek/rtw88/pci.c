@@ -8,6 +8,7 @@
 #include "pci.h"
 #include "tx.h"
 #include "rx.h"
+#include "fw.h"
 #include "debug.h"
 
 static u32 rtw_pci_tx_queue_idx_addr[] = {
@@ -204,6 +205,23 @@ static int rtw_pci_reset_rx_desc(struct rtw_dev *rtwdev, struct sk_buff *skb,
 	buf_desc->dma = cpu_to_le32(dma);
 
 	return 0;
+}
+
+static void rtw_pci_sync_rx_desc_device(struct rtw_dev *rtwdev, dma_addr_t dma,
+					struct rtw_pci_rx_ring *rx_ring,
+					u32 idx, u32 desc_sz)
+{
+	struct device *dev = rtwdev->dev;
+	struct rtw_pci_rx_buffer_desc *buf_desc;
+	int buf_sz = RTK_PCI_RX_BUF_SIZE;
+
+	dma_sync_single_for_device(dev, dma, buf_sz, DMA_FROM_DEVICE);
+
+	buf_desc = (struct rtw_pci_rx_buffer_desc *)(rx_ring->r.head +
+						     idx * desc_sz);
+	memset(buf_desc, 0, sizeof(*buf_desc));
+	buf_desc->buf_size = cpu_to_le16(RTK_PCI_RX_BUF_SIZE);
+	buf_desc->dma = cpu_to_le32(dma);
 }
 
 static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
@@ -765,6 +783,7 @@ static void rtw_pci_rx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 	u32 pkt_offset;
 	u32 pkt_desc_sz = chip->rx_pkt_desc_sz;
 	u32 buf_desc_sz = chip->rx_buf_desc_sz;
+	u32 new_len;
 	u8 *rx_desc;
 	dma_addr_t dma;
 
@@ -783,8 +802,8 @@ static void rtw_pci_rx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		rtw_pci_dma_check(rtwdev, ring, cur_rp);
 		skb = ring->buf[cur_rp];
 		dma = *((dma_addr_t *)skb->cb);
-		pci_unmap_single(rtwpci->pdev, dma, RTK_PCI_RX_BUF_SIZE,
-				 PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(rtwdev->dev, dma, RTK_PCI_RX_BUF_SIZE,
+					DMA_FROM_DEVICE);
 		rx_desc = skb->data;
 		chip->ops->query_rx_desc(rtwdev, rx_desc, &pkt_stat, &rx_status);
 
@@ -792,40 +811,32 @@ static void rtw_pci_rx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		pkt_offset = pkt_desc_sz + pkt_stat.drv_info_sz +
 			     pkt_stat.shift;
 
+		/* allocate a new skb for this frame,
+		 * discard the frame if none available
+		 */
+		new_len = pkt_stat.pkt_len + pkt_offset;
+		new = dev_alloc_skb(new_len);
+		if (WARN_ONCE(!new, "rx routine starvation\n"))
+			goto next_rp;
+
+		/* put the DMA data including rx_desc from phy to new skb */
+		skb_put_data(new, skb->data, new_len);
+
 		if (pkt_stat.is_c2h) {
-			/* keep rx_desc, halmac needs it */
-			skb_put(skb, pkt_stat.pkt_len + pkt_offset);
-
-			/* pass offset for further operation */
-			*((u32 *)skb->cb) = pkt_offset;
-			skb_queue_tail(&rtwdev->c2h_queue, skb);
-			ieee80211_queue_work(rtwdev->hw, &rtwdev->c2h_work);
+			rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset, new);
 		} else {
-			/* remove rx_desc, maybe use skb_pull? */
-			skb_put(skb, pkt_stat.pkt_len);
-			skb_reserve(skb, pkt_offset);
+			/* remove rx_desc */
+			skb_pull(new, pkt_offset);
 
-			/* alloc a smaller skb to mac80211 */
-			new = dev_alloc_skb(pkt_stat.pkt_len);
-			if (!new) {
-				new = skb;
-			} else {
-				skb_put_data(new, skb->data, skb->len);
-				dev_kfree_skb_any(skb);
-			}
-			/* TODO: merge into rx.c */
-			rtw_rx_stats(rtwdev, pkt_stat.vif, skb);
+			rtw_rx_stats(rtwdev, pkt_stat.vif, new);
 			memcpy(new->cb, &rx_status, sizeof(rx_status));
 			ieee80211_rx_irqsafe(rtwdev->hw, new);
 		}
 
-		/* skb delivered to mac80211, alloc a new one in rx ring */
-		new = dev_alloc_skb(RTK_PCI_RX_BUF_SIZE);
-		if (WARN(!new, "rx routine starvation\n"))
-			return;
-
-		ring->buf[cur_rp] = new;
-		rtw_pci_reset_rx_desc(rtwdev, new, ring, cur_rp, buf_desc_sz);
+next_rp:
+		/* new skb delivered to mac80211, re-enable original skb DMA */
+		rtw_pci_sync_rx_desc_device(rtwdev, dma, ring, cur_rp,
+					    buf_desc_sz);
 
 		/* host read next element in ring */
 		if (++cur_rp >= ring->r.len)
@@ -977,7 +988,6 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 	u16 cut;
 	u16 value;
 	u16 offset;
-	u16 ip_sel;
 	int i;
 
 	cut = BIT(0) << rtwdev->hal.cut_version;
@@ -990,7 +1000,6 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 			break;
 		offset = para->offset;
 		value = para->value;
-		ip_sel = para->ip_sel;
 		if (para->ip_sel == RTW_IP_SEL_PHY)
 			rtw_mdio_write(rtwdev, offset, value, true);
 		else
@@ -1005,7 +1014,6 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 			break;
 		offset = para->offset;
 		value = para->value;
-		ip_sel = para->ip_sel;
 		if (para->ip_sel == RTW_IP_SEL_PHY)
 			rtw_mdio_write(rtwdev, offset, value, false);
 		else

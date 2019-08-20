@@ -258,7 +258,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
-	strlcpy(buf, "ver", sizeof(buf));
 	err = brcmf_fil_iovar_data_get(ifp, "ver", buf, sizeof(buf));
 	if (err < 0) {
 		bphy_err(drvr, "Retrieving version information failed, %d\n",

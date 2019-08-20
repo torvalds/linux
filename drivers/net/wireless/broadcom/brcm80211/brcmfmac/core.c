@@ -579,7 +579,8 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 
 	brcmf_cfg80211_down(ndev);
 
-	brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear", NULL, 0);
+	if (ifp->drvr->bus_if->state == BRCMF_BUS_UP)
+		brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear", NULL, 0);
 
 	brcmf_net_setcarrier(ifp, false);
 
@@ -1307,27 +1308,26 @@ void brcmf_detach(struct device *dev)
 	unregister_inet6addr_notifier(&drvr->inet6addr_notifier);
 #endif
 
-	/* stop firmware event handling */
-	brcmf_fweh_detach(drvr);
-	if (drvr->config)
-		brcmf_p2p_detach(&drvr->config->p2p);
-
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
-
-	brcmf_proto_detach_pre_delif(drvr);
-
-	/* make sure primary interface removed last */
-	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		brcmf_remove_interface(drvr->iflist[i], false);
-
-	brcmf_cfg80211_detach(drvr->config);
-	drvr->config = NULL;
-
 	brcmf_bus_stop(drvr->bus_if);
 
-	brcmf_proto_detach_post_delif(drvr);
+	brcmf_fweh_detach(drvr);
+	brcmf_proto_detach(drvr);
+
+	/* make sure primary interface removed last */
+	for (i = BRCMF_MAX_IFS - 1; i > -1; i--) {
+		if (drvr->iflist[i])
+			brcmf_del_if(drvr, drvr->iflist[i]->bsscfgidx, false);
+	}
+
+	if (drvr->config) {
+		brcmf_p2p_detach(&drvr->config->p2p);
+		brcmf_cfg80211_detach(drvr->config);
+		drvr->config = NULL;
+	}
 
 	bus_if->drvr = NULL;
+
 	wiphy_free(drvr->wiphy);
 }
 

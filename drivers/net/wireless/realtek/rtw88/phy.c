@@ -29,15 +29,6 @@ struct phy_pg_cfg_pair {
 	u32 data;
 };
 
-struct txpwr_lmt_cfg_pair {
-	u8 regd;
-	u8 band;
-	u8 bw;
-	u8 rs;
-	u8 ch;
-	s8 txpwr_lmt;
-};
-
 static const u32 db_invert_table[12][8] = {
 	{10,		13,		16,		20,
 	 25,		32,		40,		50},
@@ -1267,10 +1258,8 @@ static void rtw_xref_txpwr_lmt(struct rtw_dev *rtwdev)
 void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
 			     const struct rtw_table *tbl)
 {
-	const struct txpwr_lmt_cfg_pair *p = tbl->data;
-	const struct txpwr_lmt_cfg_pair *end = p + tbl->size / 6;
-
-	BUILD_BUG_ON(sizeof(struct txpwr_lmt_cfg_pair) != sizeof(u8) * 6);
+	const struct rtw_txpwr_lmt_cfg_pair *p = tbl->data;
+	const struct rtw_txpwr_lmt_cfg_pair *end = p + tbl->size;
 
 	for (; p < end; p++) {
 		rtw_phy_set_tx_power_limit(rtwdev, p->regd, p->band,

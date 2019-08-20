@@ -45,6 +45,15 @@ void rtw_phy_set_tx_power_level(struct rtw_dev *rtwdev, u8 channel);
 void rtw_phy_tx_power_by_rate_config(struct rtw_hal *hal);
 void rtw_phy_tx_power_limit_config(struct rtw_hal *hal);
 
+struct rtw_txpwr_lmt_cfg_pair {
+	u8 regd;
+	u8 band;
+	u8 bw;
+	u8 rs;
+	u8 ch;
+	s8 txpwr_lmt;
+};
+
 #define RTW_DECL_TABLE_PHY_COND_CORE(name, cfg, path)	\
 const struct rtw_table name ## _tbl = {			\
 	.data = name,					\
