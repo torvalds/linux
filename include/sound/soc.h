@@ -1220,16 +1220,6 @@ static inline void *snd_soc_card_get_drvdata(struct snd_soc_card *card)
 	return card->drvdata;
 }
 
-static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
-{
-	INIT_LIST_HEAD(&card->widgets);
-	INIT_LIST_HEAD(&card->paths);
-	INIT_LIST_HEAD(&card->dapm_list);
-	INIT_LIST_HEAD(&card->aux_comp_list);
-	INIT_LIST_HEAD(&card->component_dev_list);
-	INIT_LIST_HEAD(&card->list);
-}
-
 static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 {
 	if (mc->reg == mc->rreg && mc->shift == mc->rshift)
