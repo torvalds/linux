@@ -168,11 +168,21 @@ dw_dma_parse_dt(struct platform_device *pdev)
 
 static int dw_probe(struct platform_device *pdev)
 {
+	const struct dw_dma_chip_pdata *match;
+	struct dw_dma_chip_pdata *data;
 	struct dw_dma_chip *chip;
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
 	const struct dw_dma_platform_data *pdata;
 	int err;
+
+	match = device_get_match_data(dev);
+	if (!match)
+		return -ENODEV;
+
+	data = devm_kmemdup(&pdev->dev, match, sizeof(*match), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -199,6 +209,8 @@ static int dw_probe(struct platform_device *pdev)
 	chip->id = pdev->id;
 	chip->pdata = pdata;
 
+	data->chip = chip;
+
 	chip->clk = devm_clk_get(chip->dev, "hclk");
 	if (IS_ERR(chip->clk))
 		return PTR_ERR(chip->clk);
@@ -208,11 +220,11 @@ static int dw_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	err = dw_dma_probe(chip);
+	err = data->probe(chip);
 	if (err)
 		goto err_dw_dma_probe;
 
-	platform_set_drvdata(pdev, chip);
+	platform_set_drvdata(pdev, data);
 
 	if (pdev->dev.of_node) {
 		err = of_dma_controller_register(pdev->dev.of_node,
@@ -235,12 +247,17 @@ err_dw_dma_probe:
 
 static int dw_remove(struct platform_device *pdev)
 {
-	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
+	struct dw_dma_chip_pdata *data = platform_get_drvdata(pdev);
+	struct dw_dma_chip *chip = data->chip;
+	int ret;
 
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
 
-	dw_dma_remove(chip);
+	ret = data->remove(chip);
+	if (ret)
+		dev_warn(chip->dev, "can't remove device properly: %d\n", ret);
+
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 
@@ -249,7 +266,8 @@ static int dw_remove(struct platform_device *pdev)
 
 static void dw_shutdown(struct platform_device *pdev)
 {
-	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
+	struct dw_dma_chip_pdata *data = platform_get_drvdata(pdev);
+	struct dw_dma_chip *chip = data->chip;
 
 	/*
 	 * We have to call do_dw_dma_disable() to stop any ongoing transfer. On
@@ -269,7 +287,7 @@ static void dw_shutdown(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id dw_dma_of_id_table[] = {
-	{ .compatible = "snps,dma-spear1340" },
+	{ .compatible = "snps,dma-spear1340", .data = &dw_dma_chip_pdata },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
@@ -277,9 +295,9 @@ MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id dw_dma_acpi_id_table[] = {
-	{ "INTL9C60", 0 },
-	{ "80862286", 0 },
-	{ "808622C0", 0 },
+	{ "INTL9C60", (kernel_ulong_t)&dw_dma_chip_pdata },
+	{ "80862286", (kernel_ulong_t)&dw_dma_chip_pdata },
+	{ "808622C0", (kernel_ulong_t)&dw_dma_chip_pdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
@@ -289,7 +307,8 @@ MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
 
 static int dw_suspend_late(struct device *dev)
 {
-	struct dw_dma_chip *chip = dev_get_drvdata(dev);
+	struct dw_dma_chip_pdata *data = dev_get_drvdata(dev);
+	struct dw_dma_chip *chip = data->chip;
 
 	do_dw_dma_disable(chip);
 	clk_disable_unprepare(chip->clk);
@@ -299,7 +318,8 @@ static int dw_suspend_late(struct device *dev)
 
 static int dw_resume_early(struct device *dev)
 {
-	struct dw_dma_chip *chip = dev_get_drvdata(dev);
+	struct dw_dma_chip_pdata *data = dev_get_drvdata(dev);
+	struct dw_dma_chip *chip = data->chip;
 	int ret;
 
 	ret = clk_prepare_enable(chip->clk);
