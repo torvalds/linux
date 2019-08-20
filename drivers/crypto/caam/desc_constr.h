@@ -18,6 +18,33 @@
 #define CAAM_DESC_BYTES_MAX (CAAM_CMD_SZ * MAX_CAAM_DESCSIZE)
 #define DESC_JOB_IO_LEN (CAAM_CMD_SZ * 5 + CAAM_PTR_SZ * 3)
 
+/*
+ * The CAAM QI hardware constructs a job descriptor which points
+ * to shared descriptor (as pointed by context_a of FQ to CAAM).
+ * When the job descriptor is executed by deco, the whole job
+ * descriptor together with shared descriptor gets loaded in
+ * deco buffer which is 64 words long (each 32-bit).
+ *
+ * The job descriptor constructed by QI hardware has layout:
+ *
+ *	HEADER		(1 word)
+ *	Shdesc ptr	(1 or 2 words)
+ *	SEQ_OUT_PTR	(1 word)
+ *	Out ptr		(1 or 2 words)
+ *	Out length	(1 word)
+ *	SEQ_IN_PTR	(1 word)
+ *	In ptr		(1 or 2 words)
+ *	In length	(1 word)
+ *
+ * The shdesc ptr is used to fetch shared descriptor contents
+ * into deco buffer.
+ *
+ * Apart from shdesc contents, the total number of words that
+ * get loaded in deco buffer are '8' or '11'. The remaining words
+ * in deco buffer can be used for storing shared descriptor.
+ */
+#define MAX_SDLEN	((CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN) / CAAM_CMD_SZ)
+
 #ifdef DEBUG
 #define PRINT_POS do { printk(KERN_DEBUG "%02d: %s\n", desc_len(desc),\
 			      &__func__[sizeof("append")]); } while (0)
