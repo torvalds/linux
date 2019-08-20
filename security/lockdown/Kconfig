@@ -1,6 +1,7 @@
 config SECURITY_LOCKDOWN_LSM
 	bool "Basic module for enforcing kernel lockdown"
 	depends on SECURITY
+	select MODULE_SIG if MODULES
 	help
 	  Build support for an LSM that enforces a coarse kernel lockdown
 	  behaviour.
