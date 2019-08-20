@@ -392,7 +392,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			goto no_more_data;
 
 		/* Discard any excess data the server gave us */
-		iov_iter_discard(&call->iter, READ, req->actual_len - req->len);
+		afs_extract_discard(call, req->actual_len - req->len);
 		call->unmarshall = 3;
 		/* Fall through */
 
@@ -1870,7 +1870,7 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 
 		call->count = count;
 		call->count2 = count;
-		iov_iter_discard(&call->iter, READ, count * sizeof(__be32));
+		afs_extract_discard(call, count * sizeof(__be32));
 		call->unmarshall++;
 		/* Fall through */
 
