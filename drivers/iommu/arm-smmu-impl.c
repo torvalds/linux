@@ -42,7 +42,7 @@ static void arm_smmu_write_ns(struct arm_smmu_device *smmu, int page,
 }
 
 /* Since we don't care for sGFAR, we can do without 64-bit accessors */
-const struct arm_smmu_impl calxeda_impl = {
+static const struct arm_smmu_impl calxeda_impl = {
 	.read_reg = arm_smmu_read_ns,
 	.write_reg = arm_smmu_write_ns,
 };
@@ -68,7 +68,7 @@ static int cavium_cfg_probe(struct arm_smmu_device *smmu)
 	return 0;
 }
 
-int cavium_init_context(struct arm_smmu_domain *smmu_domain)
+static int cavium_init_context(struct arm_smmu_domain *smmu_domain)
 {
 	struct cavium_smmu *cs = container_of(smmu_domain->smmu,
 					      struct cavium_smmu, smmu);
@@ -81,12 +81,12 @@ int cavium_init_context(struct arm_smmu_domain *smmu_domain)
 	return 0;
 }
 
-const struct arm_smmu_impl cavium_impl = {
+static const struct arm_smmu_impl cavium_impl = {
 	.cfg_probe = cavium_cfg_probe,
 	.init_context = cavium_init_context,
 };
 
-struct arm_smmu_device *cavium_smmu_impl_init(struct arm_smmu_device *smmu)
+static struct arm_smmu_device *cavium_smmu_impl_init(struct arm_smmu_device *smmu)
 {
 	struct cavium_smmu *cs;
 
@@ -143,7 +143,7 @@ static int arm_mmu500_reset(struct arm_smmu_device *smmu)
 	return 0;
 }
 
-const struct arm_smmu_impl arm_mmu500_impl = {
+static const struct arm_smmu_impl arm_mmu500_impl = {
 	.reset = arm_mmu500_reset,
 };
 
