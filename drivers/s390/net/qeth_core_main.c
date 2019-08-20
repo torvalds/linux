@@ -1742,6 +1742,9 @@ static int qeth_send_control_data(struct qeth_card *card,
 
 	qeth_enqueue_reply(card, reply);
 
+	/* This pairs with iob->callback, and keeps the iob alive after IO: */
+	qeth_get_cmd(iob);
+
 	QETH_CARD_TEXT(card, 6, "noirqpnd");
 	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
 	rc = ccw_device_start_timeout(channel->ccwdev, __ccw_from_cmd(iob),
@@ -1752,11 +1755,10 @@ static int qeth_send_control_data(struct qeth_card *card,
 				 CARD_DEVID(card), rc);
 		QETH_CARD_TEXT_(card, 2, " err%d", rc);
 		qeth_dequeue_reply(card, reply);
-		qeth_put_reply(reply);
 		qeth_put_cmd(iob);
 		atomic_set(&channel->irq_pending, 0);
 		wake_up(&card->wait_q);
-		return rc;
+		goto out;
 	}
 
 	timeout = wait_for_completion_interruptible_timeout(&reply->received,
@@ -1777,7 +1779,10 @@ static int qeth_send_control_data(struct qeth_card *card,
 
 	if (!rc)
 		rc = reply->rc;
+
+out:
 	qeth_put_reply(reply);
+	qeth_put_cmd(iob);
 	return rc;
 }
 
