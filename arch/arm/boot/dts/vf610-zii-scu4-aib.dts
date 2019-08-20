@@ -687,7 +687,6 @@
 	linux,rs485-enabled-at-boot-time;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	rs485-rts-delay = <0 200>;
 	status = "okay";
 };
 
@@ -695,7 +694,6 @@
 	linux,rs485-enabled-at-boot-time;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	rs485-rts-delay = <0 200>;
 	status = "okay";
 };
 
