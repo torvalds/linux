@@ -18,7 +18,7 @@ void __iomem *
 __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *caller)
 {
 	unsigned long v;
-	phys_addr_t p;
+	phys_addr_t p, offset;
 	int err;
 
 	/*
@@ -28,6 +28,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 	 * (ioremap_bot records where we're up to).
 	 */
 	p = addr & PAGE_MASK;
+	offset = addr & ~PAGE_MASK;
 	size = PAGE_ALIGN(addr + size) - p;
 
 	/*
@@ -62,12 +63,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 		goto out;
 
 	if (slab_is_available()) {
-		struct vm_struct *area;
-		area = get_vm_area_caller(size, VM_IOREMAP, caller);
-		if (area == 0)
-			return NULL;
-		area->phys_addr = p;
-		v = (unsigned long)area->addr;
+		return do_ioremap(p, offset, size, prot, caller);
 	} else {
 		v = (ioremap_bot -= size);
 	}
@@ -77,11 +73,8 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 	 */
 
 	err = ioremap_range((unsigned long)v, p, size, prot);
-	if (err) {
-		if (slab_is_available())
-			vunmap((void *)v);
+	if (err)
 		return NULL;
-	}
 
 out:
 	return (void __iomem *)(v + ((unsigned long)addr & ~PAGE_MASK));

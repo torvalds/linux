@@ -46,8 +46,12 @@ EXPORT_SYMBOL(__iounmap_at);
 void __iomem *__ioremap_caller(phys_addr_t addr, unsigned long size,
 			       pgprot_t prot, void *caller)
 {
-	phys_addr_t paligned;
+	phys_addr_t paligned, offset;
 	void __iomem *ret;
+
+	/* We don't support the 4K PFN hack with ioremap */
+	if (pgprot_val(prot) & H_PAGE_4K_PFN)
+		return NULL;
 
 	/*
 	 * Choose an address to map it to. Once the vmalloc system is running,
@@ -56,21 +60,14 @@ void __iomem *__ioremap_caller(phys_addr_t addr, unsigned long size,
 	 * through ioremap_bot.
 	 */
 	paligned = addr & PAGE_MASK;
+	offset = addr & ~PAGE_MASK;
 	size = PAGE_ALIGN(addr + size) - paligned;
 
 	if (size == 0 || paligned == 0)
 		return NULL;
 
 	if (slab_is_available()) {
-		struct vm_struct *area;
-
-		area = __get_vm_area_caller(size, VM_IOREMAP, ioremap_bot,
-					    IOREMAP_END, caller);
-		if (area == NULL)
-			return NULL;
-
-		area->phys_addr = paligned;
-		ret = __ioremap_at(paligned, area->addr, size, prot);
+		return do_ioremap(paligned, offset, size, prot, caller);
 	} else {
 		ret = __ioremap_at(paligned, (void *)ioremap_bot, size, prot);
 		if (ret)

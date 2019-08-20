@@ -80,3 +80,23 @@ int ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size, pgprot_t
 
 	return 0;
 }
+
+void __iomem *do_ioremap(phys_addr_t pa, phys_addr_t offset, unsigned long size,
+			 pgprot_t prot, void *caller)
+{
+	struct vm_struct *area;
+	int ret;
+
+	area = __get_vm_area_caller(size, VM_IOREMAP, IOREMAP_START, IOREMAP_END, caller);
+	if (area == NULL)
+		return NULL;
+
+	area->phys_addr = pa;
+	ret = ioremap_range((unsigned long)area->addr, pa, size, prot);
+	if (!ret)
+		return (void __iomem *)area->addr + offset;
+
+	free_vm_area(area);
+
+	return NULL;
+}
