@@ -231,6 +231,14 @@ static inline struct i915_vma *i915_vma_get(struct i915_vma *vma)
 	return vma;
 }
 
+static inline struct i915_vma *i915_vma_tryget(struct i915_vma *vma)
+{
+	if (likely(kref_get_unless_zero(&vma->obj->base.refcount)))
+		return vma;
+
+	return NULL;
+}
+
 static inline void i915_vma_put(struct i915_vma *vma)
 {
 	i915_gem_object_put(vma->obj);

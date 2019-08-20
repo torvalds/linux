@@ -87,8 +87,7 @@ static inline struct i915_vma *active_to_vma(struct i915_active *ref)
 
 static int __i915_vma_active(struct i915_active *ref)
 {
-	i915_vma_get(active_to_vma(ref));
-	return 0;
+	return i915_vma_tryget(active_to_vma(ref)) ? 0 : -ENOENT;
 }
 
 static void __i915_vma_retire(struct i915_active *ref)
