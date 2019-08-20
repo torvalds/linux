@@ -1360,12 +1360,37 @@ dw_mipi_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		drm_mode_copy(&dsi->slave->mode, &crtc_state->adjusted_mode);
 }
 
+static int dw_mipi_dsi_loader_protect(struct dw_mipi_dsi *dsi, bool on)
+{
+	if (on)
+		pm_runtime_get_sync(dsi->dev);
+	else
+		pm_runtime_put(dsi->dev);
+
+	if (dsi->slave)
+		dw_mipi_dsi_loader_protect(dsi->slave, on);
+
+	return 0;
+}
+
+static int dw_mipi_dsi_encoder_loader_protect(struct drm_encoder *encoder,
+					      bool on)
+{
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+
+	if (dsi->panel)
+		drm_panel_loader_protect(dsi->panel, on);
+
+	return dw_mipi_dsi_loader_protect(dsi, on);
+}
+
 static const struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.enable = dw_mipi_dsi_encoder_enable,
 	.disable = dw_mipi_dsi_encoder_disable,
 	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
 	.atomic_mode_set = dw_mipi_dsi_encoder_atomic_mode_set,
+	.loader_protect = dw_mipi_dsi_encoder_loader_protect,
 };
 
 static const struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {
@@ -1443,6 +1468,7 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(dsi->panel))
 		return -EPROBE_DEFER;
 
+	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm,
 							     dev->of_node);
 	/*
@@ -1463,6 +1489,8 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(encoder, &dw_mipi_dsi_encoder_helper_funcs);
 
+	connector->port = dev->of_node;
+
 	drm_connector_init(drm, connector, &dw_mipi_dsi_atomic_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 	drm_connector_helper_add(connector,
@@ -1474,6 +1502,10 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		DRM_DEV_ERROR(dsi->dev, "Failed to attach panel: %d\n", ret);
 		goto err_cleanup;
 	}
+
+	pm_runtime_enable(dsi->dev);
+	if (dsi->slave)
+		pm_runtime_enable(dsi->slave->dev);
 
 	return 0;
 
@@ -1487,6 +1519,10 @@ static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+
+	pm_runtime_disable(dsi->dev);
+	if (dsi->slave)
+		pm_runtime_disable(dsi->slave->dev);
 
 	drm_panel_detach(dsi->panel);
 
@@ -1656,8 +1692,6 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pm_runtime_enable(dev);
-
 	return component_add(&pdev->dev, &dw_mipi_dsi_ops);
 }
 
@@ -1667,7 +1701,6 @@ static int dw_mipi_dsi_remove(struct platform_device *pdev)
 
 	component_del(dsi->dev, &dw_mipi_dsi_ops);
 	mipi_dsi_host_unregister(&dsi->host);
-	pm_runtime_disable(dsi->dev);
 
 	return 0;
 }
