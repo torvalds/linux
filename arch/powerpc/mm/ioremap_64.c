@@ -9,6 +9,9 @@
  */
 void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_t prot)
 {
+	int ret;
+	unsigned long va = (unsigned long)ea;
+
 	/* We don't support the 4K PFN hack with ioremap */
 	if (pgprot_val(prot) & H_PAGE_4K_PFN)
 		return NULL;
@@ -22,7 +25,15 @@ void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_
 	WARN_ON(((unsigned long)ea) & ~PAGE_MASK);
 	WARN_ON(size & ~PAGE_MASK);
 
-	if (ioremap_range((unsigned long)ea, pa, size, prot))
+	if (slab_is_available()) {
+		ret = ioremap_page_range(va, va + size, pa, prot);
+		if (ret)
+			unmap_kernel_range(va, size);
+	} else {
+		ret = early_ioremap_range(va, pa, size, prot);
+	}
+
+	if (ret)
 		return NULL;
 
 	return (void __iomem *)ea;
@@ -48,6 +59,7 @@ void __iomem *__ioremap_caller(phys_addr_t addr, unsigned long size,
 {
 	phys_addr_t paligned, offset;
 	void __iomem *ret;
+	int err;
 
 	/* We don't support the 4K PFN hack with ioremap */
 	if (pgprot_val(prot) & H_PAGE_4K_PFN)
@@ -66,16 +78,16 @@ void __iomem *__ioremap_caller(phys_addr_t addr, unsigned long size,
 	if (size == 0 || paligned == 0)
 		return NULL;
 
-	if (slab_is_available()) {
+	if (slab_is_available())
 		return do_ioremap(paligned, offset, size, prot, caller);
-	} else {
-		ret = __ioremap_at(paligned, (void *)ioremap_bot, size, prot);
-		if (ret)
-			ioremap_bot += size;
-	}
 
-	if (ret)
-		ret += addr & ~PAGE_MASK;
+	err = early_ioremap_range(ioremap_bot, paligned, size, prot);
+	if (err)
+		return NULL;
+
+	ret = (void __iomem *)ioremap_bot + offset;
+	ioremap_bot += size;
+
 	return ret;
 }
 

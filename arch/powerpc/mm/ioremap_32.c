@@ -60,24 +60,21 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 	 */
 	v = p_block_mapped(p);
 	if (v)
-		goto out;
+		return (void __iomem *)v + offset;
 
-	if (slab_is_available()) {
+	if (slab_is_available())
 		return do_ioremap(p, offset, size, prot, caller);
-	} else {
-		v = (ioremap_bot -= size);
-	}
 
 	/*
 	 * Should check if it is a candidate for a BAT mapping
 	 */
 
-	err = ioremap_range((unsigned long)v, p, size, prot);
+	err = early_ioremap_range(ioremap_bot - size, p, size, prot);
 	if (err)
 		return NULL;
+	ioremap_bot -= size;
 
-out:
-	return (void __iomem *)(v + ((unsigned long)addr & ~PAGE_MASK));
+	return (void __iomem *)ioremap_bot + offset;
 }
 
 void iounmap(volatile void __iomem *addr)

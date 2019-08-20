@@ -59,17 +59,10 @@ void __iomem *ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long f
 }
 EXPORT_SYMBOL(ioremap_prot);
 
-int ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size, pgprot_t prot)
+int early_ioremap_range(unsigned long ea, phys_addr_t pa,
+			unsigned long size, pgprot_t prot)
 {
 	unsigned long i;
-
-	if (slab_is_available()) {
-		int err = ioremap_page_range(ea, ea + size, pa, prot);
-
-		if (err)
-			unmap_kernel_range(ea, size);
-		return err;
-	}
 
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		int err = map_kernel_page(ea + i, pa + i, prot);
@@ -86,16 +79,20 @@ void __iomem *do_ioremap(phys_addr_t pa, phys_addr_t offset, unsigned long size,
 {
 	struct vm_struct *area;
 	int ret;
+	unsigned long va;
 
 	area = __get_vm_area_caller(size, VM_IOREMAP, IOREMAP_START, IOREMAP_END, caller);
 	if (area == NULL)
 		return NULL;
 
 	area->phys_addr = pa;
-	ret = ioremap_range((unsigned long)area->addr, pa, size, prot);
+	va = (unsigned long)area->addr;
+
+	ret = ioremap_page_range(va, va + size, pa, prot);
 	if (!ret)
 		return (void __iomem *)area->addr + offset;
 
+	unmap_kernel_range(va, size);
 	free_vm_area(area);
 
 	return NULL;
