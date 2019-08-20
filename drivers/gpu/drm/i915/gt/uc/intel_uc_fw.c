@@ -39,12 +39,13 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * Must be ordered based on platform + revid, from newer to older.
  */
 #define INTEL_UC_FIRMWARE_DEFS(fw_def, guc_def, huc_def) \
-	fw_def(ICELAKE,    0, guc_def(icl, 33, 0, 0), huc_def(icl,  8,  4, 3238)) \
-	fw_def(COFFEELAKE, 0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
-	fw_def(GEMINILAKE, 0, guc_def(glk, 33, 0, 0), huc_def(glk, 03, 01, 2893)) \
-	fw_def(KABYLAKE,   0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
-	fw_def(BROXTON,    0, guc_def(bxt, 33, 0, 0), huc_def(bxt, 01,  8, 2893)) \
-	fw_def(SKYLAKE,    0, guc_def(skl, 33, 0, 0), huc_def(skl, 01, 07, 1398))
+	fw_def(ELKHARTLAKE, 0, guc_def(ehl, 33, 0, 4), huc_def(ehl,  9,  0,    0)) \
+	fw_def(ICELAKE,     0, guc_def(icl, 33, 0, 0), huc_def(icl,  8,  4, 3238)) \
+	fw_def(COFFEELAKE,  0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
+	fw_def(GEMINILAKE,  0, guc_def(glk, 33, 0, 0), huc_def(glk, 03, 01, 2893)) \
+	fw_def(KABYLAKE,    0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
+	fw_def(BROXTON,     0, guc_def(bxt, 33, 0, 0), huc_def(bxt, 01,  8, 2893)) \
+	fw_def(SKYLAKE,     0, guc_def(skl, 33, 0, 0), huc_def(skl, 01, 07, 1398))
 
 #define __MAKE_UC_FW_PATH(prefix_, name_, separator_, major_, minor_, patch_) \
 	"i915/" \
