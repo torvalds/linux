@@ -70,8 +70,6 @@
 
 /* DP DSC small joiner has 2 FIFOs each of 640 x 6 bytes */
 #define DP_DSC_MAX_SMALL_JOINER_RAM_BUFFER	61440
-#define DP_DSC_MIN_SUPPORTED_BPC		8
-#define DP_DSC_MAX_SUPPORTED_BPC		10
 
 /* DP DSC throughput values used for slice count calculations KPixels/s */
 #define DP_DSC_PEAK_PIXEL_RATE			2720000
@@ -1915,11 +1913,17 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
 		return -EINVAL;
 
-	dsc_max_bpc = min_t(u8, DP_DSC_MAX_SUPPORTED_BPC,
-			    conn_state->max_requested_bpc);
+	/* Max DSC Input BPC for ICL is 10 and for TGL+ is 12 */
+	if (INTEL_GEN(dev_priv) >= 12)
+		dsc_max_bpc = min_t(u8, 12, conn_state->max_requested_bpc);
+	else
+		dsc_max_bpc = min_t(u8, 10,
+				    conn_state->max_requested_bpc);
 
 	pipe_bpp = intel_dp_dsc_compute_bpp(intel_dp, dsc_max_bpc);
-	if (pipe_bpp < DP_DSC_MIN_SUPPORTED_BPC * 3) {
+
+	/* Min Input BPC for ICL+ is 8 */
+	if (pipe_bpp < 8 * 3) {
 		DRM_DEBUG_KMS("No DSC support for less than 8bpc\n");
 		return -EINVAL;
 	}
