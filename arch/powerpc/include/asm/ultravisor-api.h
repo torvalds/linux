@@ -25,5 +25,6 @@
 /* opcodes */
 #define UV_WRITE_PATE			0xF104
 #define UV_RETURN			0xF11C
+#define UV_ESM				0xF110
 
 #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
