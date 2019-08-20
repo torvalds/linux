@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/rculist.h>
 #include <linux/error-injection.h>
+#include <linux/security.h>
 
 #include "trace_dynevent.h"
 #include "trace_kprobe_selftest.h"
@@ -414,6 +415,10 @@ static bool within_notrace_func(struct trace_kprobe *tk)
 static int __register_trace_kprobe(struct trace_kprobe *tk)
 {
 	int i, ret;
+
+	ret = security_locked_down(LOCKDOWN_KPROBES);
+	if (ret)
+		return ret;
 
 	if (trace_probe_is_registered(&tk->tp))
 		return -EINVAL;
