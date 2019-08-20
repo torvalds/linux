@@ -34,3 +34,22 @@ void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
 		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
+
+void __iomem *ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
+{
+	pte_t pte = __pte(flags);
+	void *caller = __builtin_return_address(0);
+
+	/* writeable implies dirty for kernel addresses */
+	if (pte_write(pte))
+		pte = pte_mkdirty(pte);
+
+	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
+	pte = pte_exprotect(pte);
+	pte = pte_mkprivileged(pte);
+
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, pte_pgprot(pte), caller);
+	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
+}
+EXPORT_SYMBOL(ioremap_prot);

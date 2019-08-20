@@ -48,23 +48,6 @@ ioremap_wt(phys_addr_t addr, unsigned long size)
 EXPORT_SYMBOL(ioremap_wt);
 
 void __iomem *
-ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
-{
-	pte_t pte = __pte(flags);
-
-	/* writeable implies dirty for kernel addresses */
-	if (pte_write(pte))
-		pte = pte_mkdirty(pte);
-
-	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
-	pte = pte_exprotect(pte);
-	pte = pte_mkprivileged(pte);
-
-	return __ioremap_caller(addr, size, pte_pgprot(pte), __builtin_return_address(0));
-}
-EXPORT_SYMBOL(ioremap_prot);
-
-void __iomem *
 __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *caller)
 {
 	unsigned long v, i;

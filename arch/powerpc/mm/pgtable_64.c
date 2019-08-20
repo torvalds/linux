@@ -203,29 +203,6 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 	return ret;
 }
 
-void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
-			     unsigned long flags)
-{
-	pte_t pte = __pte(flags);
-	void *caller = __builtin_return_address(0);
-
-	/* writeable implies dirty for kernel addresses */
-	if (pte_write(pte))
-		pte = pte_mkdirty(pte);
-
-	/* we don't want to let _PAGE_EXEC leak out */
-	pte = pte_exprotect(pte);
-	/*
-	 * Force kernel mapping.
-	 */
-	pte = pte_mkprivileged(pte);
-
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, pte_pgprot(pte), caller);
-	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
-}
-
-
 /*  
  * Unmap an IO region and remove it from imalloc'd list.
  * Access to IO memory should be serialized by driver.
@@ -247,7 +224,6 @@ void iounmap(volatile void __iomem *token)
 	vunmap(addr);
 }
 
-EXPORT_SYMBOL(ioremap_prot);
 EXPORT_SYMBOL(__ioremap_at);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(__iounmap_at);
