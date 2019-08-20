@@ -1059,6 +1059,21 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	    minstrel_get_duration(mi->max_prob_rate) * 3 < sample_dur)
 		return -1;
 
+
+	/*
+	 * For devices with no configurable multi-rate retry, skip sampling
+	 * below the per-group max throughput rate, and only use one sampling
+	 * attempt per rate
+	 */
+	if (mp->hw->max_rates == 1 &&
+	    (minstrel_get_duration(mg->max_group_tp_rate[0]) < sample_dur ||
+	     mrs->attempts))
+		return -1;
+
+	/* Skip already sampled slow rates */
+	if (sample_dur >= minstrel_get_duration(tp_rate1) && mrs->attempts)
+		return -1;
+
 	/*
 	 * Make sure that lower rates get sampled only occasionally,
 	 * if the link is working perfectly.
