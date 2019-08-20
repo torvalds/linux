@@ -173,7 +173,6 @@ static int dw_probe(struct platform_device *pdev)
 	struct dw_dma_chip *chip;
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
-	const struct dw_dma_platform_data *pdata;
 	int err;
 
 	match = device_get_match_data(dev);
@@ -201,13 +200,14 @@ static int dw_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	pdata = dev_get_platdata(dev);
-	if (!pdata)
-		pdata = dw_dma_parse_dt(pdev);
+	if (!data->pdata)
+		data->pdata = dev_get_platdata(dev);
+	if (!data->pdata)
+		data->pdata = dw_dma_parse_dt(pdev);
 
 	chip->dev = dev;
 	chip->id = pdev->id;
-	chip->pdata = pdata;
+	chip->pdata = data->pdata;
 
 	data->chip = chip;
 
@@ -298,6 +298,12 @@ static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 	{ "INTL9C60", (kernel_ulong_t)&dw_dma_chip_pdata },
 	{ "80862286", (kernel_ulong_t)&dw_dma_chip_pdata },
 	{ "808622C0", (kernel_ulong_t)&dw_dma_chip_pdata },
+
+	/* Elkhart Lake iDMA 32-bit (PSE DMA) */
+	{ "80864BB4", (kernel_ulong_t)&idma32_chip_pdata },
+	{ "80864BB5", (kernel_ulong_t)&idma32_chip_pdata },
+	{ "80864BB6", (kernel_ulong_t)&idma32_chip_pdata },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
