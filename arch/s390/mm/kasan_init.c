@@ -261,6 +261,8 @@ void __init kasan_early_init(void)
 	/* respect mem= cmdline parameter */
 	if (memory_end_set && memsize > memory_end)
 		memsize = memory_end;
+	if (IS_ENABLED(CONFIG_CRASH_DUMP) && OLDMEM_BASE)
+		memsize = min(memsize, OLDMEM_SIZE);
 	memsize = min(memsize, KASAN_SHADOW_START);
 
 	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {
