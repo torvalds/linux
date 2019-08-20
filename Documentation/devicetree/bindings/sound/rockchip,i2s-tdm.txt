@@ -28,6 +28,8 @@ Required properties:
   register pcm dmaengine, only just register dai. if the dai is part of multi-dais,
   the property should be present. Please refer to rockchip,multidais.txt about
   multi-dais usage.
+- rockchip,playback-only: Specify that the controller only has playback capability.
+- rockchip,capture-only: Specify that the controller only has capture capability.
 
 Optional properties:
 - rockchip,i2s-rx-route: This is a variable length array, that shows the mapping

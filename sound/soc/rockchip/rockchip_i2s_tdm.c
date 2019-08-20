@@ -1370,6 +1370,11 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (of_property_read_bool(node, "rockchip,playback-only"))
+		soc_dai->capture.channels_min = 0;
+	else if (of_property_read_bool(node, "rockchip,capture-only"))
+		soc_dai->playback.channels_min = 0;
+
 	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
 	if (IS_ERR(i2s_tdm->grf))
 		return PTR_ERR(i2s_tdm->grf);
