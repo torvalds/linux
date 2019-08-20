@@ -96,7 +96,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 
 	if (!ddir->certs.virtual_address || !ddir->certs.size) {
 		pr_debug("Unsigned PE binary\n");
-		return -EKEYREJECTED;
+		return -ENODATA;
 	}
 
 	chkaddr(ctx->header_size, ddir->certs.virtual_address,
@@ -402,6 +402,8 @@ error_no_desc:
  *
  *  (*) 0 if at least one signature chain intersects with the keys in the trust
  *	keyring, or:
+ *
+ *  (*) -ENODATA if there is no signature present.
  *
  *  (*) -ENOPKG if a suitable crypto module couldn't be found for a check on a
  *	chain.

@@ -22,7 +22,7 @@ const struct kexec_file_ops * const kexec_file_loaders[] = {
 	NULL,
 };
 
-#ifdef CONFIG_KEXEC_VERIFY_SIG
+#ifdef CONFIG_KEXEC_SIG
 /*
  * Module signature information block.
  *
@@ -90,7 +90,7 @@ int s390_verify_sig(const char *kernel, unsigned long kernel_len)
 				      VERIFYING_MODULE_SIGNATURE,
 				      NULL, NULL);
 }
-#endif /* CONFIG_KEXEC_VERIFY_SIG */
+#endif /* CONFIG_KEXEC_SIG */
 
 static int kexec_file_update_purgatory(struct kimage *image,
 				       struct s390_load_data *data)
