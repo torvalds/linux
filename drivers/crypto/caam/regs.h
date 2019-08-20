@@ -191,7 +191,8 @@ static inline u64 caam_dma64_to_cpu(u64 value)
 
 static inline u64 cpu_to_caam_dma(u64 value)
 {
-	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT) &&
+	    caam_ptr_sz == sizeof(u64))
 		return cpu_to_caam_dma64(value);
 	else
 		return cpu_to_caam32(value);
@@ -199,7 +200,8 @@ static inline u64 cpu_to_caam_dma(u64 value)
 
 static inline u64 caam_dma_to_cpu(u64 value)
 {
-	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT) &&
+	    caam_ptr_sz == sizeof(u64))
 		return caam_dma64_to_cpu(value);
 	else
 		return caam32_to_cpu(value);
@@ -213,13 +215,24 @@ static inline u64 caam_dma_to_cpu(u64 value)
 static inline void jr_outentry_get(void *outring, int hw_idx, dma_addr_t *desc,
 				   u32 *jrstatus)
 {
-	struct {
-		dma_addr_t desc;/* Pointer to completed descriptor */
-		u32 jrstatus;	/* Status for completed descriptor */
-	} __packed *outentry = outring;
 
-	*desc = outentry[hw_idx].desc;
-	*jrstatus = outentry[hw_idx].jrstatus;
+	if (caam_ptr_sz == sizeof(u32)) {
+		struct {
+			u32 desc;
+			u32 jrstatus;
+		} __packed *outentry = outring;
+
+		*desc = outentry[hw_idx].desc;
+		*jrstatus = outentry[hw_idx].jrstatus;
+	} else {
+		struct {
+			dma_addr_t desc;/* Pointer to completed descriptor */
+			u32 jrstatus;	/* Status for completed descriptor */
+		} __packed *outentry = outring;
+
+		*desc = outentry[hw_idx].desc;
+		*jrstatus = outentry[hw_idx].jrstatus;
+	}
 }
 
 #define SIZEOF_JR_OUTENTRY	(caam_ptr_sz + sizeof(u32))
@@ -246,9 +259,15 @@ static inline u32 jr_outentry_jrstatus(void *outring, int hw_idx)
 
 static inline void jr_inpentry_set(void *inpring, int hw_idx, dma_addr_t val)
 {
-	dma_addr_t *inpentry = inpring;
+	if (caam_ptr_sz == sizeof(u32)) {
+		u32 *inpentry = inpring;
 
-	inpentry[hw_idx] = val;
+		inpentry[hw_idx] = val;
+	} else {
+		dma_addr_t *inpentry = inpring;
+
+		inpentry[hw_idx] = val;
+	}
 }
 
 #define SIZEOF_JR_INPENTRY	caam_ptr_sz
@@ -380,6 +399,7 @@ struct caam_perfmon {
 	u32 cha_rev_ls;		/* CRNR - CHA Rev No. Least significant half*/
 #define CTPR_MS_QI_SHIFT	25
 #define CTPR_MS_QI_MASK		(0x1ull << CTPR_MS_QI_SHIFT)
+#define CTPR_MS_PS		BIT(17)
 #define CTPR_MS_DPAA2		BIT(13)
 #define CTPR_MS_VIRT_EN_INCL	0x00000001
 #define CTPR_MS_VIRT_EN_POR	0x00000002

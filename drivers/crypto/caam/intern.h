@@ -219,7 +219,7 @@ static inline u64 caam_get_dma_mask(struct device *dev)
 {
 	struct device_node *nprop = dev->of_node;
 
-	if (sizeof(dma_addr_t) != sizeof(u64))
+	if (caam_ptr_sz != sizeof(u64))
 		return DMA_BIT_MASK(32);
 
 	if (caam_dpaa2)
