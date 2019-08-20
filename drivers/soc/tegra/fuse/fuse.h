@@ -13,6 +13,7 @@
 #include <linux/dmaengine.h>
 #include <linux/types.h>
 
+struct nvmem_device;
 struct tegra_fuse;
 
 struct tegra_fuse_info {
@@ -48,6 +49,8 @@ struct tegra_fuse {
 		dma_addr_t phys;
 		u32 *virt;
 	} apbdma;
+
+	struct nvmem_device *nvmem;
 };
 
 void tegra_init_revision(void);
