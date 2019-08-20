@@ -120,25 +120,19 @@ soc_button_device_create(struct platform_device *pdev,
 	gpio_keys_pdata->nbuttons = n_buttons;
 	gpio_keys_pdata->rep = autorepeat;
 
-	pd = platform_device_alloc("gpio-keys", PLATFORM_DEVID_AUTO);
-	if (!pd) {
-		error = -ENOMEM;
+	pd = platform_device_register_resndata(&pdev->dev, "gpio-keys",
+					       PLATFORM_DEVID_AUTO, NULL, 0,
+					       gpio_keys_pdata,
+					       sizeof(*gpio_keys_pdata));
+	error = PTR_ERR_OR_ZERO(pd);
+	if (error) {
+		dev_err(&pdev->dev,
+			"failed registering gpio-keys: %d\n", error);
 		goto err_free_mem;
 	}
 
-	error = platform_device_add_data(pd, gpio_keys_pdata,
-					 sizeof(*gpio_keys_pdata));
-	if (error)
-		goto err_free_pdev;
-
-	error = platform_device_add(pd);
-	if (error)
-		goto err_free_pdev;
-
 	return pd;
 
-err_free_pdev:
-	platform_device_put(pd);
 err_free_mem:
 	devm_kfree(&pdev->dev, gpio_keys_pdata);
 	return ERR_PTR(error);
