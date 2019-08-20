@@ -1520,7 +1520,7 @@ struct hdcp2_hdmi_msg_data {
 	u32 timeout2;
 };
 
-static struct hdcp2_hdmi_msg_data hdcp2_msg_data[] = {
+static const struct hdcp2_hdmi_msg_data hdcp2_msg_data[] = {
 	{ HDCP_2_2_AKE_INIT, 0, 0 },
 	{ HDCP_2_2_AKE_SEND_CERT, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
 	{ HDCP_2_2_AKE_NO_STORED_KM, 0, 0 },
