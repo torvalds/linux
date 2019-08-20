@@ -287,6 +287,7 @@ struct amdgpu_dm_connector {
 	uint32_t debugfs_dpcd_address;
 	uint32_t debugfs_dpcd_size;
 #endif
+	bool force_yuv420_output;
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)

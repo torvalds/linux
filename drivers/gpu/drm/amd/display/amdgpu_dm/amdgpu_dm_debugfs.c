@@ -942,6 +942,33 @@ static const struct {
 		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
 };
 
+/*
+ * Force YUV420 output if available from the given mode
+ */
+static int force_yuv420_output_set(void *data, u64 val)
+{
+	struct amdgpu_dm_connector *connector = data;
+
+	connector->force_yuv420_output = (bool)val;
+
+	return 0;
+}
+
+/*
+ * Check if YUV420 is forced when available from the given mode
+ */
+static int force_yuv420_output_get(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *connector = data;
+
+	*val = connector->force_yuv420_output;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(force_yuv420_output_fops, force_yuv420_output_get,
+			 force_yuv420_output_set, "%llu\n");
+
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
@@ -955,6 +982,10 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					    dp_debugfs_entries[i].fops);
 		}
 	}
+
+	debugfs_create_file_unsafe("force_yuv420_output", 0644, dir, connector,
+				   &force_yuv420_output_fops);
+
 }
 
 /*
