@@ -266,7 +266,7 @@ void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
  * Unmap an IO region and remove it from imalloc'd list.
  * Access to IO memory should be serialized by driver.
  */
-void __iounmap(volatile void __iomem *token)
+void iounmap(volatile void __iomem *token)
 {
 	void *addr;
 
@@ -283,21 +283,12 @@ void __iounmap(volatile void __iomem *token)
 	vunmap(addr);
 }
 
-void iounmap(volatile void __iomem *token)
-{
-	if (ppc_md.iounmap)
-		ppc_md.iounmap(token);
-	else
-		__iounmap(token);
-}
-
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(ioremap_wc);
 EXPORT_SYMBOL(ioremap_prot);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(__ioremap_at);
 EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(__iounmap);
 EXPORT_SYMBOL(__iounmap_at);
 
 #ifndef __PAGETABLE_PUD_FOLDED
