@@ -634,7 +634,6 @@ struct qeth_reply {
 	int (*callback)(struct qeth_card *, struct qeth_reply *,
 		unsigned long);
 	u32 seqno;
-	unsigned long offset;
 	int rc;
 	void *param;
 	refcount_t refcnt;
