@@ -321,11 +321,9 @@ EXPORT_SYMBOL(ath_dynack_sample_ack_ts);
  */
 void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an)
 {
-	/* ackto = slottime + sifs + air delay */
-	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
 
-	an->ackto = ackto;
+	an->ackto = da->ackto;
 
 	spin_lock_bh(&da->qlock);
 	list_add_tail(&an->list, &da->nodes);
@@ -356,20 +354,26 @@ EXPORT_SYMBOL(ath_dynack_node_deinit);
  */
 void ath_dynack_reset(struct ath_hw *ah)
 {
-	/* ackto = slottime + sifs + air delay */
-	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
+	struct ath_node *an;
+
+	spin_lock_bh(&da->qlock);
 
 	da->lto = jiffies + COMPUTE_TO;
-	da->ackto = ackto;
 
 	da->st_rbf.t_rb = 0;
 	da->st_rbf.h_rb = 0;
 	da->ack_rbf.t_rb = 0;
 	da->ack_rbf.h_rb = 0;
 
+	da->ackto = ath_dynack_get_max_to(ah);
+	list_for_each_entry(an, &da->nodes, list)
+		an->ackto = da->ackto;
+
 	/* init acktimeout */
-	ath_dynack_set_timeout(ah, ackto);
+	ath_dynack_set_timeout(ah, da->ackto);
+
+	spin_unlock_bh(&da->qlock);
 }
 EXPORT_SYMBOL(ath_dynack_reset);
 
@@ -386,6 +390,8 @@ void ath_dynack_init(struct ath_hw *ah)
 
 	spin_lock_init(&da->qlock);
 	INIT_LIST_HEAD(&da->nodes);
+	/* ackto = slottime + sifs + air delay */
+	da->ackto = 9 + 16 + 64;
 
 	ah->hw->wiphy->features |= NL80211_FEATURE_ACKTO_ESTIMATION;
 }
