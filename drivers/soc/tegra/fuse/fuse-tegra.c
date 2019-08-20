@@ -423,6 +423,15 @@ static int __init tegra_init_fuse(void)
 	pr_debug("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
 		 tegra_sku_info.cpu_speedo_id, tegra_sku_info.soc_speedo_id);
 
+	if (fuse->soc->lookups) {
+		size_t size = sizeof(*fuse->lookups) * fuse->soc->num_lookups;
+
+		fuse->lookups = kmemdup(fuse->soc->lookups, size, GFP_KERNEL);
+		if (!fuse->lookups)
+			return -ENOMEM;
+
+		nvmem_add_cell_lookups(fuse->lookups, fuse->soc->num_lookups);
+	}
 
 	return 0;
 }
