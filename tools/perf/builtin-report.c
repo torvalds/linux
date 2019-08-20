@@ -1281,6 +1281,8 @@ repeat:
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
+	if (perf_evlist__combined_sample_type(session->evlist) & PERF_SAMPLE_STACK_USER)
+		has_br_stack = false;
 
 	setup_forced_leader(&report, session->evlist);
 
