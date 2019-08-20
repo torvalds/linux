@@ -4,6 +4,7 @@
 #if !defined(_TRACE_ANDROID_FS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_ANDROID_FS_H
 
+#include <linux/fs.h>
 #include <linux/tracepoint.h>
 #include <trace/events/android_fs_template.h>
 
