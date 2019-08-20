@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
+#include <linux/phy/phy.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -236,11 +237,16 @@ struct dw_mipi_dsi_plat_data {
 };
 
 struct mipi_dphy {
+	/* SNPS PHY */
 	struct regmap *regmap;
 	struct clk *ref_clk;
 	struct clk *cfg_clk;
 	u16 input_div;
 	u16 feedback_div;
+
+	/* Non-SNPS PHY */
+	struct phy *phy;
+	struct clk *hs_clk;
 };
 
 struct dw_mipi_dsi {
@@ -502,7 +508,7 @@ static inline void mipi_dphy_rstz_deassert(struct dw_mipi_dsi *dsi)
 	udelay(1);
 }
 
-static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 {
 	struct mipi_dphy *dphy = &dsi->dphy;
 	const struct {
@@ -523,28 +529,6 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 	u8 hsfreqrange, counter;
 	unsigned int index, txbyteclkhs;
 	u16 n, m;
-	unsigned int val, mask;
-	int ret;
-
-	mipi_dphy_enableclk_deassert(dsi);
-	mipi_dphy_shutdownz_assert(dsi);
-	mipi_dphy_rstz_assert(dsi);
-	testif_testclr_assert(dsi);
-
-	/* Configures DPHY to work as a Master */
-	grf_field_write(dsi, MASTERSLAVEZ, 1);
-
-	/* Configures lane as TX */
-	grf_field_write(dsi, BASEDIR, 0);
-
-	/* Set all REQUEST inputs to zero */
-	grf_field_write(dsi, TURNREQUEST, 0);
-	grf_field_write(dsi, TURNDISABLE, 0);
-	grf_field_write(dsi, FORCETXSTOPMODE, 0);
-	grf_field_write(dsi, FORCERXMODE, 0);
-	udelay(1);
-
-	testif_testclr_deassert(dsi);
 
 	for (index = 0; index < ARRAY_SIZE(hsfreqrange_table); index++)
 		if (dsi->lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
@@ -568,6 +552,36 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 	regmap_write(dphy->regmap, 0x17, INPUT_DIV(n));
 	regmap_write(dphy->regmap, 0x18, FEEDBACK_DIV_LO(m));
 	regmap_write(dphy->regmap, 0x18, FEEDBACK_DIV_HI(m >> 5));
+}
+
+static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
+{
+	struct mipi_dphy *dphy = &dsi->dphy;
+	unsigned int val, mask;
+	int ret;
+
+	mipi_dphy_enableclk_deassert(dsi);
+	mipi_dphy_shutdownz_assert(dsi);
+	mipi_dphy_rstz_assert(dsi);
+	testif_testclr_assert(dsi);
+
+	/* Configures DPHY to work as a Master */
+	grf_field_write(dsi, MASTERSLAVEZ, 1);
+
+	/* Configures lane as TX */
+	grf_field_write(dsi, BASEDIR, 0);
+
+	/* Set all REQUEST inputs to zero */
+	grf_field_write(dsi, TURNREQUEST, 0);
+	grf_field_write(dsi, TURNDISABLE, 0);
+	grf_field_write(dsi, FORCETXSTOPMODE, 0);
+	grf_field_write(dsi, FORCERXMODE, 0);
+	udelay(1);
+
+	testif_testclr_deassert(dsi);
+
+	if (!dphy->phy)
+		dw_mipi_dsi_phy_init(dsi);
 
 	/* Enable Data Lane Module */
 	grf_field_write(dsi, ENABLE_N, GENMASK(dsi->lanes - 1, 0));
@@ -579,6 +593,17 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 	mipi_dphy_shutdownz_deassert(dsi);
 	mipi_dphy_rstz_deassert(dsi);
 	usleep_range(1500, 2000);
+
+	if (dphy->phy) {
+		ret = phy_set_mode(dphy->phy, PHY_MODE_VIDEO_MIPI);
+		if (ret) {
+			DRM_DEV_ERROR(dsi->dev, "failed to set phy mode: %d\n",
+				      ret);
+			return ret;
+		}
+
+		phy_power_on(dphy->phy);
+	}
 
 	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
 				       val, val & PHY_LOCK, 0, 1000);
@@ -605,7 +630,12 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 
 static void mipi_dphy_power_off(struct dw_mipi_dsi *dsi)
 {
+	struct mipi_dphy *dphy = &dsi->dphy;
+
 	regmap_write(dsi->regmap, DSI_PHY_RSTZ, 0);
+
+	if (dphy->phy)
+		phy_power_off(dphy->phy);
 }
 
 static const struct regmap_config testif_regmap_config = {
@@ -624,31 +654,52 @@ static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 	struct device *dev = dsi->dev;
 	int ret;
 
-	dphy->ref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(dphy->ref_clk)) {
-		ret = PTR_ERR(dphy->ref_clk);
-		DRM_DEV_ERROR(dev,
-			      "Unable to get pll reference clock: %d\n", ret);
+	dphy->phy = devm_phy_optional_get(dev, "mipi_dphy");
+	if (IS_ERR(dphy->phy)) {
+		ret = PTR_ERR(dphy->phy);
+		DRM_DEV_ERROR(dev, "failed to get mipi dphy: %d\n", ret);
 		return ret;
 	}
 
-	dphy->cfg_clk = devm_clk_get(dev, "phy_cfg");
-	if (IS_ERR(dphy->cfg_clk)) {
-		if (PTR_ERR(dphy->cfg_clk) != -ENOENT) {
-			ret = PTR_ERR(dphy->cfg_clk);
-			DRM_DEV_ERROR(dev,
-				      "Unable to get phy cfg clk: %d\n", ret);
+	if (dphy->phy) {
+		dphy->hs_clk = devm_clk_get(dev, "hs_clk");
+		if (IS_ERR(dphy->hs_clk)) {
+			ret = PTR_ERR(dphy->hs_clk);
+			DRM_DEV_ERROR(dev, "failed to get hs clock: %d\n", ret);
 			return ret;
 		}
-		/* Clock is optional (for RK3288) */
-		dphy->cfg_clk = NULL;
-	}
+	} else {
+		dphy->ref_clk = devm_clk_get(dev, "ref");
+		if (IS_ERR(dphy->ref_clk)) {
+			ret = PTR_ERR(dphy->ref_clk);
+			DRM_DEV_ERROR(dev,
+				      "Unable to get pll reference clock: %d\n",
+				      ret);
+			return ret;
+		}
 
-	dphy->regmap = devm_regmap_init(dev, NULL, dsi, &testif_regmap_config);
-	if (IS_ERR(dphy->regmap)) {
-		ret = PTR_ERR(dphy->regmap);
-		DRM_DEV_ERROR(dev, "failed to int phy regmap: %d\n", ret);
-		return ret;
+		dphy->cfg_clk = devm_clk_get(dev, "phy_cfg");
+		if (IS_ERR(dphy->cfg_clk)) {
+			if (PTR_ERR(dphy->cfg_clk) != -ENOENT) {
+				ret = PTR_ERR(dphy->cfg_clk);
+				DRM_DEV_ERROR(dev,
+					      "Unable to get phy cfg clk: %d\n",
+					      ret);
+				return ret;
+			}
+
+			/* Clock is optional (for RK3288) */
+			dphy->cfg_clk = NULL;
+		}
+
+		dphy->regmap = devm_regmap_init(dev, NULL, dsi,
+						&testif_regmap_config);
+		if (IS_ERR(dphy->regmap)) {
+			ret = PTR_ERR(dphy->regmap);
+			DRM_DEV_ERROR(dev, "failed to int phy regmap: %d\n",
+				      ret);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1235,12 +1286,23 @@ static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 		dw_mipi_dsi_enable(dsi->slave);
 }
 
+static void dw_mipi_dsi_set_hs_clk(struct dw_mipi_dsi *dsi, unsigned long rate)
+{
+	rate = clk_round_rate(dsi->dphy.hs_clk, rate);
+	clk_set_rate(dsi->dphy.hs_clk, rate);
+	dsi->lane_mbps = rate / USEC_PER_SEC;
+}
+
 static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 	unsigned long lane_rate = dw_mipi_dsi_get_lane_rate(dsi);
 
-	dw_mipi_dsi_calc_pll_cfg(dsi, lane_rate);
+	if (dsi->dphy.phy)
+		dw_mipi_dsi_set_hs_clk(dsi, lane_rate);
+	else
+		dw_mipi_dsi_calc_pll_cfg(dsi, lane_rate);
+
 	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
 		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 
@@ -1615,6 +1677,7 @@ static int __maybe_unused dw_mipi_dsi_runtime_suspend(struct device *dev)
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(dsi->pclk);
+	clk_disable_unprepare(dsi->dphy.hs_clk);
 	clk_disable_unprepare(dsi->dphy.ref_clk);
 	clk_disable_unprepare(dsi->dphy.cfg_clk);
 
@@ -1627,6 +1690,7 @@ static int __maybe_unused dw_mipi_dsi_runtime_resume(struct device *dev)
 
 	clk_prepare_enable(dsi->dphy.cfg_clk);
 	clk_prepare_enable(dsi->dphy.ref_clk);
+	clk_prepare_enable(dsi->dphy.hs_clk);
 	clk_prepare_enable(dsi->pclk);
 
 	return 0;
@@ -1635,6 +1699,49 @@ static int __maybe_unused dw_mipi_dsi_runtime_resume(struct device *dev)
 static const struct dev_pm_ops dw_mipi_dsi_pm_ops = {
 	SET_RUNTIME_PM_OPS(dw_mipi_dsi_runtime_suspend,
 			   dw_mipi_dsi_runtime_resume, NULL)
+};
+
+static const u32 px30_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0434,  7,  7),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0434,  3,  3),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0434,  2,  2),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x0438,  7, 10),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x0438,  6,  6),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x0438,  5,  5),
+	[VOPSEL]		= GRF_REG_FIELD(0x0438,  0,  0),
+};
+
+static const struct dw_mipi_dsi_plat_data px30_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = px30_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
+};
+
+static const u32 rk1808_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[MASTERSLAVEZ]          = GRF_REG_FIELD(0x0440,  8,  8),
+	[DPIUPDATECFG]          = GRF_REG_FIELD(0x0440,  7,  7),
+	[DPICOLORM]             = GRF_REG_FIELD(0x0440,  3,  3),
+	[DPISHUTDN]             = GRF_REG_FIELD(0x0440,  2,  2),
+	[FORCETXSTOPMODE]       = GRF_REG_FIELD(0x0444,  7, 10),
+	[FORCERXMODE]           = GRF_REG_FIELD(0x0444,  6,  6),
+	[TURNDISABLE]           = GRF_REG_FIELD(0x0444,  5,  5),
+};
+
+static const struct dw_mipi_dsi_plat_data rk1808_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = rk1808_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 2000000000UL,
+};
+
+static const u32 rk3128_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x0150, 10, 13),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x0150,  9,  9),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x0150,  8,  8),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0150,  5,  5),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0150,  4,  4),
+};
+
+static const struct dw_mipi_dsi_plat_data rk3128_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = rk3128_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
 };
 
 static const u32 rk3288_dsi0_grf_reg_fields[MAX_FIELDS] = {
@@ -1667,6 +1774,20 @@ static const struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk3288_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3288_dsi1_grf_reg_fields,
 	.max_bit_rate_per_lane = 1500000000UL,
+};
+
+static const u32 rk3368_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0418,  7,  7),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0418,  3,  3),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0418,  2,  2),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x041c,  7, 10),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x041c,  6,  6),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x041c,  5,  5),
+};
+
+static const struct dw_mipi_dsi_plat_data rk3368_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = rk3368_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
 };
 
 static const u32 rk3399_dsi0_grf_reg_fields[MAX_FIELDS] = {
@@ -1703,8 +1824,20 @@ static const struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_plat_data = {
 
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	{
+		.compatible = "rockchip,px30-mipi-dsi",
+		.data = &px30_mipi_dsi_plat_data,
+	}, {
+		.compatible = "rockchip,rk1808-mipi-dsi",
+		.data = &rk1808_mipi_dsi_plat_data,
+	}, {
+		.compatible = "rockchip,rk3128-mipi-dsi",
+		.data = &rk3128_mipi_dsi_plat_data,
+	}, {
 		.compatible = "rockchip,rk3288-mipi-dsi",
 		.data = &rk3288_mipi_dsi_plat_data,
+	}, {
+		.compatible = "rockchip,rk3368-mipi-dsi",
+		.data = &rk3368_mipi_dsi_plat_data,
 	}, {
 		.compatible = "rockchip,rk3399-mipi-dsi",
 		.data = &rk3399_mipi_dsi_plat_data,
