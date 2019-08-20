@@ -705,10 +705,6 @@ static inline void iosync(void)
  *   create hand-made mappings for use only by the PCI code and cannot
  *   currently be hooked. Must be page aligned.
  *
- * * __ioremap is the low level implementation used by ioremap and
- *   ioremap_prot and cannot be hooked (but can be used by a hook on one
- *   of the previous ones)
- *
  * * __ioremap_caller is the same as above but takes an explicit caller
  *   reference rather than using __builtin_return_address(0)
  *
@@ -726,8 +722,6 @@ void __iomem *ioremap_coherent(phys_addr_t address, unsigned long size);
 
 extern void iounmap(volatile void __iomem *addr);
 
-extern void __iomem *__ioremap(phys_addr_t, unsigned long size,
-			       unsigned long flags);
 extern void __iomem *__ioremap_caller(phys_addr_t, unsigned long size,
 				      pgprot_t prot, void *caller);
 
