@@ -550,6 +550,7 @@ EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_vma_offset_manager_init
 EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_vma_offset_remove
 EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_wait_one_vblank
 EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_warn_on_modeset_not_all_locked
+EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_writeback_cleanup_job
 EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_writeback_connector_init
 EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_writeback_get_out_fence
 EXPORT_SYMBOL drivers/gpu/drm/drm 0x00000000	drm_writeback_queue_job
@@ -806,6 +807,7 @@ EXPORT_SYMBOL drivers/gpu/drm/tinydrm/core/tinydrm 0x00000000	tinydrm_xrgb8888_t
 EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_buf_copy
 EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_command_buf
 EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_command_read
+EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_command_stackbuf
 EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_debugfs_init
 EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_display_is_on
 EXPORT_SYMBOL drivers/gpu/drm/tinydrm/mipi-dbi 0x00000000	mipi_dbi_enable_flush
@@ -14592,6 +14594,7 @@ EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_disable_notify
 EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_discard_vq_desc
 EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_enable_notify
 EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_enqueue_msg
+EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_exceeds_weight
 EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_get_vq_desc
 EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_has_work
 EXPORT_SYMBOL_GPL drivers/vhost/vhost 0x00000000	vhost_init_device_iotlb
