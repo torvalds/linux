@@ -21,7 +21,7 @@ int xsk_map_inc(struct xsk_map *map)
 	struct bpf_map *m = &map->map;
 
 	m = bpf_map_inc(m, false);
-	return IS_ERR(m) ? PTR_ERR(m) : 0;
+	return PTR_ERR_OR_ZERO(m);
 }
 
 void xsk_map_put(struct xsk_map *map)
