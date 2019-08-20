@@ -79,6 +79,24 @@ static inline bool ath_dynack_bssidmask(struct ath_hw *ah, const u8 *mac)
 }
 
 /**
+ * ath_dynack_set_timeout - configure timeouts/slottime registers
+ * @ah: ath hw
+ * @to: timeout value
+ *
+ */
+static void ath_dynack_set_timeout(struct ath_hw *ah, int to)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int slottime = (to - 3) / 2;
+
+	ath_dbg(common, DYNACK, "ACK timeout %u slottime %u\n",
+		to, slottime);
+	ath9k_hw_setslottime(ah, slottime);
+	ath9k_hw_set_ack_timeout(ah, to);
+	ath9k_hw_set_cts_timeout(ah, to);
+}
+
+/**
  * ath_dynack_compute_ackto - compute ACK timeout as the maximum STA timeout
  * @ah: ath hw
  *
@@ -86,7 +104,6 @@ static inline bool ath_dynack_bssidmask(struct ath_hw *ah, const u8 *mac)
  */
 static void ath_dynack_compute_ackto(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_dynack *da = &ah->dynack;
 	struct ath_node *an;
 	int to = 0;
@@ -96,15 +113,8 @@ static void ath_dynack_compute_ackto(struct ath_hw *ah)
 			to = an->ackto;
 
 	if (to && da->ackto != to) {
-		u32 slottime;
-
-		slottime = (to - 3) / 2;
+		ath_dynack_set_timeout(ah, to);
 		da->ackto = to;
-		ath_dbg(common, DYNACK, "ACK timeout %u slottime %u\n",
-			da->ackto, slottime);
-		ath9k_hw_setslottime(ah, slottime);
-		ath9k_hw_set_ack_timeout(ah, da->ackto);
-		ath9k_hw_set_cts_timeout(ah, da->ackto);
 	}
 }
 
@@ -198,10 +208,7 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 		    ieee80211_is_assoc_resp(hdr->frame_control) ||
 		    ieee80211_is_auth(hdr->frame_control)) {
 			ath_dbg(common, DYNACK, "late ack\n");
-
-			ath9k_hw_setslottime(ah, (LATEACK_TO - 3) / 2);
-			ath9k_hw_set_ack_timeout(ah, LATEACK_TO);
-			ath9k_hw_set_cts_timeout(ah, LATEACK_TO);
+			ath_dynack_set_timeout(ah, LATEACK_TO);
 			if (sta) {
 				struct ath_node *an;
 
@@ -340,9 +347,7 @@ void ath_dynack_reset(struct ath_hw *ah)
 	da->ack_rbf.h_rb = 0;
 
 	/* init acktimeout */
-	ath9k_hw_setslottime(ah, (ackto - 3) / 2);
-	ath9k_hw_set_ack_timeout(ah, ackto);
-	ath9k_hw_set_cts_timeout(ah, ackto);
+	ath_dynack_set_timeout(ah, ackto);
 }
 EXPORT_SYMBOL(ath_dynack_reset);
 
