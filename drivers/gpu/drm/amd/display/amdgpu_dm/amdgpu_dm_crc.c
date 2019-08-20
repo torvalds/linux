@@ -136,13 +136,13 @@ unlock:
 
 int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
-	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
+	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
+	struct drm_crtc_commit *commit;
+	struct dm_crtc_state *crtc_state;
 	struct drm_dp_aux *aux = NULL;
 	bool enable = false;
 	bool enabled = false;
-	int ret;
-
-	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
+	int ret = 0;
 
 	if (source < 0) {
 		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
@@ -150,7 +150,33 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		return -EINVAL;
 	}
 
+	ret = drm_modeset_lock(&crtc->mutex, NULL);
+	if (ret)
+		return ret;
+
+	spin_lock(&crtc->commit_lock);
+	commit = list_first_entry_or_null(&crtc->commit_list,
+					  struct drm_crtc_commit, commit_entry);
+	if (commit)
+		drm_crtc_commit_get(commit);
+	spin_unlock(&crtc->commit_lock);
+
+	if (commit) {
+		/*
+		 * Need to wait for all outstanding programming to complete
+		 * in commit tail since it can modify CRC related fields and
+		 * hardware state. Since we're holding the CRTC lock we're
+		 * guaranteed that no other commit work can be queued off
+		 * before we modify the state below.
+		 */
+		ret = wait_for_completion_interruptible_timeout(
+			&commit->hw_done, 10 * HZ);
+		if (ret)
+			goto cleanup;
+	}
+
 	enable = amdgpu_dm_is_valid_crc_source(source);
+	crtc_state = to_dm_crtc_state(crtc->state);
 
 	/*
 	 * USER REQ SRC | CURRENT SRC | BEHAVIOR
@@ -184,19 +210,23 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 		if (!aconn) {
 			DRM_DEBUG_DRIVER("No amd connector matching CRTC-%d\n", crtc->index);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto cleanup;
 		}
 
 		aux = &aconn->dm_dp_aux.aux;
 
 		if (!aux) {
 			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto cleanup;
 		}
 	}
 
-	if (amdgpu_dm_crtc_configure_crc_source(crtc, crtc_state, source))
-		return -EINVAL;
+	if (amdgpu_dm_crtc_configure_crc_source(crtc, crtc_state, source)) {
+		ret = -EINVAL;
+		goto cleanup;
+	}
 
 	/*
 	 * Reading the CRC requires the vblank interrupt handler to be
@@ -206,12 +236,13 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	if (!enabled && enable) {
 		ret = drm_crtc_vblank_get(crtc);
 		if (ret)
-			return ret;
+			goto cleanup;
 
 		if (dm_is_crc_source_dprx(source)) {
 			if (drm_dp_start_crc(aux, crtc)) {
 				DRM_DEBUG_DRIVER("dp start crc failed\n");
-				return -EINVAL;
+				ret = -EINVAL;
+				goto cleanup;
 			}
 		}
 	} else if (enabled && !enable) {
@@ -219,7 +250,8 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		if (dm_is_crc_source_dprx(source)) {
 			if (drm_dp_stop_crc(aux)) {
 				DRM_DEBUG_DRIVER("dp stop crc failed\n");
-				return -EINVAL;
+				ret = -EINVAL;
+				goto cleanup;
 			}
 		}
 	}
@@ -228,7 +260,14 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 	/* Reset crc_skipped on dm state */
 	crtc_state->crc_skip_count = 0;
-	return 0;
+
+cleanup:
+	if (commit)
+		drm_crtc_commit_put(commit);
+
+	drm_modeset_unlock(&crtc->mutex);
+
+	return ret;
 }
 
 /**
