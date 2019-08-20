@@ -20,10 +20,29 @@
 
 #define COMPUTE_TO		(5 * HZ)
 #define LATEACK_DELAY		(10 * HZ)
-#define LATEACK_TO		256
-#define MAX_DELAY		300
 #define EWMA_LEVEL		96
 #define EWMA_DIV		128
+
+/**
+ * ath_dynack_get_max_to - set max timeout according to channel width
+ * @ah: ath hw
+ *
+ */
+static u32 ath_dynack_get_max_to(struct ath_hw *ah)
+{
+	const struct ath9k_channel *chan = ah->curchan;
+
+	if (!chan)
+		return 300;
+
+	if (IS_CHAN_HT40(chan))
+		return 300;
+	if (IS_CHAN_HALF_RATE(chan))
+		return 750;
+	if (IS_CHAN_QUARTER_RATE(chan))
+		return 1500;
+	return 600;
+}
 
 /**
  * ath_dynack_ewma - EWMA (Exponentially Weighted Moving Average) calculation
@@ -126,15 +145,16 @@ static void ath_dynack_compute_ackto(struct ath_hw *ah)
  */
 static void ath_dynack_compute_to(struct ath_hw *ah)
 {
-	u32 ackto, ack_ts;
-	u8 *dst, *src;
-	struct ieee80211_sta *sta;
-	struct ath_node *an;
-	struct ts_info *st_ts;
 	struct ath_dynack *da = &ah->dynack;
+	u32 ackto, ack_ts, max_to;
+	struct ieee80211_sta *sta;
+	struct ts_info *st_ts;
+	struct ath_node *an;
+	u8 *dst, *src;
 
 	rcu_read_lock();
 
+	max_to = ath_dynack_get_max_to(ah);
 	while (da->st_rbf.h_rb != da->st_rbf.t_rb &&
 	       da->ack_rbf.h_rb != da->ack_rbf.t_rb) {
 		ack_ts = da->ack_rbf.tstamp[da->ack_rbf.h_rb];
@@ -150,7 +170,7 @@ static void ath_dynack_compute_to(struct ath_hw *ah)
 		if (ack_ts > st_ts->tstamp + st_ts->dur) {
 			ackto = ack_ts - st_ts->tstamp - st_ts->dur;
 
-			if (ackto < MAX_DELAY) {
+			if (ackto < max_to) {
 				sta = ieee80211_find_sta_by_ifaddr(ah->hw, dst,
 								   src);
 				if (sta) {
@@ -207,8 +227,10 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 		if (ieee80211_is_assoc_req(hdr->frame_control) ||
 		    ieee80211_is_assoc_resp(hdr->frame_control) ||
 		    ieee80211_is_auth(hdr->frame_control)) {
+			u32 max_to = ath_dynack_get_max_to(ah);
+
 			ath_dbg(common, DYNACK, "late ack\n");
-			ath_dynack_set_timeout(ah, LATEACK_TO);
+			ath_dynack_set_timeout(ah, max_to);
 			if (sta) {
 				struct ath_node *an;
 
