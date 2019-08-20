@@ -338,7 +338,7 @@ void ath_dynack_reset(struct ath_hw *ah)
 	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
 
-	da->lto = jiffies;
+	da->lto = jiffies + COMPUTE_TO;
 	da->ackto = ackto;
 
 	da->st_rbf.t_rb = 0;
