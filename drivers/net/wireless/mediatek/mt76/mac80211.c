@@ -478,9 +478,10 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	if (!key)
 		return;
 
-	if (key->cipher == WLAN_CIPHER_SUITE_CCMP)
-		wcid->rx_check_pn = true;
+	if (key->cipher != WLAN_CIPHER_SUITE_CCMP)
+		return;
 
+	wcid->rx_check_pn = true;
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		ieee80211_get_key_rx_seq(key, i, &seq);
 		memcpy(wcid->rx_key_pn[i], seq.ccmp.pn, sizeof(seq.ccmp.pn));
