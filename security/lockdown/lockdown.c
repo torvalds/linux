@@ -81,10 +81,14 @@ early_param("lockdown", lockdown_param);
  */
 static int lockdown_is_locked_down(enum lockdown_reason what)
 {
+	if (WARN(what >= LOCKDOWN_CONFIDENTIALITY_MAX,
+		 "Invalid lockdown reason"))
+		return -EPERM;
+
 	if (kernel_locked_down >= what) {
 		if (lockdown_reasons[what])
-			pr_notice("Lockdown: %s is restricted; see man kernel_lockdown.7\n",
-				  lockdown_reasons[what]);
+			pr_notice("Lockdown: %s: %s is restricted; see man kernel_lockdown.7\n",
+				  current->comm, lockdown_reasons[what]);
 		return -EPERM;
 	}
 
