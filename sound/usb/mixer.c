@@ -785,6 +785,8 @@ static int __check_input_term(struct mixer_build *state, int id,
 		p1 = find_audio_control_unit(state, id);
 		if (!p1)
 			break;
+		if (!snd_usb_validate_audio_desc(p1, protocol))
+			break; /* bad descriptor */
 
 		hdr = p1;
 		term->id = id;
@@ -2775,6 +2777,11 @@ static int parse_audio_unit(struct mixer_build *state, int unitid)
 		return -EINVAL;
 	}
 
+	if (!snd_usb_validate_audio_desc(p1, protocol)) {
+		usb_audio_dbg(state->chip, "invalid unit %d\n", unitid);
+		return 0; /* skip invalid unit */
+	}
+
 	if (protocol == UAC_VERSION_1 || protocol == UAC_VERSION_2) {
 		switch (p1[2]) {
 		case UAC_INPUT_TERMINAL:
@@ -3145,6 +3152,9 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 	while ((p = snd_usb_find_csint_desc(mixer->hostif->extra,
 					    mixer->hostif->extralen,
 					    p, UAC_OUTPUT_TERMINAL)) != NULL) {
+		if (!snd_usb_validate_audio_desc(p, mixer->protocol))
+			continue; /* skip invalid descriptor */
+
 		if (mixer->protocol == UAC_VERSION_1) {
 			struct uac1_output_terminal_descriptor *desc = p;
 

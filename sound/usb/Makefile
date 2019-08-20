@@ -16,7 +16,8 @@ snd-usb-audio-objs := 	card.o \
 			power.o \
 			proc.o \
 			quirks.o \
-			stream.o
+			stream.o \
+			validate.o
 
 snd-usb-audio-$(CONFIG_SND_USB_AUDIO_USE_MEDIA_CONTROLLER) += media.o
 
