@@ -534,6 +534,15 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	I915_WRITE(EDP_PSR2_CTL(dev_priv->psr.transcoder), val);
 }
 
+static bool
+transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
+{
+	if (INTEL_GEN(dev_priv) >= 12)
+		return trans == TRANSCODER_A;
+	else
+		return trans == TRANSCODER_EDP;
+}
+
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -544,6 +553,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 
 	if (!dev_priv->psr.sink_psr2_support)
 		return false;
+
+	if (!transcoder_has_psr2(dev_priv, crtc_state->cpu_transcoder)) {
+		DRM_DEBUG_KMS("PSR2 not supported in transcoder %s\n",
+			      transcoder_name(crtc_state->cpu_transcoder));
+		return false;
+	}
 
 	/*
 	 * DSC and PSR2 cannot be enabled simultaneously. If a requested
