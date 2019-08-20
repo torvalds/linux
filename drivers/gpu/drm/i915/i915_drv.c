@@ -80,6 +80,68 @@
 
 static struct drm_driver driver;
 
+struct vlv_s0ix_state {
+	/* GAM */
+	u32 wr_watermark;
+	u32 gfx_prio_ctrl;
+	u32 arb_mode;
+	u32 gfx_pend_tlb0;
+	u32 gfx_pend_tlb1;
+	u32 lra_limits[GEN7_LRA_LIMITS_REG_NUM];
+	u32 media_max_req_count;
+	u32 gfx_max_req_count;
+	u32 render_hwsp;
+	u32 ecochk;
+	u32 bsd_hwsp;
+	u32 blt_hwsp;
+	u32 tlb_rd_addr;
+
+	/* MBC */
+	u32 g3dctl;
+	u32 gsckgctl;
+	u32 mbctl;
+
+	/* GCP */
+	u32 ucgctl1;
+	u32 ucgctl3;
+	u32 rcgctl1;
+	u32 rcgctl2;
+	u32 rstctl;
+	u32 misccpctl;
+
+	/* GPM */
+	u32 gfxpause;
+	u32 rpdeuhwtc;
+	u32 rpdeuc;
+	u32 ecobus;
+	u32 pwrdwnupctl;
+	u32 rp_down_timeout;
+	u32 rp_deucsw;
+	u32 rcubmabdtmr;
+	u32 rcedata;
+	u32 spare2gh;
+
+	/* Display 1 CZ domain */
+	u32 gt_imr;
+	u32 gt_ier;
+	u32 pm_imr;
+	u32 pm_ier;
+	u32 gt_scratch[GEN7_GT_SCRATCH_REG_NUM];
+
+	/* GT SA CZ domain */
+	u32 tilectl;
+	u32 gt_fifoctl;
+	u32 gtlc_wake_ctrl;
+	u32 gtlc_survive;
+	u32 pmwgicz;
+
+	/* Display 2 CZ domain */
+	u32 gu_ctl0;
+	u32 gu_ctl1;
+	u32 pcbr;
+	u32 clock_gate_dis2;
+};
+
 static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 {
 	int domain = pci_domain_nr(dev_priv->drm.pdev->bus);
@@ -466,6 +528,29 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 	}
 }
 
+static int vlv_alloc_s0ix_state(struct drm_i915_private *i915)
+{
+	if (!IS_VALLEYVIEW(i915))
+		return 0;
+
+	/* we write all the values in the struct, so no need to zero it out */
+	i915->vlv_s0ix_state = kmalloc(sizeof(*i915->vlv_s0ix_state),
+				       GFP_KERNEL);
+	if (!i915->vlv_s0ix_state)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void vlv_free_s0ix_state(struct drm_i915_private *i915)
+{
+	if (!i915->vlv_s0ix_state)
+		return;
+
+	kfree(i915->vlv_s0ix_state);
+	i915->vlv_s0ix_state = NULL;
+}
+
 /**
  * i915_driver_early_probe - setup state not requiring device access
  * @dev_priv: device private
@@ -508,13 +593,17 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		return ret;
 
+	ret = vlv_alloc_s0ix_state(dev_priv);
+	if (ret < 0)
+		goto err_workqueues;
+
 	intel_wopcm_init_early(&dev_priv->wopcm);
 
 	intel_gt_init_early(&dev_priv->gt, dev_priv);
 
 	ret = i915_gem_init_early(dev_priv);
 	if (ret < 0)
-		goto err_workqueues;
+		goto err_gt;
 
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev_priv);
@@ -536,8 +625,10 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 err_gem:
 	i915_gem_cleanup_early(dev_priv);
-err_workqueues:
+err_gt:
 	intel_gt_driver_late_release(&dev_priv->gt);
+	vlv_free_s0ix_state(dev_priv);
+err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
 	return ret;
 }
@@ -553,6 +644,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 	intel_power_domains_cleanup(dev_priv);
 	i915_gem_cleanup_early(dev_priv);
 	intel_gt_driver_late_release(&dev_priv->gt);
+	vlv_free_s0ix_state(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 
 	pm_qos_remove_request(&dev_priv->sb_qos);
@@ -2137,8 +2229,11 @@ static int i915_pm_restore(struct device *kdev)
  */
 static void vlv_save_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 {
-	struct vlv_s0ix_state *s = &dev_priv->vlv_s0ix_state;
+	struct vlv_s0ix_state *s = dev_priv->vlv_s0ix_state;
 	int i;
+
+	if (!s)
+		return;
 
 	/* GAM 0x4000-0x4770 */
 	s->wr_watermark		= I915_READ(GEN7_WR_WATERMARK);
@@ -2218,9 +2313,12 @@ static void vlv_save_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 
 static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 {
-	struct vlv_s0ix_state *s = &dev_priv->vlv_s0ix_state;
+	struct vlv_s0ix_state *s = dev_priv->vlv_s0ix_state;
 	u32 val;
 	int i;
+
+	if (!s)
+		return;
 
 	/* GAM 0x4000-0x4770 */
 	I915_WRITE(GEN7_WR_WATERMARK,	s->wr_watermark);
@@ -2430,8 +2528,7 @@ static int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 	if (err)
 		goto err2;
 
-	if (!IS_CHERRYVIEW(dev_priv))
-		vlv_save_gunit_s0ix_state(dev_priv);
+	vlv_save_gunit_s0ix_state(dev_priv);
 
 	err = vlv_force_gfx_clock(dev_priv, false);
 	if (err)
@@ -2461,8 +2558,7 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 	 */
 	ret = vlv_force_gfx_clock(dev_priv, true);
 
-	if (!IS_CHERRYVIEW(dev_priv))
-		vlv_restore_gunit_s0ix_state(dev_priv);
+	vlv_restore_gunit_s0ix_state(dev_priv);
 
 	err = vlv_allow_gt_wake(dev_priv, true);
 	if (!ret)
