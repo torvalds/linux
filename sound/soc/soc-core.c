@@ -315,6 +315,14 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 	if (!driver_name)
 		return NULL;
 
+	/*
+	 * NOTE
+	 *
+	 * snd_soc_rtdcom_lookup() will find component from rtd by using
+	 * specified driver name.
+	 * But, if many components which have same driver name are connected
+	 * to 1 rtd, this function will return 1st found component.
+	 */
 	for_each_rtdcom(rtd, rtdcom) {
 		const char *component_name = rtdcom->component->driver->name;
 
