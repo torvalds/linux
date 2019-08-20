@@ -810,6 +810,12 @@ static void common_timer_wait_running(struct k_itimer *timer)
 	hrtimer_cancel_wait_running(&timer->it.real.timer);
 }
 
+/*
+ * On PREEMPT_RT this prevent priority inversion against softirq kthread in
+ * case it gets preempted while executing a timer callback. See comments in
+ * hrtimer_cancel_wait_running. For PREEMPT_RT=n this just results in a
+ * cpu_relax().
+ */
 static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 					   unsigned long *flags)
 {
