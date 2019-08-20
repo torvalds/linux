@@ -389,7 +389,8 @@ static struct sk_buff *nsim_dev_trap_skb_build(void)
 	iph->ihl = 0x5;
 	iph->tot_len = htons(tot_len);
 	iph->ttl = 100;
-	ip_send_check(iph);
+	iph->check = 0;
+	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 
 	udph = skb_put_zero(skb, sizeof(struct udphdr) + data_len);
 	get_random_bytes(&udph->source, sizeof(u16));
