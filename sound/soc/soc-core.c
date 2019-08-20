@@ -2647,6 +2647,9 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 {
 	struct snd_soc_dapm_context *dapm;
 
+	INIT_LIST_HEAD(&component->dai_list);
+	mutex_init(&component->io_mutex);
+
 	component->name = fmt_single_name(dev, &component->id);
 	if (!component->name) {
 		dev_err(dev, "ASoC: Failed to allocate name\n");
@@ -2662,9 +2665,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	dapm->bias_level = SND_SOC_BIAS_OFF;
 	dapm->idle_bias_off = !driver->idle_bias_on;
 	dapm->suspend_bias_off = driver->suspend_bias_off;
-
-	INIT_LIST_HEAD(&component->dai_list);
-	mutex_init(&component->io_mutex);
 
 	return 0;
 }
