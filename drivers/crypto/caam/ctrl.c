@@ -602,6 +602,7 @@ static int caam_probe(struct platform_device *pdev)
 	caam_imx = (bool)imx_soc_match;
 
 	comp_params = rd_reg32(&ctrl->perfmon.comp_parms_ms);
+	caam_ptr_sz = sizeof(dma_addr_t);
 	caam_dpaa2 = !!(comp_params & CTPR_MS_DPAA2);
 	ctrlpriv->qi_present = !!(comp_params & CTPR_MS_QI_MASK);
 
