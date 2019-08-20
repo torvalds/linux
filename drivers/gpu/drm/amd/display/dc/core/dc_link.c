@@ -721,7 +721,7 @@ bool wait_for_alt_mode(struct dc_link *link)
 			time_taken_in_ns = dm_get_elapse_time_in_ns(
 				link->ctx, finish_timestamp, enter_timestamp);
 			DC_LOG_WARNING("Alt mode entered finished after %llu ms\n",
-				       time_taken_in_ns / 1000000);
+				       div_u64(time_taken_in_ns, 1000000));
 			return true;
 		}
 
@@ -730,7 +730,7 @@ bool wait_for_alt_mode(struct dc_link *link)
 	time_taken_in_ns = dm_get_elapse_time_in_ns(link->ctx, finish_timestamp,
 						    enter_timestamp);
 	DC_LOG_WARNING("Alt mode has timed out after %llu ms\n",
-			time_taken_in_ns / 1000000);
+			div_u64(time_taken_in_ns, 1000000));
 	return false;
 }
 
