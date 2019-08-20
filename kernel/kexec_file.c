@@ -208,7 +208,15 @@ kimage_validate_signature(struct kimage *image)
 			return ret;
 		}
 
-		return security_locked_down(LOCKDOWN_KEXEC);
+		/* If IMA is guaranteed to appraise a signature on the kexec
+		 * image, permit it even if the kernel is otherwise locked
+		 * down.
+		 */
+		if (!ima_appraise_signature(READING_KEXEC_IMAGE) &&
+		    security_locked_down(LOCKDOWN_KEXEC))
+			return -EPERM;
+
+		return 0;
 
 		/* All other errors are fatal, including nomem, unparseable
 		 * signatures and signature check failures - even if signatures
