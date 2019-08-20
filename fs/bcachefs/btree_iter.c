@@ -496,6 +496,23 @@ static inline void __bch2_btree_iter_verify(struct btree_iter *iter,
 
 #endif
 
+static void btree_node_iter_set_set_pos(struct btree_node_iter *iter,
+					struct btree *b,
+					struct bset_tree *t,
+					struct bkey_packed *k)
+{
+	struct btree_node_iter_set *set;
+
+	btree_node_iter_for_each(iter, set)
+		if (set->end == t->end_offset) {
+			set->k = __btree_node_key_to_offset(b, k);
+			bch2_btree_node_iter_sort(iter, b);
+			return;
+		}
+
+	bch2_btree_node_iter_push(iter, b, k, btree_bkey_last(b, t));
+}
+
 static void __bch2_btree_node_iter_fix(struct btree_iter *iter,
 				      struct btree *b,
 				      struct btree_node_iter *node_iter,
@@ -527,7 +544,8 @@ static void __bch2_btree_node_iter_fix(struct btree_iter *iter,
 				bch2_btree_node_iter_peek_all(node_iter, b),
 				&iter->k);
 	}
-	return;
+
+	goto iter_current_key_not_modified;
 found:
 	set->end = t->end_offset;
 
@@ -569,60 +587,42 @@ found:
 			bkey_disassemble(l->b, k, &iter->k);
 	}
 iter_current_key_not_modified:
-
 	/*
-	 * Interior nodes are special because iterators for interior nodes don't
-	 * obey the usual invariants regarding the iterator position:
-	 *
-	 * We may have whiteouts that compare greater than the iterator
-	 * position, and logically should be in the iterator, but that we
-	 * skipped past to find the first live key greater than the iterator
-	 * position. This becomes an issue when we insert a new key that is
-	 * greater than the current iterator position, but smaller than the
-	 * whiteouts we've already skipped past - this happens in the course of
-	 * a btree split.
-	 *
-	 * We have to rewind the iterator past to before those whiteouts here,
-	 * else bkey_node_iter_prev() is not going to work and who knows what
-	 * else would happen. And we have to do it manually, because here we've
-	 * already done the insert and the iterator is currently inconsistent:
-	 *
-	 * We've got multiple competing invariants, here - we have to be careful
-	 * about rewinding iterators for interior nodes, because they should
-	 * always point to the key for the child node the btree iterator points
-	 * to.
+	 * When a new key is added, and the node iterator now points to that
+	 * key, the iterator might have skipped past deleted keys that should
+	 * come after the key the iterator now points to. We have to rewind to
+	 * before those deleted keys - otherwise bch2_btree_node_iter_prev_all()
+	 * breaks:
 	 */
-	if (b->c.level && new_u64s &&
-	    btree_iter_pos_cmp(iter, b, where) > 0) {
-		struct bset_tree *t, *where_set = bch2_bkey_to_bset_inlined(b, where);
-		struct bkey_packed *k;
+	if (!bch2_btree_node_iter_end(node_iter) &&
+	    (b->c.level ||
+	     (iter->flags & BTREE_ITER_IS_EXTENTS))) {
+		struct bset_tree *t;
+		struct bkey_packed *k, *k2, *p;
+
+		k = bch2_btree_node_iter_peek_all(node_iter, b);
 
 		for_each_bset(b, t) {
-			if (where_set == t)
+			bool set_pos = false;
+
+			if (node_iter->data[0].end == t->end_offset)
 				continue;
 
-			k = bch2_bkey_prev_all(b, t,
-				bch2_btree_node_iter_bset_pos(node_iter, b, t));
-			if (k &&
-			    bkey_iter_cmp(b, k, where) > 0) {
-				struct btree_node_iter_set *set;
-				unsigned offset =
-					__btree_node_key_to_offset(b, bkey_next(k));
+			k2 = bch2_btree_node_iter_bset_pos(node_iter, b, t);
 
-				btree_node_iter_for_each(node_iter, set)
-					if (set->k == offset) {
-						set->k = __btree_node_key_to_offset(b, k);
-						bch2_btree_node_iter_sort(node_iter, b);
-						goto next_bset;
-					}
-
-				bch2_btree_node_iter_push(node_iter, b, k,
-						btree_bkey_last(b, t));
+			while ((p = bch2_bkey_prev_all(b, t, k2)) &&
+			       bkey_iter_cmp(b, k, p) < 0) {
+				k2 = p;
+				set_pos = true;
 			}
-next_bset:
-			t = t;
+
+			if (set_pos)
+				btree_node_iter_set_set_pos(node_iter,
+							    b, t, k2);
 		}
 	}
+
+	bch2_btree_node_iter_verify(node_iter, b);
 }
 
 void bch2_btree_node_iter_fix(struct btree_iter *iter,
