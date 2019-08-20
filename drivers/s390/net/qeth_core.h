@@ -572,15 +572,26 @@ struct qeth_channel {
 	atomic_t irq_pending;
 };
 
+struct qeth_reply {
+	int (*callback)(struct qeth_card *card, struct qeth_reply *reply,
+			unsigned long data);
+	void *param;
+};
+
 struct qeth_cmd_buffer {
+	struct list_head list;
+	struct completion done;
+	spinlock_t lock;
 	unsigned int length;
 	refcount_t ref_count;
 	struct qeth_channel *channel;
-	struct qeth_reply *reply;
+	struct qeth_reply reply;
 	long timeout;
 	unsigned char *data;
 	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
-	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
+	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
+			 unsigned int data_length);
+	int rc;
 };
 
 static inline void qeth_get_cmd(struct qeth_cmd_buffer *iob)
@@ -626,19 +637,6 @@ struct qeth_seqno {
 	__u16 ipa;
 };
 
-struct qeth_reply {
-	struct list_head list;
-	struct completion received;
-	spinlock_t lock;
-	int (*callback)(struct qeth_card *, struct qeth_reply *,
-		unsigned long);
-	u32 seqno;
-	unsigned long offset;
-	int rc;
-	void *param;
-	refcount_t refcnt;
-};
-
 struct qeth_card_blkt {
 	int time_total;
 	int inter_packet;
@@ -651,10 +649,11 @@ struct qeth_card_blkt {
 struct qeth_card_info {
 	unsigned short unit_addr2;
 	unsigned short cula;
-	unsigned short chpid;
+	u8 chpid;
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
 	u8 open_when_online:1;
+	u8 promisc_mode:1;
 	u8 use_v1_blkt:1;
 	u8 is_vm_nic:1;
 	int mac_bits;
@@ -664,7 +663,6 @@ struct qeth_card_info {
 	int unique_id;
 	bool layer_enforced;
 	struct qeth_card_blkt blkt;
-	enum qeth_ipa_promisc_modes promisc_mode;
 	__u32 diagass_support;
 	__u32 hwtrap;
 };
@@ -994,6 +992,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 struct qeth_cmd_buffer *qeth_get_diag_cmd(struct qeth_card *card,
 					  enum qeth_diags_cmds sub_cmd,
 					  unsigned int data_length);
+void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason);
 void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
@@ -1005,10 +1004,9 @@ void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);
 void qeth_clear_working_pool_list(struct qeth_card *);
 void qeth_drain_output_queues(struct qeth_card *card);
-void qeth_setadp_promisc_mode(struct qeth_card *);
+void qeth_setadp_promisc_mode(struct qeth_card *card, bool enable);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
-void qeth_notify_reply(struct qeth_reply *reply, int reason);
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			  u16 cmd_length);
 int qeth_query_switch_attributes(struct qeth_card *card,
