@@ -155,6 +155,7 @@ properties:
       - qcom,krait
       - qcom,kryo
       - qcom,kryo385
+      - qcom,kryo485
       - qcom,scorpion
 
   enable-method:
