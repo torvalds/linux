@@ -5820,7 +5820,7 @@ struct hdcp2_dp_msg_data {
 	u32 timeout2; /* Added for non_paired situation */
 };
 
-static struct hdcp2_dp_msg_data hdcp2_msg_data[] = {
+static struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
 	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0 },
 	{ HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
 	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
@@ -5951,9 +5951,9 @@ static struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hdcp2_msg_data); i++)
-		if (hdcp2_msg_data[i].msg_id == msg_id)
-			return &hdcp2_msg_data[i];
+	for (i = 0; i < ARRAY_SIZE(hdcp2_dp_msg_data); i++)
+		if (hdcp2_dp_msg_data[i].msg_id == msg_id)
+			return &hdcp2_dp_msg_data[i];
 
 	return NULL;
 }
