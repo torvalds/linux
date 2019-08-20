@@ -1000,7 +1000,7 @@ static int ade_drm_init(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ctx = ade_hw_ctx_alloc(pdev, &ade->crtc.base);
+	ctx = ade_driver_data.alloc_hw_ctx(pdev, &ade->crtc.base);
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("failed to initialize kirin_priv hw ctx\n");
 		return -EINVAL;
@@ -1038,6 +1038,10 @@ static int ade_drm_init(struct platform_device *pdev)
 		return ret;
 
 	return 0;
+}
+
+static void ade_hw_ctx_cleanup(void *hw_ctx)
+{
 }
 
 static void ade_drm_cleanup(struct platform_device *pdev)
@@ -1088,6 +1092,9 @@ struct kirin_drm_data ade_driver_data = {
 	.plane_helper_funcs = &ade_plane_helper_funcs,
 	.plane_funcs = &ade_plane_funcs,
 	.mode_config_funcs = &ade_mode_config_funcs,
+
+	.alloc_hw_ctx = ade_hw_ctx_alloc,
+	.cleanup_hw_ctx = ade_hw_ctx_cleanup,
 
 	.init = ade_drm_init,
 	.cleanup = ade_drm_cleanup
