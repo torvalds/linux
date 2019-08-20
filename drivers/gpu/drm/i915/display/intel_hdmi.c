@@ -1514,29 +1514,28 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 	return true;
 }
 
-static struct hdcp2_hdmi_msg_data {
+struct hdcp2_hdmi_msg_data {
 	u8 msg_id;
 	u32 timeout;
 	u32 timeout2;
-	} hdcp2_msg_data[] = {
-		{HDCP_2_2_AKE_INIT, 0, 0},
-		{HDCP_2_2_AKE_SEND_CERT, HDCP_2_2_CERT_TIMEOUT_MS, 0},
-		{HDCP_2_2_AKE_NO_STORED_KM, 0, 0},
-		{HDCP_2_2_AKE_STORED_KM, 0, 0},
-		{HDCP_2_2_AKE_SEND_HPRIME, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
-				HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS},
-		{HDCP_2_2_AKE_SEND_PAIRING_INFO, HDCP_2_2_PAIRING_TIMEOUT_MS,
-				0},
-		{HDCP_2_2_LC_INIT, 0, 0},
-		{HDCP_2_2_LC_SEND_LPRIME, HDCP_2_2_HDMI_LPRIME_TIMEOUT_MS, 0},
-		{HDCP_2_2_SKE_SEND_EKS, 0, 0},
-		{HDCP_2_2_REP_SEND_RECVID_LIST,
-				HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0},
-		{HDCP_2_2_REP_SEND_ACK, 0, 0},
-		{HDCP_2_2_REP_STREAM_MANAGE, 0, 0},
-		{HDCP_2_2_REP_STREAM_READY, HDCP_2_2_STREAM_READY_TIMEOUT_MS,
-				0},
-	};
+};
+
+static struct hdcp2_hdmi_msg_data hdcp2_msg_data[] = {
+	{ HDCP_2_2_AKE_INIT, 0, 0 },
+	{ HDCP_2_2_AKE_SEND_CERT, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_AKE_NO_STORED_KM, 0, 0 },
+	{ HDCP_2_2_AKE_STORED_KM, 0, 0 },
+	{ HDCP_2_2_AKE_SEND_HPRIME, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
+	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS },
+	{ HDCP_2_2_AKE_SEND_PAIRING_INFO, HDCP_2_2_PAIRING_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_LC_INIT, 0, 0 },
+	{ HDCP_2_2_LC_SEND_LPRIME, HDCP_2_2_HDMI_LPRIME_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_SKE_SEND_EKS, 0, 0 },
+	{ HDCP_2_2_REP_SEND_RECVID_LIST, HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_REP_SEND_ACK, 0, 0 },
+	{ HDCP_2_2_REP_STREAM_MANAGE, 0, 0 },
+	{ HDCP_2_2_REP_STREAM_READY, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0 },
+};
 
 static
 int intel_hdmi_hdcp2_read_rx_status(struct intel_digital_port *intel_dig_port,
