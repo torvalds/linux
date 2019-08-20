@@ -1013,18 +1013,24 @@ out:
  */
 static bool siw_cq_notify_now(struct siw_cq *cq, u32 flags)
 {
-	u64 cq_notify;
+	u32 cq_notify;
 
 	if (!cq->base_cq.comp_handler)
 		return false;
 
-	cq_notify = READ_ONCE(*cq->notify);
+	/* Read application shared notification state */
+	cq_notify = READ_ONCE(cq->notify->flags);
 
 	if ((cq_notify & SIW_NOTIFY_NEXT_COMPLETION) ||
 	    ((cq_notify & SIW_NOTIFY_SOLICITED) &&
 	     (flags & SIW_WQE_SOLICITED))) {
-		/* dis-arm CQ */
-		smp_store_mb(*cq->notify, SIW_NOTIFY_NOT);
+		/*
+		 * CQ notification is one-shot: Since the
+		 * current CQE causes user notification,
+		 * the CQ gets dis-aremd and must be re-aremd
+		 * by the user for a new notification.
+		 */
+		WRITE_ONCE(cq->notify->flags, SIW_NOTIFY_NOT);
 
 		return true;
 	}

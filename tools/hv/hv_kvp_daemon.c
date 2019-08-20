@@ -700,7 +700,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 
 
 	/*
-	 * Gather the DNS  state.
+	 * Gather the DNS state.
 	 * Since there is no standard way to get this information
 	 * across various distributions of interest; we just invoke
 	 * an external script that needs to be ported across distros
@@ -1051,7 +1051,7 @@ static int parse_ip_val_buffer(char *in_buf, int *offset,
 	char *start;
 
 	/*
-	 * in_buf has sequence of characters that are seperated by
+	 * in_buf has sequence of characters that are separated by
 	 * the character ';'. The last sequence does not have the
 	 * terminating ";" character.
 	 */
@@ -1386,6 +1386,8 @@ int main(int argc, char *argv[])
 			daemonize = 0;
 			break;
 		case 'h':
+			print_usage(argv);
+			exit(0);
 		default:
 			print_usage(argv);
 			exit(EXIT_FAILURE);
@@ -1490,7 +1492,7 @@ int main(int argc, char *argv[])
 		case KVP_OP_GET_IP_INFO:
 			kvp_ip_val = &hv_msg->body.kvp_ip_val;
 
-			error =  kvp_mac_to_ip(kvp_ip_val);
+			error = kvp_mac_to_ip(kvp_ip_val);
 
 			if (error)
 				hv_msg->error = error;
