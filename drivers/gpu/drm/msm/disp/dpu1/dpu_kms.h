@@ -122,6 +122,14 @@ struct dpu_kms {
 	struct platform_device *pdev;
 	bool rpm_enabled;
 	struct dss_module_power mp;
+
+	/* reference count bandwidth requests, so we know when we can
+	 * release bandwidth.  Each atomic update increments, and frame-
+	 * done event decrements.  Additionally, for video mode, the
+	 * reference is incremented when crtc is enabled, and decremented
+	 * when disabled.
+	 */
+	atomic_t bandwidth_ref;
 };
 
 struct vsync_info {

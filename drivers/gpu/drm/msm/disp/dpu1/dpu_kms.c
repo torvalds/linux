@@ -802,6 +802,8 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		return rc;
 	}
 
+	atomic_set(&dpu_kms->bandwidth_ref, 0);
+
 	dpu_kms->mmio = msm_ioremap(dpu_kms->pdev, "mdp", "mdp");
 	if (IS_ERR(dpu_kms->mmio)) {
 		rc = PTR_ERR(dpu_kms->mmio);
