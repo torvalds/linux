@@ -149,8 +149,8 @@ static const struct ppc_pci_io iowa_pci_io = {
 };
 
 #ifdef CONFIG_PPC_INDIRECT_MMIO
-static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
-				  pgprot_t prot, void *caller)
+void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
+			   pgprot_t prot, void *caller)
 {
 	struct iowa_bus *bus;
 	void __iomem *res = __ioremap_caller(addr, size, prot, caller);
@@ -163,20 +163,17 @@ static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 	}
 	return res;
 }
-#else /* CONFIG_PPC_INDIRECT_MMIO */
-#define iowa_ioremap NULL
 #endif /* !CONFIG_PPC_INDIRECT_MMIO */
+
+bool io_workaround_inited;
 
 /* Enable IO workaround */
 static void io_workaround_init(void)
 {
-	static int io_workaround_inited;
-
 	if (io_workaround_inited)
 		return;
 	ppc_pci_io = iowa_pci_io;
-	ppc_md.ioremap = iowa_ioremap;
-	io_workaround_inited = 1;
+	io_workaround_inited = true;
 }
 
 /* Register new bus to support workaround */

@@ -35,6 +35,7 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/io.h>
+#include <asm/io-workarounds.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -208,8 +209,8 @@ void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
-	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, prot, caller);
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
 
@@ -218,8 +219,8 @@ void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
 	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
-	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, prot, caller);
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
 
@@ -228,8 +229,8 @@ void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
 	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
-	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, prot, caller);
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
 
@@ -250,8 +251,8 @@ void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 	 */
 	pte = pte_mkprivileged(pte);
 
-	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, pte_pgprot(pte), caller);
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, pte_pgprot(pte), caller);
 	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
 }
 
