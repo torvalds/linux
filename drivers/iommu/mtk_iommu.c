@@ -188,10 +188,32 @@ static void mtk_iommu_tlb_sync(void *cookie)
 	}
 }
 
-static const struct iommu_gather_ops mtk_iommu_gather_ops = {
+static void mtk_iommu_tlb_flush_walk(unsigned long iova, size_t size,
+				     size_t granule, void *cookie)
+{
+	mtk_iommu_tlb_add_flush_nosync(iova, size, granule, false, cookie);
+	mtk_iommu_tlb_sync(cookie);
+}
+
+static void mtk_iommu_tlb_flush_leaf(unsigned long iova, size_t size,
+				     size_t granule, void *cookie)
+{
+	mtk_iommu_tlb_add_flush_nosync(iova, size, granule, true, cookie);
+	mtk_iommu_tlb_sync(cookie);
+}
+
+static void mtk_iommu_tlb_flush_page_nosync(struct iommu_iotlb_gather *gather,
+					    unsigned long iova, size_t granule,
+					    void *cookie)
+{
+	mtk_iommu_tlb_add_flush_nosync(iova, granule, granule, true, cookie);
+}
+
+static const struct iommu_flush_ops mtk_iommu_flush_ops = {
 	.tlb_flush_all = mtk_iommu_tlb_flush_all,
-	.tlb_add_flush = mtk_iommu_tlb_add_flush_nosync,
-	.tlb_sync = mtk_iommu_tlb_sync,
+	.tlb_flush_walk = mtk_iommu_tlb_flush_walk,
+	.tlb_flush_leaf = mtk_iommu_tlb_flush_leaf,
+	.tlb_add_page = mtk_iommu_tlb_flush_page_nosync,
 };
 
 static irqreturn_t mtk_iommu_isr(int irq, void *dev_id)
@@ -267,7 +289,7 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom)
 		.pgsize_bitmap = mtk_iommu_ops.pgsize_bitmap,
 		.ias = 32,
 		.oas = 32,
-		.tlb = &mtk_iommu_gather_ops,
+		.tlb = &mtk_iommu_flush_ops,
 		.iommu_dev = data->dev,
 	};
 
@@ -371,20 +393,27 @@ static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t mtk_iommu_unmap(struct iommu_domain *domain,
-			      unsigned long iova, size_t size)
+			      unsigned long iova, size_t size,
+			      struct iommu_iotlb_gather *gather)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 	unsigned long flags;
 	size_t unmapsz;
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
-	unmapsz = dom->iop->unmap(dom->iop, iova, size);
+	unmapsz = dom->iop->unmap(dom->iop, iova, size, gather);
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
 	return unmapsz;
 }
 
-static void mtk_iommu_iotlb_sync(struct iommu_domain *domain)
+static void mtk_iommu_flush_iotlb_all(struct iommu_domain *domain)
+{
+	mtk_iommu_tlb_sync(mtk_iommu_get_m4u_data());
+}
+
+static void mtk_iommu_iotlb_sync(struct iommu_domain *domain,
+				 struct iommu_iotlb_gather *gather)
 {
 	mtk_iommu_tlb_sync(mtk_iommu_get_m4u_data());
 }
@@ -490,7 +519,7 @@ static const struct iommu_ops mtk_iommu_ops = {
 	.detach_dev	= mtk_iommu_detach_device,
 	.map		= mtk_iommu_map,
 	.unmap		= mtk_iommu_unmap,
-	.flush_iotlb_all = mtk_iommu_iotlb_sync,
+	.flush_iotlb_all = mtk_iommu_flush_iotlb_all,
 	.iotlb_sync	= mtk_iommu_iotlb_sync,
 	.iova_to_phys	= mtk_iommu_iova_to_phys,
 	.add_device	= mtk_iommu_add_device,
