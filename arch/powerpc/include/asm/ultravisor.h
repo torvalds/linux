@@ -31,4 +31,14 @@ static inline int uv_register_pate(u64 lpid, u64 dw0, u64 dw1)
 	return ucall_norets(UV_WRITE_PATE, lpid, dw0, dw1);
 }
 
+static inline int uv_share_page(u64 pfn, u64 npages)
+{
+	return ucall_norets(UV_SHARE_PAGE, pfn, npages);
+}
+
+static inline int uv_unshare_page(u64 pfn, u64 npages)
+{
+	return ucall_norets(UV_UNSHARE_PAGE, pfn, npages);
+}
+
 #endif	/* _ASM_POWERPC_ULTRAVISOR_H */

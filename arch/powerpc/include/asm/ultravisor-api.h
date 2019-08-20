@@ -26,5 +26,7 @@
 #define UV_WRITE_PATE			0xF104
 #define UV_RETURN			0xF11C
 #define UV_ESM				0xF110
+#define UV_SHARE_PAGE			0xF130
+#define UV_UNSHARE_PAGE			0xF134
 
 #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
