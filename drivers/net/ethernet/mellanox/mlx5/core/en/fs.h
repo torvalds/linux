@@ -238,5 +238,8 @@ void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
+bool mlx5e_tunnel_proto_supported(struct mlx5_core_dev *mdev, u8 proto_type);
+bool mlx5e_any_tunnel_proto_supported(struct mlx5_core_dev *mdev);
+
 #endif /* __MLX5E_FLOW_STEER_H__ */
 
