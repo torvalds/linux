@@ -679,6 +679,13 @@ static void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
+static unsigned io_cqring_events(struct io_cq_ring *ring)
+{
+	/* See comment at the top of this file */
+	smp_rmb();
+	return READ_ONCE(ring->r.tail) - READ_ONCE(ring->r.head);
+}
+
 /*
  * Find and free completed poll iocbs
  */
@@ -817,6 +824,14 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 	iters = 0;
 	do {
 		int tmin = 0;
+
+		/*
+		 * Don't enter poll loop if we already have events pending.
+		 * If we do, we can potentially be spinning for commands that
+		 * already triggered a CQE (eg in error).
+		 */
+		if (io_cqring_events(ctx->cq_ring))
+			break;
 
 		/*
 		 * If a submit got punted to a workqueue, we can have the
@@ -2447,13 +2462,6 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 		io_submit_state_end(statep);
 
 	return submit;
-}
-
-static unsigned io_cqring_events(struct io_cq_ring *ring)
-{
-	/* See comment at the top of this file */
-	smp_rmb();
-	return READ_ONCE(ring->r.tail) - READ_ONCE(ring->r.head);
 }
 
 /*
