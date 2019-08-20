@@ -2005,8 +2005,13 @@ err:
 static void
 add_to_client(struct i915_request *rq, struct drm_file *file)
 {
-	rq->file_priv = file->driver_priv;
-	list_add_tail(&rq->client_link, &rq->file_priv->mm.request_list);
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
+	rq->file_priv = file_priv;
+
+	spin_lock(&file_priv->mm.lock);
+	list_add_tail(&rq->client_link, &file_priv->mm.request_list);
+	spin_unlock(&file_priv->mm.lock);
 }
 
 static int eb_submit(struct i915_execbuffer *eb)

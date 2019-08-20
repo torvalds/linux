@@ -165,11 +165,11 @@ static void __notify_execute_cb(struct i915_request *rq)
 }
 
 static inline void
-i915_request_remove_from_client(struct i915_request *request)
+remove_from_client(struct i915_request *request)
 {
 	struct drm_i915_file_private *file_priv;
 
-	file_priv = request->file_priv;
+	file_priv = READ_ONCE(request->file_priv);
 	if (!file_priv)
 		return;
 
@@ -282,7 +282,7 @@ static bool i915_request_retire(struct i915_request *rq)
 
 	local_irq_enable();
 
-	i915_request_remove_from_client(rq);
+	remove_from_client(rq);
 	list_del(&rq->link);
 
 	intel_context_exit(rq->hw_context);
