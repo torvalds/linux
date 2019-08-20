@@ -1961,6 +1961,7 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	 */
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
 	arm_smmu_cmdq_issue_sync(smmu);
+	arm_smmu_atc_inv_domain(smmu_domain, 0, 0, 0);
 }
 
 static void arm_smmu_tlb_inv_range(unsigned long iova, size_t size,
@@ -1969,7 +1970,7 @@ static void arm_smmu_tlb_inv_range(unsigned long iova, size_t size,
 {
 	u64 cmds[CMDQ_BATCH_ENTRIES * CMDQ_ENT_DWORDS];
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
-	unsigned long end = iova + size;
+	unsigned long start = iova, end = iova + size;
 	int i = 0;
 	struct arm_smmu_cmdq_ent cmd = {
 		.tlbi = {
@@ -2001,6 +2002,12 @@ static void arm_smmu_tlb_inv_range(unsigned long iova, size_t size,
 	}
 
 	arm_smmu_cmdq_issue_cmdlist(smmu, cmds, i, true);
+
+	/*
+	 * Unfortunately, this can't be leaf-only since we may have
+	 * zapped an entire table.
+	 */
+	arm_smmu_atc_inv_domain(smmu_domain, 0, start, size);
 }
 
 static void arm_smmu_tlb_inv_page_nosync(struct iommu_iotlb_gather *gather,
@@ -2420,18 +2427,13 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 			     size_t size, struct iommu_iotlb_gather *gather)
 {
-	int ret;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct io_pgtable_ops *ops = smmu_domain->pgtbl_ops;
 
 	if (!ops)
 		return 0;
 
-	ret = ops->unmap(ops, iova, size, gather);
-	if (ret && arm_smmu_atc_inv_domain(smmu_domain, 0, iova, size))
-		return 0;
-
-	return ret;
+	return ops->unmap(ops, iova, size, gather);
 }
 
 static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
