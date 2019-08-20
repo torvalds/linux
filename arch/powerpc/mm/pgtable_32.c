@@ -39,24 +39,6 @@ EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 extern char etext[], _stext[], _sinittext[], _einittext[];
 
 void __iomem *
-ioremap(phys_addr_t addr, unsigned long size)
-{
-	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
-
-	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
-}
-EXPORT_SYMBOL(ioremap);
-
-void __iomem *
-ioremap_wc(phys_addr_t addr, unsigned long size)
-{
-	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
-
-	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
-}
-EXPORT_SYMBOL(ioremap_wc);
-
-void __iomem *
 ioremap_wt(phys_addr_t addr, unsigned long size)
 {
 	pgprot_t prot = pgprot_cached_wthru(PAGE_KERNEL);
@@ -64,15 +46,6 @@ ioremap_wt(phys_addr_t addr, unsigned long size)
 	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_wt);
-
-void __iomem *
-ioremap_coherent(phys_addr_t addr, unsigned long size)
-{
-	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
-
-	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
-}
-EXPORT_SYMBOL(ioremap_coherent);
 
 void __iomem *
 ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)

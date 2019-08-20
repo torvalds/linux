@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include <linux/io.h>
+#include <asm/io-workarounds.h>
+
+void __iomem *ioremap(phys_addr_t addr, unsigned long size)
+{
+	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
+	void *caller = __builtin_return_address(0);
+
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, prot, caller);
+	return __ioremap_caller(addr, size, prot, caller);
+}
+EXPORT_SYMBOL(ioremap);
+
+void __iomem *ioremap_wc(phys_addr_t addr, unsigned long size)
+{
+	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
+	void *caller = __builtin_return_address(0);
+
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, prot, caller);
+	return __ioremap_caller(addr, size, prot, caller);
+}
+EXPORT_SYMBOL(ioremap_wc);
+
+void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
+{
+	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
+	void *caller = __builtin_return_address(0);
+
+	if (iowa_is_active())
+		return iowa_ioremap(addr, size, prot, caller);
+	return __ioremap_caller(addr, size, prot, caller);
+}

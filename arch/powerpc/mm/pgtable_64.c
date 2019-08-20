@@ -35,7 +35,6 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/io-workarounds.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -204,36 +203,6 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 	return ret;
 }
 
-void __iomem * ioremap(phys_addr_t addr, unsigned long size)
-{
-	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
-	void *caller = __builtin_return_address(0);
-
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, prot, caller);
-	return __ioremap_caller(addr, size, prot, caller);
-}
-
-void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
-{
-	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
-	void *caller = __builtin_return_address(0);
-
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, prot, caller);
-	return __ioremap_caller(addr, size, prot, caller);
-}
-
-void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
-{
-	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
-	void *caller = __builtin_return_address(0);
-
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, prot, caller);
-	return __ioremap_caller(addr, size, prot, caller);
-}
-
 void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 			     unsigned long flags)
 {
@@ -278,8 +247,6 @@ void iounmap(volatile void __iomem *token)
 	vunmap(addr);
 }
 
-EXPORT_SYMBOL(ioremap);
-EXPORT_SYMBOL(ioremap_wc);
 EXPORT_SYMBOL(ioremap_prot);
 EXPORT_SYMBOL(__ioremap_at);
 EXPORT_SYMBOL(iounmap);
