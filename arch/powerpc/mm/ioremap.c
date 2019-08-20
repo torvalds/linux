@@ -3,6 +3,9 @@
 #include <linux/io.h>
 #include <asm/io-workarounds.h>
 
+unsigned long ioremap_bot;
+EXPORT_SYMBOL(ioremap_bot);
+
 void __iomem *ioremap(phys_addr_t addr, unsigned long size)
 {
 	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);

@@ -201,8 +201,6 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 #include <linux/sched.h>
 #include <linux/threads.h>
 
-extern unsigned long ioremap_bot;
-
 /* Bits to mask out from a PGD to get to the PUD page */
 #define PGD_MASKED_BITS		0
 

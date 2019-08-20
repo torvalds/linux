@@ -68,6 +68,8 @@ extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
 
+extern unsigned long ioremap_bot;
+
 /*
  * kern_addr_valid is intended to indicate whether an address is a valid
  * kernel address.  Most 32-bit archs define it as always true (like this)

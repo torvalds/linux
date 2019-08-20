@@ -703,6 +703,8 @@ static void __init early_init_mmu_global(void)
 	 * for use by the TLB miss code
 	 */
 	linear_map_top = memblock_end_of_DRAM();
+
+	ioremap_bot = IOREMAP_BASE;
 }
 
 static void __init early_mmu_set_memory_limit(void)
