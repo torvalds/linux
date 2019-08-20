@@ -637,7 +637,7 @@ struct arm_smmu_master {
 	struct list_head		domain_head;
 	u32				*sids;
 	unsigned int			num_sids;
-	bool				ats_enabled		:1;
+	bool				ats_enabled;
 };
 
 /* SMMU private data for an IOMMU domain */
