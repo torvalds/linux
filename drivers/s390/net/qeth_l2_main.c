@@ -1000,7 +1000,8 @@ struct qeth_discipline qeth_l2_discipline = {
 EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 
 static void qeth_osn_assist_cb(struct qeth_card *card,
-			       struct qeth_cmd_buffer *iob)
+			       struct qeth_cmd_buffer *iob,
+			       unsigned int data_length)
 {
 	qeth_notify_reply(iob->reply, 0);
 	qeth_put_cmd(iob);

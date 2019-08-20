@@ -63,7 +63,8 @@ static struct device *qeth_core_root_dev;
 static struct lock_class_key qdio_out_skb_queue_key;
 
 static void qeth_issue_next_read_cb(struct qeth_card *card,
-				    struct qeth_cmd_buffer *iob);
+				    struct qeth_cmd_buffer *iob,
+				    unsigned int data_length);
 static void qeth_free_buffer_pool(struct qeth_card *);
 static int qeth_qdio_establish(struct qeth_card *);
 static void qeth_free_qdio_queues(struct qeth_card *card);
@@ -702,7 +703,8 @@ void qeth_put_cmd(struct qeth_cmd_buffer *iob)
 EXPORT_SYMBOL_GPL(qeth_put_cmd);
 
 static void qeth_release_buffer_cb(struct qeth_card *card,
-				   struct qeth_cmd_buffer *iob)
+				   struct qeth_cmd_buffer *iob,
+				   unsigned int data_length)
 {
 	qeth_put_cmd(iob);
 }
@@ -745,7 +747,8 @@ struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
 EXPORT_SYMBOL_GPL(qeth_alloc_cmd);
 
 static void qeth_issue_next_read_cb(struct qeth_card *card,
-				    struct qeth_cmd_buffer *iob)
+				    struct qeth_cmd_buffer *iob,
+				    unsigned int data_length)
 {
 	struct qeth_ipa_cmd *cmd = NULL;
 	struct qeth_reply *reply = NULL;
@@ -1072,8 +1075,16 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		}
 	}
 
-	if (iob && iob->callback)
-		iob->callback(card, iob);
+	if (iob) {
+		/* sanity check: */
+		if (irb->scsw.cmd.count > iob->length) {
+			qeth_cancel_cmd(iob, -EIO);
+			goto out;
+		}
+		if (iob->callback)
+			iob->callback(card, iob,
+				      iob->length - irb->scsw.cmd.count);
+	}
 
 out:
 	wake_up(&card->wait_q);
@@ -1782,12 +1793,20 @@ struct qeth_node_desc {
 };
 
 static void qeth_read_conf_data_cb(struct qeth_card *card,
-				   struct qeth_cmd_buffer *iob)
+				   struct qeth_cmd_buffer *iob,
+				   unsigned int data_length)
 {
 	struct qeth_node_desc *nd = (struct qeth_node_desc *) iob->data;
+	int rc = 0;
 	u8 *tag;
 
 	QETH_CARD_TEXT(card, 2, "cfgunit");
+
+	if (data_length < sizeof(*nd)) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	card->info.is_vm_nic = nd->nd1.plant[0] == _ascebc['V'] &&
 			       nd->nd1.plant[1] == _ascebc['M'];
 	tag = (u8 *)&nd->nd1.tag;
@@ -1802,7 +1821,8 @@ static void qeth_read_conf_data_cb(struct qeth_card *card,
 				 nd->nd3.model[2] >= 0xF1 &&
 				 nd->nd3.model[2] <= 0xF4;
 
-	qeth_notify_reply(iob->reply, 0);
+out:
+	qeth_notify_reply(iob->reply, rc);
 	qeth_put_cmd(iob);
 }
 
@@ -1865,7 +1885,8 @@ static int qeth_idx_check_activate_response(struct qeth_card *card,
 }
 
 static void qeth_idx_activate_read_channel_cb(struct qeth_card *card,
-					      struct qeth_cmd_buffer *iob)
+					      struct qeth_cmd_buffer *iob,
+					      unsigned int data_length)
 {
 	struct qeth_channel *channel = iob->channel;
 	u16 peer_level;
@@ -1898,7 +1919,8 @@ out:
 }
 
 static void qeth_idx_activate_write_channel_cb(struct qeth_card *card,
-					       struct qeth_cmd_buffer *iob)
+					       struct qeth_cmd_buffer *iob,
+					       unsigned int data_length)
 {
 	struct qeth_channel *channel = iob->channel;
 	u16 peer_level;

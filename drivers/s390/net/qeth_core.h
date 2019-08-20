@@ -580,7 +580,8 @@ struct qeth_cmd_buffer {
 	long timeout;
 	unsigned char *data;
 	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
-	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
+	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
+			 unsigned int data_length);
 };
 
 static inline void qeth_get_cmd(struct qeth_cmd_buffer *iob)
