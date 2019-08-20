@@ -1309,6 +1309,17 @@ config I2C_ELEKTOR
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-elektor.
 
+config I2C_ICY
+	tristate "ICY Zorro card"
+	depends on ZORRO
+	select I2C_ALGOPCF
+	help
+	  This supports the PCF8584 Zorro bus I2C adapter, known as ICY.
+	  Say Y if you own such an adapter.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-icy.
+
 config I2C_MLXCPLD
 	tristate "Mellanox I2C driver"
 	depends on X86_64
