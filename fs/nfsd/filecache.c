@@ -6,7 +6,6 @@
 
 #include <linux/hash.h>
 #include <linux/slab.h>
-#include <linux/hash.h>
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/list_lru.h>
