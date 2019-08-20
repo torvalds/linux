@@ -524,7 +524,6 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 				   struct sockaddr	*addrs,
 				   int 			addrcnt)
 {
-	struct net *net = sock_net(sk);
 	struct sctp_sock		*sp;
 	struct sctp_endpoint		*ep;
 	struct sctp_association		*asoc;
@@ -539,11 +538,11 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 	int 				i;
 	int 				retval = 0;
 
-	if (!net->sctp.addip_enable)
-		return retval;
-
 	sp = sctp_sk(sk);
 	ep = sp->ep;
+
+	if (!ep->asconf_enable)
+		return retval;
 
 	pr_debug("%s: sk:%p, addrs:%p, addrcnt:%d\n",
 		 __func__, sk, addrs, addrcnt);
@@ -727,7 +726,6 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 				   struct sockaddr	*addrs,
 				   int			addrcnt)
 {
-	struct net *net = sock_net(sk);
 	struct sctp_sock	*sp;
 	struct sctp_endpoint	*ep;
 	struct sctp_association	*asoc;
@@ -743,11 +741,11 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 	int			stored = 0;
 
 	chunk = NULL;
-	if (!net->sctp.addip_enable)
-		return retval;
-
 	sp = sctp_sk(sk);
 	ep = sp->ep;
+
+	if (!ep->asconf_enable)
+		return retval;
 
 	pr_debug("%s: sk:%p, addrs:%p, addrcnt:%d\n",
 		 __func__, sk, addrs, addrcnt);
@@ -3330,7 +3328,6 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optval,
 					     unsigned int optlen)
 {
-	struct net *net = sock_net(sk);
 	struct sctp_sock	*sp;
 	struct sctp_association	*asoc = NULL;
 	struct sctp_setpeerprim	prim;
@@ -3340,7 +3337,7 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 
 	sp = sctp_sk(sk);
 
-	if (!net->sctp.addip_enable)
+	if (!sp->ep->asconf_enable)
 		return -EPERM;
 
 	if (optlen != sizeof(struct sctp_setpeerprim))
@@ -3690,9 +3687,6 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 	struct sctp_association *asoc;
 	int ret = -EINVAL;
 
-	if (!ep->auth_enable)
-		return -EACCES;
-
 	if (optlen <= sizeof(struct sctp_authkey))
 		return -EINVAL;
 	/* authkey->sca_keylength is u16, so optlen can't be bigger than
@@ -3759,9 +3753,6 @@ static int sctp_setsockopt_active_key(struct sock *sk,
 	struct sctp_authkeyid val;
 	int ret = 0;
 
-	if (!ep->auth_enable)
-		return -EACCES;
-
 	if (optlen != sizeof(struct sctp_authkeyid))
 		return -EINVAL;
 	if (copy_from_user(&val, optval, optlen))
@@ -3813,9 +3804,6 @@ static int sctp_setsockopt_del_key(struct sock *sk,
 	struct sctp_authkeyid val;
 	int ret = 0;
 
-	if (!ep->auth_enable)
-		return -EACCES;
-
 	if (optlen != sizeof(struct sctp_authkeyid))
 		return -EINVAL;
 	if (copy_from_user(&val, optval, optlen))
@@ -3865,9 +3853,6 @@ static int sctp_setsockopt_deactivate_key(struct sock *sk, char __user *optval,
 	struct sctp_association *asoc;
 	struct sctp_authkeyid val;
 	int ret = 0;
-
-	if (!ep->auth_enable)
-		return -EACCES;
 
 	if (optlen != sizeof(struct sctp_authkeyid))
 		return -EINVAL;
@@ -4499,6 +4484,82 @@ static int sctp_setsockopt_event(struct sock *sk, char __user *optval,
 	return retval;
 }
 
+static int sctp_setsockopt_asconf_supported(struct sock *sk,
+					    char __user *optval,
+					    unsigned int optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
+	struct sctp_endpoint *ep;
+	int retval = -EINVAL;
+
+	if (optlen != sizeof(params))
+		goto out;
+
+	if (copy_from_user(&params, optval, optlen)) {
+		retval = -EFAULT;
+		goto out;
+	}
+
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
+		goto out;
+
+	ep = sctp_sk(sk)->ep;
+	ep->asconf_enable = !!params.assoc_value;
+
+	if (ep->asconf_enable && ep->auth_enable) {
+		sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF);
+		sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF_ACK);
+	}
+
+	retval = 0;
+
+out:
+	return retval;
+}
+
+static int sctp_setsockopt_auth_supported(struct sock *sk,
+					  char __user *optval,
+					  unsigned int optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
+	struct sctp_endpoint *ep;
+	int retval = -EINVAL;
+
+	if (optlen != sizeof(params))
+		goto out;
+
+	if (copy_from_user(&params, optval, optlen)) {
+		retval = -EFAULT;
+		goto out;
+	}
+
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
+		goto out;
+
+	ep = sctp_sk(sk)->ep;
+	if (params.assoc_value) {
+		retval = sctp_auth_init(ep, GFP_KERNEL);
+		if (retval)
+			goto out;
+		if (ep->asconf_enable) {
+			sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF);
+			sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF_ACK);
+		}
+	}
+
+	ep->auth_enable = !!params.assoc_value;
+	retval = 0;
+
+out:
+	return retval;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -4698,6 +4759,12 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_EVENT:
 		retval = sctp_setsockopt_event(sk, optval, optlen);
+		break;
+	case SCTP_ASCONF_SUPPORTED:
+		retval = sctp_setsockopt_asconf_supported(sk, optval, optlen);
+		break;
+	case SCTP_AUTH_SUPPORTED:
+		retval = sctp_setsockopt_auth_supported(sk, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -6836,9 +6903,6 @@ static int sctp_getsockopt_active_key(struct sock *sk, int len,
 	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
 
-	if (!ep->auth_enable)
-		return -EACCES;
-
 	if (len < sizeof(struct sctp_authkeyid))
 		return -EINVAL;
 
@@ -6850,10 +6914,15 @@ static int sctp_getsockopt_active_key(struct sock *sk, int len,
 	if (!asoc && val.scact_assoc_id && sctp_style(sk, UDP))
 		return -EINVAL;
 
-	if (asoc)
+	if (asoc) {
+		if (!asoc->peer.auth_capable)
+			return -EACCES;
 		val.scact_keynumber = asoc->active_key_id;
-	else
+	} else {
+		if (!ep->auth_enable)
+			return -EACCES;
 		val.scact_keynumber = ep->active_key_id;
+	}
 
 	if (put_user(len, optlen))
 		return -EFAULT;
@@ -6866,16 +6935,12 @@ static int sctp_getsockopt_active_key(struct sock *sk, int len,
 static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
-	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
 	struct sctp_authchunks __user *p = (void __user *)optval;
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
 	struct sctp_chunks_param *ch;
 	u32    num_chunks = 0;
 	char __user *to;
-
-	if (!ep->auth_enable)
-		return -EACCES;
 
 	if (len < sizeof(struct sctp_authchunks))
 		return -EINVAL;
@@ -6887,6 +6952,9 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	asoc = sctp_id2assoc(sk, val.gauth_assoc_id);
 	if (!asoc)
 		return -EINVAL;
+
+	if (!asoc->peer.auth_capable)
+		return -EACCES;
 
 	ch = asoc->peer.peer_chunks;
 	if (!ch)
@@ -6919,9 +6987,6 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	u32    num_chunks = 0;
 	char __user *to;
 
-	if (!ep->auth_enable)
-		return -EACCES;
-
 	if (len < sizeof(struct sctp_authchunks))
 		return -EINVAL;
 
@@ -6934,8 +6999,15 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	    sctp_style(sk, UDP))
 		return -EINVAL;
 
-	ch = asoc ? (struct sctp_chunks_param *)asoc->c.auth_chunks
-		  : ep->auth_chunk_list;
+	if (asoc) {
+		if (!asoc->peer.auth_capable)
+			return -EACCES;
+		ch = (struct sctp_chunks_param *)asoc->c.auth_chunks;
+	} else {
+		if (!ep->auth_enable)
+			return -EACCES;
+		ch = ep->auth_chunk_list;
+	}
 	if (!ch)
 		goto num;
 
@@ -7678,6 +7750,84 @@ static int sctp_getsockopt_event(struct sock *sk, int len, char __user *optval,
 	return 0;
 }
 
+static int sctp_getsockopt_asconf_supported(struct sock *sk, int len,
+					    char __user *optval,
+					    int __user *optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
+	int retval = -EFAULT;
+
+	if (len < sizeof(params)) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	len = sizeof(params);
+	if (copy_from_user(&params, optval, len))
+		goto out;
+
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	params.assoc_value = asoc ? asoc->peer.asconf_capable
+				  : sctp_sk(sk)->ep->asconf_enable;
+
+	if (put_user(len, optlen))
+		goto out;
+
+	if (copy_to_user(optval, &params, len))
+		goto out;
+
+	retval = 0;
+
+out:
+	return retval;
+}
+
+static int sctp_getsockopt_auth_supported(struct sock *sk, int len,
+					  char __user *optval,
+					  int __user *optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
+	int retval = -EFAULT;
+
+	if (len < sizeof(params)) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	len = sizeof(params);
+	if (copy_from_user(&params, optval, len))
+		goto out;
+
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	params.assoc_value = asoc ? asoc->peer.auth_capable
+				  : sctp_sk(sk)->ep->auth_enable;
+
+	if (put_user(len, optlen))
+		goto out;
+
+	if (copy_to_user(optval, &params, len))
+		goto out;
+
+	retval = 0;
+
+out:
+	return retval;
+}
+
 static int sctp_getsockopt(struct sock *sk, int level, int optname,
 			   char __user *optval, int __user *optlen)
 {
@@ -7878,6 +8028,14 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_EVENT:
 		retval = sctp_getsockopt_event(sk, len, optval, optlen);
+		break;
+	case SCTP_ASCONF_SUPPORTED:
+		retval = sctp_getsockopt_asconf_supported(sk, len, optval,
+							  optlen);
+		break;
+	case SCTP_AUTH_SUPPORTED:
+		retval = sctp_getsockopt_auth_supported(sk, len, optval,
+							optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
