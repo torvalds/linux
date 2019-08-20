@@ -1418,6 +1418,7 @@ config SERIAL_FSL_LPUART_CONSOLE
 
 config SERIAL_FSL_LINFLEXUART
 	tristate "Freescale linflexuart serial port support"
+	depends on PRINTK
 	select SERIAL_CORE
 	help
 	  Support for the on-chip linflexuart on some Freescale SOCs.
