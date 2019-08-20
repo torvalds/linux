@@ -105,7 +105,7 @@ static int edp_psr_shift(enum transcoder cpu_transcoder)
 	}
 }
 
-void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
+static void psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
 {
 	u32 debug_mask, mask;
 	enum transcoder cpu_transcoder;
@@ -736,6 +736,8 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		mask |= EDP_PSR_DEBUG_MASK_DISP_REG_WRITE;
 
 	I915_WRITE(EDP_PSR_DEBUG(dev_priv->psr.transcoder), mask);
+
+	psr_irq_control(dev_priv, dev_priv->psr.debug);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
@@ -1108,7 +1110,7 @@ int intel_psr_debug_set(struct drm_i915_private *dev_priv, u64 val)
 
 	old_mode = dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK;
 	dev_priv->psr.debug = val;
-	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
+	psr_irq_control(dev_priv, dev_priv->psr.debug);
 
 	mutex_unlock(&dev_priv->psr.lock);
 

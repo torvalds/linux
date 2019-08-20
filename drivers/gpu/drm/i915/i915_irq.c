@@ -3684,7 +3684,6 @@ static void ironlake_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	if (IS_HASWELL(dev_priv)) {
 		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
-		intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 
@@ -3795,7 +3794,6 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
 	gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
-	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;
