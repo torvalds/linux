@@ -10,6 +10,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -80,6 +81,12 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 
 	/* Check if the request line range is available */
 	if (si->base_request_line == 0 && si->num_handshake_signals == 0)
+		return 0;
+
+	/* Set up DMA mask based on value from CSRT */
+	ret = dma_coerce_mask_and_coherent(&adev->dev,
+					   DMA_BIT_MASK(si->dma_address_width));
+	if (ret)
 		return 0;
 
 	adma->base_request_line = si->base_request_line;
