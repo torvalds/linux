@@ -654,6 +654,7 @@ struct arm_smmu_domain {
 
 	struct io_pgtable_ops		*pgtbl_ops;
 	bool				non_strict;
+	atomic_t			nr_ats_masters;
 
 	enum arm_smmu_domain_stage	stage;
 	union {
@@ -1926,6 +1927,23 @@ static int arm_smmu_atc_inv_domain(struct arm_smmu_domain *smmu_domain,
 	if (!(smmu_domain->smmu->features & ARM_SMMU_FEAT_ATS))
 		return 0;
 
+	/*
+	 * Ensure that we've completed prior invalidation of the main TLBs
+	 * before we read 'nr_ats_masters' in case of a concurrent call to
+	 * arm_smmu_enable_ats():
+	 *
+	 *	// unmap()			// arm_smmu_enable_ats()
+	 *	TLBI+SYNC			atomic_inc(&nr_ats_masters);
+	 *	smp_mb();			[...]
+	 *	atomic_read(&nr_ats_masters);	pci_enable_ats() // writel()
+	 *
+	 * Ensures that we always see the incremented 'nr_ats_masters' count if
+	 * ATS was enabled at the PCI device before completion of the TLBI.
+	 */
+	smp_mb();
+	if (!atomic_read(&smmu_domain->nr_ats_masters))
+		return 0;
+
 	arm_smmu_atc_inv_to_cmd(ssid, iova, size, &cmd);
 
 	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
@@ -2312,6 +2330,7 @@ static void arm_smmu_enable_ats(struct arm_smmu_master *master)
 	size_t stu;
 	struct pci_dev *pdev;
 	struct arm_smmu_device *smmu = master->smmu;
+	struct arm_smmu_domain *smmu_domain = master->domain;
 
 	/* Don't enable ATS at the endpoint if it's not enabled in the STE */
 	if (!master->ats_enabled)
@@ -2320,6 +2339,9 @@ static void arm_smmu_enable_ats(struct arm_smmu_master *master)
 	/* Smallest Translation Unit: log2 of the smallest supported granule */
 	stu = __ffs(smmu->pgsize_bitmap);
 	pdev = to_pci_dev(master->dev);
+
+	atomic_inc(&smmu_domain->nr_ats_masters);
+	arm_smmu_atc_inv_domain(smmu_domain, 0, 0, 0);
 	if (pci_enable_ats(pdev, stu))
 		dev_err(master->dev, "Failed to enable ATS (STU %zu)\n", stu);
 }
@@ -2327,6 +2349,7 @@ static void arm_smmu_enable_ats(struct arm_smmu_master *master)
 static void arm_smmu_disable_ats(struct arm_smmu_master *master)
 {
 	struct arm_smmu_cmdq_ent cmd;
+	struct arm_smmu_domain *smmu_domain = master->domain;
 
 	if (!master->ats_enabled)
 		return;
@@ -2339,6 +2362,7 @@ static void arm_smmu_disable_ats(struct arm_smmu_master *master)
 	wmb();
 	arm_smmu_atc_inv_to_cmd(0, 0, 0, &cmd);
 	arm_smmu_atc_inv_master(master, &cmd);
+	atomic_dec(&smmu_domain->nr_ats_masters);
 }
 
 static void arm_smmu_detach_dev(struct arm_smmu_master *master)
@@ -2349,11 +2373,12 @@ static void arm_smmu_detach_dev(struct arm_smmu_master *master)
 	if (!smmu_domain)
 		return;
 
+	arm_smmu_disable_ats(master);
+
 	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
 	list_del(&master->domain_head);
 	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
 
-	arm_smmu_disable_ats(master);
 	master->domain = NULL;
 	master->ats_enabled = false;
 	arm_smmu_install_ste_for_dev(master);
@@ -2396,10 +2421,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	master->domain = smmu_domain;
 
-	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
-	list_add(&master->domain_head, &smmu_domain->devices);
-	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
-
 	if (smmu_domain->stage != ARM_SMMU_DOMAIN_BYPASS)
 		master->ats_enabled = arm_smmu_ats_supported(master);
 
@@ -2407,7 +2428,13 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		arm_smmu_write_ctx_desc(smmu, &smmu_domain->s1_cfg);
 
 	arm_smmu_install_ste_for_dev(master);
+
+	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+	list_add(&master->domain_head, &smmu_domain->devices);
+	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+
 	arm_smmu_enable_ats(master);
+
 out_unlock:
 	mutex_unlock(&smmu_domain->init_mutex);
 	return ret;
