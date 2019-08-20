@@ -4,25 +4,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-int __weak ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size,
-			 pgprot_t prot, int nid)
-{
-	unsigned long i;
-
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		int err = map_kernel_page(ea + i, pa + i, prot);
-		if (err) {
-			if (slab_is_available())
-				unmap_kernel_range(ea, size);
-			else
-				WARN_ON_ONCE(1); /* Should clean up */
-			return err;
-		}
-	}
-
-	return 0;
-}
-
 /**
  * Low level function to establish the page tables for an IO mapping
  */
@@ -41,7 +22,7 @@ void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_
 	WARN_ON(((unsigned long)ea) & ~PAGE_MASK);
 	WARN_ON(size & ~PAGE_MASK);
 
-	if (ioremap_range((unsigned long)ea, pa, size, prot, NUMA_NO_NODE))
+	if (ioremap_range((unsigned long)ea, pa, size, prot))
 		return NULL;
 
 	return (void __iomem *)ea;

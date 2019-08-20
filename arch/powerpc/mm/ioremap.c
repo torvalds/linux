@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <asm/io-workarounds.h>
 
 unsigned long ioremap_bot;
@@ -56,3 +58,25 @@ void __iomem *ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long f
 	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
 }
 EXPORT_SYMBOL(ioremap_prot);
+
+int ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size, pgprot_t prot)
+{
+	unsigned long i;
+
+	if (slab_is_available()) {
+		int err = ioremap_page_range(ea, ea + size, pa, prot);
+
+		if (err)
+			unmap_kernel_range(ea, size);
+		return err;
+	}
+
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		int err = map_kernel_page(ea + i, pa + i, prot);
+
+		if (WARN_ON_ONCE(err))  /* Should clean up */
+			return err;
+	}
+
+	return 0;
+}

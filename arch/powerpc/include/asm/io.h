@@ -722,6 +722,8 @@ void __iomem *ioremap_coherent(phys_addr_t address, unsigned long size);
 
 extern void iounmap(volatile void __iomem *addr);
 
+int ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size, pgprot_t prot);
+
 extern void __iomem *__ioremap_caller(phys_addr_t, unsigned long size,
 				      pgprot_t prot, void *caller);
 

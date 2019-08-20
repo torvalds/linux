@@ -1218,26 +1218,6 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 	return 1;
 }
 
-int radix__ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size,
-			pgprot_t prot, int nid)
-{
-	if (likely(slab_is_available())) {
-		int err = ioremap_page_range(ea, ea + size, pa, prot);
-		if (err)
-			unmap_kernel_range(ea, size);
-		return err;
-	} else {
-		unsigned long i;
-
-		for (i = 0; i < size; i += PAGE_SIZE) {
-			int err = map_kernel_page(ea + i, pa + i, prot);
-			if (WARN_ON_ONCE(err)) /* Should clean up */
-				return err;
-		}
-		return 0;
-	}
-}
-
 int __init arch_ioremap_p4d_supported(void)
 {
 	return 0;

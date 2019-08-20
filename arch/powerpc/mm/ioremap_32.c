@@ -17,7 +17,7 @@ EXPORT_SYMBOL(ioremap_wt);
 void __iomem *
 __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *caller)
 {
-	unsigned long v, i;
+	unsigned long v;
 	phys_addr_t p;
 	int err;
 
@@ -76,9 +76,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 	 * Should check if it is a candidate for a BAT mapping
 	 */
 
-	err = 0;
-	for (i = 0; i < size && err == 0; i += PAGE_SIZE)
-		err = map_kernel_page(v + i, p + i, prot);
+	err = ioremap_range((unsigned long)v, p, size, prot);
 	if (err) {
 		if (slab_is_available())
 			vunmap((void *)v);
