@@ -7,9 +7,11 @@
  */
 
 #include <linux/bug.h>
+#include <linux/context_tracking.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
+#include <linux/kprobes.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
@@ -899,6 +901,13 @@ asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 	if (!was_in_nmi)
 		nmi_exit();
 }
+
+asmlinkage void enter_from_user_mode(void)
+{
+	CT_WARN_ON(ct_state() != CONTEXT_USER);
+	user_exit_irqoff();
+}
+NOKPROBE_SYMBOL(enter_from_user_mode);
 
 void __pte_error(const char *file, int line, unsigned long val)
 {
