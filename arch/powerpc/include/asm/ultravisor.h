@@ -41,4 +41,9 @@ static inline int uv_unshare_page(u64 pfn, u64 npages)
 	return ucall_norets(UV_UNSHARE_PAGE, pfn, npages);
 }
 
+static inline int uv_unshare_all_pages(void)
+{
+	return ucall_norets(UV_UNSHARE_ALL_PAGES);
+}
+
 #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
