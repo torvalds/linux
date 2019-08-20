@@ -1079,12 +1079,18 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 {
 	struct lan9303 *chip = ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	return lan9303_enable_processing_port(chip, port);
 }
 
 static void lan9303_port_disable(struct dsa_switch *ds, int port)
 {
 	struct lan9303 *chip = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	lan9303_disable_processing_port(chip, port);
 	lan9303_phy_write(ds, chip->phy_addr_base + port, MII_BMCR, BMCR_PDOWN);

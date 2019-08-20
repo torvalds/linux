@@ -157,6 +157,9 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	unsigned int i;
 	u32 reg;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	/* Clear the memory power down */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg &= ~P_TXQ_PSM_VDD(port);

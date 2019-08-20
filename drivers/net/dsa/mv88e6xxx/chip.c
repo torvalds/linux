@@ -2057,10 +2057,26 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 				  bool on)
 {
-	if (chip->info->ops->serdes_power)
-		return chip->info->ops->serdes_power(chip, port, on);
+	int err;
 
-	return 0;
+	if (!chip->info->ops->serdes_power)
+		return 0;
+
+	if (on) {
+		err = chip->info->ops->serdes_power(chip, port, true);
+		if (err)
+			return err;
+
+		if (chip->info->ops->serdes_irq_setup)
+			err = chip->info->ops->serdes_irq_setup(chip, port);
+	} else {
+		if (chip->info->ops->serdes_irq_free)
+			chip->info->ops->serdes_irq_free(chip, port);
+
+		err = chip->info->ops->serdes_power(chip, port, false);
+	}
+
+	return err;
 }
 
 static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
@@ -2150,16 +2166,6 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	err = mv88e6xxx_setup_egress_floods(chip, port);
 	if (err)
 		return err;
-
-	/* Enable the SERDES interface for DSA and CPU ports. Normal
-	 * ports SERDES are enabled when the port is enabled, thus
-	 * saving a bit of power.
-	 */
-	if ((dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))) {
-		err = mv88e6xxx_serdes_power(chip, port, true);
-		if (err)
-			return err;
-	}
 
 	/* Port Control 2: don't force a good FCS, set the maximum frame size to
 	 * 10240 bytes, disable 802.1q tags checking, don't discard tagged or
@@ -2268,12 +2274,7 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-
 	err = mv88e6xxx_serdes_power(chip, port, true);
-
-	if (!err && chip->info->ops->serdes_irq_setup)
-		err = chip->info->ops->serdes_irq_setup(chip, port);
-
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -2284,16 +2285,8 @@ static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 
 	mv88e6xxx_reg_lock(chip);
-
-	if (mv88e6xxx_port_set_state(chip, port, BR_STATE_DISABLED))
-		dev_err(chip->dev, "failed to disable port\n");
-
-	if (chip->info->ops->serdes_irq_free)
-		chip->info->ops->serdes_irq_free(chip, port);
-
 	if (mv88e6xxx_serdes_power(chip, port, false))
 		dev_err(chip->dev, "failed to power off SERDES\n");
-
 	mv88e6xxx_reg_unlock(chip);
 }
 
@@ -2458,25 +2451,14 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	/* Setup Switch Port Registers */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		if (dsa_is_unused_port(ds, i))
+			continue;
+
 		/* Prevent the use of an invalid port. */
-		if (mv88e6xxx_is_invalid_port(chip, i) &&
-		    !dsa_is_unused_port(ds, i)) {
+		if (mv88e6xxx_is_invalid_port(chip, i)) {
 			dev_err(chip->dev, "port %d is invalid\n", i);
 			err = -EINVAL;
 			goto unlock;
-		}
-
-		if (dsa_is_unused_port(ds, i)) {
-			err = mv88e6xxx_port_set_state(chip, i,
-						       BR_STATE_DISABLED);
-			if (err)
-				goto unlock;
-
-			err = mv88e6xxx_serdes_power(chip, i, false);
-			if (err)
-				goto unlock;
-
-			continue;
 		}
 
 		err = mv88e6xxx_setup_port(chip, i);

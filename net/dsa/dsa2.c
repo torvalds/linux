@@ -254,88 +254,90 @@ static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
 
 static int dsa_port_setup(struct dsa_port *dp)
 {
-	enum devlink_port_flavour flavour;
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
-	int err = 0;
-
-	if (dp->type == DSA_PORT_TYPE_UNUSED)
-		return 0;
-
-	memset(&dp->devlink_port, 0, sizeof(dp->devlink_port));
-	dp->mac = of_get_mac_address(dp->dn);
-
-	switch (dp->type) {
-	case DSA_PORT_TYPE_CPU:
-		flavour = DEVLINK_PORT_FLAVOUR_CPU;
-		break;
-	case DSA_PORT_TYPE_DSA:
-		flavour = DEVLINK_PORT_FLAVOUR_DSA;
-		break;
-	case DSA_PORT_TYPE_USER: /* fall-through */
-	default:
-		flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		break;
-	}
-
-	/* dp->index is used now as port_number. However
-	 * CPU and DSA ports should have separate numbering
-	 * independent from front panel port numbers.
-	 */
-	devlink_port_attrs_set(&dp->devlink_port, flavour,
-			       dp->index, false, 0,
-			       (const char *) &dst->index, sizeof(dst->index));
-	err = devlink_port_register(ds->devlink, &dp->devlink_port,
-				    dp->index);
-	if (err)
-		return err;
+	const unsigned char *id = (const unsigned char *)&dst->index;
+	const unsigned char len = sizeof(dst->index);
+	struct devlink_port *dlp = &dp->devlink_port;
+	struct devlink *dl = ds->devlink;
+	int err;
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
+		dsa_port_disable(dp);
 		break;
 	case DSA_PORT_TYPE_CPU:
+		memset(dlp, 0, sizeof(*dlp));
+		devlink_port_attrs_set(dlp, DEVLINK_PORT_FLAVOUR_CPU,
+				       dp->index, false, 0, id, len);
+		err = devlink_port_register(dl, dlp, dp->index);
+		if (err)
+			return err;
+
 		err = dsa_port_link_register_of(dp);
 		if (err)
-			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
-				ds->index, dp->index);
+			return err;
+
+		err = dsa_port_enable(dp, NULL);
+		if (err)
+			return err;
 		break;
 	case DSA_PORT_TYPE_DSA:
+		memset(dlp, 0, sizeof(*dlp));
+		devlink_port_attrs_set(dlp, DEVLINK_PORT_FLAVOUR_DSA,
+				       dp->index, false, 0, id, len);
+		err = devlink_port_register(dl, dlp, dp->index);
+		if (err)
+			return err;
+
 		err = dsa_port_link_register_of(dp);
 		if (err)
-			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
-				ds->index, dp->index);
+			return err;
+
+		err = dsa_port_enable(dp, NULL);
+		if (err)
+			return err;
 		break;
 	case DSA_PORT_TYPE_USER:
+		memset(dlp, 0, sizeof(*dlp));
+		devlink_port_attrs_set(dlp, DEVLINK_PORT_FLAVOUR_PHYSICAL,
+				       dp->index, false, 0, id, len);
+		err = devlink_port_register(dl, dlp, dp->index);
+		if (err)
+			return err;
+
+		dp->mac = of_get_mac_address(dp->dn);
 		err = dsa_slave_create(dp);
 		if (err)
-			dev_err(ds->dev, "failed to create slave for port %d.%d\n",
-				ds->index, dp->index);
-		else
-			devlink_port_type_eth_set(&dp->devlink_port, dp->slave);
+			return err;
+
+		devlink_port_type_eth_set(dlp, dp->slave);
 		break;
 	}
 
-	if (err)
-		devlink_port_unregister(&dp->devlink_port);
-
-	return err;
+	return 0;
 }
 
 static void dsa_port_teardown(struct dsa_port *dp)
 {
-	if (dp->type != DSA_PORT_TYPE_UNUSED)
-		devlink_port_unregister(&dp->devlink_port);
+	struct devlink_port *dlp = &dp->devlink_port;
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
 		break;
 	case DSA_PORT_TYPE_CPU:
+		dsa_port_disable(dp);
 		dsa_tag_driver_put(dp->tag_ops);
-		/* fall-through */
+		devlink_port_unregister(dlp);
+		dsa_port_link_unregister_of(dp);
+		break;
 	case DSA_PORT_TYPE_DSA:
+		dsa_port_disable(dp);
+		devlink_port_unregister(dlp);
 		dsa_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_USER:
+		devlink_port_unregister(dlp);
 		if (dp->slave) {
 			dsa_slave_destroy(dp->slave);
 			dp->slave = NULL;
