@@ -147,7 +147,7 @@ static void acpi_dma_parse_csrt(struct acpi_device *adev, struct acpi_dma *adma)
  * @dev:		struct device of DMA controller
  * @acpi_dma_xlate:	translation function which converts a dma specifier
  *			into a dma_chan structure
- * @data		pointer to controller specific data to be used by
+ * @data:		pointer to controller specific data to be used by
  *			translation function
  *
  * Allocated memory should be freed with appropriate acpi_dma_controller_free()
@@ -231,7 +231,7 @@ static void devm_acpi_dma_release(struct device *dev, void *res)
  * devm_acpi_dma_controller_register - resource managed acpi_dma_controller_register()
  * @dev:		device that is registering this DMA controller
  * @acpi_dma_xlate:	translation function
- * @data		pointer to controller specific data
+ * @data:		pointer to controller specific data
  *
  * Managed acpi_dma_controller_register(). DMA controller registered by this
  * function are automatically freed on driver detach. See
@@ -264,6 +264,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
 
 /**
  * devm_acpi_dma_controller_free - resource managed acpi_dma_controller_free()
+ * @dev:	device that is unregistering as DMA controller
  *
  * Unregister a DMA controller registered with
  * devm_acpi_dma_controller_register(). Normally this function will not need to
