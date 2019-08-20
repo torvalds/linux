@@ -76,6 +76,9 @@ static void dw_dma_acpi_controller_register(struct dw_dma *dw)
 	struct acpi_dma_filter_info *info;
 	int ret;
 
+	if (!has_acpi_companion(dev))
+		return;
+
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return;
@@ -92,6 +95,9 @@ static void dw_dma_acpi_controller_register(struct dw_dma *dw)
 static void dw_dma_acpi_controller_free(struct dw_dma *dw)
 {
 	struct device *dev = dw->dma.dev;
+
+	if (!has_acpi_companion(dev))
+		return;
 
 	acpi_dma_controller_free(dev);
 }
@@ -239,8 +245,7 @@ static int dw_probe(struct platform_device *pdev)
 				"could not register of_dma_controller\n");
 	}
 
-	if (ACPI_HANDLE(&pdev->dev))
-		dw_dma_acpi_controller_register(chip->dw);
+	dw_dma_acpi_controller_register(chip->dw);
 
 	return 0;
 
@@ -256,8 +261,7 @@ static int dw_remove(struct platform_device *pdev)
 	struct dw_dma_chip *chip = data->chip;
 	int ret;
 
-	if (ACPI_HANDLE(&pdev->dev))
-		dw_dma_acpi_controller_free(chip->dw);
+	dw_dma_acpi_controller_free(chip->dw);
 
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
