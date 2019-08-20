@@ -166,6 +166,13 @@
 
 #define CTX_DESC_FORCE_RESTORE BIT_ULL(2)
 
+#define GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE	(0x1) /* lower csb dword */
+#define GEN12_CTX_SWITCH_DETAIL(csb_dw)	((csb_dw) & 0xF) /* upper csb dword */
+#define GEN12_CSB_SW_CTX_ID_MASK		GENMASK(25, 15)
+#define GEN12_IDLE_CTX_ID		0x7FF
+#define GEN12_CSB_CTX_VALID(csb_dw) \
+	(FIELD_GET(GEN12_CSB_SW_CTX_ID_MASK, csb_dw) != GEN12_IDLE_CTX_ID)
+
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
 #define WA_TAIL_DWORDS 2
@@ -1371,8 +1378,71 @@ enum csb_step {
 	CSB_COMPLETE,
 };
 
+/*
+ * Starting with Gen12, the status has a new format:
+ *
+ *     bit  0:     switched to new queue
+ *     bit  1:     reserved
+ *     bit  2:     semaphore wait mode (poll or signal), only valid when
+ *                 switch detail is set to "wait on semaphore"
+ *     bits 3-5:   engine class
+ *     bits 6-11:  engine instance
+ *     bits 12-14: reserved
+ *     bits 15-25: sw context id of the lrc the GT switched to
+ *     bits 26-31: sw counter of the lrc the GT switched to
+ *     bits 32-35: context switch detail
+ *                  - 0: ctx complete
+ *                  - 1: wait on sync flip
+ *                  - 2: wait on vblank
+ *                  - 3: wait on scanline
+ *                  - 4: wait on semaphore
+ *                  - 5: context preempted (not on SEMAPHORE_WAIT or
+ *                       WAIT_FOR_EVENT)
+ *     bit  36:    reserved
+ *     bits 37-43: wait detail (for switch detail 1 to 4)
+ *     bits 44-46: reserved
+ *     bits 47-57: sw context id of the lrc the GT switched away from
+ *     bits 58-63: sw counter of the lrc the GT switched away from
+ */
 static inline enum csb_step
-csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
+gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
+{
+	u32 lower_dw = csb[0];
+	u32 upper_dw = csb[1];
+	bool ctx_to_valid = GEN12_CSB_CTX_VALID(lower_dw);
+	bool ctx_away_valid = GEN12_CSB_CTX_VALID(upper_dw);
+	bool new_queue = lower_dw & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
+
+	if (!ctx_away_valid && ctx_to_valid)
+		return CSB_PROMOTE;
+
+	/*
+	 * The context switch detail is not guaranteed to be 5 when a preemption
+	 * occurs, so we can't just check for that. The check below works for
+	 * all the cases we care about, including preemptions of WAIT
+	 * instructions and lite-restore. Preempt-to-idle via the CTRL register
+	 * would require some extra handling, but we don't support that.
+	 */
+	if (new_queue && ctx_away_valid)
+		return CSB_PREEMPT;
+
+	/*
+	 * switch detail = 5 is covered by the case above and we do not expect a
+	 * context switch on an unsuccessful wait instruction since we always
+	 * use polling mode.
+	 */
+	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_dw));
+
+	if (*execlists->active) {
+		GEM_BUG_ON(!ctx_away_valid);
+		return CSB_COMPLETE;
+	}
+
+	return CSB_NOP;
+}
+
+static inline enum csb_step
+gen8_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 {
 	unsigned int status = *csb;
 
@@ -1424,6 +1494,8 @@ static void process_csb(struct intel_engine_cs *engine)
 	rmb();
 
 	do {
+		enum csb_step csb_step;
+
 		if (++head == num_entries)
 			head = 0;
 
@@ -1449,7 +1521,12 @@ static void process_csb(struct intel_engine_cs *engine)
 			  engine->name, head,
 			  buf[2 * head + 0], buf[2 * head + 1]);
 
-		switch (csb_parse(execlists, buf + 2 * head)) {
+		if (INTEL_GEN(engine->i915) >= 12)
+			csb_step = gen12_csb_parse(execlists, buf + 2 * head);
+		else
+			csb_step = gen8_csb_parse(execlists, buf + 2 * head);
+
+		switch (csb_step) {
 		case CSB_PREEMPT: /* cancel old inflight, prepare for switch */
 			trace_ports(execlists, "preempted", execlists->active);
 
