@@ -771,7 +771,8 @@ __set_pd_entry(struct i915_page_directory * const pd,
 	       struct i915_page_dma * const to,
 	       u64 (*encode)(const dma_addr_t, const enum i915_cache_level))
 {
-	GEM_BUG_ON(atomic_read(px_used(pd)) > ARRAY_SIZE(pd->entry));
+	/* Each thread pre-pins the pd, and we may have a thread per pde. */
+	GEM_BUG_ON(atomic_read(px_used(pd)) > 2 * ARRAY_SIZE(pd->entry));
 
 	atomic_inc(px_used(pd));
 	pd->entry[idx] = to;
