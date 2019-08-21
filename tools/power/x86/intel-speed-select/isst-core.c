@@ -190,6 +190,7 @@ int isst_get_get_trl(int cpu, int level, int avx_level, int *trl)
 
 int isst_set_tdp_level_msr(int cpu, int tdp_level)
 {
+	unsigned long long level = tdp_level;
 	int ret;
 
 	debug_printf("cpu: tdp_level via MSR %d\n", cpu, tdp_level);
@@ -202,8 +203,7 @@ int isst_set_tdp_level_msr(int cpu, int tdp_level)
 	if (tdp_level > 2)
 		return -1; /* invalid value */
 
-	ret = isst_send_msr_command(cpu, 0x64b, 1,
-				    (unsigned long long *)&tdp_level);
+	ret = isst_send_msr_command(cpu, 0x64b, 1, &level);
 	if (ret)
 		return ret;
 
