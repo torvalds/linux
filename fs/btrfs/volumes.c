@@ -7279,7 +7279,6 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_key key;
-	struct btrfs_key found_key;
 	struct btrfs_root *dev_root = fs_info->dev_root;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct extent_buffer *eb;
@@ -7313,7 +7312,6 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 		}
 		slot = path->slots[0];
 		eb = path->nodes[0];
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
 		item_size = btrfs_item_size_nr(eb, slot);
 
 		ptr = btrfs_item_ptr(eb, slot,
