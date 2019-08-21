@@ -1017,6 +1017,54 @@ static int mlxsw_devlink_flash_update(struct devlink *devlink,
 					  component, extack);
 }
 
+static int mlxsw_devlink_trap_init(struct devlink *devlink,
+				   const struct devlink_trap *trap,
+				   void *trap_ctx)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+
+	if (!mlxsw_driver->trap_init)
+		return -EOPNOTSUPP;
+	return mlxsw_driver->trap_init(mlxsw_core, trap, trap_ctx);
+}
+
+static void mlxsw_devlink_trap_fini(struct devlink *devlink,
+				    const struct devlink_trap *trap,
+				    void *trap_ctx)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+
+	if (!mlxsw_driver->trap_fini)
+		return;
+	mlxsw_driver->trap_fini(mlxsw_core, trap, trap_ctx);
+}
+
+static int mlxsw_devlink_trap_action_set(struct devlink *devlink,
+					 const struct devlink_trap *trap,
+					 enum devlink_trap_action action)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+
+	if (!mlxsw_driver->trap_action_set)
+		return -EOPNOTSUPP;
+	return mlxsw_driver->trap_action_set(mlxsw_core, trap, action);
+}
+
+static int
+mlxsw_devlink_trap_group_init(struct devlink *devlink,
+			      const struct devlink_trap_group *group)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+
+	if (!mlxsw_driver->trap_group_init)
+		return -EOPNOTSUPP;
+	return mlxsw_driver->trap_group_init(mlxsw_core, group);
+}
+
 static const struct devlink_ops mlxsw_devlink_ops = {
 	.reload				= mlxsw_devlink_core_bus_device_reload,
 	.port_type_set			= mlxsw_devlink_port_type_set,
@@ -1034,6 +1082,10 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.sb_occ_tc_port_bind_get	= mlxsw_devlink_sb_occ_tc_port_bind_get,
 	.info_get			= mlxsw_devlink_info_get,
 	.flash_update			= mlxsw_devlink_flash_update,
+	.trap_init			= mlxsw_devlink_trap_init,
+	.trap_fini			= mlxsw_devlink_trap_fini,
+	.trap_action_set		= mlxsw_devlink_trap_action_set,
+	.trap_group_init		= mlxsw_devlink_trap_group_init,
 };
 
 static int
@@ -1476,6 +1528,18 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 	mlxsw_core_listener_unregister(mlxsw_core, listener, priv);
 }
 EXPORT_SYMBOL(mlxsw_core_trap_unregister);
+
+int mlxsw_core_trap_action_set(struct mlxsw_core *mlxsw_core,
+			       const struct mlxsw_listener *listener,
+			       enum mlxsw_reg_hpkt_action action)
+{
+	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+
+	mlxsw_reg_hpkt_pack(hpkt_pl, action, listener->trap_id,
+			    listener->trap_group, listener->is_ctrl);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+}
+EXPORT_SYMBOL(mlxsw_core_trap_action_set);
 
 static u64 mlxsw_core_tid_get(struct mlxsw_core *mlxsw_core)
 {

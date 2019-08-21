@@ -958,4 +958,17 @@ void mlxsw_sp_nve_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_nve_inc_parsing_depth_get(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_nve_inc_parsing_depth_put(struct mlxsw_sp *mlxsw_sp);
 
+/* spectrum_trap.c */
+int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_devlink_traps_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_trap_init(struct mlxsw_core *mlxsw_core,
+		       const struct devlink_trap *trap, void *trap_ctx);
+void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
+			const struct devlink_trap *trap, void *trap_ctx);
+int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
+			     const struct devlink_trap *trap,
+			     enum devlink_trap_action action);
+int mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
+			     const struct devlink_trap_group *group);
+
 #endif
