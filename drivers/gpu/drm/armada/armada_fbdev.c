@@ -3,11 +3,14 @@
  * Copyright (C) 2012 Russell King
  *  Written from the i915 driver.
  */
+
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"

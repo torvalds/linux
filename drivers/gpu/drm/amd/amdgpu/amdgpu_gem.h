@@ -47,7 +47,7 @@ void amdgpu_gem_force_release(struct amdgpu_device *adev);
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 			     int alignment, u32 initial_domain,
 			     u64 flags, enum ttm_bo_type type,
-			     struct reservation_object *resv,
+			     struct dma_resv *resv,
 			     struct drm_gem_object **obj);
 
 int amdgpu_mode_dumb_create(struct drm_file *file_priv,

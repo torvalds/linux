@@ -62,16 +62,16 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_bo *nvbo;
-	struct reservation_object *robj = attach->dmabuf->resv;
+	struct dma_resv *robj = attach->dmabuf->resv;
 	u32 flags = 0;
 	int ret;
 
 	flags = TTM_PL_FLAG_TT;
 
-	reservation_object_lock(robj, NULL);
+	dma_resv_lock(robj, NULL);
 	ret = nouveau_bo_new(&drm->client, attach->dmabuf->size, 0, flags, 0, 0,
 			     sg, robj, &nvbo);
-	reservation_object_unlock(robj);
+	dma_resv_unlock(robj);
 	if (ret)
 		return ERR_PTR(ret);
 

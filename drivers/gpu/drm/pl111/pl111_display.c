@@ -128,6 +128,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_connector *connector = priv->connector;
 	struct drm_bridge *bridge = priv->bridge;
+	bool grayscale = false;
 	u32 cntl;
 	u32 ppl, hsw, hfp, hbp;
 	u32 lpp, vsw, vfp, vbp;
@@ -187,6 +188,20 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		if (connector->display_info.bus_flags &
 		    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 			tim2 |= TIM2_IPC;
+
+		if (connector->display_info.num_bus_formats == 1 &&
+		    connector->display_info.bus_formats[0] ==
+		    MEDIA_BUS_FMT_Y8_1X8)
+			grayscale = true;
+
+		/*
+		 * The AC pin bias frequency is set to max count when using
+		 * grayscale so at least once in a while we will reverse
+		 * polarity and get rid of any DC built up that could
+		 * damage the display.
+		 */
+		if (grayscale)
+			tim2 |= TIM2_ACB_MASK;
 	}
 
 	if (bridge) {
@@ -218,8 +233,18 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 
 	writel(0, priv->regs + CLCD_TIM3);
 
-	/* Hard-code TFT panel */
-	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
+	/*
+	 * Detect grayscale bus format. We do not support a grayscale mode
+	 * toward userspace, instead we expose an RGB24 buffer and then the
+	 * hardware will activate its grayscaler to convert to the grayscale
+	 * format.
+	 */
+	if (grayscale)
+		cntl = CNTL_LCDEN | CNTL_LCDMONO8;
+	else
+		/* Else we assume TFT display */
+		cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
+
 	/* On the ST Micro variant, assume all 24 bits are connected */
 	if (priv->variant->st_bitmux_control)
 		cntl |= CNTL_ST_CDWID_24;

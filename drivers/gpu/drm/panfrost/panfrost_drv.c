@@ -78,29 +78,26 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
-	int ret;
-	struct drm_gem_shmem_object *shmem;
+	struct panfrost_gem_object *bo;
 	struct drm_panfrost_create_bo *args = data;
 
-	if (!args->size || args->flags || args->pad)
+	if (!args->size || args->pad ||
+	    (args->flags & ~(PANFROST_BO_NOEXEC | PANFROST_BO_HEAP)))
 		return -EINVAL;
 
-	shmem = drm_gem_shmem_create_with_handle(file, dev, args->size,
-						 &args->handle);
-	if (IS_ERR(shmem))
-		return PTR_ERR(shmem);
+	/* Heaps should never be executable */
+	if ((args->flags & PANFROST_BO_HEAP) &&
+	    !(args->flags & PANFROST_BO_NOEXEC))
+		return -EINVAL;
 
-	ret = panfrost_mmu_map(to_panfrost_bo(&shmem->base));
-	if (ret)
-		goto err_free;
+	bo = panfrost_gem_create_with_handle(file, dev, args->size, args->flags,
+					     &args->handle);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
 
-	args->offset = to_panfrost_bo(&shmem->base)->node.start << PAGE_SHIFT;
+	args->offset = bo->node.start << PAGE_SHIFT;
 
 	return 0;
-
-err_free:
-	drm_gem_handle_delete(file, args->handle);
-	return ret;
 }
 
 /**
@@ -277,7 +274,7 @@ panfrost_ioctl_wait_bo(struct drm_device *dev, void *data,
 	if (!gem_obj)
 		return -ENOENT;
 
-	ret = reservation_object_wait_timeout_rcu(gem_obj->resv, true,
+	ret = dma_resv_wait_timeout_rcu(gem_obj->resv, true,
 						  true, timeout);
 	if (!ret)
 		ret = timeout ? -ETIMEDOUT : -EBUSY;
@@ -304,6 +301,10 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
+
+	/* Don't allow mmapping of heap objects as pages are not pinned. */
+	if (to_panfrost_bo(gem_obj)->is_heap)
+		return -EINVAL;
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret == 0)
@@ -333,12 +334,70 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv)
+{
+	struct drm_panfrost_madvise *args = data;
+	struct panfrost_device *pfdev = dev->dev_private;
+	struct drm_gem_object *gem_obj;
+
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!gem_obj) {
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		return -ENOENT;
+	}
+
+	args->retained = drm_gem_shmem_madvise(gem_obj, args->madv);
+
+	if (args->retained) {
+		struct panfrost_gem_object *bo = to_panfrost_bo(gem_obj);
+
+		mutex_lock(&pfdev->shrinker_lock);
+
+		if (args->madv == PANFROST_MADV_DONTNEED)
+			list_add_tail(&bo->base.madv_list, &pfdev->shrinker_list);
+		else if (args->madv == PANFROST_MADV_WILLNEED)
+			list_del_init(&bo->base.madv_list);
+
+		mutex_unlock(&pfdev->shrinker_lock);
+	}
+
+	drm_gem_object_put_unlocked(gem_obj);
+	return 0;
+}
+
 int panfrost_unstable_ioctl_check(void)
 {
 	if (!unstable_ioctls)
 		return -ENOSYS;
 
 	return 0;
+}
+
+#define PFN_4G		(SZ_4G >> PAGE_SHIFT)
+#define PFN_4G_MASK	(PFN_4G - 1)
+#define PFN_16M		(SZ_16M >> PAGE_SHIFT)
+
+static void panfrost_drm_mm_color_adjust(const struct drm_mm_node *node,
+					 unsigned long color,
+					 u64 *start, u64 *end)
+{
+	/* Executable buffers can't start or end on a 4GB boundary */
+	if (!(color & PANFROST_BO_NOEXEC)) {
+		u64 next_seg;
+
+		if ((*start & PFN_4G_MASK) == 0)
+			(*start)++;
+
+		if ((*end & PFN_4G_MASK) == 0)
+			(*end)--;
+
+		next_seg = ALIGN(*start, PFN_4G);
+		if (next_seg - *start <= PFN_16M)
+			*start = next_seg + 1;
+
+		*end = min(*end, ALIGN(*start, PFN_4G) - 1);
+	}
 }
 
 static int
@@ -384,10 +443,16 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 	PANFROST_IOCTL(GET_BO_OFFSET,	get_bo_offset,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(PERFCNT_ENABLE,	perfcnt_enable,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(PERFCNT_DUMP,	perfcnt_dump,	DRM_RENDER_ALLOW),
+	PANFROST_IOCTL(MADVISE,		madvise,	DRM_RENDER_ALLOW),
 };
 
 DEFINE_DRM_GEM_SHMEM_FOPS(panfrost_drm_driver_fops);
 
+/*
+ * Panfrost driver version:
+ * - 1.0 - initial interface
+ * - 1.1 - adds HEAP and NOEXEC flags for CREATE_BO
+ */
 static struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
@@ -399,7 +464,7 @@ static struct drm_driver panfrost_drm_driver = {
 	.desc			= "panfrost DRM",
 	.date			= "20180908",
 	.major			= 1,
-	.minor			= 0,
+	.minor			= 1,
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
@@ -432,9 +497,12 @@ static int panfrost_probe(struct platform_device *pdev)
 	pfdev->ddev = ddev;
 
 	spin_lock_init(&pfdev->mm_lock);
+	mutex_init(&pfdev->shrinker_lock);
+	INIT_LIST_HEAD(&pfdev->shrinker_list);
 
 	/* 4G enough for now. can be 48-bit */
 	drm_mm_init(&pfdev->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
+	pfdev->mm.color_adjust = panfrost_drm_mm_color_adjust;
 
 	pm_runtime_use_autosuspend(pfdev->dev);
 	pm_runtime_set_autosuspend_delay(pfdev->dev, 50); /* ~3 frames */
@@ -462,6 +530,8 @@ static int panfrost_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_out1;
 
+	panfrost_gem_shrinker_init(ddev);
+
 	return 0;
 
 err_out1:
@@ -478,6 +548,7 @@ static int panfrost_remove(struct platform_device *pdev)
 	struct drm_device *ddev = pfdev->ddev;
 
 	drm_dev_unregister(ddev);
+	panfrost_gem_shrinker_cleanup(ddev);
 	pm_runtime_get_sync(pfdev->dev);
 	pm_runtime_put_sync_autosuspend(pfdev->dev);
 	pm_runtime_disable(pfdev->dev);

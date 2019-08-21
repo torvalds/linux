@@ -218,14 +218,14 @@ void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 					struct amdgpu_amdkfd_fence *ef)
 {
-	struct reservation_object *resv = bo->tbo.base.resv;
-	struct reservation_object_list *old, *new;
+	struct dma_resv *resv = bo->tbo.base.resv;
+	struct dma_resv_list *old, *new;
 	unsigned int i, j, k;
 
 	if (!ef)
 		return -EINVAL;
 
-	old = reservation_object_get_list(resv);
+	old = dma_resv_get_list(resv);
 	if (!old)
 		return 0;
 
@@ -241,7 +241,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 		struct dma_fence *f;
 
 		f = rcu_dereference_protected(old->shared[i],
-					      reservation_object_held(resv));
+					      dma_resv_held(resv));
 
 		if (f->context == ef->base.context)
 			RCU_INIT_POINTER(new->shared[--j], f);
@@ -263,7 +263,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 		struct dma_fence *f;
 
 		f = rcu_dereference_protected(new->shared[i],
-					      reservation_object_held(resv));
+					      dma_resv_held(resv));
 		dma_fence_put(f);
 	}
 	kfree_rcu(old, rcu);
@@ -887,7 +887,7 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 				  AMDGPU_FENCE_OWNER_KFD, false);
 	if (ret)
 		goto wait_pd_fail;
-	ret = reservation_object_reserve_shared(vm->root.base.bo->tbo.base.resv, 1);
+	ret = dma_resv_reserve_shared(vm->root.base.bo->tbo.base.resv, 1);
 	if (ret)
 		goto reserve_shared_fail;
 	amdgpu_bo_fence(vm->root.base.bo,
@@ -2133,7 +2133,7 @@ int amdgpu_amdkfd_add_gws_to_process(void *info, void *gws, struct kgd_mem **mem
 	 * Add process eviction fence to bo so they can
 	 * evict each other.
 	 */
-	ret = reservation_object_reserve_shared(gws_bo->tbo.base.resv, 1);
+	ret = dma_resv_reserve_shared(gws_bo->tbo.base.resv, 1);
 	if (ret)
 		goto reserve_shared_fail;
 	amdgpu_bo_fence(gws_bo, &process_info->eviction_fence->base, true);

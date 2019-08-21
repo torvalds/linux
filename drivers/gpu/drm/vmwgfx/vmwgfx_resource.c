@@ -41,7 +41,7 @@ void vmw_resource_mob_attach(struct vmw_resource *res)
 {
 	struct vmw_buffer_object *backup = res->backup;
 
-	reservation_object_assert_held(backup->base.base.resv);
+	dma_resv_assert_held(res->backup->base.base.resv);
 	res->used_prio = (res->res_dirty) ? res->func->dirty_prio :
 		res->func->prio;
 	list_add_tail(&res->mob_head, &backup->res_list);
@@ -56,7 +56,7 @@ void vmw_resource_mob_detach(struct vmw_resource *res)
 {
 	struct vmw_buffer_object *backup = res->backup;
 
-	reservation_object_assert_held(backup->base.base.resv);
+	dma_resv_assert_held(backup->base.base.resv);
 	if (vmw_resource_mob_attached(res)) {
 		list_del_init(&res->mob_head);
 		vmw_bo_prio_del(backup, res->used_prio);
@@ -719,7 +719,7 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 		.num_shared = 0
 	};
 
-	reservation_object_assert_held(vbo->base.base.resv);
+	dma_resv_assert_held(vbo->base.base.resv);
 	list_for_each_entry_safe(res, next, &vbo->res_list, mob_head) {
 		if (!res->func->unbind)
 			continue;

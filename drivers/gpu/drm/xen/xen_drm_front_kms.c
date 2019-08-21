@@ -46,7 +46,7 @@ static void fb_destroy(struct drm_framebuffer *fb)
 	drm_gem_fb_destroy(fb);
 }
 
-static struct drm_framebuffer_funcs fb_funcs = {
+static const struct drm_framebuffer_funcs fb_funcs = {
 	.destroy = fb_destroy,
 };
 

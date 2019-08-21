@@ -890,7 +890,7 @@ static void export_fence(struct i915_vma *vma,
 			 struct i915_request *rq,
 			 unsigned int flags)
 {
-	struct reservation_object *resv = vma->resv;
+	struct dma_resv *resv = vma->resv;
 
 	/*
 	 * Ignore errors from failing to allocate the new fence, we can't
@@ -898,9 +898,9 @@ static void export_fence(struct i915_vma *vma,
 	 * synchronisation leading to rendering corruption.
 	 */
 	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv, 1) == 0)
-		reservation_object_add_shared_fence(resv, &rq->fence);
+		dma_resv_add_excl_fence(resv, &rq->fence);
+	else if (dma_resv_reserve_shared(resv, 1) == 0)
+		dma_resv_add_shared_fence(resv, &rq->fence);
 }
 
 int i915_vma_move_to_active(struct i915_vma *vma,

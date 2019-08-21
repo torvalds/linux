@@ -47,14 +47,11 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
 	struct device_node *np = imxpd->dev->of_node;
-	int num_modes = 0;
+	int num_modes;
 
-	if (imxpd->panel && imxpd->panel->funcs &&
-	    imxpd->panel->funcs->get_modes) {
-		num_modes = imxpd->panel->funcs->get_modes(imxpd->panel);
-		if (num_modes > 0)
-			return num_modes;
-	}
+	num_modes = drm_panel_get_modes(imxpd->panel);
+	if (num_modes > 0)
+		return num_modes;
 
 	if (imxpd->edid) {
 		drm_connector_update_edid_property(connector, imxpd->edid);

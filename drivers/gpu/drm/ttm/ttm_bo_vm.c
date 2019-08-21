@@ -71,7 +71,7 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 		ttm_bo_get(bo);
 		up_read(&vmf->vma->vm_mm->mmap_sem);
 		(void) dma_fence_wait(bo->moving, true);
-		reservation_object_unlock(bo->base.resv);
+		dma_resv_unlock(bo->base.resv);
 		ttm_bo_put(bo);
 		goto out_unlock;
 	}
@@ -131,7 +131,7 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 	 * for reserve, and if it fails, retry the fault after waiting
 	 * for the buffer to become unreserved.
 	 */
-	if (unlikely(!reservation_object_trylock(bo->base.resv))) {
+	if (unlikely(!dma_resv_trylock(bo->base.resv))) {
 		if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
 				ttm_bo_get(bo);
@@ -296,7 +296,7 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 out_io_unlock:
 	ttm_mem_io_unlock(man);
 out_unlock:
-	reservation_object_unlock(bo->base.resv);
+	dma_resv_unlock(bo->base.resv);
 	return ret;
 }
 

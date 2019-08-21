@@ -6,7 +6,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/panfrost_drm.h>
 
@@ -199,7 +199,7 @@ static void panfrost_acquire_object_fences(struct drm_gem_object **bos,
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		implicit_fences[i] = reservation_object_get_excl_rcu(bos[i]->resv);
+		implicit_fences[i] = dma_resv_get_excl_rcu(bos[i]->resv);
 }
 
 static void panfrost_attach_object_fences(struct drm_gem_object **bos,
@@ -209,7 +209,7 @@ static void panfrost_attach_object_fences(struct drm_gem_object **bos,
 	int i;
 
 	for (i = 0; i < bo_count; i++)
-		reservation_object_add_excl_fence(bos[i]->resv, fence);
+		dma_resv_add_excl_fence(bos[i]->resv, fence);
 }
 
 int panfrost_job_push(struct panfrost_job *job)
@@ -395,12 +395,7 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	/* panfrost_core_dump(pfdev); */
 
 	panfrost_devfreq_record_transition(pfdev, js);
-	panfrost_gpu_soft_reset(pfdev);
-
-	/* TODO: Re-enable all other address spaces */
-	panfrost_mmu_enable(pfdev, 0);
-	panfrost_gpu_power_on(pfdev);
-	panfrost_job_enable_interrupts(pfdev);
+	panfrost_device_reset(pfdev);
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++)
 		drm_sched_resubmit_jobs(&pfdev->js->queue[i].sched);

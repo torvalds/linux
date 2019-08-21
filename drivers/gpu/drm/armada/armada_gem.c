@@ -2,12 +2,17 @@
 /*
  * Copyright (C) 2012 Russell King
  */
+
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
+#include <linux/mman.h>
 #include <linux/shmem_fs.h>
+
+#include <drm/armada_drm.h>
+#include <drm/drm_prime.h>
+
 #include "armada_drm.h"
 #include "armada_gem.h"
-#include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
 static vm_fault_t armada_gem_vm_fault(struct vm_fault *vmf)

@@ -7,7 +7,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/dma-fence.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/slab.h>
 
 #include <drm/drm_atomic.h>
@@ -294,7 +294,7 @@ int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 		return 0;
 
 	obj = drm_gem_fb_get_obj(state->fb, 0);
-	fence = reservation_object_get_excl_rcu(obj->resv);
+	fence = dma_resv_get_excl_rcu(obj->resv);
 	drm_atomic_set_fence_for_plane(state, fence);
 
 	return 0;

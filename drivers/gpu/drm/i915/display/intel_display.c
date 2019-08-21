@@ -29,7 +29,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 
@@ -14431,7 +14431,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		if (ret < 0)
 			return ret;
 
-		fence = reservation_object_get_excl_rcu(obj->base.resv);
+		fence = dma_resv_get_excl_rcu(obj->base.resv);
 		if (fence) {
 			add_rps_boost_after_vblank(new_state->crtc, fence);
 			dma_fence_put(fence);

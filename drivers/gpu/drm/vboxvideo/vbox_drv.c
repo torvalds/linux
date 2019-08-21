@@ -32,7 +32,7 @@ static const struct pci_device_id pciidlist[] = {
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-static struct drm_fb_helper_funcs vbox_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs vbox_fb_helper_funcs = {
 	.fb_probe = vboxfb_create,
 };
 

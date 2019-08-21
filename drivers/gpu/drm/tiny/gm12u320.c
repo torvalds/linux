@@ -33,7 +33,6 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define DRIVER_DATE		"2019"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0
-#define DRIVER_PATCHLEVEL	1
 
 /*
  * The DLP has an actual width of 854 pixels, but that is not a multiple
@@ -44,6 +43,9 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define GM12U320_HEIGHT			480
 
 #define GM12U320_BLOCK_COUNT		20
+
+#define GM12U320_ERR(fmt, ...) \
+	DRM_DEV_ERROR(&gm12u320->udev->dev, fmt, ##__VA_ARGS__)
 
 #define MISC_RCV_EPT			1
 #define DATA_RCV_EPT			2
@@ -220,7 +222,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 			   usb_sndbulkpipe(gm12u320->udev, MISC_SND_EPT),
 			   gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
 	if (ret || len != CMD_SIZE) {
-		dev_err(&gm12u320->udev->dev, "Misc. req. error %d\n", ret);
+		GM12U320_ERR("Misc. req. error %d\n", ret);
 		return -EIO;
 	}
 
@@ -230,7 +232,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 			   gm12u320->cmd_buf, MISC_VALUE_SIZE, &len,
 			   DATA_TIMEOUT);
 	if (ret || len != MISC_VALUE_SIZE) {
-		dev_err(&gm12u320->udev->dev, "Misc. value error %d\n", ret);
+		GM12U320_ERR("Misc. value error %d\n", ret);
 		return -EIO;
 	}
 	/* cmd_buf[0] now contains the read value, which we don't use */
@@ -241,7 +243,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 			   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
 			   CMD_TIMEOUT);
 	if (ret || len != READ_STATUS_SIZE) {
-		dev_err(&gm12u320->udev->dev, "Misc. status error %d\n", ret);
+		GM12U320_ERR("Misc. status error %d\n", ret);
 		return -EIO;
 	}
 
@@ -278,7 +280,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 
 	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
 	if (IS_ERR(vaddr)) {
-		DRM_ERROR("failed to vmap fb: %ld\n", PTR_ERR(vaddr));
+		GM12U320_ERR("failed to vmap fb: %ld\n", PTR_ERR(vaddr));
 		goto put_fb;
 	}
 
@@ -286,7 +288,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 		ret = dma_buf_begin_cpu_access(
 			fb->obj[0]->import_attach->dmabuf, DMA_FROM_DEVICE);
 		if (ret) {
-			DRM_ERROR("dma_buf_begin_cpu_access err: %d\n", ret);
+			GM12U320_ERR("dma_buf_begin_cpu_access err: %d\n", ret);
 			goto vunmap;
 		}
 	}
@@ -329,7 +331,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 		ret = dma_buf_end_cpu_access(fb->obj[0]->import_attach->dmabuf,
 					     DMA_FROM_DEVICE);
 		if (ret)
-			DRM_ERROR("dma_buf_end_cpu_access err: %d\n", ret);
+			GM12U320_ERR("dma_buf_end_cpu_access err: %d\n", ret);
 	}
 vunmap:
 	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
@@ -338,17 +340,6 @@ put_fb:
 	gm12u320->fb_update.fb = NULL;
 unlock:
 	mutex_unlock(&gm12u320->fb_update.lock);
-}
-
-static int gm12u320_fb_update_ready(struct gm12u320_device *gm12u320)
-{
-	int ret;
-
-	mutex_lock(&gm12u320->fb_update.lock);
-	ret = !gm12u320->fb_update.run || gm12u320->fb_update.fb != NULL;
-	mutex_unlock(&gm12u320->fb_update.lock);
-
-	return ret;
 }
 
 static void gm12u320_fb_update_work(struct work_struct *work)
@@ -424,14 +415,15 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 		 * switches back to showing its logo.
 		 */
 		wait_event_timeout(gm12u320->fb_update.waitq,
-				   gm12u320_fb_update_ready(gm12u320),
+				   !gm12u320->fb_update.run ||
+					gm12u320->fb_update.fb != NULL,
 				   IDLE_TIMEOUT);
 	}
 	return;
 err:
 	/* Do not log errors caused by module unload or device unplug */
-	if (ret != -ECONNRESET && ret != -ESHUTDOWN)
-		dev_err(&gm12u320->udev->dev, "Frame update error: %d\n", ret);
+	if (ret != -ENODEV && ret != -ECONNRESET && ret != -ESHUTDOWN)
+		GM12U320_ERR("Frame update error: %d\n", ret);
 }
 
 static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb,
@@ -746,7 +738,7 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_put;
 
-	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
+	drm_fbdev_generic_setup(dev, 0);
 
 	return 0;
 
@@ -765,9 +757,8 @@ static void gm12u320_usb_disconnect(struct usb_interface *interface)
 	drm_dev_put(dev);
 }
 
-#ifdef CONFIG_PM
-static int gm12u320_suspend(struct usb_interface *interface,
-			    pm_message_t message)
+static __maybe_unused int gm12u320_suspend(struct usb_interface *interface,
+					   pm_message_t message)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 	struct gm12u320_device *gm12u320 = dev->dev_private;
@@ -778,7 +769,7 @@ static int gm12u320_suspend(struct usb_interface *interface,
 	return 0;
 }
 
-static int gm12u320_resume(struct usb_interface *interface)
+static __maybe_unused int gm12u320_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 	struct gm12u320_device *gm12u320 = dev->dev_private;
@@ -789,7 +780,6 @@ static int gm12u320_resume(struct usb_interface *interface)
 
 	return 0;
 }
-#endif
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1de1, 0xc102) },

@@ -5,7 +5,7 @@
  */
 
 #include <linux/intel-iommu.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
@@ -1242,7 +1242,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto skip_request;
 
 	i915_vma_lock(batch);
-	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
+	GEM_BUG_ON(!dma_resv_test_signaled_rcu(batch->resv, true));
 	err = i915_vma_move_to_active(batch, rq, 0);
 	i915_vma_unlock(batch);
 	if (err)
@@ -1313,7 +1313,7 @@ relocate_entry(struct i915_vma *vma,
 
 	if (!eb->reloc_cache.vaddr &&
 	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !reservation_object_test_signaled_rcu(vma->resv, true))) {
+	     !dma_resv_test_signaled_rcu(vma->resv, true))) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;

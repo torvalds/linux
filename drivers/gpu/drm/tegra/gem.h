@@ -11,7 +11,6 @@
 #include <linux/host1x.h>
 
 #include <drm/drm.h>
-#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
 #define TEGRA_BO_BOTTOM_UP (1 << 0)

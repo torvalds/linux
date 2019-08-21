@@ -94,10 +94,10 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	list = &pool->cache_list[n];
 
 	list_for_each_entry(obj, list, batch_pool_link) {
-		struct reservation_object *resv = obj->base.resv;
+		struct dma_resv *resv = obj->base.resv;
 
 		/* The batches are strictly LRU ordered */
-		if (!reservation_object_test_signaled_rcu(resv, true))
+		if (!dma_resv_test_signaled_rcu(resv, true))
 			break;
 
 		/*
@@ -109,9 +109,9 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		 * than replace the existing fence.
 		 */
 		if (rcu_access_pointer(resv->fence)) {
-			reservation_object_lock(resv, NULL);
-			reservation_object_add_excl_fence(resv, NULL);
-			reservation_object_unlock(resv);
+			dma_resv_lock(resv, NULL);
+			dma_resv_add_excl_fence(resv, NULL);
+			dma_resv_unlock(resv);
 		}
 
 		if (obj->base.size >= size)

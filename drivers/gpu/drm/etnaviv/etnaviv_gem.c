@@ -397,13 +397,13 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	}
 
 	if (op & ETNA_PREP_NOSYNC) {
-		if (!reservation_object_test_signaled_rcu(obj->resv,
+		if (!dma_resv_test_signaled_rcu(obj->resv,
 							  write))
 			return -EBUSY;
 	} else {
 		unsigned long remain = etnaviv_timeout_to_jiffies(timeout);
 
-		ret = reservation_object_wait_timeout_rcu(obj->resv,
+		ret = dma_resv_wait_timeout_rcu(obj->resv,
 							  write, true, remain);
 		if (ret <= 0)
 			return ret == 0 ? -ETIMEDOUT : ret;
@@ -459,8 +459,8 @@ static void etnaviv_gem_describe_fence(struct dma_fence *fence,
 static void etnaviv_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-	struct reservation_object *robj = obj->resv;
-	struct reservation_object_list *fobj;
+	struct dma_resv *robj = obj->resv;
+	struct dma_resv_list *fobj;
 	struct dma_fence *fence;
 	unsigned long off = drm_vma_node_start(&obj->vma_node);
 

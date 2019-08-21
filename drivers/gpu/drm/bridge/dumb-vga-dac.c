@@ -42,7 +42,7 @@ static int dumb_vga_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int ret;
 
-	if (IS_ERR(vga->ddc))
+	if (!vga->ddc)
 		goto fallback;
 
 	edid = drm_get_edid(connector, vga->ddc);
@@ -84,7 +84,7 @@ dumb_vga_connector_detect(struct drm_connector *connector, bool force)
 	 * wire the DDC pins, or the I2C bus might not be working at
 	 * all.
 	 */
-	if (!IS_ERR(vga->ddc) && drm_probe_ddc(vga->ddc))
+	if (vga->ddc && drm_probe_ddc(vga->ddc))
 		return connector_status_connected;
 
 	return connector_status_unknown;
@@ -197,6 +197,7 @@ static int dumb_vga_probe(struct platform_device *pdev)
 		if (PTR_ERR(vga->ddc) == -ENODEV) {
 			dev_dbg(&pdev->dev,
 				"No i2c bus specified. Disabling EDID readout\n");
+			vga->ddc = NULL;
 		} else {
 			dev_err(&pdev->dev, "Couldn't retrieve i2c bus\n");
 			return PTR_ERR(vga->ddc);
@@ -218,7 +219,7 @@ static int dumb_vga_remove(struct platform_device *pdev)
 
 	drm_bridge_remove(&vga->bridge);
 
-	if (!IS_ERR(vga->ddc))
+	if (vga->ddc)
 		i2c_put_adapter(vga->ddc);
 
 	return 0;

@@ -85,6 +85,10 @@ struct panfrost_device {
 	struct mutex sched_lock;
 	struct mutex reset_lock;
 
+	struct mutex shrinker_lock;
+	struct list_head shrinker_list;
+	struct shrinker shrinker;
+
 	struct {
 		struct devfreq *devfreq;
 		struct thermal_cooling_device *cooling;
@@ -128,6 +132,7 @@ int panfrost_unstable_ioctl_check(void);
 
 int panfrost_device_init(struct panfrost_device *pfdev);
 void panfrost_device_fini(struct panfrost_device *pfdev);
+void panfrost_device_reset(struct panfrost_device *pfdev);
 
 int panfrost_device_resume(struct device *dev);
 int panfrost_device_suspend(struct device *dev);

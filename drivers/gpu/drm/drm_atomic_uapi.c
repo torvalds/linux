@@ -1037,7 +1037,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a &struct dma_buf this is tracked in &struct reservation_object.
+ * a &struct dma_buf this is tracked in &struct dma_resv.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *

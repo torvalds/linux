@@ -4,7 +4,7 @@
  */
 
 #include <linux/dma-buf.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_fb_helper.h>
