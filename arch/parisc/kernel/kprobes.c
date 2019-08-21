@@ -281,10 +281,6 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
 	return p->addr == trampoline_p.addr;
 }
-bool arch_kprobe_on_func_entry(unsigned long offset)
-{
-	return !offset;
-}
 
 int __init arch_init_kprobes(void)
 {
