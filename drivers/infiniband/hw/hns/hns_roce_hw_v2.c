@@ -5084,7 +5084,7 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 		++eq->cons_index;
 		ceqe_found = 1;
 
-		if (eq->cons_index > (2 * eq->entries - 1)) {
+		if (eq->cons_index > (EQ_DEPTH_COEFF * eq->entries - 1)) {
 			dev_warn(dev, "cons_index overflow, set back to 0.\n");
 			eq->cons_index = 0;
 		}
@@ -6501,7 +6501,7 @@ static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
 
 	handle->rinfo.reset_state = HNS_ROCE_STATE_RST_UNINIT;
 	dev_info(&handle->pdev->dev, "In reset process RoCE client uninit.\n");
-	msleep(100);
+	msleep(HNS_ROCE_V2_HW_RST_UNINT_DELAY);
 	__hns_roce_hw_v2_uninit_instance(handle, false);
 
 	return 0;
