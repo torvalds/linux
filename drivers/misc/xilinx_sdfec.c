@@ -295,6 +295,7 @@ static int xsdfec_get_status(struct xsdfec_dev *xsdfec, void __user *arg)
 	struct xsdfec_status status;
 	int err;
 
+	memset(&status, 0, sizeof(status));
 	spin_lock_irqsave(&xsdfec->error_data_lock, xsdfec->flags);
 	status.state = xsdfec->state;
 	xsdfec->state_updated = false;
@@ -440,6 +441,7 @@ static int xsdfec_get_turbo(struct xsdfec_dev *xsdfec, void __user *arg)
 	if (xsdfec->config.code == XSDFEC_LDPC_CODE)
 		return -EIO;
 
+	memset(&turbo_params, 0, sizeof(turbo_params));
 	reg_value = xsdfec_regread(xsdfec, XSDFEC_TURBO_ADDR);
 
 	turbo_params.scale = (reg_value & XSDFEC_TURBO_SCALE_MASK) >>
