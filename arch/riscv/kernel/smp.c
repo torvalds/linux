@@ -80,17 +80,15 @@ static void ipi_stop(void)
 
 static void send_ipi_mask(const struct cpumask *mask, enum ipi_message_type op)
 {
-	int cpuid, hartid;
 	struct cpumask hartid_mask;
+	int cpu;
 
-	cpumask_clear(&hartid_mask);
-	mb();
-	for_each_cpu(cpuid, mask) {
-		set_bit(op, &ipi_data[cpuid].bits);
-		hartid = cpuid_to_hartid_map(cpuid);
-		cpumask_set_cpu(hartid, &hartid_mask);
-	}
-	mb();
+	smp_mb__before_atomic();
+	for_each_cpu(cpu, mask)
+		set_bit(op, &ipi_data[cpu].bits);
+	smp_mb__after_atomic();
+
+	riscv_cpuid_to_hartid_mask(mask, &hartid_mask);
 	sbi_send_ipi(cpumask_bits(&hartid_mask));
 }
 
