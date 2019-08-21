@@ -1110,7 +1110,8 @@ static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 			    atomic_read(&pt->used));
 
 			atomic_add(count, &pt->used);
-			GEM_BUG_ON(atomic_read(&pt->used) > I915_PDES);
+			/* All other pdes may be simultaneously removed */
+			GEM_BUG_ON(atomic_read(&pt->used) > 2 * I915_PDES);
 			*start += count;
 		}
 	} while (idx++, --len);
