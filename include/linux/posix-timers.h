@@ -65,19 +65,14 @@ static inline int clockid_to_fd(const clockid_t clk)
 #ifdef CONFIG_POSIX_TIMERS
 /**
  * posix_cputimers - Container for posix CPU timer related data
- * @cputime_expires:	Earliest-expiration cache task_cputime based
  * @expiries:		Earliest-expiration cache array based
  * @cpu_timers:		List heads to queue posix CPU timers
  *
  * Used in task_struct and signal_struct
  */
 struct posix_cputimers {
-	/* Temporary union until all users are cleaned up */
-	union {
-		struct task_cputime	cputime_expires;
-		u64			expiries[CPUCLOCK_MAX];
-	};
-	struct list_head		cpu_timers[CPUCLOCK_MAX];
+	u64			expiries[CPUCLOCK_MAX];
+	struct list_head	cpu_timers[CPUCLOCK_MAX];
 };
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)

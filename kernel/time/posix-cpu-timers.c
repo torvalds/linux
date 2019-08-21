@@ -18,16 +18,6 @@
 
 #include "posix-timers.h"
 
-static inline void temporary_check(void)
-{
-	BUILD_BUG_ON(offsetof(struct task_cputime, stime) !=
-		     CPUCLOCK_PROF * sizeof(u64));
-	BUILD_BUG_ON(offsetof(struct task_cputime, utime) !=
-		     CPUCLOCK_VIRT * sizeof(u64));
-	BUILD_BUG_ON(offsetof(struct task_cputime, sum_exec_runtime) !=
-		     CPUCLOCK_SCHED * sizeof(u64));
-}
-
 static void posix_cpu_timer_rearm(struct k_itimer *timer);
 
 void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
