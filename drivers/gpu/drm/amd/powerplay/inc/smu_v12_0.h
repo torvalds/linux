@@ -32,6 +32,11 @@
 #define MP1_SRAM			0x03c00004
 
 
+struct smu_12_0_cmn2aisc_mapping {
+	int	valid_mapping;
+	int	map_to;
+};
+
 void smu_v12_0_set_smu_funcs(struct smu_context *smu);
 
 #endif

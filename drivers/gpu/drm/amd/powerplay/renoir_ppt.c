@@ -26,13 +26,14 @@
 #include "soc15_common.h"
 #include "smu_v12_0_ppsmc.h"
 #include "smu12_driver_if.h"
+#include "smu_v12_0.h"
 #include "renoir_ppt.h"
 
 
 #define MSG_MAP(msg, index) \
-	[SMU_MSG_##msg] = index
+	[SMU_MSG_##msg] = {1, (index)}
 
-static int renoir_message_map[SMU_MSG_MAX_COUNT] = {
+static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion),
 	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion),
@@ -98,16 +99,16 @@ static int renoir_message_map[SMU_MSG_MAX_COUNT] = {
 
 static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_12_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
-	val = renoir_message_map[index];
-	if (val > PPSMC_Message_Count)
+	mapping = renoir_message_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 
