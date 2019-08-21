@@ -30,6 +30,7 @@
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
 #include <asm/unaligned.h>
+#include "misc.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"

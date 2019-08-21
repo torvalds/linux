@@ -9,6 +9,7 @@
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
 #include <linux/math64.h>
+#include "misc.h"
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"

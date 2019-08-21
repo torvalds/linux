@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/zstd.h>
+#include "misc.h"
 #include "compression.h"
 #include "ctree.h"
 

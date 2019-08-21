@@ -16,6 +16,7 @@
 #include <linux/percpu_counter.h>
 #include <linux/lockdep.h>
 #include <linux/crc32c.h>
+#include "misc.h"
 #include "tree-log.h"
 #include "disk-io.h"
 #include "print-tree.h"
