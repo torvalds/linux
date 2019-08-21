@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "misc.h"
 #include "ctree.h"
 #include "block-rsv.h"
 #include "space-info.h"
-#include "math.h"
 #include "transaction.h"
 
 static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,

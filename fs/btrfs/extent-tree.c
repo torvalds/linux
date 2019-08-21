@@ -25,7 +25,6 @@
 #include "locking.h"
 #include "free-space-cache.h"
 #include "free-space-tree.h"
-#include "math.h"
 #include "sysfs.h"
 #include "qgroup.h"
 #include "ref-verify.h"

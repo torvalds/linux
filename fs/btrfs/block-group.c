@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "misc.h"
 #include "ctree.h"
 #include "block-group.h"
 #include "space-info.h"
@@ -13,7 +14,6 @@
 #include "sysfs.h"
 #include "tree-log.h"
 #include "delalloc-space.h"
-#include "math.h"
 
 /*
  * Return target flags in extended format or 0 if restripe for this chunk_type

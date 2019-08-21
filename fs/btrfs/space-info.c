@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "misc.h"
 #include "ctree.h"
 #include "space-info.h"
 #include "sysfs.h"
@@ -7,7 +8,6 @@
 #include "free-space-cache.h"
 #include "ordered-data.h"
 #include "transaction.h"
-#include "math.h"
 #include "block-group.h"
 
 u64 btrfs_space_info_used(struct btrfs_space_info *s_info,
