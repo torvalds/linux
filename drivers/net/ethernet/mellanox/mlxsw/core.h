@@ -128,6 +128,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 				const struct mlxsw_listener *listener,
 				void *priv);
+int mlxsw_core_trap_action_set(struct mlxsw_core *mlxsw_core,
+			       const struct mlxsw_listener *listener,
+			       enum mlxsw_reg_hpkt_action action);
 
 typedef void mlxsw_reg_trans_cb_t(struct mlxsw_core *mlxsw_core, char *payload,
 				  size_t payload_len, unsigned long cb_priv);
