@@ -1214,7 +1214,8 @@ static void hrtimer_sync_wait_running(struct hrtimer_cpu_base *cpu_base,
  */
 void hrtimer_cancel_wait_running(const struct hrtimer *timer)
 {
-	struct hrtimer_clock_base *base = timer->base;
+	/* Lockless read. Prevent the compiler from reloading it below */
+	struct hrtimer_clock_base *base = READ_ONCE(timer->base);
 
 	if (!timer->is_soft || !base || !base->cpu_base) {
 		cpu_relax();
