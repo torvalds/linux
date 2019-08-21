@@ -1082,6 +1082,15 @@ config SND_SOC_RT711_SDW
 	select SND_SOC_RT711
 	select REGMAP_SOUNDWIRE
 
+config SND_SOC_RT715
+	tristate
+
+config SND_SOC_RT715_SDW
+	tristate "Realtek RT715 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT715
+	select REGMAP_SOUNDWIRE
+
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate "Freescale SGTL5000 CODEC"
