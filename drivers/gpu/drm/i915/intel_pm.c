@@ -1327,8 +1327,8 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(crtc_state->base.state);
 	struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
-	int num_active_planes = hweight32(crtc_state->active_planes &
-					  ~BIT(PLANE_CURSOR));
+	int num_active_planes = hweight8(crtc_state->active_planes &
+					 ~BIT(PLANE_CURSOR));
 	const struct g4x_pipe_wm *raw;
 	const struct intel_plane_state *old_plane_state;
 	const struct intel_plane_state *new_plane_state;
@@ -1659,7 +1659,7 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 		&crtc_state->wm.vlv.raw[VLV_WM_LEVEL_PM2];
 	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
 	unsigned int active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
-	int num_active_planes = hweight32(active_planes);
+	int num_active_planes = hweight8(active_planes);
 	const int fifo_size = 511;
 	int fifo_extra, fifo_left = fifo_size;
 	int sprite0_fifo_extra = 0;
@@ -1848,8 +1848,8 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
-	int num_active_planes = hweight32(crtc_state->active_planes &
-					  ~BIT(PLANE_CURSOR));
+	int num_active_planes = hweight8(crtc_state->active_planes &
+					 ~BIT(PLANE_CURSOR));
 	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->base);
 	const struct intel_plane_state *old_plane_state;
 	const struct intel_plane_state *new_plane_state;
@@ -3761,14 +3761,14 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 	/*
 	 * If there are no active CRTCs, no additional checks need be performed
 	 */
-	if (hweight32(state->active_pipes) == 0)
+	if (hweight8(state->active_pipes) == 0)
 		return true;
 
 	/*
 	 * SKL+ workaround: bspec recommends we disable SAGV when we have
 	 * more then one pipe enabled
 	 */
-	if (hweight32(state->active_pipes) > 1)
+	if (hweight8(state->active_pipes) > 1)
 		return false;
 
 	/* Since we're now guaranteed to only have one active CRTC... */
@@ -3867,14 +3867,14 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	if (WARN_ON(!state) || !crtc_state->base.active) {
 		alloc->start = 0;
 		alloc->end = 0;
-		*num_active = hweight32(dev_priv->active_pipes);
+		*num_active = hweight8(dev_priv->active_pipes);
 		return;
 	}
 
 	if (intel_state->active_pipe_changes)
-		*num_active = hweight32(intel_state->active_pipes);
+		*num_active = hweight8(intel_state->active_pipes);
 	else
-		*num_active = hweight32(dev_priv->active_pipes);
+		*num_active = hweight8(dev_priv->active_pipes);
 
 	ddb_size = intel_get_ddb_size(dev_priv, crtc_state, total_data_rate,
 				      *num_active, ddb);
