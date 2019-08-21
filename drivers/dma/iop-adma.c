@@ -364,13 +364,11 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(tx->chan);
 	struct iop_adma_desc_slot *grp_start, *old_chain_tail;
 	int slot_cnt;
-	int slots_per_op;
 	dma_cookie_t cookie;
 	dma_addr_t next_dma;
 
 	grp_start = sw_desc->group_head;
 	slot_cnt = grp_start->slot_cnt;
-	slots_per_op = grp_start->slots_per_op;
 
 	spin_lock_bh(&iop_chan->lock);
 	cookie = dma_cookie_assign(tx);
