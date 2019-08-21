@@ -289,53 +289,24 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 	return 0;
 }
 
-static int posix_cpu_clock_get_task(struct task_struct *tsk,
-				    const clockid_t which_clock,
-				    struct timespec64 *tp)
+static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 {
-	int err = -EINVAL;
-	u64 rtn;
+	const clockid_t clkid = CPUCLOCK_WHICH(clock);
+	struct task_struct *tsk;
+	u64 t;
 
-	if (CPUCLOCK_PERTHREAD(which_clock)) {
-		if (same_thread_group(tsk, current))
-			err = cpu_clock_sample(which_clock, tsk, &rtn);
-	} else {
-		if (tsk == current || thread_group_leader(tsk))
-			err = cpu_clock_sample_group(which_clock, tsk, &rtn);
-	}
+	tsk = get_task_for_clock(clock);
+	if (!tsk)
+		return -EINVAL;
 
-	if (!err)
-		*tp = ns_to_timespec64(rtn);
+	if (CPUCLOCK_PERTHREAD(clock))
+		cpu_clock_sample(clkid, tsk, &t);
+	else
+		cpu_clock_sample_group(clkid, tsk, &t);
+	put_task_struct(tsk);
 
-	return err;
-}
-
-
-static int posix_cpu_clock_get(const clockid_t which_clock, struct timespec64 *tp)
-{
-	const pid_t pid = CPUCLOCK_PID(which_clock);
-	int err = -EINVAL;
-
-	if (pid == 0) {
-		/*
-		 * Special case constant value for our own clocks.
-		 * We don't have to do any lookup to find ourselves.
-		 */
-		err = posix_cpu_clock_get_task(current, which_clock, tp);
-	} else {
-		/*
-		 * Find the given PID, and validate that the caller
-		 * should be able to see it.
-		 */
-		struct task_struct *p;
-		rcu_read_lock();
-		p = find_task_by_vpid(pid);
-		if (p)
-			err = posix_cpu_clock_get_task(p, which_clock, tp);
-		rcu_read_unlock();
-	}
-
-	return err;
+	*tp = ns_to_timespec64(t);
+	return 0;
 }
 
 /*
