@@ -214,7 +214,8 @@ int ieee80211_encrypt_fragment(
 }
 
 
-void ieee80211_txb_free(struct ieee80211_txb *txb) {
+void ieee80211_txb_free(struct ieee80211_txb *txb)
+{
 	//int i;
 	if (unlikely(!txb))
 		return;
@@ -333,8 +334,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 		}
 	}
 FORCED_AGG_SETTING:
-	switch (pHTInfo->ForcedAMPDUMode )
-	{
+	switch (pHTInfo->ForcedAMPDUMode ) {
 		case HT_AGG_AUTO:
 			break;
 
@@ -424,19 +424,15 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 	if (is_broadcast_ether_addr(skb->data+16))  //check addr3 as infrastructure add3 is DA.
 		return;
 
-	if (ieee->mode < IEEE_N_24G) //b, g mode
-	{
+	if (ieee->mode < IEEE_N_24G) /* b, g mode */ {
 			// (1) RTS_Threshold is compared to the MPDU, not MSDU.
 			// (2) If there are more than one frag in  this MSDU, only the first frag uses protection frame.
 			//		Other fragments are protected by previous fragment.
 			//		So we only need to check the length of first fragment.
-		if (skb->len > ieee->rts)
-		{
+		if (skb->len > ieee->rts) {
 			tcb_desc->bRTSEnable = true;
 			tcb_desc->rts_rate = MGN_24M;
-		}
-		else if (ieee->current_network.buseprotection)
-		{
+		} else if (ieee->current_network.buseprotection) {
 			// Use CTS-to-SELF in protection mode.
 			tcb_desc->bRTSEnable = true;
 			tcb_desc->bCTSEnable = true;
@@ -444,43 +440,35 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 		}
 		//otherwise return;
 		return;
-	}
-	else
-	{// 11n High throughput case.
+	} else { // 11n High throughput case.
 		PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
-		while (true)
-		{
+		while (true) {
 			//check ERP protection
-			if (ieee->current_network.buseprotection)
-			{// CTS-to-SELF
+			if (ieee->current_network.buseprotection) {// CTS-to-SELF
 				tcb_desc->bRTSEnable = true;
 				tcb_desc->bCTSEnable = true;
 				tcb_desc->rts_rate = MGN_24M;
 				break;
 			}
 			//check HT op mode
-			if(pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT)
-			{
+			if(pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
 				u8 HTOpMode = pHTInfo->CurrentOpMode;
 				if((pHTInfo->bCurBW40MHz && (HTOpMode == 2 || HTOpMode == 3)) ||
-							(!pHTInfo->bCurBW40MHz && HTOpMode == 3) )
-				{
+							(!pHTInfo->bCurBW40MHz && HTOpMode == 3)) {
 					tcb_desc->rts_rate = MGN_24M; // Rate is 24Mbps.
 					tcb_desc->bRTSEnable = true;
 					break;
 				}
 			}
 			//check rts
-			if (skb->len > ieee->rts)
-			{
+			if (skb->len > ieee->rts) {
 				tcb_desc->rts_rate = MGN_24M; // Rate is 24Mbps.
 				tcb_desc->bRTSEnable = true;
 				break;
 			}
 			//to do list: check MIMO power save condition.
 			//check AMPDU aggregation for TXOP
-			if(tcb_desc->bAMPDUEnable)
-			{
+			if(tcb_desc->bAMPDUEnable) {
 				tcb_desc->rts_rate = MGN_24M; // Rate is 24Mbps.
 				// According to 8190 design, firmware sends CF-End only if RTS/CTS is enabled. However, it degrads
 				// throughput around 10M, so we disable of this mechanism. 2007.08.03 by Emily
@@ -488,8 +476,7 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 				break;
 			}
 			//check IOT action
-			if(pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF)
-			{
+			if(pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
 				tcb_desc->bCTSEnable	= true;
 				tcb_desc->rts_rate  =	MGN_24M;
 				tcb_desc->bRTSEnable = true;
@@ -541,8 +528,7 @@ static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
 
 	if (ieee->bTxUseDriverAssingedRate)
 		tcb_desc->bTxUseDriverAssingedRate = true;
-	if (!tcb_desc->bTxDisableRateFallBack || !tcb_desc->bTxUseDriverAssingedRate)
-	{
+	if (!tcb_desc->bTxDisableRateFallBack || !tcb_desc->bTxUseDriverAssingedRate) {
 		if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC)
 			tcb_desc->RATRIndex = 0;
 	}
@@ -553,11 +539,9 @@ static void ieee80211_query_seqnum(struct ieee80211_device *ieee,
 {
 	if (is_multicast_ether_addr(dst))
 		return;
-	if (IsQoSDataFrame(skb->data)) //we deal qos data only
-	{
+	if (IsQoSDataFrame(skb->data)) /* we deal qos data only */ {
 		struct tx_ts_record *pTS = NULL;
-		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst, skb->priority, TX_DIR, true))
-		{
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst, skb->priority, TX_DIR, true)) {
 			return;
 		}
 		pTS->tx_cur_seq = (pTS->tx_cur_seq + 1) % 4096;
@@ -749,15 +733,13 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			}
 			skb_reserve(skb_frag, ieee->tx_headroom);
 
-			if (encrypt){
+			if (encrypt) {
 				if (ieee->hwsec_active)
 					tcb_desc->bHwSec = 1;
 				else
 					tcb_desc->bHwSec = 0;
 				skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
-			}
-			else
-			{
+			} else {
 				tcb_desc->bHwSec = 0;
 			}
 			frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
@@ -775,8 +757,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				bytes = bytes_last_frag;
 			}
 			//if(ieee->current_network.QoS_Enable)
-			if(qos_actived)
-			{
+			if(qos_actived) {
 				// add 1 only indicate to corresponding seq number control 2006/7/12
 				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
 			} else {
@@ -806,17 +787,16 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				skb_put(skb_frag, 4);
 		}
 
-		if(qos_actived)
-		{
-		  if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
-			ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
-		  else
-			ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
+		if (qos_actived) {
+			if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
+				ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
+			else
+				ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
 		} else {
-		  if (ieee->seq_ctrl[0] == 0xFFF)
-			ieee->seq_ctrl[0] = 0;
-		  else
-			ieee->seq_ctrl[0]++;
+			if (ieee->seq_ctrl[0] == 0xFFF)
+				ieee->seq_ctrl[0] = 0;
+			else
+				ieee->seq_ctrl[0]++;
 		}
 	} else {
 		if (unlikely(skb->len < sizeof(struct rtl_80211_hdr_3addr))) {
@@ -839,8 +819,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
  success:
 //WB add to fill data tcb_desc here. only first fragment is considered, need to change, and you may remove to other place.
-	if (txb)
-	{
+	if (txb) {
 		struct cb_desc *tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		if (is_multicast_ether_addr(header.addr1))

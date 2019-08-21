@@ -130,8 +130,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 			max_rate = rate;
 	}
 
-	if (network->mode >= IEEE_N_24G)//add N rate here;
-	{
+	if (network->mode >= IEEE_N_24G) /* add N rate here */ {
 		struct ht_capability_ele *ht_cap = NULL;
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;

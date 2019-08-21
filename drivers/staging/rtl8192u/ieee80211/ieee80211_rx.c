@@ -218,8 +218,8 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	rx_stats->len = skb->len;
 	ieee80211_rx_mgt(ieee, (struct rtl_80211_hdr_4addr *)skb->data, rx_stats);
 	/* if ((ieee->state == IEEE80211_LINKED) && (memcmp(hdr->addr3, ieee->current_network.bssid, ETH_ALEN))) */
-	if ((memcmp(hdr->addr1, ieee->dev->dev_addr, ETH_ALEN)))/* use ADDR1 to perform address matching for Management frames */
-	{
+	if ((memcmp(hdr->addr1, ieee->dev->dev_addr, ETH_ALEN))) {
+		/* use ADDR1 to perform address matching for Management frames */
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -339,8 +339,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	if (!crypt || !crypt->ops->decrypt_mpdu)
 		return 0;
-	if (ieee->hwsec_active)
-	{
+	if (ieee->hwsec_active) {
 		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 	}
@@ -386,8 +385,7 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *s
 
 	if (!crypt || !crypt->ops->decrypt_msdu)
 		return 0;
-	if (ieee->hwsec_active)
-	{
+	if (ieee->hwsec_active) {
 		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 	}
@@ -507,8 +505,7 @@ drop:
 static bool AddReorderEntry(struct rx_ts_record *pTS, struct rx_reorder_entry *pReorderEntry)
 {
 	struct list_head *pList = &pTS->rx_pending_pkt_list;
-	while (pList->next != &pTS->rx_pending_pkt_list)
-	{
+	while (pList->next != &pTS->rx_pending_pkt_list) {
 		if (SN_LESS(pReorderEntry->SeqNum, list_entry(pList->next, struct rx_reorder_entry, List)->SeqNum))
 			pList = pList->next;
 		else if (SN_EQUAL(pReorderEntry->SeqNum, list_entry(pList->next, struct rx_reorder_entry, List)->SeqNum))
@@ -530,8 +527,7 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 	u16 ethertype;
 //	if(index > 1)
 //		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): hahahahhhh, We indicate packet from reorder list, index is %u\n",__func__,index);
-	for (j = 0; j < index; j++)
-	{
+	for (j = 0; j < index; j++) {
 //added by amy for reorder
 		struct ieee80211_rxb *prxb = prxbIndicateArray[j];
 		for (i = 0; i < prxb->nr_subframes; i++) {
@@ -699,8 +695,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER, "%s(): start RREORDER indicate\n", __func__);
 		pReorderEntry = list_entry(pTS->rx_pending_pkt_list.prev, struct rx_reorder_entry, List);
 		if (SN_LESS(pReorderEntry->SeqNum, pTS->rx_indicate_seq) ||
-		    SN_EQUAL(pReorderEntry->SeqNum, pTS->rx_indicate_seq))
-		{
+		    SN_EQUAL(pReorderEntry->SeqNum, pTS->rx_indicate_seq)) {
 			/* This protect buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
 				IEEE80211_DEBUG(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): Buffer overflow!! \n");
@@ -922,8 +917,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-	if (HTCCheck(ieee, skb->data))
-	{
+	if (HTCCheck(ieee, skb->data)) {
 		if (net_ratelimit())
 			printk("find HTCControl\n");
 		hdrlen += 4;
@@ -1010,8 +1004,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				hdr->addr2,
 				Frame_QoSTID((u8 *)(skb->data)),
 				RX_DIR,
-				true))
-		{
+				true)) {
 
 		//	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): pRxTS->rx_last_frag_num is %d,frag is %d,pRxTS->rx_last_seq_num is %d,seq is %d\n",__func__,pRxTS->rx_last_frag_num,frag,pRxTS->rx_last_seq_num,WLAN_GET_SEQ_SEQ(sc));
 			if ((fc & (1 << 11)) &&
@@ -1119,8 +1112,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
 	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
-	    (keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt)) < 0)
-	{
+	    (keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt)) < 0) {
 		printk("decrypt frame error\n");
 		goto rx_dropped;
 	}
@@ -1185,8 +1177,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated */
 	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
-	    ieee80211_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt))
-	{
+	    ieee80211_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt)) {
 		printk("==>decrypt msdu error\n");
 		goto rx_dropped;
 	}
@@ -1243,13 +1234,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 */
 //added by amy for reorder
 	if (ieee->current_network.qos_data.active && IsQoSDataFrame(skb->data)
-		&& !is_multicast_ether_addr(hdr->addr1))
-	{
+		&& !is_multicast_ether_addr(hdr->addr1)) {
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
 		GetTs(ieee, (struct ts_common_info **) &pTS, hdr->addr2, TID, RX_DIR, true);
-		if (TID != 0 && TID != 3)
-		{
+		if (TID != 0 && TID != 3) {
 			ieee->bis_any_nonbepkts = true;
 		}
 	}
@@ -1549,15 +1538,12 @@ static inline void ieee80211_extract_country_ie(
 	u8 *addr2
 )
 {
-	if (IS_DOT11D_ENABLE(ieee))
-	{
-		if (info_element->len != 0)
-		{
+	if (IS_DOT11D_ENABLE(ieee)) {
+		if (info_element->len != 0) {
 			memcpy(network->CountryIeBuf, info_element->data, info_element->len);
 			network->CountryIeLen = info_element->len;
 
-			if (!IS_COUNTRY_IE_VALID(ieee))
-			{
+			if (!IS_COUNTRY_IE_VALID(ieee)) {
 				dot11d_update_country_ie(ieee, addr2, info_element->len, info_element->data);
 			}
 		}
@@ -1567,8 +1553,7 @@ static inline void ieee80211_extract_country_ie(
 		// some AP (e.g. Cisco 1242) don't include country IE in their
 		// probe response frame.
 		//
-		if (IS_EQUAL_CIE_SRC(ieee, addr2))
-		{
+		if (IS_EQUAL_CIE_SRC(ieee, addr2)) {
 			UPDATE_CIE_WATCHDOG(ieee);
 		}
 	}
@@ -1865,8 +1850,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			if (info_element->len >= 3 &&
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x0c &&
-				info_element->data[2] == 0x43)
-			{
+				info_element->data[2] == 0x43) {
 				network->ralink_cap_exist = true;
 			} else
 				network->ralink_cap_exist = false;
@@ -1878,8 +1862,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				(info_element->len >= 3 &&
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x13 &&
-				info_element->data[2] == 0x74))
-			{
+				info_element->data[2] == 0x74)) {
 				printk("========>%s(): athros AP is exist\n", __func__);
 				network->atheros_cap_exist = true;
 			} else
@@ -1888,8 +1871,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			if (info_element->len >= 3 &&
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x40 &&
-				info_element->data[2] == 0x96)
-			{
+				info_element->data[2] == 0x96) {
 				network->cisco_cap_exist = true;
 			} else
 				network->cisco_cap_exist = false;
@@ -1898,22 +1880,18 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x40 &&
 				info_element->data[2] == 0x96 &&
-				info_element->data[3] == 0x01)
-			{
-				if (info_element->len == 6)
-				{
+				info_element->data[3] == 0x01) {
+				if (info_element->len == 6) {
 					memcpy(network->CcxRmState, &info_element[4], 2);
 					if (network->CcxRmState[0] != 0)
-					{
 						network->bCcxRmEnable = true;
-					} else
+					else
 						network->bCcxRmEnable = false;
 					//
 					// CCXv4 Table 59-1 MBSSID Masks.
 					//
 					network->MBssidMask = network->CcxRmState[1] & 0x07;
-					if (network->MBssidMask != 0)
-					{
+					if (network->MBssidMask != 0) {
 						network->bMBssidValid = true;
 						network->MBssidMask = 0xff << (network->MBssidMask);
 						ether_addr_copy(network->MBssid, network->bssid);
@@ -1929,8 +1907,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x40 &&
 				info_element->data[2] == 0x96 &&
-				info_element->data[3] == 0x03)
-			{
+				info_element->data[3] == 0x03) {
 				if (info_element->len == 5) {
 					network->bWithCcxVerNum = true;
 					network->BssCcxVerNumber = info_element->data[4];
@@ -1985,16 +1962,14 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 		case MFIE_TYPE_AIRONET:
 			IEEE80211_DEBUG_SCAN("MFIE_TYPE_AIRONET: %d bytes\n",
 					     info_element->len);
-			if (info_element->len > IE_CISCO_FLAG_POSITION)
-			{
+			if (info_element->len > IE_CISCO_FLAG_POSITION) {
 				network->bWithAironetIE = true;
 
 				// CCX 1 spec v1.13, A01.1 CKIP Negotiation (page23):
 				// "A Cisco access point advertises support for CKIP in beacon and probe response packets,
 				//  by adding an Aironet element and setting one or both of the CKIP negotiation bits."
 				if ((info_element->data[IE_CISCO_FLAG_POSITION] & SUPPORT_CKIP_MIC)	||
-					(info_element->data[IE_CISCO_FLAG_POSITION] & SUPPORT_CKIP_PK))
-				{
+					(info_element->data[IE_CISCO_FLAG_POSITION] & SUPPORT_CKIP_PK)) {
 					network->bCkipSupported = true;
 				} else {
 					network->bCkipSupported = false;
@@ -2214,8 +2189,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->rates_len = src->rates_len;
 	memcpy(dst->rates_ex, src->rates_ex, src->rates_ex_len);
 	dst->rates_ex_len = src->rates_ex_len;
-	if (src->ssid_len > 0)
-	{
+	if (src->ssid_len > 0) {
 		memset(dst->ssid, 0, dst->ssid_len);
 		dst->ssid_len = src->ssid_len;
 		memcpy(dst->ssid, src->ssid, src->ssid_len);
@@ -2224,8 +2198,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->flags = src->flags;
 	dst->time_stamp[0] = src->time_stamp[0];
 	dst->time_stamp[1] = src->time_stamp[1];
-	if (src->flags & NETWORK_HAS_ERP_VALUE)
-	{
+	if (src->flags & NETWORK_HAS_ERP_VALUE) {
 		dst->erp_value = src->erp_value;
 		dst->berp_info_valid = src->berp_info_valid = true;
 	}
@@ -2379,41 +2352,33 @@ static inline void ieee80211_process_probe_response(
 
 	if (!is_legal_channel(ieee, network->channel))
 		goto out;
-	if (ieee->bGlobalDomain)
-	{
-		if (fc == IEEE80211_STYPE_PROBE_RESP)
-		{
-			// Case 1: Country code
+	if (ieee->bGlobalDomain) {
+		if (fc == IEEE80211_STYPE_PROBE_RESP) {
 			if (IS_COUNTRY_IE_VALID(ieee)) {
+				// Case 1: Country code
 				if (!is_legal_channel(ieee, network->channel)) {
 					printk("GetScanInfo(): For Country code, filter probe response at channel(%d).\n", network->channel);
 					goto out;
 				}
-			}
-			// Case 2: No any country code.
-			else
-			{
+			} else {
+				// Case 2: No any country code.
 				// Filter over channel ch12~14
-				if (network->channel > 11)
-				{
+				if (network->channel > 11) {
 					printk("GetScanInfo(): For Global Domain, filter probe response at channel(%d).\n", network->channel);
 					goto out;
 				}
 			}
 		} else {
-			// Case 1: Country code
 			if (IS_COUNTRY_IE_VALID(ieee)) {
+				// Case 1: Country code
 				if (!is_legal_channel(ieee, network->channel)) {
 					printk("GetScanInfo(): For Country code, filter beacon at channel(%d).\n", network->channel);
 					goto out;
 				}
-			}
-			// Case 2: No any country code.
-			else
-			{
+			} else {
+				// Case 2: No any country code.
 				// Filter over channel ch12~14
-				if (network->channel > 14)
-				{
+				if (network->channel > 14) {
 					printk("GetScanInfo(): For Global Domain, filter beacon at channel(%d).\n", network->channel);
 					goto out;
 				}
@@ -2442,8 +2407,7 @@ static inline void ieee80211_process_probe_response(
 		else
 			ieee->current_network.buseprotection = false;
 		}
-		if (is_beacon(beacon->header.frame_ctl))
-		{
+		if (is_beacon(beacon->header.frame_ctl)) {
 			if (ieee->state == IEEE80211_LINKED)
 				ieee->LinkDetectInfo.NumRecvBcnInPeriod++;
 		} else //hidden AP
