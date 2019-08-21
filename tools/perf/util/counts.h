@@ -2,8 +2,12 @@
 #ifndef __PERF_COUNTS_H
 #define __PERF_COUNTS_H
 
+#include <linux/types.h>
 #include <internal/xyarray.h>
 #include <perf/evsel.h>
+#include <stdbool.h>
+
+struct evsel;
 
 struct perf_counts {
 	s8			  scaled;
