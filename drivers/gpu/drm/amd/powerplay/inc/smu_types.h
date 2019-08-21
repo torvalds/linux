@@ -251,6 +251,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(TEMP_DEPENDENT_VMIN),           	\
        __SMU_DUMMY_MAP(MMHUB_PG),                      	\
        __SMU_DUMMY_MAP(ATHUB_PG),                      	\
+       __SMU_DUMMY_MAP(WAFL_CG),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT
