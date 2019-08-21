@@ -50,7 +50,8 @@ rm -f $(objtree)/.scmversion
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
-rpm-pkg: FORCE
+PHONY += rpm-pkg
+rpm-pkg:
 	$(MAKE) clean
 	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
 	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
@@ -59,13 +60,15 @@ rpm-pkg: FORCE
 
 # binrpm-pkg
 # ---------------------------------------------------------------------------
-binrpm-pkg: FORCE
+PHONY += binrpm-pkg
+binrpm-pkg:
 	$(MAKE) -f $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE) -bb $(objtree)/binkernel.spec
 
-deb-pkg: FORCE
+PHONY += deb-pkg
+deb-pkg:
 	$(MAKE) clean
 	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
 	$(call cmd,src_tar,$(KDEB_SOURCENAME))
@@ -73,16 +76,19 @@ deb-pkg: FORCE
 		mv $(KDEB_SOURCENAME).tar.gz ../$(KDEB_SOURCENAME)_$${origversion}.orig.tar.gz
 	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -i.git -us -uc
 
-bindeb-pkg: FORCE
+PHONY += bindeb-pkg
+bindeb-pkg:
 	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
 	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) -b -nc -uc
 
-intdeb-pkg: FORCE
+PHONY += intdeb-pkg
+intdeb-pkg:
 	+$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
 
 # snap-pkg
 # ---------------------------------------------------------------------------
-snap-pkg: FORCE
+PHONY += snap-pkg
+snap-pkg:
 	rm -rf $(objtree)/snap
 	mkdir $(objtree)/snap
 	$(MAKE) clean
@@ -96,7 +102,9 @@ snap-pkg: FORCE
 
 # tarball targets
 # ---------------------------------------------------------------------------
-tar%pkg: FORCE
+tar-pkgs := tar-pkg targz-pkg tarbz2-pkg tarxz-pkg
+PHONY += $(tar-pkgs)
+$(tar-pkgs):
 	$(MAKE) -f $(srctree)/Makefile
 	+$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
 
@@ -124,12 +132,15 @@ $(if $(findstring xz,$@),xz,                                        \
 $(error unknown target $@))))                                       \
 	-f -9 $(perf-tar).tar)
 
-perf-%pkg: FORCE
+perf-tar-pkgs := perf-tar-src-pkg perf-targz-src-pkg perf-tarbz2-src-pkg perf-tarxz-src-pkg
+PHONY += $(perf-tar-pkgs)
+$(perf-tar-pkgs):
 	$(call cmd,perf_tar)
 
 # Help text displayed when executing 'make help'
 # ---------------------------------------------------------------------------
-help: FORCE
+PHONY += help
+help:
 	@echo '  rpm-pkg             - Build both source and binary RPM kernel packages'
 	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
 	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
