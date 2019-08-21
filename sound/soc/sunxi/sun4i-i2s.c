@@ -290,7 +290,7 @@ static bool sun4i_i2s_oversample_is_valid(unsigned int oversample)
 static int sun4i_i2s_set_clk_rate(struct snd_soc_dai *dai,
 				  unsigned int rate,
 				  unsigned int slots,
-				  unsigned int word_size)
+				  unsigned int slot_width)
 {
 	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	unsigned int oversample_rate, clk_rate, bclk_parent_rate;
@@ -337,7 +337,7 @@ static int sun4i_i2s_set_clk_rate(struct snd_soc_dai *dai,
 
 	bclk_parent_rate = i2s->variant->get_bclk_parent_rate(i2s);
 	bclk_div = sun4i_i2s_get_bclk_div(i2s, bclk_parent_rate,
-					  rate, slots, word_size);
+					  rate, slots, slot_width);
 	if (bclk_div < 0) {
 		dev_err(dai->dev, "Unsupported BCLK divider: %d\n", bclk_div);
 		return -EINVAL;
@@ -458,6 +458,7 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	unsigned int word_size = params_width(params);
+	unsigned int slot_width = params_physical_width(params);
 	unsigned int channels = params_channels(params);
 	unsigned int slots = channels;
 	int ret, sr, wss;
@@ -467,7 +468,7 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 		slots = i2s->slots;
 
 	if (i2s->slot_width)
-		word_size = i2s->slot_width;
+		slot_width = i2s->slot_width;
 
 	ret = i2s->variant->set_chan_cfg(i2s, params);
 	if (ret < 0) {
@@ -490,14 +491,15 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (sr < 0)
 		return -EINVAL;
 
-	wss = i2s->variant->get_wss(i2s, word_size);
+	wss = i2s->variant->get_wss(i2s, slot_width);
 	if (wss < 0)
 		return -EINVAL;
 
 	regmap_field_write(i2s->field_fmt_wss, wss);
 	regmap_field_write(i2s->field_fmt_sr, sr);
 
-	return sun4i_i2s_set_clk_rate(dai, params_rate(params), slots, word_size);
+	return sun4i_i2s_set_clk_rate(dai, params_rate(params),
+				      slots, slot_width);
 }
 
 static int sun4i_i2s_set_soc_fmt(const struct sun4i_i2s *i2s,
