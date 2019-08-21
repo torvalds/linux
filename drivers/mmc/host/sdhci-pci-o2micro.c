@@ -51,7 +51,7 @@
 #define O2_SD_VENDOR_SETTING2	0x1C8
 #define O2_SD_HW_TUNING_DISABLE	BIT(4)
 
-#define O2_PLL_WDT_CONTROL1	0x1CC
+#define O2_PLL_DLL_WDT_CONTROL1	0x1CC
 #define  O2_PLL_FORCE_ACTIVE	BIT(18)
 #define  O2_PLL_LOCK_STATUS	BIT(14)
 #define  O2_PLL_SOFT_RESET	BIT(12)
@@ -316,23 +316,23 @@ static void sdhci_o2_enable_internal_clock(struct sdhci_host *host)
 	u32 scratch32;
 
 	/* PLL software reset */
-	scratch32 = sdhci_readl(host, O2_PLL_WDT_CONTROL1);
+	scratch32 = sdhci_readl(host, O2_PLL_DLL_WDT_CONTROL1);
 	scratch32 |= O2_PLL_SOFT_RESET;
-	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+	sdhci_writel(host, scratch32, O2_PLL_DLL_WDT_CONTROL1);
 	udelay(1);
 	scratch32 &= ~(O2_PLL_SOFT_RESET);
-	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+	sdhci_writel(host, scratch32, O2_PLL_DLL_WDT_CONTROL1);
 
 	/* PLL force active */
 	scratch32 |= O2_PLL_FORCE_ACTIVE;
-	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+	sdhci_writel(host, scratch32, O2_PLL_DLL_WDT_CONTROL1);
 
 	/* Wait max 20 ms */
 	timeout = ktime_add_ms(ktime_get(), 20);
 	while (1) {
 		bool timedout = ktime_after(ktime_get(), timeout);
 
-		scratch = sdhci_readw(host, O2_PLL_WDT_CONTROL1);
+		scratch = sdhci_readw(host, O2_PLL_DLL_WDT_CONTROL1);
 		if (scratch & O2_PLL_LOCK_STATUS)
 			break;
 		if (timedout) {
@@ -350,9 +350,9 @@ static void sdhci_o2_enable_internal_clock(struct sdhci_host *host)
 
 out:
 	/* Cancel PLL force active */
-	scratch32 = sdhci_readl(host, O2_PLL_WDT_CONTROL1);
+	scratch32 = sdhci_readl(host, O2_PLL_DLL_WDT_CONTROL1);
 	scratch32 &= ~O2_PLL_FORCE_ACTIVE;
-	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+	sdhci_writel(host, scratch32, O2_PLL_DLL_WDT_CONTROL1);
 }
 
 static int sdhci_o2_get_cd(struct mmc_host *mmc)
