@@ -872,3 +872,20 @@ int mt76_get_rate(struct mt76_dev *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_get_rate);
+
+void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  const u8 *mac)
+{
+	struct mt76_dev *dev = hw->priv;
+
+	set_bit(MT76_SCANNING, &dev->state);
+}
+EXPORT_SYMBOL_GPL(mt76_sw_scan);
+
+void mt76_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct mt76_dev *dev = hw->priv;
+
+	clear_bit(MT76_SCANNING, &dev->state);
+}
+EXPORT_SYMBOL_GPL(mt76_sw_scan_complete);

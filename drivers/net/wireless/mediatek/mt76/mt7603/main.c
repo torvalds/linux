@@ -537,23 +537,6 @@ mt7603_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 }
 
 static void
-mt7603_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       const u8 *mac)
-{
-	struct mt7603_dev *dev = hw->priv;
-
-	set_bit(MT76_SCANNING, &dev->mt76.state);
-}
-
-static void
-mt7603_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct mt7603_dev *dev = hw->priv;
-
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
-}
-
-static void
 mt7603_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	     u32 queues, bool drop)
 {
@@ -683,8 +666,8 @@ const struct ieee80211_ops mt7603_ops = {
 	.sta_state = mt76_sta_state,
 	.set_key = mt7603_set_key,
 	.conf_tx = mt7603_conf_tx,
-	.sw_scan_start = mt7603_sw_scan,
-	.sw_scan_complete = mt7603_sw_scan_complete,
+	.sw_scan_start = mt76_sw_scan,
+	.sw_scan_complete = mt76_sw_scan_complete,
 	.flush = mt7603_flush,
 	.ampdu_action = mt7603_ampdu_action,
 	.get_txpower = mt76_get_txpower,
