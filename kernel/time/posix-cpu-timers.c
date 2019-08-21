@@ -785,9 +785,9 @@ static inline void check_dl_overrun(struct task_struct *tsk)
 static void check_thread_timers(struct task_struct *tsk,
 				struct list_head *firing)
 {
-	struct list_head *timers = tsk->cpu_timers;
 	struct task_cputime *tsk_expires = &tsk->cputime_expires;
-	u64 expires;
+	struct list_head *timers = tsk->cpu_timers;
+	u64 expires, stime, utime;
 	unsigned long soft;
 
 	if (dl_task(tsk))
@@ -800,10 +800,12 @@ static void check_thread_timers(struct task_struct *tsk,
 	if (task_cputime_zero(&tsk->cputime_expires))
 		return;
 
-	expires = check_timers_list(timers, firing, prof_ticks(tsk));
+	task_cputime(tsk, &utime, &stime);
+
+	expires = check_timers_list(timers, firing, utime + stime);
 	tsk_expires->prof_exp = expires;
 
-	expires = check_timers_list(++timers, firing, virt_ticks(tsk));
+	expires = check_timers_list(++timers, firing, utime);
 	tsk_expires->virt_exp = expires;
 
 	tsk_expires->sched_exp = check_timers_list(++timers, firing,
