@@ -42,7 +42,6 @@
 #include <linux/wakelock.h>
 #include <linux/scatterlist.h>
 #include <linux/version.h>
-#include <linux/rockchip_ion.h>
 #include <linux/debugfs.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
@@ -850,12 +849,7 @@ static void rga2_try_set_reg(void)
 			rga2_copy_reg(reg, 0);
 			rga2_reg_from_wait_to_run(reg);
 
-#ifdef CONFIG_ARM
-			dmac_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
-			outer_flush_range(virt_to_phys(&rga2_service.cmd_buff[0]),virt_to_phys(&rga2_service.cmd_buff[32]));
-#elif defined(CONFIG_ARM64)
-			__dma_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
-#endif
+			rga2_dma_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
 
 			//rga2_soft_reset();
 
@@ -2356,15 +2350,8 @@ void rga2_slt(void)
 	memset(src_buf, 0x50, 400 * 200 * 4);
 	memset(dst_buf, 0x00, 400 * 200 * 4);
 
-#ifdef CONFIG_ARM
-	dmac_flush_range(&src_buf[0], &src_buf[400 * 200]);
-	outer_flush_range(virt_to_phys(&src_buf[0]), virt_to_phys(&src_buf[400 * 200]));
-	dmac_flush_range(&dst_buf[0], &dst_buf[400 * 200]);
-	outer_flush_range(virt_to_phys(&dst_buf[0]), virt_to_phys(&dst_buf[400 * 200]));
-#elif defined(CONFIG_ARM64)
-	__dma_flush_range(&src_buf[0], &src_buf[400 * 200]);
-	__dma_flush_range(&dst_buf[0], &dst_buf[400 * 200]);
-#endif
+	rga2_dma_flush_range(&src_buf[0], &src_buf[400 * 200]);
+	rga2_dma_flush_range(&dst_buf[0], &dst_buf[400 * 200]);
 
 	DBG("\n********************************\n");
 	DBG("************ RGA_TEST ************\n");

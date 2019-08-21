@@ -14,7 +14,7 @@
 
 
 int rga2_set_mmu_info(struct rga2_reg *reg, struct rga2_req *req);
-
+void rga2_dma_flush_range(void *pstart, void *pend);
 
 #endif
 

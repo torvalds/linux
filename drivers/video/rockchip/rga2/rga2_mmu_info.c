@@ -38,17 +38,21 @@ extern struct rga2_mmu_buf_t rga2_mmu_buf;
 #define V7_VATOPA_GET_NS(X)		((X>>9) & 1)
 #define V7_VATOPA_GET_SS(X)		((X>>1) & 1)
 
-static void rga_dma_flush_range(void *pstart, void *pend)
+void rga2_dma_flush_range(void *pstart, void *pend)
 {
 #ifdef CONFIG_ARM
 	dmac_flush_range(pstart, pend);
 	outer_flush_range(virt_to_phys(pstart), virt_to_phys(pend));
 #elif defined(CONFIG_ARM64)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+	__dma_flush_area(pstart, pend - pstart);
+#else
 	__dma_flush_range(pstart, pend);
+#endif
 #endif
 }
 
-static void rga_dma_flush_page(struct page *page)
+static void rga2_dma_flush_page(struct page *page)
 {
 	phys_addr_t paddr;
 	void *virt;
@@ -73,7 +77,11 @@ static void rga_dma_flush_page(struct page *page)
 	outer_flush_range(paddr, paddr + PAGE_SIZE);
 #elif defined(CONFIG_ARM64)
 	virt = page_address(page);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+	__dma_flush_area(virt, PAGE_SIZE);
+#else
 	__dma_flush_range(virt, virt + PAGE_SIZE);
+#endif
 #endif
 }
 
@@ -384,13 +392,17 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	status = 0;
 	Address = 0;
 	down_read(&current->mm->mmap_sem);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+	result = get_user_pages(current, current->mm, Memory << PAGE_SHIFT,
+				pageCount, writeFlag ? FOLL_WRITE : 0,
+				pages, NULL);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	result = get_user_pages(current, current->mm, Memory << PAGE_SHIFT,
 				pageCount, writeFlag, 0, pages, NULL);
 #else
 	result = get_user_pages_remote(current, current->mm,
 				       Memory << PAGE_SHIFT,
-				       pageCount, writeFlag, 0, pages, NULL);
+				       pageCount, writeFlag, pages, NULL, NULL);
 #endif
 	if (result > 0 && result >= pageCount) {
 		/* Fill the page table. */
@@ -400,7 +412,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			/* ensure dst not flush null cache */
 			if (writeFlag && i >= pageCount - 2)
 				break;
-			rga_dma_flush_page(pages[i]);
+			rga2_dma_flush_page(pages[i]);
 		}
 		for (i = 0; i < result; i++)
 			put_page(pages[i]);
@@ -451,7 +463,8 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 		pageTable[i] = (uint32_t)Address;
 		if ( writeFlag && (i >= pageCount - 2))
 			break;
-		rga_dma_flush_page(pfn_to_page(pfn));
+		rga2_dma_flush_page(pfn_to_page(pfn));
+
 	}
 	up_read(&current->mm->mmap_sem);
 	return status;
@@ -663,7 +676,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 		}
 	}
 	/* flush data to DDR */
-	rga_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
 	rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
 	reg->MMU_len = AllSize;
 	status = 0;
@@ -762,7 +775,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
         }
 
         /* flush data to DDR */
-        rga_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
         reg->MMU_len = AllSize;
 
@@ -831,7 +844,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
         }
 
         /* flush data to DDR */
-        rga_dma_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
 	reg->MMU_len = AllSize;
 
@@ -892,7 +905,7 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct 
         }
 
         /* flush data to DDR */
-        rga_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
         reg->MMU_len = AllSize;
 
@@ -971,7 +984,7 @@ static int rga2_mmu_info_update_patten_buff_mode(struct rga2_reg *reg, struct rg
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-        rga_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
         return 0;
 
     }
