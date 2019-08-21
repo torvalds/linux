@@ -410,12 +410,19 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 		.oversampling_avail = ad7606_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
+	[ID_AD7606B] = {
+		.channels = ad7606_channels,
+		.num_channels = 9,
+		.oversampling_avail = ad7606_oversampling_avail,
+		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
+	},
 	[ID_AD7616] = {
 		.channels = ad7616_channels,
 		.num_channels = 17,
 		.oversampling_avail = ad7616_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7616_oversampling_avail),
 		.os_req_reset = true,
+		.init_delay_ms = 15,
 	},
 };
 
@@ -631,8 +638,10 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
 	/* AD7616 requires al least 15ms to reconfigure after a reset */
-	if (msleep_interruptible(15))
-		return -ERESTARTSYS;
+	if (st->chip_info->init_delay_ms) {
+		if (msleep_interruptible(st->chip_info->init_delay_ms))
+			return -ERESTARTSYS;
+	}
 
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;

@@ -46,6 +46,8 @@
  *			oversampling ratios.
  * @oversampling_num	number of elements stored in oversampling_avail array
  * @os_req_reset	some devices require a reset to update oversampling
+ * @init_delay_ms	required delay in miliseconds for initialization
+ *			after a restart
  */
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
@@ -53,6 +55,7 @@ struct ad7606_chip_info {
 	const unsigned int		*oversampling_avail;
 	unsigned int			oversampling_num;
 	bool				os_req_reset;
+	unsigned long			init_delay_ms;
 };
 
 /**
@@ -155,6 +158,7 @@ enum ad7606_supported_device_ids {
 	ID_AD7606_8,
 	ID_AD7606_6,
 	ID_AD7606_4,
+	ID_AD7606B,
 	ID_AD7616,
 };
 
