@@ -412,7 +412,6 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 		goto err_wrid;
 
 	srq->event = hns_roce_ib_srq_event;
-	srq->ibsrq.ext.xrc.srq_num = srq->srqn;
 	resp.srqn = srq->srqn;
 
 	if (udata) {
