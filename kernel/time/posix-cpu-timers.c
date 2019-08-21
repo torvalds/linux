@@ -778,8 +778,7 @@ static void check_thread_timers(struct task_struct *tsk,
 				struct list_head *firing)
 {
 	struct list_head *timers = tsk->posix_cputimers.cpu_timers;
-	struct task_cputime *tsk_expires = &tsk->posix_cputimers.cputime_expires;
-	u64 expires, stime, utime;
+	u64 stime, utime, *expires = tsk->posix_cputimers.expiries;
 	unsigned long soft;
 
 	if (dl_task(tsk))
@@ -789,19 +788,14 @@ static void check_thread_timers(struct task_struct *tsk,
 	 * If cputime_expires is zero, then there are no active
 	 * per thread CPU timers.
 	 */
-	if (task_cputime_zero(tsk_expires))
+	if (task_cputime_zero(&tsk->posix_cputimers.cputime_expires))
 		return;
 
 	task_cputime(tsk, &utime, &stime);
 
-	expires = check_timers_list(timers, firing, utime + stime);
-	tsk_expires->prof_exp = expires;
-
-	expires = check_timers_list(++timers, firing, utime);
-	tsk_expires->virt_exp = expires;
-
-	tsk_expires->sched_exp = check_timers_list(++timers, firing,
-						   tsk->se.sum_exec_runtime);
+	*expires++ = check_timers_list(timers, firing, utime + stime);
+	*expires++ = check_timers_list(++timers, firing, utime);
+	*expires = check_timers_list(++timers, firing, tsk->se.sum_exec_runtime);
 
 	/*
 	 * Check for the special case thread timers.
@@ -839,7 +833,8 @@ static void check_thread_timers(struct task_struct *tsk,
 			__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 		}
 	}
-	if (task_cputime_zero(tsk_expires))
+
+	if (task_cputime_zero(&tsk->posix_cputimers.cputime_expires))
 		tick_dep_clear_task(tsk, TICK_DEP_BIT_POSIX_TIMER);
 }
 
@@ -958,9 +953,10 @@ static void check_process_timers(struct task_struct *tsk,
 			prof_expires = x;
 	}
 
-	sig->posix_cputimers.cputime_expires.prof_exp = prof_expires;
-	sig->posix_cputimers.cputime_expires.virt_exp = virt_expires;
-	sig->posix_cputimers.cputime_expires.sched_exp = sched_expires;
+	sig->posix_cputimers.expiries[CPUCLOCK_PROF] = prof_expires;
+	sig->posix_cputimers.expiries[CPUCLOCK_VIRT] = virt_expires;
+	sig->posix_cputimers.expiries[CPUCLOCK_SCHED] = sched_expires;
+
 	if (task_cputime_zero(&sig->posix_cputimers.cputime_expires))
 		stop_process_timers(sig);
 
