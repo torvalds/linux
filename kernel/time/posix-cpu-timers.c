@@ -39,7 +39,7 @@ void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
 
 /*
  * Called after updating RLIMIT_CPU to run cpu timer and update
- * tsk->signal->posix_cputimers.cputime_expires expiration cache if
+ * tsk->signal->posix_cputimers.expiries expiration cache if
  * necessary. Needs siglock protection since other code may update
  * expiration cache as well.
  */
@@ -132,19 +132,9 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 	}
 }
 
-/**
- * task_cputime_zero - Check a task_cputime struct for all zero fields.
- *
- * @cputime:	The struct to compare.
- *
- * Checks @cputime to see if all fields are zero.  Returns true if all fields
- * are zero, false if any field is nonzero.
- */
-static inline int task_cputime_zero(const struct task_cputime *cputime)
+static inline bool expiry_cache_is_zero(const u64 *ec)
 {
-	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
-		return 1;
-	return 0;
+	return !(ec[CPUCLOCK_PROF] | ec[CPUCLOCK_VIRT] | ec[CPUCLOCK_SCHED]);
 }
 
 static int
@@ -811,10 +801,10 @@ static void check_thread_timers(struct task_struct *tsk,
 		check_dl_overrun(tsk);
 
 	/*
-	 * If cputime_expires is zero, then there are no active
-	 * per thread CPU timers.
+	 * If the expiry cache is zero, then there are no active per thread
+	 * CPU timers.
 	 */
-	if (task_cputime_zero(&tsk->posix_cputimers.cputime_expires))
+	if (expiry_cache_is_zero(tsk->posix_cputimers.expiries))
 		return;
 
 	task_cputime(tsk, &utime, &stime);
@@ -860,7 +850,7 @@ static void check_thread_timers(struct task_struct *tsk,
 		}
 	}
 
-	if (task_cputime_zero(&tsk->posix_cputimers.cputime_expires))
+	if (expiry_cache_is_zero(tsk->posix_cputimers.expiries))
 		tick_dep_clear_task(tsk, TICK_DEP_BIT_POSIX_TIMER);
 }
 
@@ -983,7 +973,7 @@ static void check_process_timers(struct task_struct *tsk,
 	sig->posix_cputimers.expiries[CPUCLOCK_VIRT] = virt_expires;
 	sig->posix_cputimers.expiries[CPUCLOCK_SCHED] = sched_expires;
 
-	if (task_cputime_zero(&sig->posix_cputimers.cputime_expires))
+	if (expiry_cache_is_zero(sig->posix_cputimers.expiries))
 		stop_process_timers(sig);
 
 	sig->cputimer.checking_timer = false;
@@ -1048,26 +1038,23 @@ unlock:
 }
 
 /**
- * task_cputime_expired - Compare two task_cputime entities.
+ * task_cputimers_expired - Compare two task_cputime entities.
  *
- * @sample:	The task_cputime structure to be checked for expiration.
- * @expires:	Expiration times, against which @sample will be checked.
+ * @samples:	Array of current samples for the CPUCLOCK clocks
+ * @expiries:	Array of expiry values for the CPUCLOCK clocks
  *
- * Checks @sample against @expires to see if any field of @sample has expired.
- * Returns true if any field of the former is greater than the corresponding
- * field of the latter if the latter field is set.  Otherwise returns false.
+ * Returns true if any mmember of @samples is greater than the corresponding
+ * member of @expiries if that member is non zero. False otherwise
  */
-static inline int task_cputime_expired(const struct task_cputime *sample,
-					const struct task_cputime *expires)
+static inline bool task_cputimers_expired(const u64 *sample, const u64 *expiries)
 {
-	if (expires->utime && sample->utime >= expires->utime)
-		return 1;
-	if (expires->stime && sample->utime + sample->stime >= expires->stime)
-		return 1;
-	if (expires->sum_exec_runtime != 0 &&
-	    sample->sum_exec_runtime >= expires->sum_exec_runtime)
-		return 1;
-	return 0;
+	int i;
+
+	for (i = 0; i < CPUCLOCK_MAX; i++) {
+		if (expiries[i] && sample[i] >= expiries[i])
+			return true;
+	}
+	return false;
 }
 
 /**
@@ -1080,18 +1067,17 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
  * timers and compare them with the corresponding expiration times.  Return
  * true if a timer has expired, else return false.
  */
-static inline int fastpath_timer_check(struct task_struct *tsk)
+static inline bool fastpath_timer_check(struct task_struct *tsk)
 {
+	u64 *expiries = tsk->posix_cputimers.expiries;
 	struct signal_struct *sig;
 
-	if (!task_cputime_zero(&tsk->posix_cputimers.cputime_expires)) {
-		struct task_cputime task_sample;
+	if (!expiry_cache_is_zero(expiries)) {
+		u64 samples[CPUCLOCK_MAX];
 
-		task_cputime(tsk, &task_sample.utime, &task_sample.stime);
-		task_sample.sum_exec_runtime = tsk->se.sum_exec_runtime;
-		if (task_cputime_expired(&task_sample,
-					 &tsk->posix_cputimers.cputime_expires))
-			return 1;
+		task_sample_cputime(tsk, samples);
+		if (task_cputimers_expired(samples, expiries))
+			return true;
 	}
 
 	sig = tsk->signal;
@@ -1111,19 +1097,20 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	 */
 	if (READ_ONCE(sig->cputimer.running) &&
 	    !READ_ONCE(sig->cputimer.checking_timer)) {
-		struct task_cputime group_sample;
+		u64 samples[CPUCLOCK_MAX];
 
-		sample_cputime_atomic(&group_sample, &sig->cputimer.cputime_atomic);
+		proc_sample_cputime_atomic(&sig->cputimer.cputime_atomic,
+					   samples);
 
-		if (task_cputime_expired(&group_sample,
-					 &sig->posix_cputimers.cputime_expires))
-			return 1;
+		if (task_cputimers_expired(samples,
+					   sig->posix_cputimers.expiries))
+			return true;
 	}
 
 	if (dl_task(tsk) && tsk->dl.dl_overrun)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 /*
