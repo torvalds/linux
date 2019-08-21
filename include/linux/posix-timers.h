@@ -62,21 +62,6 @@ static inline int clockid_to_fd(const clockid_t clk)
 	return ~(clk >> 3);
 }
 
-/*
- * Alternate field names for struct task_cputime when used on cache
- * expirations. Will go away soon.
- *
- * stime corresponds to CLOCKCPU_PROF
- * utime corresponds to CLOCKCPU_VIRT
- * sum_exex_runtime corresponds to CLOCKCPU_SCHED
- *
- * The ordering is currently enforced so struct task_cputime and the
- * expiries array in struct posix_cputimers are equivalent.
- */
-#define prof_exp			stime
-#define virt_exp			utime
-#define sched_exp			sum_exec_runtime
-
 #ifdef CONFIG_POSIX_TIMERS
 /**
  * posix_cputimers - Container for posix CPU timer related data
