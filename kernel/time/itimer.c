@@ -58,7 +58,7 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 		struct task_cputime cputime;
 		u64 t;
 
-		thread_group_cputimer(tsk, &cputime);
+		thread_group_sample_cputime(tsk, &cputime);
 		if (clock_id == CPUCLOCK_PROF)
 			t = cputime.utime + cputime.stime;
 		else
