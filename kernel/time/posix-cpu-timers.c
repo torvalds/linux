@@ -35,27 +35,52 @@ void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 	spin_unlock_irq(&task->sighand->siglock);
 }
 
-static int check_clock(const clockid_t which_clock)
+/*
+ * Functions for validating access to tasks.
+ */
+static struct task_struct *lookup_task(const pid_t pid, bool thread)
 {
-	int error = 0;
 	struct task_struct *p;
-	const pid_t pid = CPUCLOCK_PID(which_clock);
 
-	if (CPUCLOCK_WHICH(which_clock) >= CPUCLOCK_MAX)
-		return -EINVAL;
+	if (!pid)
+		return thread ? current : current->group_leader;
 
-	if (pid == 0)
-		return 0;
+	p = find_task_by_vpid(pid);
+	if (!p || p == current)
+		return p;
+	if (thread)
+		return same_thread_group(p, current) ? p : NULL;
+	if (p == current)
+		return p;
+	return has_group_leader_pid(p) ? p : NULL;
+}
+
+static struct task_struct *__get_task_for_clock(const clockid_t clock,
+						bool getref)
+{
+	const bool thread = !!CPUCLOCK_PERTHREAD(clock);
+	const pid_t pid = CPUCLOCK_PID(clock);
+	struct task_struct *p;
+
+	if (CPUCLOCK_WHICH(clock) >= CPUCLOCK_MAX)
+		return NULL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p || !(CPUCLOCK_PERTHREAD(which_clock) ?
-		   same_thread_group(p, current) : has_group_leader_pid(p))) {
-		error = -EINVAL;
-	}
+	p = lookup_task(pid, thread);
+	if (p && getref)
+		get_task_struct(p);
 	rcu_read_unlock();
+	return p;
+}
 
-	return error;
+static inline struct task_struct *get_task_for_clock(const clockid_t clock)
+{
+	return __get_task_for_clock(clock, true);
+}
+
+static inline int validate_clock_permissions(const clockid_t clock)
+{
+	return __get_task_for_clock(clock, false) ? 0 : -EINVAL;
 }
 
 /*
@@ -125,7 +150,8 @@ static inline u64 virt_ticks(struct task_struct *p)
 static int
 posix_cpu_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 {
-	int error = check_clock(which_clock);
+	int error = validate_clock_permissions(which_clock);
+
 	if (!error) {
 		tp->tv_sec = 0;
 		tp->tv_nsec = ((NSEC_PER_SEC + HZ - 1) / HZ);
@@ -142,19 +168,16 @@ posix_cpu_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 }
 
 static int
-posix_cpu_clock_set(const clockid_t which_clock, const struct timespec64 *tp)
+posix_cpu_clock_set(const clockid_t clock, const struct timespec64 *tp)
 {
+	int error = validate_clock_permissions(clock);
+
 	/*
 	 * You can never reset a CPU clock, but we check for other errors
 	 * in the call before failing with EPERM.
 	 */
-	int error = check_clock(which_clock);
-	if (error == 0) {
-		error = -EPERM;
-	}
-	return error;
+	return error ? : -EPERM;
 }
-
 
 /*
  * Sample a per-thread clock for the given task.
