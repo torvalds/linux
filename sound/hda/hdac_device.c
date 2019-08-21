@@ -61,6 +61,10 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	pm_runtime_get_noresume(&codec->dev);
 	atomic_set(&codec->in_pm, 0);
 
+	err = snd_hdac_bus_add_device(bus, codec);
+	if (err < 0)
+		goto error;
+
 	/* fill parameters */
 	codec->vendor_id = snd_hdac_read_parm(codec, AC_NODE_ROOT,
 					      AC_PAR_VENDOR_ID);
@@ -139,22 +143,15 @@ int snd_hdac_device_register(struct hdac_device *codec)
 	err = device_add(&codec->dev);
 	if (err < 0)
 		return err;
-	err = snd_hdac_bus_add_device(codec->bus, codec);
-	if (err < 0)
-		goto error;
 	mutex_lock(&codec->widget_lock);
 	err = hda_widget_sysfs_init(codec);
 	mutex_unlock(&codec->widget_lock);
-	if (err < 0)
-		goto error_remove;
+	if (err < 0) {
+		device_del(&codec->dev);
+		return err;
+	}
 
 	return 0;
-
- error_remove:
-	snd_hdac_bus_remove_device(codec->bus, codec);
- error:
-	device_del(&codec->dev);
-	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_device_register);
 
@@ -168,8 +165,8 @@ void snd_hdac_device_unregister(struct hdac_device *codec)
 		mutex_lock(&codec->widget_lock);
 		hda_widget_sysfs_exit(codec);
 		mutex_unlock(&codec->widget_lock);
-		snd_hdac_bus_remove_device(codec->bus, codec);
 		device_del(&codec->dev);
+		snd_hdac_bus_remove_device(codec->bus, codec);
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_device_unregister);

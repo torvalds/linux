@@ -1182,8 +1182,6 @@ EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
 void snd_soc_remove_dai_link(struct snd_soc_card *card,
 			     struct snd_soc_dai_link *dai_link)
 {
-	struct snd_soc_dai_link *link, *_link;
-
 	if (dai_link->dobj.type
 	    && dai_link->dobj.type != SND_SOC_DOBJ_DAI_LINK) {
 		dev_err(card->dev, "Invalid dai link type %d\n",
@@ -1199,12 +1197,7 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	if (dai_link->dobj.type && card->remove_dai_link)
 		card->remove_dai_link(card, dai_link);
 
-	for_each_card_links_safe(card, link, _link) {
-		if (link == dai_link) {
-			list_del(&link->list);
-			return;
-		}
-	}
+	list_del(&dai_link->list);
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
@@ -2370,15 +2363,18 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 	dev_set_drvdata(card->dev, card);
 
-	snd_soc_initialize_card_lists(card);
-
+	INIT_LIST_HEAD(&card->widgets);
+	INIT_LIST_HEAD(&card->paths);
+	INIT_LIST_HEAD(&card->dapm_list);
+	INIT_LIST_HEAD(&card->aux_comp_list);
+	INIT_LIST_HEAD(&card->component_dev_list);
+	INIT_LIST_HEAD(&card->list);
 	INIT_LIST_HEAD(&card->dai_link_list);
-
 	INIT_LIST_HEAD(&card->rtd_list);
-	card->num_rtd = 0;
-
 	INIT_LIST_HEAD(&card->dapm_dirty);
 	INIT_LIST_HEAD(&card->dobj_list);
+
+	card->num_rtd = 0;
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
