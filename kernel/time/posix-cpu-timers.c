@@ -23,8 +23,10 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer);
 void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
 {
 	posix_cputimers_init(pct);
-	if (cpu_limit != RLIM_INFINITY)
+	if (cpu_limit != RLIM_INFINITY) {
 		pct->bases[CPUCLOCK_PROF].nextevt = cpu_limit * NSEC_PER_SEC;
+		pct->timers_active = true;
+	}
 }
 
 /*
@@ -248,8 +250,9 @@ static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic,
 void thread_group_sample_cputime(struct task_struct *tsk, u64 *samples)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
+	struct posix_cputimers *pct = &tsk->signal->posix_cputimers;
 
-	WARN_ON_ONCE(!cputimer->running);
+	WARN_ON_ONCE(!pct->timers_active);
 
 	proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
 }
@@ -269,9 +272,10 @@ void thread_group_sample_cputime(struct task_struct *tsk, u64 *samples)
 static void thread_group_start_cputime(struct task_struct *tsk, u64 *samples)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
+	struct posix_cputimers *pct = &tsk->signal->posix_cputimers;
 
 	/* Check if cputimer isn't running. This is accessed without locking. */
-	if (!READ_ONCE(cputimer->running)) {
+	if (!READ_ONCE(pct->timers_active)) {
 		struct task_cputime sum;
 
 		/*
@@ -283,13 +287,13 @@ static void thread_group_start_cputime(struct task_struct *tsk, u64 *samples)
 		update_gt_cputime(&cputimer->cputime_atomic, &sum);
 
 		/*
-		 * We're setting cputimer->running without a lock. Ensure
-		 * this only gets written to in one operation. We set
-		 * running after update_gt_cputime() as a small optimization,
-		 * but barriers are not required because update_gt_cputime()
+		 * We're setting timers_active without a lock. Ensure this
+		 * only gets written to in one operation. We set it after
+		 * update_gt_cputime() as a small optimization, but
+		 * barriers are not required because update_gt_cputime()
 		 * can handle concurrent updates.
 		 */
-		WRITE_ONCE(cputimer->running, true);
+		WRITE_ONCE(pct->timers_active, true);
 	}
 	proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
 }
@@ -313,9 +317,10 @@ static u64 cpu_clock_sample_group(const clockid_t clkid, struct task_struct *p,
 				  bool start)
 {
 	struct thread_group_cputimer *cputimer = &p->signal->cputimer;
+	struct posix_cputimers *pct = &p->signal->posix_cputimers;
 	u64 samples[CPUCLOCK_MAX];
 
-	if (!READ_ONCE(cputimer->running)) {
+	if (!READ_ONCE(pct->timers_active)) {
 		if (start)
 			thread_group_start_cputime(p, samples);
 		else
@@ -834,10 +839,10 @@ static void check_thread_timers(struct task_struct *tsk,
 
 static inline void stop_process_timers(struct signal_struct *sig)
 {
-	struct thread_group_cputimer *cputimer = &sig->cputimer;
+	struct posix_cputimers *pct = &sig->posix_cputimers;
 
-	/* Turn off cputimer->running. This is done without locking. */
-	WRITE_ONCE(cputimer->running, false);
+	/* Turn off the active flag. This is done without locking. */
+	WRITE_ONCE(pct->timers_active, false);
 	tick_dep_clear_signal(sig, TICK_DEP_BIT_POSIX_TIMER);
 }
 
@@ -877,17 +882,17 @@ static void check_process_timers(struct task_struct *tsk,
 	unsigned long soft;
 
 	/*
-	 * If cputimer is not running, then there are no active
-	 * process wide timers (POSIX 1.b, itimers, RLIMIT_CPU).
+	 * If there are no active process wide timers (POSIX 1.b, itimers,
+	 * RLIMIT_CPU) nothing to check.
 	 */
-	if (!READ_ONCE(sig->cputimer.running))
+	if (!READ_ONCE(pct->timers_active))
 		return;
 
        /*
 	 * Signify that a thread is checking for process timers.
 	 * Write access to this field is protected by the sighand lock.
 	 */
-	sig->cputimer.checking_timer = true;
+	pct->timers_active = true;
 
 	/*
 	 * Collect the current process totals. Group accounting is active
@@ -933,7 +938,7 @@ static void check_process_timers(struct task_struct *tsk,
 	if (expiry_cache_is_inactive(pct))
 		stop_process_timers(sig);
 
-	sig->cputimer.checking_timer = false;
+	pct->expiry_active = false;
 }
 
 /*
@@ -1027,39 +1032,41 @@ task_cputimers_expired(const u64 *sample, struct posix_cputimers *pct)
  */
 static inline bool fastpath_timer_check(struct task_struct *tsk)
 {
+	struct posix_cputimers *pct = &tsk->posix_cputimers;
 	struct signal_struct *sig;
 
-	if (!expiry_cache_is_inactive(&tsk->posix_cputimers)) {
+	if (!expiry_cache_is_inactive(pct)) {
 		u64 samples[CPUCLOCK_MAX];
 
 		task_sample_cputime(tsk, samples);
-		if (task_cputimers_expired(samples, &tsk->posix_cputimers))
+		if (task_cputimers_expired(samples, pct))
 			return true;
 	}
 
 	sig = tsk->signal;
+	pct = &sig->posix_cputimers;
 	/*
-	 * Check if thread group timers expired when the cputimer is
-	 * running and no other thread in the group is already checking
-	 * for thread group cputimers. These fields are read without the
-	 * sighand lock. However, this is fine because this is meant to
-	 * be a fastpath heuristic to determine whether we should try to
-	 * acquire the sighand lock to check/handle timers.
+	 * Check if thread group timers expired when timers are active and
+	 * no other thread in the group is already handling expiry for
+	 * thread group cputimers. These fields are read without the
+	 * sighand lock. However, this is fine because this is meant to be
+	 * a fastpath heuristic to determine whether we should try to
+	 * acquire the sighand lock to handle timer expiry.
 	 *
-	 * In the worst case scenario, if 'running' or 'checking_timer' gets
-	 * set but the current thread doesn't see the change yet, we'll wait
-	 * until the next thread in the group gets a scheduler interrupt to
-	 * handle the timer. This isn't an issue in practice because these
-	 * types of delays with signals actually getting sent are expected.
+	 * In the worst case scenario, if concurrently timers_active is set
+	 * or expiry_active is cleared, but the current thread doesn't see
+	 * the change yet, the timer checks are delayed until the next
+	 * thread in the group gets a scheduler interrupt to handle the
+	 * timer. This isn't an issue in practice because these types of
+	 * delays with signals actually getting sent are expected.
 	 */
-	if (READ_ONCE(sig->cputimer.running) &&
-	    !READ_ONCE(sig->cputimer.checking_timer)) {
+	if (READ_ONCE(pct->timers_active) && !READ_ONCE(pct->expiry_active)) {
 		u64 samples[CPUCLOCK_MAX];
 
 		proc_sample_cputime_atomic(&sig->cputimer.cputime_atomic,
 					   samples);
 
-		if (task_cputimers_expired(samples, &sig->posix_cputimers))
+		if (task_cputimers_expired(samples, pct))
 			return true;
 	}
 

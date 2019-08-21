@@ -77,15 +77,23 @@ struct posix_cputimer_base {
 /**
  * posix_cputimers - Container for posix CPU timer related data
  * @bases:		Base container for posix CPU clocks
+ * @timers_active:	Timers are queued.
+ * @expiry_active:	Timer expiry is active. Used for
+ *			process wide timers to avoid multiple
+ *			task trying to handle expiry concurrently
  *
  * Used in task_struct and signal_struct
  */
 struct posix_cputimers {
 	struct posix_cputimer_base	bases[CPUCLOCK_MAX];
+	unsigned int			timers_active;
+	unsigned int			expiry_active;
 };
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
 {
+	pct->timers_active = 0;
+	pct->expiry_active = 0;
 	pct->bases[0].nextevt = U64_MAX;
 	pct->bases[1].nextevt = U64_MAX;
 	pct->bases[2].nextevt = U64_MAX;
