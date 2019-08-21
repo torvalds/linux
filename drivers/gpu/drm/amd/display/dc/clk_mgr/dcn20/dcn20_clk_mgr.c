@@ -196,7 +196,6 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool enter_display_off = false;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
 	bool force_reset = false;
-	int i;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -278,34 +277,14 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 				request_voltage_and_program_global_dpp_clk(clk_mgr_base, new_clocks->dppclk_khz);
 
 			// Then raise any dividers that need raising
-			for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-				int dpp_inst, dppclk_khz;
-
-				if (!context->res_ctx.pipe_ctx[i].plane_state)
-					continue;
-
-				dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
-				dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
-
-				clk_mgr->dccg->funcs->update_dpp_dto(clk_mgr->dccg, dpp_inst, dppclk_khz, true);
-			}
+			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
 		} else {
 			// For post-programming, we can lower ref clk if needed, and unconditionally set all the DTOs
 
 			if (new_clocks->dppclk_khz < clk_mgr_base->clks.dppclk_khz)
 				request_voltage_and_program_global_dpp_clk(clk_mgr_base, new_clocks->dppclk_khz);
+			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
 
-			for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-				int dpp_inst, dppclk_khz;
-
-				if (!context->res_ctx.pipe_ctx[i].plane_state)
-					continue;
-
-				dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
-				dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
-
-				clk_mgr->dccg->funcs->update_dpp_dto(clk_mgr->dccg, dpp_inst, dppclk_khz, false);
-			}
 		}
 	}
 	if (update_dispclk &&
