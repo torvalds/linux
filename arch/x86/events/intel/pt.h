@@ -64,8 +64,10 @@ struct pt_pmu {
  * @lost:	if data was lost/truncated
  * @head:	logical write offset inside the buffer
  * @snapshot:	if this is for a snapshot/overwrite counter
- * @stop_pos:	STOP topa entry in the buffer
- * @intr_pos:	INT topa entry in the buffer
+ * @stop_pos:	STOP topa entry index
+ * @intr_pos:	INT topa entry index
+ * @stop_te:	STOP topa entry pointer
+ * @intr_te:	INT topa entry pointer
  * @data_pages:	array of pages from perf
  * @topa_index:	table of topa entries indexed by page offset
  */
@@ -78,9 +80,9 @@ struct pt_buffer {
 	local_t			data_size;
 	local64_t		head;
 	bool			snapshot;
-	unsigned long		stop_pos, intr_pos;
+	long			stop_pos, intr_pos;
+	struct topa_entry	*stop_te, *intr_te;
 	void			**data_pages;
-	struct topa_entry	*topa_index[0];
 };
 
 #define PT_FILTERS_NUM	4

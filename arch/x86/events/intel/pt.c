@@ -551,12 +551,14 @@ static void pt_config_buffer(void *buf, unsigned int topa_idx,
  * @offset:	offset of the first entry in this table in the buffer
  * @size:	total size of all entries in this table
  * @last:	index of the last initialized entry in this table
+ * @z_count:	how many times the first entry repeats
  */
 struct topa {
 	struct list_head	list;
 	u64			offset;
 	size_t			size;
 	int			last;
+	unsigned int		z_count;
 };
 
 /*
@@ -598,6 +600,7 @@ static inline phys_addr_t topa_pfn(struct topa *topa)
 		? &topa_to_page(t)->table[(t)->last]	\
 		: &topa_to_page(t)->table[(i)])
 #define TOPA_ENTRY_SIZE(t, i) (sizes(TOPA_ENTRY((t), (i))->size))
+#define TOPA_ENTRY_PAGES(t, i) (1 << TOPA_ENTRY((t), (i))->size)
 
 /**
  * topa_alloc() - allocate page-sized ToPA table
@@ -713,6 +716,11 @@ static int topa_insert_pages(struct pt_buffer *buf, int cpu, gfp_t gfp)
 		topa_insert_table(buf, topa);
 	}
 
+	if (topa->z_count == topa->last - 1) {
+		if (order == TOPA_ENTRY(topa, topa->last - 1)->size)
+			topa->z_count++;
+	}
+
 	TOPA_ENTRY(topa, -1)->base = page_to_phys(p) >> TOPA_SHIFT;
 	TOPA_ENTRY(topa, -1)->size = order;
 	if (!buf->snapshot &&
@@ -756,6 +764,8 @@ static void pt_topa_dump(struct pt_buffer *buf)
 			     tp->table[i].stop) ||
 			    tp->table[i].end)
 				break;
+			if (!i && topa->z_count)
+				i += topa->z_count;
 		}
 	}
 }
@@ -907,29 +917,97 @@ static void pt_read_offset(struct pt_buffer *buf)
 	buf->cur_idx = (offset & 0xffffff80) >> 7;
 }
 
-/**
- * pt_topa_next_entry() - obtain index of the first page in the next ToPA entry
- * @buf:	PT buffer.
- * @pg:		Page offset in the buffer.
- *
- * When advancing to the next output region (ToPA entry), given a page offset
- * into the buffer, we need to find the offset of the first page in the next
- * region.
- */
-static unsigned int pt_topa_next_entry(struct pt_buffer *buf, unsigned int pg)
+static struct topa_entry *
+pt_topa_entry_for_page(struct pt_buffer *buf, unsigned int pg)
 {
-	struct topa_entry *te = buf->topa_index[pg];
+	struct topa_page *tp;
+	struct topa *topa;
+	unsigned int idx, cur_pg = 0, z_pg = 0, start_idx = 0;
 
-	/* one region */
-	if (buf->first == buf->last && buf->first->last == 1)
-		return pg;
+	/*
+	 * Indicates a bug in the caller.
+	 */
+	if (WARN_ON_ONCE(pg >= buf->nr_pages))
+		return NULL;
 
-	do {
-		pg++;
-		pg &= buf->nr_pages - 1;
-	} while (buf->topa_index[pg] == te);
+	/*
+	 * First, find the ToPA table where @pg fits. With high
+	 * order allocations, there shouldn't be many of these.
+	 */
+	list_for_each_entry(topa, &buf->tables, list) {
+		if (topa->offset + topa->size > pg << PAGE_SHIFT)
+			goto found;
+	}
 
-	return pg;
+	/*
+	 * Hitting this means we have a problem in the ToPA
+	 * allocation code.
+	 */
+	WARN_ON_ONCE(1);
+
+	return NULL;
+
+found:
+	/*
+	 * Indicates a problem in the ToPA allocation code.
+	 */
+	if (WARN_ON_ONCE(topa->last == -1))
+		return NULL;
+
+	tp = topa_to_page(topa);
+	cur_pg = PFN_DOWN(topa->offset);
+	if (topa->z_count) {
+		z_pg = TOPA_ENTRY_PAGES(topa, 0) * (topa->z_count + 1);
+		start_idx = topa->z_count + 1;
+	}
+
+	/*
+	 * Multiple entries at the beginning of the table have the same size,
+	 * ideally all of them; if @pg falls there, the search is done.
+	 */
+	if (pg >= cur_pg && pg < cur_pg + z_pg) {
+		idx = (pg - cur_pg) / TOPA_ENTRY_PAGES(topa, 0);
+		return &tp->table[idx];
+	}
+
+	/*
+	 * Otherwise, slow path: iterate through the remaining entries.
+	 */
+	for (idx = start_idx, cur_pg += z_pg; idx < topa->last; idx++) {
+		if (cur_pg + TOPA_ENTRY_PAGES(topa, idx) > pg)
+			return &tp->table[idx];
+
+		cur_pg += TOPA_ENTRY_PAGES(topa, idx);
+	}
+
+	/*
+	 * Means we couldn't find a ToPA entry in the table that does match.
+	 */
+	WARN_ON_ONCE(1);
+
+	return NULL;
+}
+
+static struct topa_entry *
+pt_topa_prev_entry(struct pt_buffer *buf, struct topa_entry *te)
+{
+	unsigned long table = (unsigned long)te & ~(PAGE_SIZE - 1);
+	struct topa_page *tp;
+	struct topa *topa;
+
+	tp = (struct topa_page *)table;
+	if (tp->table != te)
+		return --te;
+
+	topa = &tp->topa;
+	if (topa == buf->first)
+		topa = buf->last;
+	else
+		topa = list_prev_entry(topa, list);
+
+	tp = topa_to_page(topa);
+
+	return &tp->table[topa->last - 1];
 }
 
 /**
@@ -964,9 +1042,13 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 		return 0;
 
 	/* clear STOP and INT from current entry */
-	buf->topa_index[buf->stop_pos]->stop = 0;
-	buf->topa_index[buf->stop_pos]->intr = 0;
-	buf->topa_index[buf->intr_pos]->intr = 0;
+	if (buf->stop_te) {
+		buf->stop_te->stop = 0;
+		buf->stop_te->intr = 0;
+	}
+
+	if (buf->intr_te)
+		buf->intr_te->intr = 0;
 
 	/* how many pages till the STOP marker */
 	npages = handle->size >> PAGE_SHIFT;
@@ -977,7 +1059,12 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 
 	idx = (head >> PAGE_SHIFT) + npages;
 	idx &= buf->nr_pages - 1;
-	buf->stop_pos = idx;
+
+	if (idx != buf->stop_pos) {
+		buf->stop_pos = idx;
+		buf->stop_te = pt_topa_entry_for_page(buf, idx);
+		buf->stop_te = pt_topa_prev_entry(buf, buf->stop_te);
+	}
 
 	wakeup = handle->wakeup >> PAGE_SHIFT;
 
@@ -987,48 +1074,17 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 		idx = wakeup;
 
 	idx &= buf->nr_pages - 1;
-	buf->intr_pos = idx;
-
-	buf->topa_index[buf->stop_pos]->stop = 1;
-	buf->topa_index[buf->stop_pos]->intr = 1;
-	buf->topa_index[buf->intr_pos]->intr = 1;
-
-	return 0;
-}
-
-/**
- * pt_buffer_setup_topa_index() - build topa_index[] table of regions
- * @buf:	PT buffer.
- *
- * topa_index[] references output regions indexed by offset into the
- * buffer for purposes of quick reverse lookup.
- */
-static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
-{
-	struct topa *cur = buf->first, *prev = buf->last;
-	struct topa_entry *te_cur = TOPA_ENTRY(cur, 0),
-		*te_prev = TOPA_ENTRY(prev, prev->last - 1);
-	int pg = 0, idx = 0;
-
-	while (pg < buf->nr_pages) {
-		int tidx;
-
-		/* pages within one topa entry */
-		for (tidx = 0; tidx < 1 << te_cur->size; tidx++, pg++)
-			buf->topa_index[pg] = te_prev;
-
-		te_prev = te_cur;
-
-		if (idx == cur->last - 1) {
-			/* advance to next topa table */
-			idx = 0;
-			cur = list_entry(cur->list.next, struct topa, list);
-		} else {
-			idx++;
-		}
-		te_cur = TOPA_ENTRY(cur, idx);
+	if (idx != buf->intr_pos) {
+		buf->intr_pos = idx;
+		buf->intr_te = pt_topa_entry_for_page(buf, idx);
+		buf->intr_te = pt_topa_prev_entry(buf, buf->intr_te);
 	}
 
+	buf->stop_te->stop = 1;
+	buf->stop_te->intr = 1;
+	buf->intr_te->intr = 1;
+
+	return 0;
 }
 
 /**
@@ -1049,17 +1105,18 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 {
 	struct topa_page *cur_tp;
+	struct topa_entry *te;
 	int pg;
 
 	if (buf->snapshot)
 		head &= (buf->nr_pages << PAGE_SHIFT) - 1;
 
 	pg = (head >> PAGE_SHIFT) & (buf->nr_pages - 1);
-	pg = pt_topa_next_entry(buf, pg);
+	te = pt_topa_entry_for_page(buf, pg);
 
-	cur_tp = topa_entry_to_page(buf->topa_index[pg]);
+	cur_tp = topa_entry_to_page(te);
 	buf->cur = &cur_tp->topa;
-	buf->cur_idx = buf->topa_index[pg] - TOPA_ENTRY(buf->cur, 0);
+	buf->cur_idx = te - TOPA_ENTRY(buf->cur, 0);
 	buf->output_off = head & (pt_buffer_region_size(buf) - 1);
 
 	local64_set(&buf->head, head);
@@ -1109,8 +1166,6 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 		}
 	}
 
-	pt_buffer_setup_topa_index(buf);
-
 	/* link last table to the first one, unless we're double buffering */
 	if (intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
 		TOPA_ENTRY(buf->last, -1)->base = topa_pfn(buf->first);
@@ -1147,13 +1202,14 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 		cpu = raw_smp_processor_id();
 	node = cpu_to_node(cpu);
 
-	buf = kzalloc_node(offsetof(struct pt_buffer, topa_index[nr_pages]),
-			   GFP_KERNEL, node);
+	buf = kzalloc_node(sizeof(struct pt_buffer), GFP_KERNEL, node);
 	if (!buf)
 		return NULL;
 
 	buf->snapshot = snapshot;
 	buf->data_pages = pages;
+	buf->stop_pos = -1;
+	buf->intr_pos = -1;
 
 	INIT_LIST_HEAD(&buf->tables);
 
