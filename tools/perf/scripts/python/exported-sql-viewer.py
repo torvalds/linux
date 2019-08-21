@@ -1094,7 +1094,7 @@ class CallGraphWindow(TreeWindowBase):
 
 class CallTreeWindow(TreeWindowBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=None, thread_at_time=None):
 		super(CallTreeWindow, self).__init__(parent)
 
 		self.model = LookupCreateModel("Call Tree", lambda x=glb: CallTreeModel(x))
@@ -1111,6 +1111,48 @@ class CallTreeWindow(TreeWindowBase):
 		self.setWidget(self.vbox.Widget())
 
 		AddSubWindow(glb.mainwindow.mdi_area, self, "Call Tree")
+
+		if thread_at_time:
+			self.DisplayThreadAtTime(*thread_at_time)
+
+	def DisplayThreadAtTime(self, comm_id, thread_id, time):
+		parent = QModelIndex()
+		for dbid in (comm_id, thread_id):
+			found = False
+			n = self.model.rowCount(parent)
+			for row in xrange(n):
+				child = self.model.index(row, 0, parent)
+				if child.internalPointer().dbid == dbid:
+					found = True
+					self.view.setCurrentIndex(child)
+					parent = child
+					break
+			if not found:
+				return
+		found = False
+		while True:
+			n = self.model.rowCount(parent)
+			if not n:
+				return
+			last_child = None
+			for row in xrange(n):
+				child = self.model.index(row, 0, parent)
+				child_call_time = child.internalPointer().call_time
+				if child_call_time < time:
+					last_child = child
+				elif child_call_time == time:
+					self.view.setCurrentIndex(child)
+					return
+				elif child_call_time > time:
+					break
+			if not last_child:
+				if not found:
+					child = self.model.index(0, 0, parent)
+					self.view.setCurrentIndex(child)
+				return
+			found = True
+			self.view.setCurrentIndex(last_child)
+			parent = last_child
 
 # Child data item  finder
 
