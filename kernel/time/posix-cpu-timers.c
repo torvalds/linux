@@ -225,20 +225,12 @@ retry:
 	}
 }
 
-static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic, struct task_cputime *sum)
+static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic,
+			      struct task_cputime *sum)
 {
 	__update_gt_cputime(&cputime_atomic->utime, sum->utime);
 	__update_gt_cputime(&cputime_atomic->stime, sum->stime);
 	__update_gt_cputime(&cputime_atomic->sum_exec_runtime, sum->sum_exec_runtime);
-}
-
-/* Sample task_cputime_atomic values in "atomic_timers", store results in "times". */
-static inline void sample_cputime_atomic(struct task_cputime *times,
-					 struct task_cputime_atomic *atomic_times)
-{
-	times->utime = atomic64_read(&atomic_times->utime);
-	times->stime = atomic64_read(&atomic_times->stime);
-	times->sum_exec_runtime = atomic64_read(&atomic_times->sum_exec_runtime);
 }
 
 /**
@@ -252,20 +244,19 @@ static inline void sample_cputime_atomic(struct task_cputime *times,
  *
  * Updates @times with an uptodate sample of the thread group cputimes.
  */
-void thread_group_sample_cputime(struct task_struct *tsk,
-				struct task_cputime *times)
+void thread_group_sample_cputime(struct task_struct *tsk, u64 *samples)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
 
 	WARN_ON_ONCE(!cputimer->running);
 
-	sample_cputime_atomic(times, &cputimer->cputime_atomic);
+	proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
 }
 
 /**
  * thread_group_start_cputime - Start cputime and return a sample
  * @tsk:	Task for which cputime needs to be started
- * @iimes:	Storage for time samples
+ * @samples:	Storage for time samples
  *
  * The thread group cputime accouting is avoided when there are no posix
  * CPU timers armed. Before starting a timer it's required to check whether
@@ -274,14 +265,14 @@ void thread_group_sample_cputime(struct task_struct *tsk,
  *
  * Updates @times with an uptodate sample of the thread group cputimes.
  */
-static void
-thread_group_start_cputime(struct task_struct *tsk, struct task_cputime *times)
+static void thread_group_start_cputime(struct task_struct *tsk, u64 *samples)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-	struct task_cputime sum;
 
 	/* Check if cputimer isn't running. This is accessed without locking. */
 	if (!READ_ONCE(cputimer->running)) {
+		struct task_cputime sum;
+
 		/*
 		 * The POSIX timer interface allows for absolute time expiry
 		 * values through the TIMER_ABSTIME flag, therefore we have
@@ -299,7 +290,15 @@ thread_group_start_cputime(struct task_struct *tsk, struct task_cputime *times)
 		 */
 		WRITE_ONCE(cputimer->running, true);
 	}
-	sample_cputime_atomic(times, &cputimer->cputime_atomic);
+	proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
+}
+
+static void __thread_group_cputime(struct task_struct *tsk, u64 *samples)
+{
+	struct task_cputime ct;
+
+	thread_group_cputime(tsk, &ct);
+	store_samples(samples, ct.stime, ct.utime, ct.sum_exec_runtime);
 }
 
 /*
@@ -313,28 +312,18 @@ static u64 cpu_clock_sample_group(const clockid_t clkid, struct task_struct *p,
 				  bool start)
 {
 	struct thread_group_cputimer *cputimer = &p->signal->cputimer;
-	struct task_cputime cputime;
+	u64 samples[CPUCLOCK_MAX];
 
 	if (!READ_ONCE(cputimer->running)) {
 		if (start)
-			thread_group_start_cputime(p, &cputime);
+			thread_group_start_cputime(p, samples);
 		else
-			thread_group_cputime(p, &cputime);
+			__thread_group_cputime(p, samples);
 	} else {
-		sample_cputime_atomic(&cputime, &cputimer->cputime_atomic);
+		proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
 	}
 
-	switch (clkid) {
-	case CPUCLOCK_PROF:
-		return cputime.utime + cputime.stime;
-	case CPUCLOCK_VIRT:
-		return cputime.utime;
-	case CPUCLOCK_SCHED:
-		return cputime.sum_exec_runtime;
-	default:
-		WARN_ON_ONCE(1);
-	}
-	return 0;
+	return samples[clkid];
 }
 
 static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
@@ -889,9 +878,7 @@ static void check_process_timers(struct task_struct *tsk,
 {
 	struct signal_struct *const sig = tsk->signal;
 	struct posix_cputimer_base *base = sig->posix_cputimers.bases;
-	u64 utime, ptime, virt_expires, prof_expires;
-	u64 sum_sched_runtime, sched_expires;
-	struct task_cputime cputime;
+	u64 virt_exp, prof_exp, sched_exp, samples[CPUCLOCK_MAX];
 	unsigned long soft;
 
 	/*
@@ -911,30 +898,29 @@ static void check_process_timers(struct task_struct *tsk,
 	 * Collect the current process totals. Group accounting is active
 	 * so the sample can be taken directly.
 	 */
-	sample_cputime_atomic(&cputime, &sig->cputimer.cputime_atomic);
-	utime = cputime.utime;
-	ptime = utime + cputime.stime;
-	sum_sched_runtime = cputime.sum_exec_runtime;
+	proc_sample_cputime_atomic(&sig->cputimer.cputime_atomic, samples);
 
-	prof_expires = check_timers_list(&base[CPUCLOCK_PROF].cpu_timers,
-					 firing, ptime);
-	virt_expires = check_timers_list(&base[CPUCLOCK_VIRT].cpu_timers,
-					 firing, utime);
-	sched_expires = check_timers_list(&base[CPUCLOCK_SCHED].cpu_timers,
-					  firing, sum_sched_runtime);
+	prof_exp = check_timers_list(&base[CPUCLOCK_PROF].cpu_timers,
+				     firing, samples[CPUCLOCK_PROF]);
+	virt_exp = check_timers_list(&base[CPUCLOCK_VIRT].cpu_timers,
+				     firing, samples[CPUCLOCK_VIRT]);
+	sched_exp = check_timers_list(&base[CPUCLOCK_SCHED].cpu_timers,
+				      firing, samples[CPUCLOCK_SCHED]);
 
 	/*
 	 * Check for the special case process timers.
 	 */
-	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_PROF], &prof_expires, ptime,
-			 SIGPROF);
-	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_VIRT], &virt_expires, utime,
-			 SIGVTALRM);
+	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_PROF], &prof_exp,
+			 samples[CPUCLOCK_PROF], SIGPROF);
+	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_VIRT], &virt_exp,
+			 samples[CPUCLOCK_PROF], SIGVTALRM);
+
 	soft = task_rlimit(tsk, RLIMIT_CPU);
 	if (soft != RLIM_INFINITY) {
-		unsigned long psecs = div_u64(ptime, NSEC_PER_SEC);
+		u64 softns, ptime = samples[CPUCLOCK_PROF];
 		unsigned long hard = task_rlimit_max(tsk, RLIMIT_CPU);
-		u64 x;
+		unsigned long psecs = div_u64(ptime, NSEC_PER_SEC);
+
 		if (psecs >= hard) {
 			/*
 			 * At the hard limit, we just die.
@@ -961,14 +947,14 @@ static void check_process_timers(struct task_struct *tsk,
 				sig->rlim[RLIMIT_CPU].rlim_cur = soft;
 			}
 		}
-		x = soft * NSEC_PER_SEC;
-		if (!prof_expires || x < prof_expires)
-			prof_expires = x;
+		softns = soft * NSEC_PER_SEC;
+		if (!prof_exp || softns < prof_exp)
+			prof_exp = softns;
 	}
 
-	base[CPUCLOCK_PROF].nextevt = prof_expires;
-	base[CPUCLOCK_VIRT].nextevt = virt_expires;
-	base[CPUCLOCK_SCHED].nextevt = sched_expires;
+	base[CPUCLOCK_PROF].nextevt = prof_exp;
+	base[CPUCLOCK_VIRT].nextevt = virt_exp;
+	base[CPUCLOCK_SCHED].nextevt = sched_exp;
 
 	if (expiry_cache_is_zero(&sig->posix_cputimers))
 		stop_process_timers(sig);
