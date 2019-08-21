@@ -150,6 +150,7 @@ void mlx5e_close_xsk(struct mlx5e_channel *c)
 
 void mlx5e_activate_xsk(struct mlx5e_channel *c)
 {
+	mlx5e_activate_icosq(&c->xskicosq);
 	set_bit(MLX5E_RQ_STATE_ENABLED, &c->xskrq.state);
 	/* TX queue is created active. */
 
@@ -162,6 +163,7 @@ void mlx5e_deactivate_xsk(struct mlx5e_channel *c)
 {
 	mlx5e_deactivate_rq(&c->xskrq);
 	/* TX queue is disabled on close. */
+	mlx5e_deactivate_icosq(&c->xskicosq);
 }
 
 static int mlx5e_redirect_xsk_rqt(struct mlx5e_priv *priv, u16 ix, u32 rqn)

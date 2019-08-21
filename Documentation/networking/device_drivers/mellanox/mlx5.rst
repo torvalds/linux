@@ -126,7 +126,7 @@ Devlink health reporters
 
 tx reporter
 -----------
-The tx reporter is responsible of two error scenarios:
+The tx reporter is responsible for reporting and recovering of the following two error scenarios:
 
 - TX timeout
     Report on kernel tx timeout detection.
@@ -135,7 +135,7 @@ The tx reporter is responsible of two error scenarios:
     Report on error tx completion.
     Recover by flushing the TX queue and reset it.
 
-TX reporter also support Diagnose callback, on which it provides
+TX reporter also support on demand diagnose callback, on which it provides
 real time information of its send queues status.
 
 User commands examples:
@@ -144,10 +144,39 @@ User commands examples:
 
     $ devlink health diagnose pci/0000:82:00.0 reporter tx
 
+NOTE: This command has valid output only when interface is up, otherwise the command has empty output.
+
 - Show number of tx errors indicated, number of recover flows ended successfully,
   is autorecover enabled and graceful period from last recover::
 
     $ devlink health show pci/0000:82:00.0 reporter tx
+
+rx reporter
+-----------
+The rx reporter is responsible for reporting and recovering of the following two error scenarios:
+
+- RX queues initialization (population) timeout
+    RX queues descriptors population on ring initialization is done in
+    napi context via triggering an irq, in case of a failure to get
+    the minimum amount of descriptors, a timeout would occur and it
+    could be recoverable by polling the EQ (Event Queue).
+- RX completions with errors (reported by HW on interrupt context)
+    Report on rx completion error.
+    Recover (if needed) by flushing the related queue and reset it.
+
+RX reporter also supports on demand diagnose callback, on which it
+provides real time information of its receive queues status.
+
+- Diagnose rx queues status, and corresponding completion queue::
+
+    $ devlink health diagnose pci/0000:82:00.0 reporter rx
+
+NOTE: This command has valid output only when interface is up, otherwise the command has empty output.
+
+- Show number of rx errors indicated, number of recover flows ended successfully,
+  is autorecover enabled and graceful period from last recover::
+
+    $ devlink health show pci/0000:82:00.0 reporter rx
 
 fw reporter
 -----------
