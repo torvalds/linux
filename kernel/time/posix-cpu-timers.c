@@ -407,11 +407,11 @@ static void cleanup_timers_list(struct list_head *head)
  *
  * This must be called with the siglock held.
  */
-static void cleanup_timers(struct list_head *head)
+static void cleanup_timers(struct posix_cputimers *pct)
 {
-	cleanup_timers_list(head);
-	cleanup_timers_list(++head);
-	cleanup_timers_list(++head);
+	cleanup_timers_list(&pct->cpu_timers[CPUCLOCK_PROF]);
+	cleanup_timers_list(&pct->cpu_timers[CPUCLOCK_VIRT]);
+	cleanup_timers_list(&pct->cpu_timers[CPUCLOCK_SCHED]);
 }
 
 /*
@@ -421,11 +421,11 @@ static void cleanup_timers(struct list_head *head)
  */
 void posix_cpu_timers_exit(struct task_struct *tsk)
 {
-	cleanup_timers(tsk->cpu_timers);
+	cleanup_timers(&tsk->posix_cputimers);
 }
 void posix_cpu_timers_exit_group(struct task_struct *tsk)
 {
-	cleanup_timers(tsk->signal->cpu_timers);
+	cleanup_timers(&tsk->signal->posix_cputimers);
 }
 
 static inline int expires_gt(u64 expires, u64 new_exp)
@@ -446,10 +446,10 @@ static void arm_timer(struct k_itimer *timer)
 	struct cpu_timer_list *next;
 
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
-		head = p->cpu_timers;
+		head = p->posix_cputimers.cpu_timers;
 		cputime_expires = &p->cputime_expires;
 	} else {
-		head = p->signal->cpu_timers;
+		head = p->signal->posix_cputimers.cpu_timers;
 		cputime_expires = &p->signal->cputime_expires;
 	}
 	head += CPUCLOCK_WHICH(timer->it_clock);
@@ -773,8 +773,8 @@ static inline void check_dl_overrun(struct task_struct *tsk)
 static void check_thread_timers(struct task_struct *tsk,
 				struct list_head *firing)
 {
+	struct list_head *timers = tsk->posix_cputimers.cpu_timers;
 	struct task_cputime *tsk_expires = &tsk->cputime_expires;
-	struct list_head *timers = tsk->cpu_timers;
 	u64 expires, stime, utime;
 	unsigned long soft;
 
@@ -879,9 +879,9 @@ static void check_process_timers(struct task_struct *tsk,
 				 struct list_head *firing)
 {
 	struct signal_struct *const sig = tsk->signal;
+	struct list_head *timers = sig->posix_cputimers.cpu_timers;
 	u64 utime, ptime, virt_expires, prof_expires;
 	u64 sum_sched_runtime, sched_expires;
-	struct list_head *timers = sig->cpu_timers;
 	struct task_cputime cputime;
 	unsigned long soft;
 

@@ -62,6 +62,40 @@ static inline int clockid_to_fd(const clockid_t clk)
 	return ~(clk >> 3);
 }
 
+#ifdef CONFIG_POSIX_TIMERS
+/**
+ * posix_cputimers - Container for posix CPU timer related data
+ * @cpu_timers:		List heads to queue posix CPU timers
+ *
+ * Used in task_struct and signal_struct
+ */
+struct posix_cputimers {
+	struct list_head	cpu_timers[CPUCLOCK_MAX];
+};
+
+static inline void posix_cputimers_init(struct posix_cputimers *pct)
+{
+	INIT_LIST_HEAD(&pct->cpu_timers[0]);
+	INIT_LIST_HEAD(&pct->cpu_timers[1]);
+	INIT_LIST_HEAD(&pct->cpu_timers[2]);
+}
+
+/* Init task static initializer */
+#define INIT_CPU_TIMERLISTS(c)	{					\
+	LIST_HEAD_INIT(c.cpu_timers[0]),				\
+	LIST_HEAD_INIT(c.cpu_timers[1]),				\
+	LIST_HEAD_INIT(c.cpu_timers[2]),				\
+}
+
+#define INIT_CPU_TIMERS(s)						\
+	.posix_cputimers = {						\
+		.cpu_timers = INIT_CPU_TIMERLISTS(s.posix_cputimers),	\
+	},
+#else
+struct posix_cputimers { };
+#define INIT_CPU_TIMERS(s)
+#endif
+
 #define REQUEUE_PENDING 1
 
 /**

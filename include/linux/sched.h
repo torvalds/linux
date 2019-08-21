@@ -28,6 +28,7 @@
 #include <linux/signal_types.h>
 #include <linux/mm_types_task.h>
 #include <linux/task_io_accounting.h>
+#include <linux/posix-timers.h>
 #include <linux/rseq.h>
 
 /* task_struct member predeclarations (sorted alphabetically): */
@@ -878,8 +879,9 @@ struct task_struct {
 
 #ifdef CONFIG_POSIX_TIMERS
 	struct task_cputime		cputime_expires;
-	struct list_head		cpu_timers[3];
 #endif
+	/* Empty if CONFIG_POSIX_CPUTIMERS=n */
+	struct posix_cputimers		posix_cputimers;
 
 	/* Process credentials: */
 
