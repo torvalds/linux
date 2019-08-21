@@ -158,8 +158,8 @@ struct pci_dn *add_sriov_vf_pdns(struct pci_dev *pdev)
 	int i;
 
 	/* Only support IOV for now */
-	if (!pdev->is_physfn)
-		return pci_get_pdn(pdev);
+	if (WARN_ON(!pdev->is_physfn))
+		return NULL;
 
 	/* Check if VFs have been populated */
 	pdn = pci_get_pdn(pdev);
@@ -199,19 +199,8 @@ void remove_sriov_vf_pdns(struct pci_dev *pdev)
 	struct pci_dn *pdn, *tmp;
 	int i;
 
-	/*
-	 * VF and VF PE are created/released dynamically, so we need to
-	 * bind/unbind them.  Otherwise the VF and VF PE would be mismatched
-	 * when re-enabling SR-IOV.
-	 */
-	if (pdev->is_virtfn) {
-		pdn = pci_get_pdn(pdev);
-		pdn->pe_number = IODA_INVALID_PE;
-		return;
-	}
-
 	/* Only support IOV PF for now */
-	if (!pdev->is_physfn)
+	if (WARN_ON(!pdev->is_physfn))
 		return;
 
 	/* Check if VFs have been populated */
