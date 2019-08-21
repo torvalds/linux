@@ -611,7 +611,9 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 	 * Writes that go beyond the length of
 	 * Shared Scale(SC) table should fail
 	 */
-	if ((XSDFEC_REG_WIDTH_JUMP * (offset + len)) > depth) {
+	if (offset > depth / XSDFEC_REG_WIDTH_JUMP ||
+	    len > depth / XSDFEC_REG_WIDTH_JUMP ||
+	    offset + len > depth / XSDFEC_REG_WIDTH_JUMP) {
 		dev_dbg(xsdfec->dev, "Write exceeds SC table length");
 		return -EINVAL;
 	}
