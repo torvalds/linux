@@ -1345,6 +1345,12 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 					       cur_offset, 0);
 		if (ret < 0)
 			goto error;
+
+		/*
+		 * If there is no extent for our range when doing the initial
+		 * search, then go back to the previous slot as it will be the
+		 * one containing the search offset
+		 */
 		if (ret > 0 && path->slots[0] > 0 && check_prev) {
 			leaf = path->nodes[0];
 			btrfs_item_key_to_cpu(leaf, &found_key,
@@ -1355,6 +1361,7 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 		}
 		check_prev = false;
 next_slot:
+		/* Go to next leaf if we have exhausted the current one */
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
@@ -1370,23 +1377,38 @@ next_slot:
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
+		/* Didn't find anything for our INO */
 		if (found_key.objectid > ino)
 			break;
+		/*
+		 * Keep searching until we find an EXTENT_ITEM or there are no
+		 * more extents for this inode
+		 */
 		if (WARN_ON_ONCE(found_key.objectid < ino) ||
 		    found_key.type < BTRFS_EXTENT_DATA_KEY) {
 			path->slots[0]++;
 			goto next_slot;
 		}
+
+		/* Found key is not EXTENT_DATA_KEY or starts after req range */
 		if (found_key.type > BTRFS_EXTENT_DATA_KEY ||
 		    found_key.offset > end)
 			break;
 
+		/*
+		 * If the found extent starts after requested offset, then
+		 * adjust extent_end to be right before this extent begins
+		 */
 		if (found_key.offset > cur_offset) {
 			extent_end = found_key.offset;
 			extent_type = 0;
 			goto out_check;
 		}
 
+		/*
+		 * Found extent which begins before our range and potentially
+		 * intersect it
+		 */
 		fi = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_file_extent_item);
 		extent_type = btrfs_file_extent_type(leaf, fi);
@@ -1400,19 +1422,28 @@ next_slot:
 				btrfs_file_extent_num_bytes(leaf, fi);
 			disk_num_bytes =
 				btrfs_file_extent_disk_num_bytes(leaf, fi);
+			/*
+			 * If extent we got ends before our range starts, skip
+			 * to next extent
+			 */
 			if (extent_end <= start) {
 				path->slots[0]++;
 				goto next_slot;
 			}
+			/* Skip holes */
 			if (disk_bytenr == 0)
 				goto out_check;
+			/* Skip compressed/encrypted/encoded extents */
 			if (btrfs_file_extent_compression(leaf, fi) ||
 			    btrfs_file_extent_encryption(leaf, fi) ||
 			    btrfs_file_extent_other_encoding(leaf, fi))
 				goto out_check;
 			/*
-			 * Do the same check as in btrfs_cross_ref_exist but
-			 * without the unnecessary search.
+			 * If extent is created before the last volume's snapshot
+			 * this implies the extent is shared, hence we can't do
+			 * nocow. This is the same check as in
+			 * btrfs_cross_ref_exist but without calling
+			 * btrfs_search_slot.
 			 */
 			if (!freespace_inode &&
 			    btrfs_file_extent_generation(leaf, fi) <=
@@ -1420,6 +1451,7 @@ next_slot:
 				goto out_check;
 			if (extent_type == BTRFS_FILE_EXTENT_REG && !force)
 				goto out_check;
+			/* If extent is RO, we must COW it */
 			if (btrfs_extent_readonly(fs_info, disk_bytenr))
 				goto out_check;
 			ret = btrfs_cross_ref_exist(root, ino,
@@ -1443,8 +1475,8 @@ next_slot:
 			disk_bytenr += cur_offset - found_key.offset;
 			num_bytes = min(end + 1, extent_end) - cur_offset;
 			/*
-			 * if there are pending snapshots for this root,
-			 * we fall into common COW way.
+			 * If there are pending snapshots for this root, we
+			 * fall into common COW way
 			 */
 			if (!freespace_inode && atomic_read(&root->snapshot_force_cow))
 				goto out_check;
@@ -1480,12 +1512,17 @@ next_slot:
 			BUG();
 		}
 out_check:
+		/* Skip extents outside of our requested range */
 		if (extent_end <= start) {
 			path->slots[0]++;
 			if (nocow)
 				btrfs_dec_nocow_writers(fs_info, disk_bytenr);
 			goto next_slot;
 		}
+		/*
+		 * If nocow is false then record the beginning of the range
+		 * that needs to be COWed
+		 */
 		if (!nocow) {
 			if (cow_start == (u64)-1)
 				cow_start = cur_offset;
@@ -1497,6 +1534,12 @@ out_check:
 		}
 
 		btrfs_release_path(path);
+
+		/*
+		 * COW range from cow_start to found_key.offset - 1. As the key
+		 * will contain the beginning of the first extent that can be
+		 * NOCOW, following one which needs to be COW'ed
+		 */
 		if (cow_start != (u64)-1) {
 			ret = cow_file_range(inode, locked_page,
 					     cow_start, found_key.offset - 1,

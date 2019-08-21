@@ -2357,16 +2357,19 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 
+	/* If extent item has more than 1 inline ref then it's shared */
 	if (item_size != sizeof(*ei) +
 	    btrfs_extent_inline_ref_size(BTRFS_EXTENT_DATA_REF_KEY))
 		goto out;
 
+	/* If extent created before last snapshot => it's definitely shared */
 	if (btrfs_extent_generation(leaf, ei) <=
 	    btrfs_root_last_snapshot(&root->root_item))
 		goto out;
 
 	iref = (struct btrfs_extent_inline_ref *)(ei + 1);
 
+	/* If this extent has SHARED_DATA_REF then it's shared */
 	type = btrfs_get_extent_inline_ref_type(leaf, iref, BTRFS_REF_TYPE_DATA);
 	if (type != BTRFS_EXTENT_DATA_REF_KEY)
 		goto out;
