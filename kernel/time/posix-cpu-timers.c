@@ -772,6 +772,20 @@ static inline void check_dl_overrun(struct task_struct *tsk)
 	}
 }
 
+static bool check_rlimit(u64 time, u64 limit, int signo, bool rt, bool hard)
+{
+	if (time < limit)
+		return false;
+
+	if (print_fatal_signals) {
+		pr_info("%s Watchdog Timeout (%s): %s[%d]\n",
+			rt ? "RT" : "CPU", hard ? "hard" : "soft",
+			current->comm, task_pid_nr(current));
+	}
+	__group_send_sig_info(signo, SEND_SIG_PRIV, current);
+	return true;
+}
+
 /*
  * Check for any per-thread CPU timers that have fired and move them off
  * the tsk->cpu_timers[N] list onto the firing list.  Here we update the
@@ -799,34 +813,18 @@ static void check_thread_timers(struct task_struct *tsk,
 	soft = task_rlimit(tsk, RLIMIT_RTTIME);
 	if (soft != RLIM_INFINITY) {
 		/* Task RT timeout is accounted in jiffies. RTTIME is usec */
-		unsigned long rtim = tsk->rt.timeout * (USEC_PER_SEC / HZ);
+		unsigned long rttime = tsk->rt.timeout * (USEC_PER_SEC / HZ);
 		unsigned long hard = task_rlimit_max(tsk, RLIMIT_RTTIME);
 
-		if (hard != RLIM_INFINITY && rtim >= hard) {
-			/*
-			 * At the hard limit, we just die.
-			 * No need to calculate anything else now.
-			 */
-			if (print_fatal_signals) {
-				pr_info("CPU Watchdog Timeout (hard): %s[%d]\n",
-					tsk->comm, task_pid_nr(tsk));
-			}
-			__group_send_sig_info(SIGKILL, SEND_SIG_PRIV, tsk);
+		/* At the hard limit, send SIGKILL. No further action. */
+		if (hard != RLIM_INFINITY &&
+		    check_rlimit(rttime, hard, SIGKILL, true, true))
 			return;
-		}
 
-		if (rtim >= soft) {
-			/*
-			 * At the soft limit, send a SIGXCPU every second.
-			 */
+		/* At the soft limit, send a SIGXCPU every second */
+		if (check_rlimit(rttime, soft, SIGXCPU, true, false)) {
 			soft += USEC_PER_SEC;
 			tsk->signal->rlim[RLIMIT_RTTIME].rlim_cur = soft;
-
-			if (print_fatal_signals) {
-				pr_info("RT Watchdog Timeout (soft): %s[%d]\n",
-					tsk->comm, task_pid_nr(tsk));
-			}
-			__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 		}
 	}
 
@@ -916,28 +914,13 @@ static void check_process_timers(struct task_struct *tsk,
 		u64 softns = (u64)soft * NSEC_PER_SEC;
 		u64 hardns = (u64)hard * NSEC_PER_SEC;
 
-		if (hard != RLIM_INFINITY && ptime >= hardns) {
-			/*
-			 * At the hard limit, we just die.
-			 * No need to calculate anything else now.
-			 */
-			if (print_fatal_signals) {
-				pr_info("RT Watchdog Timeout (hard): %s[%d]\n",
-					tsk->comm, task_pid_nr(tsk));
-			}
-			__group_send_sig_info(SIGKILL, SEND_SIG_PRIV, tsk);
+		/* At the hard limit, send SIGKILL. No further action. */
+		if (hard != RLIM_INFINITY &&
+		    check_rlimit(ptime, hardns, SIGKILL, false, true))
 			return;
-		}
-		if (ptime >= softns) {
-			/*
-			 * At the soft limit, send a SIGXCPU every second.
-			 */
-			if (print_fatal_signals) {
-				pr_info("CPU Watchdog Timeout (soft): %s[%d]\n",
-					tsk->comm, task_pid_nr(tsk));
-			}
-			__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 
+		/* At the soft limit, send a SIGXCPU every second */
+		if (check_rlimit(ptime, softns, SIGXCPU, false, false)) {
 			sig->rlim[RLIMIT_CPU].rlim_cur = soft + 1;
 			softns += NSEC_PER_SEC;
 		}
