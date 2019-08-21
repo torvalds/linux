@@ -1335,9 +1335,9 @@ done:
 	if (submit) {
 		*port = execlists_schedule_in(last, port - execlists->pending);
 		memset(port + 1, 0, (last_port - port) * sizeof(*port));
-		execlists_submit_ports(engine);
 		execlists->switch_priority_hint =
 			switch_prio(engine, *execlists->pending);
+		execlists_submit_ports(engine);
 	} else {
 		ring_set_paused(engine, 0);
 	}
