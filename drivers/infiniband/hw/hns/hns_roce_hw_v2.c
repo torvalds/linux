@@ -4574,9 +4574,9 @@ static int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 						  V2_QPC_BYTE_56_DQPN_M,
 						  V2_QPC_BYTE_56_DQPN_S);
 	qp_attr->qp_access_flags = ((roce_get_bit(context.byte_76_srqn_op_en,
-				    V2_QPC_BYTE_76_RRE_S)) << V2_QP_RWE_S) |
+				    V2_QPC_BYTE_76_RRE_S)) << V2_QP_RRE_S) |
 				    ((roce_get_bit(context.byte_76_srqn_op_en,
-				    V2_QPC_BYTE_76_RWE_S)) << V2_QP_RRE_S) |
+				    V2_QPC_BYTE_76_RWE_S)) << V2_QP_RWE_S) |
 				    ((roce_get_bit(context.byte_76_srqn_op_en,
 				    V2_QPC_BYTE_76_ATE_S)) << V2_QP_ATE_S);
 
