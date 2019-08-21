@@ -182,22 +182,19 @@ posix_cpu_clock_set(const clockid_t clock, const struct timespec64 *tp)
 /*
  * Sample a per-thread clock for the given task. clkid is validated.
  */
-static void cpu_clock_sample(const clockid_t clkid, struct task_struct *p,
-			     u64 *sample)
+static u64 cpu_clock_sample(const clockid_t clkid, struct task_struct *p)
 {
 	switch (clkid) {
 	case CPUCLOCK_PROF:
-		*sample = prof_ticks(p);
-		break;
+		return prof_ticks(p);
 	case CPUCLOCK_VIRT:
-		*sample = virt_ticks(p);
-		break;
+		return virt_ticks(p);
 	case CPUCLOCK_SCHED:
-		*sample = task_sched_runtime(p);
-		break;
+		return task_sched_runtime(p);
 	default:
 		WARN_ON_ONCE(1);
 	}
+	return 0;
 }
 
 /*
@@ -299,8 +296,8 @@ thread_group_start_cputime(struct task_struct *tsk, struct task_cputime *times)
  * held to protect the task traversal on a full update. clkid is already
  * validated.
  */
-static void cpu_clock_sample_group(const clockid_t clkid, struct task_struct *p,
-				   u64 *sample, bool start)
+static u64 cpu_clock_sample_group(const clockid_t clkid, struct task_struct *p,
+				  bool start)
 {
 	struct thread_group_cputimer *cputimer = &p->signal->cputimer;
 	struct task_cputime cputime;
@@ -316,17 +313,15 @@ static void cpu_clock_sample_group(const clockid_t clkid, struct task_struct *p,
 
 	switch (clkid) {
 	case CPUCLOCK_PROF:
-		*sample = cputime.utime + cputime.stime;
-		break;
+		return cputime.utime + cputime.stime;
 	case CPUCLOCK_VIRT:
-		*sample = cputime.utime;
-		break;
+		return cputime.utime;
 	case CPUCLOCK_SCHED:
-		*sample = cputime.sum_exec_runtime;
-		break;
+		return cputime.sum_exec_runtime;
 	default:
 		WARN_ON_ONCE(1);
 	}
+	return 0;
 }
 
 static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
@@ -340,9 +335,9 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 		return -EINVAL;
 
 	if (CPUCLOCK_PERTHREAD(clock))
-		cpu_clock_sample(clkid, tsk, &t);
+		t = cpu_clock_sample(clkid, tsk);
 	else
-		cpu_clock_sample_group(clkid, tsk, &t, false);
+		t = cpu_clock_sample_group(clkid, tsk, false);
 	put_task_struct(tsk);
 
 	*tp = ns_to_timespec64(t);
@@ -604,11 +599,10 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 * times (in arm_timer).  With an absolute time, we must
 	 * check if it's already passed.  In short, we need a sample.
 	 */
-	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
-		cpu_clock_sample(clkid, p, &val);
-	} else {
-		cpu_clock_sample_group(clkid, p, &val, true);
-	}
+	if (CPUCLOCK_PERTHREAD(timer->it_clock))
+		val = cpu_clock_sample(clkid, p);
+	else
+		val = cpu_clock_sample_group(clkid, p, true);
 
 	if (old) {
 		if (old_expires == 0) {
@@ -716,7 +710,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 	 * Sample the clock to take the difference with the expiry time.
 	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
-		cpu_clock_sample(clkid, p, &now);
+		now = cpu_clock_sample(clkid, p);
 	} else {
 		struct sighand_struct *sighand;
 		unsigned long flags;
@@ -736,7 +730,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 			timer->it.cpu.expires = 0;
 			return;
 		} else {
-			cpu_clock_sample_group(clkid, p, &now, false);
+			now = cpu_clock_sample_group(clkid, p, false);
 			unlock_task_sighand(p, &flags);
 		}
 	}
@@ -998,7 +992,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	 * Fetch the current sample and update the timer's expiry time.
 	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
-		cpu_clock_sample(clkid, p, &now);
+		now = cpu_clock_sample(clkid, p);
 		bump_cpu_timer(timer, now);
 		if (unlikely(p->exit_state))
 			return;
@@ -1024,7 +1018,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 			/* If the process is dying, no need to rearm */
 			goto unlock;
 		}
-		cpu_clock_sample_group(clkid, p, &now, true);
+		now = cpu_clock_sample_group(clkid, p, true);
 		bump_cpu_timer(timer, now);
 		/* Leave the sighand locked for the call below.  */
 	}
@@ -1192,7 +1186,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	if (WARN_ON_ONCE(clock_idx >= CPUCLOCK_SCHED))
 		return;
 
-	cpu_clock_sample_group(clock_idx, tsk, &now, true);
+	now = cpu_clock_sample_group(clock_idx, tsk, true);
 
 	if (oldval) {
 		/*
