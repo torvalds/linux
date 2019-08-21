@@ -312,6 +312,30 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 	return container_of(nd_desc, struct acpi_nfit_desc, nd_desc);
 }
 
+#ifdef CONFIG_PROVE_LOCKING
+static inline void nfit_device_lock(struct device *dev)
+{
+	device_lock(dev);
+	mutex_lock(&dev->lockdep_mutex);
+}
+
+static inline void nfit_device_unlock(struct device *dev)
+{
+	mutex_unlock(&dev->lockdep_mutex);
+	device_unlock(dev);
+}
+#else
+static inline void nfit_device_lock(struct device *dev)
+{
+	device_lock(dev);
+}
+
+static inline void nfit_device_unlock(struct device *dev)
+{
+	device_unlock(dev);
+}
+#endif
+
 const guid_t *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_shutdown(void *data);

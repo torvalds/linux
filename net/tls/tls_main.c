@@ -261,24 +261,9 @@ void tls_ctx_free(struct tls_context *ctx)
 	kfree(ctx);
 }
 
-static void tls_sk_proto_close(struct sock *sk, long timeout)
+static void tls_sk_proto_cleanup(struct sock *sk,
+				 struct tls_context *ctx, long timeo)
 {
-	struct tls_context *ctx = tls_get_ctx(sk);
-	long timeo = sock_sndtimeo(sk, 0);
-	void (*sk_proto_close)(struct sock *sk, long timeout);
-	bool free_ctx = false;
-
-	lock_sock(sk);
-	sk_proto_close = ctx->sk_proto_close;
-
-	if (ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD)
-		goto skip_tx_cleanup;
-
-	if (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE) {
-		free_ctx = true;
-		goto skip_tx_cleanup;
-	}
-
 	if (unlikely(sk->sk_write_pending) &&
 	    !wait_on_pending_writer(sk, &timeo))
 		tls_handle_open_record(sk, 0);
@@ -287,7 +272,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	if (ctx->tx_conf == TLS_SW) {
 		kfree(ctx->tx.rec_seq);
 		kfree(ctx->tx.iv);
-		tls_sw_free_resources_tx(sk);
+		tls_sw_release_resources_tx(sk);
 #ifdef CONFIG_TLS_DEVICE
 	} else if (ctx->tx_conf == TLS_HW) {
 		tls_device_free_resources_tx(sk);
@@ -295,26 +280,44 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	}
 
 	if (ctx->rx_conf == TLS_SW)
-		tls_sw_free_resources_rx(sk);
+		tls_sw_release_resources_rx(sk);
 
 #ifdef CONFIG_TLS_DEVICE
 	if (ctx->rx_conf == TLS_HW)
 		tls_device_offload_cleanup_rx(sk);
-
-	if (ctx->tx_conf != TLS_HW && ctx->rx_conf != TLS_HW) {
-#else
-	{
 #endif
-		tls_ctx_free(ctx);
-		ctx = NULL;
-	}
+}
 
-skip_tx_cleanup:
+static void tls_sk_proto_close(struct sock *sk, long timeout)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tls_context *ctx = tls_get_ctx(sk);
+	long timeo = sock_sndtimeo(sk, 0);
+	bool free_ctx;
+
+	if (ctx->tx_conf == TLS_SW)
+		tls_sw_cancel_work_tx(ctx);
+
+	lock_sock(sk);
+	free_ctx = ctx->tx_conf != TLS_HW && ctx->rx_conf != TLS_HW;
+
+	if (ctx->tx_conf != TLS_BASE || ctx->rx_conf != TLS_BASE)
+		tls_sk_proto_cleanup(sk, ctx, timeo);
+
+	write_lock_bh(&sk->sk_callback_lock);
+	if (free_ctx)
+		icsk->icsk_ulp_data = NULL;
+	sk->sk_prot = ctx->sk_proto;
+	write_unlock_bh(&sk->sk_callback_lock);
 	release_sock(sk);
-	sk_proto_close(sk, timeout);
-	/* free ctx for TLS_HW_RECORD, used by tcp_set_state
-	 * for sk->sk_prot->unhash [tls_hw_unhash]
-	 */
+	if (ctx->tx_conf == TLS_SW)
+		tls_sw_free_ctx_tx(ctx);
+	if (ctx->rx_conf == TLS_SW || ctx->rx_conf == TLS_HW)
+		tls_sw_strparser_done(ctx);
+	if (ctx->rx_conf == TLS_SW)
+		tls_sw_free_ctx_rx(ctx);
+	ctx->sk_proto_close(sk, timeout);
+
 	if (free_ctx)
 		tls_ctx_free(ctx);
 }
@@ -526,6 +529,8 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 		{
 #endif
 			rc = tls_set_sw_offload(sk, ctx, 1);
+			if (rc)
+				goto err_crypto_info;
 			conf = TLS_SW;
 		}
 	} else {
@@ -537,12 +542,12 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 		{
 #endif
 			rc = tls_set_sw_offload(sk, ctx, 0);
+			if (rc)
+				goto err_crypto_info;
 			conf = TLS_SW;
 		}
+		tls_sw_strparser_arm(sk, ctx);
 	}
-
-	if (rc)
-		goto err_crypto_info;
 
 	if (tx)
 		ctx->tx_conf = conf;
@@ -607,6 +612,7 @@ static struct tls_context *create_ctx(struct sock *sk)
 	ctx->setsockopt = sk->sk_prot->setsockopt;
 	ctx->getsockopt = sk->sk_prot->getsockopt;
 	ctx->sk_proto_close = sk->sk_prot->close;
+	ctx->unhash = sk->sk_prot->unhash;
 	return ctx;
 }
 
@@ -764,7 +770,6 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 	prot[TLS_HW_RECORD][TLS_HW_RECORD] = *base;
 	prot[TLS_HW_RECORD][TLS_HW_RECORD].hash		= tls_hw_hash;
 	prot[TLS_HW_RECORD][TLS_HW_RECORD].unhash	= tls_hw_unhash;
-	prot[TLS_HW_RECORD][TLS_HW_RECORD].close	= tls_sk_proto_close;
 }
 
 static int tls_init(struct sock *sk)
@@ -773,7 +778,7 @@ static int tls_init(struct sock *sk)
 	int rc = 0;
 
 	if (tls_hw_prot(sk))
-		goto out;
+		return 0;
 
 	/* The TLS ulp is currently supported only for TCP sockets
 	 * in ESTABLISHED state.
@@ -784,19 +789,36 @@ static int tls_init(struct sock *sk)
 	if (sk->sk_state != TCP_ESTABLISHED)
 		return -ENOTSUPP;
 
+	tls_build_proto(sk);
+
 	/* allocate tls context */
+	write_lock_bh(&sk->sk_callback_lock);
 	ctx = create_ctx(sk);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	tls_build_proto(sk);
 	ctx->tx_conf = TLS_BASE;
 	ctx->rx_conf = TLS_BASE;
+	ctx->sk_proto = sk->sk_prot;
 	update_sk_prot(sk, ctx);
 out:
+	write_unlock_bh(&sk->sk_callback_lock);
 	return rc;
+}
+
+static void tls_update(struct sock *sk, struct proto *p)
+{
+	struct tls_context *ctx;
+
+	ctx = tls_get_ctx(sk);
+	if (likely(ctx)) {
+		ctx->sk_proto_close = p->close;
+		ctx->sk_proto = p;
+	} else {
+		sk->sk_prot = p;
+	}
 }
 
 void tls_register_device(struct tls_device *device)
@@ -819,6 +841,7 @@ static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
 	.name			= "tls",
 	.owner			= THIS_MODULE,
 	.init			= tls_init,
+	.update			= tls_update,
 };
 
 static int __init tls_register(void)

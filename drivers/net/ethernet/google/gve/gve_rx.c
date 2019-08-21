@@ -37,7 +37,7 @@ static void gve_rx_free_ring(struct gve_priv *priv, int idx)
 	rx->data.qpl = NULL;
 	kvfree(rx->data.page_info);
 
-	slots = rx->data.mask + 1;
+	slots = rx->mask + 1;
 	bytes = sizeof(*rx->data.data_ring) * slots;
 	dma_free_coherent(dev, bytes, rx->data.data_ring,
 			  rx->data.data_bus);
@@ -64,7 +64,7 @@ static int gve_prefill_rx_pages(struct gve_rx_ring *rx)
 	/* Allocate one page per Rx queue slot. Each page is split into two
 	 * packet buffers, when possible we "page flip" between the two.
 	 */
-	slots = rx->data.mask + 1;
+	slots = rx->mask + 1;
 
 	rx->data.page_info = kvzalloc(slots *
 				      sizeof(*rx->data.page_info), GFP_KERNEL);
@@ -111,7 +111,7 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 	rx->q_num = idx;
 
 	slots = priv->rx_pages_per_qpl;
-	rx->data.mask = slots - 1;
+	rx->mask = slots - 1;
 
 	/* alloc rx data ring */
 	bytes = sizeof(*rx->data.data_ring) * slots;
@@ -125,7 +125,7 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 		err = -ENOMEM;
 		goto abort_with_slots;
 	}
-	rx->desc.fill_cnt = filled_pages;
+	rx->fill_cnt = filled_pages;
 	/* Ensure data ring slots (packet buffers) are visible. */
 	dma_wmb();
 
@@ -156,8 +156,8 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 		err = -ENOMEM;
 		goto abort_with_q_resources;
 	}
-	rx->desc.mask = slots - 1;
-	rx->desc.cnt = 0;
+	rx->mask = slots - 1;
+	rx->cnt = 0;
 	rx->desc.seqno = 1;
 	gve_rx_add_to_block(priv, idx);
 
@@ -213,7 +213,7 @@ void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx)
 {
 	u32 db_idx = be32_to_cpu(rx->q_resources->db_index);
 
-	iowrite32be(rx->desc.fill_cnt, &priv->db_bar2[db_idx]);
+	iowrite32be(rx->fill_cnt, &priv->db_bar2[db_idx]);
 }
 
 static enum pkt_hash_types gve_rss_type(__be16 pkt_flags)
@@ -273,7 +273,7 @@ static void gve_rx_flip_buff(struct gve_rx_slot_page_info *page_info,
 }
 
 static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
-		   netdev_features_t feat)
+		   netdev_features_t feat, u32 idx)
 {
 	struct gve_rx_slot_page_info *page_info;
 	struct gve_priv *priv = rx->gve;
@@ -282,14 +282,12 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 	struct sk_buff *skb;
 	int pagecount;
 	u16 len;
-	u32 idx;
 
 	/* drop this packet */
 	if (unlikely(rx_desc->flags_seq & GVE_RXF_ERR))
 		return true;
 
 	len = be16_to_cpu(rx_desc->len) - GVE_RX_PAD;
-	idx = rx->data.cnt & rx->data.mask;
 	page_info = &rx->data.page_info[idx];
 
 	/* gvnic can only receive into registered segments. If the buffer
@@ -340,8 +338,6 @@ have_skb:
 	if (!skb)
 		return true;
 
-	rx->data.cnt++;
-
 	if (likely(feat & NETIF_F_RXCSUM)) {
 		/* NIC passes up the partial sum */
 		if (rx_desc->csum)
@@ -370,7 +366,7 @@ static bool gve_rx_work_pending(struct gve_rx_ring *rx)
 	__be16 flags_seq;
 	u32 next_idx;
 
-	next_idx = rx->desc.cnt & rx->desc.mask;
+	next_idx = rx->cnt & rx->mask;
 	desc = rx->desc.desc_ring + next_idx;
 
 	flags_seq = desc->flags_seq;
@@ -385,8 +381,8 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 {
 	struct gve_priv *priv = rx->gve;
 	struct gve_rx_desc *desc;
-	u32 cnt = rx->desc.cnt;
-	u32 idx = cnt & rx->desc.mask;
+	u32 cnt = rx->cnt;
+	u32 idx = cnt & rx->mask;
 	u32 work_done = 0;
 	u64 bytes = 0;
 
@@ -401,10 +397,10 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 			   rx->q_num, GVE_SEQNO(desc->flags_seq),
 			   rx->desc.seqno);
 		bytes += be16_to_cpu(desc->len) - GVE_RX_PAD;
-		if (!gve_rx(rx, desc, feat))
+		if (!gve_rx(rx, desc, feat, idx))
 			gve_schedule_reset(priv);
 		cnt++;
-		idx = cnt & rx->desc.mask;
+		idx = cnt & rx->mask;
 		desc = rx->desc.desc_ring + idx;
 		rx->desc.seqno = gve_next_seqno(rx->desc.seqno);
 		work_done++;
@@ -417,8 +413,8 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 	rx->rpackets += work_done;
 	rx->rbytes += bytes;
 	u64_stats_update_end(&rx->statss);
-	rx->desc.cnt = cnt;
-	rx->desc.fill_cnt += work_done;
+	rx->cnt = cnt;
+	rx->fill_cnt += work_done;
 
 	/* restock desc ring slots */
 	dma_wmb();	/* Ensure descs are visible before ringing doorbell */
