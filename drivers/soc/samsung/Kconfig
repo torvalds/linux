@@ -10,6 +10,7 @@ if SOC_SAMSUNG
 config EXYNOS_CHIPID
 	bool "Exynos Chipid controller driver" if COMPILE_TEST
 	depends on ARCH_EXYNOS || COMPILE_TEST
+	select MFD_SYSCON
 	select SOC_BUS
 
 config EXYNOS_PMU
