@@ -1490,7 +1490,7 @@ static void g4x_merge_wm(struct drm_i915_private *dev_priv,
 			 struct g4x_wm_values *wm)
 {
 	struct intel_crtc *crtc;
-	int num_active_crtcs = 0;
+	int num_active_pipes = 0;
 
 	wm->cxsr = true;
 	wm->hpll_en = true;
@@ -1509,10 +1509,10 @@ static void g4x_merge_wm(struct drm_i915_private *dev_priv,
 		if (!wm_state->fbc_en)
 			wm->fbc_en = false;
 
-		num_active_crtcs++;
+		num_active_pipes++;
 	}
 
-	if (num_active_crtcs != 1) {
+	if (num_active_pipes != 1) {
 		wm->cxsr = false;
 		wm->hpll_en = false;
 		wm->fbc_en = false;
@@ -2098,7 +2098,7 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 			 struct vlv_wm_values *wm)
 {
 	struct intel_crtc *crtc;
-	int num_active_crtcs = 0;
+	int num_active_pipes = 0;
 
 	wm->level = dev_priv->wm.max_level;
 	wm->cxsr = true;
@@ -2112,14 +2112,14 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 		if (!wm_state->cxsr)
 			wm->cxsr = false;
 
-		num_active_crtcs++;
+		num_active_pipes++;
 		wm->level = min_t(int, wm->level, wm_state->num_levels - 1);
 	}
 
-	if (num_active_crtcs != 1)
+	if (num_active_pipes != 1)
 		wm->cxsr = false;
 
-	if (num_active_crtcs > 1)
+	if (num_active_pipes > 1)
 		wm->level = VLV_WM_LEVEL_PM2;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
