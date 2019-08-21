@@ -574,6 +574,11 @@ properties:
           - const: olimex,a64-olinuxino
           - const: allwinner,sun50i-a64
 
+      - description: Olimex A64-OlinuXino (with eMMC)
+        items:
+          - const: olimex,a64-olinuxino-emmc
+          - const: allwinner,sun50i-a64
+
       - description: Olimex A64 Teres-I
         items:
           - const: olimex,a64-teres-i
