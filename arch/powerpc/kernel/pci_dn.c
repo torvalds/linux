@@ -125,7 +125,7 @@ struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PCI_IOV
-static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
+static struct pci_dn *add_one_sriov_vf_pdn(struct pci_dn *parent,
 					   int vf_index,
 					   int busno, int devfn)
 {
@@ -151,11 +151,9 @@ static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 
 	return pdn;
 }
-#endif
 
-struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
+struct pci_dn *add_sriov_vf_pdns(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PCI_IOV
 	struct pci_dn *parent, *pdn;
 	int i;
 
@@ -176,7 +174,7 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 	for (i = 0; i < pci_sriov_get_totalvfs(pdev); i++) {
 		struct eeh_dev *edev __maybe_unused;
 
-		pdn = add_one_dev_pci_data(parent, i,
+		pdn = add_one_sriov_vf_pdn(parent, i,
 					   pci_iov_virtfn_bus(pdev, i),
 					   pci_iov_virtfn_devfn(pdev, i));
 		if (!pdn) {
@@ -192,14 +190,11 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 		edev->physfn = pdev;
 #endif /* CONFIG_EEH */
 	}
-#endif /* CONFIG_PCI_IOV */
-
 	return pci_get_pdn(pdev);
 }
 
-void remove_dev_pci_data(struct pci_dev *pdev)
+void remove_sriov_vf_pdns(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PCI_IOV
 	struct pci_dn *parent;
 	struct pci_dn *pdn, *tmp;
 	int i;
@@ -271,8 +266,8 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 			kfree(pdn);
 		}
 	}
-#endif /* CONFIG_PCI_IOV */
 }
+#endif /* CONFIG_PCI_IOV */
 
 struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 					struct device_node *dn)

@@ -1747,14 +1747,14 @@ int pnv_pcibios_sriov_disable(struct pci_dev *pdev)
 	pnv_pci_sriov_disable(pdev);
 
 	/* Release PCI data */
-	remove_dev_pci_data(pdev);
+	remove_sriov_vf_pdns(pdev);
 	return 0;
 }
 
 int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	/* Allocate PCI data */
-	add_dev_pci_data(pdev);
+	add_sriov_vf_pdns(pdev);
 
 	return pnv_pci_sriov_enable(pdev, num_vfs);
 }
