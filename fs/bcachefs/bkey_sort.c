@@ -415,25 +415,22 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		       struct bkey_format *out_f,
 		       bool filter_whiteouts)
 {
-	struct bkey_packed *prev = NULL, *k_packed, *next;
-	struct bkey k_unpacked;
+	struct bkey_packed *prev = NULL, *k_packed;
 	struct bkey_s k;
 	struct btree_nr_keys nr;
+	BKEY_PADDED(k) tmp;
 
 	memset(&nr, 0, sizeof(nr));
 
-	next = bch2_btree_node_iter_next_all(iter, src);
-	while ((k_packed = next)) {
-		/*
-		 * The filter might modify the size of @k's value, so advance
-		 * the iterator first:
-		 */
-		next = bch2_btree_node_iter_next_all(iter, src);
-
+	while ((k_packed = bch2_btree_node_iter_next_all(iter, src))) {
 		if (filter_whiteouts && bkey_whiteout(k_packed))
 			continue;
 
-		k = __bkey_disassemble(src, k_packed, &k_unpacked);
+		EBUG_ON(bkeyp_val_u64s(&src->format, k_packed) >
+			BKEY_EXTENT_VAL_U64s_MAX);
+
+		bch2_bkey_unpack(src, &tmp.k, k_packed);
+		k = bkey_i_to_s(&tmp.k);
 
 		if (filter_whiteouts &&
 		    bch2_bkey_normalize(c, k))

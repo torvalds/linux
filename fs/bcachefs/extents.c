@@ -1590,9 +1590,9 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 
 	/* will only happen if all pointers were cached: */
 	if (!bkey_val_u64s(k.k))
-		k.k->type = KEY_TYPE_deleted;
+		k.k->type = KEY_TYPE_discard;
 
-	return false;
+	return bkey_whiteout(k.k);
 }
 
 void bch2_bkey_mark_replicas_cached(struct bch_fs *c, struct bkey_s k,
