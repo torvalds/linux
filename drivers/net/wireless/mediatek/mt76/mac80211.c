@@ -494,7 +494,7 @@ struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct mt76_rx_status mstat;
 
-	mstat = *((struct mt76_rx_status *) skb->cb);
+	mstat = *((struct mt76_rx_status *)skb->cb);
 	memset(status, 0, sizeof(*status));
 
 	status->flag = mstat.flag;
@@ -509,8 +509,10 @@ struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 	status->chains = mstat.chains;
 
 	BUILD_BUG_ON(sizeof(mstat) > sizeof(skb->cb));
-	BUILD_BUG_ON(sizeof(status->chain_signal) != sizeof(mstat.chain_signal));
-	memcpy(status->chain_signal, mstat.chain_signal, sizeof(mstat.chain_signal));
+	BUILD_BUG_ON(sizeof(status->chain_signal) !=
+		     sizeof(mstat.chain_signal));
+	memcpy(status->chain_signal, mstat.chain_signal,
+	       sizeof(mstat.chain_signal));
 
 	return wcid_to_sta(mstat.wcid);
 }
@@ -519,7 +521,7 @@ EXPORT_SYMBOL(mt76_rx_convert);
 static int
 mt76_check_ccmp_pn(struct sk_buff *skb)
 {
-	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_wcid *wcid = status->wcid;
 	struct ieee80211_hdr *hdr;
 	int ret;
@@ -535,7 +537,7 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 		 * Validate the first fragment both here and in mac80211
 		 * All further fragments will be validated by mac80211 only.
 		 */
-		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr = (struct ieee80211_hdr *)skb->data;
 		if (ieee80211_is_frag(hdr) &&
 		    !ieee80211_is_first_frag(hdr->frame_control))
 			return 0;
@@ -558,8 +560,8 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 static void
 mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 {
-	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_sta *sta;
 	struct mt76_wcid *wcid = status->wcid;
 	bool ps;
@@ -568,13 +570,13 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	if (ieee80211_is_pspoll(hdr->frame_control) && !wcid) {
 		sta = ieee80211_find_sta_by_ifaddr(dev->hw, hdr->addr2, NULL);
 		if (sta)
-			wcid = status->wcid = (struct mt76_wcid *) sta->drv_priv;
+			wcid = status->wcid = (struct mt76_wcid *)sta->drv_priv;
 	}
 
 	if (!wcid || !wcid->sta)
 		return;
 
-	sta = container_of((void *) wcid, struct ieee80211_sta, drv_priv);
+	sta = container_of((void *)wcid, struct ieee80211_sta, drv_priv);
 
 	if (status->signal <= 0)
 		ewma_signal_add(&wcid->rssi, -status->signal);
@@ -590,8 +592,8 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	}
 
 	if (ieee80211_has_morefrags(hdr->frame_control) ||
-		!(ieee80211_is_mgmt(hdr->frame_control) ||
-		  ieee80211_is_data(hdr->frame_control)))
+	    !(ieee80211_is_mgmt(hdr->frame_control) ||
+	      ieee80211_is_data(hdr->frame_control)))
 		return;
 
 	ps = ieee80211_has_pm(hdr->frame_control);
@@ -620,7 +622,7 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 		if (!sta->txq[i])
 			continue;
 
-		mtxq = (struct mt76_txq *) sta->txq[i]->drv_priv;
+		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
 		if (!skb_queue_empty(&mtxq->retry_q))
 			ieee80211_schedule_txq(dev->hw, sta->txq[i]);
 	}
@@ -742,7 +744,7 @@ int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		dev->drv->sta_assoc(dev, vif, sta);
 
 	if (old_state == IEEE80211_STA_NONE &&
-		 new_state == IEEE80211_STA_NOTEXIST)
+	    new_state == IEEE80211_STA_NOTEXIST)
 		mt76_sta_remove(dev, vif, sta);
 
 	return 0;
@@ -782,7 +784,7 @@ static void
 __mt76_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	if (vif->csa_active && ieee80211_csa_is_complete(vif))
-	    ieee80211_csa_finish(vif);
+		ieee80211_csa_finish(vif);
 }
 
 void mt76_csa_finish(struct mt76_dev *dev)
