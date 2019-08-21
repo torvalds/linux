@@ -26,6 +26,7 @@
 #include "asm/bug.h"
 #include "callchain.h"
 #include "cgroup.h"
+#include "counts.h"
 #include "event.h"
 #include "evsel.h"
 #include "evlist.h"

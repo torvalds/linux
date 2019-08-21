@@ -11,7 +11,6 @@
 #include <perf/evsel.h>
 #include "symbol_conf.h"
 #include "cpumap.h"
-#include "counts.h"
 
 struct evsel;
 
@@ -93,6 +92,7 @@ enum perf_tool_event {
 };
 
 struct bpf_object;
+struct perf_counts;
 struct xyarray;
 
 /** struct evsel - event selector
