@@ -65,8 +65,6 @@ binrpm-pkg: FORCE
 	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE) -bb $(objtree)/binkernel.spec
 
-clean-files += $(objtree)/*.spec
-
 deb-pkg: FORCE
 	$(MAKE) clean
 	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
@@ -82,8 +80,6 @@ bindeb-pkg: FORCE
 intdeb-pkg: FORCE
 	+$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
 
-clean-dirs += $(objtree)/debian/
-
 # snap-pkg
 # ---------------------------------------------------------------------------
 snap-pkg: FORCE
@@ -98,16 +94,11 @@ snap-pkg: FORCE
 	cd $(objtree)/snap && \
 	snapcraft --target-arch=$(UTS_MACHINE)
 
-clean-dirs += $(objtree)/snap/
-
 # tarball targets
 # ---------------------------------------------------------------------------
 tar%pkg: FORCE
 	$(MAKE) -f $(srctree)/Makefile
 	+$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
-
-clean-dirs += $(objtree)/tar-install/
-
 
 # perf-pkg - generate a source tarball with perf source
 # ---------------------------------------------------------------------------
