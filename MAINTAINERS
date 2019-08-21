@@ -8832,14 +8832,6 @@ F:	virt/kvm/*
 F:	tools/kvm/
 F:	tools/testing/selftests/kvm/
 
-KERNEL VIRTUAL MACHINE FOR AMD-V (KVM/amd)
-M:	Joerg Roedel <joro@8bytes.org>
-L:	kvm@vger.kernel.org
-W:	http://www.linux-kvm.org/
-S:	Maintained
-F:	arch/x86/include/asm/svm.h
-F:	arch/x86/kvm/svm.c
-
 KERNEL VIRTUAL MACHINE FOR ARM/ARM64 (KVM/arm, KVM/arm64)
 M:	Marc Zyngier <maz@kernel.org>
 R:	James Morse <james.morse@arm.com>
@@ -8882,7 +8874,7 @@ M:	Christian Borntraeger <borntraeger@de.ibm.com>
 M:	Janosch Frank <frankja@linux.ibm.com>
 R:	David Hildenbrand <david@redhat.com>
 R:	Cornelia Huck <cohuck@redhat.com>
-L:	linux-s390@vger.kernel.org
+L:	kvm@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvms390/linux.git
 S:	Supported
@@ -8897,6 +8889,11 @@ F:	tools/testing/selftests/kvm/*/s390x/
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
 M:	Paolo Bonzini <pbonzini@redhat.com>
 M:	Radim Krčmář <rkrcmar@redhat.com>
+R:	Sean Christopherson <sean.j.christopherson@intel.com>
+R:	Vitaly Kuznetsov <vkuznets@redhat.com>
+R:	Wanpeng Li <wanpengli@tencent.com>
+R:	Jim Mattson <jmattson@google.com>
+R:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
@@ -8904,8 +8901,12 @@ S:	Supported
 F:	arch/x86/kvm/
 F:	arch/x86/kvm/*/
 F:	arch/x86/include/uapi/asm/kvm*
+F:	arch/x86/include/uapi/asm/vmx.h
+F:	arch/x86/include/uapi/asm/svm.h
 F:	arch/x86/include/asm/kvm*
 F:	arch/x86/include/asm/pvclock-abi.h
+F:	arch/x86/include/asm/svm.h
+F:	arch/x86/include/asm/vmx.h
 F:	arch/x86/kernel/kvm.c
 F:	arch/x86/kernel/kvmclock.c
 
