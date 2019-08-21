@@ -136,6 +136,34 @@ int f2fs_ci_compare(const struct inode *parent, const struct qstr *name,
 }
 #endif
 
+static inline bool f2fs_match_name(struct f2fs_dentry_ptr *d,
+					struct f2fs_dir_entry *de,
+					struct fscrypt_name *fname,
+					unsigned long bit_pos,
+					f2fs_hash_t namehash)
+{
+#ifdef CONFIG_UNICODE
+	struct inode *parent = d->inode;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(parent);
+	struct qstr entry;
+#endif
+
+	if (de->hash_code != namehash)
+		return false;
+
+#ifdef CONFIG_UNICODE
+	entry.name = d->filename[bit_pos];
+	entry.len = de->name_len;
+
+	if (sbi->s_encoding && IS_CASEFOLDED(parent))
+		return !f2fs_ci_compare(parent, fname->usr_fname, &entry);
+#endif
+	if (fscrypt_match_name(fname, d->filename[bit_pos],
+				le16_to_cpu(de->name_len)))
+		return true;
+	return false;
+}
+
 struct f2fs_dir_entry *f2fs_find_target_dentry(struct fscrypt_name *fname,
 			f2fs_hash_t namehash, int *max_slots,
 			struct f2fs_dentry_ptr *d)
@@ -143,9 +171,6 @@ struct f2fs_dir_entry *f2fs_find_target_dentry(struct fscrypt_name *fname,
 	struct f2fs_dir_entry *de;
 	unsigned long bit_pos = 0;
 	int max_len = 0;
-#ifdef CONFIG_UNICODE
-	struct qstr entry;
-#endif
 
 	if (max_slots)
 		*max_slots = 0;
@@ -157,28 +182,14 @@ struct f2fs_dir_entry *f2fs_find_target_dentry(struct fscrypt_name *fname,
 		}
 
 		de = &d->dentry[bit_pos];
-#ifdef CONFIG_UNICODE
-		entry.name = d->filename[bit_pos];
-		entry.len = de->name_len;
-#endif
 
 		if (unlikely(!de->name_len)) {
 			bit_pos++;
 			continue;
 		}
-		if (de->hash_code == namehash) {
-#ifdef CONFIG_UNICODE
-			if (F2FS_SB(d->inode->i_sb)->s_encoding &&
-					IS_CASEFOLDED(d->inode) &&
-					!f2fs_ci_compare(d->inode,
-						fname->usr_fname, &entry))
-				goto found;
 
-#endif
-			if (fscrypt_match_name(fname, d->filename[bit_pos],
-						le16_to_cpu(de->name_len)))
-				goto found;
-		}
+		if (f2fs_match_name(d, de, fname, bit_pos, namehash))
+			goto found;
 
 		if (max_slots && max_len > *max_slots)
 			*max_slots = max_len;
