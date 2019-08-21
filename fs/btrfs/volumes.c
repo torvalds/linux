@@ -7285,6 +7285,29 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info)
 	}
 }
 
+static u64 btrfs_dev_stats_value(const struct extent_buffer *eb,
+				 const struct btrfs_dev_stats_item *ptr,
+				 int index)
+{
+	u64 val;
+
+	read_extent_buffer(eb, &val,
+			   offsetof(struct btrfs_dev_stats_item, values) +
+			    ((unsigned long)ptr) + (index * sizeof(u64)),
+			   sizeof(val));
+	return val;
+}
+
+static void btrfs_set_dev_stats_value(struct extent_buffer *eb,
+				      struct btrfs_dev_stats_item *ptr,
+				      int index, u64 val)
+{
+	write_extent_buffer(eb, &val,
+			    offsetof(struct btrfs_dev_stats_item, values) +
+			     ((unsigned long)ptr) + (index * sizeof(u64)),
+			    sizeof(val));
+}
+
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_key key;

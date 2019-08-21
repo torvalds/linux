@@ -2258,30 +2258,6 @@ static inline u32 btrfs_file_extent_inline_item_len(
 	return btrfs_item_size(eb, e) - BTRFS_FILE_EXTENT_INLINE_DATA_START;
 }
 
-/* btrfs_dev_stats_item */
-static inline u64 btrfs_dev_stats_value(const struct extent_buffer *eb,
-					const struct btrfs_dev_stats_item *ptr,
-					int index)
-{
-	u64 val;
-
-	read_extent_buffer(eb, &val,
-			   offsetof(struct btrfs_dev_stats_item, values) +
-			    ((unsigned long)ptr) + (index * sizeof(u64)),
-			   sizeof(val));
-	return val;
-}
-
-static inline void btrfs_set_dev_stats_value(struct extent_buffer *eb,
-					     struct btrfs_dev_stats_item *ptr,
-					     int index, u64 val)
-{
-	write_extent_buffer(eb, &val,
-			    offsetof(struct btrfs_dev_stats_item, values) +
-			     ((unsigned long)ptr) + (index * sizeof(u64)),
-			    sizeof(val));
-}
-
 /* btrfs_qgroup_status_item */
 BTRFS_SETGET_FUNCS(qgroup_status_generation, struct btrfs_qgroup_status_item,
 		   generation, 64);
