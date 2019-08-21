@@ -418,7 +418,6 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 	const struct dwc_eth_dwmac_data *data;
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	struct resource *res;
 	void *priv;
 	int ret;
 
@@ -435,8 +434,7 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 		return stmmac_res.irq;
 	stmmac_res.wol_irq = stmmac_res.irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	stmmac_res.addr = devm_ioremap_resource(&pdev->dev, res);
+	stmmac_res.addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(stmmac_res.addr))
 		return PTR_ERR(stmmac_res.addr);
 
