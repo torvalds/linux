@@ -62,6 +62,7 @@ i915-y += \
 	i915_memcpy.o \
 	i915_mm.o \
 	i915_sw_fence.o \
+	i915_sw_fence_work.o \
 	i915_syncmap.o \
 	i915_user_extensions.o
 
