@@ -376,7 +376,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 static void gen8_display_interrupt_info(struct seq_file *m)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	int pipe;
+	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		enum intel_display_power_domain power_domain;

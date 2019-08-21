@@ -8858,7 +8858,7 @@ static void ilk_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void cpt_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	int pipe;
+	enum pipe pipe;
 	u32 val;
 
 	/*

@@ -232,7 +232,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int pipe = crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	u32 temp;
 
 	if (HAS_PCH_SPLIT(dev_priv)) {

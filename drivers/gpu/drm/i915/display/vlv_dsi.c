@@ -749,7 +749,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	enum pipe pipe = intel_crtc->pipe;
 	enum port port;
 	u32 val;
 	bool glk_cold_boot = false;

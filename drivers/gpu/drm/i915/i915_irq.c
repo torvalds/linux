@@ -1716,7 +1716,7 @@ static void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 				  u32 iir, u32 pipe_stats[I915_MAX_PIPES])
 {
-	int pipe;
+	enum pipe pipe;
 
 	spin_lock(&dev_priv->irq_lock);
 
@@ -1741,6 +1741,7 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		status_mask = PIPE_FIFO_UNDERRUN_STATUS;
 
 		switch (pipe) {
+		default:
 		case PIPE_A:
 			iir_bit = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
 			break;
@@ -2136,7 +2137,7 @@ static void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
-	int pipe;
+	enum pipe pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
 	ibx_hpd_irq_handler(dev_priv, hotplug_trigger, hpd_ibx);
@@ -2222,7 +2223,7 @@ static void cpt_serr_int_handler(struct drm_i915_private *dev_priv)
 
 static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
-	int pipe;
+	enum pipe pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
 	ibx_hpd_irq_handler(dev_priv, hotplug_trigger, hpd_cpt);
@@ -3246,7 +3247,7 @@ static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
 static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
-	int pipe;
+	enum pipe pipe;
 
 	gen8_master_intr_disable(dev_priv->uncore.regs);
 
@@ -3271,7 +3272,7 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
-	int pipe;
+	enum pipe pipe;
 
 	gen11_master_intr_disable(dev_priv->uncore.regs);
 
