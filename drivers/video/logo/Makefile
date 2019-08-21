@@ -18,19 +18,19 @@ obj-$(CONFIG_SPU_BASE)			+= logo_spe_clut224.o
 
 # How to generate logo's
 
-pnmtologo := scripts/pnmtologo
+hostprogs-y := pnmtologo
 
 # Create commands like "pnmtologo -t mono -n logo_mac_mono -o ..."
 quiet_cmd_logo = LOGO    $@
-      cmd_logo = $(pnmtologo) -t $(lastword $(subst _, ,$*)) -n $* -o $@ $<
+      cmd_logo = $(obj)/pnmtologo -t $(lastword $(subst _, ,$*)) -n $* -o $@ $<
 
-$(obj)/%.c: $(src)/%.pbm $(pnmtologo) FORCE
+$(obj)/%.c: $(src)/%.pbm $(obj)/pnmtologo FORCE
 	$(call if_changed,logo)
 
-$(obj)/%.c: $(src)/%.ppm $(pnmtologo) FORCE
+$(obj)/%.c: $(src)/%.ppm $(obj)/pnmtologo FORCE
 	$(call if_changed,logo)
 
-$(obj)/%.c: $(src)/%.pgm $(pnmtologo) FORCE
+$(obj)/%.c: $(src)/%.pgm $(obj)/pnmtologo FORCE
 	$(call if_changed,logo)
 
 # generated C files
