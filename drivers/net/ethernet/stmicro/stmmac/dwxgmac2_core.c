@@ -4,6 +4,8 @@
  * stmmac XGMAC support.
  */
 
+#include <linux/bitrev.h>
+#include <linux/crc32.h>
 #include "stmmac.h"
 #include "dwxgmac2.h"
 
@@ -106,6 +108,8 @@ static void dwxgmac2_rx_queue_prio(struct mac_device_info *hw, u32 prio,
 	u32 value, reg;
 
 	reg = (queue < 4) ? XGMAC_RXQ_CTRL2 : XGMAC_RXQ_CTRL3;
+	if (queue >= 4)
+		queue -= 4;
 
 	value = readl(ioaddr + reg);
 	value &= ~XGMAC_PSRQ(queue);
@@ -169,6 +173,8 @@ static void dwxgmac2_map_mtl_to_dma(struct mac_device_info *hw, u32 queue,
 	u32 value, reg;
 
 	reg = (queue < 4) ? XGMAC_MTL_RXQ_DMA_MAP0 : XGMAC_MTL_RXQ_DMA_MAP1;
+	if (queue >= 4)
+		queue -= 4;
 
 	value = readl(ioaddr + reg);
 	value &= ~XGMAC_QxMDMACH(queue);
@@ -278,10 +284,10 @@ static void dwxgmac2_set_umac_addr(struct mac_device_info *hw,
 	u32 value;
 
 	value = (addr[5] << 8) | addr[4];
-	writel(value | XGMAC_AE, ioaddr + XGMAC_ADDR0_HIGH);
+	writel(value | XGMAC_AE, ioaddr + XGMAC_ADDRx_HIGH(reg_n));
 
 	value = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
-	writel(value, ioaddr + XGMAC_ADDR0_LOW);
+	writel(value, ioaddr + XGMAC_ADDRx_LOW(reg_n));
 }
 
 static void dwxgmac2_get_umac_addr(struct mac_device_info *hw,
@@ -291,8 +297,8 @@ static void dwxgmac2_get_umac_addr(struct mac_device_info *hw,
 	u32 hi_addr, lo_addr;
 
 	/* Read the MAC address from the hardware */
-	hi_addr = readl(ioaddr + XGMAC_ADDR0_HIGH);
-	lo_addr = readl(ioaddr + XGMAC_ADDR0_LOW);
+	hi_addr = readl(ioaddr + XGMAC_ADDRx_HIGH(reg_n));
+	lo_addr = readl(ioaddr + XGMAC_ADDRx_LOW(reg_n));
 
 	/* Extract the MAC address from the high and low words */
 	addr[0] = lo_addr & 0xff;
@@ -303,19 +309,82 @@ static void dwxgmac2_get_umac_addr(struct mac_device_info *hw,
 	addr[5] = (hi_addr >> 8) & 0xff;
 }
 
+static void dwxgmac2_set_mchash(void __iomem *ioaddr, u32 *mcfilterbits,
+				int mcbitslog2)
+{
+	int numhashregs, regs;
+
+	switch (mcbitslog2) {
+	case 6:
+		numhashregs = 2;
+		break;
+	case 7:
+		numhashregs = 4;
+		break;
+	case 8:
+		numhashregs = 8;
+		break;
+	default:
+		return;
+	}
+
+	for (regs = 0; regs < numhashregs; regs++)
+		writel(mcfilterbits[regs], ioaddr + XGMAC_HASH_TABLE(regs));
+}
+
 static void dwxgmac2_set_filter(struct mac_device_info *hw,
 				struct net_device *dev)
 {
 	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
-	u32 value = XGMAC_FILTER_RA;
+	u32 value = readl(ioaddr + XGMAC_PACKET_FILTER);
+	int mcbitslog2 = hw->mcast_bits_log2;
+	u32 mc_filter[8];
+	int i;
+
+	value &= ~(XGMAC_FILTER_PR | XGMAC_FILTER_HMC | XGMAC_FILTER_PM);
+	value |= XGMAC_FILTER_HPF;
+
+	memset(mc_filter, 0, sizeof(mc_filter));
 
 	if (dev->flags & IFF_PROMISC) {
-		value |= XGMAC_FILTER_PR | XGMAC_FILTER_PCF;
+		value |= XGMAC_FILTER_PR;
+		value |= XGMAC_FILTER_PCF;
 	} else if ((dev->flags & IFF_ALLMULTI) ||
-		   (netdev_mc_count(dev) > HASH_TABLE_SIZE)) {
+		   (netdev_mc_count(dev) > hw->multicast_filter_bins)) {
 		value |= XGMAC_FILTER_PM;
-		writel(~0x0, ioaddr + XGMAC_HASH_TABLE(0));
-		writel(~0x0, ioaddr + XGMAC_HASH_TABLE(1));
+
+		for (i = 0; i < XGMAC_MAX_HASH_TABLE; i++)
+			writel(~0x0, ioaddr + XGMAC_HASH_TABLE(i));
+	} else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
+
+		value |= XGMAC_FILTER_HMC;
+
+		netdev_for_each_mc_addr(ha, dev) {
+			int nr = (bitrev32(~crc32_le(~0, ha->addr, 6)) >>
+					(32 - mcbitslog2));
+			mc_filter[nr >> 5] |= (1 << (nr & 0x1F));
+		}
+	}
+
+	dwxgmac2_set_mchash(ioaddr, mc_filter, mcbitslog2);
+
+	/* Handle multiple unicast addresses */
+	if (netdev_uc_count(dev) > XGMAC_ADDR_MAX) {
+		value |= XGMAC_FILTER_PR;
+	} else {
+		struct netdev_hw_addr *ha;
+		int reg = 1;
+
+		netdev_for_each_uc_addr(ha, dev) {
+			dwxgmac2_set_umac_addr(hw, ha->addr, reg);
+			reg++;
+		}
+
+		for ( ; reg < XGMAC_ADDR_MAX; reg++) {
+			writel(0, ioaddr + XGMAC_ADDRx_HIGH(reg));
+			writel(0, ioaddr + XGMAC_ADDRx_LOW(reg));
+		}
 	}
 
 	writel(value, ioaddr + XGMAC_PACKET_FILTER);

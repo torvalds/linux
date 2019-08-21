@@ -776,7 +776,6 @@ struct iwl_rss_config_cmd {
 	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
 } __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
 
-#define IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE 128
 #define IWL_MULTI_QUEUE_SYNC_SENDER_POS 0
 #define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
 
@@ -812,10 +811,12 @@ struct iwl_rxq_sync_notification {
  *
  * @IWL_MVM_RXQ_EMPTY: empty sync notification
  * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+ * @IWL_MVM_RXQ_NSSN_SYNC: notify all the RSS queues with the new NSSN
  */
 enum iwl_mvm_rxq_notif_type {
 	IWL_MVM_RXQ_EMPTY,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
+	IWL_MVM_RXQ_NSSN_SYNC,
 };
 
 /**

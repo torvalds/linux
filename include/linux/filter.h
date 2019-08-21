@@ -24,6 +24,7 @@
 
 #include <net/sch_generic.h>
 
+#include <asm/byteorder.h>
 #include <uapi/linux/filter.h>
 #include <uapi/linux/bpf.h>
 
@@ -745,6 +746,18 @@ static inline bool
 bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 {
 	return size <= size_default && (size & (size - 1)) == 0;
+}
+
+static inline u8
+bpf_ctx_narrow_load_shift(u32 off, u32 size, u32 size_default)
+{
+	u8 load_off = off & (size_default - 1);
+
+#ifdef __LITTLE_ENDIAN
+	return load_off * 8;
+#else
+	return (size_default - (load_off + size)) * 8;
+#endif
 }
 
 #define bpf_ctx_wide_access_ok(off, size, type, field)			\

@@ -38,6 +38,9 @@ int rdma_counter_set_auto_mode(struct ib_device *dev, u8 port,
 	int ret;
 
 	port_counter = &dev->port_data[port].port_counter;
+	if (!port_counter->hstats)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&port_counter->lock);
 	if (on) {
 		ret = __counter_set_mode(&port_counter->mode,
@@ -393,6 +396,9 @@ u64 rdma_counter_get_hwstat_value(struct ib_device *dev, u8 port, u32 index)
 	u64 sum;
 
 	port_counter = &dev->port_data[port].port_counter;
+	if (!port_counter->hstats)
+		return 0;
+
 	sum = get_running_counters_hwstat_sum(dev, port, index);
 	sum += port_counter->hstats->value[index];
 
@@ -506,6 +512,9 @@ int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u8 port,
 	if (!rdma_is_port_valid(dev, port))
 		return -EINVAL;
 
+	if (!dev->port_data[port].port_counter.hstats)
+		return -EOPNOTSUPP;
+
 	qp = rdma_counter_get_qp(dev, qp_num);
 	if (!qp)
 		return -ENOENT;
@@ -594,13 +603,16 @@ void rdma_counter_init(struct ib_device *dev)
 	struct rdma_port_counter *port_counter;
 	u32 port;
 
-	if (!dev->ops.alloc_hw_stats || !dev->port_data)
+	if (!dev->port_data)
 		return;
 
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;
 		port_counter->mode.mode = RDMA_COUNTER_MODE_NONE;
 		mutex_init(&port_counter->lock);
+
+		if (!dev->ops.alloc_hw_stats)
+			continue;
 
 		port_counter->hstats = dev->ops.alloc_hw_stats(dev, port);
 		if (!port_counter->hstats)
@@ -623,9 +635,6 @@ void rdma_counter_release(struct ib_device *dev)
 {
 	struct rdma_port_counter *port_counter;
 	u32 port;
-
-	if (!dev->ops.alloc_hw_stats)
-		return;
 
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;

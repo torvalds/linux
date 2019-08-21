@@ -10776,12 +10776,31 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 	/* This loop sets up all CPUs that are affinitized with a
 	 * irq vector assigned to the driver. All affinitized CPUs
 	 * will get a link to that vectors IRQ and EQ.
+	 *
+	 * NULL affinity mask handling:
+	 * If irq count is greater than one, log an error message.
+	 * If the null mask is received for the first irq, find the
+	 * first present cpu, and assign the eq index to ensure at
+	 * least one EQ is assigned.
 	 */
 	for (idx = 0; idx <  phba->cfg_irq_chann; idx++) {
 		/* Get a CPU mask for all CPUs affinitized to this vector */
 		maskp = pci_irq_get_affinity(phba->pcidev, idx);
-		if (!maskp)
-			continue;
+		if (!maskp) {
+			if (phba->cfg_irq_chann > 1)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3329 No affinity mask found "
+						"for vector %d (%d)\n",
+						idx, phba->cfg_irq_chann);
+			if (!idx) {
+				cpu = cpumask_first(cpu_present_mask);
+				cpup = &phba->sli4_hba.cpu_map[cpu];
+				cpup->eq = idx;
+				cpup->irq = pci_irq_vector(phba->pcidev, idx);
+				cpup->flag |= LPFC_CPU_FIRST_IRQ;
+			}
+			break;
+		}
 
 		i = 0;
 		/* Loop through all CPUs associated with vector idx */
