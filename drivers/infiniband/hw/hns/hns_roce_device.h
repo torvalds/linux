@@ -568,14 +568,16 @@ struct hns_roce_raq_table {
 };
 
 struct hns_roce_av {
-	__le32      port_pd;
+	u8          port;
 	u8          gid_index;
 	u8          stat_rate;
 	u8          hop_limit;
-	__le32      sl_tclass_flowlabel;
+	u32         flowlabel;
+	u8          sl;
+	u8          tclass;
 	u8          dgid[HNS_ROCE_GID_SIZE];
 	u8          mac[ETH_ALEN];
-	__le16      vlan;
+	u16         vlan;
 	bool	    vlan_en;
 };
 

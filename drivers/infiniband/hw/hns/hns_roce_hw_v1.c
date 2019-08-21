@@ -175,13 +175,11 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 			roce_set_field(ud_sq_wqe->u32_36,
 				       UD_SEND_WQE_U32_36_FLOW_LABEL_M,
 				       UD_SEND_WQE_U32_36_FLOW_LABEL_S,
-				       ah->av.sl_tclass_flowlabel &
-				       HNS_ROCE_FLOW_LABEL_MASK);
+				       ah->av.flowlabel);
 			roce_set_field(ud_sq_wqe->u32_36,
 				      UD_SEND_WQE_U32_36_PRIORITY_M,
 				      UD_SEND_WQE_U32_36_PRIORITY_S,
-				      le32_to_cpu(ah->av.sl_tclass_flowlabel) >>
-				      HNS_ROCE_SL_SHIFT);
+				      ah->av.sl);
 			roce_set_field(ud_sq_wqe->u32_36,
 				       UD_SEND_WQE_U32_36_SGID_INDEX_M,
 				       UD_SEND_WQE_U32_36_SGID_INDEX_S,
@@ -195,8 +193,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 			roce_set_field(ud_sq_wqe->u32_40,
 				       UD_SEND_WQE_U32_40_TRAFFIC_CLASS_M,
 				       UD_SEND_WQE_U32_40_TRAFFIC_CLASS_S,
-				       ah->av.sl_tclass_flowlabel >>
-				       HNS_ROCE_TCLASS_SHIFT);
+				       ah->av.tclass);
 
 			memcpy(&ud_sq_wqe->dgid[0], &ah->av.dgid[0], GID_LEN);
 
