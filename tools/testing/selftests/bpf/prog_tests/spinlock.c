@@ -16,12 +16,14 @@ void test_spinlock(void)
 		goto close_prog;
 	}
 	for (i = 0; i < 4; i++)
-		assert(pthread_create(&thread_id[i], NULL,
-				      &spin_lock_thread, &prog_fd) == 0);
-	for (i = 0; i < 4; i++)
-		assert(pthread_join(thread_id[i], &ret) == 0 &&
-		       ret == (void *)&prog_fd);
+		if (CHECK_FAIL(pthread_create(&thread_id[i], NULL,
+					      &spin_lock_thread, &prog_fd)))
+			goto close_prog;
 
+	for (i = 0; i < 4; i++)
+		if (CHECK_FAIL(pthread_join(thread_id[i], &ret) ||
+			       ret != (void *)&prog_fd))
+			goto close_prog;
 close_prog:
 	bpf_object__close(obj);
 }
