@@ -1575,7 +1575,7 @@ $(help-board-dirs): help-%:
 DOC_TARGETS := xmldocs latexdocs pdfdocs htmldocs epubdocs cleandocs \
 	       linkcheckdocs dochelp refcheckdocs
 PHONY += $(DOC_TARGETS)
-$(DOC_TARGETS): scripts_basic FORCE
+$(DOC_TARGETS):
 	$(Q)$(MAKE) $(build)=Documentation $@
 
 # Misc
