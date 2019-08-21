@@ -1426,7 +1426,7 @@ static int hns_roce_set_page(struct ib_mr *ibmr, u64 addr)
 {
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 
-	mr->pbl_buf[mr->npages++] = cpu_to_le64(addr);
+	mr->pbl_buf[mr->npages++] = addr;
 
 	return 0;
 }
@@ -1597,10 +1597,9 @@ static int hns_roce_write_mtr(struct hns_roce_dev *hr_dev,
 		/* Save page addr, low 12 bits : 0 */
 		for (i = 0; i < count; i++) {
 			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-				mtts[i] = cpu_to_le64(bufs[npage] >>
-							PAGE_ADDR_SHIFT);
+				mtts[i] = bufs[npage] >> PAGE_ADDR_SHIFT;
 			else
-				mtts[i] = cpu_to_le64(bufs[npage]);
+				mtts[i] = bufs[npage];
 
 			npage++;
 		}

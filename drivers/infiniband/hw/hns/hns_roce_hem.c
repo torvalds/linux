@@ -368,9 +368,9 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 	unsigned long flags;
 	struct hns_roce_hem_iter iter;
 	void __iomem *bt_cmd;
-	u32 bt_cmd_h_val = 0;
-	u32 bt_cmd_val[2];
-	u32 bt_cmd_l = 0;
+	__le32 bt_cmd_val[2];
+	__le32 bt_cmd_h = 0;
+	__le32 bt_cmd_l = 0;
 	u64 bt_ba = 0;
 	int ret = 0;
 
@@ -380,30 +380,20 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 
 	switch (table->type) {
 	case HEM_TYPE_QPC:
-		roce_set_field(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_M,
-			       ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_S, HEM_TYPE_QPC);
-		break;
 	case HEM_TYPE_MTPT:
-		roce_set_field(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_M,
-			       ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_S,
-			       HEM_TYPE_MTPT);
-		break;
 	case HEM_TYPE_CQC:
-		roce_set_field(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_M,
-			       ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_S, HEM_TYPE_CQC);
-		break;
 	case HEM_TYPE_SRQC:
-		roce_set_field(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_M,
-			       ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_S,
-			       HEM_TYPE_SRQC);
+		roce_set_field(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_M,
+			ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_S, table->type);
 		break;
 	default:
 		return ret;
 	}
-	roce_set_field(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_IN_MDF_M,
+
+	roce_set_field(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_IN_MDF_M,
 		       ROCEE_BT_CMD_H_ROCEE_BT_CMD_IN_MDF_S, obj);
-	roce_set_bit(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_S, 0);
-	roce_set_bit(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_HW_SYNS_S, 1);
+	roce_set_bit(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_S, 0);
+	roce_set_bit(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_HW_SYNS_S, 1);
 
 	/* Currently iter only a chunk */
 	for (hns_roce_hem_first(table->hem[i], &iter);
@@ -429,13 +419,13 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 			return -EBUSY;
 		}
 
-		bt_cmd_l = (u32)bt_ba;
-		roce_set_field(bt_cmd_h_val, ROCEE_BT_CMD_H_ROCEE_BT_CMD_BA_H_M,
+		bt_cmd_l = cpu_to_le32(bt_ba);
+		roce_set_field(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_BA_H_M,
 			       ROCEE_BT_CMD_H_ROCEE_BT_CMD_BA_H_S,
 			       bt_ba >> BT_BA_SHIFT);
 
 		bt_cmd_val[0] = bt_cmd_l;
-		bt_cmd_val[1] = bt_cmd_h_val;
+		bt_cmd_val[1] = bt_cmd_h;
 		hns_roce_write64_k(bt_cmd_val,
 				   hr_dev->reg_base + ROCEE_BT_CMD_L_REG);
 		spin_unlock_irqrestore(lock, flags);

@@ -641,7 +641,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_udata *udata, unsigned long sqpn,
 				     struct hns_roce_qp *hr_qp)
 {
-	dma_addr_t *buf_list[ARRAY_SIZE(hr_qp->regions)] = { 0 };
+	dma_addr_t *buf_list[ARRAY_SIZE(hr_qp->regions)] = { NULL };
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_qp ucmd;
 	struct hns_roce_ib_create_qp_resp resp = {};
@@ -663,9 +663,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	hr_qp->ibqp.qp_type = init_attr->qp_type;
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
-		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_ALL_WR);
+		hr_qp->sq_signal_bits = IB_SIGNAL_ALL_WR;
 	else
-		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_REQ_WR);
+		hr_qp->sq_signal_bits = IB_SIGNAL_REQ_WR;
 
 	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, udata,
 				   hns_roce_qp_has_rq(init_attr), hr_qp);
@@ -910,7 +910,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	if (sqpn)
 		hr_qp->doorbell_qpn = 1;
 	else
-		hr_qp->doorbell_qpn = cpu_to_le64(hr_qp->qpn);
+		hr_qp->doorbell_qpn = (u32)hr_qp->qpn;
 
 	if (udata) {
 		ret = ib_copy_to_udata(udata, &resp,
