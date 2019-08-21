@@ -61,7 +61,6 @@ extern void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
  * Thread group CPU time accounting.
  */
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
-void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
 void thread_group_sample_cputime(struct task_struct *tsk, struct task_cputime *times);
 
 /*
