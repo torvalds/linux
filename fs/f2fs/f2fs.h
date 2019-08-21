@@ -2941,7 +2941,8 @@ struct dentry *f2fs_get_parent(struct dentry *child);
 
 extern int f2fs_ci_compare(const struct inode *parent,
 			   const struct qstr *name,
-			   const struct qstr *entry);
+			   const struct qstr *entry,
+			   bool quick);
 
 /*
  * dir.c
