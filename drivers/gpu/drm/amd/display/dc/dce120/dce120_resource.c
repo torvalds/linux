@@ -847,6 +847,8 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	int i;
 	unsigned int clk;
 	unsigned int latency;
+	/*original logic in dal3*/
+	int memory_type_multiplier = MEMORY_TYPE_MULTIPLIER_CZ;
 
 	/*do system clock*/
 	if (!dm_pp_get_clock_levels_by_type_with_latency(
@@ -905,13 +907,16 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * ALSO always convert UMA clock (from PPLIB)  to YCLK (HW formula):
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
+	if (dc->bw_vbios->memory_type == bw_def_hbm)
+		memory_type_multiplier = MEMORY_TYPE_HBM;
+
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
+		mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
+		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
+		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select

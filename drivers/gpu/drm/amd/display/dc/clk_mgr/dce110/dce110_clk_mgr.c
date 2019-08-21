@@ -98,11 +98,14 @@ uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
 		struct dc_stream_state *stream = context->streams[j];
 		uint32_t vertical_blank_in_pixels = 0;
 		uint32_t vertical_blank_time = 0;
+		uint32_t vertical_total_min = stream->timing.v_total;
+		struct dc_crtc_timing_adjust adjust = stream->adjust;
+		if (adjust.v_total_max != adjust.v_total_min)
+			vertical_total_min = adjust.v_total_min;
 
 		vertical_blank_in_pixels = stream->timing.h_total *
-			(stream->timing.v_total
+			(vertical_total_min
 			 - stream->timing.v_addressable);
-
 		vertical_blank_time = vertical_blank_in_pixels
 			* 10000 / stream->timing.pix_clk_100hz;
 
