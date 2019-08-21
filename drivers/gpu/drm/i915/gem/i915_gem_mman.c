@@ -264,15 +264,15 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	/* Now pin it into the GTT as needed */
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
-				       PIN_NONBLOCK |
-				       PIN_NONFAULT);
+				       PIN_NONBLOCK /* NOWARN */ |
+				       PIN_NOSEARCH);
 	if (IS_ERR(vma)) {
 		/* Use a partial view if it is bigger than available space */
 		struct i915_ggtt_view view =
 			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
 		unsigned int flags;
 
-		flags = PIN_MAPPABLE;
+		flags = PIN_MAPPABLE | PIN_NOSEARCH;
 		if (view.type == I915_GGTT_VIEW_NORMAL)
 			flags |= PIN_NONBLOCK; /* avoid warnings for pinned */
 
@@ -282,7 +282,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		 */
 
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
-		if (IS_ERR(vma) && !view.type) {
+		if (IS_ERR(vma)) {
 			flags = PIN_MAPPABLE;
 			view.type = I915_GGTT_VIEW_PARTIAL;
 			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);

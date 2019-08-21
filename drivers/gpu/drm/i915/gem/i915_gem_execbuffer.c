@@ -1035,8 +1035,8 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 
 		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 					       PIN_MAPPABLE |
-					       PIN_NONBLOCK |
-					       PIN_NONFAULT);
+					       PIN_NONBLOCK /* NOWARN */ |
+					       PIN_NOEVICT);
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
 			err = drm_mm_insert_node_in_range

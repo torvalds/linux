@@ -345,8 +345,8 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
-				       PIN_NONFAULT |
-				       PIN_NONBLOCK);
+				       PIN_NONBLOCK /* NOWARN */ |
+				       PIN_NOEVICT);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
@@ -559,8 +559,8 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
-				       PIN_NONFAULT |
-				       PIN_NONBLOCK);
+				       PIN_NONBLOCK /* NOWARN */ |
+				       PIN_NOEVICT);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;

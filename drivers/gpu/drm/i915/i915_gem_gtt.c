@@ -3769,7 +3769,8 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (flags & PIN_NOEVICT)
 		return -ENOSPC;
 
-	/* No free space, pick a slot at random.
+	/*
+	 * No free space, pick a slot at random.
 	 *
 	 * There is a pathological case here using a GTT shared between
 	 * mmap and GPU (i.e. ggtt/aliasing_ppgtt but not full-ppgtt):
@@ -3796,6 +3797,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	err = i915_gem_gtt_reserve(vm, node, size, offset, color, flags);
 	if (err != -ENOSPC)
 		return err;
+
+	if (flags & PIN_NOSEARCH)
+		return -ENOSPC;
 
 	/* Randomly selected placement is pinned, do a search */
 	err = i915_gem_evict_something(vm, size, alignment, color,
