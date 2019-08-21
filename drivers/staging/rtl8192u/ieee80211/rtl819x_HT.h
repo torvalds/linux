@@ -253,10 +253,10 @@ extern u8 MCS_FILTER_1SS[16];
 /* 2007/07/12 MH We only define legacy and HT wireless mode now. */
 #define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
 
-#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-					((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ?\
-						(LegacyRate) :\
-						(PICK_RATE(LegacyRate, HTRate))
+#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)           \
+		((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
+			(LegacyRate) :                           \
+			(PICK_RATE(LegacyRate, HTRate))
 
 // MCS Bw 40 {1~7, 12~15,32}
 #define	RATE_ADPT_1SS_MASK		0xFF
