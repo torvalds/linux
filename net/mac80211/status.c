@@ -260,9 +260,16 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info,
 	int len = sizeof(struct ieee80211_radiotap_header);
 
 	/* IEEE80211_RADIOTAP_RATE rate */
-	if (info->status.rates[0].idx >= 0 &&
-	    !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
-					     IEEE80211_TX_RC_VHT_MCS)))
+	if (status && status->rate && !(status->rate->flags &
+					(RATE_INFO_FLAGS_MCS |
+					 RATE_INFO_FLAGS_DMG |
+					 RATE_INFO_FLAGS_EDMG |
+					 RATE_INFO_FLAGS_VHT_MCS |
+					 RATE_INFO_FLAGS_HE_MCS)))
+		len += 2;
+	else if (info->status.rates[0].idx >= 0 &&
+		 !(info->status.rates[0].flags &
+		   (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS)))
 		len += 2;
 
 	/* IEEE80211_RADIOTAP_TX_FLAGS */
@@ -321,13 +328,14 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 
 	/* IEEE80211_RADIOTAP_RATE */
 
-	if (status && status->rate && !(status->rate->flags &
-					(RATE_INFO_FLAGS_MCS |
-					 RATE_INFO_FLAGS_60G |
-					 RATE_INFO_FLAGS_VHT_MCS |
-					 RATE_INFO_FLAGS_HE_MCS)))
-		legacy_rate = status->rate->legacy;
-	else if (info->status.rates[0].idx >= 0 &&
+	if (status && status->rate) {
+		if (!(status->rate->flags & (RATE_INFO_FLAGS_MCS |
+					     RATE_INFO_FLAGS_DMG |
+					     RATE_INFO_FLAGS_EDMG |
+					     RATE_INFO_FLAGS_VHT_MCS |
+					     RATE_INFO_FLAGS_HE_MCS)))
+			legacy_rate = status->rate->legacy;
+	} else if (info->status.rates[0].idx >= 0 &&
 		 !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
 						  IEEE80211_TX_RC_VHT_MCS)))
 		legacy_rate =
@@ -397,7 +405,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			*pos = 11;
 			break;
 		case RATE_INFO_BW_80:
-			*pos = 2;
+			*pos = 4;
 			break;
 		case RATE_INFO_BW_40:
 			*pos = 1;
@@ -406,6 +414,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			*pos = 0;
 			break;
 		}
+		pos++;
 
 		/* u8 mcs_nss[4] */
 		*pos = (status->rate->mcs << 4) | status->rate->nss;

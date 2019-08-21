@@ -298,6 +298,13 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 
 	[NL80211_ATTR_WIPHY_FREQ] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_CHANNEL_TYPE] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_EDMG_CHANNELS] = NLA_POLICY_RANGE(NLA_U8,
+						NL80211_EDMG_CHANNELS_MIN,
+						NL80211_EDMG_CHANNELS_MAX),
+	[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG] = NLA_POLICY_RANGE(NLA_U8,
+						NL80211_EDMG_BW_CONFIG_MIN,
+						NL80211_EDMG_BW_CONFIG_MAX),
+
 	[NL80211_ATTR_CHANNEL_WIDTH] = { .type = NLA_U32 },
 	[NL80211_ATTR_CENTER_FREQ1] = { .type = NLA_U32 },
 	[NL80211_ATTR_CENTER_FREQ2] = { .type = NLA_U32 },
@@ -677,6 +684,7 @@ static const struct nla_policy
 nl80211_match_band_rssi_policy[NUM_NL80211_BANDS] = {
 	[NL80211_BAND_2GHZ] = { .type = NLA_S32 },
 	[NL80211_BAND_5GHZ] = { .type = NLA_S32 },
+	[NL80211_BAND_6GHZ] = { .type = NLA_S32 },
 	[NL80211_BAND_60GHZ] = { .type = NLA_S32 },
 };
 
@@ -1572,6 +1580,15 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 
 		nla_nest_end(msg, nl_iftype_data);
 	}
+
+	/* add EDMG info */
+	if (sband->edmg_cap.channels &&
+	    (nla_put_u8(msg, NL80211_BAND_ATTR_EDMG_CHANNELS,
+		       sband->edmg_cap.channels) ||
+	    nla_put_u8(msg, NL80211_BAND_ATTR_EDMG_BW_CONFIG,
+		       sband->edmg_cap.bw_config)))
+
+		return -ENOBUFS;
 
 	/* add bitrates */
 	nl_rates = nla_nest_start_noflag(msg, NL80211_BAND_ATTR_RATES);
@@ -2674,6 +2691,18 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 		if (attrs[NL80211_ATTR_CENTER_FREQ2])
 			chandef->center_freq2 =
 				nla_get_u32(attrs[NL80211_ATTR_CENTER_FREQ2]);
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]) {
+		chandef->edmg.channels =
+		      nla_get_u8(info->attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]);
+
+		if (info->attrs[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG])
+			chandef->edmg.bw_config =
+		     nla_get_u8(info->attrs[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG]);
+	} else {
+		chandef->edmg.bw_config = 0;
+		chandef->edmg.channels = 0;
 	}
 
 	if (!cfg80211_chandef_valid(chandef)) {
@@ -5031,6 +5060,7 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 
 	PUT_SINFO(CONNECTED_TIME, connected_time, u32);
 	PUT_SINFO(INACTIVE_TIME, inactive_time, u32);
+	PUT_SINFO_U64(ASSOC_AT_BOOTTIME, assoc_at);
 
 	if (sinfo->filled & (BIT_ULL(NL80211_STA_INFO_RX_BYTES) |
 			     BIT_ULL(NL80211_STA_INFO_RX_BYTES64)) &&
@@ -9890,6 +9920,15 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 			wiphy, info->attrs[NL80211_ATTR_WIPHY_FREQ_HINT]);
 		if (!connect.channel_hint)
 			return -EINVAL;
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]) {
+		connect.edmg.channels =
+		      nla_get_u8(info->attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]);
+
+		if (info->attrs[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG])
+			connect.edmg.bw_config =
+				nla_get_u8(info->attrs[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG]);
 	}
 
 	if (connect.privacy && info->attrs[NL80211_ATTR_KEYS]) {

@@ -72,12 +72,13 @@ ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
 {
 	struct ieee80211_he_obss_pd *he_obss_pd =
 					&vif->bss_conf.he_obss_pd;
-	const u8 *data = he_spr_ie_elem->optional;
+	const u8 *data;
 
 	memset(he_obss_pd, 0, sizeof(*he_obss_pd));
 
 	if (!he_spr_ie_elem)
 		return;
+	data = he_spr_ie_elem->optional;
 
 	if (he_spr_ie_elem->he_sr_control &
 	    IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
