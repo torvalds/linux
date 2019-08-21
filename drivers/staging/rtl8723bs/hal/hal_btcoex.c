@@ -482,10 +482,8 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 			*pU4Tmp = BTC_WIFI_BW_LEGACY;
 		else if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_20)
 			*pU4Tmp = BTC_WIFI_BW_HT20;
-		else if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_40)
-			*pU4Tmp = BTC_WIFI_BW_HT40;
 		else
-			*pU4Tmp = BTC_WIFI_BW_HT40; /* todo */
+			*pU4Tmp = BTC_WIFI_BW_HT40;
 		break;
 
 	case BTC_GET_U4_WIFI_TRAFFIC_DIRECTION:
