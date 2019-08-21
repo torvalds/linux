@@ -205,7 +205,6 @@ static int intel_vbtn_pm_prepare(struct device *dev)
 		struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
 		priv->wakeup_mode = true;
-		acpi_ec_set_gpe_wake_mask(ACPI_GPE_ENABLE);
 	}
 	return 0;
 }
@@ -214,10 +213,7 @@ static void intel_vbtn_pm_complete(struct device *dev)
 {
 	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
-	if (priv->wakeup_mode) {
-		acpi_ec_set_gpe_wake_mask(ACPI_GPE_DISABLE);
-		priv->wakeup_mode = false;
-	}
+	priv->wakeup_mode = false;
 }
 
 static int intel_vbtn_pm_resume(struct device *dev)

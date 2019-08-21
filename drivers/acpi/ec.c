@@ -1970,7 +1970,6 @@ void acpi_ec_set_gpe_wake_mask(u8 action)
 	if (pm_suspend_no_platform() && first_ec && !ec_no_wakeup)
 		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
 }
-EXPORT_SYMBOL_GPL(acpi_ec_set_gpe_wake_mask);
 
 bool acpi_ec_dispatch_gpe(void)
 {

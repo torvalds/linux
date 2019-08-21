@@ -938,6 +938,13 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
 
+	/*
+	 * Some LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U, require the
+	 * EC GPE to be enabled while suspended for certain wakeup devices to
+	 * work, so mark it as wakeup-capable.
+	 */
+	acpi_ec_mark_gpe_for_wake();
+
 	return 0;
 }
 
@@ -954,8 +961,10 @@ static int acpi_s2idle_begin(void)
 
 static int acpi_s2idle_prepare(void)
 {
-	if (acpi_sci_irq_valid())
+	if (acpi_sci_irq_valid()) {
 		enable_irq_wake(acpi_sci_irq);
+		acpi_ec_set_gpe_wake_mask(ACPI_GPE_ENABLE);
+	}
 
 	acpi_enable_wakeup_devices(ACPI_STATE_S0);
 
@@ -1034,8 +1043,10 @@ static void acpi_s2idle_restore(void)
 
 	acpi_disable_wakeup_devices(ACPI_STATE_S0);
 
-	if (acpi_sci_irq_valid())
+	if (acpi_sci_irq_valid()) {
+		acpi_ec_set_gpe_wake_mask(ACPI_GPE_DISABLE);
 		disable_irq_wake(acpi_sci_irq);
+	}
 }
 
 static void acpi_s2idle_end(void)

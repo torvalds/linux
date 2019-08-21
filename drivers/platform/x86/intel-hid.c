@@ -257,7 +257,6 @@ static int intel_hid_pm_prepare(struct device *device)
 		struct intel_hid_priv *priv = dev_get_drvdata(device);
 
 		priv->wakeup_mode = true;
-		acpi_ec_set_gpe_wake_mask(ACPI_GPE_ENABLE);
 	}
 	return 0;
 }
@@ -266,10 +265,7 @@ static void intel_hid_pm_complete(struct device *device)
 {
 	struct intel_hid_priv *priv = dev_get_drvdata(device);
 
-	if (priv->wakeup_mode) {
-		acpi_ec_set_gpe_wake_mask(ACPI_GPE_DISABLE);
-		priv->wakeup_mode = false;
-	}
+	priv->wakeup_mode = false;
 }
 
 static int intel_hid_pl_suspend_handler(struct device *device)
