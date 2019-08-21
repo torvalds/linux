@@ -456,20 +456,20 @@ static inline int expires_gt(u64 expires, u64 new_exp)
  */
 static void arm_timer(struct k_itimer *timer)
 {
+	struct cpu_timer_list *const nt = &timer->it.cpu;
+	int clkidx = CPUCLOCK_WHICH(timer->it_clock);
+	u64 *cpuexp, newexp = timer->it.cpu.expires;
 	struct task_struct *p = timer->it.cpu.task;
 	struct list_head *head, *listpos;
-	struct task_cputime *cputime_expires;
-	struct cpu_timer_list *const nt = &timer->it.cpu;
 	struct cpu_timer_list *next;
 
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
-		head = p->posix_cputimers.cpu_timers;
-		cputime_expires = &p->posix_cputimers.cputime_expires;
+		head = p->posix_cputimers.cpu_timers + clkidx;
+		cpuexp = p->posix_cputimers.expiries + clkidx;
 	} else {
-		head = p->signal->posix_cputimers.cpu_timers;
-		cputime_expires = &p->signal->posix_cputimers.cputime_expires;
+		head = p->signal->posix_cputimers.cpu_timers + clkidx;
+		cpuexp = p->signal->posix_cputimers.expiries + clkidx;
 	}
-	head += CPUCLOCK_WHICH(timer->it_clock);
 
 	listpos = head;
 	list_for_each_entry(next, head, entry) {
@@ -479,35 +479,22 @@ static void arm_timer(struct k_itimer *timer)
 	}
 	list_add(&nt->entry, listpos);
 
-	if (listpos == head) {
-		u64 exp = nt->expires;
+	if (listpos != head)
+		return;
 
-		/*
-		 * We are the new earliest-expiring POSIX 1.b timer, hence
-		 * need to update expiration cache. Take into account that
-		 * for process timers we share expiration cache with itimers
-		 * and RLIMIT_CPU and for thread timers with RLIMIT_RTTIME.
-		 */
+	/*
+	 * We are the new earliest-expiring POSIX 1.b timer, hence
+	 * need to update expiration cache. Take into account that
+	 * for process timers we share expiration cache with itimers
+	 * and RLIMIT_CPU and for thread timers with RLIMIT_RTTIME.
+	 */
+	if (expires_gt(*cpuexp, newexp))
+		*cpuexp = newexp;
 
-		switch (CPUCLOCK_WHICH(timer->it_clock)) {
-		case CPUCLOCK_PROF:
-			if (expires_gt(cputime_expires->prof_exp, exp))
-				cputime_expires->prof_exp = exp;
-			break;
-		case CPUCLOCK_VIRT:
-			if (expires_gt(cputime_expires->virt_exp, exp))
-				cputime_expires->virt_exp = exp;
-			break;
-		case CPUCLOCK_SCHED:
-			if (expires_gt(cputime_expires->sched_exp, exp))
-				cputime_expires->sched_exp = exp;
-			break;
-		}
-		if (CPUCLOCK_PERTHREAD(timer->it_clock))
-			tick_dep_set_task(p, TICK_DEP_BIT_POSIX_TIMER);
-		else
-			tick_dep_set_signal(p->signal, TICK_DEP_BIT_POSIX_TIMER);
-	}
+	if (CPUCLOCK_PERTHREAD(timer->it_clock))
+		tick_dep_set_task(p, TICK_DEP_BIT_POSIX_TIMER);
+	else
+		tick_dep_set_signal(p->signal, TICK_DEP_BIT_POSIX_TIMER);
 }
 
 /*
