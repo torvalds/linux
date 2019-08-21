@@ -670,7 +670,7 @@ static bool topa_table_full(struct topa *topa)
  *
  * Return:	0 on success or error code.
  */
-static int topa_insert_pages(struct pt_buffer *buf, gfp_t gfp)
+static int topa_insert_pages(struct pt_buffer *buf, int cpu, gfp_t gfp)
 {
 	struct topa *topa = buf->last;
 	int order = 0;
@@ -681,7 +681,7 @@ static int topa_insert_pages(struct pt_buffer *buf, gfp_t gfp)
 		order = page_private(p);
 
 	if (topa_table_full(topa)) {
-		topa = topa_alloc(buf->cpu, gfp);
+		topa = topa_alloc(cpu, gfp);
 		if (!topa)
 			return -ENOMEM;
 
@@ -1061,20 +1061,20 @@ static void pt_buffer_fini_topa(struct pt_buffer *buf)
  * @size:	Total size of all regions within this ToPA.
  * @gfp:	Allocation flags.
  */
-static int pt_buffer_init_topa(struct pt_buffer *buf, unsigned long nr_pages,
-			       gfp_t gfp)
+static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
+			       unsigned long nr_pages, gfp_t gfp)
 {
 	struct topa *topa;
 	int err;
 
-	topa = topa_alloc(buf->cpu, gfp);
+	topa = topa_alloc(cpu, gfp);
 	if (!topa)
 		return -ENOMEM;
 
 	topa_insert_table(buf, topa);
 
 	while (buf->nr_pages < nr_pages) {
-		err = topa_insert_pages(buf, gfp);
+		err = topa_insert_pages(buf, cpu, gfp);
 		if (err) {
 			pt_buffer_fini_topa(buf);
 			return -ENOMEM;
@@ -1124,13 +1124,12 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 	if (!buf)
 		return NULL;
 
-	buf->cpu = cpu;
 	buf->snapshot = snapshot;
 	buf->data_pages = pages;
 
 	INIT_LIST_HEAD(&buf->tables);
 
-	ret = pt_buffer_init_topa(buf, nr_pages, GFP_KERNEL);
+	ret = pt_buffer_init_topa(buf, cpu, nr_pages, GFP_KERNEL);
 	if (ret) {
 		kfree(buf);
 		return NULL;

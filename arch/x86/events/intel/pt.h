@@ -53,7 +53,6 @@ struct pt_pmu {
 /**
  * struct pt_buffer - buffer configuration; one buffer per task_struct or
  *		cpu, depending on perf event configuration
- * @cpu:	cpu for per-cpu allocation
  * @tables:	list of ToPA tables in this buffer
  * @first:	shorthand for first topa table
  * @last:	shorthand for last topa table
@@ -71,7 +70,6 @@ struct pt_pmu {
  * @topa_index:	table of topa entries indexed by page offset
  */
 struct pt_buffer {
-	int			cpu;
 	struct list_head	tables;
 	struct topa		*first, *last, *cur;
 	unsigned int		cur_idx;
