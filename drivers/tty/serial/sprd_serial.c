@@ -79,6 +79,7 @@
 /* control register 1 */
 #define SPRD_CTL1		0x001C
 #define SPRD_DMA_EN		BIT(15)
+#define SPRD_LOOPBACK_EN	BIT(14)
 #define RX_HW_FLOW_CTL_THLD	BIT(6)
 #define RX_HW_FLOW_CTL_EN	BIT(7)
 #define TX_HW_FLOW_CTL_EN	BIT(8)
@@ -164,7 +165,14 @@ static unsigned int sprd_get_mctrl(struct uart_port *port)
 
 static void sprd_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* nothing to do */
+	u32 val = serial_in(port, SPRD_CTL1);
+
+	if (mctrl & TIOCM_LOOP)
+		val |= SPRD_LOOPBACK_EN;
+	else
+		val &= ~SPRD_LOOPBACK_EN;
+
+	serial_out(port, SPRD_CTL1, val);
 }
 
 static void sprd_stop_rx(struct uart_port *port)
