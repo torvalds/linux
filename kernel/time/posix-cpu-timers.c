@@ -798,10 +798,11 @@ static void check_thread_timers(struct task_struct *tsk,
 	 */
 	soft = task_rlimit(tsk, RLIMIT_RTTIME);
 	if (soft != RLIM_INFINITY) {
+		/* Task RT timeout is accounted in jiffies. RTTIME is usec */
+		unsigned long rtim = tsk->rt.timeout * (USEC_PER_SEC / HZ);
 		unsigned long hard = task_rlimit_max(tsk, RLIMIT_RTTIME);
 
-		if (hard != RLIM_INFINITY &&
-		    tsk->rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
+		if (hard != RLIM_INFINITY && rtim >= hard) {
 			/*
 			 * At the hard limit, we just die.
 			 * No need to calculate anything else now.
@@ -813,7 +814,7 @@ static void check_thread_timers(struct task_struct *tsk,
 			__group_send_sig_info(SIGKILL, SEND_SIG_PRIV, tsk);
 			return;
 		}
-		if (tsk->rt.timeout > DIV_ROUND_UP(soft, USEC_PER_SEC/HZ)) {
+		if (rtim >= soft) {
 			/*
 			 * At the soft limit, send a SIGXCPU every second.
 			 */
@@ -910,11 +911,13 @@ static void check_process_timers(struct task_struct *tsk,
 
 	soft = task_rlimit(tsk, RLIMIT_CPU);
 	if (soft != RLIM_INFINITY) {
-		u64 softns, ptime = samples[CPUCLOCK_PROF];
+		/* RLIMIT_CPU is in seconds. Samples are nanoseconds */
 		unsigned long hard = task_rlimit_max(tsk, RLIMIT_CPU);
-		unsigned long psecs = div_u64(ptime, NSEC_PER_SEC);
+		u64 ptime = samples[CPUCLOCK_PROF];
+		u64 softns = (u64)soft * NSEC_PER_SEC;
+		u64 hardns = (u64)hard * NSEC_PER_SEC;
 
-		if (hard != RLIM_INFINITY && psecs >= hard) {
+		if (hard != RLIM_INFINITY && ptime >= hardns) {
 			/*
 			 * At the hard limit, we just die.
 			 * No need to calculate anything else now.
@@ -926,7 +929,7 @@ static void check_process_timers(struct task_struct *tsk,
 			__group_send_sig_info(SIGKILL, SEND_SIG_PRIV, tsk);
 			return;
 		}
-		if (psecs >= soft) {
+		if (ptime >= softns) {
 			/*
 			 * At the soft limit, send a SIGXCPU every second.
 			 */
@@ -936,11 +939,12 @@ static void check_process_timers(struct task_struct *tsk,
 			}
 			__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 			if (soft < hard) {
-				soft++;
-				sig->rlim[RLIMIT_CPU].rlim_cur = soft;
+				sig->rlim[RLIMIT_CPU].rlim_cur = soft + 1;
+				softns += NSEC_PER_SEC;
 			}
 		}
-		softns = soft * NSEC_PER_SEC;
+
+		/* Update the expiry cache */
 		if (softns < pct->bases[CPUCLOCK_PROF].nextevt)
 			pct->bases[CPUCLOCK_PROF].nextevt = softns;
 	}
