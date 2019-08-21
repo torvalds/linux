@@ -62,7 +62,7 @@ extern void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
  */
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
 void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
-
+void thread_group_sample_cputime(struct task_struct *tsk, struct task_cputime *times);
 
 /*
  * The following are functions that support scheduler-internal time accounting.
