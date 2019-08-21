@@ -11,7 +11,7 @@ void test_spinlock(void)
 	void *ret;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_CGROUP_SKB, &obj, &prog_fd);
-	if (err) {
+	if (CHECK_FAIL(err)) {
 		printf("test_spin_lock:bpf_prog_load errno %d\n", errno);
 		goto close_prog;
 	}
@@ -21,9 +21,7 @@ void test_spinlock(void)
 	for (i = 0; i < 4; i++)
 		assert(pthread_join(thread_id[i], &ret) == 0 &&
 		       ret == (void *)&prog_fd);
-	goto close_prog_noerr;
+
 close_prog:
-	error_cnt++;
-close_prog_noerr:
 	bpf_object__close(obj);
 }

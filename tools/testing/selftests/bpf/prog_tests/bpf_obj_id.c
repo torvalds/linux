@@ -48,8 +48,7 @@ void test_bpf_obj_id(void)
 		/* test_obj_id.o is a dumb prog. It should never fail
 		 * to load.
 		 */
-		if (err)
-			error_cnt++;
+		CHECK_FAIL(err);
 		assert(!err);
 
 		/* Insert a magic value to the map */

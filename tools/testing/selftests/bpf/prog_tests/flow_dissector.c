@@ -452,10 +452,8 @@ void test_flow_dissector(void)
 
 	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
 			    "jmp_table", "last_dissection", &prog_fd, &keys_fd);
-	if (err) {
-		error_cnt++;
+	if (CHECK_FAIL(err))
 		return;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_flow_keys flow_keys;
