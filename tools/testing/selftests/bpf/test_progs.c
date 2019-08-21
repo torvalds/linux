@@ -17,6 +17,7 @@ struct prog_test_def {
 	bool force_log;
 	int pass_cnt;
 	int error_cnt;
+	int skip_cnt;
 	bool tested;
 
 	const char *subtest_name;
@@ -56,6 +57,14 @@ static void dump_test_log(const struct prog_test_def *test, bool failed)
 	fseeko(stdout, 0, SEEK_SET); /* rewind */
 }
 
+static void skip_account(void)
+{
+	if (env.test->skip_cnt) {
+		env.skip_cnt++;
+		env.test->skip_cnt = 0;
+	}
+}
+
 void test__end_subtest()
 {
 	struct prog_test_def *test = env.test;
@@ -65,6 +74,7 @@ void test__end_subtest()
 		env.fail_cnt++;
 	else
 		env.sub_succ_cnt++;
+	skip_account();
 
 	dump_test_log(test, sub_error_cnt);
 
@@ -103,6 +113,11 @@ bool test__start_subtest(const char *name)
 
 void test__force_log() {
 	env.test->force_log = true;
+}
+
+void test__skip(void)
+{
+	env.test->skip_cnt++;
 }
 
 struct ipv4_packet pkt_v4 = {
@@ -510,6 +525,7 @@ int main(int argc, char **argv)
 			env.fail_cnt++;
 		else
 			env.succ_cnt++;
+		skip_account();
 
 		dump_test_log(test, test->error_cnt);
 
@@ -518,8 +534,8 @@ int main(int argc, char **argv)
 			test->error_cnt ? "FAIL" : "OK");
 	}
 	stdio_restore();
-	printf("Summary: %d/%d PASSED, %d FAILED\n",
-	       env.succ_cnt, env.sub_succ_cnt, env.fail_cnt);
+	printf("Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
+	       env.succ_cnt, env.sub_succ_cnt, env.skip_cnt, env.fail_cnt);
 
 	free(env.test_selector.num_set);
 	free(env.subtest_selector.num_set);
