@@ -149,9 +149,6 @@ struct signal_struct {
 	 */
 	struct thread_group_cputimer cputimer;
 
-	/* Earliest-expiration cache. */
-	struct task_cputime cputime_expires;
-
 #endif
 	/* Empty if CONFIG_POSIX_TIMERS=n */
 	struct posix_cputimers posix_cputimers;

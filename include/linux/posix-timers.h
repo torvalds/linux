@@ -62,22 +62,41 @@ static inline int clockid_to_fd(const clockid_t clk)
 	return ~(clk >> 3);
 }
 
+/*
+ * Alternate field names for struct task_cputime when used on cache
+ * expirations. Will go away soon.
+ */
+#define virt_exp			utime
+#define prof_exp			stime
+#define sched_exp			sum_exec_runtime
+
 #ifdef CONFIG_POSIX_TIMERS
 /**
  * posix_cputimers - Container for posix CPU timer related data
+ * @cputime_expires:	Earliest-expiration cache
  * @cpu_timers:		List heads to queue posix CPU timers
  *
  * Used in task_struct and signal_struct
  */
 struct posix_cputimers {
+	struct task_cputime	cputime_expires;
 	struct list_head	cpu_timers[CPUCLOCK_MAX];
 };
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
 {
+	memset(&pct->cputime_expires, 0, sizeof(pct->cputime_expires));
 	INIT_LIST_HEAD(&pct->cpu_timers[0]);
 	INIT_LIST_HEAD(&pct->cpu_timers[1]);
 	INIT_LIST_HEAD(&pct->cpu_timers[2]);
+}
+
+void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit);
+
+static inline void posix_cputimers_rt_watchdog(struct posix_cputimers *pct,
+					       u64 runtime)
+{
+	pct->cputime_expires.sched_exp = runtime;
 }
 
 /* Init task static initializer */
@@ -94,6 +113,9 @@ static inline void posix_cputimers_init(struct posix_cputimers *pct)
 #else
 struct posix_cputimers { };
 #define INIT_CPU_TIMERS(s)
+static inline void posix_cputimers_init(struct posix_cputimers *pct) { }
+static inline void posix_cputimers_group_init(struct posix_cputimers *pct,
+					      u64 cpu_limit) { }
 #endif
 
 #define REQUEUE_PENDING 1

@@ -1527,12 +1527,9 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	unsigned long cpu_limit;
 
 	cpu_limit = READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
-	if (cpu_limit != RLIM_INFINITY) {
-		sig->cputime_expires.prof_exp = cpu_limit * NSEC_PER_SEC;
+	posix_cputimers_group_init(pct, cpu_limit);
+	if (cpu_limit != RLIM_INFINITY)
 		sig->cputimer.running = true;
-	}
-
-	posix_cputimers_init(pct);
 }
 #else
 static inline void posix_cpu_timers_init_group(struct signal_struct *sig) { }
@@ -1637,22 +1634,6 @@ static void rt_mutex_init_task(struct task_struct *p)
 	p->pi_blocked_on = NULL;
 #endif
 }
-
-#ifdef CONFIG_POSIX_TIMERS
-/*
- * Initialize POSIX timer handling for a single task.
- */
-static void posix_cpu_timers_init(struct task_struct *tsk)
-{
-	tsk->cputime_expires.prof_exp = 0;
-	tsk->cputime_expires.virt_exp = 0;
-	tsk->cputime_expires.sched_exp = 0;
-
-	posix_cputimers_init(&tsk->posix_cputimers);
-}
-#else
-static inline void posix_cpu_timers_init(struct task_struct *tsk) { }
-#endif
 
 static inline void init_task_pid_links(struct task_struct *task)
 {
@@ -1932,7 +1913,7 @@ static __latent_entropy struct task_struct *copy_process(
 	task_io_accounting_init(&p->ioac);
 	acct_clear_integrals(p);
 
-	posix_cpu_timers_init(p);
+	posix_cputimers_init(&p->posix_cputimers);
 
 	p->io_context = NULL;
 	audit_set_context(p, NULL);
