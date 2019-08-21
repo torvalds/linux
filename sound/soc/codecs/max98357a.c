@@ -20,19 +20,9 @@
 #include <sound/soc-dapm.h>
 
 struct max98357a_priv {
-	struct delayed_work enable_sdmode_work;
 	struct gpio_desc *sdmode;
 	unsigned int sdmode_delay;
 };
-
-static void max98357a_enable_sdmode_work(struct work_struct *work)
-{
-	struct max98357a_priv *max98357a =
-	container_of(work, struct max98357a_priv,
-			enable_sdmode_work.work);
-
-	gpiod_set_value(max98357a->sdmode, 1);
-}
 
 static int max98357a_daiops_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
@@ -46,14 +36,12 @@ static int max98357a_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		queue_delayed_work(system_power_efficient_wq,
-				&max98357a->enable_sdmode_work,
-				msecs_to_jiffies(max98357a->sdmode_delay));
+		mdelay(max98357a->sdmode_delay);
+		gpiod_set_value(max98357a->sdmode, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		cancel_delayed_work_sync(&max98357a->enable_sdmode_work);
 		gpiod_set_value(max98357a->sdmode, 0);
 		break;
 	}
@@ -112,29 +100,24 @@ static int max98357a_platform_probe(struct platform_device *pdev)
 	int ret;
 
 	max98357a = devm_kzalloc(&pdev->dev, sizeof(*max98357a), GFP_KERNEL);
-
 	if (!max98357a)
 		return -ENOMEM;
 
 	max98357a->sdmode = devm_gpiod_get_optional(&pdev->dev,
 				"sdmode", GPIOD_OUT_LOW);
-
 	if (IS_ERR(max98357a->sdmode))
 		return PTR_ERR(max98357a->sdmode);
 
 	ret = device_property_read_u32(&pdev->dev, "sdmode-delay",
 					&max98357a->sdmode_delay);
-
 	if (ret) {
 		max98357a->sdmode_delay = 0;
 		dev_dbg(&pdev->dev,
-			"no optional property 'sdmode-delay' found, default: no delay\n");
+			"no optional property 'sdmode-delay' found, "
+			"default: no delay\n");
 	}
 
 	dev_set_drvdata(&pdev->dev, max98357a);
-
-	INIT_DELAYED_WORK(&max98357a->enable_sdmode_work,
-				max98357a_enable_sdmode_work);
 
 	return devm_snd_soc_register_component(&pdev->dev,
 			&max98357a_component_driver,

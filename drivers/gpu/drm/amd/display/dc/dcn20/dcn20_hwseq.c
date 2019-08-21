@@ -1153,8 +1153,8 @@ void dcn20_enable_plane(
 
 		apt.sys_default.quad_part = 0;
 
-		apt.sys_high.quad_part = dc->vm_pa_config.system_aperture.start_addr;
-		apt.sys_low.quad_part = dc->vm_pa_config.system_aperture.end_addr;
+		apt.sys_low.quad_part = dc->vm_pa_config.system_aperture.start_addr;
+		apt.sys_high.quad_part = dc->vm_pa_config.system_aperture.end_addr;
 
 		// Program system aperture settings
 		pipe_ctx->plane_res.hubp->funcs->hubp_set_vm_system_aperture_settings(pipe_ctx->plane_res.hubp, &apt);
@@ -1242,6 +1242,8 @@ void dcn20_pipe_control_lock_global(
 				CRTC_STATE_VACTIVE);
 		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
 				CRTC_STATE_VBLANK);
+		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+				CRTC_STATE_VACTIVE);
 		pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
 				pipe->stream_res.tg);
 	}
@@ -1262,6 +1264,17 @@ void dcn20_pipe_control_lock(
 
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
+
+	if (flip_immediate && lock) {
+		while (pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->plane_res.hubp))	{
+			udelay(1);
+		}
+
+		if (pipe->bottom_pipe != NULL)
+			while (pipe->bottom_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->bottom_pipe->plane_res.hubp))	{
+				udelay(1);
+			}
+	}
 
 	/* In flip immediate and pipe splitting case, we need to use GSL
 	 * for synchronization. Only do setup on locking and on flip type change.
@@ -1740,8 +1753,11 @@ static void dcn20_reset_back_end_for_pipe(
 		else if (pipe_ctx->stream_res.audio) {
 			dc->hwss.disable_audio_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
 		}
-
 	}
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	else if (pipe_ctx->stream_res.dsc)
+		dp_set_dsc_enable(pipe_ctx, false);
+#endif
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.
 	 * back end share by all pipes and will be disable only when disable
