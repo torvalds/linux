@@ -1977,6 +1977,9 @@ static void arm_smmu_tlb_inv_range(unsigned long iova, size_t size,
 		},
 	};
 
+	if (!size)
+		return;
+
 	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
 		cmd.opcode	= CMDQ_OP_TLBI_NH_VA;
 		cmd.tlbi.asid	= smmu_domain->s1_cfg.cd.asid;
