@@ -914,16 +914,17 @@ static void check_process_timers(struct task_struct *tsk,
 	if (!READ_ONCE(tsk->signal->cputimer.running))
 		return;
 
-        /*
+       /*
 	 * Signify that a thread is checking for process timers.
 	 * Write access to this field is protected by the sighand lock.
 	 */
 	sig->cputimer.checking_timer = true;
 
 	/*
-	 * Collect the current process totals.
+	 * Collect the current process totals. Group accounting is active
+	 * so the sample can be taken directly.
 	 */
-	thread_group_cputimer(tsk, &cputime);
+	sample_cputime_atomic(&cputime, &sig->cputimer.cputime_atomic);
 	utime = cputime.utime;
 	ptime = utime + cputime.stime;
 	sum_sched_runtime = cputime.sum_exec_runtime;
