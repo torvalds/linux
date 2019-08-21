@@ -454,6 +454,8 @@ found:
 	BUG_ON(n.live_size != k->k.size);
 
 restart_narrow_pointers:
+	ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
+
 	bkey_for_each_ptr_decode(&k->k, ptrs, p, i)
 		if (can_narrow_crc(p.crc, n)) {
 			bch2_bkey_drop_ptr(bkey_i_to_s(k), &i->ptr);
