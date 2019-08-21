@@ -7,18 +7,19 @@
 
 #include "metricgroup.h"
 #include "evlist.h"
+#include "evsel.h"
 #include "strbuf.h"
 #include "pmu.h"
 #include "expr.h"
 #include "rblist.h"
 #include <string.h>
-#include <stdbool.h>
 #include <errno.h>
 #include "pmu-events/pmu-events.h"
 #include "strlist.h"
 #include <assert.h>
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
+#include <subcmd/parse-options.h>
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
