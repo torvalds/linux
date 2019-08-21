@@ -46,6 +46,7 @@ static int __init parse_tag_acorn(const struct tag *tag)
 	switch (tag->u.acorn.vram_pages) {
 	case 512:
 		vram_size += PAGE_SIZE * 256;
+		/* Fall through - ??? */
 	case 256:
 		vram_size += PAGE_SIZE * 256;
 	default:
