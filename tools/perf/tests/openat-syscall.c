@@ -10,6 +10,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "tests.h"
+#include "util/counts.h"
 
 int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
