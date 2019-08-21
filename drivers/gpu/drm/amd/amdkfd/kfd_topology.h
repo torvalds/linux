@@ -80,6 +80,7 @@ struct kfd_node_properties {
 	uint32_t vendor_id;
 	uint32_t device_id;
 	uint32_t location_id;
+	uint32_t domain;
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
 	int32_t  drm_render_minor;
