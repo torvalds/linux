@@ -56,10 +56,8 @@ int __init exynos_chipid_early_init(void)
 	int ret;
 
 	regmap = syscon_regmap_lookup_by_compatible("samsung,exynos4210-chipid");
-	if (IS_ERR(regmap)) {
-		pr_err("Failed to get CHIPID regmap\n");
+	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-	}
 
 	ret = regmap_read(regmap, EXYNOS_CHIPID_REG_PRO_ID, &product_id);
 	if (ret < 0)
