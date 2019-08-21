@@ -7289,10 +7289,8 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 	int i;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!path)
+		return -ENOMEM;
 
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
@@ -7331,7 +7329,6 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
-out:
 	btrfs_free_path(path);
 	return ret < 0 ? ret : 0;
 }
