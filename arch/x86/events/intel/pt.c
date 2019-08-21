@@ -548,14 +548,12 @@ static void pt_config_buffer(void *buf, unsigned int topa_idx,
 /**
  * struct topa - ToPA metadata
  * @list:	linkage to struct pt_buffer's list of tables
- * @phys:	physical address of this page
  * @offset:	offset of the first entry in this table in the buffer
  * @size:	total size of all entries in this table
  * @last:	index of the last initialized entry in this table
  */
 struct topa {
 	struct list_head	list;
-	u64			phys;
 	u64			offset;
 	size_t			size;
 	int			last;
@@ -589,6 +587,11 @@ static inline struct topa_page *topa_entry_to_page(struct topa_entry *te)
 	return (struct topa_page *)((unsigned long)te & PAGE_MASK);
 }
 
+static inline phys_addr_t topa_pfn(struct topa *topa)
+{
+	return PFN_DOWN(virt_to_phys(topa_to_page(topa)));
+}
+
 /* make -1 stand for the last table entry */
 #define TOPA_ENTRY(t, i)				\
 	((i) == -1					\
@@ -615,14 +618,13 @@ static struct topa *topa_alloc(int cpu, gfp_t gfp)
 
 	tp = page_address(p);
 	tp->topa.last = 0;
-	tp->topa.phys = page_to_phys(p);
 
 	/*
 	 * In case of singe-entry ToPA, always put the self-referencing END
 	 * link as the 2nd entry in the table
 	 */
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
-		TOPA_ENTRY(&tp->topa, 1)->base = tp->topa.phys;
+		TOPA_ENTRY(&tp->topa, 1)->base = page_to_phys(p);
 		TOPA_ENTRY(&tp->topa, 1)->end = 1;
 	}
 
@@ -666,7 +668,7 @@ static void topa_insert_table(struct pt_buffer *buf, struct topa *topa)
 
 	BUG_ON(last->last != TENTS_PER_PAGE - 1);
 
-	TOPA_ENTRY(last, -1)->base = topa->phys >> TOPA_SHIFT;
+	TOPA_ENTRY(last, -1)->base = topa_pfn(topa);
 	TOPA_ENTRY(last, -1)->end = 1;
 }
 
@@ -739,8 +741,8 @@ static void pt_topa_dump(struct pt_buffer *buf)
 		struct topa_page *tp = topa_to_page(topa);
 		int i;
 
-		pr_debug("# table @%p (%016Lx), off %llx size %zx\n", tp->table,
-			 topa->phys, topa->offset, topa->size);
+		pr_debug("# table @%p, off %llx size %zx\n", tp->table,
+			 topa->offset, topa->size);
 		for (i = 0; i < TENTS_PER_PAGE; i++) {
 			pr_debug("# entry @%p (%lx sz %u %c%c%c) raw=%16llx\n",
 				 &tp->table[i],
@@ -1111,7 +1113,7 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 
 	/* link last table to the first one, unless we're double buffering */
 	if (intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
-		TOPA_ENTRY(buf->last, -1)->base = buf->first->phys >> TOPA_SHIFT;
+		TOPA_ENTRY(buf->last, -1)->base = topa_pfn(buf->first);
 		TOPA_ENTRY(buf->last, -1)->end = 1;
 	}
 
