@@ -37,6 +37,8 @@
 #include <perf/evsel.h>
 #include <perf/cpumap.h>
 
+#include <internal/xyarray.h>
+
 #ifdef LACKS_SIGQUEUE_PROTOTYPE
 int sigqueue(pid_t pid, int sig, const union sigval value);
 #endif
