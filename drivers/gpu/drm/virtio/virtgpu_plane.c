@@ -30,7 +30,14 @@
 #include "virtgpu_drv.h"
 
 static const uint32_t virtio_gpu_formats[] = {
-	DRM_FORMAT_HOST_XRGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 };
 
 static const uint32_t virtio_gpu_cursor_formats[] = {
@@ -42,6 +49,32 @@ uint32_t virtio_gpu_translate_format(uint32_t drm_fourcc)
 	uint32_t format;
 
 	switch (drm_fourcc) {
+#ifdef __BIG_ENDIAN
+	case DRM_FORMAT_XRGB8888:
+		format = VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM;
+		break;
+	case DRM_FORMAT_ARGB8888:
+		format = VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM;
+		break;
+	case DRM_FORMAT_BGRX8888:
+		format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
+		break;
+	case DRM_FORMAT_BGRA8888:
+		format = VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM;
+		break;
+	case DRM_FORMAT_RGBX8888:
+		format = VIRTIO_GPU_FORMAT_R8G8B8X8_UNORM;
+		break;
+	case DRM_FORMAT_RGBA8888:
+		format = VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM;
+		break;
+	case DRM_FORMAT_XBGR8888:
+		format = VIRTIO_GPU_FORMAT_X8B8G8R8_UNORM;
+		break;
+	case DRM_FORMAT_ABGR8888:
+		format = VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM;
+		break;
+#else
 	case DRM_FORMAT_XRGB8888:
 		format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
 		break;
@@ -54,6 +87,19 @@ uint32_t virtio_gpu_translate_format(uint32_t drm_fourcc)
 	case DRM_FORMAT_BGRA8888:
 		format = VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM;
 		break;
+	case DRM_FORMAT_RGBX8888:
+		format = VIRTIO_GPU_FORMAT_X8B8G8R8_UNORM;
+		break;
+	case DRM_FORMAT_RGBA8888:
+		format = VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM;
+		break;
+	case DRM_FORMAT_XBGR8888:
+		format = VIRTIO_GPU_FORMAT_R8G8B8X8_UNORM;
+		break;
+	case DRM_FORMAT_ABGR8888:
+		format = VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM;
+		break;
+#endif
 	default:
 		/*
 		 * This should not happen, we handle everything listed
