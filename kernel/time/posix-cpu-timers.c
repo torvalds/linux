@@ -752,6 +752,18 @@ check_timers_list(struct list_head *timers,
 	return U64_MAX;
 }
 
+static void collect_posix_cputimers(struct posix_cputimers *pct,
+				    u64 *samples, struct list_head *firing)
+{
+	struct posix_cputimer_base *base = pct->bases;
+	int i;
+
+	for (i = 0; i < CPUCLOCK_MAX; i++, base++) {
+		base->nextevt = check_timers_list(&base->cpu_timers, firing,
+						   samples[i]);
+	}
+}
+
 static inline void check_dl_overrun(struct task_struct *tsk)
 {
 	if (tsk->dl.dl_overrun) {
@@ -768,25 +780,18 @@ static inline void check_dl_overrun(struct task_struct *tsk)
 static void check_thread_timers(struct task_struct *tsk,
 				struct list_head *firing)
 {
-	struct posix_cputimer_base *base = tsk->posix_cputimers.bases;
+	struct posix_cputimers *pct = &tsk->posix_cputimers;
+	u64 samples[CPUCLOCK_MAX];
 	unsigned long soft;
-	u64 stime, utime;
 
 	if (dl_task(tsk))
 		check_dl_overrun(tsk);
 
-	if (expiry_cache_is_inactive(&tsk->posix_cputimers))
+	if (expiry_cache_is_inactive(pct))
 		return;
 
-	task_cputime(tsk, &utime, &stime);
-
-	base->nextevt = check_timers_list(&base->cpu_timers, firing,
-					  utime + stime);
-	base++;
-	base->nextevt = check_timers_list(&base->cpu_timers, firing, utime);
-	base++;
-	base->nextevt = check_timers_list(&base->cpu_timers, firing,
-					  tsk->se.sum_exec_runtime);
+	task_sample_cputime(tsk, samples);
+	collect_posix_cputimers(pct, samples, firing);
 
 	/*
 	 * Check for the special case thread timers.
@@ -825,7 +830,7 @@ static void check_thread_timers(struct task_struct *tsk,
 		}
 	}
 
-	if (expiry_cache_is_inactive(&tsk->posix_cputimers))
+	if (expiry_cache_is_inactive(pct))
 		tick_dep_clear_task(tsk, TICK_DEP_BIT_POSIX_TIMER);
 }
 
@@ -869,15 +874,15 @@ static void check_process_timers(struct task_struct *tsk,
 				 struct list_head *firing)
 {
 	struct signal_struct *const sig = tsk->signal;
-	struct posix_cputimer_base *base = sig->posix_cputimers.bases;
-	u64 virt_exp, prof_exp, sched_exp, samples[CPUCLOCK_MAX];
+	struct posix_cputimers *pct = &sig->posix_cputimers;
+	u64 samples[CPUCLOCK_MAX];
 	unsigned long soft;
 
 	/*
 	 * If cputimer is not running, then there are no active
 	 * process wide timers (POSIX 1.b, itimers, RLIMIT_CPU).
 	 */
-	if (!READ_ONCE(tsk->signal->cputimer.running))
+	if (!READ_ONCE(sig->cputimer.running))
 		return;
 
        /*
@@ -891,21 +896,17 @@ static void check_process_timers(struct task_struct *tsk,
 	 * so the sample can be taken directly.
 	 */
 	proc_sample_cputime_atomic(&sig->cputimer.cputime_atomic, samples);
-
-	prof_exp = check_timers_list(&base[CPUCLOCK_PROF].cpu_timers,
-				     firing, samples[CPUCLOCK_PROF]);
-	virt_exp = check_timers_list(&base[CPUCLOCK_VIRT].cpu_timers,
-				     firing, samples[CPUCLOCK_VIRT]);
-	sched_exp = check_timers_list(&base[CPUCLOCK_SCHED].cpu_timers,
-				      firing, samples[CPUCLOCK_SCHED]);
+	collect_posix_cputimers(pct, samples, firing);
 
 	/*
 	 * Check for the special case process timers.
 	 */
-	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_PROF], &prof_exp,
+	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_PROF],
+			 &pct->bases[CPUCLOCK_PROF].nextevt,
 			 samples[CPUCLOCK_PROF], SIGPROF);
-	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_VIRT], &virt_exp,
-			 samples[CPUCLOCK_PROF], SIGVTALRM);
+	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_VIRT],
+			 &pct->bases[CPUCLOCK_VIRT].nextevt,
+			 samples[CPUCLOCK_VIRT], SIGVTALRM);
 
 	soft = task_rlimit(tsk, RLIMIT_CPU);
 	if (soft != RLIM_INFINITY) {
@@ -940,15 +941,11 @@ static void check_process_timers(struct task_struct *tsk,
 			}
 		}
 		softns = soft * NSEC_PER_SEC;
-		if (softns < prof_exp)
-			prof_exp = softns;
+		if (softns < pct->bases[CPUCLOCK_PROF].nextevt)
+			pct->bases[CPUCLOCK_PROF].nextevt = softns;
 	}
 
-	base[CPUCLOCK_PROF].nextevt = prof_exp;
-	base[CPUCLOCK_VIRT].nextevt = virt_exp;
-	base[CPUCLOCK_SCHED].nextevt = sched_exp;
-
-	if (expiry_cache_is_inactive(&sig->posix_cputimers))
+	if (expiry_cache_is_inactive(pct))
 		stop_process_timers(sig);
 
 	sig->cputimer.checking_timer = false;
