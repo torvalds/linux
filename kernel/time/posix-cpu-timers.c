@@ -1174,15 +1174,15 @@ void run_posix_cpu_timers(void)
  * Set one of the process-wide special case CPU timers or RLIMIT_CPU.
  * The tsk->sighand->siglock must be held by the caller.
  */
-void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
+void set_process_cpu_timer(struct task_struct *tsk, unsigned int clkid,
 			   u64 *newval, u64 *oldval)
 {
-	u64 now;
+	u64 now, *expiry = tsk->signal->posix_cputimers.expiries + clkid;
 
-	if (WARN_ON_ONCE(clock_idx >= CPUCLOCK_SCHED))
+	if (WARN_ON_ONCE(clkid >= CPUCLOCK_SCHED))
 		return;
 
-	now = cpu_clock_sample_group(clock_idx, tsk, true);
+	now = cpu_clock_sample_group(clkid, tsk, true);
 
 	if (oldval) {
 		/*
@@ -1205,19 +1205,11 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	}
 
 	/*
-	 * Update expiration cache if we are the earliest timer, or eventually
-	 * RLIMIT_CPU limit is earlier than prof_exp cpu timer expire.
+	 * Update expiration cache if this is the earliest timer. CPUCLOCK_PROF
+	 * expiry cache is also used by RLIMIT_CPU!.
 	 */
-	switch (clock_idx) {
-	case CPUCLOCK_PROF:
-		if (expires_gt(tsk->signal->posix_cputimers.cputime_expires.prof_exp, *newval))
-			tsk->signal->posix_cputimers.cputime_expires.prof_exp = *newval;
-		break;
-	case CPUCLOCK_VIRT:
-		if (expires_gt(tsk->signal->posix_cputimers.cputime_expires.virt_exp, *newval))
-			tsk->signal->posix_cputimers.cputime_expires.virt_exp = *newval;
-		break;
-	}
+	if (expires_gt(*expiry, *newval))
+		*expiry = *newval;
 
 	tick_dep_set_signal(tsk->signal, TICK_DEP_BIT_POSIX_TIMER);
 }
