@@ -177,8 +177,7 @@ static void hi3110_clean(struct net_device *net)
 
 	if (priv->tx_skb || priv->tx_len)
 		net->stats.tx_errors++;
-	if (priv->tx_skb)
-		dev_kfree_skb(priv->tx_skb);
+	dev_kfree_skb(priv->tx_skb);
 	if (priv->tx_len)
 		can_free_echo_skb(priv->net, 0);
 	priv->tx_skb = NULL;
