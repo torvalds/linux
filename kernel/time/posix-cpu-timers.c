@@ -921,7 +921,7 @@ static void check_process_timers(struct task_struct *tsk,
 		unsigned long hard = task_rlimit_max(tsk, RLIMIT_CPU);
 		unsigned long psecs = div_u64(ptime, NSEC_PER_SEC);
 
-		if (psecs >= hard) {
+		if (hard != RLIM_INFINITY && psecs >= hard) {
 			/*
 			 * At the hard limit, we just die.
 			 * No need to calculate anything else now.
