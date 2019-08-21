@@ -965,8 +965,10 @@ static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
 	const struct i915_page_scratch * const scratch = &vm->scratch[lvl];
 	unsigned int idx, len;
 
+	GEM_BUG_ON(end > vm->total >> GEN8_PTE_SHIFT);
+
 	len = gen8_pd_range(start, end, lvl--, &idx);
-	DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d}\n",
+	DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d }\n",
 	    __func__, vm, lvl + 1, start, end,
 	    idx, len, atomic_read(px_used(pd)));
 	GEM_BUG_ON(!len || len >= atomic_read(px_used(pd)));
@@ -992,7 +994,7 @@ static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
 			u64 *vaddr;
 
 			count = gen8_pt_count(start, end);
-			DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d} removing pte\n",
+			DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d } removing pte\n",
 			    __func__, vm, lvl, start, end,
 			    gen8_pd_index(start, 0), count,
 			    atomic_read(&pt->used));
@@ -1020,6 +1022,7 @@ static void gen8_ppgtt_clear(struct i915_address_space *vm,
 {
 	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
 	GEM_BUG_ON(!IS_ALIGNED(length, BIT_ULL(GEN8_PTE_SHIFT)));
+	GEM_BUG_ON(range_overflows(start, length, vm->total));
 
 	start >>= GEN8_PTE_SHIFT;
 	length >>= GEN8_PTE_SHIFT;
@@ -1031,15 +1034,17 @@ static void gen8_ppgtt_clear(struct i915_address_space *vm,
 
 static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 			      struct i915_page_directory * const pd,
-			      u64 * const start, u64 end, int lvl)
+			      u64 * const start, const u64 end, int lvl)
 {
 	const struct i915_page_scratch * const scratch = &vm->scratch[lvl];
 	struct i915_page_table *alloc = NULL;
 	unsigned int idx, len;
 	int ret = 0;
 
+	GEM_BUG_ON(end > vm->total >> GEN8_PTE_SHIFT);
+
 	len = gen8_pd_range(*start, end, lvl--, &idx);
-	DBG("%s(%p):{lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d}\n",
+	DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d }\n",
 	    __func__, vm, lvl + 1, *start, end,
 	    idx, len, atomic_read(px_used(pd)));
 	GEM_BUG_ON(!len || (idx + len - 1) >> gen8_pd_shift(1));
@@ -1105,7 +1110,7 @@ static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 		} else {
 			unsigned int count = gen8_pt_count(*start, end);
 
-			DBG("%s(%p):{lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d} inserting pte\n",
+			DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d } inserting pte\n",
 			    __func__, vm, lvl, *start, end,
 			    gen8_pd_index(*start, 0), count,
 			    atomic_read(&pt->used));
@@ -1131,6 +1136,7 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 
 	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
 	GEM_BUG_ON(!IS_ALIGNED(length, BIT_ULL(GEN8_PTE_SHIFT)));
+	GEM_BUG_ON(range_overflows(start, length, vm->total));
 
 	start >>= GEN8_PTE_SHIFT;
 	length >>= GEN8_PTE_SHIFT;
