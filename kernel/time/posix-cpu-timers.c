@@ -294,29 +294,37 @@ thread_group_start_cputime(struct task_struct *tsk, struct task_cputime *times)
 }
 
 /*
- * Sample a process (thread group) clock for the given group_leader task.
- * Must be called with task sighand lock held for safe while_each_thread()
- * traversal.
+ * Sample a process (thread group) clock for the given task clkid. If the
+ * group's cputime accounting is already enabled, read the atomic
+ * store. Otherwise a full update is required.  Task's sighand lock must be
+ * held to protect the task traversal on a full update.
  */
 static int cpu_clock_sample_group(const clockid_t which_clock,
 				  struct task_struct *p,
-				  u64 *sample)
+				  u64 *sample, bool start)
 {
+	struct thread_group_cputimer *cputimer = &p->signal->cputimer;
 	struct task_cputime cputime;
+
+	if (!READ_ONCE(cputimer->running)) {
+		if (start)
+			thread_group_start_cputime(p, &cputime);
+		else
+			thread_group_cputime(p, &cputime);
+	} else {
+		sample_cputime_atomic(&cputime, &cputimer->cputime_atomic);
+	}
 
 	switch (CPUCLOCK_WHICH(which_clock)) {
 	default:
 		return -EINVAL;
 	case CPUCLOCK_PROF:
-		thread_group_cputime(p, &cputime);
 		*sample = cputime.utime + cputime.stime;
 		break;
 	case CPUCLOCK_VIRT:
-		thread_group_cputime(p, &cputime);
 		*sample = cputime.utime;
 		break;
 	case CPUCLOCK_SCHED:
-		thread_group_cputime(p, &cputime);
 		*sample = cputime.sum_exec_runtime;
 		break;
 	}
@@ -336,7 +344,7 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 	if (CPUCLOCK_PERTHREAD(clock))
 		cpu_clock_sample(clkid, tsk, &t);
 	else
-		cpu_clock_sample_group(clkid, tsk, &t);
+		cpu_clock_sample_group(clkid, tsk, &t, false);
 	put_task_struct(tsk);
 
 	*tp = ns_to_timespec64(t);
@@ -540,33 +548,6 @@ static void cpu_timer_fire(struct k_itimer *timer)
 }
 
 /*
- * Sample a process (thread group) timer for the given group_leader task.
- * Must be called with task sighand lock held for safe while_each_thread()
- * traversal.
- */
-static int cpu_timer_sample_group(const clockid_t which_clock,
-				  struct task_struct *p, u64 *sample)
-{
-	struct task_cputime cputime;
-
-	thread_group_start_cputime(p, &cputime);
-	switch (CPUCLOCK_WHICH(which_clock)) {
-	default:
-		return -EINVAL;
-	case CPUCLOCK_PROF:
-		*sample = cputime.utime + cputime.stime;
-		break;
-	case CPUCLOCK_VIRT:
-		*sample = cputime.utime;
-		break;
-	case CPUCLOCK_SCHED:
-		*sample = cputime.sum_exec_runtime;
-		break;
-	}
-	return 0;
-}
-
-/*
  * Guts of sys_timer_settime for CPU timers.
  * This is called with the timer locked and interrupts disabled.
  * If we return TIMER_RETRY, it's necessary to release the timer's lock
@@ -627,7 +608,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
 		cpu_clock_sample(timer->it_clock, p, &val);
 	} else {
-		cpu_timer_sample_group(timer->it_clock, p, &val);
+		cpu_clock_sample_group(timer->it_clock, p, &val, true);
 	}
 
 	if (old) {
@@ -755,7 +736,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 			timer->it.cpu.expires = 0;
 			return;
 		} else {
-			cpu_timer_sample_group(timer->it_clock, p, &now);
+			cpu_clock_sample_group(timer->it_clock, p, &now, false);
 			unlock_task_sighand(p, &flags);
 		}
 	}
@@ -1042,7 +1023,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 			/* If the process is dying, no need to rearm */
 			goto unlock;
 		}
-		cpu_timer_sample_group(timer->it_clock, p, &now);
+		cpu_clock_sample_group(timer->it_clock, p, &now, true);
 		bump_cpu_timer(timer, now);
 		/* Leave the sighand locked for the call below.  */
 	}
@@ -1211,7 +1192,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	if (WARN_ON_ONCE(clock_idx >= CPUCLOCK_SCHED))
 		return;
 
-	ret = cpu_timer_sample_group(clock_idx, tsk, &now);
+	ret = cpu_clock_sample_group(clock_idx, tsk, &now, true);
 
 	if (oldval && ret != -EINVAL) {
 		/*
