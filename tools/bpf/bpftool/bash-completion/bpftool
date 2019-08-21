@@ -449,7 +449,7 @@ _bpftool()
         map)
             local MAP_TYPE='id pinned'
             case $command in
-                show|list|dump|peek|pop|dequeue)
+                show|list|dump|peek|pop|dequeue|freeze)
                     case $prev in
                         $command)
                             COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
@@ -638,7 +638,7 @@ _bpftool()
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'delete dump getnext help \
                             lookup pin event_pipe show list update create \
-                            peek push enqueue pop dequeue' -- \
+                            peek push enqueue pop dequeue freeze' -- \
                             "$cur" ) )
                     ;;
             esac

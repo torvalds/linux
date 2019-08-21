@@ -1262,6 +1262,35 @@ exit_free:
 	return err;
 }
 
+static int do_freeze(int argc, char **argv)
+{
+	int err, fd;
+
+	if (!REQ_ARGS(2))
+		return -1;
+
+	fd = map_parse_fd(&argc, &argv);
+	if (fd < 0)
+		return -1;
+
+	if (argc) {
+		close(fd);
+		return BAD_ARG();
+	}
+
+	err = bpf_map_freeze(fd);
+	close(fd);
+	if (err) {
+		p_err("failed to freeze map: %s", strerror(errno));
+		return err;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1286,6 +1315,7 @@ static int do_help(int argc, char **argv)
 		"       %s %s pop        MAP\n"
 		"       %s %s enqueue    MAP value VALUE\n"
 		"       %s %s dequeue    MAP\n"
+		"       %s %s freeze     MAP\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -1304,7 +1334,8 @@ static int do_help(int argc, char **argv)
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1326,6 +1357,7 @@ static const struct cmd cmds[] = {
 	{ "enqueue",	do_update },
 	{ "pop",	do_pop_dequeue },
 	{ "dequeue",	do_pop_dequeue },
+	{ "freeze",	do_freeze },
 	{ 0 }
 };
 
