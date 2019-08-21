@@ -2837,6 +2837,49 @@ static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_orig)
 	return nr_pages;
 }
 
+static int init_csrows_df(struct mem_ctl_info *mci)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+	enum edac_type edac_mode = EDAC_NONE;
+	enum dev_type dev_type = DEV_UNKNOWN;
+	struct dimm_info *dimm;
+	int empty = 1;
+	u8 umc, cs;
+
+	if (mci->edac_ctl_cap & EDAC_FLAG_S16ECD16ED) {
+		edac_mode = EDAC_S16ECD16ED;
+		dev_type = DEV_X16;
+	} else if (mci->edac_ctl_cap & EDAC_FLAG_S8ECD8ED) {
+		edac_mode = EDAC_S8ECD8ED;
+		dev_type = DEV_X8;
+	} else if (mci->edac_ctl_cap & EDAC_FLAG_S4ECD4ED) {
+		edac_mode = EDAC_S4ECD4ED;
+		dev_type = DEV_X4;
+	} else if (mci->edac_ctl_cap & EDAC_FLAG_SECDED) {
+		edac_mode = EDAC_SECDED;
+	}
+
+	for_each_umc(umc) {
+		for_each_chip_select(cs, umc, pvt) {
+			if (!csrow_enabled(cs, umc, pvt))
+				continue;
+
+			empty = 0;
+			dimm = mci->csrows[cs]->channels[umc]->dimm;
+
+			edac_dbg(1, "MC node: %d, csrow: %d\n",
+					pvt->mc_node_id, cs);
+
+			dimm->nr_pages = get_csrow_nr_pages(pvt, umc, cs);
+			dimm->mtype = pvt->dram_type;
+			dimm->edac_mode = edac_mode;
+			dimm->dtype = dev_type;
+		}
+	}
+
+	return empty;
+}
+
 /*
  * Initialize the array of csrow attribute instances, based on the values
  * from pci config hardware registers.
@@ -2851,15 +2894,16 @@ static int init_csrows(struct mem_ctl_info *mci)
 	int nr_pages = 0;
 	u32 val;
 
-	if (!pvt->umc) {
-		amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
+	if (pvt->umc)
+		return init_csrows_df(mci);
 
-		pvt->nbcfg = val;
+	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
-		edac_dbg(0, "node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
-			 pvt->mc_node_id, val,
-			 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
-	}
+	pvt->nbcfg = val;
+
+	edac_dbg(0, "node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
+		 pvt->mc_node_id, val,
+		 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
 	/*
 	 * We iterate over DCT0 here but we look at DCT1 in parallel, if needed.
@@ -2896,13 +2940,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 		edac_dbg(1, "Total csrow%d pages: %u\n", i, nr_pages);
 
 		/* Determine DIMM ECC mode: */
-		if (pvt->umc) {
-			if (mci->edac_ctl_cap & EDAC_FLAG_S4ECD4ED)
-				edac_mode = EDAC_S4ECD4ED;
-			else if (mci->edac_ctl_cap & EDAC_FLAG_SECDED)
-				edac_mode = EDAC_SECDED;
-
-		} else if (pvt->nbcfg & NBCFG_ECC_ENABLE) {
+		if (pvt->nbcfg & NBCFG_ECC_ENABLE) {
 			edac_mode = (pvt->nbcfg & NBCFG_CHIPKILL)
 					? EDAC_S4ECD4ED
 					: EDAC_SECDED;
