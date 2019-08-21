@@ -2417,7 +2417,7 @@ static int __xipram do_erase_chip(struct map_info *map, struct flchip *chip)
 	adr = cfi->addr_unlock1;
 
 	mutex_lock(&chip->mutex);
-	ret = get_chip(map, chip, adr, FL_WRITING);
+	ret = get_chip(map, chip, adr, FL_ERASING);
 	if (ret) {
 		mutex_unlock(&chip->mutex);
 		return ret;
