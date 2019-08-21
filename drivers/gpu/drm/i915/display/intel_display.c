@@ -7080,7 +7080,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 		intel_display_power_put_unchecked(dev_priv, domain);
 	intel_crtc->enabled_power_domains = 0;
 
-	dev_priv->active_crtcs &= ~(1 << intel_crtc->pipe);
+	dev_priv->active_pipes &= ~BIT(intel_crtc->pipe);
 	dev_priv->min_cdclk[intel_crtc->pipe] = 0;
 	dev_priv->min_voltage_level[intel_crtc->pipe] = 0;
 
@@ -13452,7 +13452,7 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 		state->cdclk.force_min_cdclk = dev_priv->cdclk.force_min_cdclk;
 
 	state->modeset = true;
-	state->active_crtcs = dev_priv->active_crtcs;
+	state->active_pipes = dev_priv->active_pipes;
 	state->cdclk.logical = dev_priv->cdclk.logical;
 	state->cdclk.actual = dev_priv->cdclk.actual;
 	state->cdclk.pipe = INVALID_PIPE;
@@ -13460,12 +13460,12 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		if (new_crtc_state->base.active)
-			state->active_crtcs |= 1 << i;
+			state->active_pipes |= BIT(crtc->pipe);
 		else
-			state->active_crtcs &= ~(1 << i);
+			state->active_pipes &= ~BIT(crtc->pipe);
 
 		if (old_crtc_state->base.active != new_crtc_state->base.active)
-			state->active_pipe_changes |= drm_crtc_mask(&crtc->base);
+			state->active_pipe_changes |= BIT(crtc->pipe);
 	}
 
 	/*
@@ -13494,11 +13494,11 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 				return ret;
 		}
 
-		if (is_power_of_2(state->active_crtcs)) {
+		if (is_power_of_2(state->active_pipes)) {
 			struct intel_crtc *crtc;
 			struct intel_crtc_state *crtc_state;
 
-			pipe = ilog2(state->active_crtcs);
+			pipe = ilog2(state->active_pipes);
 			crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 			crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 			if (crtc_state && needs_modeset(crtc_state))
@@ -14191,7 +14191,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		       sizeof(state->min_cdclk));
 		memcpy(dev_priv->min_voltage_level, state->min_voltage_level,
 		       sizeof(state->min_voltage_level));
-		dev_priv->active_crtcs = state->active_crtcs;
+		dev_priv->active_pipes = state->active_pipes;
 		dev_priv->cdclk.force_min_cdclk = state->cdclk.force_min_cdclk;
 
 		intel_cdclk_swap_state(state);
@@ -16640,7 +16640,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	struct drm_connector_list_iter conn_iter;
 	int i;
 
-	dev_priv->active_crtcs = 0;
+	dev_priv->active_pipes = 0;
 
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -16657,7 +16657,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->active = crtc_state->base.active;
 
 		if (crtc_state->base.active)
-			dev_priv->active_crtcs |= 1 << crtc->pipe;
+			dev_priv->active_pipes |= BIT(crtc->pipe);
 
 		DRM_DEBUG_KMS("[CRTC:%d:%s] hw state readout: %s\n",
 			      crtc->base.base.id, crtc->base.name,

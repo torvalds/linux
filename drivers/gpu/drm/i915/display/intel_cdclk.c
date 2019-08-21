@@ -2369,7 +2369,7 @@ static int vlv_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.voltage_level =
 		vlv_calc_voltage_level(dev_priv, cdclk);
 
-	if (!state->active_crtcs) {
+	if (!state->active_pipes) {
 		cdclk = vlv_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
 
 		state->cdclk.actual.cdclk = cdclk;
@@ -2400,7 +2400,7 @@ static int bdw_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.voltage_level =
 		bdw_calc_voltage_level(cdclk);
 
-	if (!state->active_crtcs) {
+	if (!state->active_pipes) {
 		cdclk = bdw_calc_cdclk(state->cdclk.force_min_cdclk);
 
 		state->cdclk.actual.cdclk = cdclk;
@@ -2470,7 +2470,7 @@ static int skl_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.voltage_level =
 		skl_calc_voltage_level(cdclk);
 
-	if (!state->active_crtcs) {
+	if (!state->active_pipes) {
 		cdclk = skl_calc_cdclk(state->cdclk.force_min_cdclk, vco);
 
 		state->cdclk.actual.vco = vco;
@@ -2506,7 +2506,7 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.voltage_level =
 		bxt_calc_voltage_level(cdclk);
 
-	if (!state->active_crtcs) {
+	if (!state->active_pipes) {
 		if (IS_GEMINILAKE(dev_priv)) {
 			cdclk = glk_calc_cdclk(state->cdclk.force_min_cdclk);
 			vco = glk_de_pll_vco(dev_priv, cdclk);
@@ -2544,7 +2544,7 @@ static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
 		max(cnl_calc_voltage_level(cdclk),
 		    cnl_compute_min_voltage_level(state));
 
-	if (!state->active_crtcs) {
+	if (!state->active_pipes) {
 		cdclk = cnl_calc_cdclk(state->cdclk.force_min_cdclk);
 		vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
 
@@ -2578,7 +2578,7 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 		max(icl_calc_voltage_level(dev_priv, cdclk),
 		    cnl_compute_min_voltage_level(state));
 
-	if (!state->active_crtcs) {
+	if (!state->active_pipes) {
 		cdclk = icl_calc_cdclk(state->cdclk.force_min_cdclk, ref);
 		vco = icl_calc_cdclk_pll_vco(dev_priv, cdclk);
 

@@ -3761,18 +3761,18 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 	/*
 	 * If there are no active CRTCs, no additional checks need be performed
 	 */
-	if (hweight32(state->active_crtcs) == 0)
+	if (hweight32(state->active_pipes) == 0)
 		return true;
 
 	/*
 	 * SKL+ workaround: bspec recommends we disable SAGV when we have
 	 * more then one pipe enabled
 	 */
-	if (hweight32(state->active_crtcs) > 1)
+	if (hweight32(state->active_pipes) > 1)
 		return false;
 
 	/* Since we're now guaranteed to only have one active CRTC... */
-	pipe = ffs(state->active_crtcs) - 1;
+	pipe = ffs(state->active_pipes) - 1;
 	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	crtc_state = to_intel_crtc_state(crtc->base.state);
 
@@ -3867,14 +3867,14 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	if (WARN_ON(!state) || !crtc_state->base.active) {
 		alloc->start = 0;
 		alloc->end = 0;
-		*num_active = hweight32(dev_priv->active_crtcs);
+		*num_active = hweight32(dev_priv->active_pipes);
 		return;
 	}
 
 	if (intel_state->active_pipe_changes)
-		*num_active = hweight32(intel_state->active_crtcs);
+		*num_active = hweight32(intel_state->active_pipes);
 	else
-		*num_active = hweight32(dev_priv->active_crtcs);
+		*num_active = hweight32(dev_priv->active_pipes);
 
 	ddb_size = intel_get_ddb_size(dev_priv, crtc_state, total_data_rate,
 				      *num_active, ddb);
@@ -5464,7 +5464,7 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state, bool *changed)
 	 * If this transaction isn't actually touching any CRTC's, don't
 	 * bother with watermark calculation.  Note that if we pass this
 	 * test, we're guaranteed to hold at least one CRTC state mutex,
-	 * which means we can safely use values like dev_priv->active_crtcs
+	 * which means we can safely use values like dev_priv->active_pipes
 	 * since any racing commits that want to update them would need to
 	 * hold _all_ CRTC state mutexes.
 	 */
@@ -5489,13 +5489,13 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state, bool *changed)
 		state->active_pipe_changes = ~0;
 
 		/*
-		 * We usually only initialize state->active_crtcs if we
+		 * We usually only initialize state->active_pipes if we
 		 * we're doing a modeset; make sure this field is always
 		 * initialized during the sanitization process that happens
 		 * on the first commit too.
 		 */
 		if (!state->modeset)
-			state->active_crtcs = dev_priv->active_crtcs;
+			state->active_pipes = dev_priv->active_pipes;
 	}
 
 	/*
@@ -5811,7 +5811,7 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 			hw->dirty_pipes |= drm_crtc_mask(&crtc->base);
 	}
 
-	if (dev_priv->active_crtcs) {
+	if (dev_priv->active_pipes) {
 		/* Fully recompute DDB on first atomic commit */
 		dev_priv->wm.distrust_bios_wm = true;
 	}

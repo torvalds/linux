@@ -1468,7 +1468,7 @@ struct drm_i915_private {
 	 */
 	struct mutex dpll_lock;
 
-	unsigned int active_crtcs;
+	u8 active_pipes;
 	/* minimum acceptable cdclk for each pipe */
 	int min_cdclk[I915_MAX_PIPES];
 	/* minimum acceptable voltage level for each pipe */
