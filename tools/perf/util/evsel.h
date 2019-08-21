@@ -8,6 +8,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include <internal/evsel.h>
+#include <perf/evsel.h>
 #include "symbol_conf.h"
 #include "cpumap.h"
 #include "counts.h"
