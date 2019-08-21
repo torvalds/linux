@@ -3,6 +3,8 @@
 #ifndef BTRFS_BLOCK_GROUP_H
 #define BTRFS_BLOCK_GROUP_H
 
+#include "free-space-cache.h"
+
 enum btrfs_disk_cache_state {
 	BTRFS_DC_WRITTEN,
 	BTRFS_DC_ERROR,

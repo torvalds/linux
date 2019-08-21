@@ -434,20 +434,6 @@ enum btrfs_caching_type {
 	BTRFS_CACHE_ERROR,
 };
 
-struct btrfs_io_ctl {
-	void *cur, *orig;
-	struct page *page;
-	struct page **pages;
-	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
-	unsigned long size;
-	int index;
-	int num_pages;
-	int entries;
-	int bitmaps;
-	unsigned check_crcs:1;
-};
-
 /*
  * Tree to record all locked full stripes of a RAID5/6 block group
  */

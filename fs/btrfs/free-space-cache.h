@@ -36,7 +36,19 @@ struct btrfs_free_space_op {
 			   struct btrfs_free_space *info);
 };
 
-struct btrfs_io_ctl;
+struct btrfs_io_ctl {
+	void *cur, *orig;
+	struct page *page;
+	struct page **pages;
+	struct btrfs_fs_info *fs_info;
+	struct inode *inode;
+	unsigned long size;
+	int index;
+	int num_pages;
+	int entries;
+	int bitmaps;
+	unsigned check_crcs:1;
+};
 
 struct inode *lookup_free_space_inode(
 		struct btrfs_block_group_cache *block_group,
