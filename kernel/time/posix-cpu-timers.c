@@ -122,11 +122,12 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 	}
 }
 
-static inline bool expiry_cache_is_zero(const struct posix_cputimers *pct)
+/* Check whether all cache entries contain U64_MAX, i.e. eternal expiry time */
+static inline bool expiry_cache_is_inactive(const struct posix_cputimers *pct)
 {
-	return !(pct->bases[CPUCLOCK_PROF].nextevt |
-		 pct->bases[CPUCLOCK_VIRT].nextevt |
-		 pct->bases[CPUCLOCK_SCHED].nextevt);
+	return !(~pct->bases[CPUCLOCK_PROF].nextevt |
+		 ~pct->bases[CPUCLOCK_VIRT].nextevt |
+		 ~pct->bases[CPUCLOCK_SCHED].nextevt);
 }
 
 static int
@@ -442,11 +443,6 @@ void posix_cpu_timers_exit_group(struct task_struct *tsk)
 	cleanup_timers(&tsk->signal->posix_cputimers);
 }
 
-static inline int expires_gt(u64 expires, u64 new_exp)
-{
-	return expires == 0 || expires > new_exp;
-}
-
 /*
  * Insert the timer on the appropriate list before any timers that
  * expire later.  This must be called with the sighand lock held.
@@ -483,7 +479,7 @@ static void arm_timer(struct k_itimer *timer)
 	 * for process timers we share expiration cache with itimers
 	 * and RLIMIT_CPU and for thread timers with RLIMIT_RTTIME.
 	 */
-	if (expires_gt(base->nextevt, newexp))
+	if (newexp < base->nextevt)
 		base->nextevt = newexp;
 
 	if (CPUCLOCK_PERTHREAD(timer->it_clock))
@@ -753,7 +749,7 @@ check_timers_list(struct list_head *timers,
 		list_move_tail(&t->entry, firing);
 	}
 
-	return 0;
+	return U64_MAX;
 }
 
 static inline void check_dl_overrun(struct task_struct *tsk)
@@ -779,11 +775,7 @@ static void check_thread_timers(struct task_struct *tsk,
 	if (dl_task(tsk))
 		check_dl_overrun(tsk);
 
-	/*
-	 * If the expiry cache is zero, then there are no active per thread
-	 * CPU timers.
-	 */
-	if (expiry_cache_is_zero(&tsk->posix_cputimers))
+	if (expiry_cache_is_inactive(&tsk->posix_cputimers))
 		return;
 
 	task_cputime(tsk, &utime, &stime);
@@ -833,7 +825,7 @@ static void check_thread_timers(struct task_struct *tsk,
 		}
 	}
 
-	if (expiry_cache_is_zero(&tsk->posix_cputimers))
+	if (expiry_cache_is_inactive(&tsk->posix_cputimers))
 		tick_dep_clear_task(tsk, TICK_DEP_BIT_POSIX_TIMER);
 }
 
@@ -864,7 +856,7 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 		__group_send_sig_info(signo, SEND_SIG_PRIV, tsk);
 	}
 
-	if (it->expires && (!*expires || it->expires < *expires))
+	if (it->expires && it->expires < *expires)
 		*expires = it->expires;
 }
 
@@ -948,7 +940,7 @@ static void check_process_timers(struct task_struct *tsk,
 			}
 		}
 		softns = soft * NSEC_PER_SEC;
-		if (!prof_exp || softns < prof_exp)
+		if (softns < prof_exp)
 			prof_exp = softns;
 	}
 
@@ -956,7 +948,7 @@ static void check_process_timers(struct task_struct *tsk,
 	base[CPUCLOCK_VIRT].nextevt = virt_exp;
 	base[CPUCLOCK_SCHED].nextevt = sched_exp;
 
-	if (expiry_cache_is_zero(&sig->posix_cputimers))
+	if (expiry_cache_is_inactive(&sig->posix_cputimers))
 		stop_process_timers(sig);
 
 	sig->cputimer.checking_timer = false;
@@ -1035,7 +1027,7 @@ task_cputimers_expired(const u64 *sample, struct posix_cputimers *pct)
 	int i;
 
 	for (i = 0; i < CPUCLOCK_MAX; i++) {
-		if (pct->bases[i].nextevt && sample[i] >= pct->bases[i].nextevt)
+		if (sample[i] >= pct->bases[i].nextevt)
 			return true;
 	}
 	return false;
@@ -1055,7 +1047,7 @@ static inline bool fastpath_timer_check(struct task_struct *tsk)
 {
 	struct signal_struct *sig;
 
-	if (!expiry_cache_is_zero(&tsk->posix_cputimers)) {
+	if (!expiry_cache_is_inactive(&tsk->posix_cputimers)) {
 		u64 samples[CPUCLOCK_MAX];
 
 		task_sample_cputime(tsk, samples);
@@ -1200,7 +1192,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clkid,
 	 * Update expiration cache if this is the earliest timer. CPUCLOCK_PROF
 	 * expiry cache is also used by RLIMIT_CPU!.
 	 */
-	if (expires_gt(*nextevt, *newval))
+	if (*newval < *nextevt)
 		*nextevt = *newval;
 
 	tick_dep_set_signal(tsk->signal, TICK_DEP_BIT_POSIX_TIMER);

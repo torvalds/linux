@@ -86,7 +86,9 @@ struct posix_cputimers {
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
 {
-	memset(pct->bases, 0, sizeof(pct->bases));
+	pct->bases[0].nextevt = U64_MAX;
+	pct->bases[1].nextevt = U64_MAX;
+	pct->bases[2].nextevt = U64_MAX;
 	INIT_LIST_HEAD(&pct->bases[0].cpu_timers);
 	INIT_LIST_HEAD(&pct->bases[1].cpu_timers);
 	INIT_LIST_HEAD(&pct->bases[2].cpu_timers);
@@ -102,7 +104,8 @@ static inline void posix_cputimers_rt_watchdog(struct posix_cputimers *pct,
 
 /* Init task static initializer */
 #define INIT_CPU_TIMERBASE(b) {						\
-	.cpu_timers = LIST_HEAD_INIT(b.cpu_timers),			\
+	.nextevt	= U64_MAX,					\
+	.cpu_timers	= LIST_HEAD_INIT(b.cpu_timers),			\
 }
 
 #define INIT_CPU_TIMERBASES(b) {					\
