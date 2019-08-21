@@ -32,6 +32,7 @@
 #include <linux/stop_machine.h>
 
 #include <asm/set_memory.h>
+#include <asm/smp.h>
 
 #include <drm/i915_drm.h>
 
