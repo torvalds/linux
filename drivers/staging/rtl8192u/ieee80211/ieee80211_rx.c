@@ -1237,7 +1237,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		&& !is_multicast_ether_addr(hdr->addr1)) {
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
-		GetTs(ieee, (struct ts_common_info **) &pTS, hdr->addr2, TID, RX_DIR, true);
+		GetTs(ieee, (struct ts_common_info **)&pTS, hdr->addr2, TID, RX_DIR, true);
 		if (TID != 0 && TID != 3) {
 			ieee->bis_any_nonbepkts = true;
 		}

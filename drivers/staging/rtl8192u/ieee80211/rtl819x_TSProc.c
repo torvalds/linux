@@ -105,7 +105,7 @@ static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	eth_zero_addr(pTsCommonInfo->addr);
 	memset(&pTsCommonInfo->t_spec, 0, sizeof(struct tspec_body));
-	memset(&pTsCommonInfo->t_class, 0, sizeof(union qos_tclas)*TCLAS_NUM);
+	memset(&pTsCommonInfo->t_class, 0, sizeof(union qos_tclas) * TCLAS_NUM);
 	pTsCommonInfo->t_clas_proc = 0;
 	pTsCommonInfo->t_clas_num = 0;
 }
@@ -183,9 +183,9 @@ void TSInitialize(struct ieee80211_device *ieee)
 //#ifdef TO_DO_LIST
 	for (count = 0; count < REORDER_ENTRY_NUM; count++) {
 		list_add_tail(&pRxReorderEntry->List, &ieee->RxReorder_Unused_List);
-		if (count == (REORDER_ENTRY_NUM-1))
+		if (count == (REORDER_ENTRY_NUM - 1))
 			break;
-		pRxReorderEntry = &ieee->RxReorderEntry[count+1];
+		pRxReorderEntry = &ieee->RxReorderEntry[count + 1];
 	}
 //#endif
 }
@@ -259,7 +259,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 	}
 
 	if (&pRet->list  != psearch_list)
-		return pRet ;
+		return pRet;
 	else
 		return NULL;
 }
@@ -367,8 +367,8 @@ bool GetTs(
 								(&ieee->Rx_TS_Admit_List);
 
 			enum direction_value	Dir =		(ieee->iw_mode == IW_MODE_MASTER) ?
-								((TxRxSelect == TX_DIR)?DIR_DOWN:DIR_UP) :
-								((TxRxSelect == TX_DIR)?DIR_UP:DIR_DOWN);
+								((TxRxSelect == TX_DIR) ? DIR_DOWN : DIR_UP) :
+								((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
 			IEEE80211_DEBUG(IEEE80211_DL_TS, "to add Ts\n");
 			if (!list_empty(pUnusedList)) {
 				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, list);
@@ -530,7 +530,7 @@ void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record *pTx
 				  jiffies + msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
 			IEEE80211_DEBUG(IEEE80211_DL_BA, "%s: Immediately Start ADDBA now!!\n", __func__);
-			mod_timer(&pTxTS->ts_add_ba_timer, jiffies+10); //set 10 ticks
+			mod_timer(&pTxTS->ts_add_ba_timer, jiffies + 10); //set 10 ticks
 		}
 	} else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __func__);

@@ -294,7 +294,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 	struct tx_ts_record        *pTxTs = NULL;
 	struct rtl_80211_hdr_1addr *hdr = (struct rtl_80211_hdr_1addr *)skb->data;
 
-	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
+	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
 		return;
 	if (!IsQoSDataFrame(skb->data))
 		return;
@@ -334,7 +334,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 		}
 	}
 FORCED_AGG_SETTING:
-	switch (pHTInfo->ForcedAMPDUMode ) {
+	switch (pHTInfo->ForcedAMPDUMode) {
 		case HT_AGG_AUTO:
 			break;
 
@@ -372,7 +372,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, struct cb_desc *tcb_
 
 	tcb_desc->bUseShortGI		= false;
 
-	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
+	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
 		return;
 
 	if (pHTInfo->bForcedShortGI) {
@@ -380,9 +380,9 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, struct cb_desc *tcb_
 		return;
 	}
 
-	if ((pHTInfo->bCurBW40MHz==true) && pHTInfo->bCurShortGI40MHz)
+	if ((pHTInfo->bCurBW40MHz == true) && pHTInfo->bCurShortGI40MHz)
 		tcb_desc->bUseShortGI = true;
-	else if ((pHTInfo->bCurBW40MHz==false) && pHTInfo->bCurShortGI20MHz)
+	else if ((pHTInfo->bCurBW40MHz == false) && pHTInfo->bCurShortGI20MHz)
 		tcb_desc->bUseShortGI = true;
 }
 
@@ -393,16 +393,16 @@ static void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee,
 
 	tcb_desc->bPacketBW = false;
 
-	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
+	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
 		return;
 
 	if (tcb_desc->bMulticast || tcb_desc->bBroadcast)
 		return;
 
-	if ((tcb_desc->data_rate & 0x80)==0) // If using legacy rate, it shall use 20MHz channel.
+	if ((tcb_desc->data_rate & 0x80) == 0) // If using legacy rate, it shall use 20MHz channel.
 		return;
 	//BandWidthAutoSwitch is for auto switch to 20 or 40 in long distance
-	if(pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz && !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
+	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz && !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
 		tcb_desc->bPacketBW = true;
 	return;
 }
@@ -418,10 +418,10 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 	tcb_desc->RTSSC				= 0;		// 20MHz: Don't care;  40MHz: Duplicate.
 	tcb_desc->bRTSBW			= false; // RTS frame bandwidth is always 20MHz
 
-	if(tcb_desc->bBroadcast || tcb_desc->bMulticast)//only unicast frame will use rts/cts
+	if (tcb_desc->bBroadcast || tcb_desc->bMulticast) //only unicast frame will use rts/cts
 		return;
 
-	if (is_broadcast_ether_addr(skb->data+16))  //check addr3 as infrastructure add3 is DA.
+	if (is_broadcast_ether_addr(skb->data + 16))  //check addr3 as infrastructure add3 is DA.
 		return;
 
 	if (ieee->mode < IEEE_N_24G) /* b, g mode */ {
@@ -451,9 +451,9 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 				break;
 			}
 			//check HT op mode
-			if(pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
+			if (pHTInfo->bCurrentHTSupport && pHTInfo->bEnableHT) {
 				u8 HTOpMode = pHTInfo->CurrentOpMode;
-				if((pHTInfo->bCurBW40MHz && (HTOpMode == 2 || HTOpMode == 3)) ||
+				if ((pHTInfo->bCurBW40MHz && (HTOpMode == 2 || HTOpMode == 3)) ||
 							(!pHTInfo->bCurBW40MHz && HTOpMode == 3)) {
 					tcb_desc->rts_rate = MGN_24M; // Rate is 24Mbps.
 					tcb_desc->bRTSEnable = true;
@@ -468,7 +468,7 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 			}
 			//to do list: check MIMO power save condition.
 			//check AMPDU aggregation for TXOP
-			if(tcb_desc->bAMPDUEnable) {
+			if (tcb_desc->bAMPDUEnable) {
 				tcb_desc->rts_rate = MGN_24M; // Rate is 24Mbps.
 				// According to 8190 design, firmware sends CF-End only if RTS/CTS is enabled. However, it degrads
 				// throughput around 10M, so we disable of this mechanism. 2007.08.03 by Emily
@@ -476,7 +476,7 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 				break;
 			}
 			//check IOT action
-			if(pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
+			if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
 				tcb_desc->bCTSEnable	= true;
 				tcb_desc->rts_rate  =	MGN_24M;
 				tcb_desc->bRTSEnable = true;
@@ -517,7 +517,7 @@ static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
 		return;
 	}
 
-	if (pMgntInfo->ForcedDataRate!= 0) {
+	if (pMgntInfo->ForcedDataRate != 0) {
 		pTcb->bTxDisableRateFallBack = true;
 		pTcb->bTxUseDriverAssingedRate = true;
 		return;
@@ -576,7 +576,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* If there is no driver handler to take the TXB, dont' bother
 	 * creating it...
 	 */
-	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE))||
+	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)) ||
 	   ((!ieee->softmac_data_hard_start_xmit && (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		printk(KERN_WARNING "%s: No xmit handler.\n",
 		       ieee->dev->name);
@@ -615,7 +615,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Save source and destination addresses */
 		memcpy(&dest, skb->data, ETH_ALEN);
-		memcpy(&src, skb->data+ETH_ALEN, ETH_ALEN);
+		memcpy(&src, skb->data + ETH_ALEN, ETH_ALEN);
 
 		/* Advance the SKB to the start of the payload */
 		skb_pull(skb, sizeof(struct ethhdr));
@@ -630,7 +630,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			fc = IEEE80211_FTYPE_DATA;
 
 		//if(ieee->current_network.QoS_Enable)
-		if(qos_actived)
+		if (qos_actived)
 			fc |= IEEE80211_STYPE_QOS_DATA;
 		else
 			fc |= IEEE80211_STYPE_DATA;
@@ -724,7 +724,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		for (i = 0; i < nr_frags; i++) {
 			skb_frag = txb->fragments[i];
 			tcb_desc = (struct cb_desc *)(skb_frag->cb + MAX_DEV_ADDR_SIZE);
-			if(qos_actived){
+			if (qos_actived) {
 				skb_frag->priority = skb->priority;//UP2AC(skb->priority);
 				tcb_desc->queue_index =  UP2AC(skb->priority);
 			} else {
@@ -757,11 +757,11 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				bytes = bytes_last_frag;
 			}
 			//if(ieee->current_network.QoS_Enable)
-			if(qos_actived) {
+			if (qos_actived) {
 				// add 1 only indicate to corresponding seq number control 2006/7/12
-				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
+				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority) + 1] << 4 | i);
 			} else {
-				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
+				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4 | i);
 			}
 
 			/* Put a SNAP header on the first fragment */
@@ -806,7 +806,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		txb = ieee80211_alloc_txb(1, skb->len, GFP_ATOMIC);
-		if(!txb){
+		if (!txb) {
 			printk(KERN_WARNING "%s: Could not allocate TXB\n",
 			ieee->dev->name);
 			goto failed;
@@ -841,9 +841,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	dev_kfree_skb_any(skb);
 	if (txb) {
-		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE){
+		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) {
 			ieee80211_softmac_xmit(txb, ieee);
-		}else{
+		} else {
 			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
 				stats->tx_packets++;
 				stats->tx_bytes += __le16_to_cpu(txb->payload_size);

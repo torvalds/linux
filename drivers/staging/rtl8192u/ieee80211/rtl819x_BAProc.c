@@ -162,7 +162,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 		tag += 2;
 	}
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_BA, skb->data, skb->len);
 	return skb;
 	//return NULL;
 }
@@ -229,7 +229,7 @@ static struct sk_buff *ieee80211_DELBA(
 	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_BA, skb->data, skb->len);
 	if (net_ratelimit())
 		IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
 				"<=====%s()\n", __func__);
@@ -331,9 +331,9 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_BA, skb->data, skb->len);
 
-	req = (struct rtl_80211_hdr_3addr *) skb->data;
+	req = (struct rtl_80211_hdr_3addr *)skb->data;
 	tag = (u8 *)req;
 	dst = &req->addr2[0];
 	tag += sizeof(struct rtl_80211_hdr_3addr);
@@ -556,7 +556,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_BA, skb->data, skb->len);
 	delba = (struct rtl_80211_hdr_3addr *)skb->data;
 	dst = &delba->addr2[0];
 	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
@@ -643,7 +643,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 			ieee80211_send_DELBA(
 				ieee,
 				pTsCommonInfo->addr,
-				(pTxTs->tx_admitted_ba_record.valid)?(&pTxTs->tx_admitted_ba_record):(&pTxTs->tx_pending_ba_record),
+				(pTxTs->tx_admitted_ba_record.valid) ? (&pTxTs->tx_admitted_ba_record) : (&pTxTs->tx_pending_ba_record),
 				TxRxSelect,
 				DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {

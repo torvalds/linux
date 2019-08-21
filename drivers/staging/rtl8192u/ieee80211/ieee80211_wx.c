@@ -70,10 +70,10 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	for(i=0; i<ARRAY_SIZE(ieee80211_modes); i++) {
+	for (i = 0; i < ARRAY_SIZE(ieee80211_modes); i++) {
 		if (network->mode & BIT(i)) {
-			sprintf(pname,ieee80211_modes[i].mode_string,ieee80211_modes[i].mode_size);
-			pname +=ieee80211_modes[i].mode_size;
+			sprintf(pname, ieee80211_modes[i].mode_string, ieee80211_modes[i].mode_size);
+			pname += ieee80211_modes[i].mode_size;
 		}
 	}
 	*pname = '\0';
@@ -138,13 +138,13 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[4];
 		else
 			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[0];
-		is40M = (ht_cap->ChlWidth)?1:0;
-		isShortGI = (ht_cap->ChlWidth)?
-						((ht_cap->ShortGI40Mhz)?1:0):
-						((ht_cap->ShortGI20Mhz)?1:0);
+		is40M = (ht_cap->ChlWidth) ? 1 : 0;
+		isShortGI = (ht_cap->ChlWidth) ?
+					((ht_cap->ShortGI40Mhz) ? 1 : 0) :
+					((ht_cap->ShortGI20Mhz) ? 1 : 0);
 
 		max_mcs = HTGetHighestMCSRate(ieee, ht_cap->MCS, MCS_FILTER_ALL);
-		rate = MCS_DATA_RATE[is40M][isShortGI][max_mcs&0x7f];
+		rate = MCS_DATA_RATE[is40M][isShortGI][max_mcs & 0x7f];
 		if (rate > max_rate)
 			max_rate = rate;
 	}
@@ -242,7 +242,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 	list_for_each_entry(network, &ieee->network_list, list) {
 		i++;
-		if((stop-ev)<200) {
+		if ((stop - ev) < 200) {
 			err = -E2BIG;
 			break;
 		}
@@ -453,7 +453,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 
 	IEEE80211_DEBUG_WX("GET_ENCODE\n");
 
-	if(ieee->iw_mode == IW_MODE_MONITOR)
+	if (ieee->iw_mode == IW_MODE_MONITOR)
 		return -1;
 
 	key = erq->flags & IW_ENCODE_INDEX;
@@ -570,7 +570,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-	printk("alg name:%s\n",alg);
+	printk("alg name:%s\n", alg);
 
 	ops = try_then_request_module(ieee80211_get_crypto_ops(alg), module);
 	if (!ops) {
@@ -687,7 +687,7 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 		ext->key_len = 0;
 		encoding->flags |= IW_ENCODE_DISABLED;
 	} else {
-		if (strcmp(crypt->ops->name, "WEP") == 0 )
+		if (strcmp(crypt->ops->name, "WEP") == 0)
 			ext->alg = IW_ENCODE_ALG_WEP;
 		else if (strcmp(crypt->ops->name, "TKIP"))
 			ext->alg = IW_ENCODE_ALG_TKIP;
@@ -711,7 +711,7 @@ int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
-	struct iw_mlme *mlme = (struct iw_mlme *) extra;
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 	case IW_MLME_DISASSOC:
@@ -764,7 +764,7 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 		break;
 
 	case IW_AUTH_WPA_ENABLED:
-		ieee->wpa_enabled = (data->value)?1:0;
+		ieee->wpa_enabled = (data->value) ? 1 : 0;
 		break;
 
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
@@ -784,14 +784,14 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 	u8 *buf;
 
-	if (len>MAX_WPA_IE_LEN || (len && !ie)) {
+	if (len > MAX_WPA_IE_LEN || (len && !ie)) {
 	//	printk("return error out, len:%d\n", len);
 	return -EINVAL;
 	}
 
 
 	if (len) {
-		if (len != ie[1]+2) {
+		if (len != ie[1] + 2) {
 			printk("len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}

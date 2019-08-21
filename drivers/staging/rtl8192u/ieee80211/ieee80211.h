@@ -456,7 +456,7 @@ do { if (ieee80211_debug_level & (level)) \
 	do { if ((ieee80211_debug_level & (level)) == (level))                 \
 		{                                                              \
 			int i;                                                 \
-			u8 *pdata = (u8 *) data;                               \
+			u8 *pdata = (u8 *)data;                                \
 			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);      \
 			for (i = 0; i < (int)(datalen); i++) {                 \
 				printk("%2x ", pdata[i]);                      \
@@ -468,7 +468,7 @@ do { if (ieee80211_debug_level & (level)) \
 	} while (0)
 #else
 #define IEEE80211_DEBUG (level, fmt, args...) do {} while (0)
-#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while(0)
+#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
