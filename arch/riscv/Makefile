@@ -72,7 +72,7 @@ KBUILD_IMAGE	:= $(boot)/Image.gz
 
 head-y := arch/riscv/kernel/head.o
 
-core-y += arch/riscv/kernel/ arch/riscv/mm/ arch/riscv/net/
+core-y += arch/riscv/
 
 libs-y += arch/riscv/lib/
 
