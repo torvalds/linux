@@ -788,51 +788,39 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 		 (dclr & BIT(15)) ?  "yes" : "no");
 }
 
-/*
- * The Address Mask should be a contiguous set of bits in the non-interleaved
- * case. So to check for CS interleaving, find the most- and least-significant
- * bits of the mask, generate a contiguous bitmask, and compare the two.
- */
-static bool f17_cs_interleaved(struct amd64_pvt *pvt, u8 ctrl, int cs)
+#define CS_EVEN_PRIMARY		BIT(0)
+#define CS_ODD_PRIMARY		BIT(1)
+
+#define CS_EVEN			CS_EVEN_PRIMARY
+#define CS_ODD			CS_ODD_PRIMARY
+
+static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 {
-	u32 mask = pvt->csels[ctrl].csmasks[cs >> 1];
-	u32 msb = fls(mask) - 1, lsb = ffs(mask) - 1;
-	u32 test_mask = GENMASK(msb, lsb);
+	int cs_mode = 0;
 
-	edac_dbg(1, "mask=0x%08x test_mask=0x%08x\n", mask, test_mask);
+	if (csrow_enabled(2 * dimm, ctrl, pvt))
+		cs_mode |= CS_EVEN_PRIMARY;
 
-	return mask ^ test_mask;
+	if (csrow_enabled(2 * dimm + 1, ctrl, pvt))
+		cs_mode |= CS_ODD_PRIMARY;
+
+	return cs_mode;
 }
 
 static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
 {
-	int dimm, size0, size1, cs0, cs1;
+	int dimm, size0, size1, cs0, cs1, cs_mode;
 
 	edac_printk(KERN_DEBUG, EDAC_MC, "UMC%d chip selects:\n", ctrl);
 
 	for (dimm = 0; dimm < 2; dimm++) {
-		size0 = 0;
 		cs0 = dimm * 2;
-
-		if (csrow_enabled(cs0, ctrl, pvt))
-			size0 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs0);
-
-		size1 = 0;
 		cs1 = dimm * 2 + 1;
 
-		if (csrow_enabled(cs1, ctrl, pvt)) {
-			/*
-			 * CS interleaving is only supported if both CSes have
-			 * the same amount of memory. Because they are
-			 * interleaved, it will look like both CSes have the
-			 * full amount of memory. Save the size for both as
-			 * half the amount we found on CS0, if interleaved.
-			 */
-			if (f17_cs_interleaved(pvt, ctrl, cs1))
-				size1 = size0 = (size0 >> 1);
-			else
-				size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs1);
-		}
+		cs_mode = f17_get_cs_mode(dimm, ctrl, pvt);
+
+		size0 = pvt->ops->dbam_to_cs(pvt, ctrl, cs_mode, cs0);
+		size1 = pvt->ops->dbam_to_cs(pvt, ctrl, cs_mode, cs1);
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
 				cs0,	size0,
@@ -1569,18 +1557,54 @@ static int f16_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
 		return ddr3_cs_size(cs_mode, false);
 }
 
-static int f17_base_addr_to_cs_size(struct amd64_pvt *pvt, u8 umc,
+static int f17_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 				    unsigned int cs_mode, int csrow_nr)
 {
-	u32 base_addr = pvt->csels[umc].csbases[csrow_nr];
+	u32 addr_mask_orig, addr_mask_deinterleaved;
+	u32 msb, weight, num_zero_bits;
+	int dimm, size = 0;
 
-	/*  Each mask is used for every two base addresses. */
-	u32 addr_mask = pvt->csels[umc].csmasks[csrow_nr >> 1];
+	/* No Chip Selects are enabled. */
+	if (!cs_mode)
+		return size;
 
-	/*  Register [31:1] = Address [39:9]. Size is in kBs here. */
-	u32 size = ((addr_mask >> 1) - (base_addr >> 1) + 1) >> 1;
+	/* Requested size of an even CS but none are enabled. */
+	if (!(cs_mode & CS_EVEN) && !(csrow_nr & 1))
+		return size;
 
-	edac_dbg(1, "BaseAddr: 0x%x, AddrMask: 0x%x\n", base_addr, addr_mask);
+	/* Requested size of an odd CS but none are enabled. */
+	if (!(cs_mode & CS_ODD) && (csrow_nr & 1))
+		return size;
+
+	/*
+	 * There is one mask per DIMM, and two Chip Selects per DIMM.
+	 *	CS0 and CS1 -> DIMM0
+	 *	CS2 and CS3 -> DIMM1
+	 */
+	dimm = csrow_nr >> 1;
+
+	addr_mask_orig = pvt->csels[umc].csmasks[dimm];
+
+	/*
+	 * The number of zero bits in the mask is equal to the number of bits
+	 * in a full mask minus the number of bits in the current mask.
+	 *
+	 * The MSB is the number of bits in the full mask because BIT[0] is
+	 * always 0.
+	 */
+	msb = fls(addr_mask_orig) - 1;
+	weight = hweight_long(addr_mask_orig);
+	num_zero_bits = msb - weight;
+
+	/* Take the number of zero bits off from the top of the mask. */
+	addr_mask_deinterleaved = GENMASK_ULL(msb - num_zero_bits, 1);
+
+	edac_dbg(1, "CS%d DIMM%d AddrMasks:\n", csrow_nr, dimm);
+	edac_dbg(1, "  Original AddrMask: 0x%x\n", addr_mask_orig);
+	edac_dbg(1, "  Deinterleaved AddrMask: 0x%x\n", addr_mask_deinterleaved);
+
+	/* Register [31:1] = Address [39:9]. Size is in kBs here. */
+	size = (addr_mask_deinterleaved >> 2) + 1;
 
 	/* Return size in MBs. */
 	return size >> 10;
@@ -2245,7 +2269,7 @@ static struct amd64_family_type family_types[] = {
 		.f6_id = PCI_DEVICE_ID_AMD_17H_DF_F6,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
-			.dbam_to_cs		= f17_base_addr_to_cs_size,
+			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
 	[F17_M10H_CPUS] = {
@@ -2254,7 +2278,7 @@ static struct amd64_family_type family_types[] = {
 		.f6_id = PCI_DEVICE_ID_AMD_17H_M10H_DF_F6,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
-			.dbam_to_cs		= f17_base_addr_to_cs_size,
+			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
 	[F17_M30H_CPUS] = {
@@ -2263,7 +2287,7 @@ static struct amd64_family_type family_types[] = {
 		.f6_id = PCI_DEVICE_ID_AMD_17H_M30H_DF_F6,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
-			.dbam_to_cs		= f17_base_addr_to_cs_size,
+			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
 };
@@ -2822,10 +2846,12 @@ static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_orig)
 	int csrow_nr = csrow_nr_orig;
 	u32 cs_mode, nr_pages;
 
-	if (!pvt->umc)
+	if (!pvt->umc) {
 		csrow_nr >>= 1;
-
-	cs_mode = DBAM_DIMM(csrow_nr, dbam);
+		cs_mode = DBAM_DIMM(csrow_nr, dbam);
+	} else {
+		cs_mode = f17_get_cs_mode(csrow_nr >> 1, dct, pvt);
+	}
 
 	nr_pages   = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, csrow_nr);
 	nr_pages <<= 20 - PAGE_SHIFT;
