@@ -1217,7 +1217,11 @@ void hrtimer_cancel_wait_running(const struct hrtimer *timer)
 	/* Lockless read. Prevent the compiler from reloading it below */
 	struct hrtimer_clock_base *base = READ_ONCE(timer->base);
 
-	if (!timer->is_soft || !base || !base->cpu_base) {
+	/*
+	 * Just relax if the timer expires in hard interrupt context or if
+	 * it is currently on the migration base.
+	 */
+	if (!timer->is_soft || base == &migration_base)
 		cpu_relax();
 		return;
 	}
