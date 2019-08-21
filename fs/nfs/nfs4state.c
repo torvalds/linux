@@ -2095,8 +2095,10 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 	}
 
 	status = nfs4_begin_drain_session(clp);
-	if (status != 0)
-		return status;
+	if (status != 0) {
+		result = status;
+		goto out;
+	}
 
 	status = nfs4_replace_transport(server, locations);
 	if (status != 0) {
