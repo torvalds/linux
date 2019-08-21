@@ -10,6 +10,8 @@
  * +-125/+-245/+-500/+-1000/+-2000 dps
  * LSM6DSx series has an integrated First-In-First-Out (FIFO) buffer
  * allowing dynamic batching of sensor data.
+ * LSM9DSx series is similar but includes an additional magnetometer, handled
+ * by a different driver.
  *
  * Supported sensors:
  * - LSM6DS3:
@@ -29,6 +31,13 @@
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 3KB
+ *
+ * - LSM9DS1:
+ *   - Accelerometer supported ODR [Hz]: 10, 50, 119, 238, 476, 952
+ *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
+ *   - Gyroscope supported ODR [Hz]: 15, 60, 119, 238, 476, 952
+ *   - Gyroscope supported full-scale [dps]: +-245/+-500/+-2000
+ *   - FIFO size: 32
  *
  * Copyright 2016 STMicroelectronics Inc.
  *
@@ -70,7 +79,85 @@ static const struct iio_chan_spec st_lsm6dsx_gyro_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
+static const struct iio_chan_spec st_lsm6ds0_gyro_channels[] = {
+	ST_LSM6DSX_CHANNEL(IIO_ANGL_VEL, 0x18, IIO_MOD_X, 0),
+	ST_LSM6DSX_CHANNEL(IIO_ANGL_VEL, 0x1a, IIO_MOD_Y, 1),
+	ST_LSM6DSX_CHANNEL(IIO_ANGL_VEL, 0x1c, IIO_MOD_Z, 2),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
 static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
+	{
+		.wai = 0x68,
+		.int1_addr = 0x0c,
+		.int2_addr = 0x0d,
+		.reset_addr = 0x22,
+		.max_fifo_size = 32,
+		.id = {
+			{
+				.hw_id = ST_LSM9DS1_ID,
+				.name = ST_LSM9DS1_DEV_NAME,
+			},
+		},
+		.channels = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.chan = st_lsm6dsx_acc_channels,
+				.len = ARRAY_SIZE(st_lsm6dsx_acc_channels),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.chan = st_lsm6ds0_gyro_channels,
+				.len = ARRAY_SIZE(st_lsm6ds0_gyro_channels),
+			},
+		},
+		.odr_table = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.reg = {
+					.addr = 0x20,
+					.mask = GENMASK(7, 5),
+				},
+				.odr_avl[0] = {  10, 0x01 },
+				.odr_avl[1] = {  50, 0x02 },
+				.odr_avl[2] = { 119, 0x03 },
+				.odr_avl[3] = { 238, 0x04 },
+				.odr_avl[4] = { 476, 0x05 },
+				.odr_avl[5] = { 952, 0x06 },
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.reg = {
+					.addr = 0x10,
+					.mask = GENMASK(7, 5),
+				},
+				.odr_avl[0] = {  15, 0x01 },
+				.odr_avl[1] = {  60, 0x02 },
+				.odr_avl[2] = { 119, 0x03 },
+				.odr_avl[3] = { 238, 0x04 },
+				.odr_avl[4] = { 476, 0x05 },
+				.odr_avl[5] = { 952, 0x06 },
+			},
+		},
+		.fs_table = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.reg = {
+					.addr = 0x20,
+					.mask = GENMASK(4, 3),
+				},
+				.fs_avl[0] = {  599, 0x0 },
+				.fs_avl[1] = { 1197, 0x2 },
+				.fs_avl[2] = { 2394, 0x3 },
+				.fs_avl[3] = { 4788, 0x1 },
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.reg = {
+					.addr = 0x10,
+					.mask = GENMASK(4, 3),
+				},
+				.fs_avl[0] = { IIO_DEGREE_TO_RAD(245), 0x0 },
+				.fs_avl[1] = { IIO_DEGREE_TO_RAD(500), 0x1 },
+				.fs_avl[2] = { IIO_DEGREE_TO_RAD(0), 0x2 },
+				.fs_avl[3] = { IIO_DEGREE_TO_RAD(2000), 0x3 },
+			},
+		},
+	},
 	{
 		.wai = 0x69,
 		.int1_addr = 0x0d,
