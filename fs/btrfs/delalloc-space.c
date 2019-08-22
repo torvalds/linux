@@ -255,9 +255,16 @@ static void btrfs_calculate_inode_block_rsv_size(struct btrfs_fs_info *fs_info,
 
 	lockdep_assert_held(&inode->lock);
 	outstanding_extents = inode->outstanding_extents;
-	if (outstanding_extents)
+
+	/*
+	 * Insert size for the number of outstanding extents, 1 normal size for
+	 * updating the inode.
+	 */
+	if (outstanding_extents) {
 		reserve_size = btrfs_calc_insert_metadata_size(fs_info,
-						outstanding_extents + 1);
+						outstanding_extents);
+		reserve_size += btrfs_calc_metadata_size(fs_info, 1);
+	}
 	csum_leaves = btrfs_csum_bytes_to_leaves(fs_info,
 						 inode->csum_bytes);
 	reserve_size += btrfs_calc_insert_metadata_size(fs_info,
@@ -282,10 +289,16 @@ static void calc_inode_reservations(struct btrfs_fs_info *fs_info,
 {
 	u64 nr_extents = count_max_extents(num_bytes);
 	u64 csum_leaves = btrfs_csum_bytes_to_leaves(fs_info, num_bytes);
+	u64 inode_update = btrfs_calc_metadata_size(fs_info, 1);
 
-	/* We add one for the inode update at finish ordered time */
 	*meta_reserve = btrfs_calc_insert_metadata_size(fs_info,
-						nr_extents + csum_leaves + 1);
+						nr_extents + csum_leaves);
+
+	/*
+	 * finish_ordered_io has to update the inode, so add the space required
+	 * for an inode update.
+	 */
+	*meta_reserve += inode_update;
 	*qgroup_reserve = nr_extents * fs_info->nodesize;
 }
 
