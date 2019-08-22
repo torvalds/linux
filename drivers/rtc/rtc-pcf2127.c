@@ -25,11 +25,18 @@
 
 /* Control register 1 */
 #define PCF2127_REG_CTRL1		0x00
+#define PCF2127_BIT_CTRL1_TSF1			BIT(4)
 /* Control register 2 */
 #define PCF2127_REG_CTRL2		0x01
+#define PCF2127_BIT_CTRL2_TSIE			BIT(2)
+#define PCF2127_BIT_CTRL2_TSF2			BIT(5)
 /* Control register 3 */
 #define PCF2127_REG_CTRL3		0x02
+#define PCF2127_BIT_CTRL3_BLIE			BIT(0)
+#define PCF2127_BIT_CTRL3_BIE			BIT(1)
 #define PCF2127_BIT_CTRL3_BLF			BIT(2)
+#define PCF2127_BIT_CTRL3_BF			BIT(3)
+#define PCF2127_BIT_CTRL3_BTSE			BIT(4)
 /* Time and date registers */
 #define PCF2127_REG_SC			0x03
 #define PCF2127_BIT_SC_OSF			BIT(7)
@@ -46,6 +53,16 @@
 #define PCF2127_BIT_WD_CTL_CD0			BIT(6)
 #define PCF2127_BIT_WD_CTL_CD1			BIT(7)
 #define PCF2127_REG_WD_VAL		0x11
+/* Tamper timestamp registers */
+#define PCF2127_REG_TS_CTRL		0x12
+#define PCF2127_BIT_TS_CTRL_TSOFF		BIT(6)
+#define PCF2127_BIT_TS_CTRL_TSM			BIT(7)
+#define PCF2127_REG_TS_SC		0x13
+#define PCF2127_REG_TS_MN		0x14
+#define PCF2127_REG_TS_HR		0x15
+#define PCF2127_REG_TS_DM		0x16
+#define PCF2127_REG_TS_MO		0x17
+#define PCF2127_REG_TS_YR		0x18
 /*
  * RAM registers
  * PCF2127 has 512 bytes general-purpose static RAM (SRAM) that is
@@ -305,6 +322,97 @@ static const struct watchdog_ops pcf2127_watchdog_ops = {
 	.set_timeout = pcf2127_wdt_set_timeout,
 };
 
+/* sysfs interface */
+
+static ssize_t timestamp0_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev->parent);
+	int ret;
+
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
+				 PCF2127_BIT_CTRL1_TSF1, 0);
+	if (ret) {
+		dev_err(dev, "%s: update ctrl1 ret=%d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
+				 PCF2127_BIT_CTRL2_TSF2, 0);
+	if (ret) {
+		dev_err(dev, "%s: update ctrl2 ret=%d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
+	if (ret)
+		return ret;
+
+	return count;
+};
+
+static ssize_t timestamp0_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev->parent);
+	struct rtc_time tm;
+	int ret;
+	unsigned char data[25];
+
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_CTRL1, data,
+			       sizeof(data));
+	if (ret) {
+		dev_err(dev, "%s: read error ret=%d\n", __func__, ret);
+		return ret;
+	}
+
+	dev_dbg(dev,
+		"%s: raw data is cr1=%02x, cr2=%02x, cr3=%02x, ts_sc=%02x, "
+		"ts_mn=%02x, ts_hr=%02x, ts_dm=%02x, ts_mo=%02x, ts_yr=%02x\n",
+		__func__, data[PCF2127_REG_CTRL1], data[PCF2127_REG_CTRL2],
+		data[PCF2127_REG_CTRL3], data[PCF2127_REG_TS_SC],
+		data[PCF2127_REG_TS_MN], data[PCF2127_REG_TS_HR],
+		data[PCF2127_REG_TS_DM], data[PCF2127_REG_TS_MO],
+		data[PCF2127_REG_TS_YR]);
+
+	ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
+	if (ret)
+		return ret;
+
+	if (!(data[PCF2127_REG_CTRL1] & PCF2127_BIT_CTRL1_TSF1) &&
+	    !(data[PCF2127_REG_CTRL2] & PCF2127_BIT_CTRL2_TSF2))
+		return 0;
+
+	tm.tm_sec = bcd2bin(data[PCF2127_REG_TS_SC] & 0x7F);
+	tm.tm_min = bcd2bin(data[PCF2127_REG_TS_MN] & 0x7F);
+	tm.tm_hour = bcd2bin(data[PCF2127_REG_TS_HR] & 0x3F);
+	tm.tm_mday = bcd2bin(data[PCF2127_REG_TS_DM] & 0x3F);
+	/* TS_MO register (month) value range: 1-12 */
+	tm.tm_mon = bcd2bin(data[PCF2127_REG_TS_MO] & 0x1F) - 1;
+	tm.tm_year = bcd2bin(data[PCF2127_REG_TS_YR]);
+	if (tm.tm_year < 70)
+		tm.tm_year += 100; /* assume we are in 1970...2069 */
+
+	ret = rtc_valid_tm(&tm);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%llu\n",
+		       (unsigned long long)rtc_tm_to_time64(&tm));
+};
+
+static DEVICE_ATTR_RW(timestamp0);
+
+static struct attribute *pcf2127_attrs[] = {
+	&dev_attr_timestamp0.attr,
+	NULL
+};
+
+static const struct attribute_group pcf2127_attr_group = {
+	.attrs	= pcf2127_attrs,
+};
+
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 			const char *name, bool has_nvmem)
 {
@@ -370,6 +478,58 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	ret = devm_watchdog_register_device(dev, &pcf2127->wdd);
 	if (ret)
 		return ret;
+
+	/*
+	 * Disable battery low/switch-over timestamp and interrupts.
+	 * Clear battery interrupt flags which can block new trigger events.
+	 * Note: This is the default chip behaviour but added to ensure
+	 * correct tamper timestamp and interrupt function.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL3,
+				 PCF2127_BIT_CTRL3_BTSE |
+				 PCF2127_BIT_CTRL3_BF |
+				 PCF2127_BIT_CTRL3_BIE |
+				 PCF2127_BIT_CTRL3_BLIE, 0);
+	if (ret) {
+		dev_err(dev, "%s: interrupt config (ctrl3) failed\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Enable timestamp function and store timestamp of first trigger
+	 * event until TSF1 and TFS2 interrupt flags are cleared.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_TS_CTRL,
+				 PCF2127_BIT_TS_CTRL_TSOFF |
+				 PCF2127_BIT_TS_CTRL_TSM,
+				 PCF2127_BIT_TS_CTRL_TSM);
+	if (ret) {
+		dev_err(dev, "%s: tamper detection config (ts_ctrl) failed\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Enable interrupt generation when TSF1 or TSF2 timestamp flags
+	 * are set. Interrupt signal is an open-drain output and can be
+	 * left floating if unused.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
+				 PCF2127_BIT_CTRL2_TSIE,
+				 PCF2127_BIT_CTRL2_TSIE);
+	if (ret) {
+		dev_err(dev, "%s: tamper detection config (ctrl2) failed\n",
+			__func__);
+		return ret;
+	}
+
+	ret = rtc_add_group(pcf2127->rtc, &pcf2127_attr_group);
+	if (ret) {
+		dev_err(dev, "%s: tamper sysfs registering failed\n",
+			__func__);
+		return ret;
+	}
 
 	return rtc_register_device(pcf2127->rtc);
 }
