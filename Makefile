@@ -519,6 +519,7 @@ scripts_basic:
 	$(Q)rm -f .tmp_quiet_recordmcount
 
 PHONY += outputmakefile
+# Before starting out-of-tree build, make sure the source tree is clean.
 # outputmakefile generates a Makefile in the output directory, if using a
 # separate output directory. This allows convenient use of make in the
 # output directory.
@@ -526,6 +527,15 @@ PHONY += outputmakefile
 # ignore whole output directory
 outputmakefile:
 ifdef building_out_of_srctree
+	$(Q)if [ -f $(srctree)/.config -o \
+		 -d $(srctree)/include/config -o \
+		 -d $(srctree)/arch/$(SRCARCH)/include/generated ]; then \
+		echo >&2 "***"; \
+		echo >&2 "*** The source tree is not clean, please run 'make$(if $(findstring command line, $(origin ARCH)), ARCH=$(ARCH)) mrproper'"; \
+		echo >&2 "*** in $(abs_srctree)";\
+		echo >&2 "***"; \
+		false; \
+	fi
 	$(Q)ln -fsn $(srctree) source
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile $(srctree)
 	$(Q)test -e .gitignore || \
@@ -1110,21 +1120,7 @@ scripts: scripts_basic scripts_dtc
 
 PHONY += prepare archprepare prepare3
 
-# prepare3 is used to check if we are building in a separate output directory,
-# and if so do:
-# 1) Check that make has not been executed in the kernel src $(srctree)
 prepare3: include/config/kernel.release
-ifdef building_out_of_srctree
-	$(Q)if [ -f $(srctree)/.config -o \
-		 -d $(srctree)/include/config -o \
-		 -d $(srctree)/arch/$(SRCARCH)/include/generated ]; then \
-		echo >&2 "***"; \
-		echo >&2 "*** The source tree is not clean, please run 'make$(if $(findstring command line, $(origin ARCH)), ARCH=$(ARCH)) mrproper'"; \
-		echo >&2 "*** in $(abs_srctree)";\
-		echo >&2 "***"; \
-		/bin/false; \
-	fi;
-endif
 
 archprepare: archheaders archscripts scripts prepare3 outputmakefile \
 	asm-generic $(version_h) $(autoksyms_h) include/generated/utsrelease.h
