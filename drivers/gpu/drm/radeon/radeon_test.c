@@ -120,11 +120,11 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 		if (ring == R600_RING_TYPE_DMA_INDEX)
 			fence = radeon_copy_dma(rdev, gtt_addr, vram_addr,
 						size / RADEON_GPU_PAGE_SIZE,
-						vram_obj->tbo.resv);
+						vram_obj->tbo.base.resv);
 		else
 			fence = radeon_copy_blit(rdev, gtt_addr, vram_addr,
 						 size / RADEON_GPU_PAGE_SIZE,
-						 vram_obj->tbo.resv);
+						 vram_obj->tbo.base.resv);
 		if (IS_ERR(fence)) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
 			r = PTR_ERR(fence);
@@ -171,11 +171,11 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 		if (ring == R600_RING_TYPE_DMA_INDEX)
 			fence = radeon_copy_dma(rdev, vram_addr, gtt_addr,
 						size / RADEON_GPU_PAGE_SIZE,
-						vram_obj->tbo.resv);
+						vram_obj->tbo.base.resv);
 		else
 			fence = radeon_copy_blit(rdev, vram_addr, gtt_addr,
 						 size / RADEON_GPU_PAGE_SIZE,
-						 vram_obj->tbo.resv);
+						 vram_obj->tbo.base.resv);
 		if (IS_ERR(fence)) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);
 			r = PTR_ERR(fence);

@@ -159,12 +159,16 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type pm;
 
-	if (is_support_sw_smu(adev) && adev->smu.ppt_funcs->get_current_power_state)
-		pm = amdgpu_smu_get_current_power_state(adev);
-	else if (adev->powerplay.pp_funcs->get_current_power_state)
+	if (is_support_sw_smu(adev)) {
+		if (adev->smu.ppt_funcs->get_current_power_state)
+			pm = amdgpu_smu_get_current_power_state(adev);
+		else
+			pm = adev->pm.dpm.user_state;
+	} else if (adev->powerplay.pp_funcs->get_current_power_state) {
 		pm = amdgpu_dpm_get_current_power_state(adev);
-	else
+	} else {
 		pm = adev->pm.dpm.user_state;
+	}
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			(pm == POWER_STATE_TYPE_BATTERY) ? "battery" :
@@ -191,7 +195,11 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 		goto fail;
 	}
 
-	if (adev->powerplay.pp_funcs->dispatch_tasks) {
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		adev->pm.dpm.user_state = state;
+		mutex_unlock(&adev->pm.mutex);
+	} else if (adev->powerplay.pp_funcs->dispatch_tasks) {
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_ENABLE_USER_STATE, &state);
 	} else {
 		mutex_lock(&adev->pm.mutex);
@@ -317,13 +325,6 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		if (is_support_sw_smu(adev))
-			current_level = smu_get_performance_level(&adev->smu);
-		else if (adev->powerplay.pp_funcs->get_performance_level)
-			current_level = amdgpu_dpm_get_performance_level(adev);
-	}
-
 	if (strncmp("low", buf, strlen("low")) == 0) {
 		level = AMD_DPM_FORCED_LEVEL_LOW;
 	} else if (strncmp("high", buf, strlen("high")) == 0) {
@@ -347,17 +348,23 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		goto fail;
 	}
 
-        if (amdgpu_sriov_vf(adev)) {
-                if (amdgim_is_hwperf(adev) &&
-                    adev->virt.ops->force_dpm_level) {
-                        mutex_lock(&adev->pm.mutex);
-                        adev->virt.ops->force_dpm_level(adev, level);
-                        mutex_unlock(&adev->pm.mutex);
-                        return count;
-                } else {
-                        return -EINVAL;
+	/* handle sriov case here */
+	if (amdgpu_sriov_vf(adev)) {
+		if (amdgim_is_hwperf(adev) &&
+		    adev->virt.ops->force_dpm_level) {
+			mutex_lock(&adev->pm.mutex);
+			adev->virt.ops->force_dpm_level(adev, level);
+			mutex_unlock(&adev->pm.mutex);
+			return count;
+		} else {
+			return -EINVAL;
 		}
-        }
+	}
+
+	if (is_support_sw_smu(adev))
+		current_level = smu_get_performance_level(&adev->smu);
+	else if (adev->powerplay.pp_funcs->get_performance_level)
+		current_level = amdgpu_dpm_get_performance_level(adev);
 
 	if (current_level == level)
 		return count;
@@ -738,10 +745,10 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 }
 
 /**
- * DOC: ppfeatures
+ * DOC: pp_features
  *
  * The amdgpu driver provides a sysfs API for adjusting what powerplay
- * features to be enabled. The file ppfeatures is used for this. And
+ * features to be enabled. The file pp_features is used for this. And
  * this is only available for Vega10 and later dGPUs.
  *
  * Reading back the file will show you the followings:
@@ -753,7 +760,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
  * the corresponding bit from original ppfeature masks and input the
  * new ppfeature masks.
  */
-static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
+static ssize_t amdgpu_set_pp_feature_status(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
 		size_t count)
@@ -770,7 +777,7 @@ static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
 	pr_debug("featuremask = 0x%llx\n", featuremask);
 
 	if (is_support_sw_smu(adev)) {
-		ret = smu_set_ppfeature_status(&adev->smu, featuremask);
+		ret = smu_sys_set_pp_feature_mask(&adev->smu, featuremask);
 		if (ret)
 			return -EINVAL;
 	} else if (adev->powerplay.pp_funcs->set_ppfeature_status) {
@@ -782,7 +789,7 @@ static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
 	return count;
 }
 
-static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
+static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
@@ -790,7 +797,7 @@ static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 
 	if (is_support_sw_smu(adev)) {
-		return smu_get_ppfeature_status(&adev->smu, buf);
+		return smu_sys_get_pp_feature_mask(&adev->smu, buf);
 	} else if (adev->powerplay.pp_funcs->get_ppfeature_status)
 		return amdgpu_dpm_get_ppfeature_status(adev, buf);
 
@@ -1450,9 +1457,9 @@ static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
 static DEVICE_ATTR(mem_busy_percent, S_IRUGO,
 		amdgpu_get_memory_busy_percent, NULL);
 static DEVICE_ATTR(pcie_bw, S_IRUGO, amdgpu_get_pcie_bw, NULL);
-static DEVICE_ATTR(ppfeatures, S_IRUGO | S_IWUSR,
-		amdgpu_get_ppfeature_status,
-		amdgpu_set_ppfeature_status);
+static DEVICE_ATTR(pp_features, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_feature_status,
+		amdgpu_set_pp_feature_status);
 static DEVICE_ATTR(unique_id, S_IRUGO, amdgpu_get_unique_id, NULL);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
@@ -1617,19 +1624,15 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (is_support_sw_smu(adev)) {
-		err = kstrtoint(buf, 10, &value);
-		if (err)
-			return err;
+	err = kstrtoint(buf, 10, &value);
+	if (err)
+		return err;
 
+	if (is_support_sw_smu(adev)) {
 		smu_set_fan_control_mode(&adev->smu, value);
 	} else {
 		if (!adev->powerplay.pp_funcs->set_fan_control_mode)
 			return -EINVAL;
-
-		err = kstrtoint(buf, 10, &value);
-		if (err)
-			return err;
 
 		amdgpu_dpm_set_fan_control_mode(adev, value);
 	}
@@ -1734,7 +1737,7 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 		return -EINVAL;
 
 	if (is_support_sw_smu(adev)) {
-		err = smu_get_current_rpm(&adev->smu, &speed);
+		err = smu_get_fan_speed_rpm(&adev->smu, &speed);
 		if (err)
 			return err;
 	} else if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
@@ -1794,7 +1797,7 @@ static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
 		return -EINVAL;
 
 	if (is_support_sw_smu(adev)) {
-		err = smu_get_current_rpm(&adev->smu, &rpm);
+		err = smu_get_fan_speed_rpm(&adev->smu, &rpm);
 		if (err)
 			return err;
 	} else if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
@@ -2050,15 +2053,17 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 		return err;
 
 	value = value / 1000000; /* convert to Watt */
+
 	if (is_support_sw_smu(adev)) {
-		adev->smu.funcs->set_power_limit(&adev->smu, value);
+		err = smu_set_power_limit(&adev->smu, value);
 	} else if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->set_power_limit) {
 		err = adev->powerplay.pp_funcs->set_power_limit(adev->powerplay.pp_handle, value);
-		if (err)
-			return err;
 	} else {
-		return -EINVAL;
+		err = -EINVAL;
 	}
+
+	if (err)
+		return err;
 
 	return count;
 }
@@ -2909,10 +2914,10 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	if ((adev->asic_type >= CHIP_VEGA10) &&
 	    !(adev->flags & AMD_IS_APU)) {
 		ret = device_create_file(adev->dev,
-				&dev_attr_ppfeatures);
+				&dev_attr_pp_features);
 		if (ret) {
 			DRM_ERROR("failed to create device file	"
-					"ppfeatures\n");
+					"pp_features\n");
 			return ret;
 		}
 	}
@@ -2966,7 +2971,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev, &dev_attr_unique_id);
 	if ((adev->asic_type >= CHIP_VEGA10) &&
 	    !(adev->flags & AMD_IS_APU))
-		device_remove_file(adev->dev, &dev_attr_ppfeatures);
+		device_remove_file(adev->dev, &dev_attr_pp_features);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
@@ -3067,28 +3072,44 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK, (void *)&value64, &size))
 		seq_printf(m, "SMC Feature Mask: 0x%016llx\n", value64);
 
-	/* UVD clocks */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {
-		if (!value) {
-			seq_printf(m, "UVD: Disabled\n");
-		} else {
-			seq_printf(m, "UVD: Enabled\n");
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
-				seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
-				seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+	if (adev->asic_type > CHIP_VEGA20) {
+		/* VCN clocks */
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCN_POWER_STATE, (void *)&value, &size)) {
+			if (!value) {
+				seq_printf(m, "VCN: Disabled\n");
+			} else {
+				seq_printf(m, "VCN: Enabled\n");
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+			}
 		}
-	}
-	seq_printf(m, "\n");
+		seq_printf(m, "\n");
+	} else {
+		/* UVD clocks */
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {
+			if (!value) {
+				seq_printf(m, "UVD: Disabled\n");
+			} else {
+				seq_printf(m, "UVD: Enabled\n");
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+			}
+		}
+		seq_printf(m, "\n");
 
-	/* VCE clocks */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, (void *)&value, &size)) {
-		if (!value) {
-			seq_printf(m, "VCE: Disabled\n");
-		} else {
-			seq_printf(m, "VCE: Enabled\n");
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, (void *)&value, &size))
-				seq_printf(m, "\t%u MHz (ECCLK)\n", value/100);
+		/* VCE clocks */
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, (void *)&value, &size)) {
+			if (!value) {
+				seq_printf(m, "VCE: Disabled\n");
+			} else {
+				seq_printf(m, "VCE: Enabled\n");
+				if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, (void *)&value, &size))
+					seq_printf(m, "\t%u MHz (ECCLK)\n", value/100);
+			}
 		}
 	}
 

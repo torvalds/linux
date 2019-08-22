@@ -53,10 +53,13 @@ static int psp_early_init(void *handle)
 		psp->autoload_supported = false;
 		break;
 	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
@@ -162,8 +165,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		if (ucode)
 			DRM_WARN("failed to load ucode id (%d) ",
 				  ucode->ucode_id);
-		DRM_WARN("psp command failed and response status is (%d)\n",
-			  psp->cmd_buf_mem->resp.status);
+		DRM_WARN("psp command failed and response status is (0x%X)\n",
+			  psp->cmd_buf_mem->resp.status & GFX_CMD_STATUS_MASK);
 		if (!timeout) {
 			mutex_unlock(&psp->mutex);
 			return -EINVAL;
@@ -831,7 +834,6 @@ static int psp_hw_start(struct psp_context *psp)
 				"XGMI: Failed to initialize XGMI session\n");
 	}
 
-
 	if (psp->adev->psp.ta_fw) {
 		ret = psp_ras_initialize(psp);
 		if (ret)
@@ -851,6 +853,24 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 		break;
 	case AMDGPU_UCODE_ID_SDMA1:
 		*type = GFX_FW_TYPE_SDMA1;
+		break;
+	case AMDGPU_UCODE_ID_SDMA2:
+		*type = GFX_FW_TYPE_SDMA2;
+		break;
+	case AMDGPU_UCODE_ID_SDMA3:
+		*type = GFX_FW_TYPE_SDMA3;
+		break;
+	case AMDGPU_UCODE_ID_SDMA4:
+		*type = GFX_FW_TYPE_SDMA4;
+		break;
+	case AMDGPU_UCODE_ID_SDMA5:
+		*type = GFX_FW_TYPE_SDMA5;
+		break;
+	case AMDGPU_UCODE_ID_SDMA6:
+		*type = GFX_FW_TYPE_SDMA6;
+		break;
+	case AMDGPU_UCODE_ID_SDMA7:
+		*type = GFX_FW_TYPE_SDMA7;
 		break;
 	case AMDGPU_UCODE_ID_CP_CE:
 		*type = GFX_FW_TYPE_CP_CE;
@@ -980,12 +1000,20 @@ out:
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
 		    (psp_smu_reload_quirk(psp) || psp->autoload_supported))
 			continue;
+
 		if (amdgpu_sriov_vf(adev) &&
 		   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA4
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
 			/*skip ucode loading in SRIOV VF */
 			continue;
+
 		if (psp->autoload_supported &&
 		    (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
 		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
@@ -997,7 +1025,8 @@ out:
 			return ret;
 
 		/* Start rlc autoload after psp recieved all the gfx firmware */
-		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
+		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM ||
+		    (adev->asic_type == CHIP_NAVI12 && ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G)) {
 			ret = psp_rlc_autoload(psp);
 			if (ret) {
 				DRM_ERROR("Failed to start rlc autoload\n");

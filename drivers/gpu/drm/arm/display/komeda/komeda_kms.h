@@ -14,8 +14,6 @@
 #include <drm/drm_device.h>
 #include <drm/drm_writeback.h>
 #include <drm/drm_print.h>
-#include <video/videomode.h>
-#include <video/display_timing.h>
 
 /**
  * struct komeda_plane - komeda instance of drm_plane
@@ -168,7 +166,7 @@ static inline bool has_flip_h(u32 rot)
 		return !!(rotation & DRM_MODE_REFLECT_X);
 }
 
-unsigned long komeda_calc_aclk(struct komeda_crtc_state *kcrtc_st);
+unsigned long komeda_crtc_get_aclk(struct komeda_crtc_state *kcrtc_st);
 
 int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 

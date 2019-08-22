@@ -51,7 +51,7 @@ static int do_hres(const struct vdso_data *vd, clockid_t clk,
 		ns = vdso_ts->nsec;
 		last = vd->cycle_last;
 		if (unlikely((s64)cycles < 0))
-			return clock_gettime_fallback(clk, ts);
+			return -1;
 
 		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
 		ns >>= vd->shift;
@@ -82,14 +82,14 @@ static void do_coarse(const struct vdso_data *vd, clockid_t clk,
 }
 
 static __maybe_unused int
-__cvdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
+__cvdso_clock_gettime_common(clockid_t clock, struct __kernel_timespec *ts)
 {
 	const struct vdso_data *vd = __arch_get_vdso_data();
 	u32 msk;
 
 	/* Check for negative values or invalid clocks */
 	if (unlikely((u32) clock >= MAX_CLOCKS))
-		goto fallback;
+		return -1;
 
 	/*
 	 * Convert the clockid to a bitmask and use it to check which
@@ -104,9 +104,17 @@ __cvdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
 	} else if (msk & VDSO_RAW) {
 		return do_hres(&vd[CS_RAW], clock, ts);
 	}
+	return -1;
+}
 
-fallback:
-	return clock_gettime_fallback(clock, ts);
+static __maybe_unused int
+__cvdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
+{
+	int ret = __cvdso_clock_gettime_common(clock, ts);
+
+	if (unlikely(ret))
+		return clock_gettime_fallback(clock, ts);
+	return 0;
 }
 
 static __maybe_unused int
@@ -115,20 +123,21 @@ __cvdso_clock_gettime32(clockid_t clock, struct old_timespec32 *res)
 	struct __kernel_timespec ts;
 	int ret;
 
-	if (res == NULL)
-		goto fallback;
+	ret = __cvdso_clock_gettime_common(clock, &ts);
 
-	ret = __cvdso_clock_gettime(clock, &ts);
+#ifdef VDSO_HAS_32BIT_FALLBACK
+	if (unlikely(ret))
+		return clock_gettime32_fallback(clock, res);
+#else
+	if (unlikely(ret))
+		ret = clock_gettime_fallback(clock, &ts);
+#endif
 
-	if (ret == 0) {
+	if (likely(!ret)) {
 		res->tv_sec = ts.tv_sec;
 		res->tv_nsec = ts.tv_nsec;
 	}
-
 	return ret;
-
-fallback:
-	return clock_gettime_fallback(clock, (struct __kernel_timespec *)res);
 }
 
 static __maybe_unused int
@@ -169,17 +178,18 @@ static __maybe_unused time_t __cvdso_time(time_t *time)
 
 #ifdef VDSO_HAS_CLOCK_GETRES
 static __maybe_unused
-int __cvdso_clock_getres(clockid_t clock, struct __kernel_timespec *res)
+int __cvdso_clock_getres_common(clockid_t clock, struct __kernel_timespec *res)
 {
 	const struct vdso_data *vd = __arch_get_vdso_data();
-	u64 ns;
+	u64 hrtimer_res;
 	u32 msk;
-	u64 hrtimer_res = READ_ONCE(vd[CS_HRES_COARSE].hrtimer_res);
+	u64 ns;
 
 	/* Check for negative values or invalid clocks */
 	if (unlikely((u32) clock >= MAX_CLOCKS))
-		goto fallback;
+		return -1;
 
+	hrtimer_res = READ_ONCE(vd[CS_HRES_COARSE].hrtimer_res);
 	/*
 	 * Convert the clockid to a bitmask and use it to check which
 	 * clocks are handled in the VDSO directly.
@@ -201,18 +211,22 @@ int __cvdso_clock_getres(clockid_t clock, struct __kernel_timespec *res)
 		 */
 		ns = hrtimer_res;
 	} else {
-		goto fallback;
+		return -1;
 	}
 
-	if (res) {
-		res->tv_sec = 0;
-		res->tv_nsec = ns;
-	}
+	res->tv_sec = 0;
+	res->tv_nsec = ns;
 
 	return 0;
+}
 
-fallback:
-	return clock_getres_fallback(clock, res);
+int __cvdso_clock_getres(clockid_t clock, struct __kernel_timespec *res)
+{
+	int ret = __cvdso_clock_getres_common(clock, res);
+
+	if (unlikely(ret))
+		return clock_getres_fallback(clock, res);
+	return 0;
 }
 
 static __maybe_unused int
@@ -221,19 +235,20 @@ __cvdso_clock_getres_time32(clockid_t clock, struct old_timespec32 *res)
 	struct __kernel_timespec ts;
 	int ret;
 
-	if (res == NULL)
-		goto fallback;
+	ret = __cvdso_clock_getres_common(clock, &ts);
 
-	ret = __cvdso_clock_getres(clock, &ts);
+#ifdef VDSO_HAS_32BIT_FALLBACK
+	if (unlikely(ret))
+		return clock_getres32_fallback(clock, res);
+#else
+	if (unlikely(ret))
+		ret = clock_getres_fallback(clock, &ts);
+#endif
 
-	if (ret == 0) {
+	if (likely(!ret)) {
 		res->tv_sec = ts.tv_sec;
 		res->tv_nsec = ts.tv_nsec;
 	}
-
 	return ret;
-
-fallback:
-	return clock_getres_fallback(clock, (struct __kernel_timespec *)res);
 }
 #endif /* VDSO_HAS_CLOCK_GETRES */

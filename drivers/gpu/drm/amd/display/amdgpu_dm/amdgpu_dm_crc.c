@@ -30,21 +30,55 @@
 #include "amdgpu_dm.h"
 #include "dc.h"
 
-enum amdgpu_dm_pipe_crc_source {
-	AMDGPU_DM_PIPE_CRC_SOURCE_NONE = 0,
-	AMDGPU_DM_PIPE_CRC_SOURCE_AUTO,
-	AMDGPU_DM_PIPE_CRC_SOURCE_MAX,
-	AMDGPU_DM_PIPE_CRC_SOURCE_INVALID = -1,
+static const char *const pipe_crc_sources[] = {
+	"none",
+	"crtc",
+	"crtc dither",
+	"dprx",
+	"dprx dither",
+	"auto",
 };
 
 static enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source)
 {
 	if (!source || !strcmp(source, "none"))
 		return AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
-	if (!strcmp(source, "auto"))
-		return AMDGPU_DM_PIPE_CRC_SOURCE_AUTO;
+	if (!strcmp(source, "auto") || !strcmp(source, "crtc"))
+		return AMDGPU_DM_PIPE_CRC_SOURCE_CRTC;
+	if (!strcmp(source, "dprx"))
+		return AMDGPU_DM_PIPE_CRC_SOURCE_DPRX;
+	if (!strcmp(source, "crtc dither"))
+		return AMDGPU_DM_PIPE_CRC_SOURCE_CRTC_DITHER;
+	if (!strcmp(source, "dprx dither"))
+		return AMDGPU_DM_PIPE_CRC_SOURCE_DPRX_DITHER;
 
 	return AMDGPU_DM_PIPE_CRC_SOURCE_INVALID;
+}
+
+static bool dm_is_crc_source_crtc(enum amdgpu_dm_pipe_crc_source src)
+{
+	return (src == AMDGPU_DM_PIPE_CRC_SOURCE_CRTC) ||
+	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_CRTC_DITHER);
+}
+
+static bool dm_is_crc_source_dprx(enum amdgpu_dm_pipe_crc_source src)
+{
+	return (src == AMDGPU_DM_PIPE_CRC_SOURCE_DPRX) ||
+	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_DPRX_DITHER);
+}
+
+static bool dm_need_crc_dither(enum amdgpu_dm_pipe_crc_source src)
+{
+	return (src == AMDGPU_DM_PIPE_CRC_SOURCE_CRTC_DITHER) ||
+	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_DPRX_DITHER) ||
+	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_NONE);
+}
+
+const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
+						  size_t *count)
+{
+	*count = ARRAY_SIZE(pipe_crc_sources);
+	return pipe_crc_sources;
 }
 
 int
@@ -68,7 +102,10 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_state *stream_state = crtc_state->stream;
-	bool enable;
+	struct amdgpu_dm_connector *aconn;
+	struct drm_dp_aux *aux = NULL;
+	bool enable = false;
+	bool enabled = false;
 
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
@@ -83,19 +120,53 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		return -EINVAL;
 	}
 
-	enable = (source == AMDGPU_DM_PIPE_CRC_SOURCE_AUTO);
+	enable = amdgpu_dm_is_valid_crc_source(source);
 
 	mutex_lock(&adev->dm.dc_lock);
-	if (!dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
-				     enable, enable)) {
-		mutex_unlock(&adev->dm.dc_lock);
-		return -EINVAL;
+	/*
+	 * USER REQ SRC | CURRENT SRC | BEHAVIOR
+	 * -----------------------------
+	 * None         | None        | Do nothing
+	 * None         | CRTC        | Disable CRTC CRC, set default to dither
+	 * None         | DPRX        | Disable DPRX CRC, need 'aux', set default to dither
+	 * None         | CRTC DITHER | Disable CRTC CRC
+	 * None         | DPRX DITHER | Disable DPRX CRC, need 'aux'
+	 * CRTC         | XXXX        | Enable CRTC CRC, no dither
+	 * DPRX         | XXXX        | Enable DPRX CRC, need 'aux', no dither
+	 * CRTC DITHER  | XXXX        | Enable CRTC CRC, set dither
+	 * DPRX DITHER  | XXXX        | Enable DPRX CRC, need 'aux', set dither
+	 */
+	if (dm_is_crc_source_dprx(source) ||
+		(source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE &&
+		 dm_is_crc_source_dprx(crtc_state->crc_src))) {
+		aconn = stream_state->link->priv;
+
+		if (!aconn) {
+			DRM_DEBUG_DRIVER("No amd connector matching CRTC-%d\n", crtc->index);
+			mutex_unlock(&adev->dm.dc_lock);
+			return -EINVAL;
+		}
+
+		aux = &aconn->dm_dp_aux.aux;
+
+		if (!aux) {
+			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
+			mutex_unlock(&adev->dm.dc_lock);
+			return -EINVAL;
+		}
+	} else if (dm_is_crc_source_crtc(source)) {
+		if (!dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
+					     enable, enable)) {
+			mutex_unlock(&adev->dm.dc_lock);
+			return -EINVAL;
+		}
 	}
 
-	/* When enabling CRC, we should also disable dithering. */
-	dc_stream_set_dither_option(stream_state,
-				    enable ? DITHER_OPTION_TRUN8
-					   : DITHER_OPTION_DEFAULT);
+	/* configure dithering */
+	if (!dm_need_crc_dither(source))
+		dc_stream_set_dither_option(stream_state, DITHER_OPTION_TRUN8);
+	else if (!dm_need_crc_dither(crtc_state->crc_src))
+		dc_stream_set_dither_option(stream_state, DITHER_OPTION_DEFAULT);
 
 	mutex_unlock(&adev->dm.dc_lock);
 
@@ -103,12 +174,26 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	 * Reading the CRC requires the vblank interrupt handler to be
 	 * enabled. Keep a reference until CRC capture stops.
 	 */
-	if (!crtc_state->crc_enabled && enable)
+	enabled = amdgpu_dm_is_valid_crc_source(crtc_state->crc_src);
+	if (!enabled && enable) {
 		drm_crtc_vblank_get(crtc);
-	else if (crtc_state->crc_enabled && !enable)
+		if (dm_is_crc_source_dprx(source)) {
+			if (drm_dp_start_crc(aux, crtc)) {
+				DRM_DEBUG_DRIVER("dp start crc failed\n");
+				return -EINVAL;
+			}
+		}
+	} else if (enabled && !enable) {
 		drm_crtc_vblank_put(crtc);
+		if (dm_is_crc_source_dprx(source)) {
+			if (drm_dp_stop_crc(aux)) {
+				DRM_DEBUG_DRIVER("dp stop crc failed\n");
+				return -EINVAL;
+			}
+		}
+	}
 
-	crtc_state->crc_enabled = enable;
+	crtc_state->crc_src = source;
 
 	/* Reset crc_skipped on dm state */
 	crtc_state->crc_skip_count = 0;
@@ -135,7 +220,7 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 	stream_state = crtc_state->stream;
 
 	/* Early return if CRC capture is not enabled. */
-	if (!crtc_state->crc_enabled)
+	if (!amdgpu_dm_is_valid_crc_source(crtc_state->crc_src))
 		return;
 
 	/*
@@ -149,10 +234,12 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 		return;
 	}
 
-	if (!dc_stream_get_crc(stream_state->ctx->dc, stream_state,
-			       &crcs[0], &crcs[1], &crcs[2]))
-		return;
+	if (dm_is_crc_source_crtc(crtc_state->crc_src)) {
+		if (!dc_stream_get_crc(stream_state->ctx->dc, stream_state,
+				       &crcs[0], &crcs[1], &crcs[2]))
+			return;
 
-	drm_crtc_add_crc_entry(crtc, true,
-			       drm_crtc_accurate_vblank_count(crtc), crcs);
+		drm_crtc_add_crc_entry(crtc, true,
+				       drm_crtc_accurate_vblank_count(crtc), crcs);
+	}
 }

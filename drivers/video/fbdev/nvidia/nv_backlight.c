@@ -123,8 +123,6 @@ void nvidia_bl_init(struct nvidia_par *par)
 
 	printk("nvidia: Backlight initialized (%s)\n", name);
 
-	return;
-
 error:
 	return;
 }

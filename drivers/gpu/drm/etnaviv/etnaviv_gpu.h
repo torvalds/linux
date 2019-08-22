@@ -7,6 +7,8 @@
 #define __ETNAVIV_GPU_H__
 
 #include "etnaviv_cmdbuf.h"
+#include "etnaviv_gem.h"
+#include "etnaviv_mmu.h"
 #include "etnaviv_drv.h"
 
 struct etnaviv_gem_submit;
@@ -84,7 +86,6 @@ struct etnaviv_event {
 };
 
 struct etnaviv_cmdbuf_suballoc;
-struct etnaviv_cmdbuf;
 struct regulator;
 struct clk;
 
@@ -99,13 +100,11 @@ struct etnaviv_gpu {
 	enum etnaviv_sec_mode sec_mode;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
+	bool initialized;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;
 	int exec_state;
-
-	/* bus base address of memory  */
-	u32 memory_base;
 
 	/* event management: */
 	DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
@@ -134,8 +133,8 @@ struct etnaviv_gpu {
 	void __iomem *mmio;
 	int irq;
 
-	struct etnaviv_iommu *mmu;
-	struct etnaviv_cmdbuf_suballoc *cmdbuf_suballoc;
+	struct etnaviv_iommu_context *mmu_context;
+	unsigned int flush_seq;
 
 	/* Power Control: */
 	struct clk *clk_bus;

@@ -28,6 +28,8 @@
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "dcn20/display_mode_vba_20.h"
 #include "dcn20/display_rq_dlg_calc_20.h"
+#include "dcn20/display_mode_vba_20v2.h"
+#include "dcn20/display_rq_dlg_calc_20v2.h"
 #endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
@@ -36,6 +38,13 @@ const struct dml_funcs dml20_funcs = {
 	.recalculate = dml20_recalculate,
 	.rq_dlg_get_dlg_reg = dml20_rq_dlg_get_dlg_reg,
 	.rq_dlg_get_rq_reg = dml20_rq_dlg_get_rq_reg
+};
+
+const struct dml_funcs dml20v2_funcs = {
+	.validate = dml20v2_ModeSupportAndSystemConfigurationFull,
+	.recalculate = dml20v2_recalculate,
+	.rq_dlg_get_dlg_reg = dml20v2_rq_dlg_get_dlg_reg,
+	.rq_dlg_get_rq_reg = dml20v2_rq_dlg_get_rq_reg
 };
 #endif
 
@@ -51,6 +60,9 @@ void dml_init_instance(struct display_mode_lib *lib,
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	case DML_PROJECT_NAVI10:
 		lib->funcs = dml20_funcs;
+		break;
+	case DML_PROJECT_NAVI10v2:
+		lib->funcs = dml20v2_funcs;
 		break;
 #endif
 	default:

@@ -2,6 +2,7 @@
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 #include <linux/bitfield.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -9,6 +10,7 @@
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/shmem_fs.h>
 #include <linux/sizes.h>
 
 #include "panfrost_device.h"
@@ -105,14 +107,11 @@ static int mmu_hw_do_operation(struct panfrost_device *pfdev, u32 as_nr,
 	return ret;
 }
 
-void panfrost_mmu_enable(struct panfrost_device *pfdev, u32 as_nr)
+static void panfrost_mmu_enable(struct panfrost_device *pfdev, u32 as_nr)
 {
 	struct io_pgtable_cfg *cfg = &pfdev->mmu->pgtbl_cfg;
 	u64 transtab = cfg->arm_mali_lpae_cfg.transtab;
 	u64 memattr = cfg->arm_mali_lpae_cfg.memattr;
-
-	mmu_write(pfdev, MMU_INT_CLEAR, ~0);
-	mmu_write(pfdev, MMU_INT_MASK, ~0);
 
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), transtab & 0xffffffffUL);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), transtab >> 32);
@@ -137,6 +136,14 @@ static void mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
 	write_cmd(pfdev, as_nr, AS_COMMAND_UPDATE);
 }
 
+void panfrost_mmu_reset(struct panfrost_device *pfdev)
+{
+	panfrost_mmu_enable(pfdev, 0);
+
+	mmu_write(pfdev, MMU_INT_CLEAR, ~0);
+	mmu_write(pfdev, MMU_INT_MASK, ~0);
+}
+
 static size_t get_pgsize(u64 addr, size_t size)
 {
 	if (addr & (SZ_2M - 1) || size < SZ_2M)
@@ -145,27 +152,13 @@ static size_t get_pgsize(u64 addr, size_t size)
 	return SZ_2M;
 }
 
-int panfrost_mmu_map(struct panfrost_gem_object *bo)
+static int mmu_map_sg(struct panfrost_device *pfdev, u64 iova,
+		      int prot, struct sg_table *sgt)
 {
-	struct drm_gem_object *obj = &bo->base.base;
-	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
-	struct io_pgtable_ops *ops = pfdev->mmu->pgtbl_ops;
-	u64 iova = bo->node.start << PAGE_SHIFT;
 	unsigned int count;
 	struct scatterlist *sgl;
-	struct sg_table *sgt;
-	int ret;
-
-	if (WARN_ON(bo->is_mapped))
-		return 0;
-
-	sgt = drm_gem_shmem_get_pages_sgt(obj);
-	if (WARN_ON(IS_ERR(sgt)))
-		return PTR_ERR(sgt);
-
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return ret;
+	struct io_pgtable_ops *ops = pfdev->mmu->pgtbl_ops;
+	u64 start_iova = iova;
 
 	mutex_lock(&pfdev->mmu->lock);
 
@@ -178,17 +171,44 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 		while (len) {
 			size_t pgsize = get_pgsize(iova | paddr, len);
 
-			ops->map(ops, iova, paddr, pgsize, IOMMU_WRITE | IOMMU_READ);
+			ops->map(ops, iova, paddr, pgsize, prot);
 			iova += pgsize;
 			paddr += pgsize;
 			len -= pgsize;
 		}
 	}
 
-	mmu_hw_do_operation(pfdev, 0, bo->node.start << PAGE_SHIFT,
-			    bo->node.size << PAGE_SHIFT, AS_COMMAND_FLUSH_PT);
+	mmu_hw_do_operation(pfdev, 0, start_iova, iova - start_iova,
+			    AS_COMMAND_FLUSH_PT);
 
 	mutex_unlock(&pfdev->mmu->lock);
+
+	return 0;
+}
+
+int panfrost_mmu_map(struct panfrost_gem_object *bo)
+{
+	struct drm_gem_object *obj = &bo->base.base;
+	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
+	struct sg_table *sgt;
+	int ret;
+	int prot = IOMMU_READ | IOMMU_WRITE;
+
+	if (WARN_ON(bo->is_mapped))
+		return 0;
+
+	if (bo->noexec)
+		prot |= IOMMU_NOEXEC;
+
+	sgt = drm_gem_shmem_get_pages_sgt(obj);
+	if (WARN_ON(IS_ERR(sgt)))
+		return PTR_ERR(sgt);
+
+	ret = pm_runtime_get_sync(pfdev->dev);
+	if (ret < 0)
+		return ret;
+
+	mmu_map_sg(pfdev, bo->node.start << PAGE_SHIFT, prot, sgt);
 
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
@@ -222,12 +242,12 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 		size_t unmapped_page;
 		size_t pgsize = get_pgsize(iova, len - unmapped_len);
 
-		unmapped_page = ops->unmap(ops, iova, pgsize);
-		if (!unmapped_page)
-			break;
-
-		iova += unmapped_page;
-		unmapped_len += unmapped_page;
+		if (ops->iova_to_phys(ops, iova)) {
+			unmapped_page = ops->unmap(ops, iova, pgsize);
+			WARN_ON(unmapped_page != pgsize);
+		}
+		iova += pgsize;
+		unmapped_len += pgsize;
 	}
 
 	mmu_hw_do_operation(pfdev, 0, bo->node.start << PAGE_SHIFT,
@@ -263,6 +283,105 @@ static const struct iommu_gather_ops mmu_tlb_ops = {
 	.tlb_sync	= mmu_tlb_sync_context,
 };
 
+static struct drm_mm_node *addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
+{
+	struct drm_mm_node *node;
+	u64 offset = addr >> PAGE_SHIFT;
+
+	drm_mm_for_each_node(node, &pfdev->mm) {
+		if (offset >= node->start && offset < (node->start + node->size))
+			return node;
+	}
+	return NULL;
+}
+
+#define NUM_FAULT_PAGES (SZ_2M / PAGE_SIZE)
+
+int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
+{
+	int ret, i;
+	struct drm_mm_node *node;
+	struct panfrost_gem_object *bo;
+	struct address_space *mapping;
+	pgoff_t page_offset;
+	struct sg_table *sgt;
+	struct page **pages;
+
+	node = addr_to_drm_mm_node(pfdev, as, addr);
+	if (!node)
+		return -ENOENT;
+
+	bo = drm_mm_node_to_panfrost_bo(node);
+	if (!bo->is_heap) {
+		dev_WARN(pfdev->dev, "matching BO is not heap type (GPU VA = %llx)",
+			 node->start << PAGE_SHIFT);
+		return -EINVAL;
+	}
+	/* Assume 2MB alignment and size multiple */
+	addr &= ~((u64)SZ_2M - 1);
+	page_offset = addr >> PAGE_SHIFT;
+	page_offset -= node->start;
+
+	mutex_lock(&bo->base.pages_lock);
+
+	if (!bo->base.pages) {
+		bo->sgts = kvmalloc_array(bo->base.base.size / SZ_2M,
+				     sizeof(struct sg_table), GFP_KERNEL | __GFP_ZERO);
+		if (!bo->sgts)
+			return -ENOMEM;
+
+		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
+				       sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
+		if (!pages) {
+			kfree(bo->sgts);
+			bo->sgts = NULL;
+			return -ENOMEM;
+		}
+		bo->base.pages = pages;
+		bo->base.pages_use_count = 1;
+	} else
+		pages = bo->base.pages;
+
+	mapping = bo->base.base.filp->f_mapping;
+	mapping_set_unevictable(mapping);
+
+	for (i = page_offset; i < page_offset + NUM_FAULT_PAGES; i++) {
+		pages[i] = shmem_read_mapping_page(mapping, i);
+		if (IS_ERR(pages[i])) {
+			mutex_unlock(&bo->base.pages_lock);
+			ret = PTR_ERR(pages[i]);
+			goto err_pages;
+		}
+	}
+
+	mutex_unlock(&bo->base.pages_lock);
+
+	sgt = &bo->sgts[page_offset / (SZ_2M / PAGE_SIZE)];
+	ret = sg_alloc_table_from_pages(sgt, pages + page_offset,
+					NUM_FAULT_PAGES, 0, SZ_2M, GFP_KERNEL);
+	if (ret)
+		goto err_pages;
+
+	if (!dma_map_sg(pfdev->dev, sgt->sgl, sgt->nents, DMA_BIDIRECTIONAL)) {
+		ret = -EINVAL;
+		goto err_map;
+	}
+
+	mmu_map_sg(pfdev, addr, IOMMU_WRITE | IOMMU_READ | IOMMU_NOEXEC, sgt);
+
+	bo->is_mapped = true;
+
+	dev_dbg(pfdev->dev, "mapped page fault @ %llx", addr);
+
+	return 0;
+
+err_map:
+	sg_free_table(sgt);
+err_pages:
+	drm_gem_shmem_put_pages(&bo->base);
+	return ret;
+}
+
 static const char *access_type_name(struct panfrost_device *pfdev,
 		u32 fault_status)
 {
@@ -287,13 +406,19 @@ static const char *access_type_name(struct panfrost_device *pfdev,
 static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
-	u32 status = mmu_read(pfdev, MMU_INT_STAT);
-	int i;
 
-	if (!status)
+	if (!mmu_read(pfdev, MMU_INT_STAT))
 		return IRQ_NONE;
 
-	dev_err(pfdev->dev, "mmu irq status=%x\n", status);
+	mmu_write(pfdev, MMU_INT_MASK, 0);
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
+{
+	struct panfrost_device *pfdev = data;
+	u32 status = mmu_read(pfdev, MMU_INT_RAWSTAT);
+	int i, ret;
 
 	for (i = 0; status; i++) {
 		u32 mask = BIT(i) | BIT(i + 16);
@@ -314,6 +439,18 @@ static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 		exception_type = fault_status & 0xFF;
 		access_type = (fault_status >> 8) & 0x3;
 		source_id = (fault_status >> 16);
+
+		/* Page fault only */
+		if ((status & mask) == BIT(i)) {
+			WARN_ON(exception_type < 0xC1 || exception_type > 0xC4);
+
+			ret = panfrost_mmu_map_fault_addr(pfdev, i, addr);
+			if (!ret) {
+				mmu_write(pfdev, MMU_INT_CLEAR, BIT(i));
+				status &= ~mask;
+				continue;
+			}
+		}
 
 		/* terminal fault, print info about the fault */
 		dev_err(pfdev->dev,
@@ -337,6 +474,7 @@ static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 		status &= ~mask;
 	}
 
+	mmu_write(pfdev, MMU_INT_MASK, ~0);
 	return IRQ_HANDLED;
 };
 
@@ -355,16 +493,14 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 	if (irq <= 0)
 		return -ENODEV;
 
-	err = devm_request_irq(pfdev->dev, irq, panfrost_mmu_irq_handler,
-			       IRQF_SHARED, "mmu", pfdev);
+	err = devm_request_threaded_irq(pfdev->dev, irq, panfrost_mmu_irq_handler,
+					panfrost_mmu_irq_handler_thread,
+					IRQF_SHARED, "mmu", pfdev);
 
 	if (err) {
 		dev_err(pfdev->dev, "failed to request mmu irq");
 		return err;
 	}
-	mmu_write(pfdev, MMU_INT_CLEAR, ~0);
-	mmu_write(pfdev, MMU_INT_MASK, ~0);
-
 	pfdev->mmu->pgtbl_cfg = (struct io_pgtable_cfg) {
 		.pgsize_bitmap	= SZ_4K | SZ_2M,
 		.ias		= FIELD_GET(0xff, pfdev->features.mmu_features),

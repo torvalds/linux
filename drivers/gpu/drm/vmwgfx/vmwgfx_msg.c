@@ -24,16 +24,15 @@
  *
  */
 
-
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/frame.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+
 #include <asm/hypervisor.h>
-#include <drm/drmP.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_msg.h"
-
 
 #define MESSAGE_STATUS_SUCCESS  0x0001
 #define MESSAGE_STATUS_DORECV   0x0002

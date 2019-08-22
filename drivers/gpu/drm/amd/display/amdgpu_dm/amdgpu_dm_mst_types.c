@@ -156,6 +156,26 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	kfree(amdgpu_dm_connector);
 }
 
+static int
+amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
+{
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+		to_amdgpu_dm_connector(connector);
+	struct drm_dp_mst_port *port = amdgpu_dm_connector->port;
+
+	return drm_dp_mst_connector_late_register(connector, port);
+}
+
+static void
+amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
+{
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+		to_amdgpu_dm_connector(connector);
+	struct drm_dp_mst_port *port = amdgpu_dm_connector->port;
+
+	drm_dp_mst_connector_early_unregister(connector, port);
+}
+
 static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 	.detect = dm_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -164,7 +184,9 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 	.atomic_duplicate_state = amdgpu_dm_connector_atomic_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_set_property = amdgpu_dm_connector_atomic_set_property,
-	.atomic_get_property = amdgpu_dm_connector_atomic_get_property
+	.atomic_get_property = amdgpu_dm_connector_atomic_get_property,
+	.late_register = amdgpu_dm_mst_connector_late_register,
+	.early_unregister = amdgpu_dm_mst_connector_early_unregister,
 };
 
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
@@ -388,7 +410,7 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector)
 {
 	aconnector->dm_dp_aux.aux.name = "dmdc";
-	aconnector->dm_dp_aux.aux.dev = dm->adev->dev;
+	aconnector->dm_dp_aux.aux.dev = aconnector->base.kdev;
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 

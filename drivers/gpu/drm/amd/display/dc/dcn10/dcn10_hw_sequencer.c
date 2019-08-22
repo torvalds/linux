@@ -1195,16 +1195,7 @@ static void dcn10_init_hw(struct dc *dc)
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct hubp *hubp = dc->res_pool->hubps[i];
-			struct dpp *dpp = dc->res_pool->dpps[i];
-
-			hubp->funcs->hubp_init(hubp);
-			dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
-			plane_atomic_power_down(dc, dpp, hubp);
-		}
-
-		apply_DEGVIDCN10_253_wa(dc);
+		dc->hwss.init_pipes(dc, dc->current_state);
 	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
@@ -1374,10 +1365,6 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 
 	return result;
 }
-
-
-
-
 
 static bool
 dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
@@ -2145,7 +2132,7 @@ void update_dchubp_dpp(
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	union plane_size size = plane_state->plane_size;
+	struct plane_size size = plane_state->plane_size;
 	unsigned int compat_level = 0;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
@@ -2191,7 +2178,7 @@ void update_dchubp_dpp(
 			&pipe_ctx->ttu_regs);
 	}
 
-	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
+	size.surface_size = pipe_ctx->plane_res.scl_data.viewport;
 
 	if (plane_state->update_flags.bits.full_update ||
 		plane_state->update_flags.bits.bpp_change)
@@ -2516,6 +2503,12 @@ static void dcn10_apply_ctx_for_surface(
 		if (removed_pipe[i])
 			dcn10_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (removed_pipe[i]) {
+			dc->hwss.optimize_bandwidth(dc, context);
+			break;
+		}
+
 	if (dc->hwseq->wa.DEGVIDCN10_254)
 		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
 }
@@ -2698,6 +2691,13 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	dcn10_config_stereo_parameters(stream, &flags);
+
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
+		if (!dc_set_generic_gpio_for_stereo(true, dc->ctx->gpio_service))
+			dc_set_generic_gpio_for_stereo(false, dc->ctx->gpio_service);
+	} else {
+		dc_set_generic_gpio_for_stereo(false, dc->ctx->gpio_service);
+	}
 
 	pipe_ctx->stream_res.opp->funcs->opp_program_stereo(
 		pipe_ctx->stream_res.opp,
@@ -3069,6 +3069,56 @@ static void dcn10_send_immediate_sdp_message(struct pipe_ctx *pipe_ctx,
 				sdp_message_size);
 	}
 }
+static enum dc_status dcn10_set_clock(struct dc *dc,
+			enum dc_clock_type clock_type,
+			uint32_t clk_khz,
+			uint32_t stepping)
+{
+	struct dc_state *context = dc->current_state;
+	struct dc_clock_config clock_cfg = {0};
+	struct dc_clocks *current_clocks = &context->bw_ctx.bw.dcn.clk;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
+				dc->clk_mgr->funcs->get_clock(dc->clk_mgr,
+						context, clock_type, &clock_cfg);
+
+	if (!dc->clk_mgr->funcs->get_clock)
+		return DC_FAIL_UNSUPPORTED_1;
+
+	if (clk_khz > clock_cfg.max_clock_khz)
+		return DC_FAIL_CLK_EXCEED_MAX;
+
+	if (clk_khz < clock_cfg.min_clock_khz)
+		return DC_FAIL_CLK_BELOW_MIN;
+
+	if (clk_khz < clock_cfg.bw_requirequired_clock_khz)
+		return DC_FAIL_CLK_BELOW_CFG_REQUIRED;
+
+	/*update internal request clock for update clock use*/
+	if (clock_type == DC_CLOCK_TYPE_DISPCLK)
+		current_clocks->dispclk_khz = clk_khz;
+	else if (clock_type == DC_CLOCK_TYPE_DPPCLK)
+		current_clocks->dppclk_khz = clk_khz;
+	else
+		return DC_ERROR_UNEXPECTED;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->update_clocks)
+				dc->clk_mgr->funcs->update_clocks(dc->clk_mgr,
+				context, true);
+	return DC_OK;
+
+}
+
+static void dcn10_get_clock(struct dc *dc,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg)
+{
+	struct dc_state *context = dc->current_state;
+
+	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
+				dc->clk_mgr->funcs->get_clock(dc->clk_mgr, context, clock_type, clock_cfg);
+
+}
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
@@ -3123,7 +3173,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.enable_stream_gating = NULL,
 	.setup_periodic_interrupt = dcn10_setup_periodic_interrupt,
 	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,
-	.did_underflow_occur = dcn10_did_underflow_occur
+	.set_clock = dcn10_set_clock,
+	.get_clock = dcn10_get_clock,
 };
 
 

@@ -2175,7 +2175,8 @@ static inline bool xhci_urb_suitable_for_idt(struct urb *urb)
 	if (!usb_endpoint_xfer_isoc(&urb->ep->desc) && usb_urb_dir_out(urb) &&
 	    usb_endpoint_maxp(&urb->ep->desc) >= TRB_IDT_MAX_SIZE &&
 	    urb->transfer_buffer_length <= TRB_IDT_MAX_SIZE &&
-	    !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP))
+	    !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP) &&
+	    !urb->num_sgs)
 		return true;
 
 	return false;

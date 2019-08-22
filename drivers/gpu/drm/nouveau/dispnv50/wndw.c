@@ -457,7 +457,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 		asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
-	asyw->state.fence = reservation_object_get_excl_rcu(fb->nvbo->bo.resv);
+	asyw->state.fence = dma_resv_get_excl_rcu(fb->nvbo->bo.base.resv);
 	asyw->image.offset[0] = fb->nvbo->bo.offset;
 
 	if (wndw->func->prepare) {

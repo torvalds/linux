@@ -300,7 +300,7 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 	if (err < 0) {
 		dma_fence_set_error(&work->dma, err);
 	} else {
-		reservation_object_add_excl_fence(obj->base.resv, &work->dma);
+		dma_resv_add_excl_fence(obj->base.resv, &work->dma);
 		err = 0;
 	}
 	i915_gem_object_unlock(obj);

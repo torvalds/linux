@@ -25,12 +25,16 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_kms.h"
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_rect.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_sysfs.h>
+#include <drm/drm_vblank.h>
+
+#include "vmwgfx_kms.h"
 
 /* Might need a hrtimer here? */
 #define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
@@ -1462,7 +1466,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		if (dev_priv->active_display_unit == vmw_du_screen_target &&
 		    (drm_rect_width(&rects[i]) > dev_priv->stdu_max_width ||
 		     drm_rect_height(&rects[i]) > dev_priv->stdu_max_height)) {
-			DRM_ERROR("Screen size not supported.\n");
+			VMW_DEBUG_KMS("Screen size not supported.\n");
 			return -EINVAL;
 		}
 
@@ -1486,7 +1490,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 	 * limit on primary bounding box
 	 */
 	if (pixel_mem > dev_priv->prim_bb_mem) {
-		DRM_ERROR("Combined output size too large.\n");
+		VMW_DEBUG_KMS("Combined output size too large.\n");
 		return -EINVAL;
 	}
 
@@ -1496,7 +1500,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		bb_mem = (u64) bounding_box.x2 * bounding_box.y2 * 4;
 
 		if (bb_mem > dev_priv->prim_bb_mem) {
-			DRM_ERROR("Topology is beyond supported limits.\n");
+			VMW_DEBUG_KMS("Topology is beyond supported limits.\n");
 			return -EINVAL;
 		}
 	}
@@ -1645,6 +1649,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 		struct vmw_connector_state *vmw_conn_state;
 
 		if (!du->pref_active && new_crtc_state->enable) {
+			VMW_DEBUG_KMS("Enabling a disabled display unit\n");
 			ret = -EINVAL;
 			goto clean;
 		}
@@ -1701,17 +1706,11 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 		return ret;
 
 	ret = vmw_kms_check_implicit(dev, state);
-	if (ret)
+	if (ret) {
+		VMW_DEBUG_KMS("Invalid implicit state\n");
 		return ret;
+	}
 
-	if (!state->allow_modeset)
-		return ret;
-
-	/*
-	 * Legacy path do not set allow_modeset properly like
-	 * @drm_atomic_helper_update_plane, This will result in unnecessary call
-	 * to vmw_kms_check_topology. So extra set of check.
-	 */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
 			need_modeset = true;
@@ -2347,6 +2346,9 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 
 	if (!arg->num_outputs) {
 		struct drm_rect def_rect = {0, 0, 800, 600};
+		VMW_DEBUG_KMS("Default layout x1 = %d y1 = %d x2 = %d y2 = %d\n",
+			      def_rect.x1, def_rect.y1,
+			      def_rect.x2, def_rect.y2);
 		vmw_du_update_layout(dev_priv, 1, &def_rect);
 		return 0;
 	}
@@ -2367,6 +2369,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 
 	drm_rects = (struct drm_rect *)rects;
 
+	VMW_DEBUG_KMS("Layout count = %u\n", arg->num_outputs);
 	for (i = 0; i < arg->num_outputs; i++) {
 		struct drm_vmw_rect curr_rect;
 
@@ -2383,6 +2386,10 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		drm_rects[i].x2 = curr_rect.x + curr_rect.w;
 		drm_rects[i].y2 = curr_rect.y + curr_rect.h;
 
+		VMW_DEBUG_KMS("  x1 = %d y1 = %d x2 = %d y2 = %d\n",
+			      drm_rects[i].x1, drm_rects[i].y1,
+			      drm_rects[i].x2, drm_rects[i].y2);
+
 		/*
 		 * Currently this check is limiting the topology within
 		 * mode_config->max (which actually is max texture size
@@ -2393,7 +2400,9 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		if (drm_rects[i].x1 < 0 ||  drm_rects[i].y1 < 0 ||
 		    drm_rects[i].x2 > mode_config->max_width ||
 		    drm_rects[i].y2 > mode_config->max_height) {
-			DRM_ERROR("Invalid GUI layout.\n");
+			VMW_DEBUG_KMS("Invalid layout %d %d %d %d\n",
+				      drm_rects[i].x1, drm_rects[i].y1,
+				      drm_rects[i].x2, drm_rects[i].y2);
 			ret = -EINVAL;
 			goto out_free;
 		}

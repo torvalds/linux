@@ -30,6 +30,7 @@
 #include "core_types.h"
 #include "dce_aux.h"
 #include "dce/dce_11_0_sh_mask.h"
+#include "dm_event_log.h"
 
 #define CTX \
 	aux110->base.ctx
@@ -252,6 +253,8 @@ static void submit_channel_request(
 	}
 
 	REG_UPDATE(AUX_SW_CONTROL, AUX_SW_GO, 1);
+	EVENT_LOG_AUX_REQ(engine->ddc->pin_data->en, EVENT_LOG_AUX_ORIGIN_NATIVE,
+					request->action, request->address, request->length, request->data);
 }
 
 static int read_channel_reply(struct dce_aux *engine, uint32_t size,
@@ -480,9 +483,13 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	*operation_result = get_channel_status(aux_engine, &returned_bytes);
 
 	if (*operation_result == AUX_CHANNEL_OPERATION_SUCCEEDED) {
-		read_channel_reply(aux_engine, payload->length,
+		int bytes_replied = 0;
+		bytes_replied = read_channel_reply(aux_engine, payload->length,
 					 payload->data, payload->reply,
 					 &status);
+		EVENT_LOG_AUX_REP(aux_engine->ddc->pin_data->en,
+					EVENT_LOG_AUX_ORIGIN_NATIVE, *payload->reply,
+					bytes_replied, payload->data);
 		res = returned_bytes;
 	} else {
 		res = -1;

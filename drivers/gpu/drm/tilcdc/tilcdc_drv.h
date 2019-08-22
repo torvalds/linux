@@ -7,21 +7,24 @@
 #ifndef __TILCDC_DRV_H__
 #define __TILCDC_DRV_H__
 
-#include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/pm_runtime.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/list.h>
+#include <linux/irqreturn.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_bridge.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_print.h>
+
+struct clk;
+struct workqueue_struct;
+
+struct drm_connector;
+struct drm_connector_helper_funcs;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_encoder;
+struct drm_framebuffer;
+struct drm_minor;
+struct drm_pending_vblank_event;
+struct drm_plane;
 
 /* Defaulting to pixel clock defined on AM335x */
 #define TILCDC_DEFAULT_MAX_PIXELCLOCK  126000
@@ -74,7 +77,6 @@ struct tilcdc_drm_private {
 
 	struct drm_encoder *external_encoder;
 	struct drm_connector *external_connector;
-	const struct drm_connector_helper_funcs *connector_funcs;
 
 	bool is_registered;
 	bool is_componentized;
@@ -156,7 +158,6 @@ void tilcdc_crtc_set_panel_info(struct drm_crtc *crtc,
 		const struct tilcdc_panel_info *info);
 void tilcdc_crtc_set_simulate_vesa_sync(struct drm_crtc *crtc,
 					bool simulate_vesa_sync);
-int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode);
 int tilcdc_crtc_max_width(struct drm_crtc *crtc);
 void tilcdc_crtc_shutdown(struct drm_crtc *crtc);
 int tilcdc_crtc_update_fb(struct drm_crtc *crtc,

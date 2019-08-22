@@ -9,6 +9,10 @@
 #ifndef __MESON_VCLK_H
 #define __MESON_VCLK_H
 
+#include <drm/drm_modes.h>
+
+struct meson_drm;
+
 enum {
 	MESON_VCLK_TARGET_CVBS = 0,
 	MESON_VCLK_TARGET_HDMI = 1,

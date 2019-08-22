@@ -695,8 +695,8 @@ static int goya_sw_init(struct hl_device *hdev)
 		goto free_dma_pool;
 	}
 
-	dev_dbg(hdev->dev, "cpu accessible memory at bus address 0x%llx\n",
-		hdev->cpu_accessible_dma_address);
+	dev_dbg(hdev->dev, "cpu accessible memory at bus address %pad\n",
+		&hdev->cpu_accessible_dma_address);
 
 	hdev->cpu_accessible_dma_pool = gen_pool_create(ilog2(32), -1);
 	if (!hdev->cpu_accessible_dma_pool) {
@@ -4449,7 +4449,6 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_AXI_ECC:
 	case GOYA_ASYNC_EVENT_ID_L2_RAM_ECC:
 	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
-	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_10_VRHOT_ICRIT:
 		goya_print_irq_info(hdev, event_type, false);
 		hl_device_reset(hdev, true, false);
 		break;
@@ -4485,6 +4484,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 		goya_unmask_irq(hdev, event_type);
 		break;
 
+	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_10_VRHOT_ICRIT:
 	case GOYA_ASYNC_EVENT_ID_TPC0_BMON_SPMU:
 	case GOYA_ASYNC_EVENT_ID_TPC1_BMON_SPMU:
 	case GOYA_ASYNC_EVENT_ID_TPC2_BMON_SPMU:

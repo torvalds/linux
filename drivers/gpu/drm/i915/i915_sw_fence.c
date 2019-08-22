@@ -7,7 +7,7 @@
 #include <linux/slab.h>
 #include <linux/dma-fence.h>
 #include <linux/irq_work.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 #include "i915_sw_fence.h"
 #include "i915_selftest.h"
@@ -523,7 +523,7 @@ int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 }
 
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
-				    struct reservation_object *resv,
+				    struct dma_resv *resv,
 				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,
@@ -539,7 +539,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 		struct dma_fence **shared;
 		unsigned int count, i;
 
-		ret = reservation_object_get_fences_rcu(resv,
+		ret = dma_resv_get_fences_rcu(resv,
 							&excl, &count, &shared);
 		if (ret)
 			return ret;
@@ -564,7 +564,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 			dma_fence_put(shared[i]);
 		kfree(shared);
 	} else {
-		excl = reservation_object_get_excl_rcu(resv);
+		excl = dma_resv_get_excl_rcu(resv);
 	}
 
 	if (ret >= 0 && excl && excl->ops != exclude) {

@@ -912,15 +912,15 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 					rq->timeline,
 					rq);
 
-		reservation_object_add_excl_fence(vma->resv, &rq->fence);
+		dma_resv_add_excl_fence(vma->resv, &rq->fence);
 		obj->write_domain = I915_GEM_DOMAIN_RENDER;
 		obj->read_domains = 0;
 	} else {
-		err = reservation_object_reserve_shared(vma->resv, 1);
+		err = dma_resv_reserve_shared(vma->resv, 1);
 		if (unlikely(err))
 			return err;
 
-		reservation_object_add_shared_fence(vma->resv, &rq->fence);
+		dma_resv_add_shared_fence(vma->resv, &rq->fence);
 		obj->write_domain = 0;
 	}
 	obj->read_domains |= I915_GEM_GPU_DOMAINS;

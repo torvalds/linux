@@ -491,7 +491,7 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 
 	obj->gvt_info = dmabuf_obj->info;
 
-	dmabuf = i915_gem_prime_export(dev, &obj->base, DRM_CLOEXEC | DRM_RDWR);
+	dmabuf = i915_gem_prime_export(&obj->base, DRM_CLOEXEC | DRM_RDWR);
 	if (IS_ERR(dmabuf)) {
 		gvt_vgpu_err("export dma-buf failed\n");
 		ret = PTR_ERR(dmabuf);

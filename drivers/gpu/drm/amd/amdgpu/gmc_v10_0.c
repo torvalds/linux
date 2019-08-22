@@ -62,7 +62,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	struct amdgpu_vmhub *hub;
 	u32 tmp, reg, bits[AMDGPU_MAX_VMHUBS], i;
 
-	bits[AMDGPU_GFXHUB] = GCVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+	bits[AMDGPU_GFXHUB_0] = GCVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		GCVM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		GCVM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		GCVM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
@@ -70,7 +70,7 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		GCVM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		GCVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
 
-	bits[AMDGPU_MMHUB] = MMVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+	bits[AMDGPU_MMHUB_0] = MMVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		MMVM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		MMVM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		MMVM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
@@ -81,39 +81,39 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		/* MM HUB */
-		hub = &adev->vmhub[AMDGPU_MMHUB];
+		hub = &adev->vmhub[AMDGPU_MMHUB_0];
 		for (i = 0; i < 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
-			tmp &= ~bits[AMDGPU_MMHUB];
+			tmp &= ~bits[AMDGPU_MMHUB_0];
 			WREG32(reg, tmp);
 		}
 
 		/* GFX HUB */
-		hub = &adev->vmhub[AMDGPU_GFXHUB];
+		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 		for (i = 0; i < 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
-			tmp &= ~bits[AMDGPU_GFXHUB];
+			tmp &= ~bits[AMDGPU_GFXHUB_0];
 			WREG32(reg, tmp);
 		}
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
-		hub = &adev->vmhub[AMDGPU_MMHUB];
+		hub = &adev->vmhub[AMDGPU_MMHUB_0];
 		for (i = 0; i < 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
-			tmp |= bits[AMDGPU_MMHUB];
+			tmp |= bits[AMDGPU_MMHUB_0];
 			WREG32(reg, tmp);
 		}
 
 		/* GFX HUB */
-		hub = &adev->vmhub[AMDGPU_GFXHUB];
+		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 		for (i = 0; i < 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
-			tmp |= bits[AMDGPU_GFXHUB];
+			tmp |= bits[AMDGPU_GFXHUB_0];
 			WREG32(reg, tmp);
 		}
 		break;
@@ -244,11 +244,11 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
-	gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB, 0);
+	gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB_0, 0);
 	if (!adev->mman.buffer_funcs_enabled ||
 	    !adev->ib_pool_ready ||
 	    adev->in_gpu_reset) {
-		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_GFXHUB, 0);
+		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_GFXHUB_0, 0);
 		mutex_unlock(&adev->mman.gtt_window_lock);
 		return;
 	}
@@ -313,7 +313,7 @@ static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t reg;
 
-	if (ring->funcs->vmhub == AMDGPU_GFXHUB)
+	if (ring->funcs->vmhub == AMDGPU_GFXHUB_0)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
@@ -524,6 +524,8 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 	if (amdgpu_gart_size == -1) {
 		switch (adev->asic_type) {
 		case CHIP_NAVI10:
+		case CHIP_NAVI14:
+		case CHIP_NAVI12:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -601,9 +603,12 @@ static int gmc_v10_0_sw_init(void *handle)
 	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
+		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
-		 * vm size is 256TB (48bit), maximum size of Navi10,
+		 * vm size is 256TB (48bit), maximum size of Navi10/Navi14/Navi12,
 		 * block size 512 (9bit)
 		 */
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
@@ -680,8 +685,8 @@ static int gmc_v10_0_sw_init(void *handle)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_GFXHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
 
 	amdgpu_vm_manager_init(adev);
 
@@ -717,6 +722,8 @@ static void gmc_v10_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		break;
 	default:
 		break;

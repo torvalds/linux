@@ -55,7 +55,7 @@ struct i915_vma {
 	struct i915_address_space *vm;
 	const struct i915_vma_ops *ops;
 	struct i915_fence_reg *fence;
-	struct reservation_object *resv; /** Alias of obj->resv */
+	struct dma_resv *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
 	void *private; /* owned by creator */
@@ -306,16 +306,16 @@ void i915_vma_close(struct i915_vma *vma);
 void i915_vma_reopen(struct i915_vma *vma);
 void i915_vma_destroy(struct i915_vma *vma);
 
-#define assert_vma_held(vma) reservation_object_assert_held((vma)->resv)
+#define assert_vma_held(vma) dma_resv_assert_held((vma)->resv)
 
 static inline void i915_vma_lock(struct i915_vma *vma)
 {
-	reservation_object_lock(vma->resv, NULL);
+	dma_resv_lock(vma->resv, NULL);
 }
 
 static inline void i915_vma_unlock(struct i915_vma *vma)
 {
-	reservation_object_unlock(vma->resv);
+	dma_resv_unlock(vma->resv);
 }
 
 int __i915_vma_do_pin(struct i915_vma *vma,

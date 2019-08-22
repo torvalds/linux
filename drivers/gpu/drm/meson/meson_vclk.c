@@ -5,9 +5,10 @@
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/export.h>
+
+#include <drm/drm_print.h>
+
 #include "meson_drv.h"
 #include "meson_vclk.h"
 
@@ -96,6 +97,7 @@
 #define HHI_VDAC_CNTL1		0x2F8 /* 0xbe offset in data sheet */
 
 #define HHI_HDMI_PLL_CNTL	0x320 /* 0xc8 offset in data sheet */
+#define HHI_HDMI_PLL_CNTL_EN	BIT(30)
 #define HHI_HDMI_PLL_CNTL2	0x324 /* 0xc9 offset in data sheet */
 #define HHI_HDMI_PLL_CNTL3	0x328 /* 0xca offset in data sheet */
 #define HHI_HDMI_PLL_CNTL4	0x32C /* 0xcb offset in data sheet */
@@ -468,7 +470,7 @@ void meson_hdmi_pll_set_params(struct meson_drm *priv, unsigned int m,
 
 		/* Enable and unreset */
 		regmap_update_bits(priv->hhi, HHI_HDMI_PLL_CNTL,
-				   0x7 << 28, 0x4 << 28);
+				   0x7 << 28, HHI_HDMI_PLL_CNTL_EN);
 
 		/* Poll for lock bit */
 		regmap_read_poll_timeout(priv->hhi, HHI_HDMI_PLL_CNTL,
@@ -495,6 +497,7 @@ void meson_hdmi_pll_set_params(struct meson_drm *priv, unsigned int m,
 		regmap_write(priv->hhi, HHI_HDMI_PLL_CNTL, 0x0b3a0400 | m);
 
 		/* Enable and reset */
+		/* TODO: add specific macro for g12a here */
 		regmap_update_bits(priv->hhi, HHI_HDMI_PLL_CNTL,
 				   0x3 << 28, 0x3 << 28);
 
@@ -969,7 +972,8 @@ void meson_vclk_setup(struct meson_drm *priv, unsigned int target,
 		meson_venci_cvbs_clock_config(priv);
 		return;
 	} else if (target == MESON_VCLK_TARGET_DMT) {
-		/* The DMT clock path is fixed after the PLL:
+		/*
+		 * The DMT clock path is fixed after the PLL:
 		 * - automatic PLL freq + OD management
 		 * - vid_pll_div = VID_PLL_DIV_5
 		 * - vclk_div = 2

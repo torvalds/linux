@@ -74,7 +74,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			   struct amdgpu_ctx *ctx)
 {
 	unsigned num_entities = amdgput_ctx_total_num_entities();
-	unsigned i, j;
+	unsigned i, j, k;
 	int r;
 
 	if (priority < 0 || priority >= DRM_SCHED_PRIORITY_MAX)
@@ -123,7 +123,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	for (i = 0; i < AMDGPU_HW_IP_NUM; ++i) {
 		struct amdgpu_ring *rings[AMDGPU_MAX_RINGS];
 		struct drm_sched_rq *rqs[AMDGPU_MAX_RINGS];
-		unsigned num_rings;
+		unsigned num_rings = 0;
 		unsigned num_rqs = 0;
 
 		switch (i) {
@@ -154,16 +154,26 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			num_rings = 1;
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
-			rings[0] = &adev->vcn.ring_dec;
-			num_rings = 1;
+			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+				if (adev->vcn.harvest_config & (1 << j))
+					continue;
+				rings[num_rings++] = &adev->vcn.inst[j].ring_dec;
+			}
 			break;
 		case AMDGPU_HW_IP_VCN_ENC:
-			rings[0] = &adev->vcn.ring_enc[0];
-			num_rings = 1;
+			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+				if (adev->vcn.harvest_config & (1 << j))
+					continue;
+				for (k = 0; k < adev->vcn.num_enc_rings; ++k)
+					rings[num_rings++] = &adev->vcn.inst[j].ring_enc[k];
+			}
 			break;
 		case AMDGPU_HW_IP_VCN_JPEG:
-			rings[0] = &adev->vcn.ring_jpeg;
-			num_rings = 1;
+			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
+				if (adev->vcn.harvest_config & (1 << j))
+					continue;
+				rings[num_rings++] = &adev->vcn.inst[j].ring_jpeg;
+			}
 			break;
 		}
 

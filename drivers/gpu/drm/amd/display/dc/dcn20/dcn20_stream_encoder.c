@@ -373,7 +373,7 @@ static void enc2_read_state(struct stream_encoder *enc, struct enc_state *s)
  *
  *   Ensure the OTG master update lock is set when changing DME configuration.
  */
-static void enc2_set_dynamic_metadata(struct stream_encoder *enc,
+void enc2_set_dynamic_metadata(struct stream_encoder *enc,
 		bool enable_dme,
 		uint32_t hubp_requestor_id,
 		enum dynamic_metadata_mode dmdata_mode)

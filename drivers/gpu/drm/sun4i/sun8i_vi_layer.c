@@ -11,7 +11,6 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drmP.h>
 
 #include "sun8i_vi_layer.h"
 #include "sun8i_mixer.h"
@@ -232,7 +231,9 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR_FBFMT_MASK, val);
 
 	if (fmt_info->csc != SUN8I_CSC_MODE_OFF) {
-		sun8i_csc_set_ccsc_coefficients(mixer, channel, fmt_info->csc);
+		sun8i_csc_set_ccsc_coefficients(mixer, channel, fmt_info->csc,
+						state->color_encoding,
+						state->color_range);
 		sun8i_csc_enable_ccsc(mixer, channel, true);
 	} else {
 		sun8i_csc_enable_ccsc(mixer, channel, false);
@@ -441,6 +442,7 @@ struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 					       struct sun8i_mixer *mixer,
 					       int index)
 {
+	u32 supported_encodings, supported_ranges;
 	struct sun8i_vi_layer *layer;
 	unsigned int plane_cnt;
 	int ret;
@@ -466,6 +468,22 @@ struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 					     0, plane_cnt - 1);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't add zpos property\n");
+		return ERR_PTR(ret);
+	}
+
+	supported_encodings = BIT(DRM_COLOR_YCBCR_BT601) |
+			      BIT(DRM_COLOR_YCBCR_BT709);
+
+	supported_ranges = BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+			   BIT(DRM_COLOR_YCBCR_FULL_RANGE);
+
+	ret = drm_plane_create_color_properties(&layer->plane,
+						supported_encodings,
+						supported_ranges,
+						DRM_COLOR_YCBCR_BT709,
+						DRM_COLOR_YCBCR_LIMITED_RANGE);
+	if (ret) {
+		dev_err(drm->dev, "Couldn't add encoding and range properties!\n");
 		return ERR_PTR(ret);
 	}
 

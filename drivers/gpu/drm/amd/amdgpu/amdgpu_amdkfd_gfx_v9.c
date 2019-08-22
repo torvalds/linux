@@ -47,6 +47,7 @@
 #include "soc15d.h"
 #include "mmhub_v1_0.h"
 #include "gfxhub_v1_0.h"
+#include "gmc_v9_0.h"
 
 
 #define V9_PIPE_PER_MEC		(4)
@@ -58,66 +59,11 @@ enum hqd_dequeue_request_type {
 	RESET_WAVES
 };
 
-/*
- * Register access functions
- */
-
-static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t sh_mem_config,
-		uint32_t sh_mem_ape1_base, uint32_t sh_mem_ape1_limit,
-		uint32_t sh_mem_bases);
-static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
-		unsigned int vmid);
-static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
-static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr,
-			uint32_t wptr_shift, uint32_t wptr_mask,
-			struct mm_struct *mm);
-static int kgd_hqd_dump(struct kgd_dev *kgd,
-			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t (**dump)[2], uint32_t *n_regs);
-static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
-			     uint32_t __user *wptr, struct mm_struct *mm);
-static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
-			     uint32_t engine_id, uint32_t queue_id,
-			     uint32_t (**dump)[2], uint32_t *n_regs);
-static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
-		uint32_t pipe_id, uint32_t queue_id);
-static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
-static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
-				enum kfd_preempt_type reset_type,
-				unsigned int utimeout, uint32_t pipe_id,
-				uint32_t queue_id);
-static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
-				unsigned int utimeout);
-static int kgd_address_watch_disable(struct kgd_dev *kgd);
-static int kgd_address_watch_execute(struct kgd_dev *kgd,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo);
-static int kgd_wave_control_execute(struct kgd_dev *kgd,
-					uint32_t gfx_index_val,
-					uint32_t sq_cmd);
-static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
-					unsigned int watch_point_id,
-					unsigned int reg_offset);
-
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-		uint8_t vmid);
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-		uint8_t vmid);
-static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint64_t page_table_base);
-static void set_scratch_backing_va(struct kgd_dev *kgd,
-					uint64_t va, uint32_t vmid);
-static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
-static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid);
 
 /* Because of REG_GET_FIELD() being used, we put this function in the
  * asic specific file.
  */
-static int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
+int kgd_gfx_v9_get_tile_config(struct kgd_dev *kgd,
 		struct tile_config *config)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
@@ -133,39 +79,6 @@ static int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
 			ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
 
 	return 0;
-}
-
-static const struct kfd2kgd_calls kfd2kgd = {
-	.program_sh_mem_settings = kgd_program_sh_mem_settings,
-	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
-	.init_interrupts = kgd_init_interrupts,
-	.hqd_load = kgd_hqd_load,
-	.hqd_sdma_load = kgd_hqd_sdma_load,
-	.hqd_dump = kgd_hqd_dump,
-	.hqd_sdma_dump = kgd_hqd_sdma_dump,
-	.hqd_is_occupied = kgd_hqd_is_occupied,
-	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
-	.hqd_destroy = kgd_hqd_destroy,
-	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
-	.address_watch_disable = kgd_address_watch_disable,
-	.address_watch_execute = kgd_address_watch_execute,
-	.wave_control_execute = kgd_wave_control_execute,
-	.address_watch_get_offset = kgd_address_watch_get_offset,
-	.get_atc_vmid_pasid_mapping_pasid =
-			get_atc_vmid_pasid_mapping_pasid,
-	.get_atc_vmid_pasid_mapping_valid =
-			get_atc_vmid_pasid_mapping_valid,
-	.set_scratch_backing_va = set_scratch_backing_va,
-	.get_tile_config = amdgpu_amdkfd_get_tile_config,
-	.set_vm_context_page_table_base = set_vm_context_page_table_base,
-	.invalidate_tlbs = invalidate_tlbs,
-	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
-	.get_hive_id = amdgpu_amdkfd_get_hive_id,
-};
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
-{
-	return (struct kfd2kgd_calls *)&kfd2kgd;
 }
 
 static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
@@ -215,7 +128,7 @@ static void release_queue(struct kgd_dev *kgd)
 	unlock_srbm(kgd);
 }
 
-static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
+void kgd_gfx_v9_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 					uint32_t sh_mem_config,
 					uint32_t sh_mem_ape1_base,
 					uint32_t sh_mem_ape1_limit,
@@ -232,7 +145,7 @@ static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 	unlock_srbm(kgd);
 }
 
-static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
+int kgd_gfx_v9_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 					unsigned int vmid)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -293,7 +206,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
  * but still works
  */
 
-static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
+int kgd_gfx_v9_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t mec;
@@ -343,7 +256,7 @@ static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 	return (struct v9_sdma_mqd *)mqd;
 }
 
-static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
+int kgd_gfx_v9_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
 			uint32_t wptr_shift, uint32_t wptr_mask,
 			struct mm_struct *mm)
@@ -438,7 +351,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	return 0;
 }
 
-static int kgd_hqd_dump(struct kgd_dev *kgd,
+int kgd_gfx_v9_hqd_dump(struct kgd_dev *kgd,
 			uint32_t pipe_id, uint32_t queue_id,
 			uint32_t (**dump)[2], uint32_t *n_regs)
 {
@@ -575,7 +488,7 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
 	return 0;
 }
 
-static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
+bool kgd_gfx_v9_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -616,7 +529,7 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
+int kgd_gfx_v9_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id)
@@ -704,7 +617,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
+bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
 							uint8_t vmid)
 {
 	uint32_t reg;
@@ -715,7 +628,7 @@ static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
 	return reg & ATC_VMID0_PASID_MAPPING__VALID_MASK;
 }
 
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
+uint16_t kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 								uint8_t vmid)
 {
 	uint32_t reg;
@@ -754,7 +667,7 @@ static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid,
 	return 0;
 }
 
-static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
+int kgd_gfx_v9_invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	int vmid;
@@ -773,8 +686,8 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	for (vmid = 0; vmid < 16; vmid++) {
 		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
 			continue;
-		if (get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
-			if (get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
+		if (kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
+			if (kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
 				== pasid) {
 				amdgpu_gmc_flush_gpu_tlb(adev, vmid,
 							 flush_type);
@@ -786,7 +699,7 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	return 0;
 }
 
-static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
+int kgd_gfx_v9_invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
@@ -814,12 +727,12 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	return 0;
 }
 
-static int kgd_address_watch_disable(struct kgd_dev *kgd)
+int kgd_gfx_v9_address_watch_disable(struct kgd_dev *kgd)
 {
 	return 0;
 }
 
-static int kgd_address_watch_execute(struct kgd_dev *kgd,
+int kgd_gfx_v9_address_watch_execute(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					uint32_t cntl_val,
 					uint32_t addr_hi,
@@ -828,7 +741,7 @@ static int kgd_address_watch_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-static int kgd_wave_control_execute(struct kgd_dev *kgd,
+int kgd_gfx_v9_wave_control_execute(struct kgd_dev *kgd,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
 {
@@ -853,14 +766,14 @@ static int kgd_wave_control_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
+uint32_t kgd_gfx_v9_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
 	return 0;
 }
 
-static void set_scratch_backing_va(struct kgd_dev *kgd,
+void kgd_gfx_v9_set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid)
 {
 	/* No longer needed on GFXv9. The scratch base address is
@@ -869,7 +782,7 @@ static void set_scratch_backing_va(struct kgd_dev *kgd,
 	 */
 }
 
-static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
+void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -884,7 +797,45 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	 * now, all processes share the same address space size, like
 	 * on GFX8 and older.
 	 */
-	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* Two MMHUBs */
+		mmhub_v9_4_setup_vm_pt_regs(adev, 0, vmid, page_table_base);
+		mmhub_v9_4_setup_vm_pt_regs(adev, 1, vmid, page_table_base);
+	} else
+		mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 
 	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
+}
+
+static const struct kfd2kgd_calls kfd2kgd = {
+	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
+	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
+	.init_interrupts = kgd_gfx_v9_init_interrupts,
+	.hqd_load = kgd_gfx_v9_hqd_load,
+	.hqd_sdma_load = kgd_hqd_sdma_load,
+	.hqd_dump = kgd_gfx_v9_hqd_dump,
+	.hqd_sdma_dump = kgd_hqd_sdma_dump,
+	.hqd_is_occupied = kgd_gfx_v9_hqd_is_occupied,
+	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
+	.hqd_destroy = kgd_gfx_v9_hqd_destroy,
+	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
+	.address_watch_disable = kgd_gfx_v9_address_watch_disable,
+	.address_watch_execute = kgd_gfx_v9_address_watch_execute,
+	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
+	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
+	.get_atc_vmid_pasid_mapping_pasid =
+			kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid,
+	.get_atc_vmid_pasid_mapping_valid =
+			kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid,
+	.set_scratch_backing_va = kgd_gfx_v9_set_scratch_backing_va,
+	.get_tile_config = kgd_gfx_v9_get_tile_config,
+	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
+	.invalidate_tlbs = kgd_gfx_v9_invalidate_tlbs,
+	.invalidate_tlbs_vmid = kgd_gfx_v9_invalidate_tlbs_vmid,
+	.get_hive_id = amdgpu_amdkfd_get_hive_id,
+};
+
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
+{
+	return (struct kfd2kgd_calls *)&kfd2kgd;
 }

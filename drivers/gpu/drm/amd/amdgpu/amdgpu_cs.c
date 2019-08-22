@@ -402,7 +402,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
-		.resv = bo->tbo.resv,
+		.resv = bo->tbo.base.resv,
 		.flags = 0
 	};
 	uint32_t domain;
@@ -730,7 +730,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 
 	list_for_each_entry(e, &p->validated, tv.head) {
 		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
-		struct reservation_object *resv = bo->tbo.resv;
+		struct dma_resv *resv = bo->tbo.base.resv;
 
 		r = amdgpu_sync_resv(p->adev, &p->job->sync, resv, p->filp,
 				     amdgpu_bo_explicit_sync(bo));
@@ -1044,29 +1044,27 @@ static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
 			return r;
 		}
 
-		fence = amdgpu_ctx_get_fence(ctx, entity,
-					     deps[i].handle);
+		fence = amdgpu_ctx_get_fence(ctx, entity, deps[i].handle);
+		amdgpu_ctx_put(ctx);
+
+		if (IS_ERR(fence))
+			return PTR_ERR(fence);
+		else if (!fence)
+			continue;
 
 		if (chunk->chunk_id == AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES) {
-			struct drm_sched_fence *s_fence = to_drm_sched_fence(fence);
+			struct drm_sched_fence *s_fence;
 			struct dma_fence *old = fence;
 
+			s_fence = to_drm_sched_fence(fence);
 			fence = dma_fence_get(&s_fence->scheduled);
 			dma_fence_put(old);
 		}
 
-		if (IS_ERR(fence)) {
-			r = PTR_ERR(fence);
-			amdgpu_ctx_put(ctx);
+		r = amdgpu_sync_fence(p->adev, &p->job->sync, fence, true);
+		dma_fence_put(fence);
+		if (r)
 			return r;
-		} else if (fence) {
-			r = amdgpu_sync_fence(p->adev, &p->job->sync, fence,
-					true);
-			dma_fence_put(fence);
-			amdgpu_ctx_put(ctx);
-			if (r)
-				return r;
-		}
 	}
 	return 0;
 }
@@ -1729,7 +1727,7 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	*map = mapping;
 
 	/* Double check that the BO is reserved by this CS */
-	if (READ_ONCE((*bo)->tbo.resv->lock.ctx) != &parser->ticket)
+	if (dma_resv_locking_ctx((*bo)->tbo.base.resv) != &parser->ticket)
 		return -EINVAL;
 
 	if (!((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {

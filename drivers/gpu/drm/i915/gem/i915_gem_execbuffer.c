@@ -5,7 +5,7 @@
  */
 
 #include <linux/intel-iommu.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
@@ -1266,7 +1266,7 @@ relocate_entry(struct i915_vma *vma,
 
 	if (!eb->reloc_cache.vaddr &&
 	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !reservation_object_test_signaled_rcu(vma->resv, true))) {
+	     !dma_resv_test_signaled_rcu(vma->resv, true))) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;

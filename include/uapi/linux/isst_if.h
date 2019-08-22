@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Intel Speed Select Interface: OS to hardware Interface
  * Copyright (c) 2019, Intel Corporation.

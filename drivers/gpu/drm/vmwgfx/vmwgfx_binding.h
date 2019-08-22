@@ -27,8 +27,9 @@
 #ifndef _VMWGFX_BINDING_H_
 #define _VMWGFX_BINDING_H_
 
-#include "device_include/svga3d_reg.h"
 #include <linux/list.h>
+
+#include "device_include/svga3d_reg.h"
 
 #define VMW_MAX_VIEW_BINDINGS 128
 

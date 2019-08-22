@@ -472,7 +472,7 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 	u64 remainder_mask;
 	bool once;
 
-	DRM_MM_BUG_ON(range_start >= range_end);
+	DRM_MM_BUG_ON(range_start > range_end);
 
 	if (unlikely(size == 0 || range_end - range_start < size))
 		return -ENOSPC;

@@ -147,7 +147,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 						true, I915_FENCE_TIMEOUT,
 						I915_FENCE_GFP);
 
-		reservation_object_add_excl_fence(obj->base.resv,
+		dma_resv_add_excl_fence(obj->base.resv,
 						  &clflush->dma);
 
 		i915_sw_fence_commit(&clflush->wait);

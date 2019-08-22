@@ -532,6 +532,7 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 	uint32_t read_dpcd_retry_cnt = 10;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
+	union max_down_spread max_down_spread = { {0} };
 
 	// Read DPCD 00101h to find out the number of lanes currently set
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
@@ -552,8 +553,6 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 
 		msleep(8);
 	}
-
-	ASSERT(status == DC_OK);
 
 	// Read DPCD 00100h to find if standard link rates are set
 	core_link_read_dpcd(link, DP_LINK_BW_SET,
@@ -576,6 +575,12 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 		link->cur_link_settings.link_rate = link_bw_set;
 		link->cur_link_settings.use_link_rate_set = false;
 	}
+	// Read DPCD 00003h to find the max down spread.
+	core_link_read_dpcd(link, DP_MAX_DOWNSPREAD,
+			&max_down_spread.raw, sizeof(max_down_spread));
+	link->cur_link_settings.link_spread =
+		max_down_spread.bits.MAX_DOWN_SPREAD ?
+		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
 }
 
 static bool detect_dp(
@@ -717,13 +722,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		return false;
 	}
 
-	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		/* On detect, we want to make sure current link settings are
-		 * up to date, especially if link was powered on by GOP.
-		 */
-		read_edp_current_link_settings_on_detect(link);
-	}
-
 	prev_sink = link->local_sink;
 	if (prev_sink != NULL) {
 		dc_sink_retain(prev_sink);
@@ -765,6 +763,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_EDP: {
+			read_edp_current_link_settings_on_detect(link);
 			detect_edp_sink_caps(link);
 			sink_caps.transaction_type =
 				DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
@@ -1189,6 +1188,9 @@ static bool construct(
 	link->ctx = dc_ctx;
 	link->link_index = init_params->link_index;
 
+	memset(&link->preferred_training_settings, 0, sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0, sizeof(struct dc_link_settings));
+
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
@@ -1467,6 +1469,9 @@ static enum dc_status enable_link_dp(
 	struct dc_link *link = stream->link;
 	struct dc_link_settings link_settings = {0};
 	enum dp_panel_mode panel_mode;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool fec_enable;
+#endif
 
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
@@ -1510,11 +1515,12 @@ static enum dc_status enable_link_dp(
 	if (link_settings.link_rate == LINK_RATE_LOW)
 			skip_video_pattern = false;
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	dp_set_fec_ready(link, true);
-#endif
+	if (link->aux_access_disabled) {
+		dc_link_dp_perform_link_training_skip_aux(link, &link_settings);
 
-	if (perform_link_training_with_retries(
+		link->cur_link_settings = link_settings;
+		status = DC_OK;
+	} else if (perform_link_training_with_retries(
 			link,
 			&link_settings,
 			skip_video_pattern,
@@ -1526,7 +1532,12 @@ static enum dc_status enable_link_dp(
 		status = DC_FAIL_DP_LINK_TRAINING;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	dp_set_fec_enable(link, true);
+	if (link->preferred_training_settings.fec_enable != NULL)
+		fec_enable = *link->preferred_training_settings.fec_enable;
+	else
+		fec_enable = true;
+
+	dp_set_fec_enable(link, fec_enable);
 #endif
 	return status;
 }
@@ -2329,7 +2340,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
 						pipe_ctx[i].stream->link
-						== link)
+						== link) {
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -2337,6 +2348,13 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 						core_dc->current_state->
 						res_ctx.pipe_ctx[i].stream_res.tg->inst +
 						1;
+
+					/* Disable brightness ramping when the display is blanked
+					 * as it can hang the DMCU
+					 */
+					if (core_dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
+						frame_ramp = 0;
+				}
 			}
 		}
 		abm->funcs->set_backlight_level_pwm(
@@ -2755,10 +2773,10 @@ void core_link_enable_stream(
 			allocate_mst_payload(pipe_ctx);
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-		if (pipe_ctx->stream->timing.flags.DSC &&
-				(dc_is_dp_signal(pipe_ctx->stream->signal) ||
-				dc_is_virtual_signal(pipe_ctx->stream->signal))) {
-			dp_set_dsc_enable(pipe_ctx, true);
+		if (pipe_ctx->stream->timing.flags.DSC) {
+			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+					dc_is_virtual_signal(pipe_ctx->stream->signal))
+				dp_set_dsc_enable(pipe_ctx, true);
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(
 					pipe_ctx->stream_res.tg,
 					CRTC_STATE_VBLANK);
@@ -2819,9 +2837,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	if (pipe_ctx->stream->timing.flags.DSC &&
-			dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		dp_set_dsc_enable(pipe_ctx, false);
+	if (pipe_ctx->stream->timing.flags.DSC) {
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			dp_set_dsc_enable(pipe_ctx, false);
 	}
 #endif
 }
@@ -2830,7 +2848,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
+	if (!dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		return;
 
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
@@ -2984,15 +3002,19 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	/* Retrain with preferred link settings only relevant for
 	 * DP signal type
+	 * Check for non-DP signal or if passive dongle present
 	 */
-	if (!dc_is_dp_signal(link->connector_signal))
+	if (!dc_is_dp_signal(link->connector_signal) ||
+		link->dongle_max_pix_clk > 0)
 		return;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream && pipe->stream->link) {
-			if (pipe->stream->link == link)
+			if (pipe->stream->link == link) {
+				link_stream = pipe->stream;
 				break;
+			}
 		}
 	}
 
@@ -3000,18 +3022,38 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	if (i == MAX_PIPES)
 		return;
 
-	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
-
 	/* Cannot retrain link if backend is off */
 	if (link_stream->dpms_off)
 		return;
 
-	if (link_stream)
-		decide_link_settings(link_stream, &store_settings);
+	decide_link_settings(link_stream, &store_settings);
 
 	if ((store_settings.lane_count != LANE_COUNT_UNKNOWN) &&
 		(store_settings.link_rate != LINK_RATE_UNKNOWN))
 		dp_retrain_link_dp_test(link, &store_settings, false);
+}
+
+void dc_link_set_preferred_training_settings(struct dc *dc,
+						 struct dc_link_settings *link_setting,
+						 struct dc_link_training_overrides *lt_overrides,
+						 struct dc_link *link,
+						 bool skip_immediate_retrain)
+{
+	if (lt_overrides != NULL)
+		link->preferred_training_settings = *lt_overrides;
+	else
+		memset(&link->preferred_training_settings, 0, sizeof(link->preferred_training_settings));
+
+	if (link_setting != NULL) {
+		link->preferred_link_setting = *link_setting;
+	} else {
+		link->preferred_link_setting.lane_count = LANE_COUNT_UNKNOWN;
+		link->preferred_link_setting.link_rate = LINK_RATE_UNKNOWN;
+	}
+
+	/* Retrain now, or wait until next stream update to apply */
+	if (skip_immediate_retrain == false)
+		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
 }
 
 void dc_link_enable_hpd(const struct dc_link *link)
@@ -3023,7 +3065,6 @@ void dc_link_disable_hpd(const struct dc_link *link)
 {
 	dc_link_dp_disable_hpd(link);
 }
-
 
 void dc_link_set_test_pattern(struct dc_link *link,
 			      enum dp_test_pattern test_pattern,

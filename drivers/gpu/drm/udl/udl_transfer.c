@@ -7,12 +7,8 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/fb.h>
 #include <asm/unaligned.h>
 
-#include <drm/drmP.h>
 #include "udl_drv.h"
 
 #define MAX_CMD_PIXELS		255

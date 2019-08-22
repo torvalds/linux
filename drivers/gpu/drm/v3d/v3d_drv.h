@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Copyright (C) 2015-2018 Broadcom */
 
-#include <linux/mm_types.h>
-#include <drm/drmP.h>
+#include <linux/delay.h>
+#include <linux/mutex.h>
+#include <linux/spinlock_types.h>
+#include <linux/workqueue.h>
+
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/gpu_scheduler.h>
+
 #include "uapi/drm/v3d_drm.h"
+
+struct clk;
+struct device;
+struct platform_device;
+struct reset_control;
 
 #define GMP_GRANULARITY (128 * 1024)
 

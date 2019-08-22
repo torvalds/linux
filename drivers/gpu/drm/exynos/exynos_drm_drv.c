@@ -75,29 +75,29 @@ static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 
 static const struct drm_ioctl_desc exynos_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exynos_drm_gem_create_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MAP, exynos_drm_gem_map_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET, exynos_drm_gem_get_ioctl,
 			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION, vidi_connection_ioctl,
 			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER, exynos_g2d_get_ver_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exynos_g2d_set_cmdlist_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_RESOURCES,
 			exynos_drm_ipp_get_res_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_CAPS, exynos_drm_ipp_get_caps_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_LIMITS,
 			exynos_drm_ipp_get_limits_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_COMMIT, exynos_drm_ipp_commit_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -112,7 +112,7 @@ static const struct file_operations exynos_drm_driver_fops = {
 };
 
 static struct drm_driver exynos_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
 	.lastclose		= drm_fb_helper_lastclose,
@@ -122,7 +122,6 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_create		= exynos_drm_gem_dumb_create,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_import	= exynos_drm_gem_prime_import,
 	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,

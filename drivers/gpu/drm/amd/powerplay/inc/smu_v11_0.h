@@ -43,19 +43,24 @@
 #define SMU11_TOOL_SIZE			0x19000
 
 #define CLK_MAP(clk, index) \
-	[SMU_##clk] = index
+	[SMU_##clk] = {1, (index)}
 
 #define FEA_MAP(fea) \
-	[SMU_FEATURE_##fea##_BIT] = FEATURE_##fea##_BIT
+	[SMU_FEATURE_##fea##_BIT] = {1, FEATURE_##fea##_BIT}
 
 #define TAB_MAP(tab) \
-	[SMU_TABLE_##tab] = TABLE_##tab
+	[SMU_TABLE_##tab] = {1, TABLE_##tab}
 
 #define PWR_MAP(tab) \
-	[SMU_POWER_SOURCE_##tab] = POWER_SOURCE_##tab
+	[SMU_POWER_SOURCE_##tab] = {1, POWER_SOURCE_##tab}
 
 #define WORKLOAD_MAP(profile, workload) \
-	[profile] = workload
+	[profile] = {1, (workload)}
+
+struct smu_11_0_cmn2aisc_mapping {
+	int	valid_mapping;
+	int	map_to;
+};
 
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;

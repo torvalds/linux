@@ -48,6 +48,8 @@
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
 #include "gfxhub_v1_1.h"
+#include "mmhub_v9_4.h"
+#include "umc_v6_1.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
@@ -241,11 +243,23 @@ static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
+		struct ras_err_data *err_data,
 		struct amdgpu_iv_entry *entry)
 {
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-	amdgpu_ras_reset_gpu(adev, 0);
-	return AMDGPU_RAS_UE;
+	if (adev->umc.funcs->query_ras_error_count)
+		adev->umc.funcs->query_ras_error_count(adev, err_data);
+	/* umc query_ras_error_address is also responsible for clearing
+	 * error status
+	 */
+	if (adev->umc.funcs->query_ras_error_address)
+		adev->umc.funcs->query_ras_error_address(adev, err_data);
+
+	/* only uncorrectable error needs gpu reset */
+	if (err_data->ue_count)
+		amdgpu_ras_reset_gpu(adev, 0);
+
+	return AMDGPU_RAS_SUCCESS;
 }
 
 static int gmc_v9_0_process_ecc_irq(struct amdgpu_device *adev,
@@ -284,7 +298,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		for (j = 0; j < AMDGPU_MAX_VMHUBS; j++) {
+		for (j = 0; j < adev->num_vmhubs; j++) {
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
@@ -295,7 +309,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		}
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		for (j = 0; j < AMDGPU_MAX_VMHUBS; j++) {
+		for (j = 0; j < adev->num_vmhubs; j++) {
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
@@ -315,10 +329,11 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
+	struct amdgpu_vmhub *hub;
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	uint32_t status = 0;
 	u64 addr;
+	char hub_name[10];
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
@@ -326,6 +341,17 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	if (retry_fault && amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
 						    entry->timestamp))
 		return 1; /* This also prevents sending it to KFD */
+
+	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
+		snprintf(hub_name, sizeof(hub_name), "mmhub0");
+		hub = &adev->vmhub[AMDGPU_MMHUB_0];
+	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
+		snprintf(hub_name, sizeof(hub_name), "mmhub1");
+		hub = &adev->vmhub[AMDGPU_MMHUB_1];
+	} else {
+		snprintf(hub_name, sizeof(hub_name), "gfxhub0");
+		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	}
 
 	/* If it's the first fault for this address, process it normally */
 	if (!amdgpu_sriov_vf(adev)) {
@@ -342,17 +368,30 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		dev_err(adev->dev,
 			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
 			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
-			entry->vmid_src ? "mmhub" : "gfxhub",
-			retry_fault ? "retry" : "no-retry",
+			hub_name, retry_fault ? "retry" : "no-retry",
 			entry->src_id, entry->ring_id, entry->vmid,
 			entry->pasid, task_info.process_name, task_info.tgid,
 			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  in page starting at address 0x%016llx from %d\n",
+		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
 			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev))
+		if (!amdgpu_sriov_vf(adev)) {
 			dev_err(adev->dev,
 				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 				status);
+			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
+			dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
+			dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
+			dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
+				REG_GET_FIELD(status,
+				VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
+
+		}
 	}
 
 	return 0;
@@ -419,7 +458,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 	const unsigned eng = 17;
 	unsigned i, j;
 
-	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
+	for (i = 0; i < adev->num_vmhubs; ++i) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
 		u32 tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
@@ -480,7 +519,11 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t reg;
 
-	if (ring->funcs->vmhub == AMDGPU_GFXHUB)
+	/* Do nothing because there's no lut register for mmhub1. */
+	if (ring->funcs->vmhub == AMDGPU_MMHUB_1)
+		return;
+
+	if (ring->funcs->vmhub == AMDGPU_GFXHUB_0)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
@@ -597,12 +640,29 @@ static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)
 	adev->gmc.gmc_funcs = &gmc_v9_0_gmc_funcs;
 }
 
+static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
+		adev->umc.channel_inst_num = UMC_V6_1_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
+		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET;
+		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
+		adev->umc.funcs = &umc_v6_1_funcs;
+		break;
+	default:
+		break;
+	}
+}
+
 static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gmc_v9_0_set_gmc_funcs(adev);
 	gmc_v9_0_set_irq_funcs(adev);
+	gmc_v9_0_set_umc_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -629,6 +689,7 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
+	case CHIP_ARCTURUS:
 		return true;
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
@@ -641,7 +702,8 @@ static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
 	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
-		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP};
+		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP,
+		GFXHUB_FREE_VM_INV_ENGS_BITMAP};
 	unsigned i;
 	unsigned vmhub, inv_eng;
 
@@ -689,6 +751,7 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
 		return 0;
 	}
+
 	/* handle resume path. */
 	if (*ras_if) {
 		/* resend ras TA enable cmd during resume.
@@ -806,8 +869,12 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 					struct amdgpu_gmc *mc)
 {
 	u64 base = 0;
-	if (!amdgpu_sriov_vf(adev))
-		base = mmhub_v1_0_get_fb_location(adev);
+	if (!amdgpu_sriov_vf(adev)) {
+		if (adev->asic_type == CHIP_ARCTURUS)
+			base = mmhub_v9_4_get_fb_location(adev);
+		else
+			base = mmhub_v1_0_get_fb_location(adev);
+	}
 	/* add the xgmi offset of the physical node */
 	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 	amdgpu_gmc_vram_location(adev, mc, base);
@@ -887,6 +954,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		case CHIP_VEGA10:  /* all engines support GPUVM */
 		case CHIP_VEGA12:  /* all engines support GPUVM */
 		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -923,7 +991,7 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
-	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
+	u32 d1vga_control;
 	unsigned size;
 
 	/*
@@ -933,6 +1001,7 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	if (gmc_v9_0_keep_stolen_memory(adev))
 		return 9 * 1024 * 1024;
 
+	d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
 		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
 	} else {
@@ -972,13 +1041,18 @@ static int gmc_v9_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfxhub_v1_0_init(adev);
-	mmhub_v1_0_init(adev);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		mmhub_v9_4_init(adev);
+	else
+		mmhub_v1_0_init(adev);
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
 	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+		adev->num_vmhubs = 2;
+
 		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		} else {
@@ -991,6 +1065,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
+		adev->num_vmhubs = 2;
+
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size of Vega10,
@@ -1002,6 +1078,12 @@ static int gmc_v9_0_sw_init(void *handle)
 		else
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
+	case CHIP_ARCTURUS:
+		adev->num_vmhubs = 3;
+
+		/* Keep the vm size same with Vega20 */
+		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		break;
 	default:
 		break;
 	}
@@ -1011,6 +1093,13 @@ static int gmc_v9_0_sw_init(void *handle)
 				&adev->gmc.vm_fault);
 	if (r)
 		return r;
+
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VMC1, VMC_1_0__SRCID__VM_FAULT,
+					&adev->gmc.vm_fault);
+		if (r)
+			return r;
+	}
 
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UTCL2, UTCL2_1_0__SRCID__FAULT,
 				&adev->gmc.vm_fault);
@@ -1077,8 +1166,9 @@ static int gmc_v9_0_sw_init(void *handle)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_GFXHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB_0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB_1].num_ids = AMDGPU_NUM_OF_VMIDS;
 
 	amdgpu_vm_manager_init(adev);
 
@@ -1123,7 +1213,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		if (amdgpu_virt_support_skip_setting(adev))
+		if (amdgpu_sriov_vf(adev))
 			break;
 		/* fall through */
 	case CHIP_VEGA20:
@@ -1181,7 +1271,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	r = mmhub_v1_0_gart_enable(adev);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		r = mmhub_v9_4_gart_enable(adev);
+	else
+		r = mmhub_v1_0_gart_enable(adev);
 	if (r)
 		return r;
 
@@ -1202,7 +1295,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		value = true;
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
-	mmhub_v1_0_set_fault_enable_default(adev, value);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		mmhub_v9_4_set_fault_enable_default(adev, value);
+	else
+		mmhub_v1_0_set_fault_enable_default(adev, value);
 	gmc_v9_0_flush_gpu_tlb(adev, 0, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -1243,7 +1339,10 @@ static int gmc_v9_0_hw_init(void *handle)
 static void gmc_v9_0_gart_disable(struct amdgpu_device *adev)
 {
 	gfxhub_v1_0_gart_disable(adev);
-	mmhub_v1_0_gart_disable(adev);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		mmhub_v9_4_gart_disable(adev);
+	else
+		mmhub_v1_0_gart_disable(adev);
 	amdgpu_gart_table_vram_unpin(adev);
 }
 
@@ -1308,12 +1407,18 @@ static int gmc_v9_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (adev->asic_type == CHIP_ARCTURUS)
+		return 0;
+
 	return mmhub_v1_0_set_clockgating(adev, state);
 }
 
 static void gmc_v9_0_get_clockgating_state(void *handle, u32 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->asic_type == CHIP_ARCTURUS)
+		return;
 
 	mmhub_v1_0_get_clockgating(adev, flags);
 }

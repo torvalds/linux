@@ -82,6 +82,15 @@ struct freesync_hdr_tf_params {
 	unsigned int skip_tm; // skip tm
 };
 
+struct translate_from_linear_space_args {
+	struct fixed31_32 arg;
+	struct fixed31_32 a0;
+	struct fixed31_32 a1;
+	struct fixed31_32 a2;
+	struct fixed31_32 a3;
+	struct fixed31_32 gamma;
+};
+
 void setup_x_points_distribution(void);
 void precompute_pq(void);
 void precompute_de_pq(void);

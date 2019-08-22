@@ -25,10 +25,11 @@ enum dc_status core_link_read_dpcd(
 	uint8_t *data,
 	uint32_t size)
 {
-	if (!dm_helpers_dp_read_dpcd(link->ctx,
-			link,
-			address, data, size))
-			return DC_ERROR_UNEXPECTED;
+	if (!link->aux_access_disabled &&
+			!dm_helpers_dp_read_dpcd(link->ctx,
+			link, address, data, size)) {
+		return DC_ERROR_UNEXPECTED;
+	}
 
 	return DC_OK;
 }
@@ -39,10 +40,11 @@ enum dc_status core_link_write_dpcd(
 	const uint8_t *data,
 	uint32_t size)
 {
-	if (!dm_helpers_dp_write_dpcd(link->ctx,
-			link,
-			address, data, size))
-				return DC_ERROR_UNEXPECTED;
+	if (!link->aux_access_disabled &&
+			!dm_helpers_dp_write_dpcd(link->ctx,
+			link, address, data, size)) {
+		return DC_ERROR_UNEXPECTED;
+	}
 
 	return DC_OK;
 }
@@ -160,6 +162,10 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 			break;
 		udelay(25); //MAx T7 is 50ms
 	} while (++tries < 300);
+
+	if (link->local_sink->edid_caps.panel_patch.extra_t7_ms > 0)
+		udelay(link->local_sink->edid_caps.panel_patch.extra_t7_ms * 1000);
+
 	return result;
 }
 
@@ -203,21 +209,21 @@ void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
 
 bool dp_set_hw_training_pattern(
 	struct dc_link *link,
-	enum hw_dp_training_pattern pattern)
+	enum dc_dp_training_pattern pattern)
 {
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 
 	switch (pattern) {
-	case HW_DP_TRAINING_PATTERN_1:
+	case DP_TRAINING_PATTERN_SEQUENCE_1:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN1;
 		break;
-	case HW_DP_TRAINING_PATTERN_2:
+	case DP_TRAINING_PATTERN_SEQUENCE_2:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN2;
 		break;
-	case HW_DP_TRAINING_PATTERN_3:
+	case DP_TRAINING_PATTERN_SEQUENCE_3:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN3;
 		break;
-	case HW_DP_TRAINING_PATTERN_4:
+	case DP_TRAINING_PATTERN_SEQUENCE_4:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN4;
 		break;
 	default:
@@ -394,7 +400,7 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 
 /* This has to be done after DSC was enabled on RX first, i.e. after dp_enable_dsc_on_rx() had been called
  */
-static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
+void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
@@ -433,7 +439,7 @@ static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		dsc_optc_config_log(dsc, &dsc_optc_cfg);
 		/* Enable DSC in encoder */
-		if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) && pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config)
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
 									optc_dsc_mode,
 									dsc_optc_cfg.bytes_per_pixel,
@@ -452,11 +458,10 @@ static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 				OPTC_DSC_DISABLED, 0, 0);
 
 		/* disable DSC in stream encoder */
-		if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
 					pipe_ctx->stream_res.stream_enc,
 					OPTC_DSC_DISABLED, 0, 0, NULL);
-		}
 
 		/* disable DSC block */
 		pipe_ctx->stream_res.dsc->funcs->dsc_disable(pipe_ctx->stream_res.dsc);
@@ -477,12 +482,12 @@ bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable)
 
 	if (enable) {
 		if (dp_set_dsc_on_rx(pipe_ctx, true)) {
-			dp_set_dsc_on_stream(pipe_ctx, true);
+			set_dsc_on_stream(pipe_ctx, true);
 			result = true;
 		}
 	} else {
 		dp_set_dsc_on_rx(pipe_ctx, false);
-		dp_set_dsc_on_stream(pipe_ctx, false);
+		set_dsc_on_stream(pipe_ctx, false);
 		result = true;
 	}
 out:
@@ -498,7 +503,7 @@ bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 	if (!dsc)
 		return false;
 
-	dp_set_dsc_on_stream(pipe_ctx, true);
+	set_dsc_on_stream(pipe_ctx, true);
 	return true;
 }
 

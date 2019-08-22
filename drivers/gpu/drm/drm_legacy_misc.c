@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_legacy_misc.c
  * Misc legacy support functions.
  *

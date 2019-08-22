@@ -2143,12 +2143,20 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto out;
 	}
 
+	svm->vcpu.arch.user_fpu = kmem_cache_zalloc(x86_fpu_cache,
+						     GFP_KERNEL_ACCOUNT);
+	if (!svm->vcpu.arch.user_fpu) {
+		printk(KERN_ERR "kvm: failed to allocate kvm userspace's fpu\n");
+		err = -ENOMEM;
+		goto free_partial_svm;
+	}
+
 	svm->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache,
 						     GFP_KERNEL_ACCOUNT);
 	if (!svm->vcpu.arch.guest_fpu) {
 		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
 		err = -ENOMEM;
-		goto free_partial_svm;
+		goto free_user_fpu;
 	}
 
 	err = kvm_vcpu_init(&svm->vcpu, kvm, id);
@@ -2211,6 +2219,8 @@ uninit:
 	kvm_vcpu_uninit(&svm->vcpu);
 free_svm:
 	kmem_cache_free(x86_fpu_cache, svm->vcpu.arch.guest_fpu);
+free_user_fpu:
+	kmem_cache_free(x86_fpu_cache, svm->vcpu.arch.user_fpu);
 free_partial_svm:
 	kmem_cache_free(kvm_vcpu_cache, svm);
 out:
@@ -2241,6 +2251,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	__free_page(virt_to_page(svm->nested.hsave));
 	__free_pages(virt_to_page(svm->nested.msrpm), MSRPM_ALLOC_ORDER);
 	kvm_vcpu_uninit(vcpu);
+	kmem_cache_free(x86_fpu_cache, svm->vcpu.arch.user_fpu);
 	kmem_cache_free(x86_fpu_cache, svm->vcpu.arch.guest_fpu);
 	kmem_cache_free(kvm_vcpu_cache, svm);
 }

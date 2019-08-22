@@ -148,7 +148,7 @@ struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
 };
 int amdgpu_ras_enable = -1;
-uint amdgpu_ras_mask = 0xffffffff;
+uint amdgpu_ras_mask = 0xfffffffb;
 
 /**
  * DOC: vramlimit (int)
@@ -996,6 +996,10 @@ static const struct pci_device_id pciidlist[] = {
 	/* Raven */
 	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
 	{0x1002, 0x15d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
+	/* Arcturus */
+	{0x1002, 0x738C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_ARCTURUS|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x7388, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_ARCTURUS|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x738E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_ARCTURUS|AMD_EXP_HW_SUPPORT},
 	/* Navi10 */
 	{0x1002, 0x7310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
 	{0x1002, 0x7312, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI10},
@@ -1092,21 +1096,21 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	 * unfortunately we can't detect certain
 	 * hypervisors so just do this all the time.
 	 */
+	adev->mp1_state = PP_MP1_STATE_UNLOAD;
 	amdgpu_device_ip_suspend(adev);
+	adev->mp1_state = PP_MP1_STATE_NONE;
 }
 
 static int amdgpu_pmops_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, true, true);
 }
 
 static int amdgpu_pmops_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	/* GPU comes up enabled by the bios on resume */
 	if (amdgpu_device_is_px(drm_dev)) {
@@ -1120,33 +1124,29 @@ static int amdgpu_pmops_resume(struct device *dev)
 
 static int amdgpu_pmops_freeze(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, false, true);
 }
 
 static int amdgpu_pmops_thaw(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_resume(drm_dev, false, true);
 }
 
 static int amdgpu_pmops_poweroff(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, true, true);
 }
 
 static int amdgpu_pmops_restore(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_resume(drm_dev, false, true);
 }
 
@@ -1205,8 +1205,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 
 static int amdgpu_pmops_runtime_idle(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct drm_crtc *crtc;
 
 	if (!amdgpu_device_is_px(drm_dev)) {
@@ -1373,7 +1372,7 @@ static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_ATOMIC |
 	    DRIVER_GEM |
-	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET | DRIVER_SYNCOBJ,
+	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_SYNCOBJ,
 	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
 	.postclose = amdgpu_driver_postclose_kms,
@@ -1397,7 +1396,6 @@ static struct drm_driver kms_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = amdgpu_gem_prime_export,
 	.gem_prime_import = amdgpu_gem_prime_import,
-	.gem_prime_res_obj = amdgpu_gem_prime_res_obj,
 	.gem_prime_get_sg_table = amdgpu_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = amdgpu_gem_prime_import_sg_table,
 	.gem_prime_vmap = amdgpu_gem_prime_vmap,

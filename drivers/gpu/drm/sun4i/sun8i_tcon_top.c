@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Copyright (c) 2018 Jernej Skrabec <jernej.skrabec@siol.net> */
 
-#include <drm/drmP.h>
-
-#include <dt-bindings/clock/sun8i-tcon-top.h>
 
 #include <linux/bitfield.h>
 #include <linux/component.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+
+#include <dt-bindings/clock/sun8i-tcon-top.h>
 
 #include "sun8i_tcon_top.h"
 

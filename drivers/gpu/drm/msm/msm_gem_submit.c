@@ -225,7 +225,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 			 * strange place to call it.  OTOH this is a
 			 * convenient can-fail point to hook it in.
 			 */
-			ret = reservation_object_reserve_shared(msm_obj->base.resv,
+			ret = dma_resv_reserve_shared(msm_obj->base.resv,
 								1);
 			if (ret)
 				return ret;

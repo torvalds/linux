@@ -339,7 +339,7 @@ err:
 		 */
 		if (!intel_gt_is_wedged(ggtt->vm.gt))
 			return VM_FAULT_SIGBUS;
-		/* else: fall through */
+		/* else, fall through */
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error

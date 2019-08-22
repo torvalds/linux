@@ -1349,7 +1349,7 @@ nouveau_connector_create(struct drm_device *dev,
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 	case DRM_MODE_CONNECTOR_eDP:
-		nv_connector->aux.dev = dev->dev;
+		nv_connector->aux.dev = connector->kdev;
 		nv_connector->aux.transfer = nouveau_connector_aux_xfer;
 		snprintf(aux_name, sizeof(aux_name), "sor-%04x-%04x",
 			 dcbe->hasht, dcbe->hashm);

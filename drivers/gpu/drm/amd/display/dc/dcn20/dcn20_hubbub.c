@@ -26,6 +26,7 @@
 
 #include "dcn20_hubbub.h"
 #include "reg_helper.h"
+#include "clk_mgr.h"
 
 #define REG(reg)\
 	hubbub1->regs->reg
@@ -337,6 +338,7 @@ static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigne
 		break;
 	default:
 		ASSERT(false);
+		block_size = page_table_block_size;
 		break;
 	}
 
@@ -366,25 +368,24 @@ int hubbub2_init_dchub_sys_ctx(struct hubbub *hubbub,
 	struct dcn_vmid_page_table_config phys_config;
 
 	REG_SET(DCN_VM_FB_LOCATION_BASE, 0,
-			FB_BASE, pa_config->system_aperture.fb_base);
+			FB_BASE, pa_config->system_aperture.fb_base >> 24);
 	REG_SET(DCN_VM_FB_LOCATION_TOP, 0,
-			FB_TOP, pa_config->system_aperture.fb_top);
+			FB_TOP, pa_config->system_aperture.fb_top >> 24);
 	REG_SET(DCN_VM_FB_OFFSET, 0,
-			FB_OFFSET, pa_config->system_aperture.fb_offset);
+			FB_OFFSET, pa_config->system_aperture.fb_offset >> 24);
 	REG_SET(DCN_VM_AGP_BOT, 0,
-			AGP_BOT, pa_config->system_aperture.agp_bot);
+			AGP_BOT, pa_config->system_aperture.agp_bot >> 24);
 	REG_SET(DCN_VM_AGP_TOP, 0,
-			AGP_TOP, pa_config->system_aperture.agp_top);
+			AGP_TOP, pa_config->system_aperture.agp_top >> 24);
 	REG_SET(DCN_VM_AGP_BASE, 0,
-			AGP_BASE, pa_config->system_aperture.agp_base);
+			AGP_BASE, pa_config->system_aperture.agp_base >> 24);
 
 	if (pa_config->gart_config.page_table_start_addr != pa_config->gart_config.page_table_end_addr) {
-		phys_config.depth = 1;
-		phys_config.block_size = 4096;
 		phys_config.page_table_start_addr = pa_config->gart_config.page_table_start_addr >> 12;
 		phys_config.page_table_end_addr = pa_config->gart_config.page_table_end_addr >> 12;
 		phys_config.page_table_base_addr = pa_config->gart_config.page_table_base_addr;
-
+		phys_config.depth = 0;
+		phys_config.block_size = 0;
 		// Init VMID 0 based on PA config
 		dcn20_vmid_setup(&hubbub1->vmid[0], &phys_config);
 	}
@@ -553,6 +554,16 @@ static void hubbub2_program_watermarks(
 	 */
 	hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
 	hubbub1_program_stutter_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
+
+	/*
+	 * There's a special case when going from p-state support to p-state unsupported
+	 * here we are going to LOWER watermarks to go to dummy p-state only, but this has
+	 * to be done prepare_bandwidth, not optimize
+	 */
+	if (hubbub1->base.ctx->dc->clk_mgr->clks.prev_p_state_change_support == true &&
+		hubbub1->base.ctx->dc->clk_mgr->clks.p_state_change_support == false)
+		safe_to_lower = true;
+
 	hubbub1_program_pstate_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
 
 	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,

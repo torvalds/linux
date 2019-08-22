@@ -266,7 +266,7 @@ static void wait_entry_unlocked(struct xa_state *xas, void *entry)
 static void put_unlocked_entry(struct xa_state *xas, void *entry)
 {
 	/* If we were the only waiter woken, wake the next one */
-	if (entry && dax_is_conflict(entry))
+	if (entry && !dax_is_conflict(entry))
 		dax_wake_entry(xas, entry, false);
 }
 

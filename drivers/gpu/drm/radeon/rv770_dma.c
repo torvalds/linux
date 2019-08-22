@@ -42,7 +42,7 @@
 struct radeon_fence *rv770_copy_dma(struct radeon_device *rdev,
 				    uint64_t src_offset, uint64_t dst_offset,
 				    unsigned num_gpu_pages,
-				    struct reservation_object *resv)
+				    struct dma_resv *resv)
 {
 	struct radeon_fence *fence;
 	struct radeon_sync sync;

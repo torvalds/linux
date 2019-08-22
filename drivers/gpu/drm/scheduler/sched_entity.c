@@ -22,6 +22,9 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/slab.h>
+
+#include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
 
 #include "gpu_scheduler_trace.h"

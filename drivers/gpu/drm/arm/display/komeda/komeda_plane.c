@@ -158,7 +158,7 @@ static void komeda_plane_reset(struct drm_plane *plane)
 static struct drm_plane_state *
 komeda_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
-	struct komeda_plane_state *new, *old;
+	struct komeda_plane_state *new;
 
 	if (WARN_ON(!plane->state))
 		return NULL;
@@ -168,8 +168,6 @@ komeda_plane_atomic_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &new->base);
-
-	old = to_kplane_st(plane->state);
 
 	return &new->base;
 }

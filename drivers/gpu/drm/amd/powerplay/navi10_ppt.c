@@ -23,6 +23,7 @@
 
 #include "pp_debug.h"
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
@@ -49,9 +50,9 @@
 	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
 
 #define MSG_MAP(msg, index) \
-	[SMU_MSG_##msg] = index
+	[SMU_MSG_##msg] = {1, (index)}
 
-static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion),
 	MSG_MAP(GetDriverIfVersion,		PPSMC_MSG_GetDriverIfVersion),
@@ -118,7 +119,7 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(ArmD3,			PPSMC_MSG_ArmD3),
 };
 
-static int navi10_clk_map[SMU_CLK_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
 	CLK_MAP(SCLK,	PPCLK_GFXCLK),
 	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
@@ -133,7 +134,7 @@ static int navi10_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(PHYCLK, PPCLK_PHYCLK),
 };
 
-static int navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(DPM_PREFETCHER),
 	FEA_MAP(DPM_GFXCLK),
 	FEA_MAP(DPM_GFX_PACE),
@@ -178,7 +179,7 @@ static int navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(ATHUB_PG),
 };
 
-static int navi10_table_map[SMU_TABLE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PPTABLE),
 	TAB_MAP(WATERMARKS),
 	TAB_MAP(AVFS),
@@ -193,12 +194,12 @@ static int navi10_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PACE),
 };
 
-static int navi10_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
 	PWR_MAP(AC),
 	PWR_MAP(DC),
 };
 
-static int navi10_workload_map[] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_PPLIB_DEFAULT_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
@@ -210,79 +211,93 @@ static int navi10_workload_map[] = {
 
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index > SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
-	val = navi10_message_map[index];
-	if (val > PPSMC_Message_Count)
+	mapping = navi10_message_map[index];
+	if (!(mapping.valid_mapping)) {
 		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_CLK_COUNT)
 		return -EINVAL;
 
-	val = navi10_clk_map[index];
-	if (val >= PPCLK_COUNT)
+	mapping = navi10_clk_map[index];
+	if (!(mapping.valid_mapping)) {
 		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_FEATURE_COUNT)
 		return -EINVAL;
 
-	val = navi10_feature_mask_map[index];
-	if (val > 64)
+	mapping = navi10_feature_mask_map[index];
+	if (!(mapping.valid_mapping)) {
 		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_TABLE_COUNT)
 		return -EINVAL;
 
-	val = navi10_table_map[index];
-	if (val >= TABLE_COUNT)
+	mapping = navi10_table_map[index];
+	if (!(mapping.valid_mapping)) {
 		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_POWER_SOURCE_COUNT)
 		return -EINVAL;
 
-	val = navi10_pwr_src_map[index];
-	if (val >= POWER_SOURCE_COUNT)
+	mapping = navi10_pwr_src_map[index];
+	if (!(mapping.valid_mapping)) {
 		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 
 static int navi10_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
 		return -EINVAL;
 
-	val = navi10_workload_map[profile];
+	mapping = navi10_workload_map[profile];
+	if (!(mapping.valid_mapping)) {
+		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 static bool is_asic_secure(struct smu_context *smu)
@@ -501,6 +516,8 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 
 static int navi10_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
@@ -515,7 +532,33 @@ static int navi10_tables_init(struct smu_context *smu, struct smu_table *tables)
 		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM);
 
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	if (!smu_table->metrics_table)
+		return -ENOMEM;
+	smu_table->metrics_time = 0;
+
 	return 0;
+}
+
+static int navi10_get_metrics_table(struct smu_context *smu,
+				    SmuMetrics_t *metrics_table)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	int ret = 0;
+
+	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + HZ / 1000)) {
+		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
+				(void *)smu_table->metrics_table, false);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+
+	return ret;
 }
 
 static int navi10_allocate_dpm_context(struct smu_context *smu)
@@ -576,44 +619,38 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 
 static int navi10_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 {
-	int ret = 0;
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
 
-	if (enable && power_gate->uvd_gated) {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
+	if (enable) {
+		/* vcn dpm on is a prerequisite for vcn power gate messages */
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
 			if (ret)
 				return ret;
 		}
-		power_gate->uvd_gated = false;
+		power_gate->vcn_gated = false;
 	} else {
-		if (!enable && !power_gate->uvd_gated) {
-			if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
-				ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
-				if (ret)
-					return ret;
-			}
-			power_gate->uvd_gated = true;
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+			if (ret)
+				return ret;
 		}
+		power_gate->vcn_gated = true;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       uint32_t *value)
 {
-	static SmuMetrics_t metrics;
 	int ret = 0, clk_id = 0;
+	SmuMetrics_t metrics;
 
-	if (!value)
-		return -EINVAL;
-
-	memset(&metrics, 0, sizeof(metrics));
-
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0, (void *)&metrics, false);
+	ret = navi10_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 
@@ -626,11 +663,26 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 	return ret;
 }
 
+static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu_clk_type clk_type)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	DpmDescriptor_t *dpm_desc = NULL;
+	uint32_t clk_index = 0;
+
+	clk_index = smu_clk_get_index(smu, clk_type);
+	dpm_desc = &pptable->DpmDescriptor[clk_index];
+
+	/* 0 - Fine grained DPM, 1 - Discrete DPM */
+	return dpm_desc->SnapToDiscrete == 0 ? true : false;
+}
+
 static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
+	uint32_t freq_values[3] = {0};
+	uint32_t mark_index = 0;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -643,22 +695,42 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		ret = smu_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
 			return size;
+
 		/* 10KHz -> MHz */
 		cur_value = cur_value / 100;
-
-		size += sprintf(buf, "current clk: %uMhz\n", cur_value);
 
 		ret = smu_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
 			return size;
 
-		for (i = 0; i < count; i++) {
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+		if (!navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+			for (i = 0; i < count; i++) {
+				ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+				if (ret)
+					return size;
+
+				size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+						cur_value == value ? "*" : "");
+			}
+		} else {
+			ret = smu_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
+			if (ret)
+				return size;
+			ret = smu_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
 				return size;
 
-			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
-					cur_value == value ? "*" : "");
+			freq_values[1] = cur_value;
+			mark_index = cur_value == freq_values[0] ? 0 :
+				     cur_value == freq_values[2] ? 2 : 1;
+			if (mark_index != 1)
+				freq_values[1] = (freq_values[0] + freq_values[2]) / 2;
+
+			for (i = 0; i < 3; i++) {
+				size += sprintf(buf + size, "%d: %uMhz %s\n", i, freq_values[i],
+						i == mark_index ? "*" : "");
+			}
+
 		}
 		break;
 	default:
@@ -866,8 +938,9 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0, (void *)&metrics,
-			       false);
+	ret = navi10_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
 	if (ret)
 		return ret;
 
@@ -886,10 +959,7 @@ static int navi10_get_current_activity_percent(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	msleep(1);
-
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
-			       (void *)&metrics, false);
+	ret = navi10_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 
@@ -919,22 +989,22 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
+static int navi10_get_fan_speed_rpm(struct smu_context *smu,
+				    uint32_t *speed)
 {
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	if (!value)
+	if (!speed)
 		return -EINVAL;
 
-	memset(&metrics, 0, sizeof(metrics));
-
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
-			       (void *)&metrics, false);
+	ret = navi10_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrFanSpeed;
+	*speed = metrics.CurrFanSpeed;
 
 	return ret;
 }
@@ -944,10 +1014,10 @@ static int navi10_get_fan_speed_percent(struct smu_context *smu,
 {
 	int ret = 0;
 	uint32_t percent = 0;
-	uint16_t current_rpm;
+	uint32_t current_rpm;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	ret = navi10_get_fan_speed(smu, &current_rpm);
+	ret = navi10_get_fan_speed_rpm(smu, &current_rpm);
 	if (ret)
 		return ret;
 
@@ -961,7 +1031,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
 	uint32_t i, size = 0;
-	uint16_t workload_type = 0;
+	int16_t workload_type = 0;
 	static const char *profile_name[] = {
 					"BOOTUP_DEFAULT",
 					"3D_FULL_SCREEN",
@@ -994,6 +1064,9 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 		workload_type = smu_workload_get_type(smu, i);
+		if (workload_type < 0)
+			return -EINVAL;
+
 		result = smu_update_table(smu,
 					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
 					  (void *)(&activity_monitor), false);
@@ -1122,6 +1195,8 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
+	if (workload_type < 0)
+		return -EINVAL;
 	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
 				    1 << workload_type);
 
@@ -1278,7 +1353,7 @@ static int navi10_thermal_get_temperature(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0, (void *)&metrics, false);
+	ret = navi10_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 
@@ -1367,165 +1442,146 @@ static int navi10_get_uclk_dpm_states(struct smu_context *smu, uint32_t *clocks_
 	return 0;
 }
 
-static int navi10_get_ppfeature_status(struct smu_context *smu,
-				       char *buf)
+static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 {
-	static const char *ppfeature_name[] = {
-				"DPM_PREFETCHER",
-				"DPM_GFXCLK",
-				"DPM_GFX_PACE",
-				"DPM_UCLK",
-				"DPM_SOCCLK",
-				"DPM_MP0CLK",
-				"DPM_LINK",
-				"DPM_DCEFCLK",
-				"MEM_VDDCI_SCALING",
-				"MEM_MVDD_SCALING",
-				"DS_GFXCLK",
-				"DS_SOCCLK",
-				"DS_LCLK",
-				"DS_DCEFCLK",
-				"DS_UCLK",
-				"GFX_ULV",
-				"FW_DSTATE",
-				"GFXOFF",
-				"BACO",
-				"VCN_PG",
-				"JPEG_PG",
-				"USB_PG",
-				"RSMU_SMN_CG",
-				"PPT",
-				"TDC",
-				"GFX_EDC",
-				"APCC_PLUS",
-				"GTHR",
-				"ACDC",
-				"VR0HOT",
-				"VR1HOT",
-				"FW_CTF",
-				"FAN_CONTROL",
-				"THERMAL",
-				"GFX_DCS",
-				"RM",
-				"LED_DISPLAY",
-				"GFX_SS",
-				"OUT_OF_BAND_MONITOR",
-				"TEMP_DEPENDENT_VMIN",
-				"MMHUB_PG",
-				"ATHUB_PG"};
-	static const char *output_title[] = {
-				"FEATURES",
-				"BITMASK",
-				"ENABLEMENT"};
-	uint64_t features_enabled;
-	uint32_t feature_mask[2];
-	int i;
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	int size = 0;
+	uint32_t sclk_freq = 0, uclk_freq = 0;
+	uint32_t uclk_level = 0;
 
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
-	PP_ASSERT_WITH_CODE(!ret,
-			"[GetPPfeatureStatus] Failed to get enabled smc features!",
-			return ret);
-	features_enabled = (uint64_t)feature_mask[0] |
-			   (uint64_t)feature_mask[1] << 32;
-
-	size += sprintf(buf + size, "Current ppfeatures: 0x%016llx\n", features_enabled);
-	size += sprintf(buf + size, "%-19s %-22s %s\n",
-				output_title[0],
-				output_title[1],
-				output_title[2]);
-	for (i = 0; i < (sizeof(ppfeature_name) / sizeof(ppfeature_name[0])); i++) {
-		size += sprintf(buf + size, "%-19s 0x%016llx %6s\n",
-					ppfeature_name[i],
-					1ULL << i,
-					(features_enabled & (1ULL << i)) ? "Y" : "N");
+	switch (adev->pdev->revision) {
+	case 0xf0: /* XTX */
+	case 0xc0:
+		sclk_freq = NAVI10_PEAK_SCLK_XTX;
+		break;
+	case 0xf1: /* XT */
+	case 0xc1:
+		sclk_freq = NAVI10_PEAK_SCLK_XT;
+		break;
+	default: /* XL */
+		sclk_freq = NAVI10_PEAK_SCLK_XL;
+		break;
 	}
 
-	return size;
-}
-
-static int navi10_enable_smc_features(struct smu_context *smu,
-				      bool enabled,
-				      uint64_t feature_masks)
-{
-	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_low, feature_high;
-	uint32_t feature_mask[2];
-	int ret = 0;
-
-	feature_low = (uint32_t)(feature_masks & 0xFFFFFFFF);
-	feature_high = (uint32_t)((feature_masks & 0xFFFFFFFF00000000ULL) >> 32);
-
-	if (enabled) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
-						  feature_low);
-		if (ret)
-			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
-						  feature_high);
-		if (ret)
-			return ret;
-	} else {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
-						  feature_low);
-		if (ret)
-			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
-						  feature_high);
-		if (ret)
-			return ret;
-	}
-
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_level);
+	if (ret)
+		return ret;
+	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, uclk_level - 1, &uclk_freq);
 	if (ret)
 		return ret;
 
-	mutex_lock(&feature->mutex);
-	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-	mutex_unlock(&feature->mutex);
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	if (ret)
+		return ret;
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = navi10_set_peak_clock_by_device(smu);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int navi10_get_thermal_temperature_range(struct smu_context *smu,
+						struct smu_temperature_range *range)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table = table_context->power_play_table;
+
+	if (!range || !powerplay_table)
+		return -EINVAL;
+
+	/* The unit is temperature */
+	range->min = 0;
+	range->max = powerplay_table->software_shutdown_temp;
 
 	return 0;
 }
 
-static int navi10_set_ppfeature_status(struct smu_context *smu,
-				       uint64_t new_ppfeature_masks)
+static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
+						bool disable_memory_clock_switch)
 {
-	uint64_t features_enabled;
-	uint32_t feature_mask[2];
-	uint64_t features_to_enable;
-	uint64_t features_to_disable;
 	int ret = 0;
+	struct smu_11_0_max_sustainable_clocks *max_sustainable_clocks =
+		(struct smu_11_0_max_sustainable_clocks *)
+			smu->smu_table.max_sustainable_clocks;
+	uint32_t min_memory_clock = smu->hard_min_uclk_req_from_dal;
+	uint32_t max_memory_clock = max_sustainable_clocks->uclock;
 
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
-	PP_ASSERT_WITH_CODE(!ret,
-			"[SetPPfeatureStatus] Failed to get enabled smc features!",
-			return ret);
-	features_enabled = (uint64_t)feature_mask[0] |
-			   (uint64_t)feature_mask[1] << 32;
+	if(smu->disable_uclk_switch == disable_memory_clock_switch)
+		return 0;
 
-	features_to_disable =
-		features_enabled & ~new_ppfeature_masks;
-	features_to_enable =
-		~features_enabled & new_ppfeature_masks;
+	if(disable_memory_clock_switch)
+		ret = smu_set_hard_freq_range(smu, SMU_UCLK, max_memory_clock, 0);
+	else
+		ret = smu_set_hard_freq_range(smu, SMU_UCLK, min_memory_clock, 0);
 
-	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
-	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+	if(!ret)
+		smu->disable_uclk_switch = disable_memory_clock_switch;
 
-	if (features_to_disable) {
-		ret = navi10_enable_smc_features(smu, false, features_to_disable);
-		PP_ASSERT_WITH_CODE(!ret,
-				"[SetPPfeatureStatus] Failed to disable smc features!",
-				return ret);
+	return ret;
+}
+
+static int navi10_get_power_limit(struct smu_context *smu,
+				     uint32_t *limit,
+				     bool asic_default)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	uint32_t asic_default_power_limit = 0;
+	int ret = 0;
+	int power_src;
+
+	if (!smu->default_power_limit ||
+	    !smu->power_limit) {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
+			if (power_src < 0)
+				return -EINVAL;
+
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
+				power_src << 16);
+			if (ret) {
+				pr_err("[%s] get PPT limit failed!", __func__);
+				return ret;
+			}
+			smu_read_smc_arg(smu, &asic_default_power_limit);
+		} else {
+			/* the last hope to figure out the ppt limit */
+			if (!pptable) {
+				pr_err("Cannot get PPT limit due to pptable missing!");
+				return -EINVAL;
+			}
+			asic_default_power_limit =
+				pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+		}
+
+		if (smu->od_enabled) {
+			asic_default_power_limit *= (100 + smu->smu_table.TDPODLimit);
+			asic_default_power_limit /= 100;
+		}
+
+		smu->default_power_limit = asic_default_power_limit;
+		smu->power_limit = asic_default_power_limit;
 	}
 
-	if (features_to_enable) {
-		ret = navi10_enable_smc_features(smu, true, features_to_enable);
-		PP_ASSERT_WITH_CODE(!ret,
-				"[SetPPfeatureStatus] Failed to enable smc features!",
-				return ret);
-	}
+	if (asic_default)
+		*limit = smu->default_power_limit;
+	else
+		*limit = smu->power_limit;
 
 	return 0;
 }
@@ -1557,14 +1613,17 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.is_dpm_running = navi10_is_dpm_running,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,
+	.get_fan_speed_rpm = navi10_get_fan_speed_rpm,
 	.get_power_profile_mode = navi10_get_power_profile_mode,
 	.set_power_profile_mode = navi10_set_power_profile_mode,
 	.get_profiling_clk_mask = navi10_get_profiling_clk_mask,
 	.set_watermarks_table = navi10_set_watermarks_table,
 	.read_sensor = navi10_read_sensor,
 	.get_uclk_dpm_states = navi10_get_uclk_dpm_states,
-	.get_ppfeature_status = navi10_get_ppfeature_status,
-	.set_ppfeature_status = navi10_set_ppfeature_status,
+	.set_performance_level = navi10_set_performance_level,
+	.get_thermal_temperature_range = navi10_get_thermal_temperature_range,
+	.display_disable_memory_clock_switch = navi10_display_disable_memory_clock_switch,
+	.get_power_limit = navi10_get_power_limit,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

@@ -1251,13 +1251,13 @@ static uint32_t calc_max_audio_packets_per_line(
 
 static void get_audio_clock_info(
 	enum dc_color_depth color_depth,
-	uint32_t crtc_pixel_clock_in_khz,
-	uint32_t actual_pixel_clock_in_khz,
+	uint32_t crtc_pixel_clock_100Hz,
+	uint32_t actual_pixel_clock_100Hz,
 	struct audio_clock_info *audio_clock_info)
 {
 	const struct audio_clock_info *clock_info;
 	uint32_t index;
-	uint32_t crtc_pixel_clock_in_10khz = crtc_pixel_clock_in_khz / 10;
+	uint32_t crtc_pixel_clock_in_10khz = crtc_pixel_clock_100Hz / 100;
 	uint32_t audio_array_size;
 
 	switch (color_depth) {
@@ -1294,16 +1294,16 @@ static void get_audio_clock_info(
 	}
 
 	/* not found */
-	if (actual_pixel_clock_in_khz == 0)
-		actual_pixel_clock_in_khz = crtc_pixel_clock_in_khz;
+	if (actual_pixel_clock_100Hz == 0)
+		actual_pixel_clock_100Hz = crtc_pixel_clock_100Hz;
 
 	/* See HDMI spec  the table entry under
 	 *  pixel clock of "Other". */
 	audio_clock_info->pixel_clock_in_10khz =
-			actual_pixel_clock_in_khz / 10;
-	audio_clock_info->cts_32khz = actual_pixel_clock_in_khz;
-	audio_clock_info->cts_44khz = actual_pixel_clock_in_khz;
-	audio_clock_info->cts_48khz = actual_pixel_clock_in_khz;
+			actual_pixel_clock_100Hz / 100;
+	audio_clock_info->cts_32khz = actual_pixel_clock_100Hz / 10;
+	audio_clock_info->cts_44khz = actual_pixel_clock_100Hz / 10;
+	audio_clock_info->cts_48khz = actual_pixel_clock_100Hz / 10;
 
 	audio_clock_info->n_32khz = 4096;
 	audio_clock_info->n_44khz = 6272;
@@ -1369,14 +1369,14 @@ static void dce110_se_setup_hdmi_audio(
 
 	/* Program audio clock sample/regeneration parameters */
 	get_audio_clock_info(crtc_info->color_depth,
-			     crtc_info->requested_pixel_clock,
-			     crtc_info->calculated_pixel_clock,
+			     crtc_info->requested_pixel_clock_100Hz,
+			     crtc_info->calculated_pixel_clock_100Hz,
 			     &audio_clock_info);
 	DC_LOG_HW_AUDIO(
-			"\n%s:Input::requested_pixel_clock = %d"	\
-			"calculated_pixel_clock = %d \n", __func__,	\
-			crtc_info->requested_pixel_clock,		\
-			crtc_info->calculated_pixel_clock);
+			"\n%s:Input::requested_pixel_clock_100Hz = %d"	\
+			"calculated_pixel_clock_100Hz = %d \n", __func__,	\
+			crtc_info->requested_pixel_clock_100Hz,		\
+			crtc_info->calculated_pixel_clock_100Hz);
 
 	/* HDMI_ACR_32_0__HDMI_ACR_CTS_32_MASK */
 	REG_UPDATE(HDMI_ACR_32_0, HDMI_ACR_CTS_32, audio_clock_info.cts_32khz);

@@ -43,7 +43,7 @@
 #include <linux/mm_types.h>
 #include <linux/perf_event.h>
 #include <linux/pm_qos.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/shmem_fs.h>
 #include <linux/stackdepot.h>
 
@@ -2332,8 +2332,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 
-struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
-				struct drm_gem_object *gem_obj, int flags);
+struct dma_buf *i915_gem_prime_export(struct drm_gem_object *gem_obj, int flags);
 
 static inline struct i915_gem_context *
 __i915_gem_context_lookup_rcu(struct drm_i915_file_private *file_priv, u32 id)

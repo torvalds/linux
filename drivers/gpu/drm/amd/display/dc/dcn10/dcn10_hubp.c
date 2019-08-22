@@ -163,7 +163,7 @@ void hubp1_program_tiling(
 void hubp1_program_size(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	const union plane_size *plane_size,
+	const struct plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -173,16 +173,16 @@ void hubp1_program_size(
 	 * 444 or 420 luma
 	 */
 	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN && format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END) {
-		ASSERT(plane_size->video.chroma_pitch != 0);
+		ASSERT(plane_size->chroma_pitch != 0);
 		/* Chroma pitch zero can cause system hang! */
 
-		pitch = plane_size->video.luma_pitch - 1;
-		meta_pitch = dcc->video.meta_pitch_l - 1;
-		pitch_c = plane_size->video.chroma_pitch - 1;
-		meta_pitch_c = dcc->video.meta_pitch_c - 1;
+		pitch = plane_size->surface_pitch - 1;
+		meta_pitch = dcc->meta_pitch - 1;
+		pitch_c = plane_size->chroma_pitch - 1;
+		meta_pitch_c = dcc->meta_pitch_c - 1;
 	} else {
-		pitch = plane_size->grph.surface_pitch - 1;
-		meta_pitch = dcc->grph.meta_pitch - 1;
+		pitch = plane_size->surface_pitch - 1;
+		meta_pitch = dcc->meta_pitch - 1;
 		pitch_c = 0;
 		meta_pitch_c = 0;
 	}
@@ -526,13 +526,13 @@ void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror,
 	unsigned int compat_level)
 {
-	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
+	hubp1_dcc_control(hubp, dcc->enable, dcc->independent_64b_blks);
 	hubp1_program_tiling(hubp, tiling_info, format);
 	hubp1_program_size(hubp, format, plane_size, dcc);
 	hubp1_program_rotation(hubp, rotation, horizontal_mirror);
@@ -843,7 +843,7 @@ void min_set_viewport(
 		  PRI_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
-void hubp1_read_state(struct hubp *hubp)
+void hubp1_read_state_common(struct hubp *hubp)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	struct dcn_hubp_state *s = &hubp1->state;
@@ -859,24 +859,6 @@ void hubp1_read_state(struct hubp *hubp)
 			PRQ_EXPANSION_MODE, &rq_regs->prq_expansion_mode,
 			MRQ_EXPANSION_MODE, &rq_regs->mrq_expansion_mode,
 			CRQ_EXPANSION_MODE, &rq_regs->crq_expansion_mode);
-	REG_GET_8(DCHUBP_REQ_SIZE_CONFIG,
-		CHUNK_SIZE, &rq_regs->rq_regs_l.chunk_size,
-		MIN_CHUNK_SIZE, &rq_regs->rq_regs_l.min_chunk_size,
-		META_CHUNK_SIZE, &rq_regs->rq_regs_l.meta_chunk_size,
-		MIN_META_CHUNK_SIZE, &rq_regs->rq_regs_l.min_meta_chunk_size,
-		DPTE_GROUP_SIZE, &rq_regs->rq_regs_l.dpte_group_size,
-		MPTE_GROUP_SIZE, &rq_regs->rq_regs_l.mpte_group_size,
-		SWATH_HEIGHT, &rq_regs->rq_regs_l.swath_height,
-		PTE_ROW_HEIGHT_LINEAR, &rq_regs->rq_regs_l.pte_row_height_linear);
-	REG_GET_8(DCHUBP_REQ_SIZE_CONFIG_C,
-		CHUNK_SIZE_C, &rq_regs->rq_regs_c.chunk_size,
-		MIN_CHUNK_SIZE_C, &rq_regs->rq_regs_c.min_chunk_size,
-		META_CHUNK_SIZE_C, &rq_regs->rq_regs_c.meta_chunk_size,
-		MIN_META_CHUNK_SIZE_C, &rq_regs->rq_regs_c.min_meta_chunk_size,
-		DPTE_GROUP_SIZE_C, &rq_regs->rq_regs_c.dpte_group_size,
-		MPTE_GROUP_SIZE_C, &rq_regs->rq_regs_c.mpte_group_size,
-		SWATH_HEIGHT_C, &rq_regs->rq_regs_c.swath_height,
-		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs->rq_regs_c.pte_row_height_linear);
 
 	/* DLG - Per hubp */
 	REG_GET_2(BLANK_OFFSET_0,
@@ -1030,8 +1012,38 @@ void hubp1_read_state(struct hubp *hubp)
 	REG_GET_2(DCN_TTU_QOS_WM,
 			QoS_LEVEL_LOW_WM, &s->qos_level_low_wm,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
+
 }
 
+void hubp1_read_state(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	struct dcn_hubp_state *s = &hubp1->state;
+	struct _vcs_dpi_display_rq_regs_st *rq_regs = &s->rq_regs;
+
+	hubp1_read_state_common(hubp);
+
+	REG_GET_8(DCHUBP_REQ_SIZE_CONFIG,
+		CHUNK_SIZE, &rq_regs->rq_regs_l.chunk_size,
+		MIN_CHUNK_SIZE, &rq_regs->rq_regs_l.min_chunk_size,
+		META_CHUNK_SIZE, &rq_regs->rq_regs_l.meta_chunk_size,
+		MIN_META_CHUNK_SIZE, &rq_regs->rq_regs_l.min_meta_chunk_size,
+		DPTE_GROUP_SIZE, &rq_regs->rq_regs_l.dpte_group_size,
+		MPTE_GROUP_SIZE, &rq_regs->rq_regs_l.mpte_group_size,
+		SWATH_HEIGHT, &rq_regs->rq_regs_l.swath_height,
+		PTE_ROW_HEIGHT_LINEAR, &rq_regs->rq_regs_l.pte_row_height_linear);
+
+	REG_GET_8(DCHUBP_REQ_SIZE_CONFIG_C,
+		CHUNK_SIZE_C, &rq_regs->rq_regs_c.chunk_size,
+		MIN_CHUNK_SIZE_C, &rq_regs->rq_regs_c.min_chunk_size,
+		META_CHUNK_SIZE_C, &rq_regs->rq_regs_c.meta_chunk_size,
+		MIN_META_CHUNK_SIZE_C, &rq_regs->rq_regs_c.min_meta_chunk_size,
+		DPTE_GROUP_SIZE_C, &rq_regs->rq_regs_c.dpte_group_size,
+		MPTE_GROUP_SIZE_C, &rq_regs->rq_regs_c.mpte_group_size,
+		SWATH_HEIGHT_C, &rq_regs->rq_regs_c.swath_height,
+		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs->rq_regs_c.pte_row_height_linear);
+
+}
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch)
 {
 	enum cursor_pitch hw_pitch;

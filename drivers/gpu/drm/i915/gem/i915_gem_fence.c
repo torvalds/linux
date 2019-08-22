@@ -77,7 +77,7 @@ i915_gem_object_lock_fence(struct drm_i915_gem_object *obj)
 					    I915_FENCE_GFP) < 0)
 		goto err;
 
-	reservation_object_add_excl_fence(obj->base.resv, &stub->dma);
+	dma_resv_add_excl_fence(obj->base.resv, &stub->dma);
 
 	return &stub->dma;
 

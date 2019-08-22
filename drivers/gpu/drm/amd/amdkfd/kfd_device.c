@@ -317,6 +317,23 @@ static const struct kfd_device_info vega20_device_info = {
 	.num_sdma_queues_per_engine = 8,
 };
 
+static const struct kfd_device_info arcturus_device_info = {
+	.asic_family = CHIP_ARCTURUS,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd	= 24,
+	.doorbell_size	= 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = false,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 6,
+	.num_sdma_queues_per_engine = 8,
+};
+
 static const struct kfd_device_info navi10_device_info = {
 	.asic_family = CHIP_NAVI10,
 	.max_pasid_bits = 16,
@@ -452,7 +469,9 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x66a4, &vega20_device_info },	/* Vega20 */
 	{ 0x66a7, &vega20_device_info },	/* Vega20 */
 	{ 0x66af, &vega20_device_info },	/* Vega20 */
-	/* Navi10 */
+	{ 0x738C, &arcturus_device_info },	/* Arcturus */
+	{ 0x7388, &arcturus_device_info },	/* Arcturus */
+	{ 0x738E, &arcturus_device_info },	/* Arcturus */
 	{ 0x7310, &navi10_device_info },	/* Navi10 */
 	{ 0x7312, &navi10_device_info },	/* Navi10 */
 	{ 0x7318, &navi10_device_info },	/* Navi10 */
@@ -536,6 +555,10 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
+		} else if (kfd->device_info->asic_family == CHIP_ARCTURUS) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_arcturus_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_arcturus_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_arcturus_hex);
 		} else if (kfd->device_info->asic_family < CHIP_NAVI10) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;

@@ -222,7 +222,7 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 		 * Copy the buffer to check that it's not wiped on
 		 * free().
 		 */
-		buf_copy = kmalloc(size, GFP_KERNEL);
+		buf_copy = kmalloc(size, GFP_ATOMIC);
 		if (buf_copy)
 			memcpy(buf_copy, buf, size);
 

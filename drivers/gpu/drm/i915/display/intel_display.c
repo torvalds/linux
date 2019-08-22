@@ -29,7 +29,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 
@@ -12185,7 +12185,7 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 		case INTEL_OUTPUT_DDI:
 			if (WARN_ON(!HAS_DDI(to_i915(dev))))
 				break;
-			/* else: fall through */
+			/* else, fall through */
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_HDMI:
 		case INTEL_OUTPUT_EDP:
@@ -14414,7 +14414,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		if (ret < 0)
 			return ret;
 
-		fence = reservation_object_get_excl_rcu(obj->base.resv);
+		fence = dma_resv_get_excl_rcu(obj->base.resv);
 		if (fence) {
 			add_rps_boost_after_vblank(new_state->crtc, fence);
 			dma_fence_put(fence);

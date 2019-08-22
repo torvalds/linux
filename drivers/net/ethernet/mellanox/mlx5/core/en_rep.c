@@ -735,8 +735,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		list_add(&indr_priv->list,
 			 &rpriv->uplink_priv.tc_indr_block_priv_list);
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       mlx5e_rep_indr_setup_block_cb,
+		block_cb = flow_block_cb_alloc(mlx5e_rep_indr_setup_block_cb,
 					       indr_priv, indr_priv,
 					       mlx5e_rep_indr_tc_block_unbind);
 		if (IS_ERR(block_cb)) {
@@ -753,7 +752,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		if (!indr_priv)
 			return -ENOENT;
 
-		block_cb = flow_block_cb_lookup(f,
+		block_cb = flow_block_cb_lookup(f->block,
 						mlx5e_rep_indr_setup_block_cb,
 						indr_priv);
 		if (!block_cb)

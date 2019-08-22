@@ -33,14 +33,14 @@ static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	struct qxl_device *qdev;
 
 	bo = to_qxl_bo(tbo);
-	qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
+	qdev = (struct qxl_device *)bo->tbo.base.dev->dev_private;
 
 	qxl_surface_evict(qdev, bo, false);
 	WARN_ON_ONCE(bo->map_count > 0);
 	mutex_lock(&qdev->gem.mutex);
 	list_del_init(&bo->list);
 	mutex_unlock(&qdev->gem.mutex);
-	drm_gem_object_release(&bo->gem_base);
+	drm_gem_object_release(&bo->tbo.base);
 	kfree(bo);
 }
 
@@ -95,7 +95,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 	if (bo == NULL)
 		return -ENOMEM;
 	size = roundup(size, PAGE_SIZE);
-	r = drm_gem_object_init(&qdev->ddev, &bo->gem_base, size);
+	r = drm_gem_object_init(&qdev->ddev, &bo->tbo.base, size);
 	if (unlikely(r)) {
 		kfree(bo);
 		return r;
@@ -214,20 +214,20 @@ void qxl_bo_unref(struct qxl_bo **bo)
 	if ((*bo) == NULL)
 		return;
 
-	drm_gem_object_put_unlocked(&(*bo)->gem_base);
+	drm_gem_object_put_unlocked(&(*bo)->tbo.base);
 	*bo = NULL;
 }
 
 struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 {
-	drm_gem_object_get(&bo->gem_base);
+	drm_gem_object_get(&bo->tbo.base);
 	return bo;
 }
 
 static int __qxl_bo_pin(struct qxl_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
-	struct drm_device *ddev = bo->gem_base.dev;
+	struct drm_device *ddev = bo->tbo.base.dev;
 	int r;
 
 	if (bo->pin_count) {
@@ -247,7 +247,7 @@ static int __qxl_bo_pin(struct qxl_bo *bo)
 static int __qxl_bo_unpin(struct qxl_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
-	struct drm_device *ddev = bo->gem_base.dev;
+	struct drm_device *ddev = bo->tbo.base.dev;
 	int r, i;
 
 	if (!bo->pin_count) {
@@ -310,13 +310,13 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 	dev_err(qdev->ddev.dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &qdev->gem.objects, list) {
 		dev_err(qdev->ddev.dev, "%p %p %lu %lu force free\n",
-			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
-			*((unsigned long *)&bo->gem_base.refcount));
+			&bo->tbo.base, bo, (unsigned long)bo->tbo.base.size,
+			*((unsigned long *)&bo->tbo.base.refcount));
 		mutex_lock(&qdev->gem.mutex);
 		list_del_init(&bo->list);
 		mutex_unlock(&qdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_put_unlocked(&bo->gem_base);
+		drm_gem_object_put_unlocked(&bo->tbo.base);
 	}
 }
 
