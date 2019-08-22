@@ -142,8 +142,7 @@ static int vcn_v2_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
-	    adev->asic_type != CHIP_RENOIR) {
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		const struct common_firmware_header *hdr;
 		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 		adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].ucode_id = AMDGPU_UCODE_ID_VCN;
@@ -367,8 +366,7 @@ static void vcn_v2_0_mc_resume(struct amdgpu_device *adev)
 	uint32_t offset;
 
 	/* cache window 0: fw */
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
-	    adev->asic_type != CHIP_RENOIR) {
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		WREG32_SOC15(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
 			(adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].tmr_mc_addr_lo));
 		WREG32_SOC15(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
@@ -413,8 +411,7 @@ static void vcn_v2_0_mc_resume_dpg_mode(struct amdgpu_device *adev, bool indirec
 	uint32_t offset;
 
 	/* cache window 0: fw */
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
-	    adev->asic_type != CHIP_RENOIR) {
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		if (!indirect) {
 			WREG32_SOC15_DPG_MODE_2_0(SOC15_DPG_MODE_OFFSET_2_0(
 				UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
