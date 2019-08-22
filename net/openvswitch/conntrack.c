@@ -1565,7 +1565,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		case OVS_CT_ATTR_TIMEOUT:
 			memcpy(info->timeout, nla_data(a), nla_len(a));
 			if (!memchr(info->timeout, '\0', nla_len(a))) {
-				OVS_NLERR(log, "Invalid conntrack helper");
+				OVS_NLERR(log, "Invalid conntrack timeout");
 				return -EINVAL;
 			}
 			break;
