@@ -138,6 +138,7 @@ enum flow_action_id {
 	FLOW_ACTION_MPLS_PUSH,
 	FLOW_ACTION_MPLS_POP,
 	FLOW_ACTION_MPLS_MANGLE,
+	NUM_FLOW_ACTIONS,
 };
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between

@@ -35,6 +35,7 @@
 
 #include <net/ip_tunnels.h>
 #include <linux/rhashtable.h>
+#include <linux/mutex.h>
 #include "eswitch.h"
 #include "en.h"
 #include "lib/port_tun.h"
@@ -48,7 +49,7 @@ struct mlx5e_neigh_update_table {
 	 */
 	struct list_head	neigh_list;
 	/* protect lookup/remove operations */
-	spinlock_t              encap_lock;
+	struct mutex		encap_lock;
 	struct notifier_block   netevent_nb;
 	struct delayed_work     neigh_stats_work;
 	unsigned long           min_interval; /* jiffies */
@@ -110,6 +111,7 @@ struct mlx5e_neigh {
 struct mlx5e_neigh_hash_entry {
 	struct rhash_head rhash_node;
 	struct mlx5e_neigh m_neigh;
+	struct mlx5e_priv *priv;
 
 	/* Save the neigh hash entry in a list on the representor in
 	 * addition to the hash table. In order to iterate easily over the
@@ -117,6 +119,8 @@ struct mlx5e_neigh_hash_entry {
 	 */
 	struct list_head neigh_list;
 
+	/* protects encap list */
+	spinlock_t encap_list_lock;
 	/* encap list sharing the same neigh */
 	struct list_head encap_list;
 
@@ -137,6 +141,8 @@ struct mlx5e_neigh_hash_entry {
 	 * 'used' value and avoid neigh deleting by the kernel.
 	 */
 	unsigned long reported_lastuse;
+
+	struct rcu_head rcu;
 };
 
 enum {
@@ -145,6 +151,8 @@ enum {
 };
 
 struct mlx5e_encap_entry {
+	/* attached neigh hash entry */
+	struct mlx5e_neigh_hash_entry *nhe;
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
 	struct mlx5e_neigh m_neigh;
@@ -167,6 +175,7 @@ struct mlx5e_encap_entry {
 	refcount_t refcnt;
 	struct completion res_ready;
 	int compl_result;
+	struct rcu_head rcu;
 };
 
 struct mlx5e_rep_sq {

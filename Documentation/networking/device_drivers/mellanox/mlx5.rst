@@ -12,6 +12,7 @@ Contents
 - `Enabling the driver and kconfig options`_
 - `Devlink info`_
 - `Devlink health reporters`_
+- `mlx5 tracepoints`_
 
 Enabling the driver and kconfig options
 ================================================
@@ -219,3 +220,48 @@ User commands examples:
     $ devlink health dump show pci/0000:82:00.1 reporter fw_fatal
 
 NOTE: This command can run only on PF.
+
+mlx5 tracepoints
+================
+
+mlx5 driver provides internal trace points for tracking and debugging using
+kernel tracepoints interfaces (refer to Documentation/trace/ftrase.rst).
+
+For the list of support mlx5 events check /sys/kernel/debug/tracing/events/mlx5/
+
+tc and eswitch offloads tracepoints:
+
+- mlx5e_configure_flower: trace flower filter actions and cookies offloaded to mlx5::
+
+    $ echo mlx5:mlx5e_configure_flower >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    tc-6535  [019] ...1  2672.404466: mlx5e_configure_flower: cookie=0000000067874a55 actions= REDIRECT
+
+- mlx5e_delete_flower: trace flower filter actions and cookies deleted from mlx5::
+
+    $ echo mlx5:mlx5e_delete_flower >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    tc-6569  [010] .N.1  2686.379075: mlx5e_delete_flower: cookie=0000000067874a55 actions= NULL
+
+- mlx5e_stats_flower: trace flower stats request::
+
+    $ echo mlx5:mlx5e_stats_flower >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    tc-6546  [010] ...1  2679.704889: mlx5e_stats_flower: cookie=0000000060eb3d6a bytes=0 packets=0 lastused=4295560217
+
+- mlx5e_tc_update_neigh_used_value: trace tunnel rule neigh update value offloaded to mlx5::
+
+    $ echo mlx5:mlx5e_tc_update_neigh_used_value >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u48:4-8806  [009] ...1 55117.882428: mlx5e_tc_update_neigh_used_value: netdev: ens1f0 IPv4: 1.1.1.10 IPv6: ::ffff:1.1.1.10 neigh_used=1
+
+- mlx5e_rep_neigh_update: trace neigh update tasks scheduled due to neigh state change events::
+
+    $ echo mlx5:mlx5e_rep_neigh_update >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u48:7-2221  [009] ...1  1475.387435: mlx5e_rep_neigh_update: netdev: ens1f0 MAC: 24:8a:07:9a:17:9a IPv4: 1.1.1.10 IPv6: ::ffff:1.1.1.10 neigh_connected=1
