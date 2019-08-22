@@ -6126,6 +6126,16 @@ static ssize_t resource_alignment_show(struct bus_type *bus, char *buf)
 		count = snprintf(buf, PAGE_SIZE, "%s", resource_alignment_param);
 	spin_unlock(&resource_alignment_lock);
 
+	/*
+	 * When set by the command line, resource_alignment_param will not
+	 * have a trailing line feed, which is ugly. So conditionally add
+	 * it here.
+	 */
+	if (count >= 2 && buf[count - 2] != '\n' && count < PAGE_SIZE - 1) {
+		buf[count - 1] = '\n';
+		buf[count++] = 0;
+	}
+
 	return count;
 }
 
