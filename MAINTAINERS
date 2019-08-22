@@ -1425,6 +1425,7 @@ Allwinner A10 CSI driver
 M:	Maxime Ripard <mripard@kernel.org>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/platform/sunxi/sun4i-csi/
 F:	Documentation/devicetree/bindings/media/allwinner,sun4i-a10-csi.yaml
 S:	Maintained
 
