@@ -3576,7 +3576,7 @@ int pci_enable_atomic_ops_to_root(struct pci_dev *dev, u32 cap_mask)
 		}
 
 		/* Ensure upstream ports don't block AtomicOps on egress */
-		if (!bridge->has_secondary_link) {
+		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_UPSTREAM) {
 			pcie_capability_read_dword(bridge, PCI_EXP_DEVCTL2,
 						   &ctl2);
 			if (ctl2 & PCI_EXP_DEVCTL2_ATOMIC_EGRESS_BLOCK)

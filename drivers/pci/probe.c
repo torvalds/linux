@@ -1431,26 +1431,38 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
 	pdev->pcie_mpss = reg16 & PCI_EXP_DEVCAP_PAYLOAD;
 
+	parent = pci_upstream_bridge(pdev);
+	if (!parent)
+		return;
+
 	/*
-	 * A Root Port or a PCI-to-PCIe bridge is always the upstream end
-	 * of a Link.  No PCIe component has two Links.  Two Links are
-	 * connected by a Switch that has a Port on each Link and internal
-	 * logic to connect the two Ports.
+	 * Some systems do not identify their upstream/downstream ports
+	 * correctly so detect impossible configurations here and correct
+	 * the port type accordingly.
 	 */
 	type = pci_pcie_type(pdev);
-	if (type == PCI_EXP_TYPE_ROOT_PORT ||
-	    type == PCI_EXP_TYPE_PCIE_BRIDGE)
-		pdev->has_secondary_link = 1;
-	else if (type == PCI_EXP_TYPE_UPSTREAM ||
-		 type == PCI_EXP_TYPE_DOWNSTREAM) {
-		parent = pci_upstream_bridge(pdev);
-
+	if (type == PCI_EXP_TYPE_DOWNSTREAM) {
 		/*
-		 * Usually there's an upstream device (Root Port or Switch
-		 * Downstream Port), but we can't assume one exists.
+		 * If pdev claims to be downstream port but the parent
+		 * device is also downstream port assume pdev is actually
+		 * upstream port.
 		 */
-		if (parent && !parent->has_secondary_link)
-			pdev->has_secondary_link = 1;
+		if (pcie_downstream_port(parent)) {
+			pci_info(pdev, "claims to be downstream port but is acting as upstream port, correcting type\n");
+			pdev->pcie_flags_reg &= ~PCI_EXP_FLAGS_TYPE;
+			pdev->pcie_flags_reg |= PCI_EXP_TYPE_UPSTREAM;
+		}
+	} else if (type == PCI_EXP_TYPE_UPSTREAM) {
+		/*
+		 * If pdev claims to be upstream port but the parent
+		 * device is also upstream port assume pdev is actually
+		 * downstream port.
+		 */
+		if (pci_pcie_type(parent) == PCI_EXP_TYPE_UPSTREAM) {
+			pci_info(pdev, "claims to be upstream port but is acting as downstream port, correcting type\n");
+			pdev->pcie_flags_reg &= ~PCI_EXP_FLAGS_TYPE;
+			pdev->pcie_flags_reg |= PCI_EXP_TYPE_DOWNSTREAM;
+		}
 	}
 }
 
@@ -2488,12 +2500,8 @@ static int only_one_child(struct pci_bus *bus)
 	 * A PCIe Downstream Port normally leads to a Link with only Device
 	 * 0 on it (PCIe spec r3.1, sec 7.3.1).  As an optimization, scan
 	 * only for Device 0 in that situation.
-	 *
-	 * Checking has_secondary_link is a hack to identify Downstream
-	 * Ports because sometimes Switches are configured such that the
-	 * PCIe Port Type labels are backwards.
 	 */
-	if (bridge && pci_is_pcie(bridge) && bridge->has_secondary_link)
+	if (bridge && pci_is_pcie(bridge) && pcie_downstream_port(bridge))
 		return 1;
 
 	return 0;
