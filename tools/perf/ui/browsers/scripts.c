@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "../../builtin.h"
 #include "../../util/sort.h"
+#include "../../util/util.h"
 #include "../../util/hist.h"
 #include "../../util/debug.h"
 #include "../../util/symbol.h"

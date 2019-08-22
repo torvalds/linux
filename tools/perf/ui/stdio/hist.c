@@ -3,6 +3,7 @@
 #include <linux/string.h>
 
 #include "../../util/callchain.h"
+#include "../../util/debug.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
 #include "../../util/map_groups.h"

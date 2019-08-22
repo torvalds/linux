@@ -20,6 +20,7 @@
 
 #include "asm/bug.h"
 
+#include "debug.h"
 #include "hist.h"
 #include "sort.h"
 #include "machine.h"

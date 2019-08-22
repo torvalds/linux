@@ -1,29 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_SORT_H
 #define __PERF_SORT_H
-#include "../builtin.h"
-
 #include <regex.h>
-
-#include "color.h"
+#include <stdbool.h>
 #include <linux/list.h>
-#include "cache.h"
 #include <linux/rbtree.h>
 #include "map_symbol.h"
 #include "symbol_conf.h"
-#include "string.h"
 #include "callchain.h"
 #include "values.h"
 
-#include "../perf.h"
-#include "debug.h"
-#include "header.h"
-
-#include <subcmd/parse-options.h>
-#include "parse-events.h"
 #include "hist.h"
-#include "srcline.h"
 
+struct option;
 struct thread;
 
 extern regex_t parent_regex;
