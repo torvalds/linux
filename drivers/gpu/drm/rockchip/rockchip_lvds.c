@@ -423,6 +423,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	if (lvds->panel) {
 		connector = &lvds->connector;
 		connector->dpms = DRM_MODE_DPMS_OFF;
+		connector->port = dev->of_node;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
 					 DRM_MODE_CONNECTOR_LVDS);
