@@ -109,21 +109,130 @@ void mlx5_hv_vhca_invalidate(void *context, u64 block_mask)
 	queue_work(hv_vhca->work_queue, &work->invalidate_work);
 }
 
+#define AGENT_MASK(type) (type ? BIT(type - 1) : 0 /* control */)
+
+static void mlx5_hv_vhca_agents_control(struct mlx5_hv_vhca *hv_vhca,
+					struct mlx5_hv_vhca_control_block *block)
+{
+	int i;
+
+	for (i = 0; i < MLX5_HV_VHCA_AGENT_MAX; i++) {
+		struct mlx5_hv_vhca_agent *agent = hv_vhca->agents[i];
+
+		if (!agent || !agent->control)
+			continue;
+
+		if (!(AGENT_MASK(agent->type) & block->control))
+			continue;
+
+		agent->control(agent, block);
+	}
+}
+
+static void mlx5_hv_vhca_capabilities(struct mlx5_hv_vhca *hv_vhca,
+				      u32 *capabilities)
+{
+	int i;
+
+	for (i = 0; i < MLX5_HV_VHCA_AGENT_MAX; i++) {
+		struct mlx5_hv_vhca_agent *agent = hv_vhca->agents[i];
+
+		if (agent)
+			*capabilities |= AGENT_MASK(agent->type);
+	}
+}
+
+static void
+mlx5_hv_vhca_control_agent_invalidate(struct mlx5_hv_vhca_agent *agent,
+				      u64 block_mask)
+{
+	struct mlx5_hv_vhca *hv_vhca = agent->hv_vhca;
+	struct mlx5_core_dev *dev = hv_vhca->dev;
+	struct mlx5_hv_vhca_control_block *block;
+	u32 capabilities = 0;
+	int err;
+
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (!block)
+		return;
+
+	err = mlx5_hv_read_config(dev, block, sizeof(*block), 0);
+	if (err)
+		goto free_block;
+
+	mlx5_hv_vhca_capabilities(hv_vhca, &capabilities);
+
+	/* In case no capabilities, send empty block in return */
+	if (!capabilities) {
+		memset(block, 0, sizeof(*block));
+		goto write;
+	}
+
+	if (block->capabilities != capabilities)
+		block->capabilities = capabilities;
+
+	if (block->control & ~capabilities)
+		goto free_block;
+
+	mlx5_hv_vhca_agents_control(hv_vhca, block);
+	block->command_ack = block->command;
+
+write:
+	mlx5_hv_write_config(dev, block, sizeof(*block), 0);
+
+free_block:
+	kfree(block);
+}
+
+static struct mlx5_hv_vhca_agent *
+mlx5_hv_vhca_control_agent_create(struct mlx5_hv_vhca *hv_vhca)
+{
+	return mlx5_hv_vhca_agent_create(hv_vhca, MLX5_HV_VHCA_AGENT_CONTROL,
+					 NULL,
+					 mlx5_hv_vhca_control_agent_invalidate,
+					 NULL, NULL);
+}
+
+static void mlx5_hv_vhca_control_agent_destroy(struct mlx5_hv_vhca_agent *agent)
+{
+	mlx5_hv_vhca_agent_destroy(agent);
+}
+
 int mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca)
 {
+	struct mlx5_hv_vhca_agent *agent;
+	int err;
+
 	if (IS_ERR_OR_NULL(hv_vhca))
 		return IS_ERR_OR_NULL(hv_vhca);
 
-	return mlx5_hv_register_invalidate(hv_vhca->dev, hv_vhca,
-					   mlx5_hv_vhca_invalidate);
+	err = mlx5_hv_register_invalidate(hv_vhca->dev, hv_vhca,
+					  mlx5_hv_vhca_invalidate);
+	if (err)
+		return err;
+
+	agent = mlx5_hv_vhca_control_agent_create(hv_vhca);
+	if (IS_ERR_OR_NULL(agent)) {
+		mlx5_hv_unregister_invalidate(hv_vhca->dev);
+		return IS_ERR_OR_NULL(agent);
+	}
+
+	hv_vhca->agents[MLX5_HV_VHCA_AGENT_CONTROL] = agent;
+
+	return 0;
 }
 
 void mlx5_hv_vhca_cleanup(struct mlx5_hv_vhca *hv_vhca)
 {
+	struct mlx5_hv_vhca_agent *agent;
 	int i;
 
 	if (IS_ERR_OR_NULL(hv_vhca))
 		return;
+
+	agent = hv_vhca->agents[MLX5_HV_VHCA_AGENT_CONTROL];
+	if (agent)
+		mlx5_hv_vhca_control_agent_destroy(agent);
 
 	mutex_lock(&hv_vhca->agents_lock);
 	for (i = 0; i < MLX5_HV_VHCA_AGENT_MAX; i++)
@@ -132,6 +241,11 @@ void mlx5_hv_vhca_cleanup(struct mlx5_hv_vhca *hv_vhca)
 	mutex_unlock(&hv_vhca->agents_lock);
 
 	mlx5_hv_unregister_invalidate(hv_vhca->dev);
+}
+
+static void mlx5_hv_vhca_agents_update(struct mlx5_hv_vhca *hv_vhca)
+{
+	mlx5_hv_vhca_invalidate(hv_vhca, BIT(MLX5_HV_VHCA_AGENT_CONTROL));
 }
 
 struct mlx5_hv_vhca_agent *
@@ -174,6 +288,8 @@ mlx5_hv_vhca_agent_create(struct mlx5_hv_vhca *hv_vhca,
 	hv_vhca->agents[type] = agent;
 	mutex_unlock(&hv_vhca->agents_lock);
 
+	mlx5_hv_vhca_agents_update(hv_vhca);
+
 	return agent;
 }
 
@@ -195,6 +311,8 @@ void mlx5_hv_vhca_agent_destroy(struct mlx5_hv_vhca_agent *agent)
 		agent->cleanup(agent);
 
 	kfree(agent);
+
+	mlx5_hv_vhca_agents_update(hv_vhca);
 }
 
 static int mlx5_hv_vhca_data_block_prepare(struct mlx5_hv_vhca_agent *agent,
