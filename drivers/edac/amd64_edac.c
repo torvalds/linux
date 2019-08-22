@@ -790,9 +790,11 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 
 #define CS_EVEN_PRIMARY		BIT(0)
 #define CS_ODD_PRIMARY		BIT(1)
+#define CS_EVEN_SECONDARY	BIT(2)
+#define CS_ODD_SECONDARY	BIT(3)
 
-#define CS_EVEN			CS_EVEN_PRIMARY
-#define CS_ODD			CS_ODD_PRIMARY
+#define CS_EVEN			(CS_EVEN_PRIMARY | CS_EVEN_SECONDARY)
+#define CS_ODD			(CS_ODD_PRIMARY | CS_ODD_SECONDARY)
 
 static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 {
@@ -803,6 +805,10 @@ static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 
 	if (csrow_enabled(2 * dimm + 1, ctrl, pvt))
 		cs_mode |= CS_ODD_PRIMARY;
+
+	/* Asymmetric dual-rank DIMM support. */
+	if (csrow_sec_enabled(2 * dimm + 1, ctrl, pvt))
+		cs_mode |= CS_ODD_SECONDARY;
 
 	return cs_mode;
 }
@@ -1600,7 +1606,11 @@ static int f17_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 	 */
 	dimm = csrow_nr >> 1;
 
-	addr_mask_orig = pvt->csels[umc].csmasks[dimm];
+	/* Asymmetric dual-rank DIMM support. */
+	if ((csrow_nr & 1) && (cs_mode & CS_ODD_SECONDARY))
+		addr_mask_orig = pvt->csels[umc].csmasks_sec[dimm];
+	else
+		addr_mask_orig = pvt->csels[umc].csmasks[dimm];
 
 	/*
 	 * The number of zero bits in the mask is equal to the number of bits

@@ -169,7 +169,8 @@
 #define DCSM0				0x60
 #define DCSM1				0x160
 
-#define csrow_enabled(i, dct, pvt)	((pvt)->csels[(dct)].csbases[(i)] & DCSB_CS_ENABLE)
+#define csrow_enabled(i, dct, pvt)	((pvt)->csels[(dct)].csbases[(i)]     & DCSB_CS_ENABLE)
+#define csrow_sec_enabled(i, dct, pvt)	((pvt)->csels[(dct)].csbases_sec[(i)] & DCSB_CS_ENABLE)
 
 #define DRAM_CONTROL			0x78
 
