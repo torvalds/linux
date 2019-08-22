@@ -1334,10 +1334,20 @@ struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 {
 	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
 
-	pp_smu->ctx.ver = PP_SMU_VER_RN;
+	if (!pp_smu)
+		return pp_smu;
 
-	pp_smu->rn_funcs.get_dpm_clock_table = dummy_get_dpm_clock_table;
-	pp_smu->rn_funcs.set_wm_ranges = dummy_set_wm_ranges;
+	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
+		pp_smu->ctx.ver = PP_SMU_VER_RN;
+		pp_smu->rn_funcs.get_dpm_clock_table = dummy_get_dpm_clock_table;
+		pp_smu->rn_funcs.set_wm_ranges = dummy_set_wm_ranges;
+	} else {
+
+		dm_pp_get_funcs(ctx, pp_smu);
+
+		if (pp_smu->ctx.ver != PP_SMU_VER_RN)
+			pp_smu = memset(pp_smu, 0, sizeof(struct pp_smu_funcs));
+	}
 
 	return pp_smu;
 }

@@ -529,22 +529,48 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 
 }
 
-void clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
+unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
 	int i;
 
+	for (i = 0; i < PP_SMU_NUM_DCFCLK_DPM_LEVELS; i++) {
+		if (clock_table->DcfClocks[i].Vol == voltage)
+			return clock_table->DcfClocks[i].Freq;
+	}
+
+	ASSERT(0);
+	return 0;
+}
+
+void clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
+{
+	int i, j = 0;
+
 	ASSERT(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL);
 
-	for (i = 0; i < PP_SMU_NUM_FCLK_DPM_LEVELS; i++) {
-		if (clock_table->FClocks[i].Freq == 0)
-			break;
+	/* Find lowest DPM, FCLK is filled in reverse order*/
 
-		bw_params->clk_table.entries[i].dcfclk_mhz = clock_table->DcfClocks[i].Freq;
-		bw_params->clk_table.entries[i].fclk_mhz = clock_table->FClocks[i].Freq;
-		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemClocks[i].Freq;
-		bw_params->clk_table.entries[i].socclk_mhz = clock_table->SocClocks[i].Freq;
-		bw_params->clk_table.entries[i].voltage = clock_table->FClocks[i].Vol;
+	for (i = PP_SMU_NUM_FCLK_DPM_LEVELS - 1; i >= 0; i--) {
+		if (clock_table->FClocks[i].Freq != 0) {
+			j = i;
+			break;
+		}
 	}
+
+	for (i = 0; i < PP_SMU_NUM_FCLK_DPM_LEVELS; i++) {
+		if (j < 0) {
+			/* Invalid entries */
+			bw_params->clk_table.entries[i].fclk_mhz = 0;
+			continue;
+		}
+		bw_params->clk_table.entries[i].fclk_mhz = clock_table->FClocks[j].Freq;
+		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemClocks[j].Freq;
+		bw_params->clk_table.entries[i].voltage = clock_table->FClocks[j].Vol;
+		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
+		j--;
+	}
+
+
 	bw_params->clk_table.num_entries = i;
 
 	bw_params->vram_type = asic_id->vram_type;
@@ -553,7 +579,7 @@ void clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct d
 	for (i = 0; i < WM_SET_COUNT; i++) {
 		bw_params->wm_table.entries[i].wm_inst = i;
 
-		if (clock_table->FClocks[i].Freq == 0) {
+		if (i >= bw_params->clk_table.num_entries) {
 			bw_params->wm_table.entries[i].valid = false;
 			continue;
 		}
