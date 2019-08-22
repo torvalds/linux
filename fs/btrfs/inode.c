@@ -1314,6 +1314,8 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 	bool check_prev = true;
 	const bool freespace_inode = btrfs_is_free_space_inode(BTRFS_I(inode));
 	u64 ino = btrfs_ino(BTRFS_I(inode));
+	bool nocow = false;
+	u64 disk_bytenr = 0;
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -1333,12 +1335,12 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 		struct extent_buffer *leaf;
 		u64 extent_end;
 		u64 extent_offset;
-		u64 disk_bytenr = 0;
 		u64 num_bytes = 0;
 		u64 disk_num_bytes;
 		u64 ram_bytes;
 		int extent_type;
-		bool nocow = false;
+
+		nocow = false;
 
 		ret = btrfs_lookup_file_extent(NULL, root, path, ino,
 					       cur_offset, 0);
@@ -1572,16 +1574,25 @@ out_check:
 						       disk_bytenr, num_bytes,
 						       num_bytes,
 						       BTRFS_ORDERED_PREALLOC);
+			if (ret) {
+				btrfs_drop_extent_cache(BTRFS_I(inode),
+							cur_offset,
+							cur_offset + num_bytes - 1,
+							0);
+				goto error;
+			}
 		} else {
 			ret = btrfs_add_ordered_extent(inode, cur_offset,
 						       disk_bytenr, num_bytes,
 						       num_bytes,
 						       BTRFS_ORDERED_NOCOW);
+			if (ret)
+				goto error;
 		}
 
 		if (nocow)
 			btrfs_dec_nocow_writers(fs_info, disk_bytenr);
-		BUG_ON(ret); /* -ENOMEM */
+		nocow = false;
 
 		if (root->root_key.objectid ==
 		    BTRFS_DATA_RELOC_TREE_OBJECTID)
@@ -1626,6 +1637,9 @@ out_check:
 	}
 
 error:
+	if (nocow)
+		btrfs_dec_nocow_writers(fs_info, disk_bytenr);
+
 	if (ret && cur_offset < end)
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
 					     locked_page, EXTENT_LOCKED |
