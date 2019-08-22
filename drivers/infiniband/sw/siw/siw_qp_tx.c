@@ -398,15 +398,13 @@ static int siw_0copy_tx(struct socket *s, struct page **page,
 
 #define MAX_TRAILER (MPA_CRC_SIZE + 4)
 
-static void siw_unmap_pages(struct page **pages, int hdr_len, int num_maps)
+static void siw_unmap_pages(struct page **pp, unsigned long kmap_mask)
 {
-	if (hdr_len) {
-		++pages;
-		--num_maps;
-	}
-	while (num_maps-- > 0) {
-		kunmap(*pages);
-		pages++;
+	while (kmap_mask) {
+		if (kmap_mask & BIT(0))
+			kunmap(*pp);
+		pp++;
+		kmap_mask >>= 1;
 	}
 }
 
@@ -437,6 +435,7 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 	unsigned int data_len = c_tx->bytes_unsent, hdr_len = 0, trl_len = 0,
 		     sge_off = c_tx->sge_off, sge_idx = c_tx->sge_idx,
 		     pbl_idx = c_tx->pbl_idx;
+	unsigned long kmap_mask = 0L;
 
 	if (c_tx->state == SIW_SEND_HDR) {
 		if (c_tx->use_sendpage) {
@@ -463,8 +462,7 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 
 		if (!(tx_flags(wqe) & SIW_WQE_INLINE)) {
 			mem = wqe->mem[sge_idx];
-			if (!mem->mem_obj)
-				is_kva = 1;
+			is_kva = mem->mem_obj == NULL ? 1 : 0;
 		} else {
 			is_kva = 1;
 		}
@@ -500,12 +498,7 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 					p = siw_get_upage(mem->umem,
 							  sge->laddr + sge_off);
 				if (unlikely(!p)) {
-					if (hdr_len)
-						seg--;
-					if (!c_tx->use_sendpage && seg) {
-						siw_unmap_pages(page_array,
-								hdr_len, seg);
-					}
+					siw_unmap_pages(page_array, kmap_mask);
 					wqe->processed -= c_tx->bytes_unsent;
 					rv = -EFAULT;
 					goto done_crc;
@@ -515,6 +508,10 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 				if (!c_tx->use_sendpage) {
 					iov[seg].iov_base = kmap(p) + fp_off;
 					iov[seg].iov_len = plen;
+
+					/* Remember for later kunmap() */
+					kmap_mask |= BIT(seg);
+
 					if (do_crc)
 						crypto_shash_update(
 							c_tx->mpa_crc_hd,
@@ -543,10 +540,7 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 
 			if (++seg > (int)MAX_ARRAY) {
 				siw_dbg_qp(tx_qp(c_tx), "to many fragments\n");
-				if (!is_kva && !c_tx->use_sendpage) {
-					siw_unmap_pages(page_array, hdr_len,
-							seg - 1);
-				}
+				siw_unmap_pages(page_array, kmap_mask);
 				wqe->processed -= c_tx->bytes_unsent;
 				rv = -EMSGSIZE;
 				goto done_crc;
@@ -597,8 +591,7 @@ sge_done:
 	} else {
 		rv = kernel_sendmsg(s, &msg, iov, seg + 1,
 				    hdr_len + data_len + trl_len);
-		if (!is_kva)
-			siw_unmap_pages(page_array, hdr_len, seg);
+		siw_unmap_pages(page_array, kmap_mask);
 	}
 	if (rv < (int)hdr_len) {
 		/* Not even complete hdr pushed or negative rv */
