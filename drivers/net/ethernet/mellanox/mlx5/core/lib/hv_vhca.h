@@ -13,6 +13,7 @@ struct mlx5_hv_vhca_control_block;
 
 enum mlx5_hv_vhca_agent_type {
 	MLX5_HV_VHCA_AGENT_CONTROL = 0,
+	MLX5_HV_VHCA_AGENT_STATS   = 1,
 	MLX5_HV_VHCA_AGENT_MAX = 32,
 };
 
