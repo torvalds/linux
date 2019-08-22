@@ -684,8 +684,8 @@ static int bch2_page_reservation_get(struct bch_fs *c,
 	if (!s)
 		return -ENOMEM;
 
-	for (i = offset / 512;
-	     i < DIV_ROUND_UP(offset + len, 512);
+	for (i = round_down(offset, block_bytes(c)) >> 9;
+	     i < round_up(offset + len, block_bytes(c)) >> 9;
 	     i++) {
 		disk_sectors += sectors_to_reserve(&s->s[i],
 						res->disk.nr_replicas);
@@ -757,8 +757,8 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 	struct bch_page_state *s = bch2_page_state(page);
 	unsigned i, dirty_sectors = 0;
 
-	for (i = offset / 512;
-	     i < DIV_ROUND_UP(offset + len, 512);
+	for (i = round_down(offset, block_bytes(c)) >> 9;
+	     i < round_up(offset + len, block_bytes(c)) >> 9;
 	     i++) {
 		unsigned sectors = sectors_to_reserve(&s->s[i],
 						res->disk.nr_replicas);

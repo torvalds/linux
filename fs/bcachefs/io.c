@@ -920,30 +920,39 @@ flush_io:
 void bch2_write(struct closure *cl)
 {
 	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	struct bio *bio = &op->wbio.bio;
 	struct bch_fs *c = op->c;
 
 	BUG_ON(!op->nr_replicas);
 	BUG_ON(!op->write_point.v);
 	BUG_ON(!bkey_cmp(op->pos, POS_MAX));
 
+	if (bio_sectors(bio) & (c->opts.block_size - 1)) {
+		__bcache_io_error(c, "misaligned write");
+		op->error = -EIO;
+		goto err;
+	}
+
 	op->start_time = local_clock();
 
 	bch2_keylist_init(&op->insert_keys, op->inline_keys);
-	wbio_init(&op->wbio.bio)->put_bio = false;
+	wbio_init(bio)->put_bio = false;
 
 	if (c->opts.nochanges ||
 	    !percpu_ref_tryget(&c->writes)) {
 		__bcache_io_error(c, "read only");
 		op->error = -EROFS;
-		if (!(op->flags & BCH_WRITE_NOPUT_RESERVATION))
-			bch2_disk_reservation_put(c, &op->res);
-		closure_return(cl);
-		return;
+		goto err;
 	}
 
-	bch2_increment_clock(c, bio_sectors(&op->wbio.bio), WRITE);
+	bch2_increment_clock(c, bio_sectors(bio), WRITE);
 
 	continue_at_nobarrier(cl, __bch2_write, NULL);
+	return;
+err:
+	if (!(op->flags & BCH_WRITE_NOPUT_RESERVATION))
+		bch2_disk_reservation_put(c, &op->res);
+	closure_return(cl);
 }
 
 /* Cache promotion on read */
