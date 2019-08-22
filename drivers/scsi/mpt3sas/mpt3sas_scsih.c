@@ -155,6 +155,10 @@ static int prot_mask = -1;
 module_param(prot_mask, int, 0444);
 MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=7 ");
 
+static bool enable_sdev_max_qd;
+module_param(enable_sdev_max_qd, bool, 0444);
+MODULE_PARM_DESC(enable_sdev_max_qd,
+	"Enable sdev max qd as can_queue, def=disabled(0)");
 
 /* raid transport support */
 static struct raid_template *mpt3sas_raid_template;
@@ -1519,7 +1523,13 @@ scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 
 	max_depth = shost->can_queue;
 
-	/* limit max device queue for SATA to 32 */
+	/*
+	 * limit max device queue for SATA to 32 if enable_sdev_max_qd
+	 * is disabled.
+	 */
+	if (ioc->enable_sdev_max_qd)
+		goto not_sata;
+
 	sas_device_priv_data = sdev->hostdata;
 	if (!sas_device_priv_data)
 		goto not_sata;
@@ -1546,6 +1556,25 @@ scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	if (qdepth > max_depth)
 		qdepth = max_depth;
 	return scsi_change_queue_depth(sdev, qdepth);
+}
+
+/**
+ * mpt3sas_scsih_change_queue_depth - setting device queue depth
+ * @sdev: scsi device struct
+ * @qdepth: requested queue depth
+ *
+ * Returns nothing.
+ */
+void
+mpt3sas_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
+{
+	struct Scsi_Host *shost = sdev->host;
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+
+	if (ioc->enable_sdev_max_qd)
+		qdepth = shost->can_queue;
+
+	scsih_change_queue_depth(sdev, qdepth);
 }
 
 /**
@@ -2306,7 +2335,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 						MPT3SAS_RAID_MAX_SECTORS);
 		}
 
-		scsih_change_queue_depth(sdev, qdepth);
+		mpt3sas_scsih_change_queue_depth(sdev, qdepth);
 
 		/* raid transport support */
 		if (!ioc->is_warpdrive)
@@ -2370,7 +2399,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 
 		pcie_device_put(pcie_device);
 		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
-		scsih_change_queue_depth(sdev, qdepth);
+		mpt3sas_scsih_change_queue_depth(sdev, qdepth);
 		/* Enable QUEUE_FLAG_NOMERGES flag, so that IOs won't be
 		 ** merged and can eliminate holes created during merging
 		 ** operation.
@@ -2430,7 +2459,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 		_scsih_display_sata_capabilities(ioc, handle, sdev);
 
 
-	scsih_change_queue_depth(sdev, qdepth);
+	mpt3sas_scsih_change_queue_depth(sdev, qdepth);
 
 	if (ssp_target) {
 		sas_read_port_mode_page(sdev);
@@ -10507,6 +10536,9 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * Enable MEMORY MOVE support flag.
 	 */
 	ioc->drv_support_bitmap |= MPT_DRV_SUPPORT_BITMAP_MEMMOVE;
+
+	ioc->enable_sdev_max_qd = enable_sdev_max_qd;
+
 	/* misc semaphores and spin locks */
 	mutex_init(&ioc->reset_in_progress_mutex);
 	/* initializing pci_access_mutex lock */

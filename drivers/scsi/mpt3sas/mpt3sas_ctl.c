@@ -3400,6 +3400,107 @@ drv_support_bitmap_show(struct device *cdev,
 }
 static DEVICE_ATTR_RO(drv_support_bitmap);
 
+/**
+ * enable_sdev_max_qd_show - display whether sdev max qd is enabled/disabled
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * A sysfs read/write shost attribute. This attribute is used to set the
+ * targets queue depth to HBA IO queue depth if this attribute is enabled.
+ */
+static ssize_t
+enable_sdev_max_qd_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ioc->enable_sdev_max_qd);
+}
+
+/**
+ * enable_sdev_max_qd_store - Enable/disable sdev max qd
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * A sysfs read/write shost attribute. This attribute is used to set the
+ * targets queue depth to HBA IO queue depth if this attribute is enabled.
+ * If this attribute is disabled then targets will have corresponding default
+ * queue depth.
+ */
+static ssize_t
+enable_sdev_max_qd_store(struct device *cdev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct MPT3SAS_DEVICE *sas_device_priv_data;
+	struct MPT3SAS_TARGET *sas_target_priv_data;
+	int val = 0;
+	struct scsi_device *sdev;
+	struct _raid_device *raid_device;
+	int qdepth;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+
+	switch (val) {
+	case 0:
+		ioc->enable_sdev_max_qd = 0;
+		shost_for_each_device(sdev, ioc->shost) {
+			sas_device_priv_data = sdev->hostdata;
+			if (!sas_device_priv_data)
+				continue;
+			sas_target_priv_data = sas_device_priv_data->sas_target;
+			if (!sas_target_priv_data)
+				continue;
+
+			if (sas_target_priv_data->flags &
+			    MPT_TARGET_FLAGS_VOLUME) {
+				raid_device =
+				    mpt3sas_raid_device_find_by_handle(ioc,
+				    sas_target_priv_data->handle);
+
+				switch (raid_device->volume_type) {
+				case MPI2_RAID_VOL_TYPE_RAID0:
+					if (raid_device->device_info &
+					    MPI2_SAS_DEVICE_INFO_SSP_TARGET)
+						qdepth =
+						    MPT3SAS_SAS_QUEUE_DEPTH;
+					else
+						qdepth =
+						    MPT3SAS_SATA_QUEUE_DEPTH;
+					break;
+				case MPI2_RAID_VOL_TYPE_RAID1E:
+				case MPI2_RAID_VOL_TYPE_RAID1:
+				case MPI2_RAID_VOL_TYPE_RAID10:
+				case MPI2_RAID_VOL_TYPE_UNKNOWN:
+				default:
+					qdepth = MPT3SAS_RAID_QUEUE_DEPTH;
+				}
+			} else if (sas_target_priv_data->flags &
+			    MPT_TARGET_FLAGS_PCIE_DEVICE)
+				qdepth = MPT3SAS_NVME_QUEUE_DEPTH;
+			else
+				qdepth = MPT3SAS_SAS_QUEUE_DEPTH;
+
+			mpt3sas_scsih_change_queue_depth(sdev, qdepth);
+		}
+		break;
+	case 1:
+		ioc->enable_sdev_max_qd = 1;
+		shost_for_each_device(sdev, ioc->shost)
+			mpt3sas_scsih_change_queue_depth(sdev,
+			    shost->can_queue);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return strlen(buf);
+}
+static DEVICE_ATTR_RW(enable_sdev_max_qd);
+
 struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_version_fw,
 	&dev_attr_version_bios,
@@ -3427,6 +3528,7 @@ struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_diag_trigger_mpi,
 	&dev_attr_drv_support_bitmap,
 	&dev_attr_BRM_status,
+	&dev_attr_enable_sdev_max_qd,
 	NULL,
 };
 
