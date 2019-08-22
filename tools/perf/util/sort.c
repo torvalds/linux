@@ -6,6 +6,7 @@
 #include <linux/time64.h>
 #include "sort.h"
 #include "hist.h"
+#include "cacheline.h"
 #include "comm.h"
 #include "map.h"
 #include "symbol.h"
