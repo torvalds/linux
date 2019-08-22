@@ -306,14 +306,17 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	if (ret)
 		goto err_fence;
 
-	/* Mark as being mmapped into userspace for later revocation */
 	assert_rpm_wakelock_held(rpm);
+
+	/* Mark as being mmapped into userspace for later revocation */
+	mutex_lock(&i915->ggtt.vm.mutex);
 	if (!i915_vma_set_userfault(vma) && !obj->userfault_count++)
 		list_add(&obj->userfault_link, &i915->ggtt.userfault_list);
+	mutex_unlock(&i915->ggtt.vm.mutex);
+
 	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
 		intel_wakeref_auto(&i915->ggtt.userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
-	GEM_BUG_ON(!obj->userfault_count);
 
 	i915_vma_set_ggtt_write(vma);
 
@@ -408,8 +411,8 @@ void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
 	 * requirement that operations to the GGTT be made holding the RPM
 	 * wakeref.
 	 */
-	lockdep_assert_held(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	mutex_lock(&i915->ggtt.vm.mutex);
 
 	if (!obj->userfault_count)
 		goto out;
@@ -426,6 +429,7 @@ void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
 	wmb();
 
 out:
+	mutex_unlock(&i915->ggtt.vm.mutex);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 

@@ -864,7 +864,7 @@ void i915_vma_revoke_mmap(struct i915_vma *vma)
 	struct drm_vma_offset_node *node = &vma->obj->base.vma_node;
 	u64 vma_offset;
 
-	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
+	lockdep_assert_held(&vma->vm->mutex);
 
 	if (!i915_vma_has_userfault(vma))
 		return;
@@ -987,7 +987,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 			return ret;
 
 		/* Force a pagefault for domain tracking on next user access */
+		mutex_lock(&vma->vm->mutex);
 		i915_vma_revoke_mmap(vma);
+		mutex_unlock(&vma->vm->mutex);
 
 		__i915_vma_iounmap(vma);
 		vma->flags &= ~I915_VMA_CAN_FENCE;
