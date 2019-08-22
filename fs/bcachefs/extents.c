@@ -45,7 +45,8 @@ unsigned bch2_bkey_nr_dirty_ptrs(struct bkey_s_c k)
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
-	case KEY_TYPE_extent: {
+	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v: {
 		struct bkey_ptrs_c p = bch2_bkey_ptrs_c(k);
 		const struct bch_extent_ptr *ptr;
 
@@ -308,20 +309,15 @@ bch2_extent_has_group(struct bch_fs *c, struct bkey_s_c_extent e, unsigned group
 
 unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 {
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	unsigned ret = 0;
 
-	switch (k.k->type) {
-	case KEY_TYPE_extent: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
-
-		extent_for_each_ptr_decode(e, p, entry)
-			if (!p.ptr.cached &&
-			    p.crc.compression_type != BCH_COMPRESSION_NONE)
-				ret += p.crc.compressed_size;
-	}
-	}
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+		if (!p.ptr.cached &&
+		    p.crc.compression_type != BCH_COMPRESSION_NONE)
+			ret += p.crc.compressed_size;
 
 	return ret;
 }
@@ -969,6 +965,7 @@ static int __bch2_extent_atomic_end(struct btree_trans *trans,
 
 	switch (k.k->type) {
 	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v:
 		*nr_iters += bch2_bkey_nr_alloc_ptrs(k);
 
 		if (*nr_iters >= max_iters) {
