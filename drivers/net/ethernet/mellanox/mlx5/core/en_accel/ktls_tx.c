@@ -109,13 +109,15 @@ build_progress_params(struct mlx5e_tx_wqe *wqe, u16 pc, u32 sqn,
 
 static void tx_fill_wi(struct mlx5e_txqsq *sq,
 		       u16 pi, u8 num_wqebbs,
-		       skb_frag_t *resync_dump_frag)
+		       skb_frag_t *resync_dump_frag,
+		       u32 num_bytes)
 {
 	struct mlx5e_tx_wqe_info *wi = &sq->db.wqe_info[pi];
 
 	wi->skb              = NULL;
 	wi->num_wqebbs       = num_wqebbs;
 	wi->resync_dump_frag = resync_dump_frag;
+	wi->num_bytes        = num_bytes;
 }
 
 void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx)
@@ -143,7 +145,7 @@ post_static_params(struct mlx5e_txqsq *sq,
 
 	umr_wqe = mlx5e_sq_fetch_wqe(sq, MLX5E_KTLS_STATIC_UMR_WQE_SZ, &pi);
 	build_static_params(umr_wqe, sq->pc, sq->sqn, priv_tx, fence);
-	tx_fill_wi(sq, pi, MLX5E_KTLS_STATIC_WQEBBS, NULL);
+	tx_fill_wi(sq, pi, MLX5E_KTLS_STATIC_WQEBBS, NULL, 0);
 	sq->pc += MLX5E_KTLS_STATIC_WQEBBS;
 }
 
@@ -157,7 +159,7 @@ post_progress_params(struct mlx5e_txqsq *sq,
 
 	wqe = mlx5e_sq_fetch_wqe(sq, MLX5E_KTLS_PROGRESS_WQE_SZ, &pi);
 	build_progress_params(wqe, sq->pc, sq->sqn, priv_tx, fence);
-	tx_fill_wi(sq, pi, MLX5E_KTLS_PROGRESS_WQEBBS, NULL);
+	tx_fill_wi(sq, pi, MLX5E_KTLS_PROGRESS_WQEBBS, NULL, 0);
 	sq->pc += MLX5E_KTLS_PROGRESS_WQEBBS;
 }
 
@@ -296,7 +298,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	dseg->byte_count = cpu_to_be32(fsz);
 	mlx5e_dma_push(sq, dma_addr, fsz, MLX5E_DMA_MAP_PAGE);
 
-	tx_fill_wi(sq, pi, num_wqebbs, frag);
+	tx_fill_wi(sq, pi, num_wqebbs, frag, fsz);
 	sq->pc += num_wqebbs;
 
 	WARN(num_wqebbs > MLX5E_KTLS_MAX_DUMP_WQEBBS,
@@ -323,7 +325,7 @@ static void tx_post_fence_nop(struct mlx5e_txqsq *sq)
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
-	tx_fill_wi(sq, pi, 1, NULL);
+	tx_fill_wi(sq, pi, 1, NULL, 0);
 
 	mlx5e_post_nop_fence(wq, sq->sqn, &sq->pc);
 }
