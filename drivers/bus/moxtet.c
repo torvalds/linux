@@ -514,7 +514,7 @@ static ssize_t output_write(struct file *file, const char __user *buf,
 	struct moxtet *moxtet = file->private_data;
 	u8 bin[TURRIS_MOX_MAX_MODULES];
 	u8 hex[sizeof(bin) * 2 + 1];
-	size_t res;
+	ssize_t res;
 	loff_t dummy = 0;
 	int err, i;
 
