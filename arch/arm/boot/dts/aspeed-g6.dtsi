@@ -168,6 +168,32 @@
 				quality = <100>;
 			};
 
+			gpio0: gpio@1e780000 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2600-gpio";
+				reg = <0x1e780000 0x800>;
+				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 0 208>;
+				ngpios = <208>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio1: gpio@1e780800 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2600-gpio";
+				reg = <0x1e780800 0x800>;
+				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 208 36>;
+				ngpios = <36>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
 			rtc: rtc@1e781000 {
 				compatible = "aspeed,ast2600-rtc";
 				reg = <0x1e781000 0x18>;
