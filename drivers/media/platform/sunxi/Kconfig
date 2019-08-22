@@ -1,0 +1,1 @@
+source "drivers/media/platform/sunxi/sun6i-csi/Kconfig"
