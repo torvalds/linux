@@ -1413,7 +1413,9 @@ static void pqi_get_physical_disk_info(struct pqi_ctrl_info *ctrl_info,
 		device->queue_depth = PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH;
 		return;
 	}
-
+	device->box_index = id_phys->box_index;
+	device->phys_box_on_bus = id_phys->phys_box_on_bus;
+	device->phy_connected_dev_type = id_phys->phy_connected_dev_type[0];
 	device->queue_depth =
 		get_unaligned_le16(&id_phys->current_queue_depth_limit);
 	device->device_type = id_phys->device_type;
@@ -1740,6 +1742,10 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 	existing_device->active_path_index = new_device->active_path_index;
 	existing_device->path_map = new_device->path_map;
 	existing_device->bay = new_device->bay;
+	existing_device->box_index = new_device->box_index;
+	existing_device->phys_box_on_bus = new_device->phys_box_on_bus;
+	existing_device->phy_connected_dev_type =
+		new_device->phy_connected_dev_type;
 	memcpy(existing_device->box, new_device->box,
 		sizeof(existing_device->box));
 	memcpy(existing_device->phys_connector, new_device->phys_connector,
@@ -2169,11 +2175,10 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 					device->aio_handle =
 						phys_lun_ext_entry->aio_handle;
 			}
-			if (device->devtype == TYPE_DISK ||
-				device->devtype == TYPE_ZBC) {
+
 				pqi_get_physical_disk_info(ctrl_info,
 					device, id_phys);
-			}
+
 		} else {
 			memcpy(device->volume_id, log_lun_ext_entry->volume_id,
 				sizeof(device->volume_id));

@@ -931,6 +931,9 @@ struct pqi_scsi_dev {
 	u8	active_path_index;
 	u8	path_map;
 	u8	bay;
+	u8	box_index;
+	u8	phys_box_on_bus;
+	u8	phy_connected_dev_type;
 	u8	box[8];
 	u16	phys_connector[8];
 	bool	raid_bypass_configured;	/* RAID bypass configured */
@@ -1242,6 +1245,7 @@ struct bmic_sense_subsystem_info {
 };
 
 #define SA_EXPANDER_SMP_DEVICE		0x05
+#define SA_CONTROLLER_DEVICE		0x07
 /*SCSI Invalid Device Type for SAS devices*/
 #define PQI_SAS_SCSI_INVALID_DEVTYPE	0xff
 
