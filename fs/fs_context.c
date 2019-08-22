@@ -279,10 +279,8 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 		fc->user_ns = get_user_ns(reference->d_sb->s_user_ns);
 		break;
 	case FS_CONTEXT_FOR_RECONFIGURE:
-		/* We don't pin any namespaces as the superblock's
-		 * subscriptions cannot be changed at this point.
-		 */
 		atomic_inc(&reference->d_sb->s_active);
+		fc->user_ns = get_user_ns(reference->d_sb->s_user_ns);
 		fc->root = dget(reference);
 		break;
 	}
