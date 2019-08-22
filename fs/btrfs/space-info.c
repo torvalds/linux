@@ -993,6 +993,7 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	struct reserve_ticket ticket;
 	u64 used;
 	int ret = 0;
+	bool pending_tickets;
 
 	ASSERT(orig_bytes);
 	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_ALL);
@@ -1000,14 +1001,17 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	spin_lock(&space_info->lock);
 	ret = -ENOSPC;
 	used = btrfs_space_info_used(space_info, true);
+	pending_tickets = !list_empty(&space_info->tickets) ||
+		!list_empty(&space_info->priority_tickets);
 
 	/*
 	 * Carry on if we have enough space (short-circuit) OR call
 	 * can_overcommit() to ensure we can overcommit to continue.
 	 */
-	if ((used + orig_bytes <= space_info->total_bytes) ||
-	    can_overcommit(fs_info, space_info, orig_bytes, flush,
-			   system_chunk)) {
+	if (!pending_tickets &&
+	    ((used + orig_bytes <= space_info->total_bytes) ||
+	     can_overcommit(fs_info, space_info, orig_bytes, flush,
+			   system_chunk))) {
 		btrfs_space_info_update_bytes_may_use(fs_info, space_info,
 						      orig_bytes);
 		trace_btrfs_space_reservation(fs_info, "space_info",
