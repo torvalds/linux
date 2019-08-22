@@ -2236,18 +2236,20 @@ static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
-	int rc;
+	int rc = 0;
 
 	if (pqi_ctrl_offline(ctrl_info))
 		return -ENXIO;
 
-	mutex_lock(&ctrl_info->scan_mutex);
-
-	rc = pqi_update_scsi_devices(ctrl_info);
-	if (rc)
+	if (!mutex_trylock(&ctrl_info->scan_mutex)) {
 		pqi_schedule_rescan_worker_delayed(ctrl_info);
 
-	mutex_unlock(&ctrl_info->scan_mutex);
+	} else {
+		rc = pqi_update_scsi_devices(ctrl_info);
+		if (rc)
+			pqi_schedule_rescan_worker_delayed(ctrl_info);
+		mutex_unlock(&ctrl_info->scan_mutex);
+	}
 
 	return rc;
 }
