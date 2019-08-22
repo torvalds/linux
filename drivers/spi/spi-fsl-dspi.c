@@ -659,7 +659,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
 	if (!(spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF)))
-		return IRQ_HANDLED;
+		return IRQ_NONE;
 
 	/* Get transfer counter (in number of SPI transfers). It was
 	 * reset to 0 when transfer(s) were started.
