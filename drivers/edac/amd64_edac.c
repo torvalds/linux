@@ -2501,13 +2501,6 @@ static void decode_umc_error(int node_id, struct mce *m)
 		goto log_error;
 	}
 
-	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
-		err.err_code = ERR_NORM_ADDR;
-		goto log_error;
-	}
-
-	error_address_to_page_and_offset(sys_addr, &err);
-
 	if (!(m->status & MCI_STATUS_SYNDV)) {
 		err.err_code = ERR_SYND;
 		goto log_error;
@@ -2523,6 +2516,13 @@ static void decode_umc_error(int node_id, struct mce *m)
 	}
 
 	err.csrow = m->synd & 0x7;
+
+	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
+		err.err_code = ERR_NORM_ADDR;
+		goto log_error;
+	}
+
+	error_address_to_page_and_offset(sys_addr, &err);
 
 log_error:
 	__log_ecc_error(mci, &err, ecc_type);
