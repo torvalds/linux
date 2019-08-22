@@ -412,7 +412,7 @@ static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
 	u64 bytes;
 	u64 nr;
 
-	bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
+	bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
 	nr = div64_u64(to_reclaim, bytes);
 	if (!nr)
 		nr = 1;

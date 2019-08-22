@@ -3015,8 +3015,8 @@ void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 	num_devs = get_profile_num_devs(fs_info, type);
 
 	/* num_devs device items to update and 1 chunk item to add or remove */
-	thresh = btrfs_calc_trunc_metadata_size(fs_info, num_devs) +
-		btrfs_calc_trans_metadata_size(fs_info, 1);
+	thresh = btrfs_calc_metadata_size(fs_info, num_devs) +
+		btrfs_calc_insert_metadata_size(fs_info, 1);
 
 	if (left < thresh && btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
 		btrfs_info(fs_info, "left=%llu, need=%llu, flags=%llu",

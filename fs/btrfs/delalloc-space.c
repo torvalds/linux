@@ -256,12 +256,12 @@ static void btrfs_calculate_inode_block_rsv_size(struct btrfs_fs_info *fs_info,
 	lockdep_assert_held(&inode->lock);
 	outstanding_extents = inode->outstanding_extents;
 	if (outstanding_extents)
-		reserve_size = btrfs_calc_trans_metadata_size(fs_info,
+		reserve_size = btrfs_calc_insert_metadata_size(fs_info,
 						outstanding_extents + 1);
 	csum_leaves = btrfs_csum_bytes_to_leaves(fs_info,
 						 inode->csum_bytes);
-	reserve_size += btrfs_calc_trans_metadata_size(fs_info,
-						       csum_leaves);
+	reserve_size += btrfs_calc_insert_metadata_size(fs_info,
+							csum_leaves);
 	/*
 	 * For qgroup rsv, the calculation is very simple:
 	 * account one nodesize for each outstanding extent
@@ -284,7 +284,7 @@ static void calc_inode_reservations(struct btrfs_fs_info *fs_info,
 	u64 csum_leaves = btrfs_csum_bytes_to_leaves(fs_info, num_bytes);
 
 	/* We add one for the inode update at finish ordered time */
-	*meta_reserve = btrfs_calc_trans_metadata_size(fs_info,
+	*meta_reserve = btrfs_calc_insert_metadata_size(fs_info,
 						nr_extents + csum_leaves + 1);
 	*qgroup_reserve = nr_extents * fs_info->nodesize;
 }

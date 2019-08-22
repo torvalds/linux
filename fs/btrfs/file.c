@@ -2511,7 +2511,7 @@ int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
 			   struct btrfs_trans_handle **trans_out)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	u64 min_size = btrfs_calc_trans_metadata_size(fs_info, 1);
+	u64 min_size = btrfs_calc_insert_metadata_size(fs_info, 1);
 	u64 ino_size = round_up(inode->i_size, fs_info->sectorsize);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans = NULL;
@@ -2530,7 +2530,7 @@ int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
 		ret = -ENOMEM;
 		goto out;
 	}
-	rsv->size = btrfs_calc_trans_metadata_size(fs_info, 1);
+	rsv->size = btrfs_calc_insert_metadata_size(fs_info, 1);
 	rsv->failfast = 1;
 
 	/*
