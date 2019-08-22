@@ -131,9 +131,7 @@ void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_readonly += bytes_readonly;
 	if (total_bytes > 0)
 		found->full = 0;
-	btrfs_space_info_add_new_bytes(info, found,
-				       total_bytes - bytes_used -
-				       bytes_readonly);
+	btrfs_try_granting_tickets(info, found);
 	spin_unlock(&found->lock);
 	*space_info = found;
 }
@@ -229,17 +227,15 @@ static int can_overcommit(struct btrfs_fs_info *fs_info,
  * This is for space we already have accounted in space_info->bytes_may_use, so
  * basically when we're returning space from block_rsv's.
  */
-void btrfs_space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info,
-				    u64 num_bytes)
+void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
+				struct btrfs_space_info *space_info)
 {
 	struct list_head *head;
 	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_NO_FLUSH;
 
-	spin_lock(&space_info->lock);
-	head = &space_info->priority_tickets;
-	btrfs_space_info_update_bytes_may_use(fs_info, space_info, -num_bytes);
+	lockdep_assert_held(&space_info->lock);
 
+	head = &space_info->priority_tickets;
 again:
 	while (!list_empty(head)) {
 		struct reserve_ticket *ticket;
@@ -266,47 +262,6 @@ again:
 	if (head == &space_info->priority_tickets) {
 		head = &space_info->tickets;
 		flush = BTRFS_RESERVE_FLUSH_ALL;
-		goto again;
-	}
-	spin_unlock(&space_info->lock);
-}
-
-/*
- * This is for newly allocated space that isn't accounted in
- * space_info->bytes_may_use yet.  So if we allocate a chunk or unpin an extent
- * we use this helper.
- */
-void btrfs_space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info,
-				    u64 num_bytes)
-{
-	struct reserve_ticket *ticket;
-	struct list_head *head = &space_info->priority_tickets;
-
-again:
-	while (!list_empty(head) && num_bytes) {
-		ticket = list_first_entry(head, struct reserve_ticket,
-					  list);
-		if (num_bytes >= ticket->bytes) {
-			list_del_init(&ticket->list);
-			num_bytes -= ticket->bytes;
-			btrfs_space_info_update_bytes_may_use(fs_info,
-							      space_info,
-							      ticket->bytes);
-			ticket->bytes = 0;
-			space_info->tickets_id++;
-			wake_up(&ticket->wait);
-		} else {
-			btrfs_space_info_update_bytes_may_use(fs_info,
-							      space_info,
-							      num_bytes);
-			ticket->bytes -= num_bytes;
-			num_bytes = 0;
-		}
-	}
-
-	if (num_bytes && head == &space_info->priority_tickets) {
-		head = &space_info->tickets;
 		goto again;
 	}
 }

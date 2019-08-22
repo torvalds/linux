@@ -110,12 +110,6 @@ btrfs_space_info_update_##name(struct btrfs_fs_info *fs_info,		\
 DECLARE_SPACE_INFO_UPDATE(bytes_may_use, "space_info");
 DECLARE_SPACE_INFO_UPDATE(bytes_pinned, "pinned");
 
-void btrfs_space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info,
-				    u64 num_bytes);
-void btrfs_space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info,
-				    u64 num_bytes);
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
 			     u64 total_bytes, u64 bytes_used,
@@ -133,5 +127,18 @@ int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
 				 struct btrfs_block_rsv *block_rsv,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush);
+void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
+				struct btrfs_space_info *space_info);
+
+static inline void btrfs_space_info_add_old_bytes(
+				struct btrfs_fs_info *fs_info,
+				struct btrfs_space_info *space_info,
+				u64 num_bytes)
+{
+	spin_lock(&space_info->lock);
+	btrfs_space_info_update_bytes_may_use(fs_info, space_info, -num_bytes);
+	btrfs_try_granting_tickets(fs_info, space_info);
+	spin_unlock(&space_info->lock);
+}
 
 #endif /* BTRFS_SPACE_INFO_H */
