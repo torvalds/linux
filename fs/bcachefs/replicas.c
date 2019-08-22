@@ -80,7 +80,7 @@ static void extent_to_replicas(struct bkey_s_c k,
 			continue;
 
 		if (p.ec_nr) {
-			r->nr_devs = 0;
+			r->nr_required = 0;
 			break;
 		}
 
