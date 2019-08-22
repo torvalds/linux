@@ -70,7 +70,6 @@ struct btrfs_space_info {
 };
 
 struct reserve_ticket {
-	u64 orig_bytes;
 	u64 bytes;
 	int error;
 	struct list_head list;
