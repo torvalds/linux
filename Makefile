@@ -1118,11 +1118,9 @@ scripts: scripts_basic scripts_dtc
 # archprepare is used in arch Makefiles and when processed asm symlink,
 # version.h and scripts_basic is processed / created.
 
-PHONY += prepare archprepare prepare3
+PHONY += prepare archprepare
 
-prepare3: include/config/kernel.release
-
-archprepare: archheaders archscripts scripts prepare3 outputmakefile \
+archprepare: archheaders archscripts scripts include/config/kernel.release outputmakefile \
 	asm-generic $(version_h) $(autoksyms_h) include/generated/utsrelease.h
 
 prepare0: archprepare
@@ -1258,11 +1256,11 @@ endif
 
 ifneq ($(dtstree),)
 
-%.dtb: prepare3 scripts_dtc
+%.dtb: include/config/kernel.release scripts_dtc
 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
 
 PHONY += dtbs dtbs_install dt_binding_check
-dtbs dtbs_check: prepare3 scripts_dtc
+dtbs dtbs_check: include/config/kernel.release scripts_dtc
 	$(Q)$(MAKE) $(build)=$(dtstree)
 
 dtbs_check: export CHECK_DTBS=1
