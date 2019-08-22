@@ -3025,7 +3025,10 @@ bool bw_calcs(struct dc_context *ctx,
 
 	populate_initial_data(pipe, pipe_count, data);
 
-	calcs_output->all_displays_in_sync = all_displays_in_sync(pipe, pipe_count);
+	if (ctx->dc->config.multi_mon_pp_mclk_switch)
+		calcs_output->all_displays_in_sync = all_displays_in_sync(pipe, pipe_count);
+	else
+		calcs_output->all_displays_in_sync = false;
 
 	if (data->number_of_displays != 0) {
 		uint8_t yclk_lvl, sclk_lvl;

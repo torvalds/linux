@@ -220,7 +220,7 @@ struct dc_config {
 	bool power_down_display_on_boot;
 	bool edp_not_connected;
 	bool forced_clocks;
-
+	bool multi_mon_pp_mclk_switch;
 };
 
 enum visual_confirm {
