@@ -359,7 +359,7 @@ static int smu_v11_0_setup_pptable(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	const struct smc_firmware_header_v1_0 *hdr;
 	int ret, index;
-	uint32_t size;
+	uint32_t size = 0;
 	uint16_t atom_table_size;
 	uint8_t frev, crev;
 	void *table;
