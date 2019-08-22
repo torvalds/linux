@@ -1203,6 +1203,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	BKEY_PADDED(k) cur, prev;
+	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	unsigned offset_into_extent, sectors;
 	bool have_extent = false;
 	int ret = 0;
@@ -1217,14 +1218,16 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-				   POS(ei->v.i_ino, start >> 9),
-				   BTREE_ITER_SLOTS);
-
-	while (bkey_cmp(iter->pos, POS(ei->v.i_ino, (start + len) >> 9)) < 0) {
-		k = bch2_btree_iter_peek_slot(iter);
-		ret = bkey_err(k);
-		if (ret)
-			goto err;
+				   POS(ei->v.i_ino, start >> 9), 0);
+retry:
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = bkey_err(k)) &&
+	       bkey_cmp(iter->pos, end) < 0) {
+		if (!bkey_extent_is_data(k.k) &&
+		    k.k->type != KEY_TYPE_reservation) {
+			bch2_btree_iter_next(iter);
+			continue;
+		}
 
 		bkey_reassemble(&cur.k, k);
 		k = bkey_i_to_s_c(&cur.k);
@@ -1240,34 +1243,37 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
-		bch2_cut_front(POS(k.k->p.inode,
-				   bkey_start_offset(k.k) + offset_into_extent),
-			       &cur.k);
+		if (offset_into_extent)
+			bch2_cut_front(POS(k.k->p.inode,
+					   bkey_start_offset(k.k) +
+					   offset_into_extent),
+				       &cur.k);
 		bch2_key_resize(&cur.k.k, sectors);
 		cur.k.k.p.offset = iter->pos.offset + cur.k.k.size;
 
-		if (bkey_extent_is_data(k.k) ||
-		    k.k->type == KEY_TYPE_reservation) {
-			if (have_extent) {
-				ret = bch2_fill_extent(c, info,
-						bkey_i_to_s_c(&prev.k), 0);
-				if (ret)
-					break;
-			}
-
-			bkey_copy(&prev.k, &cur.k);
-			have_extent = true;
+		if (have_extent) {
+			ret = bch2_fill_extent(c, info,
+					bkey_i_to_s_c(&prev.k), 0);
+			if (ret)
+				break;
 		}
 
-		bch2_btree_iter_set_pos(iter,
-				POS(iter->pos.inode,
-				    iter->pos.offset + sectors));
+		bkey_copy(&prev.k, &cur.k);
+		have_extent = true;
+
+		if (k.k->type == KEY_TYPE_reflink_v)
+			bch2_btree_iter_set_pos(iter, k.k->p);
+		else
+			bch2_btree_iter_next(iter);
 	}
+
+	if (ret == -EINTR)
+		goto retry;
 
 	if (!ret && have_extent)
 		ret = bch2_fill_extent(c, info, bkey_i_to_s_c(&prev.k),
 				       FIEMAP_EXTENT_LAST);
-err:
+
 	ret = bch2_trans_exit(&trans) ?: ret;
 	return ret < 0 ? ret : 0;
 }
