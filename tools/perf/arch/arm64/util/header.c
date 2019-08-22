@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <api/fs/fs.h>
+#include "debug.h"
 #include "header.h"
 
 #define MIDR "/regs/identification/midr_el1"
