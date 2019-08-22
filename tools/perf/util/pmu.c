@@ -16,6 +16,7 @@
 #include <locale.h>
 #include <regex.h>
 #include <perf/cpumap.h>
+#include "debug.h"
 #include "pmu.h"
 #include "parse-events.h"
 #include "cpumap.h"

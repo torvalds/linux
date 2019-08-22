@@ -4,12 +4,12 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include <linux/refcount.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
 #include "perf.h"
-#include "util/debug.h"
+
+struct cpu_map_data;
 
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr);
 struct perf_cpu_map *cpu_map__new_data(struct cpu_map_data *data);

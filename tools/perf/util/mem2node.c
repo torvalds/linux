@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <linux/bitmap.h>
 #include <linux/zalloc.h>
+#include "debug.h"
 #include "mem2node.h"
 
 struct phys_entry {

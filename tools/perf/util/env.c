@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "cpumap.h"
+#include "debug.h"
 #include "env.h"
 #include <linux/ctype.h>
 #include <linux/zalloc.h>

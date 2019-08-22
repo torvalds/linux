@@ -2,6 +2,8 @@
 #include <api/fs/fs.h>
 #include "../perf.h"
 #include "cpumap.h"
+#include "debug.h"
+#include "event.h"
 #include <assert.h>
 #include <dirent.h>
 #include <stdio.h>
