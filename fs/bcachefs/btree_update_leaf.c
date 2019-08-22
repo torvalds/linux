@@ -857,7 +857,7 @@ int bch2_trans_commit(struct btree_trans *trans,
 		      unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
+	struct btree_insert_entry *i = NULL;
 	unsigned orig_mem_top = trans->mem_top;
 	int ret = 0;
 
