@@ -9481,7 +9481,5 @@ void ath10k_wmi_detach(struct ath10k *ar)
 	}
 
 	cancel_work_sync(&ar->svc_rdy_work);
-
-	if (ar->svc_rdy_skb)
-		dev_kfree_skb(ar->svc_rdy_skb);
+	dev_kfree_skb(ar->svc_rdy_skb);
 }
