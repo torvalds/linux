@@ -27,7 +27,10 @@ static void __sbi_tlb_flush_range(struct cpumask *cmask, unsigned long start,
 
 	if (cpumask_any_but(cmask, cpuid) >= nr_cpu_ids) {
 		/* local cpu is the only cpu present in cpumask */
-		local_flush_tlb_all();
+		if (size <= PAGE_SIZE)
+			local_flush_tlb_page(start);
+		else
+			local_flush_tlb_all();
 	} else {
 		riscv_cpuid_to_hartid_mask(cmask, &hmask);
 		sbi_remote_sfence_vma(cpumask_bits(&hmask), start, size);
