@@ -473,12 +473,19 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 	struct btrfs_trans_handle *trans;
 	u64 bytes_needed;
 	u64 reclaim_bytes = 0;
+	u64 cur_free_bytes = 0;
 
 	trans = (struct btrfs_trans_handle *)current->journal_info;
 	if (trans)
 		return -EAGAIN;
 
 	spin_lock(&space_info->lock);
+	cur_free_bytes = btrfs_space_info_used(space_info, true);
+	if (cur_free_bytes < space_info->total_bytes)
+		cur_free_bytes = space_info->total_bytes - cur_free_bytes;
+	else
+		cur_free_bytes = 0;
+
 	if (!list_empty(&space_info->priority_tickets))
 		ticket = list_first_entry(&space_info->priority_tickets,
 					  struct reserve_ticket, list);
@@ -486,6 +493,11 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
 	bytes_needed = (ticket) ? ticket->bytes : 0;
+
+	if (bytes_needed > cur_free_bytes)
+		bytes_needed -= cur_free_bytes;
+	else
+		bytes_needed = 0;
 	spin_unlock(&space_info->lock);
 
 	if (!bytes_needed)
