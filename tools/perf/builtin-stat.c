@@ -40,7 +40,6 @@
  *   Jaswinder Singh Rajput <jaswinder@kernel.org>
  */
 
-#include "perf.h"
 #include "builtin.h"
 #include "util/cgroup.h"
 #include <subcmd/parse-options.h>
@@ -62,6 +61,7 @@
 #include "util/tool.h"
 #include "util/string2.h"
 #include "util/metricgroup.h"
+#include "util/target.h"
 #include "util/top.h"
 #include "asm/bug.h"
 

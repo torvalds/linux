@@ -4,6 +4,7 @@
 #include <math.h>
 #include "counts.h"
 #include "stat.h"
+#include "target.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"

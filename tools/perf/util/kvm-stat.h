@@ -2,9 +2,9 @@
 #ifndef __PERF_KVM_STAT_H
 #define __PERF_KVM_STAT_H
 
-#include "../perf.h"
 #include "tool.h"
 #include "stat.h"
+#include "record.h"
 
 struct evsel;
 struct evlist;

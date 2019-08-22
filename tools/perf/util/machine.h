@@ -14,6 +14,7 @@ struct branch_stack;
 struct evsel;
 struct perf_sample;
 struct symbol;
+struct target;
 struct thread;
 union perf_event;
 

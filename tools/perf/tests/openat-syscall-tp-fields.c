@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <stdbool.h>
 #include <linux/err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "perf.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
+#include "record.h"
 #include "tests.h"
 #include "debug.h"
 #include <errno.h>

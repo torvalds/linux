@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "evlist.h"
 #include "evsel.h"
+#include "target.h"
 #include "thread_map.h"
 #include "cpumap.h"
 #include "tests.h"

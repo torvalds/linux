@@ -14,6 +14,7 @@
  * http://lwn.net/Articles/415728/ ("Announcing a new utility: 'trace'")
  */
 
+#include "util/record.h"
 #include <traceevent/event-parse.h>
 #include <api/fs/tracing_path.h>
 #include <bpf/bpf.h>

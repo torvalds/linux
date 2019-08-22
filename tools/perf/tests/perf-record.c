@@ -7,8 +7,8 @@
 #include <sched.h>
 #include "evlist.h"
 #include "evsel.h"
-#include "perf.h"
 #include "debug.h"
+#include "record.h"
 #include "tests.h"
 
 static int sched__get_first_possible_cpu(pid_t pid, cpu_set_t *maskp)

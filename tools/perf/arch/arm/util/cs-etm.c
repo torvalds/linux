@@ -15,7 +15,7 @@
 #include <linux/zalloc.h>
 
 #include "cs-etm.h"
-#include "../../perf.h"
+#include "../../util/record.h"
 #include "../../util/auxtrace.h"
 #include "../../util/cpumap.h"
 #include "../../util/evlist.h"

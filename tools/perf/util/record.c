@@ -9,6 +9,7 @@
 #include <perf/cpumap.h>
 #include "util.h"
 #include "cloexec.h"
+#include "record.h"
 
 typedef void (*setup_probe_fn_t)(struct evsel *evsel);
 

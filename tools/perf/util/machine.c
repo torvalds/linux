@@ -13,6 +13,7 @@
 #include "symbol.h"
 #include "sort.h"
 #include "strlist.h"
+#include "target.h"
 #include "thread.h"
 #include "vdso.h"
 #include <stdbool.h>

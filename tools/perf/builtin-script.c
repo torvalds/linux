@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 
-#include "perf.h"
 #include "util/cache.h"
 #include "util/counts.h"
 #include "util/debug.h"
@@ -51,6 +50,7 @@
 #include <unistd.h>
 #include <subcmd/pager.h>
 #include <perf/evlist.h>
+#include "util/record.h"
 
 #include <linux/ctype.h>
 

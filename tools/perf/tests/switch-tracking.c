@@ -13,6 +13,7 @@
 #include "evsel.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "record.h"
 #include "tests.h"
 
 static int spin_sleep(void)

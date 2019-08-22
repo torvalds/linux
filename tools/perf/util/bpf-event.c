@@ -14,6 +14,7 @@
 #include "session.h"
 #include "map.h"
 #include "evlist.h"
+#include "record.h"
 
 #define ptr_to_u64(ptr)    ((__u64)(unsigned long)(ptr))
 

@@ -198,6 +198,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 struct perf_tool;
 union perf_event;
 struct perf_session;
+struct target;
+
 int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event);
 
