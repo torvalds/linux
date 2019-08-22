@@ -353,10 +353,10 @@ void meson_viu_init(struct meson_drm *priv)
 			    priv->io_base + _REG(VIU_OSD2_CTRL_STAT));
 
 	/* On GXL/GXM, Use the 10bit HDR conversion matrix */
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
-	    meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXM) ||
+	    meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXL))
 		meson_viu_load_matrix(priv);
-	else if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+	else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
 		meson_viu_set_g12a_osd1_matrix(priv, RGB709_to_YUV709l_coeff,
 					       true);
 
@@ -367,7 +367,7 @@ void meson_viu_init(struct meson_drm *priv)
 		VIU_OSD_WORDS_PER_BURST(4) | /* 4 words in 1 burst */
 		VIU_OSD_FIFO_LIMITS(2);      /* fifo_lim: 2*16=32 */
 
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
 		reg |= meson_viu_osd_burst_length_reg(32);
 	else
 		reg |= meson_viu_osd_burst_length_reg(64);
@@ -394,7 +394,7 @@ void meson_viu_init(struct meson_drm *priv)
 	writel_relaxed(0x00FF00C0,
 			priv->io_base + _REG(VD2_IF0_LUMA_FIFO_SIZE));
 
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A)) {
 		writel_relaxed(VIU_OSD_BLEND_REORDER(0, 1) |
 			       VIU_OSD_BLEND_REORDER(1, 0) |
 			       VIU_OSD_BLEND_REORDER(2, 0) |
