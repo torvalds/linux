@@ -1055,7 +1055,7 @@ static size_t mask_size(struct perf_cpu_map *map, int *max)
 void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int *max)
 {
 	size_t size_cpus, size_mask;
-	bool is_dummy = cpu_map__empty(map);
+	bool is_dummy = perf_cpu_map__empty(map);
 
 	/*
 	 * Both array and mask data have variable size based

@@ -11,7 +11,7 @@
 #include "perf.h"
 #include "util/debug.h"
 
-struct perf_cpu_map *cpu_map__empty_new(int nr);
+struct perf_cpu_map *perf_cpu_map__empty_new(int nr);
 struct perf_cpu_map *cpu_map__new_data(struct cpu_map_data *data);
 size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size);
@@ -47,11 +47,6 @@ static inline int cpu_map__id_to_die(int id)
 static inline int cpu_map__id_to_cpu(int id)
 {
 	return id & 0xffff;
-}
-
-static inline bool cpu_map__empty(const struct perf_cpu_map *map)
-{
-	return map ? map->map[0] == -1 : true;
 }
 
 int cpu__setup_cpunode_map(void);

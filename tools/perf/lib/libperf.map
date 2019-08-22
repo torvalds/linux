@@ -8,6 +8,7 @@ LIBPERF_0.0.1 {
 		perf_cpu_map__read;
 		perf_cpu_map__nr;
 		perf_cpu_map__cpu;
+		perf_cpu_map__empty;
 		perf_thread_map__new_dummy;
 		perf_thread_map__set_pid;
 		perf_thread_map__comm;

@@ -223,7 +223,7 @@ static int check_per_pkg(struct evsel *counter,
 	if (!counter->per_pkg)
 		return 0;
 
-	if (cpu_map__empty(cpus))
+	if (perf_cpu_map__empty(cpus))
 		return 0;
 
 	if (!mask) {

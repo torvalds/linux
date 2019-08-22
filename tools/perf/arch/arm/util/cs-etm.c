@@ -396,7 +396,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	 * AUX event.  We also need the contextID in order to be notified
 	 * when a context switch happened.
 	 */
-	if (!cpu_map__empty(cpus)) {
+	if (!perf_cpu_map__empty(cpus)) {
 		perf_evsel__set_sample_bit(cs_etm_evsel, CPU);
 
 		err = cs_etm_set_option(itr, cs_etm_evsel,
@@ -420,7 +420,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		tracking_evsel->core.attr.sample_period = 1;
 
 		/* In per-cpu case, always need the time of mmap events etc */
-		if (!cpu_map__empty(cpus))
+		if (!perf_cpu_map__empty(cpus))
 			perf_evsel__set_sample_bit(tracking_evsel, TIME);
 	}
 
@@ -493,7 +493,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
 	/* cpu map is not empty, we have specific CPUs to work with */
-	if (!cpu_map__empty(event_cpus)) {
+	if (!perf_cpu_map__empty(event_cpus)) {
 		for (i = 0; i < cpu__max_cpu(); i++) {
 			if (!cpu_map__has(event_cpus, i) ||
 			    !cpu_map__has(online_cpus, i))
@@ -649,7 +649,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 		return -EINVAL;
 
 	/* If the cpu_map is empty all online CPUs are involved */
-	if (cpu_map__empty(event_cpus)) {
+	if (perf_cpu_map__empty(event_cpus)) {
 		cpu_map = online_cpus;
 	} else {
 		/* Make sure all specified CPUs are online */

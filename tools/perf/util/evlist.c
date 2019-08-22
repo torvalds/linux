@@ -386,7 +386,7 @@ static int perf_evlist__enable_event_thread(struct evlist *evlist,
 int perf_evlist__enable_event_idx(struct evlist *evlist,
 				  struct evsel *evsel, int idx)
 {
-	bool per_cpu_mmaps = !cpu_map__empty(evlist->core.cpus);
+	bool per_cpu_mmaps = !perf_cpu_map__empty(evlist->core.cpus);
 
 	if (per_cpu_mmaps)
 		return perf_evlist__enable_event_cpu(evlist, evsel, idx);
@@ -693,7 +693,7 @@ static struct perf_mmap *perf_evlist__alloc_mmap(struct evlist *evlist,
 	struct perf_mmap *map;
 
 	evlist->nr_mmaps = perf_cpu_map__nr(evlist->core.cpus);
-	if (cpu_map__empty(evlist->core.cpus))
+	if (perf_cpu_map__empty(evlist->core.cpus))
 		evlist->nr_mmaps = thread_map__nr(evlist->core.threads);
 	map = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
 	if (!map)
@@ -1018,7 +1018,7 @@ int perf_evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 			return -ENOMEM;
 	}
 
-	if (cpu_map__empty(cpus))
+	if (perf_cpu_map__empty(cpus))
 		return perf_evlist__mmap_per_thread(evlist, &mp);
 
 	return perf_evlist__mmap_per_cpu(evlist, &mp);
