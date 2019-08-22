@@ -182,10 +182,6 @@
 					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
 					};
 
-					// supply for ab8500-usb; USB LDO
-					ab8500_ldo_usb_reg: ab8500_ldo_usb {
-					};
-
 					// supply for ab8500-vaudio; VAUDIO LDO
 					ab8500_ldo_audio_reg: ab8500_ldo_audio {
 					};
