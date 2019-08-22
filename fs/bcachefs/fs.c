@@ -1233,7 +1233,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 			bkey_start_offset(k.k);
 		sectors			= k.k->size - offset_into_extent;
 
-		ret = bch2_read_indirect_extent(&trans, iter,
+		ret = bch2_read_indirect_extent(&trans,
 					&offset_into_extent, &cur.k);
 		if (ret)
 			break;

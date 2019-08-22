@@ -99,8 +99,17 @@ struct bch_devs_mask;
 struct cache_promote_op;
 struct extent_ptr_decoded;
 
-int bch2_read_indirect_extent(struct btree_trans *, struct btree_iter *,
-			      unsigned *, struct bkey_i *);
+int __bch2_read_indirect_extent(struct btree_trans *, unsigned *,
+				struct bkey_i *);
+
+static inline int bch2_read_indirect_extent(struct btree_trans *trans,
+					    unsigned *offset_into_extent,
+					    struct bkey_i *k)
+{
+	return k->k.type == KEY_TYPE_reflink_p
+		? __bch2_read_indirect_extent(trans, offset_into_extent, k)
+		: 0;
+}
 
 enum bch_read_flags {
 	BCH_READ_RETRY_IF_STALE		= 1 << 0,

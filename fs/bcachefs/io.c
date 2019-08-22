@@ -1305,7 +1305,7 @@ retry:
 			bkey_start_offset(k.k);
 		sectors = k.k->size - offset_into_extent;
 
-		ret = bch2_read_indirect_extent(&trans, iter,
+		ret = bch2_read_indirect_extent(&trans,
 					&offset_into_extent, &tmp.k);
 		if (ret)
 			break;
@@ -1594,18 +1594,14 @@ static void bch2_read_endio(struct bio *bio)
 	bch2_rbio_punt(rbio, __bch2_read_endio, context, wq);
 }
 
-int bch2_read_indirect_extent(struct btree_trans *trans,
-			      struct btree_iter *extent_iter,
-			      unsigned *offset_into_extent,
-			      struct bkey_i *orig_k)
+int __bch2_read_indirect_extent(struct btree_trans *trans,
+				unsigned *offset_into_extent,
+				struct bkey_i *orig_k)
 {
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 reflink_offset;
 	int ret;
-
-	if (orig_k->k.type != KEY_TYPE_reflink_p)
-		return 0;
 
 	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k)->v.idx) +
 		*offset_into_extent;
@@ -1920,7 +1916,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 			bkey_start_offset(k.k);
 		sectors = k.k->size - offset_into_extent;
 
-		ret = bch2_read_indirect_extent(&trans, iter,
+		ret = bch2_read_indirect_extent(&trans,
 					&offset_into_extent, &tmp.k);
 		if (ret)
 			goto err;

@@ -806,19 +806,6 @@ bool bch2_cut_back(struct bpos where, struct bkey *k)
 	return true;
 }
 
-/**
- * bch_key_resize - adjust size of @k
- *
- * bkey_start_offset(k) will be preserved, modifies where the extent ends
- */
-void bch2_key_resize(struct bkey *k,
-		    unsigned new_size)
-{
-	k->p.offset -= k->size;
-	k->p.offset += new_size;
-	k->size = new_size;
-}
-
 static bool extent_i_save(struct btree *b, struct bkey_packed *dst,
 			  struct bkey_i *src)
 {

@@ -540,7 +540,18 @@ static inline void bch2_cut_front(struct bpos where, struct bkey_i *k)
 }
 
 bool bch2_cut_back(struct bpos, struct bkey *);
-void bch2_key_resize(struct bkey *, unsigned);
+
+/**
+ * bch_key_resize - adjust size of @k
+ *
+ * bkey_start_offset(k) will be preserved, modifies where the extent ends
+ */
+static inline void bch2_key_resize(struct bkey *k, unsigned new_size)
+{
+	k->p.offset -= k->size;
+	k->p.offset += new_size;
+	k->size = new_size;
+}
 
 /*
  * In extent_sort_fix_overlapping(), insert_fixup_extent(),
