@@ -8371,12 +8371,6 @@ F:	Documentation/x86/intel_txt.rst
 F:	include/linux/tboot.h
 F:	arch/x86/kernel/tboot.c
 
-INTEL-MID GPIO DRIVER
-M:	David Cohen <david.a.cohen@linux.intel.com>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	drivers/gpio/gpio-intel-mid.c
-
 INTERCONNECT API
 M:	Georgi Djakov <georgi.djakov@linaro.org>
 L:	linux-pm@vger.kernel.org
