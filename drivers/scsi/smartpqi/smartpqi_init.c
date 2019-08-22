@@ -484,6 +484,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		/* fall through */
 	case BMIC_IDENTIFY_CONTROLLER:
 	case BMIC_IDENTIFY_PHYSICAL_DEVICE:
+	case BMIC_SENSE_SUBSYSTEM_INFORMATION:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = BMIC_READ;
 		cdb[6] = cmd;
@@ -610,6 +611,14 @@ static inline int pqi_identify_controller(struct pqi_ctrl_info *ctrl_info,
 {
 	return pqi_send_ctrl_raid_request(ctrl_info, BMIC_IDENTIFY_CONTROLLER,
 			buffer, sizeof(*buffer));
+}
+
+static inline int pqi_sense_subsystem_info(struct  pqi_ctrl_info *ctrl_info,
+		struct bmic_sense_subsystem_info *sense_info)
+{
+	return pqi_send_ctrl_raid_request(ctrl_info,
+			BMIC_SENSE_SUBSYSTEM_INFORMATION,
+			sense_info, sizeof(*sense_info));
 }
 
 static inline int pqi_scsi_inquiry(struct pqi_ctrl_info *ctrl_info,
@@ -6129,23 +6138,65 @@ static int pqi_ioctl(struct scsi_device *sdev, unsigned int cmd,
 	return rc;
 }
 
-static ssize_t pqi_version_show(struct device *dev,
+static ssize_t pqi_firmware_version_show(struct device *dev,
 	struct device_attribute *attr, char *buffer)
 {
-	ssize_t count = 0;
 	struct Scsi_Host *shost;
 	struct pqi_ctrl_info *ctrl_info;
 
 	shost = class_to_shost(dev);
 	ctrl_info = shost_to_hba(shost);
 
-	count += snprintf(buffer + count, PAGE_SIZE - count,
-		"  driver: %s\n", DRIVER_VERSION BUILD_TIMESTAMP);
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->firmware_version);
+}
 
-	count += snprintf(buffer + count, PAGE_SIZE - count,
-		"firmware: %s\n", ctrl_info->firmware_version);
+static ssize_t pqi_driver_version_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
 
-	return count;
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE,
+		"%s\n", DRIVER_VERSION BUILD_TIMESTAMP);
+}
+
+static ssize_t pqi_serial_number_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->serial_number);
+}
+
+static ssize_t pqi_model_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->model);
+}
+
+static ssize_t pqi_vendor_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+
+	shost = class_to_shost(dev);
+	ctrl_info = shost_to_hba(shost);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", ctrl_info->vendor);
 }
 
 static ssize_t pqi_host_rescan_store(struct device *dev,
@@ -6198,13 +6249,21 @@ static ssize_t pqi_lockup_action_store(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(version, 0444, pqi_version_show, NULL);
+static DEVICE_ATTR(driver_version, 0444, pqi_driver_version_show, NULL);
+static DEVICE_ATTR(firmware_version, 0444, pqi_firmware_version_show, NULL);
+static DEVICE_ATTR(model, 0444, pqi_model_show, NULL);
+static DEVICE_ATTR(serial_number, 0444, pqi_serial_number_show, NULL);
+static DEVICE_ATTR(vendor, 0444, pqi_vendor_show, NULL);
 static DEVICE_ATTR(rescan, 0200, NULL, pqi_host_rescan_store);
 static DEVICE_ATTR(lockup_action, 0644,
 	pqi_lockup_action_show, pqi_lockup_action_store);
 
 static struct device_attribute *pqi_shost_attrs[] = {
-	&dev_attr_version,
+	&dev_attr_driver_version,
+	&dev_attr_firmware_version,
+	&dev_attr_model,
+	&dev_attr_serial_number,
+	&dev_attr_vendor,
 	&dev_attr_rescan,
 	&dev_attr_lockup_action,
 	NULL
@@ -6596,7 +6655,30 @@ static int pqi_reset(struct pqi_ctrl_info *ctrl_info)
 	return rc;
 }
 
-static int pqi_get_ctrl_firmware_version(struct pqi_ctrl_info *ctrl_info)
+static int pqi_get_ctrl_serial_number(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	struct bmic_sense_subsystem_info *sense_info;
+
+	sense_info = kzalloc(sizeof(*sense_info), GFP_KERNEL);
+	if (!sense_info)
+		return -ENOMEM;
+
+	rc = pqi_sense_subsystem_info(ctrl_info, sense_info);
+	if (rc)
+		goto out;
+
+	memcpy(ctrl_info->serial_number, sense_info->ctrl_serial_number,
+		sizeof(sense_info->ctrl_serial_number));
+	ctrl_info->serial_number[sizeof(sense_info->ctrl_serial_number)] = '\0';
+
+out:
+	kfree(sense_info);
+
+	return rc;
+}
+
+static int pqi_get_ctrl_product_details(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 	struct bmic_identify_controller *identify;
@@ -6616,6 +6698,14 @@ static int pqi_get_ctrl_firmware_version(struct pqi_ctrl_info *ctrl_info)
 		strlen(ctrl_info->firmware_version),
 		sizeof(ctrl_info->firmware_version),
 		"-%u", get_unaligned_le16(&identify->firmware_build_number));
+
+	memcpy(ctrl_info->model, identify->product_id,
+		sizeof(identify->product_id));
+	ctrl_info->model[sizeof(identify->product_id)] = '\0';
+
+	memcpy(ctrl_info->vendor, identify->vendor_id,
+		sizeof(identify->vendor_id));
+	ctrl_info->vendor[sizeof(identify->vendor_id)] = '\0';
 
 out:
 	kfree(identify);
@@ -7136,10 +7226,17 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		return rc;
 
-	rc = pqi_get_ctrl_firmware_version(ctrl_info);
+	rc = pqi_get_ctrl_product_details(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error obtaining firmware version\n");
+			"error obtaining product details\n");
+		return rc;
+	}
+
+	rc = pqi_get_ctrl_serial_number(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error obtaining ctrl serial number\n");
 		return rc;
 	}
 
@@ -7279,10 +7376,10 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 	}
 
-	rc = pqi_get_ctrl_firmware_version(ctrl_info);
+	rc = pqi_get_ctrl_product_details(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error obtaining firmware version\n");
+			"error obtaining product detail\n");
 		return rc;
 	}
 
