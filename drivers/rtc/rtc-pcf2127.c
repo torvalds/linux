@@ -237,10 +237,11 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 	dev_set_drvdata(dev, pcf2127);
 
-	pcf2127->rtc = devm_rtc_device_register(dev, name, &pcf2127_rtc_ops,
-						THIS_MODULE);
+	pcf2127->rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(pcf2127->rtc))
 		return PTR_ERR(pcf2127->rtc);
+
+	pcf2127->rtc->ops = &pcf2127_rtc_ops;
 
 	if (has_nvmem) {
 		struct nvmem_config nvmem_cfg = {
@@ -253,7 +254,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		ret = rtc_nvmem_register(pcf2127->rtc, &nvmem_cfg);
 	}
 
-	return ret;
+	return rtc_register_device(pcf2127->rtc);
 }
 
 #ifdef CONFIG_OF
