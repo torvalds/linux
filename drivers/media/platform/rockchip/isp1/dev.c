@@ -397,96 +397,79 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 
 static int _set_pipeline_default_fmt(struct rkisp1_device *dev)
 {
-	int ret;
 	struct v4l2_subdev *isp;
-	struct v4l2_subdev *sensor;
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev_selection sel;
 	struct v4l2_subdev_pad_config cfg;
 	u32 width, height;
 	u32 ori_width, ori_height, ori_code;
 
-	if (dev->num_sensors) {
-		sensor = dev->sensors[0].sd;
-		isp = &dev->isp_sdev.sd;
+	isp = &dev->isp_sdev.sd;
 
-		/* get fmt from sensor */
-		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(sensor, pad, get_fmt, &cfg, &fmt);
-		if (ret) {
-			dev_err(dev->dev,
-				"failed to get fmt for %s\n",
-				sensor->name);
+	fmt = dev->active_sensor->fmt;
+	ori_width = fmt.format.width;
+	ori_height = fmt.format.height;
+	ori_code = fmt.format.code;
 
-			return -ENXIO;
-		}
-
-		ori_width = fmt.format.width;
-		ori_height = fmt.format.height;
-		ori_code = fmt.format.code;
-
-		if (dev->isp_ver == ISP_V12) {
-			fmt.format.width  = clamp_t(u32, fmt.format.width,
-						CIF_ISP_INPUT_W_MIN,
-						CIF_ISP_INPUT_W_MAX_V12);
-			fmt.format.height = clamp_t(u32, fmt.format.height,
-						CIF_ISP_INPUT_H_MIN,
-						CIF_ISP_INPUT_H_MAX_V12);
-		} else if (dev->isp_ver == ISP_V13) {
-			fmt.format.width  = clamp_t(u32, fmt.format.width,
-						CIF_ISP_INPUT_W_MIN,
-						CIF_ISP_INPUT_W_MAX_V13);
-			fmt.format.height = clamp_t(u32, fmt.format.height,
-						CIF_ISP_INPUT_H_MIN,
-						CIF_ISP_INPUT_H_MAX_V13);
-		} else {
-			fmt.format.width  = clamp_t(u32, fmt.format.width,
-						CIF_ISP_INPUT_W_MIN,
-						CIF_ISP_INPUT_W_MAX);
-			fmt.format.height = clamp_t(u32, fmt.format.height,
-						CIF_ISP_INPUT_H_MIN,
-						CIF_ISP_INPUT_H_MAX);
-		}
-
-		sel.r.left = 0;
-		sel.r.top = 0;
-		width = fmt.format.width;
-		height = fmt.format.height;
-		sel.r.width = fmt.format.width;
-		sel.r.height = fmt.format.height;
-		sel.target = V4L2_SEL_TGT_CROP;
-		sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		memset(&cfg, 0, sizeof(cfg));
-
-		/* change fmt&size for RKISP1_ISP_PAD_SINK */
-		fmt.pad = RKISP1_ISP_PAD_SINK;
-		sel.pad = RKISP1_ISP_PAD_SINK;
-		v4l2_subdev_call(isp, pad, set_fmt, &cfg, &fmt);
-		v4l2_subdev_call(isp, pad, set_selection, &cfg, &sel);
-
-		/* change fmt&size for RKISP1_ISP_PAD_SOURCE_PATH */
-		if ((fmt.format.code & RKISP1_MEDIA_BUS_FMT_MASK) ==
-		    RKISP1_MEDIA_BUS_FMT_BAYER)
-			fmt.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
-
-		fmt.pad = RKISP1_ISP_PAD_SOURCE_PATH;
-		sel.pad = RKISP1_ISP_PAD_SOURCE_PATH;
-		v4l2_subdev_call(isp, pad, set_fmt, &cfg, &fmt);
-		v4l2_subdev_call(isp, pad, set_selection, &cfg, &sel);
-
-		/* change fmt&size of MP/SP */
-		rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_MP,
-					  width, height, V4L2_PIX_FMT_YUYV);
-		if (dev->isp_ver != ISP_V10_1)
-			rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_SP,
-						  width, height, V4L2_PIX_FMT_YUYV);
-		if (dev->isp_ver == ISP_V12 ||
-			dev->isp_ver == ISP_V13)
-			rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_RAW,
-						  ori_width, ori_height,
-						  rkisp1_mbus_pixelcode_to_v4l2(ori_code));
+	if (dev->isp_ver == ISP_V12) {
+		fmt.format.width  = clamp_t(u32, fmt.format.width,
+					CIF_ISP_INPUT_W_MIN,
+					CIF_ISP_INPUT_W_MAX_V12);
+		fmt.format.height = clamp_t(u32, fmt.format.height,
+					CIF_ISP_INPUT_H_MIN,
+					CIF_ISP_INPUT_H_MAX_V12);
+	} else if (dev->isp_ver == ISP_V13) {
+		fmt.format.width  = clamp_t(u32, fmt.format.width,
+					CIF_ISP_INPUT_W_MIN,
+					CIF_ISP_INPUT_W_MAX_V13);
+		fmt.format.height = clamp_t(u32, fmt.format.height,
+					CIF_ISP_INPUT_H_MIN,
+					CIF_ISP_INPUT_H_MAX_V13);
+	} else {
+		fmt.format.width  = clamp_t(u32, fmt.format.width,
+					CIF_ISP_INPUT_W_MIN,
+					CIF_ISP_INPUT_W_MAX);
+		fmt.format.height = clamp_t(u32, fmt.format.height,
+					CIF_ISP_INPUT_H_MIN,
+					CIF_ISP_INPUT_H_MAX);
 	}
+
+	sel.r.left = 0;
+	sel.r.top = 0;
+	width = fmt.format.width;
+	height = fmt.format.height;
+	sel.r.width = fmt.format.width;
+	sel.r.height = fmt.format.height;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	memset(&cfg, 0, sizeof(cfg));
+
+	/* change fmt&size for RKISP1_ISP_PAD_SINK */
+	fmt.pad = RKISP1_ISP_PAD_SINK;
+	sel.pad = RKISP1_ISP_PAD_SINK;
+	v4l2_subdev_call(isp, pad, set_fmt, &cfg, &fmt);
+	v4l2_subdev_call(isp, pad, set_selection, &cfg, &sel);
+
+	/* change fmt&size for RKISP1_ISP_PAD_SOURCE_PATH */
+	if ((fmt.format.code & RKISP1_MEDIA_BUS_FMT_MASK) ==
+	    RKISP1_MEDIA_BUS_FMT_BAYER)
+		fmt.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
+
+	fmt.pad = RKISP1_ISP_PAD_SOURCE_PATH;
+	sel.pad = RKISP1_ISP_PAD_SOURCE_PATH;
+	v4l2_subdev_call(isp, pad, set_fmt, &cfg, &fmt);
+	v4l2_subdev_call(isp, pad, set_selection, &cfg, &sel);
+
+	/* change fmt&size of MP/SP */
+	rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_MP,
+				  width, height, V4L2_PIX_FMT_YUYV);
+	if (dev->isp_ver != ISP_V10_1)
+		rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_SP,
+					  width, height, V4L2_PIX_FMT_YUYV);
+	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13)
+		rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_RAW, ori_width,
+			ori_height, rkisp1_mbus_pixelcode_to_v4l2(ori_code));
 
 	return 0;
 }
@@ -505,6 +488,12 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	ret = v4l2_device_register_subdev_nodes(&dev->v4l2_dev);
 	if (ret < 0)
 		goto unlock;
+
+	ret = rkisp1_update_sensor_info(dev);
+	if (ret < 0) {
+		v4l2_err(&dev->v4l2_dev, "update sensor failed\n");
+		goto unlock;
+	}
 
 	ret = _set_pipeline_default_fmt(dev);
 	if (ret < 0)

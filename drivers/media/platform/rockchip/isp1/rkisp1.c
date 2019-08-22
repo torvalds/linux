@@ -798,8 +798,6 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 	if (dev->hdr_sensor)
 		dev->hdr_sensor = NULL;
 
-	dev->active_sensor = NULL;
-
 	return 0;
 }
 

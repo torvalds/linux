@@ -1502,8 +1502,8 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
-	if (!dev->active_sensor &&
-		dev->isp_inp != INP_DMARX_ISP) {
+	if (dev->isp_inp != INP_DMARX_ISP) {
+		/* Always update sensor info in case media topology changed */
 		ret = rkisp1_update_sensor_info(dev);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev,
