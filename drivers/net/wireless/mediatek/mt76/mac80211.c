@@ -406,11 +406,6 @@ void mt76_set_channel(struct mt76_dev *dev)
 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	int timeout = HZ / 5;
 
-	if (offchannel)
-		set_bit(MT76_OFFCHANNEL, &dev->state);
-	else
-		clear_bit(MT76_OFFCHANNEL, &dev->state);
-
 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(dev), timeout);
 
 	if (dev->drv->update_survey)
