@@ -575,6 +575,10 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		}
 	} while (saw_non_marked);
 
+	trans_for_each_update(trans, i)
+		btree_insert_entry_checks(trans, i);
+	bch2_btree_trans_verify_locks(trans);
+
 	btree_trans_lock_write(c, trans);
 
 	if (race_fault()) {
@@ -874,10 +878,6 @@ int bch2_trans_commit(struct btree_trans *trans,
 	trans->disk_res		= disk_res;
 	trans->journal_seq	= journal_seq;
 	trans->flags		= flags;
-
-	trans_for_each_update(trans, i)
-		btree_insert_entry_checks(trans, i);
-	bch2_btree_trans_verify_locks(trans);
 
 	if (unlikely(!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
 		     !percpu_ref_tryget(&c->writes))) {

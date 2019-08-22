@@ -1373,12 +1373,11 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 
 		if (s.deleting)
 			tmp.k.k.type = KEY_TYPE_discard;
-#if 0
-		/* disabled due to lock recursion - mark_lock: */
+
 		if (debug_check_bkeys(c))
 			bch2_bkey_debugcheck(c, iter->l[0].b,
 					     bkey_i_to_s_c(&tmp.k));
-#endif
+
 		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
 
 		extent_bset_insert(c, iter, &tmp.k);
@@ -1420,11 +1419,13 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b,
 	 * going to get overwritten during replay)
 	 */
 
-	bch2_fs_bug_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-		       !bch2_bkey_replicas_marked(c, e.s_c, false), c,
-		       "extent key bad (replicas not marked in superblock):\n%s",
-		       (bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf));
-
+	if (percpu_down_read_trylock(&c->mark_lock)) {
+		bch2_fs_bug_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+			       !bch2_bkey_replicas_marked_locked(c, e.s_c, false), c,
+			       "extent key bad (replicas not marked in superblock):\n%s",
+			       (bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf));
+		percpu_up_read(&c->mark_lock);
+	}
 	/*
 	 * If journal replay hasn't finished, we might be seeing keys
 	 * that will be overwritten by the time journal replay is done:
