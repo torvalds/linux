@@ -158,7 +158,7 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 		trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
 					      0, num_bytes, 1);
 	if (to_free)
-		btrfs_space_info_add_old_bytes(fs_info,
+		btrfs_space_info_free_bytes_may_use(fs_info,
 				delayed_refs_rsv->space_info, to_free);
 }
 

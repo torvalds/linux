@@ -129,7 +129,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
 void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info);
 
-static inline void btrfs_space_info_add_old_bytes(
+static inline void btrfs_space_info_free_bytes_may_use(
 				struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info,
 				u64 num_bytes)

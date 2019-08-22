@@ -54,8 +54,9 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			spin_unlock(&dest->lock);
 		}
 		if (num_bytes)
-			btrfs_space_info_add_old_bytes(fs_info, space_info,
-						       num_bytes);
+			btrfs_space_info_free_bytes_may_use(fs_info,
+							    space_info,
+							    num_bytes);
 	}
 	if (qgroup_to_release_ret)
 		*qgroup_to_release_ret = qgroup_to_release;
