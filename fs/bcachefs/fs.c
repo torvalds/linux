@@ -1533,12 +1533,6 @@ static int bch2_vfs_write_inode(struct inode *vinode,
 			       ATTR_ATIME|ATTR_MTIME|ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
 
-	if (c->opts.journal_flush_disabled)
-		return ret;
-
-	if (!ret && wbc->sync_mode == WB_SYNC_ALL)
-		ret = bch2_journal_flush_seq(&c->journal, inode->ei_journal_seq);
-
 	return ret;
 }
 
@@ -1594,6 +1588,9 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int bch2_sync_fs(struct super_block *sb, int wait)
 {
 	struct bch_fs *c = sb->s_fs_info;
+
+	if (c->opts.journal_flush_disabled)
+		return 0;
 
 	if (!wait) {
 		bch2_journal_flush_async(&c->journal, NULL);
