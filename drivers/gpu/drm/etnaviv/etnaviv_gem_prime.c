@@ -3,7 +3,9 @@
  * Copyright (C) 2014-2018 Etnaviv Project
  */
 
+#include <drm/drm_prime.h>
 #include <linux/dma-buf.h>
+
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 
