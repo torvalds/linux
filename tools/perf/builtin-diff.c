@@ -15,6 +15,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/sort.h"
+#include "util/srcline.h"
 #include "util/symbol.h"
 #include "util/data.h"
 #include "util/config.h"
@@ -22,6 +23,7 @@
 #include "util/annotate.h"
 #include "util/map.h"
 #include <linux/zalloc.h>
+#include <subcmd/parse-options.h>
 
 #include <errno.h>
 #include <inttypes.h>

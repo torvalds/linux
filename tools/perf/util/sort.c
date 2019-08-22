@@ -13,6 +13,7 @@
 #include "thread.h"
 #include "evsel.h"
 #include "evlist.h"
+#include "srcline.h"
 #include "strlist.h"
 #include "strbuf.h"
 #include <traceevent/event-parse.h>

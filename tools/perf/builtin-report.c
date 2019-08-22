@@ -28,6 +28,7 @@
 #include "util/evswitch.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/srcline.h"
 #include "util/tool.h"
 
 #include <subcmd/parse-options.h>
