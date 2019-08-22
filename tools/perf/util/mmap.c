@@ -331,7 +331,7 @@ static void build_node_mask(int node, cpu_set_t *mask)
 	if (!cpu_map)
 		return;
 
-	nr_cpus = cpu_map__nr(cpu_map);
+	nr_cpus = perf_cpu_map__nr(cpu_map);
 	for (c = 0; c < nr_cpus; c++) {
 		cpu = cpu_map->map[c]; /* map c index to online cpu index */
 		if (cpu__get_node(cpu) == node)
