@@ -14,6 +14,9 @@ static void __sbi_tlb_flush_range(struct cpumask *cmask, unsigned long start,
 {
 	struct cpumask hmask;
 
+	if (cpumask_empty(cmask))
+		return;
+
 	riscv_cpuid_to_hartid_mask(cmask, &hmask);
 	sbi_remote_sfence_vma(hmask.bits, start, size);
 }
