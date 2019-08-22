@@ -819,7 +819,6 @@ static int moxtet_probe(struct spi_device *spi)
 static int moxtet_remove(struct spi_device *spi)
 {
 	struct moxtet *moxtet = spi_get_drvdata(spi);
-	int dummy;
 
 	free_irq(moxtet->dev_irq, moxtet);
 
@@ -827,7 +826,7 @@ static int moxtet_remove(struct spi_device *spi)
 
 	moxtet_unregister_debugfs(moxtet);
 
-	dummy = device_for_each_child(moxtet->dev, NULL, __unregister);
+	device_for_each_child(moxtet->dev, NULL, __unregister);
 
 	mutex_destroy(&moxtet->lock);
 
