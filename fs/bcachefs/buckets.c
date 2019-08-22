@@ -1483,8 +1483,6 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	s64 parity_sectors;
 	int ret = 0;
 
-	BUG_ON(!sectors);
-
 	ret = trans_get_key(trans, BTREE_ID_EC, POS(0, p.idx), &iter, &k);
 	if (ret)
 		return ret;
@@ -1548,6 +1546,12 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 		s64 disk_sectors = data_type == BCH_DATA_BTREE
 			? sectors
 			: ptr_disk_sectors_delta(p, offset, sectors, flags);
+
+		/*
+		 * can happen due to rounding with compressed extents:
+		 */
+		if (!disk_sectors)
+			continue;
 
 		ret = bch2_trans_mark_pointer(trans, p, disk_sectors,
 					      data_type);
