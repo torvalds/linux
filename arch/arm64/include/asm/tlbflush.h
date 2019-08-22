@@ -224,6 +224,7 @@ static inline void __flush_tlb_kernel_pgtable(unsigned long kaddr)
 
 	__tlbi(vaae1is, addr);
 	dsb(ish);
+	isb();
 }
 #endif
 
