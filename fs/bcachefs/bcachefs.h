@@ -745,6 +745,7 @@ struct bch_fs {
 	/* ERASURE CODING */
 	struct list_head	ec_new_stripe_list;
 	struct mutex		ec_new_stripe_lock;
+	u64			ec_stripe_hint;
 
 	struct bio_set		ec_bioset;
 

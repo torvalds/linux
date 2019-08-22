@@ -704,26 +704,34 @@ static int ec_stripe_bkey_insert(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	struct bpos start_pos = POS(0, c->ec_stripe_hint);
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
 
-	/* XXX: start pos hint */
-	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN,
+	for_each_btree_key(&trans, iter, BTREE_ID_EC, start_pos,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
-		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0)
+		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
+			if (start_pos.offset) {
+				start_pos = POS_MIN;
+				bch2_btree_iter_set_pos(iter, start_pos);
+				continue;
+			}
+
+			ret = -ENOSPC;
 			break;
+		}
 
 		if (bkey_deleted(k.k))
 			goto found_slot;
 	}
 
-	if (!ret)
-		ret = -ENOSPC;
 	goto err;
 found_slot:
+	start_pos = iter->pos;
+
 	ret = ec_stripe_mem_alloc(c, iter);
 	if (ret)
 		goto err;
@@ -738,6 +746,8 @@ found_slot:
 err:
 	if (ret == -EINTR)
 		goto retry;
+
+	c->ec_stripe_hint = ret ? start_pos.offset : start_pos.offset + 1;
 	bch2_trans_exit(&trans);
 
 	return ret;
