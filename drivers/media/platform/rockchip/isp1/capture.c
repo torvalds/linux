@@ -74,6 +74,7 @@
 #define STREAM_MAX_SP_RSZ_OUTPUT_HEIGHT		1920
 #define STREAM_MIN_RSZ_OUTPUT_WIDTH		32
 #define STREAM_MIN_RSZ_OUTPUT_HEIGHT		16
+#define STREAM_OUTPUT_STEP_WISE			8
 
 #define STREAM_MAX_MP_SP_INPUT_WIDTH STREAM_MAX_MP_RSZ_OUTPUT_WIDTH
 #define STREAM_MAX_MP_SP_INPUT_HEIGHT STREAM_MAX_MP_RSZ_OUTPUT_HEIGHT
@@ -1834,6 +1835,80 @@ static int rkisp1_try_fmt_vid_cap_mplane(struct file *file, void *fh,
 	return rkisp1_set_fmt(stream, &f->fmt.pix_mp, true);
 }
 
+static int rkisp_enum_framesizes(struct file *file, void *prov,
+				 struct v4l2_frmsizeenum *fsize)
+{
+	struct rkisp1_stream *stream = video_drvdata(file);
+	const struct stream_config *config = stream->config;
+	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
+	struct v4l2_frmsize_discrete *d = &fsize->discrete;
+	const struct ispsd_out_fmt *input_isp_fmt;
+	struct v4l2_rect max_rsz;
+
+	if (fsize->index != 0)
+		return -EINVAL;
+
+	if (!find_fmt(stream, fsize->pixel_format))
+		return -EINVAL;
+
+	restrict_rsz_resolution(stream->ispdev, config, &max_rsz);
+
+	input_isp_fmt = rkisp1_get_ispsd_out_fmt(&stream->ispdev->isp_sdev);
+	if (input_isp_fmt->fmt_type == FMT_BAYER) {
+		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		d->width = max_rsz.width;
+		d->height = max_rsz.height;
+	} else {
+		fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+		s->min_width = STREAM_MIN_RSZ_OUTPUT_WIDTH;
+		s->min_height = STREAM_MIN_RSZ_OUTPUT_HEIGHT;
+		s->max_width = max_rsz.width;
+		s->max_height = max_rsz.height;
+		s->step_width = STREAM_OUTPUT_STEP_WISE;
+		s->step_height = STREAM_OUTPUT_STEP_WISE;
+	}
+
+	return 0;
+}
+
+static int rkisp_enum_frameintervals(struct file *file, void *fh,
+				     struct v4l2_frmivalenum *fival)
+{
+	const struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp1_sensor_info *sensor = dev->active_sensor;
+	struct v4l2_subdev_frame_interval fi;
+	int ret;
+
+	if (fival->index != 0)
+		return -EINVAL;
+
+	if (!sensor) {
+		/* TODO: active_sensor is NULL if using DMARX path */
+		v4l2_err(&dev->v4l2_dev, "%s Not active sensor\n", __func__);
+		return -ENODEV;
+	}
+
+	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	if (ret && ret != -ENOIOCTLCMD) {
+		return ret;
+	} else if (ret == -ENOIOCTLCMD) {
+		/* Set a default value for sensors not implements ioctl */
+		fi.interval.numerator = 1;
+		fi.interval.denominator = 30;
+	}
+
+	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
+	fival->stepwise.step.numerator = 1;
+	fival->stepwise.step.denominator = 1;
+	fival->stepwise.max.numerator = 1;
+	fival->stepwise.max.denominator = 1;
+	fival->stepwise.min.numerator = fi.interval.numerator;
+	fival->stepwise.min.denominator = fi.interval.denominator;
+
+	return 0;
+}
+
 static int rkisp1_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 					  struct v4l2_fmtdesc *f)
 {
@@ -1996,6 +2071,8 @@ static const struct v4l2_ioctl_ops rkisp1_v4l2_ioctl_ops = {
 	.vidioc_s_selection = rkisp1_s_selection,
 	.vidioc_g_selection = rkisp1_g_selection,
 	.vidioc_querycap = rkisp1_querycap,
+	.vidioc_enum_frameintervals = rkisp_enum_frameintervals,
+	.vidioc_enum_framesizes = rkisp_enum_framesizes,
 };
 
 static void rkisp1_unregister_stream_vdev(struct rkisp1_stream *stream)
