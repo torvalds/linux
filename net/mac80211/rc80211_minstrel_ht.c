@@ -634,7 +634,7 @@ minstrel_ht_rate_sample_switch(struct minstrel_priv *mp,
 		u16 supported = mi->supported[g_idx];
 
 		supported >>= mi->max_tp_rate[0] % MCS_GROUP_RATES;
-		for (i = 0; supported; i++) {
+		for (i = 0; supported; supported >>= 1, i++) {
 			if (!(supported & 1))
 				continue;
 
