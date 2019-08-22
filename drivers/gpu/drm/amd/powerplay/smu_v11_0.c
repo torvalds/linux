@@ -1664,7 +1664,7 @@ static bool smu_v11_0_baco_is_support(struct smu_context *smu)
 static enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	enum smu_baco_state baco_state = SMU_BACO_STATE_EXIT;
+	enum smu_baco_state baco_state;
 
 	mutex_lock(&smu_baco->mutex);
 	baco_state = smu_baco->state;
