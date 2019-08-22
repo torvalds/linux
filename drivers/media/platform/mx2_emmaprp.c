@@ -120,7 +120,7 @@ module_param(debug, bool, 0644);
 #define PRP_CNTL_RZ_FIFO_LEVEL(x)       ((x) << 27)
 #define PRP_CNTL_CH2B1EN        (1 << 29)
 #define PRP_CNTL_CH2B2EN        (1 << 30)
-#define PRP_CNTL_CH2FEN         (1 << 31)
+#define PRP_CNTL_CH2FEN         (1UL << 31)
 
 #define PRP_SIZE_HEIGHT(x)	(x)
 #define PRP_SIZE_WIDTH(x)	((x) << 16)

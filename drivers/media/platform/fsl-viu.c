@@ -214,7 +214,7 @@ enum status_config {
 	FIELD_NO		= 0x01 << 28,	/* Field number */
 	DITHER_ON		= 0x01 << 29,	/* Dithering is on */
 	ROUND_ON		= 0x01 << 30,	/* Round is on */
-	MODE_32BIT		= 0x01 << 31,	/* Data in RGBa888,
+	MODE_32BIT		= 1UL << 31,	/* Data in RGBa888,
 						 * 0 in RGB565
 						 */
 };
