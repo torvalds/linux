@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR Apache-2.0 */
 /*
- * linux/drivers/staging/erofs/erofs_fs.h
- *
  * Copyright (C) 2017-2018 HUAWEI, Inc.
  *             http://www.huawei.com/
  * Created by Gao Xiang <gaoxiang25@huawei.com>
@@ -10,7 +8,6 @@
 #define __EROFS_FS_H
 
 /* Enhanced(Extended) ROM File System */
-#define EROFS_SUPER_MAGIC_V1    0xE0F5E1E2
 #define EROFS_SUPER_OFFSET      1024
 
 /*

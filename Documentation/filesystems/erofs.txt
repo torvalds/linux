@@ -49,10 +49,6 @@ Bugs and patches are welcome, please kindly help us and send to the following
 linux-erofs mailing list:
 >> linux-erofs mailing list   <linux-erofs@lists.ozlabs.org>
 
-Note that EROFS is still working in progress as a Linux staging driver,
-Cc the staging mailing list as well is highly recommended:
->> Linux Driver Project Developer List <devel@driverdev.osuosl.org>
-
 Mount options
 =============
 
