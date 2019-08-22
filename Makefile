@@ -578,10 +578,10 @@ ifdef config-build
 include arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG KBUILD_KCONFIG CC_VERSION_TEXT
 
-config: scripts_basic outputmakefile FORCE
+config: outputmakefile scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
-%config: scripts_basic outputmakefile FORCE
+%config: outputmakefile scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
 else #!config-build
@@ -1120,7 +1120,7 @@ scripts: scripts_basic scripts_dtc
 
 PHONY += prepare archprepare
 
-archprepare: archheaders archscripts scripts include/config/kernel.release outputmakefile \
+archprepare: outputmakefile archheaders archscripts scripts include/config/kernel.release \
 	asm-generic $(version_h) $(autoksyms_h) include/generated/utsrelease.h
 
 prepare0: archprepare
