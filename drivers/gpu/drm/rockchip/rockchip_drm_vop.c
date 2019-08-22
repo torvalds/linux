@@ -1485,8 +1485,6 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vop_dsp_hold_valid_irq_disable(vop);
 
-	disable_irq(vop->irq);
-
 	vop->is_enabled = false;
 	if (vop->is_iommu_enabled) {
 		/*
@@ -1889,8 +1887,6 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 
 	vop_dsp_hold_valid_irq_disable(vop);
 
-	disable_irq(vop->irq);
-
 	vop->is_enabled = false;
 
 	if (vop->is_iommu_enabled) {
@@ -2161,7 +2157,6 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 
 		rockchip_set_system_status(sys_status);
 		vop_initial(crtc);
-		enable_irq(vop->irq);
 		drm_crtc_vblank_on(crtc);
 		vop->loader_protect = true;
 	} else {
@@ -2898,7 +2893,6 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	vop_cfg_done(vop);
 
-	enable_irq(vop->irq);
 	drm_crtc_vblank_on(crtc);
 	vop_unlock(vop);
 }
@@ -4472,7 +4466,6 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 			       IRQF_SHARED, dev_name(dev), vop);
 	if (ret)
 		return ret;
-	disable_irq(vop->irq);
 	ret = vop_create_crtc(vop);
 	if (ret)
 		return ret;
