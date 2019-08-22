@@ -324,14 +324,11 @@ EXPORT_SYMBOL_GPL(led_update_brightness);
 
 u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 {
-	struct device_node *np = dev_of_node(led_cdev->dev);
+	struct fwnode_handle *fwnode = led_cdev->dev->fwnode;
 	u32 *pattern;
 	int count;
 
-	if (!np)
-		return NULL;
-
-	count = of_property_count_u32_elems(np, "led-pattern");
+	count = fwnode_property_count_u32(fwnode, "led-pattern");
 	if (count < 0)
 		return NULL;
 
@@ -339,7 +336,7 @@ u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 	if (!pattern)
 		return NULL;
 
-	if (of_property_read_u32_array(np, "led-pattern", pattern, count)) {
+	if (fwnode_property_read_u32_array(fwnode, "led-pattern", pattern, count)) {
 		kfree(pattern);
 		return NULL;
 	}

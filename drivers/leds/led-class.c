@@ -14,7 +14,7 @@
 #include <linux/leds.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
@@ -277,7 +277,7 @@ int led_classdev_register_ext(struct device *parent,
 		return PTR_ERR(led_cdev->dev);
 	}
 	if (init_data && init_data->fwnode)
-		led_cdev->dev->of_node = to_of_node(init_data->fwnode);
+		led_cdev->dev->fwnode = init_data->fwnode;
 
 	if (ret)
 		dev_warn(parent, "Led %s renamed to %s due to name collision",
