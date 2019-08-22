@@ -156,6 +156,8 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		op = 1;
 	else if (sscanf(str, "inject %32s %8s", block_name, err) == 2)
 		op = 2;
+	else if (sscanf(str, "reboot %32s", block_name) == 1)
+		op = 3;
 	else if (str[0] && str[1] && str[2] && str[3])
 		/* ascii string, but commands are not matched. */
 		return -EINVAL;
@@ -288,6 +290,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 
 		/* data.inject.address is offset instead of absolute gpu address */
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
+		break;
+	case 3:
+		amdgpu_ras_get_context(adev)->reboot = true;
 		break;
 	default:
 		ret = -EINVAL;
@@ -1746,6 +1751,8 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
-		DRM_WARN("RAS event of type ERREVENT_ATHUB_INTERRUPT detected! Stopping all GPU jobs.\n");
+		DRM_WARN("RAS event of type ERREVENT_ATHUB_INTERRUPT detected!\n");
+
+		amdgpu_ras_reset_gpu(adev, false);
 	}
 }
