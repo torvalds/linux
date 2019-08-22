@@ -652,10 +652,11 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 
 	rcu_read_lock();
 	for (i = 0; i < i915->ggtt.num_fences; i++) {
-		struct i915_vma *vma = i915->ggtt.fence_regs[i].vma;
+		struct i915_fence_reg *reg = &i915->ggtt.fence_regs[i];
+		struct i915_vma *vma = reg->vma;
 
 		seq_printf(m, "Fence %d, pin count = %d, object = ",
-			   i, i915->ggtt.fence_regs[i].pin_count);
+			   i, atomic_read(&reg->pin_count));
 		if (!vma)
 			seq_puts(m, "unused");
 		else

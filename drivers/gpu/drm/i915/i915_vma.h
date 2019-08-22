@@ -426,8 +426,8 @@ int __must_check i915_vma_put_fence(struct i915_vma *vma);
 
 static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->fence->pin_count <= 0);
-	vma->fence->pin_count--;
+	GEM_BUG_ON(atomic_read(&vma->fence->pin_count) <= 0);
+	atomic_dec(&vma->fence->pin_count);
 }
 
 /**

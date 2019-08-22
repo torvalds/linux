@@ -1157,7 +1157,14 @@ static int evict_fence(void *data)
 		goto out_unlock;
 	}
 
+	err = i915_vma_pin(arg->vma, 0, 0, PIN_GLOBAL | PIN_MAPPABLE);
+	if (err) {
+		pr_err("Unable to pin vma for Y-tiled fence; err:%d\n", err);
+		goto out_unlock;
+	}
+
 	err = i915_vma_pin_fence(arg->vma);
+	i915_vma_unpin(arg->vma);
 	if (err) {
 		pr_err("Unable to pin Y-tiled fence; err:%d\n", err);
 		goto out_unlock;
