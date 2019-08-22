@@ -479,8 +479,10 @@ static int rockchip_drm_fill_connector_modes(struct drm_connector *connector,
 	} else {
 		old_status = connector->status;
 
-		connector->status = connector->funcs->detect(connector, true);
-
+		if (connector->funcs->detect)
+			connector->status = connector->funcs->detect(connector, true);
+		else
+			connector->status  = connector_status_connected;
 		/*
 		 * Normally either the driver's hpd code or the poll loop should
 		 * pick up any changes and fire the hotplug event. But if
@@ -599,7 +601,12 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		return PTR_ERR(conn_state);
 
 	funcs = connector->helper_private;
-	conn_state->best_encoder = funcs->best_encoder(connector);
+
+	if (funcs->best_encoder)
+		conn_state->best_encoder = funcs->best_encoder(connector);
+	else
+		conn_state->best_encoder = drm_atomic_helper_best_encoder(connector);
+
 	if (funcs->loader_protect)
 		funcs->loader_protect(connector, true);
 	connector->loader_protect = true;
@@ -763,10 +770,12 @@ static int update_state(struct drm_device *drm_dev,
 		struct drm_encoder *encoder;
 
 		connector_helper_funcs = connector->helper_private;
-		if (!connector_helper_funcs ||
-		    !connector_helper_funcs->best_encoder)
+		if (!connector_helper_funcs)
 			return -ENXIO;
-		encoder = connector_helper_funcs->best_encoder(connector);
+		if (connector_helper_funcs->best_encoder)
+			encoder = connector_helper_funcs->best_encoder(connector);
+		else
+			encoder = drm_atomic_helper_best_encoder(connector);
 		if (!encoder)
 			return -ENXIO;
 		encoder_helper_funcs = encoder->helper_private;
