@@ -87,14 +87,18 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
  *
  * Declare a helper function to detect underflow of various space info members
  */
-#define DECLARE_SPACE_INFO_UPDATE(name)					\
+#define DECLARE_SPACE_INFO_UPDATE(name, trace_name)			\
 static inline void							\
 btrfs_space_info_update_##name(struct btrfs_fs_info *fs_info,		\
 			       struct btrfs_space_info *sinfo,		\
 			       s64 bytes)				\
 {									\
+	const u64 abs_bytes = (bytes < 0) ? -bytes : bytes;		\
 	lockdep_assert_held(&sinfo->lock);				\
 	trace_update_##name(fs_info, sinfo, sinfo->name, bytes);	\
+	trace_btrfs_space_reservation(fs_info, trace_name,		\
+				      sinfo->flags, abs_bytes,		\
+				      bytes > 0);			\
 	if (bytes < 0 && sinfo->name < -bytes) {			\
 		WARN_ON(1);						\
 		sinfo->name = 0;					\
@@ -103,8 +107,8 @@ btrfs_space_info_update_##name(struct btrfs_fs_info *fs_info,		\
 	sinfo->name += bytes;						\
 }
 
-DECLARE_SPACE_INFO_UPDATE(bytes_may_use);
-DECLARE_SPACE_INFO_UPDATE(bytes_pinned);
+DECLARE_SPACE_INFO_UPDATE(bytes_may_use, "space_info");
+DECLARE_SPACE_INFO_UPDATE(bytes_pinned, "pinned");
 
 void btrfs_space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
 				    struct btrfs_space_info *space_info,

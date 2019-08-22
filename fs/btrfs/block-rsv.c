@@ -283,16 +283,11 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 			block_rsv->reserved += num_bytes;
 			btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
 							      num_bytes);
-			trace_btrfs_space_reservation(fs_info, "space_info",
-						      sinfo->flags, num_bytes,
-						      1);
 		}
 	} else if (block_rsv->reserved > block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
 						      -num_bytes);
-		trace_btrfs_space_reservation(fs_info, "space_info",
-				      sinfo->flags, num_bytes, 0);
 		block_rsv->reserved = block_rsv->size;
 	}
 

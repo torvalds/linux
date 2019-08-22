@@ -279,8 +279,6 @@ again:
 		goto again;
 	}
 	btrfs_space_info_update_bytes_may_use(fs_info, space_info, -num_bytes);
-	trace_btrfs_space_reservation(fs_info, "space_info",
-				      space_info->flags, num_bytes, 0);
 	spin_unlock(&space_info->lock);
 }
 
@@ -301,9 +299,6 @@ again:
 		ticket = list_first_entry(head, struct reserve_ticket,
 					  list);
 		if (num_bytes >= ticket->bytes) {
-			trace_btrfs_space_reservation(fs_info, "space_info",
-						      space_info->flags,
-						      ticket->bytes, 1);
 			list_del_init(&ticket->list);
 			num_bytes -= ticket->bytes;
 			btrfs_space_info_update_bytes_may_use(fs_info,
@@ -313,9 +308,6 @@ again:
 			space_info->tickets_id++;
 			wake_up(&ticket->wait);
 		} else {
-			trace_btrfs_space_reservation(fs_info, "space_info",
-						      space_info->flags,
-						      num_bytes, 1);
 			btrfs_space_info_update_bytes_may_use(fs_info,
 							      space_info,
 							      num_bytes);
@@ -1014,8 +1006,6 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 			   system_chunk))) {
 		btrfs_space_info_update_bytes_may_use(fs_info, space_info,
 						      orig_bytes);
-		trace_btrfs_space_reservation(fs_info, "space_info",
-					      space_info->flags, orig_bytes, 1);
 		ret = 0;
 	}
 
