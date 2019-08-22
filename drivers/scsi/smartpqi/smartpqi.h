@@ -822,6 +822,7 @@ union pqi_reset_register {
 #define PQI_HBA_BUS			2
 #define PQI_EXTERNAL_RAID_VOLUME_BUS	3
 #define PQI_MAX_BUS			PQI_EXTERNAL_RAID_VOLUME_BUS
+#define PQI_VSEP_CISS_BTL		379
 
 struct report_lun_header {
 	__be32	list_length;

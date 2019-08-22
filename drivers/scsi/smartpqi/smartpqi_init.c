@@ -151,6 +151,12 @@ module_param_named(expose_ld_first,
 MODULE_PARM_DESC(expose_ld_first,
 	"Expose logical drives before physical drives.");
 
+static int pqi_hide_vsep;
+module_param_named(hide_vsep,
+	pqi_hide_vsep, int, 0644);
+MODULE_PARM_DESC(hide_vsep,
+	"Hide the virtual SEP for direct attached drives.");
+
 static char *raid_levels[] = {
 	"RAID-0",
 	"RAID-4",
@@ -1951,6 +1957,11 @@ static inline bool pqi_skip_device(u8 *scsi3addr)
 	return false;
 }
 
+static inline void pqi_mask_device(u8 *scsi3addr)
+{
+	scsi3addr[3] |= 0xc0;
+}
+
 static inline bool pqi_is_device_with_sas_address(struct pqi_scsi_dev *device)
 {
 	if (!device->is_physical_device)
@@ -2030,6 +2041,21 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 				out_of_memory_msg);
 			rc = -ENOMEM;
 			goto out;
+		}
+		if (pqi_hide_vsep) {
+			int i;
+
+			for (i = num_physicals - 1; i >= 0; i--) {
+				phys_lun_ext_entry =
+						&physdev_list->lun_entries[i];
+				if (CISS_GET_DRIVE_NUMBER(
+					phys_lun_ext_entry->lunid) ==
+						PQI_VSEP_CISS_BTL) {
+					pqi_mask_device(
+						phys_lun_ext_entry->lunid);
+					break;
+				}
+			}
 		}
 	}
 
