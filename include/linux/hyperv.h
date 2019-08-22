@@ -1578,4 +1578,19 @@ hv_pkt_iter_next(struct vmbus_channel *channel,
 	for (pkt = hv_pkt_iter_first(channel); pkt; \
 	    pkt = hv_pkt_iter_next(channel, pkt))
 
+/*
+ * Functions for passing data between SR-IOV PF and VF drivers.  The VF driver
+ * sends requests to read and write blocks. Each block must be 128 bytes or
+ * smaller. Optionally, the VF driver can register a callback function which
+ * will be invoked when the host says that one or more of the first 64 block
+ * IDs is "invalid" which means that the VF driver should reread them.
+ */
+#define HV_CONFIG_BLOCK_SIZE_MAX 128
+int hv_read_config_block(struct pci_dev *dev, void *buf, unsigned int buf_len,
+			 unsigned int block_id, unsigned int *bytes_returned);
+int hv_write_config_block(struct pci_dev *dev, void *buf, unsigned int len,
+			  unsigned int block_id);
+int hv_register_block_invalidate(struct pci_dev *dev, void *context,
+				 void (*block_invalidate)(void *context,
+							  u64 block_mask));
 #endif /* _HYPERV_H */
