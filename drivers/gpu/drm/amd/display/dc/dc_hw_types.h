@@ -578,6 +578,11 @@ enum dc_quantization_range {
 	QUANTIZATION_RANGE_LIMITED
 };
 
+enum dc_dynamic_expansion {
+	DYN_EXPANSION_AUTO,
+	DYN_EXPANSION_DISABLE
+};
+
 /* XFM */
 
 /* used in  struct dc_plane_state */

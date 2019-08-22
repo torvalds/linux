@@ -411,6 +411,27 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 	return false;
 }
 
+void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
+		enum dc_dynamic_expansion option)
+{
+	/* OPP FMT dyn expansion updates*/
+	int i = 0;
+	struct pipe_ctx *pipe_ctx;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream
+				== stream) {
+			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+			pipe_ctx->stream_res.opp->dyn_expansion = option;
+			pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
+					pipe_ctx->stream_res.opp,
+					COLOR_SPACE_YCBCR601,
+					stream->timing.display_color_depth,
+					stream->signal);
+		}
+	}
+}
+
 void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
