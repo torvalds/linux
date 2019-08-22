@@ -1653,7 +1653,7 @@ static bool ignore_missing_thread(struct evsel *evsel,
 				  struct perf_thread_map *threads,
 				  int thread, int err)
 {
-	pid_t ignore_pid = thread_map__pid(threads, thread);
+	pid_t ignore_pid = perf_thread_map__pid(threads, thread);
 
 	if (!evsel->ignore_missing_thread)
 		return false;
@@ -1816,7 +1816,7 @@ retry_sample_id:
 			int fd, group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
-				pid = thread_map__pid(threads, thread);
+				pid = perf_thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:

@@ -310,7 +310,7 @@ size_t thread_map__fprintf(struct perf_thread_map *threads, FILE *fp)
 	size_t printed = fprintf(fp, "%d thread%s: ",
 				 threads->nr, threads->nr > 1 ? "s" : "");
 	for (i = 0; i < threads->nr; ++i)
-		printed += fprintf(fp, "%s%d", i ? ", " : "", thread_map__pid(threads, i));
+		printed += fprintf(fp, "%s%d", i ? ", " : "", perf_thread_map__pid(threads, i));
 
 	return printed + fprintf(fp, "\n");
 }
@@ -341,7 +341,7 @@ static int get_comm(char **comm, pid_t pid)
 
 static void comm_init(struct perf_thread_map *map, int i)
 {
-	pid_t pid = thread_map__pid(map, i);
+	pid_t pid = perf_thread_map__pid(map, i);
 	char *comm = NULL;
 
 	/* dummy pid comm initialization */

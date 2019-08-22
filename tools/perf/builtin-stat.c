@@ -264,7 +264,7 @@ static int read_single_counter(struct evsel *counter, int cpu,
  */
 static int read_counter(struct evsel *counter, struct timespec *rs)
 {
-	int nthreads = thread_map__nr(evsel_list->core.threads);
+	int nthreads = perf_thread_map__nr(evsel_list->core.threads);
 	int ncpus, cpu, thread;
 
 	if (target__has_cpu(&target) && !target__has_per_thread(&target))
@@ -1893,7 +1893,7 @@ int cmd_stat(int argc, const char **argv)
 		thread_map__read_comms(evsel_list->core.threads);
 		if (target.system_wide) {
 			if (runtime_stat_new(&stat_config,
-				thread_map__nr(evsel_list->core.threads))) {
+				perf_thread_map__nr(evsel_list->core.threads))) {
 				goto out;
 			}
 		}
