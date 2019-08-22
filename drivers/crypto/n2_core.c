@@ -757,7 +757,8 @@ static int n2_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 static int n2_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			 unsigned int keylen)
 {
-	struct n2_cipher_context *ctx = crypto_ablkcipher_ctx(cipher);
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
+	struct n2_cipher_context *ctx = crypto_tfm_ctx(tfm);
 	struct n2_cipher_alg *n2alg = n2_cipher_alg(tfm);
 	int err;
 
@@ -775,7 +776,8 @@ static int n2_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 static int n2_3des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			  unsigned int keylen)
 {
-	struct n2_cipher_context *ctx = crypto_ablkcipher_ctx(cipher);
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
+	struct n2_cipher_context *ctx = crypto_tfm_ctx(tfm);
 	struct n2_cipher_alg *n2alg = n2_cipher_alg(tfm);
 	int err;
 
