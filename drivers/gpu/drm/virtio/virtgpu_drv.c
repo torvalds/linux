@@ -56,7 +56,6 @@ static int virtio_gpu_pci_quirk(struct drm_device *dev, struct virtio_device *vd
 	dev->pdev = pdev;
 	if (vga)
 		drm_fb_helper_remove_conflicting_pci_framebuffers(pdev,
-								  0,
 								  "virtiodrmfb");
 
 	/*
