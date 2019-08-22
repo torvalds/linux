@@ -983,7 +983,6 @@ int hv_read_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
 	*bytes_returned = comp_pkt.bytes_returned;
 	return 0;
 }
-EXPORT_SYMBOL(hv_read_config_block);
 
 /**
  * hv_pci_write_config_compl() - Invoked when a response packet for a write
@@ -1070,7 +1069,6 @@ int hv_write_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
 
 	return 0;
 }
-EXPORT_SYMBOL(hv_write_config_block);
 
 /**
  * hv_register_block_invalidate() - Invoked when a config block invalidation
@@ -1101,7 +1099,6 @@ int hv_register_block_invalidate(struct pci_dev *pdev, void *context,
 	return 0;
 
 }
-EXPORT_SYMBOL(hv_register_block_invalidate);
 
 /* Interrupt management hooks */
 static void hv_int_desc_free(struct hv_pci_dev *hpdev,
@@ -3045,10 +3042,19 @@ static struct hv_driver hv_pci_drv = {
 static void __exit exit_hv_pci_drv(void)
 {
 	vmbus_driver_unregister(&hv_pci_drv);
+
+	hvpci_block_ops.read_block = NULL;
+	hvpci_block_ops.write_block = NULL;
+	hvpci_block_ops.reg_blk_invalidate = NULL;
 }
 
 static int __init init_hv_pci_drv(void)
 {
+	/* Initialize PCI block r/w interface */
+	hvpci_block_ops.read_block = hv_read_config_block;
+	hvpci_block_ops.write_block = hv_write_config_block;
+	hvpci_block_ops.reg_blk_invalidate = hv_register_block_invalidate;
+
 	return vmbus_driver_register(&hv_pci_drv);
 }
 
