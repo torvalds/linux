@@ -770,10 +770,6 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	}
 	intel_frontbuffer_flush(new_bo->frontbuffer, ORIGIN_DIRTYFB);
 
-	ret = i915_vma_put_fence(vma);
-	if (ret)
-		goto out_unpin;
-
 	if (!overlay->active) {
 		u32 oconfig;
 

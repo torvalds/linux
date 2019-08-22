@@ -221,6 +221,8 @@ restart:
 	 * state and so involves less work.
 	 */
 	if (atomic_read(&obj->bind_count)) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
 		/* Before we change the PTE, the GPU must not be accessing it.
 		 * If we wait upon the object, we know that all the bound
 		 * VMA are no longer active.
@@ -232,18 +234,30 @@ restart:
 		if (ret)
 			return ret;
 
-		if (!HAS_LLC(to_i915(obj->base.dev)) &&
-		    cache_level != I915_CACHE_NONE) {
-			/* Access to snoopable pages through the GTT is
+		if (!HAS_LLC(i915) && cache_level != I915_CACHE_NONE) {
+			intel_wakeref_t wakeref =
+				intel_runtime_pm_get(&i915->runtime_pm);
+
+			/*
+			 * Access to snoopable pages through the GTT is
 			 * incoherent and on some machines causes a hard
 			 * lockup. Relinquish the CPU mmaping to force
 			 * userspace to refault in the pages and we can
 			 * then double check if the GTT mapping is still
 			 * valid for that pointer access.
 			 */
-			i915_gem_object_release_mmap(obj);
+			ret = mutex_lock_interruptible(&i915->ggtt.vm.mutex);
+			if (ret) {
+				intel_runtime_pm_put(&i915->runtime_pm,
+						     wakeref);
+				return ret;
+			}
 
-			/* As we no longer need a fence for GTT access,
+			if (obj->userfault_count)
+				__i915_gem_object_release_mmap(obj);
+
+			/*
+			 * As we no longer need a fence for GTT access,
 			 * we can relinquish it now (and so prevent having
 			 * to steal a fence from someone else on the next
 			 * fence request). Note GPU activity would have
@@ -251,12 +265,17 @@ restart:
 			 * supposed to be linear.
 			 */
 			for_each_ggtt_vma(vma, obj) {
-				ret = i915_vma_put_fence(vma);
+				ret = i915_vma_revoke_fence(vma);
 				if (ret)
-					return ret;
+					break;
 			}
+			mutex_unlock(&i915->ggtt.vm.mutex);
+			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+			if (ret)
+				return ret;
 		} else {
-			/* We either have incoherent backing store and
+			/*
+			 * We either have incoherent backing store and
 			 * so no GTT access or the architecture is fully
 			 * coherent. In such cases, existing GTT mmaps
 			 * ignore the cache bit in the PTE and we can

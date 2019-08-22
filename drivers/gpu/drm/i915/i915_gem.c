@@ -343,20 +343,16 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 		return ret;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
-				       PIN_MAPPABLE |
-				       PIN_NONBLOCK /* NOWARN */ |
-				       PIN_NOEVICT);
+	vma = ERR_PTR(-ENODEV);
+	if (!i915_gem_object_is_tiled(obj))
+		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+					       PIN_MAPPABLE |
+					       PIN_NONBLOCK /* NOWARN */ |
+					       PIN_NOEVICT);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
-		ret = i915_vma_put_fence(vma);
-		if (ret) {
-			i915_vma_unpin(vma);
-			vma = ERR_PTR(ret);
-		}
-	}
-	if (IS_ERR(vma)) {
+	} else {
 		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
 			goto out_unlock;
@@ -557,20 +553,16 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		wakeref = intel_runtime_pm_get(rpm);
 	}
 
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
-				       PIN_MAPPABLE |
-				       PIN_NONBLOCK /* NOWARN */ |
-				       PIN_NOEVICT);
+	vma = ERR_PTR(-ENODEV);
+	if (!i915_gem_object_is_tiled(obj))
+		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+					       PIN_MAPPABLE |
+					       PIN_NONBLOCK /* NOWARN */ |
+					       PIN_NOEVICT);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
-		ret = i915_vma_put_fence(vma);
-		if (ret) {
-			i915_vma_unpin(vma);
-			vma = ERR_PTR(ret);
-		}
-	}
-	if (IS_ERR(vma)) {
+	} else {
 		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
 			goto out_rpm;

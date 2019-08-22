@@ -287,7 +287,7 @@ static int fence_update(struct i915_fence_reg *fence,
 }
 
 /**
- * i915_vma_put_fence - force-remove fence for a VMA
+ * i915_vma_revoke_fence - force-remove fence for a VMA
  * @vma: vma to map linearly (not through a fence reg)
  *
  * This function force-removes any fence from the given object, which is useful
@@ -297,26 +297,18 @@ static int fence_update(struct i915_fence_reg *fence,
  *
  * 0 on success, negative error code on failure.
  */
-int i915_vma_put_fence(struct i915_vma *vma)
+int i915_vma_revoke_fence(struct i915_vma *vma)
 {
-	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vma->vm);
 	struct i915_fence_reg *fence = vma->fence;
-	int err;
 
+	lockdep_assert_held(&vma->vm->mutex);
 	if (!fence)
 		return 0;
 
 	if (atomic_read(&fence->pin_count))
 		return -EBUSY;
 
-	err = mutex_lock_interruptible(&ggtt->vm.mutex);
-	if (err)
-		return err;
-
-	err = fence_update(fence, NULL);
-	mutex_unlock(&ggtt->vm.mutex);
-
-	return err;
+	return fence_update(fence, NULL);
 }
 
 static struct i915_fence_reg *fence_find(struct drm_i915_private *i915)

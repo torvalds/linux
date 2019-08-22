@@ -982,7 +982,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 		GEM_BUG_ON(i915_vma_has_ggtt_write(vma));
 
 		/* release the fence reg _after_ flushing */
-		ret = i915_vma_put_fence(vma);
+		mutex_lock(&vma->vm->mutex);
+		ret = i915_vma_revoke_fence(vma);
+		mutex_unlock(&vma->vm->mutex);
 		if (ret)
 			return ret;
 
