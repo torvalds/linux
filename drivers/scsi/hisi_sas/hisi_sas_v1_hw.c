@@ -1497,11 +1497,9 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			(struct hisi_sas_complete_v1_hdr *)
 			hisi_hba->complete_hdr[queue];
-	u32 irq_value, rd_point = cq->rd_point, wr_point;
+	u32 rd_point = cq->rd_point, wr_point;
 
 	spin_lock(&hisi_hba->lock);
-	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC);
-
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 	wr_point = hisi_sas_read32(hisi_hba,
 			COMPL_Q_0_WR_PTR + (0x14 * queue));
