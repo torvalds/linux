@@ -946,34 +946,51 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
 
 static void read_umc_base_mask(struct amd64_pvt *pvt)
 {
-	u32 umc_base_reg, umc_mask_reg;
-	u32 base_reg, mask_reg;
-	u32 *base, *mask;
+	u32 umc_base_reg, umc_base_reg_sec;
+	u32 umc_mask_reg, umc_mask_reg_sec;
+	u32 base_reg, base_reg_sec;
+	u32 mask_reg, mask_reg_sec;
+	u32 *base, *base_sec;
+	u32 *mask, *mask_sec;
 	int cs, umc;
 
 	for_each_umc(umc) {
 		umc_base_reg = get_umc_base(umc) + UMCCH_BASE_ADDR;
+		umc_base_reg_sec = get_umc_base(umc) + UMCCH_BASE_ADDR_SEC;
 
 		for_each_chip_select(cs, umc, pvt) {
 			base = &pvt->csels[umc].csbases[cs];
+			base_sec = &pvt->csels[umc].csbases_sec[cs];
 
 			base_reg = umc_base_reg + (cs * 4);
+			base_reg_sec = umc_base_reg_sec + (cs * 4);
 
 			if (!amd_smn_read(pvt->mc_node_id, base_reg, base))
 				edac_dbg(0, "  DCSB%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *base, base_reg);
+
+			if (!amd_smn_read(pvt->mc_node_id, base_reg_sec, base_sec))
+				edac_dbg(0, "    DCSB_SEC%d[%d]=0x%08x reg: 0x%x\n",
+					 umc, cs, *base_sec, base_reg_sec);
 		}
 
 		umc_mask_reg = get_umc_base(umc) + UMCCH_ADDR_MASK;
+		umc_mask_reg_sec = get_umc_base(umc) + UMCCH_ADDR_MASK_SEC;
 
 		for_each_chip_select_mask(cs, umc, pvt) {
 			mask = &pvt->csels[umc].csmasks[cs];
+			mask_sec = &pvt->csels[umc].csmasks_sec[cs];
 
 			mask_reg = umc_mask_reg + (cs * 4);
+			mask_reg_sec = umc_mask_reg_sec + (cs * 4);
 
 			if (!amd_smn_read(pvt->mc_node_id, mask_reg, mask))
 				edac_dbg(0, "  DCSM%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *mask, mask_reg);
+
+			if (!amd_smn_read(pvt->mc_node_id, mask_reg_sec, mask_sec))
+				edac_dbg(0, "    DCSM_SEC%d[%d]=0x%08x reg: 0x%x\n",
+					 umc, cs, *mask_sec, mask_reg_sec);
 		}
 	}
 }

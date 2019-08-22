@@ -259,7 +259,9 @@
 
 /* UMC CH register offsets */
 #define UMCCH_BASE_ADDR			0x0
+#define UMCCH_BASE_ADDR_SEC		0x10
 #define UMCCH_ADDR_MASK			0x20
+#define UMCCH_ADDR_MASK_SEC		0x28
 #define UMCCH_ADDR_CFG			0x30
 #define UMCCH_DIMM_CFG			0x80
 #define UMCCH_UMC_CFG			0x100
@@ -312,9 +314,11 @@ struct dram_range {
 /* A DCT chip selects collection */
 struct chip_select {
 	u32 csbases[NUM_CHIPSELECTS];
+	u32 csbases_sec[NUM_CHIPSELECTS];
 	u8 b_cnt;
 
 	u32 csmasks[NUM_CHIPSELECTS];
+	u32 csmasks_sec[NUM_CHIPSELECTS];
 	u8 m_cnt;
 };
 
