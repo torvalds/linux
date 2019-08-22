@@ -2243,7 +2243,7 @@ static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 	if (!mutex_trylock(&ctrl_info->scan_mutex)) {
 		pqi_schedule_rescan_worker_delayed(ctrl_info);
-
+		rc = -EINPROGRESS;
 	} else {
 		rc = pqi_update_scsi_devices(ctrl_info);
 		if (rc)
