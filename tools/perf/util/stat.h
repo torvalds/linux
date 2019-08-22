@@ -5,12 +5,11 @@
 #include <linux/types.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include "rblist.h"
-#include "perf.h"
 #include "event.h"
+
+struct timespec;
 
 struct stats {
 	double n, mean, M2;
