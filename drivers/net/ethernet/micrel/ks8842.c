@@ -580,9 +580,7 @@ out:
 		dma_unmap_single(adapter->dev, sg_dma_address(sg),
 			DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
 	sg_dma_address(sg) = 0;
-	if (ctl->skb)
-		dev_kfree_skb(ctl->skb);
-
+	dev_kfree_skb(ctl->skb);
 	ctl->skb = NULL;
 
 	printk(KERN_ERR DRV_NAME": Failed to start RX DMA: %d\n", err);

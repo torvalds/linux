@@ -1532,8 +1532,7 @@ out_dropped:
 	else if (port)
 		del_timer(&port->clean_timer);
 	rcu_read_unlock();
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 	vnet_free_skbs(freeskbs);
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;

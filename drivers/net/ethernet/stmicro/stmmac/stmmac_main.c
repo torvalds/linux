@@ -3519,8 +3519,7 @@ read_again:
 		if (unlikely(error && (status & rx_not_ls)))
 			goto read_again;
 		if (unlikely(error)) {
-			if (skb)
-				dev_kfree_skb(skb);
+			dev_kfree_skb(skb);
 			continue;
 		}
 
