@@ -925,7 +925,6 @@ static int aead_des3_setkey(struct crypto_aead *authenc,
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
 	struct device *dev = ctx->dev;
 	struct crypto_authenc_keys keys;
-	u32 flags;
 	int err;
 
 	err = crypto_authenc_extractkeys(&keys, key, keylen);
