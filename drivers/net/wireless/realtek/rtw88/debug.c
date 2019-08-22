@@ -672,7 +672,7 @@ static struct rtw_debugfs_priv rtw_debug_priv_rsvd_page = {
 
 void rtw_debugfs_init(struct rtw_dev *rtwdev)
 {
-	struct dentry *debugfs_topdir = rtwdev->debugfs;
+	struct dentry *debugfs_topdir;
 
 	debugfs_topdir = debugfs_create_dir("rtw88",
 					    rtwdev->hw->wiphy->debugfsdir);
