@@ -45,6 +45,17 @@ struct aegis128_ops {
 
 static bool have_simd;
 
+static const union aegis_block crypto_aegis_const[2] = {
+	{ .words64 = {
+		cpu_to_le64(U64_C(0x0d08050302010100)),
+		cpu_to_le64(U64_C(0x6279e99059372215)),
+	} },
+	{ .words64 = {
+		cpu_to_le64(U64_C(0xf12fc26d55183ddb)),
+		cpu_to_le64(U64_C(0xdd28b57342311120)),
+	} },
+};
+
 static bool aegis128_do_simd(void)
 {
 #ifdef CONFIG_CRYPTO_AEGIS128_SIMD
