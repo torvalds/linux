@@ -174,6 +174,10 @@ void dce11_pplib_apply_display_requirements(
 	struct dc_state *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
+	int memory_type_multiplier = MEMORY_TYPE_MULTIPLIER_CZ;
+
+	if (dc->bw_vbios && dc->bw_vbios->memory_type == bw_def_hbm)
+		memory_type_multiplier = MEMORY_TYPE_HBM;
 
 	pp_display_cfg->all_displays_in_sync =
 		context->bw_ctx.bw.dce.all_displays_in_sync;
@@ -186,8 +190,18 @@ void dce11_pplib_apply_display_requirements(
 	pp_display_cfg->cpu_pstate_separation_time =
 			context->bw_ctx.bw.dce.blackout_recovery_time_us;
 
-	pp_display_cfg->min_memory_clock_khz = context->bw_ctx.bw.dce.yclk_khz
-		/ MEMORY_TYPE_MULTIPLIER_CZ;
+	/*
+	 * TODO: determine whether the bandwidth has reached memory's limitation
+	 * , then change minimum memory clock based on real-time bandwidth
+	 * limitation.
+	 */
+	if (ASICREV_IS_VEGA20_P(dc->ctx->asic_id.hw_internal_rev) && (context->stream_count >= 2)) {
+		pp_display_cfg->min_memory_clock_khz = max(pp_display_cfg->min_memory_clock_khz,
+			(uint32_t) (dc->bw_vbios->high_yclk.value / memory_type_multiplier / 10000));
+	} else {
+		pp_display_cfg->min_memory_clock_khz = context->bw_ctx.bw.dce.yclk_khz
+			/ memory_type_multiplier;
+	}
 
 	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
 			dc,
