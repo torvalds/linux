@@ -258,14 +258,11 @@ do {									\
 	spin_unlock(&__rsv->lock);					\
 } while (0)
 
-void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
-			   struct btrfs_space_info *info, u64 bytes,
-			   int dump_block_groups)
+static void __btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *info)
 {
-	struct btrfs_block_group_cache *cache;
-	int index = 0;
+	lockdep_assert_held(&info->lock);
 
-	spin_lock(&info->lock);
 	btrfs_info(fs_info, "space_info %llu has %llu free, is %sfull",
 		   info->flags,
 		   info->total_bytes - btrfs_space_info_used(info, true),
@@ -275,13 +272,25 @@ void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 		info->total_bytes, info->bytes_used, info->bytes_pinned,
 		info->bytes_reserved, info->bytes_may_use,
 		info->bytes_readonly);
-	spin_unlock(&info->lock);
 
 	DUMP_BLOCK_RSV(fs_info, global_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, trans_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, chunk_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, delayed_block_rsv);
 	DUMP_BLOCK_RSV(fs_info, delayed_refs_rsv);
+
+}
+
+void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
+			   struct btrfs_space_info *info, u64 bytes,
+			   int dump_block_groups)
+{
+	struct btrfs_block_group_cache *cache;
+	int index = 0;
+
+	spin_lock(&info->lock);
+	__btrfs_dump_space_info(fs_info, info);
+	spin_unlock(&info->lock);
 
 	if (!dump_block_groups)
 		return;
@@ -696,6 +705,11 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 	u64 tickets_id = space_info->tickets_id;
 	u64 first_ticket_bytes = 0;
 
+	if (btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
+		btrfs_info(fs_info, "cannot satisfy tickets, dumping space info");
+		__btrfs_dump_space_info(fs_info, space_info);
+	}
+
 	while (!list_empty(&space_info->tickets) &&
 	       tickets_id == space_info->tickets_id) {
 		ticket = list_first_entry(&space_info->tickets,
@@ -715,6 +729,10 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 			first_ticket_bytes = ticket->bytes;
 		else if (first_ticket_bytes > ticket->bytes)
 			return true;
+
+		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+			btrfs_info(fs_info, "failing ticket with %llu bytes",
+				   ticket->bytes);
 
 		list_del_init(&ticket->list);
 		ticket->error = -ENOSPC;
