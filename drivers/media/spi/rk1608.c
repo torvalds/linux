@@ -34,6 +34,8 @@ struct rk1608_power_work {
 	struct completion work_fin;
 };
 
+static struct rk1608_power_work gwork;
+
 /**
  * Rk1608 is used as the Pre-ISP to link on Soc, which mainly has two
  * functions. One is to download the firmware of RK1608, and the other
@@ -905,34 +907,37 @@ int rk1608_set_power(struct rk1608_state *pdata, int on)
 static void rk1608_poweron_func(struct work_struct *work)
 {
 	struct rk1608_power_work *pwork = (struct rk1608_power_work *)work;
+	int ret = rk1608_power_on(pwork->pdata);
 
-	rk1608_power_on(pwork->pdata);
-	complete(&pwork->work_fin);
+	if (!ret)
+		complete(&pwork->work_fin);
 }
 
 static int rk1608_sensor_power(struct v4l2_subdev *sd, int on)
 {
 	struct rk1608_state *pdata = to_state(sd);
-	struct rk1608_power_work work;
+	int ret = 0;
 
 	mutex_lock(&pdata->lock);
 	if (on) {
 		if (!pdata->power_count) {
-			INIT_WORK(&work.wk, rk1608_poweron_func);
-			init_completion(&work.work_fin);
-			work.pdata = pdata;
-			schedule_work(&work.wk);
+			INIT_WORK(&gwork.wk, rk1608_poweron_func);
+			init_completion(&gwork.work_fin);
+			gwork.pdata = pdata;
+			schedule_work(&gwork.wk);
 
 			v4l2_subdev_call(pdata->sensor[sd->grp_id],
 					 core, s_power, on);
-			if (!wait_for_completion_timeout(&work.work_fin,
-					msecs_to_jiffies(1000)))
+			if (!wait_for_completion_timeout(&gwork.work_fin,
+					msecs_to_jiffies(1000))) {
 				dev_err(pdata->dev,
 					"wait for preisp power on timeout!");
+				ret = -EBUSY;
+			}
 		}
 	} else if (!on && pdata->power_count == 1) {
 		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, s_power, on);
-		rk1608_power_off(pdata);
+		ret = rk1608_power_off(pdata);
 	}
 
 	/* Update the power count. */
@@ -940,7 +945,7 @@ static int rk1608_sensor_power(struct v4l2_subdev *sd, int on)
 	WARN_ON(pdata->power_count < 0);
 	mutex_unlock(&pdata->lock);
 
-	return 0;
+	return ret;
 }
 
 static int rk1608_stream_on(struct rk1608_state *pdata)
