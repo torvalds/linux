@@ -1499,6 +1499,7 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp1_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret;
+	unsigned int i;
 
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
@@ -1510,7 +1511,7 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 			v4l2_err(v4l2_dev,
 				 "update sensor info failed %d\n",
 				 ret);
-			return ret;
+			goto buffer_done;
 		}
 	}
 
@@ -1520,7 +1521,8 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 		if (stream->id != RKISP1_STREAM_SP) {
 			v4l2_err(v4l2_dev,
 				"only selfpath support interlaced\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto buffer_done;
 		}
 		stream->interlaced = true;
 		stream->u.sp.field = RKISP_FIELD_INVAL;
@@ -1529,7 +1531,7 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	ret = rkisp1_create_dummy_buf(stream);
 	if (ret < 0)
-		return ret;
+		goto buffer_done;
 
 	/* enable clocks/power-domains */
 	ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
@@ -1566,6 +1568,14 @@ close_pipe:
 	dev->pipe.close(&dev->pipe);
 destroy_dummy_buf:
 	rkisp1_destroy_dummy_buf(stream);
+buffer_done:
+	for (i = 0; i < queue->num_buffers; ++i) {
+		struct vb2_buffer *vb;
+
+		vb = queue->bufs[i];
+		if (vb->state == VB2_BUF_STATE_ACTIVE)
+			vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED);
+	}
 
 	return ret;
 }
