@@ -415,13 +415,16 @@ void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge_locked);
 
-void drm_gem_shmem_purge(struct drm_gem_object *obj)
+bool drm_gem_shmem_purge(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
-	mutex_lock(&shmem->pages_lock);
+	if (!mutex_trylock(&shmem->pages_lock))
+		return false;
 	drm_gem_shmem_purge_locked(obj);
 	mutex_unlock(&shmem->pages_lock);
+
+	return true;
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge);
 
