@@ -144,6 +144,7 @@ static struct irq_chip int0002_cht_irqchip = {
 	 * No set_wake, on CHT the IRQ is typically shared with the ACPI SCI
 	 * and we don't want to mess with the ACPI SCI irq settings.
 	 */
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static const struct x86_cpu_id int0002_cpu_ids[] = {
