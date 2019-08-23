@@ -801,11 +801,10 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	}
 
 	slice = fls(sseu->slice_mask) - 1;
-	GEM_BUG_ON(slice >= ARRAY_SIZE(sseu->subslice_mask));
-	subslice = fls(l3_en & sseu->subslice_mask[slice]);
+	subslice = fls(l3_en & intel_sseu_get_subslices(sseu, slice));
 	if (!subslice) {
 		DRM_WARN("No common index found between subslice mask %x and L3 bank mask %x!\n",
-			 sseu->subslice_mask[slice], l3_en);
+			 intel_sseu_get_subslices(sseu, slice), l3_en);
 		subslice = fls(l3_en);
 		WARN_ON(!subslice);
 	}

@@ -23,7 +23,7 @@ struct drm_i915_private;
 
 struct sseu_dev_info {
 	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SLICES];
+	u8 subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
 	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
@@ -93,6 +93,8 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu);
 
 unsigned int
 intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
+
+u32  intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice);
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
 			      u32 ss_mask);

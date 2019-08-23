@@ -93,9 +93,9 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 		   hweight8(sseu->slice_mask), sseu->slice_mask);
 	drm_printf(p, "subslice total: %u\n", intel_sseu_subslice_total(sseu));
 	for (s = 0; s < sseu->max_slices; s++) {
-		drm_printf(p, "slice%d: %u subslices, mask=%04x\n",
+		drm_printf(p, "slice%d: %u subslices, mask=%08x\n",
 			   s, intel_sseu_subslices_per_slice(sseu, s),
-			   sseu->subslice_mask[s]);
+			   intel_sseu_get_subslices(sseu, s));
 	}
 	drm_printf(p, "EU total: %u\n", sseu->eu_total);
 	drm_printf(p, "EU per subslice: %u\n", sseu->eu_per_subslice);
@@ -159,9 +159,9 @@ void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
 	}
 
 	for (s = 0; s < sseu->max_slices; s++) {
-		drm_printf(p, "slice%d: %u subslice(s) (0x%hhx):\n",
+		drm_printf(p, "slice%d: %u subslice(s) (0x%08x):\n",
 			   s, intel_sseu_subslices_per_slice(sseu, s),
-			   sseu->subslice_mask[s]);
+			   intel_sseu_get_subslices(sseu, s));
 
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
 			u16 enabled_eus = sseu_get_eus(sseu, s, ss);

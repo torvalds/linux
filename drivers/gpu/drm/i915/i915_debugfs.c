@@ -3864,13 +3864,16 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
+			u8 ss_idx = s * info->sseu.ss_stride +
+				    ss / BITS_PER_BYTE;
 
 			if (IS_GEN9_LP(dev_priv)) {
 				if (!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
 					/* skip disabled subslice */
 					continue;
 
-				sseu->subslice_mask[s] |= BIT(ss);
+				sseu->subslice_mask[ss_idx] |=
+					BIT(ss % BITS_PER_BYTE);
 			}
 
 			eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &

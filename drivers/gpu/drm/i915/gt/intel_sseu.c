@@ -32,6 +32,20 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 	return total;
 }
 
+u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
+{
+	int i, offset = slice * sseu->ss_stride;
+	u32 mask = 0;
+
+	GEM_BUG_ON(slice >= sseu->max_slices);
+
+	for (i = 0; i < sseu->ss_stride; i++)
+		mask |= (u32)sseu->subslice_mask[offset + i] <<
+			i * BITS_PER_BYTE;
+
+	return mask;
+}
+
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
 			      u32 ss_mask)
 {
@@ -43,7 +57,7 @@ void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
 unsigned int
 intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice)
 {
-	return hweight8(sseu->subslice_mask[slice]);
+	return hweight32(intel_sseu_get_subslices(sseu, slice));
 }
 
 u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
