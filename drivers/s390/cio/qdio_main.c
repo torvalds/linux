@@ -880,7 +880,7 @@ static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
 	struct qdio_q *out;
 	int i;
 
-	if (!pci_out_supported(irq))
+	if (!pci_out_supported(irq) || !irq->scan_threshold)
 		return;
 
 	for_each_output_queue(irq, out, i)
@@ -973,7 +973,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 		}
 	}
 
-	if (!pci_out_supported(irq_ptr))
+	if (!pci_out_supported(irq_ptr) || !irq_ptr->scan_threshold)
 		return;
 
 	for_each_output_queue(irq_ptr, q, i) {
@@ -1528,6 +1528,7 @@ set:
 static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 			   int bufnr, int count)
 {
+	const unsigned int scan_threshold = q->irq_ptr->scan_threshold;
 	unsigned char state = 0;
 	int used, rc = 0;
 
@@ -1566,8 +1567,12 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 		rc = qdio_kick_outbound_q(q, 0);
 	}
 
+	/* Let drivers implement their own completion scanning: */
+	if (!scan_threshold)
+		return rc;
+
 	/* in case of SIGA errors we must process the error immediately */
-	if (used >= q->u.out.scan_threshold || rc)
+	if (used >= scan_threshold || rc)
 		qdio_tasklet_schedule(q);
 	else
 		/* free the SBALs in case of no further traffic */
