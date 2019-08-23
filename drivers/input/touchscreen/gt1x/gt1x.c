@@ -28,6 +28,9 @@ static struct input_dev *input_dev;
 static struct workqueue_struct *gt1x_wq;
 static const char *gt1x_ts_name = "goodix-ts";
 static const char *input_dev_phys = "input/ts";
+#ifdef CONFIG_PM
+static const struct dev_pm_ops gt1x_ts_pm_ops;
+#endif
 #ifdef GTP_CONFIG_OF
 int gt1x_rst_gpio;
 int gt1x_int_gpio;
@@ -298,6 +301,10 @@ static struct regulator *vdd_ana;
 static int gt1x_parse_dt(struct device *dev)
 {
 	struct device_node *np;
+#ifdef CONFIG_PM
+	struct device_node *root;
+	const char *machine_compatible;
+#endif
 
 	if (!dev)
 		return -ENODEV;
@@ -325,6 +332,16 @@ static int gt1x_parse_dt(struct device *dev)
 		GTP_ERROR("regulator get of vdd_ana/power-supply failed");
 		return PTR_ERR(vdd_ana);
 	}
+
+#ifdef CONFIG_PM
+	root = of_find_node_by_path("/");
+	if (root) {
+		machine_compatible = of_get_property(root, "compatible", NULL);
+		of_node_put(root);
+		if (strstr(machine_compatible, "linux"))
+			dev->driver->pm = &gt1x_ts_pm_ops;
+	}
+#endif
 
 	return 0;
 }
@@ -645,7 +662,26 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti, unsigned long e
 
 	return 0;
 }
-#elif defined(CONFIG_PM)
+#elif defined(CONFIG_HAS_EARLYSUSPEND)
+/* earlysuspend module the suspend/resume procedure */
+static void gt1x_ts_early_suspend(struct early_suspend *h)
+{
+	gt1x_suspend();
+}
+
+static void gt1x_ts_late_resume(struct early_suspend *h)
+{
+	gt1x_resume();
+}
+
+static struct early_suspend gt1x_early_suspend = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1,
+	.suspend = gt1x_ts_early_suspend,
+	.resume = gt1x_ts_late_resume,
+};
+#endif
+
+#ifdef CONFIG_PM
 /**
  * gt1x_ts_suspend - i2c suspend callback function.
  * @dev: i2c device.
@@ -671,26 +707,7 @@ static const struct dev_pm_ops gt1x_ts_pm_ops = {
 	.suspend = gt1x_pm_suspend,
 	.resume = gt1x_pm_resume,
 };
-
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-/* earlysuspend module the suspend/resume procedure */
-static void gt1x_ts_early_suspend(struct early_suspend *h)
-{
-	gt1x_suspend();
-}
-
-static void gt1x_ts_late_resume(struct early_suspend *h)
-{
-	gt1x_resume();
-}
-
-static struct early_suspend gt1x_early_suspend = {
-	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1,
-	.suspend = gt1x_ts_early_suspend,
-	.resume = gt1x_ts_late_resume,
-};
 #endif
-
 
 static int gt1x_register_powermanger(void)
 {
