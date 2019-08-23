@@ -533,6 +533,16 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 {
 	struct qedf_ctx *qedf = (struct qedf_ctx *)dev;
 
+	/*
+	 * Prevent race where we're removing the module and we get link update
+	 * for qed.
+	 */
+	if (test_bit(QEDF_UNLOADING, &qedf->flags)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Ignore link update, driver getting unload.\n");
+		return;
+	}
+
 	if (link->link_up) {
 		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
 			QEDF_INFO((&qedf->dbg_ctx), QEDF_LOG_DISC,
