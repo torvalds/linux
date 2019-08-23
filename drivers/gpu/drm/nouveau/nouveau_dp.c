@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_dp_helper.h>
 
 #include "nouveau_drv.h"

@@ -26,6 +26,24 @@
 #include <core/msgqueue.h>
 #include <subdev/timer.h>
 
+bool
+nvkm_pmu_fan_controlled(struct nvkm_device *device)
+{
+	struct nvkm_pmu *pmu = device->pmu;
+
+	/* Internal PMU FW does not currently control fans in any way,
+	 * allow SW control of fans instead.
+	 */
+	if (pmu && pmu->func->code.size)
+		return false;
+
+	/* Default (board-loaded, or VBIOS PMU/PREOS) PMU FW on Fermi
+	 * and newer automatically control the fan speed, which would
+	 * interfere with SW control.
+	 */
+	return (device->chipset >= 0xc0);
+}
+
 void
 nvkm_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {

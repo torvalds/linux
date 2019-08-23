@@ -116,6 +116,9 @@ nvkm_therm_ic_ctor(struct nvkm_therm *therm)
 			return;
 	}
 
+	if (nvbios_extdev_skip_probe(bios))
+		return;
+
 	/* The vbios doesn't provide the address of an exisiting monitoring
 	   device. Let's try our static list.
 	 */
