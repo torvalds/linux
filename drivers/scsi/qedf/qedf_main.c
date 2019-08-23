@@ -3429,7 +3429,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	}
 
 	memset(&params, 0, sizeof(params));
-	params.mtu = 9000;
+	params.mtu = QEDF_LL2_BUF_SIZE;
 	ether_addr_copy(params.ll2_mac_address, qedf->mac);
 
 	/* Start LL2 processing thread */
