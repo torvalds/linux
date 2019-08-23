@@ -1737,8 +1737,14 @@ static bool intel_dp_source_supports_fec(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	return INTEL_GEN(dev_priv) >= 11 &&
-		pipe_config->cpu_transcoder != TRANSCODER_A;
+	/* On TGL, FEC is supported on all Pipes */
+	if (INTEL_GEN(dev_priv) >= 12)
+		return true;
+
+	if (IS_GEN(dev_priv, 11) && pipe_config->cpu_transcoder != TRANSCODER_A)
+		return true;
+
+	return false;
 }
 
 static bool intel_dp_supports_fec(struct intel_dp *intel_dp,
@@ -1753,8 +1759,15 @@ static bool intel_dp_source_supports_dsc(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	return INTEL_GEN(dev_priv) >= 10 &&
-		pipe_config->cpu_transcoder != TRANSCODER_A;
+	/* On TGL, DSC is supported on all Pipes */
+	if (INTEL_GEN(dev_priv) >= 12)
+		return true;
+
+	if (INTEL_GEN(dev_priv) >= 10 &&
+	    pipe_config->cpu_transcoder != TRANSCODER_A)
+		return true;
+
+	return false;
 }
 
 static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
