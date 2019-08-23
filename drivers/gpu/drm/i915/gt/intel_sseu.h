@@ -78,6 +78,9 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu);
 unsigned int
 intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
 
+void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
+			      u8 ss_mask);
+
 u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
 			 const struct intel_sseu *req_sseu);
 

@@ -206,7 +206,10 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 			int ss;
 
 			sseu->slice_mask |= BIT(s);
-			sseu->subslice_mask[s] = (ss_en >> ss_idx) & ss_en_mask;
+
+			intel_sseu_set_subslices(sseu, s, (ss_en >> ss_idx) &
+							  ss_en_mask);
+
 			for (ss = 0; ss < sseu->max_subslices; ss++) {
 				if (sseu->subslice_mask[s] & BIT(ss))
 					sseu_set_eus(sseu, s, ss, eu_en);
@@ -274,8 +277,9 @@ static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 		 * Slice0 can have up to 3 subslices, but there are only 2 in
 		 * slice1/2.
 		 */
-		sseu->subslice_mask[s] = s == 0 ? subslice_mask_with_eus :
-						  subslice_mask_with_eus & 0x3;
+		intel_sseu_set_subslices(sseu, s, s == 0 ?
+						  subslice_mask_with_eus :
+						  subslice_mask_with_eus & 0x3);
 	}
 
 	sseu->eu_total = compute_eu_total(sseu);
@@ -330,7 +334,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 		sseu_set_eus(sseu, 0, 1, ~disabled_mask);
 	}
 
-	sseu->subslice_mask[0] = subslice_mask;
+	intel_sseu_set_subslices(sseu, 0, subslice_mask);
 
 	sseu->eu_total = compute_eu_total(sseu);
 
@@ -384,7 +388,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 			/* skip disabled slice */
 			continue;
 
-		sseu->subslice_mask[s] = subslice_mask;
+		intel_sseu_set_subslices(sseu, s, subslice_mask);
 
 		eu_disable = I915_READ(GEN9_EU_DISABLE(s));
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
@@ -491,7 +495,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 			/* skip disabled slice */
 			continue;
 
-		sseu->subslice_mask[s] = subslice_mask;
+		intel_sseu_set_subslices(sseu, s, subslice_mask);
 
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
 			u8 eu_disabled_mask;
@@ -588,7 +592,7 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 			    sseu->eu_per_subslice);
 
 	for (s = 0; s < sseu->max_slices; s++) {
-		sseu->subslice_mask[s] = subslice_mask;
+		intel_sseu_set_subslices(sseu, s, subslice_mask);
 
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
 			sseu_set_eus(sseu, s, ss,
