@@ -458,6 +458,9 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	/* initialize sof device */
 	sdev->dev = dev;
 
+	/* initialize default D0 sub-state */
+	sdev->d0_substate = SOF_DSP_D0I0;
+
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
 	dev_set_drvdata(dev, sdev);
