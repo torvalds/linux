@@ -99,9 +99,12 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
    * - 0x1E
      - \_\_le16
      - bg\_checksum
-     - Group descriptor checksum; crc16(sb\_uuid+group+desc) if the
-       RO\_COMPAT\_GDT\_CSUM feature is set, or crc32c(sb\_uuid+group\_desc) &
-       0xFFFF if the RO\_COMPAT\_METADATA\_CSUM feature is set.
+     - Group descriptor checksum; crc16(sb\_uuid+group\_num+bg\_desc) if the
+       RO\_COMPAT\_GDT\_CSUM feature is set, or
+       crc32c(sb\_uuid+group\_num+bg\_desc) & 0xFFFF if the
+       RO\_COMPAT\_METADATA\_CSUM feature is set.  The bg\_checksum
+       field in bg\_desc is skipped when calculating crc16 checksum,
+       and set to zero if crc32c checksum is used.
    * -
      -
      -
