@@ -90,9 +90,9 @@ int null_zone_init(struct nullb_device *dev);
 void null_zone_exit(struct nullb_device *dev);
 int null_zone_report(struct gendisk *disk, sector_t sector,
 		     struct blk_zone *zones, unsigned int *nr_zones);
-inline blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
-				      enum req_opf op, sector_t sector,
-				      sector_t nr_sectors);
+blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
+				enum req_opf op, sector_t sector,
+				sector_t nr_sectors);
 #else
 static inline int null_zone_init(struct nullb_device *dev)
 {

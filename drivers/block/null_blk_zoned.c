@@ -148,9 +148,8 @@ static blk_status_t null_zone_reset(struct nullb_cmd *cmd, sector_t sector)
 	return BLK_STS_OK;
 }
 
-inline blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
-				       enum req_opf op, sector_t sector,
-				       sector_t nr_sectors)
+blk_status_t null_handle_zoned(struct nullb_cmd *cmd, enum req_opf op,
+			       sector_t sector, sector_t nr_sectors)
 {
 	switch (op) {
 	case REQ_OP_WRITE:
