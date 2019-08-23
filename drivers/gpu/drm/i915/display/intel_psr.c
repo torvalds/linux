@@ -283,6 +283,11 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv =
 		to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
 
+	if (dev_priv->psr.dp) {
+		DRM_WARN("More than one eDP panel found, PSR support should be extended\n");
+		return;
+	}
+
 	drm_dp_dpcd_read(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
 			 sizeof(intel_dp->psr_dpcd));
 
@@ -305,7 +310,6 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	dev_priv->psr.sink_sync_latency =
 		intel_dp_get_sink_sync_latency(intel_dp);
 
-	WARN_ON(dev_priv->psr.dp);
 	dev_priv->psr.dp = intel_dp;
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
