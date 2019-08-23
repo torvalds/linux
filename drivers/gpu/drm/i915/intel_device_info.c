@@ -191,15 +191,10 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 	u8 eu_en;
 	int s;
 
-	if (IS_ELKHARTLAKE(dev_priv)) {
-		sseu->max_slices = 1;
-		sseu->max_subslices = 4;
-		sseu->max_eus_per_subslice = 8;
-	} else {
-		sseu->max_slices = 1;
-		sseu->max_subslices = 8;
-		sseu->max_eus_per_subslice = 8;
-	}
+	if (IS_ELKHARTLAKE(dev_priv))
+		intel_sseu_set_info(sseu, 1, 4, 8);
+	else
+		intel_sseu_set_info(sseu, 1, 8, 8);
 
 	s_en = I915_READ(GEN11_GT_SLICE_ENABLE) & GEN11_GT_S_ENA_MASK;
 	ss_en = ~I915_READ(GEN11_GT_SUBSLICE_DISABLE);
@@ -236,11 +231,10 @@ static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 	const int eu_mask = 0xff;
 	u32 subslice_mask, eu_en;
 
+	intel_sseu_set_info(sseu, 6, 4, 8);
+
 	sseu->slice_mask = (fuse2 & GEN10_F2_S_ENA_MASK) >>
 			    GEN10_F2_S_ENA_SHIFT;
-	sseu->max_slices = 6;
-	sseu->max_subslices = 4;
-	sseu->max_eus_per_subslice = 8;
 
 	subslice_mask = (1 << 4) - 1;
 	subslice_mask &= ~((fuse2 & GEN10_F2_SS_DIS_MASK) >>
@@ -314,9 +308,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 	fuse = I915_READ(CHV_FUSE_GT);
 
 	sseu->slice_mask = BIT(0);
-	sseu->max_slices = 1;
-	sseu->max_subslices = 2;
-	sseu->max_eus_per_subslice = 8;
+	intel_sseu_set_info(sseu, 1, 2, 8);
 
 	if (!(fuse & CHV_FGT_DISABLE_SS0)) {
 		u8 disabled_mask =
@@ -372,9 +364,8 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
 
 	/* BXT has a single slice and at most 3 subslices. */
-	sseu->max_slices = IS_GEN9_LP(dev_priv) ? 1 : 3;
-	sseu->max_subslices = IS_GEN9_LP(dev_priv) ? 3 : 4;
-	sseu->max_eus_per_subslice = 8;
+	intel_sseu_set_info(sseu, IS_GEN9_LP(dev_priv) ? 1 : 3,
+			    IS_GEN9_LP(dev_priv) ? 3 : 4, 8);
 
 	/*
 	 * The subslice disable field is global, i.e. it applies
@@ -473,9 +464,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 
 	fuse2 = I915_READ(GEN8_FUSE2);
 	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
-	sseu->max_slices = 3;
-	sseu->max_subslices = 3;
-	sseu->max_eus_per_subslice = 8;
+	intel_sseu_set_info(sseu, 3, 3, 8);
 
 	/*
 	 * The subslice disable field is global, i.e. it applies
@@ -577,9 +566,6 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	sseu->max_slices = hweight8(sseu->slice_mask);
-	sseu->max_subslices = hweight8(sseu->subslice_mask[0]);
-
 	fuse1 = I915_READ(HSW_PAVP_FUSE1);
 	switch ((fuse1 & HSW_F1_EU_DIS_MASK) >> HSW_F1_EU_DIS_SHIFT) {
 	default:
@@ -596,7 +582,10 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 		sseu->eu_per_subslice = 6;
 		break;
 	}
-	sseu->max_eus_per_subslice = sseu->eu_per_subslice;
+
+	intel_sseu_set_info(sseu, hweight8(sseu->slice_mask),
+			    hweight8(sseu->subslice_mask[0]),
+			    sseu->eu_per_subslice);
 
 	for (s = 0; s < sseu->max_slices; s++) {
 		for (ss = 0; ss < sseu->max_subslices; ss++) {

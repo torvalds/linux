@@ -8,6 +8,14 @@
 #include "intel_lrc_reg.h"
 #include "intel_sseu.h"
 
+void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
+			 u8 max_subslices, u8 max_eus_per_subslice)
+{
+	sseu->max_slices = max_slices;
+	sseu->max_subslices = max_subslices;
+	sseu->max_eus_per_subslice = max_eus_per_subslice;
+}
+
 unsigned int
 intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 {

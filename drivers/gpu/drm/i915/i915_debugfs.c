@@ -3950,9 +3950,9 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 
 	seq_puts(m, "SSEU Device Status\n");
 	memset(&sseu, 0, sizeof(sseu));
-	sseu.max_slices = info->sseu.max_slices;
-	sseu.max_subslices = info->sseu.max_subslices;
-	sseu.max_eus_per_subslice = info->sseu.max_eus_per_subslice;
+	intel_sseu_set_info(&sseu, info->sseu.max_slices,
+			    info->sseu.max_subslices,
+			    info->sseu.max_eus_per_subslice);
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		if (IS_CHERRYVIEW(dev_priv))
