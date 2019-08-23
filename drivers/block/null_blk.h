@@ -90,9 +90,9 @@ int null_zone_init(struct nullb_device *dev);
 void null_zone_exit(struct nullb_device *dev);
 int null_zone_report(struct gendisk *disk, sector_t sector,
 		     struct blk_zone *zones, unsigned int *nr_zones);
-void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
-			unsigned int nr_sectors);
-void null_zone_reset(struct nullb_cmd *cmd, sector_t sector);
+inline blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
+				      enum req_opf op, sector_t sector,
+				      sector_t nr_sectors);
 #else
 static inline int null_zone_init(struct nullb_device *dev)
 {
@@ -106,10 +106,11 @@ static inline int null_zone_report(struct gendisk *disk, sector_t sector,
 {
 	return -EOPNOTSUPP;
 }
-static inline void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
-				   unsigned int nr_sectors)
+static inline blk_status_t null_handle_zoned(struct nullb_cmd *cmd,
+					     enum req_opf op, sector_t sector,
+					     sector_t nr_sectors)
 {
+	return BLK_STS_NOTSUPP;
 }
-static inline void null_zone_reset(struct nullb_cmd *cmd, sector_t sector) {}
 #endif /* CONFIG_BLK_DEV_ZONED */
 #endif /* __NULL_BLK_H */
