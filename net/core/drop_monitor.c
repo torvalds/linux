@@ -552,7 +552,7 @@ static size_t net_dm_packet_report_size(size_t payload_len)
 	       /* NET_DM_ATTR_IN_PORT */
 	       net_dm_in_port_size() +
 	       /* NET_DM_ATTR_TIMESTAMP */
-	       nla_total_size(sizeof(struct timespec)) +
+	       nla_total_size(sizeof(u64)) +
 	       /* NET_DM_ATTR_ORIG_LEN */
 	       nla_total_size(sizeof(u32)) +
 	       /* NET_DM_ATTR_PROTO */
@@ -592,7 +592,6 @@ static int net_dm_packet_report_fill(struct sk_buff *msg, struct sk_buff *skb,
 	u64 pc = (u64)(uintptr_t) NET_DM_SKB_CB(skb)->pc;
 	char buf[NET_DM_MAX_SYMBOL_LEN];
 	struct nlattr *attr;
-	struct timespec ts;
 	void *hdr;
 	int rc;
 
@@ -615,8 +614,8 @@ static int net_dm_packet_report_fill(struct sk_buff *msg, struct sk_buff *skb,
 	if (rc)
 		goto nla_put_failure;
 
-	if (ktime_to_timespec_cond(skb->tstamp, &ts) &&
-	    nla_put(msg, NET_DM_ATTR_TIMESTAMP, sizeof(ts), &ts))
+	if (nla_put_u64_64bit(msg, NET_DM_ATTR_TIMESTAMP,
+			      ktime_to_ns(skb->tstamp), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
 
 	if (nla_put_u32(msg, NET_DM_ATTR_ORIG_LEN, skb->len))
@@ -716,7 +715,7 @@ net_dm_hw_packet_report_size(size_t payload_len,
 	       /* NET_DM_ATTR_IN_PORT */
 	       net_dm_in_port_size() +
 	       /* NET_DM_ATTR_TIMESTAMP */
-	       nla_total_size(sizeof(struct timespec)) +
+	       nla_total_size(sizeof(u64)) +
 	       /* NET_DM_ATTR_ORIG_LEN */
 	       nla_total_size(sizeof(u32)) +
 	       /* NET_DM_ATTR_PROTO */
@@ -730,7 +729,6 @@ static int net_dm_hw_packet_report_fill(struct sk_buff *msg,
 {
 	struct net_dm_hw_metadata *hw_metadata;
 	struct nlattr *attr;
-	struct timespec ts;
 	void *hdr;
 
 	hw_metadata = NET_DM_SKB_CB(skb)->hw_metadata;
@@ -761,8 +759,8 @@ static int net_dm_hw_packet_report_fill(struct sk_buff *msg,
 			goto nla_put_failure;
 	}
 
-	if (ktime_to_timespec_cond(skb->tstamp, &ts) &&
-	    nla_put(msg, NET_DM_ATTR_TIMESTAMP, sizeof(ts), &ts))
+	if (nla_put_u64_64bit(msg, NET_DM_ATTR_TIMESTAMP,
+			      ktime_to_ns(skb->tstamp), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
 
 	if (nla_put_u32(msg, NET_DM_ATTR_ORIG_LEN, skb->len))

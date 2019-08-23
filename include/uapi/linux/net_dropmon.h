@@ -75,7 +75,7 @@ enum net_dm_attr {
 	NET_DM_ATTR_PC,				/* u64 */
 	NET_DM_ATTR_SYMBOL,			/* string */
 	NET_DM_ATTR_IN_PORT,			/* nested */
-	NET_DM_ATTR_TIMESTAMP,			/* struct timespec */
+	NET_DM_ATTR_TIMESTAMP,			/* u64 */
 	NET_DM_ATTR_PROTO,			/* u16 */
 	NET_DM_ATTR_PAYLOAD,			/* binary */
 	NET_DM_ATTR_PAD,
