@@ -2640,8 +2640,8 @@ void dcn20_calculate_dlg_params(
 			continue;
 
 		if (!visited[pipe_idx]) {
-			display_pipe_source_params_st *src = &pipes[pipe_idx_unsplit].pipe.src;
-			display_pipe_dest_params_st *dst = &pipes[pipe_idx_unsplit].pipe.dest;
+			display_pipe_source_params_st *src = &pipes[pipe_idx].pipe.src;
+			display_pipe_dest_params_st *dst = &pipes[pipe_idx].pipe.dest;
 
 			dst->vstartup_start = context->bw_ctx.dml.vba.VStartup[pipe_idx_unsplit];
 			dst->vupdate_offset = context->bw_ctx.dml.vba.VUpdateOffsetPix[pipe_idx_unsplit];
