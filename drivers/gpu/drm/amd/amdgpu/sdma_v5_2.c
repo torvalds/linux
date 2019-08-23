@@ -1166,7 +1166,7 @@ static int sdma_v5_2_sw_init(void *handle)
 		return r;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA3,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA3_Sienna_Cichlid,
 			      SDMA3_5_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
 	if (r)
@@ -1408,7 +1408,7 @@ static int sdma_v5_2_process_trap_irq(struct amdgpu_device *adev,
 			break;
 		}
 		break;
-	case SOC15_IH_CLIENTID_SDMA3:
+	case SOC15_IH_CLIENTID_SDMA3_Sienna_Cichlid:
 		switch (entry->ring_id) {
 		case 0:
 			amdgpu_fence_process(&adev->sdma.instance[3].ring);
