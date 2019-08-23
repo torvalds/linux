@@ -37,7 +37,6 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct drm_i915_query_topology_info topo;
 	u32 slice_length, subslice_length, eu_length, total_length;
-	u8 subslice_stride = GEN_SSEU_STRIDE(sseu->max_subslices);
 	u8 eu_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
 	int ret;
 
@@ -50,7 +49,7 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	BUILD_BUG_ON(sizeof(u8) != sizeof(sseu->slice_mask));
 
 	slice_length = sizeof(sseu->slice_mask);
-	subslice_length = sseu->max_slices * subslice_stride;
+	subslice_length = sseu->max_slices * sseu->ss_stride;
 	eu_length = sseu->max_slices * sseu->max_subslices * eu_stride;
 	total_length = sizeof(topo) + slice_length + subslice_length +
 		       eu_length;
@@ -69,7 +68,7 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	topo.max_eus_per_subslice = sseu->max_eus_per_subslice;
 
 	topo.subslice_offset = slice_length;
-	topo.subslice_stride = subslice_stride;
+	topo.subslice_stride = sseu->ss_stride;
 	topo.eu_offset = slice_length + subslice_length;
 	topo.eu_stride = eu_stride;
 

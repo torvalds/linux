@@ -14,6 +14,9 @@ void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
 	sseu->max_slices = max_slices;
 	sseu->max_subslices = max_subslices;
 	sseu->max_eus_per_subslice = max_eus_per_subslice;
+
+	sseu->ss_stride = GEN_SSEU_STRIDE(sseu->max_subslices);
+	GEM_BUG_ON(sseu->ss_stride > GEN_MAX_SUBSLICE_STRIDE);
 }
 
 unsigned int
