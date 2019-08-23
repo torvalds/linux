@@ -210,10 +210,9 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 			intel_sseu_set_subslices(sseu, s, (ss_en >> ss_idx) &
 							  ss_en_mask);
 
-			for (ss = 0; ss < sseu->max_subslices; ss++) {
-				if (sseu->subslice_mask[s] & BIT(ss))
+			for (ss = 0; ss < sseu->max_subslices; ss++)
+				if (intel_sseu_has_subslice(sseu, s, ss))
 					sseu_set_eus(sseu, s, ss, eu_en);
-			}
 		}
 	}
 	sseu->eu_per_subslice = hweight8(eu_en);
@@ -395,7 +394,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 			int eu_per_ss;
 			u8 eu_disabled_mask;
 
-			if (!(sseu->subslice_mask[s] & BIT(ss)))
+			if (!intel_sseu_has_subslice(sseu, s, ss))
 				/* skip disabled subslice */
 				continue;
 
@@ -501,7 +500,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 			u8 eu_disabled_mask;
 			u32 n_disabled;
 
-			if (!(sseu->subslice_mask[s] & BIT(ss)))
+			if (!intel_sseu_has_subslice(sseu, s, ss))
 				/* skip disabled subslice */
 				continue;
 

@@ -10,6 +10,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 
+#include "i915_gem.h"
+
 struct drm_i915_private;
 
 #define GEN_MAX_SLICES		(6) /* CNL upper bound */
@@ -67,6 +69,20 @@ intel_sseu_from_device_info(const struct sseu_dev_info *sseu)
 	};
 
 	return value;
+}
+
+static inline bool
+intel_sseu_has_subslice(const struct sseu_dev_info *sseu, int slice,
+			int subslice)
+{
+	u8 mask;
+	int ss_idx = subslice / BITS_PER_BYTE;
+
+	GEM_BUG_ON(ss_idx >= sseu->ss_stride);
+
+	mask = sseu->subslice_mask[slice * sseu->ss_stride + ss_idx];
+
+	return mask & BIT(subslice % BITS_PER_BYTE);
 }
 
 void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
