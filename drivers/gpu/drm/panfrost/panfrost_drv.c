@@ -570,11 +570,13 @@ static int panfrost_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 	panfrost_gem_shrinker_cleanup(ddev);
+
 	pm_runtime_get_sync(pfdev->dev);
-	pm_runtime_put_sync_autosuspend(pfdev->dev);
-	pm_runtime_disable(pfdev->dev);
 	panfrost_devfreq_fini(pfdev);
 	panfrost_device_fini(pfdev);
+	pm_runtime_put_sync_suspend(pfdev->dev);
+	pm_runtime_disable(pfdev->dev);
+
 	drm_dev_put(ddev);
 	return 0;
 }
