@@ -9,7 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/hdmi.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
