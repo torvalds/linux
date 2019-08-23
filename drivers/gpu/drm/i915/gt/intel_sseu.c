@@ -33,9 +33,11 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 }
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
-			      u8 ss_mask)
+			      u32 ss_mask)
 {
-	sseu->subslice_mask[slice] = ss_mask;
+	int offset = slice * sseu->ss_stride;
+
+	memcpy(&sseu->subslice_mask[offset], &ss_mask, sseu->ss_stride);
 }
 
 unsigned int
