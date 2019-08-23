@@ -1019,11 +1019,18 @@ static int soc_probe_component(struct snd_soc_card *card,
 		return ret;
 
 	component->card = card;
-	dapm->card = card;
-	INIT_LIST_HEAD(&dapm->list);
 	soc_set_name_prefix(card, component);
 
 	soc_init_component_debugfs(component);
+
+	INIT_LIST_HEAD(&dapm->list);
+	dapm->card		= card;
+	dapm->dev		= component->dev;
+	dapm->component		= component;
+	dapm->bias_level	= SND_SOC_BIAS_OFF;
+	dapm->idle_bias_off	= !component->driver->idle_bias_on;
+	dapm->suspend_bias_off	= component->driver->suspend_bias_off;
+	list_add(&dapm->list, &card->dapm_list);
 
 	ret = snd_soc_dapm_new_controls(dapm,
 					component->driver->dapm_widgets,
@@ -1077,7 +1084,6 @@ static int soc_probe_component(struct snd_soc_card *card,
 	if (ret < 0)
 		goto err_probe;
 
-	list_add(&dapm->list, &card->dapm_list);
 	/* see for_each_card_components */
 	list_add(&component->card_list, &card->component_dev_list);
 
@@ -2649,8 +2655,6 @@ EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
 {
-	struct snd_soc_dapm_context *dapm;
-
 	INIT_LIST_HEAD(&component->dai_list);
 	INIT_LIST_HEAD(&component->dobj_list);
 	INIT_LIST_HEAD(&component->card_list);
@@ -2664,13 +2668,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	component->dev = dev;
 	component->driver = driver;
-
-	dapm = snd_soc_component_get_dapm(component);
-	dapm->dev = dev;
-	dapm->component = component;
-	dapm->bias_level = SND_SOC_BIAS_OFF;
-	dapm->idle_bias_off = !driver->idle_bias_on;
-	dapm->suspend_bias_off = driver->suspend_bias_off;
 
 	return 0;
 }
