@@ -32,6 +32,8 @@ struct hrtimer_cpu_base;
  *				  when starting the timer)
  * HRTIMER_MODE_SOFT		- Timer callback function will be executed in
  *				  soft irq context
+ * HRTIMER_MODE_HARD		- Timer callback function will be executed in
+ *				  hard irq context even on PREEMPT_RT.
  */
 enum hrtimer_mode {
 	HRTIMER_MODE_ABS	= 0x00,
