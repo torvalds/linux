@@ -169,16 +169,17 @@ remove_from_client(struct i915_request *request)
 {
 	struct drm_i915_file_private *file_priv;
 
-	file_priv = READ_ONCE(request->file_priv);
-	if (!file_priv)
+	if (!READ_ONCE(request->file_priv))
 		return;
 
-	spin_lock(&file_priv->mm.lock);
-	if (request->file_priv) {
+	rcu_read_lock();
+	file_priv = xchg(&request->file_priv, NULL);
+	if (file_priv) {
+		spin_lock(&file_priv->mm.lock);
 		list_del(&request->client_link);
-		request->file_priv = NULL;
+		spin_unlock(&file_priv->mm.lock);
 	}
-	spin_unlock(&file_priv->mm.lock);
+	rcu_read_unlock();
 }
 
 static void free_capture_list(struct i915_request *request)

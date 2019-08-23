@@ -185,7 +185,11 @@ struct i915_mmu_object;
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
-	struct drm_file *file;
+
+	union {
+		struct drm_file *file;
+		struct rcu_head rcu;
+	};
 
 	struct {
 		spinlock_t lock;

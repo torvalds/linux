@@ -1730,7 +1730,7 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
 
-	kfree(file_priv);
+	kfree_rcu(file_priv, rcu);
 
 	/* Catch up with all the deferred frees from "this" client */
 	i915_gem_flush_free_objects(to_i915(dev));
