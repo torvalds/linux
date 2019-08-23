@@ -363,7 +363,7 @@ int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
 			 struct kexec_buf *kbuf,
 			 unsigned long *lowest_load_addr)
 {
-	unsigned long base = 0, lowest_addr = UINT_MAX;
+	unsigned long lowest_addr = UINT_MAX;
 	int ret;
 	size_t i;
 
@@ -385,7 +385,7 @@ int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
 		kbuf->bufsz = size;
 		kbuf->memsz = phdr->p_memsz;
 		kbuf->buf_align = phdr->p_align;
-		kbuf->buf_min = phdr->p_paddr + base;
+		kbuf->buf_min = phdr->p_paddr;
 		kbuf->mem = KEXEC_BUF_MEM_UNKNOWN;
 		ret = kexec_add_buffer(kbuf);
 		if (ret)
@@ -395,9 +395,6 @@ int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
 		if (load_addr < lowest_addr)
 			lowest_addr = load_addr;
 	}
-
-	/* Update entry point to reflect new load address. */
-	ehdr->e_entry += base;
 
 	*lowest_load_addr = lowest_addr;
 	ret = 0;
