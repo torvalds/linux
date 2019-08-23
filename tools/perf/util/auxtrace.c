@@ -132,12 +132,12 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 	if (per_cpu) {
 		mp->cpu = evlist->core.cpus->map[idx];
 		if (evlist->core.threads)
-			mp->tid = thread_map__pid(evlist->core.threads, 0);
+			mp->tid = perf_thread_map__pid(evlist->core.threads, 0);
 		else
 			mp->tid = -1;
 	} else {
 		mp->cpu = -1;
-		mp->tid = thread_map__pid(evlist->core.threads, idx);
+		mp->tid = perf_thread_map__pid(evlist->core.threads, idx);
 	}
 }
 

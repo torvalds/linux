@@ -3,12 +3,14 @@
 #include <sys/utsname.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
 #include <api/fs/fs.h>
 #include <linux/zalloc.h>
 #include <perf/cpumap.h>
 
 #include "cputopo.h"
 #include "cpumap.h"
+#include "debug.h"
 #include "env.h"
 
 #define CORE_SIB_FMT \

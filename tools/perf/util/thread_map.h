@@ -25,16 +25,6 @@ struct perf_thread_map *thread_map__new_by_tid_str(const char *tid_str);
 
 size_t thread_map__fprintf(struct perf_thread_map *threads, FILE *fp);
 
-static inline int thread_map__nr(struct perf_thread_map *threads)
-{
-	return threads ? threads->nr : 1;
-}
-
-static inline pid_t thread_map__pid(struct perf_thread_map *map, int thread)
-{
-	return map->map[thread].pid;
-}
-
 void thread_map__read_comms(struct perf_thread_map *threads);
 bool thread_map__has(struct perf_thread_map *threads, pid_t pid);
 int thread_map__remove(struct perf_thread_map *threads, int idx);

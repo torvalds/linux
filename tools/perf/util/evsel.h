@@ -4,16 +4,18 @@
 
 #include <linux/list.h>
 #include <stdbool.h>
-#include <stddef.h>
+#include <stdio.h>
+#include <sys/types.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include <internal/evsel.h>
-#include <internal/xyarray.h>
+#include <perf/evsel.h>
 #include "symbol_conf.h"
-#include "cpumap.h"
-#include "counts.h"
+#include <internal/cpumap.h>
 
+struct addr_location;
 struct evsel;
+union perf_event;
 
 /*
  * Per fd, to map back from PERF_SAMPLE_ID to evsel, only used when there are
@@ -93,6 +95,8 @@ enum perf_tool_event {
 };
 
 struct bpf_object;
+struct perf_counts;
+struct xyarray;
 
 /** struct evsel - event selector
  *

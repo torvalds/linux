@@ -1,11 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #ifndef METRICGROUP_H
 #define METRICGROUP_H 1
 
-#include "linux/list.h"
-#include "rblist.h"
-#include <subcmd/parse-options.h>
-#include "evlist.h"
-#include "strbuf.h"
+#include <linux/list.h>
+#include <linux/rbtree.h>
+#include <stdbool.h>
+
+struct evsel;
+struct option;
+struct rblist;
 
 struct metric_event {
 	struct rb_node nd;

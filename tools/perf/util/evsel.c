@@ -26,6 +26,7 @@
 #include "asm/bug.h"
 #include "callchain.h"
 #include "cgroup.h"
+#include "counts.h"
 #include "event.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -39,6 +40,7 @@
 #include "string2.h"
 #include "memswap.h"
 #include "util/parse-branch-options.h"
+#include <internal/xyarray.h>
 
 #include <linux/ctype.h>
 
@@ -1651,7 +1653,7 @@ static bool ignore_missing_thread(struct evsel *evsel,
 				  struct perf_thread_map *threads,
 				  int thread, int err)
 {
-	pid_t ignore_pid = thread_map__pid(threads, thread);
+	pid_t ignore_pid = perf_thread_map__pid(threads, thread);
 
 	if (!evsel->ignore_missing_thread)
 		return false;
@@ -1814,7 +1816,7 @@ retry_sample_id:
 			int fd, group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
-				pid = thread_map__pid(threads, thread);
+				pid = perf_thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:

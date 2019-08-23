@@ -79,3 +79,13 @@ void perf_thread_map__put(struct perf_thread_map *map)
 	if (map && refcount_dec_and_test(&map->refcnt))
 		perf_thread_map__delete(map);
 }
+
+int perf_thread_map__nr(struct perf_thread_map *threads)
+{
+	return threads ? threads->nr : 1;
+}
+
+pid_t perf_thread_map__pid(struct perf_thread_map *map, int thread)
+{
+	return map->map[thread].pid;
+}

@@ -26,6 +26,8 @@
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
 
+#include <internal/xyarray.h>
+
 static int libbpf_perf_print(enum libbpf_print_level level __attribute__((unused)),
 			      const char *fmt, va_list args)
 {

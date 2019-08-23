@@ -2,6 +2,8 @@
 #include <api/fs/fs.h>
 #include "../perf.h"
 #include "cpumap.h"
+#include "debug.h"
+#include "event.h"
 #include <assert.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -21,7 +23,7 @@ static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 {
 	struct perf_cpu_map *map;
 
-	map = cpu_map__empty_new(cpus->nr);
+	map = perf_cpu_map__empty_new(cpus->nr);
 	if (map) {
 		unsigned i;
 
@@ -48,7 +50,7 @@ static struct perf_cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
 
 	nr = bitmap_weight(mask->mask, nbits);
 
-	map = cpu_map__empty_new(nr);
+	map = perf_cpu_map__empty_new(nr);
 	if (map) {
 		int cpu, i = 0;
 
@@ -77,7 +79,7 @@ size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
 #undef BUFSIZE
 }
 
-struct perf_cpu_map *cpu_map__empty_new(int nr)
+struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 {
 	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
 
@@ -458,19 +460,7 @@ int cpu__setup_cpunode_map(void)
 
 bool cpu_map__has(struct perf_cpu_map *cpus, int cpu)
 {
-	return cpu_map__idx(cpus, cpu) != -1;
-}
-
-int cpu_map__idx(struct perf_cpu_map *cpus, int cpu)
-{
-	int i;
-
-	for (i = 0; i < cpus->nr; ++i) {
-		if (cpus->map[i] == cpu)
-			return i;
-	}
-
-	return -1;
+	return perf_cpu_map__idx(cpus, cpu) != -1;
 }
 
 int cpu_map__cpu(struct perf_cpu_map *cpus, int idx)
