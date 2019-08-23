@@ -2503,8 +2503,8 @@ static const struct amdgpu_buffer_funcs sdma_v4_0_buffer_funcs = {
 static void sdma_v4_0_set_buffer_funcs(struct amdgpu_device *adev)
 {
 	adev->mman.buffer_funcs = &sdma_v4_0_buffer_funcs;
-	if (adev->sdma.has_page_queue && adev->sdma.num_instances > 1)
-		adev->mman.buffer_funcs_ring = &adev->sdma.instance[1].page;
+	if (adev->sdma.has_page_queue)
+		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].page;
 	else
 		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
 }
@@ -2523,22 +2523,15 @@ static void sdma_v4_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 	unsigned i;
 
 	adev->vm_manager.vm_pte_funcs = &sdma_v4_0_vm_pte_funcs;
-	if (adev->sdma.has_page_queue && adev->sdma.num_instances > 1) {
-		for (i = 1; i < adev->sdma.num_instances; i++) {
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (adev->sdma.has_page_queue)
 			sched = &adev->sdma.instance[i].page.sched;
-			adev->vm_manager.vm_pte_rqs[i - 1] =
-				&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-		}
-		adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances - 1;
-		adev->vm_manager.page_fault = &adev->sdma.instance[0].page;
-	} else {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
+		else
 			sched = &adev->sdma.instance[i].ring.sched;
-			adev->vm_manager.vm_pte_rqs[i] =
-				&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-		}
-		adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
+		adev->vm_manager.vm_pte_rqs[i] =
+			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
 	}
+	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version sdma_v4_0_ip_block = {
