@@ -1154,6 +1154,20 @@ static inline blk_status_t null_handle_throttled(struct nullb_cmd *cmd)
 	return sts;
 }
 
+static inline blk_status_t null_handle_badblocks(struct nullb_cmd *cmd,
+						 sector_t sector,
+						 sector_t nr_sectors)
+{
+	struct badblocks *bb = &cmd->nq->dev->badblocks;
+	sector_t first_bad;
+	int bad_sectors;
+
+	if (badblocks_check(bb, sector, nr_sectors, &first_bad, &bad_sectors))
+		return BLK_STS_IOERR;
+
+	return BLK_STS_OK;
+}
+
 static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 				    sector_t nr_sectors, enum req_opf op)
 {
@@ -1172,15 +1186,11 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
 		goto out;
 	}
-	if (nullb->dev->badblocks.shift != -1) {
-		int bad_sectors;
-		sector_t first_bad;
 
-		if (badblocks_check(&nullb->dev->badblocks, sector, nr_sectors,
-				&first_bad, &bad_sectors)) {
-			cmd->error = BLK_STS_IOERR;
+	if (nullb->dev->badblocks.shift != -1) {
+		cmd->error = null_handle_badblocks(cmd, sector, nr_sectors);
+		if (cmd->error != BLK_STS_OK)
 			goto out;
-		}
 	}
 
 	if (dev->memory_backed) {
