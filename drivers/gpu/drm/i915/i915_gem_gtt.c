@@ -2029,7 +2029,7 @@ static void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   GEN8_L3_LRA_1_GPGPU,
 				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
-	else if (INTEL_GEN(i915) >= 9)
+	else if (INTEL_GEN(i915) >= 9 && INTEL_GEN(i915) <= 11)
 		intel_uncore_write(uncore,
 				   GEN8_L3_LRA_1_GPGPU,
 				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
