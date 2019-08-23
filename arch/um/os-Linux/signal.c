@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 #include <strings.h>
 #include <as-layout.h>
 #include <kern_util.h>
@@ -88,6 +89,8 @@ static void timer_real_alarm_handler(mcontext_t *mc)
 
 	if (mc != NULL)
 		get_regs_from_mc(&regs, mc);
+	else
+		memset(&regs, 0, sizeof(regs));
 	timer_handler(SIGALRM, NULL, &regs);
 }
 
