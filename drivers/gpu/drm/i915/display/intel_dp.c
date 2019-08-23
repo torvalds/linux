@@ -3954,13 +3954,13 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	I915_WRITE(DP_TP_CTL(port), val);
 
 	/*
-	 * On PORT_A we can have only eDP in SST mode. There the only reason
-	 * we need to set idle transmission mode is to work around a HW issue
-	 * where we enable the pipe while not in idle link-training mode.
+	 * Until TGL on PORT_A we can have only eDP in SST mode. There the only
+	 * reason we need to set idle transmission mode is to work around a HW
+	 * issue where we enable the pipe while not in idle link-training mode.
 	 * In this case there is requirement to wait for a minimum number of
 	 * idle patterns to be sent.
 	 */
-	if (port == PORT_A)
+	if (port == PORT_A && INTEL_GEN(dev_priv) < 12)
 		return;
 
 	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
