@@ -111,16 +111,18 @@ static struct kmem_cache *qedf_io_work_cache;
 
 void qedf_set_vlan_id(struct qedf_ctx *qedf, int vlan_id)
 {
-	qedf->vlan_id = vlan_id;
-	qedf->vlan_id |= qedf->prio << VLAN_PRIO_SHIFT;
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Setting vlan_id=%04x "
-		   "prio=%d.\n", vlan_id, qedf->prio);
+	int vlan_id_tmp = 0;
+
+	vlan_id_tmp = vlan_id  | (qedf->prio << VLAN_PRIO_SHIFT);
+	qedf->vlan_id = vlan_id_tmp;
+	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+		  "Setting vlan_id=0x%04x prio=%d.\n",
+		  vlan_id_tmp, qedf->prio);
 }
 
 /* Returns true if we have a valid vlan, false otherwise */
 static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 {
-	int rc;
 
 	while (qedf->fipvlan_retries--) {
 		/* This is to catch if link goes down during fipvlan retries */
@@ -136,7 +138,10 @@ static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 
 		if (qedf->vlan_id > 0) {
 			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
-				  "vlan = 0x%x already set.\n", qedf->vlan_id);
+				  "vlan = 0x%x already set, calling ctlr_link_up.\n",
+				  qedf->vlan_id);
+			if (atomic_read(&qedf->link_state) == QEDF_LINK_UP)
+				fcoe_ctlr_link_up(&qedf->ctlr);
 			return true;
 		}
 
@@ -144,13 +149,7 @@ static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 			   "Retry %d.\n", qedf->fipvlan_retries);
 		init_completion(&qedf->fipvlan_compl);
 		qedf_fcoe_send_vlan_req(qedf);
-		rc = wait_for_completion_timeout(&qedf->fipvlan_compl,
-		    1 * HZ);
-		if (rc > 0 &&
-		    (atomic_read(&qedf->link_state) == QEDF_LINK_UP)) {
-			fcoe_ctlr_link_up(&qedf->ctlr);
-			return true;
-		}
+		wait_for_completion_timeout(&qedf->fipvlan_compl, 1 * HZ);
 	}
 
 	return false;
