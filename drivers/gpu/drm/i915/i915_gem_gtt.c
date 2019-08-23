@@ -168,6 +168,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 		pte_flags |= PTE_READ_ONLY;
 
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
+	wmb();
 
 	return 0;
 }
@@ -1426,6 +1427,7 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 		set_pd_entry(pd, idx, pde);
 		atomic_inc(px_used(pde)); /* keep pinned */
 	}
+	wmb();
 
 	return 0;
 }
@@ -1513,11 +1515,9 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	}
 
 	if (!i915_vm_is_4lvl(&ppgtt->vm)) {
-		if (intel_vgpu_active(i915)) {
-			err = gen8_preallocate_top_level_pdp(ppgtt);
-			if (err)
-				goto err_free_pd;
-		}
+		err = gen8_preallocate_top_level_pdp(ppgtt);
+		if (err)
+			goto err_free_pd;
 	}
 
 	ppgtt->vm.insert_entries = gen8_ppgtt_insert;
