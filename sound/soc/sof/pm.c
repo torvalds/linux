@@ -411,6 +411,23 @@ int snd_sof_runtime_resume(struct device *dev)
 }
 EXPORT_SYMBOL(snd_sof_runtime_resume);
 
+int snd_sof_set_d0_substate(struct snd_sof_dev *sdev,
+			    enum sof_d0_substate d0_substate)
+{
+	int ret;
+
+	/* do platform specific set_state */
+	ret = snd_sof_dsp_set_power_state(sdev, d0_substate);
+	if (ret < 0)
+		return ret;
+
+	/* update dsp D0 sub-state */
+	sdev->d0_substate = d0_substate;
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_sof_set_d0_substate);
+
 int snd_sof_resume(struct device *dev)
 {
 	return sof_resume(dev, false);
