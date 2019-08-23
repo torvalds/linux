@@ -14883,9 +14883,9 @@ F:	include/linux/arm_sdei.h
 F:	include/uapi/linux/arm_sdei.h
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
-M:	Shaohua Li <shli@kernel.org>
+M:	Song Liu <song@kernel.org>
 L:	linux-raid@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shli/md.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/song/md.git
 S:	Supported
 F:	drivers/md/Makefile
 F:	drivers/md/Kconfig
