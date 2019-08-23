@@ -1592,7 +1592,7 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 	}
 
 	ti = dm_table_find_target(table, tmsg->sector);
-	if (!dm_target_is_valid(ti)) {
+	if (!ti) {
 		DMWARN("Target message sector outside device.");
 		r = -EINVAL;
 	} else if (ti->type->message)
