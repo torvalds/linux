@@ -235,8 +235,6 @@ static u32 tcan4x5x_read_reg(struct m_can_classdev *cdev, int reg)
 	struct tcan4x5x_priv *priv = cdev->device_data;
 	u32 val;
 
-	tcan4x5x_check_wake(priv);
-
 	regmap_read(priv->regmap, priv->reg_offset + reg, &val);
 
 	return val;
@@ -247,8 +245,6 @@ static u32 tcan4x5x_read_fifo(struct m_can_classdev *cdev, int addr_offset)
 	struct tcan4x5x_priv *priv = cdev->device_data;
 	u32 val;
 
-	tcan4x5x_check_wake(priv);
-
 	regmap_read(priv->regmap, priv->mram_start + addr_offset, &val);
 
 	return val;
@@ -258,8 +254,6 @@ static int tcan4x5x_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
 	struct tcan4x5x_priv *priv = cdev->device_data;
 
-	tcan4x5x_check_wake(priv);
-
 	return regmap_write(priv->regmap, priv->reg_offset + reg, val);
 }
 
@@ -267,8 +261,6 @@ static int tcan4x5x_write_fifo(struct m_can_classdev *cdev,
 			       int addr_offset, int val)
 {
 	struct tcan4x5x_priv *priv = cdev->device_data;
-
-	tcan4x5x_check_wake(priv);
 
 	return regmap_write(priv->regmap, priv->mram_start + addr_offset, val);
 }
@@ -289,17 +281,12 @@ static int tcan4x5x_write_tcan_reg(struct m_can_classdev *cdev,
 {
 	struct tcan4x5x_priv *priv = cdev->device_data;
 
-	tcan4x5x_check_wake(priv);
-
 	return regmap_write(priv->regmap, reg, val);
 }
 
 static int tcan4x5x_clear_interrupts(struct m_can_classdev *cdev)
 {
-	struct tcan4x5x_priv *tcan4x5x = cdev->device_data;
 	int ret;
-
-	tcan4x5x_check_wake(tcan4x5x);
 
 	ret = tcan4x5x_write_tcan_reg(cdev, TCAN4X5X_STATUS,
 				      TCAN4X5X_CLEAR_ALL_INT);
