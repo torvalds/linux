@@ -489,16 +489,38 @@ static void qedf_update_link_speed(struct qedf_ctx *qedf,
 	 * Set supported link speed by querying the supported
 	 * capabilities of the link.
 	 */
-	if (link->supported_caps & SUPPORTED_10000baseKR_Full)
+	if ((link->supported_caps & QED_LM_10000baseT_Full_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseKX4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseR_FEC_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseCR_Full_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseSR_Full_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseLR_Full_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseLRM_Full_BIT) ||
+	    (link->supported_caps & QED_LM_10000baseKR_Full_BIT)) {
 		lport->link_supported_speeds |= FC_PORTSPEED_10GBIT;
-	if (link->supported_caps & SUPPORTED_25000baseKR_Full)
+	}
+	if ((link->supported_caps & QED_LM_25000baseKR_Full_BIT) ||
+	    (link->supported_caps & QED_LM_25000baseCR_Full_BIT) ||
+	    (link->supported_caps & QED_LM_25000baseSR_Full_BIT)) {
 		lport->link_supported_speeds |= FC_PORTSPEED_25GBIT;
-	if (link->supported_caps & SUPPORTED_40000baseLR4_Full)
+	}
+	if ((link->supported_caps & QED_LM_40000baseLR4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_40000baseKR4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_40000baseCR4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_40000baseSR4_Full_BIT)) {
 		lport->link_supported_speeds |= FC_PORTSPEED_40GBIT;
-	if (link->supported_caps & SUPPORTED_50000baseKR2_Full)
+	}
+	if ((link->supported_caps & QED_LM_50000baseKR2_Full_BIT) ||
+	    (link->supported_caps & QED_LM_50000baseCR2_Full_BIT) ||
+	    (link->supported_caps & QED_LM_50000baseSR2_Full_BIT)) {
 		lport->link_supported_speeds |= FC_PORTSPEED_50GBIT;
-	if (link->supported_caps & SUPPORTED_100000baseKR4_Full)
+	}
+	if ((link->supported_caps & QED_LM_100000baseKR4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_100000baseSR4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_100000baseCR4_Full_BIT) ||
+	    (link->supported_caps & QED_LM_100000baseLR4_ER4_Full_BIT)) {
 		lport->link_supported_speeds |= FC_PORTSPEED_100GBIT;
+	}
 	fc_host_supported_speeds(lport->host) = lport->link_supported_speeds;
 }
 
