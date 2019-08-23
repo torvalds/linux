@@ -78,7 +78,14 @@ struct augmented_args_payload {
 	};
 };
 
+// We need more tmp space than the BPF stack can give us
 bpf_map(augmented_args_tmp, PERCPU_ARRAY, int, struct augmented_args_payload, 1);
+
+static inline struct augmented_args_payload *augmented_args_payload(void)
+{
+	int key = 0;
+	return bpf_map_lookup_elem(&augmented_args_tmp, &key);
+}
 
 static inline
 unsigned int augmented_arg__read_str(struct augmented_arg *augmented_arg, const void *arg, unsigned int arg_len)
@@ -122,8 +129,7 @@ int syscall_unaugmented(struct syscall_enter_args *args)
 SEC("!syscalls:sys_enter_connect")
 int sys_enter_connect(struct syscall_enter_args *args)
 {
-	int key = 0;
-	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *sockaddr_arg = (const void *)args->args[1];
 	unsigned int socklen = args->args[2];
 	unsigned int len = sizeof(augmented_args->args);
@@ -143,8 +149,7 @@ int sys_enter_connect(struct syscall_enter_args *args)
 SEC("!syscalls:sys_enter_sendto")
 int sys_enter_sendto(struct syscall_enter_args *args)
 {
-	int key = 0;
-	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *sockaddr_arg = (const void *)args->args[4];
 	unsigned int socklen = args->args[5];
 	unsigned int len = sizeof(augmented_args->args);
@@ -164,8 +169,7 @@ int sys_enter_sendto(struct syscall_enter_args *args)
 SEC("!syscalls:sys_enter_open")
 int sys_enter_open(struct syscall_enter_args *args)
 {
-	int key = 0;
-	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *filename_arg = (const void *)args->args[0];
 	unsigned int len = sizeof(augmented_args->args);
 
@@ -181,8 +185,7 @@ int sys_enter_open(struct syscall_enter_args *args)
 SEC("!syscalls:sys_enter_openat")
 int sys_enter_openat(struct syscall_enter_args *args)
 {
-	int key = 0;
-	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *filename_arg = (const void *)args->args[1];
 	unsigned int len = sizeof(augmented_args->args);
 
@@ -198,8 +201,7 @@ int sys_enter_openat(struct syscall_enter_args *args)
 SEC("!syscalls:sys_enter_rename")
 int sys_enter_rename(struct syscall_enter_args *args)
 {
-	int key = 0;
-	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *oldpath_arg = (const void *)args->args[0],
 		   *newpath_arg = (const void *)args->args[1];
 	unsigned int len = sizeof(augmented_args->args), oldpath_len;
@@ -217,8 +219,7 @@ int sys_enter_rename(struct syscall_enter_args *args)
 SEC("!syscalls:sys_enter_renameat")
 int sys_enter_renameat(struct syscall_enter_args *args)
 {
-	int key = 0;
-	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *oldpath_arg = (const void *)args->args[1],
 		   *newpath_arg = (const void *)args->args[3];
 	unsigned int len = sizeof(augmented_args->args), oldpath_len;
@@ -248,14 +249,13 @@ int sys_enter(struct syscall_enter_args *args)
 	 */
 	unsigned int len = sizeof(augmented_args->args);
 	struct syscall *syscall;
-	int key = 0;
 
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
 
-        augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
-        if (augmented_args == NULL)
-                return 1;
+	augmented_args = augmented_args_payload();
+	if (augmented_args == NULL)
+		return 1;
 
 	probe_read(&augmented_args->args, sizeof(augmented_args->args), args);
 
