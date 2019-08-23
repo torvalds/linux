@@ -6737,16 +6737,16 @@ intel_aux_power_domain(struct intel_digital_port *dig_port)
 	    dig_port->tc_mode == TC_PORT_TBT_ALT) {
 		switch (dig_port->aux_ch) {
 		case AUX_CH_C:
-			return POWER_DOMAIN_AUX_TBT1;
+			return POWER_DOMAIN_AUX_C_TBT;
 		case AUX_CH_D:
-			return POWER_DOMAIN_AUX_TBT2;
+			return POWER_DOMAIN_AUX_D_TBT;
 		case AUX_CH_E:
-			return POWER_DOMAIN_AUX_TBT3;
+			return POWER_DOMAIN_AUX_E_TBT;
 		case AUX_CH_F:
-			return POWER_DOMAIN_AUX_TBT4;
+			return POWER_DOMAIN_AUX_F_TBT;
 		default:
 			MISSING_CASE(dig_port->aux_ch);
-			return POWER_DOMAIN_AUX_TBT1;
+			return POWER_DOMAIN_AUX_C_TBT;
 		}
 	}
 
