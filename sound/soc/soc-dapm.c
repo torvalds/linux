@@ -4717,6 +4717,27 @@ void snd_soc_dapm_free(struct snd_soc_dapm_context *dapm)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
+void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
+		       struct snd_soc_card *card,
+		       struct snd_soc_component *component)
+{
+	dapm->card		= card;
+	dapm->component		= component;
+	dapm->bias_level	= SND_SOC_BIAS_OFF;
+
+	if (component) {
+		dapm->dev		= component->dev;
+		dapm->idle_bias_off	= !component->driver->idle_bias_on,
+		dapm->suspend_bias_off	= component->driver->suspend_bias_off;
+	} else {
+		dapm->dev		= card->dev;
+	}
+
+	INIT_LIST_HEAD(&dapm->list);
+	list_add(&dapm->list, &card->dapm_list);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_init);
+
 static void soc_dapm_shutdown_dapm(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_card *card = dapm->card;

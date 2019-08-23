@@ -1023,14 +1023,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 	soc_init_component_debugfs(component);
 
-	INIT_LIST_HEAD(&dapm->list);
-	dapm->card		= card;
-	dapm->dev		= component->dev;
-	dapm->component		= component;
-	dapm->bias_level	= SND_SOC_BIAS_OFF;
-	dapm->idle_bias_off	= !component->driver->idle_bias_on;
-	dapm->suspend_bias_off	= component->driver->suspend_bias_off;
-	list_add(&dapm->list, &card->dapm_list);
+	snd_soc_dapm_init(dapm, card, component);
 
 	ret = snd_soc_dapm_new_controls(dapm,
 					component->driver->dapm_widgets,
@@ -1937,10 +1930,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
-	card->dapm.bias_level = SND_SOC_BIAS_OFF;
-	card->dapm.dev = card->dev;
-	card->dapm.card = card;
-	list_add(&card->dapm.list, &card->dapm_list);
+	snd_soc_dapm_init(&card->dapm, card, NULL);
 
 	/* check whether any platform is ignore machine FE and using topology */
 	soc_check_tplg_fes(card);
