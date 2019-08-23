@@ -235,18 +235,6 @@ static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->slice_mask = (fuse2 & GEN10_F2_S_ENA_MASK) >>
 			    GEN10_F2_S_ENA_SHIFT;
 
-	subslice_mask = (1 << 4) - 1;
-	subslice_mask &= ~((fuse2 & GEN10_F2_SS_DIS_MASK) >>
-			   GEN10_F2_SS_DIS_SHIFT);
-
-	/*
-	 * Slice0 can have up to 3 subslices, but there are only 2 in
-	 * slice1/2.
-	 */
-	sseu->subslice_mask[0] = subslice_mask;
-	for (s = 1; s < sseu->max_slices; s++)
-		sseu->subslice_mask[s] = subslice_mask & 0x3;
-
 	/* Slice0 */
 	eu_en = ~I915_READ(GEN8_EU_DISABLE0);
 	for (ss = 0; ss < sseu->max_subslices; ss++)
@@ -270,14 +258,24 @@ static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 	eu_en = ~I915_READ(GEN10_EU_DISABLE3);
 	sseu_set_eus(sseu, 5, 1, eu_en & eu_mask);
 
-	/* Do a second pass where we mark the subslices disabled if all their
-	 * eus are off.
-	 */
+	subslice_mask = (1 << 4) - 1;
+	subslice_mask &= ~((fuse2 & GEN10_F2_SS_DIS_MASK) >>
+			   GEN10_F2_SS_DIS_SHIFT);
+
 	for (s = 0; s < sseu->max_slices; s++) {
+		u32 subslice_mask_with_eus = subslice_mask;
+
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
 			if (sseu_get_eus(sseu, s, ss) == 0)
-				sseu->subslice_mask[s] &= ~BIT(ss);
+				subslice_mask_with_eus &= ~BIT(ss);
 		}
+
+		/*
+		 * Slice0 can have up to 3 subslices, but there are only 2 in
+		 * slice1/2.
+		 */
+		sseu->subslice_mask[s] = s == 0 ? subslice_mask_with_eus :
+						  subslice_mask_with_eus & 0x3;
 	}
 
 	sseu->eu_total = compute_eu_total(sseu);
@@ -303,6 +301,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 fuse;
+	u8 subslice_mask = 0;
 
 	fuse = I915_READ(CHV_FUSE_GT);
 
@@ -316,7 +315,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 			(((fuse & CHV_FGT_EU_DIS_SS0_R1_MASK) >>
 			  CHV_FGT_EU_DIS_SS0_R1_SHIFT) << 4);
 
-		sseu->subslice_mask[0] |= BIT(0);
+		subslice_mask |= BIT(0);
 		sseu_set_eus(sseu, 0, 0, ~disabled_mask);
 	}
 
@@ -327,9 +326,11 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 			(((fuse & CHV_FGT_EU_DIS_SS1_R1_MASK) >>
 			  CHV_FGT_EU_DIS_SS1_R1_SHIFT) << 4);
 
-		sseu->subslice_mask[0] |= BIT(1);
+		subslice_mask |= BIT(1);
 		sseu_set_eus(sseu, 0, 1, ~disabled_mask);
 	}
+
+	sseu->subslice_mask[0] = subslice_mask;
 
 	sseu->eu_total = compute_eu_total(sseu);
 
@@ -540,6 +541,7 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 fuse1;
+	u8 subslice_mask = 0;
 	int s, ss;
 
 	/*
@@ -552,16 +554,15 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 		/* fall through */
 	case 1:
 		sseu->slice_mask = BIT(0);
-		sseu->subslice_mask[0] = BIT(0);
+		subslice_mask = BIT(0);
 		break;
 	case 2:
 		sseu->slice_mask = BIT(0);
-		sseu->subslice_mask[0] = BIT(0) | BIT(1);
+		subslice_mask = BIT(0) | BIT(1);
 		break;
 	case 3:
 		sseu->slice_mask = BIT(0) | BIT(1);
-		sseu->subslice_mask[0] = BIT(0) | BIT(1);
-		sseu->subslice_mask[1] = BIT(0) | BIT(1);
+		subslice_mask = BIT(0) | BIT(1);
 		break;
 	}
 
@@ -583,10 +584,12 @@ static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_sseu_set_info(sseu, hweight8(sseu->slice_mask),
-			    hweight8(sseu->subslice_mask[0]),
+			    hweight8(subslice_mask),
 			    sseu->eu_per_subslice);
 
 	for (s = 0; s < sseu->max_slices; s++) {
+		sseu->subslice_mask[s] = subslice_mask;
+
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
 			sseu_set_eus(sseu, s, ss,
 				     (1UL << sseu->eu_per_subslice) - 1);
