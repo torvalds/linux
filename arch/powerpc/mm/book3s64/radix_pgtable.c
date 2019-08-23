@@ -369,8 +369,6 @@ static void __init radix_init_pgtable(void)
 	rts_field = radix__get_tree_size();
 	process_tb->prtb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE);
 
-	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
-
 	/*
 	 * The init_mm context is given the first available (non-zero) PID,
 	 * which is the "guard PID" and contains no page table. PIDR should
@@ -399,7 +397,6 @@ static void __init radix_init_partition_table(void)
 	mmu_partition_table_set_entry(0, dw0, dw1, false);
 
 	pr_info("Initializing Radix MMU\n");
-	pr_info("Partition table %p\n", partition_tb);
 }
 
 static int __init get_idx_from_shift(unsigned int shift)
