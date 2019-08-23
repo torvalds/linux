@@ -15,6 +15,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/bitmap.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -421,12 +422,6 @@ static inline void edma_param_or(struct edma_cc *ecc, int offset, int param_no,
 				 unsigned or)
 {
 	edma_or(ecc, EDMA_PARM + offset + (param_no << 5), or);
-}
-
-static inline void edma_set_bits(int offset, int len, unsigned long *p)
-{
-	for (; len > 0; len--)
-		set_bit(offset + (len - 1), p);
 }
 
 static void edma_assign_priority_to_queue(struct edma_cc *ecc, int queue_no,
@@ -2254,7 +2249,7 @@ static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_soc_info	*info = pdev->dev.platform_data;
 	s8			(*queue_priority_mapping)[2];
-	int			i, off, ln;
+	int			i, off;
 	const s16		(*rsv_slots)[2];
 	const s16		(*xbar_chans)[2];
 	int			irq;
@@ -2342,11 +2337,9 @@ static int edma_probe(struct platform_device *pdev)
 		/* Set the reserved slots in inuse list */
 		rsv_slots = info->rsv->rsv_slots;
 		if (rsv_slots) {
-			for (i = 0; rsv_slots[i][0] != -1; i++) {
-				off = rsv_slots[i][0];
-				ln = rsv_slots[i][1];
-				edma_set_bits(off, ln, ecc->slot_inuse);
-			}
+			for (i = 0; rsv_slots[i][0] != -1; i++)
+				bitmap_set(ecc->slot_inuse, rsv_slots[i][0],
+					   rsv_slots[i][1]);
 		}
 	}
 
