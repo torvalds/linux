@@ -194,9 +194,9 @@ struct rk618_cru {
 	struct clk_onecell_data clk_data;
 };
 
-static char clkin_name[16] = "dummy";
-static char lcdc0_dclkp_name[16] = "dummy";
-static char lcdc1_dclkp_name[16] = "dummy";
+static char clkin_name[32] = "dummy";
+static char lcdc0_dclkp_name[32] = "dummy";
+static char lcdc1_dclkp_name[32] = "dummy";
 
 #define PNAME(x) static const char *const x[]
 
