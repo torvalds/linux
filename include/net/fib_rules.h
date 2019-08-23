@@ -180,9 +180,9 @@ static inline bool fib_rule_port_range_compare(struct fib_rule_port_range *a,
 
 static inline bool fib_rule_requires_fldissect(struct fib_rule *rule)
 {
-	return rule->ip_proto ||
+	return rule->iifindex != LOOPBACK_IFINDEX && (rule->ip_proto ||
 		fib_rule_port_range_set(&rule->sport_range) ||
-		fib_rule_port_range_set(&rule->dport_range);
+		fib_rule_port_range_set(&rule->dport_range));
 }
 
 struct fib_rules_ops *fib_rules_register(const struct fib_rules_ops *,

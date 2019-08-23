@@ -133,6 +133,9 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	struct kprobe *p = kprobe_running();
 
+	if (!p)
+		return 0;
+
 	if (regs->iaoq[0] != (unsigned long)p->ainsn.insn+4)
 		return 0;
 

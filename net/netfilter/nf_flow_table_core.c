@@ -111,15 +111,16 @@ static void flow_offload_fixup_tcp(struct ip_ct_tcp *tcp)
 #define NF_FLOWTABLE_TCP_PICKUP_TIMEOUT	(120 * HZ)
 #define NF_FLOWTABLE_UDP_PICKUP_TIMEOUT	(30 * HZ)
 
-static void flow_offload_fixup_ct_state(struct nf_conn *ct)
+static inline __s32 nf_flow_timeout_delta(unsigned int timeout)
+{
+	return (__s32)(timeout - (u32)jiffies);
+}
+
+static void flow_offload_fixup_ct_timeout(struct nf_conn *ct)
 {
 	const struct nf_conntrack_l4proto *l4proto;
+	int l4num = nf_ct_protonum(ct);
 	unsigned int timeout;
-	int l4num;
-
-	l4num = nf_ct_protonum(ct);
-	if (l4num == IPPROTO_TCP)
-		flow_offload_fixup_tcp(&ct->proto.tcp);
 
 	l4proto = nf_ct_l4proto_find(l4num);
 	if (!l4proto)
@@ -132,7 +133,20 @@ static void flow_offload_fixup_ct_state(struct nf_conn *ct)
 	else
 		return;
 
-	ct->timeout = nfct_time_stamp + timeout;
+	if (nf_flow_timeout_delta(ct->timeout) > (__s32)timeout)
+		ct->timeout = nfct_time_stamp + timeout;
+}
+
+static void flow_offload_fixup_ct_state(struct nf_conn *ct)
+{
+	if (nf_ct_protonum(ct) == IPPROTO_TCP)
+		flow_offload_fixup_tcp(&ct->proto.tcp);
+}
+
+static void flow_offload_fixup_ct(struct nf_conn *ct)
+{
+	flow_offload_fixup_ct_state(ct);
+	flow_offload_fixup_ct_timeout(ct);
 }
 
 void flow_offload_free(struct flow_offload *flow)
@@ -208,6 +222,11 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 }
 EXPORT_SYMBOL_GPL(flow_offload_add);
 
+static inline bool nf_flow_has_expired(const struct flow_offload *flow)
+{
+	return nf_flow_timeout_delta(flow->timeout) <= 0;
+}
+
 static void flow_offload_del(struct nf_flowtable *flow_table,
 			     struct flow_offload *flow)
 {
@@ -222,6 +241,11 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 
 	e = container_of(flow, struct flow_offload_entry, flow);
 	clear_bit(IPS_OFFLOAD_BIT, &e->ct->status);
+
+	if (nf_flow_has_expired(flow))
+		flow_offload_fixup_ct(e->ct);
+	else if (flow->flags & FLOW_OFFLOAD_TEARDOWN)
+		flow_offload_fixup_ct_timeout(e->ct);
 
 	flow_offload_free(flow);
 }
@@ -296,11 +320,6 @@ nf_flow_table_iterate(struct nf_flowtable *flow_table,
 	rhashtable_walk_exit(&hti);
 
 	return err;
-}
-
-static inline bool nf_flow_has_expired(const struct flow_offload *flow)
-{
-	return (__s32)(flow->timeout - (u32)jiffies) <= 0;
 }
 
 static void nf_flow_offload_gc_step(struct flow_offload *flow, void *data)

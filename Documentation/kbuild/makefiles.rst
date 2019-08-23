@@ -328,7 +328,7 @@ more details, with real examples.
 	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
 	entire tree.
 
-	asflags-y specifies options for assembling with $(AS).
+	asflags-y specifies assembler options.
 
 	Example::
 
@@ -384,6 +384,7 @@ more details, with real examples.
 -----------------------
 
 	Kbuild tracks dependencies on the following:
+
 	1) All prerequisite files (both `*.c` and `*.h`)
 	2) `CONFIG_` options used in all prerequisite files
 	3) Command-line used to compile target
@@ -489,7 +490,7 @@ more details, with real examples.
 	as-instr checks if the assembler reports a specific instruction
 	and then outputs either option1 or option2
 	C escapes are supported in the test instruction
-	Note: as-instr-option uses KBUILD_AFLAGS for $(AS) options
+	Note: as-instr-option uses KBUILD_AFLAGS for assembler options
 
     cc-option
 	cc-option is used to check if $(CC) supports a given option, and if
@@ -905,7 +906,7 @@ When kbuild executes, the following steps are followed (roughly):
 	vmlinux. The usage of $(call if_changed,xxx) will be described later.
 
     KBUILD_AFLAGS
-	$(AS) assembler flags
+	Assembler flags
 
 	Default value - see top level Makefile
 	Append or modify as required per architecture.
@@ -948,16 +949,16 @@ When kbuild executes, the following steps are followed (roughly):
 	to 'y' when selected.
 
     KBUILD_AFLAGS_KERNEL
-	$(AS) options specific for built-in
+	Assembler options specific for built-in
 
 	$(KBUILD_AFLAGS_KERNEL) contains extra C compiler flags used to compile
 	resident kernel code.
 
     KBUILD_AFLAGS_MODULE
-	Options for $(AS) when building modules
+	Assembler options specific for modules
 
 	$(KBUILD_AFLAGS_MODULE) is used to add arch-specific options that
-	are used for $(AS).
+	are used for assembler.
 
 	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
 
@@ -999,11 +1000,7 @@ When kbuild executes, the following steps are followed (roughly):
 ------------------------------------
 
 	The archheaders: rule is used to generate header files that
-	may be installed into user space by "make header_install" or
-	"make headers_install_all".  In order to support
-	"make headers_install_all", this target has to be able to run
-	on an unconfigured tree, or a tree configured for another
-	architecture.
+	may be installed into user space by "make header_install".
 
 	It is run before "make archprepare" when run on the
 	architecture itself.
@@ -1140,6 +1137,22 @@ When kbuild executes, the following steps are followed (roughly):
 	In this example, extra-y is used to list object files that
 	shall be built, but shall not be linked as part of built-in.a.
 
+    header-test-y
+
+	header-test-y specifies headers (*.h) in the current directory that
+	should be compile tested to ensure they are self-contained,
+	i.e. compilable as standalone units. If CONFIG_HEADER_TEST is enabled,
+	this builds them as part of extra-y.
+
+    header-test-pattern-y
+
+	This works as a weaker version of header-test-y, and accepts wildcard
+	patterns. The typical usage is:
+
+		  header-test-pattern-y += *.h
+
+	This specifies all the files that matches to '*.h' in the current
+	directory, but the files in 'header-test-' are excluded.
 
 6.7 Commands useful for building a boot image
 ---------------------------------------------

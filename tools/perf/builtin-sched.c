@@ -2,7 +2,6 @@
 #include "builtin.h"
 #include "perf.h"
 
-#include "util/util.h"
 #include "util/evlist.h"
 #include "util/cache.h"
 #include "util/evsel.h"
@@ -26,6 +25,7 @@
 
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <inttypes.h>

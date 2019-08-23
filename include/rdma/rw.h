@@ -39,15 +39,6 @@ struct rdma_rw_ctx {
 			struct ib_send_wr	inv_wr;
 			struct ib_mr		*mr;
 		} *reg;
-
-		struct {
-			struct rdma_rw_reg_ctx	data;
-			struct rdma_rw_reg_ctx	prot;
-			struct ib_send_wr	sig_inv_wr;
-			struct ib_mr		*sig_mr;
-			struct ib_sge		sig_sge;
-			struct ib_sig_handover_wr sig_wr;
-		} *sig;
 	};
 };
 

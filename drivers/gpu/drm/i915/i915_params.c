@@ -87,9 +87,12 @@ i915_param_named_unsafe(enable_psr, int, 0600,
 	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
 
+i915_param_named_unsafe(force_probe, charp, 0400,
+	"Force probe the driver for specified devices. "
+	"See CONFIG_DRM_I915_FORCE_PROBE for details.");
+
 i915_param_named_unsafe(alpha_support, bool, 0400,
-	"Enable alpha quality driver support for latest hardware. "
-	"See also CONFIG_DRM_I915_ALPHA_SUPPORT.");
+	"Deprecated. See i915.force_probe.");
 
 i915_param_named_unsafe(disable_power_well, int, 0400,
 	"Disable display power wells when possible "

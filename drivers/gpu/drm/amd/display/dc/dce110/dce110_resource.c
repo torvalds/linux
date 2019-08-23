@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "link_encoder.h"
@@ -30,8 +32,6 @@
 
 #include "resource.h"
 #include "dce110/dce110_resource.h"
-
-#include "dce/dce_clk_mgr.h"
 #include "include/irq_service_interface.h"
 #include "dce/dce_audio.h"
 #include "dce110/dce110_timing_generator.h"
@@ -148,18 +148,6 @@ static const struct dce110_timing_generator_offsets dce110_tg_offsets[] = {
 /* set register offset with instance */
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
-
-static const struct clk_mgr_registers disp_clk_regs = {
-		CLK_COMMON_REG_LIST_DCE_BASE()
-};
-
-static const struct clk_mgr_shift disp_clk_shift = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
-};
-
-static const struct clk_mgr_mask disp_clk_mask = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
-};
 
 static const struct dce_dmcu_registers dmcu_regs = {
 		DMCU_DCE110_COMMON_REG_LIST()
@@ -811,9 +799,6 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.clk_mgr != NULL)
-		dce_clk_mgr_destroy(&pool->base.clk_mgr);
-
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
 	}
@@ -1097,6 +1082,11 @@ static struct pipe_ctx *dce110_acquire_underlay(
 
 		pipe_ctx->stream_res.tg->funcs->program_timing(pipe_ctx->stream_res.tg,
 				&stream->timing,
+				0,
+				0,
+				0,
+				0,
+				pipe_ctx->stream->signal,
 				false);
 
 		pipe_ctx->stream_res.tg->funcs->enable_advanced_request(
@@ -1129,6 +1119,38 @@ static void dce110_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+struct stream_encoder *dce110_find_first_free_match_stream_enc_for_link(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream)
+{
+	int i;
+	int j = -1;
+	struct dc_link *link = stream->link;
+
+	for (i = 0; i < pool->stream_enc_count; i++) {
+		if (!res_ctx->is_stream_enc_acquired[i] &&
+				pool->stream_enc[i]) {
+			/* Store first available for MST second display
+			 * in daisy chain use case
+			 */
+			j = i;
+			if (pool->stream_enc[i]->id ==
+					link->link_enc->preferred_engine)
+				return pool->stream_enc[i];
+		}
+	}
+
+	/*
+	 * For CZ and later, we can allow DIG FE and BE to differ for all display types
+	 */
+
+	if (j >= 0)
+		return pool->stream_enc[j];
+
+	return NULL;
+}
+
 
 static const struct resource_funcs dce110_res_pool_funcs = {
 	.destroy = dce110_destroy_resource_pool,
@@ -1137,7 +1159,8 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 	.validate_plane = dce110_validate_plane,
 	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
 	.add_stream_to_ctx = dce110_add_stream_to_ctx,
-	.validate_global = dce110_validate_global
+	.validate_global = dce110_validate_global,
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
@@ -1306,16 +1329,6 @@ static bool construct(
 			BREAK_TO_DEBUGGER();
 			goto res_create_fail;
 		}
-	}
-
-	pool->base.clk_mgr = dce110_clk_mgr_create(ctx,
-			&disp_clk_regs,
-			&disp_clk_shift,
-			&disp_clk_mask);
-	if (pool->base.clk_mgr == NULL) {
-		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
-		goto res_create_fail;
 	}
 
 	pool->base.dmcu = dce_dmcu_create(ctx,

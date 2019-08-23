@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/crash_dump.h>
 #include <linux/list.h>
+#include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
@@ -54,6 +55,9 @@ static struct proc_dir_entry *proc_vmcore;
 /* Device Dump list and mutex to synchronize access to list */
 static LIST_HEAD(vmcoredd_list);
 static DEFINE_MUTEX(vmcoredd_mutex);
+
+static bool vmcoredd_disabled;
+core_param(novmcoredd, vmcoredd_disabled, bool, 0);
 #endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
 
 /* Device Dump Size */
@@ -1451,6 +1455,11 @@ int vmcore_add_device_dump(struct vmcoredd_data *data)
 	void *buf = NULL;
 	size_t data_size;
 	int ret;
+
+	if (vmcoredd_disabled) {
+		pr_err_once("Device dump is disabled\n");
+		return -EINVAL;
+	}
 
 	if (!data || !strlen(data->dump_name) ||
 	    !data->vmcoredd_callback || !data->size)

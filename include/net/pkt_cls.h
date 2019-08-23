@@ -6,7 +6,6 @@
 #include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
-#include <net/flow_offload.h>
 #include <net/net_namespace.h>
 
 /* TC action not accessible from user space */
@@ -60,6 +59,11 @@ static inline bool tcf_block_shared(struct tcf_block *block)
 	return block->index;
 }
 
+static inline bool tcf_block_non_null_shared(struct tcf_block *block)
+{
+	return block && block->index;
+}
+
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
 	WARN_ON(tcf_block_shared(block));
@@ -80,6 +84,11 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 #else
 static inline bool tcf_block_shared(struct tcf_block *block)
+{
+	return false;
+}
+
+static inline bool tcf_block_non_null_shared(struct tcf_block *block)
 {
 	return false;
 }
@@ -116,14 +125,14 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 }
 
 static inline
-int tc_setup_cb_block_register(struct tcf_block *block, tc_setup_cb_t *cb,
+int tc_setup_cb_block_register(struct tcf_block *block, flow_setup_cb_t *cb,
 			       void *cb_priv)
 {
 	return 0;
 }
 
 static inline
-void tc_setup_cb_block_unregister(struct tcf_block *block, tc_setup_cb_t *cb,
+void tc_setup_cb_block_unregister(struct tcf_block *block, flow_setup_cb_t *cb,
 				  void *cb_priv)
 {
 }
@@ -637,7 +646,7 @@ tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 {
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
-	cls_common->prio = tp->prio;
+	cls_common->prio = tp->prio >> 16;
 	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
 }

@@ -130,8 +130,13 @@ if is_enabled CONFIG_MODULES; then
 fi
 
 if [ "$ARCH" != "um" ]; then
-	$MAKE -f $srctree/Makefile headers_check
+	$MAKE -f $srctree/Makefile headers
 	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
+	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
+	# used by Debian-based distros (to support multi-arch)
+	host_arch=$(dpkg-architecture -a$(cat debian/arch) -qDEB_HOST_MULTIARCH)
+	mkdir $libc_headers_dir/usr/include/$host_arch
+	mv $libc_headers_dir/usr/include/asm $libc_headers_dir/usr/include/$host_arch/
 fi
 
 # Install the maintainer scripts

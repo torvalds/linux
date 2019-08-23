@@ -220,10 +220,8 @@ static int npcm_wdt_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdd);
-	if (ret) {
-		dev_err(dev, "failed to register watchdog\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "NPCM watchdog driver enabled\n");
 

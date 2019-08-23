@@ -170,7 +170,7 @@ currently running at.
 |        +----------------+-------------------------------------------------+
 |        |    32          | Basic Addressing Mode                           |
 |        |                |                                                 |
-|        |                | Used to set addressing mode                     |
+|        |                | Used to set addressing mode::                   |
 |        |                |                                                 |
 |        |                |    +---------+----------+----------+            |
 |        |                |    | PSW 31  | PSW 32   |          |            |

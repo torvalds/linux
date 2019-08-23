@@ -44,14 +44,4 @@ static struct thermal_governor thermal_gov_user_space = {
 	.name		= "user_space",
 	.throttle	= notify_user_space,
 };
-
-int thermal_gov_user_space_register(void)
-{
-	return thermal_register_governor(&thermal_gov_user_space);
-}
-
-void thermal_gov_user_space_unregister(void)
-{
-	thermal_unregister_governor(&thermal_gov_user_space);
-}
-
+THERMAL_GOVERNOR_DECLARE(thermal_gov_user_space);

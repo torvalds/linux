@@ -327,7 +327,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	unsigned long index;
 	int count = 1;
 
-	qpd = kmalloc(sizeof *qpd, GFP_KERNEL);
+	qpd = kmalloc(sizeof(*qpd), GFP_KERNEL);
 	if (!qpd)
 		return -ENOMEM;
 
@@ -421,7 +421,7 @@ static int stag_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	int count = 1;
 
-	stagd = kmalloc(sizeof *stagd, GFP_KERNEL);
+	stagd = kmalloc(sizeof(*stagd), GFP_KERNEL);
 	if (!stagd) {
 		ret = -ENOMEM;
 		goto out;
@@ -1075,7 +1075,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 		pr_info("Chelsio T4/T5 RDMA Driver - version %s\n",
 			DRV_VERSION);
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		ctx = ERR_PTR(-ENOMEM);
 		goto out;
@@ -1243,10 +1243,9 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	case CXGB4_STATE_START_RECOVERY:
 		pr_info("%s: Fatal Error\n", pci_name(ctx->lldi.pdev));
 		if (ctx->dev) {
-			struct ib_event event;
+			struct ib_event event = {};
 
 			ctx->dev->rdev.flags |= T4_FATAL_ERROR;
-			memset(&event, 0, sizeof event);
 			event.event  = IB_EVENT_DEVICE_FATAL;
 			event.device = &ctx->dev->ibdev;
 			ib_dispatch_event(&event);

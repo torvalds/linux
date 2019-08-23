@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <asm/bug.h>
+#include <linux/zalloc.h>
 #ifdef HAVE_LIBNUMA_SUPPORT
 #include <numaif.h>
 #endif

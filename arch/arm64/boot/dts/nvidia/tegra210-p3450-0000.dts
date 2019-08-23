@@ -88,6 +88,35 @@
 		status = "okay";
 	};
 
+	pwm@7000a000 {
+		status = "okay";
+	};
+
+	i2c@7000c500 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		eeprom@50 {
+			compatible = "atmel,24c02";
+			reg = <0x50>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
+
+		eeprom@57 {
+			compatible = "atmel,24c02";
+			reg = <0x57>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
+	};
+
 	hdmi_ddc: i2c@7000c700 {
 		status = "okay";
 		clock-frequency = <100000>;
@@ -515,6 +544,12 @@
 		cpu@3 {
 			enable-method = "psci";
 		};
+
+		idle-states {
+			cpu-sleep {
+				status = "okay";
+			};
+		};
 	};
 
 	gpio-keys {
@@ -633,17 +668,16 @@
 		};
 
 		vdd_gpu: regulator@6 {
-			compatible = "regulator-fixed";
+			compatible = "pwm-regulator";
 			reg = <6>;
-
+			pwms = <&pwm 1 4880>;
 			regulator-name = "VDD_GPU";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-enable-ramp-delay = <250>;
-
-			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-
+			regulator-min-microvolt = <710000>;
+			regulator-max-microvolt = <1320000>;
+			regulator-ramp-delay = <80>;
+			regulator-enable-ramp-delay = <2000>;
+			regulator-settling-time-us = <160>;
+			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&vdd_5v0_sys>;
 		};
 	};

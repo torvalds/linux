@@ -208,7 +208,6 @@ struct etm_config {
 /**
  * struct etm_drvdata - specifics associated to an ETM component
  * @base:	memory mapped base address for this component.
- * @dev:	the device entity associated to this component.
  * @atclk:	optional clock for the core parts of the ETM.
  * @csdev:	component vitals needed by the framework.
  * @spinlock:	only one at a time pls.
@@ -232,7 +231,6 @@ struct etm_config {
  */
 struct etm_drvdata {
 	void __iomem			*base;
-	struct device			*dev;
 	struct clk			*atclk;
 	struct coresight_device		*csdev;
 	spinlock_t			spinlock;
@@ -260,7 +258,7 @@ static inline void etm_writel(struct etm_drvdata *drvdata,
 {
 	if (drvdata->use_cp14) {
 		if (etm_writel_cp14(off, val)) {
-			dev_err(drvdata->dev,
+			dev_err(&drvdata->csdev->dev,
 				"invalid CP14 access to ETM reg: %#x", off);
 		}
 	} else {
@@ -274,7 +272,7 @@ static inline unsigned int etm_readl(struct etm_drvdata *drvdata, u32 off)
 
 	if (drvdata->use_cp14) {
 		if (etm_readl_cp14(off, &val)) {
-			dev_err(drvdata->dev,
+			dev_err(&drvdata->csdev->dev,
 				"invalid CP14 access to ETM reg: %#x", off);
 		}
 	} else {

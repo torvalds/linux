@@ -20,7 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <drm/drmP.h>
+
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "sid.h"

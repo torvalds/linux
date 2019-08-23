@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_MPEG_PRIV_H__
 #define __NVKM_MPEG_PRIV_H__
 #include <engine/mpeg.h>

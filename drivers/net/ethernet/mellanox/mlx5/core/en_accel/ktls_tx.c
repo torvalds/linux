@@ -25,23 +25,17 @@ static void
 fill_static_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
 {
 	struct tls_crypto_info *crypto_info = priv_tx->crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 *info;
 	char *initial_rn, *gcm_iv;
 	u16 salt_sz, rec_seq_sz;
 	char *salt, *rec_seq;
 	u8 tls_version;
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *info =
-			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
-
-		EXTRACT_INFO_FIELDS;
-		break;
-	}
-	default:
-		WARN_ON(1);
+	if (WARN_ON(crypto_info->cipher_type != TLS_CIPHER_AES_GCM_128))
 		return;
-	}
+
+	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	EXTRACT_INFO_FIELDS;
 
 	gcm_iv      = MLX5_ADDR_OF(tls_static_params, ctx, gcm_iv);
 	initial_rn  = MLX5_ADDR_OF(tls_static_params, ctx, initial_record_number);
@@ -75,7 +69,7 @@ build_static_params(struct mlx5e_umr_wqe *wqe, u16 pc, u32 sqn,
 	cseg->qpn_ds           = cpu_to_be32((sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
 					     STATIC_PARAMS_DS_CNT);
 	cseg->fm_ce_se         = fence ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
-	cseg->imm              = cpu_to_be32(priv_tx->tisn);
+	cseg->tisn             = cpu_to_be32(priv_tx->tisn << 8);
 
 	ucseg->flags = MLX5_UMR_INLINE;
 	ucseg->bsf_octowords = cpu_to_be16(MLX5_ST_SZ_BYTES(tls_static_params) / 16);
@@ -86,7 +80,7 @@ build_static_params(struct mlx5e_umr_wqe *wqe, u16 pc, u32 sqn,
 static void
 fill_progress_params_ctx(void *ctx, struct mlx5e_ktls_offload_context_tx *priv_tx)
 {
-	MLX5_SET(tls_progress_params, ctx, pd, priv_tx->tisn);
+	MLX5_SET(tls_progress_params, ctx, tisn, priv_tx->tisn);
 	MLX5_SET(tls_progress_params, ctx, record_tracker_state,
 		 MLX5E_TLS_PROGRESS_PARAMS_RECORD_TRACKER_STATE_START);
 	MLX5_SET(tls_progress_params, ctx, auth_state,
@@ -110,7 +104,7 @@ build_progress_params(struct mlx5e_tx_wqe *wqe, u16 pc, u32 sqn,
 					     PROGRESS_PARAMS_DS_CNT);
 	cseg->fm_ce_se         = fence ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
 
-	fill_progress_params_ctx(wqe->data, priv_tx);
+	fill_progress_params_ctx(wqe->tls_progress_params_ctx, priv_tx);
 }
 
 static void tx_fill_wi(struct mlx5e_txqsq *sq,
@@ -234,24 +228,18 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 		      u64 rcd_sn)
 {
 	struct tls_crypto_info *crypto_info = priv_tx->crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 *info;
 	__be64 rn_be = cpu_to_be64(rcd_sn);
 	bool skip_static_post;
 	u16 rec_seq_sz;
 	char *rec_seq;
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *info =
-			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
-
-		rec_seq = info->rec_seq;
-		rec_seq_sz = sizeof(info->rec_seq);
-		break;
-	}
-	default:
-		WARN_ON(1);
+	if (WARN_ON(crypto_info->cipher_type != TLS_CIPHER_AES_GCM_128))
 		return;
-	}
+
+	info = (struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	rec_seq = info->rec_seq;
+	rec_seq_sz = sizeof(info->rec_seq);
 
 	skip_static_post = !memcmp(rec_seq, &rn_be, rec_seq_sz);
 	if (!skip_static_post)
@@ -290,7 +278,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8)  | MLX5_OPCODE_DUMP);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-	cseg->imm              = cpu_to_be32(tisn);
+	cseg->tisn             = cpu_to_be32(tisn << 8);
 	cseg->fm_ce_se         = first ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
 
 	eseg->inline_hdr.sz = cpu_to_be16(ihs);
@@ -424,7 +412,7 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 		goto out;
 
 	tls_ctx = tls_get_ctx(skb->sk);
-	if (unlikely(tls_ctx->netdev != netdev))
+	if (unlikely(WARN_ON_ONCE(tls_ctx->netdev != netdev)))
 		goto err_out;
 
 	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);
@@ -446,7 +434,7 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 	priv_tx->expected_seq = seq + datalen;
 
 	cseg = &(*wqe)->ctrl;
-	cseg->imm = cpu_to_be32(priv_tx->tisn);
+	cseg->tisn = cpu_to_be32(priv_tx->tisn << 8);
 
 	stats->tls_encrypted_packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	stats->tls_encrypted_bytes   += datalen;

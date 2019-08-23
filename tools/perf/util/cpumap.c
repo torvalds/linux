@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "util.h"
 #include <api/fs/fs.h>
 #include "../perf.h"
 #include "cpumap.h"
@@ -11,6 +10,7 @@
 #include "asm/bug.h"
 
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static int max_cpu_num;
 static int max_present_cpu_num;
@@ -751,7 +751,10 @@ size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
 	unsigned char *bitmap;
 	int last_cpu = cpu_map__cpu(map, map->nr - 1);
 
-	bitmap = zalloc((last_cpu + 7) / 8);
+	if (buf == NULL)
+		return 0;
+
+	bitmap = zalloc(last_cpu / 8 + 1);
 	if (bitmap == NULL) {
 		buf[0] = '\0';
 		return 0;

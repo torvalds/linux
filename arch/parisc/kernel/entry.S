@@ -1732,6 +1732,7 @@ ENDPROC_CFI(sys_\name\()_wrapper)
 	.endm
 
 fork_like clone
+fork_like clone3
 fork_like fork
 fork_like vfork
 

@@ -762,7 +762,7 @@ void skb_dump(const char *level, const struct sk_buff *skb, bool full_pkt)
 		printk("%sdev name=%s feat=0x%pNF\n",
 		       level, dev->name, &dev->features);
 	if (sk)
-		printk("%ssk family=%hu type=%hu proto=%hu\n",
+		printk("%ssk family=%hu type=%u proto=%u\n",
 		       level, sk->sk_family, sk->sk_type, sk->sk_protocol);
 
 	if (full_pkt && headroom)

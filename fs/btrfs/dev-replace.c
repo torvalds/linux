@@ -201,7 +201,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		return PTR_ERR(bdev);
 	}
 
-	filemap_write_and_wait(bdev->bd_inode->i_mapping);
+	sync_blockdev(bdev);
 
 	devices = &fs_info->fs_devices->devices;
 	list_for_each_entry(device, devices, dev_list) {
@@ -237,7 +237,6 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	}
 	rcu_assign_pointer(device->name, name);
 
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 	device->generation = 0;
 	device->io_width = fs_info->sectorsize;
@@ -256,6 +255,8 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 	device->fs_devices = fs_info->fs_devices;
+
+	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	list_add(&device->dev_list, &fs_info->fs_devices->devices);
 	fs_info->fs_devices->num_devices++;
 	fs_info->fs_devices->open_devices++;
@@ -399,7 +400,6 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	int ret;
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
-	bool need_unlock;
 
 	src_device = btrfs_find_device_by_devspec(fs_info, srcdevid,
 						  srcdev_name);
@@ -412,11 +412,6 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 			btrfs_dev_name(src_device), src_device->devid);
 		return -ETXTBSY;
 	}
-
-	ret = btrfs_init_dev_replace_tgtdev(fs_info, tgtdev_name,
-					    src_device, &tgt_device);
-	if (ret)
-		return ret;
 
 	/*
 	 * Here we commit the transaction to make sure commit_total_bytes
@@ -431,7 +426,11 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		return PTR_ERR(trans);
 	}
 
-	need_unlock = true;
+	ret = btrfs_init_dev_replace_tgtdev(fs_info, tgtdev_name,
+					    src_device, &tgt_device);
+	if (ret)
+		return ret;
+
 	down_write(&dev_replace->rwsem);
 	switch (dev_replace->replace_state) {
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED:
@@ -442,11 +441,11 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		ASSERT(0);
 		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED;
+		up_write(&dev_replace->rwsem);
 		goto leave;
 	}
 
 	dev_replace->cont_reading_from_srcdev_mode = read_src;
-	WARN_ON(!src_device);
 	dev_replace->srcdev = src_device;
 	dev_replace->tgtdev = tgt_device;
 
@@ -471,7 +470,6 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	atomic64_set(&dev_replace->num_write_errors, 0);
 	atomic64_set(&dev_replace->num_uncorrectable_read_errors, 0);
 	up_write(&dev_replace->rwsem);
-	need_unlock = false;
 
 	ret = btrfs_sysfs_add_device_link(tgt_device->fs_devices, tgt_device);
 	if (ret)
@@ -479,16 +477,16 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 
-	/* force writing the updated state information to disk */
-	trans = btrfs_start_transaction(root, 0);
+	/* Commit dev_replace state and reserve 1 item for it. */
+	trans = btrfs_start_transaction(root, 1);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
-		need_unlock = true;
 		down_write(&dev_replace->rwsem);
 		dev_replace->replace_state =
 			BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED;
 		dev_replace->srcdev = NULL;
 		dev_replace->tgtdev = NULL;
+		up_write(&dev_replace->rwsem);
 		goto leave;
 	}
 
@@ -510,8 +508,6 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	return ret;
 
 leave:
-	if (need_unlock)
-		up_write(&dev_replace->rwsem);
 	btrfs_destroy_dev_replace_tgtdev(tgt_device);
 	return ret;
 }
@@ -678,7 +674,6 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	btrfs_device_set_disk_total_bytes(tgt_device,
 					  src_device->disk_total_bytes);
 	btrfs_device_set_bytes_used(tgt_device, src_device->bytes_used);
-	tgt_device->commit_total_bytes = src_device->commit_total_bytes;
 	tgt_device->commit_bytes_used = src_device->bytes_used;
 
 	btrfs_assign_next_active_device(src_device, tgt_device);
@@ -728,7 +723,7 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 						struct btrfs_device *srcdev,
 						struct btrfs_device *tgtdev)
 {
-	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	u64 start = 0;

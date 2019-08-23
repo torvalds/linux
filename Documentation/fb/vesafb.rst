@@ -30,7 +30,7 @@ How to use it?
 ==============
 
 Switching modes is done using the vga=... boot parameter.  Read
-Documentation/svga.txt for details.
+Documentation/admin-guide/svga.rst for details.
 
 You should compile in both vgacon (for text mode) and vesafb (for
 graphics mode). Which of them takes over the console depends on

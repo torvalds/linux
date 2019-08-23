@@ -368,15 +368,12 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			break;
 
 		default:
-			/* Other ethtype - we need check the masks for the
-			 * remainder of the key to ensure we can offload.
-			 */
-			if (nfp_flower_check_higher_than_mac(flow)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: non IPv4/IPv6 offload with L3/L4 matches not supported");
-				return -EOPNOTSUPP;
-			}
-			break;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on given EtherType is not supported");
+			return -EOPNOTSUPP;
 		}
+	} else if (nfp_flower_check_higher_than_mac(flow)) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match above L2 without specified EtherType");
+		return -EOPNOTSUPP;
 	}
 
 	if (basic.mask && basic.mask->ip_proto) {
@@ -389,16 +386,13 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			key_layer |= NFP_FLOWER_LAYER_TP;
 			key_size += sizeof(struct nfp_flower_tp_ports);
 			break;
-		default:
-			/* Other ip proto - we need check the masks for the
-			 * remainder of the key to ensure we can offload.
-			 */
-			if (nfp_flower_check_higher_than_l3(flow)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unknown IP protocol with L4 matches not supported");
-				return -EOPNOTSUPP;
-			}
-			break;
 		}
+	}
+
+	if (!(key_layer & NFP_FLOWER_LAYER_TP) &&
+	    nfp_flower_check_higher_than_l3(flow)) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match on L4 information without specified IP protocol type");
+		return -EOPNOTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP)) {
@@ -1324,8 +1318,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 					  &nfp_block_cb_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_tc_block_cb,
 					       repr, repr, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
@@ -1334,7 +1327,8 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 		list_add_tail(&block_cb->driver_list, &nfp_block_cb_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_lookup(f->block,
+						nfp_flower_setup_tc_block_cb,
 						repr);
 		if (!block_cb)
 			return -ENOENT;
@@ -1430,8 +1424,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		cb_priv->app = app;
 		list_add(&cb_priv->list, &priv->indr_block_cb_priv);
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_indr_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_indr_block_cb,
 					       cb_priv, cb_priv,
 					       nfp_flower_setup_indr_tc_release);
 		if (IS_ERR(block_cb)) {
@@ -1448,7 +1441,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		if (!cb_priv)
 			return -ENOENT;
 
-		block_cb = flow_block_cb_lookup(f,
+		block_cb = flow_block_cb_lookup(f->block,
 						nfp_flower_setup_indr_block_cb,
 						cb_priv);
 		if (!block_cb)

@@ -305,19 +305,26 @@ config DEBUG_FS
 
 	  If unsure, say N.
 
-config HEADERS_CHECK
-	bool "Run 'make headers_check' when building vmlinux"
+config HEADERS_INSTALL
+	bool "Install uapi headers to usr/include"
 	depends on !UML
 	help
-	  This option will extract the user-visible kernel headers whenever
-	  building the kernel, and will run basic sanity checks on them to
-	  ensure that exported files do not attempt to include files which
-	  were not exported, etc.
+	  This option will install uapi headers (headers exported to user-space)
+	  into the usr/include directory for use during the kernel build.
+	  This is unneeded for building the kernel itself, but needed for some
+	  user-space program samples. It is also needed by some features such
+	  as uapi header sanity checks.
+
+config HEADERS_CHECK
+	bool "Run sanity checks on uapi headers when building 'all'"
+	depends on HEADERS_INSTALL
+	help
+	  This option will run basic sanity checks on uapi headers when
+	  building the 'all' target, for example, ensure that they do not
+	  attempt to include files which were not exported, etc.
 
 	  If you're making modifications to header files which are
-	  relevant for userspace, say 'Y', and check the headers
-	  exported to $(INSTALL_HDR_PATH) (usually 'usr/include' in
-	  your build tree), to make sure they're suitable.
+	  relevant for userspace, say 'Y'.
 
 config OPTIMIZE_INLINING
 	bool "Allow compiler to uninline functions marked 'inline'"
@@ -346,23 +353,13 @@ config DEBUG_SECTION_MISMATCH
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
-	  additional steps to occur:
+	  additional step to occur:
 	  - Add the option -fno-inline-functions-called-once to gcc commands.
 	    When inlining a function annotated with __init in a non-init
 	    function, we would lose the section information and thus
 	    the analysis would not catch the illegal reference.
 	    This option tells gcc to inline less (but it does result in
 	    a larger kernel).
-	  - Run the section mismatch analysis for each module/built-in.a file.
-	    When we run the section mismatch analysis on vmlinux.o, we
-	    lose valuable information about where the mismatch was
-	    introduced.
-	    Running the analysis for each module/built-in.a file
-	    tells where the mismatch happens much closer to the
-	    source. The drawback is that the same mismatch is
-	    reported at least twice.
-	  - Enable verbose reporting from modpost in order to help resolve
-	    the section mismatches that are reported.
 
 config SECTION_MISMATCH_WARN_ONLY
 	bool "Make section mismatch errors non-fatal"
@@ -1132,7 +1129,7 @@ config PROVE_LOCKING
 	 the proof of observed correctness is also maintained for an
 	 arbitrary combination of these separate locking variants.
 
-	 For more details, see Documentation/locking/lockdep-design.txt.
+	 For more details, see Documentation/locking/lockdep-design.rst.
 
 config LOCK_STAT
 	bool "Lock usage statistics"
@@ -1146,7 +1143,7 @@ config LOCK_STAT
 	help
 	 This feature enables tracking lock contention points
 
-	 For more details, see Documentation/locking/lockstat.txt
+	 For more details, see Documentation/locking/lockstat.rst
 
 	 This also enables lock events required by "perf lock",
 	 subcommand of perf.
@@ -2066,6 +2063,14 @@ config TEST_STACKINIT
 	  padding. Coverage is controlled by compiler flags,
 	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
 	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
+
+	  If unsure, say N.
+
+config TEST_MEMINIT
+	tristate "Test heap/page initialization"
+	help
+	  Test if the kernel is zero-initializing heap and page allocations.
+	  This can be useful to test init_on_alloc and init_on_free features.
 
 	  If unsure, say N.
 

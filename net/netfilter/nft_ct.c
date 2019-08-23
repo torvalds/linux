@@ -1252,7 +1252,7 @@ static void nft_ct_expect_obj_eval(struct nft_object *obj,
 		          priv->l4proto, NULL, &priv->dport);
 	exp->timeout.expires = jiffies + priv->timeout * HZ;
 
-	if (nf_ct_expect_related(exp) != 0)
+	if (nf_ct_expect_related(exp, 0) != 0)
 		regs->verdict.code = NF_DROP;
 }
 

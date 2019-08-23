@@ -197,7 +197,7 @@ Required nodes:
 The description for the board must include:
    - a "psci" node describing the boot method used for the secondary CPUs.
      A detailed description of the bindings used for "psci" nodes is present
-     in the psci.txt file.
+     in the psci.yaml file.
    - a "cpus" node describing the available cores and their associated
      "enable-method"s. For more details see cpus.txt file.
 

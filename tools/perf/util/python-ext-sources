@@ -18,6 +18,7 @@ util/namespaces.c
 ../lib/hweight.c
 ../lib/string.c
 ../lib/vsprintf.c
+../lib/zalloc.c
 util/thread_map.c
 util/util.c
 util/xyarray.c

@@ -558,7 +558,7 @@ int rxe_completer(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	struct rxe_send_wqe *wqe = wqe;
+	struct rxe_send_wqe *wqe = NULL;
 	struct sk_buff *skb = NULL;
 	struct rxe_pkt_info *pkt = NULL;
 	enum comp_state state;

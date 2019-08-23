@@ -1378,10 +1378,8 @@ static int __init init_coh901318_debugfs(void)
 
 	dma_dentry = debugfs_create_dir("dma", NULL);
 
-	(void) debugfs_create_file("status",
-				   S_IFREG | S_IRUGO,
-				   dma_dentry, NULL,
-				   &coh901318_debugfs_status_operations);
+	debugfs_create_file("status", S_IFREG | S_IRUGO, dma_dentry, NULL,
+			    &coh901318_debugfs_status_operations);
 	return 0;
 }
 

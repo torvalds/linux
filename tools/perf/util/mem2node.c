@@ -1,8 +1,8 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/bitmap.h>
+#include <linux/zalloc.h>
 #include "mem2node.h"
-#include "util.h"
 
 struct phys_entry {
 	struct rb_node	rb_node;

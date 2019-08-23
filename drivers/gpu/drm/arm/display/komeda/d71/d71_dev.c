@@ -280,7 +280,7 @@ static int d71_change_opmode(struct komeda_dev *mdev, int new_mode)
 	ret = dp_wait_cond(((malidp_read32(d71->gcu_addr, BLK_CONTROL) & 0x7) == opmode),
 			   100, 1000, 10000);
 
-	return ret > 0 ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 static void d71_flush(struct komeda_dev *mdev,
@@ -304,7 +304,7 @@ static int d71_reset(struct d71_dev *d71)
 	ret = dp_wait_cond(!(malidp_read32(gcu, BLK_CONTROL) & GCU_CONTROL_SRST),
 			   100, 1000, 10000);
 
-	return ret > 0 ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 void d71_read_block_header(u32 __iomem *reg, struct block_header *blk)
@@ -390,7 +390,7 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 
 	for (i = 0; i < d71->num_pipelines; i++) {
 		pipe = komeda_pipeline_add(mdev, sizeof(struct d71_pipeline),
-					   NULL);
+					   &d71_pipeline_funcs);
 		if (IS_ERR(pipe)) {
 			err = PTR_ERR(pipe);
 			goto err_cleanup;
@@ -447,59 +447,117 @@ err_cleanup:
 #define AFB_TH_SC_YTR_BS AFBC(_TILED | _SC | _SPARSE | _YTR | _SPLIT)
 
 static struct komeda_format_caps d71_format_caps_table[] = {
-	/*   HW_ID    |        fourcc        | tile_sz |   layer_types |   rots    | afbc_layouts | afbc_features */
+	/*   HW_ID    |        fourcc         |   layer_types |   rots    | afbc_layouts | afbc_features */
 	/* ABGR_2101010*/
-	{__HW_ID(0, 0),	DRM_FORMAT_ARGB2101010,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(0, 1),	DRM_FORMAT_ABGR2101010,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(0, 1),	DRM_FORMAT_ABGR2101010,	1,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */
-	{__HW_ID(0, 2),	DRM_FORMAT_RGBA1010102,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(0, 3),	DRM_FORMAT_BGRA1010102,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(0, 0),	DRM_FORMAT_ARGB2101010,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(0, 1),	DRM_FORMAT_ABGR2101010,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(0, 1),	DRM_FORMAT_ABGR2101010,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */
+	{__HW_ID(0, 2),	DRM_FORMAT_RGBA1010102,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(0, 3),	DRM_FORMAT_BGRA1010102,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
 	/* ABGR_8888*/
-	{__HW_ID(1, 0),	DRM_FORMAT_ARGB8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(1, 1),	DRM_FORMAT_ABGR8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(1, 1),	DRM_FORMAT_ABGR8888,	1,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */
-	{__HW_ID(1, 2),	DRM_FORMAT_RGBA8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(1, 3),	DRM_FORMAT_BGRA8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(1, 0),	DRM_FORMAT_ARGB8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(1, 1),	DRM_FORMAT_ABGR8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(1, 1),	DRM_FORMAT_ABGR8888,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */
+	{__HW_ID(1, 2),	DRM_FORMAT_RGBA8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(1, 3),	DRM_FORMAT_BGRA8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
 	/* XBGB_8888 */
-	{__HW_ID(2, 0),	DRM_FORMAT_XRGB8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(2, 1),	DRM_FORMAT_XBGR8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(2, 2),	DRM_FORMAT_RGBX8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	{__HW_ID(2, 3),	DRM_FORMAT_BGRX8888,	1,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(2, 0),	DRM_FORMAT_XRGB8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(2, 1),	DRM_FORMAT_XBGR8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(2, 2),	DRM_FORMAT_RGBX8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
+	{__HW_ID(2, 3),	DRM_FORMAT_BGRX8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
 	/* BGR_888 */ /* none-afbc RGB888 doesn't support rotation and flip */
-	{__HW_ID(3, 0),	DRM_FORMAT_RGB888,	1,	RICH_SIMPLE_WB,	Rot_0,			0, 0},
-	{__HW_ID(3, 1),	DRM_FORMAT_BGR888,	1,	RICH_SIMPLE_WB,	Rot_0,			0, 0},
-	{__HW_ID(3, 1),	DRM_FORMAT_BGR888,	1,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */
+	{__HW_ID(3, 0),	DRM_FORMAT_RGB888,	RICH_SIMPLE_WB,	Rot_0,			0, 0},
+	{__HW_ID(3, 1),	DRM_FORMAT_BGR888,	RICH_SIMPLE_WB,	Rot_0,			0, 0},
+	{__HW_ID(3, 1),	DRM_FORMAT_BGR888,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */
 	/* BGR 16bpp */
-	{__HW_ID(4, 0),	DRM_FORMAT_RGBA5551,	1,	RICH_SIMPLE,	Flip_H_V,		0, 0},
-	{__HW_ID(4, 1),	DRM_FORMAT_ABGR1555,	1,	RICH_SIMPLE,	Flip_H_V,		0, 0},
-	{__HW_ID(4, 1),	DRM_FORMAT_ABGR1555,	1,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR}, /* afbc */
-	{__HW_ID(4, 2),	DRM_FORMAT_RGB565,	1,	RICH_SIMPLE,	Flip_H_V,		0, 0},
-	{__HW_ID(4, 3),	DRM_FORMAT_BGR565,	1,	RICH_SIMPLE,	Flip_H_V,		0, 0},
-	{__HW_ID(4, 3),	DRM_FORMAT_BGR565,	1,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR}, /* afbc */
-	{__HW_ID(4, 4), DRM_FORMAT_R8,		1,	SIMPLE,		Rot_0,			0, 0},
+	{__HW_ID(4, 0),	DRM_FORMAT_RGBA5551,	RICH_SIMPLE,	Flip_H_V,		0, 0},
+	{__HW_ID(4, 1),	DRM_FORMAT_ABGR1555,	RICH_SIMPLE,	Flip_H_V,		0, 0},
+	{__HW_ID(4, 1),	DRM_FORMAT_ABGR1555,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR}, /* afbc */
+	{__HW_ID(4, 2),	DRM_FORMAT_RGB565,	RICH_SIMPLE,	Flip_H_V,		0, 0},
+	{__HW_ID(4, 3),	DRM_FORMAT_BGR565,	RICH_SIMPLE,	Flip_H_V,		0, 0},
+	{__HW_ID(4, 3),	DRM_FORMAT_BGR565,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR}, /* afbc */
+	{__HW_ID(4, 4), DRM_FORMAT_R8,		SIMPLE,		Rot_0,			0, 0},
 	/* YUV 444/422/420 8bit  */
-	{__HW_ID(5, 0),	0 /*XYUV8888*/,		1,	0,		0,			0, 0},
-	/* XYUV unsupported*/
-	{__HW_ID(5, 1),	DRM_FORMAT_YUYV,	1,	RICH,		Rot_ALL_H_V,	LYT_NM, AFB_TH}, /* afbc */
-	{__HW_ID(5, 2),	DRM_FORMAT_YUYV,	1,	RICH,		Flip_H_V,		0, 0},
-	{__HW_ID(5, 3),	DRM_FORMAT_UYVY,	1,	RICH,		Flip_H_V,		0, 0},
-	{__HW_ID(5, 4),	0, /*X0L0 */		2,		0,			0, 0}, /* Y0L0 unsupported */
-	{__HW_ID(5, 6),	DRM_FORMAT_NV12,	1,	RICH,		Flip_H_V,		0, 0},
-	{__HW_ID(5, 6),	0/*DRM_FORMAT_YUV420_8BIT*/,	1,	RICH,	Rot_ALL_H_V,	LYT_NM, AFB_TH}, /* afbc */
-	{__HW_ID(5, 7),	DRM_FORMAT_YUV420,	1,	RICH,		Flip_H_V,		0, 0},
+	{__HW_ID(5, 1),	DRM_FORMAT_YUYV,	RICH,		Rot_ALL_H_V,	LYT_NM, AFB_TH}, /* afbc */
+	{__HW_ID(5, 2),	DRM_FORMAT_YUYV,	RICH,		Flip_H_V,		0, 0},
+	{__HW_ID(5, 3),	DRM_FORMAT_UYVY,	RICH,		Flip_H_V,		0, 0},
+	{__HW_ID(5, 6),	DRM_FORMAT_NV12,	RICH,		Flip_H_V,		0, 0},
+	{__HW_ID(5, 6),	DRM_FORMAT_YUV420_8BIT,	RICH,		Rot_ALL_H_V,	LYT_NM, AFB_TH}, /* afbc */
+	{__HW_ID(5, 7),	DRM_FORMAT_YUV420,	RICH,		Flip_H_V,		0, 0},
 	/* YUV 10bit*/
-	{__HW_ID(6, 0),	0,/*XVYU2101010*/	1,	0,		0,			0, 0},/* VYV30 unsupported */
-	{__HW_ID(6, 6),	0/*DRM_FORMAT_X0L2*/,	2,	RICH,		Flip_H_V,		0, 0},
-	{__HW_ID(6, 7),	0/*DRM_FORMAT_P010*/,	1,	RICH,		Flip_H_V,		0, 0},
-	{__HW_ID(6, 7),	0/*DRM_FORMAT_YUV420_10BIT*/, 1,	RICH,	Rot_ALL_H_V,	LYT_NM, AFB_TH},
+	{__HW_ID(6, 6),	DRM_FORMAT_X0L2,	RICH,		Flip_H_V,		0, 0},
+	{__HW_ID(6, 7),	DRM_FORMAT_P010,	RICH,		Flip_H_V,		0, 0},
+	{__HW_ID(6, 7),	DRM_FORMAT_YUV420_10BIT, RICH,		Rot_ALL_H_V,	LYT_NM, AFB_TH},
 };
+
+static bool d71_format_mod_supported(const struct komeda_format_caps *caps,
+				     u32 layer_type, u64 modifier, u32 rot)
+{
+	uint64_t layout = modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK;
+
+	if ((layout == AFBC_FORMAT_MOD_BLOCK_SIZE_32x8) &&
+	    drm_rotation_90_or_270(rot)) {
+		DRM_DEBUG_ATOMIC("D71 doesn't support ROT90 for WB-AFBC.\n");
+		return false;
+	}
+
+	return true;
+}
 
 static void d71_init_fmt_tbl(struct komeda_dev *mdev)
 {
 	struct komeda_format_caps_table *table = &mdev->fmt_tbl;
 
 	table->format_caps = d71_format_caps_table;
+	table->format_mod_supported = d71_format_mod_supported;
 	table->n_formats = ARRAY_SIZE(d71_format_caps_table);
+}
+
+static int d71_connect_iommu(struct komeda_dev *mdev)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 __iomem *reg = d71->gcu_addr;
+	u32 check_bits = (d71->num_pipelines == 2) ?
+			 GCU_STATUS_TCS0 | GCU_STATUS_TCS1 : GCU_STATUS_TCS0;
+	int i, ret;
+
+	if (!d71->integrates_tbu)
+		return -1;
+
+	malidp_write32_mask(reg, BLK_CONTROL, 0x7, TBU_CONNECT_MODE);
+
+	ret = dp_wait_cond(has_bits(check_bits, malidp_read32(reg, BLK_STATUS)),
+			100, 1000, 1000);
+	if (ret < 0) {
+		DRM_ERROR("timed out connecting to TCU!\n");
+		malidp_write32_mask(reg, BLK_CONTROL, 0x7, INACTIVE_MODE);
+		return ret;
+	}
+
+	for (i = 0; i < d71->num_pipelines; i++)
+		malidp_write32_mask(d71->pipes[i]->lpu_addr, LPU_TBU_CONTROL,
+				    LPU_TBU_CTRL_TLBPEN, LPU_TBU_CTRL_TLBPEN);
+	return 0;
+}
+
+static int d71_disconnect_iommu(struct komeda_dev *mdev)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 __iomem *reg = d71->gcu_addr;
+	u32 check_bits = (d71->num_pipelines == 2) ?
+			 GCU_STATUS_TCS0 | GCU_STATUS_TCS1 : GCU_STATUS_TCS0;
+	int ret;
+
+	malidp_write32_mask(reg, BLK_CONTROL, 0x7, TBU_DISCONNECT_MODE);
+
+	ret = dp_wait_cond(((malidp_read32(reg, BLK_STATUS) & check_bits) == 0),
+			100, 1000, 1000);
+	if (ret < 0) {
+		DRM_ERROR("timed out disconnecting from TCU!\n");
+		malidp_write32_mask(reg, BLK_CONTROL, 0x7, INACTIVE_MODE);
+	}
+
+	return ret;
 }
 
 static const struct komeda_dev_funcs d71_chip_funcs = {
@@ -512,6 +570,8 @@ static const struct komeda_dev_funcs d71_chip_funcs = {
 	.on_off_vblank	= d71_on_off_vblank,
 	.change_opmode	= d71_change_opmode,
 	.flush		= d71_flush,
+	.connect_iommu	= d71_connect_iommu,
+	.disconnect_iommu = d71_disconnect_iommu,
 };
 
 const struct komeda_dev_funcs *

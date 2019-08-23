@@ -23,16 +23,17 @@ properties:
   reg:
     maxItems: 1
 
-  ti,linear-mapping-mode:
-    description: |
-      Enable linear mapping mode. If disabled, then it will use exponential
-      mapping mode in which the ramp up/down appears to have a more uniform
-      transition to the human eye.
-    type: boolean
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
 
 required:
   - compatible
   - reg
+  - '#address-cells'
+  - '#size-cells'
 
 patternProperties:
   "^led@[01]$":
@@ -48,7 +49,6 @@ patternProperties:
           in this property. The two current sinks can be controlled
           independently with both banks, or bank A can be configured to control
           both sinks with the led-sources property.
-        maxItems: 1
         minimum: 0
         maximum: 1
 
@@ -72,6 +72,13 @@ patternProperties:
         description: Maximum brightness that is allowed during runtime.
         minimum: 0
         maximum: 255
+
+      ti,linear-mapping-mode:
+        description: |
+          Enable linear mapping mode. If disabled, then it will use exponential
+          mapping mode in which the ramp up/down appears to have a more uniform
+          transition to the human eye.
+        type: boolean
 
     required:
       - reg

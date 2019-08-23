@@ -15,7 +15,7 @@ config SYNC_FILE
 	  associated with a buffer. When a job is submitted to the GPU a fence
 	  is attached to the buffer and is transferred via userspace, using Sync
 	  Files fds, to the DRM driver for example. More details at
-	  Documentation/sync_file.txt.
+	  Documentation/driver-api/sync_file.rst.
 
 config SW_SYNC
 	bool "Sync File Validation Framework"

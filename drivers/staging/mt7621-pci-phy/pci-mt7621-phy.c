@@ -16,10 +16,6 @@
 #include <mt7621.h>
 #include <ralink_regs.h>
 
-#define RALINK_CLKCFG1				0x30
-
-#define PCIE_PORT_CLK_EN(x)			BIT(24 + (x))
-
 #define RG_PE1_PIPE_REG				0x02c
 #define RG_PE1_PIPE_RST				BIT(12)
 #define RG_PE1_PIPE_CMD_FRC			BIT(4)
@@ -286,10 +282,6 @@ static int mt7621_pci_phy_power_off(struct phy *phy)
 
 static int mt7621_pci_phy_exit(struct phy *phy)
 {
-	struct mt7621_pci_phy_instance *instance = phy_get_drvdata(phy);
-
-	rt_sysc_m32(PCIE_PORT_CLK_EN(instance->index), 0, RALINK_CLKCFG1);
-
 	return 0;
 }
 

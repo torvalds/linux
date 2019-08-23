@@ -6,8 +6,10 @@
  *          for STMicroelectronics.
  */
 
-#include <drm/drmP.h>
+#include <linux/types.h>
+
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "sti_compositor.h"

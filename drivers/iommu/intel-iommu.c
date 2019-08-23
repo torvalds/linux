@@ -339,8 +339,6 @@ static void domain_exit(struct dmar_domain *domain);
 static void domain_remove_dev_info(struct dmar_domain *domain);
 static void dmar_remove_one_dev_info(struct device *dev);
 static void __dmar_remove_one_dev_info(struct device_domain_info *info);
-static void domain_context_clear(struct intel_iommu *iommu,
-				 struct device *dev);
 static int domain_detach_iommu(struct dmar_domain *domain,
 			       struct intel_iommu *iommu);
 static bool device_is_rmrr_locked(struct device *dev);
@@ -1833,9 +1831,65 @@ static inline int guestwidth_to_adjustwidth(int gaw)
 	return agaw;
 }
 
+static int domain_init(struct dmar_domain *domain, struct intel_iommu *iommu,
+		       int guest_width)
+{
+	int adjust_width, agaw;
+	unsigned long sagaw;
+	int err;
+
+	init_iova_domain(&domain->iovad, VTD_PAGE_SIZE, IOVA_START_PFN);
+
+	err = init_iova_flush_queue(&domain->iovad,
+				    iommu_flush_iova, iova_entry_free);
+	if (err)
+		return err;
+
+	domain_reserve_special_ranges(domain);
+
+	/* calculate AGAW */
+	if (guest_width > cap_mgaw(iommu->cap))
+		guest_width = cap_mgaw(iommu->cap);
+	domain->gaw = guest_width;
+	adjust_width = guestwidth_to_adjustwidth(guest_width);
+	agaw = width_to_agaw(adjust_width);
+	sagaw = cap_sagaw(iommu->cap);
+	if (!test_bit(agaw, &sagaw)) {
+		/* hardware doesn't support it, choose a bigger one */
+		pr_debug("Hardware doesn't support agaw %d\n", agaw);
+		agaw = find_next_bit(&sagaw, 5, agaw);
+		if (agaw >= 5)
+			return -ENODEV;
+	}
+	domain->agaw = agaw;
+
+	if (ecap_coherent(iommu->ecap))
+		domain->iommu_coherency = 1;
+	else
+		domain->iommu_coherency = 0;
+
+	if (ecap_sc_support(iommu->ecap))
+		domain->iommu_snooping = 1;
+	else
+		domain->iommu_snooping = 0;
+
+	if (intel_iommu_superpage)
+		domain->iommu_superpage = fls(cap_super_page_val(iommu->cap));
+	else
+		domain->iommu_superpage = 0;
+
+	domain->nid = iommu->node;
+
+	/* always allocate the top pgd */
+	domain->pgd = (struct dma_pte *)alloc_pgtable_page(domain->nid);
+	if (!domain->pgd)
+		return -ENOMEM;
+	__iommu_flush_cache(iommu, domain->pgd, PAGE_SIZE);
+	return 0;
+}
+
 static void domain_exit(struct dmar_domain *domain)
 {
-	struct page *freelist;
 
 	/* Remove associated devices and clear attached or cached domains */
 	domain_remove_dev_info(domain);
@@ -1843,9 +1897,12 @@ static void domain_exit(struct dmar_domain *domain)
 	/* destroy iovas */
 	put_iova_domain(&domain->iovad);
 
-	freelist = domain_unmap(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
+	if (domain->pgd) {
+		struct page *freelist;
 
-	dma_free_pagelist(freelist);
+		freelist = domain_unmap(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
+		dma_free_pagelist(freelist);
+	}
 
 	free_domain_mem(domain);
 }
@@ -2048,26 +2105,9 @@ out_unlock:
 	return ret;
 }
 
-struct domain_context_mapping_data {
-	struct dmar_domain *domain;
-	struct intel_iommu *iommu;
-	struct pasid_table *table;
-};
-
-static int domain_context_mapping_cb(struct pci_dev *pdev,
-				     u16 alias, void *opaque)
-{
-	struct domain_context_mapping_data *data = opaque;
-
-	return domain_context_mapping_one(data->domain, data->iommu,
-					  data->table, PCI_BUS_NUM(alias),
-					  alias & 0xff);
-}
-
 static int
 domain_context_mapping(struct dmar_domain *domain, struct device *dev)
 {
-	struct domain_context_mapping_data data;
 	struct pasid_table *table;
 	struct intel_iommu *iommu;
 	u8 bus, devfn;
@@ -2077,17 +2117,7 @@ domain_context_mapping(struct dmar_domain *domain, struct device *dev)
 		return -ENODEV;
 
 	table = intel_pasid_get_table(dev);
-
-	if (!dev_is_pci(dev))
-		return domain_context_mapping_one(domain, iommu, table,
-						  bus, devfn);
-
-	data.domain = domain;
-	data.iommu = iommu;
-	data.table = table;
-
-	return pci_for_each_dma_alias(to_pci_dev(dev),
-				      &domain_context_mapping_cb, &data);
+	return domain_context_mapping_one(domain, iommu, table, bus, devfn);
 }
 
 static int domain_context_mapped_cb(struct pci_dev *pdev,
@@ -2513,31 +2543,6 @@ static int get_last_alias(struct pci_dev *pdev, u16 alias, void *opaque)
 	return 0;
 }
 
-static int domain_init(struct dmar_domain *domain, int guest_width)
-{
-	int adjust_width;
-
-	init_iova_domain(&domain->iovad, VTD_PAGE_SIZE, IOVA_START_PFN);
-	domain_reserve_special_ranges(domain);
-
-	/* calculate AGAW */
-	domain->gaw = guest_width;
-	adjust_width = guestwidth_to_adjustwidth(guest_width);
-	domain->agaw = width_to_agaw(adjust_width);
-
-	domain->iommu_coherency = 0;
-	domain->iommu_snooping = 0;
-	domain->iommu_superpage = 0;
-	domain->max_addr = 0;
-
-	/* always allocate the top pgd */
-	domain->pgd = (struct dma_pte *)alloc_pgtable_page(domain->nid);
-	if (!domain->pgd)
-		return -ENOMEM;
-	domain_flush_cache(domain, domain->pgd, PAGE_SIZE);
-	return 0;
-}
-
 static struct dmar_domain *find_or_alloc_domain(struct device *dev, int gaw)
 {
 	struct device_domain_info *info;
@@ -2575,17 +2580,9 @@ static struct dmar_domain *find_or_alloc_domain(struct device *dev, int gaw)
 	domain = alloc_domain(0);
 	if (!domain)
 		return NULL;
-
-	if (domain_init(domain, gaw)) {
+	if (domain_init(domain, iommu, gaw)) {
 		domain_exit(domain);
 		return NULL;
-	}
-
-	if (init_iova_flush_queue(&domain->iovad,
-				  iommu_flush_iova,
-				  iova_entry_free)) {
-		pr_warn("iova flush queue initialization failed\n");
-		intel_iommu_strict = 1;
 	}
 
 out:
@@ -2692,6 +2689,8 @@ static int domain_prepare_identity_map(struct device *dev,
 	return iommu_domain_identity_map(domain, start, end);
 }
 
+static int md_domain_init(struct dmar_domain *domain, int guest_width);
+
 static int __init si_domain_init(int hw)
 {
 	struct dmar_rmrr_unit *rmrr;
@@ -2702,7 +2701,7 @@ static int __init si_domain_init(int hw)
 	if (!si_domain)
 		return -EFAULT;
 
-	if (domain_init(si_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
+	if (md_domain_init(si_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		domain_exit(si_domain);
 		return -EFAULT;
 	}
@@ -3450,6 +3449,7 @@ static bool iommu_need_mapping(struct device *dev)
 				dmar_domain = to_dmar_domain(domain);
 				dmar_domain->flags |= DOMAIN_FLAG_LOSE_CHILDREN;
 			}
+			dmar_remove_one_dev_info(dev);
 			get_private_domain_for_dev(dev);
 		}
 
@@ -3564,7 +3564,8 @@ static void intel_unmap(struct device *dev, dma_addr_t dev_addr, size_t size)
 
 	freelist = domain_unmap(domain, start_pfn, last_pfn);
 
-	if (intel_iommu_strict || (pdev && pdev->untrusted)) {
+	if (intel_iommu_strict || (pdev && pdev->untrusted) ||
+			!has_iova_flush_queue(&domain->iovad)) {
 		iommu_flush_iotlb_psi(iommu, domain, start_pfn,
 				      nrpages, !freelist, 0);
 		/* free iova */
@@ -4758,28 +4759,6 @@ out_free_dmar:
 	return ret;
 }
 
-static int domain_context_clear_one_cb(struct pci_dev *pdev, u16 alias, void *opaque)
-{
-	struct intel_iommu *iommu = opaque;
-
-	domain_context_clear_one(iommu, PCI_BUS_NUM(alias), alias & 0xff);
-	return 0;
-}
-
-/*
- * NB - intel-iommu lacks any sort of reference counting for the users of
- * dependent devices.  If multiple endpoints have intersecting dependent
- * devices, unbinding the driver from any one of them will possibly leave
- * the others unable to operate.
- */
-static void domain_context_clear(struct intel_iommu *iommu, struct device *dev)
-{
-	if (!iommu || !dev || !dev_is_pci(dev))
-		return;
-
-	pci_for_each_dma_alias(to_pci_dev(dev), &domain_context_clear_one_cb, iommu);
-}
-
 static void __dmar_remove_one_dev_info(struct device_domain_info *info)
 {
 	struct dmar_domain *domain;
@@ -4800,7 +4779,7 @@ static void __dmar_remove_one_dev_info(struct device_domain_info *info)
 					PASID_RID2PASID);
 
 		iommu_disable_dev_iotlb(info);
-		domain_context_clear(iommu, info->dev);
+		domain_context_clear_one(iommu, info->bus, info->devfn);
 		intel_pasid_free_table(info->dev);
 	}
 
@@ -4812,7 +4791,8 @@ static void __dmar_remove_one_dev_info(struct device_domain_info *info)
 
 	/* free the private domain */
 	if (domain->flags & DOMAIN_FLAG_LOSE_CHILDREN &&
-	    !(domain->flags & DOMAIN_FLAG_STATIC_IDENTITY))
+	    !(domain->flags & DOMAIN_FLAG_STATIC_IDENTITY) &&
+	    list_empty(&domain->devices))
 		domain_exit(info->domain);
 
 	free_devinfo_mem(info);
@@ -4825,8 +4805,34 @@ static void dmar_remove_one_dev_info(struct device *dev)
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	info = dev->archdata.iommu;
-	__dmar_remove_one_dev_info(info);
+	if (info)
+		__dmar_remove_one_dev_info(info);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
+}
+
+static int md_domain_init(struct dmar_domain *domain, int guest_width)
+{
+	int adjust_width;
+
+	init_iova_domain(&domain->iovad, VTD_PAGE_SIZE, IOVA_START_PFN);
+	domain_reserve_special_ranges(domain);
+
+	/* calculate AGAW */
+	domain->gaw = guest_width;
+	adjust_width = guestwidth_to_adjustwidth(guest_width);
+	domain->agaw = width_to_agaw(adjust_width);
+
+	domain->iommu_coherency = 0;
+	domain->iommu_snooping = 0;
+	domain->iommu_superpage = 0;
+	domain->max_addr = 0;
+
+	/* always allocate the top pgd */
+	domain->pgd = (struct dma_pte *)alloc_pgtable_page(domain->nid);
+	if (!domain->pgd)
+		return -ENOMEM;
+	domain_flush_cache(domain, domain->pgd, PAGE_SIZE);
+	return 0;
 }
 
 static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
@@ -4843,7 +4849,7 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 			pr_err("Can't allocate dmar_domain\n");
 			return NULL;
 		}
-		if (domain_init(dmar_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
+		if (md_domain_init(dmar_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 			pr_err("Domain initialization failed\n");
 			domain_exit(dmar_domain);
 			return NULL;
@@ -5278,6 +5284,7 @@ static int intel_iommu_add_device(struct device *dev)
 		if (device_def_domain_type(dev) == IOMMU_DOMAIN_IDENTITY) {
 			ret = iommu_request_dm_for_dev(dev);
 			if (ret) {
+				dmar_remove_one_dev_info(dev);
 				dmar_domain->flags |= DOMAIN_FLAG_LOSE_CHILDREN;
 				domain_add_dev_info(si_domain, dev);
 				dev_info(dev,
@@ -5288,6 +5295,7 @@ static int intel_iommu_add_device(struct device *dev)
 		if (device_def_domain_type(dev) == IOMMU_DOMAIN_DMA) {
 			ret = iommu_request_dma_domain_for_dev(dev);
 			if (ret) {
+				dmar_remove_one_dev_info(dev);
 				dmar_domain->flags |= DOMAIN_FLAG_LOSE_CHILDREN;
 				if (!get_private_domain_for_dev(dev)) {
 					dev_warn(dev,
@@ -5312,6 +5320,8 @@ static void intel_iommu_remove_device(struct device *dev)
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return;
+
+	dmar_remove_one_dev_info(dev);
 
 	iommu_group_remove_device(dev);
 

@@ -805,7 +805,8 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         swp[0x1];
 	u8         swp_csum[0x1];
 	u8         swp_lso[0x1];
-	u8         reserved_at_23[0xd];
+	u8         cqe_checksum_full[0x1];
+	u8         reserved_at_24[0xc];
 	u8         max_vxlan_udp_ports[0x8];
 	u8         reserved_at_38[0x6];
 	u8         max_geneve_opt_len[0x1];
@@ -1390,7 +1391,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   reserved_at_6c8[0x28];
 	u8	   sf_base_id[0x10];
 
-	u8	   reserved_at_700[0x100];
+	u8	   reserved_at_700[0x80];
+	u8	   vhca_tunnel_commands[0x40];
+	u8	   reserved_at_7c0[0x40];
 };
 
 enum mlx5_flow_destination_type {
@@ -5972,10 +5975,12 @@ struct mlx5_ifc_modify_cq_in_bits {
 
 	struct mlx5_ifc_cqc_bits cq_context;
 
-	u8         reserved_at_280[0x40];
+	u8         reserved_at_280[0x60];
 
 	u8         cq_umem_valid[0x1];
-	u8         reserved_at_2c1[0x5bf];
+	u8         reserved_at_2e1[0x1f];
+
+	u8         reserved_at_300[0x580];
 
 	u8         pas[0][0x40];
 };
@@ -9694,7 +9699,7 @@ struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
 	u8         opcode[0x10];
 	u8         uid[0x10];
 
-	u8         reserved_at_20[0x10];
+	u8         vhca_tunnel_id[0x10];
 	u8         obj_type[0x10];
 
 	u8         obj_id[0x20];
@@ -10049,9 +10054,8 @@ struct mlx5_ifc_tls_static_params_bits {
 };
 
 struct mlx5_ifc_tls_progress_params_bits {
-	u8         valid[0x1];
-	u8         reserved_at_1[0x7];
-	u8         pd[0x18];
+	u8         reserved_at_0[0x8];
+	u8         tisn[0x18];
 
 	u8         next_record_tcp_sn[0x20];
 

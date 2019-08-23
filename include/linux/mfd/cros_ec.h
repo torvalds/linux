@@ -19,6 +19,7 @@
 #define CROS_EC_DEV_PD_NAME "cros_pd"
 #define CROS_EC_DEV_TP_NAME "cros_tp"
 #define CROS_EC_DEV_ISH_NAME "cros_ish"
+#define CROS_EC_DEV_SCP_NAME "cros_scp"
 
 /*
  * The EC is unresponsive for a time after a reboot command.  Add a
@@ -155,6 +156,7 @@ struct cros_ec_device {
 	struct ec_response_get_next_event_v1 event_data;
 	int event_size;
 	u32 host_event_wake_mask;
+	u32 last_resume_result;
 };
 
 /**

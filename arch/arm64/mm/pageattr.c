@@ -19,8 +19,7 @@ struct page_change_data {
 
 bool rodata_full __ro_after_init = IS_ENABLED(CONFIG_RODATA_FULL_DEFAULT_ENABLED);
 
-static int change_page_range(pte_t *ptep, pgtable_t token, unsigned long addr,
-			void *data)
+static int change_page_range(pte_t *ptep, unsigned long addr, void *data)
 {
 	struct page_change_data *cdata = data;
 	pte_t pte = READ_ONCE(*ptep);

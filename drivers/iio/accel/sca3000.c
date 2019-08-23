@@ -869,8 +869,9 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
 				    enum iio_event_info info,
 				    int *val, int *val2)
 {
-	int ret, i;
 	struct sca3000_state *st = iio_priv(indio_dev);
+	long ret;
+	int i;
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
@@ -882,11 +883,11 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
 			return ret;
 		*val = 0;
 		if (chan->channel2 == IIO_MOD_Y)
-			for_each_set_bit(i, (unsigned long *)&ret,
+			for_each_set_bit(i, &ret,
 					 ARRAY_SIZE(st->info->mot_det_mult_y))
 				*val += st->info->mot_det_mult_y[i];
 		else
-			for_each_set_bit(i, (unsigned long *)&ret,
+			for_each_set_bit(i, &ret,
 					 ARRAY_SIZE(st->info->mot_det_mult_xz))
 				*val += st->info->mot_det_mult_xz[i];
 

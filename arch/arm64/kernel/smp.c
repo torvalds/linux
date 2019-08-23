@@ -152,8 +152,8 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 				pr_crit("CPU%u: died during early boot\n", cpu);
 				break;
 			}
-			/* Fall through */
 			pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
+			/* Fall through */
 		case CPU_STUCK_IN_KERNEL:
 			pr_crit("CPU%u: is stuck in kernel\n", cpu);
 			if (status & CPU_STUCK_REASON_52_BIT_VA)
@@ -420,11 +420,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-	/*
-	 * Initialise the static keys early as they may be enabled by the
-	 * cpufeature code.
-	 */
-	jump_label_init();
 	cpuinfo_store_boot_cpu();
 
 	/*

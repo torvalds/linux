@@ -366,39 +366,25 @@ static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
 	debugfs_remove_recursive(indio_dev->debugfs_dentry);
 }
 
-static int iio_device_register_debugfs(struct iio_dev *indio_dev)
+static void iio_device_register_debugfs(struct iio_dev *indio_dev)
 {
-	struct dentry *d;
-
 	if (indio_dev->info->debugfs_reg_access == NULL)
-		return 0;
+		return;
 
 	if (!iio_debugfs_dentry)
-		return 0;
+		return;
 
 	indio_dev->debugfs_dentry =
 		debugfs_create_dir(dev_name(&indio_dev->dev),
 				   iio_debugfs_dentry);
-	if (indio_dev->debugfs_dentry == NULL) {
-		dev_warn(indio_dev->dev.parent,
-			 "Failed to create debugfs directory\n");
-		return -EFAULT;
-	}
 
-	d = debugfs_create_file("direct_reg_access", 0644,
-				indio_dev->debugfs_dentry,
-				indio_dev, &iio_debugfs_reg_fops);
-	if (!d) {
-		iio_device_unregister_debugfs(indio_dev);
-		return -ENOMEM;
-	}
-
-	return 0;
+	debugfs_create_file("direct_reg_access", 0644,
+			    indio_dev->debugfs_dentry, indio_dev,
+			    &iio_debugfs_reg_fops);
 }
 #else
-static int iio_device_register_debugfs(struct iio_dev *indio_dev)
+static void iio_device_register_debugfs(struct iio_dev *indio_dev)
 {
-	return 0;
 }
 
 static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
@@ -1104,6 +1090,8 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 	char *avail_postfix;
 
 	for_each_set_bit(i, infomask, sizeof(*infomask) * 8) {
+		if (i >= ARRAY_SIZE(iio_chan_info_postfix))
+			return -EINVAL;
 		avail_postfix = kasprintf(GFP_KERNEL,
 					  "%s_available",
 					  iio_chan_info_postfix[i]);
@@ -1669,12 +1657,7 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 	/* configure elements for the chrdev */
 	indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
 
-	ret = iio_device_register_debugfs(indio_dev);
-	if (ret) {
-		dev_err(indio_dev->dev.parent,
-			"Failed to register debugfs interfaces\n");
-		return ret;
-	}
+	iio_device_register_debugfs(indio_dev);
 
 	ret = iio_buffer_alloc_sysfs_and_mask(indio_dev);
 	if (ret) {

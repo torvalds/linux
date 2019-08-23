@@ -5,6 +5,7 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
 
 #include "evsel.h"
 #include "machine.h"
@@ -13,76 +14,20 @@
 #include "symbol.h"
 #include "map.h"
 #include "event.h"
-#include "util.h"
 #include "thread-stack.h"
 #include "callchain.h"
 #include "call-path.h"
 #include "db-export.h"
-
-struct deferred_export {
-	struct list_head node;
-	struct comm *comm;
-};
-
-static int db_export__deferred(struct db_export *dbe)
-{
-	struct deferred_export *de;
-	int err;
-
-	while (!list_empty(&dbe->deferred)) {
-		de = list_entry(dbe->deferred.next, struct deferred_export,
-				node);
-		err = dbe->export_comm(dbe, de->comm);
-		list_del(&de->node);
-		free(de);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static void db_export__free_deferred(struct db_export *dbe)
-{
-	struct deferred_export *de;
-
-	while (!list_empty(&dbe->deferred)) {
-		de = list_entry(dbe->deferred.next, struct deferred_export,
-				node);
-		list_del(&de->node);
-		free(de);
-	}
-}
-
-static int db_export__defer_comm(struct db_export *dbe, struct comm *comm)
-{
-	struct deferred_export *de;
-
-	de = zalloc(sizeof(struct deferred_export));
-	if (!de)
-		return -ENOMEM;
-
-	de->comm = comm;
-	list_add_tail(&de->node, &dbe->deferred);
-
-	return 0;
-}
+#include <linux/zalloc.h>
 
 int db_export__init(struct db_export *dbe)
 {
 	memset(dbe, 0, sizeof(struct db_export));
-	INIT_LIST_HEAD(&dbe->deferred);
 	return 0;
-}
-
-int db_export__flush(struct db_export *dbe)
-{
-	return db_export__deferred(dbe);
 }
 
 void db_export__exit(struct db_export *dbe)
 {
-	db_export__free_deferred(dbe);
 	call_return_processor__free(dbe->crp);
 	dbe->crp = NULL;
 }
@@ -114,71 +59,73 @@ int db_export__machine(struct db_export *dbe, struct machine *machine)
 }
 
 int db_export__thread(struct db_export *dbe, struct thread *thread,
-		      struct machine *machine, struct comm *comm)
+		      struct machine *machine, struct thread *main_thread)
 {
-	struct thread *main_thread;
 	u64 main_thread_db_id = 0;
-	int err;
 
 	if (thread->db_id)
 		return 0;
 
 	thread->db_id = ++dbe->thread_last_db_id;
 
-	if (thread->pid_ != -1) {
-		if (thread->pid_ == thread->tid) {
-			main_thread = thread;
-		} else {
-			main_thread = machine__findnew_thread(machine,
-							      thread->pid_,
-							      thread->pid_);
-			if (!main_thread)
-				return -ENOMEM;
-			err = db_export__thread(dbe, main_thread, machine,
-						comm);
-			if (err)
-				goto out_put;
-			if (comm) {
-				err = db_export__comm_thread(dbe, comm, thread);
-				if (err)
-					goto out_put;
-			}
-		}
+	if (main_thread)
 		main_thread_db_id = main_thread->db_id;
-		if (main_thread != thread)
-			thread__put(main_thread);
-	}
 
 	if (dbe->export_thread)
 		return dbe->export_thread(dbe, thread, main_thread_db_id,
 					  machine);
 
 	return 0;
+}
 
-out_put:
-	thread__put(main_thread);
-	return err;
+static int __db_export__comm(struct db_export *dbe, struct comm *comm,
+			     struct thread *thread)
+{
+	comm->db_id = ++dbe->comm_last_db_id;
+
+	if (dbe->export_comm)
+		return dbe->export_comm(dbe, comm, thread);
+
+	return 0;
 }
 
 int db_export__comm(struct db_export *dbe, struct comm *comm,
-		    struct thread *main_thread)
+		    struct thread *thread)
+{
+	if (comm->db_id)
+		return 0;
+
+	return __db_export__comm(dbe, comm, thread);
+}
+
+/*
+ * Export the "exec" comm. The "exec" comm is the program / application command
+ * name at the time it first executes. It is used to group threads for the same
+ * program. Note that the main thread pid (or thread group id tgid) cannot be
+ * used because it does not change when a new program is exec'ed.
+ */
+int db_export__exec_comm(struct db_export *dbe, struct comm *comm,
+			 struct thread *main_thread)
 {
 	int err;
 
 	if (comm->db_id)
 		return 0;
 
-	comm->db_id = ++dbe->comm_last_db_id;
+	err = __db_export__comm(dbe, comm, main_thread);
+	if (err)
+		return err;
 
-	if (dbe->export_comm) {
-		if (main_thread->comm_set)
-			err = dbe->export_comm(dbe, comm);
-		else
-			err = db_export__defer_comm(dbe, comm);
-		if (err)
-			return err;
-	}
-
+	/*
+	 * Record the main thread for this comm. Note that the main thread can
+	 * have many "exec" comms because there will be a new one every time it
+	 * exec's. An "exec" comm however will only ever have 1 main thread.
+	 * That is different to any other threads for that same program because
+	 * exec() will effectively kill them, so the relationship between the
+	 * "exec" comm and non-main threads is 1-to-1. That is why
+	 * db_export__comm_thread() is called here for the main thread, but it
+	 * is called for non-main threads when they are exported.
+	 */
 	return db_export__comm_thread(dbe, comm, main_thread);
 }
 
@@ -339,11 +286,65 @@ int db_export__branch_type(struct db_export *dbe, u32 branch_type,
 	return 0;
 }
 
+static int db_export__threads(struct db_export *dbe, struct thread *thread,
+			      struct thread *main_thread,
+			      struct machine *machine, struct comm **comm_ptr)
+{
+	struct comm *comm = NULL;
+	struct comm *curr_comm;
+	int err;
+
+	if (main_thread) {
+		/*
+		 * A thread has a reference to the main thread, so export the
+		 * main thread first.
+		 */
+		err = db_export__thread(dbe, main_thread, machine, main_thread);
+		if (err)
+			return err;
+		/*
+		 * Export comm before exporting the non-main thread because
+		 * db_export__comm_thread() can be called further below.
+		 */
+		comm = machine__thread_exec_comm(machine, main_thread);
+		if (comm) {
+			err = db_export__exec_comm(dbe, comm, main_thread);
+			if (err)
+				return err;
+			*comm_ptr = comm;
+		}
+	}
+
+	if (thread != main_thread) {
+		/*
+		 * For a non-main thread, db_export__comm_thread() must be
+		 * called only if thread has not previously been exported.
+		 */
+		bool export_comm_thread = comm && !thread->db_id;
+
+		err = db_export__thread(dbe, thread, machine, main_thread);
+		if (err)
+			return err;
+
+		if (export_comm_thread) {
+			err = db_export__comm_thread(dbe, comm, thread);
+			if (err)
+				return err;
+		}
+	}
+
+	curr_comm = thread__comm(thread);
+	if (curr_comm)
+		return db_export__comm(dbe, curr_comm, thread);
+
+	return 0;
+}
+
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct perf_evsel *evsel,
 		      struct addr_location *al)
 {
-	struct thread* thread = al->thread;
+	struct thread *thread = al->thread;
 	struct export_sample es = {
 		.event = event,
 		.sample = sample,
@@ -363,19 +364,13 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		return err;
 
 	main_thread = thread__main_thread(al->machine, thread);
-	if (main_thread)
-		comm = machine__thread_exec_comm(al->machine, main_thread);
 
-	err = db_export__thread(dbe, thread, al->machine, comm);
+	err = db_export__threads(dbe, thread, main_thread, al->machine, &comm);
 	if (err)
 		goto out_put;
 
-	if (comm) {
-		err = db_export__comm(dbe, comm, main_thread);
-		if (err)
-			goto out_put;
+	if (comm)
 		es.comm_db_id = comm->db_id;
-	}
 
 	es.db_id = ++dbe->sample_last_db_id;
 
@@ -522,5 +517,94 @@ int db_export__call_return(struct db_export *dbe, struct call_return *cr,
 	if (dbe->export_call_return)
 		return dbe->export_call_return(dbe, cr);
 
+	return 0;
+}
+
+static int db_export__pid_tid(struct db_export *dbe, struct machine *machine,
+			      pid_t pid, pid_t tid, u64 *db_id,
+			      struct comm **comm_ptr, bool *is_idle)
+{
+	struct thread *thread = machine__find_thread(machine, pid, tid);
+	struct thread *main_thread;
+	int err = 0;
+
+	if (!thread || !thread->comm_set)
+		goto out_put;
+
+	*is_idle = !thread->pid_ && !thread->tid;
+
+	main_thread = thread__main_thread(machine, thread);
+
+	err = db_export__threads(dbe, thread, main_thread, machine, comm_ptr);
+
+	*db_id = thread->db_id;
+
+	thread__put(main_thread);
+out_put:
+	thread__put(thread);
+
+	return err;
+}
+
+int db_export__switch(struct db_export *dbe, union perf_event *event,
+		      struct perf_sample *sample, struct machine *machine)
+{
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+	bool out_preempt = out &&
+		(event->header.misc & PERF_RECORD_MISC_SWITCH_OUT_PREEMPT);
+	int flags = out | (out_preempt << 1);
+	bool is_idle_a = false, is_idle_b = false;
+	u64 th_a_id = 0, th_b_id = 0;
+	u64 comm_out_id, comm_in_id;
+	struct comm *comm_a = NULL;
+	struct comm *comm_b = NULL;
+	u64 th_out_id, th_in_id;
+	u64 db_id;
+	int err;
+
+	err = db_export__machine(dbe, machine);
+	if (err)
+		return err;
+
+	err = db_export__pid_tid(dbe, machine, sample->pid, sample->tid,
+				 &th_a_id, &comm_a, &is_idle_a);
+	if (err)
+		return err;
+
+	if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE) {
+		pid_t pid = event->context_switch.next_prev_pid;
+		pid_t tid = event->context_switch.next_prev_tid;
+
+		err = db_export__pid_tid(dbe, machine, pid, tid, &th_b_id,
+					 &comm_b, &is_idle_b);
+		if (err)
+			return err;
+	}
+
+	/*
+	 * Do not export if both threads are unknown (i.e. not being traced),
+	 * or one is unknown and the other is the idle task.
+	 */
+	if ((!th_a_id || is_idle_a) && (!th_b_id || is_idle_b))
+		return 0;
+
+	db_id = ++dbe->context_switch_last_db_id;
+
+	if (out) {
+		th_out_id   = th_a_id;
+		th_in_id    = th_b_id;
+		comm_out_id = comm_a ? comm_a->db_id : 0;
+		comm_in_id  = comm_b ? comm_b->db_id : 0;
+	} else {
+		th_out_id   = th_b_id;
+		th_in_id    = th_a_id;
+		comm_out_id = comm_b ? comm_b->db_id : 0;
+		comm_in_id  = comm_a ? comm_a->db_id : 0;
+	}
+
+	if (dbe->export_context_switch)
+		return dbe->export_context_switch(dbe, db_id, machine, sample,
+						  th_out_id, comm_out_id,
+						  th_in_id, comm_in_id, flags);
 	return 0;
 }

@@ -393,7 +393,7 @@ static bool asus_kbd_wmi_led_control_present(struct hid_device *hdev)
 	if (!IS_ENABLED(CONFIG_ASUS_WMI))
 		return false;
 
-	ret = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DSTS2,
+	ret = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DSTS,
 				       ASUS_WMI_DEVID_KBD_BACKLIGHT, 0, &value);
 	hid_dbg(hdev, "WMI backlight check: rc %d value %x", ret, value);
 	if (ret)

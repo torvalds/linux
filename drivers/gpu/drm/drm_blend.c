@@ -23,12 +23,15 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_blend.h>
+
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_blend.h>
+#include <drm/drm_device.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 

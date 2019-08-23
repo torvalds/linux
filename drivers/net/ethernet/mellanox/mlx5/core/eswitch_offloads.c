@@ -207,14 +207,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 
 	mlx5_eswitch_set_rule_source_port(esw, spec, attr);
 
-	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DECAP) {
-		if (attr->tunnel_match_level != MLX5_MATCH_NONE)
-			spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
-		if (attr->match_level != MLX5_MATCH_NONE)
-			spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
-	} else if (attr->match_level != MLX5_MATCH_NONE) {
+	if (attr->outer_match_level != MLX5_MATCH_NONE)
 		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
-	}
+	if (attr->inner_match_level != MLX5_MATCH_NONE)
+		spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_id = attr->mod_hdr_id;
@@ -290,7 +286,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	mlx5_eswitch_set_rule_source_port(esw, spec, attr);
 
 	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
-	if (attr->match_level != MLX5_MATCH_NONE)
+	if (attr->outer_match_level != MLX5_MATCH_NONE)
 		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	rule = mlx5_add_flow_rules(fast_fdb, spec, &flow_act, dest, i);
@@ -1134,7 +1130,6 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	}
 
 	/* create send-to-vport group */
-	memset(flow_group_in, 0, inlen);
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
 		 MLX5_MATCH_MISC_PARAMETERS);
 
@@ -1293,8 +1288,6 @@ static int esw_create_vport_rx_group(struct mlx5_eswitch *esw, int nvports)
 		return -ENOMEM;
 
 	/* create vport rx group */
-	memset(flow_group_in, 0, inlen);
-
 	esw_set_flow_group_source_port(esw, flow_group_in);
 
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
@@ -1785,8 +1778,8 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 						     struct mlx5_vport *vport)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
+	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_act flow_act = {};
-	struct mlx5_flow_spec spec = {};
 	int err = 0;
 
 	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
@@ -2131,6 +2124,12 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 {
 	int err;
 
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, reformat) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, decap))
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
+	else
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
+
 	err = esw_offloads_steering_init(esw);
 	if (err)
 		return err;
@@ -2187,6 +2186,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
 		mlx5_eswitch_disable_passing_vport_metadata(esw);
 	esw_offloads_steering_cleanup(esw);
+	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 }
 
 static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)

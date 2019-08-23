@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../ui.h"
@@ -15,6 +14,7 @@
 #include <pthread.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <sys/ttydefaults.h>
 #include <asm/bug.h>
 

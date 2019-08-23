@@ -21,12 +21,6 @@ ssize_t get_base_addr() {
 	return -EINVAL;
 }
 
-#ifdef __x86_64__
-#define SYS_KPROBE_NAME "__x64_sys_nanosleep"
-#else
-#define SYS_KPROBE_NAME "sys_nanosleep"
-#endif
-
 void test_attach_probe(void)
 {
 	const char *kprobe_name = "kprobe/sys_nanosleep";
@@ -84,7 +78,7 @@ void test_attach_probe(void)
 
 	kprobe_link = bpf_program__attach_kprobe(kprobe_prog,
 						 false /* retprobe */,
-						 SYS_KPROBE_NAME);
+						 SYS_NANOSLEEP_KPROBE_NAME);
 	if (CHECK(IS_ERR(kprobe_link), "attach_kprobe",
 		  "err %ld\n", PTR_ERR(kprobe_link))) {
 		kprobe_link = NULL;
@@ -92,7 +86,7 @@ void test_attach_probe(void)
 	}
 	kretprobe_link = bpf_program__attach_kprobe(kretprobe_prog,
 						    true /* retprobe */,
-						    SYS_KPROBE_NAME);
+						    SYS_NANOSLEEP_KPROBE_NAME);
 	if (CHECK(IS_ERR(kretprobe_link), "attach_kretprobe",
 		  "err %ld\n", PTR_ERR(kretprobe_link))) {
 		kretprobe_link = NULL;

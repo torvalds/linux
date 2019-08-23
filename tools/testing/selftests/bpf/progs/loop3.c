@@ -16,7 +16,7 @@ int while_true(volatile struct pt_regs* ctx)
 	__u64 i = 0, sum = 0;
 	do {
 		i++;
-		sum += ctx->rax;
+		sum += PT_REGS_RC(ctx);
 	} while (i < 0x100000000ULL);
 	return sum;
 }

@@ -21,13 +21,15 @@
  *
  */
 
-#include <drm/drmP.h>
+#include <linux/seq_file.h>
+
+#include <drm/drm_pci.h>
+
+#include "r600_dpm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include "trinityd.h"
-#include "r600_dpm.h"
 #include "trinity_dpm.h"
-#include <linux/seq_file.h>
+#include "trinityd.h"
 
 #define TRINITY_MAX_DEEPSLEEP_DIVIDER_ID 5
 #define TRINITY_MINIMUM_ENGINE_CLOCK 800

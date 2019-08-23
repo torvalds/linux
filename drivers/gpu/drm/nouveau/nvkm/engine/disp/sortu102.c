@@ -72,6 +72,7 @@ tu102_sor = {
 	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gv100_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },

@@ -12,7 +12,7 @@
 #ifndef _ASM_S390_NMI_H
 #define _ASM_S390_NMI_H
 
-#include <linux/const.h>
+#include <linux/bits.h>
 #include <linux/types.h>
 
 #define MCIC_SUBCLASS_MASK	(1ULL<<63 | 1ULL<<62 | 1ULL<<61 | \
@@ -20,15 +20,15 @@
 				1ULL<<55 | 1ULL<<54 | 1ULL<<53 | \
 				1ULL<<52 | 1ULL<<47 | 1ULL<<46 | \
 				1ULL<<45 | 1ULL<<44)
-#define MCCK_CODE_SYSTEM_DAMAGE		_BITUL(63)
-#define MCCK_CODE_EXT_DAMAGE		_BITUL(63 - 5)
-#define MCCK_CODE_CP			_BITUL(63 - 9)
-#define MCCK_CODE_CPU_TIMER_VALID	_BITUL(63 - 46)
-#define MCCK_CODE_PSW_MWP_VALID		_BITUL(63 - 20)
-#define MCCK_CODE_PSW_IA_VALID		_BITUL(63 - 23)
-#define MCCK_CODE_CR_VALID		_BITUL(63 - 29)
-#define MCCK_CODE_GS_VALID		_BITUL(63 - 36)
-#define MCCK_CODE_FC_VALID		_BITUL(63 - 43)
+#define MCCK_CODE_SYSTEM_DAMAGE		BIT(63)
+#define MCCK_CODE_EXT_DAMAGE		BIT(63 - 5)
+#define MCCK_CODE_CP			BIT(63 - 9)
+#define MCCK_CODE_CPU_TIMER_VALID	BIT(63 - 46)
+#define MCCK_CODE_PSW_MWP_VALID		BIT(63 - 20)
+#define MCCK_CODE_PSW_IA_VALID		BIT(63 - 23)
+#define MCCK_CODE_CR_VALID		BIT(63 - 29)
+#define MCCK_CODE_GS_VALID		BIT(63 - 36)
+#define MCCK_CODE_FC_VALID		BIT(63 - 43)
 
 #ifndef __ASSEMBLY__
 

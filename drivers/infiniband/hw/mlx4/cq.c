@@ -172,14 +172,14 @@ err_buf:
 }
 
 #define CQ_CREATE_FLAGS_SUPPORTED IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION
-struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
-				const struct ib_cq_init_attr *attr,
-				struct ib_udata *udata)
+int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		      struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
-	struct mlx4_ib_cq *cq;
+	struct mlx4_ib_cq *cq = to_mcq(ibcq);
 	struct mlx4_uar *uar;
 	void *buf_addr;
 	int err;
@@ -187,14 +187,10 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 		udata, struct mlx4_ib_ucontext, ibucontext);
 
 	if (entries < 1 || entries > dev->dev->caps.max_cqes)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (attr->flags & ~CQ_CREATE_FLAGS_SUPPORTED)
-		return ERR_PTR(-EINVAL);
-
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
 
 	entries      = roundup_pow_of_two(entries + 1);
 	cq->ibcq.cqe = entries - 1;
@@ -269,7 +265,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 			goto err_cq_free;
 		}
 
-	return &cq->ibcq;
+	return 0;
 
 err_cq_free:
 	mlx4_cq_free(dev->dev, &cq->mcq);
@@ -281,19 +277,15 @@ err_dbmap:
 err_mtt:
 	mlx4_mtt_cleanup(dev->dev, &cq->buf.mtt);
 
-	if (udata)
-		ib_umem_release(cq->umem);
-	else
+	ib_umem_release(cq->umem);
+	if (!udata)
 		mlx4_ib_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);
 
 err_db:
 	if (!udata)
 		mlx4_db_free(dev->dev, &cq->db);
-
 err_cq:
-	kfree(cq);
-
-	return ERR_PTR(err);
+	return err;
 }
 
 static int mlx4_alloc_resize_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq *cq,
@@ -475,18 +467,15 @@ err_buf:
 	kfree(cq->resize_buf);
 	cq->resize_buf = NULL;
 
-	if (cq->resize_umem) {
-		ib_umem_release(cq->resize_umem);
-		cq->resize_umem = NULL;
-	}
-
+	ib_umem_release(cq->resize_umem);
+	cq->resize_umem = NULL;
 out:
 	mutex_unlock(&cq->resize_mutex);
 
 	return err;
 }
 
-int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(cq->device);
 	struct mlx4_ib_cq *mcq = to_mcq(cq);
@@ -501,15 +490,11 @@ int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 				struct mlx4_ib_ucontext,
 				ibucontext),
 			&mcq->db);
-		ib_umem_release(mcq->umem);
 	} else {
 		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe);
 		mlx4_db_free(dev->dev, &mcq->db);
 	}
-
-	kfree(mcq);
-
-	return 0;
+	ib_umem_release(mcq->umem);
 }
 
 static void dump_cqe(void *cqe)

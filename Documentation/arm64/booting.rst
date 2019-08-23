@@ -284,7 +284,7 @@ following manner:
   processors") to bring CPUs into the kernel.
 
   The device tree should contain a 'psci' node, as described in
-  Documentation/devicetree/bindings/arm/psci.txt.
+  Documentation/devicetree/bindings/arm/psci.yaml.
 
 - Secondary CPU general-purpose register settings
   x0 = 0 (reserved for future use)

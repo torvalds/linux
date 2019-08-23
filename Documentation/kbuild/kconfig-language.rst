@@ -53,6 +53,7 @@ A menu entry can have a number of attributes. Not all of them are
 applicable everywhere (see syntax).
 
 - type definition: "bool"/"tristate"/"string"/"hex"/"int"
+
   Every config option must have a type. There are only two basic types:
   tristate and string; the other types are based on these two. The type
   definition optionally accepts an input prompt, so these two examples
@@ -66,11 +67,13 @@ applicable everywhere (see syntax).
 	prompt "Networking support"
 
 - input prompt: "prompt" <prompt> ["if" <expr>]
+
   Every menu entry can have at most one prompt, which is used to display
   to the user. Optionally dependencies only for this prompt can be added
   with "if".
 
 - default value: "default" <expr> ["if" <expr>]
+
   A config option can have any number of default values. If multiple
   default values are visible, only the first defined one is active.
   Default values are not limited to the menu entry where they are
@@ -112,6 +115,7 @@ applicable everywhere (see syntax).
   Optionally dependencies for this default value can be added with "if".
 
 - dependencies: "depends on" <expr>
+
   This defines a dependency for this menu entry. If multiple
   dependencies are defined, they are connected with '&&'. Dependencies
   are applied to all other options within this menu entry (which also
@@ -127,6 +131,7 @@ applicable everywhere (see syntax).
 	default y
 
 - reverse dependencies: "select" <symbol> ["if" <expr>]
+
   While normal dependencies reduce the upper limit of a symbol (see
   below), reverse dependencies can be used to force a lower limit of
   another symbol. The value of the current menu symbol is used as the
@@ -146,6 +151,7 @@ applicable everywhere (see syntax).
 	the illegal configurations all over.
 
 - weak reverse dependencies: "imply" <symbol> ["if" <expr>]
+
   This is similar to "select" as it enforces a lower limit on another
   symbol except that the "implied" symbol's value may still be set to n
   from a direct dependency or with a visible prompt.
@@ -176,6 +182,7 @@ applicable everywhere (see syntax).
   configure that subsystem out without also having to unset these drivers.
 
 - limiting menu display: "visible if" <expr>
+
   This attribute is only applicable to menu blocks, if the condition is
   false, the menu block is not displayed to the user (the symbols
   contained there can still be selected by other symbols, though). It is
@@ -183,12 +190,14 @@ applicable everywhere (see syntax).
   entries. Default value of "visible" is true.
 
 - numerical ranges: "range" <symbol> <symbol> ["if" <expr>]
+
   This allows to limit the range of possible input values for int
   and hex symbols. The user can only input a value which is larger than
   or equal to the first symbol and smaller than or equal to the second
   symbol.
 
 - help text: "help" or "---help---"
+
   This defines a help text. The end of the help text is determined by
   the indentation level, this means it ends at the first line which has
   a smaller indentation than the first line of the help text.
@@ -197,6 +206,7 @@ applicable everywhere (see syntax).
   the file as an aid to developers.
 
 - misc options: "option" <symbol>[=<value>]
+
   Various less common options can be defined via this option syntax,
   which can modify the behaviour of the menu entry and its config
   symbol. These options are currently possible:
@@ -325,6 +335,7 @@ end a menu entry:
 The first five also start the definition of a menu entry.
 
 config::
+
 	"config" <symbol>
 	<config options>
 
@@ -332,6 +343,7 @@ This defines a config symbol <symbol> and accepts any of above
 attributes as options.
 
 menuconfig::
+
 	"menuconfig" <symbol>
 	<config options>
 
