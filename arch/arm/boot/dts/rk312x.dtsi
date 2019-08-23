@@ -513,7 +513,7 @@
 		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
 		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3128_PD_VIDEO>;
 		#iommu-cells = <0>;
 		status = "disabled";
@@ -557,7 +557,7 @@
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3128_PD_VIO>;
 		#iommu-cells = <0>;
 		status = "disabled";
@@ -646,7 +646,7 @@
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vop_mmu";
 		clocks = <&cru ACLK_LCDC0>, <&cru HCLK_LCDC0>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3128_PD_VIO>;
 		#iommu-cells = <0>;
 		status = "disabled";
