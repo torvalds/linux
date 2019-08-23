@@ -226,7 +226,6 @@ struct kexec_elf_info {
 
 	const struct elfhdr *ehdr;
 	const struct elf_phdr *proghdrs;
-	struct elf_shdr *sechdrs;
 };
 
 int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
