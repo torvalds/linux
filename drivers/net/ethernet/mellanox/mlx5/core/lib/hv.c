@@ -12,7 +12,7 @@ static int mlx5_hv_config_common(struct mlx5_core_dev *dev, void *buf, int len,
 	int bytes_returned;
 	int block_id;
 
-	if (offset % HV_CONFIG_BLOCK_SIZE_MAX || len % HV_CONFIG_BLOCK_SIZE_MAX)
+	if (offset % HV_CONFIG_BLOCK_SIZE_MAX || len != HV_CONFIG_BLOCK_SIZE_MAX)
 		return -EINVAL;
 
 	block_id = offset / HV_CONFIG_BLOCK_SIZE_MAX;
@@ -25,8 +25,8 @@ static int mlx5_hv_config_common(struct mlx5_core_dev *dev, void *buf, int len,
 				  HV_CONFIG_BLOCK_SIZE_MAX, block_id);
 
 	/* Make sure len bytes were read successfully  */
-	if (read)
-		rc |= !(len == bytes_returned);
+	if (read && !rc && len != bytes_returned)
+		rc = -EIO;
 
 	if (rc) {
 		mlx5_core_err(dev, "Failed to %s hv config, err = %d, len = %d, offset = %d\n",
