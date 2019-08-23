@@ -25,6 +25,7 @@
 
 #include <linux/delay.h>
 
+#include "resource.h"
 #include "dce_i2c.h"
 #include "dce_i2c_hw.h"
 #include "reg_helper.h"
@@ -390,7 +391,7 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 	if (ddc->hw_info.hw_supported) {
 		enum gpio_ddc_line line = dal_ddc_get_line(ddc);
 
-		if (line < pool->pipe_count)
+		if (line < pool->res_cap->num_ddc)
 			dce_i2c_hw = pool->hw_i2cs[line];
 	}
 
