@@ -656,10 +656,9 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (panel) {
+	if (panel)
 		bridge = devm_drm_panel_bridge_add(dev, panel,
-						   DRM_MODE_CONNECTOR_Unknown);
-	}
+						   DRM_MODE_CONNECTOR_DPI);
 
 	priv->dma_hwdesc = dma_alloc_coherent(dev, sizeof(*priv->dma_hwdesc),
 					      &priv->dma_hwdesc_phys,
