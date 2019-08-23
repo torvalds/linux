@@ -3726,6 +3726,15 @@ i915_cache_sharing_set(void *data, u64 val)
 	return 0;
 }
 
+static void
+intel_sseu_copy_subslices(const struct sseu_dev_info *sseu, int slice,
+			  u8 *to_mask)
+{
+	int offset = slice * sseu->ss_stride;
+
+	memcpy(&to_mask[offset], &sseu->subslice_mask[offset], sseu->ss_stride);
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
 			i915_cache_sharing_get, i915_cache_sharing_set,
 			"%llu\n");
@@ -3799,7 +3808,7 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 			continue;
 
 		sseu->slice_mask |= BIT(s);
-		sseu->subslice_mask[s] = info->sseu.subslice_mask[s];
+		intel_sseu_copy_subslices(&info->sseu, s, sseu->subslice_mask);
 
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
@@ -3850,7 +3859,8 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 		sseu->slice_mask |= BIT(s);
 
 		if (IS_GEN9_BC(dev_priv))
-			sseu->subslice_mask[s] = info->sseu.subslice_mask[s];
+			intel_sseu_copy_subslices(&info->sseu, s,
+						  sseu->subslice_mask);
 
 		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
@@ -3886,7 +3896,8 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 	if (sseu->slice_mask) {
 		sseu->eu_per_subslice = info->sseu.eu_per_subslice;
 		for (s = 0; s < fls(sseu->slice_mask); s++)
-			sseu->subslice_mask[s] = info->sseu.subslice_mask[s];
+			intel_sseu_copy_subslices(&info->sseu, s,
+						  sseu->subslice_mask);
 		sseu->eu_total = sseu->eu_per_subslice *
 				 intel_sseu_subslice_total(sseu);
 
