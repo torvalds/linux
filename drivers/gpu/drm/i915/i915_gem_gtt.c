@@ -132,9 +132,15 @@ static void gen6_ggtt_invalidate(struct i915_ggtt *ggtt)
 static void guc_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
+	struct drm_i915_private *i915 = ggtt->vm.i915;
 
 	gen6_ggtt_invalidate(ggtt);
-	intel_uncore_write_fw(uncore, GEN8_GTCR, GEN8_GTCR_INVALIDATE);
+
+	if (INTEL_GEN(i915) >= 12)
+		intel_uncore_write_fw(uncore, GEN12_GUC_TLB_INV_CR,
+				      GEN12_GUC_TLB_INV_CR_INVALIDATE);
+	else
+		intel_uncore_write_fw(uncore, GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 }
 
 static void gmch_ggtt_invalidate(struct i915_ggtt *ggtt)

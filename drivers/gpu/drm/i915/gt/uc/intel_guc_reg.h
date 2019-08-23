@@ -83,6 +83,9 @@
 #define GEN8_GTCR			_MMIO(0x4274)
 #define   GEN8_GTCR_INVALIDATE		  (1<<0)
 
+#define GEN12_GUC_TLB_INV_CR		_MMIO(0xcee8)
+#define   GEN12_GUC_TLB_INV_CR_INVALIDATE	(1 << 0)
+
 #define GUC_ARAT_C6DIS			_MMIO(0xA178)
 
 #define GUC_SHIM_CONTROL		_MMIO(0xc064)
