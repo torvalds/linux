@@ -314,7 +314,6 @@ struct vgic_cpu {
 	 * parts of the redistributor.
 	 */
 	struct vgic_io_device	rd_iodev;
-	struct vgic_io_device	sgi_iodev;
 	struct vgic_redist_region *rdreg;
 
 	/* Contains the attributes and gpa of the LPI pending tables. */
