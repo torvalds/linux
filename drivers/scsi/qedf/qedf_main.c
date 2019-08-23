@@ -343,11 +343,6 @@ int qedf_send_flogi(struct qedf_ctx *qedf)
 	return 0;
 }
 
-struct qedf_tmp_rdata_item {
-	struct fc_rport_priv *rdata;
-	struct list_head list;
-};
-
 /*
  * This function is called if link_down_tmo is in use.  If we get a link up and
  * link_down_tmo has not expired then use just FLOGI/ADISC to recover our
@@ -357,9 +352,8 @@ static void qedf_link_recovery(struct work_struct *work)
 {
 	struct qedf_ctx *qedf =
 	    container_of(work, struct qedf_ctx, link_recovery.work);
-	struct qedf_rport *fcport;
+	struct fc_lport *lport = qedf->lport;
 	struct fc_rport_priv *rdata;
-	struct qedf_tmp_rdata_item *rdata_item, *tmp_rdata_item;
 	bool rc;
 	int retries = 30;
 	int rval, i;
@@ -426,33 +420,14 @@ static void qedf_link_recovery(struct work_struct *work)
 	 * Call lport->tt.rport_login which will cause libfc to send an
 	 * ADISC since the rport is in state ready.
 	 */
-	rcu_read_lock();
-	list_for_each_entry_rcu(fcport, &qedf->fcports, peers) {
-		rdata = fcport->rdata;
-		if (rdata == NULL)
-			continue;
-		rdata_item = kzalloc(sizeof(struct qedf_tmp_rdata_item),
-		    GFP_ATOMIC);
-		if (!rdata_item)
-			continue;
+	mutex_lock(&lport->disc.disc_mutex);
+	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
-			rdata_item->rdata = rdata;
-			list_add(&rdata_item->list, &rdata_login_list);
-		} else
-			kfree(rdata_item);
+			fc_rport_login(rdata);
+			kref_put(&rdata->kref, fc_rport_destroy);
+		}
 	}
-	rcu_read_unlock();
-	/*
-	 * Do the fc_rport_login outside of the rcu lock so we don't take a
-	 * mutex in an atomic context.
-	 */
-	list_for_each_entry_safe(rdata_item, tmp_rdata_item, &rdata_login_list,
-	    list) {
-		list_del(&rdata_item->list);
-		fc_rport_login(rdata_item->rdata);
-		kref_put(&rdata_item->rdata->kref, fc_rport_destroy);
-		kfree(rdata_item);
-	}
+	mutex_unlock(&lport->disc.disc_mutex);
 }
 
 static void qedf_update_link_speed(struct qedf_ctx *qedf,
