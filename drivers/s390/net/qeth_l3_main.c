@@ -1957,7 +1957,6 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 			/* some HW requires combined L3+L4 csum offload: */
 			if (ipv == 4)
 				hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
-			QETH_TXQ_STAT_INC(queue, skbs_csum);
 		}
 	}
 
@@ -2044,9 +2043,10 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	u16 txq = skb_get_queue_mapping(skb);
 	int ipv = qeth_get_ip_version(skb);
 	struct qeth_qdio_out_q *queue;
-	int tx_bytes = skb->len;
 	int rc;
 
+	if (!skb_is_gso(skb))
+		qdisc_skb_cb(skb)->pkt_len = skb->len;
 	if (IS_IQD(card)) {
 		queue = card->qdio.out_qs[qeth_iqd_translate_txq(dev, txq)];
 
@@ -2069,11 +2069,8 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	else
 		rc = qeth_xmit(card, skb, queue, ipv, qeth_l3_fill_header);
 
-	if (!rc) {
-		QETH_TXQ_STAT_INC(queue, tx_packets);
-		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
+	if (!rc)
 		return NETDEV_TX_OK;
-	}
 
 tx_drop:
 	QETH_TXQ_STAT_INC(queue, tx_dropped);

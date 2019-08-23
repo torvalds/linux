@@ -71,7 +71,7 @@ static void qeth_free_qdio_queues(struct qeth_card *card);
 static void qeth_notify_skbs(struct qeth_qdio_out_q *queue,
 		struct qeth_qdio_out_buffer *buf,
 		enum iucv_tx_notify notification);
-static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf);
+static void qeth_tx_complete_buf(struct qeth_qdio_out_buffer *buf, bool error);
 static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 
 static void qeth_close_dev_handler(struct work_struct *work)
@@ -411,7 +411,7 @@ static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
 				/* release here to avoid interleaving between
 				   outbound tasklet and inbound tasklet
 				   regarding notifications and lifecycle */
-				qeth_release_skbs(c);
+				qeth_tx_complete_buf(c, forced_cleanup);
 
 				c = f->next_pending;
 				WARN_ON_ONCE(head->next_pending != f);
@@ -1077,22 +1077,51 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	}
 }
 
-static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
+static void qeth_tx_complete_buf(struct qeth_qdio_out_buffer *buf, bool error)
 {
+	struct qeth_qdio_out_q *queue = buf->q;
 	struct sk_buff *skb;
 
 	/* release may never happen from within CQ tasklet scope */
 	WARN_ON_ONCE(atomic_read(&buf->state) == QETH_QDIO_BUF_IN_CQ);
 
 	if (atomic_read(&buf->state) == QETH_QDIO_BUF_PENDING)
-		qeth_notify_skbs(buf->q, buf, TX_NOTIFY_GENERALERROR);
+		qeth_notify_skbs(queue, buf, TX_NOTIFY_GENERALERROR);
 
-	while ((skb = __skb_dequeue(&buf->skb_list)) != NULL)
+	/* Empty buffer? */
+	if (buf->next_element_to_fill == 0)
+		return;
+
+	QETH_TXQ_STAT_INC(queue, bufs);
+	QETH_TXQ_STAT_ADD(queue, buf_elements, buf->next_element_to_fill);
+	while ((skb = __skb_dequeue(&buf->skb_list)) != NULL) {
+		unsigned int bytes = qdisc_pkt_len(skb);
+		bool is_tso = skb_is_gso(skb);
+		unsigned int packets;
+
+		packets = is_tso ? skb_shinfo(skb)->gso_segs : 1;
+		if (error) {
+			QETH_TXQ_STAT_ADD(queue, tx_errors, packets);
+		} else {
+			QETH_TXQ_STAT_ADD(queue, tx_packets, packets);
+			QETH_TXQ_STAT_ADD(queue, tx_bytes, bytes);
+			if (skb->ip_summed == CHECKSUM_PARTIAL)
+				QETH_TXQ_STAT_ADD(queue, skbs_csum, packets);
+			if (skb_is_nonlinear(skb))
+				QETH_TXQ_STAT_INC(queue, skbs_sg);
+			if (is_tso) {
+				QETH_TXQ_STAT_INC(queue, skbs_tso);
+				QETH_TXQ_STAT_ADD(queue, tso_bytes, bytes);
+			}
+		}
+
 		consume_skb(skb);
+	}
 }
 
 static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
-				     struct qeth_qdio_out_buffer *buf)
+				     struct qeth_qdio_out_buffer *buf,
+				     bool error)
 {
 	int i;
 
@@ -1100,7 +1129,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	if (buf->buffer->element[0].sflags & SBAL_SFLAGS0_PCI_REQ)
 		atomic_dec(&queue->set_pci_flags_count);
 
-	qeth_release_skbs(buf);
+	qeth_tx_complete_buf(buf, error);
 
 	for (i = 0; i < queue->max_elements; ++i) {
 		if (buf->buffer->element[i].addr && buf->is_header[i])
@@ -1122,7 +1151,7 @@ static void qeth_drain_output_queue(struct qeth_qdio_out_q *q, bool free)
 		if (!q->bufs[j])
 			continue;
 		qeth_cleanup_handled_pending(q, j, 1);
-		qeth_clear_output_buffer(q, q->bufs[j]);
+		qeth_clear_output_buffer(q, q->bufs[j], true);
 		if (free) {
 			kmem_cache_free(qeth_qdio_outbuf_cache, q->bufs[j]);
 			q->bufs[j] = NULL;
@@ -3240,14 +3269,12 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		}
 	}
 
-	QETH_TXQ_STAT_ADD(queue, bufs, count);
 	qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 	if (atomic_read(&queue->set_pci_flags_count))
 		qdio_flags |= QDIO_FLAG_PCI_OUT;
 	rc = do_QDIO(CARD_DDEV(queue->card), qdio_flags,
 		     queue->queue_no, index, count);
 	if (rc) {
-		QETH_TXQ_STAT_ADD(queue, tx_errors, count);
 		/* ignore temporary SIGA errors without busy condition */
 		if (rc == -ENOBUFS)
 			return;
@@ -3456,7 +3483,7 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 				qeth_notify_skbs(queue, buffer, n);
 			}
 
-			qeth_clear_output_buffer(queue, buffer);
+			qeth_clear_output_buffer(queue, buffer, qdio_error);
 		}
 		qeth_cleanup_handled_pending(queue, bidx, 0);
 	}
@@ -3942,7 +3969,6 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 	unsigned int hd_len = 0;
 	unsigned int elements;
 	int push_len, rc;
-	bool is_sg;
 
 	if (is_tso) {
 		hw_hdr_len = sizeof(struct qeth_hdr_tso);
@@ -3971,7 +3997,6 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 		qeth_fill_tso_ext((struct qeth_hdr_tso *) hdr,
 				  frame_len - proto_len, skb, proto_len);
 
-	is_sg = skb_is_nonlinear(skb);
 	if (IS_IQD(card)) {
 		rc = qeth_do_send_packet_fast(queue, skb, hdr, data_offset,
 					      hd_len);
@@ -3982,18 +4007,9 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 					 hd_len, elements);
 	}
 
-	if (!rc) {
-		QETH_TXQ_STAT_ADD(queue, buf_elements, elements);
-		if (is_sg)
-			QETH_TXQ_STAT_INC(queue, skbs_sg);
-		if (is_tso) {
-			QETH_TXQ_STAT_INC(queue, skbs_tso);
-			QETH_TXQ_STAT_ADD(queue, tso_bytes, frame_len);
-		}
-	} else {
-		if (!push_len)
-			kmem_cache_free(qeth_core_header_cache, hdr);
-	}
+	if (rc && !push_len)
+		kmem_cache_free(qeth_core_header_cache, hdr);
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_xmit);

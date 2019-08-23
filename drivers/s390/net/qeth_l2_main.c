@@ -175,10 +175,8 @@ static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
 		hdr->hdr.l2.id = QETH_HEADER_TYPE_L2_TSO;
 	} else {
 		hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
-			QETH_TXQ_STAT_INC(queue, skbs_csum);
-		}
 	}
 
 	/* set byte byte 3 to casting flags */
@@ -588,9 +586,10 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	struct qeth_card *card = dev->ml_priv;
 	u16 txq = skb_get_queue_mapping(skb);
 	struct qeth_qdio_out_q *queue;
-	int tx_bytes = skb->len;
 	int rc;
 
+	if (!skb_is_gso(skb))
+		qdisc_skb_cb(skb)->pkt_len = skb->len;
 	if (IS_IQD(card))
 		txq = qeth_iqd_translate_txq(dev, txq);
 	queue = card->qdio.out_qs[txq];
@@ -601,11 +600,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		rc = qeth_xmit(card, skb, queue, qeth_get_ip_version(skb),
 			       qeth_l2_fill_header);
 
-	if (!rc) {
-		QETH_TXQ_STAT_INC(queue, tx_packets);
-		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
+	if (!rc)
 		return NETDEV_TX_OK;
-	}
 
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	kfree_skb(skb);
