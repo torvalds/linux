@@ -180,14 +180,12 @@ void TSInitialize(struct ieee80211_device *ieee)
 	}
 	// Initialize unused Rx Reorder List.
 	INIT_LIST_HEAD(&ieee->RxReorder_Unused_List);
-//#ifdef TO_DO_LIST
 	for (count = 0; count < REORDER_ENTRY_NUM; count++) {
 		list_add_tail(&pRxReorderEntry->List, &ieee->RxReorder_Unused_List);
 		if (count == (REORDER_ENTRY_NUM - 1))
 			break;
 		pRxReorderEntry = &ieee->RxReorderEntry[count + 1];
 	}
-//#endif
 }
 
 static void AdmitTS(struct ieee80211_device *ieee,
@@ -417,7 +415,6 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *
 	TsInitDelBA(ieee, pTs, TxRxSelect);
 
 	if (TxRxSelect == RX_DIR) {
-//#ifdef TO_DO_LIST
 		struct rx_reorder_entry	*pRxReorderEntry;
 		struct rx_ts_record     *pRxTS = (struct rx_ts_record *)pTs;
 		if (timer_pending(&pRxTS->rx_pkt_pending_timer))
@@ -445,7 +442,6 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 		}
 
-//#endif
 	} else {
 		struct tx_ts_record *pTxTS = (struct tx_ts_record *)pTs;
 		del_timer_sync(&pTxTS->ts_add_ba_timer);

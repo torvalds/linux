@@ -302,13 +302,6 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 	//check packet and mode later
-#ifdef TO_DO_LIST
-	if (pTcb->PacketLength >= 4096)
-		return;
-	// For RTL819X, if pairwisekey = wep/tkip, we don't aggrregation.
-	if (!Adapter->HalFunc.GetNmodeSupportBySecCfgHandler(Adapter))
-		return;
-#endif
 	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
 		return;
 	}
@@ -509,20 +502,6 @@ NO_PROTECTION:
 static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
 					struct cb_desc *tcb_desc)
 {
-#ifdef TO_DO_LIST
-	if (!IsDataFrame(pFrame)) {
-		pTcb->bTxDisableRateFallBack = true;
-		pTcb->bTxUseDriverAssingedRate = true;
-		pTcb->RATRIndex = 7;
-		return;
-	}
-
-	if (pMgntInfo->ForcedDataRate != 0) {
-		pTcb->bTxDisableRateFallBack = true;
-		pTcb->bTxUseDriverAssingedRate = true;
-		return;
-	}
-#endif
 	if (ieee->bTxDisableRateFallBack)
 		tcb_desc->bTxDisableRateFallBack = true;
 

@@ -2076,14 +2076,6 @@ static void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST
-	/* TODO: this function doesn't work well at this time,
-	 * we should wait for FPGA
-	 */
-	ActUpdateChannelAccessSetting(
-			pAdapter, pHalData->CurrentWirelessMode,
-			&pAdapter->MgntInfo.Info8185.ChannelAccessSetting);
-#endif
 	priv->ieee80211->mode = wireless_mode;
 
 	if (wireless_mode == WIRELESS_MODE_N_24G ||
@@ -2159,12 +2151,6 @@ static int rtl8192_init_priv_variable(struct net_device *dev)
 
 	priv->ieee80211->InitialGainHandler = InitialGain819xUsb;
 	priv->card_type = USB;
-#ifdef TO_DO_LIST
-	if (Adapter->bInHctTest) {
-		pHalData->ShortRetryLimit = 7;
-		pHalData->LongRetryLimit = 7;
-	}
-#endif
 	priv->ShortRetryLimit = 0x30;
 	priv->LongRetryLimit = 0x30;
 	priv->EarlyRxThreshold = 7;
@@ -2180,34 +2166,6 @@ static int rtl8192_init_priv_variable(struct net_device *dev)
 		 * TRUE: SW provides them
 		 */
 		(false ? TCR_SAT : 0);
-#ifdef TO_DO_LIST
-	if (Adapter->bInHctTest)
-		pHalData->ReceiveConfig =
-			pHalData->CSMethod |
-			/* accept management/data */
-			RCR_AMF | RCR_ADF |
-			/* accept control frame for SW
-			 * AP needs PS-poll
-			 */
-			RCR_ACF |
-			/* accept BC/MC/UC */
-			RCR_AB | RCR_AM | RCR_APM |
-			/* accept ICV/CRC error
-			 * packet
-			 */
-			RCR_AICV | RCR_ACRC32 |
-			/* Max DMA Burst Size per Tx
-			 * DMA Burst, 7: unlimited.
-			 */
-			((u32)7 << RCR_MXDMA_OFFSET) |
-			/* Rx FIFO Threshold,
-			 * 7: No Rx threshold.
-			 */
-			(pHalData->EarlyRxThreshold << RCR_FIFO_OFFSET) |
-			(pHalData->EarlyRxThreshold == 7 ? RCR_OnlyErlPkt : 0);
-	else
-
-#endif
 	priv->ReceiveConfig	=
 		/* accept management/data */
 		RCR_AMF | RCR_ADF |
@@ -2665,19 +2623,10 @@ static void rtl8192_hwconfig(struct net_device *dev)
 		regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 		break;
 	case WIRELESS_MODE_AUTO:
-#ifdef TO_DO_LIST
-		if (Adapter->bInHctTest) {
-			regBwOpMode = BW_OPMODE_20MHZ;
-			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		} else
-#endif
-		{
-			regBwOpMode = BW_OPMODE_20MHZ;
-			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG |
-				  RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
-			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		}
+		regBwOpMode = BW_OPMODE_20MHZ;
+		regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG |
+			  RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
+		regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 		break;
 	case WIRELESS_MODE_N_24G:
 		/* It support CCK rate by default. CCK rate will be filtered
@@ -2848,48 +2797,6 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 	}
 	RT_TRACE(COMP_INIT, "%s():after firmware download\n", __func__);
 
-#ifdef TO_DO_LIST
-	if (Adapter->ResetProgress == RESET_TYPE_NORESET) {
-		if (pMgntInfo->RegRfOff) { /* User disable RF via registry. */
-			RT_TRACE((COMP_INIT | COMP_RF), DBG_LOUD,
-				 ("InitializeAdapter819xUsb(): Turn off RF for RegRfOff ----------\n"));
-			MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_SW);
-			/* Those actions will be discard in MgntActSet_RF_State
-			 * because of the same state
-			 */
-			for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
-				PHY_SetRFReg(Adapter,
-					     (enum rf90_radio_path_e)eRFPath,
-					     0x4, 0xC00, 0x0);
-		} else if (pMgntInfo->RfOffReason > RF_CHANGE_BY_PS) {
-			/* H/W or S/W RF OFF before sleep. */
-			RT_TRACE((COMP_INIT | COMP_RF), DBG_LOUD,
-				 ("InitializeAdapter819xUsb(): Turn off RF for RfOffReason(%d) ----------\n",
-				  pMgntInfo->RfOffReason));
-			MgntActSet_RF_State(Adapter,
-					    eRfOff,
-					    pMgntInfo->RfOffReason);
-		} else {
-			pHalData->eRFPowerState = eRfOn;
-			pMgntInfo->RfOffReason = 0;
-			RT_TRACE((COMP_INIT | COMP_RF), DBG_LOUD,
-				 ("InitializeAdapter819xUsb(): RF is on ----------\n"));
-		}
-	} else {
-		if (pHalData->eRFPowerState == eRfOff) {
-			MgntActSet_RF_State(Adapter,
-					    eRfOff,
-					    pMgntInfo->RfOffReason);
-			/* Those actions will be discard in MgntActSet_RF_State
-			 * because of the same state
-			 */
-			for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
-				PHY_SetRFReg(Adapter,
-					     (enum rf90_radio_path_e)eRFPath,
-					     0x4, 0xC00, 0x0);
-		}
-	}
-#endif
 	/* config RF. */
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		rtl8192_phy_RFConfig(dev);
