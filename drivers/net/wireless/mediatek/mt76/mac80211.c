@@ -484,7 +484,7 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 EXPORT_SYMBOL(mt76_wcid_key_setup);
 
-struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
+static struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct mt76_rx_status mstat;
@@ -511,7 +511,6 @@ struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 
 	return wcid_to_sta(mstat.wcid);
 }
-EXPORT_SYMBOL(mt76_rx_convert);
 
 static int
 mt76_check_ccmp_pn(struct sk_buff *skb)
