@@ -1646,49 +1646,6 @@ void ext4_da_release_space(struct inode *inode, int to_free)
 	dquot_release_reservation_block(inode, EXT4_C2B(sbi, to_free));
 }
 
-static void ext4_da_page_release_reservation(struct page *page,
-					     unsigned int offset,
-					     unsigned int length)
-{
-	int contiguous_blks = 0;
-	struct buffer_head *head, *bh;
-	unsigned int curr_off = 0;
-	struct inode *inode = page->mapping->host;
-	unsigned int stop = offset + length;
-	ext4_fsblk_t lblk;
-
-	BUG_ON(stop > PAGE_SIZE || stop < length);
-
-	head = page_buffers(page);
-	bh = head;
-	do {
-		unsigned int next_off = curr_off + bh->b_size;
-
-		if (next_off > stop)
-			break;
-
-		if ((offset <= curr_off) && (buffer_delay(bh))) {
-			contiguous_blks++;
-			clear_buffer_delay(bh);
-		} else if (contiguous_blks) {
-			lblk = page->index <<
-			       (PAGE_SHIFT - inode->i_blkbits);
-			lblk += (curr_off >> inode->i_blkbits) -
-				contiguous_blks;
-			ext4_es_remove_blks(inode, lblk, contiguous_blks);
-			contiguous_blks = 0;
-		}
-		curr_off = next_off;
-	} while ((bh = bh->b_this_page) != head);
-
-	if (contiguous_blks) {
-		lblk = page->index << (PAGE_SHIFT - inode->i_blkbits);
-		lblk += (curr_off >> inode->i_blkbits) - contiguous_blks;
-		ext4_es_remove_blks(inode, lblk, contiguous_blks);
-	}
-
-}
-
 /*
  * Delayed allocation stuff
  */
@@ -3227,24 +3184,6 @@ static int ext4_da_write_end(struct file *file,
 	return ret ? ret : copied;
 }
 
-static void ext4_da_invalidatepage(struct page *page, unsigned int offset,
-				   unsigned int length)
-{
-	/*
-	 * Drop reserved blocks
-	 */
-	BUG_ON(!PageLocked(page));
-	if (!page_has_buffers(page))
-		goto out;
-
-	ext4_da_page_release_reservation(page, offset, length);
-
-out:
-	ext4_invalidatepage(page, offset, length);
-
-	return;
-}
-
 /*
  * Force all delayed allocation blocks to be allocated for a given inode.
  */
@@ -3985,7 +3924,7 @@ static const struct address_space_operations ext4_da_aops = {
 	.write_end		= ext4_da_write_end,
 	.set_page_dirty		= ext4_set_page_dirty,
 	.bmap			= ext4_bmap,
-	.invalidatepage		= ext4_da_invalidatepage,
+	.invalidatepage		= ext4_invalidatepage,
 	.releasepage		= ext4_releasepage,
 	.direct_IO		= ext4_direct_IO,
 	.migratepage		= buffer_migrate_page,

@@ -284,6 +284,9 @@ struct ext4_io_submit {
 				  ~((ext4_fsblk_t) (s)->s_cluster_ratio - 1))
 #define EXT4_LBLK_CMASK(s, lblk) ((lblk) &				\
 				  ~((ext4_lblk_t) (s)->s_cluster_ratio - 1))
+/* Fill in the low bits to get the last block of the cluster */
+#define EXT4_LBLK_CFILL(sbi, lblk) ((lblk) |				\
+				    ((ext4_lblk_t) (sbi)->s_cluster_ratio - 1))
 /* Get the cluster offset */
 #define EXT4_PBLK_COFF(s, pblk) ((pblk) &				\
 				 ((ext4_fsblk_t) (s)->s_cluster_ratio - 1))
