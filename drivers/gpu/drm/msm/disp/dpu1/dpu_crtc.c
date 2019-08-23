@@ -636,7 +636,7 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 	 */
 	drm_for_each_encoder_mask(encoder, crtc->dev,
 				  crtc->state->encoder_mask)
-		dpu_encoder_prepare_for_kickoff(encoder, async);
+		dpu_encoder_prepare_for_kickoff(encoder);
 
 	if (!async) {
 		/* wait for previous frame_event_done completion */
