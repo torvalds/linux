@@ -1135,6 +1135,26 @@ static void soc_remove_link_components(struct snd_soc_card *card,
 	}
 }
 
+static int soc_probe_link_components(struct snd_soc_card *card,
+				     struct snd_soc_pcm_runtime *rtd, int order)
+{
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+	int ret;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component->driver->probe_order == order) {
+			ret = soc_probe_component(card, component);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void soc_remove_dai_links(struct snd_soc_card *card)
 {
 	int order;
@@ -1376,26 +1396,6 @@ static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
 		return ret;
 	}
 	rtd->dev_registered = 1;
-	return 0;
-}
-
-static int soc_probe_link_components(struct snd_soc_card *card,
-				     struct snd_soc_pcm_runtime *rtd, int order)
-{
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
-	int ret;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (component->driver->probe_order == order) {
-			ret = soc_probe_component(card, component);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
 	return 0;
 }
 
