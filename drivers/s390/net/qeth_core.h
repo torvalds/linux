@@ -22,6 +22,7 @@
 #include <linux/hashtable.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
+#include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
@@ -474,6 +475,8 @@ struct qeth_out_q_stats {
 	u64 tso_bytes;
 	u64 packing_mode_switch;
 	u64 stopped;
+	u64 completion_yield;
+	u64 completion_timer;
 
 	/* rtnl_link_stats64 */
 	u64 tx_packets;
@@ -481,6 +484,8 @@ struct qeth_out_q_stats {
 	u64 tx_errors;
 	u64 tx_dropped;
 };
+
+#define QETH_TX_TIMER_USECS		500
 
 struct qeth_qdio_out_q {
 	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
@@ -500,11 +505,32 @@ struct qeth_qdio_out_q {
 	atomic_t used_buffers;
 	/* indicates whether PCI flag must be set (or if one is outstanding) */
 	atomic_t set_pci_flags_count;
+	struct napi_struct napi;
+	struct timer_list timer;
 };
+
+#define qeth_for_each_output_queue(card, q, i)		\
+	for (i = 0; i < card->qdio.no_out_queues &&	\
+		    (q = card->qdio.out_qs[i]); i++)
+
+#define	qeth_napi_to_out_queue(n) container_of(n, struct qeth_qdio_out_q, napi)
+
+static inline void qeth_tx_arm_timer(struct qeth_qdio_out_q *queue)
+{
+	if (timer_pending(&queue->timer))
+		return;
+	mod_timer(&queue->timer, usecs_to_jiffies(QETH_TX_TIMER_USECS) +
+				 jiffies);
+}
 
 static inline bool qeth_out_queue_is_full(struct qeth_qdio_out_q *queue)
 {
 	return atomic_read(&queue->used_buffers) >= QDIO_MAX_BUFFERS_PER_Q;
+}
+
+static inline bool qeth_out_queue_is_empty(struct qeth_qdio_out_q *queue)
+{
+	return atomic_read(&queue->used_buffers) == 0;
 }
 
 struct qeth_qdio_info {
