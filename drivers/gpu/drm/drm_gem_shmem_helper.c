@@ -390,6 +390,12 @@ void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
 
 	WARN_ON(!drm_gem_shmem_is_purgeable(shmem));
 
+	dma_unmap_sg(obj->dev->dev, shmem->sgt->sgl,
+		     shmem->sgt->nents, DMA_BIDIRECTIONAL);
+	sg_free_table(shmem->sgt);
+	kfree(shmem->sgt);
+	shmem->sgt = NULL;
+
 	drm_gem_shmem_put_pages_locked(shmem);
 
 	shmem->madv = -1;
