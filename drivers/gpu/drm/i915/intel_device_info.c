@@ -118,10 +118,9 @@ void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
 static int sseu_eu_idx(const struct sseu_dev_info *sseu, int slice,
 		       int subslice)
 {
-	int subslice_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
-	int slice_stride = sseu->max_subslices * subslice_stride;
+	int slice_stride = sseu->max_subslices * sseu->eu_stride;
 
-	return slice * slice_stride + subslice * subslice_stride;
+	return slice * slice_stride + subslice * sseu->eu_stride;
 }
 
 static u16 sseu_get_eus(const struct sseu_dev_info *sseu, int slice,
@@ -130,7 +129,7 @@ static u16 sseu_get_eus(const struct sseu_dev_info *sseu, int slice,
 	int i, offset = sseu_eu_idx(sseu, slice, subslice);
 	u16 eu_mask = 0;
 
-	for (i = 0; i < GEN_SSEU_STRIDE(sseu->max_eus_per_subslice); i++) {
+	for (i = 0; i < sseu->eu_stride; i++) {
 		eu_mask |= ((u16)sseu->eu_mask[offset + i]) <<
 			(i * BITS_PER_BYTE);
 	}
@@ -143,7 +142,7 @@ static void sseu_set_eus(struct sseu_dev_info *sseu, int slice, int subslice,
 {
 	int i, offset = sseu_eu_idx(sseu, slice, subslice);
 
-	for (i = 0; i < GEN_SSEU_STRIDE(sseu->max_eus_per_subslice); i++) {
+	for (i = 0; i < sseu->eu_stride; i++) {
 		sseu->eu_mask[offset + i] =
 			(eu_mask >> (BITS_PER_BYTE * i)) & 0xff;
 	}

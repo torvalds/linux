@@ -16,6 +16,8 @@ struct drm_i915_private;
 #define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
 #define GEN_SSEU_STRIDE(max_entries) DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
 #define GEN_MAX_SUBSLICE_STRIDE GEN_SSEU_STRIDE(GEN_MAX_SUBSLICES)
+#define GEN_MAX_EUS		(10) /* HSW upper bound */
+#define GEN_MAX_EU_STRIDE GEN_SSEU_STRIDE(GEN_MAX_EUS)
 
 struct sseu_dev_info {
 	u8 slice_mask;
@@ -35,6 +37,7 @@ struct sseu_dev_info {
 	u8 max_eus_per_subslice;
 
 	u8 ss_stride;
+	u8 eu_stride;
 
 	/* We don't have more than 8 eus per subslice at the moment and as we
 	 * store eus enabled using bits, no need to multiply by eus per
