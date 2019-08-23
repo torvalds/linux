@@ -253,18 +253,24 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 					fc_wwpn_valid = true;
 				break;
 			case FIP_DT_VN_ID:
+				fabric_id_valid = false;
 				vp = (struct fip_vn_desc *)desc;
-				QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
-					  "vx_port fd_fc_id=%x fd_mac=%pM.\n",
-					  ntoh24(vp->fd_fc_id), vp->fd_mac);
-				/* Check vx_port fabric ID */
-				if (ntoh24(vp->fd_fc_id) !=
-				    qedf->lport->port_id)
-					fabric_id_valid = false;
-				/* Check vx_port MAC */
-				if (!ether_addr_equal(vp->fd_mac,
-						      qedf->data_src_addr))
-					fabric_id_valid = false;
+
+				QEDF_ERR(&qedf->dbg_ctx,
+					 "CVL vx_port fd_fc_id=0x%x fd_mac=%pM fd_wwpn=%016llx.\n",
+					 ntoh24(vp->fd_fc_id), vp->fd_mac,
+					 get_unaligned_be64(&vp->fd_wwpn));
+				/* Check for vx_port wwpn OR Check vx_port
+				 * fabric ID OR Check vx_port MAC
+				 */
+				if ((get_unaligned_be64(&vp->fd_wwpn) ==
+					qedf->wwpn) ||
+				   (ntoh24(vp->fd_fc_id) ==
+					qedf->lport->port_id) ||
+				   (ether_addr_equal(vp->fd_mac,
+					qedf->data_src_addr))) {
+					fabric_id_valid = true;
+				}
 				break;
 			default:
 				/* Ignore anything else */
