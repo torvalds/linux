@@ -737,7 +737,7 @@
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "h265e_mmu";
 		clocks = <&cru ACLK_H265>, <&cru PCLK_H265>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3328_PD_HEVC>;
 		#iommu-cells = <0>;
 	};
@@ -771,7 +771,7 @@
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vepu_mmu";
 		clocks = <&cru ACLK_H264>, <&cru HCLK_H264>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3328_PD_HEVC>;
 		#iommu-cells = <0>;
 	};
@@ -798,7 +798,7 @@
 		reg = <0x0 0xff350800 0x0 0x40>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		power-domains = <&power RK3328_PD_VPU>;
 		#iommu-cells = <0>;
@@ -901,7 +901,7 @@
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "rkvdec_mmu";
 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
-		clock-names = "aclk_vcodec", "hclk_vcodec";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3328_PD_VIDEO>;
 		#iommu-cells = <0>;
 	};
@@ -976,7 +976,7 @@
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
-		clock-names = "aclk", "hclk";
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3328_PD_VIDEO>;
 		#iommu-cells = <0>;
 		status = "disabled";
