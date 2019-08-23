@@ -128,6 +128,11 @@ static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 			return false;
 		}
 
+		if (test_bit(QEDF_UNLOADING, &qedf->flags)) {
+			QEDF_ERR(&qedf->dbg_ctx, "Driver unloading.\n");
+			return false;
+		}
+
 		if (qedf->vlan_id > 0) {
 			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
 				  "vlan = 0x%x already set.\n", qedf->vlan_id);
