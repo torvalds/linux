@@ -250,12 +250,12 @@ int sys_enter(struct syscall_enter_args *args)
 	struct syscall *syscall;
 	int key = 0;
 
+	if (pid_filter__has(&pids_filtered, getpid()))
+		return 0;
+
         augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
         if (augmented_args == NULL)
                 return 1;
-
-	if (pid_filter__has(&pids_filtered, getpid()))
-		return 0;
 
 	probe_read(&augmented_args->args, sizeof(augmented_args->args), args);
 
