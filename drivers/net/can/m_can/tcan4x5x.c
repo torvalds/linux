@@ -117,7 +117,6 @@ struct tcan4x5x_priv {
 	struct m_can_classdev *mcan_dev;
 
 	struct gpio_desc *reset_gpio;
-	struct gpio_desc *interrupt_gpio;
 	struct gpio_desc *device_wake_gpio;
 	struct gpio_desc *device_state_gpio;
 	struct regulator *power;
@@ -356,13 +355,6 @@ static int tcan4x5x_parse_config(struct m_can_classdev *cdev)
 {
 	struct tcan4x5x_priv *tcan4x5x = cdev->device_data;
 
-	tcan4x5x->interrupt_gpio = devm_gpiod_get(cdev->dev, "data-ready",
-						  GPIOD_IN);
-	if (IS_ERR(tcan4x5x->interrupt_gpio)) {
-		dev_err(cdev->dev, "data-ready gpio not defined\n");
-		return -EINVAL;
-	}
-
 	tcan4x5x->device_wake_gpio = devm_gpiod_get(cdev->dev, "device-wake",
 						    GPIOD_OUT_HIGH);
 	if (IS_ERR(tcan4x5x->device_wake_gpio)) {
@@ -380,8 +372,6 @@ static int tcan4x5x_parse_config(struct m_can_classdev *cdev)
 							      GPIOD_IN);
 	if (IS_ERR(tcan4x5x->device_state_gpio))
 		tcan4x5x->device_state_gpio = NULL;
-
-	cdev->net->irq = gpiod_to_irq(tcan4x5x->interrupt_gpio);
 
 	tcan4x5x->power = devm_regulator_get_optional(cdev->dev,
 						      "vsup");
@@ -447,6 +437,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	mcan_class->is_peripheral = true;
 	mcan_class->bit_timing = &tcan4x5x_bittiming_const;
 	mcan_class->data_timing = &tcan4x5x_data_bittiming_const;
+	mcan_class->net->irq = spi->irq;
 
 	spi_set_drvdata(spi, priv);
 
