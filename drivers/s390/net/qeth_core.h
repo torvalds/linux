@@ -378,6 +378,28 @@ enum qeth_header_ids {
 #define QETH_HDR_EXT_CSUM_TRANSP_REQ  0x20
 #define QETH_HDR_EXT_UDP	      0x40 /*bit off for TCP*/
 
+static inline bool qeth_l2_same_vlan(struct qeth_hdr_layer2 *h1,
+				     struct qeth_hdr_layer2 *h2)
+{
+	return !((h1->flags[2] ^ h2->flags[2]) & QETH_LAYER2_FLAG_VLAN) &&
+	       h1->vlan_id == h2->vlan_id;
+}
+
+static inline bool qeth_l3_iqd_same_vlan(struct qeth_hdr_layer3 *h1,
+					 struct qeth_hdr_layer3 *h2)
+{
+	return !((h1->ext_flags ^ h2->ext_flags) & QETH_HDR_EXT_VLAN_FRAME) &&
+	       h1->vlan_id == h2->vlan_id;
+}
+
+static inline bool qeth_l3_same_next_hop(struct qeth_hdr_layer3 *h1,
+					 struct qeth_hdr_layer3 *h2)
+{
+	return !((h1->flags ^ h2->flags) & QETH_HDR_IPV6) &&
+	       ipv6_addr_equal(&h1->next_hop.ipv6_addr,
+			       &h2->next_hop.ipv6_addr);
+}
+
 enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
 	QETH_QDIO_ALLOCATED,
@@ -508,6 +530,8 @@ struct qeth_qdio_out_q {
 	atomic_t set_pci_flags_count;
 	struct napi_struct napi;
 	struct timer_list timer;
+	struct qeth_hdr *prev_hdr;
+	u8 bulk_start;
 };
 
 #define qeth_for_each_output_queue(card, q, i)		\
