@@ -1283,8 +1283,8 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		/* HSW and BDW require workarounds that we don't implement. */
 		dev_priv->psr.link_standby = false;
-	else
-		/* For new platforms let's respect VBT back again */
+	else if (INTEL_GEN(dev_priv) < 12)
+		/* For new platforms up to TGL let's respect VBT back again */
 		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
 
 	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
