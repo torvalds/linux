@@ -229,6 +229,9 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
 	struct vm_area_struct *vma = walk->vma;
 	vm_fault_t ret;
 
+	if (!vma)
+		goto err;
+
 	if (hmm_vma_walk->flags & HMM_FAULT_ALLOW_RETRY)
 		flags |= FAULT_FLAG_ALLOW_RETRY;
 	if (write_fault)
@@ -239,12 +242,14 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
 		/* Note, handle_mm_fault did up_read(&mm->mmap_sem)) */
 		return -EAGAIN;
 	}
-	if (ret & VM_FAULT_ERROR) {
-		*pfn = range->values[HMM_PFN_ERROR];
-		return -EFAULT;
-	}
+	if (ret & VM_FAULT_ERROR)
+		goto err;
 
 	return -EBUSY;
+
+err:
+	*pfn = range->values[HMM_PFN_ERROR];
+	return -EFAULT;
 }
 
 static int hmm_pfns_bad(unsigned long addr,
