@@ -173,9 +173,7 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = &dsi->dev;
-	ctx->panel.funcs = &rb070d30_panel_funcs;
+	drm_panel_init(&ctx->panel, &dsi->dev, &rb070d30_panel_funcs);
 
 	ctx->gpios.reset = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpios.reset)) {

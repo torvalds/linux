@@ -473,9 +473,7 @@ static int s6e63m0_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e63m0_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e63m0_drm_funcs);
 
 	ret = s6e63m0_backlight_register(ctx);
 	if (ret < 0)

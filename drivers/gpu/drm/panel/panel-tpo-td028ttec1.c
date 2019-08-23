@@ -347,9 +347,7 @@ static int td028ttec1_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &lcd->spi->dev;
-	lcd->panel.funcs = &td028ttec1_funcs;
+	drm_panel_init(&lcd->panel, &lcd->spi->dev, &td028ttec1_funcs);
 
 	return drm_panel_add(&lcd->panel);
 }

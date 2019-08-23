@@ -259,9 +259,7 @@ static int lg4573_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = &spi->dev;
-	ctx->panel.funcs = &lg4573_drm_funcs;
+	drm_panel_init(&ctx->panel, &spi->dev, &lg4573_drm_funcs);
 
 	return drm_panel_add(&ctx->panel);
 }

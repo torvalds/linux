@@ -260,9 +260,7 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	 */
 
 	/* Register the panel. */
-	drm_panel_init(&lvds->panel);
-	lvds->panel.dev = lvds->dev;
-	lvds->panel.funcs = &panel_lvds_funcs;
+	drm_panel_init(&lvds->panel, lvds->dev, &panel_lvds_funcs);
 
 	ret = drm_panel_add(&lvds->panel);
 	if (ret < 0)

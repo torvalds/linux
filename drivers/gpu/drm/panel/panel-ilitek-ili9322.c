@@ -895,9 +895,7 @@ static int ili9322_probe(struct spi_device *spi)
 		ili->input = ili->conf->input;
 	}
 
-	drm_panel_init(&ili->panel);
-	ili->panel.dev = dev;
-	ili->panel.funcs = &ili9322_drm_funcs;
+	drm_panel_init(&ili->panel, dev, &ili9322_drm_funcs);
 
 	return drm_panel_add(&ili->panel);
 }

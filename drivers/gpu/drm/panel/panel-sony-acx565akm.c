@@ -648,9 +648,7 @@ static int acx565akm_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &lcd->spi->dev;
-	lcd->panel.funcs = &acx565akm_funcs;
+	drm_panel_init(&lcd->panel, &lcd->spi->dev, &acx565akm_funcs);
 
 	ret = drm_panel_add(&lcd->panel);
 	if (ret < 0) {
