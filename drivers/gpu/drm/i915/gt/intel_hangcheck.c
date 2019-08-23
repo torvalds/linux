@@ -53,6 +53,7 @@ static bool instdone_unchanged(u32 current_instdone, u32 *old_instdone)
 static bool subunits_stuck(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct intel_instdone instdone;
 	struct intel_instdone *accu_instdone = &engine->hangcheck.instdone;
 	bool stuck;
@@ -71,7 +72,7 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	stuck &= instdone_unchanged(instdone.slice_common,
 				    &accu_instdone->slice_common);
 
-	for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+	for_each_instdone_slice_subslice(dev_priv, sseu, slice, subslice) {
 		stuck &= instdone_unchanged(instdone.sampler[slice][subslice],
 					    &accu_instdone->sampler[slice][subslice]);
 		stuck &= instdone_unchanged(instdone.row[slice][subslice],

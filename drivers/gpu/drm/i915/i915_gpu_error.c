@@ -421,6 +421,7 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 const struct drm_i915_error_engine *ee)
 {
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(m->i915)->sseu;
 	int slice;
 	int subslice;
 
@@ -436,12 +437,12 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	if (INTEL_GEN(m->i915) <= 6)
 		return;
 
-	for_each_instdone_slice_subslice(m->i915, slice, subslice)
+	for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
 		err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
 			   slice, subslice,
 			   ee->instdone.sampler[slice][subslice]);
 
-	for_each_instdone_slice_subslice(m->i915, slice, subslice)
+	for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
 		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
 			   slice, subslice,
 			   ee->instdone.row[slice][subslice]);
