@@ -938,6 +938,41 @@ _err_defer:
 	return -EPROBE_DEFER;
 }
 
+static void soc_set_of_name_prefix(struct snd_soc_component *component)
+{
+	struct device_node *of_node = soc_component_to_node(component);
+	const char *str;
+	int ret;
+
+	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
+	if (!ret)
+		component->name_prefix = str;
+}
+
+static void soc_set_name_prefix(struct snd_soc_card *card,
+				struct snd_soc_component *component)
+{
+	int i;
+
+	for (i = 0; i < card->num_configs && card->codec_conf; i++) {
+		struct snd_soc_codec_conf *map = &card->codec_conf[i];
+		struct device_node *of_node = soc_component_to_node(component);
+
+		if (map->of_node && of_node != map->of_node)
+			continue;
+		if (map->dev_name && strcmp(component->name, map->dev_name))
+			continue;
+		component->name_prefix = map->name_prefix;
+		return;
+	}
+
+	/*
+	 * If there is no configuration table or no match in the table,
+	 * check if a prefix is provided in the node
+	 */
+	soc_set_of_name_prefix(component);
+}
+
 static void soc_cleanup_component(struct snd_soc_component *component)
 {
 	snd_soc_component_set_jack(component, NULL, NULL);
@@ -956,6 +991,101 @@ static void soc_remove_component(struct snd_soc_component *component)
 	snd_soc_component_remove(component);
 
 	soc_cleanup_component(component);
+}
+
+static int soc_probe_component(struct snd_soc_card *card,
+			       struct snd_soc_component *component)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	struct snd_soc_dai *dai;
+	int ret;
+
+	if (!strcmp(component->name, "snd-soc-dummy"))
+		return 0;
+
+	if (component->card) {
+		if (component->card != card) {
+			dev_err(component->dev,
+				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
+				card->name, component->card->name);
+			return -ENODEV;
+		}
+		return 0;
+	}
+
+	ret = snd_soc_component_module_get_when_probe(component);
+	if (ret < 0)
+		return ret;
+
+	component->card = card;
+	dapm->card = card;
+	INIT_LIST_HEAD(&dapm->list);
+	soc_set_name_prefix(card, component);
+
+	soc_init_component_debugfs(component);
+
+	ret = snd_soc_dapm_new_controls(dapm,
+					component->driver->dapm_widgets,
+					component->driver->num_dapm_widgets);
+
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create new controls %d\n", ret);
+		goto err_probe;
+	}
+
+	for_each_component_dais(component, dai) {
+		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	ret = snd_soc_component_probe(component);
+	if (ret < 0) {
+		dev_err(component->dev,
+			"ASoC: failed to probe component %d\n", ret);
+		goto err_probe;
+	}
+	WARN(dapm->idle_bias_off &&
+	     dapm->bias_level != SND_SOC_BIAS_OFF,
+	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
+	     component->name);
+
+	/* machine specific init */
+	if (component->init) {
+		ret = component->init(component);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"Failed to do machine specific init %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	ret = snd_soc_add_component_controls(component,
+					     component->driver->controls,
+					     component->driver->num_controls);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_dapm_add_routes(dapm,
+				      component->driver->dapm_routes,
+				      component->driver->num_dapm_routes);
+	if (ret < 0)
+		goto err_probe;
+
+	list_add(&dapm->list, &card->dapm_list);
+	/* see for_each_card_components */
+	list_add(&component->card_list, &card->component_dev_list);
+
+err_probe:
+	if (ret < 0)
+		soc_cleanup_component(component);
+
+	return ret;
 }
 
 static void soc_remove_dai(struct snd_soc_dai *dai, int order)
@@ -1206,137 +1336,6 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	list_del(&dai_link->list);
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
-
-static void soc_set_of_name_prefix(struct snd_soc_component *component)
-{
-	struct device_node *component_of_node = soc_component_to_node(component);
-	const char *str;
-	int ret;
-
-	ret = of_property_read_string(component_of_node, "sound-name-prefix",
-				      &str);
-	if (!ret)
-		component->name_prefix = str;
-}
-
-static void soc_set_name_prefix(struct snd_soc_card *card,
-				struct snd_soc_component *component)
-{
-	int i;
-
-	for (i = 0; i < card->num_configs && card->codec_conf; i++) {
-		struct snd_soc_codec_conf *map = &card->codec_conf[i];
-		struct device_node *component_of_node = soc_component_to_node(component);
-
-		if (map->of_node && component_of_node != map->of_node)
-			continue;
-		if (map->dev_name && strcmp(component->name, map->dev_name))
-			continue;
-		component->name_prefix = map->name_prefix;
-		return;
-	}
-
-	/*
-	 * If there is no configuration table or no match in the table,
-	 * check if a prefix is provided in the node
-	 */
-	soc_set_of_name_prefix(component);
-}
-
-static int soc_probe_component(struct snd_soc_card *card,
-	struct snd_soc_component *component)
-{
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
-	struct snd_soc_dai *dai;
-	int ret;
-
-	if (!strcmp(component->name, "snd-soc-dummy"))
-		return 0;
-
-	if (component->card) {
-		if (component->card != card) {
-			dev_err(component->dev,
-				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
-				card->name, component->card->name);
-			return -ENODEV;
-		}
-		return 0;
-	}
-
-	ret = snd_soc_component_module_get_when_probe(component);
-	if (ret < 0)
-		return ret;
-
-	component->card = card;
-	dapm->card = card;
-	INIT_LIST_HEAD(&dapm->list);
-	soc_set_name_prefix(card, component);
-
-	soc_init_component_debugfs(component);
-
-	ret = snd_soc_dapm_new_controls(dapm,
-					component->driver->dapm_widgets,
-					component->driver->num_dapm_widgets);
-
-	if (ret != 0) {
-		dev_err(component->dev,
-			"Failed to create new controls %d\n", ret);
-		goto err_probe;
-	}
-
-	for_each_component_dais(component, dai) {
-		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
-		if (ret != 0) {
-			dev_err(component->dev,
-				"Failed to create DAI widgets %d\n", ret);
-			goto err_probe;
-		}
-	}
-
-	ret = snd_soc_component_probe(component);
-	if (ret < 0) {
-		dev_err(component->dev,
-			"ASoC: failed to probe component %d\n", ret);
-		goto err_probe;
-	}
-	WARN(dapm->idle_bias_off &&
-	     dapm->bias_level != SND_SOC_BIAS_OFF,
-	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
-	     component->name);
-
-	/* machine specific init */
-	if (component->init) {
-		ret = component->init(component);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"Failed to do machine specific init %d\n", ret);
-			goto err_probe;
-		}
-	}
-
-	ret = snd_soc_add_component_controls(component,
-					     component->driver->controls,
-					     component->driver->num_controls);
-	if (ret < 0)
-		goto err_probe;
-
-	ret = snd_soc_dapm_add_routes(dapm,
-				      component->driver->dapm_routes,
-				      component->driver->num_dapm_routes);
-	if (ret < 0)
-		goto err_probe;
-
-	list_add(&dapm->list, &card->dapm_list);
-	/* see for_each_card_components */
-	list_add(&component->card_list, &card->component_dev_list);
-
-err_probe:
-	if (ret < 0)
-		soc_cleanup_component(component);
-
-	return ret;
-}
 
 static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd)
 {
