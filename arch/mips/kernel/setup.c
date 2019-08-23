@@ -458,7 +458,7 @@ static int __init early_parse_elfcorehdr(char *p)
 
 	 for_each_memblock(memory, mem) {
 		unsigned long start = mem->base;
-		unsigned long end = mem->end;
+		unsigned long end = start + mem->size;
 		if (setup_elfcorehdr >= start && setup_elfcorehdr < end) {
 			/*
 			 * Reserve from the elf core header to the end of
