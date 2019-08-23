@@ -226,7 +226,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	/* disable irqs */
 	vega10_ih_disable_interrupts(adev);
 
-	adev->nbio_funcs->ih_control(adev);
+	adev->nbio.funcs->ih_control(adev);
 
 	ih = &adev->irq.ih;
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/

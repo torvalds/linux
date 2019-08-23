@@ -278,7 +278,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	int r;
 
 	/* flush hdp cache */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
@@ -557,7 +557,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 
 	/* size in MB on si */
 	adev->gmc.mc_vram_size =
-		adev->nbio_funcs->get_memsize(adev) * 1024ULL * 1024ULL;
+		adev->nbio.funcs->get_memsize(adev) * 1024ULL * 1024ULL;
 	adev->gmc.real_vram_size = adev->gmc.mc_vram_size;
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
 
@@ -794,7 +794,7 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
 	/* Flush HDP after it is initialized */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
 		false : true;

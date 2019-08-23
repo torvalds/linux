@@ -460,7 +460,7 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 		return ret;
 
 	/* flush hdp cache */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	if (!drv2smu)
 		memcpy(table_data, table->cpu_addr, table->size);

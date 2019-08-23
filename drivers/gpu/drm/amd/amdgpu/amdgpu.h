@@ -73,6 +73,7 @@
 #include "amdgpu_gmc.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_sdma.h"
+#include "amdgpu_nbio.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
 #include "amdgpu_csa.h"
@@ -644,67 +645,9 @@ typedef void (*amdgpu_wreg64_t)(struct amdgpu_device*, uint32_t, uint64_t);
 typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
 
-
-/*
- * amdgpu nbio functions
- *
- */
-struct nbio_hdp_flush_reg {
-	u32 ref_and_mask_cp0;
-	u32 ref_and_mask_cp1;
-	u32 ref_and_mask_cp2;
-	u32 ref_and_mask_cp3;
-	u32 ref_and_mask_cp4;
-	u32 ref_and_mask_cp5;
-	u32 ref_and_mask_cp6;
-	u32 ref_and_mask_cp7;
-	u32 ref_and_mask_cp8;
-	u32 ref_and_mask_cp9;
-	u32 ref_and_mask_sdma0;
-	u32 ref_and_mask_sdma1;
-	u32 ref_and_mask_sdma2;
-	u32 ref_and_mask_sdma3;
-	u32 ref_and_mask_sdma4;
-	u32 ref_and_mask_sdma5;
-	u32 ref_and_mask_sdma6;
-	u32 ref_and_mask_sdma7;
-};
-
 struct amdgpu_mmio_remap {
 	u32 reg_offset;
 	resource_size_t bus_addr;
-};
-
-struct amdgpu_nbio_funcs {
-	const struct nbio_hdp_flush_reg *hdp_flush_reg;
-	u32 (*get_hdp_flush_req_offset)(struct amdgpu_device *adev);
-	u32 (*get_hdp_flush_done_offset)(struct amdgpu_device *adev);
-	u32 (*get_pcie_index_offset)(struct amdgpu_device *adev);
-	u32 (*get_pcie_data_offset)(struct amdgpu_device *adev);
-	u32 (*get_rev_id)(struct amdgpu_device *adev);
-	void (*mc_access_enable)(struct amdgpu_device *adev, bool enable);
-	void (*hdp_flush)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
-	u32 (*get_memsize)(struct amdgpu_device *adev);
-	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
-			bool use_doorbell, int doorbell_index, int doorbell_size);
-	void (*vcn_doorbell_range)(struct amdgpu_device *adev, bool use_doorbell,
-				   int doorbell_index, int instance);
-	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
-					 bool enable);
-	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,
-						  bool enable);
-	void (*ih_doorbell_range)(struct amdgpu_device *adev,
-				  bool use_doorbell, int doorbell_index);
-	void (*update_medium_grain_clock_gating)(struct amdgpu_device *adev,
-						 bool enable);
-	void (*update_medium_grain_light_sleep)(struct amdgpu_device *adev,
-						bool enable);
-	void (*get_clockgating_state)(struct amdgpu_device *adev,
-				      u32 *flags);
-	void (*ih_control)(struct amdgpu_device *adev);
-	void (*init_registers)(struct amdgpu_device *adev);
-	void (*detect_hw_virt)(struct amdgpu_device *adev);
-	void (*remap_hdp_registers)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_df_funcs {
@@ -921,6 +864,9 @@ struct amdgpu_device {
 	u32				cg_flags;
 	u32				pg_flags;
 
+	/* nbio */
+	struct amdgpu_nbio		nbio;
+
 	/* gfx */
 	struct amdgpu_gfx		gfx;
 
@@ -974,7 +920,6 @@ struct amdgpu_device {
 	/* soc15 register offset based on ip, instance and  segment */
 	uint32_t 		*reg_offset[MAX_HWIP][HWIP_MAX_INSTANCE];
 
-	const struct amdgpu_nbio_funcs	*nbio_funcs;
 	const struct amdgpu_df_funcs	*df_funcs;
 	const struct amdgpu_mmhub_funcs	*mmhub_funcs;
 

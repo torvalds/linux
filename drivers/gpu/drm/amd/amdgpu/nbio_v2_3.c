@@ -311,7 +311,6 @@ static void nbio_v2_3_init_registers(struct amdgpu_device *adev)
 }
 
 const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
-	.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg,
 	.get_hdp_flush_req_offset = nbio_v2_3_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v2_3_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v2_3_get_pcie_index_offset,

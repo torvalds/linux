@@ -244,7 +244,7 @@ static int vcn_v2_0_hw_init(void *handle)
 	struct amdgpu_ring *ring = &adev->vcn.inst->ring_dec;
 	int i, r;
 
-	adev->nbio_funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 					     ring->doorbell_index, 0);
 
 	ring->sched.ready = true;

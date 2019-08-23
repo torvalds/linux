@@ -255,7 +255,7 @@ static int vcn_v2_5_hw_init(void *handle)
 			continue;
 		ring = &adev->vcn.inst[j].ring_dec;
 
-		adev->nbio_funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+		adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 						     ring->doorbell_index, j);
 
 		r = amdgpu_ring_test_ring(ring);
