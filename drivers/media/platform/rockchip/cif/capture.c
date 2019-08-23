@@ -25,6 +25,8 @@
 #define CIF_MAX_WIDTH		8192
 #define CIF_MAX_HEIGHT		8192
 
+#define OUTPUT_STEP_WISE		8
+
 #define RKCIF_PLANE_Y			0
 #define RKCIF_PLANE_CBCR		1
 
@@ -1648,6 +1650,76 @@ static int rkcif_try_fmt_vid_cap_mplane(struct file *file, void *fh,
 	return 0;
 }
 
+static int rkcif_enum_framesizes(struct file *file, void *prov,
+				 struct v4l2_frmsizeenum *fsize)
+{
+	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_rect input_rect;
+
+	if (fsize->index != 0)
+		return -EINVAL;
+
+	if (!find_output_fmt(stream, fsize->pixel_format))
+		return -EINVAL;
+
+	input_rect.width = RKCIF_DEFAULT_WIDTH;
+	input_rect.height = RKCIF_DEFAULT_HEIGHT;
+
+	if (dev->active_sensor && dev->active_sensor->sd)
+		get_input_fmt(dev->active_sensor->sd,
+			      &input_rect, stream->id + 1);
+
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	s->min_width = CIF_MIN_WIDTH;
+	s->min_height = CIF_MIN_HEIGHT;
+	s->max_width = input_rect.width;
+	s->max_height = input_rect.height;
+	s->step_width = OUTPUT_STEP_WISE;
+	s->step_height = OUTPUT_STEP_WISE;
+
+	return 0;
+}
+
+static int rkcif_enum_frameintervals(struct file *file, void *fh,
+				     struct v4l2_frmivalenum *fival)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_sensor_info *sensor = dev->active_sensor;
+	struct v4l2_subdev_frame_interval fi;
+	int ret;
+
+	if (fival->index != 0)
+		return -EINVAL;
+
+	if (!sensor || !sensor->sd) {
+		/* TODO: active_sensor is NULL if using DMARX path */
+		v4l2_err(&dev->v4l2_dev, "%s Not active sensor\n", __func__);
+		return -ENODEV;
+	}
+
+	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	if (ret && ret != -ENOIOCTLCMD) {
+		return ret;
+	} else if (ret == -ENOIOCTLCMD) {
+		/* Set a default value for sensors not implements ioctl */
+		fi.interval.numerator = 1;
+		fi.interval.denominator = 30;
+	}
+
+	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
+	fival->stepwise.step.numerator = 1;
+	fival->stepwise.step.denominator = 1;
+	fival->stepwise.max.numerator = 1;
+	fival->stepwise.max.denominator = 1;
+	fival->stepwise.min.numerator = fi.interval.numerator;
+	fival->stepwise.min.denominator = fi.interval.denominator;
+
+	return 0;
+}
+
 static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 					 struct v4l2_fmtdesc *f)
 {
@@ -1749,6 +1821,8 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_querycap = rkcif_querycap,
 	.vidioc_s_crop = rkcif_s_crop,
 	.vidioc_g_crop = rkcif_g_crop,
+	.vidioc_enum_frameintervals = rkcif_enum_frameintervals,
+	.vidioc_enum_framesizes = rkcif_enum_framesizes,
 };
 
 static void rkcif_unregister_stream_vdev(struct rkcif_stream *stream)
