@@ -1142,6 +1142,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 
 	qeth_scrub_qdio_buffer(buf->buffer, queue->max_elements);
 	buf->next_element_to_fill = 0;
+	buf->bytes = 0;
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
 }
 
@@ -2673,6 +2674,7 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 		atomic_set(&queue->used_buffers, 0);
 		atomic_set(&queue->set_pci_flags_count, 0);
 		atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
+		netdev_tx_reset_queue(netdev_get_tx_queue(card->dev, i));
 	}
 	return 0;
 }
@@ -3790,6 +3792,7 @@ static int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue,
 {
 	int index = queue->next_buf_to_fill;
 	struct qeth_qdio_out_buffer *buffer = queue->bufs[index];
+	unsigned int bytes = qdisc_pkt_len(skb);
 	struct netdev_queue *txq;
 	bool stopped = false;
 
@@ -3811,6 +3814,9 @@ static int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue,
 	}
 
 	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len, stopped);
+	netdev_tx_sent_queue(txq, bytes);
+	buffer->bytes += bytes;
+
 	qeth_flush_buffers(queue, index, 1);
 
 	if (stopped && !qeth_out_queue_is_full(queue))
@@ -5186,6 +5192,8 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 
 	while (1) {
 		unsigned int start, error, i;
+		unsigned int packets = 0;
+		unsigned int bytes = 0;
 		int completed;
 
 		if (qeth_out_queue_is_empty(queue)) {
@@ -5211,13 +5219,19 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 		}
 
 		for (i = start; i < start + completed; i++) {
+			struct qeth_qdio_out_buffer *buffer;
 			unsigned int bidx = QDIO_BUFNR(i);
 
-			qeth_handle_send_error(card, queue->bufs[bidx], error);
+			buffer = queue->bufs[bidx];
+			packets += skb_queue_len(&buffer->skb_list);
+			bytes += buffer->bytes;
+
+			qeth_handle_send_error(card, buffer, error);
 			qeth_iqd_tx_complete(queue, bidx, error, budget);
 			qeth_cleanup_handled_pending(queue, bidx, false);
 		}
 
+		netdev_tx_completed_queue(txq, packets, bytes);
 		atomic_sub(completed, &queue->used_buffers);
 		work_done += completed;
 
