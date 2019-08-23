@@ -43,7 +43,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 
 	/* enable signals if sig isn't IRQ signal */
 	if ((sig != SIGIO) && (sig != SIGWINCH))
-		unblock_signals();
+		unblock_signals_trace();
 
 	(*sig_info[sig])(sig, si, &r);
 
@@ -76,11 +76,11 @@ void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 		return;
 	}
 
-	block_signals();
+	block_signals_trace();
 
 	sig_handler_common(sig, si, mc);
 
-	set_signals(enabled);
+	set_signals_trace(enabled);
 }
 
 static void timer_real_alarm_handler(mcontext_t *mc)
@@ -104,7 +104,7 @@ void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
 		return;
 	}
 
-	block_signals();
+	block_signals_trace();
 
 	signals_active |= SIGALRM_MASK;
 
@@ -112,7 +112,7 @@ void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
 
 	signals_active &= ~SIGALRM_MASK;
 
-	set_signals(enabled);
+	set_signals_trace(enabled);
 }
 
 void deliver_alarm(void) {
@@ -253,6 +253,8 @@ void unblock_signals(void)
 	if (signals_enabled == 1)
 		return;
 
+	signals_enabled = 1;
+
 	/*
 	 * We loop because the IRQ handler returns with interrupts off.  So,
 	 * interrupts may have arrived and we need to re-enable them and
@@ -262,12 +264,9 @@ void unblock_signals(void)
 		/*
 		 * Save and reset save_pending after enabling signals.  This
 		 * way, signals_pending won't be changed while we're reading it.
-		 */
-		signals_enabled = 1;
-
-		/*
+		 *
 		 * Setting signals_enabled and reading signals_pending must
-		 * happen in this order.
+		 * happen in this order, so have the barrier here.
 		 */
 		barrier();
 
@@ -280,10 +279,13 @@ void unblock_signals(void)
 		/*
 		 * We have pending interrupts, so disable signals, as the
 		 * handlers expect them off when they are called.  They will
-		 * be enabled again above.
+		 * be enabled again above. We need to trace this, as we're
+		 * expected to be enabling interrupts already, but any more
+		 * tracing that happens inside the handlers we call for the
+		 * pending signals will mess up the tracing state.
 		 */
-
 		signals_enabled = 0;
+		um_trace_signals_off();
 
 		/*
 		 * Deal with SIGIO first because the alarm handler might
@@ -306,6 +308,9 @@ void unblock_signals(void)
 		if (!(signals_pending & SIGIO_MASK) && (signals_active & SIGALRM_MASK))
 			return;
 
+		/* Re-enable signals and trace that we're doing so. */
+		um_trace_signals_on();
+		signals_enabled = 1;
 	}
 }
 
@@ -324,6 +329,21 @@ int set_signals(int enable)
 	if (enable)
 		unblock_signals();
 	else block_signals();
+
+	return ret;
+}
+
+int set_signals_trace(int enable)
+{
+	int ret;
+	if (signals_enabled == enable)
+		return enable;
+
+	ret = signals_enabled;
+	if (enable)
+		unblock_signals_trace();
+	else
+		block_signals_trace();
 
 	return ret;
 }

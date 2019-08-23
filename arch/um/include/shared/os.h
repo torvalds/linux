@@ -232,6 +232,7 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern int set_signals_trace(int enable);
 extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
 
@@ -316,5 +317,11 @@ extern int get_pty(void);
 extern unsigned long os_get_top_address(void);
 
 long syscall(long number, ...);
+
+/* irqflags tracing */
+extern void block_signals_trace(void);
+extern void unblock_signals_trace(void);
+extern void um_trace_signals_on(void);
+extern void um_trace_signals_off(void);
 
 #endif

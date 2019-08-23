@@ -19,7 +19,7 @@ static int __init start_kernel_proc(void *unused)
 {
 	int pid;
 
-	block_signals();
+	block_signals_trace();
 	pid = os_getpid();
 
 	cpu_tasks[0].pid = pid;

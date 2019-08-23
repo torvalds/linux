@@ -425,9 +425,9 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 			case SIGBUS:
 			case SIGFPE:
 			case SIGWINCH:
-				block_signals();
+				block_signals_trace();
 				(*sig_info[sig])(sig, (struct siginfo *)&si, regs);
-				unblock_signals();
+				unblock_signals_trace();
 				break;
 			default:
 				printk(UM_KERN_ERR "userspace - child stopped "
@@ -625,10 +625,10 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 	cb_arg = arg;
 	cb_back = &here;
 
-	block_signals();
+	block_signals_trace();
 	if (UML_SETJMP(&here) == 0)
 		UML_LONGJMP(&initial_jmpbuf, INIT_JMP_CALLBACK);
-	unblock_signals();
+	unblock_signals_trace();
 
 	cb_proc = NULL;
 	cb_arg = NULL;
@@ -637,13 +637,13 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 
 void halt_skas(void)
 {
-	block_signals();
+	block_signals_trace();
 	UML_LONGJMP(&initial_jmpbuf, INIT_JMP_HALT);
 }
 
 void reboot_skas(void)
 {
-	block_signals();
+	block_signals_trace();
 	UML_LONGJMP(&initial_jmpbuf, INIT_JMP_REBOOT);
 }
 
