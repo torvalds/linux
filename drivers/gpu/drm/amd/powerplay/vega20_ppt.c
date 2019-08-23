@@ -3065,10 +3065,11 @@ static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (ret)
 		return ret;
 
-	if (smu_version < 0x282e00)
-		*value = metrics.CurrSocketPower << 8;
-	else
+	/* For the 40.46 release, they changed the value name */
+	if (smu_version == 0x282e00)
 		*value = metrics.AverageSocketPower << 8;
+	else
+		*value = metrics.CurrSocketPower << 8;
 
 	return 0;
 }
