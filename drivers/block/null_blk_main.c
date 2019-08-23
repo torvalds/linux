@@ -1133,28 +1133,39 @@ static void null_restart_queue_async(struct nullb *nullb)
 		blk_mq_start_stopped_hw_queues(q, true);
 }
 
+static inline blk_status_t null_handle_throttled(struct nullb_cmd *cmd)
+{
+	struct nullb_device *dev = cmd->nq->dev;
+	struct nullb *nullb = dev->nullb;
+	blk_status_t sts = BLK_STS_OK;
+	struct request *rq = cmd->rq;
+
+	if (!hrtimer_active(&nullb->bw_timer))
+		hrtimer_restart(&nullb->bw_timer);
+
+	if (atomic_long_sub_return(blk_rq_bytes(rq), &nullb->cur_bytes) < 0) {
+		null_stop_queue(nullb);
+		/* race with timer */
+		if (atomic_long_read(&nullb->cur_bytes) > 0)
+			null_restart_queue_async(nullb);
+		/* requeue request */
+		sts = BLK_STS_DEV_RESOURCE;
+	}
+	return sts;
+}
+
 static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 				    sector_t nr_sectors, enum req_opf op)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	struct nullb *nullb = dev->nullb;
+	blk_status_t sts;
 	int err = 0;
 
 	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
-		struct request *rq = cmd->rq;
-
-		if (!hrtimer_active(&nullb->bw_timer))
-			hrtimer_restart(&nullb->bw_timer);
-
-		if (atomic_long_sub_return(blk_rq_bytes(rq),
-				&nullb->cur_bytes) < 0) {
-			null_stop_queue(nullb);
-			/* race with timer */
-			if (atomic_long_read(&nullb->cur_bytes) > 0)
-				null_restart_queue_async(nullb);
-			/* requeue request */
-			return BLK_STS_DEV_RESOURCE;
-		}
+		sts = null_handle_throttled(cmd);
+		if (sts != BLK_STS_OK)
+			return sts;
 	}
 
 	if (op == REQ_OP_FLUSH) {
