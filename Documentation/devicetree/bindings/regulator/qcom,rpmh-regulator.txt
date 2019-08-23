@@ -97,7 +97,7 @@ Second Level Nodes - Regulators
 		    sent for this regulator including those which are for a
 		    strictly lower power state.
 
-Other properties defined in Documentation/devicetree/bindings/regulator.txt
+Other properties defined in Documentation/devicetree/bindings/regulator/regulator.txt
 may also be used.  regulator-initial-mode and regulator-allowed-modes may be
 specified for VRM regulators using mode values from
 include/dt-bindings/regulator/qcom,rpmh-regulator.h.  regulator-allow-bypass

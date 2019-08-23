@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atmel_ssc_dai.c  --  ALSA SoC ATMEL SSC Audio Layer Platform driver
  *
@@ -11,20 +12,6 @@
  * Frank Mandarino <fmandarino@endrelia.com>
  * Based on pxa2xx Platform drivers by
  * Liam Girdwood <lrg@slimlogic.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -1025,16 +1012,6 @@ static int asoc_ssc_init(struct device *dev)
 	return 0;
 }
 
-static void asoc_ssc_exit(struct device *dev)
-{
-	struct ssc_device *ssc = dev_get_drvdata(dev);
-
-	if (ssc->pdata->use_dma)
-		atmel_pcm_dma_platform_unregister(dev);
-	else
-		atmel_pcm_pdc_platform_unregister(dev);
-}
-
 /**
  * atmel_ssc_set_audio - Allocate the specified SSC for audio use.
  */
@@ -1063,7 +1040,6 @@ void atmel_ssc_put_audio(int ssc_id)
 {
 	struct ssc_device *ssc = ssc_info[ssc_id].ssc;
 
-	asoc_ssc_exit(&ssc->pdev->dev);
 	ssc_free(ssc);
 }
 EXPORT_SYMBOL_GPL(atmel_ssc_put_audio);

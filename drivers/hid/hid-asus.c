@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for Asus notebook built-in keyboard.
  *  Fixes small logical maximum to match usage maximum.
@@ -20,10 +21,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/dmi.h>
@@ -396,7 +393,7 @@ static bool asus_kbd_wmi_led_control_present(struct hid_device *hdev)
 	if (!IS_ENABLED(CONFIG_ASUS_WMI))
 		return false;
 
-	ret = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DSTS2,
+	ret = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DSTS,
 				       ASUS_WMI_DEVID_KBD_BACKLIGHT, 0, &value);
 	hid_dbg(hdev, "WMI backlight check: rc %d value %x", ret, value);
 	if (ret)

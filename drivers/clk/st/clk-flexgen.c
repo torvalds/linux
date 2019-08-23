@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * clk-flexgen.c
  *
  * Copyright (C) ST-Microelectronics SA 2013
  * Author:  Maxime Coquelin <maxime.coquelin@st.com> for ST-Microelectronics.
- * License terms:  GNU General Public License (GPL), version 2  */
+ */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>

@@ -42,6 +42,9 @@ static void dsi_phy_hw_v3_0_lane_settings(struct msm_dsi_phy *phy)
 	u8 tx_dctrl[] = { 0x00, 0x00, 0x00, 0x04, 0x01 };
 	void __iomem *lane_base = phy->lane_base;
 
+	if (phy->cfg->quirks & V3_0_0_10NM_OLD_TIMINGS_QUIRK)
+		tx_dctrl[3] = 0x02;
+
 	/* Strength ctrl settings */
 	for (i = 0; i < 5; i++) {
 		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_LPTX_STR_CTRL(i),
@@ -74,9 +77,11 @@ static void dsi_phy_hw_v3_0_lane_settings(struct msm_dsi_phy *phy)
 			      tx_dctrl[i]);
 	}
 
-	/* Toggle BIT 0 to release freeze I/0 */
-	dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3), 0x05);
-	dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3), 0x04);
+	if (!(phy->cfg->quirks & V3_0_0_10NM_OLD_TIMINGS_QUIRK)) {
+		/* Toggle BIT 0 to release freeze I/0 */
+		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3), 0x05);
+		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3), 0x04);
+	}
 }
 
 static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
@@ -220,4 +225,23 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 	},
 	.io_start = { 0xae94400, 0xae96400 },
 	.num_dsi_phy = 2,
+};
+
+const struct msm_dsi_phy_cfg dsi_phy_10nm_8998_cfgs = {
+	.type = MSM_DSI_PHY_10NM,
+	.src_pll_truthtable = { {false, false}, {true, false} },
+	.reg_cfg = {
+		.num = 1,
+		.regs = {
+			{"vdds", 36000, 32},
+		},
+	},
+	.ops = {
+		.enable = dsi_10nm_phy_enable,
+		.disable = dsi_10nm_phy_disable,
+		.init = dsi_10nm_phy_init,
+	},
+	.io_start = { 0xc994400, 0xc996400 },
+	.num_dsi_phy = 2,
+	.quirks = V3_0_0_10NM_OLD_TIMINGS_QUIRK,
 };

@@ -1747,10 +1747,10 @@ static int sisusb_setup_screen(struct sisusb_usb_data *sisusb,
 	return ret;
 }
 
-static int sisusb_set_default_mode(struct sisusb_usb_data *sisusb,
+static void sisusb_set_default_mode(struct sisusb_usb_data *sisusb,
 		int touchengines)
 {
-	int ret = 0, i, j, modex, bpp, du;
+	int i, j, modex, bpp, du;
 	u8 sr31, cr63, tmp8;
 	static const char attrdata[] = {
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -1873,8 +1873,6 @@ static int sisusb_set_default_mode(struct sisusb_usb_data *sisusb,
 	}
 
 	SETIREG(SISCR, 0x34, 0x44);	/* we just set std mode #44 */
-
-	return ret;
 }
 
 static int sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
@@ -2019,7 +2017,7 @@ static int sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 
 		ret |= SETIREG(SISCR, 0x83, 0x00);
 
-		ret |= sisusb_set_default_mode(sisusb, 0);
+		sisusb_set_default_mode(sisusb, 0);
 
 		ret |= SETIREGAND(SISSR, 0x21, 0xdf);
 		ret |= SETIREGOR(SISSR, 0x01, 0x20);
@@ -2246,7 +2244,7 @@ static int sisusb_init_gfxdevice(struct sisusb_usb_data *sisusb, int initscreen)
 		if (sisusb_init_gfxcore(sisusb) == 0) {
 			sisusb->gfxinit = 1;
 			sisusb_get_ramconfig(sisusb);
-			ret |= sisusb_set_default_mode(sisusb, 1);
+			sisusb_set_default_mode(sisusb, 1);
 			ret |= sisusb_setup_screen(sisusb, 1, initscreen);
 		}
 	}
@@ -3029,6 +3027,13 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	mutex_init(&(sisusb->lock));
 
+	sisusb->sisusb_dev = dev;
+	sisusb->vrambase   = SISUSB_PCI_MEMBASE;
+	sisusb->mmiobase   = SISUSB_PCI_MMIOBASE;
+	sisusb->mmiosize   = SISUSB_PCI_MMIOSIZE;
+	sisusb->ioportbase = SISUSB_PCI_IOPORTBASE;
+	/* Everything else is zero */
+
 	/* Register device */
 	retval = usb_register_dev(intf, &usb_sisusb_class);
 	if (retval) {
@@ -3039,13 +3044,7 @@ static int sisusb_probe(struct usb_interface *intf,
 		goto error_1;
 	}
 
-	sisusb->sisusb_dev = dev;
-	sisusb->minor      = intf->minor;
-	sisusb->vrambase   = SISUSB_PCI_MEMBASE;
-	sisusb->mmiobase   = SISUSB_PCI_MMIOBASE;
-	sisusb->mmiosize   = SISUSB_PCI_MMIOSIZE;
-	sisusb->ioportbase = SISUSB_PCI_IOPORTBASE;
-	/* Everything else is zero */
+	sisusb->minor = intf->minor;
 
 	/* Allocate buffers */
 	sisusb->ibufsize = SISUSB_IBUF_SIZE;

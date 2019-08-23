@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for Intel AES-NI instructions. This file contains glue
  * code, the real AES implementation is in intel-aes_asm.S.
@@ -12,11 +13,6 @@
  *             Tadeusz Struk (tadeusz.struk@intel.com)
  *             Aidan O'Mahony (aidan.o.mahony@intel.com)
  *    Copyright (c) 2010, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/hardirq.h>
@@ -373,20 +369,6 @@ static void aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 		aesni_dec(ctx, dst, src);
 		kernel_fpu_end();
 	}
-}
-
-static void __aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	struct crypto_aes_ctx *ctx = aes_ctx(crypto_tfm_ctx(tfm));
-
-	aesni_enc(ctx, dst, src);
-}
-
-static void __aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	struct crypto_aes_ctx *ctx = aes_ctx(crypto_tfm_ctx(tfm));
-
-	aesni_dec(ctx, dst, src);
 }
 
 static int aesni_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -924,7 +906,7 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 }
 #endif
 
-static struct crypto_alg aesni_algs[] = { {
+static struct crypto_alg aesni_cipher_alg = {
 	.cra_name		= "aes",
 	.cra_driver_name	= "aes-aesni",
 	.cra_priority		= 300,
@@ -941,24 +923,7 @@ static struct crypto_alg aesni_algs[] = { {
 			.cia_decrypt		= aes_decrypt
 		}
 	}
-}, {
-	.cra_name		= "__aes",
-	.cra_driver_name	= "__aes-aesni",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER | CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= CRYPTO_AES_CTX_SIZE,
-	.cra_module		= THIS_MODULE,
-	.cra_u	= {
-		.cipher	= {
-			.cia_min_keysize	= AES_MIN_KEY_SIZE,
-			.cia_max_keysize	= AES_MAX_KEY_SIZE,
-			.cia_setkey		= aes_set_key,
-			.cia_encrypt		= __aes_encrypt,
-			.cia_decrypt		= __aes_decrypt
-		}
-	}
-} };
+};
 
 static struct skcipher_alg aesni_skciphers[] = {
 	{
@@ -1154,7 +1119,7 @@ static int __init aesni_init(void)
 #endif
 #endif
 
-	err = crypto_register_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
+	err = crypto_register_alg(&aesni_cipher_alg);
 	if (err)
 		return err;
 
@@ -1162,7 +1127,7 @@ static int __init aesni_init(void)
 					     ARRAY_SIZE(aesni_skciphers),
 					     aesni_simd_skciphers);
 	if (err)
-		goto unregister_algs;
+		goto unregister_cipher;
 
 	err = simd_register_aeads_compat(aesni_aeads, ARRAY_SIZE(aesni_aeads),
 					 aesni_simd_aeads);
@@ -1174,8 +1139,8 @@ static int __init aesni_init(void)
 unregister_skciphers:
 	simd_unregister_skciphers(aesni_skciphers, ARRAY_SIZE(aesni_skciphers),
 				  aesni_simd_skciphers);
-unregister_algs:
-	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
+unregister_cipher:
+	crypto_unregister_alg(&aesni_cipher_alg);
 	return err;
 }
 
@@ -1185,7 +1150,7 @@ static void __exit aesni_exit(void)
 			      aesni_simd_aeads);
 	simd_unregister_skciphers(aesni_skciphers, ARRAY_SIZE(aesni_skciphers),
 				  aesni_simd_skciphers);
-	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
+	crypto_unregister_alg(&aesni_cipher_alg);
 }
 
 late_initcall(aesni_init);

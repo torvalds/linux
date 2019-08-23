@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2008 Vitaly Mayatskikh <vmayatsk@redhat.com>
  * Copyright 2002 Andi Kleen, SuSE Labs.
- * Subject to the GNU Public License v2.
  *
  * Functions to copy from and to user space.
  */
@@ -239,7 +239,7 @@ copy_user_handle_tail:
 	ret
 
 	_ASM_EXTABLE_UA(1b, 2b)
-ENDPROC(copy_user_handle_tail)
+END(copy_user_handle_tail)
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling

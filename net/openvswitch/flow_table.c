@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2014 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #include "flow.h"
@@ -79,7 +66,7 @@ void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 struct sw_flow *ovs_flow_alloc(void)
 {
 	struct sw_flow *flow;
-	struct flow_stats *stats;
+	struct sw_flow_stats *stats;
 
 	flow = kmem_cache_zalloc(flow_cache, GFP_KERNEL);
 	if (!flow)
@@ -123,7 +110,7 @@ static void flow_free(struct sw_flow *flow)
 	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask))
 		if (flow->stats[cpu])
 			kmem_cache_free(flow_stats_cache,
-					(struct flow_stats __force *)flow->stats[cpu]);
+					(struct sw_flow_stats __force *)flow->stats[cpu]);
 	kmem_cache_free(flow_cache, flow);
 }
 
@@ -725,13 +712,13 @@ int ovs_flow_init(void)
 
 	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow)
 				       + (nr_cpu_ids
-					  * sizeof(struct flow_stats *)),
+					  * sizeof(struct sw_flow_stats *)),
 				       0, 0, NULL);
 	if (flow_cache == NULL)
 		return -ENOMEM;
 
 	flow_stats_cache
-		= kmem_cache_create("sw_flow_stats", sizeof(struct flow_stats),
+		= kmem_cache_create("sw_flow_stats", sizeof(struct sw_flow_stats),
 				    0, SLAB_HWCACHE_ALIGN, NULL);
 	if (flow_stats_cache == NULL) {
 		kmem_cache_destroy(flow_cache);

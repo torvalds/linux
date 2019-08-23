@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pseries Memory Hotplug infrastructure.
  *
  * Copyright (C) 2008 Badari Pulavarty, IBM Corporation
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"pseries-hotplug-mem: " fmt
@@ -979,6 +975,9 @@ static int pseries_update_drconf_memory(struct of_reconfig_data *pr)
 	memblock_size = pseries_memory_block_size();
 	if (!memblock_size)
 		return -EINVAL;
+
+	if (!pr->old_prop)
+		return 0;
 
 	p = (__be32 *) pr->old_prop->value;
 	if (!p)

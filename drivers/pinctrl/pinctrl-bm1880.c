@@ -27,6 +27,7 @@
  * @ngroups:	Number of @groups
  * @funcs:	Pinmux functions
  * @nfuncs:	Number of @funcs
+ * @pconf:	Pinconf data
  */
 struct bm1880_pinctrl {
 	void __iomem *base;
@@ -35,6 +36,7 @@ struct bm1880_pinctrl {
 	unsigned int ngroups;
 	const struct bm1880_pinmux_function *funcs;
 	unsigned int nfuncs;
+	const struct bm1880_pinconf_data *pinconf;
 };
 
 /**
@@ -55,7 +57,6 @@ struct bm1880_pctrl_group {
  * @groups:	List of pingroups for this function.
  * @ngroups:	Number of entries in @groups.
  * @mux_val:	Selector for this function
- * @mux_mask:   Mask for function specific selector
  * @mux:	Offset of function specific mux
  * @mux_shift:	Shift for function specific selector
  */
@@ -64,9 +65,16 @@ struct bm1880_pinmux_function {
 	const char * const *groups;
 	unsigned int ngroups;
 	u32 mux_val;
-	u32 mux_mask;
 	u32 mux;
 	u8 mux_shift;
+};
+
+/**
+ * struct bm1880_pinconf_data - pinconf data
+ * @drv_bits:	Drive strength bit width
+ */
+struct bm1880_pinconf_data {
+	u32 drv_bits;
 };
 
 static const struct pinctrl_pin_desc bm1880_pins[] = {
@@ -636,165 +644,273 @@ static const char * const i2s1_group[] = { "i2s1_grp" };
 static const char * const i2s1_mclkin_group[] = { "i2s1_mclkin_grp" };
 static const char * const spi0_group[] = { "spi0_grp" };
 
-#define BM1880_PINMUX_FUNCTION(fname, mval, mask)	\
+#define BM1880_PINMUX_FUNCTION(fname, mval)		\
 	[F_##fname] = {					\
 		.name = #fname,				\
 		.groups = fname##_group,		\
 		.ngroups = ARRAY_SIZE(fname##_group),	\
 		.mux_val = mval,			\
-		.mux_mask = mask,			\
-	}
-
-#define BM1880_PINMUX_FUNCTION_MUX(fname, mval, mask, offset, shift)\
-	[F_##fname] = {					\
-		.name = #fname,				\
-		.groups = fname##_group,		\
-		.ngroups = ARRAY_SIZE(fname##_group),	\
-		.mux_val = mval,			\
-		.mux_mask = mask,			\
-		.mux = offset,				\
-		.mux_shift = shift,			\
 	}
 
 static const struct bm1880_pinmux_function bm1880_pmux_functions[] = {
-	BM1880_PINMUX_FUNCTION(nand, 2, 0x03),
-	BM1880_PINMUX_FUNCTION(spi, 0, 0x03),
-	BM1880_PINMUX_FUNCTION(emmc, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(sdio, 0, 0x03),
-	BM1880_PINMUX_FUNCTION(eth0, 0, 0x03),
-	BM1880_PINMUX_FUNCTION_MUX(pwm0, 2, 0x0F, 0x50, 0x00),
-	BM1880_PINMUX_FUNCTION_MUX(pwm1, 2, 0x0F, 0x50, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(pwm2, 2, 0x0F, 0x50, 0x08),
-	BM1880_PINMUX_FUNCTION_MUX(pwm3, 2, 0x0F, 0x50, 0x0C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm4, 2, 0x0F, 0x50, 0x10),
-	BM1880_PINMUX_FUNCTION_MUX(pwm5, 2, 0x0F, 0x50, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(pwm6, 2, 0x0F, 0x50, 0x18),
-	BM1880_PINMUX_FUNCTION_MUX(pwm7, 2, 0x0F, 0x50, 0x1C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm8, 2, 0x0F, 0x54, 0x00),
-	BM1880_PINMUX_FUNCTION_MUX(pwm9, 2, 0x0F, 0x54, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(pwm10, 2, 0x0F, 0x54, 0x08),
-	BM1880_PINMUX_FUNCTION_MUX(pwm11, 2, 0x0F, 0x54, 0x0C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm12, 2, 0x0F, 0x54, 0x10),
-	BM1880_PINMUX_FUNCTION_MUX(pwm13, 2, 0x0F, 0x54, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(pwm14, 2, 0x0F, 0x54, 0x18),
-	BM1880_PINMUX_FUNCTION_MUX(pwm15, 2, 0x0F, 0x54, 0x1C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm16, 2, 0x0F, 0x58, 0x00),
-	BM1880_PINMUX_FUNCTION_MUX(pwm17, 2, 0x0F, 0x58, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(pwm18, 2, 0x0F, 0x58, 0x08),
-	BM1880_PINMUX_FUNCTION_MUX(pwm19, 2, 0x0F, 0x58, 0x0C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm20, 2, 0x0F, 0x58, 0x10),
-	BM1880_PINMUX_FUNCTION_MUX(pwm21, 2, 0x0F, 0x58, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(pwm22, 2, 0x0F, 0x58, 0x18),
-	BM1880_PINMUX_FUNCTION_MUX(pwm23, 2, 0x0F, 0x58, 0x1C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm24, 2, 0x0F, 0x5C, 0x00),
-	BM1880_PINMUX_FUNCTION_MUX(pwm25, 2, 0x0F, 0x5C, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(pwm26, 2, 0x0F, 0x5C, 0x08),
-	BM1880_PINMUX_FUNCTION_MUX(pwm27, 2, 0x0F, 0x5C, 0x0C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm28, 2, 0x0F, 0x5C, 0x10),
-	BM1880_PINMUX_FUNCTION_MUX(pwm29, 2, 0x0F, 0x5C, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(pwm30, 2, 0x0F, 0x5C, 0x18),
-	BM1880_PINMUX_FUNCTION_MUX(pwm31, 2, 0x0F, 0x5C, 0x1C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm32, 2, 0x0F, 0x60, 0x00),
-	BM1880_PINMUX_FUNCTION_MUX(pwm33, 2, 0x0F, 0x60, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(pwm34, 2, 0x0F, 0x60, 0x08),
-	BM1880_PINMUX_FUNCTION_MUX(pwm35, 2, 0x0F, 0x60, 0x0C),
-	BM1880_PINMUX_FUNCTION_MUX(pwm36, 2, 0x0F, 0x60, 0x10),
-	BM1880_PINMUX_FUNCTION_MUX(pwm37, 2, 0x0F, 0x60, 0x1C),
-	BM1880_PINMUX_FUNCTION(i2c0, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(i2c1, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(i2c2, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(i2c3, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(i2c4, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart0, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart1, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart2, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart3, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart4, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart5, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart6, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart7, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart8, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart9, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart10, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart11, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(uart12, 3, 0x03),
-	BM1880_PINMUX_FUNCTION(uart13, 3, 0x03),
-	BM1880_PINMUX_FUNCTION(uart14, 3, 0x03),
-	BM1880_PINMUX_FUNCTION(uart15, 3, 0x03),
-	BM1880_PINMUX_FUNCTION_MUX(gpio0, 0, 0x03, 0x4E0, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio1, 0, 0x03, 0x4E4, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio2, 0, 0x03, 0x4E4, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio3, 0, 0x03, 0x4E8, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio4, 0, 0x03, 0x4E8, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio5, 0, 0x03, 0x4EC, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio6, 0, 0x03, 0x4EC, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio7, 0, 0x03, 0x4F0, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio8, 0, 0x03, 0x4F0, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio9, 0, 0x03, 0x4F4, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio10, 0, 0x03, 0x4F4, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio11, 0, 0x03, 0x4F8, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio12, 1, 0x03, 0x4F8, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio13, 1, 0x03, 0x4FC, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio14, 0, 0x03, 0x474, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio15, 0, 0x03, 0x478, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio16, 0, 0x03, 0x478, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio17, 0, 0x03, 0x47C, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio18, 0, 0x03, 0x47C, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio19, 0, 0x03, 0x480, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio20, 0, 0x03, 0x480, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio21, 0, 0x03, 0x484, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio22, 0, 0x03, 0x484, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio23, 0, 0x03, 0x488, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio24, 0, 0x03, 0x488, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio25, 0, 0x03, 0x48C, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio26, 0, 0x03, 0x48C, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio27, 0, 0x03, 0x490, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio28, 0, 0x03, 0x490, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio29, 0, 0x03, 0x494, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio30, 0, 0x03, 0x494, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio31, 0, 0x03, 0x498, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio32, 0, 0x03, 0x498, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio33, 0, 0x03, 0x49C, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio34, 0, 0x03, 0x49C, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio35, 0, 0x03, 0x4A0, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio36, 0, 0x03, 0x4A0, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio37, 0, 0x03, 0x4A4, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio38, 0, 0x03, 0x4A4, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio39, 0, 0x03, 0x4A8, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio40, 0, 0x03, 0x4A8, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio41, 0, 0x03, 0x4AC, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio42, 0, 0x03, 0x4AC, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio43, 0, 0x03, 0x4B0, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio44, 0, 0x03, 0x4B0, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio45, 0, 0x03, 0x4B4, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio46, 0, 0x03, 0x4B4, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio47, 0, 0x03, 0x4B8, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio48, 0, 0x03, 0x4B8, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio49, 0, 0x03, 0x4BC, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio50, 0, 0x03, 0x4BC, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio51, 0, 0x03, 0x4C0, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio52, 0, 0x03, 0x4C0, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio53, 0, 0x03, 0x4C4, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio54, 0, 0x03, 0x4C4, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio55, 0, 0x03, 0x4C8, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio56, 0, 0x03, 0x4C8, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio57, 0, 0x03, 0x4CC, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio58, 0, 0x03, 0x4CC, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio59, 0, 0x03, 0x4D0, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio60, 0, 0x03, 0x4D0, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio61, 0, 0x03, 0x4D4, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio62, 0, 0x03, 0x4D4, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio63, 0, 0x03, 0x4D8, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio64, 0, 0x03, 0x4D8, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio65, 0, 0x03, 0x4DC, 0x04),
-	BM1880_PINMUX_FUNCTION_MUX(gpio66, 0, 0x03, 0x4DC, 0x14),
-	BM1880_PINMUX_FUNCTION_MUX(gpio67, 0, 0x03, 0x4E0, 0x04),
-	BM1880_PINMUX_FUNCTION(eth1, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(i2s0, 2, 0x03),
-	BM1880_PINMUX_FUNCTION(i2s0_mclkin, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(i2s1, 2, 0x03),
-	BM1880_PINMUX_FUNCTION(i2s1_mclkin, 1, 0x03),
-	BM1880_PINMUX_FUNCTION(spi0, 1, 0x03),
+	BM1880_PINMUX_FUNCTION(nand, 2),
+	BM1880_PINMUX_FUNCTION(spi, 0),
+	BM1880_PINMUX_FUNCTION(emmc, 1),
+	BM1880_PINMUX_FUNCTION(sdio, 0),
+	BM1880_PINMUX_FUNCTION(eth0, 0),
+	BM1880_PINMUX_FUNCTION(pwm0, 2),
+	BM1880_PINMUX_FUNCTION(pwm1, 2),
+	BM1880_PINMUX_FUNCTION(pwm2, 2),
+	BM1880_PINMUX_FUNCTION(pwm3, 2),
+	BM1880_PINMUX_FUNCTION(pwm4, 2),
+	BM1880_PINMUX_FUNCTION(pwm5, 2),
+	BM1880_PINMUX_FUNCTION(pwm6, 2),
+	BM1880_PINMUX_FUNCTION(pwm7, 2),
+	BM1880_PINMUX_FUNCTION(pwm8, 2),
+	BM1880_PINMUX_FUNCTION(pwm9, 2),
+	BM1880_PINMUX_FUNCTION(pwm10, 2),
+	BM1880_PINMUX_FUNCTION(pwm11, 2),
+	BM1880_PINMUX_FUNCTION(pwm12, 2),
+	BM1880_PINMUX_FUNCTION(pwm13, 2),
+	BM1880_PINMUX_FUNCTION(pwm14, 2),
+	BM1880_PINMUX_FUNCTION(pwm15, 2),
+	BM1880_PINMUX_FUNCTION(pwm16, 2),
+	BM1880_PINMUX_FUNCTION(pwm17, 2),
+	BM1880_PINMUX_FUNCTION(pwm18, 2),
+	BM1880_PINMUX_FUNCTION(pwm19, 2),
+	BM1880_PINMUX_FUNCTION(pwm20, 2),
+	BM1880_PINMUX_FUNCTION(pwm21, 2),
+	BM1880_PINMUX_FUNCTION(pwm22, 2),
+	BM1880_PINMUX_FUNCTION(pwm23, 2),
+	BM1880_PINMUX_FUNCTION(pwm24, 2),
+	BM1880_PINMUX_FUNCTION(pwm25, 2),
+	BM1880_PINMUX_FUNCTION(pwm26, 2),
+	BM1880_PINMUX_FUNCTION(pwm27, 2),
+	BM1880_PINMUX_FUNCTION(pwm28, 2),
+	BM1880_PINMUX_FUNCTION(pwm29, 2),
+	BM1880_PINMUX_FUNCTION(pwm30, 2),
+	BM1880_PINMUX_FUNCTION(pwm31, 2),
+	BM1880_PINMUX_FUNCTION(pwm32, 2),
+	BM1880_PINMUX_FUNCTION(pwm33, 2),
+	BM1880_PINMUX_FUNCTION(pwm34, 2),
+	BM1880_PINMUX_FUNCTION(pwm35, 2),
+	BM1880_PINMUX_FUNCTION(pwm36, 2),
+	BM1880_PINMUX_FUNCTION(pwm37, 2),
+	BM1880_PINMUX_FUNCTION(i2c0, 1),
+	BM1880_PINMUX_FUNCTION(i2c1, 1),
+	BM1880_PINMUX_FUNCTION(i2c2, 1),
+	BM1880_PINMUX_FUNCTION(i2c3, 1),
+	BM1880_PINMUX_FUNCTION(i2c4, 1),
+	BM1880_PINMUX_FUNCTION(uart0, 3),
+	BM1880_PINMUX_FUNCTION(uart1, 3),
+	BM1880_PINMUX_FUNCTION(uart2, 3),
+	BM1880_PINMUX_FUNCTION(uart3, 3),
+	BM1880_PINMUX_FUNCTION(uart4, 1),
+	BM1880_PINMUX_FUNCTION(uart5, 1),
+	BM1880_PINMUX_FUNCTION(uart6, 1),
+	BM1880_PINMUX_FUNCTION(uart7, 1),
+	BM1880_PINMUX_FUNCTION(uart8, 1),
+	BM1880_PINMUX_FUNCTION(uart9, 1),
+	BM1880_PINMUX_FUNCTION(uart10, 1),
+	BM1880_PINMUX_FUNCTION(uart11, 1),
+	BM1880_PINMUX_FUNCTION(uart12, 3),
+	BM1880_PINMUX_FUNCTION(uart13, 3),
+	BM1880_PINMUX_FUNCTION(uart14, 3),
+	BM1880_PINMUX_FUNCTION(uart15, 3),
+	BM1880_PINMUX_FUNCTION(gpio0, 0),
+	BM1880_PINMUX_FUNCTION(gpio1, 0),
+	BM1880_PINMUX_FUNCTION(gpio2, 0),
+	BM1880_PINMUX_FUNCTION(gpio3, 0),
+	BM1880_PINMUX_FUNCTION(gpio4, 0),
+	BM1880_PINMUX_FUNCTION(gpio5, 0),
+	BM1880_PINMUX_FUNCTION(gpio6, 0),
+	BM1880_PINMUX_FUNCTION(gpio7, 0),
+	BM1880_PINMUX_FUNCTION(gpio8, 0),
+	BM1880_PINMUX_FUNCTION(gpio9, 0),
+	BM1880_PINMUX_FUNCTION(gpio10, 0),
+	BM1880_PINMUX_FUNCTION(gpio11, 0),
+	BM1880_PINMUX_FUNCTION(gpio12, 1),
+	BM1880_PINMUX_FUNCTION(gpio13, 1),
+	BM1880_PINMUX_FUNCTION(gpio14, 0),
+	BM1880_PINMUX_FUNCTION(gpio15, 0),
+	BM1880_PINMUX_FUNCTION(gpio16, 0),
+	BM1880_PINMUX_FUNCTION(gpio17, 0),
+	BM1880_PINMUX_FUNCTION(gpio18, 0),
+	BM1880_PINMUX_FUNCTION(gpio19, 0),
+	BM1880_PINMUX_FUNCTION(gpio20, 0),
+	BM1880_PINMUX_FUNCTION(gpio21, 0),
+	BM1880_PINMUX_FUNCTION(gpio22, 0),
+	BM1880_PINMUX_FUNCTION(gpio23, 0),
+	BM1880_PINMUX_FUNCTION(gpio24, 0),
+	BM1880_PINMUX_FUNCTION(gpio25, 0),
+	BM1880_PINMUX_FUNCTION(gpio26, 0),
+	BM1880_PINMUX_FUNCTION(gpio27, 0),
+	BM1880_PINMUX_FUNCTION(gpio28, 0),
+	BM1880_PINMUX_FUNCTION(gpio29, 0),
+	BM1880_PINMUX_FUNCTION(gpio30, 0),
+	BM1880_PINMUX_FUNCTION(gpio31, 0),
+	BM1880_PINMUX_FUNCTION(gpio32, 0),
+	BM1880_PINMUX_FUNCTION(gpio33, 0),
+	BM1880_PINMUX_FUNCTION(gpio34, 0),
+	BM1880_PINMUX_FUNCTION(gpio35, 0),
+	BM1880_PINMUX_FUNCTION(gpio36, 0),
+	BM1880_PINMUX_FUNCTION(gpio37, 0),
+	BM1880_PINMUX_FUNCTION(gpio38, 0),
+	BM1880_PINMUX_FUNCTION(gpio39, 0),
+	BM1880_PINMUX_FUNCTION(gpio40, 0),
+	BM1880_PINMUX_FUNCTION(gpio41, 0),
+	BM1880_PINMUX_FUNCTION(gpio42, 0),
+	BM1880_PINMUX_FUNCTION(gpio43, 0),
+	BM1880_PINMUX_FUNCTION(gpio44, 0),
+	BM1880_PINMUX_FUNCTION(gpio45, 0),
+	BM1880_PINMUX_FUNCTION(gpio46, 0),
+	BM1880_PINMUX_FUNCTION(gpio47, 0),
+	BM1880_PINMUX_FUNCTION(gpio48, 0),
+	BM1880_PINMUX_FUNCTION(gpio49, 0),
+	BM1880_PINMUX_FUNCTION(gpio50, 0),
+	BM1880_PINMUX_FUNCTION(gpio51, 0),
+	BM1880_PINMUX_FUNCTION(gpio52, 0),
+	BM1880_PINMUX_FUNCTION(gpio53, 0),
+	BM1880_PINMUX_FUNCTION(gpio54, 0),
+	BM1880_PINMUX_FUNCTION(gpio55, 0),
+	BM1880_PINMUX_FUNCTION(gpio56, 0),
+	BM1880_PINMUX_FUNCTION(gpio57, 0),
+	BM1880_PINMUX_FUNCTION(gpio58, 0),
+	BM1880_PINMUX_FUNCTION(gpio59, 0),
+	BM1880_PINMUX_FUNCTION(gpio60, 0),
+	BM1880_PINMUX_FUNCTION(gpio61, 0),
+	BM1880_PINMUX_FUNCTION(gpio62, 0),
+	BM1880_PINMUX_FUNCTION(gpio63, 0),
+	BM1880_PINMUX_FUNCTION(gpio64, 0),
+	BM1880_PINMUX_FUNCTION(gpio65, 0),
+	BM1880_PINMUX_FUNCTION(gpio66, 0),
+	BM1880_PINMUX_FUNCTION(gpio67, 0),
+	BM1880_PINMUX_FUNCTION(eth1, 1),
+	BM1880_PINMUX_FUNCTION(i2s0, 2),
+	BM1880_PINMUX_FUNCTION(i2s0_mclkin, 1),
+	BM1880_PINMUX_FUNCTION(i2s1, 2),
+	BM1880_PINMUX_FUNCTION(i2s1_mclkin, 1),
+	BM1880_PINMUX_FUNCTION(spi0, 1),
+};
+
+#define BM1880_PINCONF_DAT(_width)		\
+	{					\
+		.drv_bits = _width,		\
+	}
+
+static const struct bm1880_pinconf_data bm1880_pinconf[] = {
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x03),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
+	BM1880_PINCONF_DAT(0x02),
 };
 
 static int bm1880_pctrl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -870,32 +986,307 @@ static int bm1880_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	const struct bm1880_pinmux_function *func = &pctrl->funcs[function];
 	int i;
 
-	if (func->mux) {
+	for (i = 0; i < pgrp->npins; i++) {
+		unsigned int pin = pgrp->pins[i];
+		u32 offset = (pin >> 1) << 2;
+		u32 mux_offset = ((!((pin + 1) & 1) << 4) + 4);
 		u32 regval = readl_relaxed(pctrl->base + BM1880_REG_MUX +
-					   func->mux);
+					   offset);
 
-		regval &= ~(func->mux_mask << func->mux_shift);
-		regval |= func->mux_val << func->mux_shift;
-		writel_relaxed(regval, pctrl->base + BM1880_REG_MUX +
-			       func->mux);
-	} else {
-		for (i = 0; i < pgrp->npins; i++) {
-			unsigned int pin = pgrp->pins[i];
-			u32 offset = (pin >> 1) << 2;
-			u32 mux_offset = ((!((pin + 1) & 1) << 4) + 4);
-			u32 regval = readl_relaxed(pctrl->base +
-						   BM1880_REG_MUX + offset);
+		regval &= ~(0x03 << mux_offset);
+		regval |= func->mux_val << mux_offset;
 
-			regval &= ~(func->mux_mask << mux_offset);
-			regval |= func->mux_val << mux_offset;
-
-			writel_relaxed(regval, pctrl->base +
-				       BM1880_REG_MUX + offset);
-		}
+		writel_relaxed(regval, pctrl->base + BM1880_REG_MUX + offset);
 	}
 
 	return 0;
 }
+
+#define BM1880_PINCONF(pin, idx) ((!((pin + 1) & 1) << 4) + idx)
+#define BM1880_PINCONF_PULLCTRL(pin)	BM1880_PINCONF(pin, 0)
+#define BM1880_PINCONF_PULLUP(pin)	BM1880_PINCONF(pin, 1)
+#define BM1880_PINCONF_PULLDOWN(pin)	BM1880_PINCONF(pin, 2)
+#define BM1880_PINCONF_DRV(pin)		BM1880_PINCONF(pin, 6)
+#define BM1880_PINCONF_SCHMITT(pin)	BM1880_PINCONF(pin, 9)
+#define BM1880_PINCONF_SLEW(pin)	BM1880_PINCONF(pin, 10)
+
+static int bm1880_pinconf_drv_set(unsigned int mA, u32 width,
+				  u32 *regval, u32 bit_offset)
+{
+	u32 _regval;
+
+	_regval = *regval;
+
+	/*
+	 * There are two sets of drive strength bit width exposed by the
+	 * SoC at 4mA step, hence we need to handle them separately.
+	 */
+	if (width == 0x03) {
+		switch (mA) {
+		case 4:
+			_regval &= ~(width << bit_offset);
+			_regval |= (0 << bit_offset);
+			break;
+		case 8:
+			_regval &= ~(width << bit_offset);
+			_regval |= (1 << bit_offset);
+			break;
+		case 12:
+			_regval &= ~(width << bit_offset);
+			_regval |= (2 << bit_offset);
+			break;
+		case 16:
+			_regval &= ~(width << bit_offset);
+			_regval |= (3 << bit_offset);
+			break;
+		case 20:
+			_regval &= ~(width << bit_offset);
+			_regval |= (4 << bit_offset);
+			break;
+		case 24:
+			_regval &= ~(width << bit_offset);
+			_regval |= (5 << bit_offset);
+			break;
+		case 28:
+			_regval &= ~(width << bit_offset);
+			_regval |= (6 << bit_offset);
+			break;
+		case 32:
+			_regval &= ~(width << bit_offset);
+			_regval |= (7 << bit_offset);
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (mA) {
+		case 4:
+			_regval &= ~(width << bit_offset);
+			_regval |= (0 << bit_offset);
+			break;
+		case 8:
+			_regval &= ~(width << bit_offset);
+			_regval |= (1 << bit_offset);
+			break;
+		case 12:
+			_regval &= ~(width << bit_offset);
+			_regval |= (2 << bit_offset);
+			break;
+		case 16:
+			_regval &= ~(width << bit_offset);
+			_regval |= (3 << bit_offset);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	*regval = _regval;
+
+	return 0;
+}
+
+static int bm1880_pinconf_drv_get(u32 width, u32 drv)
+{
+	int ret = -ENOTSUPP;
+
+	/*
+	 * There are two sets of drive strength bit width exposed by the
+	 * SoC at 4mA step, hence we need to handle them separately.
+	 */
+	if (width == 0x03) {
+		switch (drv) {
+		case 0:
+			ret  = 4;
+			break;
+		case 1:
+			ret  = 8;
+			break;
+		case 2:
+			ret  = 12;
+			break;
+		case 3:
+			ret  = 16;
+			break;
+		case 4:
+			ret  = 20;
+			break;
+		case 5:
+			ret  = 24;
+			break;
+		case 6:
+			ret  = 28;
+			break;
+		case 7:
+			ret  = 32;
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (drv) {
+		case 0:
+			ret  = 4;
+			break;
+		case 1:
+			ret  = 8;
+			break;
+		case 2:
+			ret  = 12;
+			break;
+		case 3:
+			ret  = 16;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static int bm1880_pinconf_cfg_get(struct pinctrl_dev *pctldev,
+				  unsigned int pin,
+				  unsigned long *config)
+{
+	struct bm1880_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	unsigned int param = pinconf_to_config_param(*config);
+	unsigned int arg = 0;
+	u32 regval, offset, bit_offset;
+	int ret;
+
+	offset = (pin >> 1) << 2;
+	regval = readl_relaxed(pctrl->base + BM1880_REG_MUX + offset);
+
+	switch (param) {
+	case PIN_CONFIG_BIAS_PULL_UP:
+		bit_offset = BM1880_PINCONF_PULLUP(pin);
+		arg = !!(regval & BIT(bit_offset));
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		bit_offset = BM1880_PINCONF_PULLDOWN(pin);
+		arg = !!(regval & BIT(bit_offset));
+		break;
+	case PIN_CONFIG_BIAS_DISABLE:
+		bit_offset = BM1880_PINCONF_PULLCTRL(pin);
+		arg = !!(regval & BIT(bit_offset));
+		break;
+	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+		bit_offset = BM1880_PINCONF_SCHMITT(pin);
+		arg = !!(regval & BIT(bit_offset));
+		break;
+	case PIN_CONFIG_SLEW_RATE:
+		bit_offset = BM1880_PINCONF_SLEW(pin);
+		arg = !!(regval & BIT(bit_offset));
+		break;
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		bit_offset = BM1880_PINCONF_DRV(pin);
+		ret = bm1880_pinconf_drv_get(pctrl->pinconf[pin].drv_bits,
+					     !!(regval & BIT(bit_offset)));
+		if (ret < 0)
+			return ret;
+
+		arg = ret;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+}
+
+static int bm1880_pinconf_cfg_set(struct pinctrl_dev *pctldev,
+				  unsigned int pin,
+				  unsigned long *configs,
+				  unsigned int num_configs)
+{
+	struct bm1880_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	u32 regval, offset, bit_offset;
+	int i, ret;
+
+	offset = (pin >> 1) << 2;
+	regval = readl_relaxed(pctrl->base + BM1880_REG_MUX + offset);
+
+	for (i = 0; i < num_configs; i++) {
+		unsigned int param = pinconf_to_config_param(configs[i]);
+		unsigned int arg = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_BIAS_PULL_UP:
+			bit_offset = BM1880_PINCONF_PULLUP(pin);
+			regval |= BIT(bit_offset);
+			break;
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			bit_offset = BM1880_PINCONF_PULLDOWN(pin);
+			regval |= BIT(bit_offset);
+			break;
+		case PIN_CONFIG_BIAS_DISABLE:
+			bit_offset = BM1880_PINCONF_PULLCTRL(pin);
+			regval |= BIT(bit_offset);
+			break;
+		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+			bit_offset = BM1880_PINCONF_SCHMITT(pin);
+			if (arg)
+				regval |= BIT(bit_offset);
+			else
+				regval &= ~BIT(bit_offset);
+			break;
+		case PIN_CONFIG_SLEW_RATE:
+			bit_offset = BM1880_PINCONF_SLEW(pin);
+			if (arg)
+				regval |= BIT(bit_offset);
+			else
+				regval &= ~BIT(bit_offset);
+			break;
+		case PIN_CONFIG_DRIVE_STRENGTH:
+			bit_offset = BM1880_PINCONF_DRV(pin);
+			ret = bm1880_pinconf_drv_set(arg,
+						pctrl->pinconf[pin].drv_bits,
+						&regval, bit_offset);
+			if (ret < 0)
+				return ret;
+
+			break;
+		default:
+			dev_warn(pctldev->dev,
+				 "unsupported configuration parameter '%u'\n",
+				 param);
+			continue;
+		}
+
+		writel_relaxed(regval, pctrl->base + BM1880_REG_MUX + offset);
+	}
+
+	return 0;
+}
+
+static int bm1880_pinconf_group_set(struct pinctrl_dev *pctldev,
+				    unsigned int selector,
+				    unsigned long *configs,
+				    unsigned int  num_configs)
+{
+	int i, ret;
+	struct bm1880_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct bm1880_pctrl_group *pgrp = &pctrl->groups[selector];
+
+	for (i = 0; i < pgrp->npins; i++) {
+		ret = bm1880_pinconf_cfg_set(pctldev, pgrp->pins[i], configs,
+					     num_configs);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static const struct pinconf_ops bm1880_pinconf_ops = {
+	.is_generic = true,
+	.pin_config_get = bm1880_pinconf_cfg_get,
+	.pin_config_set = bm1880_pinconf_cfg_set,
+	.pin_config_group_set = bm1880_pinconf_group_set,
+};
 
 static const struct pinmux_ops bm1880_pinmux_ops = {
 	.get_functions_count = bm1880_pmux_get_functions_count,
@@ -910,6 +1301,7 @@ static struct pinctrl_desc bm1880_desc = {
 	.npins = ARRAY_SIZE(bm1880_pins),
 	.pctlops = &bm1880_pctrl_ops,
 	.pmxops = &bm1880_pinmux_ops,
+	.confops = &bm1880_pinconf_ops,
 	.owner = THIS_MODULE,
 };
 
@@ -932,6 +1324,7 @@ static int bm1880_pinctrl_probe(struct platform_device *pdev)
 	pctrl->ngroups = ARRAY_SIZE(bm1880_pctrl_groups);
 	pctrl->funcs = bm1880_pmux_functions;
 	pctrl->nfuncs = ARRAY_SIZE(bm1880_pmux_functions);
+	pctrl->pinconf = bm1880_pinconf;
 
 	pctrl->pctrldev = devm_pinctrl_register(&pdev->dev, &bm1880_desc,
 						pctrl);

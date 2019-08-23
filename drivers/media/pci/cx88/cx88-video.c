@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * device driver for Conexant 2388x based TV cards
@@ -9,16 +10,6 @@
  *	- Multituner support
  *	- video_ioctl2 conversion
  *	- PAL/M fixes
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -42,7 +33,7 @@
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CX88_VERSION);
 
 /* ------------------------------------------------------------------ */
@@ -809,27 +800,12 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 int cx88_querycap(struct file *file, struct cx88_core *core,
 		  struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
-
 	strscpy(cap->card, core->board.name, sizeof(cap->card));
-	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	cap->capabilities = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
+			    V4L2_CAP_DEVICE_CAPS;
 	if (core->board.tuner_type != UNSET)
-		cap->device_caps |= V4L2_CAP_TUNER;
-	switch (vdev->vfl_type) {
-	case VFL_TYPE_RADIO:
-		cap->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
-		break;
-	case VFL_TYPE_GRABBER:
-		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-		break;
-	case VFL_TYPE_VBI:
-		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
-		break;
-	default:
-		return -EINVAL;
-	}
-	cap->capabilities = cap->device_caps | V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_DEVICE_CAPS;
+		cap->capabilities |= V4L2_CAP_TUNER;
 	if (core->board.radio.type == CX88_RADIO)
 		cap->capabilities |= V4L2_CAP_RADIO;
 	return 0;
@@ -1482,6 +1458,10 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	video_set_drvdata(&dev->video_dev, dev);
 	dev->video_dev.ctrl_handler = &core->video_hdl;
 	dev->video_dev.queue = &dev->vb2_vidq;
+	dev->video_dev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				     V4L2_CAP_VIDEO_CAPTURE;
+	if (core->board.tuner_type != UNSET)
+		dev->video_dev.device_caps |= V4L2_CAP_TUNER;
 	err = video_register_device(&dev->video_dev, VFL_TYPE_GRABBER,
 				    video_nr[core->nr]);
 	if (err < 0) {
@@ -1495,6 +1475,10 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		       &cx8800_vbi_template, "vbi");
 	video_set_drvdata(&dev->vbi_dev, dev);
 	dev->vbi_dev.queue = &dev->vb2_vbiq;
+	dev->vbi_dev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				   V4L2_CAP_VBI_CAPTURE;
+	if (core->board.tuner_type != UNSET)
+		dev->vbi_dev.device_caps |= V4L2_CAP_TUNER;
 	err = video_register_device(&dev->vbi_dev, VFL_TYPE_VBI,
 				    vbi_nr[core->nr]);
 	if (err < 0) {
@@ -1509,6 +1493,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 			       &cx8800_radio_template, "radio");
 		video_set_drvdata(&dev->radio_dev, dev);
 		dev->radio_dev.ctrl_handler = &core->audio_hdl;
+		dev->radio_dev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 		err = video_register_device(&dev->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[core->nr]);
 		if (err < 0) {

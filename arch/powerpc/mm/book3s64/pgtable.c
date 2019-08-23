@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015-2016, Aneesh Kumar K.V, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/sched.h>
@@ -76,7 +72,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 
 	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
-	WARN_ON(!(pmd_large(pmd) || pmd_devmap(pmd)));
+	WARN_ON(!(pmd_large(pmd)));
 #endif
 	trace_hugepage_set_pmd(addr, pmd_val(pmd));
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
@@ -116,6 +112,9 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 	/*
 	 * This ensures that generic code that rely on IRQ disabling
 	 * to prevent a parallel THP split work as expected.
+	 *
+	 * Marking the entry with _PAGE_INVALID && ~_PAGE_PRESENT requires
+	 * a special case check in pmd_access_permitted.
 	 */
 	serialize_against_pte_lookup(vma->vm_mm);
 	return __pmd(old_pmd);
@@ -446,4 +445,25 @@ int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
 		return (new_pmd_ptl != old_pmd_ptl) && vma_is_anonymous(vma);
 
 	return true;
+}
+
+int ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size, pgprot_t prot, int nid)
+{
+	unsigned long i;
+
+	if (radix_enabled())
+		return radix__ioremap_range(ea, pa, size, prot, nid);
+
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		int err = map_kernel_page(ea + i, pa + i, prot);
+		if (err) {
+			if (slab_is_available())
+				unmap_kernel_range(ea, size);
+			else
+				WARN_ON_ONCE(1); /* Should clean up */
+			return err;
+		}
+	}
+
+	return 0;
 }

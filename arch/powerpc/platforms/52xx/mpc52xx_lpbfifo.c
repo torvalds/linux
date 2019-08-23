@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LocalPlus Bus FIFO driver for the Freescale MPC52xx.
  *
  * Copyright (C) 2009 Secret Lab Technologies Ltd.
- *
- * This file is released under the GPLv2
  *
  * Todo:
  * - Add support for multiple requests to be queued.

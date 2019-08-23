@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * RTC definitions for DECstation style attached Dallas DS1287 chip.
  *
  * Copyright (C) 1998, 2001 by Ralf Baechle
  * Copyright (C) 1998 by Harald Koerfgen
  * Copyright (C) 2002, 2005  Maciej W. Rozycki
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef __ASM_MIPS_DEC_RTC_DEC_H
 #define __ASM_MIPS_DEC_RTC_DEC_H

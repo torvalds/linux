@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dell WMI descriptor driver
  *
  * Copyright (C) 2017 Dell Inc. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -106,7 +98,8 @@ EXPORT_SYMBOL_GPL(dell_wmi_get_hotfix);
  * WMI buffer length        12       4    <length>
  * WMI hotfix number        16       4    <hotfix>
  */
-static int dell_wmi_descriptor_probe(struct wmi_device *wdev)
+static int dell_wmi_descriptor_probe(struct wmi_device *wdev,
+				     const void *context)
 {
 	union acpi_object *obj = NULL;
 	struct descriptor_priv *priv;

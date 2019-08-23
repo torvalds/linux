@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO Chip driver for Analog Devices
  * ADP5588/ADP5587 I/O Expander and QWERTY Keypad Controller
  *
  * Copyright 2009-2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>

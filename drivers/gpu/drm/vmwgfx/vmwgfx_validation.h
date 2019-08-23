@@ -169,7 +169,7 @@ vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
 			  bool intr)
 {
 	return ttm_eu_reserve_buffers(&ctx->ticket, &ctx->bo_list, intr,
-				      NULL);
+				      NULL, true);
 }
 
 /**

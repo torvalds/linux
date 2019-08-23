@@ -22,6 +22,7 @@
 #include "ocelot_rew.h"
 #include "ocelot_sys.h"
 #include "ocelot_qs.h"
+#include "ocelot_tc.h"
 
 #define PGID_AGGR    64
 #define PGID_SRC     80
@@ -68,6 +69,7 @@ enum ocelot_target {
 	QSYS,
 	REW,
 	SYS,
+	S2,
 	HSIO,
 	TARGET_MAX,
 };
@@ -334,6 +336,13 @@ enum ocelot_reg {
 	SYS_CM_DATA_RD,
 	SYS_CM_OP,
 	SYS_CM_DATA,
+	S2_CORE_UPDATE_CTRL = S2 << TARGET_OFFSET,
+	S2_CORE_MV_CFG,
+	S2_CACHE_ENTRY_DAT,
+	S2_CACHE_MASK_DAT,
+	S2_CACHE_ACTION_DAT,
+	S2_CACHE_CNT_DAT,
+	S2_CACHE_TG_DAT,
 };
 
 enum ocelot_regfield {
@@ -441,10 +450,6 @@ struct ocelot_port {
 	struct phy_device *phy;
 	void __iomem *regs;
 	u8 chip_port;
-	/* Keep a track of the mc addresses added to the mac table, so that they
-	 * can be removed when needed.
-	 */
-	struct list_head mc;
 
 	/* Ingress default VLAN (pvid) */
 	u16 pvid;
@@ -458,6 +463,8 @@ struct ocelot_port {
 
 	phy_interface_t phy_mode;
 	struct phy *serdes;
+
+	struct ocelot_port_tc tc;
 };
 
 u32 __ocelot_read_ix(struct ocelot *ocelot, u32 reg, u32 offset);

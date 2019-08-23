@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Xen Watchdog Driver
  *
  *	(c) Copyright 2010 Novell, Inc.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #define DRV_NAME	"xen_wdt"
@@ -142,10 +138,8 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(&xen_wdt_dev);
 
 	ret = devm_watchdog_register_device(dev, &xen_wdt_dev);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog device (%d)\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "initialized (timeout=%ds, nowayout=%d)\n",
 		 xen_wdt_dev.timeout, nowayout);

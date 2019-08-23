@@ -121,7 +121,6 @@ static void *vcpu_worker(void *data)
 	uint64_t *guest_array;
 	uint64_t pages_count = 0;
 	struct kvm_run *run;
-	struct ucall uc;
 
 	run = vcpu_state(vm, VCPU_ID);
 
@@ -132,7 +131,7 @@ static void *vcpu_worker(void *data)
 		/* Let the guest dirty the random pages */
 		ret = _vcpu_run(vm, VCPU_ID);
 		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
-		if (get_ucall(vm, VCPU_ID, &uc) == UCALL_SYNC) {
+		if (get_ucall(vm, VCPU_ID, NULL) == UCALL_SYNC) {
 			pages_count += TEST_PAGES_PER_LOOP;
 			generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		} else {

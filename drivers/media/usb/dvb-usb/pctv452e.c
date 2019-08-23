@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PCTV 452e DVB driver
  *
@@ -5,11 +6,6 @@
  *
  * TT connect S2-3650-CI Common Interface support, MAC readout
  * Copyright (C) 2008 Michael H. Schimek <mschimek@gmx.at>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 /* dvb usb framework */

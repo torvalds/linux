@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Manage printing of source lines
  * Copyright (c) 2017, Intel Corporation.
  * Author: Andi Kleen
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
-#include "linux/list.h"
+#include <linux/list.h>
+#include <linux/zalloc.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -90,12 +83,12 @@ static void fill_lines(char **lines, int maxline, char *map, int maplen)
 
 static void free_srcfile(struct srcfile *sf)
 {
-	list_del(&sf->nd);
+	list_del_init(&sf->nd);
 	hlist_del(&sf->hash_nd);
 	map_total_sz -= sf->maplen;
 	munmap(sf->map, sf->maplen);
-	free(sf->lines);
-	free(sf->fn);
+	zfree(&sf->lines);
+	zfree(&sf->fn);
 	free(sf);
 	num_srcfiles--;
 }
@@ -161,7 +154,7 @@ static struct srcfile *find_srcfile(char *fn)
 out_map:
 	munmap(h->map, sz);
 out_fn:
-	free(h->fn);
+	zfree(&h->fn);
 out_h:
 	free(h);
 	return NULL;

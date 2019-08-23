@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  MEN 14F021P00 Board Management Controller (BMC) Watchdog Driver.
  *
  *  Copyright (C) 2014 MEN Mikro Elektronik Nuernberg GmbH
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -156,10 +152,8 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_watchdog_register_device(dev, &drv_data->wdt);
-	if (ret) {
-		dev_err(dev, "failed to register Watchdog device\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "MEN 14F021P00 BMC Watchdog device enabled\n");
 

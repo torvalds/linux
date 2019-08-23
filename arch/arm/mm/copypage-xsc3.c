@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mm/copypage-xsc3.S
  *
  *  Copyright (C) 2004 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Adapted for 3rd gen XScale core, no more mini-dcache
  * Author: Matt Gilbert (matthew.m.gilbert@intel.com)

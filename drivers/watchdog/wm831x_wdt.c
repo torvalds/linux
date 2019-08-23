@@ -267,14 +267,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_watchdog_register_device(dev, &driver_data->wdt);
-	if (ret != 0) {
-		dev_err(wm831x->dev, "watchdog_register_device() failed: %d\n",
-			ret);
-		return ret;
-	}
-
-	return 0;
+	return devm_watchdog_register_device(dev, &driver_data->wdt);
 }
 
 static struct platform_driver wm831x_wdt_driver = {

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Samsung EXYNOS5 SoC series G-Scaler driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -331,7 +327,7 @@ void gsc_check_src_scale_info(struct gsc_variant *var,
 	}
 }
 
-int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f)
+int gsc_enum_fmt(struct v4l2_fmtdesc *f)
 {
 	const struct gsc_fmt *fmt;
 

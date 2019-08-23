@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DEVINIT_H__
 #define __NVKM_DEVINIT_H__
 #include <core/subdev.h>

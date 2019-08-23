@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2006, Intel Corporation.
  *
- * This file is released under the GPLv2.
- *
  * Copyright (C) 2006-2008 Intel Corporation
  * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
- *
  */
 
 #ifndef _IOVA_H_
@@ -157,6 +155,7 @@ struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 void copy_reserved_iova(struct iova_domain *from, struct iova_domain *to);
 void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn);
+bool has_iova_flush_queue(struct iova_domain *iovad);
 int init_iova_flush_queue(struct iova_domain *iovad,
 			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
@@ -235,6 +234,11 @@ static inline void init_iova_domain(struct iova_domain *iovad,
 				    unsigned long granule,
 				    unsigned long start_pfn)
 {
+}
+
+static inline bool has_iova_flush_queue(struct iova_domain *iovad)
+{
+	return false;
 }
 
 static inline int init_iova_flush_queue(struct iova_domain *iovad,

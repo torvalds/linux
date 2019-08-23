@@ -21,23 +21,4 @@
 #define KPC_DMA_CARD_S2C_INTERRUPT_STATUS_MASK  0x00FF0000
 #define KPC_DMA_CARD_C2S_INTERRUPT_STATUS_MASK  0xFF000000
 
-static inline  void  SetBackEndControl(void __iomem *regs, u32 value)
-{
-    writel(value, regs + 0);
-}
-static inline  u32  GetBackEndStatus(void __iomem *regs)
-{
-    return readl(regs + 0);
-}
-
-static inline  u32  BackEndControlSetClear(void __iomem *regs, u32 set_bits, u32 clear_bits)
-{
-    u32 start_val = GetBackEndStatus(regs);
-    u32 new_val = start_val;
-    new_val &= ~clear_bits;
-    new_val |= set_bits;
-    SetBackEndControl(regs, new_val);
-    return start_val;
-}
-
 #endif /* KPC_DMA_COMMON_DEFS_H_ */

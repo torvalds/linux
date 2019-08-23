@@ -5,7 +5,6 @@
  */
 #include "xfs.h"
 #include "xfs_log_format.h"
-#include "xfs_bit.h"
 
 /*
  * XFS bit manipulation routines, used in non-realtime code.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mmc/s3cmci.h - Samsung S3C MCI driver
  *
@@ -5,10 +6,6 @@
  *
  * Current driver maintained by Ben Dooks and Simtec Electronics
  *  Copyright (C) 2008 Simtec Electronics <ben-linux@fluff.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -1452,33 +1449,18 @@ DEFINE_SHOW_ATTRIBUTE(s3cmci_regs);
 static void s3cmci_debugfs_attach(struct s3cmci_host *host)
 {
 	struct device *dev = &host->pdev->dev;
+	struct dentry *root;
 
-	host->debug_root = debugfs_create_dir(dev_name(dev), NULL);
-	if (IS_ERR(host->debug_root)) {
-		dev_err(dev, "failed to create debugfs root\n");
-		return;
-	}
+	root = debugfs_create_dir(dev_name(dev), NULL);
+	host->debug_root = root;
 
-	host->debug_state = debugfs_create_file("state", 0444,
-						host->debug_root, host,
-						&s3cmci_state_fops);
-
-	if (IS_ERR(host->debug_state))
-		dev_err(dev, "failed to create debug state file\n");
-
-	host->debug_regs = debugfs_create_file("regs", 0444,
-					       host->debug_root, host,
-					       &s3cmci_regs_fops);
-
-	if (IS_ERR(host->debug_regs))
-		dev_err(dev, "failed to create debug regs file\n");
+	debugfs_create_file("state", 0444, root, host, &s3cmci_state_fops);
+	debugfs_create_file("regs", 0444, root, host, &s3cmci_regs_fops);
 }
 
 static void s3cmci_debugfs_remove(struct s3cmci_host *host)
 {
-	debugfs_remove(host->debug_regs);
-	debugfs_remove(host->debug_state);
-	debugfs_remove(host->debug_root);
+	debugfs_remove_recursive(host->debug_root);
 }
 
 #else

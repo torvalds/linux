@@ -290,8 +290,6 @@ static inline pte_t *pte_offset(pmd_t *dir, unsigned long address)
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 
-extern void show_jtlb_table(void);
-
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *pte);
 

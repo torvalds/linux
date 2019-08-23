@@ -60,7 +60,7 @@ static inline void LOAD_DATA(int x, u8 *ptr)
 	typedef struct { u8 _[16 * $#]; } addrtype;
 	register addrtype *__ptr asm("1") = (addrtype *) ptr;
 
-	asm volatile ("VLM %2,%3,0,%r1"
+	asm volatile ("VLM %2,%3,0,%1"
 		      : : "m" (*__ptr), "a" (__ptr), "i" (x),
 			  "i" (x + $# - 1));
 }

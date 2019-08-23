@@ -30,7 +30,6 @@ int ingenic_ecc_calculate(struct ingenic_ecc *ecc,
 {
 	return ecc->ops->calculate(ecc, params, buf, ecc_code);
 }
-EXPORT_SYMBOL(ingenic_ecc_calculate);
 
 /**
  * ingenic_ecc_correct() - detect and correct bit errors
@@ -51,7 +50,6 @@ int ingenic_ecc_correct(struct ingenic_ecc *ecc,
 {
 	return ecc->ops->correct(ecc, params, buf, ecc_code);
 }
-EXPORT_SYMBOL(ingenic_ecc_correct);
 
 /**
  * ingenic_ecc_get() - get the ECC controller device
@@ -111,7 +109,6 @@ struct ingenic_ecc *of_ingenic_ecc_get(struct device_node *of_node)
 	}
 	return ecc;
 }
-EXPORT_SYMBOL(of_ingenic_ecc_get);
 
 /**
  * ingenic_ecc_release() - release the ECC controller device
@@ -122,7 +119,6 @@ void ingenic_ecc_release(struct ingenic_ecc *ecc)
 	clk_disable_unprepare(ecc->clk);
 	put_device(ecc->dev);
 }
-EXPORT_SYMBOL(ingenic_ecc_release);
 
 int ingenic_ecc_probe(struct platform_device *pdev)
 {
@@ -159,8 +155,3 @@ int ingenic_ecc_probe(struct platform_device *pdev)
 	return 0;
 }
 EXPORT_SYMBOL(ingenic_ecc_probe);
-
-MODULE_AUTHOR("Alex Smith <alex@alex-smith.me.uk>");
-MODULE_AUTHOR("Harvey Hunt <harveyhuntnexus@gmail.com>");
-MODULE_DESCRIPTION("Ingenic ECC common driver");
-MODULE_LICENSE("GPL v2");

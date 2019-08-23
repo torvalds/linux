@@ -17,6 +17,7 @@ config AIRO
 	depends on CFG80211 && ISA_DMA_API && (PCI || BROKEN)
 	select WIRELESS_EXT
 	select CRYPTO
+	select CRYPTO_BLKCIPHER
 	select WEXT_SPY
 	select WEXT_PRIV
 	---help---
@@ -40,6 +41,7 @@ config AIRO_CS
 	select WEXT_PRIV
 	select CRYPTO
 	select CRYPTO_AES
+	select CRYPTO_CTR
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
 	  802.11 wireless cards.  This driver is the same as the Aironet

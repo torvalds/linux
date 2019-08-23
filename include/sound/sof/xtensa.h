@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -17,7 +17,8 @@
 
 /* Xtensa Firmware Oops data */
 struct sof_ipc_dsp_oops_xtensa {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_dsp_oops_arch_hdr arch_hdr;
+	struct sof_ipc_dsp_oops_plat_hdr plat_hdr;
 	uint32_t exccause;
 	uint32_t excvaddr;
 	uint32_t ps;
@@ -38,7 +39,11 @@ struct sof_ipc_dsp_oops_xtensa {
 	uint32_t intenable;
 	uint32_t interrupt;
 	uint32_t sar;
-	uint32_t stack;
+	uint32_t debugcause;
+	uint32_t windowbase;
+	uint32_t windowstart;
+	uint32_t excsave1;
+	uint32_t ar[];
 }  __packed;
 
 #endif

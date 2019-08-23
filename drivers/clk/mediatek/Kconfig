@@ -300,4 +300,10 @@ config COMMON_CLK_MT8516
 	help
 	  This driver supports MediaTek MT8516 clocks.
 
+config COMMON_CLK_MT8516_AUDSYS
+	bool "Clock driver for MediaTek MT8516 audsys"
+	depends on COMMON_CLK_MT8516
+	help
+	  This driver supports MediaTek MT8516 audsys clocks.
+
 endmenu

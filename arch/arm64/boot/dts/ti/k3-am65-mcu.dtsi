@@ -17,6 +17,14 @@
 			power-domains = <&k3_pds 149>;
 	};
 
+	mcu_ram: sram@41c00000 {
+		compatible = "mmio-sram";
+		reg = <0x00 0x41c00000 0x00 0x80000>;
+		ranges = <0x0 0x00 0x41c00000 0x80000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
 	mcu_i2c0: i2c@40b00000 {
 		compatible = "ti,am654-i2c", "ti,omap4-i2c";
 		reg = <0x0 0x40b00000 0x0 0x100>;

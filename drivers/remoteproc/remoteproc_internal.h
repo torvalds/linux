@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Remote processor framework
  *
@@ -6,15 +7,6 @@
  *
  * Ohad Ben-Cohen <ohad@wizery.com>
  * Brian Swetland <swetland@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef REMOTEPROC_INTERNAL_H
@@ -104,6 +96,17 @@ static inline int rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 		return rproc->ops->parse_fw(rproc, fw);
 
 	return 0;
+}
+
+static inline
+int rproc_handle_rsc(struct rproc *rproc, u32 rsc_type, void *rsc, int offset,
+		     int avail)
+{
+	if (rproc->ops->handle_rsc)
+		return rproc->ops->handle_rsc(rproc, rsc_type, rsc, offset,
+					      avail);
+
+	return RSC_IGNORED;
 }
 
 static inline

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -407,8 +399,8 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 					       &gisb_panic_notifier);
 	}
 
-	dev_info(&pdev->dev, "registered mem: %p, irqs: %d, %d\n",
-			gdev->base, timeout_irq, tea_irq);
+	dev_info(&pdev->dev, "registered irqs: %d, %d\n",
+		 timeout_irq, tea_irq);
 
 	return 0;
 }

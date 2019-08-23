@@ -58,6 +58,7 @@ MODULE_LICENSE("GPL v2");
  * @queue: vb2 video capture queue
  * @qlock: spinlock controlling access to buf_list and sequence
  * @buf_list: list of buffers queued for DMA
+ * @field: the field (TOP/BOTTOM/other) of the current buffer
  * @sequence: frame sequence counter
  */
 struct skeleton {

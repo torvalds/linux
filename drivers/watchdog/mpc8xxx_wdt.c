@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mpc8xxx_wdt.c - MPC8xx/MPC83xx/MPC86xx watchdog userspace interface
  *
@@ -10,11 +11,6 @@
  *
  * Note: it appears that you can only actually ENABLE or DISABLE the thing
  * once after POR. Once enabled, you cannot disable, and vice versa.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/fs.h>
@@ -205,11 +201,8 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		ddata->wdd.timeout = ddata->wdd.min_timeout;
 
 	ret = devm_watchdog_register_device(dev, &ddata->wdd);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog device (err=%d)\n",
-			ret);
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev,
 		 "WDT driver for MPC8xxx initialized. mode:%s timeout=%d sec\n",

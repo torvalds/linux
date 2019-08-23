@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* include/net/xdp.h
  *
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
- * Released under terms in GPL version 2.  See COPYING.
  */
 #ifndef __LINUX_NET_XDP_H__
 #define __LINUX_NET_XDP_H__
@@ -128,6 +128,21 @@ struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
 void xdp_return_frame(struct xdp_frame *xdpf);
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf);
 void xdp_return_buff(struct xdp_buff *xdp);
+
+/* When sending xdp_frame into the network stack, then there is no
+ * return point callback, which is needed to release e.g. DMA-mapping
+ * resources with page_pool.  Thus, have explicit function to release
+ * frame resources.
+ */
+void __xdp_release_frame(void *data, struct xdp_mem_info *mem);
+static inline void xdp_release_frame(struct xdp_frame *xdpf)
+{
+	struct xdp_mem_info *mem = &xdpf->mem;
+
+	/* Curr only page_pool needs this */
+	if (mem->type == MEM_TYPE_PAGE_POOL)
+		__xdp_release_frame(xdpf->data, mem);
+}
 
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 		     struct net_device *dev, u32 queue_index);

@@ -310,7 +310,8 @@ extern char _SecondaryResetVector_text_start;
 extern char _SecondaryResetVector_text_end;
 #endif
 
-static inline int mem_reserve(unsigned long start, unsigned long end)
+static inline int __init_memblock mem_reserve(unsigned long start,
+					      unsigned long end)
 {
 	return memblock_reserve(start, end - start);
 }
@@ -403,10 +404,6 @@ void __init setup_arch(char **cmdline_p)
 # elif defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
 # endif
-#endif
-
-#ifdef CONFIG_PCI
-	platform_pcibios_init();
 #endif
 }
 

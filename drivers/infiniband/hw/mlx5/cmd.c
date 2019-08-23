@@ -190,12 +190,12 @@ int mlx5_cmd_alloc_sw_icm(struct mlx5_dm *dm, int type, u64 length,
 			  u16 uid, phys_addr_t *addr, u32 *obj_id)
 {
 	struct mlx5_core_dev *dev = dm->dev;
-	u32 num_blocks = DIV_ROUND_UP(length, MLX5_SW_ICM_BLOCK_SIZE(dev));
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
 	u32 in[MLX5_ST_SZ_DW(create_sw_icm_in)] = {};
 	unsigned long *block_map;
 	u64 icm_start_addr;
 	u32 log_icm_size;
+	u32 num_blocks;
 	u32 max_blocks;
 	u64 block_idx;
 	void *sw_icm;
@@ -224,6 +224,8 @@ int mlx5_cmd_alloc_sw_icm(struct mlx5_dm *dm, int type, u64 length,
 		return -EINVAL;
 	}
 
+	num_blocks = (length + MLX5_SW_ICM_BLOCK_SIZE(dev) - 1) >>
+		     MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
 	max_blocks = BIT(log_icm_size - MLX5_LOG_SW_ICM_BLOCK_SIZE(dev));
 	spin_lock(&dm->lock);
 	block_idx = bitmap_find_next_zero_area(block_map,
@@ -266,12 +268,15 @@ int mlx5_cmd_dealloc_sw_icm(struct mlx5_dm *dm, int type, u64 length,
 			    u16 uid, phys_addr_t addr, u32 obj_id)
 {
 	struct mlx5_core_dev *dev = dm->dev;
-	u32 num_blocks = DIV_ROUND_UP(length, MLX5_SW_ICM_BLOCK_SIZE(dev));
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
 	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
 	unsigned long *block_map;
+	u32 num_blocks;
 	u64 start_idx;
 	int err;
+
+	num_blocks = (length + MLX5_SW_ICM_BLOCK_SIZE(dev) - 1) >>
+		     MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
 
 	switch (type) {
 	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:

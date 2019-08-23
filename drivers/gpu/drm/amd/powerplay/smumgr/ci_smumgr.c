@@ -25,6 +25,7 @@
 #include <linux/fb.h>
 #include "linux/delay.h"
 #include <linux/types.h>
+#include <linux/pci.h>
 
 #include "smumgr.h"
 #include "pp_debug.h"
@@ -2254,6 +2255,8 @@ static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU7_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU7_SoftRegisters, AverageGraphicsA);
+		case AverageMemoryActivity:
+			return offsetof(SMU7_SoftRegisters, AverageMemoryA);
 		case PreVBlankGap:
 			return offsetof(SMU7_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
@@ -2702,8 +2705,6 @@ static int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	cgs_write_register(hwmgr->device, mmMC_SEQ_PMG_CMD_MRS2_LP, cgs_read_register(hwmgr->device, mmMC_PMG_CMD_MRS2));
 	cgs_write_register(hwmgr->device, mmMC_SEQ_WR_CTL_2_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_WR_CTL_2));
 
-	memset(table, 0x00, sizeof(pp_atomctrl_mc_reg_table));
-
 	result = atomctrl_initialize_mc_reg_table(hwmgr, module_index, table);
 
 	if (0 == result)
@@ -2933,6 +2934,7 @@ static int ci_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 }
 
 const struct pp_smumgr_func ci_smu_funcs = {
+	.name = "ci_smu",
 	.smu_init = ci_smu_init,
 	.smu_fini = ci_smu_fini,
 	.start_smu = ci_start_smu,

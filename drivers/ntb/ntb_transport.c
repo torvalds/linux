@@ -93,6 +93,12 @@ static bool use_dma;
 module_param(use_dma, bool, 0644);
 MODULE_PARM_DESC(use_dma, "Use DMA engine to perform large data copy");
 
+static bool use_msi;
+#ifdef CONFIG_NTB_MSI
+module_param(use_msi, bool, 0644);
+MODULE_PARM_DESC(use_msi, "Use MSI interrupts instead of doorbells");
+#endif
+
 static struct dentry *nt_debugfs_dir;
 
 /* Only two-ports NTB devices are supported */
@@ -188,6 +194,11 @@ struct ntb_transport_qp {
 	u64 tx_err_no_buf;
 	u64 tx_memcpy;
 	u64 tx_async;
+
+	bool use_msi;
+	int msi_irq;
+	struct ntb_msi_desc msi_desc;
+	struct ntb_msi_desc peer_msi_desc;
 };
 
 struct ntb_transport_mw {
@@ -220,6 +231,10 @@ struct ntb_transport_ctx {
 	unsigned int qp_count;
 	u64 qp_bitmap;
 	u64 qp_bitmap_free;
+
+	bool use_msi;
+	unsigned int msi_spad_offset;
+	u64 msi_db_mask;
 
 	bool link_is_up;
 	struct delayed_work link_work;
@@ -667,6 +682,114 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	return 0;
 }
 
+static irqreturn_t ntb_transport_isr(int irq, void *dev)
+{
+	struct ntb_transport_qp *qp = dev;
+
+	tasklet_schedule(&qp->rxc_db_work);
+
+	return IRQ_HANDLED;
+}
+
+static void ntb_transport_setup_qp_peer_msi(struct ntb_transport_ctx *nt,
+					    unsigned int qp_num)
+{
+	struct ntb_transport_qp *qp = &nt->qp_vec[qp_num];
+	int spad = qp_num * 2 + nt->msi_spad_offset;
+
+	if (!nt->use_msi)
+		return;
+
+	if (spad >= ntb_spad_count(nt->ndev))
+		return;
+
+	qp->peer_msi_desc.addr_offset =
+		ntb_peer_spad_read(qp->ndev, PIDX, spad);
+	qp->peer_msi_desc.data =
+		ntb_peer_spad_read(qp->ndev, PIDX, spad + 1);
+
+	dev_dbg(&qp->ndev->pdev->dev, "QP%d Peer MSI addr=%x data=%x\n",
+		qp_num, qp->peer_msi_desc.addr_offset, qp->peer_msi_desc.data);
+
+	if (qp->peer_msi_desc.addr_offset) {
+		qp->use_msi = true;
+		dev_info(&qp->ndev->pdev->dev,
+			 "Using MSI interrupts for QP%d\n", qp_num);
+	}
+}
+
+static void ntb_transport_setup_qp_msi(struct ntb_transport_ctx *nt,
+				       unsigned int qp_num)
+{
+	struct ntb_transport_qp *qp = &nt->qp_vec[qp_num];
+	int spad = qp_num * 2 + nt->msi_spad_offset;
+	int rc;
+
+	if (!nt->use_msi)
+		return;
+
+	if (spad >= ntb_spad_count(nt->ndev)) {
+		dev_warn_once(&qp->ndev->pdev->dev,
+			      "Not enough SPADS to use MSI interrupts\n");
+		return;
+	}
+
+	ntb_spad_write(qp->ndev, spad, 0);
+	ntb_spad_write(qp->ndev, spad + 1, 0);
+
+	if (!qp->msi_irq) {
+		qp->msi_irq = ntbm_msi_request_irq(qp->ndev, ntb_transport_isr,
+						   KBUILD_MODNAME, qp,
+						   &qp->msi_desc);
+		if (qp->msi_irq < 0) {
+			dev_warn(&qp->ndev->pdev->dev,
+				 "Unable to allocate MSI interrupt for qp%d\n",
+				 qp_num);
+			return;
+		}
+	}
+
+	rc = ntb_spad_write(qp->ndev, spad, qp->msi_desc.addr_offset);
+	if (rc)
+		goto err_free_interrupt;
+
+	rc = ntb_spad_write(qp->ndev, spad + 1, qp->msi_desc.data);
+	if (rc)
+		goto err_free_interrupt;
+
+	dev_dbg(&qp->ndev->pdev->dev, "QP%d MSI %d addr=%x data=%x\n",
+		qp_num, qp->msi_irq, qp->msi_desc.addr_offset,
+		qp->msi_desc.data);
+
+	return;
+
+err_free_interrupt:
+	devm_free_irq(&nt->ndev->dev, qp->msi_irq, qp);
+}
+
+static void ntb_transport_msi_peer_desc_changed(struct ntb_transport_ctx *nt)
+{
+	int i;
+
+	dev_dbg(&nt->ndev->pdev->dev, "Peer MSI descriptors changed");
+
+	for (i = 0; i < nt->qp_count; i++)
+		ntb_transport_setup_qp_peer_msi(nt, i);
+}
+
+static void ntb_transport_msi_desc_changed(void *data)
+{
+	struct ntb_transport_ctx *nt = data;
+	int i;
+
+	dev_dbg(&nt->ndev->pdev->dev, "MSI descriptors changed");
+
+	for (i = 0; i < nt->qp_count; i++)
+		ntb_transport_setup_qp_msi(nt, i);
+
+	ntb_peer_db_set(nt->ndev, nt->msi_db_mask);
+}
+
 static void ntb_free_mw(struct ntb_transport_ctx *nt, int num_mw)
 {
 	struct ntb_transport_mw *mw = &nt->mw_vec[num_mw];
@@ -905,6 +1028,20 @@ static void ntb_transport_link_work(struct work_struct *work)
 	int rc = 0, i, spad;
 
 	/* send the local info, in the opposite order of the way we read it */
+
+	if (nt->use_msi) {
+		rc = ntb_msi_setup_mws(ndev);
+		if (rc) {
+			dev_warn(&pdev->dev,
+				 "Failed to register MSI memory window: %d\n",
+				 rc);
+			nt->use_msi = false;
+		}
+	}
+
+	for (i = 0; i < nt->qp_count; i++)
+		ntb_transport_setup_qp_msi(nt, i);
+
 	for (i = 0; i < nt->mw_count; i++) {
 		size = nt->mw_vec[i].phys_size;
 
@@ -962,6 +1099,7 @@ static void ntb_transport_link_work(struct work_struct *work)
 		struct ntb_transport_qp *qp = &nt->qp_vec[i];
 
 		ntb_transport_setup_qp_mw(nt, i);
+		ntb_transport_setup_qp_peer_msi(nt, i);
 
 		if (qp->client_ready)
 			schedule_delayed_work(&qp->link_work, 0);
@@ -1135,6 +1273,19 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 		return -ENOMEM;
 
 	nt->ndev = ndev;
+
+	/*
+	 * If we are using MSI, and have at least one extra memory window,
+	 * we will reserve the last MW for the MSI window.
+	 */
+	if (use_msi && mw_count > 1) {
+		rc = ntb_msi_init(ndev, ntb_transport_msi_desc_changed);
+		if (!rc) {
+			mw_count -= 1;
+			nt->use_msi = true;
+		}
+	}
+
 	spad_count = ntb_spad_count(ndev);
 
 	/* Limit the MW's based on the availability of scratchpads */
@@ -1147,6 +1298,8 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 	max_mw_count_for_spads = (spad_count - MW0_SZ_HIGH) / 2;
 	nt->mw_count = min(mw_count, max_mw_count_for_spads);
+
+	nt->msi_spad_offset = nt->mw_count * 2 + MW0_SZ_HIGH;
 
 	nt->mw_vec = kcalloc_node(mw_count, sizeof(*nt->mw_vec),
 				  GFP_KERNEL, node);
@@ -1178,6 +1331,12 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	qp_bitmap = ntb_db_valid_mask(ndev);
 
 	qp_count = ilog2(qp_bitmap);
+	if (nt->use_msi) {
+		qp_count -= 1;
+		nt->msi_db_mask = 1 << qp_count;
+		ntb_db_clear_mask(ndev, nt->msi_db_mask);
+	}
+
 	if (max_num_clients && max_num_clients < qp_count)
 		qp_count = max_num_clients;
 	else if (nt->mw_count < qp_count)
@@ -1601,7 +1760,10 @@ static void ntb_tx_copy_callback(void *data,
 
 	iowrite32(entry->flags | DESC_DONE_FLAG, &hdr->flags);
 
-	ntb_peer_db_set(qp->ndev, BIT_ULL(qp->qp_num));
+	if (qp->use_msi)
+		ntb_msi_peer_trigger(qp->ndev, PIDX, &qp->peer_msi_desc);
+	else
+		ntb_peer_db_set(qp->ndev, BIT_ULL(qp->qp_num));
 
 	/* The entry length can only be zero if the packet is intended to be a
 	 * "link down" or similar.  Since no payload is being sent in these
@@ -1869,6 +2031,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 		qp->rx_dma_chan = NULL;
 	}
 
+	qp->tx_mw_dma_addr = 0;
 	if (qp->tx_dma_chan) {
 		qp->tx_mw_dma_addr =
 			dma_map_resource(qp->tx_dma_chan->device->dev,
@@ -2267,6 +2430,11 @@ static void ntb_transport_doorbell_callback(void *data, int vector)
 	struct ntb_transport_qp *qp;
 	u64 db_bits;
 	unsigned int qp_num;
+
+	if (ntb_db_read(nt->ndev) & nt->msi_db_mask) {
+		ntb_transport_msi_peer_desc_changed(nt);
+		ntb_db_clear(nt->ndev, nt->msi_db_mask);
+	}
 
 	db_bits = (nt->qp_bitmap & ~nt->qp_bitmap_free &
 		   ntb_db_vector_mask(nt->ndev, vector));

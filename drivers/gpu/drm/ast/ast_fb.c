@@ -48,30 +48,30 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 			     int x, int y, int width, int height)
 {
 	int i;
-	struct drm_gem_object *obj;
-	struct ast_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
 	int bpp = afbdev->afb.base.format->cpp[0];
-	int ret = -EBUSY;
+	int ret;
+	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
 
-	obj = afbdev->afb.obj;
-	bo = gem_to_ast_bo(obj);
+	gbo = drm_gem_vram_of_gem(afbdev->afb.obj);
 
-	/*
-	 * try and reserve the BO, if we fail with busy
-	 * then the BO is being moved and we should
-	 * store up the damage until later.
-	 */
-	if (drm_can_sleep())
-		ret = ast_bo_reserve(bo, true);
-	if (ret) {
-		if (ret != -EBUSY)
-			return;
-
+	if (drm_can_sleep()) {
+		/* We pin the BO so it won't be moved during the
+		 * update. The actual location, video RAM or system
+		 * memory, is not important.
+		 */
+		ret = drm_gem_vram_pin(gbo, 0);
+		if (ret) {
+			if (ret != -EBUSY)
+				return;
+			store_for_later = true;
+		}
+	} else {
 		store_for_later = true;
 	}
 
@@ -101,25 +101,32 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	afbdev->x2 = afbdev->y2 = 0;
 	spin_unlock_irqrestore(&afbdev->dirty_lock, flags);
 
-	if (!bo->kmap.virtual) {
-		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
-		if (ret) {
+	dst = drm_gem_vram_kmap(gbo, false, NULL);
+	if (IS_ERR(dst)) {
+		DRM_ERROR("failed to kmap fb updates\n");
+		goto out;
+	} else if (!dst) {
+		dst = drm_gem_vram_kmap(gbo, true, NULL);
+		if (IS_ERR(dst)) {
 			DRM_ERROR("failed to kmap fb updates\n");
-			ast_bo_unreserve(bo);
-			return;
+			goto out;
 		}
 		unmap = true;
 	}
+
 	for (i = y; i <= y2; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset = i * afbdev->afb.base.pitches[0] + (x * bpp);
-		memcpy_toio(bo->kmap.virtual + src_offset, afbdev->sysram + src_offset, (x2 - x + 1) * bpp);
-
+		src_offset = dst_offset =
+			i * afbdev->afb.base.pitches[0] + (x * bpp);
+		memcpy_toio(dst + dst_offset, afbdev->sysram + src_offset,
+			    (x2 - x + 1) * bpp);
 	}
-	if (unmap)
-		ttm_bo_kunmap(&bo->kmap);
 
-	ast_bo_unreserve(bo);
+	if (unmap)
+		drm_gem_vram_kunmap(gbo);
+
+out:
+	drm_gem_vram_unpin(gbo);
 }
 
 static void ast_fillrect(struct fb_info *info,
@@ -159,8 +166,6 @@ static struct fb_ops astfb_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static int astfb_create_object(struct ast_fbdev *afbdev,

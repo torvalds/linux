@@ -675,11 +675,6 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 		total_npages += npages;
 
-		if (first) {
-			first = false;
-			dma_addr &= PAGE_MASK_2MB;
-		}
-
 		if ((npages % PGS_IN_2MB_PAGE) ||
 					(dma_addr & (PAGE_SIZE_2MB - 1)))
 			is_huge_page_opt = false;
@@ -704,7 +699,6 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	phys_pg_pack->total_size = total_npages * page_size;
 
 	j = 0;
-	first = true;
 	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
 		npages = get_sg_info(sg, &dma_addr);
 
@@ -1663,17 +1657,10 @@ int hl_vm_init(struct hl_device *hdev)
 	struct hl_vm *vm = &hdev->vm;
 	int rc;
 
-	rc = hl_mmu_init(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to init MMU\n");
-		return rc;
-	}
-
 	vm->dram_pg_pool = gen_pool_create(__ffs(prop->dram_page_size), -1);
 	if (!vm->dram_pg_pool) {
 		dev_err(hdev->dev, "Failed to create dram page pool\n");
-		rc = -ENOMEM;
-		goto pool_create_err;
+		return -ENOMEM;
 	}
 
 	kref_init(&vm->dram_pg_pool_refcount);
@@ -1699,8 +1686,6 @@ int hl_vm_init(struct hl_device *hdev)
 
 pool_add_err:
 	gen_pool_destroy(vm->dram_pg_pool);
-pool_create_err:
-	hl_mmu_fini(hdev);
 
 	return rc;
 }
@@ -1729,8 +1714,6 @@ void hl_vm_fini(struct hl_device *hdev)
 	if (kref_put(&vm->dram_pg_pool_refcount, dram_pg_pool_do_release) != 1)
 		dev_warn(hdev->dev, "dram_pg_pool was not destroyed on %s\n",
 				__func__);
-
-	hl_mmu_fini(hdev);
 
 	vm->init_done = false;
 }

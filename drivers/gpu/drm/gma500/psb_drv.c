@@ -1,41 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  * Copyright (c) 2008, Tungsten Graphics, Inc. Cedar Park, TX., USA.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
-#include <drm/drmP.h>
+#include <linux/cpu.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/pm_runtime.h>
+#include <linux/spinlock.h>
+
+#include <asm/set_memory.h>
+
+#include <acpi/video.h>
+
 #include <drm/drm.h>
-#include "psb_drv.h"
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_pciids.h>
+#include <drm/drm_vblank.h>
+
 #include "framebuffer.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
 #include "intel_bios.h"
 #include "mid_bios.h"
-#include <drm/drm_pciids.h>
 #include "power.h"
-#include <linux/cpu.h>
-#include <linux/notifier.h>
-#include <linux/spinlock.h>
-#include <linux/pm_runtime.h>
-#include <acpi/video.h>
-#include <linux/module.h>
-#include <asm/set_memory.h>
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DMA driver for Xilinx Video DMA Engine
  *
@@ -24,11 +25,6 @@
  * The AXI CDMA, is a soft IP, which provides high-bandwidth Direct Memory
  * Access (DMA) between a memory-mapped source address and a memory-mapped
  * destination address.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitops.h>
@@ -1099,7 +1095,7 @@ static void xilinx_dma_start(struct xilinx_dma_chan *chan)
 static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 {
 	struct xilinx_vdma_config *config = &chan->config;
-	struct xilinx_dma_tx_descriptor *desc, *tail_desc;
+	struct xilinx_dma_tx_descriptor *desc;
 	u32 reg, j;
 	struct xilinx_vdma_tx_segment *segment, *last = NULL;
 	int i = 0;
@@ -1116,8 +1112,6 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 
 	desc = list_first_entry(&chan->pending_list,
 				struct xilinx_dma_tx_descriptor, node);
-	tail_desc = list_last_entry(&chan->pending_list,
-				    struct xilinx_dma_tx_descriptor, node);
 
 	/* Configure the hardware using info in the config structure */
 	if (chan->has_vflip) {

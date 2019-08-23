@@ -26,6 +26,11 @@ static const struct v3d_reg_def v3d_hub_reg_defs[] = {
 	REGDEF(V3D_HUB_IDENT3),
 	REGDEF(V3D_HUB_INT_STS),
 	REGDEF(V3D_HUB_INT_MSK_STS),
+
+	REGDEF(V3D_MMU_CTL),
+	REGDEF(V3D_MMU_VIO_ADDR),
+	REGDEF(V3D_MMU_VIO_ID),
+	REGDEF(V3D_MMU_DEBUG_INFO),
 };
 
 static const struct v3d_reg_def v3d_gca_reg_defs[] = {
@@ -50,12 +55,25 @@ static const struct v3d_reg_def v3d_core_reg_defs[] = {
 	REGDEF(V3D_PTB_BPCA),
 	REGDEF(V3D_PTB_BPCS),
 
-	REGDEF(V3D_MMU_CTL),
-	REGDEF(V3D_MMU_VIO_ADDR),
-
 	REGDEF(V3D_GMP_STATUS),
 	REGDEF(V3D_GMP_CFG),
 	REGDEF(V3D_GMP_VIO_ADDR),
+
+	REGDEF(V3D_ERR_FDBGO),
+	REGDEF(V3D_ERR_FDBGB),
+	REGDEF(V3D_ERR_FDBGS),
+	REGDEF(V3D_ERR_STAT),
+};
+
+static const struct v3d_reg_def v3d_csd_reg_defs[] = {
+	REGDEF(V3D_CSD_STATUS),
+	REGDEF(V3D_CSD_CURRENT_CFG0),
+	REGDEF(V3D_CSD_CURRENT_CFG1),
+	REGDEF(V3D_CSD_CURRENT_CFG2),
+	REGDEF(V3D_CSD_CURRENT_CFG3),
+	REGDEF(V3D_CSD_CURRENT_CFG4),
+	REGDEF(V3D_CSD_CURRENT_CFG5),
+	REGDEF(V3D_CSD_CURRENT_CFG6),
 };
 
 static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
@@ -88,6 +106,17 @@ static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 				   v3d_core_reg_defs[i].reg,
 				   V3D_CORE_READ(core,
 						 v3d_core_reg_defs[i].reg));
+		}
+
+		if (v3d_has_csd(v3d)) {
+			for (i = 0; i < ARRAY_SIZE(v3d_csd_reg_defs); i++) {
+				seq_printf(m, "core %d %s (0x%04x): 0x%08x\n",
+					   core,
+					   v3d_csd_reg_defs[i].name,
+					   v3d_csd_reg_defs[i].reg,
+					   V3D_CORE_READ(core,
+							 v3d_csd_reg_defs[i].reg));
+			}
 		}
 	}
 

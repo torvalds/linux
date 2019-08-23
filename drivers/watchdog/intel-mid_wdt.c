@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *      intel-mid_wdt: generic Intel MID SCU watchdog driver
  *
@@ -6,10 +7,6 @@
  *
  *      Copyright (C) 2014 Intel Corporation. All rights reserved.
  *      Contact: David Cohen <david.a.cohen@linux.intel.com>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of version 2 of the GNU General
- *      Public License as published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -164,10 +161,8 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
 
 	ret = devm_watchdog_register_device(dev, wdt_dev);
-	if (ret) {
-		dev_err(dev, "error registering watchdog device\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "Intel MID watchdog device probed\n");
 

@@ -11,26 +11,41 @@ Date:		February 2014
 KernelVersion:	3.15
 Contact:	netdev@vger.kernel.org
 Description:
-		Boolean value indicating whether the PHY device has
-		any fixups registered against it (phy_register_fixup)
+		This attribute contains the boolean value whether a given PHY
+		device has had any "fixup" workaround running on it, encoded as
+		a boolean. This information is provided to help troubleshooting
+		PHY configurations.
 
 What:		/sys/class/mdio_bus/<bus>/<device>/phy_id
 Date:		November 2012
 KernelVersion:	3.8
 Contact:	netdev@vger.kernel.org
 Description:
-		32-bit hexadecimal value corresponding to the PHY device's OUI,
-		model and revision number.
+		This attribute contains the 32-bit PHY Identifier as reported
+		by the device during bus enumeration, encoded in hexadecimal.
+		This ID is used to match the device with the appropriate
+		driver.
 
 What:		/sys/class/mdio_bus/<bus>/<device>/phy_interface
 Date:		February 2014
 KernelVersion:	3.15
 Contact:	netdev@vger.kernel.org
 Description:
-		String value indicating the PHY interface, possible
-		values are:.
+		This attribute contains the PHY interface as configured by the
+		Ethernet driver during bus enumeration, encoded in string.
+		This interface mode is used to configure the Ethernet MAC with the
+		appropriate mode for its data lines to the PHY hardware.
+		Possible values are:
 		<empty> (not available), mii, gmii, sgmii, tbi, rev-mii,
 		rmii, rgmii, rgmii-id, rgmii-rxid, rgmii-txid, rtbi, smii
 		xgmii, moca, qsgmii, trgmii, 1000base-x, 2500base-x, rxaui,
 		xaui, 10gbase-kr, unknown
 
+What:		/sys/class/mdio_bus/<bus>/<device>/phy_standalone
+Date:		May 2019
+KernelVersion:	5.3
+Contact:	netdev@vger.kernel.org
+Description:
+		Boolean value indicating whether the PHY device is used in
+		standalone mode, without a net_device associated, by PHYLINK.
+		Attribute created only when this is the case.

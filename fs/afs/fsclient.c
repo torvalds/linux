@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS File Server client stubs
  *
  * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -343,8 +339,9 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			call->tmp_u = htonl(0);
 			afs_extract_to_tmp(call);
 		}
+		/* Fall through */
 
-		/* Fall through - and extract the returned data length */
+		/* extract the returned data length */
 	case 1:
 		_debug("extract data length");
 		ret = afs_extract_data(call, true);
@@ -370,8 +367,9 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		call->bvec[0].bv_page = req->pages[req->index];
 		iov_iter_bvec(&call->iter, READ, call->bvec, 1, size);
 		ASSERTCMP(size, <=, PAGE_SIZE);
+		/* Fall through */
 
-		/* Fall through - and extract the returned data */
+		/* extract the returned data */
 	case 2:
 		_debug("extract data %zu/%llu",
 		       iov_iter_count(&call->iter), req->remain);
@@ -398,8 +396,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		/* Discard any excess data the server gave us */
 		iov_iter_discard(&call->iter, READ, req->actual_len - req->len);
 		call->unmarshall = 3;
-
 		/* Fall through */
+
 	case 3:
 		_debug("extract discard %zu/%llu",
 		       iov_iter_count(&call->iter), req->actual_len - req->len);
@@ -411,8 +409,9 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	no_more_data:
 		call->unmarshall = 4;
 		afs_extract_to_buf(call, (21 + 3 + 6) * 4);
+		/* Fall through */
 
-		/* Fall through - and extract the metadata */
+		/* extract the metadata */
 	case 4:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -1475,8 +1474,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 	case 0:
 		call->unmarshall++;
 		afs_extract_to_buf(call, 12 * 4);
+		/* Fall through */
 
-		/* Fall through - and extract the returned status record */
+		/* extract the returned status record */
 	case 1:
 		_debug("extract status");
 		ret = afs_extract_data(call, true);
@@ -1487,8 +1487,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		xdr_decode_AFSFetchVolumeStatus(&bp, call->out_volstatus);
 		call->unmarshall++;
 		afs_extract_to_tmp(call);
+		/* Fall through */
 
-		/* Fall through - and extract the volume name length */
+		/* extract the volume name length */
 	case 2:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1502,8 +1503,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		size = (call->count + 3) & ~3; /* It's padded */
 		afs_extract_to_buf(call, size);
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract the volume name */
+		/* extract the volume name */
 	case 3:
 		_debug("extract volname");
 		ret = afs_extract_data(call, true);
@@ -1515,8 +1517,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		_debug("volname '%s'", p);
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract the offline message length */
+		/* extract the offline message length */
 	case 4:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1530,8 +1533,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		size = (call->count + 3) & ~3; /* It's padded */
 		afs_extract_to_buf(call, size);
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract the offline message */
+		/* extract the offline message */
 	case 5:
 		_debug("extract offline");
 		ret = afs_extract_data(call, true);
@@ -1544,8 +1548,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract the message of the day length */
+		/* extract the message of the day length */
 	case 6:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1559,8 +1564,9 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		size = (call->count + 3) & ~3; /* It's padded */
 		afs_extract_to_buf(call, size);
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract the message of the day */
+		/* extract the message of the day */
 	case 7:
 		_debug("extract motd");
 		ret = afs_extract_data(call, false);
@@ -1854,8 +1860,9 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 	case 0:
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract the capabilities word count */
+		/* Extract the capabilities word count */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1867,8 +1874,9 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 		call->count2 = count;
 		iov_iter_discard(&call->iter, READ, count * sizeof(__be32));
 		call->unmarshall++;
+		/* Fall through */
 
-		/* Fall through - and extract capabilities words */
+		/* Extract capabilities words */
 	case 2:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -1915,7 +1923,7 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
-	call->server = afs_get_server(server);
+	call->server = afs_get_server(server, afs_server_trace_get_caps);
 	call->server_index = server_index;
 	call->upgrade = true;
 	call->async = true;
@@ -2024,9 +2032,9 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 	case 0:
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
+		/* Fall through */
 
 		/* Extract the file status count and array in two steps */
-		/* Fall through */
 	case 1:
 		_debug("extract status count");
 		ret = afs_extract_data(call, true);
@@ -2043,8 +2051,8 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		call->unmarshall++;
 	more_counts:
 		afs_extract_to_buf(call, 21 * sizeof(__be32));
-
 		/* Fall through */
+
 	case 2:
 		_debug("extract status array %u", call->count);
 		ret = afs_extract_data(call, true);
@@ -2064,9 +2072,9 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		call->count = 0;
 		call->unmarshall++;
 		afs_extract_to_tmp(call);
+		/* Fall through */
 
 		/* Extract the callback count and array in two steps */
-		/* Fall through */
 	case 3:
 		_debug("extract CB count");
 		ret = afs_extract_data(call, true);
@@ -2082,8 +2090,8 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		call->unmarshall++;
 	more_cbs:
 		afs_extract_to_buf(call, 3 * sizeof(__be32));
-
 		/* Fall through */
+
 	case 4:
 		_debug("extract CB array");
 		ret = afs_extract_data(call, true);
@@ -2100,8 +2108,8 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		afs_extract_to_buf(call, 6 * sizeof(__be32));
 		call->unmarshall++;
-
 		/* Fall through */
+
 	case 5:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -2197,6 +2205,7 @@ static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 	case 0:
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
+		/* Fall through */
 
 		/* extract the returned data length */
 	case 1:
@@ -2214,6 +2223,7 @@ static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 		acl->size = call->count2;
 		afs_extract_begin(call, acl->data, size);
 		call->unmarshall++;
+		/* Fall through */
 
 		/* extract the returned data */
 	case 2:
@@ -2223,6 +2233,7 @@ static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 
 		afs_extract_to_buf(call, (21 + 6) * 4);
 		call->unmarshall++;
+		/* Fall through */
 
 		/* extract the metadata */
 	case 3:

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2016 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel Virtio Over PCIe (VOP) driver.
- *
  */
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -186,10 +174,6 @@ void vop_init_debugfs(struct vop_info *vi)
 
 	snprintf(name, sizeof(name), "%s%d", KBUILD_MODNAME, vi->vpdev->dnode);
 	vi->dbg = debugfs_create_dir(name, NULL);
-	if (!vi->dbg) {
-		pr_err("can't create debugfs dir vop\n");
-		return;
-	}
 	debugfs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
 	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);
 }

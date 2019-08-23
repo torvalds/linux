@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright 2007-2008 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/mmc/core.h>
@@ -3171,15 +3167,7 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 	struct mmc_test_dbgfs_file *df;
 
 	if (card->debugfs_root)
-		file = debugfs_create_file(name, mode, card->debugfs_root,
-			card, fops);
-
-	if (IS_ERR_OR_NULL(file)) {
-		dev_err(&card->dev,
-			"Can't create %s. Perhaps debugfs is disabled.\n",
-			name);
-		return -ENODEV;
-	}
+		debugfs_create_file(name, mode, card->debugfs_root, card, fops);
 
 	df = kmalloc(sizeof(*df), GFP_KERNEL);
 	if (!df) {

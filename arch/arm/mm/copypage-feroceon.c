@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mm/copypage-feroceon.S
  *
  *  Copyright (C) 2008 Marvell Semiconductors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This handles copy_user_highpage and clear_user_page on Feroceon
  * more optimally than the generic implementations.

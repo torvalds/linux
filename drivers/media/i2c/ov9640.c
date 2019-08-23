@@ -691,14 +691,14 @@ static int ov9640_probe(struct i2c_client *client,
 
 	priv->gpio_power = devm_gpiod_get(&client->dev, "Camera power",
 					  GPIOD_OUT_LOW);
-	if (IS_ERR_OR_NULL(priv->gpio_power)) {
+	if (IS_ERR(priv->gpio_power)) {
 		ret = PTR_ERR(priv->gpio_power);
 		return ret;
 	}
 
 	priv->gpio_reset = devm_gpiod_get(&client->dev, "Camera reset",
 					  GPIOD_OUT_HIGH);
-	if (IS_ERR_OR_NULL(priv->gpio_reset)) {
+	if (IS_ERR(priv->gpio_reset)) {
 		ret = PTR_ERR(priv->gpio_reset);
 		return ret;
 	}

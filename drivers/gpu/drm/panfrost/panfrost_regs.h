@@ -44,11 +44,30 @@
 	 GPU_IRQ_MULTIPLE_FAULT)
 #define GPU_CMD				0x30
 #define   GPU_CMD_SOFT_RESET		0x01
+#define   GPU_CMD_PERFCNT_CLEAR		0x03
+#define   GPU_CMD_PERFCNT_SAMPLE	0x04
+#define   GPU_CMD_CLEAN_CACHES		0x07
+#define   GPU_CMD_CLEAN_INV_CACHES	0x08
 #define GPU_STATUS			0x34
+#define   GPU_STATUS_PRFCNT_ACTIVE	BIT(2)
 #define GPU_LATEST_FLUSH_ID		0x38
 #define GPU_FAULT_STATUS		0x3C
 #define GPU_FAULT_ADDRESS_LO		0x40
 #define GPU_FAULT_ADDRESS_HI		0x44
+
+#define GPU_PERFCNT_BASE_LO		0x60
+#define GPU_PERFCNT_BASE_HI		0x64
+#define GPU_PERFCNT_CFG			0x68
+#define   GPU_PERFCNT_CFG_MODE(x)	(x)
+#define   GPU_PERFCNT_CFG_MODE_OFF	0
+#define   GPU_PERFCNT_CFG_MODE_MANUAL	1
+#define   GPU_PERFCNT_CFG_MODE_TILE	2
+#define   GPU_PERFCNT_CFG_AS(x)		((x) << 4)
+#define   GPU_PERFCNT_CFG_SETSEL(x)	((x) << 8)
+#define GPU_PRFCNT_JM_EN		0x6c
+#define GPU_PRFCNT_SHADER_EN		0x70
+#define GPU_PRFCNT_TILER_EN		0x74
+#define GPU_PRFCNT_MMU_L2_EN		0x7c
 
 #define GPU_THREAD_MAX_THREADS		0x0A0	/* (RO) Maximum number of threads per core */
 #define GPU_THREAD_MAX_WORKGROUP_SIZE	0x0A4	/* (RO) Maximum workgroup size */
@@ -294,5 +313,8 @@
 #define AS_FAULTSTATUS_ACCESS_TYPE_EX		(0x1 << 8)
 #define AS_FAULTSTATUS_ACCESS_TYPE_READ		(0x2 << 8)
 #define AS_FAULTSTATUS_ACCESS_TYPE_WRITE	(0x3 << 8)
+
+#define gpu_write(dev, reg, data) writel(data, dev->iomem + reg)
+#define gpu_read(dev, reg) readl(dev->iomem + reg)
 
 #endif

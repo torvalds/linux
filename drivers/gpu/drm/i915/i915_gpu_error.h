@@ -13,8 +13,9 @@
 
 #include <drm/drm_mm.h>
 
+#include "gt/intel_engine.h"
+
 #include "intel_device_info.h"
-#include "intel_ringbuffer.h"
 #include "intel_uc_fw.h"
 
 #include "i915_gem.h"
@@ -178,8 +179,6 @@ struct i915_gpu_state {
 	struct scatterlist *sgl, *fit;
 };
 
-struct i915_gpu_restart;
-
 struct i915_gpu_error {
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
@@ -240,8 +239,6 @@ struct i915_gpu_error {
 	wait_queue_head_t reset_queue;
 
 	struct srcu_struct reset_backoff_srcu;
-
-	struct i915_gpu_restart *restart;
 };
 
 struct drm_i915_error_state_buf {

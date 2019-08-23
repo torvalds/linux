@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* QLogic qed NIC Driver
  * Copyright (c) 2015 QLogic Corporation
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #include <linux/module.h>
@@ -2537,7 +2534,7 @@ static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 	    (len >= s_platform_defs[dev_data->platform_id].dmae_thresh ||
 	     wide_bus)) {
 		if (!qed_dmae_grc2host(p_hwfn, p_ptt, DWORDS_TO_BYTES(addr),
-				       (u64)(uintptr_t)(dump_buf), len, 0))
+				       (u64)(uintptr_t)(dump_buf), len, NULL))
 			return len;
 		dev_data->use_dmae = 0;
 		DP_VERBOSE(p_hwfn,

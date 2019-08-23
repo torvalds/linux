@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Power supply driver for the Active-semi ACT8945A PMIC
  *
  * Copyright (C) 2015 Atmel Corporation
  *
  * Author: Wenyou Yang <wenyou.yang@atmel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/interrupt.h>
 #include <linux/module.h>

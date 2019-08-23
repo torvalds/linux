@@ -1,21 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
 #include "dtc.h"
@@ -249,6 +234,7 @@ struct node * add_orphan_node(struct node *dt, struct node *new_node, char *ref)
 	char *name;
 
 	if (ref[0] == '/') {
+		d = data_add_marker(d, TYPE_STRING, ref);
 		d = data_append_data(d, ref, strlen(ref) + 1);
 
 		p = build_property("target-path", d, NULL);
@@ -350,17 +336,20 @@ void delete_node(struct node *node)
 }
 
 void append_to_property(struct node *node,
-				    char *name, const void *data, int len)
+			char *name, const void *data, int len,
+			enum markertype type)
 {
 	struct data d;
 	struct property *p;
 
 	p = get_property(node, name);
 	if (p) {
-		d = data_append_data(p->val, data, len);
+		d = data_add_marker(p->val, type, name);
+		d = data_append_data(d, data, len);
 		p->val = d;
 	} else {
-		d = data_append_data(empty_data, data, len);
+		d = data_add_marker(empty_data, type, name);
+		d = data_append_data(d, data, len);
 		p = build_property(name, d, NULL);
 		add_property(node, p);
 	}
@@ -858,8 +847,8 @@ static void generate_label_tree_internal(struct dt_info *dti,
 
 			/* insert it */
 			p = build_property(l->label,
-				data_copy_mem(node->fullpath,
-						strlen(node->fullpath) + 1),
+				data_copy_escape_string(node->fullpath,
+						strlen(node->fullpath)),
 				NULL);
 			add_property(an, p);
 		}
@@ -910,7 +899,7 @@ static void add_fixup_entry(struct dt_info *dti, struct node *fn,
 
 	xasprintf(&entry, "%s:%s:%u",
 			node->fullpath, prop->name, m->offset);
-	append_to_property(fn, m->ref, entry, strlen(entry) + 1);
+	append_to_property(fn, m->ref, entry, strlen(entry) + 1, TYPE_STRING);
 
 	free(entry);
 }
@@ -970,7 +959,7 @@ static void add_local_fixup_entry(struct dt_info *dti,
 	char **compp;
 	int i, depth;
 
-	/* walk back retreiving depth */
+	/* walk back retrieving depth */
 	depth = 0;
 	for (wn = node; wn; wn = wn->parent)
 		depth++;
@@ -993,7 +982,7 @@ static void add_local_fixup_entry(struct dt_info *dti,
 	free(compp);
 
 	value_32 = cpu_to_fdt32(m->offset);
-	append_to_property(wn, prop->name, &value_32, sizeof(value_32));
+	append_to_property(wn, prop->name, &value_32, sizeof(value_32), TYPE_UINT32);
 }
 
 static void generate_local_fixups_tree_internal(struct dt_info *dti,

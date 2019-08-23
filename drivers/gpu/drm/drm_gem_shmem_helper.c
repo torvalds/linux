@@ -255,7 +255,8 @@ static void *drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem)
 	if (obj->import_attach)
 		shmem->vaddr = dma_buf_vmap(obj->import_attach->dmabuf);
 	else
-		shmem->vaddr = vmap(shmem->pages, obj->size >> PAGE_SHIFT, VM_MAP, PAGE_KERNEL);
+		shmem->vaddr = vmap(shmem->pages, obj->size >> PAGE_SHIFT,
+				    VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 
 	if (!shmem->vaddr) {
 		DRM_DEBUG_KMS("Failed to vmap pages\n");

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Header for V4L2 SoC Camera driver for OMAP1 Camera Interface
  *
  * Copyright (C) 2010, Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __MEDIA_OMAP1_CAMERA_H_

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Reset Controller framework
  *
  * Copyright 2013 Philipp Zabel, Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/atomic.h>
 #include <linux/device.h>
@@ -693,9 +689,6 @@ __reset_control_get_from_lookup(struct device *dev, const char *con_id,
 	struct reset_controller_dev *rcdev;
 	const char *dev_id = dev_name(dev);
 	struct reset_control *rstc = NULL;
-
-	if (!dev)
-		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&reset_lookup_mutex);
 

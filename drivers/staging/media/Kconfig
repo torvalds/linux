@@ -20,15 +20,19 @@ menuconfig STAGING_MEDIA
 if STAGING_MEDIA && MEDIA_SUPPORT
 
 # Please keep them in alphabetic order
+source "drivers/staging/media/allegro-dvt/Kconfig"
+
 source "drivers/staging/media/bcm2048/Kconfig"
 
 source "drivers/staging/media/davinci_vpfe/Kconfig"
 
+source "drivers/staging/media/hantro/Kconfig"
+
 source "drivers/staging/media/imx/Kconfig"
 
-source "drivers/staging/media/omap4iss/Kconfig"
+source "drivers/staging/media/meson/vdec/Kconfig"
 
-source "drivers/staging/media/rockchip/vpu/Kconfig"
+source "drivers/staging/media/omap4iss/Kconfig"
 
 source "drivers/staging/media/sunxi/Kconfig"
 

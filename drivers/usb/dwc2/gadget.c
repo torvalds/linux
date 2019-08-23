@@ -835,19 +835,22 @@ static void dwc2_gadget_fill_nonisoc_xfer_ddma_one(struct dwc2_hsotg_ep *hs_ep,
  * with corresponding information based on transfer data.
  */
 static void dwc2_gadget_config_nonisoc_xfer_ddma(struct dwc2_hsotg_ep *hs_ep,
-						 struct usb_request *ureq,
-						 unsigned int offset,
+						 dma_addr_t dma_buff,
 						 unsigned int len)
 {
+	struct usb_request *ureq = NULL;
 	struct dwc2_dma_desc *desc = hs_ep->desc_list;
 	struct scatterlist *sg;
 	int i;
 	u8 desc_count = 0;
 
+	if (hs_ep->req)
+		ureq = &hs_ep->req->req;
+
 	/* non-DMA sg buffer */
-	if (!ureq->num_sgs) {
+	if (!ureq || !ureq->num_sgs) {
 		dwc2_gadget_fill_nonisoc_xfer_ddma_one(hs_ep, &desc,
-			ureq->dma + offset, len, true);
+			dma_buff, len, true);
 		return;
 	}
 
@@ -1135,7 +1138,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 			offset = ureq->actual;
 
 		/* Fill DDMA chain entries */
-		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, ureq, offset,
+		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, ureq->dma + offset,
 						     length);
 
 		/* write descriptor chain address to control register */
@@ -2037,12 +2040,13 @@ static void dwc2_hsotg_program_zlp(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "Receiving zero-length packet on ep%d\n",
 			index);
 	if (using_desc_dma(hsotg)) {
+		/* Not specific buffer needed for ep0 ZLP */
+		dma_addr_t dma = hs_ep->desc_list_dma;
+
 		if (!index)
 			dwc2_gadget_set_ep0_desc_chain(hsotg, hs_ep);
 
-		/* Not specific buffer needed for ep0 ZLP */
-		dwc2_gadget_fill_nonisoc_xfer_ddma_one(hs_ep, &hs_ep->desc_list,
-			hs_ep->desc_list_dma, 0, true);
+		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, dma, 0);
 	} else {
 		dwc2_writel(hsotg, DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
 			    DXEPTSIZ_XFERSIZE(0),
@@ -2416,6 +2420,10 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 		else if (hs_ep->isochronous && hs_ep->interval > 1)
 			dwc2_gadget_incr_frame_num(hs_ep);
 	}
+
+	/* Set actual frame number for completed transfers */
+	if (!using_desc_dma(hsotg) && hs_ep->isochronous)
+		req->frame_number = hsotg->frame_number;
 
 	dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, result);
 }

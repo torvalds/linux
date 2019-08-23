@@ -123,7 +123,7 @@ struct smb2_sync_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
-#define SMB3_AES128CMM_NONCE 11
+#define SMB3_AES128CCM_NONCE 11
 #define SMB3_AES128GCM_NONCE 12
 
 struct smb2_transform_hdr {
@@ -165,6 +165,8 @@ struct smb2_err_rsp {
 	__le32 ByteCount;  /* even if zero, at least one byte follows */
 	__u8   ErrorData[1];  /* variable length */
 } __packed;
+
+#define SYMLINK_ERROR_TAG 0x4c4d5953
 
 struct smb2_symlink_err_rsp {
 	__le32 SymLinkLength;
@@ -227,6 +229,7 @@ struct smb2_negotiate_req {
 } __packed;
 
 /* Dialects */
+#define SMB10_PROT_ID 0x0000 /* local only, not sent on wire w/CIFS negprot */
 #define SMB20_PROT_ID 0x0202
 #define SMB21_PROT_ID 0x0210
 #define SMB30_PROT_ID 0x0300
@@ -293,7 +296,7 @@ struct smb2_encryption_neg_context {
 	__le16	DataLength;
 	__le32	Reserved;
 	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
-	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
+	__le16	Ciphers[2];
 } __packed;
 
 /* See MS-SMB2 2.2.3.1.3 */
@@ -316,6 +319,12 @@ struct smb2_compression_capabilities_context {
  * For smb2_netname_negotiate_context_id See MS-SMB2 2.2.3.1.4.
  * Its struct simply contains NetName, an array of Unicode characters
  */
+struct smb2_netname_neg_context {
+	__le16	ContextType; /* 0x100 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	NetName[0]; /* hostname of target converted to UCS-2 */
+} __packed;
 
 #define POSIX_CTXT_DATA_LEN	16
 struct smb2_posix_neg_context {
@@ -640,6 +649,7 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2	"DH2Q"
 #define SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2	"DH2C"
 #define SMB2_CREATE_APP_INSTANCE_ID	0x45BCA66AEFA7F74A9008FA462E144D74
+#define SMB2_CREATE_APP_INSTANCE_VERSION 0xB982D0B73B56074FA07B524A8116A010
 #define SVHDX_OPEN_DEVICE_CONTEX	0x9CCBCF9E04C1E643980E158DA1F6EC83
 #define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
 
@@ -654,9 +664,10 @@ struct smb2_tree_disconnect_rsp {
  * [3] : durable context
  * [4] : posix context
  * [5] : time warp context
- * [6] : compound padding
+ * [6] : query id context
+ * [7] : compound padding
  */
-#define SMB2_CREATE_IOV_SIZE 7
+#define SMB2_CREATE_IOV_SIZE 8
 
 struct smb2_create_req {
 	struct smb2_sync_hdr sync_hdr;
@@ -680,10 +691,10 @@ struct smb2_create_req {
 
 /*
  * Maximum size of a SMB2_CREATE response is 64 (smb2 header) +
- * 88 (fixed part of create response) + 520 (path) + 150 (contexts) +
+ * 88 (fixed part of create response) + 520 (path) + 208 (contexts) +
  * 2 bytes of padding.
  */
-#define MAX_SMB2_CREATE_RESPONSE_SIZE 824
+#define MAX_SMB2_CREATE_RESPONSE_SIZE 880
 
 struct smb2_create_rsp {
 	struct smb2_sync_hdr sync_hdr;
@@ -806,6 +817,15 @@ struct durable_reconnect_context_v2 {
 	__le32 Flags; /* see above DHANDLE_FLAG_PERSISTENT */
 } __packed;
 
+/* See MS-SMB2 2.2.14.2.9 */
+struct create_on_disk_id {
+	struct create_context ccontext;
+	__u8   Name[8];
+	__le64 DiskFileId;
+	__le64 VolumeId;
+	__u32  Reserved[4];
+} __packed;
+
 /* See MS-SMB2 2.2.14.2.12 */
 struct durable_reconnect_context_v2_rsp {
 	__le32 Timeout;
@@ -824,6 +844,12 @@ struct crt_twarp_ctxt {
 	__u8	Name[8];
 	__le64	Timestamp;
 
+} __packed;
+
+/* See MS-SMB2 2.2.13.2.9 */
+struct crt_query_id_ctxt {
+	struct create_context ccontext;
+	__u8	Name[8];
 } __packed;
 
 #define COPY_CHUNK_RES_KEY_SIZE	24
@@ -914,7 +940,19 @@ struct reparse_mount_point_data_buffer {
 	__u8	PathBuffer[0]; /* Variable Length */
 } __packed;
 
-/* See MS-FSCC 2.1.2.4 and cifspdu.h for struct reparse_symlink_data */
+#define SYMLINK_FLAG_RELATIVE 0x00000001
+
+struct reparse_symlink_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__le32	Flags;
+	__u8	PathBuffer[0]; /* Variable Length */
+} __packed;
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
 

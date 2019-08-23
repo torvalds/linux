@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * builtin-ftrace.c
  *
  * Copyright (c) 2013  LG Electronics,  Namhyung Kim <namhyung@kernel.org>
- *
- * Released under the GPL v2.
  */
 
 #include "builtin.h"
@@ -432,7 +431,7 @@ static void delete_filter_func(struct list_head *head)
 	struct filter_entry *pos, *tmp;
 
 	list_for_each_entry_safe(pos, tmp, head, list) {
-		list_del(&pos->list);
+		list_del_init(&pos->list);
 		free(pos);
 	}
 }

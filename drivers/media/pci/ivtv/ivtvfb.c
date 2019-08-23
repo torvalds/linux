@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     On Screen Display cx23415 Framebuffer driver
 
@@ -23,19 +24,6 @@
 
     Copyright (C) 2006  Ian Armstrong <ian@iarmst.demon.co.uk>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include "ivtv-driver.h"
@@ -1232,6 +1220,11 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 	/* Allocate DMA */
 	ivtv_udma_alloc(itv);
+	itv->streams[IVTV_DEC_STREAM_TYPE_YUV].vdev.device_caps |=
+		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+	itv->streams[IVTV_DEC_STREAM_TYPE_MPG].vdev.device_caps |=
+		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+	itv->v4l2_cap |= V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
 	return 0;
 
 }
@@ -1258,11 +1251,12 @@ static int ivtvfb_callback_cleanup(struct device *dev, void *p)
 	struct osd_info *oi = itv->osd_info;
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
-		if (unregister_framebuffer(&itv->osd_info->ivtvfb_info)) {
-			IVTVFB_WARN("Framebuffer %d is in use, cannot unload\n",
-				       itv->instance);
-			return 0;
-		}
+		itv->streams[IVTV_DEC_STREAM_TYPE_YUV].vdev.device_caps &=
+			~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->streams[IVTV_DEC_STREAM_TYPE_MPG].vdev.device_caps &=
+			~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->v4l2_cap &= ~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		unregister_framebuffer(&itv->osd_info->ivtvfb_info);
 		IVTVFB_INFO("Unregister framebuffer %d\n", itv->instance);
 		itv->ivtvfb_restore = NULL;
 		ivtvfb_blank(FB_BLANK_VSYNC_SUSPEND, &oi->ivtvfb_info);

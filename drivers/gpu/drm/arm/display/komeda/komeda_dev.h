@@ -60,7 +60,7 @@ struct komeda_chip_info {
 
 struct komeda_product_data {
 	u32 product_id;
-	struct komeda_dev_funcs *(*identify)(u32 __iomem *reg,
+	const struct komeda_dev_funcs *(*identify)(u32 __iomem *reg,
 					     struct komeda_chip_info *info);
 };
 
@@ -92,6 +92,10 @@ struct komeda_dev_funcs {
 	int (*enum_resources)(struct komeda_dev *mdev);
 	/** @cleanup: call to chip to cleanup komeda_dev->chip data */
 	void (*cleanup)(struct komeda_dev *mdev);
+	/** @connect_iommu: Optional, connect to external iommu */
+	int (*connect_iommu)(struct komeda_dev *mdev);
+	/** @disconnect_iommu: Optional, disconnect to external iommu */
+	int (*disconnect_iommu)(struct komeda_dev *mdev);
 	/**
 	 * @irq_handler:
 	 *
@@ -149,15 +153,15 @@ struct komeda_dev {
 	struct device *dev;
 	/** @reg_base: the base address of komeda io space */
 	u32 __iomem   *reg_base;
+	/** @dma_parms: the dma parameters of komeda */
+	struct device_dma_parameters dma_parms;
 
 	/** @chip: the basic chip information */
 	struct komeda_chip_info chip;
 	/** @fmt_tbl: initialized by &komeda_dev_funcs->init_format_table */
 	struct komeda_format_caps_table fmt_tbl;
-	/** @pclk: APB clock for register access */
-	struct clk *pclk;
-	/** @mclk: HW main engine clk */
-	struct clk *mclk;
+	/** @aclk: HW main engine clk */
+	struct clk *aclk;
 
 	/** @irq: irq number */
 	int irq;
@@ -173,7 +177,7 @@ struct komeda_dev {
 	struct komeda_pipeline *pipelines[KOMEDA_MAX_PIPELINES];
 
 	/** @funcs: chip funcs to access to HW */
-	struct komeda_dev_funcs *funcs;
+	const struct komeda_dev_funcs *funcs;
 	/**
 	 * @chip_data:
 	 *
@@ -181,6 +185,9 @@ struct komeda_dev {
 	 * destroyed by &komeda_dev_funcs.cleanup()
 	 */
 	void *chip_data;
+
+	/** @iommu: iommu domain */
+	struct iommu_domain *iommu;
 
 	/** @debugfs_root: root directory of komeda debugfs */
 	struct dentry *debugfs_root;
@@ -192,7 +199,7 @@ komeda_product_match(struct komeda_dev *mdev, u32 target)
 	return MALIDP_CORE_ID_PRODUCT_ID(mdev->chip.core_id) == target;
 }
 
-struct komeda_dev_funcs *
+const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg, struct komeda_chip_info *chip);
 
 struct komeda_dev *komeda_dev_create(struct device *dev);

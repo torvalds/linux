@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/soc/tegra/pmc.c
  *
@@ -6,16 +7,6 @@
  *
  * Author:
  *	Colin Cross <ccross@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) "tegra-pmc: " fmt
@@ -241,6 +232,11 @@ struct tegra_pmc_soc {
 	const char * const *reset_levels;
 	unsigned int num_reset_levels;
 
+	/*
+	 * These describe events that can wake the system from sleep (i.e.
+	 * LP0 or SC7). Wakeup from other sleep states (such as LP1 or LP2)
+	 * are dealt with in the LIC.
+	 */
 	const struct tegra_wake_event *wake_events;
 	unsigned int num_wake_events;
 };
@@ -709,6 +705,7 @@ int tegra_powergate_power_on(unsigned int id)
 
 	return tegra_powergate_set(pmc, id, true);
 }
+EXPORT_SYMBOL(tegra_powergate_power_on);
 
 /**
  * tegra_powergate_power_off() - power off partition
@@ -1863,6 +1860,9 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 	unsigned int i;
 	int err = 0;
 
+	if (WARN_ON(num_irqs > 1))
+		return -EINVAL;
+
 	for (i = 0; i < soc->num_wake_events; i++) {
 		const struct tegra_wake_event *event = &soc->wake_events[i];
 
@@ -1903,6 +1903,11 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 		}
 	}
 
+	/*
+	 * For interrupts that don't have associated wake events, assign a
+	 * dummy hardware IRQ number. This is used in the ->irq_set_type()
+	 * and ->irq_set_wake() callbacks to return early for these IRQs.
+	 */
 	if (i == soc->num_wake_events)
 		err = irq_domain_set_hwirq_and_chip(domain, virq, ULONG_MAX,
 						    &pmc->irq, pmc);
@@ -1920,6 +1925,10 @@ static int tegra_pmc_irq_set_wake(struct irq_data *data, unsigned int on)
 	struct tegra_pmc *pmc = irq_data_get_irq_chip_data(data);
 	unsigned int offset, bit;
 	u32 value;
+
+	/* nothing to do if there's no associated wake event */
+	if (WARN_ON(data->hwirq == ULONG_MAX))
+		return 0;
 
 	offset = data->hwirq / 32;
 	bit = data->hwirq % 32;
@@ -1948,6 +1957,7 @@ static int tegra_pmc_irq_set_type(struct irq_data *data, unsigned int type)
 	struct tegra_pmc *pmc = irq_data_get_irq_chip_data(data);
 	u32 value;
 
+	/* nothing to do if there's no associated wake event */
 	if (data->hwirq == ULONG_MAX)
 		return 0;
 

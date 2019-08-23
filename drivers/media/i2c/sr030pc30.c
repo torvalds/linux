@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for SiliconFile SR030PC30 VGA (1/10-Inch) Image Sensor with ISP
  *
@@ -9,11 +10,6 @@
  *
  * Based on mt9v011 Micron Digital Image Sensor driver
  * Copyright (c) 2009 Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/i2c.h>

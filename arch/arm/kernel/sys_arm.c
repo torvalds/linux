@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/sys_arm.c
  *
  *  Copyright (C) People who wrote linux/arch/i386/kernel/sys_i386.c
  *  Copyright (C) 1995, 1996 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This file contains various random system calls that
  *  have a non-standard calling sequence on the Linux/arm

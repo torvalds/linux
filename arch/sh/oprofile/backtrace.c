@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SH specific backtracing code for oprofile
  *
@@ -7,11 +8,6 @@
  *
  * Based on ARM oprofile backtrace code by Richard Purdie and in turn, i386
  * oprofile backtrace code by John Levon, David Smith
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/oprofile.h>
 #include <linux/sched.h>

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implementation of the Xen vTPM device frontend
  *
  * Author:  Daniel De Graaf <dgdegra@tycho.nsa.gov>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
  */
 #include <linux/errno.h>
 #include <linux/err.h>

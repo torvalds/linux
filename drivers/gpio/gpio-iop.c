@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/plat-iop/gpio.c
  * GPIO handling for Intel IOP3xx processors.
  *
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/err.h>
@@ -40,6 +36,7 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 
 	gc->base = 0;
 	gc->owner = THIS_MODULE;
+	gc->label = "gpio-iop";
 
 	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }

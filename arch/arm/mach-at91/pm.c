@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-at91/pm.c
  * AT91 Power Management
  *
  * Copyright (C) 2005 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/genalloc.h>
@@ -19,6 +15,7 @@
 #include <linux/suspend.h>
 
 #include <linux/clk/at91_pmc.h>
+#include <linux/platform_data/atmel.h>
 
 #include <asm/cacheflush.h>
 #include <asm/fncpy.h>

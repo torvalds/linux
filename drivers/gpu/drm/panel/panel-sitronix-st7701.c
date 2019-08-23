@@ -305,9 +305,9 @@ static const struct drm_display_mode ts8550b_mode = {
 	.htotal		= 480 + 38 + 12 + 12,
 
 	.vdisplay	= 854,
-	.vsync_start	= 854 + 4,
-	.vsync_end	= 854 + 4 + 8,
-	.vtotal		= 854 + 4 + 8 + 18,
+	.vsync_start	= 854 + 18,
+	.vsync_end	= 854 + 18 + 8,
+	.vtotal		= 854 + 18 + 8 + 4,
 
 	.width_mm	= 69,
 	.height_mm	= 139,

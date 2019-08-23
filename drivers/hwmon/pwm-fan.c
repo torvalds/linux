@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pwm-fan.c - Hwmon driver for fans connected to PWM lines.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *
  * Author: Kamil Debski <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/hwmon.h>
@@ -329,8 +320,10 @@ static int pwm_fan_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed to enable fan supply: %d\n", ret);
 			return ret;
 		}
-		devm_add_action_or_reset(dev, pwm_fan_regulator_disable,
-					 ctx->reg_en);
+		ret = devm_add_action_or_reset(dev, pwm_fan_regulator_disable,
+					       ctx->reg_en);
+		if (ret)
+			return ret;
 	}
 
 	ctx->pwm_value = MAX_PWM;
@@ -346,7 +339,9 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		return ret;
 	}
 	timer_setup(&ctx->rpm_timer, sample_timer, 0);
-	devm_add_action_or_reset(dev, pwm_fan_pwm_disable, ctx);
+	ret = devm_add_action_or_reset(dev, pwm_fan_pwm_disable, ctx);
+	if (ret)
+		return ret;
 
 	of_property_read_u32(dev->of_node, "pulses-per-revolution", &ppr);
 	ctx->pulses_per_revolution = ppr;

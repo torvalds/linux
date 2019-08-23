@@ -17,6 +17,7 @@ struct drm_vblank_crtc;
 struct drm_sg_mem;
 struct drm_local_map;
 struct drm_vma_offset_manager;
+struct drm_vram_mm;
 struct drm_fb_helper;
 
 struct inode;
@@ -285,6 +286,9 @@ struct drm_device {
 
 	/** @vma_offset_manager: GEM information */
 	struct drm_vma_offset_manager *vma_offset_manager;
+
+	/** @vram_mm: VRAM MM memory manager */
+	struct drm_vram_mm *vram_mm;
 
 	/**
 	 * @switch_power_state:

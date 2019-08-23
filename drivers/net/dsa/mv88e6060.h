@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/dsa/mv88e6060.h - Marvell 88e6060 switch chip support
  * Copyright (c) 2015 Neil Armstrong
  *
  * Based on mv88e6xxx.h
  * Copyright (c) 2008 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __MV88E6060_H

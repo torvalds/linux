@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2015 Linaro Ltd.
  * Copyright (c) 2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include "hisi_sas.h"
@@ -808,7 +803,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	device->lldd_dev = sas_dev;
 	hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
 
-	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type)) {
+	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
 		int phy_no;
 		u8 phy_num = parent_dev->ex_dev.num_phys;
 		struct ex_phy *phy;
@@ -1451,7 +1446,7 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 
 				_sas_port = sas_port;
 
-				if (DEV_IS_EXPANDER(dev->dev_type))
+				if (dev_is_expander(dev->dev_type))
 					sas_ha->notify_port_event(sas_phy,
 							PORTE_BROADCAST_RCVD);
 			}
@@ -1538,7 +1533,7 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 		struct domain_device *port_dev = sas_port->port_dev;
 		struct domain_device *device;
 
-		if (!port_dev || !DEV_IS_EXPANDER(port_dev->dev_type))
+		if (!port_dev || !dev_is_expander(port_dev->dev_type))
 			continue;
 
 		/* Try to find a SATA device */
@@ -1908,7 +1903,7 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 		struct domain_device *device = sas_dev->sas_device;
 
 		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device ||
-		    DEV_IS_EXPANDER(device->dev_type))
+		    dev_is_expander(device->dev_type))
 			continue;
 
 		rc = hisi_sas_debug_I_T_nexus_reset(device);
@@ -2480,6 +2475,14 @@ EXPORT_SYMBOL_GPL(hisi_sas_alloc);
 
 void hisi_sas_free(struct hisi_hba *hisi_hba)
 {
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+
+		del_timer_sync(&phy->timer);
+	}
+
 	if (hisi_hba->wq)
 		destroy_workqueue(hisi_hba->wq);
 }
