@@ -2555,6 +2555,11 @@ void qedf_process_unsol_compl(struct qedf_ctx *qedf, uint16_t que_idx,
 	fh = (struct fc_frame_header *)fc_frame_header_get(fp);
 	memcpy(fh, (void *)bdq_addr, pktlen);
 
+	QEDF_WARN(&qedf->dbg_ctx,
+		  "Processing Unsolicated frame, src=%06x dest=%06x r_ctl=0x%x type=0x%x cmd=%02x\n",
+		  ntoh24(fh->fh_s_id), ntoh24(fh->fh_d_id), fh->fh_r_ctl,
+		  fh->fh_type, fc_frame_payload_op(fp));
+
 	/* Initialize the frame so libfc sees it as a valid frame */
 	crc = fcoe_fc_crc(fp);
 	fc_frame_init(fp);
