@@ -975,17 +975,15 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 	dai->probed = 0;
 }
 
+static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
 static void soc_remove_link_dais(struct snd_soc_card *card,
 		struct snd_soc_pcm_runtime *rtd, int order)
 {
 	int i;
 	struct snd_soc_dai *codec_dai;
 
-	/* unregister the rtd device */
-	if (rtd->dev_registered) {
-		device_unregister(rtd->dev);
-		rtd->dev_registered = 0;
-	}
+	/* finalize rtd device */
+	soc_rtd_free(rtd);
 
 	/* remove the CODEC DAI */
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
@@ -1338,6 +1336,15 @@ err_probe:
 		soc_cleanup_component(component);
 
 	return ret;
+}
+
+static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd)
+{
+	if (rtd->dev_registered) {
+		/* we don't need to call kfree() for rtd->dev */
+		device_unregister(rtd->dev);
+		rtd->dev_registered = 0;
+	}
 }
 
 static void soc_rtd_release(struct device *dev)
