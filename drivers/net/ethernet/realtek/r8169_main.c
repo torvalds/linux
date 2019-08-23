@@ -5822,6 +5822,10 @@ process_pkt:
 			skb->tail += pkt_size;
 			skb->len = pkt_size;
 
+			dma_sync_single_for_device(tp_to_dev(tp),
+						   le64_to_cpu(desc->addr),
+						   pkt_size, DMA_FROM_DEVICE);
+
 			rtl8169_rx_csum(skb, status);
 			skb->protocol = eth_type_trans(skb, dev);
 
