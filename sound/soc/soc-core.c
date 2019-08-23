@@ -1340,13 +1340,12 @@ err_probe:
 	return ret;
 }
 
-static void rtd_release(struct device *dev)
+static void soc_rtd_release(struct device *dev)
 {
 	kfree(dev);
 }
 
-static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
-	const char *name)
+static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
 {
 	int ret = 0;
 
@@ -1355,7 +1354,7 @@ static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
 	if (!rtd->dev)
 		return -ENOMEM;
 	rtd->dev->parent = rtd->card->dev;
-	rtd->dev->release = rtd_release;
+	rtd->dev->release = soc_rtd_release;
 	rtd->dev->groups = soc_dev_attr_groups;
 	dev_set_name(rtd->dev, "%s", name);
 	dev_set_drvdata(rtd->dev, rtd);
@@ -1483,7 +1482,7 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 			return ret;
 	}
 
-	ret = soc_post_component_init(rtd, dai_link->name);
+	ret = soc_rtd_init(rtd, dai_link->name);
 	if (ret)
 		return ret;
 
