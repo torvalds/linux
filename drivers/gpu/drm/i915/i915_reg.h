@@ -8615,6 +8615,10 @@ enum {
 #define   GEN9_PWRGT_MEDIA_STATUS_MASK		(1 << 0)
 #define   GEN9_PWRGT_RENDER_STATUS_MASK		(1 << 1)
 
+#define POWERGATE_ENABLE			_MMIO(0xa210)
+#define    VDN_HCP_POWERGATE_ENABLE(n)		BIT(((n) * 2) + 3)
+#define    VDN_MFX_POWERGATE_ENABLE(n)		BIT(((n) * 2) + 4)
+
 #define  GTFIFODBG				_MMIO(0x120000)
 #define    GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV	(0x1f << 20)
 #define    GT_FIFO_FREE_ENTRIES_CHV		(0x7f << 13)
