@@ -319,6 +319,8 @@ static void cec_post_state_event(struct cec_adapter *adap)
 
 	ev.state_change.phys_addr = adap->phys_addr;
 	ev.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
+	ev.state_change.have_conn_info =
+		adap->conn_info.type != CEC_CONNECTOR_TYPE_NO_CONNECTOR;
 	cec_queue_event(adap, &ev);
 }
 
