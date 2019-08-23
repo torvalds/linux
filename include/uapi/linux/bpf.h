@@ -285,6 +285,9 @@ enum bpf_attach_type {
  */
 #define BPF_F_TEST_RND_HI32	(1U << 2)
 
+/* The verifier internal test flag. Behavior is undefined */
+#define BPF_F_TEST_STATE_FREQ	(1U << 3)
+
 /* When BPF ldimm64's insn[0].src_reg != 0 then this can have
  * two extensions:
  *
