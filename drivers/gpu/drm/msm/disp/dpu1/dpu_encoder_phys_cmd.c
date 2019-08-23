@@ -720,9 +720,6 @@ static int dpu_encoder_phys_cmd_wait_for_vblank(
 static void dpu_encoder_phys_cmd_handle_post_kickoff(
 		struct dpu_encoder_phys *phys_enc)
 {
-	if (!phys_enc)
-		return;
-
 	/**
 	 * re-enable external TE, either for the first time after enabling
 	 * or if disabled for Autorefresh

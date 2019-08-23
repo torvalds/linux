@@ -492,11 +492,6 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 	int primary_planes_idx = 0, cursor_planes_idx = 0, i, ret;
 	int max_crtc_count;
 
-	if (!dpu_kms || !dpu_kms->dev || !dpu_kms->dev->dev) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return -EINVAL;
-	}
-
 	dev = dpu_kms->dev;
 	priv = dev->dev_private;
 	catalog = dpu_kms->catalog;

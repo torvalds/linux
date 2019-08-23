@@ -612,11 +612,6 @@ static void dpu_encoder_phys_vid_handle_post_kickoff(
 {
 	unsigned long lock_flags;
 
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
-
 	/*
 	 * Video mode must flush CTL before enabling timing engine
 	 * Video encoders need to turn on their interfaces now

@@ -1430,12 +1430,6 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 	int pending_kickoff_cnt;
 	u32 ret = UINT_MAX;
 
-	if (!drm_enc || !phys) {
-		DPU_ERROR("invalid argument(s), drm_enc %d, phys_enc %d\n",
-				drm_enc != 0, phys != 0);
-		return;
-	}
-
 	if (!phys->hw_pp) {
 		DPU_ERROR("invalid pingpong hw\n");
 		return;
@@ -1567,11 +1561,6 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc,
 	struct dpu_hw_ctl *ctl;
 	uint32_t i, pending_flush;
 	unsigned long lock_flags;
-
-	if (!dpu_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
 
 	pending_flush = 0x0;
 
@@ -1800,10 +1789,6 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc, bool async)
 	bool needs_hw_reset = false;
 	unsigned int i;
 
-	if (!drm_enc) {
-		DPU_ERROR("invalid args\n");
-		return;
-	}
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 
 	trace_dpu_enc_prepare_kickoff(DRMID(drm_enc));
@@ -1839,10 +1824,6 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 	ktime_t wakeup_time;
 	unsigned int i;
 
-	if (!drm_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
 	DPU_ATRACE_BEGIN("encoder_kickoff");
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 
