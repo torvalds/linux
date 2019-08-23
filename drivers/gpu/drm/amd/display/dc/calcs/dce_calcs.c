@@ -25,6 +25,7 @@
 
 #include <linux/slab.h>
 
+#include "resource.h"
 #include "dm_services.h"
 #include "dce_calcs.h"
 #include "dc.h"
@@ -2977,6 +2978,32 @@ static void populate_initial_data(
 	data->number_of_displays = num_displays;
 }
 
+static bool all_displays_in_sync(const struct pipe_ctx pipe[],
+				 int pipe_count)
+{
+	const struct pipe_ctx *active_pipes[MAX_PIPES];
+	int i, num_active_pipes = 0;
+
+	for (i = 0; i < pipe_count; i++) {
+		if (!pipe[i].stream || pipe[i].top_pipe)
+			continue;
+
+		active_pipes[num_active_pipes++] = &pipe[i];
+	}
+
+	if (!num_active_pipes)
+		return false;
+
+	for (i = 1; i < num_active_pipes; ++i) {
+		if (!resource_are_streams_timing_synchronizable(
+			    active_pipes[0]->stream, active_pipes[i]->stream)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
  * Return:
  *	true -	Display(s) configuration supported.
@@ -2998,8 +3025,7 @@ bool bw_calcs(struct dc_context *ctx,
 
 	populate_initial_data(pipe, pipe_count, data);
 
-	/*TODO: this should be taken out calcs output and assigned during timing sync for pplib use*/
-	calcs_output->all_displays_in_sync = false;
+	calcs_output->all_displays_in_sync = all_displays_in_sync(pipe, pipe_count);
 
 	if (data->number_of_displays != 0) {
 		uint8_t yclk_lvl, sclk_lvl;
