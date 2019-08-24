@@ -565,6 +565,8 @@
 		#gpio-cells = <2>;
 		reg = <0x20>;
 		gpio-controller;
+		interrupt-parent = <&gpio1>;
+		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	lm75@4e {
