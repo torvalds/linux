@@ -72,11 +72,8 @@ static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	scaler = DIV_ROUND_CLOSEST(NSEC_PER_SEC, rate);
 
-	if (period_ns <= MIN_PERIOD) {
-		dev_err(pc->dev, "period %d not supported, minimum %d\n",
-			period_ns, MIN_PERIOD);
+	if (period_ns <= MIN_PERIOD)
 		return -EINVAL;
-	}
 
 	writel(DIV_ROUND_CLOSEST(duty_ns, scaler),
 	       pc->base + DUTY(pwm->hwpwm));
