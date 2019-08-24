@@ -111,7 +111,7 @@ static inline u32 atmel_pwm_ch_readl(struct atmel_pwm_chip *chip,
 {
 	unsigned long base = PWM_CH_REG_OFFSET + ch * PWM_CH_REG_SIZE;
 
-	return readl_relaxed(chip->base + base + offset);
+	return atmel_pwm_readl(chip, base + offset);
 }
 
 static inline void atmel_pwm_ch_writel(struct atmel_pwm_chip *chip,
@@ -120,7 +120,7 @@ static inline void atmel_pwm_ch_writel(struct atmel_pwm_chip *chip,
 {
 	unsigned long base = PWM_CH_REG_OFFSET + ch * PWM_CH_REG_SIZE;
 
-	writel_relaxed(val, chip->base + base + offset);
+	atmel_pwm_writel(chip, base + offset, val);
 }
 
 static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
