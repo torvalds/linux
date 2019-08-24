@@ -14,7 +14,6 @@
 #include "string2.h"
 #include <linux/ctype.h>
 #include "cgroup.h"
-#include <math.h>
 #include <api/fs/fs.h>
 
 #define CNTR_NOT_SUPPORTED	"<not supported>"
