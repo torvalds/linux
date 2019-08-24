@@ -158,7 +158,7 @@ static void rcar_pwm_disable(struct rcar_pwm_chip *rp)
 }
 
 static int rcar_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			  struct pwm_state *state)
+			  const struct pwm_state *state)
 {
 	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
 	struct pwm_state cur_state;

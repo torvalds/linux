@@ -448,11 +448,9 @@ EXPORT_SYMBOL_GPL(pwm_free);
 /**
  * pwm_apply_state() - atomically apply a new state to a PWM device
  * @pwm: PWM device
- * @state: new state to apply. This can be adjusted by the PWM driver
- *	   if the requested config is not achievable, for example,
- *	   ->duty_cycle and ->period might be approximated.
+ * @state: new state to apply
  */
-int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
+int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 {
 	struct pwm_chip *chip;
 	int err;

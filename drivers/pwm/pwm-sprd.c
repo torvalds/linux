@@ -156,7 +156,7 @@ static int sprd_pwm_config(struct sprd_pwm_chip *spc, struct pwm_device *pwm,
 }
 
 static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			  struct pwm_state *state)
+			  const struct pwm_state *state)
 {
 	struct sprd_pwm_chip *spc =
 		container_of(chip, struct sprd_pwm_chip, chip);

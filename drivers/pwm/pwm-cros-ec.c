@@ -93,7 +93,7 @@ static int cros_ec_pwm_get_duty(struct cros_ec_device *ec, u8 index)
 }
 
 static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			     struct pwm_state *state)
+			     const struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
 	int duty_cycle;

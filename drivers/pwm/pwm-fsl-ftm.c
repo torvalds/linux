@@ -227,7 +227,7 @@ static bool fsl_pwm_is_other_pwm_enabled(struct fsl_pwm_chip *fpc,
 
 static int fsl_pwm_apply_config(struct fsl_pwm_chip *fpc,
 				struct pwm_device *pwm,
-				struct pwm_state *newstate)
+				const struct pwm_state *newstate)
 {
 	unsigned int duty;
 	u32 reg_polarity;
@@ -298,7 +298,7 @@ static int fsl_pwm_apply_config(struct fsl_pwm_chip *fpc,
 }
 
 static int fsl_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			 struct pwm_state *newstate)
+			 const struct pwm_state *newstate)
 {
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
 	struct pwm_state *oldstate = &pwm->state;
