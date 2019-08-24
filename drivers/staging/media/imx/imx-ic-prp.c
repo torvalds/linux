@@ -428,19 +428,10 @@ static int prp_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * retrieve our pads parsed from the OF graph by the media device
- */
 static int prp_registered(struct v4l2_subdev *sd)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
-	int i, ret;
 	u32 code;
-
-	for (i = 0; i < PRP_NUM_PADS; i++) {
-		priv->pad[i].flags = (i == PRP_SINK_PAD) ?
-			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
-	}
 
 	/* init default frame interval */
 	priv->frame_interval.numerator = 1;
@@ -448,12 +439,8 @@ static int prp_registered(struct v4l2_subdev *sd)
 
 	/* set a default mbus format  */
 	imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
-	ret = imx_media_init_mbus_fmt(&priv->format_mbus, 640, 480, code,
-				      V4L2_FIELD_NONE, NULL);
-	if (ret)
-		return ret;
-
-	return media_entity_pads_init(&sd->entity, PRP_NUM_PADS, priv->pad);
+	return imx_media_init_mbus_fmt(&priv->format_mbus, 640, 480, code,
+				       V4L2_FIELD_NONE, NULL);
 }
 
 static const struct v4l2_subdev_pad_ops prp_pad_ops = {
@@ -487,6 +474,7 @@ static const struct v4l2_subdev_internal_ops prp_internal_ops = {
 static int prp_init(struct imx_ic_priv *ic_priv)
 {
 	struct prp_priv *priv;
+	int i;
 
 	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -496,7 +484,12 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	ic_priv->task_priv = priv;
 	priv->ic_priv = ic_priv;
 
-	return 0;
+	for (i = 0; i < PRP_NUM_PADS; i++)
+		priv->pad[i].flags = (i == PRP_SINK_PAD) ?
+			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
+
+	return media_entity_pads_init(&ic_priv->sd.entity, PRP_NUM_PADS,
+				      priv->pad);
 }
 
 static void prp_remove(struct imx_ic_priv *ic_priv)
