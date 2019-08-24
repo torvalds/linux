@@ -153,8 +153,11 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	pc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk)) {
-		dev_err(&pdev->dev, "clock not found: %ld\n", PTR_ERR(pc->clk));
-		return PTR_ERR(pc->clk);
+		ret = PTR_ERR(pc->clk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "clock not found: %d\n", ret);
+
+		return ret;
 	}
 
 	ret = clk_prepare_enable(pc->clk);
