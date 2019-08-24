@@ -4767,10 +4767,50 @@ static int spi_nor_set_addr_width(struct spi_nor *nor)
 	return 0;
 }
 
+static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
+						       const char *name)
+{
+	const struct flash_info *info = NULL;
+
+	if (name)
+		info = spi_nor_match_id(name);
+	/* Try to auto-detect if chip name wasn't specified or not found */
+	if (!info)
+		info = spi_nor_read_id(nor);
+	if (IS_ERR_OR_NULL(info))
+		return ERR_PTR(-ENOENT);
+
+	/*
+	 * If caller has specified name of flash model that can normally be
+	 * detected using JEDEC, let's verify it.
+	 */
+	if (name && info->id_len) {
+		const struct flash_info *jinfo;
+
+		jinfo = spi_nor_read_id(nor);
+		if (IS_ERR(jinfo)) {
+			return jinfo;
+		} else if (jinfo != info) {
+			/*
+			 * JEDEC knows better, so overwrite platform ID. We
+			 * can't trust partitions any longer, but we'll let
+			 * mtd apply them anyway, since some partitions may be
+			 * marked read-only, and we don't want to lose that
+			 * information, even if it's not 100% accurate.
+			 */
+			dev_warn(nor->dev, "found %s, expected %s\n",
+				 jinfo->name, info->name);
+			info = jinfo;
+		}
+	}
+
+	return info;
+}
+
 int spi_nor_scan(struct spi_nor *nor, const char *name,
 		 const struct spi_nor_hwcaps *hwcaps)
 {
-	const struct flash_info *info = NULL;
+	const struct flash_info *info;
 	struct device *dev = nor->dev;
 	struct mtd_info *mtd = &nor->mtd;
 	struct device_node *np = spi_nor_get_flash_node(nor);
@@ -4801,37 +4841,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	if (!nor->bouncebuf)
 		return -ENOMEM;
 
-	if (name)
-		info = spi_nor_match_id(name);
-	/* Try to auto-detect if chip name wasn't specified or not found */
-	if (!info)
-		info = spi_nor_read_id(nor);
-	if (IS_ERR_OR_NULL(info))
-		return -ENOENT;
-
-	/*
-	 * If caller has specified name of flash model that can normally be
-	 * detected using JEDEC, let's verify it.
-	 */
-	if (name && info->id_len) {
-		const struct flash_info *jinfo;
-
-		jinfo = spi_nor_read_id(nor);
-		if (IS_ERR(jinfo)) {
-			return PTR_ERR(jinfo);
-		} else if (jinfo != info) {
-			/*
-			 * JEDEC knows better, so overwrite platform ID. We
-			 * can't trust partitions any longer, but we'll let
-			 * mtd apply them anyway, since some partitions may be
-			 * marked read-only, and we don't want to lose that
-			 * information, even if it's not 100% accurate.
-			 */
-			dev_warn(dev, "found %s, expected %s\n",
-				 jinfo->name, info->name);
-			info = jinfo;
-		}
-	}
+	info = spi_nor_get_flash_info(nor, name);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
 
 	nor->info = info;
 
