@@ -60,7 +60,7 @@ struct atmel_pwm_registers {
 };
 
 struct atmel_pwm_config {
-	u32 max_period;
+	u32 period_bits;
 };
 
 struct atmel_pwm_data {
@@ -119,17 +119,27 @@ static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
 	unsigned long long cycles = state->period;
+	int shift;
 
 	/* Calculate the period cycles and prescale value */
 	cycles *= clk_get_rate(atmel_pwm->clk);
 	do_div(cycles, NSEC_PER_SEC);
 
-	for (*pres = 0; cycles > atmel_pwm->data->cfg.max_period; cycles >>= 1)
-		(*pres)++;
+	/*
+	 * The register for the period length is cfg.period_bits bits wide.
+	 * So for each bit the number of clock cycles is wider divide the input
+	 * clock frequency by two using pres and shift cprd accordingly.
+	 */
+	shift = fls(cycles) - atmel_pwm->data->cfg.period_bits;
 
-	if (*pres > PWM_MAX_PRES) {
+	if (shift > PWM_MAX_PRES) {
 		dev_err(chip->dev, "pres exceeds the maximum value\n");
 		return -EINVAL;
+	} else if (shift > 0) {
+		*pres = shift;
+		cycles >>= *pres;
+	} else {
+		*pres = 0;
 	}
 
 	*cprd = cycles;
@@ -289,7 +299,7 @@ static const struct atmel_pwm_data atmel_sam9rl_pwm_data = {
 	},
 	.cfg = {
 		/* 16 bits to keep period and duty. */
-		.max_period	= 0xffff,
+		.period_bits	= 16,
 	},
 };
 
@@ -302,7 +312,7 @@ static const struct atmel_pwm_data atmel_sama5_pwm_data = {
 	},
 	.cfg = {
 		/* 16 bits to keep period and duty. */
-		.max_period	= 0xffff,
+		.period_bits	= 16,
 	},
 };
 
@@ -315,7 +325,7 @@ static const struct atmel_pwm_data mchp_sam9x60_pwm_data = {
 	},
 	.cfg = {
 		/* 32 bits to keep period and duty. */
-		.max_period	= 0xffffffff,
+		.period_bits	= 32,
 	},
 };
 
