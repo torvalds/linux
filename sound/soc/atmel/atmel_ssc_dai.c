@@ -564,6 +564,15 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 
 	switch (ssc_p->daifmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 
+	case SND_SOC_DAIFMT_LEFT_J:
+		fs_osync = SSC_FSOS_POSITIVE;
+		fs_edge = SSC_START_RISING_RF;
+
+		rcmr =	  SSC_BF(RCMR_STTDLY, 0);
+		tcmr =	  SSC_BF(TCMR_STTDLY, 0);
+
+		break;
+
 	case SND_SOC_DAIFMT_I2S:
 		fs_osync = SSC_FSOS_NEGATIVE;
 		fs_edge = SSC_START_FALLING_RF;
