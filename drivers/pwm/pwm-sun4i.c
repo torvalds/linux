@@ -192,12 +192,6 @@ static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
 	*dty = div;
 	*prsclr = prescaler;
 
-	div = (u64)pval * NSEC_PER_SEC * *prd;
-	state->period = DIV_ROUND_CLOSEST_ULL(div, clk_rate);
-
-	div = (u64)pval * NSEC_PER_SEC * *dty;
-	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(div, clk_rate);
-
 	return 0;
 }
 
