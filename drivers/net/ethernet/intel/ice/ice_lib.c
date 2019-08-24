@@ -1010,6 +1010,13 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 			ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
 	}
 
+	/* Allow control frames out of main VSI */
+	if (vsi->type == ICE_VSI_PF) {
+		ctxt->info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ALLOW_DEST_OVRD;
+		ctxt->info.valid_sections |=
+			cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+	}
+
 	ret = ice_add_vsi(hw, vsi->idx, ctxt, NULL);
 	if (ret) {
 		dev_err(&pf->pdev->dev,
@@ -2534,7 +2541,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		ice_cfg_sw_lldp(vsi, true, true);
 
 		/* Rx LLDP packets */
-		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags))
+		if (!test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
 			ice_cfg_sw_lldp(vsi, false, true);
 	}
 
@@ -2810,6 +2817,10 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 
 	ice_flush(hw);
 
+	/* don't call synchronize_irq() for VF's from the host */
+	if (vsi->type == ICE_VSI_VF)
+		return;
+
 	ice_for_each_q_vector(vsi, i)
 		synchronize_irq(pf->msix_entries[i + base].vector);
 }
@@ -2877,7 +2888,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		/* The Rx rule will only exist to remove if the LLDP FW
 		 * engine is currently stopped
 		 */
-		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags))
+		if (!test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
 			ice_cfg_sw_lldp(vsi, false, false);
 	}
 
@@ -3170,3 +3181,33 @@ out:
 	return ret;
 }
 #endif /* CONFIG_DCB */
+
+/**
+ * ice_vsi_cfg_mac_fltr - Add or remove a MAC address filter for a VSI
+ * @vsi: the VSI being configured MAC filter
+ * @macaddr: the MAC address to be added.
+ * @set: Add or delete a MAC filter
+ *
+ * Adds or removes MAC address filter entry for VF VSI
+ */
+enum ice_status
+ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set)
+{
+	LIST_HEAD(tmp_add_list);
+	enum ice_status status;
+
+	 /* Update MAC filter list to be added or removed for a VSI */
+	if (ice_add_mac_to_list(vsi, &tmp_add_list, macaddr)) {
+		status = ICE_ERR_NO_MEMORY;
+		goto cfg_mac_fltr_exit;
+	}
+
+	if (set)
+		status = ice_add_mac(&vsi->back->hw, &tmp_add_list);
+	else
+		status = ice_remove_mac(&vsi->back->hw, &tmp_add_list);
+
+cfg_mac_fltr_exit:
+	ice_free_fltr_list(&vsi->back->pdev->dev, &tmp_add_list);
+	return status;
+}

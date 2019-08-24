@@ -34,8 +34,6 @@ static const struct net_device_ops ice_netdev_ops;
 static void ice_rebuild(struct ice_pf *pf);
 
 static void ice_vsi_release_all(struct ice_pf *pf);
-static void ice_update_vsi_stats(struct ice_vsi *vsi);
-static void ice_update_pf_stats(struct ice_pf *pf);
 
 /**
  * ice_get_tx_pending - returns number of Tx descriptors not processed
@@ -118,10 +116,9 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
  */
 static int ice_init_mac_fltr(struct ice_pf *pf)
 {
-	LIST_HEAD(tmp_add_list);
+	enum ice_status status;
 	u8 broadcast[ETH_ALEN];
 	struct ice_vsi *vsi;
-	int status;
 
 	vsi = ice_find_vsi_by_type(pf, ICE_VSI_PF);
 	if (!vsi)
@@ -132,8 +129,7 @@ static int ice_init_mac_fltr(struct ice_pf *pf)
 	 */
 
 	 /* Add a unicast MAC filter so the VSI can get its packets */
-	status = ice_add_mac_to_list(vsi, &tmp_add_list,
-				     vsi->port_info->mac.perm_addr);
+	status = ice_vsi_cfg_mac_fltr(vsi, vsi->port_info->mac.perm_addr, true);
 	if (status)
 		goto unregister;
 
@@ -141,18 +137,11 @@ static int ice_init_mac_fltr(struct ice_pf *pf)
 	 * MAC address to the list as well.
 	 */
 	eth_broadcast_addr(broadcast);
-	status = ice_add_mac_to_list(vsi, &tmp_add_list, broadcast);
+	status = ice_vsi_cfg_mac_fltr(vsi, broadcast, true);
 	if (status)
-		goto free_mac_list;
+		goto unregister;
 
-	/* Program MAC filters for entries in tmp_add_list */
-	status = ice_add_mac(&pf->hw, &tmp_add_list);
-	if (status)
-		status = -ENOMEM;
-
-free_mac_list:
-	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
-
+	return 0;
 unregister:
 	/* We aren't useful with no MAC filters, so unregister if we
 	 * had an error
@@ -166,7 +155,7 @@ unregister:
 		vsi->netdev = NULL;
 	}
 
-	return status;
+	return -EIO;
 }
 
 /**
@@ -2836,10 +2825,8 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 	struct ice_hw *hw = &pf->hw;
 	struct sockaddr *addr = pi;
 	enum ice_status status;
-	LIST_HEAD(a_mac_list);
-	LIST_HEAD(r_mac_list);
 	u8 flags = 0;
-	int err;
+	int err = 0;
 	u8 *mac;
 
 	mac = (u8 *)addr->sa_data;
@@ -2862,42 +2849,23 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 	/* When we change the MAC address we also have to change the MAC address
 	 * based filter rules that were created previously for the old MAC
 	 * address. So first, we remove the old filter rule using ice_remove_mac
-	 * and then create a new filter rule using ice_add_mac. Note that for
-	 * both these operations, we first need to form a "list" of MAC
-	 * addresses (even though in this case, we have only 1 MAC address to be
-	 * added/removed) and this done using ice_add_mac_to_list. Depending on
-	 * the ensuing operation this "list" of MAC addresses is either to be
-	 * added or removed from the filter.
+	 * and then create a new filter rule using ice_add_mac via
+	 * ice_vsi_cfg_mac_fltr function call for both add and/or remove
+	 * filters.
 	 */
-	err = ice_add_mac_to_list(vsi, &r_mac_list, netdev->dev_addr);
-	if (err) {
-		err = -EADDRNOTAVAIL;
-		goto free_lists;
-	}
-
-	status = ice_remove_mac(hw, &r_mac_list);
+	status = ice_vsi_cfg_mac_fltr(vsi, netdev->dev_addr, false);
 	if (status) {
 		err = -EADDRNOTAVAIL;
-		goto free_lists;
+		goto err_update_filters;
 	}
 
-	err = ice_add_mac_to_list(vsi, &a_mac_list, mac);
-	if (err) {
-		err = -EADDRNOTAVAIL;
-		goto free_lists;
-	}
-
-	status = ice_add_mac(hw, &a_mac_list);
+	status = ice_vsi_cfg_mac_fltr(vsi, mac, true);
 	if (status) {
 		err = -EADDRNOTAVAIL;
-		goto free_lists;
+		goto err_update_filters;
 	}
 
-free_lists:
-	/* free list entries */
-	ice_free_fltr_list(&pf->pdev->dev, &r_mac_list);
-	ice_free_fltr_list(&pf->pdev->dev, &a_mac_list);
-
+err_update_filters:
 	if (err) {
 		netdev_err(netdev, "can't set MAC %pM. filter update failed\n",
 			   mac);
@@ -2913,8 +2881,8 @@ free_lists:
 	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
 	status = ice_aq_manage_mac_write(hw, mac, flags, NULL);
 	if (status) {
-		netdev_err(netdev, "can't set MAC %pM. write to firmware failed.\n",
-			   mac);
+		netdev_err(netdev, "can't set MAC %pM. write to firmware failed error %d\n",
+			   mac, status);
 	}
 	return 0;
 }
@@ -3254,7 +3222,7 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
  * ice_update_vsi_stats - Update VSI stats counters
  * @vsi: the VSI to be updated
  */
-static void ice_update_vsi_stats(struct ice_vsi *vsi)
+void ice_update_vsi_stats(struct ice_vsi *vsi)
 {
 	struct rtnl_link_stats64 *cur_ns = &vsi->net_stats;
 	struct ice_eth_stats *cur_es = &vsi->eth_stats;
@@ -3290,7 +3258,7 @@ static void ice_update_vsi_stats(struct ice_vsi *vsi)
  * ice_update_pf_stats - Update PF port stats counters
  * @pf: PF whose stats needs to be updated
  */
-static void ice_update_pf_stats(struct ice_pf *pf)
+void ice_update_pf_stats(struct ice_pf *pf)
 {
 	struct ice_hw_port_stats *prev_ps, *cur_ps;
 	struct ice_hw *hw = &pf->hw;
