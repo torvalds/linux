@@ -454,11 +454,14 @@ EXPORT_SYMBOL_GPL(pwm_free);
  */
 int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 {
+	struct pwm_chip *chip;
 	int err;
 
 	if (!pwm || !state || !state->period ||
 	    state->duty_cycle > state->period)
 		return -EINVAL;
+
+	chip = pwm->chip;
 
 	if (state->period == pwm->state.period &&
 	    state->duty_cycle == pwm->state.duty_cycle &&
@@ -466,8 +469,8 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 	    state->enabled == pwm->state.enabled)
 		return 0;
 
-	if (pwm->chip->ops->apply) {
-		err = pwm->chip->ops->apply(pwm->chip, pwm, state);
+	if (chip->ops->apply) {
+		err = chip->ops->apply(chip, pwm, state);
 		if (err)
 			return err;
 
@@ -477,7 +480,7 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 		 * FIXME: restore the initial state in case of error.
 		 */
 		if (state->polarity != pwm->state.polarity) {
-			if (!pwm->chip->ops->set_polarity)
+			if (!chip->ops->set_polarity)
 				return -ENOTSUPP;
 
 			/*
@@ -486,12 +489,12 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 			 * ->apply().
 			 */
 			if (pwm->state.enabled) {
-				pwm->chip->ops->disable(pwm->chip, pwm);
+				chip->ops->disable(chip, pwm);
 				pwm->state.enabled = false;
 			}
 
-			err = pwm->chip->ops->set_polarity(pwm->chip, pwm,
-							   state->polarity);
+			err = chip->ops->set_polarity(chip, pwm,
+						      state->polarity);
 			if (err)
 				return err;
 
@@ -500,9 +503,9 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 
 		if (state->period != pwm->state.period ||
 		    state->duty_cycle != pwm->state.duty_cycle) {
-			err = pwm->chip->ops->config(pwm->chip, pwm,
-						     state->duty_cycle,
-						     state->period);
+			err = chip->ops->config(pwm->chip, pwm,
+						state->duty_cycle,
+						state->period);
 			if (err)
 				return err;
 
@@ -512,11 +515,11 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 
 		if (state->enabled != pwm->state.enabled) {
 			if (state->enabled) {
-				err = pwm->chip->ops->enable(pwm->chip, pwm);
+				err = chip->ops->enable(chip, pwm);
 				if (err)
 					return err;
 			} else {
-				pwm->chip->ops->disable(pwm->chip, pwm);
+				chip->ops->disable(chip, pwm);
 			}
 
 			pwm->state.enabled = state->enabled;
