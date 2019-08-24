@@ -1335,11 +1335,20 @@ int of_phandle_iterator_next(struct of_phandle_iterator *it)
 
 			if (of_property_read_u32(it->node, it->cells_name,
 						 &count)) {
-				pr_err("%pOF: could not get %s for %pOF\n",
-				       it->parent,
-				       it->cells_name,
-				       it->node);
-				goto err;
+				/*
+				 * If both cell_count and cells_name is given,
+				 * fall back to cell_count in absence
+				 * of the cells_name property
+				 */
+				if (it->cell_count >= 0) {
+					count = it->cell_count;
+				} else {
+					pr_err("%pOF: could not get %s for %pOF\n",
+					       it->parent,
+					       it->cells_name,
+					       it->node);
+					goto err;
+				}
 			}
 		} else {
 			count = it->cell_count;
@@ -1505,7 +1514,7 @@ int of_parse_phandle_with_args(const struct device_node *np, const char *list_na
 {
 	if (index < 0)
 		return -EINVAL;
-	return __of_parse_phandle_with_args(np, list_name, cells_name, 0,
+	return __of_parse_phandle_with_args(np, list_name, cells_name, -1,
 					    index, out_args);
 }
 EXPORT_SYMBOL(of_parse_phandle_with_args);
@@ -1588,7 +1597,7 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 	if (!pass_name)
 		goto free;
 
-	ret = __of_parse_phandle_with_args(np, list_name, cells_name, 0, index,
+	ret = __of_parse_phandle_with_args(np, list_name, cells_name, -1, index,
 					   out_args);
 	if (ret)
 		goto free;
@@ -1756,7 +1765,7 @@ int of_count_phandle_with_args(const struct device_node *np, const char *list_na
 	struct of_phandle_iterator it;
 	int rc, cur_index = 0;
 
-	rc = of_phandle_iterator_init(&it, np, list_name, cells_name, 0);
+	rc = of_phandle_iterator_init(&it, np, list_name, cells_name, -1);
 	if (rc)
 		return rc;
 
