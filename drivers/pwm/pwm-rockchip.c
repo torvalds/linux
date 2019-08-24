@@ -212,12 +212,6 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			goto out;
 	}
 
-	/*
-	 * Update the state with the real hardware, which can differ a bit
-	 * because of period/duty_cycle approximation.
-	 */
-	rockchip_pwm_get_state(chip, pwm, state);
-
 out:
 	clk_disable(pc->pclk);
 
