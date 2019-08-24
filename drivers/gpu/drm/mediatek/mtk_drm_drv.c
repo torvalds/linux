@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
+#include <linux/dma-mapping.h>
 
 #include "mtk_drm_crtc.h"
 #include "mtk_drm_ddp.h"
