@@ -50,6 +50,8 @@
 #define PWMV2_CPRD		0x0C
 #define PWMV2_CPRDUPD		0x10
 
+#define PWM_MAX_PRES		10
+
 struct atmel_pwm_registers {
 	u8 period;
 	u8 period_upd;
@@ -59,7 +61,6 @@ struct atmel_pwm_registers {
 
 struct atmel_pwm_config {
 	u32 max_period;
-	u32 max_pres;
 };
 
 struct atmel_pwm_data {
@@ -126,7 +127,7 @@ static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
 	for (*pres = 0; cycles > atmel_pwm->data->cfg.max_period; cycles >>= 1)
 		(*pres)++;
 
-	if (*pres > atmel_pwm->data->cfg.max_pres) {
+	if (*pres > PWM_MAX_PRES) {
 		dev_err(chip->dev, "pres exceeds the maximum value\n");
 		return -EINVAL;
 	}
@@ -289,7 +290,6 @@ static const struct atmel_pwm_data atmel_sam9rl_pwm_data = {
 	.cfg = {
 		/* 16 bits to keep period and duty. */
 		.max_period	= 0xffff,
-		.max_pres	= 10,
 	},
 };
 
@@ -303,7 +303,6 @@ static const struct atmel_pwm_data atmel_sama5_pwm_data = {
 	.cfg = {
 		/* 16 bits to keep period and duty. */
 		.max_period	= 0xffff,
-		.max_pres	= 10,
 	},
 };
 
@@ -317,7 +316,6 @@ static const struct atmel_pwm_data mchp_sam9x60_pwm_data = {
 	.cfg = {
 		/* 32 bits to keep period and duty. */
 		.max_period	= 0xffffffff,
-		.max_pres	= 10,
 	},
 };
 
