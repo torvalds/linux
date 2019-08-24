@@ -4545,6 +4545,21 @@ void dw_hdmi_resume(struct dw_hdmi *hdmi)
 		dw_hdmi_i2c_init(hdmi);
 	if (hdmi->irq)
 		enable_irq(hdmi->irq);
+	/*
+	 * HDMI status maybe incorrect in the following condition:
+	 * HDMI plug in -> system sleep ->  HDMI plug out -> system wake up.
+	 * At this time, cat /sys/class/drm/card 0-HDMI-A-1/status is connected.
+	 * There is no hpd interrupt, because HDMI is powerdown during suspend.
+	 * So we need check the current HDMI status in this case.
+	 */
+	if (hdmi->connector.status == connector_status_connected) {
+		if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) ==
+		    connector_status_disconnected) {
+			hdmi->hpd_state = false;
+			mod_delayed_work(hdmi->workqueue, &hdmi->work,
+					 msecs_to_jiffies(20));
+		}
+	}
 	mutex_unlock(&hdmi->mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_resume);
