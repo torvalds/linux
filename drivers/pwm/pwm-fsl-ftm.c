@@ -292,10 +292,6 @@ static int fsl_pwm_apply_config(struct fsl_pwm_chip *fpc,
 
 	regmap_update_bits(fpc->regmap, FTM_POL, BIT(pwm->hwpwm), reg_polarity);
 
-	newstate->period = fsl_pwm_ticks_to_ns(fpc,
-					       fpc->period.mod_period + 1);
-	newstate->duty_cycle = fsl_pwm_ticks_to_ns(fpc, duty);
-
 	ftm_set_write_protection(fpc);
 
 	return 0;
