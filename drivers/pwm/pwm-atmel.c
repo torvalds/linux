@@ -7,6 +7,16 @@
  *
  * Links to reference manuals for the supported PWM chips can be found in
  * Documentation/arm/microchip.rst.
+ *
+ * Limitations:
+ * - Periods start with the inactive level.
+ * - Hardware has to be stopped in general to update settings.
+ *
+ * Software bugs/possible improvements:
+ * - When atmel_pwm_apply() is called with state->enabled=false a change in
+ *   state->polarity isn't honored.
+ * - Instead of sleeping to wait for a completed period, the interrupt
+ *   functionality could be used.
  */
 
 #include <linux/clk.h>
