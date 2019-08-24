@@ -22,6 +22,7 @@
 #include <linux/hashtable.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
+#include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
@@ -30,6 +31,7 @@
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
 #include <net/addrconf.h>
+#include <net/sch_generic.h>
 #include <net/tcp.h>
 
 #include <asm/debug.h>
@@ -376,6 +378,28 @@ enum qeth_header_ids {
 #define QETH_HDR_EXT_CSUM_TRANSP_REQ  0x20
 #define QETH_HDR_EXT_UDP	      0x40 /*bit off for TCP*/
 
+static inline bool qeth_l2_same_vlan(struct qeth_hdr_layer2 *h1,
+				     struct qeth_hdr_layer2 *h2)
+{
+	return !((h1->flags[2] ^ h2->flags[2]) & QETH_LAYER2_FLAG_VLAN) &&
+	       h1->vlan_id == h2->vlan_id;
+}
+
+static inline bool qeth_l3_iqd_same_vlan(struct qeth_hdr_layer3 *h1,
+					 struct qeth_hdr_layer3 *h2)
+{
+	return !((h1->ext_flags ^ h2->ext_flags) & QETH_HDR_EXT_VLAN_FRAME) &&
+	       h1->vlan_id == h2->vlan_id;
+}
+
+static inline bool qeth_l3_same_next_hop(struct qeth_hdr_layer3 *h1,
+					 struct qeth_hdr_layer3 *h2)
+{
+	return !((h1->flags ^ h2->flags) & QETH_HDR_IPV6) &&
+	       ipv6_addr_equal(&h1->next_hop.ipv6_addr,
+			       &h2->next_hop.ipv6_addr);
+}
+
 enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
 	QETH_QDIO_ALLOCATED,
@@ -424,6 +448,7 @@ struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
 	atomic_t state;
 	int next_element_to_fill;
+	unsigned int bytes;
 	struct sk_buff_head skb_list;
 	int is_header[QDIO_MAX_ELEMENTS_PER_BUFFER];
 
@@ -473,6 +498,8 @@ struct qeth_out_q_stats {
 	u64 tso_bytes;
 	u64 packing_mode_switch;
 	u64 stopped;
+	u64 completion_yield;
+	u64 completion_timer;
 
 	/* rtnl_link_stats64 */
 	u64 tx_packets;
@@ -480,6 +507,8 @@ struct qeth_out_q_stats {
 	u64 tx_errors;
 	u64 tx_dropped;
 };
+
+#define QETH_TX_TIMER_USECS		500
 
 struct qeth_qdio_out_q {
 	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
@@ -499,11 +528,34 @@ struct qeth_qdio_out_q {
 	atomic_t used_buffers;
 	/* indicates whether PCI flag must be set (or if one is outstanding) */
 	atomic_t set_pci_flags_count;
+	struct napi_struct napi;
+	struct timer_list timer;
+	struct qeth_hdr *prev_hdr;
+	u8 bulk_start;
 };
+
+#define qeth_for_each_output_queue(card, q, i)		\
+	for (i = 0; i < card->qdio.no_out_queues &&	\
+		    (q = card->qdio.out_qs[i]); i++)
+
+#define	qeth_napi_to_out_queue(n) container_of(n, struct qeth_qdio_out_q, napi)
+
+static inline void qeth_tx_arm_timer(struct qeth_qdio_out_q *queue)
+{
+	if (timer_pending(&queue->timer))
+		return;
+	mod_timer(&queue->timer, usecs_to_jiffies(QETH_TX_TIMER_USECS) +
+				 jiffies);
+}
 
 static inline bool qeth_out_queue_is_full(struct qeth_qdio_out_q *queue)
 {
 	return atomic_read(&queue->used_buffers) >= QDIO_MAX_BUFFERS_PER_Q;
+}
+
+static inline bool qeth_out_queue_is_empty(struct qeth_qdio_out_q *queue)
+{
+	return atomic_read(&queue->used_buffers) == 0;
 }
 
 struct qeth_qdio_info {
