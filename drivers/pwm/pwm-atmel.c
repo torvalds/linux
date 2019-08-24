@@ -4,6 +4,9 @@
  *
  * Copyright (C) 2013 Atmel Corporation
  *		 Bo Shen <voice.shen@atmel.com>
+ *
+ * Links to reference manuals for the supported PWM chips can be found in
+ * Documentation/arm/microchip.rst.
  */
 
 #include <linux/clk.h>
