@@ -27,18 +27,6 @@
 #define PRI_lx64 PRIx64
 #endif
 
-/*
- * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
- */
-struct read_event {
-	struct perf_event_header header;
-	u32 pid, tid;
-	u64 value;
-	u64 time_enabled;
-	u64 time_running;
-	u64 id;
-};
-
 struct throttle_event {
 	struct perf_event_header header;
 	u64 time;

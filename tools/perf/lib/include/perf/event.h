@@ -61,4 +61,16 @@ struct lost_samples_event {
 	__u64			 lost;
 };
 
+/*
+ * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
+ */
+struct read_event {
+	struct perf_event_header header;
+	__u32			 pid, tid;
+	__u64			 value;
+	__u64			 time_enabled;
+	__u64			 time_running;
+	__u64			 id;
+};
+
 #endif /* __LIBPERF_EVENT_H */
