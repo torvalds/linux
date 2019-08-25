@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 # 
 # Copyright (C) 2000, 2002, 2003 Jeff Dike (jdike@karaya.com)
-# Licensed under the GPL
 #
 
 # pcap is broken in 2.5 because kbuild doesn't allow pcap.a to be linked
