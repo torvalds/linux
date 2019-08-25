@@ -321,6 +321,7 @@
 	status = "okay";
 	pinctrl-0 = <&remote_input_ao_pins>;
 	pinctrl-names = "default";
+	linux,rc-map-name = "rc-x96max";
 };
 
 &pwm_AO_cd {
