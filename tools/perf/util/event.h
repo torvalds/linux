@@ -27,11 +27,6 @@
 #define PRI_lx64 PRIx64
 #endif
 
-struct lost_samples_event {
-	struct perf_event_header header;
-	u64 lost;
-};
-
 /*
  * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
  */

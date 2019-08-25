@@ -653,7 +653,7 @@ int machine__process_lost_event(struct machine *machine __maybe_unused,
 int machine__process_lost_samples_event(struct machine *machine __maybe_unused,
 					union perf_event *event, struct perf_sample *sample)
 {
-	dump_printf(": id:%" PRIu64 ": lost samples :%" PRIu64 "\n",
+	dump_printf(": id:%" PRIu64 ": lost samples :%" PRI_lu64 "\n",
 		    sample->id, event->lost_samples.lost);
 	return 0;
 }

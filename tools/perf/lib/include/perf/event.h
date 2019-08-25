@@ -56,4 +56,9 @@ struct lost_event {
 	__u64			 lost;
 };
 
+struct lost_samples_event {
+	struct perf_event_header header;
+	__u64			 lost;
+};
+
 #endif /* __LIBPERF_EVENT_H */
