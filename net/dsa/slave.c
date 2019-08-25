@@ -1082,8 +1082,11 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 			return -EBUSY;
 	}
 
-	/* This API only allows programming tagged, non-PVID VIDs */
-	return dsa_port_vid_add(dp, vid, 0);
+	ret = dsa_port_vid_add(dp, vid, 0);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	return 0;
 }
 
 static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,

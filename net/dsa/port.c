@@ -382,8 +382,8 @@ int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
 
 	trans.ph_prepare = true;
 	err = dsa_port_vlan_add(dp, &vlan, &trans);
-	if (err == -EOPNOTSUPP)
-		return 0;
+	if (err)
+		return err;
 
 	trans.ph_prepare = false;
 	return dsa_port_vlan_add(dp, &vlan, &trans);
