@@ -904,7 +904,6 @@ static struct platform_driver linflex_driver = {
 	.remove		= linflex_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table	= linflex_dt_ids,
 		.pm	= &linflex_pm_ops,
 	},
