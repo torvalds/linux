@@ -375,7 +375,7 @@ static __net_init int mpls_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, mpls_net_id);
 
-	return tc_action_net_init(tn, &act_mpls_ops);
+	return tc_action_net_init(net, tn, &act_mpls_ops);
 }
 
 static void __net_exit mpls_exit_net(struct list_head *net_list)
