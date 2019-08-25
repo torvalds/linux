@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include "greybus.h"
+#include <linux/greybus.h>
 
 /* Highest control-protocol version supported */
 #define GB_CONTROL_VERSION_MAJOR	0

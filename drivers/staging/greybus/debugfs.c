@@ -7,8 +7,7 @@
  */
 
 #include <linux/debugfs.h>
-
-#include "greybus.h"
+#include <linux/greybus.h>
 
 static struct dentry *gb_debug_root;
 

@@ -9,8 +9,7 @@
 #include <linux/slab.h>
 #include <linux/sizes.h>
 #include <linux/uaccess.h>
-
-#include "greybus.h"
+#include <linux/greybus.h>
 
 struct gb_log {
 	struct gb_connection *connection;

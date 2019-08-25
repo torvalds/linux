@@ -11,12 +11,11 @@
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
+#include <linux/greybus.h>
 #include <asm/unaligned.h>
 
 #include "arpc.h"
-#include "greybus.h"
 #include "greybus_trace.h"
-#include "connection.h"
 
 
 /* Default timeout for USB vendor requests. */

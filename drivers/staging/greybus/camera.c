@@ -14,9 +14,9 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/greybus.h>
 
 #include "gb-camera.h"
-#include "greybus.h"
 #include "greybus_protocols.h"
 
 enum gb_camera_debugs_buffer_id {

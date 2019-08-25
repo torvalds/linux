@@ -11,10 +11,8 @@
 #include <linux/led-class-flash.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/greybus.h>
 #include <media/v4l2-flash-led-class.h>
-
-#include "greybus.h"
-#include "greybus_protocols.h"
 
 #define NAMES_MAX	32
 

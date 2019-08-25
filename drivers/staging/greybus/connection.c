@@ -7,8 +7,8 @@
  */
 
 #include <linux/workqueue.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "greybus_trace.h"
 
 #define GB_CONNECTION_CPORT_QUIESCE_TIMEOUT	1000

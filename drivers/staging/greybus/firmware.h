@@ -9,7 +9,7 @@
 #ifndef __FIRMWARE_H
 #define __FIRMWARE_H
 
-#include "greybus.h"
+#include <linux/greybus.h>
 
 #define FW_NAME_PREFIX	"gmp_"
 

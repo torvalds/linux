@@ -8,8 +8,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/workqueue.h>
-
-#include "greybus.h"
+#include <linux/greybus.h>
 
 #define SVC_INTF_EJECT_TIMEOUT		9000
 #define SVC_INTF_ACTIVATE_TIMEOUT	6000

@@ -7,8 +7,8 @@
  */
 
 #include <linux/delay.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "greybus_trace.h"
 
 #define GB_INTERFACE_MODE_SWITCH_TIMEOUT	2000

@@ -7,8 +7,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 #include "spilib.h"
 

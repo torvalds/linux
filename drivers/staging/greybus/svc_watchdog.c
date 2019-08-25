@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
-#include "greybus.h"
+#include <linux/greybus.h>
 
 #define SVC_WATCHDOG_PERIOD	(2 * HZ)
 

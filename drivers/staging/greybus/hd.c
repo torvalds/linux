@@ -8,8 +8,8 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "greybus_trace.h"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_create);

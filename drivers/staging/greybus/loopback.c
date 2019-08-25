@@ -25,11 +25,8 @@
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/greybus.h>
 #include <asm/div64.h>
-
-#include "greybus.h"
-#include "connection.h"
 
 #define NSEC_PER_DAY 86400000000000ULL
 

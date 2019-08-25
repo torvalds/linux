@@ -12,8 +12,8 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "greybus_trace.h"
 
 static struct kmem_cache *gb_operation_cache;
