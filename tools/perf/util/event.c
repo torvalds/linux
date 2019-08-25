@@ -1480,7 +1480,7 @@ size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp)
 
 static size_t perf_event__fprintf_lost(union perf_event *event, FILE *fp)
 {
-	return fprintf(fp, " lost %" PRIu64 "\n", event->lost.lost);
+	return fprintf(fp, " lost %" PRI_lu64 "\n", event->lost.lost);
 }
 
 size_t perf_event__fprintf_ksymbol(union perf_event *event, FILE *fp)

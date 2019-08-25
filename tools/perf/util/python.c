@@ -263,8 +263,8 @@ static PyObject *pyrf_lost_event__repr(struct pyrf_event *pevent)
 	PyObject *ret;
 	char *s;
 
-	if (asprintf(&s, "{ type: lost, id: %#" PRIx64 ", "
-			 "lost: %#" PRIx64 " }",
+	if (asprintf(&s, "{ type: lost, id: %#" PRI_lx64 ", "
+			 "lost: %#" PRI_lx64 " }",
 		     pevent->event.lost.id, pevent->event.lost.lost) < 0) {
 		ret = PyErr_NoMemory();
 	} else {

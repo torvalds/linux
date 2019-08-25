@@ -50,4 +50,10 @@ struct fork_event {
 	__u64			 time;
 };
 
+struct lost_event {
+	struct perf_event_header header;
+	__u64			 id;
+	__u64			 lost;
+};
+
 #endif /* __LIBPERF_EVENT_H */

@@ -27,12 +27,6 @@
 #define PRI_lx64 PRIx64
 #endif
 
-struct lost_event {
-	struct perf_event_header header;
-	u64 id;
-	u64 lost;
-};
-
 struct lost_samples_event {
 	struct perf_event_header header;
 	u64 lost;
