@@ -15,4 +15,19 @@ struct mmap_event {
 	char			 filename[PATH_MAX];
 };
 
+struct mmap2_event {
+	struct perf_event_header header;
+	__u32			 pid, tid;
+	__u64			 start;
+	__u64			 len;
+	__u64			 pgoff;
+	__u32			 maj;
+	__u32			 min;
+	__u64			 ino;
+	__u64			 ino_generation;
+	__u32			 prot;
+	__u32			 flags;
+	char			 filename[PATH_MAX];
+};
+
 #endif /* __LIBPERF_EVENT_H */
