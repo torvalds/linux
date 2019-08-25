@@ -412,7 +412,6 @@ static void __exit cleanup_slots(void)
 		pci_hp_deregister(&slot->hotplug_slot);
 		dealloc_slot_struct(slot);
 	}
-	return;
 }
 
 static int __init rpaphp_init(void)

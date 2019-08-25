@@ -473,7 +473,6 @@ int __init rpadlpar_io_init(void)
 void rpadlpar_io_exit(void)
 {
 	dlpar_sysfs_exit();
-	return;
 }
 
 module_init(rpadlpar_io_init);
