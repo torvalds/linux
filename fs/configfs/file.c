@@ -502,7 +502,7 @@ int configfs_create_file(struct config_item * item, const struct configfs_attrib
 
 	inode_lock_nested(d_inode(dir), I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) attr, mode,
-				     CONFIGFS_ITEM_ATTR);
+				     CONFIGFS_ITEM_ATTR, parent_sd->s_frag);
 	inode_unlock(d_inode(dir));
 
 	return error;
@@ -524,7 +524,7 @@ int configfs_create_bin_file(struct config_item *item,
 
 	inode_lock_nested(dir->d_inode, I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) bin_attr, mode,
-				     CONFIGFS_ITEM_BIN_ATTR);
+				     CONFIGFS_ITEM_BIN_ATTR, parent_sd->s_frag);
 	inode_unlock(dir->d_inode);
 
 	return error;
