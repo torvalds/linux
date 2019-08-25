@@ -2,11 +2,6 @@
 # needed for trace events
 ccflags-y += -I$(src)
 
-# Greybus Host controller drivers
-gb-es2-y := es2.o
-
-obj-$(CONFIG_GREYBUS_ES2)	+= gb-es2.o
-
 # Greybus class drivers
 gb-bootrom-y		:= bootrom.o
 gb-camera-y		:= camera.o

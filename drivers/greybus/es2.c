@@ -15,7 +15,7 @@
 #include <asm/unaligned.h>
 
 #include "arpc.h"
-#include "../../greybus/greybus_trace.h"
+#include "greybus_trace.h"
 
 
 /* Default timeout for USB vendor requests. */
