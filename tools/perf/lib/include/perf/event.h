@@ -30,4 +30,10 @@ struct mmap2_event {
 	char			 filename[PATH_MAX];
 };
 
+struct comm_event {
+	struct perf_event_header header;
+	__u32			 pid, tid;
+	char			 comm[16];
+};
+
 #endif /* __LIBPERF_EVENT_H */

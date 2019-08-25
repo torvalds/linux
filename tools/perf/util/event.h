@@ -27,12 +27,6 @@
 #define PRI_lx64 PRIx64
 #endif
 
-struct comm_event {
-	struct perf_event_header header;
-	u32 pid, tid;
-	char comm[16];
-};
-
 struct namespaces_event {
 	struct perf_event_header header;
 	u32 pid, tid;
