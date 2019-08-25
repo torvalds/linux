@@ -36,4 +36,11 @@ struct comm_event {
 	char			 comm[16];
 };
 
+struct namespaces_event {
+	struct perf_event_header header;
+	__u32			 pid, tid;
+	__u64			 nr_namespaces;
+	struct perf_ns_link_info link_info[];
+};
+
 #endif /* __LIBPERF_EVENT_H */
