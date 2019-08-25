@@ -21,10 +21,9 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/hw_random.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #include <asm/io.h>
-#include <mach/hardware.h>
-
 
 static int ixp4xx_rng_data_read(struct hwrng *rng, u32 *buffer)
 {
