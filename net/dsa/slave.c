@@ -332,6 +332,10 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	if (err)
 		return err;
 
+	err = dsa_port_vlan_add(dp->cpu_dp, &vlan, trans);
+	if (err)
+		return err;
+
 	return 0;
 }
 
@@ -383,6 +387,9 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
 		return 0;
 
+	/* Do not deprogram the CPU port as it may be shared with other user
+	 * ports which can be members of this VLAN as well.
+	 */
 	return dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
 }
 
@@ -1121,6 +1128,10 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 
+	ret = dsa_port_vid_add(dp->cpu_dp, vid, 0);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
 	return 0;
 }
 
@@ -1151,6 +1162,9 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	if (ret == -EOPNOTSUPP)
 		ret = 0;
 
+	/* Do not deprogram the CPU port as it may be shared with other user
+	 * ports which can be members of this VLAN as well.
+	 */
 	return ret;
 }
 

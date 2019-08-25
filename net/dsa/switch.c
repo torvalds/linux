@@ -232,7 +232,7 @@ static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
 	if (ds->index == info->sw_index && port == info->port)
 		return true;
 
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+	if (dsa_is_dsa_port(ds, port))
 		return true;
 
 	return false;
@@ -288,6 +288,9 @@ static int dsa_switch_vlan_del(struct dsa_switch *ds,
 	if (ds->index == info->sw_index)
 		return ds->ops->port_vlan_del(ds, info->port, info->vlan);
 
+	/* Do not deprogram the DSA links as they may be used as conduit
+	 * for other VLAN members in the fabric.
+	 */
 	return 0;
 }
 
