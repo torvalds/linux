@@ -104,4 +104,9 @@ struct bpf_event {
 	__u8			 tag[BPF_TAG_SIZE];  // prog tag
 };
 
+struct sample_event {
+	struct perf_event_header header;
+	__u64			 array[];
+};
+
 #endif /* __LIBPERF_EVENT_H */
