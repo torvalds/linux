@@ -7,19 +7,25 @@
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
+#include <perf/event.h>
 
 #include "../perf.h"
 #include "build-id.h"
 #include "perf_regs.h"
 
-struct mmap_event {
-	struct perf_event_header header;
-	u32 pid, tid;
-	u64 start;
-	u64 len;
-	u64 pgoff;
-	char filename[PATH_MAX];
-};
+#ifdef __LP64__
+/*
+ * /usr/include/inttypes.h uses just 'lu' for PRIu64, but we end up defining
+ * __u64 as long long unsigned int, and then -Werror=format= kicks in and
+ * complains of the mismatched types, so use these two special extra PRI
+ * macros to overcome that.
+ */
+#define PRI_lu64 "l" PRIu64
+#define PRI_lx64 "l" PRIx64
+#else
+#define PRI_lu64 PRIu64
+#define PRI_lx64 PRIx64
+#endif
 
 struct mmap2_event {
 	struct perf_event_header header;
