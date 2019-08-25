@@ -31,14 +31,14 @@ static int gb_log_request_handler(struct gb_operation *op)
 	/* Verify size of payload */
 	if (op->request->payload_size < sizeof(*receive)) {
 		dev_err(dev, "log request too small (%zu < %zu)\n",
-				op->request->payload_size, sizeof(*receive));
+			op->request->payload_size, sizeof(*receive));
 		return -EINVAL;
 	}
 	receive = op->request->payload;
 	len = le16_to_cpu(receive->len);
 	if (len != (op->request->payload_size - sizeof(*receive))) {
 		dev_err(dev, "log request wrong size %d vs %zu\n", len,
-				(op->request->payload_size - sizeof(*receive)));
+			(op->request->payload_size - sizeof(*receive)));
 		return -EINVAL;
 	}
 	if (len == 0) {
@@ -83,7 +83,7 @@ static int gb_log_probe(struct gb_bundle *bundle,
 		return -ENOMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
-			gb_log_request_handler);
+					  gb_log_request_handler);
 	if (IS_ERR(connection)) {
 		retval = PTR_ERR(connection);
 		goto error_free;
