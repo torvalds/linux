@@ -332,6 +332,12 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	if (err)
 		return err;
 
+	/* We need the dedicated CPU port to be a member of the VLAN as well.
+	 * Even though drivers often handle CPU membership in special ways,
+	 * it doesn't make sense to program a PVID, so clear this flag.
+	 */
+	vlan.flags &= ~BRIDGE_VLAN_INFO_PVID;
+
 	err = dsa_port_vlan_add(dp->cpu_dp, &vlan, trans);
 	if (err)
 		return err;
