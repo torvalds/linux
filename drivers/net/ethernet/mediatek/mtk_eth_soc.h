@@ -412,14 +412,38 @@
 /* Register to auto-negotiation restart */
 #define SGMSYS_PCS_CONTROL_1	0x0
 #define SGMII_AN_RESTART	BIT(9)
+#define SGMII_ISOLATE		BIT(10)
+#define SGMII_AN_ENABLE		BIT(12)
+#define SGMII_LINK_STATYS	BIT(18)
+#define SGMII_AN_ABILITY	BIT(19)
+#define SGMII_AN_COMPLETE	BIT(21)
+#define SGMII_PCS_FAULT		BIT(23)
+#define SGMII_AN_EXPANSION_CLR	BIT(30)
 
 /* Register to programmable link timer, the unit in 2 * 8ns */
 #define SGMSYS_PCS_LINK_TIMER	0x18
 #define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & GENMASK(19, 0))
 
 /* Register to control remote fault */
-#define SGMSYS_SGMII_MODE	0x20
-#define SGMII_REMOTE_FAULT_DIS	BIT(8)
+#define SGMSYS_SGMII_MODE		0x20
+#define SGMII_IF_MODE_BIT0		BIT(0)
+#define SGMII_SPEED_DUPLEX_AN		BIT(1)
+#define SGMII_SPEED_10			0x0
+#define SGMII_SPEED_100			BIT(2)
+#define SGMII_SPEED_1000		BIT(3)
+#define SGMII_DUPLEX_FULL		BIT(4)
+#define SGMII_IF_MODE_BIT5		BIT(5)
+#define SGMII_REMOTE_FAULT_DIS		BIT(8)
+#define SGMII_CODE_SYNC_SET_VAL		BIT(9)
+#define SGMII_CODE_SYNC_SET_EN		BIT(10)
+#define SGMII_SEND_AN_ERROR_EN		BIT(11)
+#define SGMII_IF_MODE_MASK		GENMASK(5, 1)
+
+/* Register to set SGMII speed, ANA RG_ Control Signals III*/
+#define SGMSYS_ANA_RG_CS3	0x2028
+#define RG_PHY_SPEED_MASK	(BIT(2) | BIT(3))
+#define RG_PHY_SPEED_1_25G	0x0
+#define RG_PHY_SPEED_3_125G	BIT(2)
 
 /* Register to power up QPHY */
 #define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
@@ -897,7 +921,12 @@ u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
 int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
 		   u32 ana_rgc3);
 int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id);
-int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id);
-int mtk_setup_hw_path(struct mtk_eth *eth, int mac_id, int phymode);
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
+			       const struct phylink_link_state *state);
+void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
+
+int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
+int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
+int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
 
 #endif /* MTK_ETH_H */
