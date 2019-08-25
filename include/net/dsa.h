@@ -275,9 +275,6 @@ struct dsa_switch {
 	 */
 	bool			vlan_filtering;
 
-	unsigned long		*bitmap;
-	unsigned long		_bitmap;
-
 	/* Dynamically allocated ports, keep last */
 	size_t num_ports;
 	struct dsa_port ports[];
