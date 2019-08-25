@@ -727,5 +727,4 @@ void zconfdump(FILE *out)
 	}
 }
 
-#include "util.c"
 #include "menu.c"
