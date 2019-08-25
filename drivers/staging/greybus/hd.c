@@ -31,7 +31,7 @@ int gb_hd_output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 EXPORT_SYMBOL_GPL(gb_hd_output);
 
 static ssize_t bus_id_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+			   struct device_attribute *attr, char *buf)
 {
 	struct gb_host_device *hd = to_gb_host_device(dev);
 
@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(gb_hd_cport_release_reserved);
 
 /* Locking: Caller guarantees serialisation */
 int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
-				unsigned long flags)
+			 unsigned long flags)
 {
 	struct ida *id_map = &hd->cport_id_map;
 	int ida_start, ida_end;
@@ -122,9 +122,9 @@ struct device_type greybus_hd_type = {
 };
 
 struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
-					struct device *parent,
-					size_t buffer_size_max,
-					size_t num_cports)
+				    struct device *parent,
+				    size_t buffer_size_max,
+				    size_t num_cports)
 {
 	struct gb_host_device *hd;
 	int ret;
