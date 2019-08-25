@@ -160,7 +160,7 @@ targets += vmlinux.lzo.itb
 quiet_cmd_itb-image = ITB     $@
       cmd_itb-image = \
 		env PATH="$(objtree)/scripts/dtc:$(PATH)" \
-		$(CONFIG_SHELL) $(MKIMAGE) \
+		$(BASH) $(MKIMAGE) \
 		-D "-I dts -O dtb -p 500 \
 			--include $(objtree)/arch/mips \
 			--warning no-unit_address_vs_reg" \
