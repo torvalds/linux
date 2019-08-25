@@ -80,4 +80,17 @@ struct throttle_event {
 	__u64			 stream_id;
 };
 
+#ifndef KSYM_NAME_LEN
+#define KSYM_NAME_LEN 256
+#endif
+
+struct ksymbol_event {
+	struct perf_event_header header;
+	__u64			 addr;
+	__u32			 len;
+	__u16			 ksym_type;
+	__u16			 flags;
+	char			 name[KSYM_NAME_LEN];
+};
+
 #endif /* __LIBPERF_EVENT_H */
