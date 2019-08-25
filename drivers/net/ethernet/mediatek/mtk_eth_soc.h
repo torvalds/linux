@@ -14,6 +14,7 @@
 #include <linux/of_net.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
+#include <linux/phylink.h>
 
 #define MTK_QDMA_PAGE_SIZE	2048
 #define	MTK_MAX_RX_LENGTH	1536
@@ -330,12 +331,19 @@
 #define MAC_MCR_SPEED_100	BIT(2)
 #define MAC_MCR_FORCE_DPX	BIT(1)
 #define MAC_MCR_FORCE_LINK	BIT(0)
-#define MAC_MCR_FIXED_LINK	(MAC_MCR_MAX_RX_1536 | MAC_MCR_IPG_CFG | \
-				 MAC_MCR_FORCE_MODE | MAC_MCR_TX_EN | \
-				 MAC_MCR_RX_EN | MAC_MCR_BACKOFF_EN | \
-				 MAC_MCR_BACKPR_EN | MAC_MCR_FORCE_RX_FC | \
-				 MAC_MCR_FORCE_TX_FC | MAC_MCR_SPEED_1000 | \
-				 MAC_MCR_FORCE_DPX | MAC_MCR_FORCE_LINK)
+#define MAC_MCR_FORCE_LINK_DOWN	(MAC_MCR_FORCE_MODE)
+
+/* Mac status registers */
+#define MTK_MAC_MSR(x)		(0x10108 + (x * 0x100))
+#define MAC_MSR_EEE1G		BIT(7)
+#define MAC_MSR_EEE100M		BIT(6)
+#define MAC_MSR_RX_FC		BIT(5)
+#define MAC_MSR_TX_FC		BIT(4)
+#define MAC_MSR_SPEED_1000	BIT(3)
+#define MAC_MSR_SPEED_100	BIT(2)
+#define MAC_MSR_SPEED_MASK	(MAC_MSR_SPEED_1000 | MAC_MSR_SPEED_100)
+#define MAC_MSR_DPX		BIT(1)
+#define MAC_MSR_LINK		BIT(0)
 
 /* TRGMII RXC control register */
 #define TRGMII_RCK_CTRL		0x10300
@@ -858,22 +866,23 @@ struct mtk_eth {
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
  *			SoC
  * @id:			The number of the MAC
- * @ge_mode:            Interface mode kept for setup restoring
+ * @interface:		Interface mode kept for detecting change in hw settings
  * @of_node:		Our devicetree node
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
- * @trgmii		Indicate if the MAC uses TRGMII connected to internal
-			switch
  */
 struct mtk_mac {
 	int				id;
-	int				ge_mode;
+	phy_interface_t			interface;
+	unsigned int			mode;
+	int				speed;
 	struct device_node		*of_node;
+	struct phylink			*phylink;
+	struct phylink_config		phylink_config;
 	struct mtk_eth			*hw;
 	struct mtk_hw_stats		*hw_stats;
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
-	bool				trgmii;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
