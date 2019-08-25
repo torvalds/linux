@@ -312,6 +312,26 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 	return ret;
 }
 
+static int dsa_slave_vlan_add(struct net_device *dev,
+			      const struct switchdev_obj *obj,
+			      struct switchdev_trans *trans)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct switchdev_obj_port_vlan vlan;
+	int err;
+
+	if (obj->orig_dev != dev)
+		return -EOPNOTSUPP;
+
+	vlan = *SWITCHDEV_OBJ_PORT_VLAN(obj);
+
+	err = dsa_port_vlan_add(dp, &vlan, trans);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int dsa_slave_port_obj_add(struct net_device *dev,
 				  const struct switchdev_obj *obj,
 				  struct switchdev_trans *trans,
@@ -339,10 +359,7 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 				       trans);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		if (obj->orig_dev != dev)
-			return -EOPNOTSUPP;
-		err = dsa_port_vlan_add(dp, SWITCHDEV_OBJ_PORT_VLAN(obj),
-					trans);
+		err = dsa_slave_vlan_add(dev, obj, trans);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -350,6 +367,17 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 	}
 
 	return err;
+}
+
+static int dsa_slave_vlan_del(struct net_device *dev,
+			      const struct switchdev_obj *obj)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	if (obj->orig_dev != dev)
+		return -EOPNOTSUPP;
+
+	return dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
 }
 
 static int dsa_slave_port_obj_del(struct net_device *dev,
@@ -371,9 +399,7 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 		err = dsa_port_mdb_del(dp->cpu_dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		if (obj->orig_dev != dev)
-			return -EOPNOTSUPP;
-		err = dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
+		err = dsa_slave_vlan_del(dev, obj);
 		break;
 	default:
 		err = -EOPNOTSUPP;
