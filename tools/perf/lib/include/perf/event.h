@@ -43,4 +43,11 @@ struct namespaces_event {
 	struct perf_ns_link_info link_info[];
 };
 
+struct fork_event {
+	struct perf_event_header header;
+	__u32			 pid, ppid;
+	__u32			 tid, ptid;
+	__u64			 time;
+};
+
 #endif /* __LIBPERF_EVENT_H */
