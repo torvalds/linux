@@ -52,26 +52,14 @@ __clean-files   := $(wildcard                                               \
 		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(__clean-files))) \
 		   $(filter $(objtree)/%, $(__clean-files)))
 
-# same as clean-files
-
-__clean-dirs    := $(wildcard                                               \
-		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(clean-dirs)))    \
-		   $(filter $(objtree)/%, $(clean-dirs)))
-
 # ==========================================================================
 
-quiet_cmd_clean    = CLEAN   $(obj)
-      cmd_clean    = rm -f $(__clean-files)
-quiet_cmd_cleandir = CLEAN   $(__clean-dirs)
-      cmd_cleandir = rm -rf $(__clean-dirs)
-
+quiet_cmd_clean = CLEAN   $(obj)
+      cmd_clean = rm -rf $(__clean-files)
 
 __clean: $(subdir-ymn)
 ifneq ($(strip $(__clean-files)),)
 	+$(call cmd,clean)
-endif
-ifneq ($(strip $(__clean-dirs)),)
-	+$(call cmd,cleandir)
 endif
 	@:
 

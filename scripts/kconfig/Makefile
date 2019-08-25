@@ -114,7 +114,7 @@ testconfig: $(obj)/conf
 	$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
 	-o cache_dir=$(abspath $(obj)/tests/.cache) \
 	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=no)
-clean-dirs += tests/.cache
+clean-files += tests/.cache
 
 # Help text used by make help
 help:
