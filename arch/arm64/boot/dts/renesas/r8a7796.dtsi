@@ -2765,7 +2765,7 @@
 			clock-names = "du.0", "du.1", "du.2";
 			status = "disabled";
 
-			vsps = <&vspd0 &vspd1 &vspd2>;
+			vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>;
 
 			ports {
 				#address-cells = <1>;
