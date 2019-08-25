@@ -1131,11 +1131,11 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	}
 
 	ret = dsa_port_vid_add(dp, vid, 0);
-	if (ret && ret != -EOPNOTSUPP)
+	if (ret)
 		return ret;
 
 	ret = dsa_port_vid_add(dp->cpu_dp, vid, 0);
-	if (ret && ret != -EOPNOTSUPP)
+	if (ret)
 		return ret;
 
 	return 0;
@@ -1164,14 +1164,10 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 			return -EBUSY;
 	}
 
-	ret = dsa_port_vid_del(dp, vid);
-	if (ret == -EOPNOTSUPP)
-		ret = 0;
-
 	/* Do not deprogram the CPU port as it may be shared with other user
 	 * ports which can be members of this VLAN as well.
 	 */
-	return ret;
+	return dsa_port_vid_del(dp, vid);
 }
 
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
@@ -1418,8 +1414,9 @@ int dsa_slave_create(struct dsa_port *port)
 	if (slave_dev == NULL)
 		return -ENOMEM;
 
-	slave_dev->features = master->vlan_features | NETIF_F_HW_TC |
-				NETIF_F_HW_VLAN_CTAG_FILTER;
+	slave_dev->features = master->vlan_features | NETIF_F_HW_TC;
+	if (ds->ops->port_vlan_add && ds->ops->port_vlan_del)
+		slave_dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	slave_dev->hw_features |= NETIF_F_HW_TC;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	if (!IS_ERR_OR_NULL(port->mac))
