@@ -569,6 +569,9 @@ int jbd2_journal_start_reserved(handle_t *handle, unsigned int type,
 	}
 	handle->h_type = type;
 	handle->h_line_no = line_no;
+	trace_jbd2_handle_start(journal->j_fs_dev->bd_dev,
+				handle->h_transaction->t_tid, type,
+				line_no, handle->h_buffer_credits);
 	return 0;
 }
 EXPORT_SYMBOL(jbd2_journal_start_reserved);
