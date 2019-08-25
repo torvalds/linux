@@ -5,6 +5,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include <linux/limits.h>
+#include <linux/bpf.h>
 
 struct mmap_event {
 	struct perf_event_header header;
@@ -91,6 +92,16 @@ struct ksymbol_event {
 	__u16			 ksym_type;
 	__u16			 flags;
 	char			 name[KSYM_NAME_LEN];
+};
+
+struct bpf_event {
+	struct perf_event_header header;
+	__u16			 type;
+	__u16			 flags;
+	__u32			 id;
+
+	/* for bpf_prog types */
+	__u8			 tag[BPF_TAG_SIZE];  // prog tag
 };
 
 #endif /* __LIBPERF_EVENT_H */
