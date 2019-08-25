@@ -13,6 +13,7 @@
 
 #include <linux/bitops.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <crypto/sha256.h>
 #include <asm/unaligned.h>
@@ -314,3 +315,5 @@ int sha224_final(struct sha256_state *sctx, u8 *out)
 	return __sha256_final(sctx, out, 7);
 }
 EXPORT_SYMBOL(sha224_final);
+
+MODULE_LICENSE("GPL");
