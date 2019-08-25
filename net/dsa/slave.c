@@ -323,6 +323,9 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
 
+	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
+		return 0;
+
 	vlan = *SWITCHDEV_OBJ_PORT_VLAN(obj);
 
 	err = dsa_port_vlan_add(dp, &vlan, trans);
@@ -376,6 +379,9 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
+
+	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
+		return 0;
 
 	return dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
 }
@@ -1099,6 +1105,9 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	 * need to emulate the switchdev prepare + commit phase.
 	 */
 	if (dp->bridge_dev) {
+		if (!br_vlan_enabled(dp->bridge_dev))
+			return 0;
+
 		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
 		 * device, respectively the VID is not found, returning
 		 * 0 means success, which is a failure for us here.
@@ -1126,6 +1135,9 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	 * need to emulate the switchdev prepare + commit phase.
 	 */
 	if (dp->bridge_dev) {
+		if (!br_vlan_enabled(dp->bridge_dev))
+			return 0;
+
 		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
 		 * device, respectively the VID is not found, returning
 		 * 0 means success, which is a failure for us here.
