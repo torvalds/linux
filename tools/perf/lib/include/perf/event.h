@@ -73,4 +73,11 @@ struct read_event {
 	__u64			 id;
 };
 
+struct throttle_event {
+	struct perf_event_header header;
+	__u64			 time;
+	__u64			 id;
+	__u64			 stream_id;
+};
+
 #endif /* __LIBPERF_EVENT_H */

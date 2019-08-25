@@ -27,13 +27,6 @@
 #define PRI_lx64 PRIx64
 #endif
 
-struct throttle_event {
-	struct perf_event_header header;
-	u64 time;
-	u64 id;
-	u64 stream_id;
-};
-
 #ifndef KSYM_NAME_LEN
 #define KSYM_NAME_LEN 256
 #endif
