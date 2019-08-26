@@ -2124,7 +2124,11 @@ void dcn20_hw_sequencer_construct(struct dc *dc)
 	dc->hwss.enable_power_gating_plane = dcn20_enable_power_gating_plane;
 	dc->hwss.dpp_pg_control = dcn20_dpp_pg_control;
 	dc->hwss.hubp_pg_control = dcn20_hubp_pg_control;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	dc->hwss.dsc_pg_control = dcn20_dsc_pg_control;
+#else
+	dc->hwss.dsc_pg_control = NULL;
+#endif
 	dc->hwss.disable_vga = dcn20_disable_vga;
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
