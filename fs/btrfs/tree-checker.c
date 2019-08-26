@@ -141,6 +141,20 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	}
 
+	/*
+	 * Previous key must have the same key->objectid (ino).
+	 * It can be XATTR_ITEM, INODE_ITEM or just another EXTENT_DATA.
+	 * But if objectids mismatch, it means we have a missing
+	 * INODE_ITEM.
+	 */
+	if (slot > 0 && is_fstree(btrfs_header_owner(leaf)) &&
+	    prev_key->objectid != key->objectid) {
+		file_extent_err(leaf, slot,
+		"invalid previous key objectid, have %llu expect %llu",
+				prev_key->objectid, key->objectid);
+		return -EUCLEAN;
+	}
+
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 
 	if (btrfs_file_extent_type(leaf, fi) > BTRFS_FILE_EXTENT_TYPES) {
@@ -299,13 +313,22 @@ static void dir_item_err(const struct extent_buffer *eb, int slot,
 }
 
 static int check_dir_item(struct extent_buffer *leaf,
-			  struct btrfs_key *key, int slot)
+			  struct btrfs_key *key, struct btrfs_key *prev_key,
+			  int slot)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_dir_item *di;
 	u32 item_size = btrfs_item_size_nr(leaf, slot);
 	u32 cur = 0;
 
+	/* Same check as in check_extent_data_item() */
+	if (slot > 0 && is_fstree(btrfs_header_owner(leaf)) &&
+	    prev_key->objectid != key->objectid) {
+		dir_item_err(leaf, slot,
+		"invalid previous key objectid, have %llu expect %llu",
+			     prev_key->objectid, key->objectid);
+		return -EUCLEAN;
+	}
 	di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 	while (cur < item_size) {
 		u32 name_len;
@@ -1244,7 +1267,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 	case BTRFS_DIR_ITEM_KEY:
 	case BTRFS_DIR_INDEX_KEY:
 	case BTRFS_XATTR_ITEM_KEY:
-		ret = check_dir_item(leaf, key, slot);
+		ret = check_dir_item(leaf, key, prev_key, slot);
 		break;
 	case BTRFS_BLOCK_GROUP_ITEM_KEY:
 		ret = check_block_group_item(leaf, key, slot);
