@@ -1016,6 +1016,13 @@ static struct console sprd_console = {
 	.data = &sprd_uart_driver,
 };
 
+static int __init sprd_serial_console_init(void)
+{
+	register_console(&sprd_console);
+	return 0;
+}
+console_initcall(sprd_serial_console_init);
+
 #define SPRD_CONSOLE	(&sprd_console)
 
 /* Support for earlycon */
