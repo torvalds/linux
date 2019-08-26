@@ -104,7 +104,6 @@ struct panfrost_device {
 struct panfrost_mmu {
 	struct io_pgtable_cfg pgtbl_cfg;
 	struct io_pgtable_ops *pgtbl_ops;
-	struct mutex lock;
 	int as;
 	atomic_t as_count;
 	struct list_head list;

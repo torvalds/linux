@@ -228,8 +228,6 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 	struct io_pgtable_ops *ops = mmu->pgtbl_ops;
 	u64 start_iova = iova;
 
-	mutex_lock(&mmu->lock);
-
 	for_each_sg(sgt->sgl, sgl, sgt->nents, count) {
 		unsigned long paddr = sg_dma_address(sgl);
 		size_t len = sg_dma_len(sgl);
@@ -248,8 +246,6 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 
 	mmu_hw_do_operation(pfdev, mmu, start_iova, iova - start_iova,
 			    AS_COMMAND_FLUSH_PT);
-
-	mutex_unlock(&mmu->lock);
 
 	return 0;
 }
@@ -304,8 +300,6 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	if (ret < 0)
 		return;
 
-	mutex_lock(&bo->mmu->lock);
-
 	while (unmapped_len < len) {
 		size_t unmapped_page;
 		size_t pgsize = get_pgsize(iova, len - unmapped_len);
@@ -320,8 +314,6 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 
 	mmu_hw_do_operation(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT,
 			    bo->node.size << PAGE_SHIFT, AS_COMMAND_FLUSH_PT);
-
-	mutex_unlock(&bo->mmu->lock);
 
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
@@ -356,7 +348,6 @@ int panfrost_mmu_pgtable_alloc(struct panfrost_file_priv *priv)
 	struct panfrost_mmu *mmu = &priv->mmu;
 	struct panfrost_device *pfdev = priv->pfdev;
 
-	mutex_init(&mmu->lock);
 	INIT_LIST_HEAD(&mmu->list);
 	mmu->as = -1;
 
