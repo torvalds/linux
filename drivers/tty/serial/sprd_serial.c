@@ -983,7 +983,7 @@ static void sprd_console_write(struct console *co, const char *s,
 
 static int __init sprd_console_setup(struct console *co, char *options)
 {
-	struct uart_port *port;
+	struct sprd_uart_port *sprd_uart_port;
 	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
@@ -992,15 +992,17 @@ static int __init sprd_console_setup(struct console *co, char *options)
 	if (co->index >= UART_NR_MAX || co->index < 0)
 		co->index = 0;
 
-	port = &sprd_port[co->index]->port;
-	if (port == NULL) {
+	sprd_uart_port = sprd_port[co->index];
+	if (!sprd_uart_port || !sprd_uart_port->port.membase) {
 		pr_info("serial port %d not yet initialized\n", co->index);
 		return -ENODEV;
 	}
+
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	return uart_set_options(port, co, baud, parity, bits, flow);
+	return uart_set_options(&sprd_uart_port->port, co, baud,
+				parity, bits, flow);
 }
 
 static struct uart_driver sprd_uart_driver;
