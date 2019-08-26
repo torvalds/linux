@@ -815,6 +815,8 @@ static void __exit nfp_main_exit(void)
 module_init(nfp_main_init);
 module_exit(nfp_main_exit);
 
+MODULE_FIRMWARE("netronome/nic_AMDA0058-0011_2x40.nffw");
+MODULE_FIRMWARE("netronome/nic_AMDA0058-0012_2x40.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0081-0001_1x40.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0081-0001_4x10.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0096-0001_2x10.nffw");
