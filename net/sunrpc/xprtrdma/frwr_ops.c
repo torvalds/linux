@@ -88,15 +88,8 @@ void frwr_release_mr(struct rpcrdma_mr *mr)
 	kfree(mr);
 }
 
-/* MRs are dynamically allocated, so simply clean up and release the MR.
- * A replacement MR will subsequently be allocated on demand.
- */
-static void
-frwr_mr_recycle_worker(struct work_struct *work)
+static void frwr_mr_recycle(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 {
-	struct rpcrdma_mr *mr = container_of(work, struct rpcrdma_mr, mr_recycle);
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-
 	trace_xprtrdma_mr_recycle(mr);
 
 	if (mr->mr_dir != DMA_NONE) {
@@ -112,6 +105,32 @@ frwr_mr_recycle_worker(struct work_struct *work)
 	spin_unlock(&r_xprt->rx_buf.rb_lock);
 
 	frwr_release_mr(mr);
+}
+
+/* MRs are dynamically allocated, so simply clean up and release the MR.
+ * A replacement MR will subsequently be allocated on demand.
+ */
+static void
+frwr_mr_recycle_worker(struct work_struct *work)
+{
+	struct rpcrdma_mr *mr = container_of(work, struct rpcrdma_mr,
+					     mr_recycle);
+
+	frwr_mr_recycle(mr->mr_xprt, mr);
+}
+
+/* frwr_recycle - Discard MRs
+ * @req: request to reset
+ *
+ * Used after a reconnect. These MRs could be in flight, we can't
+ * tell. Safe thing to do is release them.
+ */
+void frwr_recycle(struct rpcrdma_req *req)
+{
+	struct rpcrdma_mr *mr;
+
+	while ((mr = rpcrdma_mr_pop(&req->rl_registered)))
+		frwr_mr_recycle(mr->mr_xprt, mr);
 }
 
 /* frwr_reset - Place MRs back on the free list
