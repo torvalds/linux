@@ -808,7 +808,9 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         swp_csum[0x1];
 	u8         swp_lso[0x1];
 	u8         cqe_checksum_full[0x1];
-	u8         reserved_at_24[0xc];
+	u8         reserved_at_24[0x5];
+	u8         tunnel_stateless_ip_over_ip[0x1];
+	u8         reserved_at_2a[0x6];
 	u8         max_vxlan_udp_ports[0x8];
 	u8         reserved_at_38[0x6];
 	u8         max_geneve_opt_len[0x1];
@@ -1116,7 +1118,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         cache_line_128byte[0x1];
 	u8         reserved_at_165[0x4];
 	u8         rts2rts_qp_counters_set_id[0x1];
-	u8         reserved_at_16a[0x5];
+	u8         reserved_at_16a[0x2];
+	u8         vnic_env_int_rq_oob[0x1];
+	u8         reserved_at_16d[0x2];
 	u8         qcam_reg[0x1];
 	u8         gid_table_size[0x10];
 
@@ -1245,7 +1249,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_263[0x8];
 	u8         log_bf_reg_size[0x5];
 
-	u8         reserved_at_270[0xb];
+	u8         reserved_at_270[0x8];
+	u8         lag_tx_port_affinity[0x1];
+	u8         reserved_at_279[0x2];
 	u8         lag_master[0x1];
 	u8         num_lag_ports[0x4];
 
@@ -2772,7 +2778,11 @@ struct mlx5_ifc_vnic_diagnostic_statistics_bits {
 
 	u8         transmit_discard_vport_down[0x40];
 
-	u8         reserved_at_140[0xec0];
+	u8         reserved_at_140[0xa0];
+
+	u8         internal_rq_out_of_buffer[0x20];
+
+	u8         reserved_at_200[0xe00];
 };
 
 struct mlx5_ifc_traffic_counter_bits {
