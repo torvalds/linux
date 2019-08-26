@@ -194,7 +194,7 @@ struct perf_missing_features {
 	bool write_backward;
 	bool group_read;
 	bool ksymbol;
-	bool bpf_event;
+	bool bpf;
 	bool aux_output;
 };
 
