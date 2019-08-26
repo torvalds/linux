@@ -94,7 +94,7 @@ static int of_workarounds __prombss;
 #define PROM_BUG() do {						\
         prom_printf("kernel BUG at %s line 0x%x!\n",		\
 		    __FILE__, __LINE__);			\
-        __asm__ __volatile__(".long " BUG_ILLEGAL_INSTR);	\
+	__builtin_trap();					\
 } while (0)
 
 #ifdef DEBUG_PROM
