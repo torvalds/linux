@@ -14,7 +14,7 @@
 #include "dw-edma-core.h"
 
 #define REGS_ADDR(name) \
-	((dma_addr_t *)&regs->name)
+	((void __force *)&regs->name)
 #define REGISTER(name) \
 	{ #name, REGS_ADDR(name) }
 
@@ -40,36 +40,37 @@
 
 static struct dentry				*base_dir;
 static struct dw_edma				*dw;
-static struct dw_edma_v0_regs			*regs;
+static struct dw_edma_v0_regs			__iomem *regs;
 
 static struct {
-	void					*start;
-	void					*end;
+	void					__iomem *start;
+	void					__iomem *end;
 } lim[2][EDMA_V0_MAX_NR_CH];
 
 struct debugfs_entries {
-	char					name[24];
+	const char				*name;
 	dma_addr_t				*reg;
 };
 
 static int dw_edma_debugfs_u32_get(void *data, u64 *val)
 {
+	void __iomem *reg = (void __force __iomem *)data;
 	if (dw->mode == EDMA_MODE_LEGACY &&
-	    data >= (void *)&regs->type.legacy.ch) {
-		void *ptr = (void *)&regs->type.legacy.ch;
+	    reg >= (void __iomem *)&regs->type.legacy.ch) {
+		void __iomem *ptr = &regs->type.legacy.ch;
 		u32 viewport_sel = 0;
 		unsigned long flags;
 		u16 ch;
 
 		for (ch = 0; ch < dw->wr_ch_cnt; ch++)
-			if (lim[0][ch].start >= data && data < lim[0][ch].end) {
-				ptr += (data - lim[0][ch].start);
+			if (lim[0][ch].start >= reg && reg < lim[0][ch].end) {
+				ptr += (reg - lim[0][ch].start);
 				goto legacy_sel_wr;
 			}
 
 		for (ch = 0; ch < dw->rd_ch_cnt; ch++)
-			if (lim[1][ch].start >= data && data < lim[1][ch].end) {
-				ptr += (data - lim[1][ch].start);
+			if (lim[1][ch].start >= reg && reg < lim[1][ch].end) {
+				ptr += (reg - lim[1][ch].start);
 				goto legacy_sel_rd;
 			}
 
@@ -86,7 +87,7 @@ legacy_sel_wr:
 
 		raw_spin_unlock_irqrestore(&dw->lock, flags);
 	} else {
-		*val = readl(data);
+		*val = readl(reg);
 	}
 
 	return 0;
@@ -105,7 +106,7 @@ static void dw_edma_debugfs_create_x32(const struct debugfs_entries entries[],
 	}
 }
 
-static void dw_edma_debugfs_regs_ch(struct dw_edma_v0_ch_regs *regs,
+static void dw_edma_debugfs_regs_ch(struct dw_edma_v0_ch_regs __iomem *regs,
 				    struct dentry *dir)
 {
 	int nr_entries;
@@ -288,7 +289,7 @@ void dw_edma_v0_debugfs_on(struct dw_edma_chip *chip)
 	if (!dw)
 		return;
 
-	regs = (struct dw_edma_v0_regs *)dw->rg_region.vaddr;
+	regs = dw->rg_region.vaddr;
 	if (!regs)
 		return;
 

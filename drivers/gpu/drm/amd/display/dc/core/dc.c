@@ -23,6 +23,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/mm.h>
 
 #include "dm_services.h"
 
@@ -502,8 +503,10 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 
 static void destruct(struct dc *dc)
 {
-	dc_release_state(dc->current_state);
-	dc->current_state = NULL;
+	if (dc->current_state) {
+		dc_release_state(dc->current_state);
+		dc->current_state = NULL;
+	}
 
 	destroy_links(dc);
 
@@ -1169,8 +1172,8 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 struct dc_state *dc_create_state(struct dc *dc)
 {
-	struct dc_state *context = kzalloc(sizeof(struct dc_state),
-					   GFP_KERNEL);
+	struct dc_state *context = kvzalloc(sizeof(struct dc_state),
+					    GFP_KERNEL);
 
 	if (!context)
 		return NULL;
@@ -1190,11 +1193,11 @@ struct dc_state *dc_create_state(struct dc *dc)
 struct dc_state *dc_copy_state(struct dc_state *src_ctx)
 {
 	int i, j;
-	struct dc_state *new_ctx = kmemdup(src_ctx,
-			sizeof(struct dc_state), GFP_KERNEL);
+	struct dc_state *new_ctx = kvmalloc(sizeof(struct dc_state), GFP_KERNEL);
 
 	if (!new_ctx)
 		return NULL;
+	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
 
 	for (i = 0; i < MAX_PIPES; i++) {
 			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];
@@ -1228,7 +1231,7 @@ static void dc_state_free(struct kref *kref)
 {
 	struct dc_state *context = container_of(kref, struct dc_state, refcount);
 	dc_resource_state_destruct(context);
-	kfree(context);
+	kvfree(context);
 }
 
 void dc_release_state(struct dc_state *context)

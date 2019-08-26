@@ -473,6 +473,9 @@ static int qca_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p qca_open", hu);
 
+	if (!hci_uart_has_flow_control(hu))
+		return -EOPNOTSUPP;
+
 	qca = kzalloc(sizeof(struct qca_data), GFP_KERNEL);
 	if (!qca)
 		return -ENOMEM;
@@ -702,7 +705,7 @@ static void device_want_to_sleep(struct hci_uart *hu)
 	unsigned long flags;
 	struct qca_data *qca = hu->priv;
 
-	BT_DBG("hu %p want to sleep", hu);
+	BT_DBG("hu %p want to sleep in %d state", hu, qca->rx_ibs_state);
 
 	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
 
@@ -717,7 +720,7 @@ static void device_want_to_sleep(struct hci_uart *hu)
 		break;
 
 	case HCI_IBS_RX_ASLEEP:
-		/* Fall through */
+		break;
 
 	default:
 		/* Any other state is illegal */
@@ -909,7 +912,7 @@ static int qca_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 		if (hdr->evt == HCI_EV_VENDOR)
 			complete(&qca->drop_ev_comp);
 
-		kfree(skb);
+		kfree_skb(skb);
 
 		return 0;
 	}
@@ -1382,6 +1385,9 @@ static void qca_power_shutdown(struct hci_uart *hu)
 static int qca_power_off(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
+
+	/* Perform pre shutdown command */
+	qca_send_pre_shutdown_cmd(hdev);
 
 	qca_power_shutdown(hu);
 	return 0;

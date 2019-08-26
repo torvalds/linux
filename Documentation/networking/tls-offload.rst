@@ -424,13 +424,24 @@ Statistics
 Following minimum set of TLS-related statistics should be reported
 by the driver:
 
- * ``rx_tls_decrypted`` - number of successfully decrypted TLS segments
- * ``tx_tls_encrypted`` - number of in-order TLS segments passed to device
-   for encryption
+ * ``rx_tls_decrypted_packets`` - number of successfully decrypted RX packets
+   which were part of a TLS stream.
+ * ``rx_tls_decrypted_bytes`` - number of TLS payload bytes in RX packets
+   which were successfully decrypted.
+ * ``tx_tls_encrypted_packets`` - number of TX packets passed to the device
+   for encryption of their TLS payload.
+ * ``tx_tls_encrypted_bytes`` - number of TLS payload bytes in TX packets
+   passed to the device for encryption.
+ * ``tx_tls_ctx`` - number of TLS TX HW offload contexts added to device for
+   encryption.
  * ``tx_tls_ooo`` - number of TX packets which were part of a TLS stream
-   but did not arrive in the expected order
- * ``tx_tls_drop_no_sync_data`` - number of TX packets dropped because
-   they arrived out of order and associated record could not be found
+   but did not arrive in the expected order.
+ * ``tx_tls_drop_no_sync_data`` - number of TX packets which were part of
+   a TLS stream dropped, because they arrived out of order and associated
+   record could not be found.
+ * ``tx_tls_drop_bypass_req`` - number of TX packets which were part of a TLS
+   stream dropped, because they contain both data that has been encrypted by
+   software and data that expects hardware crypto offload.
 
 Notable corner cases, exceptions and additional requirements
 ============================================================
@@ -495,21 +506,3 @@ Drivers should ignore the changes to TLS the device feature flags.
 These flags will be acted upon accordingly by the core ``ktls`` code.
 TLS device feature flags only control adding of new TLS connection
 offloads, old connections will remain active after flags are cleared.
-
-Known bugs
-==========
-
-skb_orphan() leaks clear text
------------------------------
-
-Currently drivers depend on the :c:member:`sk` member of
-:c:type:`struct sk_buff <sk_buff>` to identify segments requiring
-encryption. Any operation which removes or does not preserve the socket
-association such as :c:func:`skb_orphan` or :c:func:`skb_clone`
-will cause the driver to miss the packets and lead to clear text leaks.
-
-Redirects leak clear text
--------------------------
-
-In the RX direction, if segment has already been decrypted by the device
-and it gets redirected or mirrored - clear text will be transmitted out.

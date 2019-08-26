@@ -398,10 +398,14 @@ more_data:
 static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct sk_msg tmp, *msg_tx = NULL;
-	int flags = msg->msg_flags | MSG_NO_SHARED_FRAGS;
 	int copied = 0, err = 0;
 	struct sk_psock *psock;
 	long timeo;
+	int flags;
+
+	/* Don't let internal do_tcp_sendpages() flags through */
+	flags = (msg->msg_flags & ~MSG_SENDPAGE_DECRYPTED);
+	flags |= MSG_NO_SHARED_FRAGS;
 
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock))

@@ -2647,7 +2647,9 @@ struct ib_client {
 			const union ib_gid *gid,
 			const struct sockaddr *addr,
 			void *client_data);
-	struct list_head list;
+
+	refcount_t uses;
+	struct completion uses_zero;
 	u32 client_id;
 
 	/* kverbs are not required by the client */

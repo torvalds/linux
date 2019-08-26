@@ -522,8 +522,8 @@ static int nd_pmem_remove(struct device *dev)
 		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	else {
 		/*
-		 * Note, this assumes device_lock() context to not race
-		 * nd_pmem_notify()
+		 * Note, this assumes nd_device_lock() context to not
+		 * race nd_pmem_notify()
 		 */
 		sysfs_put(pmem->bb_state);
 		pmem->bb_state = NULL;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) or BSD-3-Clause */
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
@@ -180,6 +180,7 @@ struct siw_cqe {
  * to control CQ arming.
  */
 struct siw_cq_ctrl {
-	__aligned_u64 notify;
+	__u32 flags;
+	__u32 pad;
 };
 #endif
