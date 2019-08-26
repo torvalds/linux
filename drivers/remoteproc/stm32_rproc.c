@@ -517,6 +517,9 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev)
 	int err, irq;
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	if (irq > 0) {
 		err = devm_request_irq(dev, irq, stm32_rproc_wdg, 0,
 				       dev_name(dev), rproc);
