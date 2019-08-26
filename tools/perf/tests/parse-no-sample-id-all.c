@@ -87,10 +87,10 @@ int test__parse_no_sample_id_all(struct test *test __maybe_unused, int subtest _
 		},
 		.id = 2,
 	};
-	struct mmap_event event3 = {
+	struct perf_record_mmap event3 = {
 		.header = {
 			.type = PERF_RECORD_MMAP,
-			.size = sizeof(struct mmap_event),
+			.size = sizeof(struct perf_record_mmap),
 		},
 	};
 	union perf_event *events[] = {

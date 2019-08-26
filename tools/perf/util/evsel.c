@@ -117,7 +117,7 @@ int __perf_evsel__sample_size(u64 sample_type)
  *
  * This function returns the position of the event id (PERF_SAMPLE_ID or
  * PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of struct
- * sample_event.
+ * perf_record_sample.
  */
 static int __perf_evsel__calc_id_pos(u64 sample_type)
 {
@@ -2420,7 +2420,7 @@ int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
 size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 				     u64 read_format)
 {
-	size_t sz, result = sizeof(struct sample_event);
+	size_t sz, result = sizeof(struct perf_record_sample);
 
 	if (type & PERF_SAMPLE_IDENTIFIER)
 		result += sizeof(u64);

@@ -7,7 +7,7 @@
 #include <linux/limits.h>
 #include <linux/bpf.h>
 
-struct mmap_event {
+struct perf_record_mmap {
 	struct perf_event_header header;
 	__u32			 pid, tid;
 	__u64			 start;
@@ -16,7 +16,7 @@ struct mmap_event {
 	char			 filename[PATH_MAX];
 };
 
-struct mmap2_event {
+struct perf_record_mmap2 {
 	struct perf_event_header header;
 	__u32			 pid, tid;
 	__u64			 start;
@@ -31,33 +31,33 @@ struct mmap2_event {
 	char			 filename[PATH_MAX];
 };
 
-struct comm_event {
+struct perf_record_comm {
 	struct perf_event_header header;
 	__u32			 pid, tid;
 	char			 comm[16];
 };
 
-struct namespaces_event {
+struct perf_record_namespaces {
 	struct perf_event_header header;
 	__u32			 pid, tid;
 	__u64			 nr_namespaces;
 	struct perf_ns_link_info link_info[];
 };
 
-struct fork_event {
+struct perf_record_fork {
 	struct perf_event_header header;
 	__u32			 pid, ppid;
 	__u32			 tid, ptid;
 	__u64			 time;
 };
 
-struct lost_event {
+struct perf_record_lost {
 	struct perf_event_header header;
 	__u64			 id;
 	__u64			 lost;
 };
 
-struct lost_samples_event {
+struct perf_record_lost_samples {
 	struct perf_event_header header;
 	__u64			 lost;
 };
@@ -65,7 +65,7 @@ struct lost_samples_event {
 /*
  * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
  */
-struct read_event {
+struct perf_record_read {
 	struct perf_event_header header;
 	__u32			 pid, tid;
 	__u64			 value;
@@ -74,7 +74,7 @@ struct read_event {
 	__u64			 id;
 };
 
-struct throttle_event {
+struct perf_record_throttle {
 	struct perf_event_header header;
 	__u64			 time;
 	__u64			 id;
@@ -85,7 +85,7 @@ struct throttle_event {
 #define KSYM_NAME_LEN 256
 #endif
 
-struct ksymbol_event {
+struct perf_record_ksymbol {
 	struct perf_event_header header;
 	__u64			 addr;
 	__u32			 len;
@@ -94,7 +94,7 @@ struct ksymbol_event {
 	char			 name[KSYM_NAME_LEN];
 };
 
-struct bpf_event {
+struct perf_record_bpf_event {
 	struct perf_event_header header;
 	__u16			 type;
 	__u16			 flags;
@@ -104,7 +104,7 @@ struct bpf_event {
 	__u8			 tag[BPF_TAG_SIZE];  // prog tag
 };
 
-struct sample_event {
+struct perf_record_sample {
 	struct perf_event_header header;
 	__u64			 array[];
 };

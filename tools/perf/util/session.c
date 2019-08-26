@@ -1254,7 +1254,7 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 
 static void dump_read(struct evsel *evsel, union perf_event *event)
 {
-	struct read_event *read_event = &event->read;
+	struct perf_record_read *read_event = &event->read;
 	u64 read_format;
 
 	if (!dump_trace)

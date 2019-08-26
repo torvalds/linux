@@ -161,8 +161,8 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 					       union perf_event *event,
 					       struct record_opts *opts)
 {
-	struct ksymbol_event *ksymbol_event = &event->ksymbol_event;
-	struct bpf_event *bpf_event = &event->bpf_event;
+	struct perf_record_ksymbol *ksymbol_event = &event->ksymbol_event;
+	struct perf_record_bpf_event *bpf_event = &event->bpf_event;
 	struct bpf_prog_info_linear *info_linear;
 	struct perf_tool *tool = session->tool;
 	struct bpf_prog_info_node *info_node;
@@ -230,10 +230,10 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 		__u64 *prog_addrs = (__u64 *)(uintptr_t)(info->jited_ksyms);
 		int name_len;
 
-		*ksymbol_event = (struct ksymbol_event){
+		*ksymbol_event = (struct perf_record_ksymbol) {
 			.header = {
 				.type = PERF_RECORD_KSYMBOL,
-				.size = offsetof(struct ksymbol_event, name),
+				.size = offsetof(struct perf_record_ksymbol, name),
 			},
 			.addr = prog_addrs[i],
 			.len = prog_lens[i],
@@ -254,10 +254,10 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 
 	if (!opts->no_bpf_event) {
 		/* Synthesize PERF_RECORD_BPF_EVENT */
-		*bpf_event = (struct bpf_event){
+		*bpf_event = (struct perf_record_bpf_event) {
 			.header = {
 				.type = PERF_RECORD_BPF_EVENT,
-				.size = sizeof(struct bpf_event),
+				.size = sizeof(struct perf_record_bpf_event),
 			},
 			.type = PERF_BPF_EVENT_PROG_LOAD,
 			.flags = 0,

@@ -19,7 +19,7 @@
 #include <asm/bug.h>
 #include <linux/zalloc.h>
 
-struct namespaces *namespaces__new(struct namespaces_event *event)
+struct namespaces *namespaces__new(struct perf_record_namespaces *event)
 {
 	struct namespaces *namespaces;
 	u64 link_info_size = ((event ? event->nr_namespaces : NR_NAMESPACES) *

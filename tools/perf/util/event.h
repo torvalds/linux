@@ -305,18 +305,18 @@ static inline void *perf_synth__raw_data(void *p)
  * when possible sends this number in a PERF_RECORD_LOST event. The number of
  * such "chunks" of lost events is stored in .nr_events[PERF_EVENT_LOST] while
  * total_lost tells exactly how many events the kernel in fact lost, i.e. it is
- * the sum of all struct lost_event.lost fields reported.
+ * the sum of all struct perf_record_lost.lost fields reported.
  *
  * The kernel discards mixed up samples and sends the number in a
  * PERF_RECORD_LOST_SAMPLES event. The number of lost-samples events is stored
  * in .nr_events[PERF_RECORD_LOST_SAMPLES] while total_lost_samples tells
  * exactly how many samples the kernel in fact dropped, i.e. it is the sum of
- * all struct lost_samples_event.lost fields reported.
+ * all struct perf_record_lost_samples.lost fields reported.
  *
  * The total_period is needed because by default auto-freq is used, so
  * multipling nr_events[PERF_EVENT_SAMPLE] by a frequency isn't possible to get
  * the total number of low level events, it is necessary to to sum all struct
- * sample_event.period and stash the result in total_period.
+ * perf_record_sample.period and stash the result in total_period.
  */
 struct events_stats {
 	u64 total_period;
@@ -550,16 +550,18 @@ struct compressed_event {
 
 union perf_event {
 	struct perf_event_header	header;
-	struct mmap_event		mmap;
-	struct mmap2_event		mmap2;
-	struct comm_event		comm;
-	struct namespaces_event		namespaces;
-	struct fork_event		fork;
-	struct lost_event		lost;
-	struct lost_samples_event	lost_samples;
-	struct read_event		read;
-	struct throttle_event		throttle;
-	struct sample_event		sample;
+	struct perf_record_mmap		mmap;
+	struct perf_record_mmap2	mmap2;
+	struct perf_record_comm		comm;
+	struct perf_record_namespaces	namespaces;
+	struct perf_record_fork		fork;
+	struct perf_record_lost		lost;
+	struct perf_record_lost_samples	lost_samples;
+	struct perf_record_read		read;
+	struct perf_record_throttle	throttle;
+	struct perf_record_sample	sample;
+	struct perf_record_bpf_event	bpf_event;
+	struct perf_record_ksymbol	ksymbol_event;
 	struct attr_event		attr;
 	struct event_update_event	event_update;
 	struct event_type_event		event_type;
@@ -579,8 +581,6 @@ union perf_event {
 	struct stat_round_event		stat_round;
 	struct time_conv_event		time_conv;
 	struct feature_event		feat;
-	struct ksymbol_event		ksymbol_event;
-	struct bpf_event		bpf_event;
 	struct compressed_event		pack;
 };
 

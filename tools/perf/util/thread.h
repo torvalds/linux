@@ -16,7 +16,7 @@
 
 struct addr_location;
 struct map;
-struct namespaces_event;
+struct perf_record_namespaces;
 struct thread_stack;
 struct unwind_libunwind_ops;
 
@@ -74,7 +74,7 @@ static inline void thread__exited(struct thread *thread)
 
 struct namespaces *thread__namespaces(struct thread *thread);
 int thread__set_namespaces(struct thread *thread, u64 timestamp,
-			   struct namespaces_event *event);
+			   struct perf_record_namespaces *event);
 
 int __thread__set_comm(struct thread *thread, const char *comm, u64 timestamp,
 		       bool exec);

@@ -116,12 +116,12 @@ static PyMemberDef pyrf_mmap_event__members[] = {
 	sample_members
 	member_def(perf_event_header, type, T_UINT, "event type"),
 	member_def(perf_event_header, misc, T_UINT, "event misc"),
-	member_def(mmap_event, pid, T_UINT, "event pid"),
-	member_def(mmap_event, tid, T_UINT, "event tid"),
-	member_def(mmap_event, start, T_ULONGLONG, "start of the map"),
-	member_def(mmap_event, len, T_ULONGLONG, "map length"),
-	member_def(mmap_event, pgoff, T_ULONGLONG, "page offset"),
-	member_def(mmap_event, filename, T_STRING_INPLACE, "backing store"),
+	member_def(perf_record_mmap, pid, T_UINT, "event pid"),
+	member_def(perf_record_mmap, tid, T_UINT, "event tid"),
+	member_def(perf_record_mmap, start, T_ULONGLONG, "start of the map"),
+	member_def(perf_record_mmap, len, T_ULONGLONG, "map length"),
+	member_def(perf_record_mmap, pgoff, T_ULONGLONG, "page offset"),
+	member_def(perf_record_mmap, filename, T_STRING_INPLACE, "backing store"),
 	{ .name = NULL, },
 };
 
@@ -159,11 +159,11 @@ static char pyrf_task_event__doc[] = PyDoc_STR("perf task (fork/exit) event obje
 static PyMemberDef pyrf_task_event__members[] = {
 	sample_members
 	member_def(perf_event_header, type, T_UINT, "event type"),
-	member_def(fork_event, pid, T_UINT, "event pid"),
-	member_def(fork_event, ppid, T_UINT, "event ppid"),
-	member_def(fork_event, tid, T_UINT, "event tid"),
-	member_def(fork_event, ptid, T_UINT, "event ptid"),
-	member_def(fork_event, time, T_ULONGLONG, "timestamp"),
+	member_def(perf_record_fork, pid, T_UINT, "event pid"),
+	member_def(perf_record_fork, ppid, T_UINT, "event ppid"),
+	member_def(perf_record_fork, tid, T_UINT, "event tid"),
+	member_def(perf_record_fork, ptid, T_UINT, "event ptid"),
+	member_def(perf_record_fork, time, T_ULONGLONG, "timestamp"),
 	{ .name = NULL, },
 };
 
@@ -194,9 +194,9 @@ static char pyrf_comm_event__doc[] = PyDoc_STR("perf comm event object.");
 static PyMemberDef pyrf_comm_event__members[] = {
 	sample_members
 	member_def(perf_event_header, type, T_UINT, "event type"),
-	member_def(comm_event, pid, T_UINT, "event pid"),
-	member_def(comm_event, tid, T_UINT, "event tid"),
-	member_def(comm_event, comm, T_STRING_INPLACE, "process name"),
+	member_def(perf_record_comm, pid, T_UINT, "event pid"),
+	member_def(perf_record_comm, tid, T_UINT, "event tid"),
+	member_def(perf_record_comm, comm, T_STRING_INPLACE, "process name"),
 	{ .name = NULL, },
 };
 
@@ -223,15 +223,15 @@ static char pyrf_throttle_event__doc[] = PyDoc_STR("perf throttle event object."
 static PyMemberDef pyrf_throttle_event__members[] = {
 	sample_members
 	member_def(perf_event_header, type, T_UINT, "event type"),
-	member_def(throttle_event, time, T_ULONGLONG, "timestamp"),
-	member_def(throttle_event, id, T_ULONGLONG, "event id"),
-	member_def(throttle_event, stream_id, T_ULONGLONG, "event stream id"),
+	member_def(perf_record_throttle, time, T_ULONGLONG, "timestamp"),
+	member_def(perf_record_throttle, id, T_ULONGLONG, "event id"),
+	member_def(perf_record_throttle, stream_id, T_ULONGLONG, "event stream id"),
 	{ .name = NULL, },
 };
 
 static PyObject *pyrf_throttle_event__repr(struct pyrf_event *pevent)
 {
-	struct throttle_event *te = (struct throttle_event *)(&pevent->event.header + 1);
+	struct perf_record_throttle *te = (struct perf_record_throttle *)(&pevent->event.header + 1);
 
 	return _PyUnicode_FromFormat("{ type: %sthrottle, time: %" PRI_lu64 ", id: %" PRI_lu64
 				   ", stream_id: %" PRI_lu64 " }",
@@ -253,8 +253,8 @@ static char pyrf_lost_event__doc[] = PyDoc_STR("perf lost event object.");
 
 static PyMemberDef pyrf_lost_event__members[] = {
 	sample_members
-	member_def(lost_event, id, T_ULONGLONG, "event id"),
-	member_def(lost_event, lost, T_ULONGLONG, "number of lost events"),
+	member_def(perf_record_lost, id, T_ULONGLONG, "event id"),
+	member_def(perf_record_lost, lost, T_ULONGLONG, "number of lost events"),
 	{ .name = NULL, },
 };
 
@@ -288,8 +288,8 @@ static char pyrf_read_event__doc[] = PyDoc_STR("perf read event object.");
 
 static PyMemberDef pyrf_read_event__members[] = {
 	sample_members
-	member_def(read_event, pid, T_UINT, "event pid"),
-	member_def(read_event, tid, T_UINT, "event tid"),
+	member_def(perf_record_read, pid, T_UINT, "event pid"),
+	member_def(perf_record_read, tid, T_UINT, "event tid"),
 	{ .name = NULL, },
 };
 

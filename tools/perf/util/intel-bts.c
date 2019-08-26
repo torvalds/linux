@@ -818,7 +818,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 		 * We only use sample types from PERF_SAMPLE_MASK so we can use
 		 * __perf_evsel__sample_size() here.
 		 */
-		bts->branches_event_size = sizeof(struct sample_event) +
+		bts->branches_event_size = sizeof(struct perf_record_sample) +
 				__perf_evsel__sample_size(attr.sample_type);
 	}
 
