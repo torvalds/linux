@@ -343,6 +343,8 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
 static inline void
 mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 {
+	might_sleep();
+
 	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
 	if (mm_has_notifiers(range->mm)) {
 		range->flags |= MMU_NOTIFIER_RANGE_BLOCKABLE;
@@ -368,6 +370,9 @@ mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *range)
 static inline void
 mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
 {
+	if (mmu_notifier_range_blockable(range))
+		might_sleep();
+
 	if (mm_has_notifiers(range->mm))
 		__mmu_notifier_invalidate_range_end(range, false);
 }
