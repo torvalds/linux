@@ -1382,7 +1382,7 @@ struct i40e_aqc_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_FILTER_MASK	(0x3F << \
 					I40E_AQC_ADD_CLOUD_FILTER_SHIFT)
 /* 0x0000 reserved */
-#define I40E_AQC_ADD_CLOUD_FILTER_OIP			0x0001
+/* 0x0001 reserved */
 /* 0x0002 reserved */
 #define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN		0x0003
 #define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN_TEN_ID	0x0004
