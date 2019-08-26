@@ -13,6 +13,7 @@
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 #include <net/flow_offload.h>
@@ -396,6 +397,7 @@ struct tcf_block {
 	refcount_t refcnt;
 	struct net *net;
 	struct Qdisc *q;
+	struct rw_semaphore cb_lock; /* protects cb_list and offload counters */
 	struct flow_block flow_block;
 	struct list_head owner_list;
 	bool keep_dst;

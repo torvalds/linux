@@ -568,9 +568,11 @@ static void tc_indr_block_ing_cmd(struct net_device *dev,
 
 	bo.block = &block->flow_block;
 
+	down_write(&block->cb_lock);
 	cb(dev, cb_priv, TC_SETUP_BLOCK, &bo);
 
 	tcf_block_setup(block, &bo);
+	up_write(&block->cb_lock);
 }
 
 static struct tcf_block *tc_dev_ingress_block(struct net_device *dev)
@@ -661,6 +663,7 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	struct net_device *dev = q->dev_queue->dev;
 	int err;
 
+	down_write(&block->cb_lock);
 	if (!dev->netdev_ops->ndo_setup_tc)
 		goto no_offload_dev_inc;
 
@@ -669,24 +672,31 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	 */
 	if (!tc_can_offload(dev) && tcf_block_offload_in_use(block)) {
 		NL_SET_ERR_MSG(extack, "Bind to offloaded block failed as dev has offload disabled");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto err_unlock;
 	}
 
 	err = tcf_block_offload_cmd(block, dev, ei, FLOW_BLOCK_BIND, extack);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_inc;
 	if (err)
-		return err;
+		goto err_unlock;
 
 	tc_indr_block_call(block, dev, ei, FLOW_BLOCK_BIND, extack);
+	up_write(&block->cb_lock);
 	return 0;
 
 no_offload_dev_inc:
-	if (tcf_block_offload_in_use(block))
-		return -EOPNOTSUPP;
+	if (tcf_block_offload_in_use(block)) {
+		err = -EOPNOTSUPP;
+		goto err_unlock;
+	}
+	err = 0;
 	block->nooffloaddevcnt++;
 	tc_indr_block_call(block, dev, ei, FLOW_BLOCK_BIND, extack);
-	return 0;
+err_unlock:
+	up_write(&block->cb_lock);
+	return err;
 }
 
 static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
@@ -695,6 +705,7 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 	struct net_device *dev = q->dev_queue->dev;
 	int err;
 
+	down_write(&block->cb_lock);
 	tc_indr_block_call(block, dev, ei, FLOW_BLOCK_UNBIND, NULL);
 
 	if (!dev->netdev_ops->ndo_setup_tc)
@@ -702,10 +713,12 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 	err = tcf_block_offload_cmd(block, dev, ei, FLOW_BLOCK_UNBIND, NULL);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_dec;
+	up_write(&block->cb_lock);
 	return;
 
 no_offload_dev_dec:
 	WARN_ON(block->nooffloaddevcnt-- == 0);
+	up_write(&block->cb_lock);
 }
 
 static int
@@ -820,6 +833,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 		return ERR_PTR(-ENOMEM);
 	}
 	mutex_init(&block->lock);
+	init_rwsem(&block->cb_lock);
 	flow_block_init(&block->flow_block);
 	INIT_LIST_HEAD(&block->chain_list);
 	INIT_LIST_HEAD(&block->owner_list);
@@ -1355,6 +1369,8 @@ tcf_block_playback_offloads(struct tcf_block *block, flow_setup_cb_t *cb,
 	struct tcf_proto *tp, *tp_prev;
 	int err;
 
+	lockdep_assert_held(&block->cb_lock);
+
 	for (chain = __tcf_get_next_chain(block, NULL);
 	     chain;
 	     chain_prev = chain,
@@ -1393,6 +1409,8 @@ static int tcf_block_bind(struct tcf_block *block,
 	struct flow_block_cb *block_cb, *next;
 	int err, i = 0;
 
+	lockdep_assert_held(&block->cb_lock);
+
 	list_for_each_entry(block_cb, &bo->cb_list, list) {
 		err = tcf_block_playback_offloads(block, block_cb->cb,
 						  block_cb->cb_priv, true,
@@ -1426,6 +1444,8 @@ static void tcf_block_unbind(struct tcf_block *block,
 			     struct flow_block_offload *bo)
 {
 	struct flow_block_cb *block_cb, *next;
+
+	lockdep_assert_held(&block->cb_lock);
 
 	list_for_each_entry_safe(block_cb, next, &bo->cb_list, list) {
 		tcf_block_playback_offloads(block, block_cb->cb,
@@ -2987,19 +3007,26 @@ int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 	int ok_count = 0;
 	int err;
 
+	down_read(&block->cb_lock);
 	/* Make sure all netdevs sharing this block are offload-capable. */
-	if (block->nooffloaddevcnt && err_stop)
-		return -EOPNOTSUPP;
+	if (block->nooffloaddevcnt && err_stop) {
+		ok_count = -EOPNOTSUPP;
+		goto err_unlock;
+	}
 
 	list_for_each_entry(block_cb, &block->flow_block.cb_list, list) {
 		err = block_cb->cb(type, type_data, block_cb->cb_priv);
 		if (err) {
-			if (err_stop)
-				return err;
+			if (err_stop) {
+				ok_count = err;
+				goto err_unlock;
+			}
 		} else {
 			ok_count++;
 		}
 	}
+err_unlock:
+	up_read(&block->cb_lock);
 	return ok_count;
 }
 EXPORT_SYMBOL(tc_setup_cb_call);
