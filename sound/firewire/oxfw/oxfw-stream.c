@@ -350,13 +350,18 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 
 		// Wait first packet.
 		if (!amdtp_stream_wait_callback(&oxfw->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&oxfw->tx_stream,
 						CALLBACK_TIMEOUT)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}
 
+		if (oxfw->has_output) {
+			if (!amdtp_stream_wait_callback(&oxfw->tx_stream,
+							CALLBACK_TIMEOUT)) {
+				err = -ETIMEDOUT;
+				goto error;
+			}
+		}
 	}
 
 	return 0;
