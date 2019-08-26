@@ -456,17 +456,43 @@
 			};
 		};
 
+		/* d2d mdm */
 		target-module@36000 {			/* 0x4a0b6000, ap 69 60.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x36000 0x4>,
+			      <0x36010 0x4>,
+			      <0x36014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET | SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, d2d_clkdm */
+			clocks = <&d2d_clkctrl OMAP4_C2C_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x36000 0x1000>;
 		};
 
+		/* d2d mpu */
 		target-module@4d000 {			/* 0x4a0cd000, ap 78 58.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4d000 0x4>,
+			      <0x4d010 0x4>,
+			      <0x4d014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET | SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, d2d_clkdm */
+			clocks = <&d2d_clkctrl OMAP4_C2C_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x4d000 0x1000>;
