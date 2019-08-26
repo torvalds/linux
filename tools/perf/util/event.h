@@ -560,7 +560,7 @@ union perf_event {
 	struct perf_record_read		read;
 	struct perf_record_throttle	throttle;
 	struct perf_record_sample	sample;
-	struct perf_record_bpf_event	bpf_event;
+	struct perf_record_bpf_event	bpf;
 	struct perf_record_ksymbol	ksymbol;
 	struct attr_event		attr;
 	struct event_update_event	event_update;

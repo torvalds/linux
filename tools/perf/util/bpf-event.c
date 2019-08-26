@@ -35,7 +35,7 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_info_node *info_node;
 	struct perf_env *env = machine->env;
-	int id = event->bpf_event.id;
+	int id = event->bpf.id;
 	unsigned int i;
 
 	/* perf-record, no need to handle bpf-event */
@@ -71,7 +71,7 @@ int machine__process_bpf_event(struct machine *machine __maybe_unused,
 	if (dump_trace)
 		perf_event__fprintf_bpf_event(event, stdout);
 
-	switch (event->bpf_event.type) {
+	switch (event->bpf.type) {
 	case PERF_BPF_EVENT_PROG_LOAD:
 		return machine__process_bpf_event_load(machine, event, sample);
 
@@ -83,8 +83,7 @@ int machine__process_bpf_event(struct machine *machine __maybe_unused,
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n",
-			 event->bpf_event.type);
+		pr_debug("unexpected bpf_event type of %d\n", event->bpf.type);
 		break;
 	}
 	return 0;
@@ -162,7 +161,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 					       struct record_opts *opts)
 {
 	struct perf_record_ksymbol *ksymbol_event = &event->ksymbol;
-	struct perf_record_bpf_event *bpf_event = &event->bpf_event;
+	struct perf_record_bpf_event *bpf_event = &event->bpf;
 	struct bpf_prog_info_linear *info_linear;
 	struct perf_tool *tool = session->tool;
 	struct bpf_prog_info_node *info_node;
@@ -302,7 +301,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 	int err;
 	int fd;
 
-	event = malloc(sizeof(event->bpf_event) + KSYM_NAME_LEN + machine->id_hdr_size);
+	event = malloc(sizeof(event->bpf) + KSYM_NAME_LEN + machine->id_hdr_size);
 	if (!event)
 		return -1;
 	while (true) {
@@ -399,9 +398,9 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 	if (event->header.type != PERF_RECORD_BPF_EVENT)
 		return -1;
 
-	switch (event->bpf_event.type) {
+	switch (event->bpf.type) {
 	case PERF_BPF_EVENT_PROG_LOAD:
-		perf_env__add_bpf_info(env, event->bpf_event.id);
+		perf_env__add_bpf_info(env, event->bpf.id);
 
 	case PERF_BPF_EVENT_PROG_UNLOAD:
 		/*
@@ -411,8 +410,7 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n",
-			 event->bpf_event.type);
+		pr_debug("unexpected bpf_event type of %d\n", event->bpf.type);
 		break;
 	}
 
