@@ -1936,6 +1936,36 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	return -ESHUTDOWN;
 }
 
+static void tb_switch_default_link_ports(struct tb_switch *sw)
+{
+	int i;
+
+	for (i = 1; i <= sw->config.max_port_number; i += 2) {
+		struct tb_port *port = &sw->ports[i];
+		struct tb_port *subordinate;
+
+		if (!tb_port_is_null(port))
+			continue;
+
+		/* Check for the subordinate port */
+		if (i == sw->config.max_port_number ||
+		    !tb_port_is_null(&sw->ports[i + 1]))
+			continue;
+
+		/* Link them if not already done so (by DROM) */
+		subordinate = &sw->ports[i + 1];
+		if (!port->dual_link_port && !subordinate->dual_link_port) {
+			port->link_nr = 0;
+			port->dual_link_port = subordinate;
+			subordinate->link_nr = 1;
+			subordinate->dual_link_port = port;
+
+			tb_sw_dbg(sw, "linked ports %d <-> %d\n",
+				  port->port, subordinate->port);
+		}
+	}
+}
+
 static bool tb_switch_lane_bonding_possible(struct tb_switch *sw)
 {
 	const struct tb_port *up = tb_upstream_port(sw);
@@ -2108,6 +2138,8 @@ int tb_switch_add(struct tb_switch *sw)
 				return ret;
 			}
 		}
+
+		tb_switch_default_link_ports(sw);
 
 		ret = tb_switch_update_link_attributes(sw);
 		if (ret)
