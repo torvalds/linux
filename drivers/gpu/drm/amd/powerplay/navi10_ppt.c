@@ -213,7 +213,7 @@ static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	struct smu_11_0_cmn2aisc_mapping mapping;
 
-	if (index > SMU_MSG_MAX_COUNT)
+	if (index >= SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
 	mapping = navi10_message_map[index];
