@@ -812,9 +812,7 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 	struct buffer_head *bh;
 	uint16_t ident;
 	int ret = -ENOMEM;
-#ifdef UDFFS_DEBUG
 	struct timestamp *ts;
-#endif
 
 	outstr = kmalloc(128, GFP_NOFS);
 	if (!outstr)
@@ -835,13 +833,10 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 
 	udf_disk_stamp_to_time(&UDF_SB(sb)->s_record_time,
 			      pvoldesc->recordingDateAndTime);
-#ifdef UDFFS_DEBUG
 	ts = &pvoldesc->recordingDateAndTime;
 	udf_debug("recording time %04u/%02u/%02u %02u:%02u (%x)\n",
 		  le16_to_cpu(ts->year), ts->month, ts->day, ts->hour,
 		  ts->minute, le16_to_cpu(ts->typeAndTimezone));
-#endif
-
 
 	ret = udf_dstrCS0toChar(sb, outstr, 31, pvoldesc->volIdent, 32);
 	if (ret < 0) {
@@ -1256,9 +1251,7 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	 * PHYSICAL partitions are already set up
 	 */
 	type1_idx = i;
-#ifdef UDFFS_DEBUG
 	map = NULL; /* supress 'maybe used uninitialized' warning */
-#endif
 	for (i = 0; i < sbi->s_partitions; i++) {
 		map = &sbi->s_partmaps[i];
 
