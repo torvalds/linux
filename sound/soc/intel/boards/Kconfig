@@ -299,6 +299,7 @@ config SND_SOC_INTEL_BXT_PCM512x_MACH
 	tristate "Broxton with TI PCM512x codec"
 	depends on MFD_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_PCM512x_I2C
+	select SND_SOC_HDAC_HDMI if SND_SOC_SOF_HDA_LINK
 	help
 	  This adds support for ASoC machine driver for Broxton platforms
 	  with TI PCM512x I2S audio codec.
