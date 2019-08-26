@@ -1761,8 +1761,10 @@ sanitize:
 
 static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
 {
-	static const int ranges_24[] = { 180000, 192000, 312000, 552000, 648000 };
-	static const int ranges_19_38[] = { 172800, 192000, 307200, 556800, 652800 };
+	static const int ranges_24[] = { 180000, 192000, 312000, 324000,
+					 552000, 648000 };
+	static const int ranges_19_38[] = { 172800, 192000, 307200, 326400,
+					    556800, 652800 };
 	const int *ranges;
 	int len, i;
 
@@ -1803,6 +1805,7 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 		/* fall through */
 	case 172800:
 	case 307200:
+	case 326400:
 	case 556800:
 	case 652800:
 		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
@@ -1810,6 +1813,7 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 		break;
 	case 180000:
 	case 312000:
+	case 324000:
 	case 552000:
 	case 648000:
 		WARN_ON(dev_priv->cdclk.hw.ref != 24000);
