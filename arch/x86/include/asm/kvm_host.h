@@ -1209,6 +1209,8 @@ struct kvm_x86_ops {
 	uint16_t (*nested_get_evmcs_version)(struct kvm_vcpu *vcpu);
 
 	bool (*need_emulation_on_page_fault)(struct kvm_vcpu *vcpu);
+
+	bool (*apic_init_signal_blocked)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {

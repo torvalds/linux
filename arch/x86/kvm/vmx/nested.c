@@ -3409,6 +3409,15 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 	unsigned long exit_qual;
 	bool block_nested_events =
 	    vmx->nested.nested_run_pending || kvm_event_needs_reinjection(vcpu);
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	if (lapic_in_kernel(vcpu) &&
+		test_bit(KVM_APIC_INIT, &apic->pending_events)) {
+		if (block_nested_events)
+			return -EBUSY;
+		nested_vmx_vmexit(vcpu, EXIT_REASON_INIT_SIGNAL, 0, 0);
+		return 0;
+	}
 
 	if (vcpu->arch.exception.pending &&
 		nested_vmx_check_exception(vcpu, &exit_qual)) {
@@ -4470,7 +4479,12 @@ static int handle_vmoff(struct kvm_vcpu *vcpu)
 {
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
+
 	free_nested(vcpu);
+
+	/* Process a latched INIT during time CPU was in VMX operation */
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
+
 	return nested_vmx_succeed(vcpu);
 }
 

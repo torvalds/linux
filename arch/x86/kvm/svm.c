@@ -7170,6 +7170,21 @@ static bool svm_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 	return false;
 }
 
+static bool svm_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/*
+	 * TODO: Last condition latch INIT signals on vCPU when
+	 * vCPU is in guest-mode and vmcb12 defines intercept on INIT.
+	 * To properly emulate the INIT intercept, SVM should implement
+	 * kvm_x86_ops->check_nested_events() and call nested_svm_vmexit()
+	 * there if an INIT signal is pending.
+	 */
+	return !gif_set(svm) ||
+		   (svm->vmcb->control.intercept & (1ULL << INTERCEPT_INIT));
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -7306,6 +7321,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.nested_get_evmcs_version = nested_get_evmcs_version,
 
 	.need_emulation_on_page_fault = svm_need_emulation_on_page_fault,
+
+	.apic_init_signal_blocked = svm_apic_init_signal_blocked,
 };
 
 static int __init svm_init(void)

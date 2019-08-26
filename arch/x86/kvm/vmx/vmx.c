@@ -7470,6 +7470,11 @@ static bool vmx_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 	return false;
 }
 
+static bool vmx_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.vmxon;
+}
+
 static __init int hardware_setup(void)
 {
 	unsigned long host_bndcfgs;
@@ -7794,6 +7799,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.get_vmcs12_pages = NULL,
 	.nested_enable_evmcs = NULL,
 	.need_emulation_on_page_fault = vmx_need_emulation_on_page_fault,
+	.apic_init_signal_blocked = vmx_apic_init_signal_blocked,
 };
 
 static void vmx_cleanup_l1d_flush(void)
