@@ -371,10 +371,7 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 	/*
 	 * Use 32 bit DMA mask, because 64 bit address support is poor.
 	 */
-	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (rc)
-		return rc;
-	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
 
