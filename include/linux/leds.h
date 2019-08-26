@@ -157,18 +157,39 @@ struct led_classdev {
  * @led_cdev: the led_classdev structure for this device
  * @init_data: the LED class device initialization data
  *
+ * Register a new object of LED class, with name derived from init_data.
+ *
  * Returns: 0 on success or negative error value on failure
  */
 extern int led_classdev_register_ext(struct device *parent,
 				     struct led_classdev *led_cdev,
 				     struct led_init_data *init_data);
-#define led_classdev_register(parent, led_cdev)			\
-	led_classdev_register_ext(parent, led_cdev, NULL)
+
+/**
+ * led_classdev_register - register a new object of LED class
+ * @parent: LED controller device this LED is driven by
+ * @led_cdev: the led_classdev structure for this device
+ *
+ * Register a new object of LED class, with name derived from the name property
+ * of passed led_cdev argument.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+static inline int led_classdev_register(struct device *parent,
+					struct led_classdev *led_cdev)
+{
+	return led_classdev_register_ext(parent, led_cdev, NULL);
+}
+
 extern int devm_led_classdev_register_ext(struct device *parent,
 					  struct led_classdev *led_cdev,
 					  struct led_init_data *init_data);
-#define devm_led_classdev_register(parent, led_cdev)		\
-	devm_led_classdev_register_ext(parent, led_cdev, NULL)
+
+static inline int devm_led_classdev_register(struct device *parent,
+					     struct led_classdev *led_cdev)
+{
+	return devm_led_classdev_register_ext(parent, led_cdev, NULL);
+}
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
 extern void devm_led_classdev_unregister(struct device *parent,
 					 struct led_classdev *led_cdev);
