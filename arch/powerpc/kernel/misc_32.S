@@ -303,11 +303,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
 	mfspr	r3,SPRN_L1CSR1
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
+#elif defined(CONFIG_PPC_BOOK3S_601)
+	blr			/* for 601, do nothing */
 #else
-	mfspr	r3,SPRN_PVR
-	rlwinm	r3,r3,16,16,31
-	cmpwi	0,r3,1
-	beqlr			/* for 601, do nothing */
 	/* 603/604 processor - use invalidate-all bit in HID0 */
 	mfspr	r3,SPRN_HID0
 	ori	r3,r3,HID0_ICFI
