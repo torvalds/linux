@@ -1261,8 +1261,6 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 	struct rpc_rqst *rqst = rep->rr_rqst;
 	int status;
 
-	xprt->reestablish_timeout = 0;
-
 	switch (rep->rr_proc) {
 	case rdma_msg:
 		status = rpcrdma_decode_msg(r_xprt, rep, rqst);
@@ -1320,6 +1318,12 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_rqst *rqst;
 	u32 credits;
 	__be32 *p;
+
+	/* Any data means we had a useful conversation, so
+	 * then we don't need to delay the next reconnect.
+	 */
+	if (xprt->reestablish_timeout)
+		xprt->reestablish_timeout = 0;
 
 	/* Fixed transport header fields */
 	xdr_init_decode(&rep->rr_stream, &rep->rr_hdrbuf,

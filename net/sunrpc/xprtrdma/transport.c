@@ -423,8 +423,6 @@ void xprt_rdma_close(struct rpc_xprt *xprt)
 
 	if (ep->rep_connected == -ENODEV)
 		return;
-	if (ep->rep_connected > 0)
-		xprt->reestablish_timeout = 0;
 	rpcrdma_ep_disconnect(ep, ia);
 
 	/* Prepare @xprt for the next connection by reinitializing
@@ -434,6 +432,7 @@ void xprt_rdma_close(struct rpc_xprt *xprt)
 	xprt->cwnd = RPC_CWNDSHIFT;
 
 out:
+	xprt->reestablish_timeout = 0;
 	++xprt->connect_cookie;
 	xprt_disconnect_done(xprt);
 }

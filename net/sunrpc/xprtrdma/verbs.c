@@ -731,6 +731,8 @@ retry:
 	if (rc)
 		goto out;
 
+	if (xprt->reestablish_timeout < RPCRDMA_INIT_REEST_TO)
+		xprt->reestablish_timeout = RPCRDMA_INIT_REEST_TO;
 	wait_event_interruptible(ep->rep_connect_wait, ep->rep_connected != 0);
 	if (ep->rep_connected <= 0) {
 		if (ep->rep_connected == -EAGAIN)
