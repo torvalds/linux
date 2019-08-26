@@ -713,20 +713,20 @@ static int machine__process_ksymbol_register(struct machine *machine,
 	struct symbol *sym;
 	struct map *map;
 
-	map = map_groups__find(&machine->kmaps, event->ksymbol_event.addr);
+	map = map_groups__find(&machine->kmaps, event->ksymbol.addr);
 	if (!map) {
-		map = dso__new_map(event->ksymbol_event.name);
+		map = dso__new_map(event->ksymbol.name);
 		if (!map)
 			return -ENOMEM;
 
-		map->start = event->ksymbol_event.addr;
-		map->end = map->start + event->ksymbol_event.len;
+		map->start = event->ksymbol.addr;
+		map->end = map->start + event->ksymbol.len;
 		map_groups__insert(&machine->kmaps, map);
 	}
 
 	sym = symbol__new(map->map_ip(map, map->start),
-			  event->ksymbol_event.len,
-			  0, 0, event->ksymbol_event.name);
+			  event->ksymbol.len,
+			  0, 0, event->ksymbol.name);
 	if (!sym)
 		return -ENOMEM;
 	dso__insert_symbol(map->dso, sym);
@@ -739,7 +739,7 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 {
 	struct map *map;
 
-	map = map_groups__find(&machine->kmaps, event->ksymbol_event.addr);
+	map = map_groups__find(&machine->kmaps, event->ksymbol.addr);
 	if (map)
 		map_groups__remove(&machine->kmaps, map);
 
@@ -753,7 +753,7 @@ int machine__process_ksymbol(struct machine *machine __maybe_unused,
 	if (dump_trace)
 		perf_event__fprintf_ksymbol(event, stdout);
 
-	if (event->ksymbol_event.flags & PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER)
+	if (event->ksymbol.flags & PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER)
 		return machine__process_ksymbol_unregister(machine, event,
 							   sample);
 	return machine__process_ksymbol_register(machine, event, sample);
