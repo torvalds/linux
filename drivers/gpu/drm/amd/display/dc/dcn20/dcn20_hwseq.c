@@ -1208,8 +1208,7 @@ static void dcn20_update_dchubp_dpp(
 		dc->res_pool->dccg->funcs->update_dpp_dto(
 				dc->res_pool->dccg,
 				dpp->inst,
-				pipe_ctx->plane_res.bw.dppclk_khz,
-				false);
+				pipe_ctx->plane_res.bw.dppclk_khz);
 	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG

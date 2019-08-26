@@ -281,14 +281,8 @@ static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_cl
 
 static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_support, bool cur_support)
 {
-	if (cur_support != calc_support) {
-		if (calc_support == true && safe_to_lower)
-			return true;
-		else if (calc_support == false && !safe_to_lower)
-			return true;
-	}
-
-	return false;
+	// Whenever we are transitioning pstate support, we always want to notify prior to committing state
+	return (calc_support != cur_support) ? !safe_to_lower : false;
 }
 
 int clk_mgr_helper_get_active_display_cnt(
