@@ -79,10 +79,10 @@ void phy_set_rf8256_bandwidth(struct net_device *dev, enum ht_channel_width Band
 		default:
 				RT_TRACE(COMP_ERR, "phy_set_rf8256_bandwidth(): unknown Bandwidth: %#X\n", Bandwidth);
 				break;
-
 		}
 	}
 }
+
 /*--------------------------------------------------------------------------
  * Overview:    Interface to config 8256
  * Input:       struct net_device*	dev
@@ -101,6 +101,7 @@ void phy_rf8256_config(struct net_device *dev)
 	/* Config BB and RF */
 	phy_rf8256_config_para_file(dev);
 }
+
 /*--------------------------------------------------------------------------
  * Overview:    Interface to config 8256
  * Input:       struct net_device*	dev
@@ -215,7 +216,6 @@ static void phy_rf8256_config_para_file(struct net_device *dev)
 			RT_TRACE(COMP_ERR, "phy_rf8256_config_para_file():Radio[%d] Fail!!", eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
-
 	}
 
 	RT_TRACE(COMP_PHY, "PHY Initialization Success\n");
@@ -225,11 +225,11 @@ phy_RF8256_Config_ParaFile_Fail:
 	RT_TRACE(COMP_ERR, "PHY Initialization failed\n");
 }
 
-
 void phy_set_rf8256_cck_tx_power(struct net_device *dev, u8 powerlevel)
 {
 	u32	TxAGC = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	TxAGC = powerlevel;
 
 	if (priv->bDynamicTxLowPower) {
@@ -243,7 +243,6 @@ void phy_set_rf8256_cck_tx_power(struct net_device *dev, u8 powerlevel)
 		TxAGC = 0x24;
 	rtl8192_setBBreg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
 }
-
 
 void phy_set_rf8256_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 {
@@ -293,5 +292,4 @@ void phy_set_rf8256_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
 	return;
-
 }
