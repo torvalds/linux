@@ -284,6 +284,7 @@ struct flow_block_offload {
 	enum flow_block_command command;
 	enum flow_block_binder_type binder_type;
 	bool block_shared;
+	bool unlocked_driver_cb;
 	struct net *net;
 	struct flow_block *block;
 	struct list_head cb_list;
