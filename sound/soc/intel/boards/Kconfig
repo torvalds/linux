@@ -564,6 +564,18 @@ config SND_SOC_INTEL_SOUNDWIRE_RT700_MACH
 	  on link 0 or 1
 	  If unsure select "N"
 
+config SND_SOC_INTEL_SOUNDWIRE_RT711_RT1308_RT715_MACH
+	tristate "SoundWire with RT711, RT1308 and RT715"
+        depends on SOUNDWIRE && ACPI
+	select SND_SOC_RT711_SDW
+	select SND_SOC_RT1308_SDW
+	select SND_SOC_RT715_SDW
+	select SND_SOC_HDAC_HDMI if SND_SOC_SOF_HDA_LINK
+        help
+	  Add support for Intel SoundWire-based platforms connected to RT711,
+          RT1308 and RT715
+	  If unsure select "N".
+
 endif
 
 
