@@ -344,7 +344,6 @@ struct test tests[] = {
 			.tcp.dest = 8080,
 		},
 		.keys = {
-			.nhoff = 0,
 			.nhoff = ETH_HLEN,
 			.thoff = ETH_HLEN + sizeof(struct iphdr) +
 				sizeof(struct iphdr),
