@@ -21,6 +21,12 @@
 /* global SRCU for all MMs */
 DEFINE_STATIC_SRCU(srcu);
 
+#ifdef CONFIG_LOCKDEP
+struct lockdep_map __mmu_notifier_invalidate_range_start_map = {
+	.name = "mmu_notifier_invalidate_range_start"
+};
+#endif
+
 /*
  * This function can't run concurrently against mmu_notifier_register
  * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap
@@ -184,6 +190,7 @@ void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
 	struct mmu_notifier *mn;
 	int id;
 
+	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &range->mm->mmu_notifier_mm->list, hlist) {
 		/*
@@ -207,6 +214,7 @@ void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
 			mn->ops->invalidate_range_end(mn, range);
 	}
 	srcu_read_unlock(&srcu, id);
+	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
 }
 
 void __mmu_notifier_invalidate_range(struct mm_struct *mm,
