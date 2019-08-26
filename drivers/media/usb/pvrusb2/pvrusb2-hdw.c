@@ -784,7 +784,7 @@ static int ctrl_cx2341x_set(struct pvr2_ctrl *cptr,int m,int v)
 
 static unsigned int ctrl_cx2341x_getv4lflags(struct pvr2_ctrl *cptr)
 {
-	struct v4l2_queryctrl qctrl;
+	struct v4l2_queryctrl qctrl = {};
 	struct pvr2_ctl_info *info;
 	qctrl.id = cptr->info->v4l_id;
 	cx2341x_ctrl_query(&cptr->hdw->enc_ctl_state,&qctrl);
