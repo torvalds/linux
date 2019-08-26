@@ -1844,14 +1844,11 @@ cleanup_module(void)
 static int __init cs89x0_platform_probe(struct platform_device *pdev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
-	struct net_local *lp;
 	void __iomem *virt_addr;
 	int err;
 
 	if (!dev)
 		return -ENOMEM;
-
-	lp = netdev_priv(dev);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq <= 0) {
