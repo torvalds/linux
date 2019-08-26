@@ -244,7 +244,9 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 
 	chunksize = sizeof(init) + addrs_len;
 	chunksize += SCTP_PAD4(SCTP_SAT_LEN(num_types));
-	chunksize += sizeof(ecap_param);
+
+	if (asoc->ep->ecn_enable)
+		chunksize += sizeof(ecap_param);
 
 	if (asoc->ep->prsctp_enable)
 		chunksize += sizeof(prsctp_param);
@@ -335,7 +337,8 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	sctp_addto_chunk(retval, sizeof(sat), &sat);
 	sctp_addto_chunk(retval, num_types * sizeof(__u16), &types);
 
-	sctp_addto_chunk(retval, sizeof(ecap_param), &ecap_param);
+	if (asoc->ep->ecn_enable)
+		sctp_addto_chunk(retval, sizeof(ecap_param), &ecap_param);
 
 	/* Add the supported extensions parameter.  Be nice and add this
 	 * fist before addiding the parameters for the extensions themselves
@@ -2597,8 +2600,13 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_ECN_CAPABLE:
-		asoc->peer.ecn_capable = 1;
-		break;
+		if (asoc->ep->ecn_enable) {
+			asoc->peer.ecn_capable = 1;
+			break;
+		}
+		/* Fall Through */
+		goto fall_through;
+
 
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
 		asoc->peer.adaptation_ind = ntohl(param.aind->adaptation_ind);
