@@ -80,13 +80,16 @@ __be32		nfsd_open_verified(struct svc_rqst *, struct svc_fh *, umode_t,
 				int, struct file **);
 __be32		nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct file *file, loff_t offset,
-				unsigned long *count);
+				unsigned long *count,
+				u32 *eof);
 __be32		nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct file *file, loff_t offset,
 				struct kvec *vec, int vlen,
-				unsigned long *count);
+				unsigned long *count,
+				u32 *eof);
 __be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
-				loff_t, struct kvec *, int, unsigned long *);
+				loff_t, struct kvec *, int, unsigned long *,
+				u32 *eof);
 __be32 		nfsd_write(struct svc_rqst *, struct svc_fh *, loff_t,
 				struct kvec *, int, unsigned long *, int);
 __be32		nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
@@ -147,25 +150,6 @@ static inline int nfsd_create_is_exclusive(int createmode)
 {
 	return createmode == NFS3_CREATE_EXCLUSIVE
 	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
-}
-
-static inline bool nfsd_eof_on_read(long requested, long read,
-				loff_t offset, loff_t size)
-{
-	/* We assume a short read means eof: */
-	if (requested > read)
-		return true;
-	/*
-	 * A non-short read might also reach end of file.  The spec
-	 * still requires us to set eof in that case.
-	 *
-	 * Further operations may have modified the file size since
-	 * the read, so the following check is not atomic with the read.
-	 * We've only seen that cause a problem for a client in the case
-	 * where the read returned a count of 0 without setting eof.
-	 * That case was fixed by the addition of the above check.
-	 */
-	return (offset + read >= size);
 }
 
 #endif /* LINUX_NFSD_VFS_H */
