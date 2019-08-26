@@ -2200,7 +2200,6 @@ request_default_domain_for_dev(struct device *dev, unsigned long type)
 
 	mutex_lock(&group->mutex);
 
-	/* Check if the default domain is already direct mapped */
 	ret = 0;
 	if (group->default_domain && group->default_domain->type == type)
 		goto out;
@@ -2210,7 +2209,6 @@ request_default_domain_for_dev(struct device *dev, unsigned long type)
 	if (iommu_group_device_count(group) != 1)
 		goto out;
 
-	/* Allocate a direct mapped domain */
 	ret = -ENOMEM;
 	domain = __iommu_domain_alloc(dev->bus, type);
 	if (!domain)
@@ -2225,7 +2223,7 @@ request_default_domain_for_dev(struct device *dev, unsigned long type)
 
 	iommu_group_create_direct_mappings(group, dev);
 
-	/* Make the direct mapped domain the default for this group */
+	/* Make the domain the default for this group */
 	if (group->default_domain)
 		iommu_domain_free(group->default_domain);
 	group->default_domain = domain;
