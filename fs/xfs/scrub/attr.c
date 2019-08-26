@@ -80,7 +80,7 @@ xchk_setup_xattr(
 	 * without the inode lock held, which means we can sleep.
 	 */
 	if (sc->flags & XCHK_TRY_HARDER) {
-		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, KM_SLEEP);
+		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, 0);
 		if (error)
 			return error;
 	}

@@ -440,7 +440,7 @@ xfs_dquot_alloc(
 {
 	struct xfs_dquot	*dqp;
 
-	dqp = kmem_zone_zalloc(xfs_qm_dqzone, KM_SLEEP);
+	dqp = kmem_zone_zalloc(xfs_qm_dqzone, 0);
 
 	dqp->dq_flags = type;
 	dqp->q_core.d_id = cpu_to_be32(id);

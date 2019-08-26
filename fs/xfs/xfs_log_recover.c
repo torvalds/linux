@@ -1960,7 +1960,7 @@ xlog_recover_buffer_pass1(
 		}
 	}
 
-	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), KM_SLEEP);
+	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
 	bcp->bc_blkno = buf_f->blf_blkno;
 	bcp->bc_len = buf_f->blf_len;
 	bcp->bc_refcount = 1;
@@ -2930,7 +2930,7 @@ xlog_recover_inode_pass2(
 	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
 		in_f = item->ri_buf[0].i_addr;
 	} else {
-		in_f = kmem_alloc(sizeof(struct xfs_inode_log_format), KM_SLEEP);
+		in_f = kmem_alloc(sizeof(struct xfs_inode_log_format), 0);
 		need_free = 1;
 		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)
@@ -4161,7 +4161,7 @@ xlog_recover_add_item(
 {
 	xlog_recover_item_t	*item;
 
-	item = kmem_zalloc(sizeof(xlog_recover_item_t), KM_SLEEP);
+	item = kmem_zalloc(sizeof(xlog_recover_item_t), 0);
 	INIT_LIST_HEAD(&item->ri_list);
 	list_add_tail(&item->ri_list, head);
 }
@@ -4201,7 +4201,7 @@ xlog_recover_add_to_cont_trans(
 	old_ptr = item->ri_buf[item->ri_cnt-1].i_addr;
 	old_len = item->ri_buf[item->ri_cnt-1].i_len;
 
-	ptr = kmem_realloc(old_ptr, len + old_len, KM_SLEEP);
+	ptr = kmem_realloc(old_ptr, len + old_len, 0);
 	memcpy(&ptr[old_len], dp, len);
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
@@ -4261,7 +4261,7 @@ xlog_recover_add_to_trans(
 		return 0;
 	}
 
-	ptr = kmem_alloc(len, KM_SLEEP);
+	ptr = kmem_alloc(len, 0);
 	memcpy(ptr, dp, len);
 	in_f = (struct xfs_inode_log_format *)ptr;
 
@@ -4289,7 +4289,7 @@ xlog_recover_add_to_trans(
 		item->ri_total = in_f->ilf_size;
 		item->ri_buf =
 			kmem_zalloc(item->ri_total * sizeof(xfs_log_iovec_t),
-				    KM_SLEEP);
+				    0);
 	}
 	ASSERT(item->ri_total > item->ri_cnt);
 	/* Description region is ri_buf[0] */
@@ -4423,7 +4423,7 @@ xlog_recover_ophdr_to_trans(
 	 * This is a new transaction so allocate a new recovery container to
 	 * hold the recovery ops that will follow.
 	 */
-	trans = kmem_zalloc(sizeof(struct xlog_recover), KM_SLEEP);
+	trans = kmem_zalloc(sizeof(struct xlog_recover), 0);
 	trans->r_log_tid = tid;
 	trans->r_lsn = be64_to_cpu(rhead->h_lsn);
 	INIT_LIST_HEAD(&trans->r_itemq);
@@ -5527,7 +5527,7 @@ xlog_do_log_recovery(
 	 */
 	log->l_buf_cancel_table = kmem_zalloc(XLOG_BC_TABLE_SIZE *
 						 sizeof(struct list_head),
-						 KM_SLEEP);
+						 0);
 	for (i = 0; i < XLOG_BC_TABLE_SIZE; i++)
 		INIT_LIST_HEAD(&log->l_buf_cancel_table[i]);
 

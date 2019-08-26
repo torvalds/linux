@@ -89,7 +89,7 @@ xfs_icreate_log(
 {
 	struct xfs_icreate_item	*icp;
 
-	icp = kmem_zone_zalloc(xfs_icreate_zone, KM_SLEEP);
+	icp = kmem_zone_zalloc(xfs_icreate_zone, 0);
 
 	xfs_log_item_init(tp->t_mountp, &icp->ic_item, XFS_LI_ICREATE,
 			  &xfs_icreate_item_ops);

@@ -2018,7 +2018,7 @@ xfs_iunlink_add_backref(
 	if (XFS_TEST_ERROR(false, pag->pag_mount, XFS_ERRTAG_IUNLINK_FALLBACK))
 		return 0;
 
-	iu = kmem_zalloc(sizeof(*iu), KM_SLEEP | KM_NOFS);
+	iu = kmem_zalloc(sizeof(*iu), KM_NOFS);
 	iu->iu_agino = prev_agino;
 	iu->iu_next_unlinked = this_agino;
 

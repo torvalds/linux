@@ -16,8 +16,6 @@
  */
 
 typedef unsigned __bitwise xfs_km_flags_t;
-#define KM_SLEEP	((__force xfs_km_flags_t)0x0001u)
-#define KM_NOSLEEP	((__force xfs_km_flags_t)0x0002u)
 #define KM_NOFS		((__force xfs_km_flags_t)0x0004u)
 #define KM_MAYFAIL	((__force xfs_km_flags_t)0x0008u)
 #define KM_ZERO		((__force xfs_km_flags_t)0x0010u)
@@ -32,15 +30,11 @@ kmem_flags_convert(xfs_km_flags_t flags)
 {
 	gfp_t	lflags;
 
-	BUG_ON(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL|KM_ZERO));
+	BUG_ON(flags & ~(KM_NOFS|KM_MAYFAIL|KM_ZERO));
 
-	if (flags & KM_NOSLEEP) {
-		lflags = GFP_ATOMIC | __GFP_NOWARN;
-	} else {
-		lflags = GFP_KERNEL | __GFP_NOWARN;
-		if (flags & KM_NOFS)
-			lflags &= ~__GFP_FS;
-	}
+	lflags = GFP_KERNEL | __GFP_NOWARN;
+	if (flags & KM_NOFS)
+		lflags &= ~__GFP_FS;
 
 	/*
 	 * Default page/slab allocator behavior is to retry for ever

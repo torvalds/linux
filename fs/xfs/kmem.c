@@ -17,7 +17,7 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
 
 	do {
 		ptr = kmalloc(size, lflags);
-		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
+		if (ptr || (flags & KM_MAYFAIL))
 			return ptr;
 		if (!(++retries % 100))
 			xfs_err(NULL,
@@ -67,7 +67,7 @@ kmem_realloc(const void *old, size_t newsize, xfs_km_flags_t flags)
 
 	do {
 		ptr = krealloc(old, newsize, lflags);
-		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
+		if (ptr || (flags & KM_MAYFAIL))
 			return ptr;
 		if (!(++retries % 100))
 			xfs_err(NULL,
@@ -87,7 +87,7 @@ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
 
 	do {
 		ptr = kmem_cache_alloc(zone, lflags);
-		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
+		if (ptr || (flags & KM_MAYFAIL))
 			return ptr;
 		if (!(++retries % 100))
 			xfs_err(NULL,

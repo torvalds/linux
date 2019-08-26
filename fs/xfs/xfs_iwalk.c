@@ -616,7 +616,7 @@ xfs_iwalk_threaded(
 		if (xfs_pwork_ctl_want_abort(&pctl))
 			break;
 
-		iwag = kmem_zalloc(sizeof(struct xfs_iwalk_ag), KM_SLEEP);
+		iwag = kmem_zalloc(sizeof(struct xfs_iwalk_ag), 0);
 		iwag->mp = mp;
 		iwag->iwalk_fn = iwalk_fn;
 		iwag->data = data;

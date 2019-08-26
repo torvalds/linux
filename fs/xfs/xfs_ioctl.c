@@ -396,7 +396,7 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	kbuf = kmem_zalloc_large(al_hreq.buflen, KM_SLEEP);
+	kbuf = kmem_zalloc_large(al_hreq.buflen, 0);
 	if (!kbuf)
 		goto out_dput;
 
@@ -434,7 +434,7 @@ xfs_attrmulti_attr_get(
 
 	if (*len > XFS_XATTR_SIZE_MAX)
 		return -EINVAL;
-	kbuf = kmem_zalloc_large(*len, KM_SLEEP);
+	kbuf = kmem_zalloc_large(*len, 0);
 	if (!kbuf)
 		return -ENOMEM;
 

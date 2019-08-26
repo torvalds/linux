@@ -169,7 +169,7 @@ xfs_bulkstat_one(
 	ASSERT(breq->icount == 1);
 
 	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
-			KM_SLEEP | KM_MAYFAIL);
+			KM_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -243,7 +243,7 @@ xfs_bulkstat(
 		return 0;
 
 	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
-			KM_SLEEP | KM_MAYFAIL);
+			KM_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 

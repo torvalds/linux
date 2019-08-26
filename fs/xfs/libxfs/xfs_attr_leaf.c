@@ -782,7 +782,7 @@ xfs_attr_shortform_to_leaf(
 	ifp = dp->i_afp;
 	sf = (xfs_attr_shortform_t *)ifp->if_u1.if_data;
 	size = be16_to_cpu(sf->hdr.totsize);
-	tmpbuffer = kmem_alloc(size, KM_SLEEP);
+	tmpbuffer = kmem_alloc(size, 0);
 	ASSERT(tmpbuffer != NULL);
 	memcpy(tmpbuffer, ifp->if_u1.if_data, size);
 	sf = (xfs_attr_shortform_t *)tmpbuffer;
@@ -985,7 +985,7 @@ xfs_attr3_leaf_to_shortform(
 
 	trace_xfs_attr_leaf_to_sf(args);
 
-	tmpbuffer = kmem_alloc(args->geo->blksize, KM_SLEEP);
+	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
 	if (!tmpbuffer)
 		return -ENOMEM;
 
@@ -1448,7 +1448,7 @@ xfs_attr3_leaf_compact(
 
 	trace_xfs_attr_leaf_compact(args);
 
-	tmpbuffer = kmem_alloc(args->geo->blksize, KM_SLEEP);
+	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
 	memcpy(tmpbuffer, bp->b_addr, args->geo->blksize);
 	memset(bp->b_addr, 0, args->geo->blksize);
 	leaf_src = (xfs_attr_leafblock_t *)tmpbuffer;
@@ -2167,7 +2167,7 @@ xfs_attr3_leaf_unbalance(
 		struct xfs_attr_leafblock *tmp_leaf;
 		struct xfs_attr3_icleaf_hdr tmphdr;
 
-		tmp_leaf = kmem_zalloc(state->args->geo->blksize, KM_SLEEP);
+		tmp_leaf = kmem_zalloc(state->args->geo->blksize, 0);
 
 		/*
 		 * Copy the header into the temp leaf so that all the stuff
