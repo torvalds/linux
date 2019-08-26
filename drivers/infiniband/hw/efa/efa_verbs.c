@@ -1500,14 +1500,12 @@ int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
-	if (mr->umem) {
-		params.l_key = mr->ibmr.lkey;
-		err = efa_com_dereg_mr(&dev->edev, &params);
-		if (err)
-			return err;
-	}
-	ib_umem_release(mr->umem);
+	params.l_key = mr->ibmr.lkey;
+	err = efa_com_dereg_mr(&dev->edev, &params);
+	if (err)
+		return err;
 
+	ib_umem_release(mr->umem);
 	kfree(mr);
 
 	return 0;
