@@ -63,8 +63,6 @@ struct panfrost_device {
 	struct drm_device *ddev;
 	struct platform_device *pdev;
 
-	spinlock_t hwaccess_lock;
-
 	void __iomem *iomem;
 	struct clk *clock;
 	struct clk *bus_clock;

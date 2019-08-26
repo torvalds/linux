@@ -141,7 +141,6 @@ static void panfrost_job_write_affinity(struct panfrost_device *pfdev,
 static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 {
 	struct panfrost_device *pfdev = job->pfdev;
-	unsigned long flags;
 	u32 cfg;
 	u64 jc_head = job->jc;
 	int ret;
@@ -158,7 +157,6 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 	cfg = panfrost_mmu_as_get(pfdev, &job->file_priv->mmu);
 
 	panfrost_devfreq_record_transition(pfdev, js);
-	spin_lock_irqsave(&pfdev->hwaccess_lock, flags);
 
 	job_write(pfdev, JS_HEAD_NEXT_LO(js), jc_head & 0xFFFFFFFF);
 	job_write(pfdev, JS_HEAD_NEXT_HI(js), jc_head >> 32);
@@ -187,8 +185,6 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 				job, js, jc_head);
 
 	job_write(pfdev, JS_COMMAND_NEXT(js), JS_COMMAND_START);
-
-	spin_unlock_irqrestore(&pfdev->hwaccess_lock, flags);
 }
 
 static void panfrost_acquire_object_fences(struct drm_gem_object **bos,

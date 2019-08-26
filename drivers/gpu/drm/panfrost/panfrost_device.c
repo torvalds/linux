@@ -124,7 +124,6 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
 	INIT_LIST_HEAD(&pfdev->as_lru_list);
 
-	spin_lock_init(&pfdev->hwaccess_lock);
 	spin_lock_init(&pfdev->as_lock);
 
 	err = panfrost_clk_init(pfdev);
