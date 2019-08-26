@@ -473,8 +473,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->context_switch = perf_event__process_switch;
 	if (tool->ksymbol == NULL)
 		tool->ksymbol = perf_event__process_ksymbol;
-	if (tool->bpf_event == NULL)
-		tool->bpf_event = perf_event__process_bpf_event;
+	if (tool->bpf == NULL)
+		tool->bpf = perf_event__process_bpf;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -1452,7 +1452,7 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_KSYMBOL:
 		return tool->ksymbol(tool, event, sample, machine);
 	case PERF_RECORD_BPF_EVENT:
-		return tool->bpf_event(tool, event, sample, machine);
+		return tool->bpf(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;

@@ -1343,12 +1343,12 @@ int perf_event__process_ksymbol(struct perf_tool *tool __maybe_unused,
 	return machine__process_ksymbol(machine, event, sample);
 }
 
-int perf_event__process_bpf_event(struct perf_tool *tool __maybe_unused,
-				  union perf_event *event,
-				  struct perf_sample *sample __maybe_unused,
-				  struct machine *machine)
+int perf_event__process_bpf(struct perf_tool *tool __maybe_unused,
+			    union perf_event *event,
+			    struct perf_sample *sample,
+			    struct machine *machine)
 {
-	return machine__process_bpf_event(machine, event, sample);
+	return machine__process_bpf(machine, event, sample);
 }
 
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
@@ -1491,7 +1491,7 @@ size_t perf_event__fprintf_ksymbol(union perf_event *event, FILE *fp)
 		       event->ksymbol.flags, event->ksymbol.name);
 }
 
-size_t perf_event__fprintf_bpf_event(union perf_event *event, FILE *fp)
+size_t perf_event__fprintf_bpf(union perf_event *event, FILE *fp)
 {
 	return fprintf(fp, " type %u, flags %u, id %u\n",
 		       event->bpf.type, event->bpf.flags, event->bpf.id);
@@ -1536,7 +1536,7 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		ret += perf_event__fprintf_ksymbol(event, fp);
 		break;
 	case PERF_RECORD_BPF_EVENT:
-		ret += perf_event__fprintf_bpf_event(event, fp);
+		ret += perf_event__fprintf_bpf(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");

@@ -30,8 +30,8 @@ struct btf_node {
 };
 
 #ifdef HAVE_LIBBPF_SUPPORT
-int machine__process_bpf_event(struct machine *machine, union perf_event *event,
-			       struct perf_sample *sample);
+int machine__process_bpf(struct machine *machine, union perf_event *event,
+			 struct perf_sample *sample);
 
 int perf_event__synthesize_bpf_events(struct perf_session *session,
 				      perf_event__handler_t process,
@@ -43,9 +43,9 @@ void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 				    struct perf_env *env,
 				    FILE *fp);
 #else
-static inline int machine__process_bpf_event(struct machine *machine __maybe_unused,
-					     union perf_event *event __maybe_unused,
-					     struct perf_sample *sample __maybe_unused)
+static inline int machine__process_bpf(struct machine *machine __maybe_unused,
+				       union perf_event *event __maybe_unused,
+				       struct perf_sample *sample __maybe_unused)
 {
 	return 0;
 }

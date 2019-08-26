@@ -1922,7 +1922,7 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 	case PERF_RECORD_KSYMBOL:
 		ret = machine__process_ksymbol(machine, event, sample); break;
 	case PERF_RECORD_BPF_EVENT:
-		ret = machine__process_bpf_event(machine, event, sample); break;
+		ret = machine__process_bpf(machine, event, sample); break;
 	default:
 		ret = -1;
 		break;

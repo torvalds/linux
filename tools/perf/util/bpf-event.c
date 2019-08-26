@@ -64,12 +64,11 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	return 0;
 }
 
-int machine__process_bpf_event(struct machine *machine __maybe_unused,
-			       union perf_event *event,
-			       struct perf_sample *sample __maybe_unused)
+int machine__process_bpf(struct machine *machine, union perf_event *event,
+			 struct perf_sample *sample)
 {
 	if (dump_trace)
-		perf_event__fprintf_bpf_event(event, stdout);
+		perf_event__fprintf_bpf(event, stdout);
 
 	switch (event->bpf.type) {
 	case PERF_BPF_EVENT_PROG_LOAD:
@@ -83,7 +82,7 @@ int machine__process_bpf_event(struct machine *machine __maybe_unused,
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n", event->bpf.type);
+		pr_debug("unexpected bpf event type of %d\n", event->bpf.type);
 		break;
 	}
 	return 0;
@@ -410,7 +409,7 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n", event->bpf.type);
+		pr_debug("unexpected bpf event type of %d\n", event->bpf.type);
 		break;
 	}
 

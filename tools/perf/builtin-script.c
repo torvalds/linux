@@ -2492,8 +2492,8 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.finished_round = process_finished_round_event;
 	}
 	if (script->show_bpf_events) {
-		script->tool.ksymbol   = process_bpf_events;
-		script->tool.bpf_event = process_bpf_events;
+		script->tool.ksymbol = process_bpf_events;
+		script->tool.bpf     = process_bpf_events;
 	}
 
 	if (perf_script__setup_per_event_dump(script)) {
