@@ -292,14 +292,14 @@ _GLOBAL(flush_instruction_cache)
 	iccci	0,r3
 #endif
 #elif defined(CONFIG_FSL_BOOKE)
-BEGIN_FTR_SECTION
+#ifdef CONFIG_E200
 	mfspr   r3,SPRN_L1CSR0
 	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
 	/* msync; isync recommended here */
 	mtspr   SPRN_L1CSR0,r3
 	isync
 	blr
-END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
+#endif
 	mfspr	r3,SPRN_L1CSR1
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
