@@ -15,6 +15,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_probe_helper.h>
 
 #include "komeda_dev.h"
 #include "komeda_framebuffer.h"
@@ -315,6 +316,8 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 
 	drm->irq_enabled = true;
 
+	drm_kms_helper_poll_init(drm);
+
 	err = drm_dev_register(drm, 0);
 	if (err)
 		goto cleanup_mode_config;
@@ -322,6 +325,7 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 	return kms;
 
 cleanup_mode_config:
+	drm_kms_helper_poll_fini(drm);
 	drm->irq_enabled = false;
 	drm_mode_config_cleanup(drm);
 	komeda_kms_cleanup_private_objs(kms);
@@ -338,6 +342,7 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	drm->irq_enabled = false;
 	mdev->funcs->disable_irq(mdev);
 	drm_dev_unregister(drm);
+	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(mdev->dev, drm);
 	komeda_kms_cleanup_private_objs(kms);
 	drm_mode_config_cleanup(drm);

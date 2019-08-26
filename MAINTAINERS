@@ -183,7 +183,7 @@ M:	Realtek linux nic maintainers <nic_swsd@realtek.com>
 M:	Heiner Kallweit <hkallweit1@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ethernet/realtek/r8169.c
+F:	drivers/net/ethernet/realtek/r8169*
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -6065,7 +6065,7 @@ M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	Heiner Kallweit <hkallweit1@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/ABI/testing/sysfs-bus-mdio
+F:	Documentation/ABI/testing/sysfs-class-net-phydev
 F:	Documentation/devicetree/bindings/net/ethernet-phy.yaml
 F:	Documentation/devicetree/bindings/net/mdio*
 F:	Documentation/networking/phy.rst
@@ -8832,14 +8832,6 @@ F:	virt/kvm/*
 F:	tools/kvm/
 F:	tools/testing/selftests/kvm/
 
-KERNEL VIRTUAL MACHINE FOR AMD-V (KVM/amd)
-M:	Joerg Roedel <joro@8bytes.org>
-L:	kvm@vger.kernel.org
-W:	http://www.linux-kvm.org/
-S:	Maintained
-F:	arch/x86/include/asm/svm.h
-F:	arch/x86/kvm/svm.c
-
 KERNEL VIRTUAL MACHINE FOR ARM/ARM64 (KVM/arm, KVM/arm64)
 M:	Marc Zyngier <maz@kernel.org>
 R:	James Morse <james.morse@arm.com>
@@ -8882,7 +8874,7 @@ M:	Christian Borntraeger <borntraeger@de.ibm.com>
 M:	Janosch Frank <frankja@linux.ibm.com>
 R:	David Hildenbrand <david@redhat.com>
 R:	Cornelia Huck <cohuck@redhat.com>
-L:	linux-s390@vger.kernel.org
+L:	kvm@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvms390/linux.git
 S:	Supported
@@ -8897,6 +8889,11 @@ F:	tools/testing/selftests/kvm/*/s390x/
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
 M:	Paolo Bonzini <pbonzini@redhat.com>
 M:	Radim Krčmář <rkrcmar@redhat.com>
+R:	Sean Christopherson <sean.j.christopherson@intel.com>
+R:	Vitaly Kuznetsov <vkuznets@redhat.com>
+R:	Wanpeng Li <wanpengli@tencent.com>
+R:	Jim Mattson <jmattson@google.com>
+R:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
@@ -8904,8 +8901,12 @@ S:	Supported
 F:	arch/x86/kvm/
 F:	arch/x86/kvm/*/
 F:	arch/x86/include/uapi/asm/kvm*
+F:	arch/x86/include/uapi/asm/vmx.h
+F:	arch/x86/include/uapi/asm/svm.h
 F:	arch/x86/include/asm/kvm*
 F:	arch/x86/include/asm/pvclock-abi.h
+F:	arch/x86/include/asm/svm.h
+F:	arch/x86/include/asm/vmx.h
 F:	arch/x86/kernel/kvm.c
 F:	arch/x86/kernel/kvmclock.c
 
@@ -14882,9 +14883,9 @@ F:	include/linux/arm_sdei.h
 F:	include/uapi/linux/arm_sdei.h
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
-M:	Shaohua Li <shli@kernel.org>
+M:	Song Liu <song@kernel.org>
 L:	linux-raid@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shli/md.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/song/md.git
 S:	Supported
 F:	drivers/md/Makefile
 F:	drivers/md/Kconfig

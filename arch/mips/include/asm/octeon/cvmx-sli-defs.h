@@ -46,6 +46,7 @@ static inline uint64_t CVMX_SLI_PCIE_MSI_RCV_FUNC(void)
 	case OCTEON_CN78XX & OCTEON_FAMILY_MASK:
 		if (OCTEON_IS_MODEL(OCTEON_CN78XX_PASS1_X))
 			return 0x0000000000003CB0ull;
+		/* Else, fall through */
 	default:
 		return 0x0000000000023CB0ull;
 	}
