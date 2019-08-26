@@ -5807,16 +5807,15 @@ process_pkt:
 				goto release_descriptor;
 			}
 
-			dma_sync_single_for_cpu(tp_to_dev(tp),
-						le64_to_cpu(desc->addr),
-						pkt_size, DMA_FROM_DEVICE);
-
 			skb = napi_alloc_skb(&tp->napi, pkt_size);
 			if (unlikely(!skb)) {
 				dev->stats.rx_dropped++;
 				goto release_descriptor;
 			}
 
+			dma_sync_single_for_cpu(tp_to_dev(tp),
+						le64_to_cpu(desc->addr),
+						pkt_size, DMA_FROM_DEVICE);
 			prefetch(rx_buf);
 			skb_copy_to_linear_data(skb, rx_buf, pkt_size);
 			skb->tail += pkt_size;
