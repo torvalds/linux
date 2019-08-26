@@ -1179,6 +1179,11 @@ int kvmppc_xive_native_set_vp(struct kvm_vcpu *vcpu, union kvmppc_one_reg *val)
 	return 0;
 }
 
+bool kvmppc_xive_native_supported(void)
+{
+	return xive_native_has_queue_state_support();
+}
+
 static int xive_native_debug_show(struct seq_file *m, void *private)
 {
 	struct kvmppc_xive *xive = m->private;
