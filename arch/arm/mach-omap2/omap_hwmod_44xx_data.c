@@ -275,29 +275,6 @@ static struct omap_hwmod omap44xx_aess_hwmod = {
 };
 
 /*
- * 'c2c' class
- * chip 2 chip interface used to plug the ape soc (omap) with an external modem
- * soc
- */
-
-static struct omap_hwmod_class omap44xx_c2c_hwmod_class = {
-	.name	= "c2c",
-};
-
-/* c2c */
-static struct omap_hwmod omap44xx_c2c_hwmod = {
-	.name		= "c2c",
-	.class		= &omap44xx_c2c_hwmod_class,
-	.clkdm_name	= "d2d_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_D2D_SAD2D_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_D2D_SAD2D_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * 'counter' class
  * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
  */
@@ -2732,14 +2709,6 @@ static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_abe__aess_dma = {
 	.user		= OCP_USER_SDMA,
 };
 
-/* l3_main_2 -> c2c */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__c2c = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_c2c_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_wkup -> counter_32k */
 static struct omap_hwmod_ocp_if omap44xx_l4_wkup__counter_32k = {
 	.master		= &omap44xx_l4_wkup_hwmod,
@@ -3394,7 +3363,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__ocp_wp_noc,
 	&omap44xx_l4_abe__aess,
 	&omap44xx_l4_abe__aess_dma,
-	&omap44xx_l3_main_2__c2c,
 	&omap44xx_l4_wkup__counter_32k,
 	&omap44xx_l4_cfg__ctrl_module_core,
 	&omap44xx_l4_cfg__ctrl_module_pad_core,
