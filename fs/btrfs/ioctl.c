@@ -1841,8 +1841,15 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 		goto free_args;
 	}
 
-	if (vol_args->flags & BTRFS_SUBVOL_CREATE_ASYNC)
+	if (vol_args->flags & BTRFS_SUBVOL_CREATE_ASYNC) {
+		struct inode *inode = file_inode(file);
+		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+
+		btrfs_warn(fs_info,
+"SNAP_CREATE_V2 ioctl with CREATE_ASYNC is deprecated and will be removed in kernel 5.7");
+
 		ptr = &transid;
+	}
 	if (vol_args->flags & BTRFS_SUBVOL_RDONLY)
 		readonly = true;
 	if (vol_args->flags & BTRFS_SUBVOL_QGROUP_INHERIT) {
@@ -4191,6 +4198,9 @@ static noinline long btrfs_ioctl_start_sync(struct btrfs_root *root,
 	u64 transid;
 	int ret;
 
+	btrfs_warn(root->fs_info,
+	"START_SYNC ioctl is deprecated and will be removed in kernel 5.7");
+
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
 		if (PTR_ERR(trans) != -ENOENT)
@@ -4217,6 +4227,9 @@ static noinline long btrfs_ioctl_wait_sync(struct btrfs_fs_info *fs_info,
 					   void __user *argp)
 {
 	u64 transid;
+
+	btrfs_warn(fs_info,
+		"WAIT_SYNC ioctl is deprecated and will be removed in kernel 5.7");
 
 	if (argp) {
 		if (copy_from_user(&transid, argp, sizeof(transid)))
