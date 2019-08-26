@@ -949,7 +949,7 @@ static struct bp_patching_desc {
 	int nr_entries;
 } bp_patching;
 
-static int patch_cmp(const void *key, const void *elt)
+static int notrace patch_cmp(const void *key, const void *elt)
 {
 	struct text_poke_loc *tp = (struct text_poke_loc *) elt;
 
@@ -961,7 +961,7 @@ static int patch_cmp(const void *key, const void *elt)
 }
 NOKPROBE_SYMBOL(patch_cmp);
 
-int poke_int3_handler(struct pt_regs *regs)
+int notrace poke_int3_handler(struct pt_regs *regs)
 {
 	struct text_poke_loc *tp;
 	void *ip;
@@ -1209,9 +1209,14 @@ void text_poke_finish(void)
 	text_poke_flush(NULL);
 }
 
-void text_poke_queue(void *addr, const void *opcode, size_t len, const void *emulate)
+void __ref text_poke_queue(void *addr, const void *opcode, size_t len, const void *emulate)
 {
 	struct text_poke_loc *tp;
+
+	if (unlikely(system_state == SYSTEM_BOOTING)) {
+		text_poke_early(addr, opcode, len);
+		return;
+	}
 
 	text_poke_flush(addr);
 
@@ -1230,9 +1235,14 @@ void text_poke_queue(void *addr, const void *opcode, size_t len, const void *emu
  * dynamically allocated memory. This function should be used when it is
  * not possible to allocate memory.
  */
-void text_poke_bp(void *addr, const void *opcode, size_t len, const void *emulate)
+void __ref text_poke_bp(void *addr, const void *opcode, size_t len, const void *emulate)
 {
 	struct text_poke_loc tp;
+
+	if (unlikely(system_state == SYSTEM_BOOTING)) {
+		text_poke_early(addr, opcode, len);
+		return;
+	}
 
 	text_poke_loc_init(&tp, addr, opcode, len, emulate);
 	text_poke_bp_batch(&tp, 1);
