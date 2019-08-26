@@ -261,14 +261,14 @@
 #define MV88E6095_PORT_IEEE_PRIO_REMAP_4567	0x19
 
 /* Offset 0x1a: Magic undocumented errata register */
-#define PORT_RESERVED_1A			0x1a
-#define PORT_RESERVED_1A_BUSY			BIT(15)
-#define PORT_RESERVED_1A_WRITE			BIT(14)
-#define PORT_RESERVED_1A_READ			0
-#define PORT_RESERVED_1A_PORT_SHIFT		5
-#define PORT_RESERVED_1A_BLOCK			(0xf << 10)
-#define PORT_RESERVED_1A_CTRL_PORT		4
-#define PORT_RESERVED_1A_DATA_PORT		5
+#define MV88E6XXX_PORT_RESERVED_1A		0x1a
+#define MV88E6XXX_PORT_RESERVED_1A_BUSY		0x8000
+#define MV88E6XXX_PORT_RESERVED_1A_WRITE	0x4000
+#define MV88E6XXX_PORT_RESERVED_1A_READ		0x0000
+#define MV88E6XXX_PORT_RESERVED_1A_PORT_SHIFT	5
+#define MV88E6XXX_PORT_RESERVED_1A_BLOCK_SHIFT	10
+#define MV88E6XXX_PORT_RESERVED_1A_CTRL_PORT	0x04
+#define MV88E6XXX_PORT_RESERVED_1A_DATA_PORT	0x05
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val);
@@ -352,5 +352,11 @@ int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 
 int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port);
 int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port);
+
+int mv88e6xxx_port_hidden_write(struct mv88e6xxx_chip *chip, int block,
+				int port, int reg, u16 val);
+int mv88e6xxx_port_hidden_wait(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_port_hidden_read(struct mv88e6xxx_chip *chip, int block, int port,
+			       int reg, u16 *val);
 
 #endif /* _MV88E6XXX_PORT_H */
