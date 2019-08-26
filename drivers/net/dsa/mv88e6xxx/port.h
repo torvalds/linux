@@ -269,6 +269,8 @@
 #define MV88E6XXX_PORT_RESERVED_1A_BLOCK_SHIFT	10
 #define MV88E6XXX_PORT_RESERVED_1A_CTRL_PORT	0x04
 #define MV88E6XXX_PORT_RESERVED_1A_DATA_PORT	0x05
+#define MV88E6341_PORT_RESERVED_1A_FORCE_CMODE	0x8000
+#define MV88E6341_PORT_RESERVED_1A_SGMII_AN	0x2000
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val);
@@ -334,6 +336,9 @@ int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out);
 int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out);
+int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip, int port);
+int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			     phy_interface_t mode);
 int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode);
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
