@@ -1361,13 +1361,17 @@ static void dcn20_program_pipe(
 			&& !pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe)
 		dc->hwss.blank_pixel_data(dc, pipe_ctx, !pipe_ctx->plane_state->visible);
 
-	if (pipe_ctx->update_flags.bits.global_sync)
+	if (pipe_ctx->update_flags.bits.global_sync) {
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg,
 				pipe_ctx->pipe_dlg_param.vready_offset,
 				pipe_ctx->pipe_dlg_param.vstartup_start,
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
+
+		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+	}
 
 	if (pipe_ctx->update_flags.bits.odm)
 		dc->hwss.update_odm(dc, context, pipe_ctx);
