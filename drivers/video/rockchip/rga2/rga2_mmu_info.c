@@ -489,7 +489,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 		pte = pte_offset_map_lock(current->mm, pmd,
 					  (Memory + i) << PAGE_SHIFT,
 					  &ptl);
-		if (!pte) {
+		if (pte_none(*pte)) {
 			pr_err("RGA2 failed to get pte\n");
 			pte_unmap_unlock(pte, ptl);
 			status = RGA2_OUT_OF_RESOURCES;
@@ -498,9 +498,9 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 		pfn = pte_pfn(*pte);
 		Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i)
 			   << PAGE_SHIFT)) & ~PAGE_MASK));
-		pte_unmap_unlock(pte, ptl);
 		pageTable[i] = (uint32_t)Address;
 		rga2_dma_flush_page(pfn_to_page(pfn));
+		pte_unmap_unlock(pte, ptl);
 	}
 	up_read(&current->mm->mmap_sem);
 	return status;
