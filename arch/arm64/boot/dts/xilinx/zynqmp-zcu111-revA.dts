@@ -212,84 +212,98 @@
 			u67: ina226@40 { /* u67 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u67";
 				reg = <0x40>;
 				shunt-resistor = <2000>;
 			};
 			u59: ina226@41 { /* u59 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u59";
 				reg = <0x41>;
 				shunt-resistor = <5000>;
 			};
 			u61: ina226@42 { /* u61 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u61";
 				reg = <0x42>;
 				shunt-resistor = <5000>;
 			};
 			u60: ina226@43 { /* u60 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u60";
 				reg = <0x43>;
 				shunt-resistor = <5000>;
 			};
 			u64: ina226@45 { /* u64 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u64";
 				reg = <0x45>;
 				shunt-resistor = <5000>;
 			};
 			u69: ina226@46 { /* u69 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u69";
 				reg = <0x46>;
 				shunt-resistor = <2000>;
 			};
 			u66: ina226@47 { /* u66 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u66";
 				reg = <0x47>;
 				shunt-resistor = <5000>;
 			};
 			u65: ina226@48 { /* u65 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u65";
 				reg = <0x48>;
 				shunt-resistor = <5000>;
 			};
 			u63: ina226@49 { /* u63 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u63";
 				reg = <0x49>;
 				shunt-resistor = <5000>;
 			};
 			u3: ina226@4a { /* u3 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u3";
 				reg = <0x4a>;
 				shunt-resistor = <5000>;
 			};
 			u71: ina226@4b { /* u71 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u71";
 				reg = <0x4b>;
 				shunt-resistor = <5000>;
 			};
 			u77: ina226@4c { /* u77 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u77";
 				reg = <0x4c>;
 				shunt-resistor = <5000>;
 			};
 			u73: ina226@4d { /* u73 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u73";
 				reg = <0x4d>;
 				shunt-resistor = <5000>;
 			};
 			u79: ina226@4e { /* u79 */
 				compatible = "ti,ina226";
 				#io-channel-cells = <1>;
+				label = "ina226-u79";
 				reg = <0x4e>;
 				shunt-resistor = <5000>;
 			};
