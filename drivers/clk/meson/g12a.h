@@ -29,6 +29,14 @@
 #define HHI_GP0_PLL_CNTL5		0x054
 #define HHI_GP0_PLL_CNTL6		0x058
 #define HHI_GP0_PLL_STS			0x05C
+#define HHI_GP1_PLL_CNTL0		0x060
+#define HHI_GP1_PLL_CNTL1		0x064
+#define HHI_GP1_PLL_CNTL2		0x068
+#define HHI_GP1_PLL_CNTL3		0x06C
+#define HHI_GP1_PLL_CNTL4		0x070
+#define HHI_GP1_PLL_CNTL5		0x074
+#define HHI_GP1_PLL_CNTL6		0x078
+#define HHI_GP1_PLL_STS			0x07C
 #define HHI_PCIE_PLL_CNTL0		0x098
 #define HHI_PCIE_PLL_CNTL1		0x09C
 #define HHI_PCIE_PLL_CNTL2		0x0A0
@@ -233,8 +241,9 @@
 #define CLKID_CPUB_CLK_AXI			239
 #define CLKID_CPUB_CLK_TRACE_SEL		240
 #define CLKID_CPUB_CLK_TRACE			241
+#define CLKID_GP1_PLL_DCO			242
 
-#define NR_CLKS					242
+#define NR_CLKS					244
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/g12a-clkc.h>
