@@ -1206,6 +1206,7 @@ static void sdma_v4_0_init_pg(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		sdma_v4_1_init_power_gating(adev);
 		sdma_v4_1_update_power_gating(adev, true);
 		break;
