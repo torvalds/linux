@@ -395,7 +395,7 @@ phy_interface_t mv88e6390x_port_max_speed_mode(int port)
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode)
 {
-	int lane;
+	u8 lane;
 	u16 cmode;
 	u16 reg;
 	int err;
@@ -434,11 +434,11 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	if (cmode == chip->ports[port].cmode)
 		return 0;
 
-	lane = mv88e6390x_serdes_get_lane(chip, port);
-	if (lane < 0 && lane != -ENODEV)
-		return lane;
+	err = mv88e6xxx_serdes_get_lane(chip, port, &lane);
+	if (err && err != -ENODEV)
+		return err;
 
-	if (lane >= 0) {
+	if (err != -ENODEV) {
 		if (chip->ports[port].serdes_irq) {
 			err = mv88e6390_serdes_irq_disable(chip, port, lane);
 			if (err)
@@ -466,9 +466,9 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 
 		chip->ports[port].cmode = cmode;
 
-		lane = mv88e6390x_serdes_get_lane(chip, port);
-		if (lane < 0)
-			return lane;
+		err = mv88e6xxx_serdes_get_lane(chip, port, &lane);
+		if (err)
+			return err;
 
 		err = mv88e6390x_serdes_power(chip, port, true);
 		if (err)

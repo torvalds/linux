@@ -443,6 +443,9 @@ struct mv88e6xxx_ops {
 	/* Power on/off a SERDES interface */
 	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
 
+	/* SERDES lane mapping */
+	int (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port, u8 *lane);
+
 	/* SERDES interrupt handling */
 	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
 	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
