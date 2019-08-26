@@ -12,29 +12,65 @@
 #include <linux/types.h>
 
 /**
- * enum ion_heap_types - list of all possible types of heaps
- * @ION_HEAP_TYPE_SYSTEM:        memory allocated via vmalloc
- * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
- * @ION_HEAP_TYPE_CARVEOUT:      memory allocated from a prereserved
- *                               carveout heap, allocations are physically
- *                               contiguous
- * @ION_HEAP_TYPE_DMA:           memory allocated via DMA API
- * @ION_HEAP_TYPE_MAX:		 helper for iterating over standard
- *				 (not device specific) heaps
- * @ION_NUM_HEAPS_IDS:           helper for iterating over heaps, a bit mask
- *                               is used to identify the heaps, so only 32
- *                               total heap types are supported
+ * ion_heap_types - list of all possible types of heaps that Android can use
+ *
+ * @ION_HEAP_TYPE_SYSTEM:        Reserved heap id for ion heap that allocates
+ *				 memory using alloc_page(). Also, supports
+ *				 deferred free and allocation pools.
+ * @ION_HEAP_TYPE_SYSTEM_CONTIG: Reserved heap id for ion heap that is the same
+ *				 as SYSTEM_HEAP, except doesn't support
+ *				 allocation pools.
+ * @ION_HEAP_TYPE_CARVEOUT:      Reserved heap id for ion heap that allocates
+ *				 memory from a pre-reserved memory region
+ *				 aka 'carveout'.
+ * @ION_HEAP_TYPE_DMA:		 Reserved heap id for ion heap that manages
+ * 				 single CMA (contiguous memory allocator)
+ * 				 region. Uses standard DMA APIs for
+ *				 managing memory within the CMA region.
  */
 enum ion_heap_type {
-	ION_HEAP_TYPE_SYSTEM = (1 << 0),
-	ION_HEAP_TYPE_SYSTEM_CONTIG = (1 << 1),
-	ION_HEAP_TYPE_CARVEOUT = (1 << 2),
-	ION_HEAP_TYPE_CHUNK = (1 << 3),
-	ION_HEAP_TYPE_DMA = (1 << 4),
-	ION_HEAP_TYPE_MAX = (1 << 15),
+	ION_HEAP_TYPE_SYSTEM = 0,
+	ION_HEAP_TYPE_SYSTEM_CONTIG = 1,
+	ION_HEAP_TYPE_CHUNK = 2,
+	ION_HEAP_TYPE_CARVEOUT = 3,
+	ION_HEAP_TYPE_DMA = 4,
+	/* reserved range for future standard heap types */
+	ION_HEAP_TYPE_CUSTOM = 16,
+	ION_HEAP_TYPE_MAX = 31,
 };
 
-#define ION_NUM_HEAP_IDS		(sizeof(unsigned int) * 8)
+/**
+ * ion_heap_id - list of standard heap ids that Android can use
+ *
+ * @ION_HEAP_SYSTEM		Id for the ION_HEAP_TYPE_SYSTEM
+ * @ION_HEAP_SYSTEM_CONTIG	Id for the ION_HEAP_TYPE_SYSTEM_CONTIG
+ * @ION_HEAP_CHUNK		Id for the ION_HEAP_TYPE_CHUNK
+ * @ION_HEAP_CARVEOUT_START	Start of reserved id range for heaps of type
+ *				ION_HEAP_TYPE_CARVEOUT
+ * @ION_HEAP_CARVEOUT_END	End of reserved id range for heaps of type
+ *				ION_HEAP_TYPE_CARVEOUT
+ * @ION_HEAP_DMA_START 		Start of reserved id range for heaps of type
+ *				ION_HEAP_TYPE_DMA
+ * @ION_HEAP_DMA_END		End of reserved id range for heaps of type
+ *				ION_HEAP_TYPE_DMA
+ * @ION_HEAP_CUSTOM_START	Start of reserved id range for heaps of custom
+ *				type
+ * @ION_HEAP_CUSTOM_END		End of reserved id range for heaps of custom
+ *				type
+ */
+enum ion_heap_id {
+	ION_HEAP_SYSTEM = (1 << ION_HEAP_TYPE_SYSTEM),
+	ION_HEAP_SYSTEM_CONTIG = (ION_HEAP_SYSTEM << 1),
+	ION_HEAP_CHUNK = (ION_HEAP_SYSTEM_CONTIG << 1),
+	ION_HEAP_CARVEOUT_START = (ION_HEAP_CHUNK << 1),
+	ION_HEAP_CARVEOUT_END = (ION_HEAP_CARVEOUT_START << 4),
+	ION_HEAP_DMA_START = (ION_HEAP_CARVEOUT_END << 1),
+	ION_HEAP_DMA_END = (ION_HEAP_DMA_START << 7),
+	ION_HEAP_CUSTOM_START = (ION_HEAP_DMA_END << 1),
+	ION_HEAP_CUSTOM_END = (ION_HEAP_CUSTOM_START << 15),
+};
+
+#define ION_NUM_MAX_HEAPS	(32)
 
 /**
  * allocation flags - the lower 16 bits are used by core ion, the upper 16
