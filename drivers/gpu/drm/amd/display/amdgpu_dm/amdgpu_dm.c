@@ -5727,7 +5727,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 							false,
 							msecs_to_jiffies(5000));
 		if (unlikely(r <= 0))
-			DRM_ERROR("Waiting for fences timed out or interrupted!");
+			DRM_ERROR("Waiting for fences timed out!");
 
 		/*
 		 * TODO This might fail and hence better not used, wait
