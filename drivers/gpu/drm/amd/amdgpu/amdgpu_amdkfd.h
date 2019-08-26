@@ -57,7 +57,7 @@ struct kgd_mem {
 	unsigned int mapped_to_gpu_memory;
 	uint64_t va;
 
-	uint32_t mapping_flags;
+	uint32_t alloc_flags;
 
 	atomic_t invalid;
 	struct amdkfd_process_info *process_info;
