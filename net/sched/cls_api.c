@@ -568,9 +568,11 @@ static void tc_indr_block_ing_cmd(struct net_device *dev,
 
 	bo.block = &block->flow_block;
 
+	down_write(&block->cb_lock);
 	cb(dev, cb_priv, TC_SETUP_BLOCK, &bo);
 
 	tcf_block_setup(block, &bo);
+	up_write(&block->cb_lock);
 }
 
 static struct tcf_block *tc_dev_ingress_block(struct net_device *dev)
@@ -627,7 +629,7 @@ static void tc_indr_block_call(struct tcf_block *block,
 
 static bool tcf_block_offload_in_use(struct tcf_block *block)
 {
-	return block->offloadcnt;
+	return atomic_read(&block->offloadcnt);
 }
 
 static int tcf_block_offload_cmd(struct tcf_block *block,
@@ -661,6 +663,7 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	struct net_device *dev = q->dev_queue->dev;
 	int err;
 
+	down_write(&block->cb_lock);
 	if (!dev->netdev_ops->ndo_setup_tc)
 		goto no_offload_dev_inc;
 
@@ -669,24 +672,31 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	 */
 	if (!tc_can_offload(dev) && tcf_block_offload_in_use(block)) {
 		NL_SET_ERR_MSG(extack, "Bind to offloaded block failed as dev has offload disabled");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto err_unlock;
 	}
 
 	err = tcf_block_offload_cmd(block, dev, ei, FLOW_BLOCK_BIND, extack);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_inc;
 	if (err)
-		return err;
+		goto err_unlock;
 
 	tc_indr_block_call(block, dev, ei, FLOW_BLOCK_BIND, extack);
+	up_write(&block->cb_lock);
 	return 0;
 
 no_offload_dev_inc:
-	if (tcf_block_offload_in_use(block))
-		return -EOPNOTSUPP;
+	if (tcf_block_offload_in_use(block)) {
+		err = -EOPNOTSUPP;
+		goto err_unlock;
+	}
+	err = 0;
 	block->nooffloaddevcnt++;
 	tc_indr_block_call(block, dev, ei, FLOW_BLOCK_BIND, extack);
-	return 0;
+err_unlock:
+	up_write(&block->cb_lock);
+	return err;
 }
 
 static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
@@ -695,6 +705,7 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 	struct net_device *dev = q->dev_queue->dev;
 	int err;
 
+	down_write(&block->cb_lock);
 	tc_indr_block_call(block, dev, ei, FLOW_BLOCK_UNBIND, NULL);
 
 	if (!dev->netdev_ops->ndo_setup_tc)
@@ -702,10 +713,12 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 	err = tcf_block_offload_cmd(block, dev, ei, FLOW_BLOCK_UNBIND, NULL);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_dec;
+	up_write(&block->cb_lock);
 	return;
 
 no_offload_dev_dec:
 	WARN_ON(block->nooffloaddevcnt-- == 0);
+	up_write(&block->cb_lock);
 }
 
 static int
@@ -820,6 +833,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 		return ERR_PTR(-ENOMEM);
 	}
 	mutex_init(&block->lock);
+	init_rwsem(&block->cb_lock);
 	flow_block_init(&block->flow_block);
 	INIT_LIST_HEAD(&block->chain_list);
 	INIT_LIST_HEAD(&block->owner_list);
@@ -1355,6 +1369,8 @@ tcf_block_playback_offloads(struct tcf_block *block, flow_setup_cb_t *cb,
 	struct tcf_proto *tp, *tp_prev;
 	int err;
 
+	lockdep_assert_held(&block->cb_lock);
+
 	for (chain = __tcf_get_next_chain(block, NULL);
 	     chain;
 	     chain_prev = chain,
@@ -1393,6 +1409,8 @@ static int tcf_block_bind(struct tcf_block *block,
 	struct flow_block_cb *block_cb, *next;
 	int err, i = 0;
 
+	lockdep_assert_held(&block->cb_lock);
+
 	list_for_each_entry(block_cb, &bo->cb_list, list) {
 		err = tcf_block_playback_offloads(block, block_cb->cb,
 						  block_cb->cb_priv, true,
@@ -1400,6 +1418,8 @@ static int tcf_block_bind(struct tcf_block *block,
 						  bo->extack);
 		if (err)
 			goto err_unroll;
+		if (!bo->unlocked_driver_cb)
+			block->lockeddevcnt++;
 
 		i++;
 	}
@@ -1415,6 +1435,8 @@ err_unroll:
 						    block_cb->cb_priv, false,
 						    tcf_block_offload_in_use(block),
 						    NULL);
+			if (!bo->unlocked_driver_cb)
+				block->lockeddevcnt--;
 		}
 		flow_block_cb_free(block_cb);
 	}
@@ -1427,6 +1449,8 @@ static void tcf_block_unbind(struct tcf_block *block,
 {
 	struct flow_block_cb *block_cb, *next;
 
+	lockdep_assert_held(&block->cb_lock);
+
 	list_for_each_entry_safe(block_cb, next, &bo->cb_list, list) {
 		tcf_block_playback_offloads(block, block_cb->cb,
 					    block_cb->cb_priv, false,
@@ -1434,6 +1458,8 @@ static void tcf_block_unbind(struct tcf_block *block,
 					    NULL);
 		list_del(&block_cb->list);
 		flow_block_cb_free(block_cb);
+		if (!bo->unlocked_driver_cb)
+			block->lockeddevcnt--;
 	}
 }
 
@@ -2980,16 +3006,60 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
 
-int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
-		     void *type_data, bool err_stop)
+static void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
+{
+	if (*flags & TCA_CLS_FLAGS_IN_HW)
+		return;
+	*flags |= TCA_CLS_FLAGS_IN_HW;
+	atomic_inc(&block->offloadcnt);
+}
+
+static void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
+{
+	if (!(*flags & TCA_CLS_FLAGS_IN_HW))
+		return;
+	*flags &= ~TCA_CLS_FLAGS_IN_HW;
+	atomic_dec(&block->offloadcnt);
+}
+
+static void tc_cls_offload_cnt_update(struct tcf_block *block,
+				      struct tcf_proto *tp, u32 *cnt,
+				      u32 *flags, u32 diff, bool add)
+{
+	lockdep_assert_held(&block->cb_lock);
+
+	spin_lock(&tp->lock);
+	if (add) {
+		if (!*cnt)
+			tcf_block_offload_inc(block, flags);
+		*cnt += diff;
+	} else {
+		*cnt -= diff;
+		if (!*cnt)
+			tcf_block_offload_dec(block, flags);
+	}
+	spin_unlock(&tp->lock);
+}
+
+static void
+tc_cls_offload_cnt_reset(struct tcf_block *block, struct tcf_proto *tp,
+			 u32 *cnt, u32 *flags)
+{
+	lockdep_assert_held(&block->cb_lock);
+
+	spin_lock(&tp->lock);
+	tcf_block_offload_dec(block, flags);
+	*cnt = 0;
+	spin_unlock(&tp->lock);
+}
+
+static int
+__tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
+		   void *type_data, bool err_stop)
 {
 	struct flow_block_cb *block_cb;
 	int ok_count = 0;
 	int err;
-
-	/* Make sure all netdevs sharing this block are offload-capable. */
-	if (block->nooffloaddevcnt && err_stop)
-		return -EOPNOTSUPP;
 
 	list_for_each_entry(block_cb, &block->flow_block.cb_list, list) {
 		err = block_cb->cb(type, type_data, block_cb->cb_priv);
@@ -3002,16 +3072,234 @@ int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 	}
 	return ok_count;
 }
+
+int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
+		     void *type_data, bool err_stop, bool rtnl_held)
+{
+	bool take_rtnl = READ_ONCE(block->lockeddevcnt) && !rtnl_held;
+	int ok_count;
+
+retry:
+	if (take_rtnl)
+		rtnl_lock();
+	down_read(&block->cb_lock);
+	/* Need to obtain rtnl lock if block is bound to devs that require it.
+	 * In block bind code cb_lock is obtained while holding rtnl, so we must
+	 * obtain the locks in same order here.
+	 */
+	if (!rtnl_held && !take_rtnl && block->lockeddevcnt) {
+		up_read(&block->cb_lock);
+		take_rtnl = true;
+		goto retry;
+	}
+
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+
+	up_read(&block->cb_lock);
+	if (take_rtnl)
+		rtnl_unlock();
+	return ok_count;
+}
 EXPORT_SYMBOL(tc_setup_cb_call);
 
+/* Non-destructive filter add. If filter that wasn't already in hardware is
+ * successfully offloaded, increment block offloads counter. On failure,
+ * previously offloaded filter is considered to be intact and offloads counter
+ * is not decremented.
+ */
+
+int tc_setup_cb_add(struct tcf_block *block, struct tcf_proto *tp,
+		    enum tc_setup_type type, void *type_data, bool err_stop,
+		    u32 *flags, unsigned int *in_hw_count, bool rtnl_held)
+{
+	bool take_rtnl = READ_ONCE(block->lockeddevcnt) && !rtnl_held;
+	int ok_count;
+
+retry:
+	if (take_rtnl)
+		rtnl_lock();
+	down_read(&block->cb_lock);
+	/* Need to obtain rtnl lock if block is bound to devs that require it.
+	 * In block bind code cb_lock is obtained while holding rtnl, so we must
+	 * obtain the locks in same order here.
+	 */
+	if (!rtnl_held && !take_rtnl && block->lockeddevcnt) {
+		up_read(&block->cb_lock);
+		take_rtnl = true;
+		goto retry;
+	}
+
+	/* Make sure all netdevs sharing this block are offload-capable. */
+	if (block->nooffloaddevcnt && err_stop) {
+		ok_count = -EOPNOTSUPP;
+		goto err_unlock;
+	}
+
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	if (ok_count < 0)
+		goto err_unlock;
+
+	if (tp->ops->hw_add)
+		tp->ops->hw_add(tp, type_data);
+	if (ok_count > 0)
+		tc_cls_offload_cnt_update(block, tp, in_hw_count, flags,
+					  ok_count, true);
+err_unlock:
+	up_read(&block->cb_lock);
+	if (take_rtnl)
+		rtnl_unlock();
+	return ok_count < 0 ? ok_count : 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_add);
+
+/* Destructive filter replace. If filter that wasn't already in hardware is
+ * successfully offloaded, increment block offload counter. On failure,
+ * previously offloaded filter is considered to be destroyed and offload counter
+ * is decremented.
+ */
+
+int tc_setup_cb_replace(struct tcf_block *block, struct tcf_proto *tp,
+			enum tc_setup_type type, void *type_data, bool err_stop,
+			u32 *old_flags, unsigned int *old_in_hw_count,
+			u32 *new_flags, unsigned int *new_in_hw_count,
+			bool rtnl_held)
+{
+	bool take_rtnl = READ_ONCE(block->lockeddevcnt) && !rtnl_held;
+	int ok_count;
+
+retry:
+	if (take_rtnl)
+		rtnl_lock();
+	down_read(&block->cb_lock);
+	/* Need to obtain rtnl lock if block is bound to devs that require it.
+	 * In block bind code cb_lock is obtained while holding rtnl, so we must
+	 * obtain the locks in same order here.
+	 */
+	if (!rtnl_held && !take_rtnl && block->lockeddevcnt) {
+		up_read(&block->cb_lock);
+		take_rtnl = true;
+		goto retry;
+	}
+
+	/* Make sure all netdevs sharing this block are offload-capable. */
+	if (block->nooffloaddevcnt && err_stop) {
+		ok_count = -EOPNOTSUPP;
+		goto err_unlock;
+	}
+
+	tc_cls_offload_cnt_reset(block, tp, old_in_hw_count, old_flags);
+	if (tp->ops->hw_del)
+		tp->ops->hw_del(tp, type_data);
+
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	if (ok_count < 0)
+		goto err_unlock;
+
+	if (tp->ops->hw_add)
+		tp->ops->hw_add(tp, type_data);
+	if (ok_count > 0)
+		tc_cls_offload_cnt_update(block, tp, new_in_hw_count,
+					  new_flags, ok_count, true);
+err_unlock:
+	up_read(&block->cb_lock);
+	if (take_rtnl)
+		rtnl_unlock();
+	return ok_count < 0 ? ok_count : 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_replace);
+
+/* Destroy filter and decrement block offload counter, if filter was previously
+ * offloaded.
+ */
+
+int tc_setup_cb_destroy(struct tcf_block *block, struct tcf_proto *tp,
+			enum tc_setup_type type, void *type_data, bool err_stop,
+			u32 *flags, unsigned int *in_hw_count, bool rtnl_held)
+{
+	bool take_rtnl = READ_ONCE(block->lockeddevcnt) && !rtnl_held;
+	int ok_count;
+
+retry:
+	if (take_rtnl)
+		rtnl_lock();
+	down_read(&block->cb_lock);
+	/* Need to obtain rtnl lock if block is bound to devs that require it.
+	 * In block bind code cb_lock is obtained while holding rtnl, so we must
+	 * obtain the locks in same order here.
+	 */
+	if (!rtnl_held && !take_rtnl && block->lockeddevcnt) {
+		up_read(&block->cb_lock);
+		take_rtnl = true;
+		goto retry;
+	}
+
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+
+	tc_cls_offload_cnt_reset(block, tp, in_hw_count, flags);
+	if (tp->ops->hw_del)
+		tp->ops->hw_del(tp, type_data);
+
+	up_read(&block->cb_lock);
+	if (take_rtnl)
+		rtnl_unlock();
+	return ok_count < 0 ? ok_count : 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_destroy);
+
+int tc_setup_cb_reoffload(struct tcf_block *block, struct tcf_proto *tp,
+			  bool add, flow_setup_cb_t *cb,
+			  enum tc_setup_type type, void *type_data,
+			  void *cb_priv, u32 *flags, unsigned int *in_hw_count)
+{
+	int err = cb(type, type_data, cb_priv);
+
+	if (err) {
+		if (add && tc_skip_sw(*flags))
+			return err;
+	} else {
+		tc_cls_offload_cnt_update(block, tp, in_hw_count, flags, 1,
+					  add);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_reoffload);
+
+void tc_cleanup_flow_action(struct flow_action *flow_action)
+{
+	struct flow_action_entry *entry;
+	int i;
+
+	flow_action_for_each(i, entry, flow_action) {
+		switch (entry->id) {
+		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_MIRRED:
+		case FLOW_ACTION_REDIRECT_INGRESS:
+		case FLOW_ACTION_MIRRED_INGRESS:
+			if (entry->dev)
+				dev_put(entry->dev);
+			break;
+		case FLOW_ACTION_TUNNEL_ENCAP:
+			kfree(entry->tunnel);
+			break;
+		default:
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL(tc_cleanup_flow_action);
+
 int tc_setup_flow_action(struct flow_action *flow_action,
-			 const struct tcf_exts *exts)
+			 const struct tcf_exts *exts, bool rtnl_held)
 {
 	const struct tc_action *act;
-	int i, j, k;
+	int i, j, k, err = 0;
 
 	if (!exts)
 		return 0;
+
+	if (!rtnl_held)
+		rtnl_lock();
 
 	j = 0;
 	tcf_exts_for_each_action(i, act, exts) {
@@ -3030,15 +3318,23 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 		} else if (is_tcf_mirred_egress_redirect(act)) {
 			entry->id = FLOW_ACTION_REDIRECT;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_mirred_egress_mirror(act)) {
 			entry->id = FLOW_ACTION_MIRRED;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_mirred_ingress_redirect(act)) {
 			entry->id = FLOW_ACTION_REDIRECT_INGRESS;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_mirred_ingress_mirror(act)) {
 			entry->id = FLOW_ACTION_MIRRED_INGRESS;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_vlan(act)) {
 			switch (tcf_vlan_action(act)) {
 			case TCA_VLAN_ACT_PUSH:
@@ -3057,11 +3353,16 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 				entry->vlan.prio = tcf_vlan_push_prio(act);
 				break;
 			default:
+				err = -EOPNOTSUPP;
 				goto err_out;
 			}
 		} else if (is_tcf_tunnel_set(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_ENCAP;
-			entry->tunnel = tcf_tunnel_info(act);
+			entry->tunnel = tcf_tunnel_info_copy(act);
+			if (!entry->tunnel) {
+				err = -ENOMEM;
+				goto err_out;
+			}
 		} else if (is_tcf_tunnel_release(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
 		} else if (is_tcf_pedit(act)) {
@@ -3074,6 +3375,7 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 					entry->id = FLOW_ACTION_ADD;
 					break;
 				default:
+					err = -EOPNOTSUPP;
 					goto err_out;
 				}
 				entry->mangle.htype = tcf_pedit_htype(act, k);
@@ -3132,15 +3434,22 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			entry->id = FLOW_ACTION_PTYPE;
 			entry->ptype = tcf_skbedit_ptype(act);
 		} else {
+			err = -EOPNOTSUPP;
 			goto err_out;
 		}
 
 		if (!is_tcf_pedit(act))
 			j++;
 	}
-	return 0;
+
 err_out:
-	return -EOPNOTSUPP;
+	if (!rtnl_held)
+		rtnl_unlock();
+
+	if (err)
+		tc_cleanup_flow_action(flow_action);
+
+	return err;
 }
 EXPORT_SYMBOL(tc_setup_flow_action);
 
