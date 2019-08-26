@@ -924,7 +924,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 			ret = i915_request_await_request(rq, to_request(fence));
 		else
 			ret = i915_sw_fence_await_dma_fence(&rq->submit, fence,
-							    I915_FENCE_TIMEOUT,
+							    fence->context ? I915_FENCE_TIMEOUT : 0,
 							    I915_FENCE_GFP);
 		if (ret < 0)
 			return ret;
