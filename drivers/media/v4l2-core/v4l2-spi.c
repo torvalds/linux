@@ -17,7 +17,7 @@ void v4l2_spi_subdev_unregister(struct v4l2_subdev *sd)
 }
 
 void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
-		const struct v4l2_subdev_ops *ops)
+			  const struct v4l2_subdev_ops *ops)
 {
 	v4l2_subdev_init(sd, ops);
 	sd->flags |= V4L2_SUBDEV_FL_IS_SPI;
@@ -29,12 +29,13 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 	spi_set_drvdata(spi, sd);
 	/* initialize name */
 	snprintf(sd->name, sizeof(sd->name), "%s %s",
-		spi->dev.driver->name, dev_name(&spi->dev));
+		 spi->dev.driver->name, dev_name(&spi->dev));
 }
 EXPORT_SYMBOL_GPL(v4l2_spi_subdev_init);
 
 struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
-		struct spi_master *master, struct spi_board_info *info)
+					struct spi_master *master,
+					struct spi_board_info *info)
 {
 	struct v4l2_subdev *sd = NULL;
 	struct spi_device *spi = NULL;
@@ -46,7 +47,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 
 	spi = spi_new_device(master, info);
 
-	if (spi == NULL || spi->dev.driver == NULL)
+	if (!spi || !spi->dev.driver)
 		goto error;
 
 	if (!try_module_get(spi->dev.driver->owner))
@@ -54,8 +55,10 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 
 	sd = spi_get_drvdata(spi);
 
-	/* Register with the v4l2_device which increases the module's
-	   use count as well. */
+	/*
+	 * Register with the v4l2_device which increases the module's
+	 * use count as well.
+	 */
 	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 
@@ -63,8 +66,10 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 	module_put(spi->dev.driver->owner);
 
 error:
-	/* If we have a client but no subdev, then something went wrong and
-	   we must unregister the client. */
+	/*
+	 * If we have a client but no subdev, then something went wrong and
+	 * we must unregister the client.
+	 */
 	if (!sd)
 		spi_unregister_device(spi);
 
