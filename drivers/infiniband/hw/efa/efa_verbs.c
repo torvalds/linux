@@ -148,7 +148,7 @@ static inline struct efa_ah *to_eah(struct ib_ah *ibah)
 }
 
 #define field_avail(x, fld, sz) (offsetof(typeof(x), fld) + \
-				 sizeof(((typeof(x) *)0)->fld) <= (sz))
+				 FIELD_SIZEOF(typeof(x), fld) <= (sz))
 
 #define is_reserved_cleared(reserved) \
 	!memchr_inv(reserved, 0, sizeof(reserved))
