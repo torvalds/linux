@@ -5870,8 +5870,13 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
 				exit_reason);
-		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 1;
+		dump_vmcs();
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->internal.suberror =
+			KVM_INTERNAL_ERROR_UNEXPECTED_EXIT_REASON;
+		vcpu->run->internal.ndata = 1;
+		vcpu->run->internal.data[0] = exit_reason;
+		return 0;
 	}
 }
 
