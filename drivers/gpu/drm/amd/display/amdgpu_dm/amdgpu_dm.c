@@ -5195,11 +5195,12 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 
 	connector_type = to_drm_connector_type(link->connector_signal);
 
-	res = drm_connector_init(
+	res = drm_connector_init_with_ddc(
 			dm->ddev,
 			&aconnector->base,
 			&amdgpu_dm_connector_funcs,
-			connector_type);
+			connector_type,
+			&i2c->base);
 
 	if (res) {
 		DRM_ERROR("connector_init failed\n");
