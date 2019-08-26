@@ -3000,12 +3000,96 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
 
-int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
-		     void *type_data, bool err_stop)
+static void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
+{
+	if (*flags & TCA_CLS_FLAGS_IN_HW)
+		return;
+	*flags |= TCA_CLS_FLAGS_IN_HW;
+	atomic_inc(&block->offloadcnt);
+}
+
+static void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
+{
+	if (!(*flags & TCA_CLS_FLAGS_IN_HW))
+		return;
+	*flags &= ~TCA_CLS_FLAGS_IN_HW;
+	atomic_dec(&block->offloadcnt);
+}
+
+static void tc_cls_offload_cnt_update(struct tcf_block *block,
+				      struct tcf_proto *tp, u32 *cnt,
+				      u32 *flags, u32 diff, bool add)
+{
+	lockdep_assert_held(&block->cb_lock);
+
+	spin_lock(&tp->lock);
+	if (add) {
+		if (!*cnt)
+			tcf_block_offload_inc(block, flags);
+		*cnt += diff;
+	} else {
+		*cnt -= diff;
+		if (!*cnt)
+			tcf_block_offload_dec(block, flags);
+	}
+	spin_unlock(&tp->lock);
+}
+
+static void
+tc_cls_offload_cnt_reset(struct tcf_block *block, struct tcf_proto *tp,
+			 u32 *cnt, u32 *flags)
+{
+	lockdep_assert_held(&block->cb_lock);
+
+	spin_lock(&tp->lock);
+	tcf_block_offload_dec(block, flags);
+	*cnt = 0;
+	spin_unlock(&tp->lock);
+}
+
+static int
+__tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
+		   void *type_data, bool err_stop)
 {
 	struct flow_block_cb *block_cb;
 	int ok_count = 0;
 	int err;
+
+	list_for_each_entry(block_cb, &block->flow_block.cb_list, list) {
+		err = block_cb->cb(type, type_data, block_cb->cb_priv);
+		if (err) {
+			if (err_stop)
+				return err;
+		} else {
+			ok_count++;
+		}
+	}
+	return ok_count;
+}
+
+int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
+		     void *type_data, bool err_stop, bool rtnl_held)
+{
+	int ok_count;
+
+	down_read(&block->cb_lock);
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	up_read(&block->cb_lock);
+	return ok_count;
+}
+EXPORT_SYMBOL(tc_setup_cb_call);
+
+/* Non-destructive filter add. If filter that wasn't already in hardware is
+ * successfully offloaded, increment block offloads counter. On failure,
+ * previously offloaded filter is considered to be intact and offloads counter
+ * is not decremented.
+ */
+
+int tc_setup_cb_add(struct tcf_block *block, struct tcf_proto *tp,
+		    enum tc_setup_type type, void *type_data, bool err_stop,
+		    u32 *flags, unsigned int *in_hw_count, bool rtnl_held)
+{
+	int ok_count;
 
 	down_read(&block->cb_lock);
 	/* Make sure all netdevs sharing this block are offload-capable. */
@@ -3014,22 +3098,86 @@ int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		goto err_unlock;
 	}
 
-	list_for_each_entry(block_cb, &block->flow_block.cb_list, list) {
-		err = block_cb->cb(type, type_data, block_cb->cb_priv);
-		if (err) {
-			if (err_stop) {
-				ok_count = err;
-				goto err_unlock;
-			}
-		} else {
-			ok_count++;
-		}
-	}
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	if (ok_count > 0)
+		tc_cls_offload_cnt_update(block, tp, in_hw_count, flags,
+					  ok_count, true);
 err_unlock:
 	up_read(&block->cb_lock);
-	return ok_count;
+	return ok_count < 0 ? ok_count : 0;
 }
-EXPORT_SYMBOL(tc_setup_cb_call);
+EXPORT_SYMBOL(tc_setup_cb_add);
+
+/* Destructive filter replace. If filter that wasn't already in hardware is
+ * successfully offloaded, increment block offload counter. On failure,
+ * previously offloaded filter is considered to be destroyed and offload counter
+ * is decremented.
+ */
+
+int tc_setup_cb_replace(struct tcf_block *block, struct tcf_proto *tp,
+			enum tc_setup_type type, void *type_data, bool err_stop,
+			u32 *old_flags, unsigned int *old_in_hw_count,
+			u32 *new_flags, unsigned int *new_in_hw_count,
+			bool rtnl_held)
+{
+	int ok_count;
+
+	down_read(&block->cb_lock);
+	/* Make sure all netdevs sharing this block are offload-capable. */
+	if (block->nooffloaddevcnt && err_stop) {
+		ok_count = -EOPNOTSUPP;
+		goto err_unlock;
+	}
+
+	tc_cls_offload_cnt_reset(block, tp, old_in_hw_count, old_flags);
+
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	if (ok_count > 0)
+		tc_cls_offload_cnt_update(block, tp, new_in_hw_count, new_flags,
+					  ok_count, true);
+err_unlock:
+	up_read(&block->cb_lock);
+	return ok_count < 0 ? ok_count : 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_replace);
+
+/* Destroy filter and decrement block offload counter, if filter was previously
+ * offloaded.
+ */
+
+int tc_setup_cb_destroy(struct tcf_block *block, struct tcf_proto *tp,
+			enum tc_setup_type type, void *type_data, bool err_stop,
+			u32 *flags, unsigned int *in_hw_count, bool rtnl_held)
+{
+	int ok_count;
+
+	down_read(&block->cb_lock);
+	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+
+	tc_cls_offload_cnt_reset(block, tp, in_hw_count, flags);
+	up_read(&block->cb_lock);
+	return ok_count < 0 ? ok_count : 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_destroy);
+
+int tc_setup_cb_reoffload(struct tcf_block *block, struct tcf_proto *tp,
+			  bool add, flow_setup_cb_t *cb,
+			  enum tc_setup_type type, void *type_data,
+			  void *cb_priv, u32 *flags, unsigned int *in_hw_count)
+{
+	int err = cb(type, type_data, cb_priv);
+
+	if (err) {
+		if (add && tc_skip_sw(*flags))
+			return err;
+	} else {
+		tc_cls_offload_cnt_update(block, tp, in_hw_count, flags, 1,
+					  add);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tc_setup_cb_reoffload);
 
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts)

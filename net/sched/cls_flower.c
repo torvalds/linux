@@ -419,10 +419,10 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f,
 	cls_flower.command = FLOW_CLS_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
 
-	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+	tc_setup_cb_destroy(block, tp, TC_SETUP_CLSFLOWER, &cls_flower, false,
+			    &f->flags, &f->in_hw_count, true);
 	spin_lock(&tp->lock);
 	list_del_init(&f->hw_list);
-	tcf_block_offload_dec(block, &f->flags);
 	spin_unlock(&tp->lock);
 
 	if (!rtnl_held)
@@ -466,18 +466,13 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 		goto errout;
 	}
 
-	err = tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, skip_sw);
+	err = tc_setup_cb_add(block, tp, TC_SETUP_CLSFLOWER, &cls_flower,
+			      skip_sw, &f->flags, &f->in_hw_count, true);
 	kfree(cls_flower.rule);
 
-	if (err < 0) {
+	if (err) {
 		fl_hw_destroy_filter(tp, f, true, NULL);
 		goto errout;
-	} else if (err > 0) {
-		f->in_hw_count = err;
-		err = 0;
-		spin_lock(&tp->lock);
-		tcf_block_offload_inc(block, &f->flags);
-		spin_unlock(&tp->lock);
 	}
 
 	if (skip_sw && !(f->flags & TCA_CLS_FLAGS_IN_HW)) {
@@ -509,7 +504,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f,
 	cls_flower.cookie = (unsigned long) f;
 	cls_flower.classid = f->res.classid;
 
-	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false, true);
 
 	tcf_exts_stats_update(&f->exts, cls_flower.stats.bytes,
 			      cls_flower.stats.pkts,
@@ -1844,21 +1839,16 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 
 		cls_flower.classid = f->res.classid;
 
-		err = cb(TC_SETUP_CLSFLOWER, &cls_flower, cb_priv);
+		err = tc_setup_cb_reoffload(block, tp, add, cb,
+					    TC_SETUP_CLSFLOWER, &cls_flower,
+					    cb_priv, &f->flags,
+					    &f->in_hw_count);
 		kfree(cls_flower.rule);
 
 		if (err) {
-			if (add && tc_skip_sw(f->flags)) {
-				__fl_put(f);
-				return err;
-			}
-			goto next_flow;
+			__fl_put(f);
+			return err;
 		}
-
-		spin_lock(&tp->lock);
-		tc_cls_offload_cnt_update(block, &f->in_hw_count, &f->flags,
-					  add);
-		spin_unlock(&tp->lock);
 next_flow:
 		__fl_put(f);
 	}
@@ -1886,7 +1876,7 @@ static int fl_hw_create_tmplt(struct tcf_chain *chain,
 	/* We don't care if driver (any of them) fails to handle this
 	 * call. It serves just as a hint for it.
 	 */
-	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false, true);
 	kfree(cls_flower.rule);
 
 	return 0;
@@ -1902,7 +1892,7 @@ static void fl_hw_destroy_tmplt(struct tcf_chain *chain,
 	cls_flower.command = FLOW_CLS_TMPLT_DESTROY;
 	cls_flower.cookie = (unsigned long) tmplt;
 
-	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false, true);
 }
 
 static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,

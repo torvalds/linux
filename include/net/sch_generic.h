@@ -439,37 +439,6 @@ static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
 #define tcf_proto_dereference(p, tp)					\
 	rcu_dereference_protected(p, lockdep_tcf_proto_is_locked(tp))
 
-static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
-{
-	if (*flags & TCA_CLS_FLAGS_IN_HW)
-		return;
-	*flags |= TCA_CLS_FLAGS_IN_HW;
-	atomic_inc(&block->offloadcnt);
-}
-
-static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
-{
-	if (!(*flags & TCA_CLS_FLAGS_IN_HW))
-		return;
-	*flags &= ~TCA_CLS_FLAGS_IN_HW;
-	atomic_dec(&block->offloadcnt);
-}
-
-static inline void
-tc_cls_offload_cnt_update(struct tcf_block *block, u32 *cnt,
-			  u32 *flags, bool add)
-{
-	if (add) {
-		if (!*cnt)
-			tcf_block_offload_inc(block, flags);
-		(*cnt)++;
-	} else {
-		(*cnt)--;
-		if (!*cnt)
-			tcf_block_offload_dec(block, flags);
-	}
-}
-
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 {
 	struct qdisc_skb_cb *qcb;
