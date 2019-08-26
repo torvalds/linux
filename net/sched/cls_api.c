@@ -3099,6 +3099,11 @@ int tc_setup_cb_add(struct tcf_block *block, struct tcf_proto *tp,
 	}
 
 	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	if (ok_count < 0)
+		goto err_unlock;
+
+	if (tp->ops->hw_add)
+		tp->ops->hw_add(tp, type_data);
 	if (ok_count > 0)
 		tc_cls_offload_cnt_update(block, tp, in_hw_count, flags,
 					  ok_count, true);
@@ -3130,11 +3135,18 @@ int tc_setup_cb_replace(struct tcf_block *block, struct tcf_proto *tp,
 	}
 
 	tc_cls_offload_cnt_reset(block, tp, old_in_hw_count, old_flags);
+	if (tp->ops->hw_del)
+		tp->ops->hw_del(tp, type_data);
 
 	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
+	if (ok_count < 0)
+		goto err_unlock;
+
+	if (tp->ops->hw_add)
+		tp->ops->hw_add(tp, type_data);
 	if (ok_count > 0)
-		tc_cls_offload_cnt_update(block, tp, new_in_hw_count, new_flags,
-					  ok_count, true);
+		tc_cls_offload_cnt_update(block, tp, new_in_hw_count,
+					  new_flags, ok_count, true);
 err_unlock:
 	up_read(&block->cb_lock);
 	return ok_count < 0 ? ok_count : 0;
@@ -3155,6 +3167,9 @@ int tc_setup_cb_destroy(struct tcf_block *block, struct tcf_proto *tp,
 	ok_count = __tc_setup_cb_call(block, type, type_data, err_stop);
 
 	tc_cls_offload_cnt_reset(block, tp, in_hw_count, flags);
+	if (tp->ops->hw_del)
+		tp->ops->hw_del(tp, type_data);
+
 	up_read(&block->cb_lock);
 	return ok_count < 0 ? ok_count : 0;
 }
