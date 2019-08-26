@@ -383,19 +383,9 @@ n:
 
 /* various errata or part fixups */
 #ifdef CONFIG_PPC601_SYNC_FIX
-#define SYNC				\
-BEGIN_FTR_SECTION			\
-	sync;				\
-	isync;				\
-END_FTR_SECTION_IFSET(CPU_FTR_601)
-#define SYNC_601			\
-BEGIN_FTR_SECTION			\
-	sync;				\
-END_FTR_SECTION_IFSET(CPU_FTR_601)
-#define ISYNC_601			\
-BEGIN_FTR_SECTION			\
-	isync;				\
-END_FTR_SECTION_IFSET(CPU_FTR_601)
+#define SYNC		sync; isync
+#define SYNC_601	sync
+#define ISYNC_601	isync
 #else
 #define	SYNC
 #define SYNC_601
@@ -421,15 +411,11 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define MFTBU(dest)			mfspr dest, SPRN_TBRU
 #endif
 
-#ifndef CONFIG_SMP
-#define TLBSYNC
-#else /* CONFIG_SMP */
 /* tlbsync is not implemented on 601 */
-#define TLBSYNC				\
-BEGIN_FTR_SECTION			\
-	tlbsync;			\
-	sync;				\
-END_FTR_SECTION_IFCLR(CPU_FTR_601)
+#if !defined(CONFIG_SMP) || defined(CONFIG_PPC_BOOK3S_601)
+#define TLBSYNC
+#else
+#define TLBSYNC		tlbsync; sync
 #endif
 
 #ifdef CONFIG_PPC64

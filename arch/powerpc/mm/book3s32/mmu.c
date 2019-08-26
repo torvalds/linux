@@ -74,7 +74,7 @@ static int find_free_bat(void)
 {
 	int b;
 
-	if (cpu_has_feature(CPU_FTR_601)) {
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601)) {
 		for (b = 0; b < 4; b++) {
 			struct ppc_bat *bat = BATS[b];
 
@@ -106,7 +106,7 @@ static int find_free_bat(void)
  */
 static unsigned int block_size(unsigned long base, unsigned long top)
 {
-	unsigned int max_size = (cpu_has_feature(CPU_FTR_601) ? 8 : 256) << 20;
+	unsigned int max_size = IS_ENABLED(CONFIG_PPC_BOOK3S_601) ? SZ_8M : SZ_256M;
 	unsigned int base_shift = (ffs(base) - 1) & 31;
 	unsigned int block_shift = (fls(top - base) - 1) & 31;
 
@@ -189,7 +189,7 @@ void mmu_mark_initmem_nx(void)
 	unsigned long top = (unsigned long)_etext - PAGE_OFFSET;
 	unsigned long size;
 
-	if (cpu_has_feature(CPU_FTR_601))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		return;
 
 	for (i = 0; i < nb - 1 && base < top && top - base > (128 << 10);) {
@@ -227,7 +227,7 @@ void mmu_mark_rodata_ro(void)
 	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
 	int i;
 
-	if (cpu_has_feature(CPU_FTR_601))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		return;
 
 	for (i = 0; i < nb; i++) {
@@ -259,7 +259,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		flags &= ~_PAGE_COHERENT;
 
 	bl = (size >> 17) - 1;
-	if (PVR_VER(mfspr(SPRN_PVR)) != 1) {
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_601)) {
 		/* 603, 604, etc. */
 		/* Do DBAT first */
 		wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
@@ -441,7 +441,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	BUG_ON(first_memblock_base != 0);
 
 	/* 601 can only access 16MB at the moment */
-	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
 	else /* Anything else has 256M mapped */
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
@@ -458,9 +458,6 @@ void __init print_system_hash_info(void)
 void __init setup_kuep(bool disabled)
 {
 	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (cpu_has_feature(CPU_FTR_601))
-		pr_warn("KUEP is not working on powerpc 601 (No NX bit in Seg Regs)\n");
 
 	if (disabled)
 		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");

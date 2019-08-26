@@ -145,7 +145,6 @@ static inline void cpu_feature_keys_init(void) { }
 
 /* Definitions for features that only exist on 32-bit chips */
 #ifdef CONFIG_PPC32
-#define CPU_FTR_601			ASM_CONST(0x00001000)
 #define CPU_FTR_L2CR			ASM_CONST(0x00002000)
 #define CPU_FTR_SPEC7450		ASM_CONST(0x00004000)
 #define CPU_FTR_TAU			ASM_CONST(0x00008000)
@@ -167,7 +166,6 @@ static inline void cpu_feature_keys_init(void) { }
 
 #else	/* CONFIG_PPC32 */
 /* Define these to 0 for the sake of tests in common code */
-#define CPU_FTR_601			(0)
 #define CPU_FTR_PPC_LE			(0)
 #endif
 
@@ -294,7 +292,7 @@ static inline void cpu_feature_keys_init(void) { }
 #define CPU_FTR_MAYBE_CAN_NAP	0
 #endif
 
-#define CPU_FTRS_PPC601	(CPU_FTR_COMMON | CPU_FTR_601 | \
+#define CPU_FTRS_PPC601	(CPU_FTR_COMMON | \
 	CPU_FTR_COHERENT_ICACHE | CPU_FTR_UNIFIED_ID_CACHE | CPU_FTR_USE_RTC)
 #define CPU_FTRS_603	(CPU_FTR_COMMON | CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_PPC_LE | CPU_FTR_NOEXECUTE)
@@ -498,7 +496,9 @@ static inline void cpu_feature_keys_init(void) { }
 #else
 enum {
 	CPU_FTRS_POSSIBLE =
-#ifdef CONFIG_PPC_BOOK3S_32
+#ifdef CONFIG_PPC_BOOK3S_601
+	    CPU_FTRS_PPC601 |
+#elif defined(CONFIG_PPC_BOOK3S_32)
 	    CPU_FTRS_PPC601 | CPU_FTRS_603 | CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
 	    CPU_FTRS_740 | CPU_FTRS_750 | CPU_FTRS_750FX1 |
 	    CPU_FTRS_750FX2 | CPU_FTRS_750FX | CPU_FTRS_750GX |
@@ -574,8 +574,10 @@ enum {
 #else
 enum {
 	CPU_FTRS_ALWAYS =
-#ifdef CONFIG_PPC_BOOK3S_32
-	    CPU_FTRS_PPC601 & CPU_FTRS_603 & CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
+#ifdef CONFIG_PPC_BOOK3S_601
+	    CPU_FTRS_PPC601 &
+#elif defined(CONFIG_PPC_BOOK3S_32)
+	    CPU_FTRS_603 & CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
 	    CPU_FTRS_740 & CPU_FTRS_750 & CPU_FTRS_750FX1 &
 	    CPU_FTRS_750FX2 & CPU_FTRS_750FX & CPU_FTRS_750GX &
 	    CPU_FTRS_7400_NOTAU & CPU_FTRS_7400 & CPU_FTRS_7450_20 &
