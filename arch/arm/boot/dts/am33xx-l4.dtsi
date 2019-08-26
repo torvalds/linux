@@ -719,6 +719,8 @@
 
 				davinci_mdio: mdio@1000 {
 					compatible = "ti,cpsw-mdio","ti,davinci_mdio";
+					clocks = <&cpsw_125mhz_clkctrl AM3_CPSW_125MHZ_CPGMAC0_CLKCTRL 0>;
+					clock-names = "fck";
 					#address-cells = <1>;
 					#size-cells = <0>;
 					ti,hwmods = "davinci_mdio";
