@@ -791,6 +791,8 @@ int __must_check drm_dp_mst_atomic_check(struct drm_atomic_state *state);
 void drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port);
 void drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port);
 
+struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port);
+
 extern const struct drm_private_state_funcs drm_dp_mst_topology_state_funcs;
 
 /**

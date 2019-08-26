@@ -5076,3 +5076,146 @@ static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_aux *aux)
 {
 	i2c_del_adapter(&aux->ddc);
 }
+
+/**
+ * drm_dp_mst_is_virtual_dpcd() - Is the given port a virtual DP Peer Device
+ * @port: The port to check
+ *
+ * A single physical MST hub object can be represented in the topology
+ * by multiple branches, with virtual ports between those branches.
+ *
+ * As of DP1.4, An MST hub with internal (virtual) ports must expose
+ * certain DPCD registers over those ports. See sections 2.6.1.1.1
+ * and 2.6.1.1.2 of Display Port specification v1.4 for details.
+ *
+ * May acquire mgr->lock
+ *
+ * Returns:
+ * true if the port is a virtual DP peer device, false otherwise
+ */
+static bool drm_dp_mst_is_virtual_dpcd(struct drm_dp_mst_port *port)
+{
+	struct drm_dp_mst_port *downstream_port;
+
+	if (!port || port->dpcd_rev < DP_DPCD_REV_14)
+		return false;
+
+	/* Virtual DP Sink (Internal Display Panel) */
+	if (port->port_num >= 8)
+		return true;
+
+	/* DP-to-HDMI Protocol Converter */
+	if (port->pdt == DP_PEER_DEVICE_DP_LEGACY_CONV &&
+	    !port->mcs &&
+	    port->ldps)
+		return true;
+
+	/* DP-to-DP */
+	mutex_lock(&port->mgr->lock);
+	if (port->pdt == DP_PEER_DEVICE_MST_BRANCHING &&
+	    port->mstb &&
+	    port->mstb->num_ports == 2) {
+		list_for_each_entry(downstream_port, &port->mstb->ports, next) {
+			if (downstream_port->pdt == DP_PEER_DEVICE_SST_SINK &&
+			    !downstream_port->input) {
+				mutex_unlock(&port->mgr->lock);
+				return true;
+			}
+		}
+	}
+	mutex_unlock(&port->mgr->lock);
+
+	return false;
+}
+
+/**
+ * drm_dp_mst_dsc_aux_for_port() - Find the correct aux for DSC
+ * @port: The port to check. A leaf of the MST tree with an attached display.
+ *
+ * Depending on the situation, DSC may be enabled via the endpoint aux,
+ * the immediately upstream aux, or the connector's physical aux.
+ *
+ * This is both the correct aux to read DSC_CAPABILITY and the
+ * correct aux to write DSC_ENABLED.
+ *
+ * This operation can be expensive (up to four aux reads), so
+ * the caller should cache the return.
+ *
+ * Returns:
+ * NULL if DSC cannot be enabled on this port, otherwise the aux device
+ */
+struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
+{
+	struct drm_dp_mst_port *immediate_upstream_port;
+	struct drm_dp_mst_port *fec_port;
+	u8 endpoint_fec;
+	u8 endpoint_dsc;
+
+	if (!port)
+		return NULL;
+
+	if (port->parent->port_parent)
+		immediate_upstream_port = port->parent->port_parent;
+	else
+		immediate_upstream_port = NULL;
+
+	fec_port = immediate_upstream_port;
+	while (fec_port) {
+		/*
+		 * Each physical link (i.e. not a virtual port) between the
+		 * output and the primary device must support FEC
+		 */
+		if (!drm_dp_mst_is_virtual_dpcd(fec_port) &&
+		    !fec_port->fec_capable)
+			return NULL;
+
+		fec_port = fec_port->parent->port_parent;
+	}
+
+	/* DP-to-DP peer device */
+	if (drm_dp_mst_is_virtual_dpcd(immediate_upstream_port)) {
+		u8 upstream_dsc;
+
+		if (drm_dp_dpcd_read(&port->aux,
+				     DP_DSC_SUPPORT, &endpoint_dsc, 1) != 1)
+			return NULL;
+		if (drm_dp_dpcd_read(&port->aux,
+				     DP_FEC_CAPABILITY, &endpoint_fec, 1) != 1)
+			return NULL;
+		if (drm_dp_dpcd_read(&immediate_upstream_port->aux,
+				     DP_DSC_SUPPORT, &upstream_dsc, 1) != 1)
+			return NULL;
+
+		/* Enpoint decompression with DP-to-DP peer device */
+		if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
+		    (endpoint_fec & DP_FEC_CAPABLE) &&
+		    (upstream_dsc & 0x2) /* DSC passthrough */)
+			return &port->aux;
+
+		/* Virtual DPCD decompression with DP-to-DP peer device */
+		return &immediate_upstream_port->aux;
+	}
+
+	/* Virtual DPCD decompression with DP-to-HDMI or Virtual DP Sink */
+	if (drm_dp_mst_is_virtual_dpcd(port))
+		return &port->aux;
+
+	/*
+	 * The check below verifies if the MST sink
+	 * connected to the GPU is capable of DSC -
+	 * therefore the endpoint needs to be
+	 * both DSC and FEC capable.
+	 */
+	if (drm_dp_dpcd_read(&port->aux,
+	   DP_DSC_SUPPORT, &endpoint_dsc, 1) != 1)
+		return NULL;
+	if (drm_dp_dpcd_read(&port->aux,
+	   DP_FEC_CAPABILITY, &endpoint_fec, 1) != 1)
+		return NULL;
+	if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
+	   (endpoint_fec & DP_FEC_CAPABLE))
+		return &port->aux;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_dp_mst_dsc_aux_for_port);
