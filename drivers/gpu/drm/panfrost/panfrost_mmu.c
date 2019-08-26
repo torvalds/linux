@@ -80,19 +80,11 @@ static void lock_region(struct panfrost_device *pfdev, u32 as_nr,
 }
 
 
-static int mmu_hw_do_operation(struct panfrost_device *pfdev,
-			       struct panfrost_mmu *mmu,
-			       u64 iova, size_t size, u32 op)
+static int mmu_hw_do_operation_locked(struct panfrost_device *pfdev, int as_nr,
+				      u64 iova, size_t size, u32 op)
 {
-	int ret, as_nr;
-
-	spin_lock(&pfdev->as_lock);
-	as_nr = mmu->as;
-
-	if (as_nr < 0) {
-		spin_unlock(&pfdev->as_lock);
+	if (as_nr < 0)
 		return 0;
-	}
 
 	if (op != AS_COMMAND_UNLOCK)
 		lock_region(pfdev, as_nr, iova, size);
@@ -101,10 +93,18 @@ static int mmu_hw_do_operation(struct panfrost_device *pfdev,
 	write_cmd(pfdev, as_nr, op);
 
 	/* Wait for the flush to complete */
-	ret = wait_ready(pfdev, as_nr);
+	return wait_ready(pfdev, as_nr);
+}
 
+static int mmu_hw_do_operation(struct panfrost_device *pfdev,
+			       struct panfrost_mmu *mmu,
+			       u64 iova, size_t size, u32 op)
+{
+	int ret;
+
+	spin_lock(&pfdev->as_lock);
+	ret = mmu_hw_do_operation_locked(pfdev, mmu->as, iova, size, op);
 	spin_unlock(&pfdev->as_lock);
-
 	return ret;
 }
 
