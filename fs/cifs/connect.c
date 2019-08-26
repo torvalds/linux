@@ -4231,16 +4231,19 @@ build_unc_path_to_root(const struct smb_vol *vol,
 		strlen(vol->prepath) + 1 : 0;
 	unsigned int unc_len = strnlen(vol->UNC, MAX_TREE_SIZE + 1);
 
+	if (unc_len > MAX_TREE_SIZE)
+		return ERR_PTR(-EINVAL);
+
 	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	strncpy(full_path, vol->UNC, unc_len);
+	memcpy(full_path, vol->UNC, unc_len);
 	pos = full_path + unc_len;
 
 	if (pplen) {
 		*pos = CIFS_DIR_SEP(cifs_sb);
-		strncpy(pos + 1, vol->prepath, pplen);
+		memcpy(pos + 1, vol->prepath, pplen);
 		pos += pplen;
 	}
 
