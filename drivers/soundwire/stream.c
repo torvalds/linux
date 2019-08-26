@@ -21,37 +21,39 @@
  * The rows are arranged as per the array index value programmed
  * in register. The index 15 has dummy value 0 in order to fill hole.
  */
-int rows[SDW_FRAME_ROWS] = {48, 50, 60, 64, 75, 80, 125, 147,
+int sdw_rows[SDW_FRAME_ROWS] = {48, 50, 60, 64, 75, 80, 125, 147,
 			96, 100, 120, 128, 150, 160, 250, 0,
 			192, 200, 240, 256, 72, 144, 90, 180};
 
-int cols[SDW_FRAME_COLS] = {2, 4, 6, 8, 10, 12, 14, 16};
+int sdw_cols[SDW_FRAME_COLS] = {2, 4, 6, 8, 10, 12, 14, 16};
 
-static int sdw_find_col_index(int col)
+int sdw_find_col_index(int col)
 {
 	int i;
 
 	for (i = 0; i < SDW_FRAME_COLS; i++) {
-		if (cols[i] == col)
+		if (sdw_cols[i] == col)
 			return i;
 	}
 
 	pr_warn("Requested column not found, selecting lowest column no: 2\n");
 	return 0;
 }
+EXPORT_SYMBOL(sdw_find_col_index);
 
-static int sdw_find_row_index(int row)
+int sdw_find_row_index(int row)
 {
 	int i;
 
 	for (i = 0; i < SDW_FRAME_ROWS; i++) {
-		if (rows[i] == row)
+		if (sdw_rows[i] == row)
 			return i;
 	}
 
 	pr_warn("Requested row not found, selecting lowest row no: 48\n");
 	return 0;
 }
+EXPORT_SYMBOL(sdw_find_row_index);
 
 static int _sdw_program_slave_port_params(struct sdw_bus *bus,
 					  struct sdw_slave *slave,
@@ -367,7 +369,7 @@ static int sdw_enable_disable_master_ports(struct sdw_master_runtime *m_rt,
 static int sdw_enable_disable_ports(struct sdw_master_runtime *m_rt, bool en)
 {
 	struct sdw_port_runtime *s_port, *m_port;
-	struct sdw_slave_runtime *s_rt = NULL;
+	struct sdw_slave_runtime *s_rt;
 	int ret = 0;
 
 	/* Enable/Disable Slave port(s) */
@@ -415,7 +417,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 				       struct sdw_port_runtime *p_rt,
 				       bool prep)
 {
-	struct completion *port_ready = NULL;
+	struct completion *port_ready;
 	struct sdw_dpn_prop *dpn_prop;
 	struct sdw_prepare_ch prep_ch;
 	unsigned int time_left;
@@ -535,7 +537,7 @@ static int sdw_prep_deprep_master_ports(struct sdw_master_runtime *m_rt,
  */
 static int sdw_prep_deprep_ports(struct sdw_master_runtime *m_rt, bool prep)
 {
-	struct sdw_slave_runtime *s_rt = NULL;
+	struct sdw_slave_runtime *s_rt;
 	struct sdw_port_runtime *p_rt;
 	int ret = 0;
 
@@ -603,7 +605,7 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
  */
 static int sdw_program_params(struct sdw_bus *bus)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 	int ret = 0;
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
@@ -640,8 +642,8 @@ static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 	int col_index, row_index;
 	bool multi_link;
 	struct sdw_msg *wr_msg;
-	u8 *wbuf = NULL;
-	int ret = 0;
+	u8 *wbuf;
+	int ret;
 	u16 addr;
 
 	wr_msg = kzalloc(sizeof(*wr_msg), GFP_KERNEL);
@@ -739,9 +741,9 @@ static int sdw_ml_sync_bank_switch(struct sdw_bus *bus)
 
 static int do_bank_switch(struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 	const struct sdw_master_ops *ops;
-	struct sdw_bus *bus = NULL;
+	struct sdw_bus *bus;
 	bool multi_link = false;
 	int ret = 0;
 
@@ -884,7 +886,7 @@ static struct sdw_master_runtime
 *sdw_find_master_rt(struct sdw_bus *bus,
 		    struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 
 	/* Retrieve Bus handle if already available */
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
@@ -953,7 +955,7 @@ static struct sdw_slave_runtime
 		    struct sdw_stream_config *stream_config,
 		    struct sdw_stream_runtime *stream)
 {
-	struct sdw_slave_runtime *s_rt = NULL;
+	struct sdw_slave_runtime *s_rt;
 
 	s_rt = kzalloc(sizeof(*s_rt), GFP_KERNEL);
 	if (!s_rt)
@@ -1259,7 +1261,7 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 			  unsigned int num_ports,
 			  struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 	int ret;
 
 	mutex_lock(&bus->bus_lock);
@@ -1426,7 +1428,7 @@ struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
  */
 static void sdw_acquire_bus_lock(struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 	struct sdw_bus *bus = NULL;
 
 	/* Iterate for all Master(s) in Master list */
@@ -1460,9 +1462,9 @@ static void sdw_release_bus_lock(struct sdw_stream_runtime *stream)
 
 static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 	struct sdw_bus *bus = NULL;
-	struct sdw_master_prop *prop = NULL;
+	struct sdw_master_prop *prop;
 	struct sdw_bus_params params;
 	int ret;
 
@@ -1489,6 +1491,11 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			goto restore_params;
 		}
+	}
+
+	if (!bus) {
+		pr_err("Configuration error in %s\n", __func__);
+		return -EINVAL;
 	}
 
 	ret = do_bank_switch(stream);
@@ -1547,7 +1554,7 @@ EXPORT_SYMBOL(sdw_prepare_stream);
 
 static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_master_runtime *m_rt;
 	struct sdw_bus *bus = NULL;
 	int ret;
 
@@ -1571,6 +1578,11 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 		}
 	}
 
+	if (!bus) {
+		pr_err("Configuration error in %s\n", __func__);
+		return -EINVAL;
+	}
+
 	ret = do_bank_switch(stream);
 	if (ret < 0) {
 		dev_err(bus->dev, "Bank switch failed: %d\n", ret);
@@ -1590,7 +1602,7 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
  */
 int sdw_enable_stream(struct sdw_stream_runtime *stream)
 {
-	int ret = 0;
+	int ret;
 
 	if (!stream) {
 		pr_err("SoundWire: Handle not found for stream\n");
@@ -1610,12 +1622,12 @@ EXPORT_SYMBOL(sdw_enable_stream);
 
 static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
-	struct sdw_bus *bus = NULL;
+	struct sdw_master_runtime *m_rt;
 	int ret;
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-		bus = m_rt->bus;
+		struct sdw_bus *bus = m_rt->bus;
+
 		/* Disable port(s) */
 		ret = sdw_enable_disable_ports(m_rt, false);
 		if (ret < 0) {
@@ -1626,7 +1638,8 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 	stream->state = SDW_STREAM_DISABLED;
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-		bus = m_rt->bus;
+		struct sdw_bus *bus = m_rt->bus;
+
 		/* Program params */
 		ret = sdw_program_params(bus);
 		if (ret < 0) {
@@ -1635,7 +1648,25 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 		}
 	}
 
-	return do_bank_switch(stream);
+	ret = do_bank_switch(stream);
+	if (ret < 0) {
+		pr_err("Bank switch failed: %d\n", ret);
+		return ret;
+	}
+
+	/* make sure alternate bank (previous current) is also disabled */
+	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+		struct sdw_bus *bus = m_rt->bus;
+
+		/* Disable port(s) */
+		ret = sdw_enable_disable_ports(m_rt, false);
+		if (ret < 0) {
+			dev_err(bus->dev, "Disable port(s) failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -1647,7 +1678,7 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
  */
 int sdw_disable_stream(struct sdw_stream_runtime *stream)
 {
-	int ret = 0;
+	int ret;
 
 	if (!stream) {
 		pr_err("SoundWire: Handle not found for stream\n");
@@ -1667,8 +1698,8 @@ EXPORT_SYMBOL(sdw_disable_stream);
 
 static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 {
-	struct sdw_master_runtime *m_rt = NULL;
-	struct sdw_bus *bus = NULL;
+	struct sdw_master_runtime *m_rt;
+	struct sdw_bus *bus;
 	int ret = 0;
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
@@ -1706,7 +1737,7 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
  */
 int sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 {
-	int ret = 0;
+	int ret;
 
 	if (!stream) {
 		pr_err("SoundWire: Handle not found for stream\n");
