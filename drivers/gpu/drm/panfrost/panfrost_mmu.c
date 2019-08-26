@@ -129,8 +129,10 @@ static void panfrost_mmu_enable(struct panfrost_device *pfdev, struct panfrost_m
 	write_cmd(pfdev, as_nr, AS_COMMAND_UPDATE);
 }
 
-static void mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
+static void panfrost_mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
 {
+	mmu_hw_do_operation_locked(pfdev, as_nr, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
+
 	mmu_write(pfdev, AS_TRANSTAB_LO(as_nr), 0);
 	mmu_write(pfdev, AS_TRANSTAB_HI(as_nr), 0);
 
@@ -321,11 +323,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 }
 
 static void mmu_tlb_inv_context_s1(void *cookie)
-{
-	struct panfrost_file_priv *priv = cookie;
-
-	mmu_hw_do_operation(priv->pfdev, &priv->mmu, 0, ~0UL, AS_COMMAND_FLUSH_MEM);
-}
+{}
 
 static void mmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 				     size_t granule, bool leaf, void *cookie)
@@ -374,6 +372,11 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 
 	spin_lock(&pfdev->as_lock);
 	if (mmu->as >= 0) {
+		pm_runtime_get_noresume(pfdev->dev);
+		if (pm_runtime_active(pfdev->dev))
+			panfrost_mmu_disable(pfdev, mmu->as);
+		pm_runtime_put_autosuspend(pfdev->dev);
+
 		clear_bit(mmu->as, &pfdev->as_alloc_mask);
 		clear_bit(mmu->as, &pfdev->as_in_use_mask);
 		list_del(&mmu->list);
@@ -618,5 +621,4 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 void panfrost_mmu_fini(struct panfrost_device *pfdev)
 {
 	mmu_write(pfdev, MMU_INT_MASK, 0);
-	mmu_disable(pfdev, 0);
 }
