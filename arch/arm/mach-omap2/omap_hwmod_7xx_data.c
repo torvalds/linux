@@ -997,86 +997,6 @@ static struct omap_hwmod dra7xx_mailbox13_hwmod = {
 };
 
 /*
- * 'mcspi' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_mcspi_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_RESET_STATUS |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class dra7xx_mcspi_hwmod_class = {
-	.name	= "mcspi",
-	.sysc	= &dra7xx_mcspi_sysc,
-};
-
-/* mcspi1 */
-static struct omap_hwmod dra7xx_mcspi1_hwmod = {
-	.name		= "mcspi1",
-	.class		= &dra7xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_MCSPI1_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_MCSPI1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* mcspi2 */
-static struct omap_hwmod dra7xx_mcspi2_hwmod = {
-	.name		= "mcspi2",
-	.class		= &dra7xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_MCSPI2_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_MCSPI2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* mcspi3 */
-static struct omap_hwmod dra7xx_mcspi3_hwmod = {
-	.name		= "mcspi3",
-	.class		= &dra7xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_MCSPI3_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_MCSPI3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* mcspi4 */
-static struct omap_hwmod dra7xx_mcspi4_hwmod = {
-	.name		= "mcspi4",
-	.class		= &dra7xx_mcspi_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.main_clk	= "func_48m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_MCSPI4_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_MCSPI4_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'mcasp' class
  *
  */
@@ -2565,38 +2485,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox13 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per1 -> mcspi1 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__mcspi1 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_mcspi1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> mcspi2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__mcspi2 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_mcspi2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> mcspi3 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__mcspi3 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_mcspi3_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> mcspi4 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__mcspi4 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_mcspi4_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> mpu */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mpu = {
 	.master		= &dra7xx_l4_cfg_hwmod,
@@ -2995,10 +2883,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per3__mailbox11,
 	&dra7xx_l4_per3__mailbox12,
 	&dra7xx_l4_per3__mailbox13,
-	&dra7xx_l4_per1__mcspi1,
-	&dra7xx_l4_per1__mcspi2,
-	&dra7xx_l4_per1__mcspi3,
-	&dra7xx_l4_per1__mcspi4,
 	&dra7xx_l4_cfg__mpu,
 	&dra7xx_l4_cfg__ocp2scp1,
 	&dra7xx_l4_cfg__ocp2scp3,
