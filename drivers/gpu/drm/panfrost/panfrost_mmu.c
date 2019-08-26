@@ -220,6 +220,22 @@ static size_t get_pgsize(u64 addr, size_t size)
 	return SZ_2M;
 }
 
+void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
+			      struct panfrost_mmu *mmu,
+			      u64 iova, size_t size)
+{
+	if (mmu->as < 0)
+		return;
+
+	pm_runtime_get_noresume(pfdev->dev);
+
+	/* Flush the PTs only if we're already awake */
+	if (pm_runtime_active(pfdev->dev))
+		mmu_hw_do_operation(pfdev, mmu, iova, size, AS_COMMAND_FLUSH_PT);
+
+	pm_runtime_put_sync_autosuspend(pfdev->dev);
+}
+
 static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 		      u64 iova, int prot, struct sg_table *sgt)
 {
@@ -244,8 +260,7 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 		}
 	}
 
-	mmu_hw_do_operation(pfdev, mmu, start_iova, iova - start_iova,
-			    AS_COMMAND_FLUSH_PT);
+	panfrost_mmu_flush_range(pfdev, mmu, start_iova, iova - start_iova);
 
 	return 0;
 }
@@ -255,7 +270,6 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	struct drm_gem_object *obj = &bo->base.base;
 	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
 	struct sg_table *sgt;
-	int ret;
 	int prot = IOMMU_READ | IOMMU_WRITE;
 
 	if (WARN_ON(bo->is_mapped))
@@ -268,14 +282,7 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
 
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return ret;
-
 	mmu_map_sg(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, prot, sgt);
-
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
 	bo->is_mapped = true;
 
 	return 0;
@@ -289,16 +296,11 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	u64 iova = bo->node.start << PAGE_SHIFT;
 	size_t len = bo->node.size << PAGE_SHIFT;
 	size_t unmapped_len = 0;
-	int ret;
 
 	if (WARN_ON(!bo->is_mapped))
 		return;
 
 	dev_dbg(pfdev->dev, "unmap: as=%d, iova=%llx, len=%zx", bo->mmu->as, iova, len);
-
-	ret = pm_runtime_get_sync(pfdev->dev);
-	if (ret < 0)
-		return;
 
 	while (unmapped_len < len) {
 		size_t unmapped_page;
@@ -312,11 +314,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 		unmapped_len += pgsize;
 	}
 
-	mmu_hw_do_operation(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT,
-			    bo->node.size << PAGE_SHIFT, AS_COMMAND_FLUSH_PT);
-
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
+	panfrost_mmu_flush_range(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, len);
 	bo->is_mapped = false;
 }
 
