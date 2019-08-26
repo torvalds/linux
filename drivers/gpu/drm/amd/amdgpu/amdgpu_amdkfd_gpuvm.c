@@ -358,6 +358,7 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 
 static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 {
+	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
 	bool coherent = mem->alloc_flags & ALLOC_MEM_FLAGS_COHERENT;
 	uint32_t mapping_flags;
 
@@ -367,8 +368,23 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 	if (mem->alloc_flags & ALLOC_MEM_FLAGS_EXECUTABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
 
-	mapping_flags |= coherent ?
-		AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+		if (mem->alloc_flags & ALLOC_MEM_FLAGS_VRAM) {
+			if (bo_adev == adev)
+				mapping_flags |= coherent ?
+					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
+			else
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		} else {
+			mapping_flags |= coherent ?
+				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
+	default:
+		mapping_flags |= coherent ?
+			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+	}
 
 	return amdgpu_gmc_get_pte_flags(adev, mapping_flags);
 }
