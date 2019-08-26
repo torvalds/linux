@@ -3279,6 +3279,9 @@ void tc_cleanup_flow_action(struct flow_action *flow_action)
 			if (entry->dev)
 				dev_put(entry->dev);
 			break;
+		case FLOW_ACTION_TUNNEL_ENCAP:
+			kfree(entry->tunnel);
+			break;
 		default:
 			break;
 		}
@@ -3355,7 +3358,11 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			}
 		} else if (is_tcf_tunnel_set(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_ENCAP;
-			entry->tunnel = tcf_tunnel_info(act);
+			entry->tunnel = tcf_tunnel_info_copy(act);
+			if (!entry->tunnel) {
+				err = -ENOMEM;
+				goto err_out;
+			}
 		} else if (is_tcf_tunnel_release(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
 		} else if (is_tcf_pedit(act)) {
