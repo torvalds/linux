@@ -63,24 +63,33 @@ static inline int clockid_to_fd(const clockid_t clk)
 }
 
 #ifdef CONFIG_POSIX_TIMERS
+
+/**
+ * posix_cputimer_base - Container per posix CPU clock
+ * @nextevt:		Earliest-expiration cache
+ * @cpu_timers:		List heads to queue posix CPU timers
+ */
+struct posix_cputimer_base {
+	u64			nextevt;
+	struct list_head	cpu_timers;
+};
+
 /**
  * posix_cputimers - Container for posix CPU timer related data
- * @expiries:		Earliest-expiration cache array based
- * @cpu_timers:		List heads to queue posix CPU timers
+ * @bases:		Base container for posix CPU clocks
  *
  * Used in task_struct and signal_struct
  */
 struct posix_cputimers {
-	u64			expiries[CPUCLOCK_MAX];
-	struct list_head	cpu_timers[CPUCLOCK_MAX];
+	struct posix_cputimer_base	bases[CPUCLOCK_MAX];
 };
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
 {
-	memset(&pct->expiries, 0, sizeof(pct->expiries));
-	INIT_LIST_HEAD(&pct->cpu_timers[0]);
-	INIT_LIST_HEAD(&pct->cpu_timers[1]);
-	INIT_LIST_HEAD(&pct->cpu_timers[2]);
+	memset(pct->bases, 0, sizeof(pct->bases));
+	INIT_LIST_HEAD(&pct->bases[0].cpu_timers);
+	INIT_LIST_HEAD(&pct->bases[1].cpu_timers);
+	INIT_LIST_HEAD(&pct->bases[2].cpu_timers);
 }
 
 void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit);
@@ -88,19 +97,23 @@ void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit);
 static inline void posix_cputimers_rt_watchdog(struct posix_cputimers *pct,
 					       u64 runtime)
 {
-	pct->expiries[CPUCLOCK_SCHED] = runtime;
+	pct->bases[CPUCLOCK_SCHED].nextevt = runtime;
 }
 
 /* Init task static initializer */
-#define INIT_CPU_TIMERLISTS(c)	{					\
-	LIST_HEAD_INIT(c.cpu_timers[0]),				\
-	LIST_HEAD_INIT(c.cpu_timers[1]),				\
-	LIST_HEAD_INIT(c.cpu_timers[2]),				\
+#define INIT_CPU_TIMERBASE(b) {						\
+	.cpu_timers = LIST_HEAD_INIT(b.cpu_timers),			\
+}
+
+#define INIT_CPU_TIMERBASES(b) {					\
+	INIT_CPU_TIMERBASE(b[0]),					\
+	INIT_CPU_TIMERBASE(b[1]),					\
+	INIT_CPU_TIMERBASE(b[2]),					\
 }
 
 #define INIT_CPU_TIMERS(s)						\
 	.posix_cputimers = {						\
-		.cpu_timers = INIT_CPU_TIMERLISTS(s.posix_cputimers),	\
+		.bases = INIT_CPU_TIMERBASES(s.posix_cputimers.bases),	\
 	},
 #else
 struct posix_cputimers { };
