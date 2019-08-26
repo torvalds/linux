@@ -18,7 +18,7 @@
 #include <linux/sched.h>
 #include <linux/shrinker.h>
 #include <linux/types.h>
-#include <uapi/ion.h>
+#include <uapi/linux/ion.h>
 
 /**
  * struct ion_buffer - metadata for a particular buffer
