@@ -168,7 +168,13 @@ int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &range->mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->invalidate_range_start) {
-			int _ret = mn->ops->invalidate_range_start(mn, range);
+			int _ret;
+
+			if (!mmu_notifier_range_blockable(range))
+				non_block_start();
+			_ret = mn->ops->invalidate_range_start(mn, range);
+			if (!mmu_notifier_range_blockable(range))
+				non_block_end();
 			if (_ret) {
 				pr_info("%pS callback failed with %d in %sblockable context.\n",
 					mn->ops->invalidate_range_start, _ret,
@@ -210,8 +216,13 @@ void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
 			mn->ops->invalidate_range(mn, range->mm,
 						  range->start,
 						  range->end);
-		if (mn->ops->invalidate_range_end)
+		if (mn->ops->invalidate_range_end) {
+			if (!mmu_notifier_range_blockable(range))
+				non_block_start();
 			mn->ops->invalidate_range_end(mn, range);
+			if (!mmu_notifier_range_blockable(range))
+				non_block_end();
+		}
 	}
 	srcu_read_unlock(&srcu, id);
 	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
