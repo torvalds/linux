@@ -3265,6 +3265,27 @@ int tc_setup_cb_reoffload(struct tcf_block *block, struct tcf_proto *tp,
 }
 EXPORT_SYMBOL(tc_setup_cb_reoffload);
 
+void tc_cleanup_flow_action(struct flow_action *flow_action)
+{
+	struct flow_action_entry *entry;
+	int i;
+
+	flow_action_for_each(i, entry, flow_action) {
+		switch (entry->id) {
+		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_MIRRED:
+		case FLOW_ACTION_REDIRECT_INGRESS:
+		case FLOW_ACTION_MIRRED_INGRESS:
+			if (entry->dev)
+				dev_put(entry->dev);
+			break;
+		default:
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL(tc_cleanup_flow_action);
+
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts, bool rtnl_held)
 {
@@ -3294,15 +3315,23 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 		} else if (is_tcf_mirred_egress_redirect(act)) {
 			entry->id = FLOW_ACTION_REDIRECT;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_mirred_egress_mirror(act)) {
 			entry->id = FLOW_ACTION_MIRRED;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_mirred_ingress_redirect(act)) {
 			entry->id = FLOW_ACTION_REDIRECT_INGRESS;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_mirred_ingress_mirror(act)) {
 			entry->id = FLOW_ACTION_MIRRED_INGRESS;
 			entry->dev = tcf_mirred_dev(act);
+			if (entry->dev)
+				dev_hold(entry->dev);
 		} else if (is_tcf_vlan(act)) {
 			switch (tcf_vlan_action(act)) {
 			case TCA_VLAN_ACT_PUSH:
@@ -3409,6 +3438,9 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 err_out:
 	if (!rtnl_held)
 		rtnl_unlock();
+
+	if (err)
+		tc_cleanup_flow_action(flow_action);
 
 	return err;
 }
