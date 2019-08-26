@@ -324,10 +324,10 @@ EXPORT_SYMBOL(flush_instruction_cache)
  * flush_icache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(flush_icache_range)
-BEGIN_FTR_SECTION
+#if defined(CONFIG_PPC_BOOK3S_601) || defined(CONFIG_E200)
 	PURGE_PREFETCHED_INS
-	blr				/* for 601, do nothing */
-END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
+	blr				/* for 601 and e200, do nothing */
+#else
 	rlwinm	r3,r3,0,0,31 - L1_CACHE_SHIFT
 	subf	r4,r3,r4
 	addi	r4,r4,L1_CACHE_BYTES - 1
@@ -353,6 +353,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	sync				/* additional sync needed on g4 */
 	isync
 	blr
+#endif
 _ASM_NOKPROBE_SYMBOL(flush_icache_range)
 EXPORT_SYMBOL(flush_icache_range)
 
@@ -360,15 +361,15 @@ EXPORT_SYMBOL(flush_icache_range)
  * Flush a particular page from the data cache to RAM.
  * Note: this is necessary because the instruction cache does *not*
  * snoop from the data cache.
- * This is a no-op on the 601 which has a unified cache.
+ * This is a no-op on the 601 and e200 which have a unified cache.
  *
  *	void __flush_dcache_icache(void *page)
  */
 _GLOBAL(__flush_dcache_icache)
-BEGIN_FTR_SECTION
+#if defined(CONFIG_PPC_BOOK3S_601) || defined(CONFIG_E200)
 	PURGE_PREFETCHED_INS
 	blr
-END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
+#else
 	rlwinm	r3,r3,0,0,31-PAGE_SHIFT		/* Get page base address */
 	li	r4,PAGE_SIZE/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
@@ -396,6 +397,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_44x)
 	sync
 	isync
 	blr
+#endif
 
 #ifndef CONFIG_BOOKE
 /*
@@ -407,10 +409,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_44x)
  *	void __flush_dcache_icache_phys(unsigned long physaddr)
  */
 _GLOBAL(__flush_dcache_icache_phys)
-BEGIN_FTR_SECTION
+#if defined(CONFIG_PPC_BOOK3S_601) || defined(CONFIG_E200)
 	PURGE_PREFETCHED_INS
-	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
+	blr					/* for 601 and e200, do nothing */
+#else
 	mfmsr	r10
 	rlwinm	r0,r10,0,28,26			/* clear DR */
 	mtmsr	r0
@@ -431,6 +433,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	mtmsr	r10				/* restore DR */
 	isync
 	blr
+#endif
 #endif /* CONFIG_BOOKE */
 
 /*
