@@ -308,6 +308,8 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	if (free_ctx)
 		icsk->icsk_ulp_data = NULL;
 	sk->sk_prot = ctx->sk_proto;
+	if (sk->sk_write_space == tls_write_space)
+		sk->sk_write_space = ctx->sk_write_space;
 	write_unlock_bh(&sk->sk_callback_lock);
 	release_sock(sk);
 	if (ctx->tx_conf == TLS_SW)

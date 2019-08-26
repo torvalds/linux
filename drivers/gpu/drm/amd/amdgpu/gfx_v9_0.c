@@ -604,6 +604,10 @@ static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
 		    (adev->gfx.rlc_feature_version < 1) ||
 		    !adev->gfx.rlc.is_rlc_v2_1)
 			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_RLC_SMU_HS;
 		break;
 	default:
 		break;
