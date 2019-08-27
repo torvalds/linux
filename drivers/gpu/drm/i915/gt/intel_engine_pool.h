@@ -12,7 +12,7 @@
 #include "i915_request.h"
 
 struct intel_engine_pool_node *
-intel_engine_pool_get(struct intel_engine_pool *pool, size_t size);
+intel_engine_get_pool(struct intel_engine_cs *engine, size_t size);
 
 static inline int
 intel_engine_pool_mark_active(struct intel_engine_pool_node *node,

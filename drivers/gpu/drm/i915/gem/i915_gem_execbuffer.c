@@ -1145,7 +1145,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	u32 *cmd;
 	int err;
 
-	pool = intel_engine_pool_get(&eb->engine->pool, PAGE_SIZE);
+	pool = intel_engine_get_pool(eb->engine, PAGE_SIZE);
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
 
@@ -1963,7 +1963,7 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb, bool is_master)
 	struct i915_vma *vma;
 	int err;
 
-	pool = intel_engine_pool_get(&eb->engine->pool, eb->batch_len);
+	pool = intel_engine_get_pool(eb->engine, eb->batch_len);
 	if (IS_ERR(pool))
 		return ERR_CAST(pool);
 
