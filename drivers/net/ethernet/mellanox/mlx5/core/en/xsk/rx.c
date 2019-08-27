@@ -24,7 +24,8 @@ int mlx5e_xsk_page_alloc_umem(struct mlx5e_rq *rq,
 	if (!xsk_umem_peek_addr_rq(umem, &handle))
 		return -ENOMEM;
 
-	dma_info->xsk.handle = handle + rq->buff.umem_headroom;
+	dma_info->xsk.handle = xsk_umem_adjust_offset(umem, handle,
+						      rq->buff.umem_headroom);
 	dma_info->xsk.data = xdp_umem_get_data(umem, dma_info->xsk.handle);
 
 	/* No need to add headroom to the DMA address. In striding RQ case, we
