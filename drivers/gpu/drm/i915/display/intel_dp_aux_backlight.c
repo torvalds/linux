@@ -22,8 +22,8 @@
  *
  */
 
+#include "intel_display_types.h"
 #include "intel_dp_aux_backlight.h"
-#include "intel_drv.h"
 
 static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 {

@@ -81,7 +81,8 @@ struct i915_gpu_state {
 	struct intel_display_error_state *display;
 
 	struct drm_i915_error_engine {
-		int engine_id;
+		const struct intel_engine_cs *engine;
+
 		/* Software tracked state */
 		bool idle;
 		unsigned long hangcheck_timestamp;
@@ -158,7 +159,9 @@ struct i915_gpu_state {
 				u32 pp_dir_base;
 			};
 		} vm_info;
-	} engine[I915_NUM_ENGINES];
+
+		struct drm_i915_error_engine *next;
+	} *engine;
 
 	struct scatterlist *sgl, *fit;
 };

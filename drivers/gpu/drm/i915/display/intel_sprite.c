@@ -40,8 +40,9 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_atomic_plane.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
@@ -328,6 +329,12 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	}
 
 	return 0;
+}
+
+bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id)
+{
+	return INTEL_GEN(dev_priv) >= 11 &&
+		icl_hdr_plane_mask() & BIT(plane_id);
 }
 
 static unsigned int

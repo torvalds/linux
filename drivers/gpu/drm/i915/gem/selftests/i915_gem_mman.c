@@ -351,7 +351,10 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		}
 
 		i915_vma_lock(vma);
-		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+		err = i915_request_await_object(rq, vma->obj, true);
+		if (err == 0)
+			err = i915_vma_move_to_active(vma, rq,
+						      EXEC_OBJECT_WRITE);
 		i915_vma_unlock(vma);
 
 		i915_request_add(rq);
@@ -382,7 +385,7 @@ static bool assert_mmap_offset(struct drm_i915_private *i915,
 
 static void disable_retire_worker(struct drm_i915_private *i915)
 {
-	i915_gem_shrinker_unregister(i915);
+	i915_gem_driver_unregister__shrinker(i915);
 
 	intel_gt_pm_get(&i915->gt);
 
@@ -398,7 +401,7 @@ static void restore_retire_worker(struct drm_i915_private *i915)
 	igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	i915_gem_shrinker_register(i915);
+	i915_gem_driver_register__shrinker(i915);
 }
 
 static void mmap_offset_lock(struct drm_i915_private *i915)

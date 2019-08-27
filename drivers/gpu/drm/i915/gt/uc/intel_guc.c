@@ -1,25 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright © 2014-2017 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
+ * Copyright © 2014-2019 Intel Corporation
  */
 
 #include "gt/intel_gt.h"
@@ -82,6 +63,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
 	intel_guc_log_init_early(&guc->log);
+	intel_guc_submission_init_early(guc);
 
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
@@ -144,7 +126,7 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (!intel_uc_is_using_guc_submission(&guc_to_gt(guc)->uc))
+	if (!intel_guc_is_submission_supported(guc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	return flags;
@@ -154,7 +136,7 @@ static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (intel_uc_is_using_guc_submission(&guc_to_gt(guc)->uc)) {
+	if (intel_guc_is_submission_supported(guc)) {
 		u32 ctxnum, base;
 
 		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
@@ -290,7 +272,7 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_ads;
 
-	if (intel_uc_is_using_guc_submission(&gt->uc)) {
+	if (intel_guc_is_submission_supported(guc)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
@@ -320,6 +302,7 @@ err_fw:
 	intel_uc_fw_fini(&guc->fw);
 err_fetch:
 	intel_uc_fw_cleanup_fetch(&guc->fw);
+	DRM_DEV_DEBUG_DRIVER(gt->i915->drm.dev, "failed with %d\n", ret);
 	return ret;
 }
 
@@ -327,9 +310,12 @@ void intel_guc_fini(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
+	if (!intel_uc_fw_is_available(&guc->fw))
+		return;
+
 	i915_ggtt_disable_guc(gt->ggtt);
 
-	if (intel_uc_is_using_guc_submission(&gt->uc))
+	if (intel_guc_is_submission_supported(guc))
 		intel_guc_submission_fini(guc);
 
 	intel_guc_ct_fini(&guc->ct);
@@ -625,7 +611,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 		goto err;
 	}
 
-	return vma;
+	return i915_vma_make_unshrinkable(vma);
 
 err:
 	i915_gem_object_put(obj);

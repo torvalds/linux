@@ -375,9 +375,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	}
 	gvt->idle_vgpu = vgpu;
 
-	ret = intel_gvt_debugfs_init(gvt);
-	if (ret)
-		gvt_err("debugfs registration failed, go on.\n");
+	intel_gvt_debugfs_init(gvt);
 
 	gvt_dbg_core("gvt device initialization is done\n");
 	dev_priv->gvt = gvt;

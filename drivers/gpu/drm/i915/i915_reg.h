@@ -251,9 +251,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_PIPE2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->pipe_offsets[pipe] - \
 					      INTEL_INFO(dev_priv)->pipe_offsets[PIPE_A] + (reg) + \
 					      DISPLAY_MMIO_BASE(dev_priv))
-#define _MMIO_TRANS2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->trans_offsets[(pipe)] - \
-					      INTEL_INFO(dev_priv)->trans_offsets[TRANSCODER_A] + (reg) + \
-					      DISPLAY_MMIO_BASE(dev_priv))
+#define _TRANS2(tran, reg)		(INTEL_INFO(dev_priv)->trans_offsets[(tran)] - \
+					 INTEL_INFO(dev_priv)->trans_offsets[TRANSCODER_A] + (reg) + \
+					 DISPLAY_MMIO_BASE(dev_priv))
+#define _MMIO_TRANS2(tran, reg)		_MMIO(_TRANS2(tran, reg))
 #define _CURSOR2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->cursor_offsets[(pipe)] - \
 					      INTEL_INFO(dev_priv)->cursor_offsets[PIPE_A] + (reg) + \
 					      DISPLAY_MMIO_BASE(dev_priv))
@@ -270,30 +271,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	__MASKED_FIELD(mask, value); })
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
 #define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
-
-/* Engine ID */
-
-#define RCS0_HW		0
-#define VCS0_HW		1
-#define BCS0_HW		2
-#define VECS0_HW	3
-#define VCS1_HW		4
-#define VCS2_HW		6
-#define VCS3_HW		7
-#define VECS1_HW	12
-
-/* Engine class */
-
-#define RENDER_CLASS		0
-#define VIDEO_DECODE_CLASS	1
-#define VIDEO_ENHANCEMENT_CLASS	2
-#define COPY_ENGINE_CLASS	3
-#define OTHER_CLASS		4
-#define MAX_ENGINE_CLASS	4
-
-#define OTHER_GUC_INSTANCE	0
-#define OTHER_GTPM_INSTANCE	1
-#define MAX_ENGINE_INSTANCE    3
 
 /* PCI config space */
 
@@ -1161,27 +1138,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define PUNIT_REG_ISPSSPM0			0x39
 #define PUNIT_REG_ISPSSPM1			0x3a
-
-/*
- * i915_power_well_id:
- *
- * IDs used to look up power wells. Power wells accessed directly bypassing
- * the power domains framework must be assigned a unique ID. The rest of power
- * wells must be assigned DISP_PW_ID_NONE.
- */
-enum i915_power_well_id {
-	DISP_PW_ID_NONE,
-
-	VLV_DISP_PW_DISP2D,
-	BXT_DISP_PW_DPIO_CMN_A,
-	VLV_DISP_PW_DPIO_CMN_BC,
-	GLK_DISP_PW_DPIO_CMN_C,
-	CHV_DISP_PW_DPIO_CMN_D,
-	HSW_DISP_PW_GLOBAL,
-	SKL_DISP_PW_MISC_IO,
-	SKL_DISP_PW_1,
-	SKL_DISP_PW_2,
-};
 
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
@@ -2490,6 +2446,7 @@ enum i915_power_well_id {
 #define RENDER_HWS_PGA_GEN7	_MMIO(0x04080)
 #define RING_FAULT_REG(engine)	_MMIO(0x4094 + 0x100 * (engine)->hw_id)
 #define GEN8_RING_FAULT_REG	_MMIO(0x4094)
+#define GEN12_RING_FAULT_REG	_MMIO(0xcec4)
 #define   GEN8_RING_FAULT_ENGINE_ID(x)	(((x) >> 12) & 0x7)
 #define   RING_FAULT_GTTSEL_MASK (1 << 11)
 #define   RING_FAULT_SRCID(x)	(((x) >> 3) & 0xff)
@@ -2499,6 +2456,7 @@ enum i915_power_well_id {
 #define GEN8_PRIVATE_PAT_LO	_MMIO(0x40e0)
 #define GEN8_PRIVATE_PAT_HI	_MMIO(0x40e0 + 4)
 #define GEN10_PAT_INDEX(index)	_MMIO(0x40e0 + (index) * 4)
+#define GEN12_PAT_INDEX(index)	_MMIO(0x4800 + (index) * 4)
 #define BSD_HWS_PGA_GEN7	_MMIO(0x04180)
 #define BLT_HWS_PGA_GEN7	_MMIO(0x04280)
 #define VEBOX_HWS_PGA_GEN7	_MMIO(0x04380)
@@ -2633,6 +2591,8 @@ enum i915_power_well_id {
 
 #define GEN8_FAULT_TLB_DATA0		_MMIO(0x4b10)
 #define GEN8_FAULT_TLB_DATA1		_MMIO(0x4b14)
+#define GEN12_FAULT_TLB_DATA0		_MMIO(0xceb8)
+#define GEN12_FAULT_TLB_DATA1		_MMIO(0xcebc)
 #define   FAULT_VA_HIGH_BITS		(0xf << 0)
 #define   FAULT_GTT_SEL			(1 << 4)
 
@@ -3248,27 +3208,7 @@ enum i915_power_well_id {
 #define   GMBUS_RATE_1MHZ	(3 << 8) /* reserved on Pineview */
 #define   GMBUS_HOLD_EXT	(1 << 7) /* 300ns hold time, rsvd on Pineview */
 #define   GMBUS_BYTE_CNT_OVERRIDE (1 << 6)
-#define   GMBUS_PIN_DISABLED	0
-#define   GMBUS_PIN_SSC		1
-#define   GMBUS_PIN_VGADDC	2
-#define   GMBUS_PIN_PANEL	3
-#define   GMBUS_PIN_DPD_CHV	3 /* HDMID_CHV */
-#define   GMBUS_PIN_DPC		4 /* HDMIC */
-#define   GMBUS_PIN_DPB		5 /* SDVO, HDMIB */
-#define   GMBUS_PIN_DPD		6 /* HDMID */
-#define   GMBUS_PIN_RESERVED	7 /* 7 reserved */
-#define   GMBUS_PIN_1_BXT	1 /* BXT+ (atom) and CNP+ (big core) */
-#define   GMBUS_PIN_2_BXT	2
-#define   GMBUS_PIN_3_BXT	3
-#define   GMBUS_PIN_4_CNP	4
-#define   GMBUS_PIN_9_TC1_ICP	9
-#define   GMBUS_PIN_10_TC2_ICP	10
-#define   GMBUS_PIN_11_TC3_ICP	11
-#define   GMBUS_PIN_12_TC4_ICP	12
-#define   GMBUS_PIN_13_TC5_TGP	13
-#define   GMBUS_PIN_14_TC6_TGP	14
 
-#define   GMBUS_NUM_PINS	15 /* including 0 */
 #define GMBUS1			_MMIO(dev_priv->gpio_mmio_base + 0x5104) /* command/status */
 #define   GMBUS_SW_CLR_INT	(1 << 31)
 #define   GMBUS_SW_RDY		(1 << 30)
@@ -7268,6 +7208,8 @@ enum {
 #define SKL_CSR_DC3_DC5_COUNT	_MMIO(0x80030)
 #define SKL_CSR_DC5_DC6_COUNT	_MMIO(0x8002C)
 #define BXT_CSR_DC3_DC5_COUNT	_MMIO(0x80038)
+#define TGL_DMC_DEBUG_DC5_COUNT	_MMIO(0x101084)
+#define TGL_DMC_DEBUG_DC6_COUNT	_MMIO(0x101088)
 
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
@@ -7418,6 +7360,9 @@ enum {
 #define  GEN8_PORT_DP_A_HOTPLUG		(1 << 3)
 #define  BXT_DE_PORT_GMBUS		(1 << 1)
 #define  GEN8_AUX_CHANNEL_A		(1 << 0)
+#define  TGL_DE_PORT_AUX_DDIC		(1 << 2)
+#define  TGL_DE_PORT_AUX_DDIB		(1 << 1)
+#define  TGL_DE_PORT_AUX_DDIA		(1 << 0)
 
 #define GEN8_DE_MISC_ISR _MMIO(0x44460)
 #define GEN8_DE_MISC_IMR _MMIO(0x44464)
@@ -7461,21 +7406,29 @@ enum {
 #define GEN11_DE_HPD_IMR		_MMIO(0x44474)
 #define GEN11_DE_HPD_IIR		_MMIO(0x44478)
 #define GEN11_DE_HPD_IER		_MMIO(0x4447c)
+#define  GEN12_TC6_HOTPLUG			(1 << 21)
+#define  GEN12_TC5_HOTPLUG			(1 << 20)
 #define  GEN11_TC4_HOTPLUG			(1 << 19)
 #define  GEN11_TC3_HOTPLUG			(1 << 18)
 #define  GEN11_TC2_HOTPLUG			(1 << 17)
 #define  GEN11_TC1_HOTPLUG			(1 << 16)
 #define  GEN11_TC_HOTPLUG(tc_port)		(1 << ((tc_port) + 16))
-#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC4_HOTPLUG | \
+#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN12_TC6_HOTPLUG | \
+						 GEN12_TC5_HOTPLUG | \
+						 GEN11_TC4_HOTPLUG | \
 						 GEN11_TC3_HOTPLUG | \
 						 GEN11_TC2_HOTPLUG | \
 						 GEN11_TC1_HOTPLUG)
+#define  GEN12_TBT6_HOTPLUG			(1 << 5)
+#define  GEN12_TBT5_HOTPLUG			(1 << 4)
 #define  GEN11_TBT4_HOTPLUG			(1 << 3)
 #define  GEN11_TBT3_HOTPLUG			(1 << 2)
 #define  GEN11_TBT2_HOTPLUG			(1 << 1)
 #define  GEN11_TBT1_HOTPLUG			(1 << 0)
 #define  GEN11_TBT_HOTPLUG(tc_port)		(1 << (tc_port))
-#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT4_HOTPLUG | \
+#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN12_TBT6_HOTPLUG | \
+						 GEN12_TBT5_HOTPLUG | \
+						 GEN11_TBT4_HOTPLUG | \
 						 GEN11_TBT3_HOTPLUG | \
 						 GEN11_TBT2_HOTPLUG | \
 						 GEN11_TBT1_HOTPLUG)
@@ -7509,6 +7462,9 @@ enum {
 #define  GEN11_INTR_ENGINE_CLASS(x)	(((x) & GENMASK(18, 16)) >> 16)
 #define  GEN11_INTR_ENGINE_INSTANCE(x)	(((x) & GENMASK(25, 20)) >> 20)
 #define  GEN11_INTR_ENGINE_INTR(x)	((x) & 0xffff)
+/* irq instances for OTHER_CLASS */
+#define OTHER_GUC_INSTANCE	0
+#define OTHER_GTPM_INSTANCE	1
 
 #define GEN11_INTR_IDENTITY_REG(x)	_MMIO(0x190060 + ((x) * 4))
 
@@ -7861,12 +7817,15 @@ enum {
 				 SDE_FDI_RXB_CPT | \
 				 SDE_FDI_RXA_CPT)
 
-/* south display engine interrupt: ICP */
+/* south display engine interrupt: ICP/TGP */
+#define SDE_TC6_HOTPLUG_TGP		(1 << 29)
+#define SDE_TC5_HOTPLUG_TGP		(1 << 28)
 #define SDE_TC4_HOTPLUG_ICP		(1 << 27)
 #define SDE_TC3_HOTPLUG_ICP		(1 << 26)
 #define SDE_TC2_HOTPLUG_ICP		(1 << 25)
 #define SDE_TC1_HOTPLUG_ICP		(1 << 24)
 #define SDE_GMBUS_ICP			(1 << 23)
+#define SDE_DDIC_HOTPLUG_TGP		(1 << 18)
 #define SDE_DDIB_HOTPLUG_ICP		(1 << 17)
 #define SDE_DDIA_HOTPLUG_ICP		(1 << 16)
 #define SDE_TC_HOTPLUG_ICP(tc_port)	(1 << ((tc_port) + 24))
@@ -7877,6 +7836,11 @@ enum {
 					 SDE_TC3_HOTPLUG_ICP |	\
 					 SDE_TC2_HOTPLUG_ICP |	\
 					 SDE_TC1_HOTPLUG_ICP)
+#define SDE_DDI_MASK_TGP		(SDE_DDIC_HOTPLUG_TGP | \
+					 SDE_DDI_MASK_ICP)
+#define SDE_TC_MASK_TGP			(SDE_TC6_HOTPLUG_TGP |	\
+					 SDE_TC5_HOTPLUG_TGP |	\
+					 SDE_TC_MASK_ICP)
 
 #define SDEISR  _MMIO(0xc4000)
 #define SDEIMR  _MMIO(0xc4004)
@@ -7944,6 +7908,12 @@ enum {
  */
 
 #define SHOTPLUG_CTL_DDI			_MMIO(0xc4030)
+#define   TGP_DDIC_HPD_ENABLE			(1 << 11)
+#define   TGP_DDIC_HPD_STATUS_MASK		(3 << 8)
+#define   TGP_DDIC_HPD_NO_DETECT		(0 << 8)
+#define   TGP_DDIC_HPD_SHORT_DETECT		(1 << 8)
+#define   TGP_DDIC_HPD_LONG_DETECT		(2 << 8)
+#define   TGP_DDIC_HPD_SHORT_LONG_DETECT	(3 << 8)
 #define   ICP_DDIB_HPD_ENABLE			(1 << 7)
 #define   ICP_DDIB_HPD_STATUS_MASK		(3 << 4)
 #define   ICP_DDIB_HPD_NO_DETECT		(0 << 4)
@@ -8066,6 +8036,18 @@ enum {
 
 #define   ICP_TC_HPD_LONG_DETECT(tc_port)	(2 << (tc_port) * 4)
 #define   ICP_TC_HPD_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
+
+#define ICP_DDI_HPD_ENABLE_MASK		(ICP_DDIB_HPD_ENABLE |	\
+					 ICP_DDIA_HPD_ENABLE)
+#define ICP_TC_HPD_ENABLE_MASK		(ICP_TC_HPD_ENABLE(PORT_TC4) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC3) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC2) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC1))
+#define TGP_DDI_HPD_ENABLE_MASK		(TGP_DDIC_HPD_ENABLE |	\
+					 ICP_DDI_HPD_ENABLE_MASK)
+#define TGP_TC_HPD_ENABLE_MASK		(ICP_TC_HPD_ENABLE(PORT_TC6) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC5) | \
+					 ICP_TC_HPD_ENABLE_MASK)
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
@@ -9390,6 +9372,8 @@ enum skl_power_gate {
 #define  TGL_TRANS_DDI_PORT_MASK	(0xf << TGL_TRANS_DDI_PORT_SHIFT)
 #define  TRANS_DDI_SELECT_PORT(x)	((x) << TRANS_DDI_PORT_SHIFT)
 #define  TGL_TRANS_DDI_SELECT_PORT(x)	(((x) + 1) << TGL_TRANS_DDI_PORT_SHIFT)
+#define  TRANS_DDI_FUNC_CTL_VAL_TO_PORT(val)	 (((val) & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT)
+#define  TGL_TRANS_DDI_FUNC_CTL_VAL_TO_PORT(val) ((((val) & TGL_TRANS_DDI_PORT_MASK) >> TGL_TRANS_DDI_PORT_SHIFT) - 1)
 #define  TRANS_DDI_MODE_SELECT_MASK	(7 << 24)
 #define  TRANS_DDI_MODE_SELECT_HDMI	(0 << 24)
 #define  TRANS_DDI_MODE_SELECT_DVI	(1 << 24)
@@ -10979,6 +10963,7 @@ enum skl_power_gate {
 #define  CALIBRATION_DISABLED		(0x0 << 4)
 #define  CALIBRATION_ENABLED_INITIAL_ONLY	(0x2 << 4)
 #define  CALIBRATION_ENABLED_INITIAL_PERIODIC	(0x3 << 4)
+#define  BLANKING_PACKET_ENABLE		(1 << 2)
 #define  S3D_ORIENTATION_LANDSCAPE	(1 << 1)
 #define  EOTP_DISABLED			(1 << 0)
 
@@ -11212,6 +11197,8 @@ enum skl_power_gate {
 #define   PMFLUSHDONE_LNICRSDROP	(1 << 20)
 #define   PMFLUSH_GAPL3UNBLOCK		(1 << 21)
 #define   PMFLUSHDONE_LNEBLK		(1 << 22)
+
+#define GEN12_GLOBAL_MOCS(i)	_MMIO(0x4000 + (i) * 4) /* Global MOCS regs */
 
 /* gamt regs */
 #define GEN8_L3_LRA_1_GPGPU _MMIO(0x4dd4)

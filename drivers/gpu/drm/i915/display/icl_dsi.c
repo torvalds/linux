@@ -403,8 +403,8 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
 		I915_WRITE(ICL_PORT_TX_DW2_GRP(phy), tmp);
 
-		/* For EHL set latency optimization for PCS_DW1 lanes */
-		if (IS_ELKHARTLAKE(dev_priv)) {
+		/* For EHL, TGL, set latency optimization for PCS_DW1 lanes */
+		if (IS_ELKHARTLAKE(dev_priv) || (INTEL_GEN(dev_priv) >= 12)) {
 			tmp = I915_READ(ICL_PORT_PCS_DW1_AUX(phy));
 			tmp &= ~LATENCY_OPTIM_MASK;
 			tmp |= LATENCY_OPTIM_VAL(0);
@@ -530,18 +530,20 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	 * a value '0' inside TA_PARAM_REGISTERS otherwise
 	 * leave all fields at HW default values.
 	 */
-	if (intel_dsi_bitrate(intel_dsi) <= 800000) {
-		for_each_dsi_port(port, intel_dsi->ports) {
-			tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
-			tmp &= ~TA_SURE_MASK;
-			tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
-			I915_WRITE(DPHY_TA_TIMING_PARAM(port), tmp);
+	if (IS_GEN(dev_priv, 11)) {
+		if (intel_dsi_bitrate(intel_dsi) <= 800000) {
+			for_each_dsi_port(port, intel_dsi->ports) {
+				tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
+				tmp &= ~TA_SURE_MASK;
+				tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
+				I915_WRITE(DPHY_TA_TIMING_PARAM(port), tmp);
 
-			/* shadow register inside display core */
-			tmp = I915_READ(DSI_TA_TIMING_PARAM(port));
-			tmp &= ~TA_SURE_MASK;
-			tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
-			I915_WRITE(DSI_TA_TIMING_PARAM(port), tmp);
+				/* shadow register inside display core */
+				tmp = I915_READ(DSI_TA_TIMING_PARAM(port));
+				tmp &= ~TA_SURE_MASK;
+				tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
+				I915_WRITE(DSI_TA_TIMING_PARAM(port), tmp);
+			}
 		}
 	}
 
@@ -605,7 +607,10 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
 	for_each_dsi_phy(phy, intel_dsi->phys) {
-		val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
+		if (INTEL_GEN(dev_priv) >= 12)
+			val |= ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
+		else
+			val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	}
 	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
@@ -678,6 +683,11 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		case MIPI_DSI_FMT_RGB888:
 			tmp |= PIX_FMT_RGB888;
 			break;
+		}
+
+		if (INTEL_GEN(dev_priv) >= 12) {
+			if (is_vid_mode(intel_dsi))
+				tmp |= BLANKING_PACKET_ENABLE;
 		}
 
 		/* program DSI operation mode */
@@ -862,6 +872,15 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		I915_WRITE(VSYNCSHIFT(dsi_trans), vsync_shift);
 	}
+
+	/* program TRANS_VBLANK register, should be same as vtotal programmed */
+	if (INTEL_GEN(dev_priv) >= 12) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			I915_WRITE(VBLANK(dsi_trans),
+				   (vactive - 1) | ((vtotal - 1) << 16));
+		}
+	}
 }
 
 static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
@@ -879,10 +898,8 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 		I915_WRITE(PIPECONF(dsi_trans), tmp);
 
 		/* wait for transcoder to be enabled */
-		if (intel_wait_for_register(&dev_priv->uncore,
-					    PIPECONF(dsi_trans),
-					    I965_PIPECONF_ACTIVE,
-					    I965_PIPECONF_ACTIVE, 10))
+		if (intel_de_wait_for_set(dev_priv, PIPECONF(dsi_trans),
+					  I965_PIPECONF_ACTIVE, 10))
 			DRM_ERROR("DSI transcoder not enabled\n");
 	}
 }
@@ -940,6 +957,8 @@ static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	/* step 4a: power up all lanes of the DDI used by DSI */
 	gen11_dsi_power_up_lanes(encoder);
 
@@ -962,7 +981,8 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	gen11_dsi_configure_transcoder(encoder, pipe_config);
 
 	/* Step 4l: Gate DDI clocks */
-	gen11_dsi_gate_clocks(encoder);
+	if (IS_GEN(dev_priv, 11))
+		gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
@@ -1058,9 +1078,8 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		I915_WRITE(PIPECONF(dsi_trans), tmp);
 
 		/* wait for transcoder to be disabled */
-		if (intel_wait_for_register(&dev_priv->uncore,
-					    PIPECONF(dsi_trans),
-					    I965_PIPECONF_ACTIVE, 0, 50))
+		if (intel_de_wait_for_clear(dev_priv, PIPECONF(dsi_trans),
+					    I965_PIPECONF_ACTIVE, 50))
 			DRM_ERROR("DSI trancoder not disabled\n");
 	}
 }

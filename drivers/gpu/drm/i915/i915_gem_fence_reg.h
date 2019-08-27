@@ -41,7 +41,7 @@ struct i915_fence_reg {
 	struct list_head link;
 	struct drm_i915_private *i915;
 	struct i915_vma *vma;
-	int pin_count;
+	atomic_t pin_count;
 	int id;
 	/**
 	 * Whether the tiling parameters for the currently

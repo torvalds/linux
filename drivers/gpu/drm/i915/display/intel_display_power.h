@@ -92,6 +92,27 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_NUM,
 };
 
+/*
+ * i915_power_well_id:
+ *
+ * IDs used to look up power wells. Power wells accessed directly bypassing
+ * the power domains framework must be assigned a unique ID. The rest of power
+ * wells must be assigned DISP_PW_ID_NONE.
+ */
+enum i915_power_well_id {
+	DISP_PW_ID_NONE,
+
+	VLV_DISP_PW_DISP2D,
+	BXT_DISP_PW_DPIO_CMN_A,
+	VLV_DISP_PW_DPIO_CMN_BC,
+	GLK_DISP_PW_DPIO_CMN_C,
+	CHV_DISP_PW_DPIO_CMN_D,
+	HSW_DISP_PW_GLOBAL,
+	SKL_DISP_PW_MISC_IO,
+	SKL_DISP_PW_1,
+	SKL_DISP_PW_2,
+};
+
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
 #define POWER_DOMAIN_PIPE_PANEL_FITTER(pipe) \
 		((pipe) + POWER_DOMAIN_PIPE_A_PANEL_FITTER)
@@ -232,27 +253,20 @@ struct i915_power_domains {
 	for_each_power_well_reverse(__dev_priv, __power_well)		        \
 		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
-void skl_enable_dc6(struct drm_i915_private *dev_priv);
-void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
-void bxt_enable_dc9(struct drm_i915_private *dev_priv);
-void bxt_disable_dc9(struct drm_i915_private *dev_priv);
-void gen9_enable_dc5(struct drm_i915_private *dev_priv);
-
 int intel_power_domains_init(struct drm_i915_private *dev_priv);
 void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
 void intel_power_domains_driver_remove(struct drm_i915_private *dev_priv);
-void icl_display_core_init(struct drm_i915_private *dev_priv, bool resume);
-void icl_display_core_uninit(struct drm_i915_private *dev_priv);
 void intel_power_domains_enable(struct drm_i915_private *dev_priv);
 void intel_power_domains_disable(struct drm_i915_private *dev_priv);
 void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 				 enum i915_drm_suspend_mode);
 void intel_power_domains_resume(struct drm_i915_private *dev_priv);
-void hsw_enable_pc8(struct drm_i915_private *dev_priv);
-void hsw_disable_pc8(struct drm_i915_private *dev_priv);
-void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume);
-void bxt_display_core_uninit(struct drm_i915_private *dev_priv);
+
+void intel_display_power_suspend_late(struct drm_i915_private *i915);
+void intel_display_power_resume_early(struct drm_i915_private *i915);
+void intel_display_power_suspend(struct drm_i915_private *i915);
+void intel_display_power_resume(struct drm_i915_private *i915);
 
 const char *
 intel_display_power_domain_str(struct drm_i915_private *i915,

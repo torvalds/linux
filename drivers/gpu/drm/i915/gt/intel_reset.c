@@ -7,6 +7,7 @@
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 
+#include "display/intel_display_types.h"
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
@@ -757,11 +758,8 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		__intel_gt_reset(gt, ALL_ENGINES);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt->i915, id)
 		engine->submit_request = nop_submit_request;
-		engine->schedule = NULL;
-	}
-	gt->i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no request can slip through without getting completed by
@@ -813,13 +811,15 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 *
 	 * No more can be submitted until we reset the wedged bit.
 	 */
-	mutex_lock(&timelines->mutex);
+	spin_lock(&timelines->lock);
 	list_for_each_entry(tl, &timelines->active_list, link) {
 		struct i915_request *rq;
 
 		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
+
+		spin_unlock(&timelines->lock);
 
 		/*
 		 * All internal dependencies (i915_requests) will have
@@ -830,8 +830,12 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		 */
 		dma_fence_default_wait(&rq->fence, false, MAX_SCHEDULE_TIMEOUT);
 		i915_request_put(rq);
+
+		/* Restart iteration after droping lock */
+		spin_lock(&timelines->lock);
+		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}
-	mutex_unlock(&timelines->mutex);
+	spin_unlock(&timelines->lock);
 
 	intel_gt_sanitize(gt, false);
 

@@ -37,6 +37,8 @@
 #include "i915_trace.h"
 #include "intel_context.h"
 #include "intel_gt.h"
+#include "intel_gt_irq.h"
+#include "intel_gt_pm_irq.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 
@@ -636,7 +638,7 @@ static bool stop_ring(struct intel_engine_cs *engine)
 static int xcs_resume(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct intel_ring *ring = engine->buffer;
+	struct intel_ring *ring = engine->legacy.ring;
 	int ret = 0;
 
 	GEM_TRACE("%s: ring:{HEAD:%04x, TAIL:%04x}\n",
@@ -644,6 +646,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 
+	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
 		DRM_DEBUG_DRIVER("%s head not reset to zero "
@@ -675,18 +678,15 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	intel_engine_reset_breadcrumbs(engine);
 
 	/* Enforce ordering by reading HEAD register back */
-	ENGINE_READ(engine, RING_HEAD);
+	ENGINE_POSTING_READ(engine, RING_HEAD);
 
-	/* Initialize the ring. This must happen _after_ we've cleared the ring
+	/*
+	 * Initialize the ring. This must happen _after_ we've cleared the ring
 	 * registers with the above sequence (the readback of the HEAD registers
 	 * also enforces ordering), otherwise the hw might lose the new ring
-	 * register values. */
+	 * register values.
+	 */
 	ENGINE_WRITE(engine, RING_START, i915_ggtt_offset(ring->vma));
-
-	/* WaClearRingBufHeadRegAtInit:ctg,elk */
-	if (ENGINE_READ(engine, RING_HEAD))
-		DRM_DEBUG_DRIVER("%s initialization failed [head=%08x], fudging\n",
-				 engine->name, ENGINE_READ(engine, RING_HEAD));
 
 	/* Check that the ring offsets point within the ring! */
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
@@ -834,12 +834,12 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 		 */
 		__i915_request_reset(rq, stalled);
 
-		GEM_BUG_ON(rq->ring != engine->buffer);
+		GEM_BUG_ON(rq->ring != engine->legacy.ring);
 		head = rq->head;
 	} else {
-		head = engine->buffer->tail;
+		head = engine->legacy.ring->tail;
 	}
-	engine->buffer->head = intel_ring_wrap(engine->buffer, head);
+	engine->legacy.ring->head = intel_ring_wrap(engine->legacy.ring, head);
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
@@ -984,13 +984,13 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 static void
 gen5_irq_enable(struct intel_engine_cs *engine)
 {
-	gen5_enable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_enable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
 gen5_irq_disable(struct intel_engine_cs *engine)
 {
-	gen5_disable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_disable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
@@ -1051,14 +1051,14 @@ gen6_irq_enable(struct intel_engine_cs *engine)
 	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
 	ENGINE_POSTING_READ(engine, RING_IMR);
 
-	gen5_enable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_enable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
 gen6_irq_disable(struct intel_engine_cs *engine)
 {
 	ENGINE_WRITE(engine, RING_IMR, ~engine->irq_keep_mask);
-	gen5_disable_gt_irq(engine->i915, engine->irq_enable_mask);
+	gen5_gt_disable_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
@@ -1069,14 +1069,14 @@ hsw_vebox_irq_enable(struct intel_engine_cs *engine)
 	/* Flush/delay to ensure the RING_IMR is active before the GT IMR */
 	ENGINE_POSTING_READ(engine, RING_IMR);
 
-	gen6_unmask_pm_irq(engine->gt, engine->irq_enable_mask);
+	gen6_gt_pm_unmask_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static void
 hsw_vebox_irq_disable(struct intel_engine_cs *engine)
 {
 	ENGINE_WRITE(engine, RING_IMR, ~0);
-	gen6_mask_pm_irq(engine->gt, engine->irq_enable_mask);
+	gen6_gt_pm_mask_irq(engine->gt, engine->irq_enable_mask);
 }
 
 static int
@@ -1138,7 +1138,7 @@ i830_emit_bb_start(struct i915_request *rq,
 		 * stable batch scratch bo area (so that the CS never
 		 * stumbles over its tlb invalidation bug) ...
 		 */
-		*cs++ = SRC_COPY_BLT_CMD | BLT_WRITE_RGBA;
+		*cs++ = SRC_COPY_BLT_CMD | BLT_WRITE_RGBA | (6 - 2);
 		*cs++ = BLT_DEPTH_32 | BLT_ROP_SRC_COPY | 4096;
 		*cs++ = DIV_ROUND_UP(len, 4096) << 16 | 4096;
 		*cs++ = cs_offset;
@@ -1194,10 +1194,6 @@ int intel_ring_pin(struct intel_ring *ring)
 	if (atomic_fetch_inc(&ring->pin_count))
 		return 0;
 
-	ret = intel_timeline_pin(ring->timeline);
-	if (ret)
-		goto err_unpin;
-
 	flags = PIN_GLOBAL;
 
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
@@ -1210,7 +1206,7 @@ int intel_ring_pin(struct intel_ring *ring)
 
 	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (unlikely(ret))
-		goto err_timeline;
+		goto err_unpin;
 
 	if (i915_vma_is_map_and_fenceable(vma))
 		addr = (void __force *)i915_vma_pin_iomap(vma);
@@ -1222,18 +1218,15 @@ int intel_ring_pin(struct intel_ring *ring)
 		goto err_ring;
 	}
 
-	vma->obj->pin_global++;
+	i915_vma_make_unshrinkable(vma);
 
 	GEM_BUG_ON(ring->vaddr);
 	ring->vaddr = addr;
 
-	GEM_TRACE("ring:%llx pin\n", ring->timeline->fence_context);
 	return 0;
 
 err_ring:
 	i915_vma_unpin(vma);
-err_timeline:
-	intel_timeline_unpin(ring->timeline);
 err_unpin:
 	atomic_dec(&ring->pin_count);
 	return ret;
@@ -1241,8 +1234,7 @@ err_unpin:
 
 void intel_ring_reset(struct intel_ring *ring, u32 tail)
 {
-	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
-
+	tail = intel_ring_wrap(ring, tail);
 	ring->tail = tail;
 	ring->head = tail;
 	ring->emit = tail;
@@ -1251,28 +1243,25 @@ void intel_ring_reset(struct intel_ring *ring, u32 tail)
 
 void intel_ring_unpin(struct intel_ring *ring)
 {
+	struct i915_vma *vma = ring->vma;
+
 	if (!atomic_dec_and_test(&ring->pin_count))
 		return;
 
-	GEM_TRACE("ring:%llx unpin\n", ring->timeline->fence_context);
-
 	/* Discard any unused bytes beyond that submitted to hw. */
-	intel_ring_reset(ring, ring->tail);
+	intel_ring_reset(ring, ring->emit);
 
-	GEM_BUG_ON(!ring->vma);
-	i915_vma_unset_ggtt_write(ring->vma);
-	if (i915_vma_is_map_and_fenceable(ring->vma))
-		i915_vma_unpin_iomap(ring->vma);
+	i915_vma_unset_ggtt_write(vma);
+	if (i915_vma_is_map_and_fenceable(vma))
+		i915_vma_unpin_iomap(vma);
 	else
-		i915_gem_object_unpin_map(ring->vma->obj);
+		i915_gem_object_unpin_map(vma->obj);
 
 	GEM_BUG_ON(!ring->vaddr);
 	ring->vaddr = NULL;
 
-	ring->vma->obj->pin_global--;
-	i915_vma_unpin(ring->vma);
-
-	intel_timeline_unpin(ring->timeline);
+	i915_vma_unpin(vma);
+	i915_vma_make_purgeable(vma);
 }
 
 static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
@@ -1307,9 +1296,7 @@ err:
 }
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine,
-			 struct intel_timeline *timeline,
-			 int size)
+intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_ring *ring;
@@ -1323,8 +1310,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&ring->ref);
-	INIT_LIST_HEAD(&ring->request_list);
-	ring->timeline = intel_timeline_get(timeline);
 
 	ring->size = size;
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -1354,7 +1339,6 @@ void intel_ring_free(struct kref *ref)
 	i915_vma_close(ring->vma);
 	i915_vma_put(ring->vma);
 
-	intel_timeline_put(ring->timeline);
 	kfree(ring);
 }
 
@@ -1481,16 +1465,17 @@ err_obj:
 	return ERR_PTR(err);
 }
 
-static int ring_context_pin(struct intel_context *ce)
+static int ring_context_alloc(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
-	int err;
 
 	/* One ringbuffer to rule them all */
-	GEM_BUG_ON(!engine->buffer);
-	ce->ring = engine->buffer;
+	GEM_BUG_ON(!engine->legacy.ring);
+	ce->ring = engine->legacy.ring;
+	ce->timeline = intel_timeline_get(engine->legacy.timeline);
 
-	if (!ce->state && engine->context_size) {
+	GEM_BUG_ON(ce->state);
+	if (engine->context_size) {
 		struct i915_vma *vma;
 
 		vma = alloc_context_vma(engine);
@@ -1499,6 +1484,13 @@ static int ring_context_pin(struct intel_context *ce)
 
 		ce->state = vma;
 	}
+
+	return 0;
+}
+
+static int ring_context_pin(struct intel_context *ce)
+{
+	int err;
 
 	err = intel_context_active_acquire(ce);
 	if (err)
@@ -1521,6 +1513,8 @@ static void ring_context_reset(struct intel_context *ce)
 }
 
 static const struct intel_context_ops ring_context_ops = {
+	.alloc = ring_context_alloc,
+
 	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
 
@@ -1869,7 +1863,10 @@ static int ring_request_alloc(struct i915_request *request)
 	return 0;
 }
 
-static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
+static noinline int
+wait_for_space(struct intel_ring *ring,
+	       struct intel_timeline *tl,
+	       unsigned int bytes)
 {
 	struct i915_request *target;
 	long timeout;
@@ -1877,15 +1874,18 @@ static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 	if (intel_ring_update_space(ring) >= bytes)
 		return 0;
 
-	GEM_BUG_ON(list_empty(&ring->request_list));
-	list_for_each_entry(target, &ring->request_list, ring_link) {
+	GEM_BUG_ON(list_empty(&tl->requests));
+	list_for_each_entry(target, &tl->requests, link) {
+		if (target->ring != ring)
+			continue;
+
 		/* Would completion of this request free enough space? */
 		if (bytes <= __intel_ring_space(target->postfix,
 						ring->emit, ring->size))
 			break;
 	}
 
-	if (WARN_ON(&target->ring_link == &ring->request_list))
+	if (GEM_WARN_ON(&target->link == &tl->requests))
 		return -ENOSPC;
 
 	timeout = i915_request_wait(target,
@@ -1952,7 +1952,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 		 */
 		GEM_BUG_ON(!rq->reserved_space);
 
-		ret = wait_for_space(ring, total_bytes);
+		ret = wait_for_space(ring, rq->timeline, total_bytes);
 		if (unlikely(ret))
 			return ERR_PTR(ret);
 	}
@@ -2157,8 +2157,11 @@ static void ring_destroy(struct intel_engine_cs *engine)
 
 	intel_engine_cleanup_common(engine);
 
-	intel_ring_unpin(engine->buffer);
-	intel_ring_put(engine->buffer);
+	intel_ring_unpin(engine->legacy.ring);
+	intel_ring_put(engine->legacy.ring);
+
+	intel_timeline_unpin(engine->legacy.timeline);
+	intel_timeline_put(engine->legacy.timeline);
 
 	kfree(engine);
 }
@@ -2342,32 +2345,40 @@ int intel_ring_submission_init(struct intel_engine_cs *engine)
 	}
 	GEM_BUG_ON(timeline->has_initial_breadcrumb);
 
-	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
-	intel_timeline_put(timeline);
+	err = intel_timeline_pin(timeline);
+	if (err)
+		goto err_timeline;
+
+	ring = intel_engine_create_ring(engine, SZ_16K);
 	if (IS_ERR(ring)) {
 		err = PTR_ERR(ring);
-		goto err;
+		goto err_timeline_unpin;
 	}
 
 	err = intel_ring_pin(ring);
 	if (err)
 		goto err_ring;
 
-	GEM_BUG_ON(engine->buffer);
-	engine->buffer = ring;
+	GEM_BUG_ON(engine->legacy.ring);
+	engine->legacy.ring = ring;
+	engine->legacy.timeline = timeline;
 
 	err = intel_engine_init_common(engine);
 	if (err)
-		goto err_unpin;
+		goto err_ring_unpin;
 
-	GEM_BUG_ON(ring->timeline->hwsp_ggtt != engine->status_page.vma);
+	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
 
 	return 0;
 
-err_unpin:
+err_ring_unpin:
 	intel_ring_unpin(ring);
 err_ring:
 	intel_ring_put(ring);
+err_timeline_unpin:
+	intel_timeline_unpin(timeline);
+err_timeline:
+	intel_timeline_put(timeline);
 err:
 	intel_engine_cleanup_common(engine);
 	return err;

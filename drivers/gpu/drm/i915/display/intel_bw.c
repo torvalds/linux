@@ -6,7 +6,7 @@
 #include <drm/drm_atomic_state_helper.h>
 
 #include "intel_bw.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_sideband.h"
 
 /* Parameters for Qclk Geyserville (QGV) */
@@ -320,6 +320,20 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 		data_rate += bw_state->data_rate[pipe];
 
 	return data_rate;
+}
+
+static struct intel_bw_state *
+intel_atomic_get_bw_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct drm_private_state *bw_state;
+
+	bw_state = drm_atomic_get_private_obj_state(&state->base,
+						    &dev_priv->bw_obj);
+	if (IS_ERR(bw_state))
+		return ERR_CAST(bw_state);
+
+	return to_intel_bw_state(bw_state);
 }
 
 int intel_bw_atomic_check(struct intel_atomic_state *state)

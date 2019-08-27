@@ -39,6 +39,11 @@
 
 #define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
 
+#define TGL_CSR_PATH			"i915/tgl_dmc_ver2_04.bin"
+#define TGL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 4)
+#define TGL_CSR_MAX_FW_SIZE		0x6000
+MODULE_FIRMWARE(TGL_CSR_PATH);
+
 #define ICL_CSR_PATH			"i915/icl_dmc_ver1_07.bin"
 #define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 #define ICL_CSR_MAX_FW_SIZE		0x6000
@@ -674,6 +679,8 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	intel_csr_runtime_pm_get(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
+		csr->fw_path = TGL_CSR_PATH;
+		csr->required_version = TGL_CSR_VERSION_REQUIRED;
 		/* Allow to load fw via parameter using the last known size */
 		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
 	} else if (IS_GEN(dev_priv, 11)) {

@@ -600,9 +600,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 			u64 start, u64 end, unsigned int flags);
 
 /* Flags used by pin/bind&friends. */
-#define PIN_NONBLOCK		BIT_ULL(0)
-#define PIN_NONFAULT		BIT_ULL(1)
-#define PIN_NOEVICT		BIT_ULL(2)
+#define PIN_NOEVICT		BIT_ULL(0)
+#define PIN_NOSEARCH		BIT_ULL(1)
+#define PIN_NONBLOCK		BIT_ULL(2)
 #define PIN_MAPPABLE		BIT_ULL(3)
 #define PIN_ZONE_4G		BIT_ULL(4)
 #define PIN_HIGH		BIT_ULL(5)

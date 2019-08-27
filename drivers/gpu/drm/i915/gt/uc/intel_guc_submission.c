@@ -1,25 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright © 2014 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
  */
 
 #include <linux/circ_buf.h>
@@ -29,10 +10,12 @@
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_pm.h"
 #include "gt/intel_lrc_reg.h"
 #include "intel_guc_submission.h"
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 enum {
 	GUC_PREEMPT_NONE = 0,
@@ -487,8 +470,6 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	guc_wq_item_append(client, engine->guc_id, ctx_desc,
 			   ring_tail, rq->fence.seqno);
 	guc_ring_doorbell(client);
-
-	client->submissions[engine->id] += 1;
 }
 
 /*
@@ -534,10 +515,14 @@ static struct i915_request *schedule_in(struct i915_request *rq, int idx)
 {
 	trace_i915_request_in(rq, idx);
 
-	if (!rq->hw_context->inflight)
-		rq->hw_context->inflight = rq->engine;
-	intel_context_inflight_inc(rq->hw_context);
+	/*
+	 * Currently we are not tracking the rq->context being inflight
+	 * (ce->inflight = rq->engine). It is only used by the execlists
+	 * backend at the moment, a similar counting strategy would be
+	 * required if we generalise the inflight tracking.
+	 */
 
+	intel_gt_pm_get(rq->engine->gt);
 	return i915_request_get(rq);
 }
 
@@ -545,10 +530,7 @@ static void schedule_out(struct i915_request *rq)
 {
 	trace_i915_request_out(rq);
 
-	intel_context_inflight_dec(rq->hw_context);
-	if (!intel_context_inflight_count(rq->hw_context))
-		rq->hw_context->inflight = NULL;
-
+	intel_gt_pm_put(rq->engine->gt);
 	i915_request_put(rq);
 }
 
@@ -571,6 +553,11 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 		last = NULL;
 	}
 
+	/*
+	 * We write directly into the execlists->inflight queue and don't use
+	 * the execlists->pending queue, as we don't have a distinct switch
+	 * event.
+	 */
 	port = first;
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
@@ -651,6 +638,19 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 	__tasklet_disable_sync_once(&execlists->tasklet);
 }
 
+static void
+cancel_port_requests(struct intel_engine_execlists * const execlists)
+{
+	struct i915_request * const *port, *rq;
+
+	/* Note we are only using the inflight and not the pending queue */
+
+	for (port = execlists->active; (rq = *port); port++)
+		schedule_out(rq);
+	execlists->active =
+		memset(execlists->inflight, 0, sizeof(execlists->inflight));
+}
+
 static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -659,7 +659,7 @@ static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 
 	spin_lock_irqsave(&engine->active.lock, flags);
 
-	execlists_cancel_port_requests(execlists);
+	cancel_port_requests(execlists);
 
 	/* Push back any incomplete requests for replay after the reset. */
 	rq = execlists_unwind_incomplete_requests(execlists);
@@ -702,7 +702,7 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 	spin_lock_irqsave(&engine->active.lock, flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
-	execlists_cancel_port_requests(execlists);
+	cancel_port_requests(execlists);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link) {
@@ -1074,19 +1074,6 @@ static void guc_interrupts_release(struct intel_gt *gt)
 	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
 }
 
-static void guc_submission_park(struct intel_engine_cs *engine)
-{
-	intel_engine_park(engine);
-	intel_engine_unpin_breadcrumbs_irq(engine);
-	engine->flags &= ~I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
-}
-
-static void guc_submission_unpark(struct intel_engine_cs *engine)
-{
-	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
-	intel_engine_pin_breadcrumbs_irq(engine);
-}
-
 static void guc_set_default_submission(struct intel_engine_cs *engine)
 {
 	/*
@@ -1104,8 +1091,8 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 
 	engine->execlists.tasklet.func = guc_submission_tasklet;
 
-	engine->park = guc_submission_park;
-	engine->unpark = guc_submission_unpark;
+	/* do not use execlists park/unpark */
+	engine->park = engine->unpark = NULL;
 
 	engine->reset.prepare = guc_reset_prepare;
 	engine->reset.reset = guc_reset;
@@ -1114,6 +1101,15 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 	engine->cancel_requests = guc_cancel_requests;
 
 	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
+	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
+
+	/*
+	 * For the breadcrumb irq to work we need the interrupts to stay
+	 * enabled. However, on all platforms on which we'll have support for
+	 * GuC submission we don't allow disabling the interrupts at runtime, so
+	 * we're always safe with the current flow.
+	 */
+	GEM_BUG_ON(engine->irq_enable || engine->irq_disable);
 }
 
 int intel_guc_submission_enable(struct intel_guc *guc)
@@ -1122,6 +1118,10 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
+
+	err = i915_inject_load_error(gt->i915, -ENXIO);
+	if (err)
+		return err;
 
 	/*
 	 * We're using GuC work items for submitting work through GuC. Since
@@ -1161,6 +1161,22 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 
 	guc_interrupts_release(gt);
 	guc_clients_disable(guc);
+}
+
+static bool __guc_submission_support(struct intel_guc *guc)
+{
+	/* XXX: GuC submission is unavailable for now */
+	return false;
+
+	if (!intel_guc_is_supported(guc))
+		return false;
+
+	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
+}
+
+void intel_guc_submission_init_early(struct intel_guc *guc)
+{
+	guc->submission_supported = __guc_submission_support(guc);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

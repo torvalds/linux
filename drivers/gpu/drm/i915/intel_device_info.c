@@ -716,7 +716,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(dev_priv) <= 11) {
+	} else if (INTEL_GEN(dev_priv) <= 12) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
 		u32 freq = 0;
 
@@ -1022,8 +1022,9 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		/*
 		 * In Gen11, only even numbered logical VDBOXes are
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
+		 * In TGL each VDBOX has access to an SFC.
 		 */
-		if (logical_vdbox++ % 2 == 0)
+		if (IS_TIGERLAKE(dev_priv) || logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",

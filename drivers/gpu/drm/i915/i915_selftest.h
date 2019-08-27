@@ -24,6 +24,8 @@
 #ifndef __I915_SELFTEST_H__
 #define __I915_SELFTEST_H__
 
+#include <linux/types.h>
+
 struct pci_dev;
 struct drm_i915_private;
 

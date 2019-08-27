@@ -46,9 +46,7 @@ static int igt_add_request(void *arg)
 	/* Basic preliminary test to create a request and let it loose! */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS0],
-			       i915->kernel_context,
-			       HZ / 10);
+	request = mock_request(i915->engine[RCS0]->kernel_context, HZ / 10);
 	if (!request)
 		goto out_unlock;
 
@@ -70,7 +68,7 @@ static int igt_wait_request(void *arg)
 	/* Submit a request, then wait upon it */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS0], i915->kernel_context, T);
+	request = mock_request(i915->engine[RCS0]->kernel_context, T);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -143,7 +141,7 @@ static int igt_fence_wait(void *arg)
 	/* Submit a request, treat it as a fence and wait upon it */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS0], i915->kernel_context, T);
+	request = mock_request(i915->engine[RCS0]->kernel_context, T);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_locked;
@@ -196,11 +194,15 @@ static int igt_request_rewind(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_request *request, *vip;
 	struct i915_gem_context *ctx[2];
+	struct intel_context *ce;
 	int err = -EINVAL;
 
 	mutex_lock(&i915->drm.struct_mutex);
 	ctx[0] = mock_context(i915, "A");
-	request = mock_request(i915->engine[RCS0], ctx[0], 2 * HZ);
+	ce = i915_gem_context_get_engine(ctx[0], RCS0);
+	GEM_BUG_ON(IS_ERR(ce));
+	request = mock_request(ce, 2 * HZ);
+	intel_context_put(ce);
 	if (!request) {
 		err = -ENOMEM;
 		goto err_context_0;
@@ -210,7 +212,10 @@ static int igt_request_rewind(void *arg)
 	i915_request_add(request);
 
 	ctx[1] = mock_context(i915, "B");
-	vip = mock_request(i915->engine[RCS0], ctx[1], 0);
+	ce = i915_gem_context_get_engine(ctx[1], RCS0);
+	GEM_BUG_ON(IS_ERR(ce));
+	vip = mock_request(ce, 0);
+	intel_context_put(ce);
 	if (!vip) {
 		err = -ENOMEM;
 		goto err_context_1;
@@ -259,22 +264,19 @@ struct smoketest {
 	struct i915_gem_context **contexts;
 	atomic_long_t num_waits, num_fences;
 	int ncontexts, max_batch;
-	struct i915_request *(*request_alloc)(struct i915_gem_context *,
-					      struct intel_engine_cs *);
+	struct i915_request *(*request_alloc)(struct intel_context *ce);
 };
 
 static struct i915_request *
-__mock_request_alloc(struct i915_gem_context *ctx,
-		     struct intel_engine_cs *engine)
+__mock_request_alloc(struct intel_context *ce)
 {
-	return mock_request(engine, ctx, 0);
+	return mock_request(ce, 0);
 }
 
 static struct i915_request *
-__live_request_alloc(struct i915_gem_context *ctx,
-		     struct intel_engine_cs *engine)
+__live_request_alloc(struct intel_context *ce)
 {
-	return igt_request_alloc(ctx, engine);
+	return intel_context_create_request(ce);
 }
 
 static int __igt_breadcrumbs_smoketest(void *arg)
@@ -333,10 +335,14 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 			struct i915_gem_context *ctx =
 				t->contexts[order[n] % t->ncontexts];
 			struct i915_request *rq;
+			struct intel_context *ce;
 
 			mutex_lock(BKL);
 
-			rq = t->request_alloc(ctx, t->engine);
+			ce = i915_gem_context_get_engine(ctx, t->engine->legacy_idx);
+			GEM_BUG_ON(IS_ERR(ce));
+			rq = t->request_alloc(ce);
+			intel_context_put(ce);
 			if (IS_ERR(rq)) {
 				mutex_unlock(BKL);
 				err = PTR_ERR(rq);
@@ -870,7 +876,9 @@ static int live_all_engines(void *arg)
 		request[id]->batch = batch;
 
 		i915_vma_lock(batch);
-		err = i915_vma_move_to_active(batch, request[id], 0);
+		err = i915_request_await_object(request[id], batch->obj, 0);
+		if (err == 0)
+			err = i915_vma_move_to_active(batch, request[id], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
 
@@ -986,7 +994,9 @@ static int live_sequential_engines(void *arg)
 		request[id]->batch = batch;
 
 		i915_vma_lock(batch);
-		err = i915_vma_move_to_active(batch, request[id], 0);
+		err = i915_request_await_object(request[id], batch->obj, false);
+		if (err == 0)
+			err = i915_vma_move_to_active(batch, request[id], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
 

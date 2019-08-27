@@ -4,7 +4,6 @@
  */
 
 #include "i915_drv.h"
-
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_uncore.h"
@@ -14,14 +13,15 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
 
-	INIT_LIST_HEAD(&gt->active_rings);
-	INIT_LIST_HEAD(&gt->closed_vma);
+	spin_lock_init(&gt->irq_lock);
 
+	INIT_LIST_HEAD(&gt->closed_vma);
 	spin_lock_init(&gt->closed_lock);
 
 	intel_gt_init_hangcheck(gt);
 	intel_gt_init_reset(gt);
 	intel_gt_pm_init_early(gt);
+	intel_uc_init_early(&gt->uc);
 }
 
 void intel_gt_init_hw(struct drm_i915_private *i915)
@@ -79,7 +79,10 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 				   I915_MASTER_ERROR_INTERRUPT);
 	}
 
-	if (INTEL_GEN(i915) >= 8) {
+	if (INTEL_GEN(i915) >= 12) {
+		rmw_clear(uncore, GEN12_RING_FAULT_REG, RING_FAULT_VALID);
+		intel_uncore_posting_read(uncore, GEN12_RING_FAULT_REG);
+	} else if (INTEL_GEN(i915) >= 8) {
 		rmw_clear(uncore, GEN8_RING_FAULT_REG, RING_FAULT_VALID);
 		intel_uncore_posting_read(uncore, GEN8_RING_FAULT_REG);
 	} else if (INTEL_GEN(i915) >= 6) {
@@ -117,14 +120,27 @@ static void gen6_check_faults(struct intel_gt *gt)
 static void gen8_check_faults(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
-	u32 fault = intel_uncore_read(uncore, GEN8_RING_FAULT_REG);
+	i915_reg_t fault_reg, fault_data0_reg, fault_data1_reg;
+	u32 fault;
 
+	if (INTEL_GEN(gt->i915) >= 12) {
+		fault_reg = GEN12_RING_FAULT_REG;
+		fault_data0_reg = GEN12_FAULT_TLB_DATA0;
+		fault_data1_reg = GEN12_FAULT_TLB_DATA1;
+	} else {
+		fault_reg = GEN8_RING_FAULT_REG;
+		fault_data0_reg = GEN8_FAULT_TLB_DATA0;
+		fault_data1_reg = GEN8_FAULT_TLB_DATA1;
+	}
+
+	fault = intel_uncore_read(uncore, fault_reg);
 	if (fault & RING_FAULT_VALID) {
 		u32 fault_data0, fault_data1;
 		u64 fault_addr;
 
-		fault_data0 = intel_uncore_read(uncore, GEN8_FAULT_TLB_DATA0);
-		fault_data1 = intel_uncore_read(uncore, GEN8_FAULT_TLB_DATA1);
+		fault_data0 = intel_uncore_read(uncore, fault_data0_reg);
+		fault_data1 = intel_uncore_read(uncore, fault_data1_reg);
+
 		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
 			     ((u64)fault_data0 << 12);
 
@@ -231,7 +247,8 @@ int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 	if (ret)
 		goto err_unref;
 
-	gt->scratch = vma;
+	gt->scratch = i915_vma_make_unshrinkable(vma);
+
 	return 0;
 
 err_unref:
@@ -244,7 +261,8 @@ void intel_gt_fini_scratch(struct intel_gt *gt)
 	i915_vma_unpin_and_release(&gt->scratch, 0);
 }
 
-void intel_gt_cleanup_early(struct intel_gt *gt)
+void intel_gt_driver_late_release(struct intel_gt *gt)
 {
+	intel_uc_driver_late_release(&gt->uc);
 	intel_gt_fini_reset(gt);
 }

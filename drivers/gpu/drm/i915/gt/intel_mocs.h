@@ -49,12 +49,11 @@
  * context handling keep the MOCS in step.
  */
 
-struct drm_i915_private;
 struct i915_request;
 struct intel_engine_cs;
 struct intel_gt;
 
-void intel_mocs_init_l3cc_table(struct intel_gt *gt);
+void intel_mocs_init(struct intel_gt *gt);
 void intel_mocs_init_engine(struct intel_engine_cs *engine);
 
 int intel_mocs_emit(struct i915_request *rq);

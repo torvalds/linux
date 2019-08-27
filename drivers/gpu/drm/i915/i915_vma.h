@@ -111,7 +111,6 @@ struct i915_vma {
 #define I915_VMA_GGTT_WRITE	BIT(14)
 
 	struct i915_active active;
-	struct i915_active_request last_fence;
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -230,6 +229,14 @@ static inline struct i915_vma *i915_vma_get(struct i915_vma *vma)
 {
 	i915_gem_object_get(vma->obj);
 	return vma;
+}
+
+static inline struct i915_vma *i915_vma_tryget(struct i915_vma *vma)
+{
+	if (likely(kref_get_unless_zero(&vma->obj->base.refcount)))
+		return vma;
+
+	return NULL;
 }
 
 static inline void i915_vma_put(struct i915_vma *vma)
@@ -414,13 +421,13 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
  *
  * True if the vma has a fence, false otherwise.
  */
-int i915_vma_pin_fence(struct i915_vma *vma);
-int __must_check i915_vma_put_fence(struct i915_vma *vma);
+int __must_check i915_vma_pin_fence(struct i915_vma *vma);
+int __must_check i915_vma_revoke_fence(struct i915_vma *vma);
 
 static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->fence->pin_count <= 0);
-	vma->fence->pin_count--;
+	GEM_BUG_ON(atomic_read(&vma->fence->pin_count) <= 0);
+	atomic_dec(&vma->fence->pin_count);
 }
 
 /**
@@ -458,5 +465,9 @@ void i915_vma_parked(struct drm_i915_private *i915);
 
 struct i915_vma *i915_vma_alloc(void);
 void i915_vma_free(struct i915_vma *vma);
+
+struct i915_vma *i915_vma_make_unshrinkable(struct i915_vma *vma);
+void i915_vma_make_shrinkable(struct i915_vma *vma);
+void i915_vma_make_purgeable(struct i915_vma *vma);
 
 #endif

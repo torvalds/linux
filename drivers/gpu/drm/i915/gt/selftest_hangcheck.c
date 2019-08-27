@@ -118,7 +118,10 @@ static int move_to_active(struct i915_vma *vma,
 	int err;
 
 	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, flags);
+	err = i915_request_await_object(rq, vma->obj,
+					flags & EXEC_OBJECT_WRITE);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, flags);
 	i915_vma_unlock(vma);
 
 	return err;
@@ -1154,7 +1157,14 @@ static int evict_fence(void *data)
 		goto out_unlock;
 	}
 
+	err = i915_vma_pin(arg->vma, 0, 0, PIN_GLOBAL | PIN_MAPPABLE);
+	if (err) {
+		pr_err("Unable to pin vma for Y-tiled fence; err:%d\n", err);
+		goto out_unlock;
+	}
+
 	err = i915_vma_pin_fence(arg->vma);
+	i915_vma_unpin(arg->vma);
 	if (err) {
 		pr_err("Unable to pin Y-tiled fence; err:%d\n", err);
 		goto out_unlock;
@@ -1237,7 +1247,10 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 	}
 
 	i915_vma_lock(arg.vma);
-	err = i915_vma_move_to_active(arg.vma, rq, flags);
+	err = i915_request_await_object(rq, arg.vma->obj,
+					flags & EXEC_OBJECT_WRITE);
+	if (err == 0)
+		err = i915_vma_move_to_active(arg.vma, rq, flags);
 	i915_vma_unlock(arg.vma);
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)

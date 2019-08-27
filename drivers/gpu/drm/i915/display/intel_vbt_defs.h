@@ -317,9 +317,6 @@ enum vbt_gmbus_ddi {
 	ICL_DDC_BUS_PORT_4,
 	TGL_DDC_BUS_PORT_5,
 	TGL_DDC_BUS_PORT_6,
-	MCC_DDC_BUS_DDI_A = 0x1,
-	MCC_DDC_BUS_DDI_B,
-	MCC_DDC_BUS_DDI_C = 0x4,
 };
 
 #define DP_AUX_A 0x40

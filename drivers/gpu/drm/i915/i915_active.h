@@ -58,15 +58,20 @@ void i915_active_retire_noop(struct i915_active_request *active,
  */
 static inline void
 i915_active_request_init(struct i915_active_request *active,
+			 struct mutex *lock,
 			 struct i915_request *rq,
 			 i915_active_retire_fn retire)
 {
 	RCU_INIT_POINTER(active->request, rq);
 	INIT_LIST_HEAD(&active->link);
 	active->retire = retire ?: i915_active_retire_noop;
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	active->lock = lock;
+#endif
 }
 
-#define INIT_ACTIVE_REQUEST(name) i915_active_request_init((name), NULL, NULL)
+#define INIT_ACTIVE_REQUEST(name, lock) \
+	i915_active_request_init((name), (lock), NULL, NULL)
 
 /**
  * i915_active_request_set - updates the tracker to watch the current request
@@ -81,6 +86,9 @@ static inline void
 __i915_active_request_set(struct i915_active_request *active,
 			  struct i915_request *request)
 {
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	lockdep_assert_held(active->lock);
+#endif
 	list_move(&active->link, &request->active_list);
 	rcu_assign_pointer(active->request, request);
 }
@@ -88,25 +96,6 @@ __i915_active_request_set(struct i915_active_request *active,
 int __must_check
 i915_active_request_set(struct i915_active_request *active,
 			struct i915_request *rq);
-
-/**
- * i915_active_request_set_retire_fn - updates the retirement callback
- * @active - the active tracker
- * @fn - the routine called when the request is retired
- * @mutex - struct_mutex used to guard retirements
- *
- * i915_active_request_set_retire_fn() updates the function pointer that
- * is called when the final request associated with the @active tracker
- * is retired.
- */
-static inline void
-i915_active_request_set_retire_fn(struct i915_active_request *active,
-				  i915_active_retire_fn fn,
-				  struct mutex *mutex)
-{
-	lockdep_assert_held(mutex);
-	active->retire = fn ?: i915_active_retire_noop;
-}
 
 /**
  * i915_active_request_raw - return the active request
@@ -381,7 +370,7 @@ void __i915_active_init(struct drm_i915_private *i915,
 } while (0)
 
 int i915_active_ref(struct i915_active *ref,
-		    u64 timeline,
+		    struct intel_timeline *tl,
 		    struct i915_request *rq);
 
 int i915_active_wait(struct i915_active *ref);
@@ -413,6 +402,6 @@ static inline void i915_active_fini(struct i915_active *ref) { }
 int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 					    struct intel_engine_cs *engine);
 void i915_active_acquire_barrier(struct i915_active *ref);
-void i915_request_add_barriers(struct i915_request *rq);
+void i915_request_add_active_barriers(struct i915_request *rq);
 
 #endif /* _I915_ACTIVE_H_ */

@@ -44,15 +44,16 @@
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
-#include "intel_drv.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
@@ -2370,9 +2371,8 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 			I915_READ(pp_stat_reg),
 			I915_READ(pp_ctrl_reg));
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    pp_stat_reg, mask, value,
-				    5000))
+	if (intel_de_wait_for_register(dev_priv, pp_stat_reg,
+				       mask, value, 5000))
 		DRM_ERROR("Panel status timeout: status %08x control %08x\n",
 				I915_READ(pp_stat_reg),
 				I915_READ(pp_ctrl_reg));
@@ -3959,10 +3959,8 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	if (port == PORT_A)
 		return;
 
-	if (intel_wait_for_register(&dev_priv->uncore, DP_TP_STATUS(port),
-				    DP_TP_STATUS_IDLE_DONE,
-				    DP_TP_STATUS_IDLE_DONE,
-				    1))
+	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+				  DP_TP_STATUS_IDLE_DONE, 1))
 		DRM_ERROR("Timed out waiting for DP idle patterns\n");
 }
 
@@ -4145,10 +4143,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 
 	drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
 			 drm_dp_is_branch(intel_dp->dpcd));
-
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
-		dev_priv->no_aux_handshake = intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
-			DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 
 	/*
 	 * Read the eDP display control registers.
@@ -5818,47 +5812,49 @@ struct hdcp2_dp_errata_stream_type {
 	u8	stream_type;
 } __packed;
 
-static struct hdcp2_dp_msg_data {
+struct hdcp2_dp_msg_data {
 	u8 msg_id;
 	u32 offset;
 	bool msg_detectable;
 	u32 timeout;
 	u32 timeout2; /* Added for non_paired situation */
-	} hdcp2_msg_data[] = {
-		{HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0},
-		{HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
-				false, HDCP_2_2_CERT_TIMEOUT_MS, 0},
-		{HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
-				false, 0, 0},
-		{HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
-				false, 0, 0},
-		{HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
-				true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
-				HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS},
-		{HDCP_2_2_AKE_SEND_PAIRING_INFO,
-				DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
-				HDCP_2_2_PAIRING_TIMEOUT_MS, 0},
-		{HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0},
-		{HDCP_2_2_LC_SEND_LPRIME, DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET,
-				false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0},
-		{HDCP_2_2_SKE_SEND_EKS, DP_HDCP_2_2_SKE_SEND_EKS_OFFSET, false,
-				0, 0},
-		{HDCP_2_2_REP_SEND_RECVID_LIST,
-				DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET, true,
-				HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0},
-		{HDCP_2_2_REP_SEND_ACK, DP_HDCP_2_2_REP_SEND_ACK_OFFSET, false,
-				0, 0},
-		{HDCP_2_2_REP_STREAM_MANAGE,
-				DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET, false,
-				0, 0},
-		{HDCP_2_2_REP_STREAM_READY, DP_HDCP_2_2_REP_STREAM_READY_OFFSET,
-				false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0},
+};
+
+static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
+	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0 },
+	{ HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
+	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
+	  false, 0, 0 },
+	{ HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
+	  false, 0, 0 },
+	{ HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
+	  true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
+	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS },
+	{ HDCP_2_2_AKE_SEND_PAIRING_INFO,
+	  DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
+	  HDCP_2_2_PAIRING_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0 },
+	{ HDCP_2_2_LC_SEND_LPRIME, DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET,
+	  false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_SKE_SEND_EKS, DP_HDCP_2_2_SKE_SEND_EKS_OFFSET, false,
+	  0, 0 },
+	{ HDCP_2_2_REP_SEND_RECVID_LIST,
+	  DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET, true,
+	  HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0 },
+	{ HDCP_2_2_REP_SEND_ACK, DP_HDCP_2_2_REP_SEND_ACK_OFFSET, false,
+	  0, 0 },
+	{ HDCP_2_2_REP_STREAM_MANAGE,
+	  DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET, false,
+	  0, 0 },
+	{ HDCP_2_2_REP_STREAM_READY, DP_HDCP_2_2_REP_STREAM_READY_OFFSET,
+	  false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0 },
 /* local define to shovel this through the write_2_2 interface */
 #define HDCP_2_2_ERRATA_DP_STREAM_TYPE	50
-		{HDCP_2_2_ERRATA_DP_STREAM_TYPE,
-				DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET, false,
-				0, 0},
-		};
+	{ HDCP_2_2_ERRATA_DP_STREAM_TYPE,
+	  DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET, false,
+	  0, 0 },
+};
 
 static inline
 int intel_dp_hdcp2_read_rx_status(struct intel_digital_port *intel_dig_port,
@@ -5912,7 +5908,7 @@ int hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
 
 static ssize_t
 intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
-			    struct hdcp2_dp_msg_data *hdcp2_msg_data)
+			    const struct hdcp2_dp_msg_data *hdcp2_msg_data)
 {
 	struct intel_dp *dp = &intel_dig_port->dp;
 	struct intel_hdcp *hdcp = &dp->attached_connector->hdcp;
@@ -5951,13 +5947,13 @@ intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
 	return ret;
 }
 
-static struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
+static const struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hdcp2_msg_data); i++)
-		if (hdcp2_msg_data[i].msg_id == msg_id)
-			return &hdcp2_msg_data[i];
+	for (i = 0; i < ARRAY_SIZE(hdcp2_dp_msg_data); i++)
+		if (hdcp2_dp_msg_data[i].msg_id == msg_id)
+			return &hdcp2_dp_msg_data[i];
 
 	return NULL;
 }
@@ -5971,7 +5967,7 @@ int intel_dp_hdcp2_write_msg(struct intel_digital_port *intel_dig_port,
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_write, len;
-	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(*byte);
 	if (!hdcp2_msg_data)
@@ -6035,7 +6031,7 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *intel_dig_port,
 	unsigned int offset;
 	u8 *byte = buf;
 	ssize_t ret, bytes_to_recv, len;
-	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+	const struct hdcp2_dp_msg_data *hdcp2_msg_data;
 
 	hdcp2_msg_data = get_hdcp2_dp_msg_data(msg_id);
 	if (!hdcp2_msg_data)

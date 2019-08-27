@@ -1,24 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright © 2014 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * Copyright © 2014-2019 Intel Corporation
  *
  * Authors:
  *    Vinit Azad <vinit.azad@intel.com>
@@ -39,7 +21,10 @@
  */
 void intel_guc_fw_init_early(struct intel_guc *guc)
 {
-	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, guc_to_gt(guc)->i915);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+
+	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, HAS_GT_UC(i915),
+			       INTEL_INFO(i915)->platform, INTEL_REVID(i915));
 }
 
 static void guc_prepare_xfer(struct intel_uncore *uncore)
@@ -172,10 +157,10 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	if (ret)
 		goto out;
 
-	guc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_RUNNING);
 	return 0;
 
 out:
-	guc->fw.status = INTEL_UC_FIRMWARE_FAIL;
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_FAIL);
 	return ret;
 }

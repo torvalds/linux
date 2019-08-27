@@ -27,6 +27,7 @@
 #include <uapi/linux/sched/types.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
@@ -34,9 +35,9 @@ static void irq_enable(struct intel_engine_cs *engine)
 		return;
 
 	/* Caller disables interrupts */
-	spin_lock(&engine->i915->irq_lock);
+	spin_lock(&engine->gt->irq_lock);
 	engine->irq_enable(engine);
-	spin_unlock(&engine->i915->irq_lock);
+	spin_unlock(&engine->gt->irq_lock);
 }
 
 static void irq_disable(struct intel_engine_cs *engine)
@@ -45,9 +46,9 @@ static void irq_disable(struct intel_engine_cs *engine)
 		return;
 
 	/* Caller disables interrupts */
-	spin_lock(&engine->i915->irq_lock);
+	spin_lock(&engine->gt->irq_lock);
 	engine->irq_disable(engine);
-	spin_unlock(&engine->i915->irq_lock);
+	spin_unlock(&engine->gt->irq_lock);
 }
 
 static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
@@ -66,14 +67,15 @@ static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	unsigned long flags;
 
 	if (!b->irq_armed)
 		return;
 
-	spin_lock_irq(&b->irq_lock);
+	spin_lock_irqsave(&b->irq_lock, flags);
 	if (b->irq_armed)
 		__intel_breadcrumbs_disarm_irq(b);
-	spin_unlock_irq(&b->irq_lock);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
 static inline bool __request_completed(const struct i915_request *rq)
@@ -210,28 +212,6 @@ static void signal_irq_work(struct irq_work *work)
 		container_of(work, typeof(*engine), breadcrumbs.irq_work);
 
 	intel_engine_breadcrumbs_irq(engine);
-}
-
-void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-
-	spin_lock_irq(&b->irq_lock);
-	if (!b->irq_enabled++)
-		irq_enable(engine);
-	GEM_BUG_ON(!b->irq_enabled); /* no overflow! */
-	spin_unlock_irq(&b->irq_lock);
-}
-
-void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-
-	spin_lock_irq(&b->irq_lock);
-	GEM_BUG_ON(!b->irq_enabled); /* no underflow! */
-	if (!--b->irq_enabled)
-		irq_disable(engine);
-	spin_unlock_irq(&b->irq_lock);
 }
 
 static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)

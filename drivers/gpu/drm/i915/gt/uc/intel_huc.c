@@ -1,25 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright © 2016-2017 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
+ * Copyright © 2016-2019 Intel Corporation
  */
 
 #include <linux/types.h>
@@ -52,6 +33,11 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 	struct i915_vma *vma;
 	size_t copied;
 	void *vaddr;
+	int err;
+
+	err = i915_inject_load_error(gt->i915, -ENXIO);
+	if (err)
+		return err;
 
 	/*
 	 * HuC firmware will sit above GUC_GGTT_TOP and will not map
@@ -91,11 +77,12 @@ static void intel_huc_rsa_data_destroy(struct intel_huc *huc)
 
 int intel_huc_init(struct intel_huc *huc)
 {
+	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 	int err;
 
 	err = intel_uc_fw_init(&huc->fw);
 	if (err)
-		return err;
+		goto out;
 
 	/*
 	 * HuC firmware image is outside GuC accessible range.
@@ -110,13 +97,19 @@ int intel_huc_init(struct intel_huc *huc)
 
 out_fini:
 	intel_uc_fw_fini(&huc->fw);
+out:
+	intel_uc_fw_cleanup_fetch(&huc->fw);
+	DRM_DEV_DEBUG_DRIVER(i915->drm.dev, "failed with %d\n", err);
 	return err;
 }
 
 void intel_huc_fini(struct intel_huc *huc)
 {
-	intel_uc_fw_fini(&huc->fw);
+	if (!intel_uc_fw_is_available(&huc->fw))
+		return;
+
 	intel_huc_rsa_data_destroy(huc);
+	intel_uc_fw_fini(&huc->fw);
 }
 
 /**
@@ -136,8 +129,14 @@ int intel_huc_auth(struct intel_huc *huc)
 	struct intel_guc *guc = &gt->uc.guc;
 	int ret;
 
-	GEM_BUG_ON(!intel_uc_fw_is_loaded(&huc->fw));
 	GEM_BUG_ON(intel_huc_is_authenticated(huc));
+
+	if (!intel_uc_fw_is_loaded(&huc->fw))
+		return -ENOEXEC;
+
+	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	if (ret)
+		goto fail;
 
 	ret = intel_guc_auth_huc(guc,
 				 intel_guc_ggtt_offset(guc, huc->rsa_data));
@@ -157,14 +156,12 @@ int intel_huc_auth(struct intel_huc *huc)
 		goto fail;
 	}
 
-	huc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
-
+	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_RUNNING);
 	return 0;
 
 fail:
-	huc->fw.status = INTEL_UC_FIRMWARE_FAIL;
-
-	DRM_ERROR("HuC: Authentication failed %d\n", ret);
+	i915_probe_error(gt->i915, "HuC: Authentication failed %d\n", ret);
+	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_FAIL);
 	return ret;
 }
 
@@ -185,7 +182,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 	intel_wakeref_t wakeref;
 	u32 status = 0;
 
-	if (!intel_uc_is_using_huc(&gt->uc))
+	if (!intel_huc_is_supported(huc))
 		return -ENODEV;
 
 	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)

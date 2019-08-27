@@ -1,32 +1,14 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright © 2014-2017 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
+ * Copyright © 2014-2019 Intel Corporation
  */
 
 #include <linux/debugfs.h>
 
 #include "gt/intel_gt.h"
-#include "intel_guc_log.h"
 #include "i915_drv.h"
+#include "i915_memcpy.h"
+#include "intel_guc_log.h"
 
 static void guc_log_capture_logs(struct intel_guc_log *log);
 
@@ -390,6 +372,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	int ret;
 
 	lockdep_assert_held(&log->relay.lock);
+	GEM_BUG_ON(!log->vma);
 
 	 /* Keep the size of sub buffers same as shared log buffer */
 	subbuf_size = log->vma->size;
@@ -571,6 +554,9 @@ bool intel_guc_log_relay_enabled(const struct intel_guc_log *log)
 int intel_guc_log_relay_open(struct intel_guc_log *log)
 {
 	int ret;
+
+	if (!log->vma)
+		return -ENODEV;
 
 	mutex_lock(&log->relay.lock);
 

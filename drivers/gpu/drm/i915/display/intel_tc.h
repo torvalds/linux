@@ -9,7 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
-#include "intel_drv.h"
+struct intel_digital_port;
 
 bool intel_tc_port_connected(struct intel_digital_port *dig_port);
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port);
@@ -23,12 +23,7 @@ void intel_tc_port_unlock(struct intel_digital_port *dig_port);
 void intel_tc_port_get_link(struct intel_digital_port *dig_port,
 			    int required_lanes);
 void intel_tc_port_put_link(struct intel_digital_port *dig_port);
-
-static inline int intel_tc_port_ref_held(struct intel_digital_port *dig_port)
-{
-	return mutex_is_locked(&dig_port->tc_lock) ||
-	       dig_port->tc_link_refcount;
-}
+bool intel_tc_port_ref_held(struct intel_digital_port *dig_port);
 
 void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy);
 

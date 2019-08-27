@@ -32,10 +32,10 @@
 #include "intel_combo_phy.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
 #include "intel_dpio_phy.h"
-#include "intel_drv.h"
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
@@ -1467,8 +1467,8 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	else if (intel_crtc_has_dp_encoder(pipe_config))
 		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
 						    &pipe_config->dp_m_n);
-	else if (pipe_config->has_hdmi_sink && pipe_config->pipe_bpp == 36)
-		dotclock = pipe_config->port_clock * 2 / 3;
+	else if (pipe_config->has_hdmi_sink && pipe_config->pipe_bpp > 24)
+		dotclock = pipe_config->port_clock * 24 / pipe_config->pipe_bpp;
 	else
 		dotclock = pipe_config->port_clock;
 
@@ -2015,6 +2015,12 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	for_each_pipe(dev_priv, p) {
 		enum transcoder cpu_transcoder = (enum transcoder)p;
 		unsigned int port_mask, ddi_select;
+		intel_wakeref_t trans_wakeref;
+
+		trans_wakeref = intel_display_power_get_if_enabled(dev_priv,
+								   POWER_DOMAIN_TRANSCODER(cpu_transcoder));
+		if (!trans_wakeref)
+			continue;
 
 		if (INTEL_GEN(dev_priv) >= 12) {
 			port_mask = TGL_TRANS_DDI_PORT_MASK;
@@ -2025,6 +2031,8 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		}
 
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+		intel_display_power_put(dev_priv, POWER_DOMAIN_TRANSCODER(cpu_transcoder),
+					trans_wakeref);
 
 		if ((tmp & port_mask) != ddi_select)
 			continue;
@@ -2921,6 +2929,12 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 		if (!intel_phy_is_combo(dev_priv, phy))
 			I915_WRITE(DDI_CLK_SEL(port),
 				   icl_pll_to_ddi_clk_sel(encoder, crtc_state));
+		else if (IS_ELKHARTLAKE(dev_priv) && port >= PORT_C)
+			/*
+			 * MG does not exist but the programming is required
+			 * to ungate DDIC and DDID
+			 */
+			I915_WRITE(DDI_CLK_SEL(port), DDI_CLK_SEL_MG);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
 		val = I915_READ(DPCLKA_CFGCR0);
@@ -2961,7 +2975,8 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
 	if (INTEL_GEN(dev_priv) >= 11) {
-		if (!intel_phy_is_combo(dev_priv, phy))
+		if (!intel_phy_is_combo(dev_priv, phy) ||
+		    (IS_ELKHARTLAKE(dev_priv) && port >= PORT_C))
 			I915_WRITE(DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		I915_WRITE(DPCLKA_CFGCR0, I915_READ(DPCLKA_CFGCR0) |
@@ -3124,10 +3139,8 @@ static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 	val |= DP_TP_CTL_FEC_ENABLE;
 	I915_WRITE(DP_TP_CTL(port), val);
 
-	if (intel_wait_for_register(&dev_priv->uncore, DP_TP_STATUS(port),
-				    DP_TP_STATUS_FEC_ENABLE_LIVE,
-				    DP_TP_STATUS_FEC_ENABLE_LIVE,
-				    1))
+	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+				  DP_TP_STATUS_FEC_ENABLE_LIVE, 1))
 		DRM_ERROR("Timed out waiting for FEC Enable Status\n");
 }
 

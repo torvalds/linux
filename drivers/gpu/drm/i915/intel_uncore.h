@@ -36,6 +36,13 @@ struct drm_i915_private;
 struct intel_runtime_pm;
 struct intel_uncore;
 
+struct intel_uncore_mmio_debug {
+	spinlock_t lock; /** lock is also taken in irq contexts. */
+	int unclaimed_mmio_check;
+	int saved_mmio_check;
+	u32 suspend_count;
+};
+
 enum forcewake_domain_id {
 	FW_DOMAIN_ID_RENDER = 0,
 	FW_DOMAIN_ID_BLITTER,
@@ -137,14 +144,9 @@ struct intel_uncore {
 		u32 __iomem *reg_ack;
 	} *fw_domain[FW_DOMAIN_ID_COUNT];
 
-	struct {
-		unsigned int count;
+	unsigned int user_forcewake_count;
 
-		int saved_mmio_check;
-		int saved_mmio_debug;
-	} user_forcewake;
-
-	int unclaimed_mmio_check;
+	struct intel_uncore_mmio_debug *debug;
 };
 
 /* Iterate over initialised fw domains */
@@ -179,6 +181,8 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 	return uncore->flags & UNCORE_HAS_FIFO;
 }
 
+void
+intel_uncore_mmio_debug_init_early(struct intel_uncore_mmio_debug *mmio_debug);
 void intel_uncore_init_early(struct intel_uncore *uncore,
 			     struct drm_i915_private *i915);
 int intel_uncore_init_mmio(struct intel_uncore *uncore);
@@ -391,6 +395,18 @@ static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
 	val &= ~clear;
 	val |= set;
 	intel_uncore_write_fw(uncore, reg, val);
+}
+
+static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,
+						i915_reg_t reg, u32 val,
+						u32 mask, u32 expected_val)
+{
+	u32 reg_val;
+
+	intel_uncore_write(uncore, reg, val);
+	reg_val = intel_uncore_read(uncore, reg);
+
+	return (reg_val & mask) != expected_val ? -EINVAL : 0;
 }
 
 #define raw_reg_read(base, reg) \

@@ -4,7 +4,7 @@
  */
 
 #include "intel_combo_phy.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 
 #define for_each_combo_phy(__dev_priv, __phy) \
 	for ((__phy) = PHY_A; (__phy) < I915_MAX_PHYS; (__phy)++)	\

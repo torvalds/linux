@@ -161,7 +161,7 @@ i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 static inline bool
 i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
 {
-	return READ_ONCE(obj->framebuffer_references);
+	return READ_ONCE(obj->frontbuffer);
 }
 
 static inline unsigned int
@@ -393,6 +393,10 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags);
 void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
+
+void i915_gem_object_make_unshrinkable(struct drm_i915_gem_object *obj);
+void i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
+void i915_gem_object_make_purgeable(struct drm_i915_gem_object *obj);
 
 static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {

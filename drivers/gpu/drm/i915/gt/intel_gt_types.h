@@ -16,11 +16,13 @@
 #include "uc/intel_uc.h"
 
 #include "i915_vma.h"
+#include "intel_engine_types.h"
 #include "intel_reset_types.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
 struct i915_ggtt;
+struct intel_engine_cs;
 struct intel_uncore;
 
 struct intel_hangcheck {
@@ -39,15 +41,13 @@ struct intel_gt {
 	struct intel_uc uc;
 
 	struct intel_gt_timelines {
-		struct mutex mutex; /* protects list */
+		spinlock_t lock; /* protects active_list */
 		struct list_head active_list;
 
 		/* Pack multiple timelines' seqnos into the same page */
 		spinlock_t hwsp_lock;
 		struct list_head hwsp_free_list;
 	} timelines;
-
-	struct list_head active_rings;
 
 	struct intel_wakeref wakeref;
 
@@ -72,10 +72,16 @@ struct intel_gt {
 
 	struct i915_vma *scratch;
 
-	u32 pm_imr;
+	spinlock_t irq_lock;
+	u32 gt_imr;
 	u32 pm_ier;
+	u32 pm_imr;
 
 	u32 pm_guc_events;
+
+	struct intel_engine_cs *engine[I915_NUM_ENGINES];
+	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]
+					    [MAX_ENGINE_INSTANCE + 1];
 };
 
 enum intel_gt_scratch_field {

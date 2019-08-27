@@ -34,12 +34,13 @@
 #include <drm/drm_plane_helper.h>
 
 #include "display/intel_atomic.h"
+#include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
 #include "display/intel_sprite.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "intel_drv.h"
+#include "i915_trace.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
@@ -9168,9 +9169,6 @@ static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	/* The GTT cache must be disabled if the system is using 2M pages. */
-	bool can_use_gtt_cache = !HAS_PAGE_SIZES(dev_priv,
-						 I915_GTT_PAGE_SIZE_2M);
 	enum pipe pipe;
 
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
@@ -9202,9 +9200,6 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	/* WaProgramL3SqcReg1Default:bdw */
 	gen8_set_l3sqc_credits(dev_priv, 30, 2);
-
-	/* WaGttCachingOffByDefault:bdw */
-	I915_WRITE(HSW_GTT_CACHE_EN, can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
 
 	/* WaKVMNotificationOnConfigChange:bdw */
 	I915_WRITE(CHICKEN_PAR2_1, I915_READ(CHICKEN_PAR2_1)
@@ -9470,12 +9465,6 @@ static void chv_init_clock_gating(struct drm_i915_private *dev_priv)
 	 * LSQC Setting Recommendations.
 	 */
 	gen8_set_l3sqc_credits(dev_priv, 38, 2);
-
-	/*
-	 * GTT cache may not work with big pages, so if those
-	 * are ever enabled GTT cache may need to be disabled.
-	 */
-	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
 }
 
 static void g4x_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -9608,7 +9597,9 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_GEN(dev_priv, 11))
+	if (IS_GEN(dev_priv, 12))
+		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+	else if (IS_GEN(dev_priv, 11))
 		dev_priv->display.init_clock_gating = icl_init_clock_gating;
 	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cnl_init_clock_gating;

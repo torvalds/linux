@@ -28,8 +28,30 @@
 #include <drm/drm_util.h>
 #include <drm/i915_drm.h>
 
+enum link_m_n_set;
+struct dpll;
+struct drm_connector;
+struct drm_device;
+struct drm_encoder;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_i915_error_state_buf;
+struct drm_i915_gem_object;
 struct drm_i915_private;
+struct drm_modeset_acquire_ctx;
+struct drm_plane;
+struct drm_plane_state;
+struct i915_ggtt_view;
+struct intel_crtc;
+struct intel_crtc_state;
+struct intel_digital_port;
+struct intel_dp;
+struct intel_encoder;
+struct intel_load_detect_pipe;
+struct intel_plane;
 struct intel_plane_state;
+struct intel_remapped_info;
+struct intel_rotation_info;
 
 enum i915_gpio {
 	GPIOA,
@@ -399,5 +421,172 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier);
 bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
+
+void intel_plane_destroy(struct drm_plane *plane);
+void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
+void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
+enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc);
+int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
+int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
+		      const char *name, u32 reg, int ref_freq);
+int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+			   const char *name, u32 reg);
+void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv);
+void lpt_disable_iclkip(struct drm_i915_private *dev_priv);
+void intel_init_display_hooks(struct drm_i915_private *dev_priv);
+unsigned int intel_fb_xy_to_linear(int x, int y,
+				   const struct intel_plane_state *state,
+				   int plane);
+unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
+				   int color_plane, unsigned int height);
+void intel_add_fb_offsets(int *x, int *y,
+			  const struct intel_plane_state *state, int plane);
+unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
+unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
+bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
+int intel_display_suspend(struct drm_device *dev);
+void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
+void intel_encoder_destroy(struct drm_encoder *encoder);
+struct drm_display_mode *
+intel_encoder_current_mode(struct intel_encoder *encoder);
+bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy);
+bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
+enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
+			      enum port port);
+int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
+enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
+					     enum pipe pipe);
+u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc);
+
+int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
+void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+			 struct intel_digital_port *dport,
+			 unsigned int expected_mask);
+int intel_get_load_detect_pipe(struct drm_connector *connector,
+			       const struct drm_display_mode *mode,
+			       struct intel_load_detect_pipe *old,
+			       struct drm_modeset_acquire_ctx *ctx);
+void intel_release_load_detect_pipe(struct drm_connector *connector,
+				    struct intel_load_detect_pipe *old,
+				    struct drm_modeset_acquire_ctx *ctx);
+struct i915_vma *
+intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
+			   const struct i915_ggtt_view *view,
+			   bool uses_fence,
+			   unsigned long *out_flags);
+void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
+struct drm_framebuffer *
+intel_framebuffer_create(struct drm_i915_gem_object *obj,
+			 struct drm_mode_fb_cmd2 *mode_cmd);
+int intel_prepare_plane_fb(struct drm_plane *plane,
+			   struct drm_plane_state *new_state);
+void intel_cleanup_plane_fb(struct drm_plane *plane,
+			    struct drm_plane_state *old_state);
+
+void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
+				    enum pipe pipe);
+
+int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
+		     const struct dpll *dpll);
+void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe);
+int lpt_get_iclkip(struct drm_i915_private *dev_priv);
+bool intel_fuzzy_clock_check(int clock1, int clock2);
+
+void intel_prepare_reset(struct drm_i915_private *dev_priv);
+void intel_finish_reset(struct drm_i915_private *dev_priv);
+void intel_dp_get_m_n(struct intel_crtc *crtc,
+		      struct intel_crtc_state *pipe_config);
+void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
+		      enum link_m_n_set m_n);
+void intel_dp_ycbcr_420_enable(struct intel_dp *intel_dp,
+			       const struct intel_crtc_state *crtc_state);
+int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
+bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
+			struct dpll *best_clock);
+int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
+
+bool intel_crtc_active(struct intel_crtc *crtc);
+bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state);
+void hsw_enable_ips(const struct intel_crtc_state *crtc_state);
+void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
+enum intel_display_power_domain intel_port_to_power_domain(enum port port);
+enum intel_display_power_domain
+intel_aux_power_domain(struct intel_digital_port *dig_port);
+void intel_mode_from_pipe_config(struct drm_display_mode *mode,
+				 struct intel_crtc_state *pipe_config);
+void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state);
+
+u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
+int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
+int skl_max_scale(const struct intel_crtc_state *crtc_state,
+		  u32 pixel_format);
+u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
+u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state);
+u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
+		  const struct intel_plane_state *plane_state);
+u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state);
+u32 skl_plane_stride(const struct intel_plane_state *plane_state,
+		     int plane);
+int skl_check_plane_surface(struct intel_plane_state *plane_state);
+int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
+int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
+unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
+				   u32 pixel_format, u64 modifier,
+				   unsigned int rotation);
+int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
+
+struct intel_display_error_state *
+intel_display_capture_error_state(struct drm_i915_private *dev_priv);
+void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
+				     struct intel_display_error_state *error);
+
+/* modesetting */
+void intel_modeset_init_hw(struct drm_device *dev);
+int intel_modeset_init(struct drm_device *dev);
+void intel_modeset_driver_remove(struct drm_device *dev);
+int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv, bool state);
+void intel_display_resume(struct drm_device *dev);
+void i915_redisable_vga(struct drm_i915_private *dev_priv);
+void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
+void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
+
+/* modesetting asserts */
+void assert_panel_unlocked(struct drm_i915_private *dev_priv,
+			   enum pipe pipe);
+void assert_pll(struct drm_i915_private *dev_priv,
+		enum pipe pipe, bool state);
+#define assert_pll_enabled(d, p) assert_pll(d, p, true)
+#define assert_pll_disabled(d, p) assert_pll(d, p, false)
+void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state);
+#define assert_dsi_pll_enabled(d) assert_dsi_pll(d, true)
+#define assert_dsi_pll_disabled(d) assert_dsi_pll(d, false)
+void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state);
+#define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
+#define assert_fdi_rx_pll_disabled(d, p) assert_fdi_rx_pll(d, p, false)
+void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
+#define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
+#define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
+
+/* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
+ * WARN_ON()) for hw state sanity checks to check for unexpected conditions
+ * which may not necessarily be a user visible problem.  This will either
+ * WARN() or DRM_ERROR() depending on the verbose_checks moduleparam, to
+ * enable distros and users to tailor their preferred amount of i915 abrt
+ * spam.
+ */
+#define I915_STATE_WARN(condition, format...) ({			\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on))					\
+		if (!WARN(i915_modparams.verbose_state_checks, format))	\
+			DRM_ERROR(format);				\
+	unlikely(__ret_warn_on);					\
+})
+
+#define I915_STATE_WARN_ON(x)						\
+	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
 #endif
