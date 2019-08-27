@@ -127,6 +127,7 @@ struct lm3532_als_data {
  * @num_leds - Number of LED strings are supported in this array
  * @full_scale_current - The full-scale current setting for the current sink.
  * @led_strings - The LED strings supported in this array
+ * @enabled - Enabled status
  * @label - LED label
  */
 struct lm3532_led {
@@ -138,6 +139,7 @@ struct lm3532_led {
 	int ctrl_brt_pointer;
 	int num_leds;
 	int full_scale_current;
+	int enabled:1;
 	u32 led_strings[LM3532_MAX_CONTROL_BANKS];
 	char label[LED_MAX_NAME_SIZE];
 };
@@ -292,10 +294,14 @@ static int lm3532_get_ramp_index(int ramp_time)
 				ramp_time);
 }
 
+/* Caller must take care of locking */
 static int lm3532_led_enable(struct lm3532_led *led_data)
 {
 	int ctrl_en_val = BIT(led_data->control_bank);
 	int ret;
+
+	if (led_data->enabled)
+		return 0;
 
 	ret = regmap_update_bits(led_data->priv->regmap, LM3532_REG_ENABLE,
 					 ctrl_en_val, ctrl_en_val);
@@ -304,13 +310,23 @@ static int lm3532_led_enable(struct lm3532_led *led_data)
 		return ret;
 	}
 
-	return regulator_enable(led_data->priv->regulator);
+	ret = regulator_enable(led_data->priv->regulator);
+	if (ret < 0)
+		return ret;
+
+	led_data->enabled = 1;
+
+	return 0;
 }
 
+/* Caller must take care of locking */
 static int lm3532_led_disable(struct lm3532_led *led_data)
 {
 	int ctrl_en_val = BIT(led_data->control_bank);
 	int ret;
+
+	if (!led_data->enabled)
+		return 0;
 
 	ret = regmap_update_bits(led_data->priv->regmap, LM3532_REG_ENABLE,
 					 ctrl_en_val, 0);
@@ -319,7 +335,13 @@ static int lm3532_led_disable(struct lm3532_led *led_data)
 		return ret;
 	}
 
-	return regulator_disable(led_data->priv->regulator);
+	ret = regulator_disable(led_data->priv->regulator);
+	if (ret < 0)
+		return ret;
+
+	led_data->enabled = 0;
+
+	return 0;
 }
 
 static int lm3532_brightness_set(struct led_classdev *led_cdev,
