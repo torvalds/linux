@@ -1584,9 +1584,6 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	/* XMOS based USB DACs */
 	switch (chip->usb_id) {
 	case USB_ID(0x1511, 0x0037): /* AURALiC VEGA */
-	case USB_ID(0x22d9, 0x0416): /* OPPO HA-1 */
-	case USB_ID(0x22d9, 0x0436): /* OPPO Sonica */
-	case USB_ID(0x22d9, 0x0461): /* OPPO UDP-205 */
 	case USB_ID(0x2522, 0x0012): /* LH Labs VI DAC Infinity */
 	case USB_ID(0x2772, 0x0230): /* Pro-Ject Pre Box S2 Digital */
 		if (fp->altsetting == 2)
@@ -1600,7 +1597,6 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case USB_ID(0x16d0, 0x0733): /* Furutech ADL Stratos */
 	case USB_ID(0x16d0, 0x09db): /* NuPrime Audio DAC-9 */
 	case USB_ID(0x1db5, 0x0003): /* Bryston BDA3 */
-	case USB_ID(0x22d9, 0x0426): /* OPPO HA-2 */
 	case USB_ID(0x22e1, 0xca01): /* HDTA Serenade DSD */
 	case USB_ID(0x249c, 0x9326): /* M2Tech Young MkIII */
 	case USB_ID(0x2616, 0x0106): /* PS Audio NuWave DAC */
@@ -1657,8 +1653,10 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	switch (USB_ID_VENDOR(chip->usb_id)) {
 	case 0x152a:  /* Thesycon devices */
 	case 0x20b1:  /* XMOS based devices */
+	case 0x22d9:  /* Oppo */
 	case 0x23ba:  /* Playback Designs */
 	case 0x25ce:  /* Mytek devices */
+	case 0x278b:  /* Rotel? */
 	case 0x2ab6:  /* T+A devices */
 		if (fp->dsd_raw)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
