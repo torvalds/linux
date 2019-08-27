@@ -180,12 +180,6 @@ static int gpu_fill(struct intel_context *ce,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	i915_gem_object_lock(obj);
-	err = i915_gem_object_set_to_gtt_domain(obj, true);
-	i915_gem_object_unlock(obj);
-	if (err)
-		return err;
-
 	err = i915_vma_pin(vma, 0, 0, PIN_HIGH | PIN_USER);
 	if (err)
 		return err;
@@ -343,6 +337,45 @@ static unsigned long max_dwords(struct drm_i915_gem_object *obj)
 	return npages / DW_PER_PAGE;
 }
 
+static void throttle_release(struct i915_request **q, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (IS_ERR_OR_NULL(q[i]))
+			continue;
+
+		i915_request_put(fetch_and_zero(&q[i]));
+	}
+}
+
+static int throttle(struct intel_context *ce,
+		    struct i915_request **q, int count)
+{
+	int i;
+
+	if (!IS_ERR_OR_NULL(q[0])) {
+		if (i915_request_wait(q[0],
+				      I915_WAIT_INTERRUPTIBLE,
+				      MAX_SCHEDULE_TIMEOUT) < 0)
+			return -EINTR;
+
+		i915_request_put(q[0]);
+	}
+
+	for (i = 0; i < count - 1; i++)
+		q[i] = q[i + 1];
+
+	q[i] = intel_context_create_request(ce);
+	if (IS_ERR(q[i]))
+		return PTR_ERR(q[i]);
+
+	i915_request_get(q[i]);
+	i915_request_add(q[i]);
+
+	return 0;
+}
+
 static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -362,6 +395,7 @@ static int igt_ctx_exec(void *arg)
 	for_each_engine(engine, i915, id) {
 		struct drm_i915_gem_object *obj = NULL;
 		unsigned long ncontexts, ndwords, dw;
+		struct i915_request *tq[5] = {};
 		struct igt_live_test t;
 		struct drm_file *file;
 		IGT_TIMEOUT(end_time);
@@ -409,13 +443,18 @@ static int igt_ctx_exec(void *arg)
 			}
 
 			err = gpu_fill(ce, obj, dw);
-			intel_context_put(ce);
-
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name, ctx->hw_id,
 				       yesno(!!ctx->vm), err);
+				intel_context_put(ce);
+				goto out_unlock;
+			}
+
+			err = throttle(ce, tq, ARRAY_SIZE(tq));
+			if (err) {
+				intel_context_put(ce);
 				goto out_unlock;
 			}
 
@@ -426,6 +465,8 @@ static int igt_ctx_exec(void *arg)
 
 			ndwords++;
 			ncontexts++;
+
+			intel_context_put(ce);
 		}
 
 		pr_info("Submitted %lu contexts to %s, filling %lu dwords\n",
@@ -444,6 +485,7 @@ static int igt_ctx_exec(void *arg)
 		}
 
 out_unlock:
+		throttle_release(tq, ARRAY_SIZE(tq));
 		if (igt_live_test_end(&t))
 			err = -EIO;
 		mutex_unlock(&i915->drm.struct_mutex);
@@ -461,6 +503,7 @@ out_unlock:
 static int igt_shared_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
+	struct i915_request *tq[5] = {};
 	struct i915_gem_context *parent;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -535,14 +578,20 @@ static int igt_shared_ctx_exec(void *arg)
 			}
 
 			err = gpu_fill(ce, obj, dw);
-			intel_context_put(ce);
-			kernel_context_close(ctx);
-
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name, ctx->hw_id,
 				       yesno(!!ctx->vm), err);
+				intel_context_put(ce);
+				kernel_context_close(ctx);
+				goto out_test;
+			}
+
+			err = throttle(ce, tq, ARRAY_SIZE(tq));
+			if (err) {
+				intel_context_put(ce);
+				kernel_context_close(ctx);
 				goto out_test;
 			}
 
@@ -553,6 +602,9 @@ static int igt_shared_ctx_exec(void *arg)
 
 			ndwords++;
 			ncontexts++;
+
+			intel_context_put(ce);
+			kernel_context_close(ctx);
 		}
 		pr_info("Submitted %lu contexts to %s, filling %lu dwords\n",
 			ncontexts, engine->name, ndwords);
@@ -574,6 +626,7 @@ static int igt_shared_ctx_exec(void *arg)
 		mutex_lock(&i915->drm.struct_mutex);
 	}
 out_test:
+	throttle_release(tq, ARRAY_SIZE(tq));
 	if (igt_live_test_end(&t))
 		err = -EIO;
 out_unlock:
@@ -1050,6 +1103,7 @@ static int igt_ctx_readonly(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj = NULL;
+	struct i915_request *tq[5] = {};
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	unsigned long idx, ndwords, dw;
@@ -1121,6 +1175,12 @@ static int igt_ctx_readonly(void *arg)
 				goto out_unlock;
 			}
 
+			err = throttle(ce, tq, ARRAY_SIZE(tq));
+			if (err) {
+				i915_gem_context_unlock_engines(ctx);
+				goto out_unlock;
+			}
+
 			if (++dw == max_dwords(obj)) {
 				obj = NULL;
 				dw = 0;
@@ -1151,6 +1211,7 @@ static int igt_ctx_readonly(void *arg)
 	}
 
 out_unlock:
+	throttle_release(tq, ARRAY_SIZE(tq));
 	if (igt_live_test_end(&t))
 		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
