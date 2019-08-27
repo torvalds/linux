@@ -2931,6 +2931,24 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	return gen8_emit_fini_breadcrumb_footer(request, cs);
 }
 
+/*
+ * Note that the CS instruction pre-parser will not stall on the breadcrumb
+ * flush and will continue pre-fetching the instructions after it before the
+ * memory sync is completed. On pre-gen12 HW, the pre-parser will stop at
+ * BB_START/END instructions, so, even though we might pre-fetch the pre-amble
+ * of the next request before the memory has been flushed, we're guaranteed that
+ * we won't access the batch itself too early.
+ * However, on gen12+ the parser can pre-fetch across the BB_START/END commands,
+ * so, if the current request is modifying an instruction in the next request on
+ * the same intel_context, we might pre-fetch and then execute the pre-update
+ * instruction. To avoid this, the users of self-modifying code should either
+ * disable the parser around the code emitting the memory writes, via a new flag
+ * added to MI_ARB_CHECK, or emit the writes from a different intel_context. For
+ * the in-kernel use-cases we've opted to use a separate context, see
+ * reloc_gpu() as an example.
+ * All the above applies only to the instructions themselves. Non-inline data
+ * used by the instructions is not pre-fetched.
+ */
 static u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *request,
 					   u32 *cs)
 {
