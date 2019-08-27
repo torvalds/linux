@@ -119,7 +119,7 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 }
 
 static acpi_status decode_type0_hpx_record(union acpi_object *record,
-					   struct hpp_type0 *hpx0)
+					   struct hpx_type0 *hpx0)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -147,7 +147,7 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 }
 
 static acpi_status decode_type1_hpx_record(union acpi_object *record,
-					   struct hpp_type1 *hpx1)
+					   struct hpx_type1 *hpx1)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -174,7 +174,7 @@ static acpi_status decode_type1_hpx_record(union acpi_object *record,
 }
 
 static acpi_status decode_type2_hpx_record(union acpi_object *record,
-					   struct hpp_type2 *hpx2)
+					   struct hpx_type2 *hpx2)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -277,9 +277,9 @@ static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *package, *record, *fields;
-	struct hpp_type0 hpx0;
-	struct hpp_type1 hpx1;
-	struct hpp_type2 hpx2;
+	struct hpx_type0 hpx0;
+	struct hpx_type1 hpx1;
+	struct hpx_type2 hpx2;
 	u32 type;
 	int i;
 
@@ -353,10 +353,10 @@ static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle,
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package, *fields;
-	struct hpp_type0 hpp0;
+	struct hpx_type0 hpx0;
 	int i;
 
-	memset(&hpp0, 0, sizeof(hpp0));
+	memset(&hpx0, 0, sizeof(hpx0));
 
 	status = acpi_evaluate_object(handle, "_HPP", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -377,13 +377,13 @@ static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle,
 		}
 	}
 
-	hpp0.revision        = 1;
-	hpp0.cache_line_size = fields[0].integer.value;
-	hpp0.latency_timer   = fields[1].integer.value;
-	hpp0.enable_serr     = fields[2].integer.value;
-	hpp0.enable_perr     = fields[3].integer.value;
+	hpx0.revision        = 1;
+	hpx0.cache_line_size = fields[0].integer.value;
+	hpx0.latency_timer   = fields[1].integer.value;
+	hpx0.enable_serr     = fields[2].integer.value;
+	hpx0.enable_perr     = fields[3].integer.value;
 
-	hp_ops->program_type0(dev, &hpp0);
+	hp_ops->program_type0(dev, &hpx0);
 
 exit:
 	kfree(buffer.pointer);

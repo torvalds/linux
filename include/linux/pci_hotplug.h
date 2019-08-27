@@ -86,25 +86,25 @@ void pci_hp_deregister(struct hotplug_slot *slot);
 #define pci_hp_initialize(slot, bus, nr, name) \
 	__pci_hp_initialize(slot, bus, nr, name, THIS_MODULE, KBUILD_MODNAME)
 
-/* PCI Setting Record (Type 0) */
-struct hpp_type0 {
-	u32 revision;
-	u8  cache_line_size;
-	u8  latency_timer;
+/* _HPX PCI Setting Record (Type 0); same as _HPP */
+struct hpx_type0 {
+	u32 revision;		/* Not present in _HPP */
+	u8  cache_line_size;	/* Not applicable to PCIe */
+	u8  latency_timer;	/* Not applicable to PCIe */
 	u8  enable_serr;
 	u8  enable_perr;
 };
 
-/* PCI-X Setting Record (Type 1) */
-struct hpp_type1 {
+/* _HPX PCI-X Setting Record (Type 1) */
+struct hpx_type1 {
 	u32 revision;
 	u8  max_mem_read;
 	u8  avg_max_split;
 	u16 tot_max_split;
 };
 
-/* PCI Express Setting Record (Type 2) */
-struct hpp_type2 {
+/* _HPX PCI Express Setting Record (Type 2) */
+struct hpx_type2 {
 	u32 revision;
 	u32 unc_err_mask_and;
 	u32 unc_err_mask_or;
@@ -124,9 +124,7 @@ struct hpp_type2 {
 	u32 sec_unc_err_mask_or;
 };
 
-/*
- * _HPX PCI Express Setting Record (Type 3)
- */
+/* _HPX PCI Express Setting Record (Type 3) */
 struct hpx_type3 {
 	u16 device_type;
 	u16 function_type;
@@ -145,10 +143,10 @@ struct hpx_type3 {
 };
 
 struct hotplug_program_ops {
-	void (*program_type0)(struct pci_dev *dev, struct hpp_type0 *hpp);
-	void (*program_type1)(struct pci_dev *dev, struct hpp_type1 *hpp);
-	void (*program_type2)(struct pci_dev *dev, struct hpp_type2 *hpp);
-	void (*program_type3)(struct pci_dev *dev, struct hpx_type3 *hpp);
+	void (*program_type0)(struct pci_dev *dev, struct hpx_type0 *hpx);
+	void (*program_type1)(struct pci_dev *dev, struct hpx_type1 *hpx);
+	void (*program_type2)(struct pci_dev *dev, struct hpx_type2 *hpx);
+	void (*program_type3)(struct pci_dev *dev, struct hpx_type3 *hpx);
 };
 
 enum hpx_type3_dev_type {

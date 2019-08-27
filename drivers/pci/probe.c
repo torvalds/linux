@@ -1920,7 +1920,7 @@ static void pci_configure_mps(struct pci_dev *dev)
 		 p_mps, mps, mpss);
 }
 
-static struct hpp_type0 pci_default_type0 = {
+static struct hpx_type0 pci_default_type0 = {
 	.revision = 1,
 	.cache_line_size = 8,
 	.latency_timer = 0x40,
@@ -1928,44 +1928,44 @@ static struct hpp_type0 pci_default_type0 = {
 	.enable_perr = 0,
 };
 
-static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
+static void program_hpx_type0(struct pci_dev *dev, struct hpx_type0 *hpx)
 {
 	u16 pci_cmd, pci_bctl;
 
-	if (!hpp)
-		hpp = &pci_default_type0;
+	if (!hpx)
+		hpx = &pci_default_type0;
 
-	if (hpp->revision > 1) {
+	if (hpx->revision > 1) {
 		pci_warn(dev, "PCI settings rev %d not supported; using defaults\n",
-			 hpp->revision);
-		hpp = &pci_default_type0;
+			 hpx->revision);
+		hpx = &pci_default_type0;
 	}
 
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpp->cache_line_size);
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp->latency_timer);
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpx->cache_line_size);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpx->latency_timer);
 	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (hpp->enable_serr)
+	if (hpx->enable_serr)
 		pci_cmd |= PCI_COMMAND_SERR;
-	if (hpp->enable_perr)
+	if (hpx->enable_perr)
 		pci_cmd |= PCI_COMMAND_PARITY;
 	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
 
 	/* Program bridge control value */
 	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
-				      hpp->latency_timer);
+				      hpx->latency_timer);
 		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (hpp->enable_perr)
+		if (hpx->enable_perr)
 			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
 		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
 	}
 }
 
-static void program_hpp_type1(struct pci_dev *dev, struct hpp_type1 *hpp)
+static void program_hpx_type1(struct pci_dev *dev, struct hpx_type1 *hpx)
 {
 	int pos;
 
-	if (!hpp)
+	if (!hpx)
 		return;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
@@ -1990,20 +1990,20 @@ static bool pcie_root_rcb_set(struct pci_dev *dev)
 	return false;
 }
 
-static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
+static void program_hpx_type2(struct pci_dev *dev, struct hpx_type2 *hpx)
 {
 	int pos;
 	u32 reg32;
 
-	if (!hpp)
+	if (!hpx)
 		return;
 
 	if (!pci_is_pcie(dev))
 		return;
 
-	if (hpp->revision > 1) {
+	if (hpx->revision > 1) {
 		pci_warn(dev, "PCIe settings rev %d not supported\n",
-			 hpp->revision);
+			 hpx->revision);
 		return;
 	}
 
@@ -2012,14 +2012,14 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	 * those to make sure they're consistent with the rest of the
 	 * platform.
 	 */
-	hpp->pci_exp_devctl_and |= PCI_EXP_DEVCTL_PAYLOAD |
+	hpx->pci_exp_devctl_and |= PCI_EXP_DEVCTL_PAYLOAD |
 				    PCI_EXP_DEVCTL_READRQ;
-	hpp->pci_exp_devctl_or &= ~(PCI_EXP_DEVCTL_PAYLOAD |
+	hpx->pci_exp_devctl_or &= ~(PCI_EXP_DEVCTL_PAYLOAD |
 				    PCI_EXP_DEVCTL_READRQ);
 
 	/* Initialize Device Control Register */
 	pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
-			~hpp->pci_exp_devctl_and, hpp->pci_exp_devctl_or);
+			~hpx->pci_exp_devctl_and, hpx->pci_exp_devctl_or);
 
 	/* Initialize Link Control Register */
 	if (pcie_cap_has_lnkctl(dev)) {
@@ -2028,13 +2028,13 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 		 * If the Root Port supports Read Completion Boundary of
 		 * 128, set RCB to 128.  Otherwise, clear it.
 		 */
-		hpp->pci_exp_lnkctl_and |= PCI_EXP_LNKCTL_RCB;
-		hpp->pci_exp_lnkctl_or &= ~PCI_EXP_LNKCTL_RCB;
+		hpx->pci_exp_lnkctl_and |= PCI_EXP_LNKCTL_RCB;
+		hpx->pci_exp_lnkctl_or &= ~PCI_EXP_LNKCTL_RCB;
 		if (pcie_root_rcb_set(dev))
-			hpp->pci_exp_lnkctl_or |= PCI_EXP_LNKCTL_RCB;
+			hpx->pci_exp_lnkctl_or |= PCI_EXP_LNKCTL_RCB;
 
 		pcie_capability_clear_and_set_word(dev, PCI_EXP_LNKCTL,
-			~hpp->pci_exp_lnkctl_and, hpp->pci_exp_lnkctl_or);
+			~hpx->pci_exp_lnkctl_and, hpx->pci_exp_lnkctl_or);
 	}
 
 	/* Find Advanced Error Reporting Enhanced Capability */
@@ -2044,22 +2044,22 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 
 	/* Initialize Uncorrectable Error Mask Register */
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &reg32);
-	reg32 = (reg32 & hpp->unc_err_mask_and) | hpp->unc_err_mask_or;
+	reg32 = (reg32 & hpx->unc_err_mask_and) | hpx->unc_err_mask_or;
 	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, reg32);
 
 	/* Initialize Uncorrectable Error Severity Register */
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &reg32);
-	reg32 = (reg32 & hpp->unc_err_sever_and) | hpp->unc_err_sever_or;
+	reg32 = (reg32 & hpx->unc_err_sever_and) | hpx->unc_err_sever_or;
 	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, reg32);
 
 	/* Initialize Correctable Error Mask Register */
 	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg32);
-	reg32 = (reg32 & hpp->cor_err_mask_and) | hpp->cor_err_mask_or;
+	reg32 = (reg32 & hpx->cor_err_mask_and) | hpx->cor_err_mask_or;
 	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg32);
 
 	/* Initialize Advanced Error Capabilities and Control Register */
 	pci_read_config_dword(dev, pos + PCI_ERR_CAP, &reg32);
-	reg32 = (reg32 & hpp->adv_err_cap_and) | hpp->adv_err_cap_or;
+	reg32 = (reg32 & hpx->adv_err_cap_and) | hpx->adv_err_cap_or;
 
 	/* Don't enable ECRC generation or checking if unsupported */
 	if (!(reg32 & PCI_ERR_CAP_ECRC_GENC))
@@ -2178,15 +2178,15 @@ static void program_hpx_type3_register(struct pci_dev *dev,
 		pos, orig_value, write_reg);
 }
 
-static void program_hpx_type3(struct pci_dev *dev, struct hpx_type3 *hpx3)
+static void program_hpx_type3(struct pci_dev *dev, struct hpx_type3 *hpx)
 {
-	if (!hpx3)
+	if (!hpx)
 		return;
 
 	if (!pci_is_pcie(dev))
 		return;
 
-	program_hpx_type3_register(dev, hpx3);
+	program_hpx_type3_register(dev, hpx);
 }
 
 int pci_configure_extended_tags(struct pci_dev *dev, void *ign)
@@ -2370,9 +2370,9 @@ static void pci_configure_serr(struct pci_dev *dev)
 static void pci_configure_device(struct pci_dev *dev)
 {
 	static const struct hotplug_program_ops hp_ops = {
-		.program_type0 = program_hpp_type0,
-		.program_type1 = program_hpp_type1,
-		.program_type2 = program_hpp_type2,
+		.program_type0 = program_hpx_type0,
+		.program_type1 = program_hpx_type1,
+		.program_type2 = program_hpx_type2,
 		.program_type3 = program_hpx_type3,
 	};
 
