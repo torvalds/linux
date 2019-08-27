@@ -5451,7 +5451,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 		emul_type = EMULTYPE_TRAP_UD_FORCED;
 	}
 
-	return kvm_emulate_instruction(vcpu, emul_type) != EMULATE_USER_EXIT;
+	return kvm_emulate_instruction(vcpu, emul_type);
 }
 EXPORT_SYMBOL_GPL(handle_ud);
 
@@ -6302,14 +6302,14 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu, int emulation_type)
 
 	if (emulation_type & EMULTYPE_VMWARE_GP) {
 		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
-		return EMULATE_DONE;
+		return 1;
 	}
 
 	if (emulation_type & EMULTYPE_SKIP) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
 		vcpu->run->internal.ndata = 0;
-		return EMULATE_USER_EXIT;
+		return 0;
 	}
 
 	kvm_queue_exception(vcpu, UD_VECTOR);
@@ -6318,10 +6318,10 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu, int emulation_type)
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
 		vcpu->run->internal.ndata = 0;
-		return EMULATE_USER_EXIT;
+		return 0;
 	}
 
-	return EMULATE_DONE;
+	return 1;
 }
 
 static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
@@ -6485,10 +6485,10 @@ static int kvm_vcpu_do_singlestep(struct kvm_vcpu *vcpu)
 		kvm_run->debug.arch.pc = vcpu->arch.singlestep_rip;
 		kvm_run->debug.arch.exception = DB_VECTOR;
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
-		return EMULATE_USER_EXIT;
+		return 0;
 	}
 	kvm_queue_exception_p(vcpu, DB_VECTOR, DR6_BS);
-	return EMULATE_DONE;
+	return 1;
 }
 
 int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
@@ -6497,7 +6497,7 @@ int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	int r;
 
 	r = kvm_x86_ops->skip_emulated_instruction(vcpu);
-	if (unlikely(r != EMULATE_DONE))
+	if (unlikely(!r))
 		return 0;
 
 	/*
@@ -6510,7 +6510,7 @@ int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	 */
 	if (unlikely(rflags & X86_EFLAGS_TF))
 		r = kvm_vcpu_do_singlestep(vcpu);
-	return r == EMULATE_DONE;
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_skip_emulated_instruction);
 
@@ -6529,7 +6529,7 @@ static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 			kvm_run->debug.arch.pc = eip;
 			kvm_run->debug.arch.exception = DB_VECTOR;
 			kvm_run->exit_reason = KVM_EXIT_DEBUG;
-			*r = EMULATE_USER_EXIT;
+			*r = 0;
 			return true;
 		}
 	}
@@ -6545,7 +6545,7 @@ static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 			vcpu->arch.dr6 &= ~DR_TRAP_BITS;
 			vcpu->arch.dr6 |= dr6 | DR6_RTM;
 			kvm_queue_exception(vcpu, DB_VECTOR);
-			*r = EMULATE_DONE;
+			*r = 1;
 			return true;
 		}
 	}
@@ -6632,11 +6632,11 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			if ((emulation_type & EMULTYPE_TRAP_UD) ||
 			    (emulation_type & EMULTYPE_TRAP_UD_FORCED)) {
 				kvm_queue_exception(vcpu, UD_VECTOR);
-				return EMULATE_DONE;
+				return 1;
 			}
 			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
 						emulation_type))
-				return EMULATE_DONE;
+				return 1;
 			if (ctxt->have_exception) {
 				/*
 				 * #UD should result in just EMULATION_FAILED, and trap-like
@@ -6645,7 +6645,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 				WARN_ON_ONCE(ctxt->exception.vector == UD_VECTOR ||
 					     exception_type(ctxt->exception.vector) == EXCPT_TRAP);
 				inject_emulated_exception(vcpu);
-				return EMULATE_DONE;
+				return 1;
 			}
 			return handle_emulation_failure(vcpu, emulation_type);
 		}
@@ -6654,7 +6654,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	if ((emulation_type & EMULTYPE_VMWARE_GP) &&
 	    !is_vmware_backdoor_opcode(ctxt)) {
 		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
-		return EMULATE_DONE;
+		return 1;
 	}
 
 	if (emulation_type & EMULTYPE_SKIP) {
@@ -6662,11 +6662,11 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		if (ctxt->eflags & X86_EFLAGS_RF)
 			kvm_set_rflags(vcpu, ctxt->eflags & ~X86_EFLAGS_RF);
 		kvm_x86_ops->set_interrupt_shadow(vcpu, 0);
-		return EMULATE_DONE;
+		return 1;
 	}
 
 	if (retry_instruction(ctxt, cr2, emulation_type))
-		return EMULATE_DONE;
+		return 1;
 
 	/* this is needed for vmware backdoor interface to work since it
 	   changes registers values  during IO operation */
@@ -6682,18 +6682,18 @@ restart:
 	r = x86_emulate_insn(ctxt);
 
 	if (r == EMULATION_INTERCEPTED)
-		return EMULATE_DONE;
+		return 1;
 
 	if (r == EMULATION_FAILED) {
 		if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
 					emulation_type))
-			return EMULATE_DONE;
+			return 1;
 
 		return handle_emulation_failure(vcpu, emulation_type);
 	}
 
 	if (ctxt->have_exception) {
-		r = EMULATE_DONE;
+		r = 1;
 		if (inject_emulated_exception(vcpu))
 			return r;
 	} else if (vcpu->arch.pio.count) {
@@ -6704,18 +6704,18 @@ restart:
 			writeback = false;
 			vcpu->arch.complete_userspace_io = complete_emulated_pio;
 		}
-		r = EMULATE_USER_EXIT;
+		r = 0;
 	} else if (vcpu->mmio_needed) {
 		++vcpu->stat.mmio_exits;
 
 		if (!vcpu->mmio_is_write)
 			writeback = false;
-		r = EMULATE_USER_EXIT;
+		r = 0;
 		vcpu->arch.complete_userspace_io = complete_emulated_mmio;
 	} else if (r == EMULATION_RESTART)
 		goto restart;
 	else
-		r = EMULATE_DONE;
+		r = 1;
 
 	if (writeback) {
 		unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
@@ -6724,7 +6724,7 @@ restart:
 		if (!ctxt->have_exception ||
 		    exception_type(ctxt->exception.vector) == EXCPT_TRAP) {
 			kvm_rip_write(vcpu, ctxt->eip);
-			if (r == EMULATE_DONE && ctxt->tf)
+			if (r && ctxt->tf)
 				r = kvm_vcpu_do_singlestep(vcpu);
 			__kvm_set_rflags(vcpu, ctxt->eflags);
 		}
@@ -8319,12 +8319,11 @@ static int vcpu_run(struct kvm_vcpu *vcpu)
 static inline int complete_emulated_io(struct kvm_vcpu *vcpu)
 {
 	int r;
+
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	r = kvm_emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-	if (r != EMULATE_DONE)
-		return 0;
-	return 1;
+	return r;
 }
 
 static int complete_emulated_pio(struct kvm_vcpu *vcpu)
@@ -8696,13 +8695,13 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
 		vcpu->run->internal.ndata = 0;
-		return EMULATE_USER_EXIT;
+		return 0;
 	}
 
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
-	return EMULATE_DONE;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
 

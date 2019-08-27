@@ -5383,7 +5383,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 		       void *insn, int insn_len)
 {
 	int r, emulation_type = 0;
-	enum emulation_result er;
 	bool direct = vcpu->arch.mmu->direct_map;
 
 	/* With shadow page tables, fault_address contains a GVA or nGPA.  */
@@ -5450,17 +5449,8 @@ emulate:
 			return 1;
 	}
 
-	er = x86_emulate_instruction(vcpu, cr2, emulation_type, insn, insn_len);
-
-	switch (er) {
-	case EMULATE_DONE:
-		return 1;
-	case EMULATE_USER_EXIT:
-	case EMULATE_FAIL:
-		return 0;
-	default:
-		BUG();
-	}
+	return x86_emulate_instruction(vcpu, cr2, emulation_type, insn,
+				       insn_len);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 

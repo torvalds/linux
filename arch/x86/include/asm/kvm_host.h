@@ -1315,12 +1315,6 @@ extern u64  kvm_default_tsc_scaling_ratio;
 
 extern u64 kvm_mce_cap_supported;
 
-enum emulation_result {
-	EMULATE_DONE,         /* no further processing */
-	EMULATE_USER_EXIT,    /* kvm_run ready for userspace exit */
-	EMULATE_FAIL,         /* can't emulate this instruction */
-};
-
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)

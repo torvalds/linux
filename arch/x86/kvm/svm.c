@@ -787,7 +787,7 @@ static int skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	kvm_rip_write(vcpu, svm->next_rip);
 	svm_set_interrupt_shadow(vcpu, 0);
 
-	return EMULATE_DONE;
+	return 1;
 }
 
 static void svm_queue_exception(struct kvm_vcpu *vcpu)
@@ -2779,8 +2779,7 @@ static int gp_interception(struct vcpu_svm *svm)
 		kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
 		return 1;
 	}
-	return kvm_emulate_instruction(vcpu, EMULTYPE_VMWARE_GP) !=
-						EMULATE_USER_EXIT;
+	return kvm_emulate_instruction(vcpu, EMULTYPE_VMWARE_GP);
 }
 
 static bool is_erratum_383(void)
@@ -2878,7 +2877,7 @@ static int io_interception(struct vcpu_svm *svm)
 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
 	if (string)
-		return kvm_emulate_instruction(vcpu, 0) == EMULATE_DONE;
+		return kvm_emulate_instruction(vcpu, 0);
 
 	port = io_info >> 16;
 	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
@@ -3885,17 +3884,15 @@ static int task_switch_interception(struct vcpu_svm *svm)
 	    int_type == SVM_EXITINTINFO_TYPE_SOFT ||
 	    (int_type == SVM_EXITINTINFO_TYPE_EXEPT &&
 	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR))) {
-		if (skip_emulated_instruction(&svm->vcpu) == EMULATE_USER_EXIT)
+		if (!skip_emulated_instruction(&svm->vcpu))
 			return 0;
 	}
 
 	if (int_type != SVM_EXITINTINFO_TYPE_SOFT)
 		int_vec = -1;
 
-
-
 	return kvm_task_switch(&svm->vcpu, tss_selector, int_vec, reason,
-			       has_error_code, error_code) != EMULATE_USER_EXIT;
+			       has_error_code, error_code);
 }
 
 static int cpuid_interception(struct vcpu_svm *svm)
@@ -3916,7 +3913,7 @@ static int iret_interception(struct vcpu_svm *svm)
 static int invlpg_interception(struct vcpu_svm *svm)
 {
 	if (!static_cpu_has(X86_FEATURE_DECODEASSISTS))
-		return kvm_emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
+		return kvm_emulate_instruction(&svm->vcpu, 0);
 
 	kvm_mmu_invlpg(&svm->vcpu, svm->vmcb->control.exit_info_1);
 	return kvm_skip_emulated_instruction(&svm->vcpu);
@@ -3924,13 +3921,12 @@ static int invlpg_interception(struct vcpu_svm *svm)
 
 static int emulate_on_interception(struct vcpu_svm *svm)
 {
-	return kvm_emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
+	return kvm_emulate_instruction(&svm->vcpu, 0);
 }
 
 static int rsm_interception(struct vcpu_svm *svm)
 {
-	return kvm_emulate_instruction_from_buffer(&svm->vcpu,
-					rsm_ins_bytes, 2) == EMULATE_DONE;
+	return kvm_emulate_instruction_from_buffer(&svm->vcpu, rsm_ins_bytes, 2);
 }
 
 static int rdpmc_interception(struct vcpu_svm *svm)
@@ -4719,7 +4715,7 @@ static int avic_unaccelerated_access_interception(struct vcpu_svm *svm)
 		ret = avic_unaccel_trap_write(svm);
 	} else {
 		/* Handling Fault */
-		ret = (kvm_emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE);
+		ret = kvm_emulate_instruction(&svm->vcpu, 0);
 	}
 
 	return ret;
