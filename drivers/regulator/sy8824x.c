@@ -180,6 +180,15 @@ static const struct sy8824_config sy20276_cfg = {
 	.vsel_count = 128,
 };
 
+static const struct sy8824_config sy20278_cfg = {
+	.vol_reg = 0x00,
+	.mode_reg = 0x01,
+	.enable_reg = 0x01,
+	.vsel_min = 762500,
+	.vsel_step = 12500,
+	.vsel_count = 64,
+};
+
 static const struct of_device_id sy8824_dt_ids[] = {
 	{
 		.compatible = "silergy,sy8824c",
@@ -192,6 +201,10 @@ static const struct of_device_id sy8824_dt_ids[] = {
 	{
 		.compatible = "silergy,sy20276",
 		.data = &sy20276_cfg
+	},
+	{
+		.compatible = "silergy,sy20278",
+		.data = &sy20278_cfg
 	},
 	{ }
 };
