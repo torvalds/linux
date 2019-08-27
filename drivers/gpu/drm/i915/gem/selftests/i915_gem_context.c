@@ -424,7 +424,7 @@ static int igt_ctx_exec(void *arg)
 			struct i915_gem_context *ctx;
 			struct intel_context *ce;
 
-			ctx = live_context(i915, file);
+			ctx = kernel_context(i915);
 			if (IS_ERR(ctx)) {
 				err = PTR_ERR(ctx);
 				goto out_unlock;
@@ -438,6 +438,7 @@ static int igt_ctx_exec(void *arg)
 				if (IS_ERR(obj)) {
 					err = PTR_ERR(obj);
 					intel_context_put(ce);
+					kernel_context_close(ctx);
 					goto out_unlock;
 				}
 			}
@@ -449,12 +450,14 @@ static int igt_ctx_exec(void *arg)
 				       engine->name, ctx->hw_id,
 				       yesno(!!ctx->vm), err);
 				intel_context_put(ce);
+				kernel_context_close(ctx);
 				goto out_unlock;
 			}
 
 			err = throttle(ce, tq, ARRAY_SIZE(tq));
 			if (err) {
 				intel_context_put(ce);
+				kernel_context_close(ctx);
 				goto out_unlock;
 			}
 
@@ -467,6 +470,7 @@ static int igt_ctx_exec(void *arg)
 			ncontexts++;
 
 			intel_context_put(ce);
+			kernel_context_close(ctx);
 		}
 
 		pr_info("Submitted %lu contexts to %s, filling %lu dwords\n",
