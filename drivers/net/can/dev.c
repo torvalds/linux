@@ -99,8 +99,8 @@ can_update_sample_point(const struct can_bittiming_const *btc,
 			(tseg + CAN_CALC_SYNC_SEG);
 		sample_point_error = abs(sample_point_nominal - sample_point);
 
-		if ((sample_point <= sample_point_nominal) &&
-		    (sample_point_error < best_sample_point_error)) {
+		if (sample_point <= sample_point_nominal &&
+		    sample_point_error < best_sample_point_error) {
 			best_sample_point = sample_point;
 			best_sample_point_error = sample_point_error;
 			*tseg1_ptr = tseg1;
@@ -151,7 +151,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 
 		/* choose brp step which is possible in system */
 		brp = (brp / btc->brp_inc) * btc->brp_inc;
-		if ((brp < btc->brp_min) || (brp > btc->brp_max))
+		if (brp < btc->brp_min || brp > btc->brp_max)
 			continue;
 
 		bitrate = priv->clock.freq / (brp * tsegall);
@@ -803,7 +803,7 @@ int open_candev(struct net_device *dev)
 	/* For CAN FD the data bitrate has to be >= the arbitration bitrate */
 	if ((priv->ctrlmode & CAN_CTRLMODE_FD) &&
 	    (!priv->data_bittiming.bitrate ||
-	     (priv->data_bittiming.bitrate < priv->bittiming.bitrate))) {
+	     priv->data_bittiming.bitrate < priv->bittiming.bitrate)) {
 		netdev_err(dev, "incorrect/missing data bit-timing\n");
 		return -EINVAL;
 	}
@@ -1253,7 +1253,7 @@ EXPORT_SYMBOL_GPL(unregister_candev);
  */
 struct can_priv *safe_candev_priv(struct net_device *dev)
 {
-	if ((dev->type != ARPHRD_CAN) || (dev->rtnl_link_ops != &can_link_ops))
+	if (dev->type != ARPHRD_CAN || dev->rtnl_link_ops != &can_link_ops)
 		return NULL;
 
 	return netdev_priv(dev);
