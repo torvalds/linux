@@ -68,6 +68,7 @@ xfs_rmap_irec_offset_unpack(
 	if (offset & ~(XFS_RMAP_OFF_MASK | XFS_RMAP_OFF_FLAGS))
 		return -EFSCORRUPTED;
 	irec->rm_offset = XFS_RMAP_OFF(offset);
+	irec->rm_flags = 0;
 	if (offset & XFS_RMAP_OFF_ATTR_FORK)
 		irec->rm_flags |= XFS_RMAP_ATTR_FORK;
 	if (offset & XFS_RMAP_OFF_BMBT_BLOCK)
