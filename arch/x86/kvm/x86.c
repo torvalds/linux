@@ -6273,7 +6273,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
 }
 
-int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
+void kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	int ret;
@@ -6285,14 +6285,13 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 	ctxt->_eip = ctxt->eip + inc_eip;
 	ret = emulate_int_real(ctxt, irq);
 
-	if (ret != X86EMUL_CONTINUE)
-		return EMULATE_FAIL;
-
-	ctxt->eip = ctxt->_eip;
-	kvm_rip_write(vcpu, ctxt->eip);
-	kvm_set_rflags(vcpu, ctxt->eflags);
-
-	return EMULATE_DONE;
+	if (ret != X86EMUL_CONTINUE) {
+		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
+	} else {
+		ctxt->eip = ctxt->_eip;
+		kvm_rip_write(vcpu, ctxt->eip);
+		kvm_set_rflags(vcpu, ctxt->eflags);
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_inject_realmode_interrupt);
 
