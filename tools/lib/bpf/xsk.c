@@ -99,6 +99,7 @@ static void xsk_set_umem_config(struct xsk_umem_config *cfg,
 		cfg->comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 		cfg->frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 		cfg->frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM;
+		cfg->flags = XSK_UMEM__DEFAULT_FLAGS;
 		return;
 	}
 
@@ -106,6 +107,7 @@ static void xsk_set_umem_config(struct xsk_umem_config *cfg,
 	cfg->comp_size = usr_cfg->comp_size;
 	cfg->frame_size = usr_cfg->frame_size;
 	cfg->frame_headroom = usr_cfg->frame_headroom;
+	cfg->flags = usr_cfg->flags;
 }
 
 static int xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
@@ -132,9 +134,10 @@ static int xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
 	return 0;
 }
 
-int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
-		     struct xsk_ring_prod *fill, struct xsk_ring_cons *comp,
-		     const struct xsk_umem_config *usr_config)
+int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
+			    __u64 size, struct xsk_ring_prod *fill,
+			    struct xsk_ring_cons *comp,
+			    const struct xsk_umem_config *usr_config)
 {
 	struct xdp_mmap_offsets off;
 	struct xdp_umem_reg mr;
@@ -165,6 +168,7 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
 	mr.len = size;
 	mr.chunk_size = umem->config.frame_size;
 	mr.headroom = umem->config.frame_headroom;
+	mr.flags = umem->config.flags;
 
 	err = setsockopt(umem->fd, SOL_XDP, XDP_UMEM_REG, &mr, sizeof(mr));
 	if (err) {
@@ -237,6 +241,29 @@ out_umem_alloc:
 	free(umem);
 	return err;
 }
+
+struct xsk_umem_config_v1 {
+	__u32 fill_size;
+	__u32 comp_size;
+	__u32 frame_size;
+	__u32 frame_headroom;
+};
+
+int xsk_umem__create_v0_0_2(struct xsk_umem **umem_ptr, void *umem_area,
+			    __u64 size, struct xsk_ring_prod *fill,
+			    struct xsk_ring_cons *comp,
+			    const struct xsk_umem_config *usr_config)
+{
+	struct xsk_umem_config config;
+
+	memcpy(&config, usr_config, sizeof(struct xsk_umem_config_v1));
+	config.flags = 0;
+
+	return xsk_umem__create_v0_0_4(umem_ptr, umem_area, size, fill, comp,
+					&config);
+}
+asm(".symver xsk_umem__create_v0_0_2, xsk_umem__create@LIBBPF_0.0.2");
+asm(".symver xsk_umem__create_v0_0_4, xsk_umem__create@@LIBBPF_0.0.4");
 
 static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 {
