@@ -2157,6 +2157,13 @@ static const u64 skl_plane_format_modifiers_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+static const u64 gen12_plane_format_modifiers_noccs[] = {
+	I915_FORMAT_MOD_Y_TILED,
+	I915_FORMAT_MOD_X_TILED,
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static bool g4x_sprite_format_mod_supported(struct drm_plane *_plane,
 					    u32 format, u64 modifier)
 {
@@ -2305,6 +2312,55 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	}
 }
 
+static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
+					     u32 format, u64 modifier)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+		break;
+	default:
+		return false;
+	}
+
+	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
+	case DRM_FORMAT_XVYU2101010:
+	case DRM_FORMAT_C8:
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_ARGB16161616F:
+	case DRM_FORMAT_Y210:
+	case DRM_FORMAT_Y212:
+	case DRM_FORMAT_Y216:
+	case DRM_FORMAT_XVYU12_16161616:
+	case DRM_FORMAT_XVYU16161616:
+		if (modifier == DRM_FORMAT_MOD_LINEAR ||
+		    modifier == I915_FORMAT_MOD_X_TILED ||
+		    modifier == I915_FORMAT_MOD_Y_TILED)
+			return true;
+		/* fall through */
+	default:
+		return false;
+	}
+}
+
 static const struct drm_plane_funcs g4x_sprite_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -2339,6 +2395,15 @@ static const struct drm_plane_funcs skl_plane_funcs = {
 	.atomic_duplicate_state = intel_plane_duplicate_state,
 	.atomic_destroy_state = intel_plane_destroy_state,
 	.format_mod_supported = skl_plane_format_mod_supported,
+};
+
+static const struct drm_plane_funcs gen12_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = gen12_plane_format_mod_supported,
 };
 
 static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
@@ -2429,6 +2494,7 @@ struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, enum plane_id plane_id)
 {
+	static const struct drm_plane_funcs *plane_funcs;
 	struct intel_plane *plane;
 	enum drm_plane_type plane_type;
 	unsigned int supported_rotations;
@@ -2471,11 +2537,19 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		formats = skl_get_plane_formats(dev_priv, pipe,
 						plane_id, &num_formats);
 
-	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
-	if (plane->has_ccs)
-		modifiers = skl_plane_format_modifiers_ccs;
-	else
-		modifiers = skl_plane_format_modifiers_noccs;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		/* TODO: Implement support for gen-12 CCS modifiers */
+		plane->has_ccs = false;
+		modifiers = gen12_plane_format_modifiers_noccs;
+		plane_funcs = &gen12_plane_funcs;
+	} else {
+		plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
+		if (plane->has_ccs)
+			modifiers = skl_plane_format_modifiers_ccs;
+		else
+			modifiers = skl_plane_format_modifiers_noccs;
+		plane_funcs = &skl_plane_funcs;
+	}
 
 	if (plane_id == PLANE_PRIMARY)
 		plane_type = DRM_PLANE_TYPE_PRIMARY;
@@ -2485,7 +2559,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	possible_crtcs = BIT(pipe);
 
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
-				       possible_crtcs, &skl_plane_funcs,
+				       possible_crtcs, plane_funcs,
 				       formats, num_formats, modifiers,
 				       plane_type,
 				       "plane %d%c", plane_id + 1,
