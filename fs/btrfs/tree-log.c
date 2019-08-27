@@ -968,7 +968,7 @@ static noinline int backref_in_log(struct btrfs_root *log,
 		if (btrfs_find_name_in_ext_backref(path->nodes[0],
 						   path->slots[0],
 						   ref_objectid,
-						   name, namelen, NULL))
+						   name, namelen))
 			match = 1;
 
 		goto out;
@@ -1267,9 +1267,9 @@ again:
 			goto out;
 
 		if (key->type == BTRFS_INODE_EXTREF_KEY)
-			ret = btrfs_find_name_in_ext_backref(log_eb, log_slot,
-							     parent_id, name,
-							     namelen, NULL);
+			ret = !!btrfs_find_name_in_ext_backref(log_eb, log_slot,
+							       parent_id, name,
+							       namelen);
 		else
 			ret = !!btrfs_find_name_in_backref(log_eb, log_slot,
 							   name, namelen);
@@ -1334,9 +1334,8 @@ static int btrfs_inode_ref_exists(struct inode *inode, struct inode *dir,
 		goto out;
 	}
 	if (key.type == BTRFS_INODE_EXTREF_KEY)
-		ret = btrfs_find_name_in_ext_backref(path->nodes[0],
-						     path->slots[0], parent_id,
-						     name, namelen, NULL);
+		ret = !!btrfs_find_name_in_ext_backref(path->nodes[0],
+				path->slots[0], parent_id, name, namelen);
 	else
 		ret = !!btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
 						   name, namelen);
