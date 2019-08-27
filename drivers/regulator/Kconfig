@@ -907,6 +907,13 @@ config REGULATOR_SY8106A
 	help
 	  This driver supports SY8106A single output regulator.
 
+config REGULATOR_SY8824X
+	tristate "Silergy SY8824C regulator"
+	depends on I2C && (OF || COMPILE_TEST)
+	select REGMAP_I2C
+	help
+	  This driver supports SY8824C single output regulator.
+
 config REGULATOR_TPS51632
 	tristate "TI TPS51632 Power Regulator"
 	depends on I2C
