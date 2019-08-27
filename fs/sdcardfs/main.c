@@ -77,6 +77,7 @@ static int sdcardfs_parse_param(struct fs_context *fc, struct fs_parameter *para
 	switch (opt) {
 	case Opt_debug:
 		opts->debug = true;
+		break;
 	case Opt_fsuid:
 		opts->fs_low_uid = result.uint_32;
 		break;
