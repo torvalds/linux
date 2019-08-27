@@ -908,7 +908,7 @@ config REGULATOR_SY8106A
 	  This driver supports SY8106A single output regulator.
 
 config REGULATOR_SY8824X
-	tristate "Silergy SY8824C regulator"
+	tristate "Silergy SY8824C/SY8824E regulator"
 	depends on I2C && (OF || COMPILE_TEST)
 	select REGMAP_I2C
 	help

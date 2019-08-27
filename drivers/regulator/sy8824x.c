@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SY8824C regulator driver
+ * SY8824C/SY8824E regulator driver
  *
  * Copyright (C) 2019 Synaptics Incorporated
  *
@@ -162,10 +162,23 @@ static const struct sy8824_config sy8824c_cfg = {
 	.vsel_count = 64,
 };
 
+static const struct sy8824_config sy8824e_cfg = {
+	.vol_reg = 0x00,
+	.mode_reg = 0x00,
+	.enable_reg = 0x00,
+	.vsel_min = 700000,
+	.vsel_step = 12500,
+	.vsel_count = 64,
+};
+
 static const struct of_device_id sy8824_dt_ids[] = {
 	{
 		.compatible = "silergy,sy8824c",
 		.data = &sy8824c_cfg
+	},
+	{
+		.compatible = "silergy,sy8824e",
+		.data = &sy8824e_cfg
 	},
 	{ }
 };
@@ -188,5 +201,5 @@ static struct i2c_driver sy8824_regulator_driver = {
 module_i2c_driver(sy8824_regulator_driver);
 
 MODULE_AUTHOR("Jisheng Zhang <jszhang@kernel.org>");
-MODULE_DESCRIPTION("SY8824C regulator driver");
+MODULE_DESCRIPTION("SY8824C/SY8824E regulator driver");
 MODULE_LICENSE("GPL v2");
