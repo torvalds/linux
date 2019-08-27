@@ -147,6 +147,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		default:
 			pr_err("CPU%u: failed in unknown state : 0x%lx\n",
 					cpu, status);
+			cpus_stuck_in_kernel++;
 			break;
 		case CPU_KILL_ME:
 			if (!op_cpu_kill(cpu)) {
