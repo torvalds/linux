@@ -423,7 +423,7 @@ wait on.
 +-----------------------------------------------------------------------+
 
 If the CPU does a context switch, a quiescent state will be noted by
-``rcu_node_context_switch()`` on the left. On the other hand, if the CPU
+``rcu_note_context_switch()`` on the left. On the other hand, if the CPU
 takes a scheduler-clock interrupt while executing in usermode, a
 quiescent state will be noted by ``rcu_sched_clock_irq()`` on the right.
 Either way, the passage through a quiescent state will be noted in a
