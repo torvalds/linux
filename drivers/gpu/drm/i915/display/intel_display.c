@@ -13743,7 +13743,7 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 	intel_finish_crtc_commit(state, crtc);
 }
 
-static void intel_update_crtcs(struct intel_atomic_state *state)
+static void intel_commit_modeset_enables(struct intel_atomic_state *state)
 {
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
@@ -13758,7 +13758,7 @@ static void intel_update_crtcs(struct intel_atomic_state *state)
 	}
 }
 
-static void skl_update_crtcs(struct intel_atomic_state *state)
+static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
@@ -13999,7 +13999,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		intel_encoders_update_prepare(state);
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
-	dev_priv->display.update_crtcs(state);
+	dev_priv->display.commit_modeset_enables(state);
 
 	if (state->modeset) {
 		intel_encoders_update_complete(state);
@@ -15906,9 +15906,9 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		dev_priv->display.update_crtcs = skl_update_crtcs;
+		dev_priv->display.commit_modeset_enables = skl_commit_modeset_enables;
 	else
-		dev_priv->display.update_crtcs = intel_update_crtcs;
+		dev_priv->display.commit_modeset_enables = intel_commit_modeset_enables;
 }
 
 static i915_reg_t i915_vgacntrl_reg(struct drm_i915_private *dev_priv)
