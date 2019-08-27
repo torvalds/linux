@@ -1,0 +1,20 @@
+SY8824C Voltage regulator
+
+Required properties:
+- compatible: Must be "silergy,sy8824c"
+- reg: I2C slave address
+
+Any property defined as part of the core regulator binding, defined in
+./regulator.txt, can also be used.
+
+Example:
+
+	vcore: regulator@00 {
+		compatible = "silergy,sy8824c";
+		reg = <0x66>;
+		regulator-name = "vcore";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <1150000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
