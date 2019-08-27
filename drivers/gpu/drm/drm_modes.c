@@ -1733,16 +1733,30 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	 * bunch of things:
 	 *   - We need to make sure that the first character (which
 	 *     would be our resolution in X) is a digit.
-	 *   - However, if the X resolution is missing, then we end up
-	 *     with something like x<yres>, with our first character
-	 *     being an alpha-numerical character, which would be
-	 *     considered a named mode.
+	 *   - If not, then it's either a named mode or a force on/off.
+	 *     To distinguish between the two, we need to run the
+	 *     extra parsing function, and if not, then we consider it
+	 *     a named mode.
 	 *
 	 * If this isn't enough, we should add more heuristics here,
 	 * and matching unit-tests.
 	 */
-	if (!isdigit(name[0]) && name[0] != 'x')
+	if (!isdigit(name[0]) && name[0] != 'x') {
+		unsigned int namelen = strlen(name);
+
+		/*
+		 * Only the force on/off options can be in that case,
+		 * and they all take a single character.
+		 */
+		if (namelen == 1) {
+			ret = drm_mode_parse_cmdline_extra(name, namelen, true,
+							   connector, mode);
+			if (!ret)
+				return true;
+		}
+
 		named_mode = true;
+	}
 
 	/* Try to locate the bpp and refresh specifiers, if any */
 	bpp_ptr = strchr(name, '-');
