@@ -4393,12 +4393,9 @@ xfs_bmapi_write(
 			 * If this is a CoW allocation, record the data in
 			 * the refcount btree for orphan recovery.
 			 */
-			if (whichfork == XFS_COW_FORK) {
-				error = xfs_refcount_alloc_cow_extent(tp,
-						bma.blkno, bma.length);
-				if (error)
-					goto error0;
-			}
+			if (whichfork == XFS_COW_FORK)
+				xfs_refcount_alloc_cow_extent(tp, bma.blkno,
+						bma.length);
 		}
 
 		/* Deal with the allocated space we found.  */
@@ -4532,12 +4529,8 @@ xfs_bmapi_convert_delalloc(
 	*imap = bma.got;
 	*seq = READ_ONCE(ifp->if_seq);
 
-	if (whichfork == XFS_COW_FORK) {
-		error = xfs_refcount_alloc_cow_extent(tp, bma.blkno,
-				bma.length);
-		if (error)
-			goto out_finish;
-	}
+	if (whichfork == XFS_COW_FORK)
+		xfs_refcount_alloc_cow_extent(tp, bma.blkno, bma.length);
 
 	error = xfs_bmap_btree_to_extents(tp, ip, bma.cur, &bma.logflags,
 			whichfork);
@@ -5148,9 +5141,7 @@ xfs_bmap_del_extent_real(
 	 */
 	if (do_fx && !(bflags & XFS_BMAPI_REMAP)) {
 		if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK) {
-			error = xfs_refcount_decrease_extent(tp, del);
-			if (error)
-				goto done;
+			xfs_refcount_decrease_extent(tp, del);
 		} else {
 			__xfs_bmap_add_free(tp, del->br_startblock,
 					del->br_blockcount, NULL,
