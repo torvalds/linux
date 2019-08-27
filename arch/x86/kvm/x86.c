@@ -5449,7 +5449,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 				sig, sizeof(sig), &e) == 0 &&
 	    memcmp(sig, "\xf\xbkvm", sizeof(sig)) == 0) {
 		kvm_rip_write(vcpu, kvm_rip_read(vcpu) + sizeof(sig));
-		emul_type = 0;
+		emul_type = EMULTYPE_TRAP_UD_FORCED;
 	}
 
 	er = kvm_emulate_instruction(vcpu, emul_type);
@@ -6629,7 +6629,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		trace_kvm_emulate_insn_start(vcpu);
 		++vcpu->stat.insn_emulation;
 		if (r != EMULATION_OK)  {
-			if (emulation_type & EMULTYPE_TRAP_UD)
+			if ((emulation_type & EMULTYPE_TRAP_UD) ||
+			    (emulation_type & EMULTYPE_TRAP_UD_FORCED))
 				return EMULATE_FAIL;
 			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
 						emulation_type))
