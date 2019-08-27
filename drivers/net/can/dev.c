@@ -552,7 +552,7 @@ static void can_restart(struct net_device *dev)
 
 	/* send restart message upstream */
 	skb = alloc_can_err_skb(dev, &cf);
-	if (skb == NULL) {
+	if (!skb) {
 		err = -ENOMEM;
 		goto restart;
 	}
