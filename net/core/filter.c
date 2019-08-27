@@ -5903,7 +5903,7 @@ BPF_CALL_5(bpf_tcp_gen_syncookie, struct sock *, sk, void *, iph, u32, iph_len,
 	default:
 		return -EPROTONOSUPPORT;
 	}
-	if (mss <= 0)
+	if (mss == 0)
 		return -ENOENT;
 
 	return cookie | ((u64)mss << 32);
