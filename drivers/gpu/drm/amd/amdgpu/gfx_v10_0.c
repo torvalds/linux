@@ -3781,20 +3781,12 @@ static int gfx_v10_0_hw_fini(void *handle)
 
 static int gfx_v10_0_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	adev->in_suspend = true;
-	return gfx_v10_0_hw_fini(adev);
+	return gfx_v10_0_hw_fini(handle);
 }
 
 static int gfx_v10_0_resume(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r;
-
-	r = gfx_v10_0_hw_init(adev);
-	adev->in_suspend = false;
-	return r;
+	return gfx_v10_0_hw_init(handle);
 }
 
 static bool gfx_v10_0_is_idle(void *handle)
