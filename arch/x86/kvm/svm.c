@@ -3598,7 +3598,7 @@ static int nested_svm_vmrun(struct vcpu_svm *svm)
 	vmcb_gpa = svm->vmcb->save.rax;
 
 	ret = kvm_vcpu_map(&svm->vcpu, gpa_to_gfn(vmcb_gpa), &map);
-	if (ret == EINVAL) {
+	if (ret == -EINVAL) {
 		kvm_inject_gp(&svm->vcpu, 0);
 		return 1;
 	} else if (ret) {
