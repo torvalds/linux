@@ -246,6 +246,16 @@ config SENSORS_ADT7475
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7475.
 
+config SENSORS_AS370
+	tristate "Synaptics AS370 SoC hardware monitoring driver"
+	help
+	  If you say yes here you get support for the PVT sensors of
+	  the Synaptics AS370 SoC
+
+	  This driver can also be built as a module. If so, the module
+	  will be called as370-hwmon.
+
+
 config SENSORS_ASC7621
 	tristate "Andigilog aSC7621"
 	depends on I2C
