@@ -3483,7 +3483,7 @@ error:
 	amdgpu_virt_init_data_exchange(adev);
 	amdgpu_virt_release_full_gpu(adev, true);
 	if (!r && adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
-		atomic_inc(&adev->vram_lost_counter);
+		amdgpu_inc_vram_lost(adev);
 		r = amdgpu_device_recover_vram(adev);
 	}
 
@@ -3649,7 +3649,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				vram_lost = amdgpu_device_check_vram_lost(tmp_adev);
 				if (vram_lost) {
 					DRM_INFO("VRAM is lost due to GPU reset!\n");
-					atomic_inc(&tmp_adev->vram_lost_counter);
+					amdgpu_inc_vram_lost(tmp_adev);
 				}
 
 				r = amdgpu_gtt_mgr_recover(

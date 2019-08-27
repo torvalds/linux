@@ -316,10 +316,13 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
-	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
+	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		amdgpu_inc_vram_lost(adev);
 		ret = smu_baco_reset(smu);
-	else
+	} else {
+		amdgpu_inc_vram_lost(adev);
 		ret = nv_asic_mode1_reset(adev);
+	}
 
 	return ret;
 }
