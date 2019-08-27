@@ -31,9 +31,9 @@ static struct platform_device pmc_core_device = {
  */
 static const struct x86_cpu_id intel_pmc_core_platform_ids[] = {
 	INTEL_CPU_FAM6(SKYLAKE_MOBILE, pmc_core_device),
-	INTEL_CPU_FAM6(SKYLAKE_DESKTOP, pmc_core_device),
+	INTEL_CPU_FAM6(SKYLAKE, pmc_core_device),
 	INTEL_CPU_FAM6(KABYLAKE_MOBILE, pmc_core_device),
-	INTEL_CPU_FAM6(KABYLAKE_DESKTOP, pmc_core_device),
+	INTEL_CPU_FAM6(KABYLAKE, pmc_core_device),
 	INTEL_CPU_FAM6(CANNONLAKE_MOBILE, pmc_core_device),
 	INTEL_CPU_FAM6(ICELAKE_MOBILE, pmc_core_device),
 	{}
