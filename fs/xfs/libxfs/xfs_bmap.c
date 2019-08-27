@@ -1985,11 +1985,8 @@ xfs_bmap_add_extent_delay_real(
 	}
 
 	/* add reverse mapping unless caller opted out */
-	if (!(bma->flags & XFS_BMAPI_NORMAP)) {
-		error = xfs_rmap_map_extent(bma->tp, bma->ip, whichfork, new);
-		if (error)
-			goto done;
-	}
+	if (!(bma->flags & XFS_BMAPI_NORMAP))
+		xfs_rmap_map_extent(bma->tp, bma->ip, whichfork, new);
 
 	/* convert to a btree if necessary */
 	if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
@@ -2471,9 +2468,7 @@ xfs_bmap_add_extent_unwritten_real(
 	}
 
 	/* update reverse mappings */
-	error = xfs_rmap_convert_extent(mp, tp, ip, whichfork, new);
-	if (error)
-		goto done;
+	xfs_rmap_convert_extent(mp, tp, ip, whichfork, new);
 
 	/* convert to a btree if necessary */
 	if (xfs_bmap_needs_btree(ip, whichfork)) {
@@ -2832,11 +2827,8 @@ xfs_bmap_add_extent_hole_real(
 	}
 
 	/* add reverse mapping unless caller opted out */
-	if (!(flags & XFS_BMAPI_NORMAP)) {
-		error = xfs_rmap_map_extent(tp, ip, whichfork, new);
-		if (error)
-			goto done;
-	}
+	if (!(flags & XFS_BMAPI_NORMAP))
+		xfs_rmap_map_extent(tp, ip, whichfork, new);
 
 	/* convert to a btree if necessary */
 	if (xfs_bmap_needs_btree(ip, whichfork)) {
@@ -5149,9 +5141,7 @@ xfs_bmap_del_extent_real(
 	}
 
 	/* remove reverse mapping */
-	error = xfs_rmap_unmap_extent(tp, ip, whichfork, del);
-	if (error)
-		goto done;
+	xfs_rmap_unmap_extent(tp, ip, whichfork, del);
 
 	/*
 	 * If we need to, add to list of extents to delete.
@@ -5651,12 +5641,11 @@ done:
 			&new);
 
 	/* update reverse mapping. rmap functions merge the rmaps for us */
-	error = xfs_rmap_unmap_extent(tp, ip, whichfork, got);
-	if (error)
-		return error;
+	xfs_rmap_unmap_extent(tp, ip, whichfork, got);
 	memcpy(&new, got, sizeof(new));
 	new.br_startoff = left->br_startoff + left->br_blockcount;
-	return xfs_rmap_map_extent(tp, ip, whichfork, &new);
+	xfs_rmap_map_extent(tp, ip, whichfork, &new);
+	return 0;
 }
 
 static int
@@ -5695,10 +5684,9 @@ xfs_bmap_shift_update_extent(
 			got);
 
 	/* update reverse mapping */
-	error = xfs_rmap_unmap_extent(tp, ip, whichfork, &prev);
-	if (error)
-		return error;
-	return xfs_rmap_map_extent(tp, ip, whichfork, got);
+	xfs_rmap_unmap_extent(tp, ip, whichfork, &prev);
+	xfs_rmap_map_extent(tp, ip, whichfork, got);
+	return 0;
 }
 
 int

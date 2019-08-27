@@ -2268,7 +2268,7 @@ xfs_rmap_update_is_needed(
  * Record a rmap intent; the list is kept sorted first by AG and then by
  * increasing age.
  */
-static int
+static void
 __xfs_rmap_add(
 	struct xfs_trans		*tp,
 	enum xfs_rmap_intent_type	type,
@@ -2295,11 +2295,10 @@ __xfs_rmap_add(
 	ri->ri_bmap = *bmap;
 
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_RMAP, &ri->ri_list);
-	return 0;
 }
 
 /* Map an extent into a file. */
-int
+void
 xfs_rmap_map_extent(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
@@ -2307,15 +2306,15 @@ xfs_rmap_map_extent(
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_rmap_update_is_needed(tp->t_mountp, whichfork))
-		return 0;
+		return;
 
-	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
+	__xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_MAP_SHARED : XFS_RMAP_MAP, ip->i_ino,
 			whichfork, PREV);
 }
 
 /* Unmap an extent out of a file. */
-int
+void
 xfs_rmap_unmap_extent(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
@@ -2323,9 +2322,9 @@ xfs_rmap_unmap_extent(
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_rmap_update_is_needed(tp->t_mountp, whichfork))
-		return 0;
+		return;
 
-	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
+	__xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_UNMAP_SHARED : XFS_RMAP_UNMAP, ip->i_ino,
 			whichfork, PREV);
 }
@@ -2336,7 +2335,7 @@ xfs_rmap_unmap_extent(
  * Note that tp can be NULL here as no transaction is used for COW fork
  * unwritten conversion.
  */
-int
+void
 xfs_rmap_convert_extent(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
@@ -2345,15 +2344,15 @@ xfs_rmap_convert_extent(
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_rmap_update_is_needed(mp, whichfork))
-		return 0;
+		return;
 
-	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
+	__xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_CONVERT_SHARED : XFS_RMAP_CONVERT, ip->i_ino,
 			whichfork, PREV);
 }
 
 /* Schedule the creation of an rmap for non-file data. */
-int
+void
 xfs_rmap_alloc_extent(
 	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
@@ -2364,18 +2363,18 @@ xfs_rmap_alloc_extent(
 	struct xfs_bmbt_irec	bmap;
 
 	if (!xfs_rmap_update_is_needed(tp->t_mountp, XFS_DATA_FORK))
-		return 0;
+		return;
 
 	bmap.br_startblock = XFS_AGB_TO_FSB(tp->t_mountp, agno, bno);
 	bmap.br_blockcount = len;
 	bmap.br_startoff = 0;
 	bmap.br_state = XFS_EXT_NORM;
 
-	return __xfs_rmap_add(tp, XFS_RMAP_ALLOC, owner, XFS_DATA_FORK, &bmap);
+	__xfs_rmap_add(tp, XFS_RMAP_ALLOC, owner, XFS_DATA_FORK, &bmap);
 }
 
 /* Schedule the deletion of an rmap for non-file data. */
-int
+void
 xfs_rmap_free_extent(
 	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
@@ -2386,14 +2385,14 @@ xfs_rmap_free_extent(
 	struct xfs_bmbt_irec	bmap;
 
 	if (!xfs_rmap_update_is_needed(tp->t_mountp, XFS_DATA_FORK))
-		return 0;
+		return;
 
 	bmap.br_startblock = XFS_AGB_TO_FSB(tp->t_mountp, agno, bno);
 	bmap.br_blockcount = len;
 	bmap.br_startoff = 0;
 	bmap.br_state = XFS_EXT_NORM;
 
-	return __xfs_rmap_add(tp, XFS_RMAP_FREE, owner, XFS_DATA_FORK, &bmap);
+	__xfs_rmap_add(tp, XFS_RMAP_FREE, owner, XFS_DATA_FORK, &bmap);
 }
 
 /* Compare rmap records.  Returns -1 if a < b, 1 if a > b, and 0 if equal. */

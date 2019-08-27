@@ -1558,8 +1558,9 @@ xfs_refcount_alloc_cow_extent(
 		return error;
 
 	/* Add rmap entry */
-	return xfs_rmap_alloc_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
+	xfs_rmap_alloc_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
 			XFS_FSB_TO_AGBNO(mp, fsb), len, XFS_RMAP_OWN_COW);
+	return 0;
 }
 
 /* Forget a CoW staging event in the refcount btree. */
@@ -1570,17 +1571,13 @@ xfs_refcount_free_cow_extent(
 	xfs_extlen_t			len)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
-	int				error;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
 
 	/* Remove rmap entry */
-	error = xfs_rmap_free_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
+	xfs_rmap_free_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
 			XFS_FSB_TO_AGBNO(mp, fsb), len, XFS_RMAP_OWN_COW);
-	if (error)
-		return error;
-
 	return __xfs_refcount_add(tp, XFS_REFCOUNT_FREE_COW, fsb, len);
 }
 
