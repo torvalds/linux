@@ -1677,6 +1677,22 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
 	return 0;
 }
 
+static const char *drm_named_modes_whitelist[] = {
+	"NTSC",
+	"PAL",
+};
+
+static bool drm_named_mode_is_in_whitelist(const char *mode, unsigned int size)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(drm_named_modes_whitelist); i++)
+		if (!strncmp(mode, drm_named_modes_whitelist[i], size))
+			return true;
+
+	return false;
+}
+
 /**
  * drm_mode_parse_command_line_for_connector - parse command line modeline for connector
  * @mode_option: optional per connector mode option
@@ -1794,6 +1810,10 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	if (named_mode) {
 		if (mode_end + 1 > DRM_DISPLAY_MODE_LEN)
 			return false;
+
+		if (!drm_named_mode_is_in_whitelist(name, mode_end))
+			return false;
+
 		strscpy(mode->name, name, mode_end + 1);
 	} else {
 		ret = drm_mode_parse_cmdline_res_mode(name, mode_end,
