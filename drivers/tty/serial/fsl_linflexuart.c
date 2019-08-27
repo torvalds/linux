@@ -136,7 +136,7 @@ MODULE_DEVICE_TABLE(of, linflex_dt_ids);
 #ifdef CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE
 static struct uart_port *earlycon_port;
 static bool linflex_earlycon_same_instance;
-static spinlock_t init_lock;
+static DEFINE_SPINLOCK(init_lock);
 static bool during_init;
 
 static struct {
@@ -921,10 +921,6 @@ static int __init linflex_serial_init(void)
 	ret = platform_driver_register(&linflex_driver);
 	if (ret)
 		uart_unregister_driver(&linflex_reg);
-
-#ifdef CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE
-	spin_lock_init(&init_lock);
-#endif
 
 	return ret;
 }
