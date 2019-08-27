@@ -118,6 +118,15 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 	return (phys_addr_t)mcfg_addr;
 }
 
+/* _HPX PCI Setting Record (Type 0); same as _HPP */
+struct hpx_type0 {
+	u32 revision;		/* Not present in _HPP */
+	u8  cache_line_size;	/* Not applicable to PCIe */
+	u8  latency_timer;	/* Not applicable to PCIe */
+	u8  enable_serr;
+	u8  enable_perr;
+};
+
 static struct hpx_type0 pci_default_type0 = {
 	.revision = 1,
 	.cache_line_size = 8,
@@ -126,7 +135,7 @@ static struct hpx_type0 pci_default_type0 = {
 	.enable_perr = 0,
 };
 
-void program_hpx_type0(struct pci_dev *dev, struct hpx_type0 *hpx)
+static void program_hpx_type0(struct pci_dev *dev, struct hpx_type0 *hpx)
 {
 	u16 pci_cmd, pci_bctl;
 
@@ -187,7 +196,15 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 	return AE_OK;
 }
 
-void program_hpx_type1(struct pci_dev *dev, struct hpx_type1 *hpx)
+/* _HPX PCI-X Setting Record (Type 1) */
+struct hpx_type1 {
+	u32 revision;
+	u8  max_mem_read;
+	u8  avg_max_split;
+	u16 tot_max_split;
+};
+
+static void program_hpx_type1(struct pci_dev *dev, struct hpx_type1 *hpx)
 {
 	int pos;
 
@@ -243,7 +260,28 @@ static bool pcie_root_rcb_set(struct pci_dev *dev)
 	return false;
 }
 
-void program_hpx_type2(struct pci_dev *dev, struct hpx_type2 *hpx)
+/* _HPX PCI Express Setting Record (Type 2) */
+struct hpx_type2 {
+	u32 revision;
+	u32 unc_err_mask_and;
+	u32 unc_err_mask_or;
+	u32 unc_err_sever_and;
+	u32 unc_err_sever_or;
+	u32 cor_err_mask_and;
+	u32 cor_err_mask_or;
+	u32 adv_err_cap_and;
+	u32 adv_err_cap_or;
+	u16 pci_exp_devctl_and;
+	u16 pci_exp_devctl_or;
+	u16 pci_exp_lnkctl_and;
+	u16 pci_exp_lnkctl_or;
+	u32 sec_unc_err_sever_and;
+	u32 sec_unc_err_sever_or;
+	u32 sec_unc_err_mask_and;
+	u32 sec_unc_err_mask_or;
+};
+
+static void program_hpx_type2(struct pci_dev *dev, struct hpx_type2 *hpx)
 {
 	int pos;
 	u32 reg32;
@@ -368,6 +406,24 @@ static acpi_status decode_type2_hpx_record(union acpi_object *record,
 	}
 	return AE_OK;
 }
+
+/* _HPX PCI Express Setting Record (Type 3) */
+struct hpx_type3 {
+	u16 device_type;
+	u16 function_type;
+	u16 config_space_location;
+	u16 pci_exp_cap_id;
+	u16 pci_exp_cap_ver;
+	u16 pci_exp_vendor_id;
+	u16 dvsec_id;
+	u16 dvsec_rev;
+	u16 match_offset;
+	u32 match_mask_and;
+	u32 match_value;
+	u16 reg_offset;
+	u32 reg_mask_and;
+	u32 reg_mask_or;
+};
 
 enum hpx_type3_dev_type {
 	HPX_TYPE_ENDPOINT	= BIT(0),
@@ -498,7 +554,7 @@ static void program_hpx_type3_register(struct pci_dev *dev,
 		pos, orig_value, write_reg);
 }
 
-void program_hpx_type3(struct pci_dev *dev, struct hpx_type3 *hpx)
+static void program_hpx_type3(struct pci_dev *dev, struct hpx_type3 *hpx)
 {
 	if (!hpx)
 		return;
@@ -529,8 +585,7 @@ static void parse_hpx3_register(struct hpx_type3 *hpx3_reg,
 }
 
 static acpi_status program_type3_hpx_record(struct pci_dev *dev,
-					   union acpi_object *record,
-					   const struct hotplug_program_ops *hp_ops)
+					   union acpi_object *record)
 {
 	union acpi_object *fields = record->package.elements;
 	u32 desc_count, expected_length, revision;
@@ -554,7 +609,7 @@ static acpi_status program_type3_hpx_record(struct pci_dev *dev,
 		for (i = 0; i < desc_count; i++) {
 			reg_fields = fields + 3 + i * 14;
 			parse_hpx3_register(&hpx3, reg_fields);
-			hp_ops->program_type3(dev, &hpx3);
+			program_hpx_type3(dev, &hpx3);
 		}
 
 		break;
@@ -567,8 +622,7 @@ static acpi_status program_type3_hpx_record(struct pci_dev *dev,
 	return AE_OK;
 }
 
-static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
-				const struct hotplug_program_ops *hp_ops)
+static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -610,24 +664,24 @@ static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
 			status = decode_type0_hpx_record(record, &hpx0);
 			if (ACPI_FAILURE(status))
 				goto exit;
-			hp_ops->program_type0(dev, &hpx0);
+			program_hpx_type0(dev, &hpx0);
 			break;
 		case 1:
 			memset(&hpx1, 0, sizeof(hpx1));
 			status = decode_type1_hpx_record(record, &hpx1);
 			if (ACPI_FAILURE(status))
 				goto exit;
-			hp_ops->program_type1(dev, &hpx1);
+			program_hpx_type1(dev, &hpx1);
 			break;
 		case 2:
 			memset(&hpx2, 0, sizeof(hpx2));
 			status = decode_type2_hpx_record(record, &hpx2);
 			if (ACPI_FAILURE(status))
 				goto exit;
-			hp_ops->program_type2(dev, &hpx2);
+			program_hpx_type2(dev, &hpx2);
 			break;
 		case 3:
-			status = program_type3_hpx_record(dev, record, hp_ops);
+			status = program_type3_hpx_record(dev, record);
 			if (ACPI_FAILURE(status))
 				goto exit;
 			break;
@@ -643,8 +697,7 @@ static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
 	return status;
 }
 
-static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle,
-				const struct hotplug_program_ops *hp_ops)
+static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -679,20 +732,18 @@ static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle,
 	hpx0.enable_serr     = fields[2].integer.value;
 	hpx0.enable_perr     = fields[3].integer.value;
 
-	hp_ops->program_type0(dev, &hpx0);
+	program_hpx_type0(dev, &hpx0);
 
 exit:
 	kfree(buffer.pointer);
 	return status;
 }
 
-/* pci_get_hp_params
+/* pci_acpi_program_hp_params
  *
  * @dev - the pci_dev for which we want parameters
- * @hpp - allocated by the caller
  */
-int pci_acpi_program_hp_params(struct pci_dev *dev,
-			       const struct hotplug_program_ops *hp_ops)
+int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
 	acpi_status status;
 	acpi_handle handle, phandle;
@@ -715,10 +766,10 @@ int pci_acpi_program_hp_params(struct pci_dev *dev,
 	 * this pci dev.
 	 */
 	while (handle) {
-		status = acpi_run_hpx(dev, handle, hp_ops);
+		status = acpi_run_hpx(dev, handle);
 		if (ACPI_SUCCESS(status))
 			return 0;
-		status = acpi_run_hpp(dev, handle, hp_ops);
+		status = acpi_run_hpp(dev, handle);
 		if (ACPI_SUCCESS(status))
 			return 0;
 		if (acpi_is_root_bridge(handle))
