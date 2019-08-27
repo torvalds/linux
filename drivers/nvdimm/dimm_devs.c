@@ -393,88 +393,6 @@ static ssize_t frozen_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(frozen);
 
-#define OPS							\
-	C( OP_FREEZE,		"freeze",		1),	\
-	C( OP_DISABLE,		"disable",		2),	\
-	C( OP_UPDATE,		"update",		3),	\
-	C( OP_ERASE,		"erase",		2),	\
-	C( OP_OVERWRITE,	"overwrite",		2),	\
-	C( OP_MASTER_UPDATE,	"master_update",	3),	\
-	C( OP_MASTER_ERASE,	"master_erase",		2)
-#undef C
-#define C(a, b, c) a
-enum nvdimmsec_op_ids { OPS };
-#undef C
-#define C(a, b, c) { b, c }
-static struct {
-	const char *name;
-	int args;
-} ops[] = { OPS };
-#undef C
-
-#define SEC_CMD_SIZE 32
-#define KEY_ID_SIZE 10
-
-static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
-{
-	struct nvdimm *nvdimm = to_nvdimm(dev);
-	ssize_t rc;
-	char cmd[SEC_CMD_SIZE+1], keystr[KEY_ID_SIZE+1],
-		nkeystr[KEY_ID_SIZE+1];
-	unsigned int key, newkey;
-	int i;
-
-	rc = sscanf(buf, "%"__stringify(SEC_CMD_SIZE)"s"
-			" %"__stringify(KEY_ID_SIZE)"s"
-			" %"__stringify(KEY_ID_SIZE)"s",
-			cmd, keystr, nkeystr);
-	if (rc < 1)
-		return -EINVAL;
-	for (i = 0; i < ARRAY_SIZE(ops); i++)
-		if (sysfs_streq(cmd, ops[i].name))
-			break;
-	if (i >= ARRAY_SIZE(ops))
-		return -EINVAL;
-	if (ops[i].args > 1)
-		rc = kstrtouint(keystr, 0, &key);
-	if (rc >= 0 && ops[i].args > 2)
-		rc = kstrtouint(nkeystr, 0, &newkey);
-	if (rc < 0)
-		return rc;
-
-	if (i == OP_FREEZE) {
-		dev_dbg(dev, "freeze\n");
-		rc = nvdimm_security_freeze(nvdimm);
-	} else if (i == OP_DISABLE) {
-		dev_dbg(dev, "disable %u\n", key);
-		rc = nvdimm_security_disable(nvdimm, key);
-	} else if (i == OP_UPDATE || i == OP_MASTER_UPDATE) {
-		dev_dbg(dev, "%s %u %u\n", ops[i].name, key, newkey);
-		rc = nvdimm_security_update(nvdimm, key, newkey, i == OP_UPDATE
-				? NVDIMM_USER : NVDIMM_MASTER);
-	} else if (i == OP_ERASE || i == OP_MASTER_ERASE) {
-		dev_dbg(dev, "%s %u\n", ops[i].name, key);
-		if (atomic_read(&nvdimm->busy)) {
-			dev_dbg(dev, "Unable to secure erase while DIMM active.\n");
-			return -EBUSY;
-		}
-		rc = nvdimm_security_erase(nvdimm, key, i == OP_ERASE
-				? NVDIMM_USER : NVDIMM_MASTER);
-	} else if (i == OP_OVERWRITE) {
-		dev_dbg(dev, "overwrite %u\n", key);
-		if (atomic_read(&nvdimm->busy)) {
-			dev_dbg(dev, "Unable to overwrite while DIMM active.\n");
-			return -EBUSY;
-		}
-		rc = nvdimm_security_overwrite(nvdimm, key);
-	} else
-		return -EINVAL;
-
-	if (rc == 0)
-		rc = len;
-	return rc;
-}
-
 static ssize_t security_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 
@@ -489,7 +407,7 @@ static ssize_t security_store(struct device *dev,
 	nd_device_lock(dev);
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
-	rc = __security_store(dev, buf, len);
+	rc = nvdimm_security_store(dev, buf, len);
 	nvdimm_bus_unlock(dev);
 	nd_device_unlock(dev);
 
