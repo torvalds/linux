@@ -4522,7 +4522,6 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 	u32 intr_info, ex_no, error_code;
 	unsigned long cr2, rip, dr6;
 	u32 vect_info;
-	enum emulation_result er;
 
 	vect_info = vmx->idt_vectoring_info;
 	intr_info = vmx->exit_intr_info;
@@ -4549,13 +4548,8 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 			kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
 			return 1;
 		}
-		er = kvm_emulate_instruction(vcpu,
-			EMULTYPE_VMWARE | EMULTYPE_NO_UD_ON_FAIL);
-		if (er == EMULATE_USER_EXIT)
-			return 0;
-		else if (er != EMULATE_DONE)
-			kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
-		return 1;
+		return kvm_emulate_instruction(vcpu, EMULTYPE_VMWARE_GP) !=
+							EMULATE_USER_EXIT;
 	}
 
 	/*

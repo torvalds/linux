@@ -6307,8 +6307,10 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu, int emulation_type)
 	++vcpu->stat.insn_emulation_fail;
 	trace_kvm_emulate_insn_failed(vcpu);
 
-	if (emulation_type & EMULTYPE_NO_UD_ON_FAIL)
-		return EMULATE_FAIL;
+	if (emulation_type & EMULTYPE_VMWARE_GP) {
+		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+		return EMULATE_DONE;
+	}
 
 	kvm_queue_exception(vcpu, UD_VECTOR);
 
@@ -6648,9 +6650,11 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		}
 	}
 
-	if ((emulation_type & EMULTYPE_VMWARE) &&
-	    !is_vmware_backdoor_opcode(ctxt))
-		return EMULATE_FAIL;
+	if ((emulation_type & EMULTYPE_VMWARE_GP) &&
+	    !is_vmware_backdoor_opcode(ctxt)) {
+		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+		return EMULATE_DONE;
+	}
 
 	if (emulation_type & EMULTYPE_SKIP) {
 		kvm_rip_write(vcpu, ctxt->_eip);

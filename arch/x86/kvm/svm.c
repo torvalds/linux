@@ -2768,7 +2768,6 @@ static int gp_interception(struct vcpu_svm *svm)
 {
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	u32 error_code = svm->vmcb->control.exit_info_1;
-	int er;
 
 	WARN_ON_ONCE(!enable_vmware_backdoor);
 
@@ -2780,13 +2779,8 @@ static int gp_interception(struct vcpu_svm *svm)
 		kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
 		return 1;
 	}
-	er = kvm_emulate_instruction(vcpu,
-		EMULTYPE_VMWARE | EMULTYPE_NO_UD_ON_FAIL);
-	if (er == EMULATE_USER_EXIT)
-		return 0;
-	else if (er != EMULATE_DONE)
-		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
-	return 1;
+	return kvm_emulate_instruction(vcpu, EMULTYPE_VMWARE_GP) !=
+						EMULATE_USER_EXIT;
 }
 
 static bool is_erratum_383(void)
