@@ -475,9 +475,11 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
+#ifdef CONFIG_WATCHDOG
 	ret = devm_watchdog_register_device(dev, &pcf2127->wdd);
 	if (ret)
 		return ret;
+#endif /* CONFIG_WATCHDOG */
 
 	/*
 	 * Disable battery low/switch-over timestamp and interrupts.
