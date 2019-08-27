@@ -213,6 +213,33 @@ static struct stmmac_pci_info ehl_sgmii1g_pci_info = {
 	.setup = ehl_sgmii_data,
 };
 
+static int tgl_common_data(struct pci_dev *pdev,
+			   struct plat_stmmacenet_data *plat)
+{
+	int ret;
+
+	plat->rx_queues_to_use = 6;
+	plat->tx_queues_to_use = 4;
+	ret = intel_mgbe_common_data(pdev, plat);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int tgl_sgmii_data(struct pci_dev *pdev,
+			  struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 1;
+	plat->phy_addr = 0;
+	plat->interface = PHY_INTERFACE_MODE_SGMII;
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info tgl_sgmii1g_pci_info = {
+	.setup = tgl_sgmii_data,
+};
+
 static const struct stmmac_pci_func_data galileo_stmmac_func_data[] = {
 	{
 		.func = 6,
@@ -455,6 +482,7 @@ static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 #define STMMAC_QUARK_ID  0x0937
 #define STMMAC_DEVICE_ID 0x1108
 #define STMMAC_EHL_SGMII1G_ID	0x4b31
+#define STMMAC_TGL_SGMII1G_ID	0xa0ac
 
 #define STMMAC_DEVICE(vendor_id, dev_id, info)	{	\
 	PCI_VDEVICE(vendor_id, dev_id),			\
@@ -466,6 +494,7 @@ static const struct pci_device_id stmmac_id_table[] = {
 	STMMAC_DEVICE(STMICRO, PCI_DEVICE_ID_STMICRO_MAC, stmmac_pci_info),
 	STMMAC_DEVICE(INTEL, STMMAC_QUARK_ID, quark_pci_info),
 	STMMAC_DEVICE(INTEL, STMMAC_EHL_SGMII1G_ID, ehl_sgmii1g_pci_info),
+	STMMAC_DEVICE(INTEL, STMMAC_TGL_SGMII1G_ID, tgl_sgmii1g_pci_info),
 	{}
 };
 
