@@ -7,8 +7,6 @@
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
-#include "perf.h"
-
 struct cpu_map_data;
 
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr);

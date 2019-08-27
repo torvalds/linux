@@ -8,6 +8,7 @@
 #include "parse-events.h"
 #include "evlist.h"
 #include "evsel.h"
+#include "record.h"
 #include "thread_map.h"
 #include "cpumap.h"
 #include "tests.h"

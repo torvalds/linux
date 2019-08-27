@@ -19,6 +19,7 @@
 #include "../../util/pmu.h"
 #include "../../util/debug.h"
 #include "../../util/auxtrace.h"
+#include "../../util/record.h"
 #include "../../util/arm-spe.h"
 
 #define KiB(x) ((x) * 1024)

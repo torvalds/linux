@@ -107,7 +107,7 @@ struct xyarray;
  *         show the name used, not some alias.
  * @id_pos: the position of the event id (PERF_SAMPLE_ID or
  *          PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of
- *          struct sample_event
+ *          struct perf_record_sample
  * @is_pos: the position (counting backwards) of the event id (PERF_SAMPLE_ID or
  *          PERF_SAMPLE_IDENTIFIER) in a non-sample event i.e. if sample_id_all
  *          is used there is an id sample appended to non-sample events
@@ -194,7 +194,7 @@ struct perf_missing_features {
 	bool write_backward;
 	bool group_read;
 	bool ksymbol;
-	bool bpf_event;
+	bool bpf;
 	bool aux_output;
 };
 

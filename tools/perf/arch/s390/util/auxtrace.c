@@ -8,6 +8,7 @@
 #include "../../util/evlist.h"
 #include "../../util/auxtrace.h"
 #include "../../util/evsel.h"
+#include "../../util/record.h"
 
 #define PERF_EVENT_CPUM_SF		0xB0000 /* Event: Basic-sampling */
 #define PERF_EVENT_CPUM_SF_DIAG		0xBD000 /* Event: Combined-sampling */

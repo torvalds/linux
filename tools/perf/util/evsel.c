@@ -34,6 +34,7 @@
 #include "thread_map.h"
 #include "target.h"
 #include "perf_regs.h"
+#include "record.h"
 #include "debug.h"
 #include "trace-event.h"
 #include "stat.h"
@@ -116,7 +117,7 @@ int __perf_evsel__sample_size(u64 sample_type)
  *
  * This function returns the position of the event id (PERF_SAMPLE_ID or
  * PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of struct
- * sample_event.
+ * perf_record_sample.
  */
 static int __perf_evsel__calc_id_pos(u64 sample_type)
 {
@@ -1071,8 +1072,7 @@ void perf_evsel__config(struct evsel *evsel, struct record_opts *opts,
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
 	attr->ksymbol = track && !perf_missing_features.ksymbol;
-	attr->bpf_event = track && !opts->no_bpf_event &&
-		!perf_missing_features.bpf_event;
+	attr->bpf_event = track && !opts->no_bpf_event && !perf_missing_features.bpf;
 
 	if (opts->record_namespaces)
 		attr->namespaces  = track;
@@ -1802,7 +1802,7 @@ fallback_missing_features:
 		evsel->core.attr.read_format &= ~(PERF_FORMAT_GROUP|PERF_FORMAT_ID);
 	if (perf_missing_features.ksymbol)
 		evsel->core.attr.ksymbol = 0;
-	if (perf_missing_features.bpf_event)
+	if (perf_missing_features.bpf)
 		evsel->core.attr.bpf_event = 0;
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
@@ -1919,8 +1919,8 @@ try_fallback:
 		perf_missing_features.aux_output = true;
 		pr_debug2("Kernel has no attr.aux_output support, bailing out\n");
 		goto out_close;
-	} else if (!perf_missing_features.bpf_event && evsel->core.attr.bpf_event) {
-		perf_missing_features.bpf_event = true;
+	} else if (!perf_missing_features.bpf && evsel->core.attr.bpf_event) {
+		perf_missing_features.bpf = true;
 		pr_debug2("switching off bpf_event\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.ksymbol && evsel->core.attr.ksymbol) {
@@ -2008,7 +2008,7 @@ static int perf_evsel__parse_id_sample(const struct evsel *evsel,
 				       struct perf_sample *sample)
 {
 	u64 type = evsel->core.attr.sample_type;
-	const u64 *array = event->sample.array;
+	const __u64 *array = event->sample.array;
 	bool swapped = evsel->needs_swap;
 	union u64_swap u;
 
@@ -2098,7 +2098,7 @@ int perf_evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 {
 	u64 type = evsel->core.attr.sample_type;
 	bool swapped = evsel->needs_swap;
-	const u64 *array;
+	const __u64 *array;
 	u16 max_size = event->header.size;
 	const void *endp = (void *)event + max_size;
 	u64 sz;
@@ -2377,7 +2377,7 @@ int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
 				       u64 *timestamp)
 {
 	u64 type = evsel->core.attr.sample_type;
-	const u64 *array;
+	const __u64 *array;
 
 	if (!(type & PERF_SAMPLE_TIME))
 		return -1;
@@ -2419,7 +2419,7 @@ int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
 size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 				     u64 read_format)
 {
-	size_t sz, result = sizeof(struct sample_event);
+	size_t sz, result = sizeof(struct perf_record_sample);
 
 	if (type & PERF_SAMPLE_IDENTIFIER)
 		result += sizeof(u64);
@@ -2528,7 +2528,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 				  u64 read_format,
 				  const struct perf_sample *sample)
 {
-	u64 *array;
+	__u64 *array;
 	size_t sz;
 	/*
 	 * used for cross-endian analysis. See git commit 65014ab3

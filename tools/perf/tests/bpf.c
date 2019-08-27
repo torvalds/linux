@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <util/record.h>
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>

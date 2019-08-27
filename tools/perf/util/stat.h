@@ -5,12 +5,11 @@
 #include <linux/types.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include "rblist.h"
-#include "perf.h"
 #include "event.h"
+
+struct timespec;
 
 struct stats {
 	double n, mean, M2;
@@ -199,6 +198,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 struct perf_tool;
 union perf_event;
 struct perf_session;
+struct target;
+
 int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event);
 

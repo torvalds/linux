@@ -20,6 +20,7 @@
 #include "map.h"
 #include "symbol.h"
 #include "event.h"
+#include "record.h"
 #include "thread.h"
 
 #include "tests.h"

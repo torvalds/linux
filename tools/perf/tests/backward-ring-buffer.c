@@ -4,9 +4,9 @@
  * beginning
  */
 
-#include <perf.h>
 #include <evlist.h>
 #include <sys/prctl.h>
+#include "record.h"
 #include "tests.h"
 #include "debug.h"
 #include <errno.h>

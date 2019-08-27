@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 
-#include "perf.h"
 #include "util/cache.h"
 #include "util/counts.h"
 #include "util/debug.h"
@@ -12,6 +11,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/map.h"
+#include "util/srcline.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/trace-event.h"
@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <subcmd/pager.h>
 #include <perf/evlist.h>
+#include "util/record.h"
 
 #include <linux/ctype.h>
 
@@ -2491,8 +2492,8 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.finished_round = process_finished_round_event;
 	}
 	if (script->show_bpf_events) {
-		script->tool.ksymbol   = process_bpf_events;
-		script->tool.bpf_event = process_bpf_events;
+		script->tool.ksymbol = process_bpf_events;
+		script->tool.bpf     = process_bpf_events;
 	}
 
 	if (perf_script__setup_per_event_dump(script)) {
