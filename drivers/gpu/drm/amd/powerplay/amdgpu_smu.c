@@ -27,6 +27,7 @@
 #include "amdgpu_smu.h"
 #include "soc15_common.h"
 #include "smu_v11_0.h"
+#include "smu_v12_0.h"
 #include "atom.h"
 #include "amd_pcie.h"
 
@@ -413,6 +414,9 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
+	if(!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
 		*((uint32_t *)data) = smu->pstate_sclk;
@@ -626,9 +630,13 @@ int smu_feature_update_enable_state(struct smu_context *smu, uint64_t feature_ma
 
 int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 {
+	struct amdgpu_device *adev = smu->adev;
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 	int ret = 0;
+
+	if (adev->flags & AMD_IS_APU)
+		return 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
 	if (feature_id < 0)
@@ -732,6 +740,11 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 			smu->od_enabled = true;
 		smu_v11_0_set_smu_funcs(smu);
 		break;
+	case CHIP_RENOIR:
+		if (adev->pm.pp_feature & PP_OVERDRIVE_MASK)
+			smu->od_enabled = true;
+		smu_v12_0_set_smu_funcs(smu);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -758,6 +771,7 @@ static int smu_late_init(void *handle)
 
 	if (!smu->pm_enabled)
 		return 0;
+
 	mutex_lock(&smu->mutex);
 	smu_handle_task(&adev->smu,
 			smu->smu_dpm.dpm_level,
@@ -1028,6 +1042,9 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
 
+	if (adev->flags & AMD_IS_APU)
+		return 0;
+
 	if (smu_is_dpm_running(smu) && adev->in_suspend) {
 		pr_info("dpm has been enabled\n");
 		return 0;
@@ -1133,7 +1150,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	 * type of clks.
 	 */
 	if (initialize) {
-		ret = smu_populate_smc_pptable(smu);
+		ret = smu_populate_smc_tables(smu);
 		if (ret)
 			return ret;
 
@@ -1250,6 +1267,11 @@ static int smu_hw_init(void *handle)
 		return ret;
 	}
 
+	if (adev->flags & AMD_IS_APU) {
+		smu_powergate_sdma(&adev->smu, false);
+		smu_powergate_vcn(&adev->smu, false);
+	}
+
 	if (!smu->pm_enabled)
 		return 0;
 
@@ -1296,6 +1318,11 @@ static int smu_hw_fini(void *handle)
 	struct smu_context *smu = &adev->smu;
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
+
+	if (adev->flags & AMD_IS_APU) {
+		smu_powergate_sdma(&adev->smu, true);
+		smu_powergate_vcn(&adev->smu, true);
+	}
 
 	kfree(table_context->driver_pptable);
 	table_context->driver_pptable = NULL;
@@ -1783,6 +1810,15 @@ const struct amdgpu_ip_block_version smu_v11_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 11,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version smu_v12_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 12,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &smu_ip_funcs,

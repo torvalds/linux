@@ -598,6 +598,9 @@ void enc1_dig_connect_to_otg(
 	struct stream_encoder *enc,
 	int tg_inst);
 
+unsigned int enc1_dig_source_otg(
+	struct stream_encoder *enc);
+
 void enc1_stream_encoder_set_stream_attribute_helper(
 	struct dcn10_stream_encoder *enc1,
 	struct dc_crtc_timing *crtc_timing);
@@ -614,5 +617,8 @@ void get_audio_clock_info(
 	uint32_t crtc_pixel_clock_100Hz,
 	uint32_t actual_pixel_clock_100Hz,
 	struct audio_clock_info *audio_clock_info);
+
+void enc1_reset_hdmi_stream_attribute(
+	struct stream_encoder *enc);
 
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */

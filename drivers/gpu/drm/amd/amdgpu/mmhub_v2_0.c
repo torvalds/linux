@@ -126,7 +126,7 @@ static void mmhub_v2_0_init_cache_regs(struct amdgpu_device *adev)
 	/* XXX for emulation, Refer to closed source code.*/
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, L2_PDE0_CACHE_TAG_GENERATION_MODE,
 			    0);
-	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 1);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 0);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, IDENTITY_MODE_FRAGMENT_SIZE, 0);
 	WREG32_SOC15(MMHUB, 0, mmMMVM_L2_CNTL, tmp);
@@ -407,6 +407,7 @@ int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		mmhub_v2_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		mmhub_v2_0_update_medium_grain_light_sleep(adev,

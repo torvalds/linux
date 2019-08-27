@@ -247,7 +247,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	}
 
-	if (adev->asic_type == CHIP_ARCTURUS &&
+	if ((adev->asic_type == CHIP_ARCTURUS || adev->asic_type == CHIP_RENOIR) &&
 		adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 		if (adev->irq.ih.use_bus_addr) {
 			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);

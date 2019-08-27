@@ -38,12 +38,6 @@
 	SRI(PREFETCH_SETTINGS_C, HUBPREQ, id),\
 	SRI(DCN_VM_SYSTEM_APERTURE_LOW_ADDR, HUBPREQ, id),\
 	SRI(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR, HUBPREQ, id),\
-	SR(DCN_VM_FB_LOCATION_TOP),\
-	SR(DCN_VM_FB_LOCATION_BASE),\
-	SR(DCN_VM_FB_OFFSET),\
-	SR(DCN_VM_AGP_BASE),\
-	SR(DCN_VM_AGP_BOT),\
-	SR(DCN_VM_AGP_TOP),\
 	SRI(CURSOR_SETTINGS, HUBPREQ, id), \
 	SRI(CURSOR_SURFACE_ADDRESS_HIGH, CURSOR0_, id), \
 	SRI(CURSOR_SURFACE_ADDRESS, CURSOR0_, id), \
@@ -82,12 +76,6 @@
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINGS_C, VRATIO_PREFETCH_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_LOW_ADDR, MC_VM_SYSTEM_APERTURE_LOW_ADDR, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR, MC_VM_SYSTEM_APERTURE_HIGH_ADDR, mask_sh),\
-	HUBP_SF(DCN_VM_FB_LOCATION_TOP, FB_TOP, mask_sh),\
-	HUBP_SF(DCN_VM_FB_LOCATION_BASE, FB_BASE, mask_sh),\
-	HUBP_SF(DCN_VM_FB_OFFSET, FB_OFFSET, mask_sh),\
-	HUBP_SF(DCN_VM_AGP_BASE, AGP_BASE, mask_sh),\
-	HUBP_SF(DCN_VM_AGP_BOT, AGP_BOT, mask_sh),\
-	HUBP_SF(DCN_VM_AGP_TOP, AGP_TOP, mask_sh),\
 	HUBP_SF(HUBPREQ0_CURSOR_SETTINGS, CURSOR0_DST_Y_OFFSET, mask_sh), \
 	HUBP_SF(HUBPREQ0_CURSOR_SETTINGS, CURSOR0_CHUNK_HDL_ADJUST, mask_sh), \
 	HUBP_SF(CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH, CURSOR_SURFACE_ADDRESS_HIGH, mask_sh), \
@@ -222,10 +210,6 @@ void hubp2_setup_interdependent(
 void hubp2_vready_at_or_After_vsync(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
-void hubp2_update_dchub(
-		struct hubp *hubp,
-		struct dchub_init_data *dh_data);
-
 void hubp2_cursor_set_attributes(
 		struct hubp *hubp,
 		const struct dc_cursor_attributes *attr);
@@ -268,7 +252,7 @@ bool hubp2_program_surface_flip_and_addr(
 	bool flip_immediate);
 
 void hubp2_dcc_control(struct hubp *hubp, bool enable,
-		bool independent_64b_blks);
+		enum hubp_ind_block_size independent_64b_blks);
 
 void hubp2_program_size(
 	struct hubp *hubp,

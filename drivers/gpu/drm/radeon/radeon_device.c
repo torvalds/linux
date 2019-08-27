@@ -1365,34 +1365,27 @@ int radeon_device_init(struct radeon_device *rdev,
 	else
 		rdev->mc.mc_mask = 0xffffffffULL; /* 32 bit MC */
 
-	/* set DMA mask + need_dma32 flags.
+	/* set DMA mask.
 	 * PCIE - can handle 40-bits.
 	 * IGP - can handle 40-bits
 	 * AGP - generally dma32 is safest
 	 * PCI - dma32 for legacy pci gart, 40 bits on newer asics
 	 */
-	rdev->need_dma32 = false;
+	dma_bits = 40;
 	if (rdev->flags & RADEON_IS_AGP)
-		rdev->need_dma32 = true;
+		dma_bits = 32;
 	if ((rdev->flags & RADEON_IS_PCI) &&
 	    (rdev->family <= CHIP_RS740))
-		rdev->need_dma32 = true;
+		dma_bits = 32;
 #ifdef CONFIG_PPC64
 	if (rdev->family == CHIP_CEDAR)
-		rdev->need_dma32 = true;
+		dma_bits = 32;
 #endif
 
-	dma_bits = rdev->need_dma32 ? 32 : 40;
-	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(&rdev->pdev->dev, DMA_BIT_MASK(dma_bits));
 	if (r) {
-		rdev->need_dma32 = true;
-		dma_bits = 32;
 		pr_warn("radeon: No suitable DMA available\n");
-	}
-	r = pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
-		pr_warn("radeon: No coherent DMA available\n");
+		return r;
 	}
 	rdev->need_swiotlb = drm_need_swiotlb(dma_bits);
 

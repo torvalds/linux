@@ -78,6 +78,8 @@ struct stream_resource;
 struct dc_phy_addr_space_config;
 struct dc_virtual_addr_space_config;
 #endif
+struct hubp;
+struct dpp;
 
 struct hw_sequencer_funcs {
 
@@ -194,8 +196,7 @@ struct hw_sequencer_funcs {
 
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
 
-	void (*disable_stream)(struct pipe_ctx *pipe_ctx,
-			int option);
+	void (*disable_stream)(struct pipe_ctx *pipe_ctx);
 
 	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
 			struct dc_link_settings *link_settings);
@@ -204,7 +205,7 @@ struct hw_sequencer_funcs {
 
 	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);
 
-	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx, int option);
+	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx);
 
 	void (*pipe_control_lock)(
 				struct dc *dc,
@@ -236,7 +237,8 @@ struct hw_sequencer_funcs {
 #endif
 
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
-			int vmin, int vmax);
+			unsigned int vmin, unsigned int vmax,
+			unsigned int vmid, unsigned int vmid_frame_number);
 
 	void (*get_position)(struct pipe_ctx **pipe_ctx, int num_pipes,
 			struct crtc_position *position);
@@ -279,6 +281,36 @@ struct hw_sequencer_funcs {
 	void (*setup_periodic_interrupt)(struct pipe_ctx *pipe_ctx, enum vline_select vline);
 	void (*setup_vupdate_interrupt)(struct pipe_ctx *pipe_ctx);
 	bool (*did_underflow_occur)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+	void (*init_blank)(struct dc *dc, struct timing_generator *tg);
+	void (*disable_vga)(struct dce_hwseq *hws);
+	void (*bios_golden_init)(struct dc *dc);
+	void (*plane_atomic_power_down)(struct dc *dc,
+			struct dpp *dpp,
+			struct hubp *hubp);
+
+	void (*plane_atomic_disable)(
+			struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+	void (*enable_power_gating_plane)(
+		struct dce_hwseq *hws,
+		bool enable);
+
+	void (*dpp_pg_control)(
+			struct dce_hwseq *hws,
+			unsigned int dpp_inst,
+			bool power_on);
+
+	void (*hubp_pg_control)(
+			struct dce_hwseq *hws,
+			unsigned int hubp_inst,
+			bool power_on);
+
+	void (*dsc_pg_control)(
+			struct dce_hwseq *hws,
+			unsigned int dsc_inst,
+			bool power_on);
+
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*update_odm)(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);

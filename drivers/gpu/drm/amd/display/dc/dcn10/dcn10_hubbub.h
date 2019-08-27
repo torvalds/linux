@@ -119,6 +119,8 @@ struct dcn_hubbub_registers {
 	uint32_t DCN_VM_AGP_BOT;
 	uint32_t DCN_VM_AGP_TOP;
 	uint32_t DCN_VM_AGP_BASE;
+	uint32_t DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB;
+	uint32_t DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB;
 };
 
 /* set field name */
@@ -196,7 +198,9 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A;\
 		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B;\
 		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C;\
-		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D
+		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D;\
+		type DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB;\
+		type DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB
 
 #define HUBBUB_STUTTER_REG_FIELD_LIST(type) \
 		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A;\
@@ -247,7 +251,7 @@ void hubbub1_program_watermarks(
 
 void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow);
 
-bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubub);
+bool hubbub1_is_allow_self_refresh_enabled(struct hubbub *hubub);
 
 void hubbub1_toggle_watermark_change_req(
 		struct hubbub *hubbub);

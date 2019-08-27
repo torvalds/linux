@@ -2956,9 +2956,10 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (hwmgr->display_config->num_display == 0)
 		disable_mclk_switching = false;
 	else
-		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) ||
-					  disable_mclk_switching_for_frame_lock ||
-					  smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time));
+		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
+					  !hwmgr->display_config->multi_monitor_in_sync) ||
+			disable_mclk_switching_for_frame_lock ||
+			smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time);
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
@@ -4067,6 +4068,11 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	pre_vbi_time_in_us = frame_time_in_us - 200 - hwmgr->display_config->min_vblank_time;
 
 	data->frame_time_x2 = frame_time_in_us * 2 / 100;
+
+	if (data->frame_time_x2 < 280) {
+		pr_debug("%s: enforce minimal VBITimeout: %d -> 280\n", __func__, data->frame_time_x2);
+		data->frame_time_x2 = 280;
+	}
 
 	display_gap2 = pre_vbi_time_in_us * (ref_clock / 100);
 

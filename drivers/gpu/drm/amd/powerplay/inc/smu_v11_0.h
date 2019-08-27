@@ -25,6 +25,12 @@
 
 #include "amdgpu_smu.h"
 
+#define SMU11_DRIVER_IF_VERSION_INV 0xFFFFFFFF
+#define SMU11_DRIVER_IF_VERSION_VG20 0x13
+#define SMU11_DRIVER_IF_VERSION_ARCT 0x09
+#define SMU11_DRIVER_IF_VERSION_NV10 0x33
+#define SMU11_DRIVER_IF_VERSION_NV14 0x34
+
 /* MP Apertures */
 #define MP0_Public			0x03800000
 #define MP0_SRAM			0x03900000
@@ -56,6 +62,12 @@
 
 #define WORKLOAD_MAP(profile, workload) \
 	[profile] = {1, (workload)}
+
+static const struct smu_temperature_range smu11_thermal_policy[] =
+{
+	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
+	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
+};
 
 struct smu_11_0_cmn2aisc_mapping {
 	int	valid_mapping;

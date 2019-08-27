@@ -18,8 +18,8 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _navi10_ip_offset_HEADER
-#define _navi10_ip_offset_HEADER
+#ifndef _navi12_ip_offset_HEADER
+#define _navi12_ip_offset_HEADER
 
 #define MAX_INSTANCE                                       7
 #define MAX_SEGMENT                                        5

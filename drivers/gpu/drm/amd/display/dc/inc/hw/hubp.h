@@ -47,6 +47,11 @@ enum cursor_lines_per_chunk {
 	CURSOR_LINE_PER_CHUNK_16
 };
 
+enum hubp_ind_block_size {
+	hubp_ind_block_unconstrained = 0,
+	hubp_ind_block_64b,
+};
+
 struct hubp {
 	const struct hubp_funcs *funcs;
 	struct dc_context *ctx;
@@ -74,7 +79,8 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
 
 	void (*dcc_control)(struct hubp *hubp, bool enable,
-			bool independent_64b_blks);
+			enum hubp_ind_block_size blk_size);
+
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
 			const struct rect *viewport,
@@ -110,9 +116,6 @@ struct hubp_funcs {
 		unsigned int compa_level);
 
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
-
-	void (*hubp_update_dchub)(struct hubp *hubp,
-				struct dchub_init_data *dh_data);
 
 	void (*set_blank)(struct hubp *hubp, bool blank);
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);

@@ -233,14 +233,14 @@ static void mpc2_ogam_get_reg_field(
 	reg->masks.exp_resion_start_segment = mpc20->mpc_mask->MPCC_OGAM_RAMA_EXP_REGION_START_SEGMENT_B;
 }
 
-static void mpc20_power_on_ogam_lut(
+void mpc20_power_on_ogam_lut(
 		struct mpc *mpc, int mpcc_id,
 		bool power_on)
 {
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
 	REG_SET(MPCC_MEM_PWR_CTRL[mpcc_id], 0,
-			MPCC_OGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
+			MPCC_OGAM_MEM_PWR_DIS, power_on == true ? 1:0);
 
 }
 
@@ -498,6 +498,7 @@ const struct mpc_funcs dcn20_mpc_funcs = {
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
 	.mpc_init = mpc1_mpc_init,
+	.mpc_init_single_inst = mpc1_mpc_init_single_inst,
 	.update_blending = mpc2_update_blending,
 	.get_mpcc_for_dpp = mpc2_get_mpcc_for_dpp,
 	.wait_for_idle = mpc2_assert_idle_mpcc,
@@ -508,6 +509,7 @@ const struct mpc_funcs dcn20_mpc_funcs = {
 	.set_output_csc = mpc2_set_output_csc,
 	.set_ocsc_default = mpc2_set_ocsc_default,
 	.set_output_gamma = mpc2_set_output_gamma,
+	.power_on_mpc_mem_pwr = mpc20_power_on_ogam_lut,
 };
 
 void dcn20_mpc_construct(struct dcn20_mpc *mpc20,

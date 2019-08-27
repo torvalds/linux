@@ -71,6 +71,7 @@ MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven2_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/renoir_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
@@ -102,6 +103,7 @@ static const char *amdgpu_asic_name[] = {
 	"VEGA20",
 	"RAVEN",
 	"ARCTURUS",
+	"RENOIR",
 	"NAVI10",
 	"NAVI14",
 	"NAVI12",
@@ -1427,6 +1429,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
 		break;
+	case CHIP_RENOIR:
+		chip_name = "renoir";
+		break;
 	case CHIP_NAVI10:
 		chip_name = "navi10";
 		break;
@@ -1579,7 +1584,9 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 	case CHIP_ARCTURUS:
-		if (adev->asic_type == CHIP_RAVEN)
+	case CHIP_RENOIR:
+		if (adev->asic_type == CHIP_RAVEN ||
+		    adev->asic_type == CHIP_RENOIR)
 			adev->family = AMDGPU_FAMILY_RV;
 		else
 			adev->family = AMDGPU_FAMILY_AI;
@@ -3518,6 +3525,7 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 		case CHIP_VEGA20:
 		case CHIP_VEGA10:
 		case CHIP_VEGA12:
+		case CHIP_RAVEN:
 			break;
 		default:
 			goto disabled;

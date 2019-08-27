@@ -2917,6 +2917,7 @@ static int vega20_get_fan_speed_percent(struct smu_context *smu,
 
 static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
 {
+	uint32_t smu_version;
 	int ret = 0;
 	SmuMetrics_t metrics;
 
@@ -2927,7 +2928,15 @@ static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrSocketPower << 8;
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
+		return ret;
+
+	/* For the 40.46 release, they changed the value name */
+	if (smu_version == 0x282e00)
+		*value = metrics.AverageSocketPower << 8;
+	else
+		*value = metrics.CurrSocketPower << 8;
 
 	return 0;
 }
@@ -3011,6 +3020,9 @@ static int vega20_read_sensor(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 
+	if(!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
 		*(uint32_t *)data = pptable->FanMaximumRpm;
@@ -3034,7 +3046,7 @@ static int vega20_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	default:
-		return -EINVAL;
+		ret = smu_smc_read_sensor(smu, sensor, data, size);
 	}
 
 	return ret;
@@ -3110,14 +3122,18 @@ static int vega20_get_thermal_temperature_range(struct smu_context *smu,
 	if (!range || !powerplay_table)
 		return -EINVAL;
 
-	/* The unit is temperature */
-	range->min = 0;
-	range->max = powerplay_table->usSoftwareShutdownTemp;
-	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE);
-	range->hotspot_crit_max = pptable->ThotspotLimit;
-	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT);
-	range->mem_crit_max = pptable->ThbmLimit;
-	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM);
+	range->max = powerplay_table->usSoftwareShutdownTemp *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->ThotspotLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->ThbmLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 
 	return 0;
@@ -3173,6 +3189,5 @@ void vega20_set_ppt_funcs(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 
 	smu->ppt_funcs = &vega20_ppt_funcs;
-	smu->smc_if_version = SMU11_DRIVER_IF_VERSION;
 	smu_table->table_count = TABLE_COUNT;
 }

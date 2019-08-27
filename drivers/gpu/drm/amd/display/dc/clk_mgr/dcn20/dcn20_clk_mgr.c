@@ -104,7 +104,6 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 {
 	int i;
 
-	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.dppclk_khz;
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
 		int dpp_inst, dppclk_khz;
 
@@ -114,28 +113,75 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 		dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
 		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
 		clk_mgr->dccg->funcs->update_dpp_dto(
-				clk_mgr->dccg, dpp_inst, dppclk_khz);
+				clk_mgr->dccg, dpp_inst, dppclk_khz, false);
 	}
 }
 
-void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr)
+static void update_global_dpp_clk(struct clk_mgr_internal *clk_mgr, unsigned int khz)
 {
 	int dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
-	int disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
+			* clk_mgr->dentist_vco_freq_khz / khz;
 
 	uint32_t dppclk_wdivider = dentist_get_did_from_divider(dpp_divider);
-	uint32_t dispclk_wdivider = dentist_get_did_from_divider(disp_divider);
 
-	REG_UPDATE(DENTIST_DISPCLK_CNTL,
-			DENTIST_DISPCLK_WDIVIDER, dispclk_wdivider);
-//	REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, 1, 5, 100);
 	REG_UPDATE(DENTIST_DISPCLK_CNTL,
 			DENTIST_DPPCLK_WDIVIDER, dppclk_wdivider);
 	REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_CHG_DONE, 1, 5, 100);
 }
 
+static void update_display_clk(struct clk_mgr_internal *clk_mgr, unsigned int khz)
+{
+	int disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->dentist_vco_freq_khz / khz;
+
+	uint32_t dispclk_wdivider = dentist_get_did_from_divider(disp_divider);
+
+	REG_UPDATE(DENTIST_DISPCLK_CNTL,
+			DENTIST_DISPCLK_WDIVIDER, dispclk_wdivider);
+}
+
+static void request_voltage_and_program_disp_clk(struct clk_mgr *clk_mgr_base, unsigned int khz)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct pp_smu_funcs_nv *pp_smu = NULL;
+	bool going_up = clk_mgr->base.clks.dispclk_khz < khz;
+
+	if (dc->res_pool->pp_smu)
+		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
+
+	clk_mgr->base.clks.dispclk_khz = khz;
+
+	if (going_up && pp_smu && pp_smu->set_voltage_by_freq)
+		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.dispclk_khz / 1000);
+
+	update_display_clk(clk_mgr, khz);
+
+	if (!going_up && pp_smu && pp_smu->set_voltage_by_freq)
+		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.dispclk_khz / 1000);
+}
+
+static void request_voltage_and_program_global_dpp_clk(struct clk_mgr *clk_mgr_base, unsigned int khz)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct pp_smu_funcs_nv *pp_smu = NULL;
+	bool going_up = clk_mgr->base.clks.dppclk_khz < khz;
+
+	if (dc->res_pool->pp_smu)
+		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
+
+	clk_mgr->base.clks.dppclk_khz = khz;
+	clk_mgr->dccg->ref_dppclk = khz;
+
+	if (going_up && pp_smu && pp_smu->set_voltage_by_freq)
+		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PIXELCLK, clk_mgr_base->clks.dppclk_khz / 1000);
+
+	update_global_dpp_clk(clk_mgr, khz);
+
+	if (!going_up && pp_smu && pp_smu->set_voltage_by_freq)
+		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PIXELCLK, clk_mgr_base->clks.dppclk_khz / 1000);
+}
 
 void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
@@ -146,12 +192,14 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	struct pp_smu_funcs_nv *pp_smu = NULL;
 	int display_count;
-	bool update_dppclk = false;
 	bool update_dispclk = false;
 	bool enter_display_off = false;
-	bool dpp_clock_lowered = false;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
 	bool force_reset = false;
+	int i;
+
+	if (dc->work_arounds.skip_clock_update)
+		return;
 
 	if (clk_mgr_base->clks.dispclk_khz == 0 ||
 		dc->debug.force_clock_mode & 0x1) {
@@ -176,6 +224,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 		if (pp_smu && pp_smu->set_voltage_by_freq)
 			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
 	}
+
 
 	if (dc->debug.force_min_dcfclk_mhz > 0)
 		new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
@@ -202,10 +251,12 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (should_update_pstate_support(safe_to_lower, new_clocks->p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
 		clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
+
 		clk_mgr_base->clks.p_state_change_support = new_clocks->p_state_change_support;
 		if (pp_smu && pp_smu->set_pstate_handshake_support)
 			pp_smu->set_pstate_handshake_support(&pp_smu->pp_smu, clk_mgr_base->clks.p_state_change_support);
 	}
+	clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
 
 	if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
 		clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
@@ -213,35 +264,48 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			pp_smu->set_hard_min_uclk_by_freq(&pp_smu->pp_smu, clk_mgr_base->clks.dramclk_khz / 1000);
 	}
 
-	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
-		if (clk_mgr->base.clks.dppclk_khz > new_clocks->dppclk_khz)
-			dpp_clock_lowered = true;
-		clk_mgr->base.clks.dppclk_khz = new_clocks->dppclk_khz;
+	if (dc->config.forced_clocks == false) {
+		// First update display clock
+		if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz))
+			request_voltage_and_program_disp_clk(clk_mgr_base, new_clocks->dispclk_khz);
 
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PIXELCLK, clk_mgr_base->clks.dppclk_khz / 1000);
+		// Updating DPP clock requires some more logic
+		if (!safe_to_lower) {
+			// For pre-programming, we need to make sure any DPP clock that will go up has to go up
 
-		update_dppclk = true;
-	}
+			// First raise the global reference if needed
+			if (new_clocks->dppclk_khz > clk_mgr_base->clks.dppclk_khz)
+				request_voltage_and_program_global_dpp_clk(clk_mgr_base, new_clocks->dppclk_khz);
 
-	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
-		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.dispclk_khz / 1000);
+			// Then raise any dividers that need raising
+			for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+				int dpp_inst, dppclk_khz;
 
-		update_dispclk = true;
-	}
-	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
-		if (dpp_clock_lowered) {
-			// if clock is being lowered, increase DTO before lowering refclk
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
-			dcn20_update_clocks_update_dentist(clk_mgr);
+				if (!context->res_ctx.pipe_ctx[i].plane_state)
+					continue;
+
+				dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
+				dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+				clk_mgr->dccg->funcs->update_dpp_dto(clk_mgr->dccg, dpp_inst, dppclk_khz, true);
+			}
 		} else {
-			// if clock is being raised, increase refclk before lowering DTO
-			if (update_dppclk || update_dispclk)
-				dcn20_update_clocks_update_dentist(clk_mgr);
-			if (update_dppclk)
-				dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
+			// For post-programming, we can lower ref clk if needed, and unconditionally set all the DTOs
+
+			if (new_clocks->dppclk_khz < clk_mgr_base->clks.dppclk_khz)
+				request_voltage_and_program_global_dpp_clk(clk_mgr_base, new_clocks->dppclk_khz);
+
+			for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+				int dpp_inst, dppclk_khz;
+
+				if (!context->res_ctx.pipe_ctx[i].plane_state)
+					continue;
+
+				dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
+				dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+				clk_mgr->dccg->funcs->update_dpp_dto(clk_mgr->dccg, dpp_inst, dppclk_khz, false);
+			}
 		}
 	}
 	if (update_dispclk &&

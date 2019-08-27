@@ -63,11 +63,6 @@ struct link_init_data {
 				TODO: remove it when DC is complete. */
 };
 
-enum {
-	FREE_ACQUIRED_RESOURCE = 0,
-	KEEP_ACQUIRED_RESOURCE = 1,
-};
-
 struct dc_link *link_create(const struct link_init_data *init_params);
 void link_destroy(struct dc_link **link);
 
@@ -82,7 +77,7 @@ void core_link_enable_stream(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx);
 
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option);
+void core_link_disable_stream(struct pipe_ctx *pipe_ctx);
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
@@ -228,14 +223,12 @@ struct resource_pool {
 
 struct dcn_fe_bandwidth {
 	int dppclk_khz;
-
 };
 
 struct stream_resource {
 	struct output_pixel_processor *opp;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct display_stream_compressor *dsc;
-	int dscclk_khz;
 #endif
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
@@ -299,6 +292,8 @@ struct pipe_ctx {
 
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;
+	struct pipe_ctx *next_odm_pipe;
+	struct pipe_ctx *prev_odm_pipe;
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;

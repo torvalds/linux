@@ -2101,7 +2101,11 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 	if (ret)
 		return ret;
 
-	*query = metrics_table.CurrSocketPower << 8;
+	/* For the 40.46 release, they changed the value name */
+	if (hwmgr->smu_version == 0x282e00)
+		*query = metrics_table.AverageSocketPower << 8;
+	else
+		*query = metrics_table.CurrSocketPower << 8;
 
 	return ret;
 }

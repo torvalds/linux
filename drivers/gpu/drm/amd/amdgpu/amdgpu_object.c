@@ -246,8 +246,9 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 	bp.size = size;
 	bp.byte_align = align;
 	bp.domain = domain;
-	bp.flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-		AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+	bp.flags = cpu_addr ? AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED
+		: AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+	bp.flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
 

@@ -941,8 +941,6 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	ret = navi10_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
-	if (ret)
-		return ret;
 
 	*value = metrics.AverageSocketPower << 8;
 
@@ -999,8 +997,6 @@ static int navi10_get_fan_speed_rpm(struct smu_context *smu,
 		return -EINVAL;
 
 	ret = navi10_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
 	if (ret)
 		return ret;
 
@@ -1386,6 +1382,9 @@ static int navi10_read_sensor(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 
+	if(!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
 		*(uint32_t *)data = pptable->FanMaximumRpm;
@@ -1407,7 +1406,7 @@ static int navi10_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	default:
-		return -EINVAL;
+		ret = smu_smc_read_sensor(smu, sensor, data, size);
 	}
 
 	return ret;
@@ -1483,6 +1482,10 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
 {
 	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->asic_type != CHIP_NAVI10)
+		return -EINVAL;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
@@ -1505,9 +1508,8 @@ static int navi10_get_thermal_temperature_range(struct smu_context *smu,
 	if (!range || !powerplay_table)
 		return -EINVAL;
 
-	/* The unit is temperature */
-	range->min = 0;
-	range->max = powerplay_table->software_shutdown_temp;
+	range->max = powerplay_table->software_shutdown_temp *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
 }
@@ -1631,6 +1633,5 @@ void navi10_set_ppt_funcs(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 
 	smu->ppt_funcs = &navi10_ppt_funcs;
-	smu->smc_if_version = SMU11_DRIVER_IF_VERSION;
 	smu_table->table_count = TABLE_COUNT;
 }

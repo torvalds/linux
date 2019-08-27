@@ -458,6 +458,7 @@ static int dce_virtual_hw_init(void *handle)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_ARCTURUS:
+	case CHIP_RENOIR:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:

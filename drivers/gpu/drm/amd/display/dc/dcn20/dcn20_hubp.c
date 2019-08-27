@@ -40,81 +40,6 @@
 #define FN(reg_name, field_name) \
 	hubp2->hubp_shift->field_name, hubp2->hubp_mask->field_name
 
-void hubp2_update_dchub(
-	struct hubp *hubp,
-	struct dchub_init_data *dh_data)
-{
-	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
-	if (REG(DCN_VM_FB_LOCATION_TOP) == 0)
-		return;
-
-	switch (dh_data->fb_mode) {
-	case FRAME_BUFFER_MODE_ZFB_ONLY:
-		/*For ZFB case need to put DCHUB FB BASE and TOP upside down to indicate ZFB mode*/
-		REG_UPDATE(DCN_VM_FB_LOCATION_TOP,
-				FB_TOP, 0);
-
-		REG_UPDATE(DCN_VM_FB_LOCATION_BASE,
-				FB_BASE, 0xFFFFFF);
-
-		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
-		REG_UPDATE(DCN_VM_AGP_BASE,
-				AGP_BASE, dh_data->zfb_phys_addr_base >> 24);
-
-		/*This field defines the bottom range of the AGP aperture and represents the 24*/
-		/*MSBs, bits [47:24] of the 48 address bits*/
-		REG_UPDATE(DCN_VM_AGP_BOT,
-				AGP_BOT, dh_data->zfb_mc_base_addr >> 24);
-
-		/*This field defines the top range of the AGP aperture and represents the 24*/
-		/*MSBs, bits [47:24] of the 48 address bits*/
-		REG_UPDATE(DCN_VM_AGP_TOP,
-				AGP_TOP, (dh_data->zfb_mc_base_addr +
-						dh_data->zfb_size_in_byte - 1) >> 24);
-		break;
-	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
-
-		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
-		REG_UPDATE(DCN_VM_AGP_BASE,
-				AGP_BASE, dh_data->zfb_phys_addr_base >> 24);
-
-		/*This field defines the bottom range of the AGP aperture and represents the 24*/
-		/*MSBs, bits [47:24] of the 48 address bits*/
-		REG_UPDATE(DCN_VM_AGP_BOT,
-				AGP_BOT, dh_data->zfb_mc_base_addr >> 24);
-
-		/*This field defines the top range of the AGP aperture and represents the 24*/
-		/*MSBs, bits [47:24] of the 48 address bits*/
-		REG_UPDATE(DCN_VM_AGP_TOP,
-				AGP_TOP, (dh_data->zfb_mc_base_addr +
-						dh_data->zfb_size_in_byte - 1) >> 24);
-		break;
-	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (should be done by VBIOS)*/
-
-		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
-		REG_UPDATE(DCN_VM_AGP_BASE,
-				AGP_BASE, 0);
-
-		/*This field defines the bottom range of the AGP aperture and represents the 24*/
-		/*MSBs, bits [47:24] of the 48 address bits*/
-		REG_UPDATE(DCN_VM_AGP_BOT,
-				AGP_BOT, 0xFFFFFF);
-
-		/*This field defines the top range of the AGP aperture and represents the 24*/
-		/*MSBs, bits [47:24] of the 48 address bits*/
-		REG_UPDATE(DCN_VM_AGP_TOP,
-				AGP_TOP, 0);
-		break;
-	default:
-		break;
-	}
-
-	dh_data->dchub_initialzied = true;
-	dh_data->dchub_info_valid = false;
-}
-
 void hubp2_set_vm_system_aperture_settings(struct hubp *hubp,
 		struct vm_system_aperture_param *apt)
 {
@@ -472,7 +397,7 @@ void hubp2_program_rotation(
 }
 
 void hubp2_dcc_control(struct hubp *hubp, bool enable,
-		bool independent_64b_blks)
+		enum hubp_ind_block_size independent_64b_blks)
 {
 	uint32_t dcc_en = enable ? 1 : 0;
 	uint32_t dcc_ind_64b_blk = independent_64b_blks ? 1 : 0;
@@ -1020,6 +945,8 @@ void hubp2_cursor_set_position(
 	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
 	int x_hotspot = pos->x_hotspot;
 	int y_hotspot = pos->y_hotspot;
+	int cursor_height = (int)hubp->curs_attr.height;
+	int cursor_width = (int)hubp->curs_attr.width;
 	uint32_t dst_x_offset;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
@@ -1033,10 +960,16 @@ void hubp2_cursor_set_position(
 	if (hubp->curs_attr.address.quad_part == 0)
 		return;
 
+	// Rotated cursor width/height and hotspots tweaks for offset calculation
 	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
-		src_x_offset = pos->y - pos->y_hotspot - param->viewport.x;
-		y_hotspot = pos->x_hotspot;
-		x_hotspot = pos->y_hotspot;
+		swap(cursor_height, cursor_width);
+		if (param->rotation == ROTATION_ANGLE_90) {
+			src_x_offset = pos->x - pos->y_hotspot - param->viewport.x;
+			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
+		}
+	} else if (param->rotation == ROTATION_ANGLE_180) {
+		src_x_offset = pos->x - param->viewport.x;
+		src_y_offset = pos->y - param->viewport.y;
 	}
 
 	if (param->mirror) {
@@ -1058,13 +991,13 @@ void hubp2_cursor_set_position(
 	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
-	if (src_x_offset + (int)hubp->curs_attr.width <= 0)
+	if (src_x_offset + cursor_width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	if (src_y_offset >= (int)param->viewport.height)
 		cur_en = 0;  /* not visible beyond bottom edge*/
 
-	if (src_y_offset + (int)hubp->curs_attr.height <= 0)
+	if (src_y_offset + cursor_height <= 0)
 		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
@@ -1321,7 +1254,6 @@ static struct hubp_funcs dcn20_hubp_funcs = {
 	.hubp_set_vm_system_aperture_settings = hubp2_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
 	.dcc_control = hubp2_dcc_control,
-	.hubp_update_dchub = hubp2_update_dchub,
 	.mem_program_viewport = min_set_viewport,
 	.set_cursor_attributes	= hubp2_cursor_set_attributes,
 	.set_cursor_position	= hubp2_cursor_set_position,

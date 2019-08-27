@@ -32,6 +32,7 @@
 #include "psp_v3_1.h"
 #include "psp_v10_0.h"
 #include "psp_v11_0.h"
+#include "psp_v12_0.h"
 
 static void psp_set_funcs(struct amdgpu_device *adev);
 
@@ -62,6 +63,9 @@ static int psp_early_init(void *handle)
 	case CHIP_NAVI12:
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
+		break;
+	case CHIP_RENOIR:
+		psp_v12_0_set_psp_funcs(psp);
 		break;
 	default:
 		return -EINVAL;
@@ -140,8 +144,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	memcpy(psp->cmd_buf_mem, cmd, sizeof(struct psp_gfx_cmd_resp));
 
 	index = atomic_inc_return(&psp->fence_value);
-	ret = psp_cmd_submit(psp, ucode, psp->cmd_buf_mc_addr,
-			     fence_mc_addr, index);
+	ret = psp_cmd_submit(psp, psp->cmd_buf_mc_addr, fence_mc_addr, index);
 	if (ret) {
 		atomic_dec(&psp->fence_value);
 		mutex_unlock(&psp->mutex);
@@ -260,7 +263,7 @@ static int psp_tmr_init(struct psp_context *psp)
 
 	ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
+				      &psp->tmr_bo, &psp->tmr_mc_addr, NULL);
 
 	return ret;
 }
@@ -940,6 +943,60 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	return 0;
 }
 
+static void psp_print_fw_hdr(struct psp_context *psp,
+			     struct amdgpu_firmware_info *ucode)
+{
+	struct amdgpu_device *adev = psp->adev;
+	const struct sdma_firmware_header_v1_0 *sdma_hdr =
+		(const struct sdma_firmware_header_v1_0 *)
+		adev->sdma.instance[ucode->ucode_id - AMDGPU_UCODE_ID_SDMA0].fw->data;
+	const struct gfx_firmware_header_v1_0 *ce_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
+	const struct gfx_firmware_header_v1_0 *pfp_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
+	const struct gfx_firmware_header_v1_0 *me_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
+	const struct gfx_firmware_header_v1_0 *mec_hdr =
+		(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
+	const struct rlc_firmware_header_v2_0 *rlc_hdr =
+		(const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
+	const struct smc_firmware_header_v1_0 *smc_hdr =
+		(const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
+
+	switch (ucode->ucode_id) {
+	case AMDGPU_UCODE_ID_SDMA0:
+	case AMDGPU_UCODE_ID_SDMA1:
+	case AMDGPU_UCODE_ID_SDMA2:
+	case AMDGPU_UCODE_ID_SDMA3:
+	case AMDGPU_UCODE_ID_SDMA4:
+	case AMDGPU_UCODE_ID_SDMA5:
+	case AMDGPU_UCODE_ID_SDMA6:
+	case AMDGPU_UCODE_ID_SDMA7:
+		amdgpu_ucode_print_sdma_hdr(&sdma_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_CE:
+		amdgpu_ucode_print_gfx_hdr(&ce_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_PFP:
+		amdgpu_ucode_print_gfx_hdr(&pfp_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_ME:
+		amdgpu_ucode_print_gfx_hdr(&me_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_CP_MEC1:
+		amdgpu_ucode_print_gfx_hdr(&mec_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_RLC_G:
+		amdgpu_ucode_print_rlc_hdr(&rlc_hdr->header);
+		break;
+	case AMDGPU_UCODE_ID_SMC:
+		amdgpu_ucode_print_smc_hdr(&smc_hdr->header);
+		break;
+	default:
+		break;
+	}
+}
+
 static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 				       struct psp_gfx_cmd_resp *cmd)
 {
@@ -1019,14 +1076,19 @@ out:
 		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
 			/* skip mec JT when autoload is enabled */
 			continue;
+		/* Renoir only needs to load mec jump table one time */
+		if (adev->asic_type == CHIP_RENOIR &&
+		    ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT)
+			continue;
+
+		psp_print_fw_hdr(psp, ucode);
 
 		ret = psp_execute_np_fw_load(psp, ucode);
 		if (ret)
 			return ret;
 
 		/* Start rlc autoload after psp recieved all the gfx firmware */
-		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM ||
-		    (adev->asic_type == CHIP_NAVI12 && ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G)) {
+		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
 			ret = psp_rlc_autoload(psp);
 			if (ret) {
 				DRM_ERROR("Failed to start rlc autoload\n");
@@ -1154,7 +1216,7 @@ static int psp_hw_fini(void *handle)
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
-	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
+	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, NULL);
 	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
 			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
@@ -1354,6 +1416,15 @@ const struct amdgpu_ip_block_version psp_v11_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 11,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v12_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 12,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,

@@ -87,6 +87,7 @@
 #include "amdgpu_discovery.h"
 #include "amdgpu_mes.h"
 #include "amdgpu_umc.h"
+#include "amdgpu_mmhub.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -788,7 +789,6 @@ struct amdgpu_device {
 	int				usec_timeout;
 	const struct amdgpu_asic_funcs	*asic_funcs;
 	bool				shutdown;
-	bool				need_dma32;
 	bool				need_swiotlb;
 	bool				accel_working;
 	struct notifier_block		acpi_nb;
@@ -976,6 +976,7 @@ struct amdgpu_device {
 
 	const struct amdgpu_nbio_funcs	*nbio_funcs;
 	const struct amdgpu_df_funcs	*df_funcs;
+	const struct amdgpu_mmhub_funcs	*mmhub_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
 	struct delayed_work     delayed_init_work;

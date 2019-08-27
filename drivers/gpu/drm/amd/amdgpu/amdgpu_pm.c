@@ -2828,10 +2828,12 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			DRM_ERROR("failed to create device file pp_dpm_socclk\n");
 			return ret;
 		}
-		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
-		if (ret) {
-			DRM_ERROR("failed to create device file pp_dpm_dcefclk\n");
-			return ret;
+		if (adev->asic_type != CHIP_ARCTURUS) {
+			ret = device_create_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
+			if (ret) {
+				DRM_ERROR("failed to create device file pp_dpm_dcefclk\n");
+				return ret;
+			}
 		}
 	}
 	if (adev->asic_type >= CHIP_VEGA20) {
@@ -2841,10 +2843,12 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			return ret;
 		}
 	}
-	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
-	if (ret) {
-		DRM_ERROR("failed to create device file pp_dpm_pcie\n");
-		return ret;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
+		if (ret) {
+			DRM_ERROR("failed to create device file pp_dpm_pcie\n");
+			return ret;
+		}
 	}
 	ret = device_create_file(adev->dev, &dev_attr_pp_sclk_od);
 	if (ret) {
@@ -2948,9 +2952,11 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
 	if (adev->asic_type >= CHIP_VEGA10) {
 		device_remove_file(adev->dev, &dev_attr_pp_dpm_socclk);
-		device_remove_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
+		if (adev->asic_type != CHIP_ARCTURUS)
+			device_remove_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
 	}
-	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
+	if (adev->asic_type != CHIP_ARCTURUS)
+		device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	if (adev->asic_type >= CHIP_VEGA20)
 		device_remove_file(adev->dev, &dev_attr_pp_dpm_fclk);
 	device_remove_file(adev->dev, &dev_attr_pp_sclk_od);

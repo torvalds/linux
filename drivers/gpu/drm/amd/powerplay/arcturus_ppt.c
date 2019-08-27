@@ -51,6 +51,15 @@
 #define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
 #define SMU_FEATURES_HIGH_SHIFT      32
 
+#define SMC_DPM_FEATURE ( \
+	FEATURE_DPM_PREFETCHER_MASK | \
+	FEATURE_DPM_GFXCLK_MASK | \
+	FEATURE_DPM_UCLK_MASK | \
+	FEATURE_DPM_SOCCLK_MASK | \
+	FEATURE_DPM_MP0CLK_MASK | \
+	FEATURE_DPM_FCLK_MASK | \
+	FEATURE_DPM_XGMI_MASK)
+
 /* possible frequency drift (1Mhz) */
 #define EPSILON				1
 
@@ -172,7 +181,7 @@ static struct smu_11_0_cmn2aisc_mapping arcturus_workload_map[PP_SMC_POWER_PROFI
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_PPLIB_DEFAULT_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
@@ -215,7 +224,6 @@ static int arcturus_get_smu_feature_index(struct smu_context *smc, uint32_t inde
 
 	mapping = arcturus_feature_mask_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU feature: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -455,7 +463,8 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 			return ret;
 		}
 	} else {
-		single_dpm_table->count = 0;
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 	}
 	arcturus_init_single_dpm_state(&(single_dpm_table->dpm_state));
 
@@ -869,22 +878,13 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	return ret;
 }
 
-static const struct smu_temperature_range arcturus_thermal_policy[] =
-{
-	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
-	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
-};
-
 static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 						struct smu_temperature_range *range)
 {
-
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
 	if (!range)
 		return -EINVAL;
-
-	memcpy(range, &arcturus_thermal_policy[0], sizeof(struct smu_temperature_range));
 
 	range->max = pptable->TedgeLimit *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
@@ -898,7 +898,6 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	range->mem_emergency_max = (pptable->TmemLimit + CTF_OFFSET_HBM)*
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-
 
 	return 0;
 }
@@ -1014,6 +1013,9 @@ static int arcturus_read_sensor(struct smu_context *smu,
 	PPTable_t *pptable = table_context->driver_pptable;
 	int ret = 0;
 
+	if (!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
 		*(uint32_t *)data = pptable->FanMaximumRpm;
@@ -1038,7 +1040,7 @@ static int arcturus_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	default:
-		return -EINVAL;
+		ret = smu_smc_read_sensor(smu, sensor, data, size);
 	}
 
 	return ret;
@@ -1874,6 +1876,17 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 
 }
 
+static bool arcturus_is_dpm_running(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t feature_mask[2];
+	unsigned long feature_enabled;
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
+			   ((uint64_t)feature_mask[1] << 32));
+	return !!(feature_enabled & SMC_DPM_FEATURE);
+}
+
 static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* translate smu index into arcturus specific index */
 	.get_smu_msg_index = arcturus_get_smu_msg_index,
@@ -1911,6 +1924,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* debug (internal used) */
 	.dump_pptable = arcturus_dump_pptable,
 	.get_power_limit = arcturus_get_power_limit,
+	.is_dpm_running = arcturus_is_dpm_running,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)
@@ -1918,6 +1932,5 @@ void arcturus_set_ppt_funcs(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 
 	smu->ppt_funcs = &arcturus_ppt_funcs;
-	smu->smc_if_version = SMU11_DRIVER_IF_VERSION;
 	smu_table->table_count = TABLE_COUNT;
 }

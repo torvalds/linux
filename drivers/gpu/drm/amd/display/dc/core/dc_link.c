@@ -45,10 +45,6 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-#include "resource.h"
-#endif
-#include "hw/clk_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -684,6 +680,56 @@ static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
 }
 
+bool wait_for_alt_mode(struct dc_link *link)
+{
+
+	/**
+	 * something is terribly wrong if time out is > 200ms. (5Hz)
+	 * 500 microseconds * 400 tries us 200 ms
+	 **/
+	unsigned int sleep_time_in_microseconds = 500;
+	unsigned int tries_allowed = 400;
+	bool is_in_alt_mode;
+	unsigned long long enter_timestamp;
+	unsigned long long finish_timestamp;
+	unsigned long long time_taken_in_ns;
+	int tries_taken;
+
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	if (link->link_enc->funcs->is_in_alt_mode == NULL)
+		return true;
+
+	is_in_alt_mode = link->link_enc->funcs->is_in_alt_mode(link->link_enc);
+	DC_LOG_WARNING("DP Alt mode state on HPD: %d\n", is_in_alt_mode);
+
+	if (is_in_alt_mode)
+		return true;
+
+	enter_timestamp = dm_get_timestamp(link->ctx);
+
+	for (tries_taken = 0; tries_taken < tries_allowed; tries_taken++) {
+		udelay(sleep_time_in_microseconds);
+		/* ask the link if alt mode is enabled, if so return ok */
+		if (link->link_enc->funcs->is_in_alt_mode(link->link_enc)) {
+
+			finish_timestamp = dm_get_timestamp(link->ctx);
+			time_taken_in_ns = dm_get_elapse_time_in_ns(
+				link->ctx, finish_timestamp, enter_timestamp);
+			DC_LOG_WARNING("Alt mode entered finished after %llu ms\n",
+				       div_u64(time_taken_in_ns, 1000000));
+			return true;
+		}
+
+	}
+	finish_timestamp = dm_get_timestamp(link->ctx);
+	time_taken_in_ns = dm_get_elapse_time_in_ns(link->ctx, finish_timestamp,
+						    enter_timestamp);
+	DC_LOG_WARNING("Alt mode has timed out after %llu ms\n",
+			div_u64(time_taken_in_ns, 1000000));
+	return false;
+}
+
 /**
  * dc_link_detect() - Detect if a sink is attached to a given link
  *
@@ -772,6 +818,15 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
+			/* wa HPD high coming too early*/
+			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
+
+				/* if alt mode times out, return false */
+				if (wait_for_alt_mode(link) == false) {
+					return false;
+				}
+			}
+
 			if (!detect_dp(
 				link,
 				&sink_caps,
@@ -795,16 +850,9 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 					dc_sink_release(prev_sink);
 				} else {
 					/* Empty dongle plug in */
-					for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
-						int fail_count = 0;
-
-						dp_verify_link_cap(link,
-								  &link->reported_link_cap,
-								  &fail_count);
-
-						if (fail_count == 0)
-							break;
-					}
+					dp_verify_link_cap_with_retries(link,
+							&link->reported_link_cap,
+							LINK_TRAINING_MAX_VERIFY_RETRY);
 				}
 				return true;
 			}
@@ -908,17 +956,9 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			 */
 
 			/* deal with non-mst cases */
-			for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
-				int fail_count = 0;
-
-				dp_verify_link_cap(link,
-						  &link->reported_link_cap,
-						  &fail_count);
-
-				if (fail_count == 0)
-					break;
-			}
-
+			dp_verify_link_cap_with_retries(link,
+					&link->reported_link_cap,
+					LINK_TRAINING_MAX_VERIFY_RETRY);
 		} else {
 			// If edid is the same, then discard new sink and revert back to original sink
 			if (same_edid) {
@@ -1387,57 +1427,6 @@ void link_destroy(struct dc_link **link)
 	*link = NULL;
 }
 
-static void dpcd_configure_panel_mode(
-	struct dc_link *link,
-	enum dp_panel_mode panel_mode)
-{
-	union dpcd_edp_config edp_config_set;
-	bool panel_mode_edp = false;
-	DC_LOGGER_INIT(link->ctx->logger);
-
-	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
-
-	if (DP_PANEL_MODE_DEFAULT != panel_mode) {
-
-		switch (panel_mode) {
-		case DP_PANEL_MODE_EDP:
-		case DP_PANEL_MODE_SPECIAL:
-			panel_mode_edp = true;
-			break;
-
-		default:
-			break;
-		}
-
-		/*set edp panel mode in receiver*/
-		core_link_read_dpcd(
-			link,
-			DP_EDP_CONFIGURATION_SET,
-			&edp_config_set.raw,
-			sizeof(edp_config_set.raw));
-
-		if (edp_config_set.bits.PANEL_MODE_EDP
-			!= panel_mode_edp) {
-			enum ddc_result result = DDC_RESULT_UNKNOWN;
-
-			edp_config_set.bits.PANEL_MODE_EDP =
-			panel_mode_edp;
-			result = core_link_write_dpcd(
-				link,
-				DP_EDP_CONFIGURATION_SET,
-				&edp_config_set.raw,
-				sizeof(edp_config_set.raw));
-
-			ASSERT(result == DDC_RESULT_SUCESSFULL);
-		}
-	}
-	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
-			"eDP panel mode enabled: %d \n",
-			link->link_index,
-			link->dpcd_caps.panel_mode_edp,
-			panel_mode_edp);
-}
-
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -1472,6 +1461,16 @@ static enum dc_status enable_link_dp(
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool fec_enable;
 #endif
+	int i;
+	bool apply_seamless_boot_optimization = false;
+
+	// check for seamless boot
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i]->apply_seamless_boot_optimization) {
+			apply_seamless_boot_optimization = true;
+			break;
+		}
+	}
 
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
@@ -1493,7 +1492,8 @@ static enum dc_status enable_link_dp(
 
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-	state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
+	if (!apply_seamless_boot_optimization)
+		state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
 
 	dp_enable_link_phy(
 		link,
@@ -1508,7 +1508,7 @@ static enum dc_status enable_link_dp(
 	}
 
 	panel_mode = dp_get_panel_mode(link);
-	dpcd_configure_panel_mode(link, panel_mode);
+	dp_set_panel_mode(link, panel_mode);
 
 	skip_video_pattern = true;
 
@@ -2767,21 +2767,27 @@ void core_link_enable_stream(
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 					COLOR_DEPTH_UNDEFINED);
 
-		core_dc->hwss.enable_stream(pipe_ctx);
-
-		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-			allocate_mst_payload(pipe_ctx);
-
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 		if (pipe_ctx->stream->timing.flags.DSC) {
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 					dc_is_virtual_signal(pipe_ctx->stream->signal))
 				dp_set_dsc_enable(pipe_ctx, true);
-			pipe_ctx->stream_res.tg->funcs->wait_for_state(
-					pipe_ctx->stream_res.tg,
-					CRTC_STATE_VBLANK);
 		}
 #endif
+		core_dc->hwss.enable_stream(pipe_ctx);
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		/* Set DPS PPS SDP (AKA "info frames") */
+		if (pipe_ctx->stream->timing.flags.DSC) {
+			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+					dc_is_virtual_signal(pipe_ctx->stream->signal))
+				dp_set_dsc_pps_sdp(pipe_ctx, true);
+		}
+#endif
+
+		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+			allocate_mst_payload(pipe_ctx);
+
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);
 
@@ -2798,7 +2804,7 @@ void core_link_enable_stream(
 #endif
 }
 
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -2833,7 +2839,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 			write_i2c_redriver_setting(pipe_ctx, false);
 		}
 	}
-	core_dc->hwss.disable_stream(pipe_ctx, option);
+	core_dc->hwss.disable_stream(pipe_ctx);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

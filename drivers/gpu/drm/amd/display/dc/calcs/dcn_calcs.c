@@ -705,6 +705,13 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
+
+unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev)
+{
+	/* we are ok with all levels */
+	return 4;
+}
+
 bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
@@ -732,6 +739,7 @@ bool dcn_validate_bandwidth(
 
 	memset(v, 0, sizeof(*v));
 	kernel_fpu_begin();
+
 	v->sr_exit_time = dc->dcn_soc->sr_exit_time;
 	v->sr_enter_plus_exit_time = dc->dcn_soc->sr_enter_plus_exit_time;
 	v->urgent_latency = dc->dcn_soc->urgent_latency;
@@ -1268,7 +1276,7 @@ bool dcn_validate_bandwidth(
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();
 
-	if (bw_limit_pass && v->voltage_level != 5)
+	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(dc->ctx->asic_id.hw_internal_rev))
 		return true;
 	else
 		return false;

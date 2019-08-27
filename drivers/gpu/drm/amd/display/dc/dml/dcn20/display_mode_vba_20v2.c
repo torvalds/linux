@@ -1475,6 +1475,33 @@ static void dml20v2_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndP
 							/ mode_lib->vba.ReturnBW;
 
 	mode_lib->vba.LastPixelOfLineExtraWatermark = 0;
+	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
+			if (mode_lib->vba.VRatio[k] <= 1.0)
+				mode_lib->vba.DisplayPipeLineDeliveryTimeLuma[k] =
+						(double) mode_lib->vba.SwathWidthY[k]
+								* mode_lib->vba.DPPPerPlane[k]
+								/ mode_lib->vba.HRatio[k]
+								/ mode_lib->vba.PixelClock[k];
+			else
+				mode_lib->vba.DisplayPipeLineDeliveryTimeLuma[k] =
+						(double) mode_lib->vba.SwathWidthY[k]
+								/ mode_lib->vba.PSCL_THROUGHPUT_LUMA[k]
+								/ mode_lib->vba.DPPCLK[k];
+
+			if (mode_lib->vba.BytePerPixelDETC[k] == 0)
+				mode_lib->vba.DisplayPipeLineDeliveryTimeChroma[k] = 0.0;
+			else if (mode_lib->vba.VRatio[k] / 2.0 <= 1.0)
+				mode_lib->vba.DisplayPipeLineDeliveryTimeChroma[k] =
+						mode_lib->vba.SwathWidthY[k] / 2.0
+								* mode_lib->vba.DPPPerPlane[k]
+								/ (mode_lib->vba.HRatio[k] / 2.0)
+								/ mode_lib->vba.PixelClock[k];
+			else
+				mode_lib->vba.DisplayPipeLineDeliveryTimeChroma[k] =
+						mode_lib->vba.SwathWidthY[k] / 2.0
+								/ mode_lib->vba.PSCL_THROUGHPUT_CHROMA[k]
+								/ mode_lib->vba.DPPCLK[k];
+		}
 
 	mode_lib->vba.UrgentExtraLatency = mode_lib->vba.UrgentRoundTripAndOutOfOrderLatency
 			+ (mode_lib->vba.TotalActiveDPP * mode_lib->vba.PixelChunkSizeInKByte

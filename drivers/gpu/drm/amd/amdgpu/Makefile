@@ -100,7 +100,8 @@ amdgpu-y += \
 	amdgpu_psp.o \
 	psp_v3_1.o \
 	psp_v10_0.o \
-	psp_v11_0.o
+	psp_v11_0.o \
+	psp_v12_0.o
 
 # add SMC block
 amdgpu-y += \
@@ -154,6 +155,7 @@ amdgpu-y += \
 
 # add ATHUB block
 amdgpu-y += \
+	athub_v1_0.o \
 	athub_v2_0.o
 
 # add amdkfd interfaces
