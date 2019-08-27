@@ -26,6 +26,7 @@
 #include "../../util/record.h"
 #include "../../util/target.h"
 #include "../../util/tsc.h"
+#include "../../util/util.h"
 #include "../../util/intel-pt.h"
 
 #define KiB(x) ((x) * 1024)

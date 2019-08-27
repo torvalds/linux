@@ -52,6 +52,7 @@
 #include <subcmd/pager.h>
 #include <perf/evlist.h>
 #include "util/record.h"
+#include "util/util.h"
 
 #include <linux/ctype.h>
 

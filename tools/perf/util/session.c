@@ -29,6 +29,7 @@
 #include "thread-stack.h"
 #include "sample-raw.h"
 #include "stat.h"
+#include "util.h"
 #include "arch/common.h"
 
 #ifdef HAVE_ZSTD_SUPPORT

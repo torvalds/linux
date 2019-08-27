@@ -40,6 +40,7 @@
 #include "stat.h"
 #include "string2.h"
 #include "memswap.h"
+#include "util.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
 

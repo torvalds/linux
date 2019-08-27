@@ -50,6 +50,7 @@
 #include "intel-bts.h"
 #include "arm-spe.h"
 #include "s390-cpumsf.h"
+#include "util.h"
 
 #include <linux/ctype.h>
 #include "symbol/kallsyms.h"

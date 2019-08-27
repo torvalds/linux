@@ -13,7 +13,6 @@
 #include "event.h"
 #include "evsel.h"
 #include "mmap.h"
-#include "util.h"
 #include <signal.h>
 #include <unistd.h>
 

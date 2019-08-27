@@ -16,6 +16,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "units.h"
+#include "util.h"
 #include "asm/bug.h"
 #include "bpf-event.h"
 #include <signal.h>
