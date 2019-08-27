@@ -688,11 +688,14 @@ static void pfifo_fast_reset(struct Qdisc *qdisc)
 			kfree_skb(skb);
 	}
 
-	for_each_possible_cpu(i) {
-		struct gnet_stats_queue *q = per_cpu_ptr(qdisc->cpu_qstats, i);
+	if (qdisc_is_percpu_stats(qdisc)) {
+		for_each_possible_cpu(i) {
+			struct gnet_stats_queue *q;
 
-		q->backlog = 0;
-		q->qlen = 0;
+			q = per_cpu_ptr(qdisc->cpu_qstats, i);
+			q->backlog = 0;
+			q->qlen = 0;
+		}
 	}
 }
 
