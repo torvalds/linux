@@ -151,10 +151,9 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 					.addr = 0x10,
 					.mask = GENMASK(4, 3),
 				},
-				.fs_avl[0] = { IIO_DEGREE_TO_RAD(245), 0x0 },
-				.fs_avl[1] = { IIO_DEGREE_TO_RAD(500), 0x1 },
-				.fs_avl[2] = { IIO_DEGREE_TO_RAD(0), 0x2 },
-				.fs_avl[3] = { IIO_DEGREE_TO_RAD(2000), 0x3 },
+				.fs_avl[0] = {  IIO_DEGREE_TO_RAD(245), 0x0 },
+				.fs_avl[1] = {  IIO_DEGREE_TO_RAD(500), 0x1 },
+				.fs_avl[2] = { IIO_DEGREE_TO_RAD(2000), 0x3 },
 			},
 		},
 	},
@@ -1196,13 +1195,19 @@ static ssize_t st_lsm6dsx_sysfs_scale_avail(struct device *dev,
 					    char *buf)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	const struct st_lsm6dsx_fs_table_entry *fs_table;
 	enum st_lsm6dsx_sensor_id id = sensor->id;
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int i, len = 0;
 
-	for (i = 0; i < ST_LSM6DSX_FS_LIST_SIZE; i++)
+	fs_table = &hw->settings->fs_table[id];
+	for (i = 0; i < ST_LSM6DSX_FS_LIST_SIZE; i++) {
+		if (!fs_table->fs_avl[i].gain)
+			break;
+
 		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-				 hw->settings->fs_table[id].fs_avl[i].gain);
+				 fs_table->fs_avl[i].gain);
+	}
 	buf[len - 1] = '\n';
 
 	return len;
