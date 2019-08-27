@@ -451,7 +451,7 @@ struct hl_debug_params_spmu {
 #define HL_DEBUG_OP_BMON	4
 /* Opcode for SPMU component */
 #define HL_DEBUG_OP_SPMU	5
-/* Opcode for timestamp */
+/* Opcode for timestamp (deprecated) */
 #define HL_DEBUG_OP_TIMESTAMP	6
 /* Opcode for setting the device into or out of debug mode. The enable
  * variable should be 1 for enabling debug mode and 0 for disabling it

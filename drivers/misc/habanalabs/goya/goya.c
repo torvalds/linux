@@ -2062,6 +2062,25 @@ static void goya_disable_msix(struct hl_device *hdev)
 	goya->hw_cap_initialized &= ~HW_CAP_MSIX;
 }
 
+static void goya_enable_timestamp(struct hl_device *hdev)
+{
+	/* Disable the timestamp counter */
+	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 0);
+
+	/* Zero the lower/upper parts of the 64-bit counter */
+	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE + 0xC, 0);
+	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE + 0x8, 0);
+
+	/* Enable the counter */
+	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 1);
+}
+
+static void goya_disable_timestamp(struct hl_device *hdev)
+{
+	/* Disable the timestamp counter */
+	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 0);
+}
+
 static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
 {
 	u32 wait_timeout_ms, cpu_timeout_ms;
@@ -2101,6 +2120,8 @@ static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
 
 	goya_disable_external_queues(hdev);
 	goya_disable_internal_queues(hdev);
+
+	goya_disable_timestamp(hdev);
 
 	if (hard_reset) {
 		goya_disable_msix(hdev);
@@ -2503,6 +2524,8 @@ static int goya_hw_init(struct hl_device *hdev)
 	goya_init_mme_qmans(hdev);
 
 	goya_init_tpc_qmans(hdev);
+
+	goya_enable_timestamp(hdev);
 
 	/* MSI-X must be enabled before CPU queues are initialized */
 	rc = goya_enable_msix(hdev);

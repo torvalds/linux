@@ -636,24 +636,11 @@ static int goya_config_spmu(struct hl_device *hdev,
 	return 0;
 }
 
-static int goya_config_timestamp(struct hl_device *hdev,
-		struct hl_debug_params *params)
-{
-	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 0);
-	if (params->enable) {
-		WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE + 0xC, 0);
-		WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE + 0x8, 0);
-		WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 1);
-	}
-
-	return 0;
-}
-
 int goya_debug_coresight(struct hl_device *hdev, void *data)
 {
 	struct hl_debug_params *params = data;
 	u32 val;
-	int rc;
+	int rc = 0;
 
 	switch (params->op) {
 	case HL_DEBUG_OP_STM:
@@ -675,7 +662,7 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 		rc = goya_config_spmu(hdev, params);
 		break;
 	case HL_DEBUG_OP_TIMESTAMP:
-		rc = goya_config_timestamp(hdev, params);
+		/* Do nothing as this opcode is deprecated */
 		break;
 
 	default:
