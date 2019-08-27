@@ -1076,11 +1076,11 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(HASWELL_X,		idle_cpu_hsw),
 	INTEL_CPU_FAM6(HASWELL_L,		idle_cpu_hsw),
 	INTEL_CPU_FAM6(HASWELL_G,		idle_cpu_hsw),
-	INTEL_CPU_FAM6(ATOM_SILVERMONT_X,	idle_cpu_avn),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_D,	idle_cpu_avn),
 	INTEL_CPU_FAM6(BROADWELL,		idle_cpu_bdw),
 	INTEL_CPU_FAM6(BROADWELL_G,		idle_cpu_bdw),
 	INTEL_CPU_FAM6(BROADWELL_X,		idle_cpu_bdw),
-	INTEL_CPU_FAM6(BROADWELL_XEON_D,	idle_cpu_bdw),
+	INTEL_CPU_FAM6(BROADWELL_D,		idle_cpu_bdw),
 	INTEL_CPU_FAM6(SKYLAKE_L,		idle_cpu_skl),
 	INTEL_CPU_FAM6(SKYLAKE,			idle_cpu_skl),
 	INTEL_CPU_FAM6(KABYLAKE_L,		idle_cpu_skl),
@@ -1090,8 +1090,8 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(XEON_PHI_KNM,		idle_cpu_knl),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT,		idle_cpu_bxt),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	idle_cpu_bxt),
-	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		idle_cpu_dnv),
-	INTEL_CPU_FAM6(ATOM_TREMONT_X,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_D,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(ATOM_TREMONT_D,		idle_cpu_dnv),
 	{}
 };
 

@@ -205,7 +205,7 @@ static int __init pt_pmu_hw_init(void)
 	/* model-specific quirks */
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_BROADWELL:
-	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_D:
 	case INTEL_FAM6_BROADWELL_G:
 	case INTEL_FAM6_BROADWELL_X:
 		/* not setting BRANCH_EN will #GP, erratum BDM106 */
