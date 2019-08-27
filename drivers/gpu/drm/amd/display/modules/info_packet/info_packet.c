@@ -114,25 +114,6 @@ enum ColorimetryYCCDP {
 	ColorimetryYCC_DP_ITU2020YCbCr  = 7,
 };
 
-void setFieldWithMask(unsigned char *dest, unsigned int mask, unsigned int value)
-{
-	unsigned int shift = 0;
-
-	if (!mask || !dest)
-		return;
-
-	while (!((mask >> shift) & 1))
-		shift++;
-
-	//reset
-	*dest = *dest & ~mask;
-	//set
-	//dont let value span past mask
-	value = value & (mask >> shift);
-	//insert value
-	*dest = *dest | (value << shift);
-}
-
 void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		struct dc_info_packet *info_packet)
 {
