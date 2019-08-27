@@ -71,8 +71,14 @@
 	phy-handle = <&ethphy3>;
 };
 
-&emmc {
+&emmc_controller {
 	status = "okay";
+};
+
+&emmc {
+	non-removable;
+	bus-width = <4>;
+	max-frequency = <52000000>;
 };
 
 &rtc {
