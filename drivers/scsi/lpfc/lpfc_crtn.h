@@ -433,16 +433,6 @@ int lpfc_sli4_get_allocated_extnts(struct lpfc_hba *, uint16_t,
 int lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *, uint16_t,
 					  uint16_t *, uint16_t *);
 
-/* externs BlockGuard */
-extern char *_dump_buf_data;
-extern unsigned long _dump_buf_data_order;
-extern char *_dump_buf_dif;
-extern unsigned long _dump_buf_dif_order;
-extern spinlock_t _dump_buf_lock;
-extern int _dump_buf_done;
-extern spinlock_t pgcnt_lock;
-extern unsigned int pgcnt;
-
 /* Interface exported by fabric iocb scheduler */
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *);
 void lpfc_fabric_abort_hba(struct lpfc_hba *);

@@ -53,8 +53,6 @@
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
 
-int _dump_buf_done = 1;
-
 static char *dif_op_str[] = {
 	"PROT_NORMAL",
 	"PROT_READ_INSERT",
@@ -88,63 +86,6 @@ static void
 lpfc_release_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *psb);
 static int
 lpfc_prot_group_type(struct lpfc_hba *phba, struct scsi_cmnd *sc);
-
-static void
-lpfc_debug_save_data(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
-{
-	void *src, *dst;
-	struct scatterlist *sgde = scsi_sglist(cmnd);
-
-	if (!_dump_buf_data) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9050 BLKGRD: ERROR %s _dump_buf_data is NULL\n",
-				__func__);
-		return;
-	}
-
-
-	if (!sgde) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9051 BLKGRD: ERROR: data scatterlist is null\n");
-		return;
-	}
-
-	dst = (void *) _dump_buf_data;
-	while (sgde) {
-		src = sg_virt(sgde);
-		memcpy(dst, src, sgde->length);
-		dst += sgde->length;
-		sgde = sg_next(sgde);
-	}
-}
-
-static void
-lpfc_debug_save_dif(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
-{
-	void *src, *dst;
-	struct scatterlist *sgde = scsi_prot_sglist(cmnd);
-
-	if (!_dump_buf_dif) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9052 BLKGRD: ERROR %s _dump_buf_data is NULL\n",
-				__func__);
-		return;
-	}
-
-	if (!sgde) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9053 BLKGRD: ERROR: prot scatterlist is null\n");
-		return;
-	}
-
-	dst = _dump_buf_dif;
-	while (sgde) {
-		src = sg_virt(sgde);
-		memcpy(dst, src, sgde->length);
-		dst += sgde->length;
-		sgde = sg_next(sgde);
-	}
-}
 
 static inline unsigned
 lpfc_cmd_blksize(struct scsi_cmnd *sc)
@@ -2961,26 +2902,6 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 	uint32_t bghm = bgf->bghm;
 	uint32_t bgstat = bgf->bgstat;
 	uint64_t failing_sector = 0;
-
-	spin_lock(&_dump_buf_lock);
-	if (!_dump_buf_done) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,  "9070 BLKGRD: Saving"
-			" Data for %u blocks to debugfs\n",
-				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-		lpfc_debug_save_data(phba, cmd);
-
-		/* If we have a prot sgl, save the DIF buffer */
-		if (lpfc_prot_group_type(phba, cmd) ==
-				LPFC_PG_TYPE_DIF_BUF) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9071 BLKGRD: "
-				"Saving DIF for %u blocks to debugfs\n",
-				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-			lpfc_debug_save_dif(phba, cmd);
-		}
-
-		_dump_buf_done = 1;
-	}
-	spin_unlock(&_dump_buf_lock);
 
 	if (lpfc_bgs_get_invalid_prof(bgstat)) {
 		cmd->result = DID_ERROR << 16;
