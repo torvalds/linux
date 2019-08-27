@@ -959,11 +959,11 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 
 	INTEL_CPU_FAM6(HASWELL, rapl_defaults_core),
 	INTEL_CPU_FAM6(HASWELL_L, rapl_defaults_core),
-	INTEL_CPU_FAM6(HASWELL_GT3E, rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_G, rapl_defaults_core),
 	INTEL_CPU_FAM6(HASWELL_X, rapl_defaults_hsw_server),
 
 	INTEL_CPU_FAM6(BROADWELL, rapl_defaults_core),
-	INTEL_CPU_FAM6(BROADWELL_GT3E, rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_G, rapl_defaults_core),
 	INTEL_CPU_FAM6(BROADWELL_XEON_D, rapl_defaults_core),
 	INTEL_CPU_FAM6(BROADWELL_X, rapl_defaults_hsw_server),
 
