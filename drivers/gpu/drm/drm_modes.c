@@ -1454,6 +1454,7 @@ static int drm_mode_parse_cmdline_refresh(const char *str, char **end_ptr,
 }
 
 static int drm_mode_parse_cmdline_extra(const char *str, int length,
+					bool freestanding,
 					const struct drm_connector *connector,
 					struct drm_cmdline_mode *mode)
 {
@@ -1462,9 +1463,15 @@ static int drm_mode_parse_cmdline_extra(const char *str, int length,
 	for (i = 0; i < length; i++) {
 		switch (str[i]) {
 		case 'i':
+			if (freestanding)
+				return -EINVAL;
+
 			mode->interlace = true;
 			break;
 		case 'm':
+			if (freestanding)
+				return -EINVAL;
+
 			mode->margins = true;
 			break;
 		case 'D':
@@ -1542,6 +1549,7 @@ static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 			if (extras) {
 				int ret = drm_mode_parse_cmdline_extra(end_ptr + i,
 								       1,
+								       false,
 								       connector,
 								       mode);
 				if (ret)
@@ -1811,7 +1819,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	    extra_ptr != options_ptr) {
 		int len = strlen(name) - (extra_ptr - name);
 
-		ret = drm_mode_parse_cmdline_extra(extra_ptr, len,
+		ret = drm_mode_parse_cmdline_extra(extra_ptr, len, false,
 						   connector, mode);
 		if (ret)
 			return false;
