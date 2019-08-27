@@ -397,6 +397,7 @@ static int igt_ctx_exec(void *arg)
 			}
 
 			ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
+			GEM_BUG_ON(IS_ERR(ce));
 
 			if (!obj) {
 				obj = create_test_object(ce->vm, file, &objects);
@@ -521,6 +522,8 @@ static int igt_shared_ctx_exec(void *arg)
 			__assign_ppgtt(ctx, parent->vm);
 
 			ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
+			GEM_BUG_ON(IS_ERR(ce));
+
 			if (!obj) {
 				obj = create_test_object(parent->vm, file, &objects);
 				if (IS_ERR(obj)) {
