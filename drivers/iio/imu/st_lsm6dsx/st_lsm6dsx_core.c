@@ -141,10 +141,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 					.addr = 0x20,
 					.mask = GENMASK(4, 3),
 				},
-				.fs_avl[0] = {  599, 0x0 },
-				.fs_avl[1] = { 1197, 0x2 },
-				.fs_avl[2] = { 2394, 0x3 },
-				.fs_avl[3] = { 4788, 0x1 },
+				.fs_avl[0] = {  IIO_G_TO_M_S_2(61), 0x0 },
+				.fs_avl[1] = { IIO_G_TO_M_S_2(122), 0x2 },
+				.fs_avl[2] = { IIO_G_TO_M_S_2(244), 0x3 },
+				.fs_avl[3] = { IIO_G_TO_M_S_2(732), 0x1 },
 			},
 			[ST_LSM6DSX_ID_GYRO] = {
 				.reg = {
