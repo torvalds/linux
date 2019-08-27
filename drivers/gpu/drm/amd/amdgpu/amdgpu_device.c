@@ -3794,14 +3794,14 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	if (hive && !mutex_trylock(&hive->reset_lock)) {
 		DRM_INFO("Bailing on TDR for s_job:%llx, hive: %llx as another already in progress",
-			 job->base.id, hive->hive_id);
+			  job ? job->base.id : -1, hive->hive_id);
 		return 0;
 	}
 
 	/* Start with adev pre asic reset first for soft reset check.*/
 	if (!amdgpu_device_lock_adev(adev, !hive)) {
 		DRM_INFO("Bailing on TDR for s_job:%llx, as another already in progress",
-					 job->base.id);
+			  job ? job->base.id : -1);
 		return 0;
 	}
 
@@ -3842,7 +3842,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			if (!ring || !ring->sched.thread)
 				continue;
 
-			drm_sched_stop(&ring->sched, &job->base);
+			drm_sched_stop(&ring->sched, job ? &job->base : NULL);
 		}
 	}
 
@@ -3867,9 +3867,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 
 	/* Guilty job will be freed after this*/
-	r = amdgpu_device_pre_asic_reset(adev,
-					 job,
-					 &need_full_reset);
+	r = amdgpu_device_pre_asic_reset(adev, job, &need_full_reset);
 	if (r) {
 		/*TODO Should we stop ?*/
 		DRM_ERROR("GPU pre asic reset failed with err, %d for drm dev, %s ",
