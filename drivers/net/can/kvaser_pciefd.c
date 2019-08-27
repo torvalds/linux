@@ -65,6 +65,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_SYSID_BASE 0x1f020
 #define KVASER_PCIEFD_SYSID_VERSION_REG (KVASER_PCIEFD_SYSID_BASE + 0x8)
 #define KVASER_PCIEFD_SYSID_CANFREQ_REG (KVASER_PCIEFD_SYSID_BASE + 0xc)
+#define KVASER_PCIEFD_SYSID_BUSFREQ_REG (KVASER_PCIEFD_SYSID_BASE + 0x10)
 #define KVASER_PCIEFD_SYSID_BUILD_REG (KVASER_PCIEFD_SYSID_BASE + 0x14)
 /* Shared receive buffer registers */
 #define KVASER_PCIEFD_SRB_BASE 0x1f200
@@ -268,6 +269,7 @@ struct kvaser_pciefd {
 	struct kvaser_pciefd_can *can[KVASER_PCIEFD_MAX_CAN_CHANNELS];
 	void *dma_data[KVASER_PCIEFD_DMA_COUNT];
 	u8 nr_channels;
+	u32 bus_freq;
 	u32 freq;
 	u32 freq_to_ticks_div;
 };
@@ -666,7 +668,7 @@ static void kvaser_pciefd_pwm_start(struct kvaser_pciefd_can *can)
 	spin_lock_irqsave(&can->lock, irq);
 
 	/* Set frequency to 500 KHz*/
-	top = can->can.clock.freq / (2 * 500000) - 1;
+	top = can->kv_pcie->bus_freq / (2 * 500000) - 1;
 
 	pwm_ctrl = top & 0xff;
 	pwm_ctrl |= (top & 0xff) << KVASER_PCIEFD_KCAN_PWM_TOP_SHIFT;
@@ -1119,6 +1121,8 @@ static int kvaser_pciefd_setup_board(struct kvaser_pciefd *pcie)
 		return -ENODEV;
 	}
 
+	pcie->bus_freq = ioread32(pcie->reg_base +
+				  KVASER_PCIEFD_SYSID_BUSFREQ_REG);
 	pcie->freq = ioread32(pcie->reg_base + KVASER_PCIEFD_SYSID_CANFREQ_REG);
 	pcie->freq_to_ticks_div = pcie->freq / 1000000;
 	if (pcie->freq_to_ticks_div == 0)
