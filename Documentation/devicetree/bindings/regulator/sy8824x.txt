@@ -1,7 +1,9 @@
-SY8824C Voltage regulator
+SY8824C/SY8824E Voltage regulator
 
 Required properties:
-- compatible: Must be "silergy,sy8824c"
+- compatible: Must be one of the following.
+	"silergy,sy8824c"
+	"silergy,sy8824e"
 - reg: I2C slave address
 
 Any property defined as part of the core regulator binding, defined in
