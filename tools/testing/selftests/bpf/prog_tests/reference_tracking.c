@@ -10,10 +10,8 @@ void test_reference_tracking(void)
 	int err = 0;
 
 	obj = bpf_object__open(file);
-	if (IS_ERR(obj)) {
-		error_cnt++;
+	if (CHECK_FAIL(IS_ERR(obj)))
 		return;
-	}
 
 	bpf_object__for_each_program(prog, obj) {
 		const char *title;
