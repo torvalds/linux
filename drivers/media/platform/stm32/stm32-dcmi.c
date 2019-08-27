@@ -1861,7 +1861,6 @@ static int dcmi_probe(struct platform_device *pdev)
 	np = of_graph_get_next_endpoint(np, NULL);
 	if (!np) {
 		dev_err(&pdev->dev, "Could not find the endpoint\n");
-		of_node_put(np);
 		return -ENODEV;
 	}
 
