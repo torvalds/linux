@@ -96,19 +96,19 @@ static inline int validate_clock_permissions(const clockid_t clock)
  * Update expiry time from increment, and increase overrun count,
  * given the current clock sample.
  */
-static void bump_cpu_timer(struct k_itimer *timer, u64 now)
+static u64 bump_cpu_timer(struct k_itimer *timer, u64 now)
 {
+	u64 delta, incr, expires = timer->it.cpu.node.expires;
 	int i;
-	u64 delta, incr;
 
 	if (!timer->it_interval)
-		return;
+		return expires;
 
-	if (now < timer->it.cpu.expires)
-		return;
+	if (now < expires)
+		return expires;
 
 	incr = timer->it_interval;
-	delta = now + incr - timer->it.cpu.expires;
+	delta = now + incr - expires;
 
 	/* Don't use (incr*2 < delta), incr*2 might overflow. */
 	for (i = 0; incr < delta - incr; i++)
@@ -118,10 +118,11 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 		if (delta < incr)
 			continue;
 
-		timer->it.cpu.expires += incr;
+		timer->it.cpu.node.expires += incr;
 		timer->it_overrun += 1LL << i;
 		delta -= incr;
 	}
+	return timer->it.cpu.node.expires;
 }
 
 /* Check whether all cache entries contain U64_MAX, i.e. eternal expiry time */
@@ -365,7 +366,7 @@ static int posix_cpu_timer_create(struct k_itimer *new_timer)
 		return -EINVAL;
 
 	new_timer->kclock = &clock_posix_cpu;
-	INIT_LIST_HEAD(&new_timer->it.cpu.entry);
+	timerqueue_init(&new_timer->it.cpu.node);
 	new_timer->it.cpu.task = p;
 	return 0;
 }
@@ -378,10 +379,11 @@ static int posix_cpu_timer_create(struct k_itimer *new_timer)
  */
 static int posix_cpu_timer_del(struct k_itimer *timer)
 {
-	int ret = 0;
-	unsigned long flags;
+	struct cpu_timer *ctmr = &timer->it.cpu;
+	struct task_struct *p = ctmr->task;
 	struct sighand_struct *sighand;
-	struct task_struct *p = timer->it.cpu.task;
+	unsigned long flags;
+	int ret = 0;
 
 	if (WARN_ON_ONCE(!p))
 		return -EINVAL;
@@ -393,15 +395,15 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 	sighand = lock_task_sighand(p, &flags);
 	if (unlikely(sighand == NULL)) {
 		/*
-		 * We raced with the reaping of the task.
-		 * The deletion should have cleared us off the list.
+		 * This raced with the reaping of the task. The exit cleanup
+		 * should have removed this timer from the timer queue.
 		 */
-		WARN_ON_ONCE(!list_empty(&timer->it.cpu.entry));
+		WARN_ON_ONCE(ctmr->head || timerqueue_node_queued(&ctmr->node));
 	} else {
 		if (timer->it.cpu.firing)
 			ret = TIMER_RETRY;
 		else
-			list_del(&timer->it.cpu.entry);
+			cpu_timer_dequeue(ctmr);
 
 		unlock_task_sighand(p, &flags);
 	}
@@ -412,12 +414,16 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 	return ret;
 }
 
-static void cleanup_timers_list(struct list_head *head)
+static void cleanup_timerqueue(struct timerqueue_head *head)
 {
-	struct cpu_timer_list *timer, *next;
+	struct timerqueue_node *node;
+	struct cpu_timer *ctmr;
 
-	list_for_each_entry_safe(timer, next, head, entry)
-		list_del_init(&timer->entry);
+	while ((node = timerqueue_getnext(head))) {
+		timerqueue_del(head, node);
+		ctmr = container_of(node, struct cpu_timer, node);
+		ctmr->head = NULL;
+	}
 }
 
 /*
@@ -429,9 +435,9 @@ static void cleanup_timers_list(struct list_head *head)
  */
 static void cleanup_timers(struct posix_cputimers *pct)
 {
-	cleanup_timers_list(&pct->bases[CPUCLOCK_PROF].cpu_timers);
-	cleanup_timers_list(&pct->bases[CPUCLOCK_VIRT].cpu_timers);
-	cleanup_timers_list(&pct->bases[CPUCLOCK_SCHED].cpu_timers);
+	cleanup_timerqueue(&pct->bases[CPUCLOCK_PROF].tqhead);
+	cleanup_timerqueue(&pct->bases[CPUCLOCK_VIRT].tqhead);
+	cleanup_timerqueue(&pct->bases[CPUCLOCK_SCHED].tqhead);
 }
 
 /*
@@ -454,28 +460,18 @@ void posix_cpu_timers_exit_group(struct task_struct *tsk)
  */
 static void arm_timer(struct k_itimer *timer)
 {
-	struct cpu_timer_list *const nt = &timer->it.cpu;
 	int clkidx = CPUCLOCK_WHICH(timer->it_clock);
-	struct task_struct *p = timer->it.cpu.task;
-	u64 newexp = timer->it.cpu.expires;
+	struct cpu_timer *ctmr = &timer->it.cpu;
+	u64 newexp = cpu_timer_getexpires(ctmr);
+	struct task_struct *p = ctmr->task;
 	struct posix_cputimer_base *base;
-	struct list_head *head, *listpos;
-	struct cpu_timer_list *next;
 
 	if (CPUCLOCK_PERTHREAD(timer->it_clock))
 		base = p->posix_cputimers.bases + clkidx;
 	else
 		base = p->signal->posix_cputimers.bases + clkidx;
 
-	listpos = head = &base->cpu_timers;
-	list_for_each_entry(next,head, entry) {
-		if (nt->expires < next->expires)
-			break;
-		listpos = &next->entry;
-	}
-	list_add(&nt->entry, listpos);
-
-	if (listpos != head)
+	if (!cpu_timer_enqueue(&base->tqhead, ctmr))
 		return;
 
 	/*
@@ -498,24 +494,26 @@ static void arm_timer(struct k_itimer *timer)
  */
 static void cpu_timer_fire(struct k_itimer *timer)
 {
+	struct cpu_timer *ctmr = &timer->it.cpu;
+
 	if ((timer->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) {
 		/*
 		 * User don't want any signal.
 		 */
-		timer->it.cpu.expires = 0;
+		cpu_timer_setexpires(ctmr, 0);
 	} else if (unlikely(timer->sigq == NULL)) {
 		/*
 		 * This a special case for clock_nanosleep,
 		 * not a normal timer from sys_timer_create.
 		 */
 		wake_up_process(timer->it_process);
-		timer->it.cpu.expires = 0;
+		cpu_timer_setexpires(ctmr, 0);
 	} else if (!timer->it_interval) {
 		/*
 		 * One-shot timer.  Clear it as soon as it's fired.
 		 */
 		posix_timer_event(timer, 0);
-		timer->it.cpu.expires = 0;
+		cpu_timer_setexpires(ctmr, 0);
 	} else if (posix_timer_event(timer, ++timer->it_requeue_pending)) {
 		/*
 		 * The signal did not get queued because the signal
@@ -539,10 +537,11 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 {
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
 	u64 old_expires, new_expires, old_incr, val;
-	struct task_struct *p = timer->it.cpu.task;
+	struct cpu_timer *ctmr = &timer->it.cpu;
+	struct task_struct *p = ctmr->task;
 	struct sighand_struct *sighand;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	if (WARN_ON_ONCE(!p))
 		return -EINVAL;
@@ -562,22 +561,21 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 * If p has just been reaped, we can no
 	 * longer get any information about it at all.
 	 */
-	if (unlikely(sighand == NULL)) {
+	if (unlikely(sighand == NULL))
 		return -ESRCH;
-	}
 
 	/*
 	 * Disarm any old timer after extracting its expiry time.
 	 */
-
-	ret = 0;
 	old_incr = timer->it_interval;
-	old_expires = timer->it.cpu.expires;
+	old_expires = cpu_timer_getexpires(ctmr);
+
 	if (unlikely(timer->it.cpu.firing)) {
 		timer->it.cpu.firing = -1;
 		ret = TIMER_RETRY;
-	} else
-		list_del_init(&timer->it.cpu.entry);
+	} else {
+		cpu_timer_dequeue(ctmr);
+	}
 
 	/*
 	 * We need to sample the current value to convert the new
@@ -598,18 +596,16 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			old->it_value.tv_nsec = 0;
 		} else {
 			/*
-			 * Update the timer in case it has
-			 * overrun already.  If it has,
-			 * we'll report it as having overrun
-			 * and with the next reloaded timer
-			 * already ticking, though we are
-			 * swallowing that pending
-			 * notification here to install the
-			 * new setting.
+			 * Update the timer in case it has overrun already.
+			 * If it has, we'll report it as having overrun and
+			 * with the next reloaded timer already ticking,
+			 * though we are swallowing that pending
+			 * notification here to install the new setting.
 			 */
-			bump_cpu_timer(timer, val);
-			if (val < timer->it.cpu.expires) {
-				old_expires = timer->it.cpu.expires - val;
+			u64 exp = bump_cpu_timer(timer, val);
+
+			if (val < exp) {
+				old_expires = exp - val;
 				old->it_value = ns_to_timespec64(old_expires);
 			} else {
 				old->it_value.tv_nsec = 1;
@@ -638,7 +634,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 * For a timer with no notification action, we don't actually
 	 * arm the timer (we'll just fake it for timer_gettime).
 	 */
-	timer->it.cpu.expires = new_expires;
+	cpu_timer_setexpires(ctmr, new_expires);
 	if (new_expires != 0 && val < new_expires) {
 		arm_timer(timer);
 	}
@@ -680,8 +676,9 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp)
 {
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
-	struct task_struct *p = timer->it.cpu.task;
-	u64 now;
+	struct cpu_timer *ctmr = &timer->it.cpu;
+	u64 now, expires = cpu_timer_getexpires(ctmr);
+	struct task_struct *p = ctmr->task;
 
 	if (WARN_ON_ONCE(!p))
 		return;
@@ -691,7 +688,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 	 */
 	itp->it_interval = ktime_to_timespec64(timer->it_interval);
 
-	if (!timer->it.cpu.expires)
+	if (!expires)
 		return;
 
 	/*
@@ -713,9 +710,9 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 			/*
 			 * The process has been reaped.
 			 * We can't even collect a sample any more.
-			 * Call the timer disarmed, nothing else to do.
+			 * Disarm the timer, nothing else to do.
 			 */
-			timer->it.cpu.expires = 0;
+			cpu_timer_setexpires(ctmr, 0);
 			return;
 		} else {
 			now = cpu_clock_sample_group(clkid, p, false);
@@ -723,8 +720,8 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 		}
 	}
 
-	if (now < timer->it.cpu.expires) {
-		itp->it_value = ns_to_timespec64(timer->it.cpu.expires - now);
+	if (now < expires) {
+		itp->it_value = ns_to_timespec64(expires - now);
 	} else {
 		/*
 		 * The timer should have expired already, but the firing
@@ -735,37 +732,41 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 	}
 }
 
-static unsigned long long
-check_timers_list(struct list_head *timers,
-		  struct list_head *firing,
-		  unsigned long long curr)
+#define MAX_COLLECTED	20
+
+static u64 collect_timerqueue(struct timerqueue_head *head,
+			      struct list_head *firing, u64 now)
 {
-	int maxfire = 20;
+	struct timerqueue_node *next;
+	int i = 0;
 
-	while (!list_empty(timers)) {
-		struct cpu_timer_list *t;
+	while ((next = timerqueue_getnext(head))) {
+		struct cpu_timer *ctmr;
+		u64 expires;
 
-		t = list_first_entry(timers, struct cpu_timer_list, entry);
+		ctmr = container_of(next, struct cpu_timer, node);
+		expires = cpu_timer_getexpires(ctmr);
+		/* Limit the number of timers to expire at once */
+		if (++i == MAX_COLLECTED || now < expires)
+			return expires;
 
-		if (!--maxfire || curr < t->expires)
-			return t->expires;
-
-		t->firing = 1;
-		list_move_tail(&t->entry, firing);
+		ctmr->firing = 1;
+		cpu_timer_dequeue(ctmr);
+		list_add_tail(&ctmr->elist, firing);
 	}
 
 	return U64_MAX;
 }
 
-static void collect_posix_cputimers(struct posix_cputimers *pct,
-				    u64 *samples, struct list_head *firing)
+static void collect_posix_cputimers(struct posix_cputimers *pct, u64 *samples,
+				    struct list_head *firing)
 {
 	struct posix_cputimer_base *base = pct->bases;
 	int i;
 
 	for (i = 0; i < CPUCLOCK_MAX; i++, base++) {
-		base->nextevt = check_timers_list(&base->cpu_timers, firing,
-						   samples[i]);
+		base->nextevt = collect_timerqueue(&base->tqhead, firing,
+						    samples[i]);
 	}
 }
 
@@ -948,7 +949,8 @@ static void check_process_timers(struct task_struct *tsk,
 static void posix_cpu_timer_rearm(struct k_itimer *timer)
 {
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
-	struct task_struct *p = timer->it.cpu.task;
+	struct cpu_timer *ctmr = &timer->it.cpu;
+	struct task_struct *p = ctmr->task;
 	struct sighand_struct *sighand;
 	unsigned long flags;
 	u64 now;
@@ -980,7 +982,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 			 * The process has been reaped.
 			 * We can't even collect a sample any more.
 			 */
-			timer->it.cpu.expires = 0;
+			cpu_timer_setexpires(ctmr, 0);
 			return;
 		} else if (unlikely(p->exit_state) && thread_group_empty(p)) {
 			/* If the process is dying, no need to rearm */
@@ -1124,11 +1126,11 @@ void run_posix_cpu_timers(void)
 	 * each timer's lock before clearing its firing flag, so no
 	 * timer call will interfere.
 	 */
-	list_for_each_entry_safe(timer, next, &firing, it.cpu.entry) {
+	list_for_each_entry_safe(timer, next, &firing, it.cpu.elist) {
 		int cpu_firing;
 
 		spin_lock(&timer->it_lock);
-		list_del_init(&timer->it.cpu.entry);
+		list_del_init(&timer->it.cpu.elist);
 		cpu_firing = timer->it.cpu.firing;
 		timer->it.cpu.firing = 0;
 		/*
@@ -1204,6 +1206,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 	timer.it_overrun = -1;
 	error = posix_cpu_timer_create(&timer);
 	timer.it_process = current;
+
 	if (!error) {
 		static struct itimerspec64 zero_it;
 		struct restart_block *restart;
@@ -1219,7 +1222,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		}
 
 		while (!signal_pending(current)) {
-			if (timer.it.cpu.expires == 0) {
+			if (!cpu_timer_getexpires(&timer.it.cpu)) {
 				/*
 				 * Our timer fired and was reset, below
 				 * deletion can not fail.
@@ -1241,7 +1244,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		/*
 		 * We were interrupted by a signal.
 		 */
-		expires = timer.it.cpu.expires;
+		expires = cpu_timer_getexpires(&timer.it.cpu);
 		error = posix_cpu_timer_set(&timer, 0, &zero_it, &it);
 		if (!error) {
 			/*

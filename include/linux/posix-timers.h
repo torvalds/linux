@@ -5,16 +5,10 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/alarmtimer.h>
+#include <linux/timerqueue.h>
 
 struct kernel_siginfo;
 struct task_struct;
-
-struct cpu_timer_list {
-	struct list_head entry;
-	u64 expires;
-	struct task_struct *task;
-	int firing;
-};
 
 /*
  * Bit fields within a clockid:
@@ -65,13 +59,57 @@ static inline int clockid_to_fd(const clockid_t clk)
 #ifdef CONFIG_POSIX_TIMERS
 
 /**
+ * cpu_timer - Posix CPU timer representation for k_itimer
+ * @node:	timerqueue node to queue in the task/sig
+ * @head:	timerqueue head on which this timer is queued
+ * @task:	Pointer to target task
+ * @elist:	List head for the expiry list
+ * @firing:	Timer is currently firing
+ */
+struct cpu_timer {
+	struct timerqueue_node	node;
+	struct timerqueue_head	*head;
+	struct task_struct	*task;
+	struct list_head	elist;
+	int			firing;
+};
+
+static inline bool cpu_timer_requeue(struct cpu_timer *ctmr)
+{
+	return timerqueue_add(ctmr->head, &ctmr->node);
+}
+
+static inline bool cpu_timer_enqueue(struct timerqueue_head *head,
+				     struct cpu_timer *ctmr)
+{
+	ctmr->head = head;
+	return timerqueue_add(head, &ctmr->node);
+}
+
+static inline void cpu_timer_dequeue(struct cpu_timer *ctmr)
+{
+	if (!RB_EMPTY_NODE(&ctmr->node.node))
+		timerqueue_del(ctmr->head, &ctmr->node);
+}
+
+static inline u64 cpu_timer_getexpires(struct cpu_timer *ctmr)
+{
+	return ctmr->node.expires;
+}
+
+static inline void cpu_timer_setexpires(struct cpu_timer *ctmr, u64 exp)
+{
+	ctmr->node.expires = exp;
+}
+
+/**
  * posix_cputimer_base - Container per posix CPU clock
  * @nextevt:		Earliest-expiration cache
- * @cpu_timers:		List heads to queue posix CPU timers
+ * @tqhead:		timerqueue head for cpu_timers
  */
 struct posix_cputimer_base {
 	u64			nextevt;
-	struct list_head	cpu_timers;
+	struct timerqueue_head	tqhead;
 };
 
 /**
@@ -92,14 +130,10 @@ struct posix_cputimers {
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
 {
-	pct->timers_active = 0;
-	pct->expiry_active = 0;
+	memset(pct, 0, sizeof(*pct));
 	pct->bases[0].nextevt = U64_MAX;
 	pct->bases[1].nextevt = U64_MAX;
 	pct->bases[2].nextevt = U64_MAX;
-	INIT_LIST_HEAD(&pct->bases[0].cpu_timers);
-	INIT_LIST_HEAD(&pct->bases[1].cpu_timers);
-	INIT_LIST_HEAD(&pct->bases[2].cpu_timers);
 }
 
 void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit);
@@ -113,7 +147,6 @@ static inline void posix_cputimers_rt_watchdog(struct posix_cputimers *pct,
 /* Init task static initializer */
 #define INIT_CPU_TIMERBASE(b) {						\
 	.nextevt	= U64_MAX,					\
-	.cpu_timers	= LIST_HEAD_INIT(b.cpu_timers),			\
 }
 
 #define INIT_CPU_TIMERBASES(b) {					\
@@ -182,7 +215,7 @@ struct k_itimer {
 		struct {
 			struct hrtimer	timer;
 		} real;
-		struct cpu_timer_list	cpu;
+		struct cpu_timer	cpu;
 		struct {
 			struct alarm	alarmtimer;
 		} alarm;
