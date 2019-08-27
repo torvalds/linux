@@ -523,7 +523,6 @@ static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 	args = argbuf = kstrdup(buf, GFP_KERNEL);
 	if (!argbuf) {
 		pr_info("Could not allocate resources for DLPAR operation\n");
-		kfree(argbuf);
 		return -ENOMEM;
 	}
 
