@@ -25,24 +25,17 @@
 #define VMCS12_REVISION 0x11e57ed0
 #define VCPU_ID 5
 
+bool have_evmcs;
+
 void test_nested_state(struct kvm_vm *vm, struct kvm_nested_state *state)
 {
-	volatile struct kvm_run *run;
-
 	vcpu_nested_state_set(vm, VCPU_ID, state, false);
-	run = vcpu_state(vm, VCPU_ID);
-	vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
-		"Got exit_reason other than KVM_EXIT_SHUTDOWN: %u (%s),\n",
-		run->exit_reason,
-		exit_reason_str(run->exit_reason));
 }
 
 void test_nested_state_expect_errno(struct kvm_vm *vm,
 				    struct kvm_nested_state *state,
 				    int expected_errno)
 {
-	volatile struct kvm_run *run;
 	int rv;
 
 	rv = vcpu_nested_state_set(vm, VCPU_ID, state, true);
@@ -50,12 +43,6 @@ void test_nested_state_expect_errno(struct kvm_vm *vm,
 		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i errno: %s (%d)",
 		strerror(expected_errno), expected_errno, rv, strerror(errno),
 		errno);
-	run = vcpu_state(vm, VCPU_ID);
-	vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
-		"Got exit_reason other than KVM_EXIT_SHUTDOWN: %u (%s),\n",
-		run->exit_reason,
-		exit_reason_str(run->exit_reason));
 }
 
 void test_nested_state_expect_einval(struct kvm_vm *vm,
@@ -90,8 +77,9 @@ void set_default_vmx_state(struct kvm_nested_state *state, int size)
 {
 	memset(state, 0, size);
 	state->flags = KVM_STATE_NESTED_GUEST_MODE  |
-			KVM_STATE_NESTED_RUN_PENDING |
-			KVM_STATE_NESTED_EVMCS;
+			KVM_STATE_NESTED_RUN_PENDING;
+	if (have_evmcs)
+		state->flags |= KVM_STATE_NESTED_EVMCS;
 	state->format = 0;
 	state->size = size;
 	state->hdr.vmx.vmxon_pa = 0x1000;
@@ -141,13 +129,19 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	/*
 	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
 	 * setting the nested state but flags other than eVMCS must be clear.
+	 * The eVMCS flag can be set if the enlightened VMCS capability has
+	 * been enabled.
 	 */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = -1ull;
 	state->hdr.vmx.vmcs12_pa = -1ull;
 	test_nested_state_expect_einval(vm, state);
 
-	state->flags = KVM_STATE_NESTED_EVMCS;
+	state->flags &= KVM_STATE_NESTED_EVMCS;
+	if (have_evmcs) {
+		test_nested_state_expect_einval(vm, state);
+		vcpu_enable_evmcs(vm, VCPU_ID);
+	}
 	test_nested_state(vm, state);
 
 	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
@@ -231,6 +225,8 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	struct kvm_nested_state state;
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
+
+	have_evmcs = kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
 	if (!kvm_check_cap(KVM_CAP_NESTED_STATE)) {
 		printf("KVM_CAP_NESTED_STATE not available, skipping test\n");
