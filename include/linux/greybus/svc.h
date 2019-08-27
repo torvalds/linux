@@ -9,6 +9,9 @@
 #ifndef __SVC_H
 #define __SVC_H
 
+#include <linux/types.h>
+#include <linux/device.h>
+
 #define GB_SVC_CPORT_FLAG_E2EFC		BIT(0)
 #define GB_SVC_CPORT_FLAG_CSD_N		BIT(1)
 #define GB_SVC_CPORT_FLAG_CSV_N		BIT(2)

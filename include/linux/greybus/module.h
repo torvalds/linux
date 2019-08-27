@@ -9,6 +9,9 @@
 #ifndef __MODULE_H
 #define __MODULE_H
 
+#include <linux/types.h>
+#include <linux/device.h>
+
 struct gb_module {
 	struct device dev;
 	struct gb_host_device *hd;

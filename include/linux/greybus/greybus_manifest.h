@@ -14,6 +14,9 @@
 #ifndef __GREYBUS_MANIFEST_H
 #define __GREYBUS_MANIFEST_H
 
+#include <linux/bits.h>
+#include <linux/types.h>
+
 enum greybus_descriptor_type {
 	GREYBUS_TYPE_INVALID		= 0x00,
 	GREYBUS_TYPE_INTERFACE		= 0x01,

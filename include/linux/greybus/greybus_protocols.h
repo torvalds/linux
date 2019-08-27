@@ -7,6 +7,8 @@
 #ifndef __GREYBUS_PROTOCOLS_H
 #define __GREYBUS_PROTOCOLS_H
 
+#include <linux/types.h>
+
 /* Fixed IDs for control/svc protocols */
 
 /* SVC switch-port device ids */

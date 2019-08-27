@@ -9,6 +9,9 @@
 #ifndef __HD_H
 #define __HD_H
 
+#include <linux/types.h>
+#include <linux/device.h>
+
 struct gb_host_device;
 struct gb_message;
 

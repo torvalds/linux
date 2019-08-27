@@ -9,6 +9,9 @@
 #ifndef __CONTROL_H
 #define __CONTROL_H
 
+#include <linux/types.h>
+#include <linux/device.h>
+
 struct gb_control {
 	struct device dev;
 	struct gb_interface *intf;

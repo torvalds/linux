@@ -10,6 +10,11 @@
 #define __OPERATION_H
 
 #include <linux/completion.h>
+#include <linux/kref.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 
 struct gb_operation;
 
