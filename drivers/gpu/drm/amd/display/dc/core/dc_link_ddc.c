@@ -525,7 +525,7 @@ bool dal_ddc_service_query_ddc_data(
 
 		if (write_size != 0) {
 			payload.write = true;
-			payload.mot = true;
+			payload.mot = false;
 			payload.length = write_size;
 			payload.data = write_buf;
 
@@ -594,7 +594,7 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 		current_payload.i2c_over_aux = payload->i2c_over_aux;
 		current_payload.length = is_end_of_payload ?
 			payload->length - retrieved : DEFAULT_AUX_MAX_DATA_SIZE;
-		current_payload.mot = payload->mot ? payload->mot : !is_end_of_payload;
+		current_payload.mot = !is_end_of_payload;
 		current_payload.reply = payload->reply;
 		current_payload.write = payload->write;
 
