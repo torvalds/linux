@@ -1785,21 +1785,25 @@ int tb_switch_add(struct tb_switch *sw)
 	 * configuration based mailbox.
 	 */
 	ret = tb_switch_add_dma_port(sw);
-	if (ret)
+	if (ret) {
+		dev_err(&sw->dev, "failed to add DMA port\n");
 		return ret;
+	}
 
 	if (!sw->safe_mode) {
 		/* read drom */
 		ret = tb_drom_read(sw);
 		if (ret) {
-			tb_sw_warn(sw, "tb_eeprom_read_rom failed\n");
+			dev_err(&sw->dev, "reading DROM failed\n");
 			return ret;
 		}
 		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
 		ret = tb_switch_set_uuid(sw);
-		if (ret)
+		if (ret) {
+			dev_err(&sw->dev, "failed to set UUID\n");
 			return ret;
+		}
 
 		for (i = 0; i <= sw->config.max_port_number; i++) {
 			if (sw->ports[i].disabled) {
@@ -1807,14 +1811,18 @@ int tb_switch_add(struct tb_switch *sw)
 				continue;
 			}
 			ret = tb_init_port(&sw->ports[i]);
-			if (ret)
+			if (ret) {
+				dev_err(&sw->dev, "failed to initialize port %d\n", i);
 				return ret;
+			}
 		}
 	}
 
 	ret = device_add(&sw->dev);
-	if (ret)
+	if (ret) {
+		dev_err(&sw->dev, "failed to add device: %d\n", ret);
 		return ret;
+	}
 
 	if (tb_route(sw)) {
 		dev_info(&sw->dev, "new device found, vendor=%#x device=%#x\n",
@@ -1826,6 +1834,7 @@ int tb_switch_add(struct tb_switch *sw)
 
 	ret = tb_switch_nvm_add(sw);
 	if (ret) {
+		dev_err(&sw->dev, "failed to add NVM devices\n");
 		device_del(&sw->dev);
 		return ret;
 	}
