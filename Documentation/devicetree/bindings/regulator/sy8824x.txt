@@ -5,6 +5,7 @@ Required properties:
 	"silergy,sy8824c"
 	"silergy,sy8824e"
 	"silergy,sy20276"
+	"silergy,sy20278"
 - reg: I2C slave address
 
 Any property defined as part of the core regulator binding, defined in
