@@ -1566,7 +1566,8 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	struct usb_interface *iface;
 
 	/* Playback Designs */
-	if (USB_ID_VENDOR(chip->usb_id) == 0x23ba) {
+	if (USB_ID_VENDOR(chip->usb_id) == 0x23ba &&
+	    USB_ID_PRODUCT(chip->usb_id) < 0x0110) {
 		switch (fp->altsetting) {
 		case 1:
 			fp->dsd_dop = true;
@@ -1654,8 +1655,9 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	 * from XMOS/Thesycon
 	 */
 	switch (USB_ID_VENDOR(chip->usb_id)) {
-	case 0x20b1:  /* XMOS based devices */
 	case 0x152a:  /* Thesycon devices */
+	case 0x20b1:  /* XMOS based devices */
+	case 0x23ba:  /* Playback Designs */
 	case 0x25ce:  /* Mytek devices */
 	case 0x2ab6:  /* T+A devices */
 		if (fp->dsd_raw)
