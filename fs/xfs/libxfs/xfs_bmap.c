@@ -6085,29 +6085,29 @@ __xfs_bmap_add(
 }
 
 /* Map an extent into a file. */
-int
+void
 xfs_bmap_map_extent(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_bmap_is_update_needed(PREV))
-		return 0;
+		return;
 
-	return __xfs_bmap_add(tp, XFS_BMAP_MAP, ip, XFS_DATA_FORK, PREV);
+	__xfs_bmap_add(tp, XFS_BMAP_MAP, ip, XFS_DATA_FORK, PREV);
 }
 
 /* Unmap an extent out of a file. */
-int
+void
 xfs_bmap_unmap_extent(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_bmap_is_update_needed(PREV))
-		return 0;
+		return;
 
-	return __xfs_bmap_add(tp, XFS_BMAP_UNMAP, ip, XFS_DATA_FORK, PREV);
+	__xfs_bmap_add(tp, XFS_BMAP_UNMAP, ip, XFS_DATA_FORK, PREV);
 }
 
 /*
