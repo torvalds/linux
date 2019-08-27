@@ -1271,8 +1271,8 @@ again:
 							     parent_id, name,
 							     namelen, NULL);
 		else
-			ret = btrfs_find_name_in_backref(log_eb, log_slot, name,
-							 namelen, NULL);
+			ret = !!btrfs_find_name_in_backref(log_eb, log_slot,
+							   name, namelen);
 
 		if (!ret) {
 			struct inode *dir;
@@ -1338,8 +1338,8 @@ static int btrfs_inode_ref_exists(struct inode *inode, struct inode *dir,
 						     path->slots[0], parent_id,
 						     name, namelen, NULL);
 	else
-		ret = btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
-						 name, namelen, NULL);
+		ret = !!btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
+						   name, namelen);
 
 out:
 	btrfs_free_path(path);

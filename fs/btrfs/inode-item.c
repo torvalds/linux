@@ -8,9 +8,9 @@
 #include "transaction.h"
 #include "print-tree.h"
 
-int btrfs_find_name_in_backref(struct extent_buffer *leaf, int slot,
-			       const char *name,
-			       int name_len, struct btrfs_inode_ref **ref_ret)
+struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
+						   int slot, const char *name,
+						   int name_len)
 {
 	struct btrfs_inode_ref *ref;
 	unsigned long ptr;
@@ -28,13 +28,10 @@ int btrfs_find_name_in_backref(struct extent_buffer *leaf, int slot,
 		cur_offset += len + sizeof(*ref);
 		if (len != name_len)
 			continue;
-		if (memcmp_extent_buffer(leaf, name, name_ptr, name_len) == 0) {
-			if (ref_ret)
-				*ref_ret = ref;
-			return 1;
-		}
+		if (memcmp_extent_buffer(leaf, name, name_ptr, name_len) == 0)
+			return ref;
 	}
-	return 0;
+	return NULL;
 }
 
 int btrfs_find_name_in_ext_backref(struct extent_buffer *leaf, int slot,
@@ -213,8 +210,10 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 	} else if (ret < 0) {
 		goto out;
 	}
-	if (!btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
-					name, name_len, &ref)) {
+
+	ref = btrfs_find_name_in_backref(path->nodes[0], path->slots[0], name,
+					 name_len);
+	if (!ref) {
 		ret = -ENOENT;
 		search_ext_refs = 1;
 		goto out;
@@ -341,9 +340,9 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 				      ins_len);
 	if (ret == -EEXIST) {
 		u32 old_size;
-
-		if (btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
-					       name, name_len, &ref))
+		ref = btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
+						 name, name_len);
+		if (ref)
 			goto out;
 
 		old_size = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
@@ -359,7 +358,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 		if (ret == -EOVERFLOW) {
 			if (btrfs_find_name_in_backref(path->nodes[0],
 						       path->slots[0],
-						       name, name_len, &ref))
+						       name, name_len))
 				ret = -EEXIST;
 			else
 				ret = -EMLINK;
