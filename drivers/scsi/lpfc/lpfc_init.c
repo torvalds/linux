@@ -4093,18 +4093,9 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 	LIST_HEAD(post_nblist);
 	LIST_HEAD(nvme_nblist);
 
-	/* Sanity check to ensure our sizing is right for both SCSI and NVME */
-	if (sizeof(struct lpfc_io_buf) > LPFC_COMMON_IO_BUF_SZ) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"6426 Common buffer size %zd exceeds %d\n",
-				sizeof(struct lpfc_io_buf),
-				LPFC_COMMON_IO_BUF_SZ);
-		return 0;
-	}
-
 	phba->sli4_hba.io_xri_cnt = 0;
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
-		lpfc_ncmd = kzalloc(LPFC_COMMON_IO_BUF_SZ, GFP_KERNEL);
+		lpfc_ncmd = kzalloc(sizeof(*lpfc_ncmd), GFP_KERNEL);
 		if (!lpfc_ncmd)
 			break;
 		/*
