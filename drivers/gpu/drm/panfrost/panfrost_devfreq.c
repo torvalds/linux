@@ -39,7 +39,7 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 	 * If frequency scaling from low to high, adjust voltage first.
 	 * If frequency scaling from high to low, adjust frequency first.
 	 */
-	if (old_clk_rate < target_rate) {
+	if (old_clk_rate < target_rate && pfdev->regulator) {
 		err = regulator_set_voltage(pfdev->regulator, target_volt,
 					    target_volt);
 		if (err) {
@@ -58,7 +58,7 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 		return err;
 	}
 
-	if (old_clk_rate > target_rate) {
+	if (old_clk_rate > target_rate && pfdev->regulator) {
 		err = regulator_set_voltage(pfdev->regulator, target_volt,
 					    target_volt);
 		if (err)
@@ -136,9 +136,6 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	int ret;
 	struct dev_pm_opp *opp;
 
-	if (!pfdev->regulator)
-		return 0;
-
 	ret = dev_pm_opp_of_add_table(&pfdev->pdev->dev);
 	if (ret == -ENODEV) /* Optional, continue without devfreq */
 		return 0;
@@ -163,10 +160,16 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		DRM_DEV_ERROR(&pfdev->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		ret = PTR_ERR(pfdev->devfreq.devfreq);
 		pfdev->devfreq.devfreq = NULL;
+		dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 		return ret;
 	}
 
 	return 0;
+}
+
+void panfrost_devfreq_fini(struct panfrost_device *pfdev)
+{
+	dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 }
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)

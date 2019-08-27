@@ -47,8 +47,8 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	size_t size = obj->size;
 	u64 align;
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
-	struct panfrost_device *pfdev = obj->dev->dev_private;
 	unsigned long color = bo->noexec ? PANFROST_BO_NOEXEC : 0;
+	struct panfrost_file_priv *priv = file_priv->driver_priv;
 
 	/*
 	 * Executable buffers cannot cross a 16MB boundary as the program
@@ -61,34 +61,37 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	else
 		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
-	spin_lock(&pfdev->mm_lock);
-	ret = drm_mm_insert_node_generic(&pfdev->mm, &bo->node,
+	bo->mmu = &priv->mmu;
+	spin_lock(&priv->mm_lock);
+	ret = drm_mm_insert_node_generic(&priv->mm, &bo->node,
 					 size >> PAGE_SHIFT, align, color, 0);
+	spin_unlock(&priv->mm_lock);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (!bo->is_heap) {
 		ret = panfrost_mmu_map(bo);
-		if (ret)
+		if (ret) {
+			spin_lock(&priv->mm_lock);
 			drm_mm_remove_node(&bo->node);
+			spin_unlock(&priv->mm_lock);
+		}
 	}
-out:
-	spin_unlock(&pfdev->mm_lock);
 	return ret;
 }
 
 static void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
-	struct panfrost_device *pfdev = obj->dev->dev_private;
+	struct panfrost_file_priv *priv = file_priv->driver_priv;
 
 	if (bo->is_mapped)
 		panfrost_mmu_unmap(bo);
 
-	spin_lock(&pfdev->mm_lock);
+	spin_lock(&priv->mm_lock);
 	if (drm_mm_node_allocated(&bo->node))
 		drm_mm_remove_node(&bo->node);
-	spin_unlock(&pfdev->mm_lock);
+	spin_unlock(&priv->mm_lock);
 }
 
 static int panfrost_gem_pin(struct drm_gem_object *obj)

@@ -188,11 +188,23 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (domain & NOUVEAU_GEM_DOMAIN_COHERENT)
 		flags |= TTM_PL_FLAG_UNCACHED;
 
-	ret = nouveau_bo_new(cli, size, align, flags, tile_mode,
-			     tile_flags, NULL, NULL, pnvbo);
-	if (ret)
+	nvbo = nouveau_bo_alloc(cli, size, flags, tile_mode, tile_flags);
+	if (IS_ERR(nvbo))
+		return PTR_ERR(nvbo);
+
+	/* Initialize the embedded gem-object. We return a single gem-reference
+	 * to the caller, instead of a normal nouveau_bo ttm reference. */
+	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, size);
+	if (ret) {
+		nouveau_bo_ref(NULL, &nvbo);
 		return ret;
-	nvbo = *pnvbo;
+	}
+
+	ret = nouveau_bo_init(nvbo, size, align, flags, NULL, NULL);
+	if (ret) {
+		nouveau_bo_ref(NULL, &nvbo);
+		return ret;
+	}
 
 	/* we restrict allowed domains on nv50+ to only the types
 	 * that were requested at creation time.  not possibly on
@@ -203,15 +215,8 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		nvbo->valid_domains &= domain;
 
-	/* Initialize the embedded gem-object. We return a single gem-reference
-	 * to the caller, instead of a normal nouveau_bo ttm reference. */
-	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, nvbo->bo.mem.size);
-	if (ret) {
-		nouveau_bo_ref(NULL, pnvbo);
-		return -ENOMEM;
-	}
-
 	nvbo->bo.persistent_swap_storage = nvbo->bo.base.filp;
+	*pnvbo = nvbo;
 	return 0;
 }
 

@@ -7,10 +7,13 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_mm.h>
 
+struct panfrost_mmu;
+
 struct panfrost_gem_object {
 	struct drm_gem_shmem_object base;
 	struct sg_table *sgts;
 
+	struct panfrost_mmu *mmu;
 	struct drm_mm_node node;
 	bool is_mapped		:1;
 	bool noexec		:1;

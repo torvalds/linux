@@ -209,6 +209,8 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	priv->drm = drm;
 	priv->dev = dev;
 
+	priv->compat = (enum vpu_compatible)of_device_get_match_data(priv->dev);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpu");
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs)) {
@@ -453,10 +455,14 @@ static int meson_drv_probe(struct platform_device *pdev)
 };
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "amlogic,meson-gxbb-vpu" },
-	{ .compatible = "amlogic,meson-gxl-vpu" },
-	{ .compatible = "amlogic,meson-gxm-vpu" },
-	{ .compatible = "amlogic,meson-g12a-vpu" },
+	{ .compatible = "amlogic,meson-gxbb-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_GXBB },
+	{ .compatible = "amlogic,meson-gxl-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_GXL },
+	{ .compatible = "amlogic,meson-gxm-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_GXM },
+	{ .compatible = "amlogic,meson-g12a-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_G12A },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
