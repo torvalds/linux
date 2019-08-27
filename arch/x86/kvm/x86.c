@@ -5440,7 +5440,6 @@ EXPORT_SYMBOL_GPL(kvm_write_guest_virt_system);
 int handle_ud(struct kvm_vcpu *vcpu)
 {
 	int emul_type = EMULTYPE_TRAP_UD;
-	enum emulation_result er;
 	char sig[5]; /* ud2; .ascii "kvm" */
 	struct x86_exception e;
 
@@ -5452,12 +5451,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 		emul_type = EMULTYPE_TRAP_UD_FORCED;
 	}
 
-	er = kvm_emulate_instruction(vcpu, emul_type);
-	if (er == EMULATE_USER_EXIT)
-		return 0;
-	if (er != EMULATE_DONE)
-		kvm_queue_exception(vcpu, UD_VECTOR);
-	return 1;
+	return kvm_emulate_instruction(vcpu, emul_type) != EMULATE_USER_EXIT;
 }
 EXPORT_SYMBOL_GPL(handle_ud);
 
@@ -6630,8 +6624,10 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		++vcpu->stat.insn_emulation;
 		if (r != EMULATION_OK)  {
 			if ((emulation_type & EMULTYPE_TRAP_UD) ||
-			    (emulation_type & EMULTYPE_TRAP_UD_FORCED))
-				return EMULATE_FAIL;
+			    (emulation_type & EMULTYPE_TRAP_UD_FORCED)) {
+				kvm_queue_exception(vcpu, UD_VECTOR);
+				return EMULATE_DONE;
+			}
 			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
 						emulation_type))
 				return EMULATE_DONE;
