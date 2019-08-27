@@ -724,13 +724,21 @@ __secondary_switched:
 
 	adr_l	x0, secondary_data
 	ldr	x1, [x0, #CPU_BOOT_STACK]	// get secondary_data.stack
+	cbz	x1, __secondary_too_slow
 	mov	sp, x1
 	ldr	x2, [x0, #CPU_BOOT_TASK]
+	cbz	x2, __secondary_too_slow
 	msr	sp_el0, x2
 	mov	x29, #0
 	mov	x30, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
+
+__secondary_too_slow:
+	wfe
+	wfi
+	b	__secondary_too_slow
+ENDPROC(__secondary_too_slow)
 
 /*
  * The booting CPU updates the failed status @__early_cpu_boot_status,
