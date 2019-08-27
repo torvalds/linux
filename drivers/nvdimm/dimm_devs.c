@@ -424,9 +424,6 @@ static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
 	unsigned int key, newkey;
 	int i;
 
-	if (atomic_read(&nvdimm->busy))
-		return -EBUSY;
-
 	rc = sscanf(buf, "%"__stringify(SEC_CMD_SIZE)"s"
 			" %"__stringify(KEY_ID_SIZE)"s"
 			" %"__stringify(KEY_ID_SIZE)"s",
@@ -451,23 +448,25 @@ static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
 	} else if (i == OP_DISABLE) {
 		dev_dbg(dev, "disable %u\n", key);
 		rc = nvdimm_security_disable(nvdimm, key);
-	} else if (i == OP_UPDATE) {
-		dev_dbg(dev, "update %u %u\n", key, newkey);
-		rc = nvdimm_security_update(nvdimm, key, newkey, NVDIMM_USER);
-	} else if (i == OP_ERASE) {
-		dev_dbg(dev, "erase %u\n", key);
-		rc = nvdimm_security_erase(nvdimm, key, NVDIMM_USER);
+	} else if (i == OP_UPDATE || i == OP_MASTER_UPDATE) {
+		dev_dbg(dev, "%s %u %u\n", ops[i].name, key, newkey);
+		rc = nvdimm_security_update(nvdimm, key, newkey, i == OP_UPDATE
+				? NVDIMM_USER : NVDIMM_MASTER);
+	} else if (i == OP_ERASE || i == OP_MASTER_ERASE) {
+		dev_dbg(dev, "%s %u\n", ops[i].name, key);
+		if (atomic_read(&nvdimm->busy)) {
+			dev_dbg(dev, "Unable to secure erase while DIMM active.\n");
+			return -EBUSY;
+		}
+		rc = nvdimm_security_erase(nvdimm, key, i == OP_ERASE
+				? NVDIMM_USER : NVDIMM_MASTER);
 	} else if (i == OP_OVERWRITE) {
 		dev_dbg(dev, "overwrite %u\n", key);
+		if (atomic_read(&nvdimm->busy)) {
+			dev_dbg(dev, "Unable to overwrite while DIMM active.\n");
+			return -EBUSY;
+		}
 		rc = nvdimm_security_overwrite(nvdimm, key);
-	} else if (i == OP_MASTER_UPDATE) {
-		dev_dbg(dev, "master_update %u %u\n", key, newkey);
-		rc = nvdimm_security_update(nvdimm, key, newkey,
-				NVDIMM_MASTER);
-	} else if (i == OP_MASTER_ERASE) {
-		dev_dbg(dev, "master_erase %u\n", key);
-		rc = nvdimm_security_erase(nvdimm, key,
-				NVDIMM_MASTER);
 	} else
 		return -EINVAL;
 
