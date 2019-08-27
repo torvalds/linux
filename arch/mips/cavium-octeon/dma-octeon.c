@@ -16,7 +16,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/memblock.h>
 
 #include <asm/bootinfo.h>
 
