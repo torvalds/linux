@@ -73,10 +73,11 @@ EXPORT_SYMBOL_GPL(can_len2dlc);
  * registers of the CAN controller. You can find more information
  * in the header file linux/can/netlink.h.
  */
-static int can_update_sample_point(const struct can_bittiming_const *btc,
-			  unsigned int sample_point_nominal, unsigned int tseg,
-			  unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
-			  unsigned int *sample_point_error_ptr)
+static int
+can_update_sample_point(const struct can_bittiming_const *btc,
+			unsigned int sample_point_nominal, unsigned int tseg,
+			unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
+			unsigned int *sample_point_error_ptr)
 {
 	unsigned int sample_point_error, best_sample_point_error = UINT_MAX;
 	unsigned int sample_point, best_sample_point = 0;
@@ -84,7 +85,9 @@ static int can_update_sample_point(const struct can_bittiming_const *btc,
 	int i;
 
 	for (i = 0; i <= 1; i++) {
-		tseg2 = tseg + CAN_CALC_SYNC_SEG - (sample_point_nominal * (tseg + CAN_CALC_SYNC_SEG)) / 1000 - i;
+		tseg2 = tseg + CAN_CALC_SYNC_SEG -
+			(sample_point_nominal * (tseg + CAN_CALC_SYNC_SEG)) /
+			1000 - i;
 		tseg2 = clamp(tseg2, btc->tseg2_min, btc->tseg2_max);
 		tseg1 = tseg - tseg2;
 		if (tseg1 > btc->tseg1_max) {
@@ -92,10 +95,12 @@ static int can_update_sample_point(const struct can_bittiming_const *btc,
 			tseg2 = tseg - tseg1;
 		}
 
-		sample_point = 1000 * (tseg + CAN_CALC_SYNC_SEG - tseg2) / (tseg + CAN_CALC_SYNC_SEG);
+		sample_point = 1000 * (tseg + CAN_CALC_SYNC_SEG - tseg2) /
+			(tseg + CAN_CALC_SYNC_SEG);
 		sample_point_error = abs(sample_point_nominal - sample_point);
 
-		if ((sample_point <= sample_point_nominal) && (sample_point_error < best_sample_point_error)) {
+		if ((sample_point <= sample_point_nominal) &&
+		    (sample_point_error < best_sample_point_error)) {
 			best_sample_point = sample_point;
 			best_sample_point_error = sample_point_error;
 			*tseg1_ptr = tseg1;
@@ -160,7 +165,8 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 		if (bitrate_error < best_bitrate_error)
 			best_sample_point_error = UINT_MAX;
 
-		can_update_sample_point(btc, sample_point_nominal, tseg / 2, &tseg1, &tseg2, &sample_point_error);
+		can_update_sample_point(btc, sample_point_nominal, tseg / 2,
+					&tseg1, &tseg2, &sample_point_error);
 		if (sample_point_error > best_sample_point_error)
 			continue;
 
@@ -189,8 +195,9 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	}
 
 	/* real sample point */
-	bt->sample_point = can_update_sample_point(btc, sample_point_nominal, best_tseg,
-					  &tseg1, &tseg2, NULL);
+	bt->sample_point = can_update_sample_point(btc, sample_point_nominal,
+						   best_tseg, &tseg1, &tseg2,
+						   NULL);
 
 	v64 = (u64)best_brp * 1000 * 1000 * 1000;
 	do_div(v64, priv->clock.freq);
@@ -214,7 +221,8 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	bt->brp = best_brp;
 
 	/* real bitrate */
-	bt->bitrate = priv->clock.freq / (bt->brp * (CAN_CALC_SYNC_SEG + tseg1 + tseg2));
+	bt->bitrate = priv->clock.freq /
+		(bt->brp * (CAN_CALC_SYNC_SEG + tseg1 + tseg2));
 
 	return 0;
 }
@@ -267,9 +275,10 @@ static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
 }
 
 /* Checks the validity of predefined bitrate settings */
-static int can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
-				const u32 *bitrate_const,
-				const unsigned int bitrate_const_cnt)
+static int
+can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
+		     const u32 *bitrate_const,
+		     const unsigned int bitrate_const_cnt)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	unsigned int i;
@@ -460,7 +469,8 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(can_put_echo_skb);
 
-struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 *len_ptr)
+struct sk_buff *
+__can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 *len_ptr)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -569,7 +579,8 @@ restart:
 static void can_restart_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct can_priv *priv = container_of(dwork, struct can_priv, restart_work);
+	struct can_priv *priv = container_of(dwork, struct can_priv,
+					     restart_work);
 
 	can_restart(priv->dev);
 }
