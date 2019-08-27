@@ -617,8 +617,7 @@ struct rxrpc_call {
 #define RXRPC_TX_ANNO_LAST	0x04
 #define RXRPC_TX_ANNO_RESENT	0x08
 
-#define RXRPC_RX_ANNO_JUMBO	0x3f		/* Jumbo subpacket number + 1 if not zero */
-#define RXRPC_RX_ANNO_JLAST	0x40		/* Set if last element of a jumbo packet */
+#define RXRPC_RX_ANNO_SUBPACKET	0x3f		/* Subpacket number in jumbogram */
 #define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */
 	rxrpc_seq_t		tx_hard_ack;	/* Dead slot in buffer; the first transmitted but
 						 * not hard-ACK'd packet follows this.
