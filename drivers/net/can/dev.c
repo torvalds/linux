@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2005 Marc Kleine-Budde, Pengutronix
+/* Copyright (C) 2005 Marc Kleine-Budde, Pengutronix
  * Copyright (C) 2006 Andrey Volkov, Varma Electronics
  * Copyright (C) 2008-2009 Wolfgang Grandegger <wg@grandegger.com>
  */
@@ -62,8 +61,7 @@ EXPORT_SYMBOL_GPL(can_len2dlc);
 #define CAN_CALC_MAX_ERROR 50 /* in one-tenth of a percent */
 #define CAN_CALC_SYNC_SEG 1
 
-/*
- * Bit-timing calculation derived from:
+/* Bit-timing calculation derived from:
  *
  * Code based on LinCAN sources and H8S2638 project
  * Copyright 2004-2006 Pavel Pisa - DCE FELK CVUT cz
@@ -229,8 +227,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
 
-/*
- * Checks the validity of the specified bit-timing parameters prop_seg,
+/* Checks the validity of the specified bit-timing parameters prop_seg,
  * phase_seg1, phase_seg2 and sjw and tries to determine the bitrate
  * prescaler value brp. You can find more information in the header
  * file linux/can/netlink.h.
@@ -295,8 +292,7 @@ static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
 {
 	int err;
 
-	/*
-	 * Depending on the given can_bittiming parameter structure the CAN
+	/* Depending on the given can_bittiming parameter structure the CAN
 	 * timing parameters are calculated based on the provided bitrate OR
 	 * alternatively the CAN timing parameters (tq, prop_seg, etc.) are
 	 * provided directly which are then checked and fixed up.
@@ -397,8 +393,7 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 }
 EXPORT_SYMBOL_GPL(can_change_state);
 
-/*
- * Local echo of CAN messages
+/* Local echo of CAN messages
  *
  * CAN network devices *should* support a local echo functionality
  * (see Documentation/networking/can.rst). To test the handling of CAN
@@ -423,8 +418,7 @@ static void can_flush_echo_skb(struct net_device *dev)
 	}
 }
 
-/*
- * Put the skb on the stack to be looped backed locally lateron
+/* Put the skb on the stack to be looped backed locally lateron
  *
  * The function is typically called in the start_xmit function
  * of the device driver. The driver must protect access to
@@ -493,8 +487,7 @@ struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 
 	return NULL;
 }
 
-/*
- * Get the skb from the stack and loop it back locally
+/* Get the skb from the stack and loop it back locally
  *
  * The function is typically called when the TX done interrupt
  * is handled in the device driver. The driver must protect
@@ -515,11 +508,10 @@ unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx)
 }
 EXPORT_SYMBOL_GPL(can_get_echo_skb);
 
-/*
-  * Remove the skb from the stack and free it.
-  *
-  * The function is typically called when TX failed.
-  */
+/* Remove the skb from the stack and free it.
+ *
+ * The function is typically called when TX failed.
+ */
 void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -533,9 +525,7 @@ void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 }
 EXPORT_SYMBOL_GPL(can_free_echo_skb);
 
-/*
- * CAN device restart for bus-off recovery
- */
+/* CAN device restart for bus-off recovery */
 static void can_restart(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -546,8 +536,7 @@ static void can_restart(struct net_device *dev)
 
 	BUG_ON(netif_carrier_ok(dev));
 
-	/*
-	 * No synchronization needed because the device is bus-off and
+	/* No synchronization needed because the device is bus-off and
 	 * no messages can come in or go out.
 	 */
 	can_flush_echo_skb(dev);
@@ -589,8 +578,7 @@ int can_restart_now(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	/*
-	 * A manual restart is only permitted if automatic restart is
+	/* A manual restart is only permitted if automatic restart is
 	 * disabled and the device is in the bus-off state
 	 */
 	if (priv->restart_ms)
@@ -604,8 +592,7 @@ int can_restart_now(struct net_device *dev)
 	return 0;
 }
 
-/*
- * CAN bus-off
+/* CAN bus-off
  *
  * This functions should be called when the device goes bus-off to
  * tell the netif layer that no more packets can be sent or received.
@@ -708,9 +695,7 @@ struct sk_buff *alloc_can_err_skb(struct net_device *dev, struct can_frame **cf)
 }
 EXPORT_SYMBOL_GPL(alloc_can_err_skb);
 
-/*
- * Allocate and setup space for the CAN network device
- */
+/* Allocate and setup space for the CAN network device */
 struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 				    unsigned int txqs, unsigned int rxqs)
 {
@@ -746,18 +731,14 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 }
 EXPORT_SYMBOL_GPL(alloc_candev_mqs);
 
-/*
- * Free space of the CAN network device
- */
+/* Free space of the CAN network device */
 void free_candev(struct net_device *dev)
 {
 	free_netdev(dev);
 }
 EXPORT_SYMBOL_GPL(free_candev);
 
-/*
- * changing MTU and control mode for CAN/CANFD devices
- */
+/* changing MTU and control mode for CAN/CANFD devices */
 int can_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -794,8 +775,7 @@ int can_change_mtu(struct net_device *dev, int new_mtu)
 }
 EXPORT_SYMBOL_GPL(can_change_mtu);
 
-/*
- * Common open function when the device gets opened.
+/* Common open function when the device gets opened.
  *
  * This function should be called in the open function of the device
  * driver.
@@ -848,8 +828,7 @@ void of_can_transceiver(struct net_device *dev)
 EXPORT_SYMBOL_GPL(of_can_transceiver);
 #endif
 
-/*
- * Common close function for cleanup before the device gets closed.
+/* Common close function for cleanup before the device gets closed.
  *
  * This function should be called in the close function of the device
  * driver.
@@ -863,9 +842,7 @@ void close_candev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(close_candev);
 
-/*
- * CAN netlink interface
- */
+/* CAN netlink interface */
 static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
 	[IFLA_CAN_STATE]	= { .type = NLA_U32 },
 	[IFLA_CAN_CTRLMODE]	= { .len = sizeof(struct can_ctrlmode) },
@@ -1227,9 +1204,7 @@ static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.fill_xstats	= can_fill_xstats,
 };
 
-/*
- * Register the CAN network device
- */
+/* Register the CAN network device */
 int register_candev(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -1255,17 +1230,14 @@ int register_candev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(register_candev);
 
-/*
- * Unregister the CAN network device
- */
+/* Unregister the CAN network device */
 void unregister_candev(struct net_device *dev)
 {
 	unregister_netdev(dev);
 }
 EXPORT_SYMBOL_GPL(unregister_candev);
 
-/*
- * Test if a network device is a candev based device
+/* Test if a network device is a candev based device
  * and return the can_priv* if so.
  */
 struct can_priv *safe_candev_priv(struct net_device *dev)
