@@ -606,8 +606,7 @@ static void pca953x_irq_bus_sync_unlock(struct irq_data *d)
 	u8 invert_irq_mask[MAX_BANK];
 	u8 reg_direction[MAX_BANK];
 
-	regmap_bulk_read(chip->regmap, chip->regs->direction, reg_direction,
-			 NBANK(chip));
+	pca953x_read_regs(chip, chip->regs->direction, reg_direction);
 
 	if (chip->driver_data & PCA_PCAL) {
 		/* Enable latch on interrupt-enabled inputs */
@@ -710,8 +709,7 @@ static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
 		return false;
 
 	/* Remove output pins from the equation */
-	regmap_bulk_read(chip->regmap, chip->regs->direction, reg_direction,
-			 NBANK(chip));
+	pca953x_read_regs(chip, chip->regs->direction, reg_direction);
 	for (i = 0; i < NBANK(chip); i++)
 		cur_stat[i] &= reg_direction[i];
 
@@ -789,8 +787,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 	 * interrupt.  We have to rely on the previous read for
 	 * this purpose.
 	 */
-	regmap_bulk_read(chip->regmap, chip->regs->direction, reg_direction,
-			 NBANK(chip));
+	pca953x_read_regs(chip, chip->regs->direction, reg_direction);
 	for (i = 0; i < NBANK(chip); i++)
 		chip->irq_stat[i] &= reg_direction[i];
 	mutex_init(&chip->irq_lock);
