@@ -5074,21 +5074,13 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 		       type != INTR_TYPE_NMI_INTR))
 		skip_emulated_instruction(vcpu);
 
-	if (kvm_task_switch(vcpu, tss_selector,
-			    type == INTR_TYPE_SOFT_INTR ? idt_index : -1, reason,
-			    has_error_code, error_code) == EMULATE_FAIL) {
-		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
-		vcpu->run->internal.ndata = 0;
-		return 0;
-	}
-
 	/*
 	 * TODO: What about debug traps on tss switch?
 	 *       Are we supposed to inject them and update dr6?
 	 */
-
-	return 1;
+	return kvm_task_switch(vcpu, tss_selector,
+			       type == INTR_TYPE_SOFT_INTR ? idt_index : -1,
+			       reason, has_error_code, error_code) != EMULATE_USER_EXIT;
 }
 
 static int handle_ept_violation(struct kvm_vcpu *vcpu)

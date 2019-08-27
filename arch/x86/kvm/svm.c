@@ -3892,17 +3892,10 @@ static int task_switch_interception(struct vcpu_svm *svm)
 	if (int_type != SVM_EXITINTINFO_TYPE_SOFT)
 		int_vec = -1;
 
-	if (kvm_task_switch(&svm->vcpu, tss_selector, int_vec, reason,
-				has_error_code, error_code) == EMULATE_FAIL)
-		goto fail;
 
-	return 1;
 
-fail:
-	svm->vcpu.run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-	svm->vcpu.run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
-	svm->vcpu.run->internal.ndata = 0;
-	return 0;
+	return kvm_task_switch(&svm->vcpu, tss_selector, int_vec, reason,
+			       has_error_code, error_code) != EMULATE_USER_EXIT;
 }
 
 static int cpuid_interception(struct vcpu_svm *svm)
