@@ -412,7 +412,6 @@ struct bch_dev {
 	 */
 	struct bucket_array __rcu *buckets[2];
 	unsigned long		*buckets_nouse;
-	unsigned long		*buckets_written;
 	struct rw_semaphore	bucket_lock;
 
 	struct bch_dev_usage __percpu *usage[2];

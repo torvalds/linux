@@ -13,6 +13,17 @@ struct bkey_alloc_unpacked {
 #undef  x
 };
 
+/* returns true if not equal */
+static inline bool bkey_alloc_unpacked_cmp(struct bkey_alloc_unpacked l,
+					   struct bkey_alloc_unpacked r)
+{
+	return l.gen != r.gen
+#define x(_name, _bits)	|| l._name != r._name
+	BCH_ALLOC_FIELDS()
+#undef  x
+	;
+}
+
 struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
 void bch2_alloc_pack(struct bkey_i_alloc *,
 		     const struct bkey_alloc_unpacked);

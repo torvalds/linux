@@ -258,46 +258,68 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	return 0;
 }
 
-int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
+enum alloc_write_ret {
+	ALLOC_WROTE,
+	ALLOC_NOWROTE,
+	ALLOC_END,
+};
+
+static int bch2_alloc_write_key(struct btree_trans *trans,
+				struct btree_iter *iter,
+				unsigned flags)
 {
-	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c k;
 	struct bch_dev *ca;
+	struct bucket_array *ba;
+	struct bucket *g;
+	struct bucket_mark m;
+	struct bkey_alloc_unpacked old_u, new_u;
+	__BKEY_PADDED(k, 8) alloc_key; /* hack: */
+	struct bkey_i_alloc *a;
 	int ret;
-
-	if (k->k.p.inode >= c->sb.nr_devices ||
-	    !c->devs[k->k.p.inode])
-		return 0;
-
-	ca = bch_dev_bkey_exists(c, k->k.p.inode);
-
-	if (k->k.p.offset >= ca->mi.nbuckets)
-		return 0;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, k->k.p,
-				   BTREE_ITER_INTENT);
-
-	ret = bch2_btree_iter_traverse(iter);
+retry:
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	/* check buckets_written with btree node locked: */
-	if (test_bit(k->k.p.offset, ca->buckets_written)) {
-		ret = 0;
-		goto err;
+	old_u = bch2_alloc_unpack(k);
+
+	if (iter->pos.inode >= c->sb.nr_devices ||
+	    !c->devs[iter->pos.inode])
+		return ALLOC_END;
+
+	percpu_down_read(&c->mark_lock);
+	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
+	ba	= bucket_array(ca);
+
+	if (iter->pos.offset >= ba->nbuckets) {
+		percpu_up_read(&c->mark_lock);
+		return ALLOC_END;
 	}
 
-	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, k));
+	g	= &ba->b[iter->pos.offset];
+	m	= READ_ONCE(g->mark);
+	new_u	= alloc_mem_to_key(g, m);
+	percpu_up_read(&c->mark_lock);
 
-	ret = bch2_trans_commit(&trans, NULL, NULL,
+	if (!bkey_alloc_unpacked_cmp(old_u, new_u))
+		return ALLOC_NOWROTE;
+
+	a = bkey_alloc_init(&alloc_key.k);
+	a->k.p = iter->pos;
+	bch2_alloc_pack(a, new_u);
+
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
+	ret = bch2_trans_commit(trans, NULL, NULL,
+				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW|
-				BTREE_INSERT_JOURNAL_REPLAY|
-				BTREE_INSERT_NOMARK);
+				BTREE_INSERT_NOMARK|
+				flags);
 err:
-	bch2_trans_exit(&trans);
+	if (ret == -EINTR)
+		goto retry;
 	return ret;
 }
 
@@ -305,16 +327,8 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
-	struct bucket_array *buckets;
 	struct bch_dev *ca;
-	struct bucket *g;
-	struct bucket_mark m, new;
-	struct bkey_alloc_unpacked old_u, new_u;
-	__BKEY_PADDED(k, 8) alloc_key; /* hack: */
-	struct bkey_i_alloc *a;
-	struct bkey_s_c k;
 	unsigned i;
-	size_t b;
 	int ret = 0;
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
@@ -325,81 +339,24 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	for_each_rw_member(ca, c, i) {
-		down_read(&ca->bucket_lock);
-restart:
-		buckets = bucket_array(ca);
+		unsigned first_bucket;
 
-		for (b = buckets->first_bucket;
-		     b < buckets->nbuckets;
-		     b++) {
-			if (!buckets->b[b].mark.dirty)
-				continue;
+		percpu_down_read(&c->mark_lock);
+		first_bucket = bucket_array(ca)->first_bucket;
+		percpu_up_read(&c->mark_lock);
 
-			bch2_btree_iter_set_pos(iter, POS(i, b));
-			k = bch2_btree_iter_peek_slot(iter);
-			ret = bkey_err(k);
-			if (ret)
-				goto err;
+		bch2_btree_iter_set_pos(iter, POS(i, first_bucket));
 
-			old_u = bch2_alloc_unpack(k);
-
-			percpu_down_read(&c->mark_lock);
-			g	= bucket(ca, b);
-			m	= READ_ONCE(g->mark);
-			new_u	= alloc_mem_to_key(g, m);
-			percpu_up_read(&c->mark_lock);
-
-			if (!m.dirty)
-				continue;
-
-			if ((flags & BTREE_INSERT_LAZY_RW) &&
-			    percpu_ref_is_zero(&c->writes)) {
-				up_read(&ca->bucket_lock);
-				bch2_trans_unlock(&trans);
-
-				ret = bch2_fs_read_write_early(c);
-				down_read(&ca->bucket_lock);
-
-				if (ret)
-					goto err;
-				goto restart;
-			}
-
-			a = bkey_alloc_init(&alloc_key.k);
-			a->k.p = iter->pos;
-			bch2_alloc_pack(a, new_u);
-
-			bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
-			ret = bch2_trans_commit(&trans, NULL, NULL,
-						BTREE_INSERT_NOFAIL|
-						BTREE_INSERT_NOMARK|
-						flags);
-err:
-			if (ret && !test_bit(BCH_FS_EMERGENCY_RO, &c->flags)) {
-				bch_err(c, "error %i writing alloc info", ret);
-				printk(KERN_CONT "dev %llu bucket %llu\n",
-				       iter->pos.inode, iter->pos.offset);
-				printk(KERN_CONT "gen %u -> %u\n", old_u.gen, new_u.gen);
-#define x(_name, _bits)		printk(KERN_CONT #_name " %u -> %u\n", old_u._name, new_u._name);
-				BCH_ALLOC_FIELDS()
-#undef  x
-			}
-			if (ret)
+		while (1) {
+			ret = bch2_alloc_write_key(&trans, iter, flags);
+			if (ret < 0 || ret == ALLOC_END)
 				break;
-
-			new = m;
-			new.dirty = false;
-			atomic64_cmpxchg(&g->_mark.v, m.v.counter, new.v.counter);
-
-			if (ca->buckets_written)
-				set_bit(b, ca->buckets_written);
-
-			bch2_trans_cond_resched(&trans);
-			*wrote = true;
+			if (ret == ALLOC_WROTE)
+				*wrote = true;
+			bch2_btree_iter_next_slot(iter);
 		}
-		up_read(&ca->bucket_lock);
 
-		if (ret) {
+		if (ret < 0) {
 			percpu_ref_put(&ca->io_ref);
 			break;
 		}
@@ -407,7 +364,27 @@ err:
 
 	bch2_trans_exit(&trans);
 
-	return ret;
+	return ret < 0 ? ret : 0;
+}
+
+int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, k->k.p,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+
+	ret = bch2_alloc_write_key(&trans, iter,
+				   BTREE_INSERT_NOFAIL|
+				   BTREE_INSERT_LAZY_RW|
+				   BTREE_INSERT_JOURNAL_REPLAY|
+				   BTREE_INSERT_NOMARK);
+	bch2_trans_exit(&trans);
+	return ret < 0 ? ret : 0;
 }
 
 /* Bucket IO clocks: */
@@ -953,10 +930,6 @@ retry:
 
 		if (!top->nr)
 			heap_pop(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
-
-		/* with btree still locked: */
-		if (ca->buckets_written)
-			set_bit(b, ca->buckets_written);
 
 		/*
 		 * Make sure we flush the last journal entry that updated this

@@ -15,7 +15,6 @@ struct bucket_mark {
 	u8		gen;
 	u8		data_type:3,
 			owned_by_allocator:1,
-			dirty:1,
 			journal_seq_valid:1,
 			stripe:1;
 	u16		dirty_sectors;

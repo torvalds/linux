@@ -148,7 +148,6 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 					"type %u gen %u",
 					k.k->type, ptr->gen)) {
 				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
-				g2->_mark.dirty	= g->_mark.dirty	= true;
 				g2->gen_valid	= g->gen_valid		= true;
 			}
 
@@ -156,7 +155,6 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 					"%u ptr gen in the future: %u > %u",
 					k.k->type, ptr->gen, g->mark.gen)) {
 				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
-				g2->_mark.dirty	= g->_mark.dirty	= true;
 				g2->gen_valid	= g->gen_valid		= true;
 				set_bit(BCH_FS_FIXED_GENS, &c->flags);
 			}
@@ -528,7 +526,6 @@ static int bch2_gc_done(struct bch_fs *c,
 				": got %u, should be %u", i, b,		\
 				dst->b[b].mark._f, src->b[b].mark._f);	\
 		dst->b[b]._mark._f = src->b[b].mark._f;			\
-		dst->b[b]._mark.dirty = true;				\
 	}
 #define copy_dev_field(_f, _msg, ...)					\
 	copy_field(_f, "dev %u has wrong " _msg, i, ##__VA_ARGS__)
@@ -580,10 +577,7 @@ static int bch2_gc_done(struct bch_fs *c,
 			copy_bucket_field(dirty_sectors);
 			copy_bucket_field(cached_sectors);
 
-			if (dst->b[b].oldest_gen != src->b[b].oldest_gen) {
-				dst->b[b].oldest_gen = src->b[b].oldest_gen;
-				dst->b[b]._mark.dirty = true;
-			}
+			dst->b[b].oldest_gen = src->b[b].oldest_gen;
 		}
 	};
 
