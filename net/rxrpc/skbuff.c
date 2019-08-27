@@ -24,7 +24,8 @@ void rxrpc_new_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 {
 	const void *here = __builtin_return_address(0);
 	int n = atomic_inc_return(select_skb_count(skb));
-	trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n, here);
+	trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n,
+			rxrpc_skb(skb)->rx_flags, here);
 }
 
 /*
@@ -35,7 +36,8 @@ void rxrpc_see_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 	const void *here = __builtin_return_address(0);
 	if (skb) {
 		int n = atomic_read(select_skb_count(skb));
-		trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n, here);
+		trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n,
+				rxrpc_skb(skb)->rx_flags, here);
 	}
 }
 
@@ -46,8 +48,19 @@ void rxrpc_get_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 {
 	const void *here = __builtin_return_address(0);
 	int n = atomic_inc_return(select_skb_count(skb));
-	trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n, here);
+	trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n,
+			rxrpc_skb(skb)->rx_flags, here);
 	skb_get(skb);
+}
+
+/*
+ * Note the dropping of a ref on a socket buffer by the core.
+ */
+void rxrpc_eaten_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
+{
+	const void *here = __builtin_return_address(0);
+	int n = atomic_inc_return(&rxrpc_n_rx_skbs);
+	trace_rxrpc_skb(skb, op, 0, n, 0, here);
 }
 
 /*
@@ -60,7 +73,8 @@ void rxrpc_free_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 		int n;
 		CHECK_SLAB_OKAY(&skb->users);
 		n = atomic_dec_return(select_skb_count(skb));
-		trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n, here);
+		trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n,
+				rxrpc_skb(skb)->rx_flags, here);
 		kfree_skb(skb);
 	}
 }
@@ -75,7 +89,8 @@ void rxrpc_purge_queue(struct sk_buff_head *list)
 	while ((skb = skb_dequeue((list))) != NULL) {
 		int n = atomic_dec_return(select_skb_count(skb));
 		trace_rxrpc_skb(skb, rxrpc_skb_purged,
-				refcount_read(&skb->users), n, here);
+				refcount_read(&skb->users), n,
+				rxrpc_skb(skb)->rx_flags, here);
 		kfree_skb(skb);
 	}
 }

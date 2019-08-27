@@ -1249,6 +1249,24 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 			goto bad_message;
 		if (!rxrpc_validate_data(skb))
 			goto bad_message;
+
+		/* Unshare the packet so that it can be modified for in-place
+		 * decryption.
+		 */
+		if (sp->hdr.securityIndex != 0) {
+			struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
+			if (!nskb) {
+				rxrpc_eaten_skb(skb, rxrpc_skb_unshared_nomem);
+				goto out;
+			}
+
+			if (nskb != skb) {
+				rxrpc_eaten_skb(skb, rxrpc_skb_received);
+				rxrpc_new_skb(skb, rxrpc_skb_unshared);
+				skb = nskb;
+				sp = rxrpc_skb(skb);
+			}
+		}
 		break;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:

@@ -32,6 +32,8 @@ enum rxrpc_skb_trace {
 	rxrpc_skb_received,
 	rxrpc_skb_rotated,
 	rxrpc_skb_seen,
+	rxrpc_skb_unshared,
+	rxrpc_skb_unshared_nomem,
 };
 
 enum rxrpc_local_trace {
@@ -231,7 +233,9 @@ enum rxrpc_tx_point {
 	EM(rxrpc_skb_purged,			"PUR") \
 	EM(rxrpc_skb_received,			"RCV") \
 	EM(rxrpc_skb_rotated,			"ROT") \
-	E_(rxrpc_skb_seen,			"SEE")
+	EM(rxrpc_skb_seen,			"SEE") \
+	EM(rxrpc_skb_unshared,			"UNS") \
+	E_(rxrpc_skb_unshared_nomem,		"US0")
 
 #define rxrpc_local_traces \
 	EM(rxrpc_local_got,			"GOT") \
@@ -633,9 +637,9 @@ TRACE_EVENT(rxrpc_call,
 
 TRACE_EVENT(rxrpc_skb,
 	    TP_PROTO(struct sk_buff *skb, enum rxrpc_skb_trace op,
-		     int usage, int mod_count, const void *where),
+		     int usage, int mod_count, u8 flags,    const void *where),
 
-	    TP_ARGS(skb, op, usage, mod_count, where),
+	    TP_ARGS(skb, op, usage, mod_count, flags, where),
 
 	    TP_STRUCT__entry(
 		    __field(struct sk_buff *,		skb		)
@@ -648,7 +652,7 @@ TRACE_EVENT(rxrpc_skb,
 
 	    TP_fast_assign(
 		    __entry->skb = skb;
-		    __entry->flags = rxrpc_skb(skb)->rx_flags;
+		    __entry->flags = flags;
 		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->mod_count = mod_count;
