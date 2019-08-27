@@ -449,7 +449,6 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (!priv->echo_skb[idx]) {
-
 		skb = can_create_echo_skb(skb);
 		if (!skb)
 			return;
