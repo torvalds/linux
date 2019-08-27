@@ -54,7 +54,6 @@ int num_registered_fb __read_mostly;
 EXPORT_SYMBOL(num_registered_fb);
 
 bool fb_center_logo __read_mostly;
-EXPORT_SYMBOL(fb_center_logo);
 
 int fb_logo_count __read_mostly = -1;
 
