@@ -493,7 +493,7 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 
 	if (!dev || !dev->of_node) {
 		of_node_put(np);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENODEV);
 	}
 
 	sensor_np = of_node_get(dev->of_node);
