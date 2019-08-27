@@ -4539,12 +4539,22 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 
 	if (!vmx->rmode.vm86_active && is_gp_fault(intr_info)) {
 		WARN_ON_ONCE(!enable_vmware_backdoor);
+
+		/*
+		 * VMware backdoor emulation on #GP interception only handles
+		 * IN{S}, OUT{S}, and RDPMC, none of which generate a non-zero
+		 * error code on #GP.
+		 */
+		if (error_code) {
+			kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
+			return 1;
+		}
 		er = kvm_emulate_instruction(vcpu,
 			EMULTYPE_VMWARE | EMULTYPE_NO_UD_ON_FAIL);
 		if (er == EMULATE_USER_EXIT)
 			return 0;
 		else if (er != EMULATE_DONE)
-			kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
+			kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
 		return 1;
 	}
 
