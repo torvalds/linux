@@ -973,13 +973,13 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 		if (map->core.base) {
 			record__adjust_affinity(rec, map);
 			if (synch) {
-				flush = map->flush;
-				map->flush = 1;
+				flush = map->core.flush;
+				map->core.flush = 1;
 			}
 			if (!record__aio_enabled(rec)) {
 				if (perf_mmap__push(map, rec, record__pushfn) < 0) {
 					if (synch)
-						map->flush = flush;
+						map->core.flush = flush;
 					rc = -1;
 					goto out;
 				}
@@ -987,13 +987,13 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 				if (record__aio_push(rec, map, &off) < 0) {
 					record__aio_set_pos(trace_fd, off);
 					if (synch)
-						map->flush = flush;
+						map->core.flush = flush;
 					rc = -1;
 					goto out;
 				}
 			}
 			if (synch)
-				map->flush = flush;
+				map->core.flush = flush;
 		}
 
 		if (map->auxtrace_mmap.base && !rec->opts.auxtrace_snapshot_mode &&

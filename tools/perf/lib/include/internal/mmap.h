@@ -25,6 +25,7 @@ struct perf_mmap {
 	u64		 start;
 	u64		 end;
 	bool		 overwrite;
+	u64		 flush;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __aligned(8);
 };
 

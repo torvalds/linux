@@ -383,7 +383,7 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 
 	perf_mmap__setup_affinity_mask(map, mp);
 
-	map->flush = mp->flush;
+	map->core.flush = mp->flush;
 
 	map->comp_level = mp->comp_level;
 
@@ -450,7 +450,7 @@ static int __perf_mmap__read_init(struct mmap *md)
 	md->core.start = md->core.overwrite ? head : old;
 	md->core.end = md->core.overwrite ? old : head;
 
-	if ((md->core.end - md->core.start) < md->flush)
+	if ((md->core.end - md->core.start) < md->core.flush)
 		return -EAGAIN;
 
 	size = md->core.end - md->core.start;

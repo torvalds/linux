@@ -32,7 +32,6 @@ struct mmap {
 	} aio;
 #endif
 	cpu_set_t	affinity_mask;
-	u64		flush;
 	void		*data;
 	int		comp_level;
 };
