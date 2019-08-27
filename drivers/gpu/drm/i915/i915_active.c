@@ -92,12 +92,16 @@ static void debug_active_init(struct i915_active *ref)
 
 static void debug_active_activate(struct i915_active *ref)
 {
-	debug_object_activate(ref, &active_debug_desc);
+	lockdep_assert_held(&ref->mutex);
+	if (!atomic_read(&ref->count)) /* before the first inc */
+		debug_object_activate(ref, &active_debug_desc);
 }
 
 static void debug_active_deactivate(struct i915_active *ref)
 {
-	debug_object_deactivate(ref, &active_debug_desc);
+	lockdep_assert_held(&ref->mutex);
+	if (!atomic_read(&ref->count)) /* after the last dec */
+		debug_object_deactivate(ref, &active_debug_desc);
 }
 
 static void debug_active_fini(struct i915_active *ref)
