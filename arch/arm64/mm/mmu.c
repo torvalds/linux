@@ -647,6 +647,8 @@ static void __init map_kernel(pgd_t *pgdp)
 		set_pgd(pgd_offset_raw(pgdp, FIXADDR_START),
 			READ_ONCE(*pgd_offset_k(FIXADDR_START)));
 	} else if (CONFIG_PGTABLE_LEVELS > 3) {
+		pgd_t *bm_pgdp;
+		pud_t *bm_pudp;
 		/*
 		 * The fixmap shares its top level pgd entry with the kernel
 		 * mapping. This can really only occur when we are running
@@ -654,9 +656,9 @@ static void __init map_kernel(pgd_t *pgdp)
 		 * entry instead.
 		 */
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
-		pud_populate(&init_mm,
-			     pud_set_fixmap_offset(pgdp, FIXADDR_START),
-			     lm_alias(bm_pmd));
+		bm_pgdp = pgd_offset_raw(pgdp, FIXADDR_START);
+		bm_pudp = pud_set_fixmap_offset(bm_pgdp, FIXADDR_START);
+		pud_populate(&init_mm, bm_pudp, lm_alias(bm_pmd));
 		pud_clear_fixmap();
 	} else {
 		BUG();
