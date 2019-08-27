@@ -17,6 +17,20 @@ struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
 void bch2_alloc_pack(struct bkey_i_alloc *,
 		     const struct bkey_alloc_unpacked);
 
+static inline struct bkey_alloc_unpacked
+alloc_mem_to_key(struct bucket *g, struct bucket_mark m)
+{
+	return (struct bkey_alloc_unpacked) {
+		.gen		= m.gen,
+		.oldest_gen	= g->oldest_gen,
+		.data_type	= m.data_type,
+		.dirty_sectors	= m.dirty_sectors,
+		.cached_sectors	= m.cached_sectors,
+		.read_time	= g->io_time[READ],
+		.write_time	= g->io_time[WRITE],
+	};
+}
+
 #define ALLOC_SCAN_BATCH(ca)		max_t(size_t, 1, (ca)->mi.nbuckets >> 9)
 
 const char *bch2_alloc_invalid(const struct bch_fs *, struct bkey_s_c);

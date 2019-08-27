@@ -205,20 +205,6 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 			       get_alloc_field(a.v, &d, i));
 }
 
-static inline struct bkey_alloc_unpacked
-alloc_mem_to_key(struct bucket *g, struct bucket_mark m)
-{
-	return (struct bkey_alloc_unpacked) {
-		.gen		= m.gen,
-		.oldest_gen	= g->oldest_gen,
-		.data_type	= m.data_type,
-		.dirty_sectors	= m.dirty_sectors,
-		.cached_sectors	= m.cached_sectors,
-		.read_time	= g->io_time[READ],
-		.write_time	= g->io_time[WRITE],
-	};
-}
-
 int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
 	struct btree_trans trans;
