@@ -170,6 +170,7 @@ extern int8_t udf_next_aext(struct inode *, struct extent_position *,
 			    struct kernel_lb_addr *, uint32_t *, int);
 extern int8_t udf_current_aext(struct inode *, struct extent_position *,
 			       struct kernel_lb_addr *, uint32_t *, int);
+extern void udf_update_extra_perms(struct inode *inode, umode_t mode);
 
 /* misc.c */
 extern struct buffer_head *udf_tgetblk(struct super_block *sb,

@@ -38,6 +38,7 @@ struct udf_inode_info {
 	__u32			i_next_alloc_block;
 	__u32			i_next_alloc_goal;
 	__u32			i_checkpoint;
+	__u32			i_extraPerms;
 	unsigned		i_alloc_type : 3;
 	unsigned		i_efe : 1;	/* extendedFileEntry */
 	unsigned		i_use : 1;	/* unallocSpaceEntry */
