@@ -174,6 +174,11 @@ C. Boot options
 	displayed due to multiple CPUs, the collected line of logos is moved
 	as a whole.
 
+9. fbcon=logo-count:<n>
+
+	The value 'n' overrides the number of bootup logos. 0 disables the
+	logo, and -1 gives the default which is the number of online CPUs.
+
 C. Attaching, Detaching and Unloading
 
 Before going on to how to attach, detach and unload the framebuffer console, an
