@@ -2540,8 +2540,11 @@ xfs_rmap_has_other_keys(
 
 	error = xfs_rmap_query_range(cur, &low, &high,
 			xfs_rmap_has_other_keys_helper, &rks);
+	if (error < 0)
+		return error;
+
 	*has_rmap = rks.has_rmap;
-	return error;
+	return 0;
 }
 
 const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE = {
