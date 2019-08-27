@@ -99,7 +99,8 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	s->tcf_action = parm->action;
 	s->rate = rate;
 	s->psample_group_num = psample_group_num;
-	RCU_INIT_POINTER(s->psample_group, psample_group);
+	rcu_swap_protected(s->psample_group, psample_group,
+			   lockdep_is_held(&s->tcf_lock));
 
 	if (tb[TCA_SAMPLE_TRUNC_SIZE]) {
 		s->truncate = true;
@@ -107,6 +108,8 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	}
 	spin_unlock_bh(&s->tcf_lock);
 
+	if (psample_group)
+		psample_group_put(psample_group);
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
