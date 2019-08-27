@@ -400,7 +400,7 @@ static int child_unregister(struct device *dev, void *data)
 
 		/* We are shutting down. Make state frozen artificially. */
 		nvdimm_bus_lock(dev);
-		nvdimm->sec.state = NVDIMM_SECURITY_FROZEN;
+		set_bit(NVDIMM_SECURITY_FROZEN, &nvdimm->sec.flags);
 		if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
 			dev_put = true;
 		nvdimm_bus_unlock(dev);
