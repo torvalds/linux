@@ -9,6 +9,7 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/clk-provider.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
 
@@ -174,6 +175,19 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->axi->axi_blen[1] = 8;
 	plat->axi->axi_blen[2] = 16;
 
+	plat->ptp_max_adj = plat->clk_ptp_rate;
+
+	/* Set system clock */
+	plat->stmmac_clk = clk_register_fixed_rate(&pdev->dev,
+						   "stmmac-clk", NULL, 0,
+						   plat->clk_ptp_rate);
+
+	if (IS_ERR(plat->stmmac_clk)) {
+		dev_warn(&pdev->dev, "Fail to register stmmac-clk\n");
+		plat->stmmac_clk = NULL;
+	}
+	clk_prepare_enable(plat->stmmac_clk);
+
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = HASH_TABLE_SIZE;
 
@@ -193,6 +207,7 @@ static int ehl_common_data(struct pci_dev *pdev,
 
 	plat->rx_queues_to_use = 8;
 	plat->tx_queues_to_use = 8;
+	plat->clk_ptp_rate = 200000000;
 	ret = intel_mgbe_common_data(pdev, plat);
 	if (ret)
 		return ret;
@@ -233,6 +248,7 @@ static int tgl_common_data(struct pci_dev *pdev,
 
 	plat->rx_queues_to_use = 6;
 	plat->tx_queues_to_use = 4;
+	plat->clk_ptp_rate = 200000000;
 	ret = intel_mgbe_common_data(pdev, plat);
 	if (ret)
 		return ret;
@@ -438,9 +454,14 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
  */
 static void stmmac_pci_remove(struct pci_dev *pdev)
 {
+	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
 	int i;
 
 	stmmac_dvr_remove(&pdev->dev);
+
+	if (priv->plat->stmmac_clk)
+		clk_unregister_fixed_rate(priv->plat->stmmac_clk);
 
 	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
 		if (pci_resource_len(pdev, i) == 0)
