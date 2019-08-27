@@ -6306,6 +6306,13 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu, int emulation_type)
 		return EMULATE_DONE;
 	}
 
+	if (emulation_type & EMULTYPE_SKIP) {
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+		vcpu->run->internal.ndata = 0;
+		return EMULATE_USER_EXIT;
+	}
+
 	kvm_queue_exception(vcpu, UD_VECTOR);
 
 	if (!is_guest_mode(vcpu) && kvm_x86_ops->get_cpl(vcpu) == 0) {
@@ -6641,8 +6648,6 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 				inject_emulated_exception(vcpu);
 				return EMULATE_DONE;
 			}
-			if (emulation_type & EMULTYPE_SKIP)
-				return EMULATE_FAIL;
 			return handle_emulation_failure(vcpu, emulation_type);
 		}
 	}

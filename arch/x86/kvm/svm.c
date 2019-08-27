@@ -3885,8 +3885,8 @@ static int task_switch_interception(struct vcpu_svm *svm)
 	    int_type == SVM_EXITINTINFO_TYPE_SOFT ||
 	    (int_type == SVM_EXITINTINFO_TYPE_EXEPT &&
 	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR))) {
-		if (skip_emulated_instruction(&svm->vcpu) != EMULATE_DONE)
-			goto fail;
+		if (skip_emulated_instruction(&svm->vcpu) == EMULATE_USER_EXIT)
+			return 0;
 	}
 
 	if (int_type != SVM_EXITINTINFO_TYPE_SOFT)
