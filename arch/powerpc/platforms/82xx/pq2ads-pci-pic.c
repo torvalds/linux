@@ -123,7 +123,6 @@ int __init pq2ads_pci_init_irq(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,pq2ads-pci-pic");
 	if (!np) {
 		printk(KERN_ERR "No pci pic node in device tree.\n");
-		of_node_put(np);
 		goto out;
 	}
 
