@@ -1473,15 +1473,17 @@
 		};
 		opp-933000000 {
 			opp-hz = /bits/ 64 <933000000>;
-			opp-microvolt = <1100000>;
-			opp-microvolt-L0 = <1100000>;
-			opp-microvolt-L1 = <1075000>;
+			opp-microvolt = <1125000>;
+			opp-microvolt-L0 = <1125000>;
+			opp-microvolt-L1 = <1100000>;
 		};
+		/* 1066M is only for ddr4 */
 		opp-1066000000 {
 			opp-hz = /bits/ 64 <1066000000>;
 			opp-microvolt = <1175000>;
 			opp-microvolt-L0 = <1175000>;
 			opp-microvolt-L1 = <1150000>;
+			status = "disabled";
 		};
 	};
 
