@@ -6703,6 +6703,8 @@ restart:
 		}
 		r = EMULATE_USER_EXIT;
 	} else if (vcpu->mmio_needed) {
+		++vcpu->stat.mmio_exits;
+
 		if (!vcpu->mmio_is_write)
 			writeback = false;
 		r = EMULATE_USER_EXIT;

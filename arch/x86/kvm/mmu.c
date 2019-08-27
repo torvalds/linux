@@ -5456,8 +5456,6 @@ emulate:
 	case EMULATE_DONE:
 		return 1;
 	case EMULATE_USER_EXIT:
-		++vcpu->stat.mmio_exits;
-		/* fall through */
 	case EMULATE_FAIL:
 		return 0;
 	default:
