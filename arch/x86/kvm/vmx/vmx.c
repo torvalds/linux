@@ -5169,8 +5169,7 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu)
 static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	enum emulation_result err = EMULATE_DONE;
-	int ret = 1;
+	enum emulation_result err;
 	bool intr_window_requested;
 	unsigned count = 130;
 
@@ -5193,38 +5192,38 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 
 		err = kvm_emulate_instruction(vcpu, 0);
 
-		if (err == EMULATE_USER_EXIT) {
-			ret = 0;
-			goto out;
-		}
+		if (err == EMULATE_USER_EXIT)
+			return 0;
 
-		if (err != EMULATE_DONE)
-			goto emulation_error;
+		if (WARN_ON_ONCE(err == EMULATE_FAIL))
+			return 1;
 
 		if (vmx->emulation_required && !vmx->rmode.vm86_active &&
-		    vcpu->arch.exception.pending)
-			goto emulation_error;
+		    vcpu->arch.exception.pending) {
+			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			vcpu->run->internal.suberror =
+						KVM_INTERNAL_ERROR_EMULATION;
+			vcpu->run->internal.ndata = 0;
+			return 0;
+		}
 
 		if (vcpu->arch.halt_request) {
 			vcpu->arch.halt_request = 0;
-			ret = kvm_vcpu_halt(vcpu);
-			goto out;
+			return kvm_vcpu_halt(vcpu);
 		}
 
+		/*
+		 * Note, return 1 and not 0, vcpu_run() is responsible for
+		 * morphing the pending signal into the proper return code.
+		 */
 		if (signal_pending(current))
-			goto out;
+			return 1;
+
 		if (need_resched())
 			schedule();
 	}
 
-out:
-	return ret;
-
-emulation_error:
-	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-	vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
-	vcpu->run->internal.ndata = 0;
-	return 0;
+	return 1;
 }
 
 static void grow_ple_window(struct kvm_vcpu *vcpu)
