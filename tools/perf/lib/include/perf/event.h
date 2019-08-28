@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 #include <linux/bpf.h>
+#include <sys/types.h> /* pid_t */
 
 struct perf_record_mmap {
 	struct perf_event_header header;
@@ -178,6 +179,13 @@ struct event_type_event {
 struct tracing_data_event {
 	struct perf_event_header header;
 	__u32			 size;
+};
+
+struct build_id_event {
+	struct perf_event_header header;
+	pid_t			 pid;
+	__u8			 build_id[24];
+	char			 filename[];
 };
 
 #endif /* __LIBPERF_EVENT_H */
