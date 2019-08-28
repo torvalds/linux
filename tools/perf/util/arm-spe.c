@@ -181,7 +181,7 @@ static const char * const arm_spe_info_fmts[] = {
 	[ARM_SPE_PMU_TYPE]		= "  PMU Type           %"PRId64"\n",
 };
 
-static void arm_spe_print_info(u64 *arr)
+static void arm_spe_print_info(__u64 *arr)
 {
 	if (!dump_trace)
 		return;

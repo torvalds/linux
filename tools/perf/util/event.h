@@ -332,13 +332,6 @@ struct events_stats {
 	u32 nr_proc_map_timeout;
 };
 
-struct auxtrace_info_event {
-	struct perf_event_header header;
-	u32 type;
-	u32 reserved__; /* For alignment */
-	u64 priv[];
-};
-
 struct auxtrace_event {
 	struct perf_event_header header;
 	u64 size;

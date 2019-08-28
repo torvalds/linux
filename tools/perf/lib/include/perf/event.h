@@ -201,4 +201,11 @@ struct id_index_event {
 	struct id_index_entry	 entries[0];
 };
 
+struct auxtrace_info_event {
+	struct perf_event_header header;
+	__u32			 type;
+	__u32			 reserved__; /* For alignment */
+	__u64			 priv[];
+};
+
 #endif /* __LIBPERF_EVENT_H */

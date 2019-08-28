@@ -328,7 +328,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	unsigned long max_non_turbo_ratio;
 	size_t filter_str_len;
 	const char *filter;
-	u64 *info;
+	__u64 *info;
 	int err;
 
 	if (priv_size != ptr->priv_size)

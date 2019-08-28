@@ -2370,7 +2370,7 @@ static const char * const cs_etmv4_priv_fmts[] = {
 	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
 };
 
-static void cs_etm__print_auxtrace_info(u64 *val, int num)
+static void cs_etm__print_auxtrace_info(__u64 *val, int num)
 {
 	int i, j, cpu = 0;
 

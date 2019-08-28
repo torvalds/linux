@@ -834,7 +834,7 @@ static const char * const intel_bts_info_fmts[] = {
 	[INTEL_BTS_SNAPSHOT_MODE]	= "  Snapshot mode      %"PRId64"\n",
 };
 
-static void intel_bts_print_info(u64 *arr, int start, int finish)
+static void intel_bts_print_info(__u64 *arr, int start, int finish)
 {
 	int i;
 
