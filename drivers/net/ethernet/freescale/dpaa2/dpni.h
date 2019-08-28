@@ -485,6 +485,11 @@ int dpni_set_link_cfg(struct fsl_mc_io			*mc_io,
 		      u16				token,
 		      const struct dpni_link_cfg	*cfg);
 
+int dpni_get_link_cfg(struct fsl_mc_io			*mc_io,
+		      u32				cmd_flags,
+		      u16				token,
+		      struct dpni_link_cfg		*cfg);
+
 /**
  * struct dpni_link_state - Structure representing DPNI link state
  * @rate: Rate

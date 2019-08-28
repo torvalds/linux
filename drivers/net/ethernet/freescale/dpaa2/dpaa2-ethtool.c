@@ -88,6 +88,59 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 	return 0;
 }
 
+static void dpaa2_eth_get_pauseparam(struct net_device *net_dev,
+				     struct ethtool_pauseparam *pause)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	u64 link_options = priv->link_state.options;
+
+	pause->rx_pause = !!(link_options & DPNI_LINK_OPT_PAUSE);
+	pause->tx_pause = pause->rx_pause ^
+			  !!(link_options & DPNI_LINK_OPT_ASYM_PAUSE);
+	pause->autoneg = AUTONEG_DISABLE;
+}
+
+static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
+				    struct ethtool_pauseparam *pause)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	struct dpni_link_cfg cfg = {0};
+	int err;
+
+	if (!dpaa2_eth_has_pause_support(priv)) {
+		netdev_info(net_dev, "No pause frame support for DPNI version < %d.%d\n",
+			    DPNI_PAUSE_VER_MAJOR, DPNI_PAUSE_VER_MINOR);
+		return -EOPNOTSUPP;
+	}
+
+	if (pause->autoneg)
+		return -EOPNOTSUPP;
+
+	cfg.rate = priv->link_state.rate;
+	cfg.options = priv->link_state.options;
+	if (pause->rx_pause)
+		cfg.options |= DPNI_LINK_OPT_PAUSE;
+	else
+		cfg.options &= ~DPNI_LINK_OPT_PAUSE;
+	if (!!pause->rx_pause ^ !!pause->tx_pause)
+		cfg.options |= DPNI_LINK_OPT_ASYM_PAUSE;
+	else
+		cfg.options &= ~DPNI_LINK_OPT_ASYM_PAUSE;
+
+	if (cfg.options == priv->link_state.options)
+		return 0;
+
+	err = dpni_set_link_cfg(priv->mc_io, 0, priv->mc_token, &cfg);
+	if (err) {
+		netdev_err(net_dev, "dpni_set_link_state failed\n");
+		return err;
+	}
+
+	priv->link_state.options = cfg.options;
+
+	return 0;
+}
+
 static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 				  u8 *data)
 {
@@ -664,6 +717,8 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = dpaa2_eth_get_link_ksettings,
+	.get_pauseparam = dpaa2_eth_get_pauseparam,
+	.set_pauseparam = dpaa2_eth_set_pauseparam,
 	.get_sset_count = dpaa2_eth_get_sset_count,
 	.get_ethtool_stats = dpaa2_eth_get_ethtool_stats,
 	.get_strings = dpaa2_eth_get_strings,
