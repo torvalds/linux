@@ -249,7 +249,13 @@ static int bch2_extent_replay_key(struct bch_fs *c, enum btree_id btree_id,
 		bch2_disk_reservation_init(c, 0);
 	struct bkey_i *split;
 	struct bpos atomic_end;
-	bool split_compressed = false;
+	/*
+	 * Some extents aren't equivalent - w.r.t. what the triggers do
+	 * - if they're split:
+	 */
+	bool remark_if_split = bch2_extent_is_compressed(bkey_i_to_s_c(k)) ||
+		k->k.type == KEY_TYPE_reflink_p;
+	bool remark = false;
 	int ret;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
@@ -280,8 +286,8 @@ retry:
 		if (ret)
 			goto err;
 
-		if (!split_compressed &&
-		    bch2_extent_is_compressed(bkey_i_to_s_c(k)) &&
+		if (!remark &&
+		    remark_if_split &&
 		    bkey_cmp(atomic_end, k->k.p) < 0) {
 			ret = bch2_disk_reservation_add(c, &disk_res,
 					k->k.size *
@@ -289,7 +295,7 @@ retry:
 					BCH_DISK_RESERVATION_NOFAIL);
 			BUG_ON(ret);
 
-			split_compressed = true;
+			remark = true;
 		}
 
 		bkey_copy(split, k);
@@ -300,7 +306,7 @@ retry:
 		bch2_btree_iter_set_pos(iter, split->k.p);
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
-	if (split_compressed) {
+	if (remark) {
 		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k),
 					  0, -((s64) k->k.size),
 					  BCH_BUCKET_MARK_OVERWRITE) ?:
