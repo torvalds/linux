@@ -831,7 +831,7 @@ xfs_bulkstat_fmt(
 /*
  * Check the incoming bulk request @hdr from userspace and initialize the
  * internal @breq bulk request appropriately.  Returns 0 if the bulk request
- * should proceed; XFS_ITER_ABORT if there's nothing to do; or the usual
+ * should proceed; -ECANCELED if there's nothing to do; or the usual
  * negative error code.
  */
 static int
@@ -889,13 +889,13 @@ xfs_bulk_ireq_setup(
 
 		/* Asking for an inode past the end of the AG?  We're done! */
 		if (XFS_INO_TO_AGNO(mp, breq->startino) > hdr->agno)
-			return XFS_ITER_ABORT;
+			return -ECANCELED;
 	} else if (hdr->agno)
 		return -EINVAL;
 
 	/* Asking for an inode past the end of the FS?  We're done! */
 	if (XFS_INO_TO_AGNO(mp, breq->startino) >= mp->m_sb.sb_agcount)
-		return XFS_ITER_ABORT;
+		return -ECANCELED;
 
 	return 0;
 }
@@ -936,7 +936,7 @@ xfs_ioc_bulkstat(
 		return -EFAULT;
 
 	error = xfs_bulk_ireq_setup(mp, &hdr, &breq, arg->bulkstat);
-	if (error == XFS_ITER_ABORT)
+	if (error == -ECANCELED)
 		goto out_teardown;
 	if (error < 0)
 		return error;
@@ -986,7 +986,7 @@ xfs_ioc_inumbers(
 		return -EFAULT;
 
 	error = xfs_bulk_ireq_setup(mp, &hdr, &breq, arg->inumbers);
-	if (error == XFS_ITER_ABORT)
+	if (error == -ECANCELED)
 		goto out_teardown;
 	if (error < 0)
 		return error;
@@ -1881,7 +1881,7 @@ xfs_ioc_getfsmap(
 	info.mp = ip->i_mount;
 	info.data = arg;
 	error = xfs_getfsmap(ip->i_mount, &xhead, xfs_getfsmap_format, &info);
-	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
+	if (error == -ECANCELED) {
 		error = 0;
 		aborted = true;
 	} else if (error)

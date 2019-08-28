@@ -522,7 +522,7 @@ xchk_bmap_check_rmap(
 
 out:
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return XFS_BTREE_QUERY_RANGE_ABORT;
+		return -ECANCELED;
 	return 0;
 }
 
@@ -551,7 +551,7 @@ xchk_bmap_check_ag_rmaps(
 	sbcri.sc = sc;
 	sbcri.whichfork = whichfork;
 	error = xfs_rmap_query_all(cur, xchk_bmap_check_rmap, &sbcri);
-	if (error == XFS_BTREE_QUERY_RANGE_ABORT)
+	if (error == -ECANCELED)
 		error = 0;
 
 	xfs_btree_del_cursor(cur, error);

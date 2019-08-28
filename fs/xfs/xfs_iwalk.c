@@ -31,7 +31,7 @@
  * inode it finds, it calls a walk function with the relevant inode number and
  * a pointer to caller-provided data.  The walk function can return the usual
  * negative error code to stop the iteration; 0 to continue the iteration; or
- * XFS_IWALK_ABORT to stop the iteration.  This return value is returned to the
+ * -ECANCELED to stop the iteration.  This return value is returned to the
  * caller.
  *
  * Internally, we allow the walk function to do anything, which means that we

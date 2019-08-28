@@ -180,7 +180,4 @@ struct xfs_ino_geometry {
 /* Keep iterating the data structure. */
 #define XFS_ITER_CONTINUE	(0)
 
-/* Stop iterating the data structure. */
-#define XFS_ITER_ABORT		(1)
-
 #endif /* __XFS_SHARED_H__ */

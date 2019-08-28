@@ -173,7 +173,7 @@ xchk_xattr_listent(
 					     args.blkno);
 fail_xref:
 	if (sx->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		context->seen_enough = XFS_ITER_ABORT;
+		context->seen_enough = 1;
 	return;
 }
 

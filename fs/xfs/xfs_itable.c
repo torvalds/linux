@@ -137,7 +137,7 @@ xfs_bulkstat_one_int(
 	xfs_irele(ip);
 
 	error = bc->formatter(bc->breq, buf);
-	if (error == XFS_IBULK_ABORT)
+	if (error == -ECANCELED)
 		goto out_advance;
 	if (error)
 		goto out;
@@ -181,7 +181,7 @@ xfs_bulkstat_one(
 	 * If we reported one inode to userspace then we abort because we hit
 	 * the end of the buffer.  Don't leak that back to userspace.
 	 */
-	if (error == XFS_IWALK_ABORT)
+	if (error == -ECANCELED)
 		error = 0;
 
 	return error;
@@ -342,7 +342,7 @@ xfs_inumbers_walk(
 	int			error;
 
 	error = ic->formatter(ic->breq, &inogrp);
-	if (error && error != XFS_IBULK_ABORT)
+	if (error && error != -ECANCELED)
 		return error;
 
 	ic->breq->startino = XFS_AGINO_TO_INO(mp, agno, irec->ir_startino) +

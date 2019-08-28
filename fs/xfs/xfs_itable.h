@@ -18,9 +18,6 @@ struct xfs_ibulk {
 /* Only iterate within the same AG as startino */
 #define XFS_IBULK_SAME_AG	(XFS_IWALK_SAME_AG)
 
-/* Return value that means we want to abort the walk. */
-#define XFS_IBULK_ABORT		(XFS_IWALK_ABORT)
-
 /*
  * Advance the user buffer pointer by one record of the given size.  If the
  * buffer is now full, return the appropriate error code.
@@ -34,11 +31,19 @@ xfs_ibulk_advance(
 
 	breq->ubuffer = b + bytes;
 	breq->ocount++;
-	return breq->ocount == breq->icount ? XFS_IBULK_ABORT : 0;
+	return breq->ocount == breq->icount ? -ECANCELED : 0;
 }
 
 /*
  * Return stat information in bulk (by-inode) for the filesystem.
+ */
+
+/*
+ * Return codes for the formatter function are 0 to continue iterating, and
+ * non-zero to stop iterating.  Any non-zero value will be passed up to the
+ * bulkstat/inumbers caller.  The special value -ECANCELED can be used to stop
+ * iteration, as neither bulkstat nor inumbers will ever generate that error
+ * code on their own.
  */
 
 typedef int (*bulkstat_one_fmt_pf)(struct xfs_ibulk *breq,
