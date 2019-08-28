@@ -1,0 +1,15 @@
+# Atrocities needed for
+# a) building GKI modules in separate tree, or
+# b) building drivers that are not modularizable
+#
+# All of these should be reworked into an upstream solution
+# if possible.
+#
+config GKI_HACKS_TO_FIX
+	bool "GKI Dummy config options"
+	help
+	  Dummy config option used to enable core functionality used by
+	  modules that may not be selectable in this config.
+
+	  Unless you are building a GKI kernel to be used with modules
+	  built from a different config, say N here.
