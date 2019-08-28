@@ -558,7 +558,8 @@ struct hl_asic_funcs {
 				struct hl_eq_entry *eq_entry);
 	void (*set_pll_profile)(struct hl_device *hdev,
 			enum hl_pll_frequency freq);
-	void* (*get_events_stat)(struct hl_device *hdev, u32 *size);
+	void* (*get_events_stat)(struct hl_device *hdev, bool aggregate,
+				u32 *size);
 	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
 	void (*write_pte)(struct hl_device *hdev, u64 addr, u64 val);
 	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard);

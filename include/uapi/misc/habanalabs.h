@@ -93,6 +93,8 @@ enum hl_device_status {
  *                              The period can be between 100ms to 1s, in
  *                              resolution of 100ms. The return value is a
  *                              percentage of the utilization rate.
+ * HL_INFO_HW_EVENTS_AGGREGATE - Receive an array describing how many times each
+ *                               event occurred since the driver was loaded.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -100,6 +102,7 @@ enum hl_device_status {
 #define HL_INFO_HW_IDLE			3
 #define HL_INFO_DEVICE_STATUS		4
 #define HL_INFO_DEVICE_UTILIZATION	6
+#define HL_INFO_HW_EVENTS_AGGREGATE	7
 
 #define HL_INFO_VERSION_MAX_LEN	128
 

@@ -75,7 +75,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t)size, sizeof(hw_ip))) ? -EFAULT : 0;
 }
 
-static int hw_events_info(struct hl_device *hdev, struct hl_info_args *args)
+static int hw_events_info(struct hl_device *hdev, bool aggregate,
+			struct hl_info_args *args)
 {
 	u32 size, max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
@@ -84,7 +85,7 @@ static int hw_events_info(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	arr = hdev->asic_funcs->get_events_stat(hdev, &size);
+	arr = hdev->asic_funcs->get_events_stat(hdev, aggregate, &size);
 
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
 }
@@ -251,7 +252,7 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	switch (args->op) {
 	case HL_INFO_HW_EVENTS:
-		rc = hw_events_info(hdev, args);
+		rc = hw_events_info(hdev, false, args);
 		break;
 
 	case HL_INFO_DRAM_USAGE:
@@ -264,6 +265,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DEVICE_UTILIZATION:
 		rc = device_utilization(hdev, args);
+		break;
+
+	case HL_INFO_HW_EVENTS_AGGREGATE:
+		rc = hw_events_info(hdev, true, args);
 		break;
 
 	default:

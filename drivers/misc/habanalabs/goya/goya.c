@@ -4469,6 +4469,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	struct goya_device *goya = hdev->asic_specific;
 
 	goya->events_stat[event_type]++;
+	goya->events_stat_aggregate[event_type]++;
 
 	switch (event_type) {
 	case GOYA_ASYNC_EVENT_ID_PCIE_IF:
@@ -4550,12 +4551,16 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	}
 }
 
-void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
+void *goya_get_events_stat(struct hl_device *hdev, bool aggregate, u32 *size)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
-	*size = (u32) sizeof(goya->events_stat);
+	if (aggregate) {
+		*size = (u32) sizeof(goya->events_stat_aggregate);
+		return goya->events_stat_aggregate;
+	}
 
+	*size = (u32) sizeof(goya->events_stat);
 	return goya->events_stat;
 }
 
