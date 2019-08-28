@@ -1728,6 +1728,21 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_static_config_free(&priv->static_config);
 }
 
+static int sja1105_port_enable(struct dsa_switch *ds, int port,
+			       struct phy_device *phy)
+{
+	struct net_device *slave;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
+	slave = ds->ports[port].slave;
+
+	slave->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	return 0;
+}
+
 static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 			     struct sk_buff *skb, bool takets)
 {
@@ -2049,6 +2064,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
 	.get_ts_info		= sja1105_get_ts_info,
+	.port_enable		= sja1105_port_enable,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
