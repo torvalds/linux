@@ -312,6 +312,39 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 	return ret;
 }
 
+static int dsa_slave_vlan_add(struct net_device *dev,
+			      const struct switchdev_obj *obj,
+			      struct switchdev_trans *trans)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct switchdev_obj_port_vlan vlan;
+	int err;
+
+	if (obj->orig_dev != dev)
+		return -EOPNOTSUPP;
+
+	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
+		return 0;
+
+	vlan = *SWITCHDEV_OBJ_PORT_VLAN(obj);
+
+	err = dsa_port_vlan_add(dp, &vlan, trans);
+	if (err)
+		return err;
+
+	/* We need the dedicated CPU port to be a member of the VLAN as well.
+	 * Even though drivers often handle CPU membership in special ways,
+	 * it doesn't make sense to program a PVID, so clear this flag.
+	 */
+	vlan.flags &= ~BRIDGE_VLAN_INFO_PVID;
+
+	err = dsa_port_vlan_add(dp->cpu_dp, &vlan, trans);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int dsa_slave_port_obj_add(struct net_device *dev,
 				  const struct switchdev_obj *obj,
 				  struct switchdev_trans *trans,
@@ -339,10 +372,7 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 				       trans);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		if (obj->orig_dev != dev)
-			return -EOPNOTSUPP;
-		err = dsa_port_vlan_add(dp, SWITCHDEV_OBJ_PORT_VLAN(obj),
-					trans);
+		err = dsa_slave_vlan_add(dev, obj, trans);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -350,6 +380,23 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 	}
 
 	return err;
+}
+
+static int dsa_slave_vlan_del(struct net_device *dev,
+			      const struct switchdev_obj *obj)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	if (obj->orig_dev != dev)
+		return -EOPNOTSUPP;
+
+	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
+		return 0;
+
+	/* Do not deprogram the CPU port as it may be shared with other user
+	 * ports which can be members of this VLAN as well.
+	 */
+	return dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
 }
 
 static int dsa_slave_port_obj_del(struct net_device *dev,
@@ -371,9 +418,7 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 		err = dsa_port_mdb_del(dp->cpu_dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		if (obj->orig_dev != dev)
-			return -EOPNOTSUPP;
-		err = dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
+		err = dsa_slave_vlan_del(dev, obj);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1073,6 +1118,9 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	 * need to emulate the switchdev prepare + commit phase.
 	 */
 	if (dp->bridge_dev) {
+		if (!br_vlan_enabled(dp->bridge_dev))
+			return 0;
+
 		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
 		 * device, respectively the VID is not found, returning
 		 * 0 means success, which is a failure for us here.
@@ -1082,8 +1130,15 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 			return -EBUSY;
 	}
 
-	/* This API only allows programming tagged, non-PVID VIDs */
-	return dsa_port_vid_add(dp, vid, 0);
+	ret = dsa_port_vid_add(dp, vid, 0);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	ret = dsa_port_vid_add(dp->cpu_dp, vid, 0);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	return 0;
 }
 
 static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
@@ -1097,6 +1152,9 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	 * need to emulate the switchdev prepare + commit phase.
 	 */
 	if (dp->bridge_dev) {
+		if (!br_vlan_enabled(dp->bridge_dev))
+			return 0;
+
 		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
 		 * device, respectively the VID is not found, returning
 		 * 0 means success, which is a failure for us here.
@@ -1110,6 +1168,9 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	if (ret == -EOPNOTSUPP)
 		ret = 0;
 
+	/* Do not deprogram the CPU port as it may be shared with other user
+	 * ports which can be members of this VLAN as well.
+	 */
 	return ret;
 }
 
