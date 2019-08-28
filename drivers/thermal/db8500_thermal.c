@@ -13,13 +13,24 @@
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/platform_data/db8500_thermal.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
 #define PRCMU_DEFAULT_MEASURE_TIME	0xFFF
 #define PRCMU_DEFAULT_LOW_TEMP		0
+#define COOLING_DEV_MAX 8
+
+struct db8500_trip_point {
+	unsigned long temp;
+	enum thermal_trip_type type;
+	char cdev_name[COOLING_DEV_MAX][THERMAL_NAME_LENGTH];
+};
+
+struct db8500_thsens_platform_data {
+	struct db8500_trip_point trip_points[THERMAL_MAX_TRIPS];
+	int num_trips;
+};
 
 struct db8500_thermal_zone {
 	struct thermal_zone_device *therm_dev;
@@ -301,7 +312,6 @@ static void db8500_thermal_work(struct work_struct *work)
 	dev_dbg(&pzone->therm_dev->device, "thermal work finished.\n");
 }
 
-#ifdef CONFIG_OF
 static struct db8500_thsens_platform_data*
 		db8500_thermal_parse_dt(struct platform_device *pdev)
 {
@@ -370,13 +380,6 @@ err_parse_dt:
 	dev_err(&pdev->dev, "Parsing device tree data error.\n");
 	return NULL;
 }
-#else
-static inline struct db8500_thsens_platform_data*
-		db8500_thermal_parse_dt(struct platform_device *pdev)
-{
-	return NULL;
-}
-#endif
 
 static int db8500_thermal_probe(struct platform_device *pdev)
 {
@@ -386,11 +389,10 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	int low_irq, high_irq, ret = 0;
 	unsigned long dft_low, dft_high;
 
-	if (np)
-		ptrips = db8500_thermal_parse_dt(pdev);
-	else
-		ptrips = dev_get_platdata(&pdev->dev);
+	if (!np)
+		return -EINVAL;
 
+	ptrips = db8500_thermal_parse_dt(pdev);
 	if (!ptrips)
 		return -EINVAL;
 
@@ -498,13 +500,11 @@ static int db8500_thermal_resume(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id db8500_thermal_match[] = {
 	{ .compatible = "stericsson,db8500-thermal" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, db8500_thermal_match);
-#endif
 
 static struct platform_driver db8500_thermal_driver = {
 	.driver = {
