@@ -454,12 +454,6 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			goto restore_link;
 	}
 
-	if (chip->info->ops->port_set_cmode_writable) {
-		err = chip->info->ops->port_set_cmode_writable(chip, port);
-		if (err && err != -EOPNOTSUPP)
-			goto restore_link;
-	}
-
 	if (chip->info->ops->port_set_cmode) {
 		err = chip->info->ops->port_set_cmode(chip, port, mode);
 		if (err && err != -EOPNOTSUPP)
@@ -2919,7 +2913,6 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.port_disable_pri_override = mv88e6xxx_port_disable_pri_override,
 	.port_link_state = mv88e6352_port_link_state,
 	.port_get_cmode = mv88e6352_port_get_cmode,
-	.port_set_cmode_writable = mv88e6341_port_set_cmode_writable,
 	.port_set_cmode = mv88e6341_port_set_cmode,
 	.port_setup_message_port = mv88e6xxx_setup_message_port,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
@@ -3618,7 +3611,6 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.port_disable_pri_override = mv88e6xxx_port_disable_pri_override,
 	.port_link_state = mv88e6352_port_link_state,
 	.port_get_cmode = mv88e6352_port_get_cmode,
-	.port_set_cmode_writable = mv88e6341_port_set_cmode_writable,
 	.port_set_cmode = mv88e6341_port_set_cmode,
 	.port_setup_message_port = mv88e6xxx_setup_message_port,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,

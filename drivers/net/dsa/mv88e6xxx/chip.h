@@ -400,7 +400,6 @@ struct mv88e6xxx_ops {
 	/* CMODE control what PHY mode the MAC will use, eg. SGMII, RGMII, etc.
 	 * Some chips allow this to be configured on specific ports.
 	 */
-	int (*port_set_cmode_writable)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
 	int (*port_get_cmode)(struct mv88e6xxx_chip *chip, int port, u8 *cmode);

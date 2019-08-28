@@ -510,7 +510,8 @@ int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_set_cmode(chip, port, mode);
 }
 
-int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip, int port)
+static int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip,
+					     int port)
 {
 	int err, addr;
 	u16 reg, bits;
@@ -537,6 +538,8 @@ int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip, int port)
 int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode)
 {
+	int err;
+
 	if (port != 5)
 		return -EOPNOTSUPP;
 
@@ -550,6 +553,10 @@ int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	default:
 		break;
 	}
+
+	err = mv88e6341_port_set_cmode_writable(chip, port);
+	if (err)
+		return err;
 
 	return mv88e6xxx_port_set_cmode(chip, port, mode);
 }
