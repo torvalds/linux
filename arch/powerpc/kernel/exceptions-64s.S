@@ -1408,22 +1408,9 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  *
  * Call convention:
  *
- * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
- *
- * For hypercalls, the register convention is as follows:
- * r0 volatile
- * r1-2 nonvolatile
- * r3 volatile parameter and return value for status
- * r4-r10 volatile input and output value
- * r11 volatile hypercall number and output value
- * r12 volatile input and output value
- * r13-r31 nonvolatile
- * LR nonvolatile
- * CTR volatile
- * XER volatile
- * CR0-1 CR5-7 volatile
- * CR2-4 nonvolatile
- * Other registers nonvolatile
+ * syscall and hypercalls register conventions are documented in
+ * Documentation/powerpc/syscall64-abi.rst and
+ * Documentation/powerpc/papr_hcalls.rst respectively.
  *
  * The intersection of volatile registers that don't contain possible
  * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry
