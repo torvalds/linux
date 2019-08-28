@@ -15,6 +15,7 @@ struct drm_connector_state;
 struct drm_i915_private;
 struct intel_connector;
 struct intel_hdcp_shim;
+enum port;
 
 void intel_hdcp_atomic_check(struct drm_connector *connector,
 			     struct drm_connector_state *old_state,

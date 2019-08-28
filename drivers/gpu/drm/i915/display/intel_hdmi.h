@@ -23,6 +23,7 @@ struct intel_crtc_state;
 struct intel_hdmi;
 struct drm_connector_state;
 union hdmi_infoframe;
+enum port;
 
 void intel_hdmi_init(struct drm_i915_private *dev_priv, i915_reg_t hdmi_reg,
 		     enum port port);
