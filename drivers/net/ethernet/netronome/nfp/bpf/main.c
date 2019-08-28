@@ -300,6 +300,14 @@ nfp_bpf_parse_cap_adjust_tail(struct nfp_app_bpf *bpf, void __iomem *value,
 }
 
 static int
+nfp_bpf_parse_cap_cmsg_multi_ent(struct nfp_app_bpf *bpf, void __iomem *value,
+				 u32 length)
+{
+	bpf->cmsg_multi_ent = true;
+	return 0;
+}
+
+static int
 nfp_bpf_parse_cap_abi_version(struct nfp_app_bpf *bpf, void __iomem *value,
 			      u32 length)
 {
@@ -375,6 +383,11 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 							  length))
 				goto err_release_free;
 			break;
+		case NFP_BPF_CAP_TYPE_CMSG_MULTI_ENT:
+			if (nfp_bpf_parse_cap_cmsg_multi_ent(app->priv, value,
+							     length))
+				goto err_release_free;
+			break;
 		default:
 			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
 			break;
@@ -425,6 +438,11 @@ static int nfp_bpf_start(struct nfp_app *app)
 			app->ctrl->dp.mtu, nfp_bpf_ctrl_cmsg_min_mtu(bpf));
 		return -EINVAL;
 	}
+
+	if (bpf->cmsg_multi_ent)
+		bpf->cmsg_cache_cnt = nfp_bpf_ctrl_cmsg_cache_cnt(bpf);
+	else
+		bpf->cmsg_cache_cnt = 1;
 
 	return 0;
 }
