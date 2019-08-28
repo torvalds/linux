@@ -2070,7 +2070,8 @@ static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 		if (chip->info->ops->serdes_irq_setup)
 			err = chip->info->ops->serdes_irq_setup(chip, port);
 	} else {
-		if (chip->info->ops->serdes_irq_free)
+		if (chip->info->ops->serdes_irq_free &&
+		    chip->ports[port].serdes_irq)
 			chip->info->ops->serdes_irq_free(chip, port);
 
 		err = chip->info->ops->serdes_power(chip, port, false);
