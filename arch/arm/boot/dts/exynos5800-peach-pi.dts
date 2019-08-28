@@ -1034,6 +1034,10 @@
 	status = "okay";
 };
 
+&timer {
+	arm,cpu-registers-not-fw-configured;
+};
+
 &tmu_cpu0 {
 	vtmu-supply = <&ldo10_reg>;
 };
