@@ -30,6 +30,7 @@
 #include <asm/hypervisor.h>
 #include <asm/timer.h>
 #include <asm/apic.h>
+#include <asm/vmware.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"vmware: " fmt
@@ -40,7 +41,6 @@
 #define CPUID_VMWARE_FEATURES_ECX_VMCALL     BIT(1)
 
 #define VMWARE_HYPERVISOR_MAGIC	0x564D5868
-#define VMWARE_HYPERVISOR_PORT	0x5658
 
 #define VMWARE_CMD_GETVERSION    10
 #define VMWARE_CMD_GETHZ         45
@@ -164,6 +164,10 @@ static void __init vmware_set_capabilities(void)
 {
 	setup_force_cpu_cap(X86_FEATURE_CONSTANT_TSC);
 	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
+	if (vmware_hypercall_mode == CPUID_VMWARE_FEATURES_ECX_VMCALL)
+		setup_force_cpu_cap(X86_FEATURE_VMCALL);
+	else if (vmware_hypercall_mode == CPUID_VMWARE_FEATURES_ECX_VMMCALL)
+		setup_force_cpu_cap(X86_FEATURE_VMW_VMMCALL);
 }
 
 static void __init vmware_platform_setup(void)
