@@ -2609,26 +2609,6 @@ static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 		.speed		= SPEED_50000,
 	},
 	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_56GBASE_R4,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT,
-		.speed		= SPEED_56000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_56GBASE_R4,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT,
-		.speed		= SPEED_56000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_56GBASE_R4,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT,
-		.speed		= SPEED_56000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_56GBASE_R4,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT,
-		.speed		= SPEED_56000,
-	},
-	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100GBASE_CR4,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
 		.speed		= SPEED_100000,
@@ -3301,10 +3281,6 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, &eth_proto_cap, NULL, NULL);
 
 	autoneg = cmd->base.autoneg == AUTONEG_ENABLE;
-	if (!autoneg && cmd->base.speed == SPEED_56000) {
-		netdev_err(dev, "56G not supported with autoneg off\n");
-		return -EINVAL;
-	}
 	eth_proto_new = autoneg ?
 		ops->to_ptys_advert_link(mlxsw_sp, cmd) :
 		ops->to_ptys_speed(mlxsw_sp, cmd->base.speed);
