@@ -730,7 +730,8 @@ static void rtl_tx_performance_tweak(struct rtl8169_private *tp, u16 force)
 static bool rtl_is_8168evl_up(struct rtl8169_private *tp)
 {
 	return tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
-	       tp->mac_version != RTL_GIGA_MAC_VER_39;
+	       tp->mac_version != RTL_GIGA_MAC_VER_39 &&
+	       tp->mac_version <= RTL_GIGA_MAC_VER_51;
 }
 
 static bool rtl_supports_eee(struct rtl8169_private *tp)
