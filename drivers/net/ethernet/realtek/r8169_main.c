@@ -645,7 +645,7 @@ struct rtl8169_private {
 	struct page *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
 	u16 cp_cmd;
-	u16 irq_mask;
+	u32 irq_mask;
 	struct clk *clk;
 
 	struct {
@@ -1313,7 +1313,12 @@ static u8 rtl8168d_efuse_read(struct rtl8169_private *tp, int reg_addr)
 		RTL_R32(tp, EFUSEAR) & EFUSEAR_DATA_MASK : ~0;
 }
 
-static void rtl_ack_events(struct rtl8169_private *tp, u16 bits)
+static u32 rtl_get_events(struct rtl8169_private *tp)
+{
+	return RTL_R16(tp, IntrStatus);
+}
+
+static void rtl_ack_events(struct rtl8169_private *tp, u32 bits)
 {
 	RTL_W16(tp, IntrStatus, bits);
 }
@@ -1337,7 +1342,7 @@ static void rtl_irq_enable(struct rtl8169_private *tp)
 static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 {
 	rtl_irq_disable(tp);
-	rtl_ack_events(tp, 0xffff);
+	rtl_ack_events(tp, 0xffffffff);
 	/* PCI commit */
 	RTL_R8(tp, ChipCmd);
 }
@@ -5854,9 +5859,10 @@ release_descriptor:
 static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 {
 	struct rtl8169_private *tp = dev_instance;
-	u16 status = RTL_R16(tp, IntrStatus);
+	u32 status = rtl_get_events(tp);
 
-	if (!tp->irq_enabled || status == 0xffff || !(status & tp->irq_mask))
+	if (!tp->irq_enabled || (status & 0xffff) == 0xffff ||
+	    !(status & tp->irq_mask))
 		return IRQ_NONE;
 
 	if (unlikely(status & SYSErr)) {
