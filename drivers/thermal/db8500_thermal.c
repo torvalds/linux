@@ -313,16 +313,16 @@ static void db8500_thermal_work(struct work_struct *work)
 }
 
 static struct db8500_thsens_platform_data*
-		db8500_thermal_parse_dt(struct platform_device *pdev)
+		db8500_thermal_parse_dt(struct device *dev)
 {
 	struct db8500_thsens_platform_data *ptrips;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	char prop_name[32];
 	const char *tmp_str;
 	u32 tmp_data;
 	int i, j;
 
-	ptrips = devm_kzalloc(&pdev->dev, sizeof(*ptrips), GFP_KERNEL);
+	ptrips = devm_kzalloc(dev, sizeof(*ptrips), GFP_KERNEL);
 	if (!ptrips)
 		return NULL;
 
@@ -377,7 +377,7 @@ static struct db8500_thsens_platform_data*
 	return ptrips;
 
 err_parse_dt:
-	dev_err(&pdev->dev, "Parsing device tree data error.\n");
+	dev_err(dev, "Parsing device tree data error.\n");
 	return NULL;
 }
 
@@ -385,18 +385,19 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 {
 	struct db8500_thermal_zone *pzone = NULL;
 	struct db8500_thsens_platform_data *ptrips = NULL;
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	int low_irq, high_irq, ret = 0;
 	unsigned long dft_low, dft_high;
 
 	if (!np)
 		return -EINVAL;
 
-	ptrips = db8500_thermal_parse_dt(pdev);
+	ptrips = db8500_thermal_parse_dt(dev);
 	if (!ptrips)
 		return -EINVAL;
 
-	pzone = devm_kzalloc(&pdev->dev, sizeof(*pzone), GFP_KERNEL);
+	pzone = devm_kzalloc(dev, sizeof(*pzone), GFP_KERNEL);
 	if (!pzone)
 		return -ENOMEM;
 
@@ -410,31 +411,31 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 
 	low_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_LOW");
 	if (low_irq < 0) {
-		dev_err(&pdev->dev, "Get IRQ_HOTMON_LOW failed.\n");
+		dev_err(dev, "Get IRQ_HOTMON_LOW failed.\n");
 		ret = low_irq;
 		goto out_unlock;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, low_irq, NULL,
+	ret = devm_request_threaded_irq(dev, low_irq, NULL,
 		prcmu_low_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
 		"dbx500_temp_low", pzone);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to allocate temp low irq.\n");
+		dev_err(dev, "Failed to allocate temp low irq.\n");
 		goto out_unlock;
 	}
 
 	high_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_HIGH");
 	if (high_irq < 0) {
-		dev_err(&pdev->dev, "Get IRQ_HOTMON_HIGH failed.\n");
+		dev_err(dev, "Get IRQ_HOTMON_HIGH failed.\n");
 		ret = high_irq;
 		goto out_unlock;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, high_irq, NULL,
+	ret = devm_request_threaded_irq(dev, high_irq, NULL,
 		prcmu_high_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
 		"dbx500_temp_high", pzone);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to allocate temp high irq.\n");
+		dev_err(dev, "Failed to allocate temp high irq.\n");
 		goto out_unlock;
 	}
 
@@ -442,11 +443,11 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		ptrips->num_trips, 0, pzone, &thdev_ops, NULL, 0, 0);
 
 	if (IS_ERR(pzone->therm_dev)) {
-		dev_err(&pdev->dev, "Register thermal zone device failed.\n");
+		dev_err(dev, "Register thermal zone device failed.\n");
 		ret = PTR_ERR(pzone->therm_dev);
 		goto out_unlock;
 	}
-	dev_info(&pdev->dev, "Thermal zone device registered.\n");
+	dev_info(dev, "Thermal zone device registered.\n");
 
 	dft_low = PRCMU_DEFAULT_LOW_TEMP;
 	dft_high = ptrips->trip_points[0].temp;
