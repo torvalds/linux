@@ -4767,6 +4767,16 @@ static int spi_nor_set_addr_width(struct spi_nor *nor)
 	return 0;
 }
 
+static void spi_nor_debugfs_init(struct spi_nor *nor,
+				 const struct flash_info *info)
+{
+	struct mtd_info *mtd = &nor->mtd;
+
+	mtd->dbg.partname = info->name;
+	mtd->dbg.partid = devm_kasprintf(nor->dev, GFP_KERNEL, "spi-nor:%*phN",
+					 info->id_len, info->id);
+}
+
 static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
 						       const char *name)
 {
@@ -4846,6 +4856,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		return PTR_ERR(info);
 
 	nor->info = info;
+
+	spi_nor_debugfs_init(nor, info);
 
 	mutex_init(&nor->lock);
 
