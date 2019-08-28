@@ -5867,20 +5867,6 @@ static bool is_content_protection_different(struct drm_connector_state *state,
 	return false;
 }
 
-static void update_content_protection(struct drm_connector_state *state, const struct drm_connector *connector,
-				      struct hdcp_workqueue *hdcp_w)
-{
-	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	bool disable_type1 = state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 ? true : false;
-
-	if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
-		hdcp_reset_display(hdcp_w, aconnector->dc_link->link_index);
-		hdcp_add_display(hdcp_w, aconnector->dc_link->link_index, aconnector, disable_type1);
-	} else if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-		hdcp_remove_display(hdcp_w, aconnector->dc_link->link_index, aconnector->base.index);
-	}
-
-}
 #endif
 static void remove_stream(struct amdgpu_device *adev,
 			  struct amdgpu_crtc *acrtc,
@@ -6850,7 +6836,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 
 		if (is_content_protection_different(new_con_state, old_con_state, connector, adev->dm.hdcp_workqueue))
-			update_content_protection(new_con_state, connector, adev->dm.hdcp_workqueue);
+			hdcp_update_display(
+				adev->dm.hdcp_workqueue, aconnector->dc_link->link_index, aconnector,
+				new_con_state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 ? true : false,
+				new_con_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED ? true
+													 : false);
 	}
 #endif
 

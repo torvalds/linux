@@ -54,9 +54,12 @@ struct hdcp_workqueue {
 	uint8_t max_link;
 };
 
-void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index, struct amdgpu_dm_connector *aconnector,
-		      bool disable_type1);
-void hdcp_remove_display(struct hdcp_workqueue *work, unsigned int link_index, unsigned int display_index);
+void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
+			 unsigned int link_index,
+			 struct amdgpu_dm_connector *aconnector,
+			 bool disable_type1,
+			 bool enable_encryption);
+
 void hdcp_reset_display(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_handle_cpirq(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_destroy(struct hdcp_workqueue *work);
