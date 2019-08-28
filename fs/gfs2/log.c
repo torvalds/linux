@@ -707,7 +707,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	lh->lh_nsec = cpu_to_be32(tv.tv_nsec);
 	lh->lh_sec = cpu_to_be64(tv.tv_sec);
 	if (!list_empty(&jd->extent_list))
-		dblock = gfs2_log_bmap(sdp);
+		dblock = gfs2_log_bmap(jd, lblock);
 	else {
 		int ret = gfs2_lblk_to_dblk(jd->jd_inode, lblock, &dblock);
 		if (gfs2_assert_withdraw(sdp, ret == 0))
@@ -768,6 +768,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
 	gfs2_write_log_header(sdp, sdp->sd_jdesc, sdp->sd_log_sequence++, tail,
 			      sdp->sd_log_flush_head, flags, op_flags);
+	gfs2_log_incr_head(sdp);
 
 	if (sdp->sd_log_tail != tail)
 		log_pull_tail(sdp, tail);
