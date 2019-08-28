@@ -3536,11 +3536,10 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 		dev_info(&hdev->pdev->dev, "Reset pending %lu\n",
 			 hdev->reset_pending);
 		return true;
-	} else if ((hdev->reset_type != HNAE3_IMP_RESET) &&
-		   (hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG) &
-		    BIT(HCLGE_IMP_RESET_BIT))) {
+	} else if (hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS) &
+		   HCLGE_RESET_INT_M) {
 		dev_info(&hdev->pdev->dev,
-			 "reset failed because IMP Reset is pending\n");
+			 "reset failed because new reset interrupt\n");
 		hclge_clear_reset_cause(hdev);
 		return false;
 	} else if (hdev->reset_fail_cnt < MAX_RESET_FAIL_CNT) {
