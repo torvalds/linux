@@ -348,6 +348,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	}
 
 	data->rtc->ops = &snvs_rtc_ops;
+	data->rtc->range_max = U32_MAX;
 	ret = rtc_register_device(data->rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register rtc: %d\n", ret);
