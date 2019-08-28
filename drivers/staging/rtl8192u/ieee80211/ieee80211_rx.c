@@ -103,17 +103,17 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	u8 tid;
 
 	if (((fc & IEEE80211_FCTL_DSTODS) == IEEE80211_FCTL_DSTODS) && IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)hdr;
-	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
-	  tid = UP2AC(tid);
-	  tid++;
+		hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)hdr;
+		tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
+		tid = UP2AC(tid);
+		tid++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)hdr;
-	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
-	  tid = UP2AC(tid);
-	  tid++;
+		hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)hdr;
+		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
+		tid = UP2AC(tid);
+		tid++;
 	} else {
-	  tid = 0;
+		tid = 0;
 	}
 
 	if (frag == 0) {
@@ -170,17 +170,17 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	u8 tid;
 
 	if (((fc & IEEE80211_FCTL_DSTODS) == IEEE80211_FCTL_DSTODS) && IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)hdr;
-	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
-	  tid = UP2AC(tid);
-	  tid++;
+		hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)hdr;
+		tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
+		tid = UP2AC(tid);
+		tid++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)hdr;
-	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
-	  tid = UP2AC(tid);
-	  tid++;
+		hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)hdr;
+		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
+		tid = UP2AC(tid);
+		tid++;
 	} else {
-	  tid = 0;
+		tid = 0;
 	}
 
 	entry = ieee80211_frag_cache_find(ieee, seq, -1, tid, hdr->addr2,
@@ -425,17 +425,17 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 
 	//TO2DS and QoS
 	if (((fc & IEEE80211_FCTL_DSTODS) == IEEE80211_FCTL_DSTODS) && IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)header;
-	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
-	  tid = UP2AC(tid);
-	  tid++;
+		hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)header;
+		tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
+		tid = UP2AC(tid);
+		tid++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) { //QoS
-	  hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)header;
-	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
-	  tid = UP2AC(tid);
-	  tid++;
+		hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)header;
+		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
+		tid = UP2AC(tid);
+		tid++;
 	} else { // no QoS
-	  tid = 0;
+		tid = 0;
 	}
 
 	switch (ieee->iw_mode) {
@@ -993,7 +993,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	// if QoS enabled, should check the sequence for each of the AC
 	if ((!ieee->pHTInfo->bCurRxReorderEnable) || !ieee->current_network.qos_data.active || !IsDataFrame(skb->data) || IsLegacyDataFrame(skb->data)) {
 		if (is_duplicate_packet(ieee, hdr))
-		goto rx_dropped;
+			goto rx_dropped;
 
 	} else {
 		struct rx_ts_record *pRxTS = NULL;
@@ -1211,10 +1211,10 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 #ifdef CONFIG_IEEE80211_DEBUG
 	if (crypt && !(fc & IEEE80211_FCTL_WEP) &&
 	    ieee80211_is_eapol_frame(ieee, skb, hdrlen)) {
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			IEEE80211_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
-						eap_get_type(eap->type));
+		struct eapol *eap = (struct eapol *)(skb->data +
+			24);
+		IEEE80211_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
+					eap_get_type(eap->type));
 	}
 #endif
 
@@ -1770,13 +1770,13 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				   info_element->data[2] == 0x4c &&
 				   info_element->data[3] == 0x033){
 
-						tmp_htcap_len = min(info_element->len, (u8)MAX_IE_LEN);
-						if (tmp_htcap_len != 0) {
-							network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
-							network->bssht.bdHTCapLen = tmp_htcap_len > sizeof(network->bssht.bdHTCapBuf) ? \
-								sizeof(network->bssht.bdHTCapBuf) : tmp_htcap_len;
-							memcpy(network->bssht.bdHTCapBuf, info_element->data, network->bssht.bdHTCapLen);
-						}
+					tmp_htcap_len = min(info_element->len, (u8)MAX_IE_LEN);
+					if (tmp_htcap_len != 0) {
+						network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
+						network->bssht.bdHTCapLen = tmp_htcap_len > sizeof(network->bssht.bdHTCapBuf) ? \
+							sizeof(network->bssht.bdHTCapBuf) : tmp_htcap_len;
+						memcpy(network->bssht.bdHTCapBuf, info_element->data, network->bssht.bdHTCapLen);
+					}
 				}
 				if (tmp_htcap_len != 0)
 					network->bssht.bdSupportHT = true;
@@ -1792,16 +1792,16 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 					info_element->data[2] == 0x4c &&
 					info_element->data[3] == 0x034){
 
-						tmp_htinfo_len = min(info_element->len, (u8)MAX_IE_LEN);
-						if (tmp_htinfo_len != 0) {
-							network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
-							if (tmp_htinfo_len) {
-								network->bssht.bdHTInfoLen = tmp_htinfo_len > sizeof(network->bssht.bdHTInfoBuf) ? \
-									sizeof(network->bssht.bdHTInfoBuf) : tmp_htinfo_len;
-								memcpy(network->bssht.bdHTInfoBuf, info_element->data, network->bssht.bdHTInfoLen);
-							}
-
+					tmp_htinfo_len = min(info_element->len, (u8)MAX_IE_LEN);
+					if (tmp_htinfo_len != 0) {
+						network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
+						if (tmp_htinfo_len) {
+							network->bssht.bdHTInfoLen = tmp_htinfo_len > sizeof(network->bssht.bdHTInfoBuf) ? \
+								sizeof(network->bssht.bdHTInfoBuf) : tmp_htinfo_len;
+							memcpy(network->bssht.bdHTInfoBuf, info_element->data, network->bssht.bdHTInfoLen);
 						}
+
+					}
 
 				}
 			}
@@ -1822,7 +1822,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 						network->bssht.bdRT2RTAggregation = true;
 
 						if ((ht_realtek_agg_buf[4] == 1) && (ht_realtek_agg_buf[5] & 0x02))
-						network->bssht.bdRT2RTLongSlotTime = true;
+							network->bssht.bdRT2RTLongSlotTime = true;
 					}
 				}
 
@@ -1843,7 +1843,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 					 info_element->data[1] == 0x10 &&
 					 info_element->data[2] == 0x18)){
 
-						network->broadcom_cap_exist = true;
+					network->broadcom_cap_exist = true;
 
 				}
 			}
@@ -2262,7 +2262,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	   src->wmm_param[1].aci_aifsn || \
 	   src->wmm_param[2].aci_aifsn || \
 	   src->wmm_param[3].aci_aifsn) {
-	  memcpy(dst->wmm_param, src->wmm_param, WME_AC_PRAM_LEN);
+		memcpy(dst->wmm_param, src->wmm_param, WME_AC_PRAM_LEN);
 	}
 	//dst->QoS_Enable = src->QoS_Enable;
 #ifdef THOMAS_TURBO
@@ -2401,11 +2401,11 @@ static inline void ieee80211_process_probe_response(
 	if (is_same_network(&ieee->current_network, network, ieee)) {
 		update_network(&ieee->current_network, network);
 		if ((ieee->current_network.mode == IEEE_N_24G || ieee->current_network.mode == IEEE_G)
-		&& ieee->current_network.berp_info_valid){
-		if (ieee->current_network.erp_value & ERP_UseProtection)
-			ieee->current_network.buseprotection = true;
-		else
-			ieee->current_network.buseprotection = false;
+		    && ieee->current_network.berp_info_valid){
+			if (ieee->current_network.erp_value & ERP_UseProtection)
+				ieee->current_network.buseprotection = true;
+			else
+				ieee->current_network.buseprotection = false;
 		}
 		if (is_beacon(beacon->header.frame_ctl)) {
 			if (ieee->state == IEEE80211_LINKED)
