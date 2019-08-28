@@ -55,8 +55,31 @@ enum mei_fw_ddi {
 };
 
 /**
+ * enum mei_fw_tc - ME Firmware defined index for transcoders
+ * @MEI_INVALID_TRANSCODER: Index for Invalid transcoder
+ * @MEI_TRANSCODER_EDP: Index for EDP Transcoder
+ * @MEI_TRANSCODER_DSI0: Index for DSI0 Transcoder
+ * @MEI_TRANSCODER_DSI1: Index for DSI1 Transcoder
+ * @MEI_TRANSCODER_A: Index for Transcoder A
+ * @MEI_TRANSCODER_B: Index for Transcoder B
+ * @MEI_TRANSCODER_C: Index for Transcoder C
+ * @MEI_TRANSCODER_D: Index for Transcoder D
+ */
+enum mei_fw_tc {
+	MEI_INVALID_TRANSCODER = 0x00,
+	MEI_TRANSCODER_EDP,
+	MEI_TRANSCODER_DSI0,
+	MEI_TRANSCODER_DSI1,
+	MEI_TRANSCODER_A = 0x10,
+	MEI_TRANSCODER_B,
+	MEI_TRANSCODER_C,
+	MEI_TRANSCODER_D
+};
+
+/**
  * struct hdcp_port_data - intel specific HDCP port data
  * @fw_ddi: ddi index as per ME FW
+ * @fw_tc: transcoder index as per ME FW
  * @port_type: HDCP port type as per ME FW classification
  * @protocol: HDCP adaptation as per ME FW
  * @k: No of streams transmitted on a port. Only on DP MST this is != 1
@@ -69,6 +92,7 @@ enum mei_fw_ddi {
  */
 struct hdcp_port_data {
 	enum mei_fw_ddi fw_ddi;
+	enum mei_fw_tc fw_tc;
 	u8 port_type;
 	u8 protocol;
 	u16 k;
