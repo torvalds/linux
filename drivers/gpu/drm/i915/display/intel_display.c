@@ -13743,6 +13743,61 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 	intel_finish_crtc_commit(state, crtc);
 }
 
+static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
+					  struct intel_crtc_state *old_crtc_state,
+					  struct intel_crtc_state *new_crtc_state,
+					  struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+
+	intel_crtc_disable_planes(state, crtc);
+
+	/*
+	 * We need to disable pipe CRC before disabling the pipe,
+	 * or we race against vblank off.
+	 */
+	intel_crtc_disable_pipe_crc(crtc);
+
+	dev_priv->display.crtc_disable(old_crtc_state, state);
+	crtc->active = false;
+	intel_fbc_disable(crtc);
+	intel_disable_shared_dpll(old_crtc_state);
+
+	/*
+	 * Underruns don't always raise interrupts,
+	 * so check manually.
+	 */
+	intel_check_cpu_fifo_underruns(dev_priv);
+	intel_check_pch_fifo_underruns(dev_priv);
+
+	/* FIXME unify this for all platforms */
+	if (!new_crtc_state->base.active &&
+	    !HAS_GMCH(dev_priv) &&
+	    dev_priv->display.initial_watermarks)
+		dev_priv->display.initial_watermarks(state,
+						     new_crtc_state);
+}
+
+static void intel_commit_modeset_disables(struct intel_atomic_state *state)
+{
+	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (!needs_modeset(new_crtc_state))
+			continue;
+
+		intel_pre_plane_update(old_crtc_state, new_crtc_state);
+
+		if (old_crtc_state->base.active)
+			intel_old_crtc_state_disables(state,
+						      old_crtc_state,
+						      new_crtc_state,
+						      crtc);
+	}
+}
+
 static void intel_commit_modeset_enables(struct intel_atomic_state *state)
 {
 	struct intel_crtc *crtc;
@@ -13923,41 +13978,9 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 			put_domains[crtc->pipe] =
 				modeset_get_crtc_power_domains(new_crtc_state);
 		}
-
-		if (!needs_modeset(new_crtc_state))
-			continue;
-
-		intel_pre_plane_update(old_crtc_state, new_crtc_state);
-
-		if (old_crtc_state->base.active) {
-			intel_crtc_disable_planes(state, crtc);
-
-			/*
-			 * We need to disable pipe CRC before disabling the pipe,
-			 * or we race against vblank off.
-			 */
-			intel_crtc_disable_pipe_crc(crtc);
-
-			dev_priv->display.crtc_disable(old_crtc_state, state);
-			crtc->active = false;
-			intel_fbc_disable(crtc);
-			intel_disable_shared_dpll(old_crtc_state);
-
-			/*
-			 * Underruns don't always raise
-			 * interrupts, so check manually.
-			 */
-			intel_check_cpu_fifo_underruns(dev_priv);
-			intel_check_pch_fifo_underruns(dev_priv);
-
-			/* FIXME unify this for all platforms */
-			if (!new_crtc_state->base.active &&
-			    !HAS_GMCH(dev_priv) &&
-			    dev_priv->display.initial_watermarks)
-				dev_priv->display.initial_watermarks(state,
-								     new_crtc_state);
-		}
 	}
+
+	intel_commit_modeset_disables(state);
 
 	/* FIXME: Eventually get rid of our crtc->config pointer */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
@@ -15909,6 +15932,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.commit_modeset_enables = skl_commit_modeset_enables;
 	else
 		dev_priv->display.commit_modeset_enables = intel_commit_modeset_enables;
+
 }
 
 static i915_reg_t i915_vgacntrl_reg(struct drm_i915_private *dev_priv)
