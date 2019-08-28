@@ -2349,7 +2349,9 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 			effective_mode &= ~S_IWUSR;
 	}
 
-	if ((adev->flags & AMD_IS_APU) &&
+	if (((adev->flags & AMD_IS_APU) ||
+	     adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
@@ -2372,6 +2374,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
 			return 0;
 	}
+
+	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
+		return 0;
 
 	/* only APUs have vddnb */
 	if (!(adev->flags & AMD_IS_APU) &&
