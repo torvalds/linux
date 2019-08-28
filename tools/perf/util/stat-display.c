@@ -100,6 +100,15 @@ static void aggr_printout(struct perf_stat_config *config,
 			nr,
 			config->csv_sep);
 			break;
+	case AGGR_NODE:
+		fprintf(config->output, "N%*d%s%*d%s",
+			config->csv_output ? 0 : -5,
+			id,
+			config->csv_sep,
+			config->csv_output ? 0 : 4,
+			nr,
+			config->csv_sep);
+			break;
 	case AGGR_NONE:
 		if (evsel->percore) {
 			fprintf(config->output, "S%d-D%d-C%*d%s",
@@ -965,6 +974,11 @@ static void print_interval(struct perf_stat_config *config,
 
 	if ((num_print_interval == 0 && !config->csv_output) || config->interval_clear) {
 		switch (config->aggr_mode) {
+		case AGGR_NODE:
+			fprintf(output, "#           time node   cpus");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
+			break;
 		case AGGR_SOCKET:
 			fprintf(output, "#           time socket cpus");
 			if (!metric_only)
@@ -1188,6 +1202,7 @@ perf_evlist__print_counters(struct evlist *evlist,
 	case AGGR_CORE:
 	case AGGR_DIE:
 	case AGGR_SOCKET:
+	case AGGR_NODE:
 		print_aggr(config, evlist, prefix);
 		break;
 	case AGGR_THREAD:

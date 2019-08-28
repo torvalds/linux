@@ -217,6 +217,11 @@ core number and the number of online logical processors on that physical process
 Aggregate counts per monitored threads, when monitoring threads (-t option)
 or processes (-p option).
 
+--per-node::
+Aggregate counts per NUMA nodes for system-wide mode measurements. This
+is a useful mode to detect imbalance between NUMA nodes. To enable this
+mode, use --per-node in addition to -a. (system-wide).
+
 -D msecs::
 --delay msecs::
 After starting the program, wait msecs before measuring. This is useful to

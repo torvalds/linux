@@ -206,6 +206,11 @@ int cpu_map__get_core_id(int cpu)
 	return ret ?: value;
 }
 
+int cpu_map__get_node_id(int cpu)
+{
+	return cpu__get_node(cpu);
+}
+
 int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
 {
 	int cpu, s_die;
@@ -235,6 +240,14 @@ int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
 	return (s_die << 16) | (cpu & 0xffff);
 }
 
+int cpu_map__get_node(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
+{
+	if (idx < 0 || idx >= map->nr)
+		return -1;
+
+	return cpu_map__get_node_id(map->map[idx]);
+}
+
 int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct perf_cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket, NULL);
@@ -248,6 +261,11 @@ int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct perf_cpu_map **diep
 int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, cpu_map__get_core, NULL);
+}
+
+int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct perf_cpu_map **numap)
+{
+	return cpu_map__build_map(cpus, numap, cpu_map__get_node, NULL);
 }
 
 /* setup simple routines to easily access node numbers given a cpu number */
