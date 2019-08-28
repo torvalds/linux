@@ -353,6 +353,90 @@ static void lg_g510_leds_sync_work(struct work_struct *work)
 	mutex_unlock(&g15->mutex);
 }
 
+static int lg_g510_update_mkey_led_brightness(struct lg_g15_data *g15)
+{
+	int ret;
+
+	ret = hid_hw_raw_request(g15->hdev, LG_G510_FEATURE_M_KEYS_LEDS,
+				 g15->transfer_buf, 2,
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+	if (ret != 2) {
+		hid_err(g15->hdev, "Error getting LED brightness: %d\n", ret);
+		ret = (ret < 0) ? ret : -EIO;
+	}
+
+	g15->leds[LG_G15_MACRO_PRESET1].brightness =
+		!!(g15->transfer_buf[1] & 0x80);
+	g15->leds[LG_G15_MACRO_PRESET2].brightness =
+		!!(g15->transfer_buf[1] & 0x40);
+	g15->leds[LG_G15_MACRO_PRESET3].brightness =
+		!!(g15->transfer_buf[1] & 0x20);
+	g15->leds[LG_G15_MACRO_RECORD].brightness =
+		!!(g15->transfer_buf[1] & 0x10);
+
+	return 0;
+}
+
+static enum led_brightness lg_g510_mkey_led_get(struct led_classdev *led_cdev)
+{
+	struct lg_g15_led *g15_led =
+		container_of(led_cdev, struct lg_g15_led, cdev);
+	struct lg_g15_data *g15 = dev_get_drvdata(led_cdev->dev->parent);
+	enum led_brightness brightness;
+
+	mutex_lock(&g15->mutex);
+	lg_g510_update_mkey_led_brightness(g15);
+	brightness = g15->leds[g15_led->led].brightness;
+	mutex_unlock(&g15->mutex);
+
+	return brightness;
+}
+
+static int lg_g510_mkey_led_set(struct led_classdev *led_cdev,
+				enum led_brightness brightness)
+{
+	struct lg_g15_led *g15_led =
+		container_of(led_cdev, struct lg_g15_led, cdev);
+	struct lg_g15_data *g15 = dev_get_drvdata(led_cdev->dev->parent);
+	u8 val, mask = 0;
+	int i, ret;
+
+	/* Ignore LED off on unregister / keyboard unplug */
+	if (led_cdev->flags & LED_UNREGISTERING)
+		return 0;
+
+	mutex_lock(&g15->mutex);
+
+	for (i = LG_G15_MACRO_PRESET1; i < LG_G15_LED_MAX; i++) {
+		if (i == g15_led->led)
+			val = brightness;
+		else
+			val = g15->leds[i].brightness;
+
+		if (val)
+			mask |= 0x80 >> (i - LG_G15_MACRO_PRESET1);
+	}
+
+	g15->transfer_buf[0] = LG_G510_FEATURE_M_KEYS_LEDS;
+	g15->transfer_buf[1] = mask;
+
+	ret = hid_hw_raw_request(g15->hdev, LG_G510_FEATURE_M_KEYS_LEDS,
+				 g15->transfer_buf, 2,
+				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	if (ret == 2) {
+		/* Success */
+		g15_led->brightness = brightness;
+		ret = 0;
+	} else {
+		hid_err(g15->hdev, "Error setting LED brightness: %d\n", ret);
+		ret = (ret < 0) ? ret : -EIO;
+	}
+
+	mutex_unlock(&g15->mutex);
+
+	return ret;
+}
+
 /******** Generic LED functions ********/
 static int lg_g15_get_initial_led_brightness(struct lg_g15_data *g15)
 {
@@ -372,7 +456,7 @@ static int lg_g15_get_initial_led_brightness(struct lg_g15_data *g15)
 		if (ret)
 			return ret;
 
-		return 0;
+		return lg_g510_update_mkey_led_brightness(g15);
 	}
 	return -EINVAL; /* Never reached */
 }
@@ -606,8 +690,11 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i)
 			g15->leds[i].cdev.groups = lg_g510_kbd_led_groups;
 			break;
 		default:
-			/* TODO: Add support for M1 - M3 and MR leds */
-			return 0;
+			g15->leds[i].cdev.brightness_set_blocking =
+				lg_g510_mkey_led_set;
+			g15->leds[i].cdev.brightness_get =
+				lg_g510_mkey_led_get;
+			g15->leds[i].cdev.max_brightness = 1;
 		}
 		break;
 	}
