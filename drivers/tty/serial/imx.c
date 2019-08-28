@@ -1541,7 +1541,7 @@ imx_uart_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long flags;
-	u32 ucr2, old_ucr1, old_ucr2, ufcr;
+	u32 ucr2, old_ucr2, ufcr;
 	unsigned int baud, quot;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
 	unsigned long div;
@@ -1643,15 +1643,6 @@ imx_uart_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	/*
-	 * disable interrupts
-	 */
-	old_ucr1 = imx_uart_readl(sport, UCR1);
-	imx_uart_writel(sport,
-			old_ucr1 & ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN),
-			UCR1);
-	imx_uart_writel(sport, old_ucr2 & ~UCR2_ATEN, UCR2);
-
 	/* custom-baudrate handling */
 	div = sport->port.uartclk / (baud * 16);
 	if (baud == 38400 && quot != div)
@@ -1685,8 +1676,6 @@ imx_uart_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (!imx_uart_is_imx1(sport))
 		imx_uart_writel(sport, sport->port.uartclk / div / 1000,
 				IMX21_ONEMS);
-
-	imx_uart_writel(sport, old_ucr1, UCR1);
 
 	imx_uart_writel(sport, ucr2, UCR2);
 
