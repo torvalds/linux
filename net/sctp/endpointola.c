@@ -106,6 +106,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	 */
 	ep->prsctp_enable = net->sctp.prsctp_enable;
 	ep->reconf_enable = net->sctp.reconf_enable;
+	ep->ecn_enable = net->sctp.ecn_enable;
 
 	/* Remember who we are attached to.  */
 	ep->base.sk = sk;
