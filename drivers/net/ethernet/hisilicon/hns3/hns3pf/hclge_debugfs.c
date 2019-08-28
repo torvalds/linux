@@ -774,7 +774,8 @@ static void hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev)
 	rx_priv_wl = (struct hclge_rx_priv_wl_buf *)desc[1].data;
 	for (i = 0; i < HCLGE_TC_NUM_ONE_DESC; i++)
 		dev_info(&hdev->pdev->dev,
-			 "rx_priv_wl_tc_%d: high: 0x%x, low: 0x%x\n", i + 4,
+			 "rx_priv_wl_tc_%d: high: 0x%x, low: 0x%x\n",
+			 i + HCLGE_TC_NUM_ONE_DESC,
 			 rx_priv_wl->tc_wl[i].high, rx_priv_wl->tc_wl[i].low);
 
 	cmd = HCLGE_OPC_RX_COM_THRD_ALLOC;
@@ -796,7 +797,8 @@ static void hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev)
 	rx_com_thrd = (struct hclge_rx_com_thrd *)desc[1].data;
 	for (i = 0; i < HCLGE_TC_NUM_ONE_DESC; i++)
 		dev_info(&hdev->pdev->dev,
-			 "rx_com_thrd_tc_%d: high: 0x%x, low: 0x%x\n", i + 4,
+			 "rx_com_thrd_tc_%d: high: 0x%x, low: 0x%x\n",
+			 i + HCLGE_TC_NUM_ONE_DESC,
 			 rx_com_thrd->com_thrd[i].high,
 			 rx_com_thrd->com_thrd[i].low);
 	return;

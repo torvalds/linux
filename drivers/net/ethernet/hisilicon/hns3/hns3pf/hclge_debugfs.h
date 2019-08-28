@@ -72,9 +72,10 @@ struct hclge_dbg_reg_common_msg {
 	enum hclge_opcode_type cmd;
 };
 
+#define	HCLGE_DBG_MAX_DFX_MSG_LEN	60
 struct hclge_dbg_dfx_message {
 	int flag;
-	char message[60];
+	char message[HCLGE_DBG_MAX_DFX_MSG_LEN];
 };
 
 #define HCLGE_DBG_MAC_REG_TYPE_LEN	32
