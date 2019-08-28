@@ -26,6 +26,9 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLK_RQ_ALLOC_TIME
+	bool
+
 config BLK_SCSI_REQUEST
 	bool
 
