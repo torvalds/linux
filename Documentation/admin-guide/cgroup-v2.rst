@@ -1529,6 +1529,9 @@ IO Interface Files
 	The IO cost model isn't expected to be accurate in absolute
 	sense and is scaled to the device behavior dynamically.
 
+	If needed, tools/cgroup/iocost_coef_gen.py can be used to
+	generate device-specific coefficients.
+
   io.weight
 	A read-write flat-keyed file which exists on non-root cgroups.
 	The default is "default 100".
