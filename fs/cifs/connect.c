@@ -489,7 +489,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	} else {
 		rc = reconn_setup_dfs_targets(cifs_sb, &tgt_list, &tgt_it);
 		if (rc && (rc != -EOPNOTSUPP)) {
-			cifs_dbg(VFS, "%s: no target servers for DFS failover\n",
+			cifs_server_dbg(VFS, "%s: no target servers for DFS failover\n",
 				 __func__);
 		} else {
 			server->nr_targets = dfs_cache_get_nr_tgts(&tgt_list);
@@ -617,12 +617,12 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		rc = dfs_cache_noreq_update_tgthint(cifs_sb->origin_fullpath + 1,
 						    tgt_it);
 		if (rc) {
-			cifs_dbg(VFS, "%s: failed to update DFS target hint: rc = %d\n",
+			cifs_server_dbg(VFS, "%s: failed to update DFS target hint: rc = %d\n",
 				 __func__, rc);
 		}
 		rc = dfs_cache_update_vol(cifs_sb->origin_fullpath, server);
 		if (rc) {
-			cifs_dbg(VFS, "%s: failed to update vol info in DFS cache: rc = %d\n",
+			cifs_server_dbg(VFS, "%s: failed to update vol info in DFS cache: rc = %d\n",
 				 __func__, rc);
 		}
 		dfs_cache_free_tgts(&tgt_list);
@@ -678,7 +678,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 	if (!server->bigbuf) {
 		server->bigbuf = (char *)cifs_buf_get();
 		if (!server->bigbuf) {
-			cifs_dbg(VFS, "No memory for large SMB response\n");
+			cifs_server_dbg(VFS, "No memory for large SMB response\n");
 			msleep(3000);
 			/* retry will check if exiting */
 			return false;
@@ -691,7 +691,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 	if (!server->smallbuf) {
 		server->smallbuf = (char *)cifs_small_buf_get();
 		if (!server->smallbuf) {
-			cifs_dbg(VFS, "No memory for SMB response\n");
+			cifs_server_dbg(VFS, "No memory for SMB response\n");
 			msleep(1000);
 			/* retry will check if exiting */
 			return false;
@@ -722,8 +722,8 @@ server_unresponsive(struct TCP_Server_Info *server)
 	if ((server->tcpStatus == CifsGood ||
 	    server->tcpStatus == CifsNeedNegotiate) &&
 	    time_after(jiffies, server->lstrp + 3 * server->echo_interval)) {
-		cifs_dbg(VFS, "Server %s has not responded in %lu seconds. Reconnecting...\n",
-			 server->hostname, (3 * server->echo_interval) / HZ);
+		cifs_server_dbg(VFS, "has not responded in %lu seconds. Reconnecting...\n",
+			 (3 * server->echo_interval) / HZ);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return true;
@@ -861,7 +861,7 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 		wake_up(&server->response_q);
 		break;
 	default:
-		cifs_dbg(VFS, "RFC 1002 unknown response type 0x%x\n", type);
+		cifs_server_dbg(VFS, "RFC 1002 unknown response type 0x%x\n", type);
 		cifs_reconnect(server);
 	}
 
@@ -1008,7 +1008,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	/* make sure this will fit in a large buffer */
 	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) -
 		server->vals->header_preamble_size) {
-		cifs_dbg(VFS, "SMB response too long (%u bytes)\n", pdu_length);
+		cifs_server_dbg(VFS, "SMB response too long (%u bytes)\n", pdu_length);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return -ECONNABORTED;
@@ -1149,7 +1149,7 @@ next_pdu:
 		/* make sure we have enough to get to the MID */
 		if (server->pdu_size < HEADER_SIZE(server) - 1 -
 		    server->vals->header_preamble_size) {
-			cifs_dbg(VFS, "SMB response too short (%u bytes)\n",
+			cifs_server_dbg(VFS, "SMB response too short (%u bytes)\n",
 				 server->pdu_size);
 			cifs_reconnect(server);
 			wake_up(&server->response_q);
@@ -1222,7 +1222,7 @@ next_pdu:
 				smb2_add_credits_from_hdr(bufs[i], server);
 				cifs_dbg(FYI, "Received oplock break\n");
 			} else {
-				cifs_dbg(VFS, "No task to wake, unknown frame "
+				cifs_server_dbg(VFS, "No task to wake, unknown frame "
 					 "received! NumMids %d\n",
 					 atomic_read(&midCount));
 				cifs_dump_mem("Received Data is: ", bufs[i],
@@ -2840,16 +2840,17 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb_vol *volume_info)
 	struct nls_table *nls_codepage;
 	char unc[SERVER_NAME_LENGTH + sizeof("//x/IPC$")] = {0};
 	bool seal = false;
+	struct TCP_Server_Info *server = ses->server;
 
 	/*
 	 * If the mount request that resulted in the creation of the
 	 * session requires encryption, force IPC to be encrypted too.
 	 */
 	if (volume_info->seal) {
-		if (ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION)
+		if (server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION)
 			seal = true;
 		else {
-			cifs_dbg(VFS,
+			cifs_server_dbg(VFS,
 				 "IPC: server doesn't support encryption\n");
 			return -EOPNOTSUPP;
 		}
@@ -2859,7 +2860,7 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb_vol *volume_info)
 	if (tcon == NULL)
 		return -ENOMEM;
 
-	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", ses->server->hostname);
+	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", server->hostname);
 
 	/* cannot fail */
 	nls_codepage = load_nls_default();
@@ -2868,11 +2869,11 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb_vol *volume_info)
 	tcon->ses = ses;
 	tcon->ipc = true;
 	tcon->seal = seal;
-	rc = ses->server->ops->tree_connect(xid, ses, unc, tcon, nls_codepage);
+	rc = server->ops->tree_connect(xid, ses, unc, tcon, nls_codepage);
 	free_xid(xid);
 
 	if (rc) {
-		cifs_dbg(VFS, "failed to connect to IPC (rc=%d)\n", rc);
+		cifs_server_dbg(VFS, "failed to connect to IPC (rc=%d)\n", rc);
 		tconInfoFree(tcon);
 		goto out;
 	}
@@ -2958,7 +2959,7 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 		xid = get_xid();
 		rc = server->ops->logoff(xid, ses);
 		if (rc)
-			cifs_dbg(VFS, "%s: Session Logoff failure rc=%d\n",
+			cifs_server_dbg(VFS, "%s: Session Logoff failure rc=%d\n",
 				__func__, rc);
 		_free_xid(xid);
 	}
@@ -3659,10 +3660,10 @@ bind_socket(struct TCP_Server_Info *server)
 			saddr4 = (struct sockaddr_in *)&server->srcaddr;
 			saddr6 = (struct sockaddr_in6 *)&server->srcaddr;
 			if (saddr6->sin6_family == AF_INET6)
-				cifs_dbg(VFS, "Failed to bind to: %pI6c, error: %d\n",
+				cifs_server_dbg(VFS, "Failed to bind to: %pI6c, error: %d\n",
 					 &saddr6->sin6_addr, rc);
 			else
-				cifs_dbg(VFS, "Failed to bind to: %pI4, error: %d\n",
+				cifs_server_dbg(VFS, "Failed to bind to: %pI4, error: %d\n",
 					 &saddr4->sin_addr.s_addr, rc);
 		}
 	}
@@ -3766,7 +3767,7 @@ generic_ip_connect(struct TCP_Server_Info *server)
 		rc = __sock_create(cifs_net_ns(server), sfamily, SOCK_STREAM,
 				   IPPROTO_TCP, &socket, 1);
 		if (rc < 0) {
-			cifs_dbg(VFS, "Error %d creating socket\n", rc);
+			cifs_server_dbg(VFS, "Error %d creating socket\n", rc);
 			server->ssocket = NULL;
 			return rc;
 		}
@@ -4150,7 +4151,7 @@ static int mount_get_conns(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 
 	if ((vol->persistent == true) && (!(ses->server->capabilities &
 					    SMB2_GLOBAL_CAP_PERSISTENT_HANDLES))) {
-		cifs_dbg(VFS, "persistent handles not supported by server\n");
+		cifs_server_dbg(VFS, "persistent handles not supported by server\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -4588,7 +4589,7 @@ static int is_path_remote(struct cifs_sb_info *cifs_sb, struct smb_vol *vol,
 		rc = cifs_are_all_path_components_accessible(server, xid, tcon,
 			cifs_sb, full_path, tcon->Flags & SMB_SHARE_IS_IN_DFS);
 		if (rc != 0) {
-			cifs_dbg(VFS, "cannot query dirs between root and final path, "
+			cifs_server_dbg(VFS, "cannot query dirs between root and final path, "
 				 "enabling CIFS_MOUNT_USE_PREFIX_PATH\n");
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 			rc = 0;
@@ -5090,7 +5091,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		rc = server->ops->sess_setup(xid, ses, nls_info);
 
 	if (rc)
-		cifs_dbg(VFS, "Send error in SessSetup = %d\n", rc);
+		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
 
 	return rc;
 }

@@ -542,7 +542,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 
 	if (*total_len > 200) {
 		/* In case length corrupted don't want to overrun smb buffer */
-		cifs_dbg(VFS, "Bad frame length assembling neg contexts\n");
+		cifs_server_dbg(VFS, "Bad frame length assembling neg contexts\n");
 		return;
 	}
 
@@ -660,7 +660,7 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 
 	cifs_dbg(FYI, "decoding %d negotiate contexts\n", ctxt_cnt);
 	if (len_of_smb <= offset) {
-		cifs_dbg(VFS, "Invalid response: negotiate context offset\n");
+		cifs_server_dbg(VFS, "Invalid response: negotiate context offset\n");
 		return -EINVAL;
 	}
 
@@ -692,7 +692,7 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 		else if (pctx->ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE)
 			server->posix_ext_supported = true;
 		else
-			cifs_dbg(VFS, "unknown negcontext of type %d ignored\n",
+			cifs_server_dbg(VFS, "unknown negcontext of type %d ignored\n",
 				le16_to_cpu(pctx->ContextType));
 
 		if (rc)
@@ -817,7 +817,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		req->Dialects[1] = cpu_to_le16(SMB302_PROT_ID);
 		req->DialectCount = cpu_to_le16(2);
 		total_len += 4;
-	} else if (strcmp(ses->server->vals->version_string,
+	} else if (strcmp(server->vals->version_string,
 		   SMBDEFAULT_VERSION_STRING) == 0) {
 		req->Dialects[0] = cpu_to_le16(SMB21_PROT_ID);
 		req->Dialects[1] = cpu_to_le16(SMB30_PROT_ID);
@@ -840,16 +840,16 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	else
 		req->SecurityMode = 0;
 
-	req->Capabilities = cpu_to_le32(ses->server->vals->req_capabilities);
+	req->Capabilities = cpu_to_le32(server->vals->req_capabilities);
 
 	/* ClientGUID must be zero for SMB2.02 dialect */
-	if (ses->server->vals->protocol_id == SMB20_PROT_ID)
+	if (server->vals->protocol_id == SMB20_PROT_ID)
 		memset(req->ClientGUID, 0, SMB2_CLIENT_GUID_SIZE);
 	else {
 		memcpy(req->ClientGUID, server->client_guid,
 			SMB2_CLIENT_GUID_SIZE);
-		if ((ses->server->vals->protocol_id == SMB311_PROT_ID) ||
-		    (strcmp(ses->server->vals->version_string,
+		if ((server->vals->protocol_id == SMB311_PROT_ID) ||
+		    (strcmp(server->vals->version_string,
 		     SMBDEFAULT_VERSION_STRING) == 0))
 			assemble_neg_contexts(req, server, &total_len);
 	}
@@ -868,42 +868,42 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
 	 */
 	if (rc == -EOPNOTSUPP) {
-		cifs_dbg(VFS, "Dialect not supported by server. Consider "
+		cifs_server_dbg(VFS, "Dialect not supported by server. Consider "
 			"specifying vers=1.0 or vers=2.0 on mount for accessing"
 			" older servers\n");
 		goto neg_exit;
 	} else if (rc != 0)
 		goto neg_exit;
 
-	if (strcmp(ses->server->vals->version_string,
+	if (strcmp(server->vals->version_string,
 		   SMB3ANY_VERSION_STRING) == 0) {
 		if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID)) {
-			cifs_dbg(VFS,
+			cifs_server_dbg(VFS,
 				"SMB2 dialect returned but not requested\n");
 			return -EIO;
 		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
-			cifs_dbg(VFS,
+			cifs_server_dbg(VFS,
 				"SMB2.1 dialect returned but not requested\n");
 			return -EIO;
 		}
-	} else if (strcmp(ses->server->vals->version_string,
+	} else if (strcmp(server->vals->version_string,
 		   SMBDEFAULT_VERSION_STRING) == 0) {
 		if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID)) {
-			cifs_dbg(VFS,
+			cifs_server_dbg(VFS,
 				"SMB2 dialect returned but not requested\n");
 			return -EIO;
 		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
 			/* ops set to 3.0 by default for default so update */
-			ses->server->ops = &smb21_operations;
-			ses->server->vals = &smb21_values;
+			server->ops = &smb21_operations;
+			server->vals = &smb21_values;
 		} else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID)) {
-			ses->server->ops = &smb311_operations;
-			ses->server->vals = &smb311_values;
+			server->ops = &smb311_operations;
+			server->vals = &smb311_values;
 		}
 	} else if (le16_to_cpu(rsp->DialectRevision) !=
-				ses->server->vals->protocol_id) {
+				server->vals->protocol_id) {
 		/* if requested single dialect ensure returned dialect matched */
-		cifs_dbg(VFS, "Illegal 0x%x dialect returned: not requested\n",
+		cifs_server_dbg(VFS, "Illegal 0x%x dialect returned: not requested\n",
 			le16_to_cpu(rsp->DialectRevision));
 		return -EIO;
 	}
@@ -921,7 +921,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID))
 		cifs_dbg(FYI, "negotiated smb3.1.1 dialect\n");
 	else {
-		cifs_dbg(VFS, "Illegal dialect returned by server 0x%x\n",
+		cifs_server_dbg(VFS, "Illegal dialect returned by server 0x%x\n",
 			 le16_to_cpu(rsp->DialectRevision));
 		rc = -EIO;
 		goto neg_exit;
@@ -981,7 +981,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 			rc = smb311_decode_neg_context(rsp, server,
 						       rsp_iov.iov_len);
 		else
-			cifs_dbg(VFS, "Missing expected negotiate contexts\n");
+			cifs_server_dbg(VFS, "Missing expected negotiate contexts\n");
 	}
 neg_exit:
 	free_rsp_buf(resp_buftype, rsp);
@@ -995,11 +995,12 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	struct validate_negotiate_info_rsp *pneg_rsp = NULL;
 	u32 rsplen;
 	u32 inbuflen; /* max of 4 dialects */
+	struct TCP_Server_Info *server = tcon->ses->server;
 
 	cifs_dbg(FYI, "validate negotiate\n");
 
 	/* In SMB3.11 preauth integrity supersedes validate negotiate */
-	if (tcon->ses->server->dialect == SMB311_PROT_ID)
+	if (server->dialect == SMB311_PROT_ID)
 		return 0;
 
 	/*
@@ -1018,15 +1019,15 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	}
 
 	if (tcon->ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
-		cifs_dbg(VFS, "Unexpected null user (anonymous) auth flag sent by server\n");
+		cifs_server_dbg(VFS, "Unexpected null user (anonymous) auth flag sent by server\n");
 
 	pneg_inbuf = kmalloc(sizeof(*pneg_inbuf), GFP_NOFS);
 	if (!pneg_inbuf)
 		return -ENOMEM;
 
 	pneg_inbuf->Capabilities =
-			cpu_to_le32(tcon->ses->server->vals->req_capabilities);
-	memcpy(pneg_inbuf->Guid, tcon->ses->server->client_guid,
+			cpu_to_le32(server->vals->req_capabilities);
+	memcpy(pneg_inbuf->Guid, server->client_guid,
 					SMB2_CLIENT_GUID_SIZE);
 
 	if (tcon->ses->sign)
@@ -1039,7 +1040,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 		pneg_inbuf->SecurityMode = 0;
 
 
-	if (strcmp(tcon->ses->server->vals->version_string,
+	if (strcmp(server->vals->version_string,
 		SMB3ANY_VERSION_STRING) == 0) {
 		pneg_inbuf->Dialects[0] = cpu_to_le16(SMB30_PROT_ID);
 		pneg_inbuf->Dialects[1] = cpu_to_le16(SMB302_PROT_ID);
@@ -1047,7 +1048,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 		/* structure is big enough for 3 dialects, sending only 2 */
 		inbuflen = sizeof(*pneg_inbuf) -
 				(2 * sizeof(pneg_inbuf->Dialects[0]));
-	} else if (strcmp(tcon->ses->server->vals->version_string,
+	} else if (strcmp(server->vals->version_string,
 		SMBDEFAULT_VERSION_STRING) == 0) {
 		pneg_inbuf->Dialects[0] = cpu_to_le16(SMB21_PROT_ID);
 		pneg_inbuf->Dialects[1] = cpu_to_le16(SMB30_PROT_ID);
@@ -1059,7 +1060,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	} else {
 		/* otherwise specific dialect was requested */
 		pneg_inbuf->Dialects[0] =
-			cpu_to_le16(tcon->ses->server->vals->protocol_id);
+			cpu_to_le16(server->vals->protocol_id);
 		pneg_inbuf->DialectCount = cpu_to_le16(1);
 		/* structure is big enough for 3 dialects, sending only 1 */
 		inbuflen = sizeof(*pneg_inbuf) -
@@ -1075,18 +1076,18 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 		 * Old Windows versions or Netapp SMB server can return
 		 * not supported error. Client should accept it.
 		 */
-		cifs_dbg(VFS, "Server does not support validate negotiate\n");
+		cifs_server_dbg(VFS, "Server does not support validate negotiate\n");
 		rc = 0;
 		goto out_free_inbuf;
 	} else if (rc != 0) {
-		cifs_dbg(VFS, "validate protocol negotiate failed: %d\n", rc);
+		cifs_server_dbg(VFS, "validate protocol negotiate failed: %d\n", rc);
 		rc = -EIO;
 		goto out_free_inbuf;
 	}
 
 	rc = -EIO;
 	if (rsplen != sizeof(*pneg_rsp)) {
-		cifs_dbg(VFS, "invalid protocol negotiate response size: %d\n",
+		cifs_server_dbg(VFS, "invalid protocol negotiate response size: %d\n",
 			 rsplen);
 
 		/* relax check since Mac returns max bufsize allowed on ioctl */
@@ -1095,16 +1096,16 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	}
 
 	/* check validate negotiate info response matches what we got earlier */
-	if (pneg_rsp->Dialect != cpu_to_le16(tcon->ses->server->dialect))
+	if (pneg_rsp->Dialect != cpu_to_le16(server->dialect))
 		goto vneg_out;
 
-	if (pneg_rsp->SecurityMode != cpu_to_le16(tcon->ses->server->sec_mode))
+	if (pneg_rsp->SecurityMode != cpu_to_le16(server->sec_mode))
 		goto vneg_out;
 
 	/* do not validate server guid because not saved at negprot time yet */
 
 	if ((le32_to_cpu(pneg_rsp->Capabilities) | SMB2_NT_FIND |
-	      SMB2_LARGE_FILES) != tcon->ses->server->capabilities)
+	      SMB2_LARGE_FILES) != server->capabilities)
 		goto vneg_out;
 
 	/* validate negotiate successful */
@@ -1113,7 +1114,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	goto out_free_rsp;
 
 vneg_out:
-	cifs_dbg(VFS, "protocol revalidation - security settings mismatch\n");
+	cifs_server_dbg(VFS, "protocol revalidation - security settings mismatch\n");
 out_free_rsp:
 	kfree(pneg_rsp);
 out_free_inbuf:
@@ -1567,7 +1568,7 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 		sess_data->func(sess_data);
 
 	if ((ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST) && (ses->sign))
-		cifs_dbg(VFS, "signing requested but authenticated as guest\n");
+		cifs_server_dbg(VFS, "signing requested but authenticated as guest\n");
 	rc = sess_data->result;
 out:
 	kfree(sess_data);
@@ -1660,10 +1661,11 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	__le16 *unc_path = NULL;
 	int flags = 0;
 	unsigned int total_len;
+	struct TCP_Server_Info *server = ses->server;
 
 	cifs_dbg(FYI, "TCON\n");
 
-	if (!(ses->server) || !tree)
+	if (!server || !tree)
 		return -EIO;
 
 	unc_path = kmalloc(MAX_SHARENAME_LENGTH * 2, GFP_KERNEL);
@@ -1706,7 +1708,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	 * unless it is guest or anonymous user. See MS-SMB2 3.2.5.3.1
 	 * (Samba servers don't always set the flag so also check if null user)
 	 */
-	if ((ses->server->dialect == SMB311_PROT_ID) &&
+	if ((server->dialect == SMB311_PROT_ID) &&
 	    !smb3_encryption_required(tcon) &&
 	    !(ses->session_flags &
 		    (SMB2_SESSION_FLAG_IS_GUEST|SMB2_SESSION_FLAG_IS_NULL)) &&
@@ -1745,7 +1747,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 		cifs_dbg(FYI, "connection to printer\n");
 		break;
 	default:
-		cifs_dbg(VFS, "unknown share type %d\n", rsp->ShareType);
+		cifs_server_dbg(VFS, "unknown share type %d\n", rsp->ShareType);
 		rc = -EOPNOTSUPP;
 		goto tcon_error_exit;
 	}
@@ -1760,15 +1762,15 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 
 	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
 	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
-		cifs_dbg(VFS, "DFS capability contradicts DFS flag\n");
+		cifs_server_dbg(VFS, "DFS capability contradicts DFS flag\n");
 
 	if (tcon->seal &&
-	    !(tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
-		cifs_dbg(VFS, "Encryption is requested but not supported\n");
+	    !(server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
+		cifs_server_dbg(VFS, "Encryption is requested but not supported\n");
 
 	init_copy_chunk_defaults(tcon);
-	if (tcon->ses->server->ops->validate_negotiate)
-		rc = tcon->ses->server->ops->validate_negotiate(xid, tcon);
+	if (server->ops->validate_negotiate)
+		rc = server->ops->validate_negotiate(xid, tcon);
 tcon_exit:
 
 	free_rsp_buf(resp_buftype, rsp);
@@ -1777,7 +1779,7 @@ tcon_exit:
 
 tcon_error_exit:
 	if (rsp && rsp->sync_hdr.Status == STATUS_BAD_NETWORK_NAME) {
-		cifs_dbg(VFS, "BAD_NETWORK_NAME: %s\n", tree);
+		cifs_server_dbg(VFS, "BAD_NETWORK_NAME: %s\n", tree);
 	}
 	goto tcon_exit;
 }
@@ -2741,6 +2743,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	int resp_buftype = CIFS_NO_BUFFER;
 	int rc = 0;
 	int flags = 0;
+	struct TCP_Server_Info *server;
 
 	cifs_dbg(FYI, "SMB2 IOCTL\n");
 
@@ -2756,7 +2759,8 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	else
 		return -EIO;
 
-	if (!ses || !(ses->server))
+	server = ses->server;
+	if (!ses || !(server))
 		return -EIO;
 
 	if (smb3_encryption_required(tcon))
@@ -2806,14 +2810,14 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	if (*plen == 0)
 		goto ioctl_exit; /* server returned no data */
 	else if (*plen > rsp_iov.iov_len || *plen > 0xFF00) {
-		cifs_dbg(VFS, "srv returned invalid ioctl length: %d\n", *plen);
+		cifs_server_dbg(VFS, "srv returned invalid ioctl length: %d\n", *plen);
 		*plen = 0;
 		rc = -EIO;
 		goto ioctl_exit;
 	}
 
 	if (rsp_iov.iov_len - *plen < le32_to_cpu(rsp->OutputOffset)) {
-		cifs_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n", *plen,
+		cifs_server_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n", *plen,
 			le32_to_cpu(rsp->OutputOffset));
 		*plen = 0;
 		rc = -EIO;
@@ -3054,12 +3058,13 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype = CIFS_NO_BUFFER;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
 	int flags = 0;
 	bool allocated = false;
 
 	cifs_dbg(FYI, "Query Info\n");
 
-	if (!ses || !(ses->server))
+	if (!ses || !(server))
 		return -EIO;
 
 	if (smb3_encryption_required(tcon))
@@ -3097,7 +3102,7 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		if (!*data) {
 			*data = kmalloc(*dlen, GFP_KERNEL);
 			if (!*data) {
-				cifs_dbg(VFS,
+				cifs_server_dbg(VFS,
 					"Error %d allocating memory for acl\n",
 					rc);
 				*dlen = 0;
@@ -3489,7 +3494,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 
 			rc = smb2_verify_signature(&rqst, server);
 			if (rc)
-				cifs_dbg(VFS, "SMB signature verification returned error = %d\n",
+				cifs_server_dbg(VFS, "SMB signature verification returned error = %d\n",
 					 rc);
 		}
 		/* FIXME: should this be counted toward the initiating task? */
@@ -4079,7 +4084,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		info_buf_size = sizeof(SEARCH_ID_FULL_DIR_INFO) - 1;
 		break;
 	default:
-		cifs_dbg(VFS, "info level %u isn't supported\n",
+		cifs_server_dbg(VFS, "info level %u isn't supported\n",
 			 srch_inf->info_level);
 		rc = -EINVAL;
 		goto qdir_exit;
@@ -4170,7 +4175,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	else if (resp_buftype == CIFS_SMALL_BUFFER)
 		srch_inf->smallBuf = true;
 	else
-		cifs_dbg(VFS, "illegal search buffer type\n");
+		cifs_server_dbg(VFS, "illegal search buffer type\n");
 
 	trace_smb3_query_dir_done(xid, persistent_fid, tcon->tid,
 			tcon->ses->Suid, index, srch_inf->entries_in_buffer);

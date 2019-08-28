@@ -80,6 +80,30 @@ do {							\
 			type, fmt, ##__VA_ARGS__);	\
 } while (0)
 
+#define cifs_server_dbg_func(ratefunc, type, fmt, ...)		\
+do {								\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
+		pr_debug_ ## ratefunc("%s: Server:%s "	fmt,	\
+			__FILE__, server->hostname, ##__VA_ARGS__);\
+	} else if ((type) & VFS) {				\
+		pr_err_ ## ratefunc("CIFS VFS: Server:%s " fmt,	\
+			server->hostname, ##__VA_ARGS__);	\
+	} else if ((type) & NOISY && (NOISY != 0)) {		\
+		pr_debug_ ## ratefunc("Server:%s " fmt,		\
+			server->hostname, ##__VA_ARGS__);	\
+	}							\
+} while (0)
+
+#define cifs_server_dbg(type, fmt, ...)			\
+do {							\
+	if ((type) & ONCE)				\
+		cifs_server_dbg_func(once,		\
+			type, fmt, ##__VA_ARGS__);	\
+	else						\
+		cifs_server_dbg_func(ratelimited,	\
+			type, fmt, ##__VA_ARGS__);	\
+} while (0)
+
 /*
  *	debug OFF
  *	---------
@@ -89,6 +113,13 @@ do {							\
 do {									\
 	if (0)								\
 		pr_debug(fmt, ##__VA_ARGS__);				\
+} while (0)
+
+#define cifs_server_dbg(type, fmt, ...)					\
+do {									\
+	if (0)								\
+		pr_debug("Server:%s " fmt,				\
+			 server->hostname, ##__VA_ARGS__);		\
 } while (0)
 
 #define cifs_info(fmt, ...)						\

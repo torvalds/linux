@@ -176,7 +176,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
-		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not find session\n", __func__);
 		return 0;
 	}
 
@@ -185,21 +185,21 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	rc = smb2_crypto_shash_allocate(server);
 	if (rc) {
-		cifs_dbg(VFS, "%s: sha256 alloc failed\n", __func__);
+		cifs_server_dbg(VFS, "%s: sha256 alloc failed\n", __func__);
 		return rc;
 	}
 
 	rc = crypto_shash_setkey(server->secmech.hmacsha256,
 				 ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with response\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not update with response\n", __func__);
 		return rc;
 	}
 
 	shash = &server->secmech.sdeschmacsha256->shash;
 	rc = crypto_shash_init(shash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init sha256", __func__);
+		cifs_server_dbg(VFS, "%s: Could not init sha256", __func__);
 		return rc;
 	}
 
@@ -215,7 +215,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		rc = crypto_shash_update(shash, iov[0].iov_base,
 					 iov[0].iov_len);
 		if (rc) {
-			cifs_dbg(VFS, "%s: Could not update with payload\n",
+			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
 				 __func__);
 			return rc;
 		}
@@ -239,68 +239,69 @@ static int generate_key(struct cifs_ses *ses, struct kvec label,
 	int rc = 0;
 	unsigned char prfhash[SMB2_HMACSHA256_SIZE];
 	unsigned char *hashptr = prfhash;
+	struct TCP_Server_Info *server = ses->server;
 
 	memset(prfhash, 0x0, SMB2_HMACSHA256_SIZE);
 	memset(key, 0x0, key_size);
 
-	rc = smb3_crypto_shash_allocate(ses->server);
+	rc = smb3_crypto_shash_allocate(server);
 	if (rc) {
-		cifs_dbg(VFS, "%s: crypto alloc failed\n", __func__);
+		cifs_server_dbg(VFS, "%s: crypto alloc failed\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_setkey(ses->server->secmech.hmacsha256,
+	rc = crypto_shash_setkey(server->secmech.hmacsha256,
 		ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not set with session key\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not set with session key\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_init(&ses->server->secmech.sdeschmacsha256->shash);
+	rc = crypto_shash_init(&server->secmech.sdeschmacsha256->shash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init sign hmac\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not init sign hmac\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_update(&ses->server->secmech.sdeschmacsha256->shash,
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				i, 4);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with n\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not update with n\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_update(&ses->server->secmech.sdeschmacsha256->shash,
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				label.iov_base, label.iov_len);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with label\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not update with label\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_update(&ses->server->secmech.sdeschmacsha256->shash,
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				&zero, 1);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with zero\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not update with zero\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_update(&ses->server->secmech.sdeschmacsha256->shash,
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				context.iov_base, context.iov_len);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with context\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not update with context\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_update(&ses->server->secmech.sdeschmacsha256->shash,
+	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				L, 4);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with L\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not update with L\n", __func__);
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_final(&ses->server->secmech.sdeschmacsha256->shash,
+	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,
 				hashptr);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
 		goto smb3signkey_ret;
 	}
 
@@ -436,7 +437,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
-		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not find session\n", __func__);
 		return 0;
 	}
 
@@ -446,7 +447,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	rc = crypto_shash_setkey(server->secmech.cmacaes,
 				 ses->smb3signingkey, SMB2_CMACAES_SIZE);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
 		return rc;
 	}
 
@@ -457,7 +458,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	 */
 	rc = crypto_shash_init(shash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
 		return rc;
 	}
 
@@ -473,7 +474,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		rc = crypto_shash_update(shash, iov[0].iov_base,
 					 iov[0].iov_len);
 		if (rc) {
-			cifs_dbg(VFS, "%s: Could not update with payload\n",
+			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
 				 __func__);
 			return rc;
 		}
@@ -665,7 +666,7 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 
 		rc = smb2_verify_signature(&rqst, server);
 		if (rc)
-			cifs_dbg(VFS, "SMB signature verification returned error = %d\n",
+			cifs_server_dbg(VFS, "SMB signature verification returned error = %d\n",
 				 rc);
 	}
 
@@ -739,7 +740,7 @@ smb3_crypto_aead_allocate(struct TCP_Server_Info *server)
 		else
 			tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
 		if (IS_ERR(tfm)) {
-			cifs_dbg(VFS, "%s: Failed to alloc encrypt aead\n",
+			cifs_server_dbg(VFS, "%s: Failed to alloc encrypt aead\n",
 				 __func__);
 			return PTR_ERR(tfm);
 		}
@@ -754,7 +755,7 @@ smb3_crypto_aead_allocate(struct TCP_Server_Info *server)
 		if (IS_ERR(tfm)) {
 			crypto_free_aead(server->secmech.ccmaesencrypt);
 			server->secmech.ccmaesencrypt = NULL;
-			cifs_dbg(VFS, "%s: Failed to alloc decrypt aead\n",
+			cifs_server_dbg(VFS, "%s: Failed to alloc decrypt aead\n",
 				 __func__);
 			return PTR_ERR(tfm);
 		}
