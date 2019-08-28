@@ -392,16 +392,13 @@ phy_interface_t mv88e6390x_port_max_speed_mode(int port)
 	return PHY_INTERFACE_MODE_NA;
 }
 
-int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
-			      phy_interface_t mode)
+static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+				    phy_interface_t mode)
 {
-	int lane;
+	u8 lane;
 	u16 cmode;
 	u16 reg;
 	int err;
-
-	if (port != 9 && port != 10)
-		return -EOPNOTSUPP;
 
 	/* Default to a slow mode, so freeing up SERDES interfaces for
 	 * other ports which might use them for SFPs.
@@ -411,7 +408,7 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_1000BASEX:
-		cmode = MV88E6XXX_PORT_STS_CMODE_1000BASE_X;
+		cmode = MV88E6XXX_PORT_STS_CMODE_1000BASEX;
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
 		cmode = MV88E6XXX_PORT_STS_CMODE_SGMII;
@@ -434,18 +431,18 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	if (cmode == chip->ports[port].cmode)
 		return 0;
 
-	lane = mv88e6390x_serdes_get_lane(chip, port);
-	if (lane < 0 && lane != -ENODEV)
-		return lane;
+	err = mv88e6xxx_serdes_get_lane(chip, port, &lane);
+	if (err && err != -ENODEV)
+		return err;
 
-	if (lane >= 0) {
+	if (err != -ENODEV) {
 		if (chip->ports[port].serdes_irq) {
 			err = mv88e6390_serdes_irq_disable(chip, port, lane);
 			if (err)
 				return err;
 		}
 
-		err = mv88e6390x_serdes_power(chip, port, false);
+		err = mv88e6390_serdes_power(chip, port, false);
 		if (err)
 			return err;
 	}
@@ -466,11 +463,11 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 
 		chip->ports[port].cmode = cmode;
 
-		lane = mv88e6390x_serdes_get_lane(chip, port);
-		if (lane < 0)
-			return lane;
+		err = mv88e6xxx_serdes_get_lane(chip, port, &lane);
+		if (err)
+			return err;
 
-		err = mv88e6390x_serdes_power(chip, port, true);
+		err = mv88e6390_serdes_power(chip, port, true);
 		if (err)
 			return err;
 
@@ -484,9 +481,21 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
+int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			      phy_interface_t mode)
+{
+	if (port != 9 && port != 10)
+		return -EOPNOTSUPP;
+
+	return mv88e6xxx_port_set_cmode(chip, port, mode);
+}
+
 int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode)
 {
+	if (port != 9 && port != 10)
+		return -EOPNOTSUPP;
+
 	switch (mode) {
 	case PHY_INTERFACE_MODE_NA:
 		return 0;
@@ -498,7 +507,51 @@ int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		break;
 	}
 
-	return mv88e6390x_port_set_cmode(chip, port, mode);
+	return mv88e6xxx_port_set_cmode(chip, port, mode);
+}
+
+int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip, int port)
+{
+	int err, addr;
+	u16 reg, bits;
+
+	if (port != 5)
+		return -EOPNOTSUPP;
+
+	addr = chip->info->port_base_addr + port;
+
+	err = mv88e6xxx_port_hidden_read(chip, 0x7, addr, 0, &reg);
+	if (err)
+		return err;
+
+	bits = MV88E6341_PORT_RESERVED_1A_FORCE_CMODE |
+	       MV88E6341_PORT_RESERVED_1A_SGMII_AN;
+
+	if ((reg & bits) == bits)
+		return 0;
+
+	reg |= bits;
+	return mv88e6xxx_port_hidden_write(chip, 0x7, addr, 0, reg);
+}
+
+int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			     phy_interface_t mode)
+{
+	if (port != 5)
+		return -EOPNOTSUPP;
+
+	switch (mode) {
+	case PHY_INTERFACE_MODE_NA:
+		return 0;
+	case PHY_INTERFACE_MODE_XGMII:
+	case PHY_INTERFACE_MODE_XAUI:
+	case PHY_INTERFACE_MODE_RXAUI:
+		return -EINVAL;
+	default:
+		break;
+	}
+
+	return mv88e6xxx_port_set_cmode(chip, port, mode);
 }
 
 int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
@@ -618,7 +671,7 @@ int mv88e6352_port_link_state(struct mv88e6xxx_chip *chip, int port,
 		else
 			state->interface = PHY_INTERFACE_MODE_RGMII;
 		break;
-	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 		state->interface = PHY_INTERFACE_MODE_1000BASEX;
 		break;
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
