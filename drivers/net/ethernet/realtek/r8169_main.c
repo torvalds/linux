@@ -5713,7 +5713,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 
 		rtl8169_unmap_tx_skb(tp_to_dev(tp), tx_skb,
 				     tp->TxDescArray + entry);
-		if (status & LastFrag) {
+		if (tx_skb->skb) {
 			pkts_compl++;
 			bytes_compl += tx_skb->skb->len;
 			napi_consume_skb(tx_skb->skb, budget);
