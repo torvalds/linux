@@ -346,9 +346,12 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	if (blockers) {
 		btrfs_assert_no_spinning_writers(eb);
 		eb->blocking_writers--;
-		/* Use the lighter barrier after atomic */
-		smp_mb__after_atomic();
-		cond_wake_up_nomb(&eb->write_lock_wq);
+		/*
+		 * We need to order modifying blocking_writers above with
+		 * actually waking up the sleepers to ensure they see the
+		 * updated value of blocking_writers
+		 */
+		cond_wake_up(&eb->write_lock_wq);
 	} else {
 		btrfs_assert_spinning_writers_put(eb);
 		write_unlock(&eb->lock);

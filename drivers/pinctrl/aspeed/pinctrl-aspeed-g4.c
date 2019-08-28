@@ -2412,7 +2412,7 @@ static const struct aspeed_pin_config aspeed_g4_configs[] = {
 	{ PIN_CONFIG_INPUT_DEBOUNCE, { C14, B14 }, SCUA8, 27 },
 };
 
-static int aspeed_g4_sig_expr_set(const struct aspeed_pinmux_data *ctx,
+static int aspeed_g4_sig_expr_set(struct aspeed_pinmux_data *ctx,
 				  const struct aspeed_sig_expr *expr,
 				  bool enable)
 {

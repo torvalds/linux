@@ -2362,7 +2362,7 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
 	tx_ring->tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
-				    GFP_ATOMIC | GFP_DMA);
+				    GFP_KERNEL | GFP_DMA);
 	if (!tx_ring->tcb_ring)
 		return -ENOMEM;
 

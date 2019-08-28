@@ -1686,7 +1686,7 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
  *
  * Additionals options can be provided following the mode, using a comma to
  * separate each option. Valid options can be found in
- * Documentation/fb/modedb.txt.
+ * Documentation/fb/modedb.rst.
  *
  * The intermediate drm_cmdline_mode structure is required to store additional
  * options from the command line modline like the force-enable/disable flag.
@@ -1770,7 +1770,9 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	}
 
 	if (named_mode) {
-		strncpy(mode->name, name, mode_end);
+		if (mode_end + 1 > DRM_DISPLAY_MODE_LEN)
+			return false;
+		strscpy(mode->name, name, mode_end + 1);
 	} else {
 		ret = drm_mode_parse_cmdline_res_mode(name, mode_end,
 						      parse_extras,
