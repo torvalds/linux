@@ -267,11 +267,15 @@ int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 				     key, NULL, 0, next_key, NULL);
 }
 
+unsigned int nfp_bpf_ctrl_cmsg_min_mtu(struct nfp_app_bpf *bpf)
+{
+	return max(nfp_bpf_cmsg_map_req_size(bpf, 1),
+		   nfp_bpf_cmsg_map_reply_size(bpf, 1));
+}
+
 unsigned int nfp_bpf_ctrl_cmsg_mtu(struct nfp_app_bpf *bpf)
 {
-	return max3((unsigned int)NFP_NET_DEFAULT_MTU,
-		    nfp_bpf_cmsg_map_req_size(bpf, 1),
-		    nfp_bpf_cmsg_map_reply_size(bpf, 1));
+	return max(NFP_NET_DEFAULT_MTU, nfp_bpf_ctrl_cmsg_min_mtu(bpf));
 }
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)

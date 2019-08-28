@@ -564,6 +564,7 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
 
+unsigned int nfp_bpf_ctrl_cmsg_min_mtu(struct nfp_app_bpf *bpf);
 unsigned int nfp_bpf_ctrl_cmsg_mtu(struct nfp_app_bpf *bpf);
 long long int
 nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map);
