@@ -23,6 +23,7 @@
 #include "probe-finder.h" // for MAX_PROBES
 #include "parse-events.h"
 #include "strfilter.h"
+#include "util.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
 
