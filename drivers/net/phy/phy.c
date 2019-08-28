@@ -911,8 +911,8 @@ void phy_state_machine(struct work_struct *work)
 		if (phydev->link) {
 			phydev->link = 0;
 			phy_link_down(phydev, true);
-			do_suspend = true;
 		}
+		do_suspend = true;
 		break;
 	}
 
