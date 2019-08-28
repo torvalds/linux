@@ -11,10 +11,10 @@
 
 #include <linux/leds-ti-lmu-common.h>
 
-const static int ramp_table[16] = {2048, 262000, 524000, 1049000, 2090000,
-				4194000, 8389000, 16780000, 33550000, 41940000,
-				50330000, 58720000, 67110000, 83880000,
-				100660000, 117440000};
+const static unsigned int ramp_table[16] = {2048, 262000, 524000, 1049000,
+				2090000, 4194000, 8389000, 16780000, 33550000,
+				41940000, 50330000, 58720000, 67110000,
+				83880000, 100660000, 117440000};
 
 static int ti_lmu_common_update_brightness(struct ti_lmu_bank *lmu_bank,
 					   int brightness)
@@ -54,7 +54,7 @@ int ti_lmu_common_set_brightness(struct ti_lmu_bank *lmu_bank, int brightness)
 }
 EXPORT_SYMBOL(ti_lmu_common_set_brightness);
 
-static int ti_lmu_common_convert_ramp_to_index(unsigned int usec)
+static unsigned int ti_lmu_common_convert_ramp_to_index(unsigned int usec)
 {
 	int size = ARRAY_SIZE(ramp_table);
 	int i;
@@ -78,7 +78,7 @@ static int ti_lmu_common_convert_ramp_to_index(unsigned int usec)
 		}
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 int ti_lmu_common_set_ramp(struct ti_lmu_bank *lmu_bank)
@@ -93,9 +93,6 @@ int ti_lmu_common_set_ramp(struct ti_lmu_bank *lmu_bank)
 		ramp_up = ti_lmu_common_convert_ramp_to_index(lmu_bank->ramp_up_usec);
 		ramp_down = ti_lmu_common_convert_ramp_to_index(lmu_bank->ramp_down_usec);
 	}
-
-	if (ramp_up < 0 || ramp_down < 0)
-		return -EINVAL;
 
 	ramp = (ramp_up << 4) | ramp_down;
 
