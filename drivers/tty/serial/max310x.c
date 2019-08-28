@@ -689,7 +689,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 		 * tail.
 		 */
 		uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT,
-				 one->rx_buf[rxlen], flag);
+				 one->rx_buf[rxlen-1], flag);
 
 	} else {
 		if (unlikely(rxlen >= port->fifosize)) {
