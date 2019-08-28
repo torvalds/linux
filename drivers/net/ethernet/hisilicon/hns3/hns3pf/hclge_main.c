@@ -53,6 +53,8 @@
 #define HCLGE_DFX_TQP_BD_OFFSET         11
 #define HCLGE_DFX_SSU_2_BD_OFFSET       12
 
+#define HCLGE_LINK_STATUS_MS	10
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static void hclge_sync_vlan_filter(struct hclge_dev *hdev);
@@ -742,6 +744,12 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		count += 2;
 		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
+
+		if (hdev->hw.mac.phydev) {
+			count += 1;
+			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
+		}
+
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
 			hclge_tqps_get_sset_count(handle, stringset);
@@ -6204,6 +6212,65 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
+static void hclge_phy_link_status_wait(struct hclge_dev *hdev,
+				       int link_ret)
+{
+#define HCLGE_PHY_LINK_STATUS_NUM  200
+
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	int i = 0;
+	int ret;
+
+	do {
+		ret = phy_read_status(phydev);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"phy update link status fail, ret = %d\n", ret);
+			return;
+		}
+
+		if (phydev->link == link_ret)
+			break;
+
+		msleep(HCLGE_LINK_STATUS_MS);
+	} while (++i < HCLGE_PHY_LINK_STATUS_NUM);
+}
+
+static int hclge_mac_link_status_wait(struct hclge_dev *hdev, int link_ret)
+{
+#define HCLGE_MAC_LINK_STATUS_NUM  100
+
+	int i = 0;
+	int ret;
+
+	do {
+		ret = hclge_get_mac_link_status(hdev);
+		if (ret < 0)
+			return ret;
+		else if (ret == link_ret)
+			return 0;
+
+		msleep(HCLGE_LINK_STATUS_MS);
+	} while (++i < HCLGE_MAC_LINK_STATUS_NUM);
+	return -EBUSY;
+}
+
+static int hclge_mac_phy_link_status_wait(struct hclge_dev *hdev, bool en,
+					  bool is_phy)
+{
+#define HCLGE_LINK_STATUS_DOWN 0
+#define HCLGE_LINK_STATUS_UP   1
+
+	int link_ret;
+
+	link_ret = en ? HCLGE_LINK_STATUS_UP : HCLGE_LINK_STATUS_DOWN;
+
+	if (is_phy)
+		hclge_phy_link_status_wait(hdev, link_ret);
+
+	return hclge_mac_link_status_wait(hdev, link_ret);
+}
+
 static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 {
 	struct hclge_config_mac_mode_cmd *req;
@@ -6246,14 +6313,8 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 #define HCLGE_SERDES_RETRY_MS	10
 #define HCLGE_SERDES_RETRY_NUM	100
 
-#define HCLGE_MAC_LINK_STATUS_MS   10
-#define HCLGE_MAC_LINK_STATUS_NUM  100
-#define HCLGE_MAC_LINK_STATUS_DOWN 0
-#define HCLGE_MAC_LINK_STATUS_UP   1
-
 	struct hclge_serdes_lb_cmd *req;
 	struct hclge_desc desc;
-	int mac_link_ret = 0;
 	int ret, i = 0;
 	u8 loop_mode_b;
 
@@ -6276,10 +6337,8 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 	if (en) {
 		req->enable = loop_mode_b;
 		req->mask = loop_mode_b;
-		mac_link_ret = HCLGE_MAC_LINK_STATUS_UP;
 	} else {
 		req->mask = loop_mode_b;
-		mac_link_ret = HCLGE_MAC_LINK_STATUS_DOWN;
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -6312,18 +6371,70 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 
 	hclge_cfg_mac_mode(hdev, en);
 
-	i = 0;
-	do {
-		/* serdes Internal loopback, independent of the network cable.*/
-		msleep(HCLGE_MAC_LINK_STATUS_MS);
-		ret = hclge_get_mac_link_status(hdev);
-		if (ret == mac_link_ret)
-			return 0;
-	} while (++i < HCLGE_MAC_LINK_STATUS_NUM);
+	ret = hclge_mac_phy_link_status_wait(hdev, en, FALSE);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"serdes loopback config mac mode timeout\n");
 
-	dev_err(&hdev->pdev->dev, "config mac mode timeout\n");
+	return ret;
+}
 
-	return -EBUSY;
+static int hclge_enable_phy_loopback(struct hclge_dev *hdev,
+				     struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->suspended) {
+		ret = phy_suspend(phydev);
+		if (ret)
+			return ret;
+	}
+
+	ret = phy_resume(phydev);
+	if (ret)
+		return ret;
+
+	return phy_loopback(phydev, true);
+}
+
+static int hclge_disable_phy_loopback(struct hclge_dev *hdev,
+				      struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_loopback(phydev, false);
+	if (ret)
+		return ret;
+
+	return phy_suspend(phydev);
+}
+
+static int hclge_set_phy_loopback(struct hclge_dev *hdev, bool en)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	int ret;
+
+	if (!phydev)
+		return -ENOTSUPP;
+
+	if (en)
+		ret = hclge_enable_phy_loopback(hdev, phydev);
+	else
+		ret = hclge_disable_phy_loopback(hdev, phydev);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"set phy loopback fail, ret = %d\n", ret);
+		return ret;
+	}
+
+	hclge_cfg_mac_mode(hdev, en);
+
+	ret = hclge_mac_phy_link_status_wait(hdev, en, TRUE);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"phy loopback config mac mode timeout\n");
+
+	return ret;
 }
 
 static int hclge_tqp_enable(struct hclge_dev *hdev, unsigned int tqp_id,
@@ -6362,6 +6473,9 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	case HNAE3_LOOP_SERIAL_SERDES:
 	case HNAE3_LOOP_PARALLEL_SERDES:
 		ret = hclge_set_serdes_loopback(hdev, en, loop_mode);
+		break;
+	case HNAE3_LOOP_PHY:
+		ret = hclge_set_phy_loopback(hdev, en);
 		break;
 	default:
 		ret = -ENOTSUPP;
