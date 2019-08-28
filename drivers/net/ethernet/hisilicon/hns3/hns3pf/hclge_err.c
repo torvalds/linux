@@ -1325,10 +1325,12 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	/* log PPU(RCB) errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_RAS_MASK;
-	if (status)
+	if (status) {
 		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
 				&hclge_ppu_pf_abnormal_int[0], status,
 				&ae_dev->hw_err_reset_req);
+		hclge_report_hw_error(hdev, HNAE3_PPU_POISON_ERROR);
+	}
 
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);

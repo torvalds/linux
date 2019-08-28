@@ -3265,6 +3265,38 @@ static int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
 	return -ETIME;
 }
 
+void hclge_report_hw_error(struct hclge_dev *hdev,
+			   enum hnae3_hw_error_type type)
+{
+	struct hnae3_client *client = hdev->nic_client;
+	u16 i;
+
+	if (!client || !client->ops->process_hw_error ||
+	    !test_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state))
+		return;
+
+	for (i = 0; i < hdev->num_vmdq_vport + 1; i++)
+		client->ops->process_hw_error(&hdev->vport[i].nic, type);
+}
+
+static void hclge_handle_imp_error(struct hclge_dev *hdev)
+{
+	u32 reg_val;
+
+	reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
+	if (reg_val & BIT(HCLGE_VECTOR0_IMP_RD_POISON_B)) {
+		hclge_report_hw_error(hdev, HNAE3_IMP_RD_POISON_ERROR);
+		reg_val &= ~BIT(HCLGE_VECTOR0_IMP_RD_POISON_B);
+		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG, reg_val);
+	}
+
+	if (reg_val & BIT(HCLGE_VECTOR0_IMP_CMDQ_ERR_B)) {
+		hclge_report_hw_error(hdev, HNAE3_CMDQ_ECC_ERROR);
+		reg_val &= ~BIT(HCLGE_VECTOR0_IMP_CMDQ_ERR_B);
+		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG, reg_val);
+	}
+}
+
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 {
 	struct hclge_desc desc;
@@ -3471,6 +3503,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		hdev->rst_stats.flr_rst_cnt++;
 		break;
 	case HNAE3_IMP_RESET:
+		hclge_handle_imp_error(hdev);
 		reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
 		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG,
 				BIT(HCLGE_VECTOR0_IMP_RESET_INT_B) | reg_val);
