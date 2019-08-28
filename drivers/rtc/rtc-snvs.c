@@ -151,7 +151,7 @@ static int snvs_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 	unsigned long time = rtc_read_lp_counter(data);
 
-	rtc_time_to_tm(time, tm);
+	rtc_time64_to_tm(time, tm);
 
 	return 0;
 }
@@ -159,10 +159,8 @@ static int snvs_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int snvs_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
-	unsigned long time;
+	unsigned long time = rtc_tm_to_time64(tm);
 	int ret;
-
-	rtc_tm_to_time(tm, &time);
 
 	/* Disable RTC first */
 	ret = snvs_rtc_enable(data, false);
@@ -185,7 +183,7 @@ static int snvs_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u32 lptar, lpsr;
 
 	regmap_read(data->regmap, data->offset + SNVS_LPTAR, &lptar);
-	rtc_time_to_tm(lptar, &alrm->time);
+	rtc_time64_to_tm(lptar, &alrm->time);
 
 	regmap_read(data->regmap, data->offset + SNVS_LPSR, &lpsr);
 	alrm->pending = (lpsr & SNVS_LPSR_LPTA) ? 1 : 0;
@@ -207,11 +205,8 @@ static int snvs_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 static int snvs_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
-	struct rtc_time *alrm_tm = &alrm->time;
-	unsigned long time;
+	unsigned long time = rtc_tm_to_time64(&alrm->time);
 	int ret;
-
-	rtc_tm_to_time(alrm_tm, &time);
 
 	regmap_update_bits(data->regmap, data->offset + SNVS_LPCR, SNVS_LPCR_LPTA_EN, 0);
 	ret = rtc_write_sync_lp(data);
