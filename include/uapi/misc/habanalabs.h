@@ -77,22 +77,29 @@ enum hl_device_status {
 
 /* Opcode for management ioctl
  *
- * HW_IP_INFO         - Receive information about different IP blocks in the
- *                      device.
- * HL_INFO_HW_EVENTS  - Receive an array describing how many times each event
- *                      occurred since the last hard reset.
- * HL_INFO_DRAM_USAGE - Retrieve the dram usage inside the device and of the
- *                      specific context. This is relevant only for GOYA device.
- * HL_INFO_HW_IDLE    - Retrieve information about the idle status of each
- *                      internal engine.
+ * HW_IP_INFO            - Receive information about different IP blocks in the
+ *                         device.
+ * HL_INFO_HW_EVENTS     - Receive an array describing how many times each event
+ *                         occurred since the last hard reset.
+ * HL_INFO_DRAM_USAGE    - Retrieve the dram usage inside the device and of the
+ *                         specific context. This is relevant only for devices
+ *                         where the dram is managed by the kernel driver
+ * HL_INFO_HW_IDLE       - Retrieve information about the idle status of each
+ *                         internal engine.
  * HL_INFO_DEVICE_STATUS - Retrieve the device's status. This opcode doesn't
  *                         require an open context.
+ * HL_INFO_DEVICE_UTILIZATION - Retrieve the total utilization of the device
+ *                              over the last period specified by the user.
+ *                              The period can be between 100ms to 1s, in
+ *                              resolution of 100ms. The return value is a
+ *                              percentage of the utilization rate.
  */
-#define HL_INFO_HW_IP_INFO	0
-#define HL_INFO_HW_EVENTS	1
-#define HL_INFO_DRAM_USAGE	2
-#define HL_INFO_HW_IDLE		3
-#define HL_INFO_DEVICE_STATUS	4
+#define HL_INFO_HW_IP_INFO		0
+#define HL_INFO_HW_EVENTS		1
+#define HL_INFO_DRAM_USAGE		2
+#define HL_INFO_HW_IDLE			3
+#define HL_INFO_DEVICE_STATUS		4
+#define HL_INFO_DEVICE_UTILIZATION	6
 
 #define HL_INFO_VERSION_MAX_LEN	128
 
@@ -134,6 +141,11 @@ struct hl_info_device_status {
 	__u32 pad;
 };
 
+struct hl_info_device_utilization {
+	__u32 utilization;
+	__u32 pad;
+};
+
 struct hl_info_args {
 	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
@@ -149,8 +161,15 @@ struct hl_info_args {
 	/* HL_INFO_* */
 	__u32 op;
 
-	/* Context ID - Currently not in use */
-	__u32 ctx_id;
+	union {
+		/* Context ID - Currently not in use */
+		__u32 ctx_id;
+		/* Period value for utilization rate (100ms - 1000ms, in 100ms
+		 * resolution.
+		 */
+		__u32 period_ms;
+	};
+
 	__u32 pad;
 };
 

@@ -197,6 +197,29 @@ out:
 	return rc;
 }
 
+static int device_utilization(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_device_utilization device_util = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	if ((args->period_ms < 100) || (args->period_ms > 1000) ||
+		(args->period_ms % 100)) {
+		dev_err(hdev->dev,
+			"period %u must be between 100 - 1000 and must be divisible by 100\n",
+			args->period_ms);
+		return -EINVAL;
+	}
+
+	device_util.utilization = hl_device_utilization(hdev, args->period_ms);
+
+	return copy_to_user(out, &device_util,
+		min((size_t) max_size, sizeof(device_util))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -237,6 +260,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_HW_IDLE:
 		rc = hw_idle(hdev, args);
+		break;
+
+	case HL_INFO_DEVICE_UTILIZATION:
+		rc = device_utilization(hdev, args);
 		break;
 
 	default:

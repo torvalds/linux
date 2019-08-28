@@ -45,6 +45,8 @@
 /* MUST BE POWER OF 2 and larger than 1 */
 #define HL_MAX_PENDING_CS		64
 
+#define HL_IDLE_BUSY_TS_ARR_SIZE	4096
+
 /* Memory */
 #define MEM_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
 
@@ -1157,6 +1159,16 @@ struct hl_device_reset_work {
 };
 
 /**
+ * struct hl_device_idle_busy_ts - used for calculating device utilization rate.
+ * @idle_to_busy_ts: timestamp where device changed from idle to busy.
+ * @busy_to_idle_ts: timestamp where device changed from busy to idle.
+ */
+struct hl_device_idle_busy_ts {
+	ktime_t				idle_to_busy_ts;
+	ktime_t				busy_to_idle_ts;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar: array of available PCIe bars.
@@ -1203,19 +1215,22 @@ struct hl_device_reset_work {
  *              when a user opens the device
  * @fpriv_list_lock: protects the fpriv_list
  * @compute_ctx: current compute context executing.
+ * @idle_busy_ts_arr: array to hold time stamps of transitions from idle to busy
+ *                    and vice-versa
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, KMD will restore this
  *             value and update the F/W after the re-initialization
  * @in_reset: is device in reset flow.
+ * @curr_pll_profile: current PLL profile.
  * @cs_active_cnt: number of active command submissions on this device (active
  *                 means already in H/W queues)
- * @curr_pll_profile: current PLL profile.
  * @major: habanalabs KMD major.
  * @high_pll: high PLL profile frequency.
  * @soft_reset_cnt: number of soft reset since KMD loading.
  * @hard_reset_cnt: number of hard reset since KMD loading.
+ * @idle_busy_ts_idx: index of current entry in idle_busy_ts_arr
  * @id: device minor.
  * @id_control: minor of the control device
  * @disabled: is device disabled.
@@ -1285,16 +1300,19 @@ struct hl_device {
 
 	struct hl_ctx			*compute_ctx;
 
+	struct hl_device_idle_busy_ts	*idle_busy_ts_arr;
+
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
 	atomic_t			in_reset;
-	atomic_t			cs_active_cnt;
 	enum hl_pll_frequency		curr_pll_profile;
+	int				cs_active_cnt;
 	u32				major;
 	u32				high_pll;
 	u32				soft_reset_cnt;
 	u32				hard_reset_cnt;
+	u32				idle_busy_ts_idx;
 	u16				id;
 	u16				id_control;
 	u8				disabled;
@@ -1457,6 +1475,7 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 void hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
+uint32_t hl_device_utilization(struct hl_device *hdev, uint32_t period_ms);
 
 int hl_build_hwmon_channel_info(struct hl_device *hdev,
 		struct armcp_sensor *sensors_arr);

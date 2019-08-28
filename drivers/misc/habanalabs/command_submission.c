@@ -178,11 +178,23 @@ static void cs_do_release(struct kref *ref)
 
 	/* We also need to update CI for internal queues */
 	if (cs->submitted) {
-		int cs_cnt = atomic_dec_return(&hdev->cs_active_cnt);
+		hdev->asic_funcs->hw_queues_lock(hdev);
 
-		WARN_ONCE((cs_cnt < 0),
-			"hl%d: error in CS active cnt %d\n",
-			hdev->id, cs_cnt);
+		hdev->cs_active_cnt--;
+		if (!hdev->cs_active_cnt) {
+			struct hl_device_idle_busy_ts *ts;
+
+			ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx++];
+			ts->busy_to_idle_ts = ktime_get();
+
+			if (hdev->idle_busy_ts_idx == HL_IDLE_BUSY_TS_ARR_SIZE)
+				hdev->idle_busy_ts_idx = 0;
+		} else if (hdev->cs_active_cnt < 0) {
+			dev_crit(hdev->dev, "CS active cnt %d is negative\n",
+				hdev->cs_active_cnt);
+		}
+
+		hdev->asic_funcs->hw_queues_unlock(hdev);
 
 		hl_int_hw_queue_update_ci(cs);
 
