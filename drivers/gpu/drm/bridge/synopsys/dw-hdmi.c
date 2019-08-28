@@ -3007,6 +3007,19 @@ static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 			dev_err(hdmi->dev, "unexpected mapping: 0x%x\n",
 				video_mapping);
 		}
+
+		hdmi->hdmi_data.enc_in_bus_format = color;
+		hdmi->hdmi_data.enc_out_bus_format = color;
+		/*
+		 * input format will be set as yuv444 when output
+		 * format is yuv420
+		 */
+		if (color == MEDIA_BUS_FMT_UYVY10_1X20)
+			hdmi->hdmi_data.enc_in_bus_format =
+				MEDIA_BUS_FMT_YUV10_1X30;
+		else if (color == MEDIA_BUS_FMT_UYVY8_1X16)
+			hdmi->hdmi_data.enc_in_bus_format =
+				MEDIA_BUS_FMT_YUV8_1X24;
 	}
 
 	if (ops && ops->attach_properties)
