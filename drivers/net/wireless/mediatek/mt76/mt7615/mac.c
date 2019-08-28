@@ -232,11 +232,9 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 		struct mt76_txwi_cache *t;
 		struct mt7615_dev *dev;
 		struct mt7615_txp *txp;
-		u8 *txwi_ptr;
 
-		txwi_ptr = mt76_get_txwi_ptr(mdev, e->txwi);
-		txp = (struct mt7615_txp *)(txwi_ptr + MT_TXD_SIZE);
 		dev = container_of(mdev, struct mt7615_dev, mt76);
+		txp = mt7615_txwi_to_txp(mdev, e->txwi);
 
 		spin_lock_bh(&dev->token_lock);
 		t = idr_remove(&dev->token, le16_to_cpu(txp->token));
@@ -449,11 +447,9 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *t)
 {
 	struct mt7615_txp *txp;
-	u8 *txwi;
 	int i;
 
-	txwi = mt76_get_txwi_ptr(dev, t);
-	txp = (struct mt7615_txp *)(txwi + MT_TXD_SIZE);
+	txp = mt7615_txwi_to_txp(dev, t);
 	for (i = 1; i < txp->nbuf; i++)
 		dma_unmap_single(dev->dev, le32_to_cpu(txp->buf[i]),
 				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);

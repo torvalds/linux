@@ -317,4 +317,17 @@ enum mt7615_cipher_type {
 	MT_CIPHER_GCMP_256,
 };
 
+static inline struct mt7615_txp *
+mt7615_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	u8 *txwi;
+
+	if (!t)
+		return NULL;
+
+	txwi = mt76_get_txwi_ptr(dev, t);
+
+	return (struct mt7615_txp *)(txwi + MT_TXD_SIZE);
+}
+
 #endif
