@@ -88,60 +88,12 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 		goto out;
 	}
 
-	/* At the moment, we have no way of interrogating the DPMAC
-	 * from the DPNI side - and for that matter there may exist
-	 * no DPMAC at all. So for now we just don't report anything
-	 * beyond the DPNI attributes.
-	 */
-	if (state.options & DPNI_LINK_OPT_AUTONEG)
-		link_settings->base.autoneg = AUTONEG_ENABLE;
+	link_settings->base.autoneg = AUTONEG_DISABLE;
 	if (!(state.options & DPNI_LINK_OPT_HALF_DUPLEX))
 		link_settings->base.duplex = DUPLEX_FULL;
 	link_settings->base.speed = state.rate;
 
 out:
-	return err;
-}
-
-#define DPNI_DYNAMIC_LINK_SET_VER_MAJOR		7
-#define DPNI_DYNAMIC_LINK_SET_VER_MINOR		1
-static int
-dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
-			     const struct ethtool_link_ksettings *link_settings)
-{
-	struct dpni_link_cfg cfg = {0};
-	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	int err = 0;
-
-	/* If using an older MC version, the DPNI must be down
-	 * in order to be able to change link settings. Taking steps to let
-	 * the user know that.
-	 */
-	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_DYNAMIC_LINK_SET_VER_MAJOR,
-				   DPNI_DYNAMIC_LINK_SET_VER_MINOR) < 0) {
-		if (netif_running(net_dev)) {
-			netdev_info(net_dev, "Interface must be brought down first.\n");
-			return -EACCES;
-		}
-	}
-
-	cfg.rate = link_settings->base.speed;
-	if (link_settings->base.autoneg == AUTONEG_ENABLE)
-		cfg.options |= DPNI_LINK_OPT_AUTONEG;
-	else
-		cfg.options &= ~DPNI_LINK_OPT_AUTONEG;
-	if (link_settings->base.duplex  == DUPLEX_HALF)
-		cfg.options |= DPNI_LINK_OPT_HALF_DUPLEX;
-	else
-		cfg.options &= ~DPNI_LINK_OPT_HALF_DUPLEX;
-
-	err = dpni_set_link_cfg(priv->mc_io, 0, priv->mc_token, &cfg);
-	if (err)
-		/* ethtool will be loud enough if we return an error; no point
-		 * in putting our own error message on the console by default
-		 */
-		netdev_dbg(net_dev, "ERROR %d setting link cfg\n", err);
-
 	return err;
 }
 
@@ -721,7 +673,6 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = dpaa2_eth_get_link_ksettings,
-	.set_link_ksettings = dpaa2_eth_set_link_ksettings,
 	.get_sset_count = dpaa2_eth_get_sset_count,
 	.get_ethtool_stats = dpaa2_eth_get_ethtool_stats,
 	.get_strings = dpaa2_eth_get_strings,
