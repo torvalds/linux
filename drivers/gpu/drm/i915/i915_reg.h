@@ -9281,12 +9281,20 @@ enum skl_power_gate {
 
 /* HDCP Repeater Registers */
 #define HDCP_REP_CTL			_MMIO(0x66d00)
+#define  HDCP_TRANSA_REP_PRESENT	BIT(31)
+#define  HDCP_TRANSB_REP_PRESENT	BIT(30)
+#define  HDCP_TRANSC_REP_PRESENT	BIT(29)
+#define  HDCP_TRANSD_REP_PRESENT	BIT(28)
 #define  HDCP_DDIB_REP_PRESENT		BIT(30)
 #define  HDCP_DDIA_REP_PRESENT		BIT(29)
 #define  HDCP_DDIC_REP_PRESENT		BIT(28)
 #define  HDCP_DDID_REP_PRESENT		BIT(27)
 #define  HDCP_DDIF_REP_PRESENT		BIT(26)
 #define  HDCP_DDIE_REP_PRESENT		BIT(25)
+#define  HDCP_TRANSA_SHA1_M0		(1 << 20)
+#define  HDCP_TRANSB_SHA1_M0		(2 << 20)
+#define  HDCP_TRANSC_SHA1_M0		(3 << 20)
+#define  HDCP_TRANSD_SHA1_M0		(4 << 20)
 #define  HDCP_DDIB_SHA1_M0		(1 << 20)
 #define  HDCP_DDIA_SHA1_M0		(2 << 20)
 #define  HDCP_DDIC_SHA1_M0		(3 << 20)
@@ -9326,15 +9334,92 @@ enum skl_power_gate {
 					  _PORTE_HDCP_AUTHENC, \
 					  _PORTF_HDCP_AUTHENC) + (x))
 #define PORT_HDCP_CONF(port)		_PORT_HDCP_AUTHENC(port, 0x0)
+#define _TRANSA_HDCP_CONF		0x66400
+#define _TRANSB_HDCP_CONF		0x66500
+#define TRANS_HDCP_CONF(trans)		_MMIO_TRANS(trans, _TRANSA_HDCP_CONF, \
+						    _TRANSB_HDCP_CONF)
+#define HDCP_CONF(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_CONF(trans) : \
+					 PORT_HDCP_CONF(port))
+
 #define  HDCP_CONF_CAPTURE_AN		BIT(0)
 #define  HDCP_CONF_AUTH_AND_ENC		(BIT(1) | BIT(0))
 #define PORT_HDCP_ANINIT(port)		_PORT_HDCP_AUTHENC(port, 0x4)
+#define _TRANSA_HDCP_ANINIT		0x66404
+#define _TRANSB_HDCP_ANINIT		0x66504
+#define TRANS_HDCP_ANINIT(trans)	_MMIO_TRANS(trans, \
+						    _TRANSA_HDCP_ANINIT, \
+						    _TRANSB_HDCP_ANINIT)
+#define HDCP_ANINIT(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_ANINIT(trans) : \
+					 PORT_HDCP_ANINIT(port))
+
 #define PORT_HDCP_ANLO(port)		_PORT_HDCP_AUTHENC(port, 0x8)
+#define _TRANSA_HDCP_ANLO		0x66408
+#define _TRANSB_HDCP_ANLO		0x66508
+#define TRANS_HDCP_ANLO(trans)		_MMIO_TRANS(trans, _TRANSA_HDCP_ANLO, \
+						    _TRANSB_HDCP_ANLO)
+#define HDCP_ANLO(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_ANLO(trans) : \
+					 PORT_HDCP_ANLO(port))
+
 #define PORT_HDCP_ANHI(port)		_PORT_HDCP_AUTHENC(port, 0xC)
+#define _TRANSA_HDCP_ANHI		0x6640C
+#define _TRANSB_HDCP_ANHI		0x6650C
+#define TRANS_HDCP_ANHI(trans)		_MMIO_TRANS(trans, _TRANSA_HDCP_ANHI, \
+						    _TRANSB_HDCP_ANHI)
+#define HDCP_ANHI(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_ANHI(trans) : \
+					 PORT_HDCP_ANHI(port))
+
 #define PORT_HDCP_BKSVLO(port)		_PORT_HDCP_AUTHENC(port, 0x10)
+#define _TRANSA_HDCP_BKSVLO		0x66410
+#define _TRANSB_HDCP_BKSVLO		0x66510
+#define TRANS_HDCP_BKSVLO(trans)	_MMIO_TRANS(trans, \
+						    _TRANSA_HDCP_BKSVLO, \
+						    _TRANSB_HDCP_BKSVLO)
+#define HDCP_BKSVLO(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_BKSVLO(trans) : \
+					 PORT_HDCP_BKSVLO(port))
+
 #define PORT_HDCP_BKSVHI(port)		_PORT_HDCP_AUTHENC(port, 0x14)
+#define _TRANSA_HDCP_BKSVHI		0x66414
+#define _TRANSB_HDCP_BKSVHI		0x66514
+#define TRANS_HDCP_BKSVHI(trans)	_MMIO_TRANS(trans, \
+						    _TRANSA_HDCP_BKSVHI, \
+						    _TRANSB_HDCP_BKSVHI)
+#define HDCP_BKSVHI(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_BKSVHI(trans) : \
+					 PORT_HDCP_BKSVHI(port))
+
 #define PORT_HDCP_RPRIME(port)		_PORT_HDCP_AUTHENC(port, 0x18)
+#define _TRANSA_HDCP_RPRIME		0x66418
+#define _TRANSB_HDCP_RPRIME		0x66518
+#define TRANS_HDCP_RPRIME(trans)	_MMIO_TRANS(trans, \
+						    _TRANSA_HDCP_RPRIME, \
+						    _TRANSB_HDCP_RPRIME)
+#define HDCP_RPRIME(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_RPRIME(trans) : \
+					 PORT_HDCP_RPRIME(port))
+
 #define PORT_HDCP_STATUS(port)		_PORT_HDCP_AUTHENC(port, 0x1C)
+#define _TRANSA_HDCP_STATUS		0x6641C
+#define _TRANSB_HDCP_STATUS		0x6651C
+#define TRANS_HDCP_STATUS(trans)	_MMIO_TRANS(trans, \
+						    _TRANSA_HDCP_STATUS, \
+						    _TRANSB_HDCP_STATUS)
+#define HDCP_STATUS(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP_STATUS(trans) : \
+					 PORT_HDCP_STATUS(port))
+
 #define  HDCP_STATUS_STREAM_A_ENC	BIT(31)
 #define  HDCP_STATUS_STREAM_B_ENC	BIT(30)
 #define  HDCP_STATUS_STREAM_C_ENC	BIT(29)
@@ -9361,23 +9446,44 @@ enum skl_power_gate {
 					  _PORTD_HDCP2_BASE, \
 					  _PORTE_HDCP2_BASE, \
 					  _PORTF_HDCP2_BASE) + (x))
-
-#define HDCP2_AUTH_DDI(port)		_PORT_HDCP2_BASE(port, 0x98)
+#define PORT_HDCP2_AUTH(port)		_PORT_HDCP2_BASE(port, 0x98)
+#define _TRANSA_HDCP2_AUTH		0x66498
+#define _TRANSB_HDCP2_AUTH		0x66598
+#define TRANS_HDCP2_AUTH(trans)		_MMIO_TRANS(trans, _TRANSA_HDCP2_AUTH, \
+						    _TRANSB_HDCP2_AUTH)
 #define   AUTH_LINK_AUTHENTICATED	BIT(31)
 #define   AUTH_LINK_TYPE		BIT(30)
 #define   AUTH_FORCE_CLR_INPUTCTR	BIT(19)
 #define   AUTH_CLR_KEYS			BIT(18)
+#define HDCP2_AUTH(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP2_AUTH(trans) : \
+					 PORT_HDCP2_AUTH(port))
 
-#define HDCP2_CTL_DDI(port)		_PORT_HDCP2_BASE(port, 0xB0)
+#define PORT_HDCP2_CTL(port)		_PORT_HDCP2_BASE(port, 0xB0)
+#define _TRANSA_HDCP2_CTL		0x664B0
+#define _TRANSB_HDCP2_CTL		0x665B0
+#define TRANS_HDCP2_CTL(trans)		_MMIO_TRANS(trans, _TRANSA_HDCP2_CTL, \
+						    _TRANSB_HDCP2_CTL)
 #define   CTL_LINK_ENCRYPTION_REQ	BIT(31)
+#define HDCP2_CTL(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP2_CTL(trans) : \
+					 PORT_HDCP2_CTL(port))
 
-#define HDCP2_STATUS_DDI(port)		_PORT_HDCP2_BASE(port, 0xB4)
-#define   STREAM_ENCRYPTION_STATUS_A	BIT(31)
-#define   STREAM_ENCRYPTION_STATUS_B	BIT(30)
-#define   STREAM_ENCRYPTION_STATUS_C	BIT(29)
+#define PORT_HDCP2_STATUS(port)		_PORT_HDCP2_BASE(port, 0xB4)
+#define _TRANSA_HDCP2_STATUS		0x664B4
+#define _TRANSB_HDCP2_STATUS		0x665B4
+#define TRANS_HDCP2_STATUS(trans)	_MMIO_TRANS(trans, \
+						    _TRANSA_HDCP2_STATUS, \
+						    _TRANSB_HDCP2_STATUS)
 #define   LINK_TYPE_STATUS		BIT(22)
 #define   LINK_AUTH_STATUS		BIT(21)
 #define   LINK_ENCRYPTION_STATUS	BIT(20)
+#define HDCP2_STATUS(dev_priv, trans, port) \
+					(INTEL_GEN(dev_priv) >= 12 ? \
+					 TRANS_HDCP2_STATUS(trans) : \
+					 PORT_HDCP2_STATUS(port))
 
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400

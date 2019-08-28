@@ -1491,7 +1491,10 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 {
 	struct drm_i915_private *dev_priv =
 		intel_dig_port->base.base.dev->dev_private;
+	struct intel_connector *connector =
+		intel_dig_port->hdmi.attached_connector;
 	enum port port = intel_dig_port->base.port;
+	enum transcoder cpu_transcoder = connector->hdcp.cpu_transcoder;
 	int ret;
 	union {
 		u32 reg;
@@ -1502,13 +1505,14 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 	if (ret)
 		return false;
 
-	I915_WRITE(PORT_HDCP_RPRIME(port), ri.reg);
+	I915_WRITE(HDCP_RPRIME(dev_priv, cpu_transcoder, port), ri.reg);
 
 	/* Wait for Ri prime match */
-	if (wait_for(I915_READ(PORT_HDCP_STATUS(port)) &
+	if (wait_for(I915_READ(HDCP_STATUS(dev_priv, cpu_transcoder, port)) &
 		     (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1)) {
 		DRM_ERROR("Ri' mismatch detected, link check failed (%x)\n",
-			  I915_READ(PORT_HDCP_STATUS(port)));
+			  I915_READ(HDCP_STATUS(dev_priv, cpu_transcoder,
+						port)));
 		return false;
 	}
 	return true;
