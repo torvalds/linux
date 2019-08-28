@@ -646,9 +646,11 @@ static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
 	int err;
 	u8 lane;
 
-	mv88e6xxx_serdes_get_lane(chip, port->port, &lane);
-
 	mv88e6xxx_reg_lock(chip);
+
+	err = mv88e6xxx_serdes_get_lane(chip, port->port, &lane);
+	if (err)
+		goto out;
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
