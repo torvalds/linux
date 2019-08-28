@@ -239,6 +239,8 @@ static int psp_tmr_init(struct psp_context *psp)
 {
 	int ret;
 	int tmr_size;
+	void *tmr_buf;
+	void **pptr;
 
 	/*
 	 * According to HW engineer, they prefer the TMR address be "naturally
@@ -261,9 +263,10 @@ static int psp_tmr_init(struct psp_context *psp)
 		}
 	}
 
+	pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
 	ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->tmr_bo, &psp->tmr_mc_addr, NULL);
+				      &psp->tmr_bo, &psp->tmr_mc_addr, pptr);
 
 	return ret;
 }
@@ -1206,6 +1209,8 @@ static int psp_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
+	void *tmr_buf;
+	void **pptr;
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
 	    psp->xgmi_context.initialized == 1)
@@ -1216,7 +1221,8 @@ static int psp_hw_fini(void *handle)
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
-	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, NULL);
+	pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
+	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, pptr);
 	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
 			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
