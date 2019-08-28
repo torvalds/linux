@@ -1053,7 +1053,7 @@ alloc:
 	if (GET_SEGNO(sbi, old_blkaddr) != NULL_SEGNO)
 		invalidate_mapping_pages(META_MAPPING(sbi),
 					old_blkaddr, old_blkaddr);
-	f2fs_set_data_blkaddr(dn);
+	f2fs_update_data_blkaddr(dn, dn->data_blkaddr);
 
 	/*
 	 * i_size will be updated by direct_IO. Otherwise, we'll get stale
