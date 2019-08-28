@@ -905,7 +905,7 @@ void bfq_end_wr_async(struct bfq_data *bfqd)
 	bfq_end_wr_async_queues(bfqd, bfqd->root_group);
 }
 
-static int bfq_io_show_weight(struct seq_file *sf, void *v)
+static int bfq_io_show_weight_legacy(struct seq_file *sf, void *v)
 {
 	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
 	struct bfq_group_data *bfqgd = blkcg_to_bfqgd(blkcg);
@@ -919,8 +919,32 @@ static int bfq_io_show_weight(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static void bfq_group_set_weight(struct bfq_group *bfqg, u64 weight)
+static u64 bfqg_prfill_weight_device(struct seq_file *sf,
+				     struct blkg_policy_data *pd, int off)
 {
+	struct bfq_group *bfqg = pd_to_bfqg(pd);
+
+	if (!bfqg->entity.dev_weight)
+		return 0;
+	return __blkg_prfill_u64(sf, pd, bfqg->entity.dev_weight);
+}
+
+static int bfq_io_show_weight(struct seq_file *sf, void *v)
+{
+	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
+	struct bfq_group_data *bfqgd = blkcg_to_bfqgd(blkcg);
+
+	seq_printf(sf, "default %u\n", bfqgd->weight);
+	blkcg_print_blkgs(sf, blkcg, bfqg_prfill_weight_device,
+			  &blkcg_policy_bfq, 0, false);
+	return 0;
+}
+
+static void bfq_group_set_weight(struct bfq_group *bfqg, u64 weight, u64 dev_weight)
+{
+	weight = dev_weight ?: weight;
+
+	bfqg->entity.dev_weight = dev_weight;
 	/*
 	 * Setting the prio_changed flag of the entity
 	 * to 1 with new_weight == weight would re-set
@@ -968,26 +992,69 @@ static int bfq_io_set_weight_legacy(struct cgroup_subsys_state *css,
 		struct bfq_group *bfqg = blkg_to_bfqg(blkg);
 
 		if (bfqg)
-			bfq_group_set_weight(bfqg, val);
+			bfq_group_set_weight(bfqg, val, 0);
 	}
 	spin_unlock_irq(&blkcg->lock);
 
 	return ret;
 }
 
+static ssize_t bfq_io_set_device_weight(struct kernfs_open_file *of,
+					char *buf, size_t nbytes,
+					loff_t off)
+{
+	int ret;
+	struct blkg_conf_ctx ctx;
+	struct blkcg *blkcg = css_to_blkcg(of_css(of));
+	struct bfq_group *bfqg;
+	u64 v;
+
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_bfq, buf, &ctx);
+	if (ret)
+		return ret;
+
+	if (sscanf(ctx.body, "%llu", &v) == 1) {
+		/* require "default" on dfl */
+		ret = -ERANGE;
+		if (!v)
+			goto out;
+	} else if (!strcmp(strim(ctx.body), "default")) {
+		v = 0;
+	} else {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	bfqg = blkg_to_bfqg(ctx.blkg);
+
+	ret = -ERANGE;
+	if (!v || (v >= BFQ_MIN_WEIGHT && v <= BFQ_MAX_WEIGHT)) {
+		bfq_group_set_weight(bfqg, bfqg->entity.weight, v);
+		ret = 0;
+	}
+out:
+	blkg_conf_finish(&ctx);
+	return ret ?: nbytes;
+}
+
 static ssize_t bfq_io_set_weight(struct kernfs_open_file *of,
 				 char *buf, size_t nbytes,
 				 loff_t off)
 {
-	u64 weight;
-	/* First unsigned long found in the file is used */
-	int ret = kstrtoull(strim(buf), 0, &weight);
+	char *endp;
+	int ret;
+	u64 v;
 
-	if (ret)
-		return ret;
+	buf = strim(buf);
 
-	ret = bfq_io_set_weight_legacy(of_css(of), NULL, weight);
-	return ret ?: nbytes;
+	/* "WEIGHT" or "default WEIGHT" sets the default weight */
+	v = simple_strtoull(buf, &endp, 0);
+	if (*endp == '\0' || sscanf(buf, "default %llu", &v) == 1) {
+		ret = bfq_io_set_weight_legacy(of_css(of), NULL, v);
+		return ret ?: nbytes;
+	}
+
+	return bfq_io_set_device_weight(of, buf, nbytes, off);
 }
 
 #ifdef CONFIG_BFQ_CGROUP_DEBUG
@@ -1146,8 +1213,14 @@ struct cftype bfq_blkcg_legacy_files[] = {
 	{
 		.name = "bfq.weight",
 		.flags = CFTYPE_NOT_ON_ROOT,
-		.seq_show = bfq_io_show_weight,
+		.seq_show = bfq_io_show_weight_legacy,
 		.write_u64 = bfq_io_set_weight_legacy,
+	},
+	{
+		.name = "bfq.weight_device",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = bfq_io_show_weight,
+		.write = bfq_io_set_weight,
 	},
 
 	/* statistics, covers only the tasks in the bfqg */
