@@ -6211,6 +6211,30 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
+static int hclge_config_switch_param(struct hclge_dev *hdev, int vfid,
+				     u8 switch_param, u8 param_mask)
+{
+	struct hclge_mac_vlan_switch_cmd *req;
+	struct hclge_desc desc;
+	u32 func_id;
+	int ret;
+
+	func_id = hclge_get_port_number(HOST_PORT, 0, vfid, 0);
+	req = (struct hclge_mac_vlan_switch_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_SWITCH_PARAM,
+				   false);
+	req->roce_sel = HCLGE_MAC_VLAN_NIC_SEL;
+	req->func_id = cpu_to_le32(func_id);
+	req->switch_param = switch_param;
+	req->param_mask = param_mask;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"set mac vlan switch parameter fail, ret = %d\n", ret);
+	return ret;
+}
+
 static void hclge_phy_link_status_wait(struct hclge_dev *hdev,
 				       int link_ret)
 {
@@ -6464,6 +6488,20 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	struct hnae3_knic_private_info *kinfo;
 	struct hclge_dev *hdev = vport->back;
 	int i, ret;
+
+	/* Loopback can be enabled in three places: SSU, MAC, and serdes. By
+	 * default, SSU loopback is enabled, so if the SMAC and the DMAC are
+	 * the same, the packets are looped back in the SSU. If SSU loopback
+	 * is disabled, packets can reach MAC even if SMAC is the same as DMAC.
+	 */
+	if (hdev->pdev->revision >= 0x21) {
+		u8 switch_param = en ? 0 : BIT(HCLGE_SWITCH_ALW_LPBK_B);
+
+		ret = hclge_config_switch_param(hdev, PF_VPORT_ID, switch_param,
+						HCLGE_SWITCH_ALW_LPBK_MASK);
+		if (ret)
+			return ret;
+	}
 
 	switch (loop_mode) {
 	case HNAE3_LOOP_APP:

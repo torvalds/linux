@@ -148,6 +148,8 @@ enum HLCGE_PORT_TYPE {
 	NETWORK_PORT
 };
 
+#define PF_VPORT_ID			0
+
 #define HCLGE_PF_ID_S			0
 #define HCLGE_PF_ID_M			GENMASK(2, 0)
 #define HCLGE_VF_ID_S			3
