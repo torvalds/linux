@@ -149,6 +149,27 @@
  * donate and should take back how much requires hweight propagations
  * anyway making it easier to implement and understand as a separate
  * mechanism.
+ *
+ * 3. Monitoring
+ *
+ * Instead of debugfs or other clumsy monitoring mechanisms, this
+ * controller uses a drgn based monitoring script -
+ * tools/cgroup/iocost_monitor.py.  For details on drgn, please see
+ * https://github.com/osandov/drgn.  The ouput looks like the following.
+ *
+ *  sdb RUN   per=300ms cur_per=234.218:v203.695 busy= +1 vrate= 62.12%
+ *                 active      weight      hweight% inflt% del_ms usages%
+ *  test/a              *    50/   50  33.33/ 33.33  27.65  0*041 033:033:033
+ *  test/b              *   100/  100  66.67/ 66.67  17.56  0*000 066:079:077
+ *
+ * - per	: Timer period
+ * - cur_per	: Internal wall and device vtime clock
+ * - vrate	: Device virtual time rate against wall clock
+ * - weight	: Surplus-adjusted and configured weights
+ * - hweight	: Surplus-adjusted and configured hierarchical weights
+ * - inflt	: The percentage of in-flight IO cost at the end of last period
+ * - del_ms	: Deferred issuer delay induction level and duration
+ * - usages	: Usage history
  */
 
 #include <linux/kernel.h>
