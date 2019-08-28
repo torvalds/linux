@@ -1249,7 +1249,8 @@ retry:
 					   offset_into_extent),
 				       &cur.k);
 		bch2_key_resize(&cur.k.k, sectors);
-		cur.k.k.p.offset = iter->pos.offset + cur.k.k.size;
+		cur.k.k.p = iter->pos;
+		cur.k.k.p.offset += cur.k.k.size;
 
 		if (have_extent) {
 			ret = bch2_fill_extent(c, info,
