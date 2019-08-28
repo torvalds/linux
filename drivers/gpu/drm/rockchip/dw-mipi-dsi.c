@@ -975,8 +975,8 @@ static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
 static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
 {
 	struct drm_display_mode *mode = &dsi->mode;
-	unsigned int lanebyteclk = dsi->lane_mbps >> 3;
-	unsigned int dpipclk = mode->clock / USEC_PER_MSEC;
+	unsigned int lanebyteclk = (dsi->lane_mbps * USEC_PER_MSEC) >> 3;
+	unsigned int dpipclk = mode->clock;
 	u32 hline, hsa, hbp, hline_time, hsa_time, hbp_time;
 	u32 vactive, vsa, vfp, vbp;
 	u32 val;
