@@ -10,7 +10,7 @@
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
 
-#include <asm/atomic.h>
+#include <asm/atomic_arch.h>
 #include <asm/barrier.h>
 #include <asm/lse.h>
 
