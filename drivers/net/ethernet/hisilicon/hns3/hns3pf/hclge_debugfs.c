@@ -83,7 +83,7 @@ static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset)
 	ret = hclge_query_bd_num_cmd_send(hdev, desc);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"get dfx bdnum fail, status is %d.\n", ret);
+			"get dfx bdnum fail, ret = %d\n", ret);
 		return ret;
 	}
 
@@ -110,12 +110,9 @@ static int hclge_dbg_cmd_send(struct hclge_dev *hdev,
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, desc_src, bd_num);
-	if (ret) {
+	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"read reg cmd send fail, status is %d.\n", ret);
-		return ret;
-	}
-
+			"cmd(0x%x) send fail, ret = %d\n", cmd, ret);
 	return ret;
 }
 
@@ -142,8 +139,11 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	}
 
 	bd_num = hclge_dbg_get_dfx_bd_num(hdev, reg_msg->offset);
-	if (bd_num <= 0)
+	if (bd_num <= 0) {
+		dev_err(&hdev->pdev->dev, "get cmd(%d) bd num(%d) failed\n",
+			reg_msg->offset, bd_num);
 		return;
+	}
 
 	buf_len	 = sizeof(struct hclge_desc) * bd_num;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
@@ -331,7 +331,7 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(&hdev->pdev->dev, "dump tc fail, status is %d.\n", ret);
+		dev_err(&hdev->pdev->dev, "dump tc fail, ret = %d\n", ret);
 		return;
 	}
 
@@ -433,7 +433,7 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	return;
 
 err_tm_pg_cmd_send:
-	dev_err(&hdev->pdev->dev, "dump tm_pg fail(0x%x), status is %d\n",
+	dev_err(&hdev->pdev->dev, "dump tm_pg fail(0x%x), ret = %d\n",
 		cmd, ret);
 }
 
@@ -545,7 +545,7 @@ static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
 	return;
 
 err_tm_cmd_send:
-	dev_err(&hdev->pdev->dev, "dump tm fail(0x%x), status is %d\n",
+	dev_err(&hdev->pdev->dev, "dump tm fail(0x%x), ret = %d\n",
 		cmd, ret);
 }
 
@@ -634,7 +634,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	return;
 
 err_tm_map_cmd_send:
-	dev_err(&hdev->pdev->dev, "dump tqp map fail(0x%x), status is %d\n",
+	dev_err(&hdev->pdev->dev, "dump tqp map fail(0x%x), ret = %d\n",
 		cmd, ret);
 }
 
@@ -648,7 +648,7 @@ static void hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev)
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(&hdev->pdev->dev, "dump checksum fail, status is %d.\n",
+		dev_err(&hdev->pdev->dev, "dump checksum fail, ret = %d\n",
 			ret);
 		return;
 	}
@@ -672,7 +672,7 @@ static void hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev)
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"dump qos pri map fail, status is %d.\n", ret);
+			"dump qos pri map fail, ret = %d\n", ret);
 		return;
 	}
 
@@ -805,7 +805,7 @@ static void hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev)
 
 err_qos_cmd_send:
 	dev_err(&hdev->pdev->dev,
-		"dump qos buf cfg fail(0x%x), status is %d\n", cmd, ret);
+		"dump qos buf cfg fail(0x%x), ret = %d\n", cmd, ret);
 }
 
 static void hclge_dbg_dump_mng_table(struct hclge_dev *hdev)
@@ -963,7 +963,7 @@ void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"get firmware statistics bd number failed, ret=%d\n",
+			"get firmware statistics bd number failed, ret = %d\n",
 			ret);
 		return;
 	}
@@ -984,7 +984,7 @@ void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 	if (ret) {
 		kfree(desc_src);
 		dev_err(&hdev->pdev->dev,
-			"get firmware statistics failed, ret=%d\n", ret);
+			"get firmware statistics failed, ret = %d\n", ret);
 		return;
 	}
 

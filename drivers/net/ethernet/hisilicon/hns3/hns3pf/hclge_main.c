@@ -7237,7 +7237,7 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
 	    is_broadcast_ether_addr(new_addr) ||
 	    is_multicast_ether_addr(new_addr)) {
 		dev_err(&hdev->pdev->dev,
-			"Change uc mac err! invalid mac:%p.\n",
+			"Change uc mac err! invalid mac:%pM.\n",
 			 new_addr);
 		return -EINVAL;
 	}
