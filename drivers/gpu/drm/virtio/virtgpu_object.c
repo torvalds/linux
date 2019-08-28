@@ -23,6 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/moduleparam.h>
+
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #include "virtgpu_drv.h"
