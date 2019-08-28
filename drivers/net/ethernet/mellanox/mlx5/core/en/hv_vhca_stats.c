@@ -30,22 +30,21 @@ mlx5e_hv_vhca_fill_ring_stats(struct mlx5e_priv *priv, int ch,
 	}
 }
 
-static void mlx5e_hv_vhca_fill_stats(struct mlx5e_priv *priv, u64 *data,
+static void mlx5e_hv_vhca_fill_stats(struct mlx5e_priv *priv, void *data,
 				     int buf_len)
 {
 	int ch, i = 0;
 
 	for (ch = 0; ch < priv->max_nch; ch++) {
-		u64 *buf = data + i;
+		void *buf = data + i;
 
 		if (WARN_ON_ONCE(buf +
 				 sizeof(struct mlx5e_hv_vhca_per_ring_stats) >
 				 data + buf_len))
 			return;
 
-		mlx5e_hv_vhca_fill_ring_stats(priv, ch,
-					      (struct mlx5e_hv_vhca_per_ring_stats *)buf);
-		i += sizeof(struct mlx5e_hv_vhca_per_ring_stats) / sizeof(u64);
+		mlx5e_hv_vhca_fill_ring_stats(priv, ch, buf);
+		i += sizeof(struct mlx5e_hv_vhca_per_ring_stats);
 	}
 }
 
