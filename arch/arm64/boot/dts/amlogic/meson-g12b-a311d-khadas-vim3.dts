@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "meson-g12b-a311d.dtsi"
+#include "meson-khadas-vim3.dtsi"
 #include "meson-g12b-khadas-vim3.dtsi"
 
 / {
