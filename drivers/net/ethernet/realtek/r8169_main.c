@@ -2271,6 +2271,12 @@ static void rtl8168_config_eee_mac(struct rtl8169_private *tp)
 	rtl_eri_set_bits(tp, 0x1b0, ERIAR_MASK_1111, 0x0003);
 }
 
+static void rtl8125_config_eee_mac(struct rtl8169_private *tp)
+{
+	r8168_mac_ocp_modify(tp, 0xe040, 0, BIT(1) | BIT(0));
+	r8168_mac_ocp_modify(tp, 0xeb62, 0, BIT(2) | BIT(1));
+}
+
 static void rtl8168f_config_eee_phy(struct rtl8169_private *tp)
 {
 	struct phy_device *phydev = tp->phydev;
@@ -2299,6 +2305,16 @@ static void rtl8168h_config_eee_phy(struct rtl8169_private *tp)
 
 	phy_modify_paged(phydev, 0xa4a, 0x11, 0x0000, 0x0200);
 	phy_modify_paged(phydev, 0xa42, 0x14, 0x0000, 0x0080);
+}
+
+static void rtl8125_config_eee_phy(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+
+	rtl8168h_config_eee_phy(tp);
+
+	phy_modify_paged(phydev, 0xa6d, 0x12, 0x0001, 0x0000);
+	phy_modify_paged(phydev, 0xa6d, 0x14, 0x0010, 0x0000);
 }
 
 static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
@@ -3672,6 +3688,9 @@ static void rtl8125_1_hw_phy_config(struct rtl8169_private *tp)
 	phy_modify_paged(phydev, 0xbf0, 0x15, 0x0e00, 0x0a00);
 	phy_modify_paged(phydev, 0xa5c, 0x10, 0x0400, 0x0000);
 	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
+
+	rtl8125_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8125_2_hw_phy_config(struct rtl8169_private *tp)
@@ -3741,6 +3760,9 @@ static void rtl8125_2_hw_phy_config(struct rtl8169_private *tp)
 	phy_modify_paged(phydev, 0xad4, 0x17, 0x0010, 0x0000);
 	phy_modify_paged(phydev, 0xa86, 0x15, 0x0001, 0x0000);
 	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
+
+	rtl8125_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl_hw_phy_config(struct net_device *dev)
@@ -5262,6 +5284,8 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 	r8168_mac_ocp_write(tp, 0xe098, 0xc302);
 
 	rtl_udelay_loop_wait_low(tp, &rtl_mac_ocp_e00e_cond, 1000, 10);
+
+	rtl8125_config_eee_mac(tp);
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
 	udelay(10);
