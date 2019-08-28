@@ -1415,6 +1415,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	struct bkey_s_c k;
 	struct bkey_alloc_unpacked u;
 	struct bkey_i_alloc *a;
+	unsigned old;
 	bool overflow;
 	int ret;
 
@@ -1443,9 +1444,9 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		 * Unless we're already updating that key:
 		 */
 		if (k.k->type != KEY_TYPE_alloc) {
-			bch_err_ratelimited(c, "pointer to nonexistent bucket %u:%zu",
-					    p.ptr.dev,
-					    PTR_BUCKET_NR(ca, &p.ptr));
+			bch_err_ratelimited(c, "pointer to nonexistent bucket %llu:%llu",
+					    iter->pos.inode,
+					    iter->pos.offset);
 			ret = -1;
 			goto out;
 		}
@@ -1458,19 +1459,20 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (!p.ptr.cached)
+	if (!p.ptr.cached) {
+		old = u.dirty_sectors;
 		overflow = checked_add(u.dirty_sectors, sectors);
-	else
+	} else {
+		old = u.cached_sectors;
 		overflow = checked_add(u.cached_sectors, sectors);
+	}
 
 	u.data_type = u.dirty_sectors || u.cached_sectors
 		? data_type : 0;
 
 	bch2_fs_inconsistent_on(overflow, c,
 		"bucket sector count overflow: %u + %lli > U16_MAX",
-		!p.ptr.cached
-		? u.dirty_sectors
-		: u.cached_sectors, sectors);
+		old, sectors);
 
 	a = trans_update_key(trans, iter, BKEY_ALLOC_U64s_MAX);
 	ret = PTR_ERR_OR_ZERO(a);
