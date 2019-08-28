@@ -16,6 +16,7 @@
  */
 
 #include <linux/dma-noncoherent.h>
+#include <linux/pagewalk.h>
 
 #include <asm/cpuinfo.h>
 #include <asm/spr_defs.h>

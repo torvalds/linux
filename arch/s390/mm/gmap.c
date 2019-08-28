@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/mm.h>
+#include <linux/pagewalk.h>
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
