@@ -324,10 +324,13 @@ err_buf:
 
 /**
  * mlx5_eq_enable - Enable EQ for receiving EQEs
- * @dev - Device which owns the eq
- * @eq - EQ to enable
- * @nb - notifier call block
- * mlx5_eq_enable - must be called after EQ is created in device.
+ * @dev : Device which owns the eq
+ * @eq  : EQ to enable
+ * @nb  : Notifier call block
+ *
+ * Must be called after EQ is created in device.
+ *
+ * @return: 0 if no error
  */
 int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		   struct notifier_block *nb)
@@ -344,11 +347,12 @@ int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 EXPORT_SYMBOL(mlx5_eq_enable);
 
 /**
- * mlx5_eq_disable - Enable EQ for receiving EQEs
- * @dev - Device which owns the eq
- * @eq - EQ to disable
- * @nb - notifier call block
- * mlx5_eq_disable - must be called before EQ is destroyed.
+ * mlx5_eq_disable - Disable EQ for receiving EQEs
+ * @dev : Device which owns the eq
+ * @eq  : EQ to disable
+ * @nb  : Notifier call block
+ *
+ * Must be called before EQ is destroyed.
  */
 void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		     struct notifier_block *nb)

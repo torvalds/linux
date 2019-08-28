@@ -51,7 +51,7 @@ static int mlx5_rdma_enable_roce_steering(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 	}
 
-	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_RDMA_RX);
+	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_RDMA_RX_KERNEL);
 	if (!ns) {
 		mlx5_core_err(dev, "Failed to get RDMA RX namespace");
 		err = -EOPNOTSUPP;

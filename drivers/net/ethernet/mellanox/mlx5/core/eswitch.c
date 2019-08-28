@@ -1413,7 +1413,7 @@ out:
 
 static bool element_type_supported(struct mlx5_eswitch *esw, int type)
 {
-	struct mlx5_core_dev *dev = esw->dev = esw->dev;
+	const struct mlx5_core_dev *dev = esw->dev;
 
 	switch (type) {
 	case SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR:
