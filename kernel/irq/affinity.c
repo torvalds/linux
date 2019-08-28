@@ -126,7 +126,7 @@ static int ncpus_cmp_func(const void *l, const void *r)
  * for each node.
  */
 static void alloc_nodes_vectors(unsigned int numvecs,
-				const cpumask_var_t *node_to_cpumask,
+				cpumask_var_t *node_to_cpumask,
 				const struct cpumask *cpu_mask,
 				const nodemask_t nodemsk,
 				struct cpumask *nmsk,
