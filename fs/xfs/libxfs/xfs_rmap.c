@@ -253,11 +253,11 @@ xfs_rmap_find_left_neighbor_helper(
 			rec->rm_flags);
 
 	if (rec->rm_owner != info->high.rm_owner)
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	if (!XFS_RMAP_NON_INODE_OWNER(rec->rm_owner) &&
 	    !(rec->rm_flags & XFS_RMAP_BMBT_BLOCK) &&
 	    rec->rm_offset + rec->rm_blockcount - 1 != info->high.rm_offset)
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 
 	*info->irec = *rec;
 	*info->stat = 1;
@@ -329,12 +329,12 @@ xfs_rmap_lookup_le_range_helper(
 			rec->rm_flags);
 
 	if (rec->rm_owner != info->high.rm_owner)
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	if (!XFS_RMAP_NON_INODE_OWNER(rec->rm_owner) &&
 	    !(rec->rm_flags & XFS_RMAP_BMBT_BLOCK) &&
 	    (rec->rm_offset > info->high.rm_offset ||
 	     rec->rm_offset + rec->rm_blockcount <= info->high.rm_offset))
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 
 	*info->irec = *rec;
 	*info->stat = 1;

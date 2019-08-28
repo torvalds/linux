@@ -17,8 +17,6 @@
 /* Walk all inodes in the filesystem starting from @startino. */
 typedef int (*xfs_iwalk_fn)(struct xfs_mount *mp, struct xfs_trans *tp,
 			    xfs_ino_t ino, void *data);
-/* Return values for xfs_iwalk_fn. */
-#define XFS_IWALK_CONTINUE	(XFS_ITER_CONTINUE)
 
 int xfs_iwalk(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t startino,
 		unsigned int flags, xfs_iwalk_fn iwalk_fn,

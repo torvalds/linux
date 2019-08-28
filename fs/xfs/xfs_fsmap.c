@@ -250,7 +250,7 @@ xfs_getfsmap_helper(
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	}
 
 	/* Are we just counting mappings? */
@@ -259,14 +259,14 @@ xfs_getfsmap_helper(
 			info->head->fmh_entries++;
 
 		if (info->last)
-			return XFS_BTREE_QUERY_RANGE_CONTINUE;
+			return 0;
 
 		info->head->fmh_entries++;
 
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	}
 
 	/*
@@ -328,7 +328,7 @@ out:
 	rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 	if (info->next_daddr < rec_daddr)
 		info->next_daddr = rec_daddr;
-	return XFS_BTREE_QUERY_RANGE_CONTINUE;
+	return 0;
 }
 
 /* Transform a rmapbt irec into a fsmap */

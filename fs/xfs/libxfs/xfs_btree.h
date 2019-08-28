@@ -471,7 +471,6 @@ unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
  * used to stop iteration, because _query_range never generates that error
  * code on its own.
  */
-#define XFS_BTREE_QUERY_RANGE_CONTINUE	(XFS_ITER_CONTINUE) /* keep iterating */
 typedef int (*xfs_btree_query_range_fn)(struct xfs_btree_cur *cur,
 		union xfs_btree_rec *rec, void *priv);
 

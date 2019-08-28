@@ -177,7 +177,4 @@ struct xfs_ino_geometry {
 	unsigned int	agino_log;	/* #bits for agino in inum */
 };
 
-/* Keep iterating the data structure. */
-#define XFS_ITER_CONTINUE	(0)
-
 #endif /* __XFS_SHARED_H__ */
