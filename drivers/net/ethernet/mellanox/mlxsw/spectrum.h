@@ -225,6 +225,16 @@ struct mlxsw_sp_port_xstats {
 	u64 tx_packets[IEEE_8021QAZ_MAX_TCS];
 };
 
+struct mlxsw_sp_ptp_port_dir_stats {
+	u64 packets;
+	u64 timestamps;
+};
+
+struct mlxsw_sp_ptp_port_stats {
+	struct mlxsw_sp_ptp_port_dir_stats rx_gcd;
+	struct mlxsw_sp_ptp_port_dir_stats tx_gcd;
+};
+
 struct mlxsw_sp_port {
 	struct net_device *dev;
 	struct mlxsw_sp_port_pcpu_stats __percpu *pcpu_stats;
@@ -271,6 +281,7 @@ struct mlxsw_sp_port {
 		struct hwtstamp_config hwtstamp_config;
 		u16 ing_types;
 		u16 egr_types;
+		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
 };
 
