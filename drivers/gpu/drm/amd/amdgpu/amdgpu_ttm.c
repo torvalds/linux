@@ -1738,6 +1738,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	uint64_t gtt_size;
 	int r;
 	u64 vis_vram_limit;
+	void *stolen_vga_buf;
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
@@ -1792,7 +1793,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	r = amdgpu_bo_create_kernel(adev, adev->gmc.stolen_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM,
 				    &adev->stolen_vga_memory,
-				    NULL, NULL);
+				    NULL, &stolen_vga_buf);
 	if (r)
 		return r;
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
@@ -1856,8 +1857,9 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_late_init(struct amdgpu_device *adev)
 {
+	void *stolen_vga_buf;
 	/* return the VGA stolen memory (if any) back to VRAM */
-	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
 }
 
 /**

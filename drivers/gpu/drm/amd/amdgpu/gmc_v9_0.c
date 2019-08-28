@@ -1238,6 +1238,7 @@ static int gmc_v9_0_sw_init(void *handle)
 static int gmc_v9_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	void *stolen_vga_buf;
 
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC) &&
 			adev->gmc.umc_ras_if) {
@@ -1270,7 +1271,7 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_vm_manager_fini(adev);
 
 	if (gmc_v9_0_keep_stolen_memory(adev))
-		amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
+		amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
 
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
