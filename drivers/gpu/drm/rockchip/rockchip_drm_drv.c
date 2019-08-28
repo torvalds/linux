@@ -785,7 +785,12 @@ static int update_state(struct drm_device *drm_dev,
 							 conn_state);
 		if (ret)
 			return ret;
-		if (encoder_helper_funcs->mode_set)
+
+		if (encoder_helper_funcs->atomic_mode_set)
+			encoder_helper_funcs->atomic_mode_set(encoder,
+							      crtc_state,
+							      conn_state);
+		else if (encoder_helper_funcs->mode_set)
 			encoder_helper_funcs->mode_set(encoder, mode, mode);
 	}
 
