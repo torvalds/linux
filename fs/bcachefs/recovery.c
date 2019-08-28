@@ -659,7 +659,7 @@ static int read_btree_roots(struct bch_fs *c)
 			continue;
 
 		if (i == BTREE_ID_ALLOC &&
-		    test_reconstruct_alloc(c)) {
+		    c->opts.reconstruct_alloc) {
 			c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
 			continue;
 		}

@@ -285,9 +285,7 @@ do {									\
 		"Force reads to use the reconstruct path, when reading"	\
 		"from erasure coded extents")				\
 	BCH_DEBUG_PARAM(test_restart_gc,				\
-		"Test restarting mark and sweep gc when bucket gens change")\
-	BCH_DEBUG_PARAM(test_reconstruct_alloc,				\
-		"Test reconstructing the alloc btree")
+		"Test restarting mark and sweep gc when bucket gens change")
 
 #define BCH_DEBUG_PARAMS_ALL() BCH_DEBUG_PARAMS_ALWAYS() BCH_DEBUG_PARAMS_DEBUG()
 
