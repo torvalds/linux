@@ -2393,10 +2393,10 @@ int perf_event__process_id_index(struct perf_session *session,
 		struct perf_sample_id *sid;
 
 		if (dump_trace) {
-			fprintf(stdout,	" ... id: %"PRIu64, e->id);
-			fprintf(stdout,	"  idx: %"PRIu64, e->idx);
-			fprintf(stdout,	"  cpu: %"PRId64, e->cpu);
-			fprintf(stdout,	"  tid: %"PRId64"\n", e->tid);
+			fprintf(stdout,	" ... id: %"PRI_lu64, e->id);
+			fprintf(stdout,	"  idx: %"PRI_lu64, e->idx);
+			fprintf(stdout,	"  cpu: %"PRI_ld64, e->cpu);
+			fprintf(stdout,	"  tid: %"PRI_ld64"\n", e->tid);
 		}
 
 		sid = perf_evlist__id2sid(evlist, e->id);

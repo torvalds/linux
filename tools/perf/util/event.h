@@ -22,9 +22,11 @@
  */
 #define PRI_lu64 "l" PRIu64
 #define PRI_lx64 "l" PRIx64
+#define PRI_ld64 "l" PRId64
 #else
 #define PRI_lu64 PRIu64
 #define PRI_lx64 PRIx64
+#define PRI_ld64 PRId64
 #endif
 
 #define PERF_SAMPLE_MASK				\
@@ -328,19 +330,6 @@ struct events_stats {
 	u32 nr_unprocessable_samples;
 	u32 nr_auxtrace_errors[PERF_AUXTRACE_ERROR_MAX];
 	u32 nr_proc_map_timeout;
-};
-
-struct id_index_entry {
-	u64 id;
-	u64 idx;
-	u64 cpu;
-	u64 tid;
-};
-
-struct id_index_event {
-	struct perf_event_header header;
-	u64 nr;
-	struct id_index_entry entries[0];
 };
 
 struct auxtrace_info_event {

@@ -188,4 +188,17 @@ struct build_id_event {
 	char			 filename[];
 };
 
+struct id_index_entry {
+	__u64			 id;
+	__u64			 idx;
+	__u64			 cpu;
+	__u64			 tid;
+};
+
+struct id_index_event {
+	struct perf_event_header header;
+	__u64			 nr;
+	struct id_index_entry	 entries[0];
+};
+
 #endif /* __LIBPERF_EVENT_H */
