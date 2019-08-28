@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-
+struct gb_host_device;
 struct gb_operation;
 
 /* The default amount of time a request is given to complete */
