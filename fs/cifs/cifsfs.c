@@ -400,6 +400,8 @@ cifs_show_cache_flavor(struct seq_file *s, struct cifs_sb_info *cifs_sb)
 		seq_puts(s, "strict");
 	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 		seq_puts(s, "none");
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE)
+		seq_puts(s, "ro"); /* read only caching assumed */
 	else
 		seq_puts(s, "loose");
 }

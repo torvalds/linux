@@ -298,6 +298,7 @@ enum {
 	Opt_cache_loose,
 	Opt_cache_strict,
 	Opt_cache_none,
+	Opt_cache_ro,
 	Opt_cache_err
 };
 
@@ -305,6 +306,7 @@ static const match_table_t cifs_cacheflavor_tokens = {
 	{ Opt_cache_loose, "loose" },
 	{ Opt_cache_strict, "strict" },
 	{ Opt_cache_none, "none" },
+	{ Opt_cache_ro, "ro" },
 	{ Opt_cache_err, NULL }
 };
 
@@ -1418,14 +1420,22 @@ cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
 	case Opt_cache_loose:
 		vol->direct_io = false;
 		vol->strict_io = false;
+		vol->cache_ro = false;
 		break;
 	case Opt_cache_strict:
 		vol->direct_io = false;
 		vol->strict_io = true;
+		vol->cache_ro = false;
 		break;
 	case Opt_cache_none:
 		vol->direct_io = true;
 		vol->strict_io = false;
+		vol->cache_ro = false;
+		break;
+	case Opt_cache_ro:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		vol->cache_ro = true;
 		break;
 	default:
 		cifs_dbg(VFS, "bad cache= option: %s\n", value);
@@ -4040,6 +4050,10 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->direct_io) {
 		cifs_dbg(FYI, "mounting share using direct i/o\n");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
+	}
+	if (pvolume_info->cache_ro) {
+		cifs_dbg(VFS, "mounting share with read only caching. Ensure that the share will not be modified while in use.\n");
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RO_CACHE;
 	}
 	if (pvolume_info->mfsymlinks) {
 		if (pvolume_info->sfu_emul) {
