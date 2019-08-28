@@ -5553,7 +5553,7 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
 			qp = &sli4_hba->hdwq[qidx];
 			/* ARM the corresponding CQ */
-			sli4_hba->sli4_write_cq_db(phba, qp[qidx].io_cq, 0,
+			sli4_hba->sli4_write_cq_db(phba, qp->io_cq, 0,
 						LPFC_QUEUE_REARM);
 		}
 
