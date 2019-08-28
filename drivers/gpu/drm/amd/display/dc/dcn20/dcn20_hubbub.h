@@ -29,6 +29,16 @@
 #include "dcn10/dcn10_hubbub.h"
 #include "dcn20_vmid.h"
 
+#define HUBBUB_REG_LIST_DCN20_COMMON()\
+	HUBBUB_REG_LIST_DCN_COMMON(), \
+	SR(DCHUBBUB_CRC_CTRL), \
+	SR(DCN_VM_FB_LOCATION_BASE),\
+	SR(DCN_VM_FB_LOCATION_TOP),\
+	SR(DCN_VM_FB_OFFSET),\
+	SR(DCN_VM_AGP_BOT),\
+	SR(DCN_VM_AGP_TOP),\
+	SR(DCN_VM_AGP_BASE)
+
 #define TO_DCN20_HUBBUB(hubbub)\
 	container_of(hubbub, struct dcn20_hubbub, base)
 
