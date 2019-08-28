@@ -1146,9 +1146,7 @@ static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 		req->mr = NULL;
 	}
 
-	ib_dma_unmap_sg(ibdev, req->sg_table.sgl,
-			req->nents, rq_data_dir(rq) ==
-				    WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	ib_dma_unmap_sg(ibdev, req->sg_table.sgl, req->nents, rq_dma_dir(rq));
 
 	nvme_cleanup_cmd(rq);
 	sg_free_table_chained(&req->sg_table, SG_CHUNK_SIZE);
@@ -1274,7 +1272,7 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	req->nents = blk_rq_map_sg(rq->q, rq, req->sg_table.sgl);
 
 	count = ib_dma_map_sg(ibdev, req->sg_table.sgl, req->nents,
-		    rq_data_dir(rq) == WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			      rq_dma_dir(rq));
 	if (unlikely(count <= 0)) {
 		ret = -EIO;
 		goto out_free_table;
@@ -1303,9 +1301,7 @@ out:
 	return 0;
 
 out_unmap_sg:
-	ib_dma_unmap_sg(ibdev, req->sg_table.sgl,
-			req->nents, rq_data_dir(rq) ==
-			WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	ib_dma_unmap_sg(ibdev, req->sg_table.sgl, req->nents, rq_dma_dir(rq));
 out_free_table:
 	sg_free_table_chained(&req->sg_table, SG_CHUNK_SIZE);
 	return ret;
