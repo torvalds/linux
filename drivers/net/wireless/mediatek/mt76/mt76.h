@@ -438,6 +438,7 @@ struct mt76_dev {
 	spinlock_t rx_lock;
 	struct napi_struct napi[__MT_RXQ_MAX];
 	struct sk_buff_head rx_skb[__MT_RXQ_MAX];
+	u32 ampdu_ref;
 
 	struct list_head txwi_cache;
 	struct mt76_sw_queue q_tx[__MT_TXQ_MAX];
@@ -513,6 +514,8 @@ struct mt76_rx_status {
 	struct mt76_wcid *wcid;
 
 	unsigned long reorder_time;
+
+	u32 ampdu_ref;
 
 	u8 iv[6];
 

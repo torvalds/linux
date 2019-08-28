@@ -445,6 +445,20 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 		status->flag |= RX_FLAG_MMIC_STRIPPED | RX_FLAG_MIC_STRIPPED;
 	}
 
+	if (!(rxd2 & (MT_RXD2_NORMAL_NON_AMPDU_SUB |
+		      MT_RXD2_NORMAL_NON_AMPDU))) {
+		status->flag |= RX_FLAG_AMPDU_DETAILS;
+
+		/* all subframes of an A-MPDU have the same timestamp */
+		if (dev->rx_ampdu_ts != rxd[12]) {
+			if (!++dev->mt76.ampdu_ref)
+				dev->mt76.ampdu_ref++;
+		}
+		dev->rx_ampdu_ts = rxd[12];
+
+		status->ampdu_ref = dev->mt76.ampdu_ref;
+	}
+
 	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
 
 	if (rxd2 & MT_RXD2_NORMAL_MAX_LEN_ERROR)

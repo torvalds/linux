@@ -81,6 +81,8 @@ struct mt7615_dev {
 	u32 vif_mask;
 	u32 omac_mask;
 
+	__le32 rx_ampdu_ts;
+
 	struct {
 		u8 n_pulses;
 		u32 period;

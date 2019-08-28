@@ -502,6 +502,7 @@ static struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 	status->band = mstat.band;
 	status->signal = mstat.signal;
 	status->chains = mstat.chains;
+	status->ampdu_reference = mstat.ampdu_ref;
 
 	BUILD_BUG_ON(sizeof(mstat) > sizeof(skb->cb));
 	BUILD_BUG_ON(sizeof(status->chain_signal) !=

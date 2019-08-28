@@ -109,6 +109,7 @@ struct mt7603_dev {
 	u32 false_cca_ofdm, false_cca_cck;
 	unsigned long last_cca_adj;
 
+	__le32 rx_ampdu_ts;
 	u8 rssi_offset[3];
 
 	u8 slottime;
