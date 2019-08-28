@@ -8262,11 +8262,12 @@ int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	}
 
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
-		/* Wait for tqp hw reset */
-		msleep(20);
 		reset_status = hclge_get_reset_status(hdev, queue_gid);
 		if (reset_status)
 			break;
+
+		/* Wait for tqp hw reset */
+		usleep_range(1000, 1200);
 	}
 
 	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
@@ -8300,11 +8301,12 @@ void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
 	}
 
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
-		/* Wait for tqp hw reset */
-		msleep(20);
 		reset_status = hclge_get_reset_status(hdev, queue_gid);
 		if (reset_status)
 			break;
+
+		/* Wait for tqp hw reset */
+		usleep_range(1000, 1200);
 	}
 
 	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
