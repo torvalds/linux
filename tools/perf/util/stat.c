@@ -405,9 +405,9 @@ size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp)
 	struct stat_event *st = (struct stat_event *) event;
 	size_t ret;
 
-	ret  = fprintf(fp, "\n... id %" PRIu64 ", cpu %d, thread %d\n",
+	ret  = fprintf(fp, "\n... id %" PRI_lu64 ", cpu %d, thread %d\n",
 		       st->id, st->cpu, st->thread);
-	ret += fprintf(fp, "... value %" PRIu64 ", enabled %" PRIu64 ", running %" PRIu64 "\n",
+	ret += fprintf(fp, "... value %" PRI_lu64 ", enabled %" PRI_lu64 ", running %" PRI_lu64 "\n",
 		       st->val, st->ena, st->run);
 
 	return ret;

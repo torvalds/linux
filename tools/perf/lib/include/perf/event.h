@@ -282,4 +282,21 @@ struct stat_config_event {
 	struct stat_config_event_entry	 data[];
 };
 
+struct stat_event {
+	struct perf_event_header header;
+
+	__u64			 id;
+	__u32			 cpu;
+	__u32			 thread;
+
+	union {
+		struct {
+			__u64	 val;
+			__u64	 ena;
+			__u64	 run;
+		};
+		__u64		 values[3];
+	};
+};
+
 #endif /* __LIBPERF_EVENT_H */

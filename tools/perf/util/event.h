@@ -332,23 +332,6 @@ struct events_stats {
 	u32 nr_proc_map_timeout;
 };
 
-struct stat_event {
-	struct perf_event_header	header;
-
-	u64	id;
-	u32	cpu;
-	u32	thread;
-
-	union {
-		struct {
-			u64 val;
-			u64 ena;
-			u64 run;
-		};
-		u64 values[3];
-	};
-};
-
 enum {
 	PERF_STAT_ROUND_TYPE__INTERVAL	= 0,
 	PERF_STAT_ROUND_TYPE__FINAL	= 1,
