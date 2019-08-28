@@ -177,7 +177,6 @@ int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
 
 void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
 					 bool only_end)
@@ -209,7 +208,6 @@ void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
 	}
 	srcu_read_unlock(&srcu, id);
 }
-EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
 
 void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end)
@@ -224,7 +222,6 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 	}
 	srcu_read_unlock(&srcu, id);
 }
-EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
 
 /*
  * Same as mmu_notifier_register but here the caller must hold the
