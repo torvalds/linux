@@ -1843,8 +1843,7 @@ static inline void stop_timer_and_thread(struct smi_info *smi_info)
 	}
 
 	smi_info->timer_can_start = false;
-	if (smi_info->timer_running)
-		del_timer_sync(&smi_info->si_timer);
+	del_timer_sync(&smi_info->si_timer);
 }
 
 static struct smi_info *find_dup_si(struct smi_info *info)
