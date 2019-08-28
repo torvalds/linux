@@ -139,14 +139,14 @@ static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
 	return 0;
 }
 
+static const struct mm_walk_ops subpage_walk_ops = {
+	.pmd_entry	= subpage_walk_pmd_entry,
+};
+
 static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
 				    unsigned long len)
 {
 	struct vm_area_struct *vma;
-	struct mm_walk subpage_proto_walk = {
-		.mm = mm,
-		.pmd_entry = subpage_walk_pmd_entry,
-	};
 
 	/*
 	 * We don't try too hard, we just mark all the vma in that range
@@ -163,7 +163,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
 		if (vma->vm_start >= (addr + len))
 			break;
 		vma->vm_flags |= VM_NOHUGEPAGE;
-		walk_page_vma(vma, &subpage_proto_walk);
+		walk_page_vma(vma, &subpage_walk_ops, NULL);
 		vma = vma->vm_next;
 	}
 }
