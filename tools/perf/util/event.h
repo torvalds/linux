@@ -374,7 +374,7 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine);
 void perf_event__read_stat_config(struct perf_stat_config *config,
-				  struct stat_config_event *event);
+				  struct perf_record_stat_config *event);
 int perf_event__synthesize_stat(struct perf_tool *tool,
 				u32 cpu, u32 thread, u64 id,
 				struct perf_counts_values *count,
@@ -511,7 +511,7 @@ int kallsyms__get_function_start(const char *kallsyms_filename,
 				 const char *symbol_name, u64 *addr);
 
 void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int *max);
-void  cpu_map_data__synthesize(struct cpu_map_data *data, struct perf_cpu_map *map,
+void  cpu_map_data__synthesize(struct perf_record_cpu_map_data *data, struct perf_cpu_map *map,
 			       u16 type, int max);
 
 void event_attr_init(struct perf_event_attr *attr);

@@ -43,7 +43,7 @@ static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 	return map;
 }
 
-static struct perf_cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
+static struct perf_cpu_map *cpu_map__from_mask(struct perf_record_record_cpu_map *mask)
 {
 	struct perf_cpu_map *map;
 	int nr, nbits = mask->nr * mask->long_size * BITS_PER_BYTE;
@@ -61,12 +61,12 @@ static struct perf_cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
 
 }
 
-struct perf_cpu_map *cpu_map__new_data(struct cpu_map_data *data)
+struct perf_cpu_map *cpu_map__new_data(struct perf_record_cpu_map_data *data)
 {
 	if (data->type == PERF_CPU_MAP__CPUS)
 		return cpu_map__from_entries((struct cpu_map_entries *)data->data);
 	else
-		return cpu_map__from_mask((struct cpu_map_mask *)data->data);
+		return cpu_map__from_mask((struct perf_record_record_cpu_map *)data->data);
 }
 
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)

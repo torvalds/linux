@@ -8,7 +8,7 @@
 #include <internal/threadmap.h>
 #include <perf/threadmap.h>
 
-struct thread_map_event;
+struct perf_record_thread_map;
 
 struct perf_thread_map *thread_map__new_dummy(void);
 struct perf_thread_map *thread_map__new_by_pid(pid_t pid);
@@ -16,7 +16,7 @@ struct perf_thread_map *thread_map__new_by_tid(pid_t tid);
 struct perf_thread_map *thread_map__new_by_uid(uid_t uid);
 struct perf_thread_map *thread_map__new_all_cpus(void);
 struct perf_thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid);
-struct perf_thread_map *thread_map__new_event(struct thread_map_event *event);
+struct perf_thread_map *thread_map__new_event(struct perf_record_thread_map *event);
 
 struct perf_thread_map *thread_map__new_str(const char *pid,
 		const char *tid, uid_t uid, bool all_threads);

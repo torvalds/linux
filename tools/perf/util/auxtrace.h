@@ -28,7 +28,7 @@ struct perf_tool;
 struct perf_mmap;
 struct option;
 struct record_opts;
-struct auxtrace_info_event;
+struct perf_record_auxtrace_info;
 struct events_stats;
 
 /* Auxtrace records must have the same alignment as perf event records */
@@ -318,7 +318,7 @@ struct auxtrace_record {
 				 struct evlist *evlist);
 	int (*info_fill)(struct auxtrace_record *itr,
 			 struct perf_session *session,
-			 struct auxtrace_info_event *auxtrace_info,
+			 struct perf_record_auxtrace_info *auxtrace_info,
 			 size_t priv_size);
 	void (*free)(struct auxtrace_record *itr);
 	int (*snapshot_start)(struct auxtrace_record *itr);
@@ -498,7 +498,7 @@ size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
 				       struct evlist *evlist);
 int auxtrace_record__info_fill(struct auxtrace_record *itr,
 			       struct perf_session *session,
-			       struct auxtrace_info_event *auxtrace_info,
+			       struct perf_record_auxtrace_info *auxtrace_info,
 			       size_t priv_size);
 void auxtrace_record__free(struct auxtrace_record *itr);
 int auxtrace_record__snapshot_start(struct auxtrace_record *itr);
@@ -515,7 +515,7 @@ int auxtrace_index__process(int fd, u64 size, struct perf_session *session,
 			    bool needs_swap);
 void auxtrace_index__free(struct list_head *head);
 
-void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
+void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp);
 

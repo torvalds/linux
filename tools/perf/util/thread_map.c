@@ -369,7 +369,7 @@ void thread_map__read_comms(struct perf_thread_map *threads)
 }
 
 static void thread_map__copy_event(struct perf_thread_map *threads,
-				   struct thread_map_event *event)
+				   struct perf_record_thread_map *event)
 {
 	unsigned i;
 
@@ -383,7 +383,7 @@ static void thread_map__copy_event(struct perf_thread_map *threads,
 	refcount_set(&threads->refcnt, 1);
 }
 
-struct perf_thread_map *thread_map__new_event(struct thread_map_event *event)
+struct perf_thread_map *thread_map__new_event(struct perf_record_thread_map *event)
 {
 	struct perf_thread_map *threads;
 

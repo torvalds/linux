@@ -15,9 +15,9 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
-	struct cpu_map_event *map_event = &event->cpu_map;
-	struct cpu_map_mask *mask;
-	struct cpu_map_data *data;
+	struct perf_record_cpu_map *map_event = &event->cpu_map;
+	struct perf_record_record_cpu_map *mask;
+	struct perf_record_cpu_map_data *data;
 	struct perf_cpu_map *map;
 	int i;
 
@@ -25,7 +25,7 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 
 	TEST_ASSERT_VAL("wrong type", data->type == PERF_CPU_MAP__MASK);
 
-	mask = (struct cpu_map_mask *)data->data;
+	mask = (struct perf_record_record_cpu_map *)data->data;
 
 	TEST_ASSERT_VAL("wrong nr",   mask->nr == 1);
 
@@ -49,9 +49,9 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
-	struct cpu_map_event *map_event = &event->cpu_map;
+	struct perf_record_cpu_map *map_event = &event->cpu_map;
 	struct cpu_map_entries *cpus;
-	struct cpu_map_data *data;
+	struct perf_record_cpu_map_data *data;
 	struct perf_cpu_map *map;
 
 	data = &map_event->data;

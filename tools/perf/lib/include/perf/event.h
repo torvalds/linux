@@ -110,13 +110,13 @@ struct perf_record_sample {
 	__u64			 array[];
 };
 
-struct context_switch_event {
+struct perf_record_switch {
 	struct perf_event_header header;
 	__u32			 next_prev_pid;
 	__u32			 next_prev_tid;
 };
 
-struct attr_event {
+struct perf_record_header_attr {
 	struct perf_event_header header;
 	struct perf_event_attr	 attr;
 	__u64			 id[];
@@ -132,20 +132,20 @@ struct cpu_map_entries {
 	__u16			 cpu[];
 };
 
-struct cpu_map_mask {
+struct perf_record_record_cpu_map {
 	__u16			 nr;
 	__u16			 long_size;
 	unsigned long		 mask[];
 };
 
-struct cpu_map_data {
+struct perf_record_cpu_map_data {
 	__u16			 type;
 	char			 data[];
 };
 
-struct cpu_map_event {
-	struct perf_event_header header;
-	struct cpu_map_data	 data;
+struct perf_record_cpu_map {
+	struct perf_event_header	 header;
+	struct perf_record_cpu_map_data	 data;
 };
 
 enum {
@@ -155,15 +155,15 @@ enum {
 	PERF_EVENT_UPDATE__CPUS  = 3,
 };
 
-struct event_update_event_cpus {
-	struct cpu_map_data	 cpus;
+struct perf_record_event_update_cpus {
+	struct perf_record_cpu_map_data	 cpus;
 };
 
-struct event_update_event_scale {
+struct perf_record_event_update_scale {
 	double			 scale;
 };
 
-struct event_update_event {
+struct perf_record_event_update {
 	struct perf_event_header header;
 	__u64			 type;
 	__u64			 id;
@@ -177,17 +177,17 @@ struct perf_trace_event_type {
 	char			 name[MAX_EVENT_NAME];
 };
 
-struct event_type_event {
+struct perf_record_header_event_type {
 	struct perf_event_header	 header;
 	struct perf_trace_event_type	 event_type;
 };
 
-struct tracing_data_event {
+struct perf_record_header_tracing_data {
 	struct perf_event_header header;
 	__u32			 size;
 };
 
-struct build_id_event {
+struct perf_record_header_build_id {
 	struct perf_event_header header;
 	pid_t			 pid;
 	__u8			 build_id[24];
@@ -201,20 +201,20 @@ struct id_index_entry {
 	__u64			 tid;
 };
 
-struct id_index_event {
+struct perf_record_id_index {
 	struct perf_event_header header;
 	__u64			 nr;
 	struct id_index_entry	 entries[0];
 };
 
-struct auxtrace_info_event {
+struct perf_record_auxtrace_info {
 	struct perf_event_header header;
 	__u32			 type;
 	__u32			 reserved__; /* For alignment */
 	__u64			 priv[];
 };
 
-struct auxtrace_event {
+struct perf_record_auxtrace {
 	struct perf_event_header header;
 	__u64			 size;
 	__u64			 offset;
@@ -227,7 +227,7 @@ struct auxtrace_event {
 
 #define MAX_AUXTRACE_ERROR_MSG 64
 
-struct auxtrace_error_event {
+struct perf_record_auxtrace_error {
 	struct perf_event_header header;
 	__u32			 type;
 	__u32			 code;
@@ -240,28 +240,28 @@ struct auxtrace_error_event {
 	char			 msg[MAX_AUXTRACE_ERROR_MSG];
 };
 
-struct aux_event {
+struct perf_record_aux {
 	struct perf_event_header header;
 	__u64			 aux_offset;
 	__u64			 aux_size;
 	__u64			 flags;
 };
 
-struct itrace_start_event {
+struct perf_record_itrace_start {
 	struct perf_event_header header;
 	__u32			 pid;
 	__u32			 tid;
 };
 
-struct thread_map_event_entry {
+struct perf_record_thread_map_entry {
 	__u64			 pid;
 	char			 comm[16];
 };
 
-struct thread_map_event {
-	struct perf_event_header	 header;
-	__u64				 nr;
-	struct thread_map_event_entry	 entries[];
+struct perf_record_thread_map {
+	struct perf_event_header		 header;
+	__u64					 nr;
+	struct perf_record_thread_map_entry	 entries[];
 };
 
 enum {
@@ -271,18 +271,18 @@ enum {
 	PERF_STAT_CONFIG_TERM__MAX		= 3,
 };
 
-struct stat_config_event_entry {
+struct perf_record_stat_config_entry {
 	__u64			 tag;
 	__u64			 val;
 };
 
-struct stat_config_event {
-	struct perf_event_header	 header;
-	__u64				 nr;
-	struct stat_config_event_entry	 data[];
+struct perf_record_stat_config {
+	struct perf_event_header		 header;
+	__u64					 nr;
+	struct perf_record_stat_config_entry	 data[];
 };
 
-struct stat_event {
+struct perf_record_stat {
 	struct perf_event_header header;
 
 	__u64			 id;
@@ -299,64 +299,64 @@ struct stat_event {
 	};
 };
 
-struct stat_round_event {
+struct perf_record_stat_round {
 	struct perf_event_header header;
 	__u64			 type;
 	__u64			 time;
 };
 
-struct time_conv_event {
+struct perf_record_time_conv {
 	struct perf_event_header header;
 	__u64			 time_shift;
 	__u64			 time_mult;
 	__u64			 time_zero;
 };
 
-struct feature_event {
+struct perf_record_header_feature {
 	struct perf_event_header header;
 	__u64			 feat_id;
 	char			 data[];
 };
 
-struct compressed_event {
+struct perf_record_compressed {
 	struct perf_event_header header;
 	char			 data[];
 };
 
 union perf_event {
-	struct perf_event_header	header;
-	struct perf_record_mmap		mmap;
-	struct perf_record_mmap2	mmap2;
-	struct perf_record_comm		comm;
-	struct perf_record_namespaces	namespaces;
-	struct perf_record_fork		fork;
-	struct perf_record_lost		lost;
-	struct perf_record_lost_samples	lost_samples;
-	struct perf_record_read		read;
-	struct perf_record_throttle	throttle;
-	struct perf_record_sample	sample;
-	struct perf_record_bpf_event	bpf;
-	struct perf_record_ksymbol	ksymbol;
-	struct attr_event		attr;
-	struct event_update_event	event_update;
-	struct event_type_event		event_type;
-	struct tracing_data_event	tracing_data;
-	struct build_id_event		build_id;
-	struct id_index_event		id_index;
-	struct auxtrace_info_event	auxtrace_info;
-	struct auxtrace_event		auxtrace;
-	struct auxtrace_error_event	auxtrace_error;
-	struct aux_event		aux;
-	struct itrace_start_event	itrace_start;
-	struct context_switch_event	context_switch;
-	struct thread_map_event		thread_map;
-	struct cpu_map_event		cpu_map;
-	struct stat_config_event	stat_config;
-	struct stat_event		stat;
-	struct stat_round_event		stat_round;
-	struct time_conv_event		time_conv;
-	struct feature_event		feat;
-	struct compressed_event		pack;
+	struct perf_event_header		header;
+	struct perf_record_mmap			mmap;
+	struct perf_record_mmap2		mmap2;
+	struct perf_record_comm			comm;
+	struct perf_record_namespaces		namespaces;
+	struct perf_record_fork			fork;
+	struct perf_record_lost			lost;
+	struct perf_record_lost_samples		lost_samples;
+	struct perf_record_read			read;
+	struct perf_record_throttle		throttle;
+	struct perf_record_sample		sample;
+	struct perf_record_bpf_event		bpf;
+	struct perf_record_ksymbol		ksymbol;
+	struct perf_record_header_attr		attr;
+	struct perf_record_event_update		event_update;
+	struct perf_record_header_event_type	event_type;
+	struct perf_record_header_tracing_data	tracing_data;
+	struct perf_record_header_build_id	build_id;
+	struct perf_record_id_index		id_index;
+	struct perf_record_auxtrace_info	auxtrace_info;
+	struct perf_record_auxtrace		auxtrace;
+	struct perf_record_auxtrace_error	auxtrace_error;
+	struct perf_record_aux			aux;
+	struct perf_record_itrace_start		itrace_start;
+	struct perf_record_switch		context_switch;
+	struct perf_record_thread_map		thread_map;
+	struct perf_record_cpu_map		cpu_map;
+	struct perf_record_stat_config		stat_config;
+	struct perf_record_stat			stat;
+	struct perf_record_stat_round		stat_round;
+	struct perf_record_time_conv		time_conv;
+	struct perf_record_header_feature	feat;
+	struct perf_record_compressed		pack;
 };
 
 #endif /* __LIBPERF_EVENT_H */

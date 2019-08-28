@@ -56,7 +56,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)
 {
-	struct thread_map_event *map = &event->thread_map;
+	struct perf_record_thread_map *map = &event->thread_map;
 	struct perf_thread_map *threads;
 
 	TEST_ASSERT_VAL("wrong nr",   map->nr == 1);

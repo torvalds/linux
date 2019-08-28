@@ -431,8 +431,8 @@ static char pyrf_context_switch_event__doc[] = PyDoc_STR("perf context_switch ev
 static PyMemberDef pyrf_context_switch_event__members[] = {
 	sample_members
 	member_def(perf_event_header, type, T_UINT, "event type"),
-	member_def(context_switch_event, next_prev_pid, T_UINT, "next/prev pid"),
-	member_def(context_switch_event, next_prev_tid, T_UINT, "next/prev tid"),
+	member_def(perf_record_switch, next_prev_pid, T_UINT, "next/prev pid"),
+	member_def(perf_record_switch, next_prev_tid, T_UINT, "next/prev tid"),
 	{ .name = NULL, },
 };
 

@@ -3244,7 +3244,7 @@ static void script__setup_sample_type(struct perf_script *script)
 static int process_stat_round_event(struct perf_session *session,
 				    union perf_event *event)
 {
-	struct stat_round_event *round = &event->stat_round;
+	struct perf_record_stat_round *round = &event->stat_round;
 	struct evsel *counter;
 
 	evlist__for_each_entry(session->evlist, counter) {

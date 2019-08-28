@@ -60,7 +60,7 @@ intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 
 static int intel_bts_info_fill(struct auxtrace_record *itr,
 			       struct perf_session *session,
-			       struct auxtrace_info_event *auxtrace_info,
+			       struct perf_record_auxtrace_info *auxtrace_info,
 			       size_t priv_size)
 {
 	struct intel_bts_recording *btsr =
