@@ -2542,8 +2542,10 @@ static void generic_acomp_init(struct hda_codec *codec,
 	spec->port2pin = port2pin;
 	setup_drm_audio_ops(codec, ops);
 	if (!snd_hdac_acomp_init(&codec->bus->core, &spec->drm_audio_ops,
-				 match_bound_vga, 0))
+				 match_bound_vga, 0)) {
 		spec->acomp_registered = true;
+		codec->bus->keep_power = 0;
+	}
 }
 
 /*
