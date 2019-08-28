@@ -118,8 +118,6 @@ struct mt7603_dev {
 
 	ktime_t ed_time;
 
-	struct mt76_queue q_rx;
-
 	spinlock_t ps_lock;
 
 	u8 mac_work_count;
