@@ -78,23 +78,14 @@ static int
 dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 			     struct ethtool_link_ksettings *link_settings)
 {
-	struct dpni_link_state state = {0};
-	int err = 0;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
-	err = dpni_get_link_state(priv->mc_io, 0, priv->mc_token, &state);
-	if (err) {
-		netdev_err(net_dev, "ERROR %d getting link state\n", err);
-		goto out;
-	}
-
 	link_settings->base.autoneg = AUTONEG_DISABLE;
-	if (!(state.options & DPNI_LINK_OPT_HALF_DUPLEX))
+	if (!(priv->link_state.options & DPNI_LINK_OPT_HALF_DUPLEX))
 		link_settings->base.duplex = DUPLEX_FULL;
-	link_settings->base.speed = state.rate;
+	link_settings->base.speed = priv->link_state.rate;
 
-out:
-	return err;
+	return 0;
 }
 
 static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
