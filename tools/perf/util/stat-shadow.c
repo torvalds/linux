@@ -31,6 +31,8 @@ struct saved_value {
 	int cpu;
 	struct runtime_stat *stat;
 	struct stats stats;
+	u64 metric_total;
+	int metric_other;
 };
 
 static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
@@ -212,6 +214,7 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 {
 	int ctx = evsel_context(counter);
 	u64 count_ns = count;
+	struct saved_value *v;
 
 	count *= counter->scale;
 
@@ -266,9 +269,15 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 		update_runtime_stat(st, STAT_APERF, ctx, cpu, count);
 
 	if (counter->collect_stat) {
-		struct saved_value *v = saved_value_lookup(counter, cpu, true,
-							   STAT_NONE, 0, st);
+		v = saved_value_lookup(counter, cpu, true, STAT_NONE, 0, st);
 		update_stats(&v->stats, count);
+		if (counter->metric_leader)
+			v->metric_total += count;
+	} else if (counter->metric_leader) {
+		v = saved_value_lookup(counter->metric_leader,
+				       cpu, true, STAT_NONE, 0, st);
+		v->metric_total += count;
+		v->metric_other++;
 	}
 }
 
@@ -729,10 +738,10 @@ static void generic_metric(struct perf_stat_config *config,
 	char *n, *pn;
 
 	expr__ctx_init(&pctx);
-	expr__add_id(&pctx, name, avg);
 	for (i = 0; metric_events[i]; i++) {
 		struct saved_value *v;
 		struct stats *stats;
+		u64 metric_total = 0;
 
 		if (!strcmp(metric_events[i]->name, "duration_time")) {
 			stats = &walltime_nsecs_stats;
@@ -744,6 +753,9 @@ static void generic_metric(struct perf_stat_config *config,
 				break;
 			stats = &v->stats;
 			scale = 1.0;
+
+			if (v->metric_other)
+				metric_total = v->metric_total;
 		}
 
 		n = strdup(metric_events[i]->name);
@@ -757,8 +769,15 @@ static void generic_metric(struct perf_stat_config *config,
 		pn = strchr(n, ' ');
 		if (pn)
 			*pn = 0;
-		expr__add_id(&pctx, n, avg_stats(stats)*scale);
+
+		if (metric_total)
+			expr__add_id(&pctx, n, metric_total);
+		else
+			expr__add_id(&pctx, n, avg_stats(stats)*scale);
 	}
+
+	expr__add_id(&pctx, name, avg);
+
 	if (!metric_events[i]) {
 		const char *p = metric_expr;
 

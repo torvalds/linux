@@ -90,57 +90,61 @@ struct egroup {
 	const char *metric_unit;
 };
 
-static bool record_evsel(int *ind, struct evsel **start,
-			 int idnum,
-			 struct evsel **metric_events,
-			 struct evsel *ev)
-{
-	metric_events[*ind] = ev;
-	if (*ind == 0)
-		*start = ev;
-	if (++*ind == idnum) {
-		metric_events[*ind] = NULL;
-		return true;
-	}
-	return false;
-}
-
 static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 				      const char **ids,
 				      int idnum,
 				      struct evsel **metric_events)
 {
-	struct evsel *ev, *start = NULL;
-	int ind = 0;
+	struct evsel *ev;
+	int i = 0;
+	bool leader_found;
 
 	evlist__for_each_entry (perf_evlist, ev) {
-		if (ev->collect_stat)
-			continue;
-		if (!strcmp(ev->name, ids[ind])) {
-			if (record_evsel(&ind, &start, idnum,
-					 metric_events, ev))
-				return start;
+		if (!strcmp(ev->name, ids[i])) {
+			if (!metric_events[i])
+				metric_events[i] = ev;
 		} else {
-			/*
-			 * We saw some other event that is not
-			 * in our list of events. Discard
-			 * the whole match and start again.
-			 */
-			ind = 0;
-			start = NULL;
-			if (!strcmp(ev->name, ids[ind])) {
-				if (record_evsel(&ind, &start, idnum,
-						 metric_events, ev))
-					return start;
+			if (++i == idnum) {
+				/* Discard the whole match and start again */
+				i = 0;
+				memset(metric_events, 0,
+				       sizeof(struct evsel *) * idnum);
+				continue;
+			}
+
+			if (!strcmp(ev->name, ids[i]))
+				metric_events[i] = ev;
+			else {
+				/* Discard the whole match and start again */
+				i = 0;
+				memset(metric_events, 0,
+				       sizeof(struct evsel *) * idnum);
+				continue;
 			}
 		}
 	}
-	/*
-	 * This can happen when an alias expands to multiple
-	 * events, like for uncore events.
-	 * We don't support this case for now.
-	 */
-	return NULL;
+
+	if (i != idnum - 1) {
+		/* Not whole match */
+		return NULL;
+	}
+
+	metric_events[idnum] = NULL;
+
+	for (i = 0; i < idnum; i++) {
+		leader_found = false;
+		evlist__for_each_entry(perf_evlist, ev) {
+			if (!leader_found && (ev == metric_events[i]))
+				leader_found = true;
+
+			if (leader_found &&
+			    !strcmp(ev->name, metric_events[i]->name)) {
+				ev->metric_leader = metric_events[i];
+			}
+		}
+	}
+
+	return metric_events[0];
 }
 
 static int metricgroup__setup_events(struct list_head *groups,
