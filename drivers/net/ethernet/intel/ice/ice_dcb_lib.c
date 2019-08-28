@@ -500,30 +500,31 @@ void ice_update_dcb_stats(struct ice_pf *pf)
 {
 	struct ice_hw_port_stats *prev_ps, *cur_ps;
 	struct ice_hw *hw = &pf->hw;
-	u8 pf_id = hw->pf_id;
+	u8 port;
 	int i;
 
+	port = hw->port_info->lport;
 	prev_ps = &pf->stats_prev;
 	cur_ps = &pf->stats;
 
 	for (i = 0; i < 8; i++) {
-		ice_stat_update32(hw, GLPRT_PXOFFRXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXOFFRXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xoff_rx[i],
 				  &cur_ps->priority_xoff_rx[i]);
-		ice_stat_update32(hw, GLPRT_PXONRXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXONRXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xon_rx[i],
 				  &cur_ps->priority_xon_rx[i]);
-		ice_stat_update32(hw, GLPRT_PXONTXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXONTXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xon_tx[i],
 				  &cur_ps->priority_xon_tx[i]);
-		ice_stat_update32(hw, GLPRT_PXOFFTXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXOFFTXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xoff_tx[i],
 				  &cur_ps->priority_xoff_tx[i]);
-		ice_stat_update32(hw, GLPRT_RXON2OFFCNT(pf_id, i),
+		ice_stat_update32(hw, GLPRT_RXON2OFFCNT(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xon_2_xoff[i],
 				  &cur_ps->priority_xon_2_xoff[i]);

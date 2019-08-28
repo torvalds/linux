@@ -13,9 +13,9 @@
 #define ICE_BYTES_PER_WORD	2
 #define ICE_BYTES_PER_DWORD	4
 
-static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
+static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
-	return test_bit(tc, (unsigned long *)&bitmap);
+	return test_bit(tc, &bitmap);
 }
 
 /* Driver always calls main vsi_handle first */
@@ -347,6 +347,8 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
+	struct ice_sched_node *
+		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
 	/* DCBX info */
 	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
