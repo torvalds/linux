@@ -4257,11 +4257,12 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map,
 	return erase;
 }
 
-static int spi_nor_select_erase(struct spi_nor *nor, u32 wanted_size)
+static int spi_nor_select_erase(struct spi_nor *nor)
 {
 	struct spi_nor_erase_map *map = &nor->params.erase_map;
 	const struct spi_nor_erase_type *erase = NULL;
 	struct mtd_info *mtd = &nor->mtd;
+	u32 wanted_size = nor->info->sector_size;
 	int i;
 
 	/*
@@ -4355,7 +4356,7 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 	}
 
 	/* Select the Sector Erase command. */
-	err = spi_nor_select_erase(nor, nor->info->sector_size);
+	err = spi_nor_select_erase(nor);
 	if (err) {
 		dev_err(nor->dev,
 			"can't select erase settings supported by both the SPI controller and memory.\n");
