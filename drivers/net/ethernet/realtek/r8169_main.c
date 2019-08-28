@@ -741,6 +741,14 @@ static bool rtl_supports_eee(struct rtl8169_private *tp)
 	       tp->mac_version != RTL_GIGA_MAC_VER_39;
 }
 
+static void rtl_read_mac_from_reg(struct rtl8169_private *tp, u8 *mac, int reg)
+{
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		mac[i] = RTL_R8(tp, reg + i);
+}
+
 struct rtl_cond {
 	bool (*check)(struct rtl8169_private *);
 	const char *msg;
@@ -6630,7 +6638,7 @@ static void rtl_init_mac_address(struct rtl8169_private *tp)
 {
 	struct net_device *dev = tp->dev;
 	u8 *mac_addr = dev->dev_addr;
-	int rc, i;
+	int rc;
 
 	rc = eth_platform_get_mac_address(tp_to_dev(tp), mac_addr);
 	if (!rc)
@@ -6640,8 +6648,7 @@ static void rtl_init_mac_address(struct rtl8169_private *tp)
 	if (is_valid_ether_addr(mac_addr))
 		goto done;
 
-	for (i = 0; i < ETH_ALEN; i++)
-		mac_addr[i] = RTL_R8(tp, MAC0 + i);
+	rtl_read_mac_from_reg(tp, mac_addr, MAC0);
 	if (is_valid_ether_addr(mac_addr))
 		goto done;
 
