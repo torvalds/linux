@@ -1764,13 +1764,58 @@ enum mei_fw_ddi intel_get_mei_fw_ddi_index(enum port port)
 	}
 }
 
+static inline
+enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
+{
+	switch (cpu_transcoder) {
+	case TRANSCODER_A ... TRANSCODER_D:
+		return (enum mei_fw_tc)(cpu_transcoder | 0x10);
+	default: /* eDP, DSI TRANSCODERS are non HDCP capable */
+		return MEI_INVALID_TRANSCODER;
+	}
+}
+
+void intel_hdcp_transcoder_config(struct intel_connector *connector,
+				  enum transcoder cpu_transcoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+
+	if (!hdcp->shim)
+		return;
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		mutex_lock(&hdcp->mutex);
+		hdcp->cpu_transcoder = cpu_transcoder;
+		hdcp->port_data.fw_tc = intel_get_mei_fw_tc(cpu_transcoder);
+		mutex_unlock(&hdcp->mutex);
+	}
+}
+
 static inline int initialize_hdcp_port_data(struct intel_connector *connector,
 					    const struct intel_hdcp_shim *shim)
 {
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct hdcp_port_data *data = &hdcp->port_data;
 
-	data->fw_ddi = intel_get_mei_fw_ddi_index(connector->encoder->port);
+	if (INTEL_GEN(dev_priv) < 12)
+		data->fw_ddi =
+			intel_get_mei_fw_ddi_index(connector->encoder->port);
+	else
+		/*
+		 * As per ME FW API expectation, for GEN 12+, fw_ddi is filled
+		 * with zero(INVALID PORT index).
+		 */
+		data->fw_ddi = MEI_DDI_INVALID_PORT;
+
+	/*
+	 * As associated transcoder is set and modified at modeset, here fw_tc
+	 * is initialized to zero (invalid transcoder index). This will be
+	 * retained for <Gen12 forever.
+	 */
+	data->fw_tc = MEI_INVALID_TRANSCODER;
+
 	data->port_type = (u8)HDCP_PORT_TYPE_INTEGRATED;
 	data->protocol = (u8)shim->protocol;
 

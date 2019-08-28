@@ -2431,6 +2431,9 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 	}
 
+	intel_hdcp_transcoder_config(intel_hdmi->attached_connector,
+				     pipe_config->cpu_transcoder);
+
 	return 0;
 }
 
