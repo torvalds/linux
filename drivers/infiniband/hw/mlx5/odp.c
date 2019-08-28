@@ -980,17 +980,6 @@ static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 	return ret < 0 ? ret : npages;
 }
 
-static const u32 mlx5_ib_odp_opcode_cap[] = {
-	[MLX5_OPCODE_SEND]	       = IB_ODP_SUPPORT_SEND,
-	[MLX5_OPCODE_SEND_IMM]	       = IB_ODP_SUPPORT_SEND,
-	[MLX5_OPCODE_SEND_INVAL]       = IB_ODP_SUPPORT_SEND,
-	[MLX5_OPCODE_RDMA_WRITE]       = IB_ODP_SUPPORT_WRITE,
-	[MLX5_OPCODE_RDMA_WRITE_IMM]   = IB_ODP_SUPPORT_WRITE,
-	[MLX5_OPCODE_RDMA_READ]	       = IB_ODP_SUPPORT_READ,
-	[MLX5_OPCODE_ATOMIC_CS]	       = IB_ODP_SUPPORT_ATOMIC,
-	[MLX5_OPCODE_ATOMIC_FA]	       = IB_ODP_SUPPORT_ATOMIC,
-};
-
 /*
  * Parse initiator WQE. Advances the wqe pointer to point at the
  * scatter-gather list, and set wqe_end to the end of the WQE.
@@ -1001,7 +990,6 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 {
 	struct mlx5_wqe_ctrl_seg *ctrl = *wqe;
 	u16 wqe_index = pfault->wqe.wqe_index;
-	u32 transport_caps;
 	struct mlx5_base_av *av;
 	unsigned ds, opcode;
 	u32 qpn = qp->trans_qp.base.mqp.qpn;
@@ -1025,31 +1013,11 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 	opcode = be32_to_cpu(ctrl->opmod_idx_opcode) &
 		 MLX5_WQE_CTRL_OPCODE_MASK;
 
-	switch (qp->ibqp.qp_type) {
-	case IB_QPT_XRC_INI:
+	if (qp->ibqp.qp_type == IB_QPT_XRC_INI)
 		*wqe += sizeof(struct mlx5_wqe_xrc_seg);
-		transport_caps = dev->odp_caps.per_transport_caps.xrc_odp_caps;
-		break;
-	case IB_QPT_RC:
-		transport_caps = dev->odp_caps.per_transport_caps.rc_odp_caps;
-		break;
-	case IB_QPT_UD:
-		transport_caps = dev->odp_caps.per_transport_caps.ud_odp_caps;
-		break;
-	default:
-		mlx5_ib_err(dev, "ODP fault on QP of an unsupported transport 0x%x\n",
-			    qp->ibqp.qp_type);
-		return -EFAULT;
-	}
 
-	if (unlikely(opcode >= ARRAY_SIZE(mlx5_ib_odp_opcode_cap) ||
-		     !(transport_caps & mlx5_ib_odp_opcode_cap[opcode]))) {
-		mlx5_ib_err(dev, "ODP fault on QP of an unsupported opcode 0x%x\n",
-			    opcode);
-		return -EFAULT;
-	}
-
-	if (qp->ibqp.qp_type == IB_QPT_UD) {
+	if (qp->ibqp.qp_type == IB_QPT_UD ||
+	    qp->qp_sub_type == MLX5_IB_QPT_DCI) {
 		av = *wqe;
 		if (av->dqp_dct & cpu_to_be32(MLX5_EXTENDED_UD_AV))
 			*wqe += sizeof(struct mlx5_av);
@@ -1109,19 +1077,6 @@ static int mlx5_ib_mr_responder_pfault_handler_rq(struct mlx5_ib_dev *dev,
 
 	if (wqe_size > wqe_length) {
 		mlx5_ib_err(dev, "Couldn't read all of the receive WQE's content\n");
-		return -EFAULT;
-	}
-
-	switch (qp->ibqp.qp_type) {
-	case IB_QPT_RC:
-		if (!(dev->odp_caps.per_transport_caps.rc_odp_caps &
-		      IB_ODP_SUPPORT_RECV))
-			goto invalid_transport_or_opcode;
-		break;
-	default:
-invalid_transport_or_opcode:
-		mlx5_ib_err(dev, "ODP fault on QP of an unsupported transport. transport: 0x%x\n",
-			    qp->ibqp.qp_type);
 		return -EFAULT;
 	}
 
