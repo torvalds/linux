@@ -651,14 +651,19 @@ static int mtk_aes_setkey(struct crypto_ablkcipher *tfm,
 
 static int mtk_aes_crypt(struct ablkcipher_request *req, u64 mode)
 {
-	struct mtk_aes_base_ctx *ctx;
+	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
+	struct mtk_aes_base_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
 	struct mtk_aes_reqctx *rctx;
+	struct mtk_cryp *cryp;
 
-	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
+	cryp = mtk_aes_find_dev(ctx);
+	if (!cryp)
+		return -ENODEV;
+
 	rctx = ablkcipher_request_ctx(req);
 	rctx->mode = mode;
 
-	return mtk_aes_handle_queue(ctx->cryp, !(mode & AES_FLAGS_ENCRYPT),
+	return mtk_aes_handle_queue(cryp, !(mode & AES_FLAGS_ENCRYPT),
 				    &req->base);
 }
 
@@ -695,13 +700,6 @@ static int mtk_aes_ctr_decrypt(struct ablkcipher_request *req)
 static int mtk_aes_cra_init(struct crypto_tfm *tfm)
 {
 	struct mtk_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct mtk_cryp *cryp = NULL;
-
-	cryp = mtk_aes_find_dev(&ctx->base);
-	if (!cryp) {
-		pr_err("can't find crypto device\n");
-		return -ENODEV;
-	}
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct mtk_aes_reqctx);
 	ctx->base.start = mtk_aes_start;
@@ -711,13 +709,6 @@ static int mtk_aes_cra_init(struct crypto_tfm *tfm)
 static int mtk_aes_ctr_cra_init(struct crypto_tfm *tfm)
 {
 	struct mtk_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct mtk_cryp *cryp = NULL;
-
-	cryp = mtk_aes_find_dev(&ctx->base);
-	if (!cryp) {
-		pr_err("can't find crypto device\n");
-		return -ENODEV;
-	}
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct mtk_aes_reqctx);
 	ctx->base.start = mtk_aes_ctr_start;
@@ -923,6 +914,11 @@ static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 	struct mtk_aes_base_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct mtk_aes_gcm_ctx *gctx = mtk_aes_gcm_ctx_cast(ctx);
 	struct mtk_aes_reqctx *rctx = aead_request_ctx(req);
+	struct mtk_cryp *cryp;
+
+	cryp = mtk_aes_find_dev(ctx);
+	if (!cryp)
+		return -ENODEV;
 
 	/* Empty messages are not supported yet */
 	if (!gctx->textlen && !req->assoclen)
@@ -930,7 +926,7 @@ static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 
 	rctx->mode = AES_FLAGS_GCM | mode;
 
-	return mtk_aes_handle_queue(ctx->cryp, !!(mode & AES_FLAGS_ENCRYPT),
+	return mtk_aes_handle_queue(cryp, !!(mode & AES_FLAGS_ENCRYPT),
 				    &req->base);
 }
 
@@ -1046,13 +1042,6 @@ static int mtk_aes_gcm_decrypt(struct aead_request *req)
 static int mtk_aes_gcm_init(struct crypto_aead *aead)
 {
 	struct mtk_aes_gcm_ctx *ctx = crypto_aead_ctx(aead);
-	struct mtk_cryp *cryp = NULL;
-
-	cryp = mtk_aes_find_dev(&ctx->base);
-	if (!cryp) {
-		pr_err("can't find crypto device\n");
-		return -ENODEV;
-	}
 
 	ctx->ctr = crypto_alloc_skcipher("ctr(aes)", 0,
 					 CRYPTO_ALG_ASYNC);
