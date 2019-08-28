@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 /*
  * Copyright (C) 2017 Google, Inc.
+ * Copyright _ 2017-2019, Intel Corporation.
  *
  * Authors:
  * Sean Paul <seanpaul@chromium.org>
+ * Ramalingam C <ramalingam.c@intel.com>
  */
 
 #include <linux/component.h>
@@ -1749,13 +1751,26 @@ static const struct component_ops i915_hdcp_component_ops = {
 	.unbind = i915_hdcp_component_unbind,
 };
 
+static inline
+enum mei_fw_ddi intel_get_mei_fw_ddi_index(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return MEI_DDI_A;
+	case PORT_B ... PORT_F:
+		return (enum mei_fw_ddi)port;
+	default:
+		return MEI_DDI_INVALID_PORT;
+	}
+}
+
 static inline int initialize_hdcp_port_data(struct intel_connector *connector,
 					    const struct intel_hdcp_shim *shim)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct hdcp_port_data *data = &hdcp->port_data;
 
-	data->port = connector->encoder->port;
+	data->fw_ddi = intel_get_mei_fw_ddi_index(connector->encoder->port);
 	data->port_type = (u8)HDCP_PORT_TYPE_INTEGRATED;
 	data->protocol = (u8)shim->protocol;
 

@@ -362,16 +362,4 @@ struct wired_cmd_repeater_auth_stream_req_out {
 	struct hdcp_cmd_header	header;
 	struct hdcp_port_id	port;
 } __packed;
-
-enum mei_fw_ddi {
-	MEI_DDI_INVALID_PORT = 0x0,
-
-	MEI_DDI_B = 1,
-	MEI_DDI_C,
-	MEI_DDI_D,
-	MEI_DDI_E,
-	MEI_DDI_F,
-	MEI_DDI_A = 7,
-	MEI_DDI_RANGE_END = MEI_DDI_A,
-};
 #endif /* __MEI_HDCP_H__ */
