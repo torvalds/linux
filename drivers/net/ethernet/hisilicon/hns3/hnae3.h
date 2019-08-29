@@ -146,6 +146,12 @@ enum hnae3_reset_notify_type {
 	HNAE3_RESTORE_CLIENT,
 };
 
+enum hnae3_hw_error_type {
+	HNAE3_PPU_POISON_ERROR,
+	HNAE3_CMDQ_ECC_ERROR,
+	HNAE3_IMP_RD_POISON_ERROR,
+};
+
 enum hnae3_reset_type {
 	HNAE3_VF_RESET,
 	HNAE3_VF_FUNC_RESET,
@@ -210,7 +216,8 @@ struct hnae3_client_ops {
 	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
 	int (*reset_notify)(struct hnae3_handle *handle,
 			    enum hnae3_reset_notify_type type);
-	enum hnae3_reset_type (*process_hw_error)(struct hnae3_handle *handle);
+	void (*process_hw_error)(struct hnae3_handle *handle,
+				 enum hnae3_hw_error_type);
 };
 
 #define HNAE3_CLIENT_NAME_LENGTH 16

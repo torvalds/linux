@@ -930,32 +930,44 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 	/* configure PPU error interrupts */
 	if (cmd == HCLGE_PPU_MPF_ECC_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
-		desc[0].flag |= HCLGE_CMD_FLAG_NEXT;
+		desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
 		if (en) {
-			desc[0].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT0_EN;
-			desc[0].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN;
-			desc[1].data[3] = HCLGE_PPU_MPF_ABNORMAL_INT3_EN;
-			desc[1].data[4] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN;
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT0_EN);
+			desc[0].data[1] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT1_EN);
+			desc[1].data[3] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT3_EN);
+			desc[1].data[4] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN);
 		}
 
-		desc[1].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK;
-		desc[1].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK;
-		desc[1].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK;
-		desc[1].data[3] |= HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK;
+		desc[1].data[0] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK);
+		desc[1].data[1] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK);
+		desc[1].data[2] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK);
+		desc[1].data[3] |=
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK);
 		desc_num = 2;
 	} else if (cmd == HCLGE_PPU_MPF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
-			desc[0].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN2;
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN2);
 
-		desc[0].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN2_MASK;
+		desc[0].data[2] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN2_MASK);
 	} else if (cmd == HCLGE_PPU_PF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
-			desc[0].data[0] = HCLGE_PPU_PF_ABNORMAL_INT_EN;
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPU_PF_ABNORMAL_INT_EN);
 
-		desc[0].data[2] = HCLGE_PPU_PF_ABNORMAL_INT_EN_MASK;
+		desc[0].data[2] =
+			cpu_to_le32(HCLGE_PPU_PF_ABNORMAL_INT_EN_MASK);
 	} else {
 		dev_err(dev, "Invalid cmd to configure PPU error interrupts\n");
 		return -EINVAL;
@@ -1313,10 +1325,12 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	/* log PPU(RCB) errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_RAS_MASK;
-	if (status)
+	if (status) {
 		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
 				&hclge_ppu_pf_abnormal_int[0], status,
 				&ae_dev->hw_err_reset_req);
+		hclge_report_hw_error(hdev, HNAE3_PPU_POISON_ERROR);
+	}
 
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);

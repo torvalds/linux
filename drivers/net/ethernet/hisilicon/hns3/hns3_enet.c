@@ -4470,12 +4470,36 @@ int hns3_set_channels(struct net_device *netdev,
 	return hns3_reset_notify(h, HNAE3_UP_CLIENT);
 }
 
+static const struct hns3_hw_error_info hns3_hw_err[] = {
+	{ .type = HNAE3_PPU_POISON_ERROR,
+	  .msg = "PPU poison" },
+	{ .type = HNAE3_CMDQ_ECC_ERROR,
+	  .msg = "IMP CMDQ error" },
+	{ .type = HNAE3_IMP_RD_POISON_ERROR,
+	  .msg = "IMP RD poison" },
+};
+
+static void hns3_process_hw_error(struct hnae3_handle *handle,
+				  enum hnae3_hw_error_type type)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hns3_hw_err); i++) {
+		if (hns3_hw_err[i].type == type) {
+			dev_err(&handle->pdev->dev, "Detected %s!\n",
+				hns3_hw_err[i].msg);
+			break;
+		}
+	}
+}
+
 static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,
 	.setup_tc = hns3_client_setup_tc,
 	.reset_notify = hns3_reset_notify,
+	.process_hw_error = hns3_process_hw_error,
 };
 
 /* hns3_init_module - Driver registration routine

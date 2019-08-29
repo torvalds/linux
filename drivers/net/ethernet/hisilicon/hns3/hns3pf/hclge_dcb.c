@@ -198,6 +198,28 @@ static int hclge_client_setup_tc(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_notify_down_uinit(struct hclge_dev *hdev)
+{
+	int ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
+
+	return hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+}
+
+static int hclge_notify_init_up(struct hclge_dev *hdev)
+{
+	int ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
+
+	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+}
+
 static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 {
 	struct hclge_vport *vport = hclge_get_vport(h);
@@ -218,11 +240,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (map_changed) {
 		netif_dbg(h, drv, netdev, "set ets\n");
 
-		ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
-		if (ret)
-			return ret;
-
-		ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+		ret = hclge_notify_down_uinit(hdev);
 		if (ret)
 			return ret;
 	}
@@ -242,11 +260,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 		if (ret)
 			goto err_out;
 
-		ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
-		if (ret)
-			return ret;
-
-		ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+		ret = hclge_notify_init_up(hdev);
 		if (ret)
 			return ret;
 	}
@@ -257,10 +271,8 @@ err_out:
 	if (!map_changed)
 		return ret;
 
-	if (hclge_notify_client(hdev, HNAE3_INIT_CLIENT))
-		return ret;
+	hclge_notify_init_up(hdev);
 
-	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 	return ret;
 }
 
@@ -383,11 +395,7 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	if (ret)
 		return -EINVAL;
 
-	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
-	if (ret)
-		return ret;
-
-	ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	ret = hclge_notify_down_uinit(hdev);
 	if (ret)
 		return ret;
 
@@ -409,17 +417,11 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	else
 		hdev->flag &= ~HCLGE_FLAG_MQPRIO_ENABLE;
 
-	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
-	if (ret)
-		return ret;
-
-	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return hclge_notify_init_up(hdev);
 
 err_out:
-	if (hclge_notify_client(hdev, HNAE3_INIT_CLIENT))
-		return ret;
+	hclge_notify_init_up(hdev);
 
-	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 	return ret;
 }
 

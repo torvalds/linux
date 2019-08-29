@@ -119,7 +119,7 @@
 #define HCLGE_DEFAULT_UMV_SPACE_PER_PF \
 	(HCLGE_UMV_TBL_SIZE / HCLGE_MAX_PF_NUM)
 
-#define HCLGE_TQP_RESET_TRY_TIMES	10
+#define HCLGE_TQP_RESET_TRY_TIMES	200
 
 #define HCLGE_PHY_PAGE_MDIX		0
 #define HCLGE_PHY_PAGE_COPPER		0
@@ -148,6 +148,8 @@ enum HLCGE_PORT_TYPE {
 	NETWORK_PORT
 };
 
+#define PF_VPORT_ID			0
+
 #define HCLGE_PF_ID_S			0
 #define HCLGE_PF_ID_M			GENMASK(2, 0)
 #define HCLGE_VF_ID_S			3
@@ -164,6 +166,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_GLOBAL_RESET_BIT		0
 #define HCLGE_CORE_RESET_BIT		1
 #define HCLGE_IMP_RESET_BIT		2
+#define HCLGE_RESET_INT_M		GENMASK(2, 0)
 #define HCLGE_FUN_RST_ING		0x20C00
 #define HCLGE_FUN_RST_ING_B		0
 
@@ -178,6 +181,8 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
 
 #define HCLGE_VECTOR0_IMP_RESET_INT_B	1
+#define HCLGE_VECTOR0_IMP_CMDQ_ERR_B	4U
+#define HCLGE_VECTOR0_IMP_RD_POISON_B	5U
 
 #define HCLGE_MAC_DEFAULT_FRAME \
 	(ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN + ETH_DATA_LEN)
@@ -986,4 +991,6 @@ int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,
 void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time);
 int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev,
 				struct hclge_desc *desc);
+void hclge_report_hw_error(struct hclge_dev *hdev,
+			   enum hnae3_hw_error_type type);
 #endif

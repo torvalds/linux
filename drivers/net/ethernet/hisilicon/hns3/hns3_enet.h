@@ -552,6 +552,11 @@ union l4_hdr_info {
 	unsigned char *hdr;
 };
 
+struct hns3_hw_error_info {
+	enum hnae3_hw_error_type type;
+	const char *msg;
+};
+
 static inline int ring_space(struct hns3_enet_ring *ring)
 {
 	/* This smp_load_acquire() pairs with smp_store_release() in

@@ -53,6 +53,8 @@
 #define HCLGE_DFX_TQP_BD_OFFSET         11
 #define HCLGE_DFX_SSU_2_BD_OFFSET       12
 
+#define HCLGE_LINK_STATUS_MS	10
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static void hclge_sync_vlan_filter(struct hclge_dev *hdev);
@@ -742,6 +744,12 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		count += 2;
 		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
+
+		if (hdev->hw.mac.phydev) {
+			count += 1;
+			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
+		}
+
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
 			hclge_tqps_get_sset_count(handle, stringset);
@@ -3265,6 +3273,38 @@ static int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
 	return -ETIME;
 }
 
+void hclge_report_hw_error(struct hclge_dev *hdev,
+			   enum hnae3_hw_error_type type)
+{
+	struct hnae3_client *client = hdev->nic_client;
+	u16 i;
+
+	if (!client || !client->ops->process_hw_error ||
+	    !test_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state))
+		return;
+
+	for (i = 0; i < hdev->num_vmdq_vport + 1; i++)
+		client->ops->process_hw_error(&hdev->vport[i].nic, type);
+}
+
+static void hclge_handle_imp_error(struct hclge_dev *hdev)
+{
+	u32 reg_val;
+
+	reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
+	if (reg_val & BIT(HCLGE_VECTOR0_IMP_RD_POISON_B)) {
+		hclge_report_hw_error(hdev, HNAE3_IMP_RD_POISON_ERROR);
+		reg_val &= ~BIT(HCLGE_VECTOR0_IMP_RD_POISON_B);
+		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG, reg_val);
+	}
+
+	if (reg_val & BIT(HCLGE_VECTOR0_IMP_CMDQ_ERR_B)) {
+		hclge_report_hw_error(hdev, HNAE3_CMDQ_ECC_ERROR);
+		reg_val &= ~BIT(HCLGE_VECTOR0_IMP_CMDQ_ERR_B);
+		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG, reg_val);
+	}
+}
+
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 {
 	struct hclge_desc desc;
@@ -3471,6 +3511,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		hdev->rst_stats.flr_rst_cnt++;
 		break;
 	case HNAE3_IMP_RESET:
+		hclge_handle_imp_error(hdev);
 		reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
 		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG,
 				BIT(HCLGE_VECTOR0_IMP_RESET_INT_B) | reg_val);
@@ -3495,11 +3536,10 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 		dev_info(&hdev->pdev->dev, "Reset pending %lu\n",
 			 hdev->reset_pending);
 		return true;
-	} else if ((hdev->reset_type != HNAE3_IMP_RESET) &&
-		   (hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG) &
-		    BIT(HCLGE_IMP_RESET_BIT))) {
+	} else if (hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS) &
+		   HCLGE_RESET_INT_M) {
 		dev_info(&hdev->pdev->dev,
-			 "reset failed because IMP Reset is pending\n");
+			 "reset failed because new reset interrupt\n");
 		hclge_clear_reset_cause(hdev);
 		return false;
 	} else if (hdev->reset_fail_cnt < MAX_RESET_FAIL_CNT) {
@@ -6171,6 +6211,89 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
+static int hclge_config_switch_param(struct hclge_dev *hdev, int vfid,
+				     u8 switch_param, u8 param_mask)
+{
+	struct hclge_mac_vlan_switch_cmd *req;
+	struct hclge_desc desc;
+	u32 func_id;
+	int ret;
+
+	func_id = hclge_get_port_number(HOST_PORT, 0, vfid, 0);
+	req = (struct hclge_mac_vlan_switch_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_SWITCH_PARAM,
+				   false);
+	req->roce_sel = HCLGE_MAC_VLAN_NIC_SEL;
+	req->func_id = cpu_to_le32(func_id);
+	req->switch_param = switch_param;
+	req->param_mask = param_mask;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"set mac vlan switch parameter fail, ret = %d\n", ret);
+	return ret;
+}
+
+static void hclge_phy_link_status_wait(struct hclge_dev *hdev,
+				       int link_ret)
+{
+#define HCLGE_PHY_LINK_STATUS_NUM  200
+
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	int i = 0;
+	int ret;
+
+	do {
+		ret = phy_read_status(phydev);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"phy update link status fail, ret = %d\n", ret);
+			return;
+		}
+
+		if (phydev->link == link_ret)
+			break;
+
+		msleep(HCLGE_LINK_STATUS_MS);
+	} while (++i < HCLGE_PHY_LINK_STATUS_NUM);
+}
+
+static int hclge_mac_link_status_wait(struct hclge_dev *hdev, int link_ret)
+{
+#define HCLGE_MAC_LINK_STATUS_NUM  100
+
+	int i = 0;
+	int ret;
+
+	do {
+		ret = hclge_get_mac_link_status(hdev);
+		if (ret < 0)
+			return ret;
+		else if (ret == link_ret)
+			return 0;
+
+		msleep(HCLGE_LINK_STATUS_MS);
+	} while (++i < HCLGE_MAC_LINK_STATUS_NUM);
+	return -EBUSY;
+}
+
+static int hclge_mac_phy_link_status_wait(struct hclge_dev *hdev, bool en,
+					  bool is_phy)
+{
+#define HCLGE_LINK_STATUS_DOWN 0
+#define HCLGE_LINK_STATUS_UP   1
+
+	int link_ret;
+
+	link_ret = en ? HCLGE_LINK_STATUS_UP : HCLGE_LINK_STATUS_DOWN;
+
+	if (is_phy)
+		hclge_phy_link_status_wait(hdev, link_ret);
+
+	return hclge_mac_link_status_wait(hdev, link_ret);
+}
+
 static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 {
 	struct hclge_config_mac_mode_cmd *req;
@@ -6213,14 +6336,8 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 #define HCLGE_SERDES_RETRY_MS	10
 #define HCLGE_SERDES_RETRY_NUM	100
 
-#define HCLGE_MAC_LINK_STATUS_MS   10
-#define HCLGE_MAC_LINK_STATUS_NUM  100
-#define HCLGE_MAC_LINK_STATUS_DOWN 0
-#define HCLGE_MAC_LINK_STATUS_UP   1
-
 	struct hclge_serdes_lb_cmd *req;
 	struct hclge_desc desc;
-	int mac_link_ret = 0;
 	int ret, i = 0;
 	u8 loop_mode_b;
 
@@ -6243,10 +6360,8 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 	if (en) {
 		req->enable = loop_mode_b;
 		req->mask = loop_mode_b;
-		mac_link_ret = HCLGE_MAC_LINK_STATUS_UP;
 	} else {
 		req->mask = loop_mode_b;
-		mac_link_ret = HCLGE_MAC_LINK_STATUS_DOWN;
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -6279,18 +6394,70 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 
 	hclge_cfg_mac_mode(hdev, en);
 
-	i = 0;
-	do {
-		/* serdes Internal loopback, independent of the network cable.*/
-		msleep(HCLGE_MAC_LINK_STATUS_MS);
-		ret = hclge_get_mac_link_status(hdev);
-		if (ret == mac_link_ret)
-			return 0;
-	} while (++i < HCLGE_MAC_LINK_STATUS_NUM);
+	ret = hclge_mac_phy_link_status_wait(hdev, en, FALSE);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"serdes loopback config mac mode timeout\n");
 
-	dev_err(&hdev->pdev->dev, "config mac mode timeout\n");
+	return ret;
+}
 
-	return -EBUSY;
+static int hclge_enable_phy_loopback(struct hclge_dev *hdev,
+				     struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->suspended) {
+		ret = phy_suspend(phydev);
+		if (ret)
+			return ret;
+	}
+
+	ret = phy_resume(phydev);
+	if (ret)
+		return ret;
+
+	return phy_loopback(phydev, true);
+}
+
+static int hclge_disable_phy_loopback(struct hclge_dev *hdev,
+				      struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_loopback(phydev, false);
+	if (ret)
+		return ret;
+
+	return phy_suspend(phydev);
+}
+
+static int hclge_set_phy_loopback(struct hclge_dev *hdev, bool en)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	int ret;
+
+	if (!phydev)
+		return -ENOTSUPP;
+
+	if (en)
+		ret = hclge_enable_phy_loopback(hdev, phydev);
+	else
+		ret = hclge_disable_phy_loopback(hdev, phydev);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"set phy loopback fail, ret = %d\n", ret);
+		return ret;
+	}
+
+	hclge_cfg_mac_mode(hdev, en);
+
+	ret = hclge_mac_phy_link_status_wait(hdev, en, TRUE);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"phy loopback config mac mode timeout\n");
+
+	return ret;
 }
 
 static int hclge_tqp_enable(struct hclge_dev *hdev, unsigned int tqp_id,
@@ -6322,6 +6489,20 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	struct hclge_dev *hdev = vport->back;
 	int i, ret;
 
+	/* Loopback can be enabled in three places: SSU, MAC, and serdes. By
+	 * default, SSU loopback is enabled, so if the SMAC and the DMAC are
+	 * the same, the packets are looped back in the SSU. If SSU loopback
+	 * is disabled, packets can reach MAC even if SMAC is the same as DMAC.
+	 */
+	if (hdev->pdev->revision >= 0x21) {
+		u8 switch_param = en ? 0 : BIT(HCLGE_SWITCH_ALW_LPBK_B);
+
+		ret = hclge_config_switch_param(hdev, PF_VPORT_ID, switch_param,
+						HCLGE_SWITCH_ALW_LPBK_MASK);
+		if (ret)
+			return ret;
+	}
+
 	switch (loop_mode) {
 	case HNAE3_LOOP_APP:
 		ret = hclge_set_app_loopback(hdev, en);
@@ -6329,6 +6510,9 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	case HNAE3_LOOP_SERIAL_SERDES:
 	case HNAE3_LOOP_PARALLEL_SERDES:
 		ret = hclge_set_serdes_loopback(hdev, en, loop_mode);
+		break;
+	case HNAE3_LOOP_PHY:
+		ret = hclge_set_phy_loopback(hdev, en);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -7237,7 +7421,7 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
 	    is_broadcast_ether_addr(new_addr) ||
 	    is_multicast_ether_addr(new_addr)) {
 		dev_err(&hdev->pdev->dev,
-			"Change uc mac err! invalid mac:%p.\n",
+			"Change uc mac err! invalid mac:%pM.\n",
 			 new_addr);
 		return -EINVAL;
 	}
@@ -7342,7 +7526,7 @@ static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
 }
 
 static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
-				    bool is_kill, u16 vlan, u8 qos,
+				    bool is_kill, u16 vlan,
 				    __be16 proto)
 {
 #define HCLGE_MAX_VF_BYTES  16
@@ -7453,7 +7637,7 @@ static int hclge_set_port_vlan_filter(struct hclge_dev *hdev, __be16 proto,
 }
 
 static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
-				    u16 vport_id, u16 vlan_id, u8 qos,
+				    u16 vport_id, u16 vlan_id,
 				    bool is_kill)
 {
 	u16 vport_idx, vport_num = 0;
@@ -7463,7 +7647,7 @@ static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 		return 0;
 
 	ret = hclge_set_vf_vlan_common(hdev, vport_id, is_kill, vlan_id,
-				       0, proto);
+				       proto);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Set %d vport vlan filter config fail, ret =%d.\n",
@@ -7750,7 +7934,7 @@ static int hclge_add_vport_all_vlan_table(struct hclge_vport *vport)
 		if (!vlan->hd_tbl_status) {
 			ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
 						       vport->vport_id,
-						       vlan->vlan_id, 0, false);
+						       vlan->vlan_id, false);
 			if (ret) {
 				dev_err(&hdev->pdev->dev,
 					"restore vport vlan list failed, ret=%d\n",
@@ -7776,7 +7960,7 @@ static void hclge_rm_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 				hclge_set_vlan_filter_hw(hdev,
 							 htons(ETH_P_8021Q),
 							 vport->vport_id,
-							 vlan_id, 0,
+							 vlan_id,
 							 true);
 
 			list_del(&vlan->node);
@@ -7796,7 +7980,7 @@ void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list)
 			hclge_set_vlan_filter_hw(hdev,
 						 htons(ETH_P_8021Q),
 						 vport->vport_id,
-						 vlan->vlan_id, 0,
+						 vlan->vlan_id,
 						 true);
 
 		vlan->hd_tbl_status = false;
@@ -7843,7 +8027,7 @@ static void hclge_restore_vlan_table(struct hnae3_handle *handle)
 
 		if (state != HNAE3_PORT_BASE_VLAN_DISABLE) {
 			hclge_set_vlan_filter_hw(hdev, htons(vlan_proto),
-						 vport->vport_id, vlan_id, qos,
+						 vport->vport_id, vlan_id,
 						 false);
 			continue;
 		}
@@ -7853,7 +8037,7 @@ static void hclge_restore_vlan_table(struct hnae3_handle *handle)
 				hclge_set_vlan_filter_hw(hdev,
 							 htons(ETH_P_8021Q),
 							 vport->vport_id,
-							 vlan->vlan_id, 0,
+							 vlan->vlan_id,
 							 false);
 		}
 	}
@@ -7893,12 +8077,12 @@ static int hclge_update_vlan_filter_entries(struct hclge_vport *vport,
 						 htons(new_info->vlan_proto),
 						 vport->vport_id,
 						 new_info->vlan_tag,
-						 new_info->qos, false);
+						 false);
 	}
 
 	ret = hclge_set_vlan_filter_hw(hdev, htons(old_info->vlan_proto),
 				       vport->vport_id, old_info->vlan_tag,
-				       old_info->qos, true);
+				       true);
 	if (ret)
 		return ret;
 
@@ -7925,7 +8109,7 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 					       htons(vlan_info->vlan_proto),
 					       vport->vport_id,
 					       vlan_info->vlan_tag,
-					       vlan_info->qos, false);
+					       false);
 		if (ret)
 			return ret;
 
@@ -7934,7 +8118,7 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 					       htons(old_vlan_info->vlan_proto),
 					       vport->vport_id,
 					       old_vlan_info->vlan_tag,
-					       old_vlan_info->qos, true);
+					       true);
 		if (ret)
 			return ret;
 
@@ -8055,7 +8239,7 @@ int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 	 */
 	if (handle->port_base_vlan_state == HNAE3_PORT_BASE_VLAN_DISABLE) {
 		ret = hclge_set_vlan_filter_hw(hdev, proto, vport->vport_id,
-					       vlan_id, 0, is_kill);
+					       vlan_id, is_kill);
 		writen_to_tbl = true;
 	}
 
@@ -8091,7 +8275,7 @@ static void hclge_sync_vlan_filter(struct hclge_dev *hdev)
 		while (vlan_id != VLAN_N_VID) {
 			ret = hclge_set_vlan_filter_hw(hdev, htons(ETH_P_8021Q),
 						       vport->vport_id, vlan_id,
-						       0, true);
+						       true);
 			if (ret && ret != -EINVAL)
 				return;
 
@@ -8262,11 +8446,12 @@ int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	}
 
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
-		/* Wait for tqp hw reset */
-		msleep(20);
 		reset_status = hclge_get_reset_status(hdev, queue_gid);
 		if (reset_status)
 			break;
+
+		/* Wait for tqp hw reset */
+		usleep_range(1000, 1200);
 	}
 
 	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
@@ -8300,11 +8485,12 @@ void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
 	}
 
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
-		/* Wait for tqp hw reset */
-		msleep(20);
 		reset_status = hclge_get_reset_status(hdev, queue_gid);
 		if (reset_status)
 			break;
+
+		/* Wait for tqp hw reset */
+		usleep_range(1000, 1200);
 	}
 
 	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
