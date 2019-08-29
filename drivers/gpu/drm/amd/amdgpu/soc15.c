@@ -1215,11 +1215,15 @@ static int soc15_common_early_init(void *handle)
 static int soc15_common_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_get_irq(adev);
 
-	return 0;
+	if (adev->nbio.funcs->ras_late_init)
+		r = adev->nbio.funcs->ras_late_init(adev);
+
+	return r;
 }
 
 static int soc15_common_sw_init(void *handle)
@@ -1295,6 +1299,13 @@ static int soc15_common_hw_fini(void *handle)
 	soc15_enable_doorbell_aperture(adev, false);
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_put_irq(adev);
+
+	if (amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
+		if (adev->nbio.funcs->init_ras_controller_interrupt)
+			amdgpu_irq_put(adev, &adev->nbio.ras_controller_irq, 0);
+		if (adev->nbio.funcs->init_ras_err_event_athub_interrupt)
+			amdgpu_irq_put(adev, &adev->nbio.ras_err_event_athub_irq, 0);
+	}
 
 	return 0;
 }
