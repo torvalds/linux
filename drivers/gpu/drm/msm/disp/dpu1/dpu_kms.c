@@ -390,6 +390,15 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 	}
 }
 
+static void dpu_kms_wait_flush(struct msm_kms *kms, unsigned crtc_mask)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+	struct drm_crtc *crtc;
+
+	for_each_crtc_mask(dpu_kms->dev, crtc, crtc_mask)
+		dpu_kms_wait_for_commit_done(kms, crtc);
+}
+
 static int _dpu_kms_initialize_dsi(struct drm_device *dev,
 				    struct msm_drm_private *priv,
 				    struct dpu_kms *dpu_kms)
@@ -684,8 +693,8 @@ static const struct msm_kms_funcs kms_funcs = {
 	.irq             = dpu_irq,
 	.prepare_commit  = dpu_kms_prepare_commit,
 	.commit          = dpu_kms_commit,
+	.wait_flush      = dpu_kms_wait_flush,
 	.complete_commit = dpu_kms_complete_commit,
-	.wait_for_crtc_commit_done = dpu_kms_wait_for_commit_done,
 	.enable_vblank   = dpu_kms_enable_vblank,
 	.disable_vblank  = dpu_kms_disable_vblank,
 	.check_modified_format = dpu_format_check_modified_format,

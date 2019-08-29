@@ -12,28 +12,6 @@
 #include "msm_gem.h"
 #include "msm_kms.h"
 
-static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
-		struct drm_atomic_state *old_state)
-{
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
-	struct msm_drm_private *priv = old_state->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-	int i;
-
-	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
-		if (!new_crtc_state->active)
-			continue;
-
-		if (drm_crtc_vblank_get(crtc))
-			continue;
-
-		kms->funcs->wait_for_crtc_commit_done(kms, crtc);
-
-		drm_crtc_vblank_put(crtc);
-	}
-}
-
 int msm_atomic_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *new_state)
 {
@@ -48,11 +26,28 @@ int msm_atomic_prepare_fb(struct drm_plane *plane,
 	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
 }
 
+/* Get bitmask of crtcs that will need to be flushed.  The bitmask
+ * can be used with for_each_crtc_mask() iterator, to iterate
+ * effected crtcs without needing to preserve the atomic state.
+ */
+static unsigned get_crtc_mask(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	unsigned i, mask = 0;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
+		mask |= drm_crtc_mask(crtc);
+
+	return mask;
+}
+
 void msm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
+	unsigned crtc_mask = get_crtc_mask(state);
 
 	kms->funcs->prepare_commit(kms, state);
 
@@ -67,8 +62,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 		kms->funcs->commit(kms, state);
 	}
 
-	msm_atomic_wait_for_commit_done(dev, state);
-
+	kms->funcs->wait_flush(kms, crtc_mask);
 	kms->funcs->complete_commit(kms, state);
 
 	drm_atomic_helper_commit_hw_done(state);
