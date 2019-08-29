@@ -94,8 +94,8 @@ static int udf_remount_fs(struct super_block *, int *, char *);
 static void udf_load_logicalvolint(struct super_block *, struct kernel_extent_ad);
 static int udf_find_fileset(struct super_block *, struct kernel_lb_addr *,
 			    struct kernel_lb_addr *);
-static void udf_load_fileset(struct super_block *, struct buffer_head *,
-			     struct kernel_lb_addr *);
+static int udf_load_fileset(struct super_block *, struct fileSetDesc *,
+			    struct kernel_lb_addr *);
 static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
@@ -775,28 +775,27 @@ static int udf_find_fileset(struct super_block *sb,
 {
 	struct buffer_head *bh = NULL;
 	uint16_t ident;
+	int ret;
 
-	if (fileset->logicalBlockNum != 0xFFFFFFFF ||
-	    fileset->partitionReferenceNum != 0xFFFF) {
-		bh = udf_read_ptagged(sb, fileset, 0, &ident);
+	if (fileset->logicalBlockNum == 0xFFFFFFFF &&
+	    fileset->partitionReferenceNum == 0xFFFF)
+		return -EINVAL;
 
-		if (!bh) {
-			return 1;
-		} else if (ident != TAG_IDENT_FSD) {
-			brelse(bh);
-			return 1;
-		}
-
-		udf_debug("Fileset at block=%u, partition=%u\n",
-			  fileset->logicalBlockNum,
-			  fileset->partitionReferenceNum);
-
-		UDF_SB(sb)->s_partition = fileset->partitionReferenceNum;
-		udf_load_fileset(sb, bh, root);
+	bh = udf_read_ptagged(sb, fileset, 0, &ident);
+	if (!bh)
+		return -EIO;
+	if (ident != TAG_IDENT_FSD) {
 		brelse(bh);
-		return 0;
+		return -EINVAL;
 	}
-	return 1;
+
+	udf_debug("Fileset at block=%u, partition=%u\n",
+		  fileset->logicalBlockNum, fileset->partitionReferenceNum);
+
+	UDF_SB(sb)->s_partition = fileset->partitionReferenceNum;
+	ret = udf_load_fileset(sb, (struct fileSetDesc *)bh->b_data, root);
+	brelse(bh);
+	return ret;
 }
 
 /*
@@ -952,19 +951,53 @@ static int udf_load_metadata_files(struct super_block *sb, int partition,
 	return 0;
 }
 
-static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
-			     struct kernel_lb_addr *root)
+static int udf_verify_domain_identifier(struct super_block *sb,
+					struct regid *ident, char *dname)
 {
-	struct fileSetDesc *fset;
+	struct domainEntityIDSuffix *suffix;
 
-	fset = (struct fileSetDesc *)bh->b_data;
+	if (memcmp(ident->ident, UDF_ID_COMPLIANT, strlen(UDF_ID_COMPLIANT))) {
+		udf_warn(sb, "Not OSTA UDF compliant %s descriptor.\n", dname);
+		goto force_ro;
+	}
+	if (ident->flags & (1 << ENTITYID_FLAGS_DIRTY)) {
+		udf_warn(sb, "Possibly not OSTA UDF compliant %s descriptor.\n",
+			 dname);
+		goto force_ro;
+	}
+	suffix = (struct domainEntityIDSuffix *)ident->identSuffix;
+	if (suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_HARDWRITEPROTECT) ||
+	    suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_SOFTWRITEPROTECT)) {
+		if (!sb_rdonly(sb)) {
+			udf_warn(sb, "Descriptor for %s marked write protected."
+				 " Forcing read only mount.\n", dname);
+		}
+		goto force_ro;
+	}
+	return 0;
+
+force_ro:
+	if (!sb_rdonly(sb))
+		return -EACCES;
+	UDF_SET_FLAG(sb, UDF_FLAG_RW_INCOMPAT);
+	return 0;
+}
+
+static int udf_load_fileset(struct super_block *sb, struct fileSetDesc *fset,
+			    struct kernel_lb_addr *root)
+{
+	int ret;
+
+	ret = udf_verify_domain_identifier(sb, &fset->domainIdent, "file set");
+	if (ret < 0)
+		return ret;
 
 	*root = lelb_to_cpu(fset->rootDirectoryICB.extLocation);
-
 	UDF_SB(sb)->s_serial_number = le16_to_cpu(fset->descTag.tagSerialNum);
 
 	udf_debug("Rootdir at block=%u, partition=%u\n",
 		  root->logicalBlockNum, root->partitionReferenceNum);
+	return 0;
 }
 
 int udf_compute_nr_groups(struct super_block *sb, u32 partition)
@@ -1375,6 +1408,10 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 		goto out_bh;
 	}
 
+	ret = udf_verify_domain_identifier(sb, &lvd->domainIdent,
+					   "logical volume");
+	if (ret)
+		goto out_bh;
 	ret = udf_sb_alloc_partition_maps(sb, le32_to_cpu(lvd->numPartitionMaps));
 	if (ret)
 		goto out_bh;
@@ -2227,9 +2264,9 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		UDF_SET_FLAG(sb, UDF_FLAG_RW_INCOMPAT);
 	}
 
-	if (udf_find_fileset(sb, &fileset, &rootdir)) {
+	ret = udf_find_fileset(sb, &fileset, &rootdir);
+	if (ret < 0) {
 		udf_warn(sb, "No fileset found\n");
-		ret = -EINVAL;
 		goto error_out;
 	}
 
