@@ -13,8 +13,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 
-#define BUCK_EN		(1 << 7)
-#define MODE		(1 << 6)
+#define SY8824C_BUCK_EN		(1 << 7)
+#define SY8824C_MODE		(1 << 6)
 
 struct sy8824_config {
 	/* registers */
@@ -41,10 +41,12 @@ static int sy8824_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		regmap_update_bits(rdev->regmap, cfg->mode_reg, MODE, MODE);
+		regmap_update_bits(rdev->regmap, cfg->mode_reg,
+				   SY8824C_MODE, SY8824C_MODE);
 		break;
 	case REGULATOR_MODE_NORMAL:
-		regmap_update_bits(rdev->regmap, cfg->mode_reg, MODE, 0);
+		regmap_update_bits(rdev->regmap, cfg->mode_reg,
+				   SY8824C_MODE, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -62,7 +64,7 @@ static unsigned int sy8824_get_mode(struct regulator_dev *rdev)
 	ret = regmap_read(rdev->regmap, cfg->mode_reg, &val);
 	if (ret < 0)
 		return ret;
-	if (val & MODE)
+	if (val & SY8824C_MODE)
 		return REGULATOR_MODE_FAST;
 	else
 		return REGULATOR_MODE_NORMAL;
@@ -94,7 +96,7 @@ static int sy8824_regulator_register(struct sy8824_device_info *di,
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->n_voltages = cfg->vsel_count;
 	rdesc->enable_reg = cfg->enable_reg;
-	rdesc->enable_mask = BUCK_EN;
+	rdesc->enable_mask = SY8824C_BUCK_EN;
 	rdesc->min_uV = cfg->vsel_min;
 	rdesc->uV_step = cfg->vsel_step;
 	rdesc->vsel_reg = cfg->vol_reg;
