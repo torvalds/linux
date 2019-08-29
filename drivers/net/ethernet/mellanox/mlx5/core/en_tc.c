@@ -1593,7 +1593,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			*match_level = MLX5_MATCH_L2;
 		}
 	} else if (*match_level != MLX5_MATCH_NONE) {
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, svlan_tag, 1);
+		/* cvlan_tag enabled in match criteria and
+		 * disabled in match value means both S & C tags
+		 * don't exist (untagged of both)
+		 */
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
 		*match_level = MLX5_MATCH_L2;
 	}
