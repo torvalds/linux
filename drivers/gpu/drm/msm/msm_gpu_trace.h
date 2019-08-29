@@ -5,7 +5,7 @@
 #include <linux/tracepoint.h>
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM drm_msm
+#define TRACE_SYSTEM drm_msm_gpu
 #define TRACE_INCLUDE_FILE msm_gpu_trace
 
 TRACE_EVENT(msm_gpu_submit,
