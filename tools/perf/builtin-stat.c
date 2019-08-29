@@ -62,6 +62,7 @@
 #include "util/string2.h"
 #include "util/metricgroup.h"
 #include "util/target.h"
+#include "util/time-utils.h"
 #include "util/top.h"
 #include "asm/bug.h"
 

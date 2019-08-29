@@ -21,6 +21,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include "thread_map.h"
+#include "time-utils.h"
 #include <linux/ctype.h>
 #include "map.h"
 #include "symbol.h"
