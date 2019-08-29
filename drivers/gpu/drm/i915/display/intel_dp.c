@@ -3149,7 +3149,7 @@ static bool downstream_hpd_needs_d0(struct intel_dp *intel_dp)
 	 * FIXME should really check all downstream ports...
 	 */
 	return intel_dp->dpcd[DP_DPCD_REV] == 0x11 &&
-		intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT &&
+		drm_dp_is_branch(intel_dp->dpcd) &&
 		intel_dp->downstream_ports[0] & DP_DS_PORT_HPD;
 }
 
