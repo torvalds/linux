@@ -257,7 +257,7 @@ static uint32_t __correct_eeprom_dest_address(uint32_t curr_address)
 	 * https://www.st.com/resource/en/datasheet/m24m02-dr.pdf sec. 5.1.2
 	 */
 	if ((curr_address & EEPROM_ADDR_MSB_MASK) != (next_address & EEPROM_ADDR_MSB_MASK)) {
-		DRM_DEBUG_DRIVER("Reached end of EEPROM memory page, jumpimng to next: %lx",
+		DRM_DEBUG_DRIVER("Reached end of EEPROM memory page, jumping to next: %lx",
 				(next_address & EEPROM_ADDR_MSB_MASK));
 
 		return  (next_address & EEPROM_ADDR_MSB_MASK);
