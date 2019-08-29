@@ -6,7 +6,7 @@
  *
  * Written by Masami Hiramatsu <mhiramat@redhat.com>
  */
-#include <asm/inat_types.h>
+#include "inat_types.h"
 
 /*
  * Internal bits. Don't use bitmasks directly, because these bits are

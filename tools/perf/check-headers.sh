@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
-HEADERS='
+FILES='
 include/uapi/linux/const.h
 include/uapi/drm/drm.h
 include/uapi/drm/i915_drm.h
@@ -26,7 +26,14 @@ include/uapi/linux/hw_breakpoint.h
 arch/x86/include/asm/disabled-features.h
 arch/x86/include/asm/required-features.h
 arch/x86/include/asm/cpufeatures.h
+arch/x86/include/asm/inat.h
+arch/x86/include/asm/inat_types.h
+arch/x86/include/asm/insn.h
 arch/x86/include/uapi/asm/prctl.h
+arch/x86/lib/inat.c
+arch/x86/lib/insn.c
+arch/x86/lib/x86-opcode-map.txt
+arch/x86/tools/gen-insn-attr-x86.awk
 arch/arm/include/uapi/asm/perf_regs.h
 arch/arm64/include/uapi/asm/perf_regs.h
 arch/powerpc/include/uapi/asm/perf_regs.h
@@ -98,7 +105,7 @@ test -d ../../include || exit 0
 cd ../..
 
 # simple diff check
-for i in $HEADERS; do
+for i in $FILES; do
   check $i -B
 done
 
