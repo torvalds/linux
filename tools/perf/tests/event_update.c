@@ -12,7 +12,7 @@ static int process_event_unit(struct perf_tool *tool __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
-	struct event_update_event *ev = (struct event_update_event *) event;
+	struct perf_record_event_update *ev = (struct perf_record_event_update *)event;
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__UNIT);
@@ -25,10 +25,10 @@ static int process_event_scale(struct perf_tool *tool __maybe_unused,
 			       struct perf_sample *sample __maybe_unused,
 			       struct machine *machine __maybe_unused)
 {
-	struct event_update_event *ev = (struct event_update_event *) event;
-	struct event_update_event_scale *ev_data;
+	struct perf_record_event_update *ev = (struct perf_record_event_update *)event;
+	struct perf_record_event_update_scale *ev_data;
 
-	ev_data = (struct event_update_event_scale *) ev->data;
+	ev_data = (struct perf_record_event_update_scale *)ev->data;
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__SCALE);
@@ -47,7 +47,7 @@ static int process_event_name(struct perf_tool *tool,
 			      struct machine *machine __maybe_unused)
 {
 	struct event_name *tmp = container_of(tool, struct event_name, tool);
-	struct event_update_event *ev = (struct event_update_event*) event;
+	struct perf_record_event_update *ev = (struct perf_record_event_update *)event;
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__NAME);
@@ -60,11 +60,11 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
-	struct event_update_event *ev = (struct event_update_event*) event;
-	struct event_update_event_cpus *ev_data;
+	struct perf_record_event_update *ev = (struct perf_record_event_update *)event;
+	struct perf_record_event_update_cpus *ev_data;
 	struct perf_cpu_map *map;
 
-	ev_data = (struct event_update_event_cpus*) ev->data;
+	ev_data = (struct perf_record_event_update_cpus *) ev->data;
 
 	map = cpu_map__new_data(&ev_data->cpus);
 

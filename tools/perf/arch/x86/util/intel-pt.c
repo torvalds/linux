@@ -26,6 +26,7 @@
 #include "../../util/record.h"
 #include "../../util/target.h"
 #include "../../util/tsc.h"
+#include "../../util/util.h"
 #include "../../util/intel-pt.h"
 
 #define KiB(x) ((x) * 1024)
@@ -313,7 +314,7 @@ static void intel_pt_tsc_ctc_ratio(u32 *n, u32 *d)
 
 static int intel_pt_info_fill(struct auxtrace_record *itr,
 			      struct perf_session *session,
-			      struct auxtrace_info_event *auxtrace_info,
+			      struct perf_record_auxtrace_info *auxtrace_info,
 			      size_t priv_size)
 {
 	struct intel_pt_recording *ptr =
@@ -327,7 +328,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	unsigned long max_non_turbo_ratio;
 	size_t filter_str_len;
 	const char *filter;
-	u64 *info;
+	__u64 *info;
 	int err;
 
 	if (priv_size != ptr->priv_size)
@@ -579,7 +580,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	bool have_timing_info, need_immediate = false;
 	struct evsel *evsel, *intel_pt_evsel = NULL;
 	const struct perf_cpu_map *cpus = evlist->core.cpus;
-	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
+	bool privileged = perf_event_paranoid_check(-1);
 	u64 tsc_bit;
 	int err;
 

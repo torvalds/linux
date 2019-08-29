@@ -2439,7 +2439,7 @@ void hists__match(struct hists *leader, struct hists *other)
 {
 	struct rb_root_cached *root;
 	struct rb_node *nd;
-	struct hist_entry *pos, *pair, *pos_pair, *tmp_pair;
+	struct hist_entry *pos, *pair;
 
 	if (symbol_conf.report_hierarchy) {
 		/* hierarchy report always collapses entries */
@@ -2456,24 +2456,8 @@ void hists__match(struct hists *leader, struct hists *other)
 		pos  = rb_entry(nd, struct hist_entry, rb_node_in);
 		pair = hists__find_entry(other, pos);
 
-		if (pair && list_empty(&pair->pairs.node)) {
-			list_for_each_entry_safe(pos_pair, tmp_pair, &pos->pairs.head, pairs.node) {
-				if (pos_pair->hists == other) {
-					/*
-					 * XXX maybe decayed entries can appear
-					 * here?  but then we would have use
-					 * after free, as decayed entries are
-					 * freed see hists__delete_entry
-					 */
-					BUG_ON(!pos_pair->dummy);
-					list_del_init(&pos_pair->pairs.node);
-					hist_entry__delete(pos_pair);
-					break;
-				}
-			}
-
+		if (pair)
 			hist_entry__add_pair(pair, pos);
-		}
 	}
 }
 
@@ -2553,6 +2537,25 @@ int hists__link(struct hists *leader, struct hists *other)
 				return -1;
 			hist_entry__add_pair(pos, pair);
 		}
+	}
+
+	return 0;
+}
+
+int hists__unlink(struct hists *hists)
+{
+	struct rb_root_cached *root;
+	struct rb_node *nd;
+	struct hist_entry *pos;
+
+	if (hists__has(hists, need_collapse))
+		root = &hists->entries_collapsed;
+	else
+		root = hists->entries_in;
+
+	for (nd = rb_first_cached(root); nd; nd = rb_next(nd)) {
+		pos = rb_entry(nd, struct hist_entry, rb_node_in);
+		list_del_init(&pos->pairs.node);
 	}
 
 	return 0;

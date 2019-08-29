@@ -1462,7 +1462,7 @@ static int __cmd_record(int argc, const char **argv)
 static int process_stat_round_event(struct perf_session *session,
 				    union perf_event *event)
 {
-	struct stat_round_event *stat_round = &event->stat_round;
+	struct perf_record_stat_round *stat_round = &event->stat_round;
 	struct evsel *counter;
 	struct timespec tsh, *ts = NULL;
 	const char **argv = session->header.env.cmdline_argv;

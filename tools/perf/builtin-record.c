@@ -898,7 +898,7 @@ static void record__adjust_affinity(struct record *rec, struct perf_mmap *map)
 
 static size_t process_comp_header(void *record, size_t increment)
 {
-	struct compressed_event *event = record;
+	struct perf_record_compressed *event = record;
 	size_t size = sizeof(*event);
 
 	if (increment) {
@@ -916,7 +916,7 @@ static size_t zstd_compress(struct perf_session *session, void *dst, size_t dst_
 			    void *src, size_t src_size)
 {
 	size_t compressed;
-	size_t max_record_size = PERF_SAMPLE_MAX_SIZE - sizeof(struct compressed_event) - 1;
+	size_t max_record_size = PERF_SAMPLE_MAX_SIZE - sizeof(struct perf_record_compressed) - 1;
 
 	compressed = zstd_compress_stream_to_records(&session->zstd_data, dst, dst_size, src, src_size,
 						     max_record_size, process_comp_header);
@@ -2372,7 +2372,7 @@ int cmd_record(int argc, const char **argv)
 	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(rec->evlist))
 		pr_warning(
 "WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
-"check /proc/sys/kernel/kptr_restrict.\n\n"
+"check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paranoid.\n\n"
 "Samples in kernel functions may not be resolved if a suitable vmlinux\n"
 "file is not found in the buildid cache or in the vmlinux path.\n\n"
 "Samples in kernel modules won't be resolved at all.\n\n"

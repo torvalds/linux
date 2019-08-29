@@ -295,7 +295,7 @@ static int write_buildid(const char *name, size_t name_len, u8 *build_id,
 			 pid_t pid, u16 misc, struct feat_fd *fd)
 {
 	int err;
-	struct build_id_event b;
+	struct perf_record_header_build_id b;
 	size_t len;
 
 	len = name_len + 1;

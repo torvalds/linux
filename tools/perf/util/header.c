@@ -42,6 +42,7 @@
 #include "tool.h"
 #include "time-utils.h"
 #include "units.h"
+#include "util.h"
 #include "cputopo.h"
 #include "bpf-event.h"
 
@@ -1877,7 +1878,7 @@ static void print_mem_topology(struct feat_fd *ff, FILE *fp)
 	}
 }
 
-static int __event_process_build_id(struct build_id_event *bev,
+static int __event_process_build_id(struct perf_record_header_build_id *bev,
 				    char *filename,
 				    struct perf_session *session)
 {
@@ -1946,7 +1947,7 @@ static int perf_header__read_build_ids_abi_quirk(struct perf_header *header,
 		u8			   build_id[PERF_ALIGN(BUILD_ID_SIZE, sizeof(u64))];
 		char			   filename[0];
 	} old_bev;
-	struct build_id_event bev;
+	struct perf_record_header_build_id bev;
 	char filename[PATH_MAX];
 	u64 limit = offset + size;
 
@@ -1987,7 +1988,7 @@ static int perf_header__read_build_ids(struct perf_header *header,
 				       int input, u64 offset, u64 size)
 {
 	struct perf_session *session = container_of(header, struct perf_session, header);
-	struct build_id_event bev;
+	struct perf_record_header_build_id bev;
 	char filename[PATH_MAX];
 	u64 limit = offset + size, orig_offset = offset;
 	int err = -1;
@@ -2009,7 +2010,7 @@ static int perf_header__read_build_ids(struct perf_header *header,
 		 *
 		 * "perf: 'perf kvm' tool for monitoring guest performance from host"
 		 *
-		 * Added a field to struct build_id_event that broke the file
+		 * Added a field to struct perf_record_header_build_id that broke the file
 		 * format.
 		 *
 		 * Since the kernel build-id is the first entry, process the
@@ -3677,7 +3678,7 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 {
 	struct perf_header *header = &session->header;
 	struct feat_fd ff;
-	struct feature_event *fe;
+	struct perf_record_header_feature *fe;
 	size_t sz, sz_hdr;
 	int feat, ret;
 
@@ -3740,7 +3741,7 @@ int perf_event__process_feature(struct perf_session *session,
 {
 	struct perf_tool *tool = session->tool;
 	struct feat_fd ff = { .fd = 0 };
-	struct feature_event *fe = (struct feature_event *)event;
+	struct perf_record_header_feature *fe = (struct perf_record_header_feature *)event;
 	int type = fe->header.type;
 	u64 feat = fe->feat_id;
 
@@ -3777,10 +3778,10 @@ int perf_event__process_feature(struct perf_session *session,
 	return 0;
 }
 
-static struct event_update_event *
+static struct perf_record_event_update *
 event_update_event__new(size_t size, u64 type, u64 id)
 {
-	struct event_update_event *ev;
+	struct perf_record_event_update *ev;
 
 	size += sizeof(*ev);
 	size  = PERF_ALIGN(size, sizeof(u64));
@@ -3800,7 +3801,7 @@ perf_event__synthesize_event_update_unit(struct perf_tool *tool,
 					 struct evsel *evsel,
 					 perf_event__handler_t process)
 {
-	struct event_update_event *ev;
+	struct perf_record_event_update *ev;
 	size_t size = strlen(evsel->unit);
 	int err;
 
@@ -3819,15 +3820,15 @@ perf_event__synthesize_event_update_scale(struct perf_tool *tool,
 					  struct evsel *evsel,
 					  perf_event__handler_t process)
 {
-	struct event_update_event *ev;
-	struct event_update_event_scale *ev_data;
+	struct perf_record_event_update *ev;
+	struct perf_record_event_update_scale *ev_data;
 	int err;
 
 	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->id[0]);
 	if (ev == NULL)
 		return -ENOMEM;
 
-	ev_data = (struct event_update_event_scale *) ev->data;
+	ev_data = (struct perf_record_event_update_scale *)ev->data;
 	ev_data->scale = evsel->scale;
 	err = process(tool, (union perf_event*) ev, NULL, NULL);
 	free(ev);
@@ -3839,7 +3840,7 @@ perf_event__synthesize_event_update_name(struct perf_tool *tool,
 					 struct evsel *evsel,
 					 perf_event__handler_t process)
 {
-	struct event_update_event *ev;
+	struct perf_record_event_update *ev;
 	size_t len = strlen(evsel->name);
 	int err;
 
@@ -3858,8 +3859,8 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 					struct evsel *evsel,
 					perf_event__handler_t process)
 {
-	size_t size = sizeof(struct event_update_event);
-	struct event_update_event *ev;
+	size_t size = sizeof(struct perf_record_event_update);
+	struct perf_record_event_update *ev;
 	int max, err;
 	u16 type;
 
@@ -3875,7 +3876,7 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 	ev->type = PERF_EVENT_UPDATE__CPUS;
 	ev->id   = evsel->id[0];
 
-	cpu_map_data__synthesize((struct cpu_map_data *) ev->data,
+	cpu_map_data__synthesize((struct perf_record_cpu_map_data *)ev->data,
 				 evsel->core.own_cpus,
 				 type, max);
 
@@ -3886,17 +3887,17 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 {
-	struct event_update_event *ev = &event->event_update;
-	struct event_update_event_scale *ev_scale;
-	struct event_update_event_cpus *ev_cpus;
+	struct perf_record_event_update *ev = &event->event_update;
+	struct perf_record_event_update_scale *ev_scale;
+	struct perf_record_event_update_cpus *ev_cpus;
 	struct perf_cpu_map *map;
 	size_t ret;
 
-	ret = fprintf(fp, "\n... id:    %" PRIu64 "\n", ev->id);
+	ret = fprintf(fp, "\n... id:    %" PRI_lu64 "\n", ev->id);
 
 	switch (ev->type) {
 	case PERF_EVENT_UPDATE__SCALE:
-		ev_scale = (struct event_update_event_scale *) ev->data;
+		ev_scale = (struct perf_record_event_update_scale *)ev->data;
 		ret += fprintf(fp, "... scale: %f\n", ev_scale->scale);
 		break;
 	case PERF_EVENT_UPDATE__UNIT:
@@ -3906,7 +3907,7 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 		ret += fprintf(fp, "... name:  %s\n", ev->data);
 		break;
 	case PERF_EVENT_UPDATE__CPUS:
-		ev_cpus = (struct event_update_event_cpus *) ev->data;
+		ev_cpus = (struct perf_record_event_update_cpus *)ev->data;
 		ret += fprintf(fp, "... ");
 
 		map = cpu_map__new_data(&ev_cpus->cpus);
@@ -4052,9 +4053,9 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct evlist **pevlist)
 {
-	struct event_update_event *ev = &event->event_update;
-	struct event_update_event_scale *ev_scale;
-	struct event_update_event_cpus *ev_cpus;
+	struct perf_record_event_update *ev = &event->event_update;
+	struct perf_record_event_update_scale *ev_scale;
+	struct perf_record_event_update_cpus *ev_cpus;
 	struct evlist *evlist;
 	struct evsel *evsel;
 	struct perf_cpu_map *map;
@@ -4076,11 +4077,11 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 		evsel->name = strdup(ev->data);
 		break;
 	case PERF_EVENT_UPDATE__SCALE:
-		ev_scale = (struct event_update_event_scale *) ev->data;
+		ev_scale = (struct perf_record_event_update_scale *)ev->data;
 		evsel->scale = ev_scale->scale;
 		break;
 	case PERF_EVENT_UPDATE__CPUS:
-		ev_cpus = (struct event_update_event_cpus *) ev->data;
+		ev_cpus = (struct perf_record_event_update_cpus *)ev->data;
 
 		map = cpu_map__new_data(&ev_cpus->cpus);
 		if (map)
@@ -4152,7 +4153,7 @@ int perf_event__process_tracing_data(struct perf_session *session,
 	char buf[BUFSIZ];
 
 	/* setup for reading amidst mmap */
-	lseek(fd, offset + sizeof(struct tracing_data_event),
+	lseek(fd, offset + sizeof(struct perf_record_header_tracing_data),
 	      SEEK_SET);
 
 	size_read = trace_report(fd, &session->tevent,

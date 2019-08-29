@@ -50,6 +50,7 @@
 #include "intel-bts.h"
 #include "arm-spe.h"
 #include "s390-cpumsf.h"
+#include "util.h"
 
 #include <linux/ctype.h>
 #include "symbol/kallsyms.h"
@@ -385,7 +386,7 @@ static int auxtrace_queues__add_indexed_event(struct auxtrace_queues *queues,
 		return err;
 
 	if (event->header.type == PERF_RECORD_AUXTRACE) {
-		if (event->header.size < sizeof(struct auxtrace_event) ||
+		if (event->header.size < sizeof(struct perf_record_auxtrace) ||
 		    event->header.size != sz) {
 			err = -EINVAL;
 			goto out;
@@ -518,7 +519,7 @@ static int auxtrace_not_supported(void)
 
 int auxtrace_record__info_fill(struct auxtrace_record *itr,
 			       struct perf_session *session,
-			       struct auxtrace_info_event *auxtrace_info,
+			       struct perf_record_auxtrace_info *auxtrace_info,
 			       size_t priv_size)
 {
 	if (itr)
@@ -858,13 +859,13 @@ void auxtrace_buffer__free(struct auxtrace_buffer *buffer)
 	free(buffer);
 }
 
-void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
+void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp)
 {
 	size_t size;
 
-	memset(auxtrace_error, 0, sizeof(struct auxtrace_error_event));
+	memset(auxtrace_error, 0, sizeof(struct perf_record_auxtrace_error));
 
 	auxtrace_error->header.type = PERF_RECORD_AUXTRACE_ERROR;
 	auxtrace_error->type = type;
@@ -893,12 +894,12 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 
 	pr_debug2("Synthesizing auxtrace information\n");
 	priv_size = auxtrace_record__info_priv_size(itr, session->evlist);
-	ev = zalloc(sizeof(struct auxtrace_info_event) + priv_size);
+	ev = zalloc(sizeof(struct perf_record_auxtrace_info) + priv_size);
 	if (!ev)
 		return -ENOMEM;
 
 	ev->auxtrace_info.header.type = PERF_RECORD_AUXTRACE_INFO;
-	ev->auxtrace_info.header.size = sizeof(struct auxtrace_info_event) +
+	ev->auxtrace_info.header.size = sizeof(struct perf_record_auxtrace_info) +
 					priv_size;
 	err = auxtrace_record__info_fill(itr, session, &ev->auxtrace_info,
 					 priv_size);
@@ -942,7 +943,7 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 	s64 err;
 
 	if (dump_trace)
-		fprintf(stdout, " size: %#"PRIx64"  offset: %#"PRIx64"  ref: %#"PRIx64"  idx: %u  tid: %d  cpu: %d\n",
+		fprintf(stdout, " size: %#"PRI_lx64"  offset: %#"PRI_lx64"  ref: %#"PRI_lx64"  idx: %u  tid: %d  cpu: %d\n",
 			event->auxtrace.size, event->auxtrace.offset,
 			event->auxtrace.reference, event->auxtrace.idx,
 			event->auxtrace.tid, event->auxtrace.cpu);
@@ -1168,7 +1169,7 @@ static const char *auxtrace_error_name(int type)
 
 size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
 {
-	struct auxtrace_error_event *e = &event->auxtrace_error;
+	struct perf_record_auxtrace_error *e = &event->auxtrace_error;
 	unsigned long long nsecs = e->time;
 	const char *msg = e->msg;
 	int ret;
@@ -1188,7 +1189,7 @@ size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
 	if (!e->fmt)
 		msg = (const char *)&e->time;
 
-	ret += fprintf(fp, " cpu %d pid %d tid %d ip %#"PRIx64" code %u: %s\n",
+	ret += fprintf(fp, " cpu %d pid %d tid %d ip %#"PRI_lx64" code %u: %s\n",
 		       e->cpu, e->pid, e->tid, e->ip, e->code, msg);
 	return ret;
 }
@@ -1196,7 +1197,7 @@ size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
 void perf_session__auxtrace_error_inc(struct perf_session *session,
 				      union perf_event *event)
 {
-	struct auxtrace_error_event *e = &event->auxtrace_error;
+	struct perf_record_auxtrace_error *e = &event->auxtrace_error;
 
 	if (e->type < PERF_AUXTRACE_ERROR_MAX)
 		session->evlist->stats.nr_auxtrace_errors[e->type] += 1;

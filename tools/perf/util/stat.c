@@ -382,7 +382,7 @@ int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event)
 {
 	struct perf_counts_values count;
-	struct stat_event *st = &event->stat;
+	struct perf_record_stat *st = &event->stat;
 	struct evsel *counter;
 
 	count.val = st->val;
@@ -402,12 +402,12 @@ int perf_event__process_stat_event(struct perf_session *session,
 
 size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp)
 {
-	struct stat_event *st = (struct stat_event *) event;
+	struct perf_record_stat *st = (struct perf_record_stat *)event;
 	size_t ret;
 
-	ret  = fprintf(fp, "\n... id %" PRIu64 ", cpu %d, thread %d\n",
+	ret  = fprintf(fp, "\n... id %" PRI_lu64 ", cpu %d, thread %d\n",
 		       st->id, st->cpu, st->thread);
-	ret += fprintf(fp, "... value %" PRIu64 ", enabled %" PRIu64 ", running %" PRIu64 "\n",
+	ret += fprintf(fp, "... value %" PRI_lu64 ", enabled %" PRI_lu64 ", running %" PRI_lu64 "\n",
 		       st->val, st->ena, st->run);
 
 	return ret;
@@ -415,10 +415,10 @@ size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp)
 {
-	struct stat_round_event *rd = (struct stat_round_event *)event;
+	struct perf_record_stat_round *rd = (struct perf_record_stat_round *)event;
 	size_t ret;
 
-	ret = fprintf(fp, "\n... time %" PRIu64 ", type %s\n", rd->time,
+	ret = fprintf(fp, "\n... time %" PRI_lu64 ", type %s\n", rd->time,
 		      rd->type == PERF_STAT_ROUND_TYPE__FINAL ? "FINAL" : "INTERVAL");
 
 	return ret;

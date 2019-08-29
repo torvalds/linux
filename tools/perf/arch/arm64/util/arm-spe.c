@@ -12,6 +12,7 @@
 #include <time.h>
 
 #include "../../util/cpumap.h"
+#include "../../util/event.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
 #include "../../util/session.h"
@@ -40,7 +41,7 @@ arm_spe_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 
 static int arm_spe_info_fill(struct auxtrace_record *itr,
 			     struct perf_session *session,
-			     struct auxtrace_info_event *auxtrace_info,
+			     struct perf_record_auxtrace_info *auxtrace_info,
 			     size_t priv_size)
 {
 	struct arm_spe_recording *sper =
@@ -67,7 +68,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
 	struct evsel *evsel, *arm_spe_evsel = NULL;
-	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
+	bool privileged = perf_event_paranoid_check(-1);
 	struct evsel *tracking_evsel;
 	int err;
 

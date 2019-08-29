@@ -57,7 +57,7 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 		.time_conv = {
 			.header = {
 				.type = PERF_RECORD_TIME_CONV,
-				.size = sizeof(struct time_conv_event),
+				.size = sizeof(struct perf_record_time_conv),
 			},
 		},
 	};

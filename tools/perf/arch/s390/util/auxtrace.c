@@ -29,7 +29,7 @@ static size_t cpumsf_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 static int
 cpumsf_info_fill(struct auxtrace_record *itr __maybe_unused,
 		 struct perf_session *session __maybe_unused,
-		 struct auxtrace_info_event *auxtrace_info __maybe_unused,
+		 struct perf_record_auxtrace_info *auxtrace_info __maybe_unused,
 		 size_t priv_size __maybe_unused)
 {
 	auxtrace_info->type = PERF_AUXTRACE_S390_CPUMSF;

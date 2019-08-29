@@ -1109,11 +1109,11 @@ static int s390_cpumsf__config(const char *var, const char *value, void *cb)
 int s390_cpumsf_process_auxtrace_info(union perf_event *event,
 				      struct perf_session *session)
 {
-	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
+	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	struct s390_cpumsf *sf;
 	int err;
 
-	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event))
+	if (auxtrace_info->header.size < sizeof(struct perf_record_auxtrace_info))
 		return -EINVAL;
 
 	sf = zalloc(sizeof(struct s390_cpumsf));

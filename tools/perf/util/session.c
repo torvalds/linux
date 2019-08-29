@@ -29,6 +29,7 @@
 #include "thread-stack.h"
 #include "sample-raw.h"
 #include "stat.h"
+#include "util.h"
 #include "arch/common.h"
 
 #ifdef HAVE_ZSTD_SUPPORT
@@ -63,8 +64,8 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 		decomp->size = decomp_last_rem;
 	}
 
-	src = (void *)event + sizeof(struct compressed_event);
-	src_size = event->pack.header.size - sizeof(struct compressed_event);
+	src = (void *)event + sizeof(struct perf_record_compressed);
+	src_size = event->pack.header.size - sizeof(struct perf_record_compressed);
 
 	decomp_size = zstd_decompress_stream(&(session->zstd_data), src, src_size,
 				&(decomp->data[decomp_last_rem]), decomp_len - decomp_last_rem);
@@ -835,9 +836,9 @@ static void perf_event__thread_map_swap(union perf_event *event,
 static void perf_event__cpu_map_swap(union perf_event *event,
 				     bool sample_id_all __maybe_unused)
 {
-	struct cpu_map_data *data = &event->cpu_map.data;
+	struct perf_record_cpu_map_data *data = &event->cpu_map.data;
 	struct cpu_map_entries *cpus;
-	struct cpu_map_mask *mask;
+	struct perf_record_record_cpu_map *mask;
 	unsigned i;
 
 	data->type = bswap_64(data->type);
@@ -852,7 +853,7 @@ static void perf_event__cpu_map_swap(union perf_event *event,
 			cpus->cpu[i] = bswap_16(cpus->cpu[i]);
 		break;
 	case PERF_CPU_MAP__MASK:
-		mask = (struct cpu_map_mask *) data->data;
+		mask = (struct perf_record_record_cpu_map *)data->data;
 
 		mask->nr = bswap_16(mask->nr);
 		mask->long_size = bswap_16(mask->long_size);
@@ -2375,10 +2376,10 @@ int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event)
 {
 	struct evlist *evlist = session->evlist;
-	struct id_index_event *ie = &event->id_index;
+	struct perf_record_id_index *ie = &event->id_index;
 	size_t i, nr, max_nr;
 
-	max_nr = (ie->header.size - sizeof(struct id_index_event)) /
+	max_nr = (ie->header.size - sizeof(struct perf_record_id_index)) /
 		 sizeof(struct id_index_entry);
 	nr = ie->nr;
 	if (nr > max_nr)
@@ -2392,10 +2393,10 @@ int perf_event__process_id_index(struct perf_session *session,
 		struct perf_sample_id *sid;
 
 		if (dump_trace) {
-			fprintf(stdout,	" ... id: %"PRIu64, e->id);
-			fprintf(stdout,	"  idx: %"PRIu64, e->idx);
-			fprintf(stdout,	"  cpu: %"PRId64, e->cpu);
-			fprintf(stdout,	"  tid: %"PRId64"\n", e->tid);
+			fprintf(stdout,	" ... id: %"PRI_lu64, e->id);
+			fprintf(stdout,	"  idx: %"PRI_lu64, e->idx);
+			fprintf(stdout,	"  cpu: %"PRI_ld64, e->cpu);
+			fprintf(stdout,	"  tid: %"PRI_ld64"\n", e->tid);
 		}
 
 		sid = perf_evlist__id2sid(evlist, e->id);
@@ -2420,14 +2421,14 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 
 	pr_debug2("Synthesizing id index\n");
 
-	max_nr = (UINT16_MAX - sizeof(struct id_index_event)) /
+	max_nr = (UINT16_MAX - sizeof(struct perf_record_id_index)) /
 		 sizeof(struct id_index_entry);
 
 	evlist__for_each_entry(evlist, evsel)
 		nr += evsel->ids;
 
 	n = nr > max_nr ? max_nr : nr;
-	sz = sizeof(struct id_index_event) + n * sizeof(struct id_index_entry);
+	sz = sizeof(struct perf_record_id_index) + n * sizeof(struct id_index_entry);
 	ev = zalloc(sz);
 	if (!ev)
 		return -ENOMEM;
@@ -2467,7 +2468,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 		}
 	}
 
-	sz = sizeof(struct id_index_event) + nr * sizeof(struct id_index_entry);
+	sz = sizeof(struct perf_record_id_index) + nr * sizeof(struct id_index_entry);
 	ev->id_index.header.size = sz;
 	ev->id_index.nr = nr;
 

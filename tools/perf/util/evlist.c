@@ -16,10 +16,12 @@
 #include "evsel.h"
 #include "debug.h"
 #include "units.h"
+#include "util.h"
 #include "asm/bug.h"
 #include "bpf-event.h"
 #include <signal.h>
 #include <unistd.h>
+#include <sched.h>
 
 #include "parse-events.h"
 #include <subcmd/parse-options.h>
@@ -1823,6 +1825,14 @@ static void *perf_evlist__poll_thread(void *arg)
 	struct evlist *evlist = arg;
 	bool draining = false;
 	int i, done = 0;
+	/*
+	 * In order to read symbols from other namespaces perf to needs to call
+	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
+	 * unshare(2) the fs so that we may continue to setns into namespaces
+	 * that we're observing when, for instance, reading the build-ids at
+	 * the end of a 'perf record' session.
+	 */
+	unshare(CLONE_FS);
 
 	while (!done) {
 		bool got_data = false;
