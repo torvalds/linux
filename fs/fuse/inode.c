@@ -999,11 +999,12 @@ void fuse_send_init(struct fuse_conn *fc)
 }
 EXPORT_SYMBOL_GPL(fuse_send_init);
 
-static void fuse_free_conn(struct fuse_conn *fc)
+void fuse_free_conn(struct fuse_conn *fc)
 {
 	WARN_ON(!list_empty(&fc->devices));
 	kfree_rcu(fc, rcu);
 }
+EXPORT_SYMBOL_GPL(fuse_free_conn);
 
 static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 {
@@ -1169,7 +1170,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fc->user_id = ctx->user_id;
 	fc->group_id = ctx->group_id;
 	fc->max_read = max_t(unsigned, 4096, ctx->max_read);
-	fc->destroy = ctx->is_bdev;
+	fc->destroy = ctx->destroy;
 
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, ctx->rootmode);
@@ -1293,8 +1294,10 @@ static int fuse_init_fs_context(struct fs_context *fc)
 	ctx->blksize = FUSE_DEFAULT_BLKSIZE;
 
 #ifdef CONFIG_BLOCK
-	if (fc->fs_type == &fuseblk_fs_type)
+	if (fc->fs_type == &fuseblk_fs_type) {
 		ctx->is_bdev = true;
+		ctx->destroy = true;
+	}
 #endif
 
 	fc->fs_private = ctx;
@@ -1319,11 +1322,12 @@ static void fuse_sb_destroy(struct super_block *sb)
 	}
 }
 
-static void fuse_kill_sb_anon(struct super_block *sb)
+void fuse_kill_sb_anon(struct super_block *sb)
 {
 	fuse_sb_destroy(sb);
 	kill_anon_super(sb);
 }
+EXPORT_SYMBOL_GPL(fuse_kill_sb_anon);
 
 static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
