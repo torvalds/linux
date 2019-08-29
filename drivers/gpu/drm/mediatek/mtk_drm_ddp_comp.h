@@ -84,6 +84,8 @@ struct mtk_ddp_comp_funcs {
 			     struct mtk_plane_state *state);
 	void (*gamma_set)(struct mtk_ddp_comp *comp,
 			  struct drm_crtc_state *state);
+	void (*bgclr_in_on)(struct mtk_ddp_comp *comp);
+	void (*bgclr_in_off)(struct mtk_ddp_comp *comp);
 };
 
 struct mtk_ddp_comp {
@@ -163,6 +165,18 @@ static inline void mtk_ddp_gamma_set(struct mtk_ddp_comp *comp,
 {
 	if (comp->funcs && comp->funcs->gamma_set)
 		comp->funcs->gamma_set(comp, state);
+}
+
+static inline void mtk_ddp_comp_bgclr_in_on(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->bgclr_in_on)
+		comp->funcs->bgclr_in_on(comp);
+}
+
+static inline void mtk_ddp_comp_bgclr_in_off(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->bgclr_in_off)
+		comp->funcs->bgclr_in_off(comp);
 }
 
 int mtk_ddp_comp_get_id(struct device_node *node,
