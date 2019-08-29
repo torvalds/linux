@@ -23,6 +23,7 @@
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "nbio_v7_4.h"
+#include "amdgpu_ras.h"
 
 #include "nbio/nbio_7_4_offset.h"
 #include "nbio/nbio_7_4_sh_mask.h"
@@ -468,6 +469,49 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 	return 0;
 }
 
+static int nbio_v7_4_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+	struct ras_ih_if ih_info = {
+		.cb = NULL,
+	};
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "pcie_bif_err_count",
+		.debugfs_name = "pcie_bif_err_inject",
+	};
+
+	if (!adev->nbio.ras_if) {
+		adev->nbio.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->nbio.ras_if)
+			return -ENOMEM;
+		adev->nbio.ras_if->block = AMDGPU_RAS_BLOCK__PCIE_BIF;
+		adev->nbio.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->nbio.ras_if->sub_block_index = 0;
+		strcpy(adev->nbio.ras_if->name, "pcie_bif");
+	}
+	ih_info.head = fs_info.head = *adev->nbio.ras_if;
+	r = amdgpu_ras_late_init(adev, adev->nbio.ras_if,
+				 &fs_info, &ih_info);
+	if (r)
+		goto free;
+
+	if (amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
+		r = amdgpu_irq_get(adev, &adev->nbio.ras_controller_irq, 0);
+		if (r)
+			goto late_fini;
+		r = amdgpu_irq_get(adev, &adev->nbio.ras_err_event_athub_irq, 0);
+		if (r)
+			goto late_fini;
+	}
+
+	return 0;
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->nbio.ras_if, &ih_info);
+free:
+	kfree(adev->nbio.ras_if);
+	return r;
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
@@ -493,4 +537,5 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
 	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
+	.ras_late_init = nbio_v7_4_ras_late_init,
 };
