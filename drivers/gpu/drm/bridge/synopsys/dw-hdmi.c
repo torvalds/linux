@@ -3848,6 +3848,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (hdmi->i2c)
 		dw_hdmi_i2c_init(hdmi);
 
+	dev_set_drvdata(dev, hdmi);
 	dw_hdmi_register_debugfs(dev, hdmi);
 
 	if (of_property_read_bool(np, "hdcp1x-enable"))
