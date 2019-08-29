@@ -828,6 +828,8 @@ static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 	while (id >= 0) {
 		const struct hda_fixup *fix = codec->fixup_list + id;
 
+		if (++depth > 10)
+			break;
 		if (fix->chained_before)
 			apply_fixup(codec, fix->chain_id, action, depth + 1);
 
@@ -866,8 +868,6 @@ static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 			break;
 		}
 		if (!fix->chained || fix->chained_before)
-			break;
-		if (++depth > 10)
 			break;
 		id = fix->chain_id;
 	}
