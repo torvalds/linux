@@ -3385,42 +3385,31 @@ static void icp_hpd_detection_setup(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
+static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
+			      u32 sde_ddi_mask, u32 sde_tc_mask,
+			      u32 ddi_enable_mask, u32 tc_enable_mask,
+			      const u32 *pins)
 {
 	u32 hotplug_irqs, enabled_irqs;
 
-	hotplug_irqs = SDE_DDI_MASK_ICP | SDE_TC_MASK_ICP;
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_icp);
+	hotplug_irqs = sde_ddi_mask | sde_tc_mask;
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, pins);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
-	icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
-				ICP_TC_HPD_ENABLE_MASK);
+	icp_hpd_detection_setup(dev_priv, ddi_enable_mask, tc_enable_mask);
 }
 
+/*
+ * EHL doesn't need most of gen11_hpd_irq_setup, it's handling only the
+ * equivalent of SDE.
+ */
 static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
-	u32 hotplug_irqs, enabled_irqs;
-
-	hotplug_irqs = SDE_DDI_MASK_TGP;
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_mcc);
-
-	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
-
-	icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK, 0);
-}
-
-static void tgp_hpd_irq_setup(struct drm_i915_private *dev_priv)
-{
-	u32 hotplug_irqs, enabled_irqs;
-
-	hotplug_irqs = SDE_DDI_MASK_TGP | SDE_TC_MASK_TGP;
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_tgp);
-
-	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
-
-	icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK,
-				TGP_TC_HPD_ENABLE_MASK);
+	icp_hpd_irq_setup(dev_priv,
+			  SDE_DDI_MASK_TGP, 0,
+			  TGP_DDI_HPD_ENABLE_MASK, 0,
+			  hpd_mcc);
 }
 
 static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -3460,9 +3449,13 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	gen11_hpd_detection_setup(dev_priv);
 
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP)
-		tgp_hpd_irq_setup(dev_priv);
+		icp_hpd_irq_setup(dev_priv, SDE_DDI_MASK_TGP, SDE_TC_MASK_TGP,
+				  TGP_DDI_HPD_ENABLE_MASK,
+				  TGP_TC_HPD_ENABLE_MASK, hpd_tgp);
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		icp_hpd_irq_setup(dev_priv);
+		icp_hpd_irq_setup(dev_priv, SDE_DDI_MASK_ICP, SDE_TC_MASK_ICP,
+				  ICP_DDI_HPD_ENABLE_MASK,
+				  ICP_TC_HPD_ENABLE_MASK, hpd_icp);
 }
 
 static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -4340,7 +4333,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else {
 		if (HAS_PCH_MCC(dev_priv))
-			/* EHL doesn't need most of gen11_hpd_irq_setup */
 			dev_priv->display.hpd_irq_setup = mcc_hpd_irq_setup;
 		else if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
