@@ -762,133 +762,68 @@ static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gmc_v9_0_ecc_ras_block_late_init(void *handle,
-			struct ras_fs_if *fs_info, struct ras_common_if *ras_block)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_common_if **ras_if = NULL;
-	struct ras_ih_if ih_info = {
-		.cb = gmc_v9_0_process_ras_data_cb,
-	};
-	int r;
-
-	if (ras_block->block == AMDGPU_RAS_BLOCK__UMC)
-		ras_if = &adev->gmc.umc_ras_if;
-	else if (ras_block->block == AMDGPU_RAS_BLOCK__MMHUB)
-		ras_if = &adev->gmc.mmhub_ras_if;
-	else
-		BUG();
-
-	if (!amdgpu_ras_is_supported(adev, ras_block->block)) {
-		amdgpu_ras_feature_enable_on_boot(adev, ras_block, 0);
-		return 0;
-	}
-
-	/* handle resume path. */
-	if (*ras_if) {
-		/* resend ras TA enable cmd during resume.
-		 * prepare to handle failure.
-		 */
-		ih_info.head = **ras_if;
-		r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-		if (r) {
-			if (r == -EAGAIN) {
-				/* request a gpu reset. will run again. */
-				amdgpu_ras_request_reset_on_boot(adev,
-						ras_block->block);
-				return 0;
-			}
-			/* fail to enable ras, cleanup all. */
-			goto irq;
-		}
-		/* enable successfully. continue. */
-		goto resume;
-	}
-
-	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
-	if (!*ras_if)
-		return -ENOMEM;
-
-	**ras_if = *ras_block;
-
-	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-	if (r) {
-		if (r == -EAGAIN) {
-			amdgpu_ras_request_reset_on_boot(adev,
-					ras_block->block);
-			r = 0;
-		}
-		goto feature;
-	}
-
-	ih_info.head = **ras_if;
-	fs_info->head = **ras_if;
-
-	if (ras_block->block == AMDGPU_RAS_BLOCK__UMC) {
-		r = amdgpu_ras_interrupt_add_handler(adev, &ih_info);
-		if (r)
-			goto interrupt;
-	}
-
-	amdgpu_ras_debugfs_create(adev, fs_info);
-
-	r = amdgpu_ras_sysfs_create(adev, fs_info);
-	if (r)
-		goto sysfs;
-resume:
-	if (ras_block->block == AMDGPU_RAS_BLOCK__UMC) {
-		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
-		if (r)
-			goto irq;
-	}
-
-	return 0;
-irq:
-	amdgpu_ras_sysfs_remove(adev, *ras_if);
-sysfs:
-	amdgpu_ras_debugfs_remove(adev, *ras_if);
-	if (ras_block->block == AMDGPU_RAS_BLOCK__UMC)
-		amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
-interrupt:
-	amdgpu_ras_feature_enable(adev, *ras_if, 0);
-feature:
-	kfree(*ras_if);
-	*ras_if = NULL;
-	return r;
-}
-
 static int gmc_v9_0_ecc_late_init(void *handle)
 {
 	int r;
-
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct ras_ih_if mmhub_ih_info;
 	struct ras_fs_if umc_fs_info = {
 		.sysfs_name = "umc_err_count",
 		.debugfs_name = "umc_err_inject",
 	};
-	struct ras_common_if umc_ras_block = {
-		.block = AMDGPU_RAS_BLOCK__UMC,
-		.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-		.sub_block_index = 0,
-		.name = "umc",
+	struct ras_ih_if umc_ih_info = {
+		.cb = gmc_v9_0_process_ras_data_cb,
 	};
 	struct ras_fs_if mmhub_fs_info = {
 		.sysfs_name = "mmhub_err_count",
 		.debugfs_name = "mmhub_err_inject",
 	};
-	struct ras_common_if mmhub_ras_block = {
-		.block = AMDGPU_RAS_BLOCK__MMHUB,
-		.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-		.sub_block_index = 0,
-		.name = "mmhub",
-	};
 
-	r = gmc_v9_0_ecc_ras_block_late_init(handle,
-			&umc_fs_info, &umc_ras_block);
+	if (!adev->gmc.umc_ras_if) {
+		adev->gmc.umc_ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gmc.umc_ras_if)
+			return -ENOMEM;
+		adev->gmc.umc_ras_if->block = AMDGPU_RAS_BLOCK__UMC;
+		adev->gmc.umc_ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gmc.umc_ras_if->sub_block_index = 0;
+		strcpy(adev->gmc.umc_ras_if->name, "umc");
+	}
+	umc_ih_info.head = umc_fs_info.head = *adev->gmc.umc_ras_if;
+
+	r = amdgpu_ras_late_init(adev, adev->gmc.umc_ras_if,
+				 &umc_fs_info, &umc_ih_info);
 	if (r)
-		return r;
+		goto free;
 
-	r = gmc_v9_0_ecc_ras_block_late_init(handle,
-			&mmhub_fs_info, &mmhub_ras_block);
+	if (amdgpu_ras_is_supported(adev, adev->gmc.umc_ras_if->block)) {
+		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
+		if (r)
+			goto umc_late_fini;
+	}
+
+	if (!adev->gmc.mmhub_ras_if) {
+		adev->gmc.mmhub_ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gmc.mmhub_ras_if)
+			return -ENOMEM;
+		adev->gmc.mmhub_ras_if->block = AMDGPU_RAS_BLOCK__MMHUB;
+		adev->gmc.mmhub_ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gmc.mmhub_ras_if->sub_block_index = 0;
+		strcpy(adev->gmc.mmhub_ras_if->name, "mmhub");
+	}
+	mmhub_ih_info.head = mmhub_fs_info.head = *adev->gmc.mmhub_ras_if;
+	r = amdgpu_ras_late_init(adev, adev->gmc.mmhub_ras_if,
+				 &mmhub_fs_info, &mmhub_ih_info);
+	if (r)
+		goto mmhub_late_fini;
+
+	return 0;
+mmhub_late_fini:
+	amdgpu_ras_late_fini(adev, adev->gmc.mmhub_ras_if, &mmhub_ih_info);
+umc_late_fini:
+	amdgpu_ras_late_fini(adev, adev->gmc.umc_ras_if, &umc_ih_info);
+free:
+	kfree(adev->gmc.umc_ras_if);
+	kfree(adev->gmc.mmhub_ras_if);
 	return r;
 }
 
