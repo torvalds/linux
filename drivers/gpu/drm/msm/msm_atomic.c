@@ -67,8 +67,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 		kms->funcs->commit(kms, state);
 	}
 
-	if (!state->legacy_cursor_update)
-		msm_atomic_wait_for_commit_done(dev, state);
+	msm_atomic_wait_for_commit_done(dev, state);
 
 	kms->funcs->complete_commit(kms, state);
 

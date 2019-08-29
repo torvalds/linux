@@ -612,7 +612,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 	return rc;
 }
 
-void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
+void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
@@ -638,35 +638,32 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 				  crtc->state->encoder_mask)
 		dpu_encoder_prepare_for_kickoff(encoder);
 
-	if (!async) {
-		/* wait for previous frame_event_done completion */
-		DPU_ATRACE_BEGIN("wait_for_frame_done_event");
-		ret = _dpu_crtc_wait_for_frame_done(crtc);
-		DPU_ATRACE_END("wait_for_frame_done_event");
-		if (ret) {
-			DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
-					crtc->base.id,
-					atomic_read(&dpu_crtc->frame_pending));
-			goto end;
-		}
-
-		if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
-			/* acquire bandwidth and other resources */
-			DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
-		} else
-			DPU_DEBUG("crtc%d commit\n", crtc->base.id);
-
-		dpu_crtc->play_count++;
+	/* wait for previous frame_event_done completion */
+	DPU_ATRACE_BEGIN("wait_for_frame_done_event");
+	ret = _dpu_crtc_wait_for_frame_done(crtc);
+	DPU_ATRACE_END("wait_for_frame_done_event");
+	if (ret) {
+		DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
+				crtc->base.id,
+				atomic_read(&dpu_crtc->frame_pending));
+		goto end;
 	}
+
+	if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
+		/* acquire bandwidth and other resources */
+		DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
+	} else
+		DPU_DEBUG("crtc%d commit\n", crtc->base.id);
+
+	dpu_crtc->play_count++;
 
 	dpu_vbif_clear_errors(dpu_kms);
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
-		dpu_encoder_kickoff(encoder, async);
+		dpu_encoder_kickoff(encoder);
 
 end:
-	if (!async)
-		reinit_completion(&dpu_crtc->frame_done_comp);
+	reinit_completion(&dpu_crtc->frame_done_comp);
 	DPU_ATRACE_END("crtc_commit");
 }
 
