@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/phy/phy.h>
@@ -1752,6 +1753,7 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 		return ERR_PTR(-ENODEV);
 	}
 
+	irq_set_status_flags(dp->irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
@@ -1760,7 +1762,6 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ERR_PTR(ret);
 	}
-	disable_irq(dp->irq);
 
 	return dp;
 }
