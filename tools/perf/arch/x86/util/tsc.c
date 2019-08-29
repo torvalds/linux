@@ -7,6 +7,7 @@
 
 #include "../../../perf.h"
 #include <linux/types.h>
+#include <asm/barrier.h>
 #include "../../../util/debug.h"
 #include "../../../util/tsc.h"
 

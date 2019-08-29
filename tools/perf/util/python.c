@@ -14,6 +14,7 @@
 #include "thread_map.h"
 #include "mmap.h"
 #include "util.h"
+#include "../perf-sys.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \

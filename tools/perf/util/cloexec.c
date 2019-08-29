@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <sched.h>
 #include "util.h"
-#include "../perf.h"
+#include "../perf-sys.h"
 #include "cloexec.h"
 #include "asm/bug.h"
 #include "debug.h"

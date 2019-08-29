@@ -15,6 +15,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include <asm/bitsperlong.h>
+#include <asm/barrier.h>
 
 #include "../perf.h"
 #include "event.h"

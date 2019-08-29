@@ -24,7 +24,7 @@
 
 #include "tests.h"
 #include "debug.h"
-#include "perf.h"
+#include "../perf-sys.h"
 #include "cloexec.h"
 
 static int overflows;

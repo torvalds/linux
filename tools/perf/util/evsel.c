@@ -41,6 +41,7 @@
 #include "string2.h"
 #include "memswap.h"
 #include "util.h"
+#include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
 

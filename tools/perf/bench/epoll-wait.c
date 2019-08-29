@@ -63,6 +63,7 @@
 /* For the CLR_() macros */
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <errno.h>
 #include <inttypes.h>
