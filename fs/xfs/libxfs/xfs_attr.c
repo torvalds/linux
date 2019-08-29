@@ -794,15 +794,7 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 	}
 	error = xfs_attr3_leaf_getvalue(bp, args);
 	xfs_trans_brelse(args->trans, bp);
-	if (error)
-		return error;
-
-	/* check if we have to retrieve a remote attribute to get the value */
-	if (args->flags & ATTR_KERNOVAL)
-		return 0;
-	if (!args->rmtblkno)
-		return 0;
-	return xfs_attr_rmtval_get(args);
+	return error;
 }
 
 /*========================================================================
@@ -1316,12 +1308,6 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	 */
 	blk = &state->path.blk[state->path.active - 1];
 	retval = xfs_attr3_leaf_getvalue(blk->bp, args);
-	if (retval)
-		goto out_release;
-	if (args->flags & ATTR_KERNOVAL)
-		goto out_release;
-	if (args->rmtblkno > 0)
-		retval = xfs_attr_rmtval_get(args);
 
 	/*
 	 * If not in a transaction, we have to release all the buffers.
