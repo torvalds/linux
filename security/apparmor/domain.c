@@ -625,8 +625,6 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 					   bool *secure_exec)
 {
 	struct aa_label *new = NULL;
-	struct aa_profile *component;
-	struct label_it i;
 	const char *info = NULL, *name = NULL, *target = NULL;
 	unsigned int state = profile->file.start;
 	struct aa_perms perms = {};
@@ -675,21 +673,6 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 			info = "profile transition not found";
 			/* remove MAY_EXEC to audit as failure */
 			perms.allow &= ~MAY_EXEC;
-		} else {
-			/* verify that each component's xattr requirements are
-			 * met, and fail execution otherwise
-			 */
-			label_for_each(i, new, component) {
-				if (aa_xattrs_match(bprm, component, state) <
-				    0) {
-					error = -EACCES;
-					info = "required xattrs not present";
-					perms.allow &= ~MAY_EXEC;
-					aa_put_label(new);
-					new = NULL;
-					goto audit;
-				}
-			}
 		}
 	} else if (COMPLAIN_MODE(profile)) {
 		/* no exec permission - learning mode */
