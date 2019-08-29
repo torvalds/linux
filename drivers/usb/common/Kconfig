@@ -36,3 +36,16 @@ config USB_ULPI_BUS
 	  To compile this driver as a module, choose M here: the module will
 	  be called ulpi.
 
+config USB_CONN_GPIO
+	tristate "USB GPIO Based Connection Detection Driver"
+	depends on GPIOLIB
+	select USB_ROLE_SWITCH
+	help
+	  The driver supports USB role switch between host and device via GPIO
+	  based USB cable detection, used typically if an input GPIO is used
+	  to detect USB ID pin, and another input GPIO may be also used to detect
+	  Vbus pin at the same time, it also can be used to enable/disable
+	  device if an input GPIO is only used to detect Vbus pin.
+
+	  To compile the driver as a module, choose M here: the module will
+	  be called usb-conn-gpio.ko
