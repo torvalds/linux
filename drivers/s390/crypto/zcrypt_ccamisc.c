@@ -838,7 +838,8 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 	/* patch the skeleton key token export flags inside the kb block */
 	if (keygenflags) {
 		t = (struct cipherkeytoken *) preqparm->kb.tlv3.gen_key_id_1;
-		t->kmf1 |= (u16) (keygenflags & 0x0000FFFF);
+		t->kmf1 |= (u16) (keygenflags & 0x0000FF00);
+		t->kmf1 &= (u16) ~(keygenflags & 0x000000FF);
 	}
 
 	/* prepare xcrb struct */
