@@ -5,7 +5,7 @@
  */
 #include <linux/string.h>
 
-#include "gl861.h"
+#include "dvb_usb.h"
 
 #include "zl10353.h"
 #include "qt1010.h"
