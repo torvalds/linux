@@ -6838,7 +6838,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		if (is_content_protection_different(new_con_state, old_con_state, connector, adev->dm.hdcp_workqueue))
 			hdcp_update_display(
 				adev->dm.hdcp_workqueue, aconnector->dc_link->link_index, aconnector,
-				new_con_state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 ? true : false,
+				new_con_state->hdcp_content_type,
 				new_con_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED ? true
 													 : false);
 	}

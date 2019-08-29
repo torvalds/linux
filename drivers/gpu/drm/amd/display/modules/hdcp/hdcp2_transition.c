@@ -570,7 +570,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			break;
 		} else if (input->link_integrity_check_dp != PASS) {
 			if (hdcp->connection.hdcp2_retry_count >= 1)
-				adjust->hdcp2.disable_type1 = 1;
+				adjust->hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (event_ctx->rx_id_list_ready && conn->is_repeater) {

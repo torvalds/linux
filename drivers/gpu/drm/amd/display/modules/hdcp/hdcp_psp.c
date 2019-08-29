@@ -358,10 +358,13 @@ enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp)
 
 	hdcp_cmd->in_msg.hdcp2_create_session_v2.display_handle = display->index;
 
-	if (hdcp->connection.link.adjust.hdcp2.disable_type1)
+	if (hdcp->connection.link.adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_0)
 		hdcp_cmd->in_msg.hdcp2_create_session_v2.negotiate_content_type =
 			TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__FORCE_TYPE0;
-	else
+	else if (hdcp->connection.link.adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_1)
+		hdcp_cmd->in_msg.hdcp2_create_session_v2.negotiate_content_type =
+			TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__FORCE_TYPE1;
+	else if (hdcp->connection.link.adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_MAX)
 		hdcp_cmd->in_msg.hdcp2_create_session_v2.negotiate_content_type =
 			TA_HDCP2_CONTENT_TYPE_NEGOTIATION_TYPE__MAX_SUPPORTED;
 

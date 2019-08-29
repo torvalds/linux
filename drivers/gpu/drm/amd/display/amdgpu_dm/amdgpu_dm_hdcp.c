@@ -90,7 +90,7 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 			 unsigned int link_index,
 			 struct amdgpu_dm_connector *aconnector,
-			 bool disable_type1,
+			 uint8_t content_type,
 			 bool enable_encryption)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
@@ -108,9 +108,15 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 		memcpy(display, query.display, sizeof(struct mod_hdcp_display));
 		mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
 
+		hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
+
 		if (enable_encryption) {
 			display->adjust.disable = 0;
-			hdcp_w->link.adjust.hdcp2.disable_type1 = disable_type1;
+			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0)
+				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
+			else if (content_type == DRM_MODE_HDCP_CONTENT_TYPE1)
+				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_1;
+
 			schedule_delayed_work(&hdcp_w->property_validate_dwork,
 					      msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
 		} else {
@@ -308,7 +314,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->adjust.disable = 1;
 	link->adjust.auth_delay = 2;
 
-	hdcp_update_display(hdcp_work, link_index, aconnector, false, false);
+	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
 }
 
 struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *cp_psp, struct dc *dc)

@@ -57,7 +57,7 @@ struct hdcp_workqueue {
 void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 			 unsigned int link_index,
 			 struct amdgpu_dm_connector *aconnector,
-			 bool disable_type1,
+			 uint8_t content_type,
 			 bool enable_encryption);
 
 void hdcp_reset_display(struct hdcp_workqueue *work, unsigned int link_index);

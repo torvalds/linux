@@ -158,12 +158,18 @@ struct mod_hdcp_link_adjustment_hdcp1 {
 	uint8_t reserved		: 6;
 };
 
+enum mod_hdcp_force_hdcp_type {
+	MOD_HDCP_FORCE_TYPE_MAX = 0,
+	MOD_HDCP_FORCE_TYPE_0,
+	MOD_HDCP_FORCE_TYPE_1
+};
+
 struct mod_hdcp_link_adjustment_hdcp2 {
 	uint8_t disable			: 1;
-	uint8_t disable_type1		: 1;
+	uint8_t force_type		: 2;
 	uint8_t force_no_stored_km	: 1;
 	uint8_t increase_h_prime_timeout: 1;
-	uint8_t reserved		: 4;
+	uint8_t reserved		: 3;
 };
 
 struct mod_hdcp_link_adjustment {
@@ -185,6 +191,7 @@ struct mod_hdcp_trace {
 enum mod_hdcp_encryption_status {
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF = 0,
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON,
+	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_ON,
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON,
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON
 };
