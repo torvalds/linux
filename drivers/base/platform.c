@@ -213,6 +213,7 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 {
 	return __platform_get_irq(dev, num);
 }
+EXPORT_SYMBOL_GPL(platform_get_irq_optional);
 
 /**
  * platform_irq_count - Count the number of IRQs a platform device uses
