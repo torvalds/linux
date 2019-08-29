@@ -4,7 +4,6 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
-#include <traceevent/event-parse.h>
 #include <api/fs/fs.h>
 
 #include <byteswap.h>

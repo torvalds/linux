@@ -10,7 +10,6 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <traceevent/event-parse.h>
 
 #include "builtin.h"
 #include "util/color.h"
