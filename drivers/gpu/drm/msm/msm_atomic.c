@@ -63,7 +63,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	kms->funcs->wait_flush(kms, crtc_mask);
-	kms->funcs->complete_commit(kms, state);
+	kms->funcs->complete_commit(kms, crtc_mask);
 
 	drm_atomic_helper_commit_hw_done(state);
 

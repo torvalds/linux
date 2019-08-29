@@ -322,27 +322,15 @@ static void dpu_kms_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 	}
 }
 
-static void dpu_kms_complete_commit(struct msm_kms *kms,
-		struct drm_atomic_state *old_state)
+static void dpu_kms_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
-	struct dpu_kms *dpu_kms;
-	struct msm_drm_private *priv;
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state;
-	int i;
-
-	if (!kms || !old_state)
-		return;
-	dpu_kms = to_dpu_kms(kms);
-
-	if (!dpu_kms->dev || !dpu_kms->dev->dev_private)
-		return;
-	priv = dpu_kms->dev->dev_private;
 
 	DPU_ATRACE_BEGIN("kms_complete_commit");
 
-	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i)
-		dpu_crtc_complete_commit(crtc, old_crtc_state);
+	for_each_crtc_mask(dpu_kms->dev, crtc, crtc_mask)
+		dpu_crtc_complete_commit(crtc);
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 

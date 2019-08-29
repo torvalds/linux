@@ -33,7 +33,7 @@ struct msm_kms_funcs {
 	/* modeset, bracketing atomic_commit(): */
 	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
 	void (*commit)(struct msm_kms *kms, struct drm_atomic_state *state);
-	void (*complete_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
+	void (*complete_commit)(struct msm_kms *kms, unsigned crtc_mask);
 	void (*wait_flush)(struct msm_kms *kms, unsigned crtc_mask);
 
 	/* get msm_format w/ optional format modifiers from drm_mode_fb_cmd2 */

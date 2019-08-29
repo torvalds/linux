@@ -391,13 +391,8 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 	kthread_queue_work(&priv->event_thread[crtc_id].worker, &fevent->work);
 }
 
-void dpu_crtc_complete_commit(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_state)
+void dpu_crtc_complete_commit(struct drm_crtc *crtc)
 {
-	if (!crtc || !crtc->state) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
 	trace_dpu_crtc_complete_commit(DRMID(crtc));
 }
 

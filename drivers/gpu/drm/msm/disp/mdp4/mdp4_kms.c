@@ -119,17 +119,13 @@ static void mdp4_wait_flush(struct msm_kms *kms, unsigned crtc_mask)
 		mdp4_crtc_wait_for_commit_done(crtc);
 }
 
-static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+static void mdp4_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-
-	drm_atomic_helper_wait_for_vblanks(mdp4_kms->dev, state);
 
 	/* see 119ecb7fd */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_crtc_mask(mdp4_kms->dev, crtc, crtc_mask)
 		drm_crtc_vblank_put(crtc);
 
 	mdp4_disable(mdp4_kms);

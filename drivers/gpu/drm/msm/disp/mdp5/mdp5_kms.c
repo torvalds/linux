@@ -169,13 +169,11 @@ static void mdp5_wait_flush(struct msm_kms *kms, unsigned crtc_mask)
 		mdp5_crtc_wait_for_commit_done(crtc);
 }
 
-static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+static void mdp5_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct device *dev = &mdp5_kms->pdev->dev;
 	struct mdp5_global_state *global_state;
-
-	drm_atomic_helper_wait_for_vblanks(mdp5_kms->dev, state);
 
 	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
