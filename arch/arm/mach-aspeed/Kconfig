@@ -26,7 +26,6 @@ config MACH_ASPEED_G4
 config MACH_ASPEED_G5
 	bool "Aspeed SoC 5th Generation"
 	depends on ARCH_MULTI_V6
-	select CPU_V6
 	select PINCTRL_ASPEED_G5
 	help
 	 Say yes if you intend to run on an Aspeed ast2500 or similar
