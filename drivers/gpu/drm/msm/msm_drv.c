@@ -473,6 +473,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	ddev->mode_config.normalize_zpos = true;
 
 	if (kms) {
+		kms->dev = ddev;
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
 			DRM_DEV_ERROR(dev, "kms hw init failed: %d\n", ret);

@@ -33,6 +33,20 @@ struct msm_kms_funcs {
 
 	/*
 	 * Atomic commit handling:
+	 *
+	 * Note that in the case of async commits, the funcs which take
+	 * a crtc_mask (ie. ->flush_commit(), and ->complete_commit())
+	 * might not be evenly balanced with ->prepare_commit(), however
+	 * each crtc that effected by a ->prepare_commit() (potentially
+	 * multiple times) will eventually (at end of vsync period) be
+	 * flushed and completed.
+	 *
+	 * This has some implications about tracking of cleanup state,
+	 * for example SMP blocks to release after commit completes.  Ie.
+	 * cleanup state should be also duplicated in the various
+	 * duplicate_state() methods, as the current cleanup state at
+	 * ->complete_commit() time may have accumulated cleanup work
+	 * from multiple commits.
 	 */
 
 	/**
@@ -44,6 +58,14 @@ struct msm_kms_funcs {
 	 */
 	void (*enable_commit)(struct msm_kms *kms);
 	void (*disable_commit)(struct msm_kms *kms);
+
+	/**
+	 * If the kms backend supports async commit, it should implement
+	 * this method to return the time of the next vsync.  This is
+	 * used to determine a time slightly before vsync, for the async
+	 * commit timer to run and complete an async commit.
+	 */
+	ktime_t (*vsync_time)(struct msm_kms *kms, struct drm_crtc *crtc);
 
 	/**
 	 * Prepare for atomic commit.  This is called after any previous
@@ -109,20 +131,48 @@ struct msm_kms_funcs {
 #endif
 };
 
+struct msm_kms;
+
+/*
+ * A per-crtc timer for pending async atomic flushes.  Scheduled to expire
+ * shortly before vblank to flush pending async updates.
+ */
+struct msm_pending_timer {
+	struct hrtimer timer;
+	struct work_struct work;
+	struct msm_kms *kms;
+	unsigned crtc_idx;
+};
+
 struct msm_kms {
 	const struct msm_kms_funcs *funcs;
+	struct drm_device *dev;
 
 	/* irq number to be passed on to drm_irq_install */
 	int irq;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	struct msm_gem_address_space *aspace;
+
+	/*
+	 * For async commit, where ->flush_commit() and later happens
+	 * from the crtc's pending_timer close to end of the frame:
+	 */
+	struct mutex commit_lock;
+	unsigned pending_crtc_mask;
+	struct msm_pending_timer pending_timers[MAX_CRTCS];
 };
 
 static inline void msm_kms_init(struct msm_kms *kms,
 		const struct msm_kms_funcs *funcs)
 {
+	unsigned i;
+
+	mutex_init(&kms->commit_lock);
 	kms->funcs = funcs;
+
+	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++)
+		msm_atomic_init_pending_timer(&kms->pending_timers[i], kms, i);
 }
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
