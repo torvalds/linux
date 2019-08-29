@@ -389,6 +389,8 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
 	if (unlikely(inode->i_state & I_FREEING))
 		goto skip_switch;
 
+	trace_inode_switch_wbs(inode, old_wb, new_wb);
+
 	/*
 	 * Count and transfer stats.  Note that PAGECACHE_TAG_DIRTY points
 	 * to possibly dirty pages while PAGECACHE_TAG_WRITEBACK points to
@@ -672,6 +674,9 @@ void wbc_detach_inode(struct writeback_control *wbc)
 		history <<= slots;
 		if (wbc->wb_id != max_id)
 			history |= (1U << slots) - 1;
+
+		if (history)
+			trace_inode_foreign_history(inode, wbc, history);
 
 		/*
 		 * Switch if the current wb isn't the consistent winner.

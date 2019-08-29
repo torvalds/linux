@@ -4066,6 +4066,8 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
+#include <trace/events/writeback.h>
+
 static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
 {
 	return wb_domain_init(&memcg->cgwb_domain, gfp);
@@ -4203,6 +4205,8 @@ void mem_cgroup_track_foreign_dirty_slowpath(struct page *page,
 	int oldest = -1;
 	int i;
 
+	trace_track_foreign_dirty(page, wb);
+
 	/*
 	 * Pick the slot to use.  If there is already a slot for @wb, keep
 	 * using it.  If not replace the oldest one which isn't being
@@ -4263,6 +4267,7 @@ void mem_cgroup_flush_foreign(struct bdi_writeback *wb)
 		if (time_after64(frn->at, now - intv) &&
 		    atomic_read(&frn->done.cnt) == 1) {
 			frn->at = 0;
+			trace_flush_foreign(wb, frn->bdi_id, frn->memcg_id);
 			cgroup_writeback_by_id(frn->bdi_id, frn->memcg_id, 0,
 					       WB_REASON_FOREIGN_FLUSH,
 					       &frn->done);
