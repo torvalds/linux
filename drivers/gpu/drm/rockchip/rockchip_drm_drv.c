@@ -70,6 +70,7 @@ struct rockchip_drm_mode_set {
 	int vdisplay;
 	int vrefresh;
 	int flags;
+	int picture_aspect_ratio;
 	int crtc_hsync_end;
 	int crtc_vsync_end;
 
@@ -422,6 +423,9 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	if (!of_property_read_u32(route, "video,flags", &val))
 		set->flags = val;
 
+	if (!of_property_read_u32(route, "video,aspect_ratio", &val))
+		set->picture_aspect_ratio = val;
+
 	if (!of_property_read_u32(route, "logo,ymirror", &val))
 		set->ymirror = val;
 
@@ -628,7 +632,8 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		    mode->crtc_hsync_end == set->crtc_hsync_end &&
 		    mode->crtc_vsync_end == set->crtc_vsync_end &&
 		    drm_mode_vrefresh(mode) == set->vrefresh &&
-		    mode->flags == set->flags) {
+		    mode->flags == set->flags &&
+		    mode->picture_aspect_ratio == set->picture_aspect_ratio) {
 			found = 1;
 			match = 1;
 			break;
