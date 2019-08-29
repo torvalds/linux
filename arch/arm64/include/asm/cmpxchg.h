@@ -129,6 +129,8 @@ __CMPXCHG_CASE(mb_, 16)
 __CMPXCHG_CASE(mb_, 32)
 __CMPXCHG_CASE(mb_, 64)
 
+#undef __CMPXCHG_CASE
+
 #define __CMPXCHG_DBL(name)						\
 static inline long __cmpxchg_double##name(unsigned long old1,		\
 					 unsigned long old2,		\
@@ -142,6 +144,8 @@ static inline long __cmpxchg_double##name(unsigned long old1,		\
 
 __CMPXCHG_DBL(   )
 __CMPXCHG_DBL(_mb)
+
+#undef __CMPXCHG_DBL
 
 #define __CMPXCHG_GEN(sfx)						\
 static inline unsigned long __cmpxchg##sfx(volatile void *ptr,		\
