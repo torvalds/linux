@@ -30,43 +30,9 @@
  * device that might share buffers with virtgpu
  */
 
-struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
-{
-	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
-
-	if (!bo->tbo.ttm->pages || !bo->tbo.ttm->num_pages)
-		/* should not happen */
-		return ERR_PTR(-EINVAL);
-
-	return drm_prime_pages_to_sg(bo->tbo.ttm->pages,
-				     bo->tbo.ttm->num_pages);
-}
-
 struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *table)
 {
 	return ERR_PTR(-ENODEV);
-}
-
-void *virtgpu_gem_prime_vmap(struct drm_gem_object *obj)
-{
-	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
-	int ret;
-
-	ret = virtio_gpu_object_kmap(bo);
-	if (ret)
-		return NULL;
-	return bo->vmap;
-}
-
-void virtgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	virtio_gpu_object_kunmap(gem_to_virtio_gpu_obj(obj));
-}
-
-int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,
-			   struct vm_area_struct *vma)
-{
-	return drm_gem_prime_mmap(obj, vma);
 }

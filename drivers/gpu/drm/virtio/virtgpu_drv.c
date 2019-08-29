@@ -184,17 +184,7 @@ MODULE_AUTHOR("Dave Airlie <airlied@redhat.com>");
 MODULE_AUTHOR("Gerd Hoffmann <kraxel@redhat.com>");
 MODULE_AUTHOR("Alon Levy");
 
-static const struct file_operations virtio_gpu_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.mmap = virtio_gpu_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.unlocked_ioctl	= drm_ioctl,
-	.release = drm_release,
-	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
-};
+DEFINE_DRM_GEM_SHMEM_FOPS(virtio_gpu_driver_fops);
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_RENDER | DRIVER_ATOMIC,
@@ -209,15 +199,9 @@ static struct drm_driver driver = {
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_get_sg_table = virtgpu_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = virtgpu_gem_prime_import_sg_table,
-	.gem_prime_vmap = virtgpu_gem_prime_vmap,
-	.gem_prime_vunmap = virtgpu_gem_prime_vunmap,
-	.gem_prime_mmap = virtgpu_gem_prime_mmap,
 
-	.gem_free_object_unlocked = virtio_gpu_gem_free_object,
-	.gem_open_object = virtio_gpu_gem_object_open,
-	.gem_close_object = virtio_gpu_gem_object_close,
+	.gem_create_object = virtio_gpu_create_object,
 	.fops = &virtio_gpu_driver_fops,
 
 	.ioctls = virtio_gpu_ioctls,

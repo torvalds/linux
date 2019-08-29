@@ -25,8 +25,6 @@
 
 #include <linux/moduleparam.h>
 
-#include <drm/ttm/ttm_execbuf_util.h>
-
 #include "virtgpu_drv.h"
 
 static int virtio_gpu_virglrenderer_workaround = 1;
@@ -63,39 +61,45 @@ static void virtio_gpu_resource_id_put(struct virtio_gpu_device *vgdev, uint32_t
 	}
 }
 
-static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
+static void virtio_gpu_free_object(struct drm_gem_object *obj)
 {
-	struct virtio_gpu_object *bo;
-	struct virtio_gpu_device *vgdev;
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
+	struct virtio_gpu_device *vgdev = bo->base.base.dev->dev_private;
 
-	bo = container_of(tbo, struct virtio_gpu_object, tbo);
-	vgdev = (struct virtio_gpu_device *)bo->gem_base.dev->dev_private;
-
+	if (bo->pages)
+		virtio_gpu_object_detach(vgdev, bo);
 	if (bo->created)
 		virtio_gpu_cmd_unref_resource(vgdev, bo->hw_res_handle);
-	if (bo->pages)
-		virtio_gpu_object_free_sg_table(bo);
-	if (bo->vmap)
-		virtio_gpu_object_kunmap(bo);
-	drm_gem_object_release(&bo->gem_base);
 	virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
-	kfree(bo);
+
+	drm_gem_shmem_free_object(obj);
 }
 
-static void virtio_gpu_init_ttm_placement(struct virtio_gpu_object *vgbo)
+static const struct drm_gem_object_funcs virtio_gpu_gem_funcs = {
+	.free = virtio_gpu_free_object,
+	.open = virtio_gpu_gem_object_open,
+	.close = virtio_gpu_gem_object_close,
+
+	.print_info = drm_gem_shmem_print_info,
+	.pin = drm_gem_shmem_pin,
+	.unpin = drm_gem_shmem_unpin,
+	.get_sg_table = drm_gem_shmem_get_sg_table,
+	.vmap = drm_gem_shmem_vmap,
+	.vunmap = drm_gem_shmem_vunmap,
+	.vm_ops = &drm_gem_shmem_vm_ops,
+};
+
+struct drm_gem_object *virtio_gpu_create_object(struct drm_device *dev,
+						size_t size)
 {
-	u32 c = 1;
+	struct virtio_gpu_object *bo;
 
-	vgbo->placement.placement = &vgbo->placement_code;
-	vgbo->placement.busy_placement = &vgbo->placement_code;
-	vgbo->placement_code.fpfn = 0;
-	vgbo->placement_code.lpfn = 0;
-	vgbo->placement_code.flags =
-		TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT |
-		TTM_PL_FLAG_NO_EVICT;
-	vgbo->placement.num_placement = c;
-	vgbo->placement.num_busy_placement = c;
+	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	if (!bo)
+		return NULL;
 
+	bo->base.base.funcs = &virtio_gpu_gem_funcs;
+	return &bo->base.base;
 }
 
 int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
@@ -104,26 +108,21 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_object_array *objs = NULL;
+	struct drm_gem_shmem_object *shmem_obj;
 	struct virtio_gpu_object *bo;
-	size_t acc_size;
 	int ret;
 
 	*bo_ptr = NULL;
 
-	acc_size = ttm_bo_dma_acc_size(&vgdev->mman.bdev, params->size,
-				       sizeof(struct virtio_gpu_object));
+	params->size = roundup(params->size, PAGE_SIZE);
+	shmem_obj = drm_gem_shmem_create(vgdev->ddev, params->size);
+	if (IS_ERR(shmem_obj))
+		return PTR_ERR(shmem_obj);
+	bo = gem_to_virtio_gpu_obj(&shmem_obj->base);
 
-	bo = kzalloc(sizeof(struct virtio_gpu_object), GFP_KERNEL);
-	if (bo == NULL)
-		return -ENOMEM;
 	ret = virtio_gpu_resource_id_get(vgdev, &bo->hw_res_handle);
 	if (ret < 0)
 		goto err_free_gem;
-
-	params->size = roundup(params->size, PAGE_SIZE);
-	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, params->size);
-	if (ret != 0)
-		goto err_put_id;
 
 	bo->dumb = params->dumb;
 
@@ -132,7 +131,7 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		objs = virtio_gpu_array_alloc(1);
 		if (!objs)
 			goto err_put_id;
-		virtio_gpu_array_add_obj(objs, &bo->gem_base);
+		virtio_gpu_array_add_obj(objs, &bo->base.base);
 
 		ret = virtio_gpu_array_lock_resv(objs);
 		if (ret != 0)
@@ -147,15 +146,11 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 					       objs, fence);
 	}
 
-	virtio_gpu_init_ttm_placement(bo);
-	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, params->size,
-			  ttm_bo_type_device, &bo->placement, 0,
-			  true, acc_size, NULL,
-			  bo->gem_base.resv,
-			  &virtio_gpu_ttm_bo_destroy);
-	/* ttm_bo_init failure will call the destroy */
-	if (ret != 0)
+	ret = virtio_gpu_object_attach(vgdev, bo, NULL);
+	if (ret != 0) {
+		virtio_gpu_free_object(&shmem_obj->base);
 		return ret;
+	}
 
 	*bo_ptr = bo;
 	return 0;
@@ -165,65 +160,6 @@ err_put_objs:
 err_put_id:
 	virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
 err_free_gem:
-	kfree(bo);
+	drm_gem_shmem_free_object(&shmem_obj->base);
 	return ret;
-}
-
-void virtio_gpu_object_kunmap(struct virtio_gpu_object *bo)
-{
-	bo->vmap = NULL;
-	ttm_bo_kunmap(&bo->kmap);
-}
-
-int virtio_gpu_object_kmap(struct virtio_gpu_object *bo)
-{
-	bool is_iomem;
-	int r;
-
-	WARN_ON(bo->vmap);
-
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
-	if (r)
-		return r;
-	bo->vmap = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	return 0;
-}
-
-int virtio_gpu_object_get_sg_table(struct virtio_gpu_device *qdev,
-				   struct virtio_gpu_object *bo)
-{
-	int ret;
-	struct page **pages = bo->tbo.ttm->pages;
-	int nr_pages = bo->tbo.num_pages;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
-
-	/* wtf swapping */
-	if (bo->pages)
-		return 0;
-
-	if (bo->tbo.ttm->state == tt_unpopulated)
-		bo->tbo.ttm->bdev->driver->ttm_tt_populate(bo->tbo.ttm, &ctx);
-	bo->pages = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!bo->pages)
-		goto out;
-
-	ret = sg_alloc_table_from_pages(bo->pages, pages, nr_pages, 0,
-					nr_pages << PAGE_SHIFT, GFP_KERNEL);
-	if (ret)
-		goto out;
-	return 0;
-out:
-	kfree(bo->pages);
-	bo->pages = NULL;
-	return -ENOMEM;
-}
-
-void virtio_gpu_object_free_sg_table(struct virtio_gpu_object *bo)
-{
-	sg_free_table(bo->pages);
-	kfree(bo->pages);
-	bo->pages = NULL;
 }

@@ -173,12 +173,6 @@ int virtio_gpu_init(struct drm_device *dev)
 		goto err_vbufs;
 	}
 
-	ret = virtio_gpu_ttm_init(vgdev);
-	if (ret) {
-		DRM_ERROR("failed to init ttm %d\n", ret);
-		goto err_ttm;
-	}
-
 	/* get display info */
 	virtio_cread(vgdev->vdev, struct virtio_gpu_config,
 		     num_scanouts, &num_scanouts);
@@ -210,8 +204,6 @@ int virtio_gpu_init(struct drm_device *dev)
 	return 0;
 
 err_scanouts:
-	virtio_gpu_ttm_fini(vgdev);
-err_ttm:
 	virtio_gpu_free_vbufs(vgdev);
 err_vbufs:
 	vgdev->vdev->config->del_vqs(vgdev->vdev);
@@ -242,7 +234,6 @@ void virtio_gpu_deinit(struct drm_device *dev)
 	vgdev->vdev->config->del_vqs(vgdev->vdev);
 
 	virtio_gpu_modeset_fini(vgdev);
-	virtio_gpu_ttm_fini(vgdev);
 	virtio_gpu_free_vbufs(vgdev);
 	virtio_gpu_cleanup_cap_cache(vgdev);
 	kfree(vgdev->capsets);

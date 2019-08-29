@@ -28,14 +28,6 @@
 
 #include "virtgpu_drv.h"
 
-void virtio_gpu_gem_free_object(struct drm_gem_object *gem_obj)
-{
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(gem_obj);
-
-	if (obj)
-		virtio_gpu_object_unref(&obj);
-}
-
 struct virtio_gpu_object*
 virtio_gpu_alloc_object(struct drm_device *dev,
 			struct virtio_gpu_object_params *params,
@@ -66,16 +58,16 @@ int virtio_gpu_gem_create(struct drm_file *file,
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	ret = drm_gem_handle_create(file, &obj->gem_base, &handle);
+	ret = drm_gem_handle_create(file, &obj->base.base, &handle);
 	if (ret) {
-		drm_gem_object_release(&obj->gem_base);
+		drm_gem_object_release(&obj->base.base);
 		return ret;
 	}
 
-	*obj_p = &obj->gem_base;
+	*obj_p = &obj->base.base;
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(&obj->gem_base);
+	drm_gem_object_put_unlocked(&obj->base.base);
 
 	*handle_p = handle;
 	return 0;

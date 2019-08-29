@@ -993,17 +993,21 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
 	struct virtio_gpu_mem_entry *ents;
 	struct scatterlist *sg;
-	int si, nents;
+	int si, nents, ret;
 
 	if (WARN_ON_ONCE(!obj->created))
 		return -EINVAL;
+	if (WARN_ON_ONCE(obj->pages))
+		return -EINVAL;
 
-	if (!obj->pages) {
-		int ret;
+	ret = drm_gem_shmem_pin(&obj->base.base);
+	if (ret < 0)
+		return -EINVAL;
 
-		ret = virtio_gpu_object_get_sg_table(vgdev, obj);
-		if (ret)
-			return ret;
+	obj->pages = drm_gem_shmem_get_sg_table(&obj->base.base);
+	if (obj->pages == NULL) {
+		drm_gem_shmem_unpin(&obj->base.base);
+		return -EINVAL;
 	}
 
 	if (use_dma_api) {
@@ -1042,6 +1046,9 @@ void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
 {
 	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
 
+	if (WARN_ON_ONCE(!obj->pages))
+		return;
+
 	if (use_dma_api && obj->mapped) {
 		struct virtio_gpu_fence *fence = virtio_gpu_fence_alloc(vgdev);
 		/* detach backing and wait for the host process it ... */
@@ -1057,6 +1064,11 @@ void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
 	} else {
 		virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle, NULL);
 	}
+
+	sg_free_table(obj->pages);
+	obj->pages = NULL;
+
+	drm_gem_shmem_unpin(&obj->base.base);
 }
 
 void virtio_gpu_cursor_ping(struct virtio_gpu_device *vgdev,
