@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (c) 2014, 2019, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_REGMAP_H__
 #define __QCOM_CLK_REGMAP_H__
 
 #include <linux/clk-provider.h>
+#include "vdd-class.h"
 
 struct regmap;
 
@@ -16,6 +17,7 @@ struct regmap;
  * @enable_mask: mask when using regmap enable/disable ops
  * @enable_is_inverted: flag to indicate set enable_mask bits to disable
  *                      when using clock_enable_regmap and friends APIs.
+ * @vdd_data:	struct containing vdd-class data for this clock
  */
 struct clk_regmap {
 	struct clk_hw hw;
@@ -23,6 +25,7 @@ struct clk_regmap {
 	unsigned int enable_reg;
 	unsigned int enable_mask;
 	bool enable_is_inverted;
+	struct clk_vdd_class_data vdd_data;
 };
 
 static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
@@ -33,6 +36,12 @@ static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
 int clk_is_enabled_regmap(struct clk_hw *hw);
 int clk_enable_regmap(struct clk_hw *hw);
 void clk_disable_regmap(struct clk_hw *hw);
+int clk_prepare_regmap(struct clk_hw *hw);
+void clk_unprepare_regmap(struct clk_hw *hw);
+int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
+			unsigned long new_rate);
+int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
+			unsigned long cur_rate);
 int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
 
 #endif

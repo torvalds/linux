@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2019 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -83,6 +83,152 @@ void clk_disable_regmap(struct clk_hw *hw)
 			   val);
 }
 EXPORT_SYMBOL_GPL(clk_disable_regmap);
+
+/**
+ * clk_pre_change_regmap() - standard pre_change call back for regmap clks
+ *
+ * @hw: clk to operate on
+ * @cur_rate: current rate of the clk
+ * @new_rate: new rate about to be set for the clk
+ *
+ * Finds the new vdd level corresponding to the new rate and swap out the
+ * existing vdd vote if the new_vdd_level is greater than the vdd_level and
+ * the clock is prepared.
+ *
+ * Returns 0 on success, -EERROR otherwise.
+ */
+int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
+			unsigned long new_rate)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+	int vdd_level = rclk->vdd_data.vdd_level;
+	int new_vdd_level;
+	int ret = 0;
+
+	if (!rclk->vdd_data.vdd_class)
+		return 0;
+
+	if (!clk_hw_is_prepared(hw))
+		return 0;
+
+	new_vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, new_rate);
+	if (new_vdd_level < 0)
+		return new_vdd_level;
+
+	if (new_vdd_level <= vdd_level)
+		return 0;
+
+	ret = clk_vote_vdd_level(&rclk->vdd_data, new_vdd_level);
+	if (ret)
+		return ret;
+
+	clk_unvote_vdd_level(&rclk->vdd_data, vdd_level);
+	rclk->vdd_data.vdd_level = new_vdd_level;
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_pre_change_regmap);
+
+/**
+ * clk_post_change_regmap() - standard post_change call back for regmap clks
+ *
+ * @hw: clk to operate on
+ * @old_rate: previous rate of the clk
+ * @cur_rate: current rate of the recently changed clk
+ *
+ * Finds the vdd level corresponding to the cur rate and swap out the
+ * existing vdd vote if the cur_vdd_level is less than the vdd_level and the
+ * clock is prepared.
+ *
+ * Returns 0 on success, -EERROR otherwise.
+ */
+int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
+			unsigned long cur_rate)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+	int vdd_level = rclk->vdd_data.vdd_level;
+	int cur_vdd_level;
+	int ret = 0;
+
+	if (!rclk->vdd_data.vdd_class)
+		return 0;
+
+	if (!clk_hw_is_prepared(hw))
+		return 0;
+
+	cur_vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, cur_rate);
+	if (cur_vdd_level < 0)
+		return cur_vdd_level;
+
+	if (cur_vdd_level >= vdd_level)
+		return 0;
+
+	ret = clk_vote_vdd_level(&rclk->vdd_data, cur_vdd_level);
+	if (ret)
+		return ret;
+
+	clk_unvote_vdd_level(&rclk->vdd_data, vdd_level);
+	rclk->vdd_data.vdd_level = cur_vdd_level;
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_post_change_regmap);
+
+/**
+ * clk_prepare_regmap() - standard prepare call back for regmap clks
+ *
+ * @hw: clk to operate on
+ *
+ * Prepare the clock by updating the vdd_level to level required by
+ * the current rate of the clock if it hasn't been initialized before.
+ * Vdd_level and level required by current clock rate mismatches can
+ * occur due to error cases and upon initial clock registration
+ * if the clock becomes an orphan and is later reparented.
+ *
+ * Returns 0 on success, -EERROR otherwise.
+ */
+int clk_prepare_regmap(struct clk_hw *hw)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+	int rate = clk_hw_get_rate(hw);
+	int vdd_level;
+
+	if (!rclk->vdd_data.vdd_class)
+		return 0;
+
+	vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, rate);
+	if (vdd_level < 0)
+		return vdd_level;
+
+	if (rclk->vdd_data.vdd_level == 0)
+		rclk->vdd_data.vdd_level = vdd_level;
+
+	WARN(vdd_level > rclk->vdd_data.vdd_level,
+	     "%s level:%d > vdd_level:%d\n", clk_hw_get_name(hw),
+	     vdd_level, rclk->vdd_data.vdd_level);
+
+	return clk_vote_vdd_level(&rclk->vdd_data, rclk->vdd_data.vdd_level);
+}
+EXPORT_SYMBOL(clk_prepare_regmap);
+
+/**
+ * clk_prepare_regmap() - standard prepare call back for regmap clks
+ *
+ * @hw: clk to operate on
+ *
+ * Unprepare the clock by removing the outstanding vdd_level vote.
+ *
+ */
+void clk_unprepare_regmap(struct clk_hw *hw)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+
+	if (!rclk->vdd_data.vdd_class)
+		return;
+
+	clk_unvote_vdd_level(&rclk->vdd_data, rclk->vdd_data.vdd_level);
+}
+EXPORT_SYMBOL(clk_unprepare_regmap);
 
 /**
  * devm_clk_register_regmap - register a clk_regmap clock
