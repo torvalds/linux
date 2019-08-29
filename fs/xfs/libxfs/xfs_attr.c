@@ -118,18 +118,36 @@ xfs_attr_get_ilocked(
 		return xfs_attr_node_get(args);
 }
 
-/* Retrieve an extended attribute by name, and its value. */
+/*
+ * Retrieve an extended attribute by name, and its value if requested.
+ *
+ * If ATTR_KERNOVAL is set in @flags, then the caller does not want the value,
+ * just an indication whether the attribute exists and the size of the value if
+ * it exists. The size is returned in @valuelenp,
+ *
+ * If the attribute is found, but exceeds the size limit set by the caller in
+ * @valuelenp, return -ERANGE with the size of the attribute that was found in
+ * @valuelenp.
+ *
+ * If ATTR_ALLOC is set in @flags, allocate the buffer for the value after
+ * existence of the attribute has been determined. On success, return that
+ * buffer to the caller and leave them to free it. On failure, free any
+ * allocated buffer and ensure the buffer pointer returned to the caller is
+ * null.
+ */
 int
 xfs_attr_get(
 	struct xfs_inode	*ip,
 	const unsigned char	*name,
-	unsigned char		*value,
+	unsigned char		**value,
 	int			*valuelenp,
 	int			flags)
 {
 	struct xfs_da_args	args;
 	uint			lock_mode;
 	int			error;
+
+	ASSERT((flags & (ATTR_ALLOC | ATTR_KERNOVAL)) || *value);
 
 	XFS_STATS_INC(ip->i_mount, xs_attr_get);
 
@@ -140,17 +158,29 @@ xfs_attr_get(
 	if (error)
 		return error;
 
-	args.value = value;
-	args.valuelen = *valuelenp;
 	/* Entirely possible to look up a name which doesn't exist */
 	args.op_flags = XFS_DA_OP_OKNOENT;
+	if (flags & ATTR_ALLOC)
+		args.op_flags |= XFS_DA_OP_ALLOCVAL;
+	else
+		args.value = *value;
+	args.valuelen = *valuelenp;
 
 	lock_mode = xfs_ilock_attr_map_shared(ip);
 	error = xfs_attr_get_ilocked(ip, &args);
 	xfs_iunlock(ip, lock_mode);
-
 	*valuelenp = args.valuelen;
-	return error;
+
+	/* on error, we have to clean up allocated value buffers */
+	if (error) {
+		if (flags & ATTR_ALLOC) {
+			kmem_free(args.value);
+			*value = NULL;
+		}
+		return error;
+	}
+	*value = args.value;
+	return 0;
 }
 
 /*
