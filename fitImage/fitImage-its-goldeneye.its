@@ -1,0 +1,46 @@
+/dts-v1/;
+
+/ {
+        description = "U-Boot fitImage for OpenEmbedded/5.2.x+gitAUTOINC+f7d5b3dc47/goldeneye";
+        #address-cells = <1>;
+
+        images {
+                kernel@1 {
+                        description = "Linux kernel";
+                        data = /incbin/("Image.gz");
+                        type = "kernel";
+                        arch = "riscv";
+                        os = "linux";
+                        compression = "gzip";
+                        load = <0x80200000>;
+                        entry = <0x80200000>;
+                        hash@1 {
+                                algo = "sha256";
+                        };
+                };
+                fdt@sifive_hifive-unleashed-a00.dtb {
+                        description = "Flattened Device Tree blob";
+                        data = /incbin/("hifive-unleashed-a00.dtb");
+                        type = "flat_dt";
+                        arch = "riscv";
+                        compression = "none";
+                        load = <0x82200000>;
+                        hash@1 {
+                                algo = "sha256";
+                        };
+                };
+	};
+
+        configurations {
+		default = "conf@sifive_hifive-unleashed-a00.dtb";
+                conf@sifive_hifive-unleashed-a00.dtb {
+			description = "1 golden eye Linux kernel, FDT blob";
+			kernel = "kernel@1";
+			fdt = "fdt@sifive_hifive-unleashed-a00.dtb";
+
+                        hash@1 {
+                                algo = "sha256";
+                        };
+                };
+	};
+};

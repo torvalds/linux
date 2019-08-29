@@ -1,0 +1,9 @@
+Build flattened image tree (FIT) image with a linux kernel and device tree for the GE board.
+
+Build Instructions:
+
+Keep build kernel image <Image.gz> and dtb <hifive-unleashed-a00.dtb> in same directory with mkimage and fitImage-its-goldeneye.its
+
+Run below command:
+./mkimage -f fitImage-its-goldeneye.its -A riscv -O linux -T flat_dt fitImage-its-goldeneye.bin
+
