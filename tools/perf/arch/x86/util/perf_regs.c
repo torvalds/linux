@@ -7,6 +7,7 @@
 #include "../../perf-sys.h"
 #include "../../util/perf_regs.h"
 #include "../../util/debug.h"
+#include "../../util/event.h"
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),

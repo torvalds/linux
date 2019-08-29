@@ -20,6 +20,7 @@
 #include <sys/param.h>
 #include "debug.h"
 #include "builtin.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "mem-events.h"
 #include "session.h"
@@ -35,6 +36,7 @@
 #include "thread.h"
 #include "mem2node.h"
 #include "symbol.h"
+#include "ui/ui.h"
 #include "../perf.h"
 
 struct c2c_hists {

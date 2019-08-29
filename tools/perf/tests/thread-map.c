@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/prctl.h>
 #include "tests.h"
 #include "thread_map.h"
 #include "debug.h"
+#include "event.h"
 #include <linux/zalloc.h>
+#include <perf/event.h>
+
+struct perf_sample;
+struct perf_tool;
+struct machine;
 
 #define NAME	(const char *) "perf"
 #define NAMEUL	(unsigned long) NAME

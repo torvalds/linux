@@ -10,6 +10,8 @@
 #include <elfutils/libdwfl.h>
 #include <elfutils/version.h>
 
+struct strbuf;
+
 /* Find the realpath of the target file */
 const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname);
 

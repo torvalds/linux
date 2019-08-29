@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <linux/kernel.h>
 
 #include "../../util/debug.h"
 #include "../helpline.h"

@@ -45,6 +45,7 @@
 #include "util/intlist.h"
 #include "util/parse-branch-options.h"
 #include "arch/common.h"
+#include "ui/ui.h"
 
 #include "util/debug.h"
 #include "util/ordered-events.h"

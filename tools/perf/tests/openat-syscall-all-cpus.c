@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <api/fs/fs.h>
 #include <linux/err.h>
+#include <linux/string.h>
 #include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "tests.h"

@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <linux/string.h>
 #include <perf/evlist.h>
 
 static int exited;

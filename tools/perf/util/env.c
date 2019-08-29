@@ -9,6 +9,7 @@
 #include <sys/utsname.h>
 #include <bpf/libbpf.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct perf_env perf_env;
 

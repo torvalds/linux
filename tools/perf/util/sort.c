@@ -22,6 +22,7 @@
 #include "annotate.h"
 #include "time-utils.h"
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";

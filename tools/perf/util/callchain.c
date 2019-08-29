@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <math.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 
 #include "asm/bug.h"

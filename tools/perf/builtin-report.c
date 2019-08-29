@@ -45,6 +45,7 @@
 #include "util/units.h"
 #include "util/branch.h"
 #include "util/util.h"
+#include "ui/ui.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -53,6 +54,7 @@
 #include <linux/ctype.h>
 #include <signal.h>
 #include <linux/bitmap.h>
+#include <linux/string.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <sys/types.h>

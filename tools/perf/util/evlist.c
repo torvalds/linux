@@ -35,6 +35,7 @@
 #include <linux/hash.h>
 #include <linux/log2.h>
 #include <linux/err.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <perf/evlist.h>
 #include <perf/evsel.h>

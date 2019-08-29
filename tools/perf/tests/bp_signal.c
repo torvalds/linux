@@ -25,6 +25,7 @@
 
 #include "tests.h"
 #include "debug.h"
+#include "event.h"
 #include "perf-sys.h"
 #include "cloexec.h"
 

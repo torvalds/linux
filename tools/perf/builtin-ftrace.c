@@ -13,8 +13,10 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <linux/capability.h>
+#include <linux/string.h>
 
 #include "debug.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include <api/fs/tracing_path.h>
 #include "evlist.h"
@@ -23,7 +25,6 @@
 #include "thread_map.h"
 #include "util/cap.h"
 #include "util/config.h"
-
 
 #define DEFAULT_TRACER  "function_graph"
 

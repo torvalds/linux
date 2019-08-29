@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "util/debug.h"
+#include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-branch-options.h"
 #include <stdlib.h>
+#include <string.h>
 
 #define BRANCH_OPT(n, m) \
 	{ .name = n, .mode = (m) }

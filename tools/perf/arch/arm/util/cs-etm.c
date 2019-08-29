@@ -11,6 +11,7 @@
 #include <linux/coresight-pmu.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/zalloc.h>
 

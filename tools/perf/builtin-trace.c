@@ -29,6 +29,7 @@
 #include "util/event.h"
 #include "util/evlist.h"
 #include "util/evswitch.h"
+#include <subcmd/pager.h>
 #include <subcmd/exec-cmd.h>
 #include "util/machine.h"
 #include "util/map.h"

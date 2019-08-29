@@ -19,6 +19,7 @@
 #include "print_binary.h"
 #include "util.h"
 #include "target.h"
+#include "ui/helpline.h"
 
 #include <linux/ctype.h>
 

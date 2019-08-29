@@ -13,6 +13,7 @@
 #include "util/debug.h"
 #include "util/config.h"
 #include <linux/string.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static bool use_system_config, use_user_config;

@@ -10,6 +10,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/cache.h"
 #include "util/env.h"
 #include <subcmd/exec-cmd.h>
 #include "util/config.h"
@@ -32,6 +33,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 
 const char perf_usage_string[] =

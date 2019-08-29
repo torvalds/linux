@@ -1,6 +1,7 @@
 #include "util/util.h"
 #include "util/debug.h"
 #include "util/branch.h"
+#include <linux/kernel.h>
 
 static bool cross_area(u64 addr1, u64 addr2, int size)
 {
