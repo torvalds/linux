@@ -871,6 +871,7 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 		return ERR_PTR(rc);
 	}
 
+	refcount_set(&etr_buf->refcount, 1);
 	dev_dbg(dev, "allocated buffer of size %ldKB in mode %d\n",
 		(unsigned long)size >> 10, etr_buf->mode);
 	return etr_buf;
@@ -1263,8 +1264,6 @@ retry:
 	if (IS_ERR(etr_buf))
 		return etr_buf;
 
-	refcount_set(&etr_buf->refcount, 1);
-
 	/* Now that we have a buffer, add it to the IDR. */
 	mutex_lock(&drvdata->idr_mutex);
 	ret = idr_alloc(&drvdata->idr, etr_buf, pid, pid + 1, GFP_KERNEL);
@@ -1291,19 +1290,11 @@ get_perf_etr_buf_per_thread(struct tmc_drvdata *drvdata,
 			    struct perf_event *event, int nr_pages,
 			    void **pages, bool snapshot)
 {
-	struct etr_buf *etr_buf;
-
 	/*
 	 * In per-thread mode the etr_buf isn't shared, so just go ahead
 	 * with memory allocation.
 	 */
-	etr_buf = alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
-	if (IS_ERR(etr_buf))
-		goto out;
-
-	refcount_set(&etr_buf->refcount, 1);
-out:
-	return etr_buf;
+	return alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
 }
 
 static struct etr_buf *
