@@ -1696,7 +1696,6 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 static int sdma_v4_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_common_if **ras_if = &adev->sdma.ras_if;
 	struct ras_ih_if ih_info = {
 		.cb = sdma_v4_0_process_ras_data_cb,
 	};
@@ -1704,87 +1703,38 @@ static int sdma_v4_0_late_init(void *handle)
 		.sysfs_name = "sdma_err_count",
 		.debugfs_name = "sdma_err_inject",
 	};
-	struct ras_common_if ras_block = {
-		.block = AMDGPU_RAS_BLOCK__SDMA,
-		.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-		.sub_block_index = 0,
-		.name = "sdma",
-	};
 	int r, i;
 
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
-		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
-		return 0;
+	if (!adev->sdma.ras_if) {
+		adev->sdma.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->sdma.ras_if)
+			return -ENOMEM;
+		adev->sdma.ras_if->block = AMDGPU_RAS_BLOCK__SDMA;
+		adev->sdma.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->sdma.ras_if->sub_block_index = 0;
+		strcpy(adev->sdma.ras_if->name, "sdma");
 	}
+	fs_info.head = ih_info.head = *adev->sdma.ras_if;
 
-	/* handle resume path. */
-	if (*ras_if) {
-		/* resend ras TA enable cmd during resume.
-		 * prepare to handle failure.
-		 */
-		ih_info.head = **ras_if;
-		r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-		if (r) {
-			if (r == -EAGAIN) {
-				/* request a gpu reset. will run again. */
-				amdgpu_ras_request_reset_on_boot(adev,
-						AMDGPU_RAS_BLOCK__SDMA);
-				return 0;
-			}
-			/* fail to enable ras, cleanup all. */
-			goto irq;
-		}
-		/* enable successfully. continue. */
-		goto resume;
-	}
-
-	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
-	if (!*ras_if)
-		return -ENOMEM;
-
-	**ras_if = ras_block;
-
-	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-	if (r) {
-		if (r == -EAGAIN) {
-			amdgpu_ras_request_reset_on_boot(adev,
-					AMDGPU_RAS_BLOCK__SDMA);
-			r = 0;
-		}
-		goto feature;
-	}
-
-	ih_info.head = **ras_if;
-	fs_info.head = **ras_if;
-
-	r = amdgpu_ras_interrupt_add_handler(adev, &ih_info);
+	r = amdgpu_ras_late_init(adev, adev->sdma.ras_if,
+				 &fs_info, &ih_info);
 	if (r)
-		goto interrupt;
+		goto free;
 
-	amdgpu_ras_debugfs_create(adev, &fs_info);
-
-	r = amdgpu_ras_sysfs_create(adev, &fs_info);
-	if (r)
-		goto sysfs;
-resume:
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
-				   AMDGPU_SDMA_IRQ_INSTANCE0 + i);
-		if (r)
-			goto irq;
+	if (amdgpu_ras_is_supported(adev, adev->sdma.ras_if->block)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
+				AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+			if (r)
+				goto late_fini;
+		}
 	}
 
-	return 0;
-irq:
-	amdgpu_ras_sysfs_remove(adev, *ras_if);
-sysfs:
-	amdgpu_ras_debugfs_remove(adev, *ras_if);
-	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
-interrupt:
-	amdgpu_ras_feature_enable(adev, *ras_if, 0);
-feature:
-	kfree(*ras_if);
-	*ras_if = NULL;
+        return 0;
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->sdma.ras_if, &ih_info);
+free:
+	kfree(adev->sdma.ras_if);
 	return r;
 }
 
