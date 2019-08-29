@@ -231,6 +231,7 @@ coresight_tmc_reg(ffcr, TMC_FFCR);
 coresight_tmc_reg(mode, TMC_MODE);
 coresight_tmc_reg(pscr, TMC_PSCR);
 coresight_tmc_reg(axictl, TMC_AXICTL);
+coresight_tmc_reg(authstatus, TMC_AUTHSTATUS);
 coresight_tmc_reg(devid, CORESIGHT_DEVID);
 coresight_tmc_reg64(rrp, TMC_RRP, TMC_RRPHI);
 coresight_tmc_reg64(rwp, TMC_RWP, TMC_RWPHI);
@@ -250,6 +251,7 @@ static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_devid.attr,
 	&dev_attr_dba.attr,
 	&dev_attr_axictl.attr,
+	&dev_attr_authstatus.attr,
 	NULL,
 };
 
@@ -338,6 +340,13 @@ static inline bool tmc_etr_can_use_sg(struct tmc_drvdata *drvdata)
 				       "arm,scatter-gather");
 }
 
+static inline bool tmc_etr_has_non_secure_access(struct tmc_drvdata *drvdata)
+{
+	u32 auth = readl_relaxed(drvdata->base + TMC_AUTHSTATUS);
+
+	return (auth & TMC_AUTH_NSID_MASK) == 0x3;
+}
+
 /* Detect and initialise the capabilities of a TMC ETR */
 static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 			     u32 devid, void *dev_caps)
@@ -345,6 +354,9 @@ static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 	int rc;
 
 	u32 dma_mask = 0;
+
+	if (!tmc_etr_has_non_secure_access(drvdata))
+		return -EACCES;
 
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
