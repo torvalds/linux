@@ -196,8 +196,9 @@ static irqreturn_t pcf8563_irq(int irq, void *dev_id)
  * In the routines that deal directly with the pcf8563 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
  */
-static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
 	unsigned char buf[9];
 	int err;
@@ -244,8 +245,9 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
 	unsigned char buf[9];
 
@@ -299,8 +301,8 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 		 * because of the cached voltage_low value but do it
 		 * anyway for consistency.
 		 */
-		if (pcf8563_get_datetime(to_i2c_client(dev), &tm))
-			pcf8563_set_datetime(to_i2c_client(dev), &tm);
+		if (pcf8563_rtc_read_time(dev, &tm))
+			pcf8563_rtc_set_time(dev, &tm);
 
 		/* Clear the cached value. */
 		pcf8563->voltage_low = 0;
@@ -313,16 +315,6 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 #else
 #define pcf8563_rtc_ioctl NULL
 #endif
-
-static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return pcf8563_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return pcf8563_set_datetime(to_i2c_client(dev), tm);
-}
 
 static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
