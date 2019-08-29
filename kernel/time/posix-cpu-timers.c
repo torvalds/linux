@@ -884,16 +884,17 @@ static void check_process_timers(struct task_struct *tsk,
 
 	/*
 	 * If there are no active process wide timers (POSIX 1.b, itimers,
-	 * RLIMIT_CPU) nothing to check.
+	 * RLIMIT_CPU) nothing to check. Also skip the process wide timer
+	 * processing when there is already another task handling them.
 	 */
-	if (!READ_ONCE(pct->timers_active))
+	if (!READ_ONCE(pct->timers_active) || pct->expiry_active)
 		return;
 
-       /*
+	/*
 	 * Signify that a thread is checking for process timers.
 	 * Write access to this field is protected by the sighand lock.
 	 */
-	pct->timers_active = true;
+	pct->expiry_active = true;
 
 	/*
 	 * Collect the current process totals. Group accounting is active
