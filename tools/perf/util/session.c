@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 #include <perf/cpumap.h>
 
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "memswap.h"

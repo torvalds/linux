@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <perf/cpumap.h>
 
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"

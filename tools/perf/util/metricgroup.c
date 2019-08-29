@@ -6,6 +6,7 @@
 /* Manage metrics and groups of metrics from JSON files */
 
 #include "metricgroup.h"
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "strbuf.h"
@@ -18,6 +19,7 @@
 #include "strlist.h"
 #include <assert.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <subcmd/parse-options.h>
 

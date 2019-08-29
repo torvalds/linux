@@ -11,6 +11,7 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 
+#include "../../util/debug.h"
 #include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"

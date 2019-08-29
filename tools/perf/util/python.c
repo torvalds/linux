@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <linux/err.h>
 #include <perf/cpumap.h>
+#include "debug.h"
 #include "evlist.h"
 #include "callchain.h"
 #include "evsel.h"

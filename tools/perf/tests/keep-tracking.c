@@ -5,6 +5,7 @@
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
 
+#include "debug.h"
 #include "parse-events.h"
 #include "evlist.h"
 #include "evsel.h"

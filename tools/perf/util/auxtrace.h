@@ -19,7 +19,6 @@
 
 #include "event.h"
 #include "session.h"
-#include "debug.h"
 
 union perf_event;
 struct perf_session;
@@ -614,6 +613,7 @@ void itrace_synth_opts__clear_time_range(struct itrace_synth_opts *opts)
 }
 
 #else
+#include "debug.h"
 
 static inline struct auxtrace_record *
 auxtrace_record__init(struct evlist *evlist __maybe_unused,

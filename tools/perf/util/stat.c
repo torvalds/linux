@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <math.h>
 #include "counts.h"
+#include "debug.h"
 #include "stat.h"
 #include "target.h"
 #include "evlist.h"

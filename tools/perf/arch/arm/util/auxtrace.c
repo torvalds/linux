@@ -9,6 +9,7 @@
 #include <linux/zalloc.h>
 
 #include "../../util/auxtrace.h"
+#include "../../util/debug.h"
 #include "../../util/evlist.h"
 #include "../../util/pmu.h"
 #include "cs-etm.h"
