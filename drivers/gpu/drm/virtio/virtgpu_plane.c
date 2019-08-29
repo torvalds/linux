@@ -124,12 +124,19 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		bo = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
 		handle = bo->hw_res_handle;
 		if (bo->dumb) {
+			struct virtio_gpu_object_array *objs;
+
+			objs = virtio_gpu_array_alloc(1);
+			if (!objs)
+				return;
+			virtio_gpu_array_add_obj(objs, vgfb->base.obj[0]);
 			virtio_gpu_cmd_transfer_to_host_2d
-				(vgdev, bo, 0,
+				(vgdev, 0,
 				 cpu_to_le32(plane->state->src_w >> 16),
 				 cpu_to_le32(plane->state->src_h >> 16),
 				 cpu_to_le32(plane->state->src_x >> 16),
-				 cpu_to_le32(plane->state->src_y >> 16), NULL);
+				 cpu_to_le32(plane->state->src_y >> 16),
+				 objs, NULL);
 		}
 	} else {
 		handle = 0;
@@ -219,11 +226,17 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 
 	if (bo && bo->dumb && (plane->state->fb != old_state->fb)) {
 		/* new cursor -- update & wait */
+		struct virtio_gpu_object_array *objs;
+
+		objs = virtio_gpu_array_alloc(1);
+		if (!objs)
+			return;
+		virtio_gpu_array_add_obj(objs, vgfb->base.obj[0]);
 		virtio_gpu_cmd_transfer_to_host_2d
-			(vgdev, bo, 0,
+			(vgdev, 0,
 			 cpu_to_le32(plane->state->crtc_w),
 			 cpu_to_le32(plane->state->crtc_h),
-			 0, 0, vgfb->fence);
+			 0, 0, objs, vgfb->fence);
 		dma_fence_wait(&vgfb->fence->f, true);
 		dma_fence_put(&vgfb->fence->f);
 		vgfb->fence = NULL;
