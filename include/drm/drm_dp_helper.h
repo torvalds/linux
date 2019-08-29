@@ -392,6 +392,8 @@
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
 
+#define DP_MAX_DOWNSTREAM_PORTS		    0x10
+
 /* DP Forward error Correction Registers */
 #define DP_FEC_CAPABILITY		    0x090    /* 1.4 */
 # define DP_FEC_CAPABLE			    (1 << 0)
