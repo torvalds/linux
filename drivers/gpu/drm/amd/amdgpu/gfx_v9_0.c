@@ -4402,7 +4402,6 @@ static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 static int gfx_v9_0_ecc_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_common_if **ras_if = &adev->gfx.ras_if;
 	struct ras_ih_if ih_info = {
 		.cb = gfx_v9_0_process_ras_data_cb,
 	};
@@ -4410,18 +4409,18 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 		.sysfs_name = "gfx_err_count",
 		.debugfs_name = "gfx_err_inject",
 	};
-	struct ras_common_if ras_block = {
-		.block = AMDGPU_RAS_BLOCK__GFX,
-		.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-		.sub_block_index = 0,
-		.name = "gfx",
-	};
 	int r;
 
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
-		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
-		return 0;
+	if (!adev->gfx.ras_if) {
+		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gfx.ras_if)
+			return -ENOMEM;
+		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
+		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gfx.ras_if->sub_block_index = 0;
+		strcpy(adev->gfx.ras_if->name, "gfx");
 	}
+	fs_info.head = ih_info.head = *adev->gfx.ras_if;
 
 	r = gfx_v9_0_do_edc_gds_workarounds(adev);
 	if (r)
@@ -4432,71 +4431,22 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	if (r)
 		return r;
 
-	/* handle resume path. */
-	if (*ras_if) {
-		/* resend ras TA enable cmd during resume.
-		 * prepare to handle failure.
-		 */
-		ih_info.head = **ras_if;
-		r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-		if (r) {
-			if (r == -EAGAIN) {
-				/* request a gpu reset. will run again. */
-				amdgpu_ras_request_reset_on_boot(adev,
-						AMDGPU_RAS_BLOCK__GFX);
-				return 0;
-			}
-			/* fail to enable ras, cleanup all. */
-			goto irq;
-		}
-		/* enable successfully. continue. */
-		goto resume;
+	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
+				 &fs_info, &ih_info);
+	if (r)
+		goto free;
+
+	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
+		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
+		if (r)
+			goto late_fini;
 	}
-
-	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
-	if (!*ras_if)
-		return -ENOMEM;
-
-	**ras_if = ras_block;
-
-	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-	if (r) {
-		if (r == -EAGAIN) {
-			amdgpu_ras_request_reset_on_boot(adev,
-					AMDGPU_RAS_BLOCK__GFX);
-			r = 0;
-		}
-		goto feature;
-	}
-
-	ih_info.head = **ras_if;
-	fs_info.head = **ras_if;
-
-	r = amdgpu_ras_interrupt_add_handler(adev, &ih_info);
-	if (r)
-		goto interrupt;
-
-	amdgpu_ras_debugfs_create(adev, &fs_info);
-
-	r = amdgpu_ras_sysfs_create(adev, &fs_info);
-	if (r)
-		goto sysfs;
-resume:
-	r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
-	if (r)
-		goto irq;
 
 	return 0;
-irq:
-	amdgpu_ras_sysfs_remove(adev, *ras_if);
-sysfs:
-	amdgpu_ras_debugfs_remove(adev, *ras_if);
-	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
-interrupt:
-	amdgpu_ras_feature_enable(adev, *ras_if, 0);
-feature:
-	kfree(*ras_if);
-	*ras_if = NULL;
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, &ih_info);
+free:
+	kfree(adev->gfx.ras_if);
 	return r;
 }
 
