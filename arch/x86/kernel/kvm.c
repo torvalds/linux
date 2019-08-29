@@ -711,6 +711,7 @@ unsigned int kvm_arch_para_hints(void)
 {
 	return cpuid_edx(kvm_cpuid_base() | KVM_CPUID_FEATURES);
 }
+EXPORT_SYMBOL_GPL(kvm_arch_para_hints);
 
 static uint32_t __init kvm_detect(void)
 {

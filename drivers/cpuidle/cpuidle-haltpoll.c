@@ -97,7 +97,8 @@ static int __init haltpoll_init(void)
 
 	cpuidle_poll_state_init(drv);
 
-	if (!kvm_para_available())
+	if (!kvm_para_available() ||
+		!kvm_para_has_hint(KVM_HINTS_REALTIME))
 		return -ENODEV;
 
 	ret = cpuidle_register_driver(drv);
