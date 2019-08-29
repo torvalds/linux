@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * SY8824C/SY8824E regulator driver
- *
- * Copyright (C) 2019 Synaptics Incorporated
- *
- * Author: Jisheng Zhang <jszhang@kernel.org>
- */
+//
+// SY8824C/SY8824E regulator driver
+//
+// Copyright (C) 2019 Synaptics Incorporated
+//
+// Author: Jisheng Zhang <jszhang@kernel.org>
 
 #include <linux/module.h>
 #include <linux/i2c.h>
