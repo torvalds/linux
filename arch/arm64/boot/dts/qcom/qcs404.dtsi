@@ -22,6 +22,12 @@
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
 		};
+
+		sleep_clk: sleep-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	cpus {
