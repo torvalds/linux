@@ -7928,26 +7928,13 @@ enum {
  * SHOTPLUG_CTL_DDI and SHOTPLUG_CTL_TC.
  */
 
-#define SHOTPLUG_CTL_DDI			_MMIO(0xc4030)
-#define   TGP_DDIC_HPD_ENABLE			(1 << 11)
-#define   TGP_DDIC_HPD_STATUS_MASK		(3 << 8)
-#define   TGP_DDIC_HPD_NO_DETECT		(0 << 8)
-#define   TGP_DDIC_HPD_SHORT_DETECT		(1 << 8)
-#define   TGP_DDIC_HPD_LONG_DETECT		(2 << 8)
-#define   TGP_DDIC_HPD_SHORT_LONG_DETECT	(3 << 8)
-#define   ICP_DDIB_HPD_ENABLE			(1 << 7)
-#define   ICP_DDIB_HPD_STATUS_MASK		(3 << 4)
-#define   ICP_DDIB_HPD_NO_DETECT		(0 << 4)
-#define   ICP_DDIB_HPD_SHORT_DETECT		(1 << 4)
-#define   ICP_DDIB_HPD_LONG_DETECT		(2 << 4)
-#define   ICP_DDIB_HPD_SHORT_LONG_DETECT	(3 << 4)
-#define   ICP_DDIA_HPD_ENABLE			(1 << 3)
-#define   ICP_DDIA_HPD_OP_DRIVE_1		(1 << 2)
-#define   ICP_DDIA_HPD_STATUS_MASK		(3 << 0)
-#define   ICP_DDIA_HPD_NO_DETECT		(0 << 0)
-#define   ICP_DDIA_HPD_SHORT_DETECT		(1 << 0)
-#define   ICP_DDIA_HPD_LONG_DETECT		(2 << 0)
-#define   ICP_DDIA_HPD_SHORT_LONG_DETECT	(3 << 0)
+#define SHOTPLUG_CTL_DDI				_MMIO(0xc4030)
+#define   SHOTPLUG_CTL_DDI_HPD_ENABLE(port)		(0x8 << (4 * (port)))
+#define   SHOTPLUG_CTL_DDI_HPD_STATUS_MASK(port)	(0x3 << (4 * (port)))
+#define   SHOTPLUG_CTL_DDI_HPD_NO_DETECT(port)		(0x0 << (4 * (port)))
+#define   SHOTPLUG_CTL_DDI_HPD_SHORT_DETECT(port)	(0x1 << (4 * (port)))
+#define   SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(port)	(0x2 << (4 * (port)))
+#define   SHOTPLUG_CTL_DDI_HPD_SHORT_LONG_DETECT(port)	(0x3 << (4 * (port)))
 
 #define SHOTPLUG_CTL_TC				_MMIO(0xc4034)
 #define   ICP_TC_HPD_ENABLE(tc_port)		(8 << (tc_port) * 4)
@@ -8058,14 +8045,15 @@ enum {
 #define   ICP_TC_HPD_LONG_DETECT(tc_port)	(2 << (tc_port) * 4)
 #define   ICP_TC_HPD_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
 
-#define ICP_DDI_HPD_ENABLE_MASK		(ICP_DDIB_HPD_ENABLE |	\
-					 ICP_DDIA_HPD_ENABLE)
+#define ICP_DDI_HPD_ENABLE_MASK		(SHOTPLUG_CTL_DDI_HPD_ENABLE(PORT_B) | \
+					 SHOTPLUG_CTL_DDI_HPD_ENABLE(PORT_A))
 #define ICP_TC_HPD_ENABLE_MASK		(ICP_TC_HPD_ENABLE(PORT_TC4) | \
 					 ICP_TC_HPD_ENABLE(PORT_TC3) | \
 					 ICP_TC_HPD_ENABLE(PORT_TC2) | \
 					 ICP_TC_HPD_ENABLE(PORT_TC1))
-#define TGP_DDI_HPD_ENABLE_MASK		(TGP_DDIC_HPD_ENABLE |	\
-					 ICP_DDI_HPD_ENABLE_MASK)
+#define TGP_DDI_HPD_ENABLE_MASK		(SHOTPLUG_CTL_DDI_HPD_ENABLE(PORT_C) | \
+					 SHOTPLUG_CTL_DDI_HPD_ENABLE(PORT_B) | \
+					 SHOTPLUG_CTL_DDI_HPD_ENABLE(PORT_A))
 #define TGP_TC_HPD_ENABLE_MASK		(ICP_TC_HPD_ENABLE(PORT_TC6) | \
 					 ICP_TC_HPD_ENABLE(PORT_TC5) | \
 					 ICP_TC_HPD_ENABLE_MASK)
