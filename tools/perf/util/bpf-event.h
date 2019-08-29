@@ -13,6 +13,7 @@ struct machine;
 union perf_event;
 struct perf_env;
 struct perf_sample;
+struct perf_session;
 struct record_opts;
 struct evlist;
 struct target;

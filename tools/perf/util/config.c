@@ -17,6 +17,8 @@
 #include "util/event.h"  /* proc_map_timeout */
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
+#include "build-id.h"
+#include "debug.h"
 #include "config.h"
 #include "debug.h"
 #include <sys/types.h>

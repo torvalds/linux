@@ -10,6 +10,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/build-id.h"
 #include "util/cache.h"
 #include "util/env.h"
 #include <subcmd/exec-cmd.h>

@@ -8,6 +8,7 @@
 #include "map_symbol.h"
 #include "branch.h"
 
+struct evsel;
 struct map;
 
 #define HELP_PAD "\t\t\t\t"

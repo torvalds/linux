@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
+#include <linux/kernel.h>
 #include <linux/zalloc.h>
 
 #include "../../perf-sys.h"
