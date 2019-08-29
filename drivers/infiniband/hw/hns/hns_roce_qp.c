@@ -635,6 +635,50 @@ static int hns_roce_qp_has_rq(struct ib_qp_init_attr *attr)
 	return 1;
 }
 
+static int alloc_rq_inline_buf(struct hns_roce_qp *hr_qp,
+			       struct ib_qp_init_attr *init_attr)
+{
+	u32 max_recv_sge = init_attr->cap.max_recv_sge;
+	struct hns_roce_rinl_wqe *wqe_list;
+	u32 wqe_cnt = hr_qp->rq.wqe_cnt;
+	int i;
+
+	/* allocate recv inline buf */
+	wqe_list = kcalloc(wqe_cnt, sizeof(struct hns_roce_rinl_wqe),
+			   GFP_KERNEL);
+
+	if (!wqe_list)
+		goto err;
+
+	/* Allocate a continuous buffer for all inline sge we need */
+	wqe_list[0].sg_list = kcalloc(wqe_cnt, (max_recv_sge *
+				      sizeof(struct hns_roce_rinl_sge)),
+				      GFP_KERNEL);
+	if (!wqe_list[0].sg_list)
+		goto err_wqe_list;
+
+	/* Assign buffers of sg_list to each inline wqe */
+	for (i = 1; i < wqe_cnt; i++)
+		wqe_list[i].sg_list = &wqe_list[0].sg_list[i * max_recv_sge];
+
+	hr_qp->rq_inl_buf.wqe_list = wqe_list;
+	hr_qp->rq_inl_buf.wqe_cnt = wqe_cnt;
+
+	return 0;
+
+err_wqe_list:
+	kfree(wqe_list);
+
+err:
+	return -ENOMEM;
+}
+
+static void free_rq_inline_buf(struct hns_roce_qp *hr_qp)
+{
+	kfree(hr_qp->rq_inl_buf.wqe_list[0].sg_list);
+	kfree(hr_qp->rq_inl_buf.wqe_list);
+}
+
 static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_pd *ib_pd,
 				     struct ib_qp_init_attr *init_attr,
@@ -676,33 +720,11 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
 	    hns_roce_qp_has_rq(init_attr)) {
-		/* allocate recv inline buf */
-		hr_qp->rq_inl_buf.wqe_list = kcalloc(hr_qp->rq.wqe_cnt,
-					       sizeof(struct hns_roce_rinl_wqe),
-					       GFP_KERNEL);
-		if (!hr_qp->rq_inl_buf.wqe_list) {
-			ret = -ENOMEM;
+		ret = alloc_rq_inline_buf(hr_qp, init_attr);
+		if (ret) {
+			dev_err(dev, "allocate receive inline buffer failed\n");
 			goto err_out;
 		}
-
-		hr_qp->rq_inl_buf.wqe_cnt = hr_qp->rq.wqe_cnt;
-
-		/* Firstly, allocate a list of sge space buffer */
-		hr_qp->rq_inl_buf.wqe_list[0].sg_list =
-					kcalloc(hr_qp->rq_inl_buf.wqe_cnt,
-					       init_attr->cap.max_recv_sge *
-					       sizeof(struct hns_roce_rinl_sge),
-					       GFP_KERNEL);
-		if (!hr_qp->rq_inl_buf.wqe_list[0].sg_list) {
-			ret = -ENOMEM;
-			goto err_wqe_list;
-		}
-
-		for (i = 1; i < hr_qp->rq_inl_buf.wqe_cnt; i++)
-			/* Secondly, reallocate the buffer */
-			hr_qp->rq_inl_buf.wqe_list[i].sg_list =
-				&hr_qp->rq_inl_buf.wqe_list[0].sg_list[i *
-				init_attr->cap.max_recv_sge];
 	}
 
 	page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
@@ -710,14 +732,14 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "ib_copy_from_udata error for create qp\n");
 			ret = -EFAULT;
-			goto err_rq_sge_list;
+			goto err_alloc_rq_inline_buf;
 		}
 
 		ret = hns_roce_set_user_sq_size(hr_dev, &init_attr->cap, hr_qp,
 						&ucmd);
 		if (ret) {
 			dev_err(dev, "hns_roce_set_user_sq_size error for create qp\n");
-			goto err_rq_sge_list;
+			goto err_alloc_rq_inline_buf;
 		}
 
 		hr_qp->umem = ib_umem_get(udata, ucmd.buf_addr,
@@ -725,7 +747,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		if (IS_ERR(hr_qp->umem)) {
 			dev_err(dev, "ib_umem_get error for create qp\n");
 			ret = PTR_ERR(hr_qp->umem);
-			goto err_rq_sge_list;
+			goto err_alloc_rq_inline_buf;
 		}
 		hr_qp->region_cnt = split_wqe_buf_region(hr_dev, hr_qp,
 				hr_qp->regions, ARRAY_SIZE(hr_qp->regions),
@@ -786,13 +808,13 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		    IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
 			dev_err(dev, "init_attr->create_flags error!\n");
 			ret = -EINVAL;
-			goto err_rq_sge_list;
+			goto err_alloc_rq_inline_buf;
 		}
 
 		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO) {
 			dev_err(dev, "init_attr->create_flags error!\n");
 			ret = -EINVAL;
-			goto err_rq_sge_list;
+			goto err_alloc_rq_inline_buf;
 		}
 
 		/* Set SQ size */
@@ -800,7 +822,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 						  hr_qp);
 		if (ret) {
 			dev_err(dev, "hns_roce_set_kernel_sq_size error!\n");
-			goto err_rq_sge_list;
+			goto err_alloc_rq_inline_buf;
 		}
 
 		/* QP doorbell register address */
@@ -814,7 +836,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			ret = hns_roce_alloc_db(hr_dev, &hr_qp->rdb, 0);
 			if (ret) {
 				dev_err(dev, "rq record doorbell alloc failed!\n");
-				goto err_rq_sge_list;
+				goto err_alloc_rq_inline_buf;
 			}
 			*hr_qp->rdb.db_record = 0;
 			hr_qp->rdb_en = 1;
@@ -980,15 +1002,10 @@ err_db:
 	    (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
 		hns_roce_free_db(hr_dev, &hr_qp->rdb);
 
-err_rq_sge_list:
+err_alloc_rq_inline_buf:
 	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
 	     hns_roce_qp_has_rq(init_attr))
-		kfree(hr_qp->rq_inl_buf.wqe_list[0].sg_list);
-
-err_wqe_list:
-	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
-	     hns_roce_qp_has_rq(init_attr))
-		kfree(hr_qp->rq_inl_buf.wqe_list);
+		free_rq_inline_buf(hr_qp);
 
 err_out:
 	return ret;
