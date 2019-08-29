@@ -402,9 +402,9 @@ static inline int virtio_gpu_object_reserve(struct virtio_gpu_object *bo)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, false, NULL);
+	r = dma_resv_lock_interruptible(bo->gem_base.resv, NULL);
 	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS) {
+		if (r != -EINTR) {
 			struct virtio_gpu_device *qdev =
 				bo->gem_base.dev->dev_private;
 			dev_err(qdev->dev, "%p reserve failed\n", bo);
@@ -416,7 +416,7 @@ static inline int virtio_gpu_object_reserve(struct virtio_gpu_object *bo)
 
 static inline void virtio_gpu_object_unreserve(struct virtio_gpu_object *bo)
 {
-	ttm_bo_unreserve(&bo->tbo);
+	dma_resv_unlock(bo->gem_base.resv);
 }
 
 /* virgl debufs */
