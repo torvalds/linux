@@ -101,8 +101,24 @@ static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
 			      struct drm_crtc_state *crtc_state,
 			      struct drm_plane_state *plane_state)
 {
+	struct drm_connector *connector;
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 	struct drm_device *drm = pipe->plane.dev;
+
+	if (!mxsfb->connector) {
+		list_for_each_entry(connector,
+				    &drm->mode_config.connector_list,
+				    head)
+			if (connector->encoder == &mxsfb->pipe.encoder) {
+				mxsfb->connector = connector;
+				break;
+			}
+	}
+
+	if (!mxsfb->connector) {
+		dev_warn(drm->dev, "No connector attached, using default\n");
+		mxsfb->connector = &mxsfb->panel_connector;
+	}
 
 	pm_runtime_get_sync(drm->dev);
 	drm_panel_prepare(mxsfb->panel);
@@ -129,6 +145,9 @@ static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
 		drm_crtc_send_vblank_event(crtc, event);
 	}
 	spin_unlock_irq(&drm->event_lock);
+
+	if (mxsfb->connector != &mxsfb->panel_connector)
+		mxsfb->connector = NULL;
 }
 
 static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -226,16 +245,33 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
 			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
-			&mxsfb->connector);
+			mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
 		goto err_vblank;
 	}
 
-	ret = drm_panel_attach(mxsfb->panel, &mxsfb->connector);
-	if (ret) {
-		dev_err(drm->dev, "Cannot connect panel\n");
-		goto err_vblank;
+	/*
+	 * Attach panel only if there is one.
+	 * If there is no panel attach, it must be a bridge. In this case, we
+	 * need a reference to its connector for a proper initialization.
+	 * We will do this check in pipe->enable(), since the connector won't
+	 * be attached to an encoder until then.
+	 */
+
+	if (mxsfb->panel) {
+		ret = drm_panel_attach(mxsfb->panel, mxsfb->connector);
+		if (ret) {
+			dev_err(drm->dev, "Cannot connect panel: %d\n", ret);
+			goto err_vblank;
+		}
+	} else if (mxsfb->bridge) {
+		ret = drm_simple_display_pipe_attach_bridge(&mxsfb->pipe,
+							    mxsfb->bridge);
+		if (ret) {
+			dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
+			goto err_vblank;
+		}
 	}
 
 	drm->mode_config.min_width	= MXSFB_MIN_XRES;
