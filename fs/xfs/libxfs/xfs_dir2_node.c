@@ -32,8 +32,6 @@ static void xfs_dir2_leafn_rebalance(xfs_da_state_t *state,
 static int xfs_dir2_leafn_remove(xfs_da_args_t *args, struct xfs_buf *bp,
 				 int index, xfs_da_state_blk_t *dblk,
 				 int *rval);
-static int xfs_dir2_node_addname_int(xfs_da_args_t *args,
-				     xfs_da_state_blk_t *fblk);
 
 /*
  * Check internal consistency of a leafn block.
@@ -1611,75 +1609,6 @@ xfs_dir2_leafn_unbalance(
 }
 
 /*
- * Top-level node form directory addname routine.
- */
-int						/* error */
-xfs_dir2_node_addname(
-	xfs_da_args_t		*args)		/* operation arguments */
-{
-	xfs_da_state_blk_t	*blk;		/* leaf block for insert */
-	int			error;		/* error return value */
-	int			rval;		/* sub-return value */
-	xfs_da_state_t		*state;		/* btree cursor */
-
-	trace_xfs_dir2_node_addname(args);
-
-	/*
-	 * Allocate and initialize the state (btree cursor).
-	 */
-	state = xfs_da_state_alloc();
-	state->args = args;
-	state->mp = args->dp->i_mount;
-	/*
-	 * Look up the name.  We're not supposed to find it, but
-	 * this gives us the insertion point.
-	 */
-	error = xfs_da3_node_lookup_int(state, &rval);
-	if (error)
-		rval = error;
-	if (rval != -ENOENT) {
-		goto done;
-	}
-	/*
-	 * Add the data entry to a data block.
-	 * Extravalid is set to a freeblock found by lookup.
-	 */
-	rval = xfs_dir2_node_addname_int(args,
-		state->extravalid ? &state->extrablk : NULL);
-	if (rval) {
-		goto done;
-	}
-	blk = &state->path.blk[state->path.active - 1];
-	ASSERT(blk->magic == XFS_DIR2_LEAFN_MAGIC);
-	/*
-	 * Add the new leaf entry.
-	 */
-	rval = xfs_dir2_leafn_add(blk->bp, args, blk->index);
-	if (rval == 0) {
-		/*
-		 * It worked, fix the hash values up the btree.
-		 */
-		if (!(args->op_flags & XFS_DA_OP_JUSTCHECK))
-			xfs_da3_fixhashpath(state, &state->path);
-	} else {
-		/*
-		 * It didn't work, we need to split the leaf block.
-		 */
-		if (args->total == 0) {
-			ASSERT(rval == -ENOSPC);
-			goto done;
-		}
-		/*
-		 * Split the leaf block and insert the new entry.
-		 */
-		rval = xfs_da3_split(state);
-	}
-done:
-	xfs_da_state_free(state);
-	return rval;
-}
-
-/*
  * Add the data entry for a node-format directory name addition.
  * The leaf entry is added in xfs_dir2_leafn_add.
  * We may enter with a freespace block that the lookup found.
@@ -2054,6 +1983,75 @@ xfs_dir2_node_addname_int(
 	args->blkno = (xfs_dablk_t)dbno;
 	args->index = be16_to_cpu(*tagp);
 	return 0;
+}
+
+/*
+ * Top-level node form directory addname routine.
+ */
+int						/* error */
+xfs_dir2_node_addname(
+	xfs_da_args_t		*args)		/* operation arguments */
+{
+	xfs_da_state_blk_t	*blk;		/* leaf block for insert */
+	int			error;		/* error return value */
+	int			rval;		/* sub-return value */
+	xfs_da_state_t		*state;		/* btree cursor */
+
+	trace_xfs_dir2_node_addname(args);
+
+	/*
+	 * Allocate and initialize the state (btree cursor).
+	 */
+	state = xfs_da_state_alloc();
+	state->args = args;
+	state->mp = args->dp->i_mount;
+	/*
+	 * Look up the name.  We're not supposed to find it, but
+	 * this gives us the insertion point.
+	 */
+	error = xfs_da3_node_lookup_int(state, &rval);
+	if (error)
+		rval = error;
+	if (rval != -ENOENT) {
+		goto done;
+	}
+	/*
+	 * Add the data entry to a data block.
+	 * Extravalid is set to a freeblock found by lookup.
+	 */
+	rval = xfs_dir2_node_addname_int(args,
+		state->extravalid ? &state->extrablk : NULL);
+	if (rval) {
+		goto done;
+	}
+	blk = &state->path.blk[state->path.active - 1];
+	ASSERT(blk->magic == XFS_DIR2_LEAFN_MAGIC);
+	/*
+	 * Add the new leaf entry.
+	 */
+	rval = xfs_dir2_leafn_add(blk->bp, args, blk->index);
+	if (rval == 0) {
+		/*
+		 * It worked, fix the hash values up the btree.
+		 */
+		if (!(args->op_flags & XFS_DA_OP_JUSTCHECK))
+			xfs_da3_fixhashpath(state, &state->path);
+	} else {
+		/*
+		 * It didn't work, we need to split the leaf block.
+		 */
+		if (args->total == 0) {
+			ASSERT(rval == -ENOSPC);
+			goto done;
+		}
+		/*
+		 * Split the leaf block and insert the new entry.
+		 */
+		rval = xfs_da3_split(state);
+	}
+done:
+	xfs_da_state_free(state);
+	return rval;
 }
 
 /*
