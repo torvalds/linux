@@ -33,6 +33,7 @@ Required properties (all function blocks):
 	"mediatek,<chip>-disp-wdma"  		- write DMA
 	"mediatek,<chip>-disp-ccorr"            - color correction
 	"mediatek,<chip>-disp-color" 		- color processor
+	"mediatek,<chip>-disp-dither"           - dither
 	"mediatek,<chip>-disp-aal"   		- adaptive ambient light controller
 	"mediatek,<chip>-disp-gamma" 		- gamma correction
 	"mediatek,<chip>-disp-merge" 		- merge streams from two RDMA sources
