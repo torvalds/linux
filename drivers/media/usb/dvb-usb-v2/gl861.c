@@ -242,6 +242,7 @@ struct friio_config {
 
 static const struct friio_config friio_config = {
 	.demod_info = { I2C_BOARD_INFO(TC90522_I2C_DEV_TER, 0x18), },
+	.demod_cfg = { .split_tuner_read_i2c = true, },
 	.tuner_info = { I2C_BOARD_INFO("tua6034_friio", 0x60), },
 };
 
