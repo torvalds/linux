@@ -313,12 +313,7 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 				| DPU_ENCODER_FRAME_EVENT_PANEL_DEAD)) {
 
 		if (atomic_read(&dpu_crtc->frame_pending) < 1) {
-			/* this should not happen */
-			DRM_ERROR("crtc%d ev:%u ts:%lld frame_pending:%d\n",
-					crtc->base.id,
-					fevent->event,
-					ktime_to_ns(fevent->ts),
-					atomic_read(&dpu_crtc->frame_pending));
+			/* ignore vblank when not pending */
 		} else if (atomic_dec_return(&dpu_crtc->frame_pending) == 0) {
 			/* release bandwidth and other resources */
 			trace_dpu_crtc_frame_event_done(DRMID(crtc),
