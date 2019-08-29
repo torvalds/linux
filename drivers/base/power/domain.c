@@ -380,8 +380,8 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 	unsigned int prev;
 	int ret;
 
-	genpd = dev_to_genpd(dev);
-	if (IS_ERR(genpd))
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
 		return -ENODEV;
 
 	if (unlikely(!genpd->set_performance_state))
