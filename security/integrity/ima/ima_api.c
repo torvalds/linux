@@ -45,8 +45,8 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 	else
 		template_desc = ima_template_desc_current();
 
-	*entry = kzalloc(sizeof(**entry) + template_desc->num_fields *
-			 sizeof(struct ima_field_data), GFP_NOFS);
+	*entry = kzalloc(struct_size(*entry, template_data,
+				     template_desc->num_fields), GFP_NOFS);
 	if (!*entry)
 		return -ENOMEM;
 
