@@ -5,6 +5,7 @@
  * Description: CoreSight Funnel driver
  */
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -302,11 +303,19 @@ static const struct of_device_id static_funnel_match[] = {
 	{}
 };
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id static_funnel_ids[] = {
+	{"ARMHC9FE", 0},
+	{},
+};
+#endif
+
 static struct platform_driver static_funnel_driver = {
 	.probe          = static_funnel_probe,
 	.driver         = {
 		.name   = "coresight-static-funnel",
 		.of_match_table = static_funnel_match,
+		.acpi_match_table = ACPI_PTR(static_funnel_ids),
 		.pm	= &funnel_dev_pm_ops,
 		.suppress_bind_attrs = true,
 	},
