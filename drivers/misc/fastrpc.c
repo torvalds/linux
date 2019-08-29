@@ -1198,26 +1198,6 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int fastrpc_dmabuf_free(struct fastrpc_user *fl, char __user *argp)
-{
-	struct dma_buf *buf;
-	int info;
-
-	if (copy_from_user(&info, argp, sizeof(info)))
-		return -EFAULT;
-
-	buf = dma_buf_get(info);
-	if (IS_ERR_OR_NULL(buf))
-		return -EINVAL;
-	/*
-	 * one for the last get and other for the ALLOC_DMA_BUFF ioctl
-	 */
-	dma_buf_put(buf);
-	dma_buf_put(buf);
-
-	return 0;
-}
-
 static int fastrpc_dmabuf_alloc(struct fastrpc_user *fl, char __user *argp)
 {
 	struct fastrpc_alloc_dma_buf bp;
@@ -1252,8 +1232,6 @@ static int fastrpc_dmabuf_alloc(struct fastrpc_user *fl, char __user *argp)
 		dma_buf_put(buf->dmabuf);
 		return -EFAULT;
 	}
-
-	get_dma_buf(buf->dmabuf);
 
 	return 0;
 }
@@ -1321,9 +1299,6 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case FASTRPC_IOCTL_INIT_CREATE:
 		err = fastrpc_init_create_process(fl, argp);
-		break;
-	case FASTRPC_IOCTL_FREE_DMA_BUFF:
-		err = fastrpc_dmabuf_free(fl, argp);
 		break;
 	case FASTRPC_IOCTL_ALLOC_DMA_BUFF:
 		err = fastrpc_dmabuf_alloc(fl, argp);
