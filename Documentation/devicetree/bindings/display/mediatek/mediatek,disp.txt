@@ -31,6 +31,7 @@ Required properties (all function blocks):
 	"mediatek,<chip>-disp-ovl-2l"           - overlay (2 layers, blending, csc)
 	"mediatek,<chip>-disp-rdma"  		- read DMA / line buffer
 	"mediatek,<chip>-disp-wdma"  		- write DMA
+	"mediatek,<chip>-disp-ccorr"            - color correction
 	"mediatek,<chip>-disp-color" 		- color processor
 	"mediatek,<chip>-disp-aal"   		- adaptive ambient light controller
 	"mediatek,<chip>-disp-gamma" 		- gamma correction
