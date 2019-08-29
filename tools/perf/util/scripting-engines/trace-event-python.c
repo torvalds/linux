@@ -31,7 +31,6 @@
 #include <linux/compiler.h>
 #include <linux/time64.h>
 
-#include "../../perf.h"
 #include "../counts.h"
 #include "../debug.h"
 #include "../callchain.h"

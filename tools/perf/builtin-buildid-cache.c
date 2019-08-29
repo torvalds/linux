@@ -14,7 +14,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include "builtin.h"
-#include "perf.h"
 #include "namespaces.h"
 #include "util/cache.h"
 #include "util/debug.h"

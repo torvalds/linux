@@ -7,8 +7,6 @@
  */
 #include "builtin.h"
 
-#include "perf.h"
-
 #include "util/cache.h"
 #include <subcmd/parse-options.h>
 #include "util/util.h"

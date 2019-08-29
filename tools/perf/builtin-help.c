@@ -4,7 +4,6 @@
  *
  * Builtin help command
  */
-#include "perf.h"
 #include "util/config.h"
 #include "builtin.h"
 #include <subcmd/exec-cmd.h>

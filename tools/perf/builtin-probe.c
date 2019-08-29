@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "perf.h"
 #include "builtin.h"
 #include "namespaces.h"
 #include "util/strlist.h"

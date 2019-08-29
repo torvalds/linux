@@ -34,7 +34,6 @@
 #include <EXTERN.h>
 #include <perl.h>
 
-#include "../../perf.h"
 #include "../callchain.h"
 #include "../machine.h"
 #include "../map.h"

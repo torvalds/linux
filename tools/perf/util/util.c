@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../perf.h"
 #include "util.h"
 #include "debug.h"
 #include "namespaces.h"

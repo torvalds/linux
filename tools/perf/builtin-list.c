@@ -10,8 +10,6 @@
  */
 #include "builtin.h"
 
-#include "perf.h"
-
 #include "util/parse-events.h"
 #include "util/cache.h"
 #include "util/pmu.h"

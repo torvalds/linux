@@ -1,4 +1,3 @@
-#include "perf.h"
 #include "util/util.h"
 #include "util/debug.h"
 #include "util/branch.h"

@@ -8,7 +8,6 @@
  */
 
 #include <bpf/libbpf.h>
-#include "perf.h"
 #include "debug.h"
 #include "bpf-loader.h"
 #include "bpf-prologue.h"
