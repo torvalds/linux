@@ -732,7 +732,7 @@ static void generate_ideal_pkt_descs(struct amdtp_stream *s,
 		struct pkt_desc *desc = descs + i;
 		unsigned int index = (s->packet_index + i) % QUEUE_LENGTH;
 
-		desc->cycle = compute_cycle_count(*ctx_header);
+		desc->cycle = compute_it_cycle(*ctx_header);
 		desc->syt = calculate_syt(s, desc->cycle);
 		desc->data_blocks = calculate_data_blocks(s, desc->syt);
 
