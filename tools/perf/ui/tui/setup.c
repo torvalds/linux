@@ -11,6 +11,7 @@
 #include "../../util/cache.h"
 #include "../../util/debug.h"
 #include "../../util/util.h"
+#include "../../perf.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../ui.h"

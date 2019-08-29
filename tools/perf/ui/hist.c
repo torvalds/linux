@@ -9,6 +9,7 @@
 #include "../util/sort.h"
 #include "../util/evsel.h"
 #include "../util/evlist.h"
+#include "../perf.h"
 
 /* hist period print (hpp) functions */
 

@@ -8,6 +8,7 @@
 #include "time-utils.h"
 #include "../util.h"
 #include "../../util/util.h"
+#include "../../perf.h"
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 

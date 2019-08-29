@@ -30,6 +30,7 @@
 #include "stat.h"
 #include "session.h"
 #include "bpf-event.h"
+#include "../perf.h"
 
 #define DEFAULT_PROC_MAP_PARSE_TIMEOUT 500
 

@@ -22,6 +22,7 @@
 #include "../../util/top.h"
 #include "../../util/thread.h"
 #include "../../arch/common.h"
+#include "../../perf.h"
 
 #include "../browsers/hists.h"
 #include "../helpline.h"

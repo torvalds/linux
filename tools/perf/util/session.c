@@ -29,6 +29,7 @@
 #include "sample-raw.h"
 #include "stat.h"
 #include "util.h"
+#include "../perf.h"
 #include "arch/common.h"
 
 #ifdef HAVE_ZSTD_SUPPORT

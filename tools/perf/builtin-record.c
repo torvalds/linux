@@ -42,6 +42,7 @@
 #include "util/units.h"
 #include "util/bpf-event.h"
 #include "asm/bug.h"
+#include "perf.h"
 
 #include <errno.h>
 #include <inttypes.h>

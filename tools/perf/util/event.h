@@ -9,7 +9,6 @@
 #include <linux/perf_event.h>
 #include <perf/event.h>
 
-#include "../perf.h"
 #include "build-id.h"
 #include "perf_regs.h"
 

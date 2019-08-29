@@ -35,6 +35,7 @@
 #include "thread.h"
 #include "mem2node.h"
 #include "symbol.h"
+#include "../perf.h"
 
 struct c2c_hists {
 	struct hists		hists;

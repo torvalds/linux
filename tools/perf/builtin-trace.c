@@ -51,6 +51,7 @@
 #include "string2.h"
 #include "syscalltbl.h"
 #include "rb_resort.h"
+#include "../perf.h"
 
 #include <errno.h>
 #include <inttypes.h>

@@ -41,6 +41,7 @@
  */
 
 #include "builtin.h"
+#include "perf.h"
 #include "util/cgroup.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"

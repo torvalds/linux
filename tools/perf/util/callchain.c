@@ -28,6 +28,7 @@
 #include "callchain.h"
 #include "branch.h"
 #include "symbol.h"
+#include "../perf.h"
 
 #define CALLCHAIN_PARAM_DEFAULT			\
 	.mode		= CHAIN_GRAPH_ABS,	\

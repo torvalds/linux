@@ -8,6 +8,7 @@
  * perf top, perf record, perf report, etc.) are started.
  */
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/env.h"
 #include <subcmd/exec-cmd.h>

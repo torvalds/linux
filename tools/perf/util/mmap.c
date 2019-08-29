@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "event.h"
 #include "mmap.h"
+#include "../perf.h"
 #include "util.h" /* page_size */
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map)
