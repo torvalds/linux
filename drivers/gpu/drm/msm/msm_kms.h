@@ -36,6 +36,16 @@ struct msm_kms_funcs {
 	 */
 
 	/**
+	 * Enable/disable power/clks needed for hw access done in other
+	 * commit related methods.
+	 *
+	 * If mdp4 is migrated to runpm, we could probably drop these
+	 * and use runpm directly.
+	 */
+	void (*enable_commit)(struct msm_kms *kms);
+	void (*disable_commit)(struct msm_kms *kms);
+
+	/**
 	 * Prepare for atomic commit.  This is called after any previous
 	 * (async or otherwise) commit has completed.
 	 */

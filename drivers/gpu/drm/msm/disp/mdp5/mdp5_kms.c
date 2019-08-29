@@ -146,15 +146,24 @@ static int mdp5_global_obj_init(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
+static void mdp5_enable_commit(struct msm_kms *kms)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	pm_runtime_get_sync(&mdp5_kms->pdev->dev);
+}
+
+static void mdp5_disable_commit(struct msm_kms *kms)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	pm_runtime_put_sync(&mdp5_kms->pdev->dev);
+}
+
 static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct device *dev = &mdp5_kms->pdev->dev;
 	struct mdp5_global_state *global_state;
 
 	global_state = mdp5_get_existing_global_state(mdp5_kms);
-
-	pm_runtime_get_sync(dev);
 
 	if (mdp5_kms->smp)
 		mdp5_smp_prepare_commit(mdp5_kms->smp, &global_state->smp);
@@ -177,15 +186,12 @@ static void mdp5_wait_flush(struct msm_kms *kms, unsigned crtc_mask)
 static void mdp5_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct device *dev = &mdp5_kms->pdev->dev;
 	struct mdp5_global_state *global_state;
 
 	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	if (mdp5_kms->smp)
 		mdp5_smp_complete_commit(mdp5_kms->smp, &global_state->smp);
-
-	pm_runtime_put_sync(dev);
 }
 
 static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
@@ -284,6 +290,8 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.enable_vblank   = mdp5_enable_vblank,
 		.disable_vblank  = mdp5_disable_vblank,
 		.flush_commit    = mdp5_flush_commit,
+		.enable_commit   = mdp5_enable_commit,
+		.disable_commit  = mdp5_disable_commit,
 		.prepare_commit  = mdp5_prepare_commit,
 		.wait_flush      = mdp5_wait_flush,
 		.complete_commit = mdp5_complete_commit,
