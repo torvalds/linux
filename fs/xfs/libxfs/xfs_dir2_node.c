@@ -1750,8 +1750,8 @@ xfs_dir2_node_find_freeblk(
 	xfs_dir2_db_t		dbno = -1;
 	xfs_dir2_db_t		fbno = -1;
 	xfs_fileoff_t		fo;
-	__be16			*bests;
-	int			findex;
+	__be16			*bests = NULL;
+	int			findex = 0;
 	int			error;
 
 	/*
@@ -1781,14 +1781,14 @@ xfs_dir2_node_find_freeblk(
 		 */
 		ifbno = fblk->blkno;
 		fbno = ifbno;
+		xfs_trans_brelse(tp, fbp);
+		fbp = NULL;
+		fblk->bp = NULL;
 	}
-	ASSERT(dbno == -1);
-	findex = 0;
 
 	/*
 	 * If we don't have a data block yet, we're going to scan the freespace
-	 * blocks looking for one.  Figure out what the highest freespace block
-	 * number is.
+	 * data for a data block with enough free space in it.
 	 */
 	error = xfs_bmap_last_offset(dp, &fo, XFS_DATA_FORK);
 	if (error)
@@ -1799,70 +1799,41 @@ xfs_dir2_node_find_freeblk(
 	if (fbno == -1)
 		fbno = xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET);
 
-	/*
-	 * While we haven't identified a data block, search the freeblock
-	 * data for a good data block.  If we find a null freeblock entry,
-	 * indicating a hole in the data blocks, remember that.
-	 */
-	while (dbno == -1) {
+	for ( ; fbno < lastfbno; fbno++) {
+		/* If it's ifbno we already looked at it. */
+		if (fbno == ifbno)
+			continue;
+
 		/*
-		 * If we don't have a freeblock in hand, get the next one.
+		 * Read the block.  There can be holes in the freespace blocks,
+		 * so this might not succeed.  This should be really rare, so
+		 * there's no reason to avoid it.
 		 */
-		if (fbp == NULL) {
-			/*
-			 * If it's ifbno we already looked at it.
-			 */
-			if (++fbno == ifbno)
-				fbno++;
-			/*
-			 * If it's off the end we're done.
-			 */
-			if (fbno >= lastfbno)
-				break;
-			/*
-			 * Read the block.  There can be holes in the
-			 * freespace blocks, so this might not succeed.
-			 * This should be really rare, so there's no reason
-			 * to avoid it.
-			 */
-			error = xfs_dir2_free_try_read(tp, dp,
-					xfs_dir2_db_to_da(args->geo, fbno),
-					&fbp);
-			if (error)
-				return error;
-			if (!fbp)
-				continue;
-			free = fbp->b_addr;
-			findex = 0;
-		}
-		/*
-		 * Look at the current free entry.  Is it good enough?
-		 *
-		 * The bests initialisation should be where the bufer is read in
-		 * the above branch. But gcc is too stupid to realise that bests
-		 * and the freehdr are actually initialised if they are placed
-		 * there, so we have to do it here to avoid warnings. Blech.
-		 */
+		error = xfs_dir2_free_try_read(tp, dp,
+				xfs_dir2_db_to_da(args->geo, fbno),
+				&fbp);
+		if (error)
+			return error;
+		if (!fbp)
+			continue;
+
+		free = fbp->b_addr;
 		bests = dp->d_ops->free_bests_p(free);
 		dp->d_ops->free_hdr_from_disk(&freehdr, free);
-		if (be16_to_cpu(bests[findex]) != NULLDATAOFF &&
-		    be16_to_cpu(bests[findex]) >= length)
-			dbno = freehdr.firstdb + findex;
-		else {
-			/*
-			 * Are we done with the freeblock?
-			 */
-			if (++findex == freehdr.nvalid) {
-				/*
-				 * Drop the block.
-				 */
-				xfs_trans_brelse(tp, fbp);
-				fbp = NULL;
-				if (fblk && fblk->bp)
-					fblk->bp = NULL;
+
+		/* Scan the free entry array for a large enough free space. */
+		for (findex = 0; findex < freehdr.nvalid; findex++) {
+			if (be16_to_cpu(bests[findex]) != NULLDATAOFF &&
+			    be16_to_cpu(bests[findex]) >= length) {
+				dbno = freehdr.firstdb + findex;
+				goto found_block;
 			}
 		}
+
+		/* Didn't find free space, go on to next free block */
+		xfs_trans_brelse(tp, fbp);
 	}
+
 found_block:
 	*dbnop = dbno;
 	*fbpp = fbp;
