@@ -1013,29 +1013,32 @@ int iommu_tce_check_gpa(unsigned long page_shift, unsigned long gpa)
 }
 EXPORT_SYMBOL_GPL(iommu_tce_check_gpa);
 
-long iommu_tce_xchg(struct mm_struct *mm, struct iommu_table *tbl,
+extern long iommu_tce_xchg_no_kill(struct mm_struct *mm,
+		struct iommu_table *tbl,
 		unsigned long entry, unsigned long *hpa,
 		enum dma_data_direction *direction)
 {
 	long ret;
 	unsigned long size = 0;
 
-	ret = tbl->it_ops->exchange(tbl, entry, hpa, direction);
-
+	ret = tbl->it_ops->xchg_no_kill(tbl, entry, hpa, direction, false);
 	if (!ret && ((*direction == DMA_FROM_DEVICE) ||
 			(*direction == DMA_BIDIRECTIONAL)) &&
 			!mm_iommu_is_devmem(mm, *hpa, tbl->it_page_shift,
 					&size))
 		SetPageDirty(pfn_to_page(*hpa >> PAGE_SHIFT));
 
-	/* if (unlikely(ret))
-		pr_err("iommu_tce: %s failed on hwaddr=%lx ioba=%lx kva=%lx ret=%d\n",
-			__func__, hwaddr, entry << tbl->it_page_shift,
-				hwaddr, ret); */
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_xchg);
+EXPORT_SYMBOL_GPL(iommu_tce_xchg_no_kill);
+
+void iommu_tce_kill(struct iommu_table *tbl,
+		unsigned long entry, unsigned long pages)
+{
+	if (tbl->it_ops->tce_kill)
+		tbl->it_ops->tce_kill(tbl, entry, pages, false);
+}
+EXPORT_SYMBOL_GPL(iommu_tce_kill);
 
 int iommu_take_ownership(struct iommu_table *tbl)
 {
@@ -1049,7 +1052,7 @@ int iommu_take_ownership(struct iommu_table *tbl)
 	 * requires exchange() callback defined so if it is not
 	 * implemented, we disallow taking ownership over the table.
 	 */
-	if (!tbl->it_ops->exchange)
+	if (!tbl->it_ops->xchg_no_kill)
 		return -EINVAL;
 
 	spin_lock_irqsave(&tbl->large_pool.lock, flags);
