@@ -1876,6 +1876,7 @@ static int blk_iocost_init(struct request_queue *q)
 	ret = blkcg_activate_policy(q, &blkcg_policy_iocost);
 	if (ret) {
 		rq_qos_del(q, rqos);
+		free_percpu(ioc->pcpu_stat);
 		kfree(ioc);
 		return ret;
 	}
