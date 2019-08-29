@@ -928,6 +928,19 @@ static void tmc_sync_etr_buf(struct tmc_drvdata *drvdata)
 	rrp = tmc_read_rrp(drvdata);
 	rwp = tmc_read_rwp(drvdata);
 	status = readl_relaxed(drvdata->base + TMC_STS);
+
+	/*
+	 * If there were memory errors in the session, truncate the
+	 * buffer.
+	 */
+	if (WARN_ON_ONCE(status & TMC_STS_MEMERR)) {
+		dev_dbg(&drvdata->csdev->dev,
+			"tmc memory error detected, truncating buffer\n");
+		etr_buf->len = 0;
+		etr_buf->full = 0;
+		return;
+	}
+
 	etr_buf->full = status & TMC_STS_FULL;
 
 	WARN_ON(!etr_buf->ops || !etr_buf->ops->sync);
