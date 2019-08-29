@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -687,9 +688,7 @@ static struct platform_driver rpmh_driver = {
 		  .of_match_table = rpmh_drv_match,
 	},
 };
+builtin_platform_driver(rpmh_driver);
 
-static int __init rpmh_driver_init(void)
-{
-	return platform_driver_register(&rpmh_driver);
-}
-arch_initcall(rpmh_driver_init);
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMH communication driver");
