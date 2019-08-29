@@ -1939,6 +1939,14 @@ static int pnv_ioda1_tce_build(struct iommu_table *tbl, long index,
 }
 
 #ifdef CONFIG_IOMMU_API
+/* Common for IODA1 and IODA2 */
+static int pnv_ioda_tce_xchg_no_kill(struct iommu_table *tbl, long index,
+		unsigned long *hpa, enum dma_data_direction *direction,
+		bool realmode)
+{
+	return pnv_tce_xchg(tbl, index, hpa, direction, !realmode);
+}
+
 static int pnv_ioda1_tce_xchg(struct iommu_table *tbl, long index,
 		unsigned long *hpa, enum dma_data_direction *direction)
 {
@@ -1975,6 +1983,8 @@ static struct iommu_table_ops pnv_ioda1_iommu_ops = {
 #ifdef CONFIG_IOMMU_API
 	.exchange = pnv_ioda1_tce_xchg,
 	.exchange_rm = pnv_ioda1_tce_xchg_rm,
+	.xchg_no_kill = pnv_ioda_tce_xchg_no_kill,
+	.tce_kill = pnv_pci_p7ioc_tce_invalidate,
 	.useraddrptr = pnv_tce_useraddrptr,
 #endif
 	.clear = pnv_ioda1_tce_free,
@@ -2140,6 +2150,8 @@ static struct iommu_table_ops pnv_ioda2_iommu_ops = {
 #ifdef CONFIG_IOMMU_API
 	.exchange = pnv_ioda2_tce_xchg,
 	.exchange_rm = pnv_ioda2_tce_xchg_rm,
+	.xchg_no_kill = pnv_ioda_tce_xchg_no_kill,
+	.tce_kill = pnv_pci_ioda2_tce_invalidate,
 	.useraddrptr = pnv_tce_useraddrptr,
 #endif
 	.clear = pnv_ioda2_tce_free,
