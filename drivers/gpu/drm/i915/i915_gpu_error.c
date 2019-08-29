@@ -990,7 +990,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dst->unused = 0;
 
 	ret = -EINVAL;
-	for_each_sgt_dma(dma, iter, vma->pages) {
+	for_each_sgt_daddr(dma, iter, vma->pages) {
 		void __iomem *s;
 
 		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);

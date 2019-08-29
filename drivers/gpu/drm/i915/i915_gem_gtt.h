@@ -148,8 +148,8 @@ typedef u64 gen8_pte_t;
 #define GEN8_PDE_IPS_64K BIT(11)
 #define GEN8_PDE_PS_2M   BIT(7)
 
-#define for_each_sgt_dma(__dmap, __iter, __sgt) \
-	__for_each_sgt_dma(__dmap, __iter, __sgt, I915_GTT_PAGE_SIZE)
+#define for_each_sgt_daddr(__dp, __iter, __sgt) \
+	__for_each_sgt_daddr(__dp, __iter, __sgt, I915_GTT_PAGE_SIZE)
 
 struct intel_remapped_plane_info {
 	/* in gtt pages */

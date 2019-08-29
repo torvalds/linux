@@ -2208,7 +2208,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 
 	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm;
 	gtt_entries += vma->node.start / I915_GTT_PAGE_SIZE;
-	for_each_sgt_dma(addr, sgt_iter, vma->pages)
+	for_each_sgt_daddr(addr, sgt_iter, vma->pages)
 		gen8_set_pte(gtt_entries++, pte_encode | addr);
 
 	/*
@@ -2249,7 +2249,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	unsigned int i = vma->node.start / I915_GTT_PAGE_SIZE;
 	struct sgt_iter iter;
 	dma_addr_t addr;
-	for_each_sgt_dma(addr, iter, vma->pages)
+	for_each_sgt_daddr(addr, iter, vma->pages)
 		iowrite32(vm->pte_encode(addr, level, flags), &entries[i++]);
 
 	/*

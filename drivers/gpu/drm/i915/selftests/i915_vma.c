@@ -623,7 +623,7 @@ static bool assert_partial(struct drm_i915_gem_object *obj,
 	struct sgt_iter sgt;
 	dma_addr_t dma;
 
-	for_each_sgt_dma(dma, sgt, vma->pages) {
+	for_each_sgt_daddr(dma, sgt, vma->pages) {
 		dma_addr_t src;
 
 		if (!size) {
