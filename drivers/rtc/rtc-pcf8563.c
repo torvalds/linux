@@ -591,12 +591,13 @@ static int pcf8563_probe(struct i2c_client *client,
 		return err;
 	}
 
-	pcf8563->rtc = devm_rtc_device_register(&client->dev,
-				pcf8563_driver.driver.name,
-				&pcf8563_rtc_ops, THIS_MODULE);
-
+	pcf8563->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(pcf8563->rtc))
 		return PTR_ERR(pcf8563->rtc);
+
+	pcf8563->rtc->ops = &pcf8563_rtc_ops;
+	/* the pcf8563 alarm only supports a minute accuracy */
+	pcf8563->rtc->uie_unsupported = 1;
 
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,
@@ -608,16 +609,16 @@ static int pcf8563_probe(struct i2c_client *client,
 								client->irq);
 			return err;
 		}
-
 	}
+
+	err = rtc_register_device(pcf8563->rtc);
+	if (err)
+		return err;
 
 #ifdef CONFIG_COMMON_CLK
 	/* register clk in common clk framework */
 	pcf8563_clkout_register_clk(pcf8563);
 #endif
-
-	/* the pcf8563 alarm only supports a minute accuracy */
-	pcf8563->rtc->uie_unsupported = 1;
 
 	return 0;
 }
