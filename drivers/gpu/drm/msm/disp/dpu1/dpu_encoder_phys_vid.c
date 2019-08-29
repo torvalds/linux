@@ -526,6 +526,26 @@ static int dpu_encoder_phys_vid_wait_for_vblank(
 	return _dpu_encoder_phys_vid_wait_for_vblank(phys_enc, true);
 }
 
+static int dpu_encoder_phys_vid_wait_for_commit_done(
+		struct dpu_encoder_phys *phys_enc)
+{
+	struct dpu_hw_ctl *hw_ctl = phys_enc->hw_ctl;
+	int ret;
+
+	if (!hw_ctl)
+		return 0;
+
+	ret = wait_event_timeout(phys_enc->pending_kickoff_wq,
+		(hw_ctl->ops.get_flush_register(hw_ctl) == 0),
+		msecs_to_jiffies(50));
+	if (ret <= 0) {
+		DPU_ERROR("vblank timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static void dpu_encoder_phys_vid_prepare_for_kickoff(
 		struct dpu_encoder_phys *phys_enc)
 {
@@ -676,7 +696,7 @@ static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->destroy = dpu_encoder_phys_vid_destroy;
 	ops->get_hw_resources = dpu_encoder_phys_vid_get_hw_resources;
 	ops->control_vblank_irq = dpu_encoder_phys_vid_control_vblank_irq;
-	ops->wait_for_commit_done = dpu_encoder_phys_vid_wait_for_vblank;
+	ops->wait_for_commit_done = dpu_encoder_phys_vid_wait_for_commit_done;
 	ops->wait_for_vblank = dpu_encoder_phys_vid_wait_for_vblank;
 	ops->wait_for_tx_complete = dpu_encoder_phys_vid_wait_for_vblank;
 	ops->irq_control = dpu_encoder_phys_vid_irq_control;
