@@ -115,7 +115,7 @@ static const struct abm_parameters * const abm_settings[] = {
 /* NOTE: iRAM is 256B in size */
 struct iram_table_v_2 {
 	/* flags                      */
-	uint16_t flags;							/* 0x00 U16  */
+	uint16_t min_abm_backlight;					/* 0x00 U16  */
 
 	/* parameters for ABM2.0 algorithm */
 	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];		/* 0x02 U0.8 */
@@ -140,10 +140,10 @@ struct iram_table_v_2 {
 
 	/* For reading PSR State directly from IRAM */
 	uint8_t psr_state;						/* 0xf0       */
-	uint8_t dmcu_mcp_interface_version;							/* 0xf1       */
-	uint8_t dmcu_abm_feature_version;							/* 0xf2       */
-	uint8_t dmcu_psr_feature_version;							/* 0xf3       */
-	uint16_t dmcu_version;										/* 0xf4       */
+	uint8_t dmcu_mcp_interface_version;				/* 0xf1       */
+	uint8_t dmcu_abm_feature_version;				/* 0xf2       */
+	uint8_t dmcu_psr_feature_version;				/* 0xf3       */
+	uint16_t dmcu_version;						/* 0xf4       */
 	uint8_t dmcu_state;						/* 0xf6       */
 
 	uint16_t blRampReduction;					/* 0xf7       */
@@ -164,42 +164,43 @@ struct iram_table_v_2_2 {
 	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];		/* 0x16 U0.8 */
 	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];	/* 0x2a U2.6 */
 	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];		/* 0x3e U2.6 */
-	uint8_t hybrid_factor[NUM_AGGR_LEVEL];						/* 0x52 U0.8 */
-	uint8_t contrast_factor[NUM_AGGR_LEVEL];					/* 0x56 U0.8 */
-	uint8_t deviation_gain[NUM_AGGR_LEVEL];						/* 0x5a U0.8 */
-	uint8_t iir_curve[NUM_AMBI_LEVEL];							/* 0x5e U0.8 */
-	uint8_t min_knee[NUM_AGGR_LEVEL];							/* 0x63 U0.8 */
-	uint8_t max_knee[NUM_AGGR_LEVEL];							/* 0x67 U0.8 */
-	uint8_t pad[21];											/* 0x6b U0.8 */
+	uint8_t hybrid_factor[NUM_AGGR_LEVEL];				/* 0x52 U0.8 */
+	uint8_t contrast_factor[NUM_AGGR_LEVEL];			/* 0x56 U0.8 */
+	uint8_t deviation_gain[NUM_AGGR_LEVEL];				/* 0x5a U0.8 */
+	uint8_t iir_curve[NUM_AMBI_LEVEL];				/* 0x5e U0.8 */
+	uint8_t min_knee[NUM_AGGR_LEVEL];				/* 0x63 U0.8 */
+	uint8_t max_knee[NUM_AGGR_LEVEL];				/* 0x67 U0.8 */
+	uint16_t min_abm_backlight;					/* 0x6b U16  */
+	uint8_t pad[19];						/* 0x6d U0.8 */
 
 	/* parameters for crgb conversion */
-	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];					/* 0x80 U3.13 */
-	uint16_t crgb_offset[NUM_POWER_FN_SEGS];					/* 0x90 U1.15 */
-	uint16_t crgb_slope[NUM_POWER_FN_SEGS];						/* 0xa0 U4.12 */
+	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];			/* 0x80 U3.13 */
+	uint16_t crgb_offset[NUM_POWER_FN_SEGS];			/* 0x90 U1.15 */
+	uint16_t crgb_slope[NUM_POWER_FN_SEGS];				/* 0xa0 U4.12 */
 
 	/* parameters for custom curve */
 	/* thresholds for brightness --> backlight */
-	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];			/* 0xb0 U16.0 */
+	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];		/* 0xb0 U16.0 */
 	/* offsets for brightness --> backlight */
-	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];				/* 0xd0 U16.0 */
+	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];			/* 0xd0 U16.0 */
 
 	/* For reading PSR State directly from IRAM */
-	uint8_t psr_state;											/* 0xf0       */
-	uint8_t dmcu_mcp_interface_version;							/* 0xf1       */
-	uint8_t dmcu_abm_feature_version;							/* 0xf2       */
-	uint8_t dmcu_psr_feature_version;							/* 0xf3       */
-	uint16_t dmcu_version;										/* 0xf4       */
-	uint8_t dmcu_state;											/* 0xf6       */
+	uint8_t psr_state;						/* 0xf0       */
+	uint8_t dmcu_mcp_interface_version;				/* 0xf1       */
+	uint8_t dmcu_abm_feature_version;				/* 0xf2       */
+	uint8_t dmcu_psr_feature_version;				/* 0xf3       */
+	uint16_t dmcu_version;						/* 0xf4       */
+	uint8_t dmcu_state;						/* 0xf6       */
 
-	uint8_t dummy1;												/* 0xf7       */
-	uint8_t dummy2;												/* 0xf8       */
-	uint8_t dummy3;												/* 0xf9       */
-	uint8_t dummy4;												/* 0xfa       */
-	uint8_t dummy5;												/* 0xfb       */
-	uint8_t dummy6;												/* 0xfc       */
-	uint8_t dummy7;												/* 0xfd       */
-	uint8_t dummy8;												/* 0xfe       */
-	uint8_t dummy9;												/* 0xff       */
+	uint8_t dummy1;							/* 0xf7       */
+	uint8_t dummy2;							/* 0xf8       */
+	uint8_t dummy3;							/* 0xf9       */
+	uint8_t dummy4;							/* 0xfa       */
+	uint8_t dummy5;							/* 0xfb       */
+	uint8_t dummy6;							/* 0xfc       */
+	uint8_t dummy7;							/* 0xfd       */
+	uint8_t dummy8;							/* 0xfe       */
+	uint8_t dummy9;							/* 0xff       */
 };
 #pragma pack(pop)
 
@@ -271,7 +272,8 @@ void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters
 {
 	unsigned int set = params.set;
 
-	ram_table->flags = 0x0;
+	ram_table->min_abm_backlight =
+			cpu_to_be16(params.min_abm_backlight);
 	ram_table->deviation_gain = 0xb3;
 
 	ram_table->blRampReduction =
@@ -445,6 +447,9 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 
 	ram_table->flags = 0x0;
 
+	ram_table->min_abm_backlight =
+			cpu_to_be16(params.min_abm_backlight);
+
 	ram_table->deviation_gain[0] = 0xb3;
 	ram_table->deviation_gain[1] = 0xa8;
 	ram_table->deviation_gain[2] = 0x98;
@@ -588,6 +593,10 @@ void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	unsigned int set = params.set;
 
 	ram_table->flags = 0x0;
+
+	ram_table->min_abm_backlight =
+			cpu_to_be16(params.min_abm_backlight);
+
 	for (i = 0; i < NUM_AGGR_LEVEL; i++) {
 		ram_table->hybrid_factor[i] = abm_settings[set][i].brightness_gain;
 		ram_table->contrast_factor[i] = abm_settings[set][i].contrast_factor;

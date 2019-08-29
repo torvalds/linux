@@ -942,6 +942,11 @@ static int dm_late_init(void *handle)
 	params.backlight_lut_array_size = 16;
 	params.backlight_lut_array = linear_lut;
 
+	/* Min backlight level after ABM reduction,  Don't allow below 1%
+	 * 0xFFFF x 0.01 = 0x28F
+	 */
+	params.min_abm_backlight = 0x28F;
+
 	/* todo will enable for navi10 */
 	if (adev->asic_type <= CHIP_RAVEN) {
 		ret = dmcu_load_iram(dmcu, params);
