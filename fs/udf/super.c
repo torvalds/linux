@@ -92,10 +92,6 @@ static void udf_put_super(struct super_block *);
 static int udf_sync_fs(struct super_block *, int);
 static int udf_remount_fs(struct super_block *, int *, char *);
 static void udf_load_logicalvolint(struct super_block *, struct kernel_extent_ad);
-static int udf_find_fileset(struct super_block *, struct kernel_lb_addr *,
-			    struct kernel_lb_addr *);
-static int udf_load_fileset(struct super_block *, struct fileSetDesc *,
-			    struct kernel_lb_addr *);
 static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
@@ -769,6 +765,55 @@ static int udf_check_vsd(struct super_block *sb)
 		return 0;
 }
 
+static int udf_verify_domain_identifier(struct super_block *sb,
+					struct regid *ident, char *dname)
+{
+	struct domainEntityIDSuffix *suffix;
+
+	if (memcmp(ident->ident, UDF_ID_COMPLIANT, strlen(UDF_ID_COMPLIANT))) {
+		udf_warn(sb, "Not OSTA UDF compliant %s descriptor.\n", dname);
+		goto force_ro;
+	}
+	if (ident->flags & (1 << ENTITYID_FLAGS_DIRTY)) {
+		udf_warn(sb, "Possibly not OSTA UDF compliant %s descriptor.\n",
+			 dname);
+		goto force_ro;
+	}
+	suffix = (struct domainEntityIDSuffix *)ident->identSuffix;
+	if (suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_HARDWRITEPROTECT) ||
+	    suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_SOFTWRITEPROTECT)) {
+		if (!sb_rdonly(sb)) {
+			udf_warn(sb, "Descriptor for %s marked write protected."
+				 " Forcing read only mount.\n", dname);
+		}
+		goto force_ro;
+	}
+	return 0;
+
+force_ro:
+	if (!sb_rdonly(sb))
+		return -EACCES;
+	UDF_SET_FLAG(sb, UDF_FLAG_RW_INCOMPAT);
+	return 0;
+}
+
+static int udf_load_fileset(struct super_block *sb, struct fileSetDesc *fset,
+			    struct kernel_lb_addr *root)
+{
+	int ret;
+
+	ret = udf_verify_domain_identifier(sb, &fset->domainIdent, "file set");
+	if (ret < 0)
+		return ret;
+
+	*root = lelb_to_cpu(fset->rootDirectoryICB.extLocation);
+	UDF_SB(sb)->s_serial_number = le16_to_cpu(fset->descTag.tagSerialNum);
+
+	udf_debug("Rootdir at block=%u, partition=%u\n",
+		  root->logicalBlockNum, root->partitionReferenceNum);
+	return 0;
+}
+
 static int udf_find_fileset(struct super_block *sb,
 			    struct kernel_lb_addr *fileset,
 			    struct kernel_lb_addr *root)
@@ -948,55 +993,6 @@ static int udf_load_metadata_files(struct super_block *sb, int partition,
 	}
 
 	udf_debug("udf_load_metadata_files Ok\n");
-	return 0;
-}
-
-static int udf_verify_domain_identifier(struct super_block *sb,
-					struct regid *ident, char *dname)
-{
-	struct domainEntityIDSuffix *suffix;
-
-	if (memcmp(ident->ident, UDF_ID_COMPLIANT, strlen(UDF_ID_COMPLIANT))) {
-		udf_warn(sb, "Not OSTA UDF compliant %s descriptor.\n", dname);
-		goto force_ro;
-	}
-	if (ident->flags & (1 << ENTITYID_FLAGS_DIRTY)) {
-		udf_warn(sb, "Possibly not OSTA UDF compliant %s descriptor.\n",
-			 dname);
-		goto force_ro;
-	}
-	suffix = (struct domainEntityIDSuffix *)ident->identSuffix;
-	if (suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_HARDWRITEPROTECT) ||
-	    suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_SOFTWRITEPROTECT)) {
-		if (!sb_rdonly(sb)) {
-			udf_warn(sb, "Descriptor for %s marked write protected."
-				 " Forcing read only mount.\n", dname);
-		}
-		goto force_ro;
-	}
-	return 0;
-
-force_ro:
-	if (!sb_rdonly(sb))
-		return -EACCES;
-	UDF_SET_FLAG(sb, UDF_FLAG_RW_INCOMPAT);
-	return 0;
-}
-
-static int udf_load_fileset(struct super_block *sb, struct fileSetDesc *fset,
-			    struct kernel_lb_addr *root)
-{
-	int ret;
-
-	ret = udf_verify_domain_identifier(sb, &fset->domainIdent, "file set");
-	if (ret < 0)
-		return ret;
-
-	*root = lelb_to_cpu(fset->rootDirectoryICB.extLocation);
-	UDF_SB(sb)->s_serial_number = le16_to_cpu(fset->descTag.tagSerialNum);
-
-	udf_debug("Rootdir at block=%u, partition=%u\n",
-		  root->logicalBlockNum, root->partitionReferenceNum);
 	return 0;
 }
 
