@@ -2,6 +2,10 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iocost
 
+struct ioc;
+struct ioc_now;
+struct ioc_gq;
+
 #if !defined(_TRACE_BLK_IOCOST_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_BLK_IOCOST_H
 
