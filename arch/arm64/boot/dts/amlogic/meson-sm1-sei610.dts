@@ -19,6 +19,10 @@
 		ethernet0 = &ethmac;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
