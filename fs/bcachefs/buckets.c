@@ -447,12 +447,6 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	percpu_rwsem_assert_held(&c->mark_lock);
 
-	bch2_fs_inconsistent_on(old.data_type && new.data_type &&
-				old.data_type != new.data_type, c,
-		"different types of data in same bucket: %s, %s",
-		bch2_data_types[old.data_type],
-		bch2_data_types[new.data_type]);
-
 	preempt_disable();
 	dev_usage = this_cpu_ptr(ca->usage[gc]);
 
@@ -503,14 +497,6 @@ void bch2_dev_usage_from_buckets(struct bch_fs *c)
 					      old, g->mark, false);
 	}
 }
-
-#define bucket_data_cmpxchg(c, ca, fs_usage, g, new, expr)	\
-({								\
-	struct bucket_mark _old = bucket_cmpxchg(g, new, expr);	\
-								\
-	bch2_dev_usage_update(c, ca, fs_usage, _old, new, gc);	\
-	_old;							\
-})
 
 static inline void update_replicas(struct bch_fs *c,
 				   struct bch_fs_usage *fs_usage,
@@ -633,7 +619,7 @@ static int __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 	struct bucket *g = __bucket(ca, b, gc);
 	struct bucket_mark old, new;
 
-	old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+	old = bucket_cmpxchg(g, new, ({
 		BUG_ON(!is_available_bucket(new));
 
 		new.owned_by_allocator	= true;
@@ -642,6 +628,8 @@ static int __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.dirty_sectors	= 0;
 		new.gen++;
 	}));
+
+	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
 	if (old.cached_sectors)
 		update_cached_sectors(c, fs_usage, ca->dev_idx,
@@ -671,9 +659,11 @@ static int __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 	struct bucket *g = __bucket(ca, b, gc);
 	struct bucket_mark old, new;
 
-	old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+	old = bucket_cmpxchg(g, new, ({
 		new.owned_by_allocator	= owned_by_allocator;
 	}));
+
+	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
 	BUG_ON(!gc &&
 	       !owned_by_allocator && !old.owned_by_allocator);
@@ -780,6 +770,12 @@ static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		overflow = checked_add(new.dirty_sectors, sectors);
 	}));
 
+	bch2_fs_inconsistent_on(old.data_type &&
+				old.data_type != type, c,
+		"different types of data in same bucket: %s, %s",
+		bch2_data_types[old.data_type],
+		bch2_data_types[type]);
+
 	bch2_fs_inconsistent_on(overflow, c,
 		"bucket sector count overflow: %u + %u > U16_MAX",
 		old.dirty_sectors, sectors);
@@ -849,13 +845,15 @@ static void bucket_set_stripe(struct bch_fs *c,
 		struct bucket *g = PTR_BUCKET(ca, ptr, gc);
 		struct bucket_mark new, old;
 
-		old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+		old = bucket_cmpxchg(g, new, ({
 			new.stripe			= enabled;
 			if (journal_seq) {
 				new.journal_seq_valid	= 1;
 				new.journal_seq		= journal_seq;
 			}
 		}));
+
+		bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
 		/*
 		 * XXX write repair code for these, flag stripe as possibly bad
@@ -901,7 +899,13 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 		 * the allocator invalidating a bucket after we've already
 		 * checked the gen
 		 */
-		if (gen_after(new.gen, p.ptr.gen)) {
+		if (gen_after(p.ptr.gen, new.gen)) {
+			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+				      "pointer gen in the future");
+			return true;
+		}
+
+		if (new.gen != p.ptr.gen) {
 			/* XXX write repair code for this */
 			if (!p.ptr.cached &&
 			    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
@@ -934,6 +938,14 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 	} while ((v = atomic64_cmpxchg(&g->_mark.v,
 			      old.v.counter,
 			      new.v.counter)) != old.v.counter);
+
+	if (old.data_type && old.data_type != data_type)
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s",
+			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+			new.gen,
+			bch2_data_types[old.data_type],
+			bch2_data_types[data_type]);
 
 	bch2_fs_inconsistent_on(overflow, c,
 		"bucket sector count overflow: %u + %lli > U16_MAX",
@@ -1444,9 +1456,9 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		 * Unless we're already updating that key:
 		 */
 		if (k.k->type != KEY_TYPE_alloc) {
-			bch_err_ratelimited(c, "pointer to nonexistent bucket %llu:%llu",
-					    iter->pos.inode,
-					    iter->pos.offset);
+			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+				      "pointer to nonexistent bucket %llu:%llu",
+				      iter->pos.inode, iter->pos.offset);
 			ret = -1;
 			goto out;
 		}
@@ -1456,6 +1468,17 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 
 	if (gen_after(u.gen, p.ptr.gen)) {
 		ret = 1;
+		goto out;
+	}
+
+	if (u.data_type && u.data_type != data_type) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s",
+			iter->pos.inode, iter->pos.offset,
+			u.gen,
+			bch2_data_types[u.data_type],
+			bch2_data_types[data_type]);
+		ret = -1;
 		goto out;
 	}
 

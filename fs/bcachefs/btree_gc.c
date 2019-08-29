@@ -144,18 +144,24 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 			struct bucket *g2 = PTR_BUCKET(ca, ptr, false);
 
 			if (mustfix_fsck_err_on(!g->gen_valid, c,
-					"found ptr with missing gen in alloc btree,\n"
-					"type %u gen %u",
-					k.k->type, ptr->gen)) {
+					"bucket %u:%zu data type %s ptr gen %u missing in alloc btree",
+					ptr->dev, PTR_BUCKET_NR(ca, ptr),
+					bch2_data_types[ptr_data_type(k.k, ptr)],
+					ptr->gen)) {
 				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
 				g2->gen_valid	= g->gen_valid		= true;
 			}
 
 			if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
-					"%u ptr gen in the future: %u > %u",
-					k.k->type, ptr->gen, g->mark.gen)) {
+					"bucket %u:%zu data type %s ptr gen in the future: %u > %u",
+					ptr->dev, PTR_BUCKET_NR(ca, ptr),
+					bch2_data_types[ptr_data_type(k.k, ptr)],
+					ptr->gen, g->mark.gen)) {
 				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
 				g2->gen_valid	= g->gen_valid		= true;
+				g2->_mark.data_type		= 0;
+				g2->_mark.dirty_sectors		= 0;
+				g2->_mark.cached_sectors	= 0;
 				set_bit(BCH_FS_FIXED_GENS, &c->flags);
 			}
 		}
