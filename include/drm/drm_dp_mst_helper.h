@@ -490,15 +490,23 @@ struct drm_dp_mst_topology_mgr {
 	struct drm_dp_sideband_msg_rx up_req_recv;
 
 	/**
-	 * @lock: protects mst state, primary, dpcd.
+	 * @lock: protects @mst_state, @mst_primary, @dpcd, and
+	 * @payload_id_table_cleared.
 	 */
 	struct mutex lock;
 
 	/**
-	 * @mst_state: If this manager is enabled for an MST capable port. False
-	 * if no MST sink/branch devices is connected.
+	 * @mst_state: If this manager is enabled for an MST capable port.
+	 * False if no MST sink/branch devices is connected.
 	 */
-	bool mst_state;
+	bool mst_state : 1;
+
+	/**
+	 * @payload_id_table_cleared: Whether or not we've cleared the payload
+	 * ID table for @mst_primary. Protected by @lock.
+	 */
+	bool payload_id_table_cleared : 1;
+
 	/**
 	 * @mst_primary: Pointer to the primary/first branch device.
 	 */
