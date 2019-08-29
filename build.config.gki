@@ -1,0 +1,4 @@
+DEFCONFIG=gki_defconfig
+POST_DEFCONFIG_CMDS="check_defconfig"
+BUILD_INITRAMFS=1
+

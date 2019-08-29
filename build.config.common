@@ -1,0 +1,9 @@
+BRANCH=android-mainline
+KERNEL_DIR=common
+
+CC=clang
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r353983c/bin
+BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
+
+EXTRA_CMDS=''
+STOP_SHIP_TRACEPRINTK=1

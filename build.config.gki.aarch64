@@ -1,20 +1,5 @@
-ARCH=arm64
-BRANCH=android-mainline
-CLANG_TRIPLE=aarch64-linux-gnu-
-CROSS_COMPILE=aarch64-linux-androidkernel-
-CC=clang
-DEFCONFIG=gki_defconfig
-EXTRA_CMDS=''
-KERNEL_DIR=common
-POST_DEFCONFIG_CMDS="check_defconfig"
-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r353983c/bin
-BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
-LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
-FILES="
-arch/arm64/boot/Image.gz
-vmlinux
-System.map
-"
-STOP_SHIP_TRACEPRINTK=1
+. ${ROOT_DIR}/common/build.config.common
+. ${ROOT_DIR}/common/build.config.aarch64
+. ${ROOT_DIR}/common/build.config.gki
+
 ABI_DEFINITION=abi_gki_aarch64.xml
-BUILD_INITRAMFS=1
