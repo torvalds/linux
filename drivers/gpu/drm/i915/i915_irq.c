@@ -2243,19 +2243,27 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		cpt_serr_int_handler(dev_priv);
 }
 
-static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir,
-			    const u32 *pins)
+static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
-	u32 ddi_hotplug_trigger;
-	u32 tc_hotplug_trigger;
+	u32 ddi_hotplug_trigger, tc_hotplug_trigger;
 	u32 pin_mask = 0, long_mask = 0;
+	bool (*tc_port_hotplug_long_detect)(enum hpd_pin pin, u32 val);
+	const u32 *pins;
 
-	if (HAS_PCH_MCC(dev_priv)) {
+	if (HAS_PCH_TGP(dev_priv)) {
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
+		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_TGP;
+		tc_port_hotplug_long_detect = tgp_tc_port_hotplug_long_detect;
+		pins = hpd_tgp;
+	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
 		tc_hotplug_trigger = 0;
+		pins = hpd_mcc;
 	} else {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
+		tc_port_hotplug_long_detect = icp_tc_port_hotplug_long_detect;
+		pins = hpd_icp;
 	}
 
 	if (ddi_hotplug_trigger) {
@@ -2279,44 +2287,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir,
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   tc_hotplug_trigger,
 				   dig_hotplug_reg, pins,
-				   icp_tc_port_hotplug_long_detect);
-	}
-
-	if (pin_mask)
-		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
-
-	if (pch_iir & SDE_GMBUS_ICP)
-		gmbus_irq_handler(dev_priv);
-}
-
-static void tgp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
-{
-	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
-	u32 tc_hotplug_trigger = pch_iir & SDE_TC_MASK_TGP;
-	u32 pin_mask = 0, long_mask = 0;
-
-	if (ddi_hotplug_trigger) {
-		u32 dig_hotplug_reg;
-
-		dig_hotplug_reg = I915_READ(SHOTPLUG_CTL_DDI);
-		I915_WRITE(SHOTPLUG_CTL_DDI, dig_hotplug_reg);
-
-		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
-				   ddi_hotplug_trigger,
-				   dig_hotplug_reg, hpd_tgp,
-				   icp_ddi_port_hotplug_long_detect);
-	}
-
-	if (tc_hotplug_trigger) {
-		u32 dig_hotplug_reg;
-
-		dig_hotplug_reg = I915_READ(SHOTPLUG_CTL_TC);
-		I915_WRITE(SHOTPLUG_CTL_TC, dig_hotplug_reg);
-
-		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
-				   tc_hotplug_trigger,
-				   dig_hotplug_reg, hpd_tgp,
-				   tgp_tc_port_hotplug_long_detect);
+				   tc_port_hotplug_long_detect);
 	}
 
 	if (pin_mask)
@@ -2767,12 +2738,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			I915_WRITE(SDEIIR, iir);
 			ret = IRQ_HANDLED;
 
-			if (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP)
-				tgp_irq_handler(dev_priv, iir);
-			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_MCC)
-				icp_irq_handler(dev_priv, iir, hpd_mcc);
-			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-				icp_irq_handler(dev_priv, iir, hpd_icp);
+			if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+				icp_irq_handler(dev_priv, iir);
 			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 				spt_irq_handler(dev_priv, iir);
 			else
