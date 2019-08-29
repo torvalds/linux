@@ -51,16 +51,21 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	kms->funcs->prepare_commit(kms, state);
 
+	/*
+	 * Push atomic updates down to hardware:
+	 */
 	drm_atomic_helper_commit_modeset_disables(dev, state);
-
 	drm_atomic_helper_commit_planes(dev, state, 0);
-
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
+	/*
+	 * Flush hardware updates:
+	 */
 	if (kms->funcs->commit) {
 		DRM_DEBUG_ATOMIC("triggering commit\n");
 		kms->funcs->commit(kms, state);
 	}
+	kms->funcs->flush_commit(kms, crtc_mask);
 
 	kms->funcs->wait_flush(kms, crtc_mask);
 	kms->funcs->complete_commit(kms, crtc_mask);

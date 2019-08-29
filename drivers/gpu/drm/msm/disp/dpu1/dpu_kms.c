@@ -280,6 +280,11 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	}
 }
 
+static void dpu_kms_flush_commit(struct msm_kms *kms, unsigned crtc_mask)
+{
+	/* TODO */
+}
+
 /*
  * Override the encoder enable since we need to setup the inline rotator and do
  * some crtc magic before enabling any bridge that might be present.
@@ -680,6 +685,7 @@ static const struct msm_kms_funcs kms_funcs = {
 	.irq_uninstall   = dpu_irq_uninstall,
 	.irq             = dpu_irq,
 	.prepare_commit  = dpu_kms_prepare_commit,
+	.flush_commit    = dpu_kms_flush_commit,
 	.commit          = dpu_kms_commit,
 	.wait_flush      = dpu_kms_wait_flush,
 	.complete_commit = dpu_kms_complete_commit,

@@ -30,11 +30,46 @@ struct msm_kms_funcs {
 	irqreturn_t (*irq)(struct msm_kms *kms);
 	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	/* modeset, bracketing atomic_commit(): */
+
+	/*
+	 * Atomic commit handling:
+	 */
+
+	/**
+	 * Prepare for atomic commit.  This is called after any previous
+	 * (async or otherwise) commit has completed.
+	 */
 	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
+
+	/**
+	 * Flush an atomic commit.  This is called after the hardware
+	 * updates have already been pushed down to effected planes/
+	 * crtcs/encoders/connectors.
+	 */
+	void (*flush_commit)(struct msm_kms *kms, unsigned crtc_mask);
+
+	/* TODO remove ->commit(), use ->flush_commit() instead: */
 	void (*commit)(struct msm_kms *kms, struct drm_atomic_state *state);
-	void (*complete_commit)(struct msm_kms *kms, unsigned crtc_mask);
+
+	/**
+	 * Wait for any in-progress flush to complete on the specified
+	 * crtcs.  This should not block if there is no in-progress
+	 * commit (ie. don't just wait for a vblank), as it will also
+	 * be called before ->prepare_commit() to ensure any potential
+	 * "async" commit has completed.
+	 */
 	void (*wait_flush)(struct msm_kms *kms, unsigned crtc_mask);
+
+	/**
+	 * Clean up after commit is completed.  This is called after
+	 * ->wait_flush(), to give the backend a chance to do any
+	 * post-commit cleanup.
+	 */
+	void (*complete_commit)(struct msm_kms *kms, unsigned crtc_mask);
+
+	/*
+	 * Format handling:
+	 */
 
 	/* get msm_format w/ optional format modifiers from drm_mode_fb_cmd2 */
 	const struct msm_format *(*get_format)(struct msm_kms *kms,
@@ -45,6 +80,7 @@ struct msm_kms_funcs {
 			const struct msm_format *msm_fmt,
 			const struct drm_mode_fb_cmd2 *cmd,
 			struct drm_gem_object **bos);
+
 	/* misc: */
 	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
 			struct drm_encoder *encoder);
