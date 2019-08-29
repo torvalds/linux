@@ -114,6 +114,7 @@ struct iproc_gpio {
 
 	raw_spinlock_t lock;
 
+	struct irq_chip irqchip;
 	struct gpio_chip gc;
 	unsigned num_banks;
 
@@ -301,14 +302,6 @@ static int iproc_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	return 0;
 }
-
-static struct irq_chip iproc_gpio_irq_chip = {
-	.name = "bcm-iproc-gpio",
-	.irq_ack = iproc_gpio_irq_ack,
-	.irq_mask = iproc_gpio_irq_mask,
-	.irq_unmask = iproc_gpio_irq_unmask,
-	.irq_set_type = iproc_gpio_irq_set_type,
-};
 
 /*
  * Request the Iproc IOMUX pinmux controller to mux individual pins to GPIO
@@ -851,10 +844,20 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	/* optional GPIO interrupt support */
 	irq = platform_get_irq(pdev, 0);
 	if (irq) {
+		struct irq_chip *irqc;
 		struct gpio_irq_chip *girq;
 
+		irqc = &chip->irqchip;
+		irqc->name = "bcm-iproc-gpio";
+		irqc->irq_ack = iproc_gpio_irq_ack;
+		irqc->irq_mask = iproc_gpio_irq_mask;
+		irqc->irq_unmask = iproc_gpio_irq_unmask;
+		irqc->irq_set_type = iproc_gpio_irq_set_type;
+		irqc->irq_enable = iproc_gpio_irq_unmask;
+		irqc->irq_disable = iproc_gpio_irq_mask;
+
 		girq = &gc->irq;
-		girq->chip = &iproc_gpio_irq_chip;
+		girq->chip = irqc;
 		girq->parent_handler = iproc_gpio_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(dev, 1,
