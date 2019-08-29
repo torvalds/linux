@@ -80,9 +80,6 @@ struct msm_kms_funcs {
 	 */
 	void (*flush_commit)(struct msm_kms *kms, unsigned crtc_mask);
 
-	/* TODO remove ->commit(), use ->flush_commit() instead: */
-	void (*commit)(struct msm_kms *kms, struct drm_atomic_state *state);
-
 	/**
 	 * Wait for any in-progress flush to complete on the specified
 	 * crtcs.  This should not block if there is no in-progress

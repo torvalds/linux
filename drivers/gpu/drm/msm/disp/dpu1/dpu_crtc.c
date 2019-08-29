@@ -608,7 +608,6 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
-	int ret;
 
 	/*
 	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
@@ -628,17 +627,6 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 				  crtc->state->encoder_mask)
 		dpu_encoder_prepare_for_kickoff(encoder);
 
-	/* wait for previous frame_event_done completion */
-	DPU_ATRACE_BEGIN("wait_for_frame_done_event");
-	ret = _dpu_crtc_wait_for_frame_done(crtc);
-	DPU_ATRACE_END("wait_for_frame_done_event");
-	if (ret) {
-		DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
-				crtc->base.id,
-				atomic_read(&dpu_crtc->frame_pending));
-		goto end;
-	}
-
 	if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
 		/* acquire bandwidth and other resources */
 		DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
@@ -652,7 +640,6 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_kickoff(encoder);
 
-end:
 	reinit_completion(&dpu_crtc->frame_done_comp);
 	DPU_ATRACE_END("crtc_commit");
 }

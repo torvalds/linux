@@ -86,6 +86,11 @@ void dpu_encoder_trigger_kickoff_pending(struct drm_encoder *encoder);
 void dpu_encoder_kickoff(struct drm_encoder *encoder);
 
 /**
+ * dpu_encoder_wakeup_time - get the time of the next vsync
+ */
+int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time);
+
+/**
  * dpu_encoder_wait_for_event - Waits for encoder events
  * @encoder:	encoder pointer
  * @event:      event to wait for
