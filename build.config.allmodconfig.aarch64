@@ -1,0 +1,4 @@
+. ${ROOT_DIR}/common/build.config.common
+. ${ROOT_DIR}/common/build.config.aarch64
+. ${ROOT_DIR}/common/build.config.allmodconfig
+
