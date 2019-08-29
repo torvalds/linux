@@ -879,6 +879,10 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_eswitch_cleanup;
 	}
 
+	dev->dm = mlx5_dm_create(dev);
+	if (IS_ERR(dev->dm))
+		mlx5_core_warn(dev, "Failed to init device memory%d\n", err);
+
 	dev->tracer = mlx5_fw_tracer_create(dev);
 
 	return 0;
@@ -912,6 +916,7 @@ err_devcom:
 static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
 	mlx5_fw_tracer_destroy(dev->tracer);
+	mlx5_dm_cleanup(dev);
 	mlx5_fpga_cleanup(dev);
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 	mlx5_sriov_cleanup(dev);
