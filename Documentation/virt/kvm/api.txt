@@ -3079,12 +3079,14 @@ This exception is also raised directly at the corresponding VCPU if the
 flag KVM_S390_MEMOP_F_INJECT_EXCEPTION is set in the "flags" field.
 
 The start address of the memory region has to be specified in the "gaddr"
-field, and the length of the region in the "size" field. "buf" is the buffer
-supplied by the userspace application where the read data should be written
-to for KVM_S390_MEMOP_LOGICAL_READ, or where the data that should be written
-is stored for a KVM_S390_MEMOP_LOGICAL_WRITE. "buf" is unused and can be NULL
-when KVM_S390_MEMOP_F_CHECK_ONLY is specified. "ar" designates the access
-register number to be used.
+field, and the length of the region in the "size" field (which must not
+be 0). The maximum value for "size" can be obtained by checking the
+KVM_CAP_S390_MEM_OP capability. "buf" is the buffer supplied by the
+userspace application where the read data should be written to for
+KVM_S390_MEMOP_LOGICAL_READ, or where the data that should be written is
+stored for a KVM_S390_MEMOP_LOGICAL_WRITE. When KVM_S390_MEMOP_F_CHECK_ONLY
+is specified, "buf" is unused and can be NULL. "ar" designates the access
+register number to be used; the valid range is 0..15.
 
 The "reserved" field is meant for future extensions. It is not used by
 KVM with the currently defined set of flags.
