@@ -1762,6 +1762,9 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	if (unlikely(trans->flags & BTREE_INSERT_NOMARK_OVERWRITES))
+		return 0;
+
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
 						      KEY_TYPE_discard))) {
 		struct bkey		unpacked;
