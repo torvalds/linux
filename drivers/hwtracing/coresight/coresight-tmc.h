@@ -47,6 +47,7 @@
 #define TMC_STS_TMCREADY_BIT	2
 #define TMC_STS_FULL		BIT(0)
 #define TMC_STS_TRIGGERED	BIT(1)
+#define TMC_STS_MEMERR		BIT(5)
 /*
  * TMC_AXICTL - 0x110
  *
