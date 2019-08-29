@@ -45,8 +45,8 @@ static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
 			de_namelen = le16_to_cpu(de[1].nameoff) - nameoff;
 
 		/* a corrupted entry is found */
-		if (unlikely(nameoff + de_namelen > maxsize ||
-			     de_namelen > EROFS_NAME_LEN)) {
+		if (nameoff + de_namelen > maxsize ||
+		    de_namelen > EROFS_NAME_LEN) {
 			errln("bogus dirent @ nid %llu", EROFS_V(dir)->nid);
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
@@ -94,8 +94,8 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 
 		nameoff = le16_to_cpu(de->nameoff);
 
-		if (unlikely(nameoff < sizeof(struct erofs_dirent) ||
-			     nameoff >= PAGE_SIZE)) {
+		if (nameoff < sizeof(struct erofs_dirent) ||
+		    nameoff >= PAGE_SIZE) {
 			errln("%s, invalid de[0].nameoff %u @ nid %llu",
 			      __func__, nameoff, EROFS_V(dir)->nid);
 			err = -EFSCORRUPTED;
@@ -106,11 +106,11 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 				dirsize - ctx->pos + ofs, PAGE_SIZE);
 
 		/* search dirents at the arbitrary position */
-		if (unlikely(initial)) {
+		if (initial) {
 			initial = false;
 
 			ofs = roundup(ofs, sizeof(struct erofs_dirent));
-			if (unlikely(ofs >= nameoff))
+			if (ofs >= nameoff)
 				goto skip_this;
 		}
 
@@ -123,7 +123,7 @@ skip_this:
 
 		ctx->pos = blknr_to_addr(i) + ofs;
 
-		if (unlikely(err))
+		if (err)
 			break;
 		++i;
 		ofs = 0;

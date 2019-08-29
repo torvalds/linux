@@ -27,7 +27,7 @@ static inline void read_endio(struct bio *bio)
 		/* page is already locked */
 		DBG_BUGON(PageUptodate(page));
 
-		if (unlikely(err))
+		if (err)
 			SetPageError(page);
 		else
 			SetPageUptodate(page);
@@ -53,7 +53,7 @@ struct page *__erofs_get_meta_page(struct super_block *sb,
 
 repeat:
 	page = find_or_create_page(mapping, blkaddr, gfp);
-	if (unlikely(!page)) {
+	if (!page) {
 		DBG_BUGON(nofail);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -70,7 +70,7 @@ repeat:
 		}
 
 		err = bio_add_page(bio, page, PAGE_SIZE, 0);
-		if (unlikely(err != PAGE_SIZE)) {
+		if (err != PAGE_SIZE) {
 			err = -EFAULT;
 			goto err_out;
 		}
@@ -81,7 +81,7 @@ repeat:
 		lock_page(page);
 
 		/* this page has been truncated by others */
-		if (unlikely(page->mapping != mapping)) {
+		if (page->mapping != mapping) {
 unlock_repeat:
 			unlock_page(page);
 			put_page(page);
@@ -89,7 +89,7 @@ unlock_repeat:
 		}
 
 		/* more likely a read error */
-		if (unlikely(!PageUptodate(page))) {
+		if (!PageUptodate(page)) {
 			if (io_retries) {
 				--io_retries;
 				goto unlock_repeat;
@@ -120,7 +120,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	nblocks = DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
 	lastblk = nblocks - is_inode_flat_inline(inode);
 
-	if (unlikely(offset >= inode->i_size)) {
+	if (offset >= inode->i_size) {
 		/* leave out-of-bound access unmapped */
 		map->m_flags = 0;
 		map->m_plen = 0;
@@ -170,7 +170,7 @@ err_out:
 int erofs_map_blocks(struct inode *inode,
 		     struct erofs_map_blocks *map, int flags)
 {
-	if (unlikely(is_inode_layout_compression(inode))) {
+	if (is_inode_layout_compression(inode)) {
 		int err = z_erofs_map_blocks_iter(inode, map, flags);
 
 		if (map->mpage) {
@@ -218,11 +218,11 @@ submit_bio_retry:
 		unsigned int blkoff;
 
 		err = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
-		if (unlikely(err))
+		if (err)
 			goto err_out;
 
 		/* zero out the holed page */
-		if (unlikely(!(map.m_flags & EROFS_MAP_MAPPED))) {
+		if (!(map.m_flags & EROFS_MAP_MAPPED)) {
 			zero_user_segment(page, 0, PAGE_SIZE);
 			SetPageUptodate(page);
 
@@ -315,7 +315,7 @@ has_updated:
 submit_bio_out:
 		__submit_bio(bio, REQ_OP_READ, 0);
 
-	return unlikely(err) ? ERR_PTR(err) : NULL;
+	return err ? ERR_PTR(err) : NULL;
 }
 
 /*
@@ -377,7 +377,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 	DBG_BUGON(!list_empty(pages));
 
 	/* the rare case (end in gaps) */
-	if (unlikely(bio))
+	if (bio)
 		__submit_bio(bio, REQ_OP_READ, 0);
 	return 0;
 }

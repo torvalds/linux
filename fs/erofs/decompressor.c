@@ -78,7 +78,7 @@ static int lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
 			get_page(victim);
 		} else {
 			victim = erofs_allocpage(pagepool, GFP_KERNEL, false);
-			if (unlikely(!victim))
+			if (!victim)
 				return -ENOMEM;
 			victim->mapping = Z_EROFS_MAPPING_STAGING;
 		}

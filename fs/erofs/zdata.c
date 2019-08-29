@@ -230,7 +230,7 @@ int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 		if (!trylock_page(page))
 			return -EBUSY;
 
-		if (unlikely(page->mapping != mapping))
+		if (page->mapping != mapping)
 			continue;
 
 		/* barrier is implied in the following 'unlock_page' */
@@ -358,7 +358,7 @@ static struct z_erofs_collection *cllookup(struct z_erofs_collector *clt,
 	}
 
 	cl = z_erofs_primarycollection(pcl);
-	if (unlikely(cl->pageofs != (map->m_la & ~PAGE_MASK))) {
+	if (cl->pageofs != (map->m_la & ~PAGE_MASK)) {
 		DBG_BUGON(1);
 		erofs_workgroup_put(grp);
 		return ERR_PTR(-EFSCORRUPTED);
@@ -406,7 +406,7 @@ static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
 
 	/* no available workgroup, let's allocate one */
 	pcl = kmem_cache_alloc(pcluster_cachep, GFP_NOFS);
-	if (unlikely(!pcl))
+	if (!pcl)
 		return ERR_PTR(-ENOMEM);
 
 	init_always(pcl);
@@ -474,7 +474,7 @@ repeat:
 	if (!cl) {
 		cl = clregister(clt, inode, map);
 
-		if (unlikely(cl == ERR_PTR(-EAGAIN)))
+		if (cl == ERR_PTR(-EAGAIN))
 			goto repeat;
 	}
 
@@ -607,15 +607,15 @@ repeat:
 	map->m_la = offset + cur;
 	map->m_llen = 0;
 	err = z_erofs_map_blocks_iter(inode, map, 0);
-	if (unlikely(err))
+	if (err)
 		goto err_out;
 
 restart_now:
-	if (unlikely(!(map->m_flags & EROFS_MAP_MAPPED)))
+	if (!(map->m_flags & EROFS_MAP_MAPPED))
 		goto hitted;
 
 	err = z_erofs_collector_begin(clt, inode, map);
-	if (unlikely(err))
+	if (err)
 		goto err_out;
 
 	/* preload all compressed pages (maybe downgrade role if necessary) */
@@ -630,7 +630,7 @@ restart_now:
 	tight &= (clt->mode >= COLLECT_PRIMARY_HOOKED);
 hitted:
 	cur = end - min_t(unsigned int, offset + end - map->m_la, end);
-	if (unlikely(!(map->m_flags & EROFS_MAP_MAPPED))) {
+	if (!(map->m_flags & EROFS_MAP_MAPPED)) {
 		zero_user_segment(page, cur, end);
 		goto next_part;
 	}
@@ -653,11 +653,11 @@ retry:
 
 		err = z_erofs_attach_page(clt, newpage,
 					  Z_EROFS_PAGE_TYPE_EXCLUSIVE);
-		if (likely(!err))
+		if (!err)
 			goto retry;
 	}
 
-	if (unlikely(err))
+	if (err)
 		goto err_out;
 
 	index = page->index - (map->m_la >> PAGE_SHIFT);
@@ -723,7 +723,7 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 		DBG_BUGON(PageUptodate(page));
 		DBG_BUGON(!page->mapping);
 
-		if (unlikely(!sbi && !z_erofs_page_is_staging(page))) {
+		if (!sbi && !z_erofs_page_is_staging(page)) {
 			sbi = EROFS_SB(page->mapping->host->i_sb);
 
 			if (time_to_inject(sbi, FAULT_READ_IO)) {
@@ -736,7 +736,7 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 		if (sbi)
 			cachemngd = erofs_page_is_managed(sbi, page);
 
-		if (unlikely(err))
+		if (err)
 			SetPageError(page);
 		else if (cachemngd)
 			SetPageUptodate(page);
@@ -772,7 +772,7 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 	mutex_lock(&cl->lock);
 	nr_pages = cl->nr_pages;
 
-	if (likely(nr_pages <= Z_EROFS_VMAP_ONSTACK_PAGES)) {
+	if (nr_pages <= Z_EROFS_VMAP_ONSTACK_PAGES) {
 		pages = pages_onstack;
 	} else if (nr_pages <= Z_EROFS_VMAP_GLOBAL_PAGES &&
 		   mutex_trylock(&z_pagemap_global_lock)) {
@@ -787,7 +787,7 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 				       gfp_flags);
 
 		/* fallback to global pagemap for the lowmem scenario */
-		if (unlikely(!pages)) {
+		if (!pages) {
 			mutex_lock(&z_pagemap_global_lock);
 			pages = z_pagemap_global;
 		}
@@ -823,7 +823,7 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 		 * currently EROFS doesn't support multiref(dedup),
 		 * so here erroring out one multiref page.
 		 */
-		if (unlikely(pages[pagenr])) {
+		if (pages[pagenr]) {
 			DBG_BUGON(1);
 			SetPageError(pages[pagenr]);
 			z_erofs_onlinepage_endio(pages[pagenr]);
@@ -847,7 +847,7 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 
 		if (!z_erofs_page_is_staging(page)) {
 			if (erofs_page_is_managed(sbi, page)) {
-				if (unlikely(!PageUptodate(page)))
+				if (!PageUptodate(page))
 					err = -EIO;
 				continue;
 			}
@@ -859,7 +859,7 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 			pagenr = z_erofs_onlinepage_index(page);
 
 			DBG_BUGON(pagenr >= nr_pages);
-			if (unlikely(pages[pagenr])) {
+			if (pages[pagenr]) {
 				DBG_BUGON(1);
 				SetPageError(pages[pagenr]);
 				z_erofs_onlinepage_endio(pages[pagenr]);
@@ -871,13 +871,13 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 		}
 
 		/* PG_error needs checking for inplaced and staging pages */
-		if (unlikely(PageError(page))) {
+		if (PageError(page)) {
 			DBG_BUGON(PageUptodate(page));
 			err = -EIO;
 		}
 	}
 
-	if (unlikely(err))
+	if (err)
 		goto out;
 
 	llen = pcl->length >> Z_EROFS_PCLUSTER_LENGTH_BIT;
@@ -926,7 +926,7 @@ out:
 		if (z_erofs_put_stagingpage(pagepool, page))
 			continue;
 
-		if (unlikely(err < 0))
+		if (err < 0)
 			SetPageError(page);
 
 		z_erofs_onlinepage_endio(page);
@@ -934,7 +934,7 @@ out:
 
 	if (pages == z_pagemap_global)
 		mutex_unlock(&z_pagemap_global_lock);
-	else if (unlikely(pages != pages_onstack))
+	else if (pages != pages_onstack)
 		kvfree(pages);
 
 	cl->nr_pages = 0;
@@ -1212,7 +1212,7 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 	bool force_submit = false;
 	unsigned int nr_bios;
 
-	if (unlikely(owned_head == Z_EROFS_PCLUSTER_TAIL))
+	if (owned_head == Z_EROFS_PCLUSTER_TAIL)
 		return false;
 
 	force_submit = false;

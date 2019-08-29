@@ -18,7 +18,7 @@ static int read_inode(struct inode *inode, void *data)
 
 	vi->datamode = __inode_data_mapping(advise);
 
-	if (unlikely(vi->datamode >= EROFS_INODE_LAYOUT_MAX)) {
+	if (vi->datamode >= EROFS_INODE_LAYOUT_MAX) {
 		errln("unsupported data mapping %u of nid %llu",
 		      vi->datamode, vi->nid);
 		DBG_BUGON(1);
@@ -133,13 +133,13 @@ static int fill_inline_data(struct inode *inode, void *data,
 	if (S_ISLNK(inode->i_mode) && inode->i_size < PAGE_SIZE) {
 		char *lnk = erofs_kmalloc(sbi, inode->i_size + 1, GFP_KERNEL);
 
-		if (unlikely(!lnk))
+		if (!lnk)
 			return -ENOMEM;
 
 		m_pofs += vi->inode_isize + vi->xattr_isize;
 
 		/* inline symlink data shouldn't across page boundary as well */
-		if (unlikely(m_pofs + inode->i_size > PAGE_SIZE)) {
+		if (m_pofs + inode->i_size > PAGE_SIZE) {
 			kfree(lnk);
 			errln("inline data cross block boundary @ nid %llu",
 			      vi->nid);
@@ -268,7 +268,7 @@ struct inode *erofs_iget(struct super_block *sb,
 {
 	struct inode *inode = erofs_iget_locked(sb, nid);
 
-	if (unlikely(!inode))
+	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
 	if (inode->i_state & I_NEW) {
@@ -278,7 +278,7 @@ struct inode *erofs_iget(struct super_block *sb,
 		vi->nid = nid;
 
 		err = fill_inode(inode, isdir);
-		if (likely(!err))
+		if (!err)
 			unlock_new_inode(inode);
 		else {
 			iget_failed(inode);

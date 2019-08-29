@@ -46,14 +46,14 @@ static int erofs_workgroup_get(struct erofs_workgroup *grp)
 
 repeat:
 	o = erofs_wait_on_workgroup_freezed(grp);
-	if (unlikely(o <= 0))
+	if (o <= 0)
 		return -1;
 
-	if (unlikely(atomic_cmpxchg(&grp->refcount, o, o + 1) != o))
+	if (atomic_cmpxchg(&grp->refcount, o, o + 1) != o)
 		goto repeat;
 
 	/* decrease refcount paired by erofs_workgroup_put */
-	if (unlikely(o == 1))
+	if (o == 1)
 		atomic_long_dec(&erofs_global_shrink_cnt);
 	return 0;
 }
@@ -91,7 +91,7 @@ int erofs_register_workgroup(struct super_block *sb,
 	int err;
 
 	/* grp shouldn't be broken or used before */
-	if (unlikely(atomic_read(&grp->refcount) != 1)) {
+	if (atomic_read(&grp->refcount) != 1) {
 		DBG_BUGON(1);
 		return -EINVAL;
 	}
@@ -113,7 +113,7 @@ int erofs_register_workgroup(struct super_block *sb,
 	__erofs_workgroup_get(grp);
 
 	err = radix_tree_insert(&sbi->workstn_tree, grp->index, grp);
-	if (unlikely(err))
+	if (err)
 		/*
 		 * it's safe to decrease since the workgroup isn't visible
 		 * and refcount >= 2 (cannot be freezed).
@@ -212,7 +212,7 @@ repeat:
 			continue;
 
 		++freed;
-		if (unlikely(!--nr_shrink))
+		if (!--nr_shrink)
 			break;
 	}
 	xa_unlock(&sbi->workstn_tree);

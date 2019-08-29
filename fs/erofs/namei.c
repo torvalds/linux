@@ -64,7 +64,7 @@ static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,
 		unsigned int matched = min(startprfx, endprfx);
 		struct erofs_qstr dname = {
 			.name = data + nameoff,
-			.end = unlikely(mid >= ndirents - 1) ?
+			.end = mid >= ndirents - 1 ?
 				data + dirblksize :
 				data + nameoff_from_disk(de[mid + 1].nameoff,
 							 dirblksize)
@@ -73,7 +73,7 @@ static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,
 		/* string comparison without already matched prefix */
 		int ret = dirnamecmp(name, &dname, &matched);
 
-		if (unlikely(!ret)) {
+		if (!ret) {
 			return de + mid;
 		} else if (ret > 0) {
 			head = mid + 1;
@@ -113,7 +113,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 			unsigned int matched;
 			struct erofs_qstr dname;
 
-			if (unlikely(!ndirents)) {
+			if (!ndirents) {
 				kunmap_atomic(de);
 				put_page(page);
 				errln("corrupted dir block %d @ nid %llu",
@@ -137,7 +137,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 			diff = dirnamecmp(name, &dname, &matched);
 			kunmap_atomic(de);
 
-			if (unlikely(!diff)) {
+			if (!diff) {
 				*_ndirents = 0;
 				goto out;
 			} else if (diff > 0) {
@@ -174,7 +174,7 @@ int erofs_namei(struct inode *dir,
 	struct erofs_dirent *de;
 	struct erofs_qstr qn;
 
-	if (unlikely(!dir->i_size))
+	if (!dir->i_size)
 		return -ENOENT;
 
 	qn.name = name->name;
@@ -221,7 +221,7 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	trace_erofs_lookup(dir, dentry, flags);
 
 	/* file name exceeds fs limit */
-	if (unlikely(dentry->d_name.len > EROFS_NAME_LEN))
+	if (dentry->d_name.len > EROFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	/* false uninitialized warnings on gcc 4.8.x */
@@ -230,7 +230,7 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	if (err == -ENOENT) {
 		/* negative dentry */
 		inode = NULL;
-	} else if (unlikely(err)) {
+	} else if (err) {
 		inode = ERR_PTR(err);
 	} else {
 		debugln("%s, %s (nid %llu) found, d_type %u", __func__,

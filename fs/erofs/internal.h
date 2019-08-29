@@ -424,7 +424,7 @@ static inline struct bio *erofs_grab_bio(struct super_block *sb,
 	do {
 		if (nr_pages == 1) {
 			bio = bio_alloc(gfp | (nofail ? __GFP_NOFAIL : 0), 1);
-			if (unlikely(!bio)) {
+			if (!bio) {
 				DBG_BUGON(nofail);
 				return ERR_PTR(-ENOMEM);
 			}
@@ -432,7 +432,7 @@ static inline struct bio *erofs_grab_bio(struct super_block *sb,
 		}
 		bio = bio_alloc(gfp, nr_pages);
 		nr_pages /= 2;
-	} while (unlikely(!bio));
+	} while (!bio);
 
 	bio->bi_end_io = endio;
 	bio_set_dev(bio, sb->s_bdev);

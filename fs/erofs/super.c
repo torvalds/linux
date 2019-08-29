@@ -107,7 +107,7 @@ static int superblock_read(struct super_block *sb)
 
 	blkszbits = layout->blkszbits;
 	/* 9(512 bytes) + LOG_SECTORS_PER_BLOCK == LOG_BLOCK_SIZE */
-	if (unlikely(blkszbits != LOG_BLOCK_SIZE)) {
+	if (blkszbits != LOG_BLOCK_SIZE) {
 		errln("blksize %u isn't supported on this platform",
 		      1 << blkszbits);
 		goto out;
@@ -379,7 +379,7 @@ static int erofs_init_managed_cache(struct super_block *sb)
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	struct inode *const inode = new_inode(sb);
 
-	if (unlikely(!inode))
+	if (!inode)
 		return -ENOMEM;
 
 	set_nlink(inode, 1);
@@ -406,13 +406,13 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = EROFS_SUPER_MAGIC;
 
-	if (unlikely(!sb_set_blocksize(sb, EROFS_BLKSIZ))) {
+	if (!sb_set_blocksize(sb, EROFS_BLKSIZ)) {
 		errln("failed to set erofs blksize");
 		return -EINVAL;
 	}
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	if (unlikely(!sbi))
+	if (!sbi)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
@@ -433,7 +433,7 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	default_options(sbi);
 
 	err = parse_options(sb, data);
-	if (unlikely(err))
+	if (err)
 		return err;
 
 	if (!silent)
@@ -453,7 +453,7 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
-	if (unlikely(!S_ISDIR(inode->i_mode))) {
+	if (!S_ISDIR(inode->i_mode)) {
 		errln("rootino(nid %llu) is not a directory(i_mode %o)",
 		      ROOT_NID(sbi), inode->i_mode);
 		iput(inode);
@@ -461,13 +461,13 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sb->s_root = d_make_root(inode);
-	if (unlikely(!sb->s_root))
+	if (!sb->s_root)
 		return -ENOMEM;
 
 	erofs_shrinker_register(sb);
 	/* sb->s_umount is already locked, SB_ACTIVE and SB_BORN are not set */
 	err = erofs_init_managed_cache(sb);
-	if (unlikely(err))
+	if (err)
 		return err;
 
 	if (!silent)

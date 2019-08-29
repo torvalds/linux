@@ -348,7 +348,7 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 
 	switch (m->type) {
 	case Z_EROFS_VLE_CLUSTER_TYPE_NONHEAD:
-		if (unlikely(!m->delta[0])) {
+		if (!m->delta[0]) {
 			errln("invalid lookback distance 0 at nid %llu",
 			      vi->nid);
 			DBG_BUGON(1);
@@ -386,7 +386,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 	trace_z_erofs_map_blocks_iter_enter(inode, map, flags);
 
 	/* when trying to read beyond EOF, leave it unmapped */
-	if (unlikely(map->m_la >= inode->i_size)) {
+	if (map->m_la >= inode->i_size) {
 		map->m_llen = map->m_la + 1 - inode->i_size;
 		map->m_la = inode->i_size;
 		map->m_flags = 0;
@@ -420,7 +420,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 			break;
 		}
 		/* m.lcn should be >= 1 if endoff < m.clusterofs */
-		if (unlikely(!m.lcn)) {
+		if (!m.lcn) {
 			errln("invalid logical cluster 0 at nid %llu",
 			      vi->nid);
 			err = -EFSCORRUPTED;
@@ -433,7 +433,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 	case Z_EROFS_VLE_CLUSTER_TYPE_NONHEAD:
 		/* get the correspoinding first chunk */
 		err = vle_extent_lookback(&m, m.delta[0]);
-		if (unlikely(err))
+		if (err)
 			goto unmap_out;
 		break;
 	default:

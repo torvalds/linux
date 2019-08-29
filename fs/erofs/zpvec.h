@@ -111,11 +111,11 @@ static inline bool z_erofs_pagevec_enqueue(struct z_erofs_pagevec_ctor *ctor,
 					   bool *occupied)
 {
 	*occupied = false;
-	if (unlikely(!ctor->next && type))
+	if (!ctor->next && type)
 		if (ctor->index + 1 == ctor->nr)
 			return false;
 
-	if (unlikely(ctor->index >= ctor->nr))
+	if (ctor->index >= ctor->nr)
 		z_erofs_pagevec_ctor_pagedown(ctor, false);
 
 	/* exclusive page type must be 0 */
@@ -137,7 +137,7 @@ z_erofs_pagevec_dequeue(struct z_erofs_pagevec_ctor *ctor,
 {
 	erofs_vtptr_t t;
 
-	if (unlikely(ctor->index >= ctor->nr)) {
+	if (ctor->index >= ctor->nr) {
 		DBG_BUGON(!ctor->next);
 		z_erofs_pagevec_ctor_pagedown(ctor, true);
 	}

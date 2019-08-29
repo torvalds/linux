@@ -19,7 +19,7 @@ struct xattr_iter {
 static inline void xattr_iter_end(struct xattr_iter *it, bool atomic)
 {
 	/* the only user of kunmap() is 'init_inode_xattrs' */
-	if (unlikely(!atomic))
+	if (!atomic)
 		kunmap(it->page);
 	else
 		kunmap_atomic(it->kaddr);
@@ -72,7 +72,7 @@ static int init_inode_xattrs(struct inode *inode)
 		ret = -EOPNOTSUPP;
 		goto out_unlock;
 	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
-		if (unlikely(vi->xattr_isize)) {
+		if (vi->xattr_isize) {
 			errln("bogus xattr ibody @ nid %llu", vi->nid);
 			DBG_BUGON(1);
 			ret = -EFSCORRUPTED;
@@ -112,7 +112,7 @@ static int init_inode_xattrs(struct inode *inode)
 	it.ofs += sizeof(struct erofs_xattr_ibody_header);
 
 	for (i = 0; i < vi->xattr_shared_count; ++i) {
-		if (unlikely(it.ofs >= EROFS_BLKSIZ)) {
+		if (it.ofs >= EROFS_BLKSIZ) {
 			/* cannot be unaligned */
 			DBG_BUGON(it.ofs != EROFS_BLKSIZ);
 			xattr_iter_end(&it, atomic_map);
@@ -189,7 +189,7 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 	unsigned int xattr_header_sz, inline_xattr_ofs;
 
 	xattr_header_sz = inlinexattr_header_size(inode);
-	if (unlikely(xattr_header_sz >= vi->xattr_isize)) {
+	if (xattr_header_sz >= vi->xattr_isize) {
 		DBG_BUGON(xattr_header_sz > vi->xattr_isize);
 		return -ENOATTR;
 	}
@@ -234,7 +234,7 @@ static int xattr_foreach(struct xattr_iter *it,
 		unsigned int entry_sz = EROFS_XATTR_ENTRY_SIZE(&entry);
 
 		/* xattr on-disk corruption: xattr entry beyond xattr_isize */
-		if (unlikely(*tlimit < entry_sz)) {
+		if (*tlimit < entry_sz) {
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
@@ -436,7 +436,7 @@ int erofs_getxattr(struct inode *inode, int index,
 	int ret;
 	struct getxattr_iter it;
 
-	if (unlikely(!name))
+	if (!name)
 		return -EINVAL;
 
 	ret = init_inode_xattrs(inode);
