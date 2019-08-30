@@ -19,8 +19,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define DEBUG printf
-
 #define VCPU_ID				1
 
 /* The memory slot index to track dirty pages */
@@ -289,6 +287,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	switch (mode) {
 	case VM_MODE_P52V48_4K:
+	case VM_MODE_PXXV48_4K:
 		guest_pa_bits = 52;
 		guest_page_shift = 12;
 		break;
@@ -488,7 +487,7 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef __x86_64__
-	vm_guest_mode_params_init(VM_MODE_P52V48_4K, true, true);
+	vm_guest_mode_params_init(VM_MODE_PXXV48_4K, true, true);
 #endif
 #ifdef __aarch64__
 	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);

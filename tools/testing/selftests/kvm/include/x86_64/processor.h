@@ -325,6 +325,9 @@ uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
 void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 	  	  uint64_t msr_value);
 
+uint32_t kvm_get_cpuid_max(void);
+void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
+
 /*
  * Basic CPU control in CR0
  */
