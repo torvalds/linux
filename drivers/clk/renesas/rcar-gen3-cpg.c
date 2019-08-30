@@ -312,21 +312,25 @@ static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
 static long cpg_sd_clock_round_rate(struct clk_hw *hw, unsigned long rate,
 				      unsigned long *parent_rate)
 {
-	unsigned long calc_rate, diff, diff_min = ULONG_MAX;
+	unsigned long best_rate = ULONG_MAX, diff_min = ULONG_MAX;
 	struct sd_clock *clock = to_sd_clock(hw);
-	unsigned int i, best_div = 0;
+	unsigned long calc_rate, diff;
+	unsigned int i;
 
 	for (i = 0; i < clock->div_num; i++) {
 		calc_rate = DIV_ROUND_CLOSEST(*parent_rate,
 					      clock->div_table[i].div);
 		diff = calc_rate > rate ? calc_rate - rate : rate - calc_rate;
 		if (diff < diff_min) {
-			best_div = clock->div_table[i].div;
+			best_rate = calc_rate;
 			diff_min = diff;
 		}
 	}
 
-	return DIV_ROUND_CLOSEST(*parent_rate, best_div);
+	if (best_rate > LONG_MAX)
+		return -EINVAL;
+
+	return best_rate;
 }
 
 static int cpg_sd_clock_set_rate(struct clk_hw *hw, unsigned long rate,
