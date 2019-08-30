@@ -4197,8 +4197,16 @@ static int mount_get_conns(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 		tcon->unix_ext = 0; /* server does not support them */
 
 	/* do not care if a following call succeed - informational */
-	if (!tcon->pipe && server->ops->qfs_tcon)
+	if (!tcon->pipe && server->ops->qfs_tcon) {
 		server->ops->qfs_tcon(*xid, tcon);
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE) {
+			if (tcon->fsDevInfo.DeviceCharacteristics &
+			    FILE_READ_ONLY_DEVICE)
+				cifs_dbg(VFS, "mounted to read only share\n");
+			else
+				cifs_dbg(VFS, "read only mount of RW share\n");
+		}
+	}
 
 	cifs_sb->wsize = server->ops->negotiate_wsize(tcon, vol);
 	cifs_sb->rsize = server->ops->negotiate_rsize(tcon, vol);
