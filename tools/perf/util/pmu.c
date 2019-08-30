@@ -3,6 +3,7 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <subcmd/pager.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -22,8 +23,8 @@
 #include "cpumap.h"
 #include "header.h"
 #include "pmu-events/pmu-events.h"
-#include "cache.h"
 #include "string2.h"
+#include "strbuf.h"
 
 struct perf_pmu_format {
 	char *name;

@@ -13,7 +13,6 @@
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
 #endif
-#include "cache.h"
 #include "color.h"
 #include "event.h"
 #include "debug.h"
@@ -21,6 +20,7 @@
 #include "util.h"
 #include "target.h"
 #include "ui/helpline.h"
+#include "ui/ui.h"
 
 #include <linux/ctype.h>
 

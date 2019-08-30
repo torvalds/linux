@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * perf.c
  *
@@ -22,6 +21,7 @@
 #include "util/debug.h"
 #include "util/event.h"
 #include "util/util.h"
+#include "ui/ui.h"
 #include "perf-sys.h"
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>

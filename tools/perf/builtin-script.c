@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 
-#include "util/cache.h"
 #include "util/counts.h"
 #include "util/debug.h"
 #include "util/dso.h"
@@ -30,6 +29,7 @@
 #include "util/thread-stack.h"
 #include "util/time-utils.h"
 #include "util/path.h"
+#include "ui/ui.h"
 #include "print_binary.h"
 #include "archinsn.h"
 #include <linux/bitmap.h>

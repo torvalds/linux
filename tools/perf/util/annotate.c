@@ -19,7 +19,6 @@
 #include "build-id.h"
 #include "color.h"
 #include "config.h"
-#include "cache.h"
 #include "dso.h"
 #include "map.h"
 #include "symbol.h"

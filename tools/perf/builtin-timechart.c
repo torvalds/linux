@@ -14,7 +14,6 @@
 #include "builtin.h"
 #include "util/color.h"
 #include <linux/list.h>
-#include "util/cache.h"
 #include "util/evlist.h" // for struct evsel_str_handler
 #include "util/evsel.h"
 #include <linux/kernel.h>
@@ -27,6 +26,7 @@
 
 #include "perf.h"
 #include "util/header.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/event.h"

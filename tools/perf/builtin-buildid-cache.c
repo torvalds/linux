@@ -15,9 +15,9 @@
 #include <unistd.h>
 #include "builtin.h"
 #include "namespaces.h"
-#include "util/cache.h"
 #include "util/debug.h"
 #include "util/header.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/strlist.h"
 #include "util/build-id.h"
@@ -27,6 +27,7 @@
 #include "util/time-utils.h"
 #include "util/util.h"
 #include "util/probe-file.h"
+#include <linux/string.h>
 
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {

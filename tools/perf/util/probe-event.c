@@ -26,7 +26,6 @@
 #include "strfilter.h"
 #include "debug.h"
 #include "dso.h"
-#include "cache.h"
 #include "color.h"
 #include "map.h"
 #include "map_groups.h"
@@ -38,7 +37,9 @@
 #include "probe-file.h"
 #include "session.h"
 #include "string2.h"
+#include "strbuf.h"
 
+#include <subcmd/pager.h>
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 

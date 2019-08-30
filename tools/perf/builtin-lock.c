@@ -6,11 +6,11 @@
 
 #include "util/evlist.h" // for struct evsel_str_handler
 #include "util/evsel.h"
-#include "util/cache.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
 
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 

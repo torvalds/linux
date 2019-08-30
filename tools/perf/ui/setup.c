@@ -2,10 +2,11 @@
 #include <pthread.h>
 #include <dlfcn.h>
 
-#include "../util/cache.h"
+#include <subcmd/pager.h>
 #include "../util/debug.h"
 #include "../util/hist.h"
 #include "../util/util.h"
+#include "ui.h"
 
 pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 void *perf_gtk_handle;

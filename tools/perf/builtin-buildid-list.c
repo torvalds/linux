@@ -10,9 +10,9 @@
 #include "builtin.h"
 #include "perf.h"
 #include "util/build-id.h"
-#include "util/cache.h"
 #include "util/debug.h"
 #include "util/dso.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/session.h"
 #include "util/symbol.h"
