@@ -33,11 +33,6 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_dma_buf.h"
 
-/* Special VM and GART address alignment needed for VI pre-Fiji due to
- * a HW bug.
- */
-#define VI_BO_SIZE_ALIGN (0x8000)
-
 /* BO flag to indicate a KFD userptr BO */
 #define AMDGPU_AMDKFD_USERPTR_BO (1ULL << 63)
 
@@ -1111,7 +1106,6 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	uint64_t user_addr = 0;
 	struct amdgpu_bo *bo;
 	struct amdgpu_bo_param bp;
-	int byte_align;
 	u32 domain, alloc_domain;
 	u64 alloc_flags;
 	int ret;
@@ -1166,15 +1160,6 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	if ((*mem)->aql_queue)
 		size = size >> 1;
 
-	/* Workaround for TLB bug on older VI chips */
-	byte_align = (adev->family == AMDGPU_FAMILY_VI &&
-			adev->asic_type != CHIP_FIJI &&
-			adev->asic_type != CHIP_POLARIS10 &&
-			adev->asic_type != CHIP_POLARIS11 &&
-			adev->asic_type != CHIP_POLARIS12 &&
-			adev->asic_type != CHIP_VEGAM) ?
-			VI_BO_SIZE_ALIGN : 1;
-
 	(*mem)->alloc_flags = flags;
 
 	amdgpu_sync_create(&(*mem)->sync);
@@ -1190,7 +1175,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 	memset(&bp, 0, sizeof(bp));
 	bp.size = size;
-	bp.byte_align = byte_align;
+	bp.byte_align = 1;
 	bp.domain = alloc_domain;
 	bp.flags = alloc_flags;
 	bp.type = bo_type;
