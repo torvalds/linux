@@ -212,6 +212,9 @@
 #define SYS_FAR_EL1			sys_reg(3, 0, 6, 0, 0)
 #define SYS_PAR_EL1			sys_reg(3, 0, 7, 4, 0)
 
+#define SYS_PAR_EL1_F			BIT(1)
+#define SYS_PAR_EL1_FST			GENMASK(6, 1)
+
 /*** Statistical Profiling Extension ***/
 /* ID registers */
 #define SYS_PMSIDR_EL1			sys_reg(3, 0, 9, 9, 7)
