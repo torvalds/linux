@@ -7662,6 +7662,8 @@ static int btrfs_get_blocks_direct_read(struct extent_map *em,
 					struct inode *inode,
 					u64 start, u64 len)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+
 	if (em->block_start == EXTENT_MAP_HOLE ||
 			test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 		return -ENOENT;
@@ -7671,7 +7673,7 @@ static int btrfs_get_blocks_direct_read(struct extent_map *em,
 	bh_result->b_blocknr = (em->block_start + (start - em->start)) >>
 		inode->i_blkbits;
 	bh_result->b_size = len;
-	bh_result->b_bdev = em->bdev;
+	bh_result->b_bdev = fs_info->fs_devices->latest_bdev;
 	set_buffer_mapped(bh_result);
 
 	return 0;
@@ -7754,7 +7756,7 @@ skip_cow:
 	bh_result->b_blocknr = (em->block_start + (start - em->start)) >>
 		inode->i_blkbits;
 	bh_result->b_size = len;
-	bh_result->b_bdev = em->bdev;
+	bh_result->b_bdev = fs_info->fs_devices->latest_bdev;
 	set_buffer_mapped(bh_result);
 
 	if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
