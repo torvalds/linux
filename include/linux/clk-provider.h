@@ -752,44 +752,6 @@ struct clk_hw *clk_hw_register_composite(struct device *dev, const char *name,
 		unsigned long flags);
 void clk_hw_unregister_composite(struct clk_hw *hw);
 
-/**
- * struct clk_gpio - gpio gated clock
- *
- * @hw:		handle between common and hardware-specific interfaces
- * @gpiod:	gpio descriptor
- *
- * Clock with a gpio control for enabling and disabling the parent clock
- * or switching between two parents by asserting or deasserting the gpio.
- *
- * Implements .enable, .disable and .is_enabled or
- * .get_parent, .set_parent and .determine_rate depending on which clk_ops
- * is used.
- */
-struct clk_gpio {
-	struct clk_hw	hw;
-	struct gpio_desc *gpiod;
-};
-
-#define to_clk_gpio(_hw) container_of(_hw, struct clk_gpio, hw)
-
-extern const struct clk_ops clk_gpio_gate_ops;
-struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
-		const char *parent_name, struct gpio_desc *gpiod,
-		unsigned long flags);
-struct clk_hw *clk_hw_register_gpio_gate(struct device *dev, const char *name,
-		const char *parent_name, struct gpio_desc *gpiod,
-		unsigned long flags);
-void clk_hw_unregister_gpio_gate(struct clk_hw *hw);
-
-extern const struct clk_ops clk_gpio_mux_ops;
-struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
-		const char * const *parent_names, u8 num_parents, struct gpio_desc *gpiod,
-		unsigned long flags);
-struct clk_hw *clk_hw_register_gpio_mux(struct device *dev, const char *name,
-		const char * const *parent_names, u8 num_parents, struct gpio_desc *gpiod,
-		unsigned long flags);
-void clk_hw_unregister_gpio_mux(struct clk_hw *hw);
-
 struct clk *clk_register(struct device *dev, struct clk_hw *hw);
 struct clk *devm_clk_register(struct device *dev, struct clk_hw *hw);
 
