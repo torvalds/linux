@@ -6100,7 +6100,7 @@ F:	include/uapi/linux/mii.h
 EXFAT FILE SYSTEM
 M:	Valdis Kletnieks <valdis.kletnieks@vt.edu>
 S:	Maintained
-F:	fs/exfat/
+F:	drivers/staging/exfat/
 
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.com>
