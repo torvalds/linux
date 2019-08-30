@@ -31,7 +31,6 @@
 #include "map.h"
 #include "map_groups.h"
 #include "symbol.h"
-#include "thread.h"
 #include <api/fs/fs.h>
 #include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"

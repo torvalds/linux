@@ -6,7 +6,6 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "machine.h"
-#include "thread.h"
 #include "parse-events.h"
 #include "hists_common.h"
 #include <errno.h>

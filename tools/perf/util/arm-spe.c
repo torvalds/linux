@@ -20,7 +20,6 @@
 #include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "thread.h"
 #include "debug.h"
 #include "auxtrace.h"
 #include "arm-spe.h"

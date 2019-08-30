@@ -20,7 +20,6 @@
 #include "cache.h"
 #include "color.h"
 #include "symbol.h"
-#include "thread.h"
 #include <api/fs/tracing_path.h>
 #include "probe-event.h"
 #include "probe-file.h"

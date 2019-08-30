@@ -54,7 +54,6 @@
 #include "util/stat.h"
 #include "util/header.h"
 #include "util/cpumap.h"
-#include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/counts.h"
 #include "util/group.h"
