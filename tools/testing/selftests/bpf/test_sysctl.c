@@ -100,7 +100,7 @@ static struct sysctl_test tests[] = {
 		.descr = "ctx:write sysctl:write read ok",
 		.insns = {
 			/* If (write) */
-			BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_1,
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_1,
 				    offsetof(struct bpf_sysctl, write)),
 			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 1, 2),
 
