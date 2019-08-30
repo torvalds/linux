@@ -146,6 +146,7 @@ int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
 int amdgpu_noretry = 1;
+int amdgpu_force_asic_type = -1;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -615,6 +616,16 @@ module_param_named(mes, amdgpu_mes, int, 0444);
 MODULE_PARM_DESC(noretry,
 	"Disable retry faults (0 = retry enabled, 1 = retry disabled (default))");
 module_param_named(noretry, amdgpu_noretry, int, 0644);
+
+/**
+ * DOC: force_asic_type (int)
+ * A non negative value used to specify the asic type for all supported GPUs.
+ */
+MODULE_PARM_DESC(force_asic_type,
+	"A non negative value used to specify the asic type for all supported GPUs");
+module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
+
+
 
 #ifdef CONFIG_HSA_AMD
 /**

@@ -2585,7 +2585,12 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->ddev = ddev;
 	adev->pdev = pdev;
 	adev->flags = flags;
-	adev->asic_type = flags & AMD_ASIC_MASK;
+
+	if (amdgpu_force_asic_type >= 0 && amdgpu_force_asic_type < CHIP_LAST)
+		adev->asic_type = amdgpu_force_asic_type;
+	else
+		adev->asic_type = flags & AMD_ASIC_MASK;
+
 	adev->usec_timeout = AMDGPU_MAX_USEC_TIMEOUT;
 	if (amdgpu_emu_mode == 1)
 		adev->usec_timeout *= 2;
