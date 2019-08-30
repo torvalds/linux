@@ -267,10 +267,8 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
 static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		     unsigned long interval, uint64_t phys_offset)
 {
-	unsigned int guest_pa_bits, guest_page_shift;
 	pthread_t vcpu_thread;
 	struct kvm_vm *vm;
-	uint64_t max_gfn;
 	unsigned long *bmap;
 
 	/*
@@ -285,54 +283,13 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		       2ul << (DIRTY_MEM_BITS - PAGE_SHIFT_4K),
 		       guest_code);
 
-	switch (mode) {
-	case VM_MODE_P52V48_4K:
-	case VM_MODE_PXXV48_4K:
-		guest_pa_bits = 52;
-		guest_page_shift = 12;
-		break;
-	case VM_MODE_P52V48_64K:
-		guest_pa_bits = 52;
-		guest_page_shift = 16;
-		break;
-	case VM_MODE_P48V48_4K:
-		guest_pa_bits = 48;
-		guest_page_shift = 12;
-		break;
-	case VM_MODE_P48V48_64K:
-		guest_pa_bits = 48;
-		guest_page_shift = 16;
-		break;
-	case VM_MODE_P40V48_4K:
-		guest_pa_bits = 40;
-		guest_page_shift = 12;
-		break;
-	case VM_MODE_P40V48_64K:
-		guest_pa_bits = 40;
-		guest_page_shift = 16;
-		break;
-	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);
-	}
-
-	DEBUG("Testing guest mode: %s\n", vm_guest_mode_string(mode));
-
-#ifdef __x86_64__
-	/*
-	 * FIXME
-	 * The x86_64 kvm selftests framework currently only supports a
-	 * single PML4 which restricts the number of physical address
-	 * bits we can change to 39.
-	 */
-	guest_pa_bits = 39;
-#endif
-	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
-	guest_page_size = (1ul << guest_page_shift);
+	guest_page_size = vm_get_page_size(vm);
 	/*
 	 * A little more than 1G of guest page sized pages.  Cover the
 	 * case where the size is not aligned to 64 pages.
 	 */
-	guest_num_pages = (1ul << (DIRTY_MEM_BITS - guest_page_shift)) + 16;
+	guest_num_pages = (1ul << (DIRTY_MEM_BITS -
+				   vm_get_page_shift(vm))) + 16;
 #ifdef __s390x__
 	/* Round up to multiple of 1M (segment size) */
 	guest_num_pages = (guest_num_pages + 0xff) & ~0xffUL;
@@ -342,7 +299,8 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
 
 	if (!phys_offset) {
-		guest_test_phys_mem = (max_gfn - guest_num_pages) * guest_page_size;
+		guest_test_phys_mem = (vm_get_max_gfn(vm) -
+				       guest_num_pages) * guest_page_size;
 		guest_test_phys_mem &= ~(host_page_size - 1);
 	} else {
 		guest_test_phys_mem = phys_offset;
