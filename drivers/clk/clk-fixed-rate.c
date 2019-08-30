@@ -155,9 +155,9 @@ void clk_hw_unregister_fixed_rate(struct clk_hw *hw)
 EXPORT_SYMBOL_GPL(clk_hw_unregister_fixed_rate);
 
 #ifdef CONFIG_OF
-static struct clk *_of_fixed_clk_setup(struct device_node *node)
+static struct clk_hw *_of_fixed_clk_setup(struct device_node *node)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *clk_name = node->name;
 	u32 rate;
 	u32 accuracy = 0;
@@ -170,18 +170,18 @@ static struct clk *_of_fixed_clk_setup(struct device_node *node)
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
-	clk = clk_register_fixed_rate_with_accuracy(NULL, clk_name, NULL,
+	hw = clk_hw_register_fixed_rate_with_accuracy(NULL, clk_name, NULL,
 						    0, rate, accuracy);
-	if (IS_ERR(clk))
-		return clk;
+	if (IS_ERR(hw))
+		return hw;
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
 	if (ret) {
-		clk_unregister(clk);
+		clk_hw_unregister_fixed_rate(hw);
 		return ERR_PTR(ret);
 	}
 
-	return clk;
+	return hw;
 }
 
 /**
@@ -195,27 +195,27 @@ CLK_OF_DECLARE(fixed_clk, "fixed-clock", of_fixed_clk_setup);
 
 static int of_fixed_clk_remove(struct platform_device *pdev)
 {
-	struct clk *clk = platform_get_drvdata(pdev);
+	struct clk_hw *hw = platform_get_drvdata(pdev);
 
 	of_clk_del_provider(pdev->dev.of_node);
-	clk_unregister_fixed_rate(clk);
+	clk_hw_unregister_fixed_rate(hw);
 
 	return 0;
 }
 
 static int of_fixed_clk_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	/*
 	 * This function is not executed when of_fixed_clk_setup
 	 * succeeded.
 	 */
-	clk = _of_fixed_clk_setup(pdev->dev.of_node);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	hw = _of_fixed_clk_setup(pdev->dev.of_node);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
-	platform_set_drvdata(pdev, clk);
+	platform_set_drvdata(pdev, hw);
 
 	return 0;
 }
@@ -224,7 +224,6 @@ static const struct of_device_id of_fixed_clk_ids[] = {
 	{ .compatible = "fixed-clock" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, of_fixed_clk_ids);
 
 static struct platform_driver of_fixed_clk_driver = {
 	.driver = {
