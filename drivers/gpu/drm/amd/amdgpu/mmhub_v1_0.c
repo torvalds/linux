@@ -31,6 +31,7 @@
 #include "vega10_enum.h"
 
 #include "soc15_common.h"
+#include "amdgpu_ras.h"
 
 #define mmDAGB0_CNTL_MISC2_RV 0x008f
 #define mmDAGB0_CNTL_MISC2_RV_BASE_IDX 0
@@ -615,6 +616,35 @@ static void mmhub_v1_0_query_ras_error_count(struct amdgpu_device *adev,
 	}
 }
 
+static int mmhub_v1_0_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+	struct ras_ih_if mmhub_ih_info = {
+		.cb = NULL,
+	};
+	struct ras_fs_if mmhub_fs_info = {
+		.sysfs_name = "mmhub_err_count",
+		.debugfs_name = "mmhub_err_inject",
+	};
+
+	if (!adev->gmc.mmhub_ras_if) {
+		adev->gmc.mmhub_ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gmc.mmhub_ras_if)
+			return -ENOMEM;
+		adev->gmc.mmhub_ras_if->block = AMDGPU_RAS_BLOCK__MMHUB;
+		adev->gmc.mmhub_ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gmc.mmhub_ras_if->sub_block_index = 0;
+		strcpy(adev->gmc.mmhub_ras_if->name, "mmhub");
+	}
+	mmhub_ih_info.head = mmhub_fs_info.head = *adev->gmc.mmhub_ras_if;
+	r = amdgpu_ras_late_init(adev, adev->gmc.mmhub_ras_if,
+				 &mmhub_fs_info, &mmhub_ih_info);
+	if (r)
+		kfree(adev->gmc.mmhub_ras_if);
+	return r;
+}
+
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
+	.ras_late_init = mmhub_v1_0_ras_late_init,
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
 };
