@@ -1670,8 +1670,7 @@ static void node_guid_gen_from_mac(u64 *node_guid, u8 mac[ETH_ALEN])
 	((u8 *)node_guid)[0] = mac[5];
 }
 
-static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
-				 struct mlx5_vport *vport)
+static void esw_vport_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
 	u16 vport_num = vport->vport;
 	int flags;
@@ -1696,6 +1695,18 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 		SET_VLAN_STRIP | SET_VLAN_INSERT : 0;
 	modify_esw_vport_cvlan(esw->dev, vport_num, vport->info.vlan, vport->info.qos,
 			       flags);
+}
+
+/* Don't cleanup vport->info, it's needed to restore vport configuration */
+static void esw_vport_cleanup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
+{
+	u16 vport_num = vport->vport;
+
+	if (!mlx5_esw_is_manager_vport(esw, vport_num))
+		mlx5_modify_vport_admin_state(esw->dev,
+					      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
+					      vport_num, 1,
+					      MLX5_VPORT_ADMIN_STATE_DOWN);
 }
 
 static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
@@ -1794,7 +1805,7 @@ static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
 
 	/* Restore old vport configuration */
-	esw_apply_vport_conf(esw, vport);
+	esw_vport_setup(esw, vport);
 
 	ret = esw_vport_setup_acl(esw, vport);
 	if (ret)
@@ -1845,14 +1856,7 @@ static void esw_disable_vport(struct mlx5_eswitch *esw,
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
 	esw_vport_disable_qos(esw, vport);
-
-	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
-	    esw->mode == MLX5_ESWITCH_LEGACY)
-		mlx5_modify_vport_admin_state(esw->dev,
-					      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
-					      vport_num, 1,
-					      MLX5_VPORT_ADMIN_STATE_DOWN);
-
+	esw_vport_cleanup(esw, vport);
 	esw_vport_cleanup_acl(esw, vport);
 	esw->enabled_vports--;
 
