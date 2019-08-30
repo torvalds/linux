@@ -8523,11 +8523,14 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+static int bnxt_fw_init_one(struct bnxt *bp);
+
 static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 {
 	struct hwrm_func_drv_if_change_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_if_change_input req = {0};
-	bool resc_reinit = false;
+	bool resc_reinit = false, fw_reset = false;
+	u32 flags = 0;
 	int rc;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_IF_CHANGE))
@@ -8538,26 +8541,53 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 		req.flags = cpu_to_le32(FUNC_DRV_IF_CHANGE_REQ_FLAGS_UP);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc && (resp->flags &
-		    cpu_to_le32(FUNC_DRV_IF_CHANGE_RESP_FLAGS_RESC_CHANGE)))
-		resc_reinit = true;
+	if (!rc)
+		flags = le32_to_cpu(resp->flags);
 	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (rc)
+		return rc;
 
-	if (up && resc_reinit && BNXT_NEW_RM(bp)) {
-		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	if (!up)
+		return 0;
 
-		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
-		hw_resc->resv_cp_rings = 0;
-		hw_resc->resv_stat_ctxs = 0;
-		hw_resc->resv_irqs = 0;
-		hw_resc->resv_tx_rings = 0;
-		hw_resc->resv_rx_rings = 0;
-		hw_resc->resv_hw_ring_grps = 0;
-		hw_resc->resv_vnics = 0;
-		bp->tx_nr_rings = 0;
-		bp->rx_nr_rings = 0;
+	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_RESC_CHANGE)
+		resc_reinit = true;
+	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_HOT_FW_RESET_DONE)
+		fw_reset = true;
+
+	if (resc_reinit || fw_reset) {
+		if (fw_reset) {
+			rc = bnxt_fw_init_one(bp);
+			if (rc) {
+				set_bit(BNXT_STATE_ABORT_ERR, &bp->state);
+				return rc;
+			}
+			bnxt_clear_int_mode(bp);
+			rc = bnxt_init_int_mode(bp);
+			if (rc) {
+				netdev_err(bp->dev, "init int mode failed\n");
+				return rc;
+			}
+			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
+		}
+		if (BNXT_NEW_RM(bp)) {
+			struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+			rc = bnxt_hwrm_func_resc_qcaps(bp, true);
+			hw_resc->resv_cp_rings = 0;
+			hw_resc->resv_stat_ctxs = 0;
+			hw_resc->resv_irqs = 0;
+			hw_resc->resv_tx_rings = 0;
+			hw_resc->resv_rx_rings = 0;
+			hw_resc->resv_hw_ring_grps = 0;
+			hw_resc->resv_vnics = 0;
+			if (!fw_reset) {
+				bp->tx_nr_rings = 0;
+				bp->rx_nr_rings = 0;
+			}
+		}
 	}
-	return rc;
+	return 0;
 }
 
 static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
@@ -8977,12 +9007,28 @@ static int bnxt_open(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;
 
-	bnxt_hwrm_if_change(bp, true);
-	rc = __bnxt_open_nic(bp, true, true);
-	if (rc)
-		bnxt_hwrm_if_change(bp, false);
+	if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
+		netdev_err(bp->dev, "A previous firmware reset did not complete, aborting\n");
+		return -ENODEV;
+	}
 
-	bnxt_hwmon_open(bp);
+	rc = bnxt_hwrm_if_change(bp, true);
+	if (rc)
+		return rc;
+	rc = __bnxt_open_nic(bp, true, true);
+	if (rc) {
+		bnxt_hwrm_if_change(bp, false);
+	} else {
+		if (test_and_clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state) &&
+		    BNXT_PF(bp)) {
+			struct bnxt_pf_info *pf = &bp->pf;
+			int n = pf->active_vfs;
+
+			if (n)
+				bnxt_cfg_hw_sriov(bp, &n);
+		}
+		bnxt_hwmon_open(bp);
+	}
 
 	return rc;
 }
@@ -10073,6 +10119,27 @@ static void bnxt_fw_init_one_p3(struct bnxt *bp)
 
 	bnxt_hwrm_set_cache_line_size(bp, cache_line_size());
 	bnxt_hwrm_coal_params_qcaps(bp);
+}
+
+static int bnxt_fw_init_one(struct bnxt *bp)
+{
+	int rc;
+
+	rc = bnxt_fw_init_one_p1(bp);
+	if (rc) {
+		netdev_err(bp->dev, "Firmware init phase 1 failed\n");
+		return rc;
+	}
+	rc = bnxt_fw_init_one_p2(bp);
+	if (rc) {
+		netdev_err(bp->dev, "Firmware init phase 2 failed\n");
+		return rc;
+	}
+	rc = bnxt_approve_mac(bp, bp->dev->dev_addr, false);
+	if (rc)
+		return rc;
+	bnxt_fw_init_one_p3(bp);
+	return 0;
 }
 
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
