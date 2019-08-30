@@ -1057,14 +1057,11 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 	if (upper_32_bits(args->value))
 		return -ENOENT;
 
-	err = mutex_lock_interruptible(&file_priv->vm_idr_lock);
-	if (err)
-		return err;
-
+	rcu_read_lock();
 	vm = idr_find(&file_priv->vm_idr, args->value);
-	if (vm)
-		i915_vm_get(vm);
-	mutex_unlock(&file_priv->vm_idr_lock);
+	if (vm && !kref_get_unless_zero(&vm->ref))
+		vm = NULL;
+	rcu_read_unlock();
 	if (!vm)
 		return -ENOENT;
 
