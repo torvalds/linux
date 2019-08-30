@@ -179,7 +179,7 @@ struct thread_struct {
  * Note: We set-up ps as if we did a call4 to the new pc.
  *       set_thread_state in signal.c depends on it.
  */
-#define USER_PS_VALUE ((1 << PS_WOE_BIT) |				\
+#define USER_PS_VALUE (PS_WOE_MASK |					\
 		       (1 << PS_CALLINC_SHIFT) |			\
 		       (USER_RING << PS_RING_SHIFT) |			\
 		       (1 << PS_UM_BIT) |				\

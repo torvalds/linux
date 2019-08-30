@@ -414,7 +414,7 @@ common_exception:
 	movi	a3, LOCKLEVEL
 
 .Lexception:
-	movi	a0, 1 << PS_WOE_BIT
+	movi	a0, PS_WOE_MASK
 	or	a3, a3, a0
 #else
 	addi	a2, a2, -EXCCAUSE_LEVEL1_INTERRUPT
@@ -422,7 +422,7 @@ common_exception:
 	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 					# a3 = PS.INTLEVEL
 	moveqz	a3, a0, a2		# a3 = LOCKLEVEL iff interrupt
-	movi	a2, 1 << PS_WOE_BIT
+	movi	a2, PS_WOE_MASK
 	or	a3, a3, a2
 	rsr	a2, exccause
 #endif
@@ -922,7 +922,7 @@ ENTRY(unrecoverable_exception)
 	wsr	a1, windowbase
 	rsync
 
-	movi	a1, (1 << PS_WOE_BIT) | LOCKLEVEL
+	movi	a1, PS_WOE_MASK | LOCKLEVEL
 	wsr	a1, ps
 	rsync
 
@@ -1359,7 +1359,7 @@ ENTRY(fast_syscall_spill_registers)
 	rsr	a3, excsave1
 	l32i	a1, a3, EXC_TABLE_KSTK
 
-	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
+	movi	a4, PS_WOE_MASK | LOCKLEVEL
 	wsr	a4, ps
 	rsync
 
