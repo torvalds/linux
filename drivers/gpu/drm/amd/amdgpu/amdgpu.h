@@ -478,7 +478,6 @@ struct amdgpu_cs_parser {
 	uint64_t			bytes_moved_vis_threshold;
 	uint64_t			bytes_moved;
 	uint64_t			bytes_moved_vis;
-	struct amdgpu_bo_list_entry	*evictable;
 
 	/* user fence */
 	struct amdgpu_bo_list_entry	uf_entry;
