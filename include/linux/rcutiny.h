@@ -39,11 +39,6 @@ static inline void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 	call_rcu(head, func);
 }
 
-static inline void kfree_call_rcu_nobatch(struct rcu_head *head, rcu_callback_t func)
-{
-	call_rcu(head, func);
-}
-
 void rcu_qs(void);
 
 static inline void rcu_softirq_qs(void)

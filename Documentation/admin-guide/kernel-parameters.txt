@@ -3991,10 +3991,6 @@
 			Number of loops doing rcuperf.kfree_alloc_num number
 			of allocations and frees.
 
-	rcuperf.kfree_no_batch= [KNL]
-			Use the non-batching (less efficient) version of kfree_rcu().
-			This is useful for comparing with the batched version.
-
 	rcuperf.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value

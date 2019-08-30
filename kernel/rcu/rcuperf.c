@@ -593,7 +593,6 @@ rcu_perf_shutdown(void *arg)
 torture_param(int, kfree_nthreads, -1, "Number of threads running loops of kfree_rcu().");
 torture_param(int, kfree_alloc_num, 8000, "Number of allocations and frees done in an iteration.");
 torture_param(int, kfree_loops, 10, "Number of loops doing kfree_alloc_num allocations and frees.");
-torture_param(int, kfree_no_batch, 0, "Use the non-batching (slower) version of kfree_rcu().");
 
 static struct task_struct **kfree_reader_tasks;
 static int kfree_nrealthreads;
@@ -632,14 +631,7 @@ kfree_perf_thread(void *arg)
 			if (!alloc_ptr)
 				return -ENOMEM;
 
-			if (!kfree_no_batch) {
-				kfree_rcu(alloc_ptr, rh);
-			} else {
-				rcu_callback_t cb;
-
-				cb = (rcu_callback_t)(unsigned long)offsetof(struct kfree_obj, rh);
-				kfree_call_rcu_nobatch(&(alloc_ptr->rh), cb);
-			}
+			kfree_rcu(alloc_ptr, rh);
 		}
 
 		cond_resched();
