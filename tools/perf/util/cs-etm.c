@@ -30,7 +30,6 @@
 #include "symbol.h"
 #include "tool.h"
 #include "thread.h"
-#include "thread_map.h"
 #include "thread-stack.h"
 #include <tools/libc_compat.h>
 #include "util.h"
