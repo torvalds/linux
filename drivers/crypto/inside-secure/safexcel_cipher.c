@@ -65,6 +65,19 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 {
 	u32 block_sz = 0;
 
+	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD) {
+		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
+
+		/* 32 bit nonce */
+		cdesc->control_data.token[0] = ctx->nonce;
+		/* 64 bit IV part */
+		memcpy(&cdesc->control_data.token[1], iv, 8);
+		/* 32 bit counter, start at 1 (big endian!) */
+		cdesc->control_data.token[3] = cpu_to_be32(1);
+
+		return;
+	}
+
 	if (ctx->mode != CONTEXT_CONTROL_CRYPTO_MODE_ECB) {
 		switch (ctx->alg) {
 		case SAFEXCEL_DES:
@@ -80,17 +93,7 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 			cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 			break;
 		}
-
-		if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD) {
-			/* 32 bit nonce */
-			cdesc->control_data.token[0] = ctx->nonce;
-			/* 64 bit IV part */
-			memcpy(&cdesc->control_data.token[1], iv, 8);
-			/* 32 bit counter, start at 1 (big endian!) */
-			cdesc->control_data.token[3] = cpu_to_be32(1);
-		} else {
-			memcpy(cdesc->control_data.token, iv, block_sz);
-		}
+		memcpy(cdesc->control_data.token, iv, block_sz);
 	}
 }
 
