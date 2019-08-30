@@ -823,17 +823,6 @@ release_pd_entry(struct i915_page_directory * const pd,
 	return free;
 }
 
-/*
- * PDE TLBs are a pain to invalidate on GEN8+. When we modify
- * the page table structures, we mark them dirty so that
- * context switching/execlist queuing code takes extra steps
- * to ensure that tlbs are flushed.
- */
-static void mark_tlbs_dirty(struct i915_ppgtt *ppgtt)
-{
-	ppgtt->pd_dirty_engines = ALL_ENGINES;
-}
-
 static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
 {
 	struct drm_i915_private *dev_priv = ppgtt->vm.i915;
@@ -1735,10 +1724,8 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	}
 	spin_unlock(&pd->lock);
 
-	if (flush) {
-		mark_tlbs_dirty(&ppgtt->base);
+	if (flush)
 		gen6_ggtt_invalidate(vm->gt->ggtt);
-	}
 
 	goto out;
 
@@ -1833,7 +1820,6 @@ static int pd_vma_bind(struct i915_vma *vma,
 	gen6_for_all_pdes(pt, ppgtt->base.pd, pde)
 		gen6_write_pde(ppgtt, pde, pt);
 
-	mark_tlbs_dirty(&ppgtt->base);
 	gen6_ggtt_invalidate(ggtt);
 
 	return 0;

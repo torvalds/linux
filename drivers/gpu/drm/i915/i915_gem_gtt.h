@@ -422,7 +422,6 @@ struct i915_ggtt {
 struct i915_ppgtt {
 	struct i915_address_space vm;
 
-	intel_engine_mask_t pd_dirty_engines;
 	struct i915_page_directory *pd;
 };
 
