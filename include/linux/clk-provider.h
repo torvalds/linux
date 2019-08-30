@@ -321,6 +321,7 @@ struct clk_hw {
  * struct clk_fixed_rate - fixed-rate clock
  * @hw:		handle between common and hardware-specific interfaces
  * @fixed_rate:	constant frequency of clock
+ * @fixed_accuracy: constant accuracy of clock in ppb (parts per billion)
  */
 struct clk_fixed_rate {
 	struct		clk_hw hw;
