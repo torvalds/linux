@@ -2910,8 +2910,8 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 						has_dpll4 ? DPLL_ID_EHL_DPLL4
 							  : DPLL_ID_ICL_DPLL1);
 	if (!port_dpll->pll) {
-		DRM_DEBUG_KMS("No combo PHY PLL found for port %c\n",
-			      port_name(encoder->port));
+		DRM_DEBUG_KMS("No combo PHY PLL found for [ENCODER:%d:%s]\n",
+			      encoder->base.base.id, encoder->base.name);
 		return false;
 	}
 

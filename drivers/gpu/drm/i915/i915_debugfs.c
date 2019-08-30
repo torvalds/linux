@@ -3114,8 +3114,9 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 		if (!intel_dig_port->dp.can_mst)
 			continue;
 
-		seq_printf(m, "MST Source Port %c\n",
-			   port_name(intel_dig_port->base.port));
+		seq_printf(m, "MST Source Port [ENCODER:%d:%s]\n",
+			   intel_dig_port->base.base.base.id,
+			   intel_dig_port->base.base.name);
 		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
 	}
 	drm_connector_list_iter_end(&conn_iter);

@@ -3075,12 +3075,13 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
 
-	DRM_DEBUG_KMS("Adding HDMI connector on port %c\n",
-		      port_name(port));
+	DRM_DEBUG_KMS("Adding HDMI connector on [ENCODER:%d:%s]\n",
+		      intel_encoder->base.base.id, intel_encoder->base.name);
 
 	if (WARN(intel_dig_port->max_lanes < 4,
-		 "Not enough lanes (%d) for HDMI on port %c\n",
-		 intel_dig_port->max_lanes, port_name(port)))
+		 "Not enough lanes (%d) for HDMI on [ENCODER:%d:%s]\n",
+		 intel_dig_port->max_lanes, intel_encoder->base.base.id,
+		 intel_encoder->base.name))
 		return;
 
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,

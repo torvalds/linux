@@ -560,8 +560,9 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	u32 tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
 
-	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
-		      port_name(port), pipe_name(pipe));
+	DRM_DEBUG_KMS("Disable audio codec on [ENCODER:%d:%s], pipe %c\n",
+		      encoder->base.base.id, encoder->base.name,
+		      pipe_name(pipe));
 
 	if (WARN_ON(port == PORT_A))
 		return;
@@ -609,8 +610,9 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	int len, i;
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
-	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
-		      port_name(port), pipe_name(pipe), drm_eld_size(eld));
+	DRM_DEBUG_KMS("Enable audio codec on [ENCODER:%d:%s], pipe %c, %u bytes ELD\n",
+		      encoder->base.base.id, encoder->base.name,
+		      pipe_name(pipe), drm_eld_size(eld));
 
 	if (WARN_ON(port == PORT_A))
 		return;

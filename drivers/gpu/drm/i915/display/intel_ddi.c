@@ -2080,18 +2080,20 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	}
 
 	if (!*pipe_mask)
-		DRM_DEBUG_KMS("No pipe for ddi port %c found\n",
-			      port_name(port));
+		DRM_DEBUG_KMS("No pipe for [ENCODER:%d:%s] found\n",
+			      encoder->base.base.id, encoder->base.name);
 
 	if (!mst_pipe_mask && hweight8(*pipe_mask) > 1) {
-		DRM_DEBUG_KMS("Multiple pipes for non DP-MST port %c (pipe_mask %02x)\n",
-			      port_name(port), *pipe_mask);
+		DRM_DEBUG_KMS("Multiple pipes for [ENCODER:%d:%s] (pipe_mask %02x)\n",
+			      encoder->base.base.id, encoder->base.name,
+			      *pipe_mask);
 		*pipe_mask = BIT(ffs(*pipe_mask) - 1);
 	}
 
 	if (mst_pipe_mask && mst_pipe_mask != *pipe_mask)
-		DRM_DEBUG_KMS("Conflicting MST and non-MST encoders for port %c (pipe_mask %02x mst_pipe_mask %02x)\n",
-			      port_name(port), *pipe_mask, mst_pipe_mask);
+		DRM_DEBUG_KMS("Conflicting MST and non-MST state for [ENCODER:%d:%s] (pipe_mask %02x mst_pipe_mask %02x)\n",
+			      encoder->base.base.id, encoder->base.name,
+			      *pipe_mask, mst_pipe_mask);
 	else
 		*is_dp_mst = mst_pipe_mask;
 
@@ -2101,8 +2103,9 @@ out:
 		if ((tmp & (BXT_PHY_CMNLANE_POWERDOWN_ACK |
 			    BXT_PHY_LANE_POWERDOWN_ACK |
 			    BXT_PHY_LANE_ENABLED)) != BXT_PHY_LANE_ENABLED)
-			DRM_ERROR("Port %c enabled but PHY powered down? "
-				  "(PHY_CTL %08x)\n", port_name(port), tmp);
+			DRM_ERROR("[ENCODER:%d:%s] enabled but PHY powered down? "
+				  "(PHY_CTL %08x)\n", encoder->base.base.id,
+				  encoder->base.name, tmp);
 	}
 
 	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
