@@ -778,11 +778,9 @@ static inline void ioc3_clean_tx_ring(struct ioc3_private *ip)
 	ip->tx_ci = 0;
 }
 
-static void ioc3_free_rings(struct ioc3_private *ip)
+static void ioc3_free_rx_bufs(struct ioc3_private *ip)
 {
 	int rx_entry, n_entry;
-
-	ioc3_clean_tx_ring(ip);
 
 	n_entry = ip->rx_ci;
 	rx_entry = ip->rx_pi;
@@ -794,7 +792,7 @@ static void ioc3_free_rings(struct ioc3_private *ip)
 	}
 }
 
-static void ioc3_alloc_rings(struct net_device *dev)
+static void ioc3_alloc_rx_bufs(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3_erxbuf *rxb;
@@ -824,9 +822,6 @@ static void ioc3_alloc_rings(struct net_device *dev)
 	}
 	ip->rx_ci = 0;
 	ip->rx_pi = RX_BUFFS;
-
-	ip->tx_pi = 0;
-	ip->tx_ci = 0;
 }
 
 static void ioc3_init_rings(struct net_device *dev)
@@ -835,8 +830,8 @@ static void ioc3_init_rings(struct net_device *dev)
 	struct ioc3_ethregs *regs = ip->regs;
 	unsigned long ring;
 
-	ioc3_free_rings(ip);
-	ioc3_alloc_rings(dev);
+	ioc3_free_rx_bufs(ip);
+	ioc3_alloc_rx_bufs(dev);
 
 	ioc3_clean_tx_ring(ip);
 
@@ -962,7 +957,9 @@ static int ioc3_close(struct net_device *dev)
 	ioc3_stop(ip);
 	free_irq(dev->irq, dev);
 
-	ioc3_free_rings(ip);
+	ioc3_free_rx_bufs(ip);
+	ioc3_clean_tx_ring(ip);
+
 	return 0;
 }
 
@@ -1263,12 +1260,11 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 out_stop:
 	ioc3_stop(ip);
 	del_timer_sync(&ip->ioc3_timer);
-	ioc3_free_rings(ip);
+	ioc3_free_rx_bufs(ip);
 	if (ip->rxr)
 		free_page((unsigned long)ip->rxr);
 	if (ip->txr)
 		free_pages((unsigned long)ip->txr, 2);
-	kfree(ip->txr);
 out_res:
 	pci_release_regions(pdev);
 out_free:
