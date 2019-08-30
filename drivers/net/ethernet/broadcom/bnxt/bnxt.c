@@ -4173,6 +4173,9 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
 	u16 dst = BNXT_HWRM_CHNL_CHIMP;
 
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+		return -EBUSY;
+
 	if (msg_len > BNXT_HWRM_MAX_REQ_LEN) {
 		if (msg_len > bp->hwrm_max_ext_req_len ||
 		    !bp->hwrm_short_cmd_req_addr)
@@ -5042,8 +5045,6 @@ static int bnxt_hwrm_vnic_free_one(struct bnxt *bp, u16 vnic_id)
 			cpu_to_le32(bp->vnic_info[vnic_id].fw_vnic_id);
 
 		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-		if (rc)
-			return rc;
 		bp->vnic_info[vnic_id].fw_vnic_id = INVALID_HW_RING_ID;
 	}
 	return rc;
@@ -5183,8 +5184,6 @@ static int bnxt_hwrm_ring_grp_free(struct bnxt *bp)
 
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
-		if (rc)
-			break;
 		bp->grp_info[i].fw_grp_id = INVALID_HW_RING_ID;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -5502,6 +5501,9 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 	struct hwrm_ring_free_input req = {0};
 	struct hwrm_ring_free_output *resp = bp->hwrm_cmd_resp_addr;
 	u16 error_code;
+
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_FREE, cmpl_ring_id, -1);
 	req.ring_type = ring_type;
@@ -6300,8 +6302,6 @@ static int bnxt_hwrm_stat_ctx_free(struct bnxt *bp)
 
 			rc = _hwrm_send_message(bp, &req, sizeof(req),
 						HWRM_CMD_TIMEOUT);
-			if (rc)
-				break;
 
 			cpr->hw_stats_ctx_id = INVALID_STATS_CTX_ID;
 		}
@@ -7415,6 +7415,8 @@ static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa)
 
 	if (set_tpa)
 		tpa_flags = bp->flags & BNXT_FLAG_TPA;
+	else if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+		return 0;
 	for (i = 0; i < bp->nr_vnics; i++) {
 		rc = bnxt_hwrm_vnic_set_tpa(bp, i, tpa_flags);
 		if (rc) {
@@ -10009,7 +10011,8 @@ void bnxt_fw_reset(struct bnxt *bp)
 	if (test_bit(BNXT_STATE_OPEN, &bp->state) &&
 	    !test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
 		set_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-		if (BNXT_PF(bp) && bp->pf.active_vfs) {
+		if (BNXT_PF(bp) && bp->pf.active_vfs &&
+		    !test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
 			rc = bnxt_hwrm_func_qcfg(bp);
 			if (rc) {
 				netdev_err(bp->dev, "Firmware reset aborted, first func_qcfg cmd failed, rc = %d\n",
@@ -10439,6 +10442,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
 		return;
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
+		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 		if (pci_enable_device(bp->pdev)) {
 			netdev_err(bp->dev, "Cannot re-enable PCI device\n");
 			goto fw_reset_abort;
