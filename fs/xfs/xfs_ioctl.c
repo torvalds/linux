@@ -1309,8 +1309,7 @@ xfs_ioctl_setattr_dax_invalidate(
 	if (fa->fsx_xflags & FS_XFLAG_DAX) {
 		if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
 			return -EINVAL;
-		if (S_ISREG(inode->i_mode) &&
-		    !bdev_dax_supported(xfs_find_bdev_for_inode(VFS_I(ip)),
+		if (!bdev_dax_supported(xfs_find_bdev_for_inode(VFS_I(ip)),
 				sb->s_blocksize))
 			return -EINVAL;
 	}
