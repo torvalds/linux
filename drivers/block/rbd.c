@@ -1754,8 +1754,6 @@ static struct rbd_img_request *rbd_img_request_create(
 	mutex_init(&img_request->state_mutex);
 	kref_init(&img_request->kref);
 
-	dout("%s: rbd_dev %p %s -> img %p\n", __func__, rbd_dev,
-	     obj_op_name(op_type), img_request);
 	return img_request;
 }
 
@@ -2943,6 +2941,9 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 
 	__set_bit(IMG_REQ_CHILD, &child_img_req->flags);
 	child_img_req->obj_request = obj_req;
+
+	dout("%s child_img_req %p for obj_req %p\n", __func__, child_img_req,
+	     obj_req);
 
 	if (!rbd_img_is_write(img_req)) {
 		switch (img_req->data_type) {
@@ -4876,6 +4877,9 @@ static void rbd_queue_workfn(struct work_struct *work)
 	}
 	img_request->rq = rq;
 	snapc = NULL; /* img_request consumes a ref */
+
+	dout("%s rbd_dev %p img_req %p %s %llu~%llu\n", __func__, rbd_dev,
+	     img_request, obj_op_name(op_type), offset, length);
 
 	if (op_type == OBJ_OP_DISCARD || op_type == OBJ_OP_ZEROOUT)
 		result = rbd_img_fill_nodata(img_request, offset, length);
