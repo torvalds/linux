@@ -6847,6 +6847,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_PCIE_STATS_SUPPORTED;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_EXT_STATS_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_EXT_STATS_SUPPORTED;
+	if (flags &  FUNC_QCAPS_RESP_FLAGS_ERROR_RECOVERY_CAPABLE)
+		bp->fw_cap |= BNXT_FW_CAP_ERROR_RECOVERY;
 
 	bp->tx_push_thresh = 0;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED)
@@ -6945,6 +6947,74 @@ static int bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(struct bnxt *bp)
 
 hwrm_cfa_adv_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int bnxt_hwrm_error_recovery_qcfg(struct bnxt *bp)
+{
+	struct hwrm_error_recovery_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	struct hwrm_error_recovery_qcfg_input req = {0};
+	int rc, i;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_ERROR_RECOVERY_QCFG, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto err_recovery_out;
+	if (!fw_health) {
+		fw_health = kzalloc(sizeof(*fw_health), GFP_KERNEL);
+		bp->fw_health = fw_health;
+		if (!fw_health) {
+			rc = -ENOMEM;
+			goto err_recovery_out;
+		}
+	}
+	fw_health->flags = le32_to_cpu(resp->flags);
+	if ((fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL)) {
+		rc = -EINVAL;
+		goto err_recovery_out;
+	}
+	fw_health->polling_dsecs = le32_to_cpu(resp->driver_polling_freq);
+	fw_health->master_func_wait_dsecs =
+		le32_to_cpu(resp->master_func_wait_period);
+	fw_health->normal_func_wait_dsecs =
+		le32_to_cpu(resp->normal_func_wait_period);
+	fw_health->post_reset_wait_dsecs =
+		le32_to_cpu(resp->master_func_wait_period_after_reset);
+	fw_health->post_reset_max_wait_dsecs =
+		le32_to_cpu(resp->max_bailout_time_after_reset);
+	fw_health->regs[BNXT_FW_HEALTH_REG] =
+		le32_to_cpu(resp->fw_health_status_reg);
+	fw_health->regs[BNXT_FW_HEARTBEAT_REG] =
+		le32_to_cpu(resp->fw_heartbeat_reg);
+	fw_health->regs[BNXT_FW_RESET_CNT_REG] =
+		le32_to_cpu(resp->fw_reset_cnt_reg);
+	fw_health->regs[BNXT_FW_RESET_INPROG_REG] =
+		le32_to_cpu(resp->reset_inprogress_reg);
+	fw_health->fw_reset_inprog_reg_mask =
+		le32_to_cpu(resp->reset_inprogress_reg_mask);
+	fw_health->fw_reset_seq_cnt = resp->reg_array_cnt;
+	if (fw_health->fw_reset_seq_cnt >= 16) {
+		rc = -EINVAL;
+		goto err_recovery_out;
+	}
+	for (i = 0; i < fw_health->fw_reset_seq_cnt; i++) {
+		fw_health->fw_reset_seq_regs[i] =
+			le32_to_cpu(resp->reset_reg[i]);
+		fw_health->fw_reset_seq_vals[i] =
+			le32_to_cpu(resp->reset_reg_val[i]);
+		fw_health->fw_reset_seq_delay_msec[i] =
+			resp->delay_after_reset[i];
+	}
+err_recovery_out:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (rc)
+		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
 	return rc;
 }
 
@@ -10058,6 +10128,11 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 		netdev_warn(bp->dev, "hwrm query adv flow mgnt failure rc: %d\n",
 			    rc);
 
+	rc = bnxt_hwrm_error_recovery_qcfg(bp);
+	if (rc)
+		netdev_warn(bp->dev, "hwrm query error recovery failure rc: %d\n",
+			    rc);
+
 	rc = bnxt_hwrm_func_drv_rgtr(bp);
 	if (rc)
 		return -ENODEV;
@@ -11238,6 +11313,8 @@ init_err_pci_clean:
 	bnxt_free_ctx_mem(bp);
 	kfree(bp->ctx);
 	bp->ctx = NULL;
+	kfree(bp->fw_health);
+	bp->fw_health = NULL;
 	bnxt_cleanup_pci(bp);
 
 init_err_free:

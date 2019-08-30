@@ -1333,6 +1333,41 @@ struct bnxt_ctx_mem_info {
 	struct bnxt_ctx_pg_info *tqm_mem[9];
 };
 
+struct bnxt_fw_health {
+	u32 flags;
+	u32 polling_dsecs;
+	u32 master_func_wait_dsecs;
+	u32 normal_func_wait_dsecs;
+	u32 post_reset_wait_dsecs;
+	u32 post_reset_max_wait_dsecs;
+	u32 regs[4];
+	u32 mapped_regs[4];
+#define BNXT_FW_HEALTH_REG		0
+#define BNXT_FW_HEARTBEAT_REG		1
+#define BNXT_FW_RESET_CNT_REG		2
+#define BNXT_FW_RESET_INPROG_REG	3
+	u32 fw_reset_inprog_reg_mask;
+	u32 last_fw_heartbeat;
+	u32 last_fw_reset_cnt;
+	u8 enabled:1;
+	u8 master:1;
+	u8 tmr_multiplier;
+	u8 tmr_counter;
+	u8 fw_reset_seq_cnt;
+	u32 fw_reset_seq_regs[16];
+	u32 fw_reset_seq_vals[16];
+	u32 fw_reset_seq_delay_msec[16];
+};
+
+#define BNXT_FW_HEALTH_REG_TYPE_MASK	3
+#define BNXT_FW_HEALTH_REG_TYPE_CFG	0
+#define BNXT_FW_HEALTH_REG_TYPE_GRC	1
+#define BNXT_FW_HEALTH_REG_TYPE_BAR0	2
+#define BNXT_FW_HEALTH_REG_TYPE_BAR1	3
+
+#define BNXT_FW_HEALTH_REG_TYPE(reg)	((reg) & BNXT_FW_HEALTH_REG_TYPE_MASK)
+#define BNXT_FW_HEALTH_REG_OFF(reg)	((reg) & ~BNXT_FW_HEALTH_REG_TYPE_MASK)
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -1581,6 +1616,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_KONG_MB_CHNL		0x00000080
 	#define BNXT_FW_CAP_OVS_64BIT_HANDLE		0x00000400
 	#define BNXT_FW_CAP_TRUSTED_VF			0x00000800
+	#define BNXT_FW_CAP_ERROR_RECOVERY		0x00002000
 	#define BNXT_FW_CAP_PKG_VER			0x00004000
 	#define BNXT_FW_CAP_CFA_ADV_FLOW		0x00008000
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX	0x00010000
@@ -1665,6 +1701,8 @@ struct bnxt {
 #define BNXT_FLOW_STATS_SP_EVENT	15
 #define BNXT_UPDATE_PHY_SP_EVENT	16
 #define BNXT_RING_COAL_NOW_SP_EVENT	17
+
+	struct bnxt_fw_health	*fw_health;
 
 	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
