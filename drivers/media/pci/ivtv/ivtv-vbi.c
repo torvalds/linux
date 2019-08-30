@@ -325,7 +325,7 @@ static u32 compress_raw_buf(struct ivtv *itv, u8 *buf, u32 size)
 static u32 compress_sliced_buf(struct ivtv *itv, u32 line, u8 *buf, u32 size, u8 sav)
 {
 	u32 line_size = itv->vbi.sliced_decoder_line_size;
-	struct v4l2_decode_vbi_line vbi;
+	struct v4l2_decode_vbi_line vbi = {};
 	int i;
 	unsigned lines = 0;
 
