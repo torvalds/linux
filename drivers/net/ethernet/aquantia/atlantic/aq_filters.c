@@ -431,7 +431,8 @@ int aq_del_fvlan_by_vlan(struct aq_nic_s *aq_nic, u16 vlan_id)
 		if (be16_to_cpu(rule->aq_fsp.h_ext.vlan_tci) == vlan_id)
 			break;
 	}
-	if (rule && be16_to_cpu(rule->aq_fsp.h_ext.vlan_tci) == vlan_id) {
+	if (rule && rule->type == aq_rx_filter_vlan &&
+	    be16_to_cpu(rule->aq_fsp.h_ext.vlan_tci) == vlan_id) {
 		struct ethtool_rxnfc cmd;
 
 		cmd.fs.location = rule->aq_fsp.location;
