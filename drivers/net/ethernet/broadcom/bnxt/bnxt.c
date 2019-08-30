@@ -10402,6 +10402,62 @@ static int bnxt_fw_init_one(struct bnxt *bp)
 	return 0;
 }
 
+static void bnxt_fw_reset_writel(struct bnxt *bp, int reg_idx)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg = fw_health->fw_reset_seq_regs[reg_idx];
+	u32 val = fw_health->fw_reset_seq_vals[reg_idx];
+	u32 reg_type, reg_off, delay_msecs;
+
+	delay_msecs = fw_health->fw_reset_seq_delay_msec[reg_idx];
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(reg);
+	reg_off = BNXT_FW_HEALTH_REG_OFF(reg);
+	switch (reg_type) {
+	case BNXT_FW_HEALTH_REG_TYPE_CFG:
+		pci_write_config_dword(bp->pdev, reg_off, val);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_GRC:
+		writel(reg_off & BNXT_GRC_BASE_MASK,
+		       bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4);
+		reg_off = (reg_off & BNXT_GRC_OFFSET_MASK) + 0x2000;
+		/* fall through */
+	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
+		writel(val, bp->bar0 + reg_off);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_BAR1:
+		writel(val, bp->bar1 + reg_off);
+		break;
+	}
+	if (delay_msecs) {
+		pci_read_config_dword(bp->pdev, 0, &val);
+		msleep(delay_msecs);
+	}
+}
+
+static void bnxt_reset_all(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	int i;
+
+	if (fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_HOST) {
+		for (i = 0; i < fw_health->fw_reset_seq_cnt; i++)
+			bnxt_fw_reset_writel(bp, i);
+	} else if (fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU) {
+		struct hwrm_fw_reset_input req = {0};
+		int rc;
+
+		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1, -1);
+		req.resp_addr = cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr);
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
+		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
+		req.flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
+		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+		if (rc)
+			netdev_warn(bp->dev, "Unable to reset FW rc=%d\n", rc);
+	}
+	bp->fw_reset_timestamp = jiffies;
+}
+
 static void bnxt_fw_reset_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, fw_reset_task.work);
@@ -10441,6 +10497,14 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		rtnl_unlock();
 		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
 		return;
+	case BNXT_FW_RESET_STATE_RESET_FW: {
+		u32 wait_dsecs = bp->fw_health->post_reset_wait_dsecs;
+
+		bnxt_reset_all(bp);
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+		bnxt_queue_fw_reset_work(bp, wait_dsecs * HZ / 10);
+		return;
+	}
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
 		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 		if (pci_enable_device(bp->pdev)) {
