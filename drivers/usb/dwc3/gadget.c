@@ -2083,9 +2083,19 @@ static void dwc3_gadget_config_params(struct usb_gadget *g,
 
 	/* Recommended BESL */
 	if (!dwc->dis_enblslpm_quirk) {
-		params->besl_baseline = 0;
+		/*
+		 * If the recommended BESL baseline is 0 or if the BESL deep is
+		 * less than 2, Microsoft's Windows 10 host usb stack will issue
+		 * a usb reset immediately after it receives the extended BOS
+		 * descriptor and the enumeration will fail. To maintain
+		 * compatibility with the Windows' usb stack, let's set the
+		 * recommended BESL baseline to 1 and clamp the BESL deep to be
+		 * within 2 to 15.
+		 */
+		params->besl_baseline = 1;
 		if (dwc->is_utmi_l1_suspend)
-			params->besl_deep = min_t(u8, dwc->hird_threshold, 15);
+			params->besl_deep =
+				clamp_t(u8, dwc->hird_threshold, 2, 15);
 	}
 
 	/* U1 Device exit Latency */
