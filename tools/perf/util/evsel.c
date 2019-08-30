@@ -22,6 +22,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <perf/evsel.h>
 #include "asm/bug.h"
 #include "callchain.h"

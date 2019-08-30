@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/prctl.h>
 #include <perf/cpumap.h>

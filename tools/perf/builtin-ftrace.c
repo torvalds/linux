@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <linux/capability.h>

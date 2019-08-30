@@ -18,6 +18,7 @@
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"
+#include "parse-events.h"
 #define NR_ITERS       111
 #define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 

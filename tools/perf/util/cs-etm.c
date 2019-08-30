@@ -27,6 +27,7 @@
 #include "machine.h"
 #include "map.h"
 #include "perf.h"
+#include "session.h"
 #include "symbol.h"
 #include "tool.h"
 #include "thread.h"

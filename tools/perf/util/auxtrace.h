@@ -18,7 +18,6 @@
 #include <asm/barrier.h>
 
 #include "event.h"
-#include "session.h"
 
 union perf_event;
 struct perf_session;
@@ -380,6 +379,8 @@ struct addr_filters {
 	int			cnt;
 };
 
+struct auxtrace_cache;
+
 #ifdef HAVE_AUXTRACE_SUPPORT
 
 /*
@@ -549,41 +550,11 @@ int addr_filters__parse_bare_filter(struct addr_filters *filts,
 				    const char *filter);
 int auxtrace_parse_filters(struct evlist *evlist);
 
-static inline int auxtrace__process_event(struct perf_session *session,
-					  union perf_event *event,
-					  struct perf_sample *sample,
-					  struct perf_tool *tool)
-{
-	if (!session->auxtrace)
-		return 0;
-
-	return session->auxtrace->process_event(session, event, sample, tool);
-}
-
-static inline int auxtrace__flush_events(struct perf_session *session,
-					 struct perf_tool *tool)
-{
-	if (!session->auxtrace)
-		return 0;
-
-	return session->auxtrace->flush_events(session, tool);
-}
-
-static inline void auxtrace__free_events(struct perf_session *session)
-{
-	if (!session->auxtrace)
-		return;
-
-	return session->auxtrace->free_events(session);
-}
-
-static inline void auxtrace__free(struct perf_session *session)
-{
-	if (!session->auxtrace)
-		return;
-
-	return session->auxtrace->free(session);
-}
+int auxtrace__process_event(struct perf_session *session, union perf_event *event,
+			    struct perf_sample *sample, struct perf_tool *tool);
+int auxtrace__flush_events(struct perf_session *session, struct perf_tool *tool);
+void auxtrace__free_events(struct perf_session *session);
+void auxtrace__free(struct perf_session *session);
 
 #define ITRACE_HELP \
 "				i:	    		synthesize instructions events\n"		\

@@ -13,7 +13,9 @@
 
 #include "debug.h"
 #include "dso.h"
+#include "env.h"
 #include "parse-events.h"
+#include "trace-event.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
@@ -495,6 +497,10 @@ static void fs_something(void)
 		}
 	}
 }
+
+#ifdef __s390x__
+#include "header.h" // for get_cpuid()
+#endif
 
 static const char *do_determine_event(bool excl_kernel)
 {

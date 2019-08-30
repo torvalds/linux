@@ -10,6 +10,7 @@
 #include "config.h"
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <stdlib.h>
 
 #define SCRIPT_NAMELEN	128
 #define SCRIPT_MAX_NO	64

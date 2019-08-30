@@ -5,6 +5,8 @@
 #include "cpumap.h"
 #include "parse-events.h"
 #include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <api/fs/fs.h>
 #include <subcmd/parse-options.h>
 #include <perf/cpumap.h>

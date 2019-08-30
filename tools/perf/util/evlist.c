@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
+#include <stdlib.h>
 
 #include "parse-events.h"
 #include <subcmd/parse-options.h>

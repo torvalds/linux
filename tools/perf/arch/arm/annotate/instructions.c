@@ -3,6 +3,7 @@
 #include <linux/zalloc.h>
 #include <sys/types.h>
 #include <regex.h>
+#include <stdlib.h>
 
 struct arm_annotate {
 	regex_t call_insn,

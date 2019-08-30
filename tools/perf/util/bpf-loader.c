@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/zalloc.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "debug.h"
 #include "evlist.h"
 #include "bpf-loader.h"

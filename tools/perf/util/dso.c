@@ -10,9 +10,11 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <bpf/libbpf.h>
 #include "bpf-event.h"
 #include "compress.h"
+#include "env.h"
 #include "namespaces.h"
 #include "path.h"
 #include "map.h"

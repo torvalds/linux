@@ -3,6 +3,7 @@
 #include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
+#include <stdlib.h>
 #include <perf/cpumap.h>
 
 #include "debug.h"

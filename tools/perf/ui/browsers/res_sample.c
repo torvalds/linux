@@ -9,6 +9,8 @@
 #include "../util.h"
 #include "../../util/util.h"
 #include "../../perf.h"
+#include <stdlib.h>
+#include <string.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 

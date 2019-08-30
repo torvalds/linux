@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
+#include <stdlib.h>
 #include <linux/mman.h>
 #include <linux/time64.h>
 #include "debug.h"

@@ -26,6 +26,7 @@
 #include "../../util/pmu.h"
 #include "../../util/cs-etm.h"
 #include "../../util/util.h"
+#include "../../util/session.h"
 
 #include <errno.h>
 #include <stdlib.h>

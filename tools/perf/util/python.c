@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <linux/err.h>
 #include <perf/cpumap.h>
+#include <traceevent/event-parse.h>
 #include "debug.h"
 #include "evlist.h"
 #include "callchain.h"
@@ -13,6 +14,7 @@
 #include "cpumap.h"
 #include "print_binary.h"
 #include "thread_map.h"
+#include "trace-event.h"
 #include "mmap.h"
 #include "util.h"
 #include "../perf-sys.h"

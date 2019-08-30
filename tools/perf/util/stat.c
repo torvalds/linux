@@ -2,9 +2,12 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
+#include <string.h>
 #include "counts.h"
 #include "debug.h"
+#include "header.h"
 #include "stat.h"
+#include "session.h"
 #include "target.h"
 #include "evlist.h"
 #include "evsel.h"

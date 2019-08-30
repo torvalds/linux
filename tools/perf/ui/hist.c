@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include <linux/compiler.h>
 
 #include "../util/callchain.h"
