@@ -249,14 +249,12 @@ static void vm_dirty_log_verify(unsigned long *bmap)
 }
 
 static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
-				uint64_t extra_mem_pages, void *guest_code,
-				unsigned long type)
+				uint64_t extra_mem_pages, void *guest_code)
 {
 	struct kvm_vm *vm;
 	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
-	vm = _vm_create(mode, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
-			O_RDWR, type);
+	vm = _vm_create(mode, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 #ifdef __x86_64__
 	vm_create_irqchip(vm);
@@ -273,7 +271,6 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	struct kvm_vm *vm;
 	uint64_t max_gfn;
 	unsigned long *bmap;
-	unsigned long type = 0;
 
 	switch (mode) {
 	case VM_MODE_P52V48_4K:
@@ -315,10 +312,6 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	 */
 	guest_pa_bits = 39;
 #endif
-#ifdef __aarch64__
-	if (guest_pa_bits != 40)
-		type = KVM_VM_TYPE_ARM_IPA_SIZE(guest_pa_bits);
-#endif
 	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
 	guest_page_size = (1ul << guest_page_shift);
 	/*
@@ -351,7 +344,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	bmap = bitmap_alloc(host_num_pages);
 	host_bmap_track = bitmap_alloc(host_num_pages);
 
-	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code, type);
+	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code);
 
 #ifdef USE_CLEAR_DIRTY_LOG
 	struct kvm_enable_cap cap = {};
