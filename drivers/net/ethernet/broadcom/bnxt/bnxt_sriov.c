@@ -671,6 +671,11 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
 {
 	int rc;
 
+	/* Register buffers for VFs */
+	rc = bnxt_hwrm_func_buf_rgtr(bp);
+	if (rc)
+		return rc;
+
 	/* Reserve resources for VFs */
 	rc = bnxt_func_cfg(bp, *num_vfs);
 	if (rc != *num_vfs) {
@@ -683,11 +688,6 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
 			    rc);
 		*num_vfs = rc;
 	}
-
-	/* Register buffers for VFs */
-	rc = bnxt_hwrm_func_buf_rgtr(bp);
-	if (rc)
-		return rc;
 
 	bnxt_ulp_sriov_cfg(bp, *num_vfs);
 	return 0;
