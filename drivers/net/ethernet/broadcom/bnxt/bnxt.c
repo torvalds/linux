@@ -254,6 +254,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
 	ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -1896,6 +1897,33 @@ static int bnxt_force_rx_discard(struct bnxt *bp,
 	return bnxt_rx_pkt(bp, cpr, raw_cons, event);
 }
 
+u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg = fw_health->regs[reg_idx];
+	u32 reg_type, reg_off, val = 0;
+
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(reg);
+	reg_off = BNXT_FW_HEALTH_REG_OFF(reg);
+	switch (reg_type) {
+	case BNXT_FW_HEALTH_REG_TYPE_CFG:
+		pci_read_config_dword(bp->pdev, reg_off, &val);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_GRC:
+		reg_off = fw_health->mapped_regs[reg_idx];
+		/* fall through */
+	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
+		val = readl(bp->bar0 + reg_off);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_BAR1:
+		val = readl(bp->bar1 + reg_off);
+		break;
+	}
+	if (reg_idx == BNXT_FW_RESET_INPROG_REG)
+		val &= fw_health->fw_reset_inprog_reg_mask;
+	return val;
+}
+
 #define BNXT_GET_EVENT_PORT(data)	\
 	((data) &			\
 	 ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
@@ -1951,6 +1979,35 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
+	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
+		struct bnxt_fw_health *fw_health = bp->fw_health;
+		u32 data1 = le32_to_cpu(cmpl->event_data1);
+
+		if (!fw_health)
+			goto async_event_process_exit;
+
+		fw_health->enabled = EVENT_DATA1_RECOVERY_ENABLED(data1);
+		fw_health->master = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
+		if (!fw_health->enabled)
+			break;
+
+		if (netif_msg_drv(bp))
+			netdev_info(bp->dev, "Error recovery info: error recovery[%d], master[%d], reset count[0x%x], health status: 0x%x\n",
+				    fw_health->enabled, fw_health->master,
+				    bnxt_fw_health_readl(bp,
+							 BNXT_FW_RESET_CNT_REG),
+				    bnxt_fw_health_readl(bp,
+							 BNXT_FW_HEALTH_REG));
+		fw_health->tmr_multiplier =
+			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
+				     bp->current_interval * 10);
+		fw_health->tmr_counter = fw_health->tmr_multiplier;
+		fw_health->last_fw_heartbeat =
+			bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
+		fw_health->last_fw_reset_cnt =
+			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		goto async_event_process_exit;
+	}
 	default:
 		goto async_event_process_exit;
 	}
@@ -4310,9 +4367,14 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
 		cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
 	memset(async_events_bmap, 0, sizeof(async_events_bmap));
-	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++)
-		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
+		u16 event_id = bnxt_async_events_arr[i];
 
+		if (event_id == ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
+		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+			continue;
+		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+	}
 	if (bmap && bmap_size) {
 		for (i = 0; i < bmap_size; i++) {
 			if (test_bit(i, bmap))
