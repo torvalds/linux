@@ -315,8 +315,8 @@ static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
 				 clock->div_table[clock->cur_div_idx].div);
 }
 
-static long cpg_sd_clock_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *parent_rate)
+static int cpg_sd_clock_determine_rate(struct clk_hw *hw,
+				       struct clk_rate_request *req)
 {
 	unsigned long best_rate = ULONG_MAX, diff_min = ULONG_MAX;
 	struct sd_clock *clock = to_sd_clock(hw);
@@ -324,19 +324,24 @@ static long cpg_sd_clock_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned int i;
 
 	for (i = 0; i < clock->div_num; i++) {
-		calc_rate = DIV_ROUND_CLOSEST(*parent_rate,
+		calc_rate = DIV_ROUND_CLOSEST(req->best_parent_rate,
 					      clock->div_table[i].div);
-		diff = calc_rate > rate ? calc_rate - rate : rate - calc_rate;
+		if (calc_rate < req->min_rate || calc_rate > req->max_rate)
+			continue;
+
+		diff = calc_rate > req->rate ? calc_rate - req->rate
+					     : req->rate - calc_rate;
 		if (diff < diff_min) {
 			best_rate = calc_rate;
 			diff_min = diff;
 		}
 	}
 
-	if (best_rate > LONG_MAX)
+	if (best_rate == ULONG_MAX)
 		return -EINVAL;
 
-	return best_rate;
+	req->rate = best_rate;
+	return 0;
 }
 
 static int cpg_sd_clock_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -367,7 +372,7 @@ static const struct clk_ops cpg_sd_clock_ops = {
 	.disable = cpg_sd_clock_disable,
 	.is_enabled = cpg_sd_clock_is_enabled,
 	.recalc_rate = cpg_sd_clock_recalc_rate,
-	.round_rate = cpg_sd_clock_round_rate,
+	.determine_rate = cpg_sd_clock_determine_rate,
 	.set_rate = cpg_sd_clock_set_rate,
 };
 
