@@ -20,6 +20,7 @@
 #include "color.h"
 #include "config.h"
 #include "cache.h"
+#include "dso.h"
 #include "map.h"
 #include "symbol.h"
 #include "srcline.h"

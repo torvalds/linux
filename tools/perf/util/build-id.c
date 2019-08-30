@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "dso.h"
 #include "build-id.h"
 #include "event.h"
 #include "namespaces.h"
