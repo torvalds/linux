@@ -2383,6 +2383,11 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	ce = rq->hw_context;
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
+
+	/* Proclaim we have exclusive access to the context image! */
+	GEM_BUG_ON(!intel_context_is_pinned(ce));
+	mutex_acquire(&ce->pin_mutex.dep_map, 2, 0, _THIS_IP_);
+
 	rq = active_request(rq);
 	if (!rq) {
 		ce->ring->head = ce->ring->tail;
@@ -2442,6 +2447,7 @@ out_replay:
 		  engine->name, ce->ring->head, ce->ring->tail);
 	intel_ring_update_space(ce->ring);
 	__execlists_update_reg_state(ce, engine);
+	mutex_release(&ce->pin_mutex.dep_map, 0, _THIS_IP_);
 
 unwind:
 	/* Push back any incomplete requests for replay after the reset. */
@@ -3920,6 +3926,9 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 			    u32 head,
 			    bool scrub)
 {
+	GEM_BUG_ON(!intel_context_is_pinned(ce));
+	mutex_acquire(&ce->pin_mutex.dep_map, 2, 0, _THIS_IP_);
+
 	/*
 	 * We want a simple context + ring to execute the breadcrumb update.
 	 * We cannot rely on the context being intact across the GPU hang,
@@ -3944,6 +3953,7 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 	intel_ring_update_space(ce->ring);
 
 	__execlists_update_reg_state(ce, engine);
+	mutex_release(&ce->pin_mutex.dep_map, 0, _THIS_IP_);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

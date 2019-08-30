@@ -2305,6 +2305,9 @@ void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 {
 	struct i915_perf_stream *stream;
 
+	/* perf.exclusive_stream serialised by gen8_configure_all_contexts() */
+	lockdep_assert_held(&ce->pin_mutex);
+
 	if (engine->class != RENDER_CLASS)
 		return;
 

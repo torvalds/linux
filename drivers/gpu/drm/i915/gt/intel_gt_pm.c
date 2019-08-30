@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "i915_params.h"
+#include "intel_context.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
@@ -142,8 +143,12 @@ int intel_gt_resume(struct intel_gt *gt)
 		intel_engine_pm_get(engine);
 
 		ce = engine->kernel_context;
-		if (ce)
+		if (ce) {
+			GEM_BUG_ON(!intel_context_is_pinned(ce));
+			mutex_acquire(&ce->pin_mutex.dep_map, 0, 0, _THIS_IP_);
 			ce->ops->reset(ce);
+			mutex_release(&ce->pin_mutex.dep_map, 0, _THIS_IP_);
+		}
 
 		engine->serial++; /* kernel context lost */
 		err = engine->resume(engine);
