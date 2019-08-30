@@ -9,7 +9,7 @@
 #include <api/fd/array.h>
 #include <stdio.h>
 #include <internal/evlist.h>
-#include "event.h"
+#include "events_stats.h"
 #include "evsel.h"
 #include "mmap.h"
 #include <signal.h>

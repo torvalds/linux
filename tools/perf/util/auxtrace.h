@@ -30,6 +30,11 @@ struct record_opts;
 struct perf_record_auxtrace_info;
 struct events_stats;
 
+enum auxtrace_error_type {
+       PERF_AUXTRACE_ERROR_ITRACE  = 1,
+       PERF_AUXTRACE_ERROR_MAX
+};
+
 /* Auxtrace records must have the same alignment as perf event records */
 #define PERF_AUXTRACE_RECORD_ALIGNMENT 8
 

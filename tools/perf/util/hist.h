@@ -6,8 +6,8 @@
 #include <linux/types.h>
 #include <pthread.h>
 #include "evsel.h"
-#include "header.h"
 #include "color.h"
+#include "events_stats.h"
 
 struct hist_entry;
 struct hist_entry_ops;
@@ -190,8 +190,6 @@ void hists__reset_stats(struct hists *hists);
 void hists__inc_stats(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *hists, u32 type);
 void hists__inc_nr_samples(struct hists *hists, bool filtered);
-void events_stats__inc(struct events_stats *stats, u32 type);
-size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
