@@ -1249,6 +1249,10 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 	 */
 	q->clockid = -1;
 
+	spin_lock(&taprio_list_lock);
+	list_add(&q->taprio_list, &taprio_list);
+	spin_unlock(&taprio_list_lock);
+
 	if (sch->parent != TC_H_ROOT)
 		return -EOPNOTSUPP;
 
@@ -1265,10 +1269,6 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 
 	if (!opt)
 		return -EINVAL;
-
-	spin_lock(&taprio_list_lock);
-	list_add(&q->taprio_list, &taprio_list);
-	spin_unlock(&taprio_list_lock);
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *dev_queue;
