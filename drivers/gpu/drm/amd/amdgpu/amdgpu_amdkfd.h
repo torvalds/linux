@@ -179,10 +179,17 @@ uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd);
 uint32_t amdgpu_amdkfd_get_num_gws(struct kgd_dev *kgd);
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *src);
 
+/* Read user wptr from a specified user address space with page fault
+ * disabled. The memory must be pinned and mapped to the hardware when
+ * this is called in hqd_load functions, so it should never fault in
+ * the first place. This resolves a circular lock dependency involving
+ * four locks, including the DQM lock and mmap_sem.
+ */
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\
 		bool valid = false;					\
 		if ((mmptr) && (wptr)) {				\
+			pagefault_disable();				\
 			if ((mmptr) == current->mm) {			\
 				valid = !get_user((dst), (wptr));	\
 			} else if (current->mm == NULL) {		\
@@ -190,6 +197,7 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 				valid = !get_user((dst), (wptr));	\
 				unuse_mm(mmptr);			\
 			}						\
+			pagefault_enable();				\
 		}							\
 		valid;							\
 	})
