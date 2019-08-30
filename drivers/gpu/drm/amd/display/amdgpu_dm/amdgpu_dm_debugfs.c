@@ -969,6 +969,25 @@ static int force_yuv420_output_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(force_yuv420_output_fops, force_yuv420_output_get,
 			 force_yuv420_output_set, "%llu\n");
 
+/*
+ *  Read PSR state
+ */
+static int psr_get(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *connector = data;
+	struct dc_link *link = connector->dc_link;
+	uint32_t psr_state = 0;
+
+	dc_link_get_psr_state(link, &psr_state);
+
+	*val = psr_state;
+
+	return 0;
+}
+
+
+DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
+
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
@@ -982,6 +1001,8 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					    dp_debugfs_entries[i].fops);
 		}
 	}
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
 
 	debugfs_create_file_unsafe("force_yuv420_output", 0644, dir, connector,
 				   &force_yuv420_output_fops);
