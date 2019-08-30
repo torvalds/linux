@@ -251,9 +251,12 @@ TRACE_EVENT(track_foreign_dirty,
 	),
 
 	TP_fast_assign(
+		struct address_space *mapping = page_mapping(page);
+		struct inode *inode = mapping ? mapping->host : NULL;
+
 		strncpy(__entry->name,	dev_name(wb->bdi->dev), 32);
 		__entry->bdi_id		= wb->bdi->id;
-		__entry->ino		= page->mapping->host->i_ino;
+		__entry->ino		= inode ? inode->i_ino : 0;
 		__entry->memcg_id	= wb->memcg_css->id;
 		__entry->cgroup_ino	= __trace_wb_assign_cgroup(wb);
 		__entry->page_cgroup_ino = page->mem_cgroup->css.cgroup->kn->id.ino;
