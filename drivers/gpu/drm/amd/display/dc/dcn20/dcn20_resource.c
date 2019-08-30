@@ -2275,7 +2275,6 @@ bool dcn20_fast_validate_bw(
 	int split_threshold = dc->res_pool->pipe_count / 2;
 	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 
-
 	ASSERT(pipes);
 	if (!pipes)
 		return false;
@@ -2352,10 +2351,6 @@ bool dcn20_fast_validate_bw(
 
 	if (vlevel > context->bw_ctx.dml.soc.num_states)
 		goto validate_fail;
-
-	if ((context->stream_count > split_threshold && dc->current_state->stream_count <= split_threshold)
-		|| (context->stream_count <= split_threshold && dc->current_state->stream_count > split_threshold))
-		context->commit_hints.full_update_needed = true;
 
 	/*initialize pipe_just_split_from to invalid idx*/
 	for (i = 0; i < MAX_PIPES; i++)
