@@ -163,6 +163,14 @@ enum mlx5e_rq_group {
 #define MLX5E_NUM_RQ_GROUPS(g) (1 + MLX5E_RQ_GROUP_##g)
 };
 
+static inline u8 mlx5e_get_num_lag_ports(struct mlx5_core_dev *mdev)
+{
+	if (mlx5_lag_is_lacp_owner(mdev))
+		return 1;
+
+	return clamp_t(u8, MLX5_CAP_GEN(mdev, num_lag_ports), 1, MLX5_MAX_PORTS);
+}
+
 static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 {
 	switch (wq_type) {
@@ -705,6 +713,7 @@ struct mlx5e_channel {
 	struct net_device         *netdev;
 	__be32                     mkey_be;
 	u8                         num_tc;
+	u8                         lag_port;
 
 	/* XDP_REDIRECT */
 	struct mlx5e_xdpsq         xdpsq;
@@ -818,7 +827,7 @@ struct mlx5e_priv {
 	struct mlx5e_rq            drop_rq;
 
 	struct mlx5e_channels      channels;
-	u32                        tisn[MLX5E_MAX_NUM_TC];
+	u32                        tisn[MLX5_MAX_PORTS][MLX5E_MAX_NUM_TC];
 	struct mlx5e_rqt           indir_rqt;
 	struct mlx5e_tir           indir_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_tir           inner_indir_tir[MLX5E_NUM_INDIR_TIRS];
@@ -1056,12 +1065,6 @@ int mlx5e_modify_sq(struct mlx5_core_dev *mdev, u32 sqn,
 void mlx5e_activate_txqsq(struct mlx5e_txqsq *sq);
 void mlx5e_tx_disable_queue(struct netdev_queue *txq);
 
-static inline bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
-{
-	return (MLX5_CAP_ETH(mdev, tunnel_stateless_gre) &&
-		MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ft_field_support.inner_ip_version));
-}
-
 static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
 {
 	return MLX5_CAP_ETH(mdev, swp) &&
@@ -1107,6 +1110,7 @@ int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn);
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);
 
 int mlx5e_create_tises(struct mlx5e_priv *priv);
+void mlx5e_destroy_tises(struct mlx5e_priv *priv);
 int mlx5e_update_nic_rx(struct mlx5e_priv *priv);
 void mlx5e_update_carrier(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);

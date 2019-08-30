@@ -47,6 +47,7 @@
 #include <linux/interrupt.h>
 #include <linux/idr.h>
 #include <linux/notifier.h>
+#include <linux/refcount.h>
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
@@ -390,7 +391,7 @@ enum mlx5_res_type {
 
 struct mlx5_core_rsc_common {
 	enum mlx5_res_type	res;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct completion	free;
 };
 

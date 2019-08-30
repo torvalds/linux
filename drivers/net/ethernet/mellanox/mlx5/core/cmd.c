@@ -446,6 +446,8 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_CREATE_UMEM:
 	case MLX5_CMD_OP_DESTROY_UMEM:
 	case MLX5_CMD_OP_ALLOC_MEMIC:
+	case MLX5_CMD_OP_MODIFY_XRQ:
+	case MLX5_CMD_OP_RELEASE_XRQ_ERROR:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
 		return -EIO;
@@ -637,6 +639,8 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(DESTROY_UCTX);
 	MLX5_COMMAND_STR_CASE(CREATE_UMEM);
 	MLX5_COMMAND_STR_CASE(DESTROY_UMEM);
+	MLX5_COMMAND_STR_CASE(RELEASE_XRQ_ERROR);
+	MLX5_COMMAND_STR_CASE(MODIFY_XRQ);
 	default: return "unknown command opcode";
 	}
 }

@@ -1442,7 +1442,7 @@ int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
 		return err;
 
 	csp.tis_lst_sz      = 1;
-	csp.tisn            = c->priv->tisn[0]; /* tc = 0 */
+	csp.tisn            = c->priv->tisn[c->lag_port][0]; /* tc = 0 */
 	csp.cqn             = sq->cq.mcq.cqn;
 	csp.wq_ctrl         = &sq->wq_ctrl;
 	csp.min_inline_mode = sq->min_inline_mode;
@@ -1692,7 +1692,7 @@ static int mlx5e_open_sqs(struct mlx5e_channel *c,
 	for (tc = 0; tc < params->num_tc; tc++) {
 		int txq_ix = c->ix + tc * priv->max_nch;
 
-		err = mlx5e_open_txqsq(c, c->priv->tisn[tc], txq_ix,
+		err = mlx5e_open_txqsq(c, c->priv->tisn[c->lag_port][tc], txq_ix,
 				       params, &cparam->sq, &c->sq[tc], tc);
 		if (err)
 			goto err_close_sqs;
@@ -1926,6 +1926,13 @@ static void mlx5e_close_queues(struct mlx5e_channel *c)
 	mlx5e_close_cq(&c->icosq.cq);
 }
 
+static u8 mlx5e_enumerate_lag_port(struct mlx5_core_dev *mdev, int ix)
+{
+	u16 port_aff_bias = mlx5_core_is_pf(mdev) ? 0 : MLX5_CAP_GEN(mdev, vhca_id);
+
+	return (ix + port_aff_bias) % mlx5e_get_num_lag_ports(mdev);
+}
+
 static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 			      struct mlx5e_params *params,
 			      struct mlx5e_channel_param *cparam,
@@ -1960,6 +1967,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->xdp      = !!params->xdp_prog;
 	c->stats    = &priv->channel_stats[ix].ch;
 	c->irq_desc = irq_to_desc(irq);
+	c->lag_port = mlx5e_enumerate_lag_port(priv->mdev, ix);
 
 	err = mlx5e_alloc_xps_cpumask(c, params);
 	if (err)
@@ -3179,39 +3187,58 @@ void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn)
 	mlx5_core_destroy_tis(mdev, tisn);
 }
 
+void mlx5e_destroy_tises(struct mlx5e_priv *priv)
+{
+	int tc, i;
+
+	for (i = 0; i < mlx5e_get_num_lag_ports(priv->mdev); i++)
+		for (tc = 0; tc < priv->profile->max_tc; tc++)
+			mlx5e_destroy_tis(priv->mdev, priv->tisn[i][tc]);
+}
+
+static bool mlx5e_lag_should_assign_affinity(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, lag_tx_port_affinity) && mlx5e_get_num_lag_ports(mdev) > 1;
+}
+
 int mlx5e_create_tises(struct mlx5e_priv *priv)
 {
+	int tc, i;
 	int err;
-	int tc;
 
-	for (tc = 0; tc < priv->profile->max_tc; tc++) {
-		u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
-		void *tisc;
+	for (i = 0; i < mlx5e_get_num_lag_ports(priv->mdev); i++) {
+		for (tc = 0; tc < priv->profile->max_tc; tc++) {
+			u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
+			void *tisc;
 
-		tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
+			tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
 
-		MLX5_SET(tisc, tisc, prio, tc << 1);
+			MLX5_SET(tisc, tisc, prio, tc << 1);
 
-		err = mlx5e_create_tis(priv->mdev, in, &priv->tisn[tc]);
-		if (err)
-			goto err_close_tises;
+			if (mlx5e_lag_should_assign_affinity(priv->mdev))
+				MLX5_SET(tisc, tisc, lag_tx_port_affinity, i + 1);
+
+			err = mlx5e_create_tis(priv->mdev, in, &priv->tisn[i][tc]);
+			if (err)
+				goto err_close_tises;
+		}
 	}
 
 	return 0;
 
 err_close_tises:
-	for (tc--; tc >= 0; tc--)
-		mlx5e_destroy_tis(priv->mdev, priv->tisn[tc]);
+	for (; i >= 0; i--) {
+		for (tc--; tc >= 0; tc--)
+			mlx5e_destroy_tis(priv->mdev, priv->tisn[i][tc]);
+		tc = priv->profile->max_tc;
+	}
 
 	return err;
 }
 
 static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 {
-	int tc;
-
-	for (tc = 0; tc < priv->profile->max_tc; tc++)
-		mlx5e_destroy_tis(priv->mdev, priv->tisn[tc]);
+	mlx5e_destroy_tises(priv);
 }
 
 static void mlx5e_build_indir_tir_ctx_common(struct mlx5e_priv *priv,
@@ -4216,6 +4243,8 @@ static netdev_features_t mlx5e_tunnel_features_check(struct mlx5e_priv *priv,
 
 	switch (proto) {
 	case IPPROTO_GRE:
+	case IPPROTO_IPIP:
+	case IPPROTO_IPV6:
 		return features;
 	case IPPROTO_UDP:
 		udph = udp_hdr(skb);
@@ -4852,7 +4881,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
 
 	if (mlx5_vxlan_allowed(mdev->vxlan) || mlx5_geneve_tx_allowed(mdev) ||
-	    MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
+	    mlx5e_any_tunnel_proto_supported(mdev)) {
 		netdev->hw_enc_features |= NETIF_F_HW_CSUM;
 		netdev->hw_enc_features |= NETIF_F_TSO;
 		netdev->hw_enc_features |= NETIF_F_TSO6;
@@ -4867,13 +4896,22 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 		netdev->gso_partial_features = NETIF_F_GSO_UDP_TUNNEL_CSUM;
 	}
 
-	if (MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
+	if (mlx5e_tunnel_proto_supported(mdev, IPPROTO_GRE)) {
 		netdev->hw_features     |= NETIF_F_GSO_GRE |
 					   NETIF_F_GSO_GRE_CSUM;
 		netdev->hw_enc_features |= NETIF_F_GSO_GRE |
 					   NETIF_F_GSO_GRE_CSUM;
 		netdev->gso_partial_features |= NETIF_F_GSO_GRE |
 						NETIF_F_GSO_GRE_CSUM;
+	}
+
+	if (mlx5e_tunnel_proto_supported(mdev, IPPROTO_IPIP)) {
+		netdev->hw_features |= NETIF_F_GSO_IPXIP4 |
+				       NETIF_F_GSO_IPXIP6;
+		netdev->hw_enc_features |= NETIF_F_GSO_IPXIP4 |
+					   NETIF_F_GSO_IPXIP6;
+		netdev->gso_partial_features |= NETIF_F_GSO_IPXIP4 |
+						NETIF_F_GSO_IPXIP6;
 	}
 
 	netdev->hw_features	                 |= NETIF_F_GSO_PARTIAL;

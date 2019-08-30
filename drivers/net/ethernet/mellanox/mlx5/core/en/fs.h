@@ -95,8 +95,14 @@ struct mlx5e_tirc_config {
 enum mlx5e_tunnel_types {
 	MLX5E_TT_IPV4_GRE,
 	MLX5E_TT_IPV6_GRE,
+	MLX5E_TT_IPV4_IPIP,
+	MLX5E_TT_IPV6_IPIP,
+	MLX5E_TT_IPV4_IPV6,
+	MLX5E_TT_IPV6_IPV6,
 	MLX5E_NUM_TUNNEL_TT,
 };
+
+bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 
 /* L3/L4 traffic type classifier */
 struct mlx5e_ttc_table {
@@ -231,6 +237,9 @@ void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
+
+bool mlx5e_tunnel_proto_supported(struct mlx5_core_dev *mdev, u8 proto_type);
+bool mlx5e_any_tunnel_proto_supported(struct mlx5_core_dev *mdev);
 
 #endif /* __MLX5E_FLOW_STEER_H__ */
 

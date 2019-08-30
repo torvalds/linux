@@ -546,7 +546,7 @@ static void mlx5_fw_tracer_save_trace(struct mlx5_fw_tracer *tracer,
 	trace_data->timestamp = timestamp;
 	trace_data->lost = lost;
 	trace_data->event_id = event_id;
-	strncpy(trace_data->msg, msg, TRACE_STR_MSG);
+	strscpy_pad(trace_data->msg, msg, TRACE_STR_MSG);
 
 	tracer->st_arr.saved_traces_index =
 		(tracer->st_arr.saved_traces_index + 1) & (SAVED_TRACES_NUM - 1);

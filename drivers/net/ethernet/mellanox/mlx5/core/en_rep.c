@@ -1621,7 +1621,7 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_rep_uplink_priv *uplink_priv;
-	int tc, err;
+	int err;
 
 	err = mlx5e_create_tises(priv);
 	if (err) {
@@ -1657,18 +1657,15 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 tc_esw_cleanup:
 	mlx5e_tc_esw_cleanup(&uplink_priv->tc_ht);
 destroy_tises:
-	for (tc = 0; tc < priv->profile->max_tc; tc++)
-		mlx5e_destroy_tis(priv->mdev, priv->tisn[tc]);
+	mlx5e_destroy_tises(priv);
 	return err;
 }
 
 static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	int tc;
 
-	for (tc = 0; tc < priv->profile->max_tc; tc++)
-		mlx5e_destroy_tis(priv->mdev, priv->tisn[tc]);
+	mlx5e_destroy_tises(priv);
 
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
 		/* clean indirect TC block notifications */
