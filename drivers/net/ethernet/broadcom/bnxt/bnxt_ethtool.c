@@ -1699,6 +1699,11 @@ static u32 bnxt_get_link(struct net_device *dev)
 	return bp->link_info.link_up;
 }
 
+static void bnxt_print_admin_err(struct bnxt *bp)
+{
+	netdev_info(bp->dev, "PF does not have admin privileges to flash or reset the device\n");
+}
+
 static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
 				u16 ext, u16 *index, u32 *item_length,
 				u32 *data_length);
@@ -1739,8 +1744,7 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	dma_free_coherent(&bp->pdev->dev, data_len, kmem, dma_handle);
 
 	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
-		netdev_info(dev,
-			    "PF does not have admin privileges to flash the device\n");
+		bnxt_print_admin_err(bp);
 		rc = -EACCES;
 	} else if (rc) {
 		rc = -EIO;
@@ -1795,8 +1799,7 @@ static int bnxt_firmware_reset(struct net_device *dev,
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
-		netdev_info(dev,
-			    "PF does not have admin privileges to reset the device\n");
+		bnxt_print_admin_err(bp);
 		rc = -EACCES;
 	} else if (rc) {
 		rc = -EIO;
@@ -2096,8 +2099,7 @@ flash_pkg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 err_exit:
 	if (hwrm_err == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
-		netdev_info(dev,
-			    "PF does not have admin privileges to flash the device\n");
+		bnxt_print_admin_err(bp);
 		rc = -EACCES;
 	} else if (hwrm_err) {
 		rc = -EOPNOTSUPP;
