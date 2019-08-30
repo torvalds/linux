@@ -1871,60 +1871,6 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 	return 0;
 }
 
-static int emit_pdps(struct i915_request *rq)
-{
-	const struct intel_engine_cs * const engine = rq->engine;
-	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(rq->hw_context->vm);
-	int err, i;
-	u32 *cs;
-
-	GEM_BUG_ON(intel_vgpu_active(rq->i915));
-
-	/*
-	 * Beware ye of the dragons, this sequence is magic!
-	 *
-	 * Small changes to this sequence can cause anything from
-	 * GPU hangs to forcewake errors and machine lockups!
-	 */
-
-	/* Flush any residual operations from the context load */
-	err = engine->emit_flush(rq, EMIT_FLUSH);
-	if (err)
-		return err;
-
-	/* Magic required to prevent forcewake errors! */
-	err = engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		return err;
-
-	cs = intel_ring_begin(rq, 4 * GEN8_3LVL_PDPES + 2);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	/* Ensure the LRI have landed before we invalidate & continue */
-	*cs++ = MI_LOAD_REGISTER_IMM(2 * GEN8_3LVL_PDPES) | MI_LRI_FORCE_POSTED;
-	for (i = GEN8_3LVL_PDPES; i--; ) {
-		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
-		u32 base = engine->mmio_base;
-
-		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, i));
-		*cs++ = upper_32_bits(pd_daddr);
-		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, i));
-		*cs++ = lower_32_bits(pd_daddr);
-	}
-	*cs++ = MI_NOOP;
-
-	intel_ring_advance(rq, cs);
-
-	/* Be doubly sure the LRI have landed before proceeding */
-	err = engine->emit_flush(rq, EMIT_FLUSH);
-	if (err)
-		return err;
-
-	/* Re-invalidate the TLB for luck */
-	return engine->emit_flush(rq, EMIT_INVALIDATE);
-}
-
 static int execlists_request_alloc(struct i915_request *request)
 {
 	int ret;
@@ -1947,10 +1893,7 @@ static int execlists_request_alloc(struct i915_request *request)
 	 */
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
-	if (i915_vm_is_4lvl(request->hw_context->vm))
-		ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
-	else
-		ret = emit_pdps(request);
+	ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
 	if (ret)
 		return ret;
 
@@ -3167,12 +3110,20 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 	return indirect_ctx_offset;
 }
 
+static struct i915_ppgtt *vm_alias(struct i915_address_space *vm)
+{
+	if (i915_is_ggtt(vm))
+		return i915_vm_to_ggtt(vm)->alias;
+	else
+		return i915_vm_to_ppgtt(vm);
+}
+
 static void execlists_init_reg_state(u32 *regs,
 				     struct intel_context *ce,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring)
 {
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->vm);
+	struct i915_ppgtt *ppgtt = vm_alias(ce->vm);
 	bool rcs = engine->class == RENDER_CLASS;
 	u32 base = engine->mmio_base;
 
