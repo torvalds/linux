@@ -19,7 +19,7 @@
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
-#define EIP197_MAX_TOKENS			10
+#define EIP197_MAX_TOKENS			18
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_COUNT			1
 #define EIP197_MAX_BATCH_SZ			64
@@ -330,6 +330,9 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA384	(0x6 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA512	(0x5 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_GHASH	(0x4 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_XCBC128	(0x1 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_XCBC192	(0x2 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_XCBC256	(0x3 << 23)
 #define CONTEXT_CONTROL_INV_FR			(0x5 << 24)
 #define CONTEXT_CONTROL_INV_TR			(0x6 << 24)
 
@@ -349,6 +352,9 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_COUNTER_MODE		BIT(10)
 #define CONTEXT_CONTROL_CRYPTO_STORE		BIT(12)
 #define CONTEXT_CONTROL_HASH_STORE		BIT(19)
+
+#define EIP197_XCM_MODE_GCM			1
+#define EIP197_XCM_MODE_CCM			2
 
 /* The hash counter given to the engine in the context has a granularity of
  * 64 bits.
@@ -464,6 +470,7 @@ static inline void eip197_noop_token(struct safexcel_token *token)
 /* Instructions */
 #define EIP197_TOKEN_INS_INSERT_HASH_DIGEST	0x1c
 #define EIP197_TOKEN_INS_ORIGIN_IV0		0x14
+#define EIP197_TOKEN_INS_ORIGIN_TOKEN		0x1b
 #define EIP197_TOKEN_INS_ORIGIN_LEN(x)		((x) << 5)
 #define EIP197_TOKEN_INS_TYPE_OUTPUT		BIT(5)
 #define EIP197_TOKEN_INS_TYPE_HASH		BIT(6)
@@ -797,5 +804,6 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_xts_aes;
 extern struct safexcel_alg_template safexcel_alg_gcm;
+extern struct safexcel_alg_template safexcel_alg_ccm;
 
 #endif
