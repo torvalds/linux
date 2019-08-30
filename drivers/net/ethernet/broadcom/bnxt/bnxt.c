@@ -6950,6 +6950,33 @@ hwrm_cfa_adv_qcaps_exit:
 	return rc;
 }
 
+static int bnxt_map_fw_health_regs(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg_base = 0xffffffff;
+	int i;
+
+	/* Only pre-map the monitoring GRC registers using window 3 */
+	for (i = 0; i < 4; i++) {
+		u32 reg = fw_health->regs[i];
+
+		if (BNXT_FW_HEALTH_REG_TYPE(reg) != BNXT_FW_HEALTH_REG_TYPE_GRC)
+			continue;
+		if (reg_base == 0xffffffff)
+			reg_base = reg & BNXT_GRC_BASE_MASK;
+		if ((reg & BNXT_GRC_BASE_MASK) != reg_base)
+			return -ERANGE;
+		fw_health->mapped_regs[i] = BNXT_FW_HEALTH_WIN_BASE +
+					    (reg & BNXT_GRC_OFFSET_MASK);
+	}
+	if (reg_base == 0xffffffff)
+		return 0;
+
+	writel(reg_base, bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT +
+			 BNXT_FW_HEALTH_WIN_MAP_OFF);
+	return 0;
+}
+
 static int bnxt_hwrm_error_recovery_qcfg(struct bnxt *bp)
 {
 	struct hwrm_error_recovery_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
@@ -7013,6 +7040,8 @@ static int bnxt_hwrm_error_recovery_qcfg(struct bnxt *bp)
 	}
 err_recovery_out:
 	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (!rc)
+		rc = bnxt_map_fw_health_regs(bp);
 	if (rc)
 		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
 	return rc;

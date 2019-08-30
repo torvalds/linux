@@ -1217,6 +1217,9 @@ struct bnxt_test_info {
 #define BNXT_GRCPF_REG_KONG_COMM		0xA00
 #define BNXT_GRCPF_REG_KONG_COMM_TRIGGER	0xB00
 
+#define BNXT_GRC_BASE_MASK			0xfffff000
+#define BNXT_GRC_OFFSET_MASK			0x00000ffc
+
 struct bnxt_tc_flow_stats {
 	u64		packets;
 	u64		bytes;
@@ -1367,6 +1370,9 @@ struct bnxt_fw_health {
 
 #define BNXT_FW_HEALTH_REG_TYPE(reg)	((reg) & BNXT_FW_HEALTH_REG_TYPE_MASK)
 #define BNXT_FW_HEALTH_REG_OFF(reg)	((reg) & ~BNXT_FW_HEALTH_REG_TYPE_MASK)
+
+#define BNXT_FW_HEALTH_WIN_BASE		0x3000
+#define BNXT_FW_HEALTH_WIN_MAP_OFF	8
 
 struct bnxt {
 	void __iomem		*bar0;
