@@ -4042,12 +4042,8 @@ xfs_bmapi_allocate(
 	 */
 	if (!(bma->flags & XFS_BMAPI_METADATA)) {
 		bma->datatype = XFS_ALLOC_NOBUSY;
-		if (whichfork == XFS_DATA_FORK) {
-			if (bma->offset == 0)
-				bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
-			else
-				bma->datatype |= XFS_ALLOC_USERDATA;
-		}
+		if (whichfork == XFS_DATA_FORK && bma->offset == 0)
+			bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
 		if (bma->flags & XFS_BMAPI_ZERO)
 			bma->datatype |= XFS_ALLOC_USERDATA_ZERO;
 	}
