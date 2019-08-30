@@ -1699,6 +1699,11 @@ static u32 bnxt_get_link(struct net_device *dev)
 	return bp->link_info.link_up;
 }
 
+static void bnxt_print_admin_err(struct bnxt *bp)
+{
+	netdev_info(bp->dev, "PF does not have admin privileges to flash or reset the device\n");
+}
+
 static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
 				u16 ext, u16 *index, u32 *item_length,
 				u32 *data_length);
@@ -1738,13 +1743,8 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	rc = hwrm_send_message(bp, &req, sizeof(req), FLASH_NVRAM_TIMEOUT);
 	dma_free_coherent(&bp->pdev->dev, data_len, kmem, dma_handle);
 
-	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
-		netdev_info(dev,
-			    "PF does not have admin privileges to flash the device\n");
-		rc = -EACCES;
-	} else if (rc) {
-		rc = -EIO;
-	}
+	if (rc == -EACCES)
+		bnxt_print_admin_err(bp);
 	return rc;
 }
 
@@ -1794,13 +1794,8 @@ static int bnxt_firmware_reset(struct net_device *dev,
 	}
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
-		netdev_info(dev,
-			    "PF does not have admin privileges to reset the device\n");
-		rc = -EACCES;
-	} else if (rc) {
-		rc = -EIO;
-	}
+	if (rc == -EACCES)
+		bnxt_print_admin_err(bp);
 	return rc;
 }
 
@@ -2095,13 +2090,8 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 flash_pkg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 err_exit:
-	if (hwrm_err == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
-		netdev_info(dev,
-			    "PF does not have admin privileges to flash the device\n");
-		rc = -EACCES;
-	} else if (hwrm_err) {
-		rc = -EOPNOTSUPP;
-	}
+	if (hwrm_err == -EACCES)
+		bnxt_print_admin_err(bp);
 	return rc;
 }
 
@@ -2640,8 +2630,6 @@ static int bnxt_set_phys_id(struct net_device *dev,
 		led_cfg->led_group_id = bp->leds[i].led_group_id;
 	}
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -3362,6 +3350,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	if (!(bp->fw_cap & BNXT_FW_CAP_PKG_VER))
 		bnxt_get_pkgver(dev);
 
+	bp->num_tests = 0;
 	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
 		return;
 
@@ -3371,7 +3360,9 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	if (rc)
 		goto ethtool_init_exit;
 
-	test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
+	test_info = bp->test_info;
+	if (!test_info)
+		test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
 	if (!test_info)
 		goto ethtool_init_exit;
 
