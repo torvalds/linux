@@ -124,9 +124,11 @@ $(OUTPUT)%.o: %.c
 
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
-	$(Q)$(RM) $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -- $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -r -- $(OUTPUT)libbpf/
 	$(call QUIET_CLEAN, core-gen)
-	$(Q)$(RM) $(OUTPUT)FEATURE-DUMP.bpftool
+	$(Q)$(RM) -- $(OUTPUT)FEATURE-DUMP.bpftool
+	$(Q)$(RM) -r -- $(OUTPUT)feature/
 
 install: $(OUTPUT)bpftool
 	$(call QUIET_INSTALL, bpftool)
@@ -137,8 +139,8 @@ install: $(OUTPUT)bpftool
 
 uninstall:
 	$(call QUIET_UNINST, bpftool)
-	$(Q)$(RM) $(DESTDIR)$(prefix)/sbin/bpftool
-	$(Q)$(RM) $(DESTDIR)$(bash_compdir)/bpftool
+	$(Q)$(RM) -- $(DESTDIR)$(prefix)/sbin/bpftool
+	$(Q)$(RM) -- $(DESTDIR)$(bash_compdir)/bpftool
 
 doc:
 	$(call descend,Documentation)
