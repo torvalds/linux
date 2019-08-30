@@ -89,20 +89,6 @@ struct clk_hw *clk_hw_register_fixed_rate_with_accuracy(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(clk_hw_register_fixed_rate_with_accuracy);
 
-struct clk *clk_register_fixed_rate_with_accuracy(struct device *dev,
-		const char *name, const char *parent_name, unsigned long flags,
-		unsigned long fixed_rate, unsigned long fixed_accuracy)
-{
-	struct clk_hw *hw;
-
-	hw = clk_hw_register_fixed_rate_with_accuracy(dev, name, parent_name,
-			flags, fixed_rate, fixed_accuracy);
-	if (IS_ERR(hw))
-		return ERR_CAST(hw);
-	return hw->clk;
-}
-EXPORT_SYMBOL_GPL(clk_register_fixed_rate_with_accuracy);
-
 /**
  * clk_hw_register_fixed_rate - register fixed-rate clock with the clock
  * framework
@@ -125,8 +111,13 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate)
 {
-	return clk_register_fixed_rate_with_accuracy(dev, name, parent_name,
-						     flags, fixed_rate, 0);
+	struct clk_hw *hw;
+
+	hw = clk_hw_register_fixed_rate_with_accuracy(dev, name, parent_name,
+						      flags, fixed_rate, 0);
+	if (IS_ERR(hw))
+		return ERR_CAST(hw);
+	return hw->clk;
 }
 EXPORT_SYMBOL_GPL(clk_register_fixed_rate);
 
