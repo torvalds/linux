@@ -25,7 +25,6 @@
 static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
 					  struct bnxt_vf_info *vf, u16 event_id)
 {
-	struct hwrm_fwd_async_event_cmpl_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_fwd_async_event_cmpl_input req = {0};
 	struct hwrm_async_event_cmpl *async_cmpl;
 	int rc = 0;
@@ -40,23 +39,10 @@ static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
 	async_cmpl->type = cpu_to_le16(ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
 	async_cmpl->event_id = cpu_to_le16(event_id);
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-
-	if (rc) {
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
 		netdev_err(bp->dev, "hwrm_fwd_async_event_cmpl failed. rc:%d\n",
 			   rc);
-		goto fwd_async_event_cmpl_exit;
-	}
-
-	if (resp->error_code) {
-		netdev_err(bp->dev, "hwrm_fwd_async_event_cmpl error %d\n",
-			   resp->error_code);
-		rc = -1;
-	}
-
-fwd_async_event_cmpl_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 
@@ -864,7 +850,6 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 {
 	int rc = 0;
 	struct hwrm_fwd_resp_input req = {0};
-	struct hwrm_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
 	if (BNXT_FWD_RESP_SIZE_ERR(msg_size))
 		return -EINVAL;
@@ -879,22 +864,9 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	req.encap_resp_cmpl_ring = encap_resp_cpr;
 	memcpy(req.encap_resp, encap_resp, msg_size);
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-
-	if (rc) {
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
 		netdev_err(bp->dev, "hwrm_fwd_resp failed. rc:%d\n", rc);
-		goto fwd_resp_exit;
-	}
-
-	if (resp->error_code) {
-		netdev_err(bp->dev, "hwrm_fwd_resp error %d\n",
-			   resp->error_code);
-		rc = -1;
-	}
-
-fwd_resp_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 
@@ -903,7 +875,6 @@ static int bnxt_hwrm_fwd_err_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 {
 	int rc = 0;
 	struct hwrm_reject_fwd_resp_input req = {0};
-	struct hwrm_reject_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
 	if (BNXT_REJ_FWD_RESP_SIZE_ERR(msg_size))
 		return -EINVAL;
@@ -914,22 +885,9 @@ static int bnxt_hwrm_fwd_err_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
 	memcpy(req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-
-	if (rc) {
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
 		netdev_err(bp->dev, "hwrm_fwd_err_resp failed. rc:%d\n", rc);
-		goto fwd_err_resp_exit;
-	}
-
-	if (resp->error_code) {
-		netdev_err(bp->dev, "hwrm_fwd_err_resp error %d\n",
-			   resp->error_code);
-		rc = -1;
-	}
-
-fwd_err_resp_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 
@@ -938,7 +896,6 @@ static int bnxt_hwrm_exec_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 {
 	int rc = 0;
 	struct hwrm_exec_fwd_resp_input req = {0};
-	struct hwrm_exec_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
 	if (BNXT_EXEC_FWD_RESP_SIZE_ERR(msg_size))
 		return -EINVAL;
@@ -949,22 +906,9 @@ static int bnxt_hwrm_exec_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
 	memcpy(req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-
-	if (rc) {
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
 		netdev_err(bp->dev, "hwrm_exec_fw_resp failed. rc:%d\n", rc);
-		goto exec_fwd_resp_exit;
-	}
-
-	if (resp->error_code) {
-		netdev_err(bp->dev, "hwrm_exec_fw_resp error %d\n",
-			   resp->error_code);
-		rc = -1;
-	}
-
-exec_fwd_resp_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 
