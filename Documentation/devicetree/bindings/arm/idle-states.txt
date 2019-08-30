@@ -287,14 +287,14 @@ follows:
 		Value type: <prop-encoded-array>
 		Definition: u32 value representing worst case latency in
 			    microseconds required to enter the idle state.
-			    The exit-latency-us duration may be guaranteed
-			    only after entry-latency-us has passed.
 
 	- exit-latency-us
 		Usage: Required
 		Value type: <prop-encoded-array>
 		Definition: u32 value representing worst case latency
 			    in microseconds required to exit the idle state.
+			    The exit-latency-us duration may be guaranteed
+			    only after entry-latency-us has passed.
 
 	- min-residency-us
 		Usage: Required
