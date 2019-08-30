@@ -1102,13 +1102,6 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_runtime_disable;
 
-	if (isp_dev->isp_ver == ISP_V12 || isp_dev->isp_ver == ISP_V13) {
-		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_CTRL0);
-		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK1);
-		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK2);
-		writel(0, isp_dev->base_addr + CIF_ISP_CSI0_MASK3);
-	}
-
 	mutex_lock(&rkisp1_dev_mutex);
 	list_add_tail(&isp_dev->list, &rkisp1_device_list);
 	mutex_unlock(&rkisp1_dev_mutex);
