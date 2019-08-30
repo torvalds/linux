@@ -10107,34 +10107,56 @@ void bnxt_fw_exception(struct bnxt *bp)
 	bnxt_rtnl_unlock_sp(bp);
 }
 
-void bnxt_fw_reset(struct bnxt *bp)
+/* Returns the number of registered VFs, or 1 if VF configuration is pending, or
+ * < 0 on error.
+ */
+static int bnxt_get_registered_vfs(struct bnxt *bp)
 {
+#ifdef CONFIG_BNXT_SRIOV
 	int rc;
 
+	if (!BNXT_PF(bp))
+		return 0;
+
+	rc = bnxt_hwrm_func_qcfg(bp);
+	if (rc) {
+		netdev_err(bp->dev, "func_qcfg cmd failed, rc = %d\n", rc);
+		return rc;
+	}
+	if (bp->pf.registered_vfs)
+		return bp->pf.registered_vfs;
+	if (bp->sriov_cfg)
+		return 1;
+#endif
+	return 0;
+}
+
+void bnxt_fw_reset(struct bnxt *bp)
+{
 	bnxt_rtnl_lock_sp(bp);
 	if (test_bit(BNXT_STATE_OPEN, &bp->state) &&
 	    !test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
-		set_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-		if (BNXT_PF(bp) && bp->pf.active_vfs &&
-		    !test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
-			rc = bnxt_hwrm_func_qcfg(bp);
-			if (rc) {
-				netdev_err(bp->dev, "Firmware reset aborted, first func_qcfg cmd failed, rc = %d\n",
-					   rc);
-				clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-				dev_close(bp->dev);
-				goto fw_reset_exit;
-			}
-			if (bp->pf.registered_vfs || bp->sriov_cfg) {
-				u16 vf_tmo_dsecs = bp->pf.registered_vfs * 10;
+		int n = 0;
 
-				if (bp->fw_reset_max_dsecs < vf_tmo_dsecs)
-					bp->fw_reset_max_dsecs = vf_tmo_dsecs;
-				bp->fw_reset_state =
-					BNXT_FW_RESET_STATE_POLL_VF;
-				bnxt_queue_fw_reset_work(bp, HZ / 10);
-				goto fw_reset_exit;
-			}
+		set_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+		if (bp->pf.active_vfs &&
+		    !test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+			n = bnxt_get_registered_vfs(bp);
+		if (n < 0) {
+			netdev_err(bp->dev, "Firmware reset aborted, rc = %d\n",
+				   n);
+			clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+			dev_close(bp->dev);
+			goto fw_reset_exit;
+		} else if (n > 0) {
+			u16 vf_tmo_dsecs = n * 10;
+
+			if (bp->fw_reset_max_dsecs < vf_tmo_dsecs)
+				bp->fw_reset_max_dsecs = vf_tmo_dsecs;
+			bp->fw_reset_state =
+				BNXT_FW_RESET_STATE_POLL_VF;
+			bnxt_queue_fw_reset_work(bp, HZ / 10);
+			goto fw_reset_exit;
 		}
 		bnxt_fw_reset_close(bp);
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
@@ -10579,22 +10601,21 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 	}
 
 	switch (bp->fw_reset_state) {
-	case BNXT_FW_RESET_STATE_POLL_VF:
-		rc = bnxt_hwrm_func_qcfg(bp);
-		if (rc) {
+	case BNXT_FW_RESET_STATE_POLL_VF: {
+		int n = bnxt_get_registered_vfs(bp);
+
+		if (n < 0) {
 			netdev_err(bp->dev, "Firmware reset aborted, subsequent func_qcfg cmd failed, rc = %d, %d msecs since reset timestamp\n",
-				   rc, jiffies_to_msecs(jiffies -
+				   n, jiffies_to_msecs(jiffies -
 				   bp->fw_reset_timestamp));
 			goto fw_reset_abort;
-		}
-		if (bp->pf.registered_vfs || bp->sriov_cfg) {
+		} else if (n > 0) {
 			if (time_after(jiffies, bp->fw_reset_timestamp +
 				       (bp->fw_reset_max_dsecs * HZ / 10))) {
 				clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 				bp->fw_reset_state = 0;
-				netdev_err(bp->dev, "Firmware reset aborted, %d VFs still registered, sriov_cfg %d\n",
-					   bp->pf.registered_vfs,
-					   bp->sriov_cfg);
+				netdev_err(bp->dev, "Firmware reset aborted, bnxt_get_registered_vfs() returns %d\n",
+					   n);
 				return;
 			}
 			bnxt_queue_fw_reset_work(bp, HZ / 10);
@@ -10607,6 +10628,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		rtnl_unlock();
 		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
 		return;
+	}
 	case BNXT_FW_RESET_STATE_RESET_FW: {
 		u32 wait_dsecs = bp->fw_health->post_reset_wait_dsecs;
 
