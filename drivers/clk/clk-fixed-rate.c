@@ -35,7 +35,12 @@ static unsigned long clk_fixed_rate_recalc_rate(struct clk_hw *hw,
 static unsigned long clk_fixed_rate_recalc_accuracy(struct clk_hw *hw,
 		unsigned long parent_accuracy)
 {
-	return to_clk_fixed_rate(hw)->fixed_accuracy;
+	struct clk_fixed_rate *fixed = to_clk_fixed_rate(hw);
+
+	if (fixed->flags & CLK_FIXED_RATE_PARENT_ACCURACY)
+		return parent_accuracy;
+
+	return fixed->fixed_accuracy;
 }
 
 const struct clk_ops clk_fixed_rate_ops = {

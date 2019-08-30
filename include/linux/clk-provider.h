@@ -323,6 +323,10 @@ struct clk_hw {
  * @fixed_rate:	constant frequency of clock
  * @fixed_accuracy: constant accuracy of clock in ppb (parts per billion)
  * @flags:	hardware specific flags
+ *
+ * Flags:
+ * * CLK_FIXED_RATE_PARENT_ACCURACY - Use the accuracy of the parent clk
+ *                                    instead of what's set in @fixed_accuracy.
  */
 struct clk_fixed_rate {
 	struct		clk_hw hw;
@@ -330,6 +334,8 @@ struct clk_fixed_rate {
 	unsigned long	fixed_accuracy;
 	unsigned long	flags;
 };
+
+#define CLK_FIXED_RATE_PARENT_ACCURACY		BIT(0)
 
 extern const struct clk_ops clk_fixed_rate_ops;
 struct clk_hw *__clk_hw_register_fixed_rate(struct device *dev,
