@@ -764,18 +764,12 @@ static inline int dma_get_cache_alignment(void)
 #ifdef CONFIG_DMA_DECLARE_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 				dma_addr_t device_addr, size_t size);
-void dma_release_declared_memory(struct device *dev);
 #else
 static inline int
 dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 			    dma_addr_t device_addr, size_t size)
 {
 	return -ENOSYS;
-}
-
-static inline void
-dma_release_declared_memory(struct device *dev)
-{
 }
 #endif /* CONFIG_DMA_DECLARE_COHERENT */
 
