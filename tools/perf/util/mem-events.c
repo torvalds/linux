@@ -11,7 +11,6 @@
 #include "mem-events.h"
 #include "debug.h"
 #include "symbol.h"
-#include "sort.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 

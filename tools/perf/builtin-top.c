@@ -39,6 +39,7 @@
 #include <linux/rbtree.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
+#include "util/callchain.h"
 #include "util/cpumap.h"
 #include "util/sort.h"
 #include "util/string2.h"

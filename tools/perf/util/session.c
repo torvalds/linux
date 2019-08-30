@@ -20,7 +20,6 @@
 #include "symbol.h"
 #include "session.h"
 #include "tool.h"
-#include "sort.h"
 #include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
