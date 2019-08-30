@@ -3823,15 +3823,16 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		device_list_handle = &device_list;
 	}
 
-	/*
-	 * Mark these ASICs to be reseted as untracked first
-	 * And add them back after reset completed
-	 */
-	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head)
-		amdgpu_unregister_gpu_instance(tmp_adev);
-
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+		if (tmp_adev != adev)
+			amdgpu_device_lock_adev(tmp_adev, false);
+		/*
+		 * Mark these ASICs to be reseted as untracked first
+		 * And add them back after reset completed
+		 */
+		amdgpu_unregister_gpu_instance(tmp_adev);
+
 		/* disable ras on ALL IPs */
 		if (amdgpu_device_ip_need_full_reset(tmp_adev))
 			amdgpu_ras_suspend(tmp_adev);
@@ -3857,9 +3858,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	    dma_fence_is_signaled(job->base.s_fence->parent))
 		job_signaled = true;
 
-	if (!amdgpu_device_ip_need_full_reset(adev))
-		device_list_handle = &device_list;
-
 	if (job_signaled) {
 		dev_info(adev->dev, "Guilty job already signaled, skipping HW reset");
 		goto skip_hw_reset;
@@ -3881,7 +3879,6 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		if (tmp_adev == adev)
 			continue;
 
-		amdgpu_device_lock_adev(tmp_adev, false);
 		r = amdgpu_device_pre_asic_reset(tmp_adev,
 						 NULL,
 						 &need_full_reset);
@@ -3930,10 +3927,10 @@ skip_hw_reset:
 
 		if (r) {
 			/* bad news, how to tell it to userspace ? */
-			dev_info(tmp_adev->dev, "GPU reset(%d) failed\n", atomic_read(&adev->gpu_reset_counter));
+			dev_info(tmp_adev->dev, "GPU reset(%d) failed\n", atomic_read(&tmp_adev->gpu_reset_counter));
 			amdgpu_vf_error_put(tmp_adev, AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
 		} else {
-			dev_info(tmp_adev->dev, "GPU reset(%d) succeeded!\n", atomic_read(&adev->gpu_reset_counter));
+			dev_info(tmp_adev->dev, "GPU reset(%d) succeeded!\n", atomic_read(&tmp_adev->gpu_reset_counter));
 		}
 
 		amdgpu_device_unlock_adev(tmp_adev);
