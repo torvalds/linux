@@ -421,6 +421,7 @@ void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 int hl_hwmon_init(struct hl_device *hdev)
 {
 	struct device *dev = hdev->pdev ? &hdev->pdev->dev : hdev->dev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
 	if ((hdev->hwmon_initialized) || !(hdev->fw_loading))
@@ -430,7 +431,8 @@ int hl_hwmon_init(struct hl_device *hdev)
 		hdev->hl_chip_info->ops = &hl_hwmon_ops;
 
 		hdev->hwmon_dev = hwmon_device_register_with_info(dev,
-				"habanalabs", hdev, hdev->hl_chip_info, NULL);
+					prop->armcp_info.card_name, hdev,
+					hdev->hl_chip_info, NULL);
 		if (IS_ERR(hdev->hwmon_dev)) {
 			rc = PTR_ERR(hdev->hwmon_dev);
 			dev_err(hdev->dev,

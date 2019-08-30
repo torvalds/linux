@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2018 HabanaLabs, Ltd.
+ * Copyright 2016-2019 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -310,6 +310,7 @@ struct eq_generic_event {
  * ArmCP info
  */
 
+#define CARD_NAME_MAX_LEN		16
 #define VERSION_MAX_LEN			128
 #define ARMCP_MAX_SENSORS		128
 
@@ -318,6 +319,19 @@ struct armcp_sensor {
 	__le32 flags;
 };
 
+/**
+ * struct armcp_info - host driver's necessary info from ArmCP.
+ * @sensors: available sensors description.
+ * @kernel_version: ArmCP linux kernel version.
+ * @reserved: reserved field.
+ * @cpld_version: CPLD programmed F/W version.
+ * @infineon_version: Infineon main DC-DC version.
+ * @fuse_version: silicon production FUSE information.
+ * @thermal_version: thermald S/W version.
+ * @armcp_version: ArmCP S/W version.
+ * @dram_size: available DRAM size.
+ * @card_name: card name that will be displayed in HWMON subsystem on the host
+ */
 struct armcp_info {
 	struct armcp_sensor sensors[ARMCP_MAX_SENSORS];
 	__u8 kernel_version[VERSION_MAX_LEN];
@@ -328,6 +342,7 @@ struct armcp_info {
 	__u8 thermal_version[VERSION_MAX_LEN];
 	__u8 armcp_version[VERSION_MAX_LEN];
 	__le64 dram_size;
+	char card_name[CARD_NAME_MAX_LEN];
 };
 
 #endif /* ARMCP_IF_H */

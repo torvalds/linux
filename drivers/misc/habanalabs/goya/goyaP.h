@@ -55,6 +55,8 @@
 
 #define DRAM_PHYS_DEFAULT_SIZE		0x100000000ull	/* 4GB */
 
+#define GOYA_DEFAULT_CARD_NAME		"HL1000"
+
 /* DRAM Memory Map */
 
 #define CPU_FW_IMAGE_SIZE		0x10000000	/* 256MB */

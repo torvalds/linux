@@ -4961,6 +4961,10 @@ int goya_armcp_info_get(struct hl_device *hdev)
 		prop->dram_end_address = prop->dram_base_address + dram_size;
 	}
 
+	if (!strlen(prop->armcp_info.card_name))
+		strncpy(prop->armcp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+				CARD_NAME_MAX_LEN);
+
 	return 0;
 }
 
