@@ -3483,9 +3483,6 @@ static int ceph_redirect_decode(void **p, void *end,
 		goto e_inval;
 	}
 
-	len = ceph_decode_32(p);
-	*p += len; /* skip osd_instructions */
-
 	/* skip the rest */
 	*p = struct_end;
 out:
