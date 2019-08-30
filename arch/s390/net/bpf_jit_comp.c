@@ -1418,6 +1418,7 @@ skip_init_ctx:
 	fp->jited_len = jit.size;
 
 	if (!fp->is_func || extra_pass) {
+		bpf_prog_fill_jited_linfo(fp, jit.addrs + 1);
 free_addrs:
 		kfree(jit.addrs);
 		kfree(jit_data);
