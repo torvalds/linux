@@ -931,6 +931,17 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 	gh->gh_ip = 0;
 }
 
+static void gfs2_glock_update_hold_time(struct gfs2_glock *gl,
+					unsigned long start_time)
+{
+	/* Have we waited longer that a second? */
+	if (time_after(jiffies, start_time + HZ)) {
+		/* Lengthen the minimum hold time. */
+		gl->gl_hold_time = min(gl->gl_hold_time + GL_GLOCK_HOLD_INCR,
+				       GL_GLOCK_MAX_HOLD);
+	}
+}
+
 /**
  * gfs2_glock_wait - wait on a glock acquisition
  * @gh: the glock holder
@@ -940,15 +951,11 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 
 int gfs2_glock_wait(struct gfs2_holder *gh)
 {
-	unsigned long time1 = jiffies;
+	unsigned long start_time = jiffies;
 
 	might_sleep();
 	wait_on_bit(&gh->gh_iflags, HIF_WAIT, TASK_UNINTERRUPTIBLE);
-	if (time_after(jiffies, time1 + HZ)) /* have we waited > a second? */
-		/* Lengthen the minimum hold time. */
-		gh->gh_gl->gl_hold_time = min(gh->gh_gl->gl_hold_time +
-					      GL_GLOCK_HOLD_INCR,
-					      GL_GLOCK_MAX_HOLD);
+	gfs2_glock_update_hold_time(gh->gh_gl, start_time);
 	return gh->gh_error;
 }
 
