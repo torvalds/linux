@@ -1888,8 +1888,10 @@ static struct blkcg_policy_data *ioc_cpd_alloc(gfp_t gfp)
 	struct ioc_cgrp *iocc;
 
 	iocc = kzalloc(sizeof(struct ioc_cgrp), gfp);
-	iocc->dfl_weight = CGROUP_WEIGHT_DFL;
+	if (!iocc)
+		return NULL;
 
+	iocc->dfl_weight = CGROUP_WEIGHT_DFL;
 	return &iocc->cpd;
 }
 
