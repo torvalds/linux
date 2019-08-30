@@ -1761,6 +1761,24 @@ int smu_set_display_count(struct smu_context *smu, uint32_t count)
 	return ret;
 }
 
+int smu_force_clk_levels(struct smu_context *smu,
+			 enum smu_clk_type clk_type,
+			 uint32_t mask)
+{
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	int ret = 0;
+
+	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		pr_debug("force clock level is for dpm manual mode only.\n");
+		return -EINVAL;
+	}
+
+	if (smu->ppt_funcs && smu->ppt_funcs->force_clk_levels)
+		ret = smu->ppt_funcs->force_clk_levels(smu, clk_type, mask);
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,

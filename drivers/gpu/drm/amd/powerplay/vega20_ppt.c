@@ -1274,13 +1274,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
 	uint32_t soft_min_level, soft_max_level, hard_min_level;
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	int ret = 0;
-
-	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_info("force clock level is for dpm manual mode only.\n");
-		return -EINVAL;
-	}
 
 	mutex_lock(&(smu->mutex));
 
