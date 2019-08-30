@@ -126,9 +126,6 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 
 	safexcel_cipher_token(ctx, iv, cdesc);
 
-	if (direction == SAFEXCEL_DECRYPT)
-		cryptlen -= digestsize;
-
 	if (direction == SAFEXCEL_ENCRYPT) {
 		/* align end of instruction sequence to end of token */
 		token = (struct safexcel_token *)(cdesc->control_data.token +
@@ -141,6 +138,8 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 		token[2].instructions = EIP197_TOKEN_INS_TYPE_OUTPUT |
 					EIP197_TOKEN_INS_INSERT_HASH_DIGEST;
 	} else {
+		cryptlen -= digestsize;
+
 		/* align end of instruction sequence to end of token */
 		token = (struct safexcel_token *)(cdesc->control_data.token +
 			 EIP197_MAX_TOKENS - 4);
@@ -159,13 +158,7 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 		token[3].instructions = EIP197_TOKEN_INS_TYPE_OUTPUT;
 	}
 
-	if (unlikely(!cryptlen)) {
-		token[1].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
-		token[1].packet_length = assoclen;
-		token[1].stat = EIP197_TOKEN_STAT_LAST_HASH;
-		token[1].instructions = EIP197_TOKEN_INS_LAST |
-					EIP197_TOKEN_INS_TYPE_HASH;
-	} else {
+	if (likely(cryptlen)) {
 		if (likely(assoclen)) {
 			token[0].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 			token[0].packet_length = assoclen;
@@ -179,6 +172,12 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 					EIP197_TOKEN_INS_TYPE_CRYPTO |
 					EIP197_TOKEN_INS_TYPE_HASH |
 					EIP197_TOKEN_INS_TYPE_OUTPUT;
+	} else {
+		token[1].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
+		token[1].packet_length = assoclen;
+		token[1].stat = EIP197_TOKEN_STAT_LAST_HASH;
+		token[1].instructions = EIP197_TOKEN_INS_LAST |
+					EIP197_TOKEN_INS_TYPE_HASH;
 	}
 }
 
@@ -325,45 +324,60 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 				    struct safexcel_command_desc *cdesc)
 {
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	int ctrl_size;
+	int ctrl_size = ctx->key_len / sizeof(u32);
+
+	cdesc->control_data.control1 = ctx->mode;
 
 	if (ctx->aead) {
-		if (sreq->direction == SAFEXCEL_ENCRYPT)
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_ENCRYPT_HASH_OUT;
-		else
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_HASH_DECRYPT_IN;
-	} else {
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_OUT;
+		/* Take in account the ipad+opad digests */
+		ctrl_size += ctx->state_sz / sizeof(u32) * 2;
 
-		/* The decryption control type is a combination of the
-		 * encryption type and CONTEXT_CONTROL_TYPE_NULL_IN, for all
-		 * types.
-		 */
-		if (sreq->direction == SAFEXCEL_DECRYPT)
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_NULL_IN;
+		if (sreq->direction == SAFEXCEL_ENCRYPT)
+			cdesc->control_data.control0 =
+				CONTEXT_CONTROL_TYPE_ENCRYPT_HASH_OUT |
+				CONTEXT_CONTROL_DIGEST_HMAC |
+				CONTEXT_CONTROL_KEY_EN |
+				ctx->hash_alg |
+				CONTEXT_CONTROL_SIZE(ctrl_size);
+		else
+			cdesc->control_data.control0 =
+				CONTEXT_CONTROL_TYPE_HASH_DECRYPT_IN |
+				CONTEXT_CONTROL_DIGEST_HMAC |
+				CONTEXT_CONTROL_KEY_EN |
+				ctx->hash_alg |
+				CONTEXT_CONTROL_SIZE(ctrl_size);
+	} else {
+		if (sreq->direction == SAFEXCEL_ENCRYPT)
+			cdesc->control_data.control0 =
+				CONTEXT_CONTROL_TYPE_CRYPTO_OUT |
+				CONTEXT_CONTROL_KEY_EN |
+				CONTEXT_CONTROL_SIZE(ctrl_size);
+		else
+			cdesc->control_data.control0 =
+				CONTEXT_CONTROL_TYPE_CRYPTO_IN |
+				CONTEXT_CONTROL_KEY_EN |
+				CONTEXT_CONTROL_SIZE(ctrl_size);
 	}
 
-	cdesc->control_data.control0 |= CONTEXT_CONTROL_KEY_EN;
-	cdesc->control_data.control1 |= ctx->mode;
-
-	if (ctx->aead)
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_DIGEST_HMAC |
-						ctx->hash_alg;
-
 	if (ctx->alg == SAFEXCEL_DES) {
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_DES;
+		cdesc->control_data.control0 |=
+			CONTEXT_CONTROL_CRYPTO_ALG_DES;
 	} else if (ctx->alg == SAFEXCEL_3DES) {
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_3DES;
+		cdesc->control_data.control0 |=
+			CONTEXT_CONTROL_CRYPTO_ALG_3DES;
 	} else if (ctx->alg == SAFEXCEL_AES) {
 		switch (ctx->key_len >> ctx->xts) {
 		case AES_KEYSIZE_128:
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_AES128;
+			cdesc->control_data.control0 |=
+				CONTEXT_CONTROL_CRYPTO_ALG_AES128;
 			break;
 		case AES_KEYSIZE_192:
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_AES192;
+			cdesc->control_data.control0 |=
+				CONTEXT_CONTROL_CRYPTO_ALG_AES192;
 			break;
 		case AES_KEYSIZE_256:
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_AES256;
+			cdesc->control_data.control0 |=
+				CONTEXT_CONTROL_CRYPTO_ALG_AES256;
 			break;
 		default:
 			dev_err(priv->dev, "aes keysize not supported: %u\n",
@@ -371,12 +385,6 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 			return -EINVAL;
 		}
 	}
-
-	ctrl_size = ctx->key_len / sizeof(u32);
-	if (ctx->aead)
-		/* Take in account the ipad+opad digests */
-		ctrl_size += ctx->state_sz / sizeof(u32) * 2;
-	cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(ctrl_size);
 
 	return 0;
 }
