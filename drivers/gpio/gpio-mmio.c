@@ -134,17 +134,6 @@ static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 	unsigned long pinmask = bgpio_line2mask(gc, gpio);
 	bool dir = !!(gc->bgpio_dir & pinmask);
 
-	/*
-	 * If the direction is OUT we read the value from the SET
-	 * register, and if the direction is IN we read the value
-	 * from the DAT register.
-	 *
-	 * If the direction bits are inverted, naturally this gets
-	 * inverted too.
-	 */
-	if (gc->bgpio_dir_inverted)
-		dir = !dir;
-
 	if (dir)
 		return !!(gc->read_reg(gc->reg_set) & pinmask);
 	else
@@ -164,14 +153,8 @@ static int bgpio_get_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	/* Make sure we first clear any bits that are zero when we read the register */
 	*bits &= ~*mask;
 
-	/* Exploit the fact that we know which directions are set */
-	if (gc->bgpio_dir_inverted) {
-		set_mask = *mask & ~gc->bgpio_dir;
-		get_mask = *mask & gc->bgpio_dir;
-	} else {
-		set_mask = *mask & gc->bgpio_dir;
-		get_mask = *mask & ~gc->bgpio_dir;
-	}
+	set_mask = *mask & gc->bgpio_dir;
+	get_mask = *mask & ~gc->bgpio_dir;
 
 	if (set_mask)
 		*bits |= gc->read_reg(gc->reg_set) & set_mask;
@@ -372,11 +355,12 @@ static int bgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 
-	if (gc->bgpio_dir_inverted)
-		gc->bgpio_dir |= bgpio_line2mask(gc, gpio);
-	else
-		gc->bgpio_dir &= ~bgpio_line2mask(gc, gpio);
-	gc->write_reg(gc->reg_dir, gc->bgpio_dir);
+	gc->bgpio_dir &= ~bgpio_line2mask(gc, gpio);
+
+	if (gc->reg_dir_in)
+		gc->write_reg(gc->reg_dir_in, ~gc->bgpio_dir);
+	if (gc->reg_dir_out)
+		gc->write_reg(gc->reg_dir_out, gc->bgpio_dir);
 
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
@@ -385,11 +369,16 @@ static int bgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 {
-	/* Return 0 if output, 1 of input */
-	if (gc->bgpio_dir_inverted)
-		return !!(gc->read_reg(gc->reg_dir) & bgpio_line2mask(gc, gpio));
-	else
-		return !(gc->read_reg(gc->reg_dir) & bgpio_line2mask(gc, gpio));
+	/* Return 0 if output, 1 if input */
+	if (gc->bgpio_dir_unreadable)
+		return !(gc->bgpio_dir & bgpio_line2mask(gc, gpio));
+	if (gc->reg_dir_out)
+		return !(gc->read_reg(gc->reg_dir_out) & bgpio_line2mask(gc, gpio));
+	if (gc->reg_dir_in)
+		return !!(gc->read_reg(gc->reg_dir_in) & bgpio_line2mask(gc, gpio));
+
+	/* This should not happen */
+	return 1;
 }
 
 static int bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
@@ -400,11 +389,12 @@ static int bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 
-	if (gc->bgpio_dir_inverted)
-		gc->bgpio_dir &= ~bgpio_line2mask(gc, gpio);
-	else
-		gc->bgpio_dir |= bgpio_line2mask(gc, gpio);
-	gc->write_reg(gc->reg_dir, gc->bgpio_dir);
+	gc->bgpio_dir |= bgpio_line2mask(gc, gpio);
+
+	if (gc->reg_dir_in)
+		gc->write_reg(gc->reg_dir_in, ~gc->bgpio_dir);
+	if (gc->reg_dir_out)
+		gc->write_reg(gc->reg_dir_out, gc->bgpio_dir);
 
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
@@ -537,19 +527,12 @@ static int bgpio_setup_direction(struct gpio_chip *gc,
 				 void __iomem *dirin,
 				 unsigned long flags)
 {
-	if (dirout && dirin) {
-		return -EINVAL;
-	} else if (dirout) {
-		gc->reg_dir = dirout;
+	if (dirout || dirin) {
+		gc->reg_dir_out = dirout;
+		gc->reg_dir_in = dirin;
 		gc->direction_output = bgpio_dir_out;
 		gc->direction_input = bgpio_dir_in;
 		gc->get_direction = bgpio_get_dir;
-	} else if (dirin) {
-		gc->reg_dir = dirin;
-		gc->direction_output = bgpio_dir_out;
-		gc->direction_input = bgpio_dir_in;
-		gc->get_direction = bgpio_get_dir;
-		gc->bgpio_dir_inverted = true;
 	} else {
 		if (flags & BGPIOF_NO_OUTPUT)
 			gc->direction_output = bgpio_dir_out_err;
@@ -588,11 +571,11 @@ static int bgpio_request(struct gpio_chip *chip, unsigned gpio_pin)
  * @dirout: MMIO address for the register to set the line as OUTPUT. It is assumed
  *	that setting a line to 1 in this register will turn that line into an
  *	output line. Conversely, setting the line to 0 will turn that line into
- *	an input. Either this or @dirin can be defined, but never both.
+ *	an input.
  * @dirin: MMIO address for the register to set this line as INPUT. It is assumed
  *	that setting a line to 1 in this register will turn that line into an
  *	input line. Conversely, setting the line to 0 will turn that line into
- *	an output. Either this or @dirout can be defined, but never both.
+ *	an output.
  * @flags: Different flags that will affect the behaviour of the device, such as
  *	endianness etc.
  */
@@ -634,8 +617,28 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 	if (gc->set == bgpio_set_set &&
 			!(flags & BGPIOF_UNREADABLE_REG_SET))
 		gc->bgpio_data = gc->read_reg(gc->reg_set);
-	if (gc->reg_dir && !(flags & BGPIOF_UNREADABLE_REG_DIR))
-		gc->bgpio_dir = gc->read_reg(gc->reg_dir);
+
+	if (flags & BGPIOF_UNREADABLE_REG_DIR)
+		gc->bgpio_dir_unreadable = true;
+
+	/*
+	 * Inspect hardware to find initial direction setting.
+	 */
+	if ((gc->reg_dir_out || gc->reg_dir_in) &&
+	    !(flags & BGPIOF_UNREADABLE_REG_DIR)) {
+		if (gc->reg_dir_out)
+			gc->bgpio_dir = gc->read_reg(gc->reg_dir_out);
+		else if (gc->reg_dir_in)
+			gc->bgpio_dir = ~gc->read_reg(gc->reg_dir_in);
+		/*
+		 * If we have two direction registers, synchronise
+		 * input setting to output setting, the library
+		 * can not handle a line being input and output at
+		 * the same time.
+		 */
+		if (gc->reg_dir_out && gc->reg_dir_in)
+			gc->write_reg(gc->reg_dir_in, ~gc->bgpio_dir);
+	}
 
 	return ret;
 }

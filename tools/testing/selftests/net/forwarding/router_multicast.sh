@@ -28,7 +28,7 @@
 # +------------------+       +------------------+
 #
 
-ALL_TESTS="mcast_v4 mcast_v6"
+ALL_TESTS="mcast_v4 mcast_v6 rpf_v4 rpf_v6"
 NUM_NETIFS=6
 source lib.sh
 source tc_common.sh
@@ -46,10 +46,14 @@ h1_create()
 
 	ip route add 2001:db8:2::/64 vrf v$h1 nexthop via 2001:db8:1::1
 	ip route add 2001:db8:3::/64 vrf v$h1 nexthop via 2001:db8:1::1
+
+	tc qdisc add dev $h1 ingress
 }
 
 h1_destroy()
 {
+	tc qdisc del dev $h1 ingress
+
 	ip route del 2001:db8:3::/64 vrf v$h1
 	ip route del 2001:db8:2::/64 vrf v$h1
 
@@ -124,10 +128,14 @@ router_create()
 	ip address add 2001:db8:1::1/64 dev $rp1
 	ip address add 2001:db8:2::1/64 dev $rp2
 	ip address add 2001:db8:3::1/64 dev $rp3
+
+	tc qdisc add dev $rp3 ingress
 }
 
 router_destroy()
 {
+	tc qdisc del dev $rp3 ingress
+
 	ip address del 2001:db8:3::1/64 dev $rp3
 	ip address del 2001:db8:2::1/64 dev $rp2
 	ip address del 2001:db8:1::1/64 dev $rp1
@@ -299,6 +307,103 @@ mcast_v6()
 	tc filter del dev $h2 ingress protocol ipv6 pref 1 handle 122 flower
 
 	log_test "mcast IPv6"
+}
+
+rpf_v4()
+{
+	# Add a multicast route from first router port to the other two. Send
+	# matching packets and test that both hosts receive them. Then, send
+	# the same packets via the third router port and test that they do not
+	# reach any host due to RPF check. A filter with 'skip_hw' is added to
+	# test that devices capable of multicast routing offload trap those
+	# packets. The filter is essentialy a NOP in other scenarios.
+
+	RET=0
+
+	tc filter add dev $h1 ingress protocol ip pref 1 handle 1 flower \
+		dst_ip 225.1.2.3 ip_proto udp dst_port 12345 action drop
+	tc filter add dev $h2 ingress protocol ip pref 1 handle 1 flower \
+		dst_ip 225.1.2.3 ip_proto udp dst_port 12345 action drop
+	tc filter add dev $h3 ingress protocol ip pref 1 handle 1 flower \
+		dst_ip 225.1.2.3 ip_proto udp dst_port 12345 action drop
+	tc filter add dev $rp3 ingress protocol ip pref 1 handle 1 flower \
+		skip_hw dst_ip 225.1.2.3 ip_proto udp dst_port 12345 action pass
+
+	create_mcast_sg $rp1 198.51.100.2 225.1.2.3 $rp2 $rp3
+
+	$MZ $h1 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
+		-a 00:11:22:33:44:55 -b 01:00:5e:01:02:03 \
+		-A 198.51.100.2 -B 225.1.2.3 -q
+
+	tc_check_packets "dev $h2 ingress" 1 5
+	check_err $? "Multicast not received on first host"
+	tc_check_packets "dev $h3 ingress" 1 5
+	check_err $? "Multicast not received on second host"
+
+	$MZ $h3 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
+		-a 00:11:22:33:44:55 -b 01:00:5e:01:02:03 \
+		-A 198.51.100.2 -B 225.1.2.3 -q
+
+	tc_check_packets "dev $h1 ingress" 1 0
+	check_err $? "Multicast received on first host when should not"
+	tc_check_packets "dev $h2 ingress" 1 5
+	check_err $? "Multicast received on second host when should not"
+	tc_check_packets "dev $rp3 ingress" 1 5
+	check_err $? "Packets not trapped due to RPF check"
+
+	delete_mcast_sg $rp1 198.51.100.2 225.1.2.3 $rp2 $rp3
+
+	tc filter del dev $rp3 ingress protocol ip pref 1 handle 1 flower
+	tc filter del dev $h3 ingress protocol ip pref 1 handle 1 flower
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 1 flower
+	tc filter del dev $h1 ingress protocol ip pref 1 handle 1 flower
+
+	log_test "RPF IPv4"
+}
+
+rpf_v6()
+{
+	RET=0
+
+	tc filter add dev $h1 ingress protocol ipv6 pref 1 handle 1 flower \
+		dst_ip ff0e::3 ip_proto udp dst_port 12345 action drop
+	tc filter add dev $h2 ingress protocol ipv6 pref 1 handle 1 flower \
+		dst_ip ff0e::3 ip_proto udp dst_port 12345 action drop
+	tc filter add dev $h3 ingress protocol ipv6 pref 1 handle 1 flower \
+		dst_ip ff0e::3 ip_proto udp dst_port 12345 action drop
+	tc filter add dev $rp3 ingress protocol ipv6 pref 1 handle 1 flower \
+		skip_hw dst_ip ff0e::3 ip_proto udp dst_port 12345 action pass
+
+	create_mcast_sg $rp1 2001:db8:1::2 ff0e::3 $rp2 $rp3
+
+	$MZ $h1 -6 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
+		-a 00:11:22:33:44:55 -b 33:33:00:00:00:03 \
+		-A 2001:db8:1::2 -B ff0e::3 -q
+
+	tc_check_packets "dev $h2 ingress" 1 5
+	check_err $? "Multicast not received on first host"
+	tc_check_packets "dev $h3 ingress" 1 5
+	check_err $? "Multicast not received on second host"
+
+	$MZ $h3 -6 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
+		-a 00:11:22:33:44:55 -b 33:33:00:00:00:03 \
+		-A 2001:db8:1::2 -B ff0e::3 -q
+
+	tc_check_packets "dev $h1 ingress" 1 0
+	check_err $? "Multicast received on first host when should not"
+	tc_check_packets "dev $h2 ingress" 1 5
+	check_err $? "Multicast received on second host when should not"
+	tc_check_packets "dev $rp3 ingress" 1 5
+	check_err $? "Packets not trapped due to RPF check"
+
+	delete_mcast_sg $rp1 2001:db8:1::2 ff0e::3 $rp2 $rp3
+
+	tc filter del dev $rp3 ingress protocol ipv6 pref 1 handle 1 flower
+	tc filter del dev $h3 ingress protocol ipv6 pref 1 handle 1 flower
+	tc filter del dev $h2 ingress protocol ipv6 pref 1 handle 1 flower
+	tc filter del dev $h1 ingress protocol ipv6 pref 1 handle 1 flower
+
+	log_test "RPF IPv6"
 }
 
 trap cleanup EXIT

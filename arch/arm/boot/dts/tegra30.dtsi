@@ -370,6 +370,17 @@
 		reg = <0x6000c000 0x150>; /* AHB Arbitration + Gizmo Controller */
 	};
 
+	actmon@6000c800 {
+		compatible = "nvidia,tegra30-actmon";
+		reg = <0x6000c800 0x400>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA30_CLK_ACTMON>,
+			 <&tegra_car TEGRA30_CLK_EMC>;
+		clock-names = "actmon", "emc";
+		resets = <&tegra_car TEGRA30_CLK_ACTMON>;
+		reset-names = "actmon";
+	};
+
 	gpio: gpio@6000d000 {
 		compatible = "nvidia,tegra30-gpio";
 		reg = <0x6000d000 0x1000>;

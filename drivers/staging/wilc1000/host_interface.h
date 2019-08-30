@@ -115,16 +115,6 @@ struct wilc_rcvd_net_info {
 	struct ieee80211_mgmt *mgmt;
 };
 
-struct wilc_probe_ssid_info {
-	u8 ssid_len;
-	u8 *ssid;
-};
-
-struct wilc_probe_ssid {
-	struct wilc_probe_ssid_info *ssid_info;
-	u8 n_ssids;
-	u32 size;
-};
 
 struct wilc_user_scan_req {
 	void (*scan_result)(enum scan_event evt,
@@ -205,10 +195,10 @@ int wilc_disconnect(struct wilc_vif *vif);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies, size_t ies_len,
+	      u8 *ch_freq_list, u8 ch_list_len,
 	      void (*scan_result_fn)(enum scan_event,
 				     struct wilc_rcvd_net_info *, void *),
-	      void *user_arg, struct wilc_probe_ssid *search);
+	      void *user_arg, struct cfg80211_scan_request *request);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);

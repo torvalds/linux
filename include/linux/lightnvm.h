@@ -358,6 +358,7 @@ struct nvm_geo {
 	u16	csecs;		/* sector size */
 	u16	sos;		/* out-of-band area size */
 	bool	ext;		/* metadata in extended data buffer */
+	u32	mdts;		/* Max data transfer size*/
 
 	/* device write constrains */
 	u32	ws_min;		/* minimum write size */
@@ -427,6 +428,7 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 	void *private_data;
 
+	struct kref ref;
 	void *rmap;
 
 	struct mutex mlock;

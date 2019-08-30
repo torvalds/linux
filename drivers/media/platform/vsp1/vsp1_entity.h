@@ -67,7 +67,9 @@ struct vsp1_route {
  * struct vsp1_entity_operations - Entity operations
  * @destroy:	Destroy the entity.
  * @configure_stream:	Setup the hardware parameters for the stream which do
- *			not vary between frames (pipeline, formats).
+ *			not vary between frames (pipeline, formats). Note that
+ *			the vsp1_dl_list argument is only valid for display
+ *			pipeline and will be NULL for mem-to-mem pipelines.
  * @configure_frame:	Configure the runtime parameters for each frame.
  * @configure_partition: Configure partition specific parameters.
  * @max_width:	Return the max supported width of data that the entity can
@@ -78,7 +80,7 @@ struct vsp1_route {
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*configure_stream)(struct vsp1_entity *, struct vsp1_pipeline *,
-				 struct vsp1_dl_body *);
+				 struct vsp1_dl_list *, struct vsp1_dl_body *);
 	void (*configure_frame)(struct vsp1_entity *, struct vsp1_pipeline *,
 				struct vsp1_dl_list *, struct vsp1_dl_body *);
 	void (*configure_partition)(struct vsp1_entity *,
@@ -155,6 +157,7 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 
 void vsp1_entity_configure_stream(struct vsp1_entity *entity,
 				  struct vsp1_pipeline *pipe,
+				  struct vsp1_dl_list *dl,
 				  struct vsp1_dl_body *dlb);
 
 void vsp1_entity_configure_frame(struct vsp1_entity *entity,

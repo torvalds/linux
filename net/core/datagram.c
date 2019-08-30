@@ -61,6 +61,8 @@
 #include <trace/events/skb.h>
 #include <net/busy_poll.h>
 
+#include "datagram.h"
+
 /*
  *	Is a socket 'connection oriented' ?
  */
@@ -165,7 +167,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 					  unsigned int flags,
 					  void (*destructor)(struct sock *sk,
 							   struct sk_buff *skb),
-					  int *peeked, int *off, int *err,
+					  int *off, int *err,
 					  struct sk_buff **last)
 {
 	bool peek_at_off = false;
@@ -192,7 +194,6 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 					return NULL;
 				}
 			}
-			*peeked = 1;
 			refcount_inc(&skb->users);
 		} else {
 			__skb_unlink(skb, queue);
@@ -210,7 +211,6 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
  *	@sk: socket
  *	@flags: MSG\_ flags
  *	@destructor: invoked under the receive lock on successful dequeue
- *	@peeked: returns non-zero if this packet has been seen before
  *	@off: an offset in bytes to peek skb from. Returns an offset
  *	      within an skb where data actually starts
  *	@err: error code returned
@@ -244,7 +244,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 					void (*destructor)(struct sock *sk,
 							   struct sk_buff *skb),
-					int *peeked, int *off, int *err,
+					int *off, int *err,
 					struct sk_buff **last)
 {
 	struct sk_buff_head *queue = &sk->sk_receive_queue;
@@ -258,7 +258,6 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 	if (error)
 		goto no_packet;
 
-	*peeked = 0;
 	do {
 		/* Again only user level code calls this function, so nothing
 		 * interrupt level will suddenly eat the receive_queue.
@@ -268,7 +267,7 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 		 */
 		spin_lock_irqsave(&queue->lock, cpu_flags);
 		skb = __skb_try_recv_from_queue(sk, queue, flags, destructor,
-						peeked, off, &error, last);
+						off, &error, last);
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
 		if (error)
 			goto no_packet;
@@ -292,7 +291,7 @@ EXPORT_SYMBOL(__skb_try_recv_datagram);
 struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 				    void (*destructor)(struct sock *sk,
 						       struct sk_buff *skb),
-				    int *peeked, int *off, int *err)
+				    int *off, int *err)
 {
 	struct sk_buff *skb, *last;
 	long timeo;
@@ -300,8 +299,8 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 
 	do {
-		skb = __skb_try_recv_datagram(sk, flags, destructor, peeked,
-					      off, err, &last);
+		skb = __skb_try_recv_datagram(sk, flags, destructor, off, err,
+					      &last);
 		if (skb)
 			return skb;
 
@@ -317,10 +316,10 @@ EXPORT_SYMBOL(__skb_recv_datagram);
 struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned int flags,
 				  int noblock, int *err)
 {
-	int peeked, off = 0;
+	int off = 0;
 
 	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				   NULL, &peeked, &off, err);
+				   NULL, &off, err);
 }
 EXPORT_SYMBOL(skb_recv_datagram);
 
@@ -408,10 +407,10 @@ int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 }
 EXPORT_SYMBOL(skb_kill_datagram);
 
-int __skb_datagram_iter(const struct sk_buff *skb, int offset,
-			struct iov_iter *to, int len, bool fault_short,
-			size_t (*cb)(const void *, size_t, void *, struct iov_iter *),
-			void *data)
+static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
+			       struct iov_iter *to, int len, bool fault_short,
+			       size_t (*cb)(const void *, size_t, void *,
+					    struct iov_iter *), void *data)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset, start_off = offset, n;

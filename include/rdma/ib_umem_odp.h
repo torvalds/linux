@@ -69,6 +69,7 @@ struct ib_umem_odp {
 
 	int notifiers_seq;
 	int notifiers_count;
+	int npages;
 
 	/* Tree tracking */
 	struct umem_odp_node	interval_tree;

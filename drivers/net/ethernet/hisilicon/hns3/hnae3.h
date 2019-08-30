@@ -120,6 +120,25 @@ enum hnae3_media_type {
 	HNAE3_MEDIA_TYPE_NONE,
 };
 
+/* must be consistent with definition in firmware */
+enum hnae3_module_type {
+	HNAE3_MODULE_TYPE_UNKNOWN	= 0x00,
+	HNAE3_MODULE_TYPE_FIBRE_LR	= 0x01,
+	HNAE3_MODULE_TYPE_FIBRE_SR	= 0x02,
+	HNAE3_MODULE_TYPE_AOC		= 0x03,
+	HNAE3_MODULE_TYPE_CR		= 0x04,
+	HNAE3_MODULE_TYPE_KR		= 0x05,
+	HNAE3_MODULE_TYPE_TP		= 0x06,
+
+};
+
+enum hnae3_fec_mode {
+	HNAE3_FEC_AUTO = 0,
+	HNAE3_FEC_BASER,
+	HNAE3_FEC_RS,
+	HNAE3_FEC_USER_DEF,
+};
+
 enum hnae3_reset_notify_type {
 	HNAE3_UP_CLIENT,
 	HNAE3_DOWN_CLIENT,
@@ -145,6 +164,13 @@ enum hnae3_reset_type {
 enum hnae3_flr_state {
 	HNAE3_FLR_DOWN,
 	HNAE3_FLR_DONE,
+};
+
+enum hnae3_port_base_vlan_state {
+	HNAE3_PORT_BASE_VLAN_DISABLE,
+	HNAE3_PORT_BASE_VLAN_ENABLE,
+	HNAE3_PORT_BASE_VLAN_MODIFY,
+	HNAE3_PORT_BASE_VLAN_NOCHANGE,
 };
 
 struct hnae3_vector_info {
@@ -223,10 +249,10 @@ struct hnae3_ae_dev {
  *   non-ok
  * get_ksettings_an_result()
  *   Get negotiation status,speed and duplex
- * update_speed_duplex_h()
- *   Update hardware speed and duplex
  * get_media_type()
  *   Get media type of MAC
+ * check_port_speed()
+ *   Check target speed whether is supported
  * adjust_link()
  *   Adjust link status
  * set_loopback()
@@ -243,6 +269,8 @@ struct hnae3_ae_dev {
  *   set auto autonegotiation of pause frame use
  * get_autoneg()
  *   get auto autonegotiation of pause frame use
+ * restart_autoneg()
+ *   restart autonegotiation
  * get_coalesce_usecs()
  *   get usecs to delay a TX interrupt after a packet is sent
  * get_rx_max_coalesced_frames()
@@ -333,11 +361,15 @@ struct hnae3_ae_ops {
 	void (*get_ksettings_an_result)(struct hnae3_handle *handle,
 					u8 *auto_neg, u32 *speed, u8 *duplex);
 
-	int (*update_speed_duplex_h)(struct hnae3_handle *handle);
 	int (*cfg_mac_speed_dup_h)(struct hnae3_handle *handle, int speed,
 				   u8 duplex);
 
-	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type);
+	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type,
+			       u8 *module_type);
+	int (*check_port_speed)(struct hnae3_handle *handle, u32 speed);
+	void (*get_fec)(struct hnae3_handle *handle, u8 *fec_ability,
+			u8 *fec_mode);
+	int (*set_fec)(struct hnae3_handle *handle, u32 fec_mode);
 	void (*adjust_link)(struct hnae3_handle *handle, int speed, int duplex);
 	int (*set_loopback)(struct hnae3_handle *handle,
 			    enum hnae3_loop loop_mode, bool en);
@@ -353,6 +385,7 @@ struct hnae3_ae_ops {
 
 	int (*set_autoneg)(struct hnae3_handle *handle, bool enable);
 	int (*get_autoneg)(struct hnae3_handle *handle);
+	int (*restart_autoneg)(struct hnae3_handle *handle);
 
 	void (*get_coalesce_usecs)(struct hnae3_handle *handle,
 				   u32 *tx_usecs, u32 *rx_usecs);
@@ -385,7 +418,8 @@ struct hnae3_ae_ops {
 	void (*update_stats)(struct hnae3_handle *handle,
 			     struct net_device_stats *net_stats);
 	void (*get_stats)(struct hnae3_handle *handle, u64 *data);
-
+	void (*get_mac_pause_stats)(struct hnae3_handle *handle, u64 *tx_cnt,
+				    u64 *rx_cnt);
 	void (*get_strings)(struct hnae3_handle *handle,
 			    u32 stringset, u8 *data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);
@@ -578,8 +612,13 @@ struct hnae3_handle {
 
 	u32 numa_node_mask;	/* for multi-chip support */
 
+	enum hnae3_port_base_vlan_state port_base_vlan_state;
+
 	u8 netdev_flags;
 	struct dentry *hnae3_dbgfs;
+
+	/* Network interface message level enabled bits */
+	u32 msg_enable;
 };
 
 #define hnae3_set_field(origin, mask, shift, val) \

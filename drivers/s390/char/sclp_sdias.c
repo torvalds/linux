@@ -29,7 +29,7 @@ static struct sclp_register sclp_sdias_register = {
 	.send_mask = EVTYP_SDIAS_MASK,
 };
 
-static struct sdias_sccb sccb __attribute__((aligned(4096)));
+static struct sdias_sccb *sclp_sdias_sccb;
 static struct sdias_evbuf sdias_evbuf;
 
 static DECLARE_COMPLETION(evbuf_accepted);
@@ -58,6 +58,7 @@ static void sdias_callback(struct sclp_req *request, void *data)
 
 static int sdias_sclp_send(struct sclp_req *req)
 {
+	struct sdias_sccb *sccb = sclp_sdias_sccb;
 	int retries;
 	int rc;
 
@@ -78,16 +79,16 @@ static int sdias_sclp_send(struct sclp_req *req)
 			continue;
 		}
 		/* if not accepted, retry */
-		if (!(sccb.evbuf.hdr.flags & 0x80)) {
+		if (!(sccb->evbuf.hdr.flags & 0x80)) {
 			TRACE("sclp request failed: flags=%x\n",
-			      sccb.evbuf.hdr.flags);
+			      sccb->evbuf.hdr.flags);
 			continue;
 		}
 		/*
 		 * for the sync interface the response is in the initial sccb
 		 */
 		if (!sclp_sdias_register.receiver_fn) {
-			memcpy(&sdias_evbuf, &sccb.evbuf, sizeof(sdias_evbuf));
+			memcpy(&sdias_evbuf, &sccb->evbuf, sizeof(sdias_evbuf));
 			TRACE("sync request done\n");
 			return 0;
 		}
@@ -104,23 +105,24 @@ static int sdias_sclp_send(struct sclp_req *req)
  */
 int sclp_sdias_blk_count(void)
 {
+	struct sdias_sccb *sccb = sclp_sdias_sccb;
 	struct sclp_req request;
 	int rc;
 
 	mutex_lock(&sdias_mutex);
 
-	memset(&sccb, 0, sizeof(sccb));
+	memset(sccb, 0, sizeof(*sccb));
 	memset(&request, 0, sizeof(request));
 
-	sccb.hdr.length = sizeof(sccb);
-	sccb.evbuf.hdr.length = sizeof(struct sdias_evbuf);
-	sccb.evbuf.hdr.type = EVTYP_SDIAS;
-	sccb.evbuf.event_qual = SDIAS_EQ_SIZE;
-	sccb.evbuf.data_id = SDIAS_DI_FCP_DUMP;
-	sccb.evbuf.event_id = 4712;
-	sccb.evbuf.dbs = 1;
+	sccb->hdr.length = sizeof(*sccb);
+	sccb->evbuf.hdr.length = sizeof(struct sdias_evbuf);
+	sccb->evbuf.hdr.type = EVTYP_SDIAS;
+	sccb->evbuf.event_qual = SDIAS_EQ_SIZE;
+	sccb->evbuf.data_id = SDIAS_DI_FCP_DUMP;
+	sccb->evbuf.event_id = 4712;
+	sccb->evbuf.dbs = 1;
 
-	request.sccb = &sccb;
+	request.sccb = sccb;
 	request.command = SCLP_CMDW_WRITE_EVENT_DATA;
 	request.status = SCLP_REQ_FILLED;
 	request.callback = sdias_callback;
@@ -130,8 +132,8 @@ int sclp_sdias_blk_count(void)
 		pr_err("sclp_send failed for get_nr_blocks\n");
 		goto out;
 	}
-	if (sccb.hdr.response_code != 0x0020) {
-		TRACE("send failed: %x\n", sccb.hdr.response_code);
+	if (sccb->hdr.response_code != 0x0020) {
+		TRACE("send failed: %x\n", sccb->hdr.response_code);
 		rc = -EIO;
 		goto out;
 	}
@@ -163,30 +165,31 @@ out:
  */
 int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 {
+	struct sdias_sccb *sccb = sclp_sdias_sccb;
 	struct sclp_req request;
 	int rc;
 
 	mutex_lock(&sdias_mutex);
 
-	memset(&sccb, 0, sizeof(sccb));
+	memset(sccb, 0, sizeof(*sccb));
 	memset(&request, 0, sizeof(request));
 
-	sccb.hdr.length = sizeof(sccb);
-	sccb.evbuf.hdr.length = sizeof(struct sdias_evbuf);
-	sccb.evbuf.hdr.type = EVTYP_SDIAS;
-	sccb.evbuf.hdr.flags = 0;
-	sccb.evbuf.event_qual = SDIAS_EQ_STORE_DATA;
-	sccb.evbuf.data_id = SDIAS_DI_FCP_DUMP;
-	sccb.evbuf.event_id = 4712;
-	sccb.evbuf.asa_size = SDIAS_ASA_SIZE_64;
-	sccb.evbuf.event_status = 0;
-	sccb.evbuf.blk_cnt = nr_blks;
-	sccb.evbuf.asa = (unsigned long)dest;
-	sccb.evbuf.fbn = start_blk;
-	sccb.evbuf.lbn = 0;
-	sccb.evbuf.dbs = 1;
+	sccb->hdr.length = sizeof(*sccb);
+	sccb->evbuf.hdr.length = sizeof(struct sdias_evbuf);
+	sccb->evbuf.hdr.type = EVTYP_SDIAS;
+	sccb->evbuf.hdr.flags = 0;
+	sccb->evbuf.event_qual = SDIAS_EQ_STORE_DATA;
+	sccb->evbuf.data_id = SDIAS_DI_FCP_DUMP;
+	sccb->evbuf.event_id = 4712;
+	sccb->evbuf.asa_size = SDIAS_ASA_SIZE_64;
+	sccb->evbuf.event_status = 0;
+	sccb->evbuf.blk_cnt = nr_blks;
+	sccb->evbuf.asa = (unsigned long)dest;
+	sccb->evbuf.fbn = start_blk;
+	sccb->evbuf.lbn = 0;
+	sccb->evbuf.dbs = 1;
 
-	request.sccb	 = &sccb;
+	request.sccb	 = sccb;
 	request.command  = SCLP_CMDW_WRITE_EVENT_DATA;
 	request.status	 = SCLP_REQ_FILLED;
 	request.callback = sdias_callback;
@@ -196,8 +199,8 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 		pr_err("sclp_send failed: %x\n", rc);
 		goto out;
 	}
-	if (sccb.hdr.response_code != 0x0020) {
-		TRACE("copy failed: %x\n", sccb.hdr.response_code);
+	if (sccb->hdr.response_code != 0x0020) {
+		TRACE("copy failed: %x\n", sccb->hdr.response_code);
 		rc = -EIO;
 		goto out;
 	}
@@ -256,6 +259,8 @@ int __init sclp_sdias_init(void)
 {
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return 0;
+	sclp_sdias_sccb = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
+	BUG_ON(!sclp_sdias_sccb);
 	sdias_dbf = debug_register("dump_sdias", 4, 1, 4 * sizeof(long));
 	debug_register_view(sdias_dbf, &debug_sprintf_view);
 	debug_set_level(sdias_dbf, 6);
@@ -264,6 +269,7 @@ int __init sclp_sdias_init(void)
 	if (sclp_sdias_init_async() == 0)
 		goto out;
 	TRACE("init failed\n");
+	free_page((unsigned long) sclp_sdias_sccb);
 	return -ENODEV;
 out:
 	TRACE("init done\n");

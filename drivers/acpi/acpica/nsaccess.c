@@ -683,7 +683,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 		/* Point to next name segment and make this node current */
 
-		path += ACPI_NAME_SIZE;
+		path += ACPI_NAMESEG_SIZE;
 		current_node = this_node;
 	}
 

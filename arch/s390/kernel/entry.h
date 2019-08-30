@@ -65,7 +65,7 @@ int setup_profiling_timer(unsigned int multiplier);
 void __init time_init(void);
 int pfn_is_nosave(unsigned long);
 void s390_early_resume(void);
-unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long sp, unsigned long ip);
 
 struct s390_mmap_arg_struct;
 struct fadvise64_64_args;

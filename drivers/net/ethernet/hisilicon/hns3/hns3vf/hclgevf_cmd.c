@@ -27,26 +27,39 @@ static int hclgevf_ring_space(struct hclgevf_cmq_ring *ring)
 	return ring->desc_num - used - 1;
 }
 
+static int hclgevf_is_valid_csq_clean_head(struct hclgevf_cmq_ring *ring,
+					   int head)
+{
+	int ntu = ring->next_to_use;
+	int ntc = ring->next_to_clean;
+
+	if (ntu > ntc)
+		return head >= ntc && head <= ntu;
+
+	return head >= ntc || head <= ntu;
+}
+
 static int hclgevf_cmd_csq_clean(struct hclgevf_hw *hw)
 {
+	struct hclgevf_dev *hdev = container_of(hw, struct hclgevf_dev, hw);
 	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
-	u16 ntc = csq->next_to_clean;
-	struct hclgevf_desc *desc;
 	int clean = 0;
 	u32 head;
 
-	desc = &csq->desc[ntc];
 	head = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG);
-	while (head != ntc) {
-		memset(desc, 0, sizeof(*desc));
-		ntc++;
-		if (ntc == csq->desc_num)
-			ntc = 0;
-		desc = &csq->desc[ntc];
-		clean++;
-	}
-	csq->next_to_clean = ntc;
+	rmb(); /* Make sure head is ready before touch any data */
 
+	if (!hclgevf_is_valid_csq_clean_head(csq, head)) {
+		dev_warn(&hdev->pdev->dev, "wrong cmd head (%d, %d-%d)\n", head,
+			 csq->next_to_use, csq->next_to_clean);
+		dev_warn(&hdev->pdev->dev,
+			 "Disabling any further commands to IMP firmware\n");
+		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+		return -EIO;
+	}
+
+	clean = (head - csq->next_to_clean + csq->desc_num) % csq->desc_num;
+	csq->next_to_clean = head;
 	return clean;
 }
 
@@ -321,13 +334,13 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	int ret;
 
 	spin_lock_bh(&hdev->hw.cmq.csq.lock);
-	spin_lock_bh(&hdev->hw.cmq.crq.lock);
+	spin_lock(&hdev->hw.cmq.crq.lock);
 
 	/* initialize the pointers of async rx queue of mailbox */
 	hdev->arq.hdev = hdev;
 	hdev->arq.head = 0;
 	hdev->arq.tail = 0;
-	hdev->arq.count = 0;
+	atomic_set(&hdev->arq.count, 0);
 	hdev->hw.cmq.csq.next_to_clean = 0;
 	hdev->hw.cmq.csq.next_to_use = 0;
 	hdev->hw.cmq.crq.next_to_clean = 0;
@@ -335,7 +348,7 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 
 	hclgevf_cmd_init_regs(&hdev->hw);
 
-	spin_unlock_bh(&hdev->hw.cmq.crq.lock);
+	spin_unlock(&hdev->hw.cmq.crq.lock);
 	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
 
 	clear_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
@@ -344,8 +357,8 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	 * reset may happen when lower level reset is being processed.
 	 */
 	if (hclgevf_is_reset_pending(hdev)) {
-		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err_cmd_init;
 	}
 
 	/* get firmware version */
@@ -353,13 +366,18 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"failed(%d) to query firmware version\n", ret);
-		return ret;
+		goto err_cmd_init;
 	}
 	hdev->fw_version = version;
 
 	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
 
 	return 0;
+
+err_cmd_init:
+	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+
+	return ret;
 }
 
 static void hclgevf_cmd_uninit_regs(struct hclgevf_hw *hw)

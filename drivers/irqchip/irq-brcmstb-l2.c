@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic Broadcom Set Top Box Level 2 Interrupt controller driver
  *
  * Copyright (C) 2014-2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME	": " fmt
@@ -263,6 +255,8 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 		data->gc->wake_enabled = 0xffffffff;
 		ct->chip.irq_set_wake = irq_gc_set_wake;
 	}
+
+	pr_info("registered L2 intc (%pOF, parent irq: %d)\n", np, parent_irq);
 
 	return 0;
 

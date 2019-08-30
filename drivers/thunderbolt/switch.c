@@ -10,14 +10,12 @@
 #include <linux/idr.h>
 #include <linux/nvmem-provider.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched/signal.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "tb.h"
-
-/* Switch authorization from userspace is serialized by this lock */
-static DEFINE_MUTEX(switch_lock);
 
 /* Switch NVM support */
 
@@ -241,7 +239,16 @@ static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 	int ret;
 
 	pm_runtime_get_sync(&sw->dev);
+
+	if (!mutex_trylock(&sw->tb->lock)) {
+		ret = restart_syscall();
+		goto out;
+	}
+
 	ret = dma_port_flash_read(sw->dma_port, offset, val, bytes);
+	mutex_unlock(&sw->tb->lock);
+
+out:
 	pm_runtime_mark_last_busy(&sw->dev);
 	pm_runtime_put_autosuspend(&sw->dev);
 
@@ -254,8 +261,8 @@ static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
 	struct tb_switch *sw = priv;
 	int ret = 0;
 
-	if (mutex_lock_interruptible(&switch_lock))
-		return -ERESTARTSYS;
+	if (!mutex_trylock(&sw->tb->lock))
+		return restart_syscall();
 
 	/*
 	 * Since writing the NVM image might require some special steps,
@@ -275,7 +282,7 @@ static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
 	memcpy(sw->nvm->buf + offset, val, bytes);
 
 unlock:
-	mutex_unlock(&switch_lock);
+	mutex_unlock(&sw->tb->lock);
 
 	return ret;
 }
@@ -364,10 +371,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	}
 	nvm->non_active = nvm_dev;
 
-	mutex_lock(&switch_lock);
 	sw->nvm = nvm;
-	mutex_unlock(&switch_lock);
-
 	return 0;
 
 err_nvm_active:
@@ -384,10 +388,8 @@ static void tb_switch_nvm_remove(struct tb_switch *sw)
 {
 	struct tb_switch_nvm *nvm;
 
-	mutex_lock(&switch_lock);
 	nvm = sw->nvm;
 	sw->nvm = NULL;
-	mutex_unlock(&switch_lock);
 
 	if (!nvm)
 		return;
@@ -500,23 +502,22 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 		if (state < 0)
 			return state;
 		if (state == TB_PORT_DISABLED) {
-			tb_port_info(port, "is disabled (state: 0)\n");
+			tb_port_dbg(port, "is disabled (state: 0)\n");
 			return 0;
 		}
 		if (state == TB_PORT_UNPLUGGED) {
 			if (wait_if_unplugged) {
 				/* used during resume */
-				tb_port_info(port,
-					     "is unplugged (state: 7), retrying...\n");
+				tb_port_dbg(port,
+					    "is unplugged (state: 7), retrying...\n");
 				msleep(100);
 				continue;
 			}
-			tb_port_info(port, "is unplugged (state: 7)\n");
+			tb_port_dbg(port, "is unplugged (state: 7)\n");
 			return 0;
 		}
 		if (state == TB_PORT_UP) {
-			tb_port_info(port,
-				     "is connected, link is up (state: 2)\n");
+			tb_port_dbg(port, "is connected, link is up (state: 2)\n");
 			return 1;
 		}
 
@@ -524,9 +525,9 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 		 * After plug-in the state is TB_PORT_CONNECTING. Give it some
 		 * time.
 		 */
-		tb_port_info(port,
-			     "is connected, link is not up (state: %d), retrying...\n",
-			     state);
+		tb_port_dbg(port,
+			    "is connected, link is not up (state: %d), retrying...\n",
+			    state);
 		msleep(100);
 	}
 	tb_port_warn(port,
@@ -544,16 +545,44 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
  */
 int tb_port_add_nfc_credits(struct tb_port *port, int credits)
 {
-	if (credits == 0)
+	u32 nfc_credits;
+
+	if (credits == 0 || port->sw->is_unplugged)
 		return 0;
-	tb_port_info(port,
-		     "adding %#x NFC credits (%#x -> %#x)",
-		     credits,
-		     port->config.nfc_credits,
-		     port->config.nfc_credits + credits);
-	port->config.nfc_credits += credits;
+
+	nfc_credits = port->config.nfc_credits & TB_PORT_NFC_CREDITS_MASK;
+	nfc_credits += credits;
+
+	tb_port_dbg(port, "adding %d NFC credits to %lu",
+		    credits, port->config.nfc_credits & TB_PORT_NFC_CREDITS_MASK);
+
+	port->config.nfc_credits &= ~TB_PORT_NFC_CREDITS_MASK;
+	port->config.nfc_credits |= nfc_credits;
+
 	return tb_port_write(port, &port->config.nfc_credits,
 			     TB_CFG_PORT, 4, 1);
+}
+
+/**
+ * tb_port_set_initial_credits() - Set initial port link credits allocated
+ * @port: Port to set the initial credits
+ * @credits: Number of credits to to allocate
+ *
+ * Set initial credits value to be used for ingress shared buffering.
+ */
+int tb_port_set_initial_credits(struct tb_port *port, u32 credits)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, 5, 1);
+	if (ret)
+		return ret;
+
+	data &= ~TB_PORT_LCA_MASK;
+	data |= (credits << TB_PORT_LCA_SHIFT) & TB_PORT_LCA_MASK;
+
+	return tb_port_write(port, &data, TB_CFG_PORT, 5, 1);
 }
 
 /**
@@ -564,7 +593,7 @@ int tb_port_add_nfc_credits(struct tb_port *port, int credits)
 int tb_port_clear_counter(struct tb_port *port, int counter)
 {
 	u32 zero[3] = { 0, 0, 0 };
-	tb_port_info(port, "clearing counter %d\n", counter);
+	tb_port_dbg(port, "clearing counter %d\n", counter);
 	return tb_port_write(port, zero, TB_CFG_COUNTERS, 3 * counter, 3);
 }
 
@@ -593,13 +622,302 @@ static int tb_init_port(struct tb_port *port)
 			port->cap_phy = cap;
 		else
 			tb_port_WARN(port, "non switch port without a PHY\n");
+	} else if (port->port != 0) {
+		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
+		if (cap > 0)
+			port->cap_adap = cap;
 	}
 
 	tb_dump_port(port->sw->tb, &port->config);
 
-	/* TODO: Read dual link port, DP port and more from EEPROM. */
+	/* Control port does not need HopID allocation */
+	if (port->port) {
+		ida_init(&port->in_hopids);
+		ida_init(&port->out_hopids);
+	}
+
 	return 0;
 
+}
+
+static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
+			       int max_hopid)
+{
+	int port_max_hopid;
+	struct ida *ida;
+
+	if (in) {
+		port_max_hopid = port->config.max_in_hop_id;
+		ida = &port->in_hopids;
+	} else {
+		port_max_hopid = port->config.max_out_hop_id;
+		ida = &port->out_hopids;
+	}
+
+	/* HopIDs 0-7 are reserved */
+	if (min_hopid < TB_PATH_MIN_HOPID)
+		min_hopid = TB_PATH_MIN_HOPID;
+
+	if (max_hopid < 0 || max_hopid > port_max_hopid)
+		max_hopid = port_max_hopid;
+
+	return ida_simple_get(ida, min_hopid, max_hopid + 1, GFP_KERNEL);
+}
+
+/**
+ * tb_port_alloc_in_hopid() - Allocate input HopID from port
+ * @port: Port to allocate HopID for
+ * @min_hopid: Minimum acceptable input HopID
+ * @max_hopid: Maximum acceptable input HopID
+ *
+ * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * case of error.
+ */
+int tb_port_alloc_in_hopid(struct tb_port *port, int min_hopid, int max_hopid)
+{
+	return tb_port_alloc_hopid(port, true, min_hopid, max_hopid);
+}
+
+/**
+ * tb_port_alloc_out_hopid() - Allocate output HopID from port
+ * @port: Port to allocate HopID for
+ * @min_hopid: Minimum acceptable output HopID
+ * @max_hopid: Maximum acceptable output HopID
+ *
+ * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * case of error.
+ */
+int tb_port_alloc_out_hopid(struct tb_port *port, int min_hopid, int max_hopid)
+{
+	return tb_port_alloc_hopid(port, false, min_hopid, max_hopid);
+}
+
+/**
+ * tb_port_release_in_hopid() - Release allocated input HopID from port
+ * @port: Port whose HopID to release
+ * @hopid: HopID to release
+ */
+void tb_port_release_in_hopid(struct tb_port *port, int hopid)
+{
+	ida_simple_remove(&port->in_hopids, hopid);
+}
+
+/**
+ * tb_port_release_out_hopid() - Release allocated output HopID from port
+ * @port: Port whose HopID to release
+ * @hopid: HopID to release
+ */
+void tb_port_release_out_hopid(struct tb_port *port, int hopid)
+{
+	ida_simple_remove(&port->out_hopids, hopid);
+}
+
+/**
+ * tb_next_port_on_path() - Return next port for given port on a path
+ * @start: Start port of the walk
+ * @end: End port of the walk
+ * @prev: Previous port (%NULL if this is the first)
+ *
+ * This function can be used to walk from one port to another if they
+ * are connected through zero or more switches. If the @prev is dual
+ * link port, the function follows that link and returns another end on
+ * that same link.
+ *
+ * If the @end port has been reached, return %NULL.
+ *
+ * Domain tb->lock must be held when this function is called.
+ */
+struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
+				     struct tb_port *prev)
+{
+	struct tb_port *next;
+
+	if (!prev)
+		return start;
+
+	if (prev->sw == end->sw) {
+		if (prev == end)
+			return NULL;
+		return end;
+	}
+
+	if (start->sw->config.depth < end->sw->config.depth) {
+		if (prev->remote &&
+		    prev->remote->sw->config.depth > prev->sw->config.depth)
+			next = prev->remote;
+		else
+			next = tb_port_at(tb_route(end->sw), prev->sw);
+	} else {
+		if (tb_is_upstream_port(prev)) {
+			next = prev->remote;
+		} else {
+			next = tb_upstream_port(prev->sw);
+			/*
+			 * Keep the same link if prev and next are both
+			 * dual link ports.
+			 */
+			if (next->dual_link_port &&
+			    next->link_nr != prev->link_nr) {
+				next = next->dual_link_port;
+			}
+		}
+	}
+
+	return next;
+}
+
+/**
+ * tb_port_is_enabled() - Is the adapter port enabled
+ * @port: Port to check
+ */
+bool tb_port_is_enabled(struct tb_port *port)
+{
+	switch (port->config.type) {
+	case TB_TYPE_PCIE_UP:
+	case TB_TYPE_PCIE_DOWN:
+		return tb_pci_port_is_enabled(port);
+
+	case TB_TYPE_DP_HDMI_IN:
+	case TB_TYPE_DP_HDMI_OUT:
+		return tb_dp_port_is_enabled(port);
+
+	default:
+		return false;
+	}
+}
+
+/**
+ * tb_pci_port_is_enabled() - Is the PCIe adapter port enabled
+ * @port: PCIe port to check
+ */
+bool tb_pci_port_is_enabled(struct tb_port *port)
+{
+	u32 data;
+
+	if (tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1))
+		return false;
+
+	return !!(data & TB_PCI_EN);
+}
+
+/**
+ * tb_pci_port_enable() - Enable PCIe adapter port
+ * @port: PCIe port to enable
+ * @enable: Enable/disable the PCIe adapter
+ */
+int tb_pci_port_enable(struct tb_port *port, bool enable)
+{
+	u32 word = enable ? TB_PCI_EN : 0x0;
+	if (!port->cap_adap)
+		return -ENXIO;
+	return tb_port_write(port, &word, TB_CFG_PORT, port->cap_adap, 1);
+}
+
+/**
+ * tb_dp_port_hpd_is_active() - Is HPD already active
+ * @port: DP out port to check
+ *
+ * Checks if the DP OUT adapter port has HDP bit already set.
+ */
+int tb_dp_port_hpd_is_active(struct tb_port *port)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap + 2, 1);
+	if (ret)
+		return ret;
+
+	return !!(data & TB_DP_HDP);
+}
+
+/**
+ * tb_dp_port_hpd_clear() - Clear HPD from DP IN port
+ * @port: Port to clear HPD
+ *
+ * If the DP IN port has HDP set, this function can be used to clear it.
+ */
+int tb_dp_port_hpd_clear(struct tb_port *port)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap + 3, 1);
+	if (ret)
+		return ret;
+
+	data |= TB_DP_HPDC;
+	return tb_port_write(port, &data, TB_CFG_PORT, port->cap_adap + 3, 1);
+}
+
+/**
+ * tb_dp_port_set_hops() - Set video/aux Hop IDs for DP port
+ * @port: DP IN/OUT port to set hops
+ * @video: Video Hop ID
+ * @aux_tx: AUX TX Hop ID
+ * @aux_rx: AUX RX Hop ID
+ *
+ * Programs specified Hop IDs for DP IN/OUT port.
+ */
+int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
+			unsigned int aux_tx, unsigned int aux_rx)
+{
+	u32 data[2];
+	int ret;
+
+	ret = tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
+			   ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+
+	data[0] &= ~TB_DP_VIDEO_HOPID_MASK;
+	data[1] &= ~(TB_DP_AUX_RX_HOPID_MASK | TB_DP_AUX_TX_HOPID_MASK);
+
+	data[0] |= (video << TB_DP_VIDEO_HOPID_SHIFT) & TB_DP_VIDEO_HOPID_MASK;
+	data[1] |= aux_tx & TB_DP_AUX_TX_HOPID_MASK;
+	data[1] |= (aux_rx << TB_DP_AUX_RX_HOPID_SHIFT) & TB_DP_AUX_RX_HOPID_MASK;
+
+	return tb_port_write(port, data, TB_CFG_PORT, port->cap_adap,
+			     ARRAY_SIZE(data));
+}
+
+/**
+ * tb_dp_port_is_enabled() - Is DP adapter port enabled
+ * @port: DP adapter port to check
+ */
+bool tb_dp_port_is_enabled(struct tb_port *port)
+{
+	u32 data;
+
+	if (tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1))
+		return false;
+
+	return !!(data & (TB_DP_VIDEO_EN | TB_DP_AUX_EN));
+}
+
+/**
+ * tb_dp_port_enable() - Enables/disables DP paths of a port
+ * @port: DP IN/OUT port
+ * @enable: Enable/disable DP path
+ *
+ * Once Hop IDs are programmed DP paths can be enabled or disabled by
+ * calling this function.
+ */
+int tb_dp_port_enable(struct tb_port *port, bool enable)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		data |= TB_DP_VIDEO_EN | TB_DP_AUX_EN;
+	else
+		data &= ~(TB_DP_VIDEO_EN | TB_DP_AUX_EN);
+
+	return tb_port_write(port, &data, TB_CFG_PORT, port->cap_adap, 1);
 }
 
 /* switch utility functions */
@@ -642,24 +960,6 @@ int tb_switch_reset(struct tb *tb, u64 route)
 	if (res.err > 0)
 		return -EIO;
 	return res.err;
-}
-
-struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route)
-{
-	u8 next_port = route; /*
-			       * Routes use a stride of 8 bits,
-			       * eventhough a port index has 6 bits at most.
-			       * */
-	if (route == 0)
-		return sw;
-	if (next_port > sw->config.max_port_number)
-		return NULL;
-	if (tb_is_upstream_port(&sw->ports[next_port]))
-		return NULL;
-	if (!sw->ports[next_port].remote)
-		return NULL;
-	return get_switch_at_route(sw->ports[next_port].remote->sw,
-				   route >> TB_ROUTE_SHIFT);
 }
 
 /**
@@ -716,8 +1016,8 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 {
 	int ret = -EINVAL;
 
-	if (mutex_lock_interruptible(&switch_lock))
-		return -ERESTARTSYS;
+	if (!mutex_trylock(&sw->tb->lock))
+		return restart_syscall();
 
 	if (sw->authorized)
 		goto unlock;
@@ -728,7 +1028,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	 * the new tunnel too early.
 	 */
 	pci_lock_rescan_remove();
-	pm_runtime_get_sync(&sw->dev);
 
 	switch (val) {
 	/* Approve switch */
@@ -749,8 +1048,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(&sw->dev);
-	pm_runtime_put_autosuspend(&sw->dev);
 	pci_unlock_rescan_remove();
 
 	if (!ret) {
@@ -760,7 +1057,7 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	}
 
 unlock:
-	mutex_unlock(&switch_lock);
+	mutex_unlock(&sw->tb->lock);
 	return ret;
 }
 
@@ -778,7 +1075,10 @@ static ssize_t authorized_store(struct device *dev,
 	if (val > 2)
 		return -EINVAL;
 
+	pm_runtime_get_sync(&sw->dev);
 	ret = tb_switch_set_authorized(sw, val);
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 
 	return ret ? ret : count;
 }
@@ -817,15 +1117,15 @@ static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 	struct tb_switch *sw = tb_to_switch(dev);
 	ssize_t ret;
 
-	if (mutex_lock_interruptible(&switch_lock))
-		return -ERESTARTSYS;
+	if (!mutex_trylock(&sw->tb->lock))
+		return restart_syscall();
 
 	if (sw->key)
 		ret = sprintf(buf, "%*phN\n", TB_SWITCH_KEY_SIZE, sw->key);
 	else
 		ret = sprintf(buf, "\n");
 
-	mutex_unlock(&switch_lock);
+	mutex_unlock(&sw->tb->lock);
 	return ret;
 }
 
@@ -842,8 +1142,8 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 	else if (hex2bin(key, buf, sizeof(key)))
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&switch_lock))
-		return -ERESTARTSYS;
+	if (!mutex_trylock(&sw->tb->lock))
+		return restart_syscall();
 
 	if (sw->authorized) {
 		ret = -EBUSY;
@@ -858,7 +1158,7 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
-	mutex_unlock(&switch_lock);
+	mutex_unlock(&sw->tb->lock);
 	return ret;
 }
 static DEVICE_ATTR(key, 0600, key_show, key_store);
@@ -904,8 +1204,12 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	bool val;
 	int ret;
 
-	if (mutex_lock_interruptible(&switch_lock))
-		return -ERESTARTSYS;
+	pm_runtime_get_sync(&sw->dev);
+
+	if (!mutex_trylock(&sw->tb->lock)) {
+		ret = restart_syscall();
+		goto exit_rpm;
+	}
 
 	/* If NVMem devices are not yet added */
 	if (!sw->nvm) {
@@ -926,13 +1230,9 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 			goto exit_unlock;
 		}
 
-		pm_runtime_get_sync(&sw->dev);
 		ret = nvm_validate_and_write(sw);
-		if (ret) {
-			pm_runtime_mark_last_busy(&sw->dev);
-			pm_runtime_put_autosuspend(&sw->dev);
+		if (ret)
 			goto exit_unlock;
-		}
 
 		sw->nvm->authenticating = true;
 
@@ -948,12 +1248,13 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 		} else {
 			ret = nvm_authenticate_device(sw);
 		}
-		pm_runtime_mark_last_busy(&sw->dev);
-		pm_runtime_put_autosuspend(&sw->dev);
 	}
 
 exit_unlock:
-	mutex_unlock(&switch_lock);
+	mutex_unlock(&sw->tb->lock);
+exit_rpm:
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 
 	if (ret)
 		return ret;
@@ -967,8 +1268,8 @@ static ssize_t nvm_version_show(struct device *dev,
 	struct tb_switch *sw = tb_to_switch(dev);
 	int ret;
 
-	if (mutex_lock_interruptible(&switch_lock))
-		return -ERESTARTSYS;
+	if (!mutex_trylock(&sw->tb->lock))
+		return restart_syscall();
 
 	if (sw->safe_mode)
 		ret = -ENODATA;
@@ -977,7 +1278,7 @@ static ssize_t nvm_version_show(struct device *dev,
 	else
 		ret = sprintf(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
 
-	mutex_unlock(&switch_lock);
+	mutex_unlock(&sw->tb->lock);
 
 	return ret;
 }
@@ -1063,8 +1364,16 @@ static const struct attribute_group *switch_groups[] = {
 static void tb_switch_release(struct device *dev)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
+	int i;
 
 	dma_port_free(sw->dma_port);
+
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		if (!sw->ports[i].disabled) {
+			ida_destroy(&sw->ports[i].in_hopids);
+			ida_destroy(&sw->ports[i].out_hopids);
+		}
+	}
 
 	kfree(sw->uuid);
 	kfree(sw->device_name);
@@ -1081,11 +1390,22 @@ static void tb_switch_release(struct device *dev)
  */
 static int __maybe_unused tb_switch_runtime_suspend(struct device *dev)
 {
+	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (cm_ops->runtime_suspend_switch)
+		return cm_ops->runtime_suspend_switch(sw);
+
 	return 0;
 }
 
 static int __maybe_unused tb_switch_runtime_resume(struct device *dev)
 {
+	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (cm_ops->runtime_resume_switch)
+		return cm_ops->runtime_resume_switch(sw);
 	return 0;
 }
 
@@ -1150,24 +1470,32 @@ static int tb_switch_get_generation(struct tb_switch *sw)
  * separately. The returned switch should be released by calling
  * tb_switch_put().
  *
- * Return: Pointer to the allocated switch or %NULL in case of failure
+ * Return: Pointer to the allocated switch or ERR_PTR() in case of
+ * failure.
  */
 struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 				  u64 route)
 {
-	int i;
-	int cap;
 	struct tb_switch *sw;
-	int upstream_port = tb_cfg_get_upstream_port(tb->ctl, route);
+	int upstream_port;
+	int i, ret, depth;
+
+	/* Make sure we do not exceed maximum topology limit */
+	depth = tb_route_length(route);
+	if (depth > TB_SWITCH_MAX_DEPTH)
+		return ERR_PTR(-EADDRNOTAVAIL);
+
+	upstream_port = tb_cfg_get_upstream_port(tb->ctl, route);
 	if (upstream_port < 0)
-		return NULL;
+		return ERR_PTR(upstream_port);
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	sw->tb = tb;
-	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5))
+	ret = tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5);
+	if (ret)
 		goto err_free_sw_ports;
 
 	tb_dbg(tb, "current switch config:\n");
@@ -1175,16 +1503,18 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 
 	/* configure switch */
 	sw->config.upstream_port_number = upstream_port;
-	sw->config.depth = tb_route_length(route);
-	sw->config.route_lo = route;
-	sw->config.route_hi = route >> 32;
+	sw->config.depth = depth;
+	sw->config.route_hi = upper_32_bits(route);
+	sw->config.route_lo = lower_32_bits(route);
 	sw->config.enabled = 0;
 
 	/* initialize ports */
 	sw->ports = kcalloc(sw->config.max_port_number + 1, sizeof(*sw->ports),
 				GFP_KERNEL);
-	if (!sw->ports)
+	if (!sw->ports) {
+		ret = -ENOMEM;
 		goto err_free_sw_ports;
+	}
 
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		/* minimum setup for tb_find_cap and tb_drom_read to work */
@@ -1194,12 +1524,16 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 
 	sw->generation = tb_switch_get_generation(sw);
 
-	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
-	if (cap < 0) {
+	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
+	if (ret < 0) {
 		tb_sw_warn(sw, "cannot find TB_VSE_CAP_PLUG_EVENTS aborting\n");
 		goto err_free_sw_ports;
 	}
-	sw->cap_plug_events = cap;
+	sw->cap_plug_events = ret;
+
+	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
+	if (ret > 0)
+		sw->cap_lc = ret;
 
 	/* Root switch is always authorized */
 	if (!route)
@@ -1218,7 +1552,7 @@ err_free_sw_ports:
 	kfree(sw->ports);
 	kfree(sw);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 /**
@@ -1233,7 +1567,7 @@ err_free_sw_ports:
  *
  * The returned switch must be released by calling tb_switch_put().
  *
- * Return: Pointer to the allocated switch or %NULL in case of failure
+ * Return: Pointer to the allocated switch or ERR_PTR() in case of failure
  */
 struct tb_switch *
 tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
@@ -1242,7 +1576,7 @@ tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	sw->tb = tb;
 	sw->config.depth = tb_route_length(route);
@@ -1291,25 +1625,27 @@ int tb_switch_configure(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
+	ret = tb_lc_configure_link(sw);
+	if (ret)
+		return ret;
+
 	return tb_plug_events_active(sw, true);
 }
 
-static void tb_switch_set_uuid(struct tb_switch *sw)
+static int tb_switch_set_uuid(struct tb_switch *sw)
 {
 	u32 uuid[4];
-	int cap;
+	int ret;
 
 	if (sw->uuid)
-		return;
+		return 0;
 
 	/*
 	 * The newer controllers include fused UUID as part of link
 	 * controller specific registers
 	 */
-	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
-	if (cap > 0) {
-		tb_sw_read(sw, uuid, TB_CFG_SWITCH, cap + 3, 4);
-	} else {
+	ret = tb_lc_read_uuid(sw, uuid);
+	if (ret) {
 		/*
 		 * ICM generates UUID based on UID and fills the upper
 		 * two words with ones. This is not strictly following
@@ -1323,6 +1659,9 @@ static void tb_switch_set_uuid(struct tb_switch *sw)
 	}
 
 	sw->uuid = kmemdup(uuid, sizeof(uuid), GFP_KERNEL);
+	if (!sw->uuid)
+		return -ENOMEM;
+	return 0;
 }
 
 static int tb_switch_add_dma_port(struct tb_switch *sw)
@@ -1372,7 +1711,9 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 
 	if (status) {
 		tb_sw_info(sw, "switch flash authentication failed\n");
-		tb_switch_set_uuid(sw);
+		ret = tb_switch_set_uuid(sw);
+		if (ret)
+			return ret;
 		nvm_set_auth_status(sw, status);
 	}
 
@@ -1422,7 +1763,9 @@ int tb_switch_add(struct tb_switch *sw)
 		}
 		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
-		tb_switch_set_uuid(sw);
+		ret = tb_switch_set_uuid(sw);
+		if (ret)
+			return ret;
 
 		for (i = 0; i <= sw->config.max_port_number; i++) {
 			if (sw->ports[i].disabled) {
@@ -1484,18 +1827,18 @@ void tb_switch_remove(struct tb_switch *sw)
 
 	/* port 0 is the switch itself and never has a remote */
 	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_is_upstream_port(&sw->ports[i]))
-			continue;
-		if (sw->ports[i].remote)
+		if (tb_port_has_remote(&sw->ports[i])) {
 			tb_switch_remove(sw->ports[i].remote->sw);
-		sw->ports[i].remote = NULL;
-		if (sw->ports[i].xdomain)
+			sw->ports[i].remote = NULL;
+		} else if (sw->ports[i].xdomain) {
 			tb_xdomain_remove(sw->ports[i].xdomain);
-		sw->ports[i].xdomain = NULL;
+			sw->ports[i].xdomain = NULL;
+		}
 	}
 
 	if (!sw->is_unplugged)
 		tb_plug_events_active(sw, false);
+	tb_lc_unconfigure_link(sw);
 
 	tb_switch_nvm_remove(sw);
 
@@ -1520,8 +1863,10 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 	}
 	sw->is_unplugged = true;
 	for (i = 0; i <= sw->config.max_port_number; i++) {
-		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
+		if (tb_port_has_remote(&sw->ports[i]))
 			tb_sw_set_unplugged(sw->ports[i].remote->sw);
+		else if (sw->ports[i].xdomain)
+			sw->ports[i].xdomain->is_unplugged = true;
 	}
 }
 
@@ -1536,6 +1881,17 @@ int tb_switch_resume(struct tb_switch *sw)
 	 */
 	if (tb_route(sw)) {
 		u64 uid;
+
+		/*
+		 * Check first that we can still read the switch config
+		 * space. It may be that there is now another domain
+		 * connected.
+		 */
+		err = tb_cfg_get_upstream_port(sw->tb->ctl, tb_route(sw));
+		if (err < 0) {
+			tb_sw_info(sw, "switch not present anymore\n");
+			return err;
+		}
 
 		err = tb_drom_read_uid_only(sw, &uid);
 		if (err) {
@@ -1555,6 +1911,10 @@ int tb_switch_resume(struct tb_switch *sw)
 	if (err)
 		return err;
 
+	err = tb_lc_configure_link(sw);
+	if (err)
+		return err;
+
 	err = tb_plug_events_active(sw, true);
 	if (err)
 		return err;
@@ -1562,15 +1922,23 @@ int tb_switch_resume(struct tb_switch *sw)
 	/* check for surviving downstream switches */
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
-		if (tb_is_upstream_port(port))
+
+		if (!tb_port_has_remote(port) && !port->xdomain)
 			continue;
-		if (!port->remote)
-			continue;
-		if (tb_wait_for_port(port, true) <= 0
-			|| tb_switch_resume(port->remote->sw)) {
+
+		if (tb_wait_for_port(port, true) <= 0) {
 			tb_port_warn(port,
 				     "lost during suspend, disconnecting\n");
-			tb_sw_set_unplugged(port->remote->sw);
+			if (tb_port_has_remote(port))
+				tb_sw_set_unplugged(port->remote->sw);
+			else if (port->xdomain)
+				port->xdomain->is_unplugged = true;
+		} else if (tb_port_has_remote(port)) {
+			if (tb_switch_resume(port->remote->sw)) {
+				tb_port_warn(port,
+					     "lost during suspend, disconnecting\n");
+				tb_sw_set_unplugged(port->remote->sw);
+			}
 		}
 	}
 	return 0;
@@ -1584,13 +1952,11 @@ void tb_switch_suspend(struct tb_switch *sw)
 		return;
 
 	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
+		if (tb_port_has_remote(&sw->ports[i]))
 			tb_switch_suspend(sw->ports[i].remote->sw);
 	}
-	/*
-	 * TODO: invoke tb_cfg_prepare_to_sleep here? does not seem to have any
-	 * effect?
-	 */
+
+	tb_lc_set_sleep(sw);
 }
 
 struct tb_sw_lookup {

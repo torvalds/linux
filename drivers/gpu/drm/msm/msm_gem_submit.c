@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/sync_file.h>
@@ -74,27 +63,14 @@ void msm_gem_submit_free(struct msm_gem_submit *submit)
 	kfree(submit);
 }
 
-static inline unsigned long __must_check
-copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(from, n))
-		return __copy_from_user_inatomic(to, from, n);
-	return -EFAULT;
-}
-
 static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct drm_msm_gem_submit *args, struct drm_file *file)
 {
 	unsigned i;
 	int ret = 0;
 
-	spin_lock(&file->table_lock);
-	pagefault_disable();
-
 	for (i = 0; i < args->nr_bos; i++) {
 		struct drm_msm_gem_submit_bo submit_bo;
-		struct drm_gem_object *obj;
-		struct msm_gem_object *msm_obj;
 		void __user *userptr =
 			u64_to_user_ptr(args->bos + (i * sizeof(submit_bo)));
 
@@ -103,15 +79,10 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		 */
 		submit->bos[i].flags = 0;
 
-		if (copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo))) {
-			pagefault_enable();
-			spin_unlock(&file->table_lock);
-			if (copy_from_user(&submit_bo, userptr, sizeof(submit_bo))) {
-				ret = -EFAULT;
-				goto out;
-			}
-			spin_lock(&file->table_lock);
-			pagefault_disable();
+		if (copy_from_user(&submit_bo, userptr, sizeof(submit_bo))) {
+			ret = -EFAULT;
+			i = 0;
+			goto out;
 		}
 
 /* at least one of READ and/or WRITE flags should be set: */
@@ -121,19 +92,28 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 			!(submit_bo.flags & MANDATORY_FLAGS)) {
 			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
-			goto out_unlock;
+			i = 0;
+			goto out;
 		}
 
+		submit->bos[i].handle = submit_bo.handle;
 		submit->bos[i].flags = submit_bo.flags;
 		/* in validate_objects() we figure out if this is true: */
 		submit->bos[i].iova  = submit_bo.presumed;
+	}
+
+	spin_lock(&file->table_lock);
+
+	for (i = 0; i < args->nr_bos; i++) {
+		struct drm_gem_object *obj;
+		struct msm_gem_object *msm_obj;
 
 		/* normally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
 		 */
-		obj = idr_find(&file->object_idr, submit_bo.handle);
+		obj = idr_find(&file->object_idr, submit->bos[i].handle);
 		if (!obj) {
-			DRM_ERROR("invalid handle %u at index %u\n", submit_bo.handle, i);
+			DRM_ERROR("invalid handle %u at index %u\n", submit->bos[i].handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -142,7 +122,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 
 		if (!list_empty(&msm_obj->submit_entry)) {
 			DRM_ERROR("handle %u at index %u already on submit list\n",
-					submit_bo.handle, i);
+					submit->bos[i].handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -155,7 +135,6 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	}
 
 out_unlock:
-	pagefault_enable();
 	spin_unlock(&file->table_lock);
 
 out:
@@ -173,7 +152,7 @@ static void submit_unlock_unpin_bo(struct msm_gem_submit *submit,
 		msm_gem_unpin_iova(&msm_obj->base, submit->gpu->aspace);
 
 	if (submit->bos[i].flags & BO_LOCKED)
-		ww_mutex_unlock(&msm_obj->resv->lock);
+		ww_mutex_unlock(&msm_obj->base.resv->lock);
 
 	if (backoff && !(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
@@ -196,7 +175,7 @@ retry:
 		contended = i;
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
-			ret = ww_mutex_lock_interruptible(&msm_obj->resv->lock,
+			ret = ww_mutex_lock_interruptible(&msm_obj->base.resv->lock,
 					&submit->ticket);
 			if (ret)
 				goto fail;
@@ -218,7 +197,7 @@ fail:
 	if (ret == -EDEADLK) {
 		struct msm_gem_object *msm_obj = submit->bos[contended].obj;
 		/* we lost out in a seqno race, lock and retry.. */
-		ret = ww_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
+		ret = ww_mutex_lock_slow_interruptible(&msm_obj->base.resv->lock,
 				&submit->ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
@@ -244,7 +223,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 			 * strange place to call it.  OTOH this is a
 			 * convenient can-fail point to hook it in.
 			 */
-			ret = reservation_object_reserve_shared(msm_obj->resv,
+			ret = reservation_object_reserve_shared(msm_obj->base.resv,
 								1);
 			if (ret)
 				return ret;

@@ -59,7 +59,6 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
 #include <rdma/rdmavt_mr.h>
-#include <rdma/rdmavt_qp.h>
 
 #define RVT_MAX_PKEY_VALUES 16
 
@@ -72,6 +71,8 @@ struct trap_list {
 	struct list_head list;
 };
 
+struct rvt_qp;
+struct rvt_qpn_table;
 struct rvt_ibport {
 	struct rvt_qp __rcu *qp[2];
 	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
@@ -204,6 +205,20 @@ struct rvt_ah {
 	atomic_t refcount;
 	u8 vl;
 	u8 log_pmtu;
+};
+
+/*
+ * This structure is used by rvt_mmap() to validate an offset
+ * when an mmap() request is made.  The vm_area_struct then uses
+ * this as its vm_private_data.
+ */
+struct rvt_mmap_info {
+	struct list_head pending_mmaps;
+	struct ib_ucontext *context;
+	void *obj;
+	__u64 offset;
+	struct kref ref;
+	u32 size;
 };
 
 /* memory working set size */
@@ -501,16 +516,6 @@ static inline struct rvt_dev_info *ib_to_rvt(struct ib_device *ibdev)
 	return  container_of(ibdev, struct rvt_dev_info, ibdev);
 }
 
-static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
-{
-	return container_of(ibsrq, struct rvt_srq, ibsrq);
-}
-
-static inline struct rvt_qp *ibqp_to_rvtqp(struct ib_qp *ibqp)
-{
-	return container_of(ibqp, struct rvt_qp, ibqp);
-}
-
 static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
 {
 	/*
@@ -546,57 +551,6 @@ static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,
 		return 0;
 	else
 		return rdi->ports[port_index]->pkey_table[index];
-}
-
-/**
- * rvt_lookup_qpn - return the QP with the given QPN
- * @ibp: the ibport
- * @qpn: the QP number to look up
- *
- * The caller must hold the rcu_read_lock(), and keep the lock until
- * the returned qp is no longer in use.
- */
-/* TODO: Remove this and put in rdmavt/qp.h when no longer needed by drivers */
-static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
-					    struct rvt_ibport *rvp,
-					    u32 qpn) __must_hold(RCU)
-{
-	struct rvt_qp *qp = NULL;
-
-	if (unlikely(qpn <= 1)) {
-		qp = rcu_dereference(rvp->qp[qpn]);
-	} else {
-		u32 n = hash_32(qpn, rdi->qp_dev->qp_table_bits);
-
-		for (qp = rcu_dereference(rdi->qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn)
-				break;
-	}
-	return qp;
-}
-
-/**
- * rvt_mod_retry_timer - mod a retry timer
- * @qp - the QP
- * @shift - timeout shift to wait for multiple packets
- * Modify a potentially already running retry timer
- */
-static inline void rvt_mod_retry_timer_ext(struct rvt_qp *qp, u8 shift)
-{
-	struct ib_qp *ibqp = &qp->ibqp;
-	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
-
-	lockdep_assert_held(&qp->s_lock);
-	qp->s_flags |= RVT_S_TIMER;
-	/* 4.096 usec. * (1 << qp->timeout) */
-	mod_timer(&qp->s_timer, jiffies + rdi->busy_jiffies +
-		  (qp->timeout_jiffies << shift));
-}
-
-static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
-{
-	return rvt_mod_retry_timer_ext(qp, 0);
 }
 
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);

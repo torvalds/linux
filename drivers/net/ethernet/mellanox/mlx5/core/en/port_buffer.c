@@ -167,23 +167,23 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
 }
 
 /**
- * update_buffer_lossy()
- *   max_mtu: netdev's max_mtu
- *   pfc_en: <input> current pfc configuration
- *   buffer: <input> current prio to buffer mapping
- *   xoff:   <input> xoff value
- *   port_buffer: <output> port receive buffer configuration
- *   change: <output>
+ *	update_buffer_lossy	- Update buffer configuration based on pfc
+ *	@max_mtu: netdev's max_mtu
+ *	@pfc_en: <input> current pfc configuration
+ *	@buffer: <input> current prio to buffer mapping
+ *	@xoff:   <input> xoff value
+ *	@port_buffer: <output> port receive buffer configuration
+ *	@change: <output>
  *
- *   Update buffer configuration based on pfc configuraiton and priority
- *   to buffer mapping.
- *   Buffer's lossy bit is changed to:
- *     lossless if there is at least one PFC enabled priority mapped to this buffer
- *     lossy if all priorities mapped to this buffer are PFC disabled
+ *	Update buffer configuration based on pfc configuraiton and
+ *	priority to buffer mapping.
+ *	Buffer's lossy bit is changed to:
+ *		lossless if there is at least one PFC enabled priority
+ *		mapped to this buffer lossy if all priorities mapped to
+ *		this buffer are PFC disabled
  *
- *   Return:
- *     Return 0 if no error.
- *     Set change to true if buffer configuration is modified.
+ *	@return: 0 if no error,
+ *	sets change to true if buffer configuration was modified.
  */
 static int update_buffer_lossy(unsigned int max_mtu,
 			       u8 pfc_en, u8 *buffer, u32 xoff,

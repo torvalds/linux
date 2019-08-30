@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -962,13 +959,13 @@ static void bgx_poll_for_sgmii_link(struct lmac *lmac)
 	lmac->last_duplex = (an_result >> 1) & 0x1;
 	switch (speed) {
 	case 0:
-		lmac->last_speed = 10;
+		lmac->last_speed = SPEED_10;
 		break;
 	case 1:
-		lmac->last_speed = 100;
+		lmac->last_speed = SPEED_100;
 		break;
 	case 2:
-		lmac->last_speed = 1000;
+		lmac->last_speed = SPEED_1000;
 		break;
 	default:
 		lmac->link_up = false;
@@ -1012,10 +1009,10 @@ static void bgx_poll_for_link(struct work_struct *work)
 	    !(smu_link & SMU_RX_CTL_STATUS)) {
 		lmac->link_up = 1;
 		if (lmac->lmac_type == BGX_MODE_XLAUI)
-			lmac->last_speed = 40000;
+			lmac->last_speed = SPEED_40000;
 		else
-			lmac->last_speed = 10000;
-		lmac->last_duplex = 1;
+			lmac->last_speed = SPEED_10000;
+		lmac->last_duplex = DUPLEX_FULL;
 	} else {
 		lmac->link_up = 0;
 		lmac->last_speed = SPEED_UNKNOWN;
@@ -1105,8 +1102,8 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 			} else {
 				/* Default to below link speed and duplex */
 				lmac->link_up = true;
-				lmac->last_speed = 1000;
-				lmac->last_duplex = 1;
+				lmac->last_speed = SPEED_1000;
+				lmac->last_duplex = DUPLEX_FULL;
 				bgx_sgmii_change_link_state(lmac);
 				return 0;
 			}
@@ -1484,7 +1481,7 @@ static int bgx_init_of_phy(struct bgx *bgx)
 			break;
 
 		mac = of_get_mac_address(node);
-		if (mac)
+		if (!IS_ERR(mac))
 			ether_addr_copy(bgx->lmac[lmac].mac, mac);
 
 		SET_NETDEV_DEV(&bgx->lmac[lmac].netdev, &bgx->pdev->dev);

@@ -19,8 +19,6 @@
 
 #define VCPU_ID		5
 
-static bool have_nested_state;
-
 void l2_guest_code(void)
 {
 	GUEST_SYNC(6);
@@ -73,7 +71,6 @@ void guest_code(struct vmx_pages *vmx_pages)
 
 int main(int argc, char *argv[])
 {
-	struct vmx_pages *vmx_pages = NULL;
 	vm_vaddr_t vmx_pages_gva = 0;
 
 	struct kvm_regs regs1, regs2;
@@ -87,8 +84,6 @@ int main(int argc, char *argv[])
 		.cap = KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
 		 .args[0] = (unsigned long)&evmcs_ver
 	};
-
-	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
@@ -113,7 +108,7 @@ int main(int argc, char *argv[])
 
 	vcpu_regs_get(vm, VCPU_ID, &regs1);
 
-	vmx_pages = vcpu_alloc_vmx(vm, &vmx_pages_gva);
+	vcpu_alloc_vmx(vm, &vmx_pages_gva);
 	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 
 	for (stage = 1;; stage++) {
@@ -151,6 +146,7 @@ int main(int argc, char *argv[])
 		kvm_vm_restart(vm, O_RDWR);
 		vm_vcpu_add(vm, VCPU_ID, 0, 0);
 		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
+		vcpu_ioctl(vm, VCPU_ID, KVM_ENABLE_CAP, &enable_evmcs_cap);
 		vcpu_load_state(vm, VCPU_ID, state);
 		run = vcpu_state(vm, VCPU_ID);
 		free(state);

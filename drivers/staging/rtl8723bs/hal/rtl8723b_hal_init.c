@@ -883,7 +883,7 @@ static void hal_ReadEFuse_WiFi(
 	}
 
 	efuseTbl = rtw_malloc(EFUSE_MAX_MAP_LEN);
-	if (efuseTbl == NULL) {
+	if (!efuseTbl) {
 		DBG_8192C("%s: alloc efuseTbl fail!\n", __func__);
 		return;
 	}
@@ -1463,7 +1463,7 @@ static s32 Hal_EfusePgPacketRead(
 	s32	ret;
 
 
-	if (data == NULL)
+	if (!data)
 		return false;
 
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, &max_section, bPseudoTest);
@@ -3664,7 +3664,7 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 	s32 ret = _SUCCESS;
 	u8 index = 0;
 
-	if (pC2hEvent == NULL) {
+	if (!pC2hEvent) {
 		DBG_8192C("%s(): pC2hEventis NULL\n", __func__);
 		ret = _FAIL;
 		goto exit;
@@ -3714,7 +3714,7 @@ static void process_c2h_event(struct adapter *padapter, PC2H_EVT_HDR pC2hEvent, 
 {
 	u8 index = 0;
 
-	if (c2hBuf == NULL) {
+	if (!c2hBuf) {
 		DBG_8192C("%s c2hbuff is NULL\n", __func__);
 		return;
 	}

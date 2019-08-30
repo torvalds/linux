@@ -1575,9 +1575,11 @@ int t4_slow_intr_handler(struct adapter *adapter);
 
 int t4_wait_dev_ready(void __iomem *regs);
 
+fw_port_cap32_t t4_link_acaps(struct adapter *adapter, unsigned int port,
+			      struct link_config *lc);
 int t4_link_l1cfg_core(struct adapter *adap, unsigned int mbox,
 		       unsigned int port, struct link_config *lc,
-		       bool sleep_ok, int timeout);
+		       u8 sleep_ok, int timeout);
 
 static inline int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 				unsigned int port, struct link_config *lc)

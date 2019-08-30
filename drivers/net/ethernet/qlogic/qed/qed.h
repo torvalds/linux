@@ -496,6 +496,9 @@ enum qed_mf_mode_bit {
 
 	/* Allow DSCP to TC mapping */
 	QED_MF_DSCP_TO_TC_MAP,
+
+	/* Do not insert a vlan tag with id 0 */
+	QED_MF_DONT_ADD_VLAN0_TAG,
 };
 
 enum qed_ufp_mode {

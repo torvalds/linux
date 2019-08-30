@@ -32,12 +32,6 @@ config ARCH_DEFCONFIG
 	default "arch/um/configs/i386_defconfig" if X86_32
 	default "arch/um/configs/x86_64_defconfig" if X86_64
 
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool 64BIT
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool !RWSEM_XCHGADD_ALGORITHM
-
 config 3_LEVEL_PGTABLES
 	bool "Three-level pagetables" if !64BIT
 	default 64BIT

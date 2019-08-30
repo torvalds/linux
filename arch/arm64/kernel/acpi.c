@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ARM64 Specific Low-Level ACPI Boot Support
  *
@@ -7,10 +8,6 @@
  *	Author: Hanjun Guo <hanjun.guo@linaro.org>
  *	Author: Tomasz Nowicki <tomasz.nowicki@linaro.org>
  *	Author: Naresh Bhat <naresh.bhat@linaro.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "ACPI: " fmt

@@ -8,6 +8,8 @@
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 
+#define IANA_VXLAN_UDP_PORT     4789
+
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |R|R|R|R|I|R|R|R|               Reserved                        |

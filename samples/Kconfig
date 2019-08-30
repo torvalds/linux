@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig SAMPLES
 	bool "Sample kernel code"
 	depends on !UML
@@ -20,8 +21,7 @@ config SAMPLE_TRACE_PRINTK
 	 test various trace_printk() calls from a module.
 
 config SAMPLE_KOBJECT
-	tristate "Build kobject examples -- loadable modules only"
-	depends on m
+	tristate "Build kobject examples"
 	help
 	  This config option will allow you to build a number of
 	  different kobject sample modules showing how to use kobjects,
@@ -103,8 +103,8 @@ config SAMPLE_CONNECTOR
 	  See also Documentation/connector/connector.txt
 
 config SAMPLE_SECCOMP
-	tristate "Build seccomp sample code -- loadable modules only"
-	depends on SECCOMP_FILTER && m
+	bool "Build seccomp sample code"
+	depends on SECCOMP_FILTER
 	help
 	  Build samples of seccomp filters using various methods of
 	  BPF filter construction.
@@ -154,10 +154,11 @@ config SAMPLE_ANDROID_BINDERFS
 	  Builds a sample program to illustrate the use of the Android binderfs
 	  filesystem.
 
-config SAMPLE_STATX
-	bool "Build example extended-stat using code"
-	depends on BROKEN
+config SAMPLE_VFS
+	bool "Build example programs that use new VFS system calls"
 	help
-	  Build example userspace program to use the new extended-stat syscall.
+	  Build example userspace programs that use new VFS system calls such
+	  as mount API and statx().  Note that this is restricted to the x86
+	  arch whilst it accesses system calls that aren't yet in all arches.
 
 endif # SAMPLES

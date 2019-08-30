@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License terms: GNU General Public License (GPL) version 2
  * Author: Virupax Sadashivpetimath <virupax.sadashivpetimath@stericsson.com>
  *
  * RTC clock driver for the RTC part of the AB8500 Power management chip.

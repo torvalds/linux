@@ -72,8 +72,6 @@
 #define AD5758_DCDC_CONFIG1_DCDC_VPROG_MODE(x)	(((x) & 0x1F) << 0)
 #define AD5758_DCDC_CONFIG1_DCDC_MODE_MSK	GENMASK(6, 5)
 #define AD5758_DCDC_CONFIG1_DCDC_MODE_MODE(x)	(((x) & 0x3) << 5)
-#define AD5758_DCDC_CONFIG1_PROT_SW_EN_MSK	BIT(7)
-#define AD5758_DCDC_CONFIG1_PROT_SW_EN_MODE(x)	(((x) & 0x1) << 7)
 
 /* AD5758_DCDC_CONFIG2 */
 #define AD5758_DCDC_CONFIG2_ILIMIT_MSK		GENMASK(3, 1)
@@ -83,6 +81,10 @@
 
 /* AD5758_DIGITAL_DIAG_RESULTS */
 #define AD5758_CAL_MEM_UNREFRESHED_MSK		BIT(15)
+
+/* AD5758_ADC_CONFIG */
+#define AD5758_ADC_CONFIG_PPC_BUF_EN(x)		(((x) & 0x1) << 11)
+#define AD5758_ADC_CONFIG_PPC_BUF_MSK		BIT(11)
 
 #define AD5758_WR_FLAG_MSK(x)		(0x80 | ((x) & 0x1F))
 
@@ -315,6 +317,18 @@ static int ad5758_set_dc_dc_conv_mode(struct ad5758_state *st,
 {
 	int ret;
 
+	/*
+	 * The ENABLE_PPC_BUFFERS bit must be set prior to enabling PPC current
+	 * mode.
+	 */
+	if (mode == AD5758_DCDC_MODE_PPC_CURRENT) {
+		ret  = ad5758_spi_write_mask(st, AD5758_ADC_CONFIG,
+				    AD5758_ADC_CONFIG_PPC_BUF_MSK,
+				    AD5758_ADC_CONFIG_PPC_BUF_EN(1));
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = ad5758_spi_write_mask(st, AD5758_DCDC_CONFIG1,
 				    AD5758_DCDC_CONFIG1_DCDC_MODE_MSK,
 				    AD5758_DCDC_CONFIG1_DCDC_MODE_MODE(mode));
@@ -444,23 +458,6 @@ static int ad5758_set_out_range(struct ad5758_state *st, int range)
 					     AD5758_CAL_MEM_UNREFRESHED_MSK);
 }
 
-static int ad5758_fault_prot_switch_en(struct ad5758_state *st, bool enable)
-{
-	int ret;
-
-	ret = ad5758_spi_write_mask(st, AD5758_DCDC_CONFIG1,
-			AD5758_DCDC_CONFIG1_PROT_SW_EN_MSK,
-			AD5758_DCDC_CONFIG1_PROT_SW_EN_MODE(enable));
-	if (ret < 0)
-		return ret;
-	/*
-	 * Poll the BUSY_3WI bit in the DCDC_CONFIG2 register until it is 0.
-	 * This allows the 3-wire interface communication to complete.
-	 */
-	return ad5758_wait_for_task_complete(st, AD5758_DCDC_CONFIG2,
-					     AD5758_DCDC_CONFIG2_BUSY_3WI_MSK);
-}
-
 static int ad5758_internal_buffers_en(struct ad5758_state *st, bool enable)
 {
 	int ret;
@@ -585,8 +582,8 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5758_state *st = iio_priv(indio_dev);
 	bool pwr_down;
-	unsigned int dcdc_config1_mode, dc_dc_mode, dac_config_mode, val;
-	unsigned long int dcdc_config1_msk, dac_config_msk;
+	unsigned int dc_dc_mode, dac_config_mode, val;
+	unsigned long int dac_config_msk;
 	int ret;
 
 	ret = kstrtobool(buf, &pwr_down);
@@ -601,17 +598,6 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 		dc_dc_mode = st->dc_dc_mode;
 		val = 1;
 	}
-
-	dcdc_config1_mode = AD5758_DCDC_CONFIG1_DCDC_MODE_MODE(dc_dc_mode) |
-			    AD5758_DCDC_CONFIG1_PROT_SW_EN_MODE(val);
-	dcdc_config1_msk = AD5758_DCDC_CONFIG1_DCDC_MODE_MSK |
-			   AD5758_DCDC_CONFIG1_PROT_SW_EN_MSK;
-
-	ret = ad5758_spi_write_mask(st, AD5758_DCDC_CONFIG1,
-				    dcdc_config1_msk,
-				    dcdc_config1_mode);
-	if (ret < 0)
-		goto err_unlock;
 
 	dac_config_mode = AD5758_DAC_CONFIG_OUT_EN_MODE(val) |
 			  AD5758_DAC_CONFIG_INT_EN_MODE(val);
@@ -840,11 +826,6 @@ static int ad5758_init(struct ad5758_state *st)
 		if (ret < 0)
 			return ret;
 	}
-
-	/* Enable the VIOUT fault protection switch (FPS is closed) */
-	ret = ad5758_fault_prot_switch_en(st, 1);
-	if (ret < 0)
-		return ret;
 
 	/* Power up the DAC and internal (INT) amplifiers */
 	ret = ad5758_internal_buffers_en(st, 1);

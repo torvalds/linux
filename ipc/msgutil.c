@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/ipc/msgutil.c
  * Copyright (C) 1999, 2004 Manfred Spraul
- *
- * This file is released under GNU General Public Licence version 2 or
- * (at your option) any later version.
- *
- * See the file COPYING for more details.
  */
 
 #include <linux/spinlock.h>
@@ -18,6 +14,7 @@
 #include <linux/utsname.h>
 #include <linux/proc_ns.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
 
 #include "util.h"
 
@@ -64,6 +61,9 @@ static struct msg_msg *alloc_msg(size_t len)
 	pseg = &msg->next;
 	while (len > 0) {
 		struct msg_msgseg *seg;
+
+		cond_resched();
+
 		alen = min(len, DATALEN_SEG);
 		seg = kmalloc(sizeof(*seg) + alen, GFP_KERNEL_ACCOUNT);
 		if (seg == NULL)
@@ -176,6 +176,8 @@ void free_msg(struct msg_msg *msg)
 	kfree(msg);
 	while (seg != NULL) {
 		struct msg_msgseg *tmp = seg->next;
+
+		cond_resched();
 		kfree(seg);
 		seg = tmp;
 	}

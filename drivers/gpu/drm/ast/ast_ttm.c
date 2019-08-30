@@ -178,7 +178,6 @@ int ast_mm_init(struct ast_private *ast)
 	ret = ttm_bo_device_init(&ast->ttm.bdev,
 				 &ast_bo_driver,
 				 dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -344,13 +343,8 @@ int ast_bo_push_sysram(struct ast_bo *bo)
 
 int ast_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct ast_private *ast;
+	struct drm_file *file_priv = filp->private_data;
+	struct ast_private *ast = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	ast = file_priv->minor->dev->dev_private;
 	return ttm_bo_mmap(filp, vma, &ast->ttm.bdev);
 }

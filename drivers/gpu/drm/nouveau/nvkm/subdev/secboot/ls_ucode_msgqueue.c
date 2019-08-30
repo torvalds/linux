@@ -39,32 +39,32 @@
  */
 static int
 acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
-			   struct ls_ucode_img *img)
+			   int maxver, struct ls_ucode_img *img)
 {
 	const struct firmware *image, *desc, *sig;
 	char f[64];
-	int ret;
+	int ver, ret;
 
 	snprintf(f, sizeof(f), "%s/image", name);
-	ret = nvkm_firmware_get(subdev->device, f, &image);
-	if (ret)
-		return ret;
+	ver = nvkm_firmware_get_version(subdev, f, 0, maxver, &image);
+	if (ver < 0)
+		return ver;
 	img->ucode_data = kmemdup(image->data, image->size, GFP_KERNEL);
 	nvkm_firmware_put(image);
 	if (!img->ucode_data)
 		return -ENOMEM;
 
 	snprintf(f, sizeof(f), "%s/desc", name);
-	ret = nvkm_firmware_get(subdev->device, f, &desc);
-	if (ret)
+	ret = nvkm_firmware_get_version(subdev, f, ver, ver, &desc);
+	if (ret < 0)
 		return ret;
 	memcpy(&img->ucode_desc, desc->data, sizeof(img->ucode_desc));
 	img->ucode_size = ALIGN(img->ucode_desc.app_start_offset + img->ucode_desc.app_size, 256);
 	nvkm_firmware_put(desc);
 
 	snprintf(f, sizeof(f), "%s/sig", name);
-	ret = nvkm_firmware_get(subdev->device, f, &sig);
-	if (ret)
+	ret = nvkm_firmware_get_version(subdev, f, ver, ver, &sig);
+	if (ret < 0)
 		return ret;
 	img->sig_size = sig->size;
 	img->sig = kmemdup(sig->data, sig->size, GFP_KERNEL);
@@ -72,7 +72,7 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 	if (!img->sig)
 		return -ENOMEM;
 
-	return 0;
+	return ver;
 }
 
 static int
@@ -99,12 +99,13 @@ acr_ls_msgqueue_post_run(struct nvkm_msgqueue *queue,
 }
 
 int
-acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
+acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, int maxver,
+		      struct ls_ucode_img *img)
 {
 	struct nvkm_pmu *pmu = sb->subdev.device->pmu;
 	int ret;
 
-	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "pmu", img);
+	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "pmu", maxver, img);
 	if (ret)
 		return ret;
 
@@ -136,14 +137,15 @@ acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 }
 
 int
-acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
+acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, int maxver,
+		       struct ls_ucode_img *img)
 {
 	struct nvkm_sec2 *sec = sb->subdev.device->sec2;
-	int ret;
+	int ver, ret;
 
-	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "sec2", img);
-	if (ret)
-		return ret;
+	ver = acr_ls_ucode_load_msgqueue(&sb->subdev, "sec2", maxver, img);
+	if (ver < 0)
+		return ver;
 
 	/* Allocate the PMU queue corresponding to the FW version */
 	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, sec->falcon,
@@ -151,7 +153,7 @@ acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
 	if (ret)
 		return ret;
 
-	return 0;
+	return ver;
 }
 
 int

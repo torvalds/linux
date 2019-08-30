@@ -1,5 +1,6 @@
+=============================
 Infinity Usb Unlimited Readme
------------------------------
+=============================
 
 Hi all,
 
@@ -19,7 +20,8 @@ have his own device file(/dev/ttyUSB0,/dev/ttyUSB1,...)
 
 
 
-How to tune the reader speed ?
+How to tune the reader speed?
+=============================
 
  A few parameters can be used at load time
  To use parameters, just unload the module if it is
@@ -27,26 +29,33 @@ How to tune the reader speed ?
  In case of prebuilt module, use the command
  insmod iuu_phoenix param=value.
 
- Example:
+ Example::
 
- modprobe iuu_phoenix clockmode=3
+	modprobe iuu_phoenix clockmode=3
 
  The parameters are:
 
- parm:           clockmode:1=3Mhz579,2=3Mhz680,3=6Mhz (int)
- parm:           boost:overclock boost percent 100 to 500 (int)
- parm:           cdmode:Card detect mode 0=none, 1=CD, 2=!CD, 3=DSR, 4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING (int)
- parm:           xmas:xmas color enabled or not (bool)
- parm:           debug:Debug enabled or not (bool)
+clockmode:
+	1=3Mhz579,2=3Mhz680,3=6Mhz (int)
+boost:
+	overclock boost percent 100 to 500 (int)
+cdmode:
+	Card detect mode
+	0=none, 1=CD, 2=!CD, 3=DSR, 4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING (int)
+xmas:
+	xmas color enabled or not (bool)
+debug:
+	Debug enabled or not (bool)
 
 -  clockmode will provide 3 different base settings commonly adopted by
    different software:
- 	1. 3Mhz579
+
+	1. 3Mhz579
 	2. 3Mhz680
 	3. 6Mhz
 
 -  boost provide a way to overclock the reader ( my favorite :-)  )
-   For example to have best performance than a simple clockmode=3, try this:
+   For example to have best performance than a simple clockmode=3, try this::
 
       modprobe boost=195
 
@@ -66,7 +75,8 @@ How to tune the reader speed ?
 -  debug will produce a lot of debugging messages...
 
 
- Last notes:
+Last notes
+==========
 
  Don't worry about the serial settings, the serial emulation
  is an abstraction, so use any speed or parity setting will

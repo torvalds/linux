@@ -47,11 +47,13 @@
  * for future transactions
  */
 
+#include <linux/workqueue.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/rdmavt_qp.h>
+
 /* STL Verbs Extended */
 #define IB_BTHE_E_SHIFT           24
 #define HFI1_VERBS_E_ATOMIC_VADDR U64_MAX
-
-struct ib_atomic_eth;
 
 enum hfi1_opfn_codes {
 	STL_VERBS_EXTD_NONE = 0,

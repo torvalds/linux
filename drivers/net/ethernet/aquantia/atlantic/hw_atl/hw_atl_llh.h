@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_llh.h: Declarations of bitfield and register access functions for
@@ -40,29 +37,17 @@ u32 hw_atl_glb_soft_res_get(struct aq_hw_s *aq_hw);
 
 u32 hw_atl_rpb_rx_dma_drop_pkt_cnt_get(struct aq_hw_s *aq_hw);
 
-/* get rx dma good octet counter lsw */
-u32 hw_atl_stats_rx_dma_good_octet_counterlsw_get(struct aq_hw_s *aq_hw);
+/* get rx dma good octet counter */
+u64 hw_atl_stats_rx_dma_good_octet_counter_get(struct aq_hw_s *aq_hw);
 
-/* get rx dma good packet counter lsw */
-u32 hw_atl_stats_rx_dma_good_pkt_counterlsw_get(struct aq_hw_s *aq_hw);
+/* get rx dma good packet counter */
+u64 hw_atl_stats_rx_dma_good_pkt_counter_get(struct aq_hw_s *aq_hw);
 
-/* get tx dma good octet counter lsw */
-u32 hw_atl_stats_tx_dma_good_octet_counterlsw_get(struct aq_hw_s *aq_hw);
+/* get tx dma good octet counter */
+u64 hw_atl_stats_tx_dma_good_octet_counter_get(struct aq_hw_s *aq_hw);
 
-/* get tx dma good packet counter lsw */
-u32 hw_atl_stats_tx_dma_good_pkt_counterlsw_get(struct aq_hw_s *aq_hw);
-
-/* get rx dma good octet counter msw */
-u32 hw_atl_stats_rx_dma_good_octet_countermsw_get(struct aq_hw_s *aq_hw);
-
-/* get rx dma good packet counter msw */
-u32 hw_atl_stats_rx_dma_good_pkt_countermsw_get(struct aq_hw_s *aq_hw);
-
-/* get tx dma good octet counter msw */
-u32 hw_atl_stats_tx_dma_good_octet_countermsw_get(struct aq_hw_s *aq_hw);
-
-/* get tx dma good packet counter msw */
-u32 hw_atl_stats_tx_dma_good_pkt_countermsw_get(struct aq_hw_s *aq_hw);
+/* get tx dma good packet counter */
+u64 hw_atl_stats_tx_dma_good_pkt_counter_get(struct aq_hw_s *aq_hw);
 
 /* get msm rx errors counter register */
 u32 hw_atl_reg_mac_msm_rx_errs_cnt_get(struct aq_hw_s *aq_hw);
@@ -81,9 +66,6 @@ u32 hw_atl_reg_mac_msm_rx_bcst_octets_counter1get(struct aq_hw_s *aq_hw);
 
 /* get msm rx unicast octets counter register 0 */
 u32 hw_atl_reg_mac_msm_rx_ucst_octets_counter0get(struct aq_hw_s *aq_hw);
-
-/* get rx dma statistics counter 7 */
-u32 hw_atl_reg_rx_dma_stat_counter7get(struct aq_hw_s *aq_hw);
 
 /* get msm tx errors counter register */
 u32 hw_atl_reg_mac_msm_tx_errs_cnt_get(struct aq_hw_s *aq_hw);
@@ -151,6 +133,12 @@ u32 hw_atl_itr_res_irq_get(struct aq_hw_s *aq_hw);
 
 /* set reset interrupt */
 void hw_atl_itr_res_irq_set(struct aq_hw_s *aq_hw, u32 res_irq);
+
+/* set RSC interrupt */
+void hw_atl_itr_rsc_en_set(struct aq_hw_s *aq_hw, u32 enable);
+
+/* set RSC delay */
+void hw_atl_itr_rsc_delay_set(struct aq_hw_s *aq_hw, u32 delay);
 
 /* rdm */
 

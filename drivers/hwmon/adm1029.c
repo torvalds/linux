@@ -166,7 +166,7 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
  */
 
 static ssize_t
-show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
+temp_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
@@ -175,7 +175,7 @@ show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 }
 
 static ssize_t
-show_fan(struct device *dev, struct device_attribute *devattr, char *buf)
+fan_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
@@ -193,7 +193,7 @@ show_fan(struct device *dev, struct device_attribute *devattr, char *buf)
 }
 
 static ssize_t
-show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
+fan_div_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
@@ -203,8 +203,9 @@ show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[attr->index]));
 }
 
-static ssize_t set_fan_div(struct device *dev, struct device_attribute *devattr,
-			   const char *buf, size_t count)
+static ssize_t fan_div_store(struct device *dev,
+			     struct device_attribute *devattr,
+			     const char *buf, size_t count)
 {
 	struct adm1029_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -254,26 +255,26 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *devattr,
 }
 
 /* Access rights on sysfs. */
-static SENSOR_DEVICE_ATTR(temp1_input, 0444, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_input, 0444, show_temp, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_input, 0444, show_temp, NULL, 2);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 2);
 
-static SENSOR_DEVICE_ATTR(temp1_max, 0444, show_temp, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp2_max, 0444, show_temp, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp3_max, 0444, show_temp, NULL, 5);
+static SENSOR_DEVICE_ATTR_RO(temp1_max, temp, 3);
+static SENSOR_DEVICE_ATTR_RO(temp2_max, temp, 4);
+static SENSOR_DEVICE_ATTR_RO(temp3_max, temp, 5);
 
-static SENSOR_DEVICE_ATTR(temp1_min, 0444, show_temp, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp2_min, 0444, show_temp, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp3_min, 0444, show_temp, NULL, 8);
+static SENSOR_DEVICE_ATTR_RO(temp1_min, temp, 6);
+static SENSOR_DEVICE_ATTR_RO(temp2_min, temp, 7);
+static SENSOR_DEVICE_ATTR_RO(temp3_min, temp, 8);
 
-static SENSOR_DEVICE_ATTR(fan1_input, 0444, show_fan, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, 0444, show_fan, NULL, 1);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan, 1);
 
-static SENSOR_DEVICE_ATTR(fan1_min, 0444, show_fan, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan2_min, 0444, show_fan, NULL, 3);
+static SENSOR_DEVICE_ATTR_RO(fan1_min, fan, 2);
+static SENSOR_DEVICE_ATTR_RO(fan2_min, fan, 3);
 
-static SENSOR_DEVICE_ATTR(fan1_div, 0644, show_fan_div, set_fan_div, 0);
-static SENSOR_DEVICE_ATTR(fan2_div, 0644, show_fan_div, set_fan_div, 1);
+static SENSOR_DEVICE_ATTR_RW(fan1_div, fan_div, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_div, fan_div, 1);
 
 static struct attribute *adm1029_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

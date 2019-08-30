@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Russell King
  *  Written from the i915 driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -78,8 +75,6 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 		goto err_fballoc;
 	}
 
-	strlcpy(info->fix.id, "armada-drmfb", sizeof(info->fix.id));
-	info->par = fbh;
 	info->fbops = &armada_fb_ops;
 	info->fix.smem_start = obj->phys_addr;
 	info->fix.smem_len = obj->obj.size;
@@ -87,9 +82,7 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	info->screen_base = ptr;
 	fbh->fb = &dfb->fb;
 
-	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0],
-			       dfb->fb.format->depth);
-	drm_fb_helper_fill_var(info, fbh, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, fbh, sizes);
 
 	DRM_DEBUG_KMS("allocated %dx%d %dbpp fb: 0x%08llx\n",
 		dfb->fb.width, dfb->fb.height, dfb->fb.format->cpp[0] * 8,

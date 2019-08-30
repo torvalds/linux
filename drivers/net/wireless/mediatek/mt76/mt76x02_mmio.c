@@ -22,96 +22,18 @@
 #include "mt76x02_mcu.h"
 #include "mt76x02_trace.h"
 
-struct beacon_bc_data {
-	struct mt76x02_dev *dev;
-	struct sk_buff_head q;
-	struct sk_buff *tail[8];
-};
-
-static void
-mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct mt76x02_dev *dev = (struct mt76x02_dev *)priv;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
-	struct sk_buff *skb = NULL;
-
-	if (!(dev->beacon_mask & BIT(mvif->idx)))
-		return;
-
-	skb = ieee80211_beacon_get(mt76_hw(dev), vif);
-	if (!skb)
-		return;
-
-	mt76x02_mac_set_beacon(dev, mvif->idx, skb);
-}
-
-static void
-mt76x02_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct beacon_bc_data *data = priv;
-	struct mt76x02_dev *dev = data->dev;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
-	struct ieee80211_tx_info *info;
-	struct sk_buff *skb;
-
-	if (!(dev->beacon_mask & BIT(mvif->idx)))
-		return;
-
-	skb = ieee80211_get_buffered_bc(mt76_hw(dev), vif);
-	if (!skb)
-		return;
-
-	info = IEEE80211_SKB_CB(skb);
-	info->control.vif = vif;
-	info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
-	mt76_skb_set_moredata(skb, true);
-	__skb_queue_tail(&data->q, skb);
-	data->tail[mvif->idx] = skb;
-}
-
-static void
-mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
-{
-	u32 timer_val = dev->beacon_int << 4;
-
-	dev->tbtt_count++;
-
-	/*
-	 * Beacon timer drifts by 1us every tick, the timer is configured
-	 * in 1/16 TU (64us) units.
-	 */
-	if (dev->tbtt_count < 63)
-		return;
-
-	/*
-	 * The updated beacon interval takes effect after two TBTT, because
-	 * at this point the original interval has already been loaded into
-	 * the next TBTT_TIMER value
-	 */
-	if (dev->tbtt_count == 63)
-		timer_val -= 1;
-
-	mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
-		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
-
-	if (dev->tbtt_count >= 64) {
-		dev->tbtt_count = 0;
-		return;
-	}
-}
-
 static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 {
 	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
-	struct mt76_queue *q = &dev->mt76.q_tx[MT_TXQ_PSD];
+	struct mt76_queue *q = dev->mt76.q_tx[MT_TXQ_PSD].q;
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
-	int i, nframes;
+	int i;
+
+	if (mt76_hw(dev)->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+		return;
 
 	mt76x02_resync_beacon_timer(dev);
-
-	data.dev = dev;
-	__skb_queue_head_init(&data.q);
 
 	ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
 		IEEE80211_IFACE_ITER_RESUME_ALL,
@@ -122,13 +44,7 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 	if (dev->mt76.csa_complete)
 		return;
 
-	do {
-		nframes = skb_queue_len(&data.q);
-		ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
-			IEEE80211_IFACE_ITER_RESUME_ALL,
-			mt76x02_add_buffered_bc, &data);
-	} while (nframes != skb_queue_len(&data.q) &&
-		 skb_queue_len(&data.q) < 8);
+	mt76x02_enqueue_buffered_bc(dev, &data, 8);
 
 	if (!skb_queue_len(&data.q))
 		return;
@@ -146,25 +62,67 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 		struct ieee80211_vif *vif = info->control.vif;
 		struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
-		mt76_dma_tx_queue_skb(&dev->mt76, q, skb, &mvif->group_wcid,
-				      NULL);
+		mt76_tx_queue_skb(dev, MT_TXQ_PSD, skb, &mvif->group_wcid,
+				  NULL);
 	}
 	spin_unlock_bh(&q->lock);
 }
 
+static void mt76x02e_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
+{
+	if (en)
+		tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
+	else
+		tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
+}
+
+static void mt76x02e_beacon_enable(struct mt76x02_dev *dev, bool en)
+{
+	mt76_rmw_field(dev, MT_INT_TIMER_EN, MT_INT_TIMER_EN_PRE_TBTT_EN, en);
+	if (en)
+		mt76x02_irq_enable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
+	else
+		mt76x02_irq_disable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
+}
+
+void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
+{
+	static const struct mt76x02_beacon_ops beacon_ops = {
+		.nslots = 8,
+		.slot_size = 1024,
+		.pre_tbtt_enable = mt76x02e_pre_tbtt_enable,
+		.beacon_enable = mt76x02e_beacon_enable,
+	};
+
+	dev->beacon_ops = &beacon_ops;
+
+	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT, 8 << 4);
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
+		       MT_DFS_GP_INTERVAL);
+	mt76_wr(dev, MT_INT_TIMER_EN, 0);
+
+	mt76x02_init_beacon_config(dev);
+}
+EXPORT_SYMBOL_GPL(mt76x02e_init_beacon_config);
+
 static int
-mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
+mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_sw_queue *q,
 		      int idx, int n_desc)
 {
-	int ret;
+	struct mt76_queue *hwq;
+	int err;
 
-	q->regs = dev->mt76.mmio.regs + MT_TX_RING_BASE + idx * MT_RING_SIZE;
-	q->ndesc = n_desc;
-	q->hw_idx = idx;
+	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
+	if (!hwq)
+		return -ENOMEM;
 
-	ret = mt76_queue_alloc(dev, q);
-	if (ret)
-		return ret;
+	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
+	if (err < 0)
+		return err;
+
+	INIT_LIST_HEAD(&q->swq);
+	q->q = hwq;
 
 	mt76x02_irq_enable(dev, MT_INT_TX_DONE(idx));
 
@@ -175,15 +133,12 @@ static int
 mt76x02_init_rx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
 		      int idx, int n_desc, int bufsize)
 {
-	int ret;
+	int err;
 
-	q->regs = dev->mt76.mmio.regs + MT_RX_RING_BASE + idx * MT_RING_SIZE;
-	q->ndesc = n_desc;
-	q->buf_size = bufsize;
-
-	ret = mt76_queue_alloc(dev, q);
-	if (ret)
-		return ret;
+	err = mt76_queue_alloc(dev, q, idx, n_desc, bufsize,
+			       MT_RX_RING_BASE);
+	if (err < 0)
+		return err;
 
 	mt76x02_irq_enable(dev, MT_INT_RX_DONE(idx));
 
@@ -202,15 +157,32 @@ static void mt76x02_process_tx_status_fifo(struct mt76x02_dev *dev)
 static void mt76x02_tx_tasklet(unsigned long data)
 {
 	struct mt76x02_dev *dev = (struct mt76x02_dev *)data;
+
+	mt76x02_mac_poll_tx_status(dev, false);
+	mt76x02_process_tx_status_fifo(dev);
+
+	mt76_txq_schedule_all(&dev->mt76);
+}
+
+static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
+{
+	struct mt76x02_dev *dev = container_of(napi, struct mt76x02_dev, tx_napi);
 	int i;
 
-	mt76x02_process_tx_status_fifo(dev);
+	mt76x02_mac_poll_tx_status(dev, false);
 
 	for (i = MT_TXQ_MCU; i >= 0; i--)
 		mt76_queue_tx_cleanup(dev, i, false);
 
-	mt76x02_mac_poll_tx_status(dev, false);
-	mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
+	if (napi_complete_done(napi, 0))
+		mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
+
+	for (i = MT_TXQ_MCU; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, i, false);
+
+	tasklet_schedule(&dev->mt76.tx_tasklet);
+
+	return 0;
 }
 
 int mt76x02_dma_init(struct mt76x02_dev *dev)
@@ -220,7 +192,6 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	struct mt76_queue *q;
 	void *status_fifo;
 
-	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x02_txwi));
 	BUILD_BUG_ON(sizeof(struct mt76x02_rxwi) > MT_RX_HEADROOM);
 
 	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
@@ -228,10 +199,12 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (!status_fifo)
 		return -ENOMEM;
 
-	tasklet_init(&dev->tx_tasklet, mt76x02_tx_tasklet, (unsigned long) dev);
-	tasklet_init(&dev->pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
+	tasklet_init(&dev->mt76.tx_tasklet, mt76x02_tx_tasklet,
+		     (unsigned long) dev);
+	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
+	spin_lock_init(&dev->txstatus_fifo_lock);
 	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
 
 	mt76_dma_attach(&dev->mt76);
@@ -268,7 +241,15 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	return mt76_init_queues(dev);
+	ret = mt76_init_queues(dev);
+	if (ret)
+		return ret;
+
+	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->tx_napi, mt76x02_poll_tx,
+			  NAPI_POLL_WEIGHT);
+	napi_enable(&dev->tx_napi);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_init);
 
@@ -296,11 +277,6 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 
 	intr &= dev->mt76.mmio.irqmask;
 
-	if (intr & MT_INT_TX_DONE_ALL) {
-		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
-		tasklet_schedule(&dev->tx_tasklet);
-	}
-
 	if (intr & MT_INT_RX_DONE(0)) {
 		mt76x02_irq_disable(dev, MT_INT_RX_DONE(0));
 		napi_schedule(&dev->mt76.napi[0]);
@@ -312,19 +288,22 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	}
 
 	if (intr & MT_INT_PRE_TBTT)
-		tasklet_schedule(&dev->pre_tbtt_tasklet);
+		tasklet_schedule(&dev->mt76.pre_tbtt_tasklet);
 
 	/* send buffered multicast frames now */
 	if (intr & MT_INT_TBTT) {
 		if (dev->mt76.csa_complete)
 			mt76_csa_finish(&dev->mt76);
 		else
-			mt76_queue_kick(dev, &dev->mt76.q_tx[MT_TXQ_PSD]);
+			mt76_queue_kick(dev, dev->mt76.q_tx[MT_TXQ_PSD].q);
 	}
 
-	if (intr & MT_INT_TX_STAT) {
+	if (intr & MT_INT_TX_STAT)
 		mt76x02_mac_poll_tx_status(dev, true);
-		tasklet_schedule(&dev->tx_tasklet);
+
+	if (intr & (MT_INT_TX_STAT | MT_INT_TX_DONE_ALL)) {
+		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
+		napi_schedule(&dev->tx_napi);
 	}
 
 	if (intr & MT_INT_GPTIMER) {
@@ -335,18 +314,6 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(mt76x02_irq_handler);
-
-void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
-	dev->mt76.mmio.irqmask &= ~clear;
-	dev->mt76.mmio.irqmask |= set;
-	mt76_wr(dev, MT_INT_MASK_CSR, dev->mt76.mmio.irqmask);
-	spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
-}
-EXPORT_SYMBOL_GPL(mt76x02_set_irq_mask);
 
 static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 {
@@ -366,7 +333,8 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 
 void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
 {
-	tasklet_kill(&dev->tx_tasklet);
+	tasklet_kill(&dev->mt76.tx_tasklet);
+	netif_napi_del(&dev->tx_napi);
 	mt76_dma_cleanup(&dev->mt76);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
@@ -403,13 +371,13 @@ static bool mt76x02_tx_hang(struct mt76x02_dev *dev)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		q = &dev->mt76.q_tx[i];
+		q = dev->mt76.q_tx[i].q;
 
 		if (!q->queued)
 			continue;
 
 		prev_dma_idx = dev->mt76.tx_dma_idx[i];
-		dma_idx = ioread32(&q->regs->dma_idx);
+		dma_idx = readl(&q->regs->dma_idx);
 		dev->mt76.tx_dma_idx[i] = dma_idx;
 
 		if (prev_dma_idx == dma_idx)
@@ -472,7 +440,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 	}
 
 	dev->vif_mask = 0;
-	dev->beacon_mask = 0;
+	dev->mt76.beacon_mask = 0;
 }
 
 static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
@@ -484,8 +452,9 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	ieee80211_stop_queues(dev->mt76.hw);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
-	tasklet_disable(&dev->pre_tbtt_tasklet);
-	tasklet_disable(&dev->tx_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.tx_tasklet);
+	napi_disable(&dev->tx_napi);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
 		napi_disable(&dev->mt76.napi[i]);
@@ -495,7 +464,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	if (restart)
 		mt76x02_reset_state(dev);
 
-	if (dev->beacon_mask)
+	if (dev->mt76.beacon_mask)
 		mt76_clear(dev, MT_BEACON_TIME_CFG,
 			   MT_BEACON_TIME_CFG_BEACON_TX |
 			   MT_BEACON_TIME_CFG_TBTT_EN);
@@ -514,7 +483,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	mt76_set(dev, 0x734, 0x3);
 
 	if (restart)
-		dev->mt76.mcu_ops->mcu_restart(&dev->mt76);
+		mt76_mcu_restart(dev);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_tx); i++)
 		mt76_queue_tx_cleanup(dev, i, true);
@@ -527,7 +496,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	if (dev->ed_monitor)
 		mt76_set(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
 
-	if (dev->beacon_mask && !restart)
+	if (dev->mt76.beacon_mask && !restart)
 		mt76_set(dev, MT_BEACON_TIME_CFG,
 			 MT_BEACON_TIME_CFG_BEACON_TX |
 			 MT_BEACON_TIME_CFG_TBTT_EN);
@@ -538,10 +507,11 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
-	tasklet_enable(&dev->tx_tasklet);
-	tasklet_schedule(&dev->tx_tasklet);
+	tasklet_enable(&dev->mt76.tx_tasklet);
+	napi_enable(&dev->tx_napi);
+	napi_schedule(&dev->tx_napi);
 
-	tasklet_enable(&dev->pre_tbtt_tasklet);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++) {
 		napi_enable(&dev->mt76.napi[i]);

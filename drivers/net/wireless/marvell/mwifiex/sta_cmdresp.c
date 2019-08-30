@@ -1025,17 +1025,14 @@ mwifiex_create_custom_regdomain(struct mwifiex_private *priv,
 	struct ieee80211_regdomain *regd;
 	struct ieee80211_reg_rule *rule;
 	bool new_rule;
-	int regd_size, idx, freq, prev_freq = 0;
+	int idx, freq, prev_freq = 0;
 	u32 bw, prev_bw = 0;
 	u8 chflags, prev_chflags = 0, valid_rules = 0;
 
 	if (WARN_ON_ONCE(num_chan > NL80211_MAX_SUPP_REG_RULES))
 		return ERR_PTR(-EINVAL);
 
-	regd_size = sizeof(struct ieee80211_regdomain) +
-		    num_chan * sizeof(struct ieee80211_reg_rule);
-
-	regd = kzalloc(regd_size, GFP_KERNEL);
+	regd = kzalloc(struct_size(regd, reg_rules, num_chan), GFP_KERNEL);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
 

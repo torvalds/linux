@@ -119,6 +119,21 @@ static struct sec_name_test tests[] = {
 		{0, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_UDP6_SENDMSG},
 		{0, BPF_CGROUP_UDP6_SENDMSG},
 	},
+	{
+		"cgroup/recvmsg4",
+		{0, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_UDP4_RECVMSG},
+		{0, BPF_CGROUP_UDP4_RECVMSG},
+	},
+	{
+		"cgroup/recvmsg6",
+		{0, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, BPF_CGROUP_UDP6_RECVMSG},
+		{0, BPF_CGROUP_UDP6_RECVMSG},
+	},
+	{
+		"cgroup/sysctl",
+		{0, BPF_PROG_TYPE_CGROUP_SYSCTL, BPF_CGROUP_SYSCTL},
+		{0, BPF_CGROUP_SYSCTL},
+	},
 };
 
 static int test_prog_type_by_name(const struct sec_name_test *test)

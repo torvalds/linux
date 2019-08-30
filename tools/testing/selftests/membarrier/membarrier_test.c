@@ -304,6 +304,7 @@ static int test_membarrier_query(void)
 int main(int argc, char **argv)
 {
 	ksft_print_header();
+	ksft_set_plan(13);
 
 	test_membarrier_query();
 	test_membarrier();

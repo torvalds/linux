@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Gustavo Romero, Breno Leitao, Cyril Bur, IBM Corp.
- * Licensed under GPLv2.
  *
  * Force FP, VEC and VSX unavailable exception during transaction in all
  * possible scenarios regarding the MSR.FP and MSR.VEC state, e.g. when FP

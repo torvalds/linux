@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ------------------------------------------------------------------------- */
 /* i2c-iop3xx.c i2c driver algorithms for Intel XScale IOP3xx & IXP46x       */
 /* ------------------------------------------------------------------------- */
@@ -23,10 +24,6 @@
  *
  * - writing to slave address causes latchup on iop331.
  *	fix: driver refuses to address self.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2.
  */
 
 #include <linux/interrupt.h>

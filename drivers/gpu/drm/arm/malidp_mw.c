@@ -141,9 +141,14 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
+	if (fb->modifier) {
+		DRM_DEBUG_KMS("Writeback framebuffer does not support modifiers\n");
+		return -EINVAL;
+	}
+
 	mw_state->format =
 		malidp_hw_get_format_id(&malidp->dev->hw->map, SE_MEMWRITE,
-					fb->format->format);
+					fb->format->format, !!fb->modifier);
 	if (mw_state->format == MALIDP_INVALID_FORMAT_ID) {
 		struct drm_format_name_buf format_name;
 
@@ -252,8 +257,7 @@ void malidp_mw_atomic_commit(struct drm_device *drm,
 				     &mw_state->addrs[0],
 				     mw_state->format);
 
-		drm_writeback_queue_job(mw_conn, conn_state->writeback_job);
-		conn_state->writeback_job = NULL;
+		drm_writeback_queue_job(mw_conn, conn_state);
 		hwdev->hw->enable_memwrite(hwdev, mw_state->addrs,
 					   mw_state->pitches, mw_state->n_planes,
 					   fb->width, fb->height, mw_state->format,

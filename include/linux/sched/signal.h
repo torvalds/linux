@@ -271,17 +271,18 @@ static inline int signal_group_exit(const struct signal_struct *sig)
 extern void flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
-extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, kernel_siginfo_t *info);
+extern int dequeue_signal(struct task_struct *task,
+			  sigset_t *mask, kernel_siginfo_t *info);
 
 static inline int kernel_dequeue_signal(void)
 {
-	struct task_struct *tsk = current;
+	struct task_struct *task = current;
 	kernel_siginfo_t __info;
 	int ret;
 
-	spin_lock_irq(&tsk->sighand->siglock);
-	ret = dequeue_signal(tsk, &tsk->blocked, &__info);
-	spin_unlock_irq(&tsk->sighand->siglock);
+	spin_lock_irq(&task->sighand->siglock);
+	ret = dequeue_signal(task, &task->blocked, &__info);
+	spin_unlock_irq(&task->sighand->siglock);
 
 	return ret;
 }
@@ -419,18 +420,18 @@ static inline void set_restore_sigmask(void)
 	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
 }
 
-static inline void clear_tsk_restore_sigmask(struct task_struct *tsk)
+static inline void clear_tsk_restore_sigmask(struct task_struct *task)
 {
-	clear_tsk_thread_flag(tsk, TIF_RESTORE_SIGMASK);
+	clear_tsk_thread_flag(task, TIF_RESTORE_SIGMASK);
 }
 
 static inline void clear_restore_sigmask(void)
 {
 	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
-static inline bool test_tsk_restore_sigmask(struct task_struct *tsk)
+static inline bool test_tsk_restore_sigmask(struct task_struct *task)
 {
-	return test_tsk_thread_flag(tsk, TIF_RESTORE_SIGMASK);
+	return test_tsk_thread_flag(task, TIF_RESTORE_SIGMASK);
 }
 static inline bool test_restore_sigmask(void)
 {
@@ -449,9 +450,9 @@ static inline void set_restore_sigmask(void)
 	current->restore_sigmask = true;
 	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
 }
-static inline void clear_tsk_restore_sigmask(struct task_struct *tsk)
+static inline void clear_tsk_restore_sigmask(struct task_struct *task)
 {
-	tsk->restore_sigmask = false;
+	task->restore_sigmask = false;
 }
 static inline void clear_restore_sigmask(void)
 {
@@ -461,9 +462,9 @@ static inline bool test_restore_sigmask(void)
 {
 	return current->restore_sigmask;
 }
-static inline bool test_tsk_restore_sigmask(struct task_struct *tsk)
+static inline bool test_tsk_restore_sigmask(struct task_struct *task)
 {
-	return tsk->restore_sigmask;
+	return task->restore_sigmask;
 }
 static inline bool test_and_clear_restore_sigmask(void)
 {
@@ -617,9 +618,9 @@ static inline struct pid *task_session(struct task_struct *task)
 	return task->signal->pids[PIDTYPE_SID];
 }
 
-static inline int get_nr_threads(struct task_struct *tsk)
+static inline int get_nr_threads(struct task_struct *task)
 {
-	return tsk->signal->nr_threads;
+	return task->signal->nr_threads;
 }
 
 static inline bool thread_group_leader(struct task_struct *p)
@@ -658,35 +659,35 @@ static inline int thread_group_empty(struct task_struct *p)
 #define delay_group_leader(p) \
 		(thread_group_leader(p) && !thread_group_empty(p))
 
-extern struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
+extern struct sighand_struct *__lock_task_sighand(struct task_struct *task,
 							unsigned long *flags);
 
-static inline struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
+static inline struct sighand_struct *lock_task_sighand(struct task_struct *task,
 						       unsigned long *flags)
 {
 	struct sighand_struct *ret;
 
-	ret = __lock_task_sighand(tsk, flags);
-	(void)__cond_lock(&tsk->sighand->siglock, ret);
+	ret = __lock_task_sighand(task, flags);
+	(void)__cond_lock(&task->sighand->siglock, ret);
 	return ret;
 }
 
-static inline void unlock_task_sighand(struct task_struct *tsk,
+static inline void unlock_task_sighand(struct task_struct *task,
 						unsigned long *flags)
 {
-	spin_unlock_irqrestore(&tsk->sighand->siglock, *flags);
+	spin_unlock_irqrestore(&task->sighand->siglock, *flags);
 }
 
-static inline unsigned long task_rlimit(const struct task_struct *tsk,
+static inline unsigned long task_rlimit(const struct task_struct *task,
 		unsigned int limit)
 {
-	return READ_ONCE(tsk->signal->rlim[limit].rlim_cur);
+	return READ_ONCE(task->signal->rlim[limit].rlim_cur);
 }
 
-static inline unsigned long task_rlimit_max(const struct task_struct *tsk,
+static inline unsigned long task_rlimit_max(const struct task_struct *task,
 		unsigned int limit)
 {
-	return READ_ONCE(tsk->signal->rlim[limit].rlim_max);
+	return READ_ONCE(task->signal->rlim[limit].rlim_max);
 }
 
 static inline unsigned long rlimit(unsigned int limit)

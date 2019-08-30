@@ -265,19 +265,12 @@
 			phys = <&dphy>;
 			phy-names = "dphy";
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-
-					dsi_in_tcon0: endpoint {
-						remote-endpoint = <&tcon0_out_dsi>;
-					};
+			port {
+				dsi_in_tcon0: endpoint {
+					remote-endpoint = <&tcon0_out_dsi>;
 				};
 			};
 		};
@@ -420,6 +413,9 @@
 };
 
 &tcon0_out {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	tcon0_out_dsi: endpoint@1 {
 		reg = <1>;
 		remote-endpoint = <&dsi_in_tcon0>;

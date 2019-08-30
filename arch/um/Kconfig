@@ -80,46 +80,46 @@ config LD_SCRIPT_DYN
 	bool
 	default y
 	depends on !LD_SCRIPT_STATIC
-        select MODULE_REL_CRCS if MODVERSIONS
+	select MODULE_REL_CRCS if MODVERSIONS
 
 config HOSTFS
 	tristate "Host filesystem"
 	help
-          While the User-Mode Linux port uses its own root file system for
-          booting and normal file access, this module lets the UML user
-          access files stored on the host.  It does not require any
-          network connection between the Host and UML.  An example use of
-          this might be:
+	  While the User-Mode Linux port uses its own root file system for
+	  booting and normal file access, this module lets the UML user
+	  access files stored on the host.  It does not require any
+	  network connection between the Host and UML.  An example use of
+	  this might be:
 
-          mount none /tmp/fromhost -t hostfs -o /tmp/umlshare
+	  mount none /tmp/fromhost -t hostfs -o /tmp/umlshare
 
-          where /tmp/fromhost is an empty directory inside UML and
-          /tmp/umlshare is a directory on the host with files the UML user
-          wishes to access.
+	  where /tmp/fromhost is an empty directory inside UML and
+	  /tmp/umlshare is a directory on the host with files the UML user
+	  wishes to access.
 
-          For more information, see
-          <http://user-mode-linux.sourceforge.net/hostfs.html>.
+	  For more information, see
+	  <http://user-mode-linux.sourceforge.net/hostfs.html>.
 
-          If you'd like to be able to work with files stored on the host,
-          say Y or M here; otherwise say N.
+	  If you'd like to be able to work with files stored on the host,
+	  say Y or M here; otherwise say N.
 
 config MCONSOLE
 	bool "Management console"
 	depends on PROC_FS
 	default y
 	help
-          The user mode linux management console is a low-level interface to
-          the kernel, somewhat like the i386 SysRq interface.  Since there is
-          a full-blown operating system running under every user mode linux
-          instance, there is much greater flexibility possible than with the
-          SysRq mechanism.
+	  The user mode linux management console is a low-level interface to
+	  the kernel, somewhat like the i386 SysRq interface.  Since there is
+	  a full-blown operating system running under every user mode linux
+	  instance, there is much greater flexibility possible than with the
+	  SysRq mechanism.
 
-          If you answer 'Y' to this option, to use this feature, you need the
-          mconsole client (called uml_mconsole) which is present in CVS in
-          2.4.5-9um and later (path /tools/mconsole), and is also in the
-          distribution RPM package in 2.4.6 and later.
+	  If you answer 'Y' to this option, to use this feature, you need the
+	  mconsole client (called uml_mconsole) which is present in CVS in
+	  2.4.5-9um and later (path /tools/mconsole), and is also in the
+	  distribution RPM package in 2.4.6 and later.
 
-          It is safe to say 'Y' here.
+	  It is safe to say 'Y' here.
 
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
@@ -142,13 +142,17 @@ config MAGIC_SYSRQ
 
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
-	default 1 if 64BIT
-	range 1 10 if 64BIT
-	default 0 if !64BIT
+	default 2 if 64BIT
+	range 2 10 if 64BIT
+	default 1 if !64BIT
 	help
 	  This option determines the size of UML kernel stacks.  They will
 	  be 1 << order pages.  The default is OK unless you're running Valgrind
 	  on UML, in which case, set this to 3.
+	  It is possible to reduce the stack to 1 for 64BIT and 0 for 32BIT on
+	  older (pre-2017) CPUs. It is not recommended on newer CPUs due to the
+	  increase in the size of the state which needs to be saved when handling
+          signals.
 
 config MMAPPER
 	tristate "iomem emulation driver"

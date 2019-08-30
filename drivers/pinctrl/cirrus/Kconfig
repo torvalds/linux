@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PINCTRL_LOCHNAGAR
+	tristate "Cirrus Logic Lochnagar pinctrl driver"
+	depends on MFD_LOCHNAGAR
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  This driver supports configuring the GPIO and other pin configuration
+	  of the Cirrus Logic Lochnagar audio development board.
+
 # This is all selected by the Madera MFD driver Kconfig options
 config PINCTRL_MADERA
 	tristate

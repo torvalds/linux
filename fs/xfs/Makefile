@@ -4,8 +4,8 @@
 # All Rights Reserved.
 #
 
-ccflags-y += -I$(src)			# needed for trace events
-ccflags-y += -I$(src)/libxfs
+ccflags-y += -I $(srctree)/$(src)		# needed for trace events
+ccflags-y += -I $(srctree)/$(src)/libxfs
 
 ccflags-$(CONFIG_XFS_DEBUG) += -g
 
@@ -73,6 +73,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_fsmap.o \
 				   xfs_fsops.o \
 				   xfs_globals.o \
+				   xfs_health.o \
 				   xfs_icache.o \
 				   xfs_ioctl.o \
 				   xfs_iomap.o \
@@ -142,6 +143,8 @@ xfs-y				+= $(addprefix scrub/, \
 				   common.o \
 				   dabtree.o \
 				   dir.o \
+				   fscounters.o \
+				   health.o \
 				   ialloc.o \
 				   inode.o \
 				   parent.o \

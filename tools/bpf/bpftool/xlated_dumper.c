@@ -195,6 +195,9 @@ static const char *print_imm(void *private_data,
 	if (insn->src_reg == BPF_PSEUDO_MAP_FD)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			 "map[id:%u]", insn->imm);
+	else if (insn->src_reg == BPF_PSEUDO_MAP_VALUE)
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "map[id:%u][0]+%u", insn->imm, (insn + 1)->imm);
 	else
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			 "0x%llx", (unsigned long long)full_imm);

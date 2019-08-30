@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atari mouse driver for Linux/m68k
  *
@@ -7,7 +8,6 @@
  *  Amiga mouse driver for Linux/m68k
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik
- *
  */
 /*
  * The low level init and interrupt stuff is handled in arch/mm68k/atari/atakeyb.c
@@ -34,11 +34,6 @@
  */
 
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation
- */
 
 #include <linux/module.h>
 #include <linux/init.h>

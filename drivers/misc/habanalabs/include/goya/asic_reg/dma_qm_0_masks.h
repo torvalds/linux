@@ -462,4 +462,3 @@
 #define DMA_QM_0_CQ_BUF_RDATA_VAL_MASK                               0xFFFFFFFF
 
 #endif /* ASIC_REG_DMA_QM_0_MASKS_H_ */
-

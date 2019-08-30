@@ -53,7 +53,8 @@ nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	}
 }
 
-static struct net_device *nfp_abm_repr_get(struct nfp_app *app, u32 port_id)
+static struct net_device *
+nfp_abm_repr_get(struct nfp_app *app, u32 port_id, bool *redir_egress)
 {
 	enum nfp_repr_type rtype;
 	struct nfp_reprs *reprs;
@@ -549,5 +550,5 @@ const struct nfp_app_type app_abm = {
 	.eswitch_mode_get	= nfp_abm_eswitch_mode_get,
 	.eswitch_mode_set	= nfp_abm_eswitch_mode_set,
 
-	.repr_get	= nfp_abm_repr_get,
+	.dev_get	= nfp_abm_repr_get,
 };

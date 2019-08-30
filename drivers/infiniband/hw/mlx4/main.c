@@ -1177,8 +1177,7 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	}
 }
 
-static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
-			    struct ib_udata *udata)
+static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct mlx4_ib_pd *pd = to_mpd(ibpd);
 	struct ib_device *ibdev = ibpd->device;
@@ -1188,20 +1187,19 @@ static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
 	if (err)
 		return err;
 
-	if (context && ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32))) {
+	if (udata && ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32))) {
 		mlx4_pd_free(to_mdev(ibdev)->dev, pd->pdn);
 		return -EFAULT;
 	}
 	return 0;
 }
 
-static void mlx4_ib_dealloc_pd(struct ib_pd *pd)
+static void mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
 }
 
 static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
-					  struct ib_ucontext *context,
 					  struct ib_udata *udata)
 {
 	struct mlx4_ib_xrcd *xrcd;
@@ -1243,7 +1241,7 @@ err1:
 	return ERR_PTR(err);
 }
 
-static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd)
+static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	ib_destroy_cq(to_mxrcd(xrcd)->cq);
 	ib_dealloc_pd(to_mxrcd(xrcd)->pd);
@@ -2560,7 +2558,10 @@ static const struct ib_device_ops mlx4_ib_dev_ops = {
 	.req_notify_cq = mlx4_ib_arm_cq,
 	.rereg_user_mr = mlx4_ib_rereg_user_mr,
 	.resize_cq = mlx4_ib_resize_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, mlx4_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mlx4_ib_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_srq, mlx4_ib_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, mlx4_ib_ucontext, ibucontext),
 };
 

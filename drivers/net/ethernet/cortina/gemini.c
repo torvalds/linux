@@ -1235,8 +1235,6 @@ static int gmac_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int txq_num, nfrags;
 	union dma_rwptr rw;
 
-	SKB_FRAG_ASSERT(skb);
-
 	if (skb->len >= 0x10000)
 		goto out_drop_free;
 

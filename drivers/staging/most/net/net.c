@@ -293,7 +293,8 @@ static struct net_dev_context *get_net_dev_hold(struct most_interface *iface)
 }
 
 static int comp_probe_channel(struct most_interface *iface, int channel_idx,
-			      struct most_channel_config *ccfg, char *name)
+			      struct most_channel_config *ccfg, char *name,
+			      char *args)
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;

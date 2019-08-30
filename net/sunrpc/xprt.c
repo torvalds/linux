@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/net/sunrpc/xprt.c
  *
@@ -72,6 +73,15 @@ static void	 xprt_destroy(struct rpc_xprt *xprt);
 
 static DEFINE_SPINLOCK(xprt_list_lock);
 static LIST_HEAD(xprt_list);
+
+static unsigned long xprt_request_timeout(const struct rpc_rqst *req)
+{
+	unsigned long timeout = jiffies + req->rq_timeout;
+
+	if (time_before(timeout, req->rq_majortimeo))
+		return timeout;
+	return req->rq_majortimeo;
+}
 
 /**
  * xprt_register_transport - register a transport implementation
@@ -209,9 +219,12 @@ out_unlock:
 out_sleep:
 	dprintk("RPC: %5u failed to lock transport %p\n",
 			task->tk_pid, xprt);
-	task->tk_timeout = RPC_IS_SOFT(task) ? req->rq_timeout : 0;
 	task->tk_status = -EAGAIN;
-	rpc_sleep_on(&xprt->sending, task, NULL);
+	if  (RPC_IS_SOFT(task))
+		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
+				xprt_request_timeout(req));
+	else
+		rpc_sleep_on(&xprt->sending, task, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reserve_xprt);
@@ -273,9 +286,12 @@ out_unlock:
 	xprt_clear_locked(xprt);
 out_sleep:
 	dprintk("RPC: %5u failed to lock transport %p\n", task->tk_pid, xprt);
-	task->tk_timeout = RPC_IS_SOFT(task) ? req->rq_timeout : 0;
 	task->tk_status = -EAGAIN;
-	rpc_sleep_on(&xprt->sending, task, NULL);
+	if (RPC_IS_SOFT(task))
+		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
+				xprt_request_timeout(req));
+	else
+		rpc_sleep_on(&xprt->sending, task, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reserve_xprt_cong);
@@ -554,53 +570,44 @@ bool xprt_write_space(struct rpc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(xprt_write_space);
 
-/**
- * xprt_set_retrans_timeout_def - set a request's retransmit timeout
- * @task: task whose timeout is to be set
- *
- * Set a request's retransmit timeout based on the transport's
- * default timeout parameters.  Used by transports that don't adjust
- * the retransmit timeout based on round-trip time estimation.
- */
-void xprt_set_retrans_timeout_def(struct rpc_task *task)
+static unsigned long xprt_abs_ktime_to_jiffies(ktime_t abstime)
 {
-	task->tk_timeout = task->tk_rqstp->rq_timeout;
+	s64 delta = ktime_to_ns(ktime_get() - abstime);
+	return likely(delta >= 0) ?
+		jiffies - nsecs_to_jiffies(delta) :
+		jiffies + nsecs_to_jiffies(-delta);
 }
-EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_def);
 
-/**
- * xprt_set_retrans_timeout_rtt - set a request's retransmit timeout
- * @task: task whose timeout is to be set
- *
- * Set a request's retransmit timeout using the RTT estimator.
- */
-void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
+static unsigned long xprt_calc_majortimeo(struct rpc_rqst *req)
 {
-	int timer = task->tk_msg.rpc_proc->p_timer;
-	struct rpc_clnt *clnt = task->tk_client;
-	struct rpc_rtt *rtt = clnt->cl_rtt;
-	struct rpc_rqst *req = task->tk_rqstp;
-	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
+	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
+	unsigned long majortimeo = req->rq_timeout;
 
-	task->tk_timeout = rpc_calc_rto(rtt, timer);
-	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
-	if (task->tk_timeout > max_timeout || task->tk_timeout == 0)
-		task->tk_timeout = max_timeout;
+	if (to->to_exponential)
+		majortimeo <<= to->to_retries;
+	else
+		majortimeo += to->to_increment * to->to_retries;
+	if (majortimeo > to->to_maxval || majortimeo == 0)
+		majortimeo = to->to_maxval;
+	return majortimeo;
 }
-EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_rtt);
 
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
-	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
+	req->rq_majortimeo += xprt_calc_majortimeo(req);
+}
 
-	req->rq_majortimeo = req->rq_timeout;
-	if (to->to_exponential)
-		req->rq_majortimeo <<= to->to_retries;
+static void xprt_init_majortimeo(struct rpc_task *task, struct rpc_rqst *req)
+{
+	unsigned long time_init;
+	struct rpc_xprt *xprt = req->rq_xprt;
+
+	if (likely(xprt && xprt_connected(xprt)))
+		time_init = jiffies;
 	else
-		req->rq_majortimeo += to->to_increment * to->to_retries;
-	if (req->rq_majortimeo > to->to_maxval || req->rq_majortimeo == 0)
-		req->rq_majortimeo = to->to_maxval;
-	req->rq_majortimeo += jiffies;
+		time_init = xprt_abs_ktime_to_jiffies(task->tk_start);
+	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
+	req->rq_majortimeo = time_init + xprt_calc_majortimeo(req);
 }
 
 /**
@@ -822,9 +829,9 @@ void xprt_connect(struct rpc_task *task)
 		xprt->ops->close(xprt);
 
 	if (!xprt_connected(xprt)) {
-		task->tk_timeout = task->tk_rqstp->rq_timeout;
 		task->tk_rqstp->rq_connect_cookie = xprt->connect_cookie;
-		rpc_sleep_on(&xprt->pending, task, NULL);
+		rpc_sleep_on_timeout(&xprt->pending, task, NULL,
+				xprt_request_timeout(task->tk_rqstp));
 
 		if (test_bit(XPRT_CLOSING, &xprt->state))
 			return;
@@ -949,7 +956,7 @@ xprt_is_pinned_rqst(struct rpc_rqst *req)
  * @req: Request to pin
  *
  * Caller must ensure this is atomic with the call to xprt_lookup_rqst()
- * so should be holding the xprt receive lock.
+ * so should be holding xprt->queue_lock.
  */
 void xprt_pin_rqst(struct rpc_rqst *req)
 {
@@ -961,7 +968,7 @@ EXPORT_SYMBOL_GPL(xprt_pin_rqst);
  * xprt_unpin_rqst - Unpin a request on the transport receive list
  * @req: Request to pin
  *
- * Caller should be holding the xprt receive lock.
+ * Caller should be holding xprt->queue_lock.
  */
 void xprt_unpin_rqst(struct rpc_rqst *req)
 {
@@ -1017,7 +1024,6 @@ xprt_request_enqueue_receive(struct rpc_task *task)
 	set_bit(RPC_TASK_NEED_RECV, &task->tk_runstate);
 	spin_unlock(&xprt->queue_lock);
 
-	xprt_reset_majortimeo(req);
 	/* Turn off autodisconnect */
 	del_singleshot_timer_sync(&xprt->timer);
 }
@@ -1103,6 +1109,49 @@ static void xprt_timer(struct rpc_task *task)
 }
 
 /**
+ * xprt_wait_for_reply_request_def - wait for reply
+ * @task: pointer to rpc_task
+ *
+ * Set a request's retransmit timeout based on the transport's
+ * default timeout parameters.  Used by transports that don't adjust
+ * the retransmit timeout based on round-trip time estimation,
+ * and put the task to sleep on the pending queue.
+ */
+void xprt_wait_for_reply_request_def(struct rpc_task *task)
+{
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	rpc_sleep_on_timeout(&req->rq_xprt->pending, task, xprt_timer,
+			xprt_request_timeout(req));
+}
+EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_def);
+
+/**
+ * xprt_wait_for_reply_request_rtt - wait for reply using RTT estimator
+ * @task: pointer to rpc_task
+ *
+ * Set a request's retransmit timeout using the RTT estimator,
+ * and put the task to sleep on the pending queue.
+ */
+void xprt_wait_for_reply_request_rtt(struct rpc_task *task)
+{
+	int timer = task->tk_msg.rpc_proc->p_timer;
+	struct rpc_clnt *clnt = task->tk_client;
+	struct rpc_rtt *rtt = clnt->cl_rtt;
+	struct rpc_rqst *req = task->tk_rqstp;
+	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
+	unsigned long timeout;
+
+	timeout = rpc_calc_rto(rtt, timer);
+	timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
+	if (timeout > max_timeout || timeout == 0)
+		timeout = max_timeout;
+	rpc_sleep_on_timeout(&req->rq_xprt->pending, task, xprt_timer,
+			jiffies + timeout);
+}
+EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_rtt);
+
+/**
  * xprt_request_wait_receive - wait for the reply to an RPC request
  * @task: RPC task about to send a request
  *
@@ -1121,8 +1170,7 @@ void xprt_request_wait_receive(struct rpc_task *task)
 	 */
 	spin_lock(&xprt->queue_lock);
 	if (test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
-		xprt->ops->set_retrans_timeout(task);
-		rpc_sleep_on(&xprt->pending, task, xprt_timer);
+		xprt->ops->wait_for_reply_request(task);
 		/*
 		 * Send an extra queue wakeup call if the
 		 * connection was dropped in case the call to
@@ -1336,6 +1384,10 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 			status = task->tk_status;
 			if (status < 0)
 				goto out_dequeue;
+		}
+		if (RPC_SIGNALLED(task)) {
+			status = -ERESTARTSYS;
+			goto out_dequeue;
 		}
 	}
 
@@ -1605,7 +1657,6 @@ xprt_request_init(struct rpc_task *task)
 	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpc_rqst	*req = task->tk_rqstp;
 
-	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;
@@ -1618,7 +1669,7 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_snd_buf.bvec = NULL;
 	req->rq_rcv_buf.bvec = NULL;
 	req->rq_release_snd_buf = NULL;
-	xprt_reset_majortimeo(req);
+	xprt_init_majortimeo(task, req);
 	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
 			req, ntohl(req->rq_xid));
 }
@@ -1647,7 +1698,6 @@ void xprt_reserve(struct rpc_task *task)
 	if (task->tk_rqstp != NULL)
 		return;
 
-	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
 	if (!xprt_throttle_congested(xprt, task))
 		xprt_do_reserve(xprt, task);
@@ -1670,7 +1720,6 @@ void xprt_retry_reserve(struct rpc_task *task)
 	if (task->tk_rqstp != NULL)
 		return;
 
-	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
 	xprt_do_reserve(xprt, task);
 }

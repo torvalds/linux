@@ -106,7 +106,8 @@ struct occ {
 	struct attribute_group group;
 	const struct attribute_group *groups[2];
 
-	int error;                      /* latest transfer error */
+	int error;                      /* final transfer error after retry */
+	int last_error;			/* latest transfer error */
 	unsigned int error_count;       /* number of xfr errors observed */
 	unsigned long last_safe;        /* time OCC entered "safe" state */
 

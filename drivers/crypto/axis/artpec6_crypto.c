@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   Driver for ARTPEC-6 crypto block using the kernel asynchronous crypto api.
  *
@@ -2247,8 +2248,6 @@ artpec6_crypto_hash_set_key(struct crypto_ahash *tfm,
 		SHASH_DESC_ON_STACK(hdesc, tfm_ctx->child_hash);
 
 		hdesc->tfm = tfm_ctx->child_hash;
-		hdesc->flags = crypto_ahash_get_flags(tfm) &
-			       CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		tfm_ctx->hmac_key_length = blocksize;
 		ret = crypto_shash_digest(hdesc, key, keylen,

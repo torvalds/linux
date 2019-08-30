@@ -27,10 +27,11 @@
  * the THREAD_WINKLE_BITS are set, which indicate which threads have not
  * yet woken from the winkle state.
  */
-#define PNV_CORE_IDLE_LOCK_BIT			0x10000000
+#define NR_PNV_CORE_IDLE_LOCK_BIT		28
+#define PNV_CORE_IDLE_LOCK_BIT			(1ULL << NR_PNV_CORE_IDLE_LOCK_BIT)
 
+#define PNV_CORE_IDLE_WINKLE_COUNT_SHIFT	16
 #define PNV_CORE_IDLE_WINKLE_COUNT		0x00010000
-#define PNV_CORE_IDLE_WINKLE_COUNT_ALL_BIT	0x00080000
 #define PNV_CORE_IDLE_WINKLE_COUNT_BITS		0x000F0000
 #define PNV_CORE_IDLE_THREAD_WINKLE_BITS_SHIFT	8
 #define PNV_CORE_IDLE_THREAD_WINKLE_BITS	0x0000FF00
@@ -68,16 +69,6 @@
 #define ERR_DEEP_STATE_ESL_MISMATCH	-2
 
 #ifndef __ASSEMBLY__
-/* Additional SPRs that need to be saved/restored during stop */
-struct stop_sprs {
-	u64 pid;
-	u64 ldbar;
-	u64 fscr;
-	u64 hfscr;
-	u64 mmcr1;
-	u64 mmcr2;
-	u64 mmcra;
-};
 
 #define PNV_IDLE_NAME_LEN    16
 struct pnv_idle_states_t {
@@ -92,10 +83,6 @@ struct pnv_idle_states_t {
 
 extern struct pnv_idle_states_t *pnv_idle_states;
 extern int nr_pnv_idle_states;
-extern u32 pnv_fastsleep_workaround_at_entry[];
-extern u32 pnv_fastsleep_workaround_at_exit[];
-
-extern u64 pnv_first_deep_stop_state;
 
 unsigned long pnv_cpu_offline(unsigned int cpu);
 int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags);

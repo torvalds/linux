@@ -68,8 +68,9 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 
 static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
 {
-	return (f6i->fib6_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
-	       RTF_GATEWAY;
+	/* the RTF_ADDRCONF flag filters out RA's */
+	return !(f6i->fib6_flags & RTF_ADDRCONF) &&
+		f6i->fib6_nh.fib_nh_gw_family;
 }
 
 void ip6_route_input(struct sk_buff *skb);
@@ -181,7 +182,7 @@ int rt6_dump_route(struct fib6_info *f6i, void *p_arg);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
-void rt6_sync_up(struct net_device *dev, unsigned int nh_flags);
+void rt6_sync_up(struct net_device *dev, unsigned char nh_flags);
 void rt6_disable_ip(struct net_device *dev, unsigned long event);
 void rt6_sync_down_dev(struct net_device *dev, unsigned long event);
 void rt6_multipath_rebalance(struct fib6_info *f6i);
@@ -261,8 +262,8 @@ static inline bool ip6_sk_ignore_df(const struct sock *sk)
 	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;
 }
 
-static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
-					   struct in6_addr *daddr)
+static inline const struct in6_addr *rt6_nexthop(const struct rt6_info *rt,
+						 const struct in6_addr *daddr)
 {
 	if (rt->rt6i_flags & RTF_GATEWAY)
 		return &rt->rt6i_gateway;
@@ -274,9 +275,11 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 
 static inline bool rt6_duplicate_nexthop(struct fib6_info *a, struct fib6_info *b)
 {
-	return a->fib6_nh.nh_dev == b->fib6_nh.nh_dev &&
-	       ipv6_addr_equal(&a->fib6_nh.nh_gw, &b->fib6_nh.nh_gw) &&
-	       !lwtunnel_cmp_encap(a->fib6_nh.nh_lwtstate, b->fib6_nh.nh_lwtstate);
+	struct fib6_nh *nha = &a->fib6_nh, *nhb = &b->fib6_nh;
+
+	return nha->fib_nh_dev == nhb->fib_nh_dev &&
+	       ipv6_addr_equal(&nha->fib_nh_gw6, &nhb->fib_nh_gw6) &&
+	       !lwtunnel_cmp_encap(nha->fib_nh_lws, nhb->fib_nh_lws);
 }
 
 static inline unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
@@ -300,8 +303,9 @@ static inline unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 	return mtu;
 }
 
-u32 ip6_mtu_from_fib6(struct fib6_info *f6i, struct in6_addr *daddr,
-		      struct in6_addr *saddr);
+u32 ip6_mtu_from_fib6(const struct fib6_result *res,
+		      const struct in6_addr *daddr,
+		      const struct in6_addr *saddr);
 
 struct neighbour *ip6_neigh_lookup(const struct in6_addr *gw,
 				   struct net_device *dev, struct sk_buff *skb,

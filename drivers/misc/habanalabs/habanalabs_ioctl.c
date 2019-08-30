@@ -12,6 +12,32 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
+static u32 hl_debug_struct_size[HL_DEBUG_OP_TIMESTAMP + 1] = {
+	[HL_DEBUG_OP_ETR] = sizeof(struct hl_debug_params_etr),
+	[HL_DEBUG_OP_ETF] = sizeof(struct hl_debug_params_etf),
+	[HL_DEBUG_OP_STM] = sizeof(struct hl_debug_params_stm),
+	[HL_DEBUG_OP_FUNNEL] = 0,
+	[HL_DEBUG_OP_BMON] = sizeof(struct hl_debug_params_bmon),
+	[HL_DEBUG_OP_SPMU] = sizeof(struct hl_debug_params_spmu),
+	[HL_DEBUG_OP_TIMESTAMP] = 0
+
+};
+
+static int device_status_info(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_device_status dev_stat = {0};
+	u32 size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!size) || (!out))
+		return -EINVAL;
+
+	dev_stat.status = hl_device_status(hdev);
+
+	return copy_to_user(out, &dev_stat,
+			min((size_t)size, sizeof(dev_stat))) ? -EFAULT : 0;
+}
+
 static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 {
 	struct hl_info_hw_ip_info hw_ip = {0};
@@ -93,10 +119,75 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev);
+	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev, NULL, 0);
 
 	return copy_to_user(out, &hw_idle,
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
+}
+
+static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
+{
+	struct hl_debug_params *params;
+	void *input = NULL, *output = NULL;
+	int rc;
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params)
+		return -ENOMEM;
+
+	params->reg_idx = args->reg_idx;
+	params->enable = args->enable;
+	params->op = args->op;
+
+	if (args->input_ptr && args->input_size) {
+		input = memdup_user(u64_to_user_ptr(args->input_ptr),
+					args->input_size);
+		if (IS_ERR(input)) {
+			rc = PTR_ERR(input);
+			input = NULL;
+			dev_err(hdev->dev,
+				"error %d when copying input debug data\n", rc);
+			goto out;
+		}
+
+		params->input = input;
+	}
+
+	if (args->output_ptr && args->output_size) {
+		output = kzalloc(args->output_size, GFP_KERNEL);
+		if (!output) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		params->output = output;
+		params->output_size = args->output_size;
+	}
+
+	rc = hdev->asic_funcs->debug_coresight(hdev, params);
+	if (rc) {
+		dev_err(hdev->dev,
+			"debug coresight operation failed %d\n", rc);
+		goto out;
+	}
+
+	if (output) {
+		if (copy_to_user((void __user *) (uintptr_t) args->output_ptr,
+					output,
+					args->output_size)) {
+			dev_err(hdev->dev,
+				"copy to user failed in debug ioctl\n");
+			rc = -EFAULT;
+			goto out;
+		}
+	}
+
+out:
+	kfree(params);
+	kfree(output);
+	kfree(input);
+
+	return rc;
 }
 
 static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
@@ -105,9 +196,14 @@ static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_device *hdev = hpriv->hdev;
 	int rc;
 
+	/* We want to return device status even if it disabled or in reset */
+	if (args->op == HL_INFO_DEVICE_STATUS)
+		return device_status_info(hdev, args);
+
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_err(hdev->dev,
-			"Device is disabled or in reset. Can't execute INFO IOCTL\n");
+		dev_warn_ratelimited(hdev->dev,
+			"Device is %s. Can't execute INFO IOCTL\n",
+			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		return -EBUSY;
 	}
 
@@ -137,6 +233,40 @@ static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
 	return rc;
 }
 
+static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
+{
+	struct hl_debug_args *args = data;
+	struct hl_device *hdev = hpriv->hdev;
+	int rc = 0;
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_warn_ratelimited(hdev->dev,
+			"Device is %s. Can't execute DEBUG IOCTL\n",
+			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+		return -EBUSY;
+	}
+
+	switch (args->op) {
+	case HL_DEBUG_OP_ETR:
+	case HL_DEBUG_OP_ETF:
+	case HL_DEBUG_OP_STM:
+	case HL_DEBUG_OP_FUNNEL:
+	case HL_DEBUG_OP_BMON:
+	case HL_DEBUG_OP_SPMU:
+	case HL_DEBUG_OP_TIMESTAMP:
+		args->input_size =
+			min(args->input_size, hl_debug_struct_size[args->op]);
+		rc = debug_coresight(hdev, args);
+		break;
+	default:
+		dev_err(hdev->dev, "Invalid request %d\n", args->op);
+		rc = -ENOTTY;
+		break;
+	}
+
+	return rc;
+}
+
 #define HL_IOCTL_DEF(ioctl, _func) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func}
 
@@ -145,7 +275,8 @@ static const struct hl_ioctl_desc hl_ioctls[] = {
 	HL_IOCTL_DEF(HL_IOCTL_CB, hl_cb_ioctl),
 	HL_IOCTL_DEF(HL_IOCTL_CS, hl_cs_ioctl),
 	HL_IOCTL_DEF(HL_IOCTL_WAIT_CS, hl_cs_wait_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_MEMORY, hl_mem_ioctl)
+	HL_IOCTL_DEF(HL_IOCTL_MEMORY, hl_mem_ioctl),
+	HL_IOCTL_DEF(HL_IOCTL_DEBUG, hl_debug_ioctl)
 };
 
 #define HL_CORE_IOCTL_COUNT	ARRAY_SIZE(hl_ioctls)

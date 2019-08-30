@@ -217,8 +217,6 @@ static int astfb_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	info->par = afbdev;
-
 	ret = ast_framebuffer_init(dev, &afbdev->afb, &mode_cmd, gobj);
 	if (ret)
 		goto out;
@@ -229,15 +227,12 @@ static int astfb_create(struct drm_fb_helper *helper,
 	fb = &afbdev->afb.base;
 	afbdev->helper.fb = fb;
 
-	strcpy(info->fix.id, "astdrmfb");
-
 	info->fbops = &astfb_ops;
 
 	info->apertures->ranges[0].base = pci_resource_start(dev->pdev, 0);
 	info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, &afbdev->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &afbdev->helper, sizes);
 
 	info->screen_base = sysram;
 	info->screen_size = size;

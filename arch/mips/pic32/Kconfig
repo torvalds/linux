@@ -39,12 +39,12 @@ choice
 	  Select the devicetree.
 
 config DTB_PIC32_NONE
-       bool "None"
+	bool "None"
 
 config DTB_PIC32_MZDA_SK
-       bool "PIC32MZDA Starter Kit"
-       depends on PIC32MZDA
-       select BUILTIN_DTB
+	bool "PIC32MZDA Starter Kit"
+	depends on PIC32MZDA
+	select BUILTIN_DTB
 
 endchoice
 

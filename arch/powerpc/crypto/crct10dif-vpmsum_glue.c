@@ -1,22 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Calculate a CRC T10-DIF with vpmsum acceleration
  *
  * Copyright 2017, Daniel Axtens, IBM Corporation.
  * [based on crc32c-vpmsum_glue.c]
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
  */
 
 #include <linux/crc-t10dif.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/cpufeature.h>
+#include <asm/simd.h>
 #include <asm/switch_to.h>
 
 #define VMX_ALIGN		16
@@ -32,7 +30,7 @@ static u16 crct10dif_vpmsum(u16 crci, unsigned char const *p, size_t len)
 	unsigned int tail;
 	u32 crc = crci;
 
-	if (len < (VECTOR_BREAKPOINT + VMX_ALIGN) || in_interrupt())
+	if (len < (VECTOR_BREAKPOINT + VMX_ALIGN) || !crypto_simd_usable())
 		return crc_t10dif_generic(crc, p, len);
 
 	if ((unsigned long)p & VMX_ALIGN_MASK) {

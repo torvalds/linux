@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Helper handling for netfilter. */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2003,2004 USAGI/WIDE Project <http://www.linux-ipv6.org>
  * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -41,6 +38,9 @@ static bool nf_ct_auto_assign_helper __read_mostly = false;
 module_param_named(nf_conntrack_helper, nf_ct_auto_assign_helper, bool, 0644);
 MODULE_PARM_DESC(nf_conntrack_helper,
 		 "Enable automatic conntrack helper assignment (default 0)");
+
+static DEFINE_MUTEX(nf_ct_nat_helpers_mutex);
+static struct list_head nf_ct_nat_helpers __read_mostly;
 
 /* Stupid hash, but collision free for the default registrations of the
  * helpers currently in the kernel. */
@@ -129,6 +129,70 @@ void nf_conntrack_helper_put(struct nf_conntrack_helper *helper)
 	module_put(helper->me);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_put);
+
+static struct nf_conntrack_nat_helper *
+nf_conntrack_nat_helper_find(const char *mod_name)
+{
+	struct nf_conntrack_nat_helper *cur;
+	bool found = false;
+
+	list_for_each_entry_rcu(cur, &nf_ct_nat_helpers, list) {
+		if (!strcmp(cur->mod_name, mod_name)) {
+			found = true;
+			break;
+		}
+	}
+	return found ? cur : NULL;
+}
+
+int
+nf_nat_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
+{
+	struct nf_conntrack_helper *h;
+	struct nf_conntrack_nat_helper *nat;
+	char mod_name[NF_CT_HELPER_NAME_LEN];
+	int ret = 0;
+
+	rcu_read_lock();
+	h = __nf_conntrack_helper_find(name, l3num, protonum);
+	if (!h) {
+		rcu_read_unlock();
+		return -ENOENT;
+	}
+
+	nat = nf_conntrack_nat_helper_find(h->nat_mod_name);
+	if (!nat) {
+		snprintf(mod_name, sizeof(mod_name), "%s", h->nat_mod_name);
+		rcu_read_unlock();
+		request_module(mod_name);
+
+		rcu_read_lock();
+		nat = nf_conntrack_nat_helper_find(mod_name);
+		if (!nat) {
+			rcu_read_unlock();
+			return -ENOENT;
+		}
+	}
+
+	if (!try_module_get(nat->module))
+		ret = -ENOENT;
+
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_helper_try_module_get);
+
+void nf_nat_helper_put(struct nf_conntrack_helper *helper)
+{
+	struct nf_conntrack_nat_helper *nat;
+
+	nat = nf_conntrack_nat_helper_find(helper->nat_mod_name);
+	if (WARN_ON_ONCE(!nat))
+		return;
+
+	module_put(nat->module);
+}
+EXPORT_SYMBOL_GPL(nf_nat_helper_put);
 
 struct nf_conn_help *
 nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
@@ -430,6 +494,8 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 	helper->help = help;
 	helper->from_nlattr = from_nlattr;
 	helper->me = module;
+	snprintf(helper->nat_mod_name, sizeof(helper->nat_mod_name),
+		 NF_NAT_HELPER_PREFIX "%s", name);
 
 	if (spec_port == default_port)
 		snprintf(helper->name, sizeof(helper->name), "%s", name);
@@ -466,6 +532,22 @@ void nf_conntrack_helpers_unregister(struct nf_conntrack_helper *helper,
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helpers_unregister);
 
+void nf_nat_helper_register(struct nf_conntrack_nat_helper *nat)
+{
+	mutex_lock(&nf_ct_nat_helpers_mutex);
+	list_add_rcu(&nat->list, &nf_ct_nat_helpers);
+	mutex_unlock(&nf_ct_nat_helpers_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_nat_helper_register);
+
+void nf_nat_helper_unregister(struct nf_conntrack_nat_helper *nat)
+{
+	mutex_lock(&nf_ct_nat_helpers_mutex);
+	list_del_rcu(&nat->list);
+	mutex_unlock(&nf_ct_nat_helpers_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_nat_helper_unregister);
+
 static const struct nf_ct_ext_type helper_extend = {
 	.len	= sizeof(struct nf_conn_help),
 	.align	= __alignof__(struct nf_conn_help),
@@ -493,6 +575,7 @@ int nf_conntrack_helper_init(void)
 		goto out_extend;
 	}
 
+	INIT_LIST_HEAD(&nf_ct_nat_helpers);
 	return 0;
 out_extend:
 	kvfree(nf_ct_helper_hash);

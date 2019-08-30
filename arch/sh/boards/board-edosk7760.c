@@ -18,7 +18,7 @@
 #include <asm/addrspace.h>
 #include <asm/delay.h>
 #include <asm/i2c-sh7760.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /* Bus state controller registers for CS4 area */
 #define BSC_CS4BCR	0xA4FD0010

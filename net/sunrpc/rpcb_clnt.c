@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * In-kernel rpcbind client supporting versions 2, 3, and 4 of the rpcbind
  * protocol
@@ -240,6 +241,7 @@ static int rpcb_create_local_unix(struct net *net)
 		.program	= &rpcb_program,
 		.version	= RPCBVERS_2,
 		.authflavor	= RPC_AUTH_NULL,
+		.cred		= current_cred(),
 		/*
 		 * We turn off the idle timeout to prevent the kernel
 		 * from automatically disconnecting the socket.
@@ -299,6 +301,7 @@ static int rpcb_create_local_net(struct net *net)
 		.program	= &rpcb_program,
 		.version	= RPCBVERS_2,
 		.authflavor	= RPC_AUTH_UNIX,
+		.cred		= current_cred(),
 		.flags		= RPC_CLNT_CREATE_NOPING,
 	};
 	struct rpc_clnt *clnt, *clnt4;
@@ -358,7 +361,8 @@ out:
 static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 				    const char *hostname,
 				    struct sockaddr *srvaddr, size_t salen,
-				    int proto, u32 version)
+				    int proto, u32 version,
+				    const struct cred *cred)
 {
 	struct rpc_create_args args = {
 		.net		= net,
@@ -370,6 +374,7 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
+		.cred		= cred,
 		.flags		= (RPC_CLNT_CREATE_NOPING |
 					RPC_CLNT_CREATE_NONPRIVPORT),
 	};
@@ -694,7 +699,8 @@ void rpcb_getport_async(struct rpc_task *task)
 
 	/* Put self on the wait queue to ensure we get notified if
 	 * some other task is already attempting to bind the port */
-	rpc_sleep_on(&xprt->binding, task, NULL);
+	rpc_sleep_on_timeout(&xprt->binding, task,
+			NULL, jiffies + xprt->bind_timeout);
 
 	if (xprt_test_and_set_binding(xprt)) {
 		dprintk("RPC: %5u %s: waiting for another binder\n",
@@ -744,7 +750,8 @@ void rpcb_getport_async(struct rpc_task *task)
 	rpcb_clnt = rpcb_create(xprt->xprt_net,
 				clnt->cl_nodename,
 				xprt->servername, sap, salen,
-				xprt->prot, bind_version);
+				xprt->prot, bind_version,
+				clnt->cl_cred);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
 		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",

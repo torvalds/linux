@@ -103,15 +103,32 @@ config PCIE_SPEAR13XX
 	  Say Y here if you want PCIe support on SPEAr13XX SoCs.
 
 config PCI_KEYSTONE
-	bool "TI Keystone PCIe controller"
-	depends on ARCH_KEYSTONE || (ARM && COMPILE_TEST)
+	bool
+
+config PCI_KEYSTONE_HOST
+	bool "PCI Keystone Host Mode"
+	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	select PCI_KEYSTONE
+	default y
 	help
-	  Say Y here if you want to enable PCI controller support on Keystone
-	  SoCs. The PCI controller on Keystone is based on DesignWare hardware
-	  and therefore the driver re-uses the DesignWare core functions to
-	  implement the driver.
+	  Enables support for the PCIe controller in the Keystone SoC to
+	  work in host mode. The PCI controller on Keystone is based on
+	  DesignWare hardware and therefore the driver re-uses the
+	  DesignWare core functions to implement the driver.
+
+config PCI_KEYSTONE_EP
+	bool "PCI Keystone Endpoint Mode"
+	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCI_KEYSTONE
+	help
+	  Enables support for the PCIe controller in the Keystone SoC to
+	  work in endpoint mode. The PCI controller on Keystone is based
+	  on DesignWare hardware and therefore the driver re-uses the
+	  DesignWare core functions to implement the driver.
 
 config PCI_LAYERSCAPE
 	bool "Freescale Layerscape PCIe controller"

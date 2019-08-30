@@ -2,16 +2,31 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_4K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_4K_H
 
-#define H_PTE_INDEX_SIZE  9
-#define H_PMD_INDEX_SIZE  7
-#define H_PUD_INDEX_SIZE  9
-#define H_PGD_INDEX_SIZE  9
+#define H_PTE_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x   4KB =   2MB
+#define H_PMD_INDEX_SIZE  7  // size: 8B << 7 = 1KB, maps: 2^7 x   2MB = 256MB
+#define H_PUD_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x 256MB = 128GB
+#define H_PGD_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x 128GB =  64TB
 
 /*
  * Each context is 512TB. But on 4k we restrict our max TASK size to 64TB
  * Hence also limit max EA bits to 64TB.
  */
 #define MAX_EA_BITS_PER_CONTEXT		46
+
+#define REGION_SHIFT		(MAX_EA_BITS_PER_CONTEXT - 2)
+
+/*
+ * Our page table limit us to 64TB. Hence for the kernel mapping,
+ * each MAP area is limited to 16 TB.
+ * The four map areas are:  linear mapping, vmap, IO and vmemmap
+ */
+#define H_KERN_MAP_SIZE		(ASM_CONST(1) << REGION_SHIFT)
+
+/*
+ * Define the address range of the kernel non-linear virtual area
+ * 16TB
+ */
+#define H_KERN_VIRT_START	ASM_CONST(0xc000100000000000)
 
 #ifndef __ASSEMBLY__
 #define H_PTE_TABLE_SIZE	(sizeof(pte_t) << H_PTE_INDEX_SIZE)

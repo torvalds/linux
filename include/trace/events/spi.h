@@ -131,9 +131,11 @@ DECLARE_EVENT_CLASS(spi_transfer,
 		__field(        struct spi_transfer *,   xfer   )
 		__field(        int,            len             )
 		__dynamic_array(u8, rx_buf,
-				spi_valid_rxbuf(msg, xfer) ? xfer->len : 0)
+				spi_valid_rxbuf(msg, xfer) ?
+					(xfer->len < 64 ? xfer->len : 64) : 0)
 		__dynamic_array(u8, tx_buf,
-				spi_valid_txbuf(msg, xfer) ? xfer->len : 0)
+				spi_valid_txbuf(msg, xfer) ?
+					(xfer->len < 64 ? xfer->len : 64) : 0)
 	),
 
 	TP_fast_assign(
@@ -144,11 +146,11 @@ DECLARE_EVENT_CLASS(spi_transfer,
 
 		if (spi_valid_txbuf(msg, xfer))
 			memcpy(__get_dynamic_array(tx_buf),
-			       xfer->tx_buf, xfer->len);
+			       xfer->tx_buf, __get_dynamic_array_len(tx_buf));
 
 		if (spi_valid_rxbuf(msg, xfer))
 			memcpy(__get_dynamic_array(rx_buf),
-			       xfer->rx_buf, xfer->len);
+			       xfer->rx_buf, __get_dynamic_array_len(rx_buf));
 	),
 
 	TP_printk("spi%d.%d %p len=%d tx=[%*phD] rx=[%*phD]",

@@ -292,7 +292,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	acpi_status status;
 	u32 gpe_number;
 	u8 temp_gpe_number;
-	char name[ACPI_NAME_SIZE + 1];
+	char name[ACPI_NAMESEG_SIZE + 1];
 	u8 type;
 
 	ACPI_FUNCTION_TRACE(ev_match_gpe_method);
@@ -310,7 +310,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 * 1) Extract the method name and null terminate it
 	 */
 	ACPI_MOVE_32_TO_32(name, &method_node->name.integer);
-	name[ACPI_NAME_SIZE] = 0;
+	name[ACPI_NAMESEG_SIZE] = 0;
 
 	/* 2) Name must begin with an underscore */
 

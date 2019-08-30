@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/net/devlink.h - Network physical device Netlink interface
  * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef _NET_DEVLINK_H_
 #define _NET_DEVLINK_H_
@@ -16,6 +12,7 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <uapi/linux/devlink.h>
 
@@ -31,6 +28,7 @@ struct devlink {
 	struct list_head region_list;
 	u32 snapshot_id;
 	struct list_head reporter_list;
+	struct mutex reporters_lock; /* protects reporter_list */
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -40,11 +38,13 @@ struct devlink {
 };
 
 struct devlink_port_attrs {
-	bool set;
+	u8 set:1,
+	   split:1,
+	   switch_port:1;
 	enum devlink_port_flavour flavour;
 	u32 port_number; /* same value as "split group" */
-	bool split;
 	u32 split_subport_number;
+	struct netdev_phys_item_id switch_id;
 };
 
 struct devlink_port {
@@ -53,6 +53,9 @@ struct devlink_port {
 	struct devlink *devlink;
 	unsigned index;
 	bool registered;
+	spinlock_t type_lock; /* Protects type and type_dev
+			       * pointer consistency.
+			       */
 	enum devlink_port_type type;
 	enum devlink_port_type desired_type;
 	void *type_dev;
@@ -485,13 +488,14 @@ struct devlink_ops {
 			   struct devlink_sb_pool_info *pool_info);
 	int (*sb_pool_set)(struct devlink *devlink, unsigned int sb_index,
 			   u16 pool_index, u32 size,
-			   enum devlink_sb_threshold_type threshold_type);
+			   enum devlink_sb_threshold_type threshold_type,
+			   struct netlink_ext_ack *extack);
 	int (*sb_port_pool_get)(struct devlink_port *devlink_port,
 				unsigned int sb_index, u16 pool_index,
 				u32 *p_threshold);
 	int (*sb_port_pool_set)(struct devlink_port *devlink_port,
 				unsigned int sb_index, u16 pool_index,
-				u32 threshold);
+				u32 threshold, struct netlink_ext_ack *extack);
 	int (*sb_tc_pool_bind_get)(struct devlink_port *devlink_port,
 				   unsigned int sb_index,
 				   u16 tc_index,
@@ -501,7 +505,8 @@ struct devlink_ops {
 				   unsigned int sb_index,
 				   u16 tc_index,
 				   enum devlink_sb_pool_type pool_type,
-				   u16 pool_index, u32 threshold);
+				   u16 pool_index, u32 threshold,
+				   struct netlink_ext_ack *extack);
 	int (*sb_occ_snapshot)(struct devlink *devlink,
 			       unsigned int sb_index);
 	int (*sb_occ_max_clear)(struct devlink *devlink,
@@ -543,18 +548,24 @@ static inline struct devlink *priv_to_devlink(void *priv)
 	return container_of(priv, struct devlink, priv);
 }
 
+static inline struct devlink_port *
+netdev_to_devlink_port(struct net_device *dev)
+{
+	if (dev->netdev_ops->ndo_get_devlink_port)
+		return dev->netdev_ops->ndo_get_devlink_port(dev);
+	return NULL;
+}
+
 static inline struct devlink *netdev_to_devlink(struct net_device *dev)
 {
-#if IS_ENABLED(CONFIG_NET_DEVLINK)
-	if (dev->netdev_ops->ndo_get_devlink)
-		return dev->netdev_ops->ndo_get_devlink(dev);
-#endif
+	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
+
+	if (devlink_port)
+		return devlink_port->devlink;
 	return NULL;
 }
 
 struct ib_device;
-
-#if IS_ENABLED(CONFIG_NET_DEVLINK)
 
 struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size);
 int devlink_register(struct devlink *devlink, struct device *dev);
@@ -572,9 +583,9 @@ void devlink_port_type_clear(struct devlink_port *devlink_port);
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
-			    u32 split_subport_number);
-int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
-				    char *name, size_t len);
+			    u32 split_subport_number,
+			    const unsigned char *switch_id,
+			    unsigned char switch_id_len);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
@@ -724,499 +735,17 @@ void
 devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 				     enum devlink_health_reporter_state state);
 
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
+int devlink_compat_phys_port_name_get(struct net_device *dev,
+				      char *name, size_t len);
+int devlink_compat_switch_id_get(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid);
 
 #else
-
-static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
-					    size_t priv_size)
-{
-	return kzalloc(sizeof(struct devlink) + priv_size, GFP_KERNEL);
-}
-
-static inline int devlink_register(struct devlink *devlink, struct device *dev)
-{
-	return 0;
-}
-
-static inline void devlink_unregister(struct devlink *devlink)
-{
-}
-
-static inline void devlink_params_publish(struct devlink *devlink)
-{
-}
-
-static inline void devlink_params_unpublish(struct devlink *devlink)
-{
-}
-
-static inline void devlink_free(struct devlink *devlink)
-{
-	kfree(devlink);
-}
-
-static inline int devlink_port_register(struct devlink *devlink,
-					struct devlink_port *devlink_port,
-					unsigned int port_index)
-{
-	return 0;
-}
-
-static inline void devlink_port_unregister(struct devlink_port *devlink_port)
-{
-}
-
-static inline void devlink_port_type_eth_set(struct devlink_port *devlink_port,
-					     struct net_device *netdev)
-{
-}
-
-static inline void devlink_port_type_ib_set(struct devlink_port *devlink_port,
-					    struct ib_device *ibdev)
-{
-}
-
-static inline void devlink_port_type_clear(struct devlink_port *devlink_port)
-{
-}
-
-static inline void devlink_port_attrs_set(struct devlink_port *devlink_port,
-					  enum devlink_port_flavour flavour,
-					  u32 port_number, bool split,
-					  u32 split_subport_number)
-{
-}
-
-static inline int
-devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
-				char *name, size_t len)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int devlink_sb_register(struct devlink *devlink,
-				      unsigned int sb_index, u32 size,
-				      u16 ingress_pools_count,
-				      u16 egress_pools_count,
-				      u16 ingress_tc_count,
-				      u16 egress_tc_count)
-{
-	return 0;
-}
-
-static inline void devlink_sb_unregister(struct devlink *devlink,
-					 unsigned int sb_index)
-{
-}
-
-static inline int
-devlink_dpipe_table_register(struct devlink *devlink,
-			     const char *table_name,
-			     struct devlink_dpipe_table_ops *table_ops,
-			     void *priv, bool counter_control_extern)
-{
-	return 0;
-}
-
-static inline void devlink_dpipe_table_unregister(struct devlink *devlink,
-						  const char *table_name)
-{
-}
-
-static inline int devlink_dpipe_headers_register(struct devlink *devlink,
-						 struct devlink_dpipe_headers *
-						 dpipe_headers)
-{
-	return 0;
-}
-
-static inline void devlink_dpipe_headers_unregister(struct devlink *devlink)
-{
-}
-
-static inline bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,
-						       const char *table_name)
-{
-	return false;
-}
-
-static inline int
-devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
-{
-	return 0;
-}
-
-static inline int
-devlink_dpipe_entry_ctx_append(struct devlink_dpipe_dump_ctx *dump_ctx,
-			       struct devlink_dpipe_entry *entry)
-{
-	return 0;
-}
-
-static inline int
-devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx)
-{
-	return 0;
-}
-
-static inline void
-devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry)
-{
-}
-
-static inline int
-devlink_dpipe_action_put(struct sk_buff *skb,
-			 struct devlink_dpipe_action *action)
-{
-	return 0;
-}
-
-static inline int
-devlink_dpipe_match_put(struct sk_buff *skb,
-			struct devlink_dpipe_match *match)
-{
-	return 0;
-}
-
-static inline int
-devlink_resource_register(struct devlink *devlink,
-			  const char *resource_name,
-			  u64 resource_size,
-			  u64 resource_id,
-			  u64 parent_resource_id,
-			  const struct devlink_resource_size_params *size_params)
-{
-	return 0;
-}
-
-static inline void
-devlink_resources_unregister(struct devlink *devlink,
-			     struct devlink_resource *resource)
-{
-}
-
-static inline int
-devlink_resource_size_get(struct devlink *devlink, u64 resource_id,
-			  u64 *p_resource_size)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int
-devlink_dpipe_table_resource_set(struct devlink *devlink,
-				 const char *table_name, u64 resource_id,
-				 u64 resource_units)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void
-devlink_resource_occ_get_register(struct devlink *devlink,
-				  u64 resource_id,
-				  devlink_resource_occ_get_t *occ_get,
-				  void *occ_get_priv)
-{
-}
-
-static inline void
-devlink_resource_occ_get_unregister(struct devlink *devlink,
-				    u64 resource_id)
-{
-}
-
-static inline int
-devlink_params_register(struct devlink *devlink,
-			const struct devlink_param *params,
-			size_t params_count)
-{
-	return 0;
-}
-
-static inline void
-devlink_params_unregister(struct devlink *devlink,
-			  const struct devlink_param *params,
-			  size_t params_count)
-{
-
-}
-
-static inline int
-devlink_port_params_register(struct devlink_port *devlink_port,
-			     const struct devlink_param *params,
-			     size_t params_count)
-{
-	return 0;
-}
-
-static inline void
-devlink_port_params_unregister(struct devlink_port *devlink_port,
-			       const struct devlink_param *params,
-			       size_t params_count)
-{
-}
-
-static inline int
-devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				   union devlink_param_value *init_val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int
-devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
-				   union devlink_param_value init_val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int
-devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
-					u32 param_id,
-					union devlink_param_value *init_val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int
-devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
-					u32 param_id,
-					union devlink_param_value init_val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void
-devlink_param_value_changed(struct devlink *devlink, u32 param_id)
-{
-}
-
-static inline void
-devlink_port_param_value_changed(struct devlink_port *devlink_port,
-				 u32 param_id)
-{
-}
-
-static inline void
-devlink_param_value_str_fill(union devlink_param_value *dst_val,
-			     const char *src)
-{
-}
-
-static inline struct devlink_region *
-devlink_region_create(struct devlink *devlink,
-		      const char *region_name,
-		      u32 region_max_snapshots,
-		      u64 region_size)
-{
-	return NULL;
-}
-
-static inline void
-devlink_region_destroy(struct devlink_region *region)
-{
-}
-
-static inline u32
-devlink_region_shapshot_id_get(struct devlink *devlink)
-{
-	return 0;
-}
-
-static inline int
-devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
-			       u8 *data, u32 snapshot_id,
-			       devlink_snapshot_data_dest_t *data_destructor)
-{
-	return 0;
-}
-
-static inline int
-devlink_info_driver_name_put(struct devlink_info_req *req, const char *name)
-{
-	return 0;
-}
-
-static inline int
-devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
-{
-	return 0;
-}
-
-static inline int
-devlink_info_version_fixed_put(struct devlink_info_req *req,
-			       const char *version_name,
-			       const char *version_value)
-{
-	return 0;
-}
-
-static inline int
-devlink_info_version_stored_put(struct devlink_info_req *req,
-				const char *version_name,
-				const char *version_value)
-{
-	return 0;
-}
-
-static inline int
-devlink_info_version_running_put(struct devlink_info_req *req,
-				 const char *version_name,
-				 const char *version_value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
-				 const char *name)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
-			u16 value_len)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			   bool value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			 u8 value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			  u32 value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			  u64 value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			     const char *value)
-{
-	return 0;
-}
-
-static inline int
-devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			     const void *value, u16 value_len)
-{
-	return 0;
-}
-
-static inline struct devlink_health_reporter *
-devlink_health_reporter_create(struct devlink *devlink,
-			       const struct devlink_health_reporter_ops *ops,
-			       u64 graceful_period, bool auto_recover,
-			       void *priv)
-{
-	return NULL;
-}
-
-static inline void
-devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
-{
-}
-
-static inline void *
-devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
-{
-	return NULL;
-}
-
-static inline int
-devlink_health_report(struct devlink_health_reporter *reporter,
-		      const char *msg, void *priv_ctx)
-{
-	return 0;
-}
-
-static inline void
-devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
-				     enum devlink_health_reporter_state state)
-{
-}
 
 static inline void
 devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
@@ -1228,6 +757,21 @@ devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 {
 	return -EOPNOTSUPP;
 }
+
+static inline int
+devlink_compat_phys_port_name_get(struct net_device *dev,
+				  char *name, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_compat_switch_id_get(struct net_device *dev,
+			     struct netdev_phys_item_id *ppid)
+{
+	return -EOPNOTSUPP;
+}
+
 #endif
 
 #endif /* _NET_DEVLINK_H_ */

@@ -68,8 +68,11 @@ device_dax-y += device_dax_test.o
 device_dax-y += config_check.o
 
 dax_pmem-y := $(DAX_SRC)/pmem/pmem.o
+dax_pmem-y += dax_pmem_test.o
 dax_pmem_core-y := $(DAX_SRC)/pmem/core.o
+dax_pmem_core-y += dax_pmem_core_test.o
 dax_pmem_compat-y := $(DAX_SRC)/pmem/compat.o
+dax_pmem_compat-y += dax_pmem_compat_test.o
 dax_pmem-y += config_check.o
 
 libnvdimm-y := $(NVDIMM_SRC)/core.o

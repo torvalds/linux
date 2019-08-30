@@ -36,7 +36,7 @@
         "EdgeDetect": "1"
     },
     {
-        "PublicDescription": "This event counts every cycle when an I-side (walks due to an instruction fetch) page walk is in progress. ",
+        "PublicDescription": "This event counts every cycle when an I-side (walks due to an instruction fetch) page walk is in progress.",
         "EventCode": "0x05",
         "Counter": "0,1",
         "UMask": "0x2",

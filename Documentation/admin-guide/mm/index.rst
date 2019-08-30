@@ -31,6 +31,7 @@ the Linux memory management.
    ksm
    memory-hotplug
    numa_memory_policy
+   numaperf
    pagemap
    soft-dirty
    transhuge

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Wdt977	0.04:	A Watchdog Device for Netwinder W83977AF chip
  *
  *	(c) Copyright 1998 Rebel.com (Woody Suwalski <woody@netwinder.org>)
  *
  *			-----------------------
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *			-----------------------
  *      14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
@@ -273,7 +269,7 @@ static int wdt977_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	wdt977_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int wdt977_release(struct inode *inode, struct file *file)

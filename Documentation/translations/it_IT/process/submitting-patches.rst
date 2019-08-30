@@ -67,8 +67,8 @@ sulla radice dei sorgenti del kernel, e non sulle sue sottocartelle.
 
 Per creare una patch per un singolo file, spesso è sufficiente fare::
 
-	SRCTREE= linux
-	MYFILE=  drivers/net/mydriver.c
+	SRCTREE=linux
+	MYFILE=drivers/net/mydriver.c
 
 	cd $SRCTREE
 	cp $MYFILE $MYFILE.orig
@@ -80,7 +80,7 @@ Per creare una patch per molteplici file, dovreste spacchettare i sorgenti
 "vergini", o comunque non modificati, e fare un ``diff`` coi vostri.
 Per esempio::
 
-	MYSRC= /devel/linux
+	MYSRC=/devel/linux
 
 	tar xvfz linux-3.19.tar.gz
 	mv linux-3.19 linux-3.19-vanilla
@@ -567,11 +567,42 @@ alcunché - ma dovrebbe indicare che la persona ha ricevuto una copia della
 patch.  Questa etichetta documenta che terzi potenzialmente interessati sono
 stati inclusi nella discussione.
 
-L'etichetta Co-developed-by: indica che la patch è stata scritta dall'autore in
-collaborazione con un altro sviluppatore.  Qualche volta questo è utile quando
-più persone lavorano sulla stessa patch.  Notate, questa persona deve avere
-nella patch anche una riga Signed-off-by:.
+Co-developed-by: indica che la patch è stata cosviluppata da diversi
+sviluppatori; viene usato per assegnare più autori (in aggiunta a quello
+associato all'etichetta From:) quando più persone lavorano ad una patch.  Dato
+che Co-developed-by: implica la paternità della patch, ogni Co-developed-by:
+dev'essere seguito immediatamente dal Signed-off-by: del corrispondente
+coautore. Qui si applica la procedura di base per sign-off, in pratica
+l'ordine delle etichette Signed-off-by: dovrebbe riflettere il più possibile
+l'ordine cronologico della storia della patch, indipendentemente dal fatto che
+la paternità venga assegnata via From: o Co-developed-by:. Da notare che
+l'ultimo Signed-off-by: dev'essere quello di colui che ha sottomesso la patch.
 
+Notate anche che l'etichetta From: è opzionale quando l'autore in From: è
+anche la persona (e indirizzo email) indicato nel From: dell'intestazione
+dell'email.
+
+Esempio di una patch sottomessa dall'autore in From:::
+
+	<changelog>
+
+	Co-developed-by: First Co-Author <first@coauthor.example.org>
+	Signed-off-by: First Co-Author <first@coauthor.example.org>
+	Co-developed-by: Second Co-Author <second@coauthor.example.org>
+	Signed-off-by: Second Co-Author <second@coauthor.example.org>
+	Signed-off-by: From Author <from@author.example.org>
+
+Esempio di una patch sottomessa dall'autore Co-developed-by:::
+
+	From: From Author <from@author.example.org>
+
+	<changelog>
+
+	Co-developed-by: Random Co-Author <random@coauthor.example.org>
+	Signed-off-by: Random Co-Author <random@coauthor.example.org>
+	Signed-off-by: From Author <from@author.example.org>
+	Co-developed-by: Submitting Co-Author <sub@coauthor.example.org>
+	Signed-off-by: Submitting Co-Author <sub@coauthor.example.org>
 
 13) Utilizzare Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: e Fixes:
 -----------------------------------------------------------------------------
@@ -719,7 +750,7 @@ Un paio di esempi di oggetti::
 La riga ``from`` dev'essere la prima nel corpo del messaggio ed è nel
 formato:
 
-        From: Original Author <author@example.com>
+        From: Patch Author <author@example.com>
 
 La riga ``from`` indica chi verrà accreditato nel changelog permanente come
 l'autore della patch.  Se la riga ``from`` è mancante, allora per determinare

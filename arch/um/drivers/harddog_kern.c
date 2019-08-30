@@ -85,7 +85,7 @@ static int harddog_open(struct inode *inode, struct file *file)
 	timer_alive = 1;
 	spin_unlock(&lock);
 	mutex_unlock(&harddog_mutex);
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 err:
 	spin_unlock(&lock);
 	mutex_unlock(&harddog_mutex);

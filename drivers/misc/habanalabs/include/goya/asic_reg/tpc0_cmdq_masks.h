@@ -370,4 +370,3 @@
 #define TPC0_CMDQ_CQ_BUF_RDATA_VAL_MASK                              0xFFFFFFFF
 
 #endif /* ASIC_REG_TPC0_CMDQ_MASKS_H_ */
-

@@ -474,12 +474,12 @@ static int rsc_parse(struct cache_detail *cd,
 		 * treatment so are checked for validity here.)
 		 */
 		/* uid */
-		rsci.cred.cr_uid = make_kuid(&init_user_ns, id);
+		rsci.cred.cr_uid = make_kuid(current_user_ns(), id);
 
 		/* gid */
 		if (get_int(&mesg, &id))
 			goto out;
-		rsci.cred.cr_gid = make_kgid(&init_user_ns, id);
+		rsci.cred.cr_gid = make_kgid(current_user_ns(), id);
 
 		/* number of additional gid's */
 		if (get_int(&mesg, &N))
@@ -497,7 +497,7 @@ static int rsc_parse(struct cache_detail *cd,
 			kgid_t kgid;
 			if (get_int(&mesg, &id))
 				goto out;
-			kgid = make_kgid(&init_user_ns, id);
+			kgid = make_kgid(current_user_ns(), id);
 			if (!gid_valid(kgid))
 				goto out;
 			rsci.cred.cr_group_info->gid[i] = kgid;

@@ -58,10 +58,9 @@ static const unsigned int LDO1_VSEL_table[] = {
 
 static const struct regulator_linear_range tps65217_uv1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 24, 25000),
-	REGULATOR_LINEAR_RANGE(1550000, 25, 30, 50000),
-	REGULATOR_LINEAR_RANGE(1850000, 31, 52, 50000),
+	REGULATOR_LINEAR_RANGE(1550000, 25, 52, 50000),
 	REGULATOR_LINEAR_RANGE(3000000, 53, 55, 100000),
-	REGULATOR_LINEAR_RANGE(3300000, 56, 62, 0),
+	REGULATOR_LINEAR_RANGE(3300000, 56, 63, 0),
 };
 
 static const struct regulator_linear_range tps65217_uv2_ranges[] = {
@@ -150,7 +149,7 @@ static int tps65217_pmic_set_suspend_disable(struct regulator_dev *dev)
 }
 
 /* Operations permitted on DCDCx, LDO2, LDO3 and LDO4 */
-static struct regulator_ops tps65217_pmic_ops = {
+static const struct regulator_ops tps65217_pmic_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
@@ -163,7 +162,7 @@ static struct regulator_ops tps65217_pmic_ops = {
 };
 
 /* Operations permitted on LDO1 */
-static struct regulator_ops tps65217_pmic_ldo1_ops = {
+static const struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,

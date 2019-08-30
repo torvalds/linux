@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HYSDN
 	tristate "Hypercope HYSDN cards (Champ, Ergo, Metro) support (module only)"
 	depends on m && PROC_FS && PCI

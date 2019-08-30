@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* drivers/media/platform/s5p-cec/exynos_hdmi_cec.h
  *
  * Copyright (c) 2010, 2014 Samsung Electronics
  *		http://www.samsung.com/
  *
  * Header file for interface of Samsung Exynos hdmi cec hardware
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _EXYNOS_HDMI_CEC_H_

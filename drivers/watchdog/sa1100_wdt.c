@@ -59,7 +59,7 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 	writel_relaxed(OSSR_M3, OSSR);
 	writel_relaxed(OWER_WME, OWER);
 	writel_relaxed(readl_relaxed(OIER) | OIER_E3, OIER);
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /*

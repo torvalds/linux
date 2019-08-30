@@ -444,4 +444,3 @@
 #define PSOC_GLOBAL_CONF_PAD_SEL_VAL_MASK                            0x3
 
 #endif /* ASIC_REG_PSOC_GLOBAL_CONF_MASKS_H_ */
-

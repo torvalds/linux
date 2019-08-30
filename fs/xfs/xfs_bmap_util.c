@@ -1193,6 +1193,8 @@ xfs_prepare_shift(
 	 * about to shift down every extent from offset to EOF.
 	 */
 	error = xfs_flush_unmap_range(ip, offset, XFS_ISIZE(ip));
+	if (error)
+		return error;
 
 	/*
 	 * Clean out anything hanging around in the cow fork now that

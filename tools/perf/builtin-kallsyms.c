@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * builtin-kallsyms.c
  *
  * Builtin command: Look for a symbol in the running kernel and its modules
  *
  * Copyright (C) 2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 #include <inttypes.h>
 #include "builtin.h"

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Video Capture Subdev for Freescale i.MX5/6 SOC
  *
  * Copyright (c) 2012-2016 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/fs.h>
@@ -556,6 +552,7 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 {
 	struct capture_priv *priv = vb2_get_drv_priv(vq);
 	struct imx_media_buffer *frame;
+	struct imx_media_buffer *tmp;
 	unsigned long flags;
 	int ret;
 
@@ -570,9 +567,7 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 
 	/* release all active buffers */
 	spin_lock_irqsave(&priv->q_lock, flags);
-	while (!list_empty(&priv->ready_q)) {
-		frame = list_entry(priv->ready_q.next,
-				   struct imx_media_buffer, list);
+	list_for_each_entry_safe(frame, tmp, &priv->ready_q, list) {
 		list_del(&frame->list);
 		vb2_buffer_done(&frame->vbuf.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
@@ -706,7 +701,8 @@ void imx_media_capture_device_error(struct imx_media_video_dev *vdev)
 }
 EXPORT_SYMBOL_GPL(imx_media_capture_device_error);
 
-int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
+int imx_media_capture_device_register(struct imx_media_dev *md,
+				      struct imx_media_video_dev *vdev)
 {
 	struct capture_priv *priv = to_capture_priv(vdev);
 	struct v4l2_subdev *sd = priv->src_sd;
@@ -715,8 +711,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	struct v4l2_subdev_format fmt_src;
 	int ret;
 
-	/* get media device */
-	priv->md = dev_get_drvdata(sd->v4l2_dev->dev);
+	priv->md = md;
 
 	vfd->v4l2_dev = sd->v4l2_dev;
 

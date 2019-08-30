@@ -12,8 +12,8 @@
 #ifndef _XTENSA_COPROCESSOR_H
 #define _XTENSA_COPROCESSOR_H
 
-#include <variant/core.h>
 #include <variant/tie.h>
+#include <asm/core.h>
 #include <asm/types.h>
 
 #ifdef __ASSEMBLY__

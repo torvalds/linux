@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ARCH_H
@@ -33,7 +21,11 @@
 #define INSN_STACK		8
 #define INSN_BUG		9
 #define INSN_NOP		10
-#define INSN_OTHER		11
+#define INSN_STAC		11
+#define INSN_CLAC		12
+#define INSN_STD		13
+#define INSN_CLD		14
+#define INSN_OTHER		15
 #define INSN_LAST		INSN_OTHER
 
 enum op_dest_type {
@@ -41,6 +33,7 @@ enum op_dest_type {
 	OP_DEST_REG_INDIRECT,
 	OP_DEST_MEM,
 	OP_DEST_PUSH,
+	OP_DEST_PUSHF,
 	OP_DEST_LEAVE,
 };
 
@@ -55,6 +48,7 @@ enum op_src_type {
 	OP_SRC_REG_INDIRECT,
 	OP_SRC_CONST,
 	OP_SRC_POP,
+	OP_SRC_POPF,
 	OP_SRC_ADD,
 	OP_SRC_AND,
 };

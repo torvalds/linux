@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <mach-se/mach/se7343.h>
 
 #define PA_CPLD_BASE_ADDR	0x11400000

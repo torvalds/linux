@@ -233,10 +233,12 @@ Le etichette in uso più comuni sono:
    :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`.
    Codice che non presenta una firma appropriata non potrà essere integrato.
 
- - Co-developed-by: indica che la patch è stata sviluppata anche da un altro
-   sviluppatore assieme all'autore originale.  Questo è utile quando più
-   persone lavorano sulla stessa patch.  Da notare che questa persona deve
-   avere anche una riga "Signed-off-by:" nella patch.
+ - Co-developed-by: indica che la patch è stata cosviluppata da diversi
+   sviluppatori; viene usato per assegnare più autori (in aggiunta a quello
+   associato all'etichetta From:) quando più persone lavorano ad una patch.
+   Ogni Co-developed-by: dev'essere seguito immediatamente da un Signed-off-by:
+   del corrispondente coautore.  Maggiori dettagli ed esempi sono disponibili
+   in :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`.
 
  - Acked-by: indica il consenso di un altro sviluppatore (spesso il manutentore
    del codice in oggetto) all'integrazione della patch nel kernel.

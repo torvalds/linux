@@ -33,6 +33,7 @@ struct i2c_algo_bit_data {
 				   minimum 5 us for standard-mode I2C and SMBus,
 				   maximum 50 us for SMBus */
 	int timeout;		/* in jiffies */
+	bool can_do_atomic;	/* callbacks don't sleep, we can be atomic */
 };
 
 int i2c_bit_add_bus(struct i2c_adapter *);

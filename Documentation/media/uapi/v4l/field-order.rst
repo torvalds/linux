@@ -64,7 +64,9 @@ enum v4l2_field
 
 .. c:type:: v4l2_field
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.8cm}|p{0.6cm}|p{11.1cm}|
+
+.. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  0
@@ -73,12 +75,11 @@ enum v4l2_field
 
     * - ``V4L2_FIELD_ANY``
       - 0
-      - Applications request this field order when any one of the
-	``V4L2_FIELD_NONE``, ``V4L2_FIELD_TOP``, ``V4L2_FIELD_BOTTOM``, or
-	``V4L2_FIELD_INTERLACED`` formats is acceptable. Drivers choose
-	depending on hardware capabilities or e. g. the requested image
-	size, and return the actual field order. Drivers must never return
-	``V4L2_FIELD_ANY``. If multiple field orders are possible the
+      - Applications request this field order when any field format
+	is acceptable. Drivers choose depending on hardware capabilities or
+	e.g. the requested image size, and return the actual field order.
+	Drivers must never return ``V4L2_FIELD_ANY``.
+	If multiple field orders are possible the
 	driver must choose one of the possible field orders during
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
 	:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`. struct
@@ -86,9 +87,8 @@ enum v4l2_field
 	``V4L2_FIELD_ANY``.
     * - ``V4L2_FIELD_NONE``
       - 1
-      - Images are in progressive format, not interlaced. The driver may
-	also indicate this order when it cannot distinguish between
-	``V4L2_FIELD_TOP`` and ``V4L2_FIELD_BOTTOM``.
+      - Images are in progressive (frame-based) format, not interlaced
+        (field-based).
     * - ``V4L2_FIELD_TOP``
       - 2
       - Images consist of the top (aka odd) field only.

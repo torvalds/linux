@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_NPCM7XX
 	bool "Pinctrl and GPIO driver for Nuvoton NPCM7XX"
 	depends on (ARCH_NPCM7XX || COMPILE_TEST) && OF

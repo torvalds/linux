@@ -360,6 +360,7 @@ enum mlx5_ib_create_qp_resp_mask {
 	MLX5_IB_CREATE_QP_RESP_MASK_TISN = 1UL << 1,
 	MLX5_IB_CREATE_QP_RESP_MASK_RQN  = 1UL << 2,
 	MLX5_IB_CREATE_QP_RESP_MASK_SQN  = 1UL << 3,
+	MLX5_IB_CREATE_QP_RESP_MASK_TIR_ICM_ADDR  = 1UL << 4,
 };
 
 struct mlx5_ib_create_qp_resp {
@@ -371,6 +372,7 @@ struct mlx5_ib_create_qp_resp {
 	__u32	rqn;
 	__u32	sqn;
 	__u32   reserved1;
+	__u64	tir_icm_addr;
 };
 
 struct mlx5_ib_alloc_mw {

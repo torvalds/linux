@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MTD_NAND_JZ4740
+	tristate "JZ4740 NAND controller"
+	depends on MACH_JZ4740 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND Flash on JZ4740 SoC based boards.
+
+config MTD_NAND_JZ4780
+	tristate "JZ4780 NAND controller"
+	depends on JZ4780_NEMC
+	help
+	  Enables support for NAND Flash connected to the NEMC on JZ4780 SoC
+	  based boards, using the BCH controller for hardware error correction.
+
+if MTD_NAND_JZ4780
+
+config MTD_NAND_INGENIC_ECC
+	bool
+
+config MTD_NAND_JZ4740_ECC
+	tristate "Hardware BCH support for JZ4740 SoC"
+	select MTD_NAND_INGENIC_ECC
+	help
+	  Enable this driver to support the Reed-Solomon error-correction
+	  hardware present on the JZ4740 SoC from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called jz4740-ecc.
+
+config MTD_NAND_JZ4725B_BCH
+	tristate "Hardware BCH support for JZ4725B SoC"
+	select MTD_NAND_INGENIC_ECC
+	help
+	  Enable this driver to support the BCH error-correction hardware
+	  present on the JZ4725B SoC from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called jz4725b-bch.
+
+config MTD_NAND_JZ4780_BCH
+	tristate "Hardware BCH support for JZ4780 SoC"
+	select MTD_NAND_INGENIC_ECC
+	help
+	  Enable this driver to support the BCH error-correction hardware
+	  present on the JZ4780 SoC from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called jz4780-bch.
+
+endif # MTD_NAND_JZ4780

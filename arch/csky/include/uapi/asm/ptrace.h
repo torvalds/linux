@@ -48,20 +48,5 @@ struct user_fp {
 	unsigned long	reserved;
 };
 
-#ifdef __KERNEL__
-
-#define PS_S	0x80000000 /* Supervisor Mode */
-
-#define arch_has_single_step() (1)
-#define current_pt_regs() \
-({ (struct pt_regs *)((char *)current_thread_info() + THREAD_SIZE) - 1; })
-
-#define user_stack_pointer(regs) ((regs)->usp)
-
-#define user_mode(regs) (!((regs)->sr & PS_S))
-#define instruction_pointer(regs) ((regs)->pc)
-#define profile_pc(regs) instruction_pointer(regs)
-
-#endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _CSKY_PTRACE_H */

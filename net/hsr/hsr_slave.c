@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright 2011-2014 Autronica Fire and Security AS
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
@@ -17,7 +13,6 @@
 #include "hsr_device.h"
 #include "hsr_forward.h"
 #include "hsr_framereg.h"
-
 
 static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 {
@@ -61,12 +56,11 @@ bool hsr_port_exists(const struct net_device *dev)
 	return rcu_access_pointer(dev->rx_handler) == hsr_handle_frame;
 }
 
-
 static int hsr_check_dev_ok(struct net_device *dev)
 {
 	/* Don't allow HSR on non-ethernet like devices */
-	if ((dev->flags & IFF_LOOPBACK) || (dev->type != ARPHRD_ETHER) ||
-	    (dev->addr_len != ETH_ALEN)) {
+	if ((dev->flags & IFF_LOOPBACK) || dev->type != ARPHRD_ETHER ||
+	    dev->addr_len != ETH_ALEN) {
 		netdev_info(dev, "Cannot use loopback or non-ethernet device as HSR slave.\n");
 		return -EINVAL;
 	}
@@ -98,7 +92,6 @@ static int hsr_check_dev_ok(struct net_device *dev)
 
 	return 0;
 }
-
 
 /* Setup device to be added to the HSR bridge. */
 static int hsr_portdev_setup(struct net_device *dev, struct hsr_port *port)
@@ -143,11 +136,11 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 	}
 
 	port = hsr_port_get_hsr(hsr, type);
-	if (port != NULL)
+	if (port)
 		return -EBUSY;	/* This port already exists */
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	if (port == NULL)
+	if (!port)
 		return -ENOMEM;
 
 	if (type != HSR_PT_MASTER) {
@@ -184,7 +177,7 @@ void hsr_del_port(struct hsr_port *port)
 	list_del_rcu(&port->port_list);
 
 	if (port != master) {
-		if (master != NULL) {
+		if (master) {
 			netdev_update_features(master->dev);
 			dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
 		}

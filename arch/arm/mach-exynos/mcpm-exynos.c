@@ -75,14 +75,25 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 		 */
 		if (cluster &&
 		    cluster == MPIDR_AFFINITY_LEVEL(cpu_logical_map(0), 1)) {
+			unsigned int timeout = 16;
+
 			/*
 			 * Before we reset the Little cores, we should wait
 			 * the SPARE2 register is set to 1 because the init
 			 * codes of the iROM will set the register after
 			 * initialization.
 			 */
-			while (!pmu_raw_readl(S5P_PMU_SPARE2))
+			while (timeout && !pmu_raw_readl(S5P_PMU_SPARE2)) {
+				timeout--;
 				udelay(10);
+			}
+
+			if (timeout == 0) {
+				pr_err("cpu %u cluster %u powerup failed\n",
+				       cpu, cluster);
+				exynos_cpu_power_down(cpunr);
+				return -ETIMEDOUT;
+			}
 
 			pmu_raw_writel(EXYNOS5420_KFC_CORE_RESET(cpu),
 					EXYNOS_SWRESET);

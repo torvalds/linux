@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * livepatch.h - Kernel Live Patching Core
  *
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
  * Copyright (C) 2014 SUSE
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _LINUX_LIVEPATCH_H_
@@ -86,7 +74,6 @@ struct klp_func {
 	struct list_head node;
 	struct list_head stack_node;
 	unsigned long old_size, new_size;
-	bool kobj_added;
 	bool nop;
 	bool patched;
 	bool transition;
@@ -141,7 +128,6 @@ struct klp_object {
 	struct list_head func_list;
 	struct list_head node;
 	struct module *mod;
-	bool kobj_added;
 	bool dynamic;
 	bool patched;
 };
@@ -170,7 +156,6 @@ struct klp_patch {
 	struct list_head list;
 	struct kobject kobj;
 	struct list_head obj_list;
-	bool kobj_added;
 	bool enabled;
 	bool forced;
 	struct work_struct free_work;

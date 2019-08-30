@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Core Netfilter Configuration"
 	depends on NET && INET && NETFILTER
 
@@ -403,11 +404,6 @@ config NF_NAT
 	  The NAT option allows masquerading, port forwarding and other
 	  forms of full Network Address Port Translation. This can be
 	  controlled by iptables, ip6tables or nft.
-
-config NF_NAT_NEEDED
-	bool
-	depends on NF_NAT
-	default y
 
 config NF_NAT_AMANDA
 	tristate
@@ -1001,6 +997,20 @@ config NETFILTER_XT_TARGET_REDIRECT
 	useful for transparent proxies.
 
 	To compile it as a module, choose M here. If unsure, say N.
+
+config NETFILTER_XT_TARGET_MASQUERADE
+	tristate "MASQUERADE target support"
+	depends on NF_NAT
+	default m if NETFILTER_ADVANCED=n
+	select NF_NAT_MASQUERADE
+	help
+	  Masquerading is a special case of NAT: all outgoing connections are
+	  changed to seem to come from a particular interface's address, and
+	  if the interface goes down, those connections are lost.  This is
+	  only useful for dialup accounts with dynamic IP address (ie. your IP
+	  address will be different on next dialup).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_TARGET_TEE
 	tristate '"TEE" - packet cloning to alternate destination'

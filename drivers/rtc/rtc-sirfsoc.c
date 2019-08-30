@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiRFSoC Real Time Clock interface for Linux
  *
  * Copyright (c) 2013 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>
@@ -279,7 +278,7 @@ static const struct of_device_id sirfsoc_rtc_of_match[] = {
 	{},
 };
 
-const struct regmap_config sysrtc_regmap_config = {
+static const struct regmap_config sysrtc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.fast_io = true,

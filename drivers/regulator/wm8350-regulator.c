@@ -1,16 +1,11 @@
-/*
- * wm8350.c  --  Voltage and current regulation for the Wolfson WM8350 PMIC
- *
- * Copyright 2007, 2008 Wolfson Microelectronics PLC.
- *
- * Author: Liam Girdwood
- *         linux@wolfsonmicro.com
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// wm8350.c  --  Voltage and current regulation for the Wolfson WM8350 PMIC
+//
+// Copyright 2007, 2008 Wolfson Microelectronics PLC.
+//
+// Author: Liam Girdwood
+//         linux@wolfsonmicro.com
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -28,7 +23,7 @@
 #define WM8350_DCDC_MAX_VSEL 0x66
 
 /* Microamps */
-static const int isink_cur[] = {
+static const unsigned int isink_cur[] = {
 	4,
 	5,
 	6,
@@ -94,73 +89,6 @@ static const int isink_cur[] = {
 	187681,
 	223191
 };
-
-static int get_isink_val(int min_uA, int max_uA, u16 *setting)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(isink_cur); i++) {
-		if (min_uA <= isink_cur[i] && max_uA >= isink_cur[i]) {
-			*setting = i;
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-static int wm8350_isink_set_current(struct regulator_dev *rdev, int min_uA,
-	int max_uA)
-{
-	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
-	int isink = rdev_get_id(rdev);
-	u16 val, setting;
-	int ret;
-
-	ret = get_isink_val(min_uA, max_uA, &setting);
-	if (ret != 0)
-		return ret;
-
-	switch (isink) {
-	case WM8350_ISINK_A:
-		val = wm8350_reg_read(wm8350, WM8350_CURRENT_SINK_DRIVER_A) &
-		    ~WM8350_CS1_ISEL_MASK;
-		wm8350_reg_write(wm8350, WM8350_CURRENT_SINK_DRIVER_A,
-				 val | setting);
-		break;
-	case WM8350_ISINK_B:
-		val = wm8350_reg_read(wm8350, WM8350_CURRENT_SINK_DRIVER_B) &
-		    ~WM8350_CS1_ISEL_MASK;
-		wm8350_reg_write(wm8350, WM8350_CURRENT_SINK_DRIVER_B,
-				 val | setting);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int wm8350_isink_get_current(struct regulator_dev *rdev)
-{
-	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
-	int isink = rdev_get_id(rdev);
-	u16 val;
-
-	switch (isink) {
-	case WM8350_ISINK_A:
-		val = wm8350_reg_read(wm8350, WM8350_CURRENT_SINK_DRIVER_A) &
-		    WM8350_CS1_ISEL_MASK;
-		break;
-	case WM8350_ISINK_B:
-		val = wm8350_reg_read(wm8350, WM8350_CURRENT_SINK_DRIVER_B) &
-		    WM8350_CS1_ISEL_MASK;
-		break;
-	default:
-		return 0;
-	}
-
-	return isink_cur[val];
-}
 
 /* turn on ISINK followed by DCDC */
 static int wm8350_isink_enable(struct regulator_dev *rdev)
@@ -982,8 +910,8 @@ static const struct regulator_ops wm8350_ldo_ops = {
 };
 
 static const struct regulator_ops wm8350_isink_ops = {
-	.set_current_limit = wm8350_isink_set_current,
-	.get_current_limit = wm8350_isink_get_current,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 	.enable = wm8350_isink_enable,
 	.disable = wm8350_isink_disable,
 	.is_enabled = wm8350_isink_is_enabled,
@@ -1138,6 +1066,10 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.irq = WM8350_IRQ_CS1,
 		.type = REGULATOR_CURRENT,
 		.owner = THIS_MODULE,
+		.curr_table = isink_cur,
+		.n_current_limits = ARRAY_SIZE(isink_cur),
+		.csel_reg = WM8350_CURRENT_SINK_DRIVER_A,
+		.csel_mask = WM8350_CS1_ISEL_MASK,
 	 },
 	{
 		.name = "ISINKB",
@@ -1146,6 +1078,10 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.irq = WM8350_IRQ_CS2,
 		.type = REGULATOR_CURRENT,
 		.owner = THIS_MODULE,
+		.curr_table = isink_cur,
+		.n_current_limits = ARRAY_SIZE(isink_cur),
+		.csel_reg = WM8350_CURRENT_SINK_DRIVER_B,
+		.csel_mask = WM8350_CS2_ISEL_MASK,
 	 },
 };
 

@@ -13,7 +13,7 @@ Optional properties:
 Example:
 
 	&mipi_dsi {
-		panel {
+		panel@0 {
 			compatible = "innolux,p079zca";
 			reg = <0>;
 			avdd-supply = <...>;

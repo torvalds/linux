@@ -13,6 +13,7 @@
 
 /* Period of hdcp checks (to ensure we're still authenticated) */
 #define DRM_HDCP_CHECK_PERIOD_MS		(128 * 16)
+#define DRM_HDCP2_CHECK_PERIOD_MS		500
 
 /* Shared lengths/masks between HDMI/DVI/DisplayPort */
 #define DRM_HDCP_AN_LEN				8
@@ -68,7 +69,6 @@
 #define HDCP_2_2_REP_SEND_ACK			15
 #define HDCP_2_2_REP_STREAM_MANAGE		16
 #define HDCP_2_2_REP_STREAM_READY		17
-#define HDCP_2_2_ERRATA_DP_STREAM_TYPE		50
 
 #define HDCP_2_2_RTX_LEN			8
 #define HDCP_2_2_RRX_LEN			8
@@ -217,11 +217,6 @@ struct hdcp2_rep_stream_manage {
 struct hdcp2_rep_stream_ready {
 	u8	msg_id;
 	u8	m_prime[HDCP_2_2_MPRIME_LEN];
-} __packed;
-
-struct hdcp2_dp_errata_stream_type {
-	u8	msg_id;
-	u8	stream_type;
 } __packed;
 
 /* HDCP2.2 TIMEOUTs in mSec */

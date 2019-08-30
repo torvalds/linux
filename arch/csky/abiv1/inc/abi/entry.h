@@ -16,9 +16,6 @@
 #define LSAVE_A4	40
 #define LSAVE_A5	44
 
-#define EPC_INCREASE	2
-#define EPC_KEEP	0
-
 .macro USPTOKSP
 	mtcr	sp, ss1
 	mfcr	sp, ss0
@@ -27,10 +24,6 @@
 .macro KSPTOUSP
 	mtcr	sp, ss0
 	mfcr	sp, ss1
-.endm
-
-.macro INCTRAP	rx
-	addi	\rx, EPC_INCREASE
 .endm
 
 .macro	SAVE_ALL epc_inc
@@ -150,11 +143,35 @@
 	cpwcr   \rx, cpcr8
 .endm
 
-.macro SETUP_MMU rx
-	lrw	\rx, PHYS_OFFSET | 0xe
-	cpwcr	\rx, cpcr30
-	lrw	\rx, (PHYS_OFFSET + 0x20000000) | 0xe
-	cpwcr	\rx, cpcr31
+.macro SETUP_MMU
+	/* Init psr and enable ee */
+	lrw	r6, DEFAULT_PSR_VALUE
+	mtcr    r6, psr
+	psrset  ee
+
+	/* Select MMU as co-processor */
+	cpseti	cp15
+
+	/*
+	 * cpcr30 format:
+	 * 31 - 29 | 28 - 4 | 3 | 2 | 1 | 0
+	 *   BA     Reserved  C   D   V
+	 */
+	cprcr	r6, cpcr30
+	lsri	r6, 28
+	lsli	r6, 28
+	addi	r6, 0xe
+	cpwcr	r6, cpcr30
+
+	lsri	r6, 28
+	addi	r6, 2
+	lsli	r6, 28
+	addi	r6, 0xe
+	cpwcr	r6, cpcr31
 .endm
 
+.macro ANDI_R3 rx, imm
+	lsri	\rx, 3
+	andi	\rx, (\imm >> 3)
+.endm
 #endif /* __ASM_CSKY_ENTRY_H */

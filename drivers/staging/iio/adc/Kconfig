@@ -1,20 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # ADC drivers
 #
 menu "Analog to digital converters"
-
-config AD7780
-	tristate "Analog Devices AD7780 and similar ADCs driver"
-	depends on SPI
-	depends on GPIOLIB || COMPILE_TEST
-	select AD_SIGMA_DELTA
-	help
-	  Say yes here to build support for Analog Devices AD7170, AD7171,
-	  AD7780 and AD7781 SPI analog to digital converters (ADC).
-	  If unsure, say N (but it's safe to say "Y").
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7780.
 
 config AD7816
 	tristate "Analog Devices AD7816/7/8 temperature sensor and ADC driver"

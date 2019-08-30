@@ -45,7 +45,7 @@ Description:
 		use this feature without a clearance from a patch
 		distributor. Removal (rmmod) of patch modules is permanently
 		disabled when the feature is used. See
-		Documentation/livepatch/livepatch.txt for more information.
+		Documentation/livepatch/livepatch.rst for more information.
 
 What:		/sys/kernel/livepatch/<patch>/<object>
 Date:		Nov 2014

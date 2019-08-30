@@ -178,4 +178,3 @@
 #define mmDMA_MACRO_RAZWI_HBW_RD_ID                                  0x4B0158
 
 #endif /* ASIC_REG_DMA_MACRO_REGS_H_ */
-

@@ -1888,8 +1888,9 @@ static u32 isdn_ppp_mp_get_seq(int short_seq,
 	return seq;
 }
 
-struct sk_buff *isdn_ppp_mp_discard(ippp_bundle *mp,
-				    struct sk_buff *from, struct sk_buff *to)
+static struct sk_buff *isdn_ppp_mp_discard(ippp_bundle *mp,
+					   struct sk_buff *from,
+					   struct sk_buff *to)
 {
 	if (from)
 		while (from != to) {
@@ -1900,8 +1901,8 @@ struct sk_buff *isdn_ppp_mp_discard(ippp_bundle *mp,
 	return from;
 }
 
-void isdn_ppp_mp_reassembly(isdn_net_dev *net_dev, isdn_net_local *lp,
-			    struct sk_buff *from, struct sk_buff *to)
+static void isdn_ppp_mp_reassembly(isdn_net_dev *net_dev, isdn_net_local *lp,
+				   struct sk_buff *from, struct sk_buff *to)
 {
 	ippp_bundle *mp = net_dev->pb;
 	int proto;

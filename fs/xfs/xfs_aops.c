@@ -98,7 +98,6 @@ xfs_destroy_ioend(
 
 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
 		struct bio_vec	*bvec;
-		int		i;
 		struct bvec_iter_all iter_all;
 
 		/*
@@ -111,7 +110,7 @@ xfs_destroy_ioend(
 			next = bio->bi_private;
 
 		/* walk each page on bio, ending page IO on them */
-		bio_for_each_segment_all(bvec, bio, i, iter_all)
+		bio_for_each_segment_all(bvec, bio, iter_all)
 			xfs_finish_page_writeback(inode, bvec, error);
 		bio_put(bio);
 	}
@@ -234,11 +233,10 @@ xfs_setfilesize_ioend(
  * IO write completion.
  */
 STATIC void
-xfs_end_io(
-	struct work_struct *work)
+xfs_end_ioend(
+	struct xfs_ioend	*ioend)
 {
-	struct xfs_ioend	*ioend =
-		container_of(work, struct xfs_ioend, io_work);
+	struct list_head	ioend_list;
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
@@ -275,7 +273,116 @@ xfs_end_io(
 done:
 	if (ioend->io_append_trans)
 		error = xfs_setfilesize_ioend(ioend, error);
+	list_replace_init(&ioend->io_list, &ioend_list);
 	xfs_destroy_ioend(ioend, error);
+
+	while (!list_empty(&ioend_list)) {
+		ioend = list_first_entry(&ioend_list, struct xfs_ioend,
+				io_list);
+		list_del_init(&ioend->io_list);
+		xfs_destroy_ioend(ioend, error);
+	}
+}
+
+/*
+ * We can merge two adjacent ioends if they have the same set of work to do.
+ */
+static bool
+xfs_ioend_can_merge(
+	struct xfs_ioend	*ioend,
+	int			ioend_error,
+	struct xfs_ioend	*next)
+{
+	int			next_error;
+
+	next_error = blk_status_to_errno(next->io_bio->bi_status);
+	if (ioend_error != next_error)
+		return false;
+	if ((ioend->io_fork == XFS_COW_FORK) ^ (next->io_fork == XFS_COW_FORK))
+		return false;
+	if ((ioend->io_state == XFS_EXT_UNWRITTEN) ^
+	    (next->io_state == XFS_EXT_UNWRITTEN))
+		return false;
+	if (ioend->io_offset + ioend->io_size != next->io_offset)
+		return false;
+	if (xfs_ioend_is_append(ioend) != xfs_ioend_is_append(next))
+		return false;
+	return true;
+}
+
+/* Try to merge adjacent completions. */
+STATIC void
+xfs_ioend_try_merge(
+	struct xfs_ioend	*ioend,
+	struct list_head	*more_ioends)
+{
+	struct xfs_ioend	*next_ioend;
+	int			ioend_error;
+	int			error;
+
+	if (list_empty(more_ioends))
+		return;
+
+	ioend_error = blk_status_to_errno(ioend->io_bio->bi_status);
+
+	while (!list_empty(more_ioends)) {
+		next_ioend = list_first_entry(more_ioends, struct xfs_ioend,
+				io_list);
+		if (!xfs_ioend_can_merge(ioend, ioend_error, next_ioend))
+			break;
+		list_move_tail(&next_ioend->io_list, &ioend->io_list);
+		ioend->io_size += next_ioend->io_size;
+		if (ioend->io_append_trans) {
+			error = xfs_setfilesize_ioend(next_ioend, 1);
+			ASSERT(error == 1);
+		}
+	}
+}
+
+/* list_sort compare function for ioends */
+static int
+xfs_ioend_compare(
+	void			*priv,
+	struct list_head	*a,
+	struct list_head	*b)
+{
+	struct xfs_ioend	*ia;
+	struct xfs_ioend	*ib;
+
+	ia = container_of(a, struct xfs_ioend, io_list);
+	ib = container_of(b, struct xfs_ioend, io_list);
+	if (ia->io_offset < ib->io_offset)
+		return -1;
+	else if (ia->io_offset > ib->io_offset)
+		return 1;
+	return 0;
+}
+
+/* Finish all pending io completions. */
+void
+xfs_end_io(
+	struct work_struct	*work)
+{
+	struct xfs_inode	*ip;
+	struct xfs_ioend	*ioend;
+	struct list_head	completion_list;
+	unsigned long		flags;
+
+	ip = container_of(work, struct xfs_inode, i_ioend_work);
+
+	spin_lock_irqsave(&ip->i_ioend_lock, flags);
+	list_replace_init(&ip->i_ioend_list, &completion_list);
+	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
+
+	list_sort(NULL, &completion_list, xfs_ioend_compare);
+
+	while (!list_empty(&completion_list)) {
+		ioend = list_first_entry(&completion_list, struct xfs_ioend,
+				io_list);
+		list_del_init(&ioend->io_list);
+		xfs_ioend_try_merge(ioend, &completion_list);
+		xfs_end_ioend(ioend);
+	}
 }
 
 STATIC void
@@ -283,14 +390,20 @@ xfs_end_bio(
 	struct bio		*bio)
 {
 	struct xfs_ioend	*ioend = bio->bi_private;
-	struct xfs_mount	*mp = XFS_I(ioend->io_inode)->i_mount;
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	unsigned long		flags;
 
 	if (ioend->io_fork == XFS_COW_FORK ||
-	    ioend->io_state == XFS_EXT_UNWRITTEN)
-		queue_work(mp->m_unwritten_workqueue, &ioend->io_work);
-	else if (ioend->io_append_trans)
-		queue_work(mp->m_data_workqueue, &ioend->io_work);
-	else
+	    ioend->io_state == XFS_EXT_UNWRITTEN ||
+	    ioend->io_append_trans != NULL) {
+		spin_lock_irqsave(&ip->i_ioend_lock, flags);
+		if (list_empty(&ip->i_ioend_list))
+			WARN_ON_ONCE(!queue_work(mp->m_unwritten_workqueue,
+						 &ip->i_ioend_work));
+		list_add_tail(&ioend->io_list, &ip->i_ioend_list);
+		spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
+	} else
 		xfs_destroy_ioend(ioend, blk_status_to_errno(bio->bi_status));
 }
 
@@ -594,7 +707,6 @@ xfs_alloc_ioend(
 	ioend->io_inode = inode;
 	ioend->io_size = 0;
 	ioend->io_offset = offset;
-	INIT_WORK(&ioend->io_work, xfs_end_io);
 	ioend->io_append_trans = NULL;
 	ioend->io_bio = bio;
 	return ioend;
@@ -646,6 +758,7 @@ xfs_add_to_ioend(
 	struct block_device	*bdev = xfs_find_bdev_for_inode(inode);
 	unsigned		len = i_blocksize(inode);
 	unsigned		poff = offset & (PAGE_SIZE - 1);
+	bool			merged, same_page = false;
 	sector_t		sector;
 
 	sector = xfs_fsb_to_db(ip, wpc->imap.br_startblock) +
@@ -662,9 +775,13 @@ xfs_add_to_ioend(
 				wpc->imap.br_state, offset, bdev, sector);
 	}
 
-	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff, true)) {
-		if (iop)
-			atomic_inc(&iop->write_count);
+	merged = __bio_try_merge_page(wpc->ioend->io_bio, page, len, poff,
+			&same_page);
+
+	if (iop && !same_page)
+		atomic_inc(&iop->write_count);
+
+	if (!merged) {
 		if (bio_full(wpc->ioend->io_bio))
 			xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
 		bio_add_page(wpc->ioend->io_bio, page, len, poff);

@@ -674,8 +674,27 @@ static int amdgpu_dm_set_crtc_irq_state(struct amdgpu_device *adev,
 		__func__);
 }
 
+static int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
+					   struct amdgpu_irq_src *source,
+					   unsigned int crtc_id,
+					   enum amdgpu_interrupt_state state)
+{
+	return dm_irq_state(
+		adev,
+		source,
+		crtc_id,
+		state,
+		IRQ_TYPE_VUPDATE,
+		__func__);
+}
+
 static const struct amdgpu_irq_src_funcs dm_crtc_irq_funcs = {
 	.set = amdgpu_dm_set_crtc_irq_state,
+	.process = amdgpu_dm_irq_handler,
+};
+
+static const struct amdgpu_irq_src_funcs dm_vupdate_irq_funcs = {
+	.set = amdgpu_dm_set_vupdate_irq_state,
 	.process = amdgpu_dm_irq_handler,
 };
 
@@ -694,6 +713,9 @@ void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
+
+	adev->vupdate_irq.num_types = adev->mode_info.num_crtc;
+	adev->vupdate_irq.funcs = &dm_vupdate_irq_funcs;
 
 	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;
 	adev->pageflip_irq.funcs = &dm_pageflip_irq_funcs;

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2012 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * ST DDC I2C master mode driver, used in e.g. U300 series platforms.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
@@ -328,12 +328,6 @@ static int stu300_start_and_await_event(struct stu300_dev *dev,
 {
 	int ret;
 
-	if (unlikely(irqs_disabled())) {
-		/* TODO: implement polling for this case if need be. */
-		WARN(1, "irqs are disabled, cannot poll for event\n");
-		return -EIO;
-	}
-
 	/* Lock command issue, fill in an event we wait for */
 	spin_lock_irq(&dev->cmd_issue_lock);
 	init_completion(&dev->cmd_complete);
@@ -379,13 +373,6 @@ static int stu300_await_event(struct stu300_dev *dev,
 				enum stu300_event mr_event)
 {
 	int ret;
-
-	if (unlikely(irqs_disabled())) {
-		/* TODO: implement polling for this case if need be. */
-		dev_err(&dev->pdev->dev, "irqs are disabled on this "
-			"system!\n");
-		return -EIO;
-	}
 
 	/* Is it already here? */
 	spin_lock_irq(&dev->cmd_issue_lock);
@@ -846,6 +833,13 @@ static int stu300_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	return num;
 }
 
+static int stu300_xfer_todo(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+{
+	/* TODO: implement polling for this case if need be. */
+	WARN(1, "%s: atomic transfers not implemented\n", dev_name(&adap->dev));
+	return -EOPNOTSUPP;
+}
+
 static u32 stu300_func(struct i2c_adapter *adap)
 {
 	/* This is the simplest thing you can think of... */
@@ -853,8 +847,9 @@ static u32 stu300_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm stu300_algo = {
-	.master_xfer	= stu300_xfer,
-	.functionality	= stu300_func,
+	.master_xfer = stu300_xfer,
+	.master_xfer_atomic = stu300_xfer_todo,
+	.functionality = stu300_func,
 };
 
 static const struct i2c_adapter_quirks stu300_quirks = {

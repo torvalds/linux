@@ -217,7 +217,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		de2@1000000 {
+		bus@1000000 {
 			compatible = "allwinner,sun50i-a64-de2";
 			reg = <0x1000000 0x400000>;
 			allwinner,sram = <&de2_sram 1>;
@@ -251,10 +251,18 @@
 					#size-cells = <0>;
 
 					mixer0_out: port@1 {
+						#address-cells = <1>;
+						#size-cells = <0>;
 						reg = <1>;
 
-						mixer0_out_tcon0: endpoint {
+						mixer0_out_tcon0: endpoint@0 {
+							reg = <0>;
 							remote-endpoint = <&tcon0_in_mixer0>;
+						};
+
+						mixer0_out_tcon1: endpoint@1 {
+							reg = <1>;
+							remote-endpoint = <&tcon1_in_mixer0>;
 						};
 					};
 				};
@@ -274,9 +282,17 @@
 					#size-cells = <0>;
 
 					mixer1_out: port@1 {
+						#address-cells = <1>;
+						#size-cells = <0>;
 						reg = <1>;
 
-						mixer1_out_tcon1: endpoint {
+						mixer1_out_tcon0: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&tcon0_in_mixer1>;
+						};
+
+						mixer1_out_tcon1: endpoint@1 {
+							reg = <1>;
 							remote-endpoint = <&tcon1_in_mixer1>;
 						};
 					};
@@ -338,6 +354,7 @@
 			clocks = <&ccu CLK_BUS_TCON0>, <&ccu CLK_TCON0>;
 			clock-names = "ahb", "tcon-ch0";
 			clock-output-names = "tcon-pixel-clock";
+			#clock-cells = <0>;
 			resets = <&ccu RST_BUS_TCON0>, <&ccu RST_BUS_LVDS>;
 			reset-names = "lcd", "lvds";
 
@@ -353,6 +370,11 @@
 					tcon0_in_mixer0: endpoint@0 {
 						reg = <0>;
 						remote-endpoint = <&mixer0_out_tcon0>;
+					};
+
+					tcon0_in_mixer1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&mixer1_out_tcon0>;
 					};
 				};
 
@@ -379,9 +401,17 @@
 				#size-cells = <0>;
 
 				tcon1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0>;
 
-					tcon1_in_mixer1: endpoint {
+					tcon1_in_mixer0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mixer0_out_tcon1>;
+					};
+
+					tcon1_in_mixer1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&mixer1_out_tcon1>;
 					};
 				};
@@ -467,6 +497,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
@@ -522,7 +553,6 @@
 			resets = <&ccu RST_BUS_OHCI1>,
 				 <&ccu RST_BUS_EHCI1>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -534,7 +564,6 @@
 				 <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -553,7 +582,8 @@
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu 58>;
+			clocks = <&ccu 58>, <&osc24M>, <&rtc 0>;
+			clock-names = "apb", "hosc", "losc";
 			gpio-controller;
 			#gpio-cells = <3>;
 			interrupt-controller;
@@ -565,12 +595,18 @@
 				function = "csi";
 			};
 
-			i2c0_pins: i2c0_pins {
+			/omit-if-no-ref/
+			csi_mclk_pin: csi-mclk-pin {
+				pins = "PE1";
+				function = "csi";
+			};
+
+			i2c0_pins: i2c0-pins {
 				pins = "PH0", "PH1";
 				function = "i2c0";
 			};
 
-			i2c1_pins: i2c1_pins {
+			i2c1_pins: i2c1-pins {
 				pins = "PH2", "PH3";
 				function = "i2c1";
 			};
@@ -607,19 +643,19 @@
 				bias-pull-up;
 			};
 
-			pwm_pin: pwm_pin {
+			pwm_pin: pwm-pin {
 				pins = "PD22";
 				function = "pwm";
 			};
 
-			rmii_pins: rmii_pins {
+			rmii_pins: rmii-pins {
 				pins = "PD10", "PD11", "PD13", "PD14", "PD17",
 				       "PD18", "PD19", "PD20", "PD22", "PD23";
 				function = "emac";
 				drive-strength = <40>;
 			};
 
-			rgmii_pins: rgmii_pins {
+			rgmii_pins: rgmii-pins {
 				pins = "PD8", "PD9", "PD10", "PD11", "PD12",
 				       "PD13", "PD15", "PD16", "PD17", "PD18",
 				       "PD19", "PD20", "PD21", "PD22", "PD23";
@@ -627,17 +663,17 @@
 				drive-strength = <40>;
 			};
 
-			spdif_tx_pin: spdif {
+			spdif_tx_pin: spdif-tx-pin {
 				pins = "PH8";
 				function = "spdif";
 			};
 
-			spi0_pins: spi0 {
+			spi0_pins: spi0-pins {
 				pins = "PC0", "PC1", "PC2", "PC3";
 				function = "spi0";
 			};
 
-			spi1_pins: spi1 {
+			spi1_pins: spi1-pins {
 				pins = "PD0", "PD1", "PD2", "PD3";
 				function = "spi1";
 			};
@@ -647,12 +683,12 @@
 				function = "uart0";
 			};
 
-			uart1_pins: uart1_pins {
+			uart1_pins: uart1-pins {
 				pins = "PG6", "PG7";
 				function = "uart1";
 			};
 
-			uart1_rts_cts_pins: uart1_rts_cts_pins {
+			uart1_rts_cts_pins: uart1-rts-cts-pins {
 				pins = "PG8", "PG9";
 				function = "uart1";
 			};
@@ -730,7 +766,6 @@
 			clocks = <&ccu CLK_BUS_CODEC>, <&ccu CLK_AC_DIG>;
 			clock-names = "apb", "mod";
 			resets = <&ccu RST_BUS_CODEC>;
-			reset-names = "rst";
 			dmas = <&dma 15>, <&dma 15>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -1064,12 +1099,12 @@
 				function = "s_i2c";
 			};
 
-			r_pwm_pin: pwm {
+			r_pwm_pin: r-pwm-pin {
 				pins = "PL10";
 				function = "s_pwm";
 			};
 
-			r_rsb_pins: rsb {
+			r_rsb_pins: r-rsb-pins {
 				pins = "PL0", "PL1";
 				function = "s_rsb";
 			};

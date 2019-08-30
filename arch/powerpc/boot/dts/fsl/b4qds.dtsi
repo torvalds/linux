@@ -40,6 +40,7 @@
 	interrupt-parent = <&mpic>;
 
 	aliases {
+		crypto = &crypto;
 		phy_sgmii_10 = &phy_sgmii_10;
 		phy_sgmii_11 = &phy_sgmii_11;
 		phy_sgmii_1c = &phy_sgmii_1c;

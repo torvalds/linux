@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/subdev/bios/base.o
 nvkm-y += nvkm/subdev/bios/bit.o
 nvkm-y += nvkm/subdev/bios/boost.o

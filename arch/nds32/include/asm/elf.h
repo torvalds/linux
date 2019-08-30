@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __ASMNDS32_ELF_H
@@ -10,13 +10,12 @@
 
 #include <asm/ptrace.h>
 #include <asm/fpu.h>
+#include <linux/elf-em.h>
 
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];
 
 extern unsigned int elf_hwcap;
-
-#define EM_NDS32			167
 
 #define R_NDS32_NONE			0
 #define R_NDS32_16_RELA			19

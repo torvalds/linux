@@ -23,15 +23,16 @@ warning-  := $(empty)
 warning-1 := -Wextra -Wunused -Wno-unused-parameter
 warning-1 += -Wmissing-declarations
 warning-1 += -Wmissing-format-attribute
-warning-1 += $(call cc-option, -Wmissing-prototypes)
+warning-1 += -Wmissing-prototypes
 warning-1 += -Wold-style-definition
-warning-1 += $(call cc-option, -Wmissing-include-dirs)
+warning-1 += -Wmissing-include-dirs
 warning-1 += $(call cc-option, -Wunused-but-set-variable)
 warning-1 += $(call cc-option, -Wunused-const-variable)
 warning-1 += $(call cc-option, -Wpacked-not-aligned)
 warning-1 += $(call cc-option, -Wstringop-truncation)
-warning-1 += $(call cc-disable-warning, missing-field-initializers)
-warning-1 += $(call cc-disable-warning, sign-compare)
+# The following turn off the warnings enabled by -Wextra
+warning-1 += -Wno-missing-field-initializers
+warning-1 += -Wno-sign-compare
 
 warning-2 := -Waggregate-return
 warning-2 += -Wcast-align
@@ -39,8 +40,8 @@ warning-2 += -Wdisabled-optimization
 warning-2 += -Wnested-externs
 warning-2 += -Wshadow
 warning-2 += $(call cc-option, -Wlogical-op)
-warning-2 += $(call cc-option, -Wmissing-field-initializers)
-warning-2 += $(call cc-option, -Wsign-compare)
+warning-2 += -Wmissing-field-initializers
+warning-2 += -Wsign-compare
 warning-2 += $(call cc-option, -Wmaybe-uninitialized)
 warning-2 += $(call cc-option, -Wunused-macros)
 
@@ -66,11 +67,11 @@ KBUILD_CFLAGS += $(warning)
 else
 
 ifdef CONFIG_CC_IS_CLANG
-KBUILD_CFLAGS += $(call cc-disable-warning, initializer-overrides)
-KBUILD_CFLAGS += $(call cc-disable-warning, unused-value)
-KBUILD_CFLAGS += $(call cc-disable-warning, format)
-KBUILD_CFLAGS += $(call cc-disable-warning, sign-compare)
-KBUILD_CFLAGS += $(call cc-disable-warning, format-zero-length)
-KBUILD_CFLAGS += $(call cc-disable-warning, uninitialized)
+KBUILD_CFLAGS += -Wno-initializer-overrides
+KBUILD_CFLAGS += -Wno-unused-value
+KBUILD_CFLAGS += -Wno-format
+KBUILD_CFLAGS += -Wno-sign-compare
+KBUILD_CFLAGS += -Wno-format-zero-length
+KBUILD_CFLAGS += -Wno-uninitialized
 endif
 endif

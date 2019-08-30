@@ -5,7 +5,7 @@
 
 menuconfig MELLANOX_PLATFORM
 	bool "Platform support for Mellanox hardware"
-	depends on X86 || ARM || COMPILE_TEST
+	depends on X86 || ARM || ARM64 || COMPILE_TEST
 	---help---
 	  Say Y here to get to see options for platform support for
 	  Mellanox systems. This option alone does not add any kernel code.
@@ -33,5 +33,15 @@ config MLXREG_IO
 	  are defined per system type bases and include the registers related
 	  to system resets operation, system reset causes monitoring and some
 	  kinds of mux selection.
+
+config MLXBF_TMFIFO
+	tristate "Mellanox BlueField SoC TmFifo platform driver"
+	depends on ARM64
+	depends on ACPI
+	depends on VIRTIO_CONSOLE && VIRTIO_NET
+	help
+	  Say y here to enable TmFifo support. The TmFifo driver provides
+          platform driver support for the TmFifo which supports console
+          and networking based on the virtio framework.
 
 endif # MELLANOX_PLATFORM

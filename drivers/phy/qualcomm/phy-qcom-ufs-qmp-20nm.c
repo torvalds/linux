@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2015, Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include "phy-qcom-ufs-qmp-20nm.h"
@@ -59,28 +50,6 @@ void ufs_qcom_phy_qmp_20nm_advertise_quirks(struct ufs_qcom_phy *phy_common)
 {
 	phy_common->quirks =
 		UFS_QCOM_PHY_QUIRK_HIBERN8_EXIT_AFTER_PHY_PWR_COLLAPSE;
-}
-
-static int ufs_qcom_phy_qmp_20nm_init(struct phy *generic_phy)
-{
-	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
-	bool is_rate_B = false;
-	int ret;
-
-	if (phy_common->mode == PHY_MODE_UFS_HS_B)
-		is_rate_B = true;
-
-	ret = ufs_qcom_phy_qmp_20nm_phy_calibrate(phy_common, is_rate_B);
-	if (!ret)
-		/* phy calibrated, but yet to be started */
-		phy_common->is_started = false;
-
-	return ret;
-}
-
-static int ufs_qcom_phy_qmp_20nm_exit(struct phy *generic_phy)
-{
-	return 0;
 }
 
 static
@@ -182,8 +151,6 @@ static int ufs_qcom_phy_qmp_20nm_is_pcs_ready(struct ufs_qcom_phy *phy_common)
 }
 
 static const struct phy_ops ufs_qcom_phy_qmp_20nm_phy_ops = {
-	.init		= ufs_qcom_phy_qmp_20nm_init,
-	.exit		= ufs_qcom_phy_qmp_20nm_exit,
 	.power_on	= ufs_qcom_phy_power_on,
 	.power_off	= ufs_qcom_phy_power_off,
 	.set_mode	= ufs_qcom_phy_qmp_20nm_set_mode,
@@ -191,6 +158,7 @@ static const struct phy_ops ufs_qcom_phy_qmp_20nm_phy_ops = {
 };
 
 static struct ufs_qcom_phy_specific_ops phy_20nm_ops = {
+	.calibrate		= ufs_qcom_phy_qmp_20nm_phy_calibrate,
 	.start_serdes		= ufs_qcom_phy_qmp_20nm_start_serdes,
 	.is_physical_coding_sublayer_ready = ufs_qcom_phy_qmp_20nm_is_pcs_ready,
 	.set_tx_lane_enable	= ufs_qcom_phy_qmp_20nm_set_tx_lane_enable,

@@ -303,8 +303,9 @@ static void fintek_8250_goto_highspeed(struct uart_8250_port *uart,
 	}
 }
 
-void fintek_8250_set_termios(struct uart_port *port, struct ktermios *termios,
-			struct ktermios *old)
+static void fintek_8250_set_termios(struct uart_port *port,
+				    struct ktermios *termios,
+				    struct ktermios *old)
 {
 	struct fintek_8250 *pdata = port->private_data;
 	unsigned int baud = tty_termios_baud_rate(termios);

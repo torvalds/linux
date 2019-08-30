@@ -705,7 +705,6 @@
 	.errstr = "invalid bpf_context access",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
-	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"check cb access: half, wrong type",

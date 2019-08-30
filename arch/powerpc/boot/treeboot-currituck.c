@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright © 2011 Tony Breeds IBM Corporation
  *
@@ -13,11 +14,6 @@
  *    Copyright 2007 David Gibson, IBM Corporation.
  *    Copyright 2010 Ben. Herrenschmidt, IBM Corporation.
  *    Copyright © 2011 David Kleikamp IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <stdarg.h>
 #include <stddef.h>

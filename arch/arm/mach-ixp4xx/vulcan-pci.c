@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arch/mach-ixp4xx/vulcan-pci.c
  *
@@ -8,11 +9,6 @@
  * based on ixdp425-pci.c:
  *	Copyright (C) 2002 Intel Corporation.
  *	Copyright (C) 2003-2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/pci.h>
@@ -20,6 +16,8 @@
 #include <linux/irq.h>
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#include "irqs.h"
 
 /* PCI controller GPIO to IRQ pin mappings */
 #define INTA	2

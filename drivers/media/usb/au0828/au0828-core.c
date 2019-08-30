@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Auvitek USB bridge
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "au0828.h"
@@ -155,9 +145,7 @@ static void au0828_unregister_media_device(struct au0828_dev *dev)
 	dev->media_dev->disable_source = NULL;
 	mutex_unlock(&mdev->graph_mutex);
 
-	media_device_unregister(dev->media_dev);
-	media_device_cleanup(dev->media_dev);
-	kfree(dev->media_dev);
+	media_device_delete(dev->media_dev, KBUILD_MODNAME, THIS_MODULE);
 	dev->media_dev = NULL;
 #endif
 }
@@ -210,13 +198,9 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = media_device_usb_allocate(udev, KBUILD_MODNAME, THIS_MODULE);
 	if (!mdev)
 		return -ENOMEM;
-
-	/* check if media device is already initialized */
-	if (!mdev->dev)
-		media_device_usb_init(mdev, udev, udev->product);
 
 	dev->media_dev = mdev;
 #endif
@@ -278,6 +262,28 @@ create_link:
 	}
 }
 
+static bool au0828_is_link_shareable(struct media_entity *owner,
+				     struct media_entity *entity)
+{
+	bool shareable = false;
+
+	/* Tuner link can be shared by audio, video, and VBI */
+	switch (owner->function) {
+	case MEDIA_ENT_F_IO_V4L:
+	case MEDIA_ENT_F_AUDIO_CAPTURE:
+	case MEDIA_ENT_F_IO_VBI:
+		if (entity->function == MEDIA_ENT_F_IO_V4L ||
+		    entity->function == MEDIA_ENT_F_AUDIO_CAPTURE ||
+		    entity->function == MEDIA_ENT_F_IO_VBI)
+			shareable = true;
+		break;
+	case MEDIA_ENT_F_DTV_DEMOD:
+	default:
+		break;
+	}
+	return shareable;
+}
+
 /* Callers should hold graph_mutex */
 static int au0828_enable_source(struct media_entity *entity,
 				struct media_pipeline *pipe)
@@ -320,18 +326,20 @@ static int au0828_enable_source(struct media_entity *entity,
 		/*
 		 * Default input is tuner and default input_type
 		 * is AU0828_VMUX_TELEVISION.
-		 * FIXME:
+		 *
 		 * There is a problem when s_input is called to
 		 * change the default input. s_input will try to
 		 * enable_source before attempting to change the
 		 * input on the device, and will end up enabling
 		 * default source which is tuner.
 		 *
-		 * Additional logic is necessary in au0828
-		 * to detect that the input has changed and
-		 * enable the right source.
+		 * Additional logic is necessary in au0828 to detect
+		 * that the input has changed and enable the right
+		 * source. au0828 handles this case in its s_input.
+		 * It will disable the old source and enable the new
+		 * source.
+		 *
 		*/
-
 		if (dev->input_type == AU0828_VMUX_TELEVISION)
 			find_source = dev->tuner;
 		else if (dev->input_type == AU0828_VMUX_SVIDEO ||
@@ -344,27 +352,33 @@ static int au0828_enable_source(struct media_entity *entity,
 		}
 	}
 
-	/* Is an active link between sink and source */
+	/* Is there an active link between sink and source */
 	if (dev->active_link) {
-		/*
-		 * If DVB is using the tuner and calling entity is
-		 * audio/video, the following check will be false,
-		 * since sink is different. Result is Busy.
-		 */
-		if (dev->active_link->sink->entity == sink &&
-		    dev->active_link->source->entity == find_source) {
-			/*
-			 * Either ALSA or Video own tuner. sink is
-			 * the same for both. Prevent Video stepping
-			 * on ALSA when ALSA owns the source.
+		if (dev->active_link_owner == entity) {
+			/* This check is necessary to handle multiple
+			 * enable_source calls from v4l_ioctls during
+			 * the course of video/vbi application run-time.
 			*/
-			if (dev->active_link_owner != entity &&
-			    dev->active_link_owner->function ==
-						MEDIA_ENT_F_AUDIO_CAPTURE) {
-				pr_debug("ALSA has the tuner\n");
-				ret = -EBUSY;
-				goto end;
-			}
+			pr_debug("%s already owns the tuner\n", entity->name);
+			ret = 0;
+			goto end;
+		} else if (au0828_is_link_shareable(dev->active_link_owner,
+			   entity)) {
+			/* Either ALSA or Video own tuner. Sink is the same
+			 * for both. Allow sharing the active link between
+			 * their common source (tuner) and sink (decoder).
+			 * Starting pipeline between sharing entity and sink
+			 * will fail with pipe mismatch, while owner has an
+			 * active pipeline. Switch pipeline ownership from
+			 * user to owner when owner disables the source.
+			 */
+			dev->active_link_shared = true;
+			/* save the user info to use from disable */
+			dev->active_link_user = entity;
+			dev->active_link_user_pipe = pipe;
+			pr_debug("%s owns the tuner %s can share!\n",
+				 dev->active_link_owner->name,
+				 entity->name);
 			ret = 0;
 			goto end;
 		} else {
@@ -391,7 +405,7 @@ static int au0828_enable_source(struct media_entity *entity,
 	source = found_link->source->entity;
 	ret = __media_entity_setup_link(found_link, MEDIA_LNK_FL_ENABLED);
 	if (ret) {
-		pr_err("Activate tuner link %s->%s. Error %d\n",
+		pr_err("Activate link from %s->%s. Error %d\n",
 			source->name, sink->name, ret);
 		goto end;
 	}
@@ -401,25 +415,26 @@ static int au0828_enable_source(struct media_entity *entity,
 		pr_err("Start Pipeline: %s->%s Error %d\n",
 			source->name, entity->name, ret);
 		ret = __media_entity_setup_link(found_link, 0);
-		pr_err("Deactivate link Error %d\n", ret);
+		if (ret)
+			pr_err("Deactivate link Error %d\n", ret);
 		goto end;
 	}
-	/*
-	 * save active link and active link owner to avoid audio
-	 * deactivating video owned link from disable_source and
-	 * vice versa
+
+	/* save link state to allow audio and video share the link
+	 * and not disable the link while the other is using it.
+	 * active_link_owner is used to deactivate the link.
 	*/
 	dev->active_link = found_link;
 	dev->active_link_owner = entity;
 	dev->active_source = source;
 	dev->active_sink = sink;
 
-	pr_debug("Enabled Source: %s->%s->%s Ret %d\n",
+	pr_info("Enabled Source: %s->%s->%s Ret %d\n",
 		 dev->active_source->name, dev->active_sink->name,
 		 dev->active_link_owner->name, ret);
 end:
-	pr_debug("au0828_enable_source() end %s %d %d\n",
-		 entity->name, entity->function, ret);
+	pr_debug("%s end: ent:%s fnc:%d ret %d\n",
+		 __func__, entity->name, entity->function, ret);
 	return ret;
 }
 
@@ -438,21 +453,95 @@ static void au0828_disable_source(struct media_entity *entity)
 	if (!dev->active_link)
 		return;
 
-	/* link is active - stop pipeline from source (tuner) */
+	/* link is active - stop pipeline from source
+	 * (tuner/s-video/Composite) to the entity
+	 * When DVB/s-video/Composite owns tuner, it won't be in
+	 * shared state.
+	 */
 	if (dev->active_link->sink->entity == dev->active_sink &&
 	    dev->active_link->source->entity == dev->active_source) {
 		/*
-		 * prevent video from deactivating link when audio
-		 * has active pipeline
+		 * Prevent video from deactivating link when audio
+		 * has active pipeline and vice versa. In addition
+		 * handle the case when more than one video/vbi
+		 * application is sharing the link.
 		*/
+		bool owner_is_audio = false;
+
+		if (dev->active_link_owner->function ==
+		    MEDIA_ENT_F_AUDIO_CAPTURE)
+			owner_is_audio = true;
+
+		if (dev->active_link_shared) {
+			pr_debug("Shared link owner %s user %s %d\n",
+				 dev->active_link_owner->name,
+				 entity->name, dev->users);
+
+			/* Handle video device users > 1
+			 * When audio owns the shared link with
+			 * more than one video users, avoid
+			 * disabling the source and/or switching
+			 * the owner until the last disable_source
+			 * call from video _close(). Use dev->users to
+			 * determine when to switch/disable.
+			 */
+			if (dev->active_link_owner != entity) {
+				/* video device has users > 1 */
+				if (owner_is_audio && dev->users > 1)
+					return;
+
+				dev->active_link_user = NULL;
+				dev->active_link_user_pipe = NULL;
+				dev->active_link_shared = false;
+				return;
+			}
+
+			/* video owns the link and has users > 1 */
+			if (!owner_is_audio && dev->users > 1)
+				return;
+
+			/* stop pipeline */
+			__media_pipeline_stop(dev->active_link_owner);
+			pr_debug("Pipeline stop for %s\n",
+				dev->active_link_owner->name);
+
+			ret = __media_pipeline_start(
+					dev->active_link_user,
+					dev->active_link_user_pipe);
+			if (ret) {
+				pr_err("Start Pipeline: %s->%s %d\n",
+					dev->active_source->name,
+					dev->active_link_user->name,
+					ret);
+				goto deactivate_link;
+			}
+			/* link user is now the owner */
+			dev->active_link_owner = dev->active_link_user;
+			dev->active_link_user = NULL;
+			dev->active_link_user_pipe = NULL;
+			dev->active_link_shared = false;
+
+			pr_debug("Pipeline started for %s\n",
+				dev->active_link_owner->name);
+			return;
+		} else if (!owner_is_audio && dev->users > 1)
+			/* video/vbi owns the link and has users > 1 */
+			return;
+
 		if (dev->active_link_owner != entity)
 			return;
-		__media_pipeline_stop(entity);
+
+		/* stop pipeline */
+		__media_pipeline_stop(dev->active_link_owner);
+		pr_debug("Pipeline stop for %s\n",
+			dev->active_link_owner->name);
+
+deactivate_link:
 		ret = __media_entity_setup_link(dev->active_link, 0);
 		if (ret)
 			pr_err("Deactivate link Error %d\n", ret);
 
-		pr_debug("Disabled Source: %s->%s->%s Ret %d\n",
+		pr_info("Disabled Source: %s->%s->%s Ret %d\n",
 			 dev->active_source->name, dev->active_sink->name,
 			 dev->active_link_owner->name, ret);
 
@@ -460,6 +549,8 @@ static void au0828_disable_source(struct media_entity *entity)
 		dev->active_link_owner = NULL;
 		dev->active_source = NULL;
 		dev->active_sink = NULL;
+		dev->active_link_shared = false;
+		dev->active_link_user = NULL;
 	}
 }
 #endif
@@ -480,6 +571,9 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 		/* register media device */
 		ret = media_device_register(dev->media_dev);
 		if (ret) {
+			media_device_delete(dev->media_dev, KBUILD_MODNAME,
+					    THIS_MODULE);
+			dev->media_dev = NULL;
 			dev_err(&udev->dev,
 				"Media Device Register Error: %d\n", ret);
 			return ret;

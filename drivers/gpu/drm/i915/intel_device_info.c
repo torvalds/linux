@@ -57,6 +57,7 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(COFFEELAKE),
 	PLATFORM_NAME(CANNONLAKE),
 	PLATFORM_NAME(ICELAKE),
+	PLATFORM_NAME(ELKHARTLAKE),
 };
 #undef PLATFORM_NAME
 
@@ -155,9 +156,15 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 	u8 eu_en;
 	int s;
 
-	sseu->max_slices = 1;
-	sseu->max_subslices = 8;
-	sseu->max_eus_per_subslice = 8;
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		sseu->max_slices = 1;
+		sseu->max_subslices = 4;
+		sseu->max_eus_per_subslice = 8;
+	} else {
+		sseu->max_slices = 1;
+		sseu->max_subslices = 8;
+		sseu->max_eus_per_subslice = 8;
+	}
 
 	s_en = I915_READ(GEN11_GT_SLICE_ENABLE) & GEN11_GT_S_ENA_MASK;
 	ss_en = ~I915_READ(GEN11_GT_SUBSLICE_DISABLE);
@@ -707,6 +714,99 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+#undef INTEL_VGA_DEVICE
+#define INTEL_VGA_DEVICE(id, info) (id)
+
+static const u16 subplatform_ult_ids[] = {
+	INTEL_HSW_ULT_GT1_IDS(0),
+	INTEL_HSW_ULT_GT2_IDS(0),
+	INTEL_HSW_ULT_GT3_IDS(0),
+	INTEL_BDW_ULT_GT1_IDS(0),
+	INTEL_BDW_ULT_GT2_IDS(0),
+	INTEL_BDW_ULT_GT3_IDS(0),
+	INTEL_BDW_ULT_RSVD_IDS(0),
+	INTEL_SKL_ULT_GT1_IDS(0),
+	INTEL_SKL_ULT_GT2_IDS(0),
+	INTEL_SKL_ULT_GT3_IDS(0),
+	INTEL_KBL_ULT_GT1_IDS(0),
+	INTEL_KBL_ULT_GT2_IDS(0),
+	INTEL_KBL_ULT_GT3_IDS(0),
+	INTEL_CFL_U_GT2_IDS(0),
+	INTEL_CFL_U_GT3_IDS(0),
+	INTEL_WHL_U_GT1_IDS(0),
+	INTEL_WHL_U_GT2_IDS(0),
+	INTEL_WHL_U_GT3_IDS(0)
+};
+
+static const u16 subplatform_ulx_ids[] = {
+	INTEL_HSW_ULX_GT1_IDS(0),
+	INTEL_HSW_ULX_GT2_IDS(0),
+	INTEL_BDW_ULX_GT1_IDS(0),
+	INTEL_BDW_ULX_GT2_IDS(0),
+	INTEL_BDW_ULX_GT3_IDS(0),
+	INTEL_BDW_ULX_RSVD_IDS(0),
+	INTEL_SKL_ULX_GT1_IDS(0),
+	INTEL_SKL_ULX_GT2_IDS(0),
+	INTEL_KBL_ULX_GT1_IDS(0),
+	INTEL_KBL_ULX_GT2_IDS(0)
+};
+
+static const u16 subplatform_aml_ids[] = {
+	INTEL_AML_KBL_GT2_IDS(0),
+	INTEL_AML_CFL_GT2_IDS(0)
+};
+
+static const u16 subplatform_portf_ids[] = {
+	INTEL_CNL_PORT_F_IDS(0),
+	INTEL_ICL_PORT_F_IDS(0)
+};
+
+static bool find_devid(u16 id, const u16 *p, unsigned int num)
+{
+	for (; num; num--, p++) {
+		if (*p == id)
+			return true;
+	}
+
+	return false;
+}
+
+void intel_device_info_subplatform_init(struct drm_i915_private *i915)
+{
+	const struct intel_device_info *info = INTEL_INFO(i915);
+	const struct intel_runtime_info *rinfo = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(rinfo, info->platform);
+	const unsigned int pb = __platform_mask_bit(rinfo, info->platform);
+	u16 devid = INTEL_DEVID(i915);
+	u32 mask = 0;
+
+	/* Make sure IS_<platform> checks are working. */
+	RUNTIME_INFO(i915)->platform_mask[pi] = BIT(pb);
+
+	/* Find and mark subplatform bits based on the PCI device id. */
+	if (find_devid(devid, subplatform_ult_ids,
+		       ARRAY_SIZE(subplatform_ult_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ULT);
+	} else if (find_devid(devid, subplatform_ulx_ids,
+			      ARRAY_SIZE(subplatform_ulx_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ULX);
+		if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
+			/* ULX machines are also considered ULT. */
+			mask |= BIT(INTEL_SUBPLATFORM_ULT);
+		}
+	} else if (find_devid(devid, subplatform_aml_ids,
+			      ARRAY_SIZE(subplatform_aml_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_AML);
+	} else if (find_devid(devid, subplatform_portf_ids,
+			      ARRAY_SIZE(subplatform_portf_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_PORTF);
+	}
+
+	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_BITS);
+
+	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
+}
+
 /**
  * intel_device_info_runtime_init - initialize runtime info
  * @dev_priv: the i915 device
@@ -738,9 +838,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		runtime->num_scalers[PIPE_C] = 1;
 	}
 
-	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
+	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
 
-	if (IS_GEN(dev_priv, 11))
+	if (INTEL_GEN(dev_priv) >= 11)
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 6;
 	else if (IS_GEN(dev_priv, 10) || IS_GEMINILAKE(dev_priv))
@@ -844,7 +944,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	if (IS_GEN(dev_priv, 6) && intel_vtd_active()) {
 		DRM_INFO("Disabling ppGTT for VT-d support\n");
-		info->ppgtt = INTEL_PPGTT_NONE;
+		info->ppgtt_type = INTEL_PPGTT_NONE;
 	}
 
 	/* Initialize command stream timestamp frequency */
@@ -871,23 +971,24 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 	unsigned int logical_vdbox = 0;
 	unsigned int i;
 	u32 media_fuse;
+	u16 vdbox_mask;
+	u16 vebox_mask;
 
 	if (INTEL_GEN(dev_priv) < 11)
 		return;
 
 	media_fuse = ~I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
 
-	RUNTIME_INFO(dev_priv)->vdbox_enable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	RUNTIME_INFO(dev_priv)->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-		GEN11_GT_VEBOX_DISABLE_SHIFT;
+	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+		      GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", RUNTIME_INFO(dev_priv)->vdbox_enable);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
 
-		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vdbox_enable)) {
-			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
+		if (!(BIT(i) & vdbox_mask)) {
+			info->engine_mask &= ~BIT(_VCS(i));
 			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
 			continue;
 		}
@@ -899,15 +1000,20 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		if (logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
+	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",
+			 vdbox_mask, VDBOX_MASK(dev_priv));
+	GEM_BUG_ON(vdbox_mask != VDBOX_MASK(dev_priv));
 
-	DRM_DEBUG_DRIVER("vebox enable: %04x\n", RUNTIME_INFO(dev_priv)->vebox_enable);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
 
-		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vebox_enable)) {
-			info->ring_mask &= ~ENGINE_MASK(_VECS(i));
+		if (!(BIT(i) & vebox_mask)) {
+			info->engine_mask &= ~BIT(_VECS(i));
 			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
 		}
 	}
+	DRM_DEBUG_DRIVER("vebox enable: %04x, instances: %04lx\n",
+			 vebox_mask, VEBOX_MASK(dev_priv));
+	GEM_BUG_ON(vebox_mask != VEBOX_MASK(dev_priv));
 }

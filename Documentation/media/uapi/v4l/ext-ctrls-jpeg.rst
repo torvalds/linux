@@ -37,7 +37,7 @@ JPEG Control IDs
     how Cb and Cr components are downsampled after converting an input
     image from RGB to Y'CbCr color space.
 
-.. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
+.. tabularcolumns:: |p{7.5cm}|p{10.0cm}|
 
 .. flat-table::
     :header-rows:  0

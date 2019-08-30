@@ -321,7 +321,12 @@ static int pms7003_probe(struct serdev_device *serdev)
 }
 
 static const struct of_device_id pms7003_of_match[] = {
+	{ .compatible = "plantower,pms1003" },
+	{ .compatible = "plantower,pms3003" },
+	{ .compatible = "plantower,pms5003" },
+	{ .compatible = "plantower,pms6003" },
 	{ .compatible = "plantower,pms7003" },
+	{ .compatible = "plantower,pmsa003" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pms7003_of_match);

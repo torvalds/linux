@@ -309,4 +309,23 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 #define INTEL_SIP_SMC_FUNCID_RSU_UPDATE 12
 #define INTEL_SIP_SMC_RSU_UPDATE \
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_UPDATE)
+
+/*
+ * Request INTEL_SIP_SMC_ECC_DBE
+ *
+ * Sync call used by service driver at EL1 to alert EL3 that a Double
+ * Bit ECC error has occurred.
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_ECC_DBE
+ * a1 SysManager Double Bit Error value
+ * a2-7 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ */
+#define INTEL_SIP_SMC_FUNCID_ECC_DBE 13
+#define INTEL_SIP_SMC_ECC_DBE \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_ECC_DBE)
+
 #endif

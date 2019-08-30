@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Arturo Borrero Gonzalez <arturo@debian.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -82,7 +79,7 @@ static int nft_redir_init(const struct nft_ctx *ctx,
 	return nf_ct_netns_get(ctx->net, ctx->family);
 }
 
-int nft_redir_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_redir_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_redir *priv = nft_expr_priv(expr);
 
@@ -202,6 +199,55 @@ static struct nft_expr_type nft_redir_ipv6_type __read_mostly = {
 };
 #endif
 
+#ifdef CONFIG_NF_TABLES_INET
+static void nft_redir_inet_eval(const struct nft_expr *expr,
+				struct nft_regs *regs,
+				const struct nft_pktinfo *pkt)
+{
+	switch (nft_pf(pkt)) {
+	case NFPROTO_IPV4:
+		return nft_redir_ipv4_eval(expr, regs, pkt);
+	case NFPROTO_IPV6:
+		return nft_redir_ipv6_eval(expr, regs, pkt);
+	}
+
+	WARN_ON_ONCE(1);
+}
+
+static void
+nft_redir_inet_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
+{
+	nf_ct_netns_put(ctx->net, NFPROTO_INET);
+}
+
+static struct nft_expr_type nft_redir_inet_type;
+static const struct nft_expr_ops nft_redir_inet_ops = {
+	.type		= &nft_redir_inet_type,
+	.size		= NFT_EXPR_SIZE(sizeof(struct nft_redir)),
+	.eval		= nft_redir_inet_eval,
+	.init		= nft_redir_init,
+	.destroy	= nft_redir_inet_destroy,
+	.dump		= nft_redir_dump,
+	.validate	= nft_redir_validate,
+};
+
+static struct nft_expr_type nft_redir_inet_type __read_mostly = {
+	.family		= NFPROTO_INET,
+	.name		= "redir",
+	.ops		= &nft_redir_inet_ops,
+	.policy		= nft_redir_policy,
+	.maxattr	= NFTA_MASQ_MAX,
+	.owner		= THIS_MODULE,
+};
+
+static int __init nft_redir_module_init_inet(void)
+{
+	return nft_register_expr(&nft_redir_inet_type);
+}
+#else
+static inline int nft_redir_module_init_inet(void) { return 0; }
+#endif
+
 static int __init nft_redir_module_init(void)
 {
 	int ret = nft_register_expr(&nft_redir_ipv4_type);
@@ -217,6 +263,15 @@ static int __init nft_redir_module_init(void)
 	}
 #endif
 
+	ret = nft_redir_module_init_inet();
+	if (ret < 0) {
+		nft_unregister_expr(&nft_redir_ipv4_type);
+#ifdef CONFIG_NF_TABLES_IPV6
+		nft_unregister_expr(&nft_redir_ipv6_type);
+#endif
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -226,6 +281,9 @@ static void __exit nft_redir_module_exit(void)
 #ifdef CONFIG_NF_TABLES_IPV6
 	nft_unregister_expr(&nft_redir_ipv6_type);
 #endif
+#ifdef CONFIG_NF_TABLES_INET
+	nft_unregister_expr(&nft_redir_inet_type);
+#endif
 }
 
 module_init(nft_redir_module_init);
@@ -233,5 +291,4 @@ module_exit(nft_redir_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arturo Borrero Gonzalez <arturo@debian.org>");
-MODULE_ALIAS_NFT_AF_EXPR(AF_INET, "redir");
-MODULE_ALIAS_NFT_AF_EXPR(AF_INET6, "redir");
+MODULE_ALIAS_NFT_EXPR("nat");

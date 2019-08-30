@@ -1,63 +1,121 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HAVE_NET_DSA
 	def_bool y
 	depends on INET && NETDEVICES && !S390
 
 # Drivers must select NET_DSA and the appropriate tagging format
 
-config NET_DSA
+menuconfig NET_DSA
 	tristate "Distributed Switch Architecture"
 	depends on HAVE_NET_DSA
 	depends on BRIDGE || BRIDGE=n
 	select NET_SWITCHDEV
 	select PHYLINK
+	select NET_DEVLINK
 	---help---
 	  Say Y if you want to enable support for the hardware switches supported
 	  by the Distributed Switch Architecture.
 
 if NET_DSA
 
-config NET_DSA_LEGACY
-	bool "Support for older platform device and Device Tree registration"
-	default y
-	---help---
-	  Say Y if you want to enable support for the older platform device and
-	  deprecated Device Tree binding registration.
-
-	  This feature is scheduled for removal in 4.17.
-
 # tagging formats
+config NET_DSA_TAG_8021Q
+	tristate "Tag driver for switches using custom 802.1Q VLAN headers"
+	select VLAN_8021Q
+	help
+	  Unlike the other tagging protocols, the 802.1Q config option simply
+	  provides helpers for other tagging implementations that might rely on
+	  VLAN in one way or another. It is not a complete solution.
+
+	  Drivers which use these helpers should select this as dependency.
+
+config NET_DSA_TAG_BRCM_COMMON
+	tristate
+	default n
+
 config NET_DSA_TAG_BRCM
-	bool
+	tristate "Tag driver for Broadcom switches using in-frame headers"
+	select NET_DSA_TAG_BRCM_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Broadcom switches which place the tag after the MAC source address.
+
 
 config NET_DSA_TAG_BRCM_PREPEND
-	bool
-
-config NET_DSA_TAG_DSA
-	bool
-
-config NET_DSA_TAG_EDSA
-	bool
+	tristate "Tag driver for Broadcom switches using prepended headers"
+	select NET_DSA_TAG_BRCM_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Broadcom switches which places the tag before the Ethernet header
+	  (prepended).
 
 config NET_DSA_TAG_GSWIP
-	bool
+	tristate "Tag driver for Lantiq / Intel GSWIP switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Lantiq / Intel GSWIP switches.
 
-config NET_DSA_TAG_KSZ
-	bool
+config NET_DSA_TAG_DSA
+	tristate "Tag driver for Marvell switches using DSA headers"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Marvell switches which use DSA headers.
 
-config NET_DSA_TAG_KSZ9477
-	bool
-	select NET_DSA_TAG_KSZ
-
-config NET_DSA_TAG_LAN9303
-	bool
+config NET_DSA_TAG_EDSA
+	tristate "Tag driver for Marvell switches using EtherType DSA headers"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Marvell switches which use EtherType DSA headers.
 
 config NET_DSA_TAG_MTK
-	bool
+	tristate "Tag driver for Mediatek switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for
+	  Mediatek switches.
 
-config NET_DSA_TAG_TRAILER
-	bool
+config NET_DSA_TAG_KSZ_COMMON
+	tristate
+	default n
+
+config NET_DSA_TAG_KSZ
+	tristate "Tag driver for Microchip 9893 family of switches"
+	select NET_DSA_TAG_KSZ_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Microchip 9893 family of switches.
+
+config NET_DSA_TAG_KSZ9477
+	tristate "Tag driver for Microchip 9477 family of switches"
+	select NET_DSA_TAG_KSZ_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Microchip 9477 family of switches.
 
 config NET_DSA_TAG_QCA
-	bool
+	tristate "Tag driver for Qualcomm Atheros QCA8K switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for
+	  the Qualcomm Atheros QCA8K switches.
+
+config NET_DSA_TAG_LAN9303
+	tristate "Tag driver for SMSC/Microchip LAN9303 family of switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  SMSC/Microchip LAN9303 family of switches.
+
+config NET_DSA_TAG_SJA1105
+	tristate "Tag driver for NXP SJA1105 switches"
+	select NET_DSA_TAG_8021Q
+	help
+	  Say Y or M if you want to enable support for tagging frames with the
+	  NXP SJA1105 switch family. Both the native tagging protocol (which
+	  is only for link-local traffic) as well as non-native tagging (based
+	  on a custom 802.1Q VLAN header) are available.
+
+config NET_DSA_TAG_TRAILER
+	tristate "Tag driver for switches using a trailer tag"
+	help
+	  Say Y or M if you want to enable support for tagging frames at
+	  with a trailed. e.g. Marvell 88E6060.
 
 endif

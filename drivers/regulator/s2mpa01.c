@@ -17,10 +17,7 @@
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s2mpa01.h>
 
-#define S2MPA01_REGULATOR_CNT ARRAY_SIZE(regulators)
-
 struct s2mpa01_info {
-	struct of_regulator_match rdata[S2MPA01_REGULATOR_MAX];
 	int ramp_delay24;
 	int ramp_delay3;
 	int ramp_delay5;
@@ -232,6 +229,8 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_ldo(num, step) {			\
 	.name		= "LDO"#num,			\
+	.of_match	= of_match_ptr("LDO"#num),	\
+	.regulators_node = of_match_ptr("regulators"),	\
 	.id		= S2MPA01_LDO##num,		\
 	.ops		= &s2mpa01_ldo_ops,		\
 	.type		= REGULATOR_VOLTAGE,		\
@@ -247,6 +246,8 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_buck1_4(num)	{			\
 	.name		= "BUCK"#num,				\
+	.of_match	= of_match_ptr("BUCK"#num),		\
+	.regulators_node = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK##num,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -263,6 +264,8 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_buck5	{				\
 	.name		= "BUCK5",				\
+	.of_match	= of_match_ptr("BUCK5"),		\
+	.regulators_node = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK5,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -279,6 +282,8 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_buck6_10(num, min, step) {			\
 	.name		= "BUCK"#num,				\
+	.of_match	= of_match_ptr("BUCK"#num),		\
+	.regulators_node = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK##num,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -336,9 +341,7 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
-	struct device_node *reg_np = NULL;
 	struct regulator_config config = { };
-	struct of_regulator_match *rdata;
 	struct s2mpa01_info *s2mpa01;
 	int i;
 
@@ -346,39 +349,15 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 	if (!s2mpa01)
 		return -ENOMEM;
 
-	rdata = s2mpa01->rdata;
-	for (i = 0; i < S2MPA01_REGULATOR_CNT; i++)
-		rdata[i].name = regulators[i].name;
-
-	if (iodev->dev->of_node) {
-		reg_np = of_get_child_by_name(iodev->dev->of_node,
-							"regulators");
-		if (!reg_np) {
-			dev_err(&pdev->dev,
-				"could not find regulators sub-node\n");
-			return -EINVAL;
-		}
-
-		of_regulator_match(&pdev->dev, reg_np, rdata,
-						S2MPA01_REGULATOR_MAX);
-		of_node_put(reg_np);
-	}
-
-	platform_set_drvdata(pdev, s2mpa01);
-
-	config.dev = &pdev->dev;
+	config.dev = iodev->dev;
 	config.regmap = iodev->regmap_pmic;
 	config.driver_data = s2mpa01;
 
 	for (i = 0; i < S2MPA01_REGULATOR_MAX; i++) {
 		struct regulator_dev *rdev;
+
 		if (pdata)
 			config.init_data = pdata->regulators[i].initdata;
-		else
-			config.init_data = rdata[i].init_data;
-
-		if (reg_np)
-			config.of_node = rdata[i].of_node;
 
 		rdev = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);

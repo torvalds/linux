@@ -654,9 +654,7 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 
 static int scmi_mailbox_check(struct device_node *np)
 {
-	struct of_phandle_args arg;
-
-	return of_parse_phandle_with_args(np, "mboxes", "#mbox-cells", 0, &arg);
+	return of_parse_phandle_with_args(np, "mboxes", "#mbox-cells", 0, NULL);
 }
 
 static int scmi_mbox_free_channel(int id, void *p, void *data)
@@ -798,7 +796,9 @@ static int scmi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	desc = of_match_device(scmi_of_match, dev)->data;
+	desc = of_device_get_match_data(dev);
+	if (!desc)
+		return -EINVAL;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)

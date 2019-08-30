@@ -33,7 +33,8 @@
 			  <&cmu_disp CLK_MOUT_DISP_PLL>,
 			  <&cmu_mif CLK_MOUT_SCLK_DECON_TV_ECLK_A>,
 			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>,
-			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK>;
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK>,
+			  <&cmu_disp CLK_MOUT_SCLK_DSD_USER>;
 	assigned-clock-parents = <0>, <0>,
 				 <&cmu_mif CLK_ACLK_DISP_333>,
 				 <&cmu_mif CLK_SCLK_DSIM0_DISP>,
@@ -45,7 +46,8 @@
 				 <&cmu_disp CLK_FOUT_DISP_PLL>,
 				 <&cmu_mif CLK_MOUT_BUS_PLL_DIV2>,
 				 <&cmu_mif CLK_SCLK_DECON_TV_ECLK_DISP>,
-				 <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>;
+				 <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>,
+				 <&cmu_mif CLK_SCLK_DSD_DISP>;
 	assigned-clock-rates = <250000000>, <400000000>;
 };
 

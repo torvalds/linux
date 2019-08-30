@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAIF Interface registration.
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  *
  * Borrowed heavily from file: pn_dev.c. Thanks to Remi Denis-Courmont
  *  and Sakari Ailus <sakari.ailus@nokia.com>
@@ -186,15 +186,19 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 		goto noxoff;
 
 	if (likely(!netif_queue_stopped(caifd->netdev))) {
+		struct Qdisc *sch;
+
 		/* If we run with a TX queue, check if the queue is too long*/
 		txq = netdev_get_tx_queue(skb->dev, 0);
-		qlen = qdisc_qlen(rcu_dereference_bh(txq->qdisc));
-
-		if (likely(qlen == 0))
+		sch = rcu_dereference_bh(txq->qdisc);
+		if (likely(qdisc_is_empty(sch)))
 			goto noxoff;
 
+		/* can check for explicit qdisc len value only !NOLOCK,
+		 * always set flow off otherwise
+		 */
 		high = (caifd->netdev->tx_queue_len * q_high) / 100;
-		if (likely(qlen < high))
+		if (!(sch->flags & TCQ_F_NOLOCK) && likely(sch->q.qlen < high))
 			goto noxoff;
 	}
 

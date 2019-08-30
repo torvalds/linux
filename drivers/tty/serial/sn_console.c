@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * C-Brick Serial Port (and console) driver for SGI Altix machines.
  *

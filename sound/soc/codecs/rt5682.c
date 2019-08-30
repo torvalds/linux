@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt5682.c  --  RT5682 ALSA SoC audio component driver
  *
  * Copyright 2018 Realtek Semiconductor Corp.
  * Author: Bard Liao <bardliao@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -2588,6 +2585,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	rt5682_reset(rt5682->regmap);
 
+	mutex_init(&rt5682->calibrate_mutex);
 	rt5682_calibrate(rt5682);
 
 	ret = regmap_multi_reg_write(rt5682->regmap, patch_list,
@@ -2654,7 +2652,6 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 	INIT_DELAYED_WORK(&rt5682->jd_check_work,
 				rt5682_jd_check_handler);
 
-	mutex_init(&rt5682->calibrate_mutex);
 
 	if (i2c->irq) {
 		ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,

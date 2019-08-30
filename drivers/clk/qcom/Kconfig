@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config KRAIT_CLOCKS
        bool
        select KRAIT_L2_ACCESSORS
@@ -242,6 +243,12 @@ config SDM_GCC_660
 	  Support for the global clock controller on SDM660 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2C, USB, UFS, SDDC, PCIe, etc.
+
+config QCS_TURING_404
+	tristate "QCS404 Turing Clock Controller"
+	help
+	  Support for the Turing Clock Controller on QCS404, provides clocks
+	  and resets for the Turing subsystem.
 
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"

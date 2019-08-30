@@ -132,6 +132,7 @@ static int __init armada_8k_cpufreq_init(void)
 		of_node_put(node);
 		return -ENODEV;
 	}
+	of_node_put(node);
 
 	nb_cpus = num_possible_cpus();
 	freq_tables = kcalloc(nb_cpus, sizeof(*freq_tables), GFP_KERNEL);

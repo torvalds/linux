@@ -108,6 +108,7 @@ static int parse_hotmod_str(const char *curr, enum hotmod_op *op,
 	int rv;
 	unsigned int ival;
 
+	h->iftype = IPMI_PLAT_IF_SI;
 	rv = parse_str(hotmod_ops, &ival, "operation", &curr);
 	if (rv)
 		return rv;

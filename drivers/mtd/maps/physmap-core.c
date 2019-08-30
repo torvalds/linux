@@ -132,6 +132,8 @@ static void physmap_set_addr_gpios(struct physmap_flash_info *info,
 
 		gpiod_set_value(info->gpios->desc[i], !!(BIT(i) & ofs));
 	}
+
+	info->gpio_values = ofs;
 }
 
 #define win_mask(order)		(BIT(order) - 1)

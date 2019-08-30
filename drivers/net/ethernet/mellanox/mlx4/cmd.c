@@ -281,7 +281,6 @@ static int mlx4_comm_cmd_post(struct mlx4_dev *dev, u8 cmd, u16 param)
 	val = param | (cmd << 16) | (priv->cmd.comm_toggle << 31);
 	__raw_writel((__force u32) cpu_to_be32(val),
 		     &priv->mfunc.comm->slave_write);
-	mmiowb();
 	mutex_unlock(&dev->persist->device_state_mutex);
 	return 0;
 }
@@ -495,12 +494,6 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 					       (event ? (1 << HCR_E_BIT) : 0)	|
 					       (op_modifier << HCR_OPMOD_SHIFT) |
 					       op), hcr + 6);
-
-	/*
-	 * Make sure that our HCR writes don't get mixed in with
-	 * writes from another CPU starting a FW command.
-	 */
-	mmiowb();
 
 	cmd->toggle = cmd->toggle ^ 1;
 
@@ -2206,7 +2199,6 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	}
 	__raw_writel((__force u32) cpu_to_be32(reply),
 		     &priv->mfunc.comm[slave].slave_read);
-	mmiowb();
 
 	return;
 
@@ -2410,7 +2402,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				     &priv->mfunc.comm[i].slave_write);
 			__raw_writel((__force u32) 0,
 				     &priv->mfunc.comm[i].slave_read);
-			mmiowb();
 			for (port = 1; port <= MLX4_MAX_PORTS; port++) {
 				struct mlx4_vport_state *admin_vport;
 				struct mlx4_vport_state *oper_vport;
@@ -2576,10 +2567,6 @@ void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev)
 		slave_read |= (u32)COMM_CHAN_EVENT_INTERNAL_ERR;
 		__raw_writel((__force u32)cpu_to_be32(slave_read),
 			     &priv->mfunc.comm[slave].slave_read);
-		/* Make sure that our comm channel write doesn't
-		 * get mixed in with writes from another CPU.
-		 */
-		mmiowb();
 	}
 }
 

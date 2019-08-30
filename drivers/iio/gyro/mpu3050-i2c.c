@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>

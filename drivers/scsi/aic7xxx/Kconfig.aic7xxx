@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # AIC7XXX and AIC79XX 2.5.X Kernel configuration File.
 # $Id: //depot/linux-aic79xx-2.5.0/drivers/scsi/aic7xxx/Kconfig.aic7xxx#7 $
 #
 config SCSI_AIC7XXX
-	tristate "Adaptec AIC7xxx Fast -> U160 support (New Driver)"
+	tristate "Adaptec AIC7xxx Fast -> U160 support"
 	depends on (PCI || EISA) && SCSI
 	select SCSI_SPI_ATTRS
 	---help---

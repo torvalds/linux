@@ -3964,6 +3964,14 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 	}
 }
 
+/* The ADVERT_MASK is used to mask out all of the Advertised Firmware Port
+ * Capabilities which we control with separate controls -- see, for instance,
+ * Pause Frames and Forward Error Correction.  In order to determine what the
+ * full set of Advertised Port Capabilities are, the base Advertised Port
+ * Capabilities (masked by ADVERT_MASK) must be combined with the Advertised
+ * Port Capabilities associated with those other controls.  See
+ * t4_link_acaps() for how this is done.
+ */
 #define ADVERT_MASK (FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_M) | \
 		     FW_PORT_CAP32_ANEG)
 
@@ -4061,6 +4069,9 @@ static inline enum cc_pause fwcap_to_cc_pause(fw_port_cap32_t fw_pause)
 /* Translate Common Code Pause specification into Firmware Port Capabilities */
 static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
 {
+	/* Translate orthogonal RX/TX Pause Controls for L1 Configure
+	 * commands, etc.
+	 */
 	fw_port_cap32_t fw_pause = 0;
 
 	if (cc_pause & PAUSE_RX)
@@ -4069,6 +4080,19 @@ static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
 		fw_pause |= FW_PORT_CAP32_FC_TX;
 	if (!(cc_pause & PAUSE_AUTONEG))
 		fw_pause |= FW_PORT_CAP32_FORCE_PAUSE;
+
+	/* Translate orthogonal Pause controls into IEEE 802.3 Pause,
+	 * Asymetrical Pause for use in reporting to upper layer OS code, etc.
+	 * Note that these bits are ignored in L1 Configure commands.
+	 */
+	if (cc_pause & PAUSE_RX) {
+		if (cc_pause & PAUSE_TX)
+			fw_pause |= FW_PORT_CAP32_802_3_PAUSE;
+		else
+			fw_pause |= FW_PORT_CAP32_802_3_ASM_DIR;
+	} else if (cc_pause & PAUSE_TX) {
+		fw_pause |= FW_PORT_CAP32_802_3_ASM_DIR;
+	}
 
 	return fw_pause;
 }
@@ -4100,31 +4124,22 @@ static inline fw_port_cap32_t cc_to_fwcap_fec(enum cc_fec cc_fec)
 }
 
 /**
- *	t4_link_l1cfg - apply link configuration to MAC/PHY
+ *	t4_link_acaps - compute Link Advertised Port Capabilities
  *	@adapter: the adapter
- *	@mbox: the Firmware Mailbox to use
  *	@port: the Port ID
  *	@lc: the Port's Link Configuration
- *	@sleep_ok: if true we may sleep while awaiting command completion
- *	@timeout: time to wait for command to finish before timing out
- *		(negative implies @sleep_ok=false)
  *
- *	Set up a port's MAC and PHY according to a desired link configuration.
- *	- If the PHY can auto-negotiate first decide what to advertise, then
- *	  enable/disable auto-negotiation as desired, and reset.
- *	- If the PHY does not auto-negotiate just reset it.
- *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
- *	  otherwise do it later based on the outcome of auto-negotiation.
+ *	Synthesize the Advertised Port Capabilities we'll be using based on
+ *	the base Advertised Port Capabilities (which have been filtered by
+ *	ADVERT_MASK) plus the individual controls for things like Pause
+ *	Frames, Forward Error Correction, MDI, etc.
  */
-int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
-		       unsigned int port, struct link_config *lc,
-		       bool sleep_ok, int timeout)
+fw_port_cap32_t t4_link_acaps(struct adapter *adapter, unsigned int port,
+			      struct link_config *lc)
 {
-	unsigned int fw_caps = adapter->params.fw_caps_support;
-	fw_port_cap32_t fw_fc, cc_fec, fw_fec, rcap;
-	struct fw_port_cmd cmd;
+	fw_port_cap32_t fw_fc, fw_fec, acaps;
 	unsigned int fw_mdi;
-	int ret;
+	char cc_fec;
 
 	fw_mdi = (FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO) & lc->pcaps);
 
@@ -4151,18 +4166,15 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 	 * init_link_config().
 	 */
 	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
-		if (lc->autoneg == AUTONEG_ENABLE)
-			return -EINVAL;
-
-		rcap = lc->acaps | fw_fc | fw_fec;
+		acaps = lc->acaps | fw_fc | fw_fec;
 		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
 		lc->fec = cc_fec;
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		rcap = lc->speed_caps | fw_fc | fw_fec | fw_mdi;
+		acaps = lc->speed_caps | fw_fc | fw_fec | fw_mdi;
 		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
 		lc->fec = cc_fec;
 	} else {
-		rcap = lc->acaps | fw_fc | fw_fec | fw_mdi;
+		acaps = lc->acaps | fw_fc | fw_fec | fw_mdi;
 	}
 
 	/* Some Requested Port Capabilities are trivially wrong if they exceed
@@ -4173,15 +4185,50 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 	 * we need to exclude this from this check in order to maintain
 	 * compatibility ...
 	 */
-	if ((rcap & ~lc->pcaps) & ~FW_PORT_CAP32_FORCE_PAUSE) {
-		dev_err(adapter->pdev_dev,
-			"Requested Port Capabilities %#x exceed Physical Port Capabilities %#x\n",
-			rcap, lc->pcaps);
+	if ((acaps & ~lc->pcaps) & ~FW_PORT_CAP32_FORCE_PAUSE) {
+		dev_err(adapter->pdev_dev, "Requested Port Capabilities %#x exceed Physical Port Capabilities %#x\n",
+			acaps, lc->pcaps);
 		return -EINVAL;
 	}
 
-	/* And send that on to the Firmware ...
+	return acaps;
+}
+
+/**
+ *	t4_link_l1cfg_core - apply link configuration to MAC/PHY
+ *	@adapter: the adapter
+ *	@mbox: the Firmware Mailbox to use
+ *	@port: the Port ID
+ *	@lc: the Port's Link Configuration
+ *	@sleep_ok: if true we may sleep while awaiting command completion
+ *	@timeout: time to wait for command to finish before timing out
+ *		(negative implies @sleep_ok=false)
+ *
+ *	Set up a port's MAC and PHY according to a desired link configuration.
+ *	- If the PHY can auto-negotiate first decide what to advertise, then
+ *	  enable/disable auto-negotiation as desired, and reset.
+ *	- If the PHY does not auto-negotiate just reset it.
+ *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
+ *	  otherwise do it later based on the outcome of auto-negotiation.
+ */
+int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
+		       unsigned int port, struct link_config *lc,
+		       u8 sleep_ok, int timeout)
+{
+	unsigned int fw_caps = adapter->params.fw_caps_support;
+	struct fw_port_cmd cmd;
+	fw_port_cap32_t rcap;
+	int ret;
+
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG) &&
+	    lc->autoneg == AUTONEG_ENABLE) {
+		return -EINVAL;
+	}
+
+	/* Compute our Requested Port Capabilities and send that on to the
+	 * Firmware.
 	 */
+	rcap = t4_link_acaps(adapter, port, lc);
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
 				       FW_CMD_REQUEST_F | FW_CMD_EXEC_F |
@@ -4211,7 +4258,7 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 			rcap, -ret);
 		return ret;
 	}
-	return ret;
+	return 0;
 }
 
 /**
@@ -7206,9 +7253,20 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 			 unsigned int cache_line_size)
 {
 	unsigned int page_shift = fls(page_size) - 1;
+	unsigned int sge_hps = page_shift - 10;
 	unsigned int stat_len = cache_line_size > 64 ? 128 : 64;
 	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
 	unsigned int fl_align_log = fls(fl_align) - 1;
+
+	t4_write_reg(adap, SGE_HOST_PAGE_SIZE_A,
+		     HOSTPAGESIZEPF0_V(sge_hps) |
+		     HOSTPAGESIZEPF1_V(sge_hps) |
+		     HOSTPAGESIZEPF2_V(sge_hps) |
+		     HOSTPAGESIZEPF3_V(sge_hps) |
+		     HOSTPAGESIZEPF4_V(sge_hps) |
+		     HOSTPAGESIZEPF5_V(sge_hps) |
+		     HOSTPAGESIZEPF6_V(sge_hps) |
+		     HOSTPAGESIZEPF7_V(sge_hps));
 
 	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, SGE_CONTROL_A,

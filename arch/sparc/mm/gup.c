@@ -245,8 +245,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	return nr;
 }
 
-int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-			struct page **pages)
+int get_user_pages_fast(unsigned long start, int nr_pages,
+			unsigned int gup_flags, struct page **pages)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr, len, end;
@@ -303,7 +303,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(pgd))
 			goto slow;
-		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
+		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
+				   pages, &nr))
 			goto slow;
 	} while (pgdp++, addr = next, addr != end);
 
@@ -324,7 +325,7 @@ slow:
 
 		ret = get_user_pages_unlocked(start,
 			(end - start) >> PAGE_SHIFT, pages,
-			write ? FOLL_WRITE : 0);
+			gup_flags);
 
 		/* Have to be a bit careful with return values */
 		if (nr > 0) {

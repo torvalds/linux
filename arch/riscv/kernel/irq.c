@@ -14,17 +14,9 @@
 /*
  * Possible interrupt causes:
  */
-#define INTERRUPT_CAUSE_SOFTWARE    1
-#define INTERRUPT_CAUSE_TIMER       5
-#define INTERRUPT_CAUSE_EXTERNAL    9
-
-/*
- * The high order bit of the trap cause register is always set for
- * interrupts, which allows us to differentiate them from exceptions
- * quickly.  The INTERRUPT_CAUSE_* macros don't contain that bit, so we
- * need to mask it off.
- */
-#define INTERRUPT_CAUSE_FLAG	(1UL << (__riscv_xlen - 1))
+#define INTERRUPT_CAUSE_SOFTWARE	IRQ_S_SOFT
+#define INTERRUPT_CAUSE_TIMER		IRQ_S_TIMER
+#define INTERRUPT_CAUSE_EXTERNAL	IRQ_S_EXT
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
@@ -37,7 +29,7 @@ asmlinkage void __irq_entry do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	irq_enter();
-	switch (regs->scause & ~INTERRUPT_CAUSE_FLAG) {
+	switch (regs->scause & ~SCAUSE_IRQ_FLAG) {
 	case INTERRUPT_CAUSE_TIMER:
 		riscv_timer_interrupt();
 		break;
@@ -54,7 +46,8 @@ asmlinkage void __irq_entry do_IRQ(struct pt_regs *regs)
 		handle_arch_irq(regs);
 		break;
 	default:
-		panic("unexpected interrupt cause");
+		pr_alert("unexpected interrupt cause 0x%lx", regs->scause);
+		BUG();
 	}
 	irq_exit();
 

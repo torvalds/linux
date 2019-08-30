@@ -6,9 +6,6 @@
 
 (*
  * Generate coherence orders and handle lock operations
- *
- * Warning: spin_is_locked() crashes herd7 versions strictly before 7.48.
- * spin_is_locked() is functional from herd7 version 7.49.
  *)
 
 include "cross.cat"

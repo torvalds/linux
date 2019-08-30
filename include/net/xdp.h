@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* include/net/xdp.h
  *
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
- * Released under terms in GPL version 2.  See COPYING.
  */
 #ifndef __LINUX_NET_XDP_H__
 #define __LINUX_NET_XDP_H__

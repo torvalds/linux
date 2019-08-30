@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NetLabel CALIPSO/IPv6 Support
  *
@@ -7,25 +8,10 @@
  *
  * Authors: Paul Moore <paul@paul-moore.com>
  *          Huw Davies <huw@codeweavers.com>
- *
  */
 
 /* (c) Copyright Hewlett-Packard Development Company, L.P., 2006
  * (c) Copyright Huw Davies <huw@codeweavers.com>, 2015
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/types.h>
@@ -321,29 +307,29 @@ static int netlbl_calipso_remove(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops netlbl_calipso_ops[] = {
 	{
 	.cmd = NLBL_CALIPSO_C_ADD,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = calipso_genl_policy,
 	.doit = netlbl_calipso_add,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CALIPSO_C_REMOVE,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = calipso_genl_policy,
 	.doit = netlbl_calipso_remove,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CALIPSO_C_LIST,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = calipso_genl_policy,
 	.doit = netlbl_calipso_list,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CALIPSO_C_LISTALL,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = calipso_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_calipso_listall,
 	},
@@ -354,6 +340,7 @@ static struct genl_family netlbl_calipso_gnl_family __ro_after_init = {
 	.name = NETLBL_NLTYPE_CALIPSO_NAME,
 	.version = NETLBL_PROTO_VERSION,
 	.maxattr = NLBL_CALIPSO_A_MAX,
+	.policy = calipso_genl_policy,
 	.module = THIS_MODULE,
 	.ops = netlbl_calipso_ops,
 	.n_ops = ARRAY_SIZE(netlbl_calipso_ops),

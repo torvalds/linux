@@ -1,13 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bsg.c - block layer implementation of the sg v4 interface
- *
- * Copyright (C) 2004 Jens Axboe <axboe@suse.de> SUSE Labs
- * Copyright (C) 2004 Peter M. Jones <pjones@redhat.com>
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License version 2.  See the file "COPYING" in the main directory of this
- *  archive for more details.
- *
  */
 #include <linux/module.h>
 #include <linux/init.h>

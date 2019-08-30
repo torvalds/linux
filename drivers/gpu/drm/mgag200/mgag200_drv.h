@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 Matt Turner.
  * Copyright 2012 Red Hat 
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Authors: Matthew Garrett
  * 	    Matt Turner
@@ -113,7 +110,7 @@ struct mga_framebuffer {
 };
 
 struct mga_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct mga_framebuffer mfb;
 	void *sysram;
 	int size;
@@ -269,7 +266,6 @@ mgag200_dumb_mmap_offset(struct drm_file *file,
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 void mgag200_ttm_placement(struct mgag200_bo *bo, int domain);
 
 static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)

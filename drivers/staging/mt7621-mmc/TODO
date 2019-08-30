@@ -1,8 +1,0 @@
-
-- general code review and clean up
-- ensure device-tree requirements are documented
-- should probably be merged with drivers/mmc/host/mtk-sd.c
-- possibly fix to work with highmem pages so a bounce buffer isn't
-  needed.
-
-Cc: NeilBrown <neil@brown.name>

@@ -3203,6 +3203,8 @@ static int __init u132_hcd_init(void)
 		return -ENODEV;
 	printk(KERN_INFO "driver %s\n", hcd_name);
 	workqueue = create_singlethread_workqueue("u132");
+	if (!workqueue)
+		return -ENOMEM;
 	retval = platform_driver_register(&u132_platform_driver);
 	if (retval)
 		destroy_workqueue(workqueue);

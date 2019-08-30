@@ -214,50 +214,6 @@ static int set_channel(struct wiphy *wiphy,
 	return result;
 }
 
-static inline int
-wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
-			     struct wilc_probe_ssid *search)
-{
-	int i;
-	int slot_id = 0;
-
-	search->ssid_info = kcalloc(request->n_ssids,
-				    sizeof(*search->ssid_info), GFP_KERNEL);
-	if (!search->ssid_info)
-		goto out;
-
-	search->n_ssids = request->n_ssids;
-
-	for (i = 0; i < request->n_ssids; i++) {
-		if (request->ssids[i].ssid_len > 0) {
-			struct wilc_probe_ssid_info *info;
-
-			info = &search->ssid_info[slot_id];
-			info->ssid = kmemdup(request->ssids[i].ssid,
-					     request->ssids[i].ssid_len,
-					     GFP_KERNEL);
-			if (!info->ssid)
-				goto out_free;
-
-			info->ssid_len = request->ssids[i].ssid_len;
-			slot_id++;
-		} else {
-			search->n_ssids -= 1;
-		}
-	}
-	return 0;
-
-out_free:
-
-	for (i = 0; i < slot_id; i++)
-		kfree(search->ssid_info[i].ssid);
-
-	kfree(search->ssid_info);
-out:
-
-	return -ENOMEM;
-}
-
 static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct wilc_priv *priv = wiphy_priv(wiphy);
@@ -265,7 +221,6 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	u32 i;
 	int ret = 0;
 	u8 scan_ch_list[WILC_MAX_NUM_SCANNED_CH];
-	struct wilc_probe_ssid probe_ssid;
 
 	if (request->n_channels > WILC_MAX_NUM_SCANNED_CH) {
 		netdev_err(priv->dev, "Requested scanned channels over\n");
@@ -280,28 +235,10 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
 	}
 
-	if (request->n_ssids >= 1) {
-		if (wilc_wfi_cfg_alloc_fill_ssid(request, &probe_ssid)) {
-			ret = -ENOMEM;
-			goto out;
-		}
+	ret = wilc_scan(vif, WILC_FW_USER_SCAN, WILC_FW_ACTIVE_SCAN,
+			scan_ch_list, request->n_channels, cfg_scan_result,
+			(void *)priv, request);
 
-		ret = wilc_scan(vif, WILC_FW_USER_SCAN,
-				WILC_FW_ACTIVE_SCAN, scan_ch_list,
-				request->n_channels,
-				(const u8 *)request->ie,
-				request->ie_len, cfg_scan_result,
-				(void *)priv, &probe_ssid);
-	} else {
-		ret = wilc_scan(vif, WILC_FW_USER_SCAN,
-				WILC_FW_ACTIVE_SCAN, scan_ch_list,
-				request->n_channels,
-				(const u8 *)request->ie,
-				request->ie_len, cfg_scan_result,
-				(void *)priv, NULL);
-	}
-
-out:
 	if (ret) {
 		priv->scan_req = NULL;
 		priv->cfg_scanning = false;
@@ -1253,7 +1190,8 @@ static int mgmt_tx(struct wiphy *wiphy,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct host_if_drv *wfi_drv = priv->hif_drv;
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
-	u32 buf_len = len + sizeof(p2p_vendor_spec) + sizeof(priv->p2p.local_random);
+	u32 buf_len = len + sizeof(p2p_vendor_spec) +
+			sizeof(priv->p2p.local_random);
 	int ret = 0;
 
 	*cookie = prandom_u32();

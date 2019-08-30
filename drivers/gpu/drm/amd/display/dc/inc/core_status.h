@@ -43,7 +43,7 @@ enum dc_status {
 	DC_FAIL_BANDWIDTH_VALIDATE = 13, /* BW and Watermark validation */
 	DC_FAIL_SCALING = 14,
 	DC_FAIL_DP_LINK_TRAINING = 15,
-
+	DC_FAIL_UNSUPPORTED_1 = 18,
 	DC_ERROR_UNEXPECTED = -1
 };
 

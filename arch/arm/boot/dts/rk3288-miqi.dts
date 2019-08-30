@@ -296,29 +296,29 @@
 
 	act8846 {
 		pmic_int: pmic-int {
-			rockchip,pins = <0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 0 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		pmic_vsel: pmic-vsel {
-			rockchip,pins = <7 1 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <7 RK_PA1 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 
 	gmac {
 		phy_int: phy-int {
-			rockchip,pins = <0 9 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		phy_pmeb: phy-pmeb {
-			rockchip,pins = <0 8 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		phy_rst: phy-rst {
-			rockchip,pins = <4 8 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 
@@ -328,28 +328,28 @@
 		 * high-speed mode on firefly board so bump up to 12ma.
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
-			rockchip,pins = <6 16 RK_FUNC_1 &pcfg_pull_up_drv_12ma>,
-					<6 17 RK_FUNC_1 &pcfg_pull_up_drv_12ma>,
-					<6 18 RK_FUNC_1 &pcfg_pull_up_drv_12ma>,
-					<6 19 RK_FUNC_1 &pcfg_pull_up_drv_12ma>;
+			rockchip,pins = <6 RK_PC0 1 &pcfg_pull_up_drv_12ma>,
+					<6 RK_PC1 1 &pcfg_pull_up_drv_12ma>,
+					<6 RK_PC2 1 &pcfg_pull_up_drv_12ma>,
+					<6 RK_PC3 1 &pcfg_pull_up_drv_12ma>;
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 20 RK_FUNC_1 &pcfg_pull_none_12ma>;
+			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_none_12ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
-			rockchip,pins = <6 21 RK_FUNC_1 &pcfg_pull_up_drv_12ma>;
+			rockchip,pins = <6 RK_PC5 1 &pcfg_pull_up_drv_12ma>;
 		};
 
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb_host {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

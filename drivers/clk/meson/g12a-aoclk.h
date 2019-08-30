@@ -16,9 +16,7 @@
  * to expose, such as the internal muxes and dividers of composite clocks,
  * will remain defined here.
  */
-#define CLKID_AO_SAR_ADC_SEL	16
 #define CLKID_AO_SAR_ADC_DIV	17
-#define CLKID_AO_CTS_OSCIN	19
 #define CLKID_AO_32K_PRE	20
 #define CLKID_AO_32K_DIV	21
 #define CLKID_AO_32K_SEL	22

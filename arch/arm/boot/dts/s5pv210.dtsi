@@ -585,11 +585,9 @@
 			clock-names = "sclk_cam0", "sclk_cam1";
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#clock-cells = <1>;
+			clock-output-names = "cam_a_clkout", "cam_b_clkout";
 			ranges;
-
-			clock_cam: clock-controller {
-				#clock-cells = <1>;
-			};
 
 			csis0: csis@fa600000 {
 				compatible = "samsung,s5pv210-csis";

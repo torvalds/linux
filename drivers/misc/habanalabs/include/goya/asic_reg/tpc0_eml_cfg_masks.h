@@ -344,4 +344,3 @@
 #define TPC0_EML_CFG_DBG_INST_INSERT_CTL_INSERT_MASK                 0x1
 
 #endif /* ASIC_REG_TPC0_EML_CFG_MASKS_H_ */
-

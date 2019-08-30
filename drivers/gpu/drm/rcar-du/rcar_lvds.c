@@ -283,7 +283,7 @@ static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
 				 * divider.
 				 */
 				fout = fvco / (1 << e) / div7;
-				div = DIV_ROUND_CLOSEST(fout, target);
+				div = max(1UL, DIV_ROUND_CLOSEST(fout, target));
 				diff = abs(fout / div - target);
 
 				if (diff < pll->diff) {
@@ -485,9 +485,13 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	}
 
 	if (lvds->info->quirks & RCAR_LVDS_QUIRK_GEN3_LVEN) {
-		/* Turn on the LVDS PHY. */
+		/*
+		 * Turn on the LVDS PHY. On D3, the LVEN and LVRES bit must be
+		 * set at the same time, so don't write the register yet.
+		 */
 		lvdcr0 |= LVDCR0_LVEN;
-		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+		if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_PWD))
+			rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
 
 	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)) {
@@ -531,11 +535,16 @@ static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
 				 const struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode)
 {
+	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+	int min_freq;
+
 	/*
 	 * The internal LVDS encoder has a restricted clock frequency operating
-	 * range (31MHz to 148.5MHz). Clamp the clock accordingly.
+	 * range, from 5MHz to 148.5MHz on D3 and E3, and from 31MHz to
+	 * 148.5MHz on all other platforms. Clamp the clock accordingly.
 	 */
-	adjusted_mode->clock = clamp(adjusted_mode->clock, 31000, 148500);
+	min_freq = lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL ? 5000 : 31000;
+	adjusted_mode->clock = clamp(adjusted_mode->clock, min_freq, 148500);
 
 	return true;
 }

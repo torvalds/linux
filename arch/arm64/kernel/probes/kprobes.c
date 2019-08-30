@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm64/kernel/probes/kprobes.c
  *
@@ -5,16 +6,6 @@
  *
  * Copyright (C) 2013 Linaro Limited.
  * Author: Sandeepa Prabhu <sandeepa.prabhu@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 #include <linux/kasan.h>
 #include <linux/kernel.h>
@@ -439,14 +430,11 @@ kprobe_ss_hit(struct kprobe_ctlblk *kcb, unsigned long addr)
 	return DBG_HOOK_ERROR;
 }
 
-int __kprobes
+static int __kprobes
 kprobe_single_step_handler(struct pt_regs *regs, unsigned int esr)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	int retval;
-
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
 
 	/* return error if this is not our step */
 	retval = kprobe_ss_hit(kcb, instruction_pointer(regs));
@@ -461,15 +449,21 @@ kprobe_single_step_handler(struct pt_regs *regs, unsigned int esr)
 	return retval;
 }
 
-int __kprobes
+static struct step_hook kprobes_step_hook = {
+	.fn = kprobe_single_step_handler,
+};
+
+static int __kprobes
 kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
 {
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
-
 	kprobe_handler(regs);
 	return DBG_HOOK_HANDLED;
 }
+
+static struct break_hook kprobes_break_hook = {
+	.imm = KPROBES_BRK_IMM,
+	.fn = kprobe_breakpoint_handler,
+};
 
 /*
  * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
@@ -599,5 +593,8 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 
 int __init arch_init_kprobes(void)
 {
+	register_kernel_break_hook(&kprobes_break_hook);
+	register_kernel_step_hook(&kprobes_step_hook);
+
 	return 0;
 }

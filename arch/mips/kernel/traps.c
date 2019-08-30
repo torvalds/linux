@@ -2151,7 +2151,7 @@ static void configure_hwrena(void)
 
 static void configure_exception_vector(void)
 {
-	if (cpu_has_veic || cpu_has_vint) {
+	if (cpu_has_mips_r2_r6) {
 		unsigned long sr = set_c0_status(ST0_BEV);
 		/* If available, use WG to set top bits of EBASE */
 		if (cpu_has_ebase_wg) {
@@ -2163,6 +2163,8 @@ static void configure_exception_vector(void)
 		}
 		write_c0_ebase(ebase);
 		write_c0_status(sr);
+	}
+	if (cpu_has_veic || cpu_has_vint) {
 		/* Setting vector spacing enables EI/VI mode  */
 		change_c0_intctl(0x3e0, VECTORSPACING);
 	}
@@ -2193,22 +2195,6 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	 *  o read IntCtl.IPFDC to determine the fast debug channel interrupt
 	 */
 	if (cpu_has_mips_r2_r6) {
-		/*
-		 * We shouldn't trust a secondary core has a sane EBASE register
-		 * so use the one calculated by the boot CPU.
-		 */
-		if (!is_boot_cpu) {
-			/* If available, use WG to set top bits of EBASE */
-			if (cpu_has_ebase_wg) {
-#ifdef CONFIG_64BIT
-				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
-#else
-				write_c0_ebase(ebase | MIPS_EBASE_WG);
-#endif
-			}
-			write_c0_ebase(ebase);
-		}
-
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
 		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
@@ -2284,19 +2270,27 @@ void __init trap_init(void)
 	extern char except_vec3_generic;
 	extern char except_vec4;
 	extern char except_vec3_r4000;
-	unsigned long i;
+	unsigned long i, vec_size;
+	phys_addr_t ebase_pa;
 
 	check_wait();
 
-	if (cpu_has_veic || cpu_has_vint) {
-		unsigned long size = 0x200 + VECTORSPACING*64;
-		phys_addr_t ebase_pa;
+	if (!cpu_has_mips_r2_r6) {
+		ebase = CAC_BASE;
+		ebase_pa = virt_to_phys((void *)ebase);
+		vec_size = 0x400;
 
-		ebase = (unsigned long)
-			memblock_alloc(size, 1 << fls(size));
-		if (!ebase)
+		memblock_reserve(ebase_pa, vec_size);
+	} else {
+		if (cpu_has_veic || cpu_has_vint)
+			vec_size = 0x200 + VECTORSPACING*64;
+		else
+			vec_size = PAGE_SIZE;
+
+		ebase_pa = memblock_phys_alloc(vec_size, 1 << fls(vec_size));
+		if (!ebase_pa)
 			panic("%s: Failed to allocate %lu bytes align=0x%x\n",
-			      __func__, size, 1 << fls(size));
+			      __func__, vec_size, 1 << fls(vec_size));
 
 		/*
 		 * Try to ensure ebase resides in KSeg0 if possible.
@@ -2309,23 +2303,10 @@ void __init trap_init(void)
 		 * EVA is special though as it allows segments to be rearranged
 		 * and to become uncached during cache error handling.
 		 */
-		ebase_pa = __pa(ebase);
 		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
 			ebase = CKSEG0ADDR(ebase_pa);
-	} else {
-		ebase = CAC_BASE;
-
-		if (cpu_has_mips_r2_r6) {
-			if (cpu_has_ebase_wg) {
-#ifdef CONFIG_64BIT
-				ebase = (read_c0_ebase_64() & ~0xfff);
-#else
-				ebase = (read_c0_ebase() & ~0xfff);
-#endif
-			} else {
-				ebase += (read_c0_ebase() & 0x3ffff000);
-			}
-		}
+		else
+			ebase = (unsigned long)phys_to_virt(ebase_pa);
 	}
 
 	if (cpu_has_mmips) {
@@ -2459,7 +2440,7 @@ void __init trap_init(void)
 	else
 		set_handler(0x080, &except_vec3_generic, 0x80);
 
-	local_flush_icache_range(ebase, ebase + 0x400);
+	local_flush_icache_range(ebase, ebase + vec_size);
 
 	sort_extable(__start___dbe_table, __stop___dbe_table);
 

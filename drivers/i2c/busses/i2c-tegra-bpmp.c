@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/i2c/busses/i2c-tegra-bpmp.c
  *
  * Copyright (c) 2016 NVIDIA Corporation.  All rights reserved.
  *
  * Author: Shardar Shariff Md <smohammed@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/err.h>
@@ -207,7 +196,8 @@ static int tegra_bpmp_i2c_msg_len_check(struct i2c_msg *msgs, unsigned int num)
 
 static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 				   struct mrq_i2c_request *request,
-				   struct mrq_i2c_response *response)
+				   struct mrq_i2c_response *response,
+				   bool atomic)
 {
 	struct tegra_bpmp_message msg;
 	int err;
@@ -222,7 +212,7 @@ static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 	msg.rx.data = response;
 	msg.rx.size = sizeof(*response);
 
-	if (irqs_disabled())
+	if (atomic)
 		err = tegra_bpmp_transfer_atomic(i2c->bpmp, &msg);
 	else
 		err = tegra_bpmp_transfer(i2c->bpmp, &msg);
@@ -230,8 +220,9 @@ static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 	return err;
 }
 
-static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
-			       struct i2c_msg *msgs, int num)
+static int tegra_bpmp_i2c_xfer_common(struct i2c_adapter *adapter,
+				      struct i2c_msg *msgs, int num,
+				      bool atomic)
 {
 	struct tegra_bpmp_i2c *i2c = i2c_get_adapdata(adapter);
 	struct mrq_i2c_response response;
@@ -253,7 +244,7 @@ static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
 		return err;
 	}
 
-	err = tegra_bpmp_i2c_msg_xfer(i2c, &request, &response);
+	err = tegra_bpmp_i2c_msg_xfer(i2c, &request, &response, atomic);
 	if (err < 0) {
 		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
 		return err;
@@ -268,6 +259,18 @@ static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
 	return num;
 }
 
+static int tegra_bpmp_i2c_xfer(struct i2c_adapter *adapter,
+			       struct i2c_msg *msgs, int num)
+{
+	return tegra_bpmp_i2c_xfer_common(adapter, msgs, num, false);
+}
+
+static int tegra_bpmp_i2c_xfer_atomic(struct i2c_adapter *adapter,
+				      struct i2c_msg *msgs, int num)
+{
+	return tegra_bpmp_i2c_xfer_common(adapter, msgs, num, true);
+}
+
 static u32 tegra_bpmp_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
@@ -276,6 +279,7 @@ static u32 tegra_bpmp_i2c_func(struct i2c_adapter *adapter)
 
 static const struct i2c_algorithm tegra_bpmp_i2c_algo = {
 	.master_xfer = tegra_bpmp_i2c_xfer,
+	.master_xfer_atomic = tegra_bpmp_i2c_xfer_atomic,
 	.functionality = tegra_bpmp_i2c_func,
 };
 

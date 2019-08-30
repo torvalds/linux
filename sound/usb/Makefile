@@ -18,6 +18,8 @@ snd-usb-audio-objs := 	card.o \
 			quirks.o \
 			stream.o
 
+snd-usb-audio-$(CONFIG_SND_USB_AUDIO_USE_MEDIA_CONTROLLER) += media.o
+
 snd-usbmidi-lib-objs := midi.o
 
 # Toplevel Module Dependency

@@ -532,7 +532,7 @@ static void __exit crypto_morus1280_module_exit(void)
 	crypto_unregister_aead(&crypto_morus1280_alg);
 }
 
-module_init(crypto_morus1280_module_init);
+subsys_initcall(crypto_morus1280_module_init);
 module_exit(crypto_morus1280_module_exit);
 
 MODULE_LICENSE("GPL");

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "IRQ chip support"
 
 config IRQCHIP
@@ -6,7 +7,6 @@ config IRQCHIP
 
 config ARM_GIC
 	bool
-	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
@@ -33,7 +33,6 @@ config GIC_NON_BANKED
 
 config ARM_GIC_V3
 	bool
-	select IRQ_DOMAIN
 	select GENERIC_IRQ_MULTI_HANDLER
 	select IRQ_DOMAIN_HIERARCHY
 	select PARTITION_PERCPU
@@ -59,7 +58,6 @@ config ARM_GIC_V3_ITS_FSL_MC
 
 config ARM_NVIC
 	bool
-	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_CHIP
 
@@ -159,6 +157,12 @@ config IMGPDC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
+
+config IXP4XX_IRQ
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_MULTI_HANDLER
+	select SPARSE_IRQ
 
 config MADERA_IRQ
 	tristate
@@ -352,7 +356,6 @@ config STM32_EXTI
 config QCOM_IRQ_COMBINER
 	bool "QCOM IRQ combiner support"
 	depends on ARCH_QCOM && ACPI
-	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Say yes here to add support for the IRQ combiner devices embedded
@@ -369,7 +372,6 @@ config IRQ_UNIPHIER_AIDET
 config MESON_IRQ_GPIO
        bool "Meson GPIO Interrupt Multiplexer"
        depends on ARCH_MESON
-       select IRQ_DOMAIN
        select IRQ_DOMAIN_HIERARCHY
        help
          Support Meson SoC Family GPIO Interrupt Multiplexer
@@ -385,7 +387,6 @@ config GOLDFISH_PIC
 config QCOM_PDC
 	bool "QCOM PDC"
 	depends on ARCH_QCOM
-	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Power Domain Controller driver to manage and configure wakeup
@@ -424,6 +425,27 @@ config LS1X_IRQ
 	select GENERIC_IRQ_CHIP
 	help
 	  Support for the Loongson-1 platform Interrupt Controller.
+
+config TI_SCI_INTR_IRQCHIP
+	bool
+	depends on TI_SCI_PROTOCOL
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  This enables the irqchip driver support for K3 Interrupt router
+	  over TI System Control Interface available on some new TI's SoCs.
+	  If you wish to use interrupt router irq resources managed by the
+	  TI System Controller, say Y here. Otherwise, say N.
+
+config TI_SCI_INTA_IRQCHIP
+	bool
+	depends on TI_SCI_PROTOCOL
+	select IRQ_DOMAIN_HIERARCHY
+	select TI_SCI_INTA_MSI_DOMAIN
+	help
+	  This enables the irqchip driver support for K3 Interrupt aggregator
+	  over TI System Control Interface available on some new TI's SoCs.
+	  If you wish to use interrupt aggregator irq resources managed by the
+	  TI System Controller, say Y here. Otherwise, say N.
 
 endmenu
 

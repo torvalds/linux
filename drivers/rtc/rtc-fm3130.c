@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rtc-fm3130.c - RTC driver for Ramtron FM3130 I2C chip.
  *
  *  Copyright (C) 2008 Sergey Lapin
  *  Based on ds1307 driver by James Chapman and David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

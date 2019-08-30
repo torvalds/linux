@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD7904/AD7914/AD7923/AD7924 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc (from AD7923 Driver)
  * Copyright 2012 CS Systemes d'Information
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>
@@ -24,9 +23,9 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#define AD7923_WRITE_CR		(1 << 11)	/* write control register */
-#define AD7923_RANGE		(1 << 1)	/* range to REFin */
-#define AD7923_CODING		(1 << 0)	/* coding is straight binary */
+#define AD7923_WRITE_CR		BIT(11)		/* write control register */
+#define AD7923_RANGE		BIT(1)		/* range to REFin */
+#define AD7923_CODING		BIT(0)		/* coding is straight binary */
 #define AD7923_PM_MODE_AS	(1)		/* auto shutdown */
 #define AD7923_PM_MODE_FS	(2)		/* full shutdown */
 #define AD7923_PM_MODE_OPS	(3)		/* normal operation */
@@ -40,16 +39,16 @@
 
 #define AD7923_MAX_CHAN		4
 
-#define AD7923_PM_MODE_WRITE(mode)	(mode << 4)	/* write mode */
-#define AD7923_CHANNEL_WRITE(channel)	(channel << 6)	/* write channel */
-#define AD7923_SEQUENCE_WRITE(sequence)	(((sequence & 1) << 3) \
-					+ ((sequence & 2) << 9))
+#define AD7923_PM_MODE_WRITE(mode)	((mode) << 4)	 /* write mode */
+#define AD7923_CHANNEL_WRITE(channel)	((channel) << 6) /* write channel */
+#define AD7923_SEQUENCE_WRITE(sequence)	((((sequence) & 1) << 3) \
+					+ (((sequence) & 2) << 9))
 						/* write sequence fonction */
 /* left shift for CR : bit 11 transmit in first */
 #define AD7923_SHIFT_REGISTER	4
 
 /* val = value, dec = left shift, bits = number of bits of the mask */
-#define EXTRACT(val, dec, bits)		((val >> dec) & ((1 << bits) - 1))
+#define EXTRACT(val, dec, bits)		(((val) >> (dec)) & ((1 << (bits)) - 1))
 
 struct ad7923_state {
 	struct spi_device		*spi;
@@ -130,7 +129,7 @@ static const struct ad7923_chip_info ad7923_chip_info[] = {
  * ad7923_update_scan_mode() setup the spi transfer buffer for the new scan mask
  **/
 static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
-	const unsigned long *active_scan_mask)
+				   const unsigned long *active_scan_mask)
 {
 	struct ad7923_state *st = iio_priv(indio_dev);
 	int i, cmd, len;
@@ -181,7 +180,7 @@ static irqreturn_t ad7923_trigger_handler(int irq, void *p)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, st->rx_buf,
-		iio_get_time_ns(indio_dev));
+					   iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -272,7 +271,7 @@ static int ad7923_probe(struct spi_device *spi)
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
@@ -314,7 +313,7 @@ static int ad7923_probe(struct spi_device *spi)
 		return ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-			&ad7923_trigger_handler, NULL);
+					 &ad7923_trigger_handler, NULL);
 	if (ret)
 		goto error_disable_reg;
 

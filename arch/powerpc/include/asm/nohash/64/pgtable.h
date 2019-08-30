@@ -10,10 +10,6 @@
 #include <asm/barrier.h>
 #include <asm/asm-const.h>
 
-#ifdef CONFIG_PPC_64K_PAGES
-#error "Page size not supported"
-#endif
-
 #define FIRST_USER_ADDRESS	0UL
 
 /*
@@ -23,11 +19,7 @@
 			    PUD_INDEX_SIZE + PGD_INDEX_SIZE + PAGE_SHIFT)
 #define PGTABLE_RANGE (ASM_CONST(1) << PGTABLE_EADDR_SIZE)
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-#define PMD_CACHE_INDEX	(PMD_INDEX_SIZE + 1)
-#else
 #define PMD_CACHE_INDEX	PMD_INDEX_SIZE
-#endif
 #define PUD_CACHE_INDEX PUD_INDEX_SIZE
 
 /*
@@ -73,7 +65,6 @@
 
 #define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
 #define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
-#define VMEMMAP_REGION_ID	(0xfUL)	/* Server only */
 #define USER_REGION_ID		(0UL)
 
 /*
@@ -205,7 +196,8 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
   (((pte_t *) pmd_page_vaddr(*(dir))) + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
-#define pte_unmap(pte)			do { } while(0)
+
+static inline void pte_unmap(pte_t *pte) { }
 
 /* to find an entry in a kernel page-table-directory */
 /* This now only contains the vmalloc pages */

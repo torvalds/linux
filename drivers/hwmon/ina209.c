@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Texas Instruments / Burr Brown INA209
  * Bidirectional Current/Power Monitor
@@ -11,10 +12,6 @@
  * Aligned with ina2xx driver
  *	Copyright (C) 2012 Lothar Felten <l-felten@ti.com>
  *	Thanks to Jan Volkering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * Datasheet:
  * http://www.ti.com/lit/gpn/ina209
@@ -587,7 +584,7 @@ static const struct i2c_device_id ina209_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ina209_id);
 
-static const struct of_device_id ina209_of_match[] = {
+static const struct of_device_id __maybe_unused ina209_of_match[] = {
 	{ .compatible = "ti,ina209" },
 	{ },
 };

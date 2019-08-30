@@ -205,7 +205,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
 		     i+1, n, global_id, mds, inc,
-		     ceph_pr_addr(&addr.in_addr),
+		     ceph_pr_addr(&addr),
 		     ceph_mds_state_name(state));
 
 		if (mds < 0 || state <= 0)

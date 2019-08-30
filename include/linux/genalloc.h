@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Basic general purpose allocator for managing special purpose
  * memory, for example, memory that is not managed by the regular
@@ -21,9 +22,6 @@
  * the allocator can NOT be used in NMI handler.  So code uses the
  * allocator in NMI handler should depend on
  * CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 
@@ -75,6 +73,7 @@ struct gen_pool_chunk {
 	struct list_head next_chunk;	/* next chunk in pool */
 	atomic_long_t avail;
 	phys_addr_t phys_addr;		/* physical starting address of memory chunk */
+	void *owner;			/* private data to retrieve at alloc time */
 	unsigned long start_addr;	/* start address of memory chunk */
 	unsigned long end_addr;		/* end address of memory chunk (inclusive) */
 	unsigned long bits[0];		/* bitmap for allocating memory chunk */
@@ -96,8 +95,15 @@ struct genpool_data_fixed {
 
 extern struct gen_pool *gen_pool_create(int, int);
 extern phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long);
-extern int gen_pool_add_virt(struct gen_pool *, unsigned long, phys_addr_t,
-			     size_t, int);
+extern int gen_pool_add_owner(struct gen_pool *, unsigned long, phys_addr_t,
+			     size_t, int, void *);
+
+static inline int gen_pool_add_virt(struct gen_pool *pool, unsigned long addr,
+		phys_addr_t phys, size_t size, int nid)
+{
+	return gen_pool_add_owner(pool, addr, phys, size, nid, NULL);
+}
+
 /**
  * gen_pool_add - add a new chunk of special memory to the pool
  * @pool: pool to add new memory chunk to
@@ -116,12 +122,47 @@ static inline int gen_pool_add(struct gen_pool *pool, unsigned long addr,
 	return gen_pool_add_virt(pool, addr, -1, size, nid);
 }
 extern void gen_pool_destroy(struct gen_pool *);
-extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
-extern unsigned long gen_pool_alloc_algo(struct gen_pool *, size_t,
-		genpool_algo_t algo, void *data);
+unsigned long gen_pool_alloc_algo_owner(struct gen_pool *pool, size_t size,
+		genpool_algo_t algo, void *data, void **owner);
+
+static inline unsigned long gen_pool_alloc_owner(struct gen_pool *pool,
+		size_t size, void **owner)
+{
+	return gen_pool_alloc_algo_owner(pool, size, pool->algo, pool->data,
+			owner);
+}
+
+static inline unsigned long gen_pool_alloc_algo(struct gen_pool *pool,
+		size_t size, genpool_algo_t algo, void *data)
+{
+	return gen_pool_alloc_algo_owner(pool, size, algo, data, NULL);
+}
+
+/**
+ * gen_pool_alloc - allocate special memory from the pool
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ *
+ * Allocate the requested number of bytes from the specified pool.
+ * Uses the pool allocation function (with first-fit algorithm by default).
+ * Can not be used in NMI handler on architectures without
+ * NMI-safe cmpxchg implementation.
+ */
+static inline unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
+{
+	return gen_pool_alloc_algo(pool, size, pool->algo, pool->data);
+}
+
 extern void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size,
 		dma_addr_t *dma);
-extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
+extern void gen_pool_free_owner(struct gen_pool *pool, unsigned long addr,
+		size_t size, void **owner);
+static inline void gen_pool_free(struct gen_pool *pool, unsigned long addr,
+                size_t size)
+{
+	gen_pool_free_owner(pool, addr, size, NULL);
+}
+
 extern void gen_pool_for_each_chunk(struct gen_pool *,
 	void (*)(struct gen_pool *, struct gen_pool_chunk *, void *), void *);
 extern size_t gen_pool_avail(struct gen_pool *);

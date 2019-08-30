@@ -12,7 +12,7 @@ Optional properties:
 Example:
 
 	&mipi_dsi {
-		panel {
+		panel@0 {
 			compatible = "kingdisplay,kd097d04";
 			reg = <0>;
 			power-supply = <...>;

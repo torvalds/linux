@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  * ARM Mali DP500/DP550/DP650 hardware manipulation routines. This is where
  * the difference between various versions of the hardware is being dealt with
@@ -49,10 +45,18 @@ static const struct malidp_format_id malidp500_de_formats[] = {
 	{ DRM_FORMAT_YUYV, DE_VIDEO1, 13 },
 	{ DRM_FORMAT_NV12, DE_VIDEO1 | SE_MEMWRITE, 14 },
 	{ DRM_FORMAT_YUV420, DE_VIDEO1, 15 },
+	{ DRM_FORMAT_XYUV8888, DE_VIDEO1, 16 },
+	/* These are supported with AFBC only */
+	{ DRM_FORMAT_YUV420_8BIT, DE_VIDEO1, 14 },
+	{ DRM_FORMAT_VUY888, DE_VIDEO1, 16 },
+	{ DRM_FORMAT_VUY101010, DE_VIDEO1, 17 },
+	{ DRM_FORMAT_YUV420_10BIT, DE_VIDEO1, 18 }
 };
 
 #define MALIDP_ID(__group, __format) \
 	((((__group) & 0x7) << 3) | ((__format) & 0x7))
+
+#define AFBC_YUV_422_FORMAT_ID	MALIDP_ID(5, 1)
 
 #define MALIDP_COMMON_FORMATS \
 	/*    fourcc,   layers supporting the format,      internal id   */ \
@@ -74,11 +78,25 @@ static const struct malidp_format_id malidp500_de_formats[] = {
 	{ DRM_FORMAT_ABGR1555, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 1) }, \
 	{ DRM_FORMAT_RGB565, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 2) }, \
 	{ DRM_FORMAT_BGR565, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2, MALIDP_ID(4, 3) }, \
+	/* This is only supported with linear modifier */	\
+	{ DRM_FORMAT_XYUV8888, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 0) },\
+	/* This is only supported with AFBC modifier */		\
+	{ DRM_FORMAT_VUY888, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 0) }, \
 	{ DRM_FORMAT_YUYV, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 2) },	\
+	/* This is only supported with linear modifier */ \
 	{ DRM_FORMAT_UYVY, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 3) },	\
 	{ DRM_FORMAT_NV12, DE_VIDEO1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(5, 6) },	\
+	/* This is only supported with AFBC modifier */ \
+	{ DRM_FORMAT_YUV420_8BIT, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 6) }, \
 	{ DRM_FORMAT_YUV420, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 7) }, \
-	{ DRM_FORMAT_X0L2, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 6)}
+	/* This is only supported with linear modifier */ \
+	{ DRM_FORMAT_XVYU2101010, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 0)}, \
+	/* This is only supported with AFBC modifier */ \
+	{ DRM_FORMAT_VUY101010, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 0)}, \
+	{ DRM_FORMAT_X0L2, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 6)}, \
+	/* This is only supported with AFBC modifier */ \
+	{ DRM_FORMAT_YUV420_10BIT, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 7)}, \
+	{ DRM_FORMAT_P010, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 7)}
 
 static const struct malidp_format_id malidp550_de_formats[] = {
 	MALIDP_COMMON_FORMATS,
@@ -94,11 +112,14 @@ static const struct malidp_layer malidp500_layers[] = {
 	 *	yuv2rgb matrix offset, mmu control register offset, rotation_features
 	 */
 	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE,
-		MALIDP_DE_LV_STRIDE0, MALIDP500_LV_YUV2RGB, 0, ROTATE_ANY },
+		MALIDP_DE_LV_STRIDE0, MALIDP500_LV_YUV2RGB, 0, ROTATE_ANY,
+		MALIDP500_DE_LV_AD_CTRL },
 	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE,
-		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY },
+		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY,
+		MALIDP500_DE_LG1_AD_CTRL },
 	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE,
-		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY },
+		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY,
+		MALIDP500_DE_LG2_AD_CTRL },
 };
 
 static const struct malidp_layer malidp550_layers[] = {
@@ -106,13 +127,16 @@ static const struct malidp_layer malidp550_layers[] = {
 	 *	yuv2rgb matrix offset, mmu control register offset, rotation_features
 	 */
 	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE,
-		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY },
+		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY,
+		MALIDP550_DE_LV1_AD_CTRL },
 	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE,
-		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY },
+		MALIDP_DE_LG_STRIDE, 0, 0, ROTATE_ANY,
+		MALIDP550_DE_LG_AD_CTRL },
 	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE,
-		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY },
+		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY,
+		MALIDP550_DE_LV2_AD_CTRL },
 	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
-		MALIDP550_DE_LS_R1_STRIDE, 0, 0, ROTATE_NONE },
+		MALIDP550_DE_LS_R1_STRIDE, 0, 0, ROTATE_NONE, 0 },
 };
 
 static const struct malidp_layer malidp650_layers[] = {
@@ -122,16 +146,44 @@ static const struct malidp_layer malidp650_layers[] = {
 	 */
 	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE,
 		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB,
-		MALIDP650_DE_LV_MMU_CTRL, ROTATE_ANY },
+		MALIDP650_DE_LV_MMU_CTRL, ROTATE_ANY,
+		MALIDP550_DE_LV1_AD_CTRL },
 	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE,
 		MALIDP_DE_LG_STRIDE, 0, MALIDP650_DE_LG_MMU_CTRL,
-		ROTATE_COMPRESSED },
+		ROTATE_COMPRESSED, MALIDP550_DE_LG_AD_CTRL },
 	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE,
 		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB,
-		MALIDP650_DE_LV_MMU_CTRL, ROTATE_ANY },
+		MALIDP650_DE_LV_MMU_CTRL, ROTATE_ANY,
+		MALIDP550_DE_LV2_AD_CTRL },
 	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
 		MALIDP550_DE_LS_R1_STRIDE, 0, MALIDP650_DE_LS_MMU_CTRL,
-		ROTATE_NONE },
+		ROTATE_NONE, 0 },
+};
+
+const u64 malidp_format_modifiers[] = {
+	/* All RGB formats (except XRGB, RGBX, XBGR, BGRX) */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_YTR | AFBC_SPARSE),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_YTR),
+
+	/* All RGB formats > 16bpp (except XRGB, RGBX, XBGR, BGRX) */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_YTR | AFBC_SPARSE | AFBC_SPLIT),
+
+	/* All 8 or 10 bit YUV 444 formats. */
+	/* In DP550, 10 bit YUV 420 format also supported */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_SPARSE | AFBC_SPLIT),
+
+	/* YUV 420, 422 P1 8 bit and YUV 444 8 bit/10 bit formats */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_SPARSE),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16),
+
+	/* YUV 420, 422 P1 8, 10 bit formats */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_CBR | AFBC_SPARSE),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_CBR),
+
+	/* All formats */
+	DRM_FORMAT_MOD_LINEAR,
+
+	DRM_FORMAT_MOD_INVALID
 };
 
 #define SE_N_SCALING_COEFFS	96
@@ -324,14 +376,39 @@ static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *
 		malidp_hw_clearbits(hwdev, MALIDP_DISP_FUNC_ILACED, MALIDP_DE_DISPLAY_FUNC);
 }
 
-static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt)
+int malidp_format_get_bpp(u32 fmt)
+{
+	int bpp = drm_format_plane_cpp(fmt, 0) * 8;
+
+	if (bpp == 0) {
+		switch (fmt) {
+		case DRM_FORMAT_VUY101010:
+			bpp = 30;
+		case DRM_FORMAT_YUV420_10BIT:
+			bpp = 15;
+			break;
+		case DRM_FORMAT_YUV420_8BIT:
+			bpp = 12;
+			break;
+		default:
+			bpp = 0;
+		}
+	}
+
+	return bpp;
+}
+
+static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
+				     u16 h, u32 fmt, bool has_modifier)
 {
 	/*
 	 * Each layer needs enough rotation memory to fit 8 lines
 	 * worth of pixel data. Required size is then:
 	 *    size = rotated_width * (bpp / 8) * 8;
 	 */
-	return w * drm_format_plane_cpp(fmt, 0) * 8;
+	int bpp = malidp_format_get_bpp(fmt);
+
+	return w * bpp;
 }
 
 static void malidp500_se_write_pp_coefftab(struct malidp_hw_device *hwdev,
@@ -609,9 +686,9 @@ static void malidp550_modeset(struct malidp_hw_device *hwdev, struct videomode *
 		malidp_hw_clearbits(hwdev, MALIDP_DISP_FUNC_ILACED, MALIDP_DE_DISPLAY_FUNC);
 }
 
-static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt)
+static int malidpx50_get_bytes_per_column(u32 fmt)
 {
-	u32 bytes_per_col;
+	u32 bytes_per_column;
 
 	switch (fmt) {
 	/* 8 lines at 4 bytes per pixel */
@@ -637,19 +714,77 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_X0L0:
-	case DRM_FORMAT_X0L2:
-		bytes_per_col = 32;
+		bytes_per_column = 32;
 		break;
 	/* 16 lines at 1.5 bytes per pixel */
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_YUV420:
-		bytes_per_col = 24;
+	/* 8 lines at 3 bytes per pixel */
+	case DRM_FORMAT_VUY888:
+	/* 16 lines at 12 bits per pixel */
+	case DRM_FORMAT_YUV420_8BIT:
+	/* 8 lines at 3 bytes per pixel */
+	case DRM_FORMAT_P010:
+		bytes_per_column = 24;
+		break;
+	/* 8 lines at 30 bits per pixel */
+	case DRM_FORMAT_VUY101010:
+	/* 16 lines at 15 bits per pixel */
+	case DRM_FORMAT_YUV420_10BIT:
+		bytes_per_column = 30;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return w * bytes_per_col;
+	return bytes_per_column;
+}
+
+static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
+				     u16 h, u32 fmt, bool has_modifier)
+{
+	int bytes_per_column = 0;
+
+	switch (fmt) {
+	/* 8 lines at 15 bits per pixel */
+	case DRM_FORMAT_YUV420_10BIT:
+		bytes_per_column = 15;
+		break;
+	/* Uncompressed YUV 420 10 bit single plane cannot be rotated */
+	case DRM_FORMAT_X0L2:
+		if (has_modifier)
+			bytes_per_column = 8;
+		else
+			return -EINVAL;
+		break;
+	default:
+		bytes_per_column = malidpx50_get_bytes_per_column(fmt);
+	}
+
+	if (bytes_per_column == -EINVAL)
+		return bytes_per_column;
+
+	return w * bytes_per_column;
+}
+
+static int malidp650_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
+				     u16 h, u32 fmt, bool has_modifier)
+{
+	int bytes_per_column = 0;
+
+	switch (fmt) {
+	/* 16 lines at 2 bytes per pixel */
+	case DRM_FORMAT_X0L2:
+		bytes_per_column = 32;
+		break;
+	default:
+		bytes_per_column = malidpx50_get_bytes_per_column(fmt);
+	}
+
+	if (bytes_per_column == -EINVAL)
+		return bytes_per_column;
+
+	return w * bytes_per_column;
 }
 
 static int malidp550_se_set_scaling_coeffs(struct malidp_hw_device *hwdev,
@@ -838,7 +973,10 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
-			.features = MALIDP_REGMAP_HAS_CLEARIRQ,
+			.features = MALIDP_REGMAP_HAS_CLEARIRQ |
+				    MALIDP_DEVICE_AFBC_SUPPORT_SPLIT |
+				    MALIDP_DEVICE_AFBC_YUV_420_10_SUPPORT_SPLIT |
+				    MALIDP_DEVICE_AFBC_YUYV_USE_422_P2,
 			.n_layers = ARRAY_SIZE(malidp550_layers),
 			.layers = malidp550_layers,
 			.de_irq_map = {
@@ -884,7 +1022,9 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
-			.features = MALIDP_REGMAP_HAS_CLEARIRQ,
+			.features = MALIDP_REGMAP_HAS_CLEARIRQ |
+				    MALIDP_DEVICE_AFBC_SUPPORT_SPLIT |
+				    MALIDP_DEVICE_AFBC_YUYV_USE_422_P2,
 			.n_layers = ARRAY_SIZE(malidp650_layers),
 			.layers = malidp650_layers,
 			.de_irq_map = {
@@ -923,7 +1063,7 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 		.in_config_mode = malidp550_in_config_mode,
 		.set_config_valid = malidp550_set_config_valid,
 		.modeset = malidp550_modeset,
-		.rotmem_required = malidp550_rotmem_required,
+		.rotmem_required = malidp650_rotmem_required,
 		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
 		.se_calc_mclk = malidp550_se_calc_mclk,
 		.enable_memwrite = malidp550_enable_memwrite,
@@ -933,17 +1073,70 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 };
 
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
-			   u8 layer_id, u32 format)
+			   u8 layer_id, u32 format, bool has_modifier)
 {
 	unsigned int i;
 
 	for (i = 0; i < map->n_pixel_formats; i++) {
 		if (((map->pixel_formats[i].layer & layer_id) == layer_id) &&
-		    (map->pixel_formats[i].format == format))
-			return map->pixel_formats[i].id;
+		    (map->pixel_formats[i].format == format)) {
+			/*
+			 * In some DP550 and DP650, DRM_FORMAT_YUYV + AFBC modifier
+			 * is supported by a different h/w format id than
+			 * DRM_FORMAT_YUYV (only).
+			 */
+			if (format == DRM_FORMAT_YUYV &&
+			    (has_modifier) &&
+			    (map->features & MALIDP_DEVICE_AFBC_YUYV_USE_422_P2))
+				return AFBC_YUV_422_FORMAT_ID;
+			else
+				return map->pixel_formats[i].id;
+		}
 	}
 
 	return MALIDP_INVALID_FORMAT_ID;
+}
+
+bool malidp_hw_format_is_linear_only(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_BGRA1010102:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_XYUV8888:
+	case DRM_FORMAT_XVYU2101010:
+	case DRM_FORMAT_X0L2:
+	case DRM_FORMAT_X0L0:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool malidp_hw_format_is_afbc_only(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_VUY888:
+	case DRM_FORMAT_VUY101010:
+	case DRM_FORMAT_YUV420_8BIT:
+	case DRM_FORMAT_YUV420_10BIT:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void malidp_hw_clear_irq(struct malidp_hw_device *hwdev, u8 block, u32 irq)

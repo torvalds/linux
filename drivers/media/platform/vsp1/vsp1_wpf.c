@@ -232,17 +232,41 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 	vsp1_dlm_destroy(wpf->dlm);
 }
 
+static int wpf_configure_writeback_chain(struct vsp1_rwpf *wpf,
+					 struct vsp1_dl_list *dl)
+{
+	unsigned int index = wpf->entity.index;
+	struct vsp1_dl_list *dl_next;
+	struct vsp1_dl_body *dlb;
+
+	dl_next = vsp1_dl_list_get(wpf->dlm);
+	if (!dl_next) {
+		dev_err(wpf->entity.vsp1->dev,
+			"Failed to obtain a dl list, disabling writeback\n");
+		return -ENOMEM;
+	}
+
+	dlb = vsp1_dl_list_get_body0(dl_next);
+	vsp1_dl_body_write(dlb, VI6_WPF_WRBCK_CTRL(index), 0);
+	vsp1_dl_list_add_chain(dl, dl_next);
+
+	return 0;
+}
+
 static void wpf_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
+	unsigned int index = wpf->entity.index;
 	unsigned int i;
 	u32 outfmt = 0;
 	u32 srcrpf = 0;
+	int ret;
 
 	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
 						 wpf->entity.config,
@@ -250,8 +274,9 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 	source_format = vsp1_entity_get_pad_format(&wpf->entity,
 						   wpf->entity.config,
 						   RWPF_PAD_SOURCE);
+
 	/* Format */
-	if (!pipe->lif) {
+	if (!pipe->lif || wpf->writeback) {
 		const struct v4l2_pix_format_mplane *format = &wpf->format;
 		const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 
@@ -276,8 +301,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 
 		vsp1_wpf_write(wpf, dlb, VI6_WPF_DSWAP, fmtinfo->swap);
 
-		if (vsp1_feature(vsp1, VSP1_HAS_WPF_HFLIP) &&
-		    wpf->entity.index == 0)
+		if (vsp1_feature(vsp1, VSP1_HAS_WPF_HFLIP) && index == 0)
 			vsp1_wpf_write(wpf, dlb, VI6_WPF_ROT_CTRL,
 				       VI6_WPF_ROT_CTRL_LN16 |
 				       (256 << VI6_WPF_ROT_CTRL_LMEM_WD_SHIFT));
@@ -288,10 +312,8 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 
 	wpf->outfmt = outfmt;
 
-	vsp1_dl_body_write(dlb, VI6_DPR_WPF_FPORCH(wpf->entity.index),
+	vsp1_dl_body_write(dlb, VI6_DPR_WPF_FPORCH(index),
 			   VI6_DPR_WPF_FPORCH_FP_WPFN);
-
-	vsp1_dl_body_write(dlb, VI6_WPF_WRBCK_CTRL, 0);
 
 	/*
 	 * Sources. If the pipeline has a single input and BRx is not used,
@@ -318,9 +340,26 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_SRCRPF, srcrpf);
 
 	/* Enable interrupts. */
-	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
-	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(wpf->entity.index),
+	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(index), 0);
+	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(index),
 			   VI6_WFP_IRQ_ENB_DFEE);
+
+	/*
+	 * Configure writeback for display pipelines (the wpf writeback flag is
+	 * never set for memory-to-memory pipelines). Start by adding a chained
+	 * display list to disable writeback after a single frame, and process
+	 * to enable writeback. If the display list allocation fails don't
+	 * enable writeback as we wouldn't be able to safely disable it,
+	 * resulting in possible memory corruption.
+	 */
+	if (wpf->writeback) {
+		ret = wpf_configure_writeback_chain(wpf, dl);
+		if (ret < 0)
+			wpf->writeback = false;
+	}
+
+	vsp1_dl_body_write(dlb, VI6_WPF_WRBCK_CTRL(index),
+			   wpf->writeback ? VI6_WPF_WRBCK_CTRL_WBMD : 0);
 }
 
 static void wpf_configure_frame(struct vsp1_entity *entity,
@@ -362,6 +401,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 	unsigned int width;
 	unsigned int height;
+	unsigned int left;
 	unsigned int offset;
 	unsigned int flip;
 	unsigned int i;
@@ -371,13 +411,16 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 						 RWPF_PAD_SINK);
 	width = sink_format->width;
 	height = sink_format->height;
+	left = 0;
 
 	/*
 	 * Cropping. The partition algorithm can split the image into
 	 * multiple slices.
 	 */
-	if (pipe->partitions > 1)
+	if (pipe->partitions > 1) {
 		width = pipe->partition->wpf.width;
+		left = pipe->partition->wpf.left;
+	}
 
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
@@ -386,7 +429,11 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
-	if (pipe->lif)
+	/*
+	 * For display pipelines without writeback enabled there's no memory
+	 * address to configure, return now.
+	 */
+	if (pipe->lif && !wpf->writeback)
 		return;
 
 	/*
@@ -408,13 +455,11 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	flip = wpf->flip.active;
 
 	if (flip & BIT(WPF_CTRL_HFLIP) && !wpf->flip.rotate)
-		offset = format->width - pipe->partition->wpf.left
-			- pipe->partition->wpf.width;
+		offset = format->width - left - width;
 	else if (flip & BIT(WPF_CTRL_VFLIP) && wpf->flip.rotate)
-		offset = format->height - pipe->partition->wpf.left
-			- pipe->partition->wpf.width;
+		offset = format->height - left - width;
 	else
-		offset = pipe->partition->wpf.left;
+		offset = left;
 
 	for (i = 0; i < format->num_planes; ++i) {
 		unsigned int hsub = i > 0 ? fmtinfo->hsub : 1;
@@ -436,7 +481,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 		 * image height.
 		 */
 		if (wpf->flip.rotate)
-			height = pipe->partition->wpf.width;
+			height = width;
 		else
 			height = format->height;
 
@@ -477,6 +522,12 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
+
+	/*
+	 * Writeback operates in single-shot mode and lasts for a single frame,
+	 * reset the writeback flag to false for the next frame.
+	 */
+	wpf->writeback = false;
 }
 
 static unsigned int wpf_max_width(struct vsp1_entity *entity,

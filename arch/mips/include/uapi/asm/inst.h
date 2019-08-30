@@ -55,9 +55,9 @@ enum spec_op {
 	spec3_unused_op, spec4_unused_op, slt_op, sltu_op,
 	dadd_op, daddu_op, dsub_op, dsubu_op,
 	tge_op, tgeu_op, tlt_op, tltu_op,
-	teq_op, spec5_unused_op, tne_op, spec6_unused_op,
-	dsll_op, spec7_unused_op, dsrl_op, dsra_op,
-	dsll32_op, spec8_unused_op, dsrl32_op, dsra32_op
+	teq_op, seleqz_op, tne_op, selnez_op,
+	dsll_op, spec5_unused_op, dsrl_op, dsra_op,
+	dsll32_op, spec6_unused_op, dsrl32_op, dsra32_op
 };
 
 /*

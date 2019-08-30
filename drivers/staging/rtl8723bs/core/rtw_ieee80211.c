@@ -114,7 +114,7 @@ u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *sourc
 {
 	memcpy((void *)pbuf, (void *)source, len);
 	*frlen = *frlen + len;
-	return (pbuf + len);
+	return pbuf + len;
 }
 
 /*  rtw_set_ie will update frame length */
@@ -136,7 +136,7 @@ u8 *rtw_set_ie
 
 	*frlen = *frlen + (len + 2);
 
-	return (pbuf + len + 2);
+	return pbuf + len + 2;
 }
 
 /*----------------------------------------------------------------------------
@@ -706,7 +706,7 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 		}
 	}
 
-	return (*rsn_len + *wpa_len);
+	return *rsn_len + *wpa_len;
 }
 
 u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)

@@ -36,6 +36,7 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	/* enable virtual display */
 	adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
+	adev->ddev->driver->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
 }
@@ -375,4 +376,53 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 	}
 }
 
+static uint32_t parse_clk(char *buf, bool min)
+{
+        char *ptr = buf;
+        uint32_t clk = 0;
+
+        do {
+                ptr = strchr(ptr, ':');
+                if (!ptr)
+                        break;
+                ptr+=2;
+                clk = simple_strtoul(ptr, NULL, 10);
+        } while (!min);
+
+        return clk * 100;
+}
+
+uint32_t amdgpu_virt_get_sclk(struct amdgpu_device *adev, bool lowest)
+{
+	char *buf = NULL;
+	uint32_t clk = 0;
+
+	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	adev->virt.ops->get_pp_clk(adev, PP_SCLK, buf);
+	clk = parse_clk(buf, lowest);
+
+	kfree(buf);
+
+	return clk;
+}
+
+uint32_t amdgpu_virt_get_mclk(struct amdgpu_device *adev, bool lowest)
+{
+	char *buf = NULL;
+	uint32_t clk = 0;
+
+	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	adev->virt.ops->get_pp_clk(adev, PP_MCLK, buf);
+	clk = parse_clk(buf, lowest);
+
+	kfree(buf);
+
+	return clk;
+}
 

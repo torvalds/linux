@@ -239,14 +239,52 @@ fail:
 }
 EXPORT_SYMBOL(drm_writeback_connector_init);
 
+int drm_writeback_set_fb(struct drm_connector_state *conn_state,
+			 struct drm_framebuffer *fb)
+{
+	WARN_ON(conn_state->connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
+
+	if (!conn_state->writeback_job) {
+		conn_state->writeback_job =
+			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
+		if (!conn_state->writeback_job)
+			return -ENOMEM;
+
+		conn_state->writeback_job->connector =
+			drm_connector_to_writeback(conn_state->connector);
+	}
+
+	drm_framebuffer_assign(&conn_state->writeback_job->fb, fb);
+	return 0;
+}
+
+int drm_writeback_prepare_job(struct drm_writeback_job *job)
+{
+	struct drm_writeback_connector *connector = job->connector;
+	const struct drm_connector_helper_funcs *funcs =
+		connector->base.helper_private;
+	int ret;
+
+	if (funcs->prepare_writeback_job) {
+		ret = funcs->prepare_writeback_job(connector, job);
+		if (ret < 0)
+			return ret;
+	}
+
+	job->prepared = true;
+	return 0;
+}
+EXPORT_SYMBOL(drm_writeback_prepare_job);
+
 /**
  * drm_writeback_queue_job - Queue a writeback job for later signalling
  * @wb_connector: The writeback connector to queue a job on
- * @job: The job to queue
+ * @conn_state: The connector state containing the job to queue
  *
- * This function adds a job to the job_queue for a writeback connector. It
- * should be considered to take ownership of the writeback job, and so any other
- * references to the job must be cleared after calling this function.
+ * This function adds the job contained in @conn_state to the job_queue for a
+ * writeback connector. It takes ownership of the writeback job and sets the
+ * @conn_state->writeback_job to NULL, and so no access to the job may be
+ * performed by the caller after this function returns.
  *
  * Drivers must ensure that for a given writeback connector, jobs are queued in
  * exactly the same order as they will be completed by the hardware (and
@@ -258,15 +296,35 @@ EXPORT_SYMBOL(drm_writeback_connector_init);
  * See also: drm_writeback_signal_completion()
  */
 void drm_writeback_queue_job(struct drm_writeback_connector *wb_connector,
-			     struct drm_writeback_job *job)
+			     struct drm_connector_state *conn_state)
 {
+	struct drm_writeback_job *job;
 	unsigned long flags;
+
+	job = conn_state->writeback_job;
+	conn_state->writeback_job = NULL;
 
 	spin_lock_irqsave(&wb_connector->job_lock, flags);
 	list_add_tail(&job->list_entry, &wb_connector->job_queue);
 	spin_unlock_irqrestore(&wb_connector->job_lock, flags);
 }
 EXPORT_SYMBOL(drm_writeback_queue_job);
+
+void drm_writeback_cleanup_job(struct drm_writeback_job *job)
+{
+	struct drm_writeback_connector *connector = job->connector;
+	const struct drm_connector_helper_funcs *funcs =
+		connector->base.helper_private;
+
+	if (job->prepared && funcs->cleanup_writeback_job)
+		funcs->cleanup_writeback_job(connector, job);
+
+	if (job->fb)
+		drm_framebuffer_put(job->fb);
+
+	kfree(job);
+}
+EXPORT_SYMBOL(drm_writeback_cleanup_job);
 
 /*
  * @cleanup_work: deferred cleanup of a writeback job
@@ -280,10 +338,9 @@ static void cleanup_work(struct work_struct *work)
 	struct drm_writeback_job *job = container_of(work,
 						     struct drm_writeback_job,
 						     cleanup_work);
-	drm_framebuffer_put(job->fb);
-	kfree(job);
-}
 
+	drm_writeback_cleanup_job(job);
+}
 
 /**
  * drm_writeback_signal_completion - Signal the completion of a writeback job

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* tnum: tracked (or tristate) numbers
  *
  * A tnum tracks knowledge about the bits of a value.  Each bit can be either

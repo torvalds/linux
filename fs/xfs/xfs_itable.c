@@ -18,6 +18,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_health.h"
 
 /*
  * Return stat information for one inode.
@@ -84,6 +85,7 @@ xfs_bulkstat_one_int(
 	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;
 	buf->bs_extents = dic->di_nextents;
 	memset(buf->bs_pad, 0, sizeof(buf->bs_pad));
+	xfs_bulkstat_health(ip, buf);
 	buf->bs_dmevmask = dic->di_dmevmask;
 	buf->bs_dmstate = dic->di_dmstate;
 	buf->bs_aextents = dic->di_anextents;

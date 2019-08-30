@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics st_lsm6dsx sensor driver
  *
@@ -5,8 +6,6 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_LSM6DSX_H
@@ -20,6 +19,9 @@
 #define ST_LSM6DSM_DEV_NAME	"lsm6dsm"
 #define ST_ISM330DLC_DEV_NAME	"ism330dlc"
 #define ST_LSM6DSO_DEV_NAME	"lsm6dso"
+#define ST_ASM330LHH_DEV_NAME	"asm330lhh"
+#define ST_LSM6DSOX_DEV_NAME	"lsm6dsox"
+#define ST_LSM6DSR_DEV_NAME	"lsm6dsr"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -28,6 +30,9 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DSM_ID,
 	ST_ISM330DLC_ID,
 	ST_LSM6DSO_ID,
+	ST_ASM330LHH_ID,
+	ST_LSM6DSOX_ID,
+	ST_LSM6DSR_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
@@ -265,6 +270,7 @@ struct st_lsm6dsx_sensor {
  * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
  * @page_lock: Mutex to prevent concurrent memory page configuration.
  * @fifo_mode: FIFO operating mode supported by the device.
+ * @suspend_mask: Suspended sensor bitmask.
  * @enable_mask: Enabled sensor bitmask.
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
@@ -282,6 +288,7 @@ struct st_lsm6dsx_hw {
 	struct mutex page_lock;
 
 	enum st_lsm6dsx_fifo_mode fifo_mode;
+	u8 suspend_mask;
 	u8 enable_mask;
 	u8 ts_sip;
 	u8 sip;

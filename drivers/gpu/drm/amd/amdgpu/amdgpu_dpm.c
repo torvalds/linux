@@ -904,3 +904,19 @@ amdgpu_get_vce_clock_state(void *handle, u32 idx)
 
 	return NULL;
 }
+
+int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low)
+{
+	if (is_support_sw_smu(adev))
+		return smu_get_sclk(&adev->smu, low);
+	else
+		return (adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (low));
+}
+
+int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low)
+{
+	if (is_support_sw_smu(adev))
+		return smu_get_mclk(&adev->smu, low);
+	else
+		return (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
+}

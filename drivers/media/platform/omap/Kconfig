@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_OMAP2_VOUT_VRFB
 	bool
 	default y
@@ -14,5 +15,5 @@ config VIDEO_OMAP2_VOUT
 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
 	select FRAME_VECTOR
 	default n
-	---help---
+	help
 	  V4L2 Display driver support for OMAP2/3 based boards.

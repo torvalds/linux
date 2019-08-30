@@ -11,6 +11,10 @@
 #include <clocksource/arm_arch_timer.h>
 
 #ifdef CONFIG_ARM_ARCH_TIMER
+/* 32bit ARM doesn't know anything about timer errata... */
+#define has_erratum_handler(h)		(false)
+#define erratum_handler(h)		(arch_timer_##h)
+
 int arch_timer_arch_init(void);
 
 /*
@@ -79,7 +83,7 @@ static inline u32 arch_timer_get_cntfrq(void)
 	return val;
 }
 
-static inline u64 arch_counter_get_cntpct(void)
+static inline u64 __arch_counter_get_cntpct(void)
 {
 	u64 cval;
 
@@ -88,13 +92,23 @@ static inline u64 arch_counter_get_cntpct(void)
 	return cval;
 }
 
-static inline u64 arch_counter_get_cntvct(void)
+static inline u64 __arch_counter_get_cntpct_stable(void)
+{
+	return __arch_counter_get_cntpct();
+}
+
+static inline u64 __arch_counter_get_cntvct(void)
 {
 	u64 cval;
 
 	isb();
 	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
 	return cval;
+}
+
+static inline u64 __arch_counter_get_cntvct_stable(void)
+{
+	return __arch_counter_get_cntvct();
 }
 
 static inline u32 arch_timer_get_cntkctl(void)

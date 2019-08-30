@@ -17,6 +17,7 @@
 struct platform_device;
 
 extern struct pinmux_ops imx_pmx_ops;
+extern const struct dev_pm_ops imx_pinctrl_pm_ops;
 
 /**
  * struct imx_pin_mmio - MMIO pin configurations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += compat.h
 generic-y += current.h
 generic-y += early_ioremap.h
@@ -9,15 +10,13 @@ generic-y += kdebug.h
 generic-y += local.h
 generic-y += local64.h
 generic-y += mm-arch-hooks.h
+generic-y += mmiowb.h
 generic-y += msi.h
 generic-y += parport.h
 generic-y += preempt.h
-generic-y += rwsem.h
 generic-y += seccomp.h
-generic-y += segment.h
 generic-y += serial.h
 generic-y += simd.h
-generic-y += sizes.h
 generic-y += trace_clock.h
 
 generated-y += mach-types.h

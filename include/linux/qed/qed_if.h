@@ -1338,7 +1338,6 @@ static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 	}
 
 	/* Let SB update */
-	mmiowb();
 	return rc;
 }
 
@@ -1374,7 +1373,6 @@ static inline void qed_sb_ack(struct qed_sb_info *sb_info,
 	/* Both segments (interrupts & acks) are written to same place address;
 	 * Need to guarantee all commands will be received (in-order) by HW.
 	 */
-	mmiowb();
 	barrier();
 }
 

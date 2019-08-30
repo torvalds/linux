@@ -859,7 +859,8 @@ racchiusa in #ifdef, potete usare printk(KERN_DEBUG ...).
 
 Il kernel fornisce i seguenti assegnatori ad uso generico:
 kmalloc(), kzalloc(), kmalloc_array(), kcalloc(), vmalloc(), e vzalloc().
-Per maggiori informazioni, consultate la documentazione dell'API.
+Per maggiori informazioni, consultate la documentazione dell'API:
+:ref:`Documentation/translations/it_IT/core-api/memory-allocation.rst <it_memory_allocation>`
 
 Il modo preferito per passare la dimensione di una struttura è il seguente:
 
@@ -889,6 +890,11 @@ Il modo preferito per assegnare un vettore a zero è il seguente:
 
 Entrambe verificano la condizione di overflow per la dimensione
 d'assegnamento n * sizeof(...), se accade ritorneranno NULL.
+
+Questi allocatori generici producono uno *stack dump* in caso di fallimento
+a meno che non venga esplicitamente specificato __GFP_NOWARN. Quindi, nella
+maggior parte dei casi, è inutile stampare messaggi aggiuntivi quando uno di
+questi allocatori ritornano un puntatore NULL.
 
 15) Il morbo inline
 -------------------

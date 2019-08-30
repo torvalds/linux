@@ -27,8 +27,8 @@ config CRYPTO_FIPS
 	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
 	depends on (MODULE_SIG || !MODULES)
 	help
-	  This options enables the fips boot option which is
-	  required if you want to system to operate in a FIPS 200
+	  This option enables the fips boot option which is
+	  required if you want the system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
 	  this is.
 
@@ -112,29 +112,6 @@ config CRYPTO_ACOMP
 	tristate
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
-
-config CRYPTO_RSA
-	tristate "RSA algorithm"
-	select CRYPTO_AKCIPHER
-	select CRYPTO_MANAGER
-	select MPILIB
-	select ASN1
-	help
-	  Generic implementation of the RSA public key algorithm.
-
-config CRYPTO_DH
-	tristate "Diffie-Hellman algorithm"
-	select CRYPTO_KPP
-	select MPILIB
-	help
-	  Generic implementation of the Diffie-Hellman algorithm.
-
-config CRYPTO_ECDH
-	tristate "ECDH algorithm"
-	select CRYPTO_KPP
-	select CRYPTO_RNG_DEFAULT
-	help
-	  Generic implementation of the ECDH algorithm
 
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
@@ -253,6 +230,48 @@ config CRYPTO_GLUE_HELPER_X86
 config CRYPTO_ENGINE
 	tristate
 
+comment "Public-key cryptography"
+
+config CRYPTO_RSA
+	tristate "RSA algorithm"
+	select CRYPTO_AKCIPHER
+	select CRYPTO_MANAGER
+	select MPILIB
+	select ASN1
+	help
+	  Generic implementation of the RSA public key algorithm.
+
+config CRYPTO_DH
+	tristate "Diffie-Hellman algorithm"
+	select CRYPTO_KPP
+	select MPILIB
+	help
+	  Generic implementation of the Diffie-Hellman algorithm.
+
+config CRYPTO_ECC
+	tristate
+
+config CRYPTO_ECDH
+	tristate "ECDH algorithm"
+	select CRYPTO_ECC
+	select CRYPTO_KPP
+	select CRYPTO_RNG_DEFAULT
+	help
+	  Generic implementation of the ECDH algorithm
+
+config CRYPTO_ECRDSA
+	tristate "EC-RDSA (GOST 34.10) algorithm"
+	select CRYPTO_ECC
+	select CRYPTO_AKCIPHER
+	select CRYPTO_STREEBOG
+	select OID_REGISTRY
+	select ASN1
+	help
+	  Elliptic Curve Russian Digital Signature Algorithm (GOST R 34.10-2012,
+	  RFC 7091, ISO/IEC 14888-3:2018) is one of the Russian cryptographic
+	  standard algorithms (called GOST algorithms). Only signature verification
+	  is implemented.
+
 comment "Authenticated Encryption with Associated Data"
 
 config CRYPTO_CCM
@@ -310,25 +329,25 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 	tristate "AEGIS-128 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
 	depends on X86 && 64BIT
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGSI-128 dedicated AEAD algorithm.
+	 AESNI+SSE2 implementation of the AEGIS-128 dedicated AEAD algorithm.
 
 config CRYPTO_AEGIS128L_AESNI_SSE2
 	tristate "AEGIS-128L AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
 	depends on X86 && 64BIT
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGSI-128L dedicated AEAD algorithm.
+	 AESNI+SSE2 implementation of the AEGIS-128L dedicated AEAD algorithm.
 
 config CRYPTO_AEGIS256_AESNI_SSE2
 	tristate "AEGIS-256 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
 	depends on X86 && 64BIT
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGSI-256 dedicated AEAD algorithm.
+	 AESNI+SSE2 implementation of the AEGIS-256 dedicated AEAD algorithm.
 
 config CRYPTO_MORUS640
 	tristate "MORUS-640 AEAD algorithm"
@@ -340,7 +359,7 @@ config CRYPTO_MORUS640_GLUE
 	tristate
 	depends on X86
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
 	  Common glue for SIMD optimizations of the MORUS-640 dedicated AEAD
 	  algorithm.
@@ -363,7 +382,7 @@ config CRYPTO_MORUS1280_GLUE
 	tristate
 	depends on X86
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
 	  Common glue for SIMD optimizations of the MORUS-1280 dedicated AEAD
 	  algorithm.

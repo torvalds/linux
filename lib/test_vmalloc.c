@@ -384,12 +384,11 @@ static int test_func(void *private)
 {
 	struct test_driver *t = private;
 	int random_array[ARRAY_SIZE(test_case_array)];
-	int index, i, j, ret;
+	int index, i, j;
 	ktime_t kt;
 	u64 delta;
 
-	ret = set_cpus_allowed_ptr(current, cpumask_of(t->cpu));
-	if (ret < 0)
+	if (set_cpus_allowed_ptr(current, cpumask_of(t->cpu)) < 0)
 		pr_err("Failed to set affinity to %d CPU\n", t->cpu);
 
 	for (i = 0; i < ARRAY_SIZE(test_case_array); i++)
@@ -415,8 +414,7 @@ static int test_func(void *private)
 
 		kt = ktime_get();
 		for (j = 0; j < test_repeat_count; j++) {
-			ret = test_case_array[index].test_func();
-			if (!ret)
+			if (!test_case_array[index].test_func())
 				per_cpu_test_data[t->cpu][index].test_passed++;
 			else
 				per_cpu_test_data[t->cpu][index].test_failed++;

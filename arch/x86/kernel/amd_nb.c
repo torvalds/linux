@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Shared support code for AMD K8 northbridges and derivates.
- * Copyright 2006 Andi Kleen, SUSE Labs. Subject to GPLv2.
+ * Copyright 2006 Andi Kleen, SUSE Labs.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

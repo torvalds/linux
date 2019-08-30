@@ -87,7 +87,7 @@ Flash Control IDs
 ``V4L2_CID_FLASH_STROBE_SOURCE (menu)``
     Defines the source of the flash LED strobe.
 
-.. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
+.. tabularcolumns:: |p{7.5cm}|p{10.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -146,7 +146,7 @@ Flash Control IDs
     an effect is chip dependent. Reading the faults resets the control
     and returns the chip to a usable state if possible.
 
-.. tabularcolumns:: |p{8.0cm}|p{9.5cm}|
+.. tabularcolumns:: |p{8.4cm}|p{9.1cm}|
 
 .. flat-table::
     :header-rows:  0

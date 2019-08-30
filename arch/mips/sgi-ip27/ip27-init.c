@@ -184,5 +184,7 @@ void __init plat_mem_setup(void)
 
 	ioc3_eth_init();
 
+	ioport_resource.start = 0;
+	ioport_resource.end = ~0UL;
 	set_io_port_base(IO_BASE);
 }

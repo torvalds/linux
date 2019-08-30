@@ -5,10 +5,11 @@
 /*
  * For 4K page size supported index is 13/9/9/9
  */
-#define RADIX_PTE_INDEX_SIZE  9  /* 2MB huge page */
-#define RADIX_PMD_INDEX_SIZE  9  /* 1G huge page */
-#define RADIX_PUD_INDEX_SIZE	 9
-#define RADIX_PGD_INDEX_SIZE  13
+#define RADIX_PTE_INDEX_SIZE   9  // size: 8B <<  9 =  4KB, maps 2^9  x    4K =   2MB
+#define RADIX_PMD_INDEX_SIZE   9  // size: 8B <<  9 =  4KB, maps 2^9  x   2MB =   1GB
+#define RADIX_PUD_INDEX_SIZE   9  // size: 8B <<  9 =  4KB, maps 2^9  x   1GB = 512GB
+#define RADIX_PGD_INDEX_SIZE  13  // size: 8B << 13 = 64KB, maps 2^13 x 512GB =   4PB
+
 /*
  * One fragment per per page
  */

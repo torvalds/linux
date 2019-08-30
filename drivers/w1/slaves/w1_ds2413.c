@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1_ds2413.c - w1 family 3a (DS2413) driver
  * based on w1_ds2408.c by Jean-Francois Dagenais <dagenaisj@sonatest.com>
  *
  * Copyright (c) 2013 Mariusz Bialonczyk <manio@skyboo.net>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>

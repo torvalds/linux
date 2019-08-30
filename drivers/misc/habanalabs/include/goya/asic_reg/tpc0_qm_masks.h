@@ -462,4 +462,3 @@
 #define TPC0_QM_CQ_BUF_RDATA_VAL_MASK                                0xFFFFFFFF
 
 #endif /* ASIC_REG_TPC0_QM_MASKS_H_ */
-

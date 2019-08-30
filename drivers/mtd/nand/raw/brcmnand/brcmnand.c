@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2010-2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -1676,11 +1668,8 @@ static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
 	int page = addr >> chip->page_shift;
 	int ret;
 
-	if (!buf) {
-		buf = chip->data_buf;
-		/* Invalidate page cache */
-		chip->pagebuf = -1;
-	}
+	if (!buf)
+		buf = nand_get_data_buf(chip);
 
 	sas = mtd->oobsize / chip->ecc.steps;
 

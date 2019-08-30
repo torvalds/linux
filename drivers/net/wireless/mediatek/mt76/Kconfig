@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MT76_CORE
 	tristate
 
@@ -22,3 +23,4 @@ config MT76x02_USB
 source "drivers/net/wireless/mediatek/mt76/mt76x0/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt76x2/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt7603/Kconfig"
+source "drivers/net/wireless/mediatek/mt76/mt7615/Kconfig"

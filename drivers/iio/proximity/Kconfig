@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Proximity sensors
 #
@@ -45,6 +46,18 @@ config LIDAR_LITE_V2
 	  To compile this driver as a module, choose M here: the
 	  module will be called pulsedlight-lite-v2
 
+config MB1232
+	tristate "MaxSonar I2CXL family ultrasonic sensors"
+	depends on I2C
+	help
+	  Say Y to build a driver for the ultrasonic sensors I2CXL of
+	  MaxBotix which have an i2c interface. It can be used to measure
+	  the distance of objects. Supported types are mb1202, mb1212,
+	  mb1222, mb1232, mb1242, mb7040, mb7137
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mb1232.
+
 config RFD77402
 	tristate "RFD77402 ToF sensor"
 	depends on I2C
@@ -56,12 +69,19 @@ config RFD77402
 	  module will be called rfd77402.
 
 config SRF04
-	tristate "Devantech SRF04 ultrasonic ranger sensor"
+	tristate "GPIO bitbanged ultrasonic ranger sensor (SRF04, MB1000)"
 	depends on GPIOLIB
 	help
-	  Say Y here to build a driver for Devantech SRF04 ultrasonic
+	  Say Y here to build a driver for GPIO bitbanged ultrasonic
 	  ranger sensor. This driver can be used to measure the distance
 	  of objects. It is using two GPIOs.
+	  Actually Supported types are:
+	  - Devantech SRF04
+	  - Maxbotix mb1000
+	  - Maxbotix mb1010
+	  - Maxbotix mb1020
+	  - Maxbotix mb1030
+	  - Maxbotix mb1040
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called srf04.

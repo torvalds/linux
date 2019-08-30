@@ -283,7 +283,8 @@ void nsim_ipsec_init(struct netdevsim *ns)
 	ns->netdev->features |= NSIM_ESP_FEATURES;
 	ns->netdev->hw_enc_features |= NSIM_ESP_FEATURES;
 
-	ns->ipsec.pfile = debugfs_create_file("ipsec", 0400, ns->ddir, ns,
+	ns->ipsec.pfile = debugfs_create_file("ipsec", 0400,
+					      ns->nsim_dev_port->ddir, ns,
 					      &ipsec_dbg_fops);
 }
 

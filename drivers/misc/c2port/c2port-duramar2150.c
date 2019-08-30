@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Silicon Labs C2 port Linux support for Eurotech Duramar 2150
  *
  *  Copyright (c) 2008 Rodolfo Giometti <giometti@linux.it>
  *  Copyright (c) 2008 Eurotech S.p.A. <info@eurotech.it>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation
  */
 
 #include <linux/errno.h>

@@ -11,8 +11,7 @@
 #include "percpu_freelist.h"
 
 #define QUEUE_STACK_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
-
+	(BPF_F_NUMA_NODE | BPF_F_ACCESS_MASK)
 
 struct bpf_queue_stack {
 	struct bpf_map map;
@@ -52,7 +51,8 @@ static int queue_stack_map_alloc_check(union bpf_attr *attr)
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 0 ||
 	    attr->value_size == 0 ||
-	    attr->map_flags & ~QUEUE_STACK_CREATE_FLAG_MASK)
+	    attr->map_flags & ~QUEUE_STACK_CREATE_FLAG_MASK ||
+	    !bpf_map_flags_access_ok(attr->map_flags))
 		return -EINVAL;
 
 	if (attr->value_size > KMALLOC_MAX_SIZE)

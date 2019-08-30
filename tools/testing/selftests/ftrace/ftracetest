@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # ftracetest - Ftrace test shell scripts
 #
 # Copyright (C) Hitachi Ltd., 2014
 #  Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 #
-# Released under the terms of the GPL v2.
 
 usage() { # errno [message]
 [ ! -z "$2" ] && echo $2
@@ -318,6 +318,7 @@ run_test() { # testfile
     local testlog=/proc/self/fd/1
   fi
   export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
+  export FTRACETEST_ROOT=$TOP_DIR
   echo "execute$INSTANCE: "$1 > $testlog
   SIG_RESULT=0
   if [ $VERBOSE -eq -1 ]; then

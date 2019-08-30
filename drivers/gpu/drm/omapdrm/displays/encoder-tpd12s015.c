@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TPD12S015 HDMI ESD protection & level shifter chip driver
  *
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/completion.h>
@@ -62,35 +59,6 @@ static void tpd_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-static int tpd_enable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return r;
-}
-
-static void tpd_disable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return;
-
-	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-}
-
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -124,8 +92,6 @@ static void tpd_unregister_hpd_cb(struct omap_dss_device *dssdev)
 static const struct omap_dss_device_ops tpd_ops = {
 	.connect		= tpd_connect,
 	.disconnect		= tpd_disconnect,
-	.enable			= tpd_enable,
-	.disable		= tpd_disable,
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,
 	.unregister_hpd_cb	= tpd_unregister_hpd_cb,
@@ -198,7 +164,6 @@ static int tpd_probe(struct platform_device *pdev)
 	dssdev->ops = &tpd_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_HDMI;
-	dssdev->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
 	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT
@@ -224,14 +189,6 @@ static int __exit tpd_remove(struct platform_device *pdev)
 	if (dssdev->next)
 		omapdss_device_put(dssdev->next);
 	omapdss_device_unregister(&ddata->dssdev);
-
-	WARN_ON(omapdss_device_is_enabled(dssdev));
-	if (omapdss_device_is_enabled(dssdev))
-		tpd_disable(dssdev);
-
-	WARN_ON(omapdss_device_is_connected(dssdev));
-	if (omapdss_device_is_connected(dssdev))
-		omapdss_device_disconnect(NULL, dssdev);
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/engine/pm/base.o
 nvkm-y += nvkm/engine/pm/nv40.o
 nvkm-y += nvkm/engine/pm/nv50.o

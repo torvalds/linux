@@ -81,22 +81,6 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 				 (int __user *)argp) ? -EFAULT : 0;
 		goto done;
 	}
-	case SIOCGSTAMP: /* borrowed from IP */
-#ifdef CONFIG_COMPAT
-		if (compat)
-			error = compat_sock_get_timestamp(sk, argp);
-		else
-#endif
-			error = sock_get_timestamp(sk, argp);
-		goto done;
-	case SIOCGSTAMPNS: /* borrowed from IP */
-#ifdef CONFIG_COMPAT
-		if (compat)
-			error = compat_sock_get_timestampns(sk, argp);
-		else
-#endif
-			error = sock_get_timestampns(sk, argp);
-		goto done;
 	case ATM_SETSC:
 		net_warn_ratelimited("ATM_SETSC is obsolete; used by %s:%d\n",
 				     current->comm, task_pid_nr(current));

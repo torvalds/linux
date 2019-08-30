@@ -42,6 +42,8 @@
 #include <asm/unwind.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
+#include <linux/kgdb.h>
+#include <linux/kprobes.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
@@ -293,6 +295,22 @@ static void handle_break(struct pt_regs *regs)
 			(tt == BUG_TRAP_TYPE_NONE) ? 9 : 0);
 	}
 
+#ifdef CONFIG_KPROBES
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN)) {
+		parisc_kprobe_break_handler(regs);
+		return;
+	}
+
+#endif
+
+#ifdef CONFIG_KGDB
+	if (unlikely(iir == PARISC_KGDB_COMPILED_BREAK_INSN ||
+		iir == PARISC_KGDB_BREAK_INSN)) {
+		kgdb_handle_exception(9, SIGTRAP, 0, regs);
+		return;
+	}
+#endif
+
 	if (unlikely(iir != GDB_BREAK_INSN))
 		parisc_printk_ratelimited(0, regs,
 			KERN_DEBUG "break %d,%d: pid=%d command='%s'\n",
@@ -518,6 +536,19 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case  3:
 		/* Recovery counter trap */
 		regs->gr[0] &= ~PSW_R;
+
+#ifdef CONFIG_KPROBES
+		if (parisc_kprobe_ss_handler(regs))
+			return;
+#endif
+
+#ifdef CONFIG_KGDB
+		if (kgdb_single_step) {
+			kgdb_handle_exception(0, SIGTRAP, 0, regs);
+			return;
+		}
+#endif
+
 		if (user_space(regs))
 			handle_gdb_break(regs, TRAP_TRACE);
 		/* else this must be the start of a syscall - just let it run */

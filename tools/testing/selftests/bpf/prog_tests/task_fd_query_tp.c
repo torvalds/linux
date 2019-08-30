@@ -9,7 +9,7 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	struct perf_event_attr attr = {};
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
-	struct bpf_object *obj;
+	struct bpf_object *obj = NULL;
 	__u32 duration = 0;
 	char buf[256];
 

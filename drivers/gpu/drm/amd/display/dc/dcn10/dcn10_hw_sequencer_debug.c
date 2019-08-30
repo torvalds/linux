@@ -77,7 +77,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
 
-	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
+	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 
 	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
@@ -115,7 +115,7 @@ static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned in
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
 
-	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
+	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 
 	if (invarOnly)
@@ -472,12 +472,12 @@ static unsigned int dcn10_get_clock_states(struct dc *dc, char *pBuf, unsigned i
 	chars_printed = snprintf_count(pBuf, bufSize, "dcfclk,dcfclk_deep_sleep,dispclk,"
 		"dppclk,fclk,socclk\n"
 		"%d,%d,%d,%d,%d,%d\n",
-		dc->current_state->bw.dcn.clk.dcfclk_khz,
-		dc->current_state->bw.dcn.clk.dcfclk_deep_sleep_khz,
-		dc->current_state->bw.dcn.clk.dispclk_khz,
-		dc->current_state->bw.dcn.clk.dppclk_khz,
-		dc->current_state->bw.dcn.clk.fclk_khz,
-		dc->current_state->bw.dcn.clk.socclk_khz);
+		dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.dispclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.fclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.socclk_khz);
 
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;

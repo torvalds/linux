@@ -8,6 +8,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/soundwire/sdw_intel.h>
 #include "intel.h"
@@ -67,7 +69,7 @@ static struct sdw_intel_ctx
 	/* Found controller, find links supported */
 	count = 0;
 	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
-				  "mipi-sdw-master-count", &count, 1);
+					    "mipi-sdw-master-count", &count, 1);
 
 	/* Don't fail on error, continue and use hw value */
 	if (ret) {
@@ -85,7 +87,7 @@ static struct sdw_intel_ctx
 	/* Check count is within bounds */
 	if (count > SDW_MAX_LINKS) {
 		dev_err(&adev->dev, "Link count %d exceeds max %d\n",
-						count, SDW_MAX_LINKS);
+			count, SDW_MAX_LINKS);
 		return NULL;
 	}
 
@@ -104,7 +106,6 @@ static struct sdw_intel_ctx
 
 	/* Create SDW Master devices */
 	for (i = 0; i < count; i++) {
-
 		link->res.irq = res->irq;
 		link->res.registers = res->mmio_base + SDW_LINK_BASE
 					+ (SDW_LINK_SIZE * i);
@@ -145,7 +146,7 @@ link_err:
 }
 
 static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
-					void *cdata, void **return_value)
+				     void *cdata, void **return_value)
 {
 	struct sdw_intel_res *res = cdata;
 	struct acpi_device *adev;
@@ -172,9 +173,9 @@ void *sdw_intel_init(acpi_handle *parent_handle, struct sdw_intel_res *res)
 	acpi_status status;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE,
-					parent_handle, 1,
-					sdw_intel_acpi_cb,
-					NULL, res, NULL);
+				     parent_handle, 1,
+				     sdw_intel_acpi_cb,
+				     NULL, res, NULL);
 	if (ACPI_FAILURE(status))
 		return NULL;
 

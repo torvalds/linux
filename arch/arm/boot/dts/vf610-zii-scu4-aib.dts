@@ -505,14 +505,14 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio5: pca9554@20 {
+	gpio5: io-expander@20 {
 		compatible = "nxp,pca9554";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
 
-	gpio6: pca9554@22 {
+	gpio6: io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
@@ -524,12 +524,12 @@
 		reg = <0x48>;
 	};
 
-	at24c04@50 {
+	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 	};
@@ -577,7 +577,7 @@
 		reg = <0x4f>;
 	};
 
-	gpio7: pca9555@23 {
+	gpio7: io-expander@23 {
 		compatible = "nxp,pca9555";
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -669,6 +669,10 @@
 			reg = <5>;
 		};
 	};
+};
+
+&snvsrtc {
+	status = "disabled";
 };
 
 &uart0 {

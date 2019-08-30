@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -284,7 +274,7 @@ static int pvr2_enumaudio(struct file *file, void *priv, struct v4l2_audio *vin)
 
 	if (vin->index > 0)
 		return -EINVAL;
-	strncpy(vin->name, "PVRUSB2 Audio", 14);
+	strscpy(vin->name, "PVRUSB2 Audio", sizeof(vin->name));
 	vin->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
@@ -293,7 +283,7 @@ static int pvr2_g_audio(struct file *file, void *priv, struct v4l2_audio *vin)
 {
 	/* pkt: FIXME: see above comment (VIDIOC_ENUMAUDIO) */
 	vin->index = 0;
-	strncpy(vin->name, "PVRUSB2 Audio", 14);
+	strscpy(vin->name, "PVRUSB2 Audio", sizeof(vin->name));
 	vin->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }

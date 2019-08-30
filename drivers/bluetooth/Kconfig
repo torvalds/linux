@@ -336,7 +336,7 @@ config BT_MRVL
 	  The core driver to support Marvell Bluetooth devices.
 
 	  This driver is required if you want to support
-	  Marvell Bluetooth devices, such as 8688/8787/8797/8887/8897/8977/8997.
+	  Marvell Bluetooth devices, such as 8688/8787/8797/8887/8897/8977/8987/8997.
 
 	  Say Y here to compile Marvell Bluetooth driver
 	  into the kernel or say M to compile it as module.
@@ -350,7 +350,7 @@ config BT_MRVL_SDIO
 	  The driver for Marvell Bluetooth chipsets with SDIO interface.
 
 	  This driver is required if you want to use Marvell Bluetooth
-	  devices with SDIO interface. Currently SD8688/SD8787/SD8797/SD8887/SD8897/SD8977/SD8997
+	  devices with SDIO interface. Currently SD8688/SD8787/SD8797/SD8887/SD8897/SD8977/SD8987/SD8997
 	  chipsets are supported.
 
 	  Say Y here to compile support for Marvell BT-over-SDIO driver
@@ -378,6 +378,17 @@ config BT_WILINK
 
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module (btwilink).
+
+config BT_MTKSDIO
+	tristate "MediaTek HCI SDIO driver"
+	depends on MMC
+	help
+	  MediaTek Bluetooth HCI SDIO driver.
+	  This driver is required if you want to use MediaTek Bluetooth
+	  with SDIO interface.
+
+	  Say Y here to compile support for MediaTek Bluetooth SDIO devices
+	  into the kernel or say M to compile it as module (btmtksdio).
 
 config BT_MTKUART
 	tristate "MediaTek HCI UART driver"

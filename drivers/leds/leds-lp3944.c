@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * leds-lp3944.c - driver for National Semiconductor LP3944 Funlight Chip
  *
  * Copyright (C) 2009 Antonio Ospite <ospite@studenti.unina.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 /*

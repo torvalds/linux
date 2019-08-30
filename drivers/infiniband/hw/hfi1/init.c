@@ -49,7 +49,7 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/hrtimer.h>
@@ -124,7 +124,7 @@ MODULE_PARM_DESC(user_credit_return_threshold, "Credit return threshold for user
 
 static inline u64 encode_rcv_header_entry_size(u16 size);
 
-static struct idr hfi1_unit_table;
+DEFINE_XARRAY_FLAGS(hfi1_dev_table, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 
 static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 			     struct hfi1_pportdata *ppd)
@@ -469,7 +469,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		if (rcd->egrbufs.size < hfi1_max_mtu) {
 			rcd->egrbufs.size = __roundup_pow_of_two(hfi1_max_mtu);
 			hfi1_cdbg(PROC,
-				  "ctxt%u: eager bufs size too small. Adjusting to %zu\n",
+				  "ctxt%u: eager bufs size too small. Adjusting to %u\n",
 				    rcd->ctxt, rcd->egrbufs.size);
 		}
 		rcd->egrbufs.rcvtid_size = HFI1_MAX_EAGER_BUFFER_SIZE;
@@ -805,7 +805,8 @@ static int create_workqueues(struct hfi1_devdata *dd)
 			ppd->hfi1_wq =
 				alloc_workqueue(
 				    "hfi%d_%d",
-				    WQ_SYSFS | WQ_HIGHPRI | WQ_CPU_INTENSIVE,
+				    WQ_SYSFS | WQ_HIGHPRI | WQ_CPU_INTENSIVE |
+				    WQ_MEM_RECLAIM,
 				    HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES,
 				    dd->unit, pidx);
 			if (!ppd->hfi1_wq)
@@ -1018,21 +1019,9 @@ done:
 	return ret;
 }
 
-static inline struct hfi1_devdata *__hfi1_lookup(int unit)
-{
-	return idr_find(&hfi1_unit_table, unit);
-}
-
 struct hfi1_devdata *hfi1_lookup(int unit)
 {
-	struct hfi1_devdata *dd;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-	dd = __hfi1_lookup(unit);
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
-
-	return dd;
+	return xa_load(&hfi1_dev_table, unit);
 }
 
 /*
@@ -1200,7 +1189,7 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 /*
  * Release our hold on the shared asic data.  If we are the last one,
  * return the structure to be finalized outside the lock.  Must be
- * holding hfi1_devs_lock.
+ * holding hfi1_dev_table lock.
  */
 static struct hfi1_asic_data *release_asic_data(struct hfi1_devdata *dd)
 {
@@ -1236,13 +1225,10 @@ static void hfi1_clean_devdata(struct hfi1_devdata *dd)
 	struct hfi1_asic_data *ad;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-	if (!list_empty(&dd->list)) {
-		idr_remove(&hfi1_unit_table, dd->unit);
-		list_del_init(&dd->list);
-	}
+	xa_lock_irqsave(&hfi1_dev_table, flags);
+	__xa_erase(&hfi1_dev_table, dd->unit);
 	ad = release_asic_data(dd);
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irqrestore(&hfi1_dev_table, flags);
 
 	finalize_asic_data(dd, ad);
 	free_platform_config(dd);
@@ -1286,13 +1272,10 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
  * Must be done via verbs allocator, because the verbs cleanup process
  * both does cleanup and free of the data structure.
  * "extra" is for chip-specific data.
- *
- * Use the idr mechanism to get a unit number for this unit.
  */
 static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 					       size_t extra)
 {
-	unsigned long flags;
 	struct hfi1_devdata *dd;
 	int ret, nports;
 
@@ -1307,21 +1290,10 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 	dd->pport = (struct hfi1_pportdata *)(dd + 1);
 	dd->pcidev = pdev;
 	pci_set_drvdata(pdev, dd);
-
-	INIT_LIST_HEAD(&dd->list);
-	idr_preload(GFP_KERNEL);
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-
-	ret = idr_alloc(&hfi1_unit_table, dd, 0, 0, GFP_NOWAIT);
-	if (ret >= 0) {
-		dd->unit = ret;
-		list_add(&dd->list, &hfi1_dev_list);
-	}
 	dd->node = NUMA_NO_NODE;
 
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
-	idr_preload_end();
-
+	ret = xa_alloc_irq(&hfi1_dev_table, &dd->unit, dd, xa_limit_32b,
+			GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Could not allocate unit ID: error %d\n", -ret);
@@ -1522,8 +1494,6 @@ static int __init hfi1_mod_init(void)
 	 * These must be called before the driver is registered with
 	 * the PCI subsystem.
 	 */
-	idr_init(&hfi1_unit_table);
-
 	hfi1_dbg_init();
 	ret = pci_register_driver(&hfi1_pci_driver);
 	if (ret < 0) {
@@ -1534,7 +1504,6 @@ static int __init hfi1_mod_init(void)
 
 bail_dev:
 	hfi1_dbg_exit();
-	idr_destroy(&hfi1_unit_table);
 	dev_cleanup();
 bail:
 	return ret;
@@ -1552,7 +1521,7 @@ static void __exit hfi1_mod_cleanup(void)
 	node_affinity_destroy_all();
 	hfi1_dbg_exit();
 
-	idr_destroy(&hfi1_unit_table);
+	WARN_ON(!xa_empty(&hfi1_dev_table));
 	dispose_firmware();	/* asymmetric with obtain_firmware() */
 	dev_cleanup();
 }
@@ -2071,7 +2040,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	rcd->egrbufs.size = alloced_bytes;
 
 	hfi1_cdbg(PROC,
-		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %zuKB\n",
+		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %uKB\n",
 		  rcd->ctxt, rcd->egrbufs.alloced,
 		  rcd->egrbufs.rcvtid_size / 1024, rcd->egrbufs.size / 1024);
 

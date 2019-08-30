@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * c 2001 PPC 64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/smp.h>
@@ -267,12 +263,12 @@ void copy_mm_to_paca(struct mm_struct *mm)
 
 	get_paca()->mm_ctx_id = context->id;
 #ifdef CONFIG_PPC_MM_SLICES
-	VM_BUG_ON(!mm->context.slb_addr_limit);
-	get_paca()->mm_ctx_slb_addr_limit = mm->context.slb_addr_limit;
-	memcpy(&get_paca()->mm_ctx_low_slices_psize,
-	       &context->low_slices_psize, sizeof(context->low_slices_psize));
-	memcpy(&get_paca()->mm_ctx_high_slices_psize,
-	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
+	VM_BUG_ON(!mm_ctx_slb_addr_limit(context));
+	get_paca()->mm_ctx_slb_addr_limit = mm_ctx_slb_addr_limit(context);
+	memcpy(&get_paca()->mm_ctx_low_slices_psize, mm_ctx_low_slices(context),
+	       LOW_SLICE_ARRAY_SZ);
+	memcpy(&get_paca()->mm_ctx_high_slices_psize, mm_ctx_high_slices(context),
+	       TASK_SLICE_ARRAY_SZ(context));
 #else /* CONFIG_PPC_MM_SLICES */
 	get_paca()->mm_ctx_user_psize = context->user_psize;
 	get_paca()->mm_ctx_sllp = context->sllp;

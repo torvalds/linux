@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/mb862xx/mb862xxfb_accel.c
  *
@@ -6,11 +7,6 @@
  * (C) 2007 Alexander Shishkin <virtuoso@slind.org>
  * (C) 2009 Valentin Sitdikov <v.sitdikov@gmail.com>
  * (C) 2009 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/fb.h>
 #include <linux/delay.h>

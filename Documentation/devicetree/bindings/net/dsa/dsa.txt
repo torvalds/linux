@@ -1,12 +1,6 @@
 Distributed Switch Architecture Device Tree Bindings
 ----------------------------------------------------
 
-Two bindings exist, one of which has been deprecated due to
-limitations.
-
-Current Binding
----------------
-
 Switches are true Linux devices and can be probed by any means. Once
 probed, they register to the DSA framework, passing a node
 pointer. This node is expected to fulfil the following binding, and
@@ -71,9 +65,8 @@ properties, described in binding documents:
 			  Documentation/devicetree/bindings/net/fixed-link.txt
 			  for details.
 
-- local-mac-address	: See
-			  Documentation/devicetree/bindings/net/ethernet.txt
-			  for details.
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Example
 
@@ -262,152 +255,3 @@ linked into one DSA cluster.
 		};
 	};
 };
-
-Deprecated Binding
-------------------
-
-The deprecated binding makes use of a platform device to represent the
-switches. The switches themselves are not Linux devices, and make use
-of an MDIO bus for management.
-
-Required properties:
-- compatible		: Should be "marvell,dsa"
-- #address-cells	: Must be 2, first cell is the address on the MDIO bus
-			  and second cell is the address in the switch tree.
-			  Second cell is used only when cascading/chaining.
-- #size-cells		: Must be 0
-- dsa,ethernet		: Should be a phandle to a valid Ethernet device node
-- dsa,mii-bus		: Should be a phandle to a valid MDIO bus device node
-
-Optional properties:
-- interrupts		: property with a value describing the switch
-			  interrupt number (not supported by the driver)
-
-A DSA node can contain multiple switch chips which are therefore child nodes of
-the parent DSA node. The maximum number of allowed child nodes is 4
-(DSA_MAX_SWITCHES).
-Each of these switch child nodes should have the following required properties:
-
-- reg			: Contains two fields. The first one describes the
-			  address on the MII bus. The second is the switch
-			  number that must be unique in cascaded configurations
-- #address-cells	: Must be 1
-- #size-cells		: Must be 0
-
-A switch child node has the following optional property:
-
-- eeprom-length		: Set to the length of an EEPROM connected to the
-			  switch. Must be set if the switch can not detect
-			  the presence and/or size of a connected EEPROM,
-			  otherwise optional.
-
-A switch may have multiple "port" children nodes
-
-Each port children node must have the following mandatory properties:
-- reg			: Describes the port address in the switch
-- label			: Describes the label associated with this port, special
-			  labels are "cpu" to indicate a CPU port and "dsa" to
-			  indicate an uplink/downlink port.
-
-Note that a port labelled "dsa" will imply checking for the uplink phandle
-described below.
-
-Optional property:
-- link			: Should be a list of phandles to another switch's DSA port.
-			  This property is only used when switches are being
-			  chained/cascaded together. This port is used as outgoing port
-			  towards the phandle port, which can be more than one hop away.
-
-- phy-handle		: Phandle to a PHY on an external MDIO bus, not the
-			  switch internal one. See
-			  Documentation/devicetree/bindings/net/ethernet.txt
-			  for details.
-
-- phy-mode		: String representing the connection to the designated
-			  PHY node specified by the 'phy-handle' property. See
-			  Documentation/devicetree/bindings/net/ethernet.txt
-			  for details.
-
-- mii-bus		: Should be a phandle to a valid MDIO bus device node.
-			  This mii-bus will be used in preference to the
-			  global dsa,mii-bus defined above, for this switch.
-
-Optional subnodes:
-- fixed-link		: Fixed-link subnode describing a link to a non-MDIO
-			  managed entity. See
-			  Documentation/devicetree/bindings/net/fixed-link.txt
-			  for details.
-
-Example:
-
-	dsa@0 {
-		compatible = "marvell,dsa";
-		#address-cells = <2>;
-		#size-cells = <0>;
-
-		interrupts = <10>;
-		dsa,ethernet = <&ethernet0>;
-		dsa,mii-bus = <&mii_bus0>;
-
-		switch@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <16 0>;	/* MDIO address 16, switch 0 in tree */
-
-			port@0 {
-				reg = <0>;
-				label = "lan1";
-				phy-handle = <&phy0>;
-			};
-
-			port@1 {
-				reg = <1>;
-				label = "lan2";
-			};
-
-			port@5 {
-				reg = <5>;
-				label = "cpu";
-			};
-
-			switch0port6: port@6 {
-				reg = <6>;
-				label = "dsa";
-				link = <&switch1port0
-				        &switch2port0>;
-			};
-		};
-
-		switch@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <17 1>;	/* MDIO address 17, switch 1 in tree */
-			mii-bus = <&mii_bus1>;
-			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-
-			switch1port0: port@0 {
-				reg = <0>;
-				label = "dsa";
-				link = <&switch0port6>;
-			};
-			switch1port1: port@1 {
-				reg = <1>;
-				label = "dsa";
-				link = <&switch2port1>;
-			};
-		};
-
-		switch@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <18 2>;	/* MDIO address 18, switch 2 in tree */
-			mii-bus = <&mii_bus1>;
-
-			switch2port0: port@0 {
-				reg = <0>;
-				label = "dsa";
-				link = <&switch1port1
-				        &switch0port6>;
-			};
-		};
-	};

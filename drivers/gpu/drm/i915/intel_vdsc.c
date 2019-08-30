@@ -317,129 +317,6 @@ static int get_column_index_for_rc_params(u8 bits_per_component)
 	}
 }
 
-static int intel_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
-{
-	unsigned long groups_per_line = 0;
-	unsigned long groups_total = 0;
-	unsigned long num_extra_mux_bits = 0;
-	unsigned long slice_bits = 0;
-	unsigned long hrd_delay = 0;
-	unsigned long final_scale = 0;
-	unsigned long rbs_min = 0;
-
-	/* Number of groups used to code each line of a slice */
-	groups_per_line = DIV_ROUND_UP(vdsc_cfg->slice_width,
-				       DSC_RC_PIXELS_PER_GROUP);
-
-	/* chunksize in Bytes */
-	vdsc_cfg->slice_chunk_size = DIV_ROUND_UP(vdsc_cfg->slice_width *
-						  vdsc_cfg->bits_per_pixel,
-						  (8 * 16));
-
-	if (vdsc_cfg->convert_rgb)
-		num_extra_mux_bits = 3 * (vdsc_cfg->mux_word_size +
-					  (4 * vdsc_cfg->bits_per_component + 4)
-					  - 2);
-	else
-		num_extra_mux_bits = 3 * vdsc_cfg->mux_word_size +
-			(4 * vdsc_cfg->bits_per_component + 4) +
-			2 * (4 * vdsc_cfg->bits_per_component) - 2;
-	/* Number of bits in one Slice */
-	slice_bits = 8 * vdsc_cfg->slice_chunk_size * vdsc_cfg->slice_height;
-
-	while ((num_extra_mux_bits > 0) &&
-	       ((slice_bits - num_extra_mux_bits) % vdsc_cfg->mux_word_size))
-		num_extra_mux_bits--;
-
-	if (groups_per_line < vdsc_cfg->initial_scale_value - 8)
-		vdsc_cfg->initial_scale_value = groups_per_line + 8;
-
-	/* scale_decrement_interval calculation according to DSC spec 1.11 */
-	if (vdsc_cfg->initial_scale_value > 8)
-		vdsc_cfg->scale_decrement_interval = groups_per_line /
-			(vdsc_cfg->initial_scale_value - 8);
-	else
-		vdsc_cfg->scale_decrement_interval = DSC_SCALE_DECREMENT_INTERVAL_MAX;
-
-	vdsc_cfg->final_offset = vdsc_cfg->rc_model_size -
-		(vdsc_cfg->initial_xmit_delay *
-		 vdsc_cfg->bits_per_pixel + 8) / 16 + num_extra_mux_bits;
-
-	if (vdsc_cfg->final_offset >= vdsc_cfg->rc_model_size) {
-		DRM_DEBUG_KMS("FinalOfs < RcModelSze for this InitialXmitDelay\n");
-		return -ERANGE;
-	}
-
-	final_scale = (vdsc_cfg->rc_model_size * 8) /
-		(vdsc_cfg->rc_model_size - vdsc_cfg->final_offset);
-	if (vdsc_cfg->slice_height > 1)
-		/*
-		 * NflBpgOffset is 16 bit value with 11 fractional bits
-		 * hence we multiply by 2^11 for preserving the
-		 * fractional part
-		 */
-		vdsc_cfg->nfl_bpg_offset = DIV_ROUND_UP((vdsc_cfg->first_line_bpg_offset << 11),
-							(vdsc_cfg->slice_height - 1));
-	else
-		vdsc_cfg->nfl_bpg_offset = 0;
-
-	/* 2^16 - 1 */
-	if (vdsc_cfg->nfl_bpg_offset > 65535) {
-		DRM_DEBUG_KMS("NflBpgOffset is too large for this slice height\n");
-		return -ERANGE;
-	}
-
-	/* Number of groups used to code the entire slice */
-	groups_total = groups_per_line * vdsc_cfg->slice_height;
-
-	/* slice_bpg_offset is 16 bit value with 11 fractional bits */
-	vdsc_cfg->slice_bpg_offset = DIV_ROUND_UP(((vdsc_cfg->rc_model_size -
-						    vdsc_cfg->initial_offset +
-						    num_extra_mux_bits) << 11),
-						  groups_total);
-
-	if (final_scale > 9) {
-		/*
-		 * ScaleIncrementInterval =
-		 * finaloffset/((NflBpgOffset + SliceBpgOffset)*8(finalscale - 1.125))
-		 * as (NflBpgOffset + SliceBpgOffset) has 11 bit fractional value,
-		 * we need divide by 2^11 from pstDscCfg values
-		 */
-		vdsc_cfg->scale_increment_interval =
-				(vdsc_cfg->final_offset * (1 << 11)) /
-				((vdsc_cfg->nfl_bpg_offset +
-				vdsc_cfg->slice_bpg_offset) *
-				(final_scale - 9));
-	} else {
-		/*
-		 * If finalScaleValue is less than or equal to 9, a value of 0 should
-		 * be used to disable the scale increment at the end of the slice
-		 */
-		vdsc_cfg->scale_increment_interval = 0;
-	}
-
-	if (vdsc_cfg->scale_increment_interval > 65535) {
-		DRM_DEBUG_KMS("ScaleIncrementInterval is large for slice height\n");
-		return -ERANGE;
-	}
-
-	/*
-	 * DSC spec mentions that bits_per_pixel specifies the target
-	 * bits/pixel (bpp) rate that is used by the encoder,
-	 * in steps of 1/16 of a bit per pixel
-	 */
-	rbs_min = vdsc_cfg->rc_model_size - vdsc_cfg->initial_offset +
-		DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay *
-			     vdsc_cfg->bits_per_pixel, 16) +
-		groups_per_line * vdsc_cfg->first_line_bpg_offset;
-
-	hrd_delay = DIV_ROUND_UP((rbs_min * 16), vdsc_cfg->bits_per_pixel);
-	vdsc_cfg->rc_bits = (hrd_delay * vdsc_cfg->bits_per_pixel) / 16;
-	vdsc_cfg->initial_dec_delay = hrd_delay - vdsc_cfg->initial_xmit_delay;
-
-	return 0;
-}
-
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
@@ -491,7 +368,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 			DSC_1_1_MAX_LINEBUF_DEPTH_BITS : line_buf_depth;
 
 	/* Gen 11 does not support YCbCr */
-	vdsc_cfg->enable422 = false;
+	vdsc_cfg->simple_422 = false;
 	/* Gen 11 does not support VBR */
 	vdsc_cfg->vbr_enable = false;
 	vdsc_cfg->block_pred_enable =
@@ -574,7 +451,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	vdsc_cfg->initial_scale_value = (vdsc_cfg->rc_model_size << 3) /
 		(vdsc_cfg->rc_model_size - vdsc_cfg->initial_offset);
 
-	return intel_compute_rc_parameters(vdsc_cfg);
+	return drm_dsc_compute_rc_parameters(vdsc_cfg);
 }
 
 enum intel_display_power_domain
@@ -618,7 +495,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		pps_val |= DSC_BLOCK_PREDICTION;
 	if (vdsc_cfg->convert_rgb)
 		pps_val |= DSC_COLOR_SPACE_CONVERSION;
-	if (vdsc_cfg->enable422)
+	if (vdsc_cfg->simple_422)
 		pps_val |= DSC_422_ENABLE;
 	if (vdsc_cfg->vbr_enable)
 		pps_val |= DSC_VBR_ENABLE;
@@ -1004,10 +881,10 @@ static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;
 
 	/* Prepare DP SDP PPS header as per DP 1.4 spec, Table 2-123 */
-	drm_dsc_dp_pps_header_init(&dp_dsc_pps_sdp);
+	drm_dsc_dp_pps_header_init(&dp_dsc_pps_sdp.pps_header);
 
 	/* Fill the PPS payload bytes as per DSC spec 1.2 Table 4-1 */
-	drm_dsc_pps_infoframe_pack(&dp_dsc_pps_sdp, vdsc_cfg);
+	drm_dsc_pps_payload_pack(&dp_dsc_pps_sdp.pps_payload, vdsc_cfg);
 
 	intel_dig_port->write_infoframe(encoder, crtc_state,
 					DP_SDP_PPS, &dp_dsc_pps_sdp,

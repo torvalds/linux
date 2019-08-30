@@ -84,14 +84,9 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 
 static int pm_prepare(struct drm_i915_private *i915)
 {
-	int err = 0;
+	i915_gem_suspend(i915);
 
-	if (i915_gem_suspend(i915)) {
-		pr_err("i915_gem_suspend failed\n");
-		err = -EINVAL;
-	}
-
-	return err;
+	return 0;
 }
 
 static void pm_suspend(struct drm_i915_private *i915)
@@ -219,6 +214,9 @@ int i915_gem_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_gem_suspend),
 		SUBTEST(igt_gem_hibernate),
 	};
+
+	if (i915_terminally_wedged(i915))
+		return 0;
 
 	return i915_subtests(tests, i915);
 }

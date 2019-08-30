@@ -252,6 +252,12 @@ struct i40e_phy_info {
 					     I40E_PHY_TYPE_OFFSET)
 #define I40E_CAP_PHY_TYPE_25GBASE_ACC BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC + \
 					     I40E_PHY_TYPE_OFFSET)
+/* Offset for 2.5G/5G PHY Types value to bit number conversion */
+#define I40E_PHY_TYPE_OFFSET2 (-10)
+#define I40E_CAP_PHY_TYPE_2_5GBASE_T BIT_ULL(I40E_PHY_TYPE_2_5GBASE_T + \
+					     I40E_PHY_TYPE_OFFSET2)
+#define I40E_CAP_PHY_TYPE_5GBASE_T BIT_ULL(I40E_PHY_TYPE_5GBASE_T + \
+					     I40E_PHY_TYPE_OFFSET2)
 #define I40E_HW_CAP_MAX_GPIO			30
 /* Capabilities of a PF or a VF or the whole device */
 struct i40e_hw_capabilities {
@@ -616,6 +622,7 @@ struct i40e_hw {
 #define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
 #define I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK BIT_ULL(3)
 #define I40E_HW_FLAG_FW_LLDP_STOPPABLE      BIT_ULL(4)
+#define I40E_HW_FLAG_FW_LLDP_PERSISTENT     BIT_ULL(5)
 	u64 flags;
 
 	/* Used in set switch config AQ command */
@@ -1527,6 +1534,8 @@ struct i40e_generic_seg_header {
 struct i40e_metadata_segment {
 	struct i40e_generic_seg_header header;
 	struct i40e_ddp_version version;
+#define I40E_DDP_TRACKID_RDONLY		0
+#define I40E_DDP_TRACKID_INVALID	0xFFFFFFFF
 	u32 track_id;
 	char name[I40E_DDP_NAME_SIZE];
 };
@@ -1555,13 +1564,34 @@ struct i40e_profile_section_header {
 	struct {
 #define SECTION_TYPE_INFO	0x00000010
 #define SECTION_TYPE_MMIO	0x00000800
+#define SECTION_TYPE_RB_MMIO	0x00001800
 #define SECTION_TYPE_AQ		0x00000801
+#define SECTION_TYPE_RB_AQ	0x00001801
 #define SECTION_TYPE_NOTE	0x80000000
 #define SECTION_TYPE_NAME	0x80000001
+#define SECTION_TYPE_PROTO	0x80000002
+#define SECTION_TYPE_PCTYPE	0x80000003
+#define SECTION_TYPE_PTYPE	0x80000004
 		u32 type;
 		u32 offset;
 		u32 size;
 	} section;
+};
+
+struct i40e_profile_tlv_section_record {
+	u8 rtype;
+	u8 type;
+	u16 len;
+	u8 data[12];
+};
+
+/* Generic AQ section in proflie */
+struct i40e_profile_aq_section {
+	u16 opcode;
+	u16 flags;
+	u8  param[16];
+	u16 datalen;
+	u8  data[1];
 };
 
 struct i40e_profile_info {
