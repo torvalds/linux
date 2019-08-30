@@ -284,7 +284,7 @@ retry_fw:
 	ipuesz = eip197_write_firmware(priv, fw[FW_IPUE]);
 
 	if (eip197_start_firmware(priv, ipuesz, ifppsz, minifw)) {
-		dev_dbg(priv->dev, "Firmware loaded successfully");
+		dev_dbg(priv->dev, "Firmware loaded successfully\n");
 		return 0;
 	}
 
@@ -1014,6 +1014,12 @@ static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(safexcel_algs); i++) {
 		safexcel_algs[i]->priv = priv;
 
+		/* Do we have all required base algorithms available? */
+		if ((safexcel_algs[i]->algo_mask & priv->hwconfig.algo_flags) !=
+		    safexcel_algs[i]->algo_mask)
+			/* No, so don't register this ciphersuite */
+			continue;
+
 		if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			ret = crypto_register_skcipher(&safexcel_algs[i]->alg.skcipher);
 		else if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_AEAD)
@@ -1029,6 +1035,12 @@ static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
 
 fail:
 	for (j = 0; j < i; j++) {
+		/* Do we have all required base algorithms available? */
+		if ((safexcel_algs[j]->algo_mask & priv->hwconfig.algo_flags) !=
+		    safexcel_algs[j]->algo_mask)
+			/* No, so don't unregister this ciphersuite */
+			continue;
+
 		if (safexcel_algs[j]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			crypto_unregister_skcipher(&safexcel_algs[j]->alg.skcipher);
 		else if (safexcel_algs[j]->type == SAFEXCEL_ALG_TYPE_AEAD)
@@ -1045,6 +1057,12 @@ static void safexcel_unregister_algorithms(struct safexcel_crypto_priv *priv)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(safexcel_algs); i++) {
+		/* Do we have all required base algorithms available? */
+		if ((safexcel_algs[i]->algo_mask & priv->hwconfig.algo_flags) !=
+		    safexcel_algs[i]->algo_mask)
+			/* No, so don't unregister this ciphersuite */
+			continue;
+
 		if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			crypto_unregister_skcipher(&safexcel_algs[i]->alg.skcipher);
 		else if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_AEAD)
@@ -1123,6 +1141,7 @@ static int safexcel_probe_generic(void *pdev,
 				  int is_pci_dev)
 {
 	struct device *dev = priv->dev;
+	u32 peid;
 	int i, ret;
 
 	priv->context_pool = dmam_pool_create("safexcel-context", dev,
@@ -1133,8 +1152,21 @@ static int safexcel_probe_generic(void *pdev,
 
 	safexcel_init_register_offsets(priv);
 
-	if (priv->version != EIP97IES_MRVL)
+	/* Get supported algorithms from EIP96 transform engine */
+	priv->hwconfig.algo_flags = readl(EIP197_PE(priv) +
+				    EIP197_PE_EIP96_OPTIONS(0));
+
+	if (priv->version == EIP97IES_MRVL) {
+		peid = 97;
+	} else {
 		priv->flags |= EIP197_TRC_CACHE;
+		peid = 197;
+	}
+
+	/* Dump some debug information important during development */
+	dev_dbg(priv->dev, "Inside Secure EIP%d packetengine\n", peid);
+	dev_dbg(priv->dev, "Supported algorithms: %08x\n",
+			   priv->hwconfig.algo_flags);
 
 	safexcel_configure(priv);
 

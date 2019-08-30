@@ -145,6 +145,7 @@
 #define EIP197_PE_EIP96_FUNCTION_EN(n)		(0x1004 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_CTRL(n)		(0x1008 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_STAT(n)		(0x100c + (0x2000 * (n)))
+#define EIP197_PE_EIP96_OPTIONS(n)		(0x13f8 + (0x2000 * (n)))
 #define EIP197_PE_OUT_DBUF_THRES(n)		(0x1c00 + (0x2000 * (n)))
 #define EIP197_PE_OUT_TBUF_THRES(n)		(0x1d00 + (0x2000 * (n)))
 #define EIP197_MST_CTRL				0xfff4
@@ -597,6 +598,32 @@ enum safexcel_eip_version {
 	EIP197_DEVBRD
 };
 
+/* EIP algorithm presence flags */
+enum safexcel_eip_algorithms {
+	SAFEXCEL_ALG_BC0      = BIT(5),
+	SAFEXCEL_ALG_SM4      = BIT(6),
+	SAFEXCEL_ALG_SM3      = BIT(7),
+	SAFEXCEL_ALG_CHACHA20 = BIT(8),
+	SAFEXCEL_ALG_POLY1305 = BIT(9),
+	SAFEXCEL_SEQMASK_256   = BIT(10),
+	SAFEXCEL_SEQMASK_384   = BIT(11),
+	SAFEXCEL_ALG_AES      = BIT(12),
+	SAFEXCEL_ALG_AES_XFB  = BIT(13),
+	SAFEXCEL_ALG_DES      = BIT(15),
+	SAFEXCEL_ALG_DES_XFB  = BIT(16),
+	SAFEXCEL_ALG_ARC4     = BIT(18),
+	SAFEXCEL_ALG_AES_XTS  = BIT(20),
+	SAFEXCEL_ALG_WIRELESS = BIT(21),
+	SAFEXCEL_ALG_MD5      = BIT(22),
+	SAFEXCEL_ALG_SHA1     = BIT(23),
+	SAFEXCEL_ALG_SHA2_256 = BIT(25),
+	SAFEXCEL_ALG_SHA2_512 = BIT(26),
+	SAFEXCEL_ALG_XCBC_MAC = BIT(27),
+	SAFEXCEL_ALG_CBC_MAC_ALL = BIT(29),
+	SAFEXCEL_ALG_GHASH    = BIT(30),
+	SAFEXCEL_ALG_SHA3     = BIT(31),
+};
+
 struct safexcel_register_offsets {
 	u32 hia_aic;
 	u32 hia_aic_g;
@@ -614,6 +641,10 @@ enum safexcel_flags {
 	EIP197_TRC_CACHE = BIT(0),
 };
 
+struct safexcel_hwconfig {
+	enum safexcel_eip_algorithms algo_flags;
+};
+
 struct safexcel_crypto_priv {
 	void __iomem *base;
 	struct device *dev;
@@ -623,6 +654,7 @@ struct safexcel_crypto_priv {
 
 	enum safexcel_eip_version version;
 	struct safexcel_register_offsets offsets;
+	struct safexcel_hwconfig hwconfig;
 	u32 flags;
 
 	/* context DMA pool */
@@ -667,6 +699,7 @@ struct safexcel_ahash_export_state {
 struct safexcel_alg_template {
 	struct safexcel_crypto_priv *priv;
 	enum safexcel_alg_type type;
+	enum safexcel_eip_algorithms algo_mask;
 	union {
 		struct skcipher_alg skcipher;
 		struct aead_alg aead;
