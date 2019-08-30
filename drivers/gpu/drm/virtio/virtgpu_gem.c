@@ -239,3 +239,30 @@ void virtio_gpu_array_put_free(struct virtio_gpu_object_array *objs)
 		drm_gem_object_put_unlocked(objs->objs[i]);
 	virtio_gpu_array_free(objs);
 }
+
+void virtio_gpu_array_put_free_delayed(struct virtio_gpu_device *vgdev,
+				       struct virtio_gpu_object_array *objs)
+{
+	spin_lock(&vgdev->obj_free_lock);
+	list_add_tail(&objs->next, &vgdev->obj_free_list);
+	spin_unlock(&vgdev->obj_free_lock);
+	schedule_work(&vgdev->obj_free_work);
+}
+
+void virtio_gpu_array_put_free_work(struct work_struct *work)
+{
+	struct virtio_gpu_device *vgdev =
+		container_of(work, struct virtio_gpu_device, obj_free_work);
+	struct virtio_gpu_object_array *objs;
+
+	spin_lock(&vgdev->obj_free_lock);
+	while (!list_empty(&vgdev->obj_free_list)) {
+		objs = list_first_entry(&vgdev->obj_free_list,
+					struct virtio_gpu_object_array, next);
+		list_del(&objs->next);
+		spin_unlock(&vgdev->obj_free_lock);
+		virtio_gpu_array_put_free(objs);
+		spin_lock(&vgdev->obj_free_lock);
+	}
+	spin_unlock(&vgdev->obj_free_lock);
+}
