@@ -99,6 +99,9 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
+/* Reserve 4MB VRAM for page tables */
+#define AMDGPU_VM_RESERVED_VRAM		(4ULL << 20)
+
 /* max number of VMHUB */
 #define AMDGPU_MAX_VMHUBS			3
 #define AMDGPU_GFXHUB_0				0

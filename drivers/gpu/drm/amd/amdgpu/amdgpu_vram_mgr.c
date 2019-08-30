@@ -23,6 +23,7 @@
  */
 
 #include "amdgpu.h"
+#include "amdgpu_vm.h"
 
 struct amdgpu_vram_mgr {
 	struct drm_mm mm;
@@ -275,7 +276,7 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	struct drm_mm_node *nodes;
 	enum drm_mm_insert_mode mode;
 	unsigned long lpfn, num_nodes, pages_per_node, pages_left;
-	uint64_t vis_usage = 0, mem_bytes;
+	uint64_t vis_usage = 0, mem_bytes, max_bytes;
 	unsigned i;
 	int r;
 
@@ -283,9 +284,13 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
+	max_bytes = adev->gmc.mc_vram_size;
+	if (tbo->type != ttm_bo_type_kernel)
+		max_bytes -= AMDGPU_VM_RESERVED_VRAM;
+
 	/* bail out quickly if there's likely not enough VRAM for this BO */
 	mem_bytes = (u64)mem->num_pages << PAGE_SHIFT;
-	if (atomic64_add_return(mem_bytes, &mgr->usage) > adev->gmc.mc_vram_size) {
+	if (atomic64_add_return(mem_bytes, &mgr->usage) > max_bytes) {
 		atomic64_sub(mem_bytes, &mgr->usage);
 		mem->mm_node = NULL;
 		return 0;
