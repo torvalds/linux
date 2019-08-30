@@ -20,8 +20,7 @@
 #endif
 #include <elf.h>
 
-#include "dso.h"
-
+struct dso;
 struct map;
 struct map_groups;
 struct option;
@@ -148,37 +147,6 @@ struct addr_location {
 	s32	      socket;
 };
 
-struct symsrc {
-	char *name;
-	int fd;
-	enum dso_binary_type type;
-
-#ifdef HAVE_LIBELF_SUPPORT
-	Elf *elf;
-	GElf_Ehdr ehdr;
-
-	Elf_Scn *opdsec;
-	size_t opdidx;
-	GElf_Shdr opdshdr;
-
-	Elf_Scn *symtab;
-	GElf_Shdr symshdr;
-
-	Elf_Scn *dynsym;
-	size_t dynsym_idx;
-	GElf_Shdr dynshdr;
-
-	bool adjust_symbols;
-	bool is_64_bit;
-#endif
-};
-
-void symsrc__destroy(struct symsrc *ss);
-int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
-		 enum dso_binary_type type);
-bool symsrc__has_symtab(struct symsrc *ss);
-bool symsrc__possibly_runtime(struct symsrc *ss);
-
 int dso__load(struct dso *dso, struct map *map);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, bool vmlinux_allocated);
@@ -231,6 +199,8 @@ bool symbol__restricted_filename(const char *filename,
 				 const char *restricted_filename);
 int symbol__config_symfs(const struct option *opt __maybe_unused,
 			 const char *dir, int unset __maybe_unused);
+
+struct symsrc;
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule);

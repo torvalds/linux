@@ -18,6 +18,7 @@
 
 #include "builtin.h"
 #include "namespaces.h"
+#include "util/build-id.h"
 #include "util/strlist.h"
 #include "util/strfilter.h"
 #include "util/symbol.h"

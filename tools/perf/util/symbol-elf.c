@@ -10,6 +10,7 @@
 #include "map.h"
 #include "map_groups.h"
 #include "symbol.h"
+#include "symsrc.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"
 #include "machine.h"

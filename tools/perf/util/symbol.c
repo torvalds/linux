@@ -25,6 +25,7 @@
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"
+#include "symsrc.h"
 #include "strlist.h"
 #include "intlist.h"
 #include "namespaces.h"
