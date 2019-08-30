@@ -2583,6 +2583,26 @@ static int qed_read_module_eeprom(struct qed_dev *cdev, char *buf,
 	return rc;
 }
 
+static int qed_set_grc_config(struct qed_dev *cdev, u32 cfg_id, u32 val)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_dbg_grc_config(hwfn, ptt, cfg_id, val);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
 static u8 qed_get_affin_hwfn_idx(struct qed_dev *cdev)
 {
 	return QED_AFFIN_HWFN_IDX(cdev);
@@ -2637,6 +2657,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.read_module_eeprom = &qed_read_module_eeprom,
 	.get_affin_hwfn_idx = &qed_get_affin_hwfn_idx,
 	.read_nvm_cfg = &qed_nvm_flash_cfg_read,
+	.set_grc_config = &qed_set_grc_config,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,
