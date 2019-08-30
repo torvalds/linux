@@ -6,7 +6,6 @@
 #include "util/symbol.h"
 #include "util/sort.h"
 #include "util/evsel.h"
-#include "util/evlist.h"
 #include "util/machine.h"
 #include "util/thread.h"
 #include "tests/hists_common.h"
