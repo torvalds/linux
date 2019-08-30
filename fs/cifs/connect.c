@@ -299,6 +299,7 @@ enum {
 	Opt_cache_strict,
 	Opt_cache_none,
 	Opt_cache_ro,
+	Opt_cache_rw,
 	Opt_cache_err
 };
 
@@ -307,6 +308,7 @@ static const match_table_t cifs_cacheflavor_tokens = {
 	{ Opt_cache_strict, "strict" },
 	{ Opt_cache_none, "none" },
 	{ Opt_cache_ro, "ro" },
+	{ Opt_cache_rw, "singleclient" },
 	{ Opt_cache_err, NULL }
 };
 
@@ -1421,21 +1423,31 @@ cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
 		vol->direct_io = false;
 		vol->strict_io = false;
 		vol->cache_ro = false;
+		vol->cache_rw = false;
 		break;
 	case Opt_cache_strict:
 		vol->direct_io = false;
 		vol->strict_io = true;
 		vol->cache_ro = false;
+		vol->cache_rw = false;
 		break;
 	case Opt_cache_none:
 		vol->direct_io = true;
 		vol->strict_io = false;
 		vol->cache_ro = false;
+		vol->cache_rw = false;
 		break;
 	case Opt_cache_ro:
 		vol->direct_io = false;
 		vol->strict_io = false;
 		vol->cache_ro = true;
+		vol->cache_rw = false;
+		break;
+	case Opt_cache_rw:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		vol->cache_ro = false;
+		vol->cache_rw = true;
 		break;
 	default:
 		cifs_dbg(VFS, "bad cache= option: %s\n", value);
@@ -4054,6 +4066,10 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->cache_ro) {
 		cifs_dbg(VFS, "mounting share with read only caching. Ensure that the share will not be modified while in use.\n");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RO_CACHE;
+	} else if (pvolume_info->cache_rw) {
+		cifs_dbg(VFS, "mounting share in single client RW caching mode. Ensure that no other systems will be accessing the share.\n");
+		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_RO_CACHE |
+					    CIFS_MOUNT_RW_CACHE);
 	}
 	if (pvolume_info->mfsymlinks) {
 		if (pvolume_info->sfu_emul) {
@@ -4203,8 +4219,10 @@ static int mount_get_conns(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 			if (tcon->fsDevInfo.DeviceCharacteristics &
 			    FILE_READ_ONLY_DEVICE)
 				cifs_dbg(VFS, "mounted to read only share\n");
-			else
+			else if ((cifs_sb->mnt_cifs_flags &
+				  CIFS_MOUNT_RW_CACHE) == 0)
 				cifs_dbg(VFS, "read only mount of RW share\n");
+			/* no need to log a RW mount of a typical RW share */
 		}
 	}
 
