@@ -1765,7 +1765,13 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 free_id:
 	kfree(id);
 out:
-	if (ret > 0)
+	/*
+	 * Only fail the function if we got a fatal error back from the
+	 * device, otherwise ignore the error and just move on.
+	 */
+	if (ret == -ENOMEM || (ret > 0 && !(ret & NVME_SC_DNR)))
+		ret = 0;
+	else if (ret > 0)
 		ret = blk_status_to_errno(nvme_error_status(ret));
 	return ret;
 }
