@@ -133,7 +133,7 @@ static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc) {
 		mutex_unlock(&bp->hwrm_cmd_lock);
-		return -EIO;
+		return rc;
 	}
 	vf->func_qcfg_flags = le16_to_cpu(resp->flags);
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -164,9 +164,7 @@ static int bnxt_hwrm_set_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
 	else
 		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc)
-		return -EIO;
-	return 0;
+	return rc;
 }
 
 int bnxt_set_vf_trust(struct net_device *dev, int vf_id, bool trusted)
@@ -564,10 +562,8 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 		req.vf_id = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
-		if (rc) {
-			rc = -ENOMEM;
+		if (rc)
 			break;
-		}
 		pf->active_vfs = i + 1;
 		pf->vf[i].fw_fid = pf->first_vf_id + i;
 	}
@@ -664,8 +660,6 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 		total_vf_tx_rings += vf_tx_rsvd;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-	if (rc)
-		rc = -ENOMEM;
 	if (pf->active_vfs) {
 		hw_resc->max_tx_rings -= total_vf_tx_rings;
 		hw_resc->max_rx_rings -= vf_rx_rings * num_vfs;

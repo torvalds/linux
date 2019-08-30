@@ -377,8 +377,6 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 	set.data_len = cpu_to_le16(sizeof(*data) + sizeof(*fw_app) * n);
 	set.hdr_cnt = 1;
 	rc = hwrm_send_message(bp, &set, sizeof(set), HWRM_CMD_TIMEOUT);
-	if (rc)
-		rc = -EIO;
 
 set_app_exit:
 	dma_free_coherent(&bp->pdev->dev, data_len, data, mapping);
@@ -433,8 +431,6 @@ static int bnxt_hwrm_queue_dscp2pri_cfg(struct bnxt *bp, struct dcb_app *app,
 	dscp2pri->pri = app->priority;
 	req.entry_cnt = cpu_to_le16(1);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc)
-		rc = -EIO;
 	dma_free_coherent(&bp->pdev->dev, sizeof(*dscp2pri), dscp2pri,
 			  mapping);
 	return rc;

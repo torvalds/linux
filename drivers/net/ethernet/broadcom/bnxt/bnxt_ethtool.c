@@ -1743,12 +1743,8 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	rc = hwrm_send_message(bp, &req, sizeof(req), FLASH_NVRAM_TIMEOUT);
 	dma_free_coherent(&bp->pdev->dev, data_len, kmem, dma_handle);
 
-	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
-		rc = -EACCES;
-	} else if (rc) {
-		rc = -EIO;
-	}
 	return rc;
 }
 
@@ -1798,12 +1794,8 @@ static int bnxt_firmware_reset(struct net_device *dev,
 	}
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
-		rc = -EACCES;
-	} else if (rc) {
-		rc = -EIO;
-	}
 	return rc;
 }
 
@@ -2098,12 +2090,8 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 flash_pkg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 err_exit:
-	if (hwrm_err == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+	if (hwrm_err == -EACCES)
 		bnxt_print_admin_err(bp);
-		rc = -EACCES;
-	} else if (hwrm_err) {
-		rc = -EOPNOTSUPP;
-	}
 	return rc;
 }
 
@@ -2642,8 +2630,6 @@ static int bnxt_set_phys_id(struct net_device *dev,
 		led_cfg->led_group_id = bp->leds[i].led_group_id;
 	}
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
