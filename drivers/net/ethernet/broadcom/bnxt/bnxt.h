@@ -640,6 +640,7 @@ struct nqe_cn {
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
 #define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define DFLT_HWRM_CMD_TIMEOUT		500
+#define SHORT_HWRM_CMD_TIMEOUT		20
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
 #define HWRM_RESP_ERR_CODE_MASK		0xffff
@@ -1066,6 +1067,7 @@ struct bnxt_pf_info {
 	u8	mac_addr[ETH_ALEN];
 	u32	first_vf_id;
 	u16	active_vfs;
+	u16	registered_vfs;
 	u16	max_vfs;
 	u32	max_encap_records;
 	u32	max_decap_records;
@@ -1721,6 +1723,14 @@ struct bnxt {
 #define BNXT_RING_COAL_NOW_SP_EVENT	17
 #define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
 
+	struct delayed_work	fw_reset_task;
+	int			fw_reset_state;
+#define BNXT_FW_RESET_STATE_POLL_VF	1
+#define BNXT_FW_RESET_STATE_RESET_FW	2
+#define BNXT_FW_RESET_STATE_ENABLE_DEV	3
+#define BNXT_FW_RESET_STATE_POLL_FW	4
+#define BNXT_FW_RESET_STATE_OPENING	5
+
 	u16			fw_reset_min_dsecs;
 #define BNXT_DFLT_FW_RST_MIN_DSECS	20
 	u16			fw_reset_max_dsecs;
@@ -1966,6 +1976,7 @@ int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);
 int bnxt_close_nic(struct bnxt *, bool, bool);
+void bnxt_fw_reset(struct bnxt *bp);
 int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 		     int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);

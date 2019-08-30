@@ -1140,6 +1140,14 @@ static int bnxt_discard_rx(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	return 0;
 }
 
+static void bnxt_queue_fw_reset_work(struct bnxt *bp, unsigned long delay)
+{
+	if (BNXT_PF(bp))
+		queue_delayed_work(bnxt_pf_wq, &bp->fw_reset_task, delay);
+	else
+		schedule_delayed_work(&bp->fw_reset_task, delay);
+}
+
 static void bnxt_queue_sp_work(struct bnxt *bp)
 {
 	if (BNXT_PF(bp))
@@ -6355,6 +6363,8 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
+	} else {
+		bp->pf.registered_vfs = le16_to_cpu(resp->registered_vfs);
 	}
 #endif
 	flags = le16_to_cpu(resp->flags);
@@ -9980,6 +9990,53 @@ static void bnxt_reset(struct bnxt *bp, bool silent)
 	bnxt_rtnl_unlock_sp(bp);
 }
 
+static void bnxt_fw_reset_close(struct bnxt *bp)
+{
+	__bnxt_close_nic(bp, true, false);
+	bnxt_ulp_irq_stop(bp);
+	bnxt_clear_int_mode(bp);
+	bnxt_hwrm_func_drv_unrgtr(bp);
+	bnxt_free_ctx_mem(bp);
+	kfree(bp->ctx);
+	bp->ctx = NULL;
+}
+
+void bnxt_fw_reset(struct bnxt *bp)
+{
+	int rc;
+
+	bnxt_rtnl_lock_sp(bp);
+	if (test_bit(BNXT_STATE_OPEN, &bp->state) &&
+	    !test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		set_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+		if (BNXT_PF(bp) && bp->pf.active_vfs) {
+			rc = bnxt_hwrm_func_qcfg(bp);
+			if (rc) {
+				netdev_err(bp->dev, "Firmware reset aborted, first func_qcfg cmd failed, rc = %d\n",
+					   rc);
+				clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+				dev_close(bp->dev);
+				goto fw_reset_exit;
+			}
+			if (bp->pf.registered_vfs || bp->sriov_cfg) {
+				u16 vf_tmo_dsecs = bp->pf.registered_vfs * 10;
+
+				if (bp->fw_reset_max_dsecs < vf_tmo_dsecs)
+					bp->fw_reset_max_dsecs = vf_tmo_dsecs;
+				bp->fw_reset_state =
+					BNXT_FW_RESET_STATE_POLL_VF;
+				bnxt_queue_fw_reset_work(bp, HZ / 10);
+				goto fw_reset_exit;
+			}
+		}
+		bnxt_fw_reset_close(bp);
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
+	}
+fw_reset_exit:
+	bnxt_rtnl_unlock_sp(bp);
+}
+
 static void bnxt_chk_missed_irq(struct bnxt *bp)
 {
 	int i;
@@ -10339,6 +10396,98 @@ static int bnxt_fw_init_one(struct bnxt *bp)
 	return 0;
 }
 
+static void bnxt_fw_reset_task(struct work_struct *work)
+{
+	struct bnxt *bp = container_of(work, struct bnxt, fw_reset_task.work);
+	int rc;
+
+	if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		netdev_err(bp->dev, "bnxt_fw_reset_task() called when not in fw reset mode!\n");
+		return;
+	}
+
+	switch (bp->fw_reset_state) {
+	case BNXT_FW_RESET_STATE_POLL_VF:
+		rc = bnxt_hwrm_func_qcfg(bp);
+		if (rc) {
+			netdev_err(bp->dev, "Firmware reset aborted, subsequent func_qcfg cmd failed, rc = %d, %d msecs since reset timestamp\n",
+				   rc, jiffies_to_msecs(jiffies -
+				   bp->fw_reset_timestamp));
+			goto fw_reset_abort;
+		}
+		if (bp->pf.registered_vfs || bp->sriov_cfg) {
+			if (time_after(jiffies, bp->fw_reset_timestamp +
+				       (bp->fw_reset_max_dsecs * HZ / 10))) {
+				clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+				bp->fw_reset_state = 0;
+				netdev_err(bp->dev, "Firmware reset aborted, %d VFs still registered, sriov_cfg %d\n",
+					   bp->pf.registered_vfs,
+					   bp->sriov_cfg);
+				return;
+			}
+			bnxt_queue_fw_reset_work(bp, HZ / 10);
+			return;
+		}
+		bp->fw_reset_timestamp = jiffies;
+		rtnl_lock();
+		bnxt_fw_reset_close(bp);
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+		rtnl_unlock();
+		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
+		return;
+	case BNXT_FW_RESET_STATE_ENABLE_DEV:
+		if (pci_enable_device(bp->pdev)) {
+			netdev_err(bp->dev, "Cannot re-enable PCI device\n");
+			goto fw_reset_abort;
+		}
+		pci_set_master(bp->pdev);
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW;
+		/* fall through */
+	case BNXT_FW_RESET_STATE_POLL_FW:
+		bp->hwrm_cmd_timeout = SHORT_HWRM_CMD_TIMEOUT;
+		rc = __bnxt_hwrm_ver_get(bp, true);
+		if (rc) {
+			if (time_after(jiffies, bp->fw_reset_timestamp +
+				       (bp->fw_reset_max_dsecs * HZ / 10))) {
+				netdev_err(bp->dev, "Firmware reset aborted\n");
+				goto fw_reset_abort;
+			}
+			bnxt_queue_fw_reset_work(bp, HZ / 5);
+			return;
+		}
+		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_OPENING;
+		/* fall through */
+	case BNXT_FW_RESET_STATE_OPENING:
+		while (!rtnl_trylock()) {
+			bnxt_queue_fw_reset_work(bp, HZ / 10);
+			return;
+		}
+		rc = bnxt_open(bp->dev);
+		if (rc) {
+			netdev_err(bp->dev, "bnxt_open_nic() failed\n");
+			clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+			dev_close(bp->dev);
+		}
+		bnxt_ulp_irq_restart(bp, rc);
+		rtnl_unlock();
+
+		bp->fw_reset_state = 0;
+		/* Make sure fw_reset_state is 0 before clearing the flag */
+		smp_mb__before_atomic();
+		clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+		break;
+	}
+	return;
+
+fw_reset_abort:
+	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+	bp->fw_reset_state = 0;
+	rtnl_lock();
+	dev_close(bp->dev);
+	rtnl_unlock();
+}
+
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
@@ -10401,6 +10550,7 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	pci_enable_pcie_error_reporting(pdev);
 
 	INIT_WORK(&bp->sp_task, bnxt_sp_task);
+	INIT_DELAYED_WORK(&bp->fw_reset_task, bnxt_fw_reset_task);
 
 	spin_lock_init(&bp->ntp_fltr_lock);
 #if BITS_PER_LONG == 32
