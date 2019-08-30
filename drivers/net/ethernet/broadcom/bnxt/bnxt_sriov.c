@@ -470,10 +470,43 @@ static int bnxt_hwrm_func_buf_rgtr(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+/* Caller holds bp->hwrm_cmd_lock mutex lock */
+static void __bnxt_set_vf_params(struct bnxt *bp, int vf_id)
+{
+	struct hwrm_func_cfg_input req = {0};
+	struct bnxt_vf_info *vf;
+
+	vf = &bp->pf.vf[vf_id];
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(vf->fw_fid);
+	req.flags = cpu_to_le32(vf->func_flags);
+
+	if (is_valid_ether_addr(vf->mac_addr)) {
+		req.enables |= cpu_to_le32(FUNC_CFG_REQ_ENABLES_DFLT_MAC_ADDR);
+		memcpy(req.dflt_mac_addr, vf->mac_addr, ETH_ALEN);
+	}
+	if (vf->vlan) {
+		req.enables |= cpu_to_le32(FUNC_CFG_REQ_ENABLES_DFLT_VLAN);
+		req.dflt_vlan = cpu_to_le16(vf->vlan);
+	}
+	if (vf->max_tx_rate) {
+		req.enables |= cpu_to_le32(FUNC_CFG_REQ_ENABLES_MAX_BW);
+		req.max_bw = cpu_to_le32(vf->max_tx_rate);
+#ifdef HAVE_IFLA_TX_RATE
+		req.enables |= cpu_to_le32(FUNC_CFG_REQ_ENABLES_MIN_BW);
+		req.min_bw = cpu_to_le32(vf->min_tx_rate);
+#endif
+	}
+	if (vf->flags & BNXT_VF_TRUST)
+		req.flags |= cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_ENABLE);
+
+	_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 /* Only called by PF to reserve resources for VFs, returns actual number of
  * VFs configured, or < 0 on error.
  */
-static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
+static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 {
 	struct hwrm_func_vf_resource_cfg_input req = {0};
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
@@ -545,6 +578,9 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < num_vfs; i++) {
+		if (reset)
+			__bnxt_set_vf_params(bp, i);
+
 		req.vf_id = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
@@ -659,15 +695,15 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	return rc;
 }
 
-static int bnxt_func_cfg(struct bnxt *bp, int num_vfs)
+static int bnxt_func_cfg(struct bnxt *bp, int num_vfs, bool reset)
 {
 	if (BNXT_NEW_RM(bp))
-		return bnxt_hwrm_func_vf_resc_cfg(bp, num_vfs);
+		return bnxt_hwrm_func_vf_resc_cfg(bp, num_vfs, reset);
 	else
 		return bnxt_hwrm_func_cfg(bp, num_vfs);
 }
 
-int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
+int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)
 {
 	int rc;
 
@@ -677,7 +713,7 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
 		return rc;
 
 	/* Reserve resources for VFs */
-	rc = bnxt_func_cfg(bp, *num_vfs);
+	rc = bnxt_func_cfg(bp, *num_vfs, reset);
 	if (rc != *num_vfs) {
 		if (rc <= 0) {
 			netdev_warn(bp->dev, "Unable to reserve resources for SRIOV.\n");
@@ -758,7 +794,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	if (rc)
 		goto err_out1;
 
-	rc = bnxt_cfg_hw_sriov(bp, num_vfs);
+	rc = bnxt_cfg_hw_sriov(bp, num_vfs, false);
 	if (rc)
 		goto err_out2;
 
@@ -1144,7 +1180,7 @@ mac_done:
 }
 #else
 
-int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
+int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)
 {
 	if (*num_vfs)
 		return -EOPNOTSUPP;

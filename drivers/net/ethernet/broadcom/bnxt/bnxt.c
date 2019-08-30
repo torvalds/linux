@@ -9211,7 +9211,7 @@ static int bnxt_open(struct net_device *dev)
 			int n = pf->active_vfs;
 
 			if (n)
-				bnxt_cfg_hw_sriov(bp, &n);
+				bnxt_cfg_hw_sriov(bp, &n, true);
 		}
 		bnxt_hwmon_open(bp);
 	}
