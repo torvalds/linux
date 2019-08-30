@@ -28,6 +28,8 @@
 #include "map.h"
 #include "perf.h"
 #include "session.h"
+#include "map_symbol.h"
+#include "branch.h"
 #include "symbol.h"
 #include "tool.h"
 #include "thread.h"

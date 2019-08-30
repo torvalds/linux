@@ -9,8 +9,6 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
-#include "map_symbol.h"
-#include "branch.h"
 #include "path.h"
 #include "symbol_conf.h"
 
@@ -105,21 +103,6 @@ struct ref_reloc_sym {
 	const char	*name;
 	u64		addr;
 	u64		unrelocated_addr;
-};
-
-struct branch_info {
-	struct addr_map_symbol from;
-	struct addr_map_symbol to;
-	struct branch_flags flags;
-	char			*srcline_from;
-	char			*srcline_to;
-};
-
-struct mem_info {
-	struct addr_map_symbol	iaddr;
-	struct addr_map_symbol	daddr;
-	union perf_mem_data_src	data_src;
-	refcount_t		refcnt;
 };
 
 struct block_info {

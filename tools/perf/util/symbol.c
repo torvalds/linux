@@ -25,6 +25,8 @@
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"
+#include "map_symbol.h"
+#include "mem-events.h"
 #include "symsrc.h"
 #include "strlist.h"
 #include "intlist.h"

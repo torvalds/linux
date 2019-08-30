@@ -11,6 +11,7 @@
 #include "util/tool.h"
 #include "util/session.h"
 #include "util/data.h"
+#include "util/map_symbol.h"
 #include "util/mem-events.h"
 #include "util/debug.h"
 #include "util/dso.h"

@@ -12,6 +12,8 @@
 #include <sys/mman.h>
 #include <perf/cpumap.h>
 
+#include "map_symbol.h"
+#include "branch.h"
 #include "debug.h"
 #include "evlist.h"
 #include "evsel.h"

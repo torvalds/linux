@@ -13,6 +13,8 @@
 #include "comm.h"
 #include "map.h"
 #include "symbol.h"
+#include "map_symbol.h"
+#include "branch.h"
 #include "thread.h"
 #include "evsel.h"
 #include "evlist.h"

@@ -19,6 +19,9 @@
 #include <linux/zalloc.h>
 #include "util/map.h"
 #include "util/symbol.h"
+#include "util/map_symbol.h"
+#include "util/mem-events.h"
+#include "util/branch.h"
 #include "util/callchain.h"
 #include "util/values.h"
 
