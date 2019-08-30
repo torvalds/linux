@@ -40,6 +40,12 @@
 
 typedef Elf64_Nhdr GElf_Nhdr;
 
+#ifndef DMGL_PARAMS
+#define DMGL_NO_OPTS     0              /* For readability... */
+#define DMGL_PARAMS      (1 << 0)       /* Include function args */
+#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
+#endif
+
 #ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
 extern char *cplus_demangle(const char *, int);
 
