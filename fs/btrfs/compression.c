@@ -422,7 +422,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	int pg_index = 0;
 	struct page *page;
 	u64 first_byte = disk_start;
-	struct block_device *bdev;
 	blk_status_t ret;
 	int skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
@@ -441,10 +440,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	cb->orig_bio = NULL;
 	cb->nr_pages = nr_pages;
 
-	bdev = fs_info->fs_devices->latest_bdev;
-
 	bio = btrfs_bio_alloc(first_byte);
-	bio_set_dev(bio, bdev);
 	bio->bi_opf = REQ_OP_WRITE | write_flags;
 	bio->bi_private = cb;
 	bio->bi_end_io = end_compressed_bio_write;
@@ -492,7 +488,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			}
 
 			bio = btrfs_bio_alloc(first_byte);
-			bio_set_dev(bio, bdev);
 			bio->bi_opf = REQ_OP_WRITE | write_flags;
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
@@ -660,7 +655,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	unsigned long nr_pages;
 	unsigned long pg_index;
 	struct page *page;
-	struct block_device *bdev;
 	struct bio *comp_bio;
 	u64 cur_disk_byte = (u64)bio->bi_iter.bi_sector << 9;
 	u64 em_len;
@@ -711,8 +705,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	if (!cb->compressed_pages)
 		goto fail1;
 
-	bdev = fs_info->fs_devices->latest_bdev;
-
 	for (pg_index = 0; pg_index < nr_pages; pg_index++) {
 		cb->compressed_pages[pg_index] = alloc_page(GFP_NOFS |
 							      __GFP_HIGHMEM);
@@ -731,7 +723,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->len = bio->bi_iter.bi_size;
 
 	comp_bio = btrfs_bio_alloc(cur_disk_byte);
-	bio_set_dev(comp_bio, bdev);
 	comp_bio->bi_opf = REQ_OP_READ;
 	comp_bio->bi_private = cb;
 	comp_bio->bi_end_io = end_compressed_bio_read;
@@ -782,7 +773,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			}
 
 			comp_bio = btrfs_bio_alloc(cur_disk_byte);
-			bio_set_dev(comp_bio, bdev);
 			comp_bio->bi_opf = REQ_OP_READ;
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
