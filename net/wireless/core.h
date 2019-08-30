@@ -28,7 +28,7 @@ struct cfg80211_registered_device {
 	/* rfkill support */
 	struct rfkill_ops rfkill_ops;
 	struct rfkill *rfkill;
-	struct work_struct rfkill_sync;
+	struct work_struct rfkill_block;
 
 	/* ISO / IEC 3166 alpha2 for which this device is receiving
 	 * country IEs on, this can help disregard country IEs from APs
