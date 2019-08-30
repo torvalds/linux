@@ -3,6 +3,7 @@
 #define __PERF_SYMBOL 1
 
 #include <linux/types.h>
+#include <linux/refcount.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <linux/list.h>
