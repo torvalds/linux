@@ -779,7 +779,7 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 {
 	s32 offset, sec_offset, clu_offset;
 	u32 clu;
-	int ret;
+	int ret = 0;
 	sector_t LogSector;
 	u64 oneblkread, read_bytes;
 	struct buffer_head *tmp_bh = NULL;
