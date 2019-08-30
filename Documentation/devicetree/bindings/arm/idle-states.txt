@@ -107,7 +107,7 @@ the worst case since it depends on the CPU operating conditions, i.e. caches
 state).
 
 An OS has to reliably probe the wakeup-latency since some devices can enforce
-latency constraints guarantees to work properly, so the OS has to detect the
+latency constraint guarantees to work properly, so the OS has to detect the
 worst case wake-up latency it can incur if a CPU is allowed to enter an
 idle state, and possibly to prevent that to guarantee reliable device
 functioning.
