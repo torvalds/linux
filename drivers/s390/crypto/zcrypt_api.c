@@ -923,8 +923,8 @@ static bool is_desired_ep11_queue(unsigned int dev_qid,
 	return false;
 }
 
-static long zcrypt_send_ep11_cprb(struct ap_perms *perms,
-				  struct ep11_urb *xcrb)
+static long _zcrypt_send_ep11_cprb(struct ap_perms *perms,
+				   struct ep11_urb *xcrb)
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
@@ -1028,6 +1028,12 @@ out:
 			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
+
+long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
+{
+	return _zcrypt_send_ep11_cprb(&ap_perms, xcrb);
+}
+EXPORT_SYMBOL(zcrypt_send_ep11_cprb);
 
 static long zcrypt_rng(char *buffer)
 {
@@ -1369,12 +1375,12 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		if (copy_from_user(&xcrb, uxcrb, sizeof(xcrb)))
 			return -EFAULT;
 		do {
-			rc = zcrypt_send_ep11_cprb(perms, &xcrb);
+			rc = _zcrypt_send_ep11_cprb(perms, &xcrb);
 		} while (rc == -EAGAIN);
 		/* on failure: retry once again after a requested rescan */
 		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
 			do {
-				rc = zcrypt_send_ep11_cprb(perms, &xcrb);
+				rc = _zcrypt_send_ep11_cprb(perms, &xcrb);
 			} while (rc == -EAGAIN);
 		if (rc)
 			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
