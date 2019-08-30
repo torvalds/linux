@@ -2270,6 +2270,16 @@ static void usb_reinit_338x(struct net2280 *dev)
 	writel(val, &dev->llregs->ll_tsn_counters_3);
 
 	/*
+	 * AB errata. Errata 11. Workaround for Default Duration of LFPS
+	 * Handshake Signaling for Device-Initiated U1 Exit is too short.
+	 * Without this, various enumeration failures observed with
+	 * modern superspeed hosts.
+	 */
+	val = readl(&dev->llregs->ll_lfps_timers_2);
+	writel((val & 0xffff0000) | LFPS_TIMERS_2_WORKAROUND_VALUE,
+	       &dev->llregs->ll_lfps_timers_2);
+
+	/*
 	 * Set Recovery Idle to Recover bit:
 	 * - On SS connections, setting Recovery Idle to Recover Fmw improves
 	 *   link robustness with various hosts and hubs.
