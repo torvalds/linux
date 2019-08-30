@@ -29,6 +29,28 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 		    int level, int slot);
 
+static const struct btrfs_csums {
+	u16		size;
+	const char	*name;
+} btrfs_csums[] = {
+	[BTRFS_CSUM_TYPE_CRC32] = { .size = 4, .name = "crc32c" },
+};
+
+int btrfs_super_csum_size(const struct btrfs_super_block *s)
+{
+	u16 t = btrfs_super_csum_type(s);
+	/*
+	 * csum type is validated at mount time
+	 */
+	return btrfs_csums[t].size;
+}
+
+const char *btrfs_super_csum_name(u16 csum_type)
+{
+	/* csum type is validated at mount time */
+	return btrfs_csums[csum_type].name;
+}
+
 struct btrfs_path *btrfs_alloc_path(void)
 {
 	return kmem_cache_zalloc(btrfs_path_cachep, GFP_NOFS);

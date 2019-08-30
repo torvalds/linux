@@ -83,10 +83,6 @@ struct btrfs_ref;
  */
 #define BTRFS_LINK_MAX 65535U
 
-/* four bytes for CRC32 */
-static const int btrfs_csum_sizes[] = { 4 };
-static const char *btrfs_csum_names[] = { "crc32c" };
-
 #define BTRFS_EMPTY_DIR_SIZE 0
 
 /* ioprio of readahead is set to idle */
@@ -2167,20 +2163,8 @@ BTRFS_SETGET_STACK_FUNCS(super_magic, struct btrfs_super_block, magic, 64);
 BTRFS_SETGET_STACK_FUNCS(super_uuid_tree_generation, struct btrfs_super_block,
 			 uuid_tree_generation, 64);
 
-static inline int btrfs_super_csum_size(const struct btrfs_super_block *s)
-{
-	u16 t = btrfs_super_csum_type(s);
-	/*
-	 * csum type is validated at mount time
-	 */
-	return btrfs_csum_sizes[t];
-}
-
-static inline const char *btrfs_super_csum_name(u16 csum_type)
-{
-	/* csum type is validated at mount time */
-	return btrfs_csum_names[csum_type];
-}
+int btrfs_super_csum_size(const struct btrfs_super_block *s);
+const char *btrfs_super_csum_name(u16 csum_type);
 
 /*
  * The leaf data grows from end-to-front in the node.
