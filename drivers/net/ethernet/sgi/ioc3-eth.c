@@ -761,26 +761,6 @@ static void ioc3_mii_start(struct ioc3_private *ip)
 	add_timer(&ip->ioc3_timer);
 }
 
-static inline void ioc3_clean_rx_ring(struct ioc3_private *ip)
-{
-	struct ioc3_erxbuf *rxb;
-	struct sk_buff *skb;
-	int i;
-
-	for (i = ip->rx_ci; i & 15; i++) {
-		ip->rx_skbs[ip->rx_pi] = ip->rx_skbs[ip->rx_ci];
-		ip->rxr[ip->rx_pi++] = ip->rxr[ip->rx_ci++];
-	}
-	ip->rx_pi &= RX_RING_MASK;
-	ip->rx_ci &= RX_RING_MASK;
-
-	for (i = ip->rx_ci; i != ip->rx_pi; i = (i + 1) & RX_RING_MASK) {
-		skb = ip->rx_skbs[i];
-		rxb = (struct ioc3_erxbuf *)(skb->data - RX_OFFSET);
-		rxb->w0 = 0;
-	}
-}
-
 static inline void ioc3_clean_tx_ring(struct ioc3_private *ip)
 {
 	struct sk_buff *skb;
@@ -838,6 +818,7 @@ static void ioc3_alloc_rings(struct net_device *dev)
 		/* Because we reserve afterwards. */
 		skb_put(skb, (1664 + RX_OFFSET));
 		rxb = (struct ioc3_erxbuf *)skb->data;
+		rxb->w0 = 0;	/* Clear valid flag */
 		ip->rxr[i] = cpu_to_be64(ioc3_map(rxb, 1));
 		skb_reserve(skb, RX_OFFSET);
 	}
@@ -857,7 +838,6 @@ static void ioc3_init_rings(struct net_device *dev)
 	ioc3_free_rings(ip);
 	ioc3_alloc_rings(dev);
 
-	ioc3_clean_rx_ring(ip);
 	ioc3_clean_tx_ring(ip);
 
 	/* Now the rx ring base, consume & produce registers.  */
