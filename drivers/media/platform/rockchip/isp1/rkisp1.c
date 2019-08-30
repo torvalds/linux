@@ -1518,7 +1518,7 @@ int rkisp1_register_isp_subdev(struct rkisp1_device *isp_dev,
 	v4l2_subdev_init(sd, &rkisp1_isp_sd_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.ops = &rkisp1_isp_sd_media_ops;
-	sd->entity.function = MEDIA_ENT_F_IO_V4L;
+	sd->entity.function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
 	snprintf(sd->name, sizeof(sd->name), "rkisp1-isp-subdev");
 
 	isp_sdev->pads[RKISP1_ISP_PAD_SINK].flags =
