@@ -339,14 +339,14 @@ static long cpg_sd_clock_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static int cpg_sd_clock_set_rate(struct clk_hw *hw, unsigned long rate,
-				   unsigned long parent_rate)
+				 unsigned long parent_rate)
 {
 	struct sd_clock *clock = to_sd_clock(hw);
-	unsigned int div = cpg_sd_clock_calc_div(clock, rate, parent_rate);
 	unsigned int i;
 
 	for (i = 0; i < clock->div_num; i++)
-		if (div == clock->div_table[i].div)
+		if (rate == DIV_ROUND_CLOSEST(parent_rate,
+					      clock->div_table[i].div))
 			break;
 
 	if (i >= clock->div_num)
