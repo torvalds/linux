@@ -225,7 +225,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
 static int ion_assign_heap_id(struct ion_heap *heap, struct ion_device *dev)
 {
 	int id_bit;
-	int start_bit, end_bit;
+	int start_bit, end_bit = -1;
 
 	switch (heap->type) {
 	case ION_HEAP_TYPE_SYSTEM:
