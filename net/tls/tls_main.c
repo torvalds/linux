@@ -251,14 +251,26 @@ static void tls_write_space(struct sock *sk)
 	ctx->sk_write_space(sk);
 }
 
-void tls_ctx_free(struct tls_context *ctx)
+/**
+ * tls_ctx_free() - free TLS ULP context
+ * @sk:  socket to with @ctx is attached
+ * @ctx: TLS context structure
+ *
+ * Free TLS context. If @sk is %NULL caller guarantees that the socket
+ * to which @ctx was attached has no outstanding references.
+ */
+void tls_ctx_free(struct sock *sk, struct tls_context *ctx)
 {
 	if (!ctx)
 		return;
 
 	memzero_explicit(&ctx->crypto_send, sizeof(ctx->crypto_send));
 	memzero_explicit(&ctx->crypto_recv, sizeof(ctx->crypto_recv));
-	kfree(ctx);
+
+	if (sk)
+		kfree_rcu(ctx, rcu);
+	else
+		kfree(ctx);
 }
 
 static void tls_sk_proto_cleanup(struct sock *sk,
@@ -306,7 +318,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 
 	write_lock_bh(&sk->sk_callback_lock);
 	if (free_ctx)
-		icsk->icsk_ulp_data = NULL;
+		rcu_assign_pointer(icsk->icsk_ulp_data, NULL);
 	sk->sk_prot = ctx->sk_proto;
 	if (sk->sk_write_space == tls_write_space)
 		sk->sk_write_space = ctx->sk_write_space;
@@ -321,7 +333,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	ctx->sk_proto_close(sk, timeout);
 
 	if (free_ctx)
-		tls_ctx_free(ctx);
+		tls_ctx_free(sk, ctx);
 }
 
 static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
@@ -610,7 +622,7 @@ static struct tls_context *create_ctx(struct sock *sk)
 	if (!ctx)
 		return NULL;
 
-	icsk->icsk_ulp_data = ctx;
+	rcu_assign_pointer(icsk->icsk_ulp_data, ctx);
 	ctx->setsockopt = sk->sk_prot->setsockopt;
 	ctx->getsockopt = sk->sk_prot->getsockopt;
 	ctx->sk_proto_close = sk->sk_prot->close;
@@ -651,8 +663,8 @@ static void tls_hw_sk_destruct(struct sock *sk)
 
 	ctx->sk_destruct(sk);
 	/* Free ctx */
-	tls_ctx_free(ctx);
-	icsk->icsk_ulp_data = NULL;
+	rcu_assign_pointer(icsk->icsk_ulp_data, NULL);
+	tls_ctx_free(sk, ctx);
 }
 
 static int tls_hw_prot(struct sock *sk)
