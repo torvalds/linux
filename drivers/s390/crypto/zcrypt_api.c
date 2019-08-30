@@ -36,6 +36,7 @@
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_msgtype50.h"
 #include "zcrypt_ccamisc.h"
+#include "zcrypt_ep11misc.h"
 
 /*
  * Module description.
@@ -1894,6 +1895,7 @@ void __exit zcrypt_api_exit(void)
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
 	zcrypt_ccamisc_exit();
+	zcrypt_ep11misc_exit();
 	zcrypt_debug_exit();
 }
 
