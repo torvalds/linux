@@ -44,24 +44,17 @@ const struct clk_ops clk_fixed_rate_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_fixed_rate_ops);
 
-/**
- * clk_hw_register_fixed_rate_with_accuracy - register fixed-rate clock with
- * the clock framework
- * @dev: device that is registering this clock
- * @name: name of this clock
- * @parent_name: name of clock's parent
- * @flags: framework-specific flags
- * @fixed_rate: non-adjustable clock rate
- * @fixed_accuracy: non-adjustable clock rate
- */
-struct clk_hw *clk_hw_register_fixed_rate_with_accuracy(struct device *dev,
-		const char *name, const char *parent_name, unsigned long flags,
-		unsigned long fixed_rate, unsigned long fixed_accuracy)
+struct clk_hw *__clk_hw_register_fixed_rate(struct device *dev,
+		struct device_node *np, const char *name,
+		const char *parent_name, const struct clk_hw *parent_hw,
+		const struct clk_parent_data *parent_data, unsigned long flags,
+		unsigned long fixed_rate, unsigned long fixed_accuracy,
+		unsigned long clk_fixed_flags)
 {
 	struct clk_fixed_rate *fixed;
 	struct clk_hw *hw;
 	struct clk_init_data init = {};
-	int ret;
+	int ret = -EINVAL;
 
 	/* allocate fixed-rate clock */
 	fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
@@ -71,17 +64,26 @@ struct clk_hw *clk_hw_register_fixed_rate_with_accuracy(struct device *dev,
 	init.name = name;
 	init.ops = &clk_fixed_rate_ops;
 	init.flags = flags;
-	init.parent_names = (parent_name ? &parent_name: NULL);
-	init.num_parents = (parent_name ? 1 : 0);
+	init.parent_names = parent_name ? &parent_name : NULL;
+	init.parent_hws = parent_hw ? &parent_hw : NULL;
+	init.parent_data = parent_data;
+	if (parent_name || parent_hw || parent_data)
+		init.num_parents = 1;
+	else
+		init.num_parents = 0;
 
 	/* struct clk_fixed_rate assignments */
+	fixed->flags = clk_fixed_flags;
 	fixed->fixed_rate = fixed_rate;
 	fixed->fixed_accuracy = fixed_accuracy;
 	fixed->hw.init = &init;
 
 	/* register the clock */
 	hw = &fixed->hw;
-	ret = clk_hw_register(dev, hw);
+	if (dev || !np)
+		ret = clk_hw_register(dev, hw);
+	else if (np)
+		ret = of_clk_hw_register(np, hw);
 	if (ret) {
 		kfree(fixed);
 		hw = ERR_PTR(ret);
@@ -89,25 +91,7 @@ struct clk_hw *clk_hw_register_fixed_rate_with_accuracy(struct device *dev,
 
 	return hw;
 }
-EXPORT_SYMBOL_GPL(clk_hw_register_fixed_rate_with_accuracy);
-
-/**
- * clk_hw_register_fixed_rate - register fixed-rate clock with the clock
- * framework
- * @dev: device that is registering this clock
- * @name: name of this clock
- * @parent_name: name of clock's parent
- * @flags: framework-specific flags
- * @fixed_rate: non-adjustable clock rate
- */
-struct clk_hw *clk_hw_register_fixed_rate(struct device *dev, const char *name,
-		const char *parent_name, unsigned long flags,
-		unsigned long fixed_rate)
-{
-	return clk_hw_register_fixed_rate_with_accuracy(dev, name, parent_name,
-						     flags, fixed_rate, 0);
-}
-EXPORT_SYMBOL_GPL(clk_hw_register_fixed_rate);
+EXPORT_SYMBOL_GPL(__clk_hw_register_fixed_rate);
 
 struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
