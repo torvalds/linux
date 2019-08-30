@@ -328,8 +328,6 @@ struct clk_fixed_rate {
 	unsigned long	fixed_accuracy;
 };
 
-#define to_clk_fixed_rate(_hw) container_of(_hw, struct clk_fixed_rate, hw)
-
 extern const struct clk_ops clk_fixed_rate_ops;
 struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
