@@ -218,9 +218,6 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 		ASSERT(test_bit(EXTENT_FLAG_FS_MAPPING, &prev->flags) &&
 		       test_bit(EXTENT_FLAG_FS_MAPPING, &next->flags));
 
-	if (prev->bdev || next->bdev)
-		ASSERT(prev->bdev == next->bdev);
-
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->map_lookup == next->map_lookup &&

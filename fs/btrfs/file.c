@@ -667,7 +667,6 @@ void btrfs_drop_extent_cache(struct btrfs_inode *inode, u64 start, u64 end,
 			}
 
 			split->generation = gen;
-			split->bdev = em->bdev;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
 			replace_extent_mapping(em_tree, em, split, modified);
@@ -680,7 +679,6 @@ void btrfs_drop_extent_cache(struct btrfs_inode *inode, u64 start, u64 end,
 
 			split->start = start + len;
 			split->len = em->start + em->len - (start + len);
-			split->bdev = em->bdev;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
 			split->generation = gen;
@@ -2360,7 +2358,6 @@ out:
 		hole_em->block_start = EXTENT_MAP_HOLE;
 		hole_em->block_len = 0;
 		hole_em->orig_block_len = 0;
-		hole_em->bdev = fs_info->fs_devices->latest_bdev;
 		hole_em->compress_type = BTRFS_COMPRESS_NONE;
 		hole_em->generation = trans->transid;
 

@@ -5189,7 +5189,6 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			hole_em->block_len = 0;
 			hole_em->orig_block_len = 0;
 			hole_em->ram_bytes = hole_size;
-			hole_em->bdev = fs_info->fs_devices->latest_bdev;
 			hole_em->compress_type = BTRFS_COMPRESS_NONE;
 			hole_em->generation = fs_info->generation;
 
@@ -6967,8 +6966,6 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
-	if (em)
-		em->bdev = fs_info->fs_devices->latest_bdev;
 	read_unlock(&em_tree->lock);
 
 	if (em) {
@@ -6984,7 +6981,6 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 		err = -ENOMEM;
 		goto out;
 	}
-	em->bdev = fs_info->fs_devices->latest_bdev;
 	em->start = EXTENT_MAP_HOLE;
 	em->orig_start = EXTENT_MAP_HOLE;
 	em->len = (u64)-1;
@@ -7243,7 +7239,6 @@ struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
 			err = -ENOMEM;
 			goto out;
 		}
-		em->bdev = NULL;
 
 		ASSERT(hole_em);
 		/*
@@ -7603,7 +7598,6 @@ static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
 {
 	struct extent_map_tree *em_tree;
 	struct extent_map *em;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
 	ASSERT(type == BTRFS_ORDERED_PREALLOC ||
@@ -7621,7 +7615,6 @@ static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
 	em->len = len;
 	em->block_len = block_len;
 	em->block_start = block_start;
-	em->bdev = root->fs_info->fs_devices->latest_bdev;
 	em->orig_block_len = orig_block_len;
 	em->ram_bytes = ram_bytes;
 	em->generation = -1;
@@ -10484,7 +10477,6 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		em->block_len = ins.offset;
 		em->orig_block_len = ins.offset;
 		em->ram_bytes = ins.offset;
-		em->bdev = fs_info->fs_devices->latest_bdev;
 		set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
 		em->generation = trans->transid;
 

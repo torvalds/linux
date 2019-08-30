@@ -3154,7 +3154,6 @@ static int __do_readpage(struct extent_io_tree *tree,
 			offset = em->block_start + extent_offset;
 			disk_io_size = iosize;
 		}
-		bdev = em->bdev;
 		block_start = em->block_start;
 		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			block_start = EXTENT_MAP_HOLE;
@@ -3491,7 +3490,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 		iosize = min(em_end - cur, end - cur + 1);
 		iosize = ALIGN(iosize, blocksize);
 		offset = em->block_start + extent_offset;
-		bdev = em->bdev;
 		block_start = em->block_start;
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		free_extent_map(em);

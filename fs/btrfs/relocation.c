@@ -3194,7 +3194,6 @@ static noinline_for_stack
 int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 			 u64 block_start)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_map *em;
 	int ret = 0;
@@ -3207,7 +3206,6 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 	em->len = end + 1 - start;
 	em->block_len = em->len;
 	em->block_start = block_start;
-	em->bdev = fs_info->fs_devices->latest_bdev;
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
 	lock_extent(&BTRFS_I(inode)->io_tree, start, end);

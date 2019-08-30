@@ -205,7 +205,6 @@ struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 		struct page *page, size_t pg_offset, u64 start, u64 len,
 		int create)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
 	int ret;
@@ -213,7 +212,6 @@ struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
 	if (em) {
-		em->bdev = fs_info->fs_devices->latest_bdev;
 		read_unlock(&em_tree->lock);
 		goto out;
 	}
@@ -228,7 +226,6 @@ struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 	em->len = (u64)-1;
 	em->block_len = (u64)-1;
 	em->block_start = 0;
-	em->bdev = fs_info->fs_devices->latest_bdev;
 
 	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
