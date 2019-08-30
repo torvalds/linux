@@ -475,7 +475,7 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	aux_req.action = i2caux_action_from_payload(payload);
 
 	aux_req.address = payload->address;
-	aux_req.delay = payload->defer_delay * 10;
+	aux_req.delay = 0;
 	aux_req.length = payload->length;
 	aux_req.data = payload->data;
 
@@ -544,8 +544,15 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			case AUX_TRANSACTION_REPLY_AUX_DEFER:
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
-				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES)
+				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES) {
 					goto fail;
+				} else {
+					if ((*payload->reply == AUX_TRANSACTION_REPLY_AUX_DEFER) ||
+						(*payload->reply == AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER)) {
+						if (payload->defer_delay > 0)
+							msleep(payload->defer_delay);
+					}
+				}
 				break;
 
 			case AUX_TRANSACTION_REPLY_I2C_DEFER:
