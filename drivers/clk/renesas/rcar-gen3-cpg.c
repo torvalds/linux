@@ -309,15 +309,15 @@ static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
 				 clock->div_table[clock->cur_div_idx].div);
 }
 
-static unsigned int cpg_sd_clock_calc_div(struct sd_clock *clock,
-					  unsigned long rate,
-					  unsigned long parent_rate)
+static long cpg_sd_clock_round_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long *parent_rate)
 {
 	unsigned long calc_rate, diff, diff_min = ULONG_MAX;
+	struct sd_clock *clock = to_sd_clock(hw);
 	unsigned int i, best_div = 0;
 
 	for (i = 0; i < clock->div_num; i++) {
-		calc_rate = DIV_ROUND_CLOSEST(parent_rate,
+		calc_rate = DIV_ROUND_CLOSEST(*parent_rate,
 					      clock->div_table[i].div);
 		diff = calc_rate > rate ? calc_rate - rate : rate - calc_rate;
 		if (diff < diff_min) {
@@ -326,16 +326,7 @@ static unsigned int cpg_sd_clock_calc_div(struct sd_clock *clock,
 		}
 	}
 
-	return best_div;
-}
-
-static long cpg_sd_clock_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *parent_rate)
-{
-	struct sd_clock *clock = to_sd_clock(hw);
-	unsigned int div = cpg_sd_clock_calc_div(clock, rate, *parent_rate);
-
-	return DIV_ROUND_CLOSEST(*parent_rate, div);
+	return DIV_ROUND_CLOSEST(*parent_rate, best_div);
 }
 
 static int cpg_sd_clock_set_rate(struct clk_hw *hw, unsigned long rate,
