@@ -75,7 +75,7 @@ struct devlink_port {
 	struct list_head list;
 	struct list_head param_list;
 	struct devlink *devlink;
-	unsigned index;
+	unsigned int index;
 	bool registered;
 	spinlock_t type_lock; /* Protects type and type_dev
 			       * pointer consistency.

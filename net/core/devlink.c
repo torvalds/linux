@@ -136,7 +136,7 @@ static struct devlink *devlink_get_from_info(struct genl_info *info)
 }
 
 static struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
-						      int port_index)
+						      unsigned int port_index)
 {
 	struct devlink_port *devlink_port;
 
@@ -147,7 +147,8 @@ static struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
 	return NULL;
 }
 
-static bool devlink_port_index_exists(struct devlink *devlink, int port_index)
+static bool devlink_port_index_exists(struct devlink *devlink,
+				      unsigned int port_index)
 {
 	return devlink_port_get_by_index(devlink, port_index);
 }
