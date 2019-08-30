@@ -1399,7 +1399,7 @@ static struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 	if (!pp_smu)
 		return pp_smu;
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
+	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment) || IS_DIAG_DC(ctx->dce_environment)) {
 		pp_smu->ctx.ver = PP_SMU_VER_RN;
 		pp_smu->rn_funcs.get_dpm_clock_table = dummy_get_dpm_clock_table;
 		pp_smu->rn_funcs.set_wm_ranges = dummy_set_wm_ranges;
