@@ -1646,6 +1646,9 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
 	}
 
+	if (type == UPDATE_TYPE_FAST && memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0)
+		dc->optimized_required = true;
+
 	return type;
 }
 

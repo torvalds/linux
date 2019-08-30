@@ -252,11 +252,7 @@ enum wm_report_mode {
  */
 struct dc_clocks {
 	int dispclk_khz;
-	int max_supported_dppclk_khz;
-	int max_supported_dispclk_khz;
 	int dppclk_khz;
-	int bw_dppclk_khz; /*a copy of dppclk_khz*/
-	int bw_dispclk_khz;
 	int dcfclk_khz;
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
@@ -270,6 +266,10 @@ struct dc_clocks {
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
+	int max_supported_dppclk_khz;
+	int max_supported_dispclk_khz;
+	int bw_dppclk_khz; /*a copy of dppclk_khz*/
+	int bw_dispclk_khz;
 };
 
 struct dc_bw_validation_profile {
