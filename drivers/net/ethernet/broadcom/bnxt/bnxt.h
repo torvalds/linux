@@ -1371,6 +1371,11 @@ struct bnxt_fw_health {
 	u32 fw_reset_seq_vals[16];
 	u32 fw_reset_seq_delay_msec[16];
 	struct devlink_health_reporter	*fw_reporter;
+	struct devlink_health_reporter *fw_reset_reporter;
+};
+
+struct bnxt_fw_reporter_ctx {
+	unsigned long sp_event;
 };
 
 #define BNXT_FW_HEALTH_REG_TYPE_MASK	3
