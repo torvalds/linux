@@ -214,8 +214,8 @@ processor idle states, defined as device tree nodes, are listed.
 
 	Usage: Optional - On ARM systems, it is a container of processor idle
 			  states nodes. If the system does not provide CPU
-			  power management capabilities or the processor just
-			  supports idle_standby an idle-states node is not
+			  power management capabilities, or the processor just
+			  supports idle_standby, an idle-states node is not
 			  required.
 
 	Description: idle-states node is a container node, where its
@@ -342,8 +342,8 @@ follows:
 			    state.
 
 	In addition to the properties listed above, a state node may require
-	additional properties specifics to the entry-method defined in the
-	idle-states node, please refer to the entry-method bindings
+	additional properties specific to the entry-method defined in the
+	idle-states node. Please refer to the entry-method bindings
 	documentation for properties definitions.
 
 ===========================================
