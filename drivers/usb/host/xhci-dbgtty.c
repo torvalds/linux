@@ -146,7 +146,7 @@ xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
 		req->length = DBC_MAX_PACKET;
 		req->buf = kmalloc(req->length, GFP_KERNEL);
 		if (!req->buf) {
-			xhci_dbc_free_req(dep, req);
+			dbc_free_request(dep, req);
 			break;
 		}
 
