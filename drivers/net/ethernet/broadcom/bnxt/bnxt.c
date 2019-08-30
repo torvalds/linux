@@ -254,6 +254,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
 	ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
 };
 
@@ -1978,6 +1979,16 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		if (BNXT_PF(bp))
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
+		break;
+	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY:
+		bp->fw_reset_timestamp = jiffies;
+		bp->fw_reset_min_dsecs = cmpl->timestamp_lo;
+		if (!bp->fw_reset_min_dsecs)
+			bp->fw_reset_min_dsecs = BNXT_DFLT_FW_RST_MIN_DSECS;
+		bp->fw_reset_max_dsecs = le16_to_cpu(cmpl->timestamp_hi);
+		if (!bp->fw_reset_max_dsecs)
+			bp->fw_reset_max_dsecs = BNXT_DFLT_FW_RST_MAX_DSECS;
+		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event);
 		break;
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
 		struct bnxt_fw_health *fw_health = bp->fw_health;

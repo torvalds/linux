@@ -1719,6 +1719,13 @@ struct bnxt {
 #define BNXT_FLOW_STATS_SP_EVENT	15
 #define BNXT_UPDATE_PHY_SP_EVENT	16
 #define BNXT_RING_COAL_NOW_SP_EVENT	17
+#define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
+
+	u16			fw_reset_min_dsecs;
+#define BNXT_DFLT_FW_RST_MIN_DSECS	20
+	u16			fw_reset_max_dsecs;
+#define BNXT_DFLT_FW_RST_MAX_DSECS	60
+	unsigned long		fw_reset_timestamp;
 
 	struct bnxt_fw_health	*fw_health;
 
