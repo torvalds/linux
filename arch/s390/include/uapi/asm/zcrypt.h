@@ -237,7 +237,9 @@ struct zcrypt_device_matrix_ext {
 	struct zcrypt_device_status_ext device[MAX_ZDEV_ENTRIES_EXT];
 };
 
-#define AUTOSELECT 0xFFFFFFFF
+#define AUTOSELECT  0xFFFFFFFF
+#define AUTOSEL_AP  ((__u16) 0xFFFF)
+#define AUTOSEL_DOM ((__u16) 0xFFFF)
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
 

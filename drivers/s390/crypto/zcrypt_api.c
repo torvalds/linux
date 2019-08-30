@@ -849,7 +849,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 			/* check if device is online and eligible */
 			if (!zq->online ||
 			    !zq->ops->send_cprb ||
-			    (tdom != (unsigned short) AUTOSELECT &&
+			    (tdom != AUTOSEL_DOM &&
 			     tdom != AP_QID_QUEUE(zq->queue->qid)))
 				continue;
 			/* check if device node has admission for this queue */
@@ -874,7 +874,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 
 	/* in case of auto select, provide the correct domain */
 	qid = pref_zq->queue->qid;
-	if (*domain == (unsigned short) AUTOSELECT)
+	if (*domain == AUTOSEL_DOM)
 		*domain = AP_QID_QUEUE(qid);
 
 	rc = pref_zq->ops->send_cprb(pref_zq, xcRB, &ap_msg);
@@ -901,7 +901,7 @@ static bool is_desired_ep11_card(unsigned int dev_id,
 				 struct ep11_target_dev *targets)
 {
 	while (target_num-- > 0) {
-		if (dev_id == targets->ap_id)
+		if (targets->ap_id == dev_id || targets->ap_id == AUTOSEL_AP)
 			return true;
 		targets++;
 	}
@@ -912,8 +912,11 @@ static bool is_desired_ep11_queue(unsigned int dev_qid,
 				  unsigned short target_num,
 				  struct ep11_target_dev *targets)
 {
+	int card = AP_QID_CARD(dev_qid), dom = AP_QID_QUEUE(dev_qid);
+
 	while (target_num-- > 0) {
-		if (AP_MKQID(targets->ap_id, targets->dom_id) == dev_qid)
+		if ((targets->ap_id == card || targets->ap_id == AUTOSEL_AP) &&
+		    (targets->dom_id == dom || targets->dom_id == AUTOSEL_DOM))
 			return true;
 		targets++;
 	}
