@@ -54,6 +54,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_sdma.h"
+#include "amdgpu_ras.h"
 #include "bif/bif_4_1_d.h"
 
 static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
@@ -1776,6 +1777,17 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	adev->mman.aper_base_kaddr = ioremap_wc(adev->gmc.aper_base,
 						adev->gmc.visible_vram_size);
 #endif
+
+	/*
+	 * retired pages will be loaded from eeprom and reserved here,
+	 * it should be called after ttm init since new bo may be created,
+	 * recovery_init may fail, but it can free all resources allocated by
+	 * itself and its failure should not stop amdgpu init process.
+	 *
+	 * Note: theoretically, this should be called before all vram allocations
+	 * to protect retired page from abusing
+	 */
+	amdgpu_ras_recovery_init(adev);
 
 	/*
 	 *The reserved vram for firmware must be pinned to the specified

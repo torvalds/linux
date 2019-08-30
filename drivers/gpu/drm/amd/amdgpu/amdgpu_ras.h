@@ -480,6 +480,7 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 	return ras && (ras->supported & (1 << block));
 }
 
+int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
 int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
 		unsigned int block);
 
@@ -500,6 +501,10 @@ static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev,
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
+	/* save bad page to eeprom before gpu reset,
+	 * i2c may be unstable in gpu reset
+	 */
+	amdgpu_ras_reserve_bad_pages(adev);
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		schedule_work(&ras->recovery_work);
 	return 0;

@@ -1493,16 +1493,17 @@ out:
 	return 0;
 }
 
-static int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
+int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data = &con->eh_data;
 	int ret;
 
-	*data = kmalloc(sizeof(**data),
-			GFP_KERNEL|__GFP_ZERO);
-	if (!*data)
-		return -ENOMEM;
+	*data = kmalloc(sizeof(**data), GFP_KERNEL | __GFP_ZERO);
+	if (!*data) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	mutex_init(&con->recovery_lock);
 	INIT_WORK(&con->recovery_work, amdgpu_ras_do_recovery);
@@ -1511,18 +1512,30 @@ static int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 
 	ret = amdgpu_ras_eeprom_init(&adev->psp.ras.ras->eeprom_control);
 	if (ret)
-		return ret;
+		goto free;
 
 	if (adev->psp.ras.ras->eeprom_control.num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
-			return ret;
+			goto free;
 		ret = amdgpu_ras_reserve_bad_pages(adev);
 		if (ret)
-			return ret;
+			goto release;
 	}
 
 	return 0;
+
+release:
+	amdgpu_ras_release_bad_pages(adev);
+free:
+	con->eh_data = NULL;
+	kfree((*data)->bps);
+	kfree((*data)->bps_bo);
+	kfree(*data);
+out:
+	DRM_WARN("Failed to initialize ras recovery!\n");
+
+	return ret;
 }
 
 static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
@@ -1530,12 +1543,17 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data = con->eh_data;
 
+	/* recovery_init failed to init it, fini is useless */
+	if (!data)
+		return 0;
+
 	cancel_work_sync(&con->recovery_work);
 	amdgpu_ras_release_bad_pages(adev);
 
 	mutex_lock(&con->recovery_lock);
 	con->eh_data = NULL;
 	kfree(data->bps);
+	kfree(data->bps_bo);
 	kfree(data);
 	mutex_unlock(&con->recovery_lock);
 
@@ -1627,9 +1645,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (amdgpu_ras_recovery_init(adev))
-		goto recovery_out;
-
 	amdgpu_ras_mask &= AMDGPU_RAS_BLOCK_MASK;
 
 	if (amdgpu_ras_fs_init(adev))
@@ -1644,8 +1659,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			con->hw_supported, con->supported);
 	return 0;
 fs_out:
-	amdgpu_ras_recovery_fini(adev);
-recovery_out:
 	amdgpu_ras_set_context(adev, NULL);
 	kfree(con);
 
