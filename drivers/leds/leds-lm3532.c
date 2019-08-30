@@ -208,7 +208,7 @@ static const struct regmap_config lm3532_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-const static int als_imp_table[LM3532_NUM_IMP_VALS] = {37000, 18500, 12330,
+static const int als_imp_table[LM3532_NUM_IMP_VALS] = {37000, 18500, 12330,
 						       92500, 7400, 6170, 5290,
 						       4630, 4110, 3700, 3360,
 						       3080, 2850, 2640, 2440,
@@ -265,7 +265,7 @@ static int lm3532_get_index(const int table[], int size, int value)
 	return -EINVAL;
 }
 
-const static int als_avrg_table[LM3532_NUM_AVG_VALS] = {17920, 35840, 71680,
+static const int als_avrg_table[LM3532_NUM_AVG_VALS] = {17920, 35840, 71680,
 							1433360, 286720, 573440,
 							1146880, 2293760};
 static int lm3532_get_als_avg_index(int avg_time)
@@ -280,7 +280,7 @@ static int lm3532_get_als_avg_index(int avg_time)
 				avg_time);
 }
 
-const static int ramp_table[LM3532_NUM_RAMP_VALS] = { 8, 1024, 2048, 4096, 8192,
+static const int ramp_table[LM3532_NUM_RAMP_VALS] = { 8, 1024, 2048, 4096, 8192,
 						     16384, 32768, 65536};
 static int lm3532_get_ramp_index(int ramp_time)
 {
