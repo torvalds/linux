@@ -358,15 +358,6 @@ Batchbuffer Parsing
 .. kernel-doc:: drivers/gpu/drm/i915/i915_cmd_parser.c
    :internal:
 
-Batchbuffer Pools
------------------
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
-   :doc: batch pool
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
-   :internal:
-
 User Batchbuffer Execution
 --------------------------
 
