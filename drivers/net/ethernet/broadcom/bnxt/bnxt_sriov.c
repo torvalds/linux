@@ -828,6 +828,11 @@ int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		rtnl_unlock();
 		return 0;
 	}
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		netdev_warn(dev, "Reject SRIOV config request when FW reset is in progress\n");
+		rtnl_unlock();
+		return 0;
+	}
 	bp->sriov_cfg = true;
 	rtnl_unlock();
 

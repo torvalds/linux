@@ -1605,6 +1605,7 @@ struct bnxt {
 #define BNXT_STATE_IN_SP_TASK	1
 #define BNXT_STATE_READ_STATS	2
 #define BNXT_STATE_FW_RESET_DET 3
+#define BNXT_STATE_IN_FW_RESET	4
 #define BNXT_STATE_ABORT_ERR	5
 
 	struct bnxt_irq	*irq_tbl;

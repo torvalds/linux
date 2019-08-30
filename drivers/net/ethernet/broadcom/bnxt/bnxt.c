@@ -8716,6 +8716,10 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_HOT_FW_RESET_DONE)
 		fw_reset = true;
 
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state) && !fw_reset) {
+		netdev_err(bp->dev, "RESET_DONE not set during FW reset.\n");
+		return -ENODEV;
+	}
 	if (resc_reinit || fw_reset) {
 		if (fw_reset) {
 			rc = bnxt_fw_init_one(bp);
@@ -9226,6 +9230,10 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 	bnxt_debug_dev_exit(bp);
 	bnxt_disable_napi(bp);
 	del_timer_sync(&bp->timer);
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state) &&
+	    pci_is_enabled(bp->pdev))
+		pci_disable_device(bp->pdev);
+
 	bnxt_free_skbs(bp);
 
 	/* Save ring stats before shutdown */
@@ -9241,6 +9249,18 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
+
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		/* If we get here, it means firmware reset is in progress
+		 * while we are trying to close.  We can safely proceed with
+		 * the close because we are holding rtnl_lock().  Some firmware
+		 * messages may fail as we proceed to close.  We set the
+		 * ABORT_ERR flag here so that the FW reset thread will later
+		 * abort when it gets the rtnl_lock() and sees the flag.
+		 */
+		netdev_warn(bp->dev, "FW reset in progress during close, FW reset will be aborted\n");
+		set_bit(BNXT_STATE_ABORT_ERR, &bp->state);
+	}
 
 #ifdef CONFIG_BNXT_SRIOV
 	if (bp->sriov_cfg) {
