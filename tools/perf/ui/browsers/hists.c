@@ -12,6 +12,7 @@
 #include <linux/zalloc.h>
 
 #include "../../util/debug.h"
+#include "../../util/dso.h"
 #include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"

@@ -11,6 +11,7 @@
 #include <api/fs/fs.h>
 #include <linux/perf_event.h>
 #include <linux/zalloc.h>
+#include "dso.h"
 #include "event.h"
 #include "debug.h"
 #include "hist.h"
@@ -29,6 +30,7 @@
 #include "stat.h"
 #include "session.h"
 #include "bpf-event.h"
+#include "tool.h"
 #include "../perf.h"
 
 #define DEFAULT_PROC_MAP_PARSE_TIMEOUT 500

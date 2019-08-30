@@ -2,6 +2,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/config.h"

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include "util/debug.h"
+#include "util/dso.h"
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/sort.h"

@@ -14,6 +14,7 @@
 #include <sys/mman.h>
 #include <linux/stringify.h>
 
+#include "build-id.h"
 #include "util.h"
 #include "event.h"
 #include "debug.h"

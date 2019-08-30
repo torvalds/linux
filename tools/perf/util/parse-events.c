@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/param.h>
 #include "term.h"
+#include "build-id.h"
 #include "evlist.h"
 #include "evsel.h"
 #include <subcmd/parse-options.h>

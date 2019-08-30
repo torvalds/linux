@@ -4,6 +4,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "machine.h"
+#include "tool.h"
 #include "tests.h"
 #include "debug.h"
 

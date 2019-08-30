@@ -22,6 +22,7 @@
 #include "map.h"
 #include "symbol.h"
 #include "session.h"
+#include "tool.h"
 #include "thread.h"
 #include "thread-stack.h"
 #include "debug.h"

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
+#include "dso.h"
 #include "map.h"
 #include "thread.h"
 #include "vdso.h"

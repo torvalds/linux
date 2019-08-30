@@ -12,6 +12,7 @@
 #include <perf/evlist.h>
 
 #include "debug.h"
+#include "dso.h"
 #include "parse-events.h"
 #include "evlist.h"
 #include "evsel.h"

@@ -12,6 +12,7 @@
 
 #include "util/annotate.h"
 #include "util/color.h"
+#include "util/dso.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/err.h>

@@ -22,6 +22,7 @@
 #include "util/strlist.h"
 #include "util/build-id.h"
 #include "util/session.h"
+#include "util/dso.h"
 #include "util/symbol.h"
 #include "util/time-utils.h"
 #include "util/util.h"

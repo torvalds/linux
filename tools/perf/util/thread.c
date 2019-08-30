@@ -5,6 +5,7 @@
 #include <string.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
+#include "dso.h"
 #include "session.h"
 #include "thread.h"
 #include "thread-stack.h"

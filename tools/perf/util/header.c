@@ -22,6 +22,7 @@
 #include <bpf/libbpf.h>
 #include <perf/cpumap.h>
 
+#include "dso.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"

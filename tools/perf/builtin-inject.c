@@ -9,6 +9,7 @@
 #include "builtin.h"
 
 #include "util/color.h"
+#include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/map.h"

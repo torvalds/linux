@@ -157,6 +157,7 @@
 #include "evlist.h"
 #include "machine.h"
 #include "session.h"
+#include "tool.h"
 #include "thread.h"
 #include "debug.h"
 #include "auxtrace.h"

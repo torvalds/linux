@@ -31,8 +31,10 @@
 #include <linux/compiler.h>
 #include <linux/time64.h>
 
+#include "../build-id.h"
 #include "../counts.h"
 #include "../debug.h"
+#include "../dso.h"
 #include "../callchain.h"
 #include "../evsel.h"
 #include "../util.h"

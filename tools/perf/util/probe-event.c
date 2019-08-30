@@ -19,11 +19,13 @@
 #include <limits.h>
 #include <elf.h>
 
+#include "build-id.h"
 #include "event.h"
 #include "namespaces.h"
 #include "strlist.h"
 #include "strfilter.h"
 #include "debug.h"
+#include "dso.h"
 #include "cache.h"
 #include "color.h"
 #include "map.h"

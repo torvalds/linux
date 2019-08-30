@@ -2,6 +2,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/build-id.h"
 #include "util/evsel.h"
 #include "util/evlist.h"
 #include "util/term.h"

@@ -5,6 +5,7 @@
 #include <linux/mman.h>
 #include <linux/time64.h>
 #include "debug.h"
+#include "dso.h"
 #include "sort.h"
 #include "hist.h"
 #include "cacheline.h"

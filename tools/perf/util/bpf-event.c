@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include "bpf-event.h"
 #include "debug.h"
+#include "dso.h"
 #include "symbol.h"
 #include "machine.h"
 #include "env.h"

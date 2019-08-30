@@ -36,6 +36,7 @@ perf-y += strfilter.o
 perf-y += top.o
 perf-y += usage.o
 perf-y += dso.o
+perf-y += dsos.o
 perf-y += symbol.o
 perf-y += symbol_fprintf.o
 perf-y += color.o

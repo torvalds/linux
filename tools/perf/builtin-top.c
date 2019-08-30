@@ -24,6 +24,7 @@
 #include "util/bpf-event.h"
 #include "util/config.h"
 #include "util/color.h"
+#include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/event.h"

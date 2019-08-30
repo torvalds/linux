@@ -4,6 +4,7 @@
 #include "util/cache.h"
 #include "util/counts.h"
 #include "util/debug.h"
+#include "util/dso.h"
 #include <subcmd/exec-cmd.h>
 #include "util/header.h"
 #include <subcmd/parse-options.h>

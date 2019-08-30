@@ -35,6 +35,7 @@
 #include <perl.h>
 
 #include "../callchain.h"
+#include "../dso.h"
 #include "../machine.h"
 #include "../map.h"
 #include "../symbol.h"

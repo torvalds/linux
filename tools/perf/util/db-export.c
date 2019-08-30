@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "dso.h"
 #include "evsel.h"
 #include "machine.h"
 #include "thread.h"

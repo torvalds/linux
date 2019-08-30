@@ -5,6 +5,7 @@
 #include "../util.h"
 #include "../../util/annotate.h"
 #include "../../util/debug.h"
+#include "../../util/dso.h"
 #include "../../util/hist.h"
 #include "../../util/sort.h"
 #include "../../util/map.h"
