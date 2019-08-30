@@ -47,6 +47,7 @@
 #include "util/branch.h"
 #include "util/util.h"
 #include "ui/ui.h"
+#include "ui/progress.h"
 
 #include <dlfcn.h>
 #include <errno.h>

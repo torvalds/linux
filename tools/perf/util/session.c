@@ -30,6 +30,7 @@
 #include "sample-raw.h"
 #include "stat.h"
 #include "util.h"
+#include "ui/progress.h"
 #include "../perf.h"
 #include "arch/common.h"
 

@@ -37,6 +37,7 @@
 #include "mem2node.h"
 #include "symbol.h"
 #include "ui/ui.h"
+#include "ui/progress.h"
 #include "../perf.h"
 
 struct c2c_hists {

@@ -8,7 +8,6 @@
 #include "evsel.h"
 #include "header.h"
 #include "color.h"
-#include "ui/progress.h"
 
 struct hist_entry;
 struct hist_entry_ops;
@@ -18,6 +17,7 @@ struct mem_info;
 struct branch_info;
 struct block_info;
 struct symbol;
+struct ui_progress;
 
 enum hist_filter {
 	HIST_FILTER__DSO,
