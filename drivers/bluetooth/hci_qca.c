@@ -1375,6 +1375,8 @@ static int qca_power_off(struct hci_dev *hdev)
 	/* Perform pre shutdown command */
 	qca_send_pre_shutdown_cmd(hdev);
 
+	usleep_range(8000, 10000);
+
 	qca_power_shutdown(hu);
 	return 0;
 }
