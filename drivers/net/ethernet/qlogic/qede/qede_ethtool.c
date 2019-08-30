@@ -2001,6 +2001,10 @@ static int qede_set_dump(struct net_device *dev, struct ethtool_dump *val)
 		edev->dump_info.args[edev->dump_info.num_args] = val->flag;
 		edev->dump_info.num_args++;
 		break;
+	case QEDE_DUMP_CMD_GRCDUMP:
+		rc = edev->ops->common->set_grc_config(edev->cdev,
+						       val->flag, 1);
+		break;
 	default:
 		break;
 	}
@@ -2013,14 +2017,24 @@ static int qede_get_dump_flag(struct net_device *dev,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 
+	if (!edev->ops || !edev->ops->common) {
+		DP_ERR(edev, "Edev ops not populated\n");
+		return -EINVAL;
+	}
+
 	dump->version = QEDE_DUMP_VERSION;
 	switch (edev->dump_info.cmd) {
 	case QEDE_DUMP_CMD_NVM_CFG:
 		dump->flag = QEDE_DUMP_CMD_NVM_CFG;
 		dump->len = QEDE_DUMP_NVM_BUF_LEN;
 		break;
-	default:
+	case QEDE_DUMP_CMD_GRCDUMP:
+		dump->flag = QEDE_DUMP_CMD_GRCDUMP;
+		dump->len = edev->ops->common->dbg_all_data_size(edev->cdev);
 		break;
+	default:
+		DP_ERR(edev, "Invalid cmd = %d\n", edev->dump_info.cmd);
+		return -EINVAL;
 	}
 
 	DP_VERBOSE(edev, QED_MSG_DEBUG,
@@ -2033,7 +2047,14 @@ static int qede_get_dump_data(struct net_device *dev,
 			      struct ethtool_dump *dump, void *buf)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	int rc;
+	int rc = 0;
+
+	if (!edev->ops || !edev->ops->common) {
+		DP_ERR(edev, "Edev ops not populated\n");
+		edev->dump_info.cmd = QEDE_DUMP_CMD_NONE;
+		edev->dump_info.num_args = 0;
+		return -EINVAL;
+	}
 
 	switch (edev->dump_info.cmd) {
 	case QEDE_DUMP_CMD_NVM_CFG:
@@ -2046,6 +2067,10 @@ static int qede_get_dump_data(struct net_device *dev,
 		rc =  edev->ops->common->read_nvm_cfg(edev->cdev, (u8 **)&buf,
 						      edev->dump_info.args[0],
 						      edev->dump_info.args[1]);
+		break;
+	case QEDE_DUMP_CMD_GRCDUMP:
+		memset(buf, 0, dump->len);
+		rc = edev->ops->common->dbg_all_data(edev->cdev, buf);
 		break;
 	default:
 		DP_ERR(edev, "Invalid cmd = %d\n", edev->dump_info.cmd);

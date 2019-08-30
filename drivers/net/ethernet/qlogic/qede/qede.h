@@ -181,6 +181,7 @@ enum qede_flags_bit {
 enum qede_dump_cmd {
 	QEDE_DUMP_CMD_NONE = 0,
 	QEDE_DUMP_CMD_NVM_CFG,
+	QEDE_DUMP_CMD_GRCDUMP,
 	QEDE_DUMP_CMD_MAX
 };
 
