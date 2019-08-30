@@ -10003,6 +10003,40 @@ static void bnxt_fw_reset_close(struct bnxt *bp)
 	bp->ctx = NULL;
 }
 
+/* rtnl_lock is acquired before calling this function */
+static void bnxt_force_fw_reset(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 wait_dsecs;
+
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state) ||
+	    test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+		return;
+
+	set_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+	bnxt_fw_reset_close(bp);
+	wait_dsecs = fw_health->master_func_wait_dsecs;
+	if (fw_health->master) {
+		if (fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU)
+			wait_dsecs = 0;
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
+	} else {
+		bp->fw_reset_timestamp = jiffies + wait_dsecs * HZ / 10;
+		wait_dsecs = fw_health->normal_func_wait_dsecs;
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+	}
+	bp->fw_reset_max_dsecs = fw_health->post_reset_max_wait_dsecs;
+	bnxt_queue_fw_reset_work(bp, wait_dsecs * HZ / 10);
+}
+
+void bnxt_fw_exception(struct bnxt *bp)
+{
+	set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
+	bnxt_rtnl_lock_sp(bp);
+	bnxt_force_fw_reset(bp);
+	bnxt_rtnl_unlock_sp(bp);
+}
+
 void bnxt_fw_reset(struct bnxt *bp)
 {
 	int rc;
@@ -10506,6 +10540,16 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		return;
 	}
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) &&
+		    bp->fw_health) {
+			u32 val;
+
+			val = bnxt_fw_health_readl(bp,
+						   BNXT_FW_RESET_INPROG_REG);
+			if (val)
+				netdev_warn(bp->dev, "FW reset inprog %x after min wait time.\n",
+					    val);
+		}
 		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 		if (pci_enable_device(bp->pdev)) {
 			netdev_err(bp->dev, "Cannot re-enable PCI device\n");
