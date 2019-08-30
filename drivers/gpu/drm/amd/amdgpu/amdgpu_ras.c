@@ -1566,6 +1566,78 @@ recovery_out:
 	return -EINVAL;
 }
 
+/* helper function to handle common stuff in ip late init phase */
+int amdgpu_ras_late_init(struct amdgpu_device *adev,
+			 struct ras_common_if *ras_block,
+			 struct ras_fs_if *fs_info,
+			 struct ras_ih_if *ih_info)
+{
+	int r;
+
+	/* disable RAS feature per IP block if it is not supported */
+	if (!amdgpu_ras_is_supported(adev, ras_block->block)) {
+		amdgpu_ras_feature_enable_on_boot(adev, ras_block, 0);
+		return 0;
+	}
+
+	r = amdgpu_ras_feature_enable_on_boot(adev, ras_block, 1);
+	if (r) {
+		if (r == -EAGAIN) {
+			/* request gpu reset. will run again */
+			amdgpu_ras_request_reset_on_boot(adev,
+					ras_block->block);
+			return 0;
+		} else if (adev->in_suspend || adev->in_gpu_reset) {
+			/* in resume phase, if fail to enable ras,
+			 * clean up all ras fs nodes, and disable ras */
+			goto cleanup;
+		} else
+			return r;
+	}
+
+	/* in resume phase, no need to create ras fs node */
+	if (adev->in_suspend || adev->in_gpu_reset)
+		return 0;
+
+	if (ih_info->cb) {
+		r = amdgpu_ras_interrupt_add_handler(adev, ih_info);
+		if (r)
+			goto interrupt;
+	}
+
+	amdgpu_ras_debugfs_create(adev, fs_info);
+
+	r = amdgpu_ras_sysfs_create(adev, fs_info);
+	if (r)
+		goto sysfs;
+
+	return 0;
+cleanup:
+	amdgpu_ras_sysfs_remove(adev, ras_block);
+sysfs:
+	amdgpu_ras_debugfs_remove(adev, ras_block);
+	if (ih_info->cb)
+		amdgpu_ras_interrupt_remove_handler(adev, ih_info);
+interrupt:
+	amdgpu_ras_feature_enable(adev, ras_block, 0);
+	return r;
+}
+
+/* helper function to remove ras fs node and interrupt handler */
+void amdgpu_ras_late_fini(struct amdgpu_device *adev,
+			  struct ras_common_if *ras_block,
+			  struct ras_ih_if *ih_info)
+{
+	if (!ras_block || !ih_info)
+		return;
+
+	amdgpu_ras_sysfs_remove(adev, ras_block);
+	amdgpu_ras_debugfs_remove(adev, ras_block);
+	if (ih_info->cb)
+                amdgpu_ras_interrupt_remove_handler(adev, ih_info);
+	amdgpu_ras_feature_enable(adev, ras_block, 0);
+}
+
 /* do some init work after IP late init as dependence.
  * and it runs in resume/gpu reset/booting up cases.
  */
