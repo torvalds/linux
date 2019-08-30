@@ -15,6 +15,84 @@
 #include "bnxt_vfr.h"
 #include "bnxt_devlink.h"
 
+static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+				     struct devlink_fmsg *fmsg)
+{
+	struct bnxt *bp = devlink_health_reporter_priv(reporter);
+	struct bnxt_fw_health *health = bp->fw_health;
+	u32 val, health_status;
+	int rc;
+
+	if (!health || test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+		return 0;
+
+	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+	health_status = val & 0xffff;
+
+	if (health_status == BNXT_FW_STATUS_HEALTHY) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
+						  "Healthy;");
+		if (rc)
+			return rc;
+	} else if (health_status < BNXT_FW_STATUS_HEALTHY) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
+						  "Not yet completed initialization;");
+		if (rc)
+			return rc;
+	} else if (health_status > BNXT_FW_STATUS_HEALTHY) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
+						  "Encountered fatal error and cannot recover;");
+		if (rc)
+			return rc;
+	}
+
+	if (val >> 16) {
+		rc = devlink_fmsg_u32_pair_put(fmsg, "Error", val >> 16);
+		if (rc)
+			return rc;
+	}
+
+	val = bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+	rc = devlink_fmsg_u32_pair_put(fmsg, "Reset count", val);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
+	.name = "fw",
+	.diagnose = bnxt_fw_reporter_diagnose,
+};
+
+static void bnxt_dl_fw_reporters_create(struct bnxt *bp)
+{
+	struct bnxt_fw_health *health = bp->fw_health;
+
+	if (!health)
+		return;
+
+	health->fw_reporter =
+		devlink_health_reporter_create(bp->dl, &bnxt_dl_fw_reporter_ops,
+					       0, false, bp);
+	if (IS_ERR(health->fw_reporter)) {
+		netdev_warn(bp->dev, "Failed to create FW health reporter, rc = %ld\n",
+			    PTR_ERR(health->fw_reporter));
+		health->fw_reporter = NULL;
+	}
+}
+
+static void bnxt_dl_fw_reporters_destroy(struct bnxt *bp)
+{
+	struct bnxt_fw_health *health = bp->fw_health;
+
+	if (!health)
+		return;
+
+	if (health->fw_reporter)
+		devlink_health_reporter_destroy(health->fw_reporter);
+}
+
 static const struct devlink_ops bnxt_dl_ops = {
 #ifdef CONFIG_BNXT_SRIOV
 	.eswitch_mode_set = bnxt_dl_eswitch_mode_set,
@@ -247,6 +325,8 @@ int bnxt_dl_register(struct bnxt *bp)
 
 	devlink_params_publish(dl);
 
+	bnxt_dl_fw_reporters_create(bp);
+
 	return 0;
 
 err_dl_port_unreg:
@@ -269,6 +349,7 @@ void bnxt_dl_unregister(struct bnxt *bp)
 	if (!dl)
 		return;
 
+	bnxt_dl_fw_reporters_destroy(bp);
 	devlink_port_params_unregister(&bp->dl_port, bnxt_dl_port_params,
 				       ARRAY_SIZE(bnxt_dl_port_params));
 	devlink_port_unregister(&bp->dl_port);

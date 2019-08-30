@@ -1368,6 +1368,7 @@ struct bnxt_fw_health {
 	u32 fw_reset_seq_regs[16];
 	u32 fw_reset_seq_vals[16];
 	u32 fw_reset_seq_delay_msec[16];
+	struct devlink_health_reporter	*fw_reporter;
 };
 
 #define BNXT_FW_HEALTH_REG_TYPE_MASK	3
@@ -1381,6 +1382,8 @@ struct bnxt_fw_health {
 
 #define BNXT_FW_HEALTH_WIN_BASE		0x3000
 #define BNXT_FW_HEALTH_WIN_MAP_OFF	8
+
+#define BNXT_FW_STATUS_HEALTHY		0x8000
 
 struct bnxt {
 	void __iomem		*bar0;
