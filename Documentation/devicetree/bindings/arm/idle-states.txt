@@ -99,8 +99,8 @@ of an idle state, e.g.:
 wakeup-delay = exit-latency + max(entry-latency - (now - entry-timestamp), 0)
 
 In other words, the scheduler can make its scheduling decision by selecting
-(e.g. waking-up) the CPU with the shortest wake-up latency.
-The wake-up latency must take into account the entry latency if that period
+(e.g. waking-up) the CPU with the shortest wake-up delay.
+The wake-up delay must take into account the entry latency if that period
 has not expired. The abortable nature of the PREP period can be ignored
 if it cannot be relied upon (e.g. the PREP deadline may occur much sooner than
 the worst case since it depends on the CPU operating conditions, i.e. caches
