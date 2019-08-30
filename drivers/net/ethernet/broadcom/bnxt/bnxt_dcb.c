@@ -389,6 +389,7 @@ static int bnxt_hwrm_queue_dscp_qcaps(struct bnxt *bp)
 	struct hwrm_queue_dscp_qcaps_input req = {0};
 	int rc;
 
+	bp->max_dscp_value = 0;
 	if (bp->hwrm_spec_code < 0x10800 || BNXT_VF(bp))
 		return 0;
 
@@ -718,6 +719,7 @@ static const struct dcbnl_rtnl_ops dcbnl_ops = {
 
 void bnxt_dcb_init(struct bnxt *bp)
 {
+	bp->dcbx_cap = 0;
 	if (bp->hwrm_spec_code < 0x10501)
 		return;
 

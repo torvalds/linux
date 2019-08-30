@@ -3555,6 +3555,9 @@ static int bnxt_alloc_kong_hwrm_resources(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
 
+	if (bp->hwrm_cmd_kong_resp_addr)
+		return 0;
+
 	bp->hwrm_cmd_kong_resp_addr =
 		dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
 				   &bp->hwrm_cmd_kong_resp_dma_addr,
@@ -3593,6 +3596,9 @@ static void bnxt_free_hwrm_short_cmd_req(struct bnxt *bp)
 static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
+
+	if (bp->hwrm_short_cmd_req_addr)
+		return 0;
 
 	bp->hwrm_short_cmd_req_addr =
 		dma_alloc_coherent(&pdev->dev, bp->hwrm_max_ext_req_len,
@@ -5017,6 +5023,7 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 	int rc;
 
 	bp->hw_ring_stats_size = sizeof(struct ctx_hw_stats);
+	bp->flags &= ~(BNXT_FLAG_NEW_RSS_CAP | BNXT_FLAG_ROCE_MIRROR_CAP);
 	if (bp->hwrm_spec_code < 0x10600)
 		return 0;
 
@@ -6871,6 +6878,7 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->max_tx_wm_flows = le32_to_cpu(resp->max_tx_wm_flows);
 		pf->max_rx_em_flows = le32_to_cpu(resp->max_rx_em_flows);
 		pf->max_rx_wm_flows = le32_to_cpu(resp->max_rx_wm_flows);
+		bp->flags &= ~BNXT_FLAG_WOL_CAP;
 		if (flags & FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED)
 			bp->flags |= BNXT_FLAG_WOL_CAP;
 	} else {
@@ -6999,20 +7007,30 @@ qportcfg_exit:
 	return rc;
 }
 
-static int bnxt_hwrm_ver_get(struct bnxt *bp)
+static int __bnxt_hwrm_ver_get(struct bnxt *bp, bool silent)
 {
-	int rc;
 	struct hwrm_ver_get_input req = {0};
-	struct hwrm_ver_get_output *resp = bp->hwrm_cmd_resp_addr;
-	u32 dev_caps_cfg;
+	int rc;
 
-	bp->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VER_GET, -1, -1);
 	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
 	req.hwrm_intf_min = HWRM_VERSION_MINOR;
 	req.hwrm_intf_upd = HWRM_VERSION_UPDATE;
+
+	rc = bnxt_hwrm_do_send_msg(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT,
+				   silent);
+	return rc;
+}
+
+static int bnxt_hwrm_ver_get(struct bnxt *bp)
+{
+	struct hwrm_ver_get_output *resp = bp->hwrm_cmd_resp_addr;
+	u32 dev_caps_cfg;
+	int rc;
+
+	bp->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
 	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = __bnxt_hwrm_ver_get(bp, false);
 	if (rc)
 		goto hwrm_ver_get_exit;
 
@@ -8181,6 +8199,9 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	struct hwrm_port_phy_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
+	bp->flags &= ~BNXT_FLAG_EEE_CAP;
+	if (bp->test_info)
+		bp->test_info->flags &= ~BNXT_TEST_FL_EXT_LPBK;
 	if (bp->hwrm_spec_code < 0x10201)
 		return 0;
 
@@ -8546,6 +8567,7 @@ static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
 	struct bnxt_pf_info *pf = &bp->pf;
 	int rc;
 
+	bp->num_leds = 0;
 	if (BNXT_VF(bp) || bp->hwrm_spec_code < 0x10601)
 		return 0;
 
@@ -8640,6 +8662,7 @@ static void bnxt_get_wol_settings(struct bnxt *bp)
 {
 	u16 handle = 0;
 
+	bp->wol = 0;
 	if (!BNXT_PF(bp) || !(bp->flags & BNXT_FLAG_WOL_CAP))
 		return;
 
@@ -8685,6 +8708,9 @@ static void bnxt_hwmon_close(struct bnxt *bp)
 static void bnxt_hwmon_open(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
+
+	if (bp->hwmon_dev)
+		return;
 
 	bp->hwmon_dev = hwmon_device_register_with_groups(&pdev->dev,
 							  DRV_MODULE_NAME, bp,
@@ -10002,6 +10028,53 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 	return 0;
 }
 
+static void bnxt_set_dflt_rss_hash_type(struct bnxt *bp)
+{
+	bp->flags &= ~BNXT_FLAG_UDP_RSS_CAP;
+	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
+	if (BNXT_CHIP_P4(bp) && bp->hwrm_spec_code >= 0x10501) {
+		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
+		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
+				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
+	}
+}
+
+static void bnxt_set_dflt_rfs(struct bnxt *bp)
+{
+	struct net_device *dev = bp->dev;
+
+	dev->hw_features &= ~NETIF_F_NTUPLE;
+	dev->features &= ~NETIF_F_NTUPLE;
+	bp->flags &= ~BNXT_FLAG_RFS;
+	if (bnxt_rfs_supported(bp)) {
+		dev->hw_features |= NETIF_F_NTUPLE;
+		if (bnxt_rfs_capable(bp)) {
+			bp->flags |= BNXT_FLAG_RFS;
+			dev->features |= NETIF_F_NTUPLE;
+		}
+	}
+}
+
+static void bnxt_fw_init_one_p3(struct bnxt *bp)
+{
+	struct pci_dev *pdev = bp->pdev;
+
+	bnxt_set_dflt_rss_hash_type(bp);
+	bnxt_set_dflt_rfs(bp);
+
+	bnxt_get_wol_settings(bp);
+	if (bp->flags & BNXT_FLAG_WOL_CAP)
+		device_set_wakeup_enable(&pdev->dev, bp->wol);
+	else
+		device_set_wakeup_capable(&pdev->dev, false);
+
+	bnxt_hwrm_set_cache_line_size(bp, cache_line_size());
+	bnxt_hwrm_coal_params_qcaps(bp);
+}
+
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
@@ -10607,7 +10680,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
-static int bnxt_probe_phy(struct bnxt *bp)
+static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 {
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
@@ -10618,8 +10691,6 @@ static int bnxt_probe_phy(struct bnxt *bp)
 			   rc);
 		return rc;
 	}
-	mutex_init(&bp->link_lock);
-
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
 		netdev_err(bp->dev, "Probe phy can't update link (rc: %x)\n",
@@ -10632,6 +10703,9 @@ static int bnxt_probe_phy(struct bnxt *bp)
 	 */
 	if (link_info->auto_link_speeds && !link_info->support_auto_speeds)
 		link_info->support_auto_speeds = link_info->support_speeds;
+
+	if (!fw_dflt)
+		return 0;
 
 	/*initialize the ethool setting copy with NVM settings */
 	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
@@ -10653,7 +10727,7 @@ static int bnxt_probe_phy(struct bnxt *bp)
 			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
 	else
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
-	return rc;
+	return 0;
 }
 
 static int bnxt_get_max_irq(struct pci_dev *pdev)
@@ -10957,6 +11031,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_pci_clean;
 
 	mutex_init(&bp->hwrm_cmd_lock);
+	mutex_init(&bp->link_lock);
 
 	rc = bnxt_fw_init_one_p1(bp);
 	if (rc)
@@ -11032,7 +11107,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->min_mtu = ETH_ZLEN;
 	dev->max_mtu = bp->max_mtu;
 
-	rc = bnxt_probe_phy(bp);
+	rc = bnxt_probe_phy(bp, true);
 	if (rc)
 		goto init_err_pci_clean;
 
@@ -11046,24 +11121,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_pci_clean;
 	}
 
-	/* Default RSS hash cfg. */
-	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
-			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
-			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
-			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
-	if (BNXT_CHIP_P4(bp) && bp->hwrm_spec_code >= 0x10501) {
-		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
-		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
-				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
-	}
-
-	if (bnxt_rfs_supported(bp)) {
-		dev->hw_features |= NETIF_F_NTUPLE;
-		if (bnxt_rfs_capable(bp)) {
-			bp->flags |= BNXT_FLAG_RFS;
-			dev->features |= NETIF_F_NTUPLE;
-		}
-	}
+	bnxt_fw_init_one_p3(bp);
 
 	if (dev->hw_features & NETIF_F_HW_VLAN_CTAG_RX)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
@@ -11076,16 +11134,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * limited MSIX, so we re-initialize the TX rings per TC.
 	 */
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
-
-	bnxt_get_wol_settings(bp);
-	if (bp->flags & BNXT_FLAG_WOL_CAP)
-		device_set_wakeup_enable(&pdev->dev, bp->wol);
-	else
-		device_set_wakeup_capable(&pdev->dev, false);
-
-	bnxt_hwrm_set_cache_line_size(bp, cache_line_size());
-
-	bnxt_hwrm_coal_params_qcaps(bp);
 
 	if (BNXT_PF(bp)) {
 		if (!bnxt_pf_wq) {
