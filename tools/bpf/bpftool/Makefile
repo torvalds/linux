@@ -17,21 +17,23 @@ endif
 BPF_DIR = $(srctree)/tools/lib/bpf/
 
 ifneq ($(OUTPUT),)
-  BPF_PATH = $(OUTPUT)
+  LIBBPF_OUTPUT = $(OUTPUT)/libbpf/
+  LIBBPF_PATH = $(LIBBPF_OUTPUT)
 else
-  BPF_PATH = $(BPF_DIR)
+  LIBBPF_PATH = $(BPF_DIR)
 endif
 
-LIBBPF = $(BPF_PATH)libbpf.a
+LIBBPF = $(LIBBPF_PATH)libbpf.a
 
-BPFTOOL_VERSION := $(shell make --no-print-directory -sC ../../.. kernelversion)
+BPFTOOL_VERSION := $(shell make -rR --no-print-directory -sC ../../.. kernelversion)
 
 $(LIBBPF): FORCE
-	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) $(OUTPUT)libbpf.a
+	$(if $(LIBBPF_OUTPUT),@mkdir -p $(LIBBPF_OUTPUT))
+	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(LIBBPF_OUTPUT) $(LIBBPF_OUTPUT)libbpf.a
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
-	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) clean >/dev/null
+	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(LIBBPF_OUTPUT) clean >/dev/null
 
 prefix ?= /usr/local
 bash_compdir ?= /usr/share/bash-completion/completions
@@ -53,7 +55,7 @@ ifneq ($(EXTRA_LDFLAGS),)
 LDFLAGS += $(EXTRA_LDFLAGS)
 endif
 
-LIBS = -lelf -lz $(LIBBPF)
+LIBS = $(LIBBPF) -lelf -lz
 
 INSTALL ?= install
 RM ?= rm -f
@@ -115,16 +117,18 @@ $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 $(OUTPUT)feature.o: | zdep
 
 $(OUTPUT)bpftool: $(OBJS) $(LIBBPF)
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 $(OUTPUT)%.o: %.c
 	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
 
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
-	$(Q)$(RM) $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -- $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -r -- $(OUTPUT)libbpf/
 	$(call QUIET_CLEAN, core-gen)
-	$(Q)$(RM) $(OUTPUT)FEATURE-DUMP.bpftool
+	$(Q)$(RM) -- $(OUTPUT)FEATURE-DUMP.bpftool
+	$(Q)$(RM) -r -- $(OUTPUT)feature/
 
 install: $(OUTPUT)bpftool
 	$(call QUIET_INSTALL, bpftool)
@@ -135,8 +139,8 @@ install: $(OUTPUT)bpftool
 
 uninstall:
 	$(call QUIET_UNINST, bpftool)
-	$(Q)$(RM) $(DESTDIR)$(prefix)/sbin/bpftool
-	$(Q)$(RM) $(DESTDIR)$(bash_compdir)/bpftool
+	$(Q)$(RM) -- $(DESTDIR)$(prefix)/sbin/bpftool
+	$(Q)$(RM) -- $(DESTDIR)$(bash_compdir)/bpftool
 
 doc:
 	$(call descend,Documentation)
