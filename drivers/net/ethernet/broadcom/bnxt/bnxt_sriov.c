@@ -667,6 +667,32 @@ static int bnxt_func_cfg(struct bnxt *bp, int num_vfs)
 		return bnxt_hwrm_func_cfg(bp, num_vfs);
 }
 
+int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
+{
+	int rc;
+
+	/* Reserve resources for VFs */
+	rc = bnxt_func_cfg(bp, *num_vfs);
+	if (rc != *num_vfs) {
+		if (rc <= 0) {
+			netdev_warn(bp->dev, "Unable to reserve resources for SRIOV.\n");
+			*num_vfs = 0;
+			return rc;
+		}
+		netdev_warn(bp->dev, "Only able to reserve resources for %d VFs.\n",
+			    rc);
+		*num_vfs = rc;
+	}
+
+	/* Register buffers for VFs */
+	rc = bnxt_hwrm_func_buf_rgtr(bp);
+	if (rc)
+		return rc;
+
+	bnxt_ulp_sriov_cfg(bp, *num_vfs);
+	return 0;
+}
+
 static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 {
 	int rc = 0, vfs_supported;
@@ -732,24 +758,9 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	if (rc)
 		goto err_out1;
 
-	/* Reserve resources for VFs */
-	rc = bnxt_func_cfg(bp, *num_vfs);
-	if (rc != *num_vfs) {
-		if (rc <= 0) {
-			netdev_warn(bp->dev, "Unable to reserve resources for SRIOV.\n");
-			*num_vfs = 0;
-			goto err_out2;
-		}
-		netdev_warn(bp->dev, "Only able to reserve resources for %d VFs.\n", rc);
-		*num_vfs = rc;
-	}
-
-	/* Register buffers for VFs */
-	rc = bnxt_hwrm_func_buf_rgtr(bp);
+	rc = bnxt_cfg_hw_sriov(bp, num_vfs);
 	if (rc)
 		goto err_out2;
-
-	bnxt_ulp_sriov_cfg(bp, *num_vfs);
 
 	rc = pci_enable_sriov(bp->pdev, *num_vfs);
 	if (rc)
@@ -1127,6 +1138,13 @@ mac_done:
 	return 0;
 }
 #else
+
+int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs)
+{
+	if (*num_vfs)
+		return -EOPNOTSUPP;
+	return 0;
+}
 
 void bnxt_sriov_disable(struct bnxt *bp)
 {
