@@ -1991,7 +1991,7 @@ static void shrink_readahead_size_eio(struct file_ra_state *ra)
  * * total number of bytes copied, including those the were already @written
  * * negative error code if nothing was copied
  */
-static ssize_t generic_file_buffered_read(struct kiocb *iocb,
+ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		struct iov_iter *iter, ssize_t written)
 {
 	struct file *filp = iocb->ki_filp;
@@ -2243,6 +2243,7 @@ out:
 	file_accessed(filp);
 	return written ? written : error;
 }
+EXPORT_SYMBOL_GPL(generic_file_buffered_read);
 
 /**
  * generic_file_read_iter - generic filesystem read routine
