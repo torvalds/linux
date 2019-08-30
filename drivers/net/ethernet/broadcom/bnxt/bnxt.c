@@ -4162,7 +4162,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		if (bp->hwrm_intr_seq_id != (u16)~seq_id) {
 			netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
 				   le16_to_cpu(req->req_type));
-			return -1;
+			return -EBUSY;
 		}
 		len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 		      HWRM_RESP_LEN_SFT;
@@ -4190,7 +4190,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 				   HWRM_TOTAL_TIMEOUT(i),
 				   le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len);
-			return -1;
+			return -EBUSY;
 		}
 
 		/* Last byte of resp contains valid bit */
@@ -4208,7 +4208,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 				   HWRM_TOTAL_TIMEOUT(i),
 				   le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len, *valid);
-			return -1;
+			return -EBUSY;
 		}
 	}
 
