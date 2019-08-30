@@ -39,6 +39,7 @@
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
 #include <linux/inetdevice.h>
+#include <linux/inet_diag.h>
 
 #include <net/tls.h>
 
@@ -835,6 +836,67 @@ static void tls_update(struct sock *sk, struct proto *p)
 	}
 }
 
+static int tls_get_info(const struct sock *sk, struct sk_buff *skb)
+{
+	u16 version, cipher_type;
+	struct tls_context *ctx;
+	struct nlattr *start;
+	int err;
+
+	start = nla_nest_start_noflag(skb, INET_ULP_INFO_TLS);
+	if (!start)
+		return -EMSGSIZE;
+
+	rcu_read_lock();
+	ctx = rcu_dereference(inet_csk(sk)->icsk_ulp_data);
+	if (!ctx) {
+		err = 0;
+		goto nla_failure;
+	}
+	version = ctx->prot_info.version;
+	if (version) {
+		err = nla_put_u16(skb, TLS_INFO_VERSION, version);
+		if (err)
+			goto nla_failure;
+	}
+	cipher_type = ctx->prot_info.cipher_type;
+	if (cipher_type) {
+		err = nla_put_u16(skb, TLS_INFO_CIPHER, cipher_type);
+		if (err)
+			goto nla_failure;
+	}
+	err = nla_put_u16(skb, TLS_INFO_TXCONF, tls_user_config(ctx, true));
+	if (err)
+		goto nla_failure;
+
+	err = nla_put_u16(skb, TLS_INFO_RXCONF, tls_user_config(ctx, false));
+	if (err)
+		goto nla_failure;
+
+	rcu_read_unlock();
+	nla_nest_end(skb, start);
+	return 0;
+
+nla_failure:
+	rcu_read_unlock();
+	nla_nest_cancel(skb, start);
+	return err;
+}
+
+static size_t tls_get_info_size(const struct sock *sk)
+{
+	size_t size = 0;
+
+	size += nla_total_size(0) +		/* INET_ULP_INFO_TLS */
+		nla_total_size(sizeof(u16)) +	/* TLS_INFO_VERSION */
+		nla_total_size(sizeof(u16)) +	/* TLS_INFO_CIPHER */
+		nla_total_size(sizeof(u16)) +	/* TLS_INFO_RXCONF */
+		nla_total_size(sizeof(u16)) +	/* TLS_INFO_TXCONF */
+		0;
+
+	return size;
+}
+
 void tls_register_device(struct tls_device *device)
 {
 	spin_lock_bh(&device_spinlock);
@@ -856,6 +918,8 @@ static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
 	.owner			= THIS_MODULE,
 	.init			= tls_init,
 	.update			= tls_update,
+	.get_info		= tls_get_info,
+	.get_info_size		= tls_get_info_size,
 };
 
 static int __init tls_register(void)
