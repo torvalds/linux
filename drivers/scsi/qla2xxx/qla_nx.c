@@ -2287,7 +2287,8 @@ qla82xx_disable_intrs(struct qla_hw_data *ha)
 {
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
-	qla82xx_mbx_intr_disable(vha);
+	if (ha->interrupts_on)
+		qla82xx_mbx_intr_disable(vha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	if (IS_QLA8044(ha))
