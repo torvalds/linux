@@ -96,12 +96,12 @@ enum hl_queue_type {
 /**
  * struct hw_queue_properties - queue information.
  * @type: queue type.
- * @kmd_only: true if only KMD is allowed to send a job to this queue, false
- *            otherwise.
+ * @driver_only: true if only the driver is allowed to send a job to this queue,
+ *               false otherwise.
  */
 struct hw_queue_properties {
 	enum hl_queue_type	type;
-	u8			kmd_only;
+	u8			driver_only;
 };
 
 /**
@@ -324,7 +324,7 @@ struct hl_cs_job;
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
-/* KMD <-> ArmCP shared memory size */
+/* Host <-> ArmCP shared memory size */
 #define HL_CPU_ACCESSIBLE_MEM_SIZE	SZ_2M
 
 /**
@@ -405,7 +405,7 @@ struct hl_cs_parser;
 
 /**
  * enum hl_pm_mng_profile - power management profile.
- * @PM_AUTO: internal clock is set by KMD.
+ * @PM_AUTO: internal clock is set by the Linux driver.
  * @PM_MANUAL: internal clock is set by the user.
  * @PM_LAST: last power management type.
  */
@@ -613,7 +613,7 @@ struct hl_va_range {
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
  * @mmu_phys_hash: holds a mapping from physical address to pgt_info structure.
  * @mmu_shadow_hash: holds a mapping from shadow address to pgt_info structure.
- * @hpriv: pointer to the private (KMD) data of the process (fd).
+ * @hpriv: pointer to the private (Kernel Driver) data of the process (fd).
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
  *		this hits 0l. It is incremented on CS and CS_WAIT.
@@ -1185,19 +1185,19 @@ struct hl_device_idle_busy_ts {
  * @completion_queue: array of hl_cq.
  * @cq_wq: work queue of completion queues for executing work in process context
  * @eq_wq: work queue of event queue for executing work in process context.
- * @kernel_ctx: KMD context structure.
+ * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @hw_queues_mirror_list: CS mirror list for TDR.
  * @hw_queues_mirror_lock: protects hw_queues_mirror_list.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
  * @event_queue: event queue for IRQ from ArmCP.
  * @dma_pool: DMA pool for small allocations.
- * @cpu_accessible_dma_mem: KMD <-> ArmCP shared memory CPU address.
- * @cpu_accessible_dma_address: KMD <-> ArmCP shared memory DMA address.
- * @cpu_accessible_dma_pool: KMD <-> ArmCP shared memory pool.
+ * @cpu_accessible_dma_mem: Host <-> ArmCP shared memory CPU address.
+ * @cpu_accessible_dma_address: Host <-> ArmCP shared memory DMA address.
+ * @cpu_accessible_dma_pool: Host <-> ArmCP shared memory pool.
  * @asid_bitmap: holds used/available ASIDs.
  * @asid_mutex: protects asid_bitmap.
- * @send_cpu_message_lock: enforces only one message in KMD <-> ArmCP queue.
+ * @send_cpu_message_lock: enforces only one message in Host <-> ArmCP queue.
  * @debug_lock: protects critical section of setting debug mode for device
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
@@ -1221,16 +1221,16 @@ struct hl_device_idle_busy_ts {
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
- *             value is saved so in case of hard-reset, KMD will restore this
- *             value and update the F/W after the re-initialization
+ *             value is saved so in case of hard-reset, the driver will restore
+ *             this value and update the F/W after the re-initialization
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @cs_active_cnt: number of active command submissions on this device (active
  *                 means already in H/W queues)
- * @major: habanalabs KMD major.
+ * @major: habanalabs kernel driver major.
  * @high_pll: high PLL profile frequency.
- * @soft_reset_cnt: number of soft reset since KMD loading.
- * @hard_reset_cnt: number of hard reset since KMD loading.
+ * @soft_reset_cnt: number of soft reset since the driver was loaded.
+ * @hard_reset_cnt: number of hard reset since the driver was loaded.
  * @idle_busy_ts_idx: index of current entry in idle_busy_ts_arr
  * @id: device minor.
  * @id_control: minor of the control device

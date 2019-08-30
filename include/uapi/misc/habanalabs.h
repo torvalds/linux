@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2018 HabanaLabs, Ltd.
+ * Copyright 2016-2019 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -329,12 +329,12 @@ struct hl_mem_in {
 		struct {
 			/*
 			 * Requested virtual address of mapped memory.
-			 * KMD will try to map the requested region to this
-			 * hint address, as long as the address is valid and
-			 * not already mapped. The user should check the
+			 * The driver will try to map the requested region to
+			 * this hint address, as long as the address is valid
+			 * and not already mapped. The user should check the
 			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that KMD
-			 * will choose the address itself.
+			 * the hint address. Passing 0 here means that the
+			 * driver will choose the address itself.
 			 */
 			__u64 hint_addr;
 			/* Handle returned from HL_MEM_OP_ALLOC */
@@ -347,12 +347,12 @@ struct hl_mem_in {
 			__u64 host_virt_addr;
 			/*
 			 * Requested virtual address of mapped memory.
-			 * KMD will try to map the requested region to this
-			 * hint address, as long as the address is valid and
-			 * not already mapped. The user should check the
+			 * The driver will try to map the requested region to
+			 * this hint address, as long as the address is valid
+			 * and not already mapped. The user should check the
 			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that KMD
-			 * will choose the address itself.
+			 * the hint address. Passing 0 here means that the
+			 * driver will choose the address itself.
 			 */
 			__u64 hint_addr;
 			/* Size of allocated host memory */

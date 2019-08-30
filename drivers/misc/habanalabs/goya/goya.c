@@ -42,8 +42,8 @@
  * PQ, CQ and CP are not secured.
  * PQ, CB and the data are on the SRAM/DRAM.
  *
- * Since QMAN DMA is secured, KMD is parsing the DMA CB:
- *     - KMD checks DMA pointer
+ * Since QMAN DMA is secured, the driver is parsing the DMA CB:
+ *     - checks DMA pointer
  *     - WREG, MSG_PROT are not allowed.
  *     - MSG_LONG/SHORT are allowed.
  *
@@ -56,15 +56,15 @@
  * QMAN DMA: PQ, CQ and CP are secured.
  * MMU is set to bypass on the Secure props register of the QMAN.
  * The reasons we don't enable MMU for PQ, CQ and CP are:
- *     - PQ entry is in kernel address space and KMD doesn't map it.
+ *     - PQ entry is in kernel address space and the driver doesn't map it.
  *     - CP writes to MSIX register and to kernel address space (completion
  *       queue).
  *
- * DMA is not secured but because CP is secured, KMD still needs to parse the
- * CB, but doesn't need to check the DMA addresses.
+ * DMA is not secured but because CP is secured, the driver still needs to parse
+ * the CB, but doesn't need to check the DMA addresses.
  *
- * For QMAN DMA 0, DMA is also secured because only KMD uses this DMA and KMD
- * doesn't map memory in MMU.
+ * For QMAN DMA 0, DMA is also secured because only the driver uses this DMA and
+ * the driver doesn't map memory in MMU.
  *
  * QMAN TPC/MME: PQ, CQ and CP aren't secured (no change from MMU disabled mode)
  *
@@ -336,18 +336,18 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
-		prop->hw_queues_props[i].kmd_only = 0;
+		prop->hw_queues_props[i].driver_only = 0;
 	}
 
 	for (; i < NUMBER_OF_EXT_HW_QUEUES + NUMBER_OF_CPU_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_CPU;
-		prop->hw_queues_props[i].kmd_only = 1;
+		prop->hw_queues_props[i].driver_only = 1;
 	}
 
 	for (; i < NUMBER_OF_EXT_HW_QUEUES + NUMBER_OF_CPU_HW_QUEUES +
 			NUMBER_OF_INT_HW_QUEUES; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_INT;
-		prop->hw_queues_props[i].kmd_only = 0;
+		prop->hw_queues_props[i].driver_only = 0;
 	}
 
 	for (; i < HL_MAX_QUEUES; i++)
@@ -2853,7 +2853,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 
 	if (!hdev->asic_funcs->is_device_idle(hdev, NULL, NULL)) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't send KMD job on QMAN0 because the device is not idle\n");
+			"Can't send driver job on QMAN0 because the device is not idle\n");
 		return -EBUSY;
 	}
 

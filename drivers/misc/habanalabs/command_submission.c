@@ -409,8 +409,9 @@ static struct hl_cb *validate_queue_index(struct hl_device *hdev,
 		return NULL;
 	}
 
-	if (hw_queue_prop->kmd_only) {
-		dev_err(hdev->dev, "Queue index %d is restricted for KMD\n",
+	if (hw_queue_prop->driver_only) {
+		dev_err(hdev->dev,
+			"Queue index %d is restricted for the kernel driver\n",
 			chunk->queue_index);
 		return NULL;
 	} else if (hw_queue_prop->type == QUEUE_TYPE_INT) {

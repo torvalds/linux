@@ -70,19 +70,19 @@
 						MMU_PAGE_TABLES_SIZE)
 #define MMU_CACHE_MNG_ADDR		(MMU_DRAM_DEFAULT_PAGE_ADDR + \
 					MMU_DRAM_DEFAULT_PAGE_SIZE)
-#define DRAM_KMD_END_ADDR		(MMU_CACHE_MNG_ADDR + \
+#define DRAM_DRIVER_END_ADDR		(MMU_CACHE_MNG_ADDR + \
 						MMU_CACHE_MNG_SIZE)
 
 #define DRAM_BASE_ADDR_USER		0x20000000
 
-#if (DRAM_KMD_END_ADDR > DRAM_BASE_ADDR_USER)
-#error "KMD must reserve no more than 512MB"
+#if (DRAM_DRIVER_END_ADDR > DRAM_BASE_ADDR_USER)
+#error "Driver must reserve no more than 512MB"
 #endif
 
 /*
- * SRAM Memory Map for KMD
+ * SRAM Memory Map for Driver
  *
- * KMD occupies KMD_SRAM_SIZE bytes from the start of SRAM. It is used for
+ * Driver occupies DRIVER_SRAM_SIZE bytes from the start of SRAM. It is used for
  * MME/TPC QMANs
  *
  */
@@ -108,10 +108,10 @@
 #define TPC7_QMAN_BASE_OFFSET	(TPC6_QMAN_BASE_OFFSET + \
 				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
 
-#define SRAM_KMD_RES_OFFSET	(TPC7_QMAN_BASE_OFFSET + \
+#define SRAM_DRIVER_RES_OFFSET	(TPC7_QMAN_BASE_OFFSET + \
 				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
 
-#if (SRAM_KMD_RES_OFFSET >= GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START)
+#if (SRAM_DRIVER_RES_OFFSET >= GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START)
 #error "MME/TPC QMANs SRAM space exceeds limit"
 #endif
 

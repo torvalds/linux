@@ -128,7 +128,7 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	ctx->thread_ctx_switch_wait_token = 0;
 
 	if (is_kernel_ctx) {
-		ctx->asid = HL_KERNEL_ASID_ID; /* KMD gets ASID 0 */
+		ctx->asid = HL_KERNEL_ASID_ID; /* Kernel driver gets ASID 0 */
 		rc = hl_mmu_ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "Failed to init mmu ctx module\n");
