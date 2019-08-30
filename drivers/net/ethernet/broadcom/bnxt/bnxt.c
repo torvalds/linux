@@ -4155,6 +4155,9 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	/* Ring channel doorbell */
 	writel(1, bp->bar0 + doorbell_offset);
 
+	if (!pci_is_enabled(bp->pdev))
+		return 0;
+
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
 	/* convert timeout to usec */
@@ -4186,8 +4189,9 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 
 		if (bp->hwrm_intr_seq_id != (u16)~seq_id) {
-			netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
-				   le16_to_cpu(req->req_type));
+			if (!silent)
+				netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
+					   le16_to_cpu(req->req_type));
 			return -EBUSY;
 		}
 		len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
@@ -4212,10 +4216,11 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 
 		if (i >= tmo_count) {
-			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
-				   HWRM_TOTAL_TIMEOUT(i),
-				   le16_to_cpu(req->req_type),
-				   le16_to_cpu(req->seq_id), len);
+			if (!silent)
+				netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
+					   HWRM_TOTAL_TIMEOUT(i),
+					   le16_to_cpu(req->req_type),
+					   le16_to_cpu(req->seq_id), len);
 			return -EBUSY;
 		}
 
@@ -4230,10 +4235,12 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 
 		if (j >= HWRM_VALID_BIT_DELAY_USEC) {
-			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
-				   HWRM_TOTAL_TIMEOUT(i),
-				   le16_to_cpu(req->req_type),
-				   le16_to_cpu(req->seq_id), len, *valid);
+			if (!silent)
+				netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
+					   HWRM_TOTAL_TIMEOUT(i),
+					   le16_to_cpu(req->req_type),
+					   le16_to_cpu(req->seq_id), len,
+					   *valid);
 			return -EBUSY;
 		}
 	}
