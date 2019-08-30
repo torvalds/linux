@@ -198,33 +198,6 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
 }
 #endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
-void kfree(const void *);
-
-/*
- * Reclaim the specified callback, either by invoking it (non-lazy case)
- * or freeing it directly (lazy case).  Return true if lazy, false otherwise.
- */
-static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
-{
-	rcu_callback_t f;
-	unsigned long offset = (unsigned long)head->func;
-
-	rcu_lock_acquire(&rcu_callback_map);
-	if (__is_kfree_rcu_offset(offset)) {
-		trace_rcu_invoke_kfree_callback(rn, head, offset);
-		kfree((void *)head - offset);
-		rcu_lock_release(&rcu_callback_map);
-		return true;
-	} else {
-		trace_rcu_invoke_callback(rn, head);
-		f = head->func;
-		WRITE_ONCE(head->func, (rcu_callback_t)0L);
-		f(head);
-		rcu_lock_release(&rcu_callback_map);
-		return false;
-	}
-}
-
 #ifdef CONFIG_RCU_STALL_COMMON
 
 extern int rcu_cpu_stall_ftrace_dump;

@@ -1262,10 +1262,9 @@ static void rcu_prepare_for_idle(void)
 /*
  * This code is invoked when a CPU goes idle, at which point we want
  * to have the CPU do everything required for RCU so that it can enter
- * the energy-efficient dyntick-idle mode.  This is handled by a
- * state machine implemented by rcu_prepare_for_idle() below.
+ * the energy-efficient dyntick-idle mode.
  *
- * The following three proprocessor symbols control this state machine:
+ * The following preprocessor symbol controls this:
  *
  * RCU_IDLE_GP_DELAY gives the number of jiffies that a CPU is permitted
  *	to sleep in dyntick-idle mode with RCU callbacks pending.  This
@@ -1274,21 +1273,15 @@ static void rcu_prepare_for_idle(void)
  *	number, be warned: Setting RCU_IDLE_GP_DELAY too high can hang your
  *	system.  And if you are -that- concerned about energy efficiency,
  *	just power the system down and be done with it!
- * RCU_IDLE_LAZY_GP_DELAY gives the number of jiffies that a CPU is
- *	permitted to sleep in dyntick-idle mode with only lazy RCU
- *	callbacks pending.  Setting this too high can OOM your system.
  *
- * The values below work well in practice.  If future workloads require
+ * The value below works well in practice.  If future workloads require
  * adjustment, they can be converted into kernel config parameters, though
  * making the state machine smarter might be a better option.
  */
 #define RCU_IDLE_GP_DELAY 4		/* Roughly one grace period. */
-#define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
 static int rcu_idle_gp_delay = RCU_IDLE_GP_DELAY;
 module_param(rcu_idle_gp_delay, int, 0644);
-static int rcu_idle_lazy_gp_delay = RCU_IDLE_LAZY_GP_DELAY;
-module_param(rcu_idle_lazy_gp_delay, int, 0644);
 
 /*
  * Try to advance callbacks on the current CPU, but only if it has been
@@ -1327,8 +1320,7 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
 /*
  * Allow the CPU to enter dyntick-idle mode unless it has callbacks ready
  * to invoke.  If the CPU has callbacks, try to advance them.  Tell the
- * caller to set the timeout based on whether or not there are non-lazy
- * callbacks.
+ * caller about what to set the timeout.
  *
  * The caller must have disabled interrupts.
  */
@@ -1354,25 +1346,18 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	}
 	rdp->last_accelerate = jiffies;
 
-	/* Request timer delay depending on laziness, and round. */
-	rdp->all_lazy = !rcu_segcblist_n_nonlazy_cbs(&rdp->cblist);
-	if (rdp->all_lazy) {
-		dj = round_jiffies(rcu_idle_lazy_gp_delay + jiffies) - jiffies;
-	} else {
-		dj = round_up(rcu_idle_gp_delay + jiffies,
-			       rcu_idle_gp_delay) - jiffies;
-	}
+	/* Request timer and round. */
+	dj = round_up(rcu_idle_gp_delay + jiffies, rcu_idle_gp_delay) - jiffies;
+
 	*nextevt = basemono + dj * TICK_NSEC;
 	return 0;
 }
 
 /*
- * Prepare a CPU for idle from an RCU perspective.  The first major task
- * is to sense whether nohz mode has been enabled or disabled via sysfs.
- * The second major task is to check to see if a non-lazy callback has
- * arrived at a CPU that previously had only lazy callbacks.  The third
- * major task is to accelerate (that is, assign grace-period numbers to)
- * any recently arrived callbacks.
+ * Prepare a CPU for idle from an RCU perspective.  The first major task is to
+ * sense whether nohz mode has been enabled or disabled via sysfs.  The second
+ * major task is to accelerate (that is, assign grace-period numbers to) any
+ * recently arrived callbacks.
  *
  * The caller must have disabled interrupts.
  */
@@ -1397,17 +1382,6 @@ static void rcu_prepare_for_idle(void)
 	}
 	if (!tne)
 		return;
-
-	/*
-	 * If a non-lazy callback arrived at a CPU having only lazy
-	 * callbacks, invoke RCU core for the side-effect of recalculating
-	 * idle duration on re-entry to idle.
-	 */
-	if (rdp->all_lazy && rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)) {
-		rdp->all_lazy = false;
-		invoke_rcu_core();
-		return;
-	}
 
 	/*
 	 * If we have not yet accelerated this jiffy, accelerate all

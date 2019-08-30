@@ -853,7 +853,7 @@ static void __call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
 	local_irq_save(flags);
 	sdp = this_cpu_ptr(ssp->sda);
 	spin_lock_rcu_node(sdp);
-	rcu_segcblist_enqueue(&sdp->srcu_cblist, rhp, false);
+	rcu_segcblist_enqueue(&sdp->srcu_cblist, rhp);
 	rcu_segcblist_advance(&sdp->srcu_cblist,
 			      rcu_seq_current(&ssp->srcu_gp_seq));
 	s = rcu_seq_snap(&ssp->srcu_gp_seq);
@@ -1052,7 +1052,7 @@ void srcu_barrier(struct srcu_struct *ssp)
 		sdp->srcu_barrier_head.func = srcu_barrier_cb;
 		debug_rcu_head_queue(&sdp->srcu_barrier_head);
 		if (!rcu_segcblist_entrain(&sdp->srcu_cblist,
-					   &sdp->srcu_barrier_head, 0)) {
+					   &sdp->srcu_barrier_head)) {
 			debug_rcu_head_unqueue(&sdp->srcu_barrier_head);
 			atomic_dec(&ssp->srcu_barrier_cpu_cnt);
 		}
