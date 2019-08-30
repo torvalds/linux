@@ -407,31 +407,31 @@ Object Tiling IOCTLs
    :doc: buffer object tiling
 
 WOPCM
-=====
+-----
 
 WOPCM Layout
-------------
+~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_wopcm.c
    :doc: WOPCM Layout
 
 GuC
-===
+---
 
 Firmware Layout
--------------------
+~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_uc_fw_abi.h
    :doc: Firmware Layout
 
 GuC-specific firmware loader
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_fw.c
    :internal:
 
 GuC-based command submission
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :doc: GuC-based command submission
@@ -440,7 +440,7 @@ GuC-based command submission
    :internal:
 
 GuC Address Space
------------------
+~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
    :doc: GuC Address Space
