@@ -6,6 +6,7 @@
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
+ * Copyright 2018-2019  Intel Corporation
  */
 
 #include <linux/if_ether.h>
@@ -781,9 +782,8 @@ int ieee80211_key_link(struct ieee80211_key *key,
 		/* The rekey code assumes that the old and new key are using
 		 * the same cipher. Enforce the assumption for pairwise keys.
 		 */
-		if (key &&
-		    ((alt_key && alt_key->conf.cipher != key->conf.cipher) ||
-		     (old_key && old_key->conf.cipher != key->conf.cipher)))
+		if ((alt_key && alt_key->conf.cipher != key->conf.cipher) ||
+		    (old_key && old_key->conf.cipher != key->conf.cipher))
 			goto out;
 	} else if (sta) {
 		old_key = key_mtx_dereference(sdata->local, sta->gtk[idx]);
