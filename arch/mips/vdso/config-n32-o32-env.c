@@ -10,6 +10,7 @@
  */
 #undef CONFIG_64BIT
 
+#define BUILD_VDSO32
 #define CONFIG_32BIT 1
 #define CONFIG_GENERIC_ATOMIC64 1
 
