@@ -860,7 +860,7 @@ struct safexcel_alg_template safexcel_alg_sha1 = {
 			.base = {
 				.cra_name = "sha1",
 				.cra_driver_name = "safexcel-sha1",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
@@ -1102,7 +1102,7 @@ struct safexcel_alg_template safexcel_alg_hmac_sha1 = {
 			.base = {
 				.cra_name = "hmac(sha1)",
 				.cra_driver_name = "safexcel-hmac-sha1",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
@@ -1157,7 +1157,7 @@ struct safexcel_alg_template safexcel_alg_sha256 = {
 			.base = {
 				.cra_name = "sha256",
 				.cra_driver_name = "safexcel-sha256",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
@@ -1212,7 +1212,7 @@ struct safexcel_alg_template safexcel_alg_sha224 = {
 			.base = {
 				.cra_name = "sha224",
 				.cra_driver_name = "safexcel-sha224",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
@@ -1282,7 +1282,7 @@ struct safexcel_alg_template safexcel_alg_hmac_sha224 = {
 			.base = {
 				.cra_name = "hmac(sha224)",
 				.cra_driver_name = "safexcel-hmac-sha224",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
@@ -1352,7 +1352,7 @@ struct safexcel_alg_template safexcel_alg_hmac_sha256 = {
 			.base = {
 				.cra_name = "hmac(sha256)",
 				.cra_driver_name = "safexcel-hmac-sha256",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
@@ -1407,7 +1407,7 @@ struct safexcel_alg_template safexcel_alg_sha512 = {
 			.base = {
 				.cra_name = "sha512",
 				.cra_driver_name = "safexcel-sha512",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA512_BLOCK_SIZE,
@@ -1462,7 +1462,7 @@ struct safexcel_alg_template safexcel_alg_sha384 = {
 			.base = {
 				.cra_name = "sha384",
 				.cra_driver_name = "safexcel-sha384",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA384_BLOCK_SIZE,
@@ -1532,7 +1532,7 @@ struct safexcel_alg_template safexcel_alg_hmac_sha512 = {
 			.base = {
 				.cra_name = "hmac(sha512)",
 				.cra_driver_name = "safexcel-hmac-sha512",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA512_BLOCK_SIZE,
@@ -1602,7 +1602,7 @@ struct safexcel_alg_template safexcel_alg_hmac_sha384 = {
 			.base = {
 				.cra_name = "hmac(sha384)",
 				.cra_driver_name = "safexcel-hmac-sha384",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA384_BLOCK_SIZE,
@@ -1657,7 +1657,7 @@ struct safexcel_alg_template safexcel_alg_md5 = {
 			.base = {
 				.cra_name = "md5",
 				.cra_driver_name = "safexcel-md5",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
@@ -1728,7 +1728,7 @@ struct safexcel_alg_template safexcel_alg_hmac_md5 = {
 			.base = {
 				.cra_name = "hmac(md5)",
 				.cra_driver_name = "safexcel-hmac-md5",
-				.cra_priority = 300,
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,

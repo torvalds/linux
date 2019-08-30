@@ -598,6 +598,9 @@ enum safexcel_eip_version {
 	EIP197_DEVBRD
 };
 
+/* Priority we use for advertising our algorithms */
+#define SAFEXCEL_CRA_PRIORITY		300
+
 /* EIP algorithm presence flags */
 enum safexcel_eip_algorithms {
 	SAFEXCEL_ALG_BC0      = BIT(5),
