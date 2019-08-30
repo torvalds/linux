@@ -86,7 +86,7 @@ static struct cedrus_format *cedrus_find_format(u32 pixelformat, u32 directions,
 	return &cedrus_formats[i];
 }
 
-static void cedrus_prepare_format(struct v4l2_pix_format *pix_fmt)
+void cedrus_prepare_format(struct v4l2_pix_format *pix_fmt)
 {
 	unsigned int width = pix_fmt->width;
 	unsigned int height = pix_fmt->height;
@@ -104,7 +104,8 @@ static void cedrus_prepare_format(struct v4l2_pix_format *pix_fmt)
 	case V4L2_PIX_FMT_H264_SLICE:
 		/* Zero bytes per line for encoded source. */
 		bytesperline = 0;
-
+		/* Choose some minimum size since this can't be 0 */
+		sizeimage = max_t(u32, SZ_1K, sizeimage);
 		break;
 
 	case V4L2_PIX_FMT_SUNXI_TILED_NV12:
@@ -211,16 +212,7 @@ static int cedrus_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
 
-	/* Fall back to dummy default by lack of hardware configuration. */
-	if (!ctx->dst_fmt.width || !ctx->dst_fmt.height) {
-		f->fmt.pix.pixelformat = V4L2_PIX_FMT_SUNXI_TILED_NV12;
-		cedrus_prepare_format(&f->fmt.pix);
-
-		return 0;
-	}
-
 	f->fmt.pix = ctx->dst_fmt;
-
 	return 0;
 }
 
@@ -229,17 +221,7 @@ static int cedrus_g_fmt_vid_out(struct file *file, void *priv,
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
 
-	/* Fall back to dummy default by lack of hardware configuration. */
-	if (!ctx->dst_fmt.width || !ctx->dst_fmt.height) {
-		f->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG2_SLICE;
-		f->fmt.pix.sizeimage = SZ_1K;
-		cedrus_prepare_format(&f->fmt.pix);
-
-		return 0;
-	}
-
 	f->fmt.pix = ctx->src_fmt;
-
 	return 0;
 }
 
@@ -273,10 +255,6 @@ static int cedrus_try_fmt_vid_out(struct file *file, void *priv,
 				   dev->capabilities);
 
 	if (!fmt)
-		return -EINVAL;
-
-	/* Source image size has to be provided by userspace. */
-	if (pix_fmt->sizeimage == 0)
 		return -EINVAL;
 
 	pix_fmt->pixelformat = fmt->pixelformat;
