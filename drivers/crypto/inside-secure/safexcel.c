@@ -1004,6 +1004,7 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_authenc_hmac_sha256_ctr_aes,
 	&safexcel_alg_authenc_hmac_sha384_ctr_aes,
 	&safexcel_alg_authenc_hmac_sha512_ctr_aes,
+	&safexcel_alg_xts_aes,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
