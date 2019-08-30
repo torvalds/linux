@@ -11,11 +11,8 @@
  *
  * To do:
  *
- *  o Handle allocation failures in ioc3_alloc_skb() more gracefully.
- *  o Handle allocation failures in ioc3_init_rings().
  *  o Use prefetching for large packets.  What is a good lower limit for
  *    prefetching?
- *  o We're probably allocating a bit too much memory.
  *  o Use hardware checksums.
  *  o Convert to using a IOC3 meta driver.
  *  o Which PHYs might possibly be attached to the IOC3 in real live,
@@ -72,6 +69,13 @@
 #define TX_RING_ENTRIES		128
 #define TX_RING_MASK		(TX_RING_ENTRIES - 1)
 
+/* IOC3 does dma transfers in 128 byte blocks */
+#define IOC3_DMA_XFER_LEN	128UL
+
+/* Every RX buffer starts with 8 byte descriptor data */
+#define RX_OFFSET		(sizeof(struct ioc3_erxbuf) + NET_IP_ALIGN)
+#define RX_BUF_SIZE		(13 * IOC3_DMA_XFER_LEN)
+
 #define ETCSR_FD   ((17 << ETCSR_IPGR2_SHIFT) | (11 << ETCSR_IPGR1_SHIFT) | 21)
 #define ETCSR_HD   ((21 << ETCSR_IPGR2_SHIFT) | (21 << ETCSR_IPGR1_SHIFT) | 21)
 
@@ -108,36 +112,38 @@ static inline unsigned int ioc3_hash(const unsigned char *addr);
 static void ioc3_start(struct ioc3_private *ip);
 static inline void ioc3_stop(struct ioc3_private *ip);
 static void ioc3_init(struct net_device *dev);
-static void ioc3_alloc_rx_bufs(struct net_device *dev);
+static int ioc3_alloc_rx_bufs(struct net_device *dev);
 static void ioc3_free_rx_bufs(struct ioc3_private *ip);
 static inline void ioc3_clean_tx_ring(struct ioc3_private *ip);
 
 static const char ioc3_str[] = "IOC3 Ethernet";
 static const struct ethtool_ops ioc3_ethtool_ops;
 
-/* We use this to acquire receive skb's that we can DMA directly into. */
-
-#define IOC3_CACHELINE	128UL
 
 static inline unsigned long aligned_rx_skb_addr(unsigned long addr)
 {
-	return (~addr + 1) & (IOC3_CACHELINE - 1UL);
+	return (~addr + 1) & (IOC3_DMA_XFER_LEN - 1UL);
 }
 
-static inline struct sk_buff *ioc3_alloc_skb(unsigned long length,
-					     unsigned int gfp_mask)
+static inline int ioc3_alloc_skb(struct sk_buff **skb, struct ioc3_erxbuf **rxb)
 {
-	struct sk_buff *skb;
+	struct sk_buff *new_skb;
+	int offset;
 
-	skb = alloc_skb(length + IOC3_CACHELINE - 1, gfp_mask);
-	if (likely(skb)) {
-		int offset = aligned_rx_skb_addr((unsigned long)skb->data);
+	new_skb = alloc_skb(RX_BUF_SIZE + IOC3_DMA_XFER_LEN - 1, GFP_ATOMIC);
+	if (!new_skb)
+		return -ENOMEM;
 
-		if (offset)
-			skb_reserve(skb, offset);
-	}
+	/* ensure buffer is aligned to IOC3_DMA_XFER_LEN */
+	offset = aligned_rx_skb_addr((unsigned long)new_skb->data);
+	if (offset)
+		skb_reserve(new_skb, offset);
 
-	return skb;
+	*rxb = (struct ioc3_erxbuf *)new_skb->data;
+	skb_reserve(new_skb, RX_OFFSET);
+	*skb = new_skb;
+
+	return 0;
 }
 
 static inline unsigned long ioc3_map(void *ptr, unsigned long vdev)
@@ -151,13 +157,6 @@ static inline unsigned long ioc3_map(void *ptr, unsigned long vdev)
 	return virt_to_bus(ptr);
 #endif
 }
-
-/* BEWARE: The IOC3 documentation documents the size of rx buffers as
- * 1644 while it's actually 1664.  This one was nasty to track down ...
- */
-#define RX_OFFSET		10
-#define RX_BUF_ALLOC_SIZE	(1664 + RX_OFFSET + IOC3_CACHELINE)
-
 #define IOC3_SIZE 0x100000
 
 static inline u32 mcr_pack(u32 pulse, u32 sample)
@@ -538,11 +537,10 @@ static inline void ioc3_rx(struct net_device *dev)
 		err = be32_to_cpu(rxb->err);		/* It's valid ...  */
 		if (err & ERXBUF_GOODPKT) {
 			len = ((w0 >> ERXBUF_BYTECNT_SHIFT) & 0x7ff) - 4;
-			skb_trim(skb, len);
+			skb_put(skb, len);
 			skb->protocol = eth_type_trans(skb, dev);
 
-			new_skb = ioc3_alloc_skb(RX_BUF_ALLOC_SIZE, GFP_ATOMIC);
-			if (!new_skb) {
+			if (ioc3_alloc_skb(&new_skb, &rxb)) {
 				/* Ouch, drop packet and just recycle packet
 				 * to keep the ring filled.
 				 */
@@ -559,11 +557,6 @@ static inline void ioc3_rx(struct net_device *dev)
 			netif_rx(skb);
 
 			ip->rx_skbs[rx_entry] = NULL;	/* Poison  */
-
-			/* Because we reserve afterwards. */
-			skb_put(new_skb, (1664 + RX_OFFSET));
-			rxb = (struct ioc3_erxbuf *)new_skb->data;
-			skb_reserve(new_skb, RX_OFFSET);
 
 			dev->stats.rx_packets++;		/* Statistics */
 			dev->stats.rx_bytes += len;
@@ -667,7 +660,11 @@ static void ioc3_error(struct net_device *dev, u32 eisr)
 	ioc3_clean_tx_ring(ip);
 
 	ioc3_init(dev);
-	ioc3_alloc_rx_bufs(dev);
+	if (ioc3_alloc_rx_bufs(dev)) {
+		netdev_err(dev, "%s: rx buffer allocation failed\n", __func__);
+		spin_unlock(&ip->ioc3_lock);
+		return;
+	}
 	ioc3_start(ip);
 	ioc3_mii_init(ip);
 
@@ -801,7 +798,7 @@ static void ioc3_free_rx_bufs(struct ioc3_private *ip)
 	}
 }
 
-static void ioc3_alloc_rx_bufs(struct net_device *dev)
+static int ioc3_alloc_rx_bufs(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3_erxbuf *rxb;
@@ -812,25 +809,16 @@ static void ioc3_alloc_rx_bufs(struct net_device *dev)
 	 * this for performance and memory later.
 	 */
 	for (i = 0; i < RX_BUFFS; i++) {
-		struct sk_buff *skb;
+		if (ioc3_alloc_skb(&ip->rx_skbs[i], &rxb))
+			return -ENOMEM;
 
-		skb = ioc3_alloc_skb(RX_BUF_ALLOC_SIZE, GFP_ATOMIC);
-		if (!skb) {
-			show_free_areas(0, NULL);
-			continue;
-		}
-
-		ip->rx_skbs[i] = skb;
-
-		/* Because we reserve afterwards. */
-		skb_put(skb, (1664 + RX_OFFSET));
-		rxb = (struct ioc3_erxbuf *)skb->data;
 		rxb->w0 = 0;	/* Clear valid flag */
 		ip->rxr[i] = cpu_to_be64(ioc3_map(rxb, 1));
-		skb_reserve(skb, RX_OFFSET);
 	}
 	ip->rx_ci = 0;
 	ip->rx_pi = RX_BUFFS;
+
+	return 0;
 }
 
 static inline void ioc3_ssram_disc(struct ioc3_private *ip)
@@ -942,7 +930,10 @@ static int ioc3_open(struct net_device *dev)
 	ip->ehar_l = 0;
 
 	ioc3_init(dev);
-	ioc3_alloc_rx_bufs(dev);
+	if (ioc3_alloc_rx_bufs(dev)) {
+		netdev_err(dev, "%s: rx buffer allocation failed\n", __func__);
+		return -ENOMEM;
+	}
 	ioc3_start(ip);
 	ioc3_mii_start(ip);
 
@@ -1435,7 +1426,11 @@ static void ioc3_timeout(struct net_device *dev)
 	ioc3_clean_tx_ring(ip);
 
 	ioc3_init(dev);
-	ioc3_alloc_rx_bufs(dev);
+	if (ioc3_alloc_rx_bufs(dev)) {
+		netdev_err(dev, "%s: rx buffer allocation failed\n", __func__);
+		spin_unlock_irq(&ip->ioc3_lock);
+		return;
+	}
 	ioc3_start(ip);
 	ioc3_mii_init(ip);
 	ioc3_mii_start(ip);
