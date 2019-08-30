@@ -11,7 +11,7 @@
 
 #include <linux/leds-ti-lmu-common.h>
 
-const static unsigned int ramp_table[16] = {2048, 262000, 524000, 1049000,
+static const unsigned int ramp_table[16] = {2048, 262000, 524000, 1049000,
 				2090000, 4194000, 8389000, 16780000, 33550000,
 				41940000, 50330000, 58720000, 67110000,
 				83880000, 100660000, 117440000};
