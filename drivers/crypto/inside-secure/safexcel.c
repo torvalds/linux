@@ -715,7 +715,8 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 	} else if (rdesc->result_data.error_code & BIT(9)) {
 		/* Authentication failed */
 		return -EBADMSG;
-	}
+	} else if (!rdesc->result_data.error_code)
+		return 0;
 
 	/* All other non-fatal errors */
 	return -EINVAL;
@@ -1005,6 +1006,7 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_authenc_hmac_sha384_ctr_aes,
 	&safexcel_alg_authenc_hmac_sha512_ctr_aes,
 	&safexcel_alg_xts_aes,
+	&safexcel_alg_gcm,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)

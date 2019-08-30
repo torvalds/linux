@@ -19,7 +19,7 @@
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
-#define EIP197_MAX_TOKENS			8
+#define EIP197_MAX_TOKENS			10
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_COUNT			1
 #define EIP197_MAX_BATCH_SZ			64
@@ -321,6 +321,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES192	(0x6 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES256	(0x7 << 17)
 #define CONTEXT_CONTROL_DIGEST_PRECOMPUTED	(0x1 << 21)
+#define CONTEXT_CONTROL_DIGEST_XCM		(0x2 << 21)
 #define CONTEXT_CONTROL_DIGEST_HMAC		(0x3 << 21)
 #define CONTEXT_CONTROL_CRYPTO_ALG_MD5		(0x0 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA1		(0x2 << 23)
@@ -328,6 +329,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA256	(0x3 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA384	(0x6 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA512	(0x5 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_GHASH	(0x4 << 23)
 #define CONTEXT_CONTROL_INV_FR			(0x5 << 24)
 #define CONTEXT_CONTROL_INV_TR			(0x6 << 24)
 
@@ -336,6 +338,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_CRYPTO_MODE_CBC		(1 << 0)
 #define CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD	(6 << 0)
 #define CONTEXT_CONTROL_CRYPTO_MODE_XTS		(7 << 0)
+#define CONTEXT_CONTROL_CRYPTO_MODE_XCM		((6 << 0) | BIT(17))
 #define CONTEXT_CONTROL_IV0			BIT(5)
 #define CONTEXT_CONTROL_IV1			BIT(6)
 #define CONTEXT_CONTROL_IV2			BIT(7)
@@ -445,6 +448,7 @@ struct safexcel_token {
 #define EIP197_TOKEN_OPCODE_INSERT		0x2
 #define EIP197_TOKEN_OPCODE_NOOP		EIP197_TOKEN_OPCODE_INSERT
 #define EIP197_TOKEN_OPCODE_RETRIEVE		0x4
+#define EIP197_TOKEN_OPCODE_INSERT_REMRES	0xa
 #define EIP197_TOKEN_OPCODE_VERIFY		0xd
 #define EIP197_TOKEN_OPCODE_CTX_ACCESS		0xe
 #define EIP197_TOKEN_OPCODE_BYPASS		GENMASK(3, 0)
@@ -788,5 +792,6 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_xts_aes;
+extern struct safexcel_alg_template safexcel_alg_gcm;
 
 #endif

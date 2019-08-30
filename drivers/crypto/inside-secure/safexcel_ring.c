@@ -137,7 +137,13 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 		struct safexcel_token *token =
 			(struct safexcel_token *)cdesc->control_data.token;
 
-		cdesc->control_data.packet_length = full_data_len;
+		/*
+		 * Note that the length here MUST be >0 or else the EIP(1)97
+		 * may hang. Newer EIP197 firmware actually incorporates this
+		 * fix already, but that doesn't help the EIP97 and we may
+		 * also be running older firmware.
+		 */
+		cdesc->control_data.packet_length = full_data_len ?: 1;
 		cdesc->control_data.options = EIP197_OPTION_MAGIC_VALUE |
 					      EIP197_OPTION_64BIT_CTX |
 					      EIP197_OPTION_CTX_CTRL_IN_CMD;
