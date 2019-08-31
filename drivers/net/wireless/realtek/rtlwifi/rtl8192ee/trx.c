@@ -271,9 +271,10 @@ static void _rtl92ee_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 }
 
 static void _rtl92ee_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
-				      u8 *virtualaddress)
+				      u8 *virtualaddress8)
 {
 	u32 dwtmp = 0;
+	__le32 *virtualaddress = (__le32 *)virtualaddress8;
 
 	memset(virtualaddress, 0, 8);
 
@@ -325,11 +326,12 @@ static void _rtl92ee_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
 bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 			   struct rtl_stats *status,
 			   struct ieee80211_rx_status *rx_status,
-			   u8 *pdesc, struct sk_buff *skb)
+			   u8 *pdesc8, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rx_fwinfo *p_drvinfo;
 	struct ieee80211_hdr *hdr;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u32 phystatus = get_rx_desc_physt(pdesc);
 	u8 wake_match;
 
@@ -409,7 +411,7 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 		p_drvinfo = (struct rx_fwinfo *)(skb->data +
 						 status->rx_bufshift + 24);
 
-		_rtl92ee_translate_rx_signal_stuff(hw, skb, status, pdesc,
+		_rtl92ee_translate_rx_signal_stuff(hw, skb, status, pdesc8,
 						   p_drvinfo);
 	}
 	rx_status->signal = status->recvsignalpower + 10;
@@ -423,13 +425,14 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 }
 
 /*in Windows, this == Rx_92EE_Interrupt*/
-void rtl92ee_rx_check_dma_ok(struct ieee80211_hw *hw, u8 *header_desc,
+void rtl92ee_rx_check_dma_ok(struct ieee80211_hw *hw, u8 *header_desc8,
 			     u8 queue_index)
 {
 	u8 first_seg = 0;
 	u8 last_seg = 0;
 	u16 total_len = 0;
 	u16 read_cnt = 0;
+	__le32 *header_desc = (__le32 *)header_desc8;
 
 	if (header_desc == NULL)
 		return;
@@ -546,7 +549,7 @@ u16 rtl92ee_get_available_desc(struct ieee80211_hw *hw, u8 q_idx)
 }
 
 void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
-				 u8 *tx_bd_desc, u8 *desc, u8 queue_index,
+				 u8 *tx_bd_desc8, u8 *desc8, u8 queue_index,
 				 struct sk_buff *skb, dma_addr_t addr)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -563,6 +566,8 @@ void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
 	u8 segmentnum = 1 << (RTL8192EE_SEG_NUM + 1);
 	dma_addr_t desc_dma_addr;
 	bool dma64 = rtlpriv->cfg->mod_params->dma64;
+	__le32 *desc = (__le32 *)desc8;
+	__le32 *tx_bd_desc = (__le32 *)tx_bd_desc8;
 
 	tx_page_size = 2;
 	current_bd_desc = rtlpci->tx_ring[queue_index].cur_tx_wp;
@@ -601,7 +606,7 @@ void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
 	}
 
 	/* Clear all status */
-	CLEAR_PCI_TX_DESC_CONTENT(desc, TX_DESC_SIZE);
+	clear_pci_tx_desc_content(desc, TX_DESC_SIZE);
 
 	if (rtlpriv->rtlhal.earlymode_enable) {
 		if (queue_index < BEACON_QUEUE) {
@@ -630,7 +635,7 @@ void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
 }
 
 void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
-			  struct ieee80211_hdr *hdr, u8 *pdesc_tx,
+			  struct ieee80211_hdr *hdr, u8 *pdesc8,
 			  u8 *pbd_desc_tx,
 			  struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
@@ -642,7 +647,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtlwifi_tx_info *tx_info = rtl_tx_skb_cb_info(skb);
-	u8 *pdesc = (u8 *)pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	unsigned int buf_len = 0;
@@ -654,6 +658,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	dma_addr_t mapping;
 	u8 bw_40 = 0;
 	u8 short_gi = 0;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
 		bw_40 = mac->bw_40;
@@ -680,7 +685,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	}
 
 	if (pbd_desc_tx != NULL)
-		rtl92ee_pre_fill_tx_bd_desc(hw, pbd_desc_tx, pdesc, hw_queue,
+		rtl92ee_pre_fill_tx_bd_desc(hw, pbd_desc_tx, pdesc8, hw_queue,
 					    skb, mapping);
 
 	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
@@ -806,7 +811,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 			}
 		}
 		/* tx report */
-		rtl_set_tx_report(ptcb_desc, pdesc, hw, tx_info);
+		rtl_set_tx_report(ptcb_desc, pdesc8, hw, tx_info);
 	}
 
 	set_tx_desc_first_seg(pdesc, (firstseg ? 1 : 0));
@@ -829,7 +834,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 }
 
 void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc, bool firstseg,
+			     u8 *pdesc8, bool firstseg,
 			     bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -839,13 +844,14 @@ void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 					    skb->data, skb->len,
 					    PCI_DMA_TODEVICE);
 	u8 txdesc_len = 40;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, txdesc_len);
+	clear_pci_tx_desc_content(pdesc, txdesc_len);
 
 	if (firstseg)
 		set_tx_desc_offset(pdesc, txdesc_len);
@@ -870,7 +876,7 @@ void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	set_tx_desc_own(pdesc, 1);
 
-	set_tx_desc_pkt_size((u8 *)pdesc, (u16)(skb->len));
+	set_tx_desc_pkt_size(pdesc, (u16)(skb->len));
 
 	set_tx_desc_first_seg(pdesc, 1);
 	set_tx_desc_last_seg(pdesc, 1);
@@ -883,12 +889,13 @@ void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		      "H2C Tx Cmd Content\n", pdesc, txdesc_len);
 }
 
-void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 		      u8 desc_name, u8 *val)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 q_idx = *val;
 	bool dma64 = rtlpriv->cfg->mod_params->dma64;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (istx) {
 		switch (desc_name) {
@@ -947,11 +954,12 @@ void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 }
 
 u64 rtl92ee_get_desc(struct ieee80211_hw *hw,
-		     u8 *pdesc, bool istx, u8 desc_name)
+		     u8 *pdesc8, bool istx, u8 desc_name)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u64 ret = 0;
 	bool dma64 = rtlpriv->cfg->mod_params->dma64;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (istx) {
 		switch (desc_name) {
