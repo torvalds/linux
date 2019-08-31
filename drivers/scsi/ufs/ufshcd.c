@@ -3309,12 +3309,11 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index,
 		str[ret++] = '\0';
 
 	} else {
-		str = kzalloc(uc_str->len, GFP_KERNEL);
+		str = kmemdup(uc_str, uc_str->len, GFP_KERNEL);
 		if (!str) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		memcpy(str, uc_str, uc_str->len);
 		ret = uc_str->len;
 	}
 out:
