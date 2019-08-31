@@ -186,14 +186,19 @@ static void mv88e6352_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
 	struct dsa_switch *ds = chip->ds;
 	u16 status;
 	bool up;
+	int err;
 
-	mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	if (err)
+		return;
 
 	/* Status must be read twice in order to give the current link
 	 * status. Otherwise the change in link status since the last
 	 * read of the register is returned.
 	 */
-	mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	if (err)
+		return;
 
 	up = status & BMSR_LSTATUS;
 
