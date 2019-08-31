@@ -259,8 +259,11 @@ static int dsa_port_setup(struct dsa_port *dp)
 	const unsigned char *id = (const unsigned char *)&dst->index;
 	const unsigned char len = sizeof(dst->index);
 	struct devlink_port *dlp = &dp->devlink_port;
+	bool dsa_port_link_registered = false;
+	bool devlink_port_registered = false;
 	struct devlink *dl = ds->devlink;
-	int err;
+	bool dsa_port_enabled = false;
+	int err = 0;
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
@@ -272,15 +275,19 @@ static int dsa_port_setup(struct dsa_port *dp)
 				       dp->index, false, 0, id, len);
 		err = devlink_port_register(dl, dlp, dp->index);
 		if (err)
-			return err;
+			break;
+		devlink_port_registered = true;
 
 		err = dsa_port_link_register_of(dp);
 		if (err)
-			return err;
+			break;
+		dsa_port_link_registered = true;
 
 		err = dsa_port_enable(dp, NULL);
 		if (err)
-			return err;
+			break;
+		dsa_port_enabled = true;
+
 		break;
 	case DSA_PORT_TYPE_DSA:
 		memset(dlp, 0, sizeof(*dlp));
@@ -288,15 +295,19 @@ static int dsa_port_setup(struct dsa_port *dp)
 				       dp->index, false, 0, id, len);
 		err = devlink_port_register(dl, dlp, dp->index);
 		if (err)
-			return err;
+			break;
+		devlink_port_registered = true;
 
 		err = dsa_port_link_register_of(dp);
 		if (err)
-			return err;
+			break;
+		dsa_port_link_registered = true;
 
 		err = dsa_port_enable(dp, NULL);
 		if (err)
-			return err;
+			break;
+		dsa_port_enabled = true;
+
 		break;
 	case DSA_PORT_TYPE_USER:
 		memset(dlp, 0, sizeof(*dlp));
@@ -304,18 +315,26 @@ static int dsa_port_setup(struct dsa_port *dp)
 				       dp->index, false, 0, id, len);
 		err = devlink_port_register(dl, dlp, dp->index);
 		if (err)
-			return err;
+			break;
+		devlink_port_registered = true;
 
 		dp->mac = of_get_mac_address(dp->dn);
 		err = dsa_slave_create(dp);
 		if (err)
-			return err;
+			break;
 
 		devlink_port_type_eth_set(dlp, dp->slave);
 		break;
 	}
 
-	return 0;
+	if (err && dsa_port_enabled)
+		dsa_port_disable(dp);
+	if (err && dsa_port_link_registered)
+		dsa_port_link_unregister_of(dp);
+	if (err && devlink_port_registered)
+		devlink_port_unregister(dlp);
+
+	return err;
 }
 
 static void dsa_port_teardown(struct dsa_port *dp)
