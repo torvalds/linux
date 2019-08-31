@@ -450,8 +450,6 @@ struct mv88e6xxx_ops {
 	/* SERDES interrupt handling */
 	unsigned int (*serdes_irq_mapping)(struct mv88e6xxx_chip *chip,
 					   int port);
-	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
-	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
 	int (*serdes_irq_enable)(struct mv88e6xxx_chip *chip, int port, u8 lane,
 				 bool enable);
 	irqreturn_t (*serdes_irq_status)(struct mv88e6xxx_chip *chip, int port,

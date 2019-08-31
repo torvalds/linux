@@ -221,19 +221,6 @@ irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
 	return ret;
 }
 
-static irqreturn_t mv88e6352_serdes_thread_fn(int irq, void *dev_id)
-{
-	struct mv88e6xxx_port *port = dev_id;
-	struct mv88e6xxx_chip *chip = port->chip;
-	irqreturn_t ret = IRQ_NONE;
-
-	mv88e6xxx_reg_lock(chip);
-	ret = mv88e6xxx_serdes_irq_status(chip, port->port, 0);
-	mv88e6xxx_reg_unlock(chip);
-
-	return ret;
-}
-
 int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
 				bool enable)
 {
@@ -248,61 +235,6 @@ int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
 	return irq_find_mapping(chip->g2_irq.domain, MV88E6352_SERDES_IRQ);
-}
-
-int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
-{
-	unsigned int irq;
-	u8 lane;
-	int err;
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (!lane)
-		return 0;
-
-	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
-	if (!irq)
-		return 0;
-
-	chip->ports[port].serdes_irq = irq;
-
-	/* Requesting the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mv88e6xxx_reg_unlock(chip);
-	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
-				   mv88e6352_serdes_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-serdes",
-				   &chip->ports[port]);
-	mv88e6xxx_reg_lock(chip);
-
-	if (err) {
-		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
-			err);
-		return err;
-	}
-
-	return mv88e6xxx_serdes_irq_enable(chip, port, lane);
-}
-
-void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
-{
-	u8 lane;
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (!lane)
-		return;
-
-	mv88e6xxx_serdes_irq_disable(chip, port, lane);
-
-	/* Freeing the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mv88e6xxx_reg_unlock(chip);
-	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
-	mv88e6xxx_reg_lock(chip);
-
-	chip->ports[port].serdes_irq = 0;
 }
 
 u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
@@ -622,81 +554,7 @@ irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
 	return ret;
 }
 
-static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
-{
-	struct mv88e6xxx_port *port = dev_id;
-	struct mv88e6xxx_chip *chip = port->chip;
-	irqreturn_t ret = IRQ_NONE;
-	u8 lane;
-
-	mv88e6xxx_reg_lock(chip);
-	lane = mv88e6xxx_serdes_get_lane(chip, port->port);
-	if (!lane)
-		goto out;
-
-	ret = mv88e6xxx_serdes_irq_status(chip, port->port, lane);
-out:
-	mv88e6xxx_reg_unlock(chip);
-
-	return ret;
-}
-
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
 	return irq_find_mapping(chip->g2_irq.domain, port);
-}
-
-int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
-{
-	unsigned int irq;
-	int err;
-	u8 lane;
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (!lane)
-		return 0;
-
-	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
-	if (!irq)
-		return 0;
-
-	chip->ports[port].serdes_irq = irq;
-
-	/* Requesting the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mv88e6xxx_reg_unlock(chip);
-	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
-				   mv88e6390_serdes_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-serdes",
-				   &chip->ports[port]);
-	mv88e6xxx_reg_lock(chip);
-
-	if (err) {
-		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
-			err);
-		return err;
-	}
-
-	return mv88e6xxx_serdes_irq_enable(chip, port, lane);
-}
-
-void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
-{
-	u8 lane;
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (!lane)
-		return;
-
-	mv88e6xxx_serdes_irq_disable(chip, port, lane);
-
-	/* Freeing the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mv88e6xxx_reg_unlock(chip);
-	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
-	mv88e6xxx_reg_lock(chip);
-
-	chip->ports[port].serdes_irq = 0;
 }
