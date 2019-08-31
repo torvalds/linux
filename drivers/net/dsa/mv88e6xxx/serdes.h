@@ -75,6 +75,7 @@
 #define MV88E6390_SGMII_PHY_STATUS_LINK		BIT(10)
 
 u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
+u8 mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 u8 mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,

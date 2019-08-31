@@ -69,13 +69,22 @@ static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
 	return err;
 }
 
-static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+u8 mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
+	u8 lane = 0;
 
 	if ((cmode == MV88E6XXX_PORT_STS_CMODE_100BASEX) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASEX) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII))
+		lane = 0xff; /* Unused */
+
+	return lane;
+}
+
+static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+{
+	if (mv88e6xxx_serdes_get_lane(chip, port))
 		return true;
 
 	return false;
