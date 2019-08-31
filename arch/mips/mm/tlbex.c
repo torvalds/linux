@@ -2609,12 +2609,9 @@ void build_tlb_refill_handler(void)
 
 	if (cpu_has_3kex) {
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
-		if (cpu_has_local_ebase)
-			build_r3000_tlb_refill_handler();
 		if (!run_once) {
-			if (!cpu_has_local_ebase)
-				build_r3000_tlb_refill_handler();
 			build_setup_pgd();
+			build_r3000_tlb_refill_handler();
 			build_r3000_tlb_load_handler();
 			build_r3000_tlb_store_handler();
 			build_r3000_tlb_modify_handler();
@@ -2638,13 +2635,11 @@ void build_tlb_refill_handler(void)
 		build_r4000_tlb_modify_handler();
 		if (cpu_has_ldpte)
 			build_loongson3_tlb_refill_handler();
-		else if (!cpu_has_local_ebase)
+		else
 			build_r4000_tlb_refill_handler();
 		flush_tlb_handlers();
 		run_once++;
 	}
-	if (cpu_has_local_ebase)
-		build_r4000_tlb_refill_handler();
 	if (cpu_has_xpa)
 		config_xpa_params();
 	if (cpu_has_htw)
