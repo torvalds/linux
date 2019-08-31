@@ -144,7 +144,7 @@ perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
 int evlist__add_pollfd(struct evlist *evlist, int fd);
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
 
-int perf_evlist__poll(struct evlist *evlist, int timeout);
+int evlist__poll(struct evlist *evlist, int timeout);
 
 struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id);
 struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,

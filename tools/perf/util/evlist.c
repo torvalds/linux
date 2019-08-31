@@ -418,9 +418,9 @@ int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
 			       perf_evlist__munmap_filtered, NULL);
 }
 
-int perf_evlist__poll(struct evlist *evlist, int timeout)
+int evlist__poll(struct evlist *evlist, int timeout)
 {
-	return fdarray__poll(&evlist->core.pollfd, timeout);
+	return perf_evlist__poll(&evlist->core, timeout);
 }
 
 static void perf_evlist__set_sid_idx(struct evlist *evlist,
@@ -1736,7 +1736,7 @@ static void *perf_evlist__poll_thread(void *arg)
 			draining = true;
 
 		if (!draining)
-			perf_evlist__poll(evlist, 1000);
+			evlist__poll(evlist, 1000);
 
 		for (i = 0; i < evlist->core.nr_mmaps; i++) {
 			struct mmap *map = &evlist->mmap[i];

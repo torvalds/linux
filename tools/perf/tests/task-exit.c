@@ -130,7 +130,7 @@ retry:
 
 out_init:
 	if (!exited || !nr_exit) {
-		perf_evlist__poll(evlist, -1);
+		evlist__poll(evlist, -1);
 		goto retry;
 	}
 

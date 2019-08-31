@@ -1307,7 +1307,7 @@ static int __cmd_top(struct perf_top *top)
 	}
 
 	/* Wait for a minimal set of events before starting the snapshot */
-	perf_evlist__poll(top->evlist, 100);
+	evlist__poll(top->evlist, 100);
 
 	perf_top__mmap_read(top);
 
@@ -1317,7 +1317,7 @@ static int __cmd_top(struct perf_top *top)
 		perf_top__mmap_read(top);
 
 		if (opts->overwrite || (hits == top->samples))
-			ret = perf_evlist__poll(top->evlist, 100);
+			ret = evlist__poll(top->evlist, 100);
 
 		if (resize) {
 			perf_top__resize(top);

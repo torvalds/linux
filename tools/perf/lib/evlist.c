@@ -276,3 +276,8 @@ int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd,
 
 	return pos;
 }
+
+int perf_evlist__poll(struct perf_evlist *evlist, int timeout)
+{
+	return fdarray__poll(&evlist->pollfd, timeout);
+}
