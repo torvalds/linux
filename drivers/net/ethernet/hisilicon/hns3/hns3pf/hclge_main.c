@@ -8013,7 +8013,7 @@ static void hclge_restore_vlan_table(struct hnae3_handle *handle)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_vport_vlan_cfg *vlan, *tmp;
 	struct hclge_dev *hdev = vport->back;
-	u16 vlan_proto, qos;
+	u16 vlan_proto;
 	u16 state, vlan_id;
 	int i;
 
@@ -8022,7 +8022,6 @@ static void hclge_restore_vlan_table(struct hnae3_handle *handle)
 		vport = &hdev->vport[i];
 		vlan_proto = vport->port_base_vlan_cfg.vlan_info.vlan_proto;
 		vlan_id = vport->port_base_vlan_cfg.vlan_info.vlan_tag;
-		qos = vport->port_base_vlan_cfg.vlan_info.qos;
 		state = vport->port_base_vlan_cfg.state;
 
 		if (state != HNAE3_PORT_BASE_VLAN_DISABLE) {
