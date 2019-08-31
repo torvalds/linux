@@ -178,6 +178,27 @@ static const struct id_table *btrtl_match_ic(u16 lmp_subver, u16 hci_rev,
 	return &ic_id_table[i];
 }
 
+static struct sk_buff *btrtl_read_local_version(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		rtl_dev_err(hdev, "HCI_OP_READ_LOCAL_VERSION failed (%ld)",
+			    PTR_ERR(skb));
+		return skb;
+	}
+
+	if (skb->len != sizeof(struct hci_rp_read_local_version)) {
+		rtl_dev_err(hdev, "HCI_OP_READ_LOCAL_VERSION event length mismatch");
+		kfree_skb(skb);
+		return ERR_PTR(-EIO);
+	}
+
+	return skb;
+}
+
 static int rtl_read_rom_version(struct hci_dev *hdev, u8 *version)
 {
 	struct rtl_rom_version_evt *rom_version;
@@ -368,6 +389,8 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 	int frag_len = RTL_FRAG_LEN;
 	int ret = 0;
 	int i;
+	struct sk_buff *skb;
+	struct hci_rp_read_local_version *rp;
 
 	dl_cmd = kmalloc(sizeof(struct rtl_download_cmd), GFP_KERNEL);
 	if (!dl_cmd)
@@ -405,6 +428,18 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 		kfree_skb(skb);
 		data += RTL_FRAG_LEN;
 	}
+
+	skb = btrtl_read_local_version(hdev);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		rtl_dev_err(hdev, "read local version failed");
+		goto out;
+	}
+
+	rp = (struct hci_rp_read_local_version *)skb->data;
+	rtl_dev_info(hdev, "fw version 0x%04x%04x",
+		     __le16_to_cpu(rp->hci_rev), __le16_to_cpu(rp->lmp_subver));
+	kfree_skb(skb);
 
 out:
 	kfree(dl_cmd);
@@ -482,27 +517,6 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev,
 out:
 	kfree(fw_data);
 	return ret;
-}
-
-static struct sk_buff *btrtl_read_local_version(struct hci_dev *hdev)
-{
-	struct sk_buff *skb;
-
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		rtl_dev_err(hdev, "HCI_OP_READ_LOCAL_VERSION failed (%ld)\n",
-			    PTR_ERR(skb));
-		return skb;
-	}
-
-	if (skb->len != sizeof(struct hci_rp_read_local_version)) {
-		rtl_dev_err(hdev, "HCI_OP_READ_LOCAL_VERSION event length mismatch\n");
-		kfree_skb(skb);
-		return ERR_PTR(-EIO);
-	}
-
-	return skb;
 }
 
 void btrtl_free(struct btrtl_device_info *btrtl_dev)
