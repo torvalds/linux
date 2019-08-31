@@ -1132,6 +1132,26 @@ struct qed_common_ops {
  * @param cdev
  */
 	u8 (*get_affin_hwfn_idx)(struct qed_dev *cdev);
+
+/**
+ * @brief read_nvm_cfg - Read NVM config attribute value.
+ * @param cdev
+ * @param buf - buffer
+ * @param cmd - NVM CFG command id
+ * @param entity_id - Entity id
+ *
+ */
+	int (*read_nvm_cfg)(struct qed_dev *cdev, u8 **buf, u32 cmd,
+			    u32 entity_id);
+
+/**
+ * @brief set_grc_config - Configure value for grc config id.
+ * @param cdev
+ * @param cfg_id - grc config id
+ * @param val - grc config value
+ *
+ */
+	int (*set_grc_config)(struct qed_dev *cdev, u32 cfg_id, u32 val);
 };
 
 #define MASK_FIELD(_name, _value) \

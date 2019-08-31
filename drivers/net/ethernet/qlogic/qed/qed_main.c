@@ -69,6 +69,8 @@
 #define QED_RDMA_SRQS                   QED_ROCE_QPS
 #define QED_NVM_CFG_SET_FLAGS		0xE
 #define QED_NVM_CFG_SET_PF_FLAGS	0x1E
+#define QED_NVM_CFG_GET_FLAGS		0xA
+#define QED_NVM_CFG_GET_PF_FLAGS	0x1A
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -2298,6 +2300,30 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 	return rc;
 }
 
+static int qed_nvm_flash_cfg_read(struct qed_dev *cdev, u8 **data,
+				  u32 cmd, u32 entity_id)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	u32 flags, len;
+	int rc = 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	DP_VERBOSE(cdev, NETIF_MSG_DRV,
+		   "Read config cmd = %d entity id %d\n", cmd, entity_id);
+	flags = entity_id ? QED_NVM_CFG_GET_PF_FLAGS : QED_NVM_CFG_GET_FLAGS;
+	rc = qed_mcp_nvm_get_cfg(hwfn, ptt, cmd, entity_id, flags, *data, &len);
+	if (rc)
+		DP_ERR(cdev, "Error %d reading %d\n", rc, cmd);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
 static int qed_nvm_flash(struct qed_dev *cdev, const char *name)
 {
 	const struct firmware *image;
@@ -2557,6 +2583,26 @@ static int qed_read_module_eeprom(struct qed_dev *cdev, char *buf,
 	return rc;
 }
 
+static int qed_set_grc_config(struct qed_dev *cdev, u32 cfg_id, u32 val)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_dbg_grc_config(hwfn, ptt, cfg_id, val);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
 static u8 qed_get_affin_hwfn_idx(struct qed_dev *cdev)
 {
 	return QED_AFFIN_HWFN_IDX(cdev);
@@ -2610,6 +2656,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.db_recovery_del = &qed_db_recovery_del,
 	.read_module_eeprom = &qed_read_module_eeprom,
 	.get_affin_hwfn_idx = &qed_get_affin_hwfn_idx,
+	.read_nvm_cfg = &qed_nvm_flash_cfg_read,
+	.set_grc_config = &qed_set_grc_config,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,

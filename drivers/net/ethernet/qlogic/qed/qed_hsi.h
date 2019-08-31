@@ -3024,6 +3024,21 @@ void qed_read_regs(struct qed_hwfn *p_hwfn,
  */
 bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt, struct fw_info *fw_info);
+/**
+ * @brief qed_dbg_grc_config - Sets the value of a GRC parameter.
+ *
+ * @param p_hwfn -	HW device data
+ * @param grc_param -	GRC parameter
+ * @param val -		Value to set.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- grc_param is invalid
+ *	- val is outside the allowed boundaries
+ */
+enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum dbg_grc_params grc_param, u32 val);
 
 /**
  * @brief qed_dbg_grc_set_params_default - Reverts all GRC parameters to their
