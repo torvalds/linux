@@ -199,7 +199,7 @@ struct mv88e6xxx_port {
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
 	u8 cmode;
-	int serdes_irq;
+	unsigned int serdes_irq;
 };
 
 struct mv88e6xxx_chip {
