@@ -6157,12 +6157,6 @@ static ssize_t pqi_firmware_version_show(struct device *dev,
 static ssize_t pqi_driver_version_show(struct device *dev,
 	struct device_attribute *attr, char *buffer)
 {
-	struct Scsi_Host *shost;
-	struct pqi_ctrl_info *ctrl_info;
-
-	shost = class_to_shost(dev);
-	ctrl_info = shost_to_hba(shost);
-
 	return snprintf(buffer, PAGE_SIZE,
 		"%s\n", DRIVER_VERSION BUILD_TIMESTAMP);
 }
