@@ -639,7 +639,7 @@ static int mmhub_v1_0_ras_late_init(struct amdgpu_device *adev)
 	mmhub_ih_info.head = mmhub_fs_info.head = *adev->gmc.mmhub_ras_if;
 	r = amdgpu_ras_late_init(adev, adev->gmc.mmhub_ras_if,
 				 &mmhub_fs_info, &mmhub_ih_info);
-	if (r)
+	if (r || !amdgpu_ras_is_supported(adev, adev->gmc.mmhub_ras_if->block))
 		kfree(adev->gmc.mmhub_ras_if);
 	return r;
 }

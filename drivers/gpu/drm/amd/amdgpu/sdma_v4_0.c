@@ -1728,7 +1728,8 @@ static int sdma_v4_0_late_init(void *handle)
 			if (r)
 				goto late_fini;
 		}
-	}
+	} else
+		kfree(adev->sdma.ras_if);
 
         return 0;
 late_fini:

@@ -4440,7 +4440,8 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
 		if (r)
 			goto late_fini;
-	}
+	} else
+		kfree(adev->gfx.ras_if);
 
 	return 0;
 late_fini:

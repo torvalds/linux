@@ -797,7 +797,8 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
 		if (r)
 			goto umc_late_fini;
-	}
+	} else
+		kfree(adev->gmc.umc_ras_if);
 
 	if (adev->mmhub_funcs && adev->mmhub_funcs->ras_late_init) {
 		r = adev->mmhub_funcs->ras_late_init(adev);
