@@ -2057,13 +2057,15 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 				  bool on)
 {
+	u8 lane;
 	int err;
 
-	if (!chip->info->ops->serdes_power)
+	lane = mv88e6xxx_serdes_get_lane(chip, port);
+	if (!lane)
 		return 0;
 
 	if (on) {
-		err = chip->info->ops->serdes_power(chip, port, true);
+		err = mv88e6xxx_serdes_power_up(chip, port, lane);
 		if (err)
 			return err;
 
@@ -2074,7 +2076,7 @@ static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 		    chip->ports[port].serdes_irq)
 			chip->info->ops->serdes_irq_free(chip, port);
 
-		err = chip->info->ops->serdes_power(chip, port, false);
+		err = mv88e6xxx_serdes_power_down(chip, port, lane);
 	}
 
 	return err;

@@ -441,7 +441,8 @@ struct mv88e6xxx_ops {
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 
 	/* Power on/off a SERDES interface */
-	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
+	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			    bool up);
 
 	/* SERDES lane mapping */
 	u8 (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);

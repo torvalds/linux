@@ -439,7 +439,7 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 				return err;
 		}
 
-		err = mv88e6390_serdes_power(chip, port, false);
+		err = mv88e6xxx_serdes_power_down(chip, port, lane);
 		if (err)
 			return err;
 	}
@@ -464,7 +464,7 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		if (!lane)
 			return -ENODEV;
 
-		err = mv88e6390_serdes_power(chip, port, true);
+		err = mv88e6xxx_serdes_power_up(chip, port, lane);
 		if (err)
 			return err;
 

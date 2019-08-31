@@ -49,19 +49,17 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_phy_write(chip, lane, reg_c45, val);
 }
 
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool up)
 {
 	u16 val, new_val;
 	int err;
-
-	if (!mv88e6xxx_serdes_get_lane(chip, port))
-		return 0;
 
 	err = mv88e6352_serdes_read(chip, MII_BMCR, &val);
 	if (err)
 		return err;
 
-	if (on)
+	if (up)
 		new_val = val & ~BMCR_PDOWN;
 	else
 		new_val = val | BMCR_PDOWN;
@@ -409,9 +407,9 @@ u8 mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 	return lane;
 }
 
-/* Set the power on/off for 10GBASE-R and 10GBASE-X4/X2 */
+/* Set power up/down for 10GBASE-R and 10GBASE-X4/X2 */
 static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, u8 lane,
-				      bool on)
+				      bool up)
 {
 	u16 val, new_val;
 	int err;
@@ -422,7 +420,7 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, u8 lane,
 	if (err)
 		return err;
 
-	if (on)
+	if (up)
 		new_val = val & ~(MV88E6390_PCS_CONTROL_1_RESET |
 				  MV88E6390_PCS_CONTROL_1_LOOPBACK |
 				  MV88E6390_PCS_CONTROL_1_PDOWN);
@@ -436,9 +434,9 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, u8 lane,
 	return err;
 }
 
-/* Set the power on/off for SGMII and 1000Base-X */
+/* Set power up/down for SGMII and 1000Base-X */
 static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, u8 lane,
-					bool on)
+					bool up)
 {
 	u16 val, new_val;
 	int err;
@@ -448,7 +446,7 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, u8 lane,
 	if (err)
 		return err;
 
-	if (on)
+	if (up)
 		new_val = val & ~(MV88E6390_SGMII_CONTROL_RESET |
 				  MV88E6390_SGMII_CONTROL_LOOPBACK |
 				  MV88E6390_SGMII_CONTROL_PDOWN);
@@ -462,23 +460,19 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, u8 lane,
 	return err;
 }
 
-int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool up)
 {
 	u8 cmode = chip->ports[port].cmode;
-	u8 lane;
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (!lane)
-		return 0;
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
 	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		return mv88e6390_serdes_power_sgmii(chip, lane, on);
+		return mv88e6390_serdes_power_sgmii(chip, lane, up);
 	case MV88E6XXX_PORT_STS_CMODE_XAUI:
 	case MV88E6XXX_PORT_STS_CMODE_RXAUI:
-		return mv88e6390_serdes_power_10g(chip, lane, on);
+		return mv88e6390_serdes_power_10g(chip, lane, up);
 	}
 
 	return 0;

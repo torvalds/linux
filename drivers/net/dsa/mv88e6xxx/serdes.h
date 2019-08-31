@@ -82,8 +82,10 @@ unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
-int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
+int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool on);
+int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool on);
 int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
 void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
@@ -106,6 +108,24 @@ static inline u8 mv88e6xxx_serdes_get_lane(struct mv88e6xxx_chip *chip,
 		return 0;
 
 	return chip->info->ops->serdes_get_lane(chip, port);
+}
+
+static inline int mv88e6xxx_serdes_power_up(struct mv88e6xxx_chip *chip,
+					    int port, u8 lane)
+{
+	if (!chip->info->ops->serdes_power)
+		return -EOPNOTSUPP;
+
+	return chip->info->ops->serdes_power(chip, port, lane, true);
+}
+
+static inline int mv88e6xxx_serdes_power_down(struct mv88e6xxx_chip *chip,
+					      int port, u8 lane)
+{
+	if (!chip->info->ops->serdes_power)
+		return -EOPNOTSUPP;
+
+	return chip->info->ops->serdes_power(chip, port, lane, false);
 }
 
 static inline unsigned int
