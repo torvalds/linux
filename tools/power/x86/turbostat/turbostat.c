@@ -4280,7 +4280,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 }
 
 /*
- * HSW adds support for additional MSRs:
+ * HSW ULT added support for C8/C9/C10 MSRs:
  *
  * MSR_PKG_C8_RESIDENCY		0x00000630
  * MSR_PKG_C9_RESIDENCY		0x00000631
@@ -4291,7 +4291,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
  * MSR_PKGC10_IRTL		0x00000635
  *
  */
-int has_hsw_msrs(unsigned int family, unsigned int model)
+int has_c8910_msrs(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -4833,12 +4833,12 @@ void process_cpuid()
 		BIC_NOT_PRESENT(BIC_CPU_c7);
 		BIC_NOT_PRESENT(BIC_Pkgpc7);
 	}
-	if (has_hsw_msrs(family, model)) {
+	if (has_c8910_msrs(family, model)) {
 		BIC_PRESENT(BIC_Pkgpc8);
 		BIC_PRESENT(BIC_Pkgpc9);
 		BIC_PRESENT(BIC_Pkgpc10);
 	}
-	do_irtl_hsw = has_hsw_msrs(family, model);
+	do_irtl_hsw = has_c8910_msrs(family, model);
 	if (has_skl_msrs(family, model)) {
 		BIC_PRESENT(BIC_Totl_c0);
 		BIC_PRESENT(BIC_Any_c0);
