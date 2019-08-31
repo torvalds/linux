@@ -2607,14 +2607,7 @@ void build_tlb_refill_handler(void)
 	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
 #endif
 
-	switch (current_cpu_type()) {
-	case CPU_R2000:
-	case CPU_R3000:
-	case CPU_R3000A:
-	case CPU_R3081E:
-	case CPU_TX3912:
-	case CPU_TX3922:
-	case CPU_TX3927:
+	if (cpu_has_3kex) {
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 		if (cpu_has_local_ebase)
 			build_r3000_tlb_refill_handler();
@@ -2631,30 +2624,29 @@ void build_tlb_refill_handler(void)
 #else
 		panic("No R3000 TLB refill handler");
 #endif
-		break;
-
-	default:
-		if (cpu_has_ldpte)
-			setup_pw();
-
-		if (!run_once) {
-			scratch_reg = allocate_kscratch();
-			build_setup_pgd();
-			build_r4000_tlb_load_handler();
-			build_r4000_tlb_store_handler();
-			build_r4000_tlb_modify_handler();
-			if (cpu_has_ldpte)
-				build_loongson3_tlb_refill_handler();
-			else if (!cpu_has_local_ebase)
-				build_r4000_tlb_refill_handler();
-			flush_tlb_handlers();
-			run_once++;
-		}
-		if (cpu_has_local_ebase)
-			build_r4000_tlb_refill_handler();
-		if (cpu_has_xpa)
-			config_xpa_params();
-		if (cpu_has_htw)
-			config_htw_params();
+		return;
 	}
+
+	if (cpu_has_ldpte)
+		setup_pw();
+
+	if (!run_once) {
+		scratch_reg = allocate_kscratch();
+		build_setup_pgd();
+		build_r4000_tlb_load_handler();
+		build_r4000_tlb_store_handler();
+		build_r4000_tlb_modify_handler();
+		if (cpu_has_ldpte)
+			build_loongson3_tlb_refill_handler();
+		else if (!cpu_has_local_ebase)
+			build_r4000_tlb_refill_handler();
+		flush_tlb_handlers();
+		run_once++;
+	}
+	if (cpu_has_local_ebase)
+		build_r4000_tlb_refill_handler();
+	if (cpu_has_xpa)
+		config_xpa_params();
+	if (cpu_has_htw)
+		config_htw_params();
 }
