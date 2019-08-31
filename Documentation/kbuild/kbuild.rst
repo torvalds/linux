@@ -105,6 +105,15 @@ The output directory can also be specified using "O=...".
 
 Setting "O=..." takes precedence over KBUILD_OUTPUT.
 
+KBUILD_EXTRA_WARN
+-----------------
+Specify the extra build checks. The same value can be assigned by passing
+W=... from the command line.
+
+See `make help` for the list of the supported values.
+
+Setting "W=..." takes precedence over KBUILD_EXTRA_WARN.
+
 KBUILD_DEBARCH
 --------------
 For the deb-pkg target, allows overriding the normal heuristics deployed by
@@ -240,11 +249,6 @@ to be included in the databases, separated by blank space. E.g.::
 To get all available archs you can also specify all. E.g.::
 
     $ make ALLSOURCE_ARCHS=all tags
-
-KBUILD_ENABLE_EXTRA_GCC_CHECKS
-------------------------------
-If enabled over the make command line with "W=1", it turns on additional
-gcc -W... options for more extensive build-time checking.
 
 KBUILD_BUILD_TIMESTAMP
 ----------------------
