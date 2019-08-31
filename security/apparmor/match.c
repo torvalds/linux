@@ -206,6 +206,12 @@ static int verify_dfa(struct aa_dfa *dfa)
 			pr_err("AppArmor DFA state with invalid match flags");
 			goto out;
 		}
+		if ((BASE_TABLE(dfa)[i] & MATCH_FLAG_DIFF_ENCODE)) {
+			if (!(dfa->flags & YYTH_FLAG_DIFF_ENCODE)) {
+				pr_err("AppArmor DFA diff encoded transition state without header flag");
+				goto out;
+			}
+		}
 		if (base_idx(BASE_TABLE(dfa)[i]) + 255 >= trans_count) {
 			pr_err("AppArmor DFA next/check upper bounds error\n");
 			goto out;
