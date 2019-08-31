@@ -92,6 +92,10 @@ int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
 				bool enable);
 int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
 				bool enable);
+irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane);
+irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data);
@@ -153,6 +157,15 @@ static inline int mv88e6xxx_serdes_irq_disable(struct mv88e6xxx_chip *chip,
 		return -EOPNOTSUPP;
 
 	return chip->info->ops->serdes_irq_enable(chip, port, lane, false);
+}
+
+static inline irqreturn_t
+mv88e6xxx_serdes_irq_status(struct mv88e6xxx_chip *chip, int port, u8 lane)
+{
+	if (!chip->info->ops->serdes_irq_status)
+		return IRQ_NONE;
+
+	return chip->info->ops->serdes_irq_status(chip, port, lane);
 }
 
 #endif

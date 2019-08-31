@@ -202,25 +202,33 @@ static void mv88e6352_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
 	dsa_port_phylink_mac_change(ds, port, up);
 }
 
+irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane)
+{
+	irqreturn_t ret = IRQ_NONE;
+	u16 status;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_INT_STATUS, &status);
+	if (err)
+		return ret;
+
+	if (status & MV88E6352_SERDES_INT_LINK_CHANGE) {
+		ret = IRQ_HANDLED;
+		mv88e6352_serdes_irq_link(chip, port);
+	}
+
+	return ret;
+}
+
 static irqreturn_t mv88e6352_serdes_thread_fn(int irq, void *dev_id)
 {
 	struct mv88e6xxx_port *port = dev_id;
 	struct mv88e6xxx_chip *chip = port->chip;
 	irqreturn_t ret = IRQ_NONE;
-	u16 status;
-	int err;
 
 	mv88e6xxx_reg_lock(chip);
-
-	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_INT_STATUS, &status);
-	if (err)
-		goto out;
-
-	if (status & MV88E6352_SERDES_INT_LINK_CHANGE) {
-		ret = IRQ_HANDLED;
-		mv88e6352_serdes_irq_link(chip, port->port);
-	}
-out:
+	ret = mv88e6xxx_serdes_irq_status(chip, port->port, 0);
 	mv88e6xxx_reg_unlock(chip);
 
 	return ret;
@@ -589,21 +597,13 @@ static int mv88e6390_serdes_irq_status_sgmii(struct mv88e6xxx_chip *chip,
 	return err;
 }
 
-static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
+irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane)
 {
-	struct mv88e6xxx_port *port = dev_id;
-	struct mv88e6xxx_chip *chip = port->chip;
+	u8 cmode = chip->ports[port].cmode;
 	irqreturn_t ret = IRQ_NONE;
-	u8 cmode = port->cmode;
 	u16 status;
 	int err;
-	u8 lane;
-
-	mv88e6xxx_reg_lock(chip);
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port->port);
-	if (!lane)
-		goto out;
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
@@ -611,13 +611,30 @@ static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
 		err = mv88e6390_serdes_irq_status_sgmii(chip, lane, &status);
 		if (err)
-			goto out;
+			return ret;
 		if (status & (MV88E6390_SGMII_INT_LINK_DOWN |
 			      MV88E6390_SGMII_INT_LINK_UP)) {
 			ret = IRQ_HANDLED;
-			mv88e6390_serdes_irq_link_sgmii(chip, port->port, lane);
+			mv88e6390_serdes_irq_link_sgmii(chip, port, lane);
 		}
 	}
+
+	return ret;
+}
+
+static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_port *port = dev_id;
+	struct mv88e6xxx_chip *chip = port->chip;
+	irqreturn_t ret = IRQ_NONE;
+	u8 lane;
+
+	mv88e6xxx_reg_lock(chip);
+	lane = mv88e6xxx_serdes_get_lane(chip, port->port);
+	if (!lane)
+		goto out;
+
+	ret = mv88e6xxx_serdes_irq_status(chip, port->port, lane);
 out:
 	mv88e6xxx_reg_unlock(chip);
 
