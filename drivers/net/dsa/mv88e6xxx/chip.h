@@ -444,7 +444,7 @@ struct mv88e6xxx_ops {
 	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
 
 	/* SERDES lane mapping */
-	int (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port, u8 *lane);
+	u8 (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);
 
 	/* SERDES interrupt handling */
 	unsigned int (*serdes_irq_mapping)(struct mv88e6xxx_chip *chip,

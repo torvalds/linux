@@ -74,22 +74,9 @@
 #define MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID BIT(11)
 #define MV88E6390_SGMII_PHY_STATUS_LINK		BIT(10)
 
-/* Put the SERDES lane address a port is using into *lane. If a port has
- * multiple lanes, should put the first lane the port is using. If a port does
- * not have a lane, return -ENODEV.
- */
-static inline int mv88e6xxx_serdes_get_lane(struct mv88e6xxx_chip *chip,
-					    int port, u8 *lane)
-{
-	if (!chip->info->ops->serdes_get_lane)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->serdes_get_lane(chip, port, lane);
-}
-
-int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port, u8 *lane);
-int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port, u8 *lane);
-int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port, u8 *lane);
+u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
+u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
+u8 mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
@@ -109,6 +96,16 @@ int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
 				 u8 lane);
 int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
 void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
+
+/* Return the (first) SERDES lane address a port is using, 0 otherwise. */
+static inline u8 mv88e6xxx_serdes_get_lane(struct mv88e6xxx_chip *chip,
+					   int port)
+{
+	if (!chip->info->ops->serdes_get_lane)
+		return 0;
+
+	return chip->info->ops->serdes_get_lane(chip, port);
+}
 
 static inline unsigned int
 mv88e6xxx_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
