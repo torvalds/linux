@@ -799,7 +799,7 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 			goto umc_late_fini;
 	}
 
-	if (adev->mmhub_funcs->ras_late_init) {
+	if (adev->mmhub_funcs && adev->mmhub_funcs->ras_late_init) {
 		r = adev->mmhub_funcs->ras_late_init(adev);
 		if (r)
 			return r;
