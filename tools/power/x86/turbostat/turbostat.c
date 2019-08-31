@@ -59,6 +59,7 @@ unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
 unsigned int authentic_amd;
+unsigned int hygon_genuine;
 unsigned int max_level, max_extended_level;
 unsigned int has_invariant_tsc;
 unsigned int do_nhm_platform_info;
@@ -1730,7 +1731,7 @@ void get_apic_id(struct thread_data *t)
 	if (!DO_BIC(BIC_X2APIC))
 		return;
 
-	if (authentic_amd) {
+	if (authentic_amd || hygon_genuine) {
 		unsigned int topology_extensions;
 
 		if (max_extended_level < 0x8000001e)
@@ -3831,6 +3832,7 @@ double get_tdp_amd(unsigned int family)
 {
 	switch (family) {
 	case 0x17:
+	case 0x18:
 	default:
 		/* This is the max stock TDP of HEDT/Server Fam17h chips */
 		return 250.0;
@@ -4011,6 +4013,7 @@ void rapl_probe_amd(unsigned int family, unsigned int model)
 
 	switch (family) {
 	case 0x17: /* Zen, Zen+ */
+	case 0x18: /* Hygon Dhyana */
 		do_rapl = RAPL_AMD_F17H | RAPL_PER_CORE_ENERGY;
 		if (rapl_joules) {
 			BIC_PRESENT(BIC_Pkg_J);
@@ -4047,7 +4050,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 {
 	if (genuine_intel)
 		rapl_probe_intel(family, model);
-	if (authentic_amd)
+	if (authentic_amd || hygon_genuine)
 		rapl_probe_amd(family, model);
 }
 
@@ -4632,6 +4635,8 @@ void process_cpuid()
 		genuine_intel = 1;
 	else if (ebx == 0x68747541 && ecx == 0x444d4163 && edx == 0x69746e65)
 		authentic_amd = 1;
+	else if (ebx == 0x6f677948 && ecx == 0x656e6975 && edx == 0x6e65476e)
+		hygon_genuine = 1;
 
 	if (!quiet)
 		fprintf(outf, "CPUID(0): %.4s%.4s%.4s ",
