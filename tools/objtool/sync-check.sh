@@ -12,18 +12,39 @@ arch/x86/lib/x86-opcode-map.txt
 arch/x86/tools/gen-insn-attr-x86.awk
 '
 
-check()
-{
-	local file=$1
+check_2 () {
+  file1=$1
+  file2=$2
 
-	diff ../$file ../../$file > /dev/null ||
-		echo "Warning: synced file at 'tools/objtool/$file' differs from latest kernel version at '$file'"
+  shift
+  shift
+
+  cmd="diff $* $file1 $file2 > /dev/null"
+
+  test -f $file2 && {
+    eval $cmd || {
+      echo "Warning: Kernel ABI header at '$file1' differs from latest version at '$file2'" >&2
+      echo diff -u $file1 $file2
+    }
+  }
+}
+
+check () {
+  file=$1
+
+  shift
+
+  check_2 tools/$file $file $*
 }
 
 if [ ! -d ../../kernel ] || [ ! -d ../../tools ] || [ ! -d ../objtool ]; then
 	exit 0
 fi
 
+cd ../..
+
 for i in $FILES; do
   check $i
 done
+
+cd -
