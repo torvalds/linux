@@ -280,11 +280,11 @@ struct mt76_hw_cap {
 	bool has_5ghz;
 };
 
-#define MT_TXWI_NO_FREE			BIT(0)
+#define MT_DRV_TXWI_NO_FREE		BIT(0)
+#define MT_DRV_TX_ALIGNED4_SKBS		BIT(1)
 
 struct mt76_driver_ops {
-	bool tx_aligned4_skbs;
-	u32 txwi_flags;
+	u32 drv_flags;
 	u16 txwi_size;
 
 	void (*update_survey)(struct mt76_dev *dev);

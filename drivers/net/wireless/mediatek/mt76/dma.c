@@ -166,7 +166,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 			dev->drv->tx_complete_skb(dev, qid, &entry);
 
 		if (entry.txwi) {
-			if (!(dev->drv->txwi_flags & MT_TXWI_NO_FREE))
+			if (!(dev->drv->drv_flags & MT_DRV_TXWI_NO_FREE))
 				mt76_put_txwi(dev, entry.txwi);
 			wake = !flush;
 		}
@@ -301,7 +301,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	txwi = mt76_get_txwi_ptr(dev, t);
 
 	skb->prev = skb->next = NULL;
-	if (dev->drv->tx_aligned4_skbs)
+	if (dev->drv->drv_flags & MT_DRV_TX_ALIGNED4_SKBS)
 		mt76_insert_hdr_pad(skb);
 
 	len = skb_headlen(skb);
