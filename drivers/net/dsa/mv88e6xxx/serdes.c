@@ -49,10 +49,13 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_phy_write(chip, lane, reg_c45, val);
 }
 
-static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
+int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 {
 	u16 val, new_val;
 	int err;
+
+	if (!mv88e6xxx_serdes_get_lane(chip, port))
+		return 0;
 
 	err = mv88e6352_serdes_read(chip, MII_BMCR, &val);
 	if (err)
@@ -88,19 +91,6 @@ static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
 		return true;
 
 	return false;
-}
-
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
-{
-	int err;
-
-	if (mv88e6352_port_has_serdes(chip, port)) {
-		err = mv88e6352_serdes_power_set(chip, on);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
 }
 
 struct mv88e6352_serdes_hw_stat {
