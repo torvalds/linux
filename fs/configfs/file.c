@@ -62,22 +62,32 @@ struct configfs_buffer {
 	};
 };
 
-
-static int fill_read_buffer(struct configfs_buffer * buffer)
+static inline struct configfs_fragment *to_frag(struct file *file)
 {
-	ssize_t count;
+	struct configfs_dirent *sd = file->f_path.dentry->d_fsdata;
+
+	return sd->s_frag;
+}
+
+static int fill_read_buffer(struct file *file, struct configfs_buffer *buffer)
+{
+	struct configfs_fragment *frag = to_frag(file);
+	ssize_t count = -ENOENT;
 
 	if (!buffer->page)
 		buffer->page = (char *) get_zeroed_page(GFP_KERNEL);
 	if (!buffer->page)
 		return -ENOMEM;
 
-	count = buffer->attr->show(buffer->item, buffer->page);
+	down_read(&frag->frag_sem);
+	if (!frag->frag_dead)
+		count = buffer->attr->show(buffer->item, buffer->page);
+	up_read(&frag->frag_sem);
+
 	if (count < 0)
 		return count;
 	if (WARN_ON_ONCE(count > (ssize_t)SIMPLE_ATTR_SIZE))
 		return -EIO;
-
 	buffer->needs_read_fill = 0;
 	buffer->count = count;
 	return 0;
@@ -110,7 +120,7 @@ configfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *pp
 
 	mutex_lock(&buffer->mutex);
 	if (buffer->needs_read_fill) {
-		retval = fill_read_buffer(buffer);
+		retval = fill_read_buffer(file, buffer);
 		if (retval)
 			goto out;
 	}
@@ -147,6 +157,7 @@ static ssize_t
 configfs_read_bin_file(struct file *file, char __user *buf,
 		       size_t count, loff_t *ppos)
 {
+	struct configfs_fragment *frag = to_frag(file);
 	struct configfs_buffer *buffer = file->private_data;
 	ssize_t retval = 0;
 	ssize_t len = min_t(size_t, count, PAGE_SIZE);
@@ -162,7 +173,12 @@ configfs_read_bin_file(struct file *file, char __user *buf,
 
 	if (buffer->needs_read_fill) {
 		/* perform first read with buf == NULL to get extent */
-		len = buffer->bin_attr->read(buffer->item, NULL, 0);
+		down_read(&frag->frag_sem);
+		if (!frag->frag_dead)
+			len = buffer->bin_attr->read(buffer->item, NULL, 0);
+		else
+			len = -ENOENT;
+		up_read(&frag->frag_sem);
 		if (len <= 0) {
 			retval = len;
 			goto out;
@@ -182,8 +198,13 @@ configfs_read_bin_file(struct file *file, char __user *buf,
 		buffer->bin_buffer_size = len;
 
 		/* perform second read to fill buffer */
-		len = buffer->bin_attr->read(buffer->item,
-					     buffer->bin_buffer, len);
+		down_read(&frag->frag_sem);
+		if (!frag->frag_dead)
+			len = buffer->bin_attr->read(buffer->item,
+						     buffer->bin_buffer, len);
+		else
+			len = -ENOENT;
+		up_read(&frag->frag_sem);
 		if (len < 0) {
 			retval = len;
 			vfree(buffer->bin_buffer);
@@ -234,9 +255,16 @@ fill_write_buffer(struct configfs_buffer * buffer, const char __user * buf, size
 }
 
 static int
-flush_write_buffer(struct configfs_buffer *buffer, size_t count)
+flush_write_buffer(struct file *file, struct configfs_buffer *buffer, size_t count)
 {
-	return buffer->attr->store(buffer->item, buffer->page, count);
+	struct configfs_fragment *frag = to_frag(file);
+	int res = -ENOENT;
+
+	down_read(&frag->frag_sem);
+	if (!frag->frag_dead)
+		res = buffer->attr->store(buffer->item, buffer->page, count);
+	up_read(&frag->frag_sem);
+	return res;
 }
 
 
@@ -266,7 +294,7 @@ configfs_write_file(struct file *file, const char __user *buf, size_t count, lof
 	mutex_lock(&buffer->mutex);
 	len = fill_write_buffer(buffer, buf, count);
 	if (len > 0)
-		len = flush_write_buffer(buffer, len);
+		len = flush_write_buffer(file, buffer, len);
 	if (len > 0)
 		*ppos += len;
 	mutex_unlock(&buffer->mutex);
@@ -342,6 +370,7 @@ out:
 static int __configfs_open_file(struct inode *inode, struct file *file, int type)
 {
 	struct dentry *dentry = file->f_path.dentry;
+	struct configfs_fragment *frag = to_frag(file);
 	struct configfs_attribute *attr;
 	struct configfs_buffer *buffer;
 	int error;
@@ -351,8 +380,13 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	if (!buffer)
 		goto out;
 
+	error = -ENOENT;
+	down_read(&frag->frag_sem);
+	if (unlikely(frag->frag_dead))
+		goto out_free_buffer;
+
 	error = -EINVAL;
-	buffer->item = configfs_get_config_item(dentry->d_parent);
+	buffer->item = to_item(dentry->d_parent);
 	if (!buffer->item)
 		goto out_free_buffer;
 
@@ -410,6 +444,7 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	buffer->read_in_progress = false;
 	buffer->write_in_progress = false;
 	file->private_data = buffer;
+	up_read(&frag->frag_sem);
 	return 0;
 
 out_put_module:
@@ -417,6 +452,7 @@ out_put_module:
 out_put_item:
 	config_item_put(buffer->item);
 out_free_buffer:
+	up_read(&frag->frag_sem);
 	kfree(buffer);
 out:
 	return error;
@@ -426,8 +462,6 @@ static int configfs_release(struct inode *inode, struct file *filp)
 {
 	struct configfs_buffer *buffer = filp->private_data;
 
-	if (buffer->item)
-		config_item_put(buffer->item);
 	module_put(buffer->owner);
 	if (buffer->page)
 		free_page((unsigned long)buffer->page);
@@ -453,12 +487,17 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 	buffer->read_in_progress = false;
 
 	if (buffer->write_in_progress) {
+		struct configfs_fragment *frag = to_frag(file);
 		buffer->write_in_progress = false;
 
-		/* result of ->release() is ignored */
-		buffer->bin_attr->write(buffer->item, buffer->bin_buffer,
-				buffer->bin_buffer_size);
-
+		down_read(&frag->frag_sem);
+		if (!frag->frag_dead) {
+			/* result of ->release() is ignored */
+			buffer->bin_attr->write(buffer->item,
+					buffer->bin_buffer,
+					buffer->bin_buffer_size);
+		}
+		up_read(&frag->frag_sem);
 		/* vfree on NULL is safe */
 		vfree(buffer->bin_buffer);
 		buffer->bin_buffer = NULL;
