@@ -240,17 +240,24 @@ static int mv88e6352_serdes_irq_disable(struct mv88e6xxx_chip *chip)
 	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE, 0);
 }
 
+unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
+{
+	return irq_find_mapping(chip->g2_irq.domain, MV88E6352_SERDES_IRQ);
+}
+
 int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 {
+	unsigned int irq;
 	int err;
 
 	if (!mv88e6352_port_has_serdes(chip, port))
 		return 0;
 
-	chip->ports[port].serdes_irq = irq_find_mapping(chip->g2_irq.domain,
-							MV88E6352_SERDES_IRQ);
-	if (!chip->ports[port].serdes_irq)
+	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
+	if (!irq)
 		return 0;
+
+	chip->ports[port].serdes_irq = irq;
 
 	/* Requesting the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.
@@ -673,8 +680,14 @@ out:
 	return ret;
 }
 
+unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
+{
+	return irq_find_mapping(chip->g2_irq.domain, port);
+}
+
 int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 {
+	unsigned int irq;
 	int err;
 	u8 lane;
 
@@ -685,10 +698,11 @@ int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 		return err;
 	}
 
-	chip->ports[port].serdes_irq = irq_find_mapping(chip->g2_irq.domain,
-							port);
-	if (!chip->ports[port].serdes_irq)
+	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
+	if (!irq)
 		return 0;
+
+	chip->ports[port].serdes_irq = irq;
 
 	/* Requesting the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.

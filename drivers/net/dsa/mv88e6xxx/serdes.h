@@ -90,6 +90,10 @@ static inline int mv88e6xxx_serdes_get_lane(struct mv88e6xxx_chip *chip,
 int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port, u8 *lane);
 int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port, u8 *lane);
 int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port, u8 *lane);
+unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
+					  int port);
+unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
+					  int port);
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
@@ -106,5 +110,13 @@ int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
 int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
 void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
 
+static inline unsigned int
+mv88e6xxx_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
+{
+	if (!chip->info->ops->serdes_irq_mapping)
+		return 0;
+
+	return chip->info->ops->serdes_irq_mapping(chip, port);
+}
 
 #endif
