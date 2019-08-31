@@ -107,7 +107,7 @@ extern struct ipv6_packet pkt_v6;
 	int __ret = !!(condition);					\
 	if (__ret) {							\
 		test__fail();						\
-		printf("%s:FAIL:%d ", __func__, __LINE__);		\
+		printf("%s:FAIL:%d\n", __func__, __LINE__);		\
 	}								\
 	__ret;								\
 })
