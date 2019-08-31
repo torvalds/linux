@@ -45,6 +45,7 @@ static void dump_test_log(const struct prog_test_def *test, bool failed)
 
 	if (env.verbose || test->force_log || failed) {
 		if (env.log_cnt) {
+			env.log_buf[env.log_cnt] = '\0';
 			fprintf(env.stdout, "%s", env.log_buf);
 			if (env.log_buf[env.log_cnt - 1] != '\n')
 				fprintf(env.stdout, "\n");
