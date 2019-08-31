@@ -226,15 +226,15 @@ out:
 	return ret;
 }
 
-static int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip)
+int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				bool enable)
 {
-	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE,
-				      MV88E6352_SERDES_INT_LINK_CHANGE);
-}
+	u16 val = 0;
 
-static int mv88e6352_serdes_irq_disable(struct mv88e6xxx_chip *chip)
-{
-	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE, 0);
+	if (enable)
+		val |= MV88E6352_SERDES_INT_LINK_CHANGE;
+
+	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE, val);
 }
 
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
@@ -245,9 +245,11 @@ unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 {
 	unsigned int irq;
+	u8 lane;
 	int err;
 
-	if (!mv88e6352_port_has_serdes(chip, port))
+	lane = mv88e6xxx_serdes_get_lane(chip, port);
+	if (!lane)
 		return 0;
 
 	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
@@ -272,15 +274,18 @@ int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 		return err;
 	}
 
-	return mv88e6352_serdes_irq_enable(chip);
+	return mv88e6xxx_serdes_irq_enable(chip, port, lane);
 }
 
 void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 {
-	if (!mv88e6352_port_has_serdes(chip, port))
+	u8 lane;
+
+	lane = mv88e6xxx_serdes_get_lane(chip, port);
+	if (!lane)
 		return;
 
-	mv88e6352_serdes_irq_disable(chip);
+	mv88e6xxx_serdes_irq_disable(chip, port, lane);
 
 	/* Freeing the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.
@@ -546,51 +551,31 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,
-					     u8 lane)
+					     u8 lane, bool enable)
 {
+	u16 val = 0;
+
+	if (enable)
+		val |= MV88E6390_SGMII_INT_LINK_DOWN |
+			MV88E6390_SGMII_INT_LINK_UP;
+
 	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-				      MV88E6390_SGMII_INT_ENABLE,
-				      MV88E6390_SGMII_INT_LINK_DOWN |
-				      MV88E6390_SGMII_INT_LINK_UP);
+				      MV88E6390_SGMII_INT_ENABLE, val);
 }
 
-static int mv88e6390_serdes_irq_disable_sgmii(struct mv88e6xxx_chip *chip,
-					      u8 lane)
-{
-	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-				      MV88E6390_SGMII_INT_ENABLE, 0);
-}
-
-int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
-				u8 lane)
+int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				bool enable)
 {
 	u8 cmode = chip->ports[port].cmode;
-	int err = 0;
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
 	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		err = mv88e6390_serdes_irq_enable_sgmii(chip, lane);
+		return mv88e6390_serdes_irq_enable_sgmii(chip, lane, enable);
 	}
 
-	return err;
-}
-
-int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
-				 u8 lane)
-{
-	u8 cmode = chip->ports[port].cmode;
-	int err = 0;
-
-	switch (cmode) {
-	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
-	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		err = mv88e6390_serdes_irq_disable_sgmii(chip, lane);
-	}
-
-	return err;
+	return 0;
 }
 
 static int mv88e6390_serdes_irq_status_sgmii(struct mv88e6xxx_chip *chip,
@@ -676,7 +661,7 @@ int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 		return err;
 	}
 
-	return mv88e6390_serdes_irq_enable(chip, port, lane);
+	return mv88e6xxx_serdes_irq_enable(chip, port, lane);
 }
 
 void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
@@ -687,7 +672,7 @@ void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 	if (!lane)
 		return;
 
-	mv88e6390_serdes_irq_disable(chip, port, lane);
+	mv88e6xxx_serdes_irq_disable(chip, port, lane);
 
 	/* Freeing the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.

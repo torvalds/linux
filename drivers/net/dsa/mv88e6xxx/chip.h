@@ -452,6 +452,8 @@ struct mv88e6xxx_ops {
 					   int port);
 	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
 	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
+	int (*serdes_irq_enable)(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				 bool enable);
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);

@@ -434,7 +434,7 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	lane = mv88e6xxx_serdes_get_lane(chip, port);
 	if (lane) {
 		if (chip->ports[port].serdes_irq) {
-			err = mv88e6390_serdes_irq_disable(chip, port, lane);
+			err = mv88e6xxx_serdes_irq_disable(chip, port, lane);
 			if (err)
 				return err;
 		}
@@ -469,7 +469,7 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			return err;
 
 		if (chip->ports[port].serdes_irq) {
-			err = mv88e6390_serdes_irq_enable(chip, port, lane);
+			err = mv88e6xxx_serdes_irq_enable(chip, port, lane);
 			if (err)
 				return err;
 		}
