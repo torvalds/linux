@@ -4205,6 +4205,10 @@ static int gfx_v9_0_do_edc_gds_workarounds(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
 	int i, r;
 
+	/* only support when RAS is enabled */
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return 0;
+
 	r = amdgpu_ring_alloc(ring, 7);
 	if (r) {
 		DRM_ERROR("amdgpu: GDS workarounds failed to lock ring %s (%d).\n",
