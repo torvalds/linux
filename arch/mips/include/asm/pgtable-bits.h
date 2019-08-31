@@ -221,13 +221,6 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 
 #define _CACHE_CACHABLE_NONCOHERENT (5<<_CACHE_SHIFT)
 
-#elif defined(CONFIG_CPU_LOONGSON3)
-
-/* Using COHERENT flag for NONCOHERENT doesn't hurt. */
-
-#define _CACHE_CACHABLE_NONCOHERENT (3<<_CACHE_SHIFT)  /* LOONGSON       */
-#define _CACHE_CACHABLE_COHERENT    (3<<_CACHE_SHIFT)  /* LOONGSON-3     */
-
 #elif defined(CONFIG_MACH_INGENIC)
 
 /* Ingenic uses the WA bit to achieve write-combine memory writes */
