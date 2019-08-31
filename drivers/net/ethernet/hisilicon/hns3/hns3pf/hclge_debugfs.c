@@ -279,7 +279,7 @@ static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
 
 static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 {
-	struct hclge_dbg_reg_type_info *reg_info = &hclge_dbg_reg_info[0];
+	struct hclge_dbg_reg_type_info *reg_info;
 	bool has_dump = false;
 	int i;
 
