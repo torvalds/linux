@@ -1196,7 +1196,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         rts2rts_qp_counters_set_id[0x1];
 	u8         reserved_at_16a[0x2];
 	u8         vnic_env_int_rq_oob[0x1];
-	u8         reserved_at_16d[0x2];
+	u8         sbcam_reg[0x1];
+	u8         reserved_at_16e[0x1];
 	u8         qcam_reg[0x1];
 	u8         gid_table_size[0x10];
 
@@ -1960,12 +1961,28 @@ struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits {
 	u8         port_xmit_wait[0x20];
 };
 
-struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits {
+struct mlx5_ifc_eth_per_tc_prio_grp_data_layout_bits {
 	u8         transmit_queue_high[0x20];
 
 	u8         transmit_queue_low[0x20];
 
-	u8         reserved_at_40[0x780];
+	u8         no_buffer_discard_uc_high[0x20];
+
+	u8         no_buffer_discard_uc_low[0x20];
+
+	u8         reserved_at_80[0x740];
+};
+
+struct mlx5_ifc_eth_per_tc_congest_prio_grp_data_layout_bits {
+	u8         wred_discard_high[0x20];
+
+	u8         wred_discard_low[0x20];
+
+	u8         ecn_marked_tc_high[0x20];
+
+	u8         ecn_marked_tc_low[0x20];
+
+	u8         reserved_at_80[0x740];
 };
 
 struct mlx5_ifc_eth_per_prio_grp_data_layout_bits {
@@ -3642,7 +3659,8 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_eth_3635_cntrs_grp_data_layout_bits eth_3635_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_extended_cntrs_grp_data_layout_bits eth_extended_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_per_prio_grp_data_layout_bits eth_per_prio_grp_data_layout;
-	struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits eth_per_traffic_grp_data_layout;
+	struct mlx5_ifc_eth_per_tc_prio_grp_data_layout_bits eth_per_tc_prio_grp_data_layout;
+	struct mlx5_ifc_eth_per_tc_congest_prio_grp_data_layout_bits eth_per_tc_congest_prio_grp_data_layout;
 	struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits ib_port_cntrs_grp_data_layout;
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	struct mlx5_ifc_phys_layer_statistical_cntrs_bits phys_layer_statistical_cntrs;
@@ -9422,7 +9440,8 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_eth_802_3_cntrs_grp_data_layout_bits eth_802_3_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_extended_cntrs_grp_data_layout_bits eth_extended_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_per_prio_grp_data_layout_bits eth_per_prio_grp_data_layout;
-	struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits eth_per_traffic_grp_data_layout;
+	struct mlx5_ifc_eth_per_tc_prio_grp_data_layout_bits eth_per_tc_prio_grp_data_layout;
+	struct mlx5_ifc_eth_per_tc_congest_prio_grp_data_layout_bits eth_per_tc_congest_prio_grp_data_layout;
 	struct mlx5_ifc_lane_2_module_mapping_bits lane_2_module_mapping;
 	struct mlx5_ifc_pamp_reg_bits pamp_reg;
 	struct mlx5_ifc_paos_reg_bits paos_reg;
