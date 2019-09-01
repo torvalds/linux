@@ -287,9 +287,9 @@ static inline void meson_cfg_writel(struct meson_pcie *mp, u32 val, u32 reg)
 
 static void meson_pcie_assert_reset(struct meson_pcie *mp)
 {
-	gpiod_set_value_cansleep(mp->reset_gpio, 0);
-	udelay(500);
 	gpiod_set_value_cansleep(mp->reset_gpio, 1);
+	udelay(500);
+	gpiod_set_value_cansleep(mp->reset_gpio, 0);
 }
 
 static void meson_pcie_init_dw(struct meson_pcie *mp)
