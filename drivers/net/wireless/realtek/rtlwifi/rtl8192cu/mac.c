@@ -638,7 +638,7 @@ static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 	u32 rssi, total_rssi = 0;
 	bool in_powersavemode = false;
 	bool is_cck_rate;
-	u8 *pdesc = (u8 *)p_desc;
+	__le32 *pdesc = (__le32 *)p_desc;
 
 	is_cck_rate = RX_HAL_IS_CCK_RATE(p_desc->rxmcs);
 	pstats->packet_matchbssid = packet_match_bssid;

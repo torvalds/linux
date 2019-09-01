@@ -282,10 +282,11 @@ out:
 bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 			   struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status,
-			   u8 *pdesc, struct sk_buff *skb)
+			   u8 *pdesc8, struct sk_buff *skb)
 {
 	struct rx_fwinfo_92c *p_drvinfo;
-	struct rx_desc_92c *p_desc = (struct rx_desc_92c *)pdesc;
+	struct rx_desc_92c *p_desc = (struct rx_desc_92c *)pdesc8;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u32 phystatus = get_rx_desc_phy_status(pdesc);
 
 	stats->length = (u16)get_rx_desc_pkt_len(pdesc);
@@ -339,7 +340,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 		 (struct ieee80211_rx_status *)IEEE80211_SKB_RXCB(skb);
 	u32 skb_len, pkt_len, drvinfo_len;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 *rxdesc;
+	__le32 *rxdesc;
 	struct rtl_stats stats = {
 		.signal = 0,
 		.rate = 0,
@@ -350,7 +351,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr;
 
 	memset(rx_status, 0, sizeof(*rx_status));
-	rxdesc	= skb->data;
+	rxdesc	= (__le32 *)skb->data;
 	skb_len	= skb->len;
 	drvinfo_len = (get_rx_desc_drvinfo_size(rxdesc) * RTL_RX_DRV_INFO_UNIT);
 	pkt_len		= get_rx_desc_pkt_len(rxdesc);
@@ -440,7 +441,7 @@ struct sk_buff *rtl8192c_tx_aggregate_hdl(struct ieee80211_hw *hw,
 
 /*======================================== trx ===============================*/
 
-static void _rtl_fill_usb_tx_desc(u8 *txdesc)
+static void _rtl_fill_usb_tx_desc(__le32 *txdesc)
 {
 	set_tx_desc_own(txdesc, 1);
 	set_tx_desc_last_seg(txdesc, 1);
@@ -450,7 +451,7 @@ static void _rtl_fill_usb_tx_desc(u8 *txdesc)
 /**
  *	For HW recovery information
  */
-static void _rtl_tx_desc_checksum(u8 *txdesc)
+static void _rtl_tx_desc_checksum(__le32 *txdesc)
 {
 	__le16 *ptr = (__le16 *)txdesc;
 	u16	checksum = 0;
@@ -483,11 +484,13 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	u16 pktlen = skb->len;
 	enum rtl_desc_qsel fw_qsel = _rtl8192cu_mq_to_descq(hw, fc,
 						skb_get_queue_mapping(skb));
-	u8 *txdesc;
+	u8 *txdesc8;
+	__le32 *txdesc;
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 	rtl_get_tcb_desc(hw, info, sta, skb, tcb_desc);
-	txdesc = skb_push(skb, RTL_TX_HEADER_SIZE);
+	txdesc8 = skb_push(skb, RTL_TX_HEADER_SIZE);
+	txdesc = (__le32 *)txdesc8;
 	memset(txdesc, 0, RTL_TX_HEADER_SIZE);
 	set_tx_desc_pkt_size(txdesc, pktlen);
 	set_tx_desc_linip(txdesc, 0);
@@ -597,9 +600,11 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "==>\n");
 }
 
-void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc,
+void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc8,
 			      u32 buffer_len, bool is_pspoll)
 {
+	__le32 *pdesc = (__le32 *)pdesc8;
+
 	/* Clear all status */
 	memset(pdesc, 0, RTL_TX_HEADER_SIZE);
 	set_tx_desc_first_seg(pdesc, 1); /* bFirstSeg; */
@@ -622,13 +627,14 @@ void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc,
 }
 
 void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc, bool firstseg,
+			     u8 *pdesc8, bool firstseg,
 			     bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 fw_queue = QSLT_BEACON;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	memset((void *)pdesc, 0, RTL_TX_HEADER_SIZE);
 	if (firstseg)
