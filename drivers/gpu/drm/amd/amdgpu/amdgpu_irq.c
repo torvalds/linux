@@ -159,10 +159,12 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	 * register to check whether the interrupt is triggered or not, and properly
 	 * ack the interrupt if it is there
 	 */
-	if (adev->nbio.funcs->handle_ras_controller_intr_no_bifring)
+	if (adev->nbio.funcs &&
+	    adev->nbio.funcs->handle_ras_controller_intr_no_bifring)
 		adev->nbio.funcs->handle_ras_controller_intr_no_bifring(adev);
 
-	if (adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring)
+	if (adev->nbio.funcs &&
+	    adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring)
 		adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
 
 	return ret;
