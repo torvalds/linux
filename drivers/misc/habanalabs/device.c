@@ -1292,10 +1292,10 @@ out_disabled:
 	if (hdev->pdev)
 		dev_err(&hdev->pdev->dev,
 			"Failed to initialize hl%d. Device is NOT usable !\n",
-			hdev->id);
+			hdev->id / 2);
 	else
 		pr_err("Failed to initialize hl%d. Device is NOT usable !\n",
-			hdev->id);
+			hdev->id / 2);
 
 	return rc;
 }
