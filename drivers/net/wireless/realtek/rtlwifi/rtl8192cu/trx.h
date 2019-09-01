@@ -73,142 +73,307 @@ struct rx_drv_info_92c {
 /* macros to read various fields in RX descriptor */
 
 /* DWORD 0 */
-#define GET_RX_DESC_PKT_LEN(__rxdesc)		\
-	le32_get_bits(*(__le32 *)__rxdesc, GENMASK(13, 0))
-#define GET_RX_DESC_CRC32(__rxdesc)		\
-	le32_get_bits(*(__le32 *)__rxdesc, BIT(14))
-#define GET_RX_DESC_ICV(__rxdesc)		\
-	le32_get_bits(*(__le32 *)__rxdesc, BIT(15))
-#define GET_RX_DESC_DRVINFO_SIZE(__rxdesc)	\
-	le32_get_bits(*(__le32 *)__rxdesc, GENMASK(19, 16))
-#define GET_RX_DESC_SHIFT(__rxdesc)		\
-	le32_get_bits(*(__le32 *)__rxdesc, GENMASK(25, 24))
-#define GET_RX_DESC_PHY_STATUS(__rxdesc)	\
-	le32_get_bits(*(__le32 *)__rxdesc, BIT(26))
-#define GET_RX_DESC_SWDEC(__rxdesc)		\
-	le32_get_bits(*(__le32 *)__rxdesc, BIT(27))
+static inline u32 get_rx_desc_pkt_len(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, GENMASK(13, 0));
+}
+
+static inline u32 get_rx_desc_crc32(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, BIT(14));
+}
+
+static inline u32 get_rx_desc_icv(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, BIT(15));
+}
+
+static inline u32 get_rx_desc_drvinfo_size(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, GENMASK(19, 16));
+}
+
+static inline u32 get_rx_desc_shift(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, GENMASK(25, 24));
+}
+
+static inline u32 get_rx_desc_phy_status(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, BIT(26));
+}
+
+static inline u32 get_rx_desc_swdec(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)__rxdesc, BIT(27));
+}
+
 
 /* DWORD 1 */
-#define GET_RX_DESC_PAGGR(__rxdesc)		\
-	le32_get_bits(*(__le32 *)(__rxdesc + 4), BIT(14))
-#define GET_RX_DESC_FAGGR(__rxdesc)		\
-	le32_get_bits(*(__le32 *)(__rxdesc + 4), BIT(15))
+static inline u32 get_rx_desc_paggr(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)(__rxdesc + 4), BIT(14));
+}
+
+static inline u32 get_rx_desc_faggr(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)(__rxdesc + 4), BIT(15));
+}
+
 
 /* DWORD 3 */
-#define GET_RX_DESC_RX_MCS(__rxdesc)		\
-	le32_get_bits(*(__le32 *)(__rxdesc + 12), GENMASK(5, 0))
-#define GET_RX_DESC_RX_HT(__rxdesc)            \
-	le32_get_bits(*(__le32 *)(__rxdesc + 12), BIT(6))
-#define GET_RX_DESC_SPLCP(__rxdesc)            \
-	le32_get_bits(*(__le32 *)(__rxdesc + 12), BIT(8))
-#define GET_RX_DESC_BW(__rxdesc)               \
-	le32_get_bits(*(__le32 *)(__rxdesc + 12), BIT(9))
+static inline u32 get_rx_desc_rx_mcs(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)(__rxdesc + 12), GENMASK(5, 0));
+}
+
+static inline u32 get_rx_desc_rx_ht(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)(__rxdesc + 12), BIT(6));
+}
+
+static inline u32 get_rx_desc_splcp(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)(__rxdesc + 12), BIT(8));
+}
+
+static inline u32 get_rx_desc_bw(u8 *__rxdesc)
+{
+	return le32_get_bits(*(__le32 *)(__rxdesc + 12), BIT(9));
+}
+
 
 /* DWORD 5 */
-#define GET_RX_DESC_TSFL(__rxdesc)		\
-	le32_to_cpu(*((__le32 *)(__rxdesc + 20)))
+static inline u32 get_rx_desc_tsfl(u8 *__rxdesc)
+{
+	return le32_to_cpu(*((__le32 *)(__rxdesc + 20)));
+}
+
 
 /*======================= tx desc ============================================*/
 
 /* macros to set various fields in TX descriptor */
 
 /* Dword 0 */
-#define SET_TX_DESC_PKT_SIZE(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, GENMASK(15, 0))
-#define SET_TX_DESC_OFFSET(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, GENMASK(23, 16))
-#define SET_TX_DESC_BMC(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(24))
-#define SET_TX_DESC_HTC(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(25))
-#define SET_TX_DESC_LAST_SEG(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(26))
-#define SET_TX_DESC_FIRST_SEG(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(27))
-#define SET_TX_DESC_LINIP(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(28))
-#define SET_TX_DESC_OWN(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(31))
+static inline void set_tx_desc_pkt_size(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, GENMASK(15, 0));
+}
+
+static inline void set_tx_desc_offset(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, GENMASK(23, 16));
+}
+
+static inline void set_tx_desc_bmc(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(24));
+}
+
+static inline void set_tx_desc_htc(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(25));
+}
+
+static inline void set_tx_desc_last_seg(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(26));
+}
+
+static inline void set_tx_desc_first_seg(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(27));
+}
+
+static inline void set_tx_desc_linip(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(28));
+}
+
+static inline void set_tx_desc_own(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)__txdesc, __value, BIT(31));
+}
+
 
 /* Dword 1 */
-#define SET_TX_DESC_MACID(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(4, 0))
-#define SET_TX_DESC_AGG_ENABLE(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(5))
-#define SET_TX_DESC_AGG_BREAK(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(6))
-#define SET_TX_DESC_RDG_ENABLE(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(7))
-#define SET_TX_DESC_QUEUE_SEL(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(12, 8))
-#define SET_TX_DESC_RATE_ID(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(19, 16))
-#define SET_TX_DESC_NAV_USE_HDR(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(20))
-#define SET_TX_DESC_SEC_TYPE(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(23, 22))
-#define SET_TX_DESC_PKT_OFFSET(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(30, 26))
+static inline void set_tx_desc_macid(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(4, 0));
+}
+
+static inline void set_tx_desc_agg_enable(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(5));
+}
+
+static inline void set_tx_desc_agg_break(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(6));
+}
+
+static inline void set_tx_desc_rdg_enable(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(7));
+}
+
+static inline void set_tx_desc_queue_sel(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(12, 8));
+}
+
+static inline void set_tx_desc_rate_id(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(19, 16));
+}
+
+static inline void set_tx_desc_nav_use_hdr(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, BIT(20));
+}
+
+static inline void set_tx_desc_sec_type(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(23, 22));
+}
+
+static inline void set_tx_desc_pkt_offset(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 4), __value, GENMASK(30, 26));
+}
+
 
 /* Dword 2 */
-#define SET_TX_DESC_MORE_FRAG(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 8), __value, BIT(17))
-#define SET_TX_DESC_AMPDU_DENSITY(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 8), __value, GENMASK(22, 20))
+static inline void set_tx_desc_more_frag(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 8), __value, BIT(17));
+}
+
+static inline void set_tx_desc_ampdu_density(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 8), __value, GENMASK(22, 20));
+}
+
 
 /* Dword 3 */
-#define SET_TX_DESC_SEQ(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 12), __value, GENMASK(27, 16))
-#define SET_TX_DESC_PKT_ID(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 12), __value, GENMASK(31, 28))
+static inline void set_tx_desc_seq(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 12), __value, GENMASK(27, 16));
+}
+
+static inline void set_tx_desc_pkt_id(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 12), __value, GENMASK(31, 28));
+}
+
 
 /* Dword 4 */
-#define SET_TX_DESC_RTS_RATE(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(4, 0))
-#define SET_TX_DESC_QOS(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(6))
-#define SET_TX_DESC_HWSEQ_EN(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(7))
-#define SET_TX_DESC_USE_RATE(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(8))
-#define SET_TX_DESC_DISABLE_FB(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(10))
-#define SET_TX_DESC_CTS2SELF(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(11))
-#define SET_TX_DESC_RTS_ENABLE(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(12))
-#define SET_TX_DESC_HW_RTS_ENABLE(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(13))
-#define SET_TX_DESC_DATA_SC(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(21, 20))
-#define SET_TX_DESC_DATA_BW(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(25))
-#define SET_TX_DESC_RTS_SHORT(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(26))
-#define SET_TX_DESC_RTS_BW(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(27))
-#define SET_TX_DESC_RTS_SC(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(29, 28))
-#define SET_TX_DESC_RTS_STBC(__txdesc, __value)		\
-	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(31, 30))
+static inline void set_tx_desc_rts_rate(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(4, 0));
+}
+
+static inline void set_tx_desc_qos(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(6));
+}
+
+static inline void set_tx_desc_hwseq_en(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(7));
+}
+
+static inline void set_tx_desc_use_rate(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(8));
+}
+
+static inline void set_tx_desc_disable_fb(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(10));
+}
+
+static inline void set_tx_desc_cts2self(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(11));
+}
+
+static inline void set_tx_desc_rts_enable(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(12));
+}
+
+static inline void set_tx_desc_hw_rts_enable(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(13));
+}
+
+static inline void set_tx_desc_data_sc(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(21, 20));
+}
+
+static inline void set_tx_desc_data_bw(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(25));
+}
+
+static inline void set_tx_desc_rts_short(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(26));
+}
+
+static inline void set_tx_desc_rts_bw(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, BIT(27));
+}
+
+static inline void set_tx_desc_rts_sc(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(29, 28));
+}
+
+static inline void set_tx_desc_rts_stbc(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 16), __value, GENMASK(31, 30));
+}
+
 
 /* Dword 5 */
-#define SET_TX_DESC_TX_RATE(__pdesc, __val)		\
-	le32p_replace_bits((__le32 *)(__pdesc + 20), __val, GENMASK(5, 0))
-#define SET_TX_DESC_DATA_SHORTGI(__pdesc, __val)	\
-	le32p_replace_bits((__le32 *)(__pdesc + 20), __val, BIT(6))
-#define SET_TX_DESC_DATA_RATE_FB_LIMIT(__txdesc, __value) \
-	le32p_replace_bits((__le32 *)(__txdesc + 20), __value, GENMASK(12, 8))
-#define SET_TX_DESC_RTS_RATE_FB_LIMIT(__txdesc, __value) \
-	le32p_replace_bits((__le32 *)(__txdesc + 20), __value, GENMASK(16, 13))
+static inline void set_tx_desc_tx_rate(u8 *__pdesc, u32 __val)
+{
+	le32p_replace_bits((__le32 *)(__pdesc + 20), __val, GENMASK(5, 0));
+}
+
+static inline void set_tx_desc_data_shortgi(u8 *__pdesc, u32 __val)
+{
+	le32p_replace_bits((__le32 *)(__pdesc + 20), __val, BIT(6));
+}
+
+static inline void set_tx_desc_data_rate_fb_limit(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 20), __value, GENMASK(12, 8));
+}
+
+static inline void set_tx_desc_rts_rate_fb_limit(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 20), __value, GENMASK(16, 13));
+}
+
 
 /* Dword 6 */
-#define SET_TX_DESC_MAX_AGG_NUM(__txdesc, __value)	\
-	le32p_replace_bits((__le32 *)(__txdesc + 24), __value, GENMASK(15, 11))
+static inline void set_tx_desc_max_agg_num(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 24), __value, GENMASK(15, 11));
+}
+
 
 /* Dword 7 */
-#define SET_TX_DESC_TX_DESC_CHECKSUM(__txdesc, __value) \
-	le32p_replace_bits((__le32 *)(__txdesc + 28), __value, GENMASK(15, 0))
+static inline void set_tx_desc_tx_desc_checksum(u8 *__txdesc, u32 __value)
+{
+	le32p_replace_bits((__le32 *)(__txdesc + 28), __value, GENMASK(15, 0));
+}
+
 
 int  rtl8192cu_endpoint_mapping(struct ieee80211_hw *hw);
 u16 rtl8192cu_mq_to_hwq(__le16 fc, u16 mac80211_queue_index);
