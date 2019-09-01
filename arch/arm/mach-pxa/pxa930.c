@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/gpio-pxa.h>
 #include <linux/platform_device.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "pxa930.h"
 

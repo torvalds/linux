@@ -20,6 +20,7 @@
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

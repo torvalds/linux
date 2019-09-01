@@ -47,8 +47,6 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 
-#include <mach/hardware.h>
-
 #include "soc_common.h"
 
 static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev);

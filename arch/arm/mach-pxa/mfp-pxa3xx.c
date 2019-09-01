@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/syscore_ops.h>
 
-#include <mach/hardware.h>
 #include "mfp-pxa3xx.h"
 #include <mach/pxa3xx-regs.h>
 

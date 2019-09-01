@@ -8,8 +8,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/syscore_ops.h>
+#include <linux/soc/pxa/cpu.h>
 
-#include <mach/hardware.h>
 #include <mach/smemc.h>
 
 #ifdef CONFIG_PM

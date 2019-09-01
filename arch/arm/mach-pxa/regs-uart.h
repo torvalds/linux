@@ -2,6 +2,8 @@
 #ifndef __ASM_ARCH_REGS_UART_H
 #define __ASM_ARCH_REGS_UART_H
 
+#include "pxa-regs.h"
+
 /*
  * UARTs
  */

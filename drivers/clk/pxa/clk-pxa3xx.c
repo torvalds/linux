@@ -14,6 +14,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/of.h>
+#include <linux/soc/pxa/cpu.h>
 #include <mach/smemc.h>
 #include <mach/pxa3xx-regs.h>
 

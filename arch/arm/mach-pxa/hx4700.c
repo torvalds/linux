@@ -36,11 +36,11 @@
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/platform_data/i2c-pxa.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include "pxa27x.h"
+#include <mach/addr-map.h>
 #include <mach/hx4700.h>
 #include <linux/platform_data/irda-pxaficp.h>
 

@@ -17,11 +17,12 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/soc/pxa/cpu.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 
+#include <mach/addr-map.h>
 #include <mach/irqs.h>
 #include <mach/reset.h>
 #include <mach/smemc.h>

@@ -30,7 +30,6 @@
 #include <linux/mtd/sharpsl.h>
 #include <linux/memblock.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/setup.h>

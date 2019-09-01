@@ -11,7 +11,7 @@
 #ifndef __PXA2XX_REGS_H
 #define __PXA2XX_REGS_H
 
-#include <mach/hardware.h>
+#include "pxa-regs.h"
 
 /*
  * Power Manager

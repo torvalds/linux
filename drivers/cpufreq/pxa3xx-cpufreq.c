@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/soc/pxa/cpu.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 

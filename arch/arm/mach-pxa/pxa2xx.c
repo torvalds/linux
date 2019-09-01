@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>
 #include "mfp-pxa25x.h"
 #include <mach/reset.h>

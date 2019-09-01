@@ -21,7 +21,7 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-i2s.h"

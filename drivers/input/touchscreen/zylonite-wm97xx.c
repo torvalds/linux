@@ -21,9 +21,9 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/soc/pxa/cpu.h>
 #include <linux/wm97xx.h>
 
-#include <mach/hardware.h>
 #include <mach/mfp.h>
 #include <mach/regs-ac97.h>
 

@@ -26,14 +26,15 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/platform_data/mmp_dma.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
-#include <mach/hardware.h>
 #include <mach/irqs.h>
 #include "pxa25x.h"
 #include <mach/reset.h>
 #include "pm.h"
+#include <mach/addr-map.h>
 #include <mach/smemc.h>
 
 #include "generic.h"

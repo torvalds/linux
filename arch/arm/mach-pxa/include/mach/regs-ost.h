@@ -2,7 +2,7 @@
 #ifndef __ASM_MACH_REGS_OST_H
 #define __ASM_MACH_REGS_OST_H
 
-#include <mach/hardware.h>
+#include "pxa-regs.h"
 
 /*
  * OS Timer & Match Registers

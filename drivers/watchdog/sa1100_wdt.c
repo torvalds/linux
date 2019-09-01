@@ -35,7 +35,6 @@
 #endif
 
 #include <mach/reset.h>
-#include <mach/hardware.h>
 
 static unsigned long oscr_freq;
 static unsigned long sa1100wdt_users;

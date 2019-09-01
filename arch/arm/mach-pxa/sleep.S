@@ -13,7 +13,6 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/hardware.h>
 #include <mach/smemc.h>
 #include <mach/pxa2xx-regs.h>
 

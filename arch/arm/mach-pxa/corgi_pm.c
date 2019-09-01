@@ -19,7 +19,6 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 
 #include <mach/corgi.h>
 #include <mach/pxa2xx-regs.h>

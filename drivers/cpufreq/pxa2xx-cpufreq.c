@@ -24,6 +24,7 @@
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
+#include <linux/soc/pxa/cpu.h>
 #include <linux/io.h>
 
 #include <mach/pxa2xx-regs.h>

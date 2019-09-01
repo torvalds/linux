@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <sound/pxa2xx-lib.h>
 

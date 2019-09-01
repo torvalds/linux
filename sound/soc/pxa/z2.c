@@ -21,7 +21,6 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <mach/audio.h>
 #include <mach/z2.h>
 

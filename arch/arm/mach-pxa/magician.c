@@ -29,12 +29,12 @@
 #include <linux/regulator/machine.h>
 #include <linux/platform_data/i2c-pxa.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/system_info.h>
 
 #include "pxa27x.h"
+#include <mach/addr-map.h>
 #include <mach/magician.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>

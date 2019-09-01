@@ -24,8 +24,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
 #include "pxa25x.h"
+#include <mach/addr-map.h>
 #include <mach/smemc.h>
 
 #include "generic.h"
