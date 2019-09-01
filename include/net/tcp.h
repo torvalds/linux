@@ -2122,6 +2122,9 @@ struct tcp_ulp_ops {
 	void (*update)(struct sock *sk, struct proto *p);
 	/* cleanup ulp */
 	void (*release)(struct sock *sk);
+	/* diagnostic */
+	int (*get_info)(const struct sock *sk, struct sk_buff *skb);
+	size_t (*get_info_size)(const struct sock *sk);
 
 	char		name[TCP_ULP_NAME_MAX];
 	struct module	*owner;
