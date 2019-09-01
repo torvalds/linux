@@ -9,7 +9,7 @@
 
 #include <linux/kexec.h>
 #include <linux/string.h>
-#include <crypto/sha256.h>
+#include <crypto/sha.h>
 #include <asm/purgatory.h>
 
 int verify_sha256_digest(void)

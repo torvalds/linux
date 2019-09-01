@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <crypto/sha256.h>
+#include <crypto/sha.h>
 #include <asm/unaligned.h>
 
 static inline u32 Ch(u32 x, u32 y, u32 z)
