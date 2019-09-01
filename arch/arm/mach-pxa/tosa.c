@@ -45,7 +45,7 @@
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
 #include "tosa_bt.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <mach/smemc.h>
 
 #include <asm/mach/arch.h>

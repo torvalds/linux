@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_ARCH_AUDIO_H__
-#define __ASM_ARCH_AUDIO_H__
+#ifndef __SOC_PXA_AUDIO_H__
+#define __SOC_PXA_AUDIO_H__
 
 #include <sound/core.h>
 #include <sound/pcm.h>

@@ -46,7 +46,7 @@
 #include "udc.h"
 #include <linux/platform_data/video-pxafb.h>
 #include "pm.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/pcmcia-pxa2xx_viper.h>
 #include "zeus.h"
 #include <mach/smemc.h>

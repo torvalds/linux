@@ -13,7 +13,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <mach/eseries-gpio.h>
 
 #include <asm/mach-types.h>

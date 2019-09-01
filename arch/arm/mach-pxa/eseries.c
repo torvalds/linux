@@ -34,7 +34,7 @@
 #include "pxa25x.h"
 #include <mach/eseries-gpio.h>
 #include "eseries-irq.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
 #include "udc.h"
 #include <linux/platform_data/irda-pxaficp.h>

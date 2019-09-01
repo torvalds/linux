@@ -22,7 +22,7 @@
 #include <sound/dmaengine_pcm.h>
 
 #include <mach/pxa-regs.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #include "pxa2xx-i2s.h"
 

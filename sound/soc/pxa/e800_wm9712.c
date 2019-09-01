@@ -14,7 +14,7 @@
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <mach/eseries-gpio.h>
 
 static int e800_spk_amp_event(struct snd_soc_dapm_widget *w,

@@ -23,7 +23,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/regs-ac97.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 static void pxa2xx_ac97_warm_reset(struct ac97_controller *adrv)
 {

@@ -22,7 +22,7 @@
 
 #include <asm/mach-types.h>
 #include <mach/corgi.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #include "../codecs/wm8731.h"
 #include "pxa2xx-i2s.h"

@@ -24,7 +24,7 @@
 
 #include <asm/mach-types.h>
 #include <mach/tosa.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #define TOSA_HP        0
 #define TOSA_MIC_INT   1

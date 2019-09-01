@@ -21,7 +21,7 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <mach/z2.h>
 
 #include "../codecs/wm8750.h"

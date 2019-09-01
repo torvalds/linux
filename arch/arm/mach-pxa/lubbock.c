@@ -45,7 +45,7 @@
 #include <asm/hardware/sa1111.h>
 
 #include "pxa25x.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <mach/lubbock.h>
 #include "udc.h"
 #include <linux/platform_data/irda-pxaficp.h>
