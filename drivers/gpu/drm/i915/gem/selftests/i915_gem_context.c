@@ -1546,21 +1546,6 @@ out_unlock:
 	return err;
 }
 
-static __maybe_unused const char *
-__engine_name(struct drm_i915_private *i915, intel_engine_mask_t engines)
-{
-	struct intel_engine_cs *engine;
-	intel_engine_mask_t tmp;
-
-	if (engines == ALL_ENGINES)
-		return "all";
-
-	for_each_engine_masked(engine, i915, engines, tmp)
-		return engine->name;
-
-	return "none";
-}
-
 static bool skip_unused_engines(struct intel_context *ce, void *data)
 {
 	return !ce->state;
