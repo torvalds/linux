@@ -7164,8 +7164,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		NETIF_F_HIGHDMA;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
-	tp->cp_cmd |= RxChkSum | RxVlan;
-
+	tp->cp_cmd |= RxChkSum;
+	/* RTL8125 uses register RxConfig for VLAN offloading config */
+	if (!rtl_is_8125(tp))
+		tp->cp_cmd |= RxVlan;
 	/*
 	 * Pretend we are using VLANs; This bypasses a nasty bug where
 	 * Interrupts stop flowing on high load on 8110SCd controllers.
