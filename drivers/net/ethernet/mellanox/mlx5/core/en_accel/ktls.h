@@ -21,7 +21,14 @@
 	 MLX5_ST_SZ_BYTES(tls_progress_params))
 #define MLX5E_KTLS_PROGRESS_WQEBBS \
 	(DIV_ROUND_UP(MLX5E_KTLS_PROGRESS_WQE_SZ, MLX5_SEND_WQE_BB))
-#define MLX5E_KTLS_MAX_DUMP_WQEBBS 2
+
+struct mlx5e_dump_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_wqe_data_seg data;
+};
+
+#define MLX5E_KTLS_DUMP_WQEBBS \
+	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
 
 enum {
 	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD     = 0,

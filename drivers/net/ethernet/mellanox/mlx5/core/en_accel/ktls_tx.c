@@ -250,11 +250,6 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 	mlx5e_ktls_tx_post_param_wqes(sq, priv_tx, skip_static_post, true);
 }
 
-struct mlx5e_dump_wqe {
-	struct mlx5_wqe_ctrl_seg ctrl;
-	struct mlx5_wqe_data_seg data;
-};
-
 static int
 tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool first)
 {
@@ -262,7 +257,6 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 	struct mlx5_wqe_data_seg *dseg;
 	struct mlx5e_dump_wqe *wqe;
 	dma_addr_t dma_addr = 0;
-	u8  num_wqebbs;
 	u16 ds_cnt;
 	int fsz;
 	u16 pi;
@@ -270,7 +264,6 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
 
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
-	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 
 	cseg = &wqe->ctrl;
 	dseg = &wqe->data;
@@ -291,12 +284,8 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 	dseg->byte_count = cpu_to_be32(fsz);
 	mlx5e_dma_push(sq, dma_addr, fsz, MLX5E_DMA_MAP_PAGE);
 
-	tx_fill_wi(sq, pi, num_wqebbs, frag, fsz);
-	sq->pc += num_wqebbs;
-
-	WARN(num_wqebbs > MLX5E_KTLS_MAX_DUMP_WQEBBS,
-	     "unexpected DUMP num_wqebbs, %d > %d",
-	     num_wqebbs, MLX5E_KTLS_MAX_DUMP_WQEBBS);
+	tx_fill_wi(sq, pi, MLX5E_KTLS_DUMP_WQEBBS, frag, fsz);
+	sq->pc += MLX5E_KTLS_DUMP_WQEBBS;
 
 	return 0;
 }
@@ -368,7 +357,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	stats->tls_ooo++;
 
 	num_wqebbs = MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS +
-		(info.nr_frags ? info.nr_frags * MLX5E_KTLS_MAX_DUMP_WQEBBS : 1);
+		(info.nr_frags ? info.nr_frags * MLX5E_KTLS_DUMP_WQEBBS : 1);
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
 	if (unlikely(contig_wqebbs_room < num_wqebbs))
