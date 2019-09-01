@@ -98,7 +98,7 @@ Flash Control IDs
 	V4L2_CID_FLASH_STROBE control.
     * - ``V4L2_FLASH_STROBE_SOURCE_EXTERNAL``
       - The flash strobe is triggered by an external source. Typically
-	this is a sensor, which makes it possible to synchronises the
+	this is a sensor, which makes it possible to synchronise the
 	flash strobe start to exposure start.
 
 
