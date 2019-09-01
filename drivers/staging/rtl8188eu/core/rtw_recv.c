@@ -1373,11 +1373,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 		/* append  to first fragment frame's tail (if privacy frame, pull the ICV) */
 		skb_trim(prframe->pkt, prframe->pkt->len - prframe->attrib.icv_len);
 
-		/* memcpy */
-		memcpy(skb_tail_pointer(prframe->pkt), pnfhdr->pkt->data,
-		       pnfhdr->pkt->len);
-
-		skb_put(prframe->pkt, pnfhdr->pkt->len);
+		skb_put_data(prframe->pkt, pnfhdr->pkt->data, pnfhdr->pkt->len);
 
 		prframe->attrib.icv_len = pnfhdr->attrib.icv_len;
 		plist = plist->next;
