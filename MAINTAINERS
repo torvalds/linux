@@ -16202,6 +16202,12 @@ S:	Maintained
 F:	drivers/media/platform/davinci/
 F:	include/media/davinci/
 
+TI ENHANCED QUADRATURE ENCODER PULSE (eQEP) DRIVER
+R:	David Lechner <david@lechnology.com>
+L:	linux-iio@vger.kernel.org
+F:	Documentation/devicetree/bindings/counter/ti-eqep.yaml
+F:	drivers/counter/ti-eqep.c
+
 TI ETHERNET SWITCH DRIVER (CPSW)
 R:	Grygorii Strashko <grygorii.strashko@ti.com>
 L:	linux-omap@vger.kernel.org
