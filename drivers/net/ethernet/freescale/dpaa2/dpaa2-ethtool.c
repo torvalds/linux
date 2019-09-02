@@ -188,6 +188,11 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpaa2_eth_drv_stats *extras;
 	struct dpaa2_eth_ch_stats *ch_stats;
+	int dpni_stats_page_size[DPNI_STATISTICS_CNT] = {
+		sizeof(dpni_stats.page_0),
+		sizeof(dpni_stats.page_1),
+		sizeof(dpni_stats.page_2),
+	};
 
 	memset(data, 0,
 	       sizeof(u64) * (DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS));
@@ -198,17 +203,8 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 					  j, &dpni_stats);
 		if (err != 0)
 			netdev_warn(net_dev, "dpni_get_stats(%d) failed\n", j);
-		switch (j) {
-		case 0:
-			num_cnt = sizeof(dpni_stats.page_0) / sizeof(u64);
-			break;
-		case 1:
-			num_cnt = sizeof(dpni_stats.page_1) / sizeof(u64);
-			break;
-		case 2:
-			num_cnt = sizeof(dpni_stats.page_2) / sizeof(u64);
-			break;
-		}
+
+		num_cnt = dpni_stats_page_size[j] / sizeof(u64);
 		for (k = 0; k < num_cnt; k++)
 			*(data + i++) = dpni_stats.raw.counter[k];
 	}
