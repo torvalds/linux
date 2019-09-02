@@ -131,7 +131,7 @@ static const char * const edac_caps[] = {
 
 struct dev_ch_attribute {
 	struct device_attribute attr;
-	int channel;
+	unsigned int channel;
 };
 
 #define DEVICE_CHANNEL(_name, _mode, _show, _store, _var) \
@@ -200,7 +200,7 @@ static ssize_t channel_dimm_label_show(struct device *dev,
 				       char *data)
 {
 	struct csrow_info *csrow = to_csrow(dev);
-	unsigned chan = to_channel(mattr);
+	unsigned int chan = to_channel(mattr);
 	struct rank_info *rank = csrow->channels[chan];
 
 	/* if field has not been initialized, there is nothing to send */
@@ -216,7 +216,7 @@ static ssize_t channel_dimm_label_store(struct device *dev,
 					const char *data, size_t count)
 {
 	struct csrow_info *csrow = to_csrow(dev);
-	unsigned chan = to_channel(mattr);
+	unsigned int chan = to_channel(mattr);
 	struct rank_info *rank = csrow->channels[chan];
 	size_t copy_count = count;
 
@@ -240,7 +240,7 @@ static ssize_t channel_ce_count_show(struct device *dev,
 				     struct device_attribute *mattr, char *data)
 {
 	struct csrow_info *csrow = to_csrow(dev);
-	unsigned chan = to_channel(mattr);
+	unsigned int chan = to_channel(mattr);
 	struct rank_info *rank = csrow->channels[chan];
 
 	return sprintf(data, "%u\n", rank->ce_count);

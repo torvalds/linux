@@ -114,8 +114,8 @@ static const struct kernel_param_ops edac_report_ops = {
 
 module_param_cb(edac_report, &edac_report_ops, &edac_report, 0644);
 
-unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
-			         unsigned len)
+unsigned int edac_dimm_info_location(struct dimm_info *dimm, char *buf,
+				     unsigned int len)
 {
 	struct mem_ctl_info *mci = dimm->mci;
 	int i, n, count = 0;
@@ -236,9 +236,9 @@ EXPORT_SYMBOL_GPL(edac_mem_types);
  * At return, the pointer 'p' will be incremented to be used on a next call
  * to this function.
  */
-void *edac_align_ptr(void **p, unsigned size, int n_elems)
+void *edac_align_ptr(void **p, unsigned int size, int n_elems)
 {
-	unsigned align, r;
+	unsigned int align, r;
 	void *ptr = *p;
 
 	*p += size * n_elems;
@@ -302,10 +302,10 @@ static void _edac_mc_free(struct mem_ctl_info *mci)
 	kfree(mci);
 }
 
-struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
-				   unsigned n_layers,
+struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
+				   unsigned int n_layers,
 				   struct edac_mc_layer *layers,
-				   unsigned sz_pvt)
+				   unsigned int sz_pvt)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
@@ -313,9 +313,9 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	struct rank_info *chan;
 	struct dimm_info *dimm;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
-	unsigned pos[EDAC_MAX_LAYERS];
-	unsigned size, tot_dimms = 1, count = 1;
-	unsigned tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
+	unsigned int pos[EDAC_MAX_LAYERS];
+	unsigned int size, tot_dimms = 1, count = 1;
+	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
 	void *pvt, *p, *ptr = NULL;
 	int i, j, row, chn, n, len, off;
 	bool per_rank = false;
