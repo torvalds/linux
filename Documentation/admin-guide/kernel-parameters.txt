@@ -860,6 +860,10 @@
 	disable_radix	[PPC]
 			Disable RADIX MMU mode on POWER9
 
+	disable_tlbie	[PPC]
+			Disable TLBIE instruction. Currently does not work
+			with KVM, with HASH MMU, or with coherent accelerators.
+
 	disable_cpu_apicid= [X86,APIC,SMP]
 			Format: <int>
 			The number of initial APIC ID for the

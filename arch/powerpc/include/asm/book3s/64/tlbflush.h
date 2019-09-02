@@ -162,4 +162,13 @@ static inline void flush_tlb_pgtable(struct mmu_gather *tlb, unsigned long addre
 
 	radix__flush_tlb_pwc(tlb, address);
 }
+
+extern bool tlbie_capable;
+extern bool tlbie_enabled;
+
+static inline bool cputlb_use_tlbie(void)
+{
+	return tlbie_enabled;
+}
+
 #endif /*  _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H */
