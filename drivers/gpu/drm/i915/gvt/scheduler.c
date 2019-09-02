@@ -573,6 +573,16 @@ static int prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	return 0;
 }
 
+static void update_vreg_in_ctx(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu *vgpu = workload->vgpu;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	u32 ring_base;
+
+	ring_base = dev_priv->engine[workload->ring_id]->mmio_base;
+	vgpu_vreg_t(vgpu, RING_START(ring_base)) = workload->rb_start;
+}
+
 static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
@@ -1002,6 +1012,13 @@ static int workload_thread(void *priv)
 		if (need_force_wake)
 			intel_uncore_forcewake_get(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
+		/*
+		 * Update the vReg of the vGPU which submitted this
+		 * workload. The vGPU may use these registers for checking
+		 * the context state. The value comes from GPU commands
+		 * in this workload.
+		 */
+		update_vreg_in_ctx(workload);
 
 		ret = dispatch_workload(workload);
 
