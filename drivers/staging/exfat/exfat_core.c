@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include "exfat.h"
 
-
 static void __set_sb_dirty(struct super_block *sb)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
@@ -1711,7 +1710,6 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	if (ret != FFS_SUCCESS)
 		return NULL;
 
-
 	/* byte offset in cluster */
 	byte_offset &= p_fs->cluster_size - 1;
 
@@ -1725,7 +1723,6 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	buf = buf_getblk(sb, sec);
 	if (buf == NULL)
 		goto err_out;
-
 
 	ep = (struct dentry_t *)(buf + off);
 	entry_type = p_fs->fs_func->get_entry_type(ep);
@@ -1852,7 +1849,6 @@ void release_entry_set(struct entry_set_cache_t *es)
 	pr_debug("%s es=%p\n", __func__, es);
 	kfree(es);
 }
-
 
 static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 						struct entry_set_cache_t *es,

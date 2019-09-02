@@ -3017,7 +3017,6 @@ out:
 
 static int exfat_setattr(struct dentry *dentry, struct iattr *attr)
 {
-
 	struct exfat_sb_info *sbi = EXFAT_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
 	unsigned int ia_valid;

@@ -170,6 +170,7 @@ static inline u16 get_col_index(u16 i)
 {
 	return i >> LOW_INDEX_BIT;
 }
+
 static inline u16 get_row_index(u16 i)
 {
 	return i & ~HIGH_INDEX_MASK;
