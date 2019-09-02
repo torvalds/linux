@@ -2445,10 +2445,8 @@ static int cdns3_init_eps(struct cdns3_device *priv_dev)
 
 		priv_ep = devm_kzalloc(priv_dev->dev, sizeof(*priv_ep),
 				       GFP_KERNEL);
-		if (!priv_ep) {
-			ret = -ENOMEM;
+		if (!priv_ep)
 			goto err;
-		}
 
 		/* set parent of endpoint object */
 		priv_ep->cdns3_dev = priv_dev;
