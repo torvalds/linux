@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "cpumap.h"
 #include "parse-events.h"
 #include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <api/fs/fs.h>
 #include <subcmd/parse-options.h>
 #include <perf/cpumap.h>
 #include "util.h"
 #include "cloexec.h"
 #include "record.h"
+#include "../perf-sys.h"
 
 typedef void (*setup_probe_fn_t)(struct evsel *evsel);
 

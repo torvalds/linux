@@ -5,12 +5,13 @@
 #include <sys/types.h>
 #include <linux/rbtree.h>
 #include "map_groups.h"
-#include "dso.h"
+#include "dsos.h"
 #include "event.h"
 #include "rwsem.h"
 
 struct addr_location;
 struct branch_stack;
+struct dso;
 struct evsel;
 struct perf_sample;
 struct symbol;

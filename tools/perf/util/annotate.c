@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <libgen.h>
+#include <stdlib.h>
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
@@ -19,8 +20,10 @@
 #include "build-id.h"
 #include "color.h"
 #include "config.h"
-#include "cache.h"
+#include "dso.h"
+#include "env.h"
 #include "map.h"
+#include "map_groups.h"
 #include "symbol.h"
 #include "srcline.h"
 #include "units.h"

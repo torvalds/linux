@@ -5,6 +5,7 @@
 #include <api/fs/fs.h>
 #include "tests.h"
 #include "debug.h"
+#include "pmu.h"
 #include "util.h"
 #include <dirent.h>
 #include <errno.h>

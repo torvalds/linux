@@ -8,8 +8,8 @@
  */
 #include "builtin.h"
 
-#include "perf.h"
 #include "util/color.h"
+#include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/map.h"

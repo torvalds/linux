@@ -5,6 +5,7 @@
 #include "tool.h"
 #include "evswitch.h"
 #include "annotate.h"
+#include "ordered-events.h"
 #include "record.h"
 #include <linux/types.h>
 #include <stddef.h>

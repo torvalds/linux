@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
+#include <linux/string.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <string.h>
@@ -10,6 +11,7 @@
 #include "evsel.h"
 #include "util.h"
 #include "debug.h"
+#include "parse-events.h"
 #include "thread_map.h"
 #include "target.h"
 

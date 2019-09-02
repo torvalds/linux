@@ -22,6 +22,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <perf/evsel.h>
 #include "asm/bug.h"
 #include "callchain.h"
@@ -41,6 +42,7 @@
 #include "string2.h"
 #include "memswap.h"
 #include "util.h"
+#include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
 

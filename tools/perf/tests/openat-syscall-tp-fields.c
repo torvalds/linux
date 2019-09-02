@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <linux/err.h>
+#include <linux/string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

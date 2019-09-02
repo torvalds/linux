@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "callchain.h"
+#include "debug.h"
+#include "dso.h"
 #include "build-id.h"
 #include "hist.h"
 #include "map.h"
+#include "map_symbol.h"
+#include "branch.h"
+#include "mem-events.h"
 #include "session.h"
 #include "namespaces.h"
 #include "sort.h"
@@ -18,6 +23,8 @@
 #include <math.h>
 #include <inttypes.h>
 #include <sys/param.h>
+#include <linux/rbtree.h>
+#include <linux/string.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 

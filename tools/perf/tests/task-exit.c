@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "target.h"
@@ -8,6 +9,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <linux/string.h>
 #include <perf/evlist.h>
 
 static int exited;

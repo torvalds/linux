@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include <linux/compiler.h>
 
 #include "../util/callchain.h"
+#include "../util/debug.h"
 #include "../util/hist.h"
 #include "../util/util.h"
 #include "../util/sort.h"
 #include "../util/evsel.h"
 #include "../util/evlist.h"
+#include "../perf.h"
 
 /* hist period print (hpp) functions */
 

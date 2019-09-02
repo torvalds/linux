@@ -5,8 +5,8 @@
 #include <linux/stddef.h>
 #include <linux/perf_event.h>
 
-#include "../../../perf.h"
 #include <linux/types.h>
+#include <asm/barrier.h>
 #include "../../../util/debug.h"
 #include "../../../util/tsc.h"
 

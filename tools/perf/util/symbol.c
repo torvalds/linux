@@ -7,6 +7,7 @@
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/mman.h>
+#include <linux/string.h>
 #include <linux/time64.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,12 +18,16 @@
 #include "annotate.h"
 #include "build-id.h"
 #include "cap.h"
+#include "dso.h"
 #include "util.h"
 #include "debug.h"
 #include "event.h"
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"
+#include "map_symbol.h"
+#include "mem-events.h"
+#include "symsrc.h"
 #include "strlist.h"
 #include "intlist.h"
 #include "namespaces.h"

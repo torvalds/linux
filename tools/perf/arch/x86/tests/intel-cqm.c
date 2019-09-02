@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "tests/tests.h"
-#include "perf.h"
 #include "cloexec.h"
 #include "debug.h"
 #include "evlist.h"

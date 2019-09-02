@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <byteswap.h>
 #include <inttypes.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -17,10 +19,8 @@
 #include "cpumap.h"
 #include "color.h"
 #include "evsel.h"
-#include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "thread.h"
 #include "debug.h"
 #include "auxtrace.h"
 #include "arm-spe.h"

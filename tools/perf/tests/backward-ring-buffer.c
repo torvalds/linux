@@ -9,7 +9,9 @@
 #include "record.h"
 #include "tests.h"
 #include "debug.h"
+#include "parse-events.h"
 #include <errno.h>
+#include <linux/string.h>
 
 #define NR_ITERS 111
 

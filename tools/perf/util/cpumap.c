@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <api/fs/fs.h>
-#include "../perf.h"
 #include "cpumap.h"
 #include "debug.h"
 #include "event.h"

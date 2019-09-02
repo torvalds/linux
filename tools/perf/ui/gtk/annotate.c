@@ -5,6 +5,7 @@
 #include "util/annotate.h"
 #include "util/evsel.h"
 #include "util/map.h"
+#include "util/dso.h"
 #include "util/symbol.h"
 #include "ui/helpline.h"
 #include <inttypes.h>

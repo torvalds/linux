@@ -3,8 +3,10 @@
 #include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
+#include <stdlib.h>
 #include <perf/cpumap.h>
 
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
@@ -12,6 +14,7 @@
 #include "tests.h"
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <perf/evlist.h>
 
 /*

@@ -3,13 +3,19 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
+#include <stdlib.h>
 #include "callchain.h"
 #include "debug.h"
+#include "dso.h"
+#include "env.h"
 #include "event.h"
 #include "evsel.h"
 #include "hist.h"
 #include "machine.h"
 #include "map.h"
+#include "map_symbol.h"
+#include "branch.h"
+#include "mem-events.h"
 #include "srcline.h"
 #include "symbol.h"
 #include "sort.h"
@@ -30,6 +36,7 @@
 #include <linux/ctype.h>
 #include <symbol/kallsyms.h>
 #include <linux/mman.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
@@ -2619,7 +2626,9 @@ int __machine__synthesize_threads(struct machine *machine, struct perf_tool *too
 
 pid_t machine__get_current_tid(struct machine *machine, int cpu)
 {
-	if (cpu < 0 || cpu >= MAX_NR_CPUS || !machine->current_tid)
+	int nr_cpus = min(machine->env->nr_cpus_online, MAX_NR_CPUS);
+
+	if (cpu < 0 || cpu >= nr_cpus || !machine->current_tid)
 		return -1;
 
 	return machine->current_tid[cpu];
@@ -2629,6 +2638,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid)
 {
 	struct thread *thread;
+	int nr_cpus = min(machine->env->nr_cpus_online, MAX_NR_CPUS);
 
 	if (cpu < 0)
 		return -EINVAL;
@@ -2636,14 +2646,14 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 	if (!machine->current_tid) {
 		int i;
 
-		machine->current_tid = calloc(MAX_NR_CPUS, sizeof(pid_t));
+		machine->current_tid = calloc(nr_cpus, sizeof(pid_t));
 		if (!machine->current_tid)
 			return -ENOMEM;
-		for (i = 0; i < MAX_NR_CPUS; i++)
+		for (i = 0; i < nr_cpus; i++)
 			machine->current_tid[i] = -1;
 	}
 
-	if (cpu >= MAX_NR_CPUS) {
+	if (cpu >= nr_cpus) {
 		pr_err("Requested CPU %d too large. ", cpu);
 		pr_err("Consider raising MAX_NR_CPUS\n");
 		return -EINVAL;

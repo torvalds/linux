@@ -157,7 +157,7 @@
 #include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "thread.h"
+#include "tool.h"
 #include "debug.h"
 #include "auxtrace.h"
 #include "s390-cpumsf.h"

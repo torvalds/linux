@@ -10,13 +10,11 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <traceevent/event-parse.h>
 
 #include "builtin.h"
 #include "util/color.h"
 #include <linux/list.h>
-#include "util/cache.h"
-#include "util/evlist.h"
+#include "util/evlist.h" // for struct evsel_str_handler
 #include "util/evsel.h"
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
@@ -28,6 +26,7 @@
 
 #include "perf.h"
 #include "util/header.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/event.h"
@@ -1518,10 +1517,7 @@ static int process_header(struct perf_file_section *section __maybe_unused,
 		if (!tchart->topology)
 			break;
 
-		if (svg_build_topology_map(ph->env.sibling_cores,
-					   ph->env.nr_sibling_cores,
-					   ph->env.sibling_threads,
-					   ph->env.nr_sibling_threads))
+		if (svg_build_topology_map(&ph->env))
 			fprintf(stderr, "problem building topology\n");
 		break;
 

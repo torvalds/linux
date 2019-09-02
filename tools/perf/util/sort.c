@@ -2,14 +2,19 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
+#include <stdlib.h>
 #include <linux/mman.h>
 #include <linux/time64.h>
+#include "debug.h"
+#include "dso.h"
 #include "sort.h"
 #include "hist.h"
 #include "cacheline.h"
 #include "comm.h"
 #include "map.h"
 #include "symbol.h"
+#include "map_symbol.h"
+#include "branch.h"
 #include "thread.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -21,6 +26,7 @@
 #include "annotate.h"
 #include "time-utils.h"
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -707,7 +713,8 @@ static char *get_trace_output(struct hist_entry *he)
 		tep_print_fields(&seq, he->raw_data, he->raw_size,
 				 evsel->tp_format);
 	} else {
-		tep_event_info(&seq, evsel->tp_format, &rec);
+		tep_print_event(evsel->tp_format->tep,
+				&seq, &rec, "%s", TEP_PRINT_INFO);
 	}
 	/*
 	 * Trim the buffer, it starts at 4KB and we're not going to

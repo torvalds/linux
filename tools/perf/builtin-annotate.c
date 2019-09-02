@@ -24,15 +24,17 @@
 #include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
-#include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
+#include "util/dso.h"
 #include "util/map.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/data.h"
 #include "arch/common.h"
 #include "util/block-range.h"
+#include "util/map_symbol.h"
+#include "util/branch.h"
 
 #include <dlfcn.h>
 #include <errno.h>

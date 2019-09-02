@@ -20,6 +20,7 @@ struct metric_expr {
 	struct list_head nd;
 	const char *metric_expr;
 	const char *metric_name;
+	const char *metric_unit;
 	struct evsel **metric_events;
 };
 

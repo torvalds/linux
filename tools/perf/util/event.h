@@ -1,17 +1,22 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_RECORD_H
 #define __PERF_RECORD_H
-
-#include <limits.h>
+/*
+ * The linux/stddef.h isn't need here, but is needed for __always_inline used
+ * in files included from uapi/linux/perf_event.h such as
+ * /usr/include/linux/swab.h and /usr/include/linux/byteorder/little_endian.h,
+ * detected in at least musl libc, used in Alpine Linux. -acme
+ */
 #include <stdio.h>
-#include <linux/kernel.h>
-#include <linux/bpf.h>
-#include <linux/perf_event.h>
+#include <linux/stddef.h>
 #include <perf/event.h>
+#include <linux/types.h>
 
-#include "../perf.h"
-#include "build-id.h"
 #include "perf_regs.h"
+
+struct dso;
+struct machine;
+struct perf_event_attr;
 
 #ifdef __LP64__
 /*
@@ -146,11 +151,6 @@ struct perf_sample {
 	 PERF_MEM_S(LOCK, NA) |\
 	 PERF_MEM_S(TLB, NA))
 
-enum auxtrace_error_type {
-	PERF_AUXTRACE_ERROR_ITRACE  = 1,
-	PERF_AUXTRACE_ERROR_MAX
-};
-
 /* Attribute type for custom synthesized events */
 #define PERF_TYPE_SYNTH		(INT_MAX + 1U)
 
@@ -271,43 +271,6 @@ static inline void *perf_synth__raw_data(void *p)
 #define perf_synth__raw_size(d) (sizeof(d) - 4)
 
 #define perf_sample__bad_synth_size(s, d) ((s)->raw_size < sizeof(d) - 4)
-
-/*
- * The kernel collects the number of events it couldn't send in a stretch and
- * when possible sends this number in a PERF_RECORD_LOST event. The number of
- * such "chunks" of lost events is stored in .nr_events[PERF_EVENT_LOST] while
- * total_lost tells exactly how many events the kernel in fact lost, i.e. it is
- * the sum of all struct perf_record_lost.lost fields reported.
- *
- * The kernel discards mixed up samples and sends the number in a
- * PERF_RECORD_LOST_SAMPLES event. The number of lost-samples events is stored
- * in .nr_events[PERF_RECORD_LOST_SAMPLES] while total_lost_samples tells
- * exactly how many samples the kernel in fact dropped, i.e. it is the sum of
- * all struct perf_record_lost_samples.lost fields reported.
- *
- * The total_period is needed because by default auto-freq is used, so
- * multipling nr_events[PERF_EVENT_SAMPLE] by a frequency isn't possible to get
- * the total number of low level events, it is necessary to to sum all struct
- * perf_record_sample.period and stash the result in total_period.
- */
-struct events_stats {
-	u64 total_period;
-	u64 total_non_filtered_period;
-	u64 total_lost;
-	u64 total_lost_samples;
-	u64 total_aux_lost;
-	u64 total_aux_partial;
-	u64 total_invalid_chains;
-	u32 nr_events[PERF_RECORD_HEADER_MAX];
-	u32 nr_non_filtered_samples;
-	u32 nr_lost_warned;
-	u32 nr_unknown_events;
-	u32 nr_invalid_chains;
-	u32 nr_unknown_id;
-	u32 nr_unprocessable_samples;
-	u32 nr_auxtrace_errors[PERF_AUXTRACE_ERROR_MAX];
-	u32 nr_proc_map_timeout;
-};
 
 enum {
 	PERF_STAT_ROUND_TYPE__INTERVAL	= 0,

@@ -168,6 +168,7 @@ struct evsel {
 	const char *		metric_expr;
 	const char *		metric_name;
 	struct evsel		**metric_events;
+	struct evsel		*metric_leader;
 	bool			collect_stat;
 	bool			weak_group;
 	bool			percore;

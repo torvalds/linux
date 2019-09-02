@@ -41,6 +41,7 @@
  */
 
 #include "builtin.h"
+#include "perf.h"
 #include "util/cgroup.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
@@ -53,7 +54,6 @@
 #include "util/stat.h"
 #include "util/header.h"
 #include "util/cpumap.h"
-#include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/counts.h"
 #include "util/group.h"
@@ -62,6 +62,7 @@
 #include "util/string2.h"
 #include "util/metricgroup.h"
 #include "util/target.h"
+#include "util/time-utils.h"
 #include "util/top.h"
 #include "asm/bug.h"
 

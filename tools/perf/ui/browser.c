@@ -2,7 +2,6 @@
 #include "../util/util.h"
 #include "../util/string2.h"
 #include "../util/config.h"
-#include "../perf.h"
 #include "libslang.h"
 #include "ui.h"
 #include "util.h"

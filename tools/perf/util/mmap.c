@@ -10,12 +10,16 @@
 #include <inttypes.h>
 #include <asm/bug.h>
 #include <linux/zalloc.h>
+#include <stdlib.h>
+#include <string.h>
 #ifdef HAVE_LIBNUMA_SUPPORT
 #include <numaif.h>
 #endif
+#include "cpumap.h"
 #include "debug.h"
 #include "event.h"
 #include "mmap.h"
+#include "../perf.h"
 #include "util.h" /* page_size */
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map)

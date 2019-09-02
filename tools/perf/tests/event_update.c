@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <perf/cpumap.h>
+#include <string.h>
 #include "evlist.h"
 #include "evsel.h"
+#include "header.h"
 #include "machine.h"
+#include "tool.h"
 #include "tests.h"
 #include "debug.h"
 

@@ -9,7 +9,6 @@
 #include "symbol_conf.h"
 #include "callchain.h"
 #include "values.h"
-
 #include "hist.h"
 
 struct option;

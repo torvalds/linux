@@ -11,10 +11,12 @@
 #include <linux/coresight-pmu.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/zalloc.h>
 
 #include "cs-etm.h"
+#include "../../util/debug.h"
 #include "../../util/record.h"
 #include "../../util/auxtrace.h"
 #include "../../util/cpumap.h"
@@ -22,9 +24,9 @@
 #include "../../util/evlist.h"
 #include "../../util/evsel.h"
 #include "../../util/pmu.h"
-#include "../../util/thread_map.h"
 #include "../../util/cs-etm.h"
 #include "../../util/util.h"
+#include "../../util/session.h"
 
 #include <errno.h>
 #include <stdlib.h>

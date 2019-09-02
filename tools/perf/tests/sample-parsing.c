@@ -2,10 +2,12 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+#include "map_symbol.h"
 #include "branch.h"
 #include "util.h"
 #include "event.h"

@@ -2,12 +2,14 @@
 #include <errno.h>
 #include <sched.h>
 #include "util.h"
-#include "../perf.h"
+#include "../perf-sys.h"
 #include "cloexec.h"
+#include "event.h"
 #include "asm/bug.h"
 #include "debug.h"
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <linux/string.h>
 
 static unsigned long flag = PERF_FLAG_FD_CLOEXEC;
 

@@ -23,10 +23,8 @@
 
 #include "debug.h"
 #include "util.h"
-#include "auxtrace.h"
 #include "session.h"
 #include "evlist.h"
-#include "config.h"
 #include "color.h"
 #include "sample-raw.h"
 #include "s390-cpumcf-kernel.h"

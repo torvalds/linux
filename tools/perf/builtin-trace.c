@@ -25,10 +25,12 @@
 #include "util/color.h"
 #include "util/config.h"
 #include "util/debug.h"
+#include "util/dso.h"
 #include "util/env.h"
 #include "util/event.h"
 #include "util/evlist.h"
 #include "util/evswitch.h"
+#include <subcmd/pager.h>
 #include <subcmd/exec-cmd.h>
 #include "util/machine.h"
 #include "util/map.h"
@@ -41,6 +43,7 @@
 #include "util/intlist.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "util/tool.h"
 #include "util/util.h"
 #include "trace/beauty/beauty.h"
 #include "trace-event.h"
@@ -51,6 +54,7 @@
 #include "string2.h"
 #include "syscalltbl.h"
 #include "rb_resort.h"
+#include "../perf.h"
 
 #include <errno.h>
 #include <inttypes.h>

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../perf.h"
 #include <subcmd/parse-options.h>
 #include "evsel.h"
 #include "cgroup.h"
@@ -9,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 
 int nr_cgroups;
 

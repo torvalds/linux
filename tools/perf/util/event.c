@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -12,6 +11,7 @@
 #include <api/fs/fs.h>
 #include <linux/perf_event.h>
 #include <linux/zalloc.h>
+#include "dso.h"
 #include "event.h"
 #include "debug.h"
 #include "hist.h"
@@ -21,6 +21,7 @@
 #include "strlist.h"
 #include "thread.h"
 #include "thread_map.h"
+#include "time-utils.h"
 #include <linux/ctype.h>
 #include "map.h"
 #include "symbol.h"
@@ -29,6 +30,8 @@
 #include "stat.h"
 #include "session.h"
 #include "bpf-event.h"
+#include "tool.h"
+#include "../perf.h"
 
 #define DEFAULT_PROC_MAP_PARSE_TIMEOUT 500
 

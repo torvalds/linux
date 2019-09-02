@@ -2,8 +2,12 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
+#include <string.h>
 #include "counts.h"
+#include "debug.h"
+#include "header.h"
 #include "stat.h"
+#include "session.h"
 #include "target.h"
 #include "evlist.h"
 #include "evsel.h"
@@ -210,7 +214,7 @@ void perf_evlist__reset_stats(struct evlist *evlist)
 static void zero_per_pkg(struct evsel *counter)
 {
 	if (counter->per_pkg_mask)
-		memset(counter->per_pkg_mask, 0, MAX_NR_CPUS);
+		memset(counter->per_pkg_mask, 0, cpu__max_cpu());
 }
 
 static int check_per_pkg(struct evsel *counter,
@@ -229,7 +233,7 @@ static int check_per_pkg(struct evsel *counter,
 		return 0;
 
 	if (!mask) {
-		mask = zalloc(MAX_NR_CPUS);
+		mask = zalloc(cpu__max_cpu());
 		if (!mask)
 			return -ENOMEM;
 

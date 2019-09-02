@@ -24,6 +24,7 @@
 #include "util/bpf-event.h"
 #include "util/config.h"
 #include "util/color.h"
+#include "util/dso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/event.h"
@@ -31,13 +32,12 @@
 #include "util/map.h"
 #include "util/session.h"
 #include "util/symbol.h"
-#include "util/thread.h"
-#include "util/thread_map.h"
 #include "util/top.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
+#include "util/callchain.h"
 #include "util/cpumap.h"
 #include "util/sort.h"
 #include "util/string2.h"
@@ -45,6 +45,7 @@
 #include "util/intlist.h"
 #include "util/parse-branch-options.h"
 #include "arch/common.h"
+#include "ui/ui.h"
 
 #include "util/debug.h"
 #include "util/ordered-events.h"

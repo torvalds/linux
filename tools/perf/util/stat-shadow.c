@@ -31,6 +31,8 @@ struct saved_value {
 	int cpu;
 	struct runtime_stat *stat;
 	struct stats stats;
+	u64 metric_total;
+	int metric_other;
 };
 
 static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
@@ -212,6 +214,7 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 {
 	int ctx = evsel_context(counter);
 	u64 count_ns = count;
+	struct saved_value *v;
 
 	count *= counter->scale;
 
@@ -266,9 +269,15 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 		update_runtime_stat(st, STAT_APERF, ctx, cpu, count);
 
 	if (counter->collect_stat) {
-		struct saved_value *v = saved_value_lookup(counter, cpu, true,
-							   STAT_NONE, 0, st);
+		v = saved_value_lookup(counter, cpu, true, STAT_NONE, 0, st);
 		update_stats(&v->stats, count);
+		if (counter->metric_leader)
+			v->metric_total += count;
+	} else if (counter->metric_leader) {
+		v = saved_value_lookup(counter->metric_leader,
+				       cpu, true, STAT_NONE, 0, st);
+		v->metric_total += count;
+		v->metric_other++;
 	}
 }
 
@@ -715,6 +724,7 @@ static void generic_metric(struct perf_stat_config *config,
 			   struct evsel **metric_events,
 			   char *name,
 			   const char *metric_name,
+			   const char *metric_unit,
 			   double avg,
 			   int cpu,
 			   struct perf_stat_output_ctx *out,
@@ -722,17 +732,16 @@ static void generic_metric(struct perf_stat_config *config,
 {
 	print_metric_t print_metric = out->print_metric;
 	struct parse_ctx pctx;
-	double ratio;
+	double ratio, scale;
 	int i;
 	void *ctxp = out->ctx;
 	char *n, *pn;
 
 	expr__ctx_init(&pctx);
-	expr__add_id(&pctx, name, avg);
 	for (i = 0; metric_events[i]; i++) {
 		struct saved_value *v;
 		struct stats *stats;
-		double scale;
+		u64 metric_total = 0;
 
 		if (!strcmp(metric_events[i]->name, "duration_time")) {
 			stats = &walltime_nsecs_stats;
@@ -744,6 +753,9 @@ static void generic_metric(struct perf_stat_config *config,
 				break;
 			stats = &v->stats;
 			scale = 1.0;
+
+			if (v->metric_other)
+				metric_total = v->metric_total;
 		}
 
 		n = strdup(metric_events[i]->name);
@@ -757,21 +769,44 @@ static void generic_metric(struct perf_stat_config *config,
 		pn = strchr(n, ' ');
 		if (pn)
 			*pn = 0;
-		expr__add_id(&pctx, n, avg_stats(stats)*scale);
+
+		if (metric_total)
+			expr__add_id(&pctx, n, metric_total);
+		else
+			expr__add_id(&pctx, n, avg_stats(stats)*scale);
 	}
+
+	expr__add_id(&pctx, name, avg);
+
 	if (!metric_events[i]) {
 		const char *p = metric_expr;
 
-		if (expr__parse(&ratio, &pctx, &p) == 0)
-			print_metric(config, ctxp, NULL, "%8.1f",
-				metric_name ?
-				metric_name :
-				out->force_header ?  name : "",
-				ratio);
-		else
+		if (expr__parse(&ratio, &pctx, &p) == 0) {
+			char *unit;
+			char metric_bf[64];
+
+			if (metric_unit && metric_name) {
+				if (perf_pmu__convert_scale(metric_unit,
+					&unit, &scale) >= 0) {
+					ratio *= scale;
+				}
+
+				scnprintf(metric_bf, sizeof(metric_bf),
+					  "%s  %s", unit, metric_name);
+				print_metric(config, ctxp, NULL, "%8.1f",
+					     metric_bf, ratio);
+			} else {
+				print_metric(config, ctxp, NULL, "%8.1f",
+					metric_name ?
+					metric_name :
+					out->force_header ?  name : "",
+					ratio);
+			}
+		} else {
 			print_metric(config, ctxp, NULL, NULL,
 				     out->force_header ?
 				     (metric_name ? metric_name : name) : "", 0);
+		}
 	} else
 		print_metric(config, ctxp, NULL, NULL, "", 0);
 
@@ -992,7 +1027,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			print_metric(config, ctxp, NULL, NULL, name, 0);
 	} else if (evsel->metric_expr) {
 		generic_metric(config, evsel->metric_expr, evsel->metric_events, evsel->name,
-				evsel->metric_name, avg, cpu, out, st);
+				evsel->metric_name, NULL, avg, cpu, out, st);
 	} else if (runtime_stat_n(st, STAT_NSECS, 0, cpu) != 0) {
 		char unit = 'M';
 		char unit_buf[10];
@@ -1021,7 +1056,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				out->new_line(config, ctxp);
 			generic_metric(config, mexp->metric_expr, mexp->metric_events,
 					evsel->name, mexp->metric_name,
-					avg, cpu, out, st);
+					mexp->metric_unit, avg, cpu, out, st);
 		}
 	}
 	if (num == 0)

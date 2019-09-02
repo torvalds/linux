@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "perf.h"
 #include "tests.h"
 #include "debug.h"
 #include "symbol.h"
@@ -7,7 +6,6 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "machine.h"
-#include "thread.h"
 #include "parse-events.h"
 #include "hists_common.h"
 #include <errno.h>

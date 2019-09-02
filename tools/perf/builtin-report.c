@@ -12,12 +12,16 @@
 
 #include "util/annotate.h"
 #include "util/color.h"
+#include "util/dso.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/err.h>
 #include <linux/zalloc.h>
 #include "util/map.h"
 #include "util/symbol.h"
+#include "util/map_symbol.h"
+#include "util/mem-events.h"
+#include "util/branch.h"
 #include "util/callchain.h"
 #include "util/values.h"
 
@@ -45,6 +49,8 @@
 #include "util/units.h"
 #include "util/branch.h"
 #include "util/util.h"
+#include "ui/ui.h"
+#include "ui/progress.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -53,6 +59,7 @@
 #include <linux/ctype.h>
 #include <signal.h>
 #include <linux/bitmap.h>
+#include <linux/string.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <sys/types.h>

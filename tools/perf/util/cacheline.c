@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "cacheline.h"
-#include "../perf.h"
 #include <unistd.h>
 
 #ifdef _SC_LEVEL1_DCACHE_LINESIZE

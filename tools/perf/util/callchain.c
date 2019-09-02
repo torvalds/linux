@@ -16,11 +16,13 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <math.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 
 #include "asm/bug.h"
 
 #include "debug.h"
+#include "dso.h"
 #include "hist.h"
 #include "sort.h"
 #include "machine.h"
@@ -28,6 +30,7 @@
 #include "callchain.h"
 #include "branch.h"
 #include "symbol.h"
+#include "../perf.h"
 
 #define CALLCHAIN_PARAM_DEFAULT			\
 	.mode		= CHAIN_GRAPH_ABS,	\

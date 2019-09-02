@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 #include "perf.h"
+#include "perf-sys.h"
 
 #include "util/evlist.h"
-#include "util/cache.h"
 #include "util/evsel.h"
 #include "util/symbol.h"
 #include "util/thread.h"
@@ -18,6 +18,7 @@
 #include "util/callchain.h"
 #include "util/time-utils.h"
 
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 

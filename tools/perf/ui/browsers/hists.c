@@ -11,17 +11,23 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 
+#include "../../util/debug.h"
+#include "../../util/dso.h"
 #include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
+#include "../../util/header.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
 #include "../../util/symbol.h"
+#include "../../util/map_symbol.h"
+#include "../../util/branch.h"
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/top.h"
 #include "../../util/thread.h"
 #include "../../arch/common.h"
+#include "../../perf.h"
 
 #include "../browsers/hists.h"
 #include "../helpline.h"
