@@ -240,7 +240,7 @@ static void expkey_flush(void)
 	 * destroyed while we're in the middle of flushing.
 	 */
 	mutex_lock(&nfsd_mutex);
-	nfsd_file_cache_purge();
+	nfsd_file_cache_purge(current->nsproxy->net_ns);
 	mutex_unlock(&nfsd_mutex);
 }
 

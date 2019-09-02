@@ -16,6 +16,7 @@
 #include "vfs.h"
 #include "nfsd.h"
 #include "nfsfh.h"
+#include "netns.h"
 #include "filecache.h"
 #include "trace.h"
 
@@ -167,7 +168,8 @@ nfsd_file_mark_find_or_create(struct nfsd_file *nf)
 }
 
 static struct nfsd_file *
-nfsd_file_alloc(struct inode *inode, unsigned int may, unsigned int hashval)
+nfsd_file_alloc(struct inode *inode, unsigned int may, unsigned int hashval,
+		struct net *net)
 {
 	struct nfsd_file *nf;
 
@@ -177,6 +179,7 @@ nfsd_file_alloc(struct inode *inode, unsigned int may, unsigned int hashval)
 		INIT_LIST_HEAD(&nf->nf_lru);
 		nf->nf_file = NULL;
 		nf->nf_cred = get_current_cred();
+		nf->nf_net = net;
 		nf->nf_flags = 0;
 		nf->nf_inode = inode;
 		nf->nf_hashval = hashval;
@@ -607,10 +610,11 @@ out_err:
  * Note this can deadlock with nfsd_file_lru_cb.
  */
 void
-nfsd_file_cache_purge(void)
+nfsd_file_cache_purge(struct net *net)
 {
 	unsigned int		i;
 	struct nfsd_file	*nf;
+	struct hlist_node	*next;
 	LIST_HEAD(dispose);
 	bool del;
 
@@ -618,10 +622,12 @@ nfsd_file_cache_purge(void)
 		return;
 
 	for (i = 0; i < NFSD_FILE_HASH_SIZE; i++) {
-		spin_lock(&nfsd_file_hashtbl[i].nfb_lock);
-		while(!hlist_empty(&nfsd_file_hashtbl[i].nfb_head)) {
-			nf = hlist_entry(nfsd_file_hashtbl[i].nfb_head.first,
-					 struct nfsd_file, nf_node);
+		struct nfsd_fcache_bucket *nfb = &nfsd_file_hashtbl[i];
+
+		spin_lock(&nfb->nfb_lock);
+		hlist_for_each_entry_safe(nf, next, &nfb->nfb_head, nf_node) {
+			if (net && nf->nf_net != net)
+				continue;
 			del = nfsd_file_unhash_and_release_locked(nf, &dispose);
 
 			/*
@@ -630,7 +636,7 @@ nfsd_file_cache_purge(void)
 			 */
 			WARN_ON_ONCE(!del);
 		}
-		spin_unlock(&nfsd_file_hashtbl[i].nfb_lock);
+		spin_unlock(&nfb->nfb_lock);
 		nfsd_file_dispose_list(&dispose);
 	}
 }
@@ -649,7 +655,7 @@ nfsd_file_cache_shutdown(void)
 	 * calling nfsd_file_cache_purge
 	 */
 	cancel_delayed_work_sync(&nfsd_filecache_laundrette);
-	nfsd_file_cache_purge();
+	nfsd_file_cache_purge(NULL);
 	list_lru_destroy(&nfsd_file_lru);
 	rcu_barrier();
 	fsnotify_put_group(nfsd_file_fsnotify_group);
@@ -685,7 +691,7 @@ nfsd_match_cred(const struct cred *c1, const struct cred *c2)
 
 static struct nfsd_file *
 nfsd_file_find_locked(struct inode *inode, unsigned int may_flags,
-			unsigned int hashval)
+			unsigned int hashval, struct net *net)
 {
 	struct nfsd_file *nf;
 	unsigned char need = may_flags & NFSD_FILE_MAY_MASK;
@@ -695,6 +701,8 @@ nfsd_file_find_locked(struct inode *inode, unsigned int may_flags,
 		if ((need & nf->nf_may) != need)
 			continue;
 		if (nf->nf_inode != inode)
+			continue;
+		if (nf->nf_net != net)
 			continue;
 		if (!nfsd_match_cred(nf->nf_cred, current_cred()))
 			continue;
@@ -738,6 +746,7 @@ nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		  unsigned int may_flags, struct nfsd_file **pnf)
 {
 	__be32	status;
+	struct net *net = SVC_NET(rqstp);
 	struct nfsd_file *nf, *new;
 	struct inode *inode;
 	unsigned int hashval;
@@ -752,12 +761,12 @@ nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	hashval = (unsigned int)hash_long(inode->i_ino, NFSD_FILE_HASH_BITS);
 retry:
 	rcu_read_lock();
-	nf = nfsd_file_find_locked(inode, may_flags, hashval);
+	nf = nfsd_file_find_locked(inode, may_flags, hashval, net);
 	rcu_read_unlock();
 	if (nf)
 		goto wait_for_construction;
 
-	new = nfsd_file_alloc(inode, may_flags, hashval);
+	new = nfsd_file_alloc(inode, may_flags, hashval, net);
 	if (!new) {
 		trace_nfsd_file_acquire(rqstp, hashval, inode, may_flags,
 					NULL, nfserr_jukebox);
@@ -765,7 +774,7 @@ retry:
 	}
 
 	spin_lock(&nfsd_file_hashtbl[hashval].nfb_lock);
-	nf = nfsd_file_find_locked(inode, may_flags, hashval);
+	nf = nfsd_file_find_locked(inode, may_flags, hashval, net);
 	if (nf == NULL)
 		goto open_file;
 	spin_unlock(&nfsd_file_hashtbl[hashval].nfb_lock);

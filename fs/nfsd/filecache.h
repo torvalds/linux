@@ -34,6 +34,7 @@ struct nfsd_file {
 	struct rcu_head		nf_rcu;
 	struct file		*nf_file;
 	const struct cred	*nf_cred;
+	struct net		*nf_net;
 #define NFSD_FILE_HASHED	(0)
 #define NFSD_FILE_PENDING	(1)
 #define NFSD_FILE_BREAK_READ	(2)
@@ -48,7 +49,7 @@ struct nfsd_file {
 };
 
 int nfsd_file_cache_init(void);
-void nfsd_file_cache_purge(void);
+void nfsd_file_cache_purge(struct net *);
 void nfsd_file_cache_shutdown(void);
 void nfsd_file_put(struct nfsd_file *nf);
 struct nfsd_file *nfsd_file_get(struct nfsd_file *nf);
