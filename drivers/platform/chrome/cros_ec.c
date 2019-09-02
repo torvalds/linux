@@ -13,8 +13,8 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/mfd/core.h>
-#include <linux/mfd/cros_ec.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
 
@@ -29,18 +29,6 @@ static struct cros_ec_platform ec_p = {
 static struct cros_ec_platform pd_p = {
 	.ec_name = CROS_EC_DEV_PD_NAME,
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
-};
-
-static const struct mfd_cell ec_cell = {
-	.name = "cros-ec-dev",
-	.platform_data = &ec_p,
-	.pdata_size = sizeof(ec_p),
-};
-
-static const struct mfd_cell ec_pd_cell = {
-	.name = "cros-ec-dev",
-	.platform_data = &pd_p,
-	.pdata_size = sizeof(pd_p),
 };
 
 static irqreturn_t ec_irq_thread(int irq, void *data)
@@ -154,38 +142,42 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		}
 	}
 
-	err = devm_mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO, &ec_cell,
-				   1, NULL, ec_dev->irq, NULL);
-	if (err) {
-		dev_err(dev,
-			"Failed to register Embedded Controller subdevice %d\n",
-			err);
-		return err;
+	/* Register a platform device for the main EC instance */
+	ec_dev->ec = platform_device_register_data(ec_dev->dev, "cros-ec-dev",
+					PLATFORM_DEVID_AUTO, &ec_p,
+					sizeof(struct cros_ec_platform));
+	if (IS_ERR(ec_dev->ec)) {
+		dev_err(ec_dev->dev,
+			"Failed to create CrOS EC platform device\n");
+		return PTR_ERR(ec_dev->ec);
 	}
 
 	if (ec_dev->max_passthru) {
 		/*
-		 * Register a PD device as well on top of this device.
+		 * Register a platform device for the PD behind the main EC.
 		 * We make the following assumptions:
 		 * - behind an EC, we have a pd
 		 * - only one device added.
 		 * - the EC is responsive at init time (it is not true for a
-		 *   sensor hub.
+		 *   sensor hub).
 		 */
-		err = devm_mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO,
-				      &ec_pd_cell, 1, NULL, ec_dev->irq, NULL);
-		if (err) {
-			dev_err(dev,
-				"Failed to register Power Delivery subdevice %d\n",
-				err);
-			return err;
+		ec_dev->pd = platform_device_register_data(ec_dev->dev,
+					"cros-ec-dev",
+					PLATFORM_DEVID_AUTO, &pd_p,
+					sizeof(struct cros_ec_platform));
+		if (IS_ERR(ec_dev->pd)) {
+			dev_err(ec_dev->dev,
+				"Failed to create CrOS PD platform device\n");
+			platform_device_unregister(ec_dev->ec);
+			return PTR_ERR(ec_dev->pd);
 		}
 	}
 
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		err = devm_of_platform_populate(dev);
 		if (err) {
-			mfd_remove_devices(dev);
+			platform_device_unregister(ec_dev->pd);
+			platform_device_unregister(ec_dev->ec);
 			dev_err(dev, "Failed to register sub-devices\n");
 			return err;
 		}
@@ -205,6 +197,16 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_register);
+
+int cros_ec_unregister(struct cros_ec_device *ec_dev)
+{
+	if (ec_dev->pd)
+		platform_device_unregister(ec_dev->pd);
+	platform_device_unregister(ec_dev->ec);
+
+	return 0;
+}
+EXPORT_SYMBOL(cros_ec_unregister);
 
 #ifdef CONFIG_PM_SLEEP
 int cros_ec_suspend(struct cros_ec_device *ec_dev)

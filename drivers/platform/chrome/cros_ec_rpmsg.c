@@ -6,9 +6,9 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/of.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/rpmsg.h>
 #include <linux/slab.h>
@@ -232,6 +232,8 @@ static void cros_ec_rpmsg_remove(struct rpmsg_device *rpdev)
 {
 	struct cros_ec_device *ec_dev = dev_get_drvdata(&rpdev->dev);
 	struct cros_ec_rpmsg *ec_rpmsg = ec_dev->priv;
+
+	cros_ec_unregister(ec_dev);
 
 	cancel_work_sync(&ec_rpmsg->host_event_work);
 }

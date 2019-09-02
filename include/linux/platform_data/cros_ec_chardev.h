@@ -1,16 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * cros_ec_dev - expose the Chrome OS Embedded Controller to userspace
+ * ChromeOS EC device interface.
  *
  * Copyright (C) 2014 Google, Inc.
  */
 
-#ifndef _CROS_EC_DEV_H_
-#define _CROS_EC_DEV_H_
+#ifndef _UAPI_LINUX_CROS_EC_DEV_H_
+#define _UAPI_LINUX_CROS_EC_DEV_H_
 
+#include <linux/bits.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
-#include <linux/mfd/cros_ec.h>
+
+#include <linux/platform_data/cros_ec_commands.h>
 
 #define CROS_EC_DEV_VERSION "1.0.0"
 
