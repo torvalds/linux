@@ -201,7 +201,7 @@ void ion_buffer_release(struct ion_buffer *buffer)
 	if (buffer->kmap_cnt > 0) {
 		pr_warn_once("%s: buffer still mapped in the kernel\n",
 			     __func__);
-		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
+		ion_heap_unmap_kernel(buffer->heap, buffer);
 	}
 	buffer->heap->ops->free(buffer);
 	spin_lock(&buffer->heap->stat_lock);
@@ -245,7 +245,7 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 		buffer->kmap_cnt++;
 		return buffer->vaddr;
 	}
-	vaddr = buffer->heap->ops->map_kernel(buffer->heap, buffer);
+	vaddr = ion_heap_map_kernel(buffer->heap, buffer);
 	if (WARN_ONCE(!vaddr,
 		      "heap->ops->map_kernel should return ERR_PTR on error"))
 		return ERR_PTR(-EINVAL);
@@ -260,7 +260,7 @@ void ion_buffer_kmap_put(struct ion_buffer *buffer)
 {
 	buffer->kmap_cnt--;
 	if (!buffer->kmap_cnt) {
-		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
+		ion_heap_unmap_kernel(buffer->heap, buffer);
 		buffer->vaddr = NULL;
 	}
 }

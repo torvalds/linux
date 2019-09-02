@@ -57,11 +57,8 @@ struct ion_buffer {
  * struct ion_heap_ops - ops to operate on a given heap
  * @allocate:		allocate memory
  * @free:		free memory
- * @map_kernel		map memory to the kernel
- * @unmap_kernel	unmap memory to the kernel
- * @map_user		map memory to userspace
  *
- * allocate, phys, and map_user return 0 on success, -errno on error.
+ * allocate returns 0 on success, -errno on error.
  * map_dma and map_kernel return pointer on success, ERR_PTR on
  * error. @free will be called with ION_PRIV_FLAG_SHRINKER_FREE set in
  * the buffer's private_flags when called from a shrinker. In that
@@ -73,10 +70,6 @@ struct ion_heap_ops {
 			struct ion_buffer *buffer, unsigned long len,
 			unsigned long flags);
 	void (*free)(struct ion_buffer *buffer);
-	void * (*map_kernel)(struct ion_heap *heap, struct ion_buffer *buffer);
-	void (*unmap_kernel)(struct ion_heap *heap, struct ion_buffer *buffer);
-	int (*map_user)(struct ion_heap *mapper, struct ion_buffer *buffer,
-			struct vm_area_struct *vma);
 	int (*shrink)(struct ion_heap *heap, gfp_t gfp_mask, int nr_to_scan);
 };
 

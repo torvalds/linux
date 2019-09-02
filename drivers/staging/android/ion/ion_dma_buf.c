@@ -154,19 +154,16 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	/*
 	 * TODO: Move this elsewhere because we don't always need a vaddr
+	 * FIXME: Why do we need a vaddr here?
 	 */
 	ret = 0;
-	if (heap->ops->map_kernel) {
-		mutex_lock(&buffer->lock);
-		vaddr = ion_buffer_kmap_get(buffer);
-		if (IS_ERR(vaddr)) {
-			ret = PTR_ERR(vaddr);
-			goto unlock;
-		}
-		mutex_unlock(&buffer->lock);
+	mutex_lock(&buffer->lock);
+	vaddr = ion_buffer_kmap_get(buffer);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto unlock;
 	}
 
-	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
 				    direction);
@@ -206,13 +203,9 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	if (heap->buf_ops.end_cpu_access)
 		return heap->buf_ops.end_cpu_access(dmabuf, direction);
 
-	if (heap->ops->map_kernel) {
-		mutex_lock(&buffer->lock);
-		ion_buffer_kmap_put(buffer);
-		mutex_unlock(&buffer->lock);
-	}
-
 	mutex_lock(&buffer->lock);
+
+	ion_buffer_kmap_put(buffer);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_device(a->dev, a->table->sgl, a->table->nents,
 				       direction);
@@ -249,7 +242,7 @@ static void *ion_dma_buf_map(struct dma_buf *dmabuf, unsigned long offset)
 	if (heap->buf_ops.map)
 		return heap->buf_ops.map(dmabuf, offset);
 
-	return buffer->vaddr + offset * PAGE_SIZE;
+	return ion_buffer_kmap_get(buffer) + offset * PAGE_SIZE;
 }
 
 static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)

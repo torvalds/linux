@@ -77,9 +77,6 @@ static void ion_system_contig_heap_free(struct ion_buffer *buffer)
 static struct ion_heap_ops kmalloc_ops = {
 	.allocate = ion_system_contig_heap_allocate,
 	.free = ion_system_contig_heap_free,
-	.map_kernel = ion_heap_map_kernel,
-	.unmap_kernel = ion_heap_unmap_kernel,
-	.map_user = ion_heap_map_user,
 };
 
 static struct ion_heap contig_heap = {

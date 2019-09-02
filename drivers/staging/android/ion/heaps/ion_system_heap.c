@@ -241,9 +241,6 @@ err_create_pool:
 static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
-	.map_kernel = ion_heap_map_kernel,
-	.unmap_kernel = ion_heap_unmap_kernel,
-	.map_user = ion_heap_map_user,
 	.shrink = ion_system_heap_shrink,
 };
 

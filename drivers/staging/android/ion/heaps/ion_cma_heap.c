@@ -95,9 +95,6 @@ static void ion_cma_free(struct ion_buffer *buffer)
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
-	.map_user = ion_heap_map_user,
-	.map_kernel = ion_heap_map_kernel,
-	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
 static struct ion_heap *__ion_cma_heap_create(struct cma *cma)
