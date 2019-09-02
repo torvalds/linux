@@ -10,7 +10,8 @@
 
 #include <linux/iio/iio.h>
 #include <linux/irqreturn.h>
-#include <linux/mfd/cros_ec.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 
 enum {
 	CROS_EC_SENSOR_X,

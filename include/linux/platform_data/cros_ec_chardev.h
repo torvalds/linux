@@ -12,7 +12,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#include <linux/mfd/cros_ec.h>
+#include <linux/platform_data/cros_ec_commands.h>
 
 #define CROS_EC_DEV_VERSION "1.0.0"
 
