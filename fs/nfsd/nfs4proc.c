@@ -568,17 +568,11 @@ nfsd4_access(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 static void gen_boot_verifier(nfs4_verifier *verifier, struct net *net)
 {
-	__be32 verf[2];
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	__be32 *verf = (__be32 *)verifier->data;
 
-	/*
-	 * This is opaque to client, so no need to byte-swap. Use
-	 * __force to keep sparse happy. y2038 time_t overflow is
-	 * irrelevant in this usage.
-	 */
-	verf[0] = (__force __be32)nn->nfssvc_boot.tv_sec;
-	verf[1] = (__force __be32)nn->nfssvc_boot.tv_nsec;
-	memcpy(verifier->data, verf, sizeof(verifier->data));
+	BUILD_BUG_ON(2*sizeof(*verf) != sizeof(verifier->data));
+
+	nfsd_copy_boot_verifier(verf, net_generic(net, nfsd_net_id));
 }
 
 static __be32
