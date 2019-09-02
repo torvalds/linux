@@ -354,10 +354,9 @@ int nft_flow_rule_offload_commit(struct net *net)
 	return err;
 }
 
-void nft_indr_block_get_and_ing_cmd(struct net_device *dev,
-				    flow_indr_block_bind_cb_t *cb,
-				    void *cb_priv,
-				    enum flow_block_command command)
+static void nft_indr_block_cb(struct net_device *dev,
+			      flow_indr_block_bind_cb_t *cb, void *cb_priv,
+			      enum flow_block_command command)
 {
 	struct net *net = dev_net(dev);
 	const struct nft_table *table;
@@ -382,4 +381,19 @@ void nft_indr_block_get_and_ing_cmd(struct net_device *dev,
 			}
 		}
 	}
+}
+
+static struct flow_indr_block_ing_entry block_ing_entry = {
+	.cb	= nft_indr_block_cb,
+	.list	= LIST_HEAD_INIT(block_ing_entry.list),
+};
+
+void nft_offload_init(void)
+{
+	flow_indr_add_block_ing_cb(&block_ing_entry);
+}
+
+void nft_offload_exit(void)
+{
+	flow_indr_del_block_ing_cb(&block_ing_entry);
 }
