@@ -127,7 +127,7 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 	pipe->of_output_port =
 		of_graph_get_port_by_id(np, KOMEDA_OF_PORT_OUTPUT);
 
-	pipe->of_node = np;
+	pipe->of_node = of_node_get(np);
 
 	return 0;
 }
