@@ -559,7 +559,7 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 			ret = -EDESTADDRREQ;
 			break;
 		}
-		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) ||
+		if (ipv4_is_multicast(sin->sin_addr.s_addr) ||
 		    sin->sin_addr.s_addr == htonl(INADDR_BROADCAST)) {
 			ret = -EINVAL;
 			break;
@@ -593,7 +593,7 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 			addr4 = sin6->sin6_addr.s6_addr32[3];
 			if (addr4 == htonl(INADDR_ANY) ||
 			    addr4 == htonl(INADDR_BROADCAST) ||
-			    IN_MULTICAST(ntohl(addr4))) {
+			    ipv4_is_multicast(addr4)) {
 				ret = -EPROTOTYPE;
 				break;
 			}

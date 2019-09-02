@@ -1144,7 +1144,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		case AF_INET:
 			if (usin->sin_addr.s_addr == htonl(INADDR_ANY) ||
 			    usin->sin_addr.s_addr == htonl(INADDR_BROADCAST) ||
-			    IN_MULTICAST(ntohl(usin->sin_addr.s_addr))) {
+			    ipv4_is_multicast(usin->sin_addr.s_addr)) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1175,7 +1175,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 				addr4 = sin6->sin6_addr.s6_addr32[3];
 				if (addr4 == htonl(INADDR_ANY) ||
 				    addr4 == htonl(INADDR_BROADCAST) ||
-				    IN_MULTICAST(ntohl(addr4))) {
+				    ipv4_is_multicast(addr4)) {
 					ret = -EINVAL;
 					goto out;
 				}
