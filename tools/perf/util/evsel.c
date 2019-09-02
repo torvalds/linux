@@ -1254,7 +1254,7 @@ static void perf_evsel__free_id(struct evsel *evsel)
 	xyarray__delete(evsel->core.sample_id);
 	evsel->core.sample_id = NULL;
 	zfree(&evsel->core.id);
-	evsel->ids = 0;
+	evsel->core.ids = 0;
 }
 
 static void perf_evsel__free_config_terms(struct evsel *evsel)

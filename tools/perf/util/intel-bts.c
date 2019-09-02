@@ -768,7 +768,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 	int err;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->core.attr.type == bts->pmu_type && evsel->ids) {
+		if (evsel->core.attr.type == bts->pmu_type && evsel->core.ids) {
 			found = true;
 			break;
 		}

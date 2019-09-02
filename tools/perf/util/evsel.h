@@ -119,7 +119,6 @@ struct evsel {
 	struct perf_counts	*counts;
 	struct perf_counts	*prev_raw_counts;
 	int			idx;
-	u32			ids;
 	unsigned long		max_events;
 	unsigned long		nr_events_printed;
 	char			*name;

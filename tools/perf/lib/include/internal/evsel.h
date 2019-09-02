@@ -19,6 +19,7 @@ struct perf_evsel {
 	struct xyarray		*fd;
 	struct xyarray		*sample_id;
 	u64			*id;
+	u32			 ids;
 
 	/* parse modifier helper */
 	int			 nr_members;

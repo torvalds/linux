@@ -482,7 +482,7 @@ void perf_evlist__id_add(struct evlist *evlist, struct evsel *evsel,
 			 int cpu, int thread, u64 id)
 {
 	perf_evlist__id_hash(evlist, evsel, cpu, thread, id);
-	evsel->core.id[evsel->ids++] = id;
+	evsel->core.id[evsel->core.ids++] = id;
 }
 
 int perf_evlist__id_add_fd(struct evlist *evlist,

@@ -2735,7 +2735,7 @@ static struct evsel *intel_pt_evsel(struct intel_pt *pt,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->core.attr.type == pt->pmu_type && evsel->ids)
+		if (evsel->core.attr.type == pt->pmu_type && evsel->core.ids)
 			return evsel;
 	}
 

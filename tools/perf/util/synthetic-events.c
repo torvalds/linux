@@ -1413,7 +1413,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 		 sizeof(struct id_index_entry);
 
 	evlist__for_each_entry(evlist, evsel)
-		nr += evsel->ids;
+		nr += evsel->core.ids;
 
 	n = nr > max_nr ? max_nr : nr;
 	sz = sizeof(struct perf_record_id_index) + n * sizeof(struct id_index_entry);
@@ -1428,7 +1428,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 	evlist__for_each_entry(evlist, evsel) {
 		u32 j;
 
-		for (j = 0; j < evsel->ids; j++) {
+		for (j = 0; j < evsel->core.ids; j++) {
 			struct id_index_entry *e;
 			struct perf_sample_id *sid;
 
@@ -1595,7 +1595,7 @@ int perf_event__synthesize_attrs(struct perf_tool *tool, struct evlist *evlist,
 	int err = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
-		err = perf_event__synthesize_attr(tool, &evsel->core.attr, evsel->ids,
+		err = perf_event__synthesize_attr(tool, &evsel->core.attr, evsel->core.ids,
 						  evsel->core.id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
