@@ -2759,8 +2759,10 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	else
 		return -EIO;
 
+	if (!ses)
+		return -EIO;
 	server = ses->server;
-	if (!ses || !(server))
+	if (!server)
 		return -EIO;
 
 	if (smb3_encryption_required(tcon))
@@ -3058,13 +3060,16 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype = CIFS_NO_BUFFER;
 	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
+	struct TCP_Server_Info *server;
 	int flags = 0;
 	bool allocated = false;
 
 	cifs_dbg(FYI, "Query Info\n");
 
-	if (!ses || !(server))
+	if (!ses)
+		return -EIO;
+	server = ses->server;
+	if (!server)
 		return -EIO;
 
 	if (smb3_encryption_required(tcon))
