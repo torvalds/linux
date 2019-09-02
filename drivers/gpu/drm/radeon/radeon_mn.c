@@ -234,6 +234,9 @@ void radeon_mn_unregister(struct radeon_bo *bo)
 	struct radeon_mn *rmn = bo->mn;
 	struct list_head *head;
 
+	if (!rmn)
+		return;
+
 	mutex_lock(&rmn->lock);
 	/* save the next list entry for later */
 	head = bo->mn_list.next;
