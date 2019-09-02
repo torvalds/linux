@@ -329,10 +329,8 @@ static void cros_ec_accel_legacy_register(struct cros_ec_dev *ec)
 	 * Register 2 accelerometers, we will fail in the IIO driver if there
 	 * are no sensors.
 	 */
-	ret = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
-			      cros_ec_accel_legacy_cells,
-			      ARRAY_SIZE(cros_ec_accel_legacy_cells),
-			      NULL, 0, NULL);
+	ret = mfd_add_hotplug_devices(ec->dev, cros_ec_accel_legacy_cells,
+				      ARRAY_SIZE(cros_ec_accel_legacy_cells));
 	if (ret)
 		dev_err(ec_dev->dev, "failed to add EC sensors\n");
 }
@@ -419,10 +417,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	 * The following subdevices cannot be detected by sending the
 	 * EC_FEATURE_GET_CMD to the Embedded Controller device.
 	 */
-	retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
-				 cros_ec_platform_cells,
-				 ARRAY_SIZE(cros_ec_platform_cells),
-				 NULL, 0, NULL);
+	retval = mfd_add_hotplug_devices(ec->dev, cros_ec_platform_cells,
+					 ARRAY_SIZE(cros_ec_platform_cells));
 	if (retval)
 		dev_warn(ec->dev,
 			 "failed to add cros-ec platform devices: %d\n",
@@ -431,10 +427,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	/* Check whether this EC instance has a VBC NVRAM */
 	node = ec->ec_dev->dev->of_node;
 	if (of_property_read_bool(node, "google,has-vbc-nvram")) {
-		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
-					 cros_ec_vbc_cells,
-					 ARRAY_SIZE(cros_ec_vbc_cells),
-					 NULL, 0, NULL);
+		retval = mfd_add_hotplug_devices(ec->dev, cros_ec_vbc_cells,
+						ARRAY_SIZE(cros_ec_vbc_cells));
 		if (retval)
 			dev_warn(ec->dev, "failed to add VBC devices: %d\n",
 				 retval);
