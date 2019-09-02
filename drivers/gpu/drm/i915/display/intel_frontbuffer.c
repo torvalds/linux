@@ -220,11 +220,18 @@ static void frontbuffer_release(struct kref *ref)
 {
 	struct intel_frontbuffer *front =
 		container_of(ref, typeof(*front), ref);
+	struct drm_i915_gem_object *obj = front->obj;
+	struct i915_vma *vma;
 
-	front->obj->frontbuffer = NULL;
-	spin_unlock(&to_i915(front->obj->base.dev)->fb_tracking.lock);
+	spin_lock(&obj->vma.lock);
+	for_each_ggtt_vma(vma, obj)
+		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
+	spin_unlock(&obj->vma.lock);
 
-	i915_gem_object_put(front->obj);
+	obj->frontbuffer = NULL;
+	spin_unlock(&to_i915(obj->base.dev)->fb_tracking.lock);
+
+	i915_gem_object_put(obj);
 	kfree(front);
 }
 

@@ -77,11 +77,6 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	return 0;
 }
 
-static char get_pin_flag(struct drm_i915_gem_object *obj)
-{
-	return obj->pin_global ? 'p' : ' ';
-}
-
 static char get_tiling_flag(struct drm_i915_gem_object *obj)
 {
 	switch (i915_gem_object_get_tiling(obj)) {
@@ -140,9 +135,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int pin_count = 0;
 
-	seq_printf(m, "%pK: %c%c%c%c %8zdKiB %02x %02x %s%s%s",
+	seq_printf(m, "%pK: %c%c%c %8zdKiB %02x %02x %s%s%s",
 		   &obj->base,
-		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   get_global_flag(obj),
 		   get_pin_mapped_flag(obj),
@@ -221,8 +215,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	seq_printf(m, " (pinned x %d)", pin_count);
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
-	if (obj->pin_global)
-		seq_printf(m, " (global)");
+	if (i915_gem_object_is_framebuffer(obj))
+		seq_printf(m, " (fb)");
 
 	engine = i915_gem_object_last_write_engine(obj);
 	if (engine)

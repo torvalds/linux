@@ -2080,6 +2080,8 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	u32 alignment;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
+		return ERR_PTR(-EINVAL);
 
 	alignment = intel_surf_alignment(fb, 0);
 

@@ -406,7 +406,8 @@ static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 		return true;
 
-	return obj->pin_global; /* currently in use by HW, keep flushed */
+	/* Currently in use by HW (display engine)? Keep flushed. */
+	return i915_gem_object_is_framebuffer(obj);
 }
 
 static inline void __start_cpu_write(struct drm_i915_gem_object *obj)

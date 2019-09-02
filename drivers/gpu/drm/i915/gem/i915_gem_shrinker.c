@@ -61,7 +61,8 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	if (!i915_gem_object_is_shrinkable(obj))
 		return false;
 
-	/* Only report true if by unbinding the object and putting its pages
+	/*
+	 * Only report true if by unbinding the object and putting its pages
 	 * we can actually make forward progress towards freeing physical
 	 * pages.
 	 *
@@ -72,16 +73,8 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	if (atomic_read(&obj->mm.pages_pin_count) > atomic_read(&obj->bind_count))
 		return false;
 
-	/* If any vma are "permanently" pinned, it will prevent us from
-	 * reclaiming the obj->mm.pages. We only allow scanout objects to claim
-	 * a permanent pin, along with a few others like the context objects.
-	 * To simplify the scan, and to avoid walking the list of vma under the
-	 * object, we just check the count of its permanently pinned.
-	 */
-	if (READ_ONCE(obj->pin_global))
-		return false;
-
-	/* We can only return physical pages to the system if we can either
+	/*
+	 * We can only return physical pages to the system if we can either
 	 * discard the contents (because the user has marked them as being
 	 * purgeable) or if we can move their contents out to swap.
 	 */

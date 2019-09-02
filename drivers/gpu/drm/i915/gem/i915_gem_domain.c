@@ -27,7 +27,7 @@ static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 {
-	if (!READ_ONCE(obj->pin_global))
+	if (!i915_gem_object_is_framebuffer(obj))
 		return;
 
 	i915_gem_object_lock(obj);
@@ -422,12 +422,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	assert_object_held(obj);
 
-	/* Mark the global pin early so that we account for the
-	 * display coherency whilst setting up the cache domains.
-	 */
-	obj->pin_global++;
-
-	/* The display engine is not coherent with the LLC cache on gen6.  As
+	/*
+	 * The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
 	 * done with uncached PTEs. This is lowest common denominator for all
 	 * chipsets.
@@ -439,12 +435,11 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	ret = i915_gem_object_set_cache_level(obj,
 					      HAS_WT(to_i915(obj->base.dev)) ?
 					      I915_CACHE_WT : I915_CACHE_NONE);
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err_unpin_global;
-	}
+	if (ret)
+		return ERR_PTR(ret);
 
-	/* As the user may map the buffer once pinned in the display plane
+	/*
+	 * As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers. However,
 	 * it may simply be too big to fit into mappable, in which case
@@ -461,21 +456,18 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, flags);
 	if (IS_ERR(vma))
-		goto err_unpin_global;
+		return vma;
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
 	__i915_gem_object_flush_for_display(obj);
 
-	/* It should now be out of any other write domains, and we can update
+	/*
+	 * It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
 	obj->read_domains |= I915_GEM_DOMAIN_GTT;
 
-	return vma;
-
-err_unpin_global:
-	obj->pin_global--;
 	return vma;
 }
 
@@ -513,12 +505,6 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 	struct drm_i915_gem_object *obj = vma->obj;
 
 	assert_object_held(obj);
-
-	if (WARN_ON(obj->pin_global == 0))
-		return;
-
-	if (--obj->pin_global == 0)
-		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
 	i915_gem_object_bump_inactive_ggtt(obj);
