@@ -256,8 +256,7 @@ struct mlx5e_dump_wqe {
 };
 
 static int
-tx_post_resync_dump(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-		    skb_frag_t *frag, u32 tisn, bool first)
+tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool first)
 {
 	struct mlx5_wqe_ctrl_seg *cseg;
 	struct mlx5_wqe_data_seg *dseg;
@@ -371,8 +370,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
 	for (i = 0; i < info.nr_frags; i++)
-		if (tx_post_resync_dump(sq, skb, info.frags[i],
-					priv_tx->tisn, !i))
+		if (tx_post_resync_dump(sq, info.frags[i], priv_tx->tisn, !i))
 			goto err_out;
 
 	/* If no dump WQE was sent, we need to have a fence NOP WQE before the
