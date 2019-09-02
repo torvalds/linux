@@ -121,6 +121,10 @@ struct cros_ec_command {
  * @event_data: Raw payload transferred with the MKBP event.
  * @event_size: Size in bytes of the event data.
  * @host_event_wake_mask: Mask of host events that cause wake from suspend.
+ * @ec: The platform_device used by the mfd driver to interface with the
+ *      main EC.
+ * @pd: The platform_device used by the mfd driver to interface with the
+ *      PD behind an EC.
  */
 struct cros_ec_device {
 	/* These are used by other drivers that want to talk to the EC */
@@ -157,6 +161,10 @@ struct cros_ec_device {
 	int event_size;
 	u32 host_event_wake_mask;
 	u32 last_resume_result;
+
+	/* The platform devices used by the mfd driver */
+	struct platform_device *ec;
+	struct platform_device *pd;
 };
 
 /**
@@ -290,6 +298,16 @@ int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
  * Return: 0 on success or negative error code.
  */
 int cros_ec_register(struct cros_ec_device *ec_dev);
+
+/**
+ * cros_ec_unregister() - Remove a ChromeOS EC.
+ * @ec_dev: Device to unregister.
+ *
+ * Call this to deregister a ChromeOS EC, then clean up any private data.
+ *
+ * Return: 0 on success or negative error code.
+ */
+int cros_ec_unregister(struct cros_ec_device *ec_dev);
 
 /**
  * cros_ec_query_all() -  Query the protocol version supported by the

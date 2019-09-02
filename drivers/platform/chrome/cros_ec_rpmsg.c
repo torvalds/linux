@@ -233,6 +233,8 @@ static void cros_ec_rpmsg_remove(struct rpmsg_device *rpdev)
 	struct cros_ec_device *ec_dev = dev_get_drvdata(&rpdev->dev);
 	struct cros_ec_rpmsg *ec_rpmsg = ec_dev->priv;
 
+	cros_ec_unregister(ec_dev);
+
 	cancel_work_sync(&ec_rpmsg->host_event_work);
 }
 

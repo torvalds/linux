@@ -307,6 +307,13 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
+static int cros_ec_i2c_remove(struct i2c_client *client)
+{
+	struct cros_ec_device *ec_dev = i2c_get_clientdata(client);
+
+	return cros_ec_unregister(ec_dev);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int cros_ec_i2c_suspend(struct device *dev)
 {
@@ -357,6 +364,7 @@ static struct i2c_driver cros_ec_driver = {
 		.pm	= &cros_ec_i2c_pm_ops,
 	},
 	.probe		= cros_ec_i2c_probe,
+	.remove		= cros_ec_i2c_remove,
 	.id_table	= cros_ec_i2c_id,
 };
 
