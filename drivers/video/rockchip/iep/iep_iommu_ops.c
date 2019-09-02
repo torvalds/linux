@@ -35,7 +35,7 @@ struct iep_iommu_session_info *iep_iommu_get_session_info
 
 int iep_iommu_create(struct iep_iommu_info *iommu_info)
 {
-	if (!iommu_info || !iommu_info->ops->create)
+	if (!iommu_info || !iommu_info->ops || !iommu_info->ops->create)
 		return -EINVAL;
 
 	return iommu_info->ops->create(iommu_info);
@@ -46,7 +46,8 @@ int iep_iommu_import(struct iep_iommu_info *iommu_info,
 {
 	struct iep_iommu_session_info *session_info = NULL;
 
-	if (!iommu_info || !iommu_info->ops->import || !session)
+	if (!iommu_info || !iommu_info->ops ||
+	    !iommu_info->ops->import || !session)
 		return -EINVAL;
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
@@ -84,7 +85,7 @@ int iep_iommu_free(struct iep_iommu_info *iommu_info,
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
 
-	if (!iommu_info->ops->free || !session_info)
+	if (!iommu_info->ops || !iommu_info->ops->free || !session_info)
 		return -EINVAL;
 
 	return iommu_info->ops->free(session_info, idx);
@@ -100,7 +101,7 @@ int iep_iommu_free_fd(struct iep_iommu_info *iommu_info,
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
 
-	if (!iommu_info->ops->free_fd || !session_info)
+	if (!iommu_info->ops || !iommu_info->ops->free_fd || !session_info)
 		return -EINVAL;
 
 	return iommu_info->ops->free_fd(session_info, fd);
@@ -118,7 +119,7 @@ int iep_iommu_map_iommu(struct iep_iommu_info *iommu_info,
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
 
-	if (!iommu_info->ops->map_iommu || !session_info)
+	if (!iommu_info->ops || !iommu_info->ops->map_iommu || !session_info)
 		return -EINVAL;
 
 	return iommu_info->ops->map_iommu(session_info, idx, iova, size);
@@ -134,7 +135,7 @@ int iep_iommu_unmap_iommu(struct iep_iommu_info *iommu_info,
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
 
-	if (!iommu_info->ops->unmap_iommu || !session_info)
+	if (!iommu_info->ops || !iommu_info->ops->unmap_iommu || !session_info)
 		return -EINVAL;
 
 	return iommu_info->ops->unmap_iommu(session_info, idx);
@@ -142,7 +143,7 @@ int iep_iommu_unmap_iommu(struct iep_iommu_info *iommu_info,
 
 int iep_iommu_destroy(struct iep_iommu_info *iommu_info)
 {
-	if (!iommu_info || !iommu_info->ops->destroy)
+	if (!iommu_info || !iommu_info->ops || !iommu_info->ops->destroy)
 		return -EINVAL;
 
 	return iommu_info->ops->destroy(iommu_info);
@@ -158,7 +159,7 @@ void iep_iommu_dump(struct iep_iommu_info *iommu_info,
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
 
-	if (!iommu_info->ops->dump || !session_info)
+	if (!iommu_info->ops || !iommu_info->ops->dump || !session_info)
 		return;
 
 	iommu_info->ops->dump(session_info);
@@ -174,7 +175,7 @@ void iep_iommu_clear(struct iep_iommu_info *iommu_info,
 
 	session_info = iep_iommu_get_session_info(iommu_info, session);
 
-	if (!iommu_info->ops->clear || !session_info)
+	if (!iommu_info->ops || !iommu_info->ops->clear || !session_info)
 		return;
 
 	iommu_info->ops->clear(session_info);
@@ -187,7 +188,7 @@ void iep_iommu_clear(struct iep_iommu_info *iommu_info,
 
 int iep_iommu_attach(struct iep_iommu_info *iommu_info)
 {
-	if (!iommu_info || !iommu_info->ops->attach)
+	if (!iommu_info || !iommu_info->ops || !iommu_info->ops->attach)
 		return 0;
 
 	return iommu_info->ops->attach(iommu_info);
@@ -195,7 +196,7 @@ int iep_iommu_attach(struct iep_iommu_info *iommu_info)
 
 void iep_iommu_detach(struct iep_iommu_info *iommu_info)
 {
-	if (!iommu_info || !iommu_info->ops->detach)
+	if (!iommu_info || !iommu_info->ops || !iommu_info->ops->detach)
 		return;
 
 	return iommu_info->ops->detach(iommu_info);
@@ -220,11 +221,6 @@ iep_iommu_info_create(struct device *dev,
 #ifdef CONFIG_DRM
 	case ALLOCATOR_USE_DRM:
 		iep_iommu_drm_set_ops(iommu_info);
-		break;
-#endif
-#ifdef CONFIG_ION
-	case ALLOCATOR_USE_ION:
-		iep_iommu_ion_set_ops(iommu_info);
 		break;
 #endif
 	default:

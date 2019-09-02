@@ -80,7 +80,8 @@ struct IEP_CAP {
 
 #define IEP_INFORMATION 1
 #if IEP_INFORMATION
-#define IEP_INFO(format, args...)	printk(format, ## args)
+#define IEP_INFO(format, args...)			\
+		printk(KERN_INFO "%s: " format, DRIVER_NAME, ## args)
 #else
 #define IEP_INFO(format, args...)
 #endif

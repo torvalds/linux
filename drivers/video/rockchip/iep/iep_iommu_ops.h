@@ -89,9 +89,6 @@ struct iep_iommu_info {
 #ifdef CONFIG_DRM
 void iep_iommu_drm_set_ops(struct iep_iommu_info *iommu_info);
 #endif
-#ifdef CONFIG_ION
-void iep_iommu_ion_set_ops(struct iep_iommu_info *iommu_info);
-#endif
 
 struct iep_iommu_info *iep_iommu_info_create(struct device *dev,
 					     struct device *mmu_dev,

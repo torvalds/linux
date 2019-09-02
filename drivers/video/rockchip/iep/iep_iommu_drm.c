@@ -17,6 +17,7 @@
 #include <linux/dma-iommu.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
+#include <linux/iommu.h>
 #include <linux/kref.h>
 
 #include "iep_iommu_ops.h"
@@ -116,12 +117,6 @@ static int iep_drm_attach_unlock(struct iep_iommu_info *iommu_info)
 		return ret;
 	}
 
-	if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
-		dev_err(dev, "Failed to set dma_ops\n");
-		iommu_detach_device(domain, dev);
-		ret = -ENODEV;
-	}
-
 	return ret;
 }
 
@@ -214,7 +209,7 @@ static int iep_drm_free(struct iep_iommu_session_info *session_info,
 		return -EINVAL;
 	}
 
-	if (atomic_read(&drm_buffer->ref.refcount) == 0) {
+	if (kref_read(&drm_buffer->ref) == 0) {
 		dma_buf_put(drm_buffer->dma_buf);
 		list_del_init(&drm_buffer->list);
 		kfree(drm_buffer);
@@ -302,7 +297,7 @@ iep_drm_free_fd(struct iep_iommu_session_info *session_info, int fd)
 	iep_drm_unmap_iommu(session_info, drm_buffer->index);
 
 	mutex_lock(&session_info->list_mutex);
-	if (atomic_read(&drm_buffer->ref.refcount) == 0) {
+	if (kref_read(&drm_buffer->ref) == 0) {
 		dma_buf_put(drm_buffer->dma_buf);
 		list_del_init(&drm_buffer->list);
 		kfree(drm_buffer);
@@ -426,7 +421,6 @@ fail_out:
 static int iep_drm_create(struct iep_iommu_info *iommu_info)
 {
 	struct iep_iommu_drm_info *drm_info;
-	int ret;
 
 	iommu_info->private = kzalloc(sizeof(*drm_info),
 				      GFP_KERNEL);
@@ -434,25 +428,14 @@ static int iep_drm_create(struct iep_iommu_info *iommu_info)
 	if (!drm_info)
 		return -ENOMEM;
 
-	drm_info->domain = iommu_domain_alloc(&platform_bus_type);
+	drm_info->domain = iommu_get_domain_for_dev(iommu_info->dev);
 	drm_info->attached = false;
 	if (!drm_info->domain) {
 		kfree(iommu_info->private);
 		return -ENOMEM;
 	}
 
-	ret = iommu_get_dma_cookie(drm_info->domain);
-	if (ret)
-		goto err_free_domain;
-
-	iep_drm_attach(iommu_info);
-
 	return 0;
-
-err_free_domain:
-	iommu_domain_free(drm_info->domain);
-
-	return ret;
 }
 
 static int iep_drm_destroy(struct iep_iommu_info *iommu_info)
@@ -460,8 +443,6 @@ static int iep_drm_destroy(struct iep_iommu_info *iommu_info)
 	struct iep_iommu_drm_info *drm_info = iommu_info->private;
 
 	iep_drm_detach(iommu_info);
-	iommu_put_dma_cookie(drm_info->domain);
-	iommu_domain_free(drm_info->domain);
 
 	kfree(drm_info);
 	iommu_info->private = NULL;
