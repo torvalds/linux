@@ -938,7 +938,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 	if (err < 0) {
 		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
 		put_device(&mci->dev);
-		goto out;
+		return err;
 	}
 
 	/*
@@ -987,7 +987,6 @@ fail_unregister_dimm:
 	}
 	device_unregister(&mci->dev);
 
-out:
 	return err;
 }
 
@@ -1044,10 +1043,8 @@ int __init edac_mc_sysfs_init(void)
 	int err;
 
 	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
-	if (!mci_pdev) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!mci_pdev)
+		return -ENOMEM;
 
 	mci_pdev->bus = edac_get_sysfs_subsys();
 	mci_pdev->type = &mc_attr_type;
@@ -1055,17 +1052,14 @@ int __init edac_mc_sysfs_init(void)
 	dev_set_name(mci_pdev, "mc");
 
 	err = device_add(mci_pdev);
-	if (err < 0)
-		goto out_put_device;
+	if (err < 0) {
+		put_device(mci_pdev);
+		return err;
+	}
 
 	edac_dbg(0, "device %s created\n", dev_name(mci_pdev));
 
 	return 0;
-
- out_put_device:
-	put_device(mci_pdev);
- out:
-	return err;
 }
 
 void edac_mc_sysfs_exit(void)
