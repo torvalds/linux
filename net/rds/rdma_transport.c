@@ -43,6 +43,9 @@ static struct rdma_cm_id *rds_rdma_listen_id;
 static struct rdma_cm_id *rds6_rdma_listen_id;
 #endif
 
+/* Per IB specification 7.7.3, service level is a 4-bit field. */
+#define TOS_TO_SL(tos)		((tos) & 0xF)
+
 static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 					 struct rdma_cm_event *event,
 					 bool isv6)
@@ -97,10 +100,13 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 			struct rds_ib_connection *ibic;
 
 			ibic = conn->c_transport_data;
-			if (ibic && ibic->i_cm_id == cm_id)
+			if (ibic && ibic->i_cm_id == cm_id) {
+				cm_id->route.path_rec[0].sl =
+					TOS_TO_SL(conn->c_tos);
 				ret = trans->cm_initiate_connect(cm_id, isv6);
-			else
+			} else {
 				rds_conn_drop(conn);
+			}
 		}
 		break;
 

@@ -206,7 +206,7 @@ static inline int ipv6_mc_may_pull(struct sk_buff *skb,
 				   unsigned int len)
 {
 	if (skb_transport_offset(skb) + ipv6_transport_len(skb) < len)
-		return -EINVAL;
+		return 0;
 
 	return pskb_may_pull(skb, len);
 }
