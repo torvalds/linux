@@ -683,7 +683,7 @@ S:	Maintained
 F:	drivers/crypto/sunxi-ss/
 
 ALLWINNER VPU DRIVER
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 M:	Paul Kocialkowski <paul.kocialkowski@bootlin.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1408,7 +1408,7 @@ S:	Maintained
 F:	drivers/clk/sunxi/
 
 ARM/Allwinner sunXi SoC support
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -3577,7 +3577,7 @@ F:	Documentation/filesystems/caching/cachefiles.txt
 F:	fs/cachefiles/
 
 CADENCE MIPI-CSI2 BRIDGES
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/cdns,*.txt
@@ -5295,7 +5295,7 @@ F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
 M:	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 M:	Sean Paul <sean@poorly.run>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
@@ -5308,7 +5308,7 @@ F:	include/uapi/drm/drm*
 F:	include/linux/vga*
 
 DRM DRIVERS FOR ALLWINNER A10
-M:	Maxime Ripard  <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
@@ -7513,7 +7513,7 @@ I2C MV64XXX MARVELL AND ALLWINNER DRIVER
 M:	Gregory CLEMENT <gregory.clement@bootlin.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-mv64xxx.txt
+F:	Documentation/devicetree/bindings/i2c/marvell,mv64xxx-i2c.yaml
 F:	drivers/i2c/busses/i2c-mv64xxx.c
 
 I2C OVER PARALLEL PORT
@@ -8454,11 +8454,6 @@ S:	Maintained
 F:	fs/io_uring.c
 F:	include/uapi/linux/io_uring.h
 
-IP MASQUERADING
-M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
-S:	Maintained
-F:	net/ipv4/netfilter/ipt_MASQUERADE.c
-
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
 L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
@@ -9233,6 +9228,18 @@ F:	drivers/acpi/nfit/*
 F:	include/linux/nd.h
 F:	include/linux/libnvdimm.h
 F:	include/uapi/linux/ndctl.h
+
+LICENSES and SPDX stuff
+M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+L:	linux-spdx@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/spdx.git
+F:	COPYING
+F:	Documentation/process/license-rules.rst
+F:	LICENSES/
+F:	scripts/spdxcheck-test.sh
+F:	scripts/spdxcheck.py
 
 LIGHTNVM PLATFORM SUPPORT
 M:	Matias Bjorling <mb@lightnvm.io>
@@ -11086,7 +11093,7 @@ NET_FAILOVER MODULE
 M:	Sridhar Samudrala <sridhar.samudrala@intel.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	driver/net/net_failover.c
+F:	drivers/net/net_failover.c
 F:	include/net/net_failover.h
 F:	Documentation/networking/net_failover.rst
 
@@ -14478,6 +14485,7 @@ F:	drivers/net/phy/phylink.c
 F:	drivers/net/phy/sfp*
 F:	include/linux/phylink.h
 F:	include/linux/sfp.h
+K:	phylink
 
 SGI GRU DRIVER
 M:	Dimitri Sivanich <sivanich@sgi.com>

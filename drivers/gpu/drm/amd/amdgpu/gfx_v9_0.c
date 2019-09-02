@@ -596,14 +596,14 @@ static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		break;
 	case CHIP_RAVEN:
-		if (adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
-			break;
-		if ((adev->gfx.rlc_fw_version != 106 &&
-		     adev->gfx.rlc_fw_version < 531) ||
-		    (adev->gfx.rlc_fw_version == 53815) ||
-		    (adev->gfx.rlc_feature_version < 1) ||
-		    !adev->gfx.rlc.is_rlc_v2_1)
+		if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
+			&&((adev->gfx.rlc_fw_version != 106 &&
+			     adev->gfx.rlc_fw_version < 531) ||
+			    (adev->gfx.rlc_fw_version == 53815) ||
+			    (adev->gfx.rlc_feature_version < 1) ||
+			    !adev->gfx.rlc.is_rlc_v2_1))
 			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+
 		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_CP |

@@ -4374,6 +4374,10 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 	    get_user(req_len, &ureq->hdr.req_len))
 		return -EFAULT;
 
+	/* Sanitize user input, to avoid overflows in iob size calculation: */
+	if (req_len > QETH_BUFSIZE)
+		return -EINVAL;
+
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_SNMP_CONTROL, req_len);
 	if (!iob)
 		return -ENOMEM;
