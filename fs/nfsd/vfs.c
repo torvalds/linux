@@ -958,8 +958,12 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	nfsdstats.io_write += *cnt;
 	fsnotify_modify(file);
 
-	if (stable && use_wgather)
+	if (stable && use_wgather) {
 		host_err = wait_for_concurrent_writes(file);
+		if (host_err < 0)
+			nfsd_reset_boot_verifier(net_generic(SVC_NET(rqstp),
+						 nfsd_net_id));
+	}
 
 out_nfserr:
 	if (host_err >= 0) {
@@ -1063,10 +1067,17 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (EX_ISSYNC(fhp->fh_export)) {
 		int err2 = vfs_fsync_range(nf->nf_file, offset, end, 0);
 
-		if (err2 != -EINVAL)
-			err = nfserrno(err2);
-		else
+		switch (err2) {
+		case 0:
+			break;
+		case -EINVAL:
 			err = nfserr_notsupp;
+			break;
+		default:
+			err = nfserrno(err2);
+			nfsd_reset_boot_verifier(net_generic(nf->nf_net,
+						 nfsd_net_id));
+		}
 	}
 
 	nfsd_file_put(nf);
