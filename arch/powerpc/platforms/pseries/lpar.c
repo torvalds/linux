@@ -1531,16 +1531,29 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
 	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
-	register_process_table		 = pseries_lpar_register_process_table;
 
 	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
 		mmu_hash_ops.resize_hpt = pseries_lpar_resize_hpt;
+
+	/*
+	 * On POWER9, we need to do a H_REGISTER_PROC_TBL hcall
+	 * to inform the hypervisor that we wish to use the HPT.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pseries_lpar_register_process_table(0, 0, 0);
 }
 
 void radix_init_pseries(void)
 {
 	pr_info("Using radix MMU under hypervisor\n");
-	register_process_table = pseries_lpar_register_process_table;
+
+	pseries_lpar_register_process_table(__pa(process_tb),
+						0, PRTB_SIZE_SHIFT - 12);
+	asm volatile("ptesync" : : : "memory");
+	asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
+		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
+	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+	trace_tlbie(0, 0, TLBIEL_INVAL_SET_LPID, 0, 2, 1, 1);
 }
 
 #ifdef CONFIG_PPC_SMLPAR
