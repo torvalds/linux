@@ -1728,14 +1728,18 @@ static int sdma_v4_0_late_init(void *handle)
 			if (r)
 				goto late_fini;
 		}
-	} else
-		kfree(adev->sdma.ras_if);
+	} else {
+		/* free sdma ras_if if sdma ras is not supported */
+		r = 0;
+		goto free;
+	}
 
         return 0;
 late_fini:
 	amdgpu_ras_late_fini(adev, adev->sdma.ras_if, &ih_info);
 free:
 	kfree(adev->sdma.ras_if);
+	adev->sdma.ras_if = NULL;
 	return r;
 }
 

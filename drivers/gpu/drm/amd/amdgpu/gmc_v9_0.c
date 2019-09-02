@@ -799,8 +799,11 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
 		if (r)
 			goto umc_late_fini;
-	} else
-		kfree(adev->gmc.umc_ras_if);
+	} else {
+		/* free umc ras_if if umc ras is not supported */
+		r = 0;
+		goto free;
+	}
 
 	if (adev->mmhub_funcs && adev->mmhub_funcs->ras_late_init) {
 		r = adev->mmhub_funcs->ras_late_init(adev);
@@ -812,6 +815,7 @@ umc_late_fini:
 	amdgpu_ras_late_fini(adev, adev->gmc.umc_ras_if, &umc_ih_info);
 free:
 	kfree(adev->gmc.umc_ras_if);
+	adev->gmc.umc_ras_if = NULL;
 	return r;
 }
 

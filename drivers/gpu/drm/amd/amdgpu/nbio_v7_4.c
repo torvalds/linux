@@ -507,6 +507,9 @@ static int nbio_v7_4_ras_late_init(struct amdgpu_device *adev)
 		r = amdgpu_irq_get(adev, &adev->nbio.ras_err_event_athub_irq, 0);
 		if (r)
 			goto late_fini;
+	} else {
+		r = 0;
+		goto free;
 	}
 
 	return 0;
@@ -514,6 +517,7 @@ late_fini:
 	amdgpu_ras_late_fini(adev, adev->nbio.ras_if, &ih_info);
 free:
 	kfree(adev->nbio.ras_if);
+	adev->nbio.ras_if = NULL;
 	return r;
 }
 
