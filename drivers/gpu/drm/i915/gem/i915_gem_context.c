@@ -2231,8 +2231,6 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->size = 0;
 		if (ctx->vm)
 			args->value = ctx->vm->total;
-		else if (to_i915(dev)->ggtt.alias)
-			args->value = to_i915(dev)->ggtt.alias->vm.total;
 		else
 			args->value = to_i915(dev)->ggtt.vm.total;
 		break;
