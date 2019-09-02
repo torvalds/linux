@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"
+#include "amdgpu_ras.h"
 
 /* delay 0.1 second to enable gfx off feature */
 #define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
@@ -568,4 +569,52 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	}
 
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
+}
+
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev,
+			     void *ras_ih_info)
+{
+	int r;
+	struct ras_ih_if *ih_info = (struct ras_ih_if *)ras_ih_info;
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "gfx_err_count",
+		.debugfs_name = "gfx_err_inject",
+	};
+
+	if (!ih_info)
+		return -EINVAL;
+
+	if (!adev->gfx.ras_if) {
+		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gfx.ras_if)
+			return -ENOMEM;
+		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
+		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gfx.ras_if->sub_block_index = 0;
+		strcpy(adev->gfx.ras_if->name, "gfx");
+	}
+	fs_info.head = ih_info->head = *adev->gfx.ras_if;
+
+	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
+				 &fs_info, ih_info);
+	if (r)
+		goto free;
+
+	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
+		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
+		if (r)
+			goto late_fini;
+	} else {
+		/* free gfx ras_if if ras is not supported */
+		r = 0;
+		goto free;
+	}
+
+	return 0;
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, ih_info);
+free:
+	kfree(adev->gfx.ras_if);
+	adev->gfx.ras_if = NULL;
+	return r;
 }

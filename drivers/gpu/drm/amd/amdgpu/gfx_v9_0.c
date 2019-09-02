@@ -4409,22 +4409,11 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	struct ras_ih_if ih_info = {
 		.cb = gfx_v9_0_process_ras_data_cb,
 	};
-	struct ras_fs_if fs_info = {
-		.sysfs_name = "gfx_err_count",
-		.debugfs_name = "gfx_err_inject",
-	};
 	int r;
 
-	if (!adev->gfx.ras_if) {
-		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->gfx.ras_if)
-			return -ENOMEM;
-		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
-		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->gfx.ras_if->sub_block_index = 0;
-		strcpy(adev->gfx.ras_if->name, "gfx");
-	}
-	fs_info.head = ih_info.head = *adev->gfx.ras_if;
+	r = amdgpu_gfx_ras_late_init(adev, &ih_info);
+	if (r)
+		return r;
 
 	r = gfx_v9_0_do_edc_gds_workarounds(adev);
 	if (r)
@@ -4435,27 +4424,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
-				 &fs_info, &ih_info);
-	if (r)
-		goto free;
-
-	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
-		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
-		if (r)
-			goto late_fini;
-	} else {
-		r = 0;
-		goto free;
-	}
-
 	return 0;
-late_fini:
-	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, &ih_info);
-free:
-	kfree(adev->gfx.ras_if);
-	adev->gfx.ras_if = NULL;
-	return r;
 }
 
 static int gfx_v9_0_late_init(void *handle)

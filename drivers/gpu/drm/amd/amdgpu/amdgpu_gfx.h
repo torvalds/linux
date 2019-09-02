@@ -383,5 +383,6 @@ void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
-
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev,
+			     void *ras_ih_info);
 #endif
