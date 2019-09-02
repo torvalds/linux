@@ -1406,6 +1406,7 @@ static bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
 				 * should freak out.
 				 */
 				WARN(1, "Z3fold is experiencing kref problems\n");
+				z3fold_page_unlock(zhdr);
 				return false;
 			}
 			z3fold_page_unlock(zhdr);
