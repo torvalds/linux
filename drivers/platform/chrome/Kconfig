@@ -50,9 +50,22 @@ config CHROMEOS_TBMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called chromeos_tbmc.
 
+config CROS_EC
+	tristate "ChromeOS Embedded Controller"
+	select CROS_EC_PROTO
+	depends on X86 || ARM || ARM64 || COMPILE_TEST
+	help
+	  If you say Y here you get support for the ChromeOS Embedded
+	  Controller (EC) providing keyboard, battery and power services.
+	  You also need to enable the driver for the bus you are using. The
+	  protocol for talking to the EC is defined by the bus driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec.
+
 config CROS_EC_I2C
 	tristate "ChromeOS Embedded Controller (I2C)"
-	depends on MFD_CROS_EC && I2C
+	depends on CROS_EC && I2C
 
 	help
 	  If you say Y here, you get support for talking to the ChromeOS
@@ -62,7 +75,7 @@ config CROS_EC_I2C
 
 config CROS_EC_RPMSG
 	tristate "ChromeOS Embedded Controller (rpmsg)"
-	depends on MFD_CROS_EC && RPMSG && OF
+	depends on CROS_EC && RPMSG && OF
 	help
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  through rpmsg. This uses a simple byte-level protocol with a
@@ -87,7 +100,7 @@ config CROS_EC_ISHTP
 
 config CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && SPI
+	depends on CROS_EC && SPI
 
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC
@@ -97,7 +110,7 @@ config CROS_EC_SPI
 
 config CROS_EC_LPC
 	tristate "ChromeOS Embedded Controller (LPC)"
-	depends on MFD_CROS_EC && ACPI && (X86 || COMPILE_TEST)
+	depends on CROS_EC && ACPI && (X86 || COMPILE_TEST)
 	help
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  over an LPC bus, including the LPC Microchip EC (MEC) variant.

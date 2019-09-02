@@ -211,21 +211,10 @@ config MFD_AXP20X_RSB
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
 
-config MFD_CROS_EC
-	tristate "ChromeOS Embedded Controller"
-	select MFD_CORE
-	select CHROME_PLATFORMS
-	select CROS_EC_PROTO
-	depends on X86 || ARM || ARM64 || COMPILE_TEST
-	help
-	  If you say Y here you get support for the ChromeOS Embedded
-	  Controller (EC) providing keyboard, battery and power services.
-	  You also need to enable the driver for the bus you are using. The
-	  protocol for talking to the EC is defined by the bus driver.
-
 config MFD_CROS_EC_CHARDEV
 	tristate "Chrome OS Embedded Controller userspace device interface"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
+	select MFD_CORE
 	---help---
 	  This driver adds support to talk with the ChromeOS EC from userspace.
 

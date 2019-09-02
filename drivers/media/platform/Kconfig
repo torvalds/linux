@@ -547,10 +547,9 @@ if CEC_PLATFORM_DRIVERS
 
 config VIDEO_CROS_EC_CEC
 	tristate "ChromeOS EC CEC driver"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	select CEC_CORE
 	select CEC_NOTIFIER
-	select CHROME_PLATFORMS
 	select CROS_EC_PROTO
 	help
 	  If you say yes here you will get support for the
