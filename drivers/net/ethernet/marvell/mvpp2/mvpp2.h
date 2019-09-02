@@ -683,6 +683,7 @@ enum mvpp2_prs_l3_cast {
 #define MVPP2_BM_SHORT_BUF_NUM		2048
 #define MVPP2_BM_POOL_SIZE_MAX		(16*1024 - MVPP2_BM_POOL_PTR_ALIGN/4)
 #define MVPP2_BM_POOL_PTR_ALIGN		128
+#define MVPP2_BM_MAX_POOLS		8
 
 /* BM cookie (32 bits) definition */
 #define MVPP2_BM_COOKIE_POOL_OFFS	8
@@ -786,6 +787,9 @@ struct mvpp2 {
 
 	/* Aggregated TXQs */
 	struct mvpp2_tx_queue *aggr_txqs;
+
+	/* Are we using page_pool with per-cpu pools? */
+	int percpu_pools;
 
 	/* BM pools */
 	struct mvpp2_bm_pool *bm_pools;
