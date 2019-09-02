@@ -396,7 +396,7 @@ static void __init radix_init_partition_table(void)
 	rts_field = radix__get_tree_size();
 	dw0 = rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE | PATB_HR;
 	dw1 = __pa(process_tb) | (PRTB_SIZE_SHIFT - 12) | PATB_GR;
-	mmu_partition_table_set_entry(0, dw0, dw1);
+	mmu_partition_table_set_entry(0, dw0, dw1, true);
 
 	asm volatile("ptesync" : : : "memory");
 	asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :

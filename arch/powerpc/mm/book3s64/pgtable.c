@@ -224,7 +224,7 @@ static void flush_partition(unsigned int lpid, bool radix)
 }
 
 void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
-				  unsigned long dw1)
+				  unsigned long dw1, bool flush)
 {
 	unsigned long old = be64_to_cpu(partition_tb[lpid].patb0);
 
@@ -251,7 +251,7 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 		uv_register_pate(lpid, dw0, dw1);
 		pr_info("PATE registered by ultravisor: dw0 = 0x%lx, dw1 = 0x%lx\n",
 			dw0, dw1);
-	} else {
+	} else if (flush) {
 		flush_partition(lpid, (old & PATB_HR));
 	}
 }
