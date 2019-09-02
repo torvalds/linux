@@ -1470,7 +1470,7 @@ int dpni_get_queue(struct fsl_mc_io *mc_io,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPNI object
  * @page:	Selects the statistics page to retrieve, see
- *		DPNI_GET_STATISTICS output. Pages are numbered 0 to 2.
+ *		DPNI_GET_STATISTICS output. Pages are numbered 0 to 6.
  * @stat:	Structure containing the statistics
  *
  * Return:	'0' on Success; Error code otherwise.

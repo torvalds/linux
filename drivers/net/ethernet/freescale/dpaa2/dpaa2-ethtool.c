@@ -28,6 +28,11 @@ static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
 	"[hw] rx nobuffer discards",
 	"[hw] tx discarded frames",
 	"[hw] tx confirmed frames",
+	"[hw] tx dequeued bytes",
+	"[hw] tx dequeued frames",
+	"[hw] tx rejected bytes",
+	"[hw] tx rejected frames",
+	"[hw] tx pending frames",
 };
 
 #define DPAA2_ETH_NUM_STATS	ARRAY_SIZE(dpaa2_ethtool_stats)
@@ -192,16 +197,26 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		sizeof(dpni_stats.page_0),
 		sizeof(dpni_stats.page_1),
 		sizeof(dpni_stats.page_2),
+		sizeof(dpni_stats.page_3),
+		sizeof(dpni_stats.page_4),
+		sizeof(dpni_stats.page_5),
+		sizeof(dpni_stats.page_6),
 	};
 
 	memset(data, 0,
 	       sizeof(u64) * (DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS));
 
 	/* Print standard counters, from DPNI statistics */
-	for (j = 0; j <= 2; j++) {
+	for (j = 0; j <= 6; j++) {
+		/* We're not interested in pages 4 & 5 for now */
+		if (j == 4 || j == 5)
+			continue;
 		err = dpni_get_statistics(priv->mc_io, 0, priv->mc_token,
 					  j, &dpni_stats);
-		if (err != 0)
+		if (err == -EINVAL)
+			/* Older firmware versions don't support all pages */
+			memset(&dpni_stats, 0, sizeof(dpni_stats));
+		else
 			netdev_warn(net_dev, "dpni_get_stats(%d) failed\n", j);
 
 		num_cnt = dpni_stats_page_size[j] / sizeof(u64);
