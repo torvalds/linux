@@ -86,6 +86,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		kfd2kgd = amdgpu_amdkfd_gfx_9_0_get_functions();
 		break;
 	case CHIP_ARCTURUS:
