@@ -1442,7 +1442,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 
 			e = &ev->id_index.entries[i++];
 
-			e->id = evsel->id[j];
+			e->id = evsel->core.id[j];
 
 			sid = perf_evlist__id2sid(evlist, e->id);
 			if (!sid) {
@@ -1515,7 +1515,7 @@ int perf_event__synthesize_event_update_unit(struct perf_tool *tool, struct evse
 	struct perf_record_event_update *ev;
 	int err;
 
-	ev = event_update_event__new(size + 1, PERF_EVENT_UPDATE__UNIT, evsel->id[0]);
+	ev = event_update_event__new(size + 1, PERF_EVENT_UPDATE__UNIT, evsel->core.id[0]);
 	if (ev == NULL)
 		return -ENOMEM;
 
@@ -1532,7 +1532,7 @@ int perf_event__synthesize_event_update_scale(struct perf_tool *tool, struct evs
 	struct perf_record_event_update_scale *ev_data;
 	int err;
 
-	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->id[0]);
+	ev = event_update_event__new(sizeof(*ev_data), PERF_EVENT_UPDATE__SCALE, evsel->core.id[0]);
 	if (ev == NULL)
 		return -ENOMEM;
 
@@ -1550,7 +1550,7 @@ int perf_event__synthesize_event_update_name(struct perf_tool *tool, struct evse
 	size_t len = strlen(evsel->name);
 	int err;
 
-	ev = event_update_event__new(len + 1, PERF_EVENT_UPDATE__NAME, evsel->id[0]);
+	ev = event_update_event__new(len + 1, PERF_EVENT_UPDATE__NAME, evsel->core.id[0]);
 	if (ev == NULL)
 		return -ENOMEM;
 
@@ -1578,7 +1578,7 @@ int perf_event__synthesize_event_update_cpus(struct perf_tool *tool, struct evse
 	ev->header.type = PERF_RECORD_EVENT_UPDATE;
 	ev->header.size = (u16)size;
 	ev->type	= PERF_EVENT_UPDATE__CPUS;
-	ev->id		= evsel->id[0];
+	ev->id		= evsel->core.id[0];
 
 	cpu_map_data__synthesize((struct perf_record_cpu_map_data *)ev->data,
 				 evsel->core.own_cpus, type, max);
@@ -1596,7 +1596,7 @@ int perf_event__synthesize_attrs(struct perf_tool *tool, struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, evsel) {
 		err = perf_event__synthesize_attr(tool, &evsel->core.attr, evsel->ids,
-						  evsel->id, process);
+						  evsel->core.id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
 			return err;

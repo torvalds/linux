@@ -1239,8 +1239,8 @@ int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
 	if (evsel->core.sample_id == NULL)
 		return -ENOMEM;
 
-	evsel->id = zalloc(ncpus * nthreads * sizeof(u64));
-	if (evsel->id == NULL) {
+	evsel->core.id = zalloc(ncpus * nthreads * sizeof(u64));
+	if (evsel->core.id == NULL) {
 		xyarray__delete(evsel->core.sample_id);
 		evsel->core.sample_id = NULL;
 		return -ENOMEM;
@@ -1253,7 +1253,7 @@ static void perf_evsel__free_id(struct evsel *evsel)
 {
 	xyarray__delete(evsel->core.sample_id);
 	evsel->core.sample_id = NULL;
-	zfree(&evsel->id);
+	zfree(&evsel->core.id);
 	evsel->ids = 0;
 }
 
