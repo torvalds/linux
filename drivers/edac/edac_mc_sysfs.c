@@ -278,7 +278,7 @@ static void csrow_attr_release(struct device *dev)
 {
 	struct csrow_info *csrow = container_of(dev, struct csrow_info, dev);
 
-	edac_dbg(1, "Releasing csrow device %s\n", dev_name(dev));
+	edac_dbg(1, "device %s released\n", dev_name(dev));
 	kfree(csrow);
 }
 
@@ -414,14 +414,16 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	dev_set_name(&csrow->dev, "csrow%d", index);
 	dev_set_drvdata(&csrow->dev, csrow);
 
-	edac_dbg(0, "creating (virtual) csrow node %s\n",
-		 dev_name(&csrow->dev));
-
 	err = device_add(&csrow->dev);
-	if (err)
+	if (err) {
+		edac_dbg(1, "failure: create device %s\n", dev_name(&csrow->dev));
 		put_device(&csrow->dev);
+		return err;
+	}
 
-	return err;
+	edac_dbg(0, "device %s created\n", dev_name(&csrow->dev));
+
+	return 0;
 }
 
 /* Create a CSROW object under specifed edac_mc_device */
@@ -435,12 +437,8 @@ static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 		if (!nr_pages_per_csrow(csrow))
 			continue;
 		err = edac_create_csrow_object(mci, mci->csrows[i], i);
-		if (err < 0) {
-			edac_dbg(1,
-				 "failure: create csrow objects for csrow %d\n",
-				 i);
+		if (err < 0)
 			goto error;
-		}
 	}
 	return 0;
 
@@ -624,7 +622,7 @@ static void dimm_attr_release(struct device *dev)
 {
 	struct dimm_info *dimm = container_of(dev, struct dimm_info, dev);
 
-	edac_dbg(1, "Releasing dimm device %s\n", dev_name(dev));
+	edac_dbg(1, "device %s released\n", dev_name(dev));
 	kfree(dimm);
 }
 
@@ -653,12 +651,21 @@ static int edac_create_dimm_object(struct mem_ctl_info *mci,
 	pm_runtime_forbid(&mci->dev);
 
 	err = device_add(&dimm->dev);
-	if (err)
+	if (err) {
+		edac_dbg(1, "failure: create device %s\n", dev_name(&dimm->dev));
 		put_device(&dimm->dev);
+		return err;
+	}
 
-	edac_dbg(0, "created rank/dimm device %s\n", dev_name(&dimm->dev));
+	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
+		char location[80];
 
-	return err;
+		edac_dimm_info_location(dimm, location, sizeof(location));
+		edac_dbg(0, "device %s created at location %s\n",
+			dev_name(&dimm->dev), location);
+	}
+
+	return 0;
 }
 
 /*
@@ -901,7 +908,7 @@ static void mci_attr_release(struct device *dev)
 {
 	struct mem_ctl_info *mci = container_of(dev, struct mem_ctl_info, dev);
 
-	edac_dbg(1, "Releasing csrow device %s\n", dev_name(dev));
+	edac_dbg(1, "device %s released\n", dev_name(dev));
 	kfree(mci);
 }
 
@@ -933,13 +940,14 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 	dev_set_drvdata(&mci->dev, mci);
 	pm_runtime_forbid(&mci->dev);
 
-	edac_dbg(0, "creating device %s\n", dev_name(&mci->dev));
 	err = device_add(&mci->dev);
 	if (err < 0) {
 		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
 		put_device(&mci->dev);
 		return err;
 	}
+
+	edac_dbg(0, "device %s created\n", dev_name(&mci->dev));
 
 	/*
 	 * Create the dimm/rank devices
@@ -950,22 +958,9 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 		if (!dimm->nr_pages)
 			continue;
 
-#ifdef CONFIG_EDAC_DEBUG
-		edac_dbg(1, "creating dimm%d, located at ", i);
-		if (edac_debug_level >= 1) {
-			int lay;
-			for (lay = 0; lay < mci->n_layers; lay++)
-				printk(KERN_CONT "%s %d ",
-					edac_layer_name[mci->layers[lay].type],
-					dimm->location[lay]);
-			printk(KERN_CONT "\n");
-		}
-#endif
 		err = edac_create_dimm_object(mci, dimm, i);
-		if (err) {
-			edac_dbg(1, "failure: create dimm %d obj\n", i);
+		if (err)
 			goto fail_unregister_dimm;
-		}
 	}
 
 #ifdef CONFIG_EDAC_LEGACY_SYSFS
@@ -1010,14 +1005,14 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 		struct dimm_info *dimm = mci->dimms[i];
 		if (dimm->nr_pages == 0)
 			continue;
-		edac_dbg(0, "removing device %s\n", dev_name(&dimm->dev));
+		edac_dbg(1, "unregistering device %s\n", dev_name(&dimm->dev));
 		device_unregister(&dimm->dev);
 	}
 }
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
-	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
+	edac_dbg(1, "unregistering device %s\n", dev_name(&mci->dev));
 	device_unregister(&mci->dev);
 }
 
@@ -1028,7 +1023,7 @@ static void mc_attr_release(struct device *dev)
 	 * parent device, used to create the /sys/devices/mc sysfs node.
 	 * So, there are no attributes on it.
 	 */
-	edac_dbg(1, "Releasing device %s\n", dev_name(dev));
+	edac_dbg(1, "device %s released\n", dev_name(dev));
 	kfree(dev);
 }
 
@@ -1053,6 +1048,7 @@ int __init edac_mc_sysfs_init(void)
 
 	err = device_add(mci_pdev);
 	if (err < 0) {
+		edac_dbg(1, "failure: create device %s\n", dev_name(mci_pdev));
 		put_device(mci_pdev);
 		return err;
 	}
