@@ -215,6 +215,36 @@ nfsd_file_free(struct nfsd_file *nf)
 	return flush;
 }
 
+static bool
+nfsd_file_check_writeback(struct nfsd_file *nf)
+{
+	struct file *file = nf->nf_file;
+	struct address_space *mapping;
+
+	if (!file || !(file->f_mode & FMODE_WRITE))
+		return false;
+	mapping = file->f_mapping;
+	return mapping_tagged(mapping, PAGECACHE_TAG_DIRTY) ||
+		mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK);
+}
+
+static int
+nfsd_file_check_write_error(struct nfsd_file *nf)
+{
+	struct file *file = nf->nf_file;
+
+	if (!file || !(file->f_mode & FMODE_WRITE))
+		return 0;
+	return filemap_check_wb_err(file->f_mapping, READ_ONCE(file->f_wb_err));
+}
+
+static bool
+nfsd_file_in_use(struct nfsd_file *nf)
+{
+	return nfsd_file_check_writeback(nf) ||
+			nfsd_file_check_write_error(nf);
+}
+
 static void
 nfsd_file_do_unhash(struct nfsd_file *nf)
 {
@@ -222,6 +252,8 @@ nfsd_file_do_unhash(struct nfsd_file *nf)
 
 	trace_nfsd_file_unhash(nf);
 
+	if (nfsd_file_check_write_error(nf))
+		nfsd_reset_boot_verifier(net_generic(nf->nf_net, nfsd_net_id));
 	--nfsd_file_hashtbl[nf->nf_hashval].nfb_count;
 	hlist_del_rcu(&nf->nf_node);
 	if (!list_empty(&nf->nf_lru))
@@ -276,9 +308,10 @@ void
 nfsd_file_put(struct nfsd_file *nf)
 {
 	bool is_hashed = test_bit(NFSD_FILE_HASHED, &nf->nf_flags) != 0;
+	bool unused = !nfsd_file_in_use(nf);
 
 	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	if (nfsd_file_put_noref(nf) == 1 && is_hashed)
+	if (nfsd_file_put_noref(nf) == 1 && is_hashed && unused)
 		nfsd_file_schedule_laundrette(NFSD_FILE_LAUNDRETTE_MAY_FLUSH);
 }
 
@@ -344,6 +377,14 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 	 */
 	if (atomic_read(&nf->nf_ref) > 1)
 		goto out_skip;
+
+	/*
+	 * Don't throw out files that are still undergoing I/O or
+	 * that have uncleared errors pending.
+	 */
+	if (nfsd_file_check_writeback(nf))
+		goto out_skip;
+
 	if (test_and_clear_bit(NFSD_FILE_REFERENCED, &nf->nf_flags))
 		goto out_rescan;
 
