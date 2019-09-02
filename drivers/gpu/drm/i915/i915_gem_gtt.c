@@ -2597,6 +2597,8 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 	GEM_BUG_ON(ggtt->vm.vma_ops.unbind_vma != ggtt_unbind_vma);
 	ggtt->vm.vma_ops.unbind_vma = aliasing_gtt_unbind_vma;
 
+	ppgtt->vm.total = ggtt->vm.total;
+
 	return 0;
 
 err_ppgtt:
