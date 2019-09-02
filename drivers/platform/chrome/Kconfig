@@ -136,6 +136,17 @@ config CROS_KBD_LED_BACKLIGHT
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_kbd_led_backlight.
 
+config CROS_EC_CHARDEV
+	tristate "ChromeOS EC miscdevice"
+	depends on MFD_CROS_EC_CHARDEV
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This driver adds file operations support to talk with the
+	  ChromeOS EC from userspace via a character device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_chardev.
+
 config CROS_EC_LIGHTBAR
 	tristate "Chromebook Pixel's lightbar support"
 	depends on MFD_CROS_EC_CHARDEV
