@@ -28,5 +28,7 @@ struct amdgpu_mmhub_funcs {
 					void *ras_error_status);
 };
 
+int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev);
+
 #endif
 
