@@ -67,6 +67,8 @@ struct tpm_class_ops {
 	u8 (*status) (struct tpm_chip *chip);
 	void (*update_timeouts)(struct tpm_chip *chip,
 				unsigned long *timeout_cap);
+	void (*update_durations)(struct tpm_chip *chip,
+				 unsigned long *duration_cap);
 	int (*go_idle)(struct tpm_chip *chip);
 	int (*cmd_ready)(struct tpm_chip *chip);
 	int (*request_locality)(struct tpm_chip *chip, int loc);
