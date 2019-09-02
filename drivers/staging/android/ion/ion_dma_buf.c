@@ -6,7 +6,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/dma-buf.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -96,80 +95,68 @@ static void ion_dma_buf_detatch(struct dma_buf *dmabuf,
 	kfree(a);
 }
 
-static struct sg_table *ion_dma_buf_map(struct dma_buf_attachment *attachment,
+static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
-	struct ion_dma_buf_attachment *a = attachment->priv;
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+	struct ion_dma_buf_attachment *a;
 	struct sg_table *table;
 
+	if (heap->buf_ops.map_dma_buf)
+		return heap->buf_ops.map_dma_buf(attachment, direction);
+
+	a = attachment->priv;
 	table = a->table;
 
-	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
-			direction))
+	if (!dma_map_sg(attachment->dev, table->sgl, table->nents, direction))
 		return ERR_PTR(-ENOMEM);
 
 	return table;
 }
 
-static void ion_dma_buf_unmap(struct dma_buf_attachment *attachment,
+static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      struct sg_table *table,
 			      enum dma_data_direction direction)
 {
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (heap->buf_ops.unmap_dma_buf)
+		return heap->buf_ops.unmap_dma_buf(attachment, table,
+						   direction);
+
 	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
-}
-
-static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
-{
-	struct ion_buffer *buffer = dmabuf->priv;
-	int ret = 0;
-
-	if (!buffer->heap->ops->map_user) {
-		pr_err("%s: this heap does not define a method for mapping to userspace\n",
-		       __func__);
-		return -EINVAL;
-	}
-
-	if (!(buffer->flags & ION_FLAG_CACHED))
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-	mutex_lock(&buffer->lock);
-	/* now map it to userspace */
-	ret = buffer->heap->ops->map_user(buffer->heap, buffer, vma);
-	mutex_unlock(&buffer->lock);
-
-	if (ret)
-		pr_err("%s: failure mapping buffer to userspace\n",
-		       __func__);
-
-	return ret;
 }
 
 static void ion_dma_buf_release(struct dma_buf *dmabuf)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (heap->buf_ops.release)
+		return heap->buf_ops.release(dmabuf);
 
 	ion_free(buffer);
-}
-
-static void *ion_dma_buf_kmap(struct dma_buf *dmabuf, unsigned long offset)
-{
-	struct ion_buffer *buffer = dmabuf->priv;
-
-	return buffer->vaddr + offset * PAGE_SIZE;
 }
 
 static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 					enum dma_data_direction direction)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
 	void *vaddr;
 	struct ion_dma_buf_attachment *a;
-	int ret = 0;
+	int ret;
+
+	if (heap->buf_ops.begin_cpu_access)
+		return heap->buf_ops.begin_cpu_access(dmabuf, direction);
 
 	/*
 	 * TODO: Move this elsewhere because we don't always need a vaddr
 	 */
-	if (buffer->heap->ops->map_kernel) {
+	ret = 0;
+	if (heap->ops->map_kernel) {
 		mutex_lock(&buffer->lock);
 		vaddr = ion_buffer_kmap_get(buffer);
 		if (IS_ERR(vaddr)) {
@@ -190,13 +177,36 @@ unlock:
 	return ret;
 }
 
+static int
+ion_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+				     enum dma_data_direction direction,
+				     unsigned int offset, unsigned int len)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	/* This is done to make sure partial buffer cache flush / invalidate is
+	 * allowed. The implementation may be vendor specific in this case, so
+	 * ion core does not provide a default implementation
+	 */
+	if (!heap->buf_ops.begin_cpu_access_partial)
+		return -EOPNOTSUPP;
+
+	return heap->buf_ops.begin_cpu_access_partial(dmabuf, direction, offset,
+						      len);
+}
+
 static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 				      enum dma_data_direction direction)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
 	struct ion_dma_buf_attachment *a;
 
-	if (buffer->heap->ops->map_kernel) {
+	if (heap->buf_ops.end_cpu_access)
+		return heap->buf_ops.end_cpu_access(dmabuf, direction);
+
+	if (heap->ops->map_kernel) {
 		mutex_lock(&buffer->lock);
 		ion_buffer_kmap_put(buffer);
 		mutex_unlock(&buffer->lock);
@@ -212,16 +222,121 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
+static int ion_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+					      enum dma_data_direction direction,
+					      unsigned int offset,
+					      unsigned int len)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	/* This is done to make sure partial buffer cache flush / invalidate is
+	 * allowed. The implementation may be vendor specific in this case, so
+	 * ion core does not provide a default implementation
+	 */
+	if (!heap->buf_ops.end_cpu_access_partial)
+		return -EOPNOTSUPP;
+
+	return heap->buf_ops.end_cpu_access_partial(dmabuf, direction, offset,
+						    len);
+}
+
+static void *ion_dma_buf_map(struct dma_buf *dmabuf, unsigned long offset)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (heap->buf_ops.map)
+		return heap->buf_ops.map(dmabuf, offset);
+
+	return buffer->vaddr + offset * PAGE_SIZE;
+}
+
+static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+	int ret;
+
+	/* now map it to userspace */
+	if (heap->buf_ops.mmap) {
+		ret = heap->buf_ops.mmap(dmabuf, vma);
+	} else {
+		mutex_lock(&buffer->lock);
+		if (!(buffer->flags & ION_FLAG_CACHED))
+			vma->vm_page_prot =
+				pgprot_writecombine(vma->vm_page_prot);
+
+		ret = ion_heap_map_user(heap, buffer, vma);
+		mutex_unlock(&buffer->lock);
+	}
+
+	if (ret)
+		pr_err("%s: failure mapping buffer to userspace\n", __func__);
+
+	return ret;
+}
+
+static void ion_dma_buf_unmap(struct dma_buf *dmabuf, unsigned long offset,
+			      void *addr)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (!heap->buf_ops.unmap)
+		return;
+	heap->buf_ops.unmap(dmabuf, offset, addr);
+}
+
+static void *ion_dma_buf_vmap(struct dma_buf *dmabuf)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (!heap->buf_ops.vmap)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return heap->buf_ops.vmap(dmabuf);
+}
+
+static void ion_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (!heap->buf_ops.vunmap)
+		return;
+
+	return heap->buf_ops.vunmap(dmabuf, vaddr);
+}
+
+static int ion_dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags)
+{
+	struct ion_buffer *buffer = dmabuf->priv;
+	struct ion_heap *heap = buffer->heap;
+
+	if (!heap->buf_ops.get_flags)
+		return -EOPNOTSUPP;
+
+	return heap->buf_ops.get_flags(dmabuf, flags);
+}
+
 static const struct dma_buf_ops dma_buf_ops = {
-	.map_dma_buf = ion_dma_buf_map,
-	.unmap_dma_buf = ion_dma_buf_unmap,
-	.mmap = ion_dma_buf_mmap,
-	.release = ion_dma_buf_release,
 	.attach = ion_dma_buf_attach,
 	.detach = ion_dma_buf_detatch,
+	.map_dma_buf = ion_map_dma_buf,
+	.unmap_dma_buf = ion_unmap_dma_buf,
+	.release = ion_dma_buf_release,
 	.begin_cpu_access = ion_dma_buf_begin_cpu_access,
+	.begin_cpu_access_partial = ion_dma_buf_begin_cpu_access_partial,
 	.end_cpu_access = ion_dma_buf_end_cpu_access,
-	.map = ion_dma_buf_kmap,
+	.end_cpu_access_partial = ion_dma_buf_end_cpu_access_partial,
+	.mmap = ion_dma_buf_mmap,
+	.map = ion_dma_buf_map,
+	.unmap = ion_dma_buf_unmap,
+	.vmap = ion_dma_buf_vmap,
+	.vunmap = ion_dma_buf_vunmap,
+	.get_flags = ion_dma_buf_get_flags,
 };
 
 struct dma_buf *ion_dmabuf_alloc(struct ion_device *dev, size_t len,
