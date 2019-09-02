@@ -138,7 +138,7 @@ clean: $(LIBAPI)-clean
                 *.o *~ *.a *.so *.so.$(VERSION) *.so.$(LIBPERF_VERSION) .*.d .*.cmd LIBPERF-CFLAGS $(LIBPERF_PC)
 	$(Q)$(MAKE) -C tests clean
 
-tests:
+tests: libs
 	$(Q)$(MAKE) -C tests
 	$(Q)$(MAKE) -C tests run
 
