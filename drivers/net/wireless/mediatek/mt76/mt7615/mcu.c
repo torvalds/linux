@@ -113,12 +113,38 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 }
 
 static int
+mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
+			  struct sk_buff *skb, int seq)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+	int ret = 0;
+
+	if (seq != rxd->seq)
+		return -EAGAIN;
+
+	switch (cmd) {
+	case -MCU_CMD_PATCH_SEM_CONTROL:
+		skb_pull(skb, sizeof(*rxd) - 4);
+		ret = *skb->data;
+		break;
+	case MCU_EXT_CMD_GET_TEMP:
+		skb_pull(skb, sizeof(*rxd));
+		ret = le32_to_cpu(*(__le32 *)skb->data);
+		break;
+	default:
+		break;
+	}
+	dev_kfree_skb(skb);
+
+	return ret;
+}
+
+static int
 mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 		    int len, bool wait_resp)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	unsigned long expires = jiffies + 10 * HZ;
-	struct mt7615_mcu_rxd *rxd;
 	struct sk_buff *skb;
 	int ret, seq;
 
@@ -141,16 +167,9 @@ mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			break;
 		}
 
-		rxd = (struct mt7615_mcu_rxd *)skb->data;
-		if (seq != rxd->seq)
-			continue;
-
-		if (cmd == -MCU_CMD_PATCH_SEM_CONTROL) {
-			skb_pull(skb, sizeof(*rxd) - 4);
-			ret = *skb->data;
-		}
-		dev_kfree_skb(skb);
-		break;
+		ret = mt7615_mcu_parse_response(dev, cmd, skb, seq);
+		if (ret != -EAGAIN)
+			break;
 	}
 
 out:
@@ -1573,4 +1592,17 @@ int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_WTBL_UPDATE,
 				   &wtbl_req, sizeof(wtbl_req), true);
+}
+
+int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index)
+{
+	struct {
+		u8 action;
+		u8 rsv[3];
+	} req = {
+		.action = index,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_GET_TEMP, &req,
+				   sizeof(req), true);
 }

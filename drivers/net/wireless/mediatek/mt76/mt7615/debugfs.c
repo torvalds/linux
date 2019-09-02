@@ -49,6 +49,18 @@ mt7615_radio_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int mt7615_read_temperature(struct seq_file *s, void *data)
+{
+	struct mt7615_dev *dev = dev_get_drvdata(s->private);
+	int temp;
+
+	/* cpu */
+	temp = mt7615_mcu_get_temperature(dev, 0);
+	seq_printf(s, "Temperature: %d\n", temp);
+
+	return 0;
+}
+
 int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
@@ -72,6 +84,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 			   &dev->radar_pattern.power);
 	debugfs_create_file("radar_trigger", 0200, dir, dev,
 			    &fops_radar_pattern);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "temperature", dir,
+				    mt7615_read_temperature);
 
 	return 0;
 }
