@@ -199,7 +199,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
+		rxrpc_see_skb(skb, rxrpc_skb_seen);
 
 		if (anno_type == RXRPC_TX_ANNO_UNACK) {
 			if (ktime_after(skb->tstamp, max_age)) {
@@ -255,18 +255,18 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_get_skb(skb, rxrpc_skb_tx_got);
+		rxrpc_get_skb(skb, rxrpc_skb_got);
 		spin_unlock_bh(&call->lock);
 
 		if (rxrpc_send_data_packet(call, skb, true) < 0) {
-			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+			rxrpc_free_skb(skb, rxrpc_skb_freed);
 			return;
 		}
 
 		if (rxrpc_is_client_call(call))
 			rxrpc_expose_client_call(call);
 
-		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		spin_lock_bh(&call->lock);
 
 		/* We need to clear the retransmit state, but there are two
