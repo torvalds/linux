@@ -5,6 +5,9 @@
 #include <linux/list.h>
 #include <api/fd/array.h>
 
+#define PERF_EVLIST__HLIST_BITS 8
+#define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
+
 struct perf_cpu_map;
 struct perf_thread_map;
 
@@ -17,6 +20,7 @@ struct perf_evlist {
 	int			 nr_mmaps;
 	size_t			 mmap_len;
 	struct fdarray		 pollfd;
+	struct hlist_head	 heads[PERF_EVLIST__HLIST_SIZE];
 };
 
 /**

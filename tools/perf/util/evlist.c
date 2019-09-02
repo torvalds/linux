@@ -55,10 +55,6 @@ int sigqueue(pid_t pid, int sig, const union sigval value);
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 		  struct perf_thread_map *threads)
 {
-	int i;
-
-	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
-		INIT_HLIST_HEAD(&evlist->heads[i]);
 	perf_evlist__init(&evlist->core);
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 	fdarray__init(&evlist->core.pollfd, 64);
@@ -475,7 +471,7 @@ static void perf_evlist__id_hash(struct evlist *evlist,
 	sid->id = id;
 	sid->evsel = evsel;
 	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
-	hlist_add_head(&sid->node, &evlist->heads[hash]);
+	hlist_add_head(&sid->node, &evlist->core.heads[hash]);
 }
 
 void perf_evlist__id_add(struct evlist *evlist, struct evsel *evsel,
@@ -549,7 +545,7 @@ struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id)
 	int hash;
 
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
-	head = &evlist->heads[hash];
+	head = &evlist->core.heads[hash];
 
 	hlist_for_each_entry(sid, head, node)
 		if (sid->id == id)
@@ -635,7 +631,7 @@ struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 		return first;
 
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
-	head = &evlist->heads[hash];
+	head = &evlist->core.heads[hash];
 
 	hlist_for_each_entry(sid, head, node) {
 		if (sid->id == id)

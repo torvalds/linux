@@ -48,12 +48,8 @@ enum bkw_mmap_state {
 	BKW_MMAP_EMPTY,
 };
 
-#define PERF_EVLIST__HLIST_BITS 8
-#define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
-
 struct evlist {
 	struct perf_evlist core;
-	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_groups;
 	bool		 enabled;
 	int		 id_pos;
