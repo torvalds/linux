@@ -6095,6 +6095,15 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
+	 * Clear encryption initialization vectors on start, but keep them
+	 * for watchdog reset. Otherwise we will have wrong IVs and not be
+	 * able to keep connections after reset.
+	 */
+	if (!test_bit(DEVICE_STATE_RESET, &rt2x00dev->flags))
+		for (i = 0; i < 256; i++)
+			rt2800_register_write(rt2x00dev, MAC_IVEIV_ENTRY(i), 0);
+
+	/*
 	 * Clear all beacons
 	 */
 	for (i = 0; i < 8; i++)

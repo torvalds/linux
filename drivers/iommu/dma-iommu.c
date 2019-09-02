@@ -965,10 +965,13 @@ static void *iommu_dma_alloc_pages(struct device *dev, size_t size,
 {
 	bool coherent = dev_is_dma_coherent(dev);
 	size_t alloc_size = PAGE_ALIGN(size);
+	int node = dev_to_node(dev);
 	struct page *page = NULL;
 	void *cpu_addr;
 
 	page = dma_alloc_contiguous(dev, alloc_size, gfp);
+	if (!page)
+		page = alloc_pages_node(node, gfp, get_order(alloc_size));
 	if (!page)
 		return NULL;
 
