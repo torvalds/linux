@@ -1699,48 +1699,8 @@ static int sdma_v4_0_late_init(void *handle)
 	struct ras_ih_if ih_info = {
 		.cb = sdma_v4_0_process_ras_data_cb,
 	};
-	struct ras_fs_if fs_info = {
-		.sysfs_name = "sdma_err_count",
-		.debugfs_name = "sdma_err_inject",
-	};
-	int r, i;
 
-	if (!adev->sdma.ras_if) {
-		adev->sdma.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->sdma.ras_if)
-			return -ENOMEM;
-		adev->sdma.ras_if->block = AMDGPU_RAS_BLOCK__SDMA;
-		adev->sdma.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->sdma.ras_if->sub_block_index = 0;
-		strcpy(adev->sdma.ras_if->name, "sdma");
-	}
-	fs_info.head = ih_info.head = *adev->sdma.ras_if;
-
-	r = amdgpu_ras_late_init(adev, adev->sdma.ras_if,
-				 &fs_info, &ih_info);
-	if (r)
-		goto free;
-
-	if (amdgpu_ras_is_supported(adev, adev->sdma.ras_if->block)) {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
-				AMDGPU_SDMA_IRQ_INSTANCE0 + i);
-			if (r)
-				goto late_fini;
-		}
-	} else {
-		/* free sdma ras_if if sdma ras is not supported */
-		r = 0;
-		goto free;
-	}
-
-        return 0;
-late_fini:
-	amdgpu_ras_late_fini(adev, adev->sdma.ras_if, &ih_info);
-free:
-	kfree(adev->sdma.ras_if);
-	adev->sdma.ras_if = NULL;
-	return r;
+	return amdgpu_sdma_ras_late_init(adev, &ih_info);
 }
 
 static int sdma_v4_0_sw_init(void *handle)

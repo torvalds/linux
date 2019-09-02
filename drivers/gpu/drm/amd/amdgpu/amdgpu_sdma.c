@@ -23,6 +23,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_sdma.h"
+#include "amdgpu_ras.h"
 
 #define AMDGPU_CSA_SDMA_SIZE 64
 /* SDMA CSA reside in the 3rd page of CSA */
@@ -82,4 +83,55 @@ uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring,
 			index * AMDGPU_CSA_SDMA_SIZE;
 
 	return csa_mc_addr;
+}
+
+int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
+			      void *ras_ih_info)
+{
+	int r, i;
+	struct ras_ih_if *ih_info = (struct ras_ih_if *)ras_ih_info;
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "sdma_err_count",
+		.debugfs_name = "sdma_err_inject",
+	};
+
+	if (!ih_info)
+		return -EINVAL;
+
+	if (!adev->sdma.ras_if) {
+		adev->sdma.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->sdma.ras_if)
+			return -ENOMEM;
+		adev->sdma.ras_if->block = AMDGPU_RAS_BLOCK__SDMA;
+		adev->sdma.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->sdma.ras_if->sub_block_index = 0;
+		strcpy(adev->sdma.ras_if->name, "sdma");
+	}
+	fs_info.head = ih_info->head = *adev->sdma.ras_if;
+
+	r = amdgpu_ras_late_init(adev, adev->sdma.ras_if,
+				 &fs_info, ih_info);
+	if (r)
+		goto free;
+
+	if (amdgpu_ras_is_supported(adev, adev->sdma.ras_if->block)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
+				AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+			if (r)
+				goto late_fini;
+		}
+	} else {
+		r = 0;
+		goto free;
+	}
+
+        return 0;
+
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->sdma.ras_if, ih_info);
+free:
+	kfree(adev->sdma.ras_if);
+	adev->sdma.ras_if = NULL;
+	return r;
 }
