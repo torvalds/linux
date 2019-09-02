@@ -381,7 +381,7 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 	}
 
-	return amdgpu_gmc_get_pte_flags(adev, mapping_flags);
+	return amdgpu_gem_va_map_flags(adev, mapping_flags);
 }
 
 /* add_bo_to_vm - Add a BO to a VM

@@ -608,47 +608,25 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
  * 0 valid
  */
 
-static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
-						uint32_t flags)
+static uint64_t gmc_v9_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
 
 {
-	uint64_t pte_flag = 0;
-
-	if (flags & AMDGPU_VM_PAGE_EXECUTABLE)
-		pte_flag |= AMDGPU_PTE_EXECUTABLE;
-	if (flags & AMDGPU_VM_PAGE_READABLE)
-		pte_flag |= AMDGPU_PTE_READABLE;
-	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
-		pte_flag |= AMDGPU_PTE_WRITEABLE;
-
-	switch (flags & AMDGPU_VM_MTYPE_MASK) {
+	switch (flags) {
 	case AMDGPU_VM_MTYPE_DEFAULT:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
 	case AMDGPU_VM_MTYPE_NC:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
 	case AMDGPU_VM_MTYPE_WC:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_WC);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_WC);
 	case AMDGPU_VM_MTYPE_RW:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_RW);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_RW);
 	case AMDGPU_VM_MTYPE_CC:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
 	case AMDGPU_VM_MTYPE_UC:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_UC);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_UC);
 	default:
-		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
-		break;
+		return AMDGPU_PTE_MTYPE_VG10(MTYPE_NC);
 	}
-
-	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
-
-	return pte_flag;
 }
 
 static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
@@ -679,7 +657,7 @@ static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_flush_gpu_tlb,
 	.emit_flush_gpu_tlb = gmc_v9_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v9_0_emit_pasid_mapping,
-	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
+	.map_mtype = gmc_v9_0_map_mtype,
 	.get_vm_pde = gmc_v9_0_get_vm_pde
 };
 

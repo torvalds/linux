@@ -386,21 +386,6 @@ static uint64_t gmc_v6_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	return pd_addr;
 }
 
-static uint64_t gmc_v6_0_get_vm_pte_flags(struct amdgpu_device *adev,
-					  uint32_t flags)
-{
-	uint64_t pte_flag = 0;
-
-	if (flags & AMDGPU_VM_PAGE_READABLE)
-		pte_flag |= AMDGPU_PTE_READABLE;
-	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
-		pte_flag |= AMDGPU_PTE_WRITEABLE;
-	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
-
-	return pte_flag;
-}
-
 static void gmc_v6_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
@@ -1153,7 +1138,6 @@ static const struct amdgpu_gmc_funcs gmc_v6_0_gmc_funcs = {
 	.emit_flush_gpu_tlb = gmc_v6_0_emit_flush_gpu_tlb,
 	.set_prt = gmc_v6_0_set_prt,
 	.get_vm_pde = gmc_v6_0_get_vm_pde,
-	.get_vm_pte_flags = gmc_v6_0_get_vm_pte_flags
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v6_0_irq_funcs = {
