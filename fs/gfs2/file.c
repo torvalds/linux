@@ -1049,7 +1049,7 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 			rblocks += data_blocks ? data_blocks : 1;
 
 		error = gfs2_trans_begin(sdp, rblocks,
-					 PAGE_SIZE/sdp->sd_sb.sb_bsize);
+					 PAGE_SIZE >> inode->i_blkbits);
 		if (error)
 			goto out_trans_fail;
 
