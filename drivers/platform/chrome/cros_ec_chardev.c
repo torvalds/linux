@@ -16,19 +16,40 @@
 #include <linux/mfd/cros_ec.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/platform_data/cros_ec_chardev.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
+#include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
 #define DRV_NAME		"cros-ec-chardev"
 
+/* Arbitrary bounded size for the event queue */
+#define CROS_MAX_EVENT_LEN	PAGE_SIZE
+
 struct chardev_data {
 	struct cros_ec_dev *ec_dev;
 	struct miscdevice misc;
+};
+
+struct chardev_priv {
+	struct cros_ec_dev *ec_dev;
+	struct notifier_block notifier;
+	wait_queue_head_t wait_event;
+	unsigned long event_mask;
+	struct list_head events;
+	size_t event_len;
+};
+
+struct ec_event {
+	struct list_head node;
+	size_t size;
+	u8 event_type;
+	u8 data[0];
 };
 
 static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
@@ -69,6 +90,71 @@ exit:
 	return ret;
 }
 
+static int cros_ec_chardev_mkbp_event(struct notifier_block *nb,
+				      unsigned long queued_during_suspend,
+				      void *_notify)
+{
+	struct chardev_priv *priv = container_of(nb, struct chardev_priv,
+						 notifier);
+	struct cros_ec_device *ec_dev = priv->ec_dev->ec_dev;
+	struct ec_event *event;
+	unsigned long event_bit = 1 << ec_dev->event_data.event_type;
+	int total_size = sizeof(*event) + ec_dev->event_size;
+
+	if (!(event_bit & priv->event_mask) ||
+	    (priv->event_len + total_size) > CROS_MAX_EVENT_LEN)
+		return NOTIFY_DONE;
+
+	event = kzalloc(total_size, GFP_KERNEL);
+	if (!event)
+		return NOTIFY_DONE;
+
+	event->size = ec_dev->event_size;
+	event->event_type = ec_dev->event_data.event_type;
+	memcpy(event->data, &ec_dev->event_data.data, ec_dev->event_size);
+
+	spin_lock(&priv->wait_event.lock);
+	list_add_tail(&event->node, &priv->events);
+	priv->event_len += total_size;
+	wake_up_locked(&priv->wait_event);
+	spin_unlock(&priv->wait_event.lock);
+
+	return NOTIFY_OK;
+}
+
+static struct ec_event *cros_ec_chardev_fetch_event(struct chardev_priv *priv,
+						    bool fetch, bool block)
+{
+	struct ec_event *event;
+	int err;
+
+	spin_lock(&priv->wait_event.lock);
+	if (!block && list_empty(&priv->events)) {
+		event = ERR_PTR(-EWOULDBLOCK);
+		goto out;
+	}
+
+	if (!fetch) {
+		event = NULL;
+		goto out;
+	}
+
+	err = wait_event_interruptible_locked(priv->wait_event,
+					      !list_empty(&priv->events));
+	if (err) {
+		event = ERR_PTR(err);
+		goto out;
+	}
+
+	event = list_first_entry(&priv->events, struct ec_event, node);
+	list_del(&event->node);
+	priv->event_len -= sizeof(*event) + event->size;
+
+out:
+	spin_unlock(&priv->wait_event.lock);
+	return event;
+}
+
 /*
  * Device file ops
  */
@@ -76,11 +162,40 @@ static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 {
 	struct miscdevice *mdev = filp->private_data;
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(mdev->parent);
+	struct chardev_priv *priv;
+	int ret;
 
-	filp->private_data = ec_dev;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->ec_dev = ec_dev;
+	filp->private_data = priv;
+	INIT_LIST_HEAD(&priv->events);
+	init_waitqueue_head(&priv->wait_event);
 	nonseekable_open(inode, filp);
 
-	return 0;
+	priv->notifier.notifier_call = cros_ec_chardev_mkbp_event;
+	ret = blocking_notifier_chain_register(&ec_dev->ec_dev->event_notifier,
+					       &priv->notifier);
+	if (ret) {
+		dev_err(ec_dev->dev, "failed to register event notifier\n");
+		kfree(priv);
+	}
+
+	return ret;
+}
+
+static __poll_t cros_ec_chardev_poll(struct file *filp, poll_table *wait)
+{
+	struct chardev_priv *priv = filp->private_data;
+
+	poll_wait(filp, &priv->wait_event, wait);
+
+	if (list_empty(&priv->events))
+		return 0;
+
+	return EPOLLIN | EPOLLRDNORM;
 }
 
 static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
@@ -88,14 +203,42 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 {
 	char msg[sizeof(struct ec_response_get_version) +
 		 sizeof(CROS_EC_DEV_VERSION)];
-	struct cros_ec_dev *ec = filp->private_data;
+	struct chardev_priv *priv = filp->private_data;
+	struct cros_ec_dev *ec_dev = priv->ec_dev;
 	size_t count;
 	int ret;
 
+	if (priv->event_mask) { /* queued MKBP event */
+		struct ec_event *event;
+
+		event = cros_ec_chardev_fetch_event(priv, length != 0,
+						!(filp->f_flags & O_NONBLOCK));
+		if (IS_ERR(event))
+			return PTR_ERR(event);
+		/*
+		 * length == 0 is special - no IO is done but we check
+		 * for error conditions.
+		 */
+		if (length == 0)
+			return 0;
+
+		/* The event is 1 byte of type plus the payload */
+		count = min(length, event->size + 1);
+		ret = copy_to_user(buffer, &event->event_type, count);
+		kfree(event);
+		if (ret) /* the copy failed */
+			return -EFAULT;
+		*offset = count;
+		return count;
+	}
+
+	/*
+	 * Legacy behavior if no event mask is defined
+	 */
 	if (*offset != 0)
 		return 0;
 
-	ret = ec_get_version(ec, msg, sizeof(msg));
+	ret = ec_get_version(ec_dev, msg, sizeof(msg));
 	if (ret)
 		return ret;
 
@@ -106,6 +249,24 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 
 	*offset = count;
 	return count;
+}
+
+static int cros_ec_chardev_release(struct inode *inode, struct file *filp)
+{
+	struct chardev_priv *priv = filp->private_data;
+	struct cros_ec_dev *ec_dev = priv->ec_dev;
+	struct ec_event *event, *e;
+
+	blocking_notifier_chain_unregister(&ec_dev->ec_dev->event_notifier,
+					   &priv->notifier);
+
+	list_for_each_entry_safe(event, e, &priv->events, node) {
+		list_del(&event->node);
+		kfree(event);
+	}
+	kfree(priv);
+
+	return 0;
 }
 
 /*
@@ -181,7 +342,8 @@ static long cros_ec_chardev_ioctl_readmem(struct cros_ec_dev *ec,
 static long cros_ec_chardev_ioctl(struct file *filp, unsigned int cmd,
 				   unsigned long arg)
 {
-	struct cros_ec_dev *ec = filp->private_data;
+	struct chardev_priv *priv = filp->private_data;
+	struct cros_ec_dev *ec = priv->ec_dev;
 
 	if (_IOC_TYPE(cmd) != CROS_EC_DEV_IOC)
 		return -ENOTTY;
@@ -191,6 +353,9 @@ static long cros_ec_chardev_ioctl(struct file *filp, unsigned int cmd,
 		return cros_ec_chardev_ioctl_xcmd(ec, (void __user *)arg);
 	case CROS_EC_DEV_IOCRDMEM:
 		return cros_ec_chardev_ioctl_readmem(ec, (void __user *)arg);
+	case CROS_EC_DEV_IOCEVENTMASK:
+		priv->event_mask = arg;
+		return 0;
 	}
 
 	return -ENOTTY;
@@ -198,7 +363,9 @@ static long cros_ec_chardev_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations chardev_fops = {
 	.open		= cros_ec_chardev_open,
+	.poll		= cros_ec_chardev_poll,
 	.read		= cros_ec_chardev_read,
+	.release	= cros_ec_chardev_release,
 	.unlocked_ioctl	= cros_ec_chardev_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= cros_ec_chardev_ioctl,
