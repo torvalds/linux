@@ -2068,7 +2068,7 @@ static ssize_t charge_threshold_store(struct device *dev,
 		return -EINVAL;
 
 	ret = asus_wmi_set_devstate(ASUS_WMI_CHARGE_THRESHOLD, value, &rv);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	if (rv != 1)
