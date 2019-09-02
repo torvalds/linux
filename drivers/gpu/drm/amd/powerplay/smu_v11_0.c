@@ -1212,6 +1212,15 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_stop_thermal_control(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, 0);
+
+	return 0;
+}
+
 static uint16_t convert_to_vddc(uint8_t vid)
 {
 	return (uint16_t) ((6200 - (vid * 25)) / SMU11_VOLTAGE_SCALE);
@@ -1787,6 +1796,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.start_thermal_control = smu_v11_0_start_thermal_control,
+	.stop_thermal_control = smu_v11_0_stop_thermal_control,
 	.read_sensor = smu_v11_0_read_sensor,
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,

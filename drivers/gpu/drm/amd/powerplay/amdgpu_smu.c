@@ -1283,6 +1283,11 @@ failed:
 	return ret;
 }
 
+static int smu_stop_dpms(struct smu_context *smu)
+{
+	return smu_send_smc_msg(smu, SMU_MSG_DisableAllSmuFeatures);
+}
+
 static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1293,6 +1298,18 @@ static int smu_hw_fini(void *handle)
 	if (adev->flags & AMD_IS_APU) {
 		smu_powergate_sdma(&adev->smu, true);
 		smu_powergate_vcn(&adev->smu, true);
+	}
+
+	ret = smu_stop_thermal_control(smu);
+	if (ret) {
+		pr_warn("Fail to stop thermal control!\n");
+		return ret;
+	}
+
+	ret = smu_stop_dpms(smu);
+	if (ret) {
+		pr_warn("Fail to stop Dpms!\n");
+		return ret;
 	}
 
 	kfree(table_context->driver_pptable);

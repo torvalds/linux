@@ -498,6 +498,7 @@ struct smu_funcs
 	int (*get_current_clk_freq)(struct smu_context *smu, enum smu_clk_type clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*start_thermal_control)(struct smu_context *smu);
+	int (*stop_thermal_control)(struct smu_context *smu);
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
@@ -647,6 +648,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_thermal_fan_table ? (smu)->ppt_funcs->set_thermal_fan_table((smu)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
+#define smu_stop_thermal_control(smu) \
+	((smu)->funcs->stop_thermal_control? (smu)->funcs->stop_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
 	((smu)->ppt_funcs->read_sensor? (smu)->ppt_funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
 #define smu_smc_read_sensor(smu, sensor, data, size) \
