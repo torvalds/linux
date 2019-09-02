@@ -163,8 +163,8 @@
 #define HIGH_INDEX_BIT	(8)
 #define HIGH_INDEX_MASK	(0xFF00)
 #define LOW_INDEX_BIT	(16-HIGH_INDEX_BIT)
-#define UTBL_ROW_COUNT	(1<<LOW_INDEX_BIT)
-#define UTBL_COL_COUNT	(1<<HIGH_INDEX_BIT)
+#define UTBL_ROW_COUNT	BIT(LOW_INDEX_BIT)
+#define UTBL_COL_COUNT	BIT(HIGH_INDEX_BIT)
 
 static inline u16 get_col_index(u16 i)
 {
@@ -691,7 +691,7 @@ struct exfat_mount_options {
 };
 
 #define EXFAT_HASH_BITS		8
-#define EXFAT_HASH_SIZE		(1UL << EXFAT_HASH_BITS)
+#define EXFAT_HASH_SIZE		BIT(EXFAT_HASH_BITS)
 
 /*
  * EXFAT file system in-core superblock data
