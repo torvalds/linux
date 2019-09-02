@@ -252,6 +252,11 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 		pr_info("PATE registered by ultravisor: dw0 = 0x%lx, dw1 = 0x%lx\n",
 			dw0, dw1);
 	} else if (flush) {
+		/*
+		 * Boot does not need to flush, because MMU is off and each
+		 * CPU does a tlbiel_all() before switching them on, which
+		 * flushes everything.
+		 */
 		flush_partition(lpid, (old & PATB_HR));
 	}
 }
