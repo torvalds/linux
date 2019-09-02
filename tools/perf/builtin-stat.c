@@ -235,7 +235,7 @@ static int write_stat_round_event(u64 tm, u64 type)
 #define WRITE_STAT_ROUND_EVENT(time, interval) \
 	write_stat_round_event(time, PERF_STAT_ROUND_TYPE__ ## interval)
 
-#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
+#define SID(e, x, y) xyarray__entry(e->core.sample_id, x, y)
 
 static int
 perf_evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,

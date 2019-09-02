@@ -96,7 +96,6 @@ enum perf_tool_event {
 
 struct bpf_object;
 struct perf_counts;
-struct xyarray;
 
 /** struct evsel - event selector
  *
@@ -117,7 +116,6 @@ struct evsel {
 	struct perf_evsel	core;
 	struct evlist	*evlist;
 	char			*filter;
-	struct xyarray		*sample_id;
 	u64			*id;
 	struct perf_counts	*counts;
 	struct perf_counts	*prev_raw_counts;

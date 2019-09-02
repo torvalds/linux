@@ -1235,14 +1235,14 @@ int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
 	if (evsel->core.system_wide)
 		nthreads = 1;
 
-	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
-	if (evsel->sample_id == NULL)
+	evsel->core.sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
+	if (evsel->core.sample_id == NULL)
 		return -ENOMEM;
 
 	evsel->id = zalloc(ncpus * nthreads * sizeof(u64));
 	if (evsel->id == NULL) {
-		xyarray__delete(evsel->sample_id);
-		evsel->sample_id = NULL;
+		xyarray__delete(evsel->core.sample_id);
+		evsel->core.sample_id = NULL;
 		return -ENOMEM;
 	}
 
@@ -1251,8 +1251,8 @@ int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
 
 static void perf_evsel__free_id(struct evsel *evsel)
 {
-	xyarray__delete(evsel->sample_id);
-	evsel->sample_id = NULL;
+	xyarray__delete(evsel->core.sample_id);
+	evsel->core.sample_id = NULL;
 	zfree(&evsel->id);
 	evsel->ids = 0;
 }

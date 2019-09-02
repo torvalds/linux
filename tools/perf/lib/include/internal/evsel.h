@@ -17,6 +17,7 @@ struct perf_evsel {
 	struct perf_cpu_map	*own_cpus;
 	struct perf_thread_map	*threads;
 	struct xyarray		*fd;
+	struct xyarray		*sample_id;
 
 	/* parse modifier helper */
 	int			 nr_members;

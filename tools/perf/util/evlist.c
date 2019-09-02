@@ -50,7 +50,7 @@ int sigqueue(pid_t pid, int sig, const union sigval value);
 #endif
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
-#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
+#define SID(e, x, y) xyarray__entry(e->core.sample_id, x, y)
 
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 		  struct perf_thread_map *threads)
@@ -1021,7 +1021,7 @@ int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 
 	evlist__for_each_entry(evlist, evsel) {
 		if ((evsel->core.attr.read_format & PERF_FORMAT_ID) &&
-		    evsel->sample_id == NULL &&
+		    evsel->core.sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, perf_cpu_map__nr(cpus), threads->nr) < 0)
 			return -ENOMEM;
 	}
