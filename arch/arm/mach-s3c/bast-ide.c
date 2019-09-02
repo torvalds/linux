@@ -19,7 +19,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/map.h>
+#include "map.h"
 #include <mach/irqs.h>
 
 #include "bast.h"

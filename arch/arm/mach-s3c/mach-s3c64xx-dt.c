@@ -8,8 +8,8 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 
-#include <plat/cpu.h>
-#include <mach/map.h>
+#include "cpu.h"
+#include "map.h"
 
 #include "s3c64xx.h"
 

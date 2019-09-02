@@ -27,15 +27,15 @@
 #include <asm/irq.h>
 
 #include <mach/irqs.h>
-#include <mach/map.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
-#include <plat/cpu.h>
-#include <plat/gpio-core.h>
-#include <plat/gpio-cfg.h>
-#include <plat/gpio-cfg-helpers.h>
-#include <plat/pm.h>
+#include "cpu.h"
+#include "gpio-core.h"
+#include "gpio-cfg.h"
+#include "gpio-cfg-helpers.h"
+#include "pm.h"
 
 int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,
 				unsigned int off, samsung_gpio_pull_t pull)

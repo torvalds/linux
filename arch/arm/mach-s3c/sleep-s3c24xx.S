@@ -13,10 +13,10 @@
 #include <linux/linkage.h>
 #include <linux/serial_s3c.h>
 #include <asm/assembler.h>
-#include <mach/map.h>
+#include "map.h"
 
-#include <mach/regs-gpio.h>
-#include <mach/regs-clock.h>
+#include "regs-gpio.h"
+#include "regs-clock.h"
 
 /*
  * S3C24XX_DEBUG_RESUME is dangerous if your bootloader does not

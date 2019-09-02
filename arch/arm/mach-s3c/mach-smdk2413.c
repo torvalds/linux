@@ -23,23 +23,23 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware-s3c24xx.h>
 #include <asm/hardware/iomd.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <mach/regs-gpio.h>
+#include "hardware-s3c24xx.h"
+#include "regs-gpio.h"
 
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/fb-s3c2410.h>
-#include <mach/gpio-samsung.h>
-#include <plat/gpio-cfg.h>
+#include "gpio-samsung.h"
+#include "gpio-cfg.h"
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 
 #include "s3c24xx.h"
 #include "common-smdk-s3c24xx.h"

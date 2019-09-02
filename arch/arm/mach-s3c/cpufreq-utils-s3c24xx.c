@@ -12,8 +12,8 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 
-#include <mach/map.h>
-#include <mach/regs-clock.h>
+#include "map.h"
+#include "regs-clock.h"
 
 #include <linux/soc/samsung/s3c-cpufreq-core.h>
 

@@ -25,19 +25,19 @@
 #include <asm/mach/irq.h>
 
 #include <video/samsung_fimd.h>
-#include <mach/map.h>
+#include "map.h"
 #include <mach/irqs.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <mach/gpio-samsung.h>
-#include <plat/fb.h>
+#include "gpio-samsung.h"
+#include "fb.h"
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 
 #include "s3c64xx.h"
 

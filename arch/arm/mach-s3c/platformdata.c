@@ -9,8 +9,8 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 
-#include <plat/devs.h>
-#include <plat/sdhci.h>
+#include "devs.h"
+#include "sdhci.h"
 
 void __init *s3c_set_platdata(void *pd, size_t pdsize,
 			      struct platform_device *pdev)

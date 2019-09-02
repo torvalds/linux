@@ -14,9 +14,9 @@
 #include <linux/serial_s3c.h>
 #include <linux/delay.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/regs-clock.h>
-#include <mach/map.h>
+#include "regs-gpio.h"
+#include "regs-clock.h"
+#include "map.h"
 
 static inline void s3c_pm_debug_init_uart(void)
 {

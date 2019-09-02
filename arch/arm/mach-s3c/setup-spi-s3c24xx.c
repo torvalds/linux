@@ -8,10 +8,10 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 
-#include <plat/gpio-cfg.h>
+#include "gpio-cfg.h"
 
-#include <mach/hardware-s3c24xx.h>
-#include <mach/regs-gpio.h>
+#include "hardware-s3c24xx.h"
+#include "regs-gpio.h"
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0
 int s3c64xx_spi0_cfg_gpio(void)

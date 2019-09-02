@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
 
-#include <plat/regs-adc.h>
+#include "regs-adc.h"
 #include <linux/soc/samsung/s3c-adc.h>
 
 /* This driver is designed to control the usage of the ADC block between

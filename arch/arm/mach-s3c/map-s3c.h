@@ -9,7 +9,7 @@
 #ifndef __ASM_PLAT_MAP_S3C_H
 #define __ASM_PLAT_MAP_S3C_H __FILE__
 
-#include <mach/map.h>
+#include "map.h"
 
 #define S3C24XX_VA_IRQ		S3C_VA_IRQ
 #define S3C24XX_VA_MEMCTRL	S3C_VA_MEM
@@ -65,6 +65,6 @@ extern void __iomem *s3c24xx_va_gpio2;
 #define S3C24XX_VA_GPIO2 S3C24XX_VA_GPIO
 #endif
 
-#include <plat/map-s5p.h>
+#include "map-s5p.h"
 
 #endif /* __ASM_PLAT_MAP_S3C_H */

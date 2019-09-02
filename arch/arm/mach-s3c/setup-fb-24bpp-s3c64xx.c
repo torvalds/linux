@@ -12,9 +12,9 @@
 #include <linux/fb.h>
 #include <linux/gpio.h>
 
-#include <plat/fb.h>
-#include <plat/gpio-cfg.h>
-#include <mach/gpio-samsung.h>
+#include "fb.h"
+#include "gpio-cfg.h"
+#include "gpio-samsung.h"
 
 void s3c64xx_fb_gpio_setup_24bpp(void)
 {

@@ -39,31 +39,31 @@
 #include <asm/mach/irq.h>
 
 #include <mach/irqs.h>
-#include <mach/map.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "gpio-samsung.h"
+#include "gpio-cfg.h"
 
 #ifdef CONFIG_PLAT_S3C24XX
-#include <mach/regs-s3c2443-clock.h>
+#include "regs-s3c2443-clock.h"
 #endif /* CONFIG_PLAT_S3C24XX */
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/gpio-cfg.h>
+#include "cpu.h"
+#include "devs.h"
 #include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/ata-samsung_cf.h>
-#include <plat/fb.h>
+#include "fb.h"
 #include <linux/platform_data/fb-s3c2410.h>
 #include <linux/platform_data/hwmon-s3c.h>
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/keypad.h>
+#include "keypad.h"
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
-#include <plat/pwm-core.h>
-#include <plat/sdhci.h>
+#include "pwm-core.h"
+#include "sdhci.h"
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/usb-ohci-s3c2410.h>
-#include <plat/usb-phy.h>
+#include "usb-phy.h"
 #include <linux/platform_data/asoc-s3c.h>
 #include <linux/platform_data/spi-s3c64xx.h>
 

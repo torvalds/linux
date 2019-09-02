@@ -23,8 +23,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
+#include "cpu.h"
+#include "devs.h"
 
 static struct cpu_table *cpu;
 

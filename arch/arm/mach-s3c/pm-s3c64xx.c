@@ -14,17 +14,17 @@
 #include <linux/gpio.h>
 #include <linux/pm_domain.h>
 
-#include <mach/map.h>
+#include "map.h"
 #include <mach/irqs.h>
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/pm.h>
-#include <plat/wakeup-mask.h>
+#include "cpu.h"
+#include "devs.h"
+#include "pm.h"
+#include "wakeup-mask.h"
 
-#include <mach/regs-gpio.h>
-#include <mach/regs-clock.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "regs-clock.h"
+#include "gpio-samsung.h"
 
 #include "regs-gpio-memport-s3c64xx.h"
 #include "regs-modem-s3c64xx.h"

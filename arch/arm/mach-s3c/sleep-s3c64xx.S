@@ -11,12 +11,12 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/map.h>
+#include "map.h"
 
 #undef S3C64XX_VA_GPIO
 #define S3C64XX_VA_GPIO (0x0)
 
-#include <mach/regs-gpio.h>
+#include "regs-gpio.h"
 
 #define LL_UART (S3C_PA_UART + (0x400 * CONFIG_S3C_LOWLEVEL_UART_PORT))
 

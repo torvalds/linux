@@ -11,8 +11,8 @@
 #include <linux/io.h>
 #include <linux/pwm_backlight.h>
 
-#include <plat/devs.h>
-#include <plat/gpio-cfg.h>
+#include "devs.h"
+#include "gpio-cfg.h"
 
 #include "backlight-s3c64xx.h"
 

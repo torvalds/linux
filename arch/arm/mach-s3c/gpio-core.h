@@ -11,7 +11,7 @@
 #define __PLAT_SAMSUNG_GPIO_CORE_H
 
 /* Bring in machine-local definitions, especially S3C_GPIO_END */
-#include <mach/gpio-samsung.h>
+#include "gpio-samsung.h"
 #include <linux/gpio/driver.h>
 
 #define GPIOCON_OFF	(0x00)

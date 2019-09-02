@@ -9,8 +9,8 @@
 #ifndef __ASM_ARCH_MAP_H
 #define __ASM_ARCH_MAP_H
 
-#include <plat/map-base.h>
-#include <plat/map-s3c.h>
+#include <mach/map-base.h>
+#include "map-s3c.h"
 
 /*
  * interrupt controller is the first thing we put in, to make

@@ -30,13 +30,13 @@
 #include <asm/irq.h>
 
 #include <linux/soc/samsung/s3c-pm.h>
-#include <mach/regs-clock.h>
+#include "regs-clock.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/sdhci.h>
-#include <plat/adc-core.h>
-#include <plat/iic-core.h>
+#include "cpu.h"
+#include "devs.h"
+#include "sdhci.h"
+#include "adc-core.h"
+#include "iic-core.h"
 
 #include "ata-core-s3c64xx.h"
 #include "s3c64xx.h"

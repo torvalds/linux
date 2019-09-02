@@ -23,12 +23,12 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/gpio-samsung.h>
+#include "gpio-samsung.h"
 #include <mach/irqs.h>
 #include <asm/irq.h>
 
 #include <linux/platform_data/usb-ohci-s3c2410.h>
-#include <plat/devs.h>
+#include "devs.h"
 
 #include "bast.h"
 #include "simtec.h"

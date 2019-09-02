@@ -23,10 +23,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/cpu.h>
+#include "cpu.h"
 #include <linux/soc/samsung/s3c-cpufreq-core.h>
 
-#include <mach/s3c2412.h>
+#include "s3c2412.h"
 
 #define print_ns(x) ((x) / 10), ((x) % 10)
 

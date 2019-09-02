@@ -18,17 +18,17 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <mach/map.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
+#include "cpu.h"
+#include "devs.h"
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/gpio-cfg.h>
+#include "gpio-cfg.h"
 #include <linux/platform_data/hwmon-s3c.h>
 #include <linux/platform_data/usb-ohci-s3c2410.h>
-#include <plat/sdhci.h>
+#include "sdhci.h"
 #include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>

@@ -9,7 +9,7 @@
 #ifndef __ARCH_ARM_MACH_S3C24XX_REGS_MEM_H
 #define __ARCH_ARM_MACH_S3C24XX_REGS_MEM_H __FILE__
 
-#include <plat/map-s3c.h>
+#include "map-s3c.h"
 
 #define S3C2410_MEMREG(x)		(S3C24XX_VA_MEMCTRL + (x))
 

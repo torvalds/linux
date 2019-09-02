@@ -46,14 +46,14 @@
 
 #include <sound/uda1380.h>
 
-#include <mach/hardware-s3c24xx.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "hardware-s3c24xx.h"
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/pm.h>
-#include <plat/gpio-cfg.h>
+#include "cpu.h"
+#include "devs.h"
+#include "pm.h"
+#include "gpio-cfg.h"
 
 #include "s3c24xx.h"
 #include "h1940.h"

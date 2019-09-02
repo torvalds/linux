@@ -59,14 +59,14 @@
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/fb-s3c2410.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/regs-irq.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "regs-irq.h"
+#include "gpio-samsung.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/gpio-cfg.h>
-#include <plat/pm.h>
+#include "cpu.h"
+#include "devs.h"
+#include "gpio-cfg.h"
+#include "pm.h"
 
 #include "s3c24xx.h"
 #include "gta02.h"

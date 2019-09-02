@@ -29,13 +29,13 @@
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
-#include <mach/map.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
+#include "map.h"
+#include "regs-clock.h"
+#include "regs-gpio.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/pm.h>
+#include "cpu.h"
+#include "devs.h"
+#include "pm.h"
 
 #include "s3c24xx.h"
 #include "nand-core-s3c24xx.h"

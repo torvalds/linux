@@ -35,18 +35,17 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 
-#include <mach/map.h>
+#include "map.h"
 #include <mach/irqs.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/pm.h>
-#include <plat/gpio-cfg.h>
-#include <plat/pwm-core.h>
-#include <plat/regs-irqtype.h>
-
+#include "cpu.h"
+#include "devs.h"
+#include "pm.h"
+#include "gpio-cfg.h"
+#include "pwm-core.h"
+#include "regs-irqtype.h"
 #include "s3c64xx.h"
 #include "irq-uart-s3c64xx.h"
 

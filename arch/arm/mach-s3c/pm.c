@@ -18,16 +18,16 @@
 #include <asm/cacheflush.h>
 #include <asm/suspend.h>
 
-#include <mach/map.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-irq.h>
+#include "map.h"
+#include "regs-clock.h"
+#include "regs-irq.h"
 #include <mach/irqs.h>
 
 #include <asm/irq.h>
 
-#include <plat/cpu.h>
-#include <plat/pm.h>
-#include <mach/pm-core.h>
+#include "cpu.h"
+#include "pm.h"
+#include "pm-core.h"
 
 /* for external use */
 

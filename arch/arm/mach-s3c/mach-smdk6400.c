@@ -23,12 +23,12 @@
 #include <asm/mach/irq.h>
 
 #include <mach/irqs.h>
-#include <mach/map.h>
+#include "map.h"
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <mach/gpio-samsung.h>
+#include "gpio-samsung.h"
 
 #include "s3c64xx.h"
 

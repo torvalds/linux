@@ -11,12 +11,12 @@
 #include <linux/export.h>
 
 #include <mach/irqs.h>
-#include <mach/map.h>
+#include "map.h"
 
-#include <plat/devs.h>
+#include "devs.h"
 #include <linux/platform_data/asoc-s3c.h>
-#include <plat/gpio-cfg.h>
-#include <mach/gpio-samsung.h>
+#include "gpio-cfg.h"
+#include "gpio-samsung.h"
 
 static int s3c64xx_i2s_cfg_gpio(struct platform_device *pdev)
 {

@@ -15,7 +15,7 @@
 #define __PLAT_S3C_SDHCI_H __FILE__
 
 #include <linux/platform_data/mmc-sdhci-s3c.h>
-#include <plat/devs.h>
+#include "devs.h"
 
 /* s3c_sdhci_set_platdata() - common helper for setting SDHCI platform data
  * @pd: The default platform data for this device.

@@ -15,7 +15,7 @@
 #include <linux/mfd/tps65010.h>
 
 #include <linux/soc/samsung/s3c-cpu-freq.h>
-#include <mach/gpio-samsung.h>
+#include "gpio-samsung.h"
 
 #define OSIRIS_GPIO_DVS	S3C2410_GPB(5)
 

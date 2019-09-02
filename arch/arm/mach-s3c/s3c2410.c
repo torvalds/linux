@@ -25,21 +25,21 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/map.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "gpio-samsung.h"
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
 
-#include <mach/regs-clock.h>
+#include "regs-clock.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/pm.h>
+#include "cpu.h"
+#include "devs.h"
+#include "pm.h"
 
-#include <plat/gpio-core.h>
-#include <plat/gpio-cfg.h>
-#include <plat/gpio-cfg-helpers.h>
+#include "gpio-core.h"
+#include "gpio-cfg.h"
+#include "gpio-cfg-helpers.h"
 
 #include "s3c24xx.h"
 

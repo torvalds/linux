@@ -25,13 +25,13 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/regs-gpio.h>
+#include "regs-gpio.h"
 
 #include <linux/platform_data/fb-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 
 #include "s3c24xx.h"
 #include "common-smdk-s3c24xx.h"

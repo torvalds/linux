@@ -10,9 +10,9 @@
 #include <linux/amba/pl08x.h>
 #include <linux/of.h>
 
-#include <plat/cpu.h>
+#include "cpu.h"
 #include <mach/irqs.h>
-#include <mach/map.h>
+#include "map.h"
 
 #include "regs-sys-s3c64xx.h"
 

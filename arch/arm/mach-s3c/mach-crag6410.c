@@ -44,22 +44,22 @@
 #include <asm/mach-types.h>
 
 #include <video/samsung_fimd.h>
-#include <mach/map.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 #include <mach/irqs.h>
 
-#include <plat/fb.h>
-#include <plat/sdhci.h>
-#include <plat/gpio-cfg.h>
+#include "fb.h"
+#include "sdhci.h"
+#include "gpio-cfg.h"
 #include <linux/platform_data/spi-s3c64xx.h>
 
-#include <plat/keypad.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "keypad.h"
+#include "devs.h"
+#include "cpu.h"
 #include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/pm.h>
+#include "pm.h"
 
 #include "s3c64xx.h"
 #include "crag6410.h"

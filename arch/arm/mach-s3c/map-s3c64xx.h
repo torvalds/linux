@@ -11,8 +11,8 @@
 #ifndef __ASM_ARCH_MAP_H
 #define __ASM_ARCH_MAP_H __FILE__
 
-#include <plat/map-base.h>
-#include <plat/map-s3c.h>
+#include <mach/map-base.h>
+#include "map-s3c.h"
 
 /*
  * Post-mux Chip Select Regions Xm0CSn_

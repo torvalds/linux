@@ -13,14 +13,14 @@
 #include <linux/syscore_ops.h>
 #include <linux/io.h>
 
-#include <plat/cpu.h>
-#include <plat/pm.h>
-#include <plat/map-base.h>
-#include <plat/map-s3c.h>
+#include "cpu.h"
+#include "pm.h"
+#include <mach/map-base.h>
+#include "map-s3c.h"
 
-#include <mach/regs-irq.h>
-#include <mach/regs-gpio.h>
-#include <mach/pm-core.h>
+#include "regs-irq.h"
+#include "regs-gpio.h"
+#include "pm-core.h"
 
 #include <asm/irq.h>
 

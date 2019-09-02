@@ -29,8 +29,8 @@
 #include <asm/mach-types.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>

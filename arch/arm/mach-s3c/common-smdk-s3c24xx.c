@@ -31,14 +31,14 @@
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 
-#include <plat/gpio-cfg.h>
-#include <plat/devs.h>
-#include <plat/pm.h>
+#include "gpio-cfg.h"
+#include "devs.h"
+#include "pm.h"
 
 #include "common-smdk-s3c24xx.h"
 

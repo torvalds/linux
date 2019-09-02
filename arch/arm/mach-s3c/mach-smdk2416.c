@@ -25,26 +25,26 @@
 #include <asm/mach/irq.h>
 
 #include <video/samsung_fimd.h>
-#include <mach/hardware-s3c24xx.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/regs-s3c2443-clock.h>
-#include <mach/gpio-samsung.h>
+#include "hardware-s3c24xx.h"
+#include "regs-gpio.h"
+#include "regs-s3c2443-clock.h"
+#include "gpio-samsung.h"
 
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
-#include <plat/gpio-cfg.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "gpio-cfg.h"
+#include "devs.h"
+#include "cpu.h"
 #include <linux/platform_data/mtd-nand-s3c2410.h>
-#include <plat/sdhci.h>
+#include "sdhci.h"
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/s3c-hsudc.h>
 
-#include <plat/fb.h>
+#include "fb.h"
 
 #include "s3c24xx.h"
 #include "common-smdk-s3c24xx.h"

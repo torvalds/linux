@@ -30,19 +30,19 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/map.h>
+#include "map.h"
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/fb.h>
+#include "fb.h"
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 #include <mach/irqs.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
 #include "s3c64xx.h"
 #include "regs-modem-s3c64xx.h"

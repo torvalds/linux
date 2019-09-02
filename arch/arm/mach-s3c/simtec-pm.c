@@ -19,12 +19,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/map.h>
-#include <mach/regs-gpio.h>
+#include "map.h"
+#include "regs-gpio.h"
 
 #include <asm/mach-types.h>
 
-#include <plat/pm.h>
+#include "pm.h"
 
 #include "regs-mem-s3c24xx.h"
 

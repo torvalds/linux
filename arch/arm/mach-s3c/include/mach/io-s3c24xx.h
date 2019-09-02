@@ -10,7 +10,7 @@
 #ifndef __ASM_ARM_ARCH_IO_S3C24XX_H
 #define __ASM_ARM_ARCH_IO_S3C24XX_H
 
-#include <plat/map-base.h>
+#include <mach/map-base.h>
 
 /*
  * ISA style IO, for each machine to sort out mappings for,

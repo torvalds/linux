@@ -25,15 +25,15 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/map.h>
+#include "map.h"
 #include <asm/irq.h>
 
-#include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
+#include "regs-clock.h"
+#include "regs-gpio.h"
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
-#include <plat/pm.h>
+#include "devs.h"
+#include "cpu.h"
+#include "pm.h"
 
 #include "s3c24xx.h"
 #include "nand-core-s3c24xx.h"

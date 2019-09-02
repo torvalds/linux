@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <plat/devs.h>
+#include "devs.h"
 
 /* uart devices */
 

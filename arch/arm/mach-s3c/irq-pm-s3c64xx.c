@@ -20,11 +20,11 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
-#include <mach/map.h>
+#include "map.h"
 
-#include <mach/regs-gpio.h>
-#include <plat/cpu.h>
-#include <plat/pm.h>
+#include "regs-gpio.h"
+#include "cpu.h"
+#include "pm.h"
 
 /* We handled all the IRQ types in this code, to save having to make several
  * small files to handle each different type separately. Having the EINT_GRP

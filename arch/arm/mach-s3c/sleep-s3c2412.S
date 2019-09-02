@@ -8,9 +8,9 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/map.h>
+#include "map.h"
 
-#include <mach/regs-irq.h>
+#include "regs-irq.h"
 
 	.text
 

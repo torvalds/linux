@@ -20,11 +20,11 @@
 #include <asm/irq.h>
 
 #include <mach/irqs.h>
-#include <mach/regs-gpio.h>
+#include "regs-gpio.h"
 
-#include <plat/cpu.h>
-#include <plat/pm.h>
-#include <plat/wakeup-mask.h>
+#include "cpu.h"
+#include "pm.h"
+#include "wakeup-mask.h"
 
 #include "regs-dsc-s3c24xx.h"
 #include "s3c2412-power.h"

@@ -10,8 +10,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-#include <plat/map-base.h>
-#include <plat/cpu.h>
+#include <mach/map-base.h>
+#include "cpu.h"
 
 unsigned long samsung_cpu_id;
 

@@ -12,12 +12,12 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
-#include <plat/gpio-cfg.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
+#include "gpio-cfg.h"
 
 #include <linux/platform_data/asoc-s3c24xx_simtec.h>
-#include <plat/devs.h>
+#include "devs.h"
 
 #include "bast.h"
 #include "simtec.h"

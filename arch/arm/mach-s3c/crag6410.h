@@ -8,7 +8,7 @@
 #ifndef MACH_CRAG6410_H
 #define MACH_CRAG6410_H
 
-#include <mach/gpio-samsung.h>
+#include "gpio-samsung.h"
 
 #define GLENFARCLAS_PMIC_IRQ_BASE	IRQ_BOARD_START
 #define BANFF_PMIC_IRQ_BASE		(IRQ_BOARD_START + 64)

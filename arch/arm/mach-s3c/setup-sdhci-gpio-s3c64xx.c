@@ -13,9 +13,9 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <plat/gpio-cfg.h>
-#include <plat/sdhci.h>
-#include <mach/gpio-samsung.h>
+#include "gpio-cfg.h"
+#include "sdhci.h"
+#include "gpio-samsung.h"
 
 void s3c64xx_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 {

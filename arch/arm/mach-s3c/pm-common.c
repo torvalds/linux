@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 
-#include <plat/pm-common.h>
+#include "pm-common.h"
 
 /* helper functions to save and restore register state */
 

@@ -16,12 +16,12 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
-#include <plat/gpio-cfg.h>
-#include <plat/cpu.h>
-#include <plat/pm.h>
+#include "gpio-cfg.h"
+#include "cpu.h"
+#include "pm.h"
 
 #include "h1940.h"
 

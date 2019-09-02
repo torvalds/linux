@@ -32,13 +32,13 @@
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 #include <linux/platform_data/i2c-s3c2410.h>
 
-#include <plat/gpio-cfg.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "gpio-cfg.h"
+#include "devs.h"
+#include "cpu.h"
 
 #include "s3c24xx.h"
 

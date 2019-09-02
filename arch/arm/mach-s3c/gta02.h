@@ -6,7 +6,7 @@
 #ifndef __MACH_S3C24XX_GTA02_H
 #define __MACH_S3C24XX_GTA02_H __FILE__
 
-#include <mach/regs-gpio.h>
+#include "regs-gpio.h"
 
 #define GTA02_GPIO_AUX_LED	S3C2410_GPB(2)
 #define GTA02_GPIO_USB_PULLUP	S3C2410_GPB(9)

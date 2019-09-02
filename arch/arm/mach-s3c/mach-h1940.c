@@ -48,16 +48,16 @@
 #include <sound/uda1380.h>
 
 #include <linux/platform_data/fb-s3c2410.h>
-#include <mach/map.h>
-#include <mach/hardware-s3c24xx.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "hardware-s3c24xx.h"
+#include "regs-clock.h"
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/gpio-cfg.h>
-#include <plat/pm.h>
+#include "cpu.h"
+#include "devs.h"
+#include "gpio-cfg.h"
+#include "pm.h"
 
 #include "s3c24xx.h"
 #include "h1940.h"

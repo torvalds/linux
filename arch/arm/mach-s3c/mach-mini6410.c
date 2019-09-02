@@ -23,17 +23,17 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/map.h>
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "map.h"
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 
 #include <linux/soc/samsung/s3c-adc.h>
-#include <plat/cpu.h>
-#include <plat/devs.h>
-#include <plat/fb.h>
+#include "cpu.h"
+#include "devs.h"
+#include "fb.h"
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/mmc-sdhci-s3c.h>
-#include <plat/sdhci.h>
+#include "sdhci.h"
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <mach/irqs.h>
 

@@ -21,15 +21,15 @@
 #include <linux/serial_s3c.h>
 #include <linux/io.h>
 
-#include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-irq.h>
-#include <mach/gpio-samsung.h>
+#include "regs-clock.h"
+#include "regs-gpio.h"
+#include "regs-irq.h"
+#include "gpio-samsung.h"
 
 #include <asm/mach/time.h>
 
-#include <plat/gpio-cfg.h>
-#include <plat/pm.h>
+#include "gpio-cfg.h"
+#include "pm.h"
 
 #include "regs-mem-s3c24xx.h"
 

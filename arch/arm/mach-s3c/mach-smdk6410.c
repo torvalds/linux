@@ -46,23 +46,23 @@
 #include <asm/mach/irq.h>
 
 #include <mach/irqs.h>
-#include <mach/map.h>
+#include "map.h"
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/regs-gpio.h>
-#include <mach/gpio-samsung.h>
+#include "regs-gpio.h"
+#include "gpio-samsung.h"
 #include <linux/platform_data/ata-samsung_cf.h>
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/fb.h>
-#include <plat/gpio-cfg.h>
+#include "fb.h"
+#include "gpio-cfg.h"
 
-#include <plat/devs.h>
-#include <plat/cpu.h>
+#include "devs.h"
+#include "cpu.h"
 #include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
-#include <plat/keypad.h>
+#include "keypad.h"
 
 #include "backlight-s3c64xx.h"
 #include "s3c64xx.h"

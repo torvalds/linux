@@ -10,8 +10,8 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-#include <mach/map.h>
-#include <mach/regs-irq.h>
+#include "map.h"
+#include "regs-irq.h"
 
 #include <linux/spi/s3c24xx-fiq.h>
 
