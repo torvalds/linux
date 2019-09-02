@@ -104,6 +104,10 @@ struct amdgpu_gmc_funcs {
 	/* get the pde for a given mc addr */
 	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
 			   u64 *dst, u64 *flags);
+	/* get the pte flags to use for a BO VA mapping */
+	void (*get_vm_pte)(struct amdgpu_device *adev,
+			   struct amdgpu_bo_va_mapping *mapping,
+			   uint64_t *flags);
 };
 
 struct amdgpu_xgmi {
@@ -185,6 +189,7 @@ struct amdgpu_gmc {
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
 #define amdgpu_gmc_map_mtype(adev, flags) (adev)->gmc.gmc_funcs->map_mtype((adev),(flags))
 #define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
+#define amdgpu_gmc_get_vm_pte(adev, mapping, flags) (adev)->gmc.gmc_funcs->get_vm_pte((adev), (mapping), (flags))
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR

@@ -653,12 +653,34 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 	}
 }
 
+static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
+				struct amdgpu_bo_va_mapping *mapping,
+				uint64_t *flags)
+{
+	*flags &= ~AMDGPU_PTE_EXECUTABLE;
+	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
+
+	*flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
+	*flags |= mapping->flags & AMDGPU_PTE_MTYPE_VG10_MASK;
+
+	if (mapping->flags & AMDGPU_PTE_PRT) {
+		*flags |= AMDGPU_PTE_PRT;
+		*flags &= ~AMDGPU_PTE_VALID;
+	}
+
+	if (adev->asic_type == CHIP_ARCTURUS &&
+	    !(*flags & AMDGPU_PTE_SYSTEM) &&
+	    mapping->bo_va->is_xgmi)
+		*flags |= AMDGPU_PTE_SNOOPED;
+}
+
 static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_flush_gpu_tlb,
 	.emit_flush_gpu_tlb = gmc_v9_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v9_0_emit_pasid_mapping,
 	.map_mtype = gmc_v9_0_map_mtype,
-	.get_vm_pde = gmc_v9_0_get_vm_pde
+	.get_vm_pde = gmc_v9_0_get_vm_pde,
+	.get_vm_pte = gmc_v9_0_get_vm_pte
 };
 
 static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)

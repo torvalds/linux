@@ -469,6 +469,14 @@ static void gmc_v7_0_get_vm_pde(struct amdgpu_device *adev, int level,
 	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
 }
 
+static void gmc_v7_0_get_vm_pte(struct amdgpu_device *adev,
+				struct amdgpu_bo_va_mapping *mapping,
+				uint64_t *flags)
+{
+	*flags &= ~AMDGPU_PTE_EXECUTABLE;
+	*flags &= ~AMDGPU_PTE_PRT;
+}
+
 /**
  * gmc_v8_0_set_fault_enable_default - update VM fault handling
  *
@@ -1328,7 +1336,8 @@ static const struct amdgpu_gmc_funcs gmc_v7_0_gmc_funcs = {
 	.emit_flush_gpu_tlb = gmc_v7_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v7_0_emit_pasid_mapping,
 	.set_prt = gmc_v7_0_set_prt,
-	.get_vm_pde = gmc_v7_0_get_vm_pde
+	.get_vm_pde = gmc_v7_0_get_vm_pde,
+	.get_vm_pte = gmc_v7_0_get_vm_pte
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {
