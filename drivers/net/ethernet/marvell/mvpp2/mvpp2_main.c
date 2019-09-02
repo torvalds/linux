@@ -323,8 +323,7 @@ static void mvpp2_frag_free(const struct mvpp2_bm_pool *pool, void *data)
 /* Buffer Manager configuration routines */
 
 /* Create pool */
-static int mvpp2_bm_pool_create(struct platform_device *pdev,
-				struct mvpp2 *priv,
+static int mvpp2_bm_pool_create(struct device *dev, struct mvpp2 *priv,
 				struct mvpp2_bm_pool *bm_pool, int size)
 {
 	u32 val;
@@ -343,7 +342,7 @@ static int mvpp2_bm_pool_create(struct platform_device *pdev,
 	else
 		bm_pool->size_bytes = 2 * sizeof(u64) * size;
 
-	bm_pool->virt_addr = dma_alloc_coherent(&pdev->dev, bm_pool->size_bytes,
+	bm_pool->virt_addr = dma_alloc_coherent(dev, bm_pool->size_bytes,
 						&bm_pool->dma_addr,
 						GFP_KERNEL);
 	if (!bm_pool->virt_addr)
@@ -351,9 +350,9 @@ static int mvpp2_bm_pool_create(struct platform_device *pdev,
 
 	if (!IS_ALIGNED((unsigned long)bm_pool->virt_addr,
 			MVPP2_BM_POOL_PTR_ALIGN)) {
-		dma_free_coherent(&pdev->dev, bm_pool->size_bytes,
+		dma_free_coherent(dev, bm_pool->size_bytes,
 				  bm_pool->virt_addr, bm_pool->dma_addr);
-		dev_err(&pdev->dev, "BM pool %d is not %d bytes aligned\n",
+		dev_err(dev, "BM pool %d is not %d bytes aligned\n",
 			bm_pool->id, MVPP2_BM_POOL_PTR_ALIGN);
 		return -ENOMEM;
 	}
@@ -468,15 +467,14 @@ static int mvpp2_check_hw_buf_num(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_p
 }
 
 /* Cleanup pool */
-static int mvpp2_bm_pool_destroy(struct platform_device *pdev,
-				 struct mvpp2 *priv,
+static int mvpp2_bm_pool_destroy(struct device *dev, struct mvpp2 *priv,
 				 struct mvpp2_bm_pool *bm_pool)
 {
 	int buf_num;
 	u32 val;
 
 	buf_num = mvpp2_check_hw_buf_num(priv, bm_pool);
-	mvpp2_bm_bufs_free(&pdev->dev, priv, bm_pool, buf_num);
+	mvpp2_bm_bufs_free(dev, priv, bm_pool, buf_num);
 
 	/* Check buffer counters after free */
 	buf_num = mvpp2_check_hw_buf_num(priv, bm_pool);
@@ -490,14 +488,13 @@ static int mvpp2_bm_pool_destroy(struct platform_device *pdev,
 	val |= MVPP2_BM_STOP_MASK;
 	mvpp2_write(priv, MVPP2_BM_POOL_CTRL_REG(bm_pool->id), val);
 
-	dma_free_coherent(&pdev->dev, bm_pool->size_bytes,
+	dma_free_coherent(dev, bm_pool->size_bytes,
 			  bm_pool->virt_addr,
 			  bm_pool->dma_addr);
 	return 0;
 }
 
-static int mvpp2_bm_pools_init(struct platform_device *pdev,
-			       struct mvpp2 *priv)
+static int mvpp2_bm_pools_init(struct device *dev, struct mvpp2 *priv)
 {
 	int i, err, size;
 	struct mvpp2_bm_pool *bm_pool;
@@ -507,7 +504,7 @@ static int mvpp2_bm_pools_init(struct platform_device *pdev,
 	for (i = 0; i < MVPP2_BM_POOLS_NUM; i++) {
 		bm_pool = &priv->bm_pools[i];
 		bm_pool->id = i;
-		err = mvpp2_bm_pool_create(pdev, priv, bm_pool, size);
+		err = mvpp2_bm_pool_create(dev, priv, bm_pool, size);
 		if (err)
 			goto err_unroll_pools;
 		mvpp2_bm_pool_bufsize_set(priv, bm_pool, 0);
@@ -515,13 +512,13 @@ static int mvpp2_bm_pools_init(struct platform_device *pdev,
 	return 0;
 
 err_unroll_pools:
-	dev_err(&pdev->dev, "failed to create BM pool %d, size %d\n", i, size);
+	dev_err(dev, "failed to create BM pool %d, size %d\n", i, size);
 	for (i = i - 1; i >= 0; i--)
-		mvpp2_bm_pool_destroy(pdev, priv, &priv->bm_pools[i]);
+		mvpp2_bm_pool_destroy(dev, priv, &priv->bm_pools[i]);
 	return err;
 }
 
-static int mvpp2_bm_init(struct platform_device *pdev, struct mvpp2 *priv)
+static int mvpp2_bm_init(struct device *dev, struct mvpp2 *priv)
 {
 	int i, err;
 
@@ -533,12 +530,12 @@ static int mvpp2_bm_init(struct platform_device *pdev, struct mvpp2 *priv)
 	}
 
 	/* Allocate and initialize BM pools */
-	priv->bm_pools = devm_kcalloc(&pdev->dev, MVPP2_BM_POOLS_NUM,
+	priv->bm_pools = devm_kcalloc(dev, MVPP2_BM_POOLS_NUM,
 				      sizeof(*priv->bm_pools), GFP_KERNEL);
 	if (!priv->bm_pools)
 		return -ENOMEM;
 
-	err = mvpp2_bm_pools_init(pdev, priv);
+	err = mvpp2_bm_pools_init(dev, priv);
 	if (err < 0)
 		return err;
 	return 0;
@@ -5482,7 +5479,7 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 	mvpp2_write(priv, MVPP2_TX_SNOOP_REG, 0x1);
 
 	/* Buffer Manager initialization */
-	err = mvpp2_bm_init(pdev, priv);
+	err = mvpp2_bm_init(&pdev->dev, priv);
 	if (err < 0)
 		return err;
 
@@ -5749,7 +5746,7 @@ static int mvpp2_remove(struct platform_device *pdev)
 	for (i = 0; i < MVPP2_BM_POOLS_NUM; i++) {
 		struct mvpp2_bm_pool *bm_pool = &priv->bm_pools[i];
 
-		mvpp2_bm_pool_destroy(pdev, priv, bm_pool);
+		mvpp2_bm_pool_destroy(&pdev->dev, priv, bm_pool);
 	}
 
 	for (i = 0; i < MVPP2_MAX_THREADS; i++) {
