@@ -633,6 +633,77 @@ mt7530_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(mt7530_mib);
 }
 
+static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u8 tx_delay = 0;
+	int val;
+
+	mutex_lock(&priv->reg_mutex);
+
+	val = mt7530_read(priv, MT7530_MHWTRAP);
+
+	val |= MHWTRAP_MANUAL | MHWTRAP_P5_MAC_SEL | MHWTRAP_P5_DIS;
+	val &= ~MHWTRAP_P5_RGMII_MODE & ~MHWTRAP_PHY0_SEL;
+
+	switch (priv->p5_intf_sel) {
+	case P5_INTF_SEL_PHY_P0:
+		/* MT7530_P5_MODE_GPHY_P0: 2nd GMAC -> P5 -> P0 */
+		val |= MHWTRAP_PHY0_SEL;
+		/* fall through */
+	case P5_INTF_SEL_PHY_P4:
+		/* MT7530_P5_MODE_GPHY_P4: 2nd GMAC -> P5 -> P4 */
+		val &= ~MHWTRAP_P5_MAC_SEL & ~MHWTRAP_P5_DIS;
+
+		/* Setup the MAC by default for the cpu port */
+		mt7530_write(priv, MT7530_PMCR_P(5), 0x56300);
+		break;
+	case P5_INTF_SEL_GMAC5:
+		/* MT7530_P5_MODE_GMAC: P5 -> External phy or 2nd GMAC */
+		val &= ~MHWTRAP_P5_DIS;
+		break;
+	case P5_DISABLED:
+		interface = PHY_INTERFACE_MODE_NA;
+		break;
+	default:
+		dev_err(ds->dev, "Unsupported p5_intf_sel %d\n",
+			priv->p5_intf_sel);
+		goto unlock_exit;
+	}
+
+	/* Setup RGMII settings */
+	if (phy_interface_mode_is_rgmii(interface)) {
+		val |= MHWTRAP_P5_RGMII_MODE;
+
+		/* P5 RGMII RX Clock Control: delay setting for 1000M */
+		mt7530_write(priv, MT7530_P5RGMIIRXCR, CSR_RGMII_EDGE_ALIGN);
+
+		/* Don't set delay in DSA mode */
+		if (!dsa_is_dsa_port(priv->ds, 5) &&
+		    (interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+		     interface == PHY_INTERFACE_MODE_RGMII_ID))
+			tx_delay = 4; /* n * 0.5 ns */
+
+		/* P5 RGMII TX Clock Control: delay x */
+		mt7530_write(priv, MT7530_P5RGMIITXCR,
+			     CSR_RGMII_TXC_CFG(0x10 + tx_delay));
+
+		/* reduce P5 RGMII Tx driving, 8mA */
+		mt7530_write(priv, MT7530_IO_DRV_CR,
+			     P5_IO_CLK_DRV(1) | P5_IO_DATA_DRV(1));
+	}
+
+	mt7530_write(priv, MT7530_MHWTRAP, val);
+
+	dev_dbg(ds->dev, "Setup P5, HWTRAP=0x%x, intf_sel=%s, phy-mode=%s\n",
+		val, p5_intf_modes(priv->p5_intf_sel), phy_modes(interface));
+
+	priv->p5_interface = interface;
+
+unlock_exit:
+	mutex_unlock(&priv->reg_mutex);
+}
+
 static int
 mt7530_cpu_port_enable(struct mt7530_priv *priv,
 		       int port)
@@ -1169,7 +1240,10 @@ static int
 mt7530_setup(struct dsa_switch *ds)
 {
 	struct mt7530_priv *priv = ds->priv;
+	struct device_node *phy_node;
+	struct device_node *mac_np;
 	struct mt7530_dummy_poll p;
+	phy_interface_t interface;
 	struct device_node *dn;
 	u32 id, val;
 	int ret, i;
@@ -1260,6 +1334,40 @@ mt7530_setup(struct dsa_switch *ds)
 			mt7530_port_disable(ds, i);
 	}
 
+	/* Setup port 5 */
+	priv->p5_intf_sel = P5_DISABLED;
+	interface = PHY_INTERFACE_MODE_NA;
+
+	if (!dsa_is_unused_port(ds, 5)) {
+		priv->p5_intf_sel = P5_INTF_SEL_GMAC5;
+		interface = of_get_phy_mode(ds->ports[5].dn);
+	} else {
+		/* Scan the ethernet nodes. look for GMAC1, lookup used phy */
+		for_each_child_of_node(dn, mac_np) {
+			if (!of_device_is_compatible(mac_np,
+						     "mediatek,eth-mac"))
+				continue;
+
+			ret = of_property_read_u32(mac_np, "reg", &id);
+			if (ret < 0 || id != 1)
+				continue;
+
+			phy_node = of_parse_phandle(mac_np, "phy-handle", 0);
+			if (phy_node->parent == priv->dev->of_node->parent) {
+				interface = of_get_phy_mode(mac_np);
+				id = of_mdio_parse_addr(ds->dev, phy_node);
+				if (id == 0)
+					priv->p5_intf_sel = P5_INTF_SEL_PHY_P0;
+				if (id == 4)
+					priv->p5_intf_sel = P5_INTF_SEL_PHY_P4;
+			}
+			of_node_put(phy_node);
+			break;
+		}
+	}
+
+	mt7530_setup_port5(ds, interface);
+
 	/* Flush the FDB table */
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, NULL);
 	if (ret < 0)
@@ -1284,7 +1392,16 @@ static void mt7530_phylink_mac_config(struct dsa_switch *ds, int port,
 		if (state->interface != PHY_INTERFACE_MODE_GMII)
 			return;
 		break;
-	/* case 5: Port 5 is not supported! */
+	case 5: /* 2nd cpu port with phy of port 0 or 4 / external phy */
+		if (priv->p5_interface == state->interface)
+			break;
+		if (!phy_interface_mode_is_rgmii(state->interface) &&
+		    state->interface != PHY_INTERFACE_MODE_MII &&
+		    state->interface != PHY_INTERFACE_MODE_GMII)
+			return;
+
+		mt7530_setup_port5(ds, state->interface);
+		break;
 	case 6: /* 1st cpu port */
 		if (priv->p6_interface == state->interface)
 			break;
@@ -1323,6 +1440,10 @@ static void mt7530_phylink_mac_config(struct dsa_switch *ds, int port,
 		     PMCR_FORCE_FDX | PMCR_TX_FC_EN | PMCR_RX_FC_EN);
 	mcr_new |= PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | PMCR_BACKOFF_EN |
 		   PMCR_BACKPR_EN | PMCR_FORCE_MODE | PMCR_FORCE_LNK;
+
+	/* Are we connected to external phy */
+	if (port == 5 && dsa_is_user_port(ds, 5))
+		mcr_new |= PMCR_EXT_PHY;
 
 	switch (state->speed) {
 	case SPEED_1000:
@@ -1379,7 +1500,13 @@ static void mt7530_phylink_validate(struct dsa_switch *ds, int port,
 		    state->interface != PHY_INTERFACE_MODE_GMII)
 			goto unsupported;
 		break;
-	/* case 5: Port 5 not supported! */
+	case 5: /* 2nd cpu port with phy of port 0 or 4 / external phy */
+		if (state->interface != PHY_INTERFACE_MODE_NA &&
+		    !phy_interface_mode_is_rgmii(state->interface) &&
+		    state->interface != PHY_INTERFACE_MODE_MII &&
+		    state->interface != PHY_INTERFACE_MODE_GMII)
+			goto unsupported;
+		break;
 	case 6: /* 1st cpu port */
 		if (state->interface != PHY_INTERFACE_MODE_NA &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII &&
@@ -1396,15 +1523,21 @@ unsupported:
 	phylink_set_port_modes(mask);
 	phylink_set(mask, Autoneg);
 
-	if (state->interface != PHY_INTERFACE_MODE_TRGMII) {
+	if (state->interface == PHY_INTERFACE_MODE_TRGMII) {
+		phylink_set(mask, 1000baseT_Full);
+	} else {
 		phylink_set(mask, 10baseT_Half);
 		phylink_set(mask, 10baseT_Full);
 		phylink_set(mask, 100baseT_Half);
 		phylink_set(mask, 100baseT_Full);
-		phylink_set(mask, 1000baseT_Half);
-	}
 
-	phylink_set(mask, 1000baseT_Full);
+		if (state->interface != PHY_INTERFACE_MODE_MII) {
+			phylink_set(mask, 1000baseT_Half);
+			phylink_set(mask, 1000baseT_Full);
+			if (port == 5)
+				phylink_set(mask, 1000baseX_Full);
+		}
+	}
 
 	phylink_set(mask, Pause);
 	phylink_set(mask, Asym_Pause);
