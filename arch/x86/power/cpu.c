@@ -12,6 +12,7 @@
 #include <linux/smp.h>
 #include <linux/perf_event.h>
 #include <linux/tboot.h>
+#include <linux/dmi.h>
 
 #include <asm/pgtable.h>
 #include <asm/proto.h>
@@ -23,7 +24,7 @@
 #include <asm/debugreg.h>
 #include <asm/cpu.h>
 #include <asm/mmu_context.h>
-#include <linux/dmi.h>
+#include <asm/cpu_device_id.h>
 
 #ifdef CONFIG_X86_32
 __visible unsigned long saved_context_ebx;
@@ -397,15 +398,14 @@ static int __init bsp_pm_check_init(void)
 
 core_initcall(bsp_pm_check_init);
 
-static int msr_init_context(const u32 *msr_id, const int total_num)
+static int msr_build_context(const u32 *msr_id, const int num)
 {
-	int i = 0;
+	struct saved_msrs *saved_msrs = &saved_context.saved_msrs;
 	struct saved_msr *msr_array;
+	int total_num;
+	int i, j;
 
-	if (saved_context.saved_msrs.array || saved_context.saved_msrs.num > 0) {
-		pr_err("x86/pm: MSR quirk already applied, please check your DMI match table.\n");
-		return -EINVAL;
-	}
+	total_num = saved_msrs->num + num;
 
 	msr_array = kmalloc_array(total_num, sizeof(struct saved_msr), GFP_KERNEL);
 	if (!msr_array) {
@@ -413,19 +413,30 @@ static int msr_init_context(const u32 *msr_id, const int total_num)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < total_num; i++) {
-		msr_array[i].info.msr_no	= msr_id[i];
+	if (saved_msrs->array) {
+		/*
+		 * Multiple callbacks can invoke this function, so copy any
+		 * MSR save requests from previous invocations.
+		 */
+		memcpy(msr_array, saved_msrs->array,
+		       sizeof(struct saved_msr) * saved_msrs->num);
+
+		kfree(saved_msrs->array);
+	}
+
+	for (i = saved_msrs->num, j = 0; i < total_num; i++, j++) {
+		msr_array[i].info.msr_no	= msr_id[j];
 		msr_array[i].valid		= false;
 		msr_array[i].info.reg.q		= 0;
 	}
-	saved_context.saved_msrs.num	= total_num;
-	saved_context.saved_msrs.array	= msr_array;
+	saved_msrs->num   = total_num;
+	saved_msrs->array = msr_array;
 
 	return 0;
 }
 
 /*
- * The following section is a quirk framework for problematic BIOSen:
+ * The following sections are a quirk framework for problematic BIOSen:
  * Sometimes MSRs are modified by the BIOSen after suspended to
  * RAM, this might cause unexpected behavior after wakeup.
  * Thus we save/restore these specified MSRs across suspend/resume
@@ -440,7 +451,7 @@ static int msr_initialize_bdw(const struct dmi_system_id *d)
 	u32 bdw_msr_id[] = { MSR_IA32_THERM_CONTROL };
 
 	pr_info("x86/pm: %s detected, MSR saving is needed during suspending.\n", d->ident);
-	return msr_init_context(bdw_msr_id, ARRAY_SIZE(bdw_msr_id));
+	return msr_build_context(bdw_msr_id, ARRAY_SIZE(bdw_msr_id));
 }
 
 static const struct dmi_system_id msr_save_dmi_table[] = {
@@ -455,9 +466,58 @@ static const struct dmi_system_id msr_save_dmi_table[] = {
 	{}
 };
 
+static int msr_save_cpuid_features(const struct x86_cpu_id *c)
+{
+	u32 cpuid_msr_id[] = {
+		MSR_AMD64_CPUID_FN_1,
+	};
+
+	pr_info("x86/pm: family %#hx cpu detected, MSR saving is needed during suspending.\n",
+		c->family);
+
+	return msr_build_context(cpuid_msr_id, ARRAY_SIZE(cpuid_msr_id));
+}
+
+static const struct x86_cpu_id msr_save_cpu_table[] = {
+	{
+		.vendor = X86_VENDOR_AMD,
+		.family = 0x15,
+		.model = X86_MODEL_ANY,
+		.feature = X86_FEATURE_ANY,
+		.driver_data = (kernel_ulong_t)msr_save_cpuid_features,
+	},
+	{
+		.vendor = X86_VENDOR_AMD,
+		.family = 0x16,
+		.model = X86_MODEL_ANY,
+		.feature = X86_FEATURE_ANY,
+		.driver_data = (kernel_ulong_t)msr_save_cpuid_features,
+	},
+	{}
+};
+
+typedef int (*pm_cpu_match_t)(const struct x86_cpu_id *);
+static int pm_cpu_check(const struct x86_cpu_id *c)
+{
+	const struct x86_cpu_id *m;
+	int ret = 0;
+
+	m = x86_match_cpu(msr_save_cpu_table);
+	if (m) {
+		pm_cpu_match_t fn;
+
+		fn = (pm_cpu_match_t)m->driver_data;
+		ret = fn(m);
+	}
+
+	return ret;
+}
+
 static int pm_check_save_msr(void)
 {
 	dmi_check_system(msr_save_dmi_table);
+	pm_cpu_check(msr_save_cpu_table);
+
 	return 0;
 }
 
