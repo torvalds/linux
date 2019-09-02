@@ -92,4 +92,6 @@ struct amdgpu_nbio {
 	const struct amdgpu_nbio_funcs *funcs;
 };
 
+int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev);
+
 #endif
