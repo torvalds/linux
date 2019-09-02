@@ -30,12 +30,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/fb.h>
+#include <linux/platform_data/fb-s3c2410.h>
 #include <asm/mach-types.h>
 
 #include <mach/regs-gpio.h>
 #include <linux/platform_data/leds-s3c24xx.h>
-#include <mach/regs-lcd.h>
 #include <mach/irqs.h>
 #include <mach/gpio-samsung.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
@@ -213,6 +212,9 @@ static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
 			   S3C2410_GPCCON_MASK(12) | S3C2410_GPCCON_MASK(13) |
 			   S3C2410_GPCCON_MASK(14) | S3C2410_GPCCON_MASK(15)),
 
+	.gpccon_reg	= S3C2410_GPCCON,
+	.gpcup_reg	= S3C2410_GPCUP,
+
 	.gpdup		= (0x3f << 2) | (0x3f << 10),
 
 	.gpdcon		= (S3C2410_GPD2_VD10  | S3C2410_GPD3_VD11 |
@@ -228,6 +230,9 @@ static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
 			   S3C2410_GPDCON_MASK(10) | S3C2410_GPDCON_MASK(11)|
 			   S3C2410_GPDCON_MASK(12) | S3C2410_GPDCON_MASK(13)|
 			   S3C2410_GPDCON_MASK(14) | S3C2410_GPDCON_MASK(15)),
+
+	.gpdcon_reg	= S3C2410_GPDCON,
+	.gpdup_reg	= S3C2410_GPDUP,
 };
 
 /* MMC/SD  */

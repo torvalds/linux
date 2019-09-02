@@ -42,12 +42,11 @@
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/fb-s3c2410.h>
 
 #include <sound/uda1380.h>
 
-#include <mach/fb.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
@@ -360,14 +359,17 @@ static struct s3c2410fb_mach_info rx1950_lcd_cfg = {
 	.lpcsel = 0x02,
 	.gpccon = 0xaa9556a9,
 	.gpccon_mask = 0xffc003fc,
+	.gpccon_reg = S3C2410_GPCCON,
 	.gpcup = 0x0000ffff,
 	.gpcup_mask = 0xffffffff,
+	.gpcup_reg = S3C2410_GPCUP,
 
 	.gpdcon = 0xaa90aaa1,
 	.gpdcon_mask = 0xffc0fff0,
+	.gpdcon_reg = S3C2410_GPDCON,
 	.gpdup = 0x0000fcfd,
 	.gpdup_mask = 0xffffffff,
-
+	.gpdup_reg = S3C2410_GPDUP,
 };
 
 static struct pwm_lookup rx1950_pwm_lookup[] = {

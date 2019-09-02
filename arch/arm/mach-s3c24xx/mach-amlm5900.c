@@ -29,9 +29,8 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <mach/fb.h>
+#include <linux/platform_data/fb-s3c2410.h>
 
-#include <mach/regs-lcd.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
 
@@ -191,13 +190,17 @@ static struct s3c2410fb_mach_info __initdata amlm5900_fb_info = {
 
 	.gpccon =	0xaaaaaaaa,
 	.gpccon_mask =	0xffffffff,
+	.gpccon_reg =	S3C2410_GPCCON,
 	.gpcup =	0x0000ffff,
 	.gpcup_mask =	0xffffffff,
+	.gpcup_reg =	S3C2410_GPCUP,
 
 	.gpdcon =	0xaaaaaaaa,
 	.gpdcon_mask =	0xffffffff,
+	.gpdcon_reg =	S3C2410_GPDCON,
 	.gpdup =	0x0000ffff,
 	.gpdup_mask =	0xffffffff,
+	.gpdup_reg =	S3C2410_GPDUP,
 };
 #endif
 

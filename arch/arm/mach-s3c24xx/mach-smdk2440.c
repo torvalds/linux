@@ -27,11 +27,10 @@
 #include <asm/mach-types.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
 #include <plat/gpio-cfg.h>
 
-#include <mach/fb.h>
+#include <linux/platform_data/fb-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <plat/devs.h>
@@ -137,6 +136,11 @@ static struct s3c2410fb_mach_info smdk2440_fb_info __initdata = {
 	.gpdcon_mask	= 0xffffffff,
 	.gpdup		= 0x0000faff,
 	.gpdup_mask	= 0xffffffff,
+
+	.gpccon_reg	= S3C2410_GPCCON,
+	.gpcup_reg	= S3C2410_GPCUP,
+	.gpdcon_reg	= S3C2410_GPDCON,
+	.gpdup_reg	= S3C2410_GPDUP,
 #endif
 
 	.lpcsel		= ((0xCE6) & ~7) | 1<<4,

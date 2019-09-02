@@ -30,7 +30,6 @@
 #include <asm/mach-types.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/regs-lcd.h>
 #include <mach/regs-s3c2443-clock.h>
 #include <mach/gpio-samsung.h>
 

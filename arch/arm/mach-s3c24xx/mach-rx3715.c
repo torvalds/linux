@@ -30,13 +30,12 @@
 #include <asm/mach/map.h>
 
 #include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/fb-s3c2410.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/fb.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
 #include <plat/gpio-cfg.h>
 
@@ -124,13 +123,17 @@ static struct s3c2410fb_mach_info rx3715_fb_info __initdata = {
 
 	.gpccon =	0xaa955699,
 	.gpccon_mask =	0xffc003cc,
+	.gpccon_reg =	S3C2410_GPCCON,
 	.gpcup =	0x0000ffff,
 	.gpcup_mask =	0xffffffff,
+	.gpcup_reg =	S3C2410_GPCUP,
 
 	.gpdcon =	0xaa95aaa1,
 	.gpdcon_mask =	0xffc0fff0,
+	.gpdcon_reg =	S3C2410_GPDCON,
 	.gpdup =	0x0000faff,
 	.gpdup_mask =	0xffffffff,
+	.gpdup_reg =	S3C2410_GPDUP,
 };
 
 static struct mtd_partition __initdata rx3715_nand_part[] = {

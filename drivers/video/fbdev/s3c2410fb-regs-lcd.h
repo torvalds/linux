@@ -7,6 +7,13 @@
 #ifndef ___ASM_ARCH_REGS_LCD_H
 #define ___ASM_ARCH_REGS_LCD_H
 
+/*
+ * a couple of values are used as platform data in
+ * include/linux/platform_data/fb-s3c2410.h and not
+ * duplicated here.
+ */
+#include <linux/platform_data/fb-s3c2410.h>
+
 #define S3C2410_LCDREG(x)	(x)
 
 /* LCD control registers */
@@ -28,13 +35,6 @@
 #define S3C2410_LCDCON1_STN4GREY   (2<<1)
 #define S3C2410_LCDCON1_STN8BPP	   (3<<1)
 #define S3C2410_LCDCON1_STN12BPP   (4<<1)
-
-#define S3C2410_LCDCON1_TFT1BPP	   (8<<1)
-#define S3C2410_LCDCON1_TFT2BPP	   (9<<1)
-#define S3C2410_LCDCON1_TFT4BPP	   (10<<1)
-#define S3C2410_LCDCON1_TFT8BPP	   (11<<1)
-#define S3C2410_LCDCON1_TFT16BPP   (12<<1)
-#define S3C2410_LCDCON1_TFT24BPP   (13<<1)
 
 #define S3C2410_LCDCON1_ENVID	   (1)
 
@@ -65,20 +65,6 @@
 #define S3C2410_LCDCON4_WLH(x)	    ((x) << 0)
 
 #define S3C2410_LCDCON4_GET_HSPW(x) ( ((x) >>  0) & 0xFF)
-
-#define S3C2410_LCDCON5_BPP24BL	    (1<<12)
-#define S3C2410_LCDCON5_FRM565	    (1<<11)
-#define S3C2410_LCDCON5_INVVCLK	    (1<<10)
-#define S3C2410_LCDCON5_INVVLINE    (1<<9)
-#define S3C2410_LCDCON5_INVVFRAME   (1<<8)
-#define S3C2410_LCDCON5_INVVD	    (1<<7)
-#define S3C2410_LCDCON5_INVVDEN	    (1<<6)
-#define S3C2410_LCDCON5_INVPWREN    (1<<5)
-#define S3C2410_LCDCON5_INVLEND	    (1<<4)
-#define S3C2410_LCDCON5_PWREN	    (1<<3)
-#define S3C2410_LCDCON5_ENLEND	    (1<<2)
-#define S3C2410_LCDCON5_BSWP	    (1<<1)
-#define S3C2410_LCDCON5_HWSWP	    (1<<0)
 
 /* framebuffer start addressed */
 #define S3C2410_LCDSADDR1   S3C2410_LCDREG(0x14)

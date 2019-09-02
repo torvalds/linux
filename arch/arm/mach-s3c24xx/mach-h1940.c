@@ -47,11 +47,10 @@
 
 #include <sound/uda1380.h>
 
-#include <mach/fb.h>
+#include <linux/platform_data/fb-s3c2410.h>
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
@@ -210,12 +209,16 @@ static struct s3c2410fb_mach_info h1940_fb_info __initdata = {
 	.lpcsel =	0x02,
 	.gpccon =	0xaa940659,
 	.gpccon_mask =	0xffffc0f0,
+	.gpccon_reg =	S3C2410_GPCCON,
 	.gpcup =	0x0000ffff,
 	.gpcup_mask =	0xffffffff,
+	.gpcup_reg =	S3C2410_GPCUP,
 	.gpdcon =	0xaa84aaa0,
 	.gpdcon_mask =	0xffffffff,
+	.gpdcon_reg =	S3C2410_GPDCON,
 	.gpdup =	0x0000faff,
 	.gpdup_mask =	0xffffffff,
+	.gpdup_reg =	S3C2410_GPDUP,
 };
 
 static int power_supply_init(struct device *dev)
