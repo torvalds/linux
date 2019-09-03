@@ -3275,7 +3275,7 @@ static int page_flip_common(struct drm_atomic_state *state,
 		return PTR_ERR(crtc_state);
 
 	crtc_state->event = event;
-	crtc_state->pageflip_flags = flags;
+	crtc_state->async_flip = flags & DRM_MODE_PAGE_FLIP_ASYNC;
 
 	plane_state = drm_atomic_get_plane_state(state, plane);
 	if (IS_ERR(plane_state))
