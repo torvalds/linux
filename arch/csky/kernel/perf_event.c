@@ -1337,7 +1337,7 @@ int csky_pmu_device_probe(struct platform_device *pdev,
 	return ret;
 }
 
-const static struct of_device_id csky_pmu_of_device_ids[] = {
+static const struct of_device_id csky_pmu_of_device_ids[] = {
 	{.compatible = "csky,csky-pmu"},
 	{},
 };
