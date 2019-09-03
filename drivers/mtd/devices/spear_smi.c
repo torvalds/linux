@@ -777,9 +777,6 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 
 	/* Fill structs for each subnode (flash device) */
 	while ((pp = of_get_next_child(np, pp))) {
-		struct spear_smi_flash_info *flash_info;
-
-		flash_info = &pdata->board_flash_info[i];
 		pdata->np[i] = pp;
 
 		/* Read base-addr and size from DT */
