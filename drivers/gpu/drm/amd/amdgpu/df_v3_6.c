@@ -220,6 +220,13 @@ static void df_v3_6_sw_init(struct amdgpu_device *adev)
 		adev->df_perfmon_config_assign_mask[i] = 0;
 }
 
+static void df_v3_6_sw_fini(struct amdgpu_device *adev)
+{
+
+	device_remove_file(adev->dev, &dev_attr_df_cntr_avail);
+
+}
+
 static void df_v3_6_enable_broadcast_mode(struct amdgpu_device *adev,
 					  bool enable)
 {
@@ -537,6 +544,7 @@ static void df_v3_6_pmc_get_count(struct amdgpu_device *adev,
 
 const struct amdgpu_df_funcs df_v3_6_funcs = {
 	.sw_init = df_v3_6_sw_init,
+	.sw_fini = df_v3_6_sw_fini,
 	.enable_broadcast_mode = df_v3_6_enable_broadcast_mode,
 	.get_fb_channel_number = df_v3_6_get_fb_channel_number,
 	.get_hbm_channel_number = df_v3_6_get_hbm_channel_number,
