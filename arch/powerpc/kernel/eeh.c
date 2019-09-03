@@ -1871,6 +1871,64 @@ static const struct file_operations eeh_force_recover_fops = {
 	.llseek	= no_llseek,
 	.write	= eeh_force_recover_write,
 };
+
+static ssize_t eeh_debugfs_dev_usage(struct file *filp,
+				char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	static const char usage[] = "input format: <domain>:<bus>:<dev>.<fn>\n";
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       usage, sizeof(usage) - 1);
+}
+
+static ssize_t eeh_dev_check_write(struct file *filp,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	uint32_t domain, bus, dev, fn;
+	struct pci_dev *pdev;
+	struct eeh_dev *edev;
+	char buf[20];
+	int ret;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
+	if (!ret)
+		return -EFAULT;
+
+	ret = sscanf(buf, "%x:%x:%x.%x", &domain, &bus, &dev, &fn);
+	if (ret != 4) {
+		pr_err("%s: expected 4 args, got %d\n", __func__, ret);
+		return -EINVAL;
+	}
+
+	pdev = pci_get_domain_bus_and_slot(domain, bus, (dev << 3) | fn);
+	if (!pdev)
+		return -ENODEV;
+
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!edev) {
+		pci_err(pdev, "No eeh_dev for this device!\n");
+		pci_dev_put(pdev);
+		return -ENODEV;
+	}
+
+	ret = eeh_dev_check_failure(edev);
+	pci_info(pdev, "eeh_dev_check_failure(%04x:%02x:%02x.%01x) = %d\n",
+			domain, bus, dev, fn, ret);
+
+	pci_dev_put(pdev);
+
+	return count;
+}
+
+static const struct file_operations eeh_dev_check_fops = {
+	.open	= simple_open,
+	.llseek	= no_llseek,
+	.write	= eeh_dev_check_write,
+	.read   = eeh_debugfs_dev_usage,
+};
+
 #endif
 
 static int __init eeh_init_proc(void)
@@ -1886,6 +1944,9 @@ static int __init eeh_init_proc(void)
 		debugfs_create_bool("eeh_disable_recovery", 0600,
 				powerpc_debugfs_root,
 				&eeh_debugfs_no_recover);
+		debugfs_create_file_unsafe("eeh_dev_check", 0600,
+				powerpc_debugfs_root, NULL,
+				&eeh_dev_check_fops);
 		debugfs_create_file_unsafe("eeh_force_recover", 0600,
 				powerpc_debugfs_root, NULL,
 				&eeh_force_recover_fops);
