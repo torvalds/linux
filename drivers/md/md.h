@@ -251,6 +251,9 @@ enum mddev_flags {
 	MD_NOT_READY,		/* do_md_run() is active, so 'array_state'
 				 * must not report that array is ready yet
 				 */
+	MD_BROKEN,              /* This is used in RAID-0/LINEAR only, to stop
+				 * I/O in case an array member is gone/failed.
+				 */
 };
 
 enum mddev_sb_flags {
@@ -738,6 +741,19 @@ extern void mddev_create_wb_pool(struct mddev *mddev, struct md_rdev *rdev,
 				 bool is_suspend);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
 struct md_rdev *md_find_rdev_rcu(struct mddev *mddev, dev_t dev);
+
+static inline bool is_mddev_broken(struct md_rdev *rdev, const char *md_type)
+{
+	int flags = rdev->bdev->bd_disk->flags;
+
+	if (!(flags & GENHD_FL_UP)) {
+		if (!test_and_set_bit(MD_BROKEN, &rdev->mddev->flags))
+			pr_warn("md: %s: %s array has a missing/failed member\n",
+				mdname(rdev->mddev), md_type);
+		return true;
+	}
+	return false;
+}
 
 static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 {
