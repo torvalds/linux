@@ -123,11 +123,13 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_rgmii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_cldo1>;
 	status = "okay";
+};
 
+&mdio {
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 	};
