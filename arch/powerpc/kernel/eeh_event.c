@@ -121,6 +121,14 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 	}
 	event->pe = pe;
 
+	/*
+	 * Mark the PE as recovering before inserting it in the queue.
+	 * This prevents the PE from being free()ed by a hotplug driver
+	 * while the PE is sitting in the event queue.
+	 */
+	if (pe)
+		eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+
 	/* We may or may not be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
 	list_add(&event->list, &eeh_eventlist);
