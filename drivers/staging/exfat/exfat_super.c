@@ -452,7 +452,7 @@ static int ffsMountVol(struct super_block *sb)
 	buf_init(sb);
 
 	sema_init(&p_fs->v_sem, 1);
-	p_fs->dev_ejected = FALSE;
+	p_fs->dev_ejected = 0;
 
 	/* open the block device */
 	bdev_open(sb);
@@ -903,7 +903,8 @@ out:
 static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 			void *buffer, u64 count, u64 *wcount)
 {
-	s32 modified = FALSE, offset, sec_offset, clu_offset;
+	bool modified = false;
+	s32 offset, sec_offset, clu_offset;
 	s32 num_clusters, num_alloc, num_alloced = (s32) ~0;
 	int ret = 0;
 	u32 clu, last_clu;
@@ -1011,14 +1012,14 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 				if (new_clu.flags == 0x01)
 					fid->flags = 0x01;
 				fid->start_clu = new_clu.dir;
-				modified = TRUE;
+				modified = true;
 			} else {
 				if (new_clu.flags != fid->flags) {
 					exfat_chain_cont_cluster(sb,
 								 fid->start_clu,
 								 num_clusters);
 					fid->flags = 0x01;
-					modified = TRUE;
+					modified = true;
 				}
 				if (new_clu.flags == 0x01)
 					FAT_write(sb, last_clu, new_clu.dir);
@@ -1088,7 +1089,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 
 		if (fid->size < fid->rwoffset) {
 			fid->size = fid->rwoffset;
-			modified = TRUE;
+			modified = true;
 		}
 	}
 
@@ -1828,7 +1829,8 @@ out:
 
 static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 {
-	s32 num_clusters, num_alloced, modified = FALSE;
+	s32 num_clusters, num_alloced;
+	bool modified = false;
 	u32 last_clu;
 	int ret = FFS_SUCCESS;
 	sector_t sector = 0;
@@ -1906,13 +1908,13 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 			if (new_clu.flags == 0x01)
 				fid->flags = 0x01;
 			fid->start_clu = new_clu.dir;
-			modified = TRUE;
+			modified = true;
 		} else {
 			if (new_clu.flags != fid->flags) {
 				exfat_chain_cont_cluster(sb, fid->start_clu,
 							 num_clusters);
 				fid->flags = 0x01;
-				modified = TRUE;
+				modified = true;
 			}
 			if (new_clu.flags == 0x01)
 				FAT_write(sb, last_clu, new_clu.dir);

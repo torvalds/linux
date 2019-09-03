@@ -86,9 +86,6 @@
 #define CLUSTER_16(x)		((u16)(x))
 #define CLUSTER_32(x)		((u32)(x))
 
-#define FALSE			0
-#define TRUE			1
-
 #define START_SECTOR(x)							\
 	((((sector_t)((x) - 2)) << p_fs->sectors_per_clu_bits) +	\
 	 p_fs->data_start_sector)

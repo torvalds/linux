@@ -225,7 +225,7 @@ void nls_uniname_to_dosname(struct super_block *sb,
 		*dosname = 0x05;
 
 	if (*uniname != 0x0)
-		lossy = TRUE;
+		lossy = true;
 
 	if (upper & lower)
 		p_dosname->name_case = 0xFF;
