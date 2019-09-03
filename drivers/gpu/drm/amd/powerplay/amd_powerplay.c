@@ -1531,6 +1531,7 @@ static int pp_asic_reset_mode_2(void *handle)
 static int pp_smu_i2c_bus_access(void *handle, bool acquire)
 {
 	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
@@ -1540,7 +1541,11 @@ static int pp_smu_i2c_bus_access(void *handle, bool acquire)
 		return -EINVAL;
 	}
 
-	return hwmgr->hwmgr_func->smu_i2c_bus_access(hwmgr, acquire);
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->smu_i2c_bus_access(hwmgr, acquire);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
 }
 
 static const struct amd_pm_funcs pp_dpm_funcs = {
