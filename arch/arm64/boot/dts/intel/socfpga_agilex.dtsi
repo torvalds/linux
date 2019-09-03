@@ -249,6 +249,8 @@
 			#dma-cells = <1>;
 			#dma-channels = <8>;
 			#dma-requests = <32>;
+			resets = <&rst DMA_RESET>, <&rst DMA_OCP_RESET>;
+			reset-names = "dma", "dma-ocp";
 		};
 
 		rst: rstmgr@ffd11000 {
