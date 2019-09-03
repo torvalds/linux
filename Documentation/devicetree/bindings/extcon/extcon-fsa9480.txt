@@ -5,7 +5,9 @@ controlled using I2C and enables USB data, stereo and mono audio, video,
 microphone, and UART data to use a common connector port.
 
 Required properties:
- - compatible : Must be "fcs,fsa9480"
+ - compatible : Must be one of
+   "fcs,fsa9480"
+   "fcs,fsa880"
  - reg : Specifies i2c slave address. Must be 0x25.
  - interrupts : Should contain one entry specifying interrupt signal of
    interrupt parent to which interrupt pin of the chip is connected.
