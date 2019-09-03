@@ -12,6 +12,7 @@
 #include <crypto/ctr.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/xts.h>
 #include <linux/module.h>
 
@@ -37,9 +38,9 @@ asmlinkage void aesbs_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[],
 				  int rounds, int blocks, u8 ctr[], u8 final[]);
 
 asmlinkage void aesbs_xts_encrypt(u8 out[], u8 const in[], u8 const rk[],
-				  int rounds, int blocks, u8 iv[]);
+				  int rounds, int blocks, u8 iv[], int);
 asmlinkage void aesbs_xts_decrypt(u8 out[], u8 const in[], u8 const rk[],
-				  int rounds, int blocks, u8 iv[]);
+				  int rounds, int blocks, u8 iv[], int);
 
 struct aesbs_ctx {
 	int	rounds;
@@ -53,6 +54,7 @@ struct aesbs_cbc_ctx {
 
 struct aesbs_xts_ctx {
 	struct aesbs_ctx	key;
+	struct crypto_cipher	*cts_tfm;
 	struct crypto_cipher	*tweak_tfm;
 };
 
@@ -291,6 +293,9 @@ static int aesbs_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 		return err;
 
 	key_len /= 2;
+	err = crypto_cipher_setkey(ctx->cts_tfm, in_key, key_len);
+	if (err)
+		return err;
 	err = crypto_cipher_setkey(ctx->tweak_tfm, in_key + key_len, key_len);
 	if (err)
 		return err;
@@ -302,7 +307,13 @@ static int xts_init(struct crypto_tfm *tfm)
 {
 	struct aesbs_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 
+	ctx->cts_tfm = crypto_alloc_cipher("aes", 0, 0);
+	if (IS_ERR(ctx->cts_tfm))
+		return PTR_ERR(ctx->cts_tfm);
+
 	ctx->tweak_tfm = crypto_alloc_cipher("aes", 0, 0);
+	if (IS_ERR(ctx->tweak_tfm))
+		crypto_free_cipher(ctx->cts_tfm);
 
 	return PTR_ERR_OR_ZERO(ctx->tweak_tfm);
 }
@@ -312,16 +323,33 @@ static void xts_exit(struct crypto_tfm *tfm)
 	struct aesbs_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	crypto_free_cipher(ctx->tweak_tfm);
+	crypto_free_cipher(ctx->cts_tfm);
 }
 
-static int __xts_crypt(struct skcipher_request *req,
+static int __xts_crypt(struct skcipher_request *req, bool encrypt,
 		       void (*fn)(u8 out[], u8 const in[], u8 const rk[],
-				  int rounds, int blocks, u8 iv[]))
+				  int rounds, int blocks, u8 iv[], int))
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct aesbs_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int tail = req->cryptlen % AES_BLOCK_SIZE;
+	struct skcipher_request subreq;
+	u8 buf[2 * AES_BLOCK_SIZE];
 	struct skcipher_walk walk;
 	int err;
+
+	if (req->cryptlen < AES_BLOCK_SIZE)
+		return -EINVAL;
+
+	if (unlikely(tail)) {
+		skcipher_request_set_tfm(&subreq, tfm);
+		skcipher_request_set_callback(&subreq,
+					      skcipher_request_flags(req),
+					      NULL, NULL);
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   req->cryptlen - tail, req->iv);
+		req = &subreq;
+	}
 
 	err = skcipher_walk_virt(&walk, req, true);
 	if (err)
@@ -331,30 +359,53 @@ static int __xts_crypt(struct skcipher_request *req,
 
 	while (walk.nbytes >= AES_BLOCK_SIZE) {
 		unsigned int blocks = walk.nbytes / AES_BLOCK_SIZE;
+		int reorder_last_tweak = !encrypt && tail > 0;
 
-		if (walk.nbytes < walk.total)
+		if (walk.nbytes < walk.total) {
 			blocks = round_down(blocks,
 					    walk.stride / AES_BLOCK_SIZE);
+			reorder_last_tweak = 0;
+		}
 
 		kernel_neon_begin();
 		fn(walk.dst.virt.addr, walk.src.virt.addr, ctx->key.rk,
-		   ctx->key.rounds, blocks, walk.iv);
+		   ctx->key.rounds, blocks, walk.iv, reorder_last_tweak);
 		kernel_neon_end();
 		err = skcipher_walk_done(&walk,
 					 walk.nbytes - blocks * AES_BLOCK_SIZE);
 	}
 
-	return err;
+	if (err || likely(!tail))
+		return err;
+
+	/* handle ciphertext stealing */
+	scatterwalk_map_and_copy(buf, req->dst, req->cryptlen - AES_BLOCK_SIZE,
+				 AES_BLOCK_SIZE, 0);
+	memcpy(buf + AES_BLOCK_SIZE, buf, tail);
+	scatterwalk_map_and_copy(buf, req->src, req->cryptlen, tail, 0);
+
+	crypto_xor(buf, req->iv, AES_BLOCK_SIZE);
+
+	if (encrypt)
+		crypto_cipher_encrypt_one(ctx->cts_tfm, buf, buf);
+	else
+		crypto_cipher_decrypt_one(ctx->cts_tfm, buf, buf);
+
+	crypto_xor(buf, req->iv, AES_BLOCK_SIZE);
+
+	scatterwalk_map_and_copy(buf, req->dst, req->cryptlen - AES_BLOCK_SIZE,
+				 AES_BLOCK_SIZE + tail, 1);
+	return 0;
 }
 
 static int xts_encrypt(struct skcipher_request *req)
 {
-	return __xts_crypt(req, aesbs_xts_encrypt);
+	return __xts_crypt(req, true, aesbs_xts_encrypt);
 }
 
 static int xts_decrypt(struct skcipher_request *req)
 {
-	return __xts_crypt(req, aesbs_xts_decrypt);
+	return __xts_crypt(req, false, aesbs_xts_decrypt);
 }
 
 static struct skcipher_alg aes_algs[] = { {
