@@ -382,13 +382,10 @@ ENDPROC(ce_aes_ctr_encrypt)
 	veor		\out, \out, \tmp
 	.endm
 
-	.align		3
-.Lxts_mul_x:
-	.quad		1, 0x87
-
 ce_aes_xts_init:
-	vldr		d30, .Lxts_mul_x
-	vldr		d31, .Lxts_mul_x + 8
+	vmov.i32	d30, #0x87		@ compose tweak mask vector
+	vmovl.u32	q15, d30
+	vshr.u64	d30, d31, #7
 
 	ldrd		r4, r5, [sp, #16]	@ load args
 	ldr		r6, [sp, #28]
