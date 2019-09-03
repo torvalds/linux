@@ -1430,7 +1430,6 @@ static int brcmf_pcie_reset(struct device *dev)
 	brcmf_pcie_bus_console_read(devinfo, true);
 
 	brcmf_detach(dev);
-	brcmf_free(dev);
 
 	brcmf_pcie_release_irq(devinfo);
 	brcmf_pcie_release_scratchbuffers(devinfo);
@@ -1826,9 +1825,6 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	brcmf_pcie_intr_enable(devinfo);
 	brcmf_pcie_hostready(devinfo);
 
-	ret = brcmf_alloc(&devinfo->pdev->dev, devinfo->settings);
-	if (ret)
-		goto fail;
 	ret = brcmf_attach(&devinfo->pdev->dev);
 	if (ret)
 		goto fail;
@@ -1930,6 +1926,10 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bus->chip = devinfo->coreid;
 	bus->wowl_supported = pci_pme_capable(pdev, PCI_D3hot);
 	dev_set_drvdata(&pdev->dev, bus);
+
+	ret = brcmf_alloc(&devinfo->pdev->dev, devinfo->settings);
+	if (ret)
+		goto fail_bus;
 
 	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
 	if (!fwreq) {
