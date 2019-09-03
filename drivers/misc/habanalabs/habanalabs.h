@@ -1107,13 +1107,13 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 		mb(); \
 		(val) = *((u32 *) (uintptr_t) (addr)); \
 		if (mem_written_by_device) \
-			(val) = le32_to_cpu(val); \
+			(val) = le32_to_cpu(*(__le32 *) &(val)); \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
 			(val) = *((u32 *) (uintptr_t) (addr)); \
 			if (mem_written_by_device) \
-				(val) = le32_to_cpu(val); \
+				(val) = le32_to_cpu(*(__le32 *) &(val)); \
 			break; \
 		} \
 		if (sleep_us) \
