@@ -482,7 +482,7 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 	int ret = 0;
 	int table_id = smu_table_get_index(smu, table_index);
 
-	if (!table_data || table_id >= smu_table->table_count || table_id < 0)
+	if (!table_data || table_id >= SMU_TABLE_COUNT || table_id < 0)
 		return -EINVAL;
 
 	table = &smu_table->tables[table_index];
@@ -911,14 +911,10 @@ static int smu_init_fb_allocations(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	uint32_t table_count = smu_table->table_count;
 	uint32_t i = 0;
 	int32_t ret = 0;
 
-	if (table_count <= 0)
-		return -EINVAL;
-
-	for (i = 0 ; i < table_count; i++) {
+	for (i = 0; i < SMU_TABLE_COUNT; i++) {
 		if (tables[i].size == 0)
 			continue;
 		ret = amdgpu_bo_create_kernel(adev,
@@ -949,13 +945,12 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	uint32_t table_count = smu_table->table_count;
 	uint32_t i = 0;
 
-	if (table_count == 0 || tables == NULL)
+	if (!tables)
 		return 0;
 
-	for (i = 0 ; i < table_count; i++) {
+	for (i = 0; i < SMU_TABLE_COUNT; i++) {
 		if (tables[i].size == 0)
 			continue;
 		amdgpu_bo_free_kernel(&tables[i].bo,

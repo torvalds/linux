@@ -259,7 +259,6 @@ struct smu_table_context
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
 	struct smu_table		*tables;
-	uint32_t			table_count;
 	struct smu_table		memory_pool;
 	uint8_t                         thermal_controller_type;
 	uint16_t			TDPODLimit;

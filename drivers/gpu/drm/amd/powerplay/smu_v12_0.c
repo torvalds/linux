@@ -275,7 +275,7 @@ static int smu_v12_0_init_smc_tables(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = NULL;
 
-	if (smu_table->tables || smu_table->table_count == 0)
+	if (smu_table->tables)
 		return -EINVAL;
 
 	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
@@ -292,7 +292,7 @@ static int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
-	if (!smu_table->tables || smu_table->table_count == 0)
+	if (!smu_table->tables)
 		return -EINVAL;
 
 	kfree(smu_table->clocks_table);

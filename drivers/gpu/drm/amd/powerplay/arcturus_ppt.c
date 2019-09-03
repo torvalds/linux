@@ -1931,8 +1931,5 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
-
 	smu->ppt_funcs = &arcturus_ppt_funcs;
-	smu_table->table_count = TABLE_COUNT;
 }
