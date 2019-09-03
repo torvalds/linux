@@ -14,10 +14,26 @@ board.rev
 
 Board design revision.
 
+asic.id
+=======
+
+ASIC design identifier.
+
+asic.rev
+========
+
+ASIC design revision.
+
 board.manufacture
 =================
 
 An identifier of the company or the facility which produced the part.
+
+fw
+==
+
+Overall firmware version, often representing the collection of
+fw.mgmt, fw.app, etc.
 
 fw.mgmt
 =======
