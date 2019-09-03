@@ -12531,6 +12531,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 {
 	struct drm_i915_private *dev_priv = to_i915(current_config->base.crtc->dev);
 	bool ret = true;
+	u32 bp_gamma = 0;
 	bool fixup_inherited = fastset &&
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
 		!(pipe_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED);
@@ -12682,6 +12683,24 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	} \
 } while (0)
 
+#define PIPE_CONF_CHECK_COLOR_LUT(name1, name2, bit_precision) do { \
+	if (current_config->name1 != pipe_config->name1) { \
+		pipe_config_mismatch(fastset, __stringify(name1), \
+				"(expected %i, found %i, won't compare lut values)\n", \
+				current_config->name1, \
+				pipe_config->name1); \
+		ret = false;\
+	} else { \
+		if (!intel_color_lut_equal(current_config->name2, \
+					pipe_config->name2, pipe_config->name1, \
+					bit_precision)) { \
+			pipe_config_mismatch(fastset, __stringify(name2), \
+					"hw_state doesn't match sw_state\n"); \
+			ret = false; \
+		} \
+	} \
+} while (0)
+
 #define PIPE_CONF_QUIRK(quirk) \
 	((current_config->quirks | pipe_config->quirks) & (quirk))
 
@@ -12777,6 +12796,11 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			PIPE_CONF_CHECK_X(csc_mode);
 		PIPE_CONF_CHECK_BOOL(gamma_enable);
 		PIPE_CONF_CHECK_BOOL(csc_enable);
+
+		bp_gamma = intel_color_get_gamma_bit_precision(pipe_config);
+		if (bp_gamma)
+			PIPE_CONF_CHECK_COLOR_LUT(gamma_mode, base.gamma_lut, bp_gamma);
+
 	}
 
 	PIPE_CONF_CHECK_BOOL(double_wide);
@@ -12839,6 +12863,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #undef PIPE_CONF_CHECK_P
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_CLOCK_FUZZY
+#undef PIPE_CONF_CHECK_COLOR_LUT
 #undef PIPE_CONF_QUIRK
 
 	return ret;
