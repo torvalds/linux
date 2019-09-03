@@ -2463,12 +2463,14 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	kfree(txmsg);
 }
 
-static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
-					   struct drm_dp_mst_branch *mstb,
-					   struct drm_dp_mst_port *port)
+static int
+drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
+				struct drm_dp_mst_branch *mstb,
+				struct drm_dp_mst_port *port)
 {
-	int len;
+	struct drm_dp_enum_path_resources_ack_reply *path_res;
 	struct drm_dp_sideband_msg_tx *txmsg;
+	int len;
 	int ret;
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
@@ -2482,14 +2484,20 @@ static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret > 0) {
+		path_res = &txmsg->reply.u.path_resources;
+
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
 			DRM_DEBUG_KMS("enum path resources nak received\n");
 		} else {
-			if (port->port_num != txmsg->reply.u.path_resources.port_number)
+			if (port->port_num != path_res->port_number)
 				DRM_ERROR("got incorrect port in response\n");
-			DRM_DEBUG_KMS("enum path resources %d: %d %d\n", txmsg->reply.u.path_resources.port_number, txmsg->reply.u.path_resources.full_payload_bw_number,
-			       txmsg->reply.u.path_resources.avail_payload_bw_number);
-			port->available_pbn = txmsg->reply.u.path_resources.avail_payload_bw_number;
+
+			DRM_DEBUG_KMS("enum path resources %d: %d %d\n",
+				      path_res->port_number,
+				      path_res->full_payload_bw_number,
+				      path_res->avail_payload_bw_number);
+			port->available_pbn =
+				path_res->avail_payload_bw_number;
 		}
 	}
 
