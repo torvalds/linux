@@ -103,7 +103,6 @@ static const struct hwmon_chip_info as370_chip_info = {
 
 static int as370_hwmon_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device *hwmon_dev;
 	struct as370_hwmon *hwmon;
 	struct device *dev = &pdev->dev;
@@ -112,8 +111,7 @@ static int as370_hwmon_probe(struct platform_device *pdev)
 	if (!hwmon)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hwmon->base = devm_ioremap_resource(&pdev->dev, res);
+	hwmon->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwmon->base))
 		return PTR_ERR(hwmon->base);
 
