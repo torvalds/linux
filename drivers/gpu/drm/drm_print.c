@@ -147,6 +147,12 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_debug);
 
+void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf)
+{
+	pr_err("*ERROR* %s %pV", p->prefix, vaf);
+}
+EXPORT_SYMBOL(__drm_printfn_err);
+
 /**
  * drm_puts - print a const string to a &drm_printer stream
  * @p: the &drm printer
