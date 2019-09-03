@@ -140,3 +140,55 @@
 	.errstr = "!read_ok",
 	.result = REJECT,
 },
+{
+	"precise: ST insn causing spi > allocated_stack",
+	.insns = {
+	BPF_MOV64_REG(BPF_REG_3, BPF_REG_10),
+	BPF_JMP_IMM(BPF_JNE, BPF_REG_3, 123, 0),
+	BPF_ST_MEM(BPF_DW, BPF_REG_3, -8, 0),
+	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
+	BPF_MOV64_IMM(BPF_REG_0, -1),
+	BPF_JMP_REG(BPF_JGT, BPF_REG_4, BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_XDP,
+	.flags = BPF_F_TEST_STATE_FREQ,
+	.errstr = "5: (2d) if r4 > r0 goto pc+0\
+	last_idx 5 first_idx 5\
+	parent didn't have regs=10 stack=0 marks\
+	last_idx 4 first_idx 2\
+	regs=10 stack=0 before 4\
+	regs=10 stack=0 before 3\
+	regs=0 stack=1 before 2\
+	last_idx 5 first_idx 5\
+	parent didn't have regs=1 stack=0 marks",
+	.result = VERBOSE_ACCEPT,
+	.retval = -1,
+},
+{
+	"precise: STX insn causing spi > allocated_stack",
+	.insns = {
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
+	BPF_MOV64_REG(BPF_REG_3, BPF_REG_10),
+	BPF_JMP_IMM(BPF_JNE, BPF_REG_3, 123, 0),
+	BPF_STX_MEM(BPF_DW, BPF_REG_3, BPF_REG_0, -8),
+	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
+	BPF_MOV64_IMM(BPF_REG_0, -1),
+	BPF_JMP_REG(BPF_JGT, BPF_REG_4, BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_XDP,
+	.flags = BPF_F_TEST_STATE_FREQ,
+	.errstr = "last_idx 6 first_idx 6\
+	parent didn't have regs=10 stack=0 marks\
+	last_idx 5 first_idx 3\
+	regs=10 stack=0 before 5\
+	regs=10 stack=0 before 4\
+	regs=0 stack=1 before 3\
+	last_idx 6 first_idx 6\
+	parent didn't have regs=1 stack=0 marks\
+	last_idx 5 first_idx 3\
+	regs=1 stack=0 before 5",
+	.result = VERBOSE_ACCEPT,
+	.retval = -1,
+},
