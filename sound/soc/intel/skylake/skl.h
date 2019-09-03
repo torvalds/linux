@@ -75,7 +75,6 @@ struct skl_dev {
 	const char *fw_name;
 	char tplg_name[64];
 	unsigned short pci_id;
-	const struct firmware *tplg;
 
 	int supend_active;
 

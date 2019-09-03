@@ -315,6 +315,14 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 	if (!driver_name)
 		return NULL;
 
+	/*
+	 * NOTE
+	 *
+	 * snd_soc_rtdcom_lookup() will find component from rtd by using
+	 * specified driver name.
+	 * But, if many components which have same driver name are connected
+	 * to 1 rtd, this function will return 1st found component.
+	 */
 	for_each_rtdcom(rtd, rtdcom) {
 		const char *component_name = rtdcom->component->driver->name;
 
@@ -930,6 +938,41 @@ _err_defer:
 	return -EPROBE_DEFER;
 }
 
+static void soc_set_of_name_prefix(struct snd_soc_component *component)
+{
+	struct device_node *of_node = soc_component_to_node(component);
+	const char *str;
+	int ret;
+
+	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
+	if (!ret)
+		component->name_prefix = str;
+}
+
+static void soc_set_name_prefix(struct snd_soc_card *card,
+				struct snd_soc_component *component)
+{
+	int i;
+
+	for (i = 0; i < card->num_configs && card->codec_conf; i++) {
+		struct snd_soc_codec_conf *map = &card->codec_conf[i];
+		struct device_node *of_node = soc_component_to_node(component);
+
+		if (map->of_node && of_node != map->of_node)
+			continue;
+		if (map->dev_name && strcmp(component->name, map->dev_name))
+			continue;
+		component->name_prefix = map->name_prefix;
+		return;
+	}
+
+	/*
+	 * If there is no configuration table or no match in the table,
+	 * check if a prefix is provided in the node
+	 */
+	soc_set_of_name_prefix(component);
+}
+
 static void soc_cleanup_component(struct snd_soc_component *component)
 {
 	snd_soc_component_set_jack(component, NULL, NULL);
@@ -950,6 +993,100 @@ static void soc_remove_component(struct snd_soc_component *component)
 	soc_cleanup_component(component);
 }
 
+static int soc_probe_component(struct snd_soc_card *card,
+			       struct snd_soc_component *component)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	struct snd_soc_dai *dai;
+	int ret;
+
+	if (!strcmp(component->name, "snd-soc-dummy"))
+		return 0;
+
+	if (component->card) {
+		if (component->card != card) {
+			dev_err(component->dev,
+				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
+				card->name, component->card->name);
+			return -ENODEV;
+		}
+		return 0;
+	}
+
+	ret = snd_soc_component_module_get_when_probe(component);
+	if (ret < 0)
+		return ret;
+
+	component->card = card;
+	soc_set_name_prefix(card, component);
+
+	soc_init_component_debugfs(component);
+
+	snd_soc_dapm_init(dapm, card, component);
+
+	ret = snd_soc_dapm_new_controls(dapm,
+					component->driver->dapm_widgets,
+					component->driver->num_dapm_widgets);
+
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create new controls %d\n", ret);
+		goto err_probe;
+	}
+
+	for_each_component_dais(component, dai) {
+		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	ret = snd_soc_component_probe(component);
+	if (ret < 0) {
+		dev_err(component->dev,
+			"ASoC: failed to probe component %d\n", ret);
+		goto err_probe;
+	}
+	WARN(dapm->idle_bias_off &&
+	     dapm->bias_level != SND_SOC_BIAS_OFF,
+	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
+	     component->name);
+
+	/* machine specific init */
+	if (component->init) {
+		ret = component->init(component);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"Failed to do machine specific init %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	ret = snd_soc_add_component_controls(component,
+					     component->driver->controls,
+					     component->driver->num_controls);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_dapm_add_routes(dapm,
+				      component->driver->dapm_routes,
+				      component->driver->num_dapm_routes);
+	if (ret < 0)
+		goto err_probe;
+
+	/* see for_each_card_components */
+	list_add(&component->card_list, &card->component_dev_list);
+
+err_probe:
+	if (ret < 0)
+		soc_cleanup_component(component);
+
+	return ret;
+}
+
 static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 {
 	int err;
@@ -967,17 +1104,15 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 	dai->probed = 0;
 }
 
+static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
 static void soc_remove_link_dais(struct snd_soc_card *card,
 		struct snd_soc_pcm_runtime *rtd, int order)
 {
 	int i;
 	struct snd_soc_dai *codec_dai;
 
-	/* unregister the rtd device */
-	if (rtd->dev_registered) {
-		device_unregister(rtd->dev);
-		rtd->dev_registered = 0;
-	}
+	/* finalize rtd device */
+	soc_rtd_free(rtd);
 
 	/* remove the CODEC DAI */
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
@@ -998,6 +1133,26 @@ static void soc_remove_link_components(struct snd_soc_card *card,
 		if (component->driver->remove_order == order)
 			soc_remove_component(component);
 	}
+}
+
+static int soc_probe_link_components(struct snd_soc_card *card,
+				     struct snd_soc_pcm_runtime *rtd, int order)
+{
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+	int ret;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component->driver->probe_order == order) {
+			ret = soc_probe_component(card, component);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
 }
 
 static void soc_remove_dai_links(struct snd_soc_card *card)
@@ -1201,145 +1356,21 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
-static void soc_set_of_name_prefix(struct snd_soc_component *component)
+static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd)
 {
-	struct device_node *component_of_node = soc_component_to_node(component);
-	const char *str;
-	int ret;
-
-	ret = of_property_read_string(component_of_node, "sound-name-prefix",
-				      &str);
-	if (!ret)
-		component->name_prefix = str;
+	if (rtd->dev_registered) {
+		/* we don't need to call kfree() for rtd->dev */
+		device_unregister(rtd->dev);
+		rtd->dev_registered = 0;
+	}
 }
 
-static void soc_set_name_prefix(struct snd_soc_card *card,
-				struct snd_soc_component *component)
-{
-	int i;
-
-	for (i = 0; i < card->num_configs && card->codec_conf; i++) {
-		struct snd_soc_codec_conf *map = &card->codec_conf[i];
-		struct device_node *component_of_node = soc_component_to_node(component);
-
-		if (map->of_node && component_of_node != map->of_node)
-			continue;
-		if (map->dev_name && strcmp(component->name, map->dev_name))
-			continue;
-		component->name_prefix = map->name_prefix;
-		return;
-	}
-
-	/*
-	 * If there is no configuration table or no match in the table,
-	 * check if a prefix is provided in the node
-	 */
-	soc_set_of_name_prefix(component);
-}
-
-static int soc_probe_component(struct snd_soc_card *card,
-	struct snd_soc_component *component)
-{
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
-	struct snd_soc_dai *dai;
-	int ret;
-
-	if (!strcmp(component->name, "snd-soc-dummy"))
-		return 0;
-
-	if (component->card) {
-		if (component->card != card) {
-			dev_err(component->dev,
-				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
-				card->name, component->card->name);
-			return -ENODEV;
-		}
-		return 0;
-	}
-
-	ret = snd_soc_component_module_get_when_probe(component);
-	if (ret < 0)
-		return ret;
-
-	component->card = card;
-	dapm->card = card;
-	INIT_LIST_HEAD(&component->card_list);
-	INIT_LIST_HEAD(&dapm->list);
-	soc_set_name_prefix(card, component);
-
-	soc_init_component_debugfs(component);
-
-	ret = snd_soc_dapm_new_controls(dapm,
-					component->driver->dapm_widgets,
-					component->driver->num_dapm_widgets);
-
-	if (ret != 0) {
-		dev_err(component->dev,
-			"Failed to create new controls %d\n", ret);
-		goto err_probe;
-	}
-
-	for_each_component_dais(component, dai) {
-		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
-		if (ret != 0) {
-			dev_err(component->dev,
-				"Failed to create DAI widgets %d\n", ret);
-			goto err_probe;
-		}
-	}
-
-	ret = snd_soc_component_probe(component);
-	if (ret < 0) {
-		dev_err(component->dev,
-			"ASoC: failed to probe component %d\n", ret);
-		goto err_probe;
-	}
-	WARN(dapm->idle_bias_off &&
-	     dapm->bias_level != SND_SOC_BIAS_OFF,
-	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
-	     component->name);
-
-	/* machine specific init */
-	if (component->init) {
-		ret = component->init(component);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"Failed to do machine specific init %d\n", ret);
-			goto err_probe;
-		}
-	}
-
-	ret = snd_soc_add_component_controls(component,
-					     component->driver->controls,
-					     component->driver->num_controls);
-	if (ret < 0)
-		goto err_probe;
-
-	ret = snd_soc_dapm_add_routes(dapm,
-				      component->driver->dapm_routes,
-				      component->driver->num_dapm_routes);
-	if (ret < 0)
-		goto err_probe;
-
-	list_add(&dapm->list, &card->dapm_list);
-	/* see for_each_card_components */
-	list_add(&component->card_list, &card->component_dev_list);
-
-err_probe:
-	if (ret < 0)
-		soc_cleanup_component(component);
-
-	return ret;
-}
-
-static void rtd_release(struct device *dev)
+static void soc_rtd_release(struct device *dev)
 {
 	kfree(dev);
 }
 
-static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
-	const char *name)
+static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
 {
 	int ret = 0;
 
@@ -1347,9 +1378,8 @@ static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
 	rtd->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!rtd->dev)
 		return -ENOMEM;
-	device_initialize(rtd->dev);
 	rtd->dev->parent = rtd->card->dev;
-	rtd->dev->release = rtd_release;
+	rtd->dev->release = soc_rtd_release;
 	rtd->dev->groups = soc_dev_attr_groups;
 	dev_set_name(rtd->dev, "%s", name);
 	dev_set_drvdata(rtd->dev, rtd);
@@ -1357,7 +1387,7 @@ static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
 	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].be_clients);
 	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].fe_clients);
 	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].fe_clients);
-	ret = device_add(rtd->dev);
+	ret = device_register(rtd->dev);
 	if (ret < 0) {
 		/* calling put_device() here to free the rtd->dev */
 		put_device(rtd->dev);
@@ -1366,26 +1396,6 @@ static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 	rtd->dev_registered = 1;
-	return 0;
-}
-
-static int soc_probe_link_components(struct snd_soc_card *card,
-				     struct snd_soc_pcm_runtime *rtd, int order)
-{
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
-	int ret;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (component->driver->probe_order == order) {
-			ret = soc_probe_component(card, component);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
 	return 0;
 }
 
@@ -1477,7 +1487,7 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 			return ret;
 	}
 
-	ret = soc_post_component_init(rtd, dai_link->name);
+	ret = soc_rtd_init(rtd, dai_link->name);
 	if (ret)
 		return ret;
 
@@ -1878,7 +1888,7 @@ match:
 	}
 }
 
-static int soc_cleanup_card_resources(struct snd_soc_card *card)
+static void soc_cleanup_card_resources(struct snd_soc_card *card)
 {
 	/* free the ALSA card at first; this syncs with pending operations */
 	if (card->snd_card) {
@@ -1899,8 +1909,6 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove the card */
 	if (card->remove)
 		card->remove(card);
-
-	return 0;
 }
 
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
@@ -1922,10 +1930,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
-	card->dapm.bias_level = SND_SOC_BIAS_OFF;
-	card->dapm.dev = card->dev;
-	card->dapm.card = card;
-	list_add(&card->dapm.list, &card->dapm_list);
+	snd_soc_dapm_init(&card->dapm, card, NULL);
 
 	/* check whether any platform is ignore machine FE and using topology */
 	soc_check_tplg_fes(card);
@@ -2640,7 +2645,10 @@ EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
 {
-	struct snd_soc_dapm_context *dapm;
+	INIT_LIST_HEAD(&component->dai_list);
+	INIT_LIST_HEAD(&component->dobj_list);
+	INIT_LIST_HEAD(&component->card_list);
+	mutex_init(&component->io_mutex);
 
 	component->name = fmt_single_name(dev, &component->id);
 	if (!component->name) {
@@ -2650,16 +2658,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	component->dev = dev;
 	component->driver = driver;
-
-	dapm = snd_soc_component_get_dapm(component);
-	dapm->dev = dev;
-	dapm->component = component;
-	dapm->bias_level = SND_SOC_BIAS_OFF;
-	dapm->idle_bias_off = !driver->idle_bias_on;
-	dapm->suspend_bias_off = driver->suspend_bias_off;
-
-	INIT_LIST_HEAD(&component->dai_list);
-	mutex_init(&component->io_mutex);
 
 	return 0;
 }
@@ -2728,7 +2726,6 @@ static void snd_soc_component_add(struct snd_soc_component *component)
 
 	/* see for_each_component */
 	list_add(&component->list, &component_list);
-	INIT_LIST_HEAD(&component->dobj_list);
 
 	mutex_unlock(&client_mutex);
 }

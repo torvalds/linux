@@ -73,7 +73,7 @@ examples:
     #include <dt-bindings/firmware/imx/rsrc.h>
     #include <dt-bindings/clock/imx8-clock.h>
     dsp@596e8000 {
-        compatbile = "fsl,imx8qxp-dsp";
+        compatible = "fsl,imx8qxp-dsp";
         reg = <0x596e8000 0x88000>;
         clocks = <&adma_lpcg IMX_ADMA_LPCG_DSP_IPG_CLK>,
                  <&adma_lpcg IMX_ADMA_LPCG_OCRAM_IPG_CLK>,

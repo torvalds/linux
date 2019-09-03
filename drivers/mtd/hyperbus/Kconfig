@@ -1,5 +1,6 @@
 menuconfig MTD_HYPERBUS
 	tristate "HyperBus support"
+	depends on HAS_IOMEM
 	select MTD_CFI
 	select MTD_MAP_BANK_WIDTH_2
 	select MTD_CFI_AMDSTD

@@ -1403,11 +1403,20 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
 		return 0;
 
+	/* No fileid? Just exit */
+	if (!(fattr->valid & NFS_ATTR_FATTR_FILEID))
+		return 0;
 	/* Has the inode gone and changed behind our back? */
-	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) && nfsi->fileid != fattr->fileid)
+	if (nfsi->fileid != fattr->fileid) {
+		/* Is this perhaps the mounted-on fileid? */
+		if ((fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID) &&
+		    nfsi->fileid == fattr->mounted_on_fileid)
+			return 0;
 		return -ESTALE;
+	}
 	if ((fattr->valid & NFS_ATTR_FATTR_TYPE) && (inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT))
 		return -ESTALE;
+
 
 	if (!nfs_file_has_buffered_writers(nfsi)) {
 		/* Verify a few of the more important attributes */
@@ -1768,18 +1777,6 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 EXPORT_SYMBOL_GPL(nfs_post_op_update_inode_force_wcc);
 
 
-static inline bool nfs_fileid_valid(struct nfs_inode *nfsi,
-				    struct nfs_fattr *fattr)
-{
-	bool ret1 = true, ret2 = true;
-
-	if (fattr->valid & NFS_ATTR_FATTR_FILEID)
-		ret1 = (nfsi->fileid == fattr->fileid);
-	if (fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID)
-		ret2 = (nfsi->fileid == fattr->mounted_on_fileid);
-	return ret1 || ret2;
-}
-
 /*
  * Many nfs protocol calls return the new file attributes after
  * an operation.  Here we update the inode to reflect the state
@@ -1810,7 +1807,15 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			nfs_display_fhandle_hash(NFS_FH(inode)),
 			atomic_read(&inode->i_count), fattr->valid);
 
-	if (!nfs_fileid_valid(nfsi, fattr)) {
+	/* No fileid? Just exit */
+	if (!(fattr->valid & NFS_ATTR_FATTR_FILEID))
+		return 0;
+	/* Has the inode gone and changed behind our back? */
+	if (nfsi->fileid != fattr->fileid) {
+		/* Is this perhaps the mounted-on fileid? */
+		if ((fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID) &&
+		    nfsi->fileid == fattr->mounted_on_fileid)
+			return 0;
 		printk(KERN_ERR "NFS: server %s error: fileid changed\n"
 			"fsid %s: expected fileid 0x%Lx, got 0x%Lx\n",
 			NFS_SERVER(inode)->nfs_client->cl_hostname,
