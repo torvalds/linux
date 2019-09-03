@@ -537,22 +537,18 @@ static void update_dpb(struct hantro_ctx *ctx)
 	}
 }
 
-struct vb2_buffer *hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
-					   unsigned int dpb_idx)
+dma_addr_t hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
+				   unsigned int dpb_idx)
 {
-	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
 	struct v4l2_h264_dpb_entry *dpb = ctx->h264_dec.dpb;
-	struct vb2_buffer *buf;
-	int buf_idx = -1;
+	dma_addr_t dma_addr = 0;
 
 	if (dpb[dpb_idx].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)
-		buf_idx = vb2_find_timestamp(cap_q,
-					     dpb[dpb_idx].reference_ts, 0);
+		dma_addr = hantro_get_ref(ctx, dpb[dpb_idx].reference_ts);
 
-	if (buf_idx >= 0) {
-		buf = vb2_get_buffer(cap_q, buf_idx);
-	} else {
+	if (!dma_addr) {
 		struct vb2_v4l2_buffer *dst_buf;
+		struct vb2_buffer *buf;
 
 		/*
 		 * If a DPB entry is unused or invalid, address of current
@@ -560,9 +556,10 @@ struct vb2_buffer *hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
 		 */
 		dst_buf = hantro_get_dst_buf(ctx);
 		buf = &dst_buf->vb2_buf;
+		dma_addr = vb2_dma_contig_plane_dma_addr(buf, 0);
 	}
 
-	return buf;
+	return dma_addr;
 }
 
 int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx)

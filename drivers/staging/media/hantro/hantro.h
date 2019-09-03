@@ -367,7 +367,7 @@ static inline void hantro_reg_write(struct hantro_dev *vpu,
 bool hantro_is_encoder_ctx(const struct hantro_ctx *ctx);
 
 void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id);
-dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts);
+dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts);
 
 static inline struct vb2_v4l2_buffer *
 hantro_get_src_buf(struct hantro_ctx *ctx)

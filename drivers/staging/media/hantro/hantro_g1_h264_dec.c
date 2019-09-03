@@ -220,10 +220,9 @@ static void set_ref(struct hantro_ctx *ctx)
 
 	/* Set up addresses of DPB buffers. */
 	for (i = 0; i < HANTRO_H264_DPB_SIZE; i++) {
-		struct vb2_buffer *buf =  hantro_h264_get_ref_buf(ctx, i);
+		dma_addr_t dma_addr = hantro_h264_get_ref_buf(ctx, i);
 
-		vdpu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(buf, 0),
-				   G1_REG_ADDR_REF(i));
+		vdpu_write_relaxed(vpu, dma_addr, G1_REG_ADDR_REF(i));
 	}
 }
 

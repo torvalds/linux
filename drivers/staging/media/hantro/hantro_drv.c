@@ -43,8 +43,9 @@ void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id)
 	return ctrl ? ctrl->p_cur.p : NULL;
 }
 
-dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts)
+dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts)
 {
+	struct vb2_queue *q = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
 	struct vb2_buffer *buf;
 	int index;
 

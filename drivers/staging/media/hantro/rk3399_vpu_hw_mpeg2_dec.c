@@ -107,17 +107,14 @@ rk3399_vpu_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
 {
 	dma_addr_t forward_addr = 0, backward_addr = 0;
 	dma_addr_t current_addr, addr;
-	struct vb2_queue *vq;
-
-	vq = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
 
 	switch (picture->picture_coding_type) {
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_B:
-		backward_addr = hantro_get_ref(vq,
+		backward_addr = hantro_get_ref(ctx,
 					       slice_params->backward_ref_ts);
 		/* fall-through */
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_P:
-		forward_addr = hantro_get_ref(vq,
+		forward_addr = hantro_get_ref(ctx,
 					      slice_params->forward_ref_ts);
 	}
 

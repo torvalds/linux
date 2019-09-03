@@ -158,8 +158,8 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx);
 int hantro_jpeg_enc_init(struct hantro_ctx *ctx);
 void hantro_jpeg_enc_exit(struct hantro_ctx *ctx);
 
-struct vb2_buffer *hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
-					   unsigned int dpb_idx);
+dma_addr_t hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
+				   unsigned int dpb_idx);
 int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx);
 void hantro_g1_h264_dec_run(struct hantro_ctx *ctx);
 int hantro_h264_dec_init(struct hantro_ctx *ctx);
