@@ -54,15 +54,18 @@ MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 Crypto Extensions");
 #define aes_xts_decrypt		neon_aes_xts_decrypt
 #define aes_mac_update		neon_aes_mac_update
 MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 NEON");
+#endif
+#if defined(USE_V8_CRYPTO_EXTENSIONS) || !defined(CONFIG_CRYPTO_AES_ARM64_BS)
 MODULE_ALIAS_CRYPTO("ecb(aes)");
 MODULE_ALIAS_CRYPTO("cbc(aes)");
-MODULE_ALIAS_CRYPTO("essiv(cbc(aes),sha256)");
 MODULE_ALIAS_CRYPTO("ctr(aes)");
 MODULE_ALIAS_CRYPTO("xts(aes)");
+#endif
+MODULE_ALIAS_CRYPTO("cts(cbc(aes))");
+MODULE_ALIAS_CRYPTO("essiv(cbc(aes),sha256)");
 MODULE_ALIAS_CRYPTO("cmac(aes)");
 MODULE_ALIAS_CRYPTO("xcbc(aes)");
 MODULE_ALIAS_CRYPTO("cbcmac(aes)");
-#endif
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
@@ -144,8 +147,8 @@ static int skcipher_aes_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 	return ret;
 }
 
-static int xts_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
-		       unsigned int key_len)
+static int __maybe_unused xts_set_key(struct crypto_skcipher *tfm,
+				      const u8 *in_key, unsigned int key_len)
 {
 	struct crypto_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int ret;
@@ -165,8 +168,9 @@ static int xts_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	return -EINVAL;
 }
 
-static int essiv_cbc_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
-			     unsigned int key_len)
+static int __maybe_unused essiv_cbc_set_key(struct crypto_skcipher *tfm,
+					    const u8 *in_key,
+					    unsigned int key_len)
 {
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
 	SHASH_DESC_ON_STACK(desc, ctx->hash);
@@ -190,7 +194,7 @@ out:
 	return -EINVAL;
 }
 
-static int ecb_encrypt(struct skcipher_request *req)
+static int __maybe_unused ecb_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -210,7 +214,7 @@ static int ecb_encrypt(struct skcipher_request *req)
 	return err;
 }
 
-static int ecb_decrypt(struct skcipher_request *req)
+static int __maybe_unused ecb_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -248,7 +252,7 @@ static int cbc_encrypt_walk(struct skcipher_request *req,
 	return err;
 }
 
-static int cbc_encrypt(struct skcipher_request *req)
+static int __maybe_unused cbc_encrypt(struct skcipher_request *req)
 {
 	struct skcipher_walk walk;
 	int err;
@@ -277,7 +281,7 @@ static int cbc_decrypt_walk(struct skcipher_request *req,
 	return err;
 }
 
-static int cbc_decrypt(struct skcipher_request *req)
+static int __maybe_unused cbc_decrypt(struct skcipher_request *req)
 {
 	struct skcipher_walk walk;
 	int err;
@@ -404,7 +408,7 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 	return skcipher_walk_done(&walk, 0);
 }
 
-static int essiv_cbc_init_tfm(struct crypto_skcipher *tfm)
+static int __maybe_unused essiv_cbc_init_tfm(struct crypto_skcipher *tfm)
 {
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
 
@@ -413,14 +417,14 @@ static int essiv_cbc_init_tfm(struct crypto_skcipher *tfm)
 	return PTR_ERR_OR_ZERO(ctx->hash);
 }
 
-static void essiv_cbc_exit_tfm(struct crypto_skcipher *tfm)
+static void __maybe_unused essiv_cbc_exit_tfm(struct crypto_skcipher *tfm)
 {
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	crypto_free_shash(ctx->hash);
 }
 
-static int essiv_cbc_encrypt(struct skcipher_request *req)
+static int __maybe_unused essiv_cbc_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -442,7 +446,7 @@ static int essiv_cbc_encrypt(struct skcipher_request *req)
 	return err ?: cbc_encrypt_walk(req, &walk);
 }
 
-static int essiv_cbc_decrypt(struct skcipher_request *req)
+static int __maybe_unused essiv_cbc_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -518,7 +522,7 @@ static void ctr_encrypt_one(struct crypto_skcipher *tfm, const u8 *src, u8 *dst)
 	local_irq_restore(flags);
 }
 
-static int ctr_encrypt_sync(struct skcipher_request *req)
+static int __maybe_unused ctr_encrypt_sync(struct skcipher_request *req)
 {
 	if (!crypto_simd_usable())
 		return crypto_ctr_encrypt_walk(req, ctr_encrypt_one);
@@ -526,7 +530,7 @@ static int ctr_encrypt_sync(struct skcipher_request *req)
 	return ctr_encrypt(req);
 }
 
-static int xts_encrypt(struct skcipher_request *req)
+static int __maybe_unused xts_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -548,7 +552,7 @@ static int xts_encrypt(struct skcipher_request *req)
 	return err;
 }
 
-static int xts_decrypt(struct skcipher_request *req)
+static int __maybe_unused xts_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -571,6 +575,7 @@ static int xts_decrypt(struct skcipher_request *req)
 }
 
 static struct skcipher_alg aes_algs[] = { {
+#if defined(USE_V8_CRYPTO_EXTENSIONS) || !defined(CONFIG_CRYPTO_AES_ARM64_BS)
 	.base = {
 		.cra_name		= "__ecb(aes)",
 		.cra_driver_name	= "__ecb-aes-" MODE,
@@ -601,42 +606,6 @@ static struct skcipher_alg aes_algs[] = { {
 	.setkey		= skcipher_aes_setkey,
 	.encrypt	= cbc_encrypt,
 	.decrypt	= cbc_decrypt,
-}, {
-	.base = {
-		.cra_name		= "__cts(cbc(aes))",
-		.cra_driver_name	= "__cts-cbc-aes-" MODE,
-		.cra_priority		= PRIO,
-		.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.cra_blocksize		= AES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-		.cra_module		= THIS_MODULE,
-	},
-	.min_keysize	= AES_MIN_KEY_SIZE,
-	.max_keysize	= AES_MAX_KEY_SIZE,
-	.ivsize		= AES_BLOCK_SIZE,
-	.walksize	= 2 * AES_BLOCK_SIZE,
-	.setkey		= skcipher_aes_setkey,
-	.encrypt	= cts_cbc_encrypt,
-	.decrypt	= cts_cbc_decrypt,
-	.init		= cts_cbc_init_tfm,
-}, {
-	.base = {
-		.cra_name		= "__essiv(cbc(aes),sha256)",
-		.cra_driver_name	= "__essiv-cbc-aes-sha256-" MODE,
-		.cra_priority		= PRIO + 1,
-		.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.cra_blocksize		= AES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct crypto_aes_essiv_cbc_ctx),
-		.cra_module		= THIS_MODULE,
-	},
-	.min_keysize	= AES_MIN_KEY_SIZE,
-	.max_keysize	= AES_MAX_KEY_SIZE,
-	.ivsize		= AES_BLOCK_SIZE,
-	.setkey		= essiv_cbc_set_key,
-	.encrypt	= essiv_cbc_encrypt,
-	.decrypt	= essiv_cbc_decrypt,
-	.init		= essiv_cbc_init_tfm,
-	.exit		= essiv_cbc_exit_tfm,
 }, {
 	.base = {
 		.cra_name		= "__ctr(aes)",
@@ -686,6 +655,43 @@ static struct skcipher_alg aes_algs[] = { {
 	.setkey		= xts_set_key,
 	.encrypt	= xts_encrypt,
 	.decrypt	= xts_decrypt,
+}, {
+#endif
+	.base = {
+		.cra_name		= "__cts(cbc(aes))",
+		.cra_driver_name	= "__cts-cbc-aes-" MODE,
+		.cra_priority		= PRIO,
+		.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.cra_blocksize		= AES_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
+		.cra_module		= THIS_MODULE,
+	},
+	.min_keysize	= AES_MIN_KEY_SIZE,
+	.max_keysize	= AES_MAX_KEY_SIZE,
+	.ivsize		= AES_BLOCK_SIZE,
+	.walksize	= 2 * AES_BLOCK_SIZE,
+	.setkey		= skcipher_aes_setkey,
+	.encrypt	= cts_cbc_encrypt,
+	.decrypt	= cts_cbc_decrypt,
+	.init		= cts_cbc_init_tfm,
+}, {
+	.base = {
+		.cra_name		= "__essiv(cbc(aes),sha256)",
+		.cra_driver_name	= "__essiv-cbc-aes-sha256-" MODE,
+		.cra_priority		= PRIO + 1,
+		.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.cra_blocksize		= AES_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct crypto_aes_essiv_cbc_ctx),
+		.cra_module		= THIS_MODULE,
+	},
+	.min_keysize	= AES_MIN_KEY_SIZE,
+	.max_keysize	= AES_MAX_KEY_SIZE,
+	.ivsize		= AES_BLOCK_SIZE,
+	.setkey		= essiv_cbc_set_key,
+	.encrypt	= essiv_cbc_encrypt,
+	.decrypt	= essiv_cbc_decrypt,
+	.init		= essiv_cbc_init_tfm,
+	.exit		= essiv_cbc_exit_tfm,
 } };
 
 static int cbcmac_setkey(struct crypto_shash *tfm, const u8 *in_key,
