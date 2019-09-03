@@ -1132,6 +1132,7 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	ICE_CTX_STORE(ice_tlan_ctx, vmvf_type,			2,	78),
 	ICE_CTX_STORE(ice_tlan_ctx, src_vsi,			10,	80),
 	ICE_CTX_STORE(ice_tlan_ctx, tsyn_ena,			1,	90),
+	ICE_CTX_STORE(ice_tlan_ctx, internal_usage_flag,	1,	91),
 	ICE_CTX_STORE(ice_tlan_ctx, alt_vlan,			1,	92),
 	ICE_CTX_STORE(ice_tlan_ctx, cpuid,			8,	93),
 	ICE_CTX_STORE(ice_tlan_ctx, wb_mode,			1,	101),
@@ -1150,7 +1151,7 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	ICE_CTX_STORE(ice_tlan_ctx, drop_ena,			1,	165),
 	ICE_CTX_STORE(ice_tlan_ctx, cache_prof_idx,		2,	166),
 	ICE_CTX_STORE(ice_tlan_ctx, pkt_shaper_prof_idx,	3,	168),
-	ICE_CTX_STORE(ice_tlan_ctx, int_q_state,		110,	171),
+	ICE_CTX_STORE(ice_tlan_ctx, int_q_state,		122,	171),
 	{ 0 }
 };
 
