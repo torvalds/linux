@@ -170,7 +170,6 @@ void pciehp_get_power_status(struct controller *ctrl, u8 *status);
 #define INDICATOR_NOOP -1	/* Leave indicator unchanged */
 void pciehp_set_indicators(struct controller *ctrl, int pwr, int attn);
 
-void pciehp_set_attention_status(struct controller *ctrl, u8 status);
 void pciehp_get_latch_status(struct controller *ctrl, u8 *status);
 int pciehp_query_power_fault(struct controller *ctrl);
 void pciehp_green_led_on(struct controller *ctrl);

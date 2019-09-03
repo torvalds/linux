@@ -418,31 +418,6 @@ int pciehp_set_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-void pciehp_set_attention_status(struct controller *ctrl, u8 value)
-{
-	u16 slot_cmd;
-
-	if (!ATTN_LED(ctrl))
-		return;
-
-	switch (value) {
-	case 0:		/* turn off */
-		slot_cmd = PCI_EXP_SLTCTL_ATTN_IND_OFF;
-		break;
-	case 1:		/* turn on */
-		slot_cmd = PCI_EXP_SLTCTL_ATTN_IND_ON;
-		break;
-	case 2:		/* turn blink */
-		slot_cmd = PCI_EXP_SLTCTL_ATTN_IND_BLINK;
-		break;
-	default:
-		return;
-	}
-	pcie_write_cmd_nowait(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
-	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
-		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-}
-
 /**
  * pciehp_set_indicators() - set attention indicator, power indicator, or both
  * @ctrl: PCIe hotplug controller
