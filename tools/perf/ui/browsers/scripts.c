@@ -2,6 +2,7 @@
 #include "../../builtin.h"
 #include "../../perf.h"
 #include "../../util/util.h"
+#include "../util.h"
 #include "../../util/hist.h"
 #include "../../util/debug.h"
 #include "../../util/symbol.h"
