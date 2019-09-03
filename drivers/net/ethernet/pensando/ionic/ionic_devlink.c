@@ -6,6 +6,7 @@
 
 #include "ionic.h"
 #include "ionic_bus.h"
+#include "ionic_lif.h"
 #include "ionic_devlink.h"
 
 static int ionic_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
@@ -72,8 +73,19 @@ int ionic_devlink_register(struct ionic *ionic)
 	int err;
 
 	err = devlink_register(dl, ionic->dev);
-	if (err)
+	if (err) {
 		dev_warn(ionic->dev, "devlink_register failed: %d\n", err);
+		return err;
+	}
+
+	devlink_port_attrs_set(&ionic->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
+			       0, false, 0, NULL, 0);
+	err = devlink_port_register(dl, &ionic->dl_port, 0);
+	if (err)
+		dev_err(ionic->dev, "devlink_port_register failed: %d\n", err);
+	else
+		devlink_port_type_eth_set(&ionic->dl_port,
+					  ionic->master_lif->netdev);
 
 	return err;
 }
@@ -82,5 +94,6 @@ void ionic_devlink_unregister(struct ionic *ionic)
 {
 	struct devlink *dl = priv_to_devlink(ionic);
 
+	devlink_port_unregister(&ionic->dl_port);
 	devlink_unregister(dl);
 }

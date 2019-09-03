@@ -59,6 +59,8 @@ struct ionic_qcq {
 
 enum ionic_lif_state_flags {
 	IONIC_LIF_INITED,
+	IONIC_LIF_UP,
+	IONIC_LIF_QUEUE_RESET,
 
 	/* leave this as last */
 	IONIC_LIF_STATE_SIZE
@@ -82,6 +84,7 @@ struct ionic_lif {
 	u64 last_eid;
 	unsigned int neqs;
 	unsigned int nxqs;
+	u64 hw_features;
 
 	struct ionic_lif_info *info;
 	dma_addr_t info_pa;
@@ -93,13 +96,30 @@ struct ionic_lif {
 	u32 flags;
 };
 
+static inline int ionic_wait_for_bit(struct ionic_lif *lif, int bitname)
+{
+	unsigned long tlimit = jiffies + HZ;
+
+	while (test_and_set_bit(bitname, lif->state) &&
+	       time_before(jiffies, tlimit))
+		usleep_range(100, 200);
+
+	return test_bit(bitname, lif->state);
+}
+
 int ionic_lifs_alloc(struct ionic *ionic);
 void ionic_lifs_free(struct ionic *ionic);
 void ionic_lifs_deinit(struct ionic *ionic);
 int ionic_lifs_init(struct ionic *ionic);
+int ionic_lifs_register(struct ionic *ionic);
+void ionic_lifs_unregister(struct ionic *ionic);
 int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 		       union ionic_lif_identity *lif_ident);
 int ionic_lifs_size(struct ionic *ionic);
+
+int ionic_open(struct net_device *netdev);
+int ionic_stop(struct net_device *netdev);
+int ionic_reset_queues(struct ionic_lif *lif);
 
 static inline void debug_stats_napi_poll(struct ionic_qcq *qcq,
 					 unsigned int work_done)

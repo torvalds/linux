@@ -28,6 +28,7 @@ struct ionic_lif;
 struct ionic {
 	struct pci_dev *pdev;
 	struct device *dev;
+	struct devlink_port dl_port;
 	struct ionic_dev idev;
 	struct mutex dev_cmd_lock;	/* lock for dev_cmd operations */
 	struct dentry *dentry;
@@ -35,6 +36,7 @@ struct ionic {
 	unsigned int num_bars;
 	struct ionic_identity ident;
 	struct list_head lifs;
+	struct ionic_lif *master_lif;
 	unsigned int nnqs_per_lif;
 	unsigned int neqs_per_lif;
 	unsigned int ntxqs_per_lif;
