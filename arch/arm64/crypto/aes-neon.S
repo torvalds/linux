@@ -19,6 +19,11 @@
 	xts_load_mask	\tmp
 	.endm
 
+	/* special case for the neon-bs driver calling into this one for CTS */
+	.macro		xts_cts_skip_tw, reg, lbl
+	tbnz		\reg, #1, \lbl
+	.endm
+
 	/* multiply by polynomial 'x' in GF(2^8) */
 	.macro		mul_by_x, out, in, temp, const
 	sshr		\temp, \in, #7

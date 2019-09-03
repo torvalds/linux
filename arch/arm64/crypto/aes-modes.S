@@ -442,6 +442,7 @@ AES_ENTRY(aes_xts_encrypt)
 	cbz		w7, .Lxtsencnotfirst
 
 	enc_prepare	w3, x5, x8
+	xts_cts_skip_tw	w7, .LxtsencNx
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
 	enc_switch_key	w3, x2, x8
 	b		.LxtsencNx
@@ -530,10 +531,12 @@ AES_ENTRY(aes_xts_decrypt)
 
 	ld1		{v4.16b}, [x6]
 	xts_load_mask	v8
+	xts_cts_skip_tw	w7, .Lxtsdecskiptw
 	cbz		w7, .Lxtsdecnotfirst
 
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
+.Lxtsdecskiptw:
 	dec_prepare	w3, x2, x8
 	b		.LxtsdecNx
 
