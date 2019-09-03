@@ -331,7 +331,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		tls_sw_strparser_done(ctx);
 	if (ctx->rx_conf == TLS_SW)
 		tls_sw_free_ctx_rx(ctx);
-	ctx->sk_proto_close(sk, timeout);
+	ctx->sk_proto->close(sk, timeout);
 
 	if (free_ctx)
 		tls_ctx_free(sk, ctx);
@@ -451,7 +451,8 @@ static int tls_getsockopt(struct sock *sk, int level, int optname,
 	struct tls_context *ctx = tls_get_ctx(sk);
 
 	if (level != SOL_TLS)
-		return ctx->getsockopt(sk, level, optname, optval, optlen);
+		return ctx->sk_proto->getsockopt(sk, level,
+						 optname, optval, optlen);
 
 	return do_tls_getsockopt(sk, optname, optval, optlen);
 }
@@ -609,7 +610,8 @@ static int tls_setsockopt(struct sock *sk, int level, int optname,
 	struct tls_context *ctx = tls_get_ctx(sk);
 
 	if (level != SOL_TLS)
-		return ctx->setsockopt(sk, level, optname, optval, optlen);
+		return ctx->sk_proto->setsockopt(sk, level, optname, optval,
+						 optlen);
 
 	return do_tls_setsockopt(sk, optname, optval, optlen);
 }
@@ -624,10 +626,7 @@ static struct tls_context *create_ctx(struct sock *sk)
 		return NULL;
 
 	rcu_assign_pointer(icsk->icsk_ulp_data, ctx);
-	ctx->setsockopt = sk->sk_prot->setsockopt;
-	ctx->getsockopt = sk->sk_prot->getsockopt;
-	ctx->sk_proto_close = sk->sk_prot->close;
-	ctx->unhash = sk->sk_prot->unhash;
+	ctx->sk_proto = sk->sk_prot;
 	return ctx;
 }
 
@@ -683,9 +682,6 @@ static int tls_hw_prot(struct sock *sk)
 
 			spin_unlock_bh(&device_spinlock);
 			tls_build_proto(sk);
-			ctx->hash = sk->sk_prot->hash;
-			ctx->unhash = sk->sk_prot->unhash;
-			ctx->sk_proto_close = sk->sk_prot->close;
 			ctx->sk_destruct = sk->sk_destruct;
 			sk->sk_destruct = tls_hw_sk_destruct;
 			ctx->rx_conf = TLS_HW_RECORD;
@@ -717,7 +713,7 @@ static void tls_hw_unhash(struct sock *sk)
 		}
 	}
 	spin_unlock_bh(&device_spinlock);
-	ctx->unhash(sk);
+	ctx->sk_proto->unhash(sk);
 }
 
 static int tls_hw_hash(struct sock *sk)
@@ -726,7 +722,7 @@ static int tls_hw_hash(struct sock *sk)
 	struct tls_device *dev;
 	int err;
 
-	err = ctx->hash(sk);
+	err = ctx->sk_proto->hash(sk);
 	spin_lock_bh(&device_spinlock);
 	list_for_each_entry(dev, &device_list, dev_list) {
 		if (dev->hash) {
@@ -816,7 +812,6 @@ static int tls_init(struct sock *sk)
 
 	ctx->tx_conf = TLS_BASE;
 	ctx->rx_conf = TLS_BASE;
-	ctx->sk_proto = sk->sk_prot;
 	update_sk_prot(sk, ctx);
 out:
 	write_unlock_bh(&sk->sk_callback_lock);
@@ -828,12 +823,10 @@ static void tls_update(struct sock *sk, struct proto *p)
 	struct tls_context *ctx;
 
 	ctx = tls_get_ctx(sk);
-	if (likely(ctx)) {
-		ctx->sk_proto_close = p->close;
+	if (likely(ctx))
 		ctx->sk_proto = p;
-	} else {
+	else
 		sk->sk_prot = p;
-	}
 }
 
 static int tls_get_info(const struct sock *sk, struct sk_buff *skb)
