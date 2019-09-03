@@ -95,6 +95,13 @@ struct stratix10_svc_chan;
  *
  * @COMMAND_RSU_UPDATE: set the offset of the bitstream to boot after reboot,
  * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
+ *
+ * @COMMAND_RSU_NOTIFY: report the status of hard processor system
+ * software to firmware, return status is SVC_STATUS_RSU_OK or
+ * SVC_STATUS_RSU_ERROR
+ *
+ * @COMMAND_RSU_RETRY: query firmware for the current image's retry counter,
+ * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
  */
 enum stratix10_svc_command_code {
 	COMMAND_NOOP = 0,
@@ -103,7 +110,9 @@ enum stratix10_svc_command_code {
 	COMMAND_RECONFIG_DATA_CLAIM,
 	COMMAND_RECONFIG_STATUS,
 	COMMAND_RSU_STATUS,
-	COMMAND_RSU_UPDATE
+	COMMAND_RSU_UPDATE,
+	COMMAND_RSU_NOTIFY,
+	COMMAND_RSU_RETRY,
 };
 
 /**
