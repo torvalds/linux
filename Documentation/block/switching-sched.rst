@@ -2,10 +2,6 @@
 Switching Scheduler
 ===================
 
-To choose IO schedulers at boot time, use the argument 'elevator=deadline'.
-'noop' and 'cfq' (the default) are also available. IO schedulers are assigned
-globally at boot time only presently.
-
 Each io queue has a set of io scheduler tunables associated with it. These
 tunables control how the io scheduler works. You can find these entries
 in::
