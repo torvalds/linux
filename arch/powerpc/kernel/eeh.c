@@ -1892,7 +1892,8 @@ static ssize_t eeh_dev_check_write(struct file *filp,
 	char buf[20];
 	int ret;
 
-	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
+	memset(buf, 0, sizeof(buf));
+	ret = simple_write_to_buffer(buf, sizeof(buf)-1, ppos, user_buf, count);
 	if (!ret)
 		return -EFAULT;
 
@@ -1929,6 +1930,139 @@ static const struct file_operations eeh_dev_check_fops = {
 	.read   = eeh_debugfs_dev_usage,
 };
 
+static int eeh_debugfs_break_device(struct pci_dev *pdev)
+{
+	struct resource *bar = NULL;
+	void __iomem *mapped;
+	u16 old, bit;
+	int i, pos;
+
+	/* Do we have an MMIO BAR to disable? */
+	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+		struct resource *r = &pdev->resource[i];
+
+		if (!r->flags || !r->start)
+			continue;
+		if (r->flags & IORESOURCE_IO)
+			continue;
+		if (r->flags & IORESOURCE_UNSET)
+			continue;
+
+		bar = r;
+		break;
+	}
+
+	if (!bar) {
+		pci_err(pdev, "Unable to find Memory BAR to cause EEH with\n");
+		return -ENXIO;
+	}
+
+	pci_err(pdev, "Going to break: %pR\n", bar);
+
+	if (pdev->is_virtfn) {
+#ifndef CONFIG_IOV
+		return -ENXIO;
+#else
+		/*
+		 * VFs don't have a per-function COMMAND register, so the best
+		 * we can do is clear the Memory Space Enable bit in the PF's
+		 * SRIOV control reg.
+		 *
+		 * Unfortunately, this requires that we have a PF (i.e doesn't
+		 * work for a passed-through VF) and it has the potential side
+		 * effect of also causing an EEH on every other VF under the
+		 * PF. Oh well.
+		 */
+		pdev = pdev->physfn;
+		if (!pdev)
+			return -ENXIO; /* passed through VFs have no PF */
+
+		pos  = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+		pos += PCI_SRIOV_CTRL;
+		bit  = PCI_SRIOV_CTRL_MSE;
+#endif /* !CONFIG_IOV */
+	} else {
+		bit = PCI_COMMAND_MEMORY;
+		pos = PCI_COMMAND;
+	}
+
+	/*
+	 * Process here is:
+	 *
+	 * 1. Disable Memory space.
+	 *
+	 * 2. Perform an MMIO to the device. This should result in an error
+	 *    (CA  / UR) being raised by the device which results in an EEH
+	 *    PE freeze. Using the in_8() accessor skips the eeh detection hook
+	 *    so the freeze hook so the EEH Detection machinery won't be
+	 *    triggered here. This is to match the usual behaviour of EEH
+	 *    where the HW will asyncronously freeze a PE and it's up to
+	 *    the kernel to notice and deal with it.
+	 *
+	 * 3. Turn Memory space back on. This is more important for VFs
+	 *    since recovery will probably fail if we don't. For normal
+	 *    the COMMAND register is reset as a part of re-initialising
+	 *    the device.
+	 *
+	 * Breaking stuff is the point so who cares if it's racy ;)
+	 */
+	pci_read_config_word(pdev, pos, &old);
+
+	mapped = ioremap(bar->start, PAGE_SIZE);
+	if (!mapped) {
+		pci_err(pdev, "Unable to map MMIO BAR %pR\n", bar);
+		return -ENXIO;
+	}
+
+	pci_write_config_word(pdev, pos, old & ~bit);
+	in_8(mapped);
+	pci_write_config_word(pdev, pos, old);
+
+	iounmap(mapped);
+
+	return 0;
+}
+
+static ssize_t eeh_dev_break_write(struct file *filp,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	uint32_t domain, bus, dev, fn;
+	struct pci_dev *pdev;
+	char buf[20];
+	int ret;
+
+	memset(buf, 0, sizeof(buf));
+	ret = simple_write_to_buffer(buf, sizeof(buf)-1, ppos, user_buf, count);
+	if (!ret)
+		return -EFAULT;
+
+	ret = sscanf(buf, "%x:%x:%x.%x", &domain, &bus, &dev, &fn);
+	if (ret != 4) {
+		pr_err("%s: expected 4 args, got %d\n", __func__, ret);
+		return -EINVAL;
+	}
+
+	pdev = pci_get_domain_bus_and_slot(domain, bus, (dev << 3) | fn);
+	if (!pdev)
+		return -ENODEV;
+
+	ret = eeh_debugfs_break_device(pdev);
+	pci_dev_put(pdev);
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations eeh_dev_break_fops = {
+	.open	= simple_open,
+	.llseek	= no_llseek,
+	.write	= eeh_dev_break_write,
+	.read   = eeh_debugfs_dev_usage,
+};
+
 #endif
 
 static int __init eeh_init_proc(void)
@@ -1947,6 +2081,9 @@ static int __init eeh_init_proc(void)
 		debugfs_create_file_unsafe("eeh_dev_check", 0600,
 				powerpc_debugfs_root, NULL,
 				&eeh_dev_check_fops);
+		debugfs_create_file_unsafe("eeh_dev_break", 0600,
+				powerpc_debugfs_root, NULL,
+				&eeh_dev_break_fops);
 		debugfs_create_file_unsafe("eeh_force_recover", 0600,
 				powerpc_debugfs_root, NULL,
 				&eeh_force_recover_fops);
