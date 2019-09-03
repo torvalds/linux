@@ -87,10 +87,13 @@ static void amdgpu_hotplug_work_func(struct work_struct *work)
 	struct drm_device *dev = adev->ddev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 
 	mutex_lock(&mode_config->mutex);
-	list_for_each_entry(connector, &mode_config->connector_list, head)
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
 		amdgpu_connector_hotplug(connector);
+	drm_connector_list_iter_end(&iter);
 	mutex_unlock(&mode_config->mutex);
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
