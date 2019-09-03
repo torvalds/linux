@@ -1249,9 +1249,6 @@ EXPORT_SYMBOL_GPL(usb_hcd_unlink_urb_from_ep);
  * To support host controllers with limited dma capabilities we provide dma
  * bounce buffers. This feature can be enabled by initializing
  * hcd->localmem_pool using usb_hcd_setup_local_mem().
- * For this to work properly the host controller code must first use the
- * function dma_declare_coherent_memory() to point out which memory area
- * that should be used for dma allocations.
  *
  * The initialized hcd->localmem_pool then tells the usb code to allocate all
  * data for dma using the genalloc API.
