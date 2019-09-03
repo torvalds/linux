@@ -1597,6 +1597,52 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 		crtc_state->base.gamma_lut = ilk_read_lut_10(crtc_state);
 }
 
+static struct drm_property_blob *
+glk_read_lut_10(const struct intel_crtc_state *crtc_state, u32 prec_index)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int hw_lut_size = ivb_lut_10_size(prec_index);
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *blob_data;
+	u32 i, val;
+
+	I915_WRITE(PREC_PAL_INDEX(pipe), prec_index |
+		   PAL_PREC_AUTO_INCREMENT);
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(struct drm_color_lut) * hw_lut_size,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	blob_data = blob->data;
+
+	for (i = 0; i < hw_lut_size; i++) {
+		val = I915_READ(PREC_PAL_DATA(pipe));
+
+		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+							PREC_PAL_DATA_RED_MASK, val), 10);
+		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+							PREC_PAL_DATA_GREEN_MASK, val), 10);
+		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+							PREC_PAL_DATA_BLUE_MASK, val), 10);
+	}
+
+	I915_WRITE(PREC_PAL_INDEX(pipe), 0);
+
+	return blob;
+}
+
+static void glk_read_luts(struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+		crtc_state->base.gamma_lut = i9xx_read_lut_8(crtc_state);
+	else
+		crtc_state->base.gamma_lut = glk_read_lut_10(crtc_state, PAL_PREC_INDEX_VALUE(0));
+}
+
 void intel_color_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1638,9 +1684,10 @@ void intel_color_init(struct intel_crtc *crtc)
 
 		if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.load_luts = icl_load_luts;
-		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
 			dev_priv->display.load_luts = glk_load_luts;
-		else if (INTEL_GEN(dev_priv) >= 8)
+			dev_priv->display.read_luts = glk_read_luts;
+		} else if (INTEL_GEN(dev_priv) >= 8)
 			dev_priv->display.load_luts = bdw_load_luts;
 		else if (INTEL_GEN(dev_priv) >= 7)
 			dev_priv->display.load_luts = ivb_load_luts;
