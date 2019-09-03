@@ -32,96 +32,6 @@
 	};
 
 	ahb {
-		apb {
-			tcb0: timer@f8008000 {
-				timer@0 {
-					compatible = "atmel,tcb-timer";
-					reg = <0>;
-				};
-
-				timer@1 {
-					compatible = "atmel,tcb-timer";
-					reg = <1>;
-				};
-			};
-
-			usart0: serial@f801c000 {
-				status = "okay";
-			};
-
-			macb0: ethernet@f802c000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-
-			pwm0: pwm@f8034000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_pwm0_pwm0_1
-					     &pinctrl_pwm0_pwm1_1>;
-				status = "okay";
-			};
-
-			dbgu: serial@fffff200 {
-				status = "okay";
-			};
-
-			watchdog@fffffe40 {
-				status = "okay";
-			};
-		};
-
-		usb0: ohci@600000 {
-			num-ports = <1>;
-			status = "okay";
-		};
-
-		usb1: ehci@700000 {
-			status = "okay";
-		};
-
-		ebi: ebi@10000000 {
-			pinctrl-0 = <&pinctrl_ebi_addr_nand
-				     &pinctrl_ebi_data_0_7>;
-			pinctrl-names = "default";
-			status = "okay";
-
-			nand_controller: nand-controller {
-				status = "okay";
-				pinctrl-0 = <&pinctrl_nand_oe_we
-					     &pinctrl_nand_cs
-					     &pinctrl_nand_rb>;
-				pinctrl-names = "default";
-
-				nand@3 {
-					reg = <0x3 0x0 0x800000>;
-					rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
-					cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
-					nand-bus-width = <8>;
-					nand-ecc-mode = "hw";
-					nand-ecc-strength = <4>;
-					nand-ecc-step-size = <512>;
-					nand-on-flash-bbt;
-					label = "atmel_nand";
-
-					partitions {
-						compatible = "fixed-partitions";
-						#address-cells = <1>;
-						#size-cells = <1>;
-
-						bootstrap@0 {
-							label = "bootstrap";
-							reg = <0x0 0x20000>;
-						};
-
-						ubi@20000 {
-							label = "ubi";
-							reg = <0x20000 0x7fe0000>;
-						};
-					};
-				};
-			};
-		};
-
 		nand0: nand@40000000 {
 			nand-bus-width = <8>;
 			nand-ecc-mode = "hw";
@@ -130,7 +40,6 @@
 			atmel,pmecc-sector-size = <512>;
 			nand-on-flash-bbt;
 			status = "okay";
-
 		};
 	};
 
@@ -171,4 +80,92 @@
 			linux,default-trigger = "default-on";
 		};
 	};
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&ebi {
+	pinctrl-0 = <&pinctrl_ebi_addr_nand
+		     &pinctrl_ebi_data_0_7>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	nand-controller {
+		pinctrl-0 = <&pinctrl_nand_oe_we
+			     &pinctrl_nand_cs
+			     &pinctrl_nand_rb>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		nand@3 {
+			reg = <0x3 0x0 0x800000>;
+			rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+			cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
+			nand-bus-width = <8>;
+			nand-ecc-mode = "hw";
+			nand-ecc-strength = <4>;
+			nand-ecc-step-size = <512>;
+			nand-on-flash-bbt;
+			label = "atmel_nand";
+
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				bootstrap@0 {
+					label = "bootstrap";
+					reg = <0x0 0x20000>;
+				};
+
+				ubi@20000 {
+					label = "ubi";
+					reg = <0x20000 0x7fe0000>;
+				};
+			};
+		};
+	};
+};
+
+&macb0 {
+	phy-mode = "rmii";
+	status = "okay";
+};
+
+&pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_pwm0_1
+		     &pinctrl_pwm0_pwm1_1>;
+	status = "okay";
+};
+
+&tcb0 {
+	timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
+	};
+};
+
+&usart0 {
+	status = "okay";
+};
+
+&usb0 {
+	num-ports = <1>;
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
 };
