@@ -81,6 +81,7 @@ struct dcn20_hubbub {
 	unsigned int debug_test_index_pstate;
 	struct dcn_watermark_set watermarks;
 	struct dcn20_vmid vmid[16];
+	unsigned int detile_buf_size;
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,
