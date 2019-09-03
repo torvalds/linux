@@ -615,7 +615,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->type = INTEL_OUTPUT_DP_MST;
 	intel_encoder->power_domain = intel_dig_port->base.power_domain;
 	intel_encoder->port = intel_dig_port->base.port;
-	intel_encoder->crtc_mask = BIT(pipe);
+	intel_encoder->crtc_mask = 0x7;
 	intel_encoder->cloneable = 0;
 
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
