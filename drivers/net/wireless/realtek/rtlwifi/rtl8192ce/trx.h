@@ -216,7 +216,7 @@ static inline void set_tx_desc_tx_buffer_address(__le32 *__pdesc, u32  __val)
 	*(__pdesc + 8) = cpu_to_le32(__val);
 }
 
-static inline int get_tx_desc_tx_buffer_address(__le32 *__pdesc)
+static inline u32 get_tx_desc_tx_buffer_address(__le32 *__pdesc)
 {
 	return le32_to_cpu(*((__pdesc + 8)));
 }
@@ -311,12 +311,12 @@ static inline int get_rx_desc_bw(__le32 *__pdesc)
 	return le32_get_bits(*((__pdesc + 3)), BIT(9));
 }
 
-static inline int get_rx_desc_tsfl(__le32 *__pdesc)
+static inline u32 get_rx_desc_tsfl(__le32 *__pdesc)
 {
 	return le32_to_cpu(*((__pdesc + 5)));
 }
 
-static inline int get_rx_desc_buff_addr(__le32 *__pdesc)
+static inline u32 get_rx_desc_buff_addr(__le32 *__pdesc)
 {
 	return le32_to_cpu(*((__pdesc + 6)));
 }
