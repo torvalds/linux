@@ -161,3 +161,10 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 	perf_evlist__for_each_entry(evlist, evsel)
 		perf_evsel__disable(evsel);
 }
+
+u64 perf_evlist__read_format(struct perf_evlist *evlist)
+{
+	struct perf_evsel *first = perf_evlist__first(evlist);
+
+	return first->attr.read_format;
+}

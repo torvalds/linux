@@ -217,7 +217,6 @@ int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct evlist *evlist);
 
-u64 perf_evlist__read_format(struct evlist *evlist);
 u64 __perf_evlist__combined_sample_type(struct evlist *evlist);
 u64 perf_evlist__combined_sample_type(struct evlist *evlist);
 u64 perf_evlist__combined_branch_type(struct evlist *evlist);

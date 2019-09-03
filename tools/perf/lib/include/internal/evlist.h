@@ -66,4 +66,6 @@ static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
 	return list_entry(evlist->entries.prev, struct perf_evsel, node);
 }
 
+u64 perf_evlist__read_format(struct perf_evlist *evlist);
+
 #endif /* __LIBPERF_INTERNAL_EVLIST_H */

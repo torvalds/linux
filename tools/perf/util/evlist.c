@@ -503,7 +503,7 @@ int perf_evlist__id_add_fd(struct evlist *evlist,
 	 * This way does not work with group format read, so bail
 	 * out in that case.
 	 */
-	if (perf_evlist__read_format(evlist) & PERF_FORMAT_GROUP)
+	if (perf_evlist__read_format(&evlist->core) & PERF_FORMAT_GROUP)
 		return -1;
 
 	if (!(evsel->core.attr.read_format & PERF_FORMAT_ID) ||
@@ -1238,12 +1238,6 @@ bool perf_evlist__valid_read_format(struct evlist *evlist)
 	}
 
 	return true;
-}
-
-u64 perf_evlist__read_format(struct evlist *evlist)
-{
-	struct evsel *first = evlist__first(evlist);
-	return first->core.attr.read_format;
 }
 
 u16 perf_evlist__id_hdr_size(struct evlist *evlist)
