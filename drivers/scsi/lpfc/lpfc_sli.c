@@ -4619,8 +4619,10 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
 	rc = lpfc_sli4_brdreset(phba);
-	if (rc)
-		goto error;
+	if (rc) {
+		phba->link_state = LPFC_HBA_ERROR;
+		goto hba_down_queue;
+	}
 
 	spin_lock_irq(&phba->hbalock);
 	phba->pport->stopped = 0;
@@ -4635,8 +4637,7 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 	if (hba_aer_enabled)
 		pci_disable_pcie_error_reporting(phba->pcidev);
 
-error:
-	phba->link_state = LPFC_HBA_ERROR;
+hba_down_queue:
 	lpfc_hba_down_post(phba);
 	lpfc_sli4_queue_destroy(phba);
 
