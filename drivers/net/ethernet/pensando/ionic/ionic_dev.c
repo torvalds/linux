@@ -9,6 +9,7 @@
 #include <linux/etherdevice.h>
 #include "ionic.h"
 #include "ionic_dev.h"
+#include "ionic_lif.h"
 
 void ionic_init_devinfo(struct ionic *ionic)
 {
@@ -259,4 +260,9 @@ void ionic_dev_cmd_lif_reset(struct ionic_dev *idev, u16 lif_index)
 	};
 
 	ionic_dev_cmd_go(idev, &cmd);
+}
+
+int ionic_db_page_num(struct ionic_lif *lif, int pid)
+{
+	return (lif->hw_index * lif->dbid_count) + pid;
 }

@@ -22,6 +22,9 @@ struct ionic_intr {
 	u32 rsvd[3];
 };
 
+#define IONIC_INTR_CTRL_REGS_MAX	2048
+#define IONIC_INTR_CTRL_COAL_MAX	0x3F
+
 /** enum ionic_intr_mask_vals - valid values for mask and mask_assert.
  * @IONIC_INTR_MASK_CLEAR:	unmask interrupt.
  * @IONIC_INTR_MASK_SET:	mask interrupt.
