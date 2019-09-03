@@ -39,5 +39,6 @@ int igt_damage_iter_damage_one_intersect(void *ignored);
 int igt_damage_iter_damage_one_outside(void *ignored);
 int igt_damage_iter_damage_src_moved(void *ignored);
 int igt_damage_iter_damage_not_visible(void *ignored);
+int igt_dp_mst_calc_pbn_mode(void *ignored);
 
 #endif

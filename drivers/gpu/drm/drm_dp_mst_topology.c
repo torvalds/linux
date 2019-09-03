@@ -47,7 +47,6 @@
  */
 static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 				  char *buf);
-static int test_calc_pbn_mode(void);
 
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port);
 
@@ -3578,30 +3577,6 @@ int drm_dp_calc_pbn_mode(int clock, int bpp)
 }
 EXPORT_SYMBOL(drm_dp_calc_pbn_mode);
 
-static int test_calc_pbn_mode(void)
-{
-	int ret;
-	ret = drm_dp_calc_pbn_mode(154000, 30);
-	if (ret != 689) {
-		DRM_ERROR("PBN calculation test failed - clock %d, bpp %d, expected PBN %d, actual PBN %d.\n",
-				154000, 30, 689, ret);
-		return -EINVAL;
-	}
-	ret = drm_dp_calc_pbn_mode(234000, 30);
-	if (ret != 1047) {
-		DRM_ERROR("PBN calculation test failed - clock %d, bpp %d, expected PBN %d, actual PBN %d.\n",
-				234000, 30, 1047, ret);
-		return -EINVAL;
-	}
-	ret = drm_dp_calc_pbn_mode(297000, 24);
-	if (ret != 1063) {
-		DRM_ERROR("PBN calculation test failed - clock %d, bpp %d, expected PBN %d, actual PBN %d.\n",
-				297000, 24, 1063, ret);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /* we want to kick the TX after we've ack the up/down IRQs. */
 static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr)
 {
@@ -3979,8 +3954,6 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mgr->proposed_vcpis)
 		return -ENOMEM;
 	set_bit(0, &mgr->payload_mask);
-	if (test_calc_pbn_mode() < 0)
-		DRM_ERROR("MST PBN self-test failed\n");
 
 	mst_state = kzalloc(sizeof(*mst_state), GFP_KERNEL);
 	if (mst_state == NULL)
