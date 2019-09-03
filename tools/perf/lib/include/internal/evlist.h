@@ -68,4 +68,8 @@ static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
 
 u64 perf_evlist__read_format(struct perf_evlist *evlist);
 
+void perf_evlist__id_add(struct perf_evlist *evlist,
+			 struct perf_evsel *evsel,
+			 int cpu, int thread, u64 id);
+
 #endif /* __LIBPERF_INTERNAL_EVLIST_H */

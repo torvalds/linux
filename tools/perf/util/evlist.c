@@ -461,26 +461,6 @@ int perf_evlist__poll(struct evlist *evlist, int timeout)
 	return fdarray__poll(&evlist->core.pollfd, timeout);
 }
 
-static void perf_evlist__id_hash(struct evlist *evlist,
-				 struct evsel *evsel,
-				 int cpu, int thread, u64 id)
-{
-	int hash;
-	struct perf_sample_id *sid = SID(evsel, cpu, thread);
-
-	sid->id = id;
-	sid->evsel = &evsel->core;
-	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
-	hlist_add_head(&sid->node, &evlist->core.heads[hash]);
-}
-
-void perf_evlist__id_add(struct evlist *evlist, struct evsel *evsel,
-			 int cpu, int thread, u64 id)
-{
-	perf_evlist__id_hash(evlist, evsel, cpu, thread, id);
-	evsel->core.id[evsel->core.ids++] = id;
-}
-
 int perf_evlist__id_add_fd(struct evlist *evlist,
 			   struct evsel *evsel,
 			   int cpu, int thread, int fd)
@@ -518,7 +498,7 @@ int perf_evlist__id_add_fd(struct evlist *evlist,
 	id = read_data[id_idx];
 
  add:
-	perf_evlist__id_add(evlist, evsel, cpu, thread, id);
+	perf_evlist__id_add(&evlist->core, &evsel->core, cpu, thread, id);
 	return 0;
 }
 

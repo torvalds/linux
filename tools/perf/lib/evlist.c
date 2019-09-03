@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <perf/evlist.h>
 #include <perf/evsel.h>
+#include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/hash.h>
 #include <internal/evlist.h>
 #include <internal/evsel.h>
+#include <internal/xyarray.h>
 #include <linux/zalloc.h>
 #include <stdlib.h>
 #include <perf/cpumap.h>
@@ -167,4 +170,27 @@ u64 perf_evlist__read_format(struct perf_evlist *evlist)
 	struct perf_evsel *first = perf_evlist__first(evlist);
 
 	return first->attr.read_format;
+}
+
+#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
+
+static void perf_evlist__id_hash(struct perf_evlist *evlist,
+				 struct perf_evsel *evsel,
+				 int cpu, int thread, u64 id)
+{
+	int hash;
+	struct perf_sample_id *sid = SID(evsel, cpu, thread);
+
+	sid->id = id;
+	sid->evsel = evsel;
+	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
+	hlist_add_head(&sid->node, &evlist->heads[hash]);
+}
+
+void perf_evlist__id_add(struct perf_evlist *evlist,
+			 struct perf_evsel *evsel,
+			 int cpu, int thread, u64 id)
+{
+	perf_evlist__id_hash(evlist, evsel, cpu, thread, id);
+	evsel->id[evsel->ids++] = id;
 }
