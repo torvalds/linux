@@ -710,9 +710,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	if (!(spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF)))
 		return IRQ_NONE;
 
-	dspi_rxtx(dspi);
-
-	if (!dspi->len) {
+	if (dspi_rxtx(dspi) == 0) {
 		dspi->waitflags = 1;
 		wake_up_interruptible(&dspi->waitq);
 	}
