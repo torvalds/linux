@@ -69,9 +69,9 @@ driver code:
 
 The code implementing a gpio_chip should support multiple instances of the
 controller, preferably using the driver model. That code will configure each
-gpio_chip and issue ``gpiochip_add[_data]()`` or ``devm_gpiochip_add_data()``.
-Removing a GPIO controller should be rare; use ``[devm_]gpiochip_remove()``
-when it is unavoidable.
+gpio_chip and issue gpiochip_add(), gpiochip_add_data(), or
+devm_gpiochip_add_data().  Removing a GPIO controller should be rare; use
+gpiochip_remove() when it is unavoidable.
 
 Often a gpio_chip is part of an instance-specific structure with states not
 exposed by the GPIO interfaces, such as addressing, power management, and more.
@@ -512,11 +512,11 @@ available but we try to move away from this:
 
 If there is a need to exclude certain GPIO lines from the IRQ domain handled by
 these helpers, we can set .irq.need_valid_mask of the gpiochip before
-``[devm_]gpiochip_add_data()`` is called. This allocates an .irq.valid_mask with as
-many bits set as there are GPIO lines in the chip, each bit representing line
-0..n-1. Drivers can exclude GPIO lines by clearing bits from this mask. The mask
-must be filled in before gpiochip_irqchip_add() or gpiochip_irqchip_add_nested()
-is called.
+devm_gpiochip_add_data() or gpiochip_add_data() is called. This allocates an
+.irq.valid_mask with as many bits set as there are GPIO lines in the chip, each
+bit representing line 0..n-1. Drivers can exclude GPIO lines by clearing bits
+from this mask. The mask must be filled in before gpiochip_irqchip_add() or
+gpiochip_irqchip_add_nested() is called.
 
 To use the helpers please keep the following in mind:
 
