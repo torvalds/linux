@@ -838,22 +838,18 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	struct net_device *netdev;
 	char *iv, *rec_seq;
 	struct sk_buff *skb;
-	int rc = -EINVAL;
 	__be64 rcd_sn;
+	int rc;
 
 	if (!ctx)
-		goto out;
+		return -EINVAL;
 
-	if (ctx->priv_ctx_tx) {
-		rc = -EEXIST;
-		goto out;
-	}
+	if (ctx->priv_ctx_tx)
+		return -EEXIST;
 
 	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);
-	if (!start_marker_record) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!start_marker_record)
+		return -ENOMEM;
 
 	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
 	if (!offload_ctx) {
@@ -982,7 +978,8 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	smp_store_release(&sk->sk_validate_xmit_skb, tls_validate_xmit_skb);
 	dev_put(netdev);
 	up_read(&device_offload_lock);
-	goto out;
+
+	return 0;
 
 release_netdev:
 	dev_put(netdev);
@@ -999,7 +996,6 @@ free_offload_ctx:
 	ctx->priv_ctx_tx = NULL;
 free_marker_record:
 	kfree(start_marker_record);
-out:
 	return rc;
 }
 
@@ -1058,7 +1054,11 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 		goto free_sw_resources;
 
 	tls_device_attach(ctx, sk, netdev);
-	goto release_netdev;
+	up_read(&device_offload_lock);
+
+	dev_put(netdev);
+
+	return 0;
 
 free_sw_resources:
 	up_read(&device_offload_lock);
