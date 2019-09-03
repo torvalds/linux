@@ -364,6 +364,11 @@ properties:
           - const: mecer,xms6
           - const: rockchip,rk3229
 
+      - description: Leez RK3399 P710
+        items:
+          - const: leez,p710
+          - const: rockchip,rk3399
+
       - description: mqmaker MiQi
         items:
           - const: mqmaker,miqi
