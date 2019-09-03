@@ -58,6 +58,29 @@ struct ionic_qcq {
 #define napi_to_qcq(napi)	container_of(napi, struct ionic_qcq, napi)
 #define napi_to_cq(napi)	(&napi_to_qcq(napi)->cq)
 
+enum ionic_deferred_work_type {
+	IONIC_DW_TYPE_RX_MODE,
+	IONIC_DW_TYPE_RX_ADDR_ADD,
+	IONIC_DW_TYPE_RX_ADDR_DEL,
+	IONIC_DW_TYPE_LINK_STATUS,
+	IONIC_DW_TYPE_LIF_RESET,
+};
+
+struct ionic_deferred_work {
+	struct list_head list;
+	enum ionic_deferred_work_type type;
+	union {
+		unsigned int rx_mode;
+		u8 addr[ETH_ALEN];
+	};
+};
+
+struct ionic_deferred {
+	spinlock_t lock;		/* lock for deferred work list */
+	struct list_head list;
+	struct work_struct work;
+};
+
 enum ionic_lif_state_flags {
 	IONIC_LIF_INITED,
 	IONIC_LIF_UP,
@@ -85,13 +108,19 @@ struct ionic_lif {
 	u64 last_eid;
 	unsigned int neqs;
 	unsigned int nxqs;
+	unsigned int rx_mode;
 	u64 hw_features;
+	bool mc_overflow;
+	unsigned int nmcast;
+	bool uc_overflow;
+	unsigned int nucast;
 
 	struct ionic_lif_info *info;
 	dma_addr_t info_pa;
 	u32 info_sz;
 
 	struct ionic_rx_filters rx_filters;
+	struct ionic_deferred deferred;
 	unsigned long *dbid_inuse;
 	unsigned int dbid_count;
 	struct dentry *dentry;
