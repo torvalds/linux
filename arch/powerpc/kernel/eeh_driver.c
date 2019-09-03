@@ -803,11 +803,37 @@ static bool eeh_slot_presence_check(struct pci_dev *pdev)
 	if (!ops || !ops->get_adapter_status)
 		return true;
 
+	/* set the attention indicator while we've got the slot ops */
+	if (ops->set_attention_status)
+		ops->set_attention_status(slot->hotplug, 1);
+
 	rc = ops->get_adapter_status(slot->hotplug, &state);
 	if (rc)
 		return true;
 
 	return !!state;
+}
+
+static void eeh_clear_slot_attention(struct pci_dev *pdev)
+{
+	const struct hotplug_slot_ops *ops;
+	struct pci_slot *slot;
+
+	if (!pdev)
+		return;
+
+	if (pdev->error_state == pci_channel_io_perm_failure)
+		return;
+
+	slot = pdev->slot;
+	if (!slot || !slot->hotplug)
+		return;
+
+	ops = slot->hotplug->ops;
+	if (!ops || !ops->set_attention_status)
+		return;
+
+	ops->set_attention_status(slot->hotplug, 0);
 }
 
 /**
@@ -1098,6 +1124,12 @@ out:
 	 * we don't want to modify the PE tree structure so we do it here.
 	 */
 	eeh_pe_cleanup(pe);
+
+	/* clear the slot attention LED for all recovered devices */
+	eeh_for_each_pe(pe, tmp_pe)
+		eeh_pe_for_each_dev(tmp_pe, edev, tmp)
+			eeh_clear_slot_attention(edev->pdev);
+
 	eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 }
 
