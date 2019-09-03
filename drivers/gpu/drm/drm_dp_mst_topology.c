@@ -1903,9 +1903,10 @@ void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_dp_mst_connector_early_unregister);
 
-static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
-			    struct drm_device *dev,
-			    struct drm_dp_link_addr_reply_port *port_msg)
+static void
+drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
+				    struct drm_device *dev,
+				    struct drm_dp_link_addr_reply_port *port_msg)
 {
 	struct drm_dp_mst_port *port;
 	bool ret;
@@ -2008,8 +2009,9 @@ out:
 	drm_dp_mst_topology_put_port(port);
 }
 
-static void drm_dp_update_port(struct drm_dp_mst_branch *mstb,
-			       struct drm_dp_connection_status_notify *conn_stat)
+static void
+drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
+			    struct drm_dp_connection_status_notify *conn_stat)
 {
 	struct drm_dp_mst_port *port;
 	int old_pdt;
@@ -2457,7 +2459,8 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_check_mstb_guid(mstb, reply->guid);
 
 	for (i = 0; i < reply->nports; i++)
-		drm_dp_add_port(mstb, mgr->dev, &reply->ports[i]);
+		drm_dp_mst_handle_link_address_port(mstb, mgr->dev,
+						    &reply->ports[i]);
 
 	drm_kms_helper_hotplug_event(mgr->dev);
 
@@ -3317,7 +3320,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 	}
 
 	if (msg.req_type == DP_CONNECTION_STATUS_NOTIFY) {
-		drm_dp_update_port(mstb, &msg.u.conn_stat);
+		drm_dp_mst_handle_conn_stat(mstb, &msg.u.conn_stat);
 
 		DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n",
 			      msg.u.conn_stat.port_number,
