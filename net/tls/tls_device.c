@@ -159,12 +159,8 @@ static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 	info = ctx->retransmit_hint;
-	if (info && !before(acked_seq, info->end_seq)) {
+	if (info && !before(acked_seq, info->end_seq))
 		ctx->retransmit_hint = NULL;
-		list_del(&info->list);
-		destroy_record(info);
-		deleted_records++;
-	}
 
 	list_for_each_entry_safe(info, temp, &ctx->records_list, list) {
 		if (before(acked_seq, info->end_seq))
