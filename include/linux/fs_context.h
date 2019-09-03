@@ -136,7 +136,7 @@ extern int vfs_get_tree(struct fs_context *fc);
 extern void put_fs_context(struct fs_context *fc);
 
 /*
- * sget() wrapper to be called from the ->get_tree() op.
+ * sget() wrappers to be called from the ->get_tree() op.
  */
 enum vfs_get_super_keying {
 	vfs_get_single_super,	/* Only one such superblock may exist */
@@ -147,12 +147,17 @@ extern int vfs_get_super(struct fs_context *fc,
 			 enum vfs_get_super_keying keying,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
+
 extern int get_tree_nodev(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
 extern int get_tree_single(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
+extern int get_tree_keyed(struct fs_context *fc,
+			 int (*fill_super)(struct super_block *sb,
+					   struct fs_context *fc),
+			 void *key);
 
 extern const struct file_operations fscontext_fops;
 

@@ -1211,6 +1211,16 @@ int get_tree_single(struct fs_context *fc,
 }
 EXPORT_SYMBOL(get_tree_single);
 
+int get_tree_keyed(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc),
+		void *key)
+{
+	fc->s_fs_info = key;
+	return vfs_get_super(fc, vfs_get_keyed_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_keyed);
+
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
 {
