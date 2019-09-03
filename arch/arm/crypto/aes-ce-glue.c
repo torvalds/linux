@@ -25,25 +25,25 @@ MODULE_LICENSE("GPL v2");
 asmlinkage u32 ce_aes_sub(u32 input);
 asmlinkage void ce_aes_invert(void *dst, void *src);
 
-asmlinkage void ce_aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[],
+asmlinkage void ce_aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[],
 				   int rounds, int blocks);
-asmlinkage void ce_aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[],
+asmlinkage void ce_aes_ecb_decrypt(u8 out[], u8 const in[], u32 const rk[],
 				   int rounds, int blocks);
 
-asmlinkage void ce_aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[],
+asmlinkage void ce_aes_cbc_encrypt(u8 out[], u8 const in[], u32 const rk[],
 				   int rounds, int blocks, u8 iv[]);
-asmlinkage void ce_aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[],
+asmlinkage void ce_aes_cbc_decrypt(u8 out[], u8 const in[], u32 const rk[],
 				   int rounds, int blocks, u8 iv[]);
 
-asmlinkage void ce_aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[],
+asmlinkage void ce_aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
 				   int rounds, int blocks, u8 ctr[]);
 
-asmlinkage void ce_aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[],
+asmlinkage void ce_aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[],
 				   int rounds, int blocks, u8 iv[],
-				   u8 const rk2[], int first);
-asmlinkage void ce_aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[],
+				   u32 const rk2[], int first);
+asmlinkage void ce_aes_xts_decrypt(u8 out[], u8 const in[], u32 const rk1[],
 				   int rounds, int blocks, u8 iv[],
-				   u8 const rk2[], int first);
+				   u32 const rk2[], int first);
 
 struct aes_block {
 	u8 b[AES_BLOCK_SIZE];
@@ -182,7 +182,7 @@ static int ecb_encrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_ecb_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key_enc, num_rounds(ctx), blocks);
+				   ctx->key_enc, num_rounds(ctx), blocks);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
@@ -202,7 +202,7 @@ static int ecb_decrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_ecb_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key_dec, num_rounds(ctx), blocks);
+				   ctx->key_dec, num_rounds(ctx), blocks);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
@@ -222,7 +222,7 @@ static int cbc_encrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_cbc_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key_enc, num_rounds(ctx), blocks,
+				   ctx->key_enc, num_rounds(ctx), blocks,
 				   walk.iv);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
@@ -243,7 +243,7 @@ static int cbc_decrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_cbc_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key_dec, num_rounds(ctx), blocks,
+				   ctx->key_dec, num_rounds(ctx), blocks,
 				   walk.iv);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
@@ -263,7 +263,7 @@ static int ctr_encrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
 		ce_aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key_enc, num_rounds(ctx), blocks,
+				   ctx->key_enc, num_rounds(ctx), blocks,
 				   walk.iv);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
@@ -278,8 +278,8 @@ static int ctr_encrypt(struct skcipher_request *req)
 		 */
 		blocks = -1;
 
-		ce_aes_ctr_encrypt(tail, NULL, (u8 *)ctx->key_enc,
-				   num_rounds(ctx), blocks, walk.iv);
+		ce_aes_ctr_encrypt(tail, NULL, ctx->key_enc, num_rounds(ctx),
+				   blocks, walk.iv);
 		crypto_xor_cpy(tdst, tsrc, tail, nbytes);
 		err = skcipher_walk_done(&walk, 0);
 	}
@@ -324,8 +324,8 @@ static int xts_encrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	for (first = 1; (blocks = (walk.nbytes / AES_BLOCK_SIZE)); first = 0) {
 		ce_aes_xts_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key1.key_enc, rounds, blocks,
-				   walk.iv, (u8 *)ctx->key2.key_enc, first);
+				   ctx->key1.key_enc, rounds, blocks, walk.iv,
+				   ctx->key2.key_enc, first);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();
@@ -346,8 +346,8 @@ static int xts_decrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	for (first = 1; (blocks = (walk.nbytes / AES_BLOCK_SIZE)); first = 0) {
 		ce_aes_xts_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				   (u8 *)ctx->key1.key_dec, rounds, blocks,
-				   walk.iv, (u8 *)ctx->key2.key_enc, first);
+				   ctx->key1.key_dec, rounds, blocks, walk.iv,
+				   ctx->key2.key_enc, first);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	kernel_neon_end();

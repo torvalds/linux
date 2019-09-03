@@ -154,9 +154,9 @@ ENDPROC(aes_decrypt_3x)
 	.endm
 
 	/*
-	 * aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks)
-	 * aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_ecb_decrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks)
 	 */
 ENTRY(ce_aes_ecb_encrypt)
@@ -212,9 +212,9 @@ ENTRY(ce_aes_ecb_decrypt)
 ENDPROC(ce_aes_ecb_decrypt)
 
 	/*
-	 * aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_cbc_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 iv[])
-	 * aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_cbc_decrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 iv[])
 	 */
 ENTRY(ce_aes_cbc_encrypt)
@@ -272,7 +272,7 @@ ENTRY(ce_aes_cbc_decrypt)
 ENDPROC(ce_aes_cbc_decrypt)
 
 	/*
-	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 ctr[])
 	 */
 ENTRY(ce_aes_ctr_encrypt)
@@ -349,10 +349,10 @@ ENTRY(ce_aes_ctr_encrypt)
 ENDPROC(ce_aes_ctr_encrypt)
 
 	/*
-	 * aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 iv[], u8 const rk2[], int first)
-	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 iv[], u8 const rk2[], int first)
+	 * aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[], int rounds,
+	 *		   int blocks, u8 iv[], u32 const rk2[], int first)
+	 * aes_xts_decrypt(u8 out[], u8 const in[], u32 const rk1[], int rounds,
+	 *		   int blocks, u8 iv[], u32 const rk2[], int first)
 	 */
 
 	.macro		next_tweak, out, in, const, tmp
