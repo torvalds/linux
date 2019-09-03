@@ -65,6 +65,15 @@
 		reg = <0x0 0x48000000 0x0 0x78000000>;
 	};
 
+	reg_12p0v: regulator-12p0v {
+		compatible = "regulator-fixed";
+		regulator-name = "D12.0V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	sound: sound {
 		compatible = "simple-audio-card";
 
@@ -73,12 +82,12 @@
 		simple-audio-card,bitclock-master = <&sndcpu>;
 		simple-audio-card,frame-master = <&sndcpu>;
 
-		sndcpu: simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-		};
-
 		sndcodec: simple-audio-card,codec {
 			sound-dai = <&tda19988>;
+		};
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
 		};
 	};
 
@@ -271,14 +280,14 @@
 		function = "du";
 	};
 
-	i2c1_pins: i2c1 {
-		groups = "i2c1_b";
-		function = "i2c1";
-	};
-
 	hscif2_pins: hscif2 {
 		groups = "hscif2_data_a", "hscif2_ctrl_a";
 		function = "hscif2";
+	};
+
+	i2c1_pins: i2c1 {
+		groups = "i2c1_b";
+		function = "i2c1";
 	};
 
 	scif2_pins: scif2 {
@@ -304,14 +313,14 @@
 		power-source = <1800>;
 	};
 
-	sound_pins: sound {
-		groups = "ssi01239_ctrl", "ssi0_data";
-		function = "ssi";
-	};
-
 	sound_clk_pins: sound_clk {
 		groups = "audio_clkout1_a";
 		function = "audio_clk";
+	};
+
+	sound_pins: sound {
+		groups = "ssi01239_ctrl", "ssi0_data";
+		function = "ssi";
 	};
 
 	usb30_pins: usb30 {
