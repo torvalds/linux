@@ -4,7 +4,6 @@
  * Copyright (C) 2015 Naveen N. Rao, IBM Corporation
  */
 
-#include "debug.h"
 #include "dso.h"
 #include "symbol.h"
 #include "map.h"

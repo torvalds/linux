@@ -6,7 +6,6 @@
 #include "gtk.h"
 #include "../ui.h"
 #include "../helpline.h"
-#include "../../util/debug.h"
 
 static void gtk_helpline_pop(void)
 {
