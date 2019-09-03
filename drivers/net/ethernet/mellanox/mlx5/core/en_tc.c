@@ -988,10 +988,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 					    &flow_act, dest, dest_ix);
 	mutex_unlock(&priv->fs.tc.t_lock);
 
-	if (IS_ERR(flow->rule[0]))
-		return PTR_ERR(flow->rule[0]);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(flow->rule[0]);
 }
 
 static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
