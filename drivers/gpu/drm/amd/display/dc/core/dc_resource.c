@@ -1848,7 +1848,7 @@ static int acquire_resource_from_hw_enabled_state(
 		struct dc_stream_state *stream)
 {
 	struct dc_link *link = stream->link;
-	unsigned int inst, tg_inst, i;
+	unsigned int i, inst, tg_inst = 0;
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))

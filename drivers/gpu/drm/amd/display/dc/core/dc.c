@@ -974,7 +974,7 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 {
 	struct timing_generator *tg;
 	struct dc_link *link = sink->link;
-	unsigned int enc_inst, tg_inst, i;
+	unsigned int i, enc_inst, tg_inst = 0;
 
 	// Seamless port only support single DP and EDP so far
 	if (sink->sink_signal != SIGNAL_TYPE_DISPLAY_PORT &&
