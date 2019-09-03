@@ -3396,6 +3396,8 @@ static void fill_stream_properties_from_drm_display_mode(
 	struct dc_crtc_timing *timing_out = &stream->timing;
 	const struct drm_display_info *info = &connector->display_info;
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct hdmi_vendor_infoframe hv_frame;
+	struct hdmi_avi_infoframe avi_frame;
 	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
 	timing_out->h_border_left = 0;
@@ -3431,6 +3433,13 @@ static void fill_stream_properties_from_drm_display_mode(
 			timing_out->flags.HSYNC_POSITIVE_POLARITY = 1;
 		if (mode_in->flags & DRM_MODE_FLAG_PVSYNC)
 			timing_out->flags.VSYNC_POSITIVE_POLARITY = 1;
+	}
+
+	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+		drm_hdmi_avi_infoframe_from_display_mode(&avi_frame, (struct drm_connector *)connector, mode_in);
+		timing_out->vic = avi_frame.video_code;
+		drm_hdmi_vendor_infoframe_from_display_mode(&hv_frame, (struct drm_connector *)connector, mode_in);
+		timing_out->hdmi_vic = hv_frame.vic;
 	}
 
 	timing_out->h_addressable = mode_in->crtc_hdisplay;
