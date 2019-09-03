@@ -3760,8 +3760,6 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		list_del(&port->next);
 		mutex_unlock(&mgr->destroy_connector_lock);
 
-		INIT_LIST_HEAD(&port->next);
-
 		mgr->cbs->destroy_connector(mgr, port->connector);
 
 		drm_dp_port_teardown_pdt(port, port->pdt);
