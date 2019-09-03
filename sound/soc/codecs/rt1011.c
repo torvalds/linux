@@ -978,9 +978,6 @@ static bool rt1011_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9435, 37, 0);
-static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -1739, 37, 0);
-
 static const char * const rt1011_din_source_select[] = {
 	"Left",
 	"Right",
@@ -1028,6 +1025,8 @@ static const char * const rt1011_tdm_adc_swap_select[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(rt1011_tdm_adc1_1_enum,	RT1011_TDM1_SET_3, 6,
+	rt1011_tdm_adc_swap_select);
+static SOC_ENUM_SINGLE_DECL(rt1011_tdm_adc2_1_enum,	RT1011_TDM1_SET_3, 4,
 	rt1011_tdm_adc_swap_select);
 
 static void rt1011_reset(struct regmap *regmap)
@@ -1223,7 +1222,10 @@ static int rt1011_bq_drc_info(struct snd_kcontrol *kcontrol,
 static int rt1011_r0_cali_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = 0;
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt1011_priv *rt1011 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = rt1011->cali_done;
 
 	return 0;
 }
@@ -1237,6 +1239,7 @@ static int rt1011_r0_cali_put(struct snd_kcontrol *kcontrol,
 	if (!component->card->instantiated)
 		return 0;
 
+	rt1011->cali_done = 0;
 	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF &&
 		ucontrol->value.integer.value[0])
 		rt1011_calibrate(rt1011, 1);
@@ -1333,7 +1336,8 @@ static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	/* TDM1 Data Out Selection */
 	SOC_ENUM("TDM1 DOUT Source", rt1011_tdm1_adc1_dat_enum),
 	SOC_ENUM("TDM1 DOUT Location", rt1011_tdm1_adc1_loc_enum),
-	SOC_ENUM("TDM1 ADCDAT Swap Select", rt1011_tdm_adc1_1_enum),
+	SOC_ENUM("TDM1 ADC1DAT Swap Select", rt1011_tdm_adc1_1_enum),
+	SOC_ENUM("TDM1 ADC2DAT Swap Select", rt1011_tdm_adc2_1_enum),
 
 	/* Data Out Mode */
 	SOC_ENUM("I2S ADC DOUT Mode", rt1011_adc_dout_mode_enum),
@@ -1355,6 +1359,10 @@ static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	SOC_SINGLE_EXT("R0 Calibration", SND_SOC_NOPM, 0, 1, 0,
 		rt1011_r0_cali_get, rt1011_r0_cali_put),
 	RT1011_R0_LOAD("R0 Load Mode"),
+
+	/* R0 temperature */
+	SOC_SINGLE("R0 Temperature", RT1011_STP_INITIAL_RESISTANCE_TEMP,
+		2, 255, 0),
 };
 
 static int rt1011_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
@@ -2139,6 +2147,7 @@ static int rt1011_calibrate(struct rt1011_priv *rt1011, unsigned char cali_flag)
 			r0_factor = ((format / r0[0] * 100) / 128)
 							- (r0_integer * 100);
 			rt1011->r0_reg = r0[0];
+			rt1011->cali_done = 1;
 			dev_info(dev,	"r0 resistance about %d.%02d ohm, reg=0x%X\n",
 				r0_integer, r0_factor, r0[0]);
 		}
@@ -2188,6 +2197,13 @@ static void rt1011_calibration_work(struct work_struct *work)
 	struct snd_soc_component *component = rt1011->component;
 
 	rt1011_calibrate(rt1011, 1);
+
+	/*
+	 * This flag should reset after booting.
+	 * The factory test will do calibration again and use this flag to check
+	 * whether the calibration completed
+	 */
+	rt1011->cali_done = 0;
 
 	/* initial */
 	rt1011_reg_init(component);
