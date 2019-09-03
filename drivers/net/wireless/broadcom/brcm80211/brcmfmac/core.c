@@ -1224,12 +1224,15 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 		return -ENOMEM;
 
 	wiphy = wiphy_new(ops, sizeof(*drvr));
-	if (!wiphy)
+	if (!wiphy) {
+		kfree(ops);
 		return -ENOMEM;
+	}
 
 	set_wiphy_dev(wiphy, dev);
 	drvr = wiphy_priv(wiphy);
 	drvr->wiphy = wiphy;
+	drvr->ops = ops;
 
 	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
 		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
@@ -1262,12 +1265,10 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 		goto fail;
 	}
 
-	drvr->config->ops = ops;
 	return 0;
 
 fail:
 	brcmf_detach(dev);
-	kfree(ops);
 
 	return ret;
 }
@@ -1352,6 +1353,8 @@ void brcmf_detach(struct device *dev)
 	}
 
 	bus_if->drvr = NULL;
+
+	kfree(drvr->ops);
 
 	wiphy_free(drvr->wiphy);
 }
