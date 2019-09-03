@@ -293,12 +293,11 @@ AES_ENTRY(aes_cbc_cts_decrypt)
 	ld1		{v5.16b}, [x5]			/* get iv */
 	dec_prepare	w3, x2, x6
 
-	tbl		v2.16b, {v1.16b}, v4.16b
 	decrypt_block	v0, w3, x2, x6, w7
-	eor		v2.16b, v2.16b, v0.16b
+	tbl		v2.16b, {v0.16b}, v3.16b
+	eor		v2.16b, v2.16b, v1.16b
 
 	tbx		v0.16b, {v1.16b}, v4.16b
-	tbl		v2.16b, {v2.16b}, v3.16b
 	decrypt_block	v0, w3, x2, x6, w7
 	eor		v0.16b, v0.16b, v5.16b		/* xor with iv */
 
