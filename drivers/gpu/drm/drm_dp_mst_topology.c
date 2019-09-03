@@ -271,6 +271,8 @@ static void drm_dp_encode_sideband_req(struct drm_dp_sideband_msg_req_body *req,
 
 	switch (req->req_type) {
 	case DP_ENUM_PATH_RESOURCES:
+	case DP_POWER_DOWN_PHY:
+	case DP_POWER_UP_PHY:
 		buf[idx] = (req->u.port_num.port_number & 0xf) << 4;
 		idx++;
 		break;
@@ -357,12 +359,6 @@ static void drm_dp_encode_sideband_req(struct drm_dp_sideband_msg_req_body *req,
 		idx++;
 		memcpy(&buf[idx], req->u.i2c_write.bytes, req->u.i2c_write.num_bytes);
 		idx += req->u.i2c_write.num_bytes;
-		break;
-
-	case DP_POWER_DOWN_PHY:
-	case DP_POWER_UP_PHY:
-		buf[idx] = (req->u.port_num.port_number & 0xf) << 4;
-		idx++;
 		break;
 	}
 	raw->cur_len = idx;
