@@ -287,15 +287,13 @@ static int cdns3_ep0_feature_handle_device(struct cdns3_device *priv_dev,
 	enum usb_device_speed speed;
 	int ret = 0;
 	u32 wValue;
-	u32 wIndex;
 	u16 tmode;
 
 	wValue = le16_to_cpu(ctrl->wValue);
-	wIndex = le16_to_cpu(ctrl->wIndex);
 	state = priv_dev->gadget.state;
 	speed = priv_dev->gadget.speed;
 
-	switch (ctrl->wValue) {
+	switch (wValue) {
 	case USB_DEVICE_REMOTE_WAKEUP:
 		priv_dev->wake_up_flag = !!set;
 		break;
