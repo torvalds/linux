@@ -1011,11 +1011,11 @@ static void __init rk3308_clk_init(struct device_node *np)
 	rockchip_clk_register_branches(ctx, rk3308_clk_branches,
 				       ARRAY_SIZE(rk3308_clk_branches));
 	if (soc_is_rk3308b())
-		rockchip_clk_register_branches(ctx, rk3308_dclk_vop_frac,
-					       ARRAY_SIZE(rk3308_dclk_vop_frac));
-	else
 		rockchip_clk_register_branches(ctx, rk3308b_dclk_vop_frac,
 					       ARRAY_SIZE(rk3308b_dclk_vop_frac));
+	else
+		rockchip_clk_register_branches(ctx, rk3308_dclk_vop_frac,
+					       ARRAY_SIZE(rk3308_dclk_vop_frac));
 	rockchip_clk_protect_critical(rk3308_critical_clocks,
 				      ARRAY_SIZE(rk3308_critical_clocks));
 
