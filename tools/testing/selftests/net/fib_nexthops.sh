@@ -212,6 +212,8 @@ check_output()
 			printf "        ${out}\n"
 			printf "    Expected:\n"
 			printf "        ${expected}\n\n"
+		else
+			echo "      WARNING: Unexpected route entry"
 		fi
 	fi
 
@@ -274,7 +276,7 @@ ipv6_fcnal()
 
 	run_cmd "$IP nexthop get id 52"
 	log_test $? 0 "Get nexthop by id"
-	check_nexthop "id 52" "id 52 via 2001:db8:91::2 dev veth1"
+	check_nexthop "id 52" "id 52 via 2001:db8:91::2 dev veth1 scope link"
 
 	run_cmd "$IP nexthop del id 52"
 	log_test $? 0 "Delete nexthop by id"
@@ -479,12 +481,12 @@ ipv6_fcnal_runtime()
 	run_cmd "$IP -6 nexthop add id 85 dev veth1"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 85"
 	log_test $? 0 "IPv6 route with device only nexthop"
-	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 85 dev veth1"
+	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 85 dev veth1 metric 1024 pref medium"
 
 	run_cmd "$IP nexthop add id 123 group 81/85"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 123"
 	log_test $? 0 "IPv6 multipath route with nexthop mix - dev only + gw"
-	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 85 nexthop via 2001:db8:91::2 dev veth1 nexthop dev veth1"
+	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 123 metric 1024 nexthop via 2001:db8:91::2 dev veth1 weight 1 nexthop dev veth1 weight 1 pref medium"
 
 	#
 	# IPv6 route with v4 nexthop - not allowed
@@ -538,7 +540,7 @@ ipv4_fcnal()
 
 	run_cmd "$IP nexthop get id 12"
 	log_test $? 0 "Get nexthop by id"
-	check_nexthop "id 12" "id 12 via 172.16.1.2 src 172.16.1.1 dev veth1 scope link"
+	check_nexthop "id 12" "id 12 via 172.16.1.2 dev veth1 scope link"
 
 	run_cmd "$IP nexthop del id 12"
 	log_test $? 0 "Delete nexthop by id"
@@ -685,7 +687,7 @@ ipv4_withv6_fcnal()
 	set +e
 	run_cmd "$IP ro add 172.16.101.1/32 nhid 11"
 	log_test $? 0 "IPv6 nexthop with IPv4 route"
-	check_route "172.16.101.1" "172.16.101.1 nhid 11 via ${lladdr} dev veth1"
+	check_route "172.16.101.1" "172.16.101.1 nhid 11 via inet6 ${lladdr} dev veth1"
 
 	set -e
 	run_cmd "$IP nexthop add id 12 via 172.16.1.2 dev veth1"
@@ -694,11 +696,11 @@ ipv4_withv6_fcnal()
 	run_cmd "$IP ro replace 172.16.101.1/32 nhid 101"
 	log_test $? 0 "IPv6 nexthop with IPv4 route"
 
-	check_route "172.16.101.1" "172.16.101.1 nhid 101 nexthop via ${lladdr} dev veth1 weight 1 nexthop via 172.16.1.2 dev veth1 weight 1"
+	check_route "172.16.101.1" "172.16.101.1 nhid 101 nexthop via inet6 ${lladdr} dev veth1 weight 1 nexthop via 172.16.1.2 dev veth1 weight 1"
 
 	run_cmd "$IP ro replace 172.16.101.1/32 via inet6 ${lladdr} dev veth1"
 	log_test $? 0 "IPv4 route with IPv6 gateway"
-	check_route "172.16.101.1" "172.16.101.1 via ${lladdr} dev veth1"
+	check_route "172.16.101.1" "172.16.101.1 via inet6 ${lladdr} dev veth1"
 
 	run_cmd "$IP ro replace 172.16.101.1/32 via inet6 2001:db8:50::1 dev veth1"
 	log_test $? 2 "IPv4 route with invalid IPv6 gateway"
@@ -785,10 +787,10 @@ ipv4_fcnal_runtime()
 	log_test $? 0 "IPv4 route with device only nexthop"
 	check_route "172.16.101.1" "172.16.101.1 nhid 85 dev veth1"
 
-	run_cmd "$IP nexthop add id 122 group 21/85"
-	run_cmd "$IP ro replace 172.16.101.1/32 nhid 122"
+	run_cmd "$IP nexthop add id 123 group 21/85"
+	run_cmd "$IP ro replace 172.16.101.1/32 nhid 123"
 	log_test $? 0 "IPv4 multipath route with nexthop mix - dev only + gw"
-	check_route "172.16.101.1" "172.16.101.1 nhid 85 nexthop via 172.16.1.2 dev veth1 nexthop dev veth1"
+	check_route "172.16.101.1" "172.16.101.1 nhid 123 nexthop via 172.16.1.2 dev veth1 weight 1 nexthop dev veth1 weight 1"
 
 	#
 	# IPv4 with IPv6
@@ -820,7 +822,7 @@ ipv4_fcnal_runtime()
 	run_cmd "$IP ro replace 172.16.101.1/32 nhid 101"
 	log_test $? 0 "IPv4 route with mixed v4-v6 multipath route"
 
-	check_route "172.16.101.1" "172.16.101.1 nhid 101 nexthop via ${lladdr} dev veth1 weight 1 nexthop via 172.16.1.2 dev veth1 weight 1"
+	check_route "172.16.101.1" "172.16.101.1 nhid 101 nexthop via inet6 ${lladdr} dev veth1 weight 1 nexthop via 172.16.1.2 dev veth1 weight 1"
 
 	run_cmd "ip netns exec me ping -c1 -w1 172.16.101.1"
 	log_test $? 0 "IPv6 nexthop with IPv4 route"
