@@ -32,10 +32,13 @@ properties:
           - const: arm,mali-t860
       - items:
           - enum:
+             - samsung,exynos5250-mali
+          - const: arm,mali-t604
+      - items:
+          - enum:
              - samsung,exynos5433-mali
           - const: arm,mali-t760
 
-          # "arm,mali-t604"
           # "arm,mali-t624"
           # "arm,mali-t628"
           # "arm,mali-t830"
