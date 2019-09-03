@@ -2252,6 +2252,8 @@ static void ice_deinit_pf(struct ice_pf *pf)
 static int ice_init_pf(struct ice_pf *pf)
 {
 	bitmap_zero(pf->flags, ICE_PF_FLAGS_NBITS);
+	if (pf->hw.func_caps.common_cap.dcb)
+		set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 #ifdef CONFIG_PCI_IOV
 	if (pf->hw.func_caps.common_cap.sr_iov_1_1) {
 		struct ice_hw *hw = &pf->hw;
@@ -2529,13 +2531,12 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		goto err_init_pf_unroll;
 	}
 
-	err = ice_init_pf_dcb(pf, false);
-	if (err) {
-		clear_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
-		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
-
-		/* do not fail overall init if DCB init fails */
-		err = 0;
+	if (test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags)) {
+		/* Note: DCB init failure is non-fatal to load */
+		if (ice_init_pf_dcb(pf, false)) {
+			clear_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
+			clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
+		}
 	}
 
 	ice_determine_q_usage(pf);

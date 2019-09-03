@@ -474,7 +474,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		}
 
 		pf->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
-		set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 		return 0;
 	}
 
@@ -482,8 +481,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 	/* DCBX in FW and LLDP enabled in FW */
 	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
-
-	set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 
 	err = ice_dcb_init_cfg(pf, locked);
 	if (err)
