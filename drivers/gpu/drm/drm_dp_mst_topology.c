@@ -3271,7 +3271,9 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 {
-	int ret = 0;
+	struct drm_dp_sideband_msg_req_body msg;
+	struct drm_dp_mst_branch *mstb = NULL;
+	bool seqno;
 
 	if (!drm_dp_get_one_sb_msg(mgr, true)) {
 		memset(&mgr->up_req_recv, 0,
@@ -3279,62 +3281,60 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 		return 0;
 	}
 
-	if (mgr->up_req_recv.have_eomt) {
-		struct drm_dp_sideband_msg_req_body msg;
-		struct drm_dp_mst_branch *mstb = NULL;
-		bool seqno;
+	if (!mgr->up_req_recv.have_eomt)
+		return 0;
 
-		if (!mgr->up_req_recv.initial_hdr.broadcast) {
-			mstb = drm_dp_get_mst_branch_device(mgr,
-							    mgr->up_req_recv.initial_hdr.lct,
-							    mgr->up_req_recv.initial_hdr.rad);
-			if (!mstb) {
-				DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
-				memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
-				return 0;
-			}
+	if (!mgr->up_req_recv.initial_hdr.broadcast) {
+		mstb = drm_dp_get_mst_branch_device(mgr,
+						    mgr->up_req_recv.initial_hdr.lct,
+						    mgr->up_req_recv.initial_hdr.rad);
+		if (!mstb) {
+			DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
+			memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+			return 0;
 		}
-
-		seqno = mgr->up_req_recv.initial_hdr.seqno;
-		drm_dp_sideband_parse_req(&mgr->up_req_recv, &msg);
-
-		if (msg.req_type == DP_CONNECTION_STATUS_NOTIFY) {
-			drm_dp_send_up_ack_reply(mgr, mgr->mst_primary, msg.req_type, seqno, false);
-
-			if (!mstb)
-				mstb = drm_dp_get_mst_branch_device_by_guid(mgr, msg.u.conn_stat.guid);
-
-			if (!mstb) {
-				DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
-				memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
-				return 0;
-			}
-
-			drm_dp_update_port(mstb, &msg.u.conn_stat);
-
-			DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n", msg.u.conn_stat.port_number, msg.u.conn_stat.legacy_device_plug_status, msg.u.conn_stat.displayport_device_plug_status, msg.u.conn_stat.message_capability_status, msg.u.conn_stat.input_port, msg.u.conn_stat.peer_device_type);
-			drm_kms_helper_hotplug_event(mgr->dev);
-
-		} else if (msg.req_type == DP_RESOURCE_STATUS_NOTIFY) {
-			drm_dp_send_up_ack_reply(mgr, mgr->mst_primary, msg.req_type, seqno, false);
-			if (!mstb)
-				mstb = drm_dp_get_mst_branch_device_by_guid(mgr, msg.u.resource_stat.guid);
-
-			if (!mstb) {
-				DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
-				memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
-				return 0;
-			}
-
-			DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
-		}
-
-		if (mstb)
-			drm_dp_mst_topology_put_mstb(mstb);
-
-		memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 	}
-	return ret;
+
+	seqno = mgr->up_req_recv.initial_hdr.seqno;
+	drm_dp_sideband_parse_req(&mgr->up_req_recv, &msg);
+
+	if (msg.req_type == DP_CONNECTION_STATUS_NOTIFY) {
+		drm_dp_send_up_ack_reply(mgr, mgr->mst_primary, msg.req_type, seqno, false);
+
+		if (!mstb)
+			mstb = drm_dp_get_mst_branch_device_by_guid(mgr, msg.u.conn_stat.guid);
+
+		if (!mstb) {
+			DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
+			memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+			return 0;
+		}
+
+		drm_dp_update_port(mstb, &msg.u.conn_stat);
+
+		DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n", msg.u.conn_stat.port_number, msg.u.conn_stat.legacy_device_plug_status, msg.u.conn_stat.displayport_device_plug_status, msg.u.conn_stat.message_capability_status, msg.u.conn_stat.input_port, msg.u.conn_stat.peer_device_type);
+		drm_kms_helper_hotplug_event(mgr->dev);
+
+	} else if (msg.req_type == DP_RESOURCE_STATUS_NOTIFY) {
+		drm_dp_send_up_ack_reply(mgr, mgr->mst_primary, msg.req_type, seqno, false);
+		if (!mstb)
+			mstb = drm_dp_get_mst_branch_device_by_guid(mgr, msg.u.resource_stat.guid);
+
+		if (!mstb) {
+			DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
+			memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+			return 0;
+		}
+
+		DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
+	}
+
+	if (mstb)
+		drm_dp_mst_topology_put_mstb(mstb);
+
+	memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+
+	return 0;
 }
 
 /**
