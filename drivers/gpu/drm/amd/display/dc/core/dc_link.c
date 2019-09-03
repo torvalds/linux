@@ -2718,6 +2718,10 @@ void core_link_enable_stream(
 	enum dc_status status;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) &&
+			dc_is_virtual_signal(pipe_ctx->stream->signal))
+		return;
+
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal)) {
 		stream->link->link_enc->funcs->setup(
 			stream->link->link_enc,
@@ -2859,6 +2863,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
+
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) &&
+			dc_is_virtual_signal(pipe_ctx->stream->signal))
+		return;
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 	update_psp_stream_config(pipe_ctx, true);
