@@ -117,6 +117,41 @@ DEFINE_SMB3_RW_DONE_EVENT(falloc_done);
 /*
  * For handle based calls other than read and write, and get/set info
  */
+DECLARE_EVENT_CLASS(smb3_fd_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid),
+	TP_ARGS(xid, fid, tid, sesid),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+	),
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x fid=0x%llx",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid)
+)
+
+#define DEFINE_SMB3_FD_EVENT(name)          \
+DEFINE_EVENT(smb3_fd_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid),			\
+	TP_ARGS(xid, fid, tid, sesid))
+
+DEFINE_SMB3_FD_EVENT(flush_enter);
+DEFINE_SMB3_FD_EVENT(flush_done);
+DEFINE_SMB3_FD_EVENT(close_enter);
+DEFINE_SMB3_FD_EVENT(close_done);
+
 DECLARE_EVENT_CLASS(smb3_fd_err_class,
 	TP_PROTO(unsigned int xid,
 		__u64	fid,

@@ -2918,6 +2918,7 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
 
+	trace_smb3_close_enter(xid, persistent_fid, tcon->tid, ses->Suid);
 	rc = SMB2_close_init(tcon, &rqst, persistent_fid, volatile_fid);
 	if (rc)
 		goto close_exit;
@@ -2930,7 +2931,9 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 		trace_smb3_close_err(xid, persistent_fid, tcon->tid, ses->Suid,
 				     rc);
 		goto close_exit;
-	}
+	} else
+		trace_smb3_close_done(xid, persistent_fid, tcon->tid,
+				      ses->Suid);
 
 	atomic_dec(&tcon->num_remote_opens);
 
@@ -3353,13 +3356,16 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	if (rc)
 		goto flush_exit;
 
+	trace_smb3_flush_enter(xid, persistent_fid, tcon->tid, ses->Suid);
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
 
 	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_FLUSH_HE);
 		trace_smb3_flush_err(xid, persistent_fid, tcon->tid, ses->Suid,
 				     rc);
-	}
+	} else
+		trace_smb3_flush_done(xid, persistent_fid, tcon->tid,
+				      ses->Suid);
 
  flush_exit:
 	SMB2_flush_free(&rqst);
