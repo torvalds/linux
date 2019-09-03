@@ -84,7 +84,6 @@ err1;	stw	r0,0(r3)
 
 3:	sub	r5,r5,r6
 	cmpldi	r5,128
-	blt	5f
 
 	mflr	r0
 	stdu	r1,-STACKFRAMESIZE(r1)
@@ -99,6 +98,7 @@ err1;	stw	r0,0(r3)
 	std	r22,STK_REG(R22)(r1)
 	std	r0,STACKFRAMESIZE+16(r1)
 
+	blt	5f
 	srdi	r6,r5,7
 	mtctr	r6
 
