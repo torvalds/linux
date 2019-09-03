@@ -563,8 +563,8 @@ void rk3399_vpu_vp8_dec_run(struct hantro_ctx *ctx)
 		hantro_reg_write(vpu, &vp8_dec_filter_disable, 1);
 
 	/* Frame dimensions */
-	mb_width = VP8_MB_WIDTH(width);
-	mb_height = VP8_MB_HEIGHT(height);
+	mb_width = MB_WIDTH(width);
+	mb_height = MB_HEIGHT(height);
 
 	hantro_reg_write(vpu, &vp8_dec_mb_width, mb_width);
 	hantro_reg_write(vpu, &vp8_dec_mb_height, mb_height);

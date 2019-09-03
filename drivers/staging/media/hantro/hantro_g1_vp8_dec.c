@@ -470,8 +470,8 @@ void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 	vdpu_write_relaxed(vpu, reg, G1_REG_DEC_CTRL0);
 
 	/* Frame dimensions */
-	mb_width = VP8_MB_WIDTH(width);
-	mb_height = VP8_MB_HEIGHT(height);
+	mb_width = MB_WIDTH(width);
+	mb_height = MB_HEIGHT(height);
 	reg = G1_REG_DEC_CTRL1_PIC_MB_WIDTH(mb_width) |
 	      G1_REG_DEC_CTRL1_PIC_MB_HEIGHT_P(mb_height) |
 	      G1_REG_DEC_CTRL1_PIC_MB_W_EXT(mb_width >> 9) |

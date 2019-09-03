@@ -26,21 +26,9 @@
 
 #include "hantro_hw.h"
 
-#define VP8_MB_DIM			16
-#define VP8_MB_WIDTH(w)			DIV_ROUND_UP(w, VP8_MB_DIM)
-#define VP8_MB_HEIGHT(h)		DIV_ROUND_UP(h, VP8_MB_DIM)
-
-#define H264_MB_DIM			16
-#define H264_MB_WIDTH(w)		DIV_ROUND_UP(w, H264_MB_DIM)
-#define H264_MB_HEIGHT(h)		DIV_ROUND_UP(h, H264_MB_DIM)
-
-#define MPEG2_MB_DIM			16
-#define MPEG2_MB_WIDTH(w)		DIV_ROUND_UP(w, MPEG2_MB_DIM)
-#define MPEG2_MB_HEIGHT(h)		DIV_ROUND_UP(h, MPEG2_MB_DIM)
-
-#define JPEG_MB_DIM			16
-#define JPEG_MB_WIDTH(w)		DIV_ROUND_UP(w, JPEG_MB_DIM)
-#define JPEG_MB_HEIGHT(h)		DIV_ROUND_UP(h, JPEG_MB_DIM)
+#define MB_DIM			16
+#define MB_WIDTH(w)		DIV_ROUND_UP(w, MB_DIM)
+#define MB_HEIGHT(h)		DIV_ROUND_UP(h, MB_DIM)
 
 struct hantro_ctx;
 struct hantro_codec_ops;

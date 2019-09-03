@@ -251,7 +251,7 @@ static void set_buffers(struct hantro_ctx *ctx)
 		size_t mv_offset = round_up(pic_size, 8);
 
 		if (ctrls->slices[0].flags & V4L2_H264_SLICE_FLAG_BOTTOM_FIELD)
-			mv_offset += 32 * H264_MB_WIDTH(ctx->dst_fmt.width);
+			mv_offset += 32 * MB_WIDTH(ctx->dst_fmt.width);
 
 		vdpu_write_relaxed(vpu, dst_dma + mv_offset,
 				   G1_REG_ADDR_DIR_MV);

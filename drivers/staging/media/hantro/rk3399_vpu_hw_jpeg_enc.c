@@ -149,8 +149,8 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	reg = VEPU_REG_AXI_CTRL_BURST_LEN(16);
 	vepu_write_relaxed(vpu, reg, VEPU_REG_AXI_CTRL);
 
-	reg = VEPU_REG_MB_WIDTH(JPEG_MB_WIDTH(ctx->src_fmt.width))
-		| VEPU_REG_MB_HEIGHT(JPEG_MB_HEIGHT(ctx->src_fmt.height))
+	reg = VEPU_REG_MB_WIDTH(MB_WIDTH(ctx->src_fmt.width))
+		| VEPU_REG_MB_HEIGHT(MB_HEIGHT(ctx->src_fmt.height))
 		| VEPU_REG_FRAME_TYPE_INTRA
 		| VEPU_REG_ENCODE_FORMAT_JPEG
 		| VEPU_REG_ENCODE_ENABLE;
