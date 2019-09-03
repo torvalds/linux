@@ -12,7 +12,7 @@
 
 #define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
 #define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
-#define IONIC_RX_COPYBREAK_DEFAULT		256
+#define IONIC_RX_COPYBREAK_DEFAULT	256
 
 struct ionic_tx_stats {
 	u64 dma_map_err;
@@ -106,8 +106,22 @@ struct ionic_deferred {
 	struct work_struct work;
 };
 
+struct ionic_lif_sw_stats {
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 tx_tso;
+	u64 tx_no_csum;
+	u64 tx_csum;
+	u64 rx_csum_none;
+	u64 rx_csum_complete;
+	u64 rx_csum_error;
+};
+
 enum ionic_lif_state_flags {
 	IONIC_LIF_INITED,
+	IONIC_LIF_SW_DEBUG_STATS,
 	IONIC_LIF_UP,
 	IONIC_LIF_LINK_CHECK_REQUESTED,
 	IONIC_LIF_QUEUE_RESET,
