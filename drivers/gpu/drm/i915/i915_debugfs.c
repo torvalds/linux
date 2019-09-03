@@ -237,6 +237,9 @@ static int per_file_stats(int id, void *ptr, void *data)
 	struct file_stats *stats = data;
 	struct i915_vma *vma;
 
+	if (!kref_get_unless_zero(&obj->base.refcount))
+		return 0;
+
 	stats->count++;
 	stats->total += obj->base.size;
 	if (!atomic_read(&obj->bind_count))
@@ -284,6 +287,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	}
 	spin_unlock(&obj->vma.lock);
 
+	i915_gem_object_put(obj);
 	return 0;
 }
 
@@ -313,10 +317,12 @@ static void print_context_stats(struct seq_file *m,
 				    i915_gem_context_lock_engines(ctx), it) {
 			intel_context_lock_pinned(ce);
 			if (intel_context_is_pinned(ce)) {
+				rcu_read_lock();
 				if (ce->state)
 					per_file_stats(0,
 						       ce->state->obj, &kstats);
 				per_file_stats(0, ce->ring->vma->obj, &kstats);
+				rcu_read_unlock();
 			}
 			intel_context_unlock_pinned(ce);
 		}
@@ -328,9 +334,9 @@ static void print_context_stats(struct seq_file *m,
 			struct task_struct *task;
 			char name[80];
 
-			spin_lock(&file->table_lock);
+			rcu_read_lock();
 			idr_for_each(&file->object_idr, per_file_stats, &stats);
-			spin_unlock(&file->table_lock);
+			rcu_read_unlock();
 
 			rcu_read_lock();
 			task = pid_task(ctx->pid ?: file->pid, PIDTYPE_PID);
