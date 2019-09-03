@@ -197,12 +197,12 @@ int siw_check_mem(struct ib_pd *pd, struct siw_mem *mem, u64 addr,
 	 */
 	if (addr < mem->va || addr + len > mem->va + mem->len) {
 		siw_dbg_pd(pd, "MEM interval len %d\n", len);
-		siw_dbg_pd(pd, "[0x%016llx, 0x%016llx] out of bounds\n",
-			   (unsigned long long)addr,
-			   (unsigned long long)(addr + len));
-		siw_dbg_pd(pd, "[0x%016llx, 0x%016llx] STag=0x%08x\n",
-			   (unsigned long long)mem->va,
-			   (unsigned long long)(mem->va + mem->len),
+		siw_dbg_pd(pd, "[0x%pK, 0x%pK] out of bounds\n",
+			   (void *)(uintptr_t)addr,
+			   (void *)(uintptr_t)(addr + len));
+		siw_dbg_pd(pd, "[0x%pK, 0x%pK] STag=0x%08x\n",
+			   (void *)(uintptr_t)mem->va,
+			   (void *)(uintptr_t)(mem->va + mem->len),
 			   mem->stag);
 
 		return -E_BASE_BOUNDS;
@@ -330,7 +330,7 @@ out:
  * Optionally, provides remaining len within current element, and
  * current PBL index for later resume at same element.
  */
-u64 siw_pbl_get_buffer(struct siw_pbl *pbl, u64 off, int *len, int *idx)
+dma_addr_t siw_pbl_get_buffer(struct siw_pbl *pbl, u64 off, int *len, int *idx)
 {
 	int i = idx ? *idx : 0;
 

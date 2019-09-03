@@ -2545,7 +2545,7 @@
 			mem_encrypt=on:		Activate SME
 			mem_encrypt=off:	Do not activate SME
 
-			Refer to Documentation/virtual/kvm/amd-memory-encryption.rst
+			Refer to Documentation/virt/kvm/amd-memory-encryption.rst
 			for details on when memory encryption can be activated.
 
 	mem_sleep_default=	[SUSPEND] Default system suspend mode:
@@ -2604,7 +2604,7 @@
 				expose users to several CPU vulnerabilities.
 				Equivalent to: nopti [X86,PPC]
 					       kpti=0 [ARM64]
-					       nospectre_v1 [PPC]
+					       nospectre_v1 [X86,PPC]
 					       nobp=0 [S390]
 					       nospectre_v2 [X86,PPC,S390,ARM64]
 					       spectre_v2_user=off [X86]
@@ -2965,9 +2965,9 @@
 			nosmt=force: Force disable SMT, cannot be undone
 				     via the sysfs control file.
 
-	nospectre_v1	[PPC] Disable mitigations for Spectre Variant 1 (bounds
-			check bypass). With this option data leaks are possible
-			in the system.
+	nospectre_v1	[X86,PPC] Disable mitigations for Spectre Variant 1
+			(bounds check bypass). With this option data leaks are
+			possible in the system.
 
 	nospectre_v2	[X86,PPC_FSL_BOOK3E,ARM64] Disable all mitigations for
 			the Spectre variant 2 (indirect branch prediction)
@@ -4089,6 +4089,13 @@
 			Format: <full_path>
 			Run specified binary instead of /init from the ramdisk,
 			used for early userspace startup. See initrd.
+
+	rdrand=		[X86]
+			force - Override the decision by the kernel to hide the
+				advertisement of RDRAND support (this affects
+				certain AMD processors because of buggy BIOS
+				support, specifically around the suspend/resume
+				path).
 
 	rdt=		[HW,X86,RDT]
 			Turn on/off individual RDT features. List is:

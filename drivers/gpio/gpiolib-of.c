@@ -363,7 +363,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	/* Special handling for SPI GPIOs if used */
 	if (IS_ERR(desc))
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
-	if (IS_ERR(desc)) {
+	if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER) {
 		/* This quirk looks up flags and all */
 		desc = of_find_spi_cs_gpio(dev, con_id, idx, flags);
 		if (!IS_ERR(desc))

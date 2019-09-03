@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
+#include <endian.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
@@ -181,7 +182,6 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 
 	enum bpf_attach_type expected_attach_type;
-	int btf_fd;
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
@@ -312,7 +312,6 @@ void bpf_program__unload(struct bpf_program *prog)
 	prog->instances.nr = -1;
 	zfree(&prog->instances.fds);
 
-	zclose(prog->btf_fd);
 	zfree(&prog->func_info);
 	zfree(&prog->line_info);
 }
@@ -391,7 +390,6 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
 	prog->type = BPF_PROG_TYPE_UNSPEC;
-	prog->btf_fd = -1;
 
 	return 0;
 errout:
@@ -612,10 +610,10 @@ errout:
 
 static int bpf_object__check_endianness(struct bpf_object *obj)
 {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	if (obj->efile.ehdr.e_ident[EI_DATA] == ELFDATA2LSB)
 		return 0;
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#elif __BYTE_ORDER == __BIG_ENDIAN
 	if (obj->efile.ehdr.e_ident[EI_DATA] == ELFDATA2MSB)
 		return 0;
 #else
@@ -1377,8 +1375,13 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 		if (!has_datasec && kind == BTF_KIND_VAR) {
 			/* replace VAR with INT */
 			t->info = BTF_INFO_ENC(BTF_KIND_INT, 0, 0);
-			t->size = sizeof(int);
-			*(int *)(t+1) = BTF_INT_ENC(0, 0, 32);
+			/*
+			 * using size = 1 is the safest choice, 4 will be too
+			 * big and cause kernel BTF validation failure if
+			 * original variable took less than 4 bytes
+			 */
+			t->size = 1;
+			*(int *)(t+1) = BTF_INT_ENC(0, 0, 8);
 		} else if (!has_datasec && kind == BTF_KIND_DATASEC) {
 			/* replace DATASEC with STRUCT */
 			struct btf_var_secinfo *v = (void *)(t + 1);
@@ -1500,6 +1503,12 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 			   BTF_ELF_SEC, err);
 		btf__free(obj->btf);
 		obj->btf = NULL;
+		/* btf_ext can't exist without btf, so free it as well */
+		if (obj->btf_ext) {
+			btf_ext__free(obj->btf_ext);
+			obj->btf_ext = NULL;
+		}
+
 		if (bpf_object__is_btf_mandatory(obj))
 			return err;
 	}
@@ -2276,9 +2285,6 @@ bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
 		prog->line_info_rec_size = btf_ext__line_info_rec_size(obj->btf_ext);
 	}
 
-	if (!insn_offset)
-		prog->btf_fd = btf__fd(obj->btf);
-
 	return 0;
 }
 
@@ -2451,7 +2457,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int log_buf_size = BPF_LOG_BUF_SIZE;
 	char *log_buf;
-	int ret;
+	int btf_fd, ret;
 
 	if (!insns || !insns_cnt)
 		return -EINVAL;
@@ -2466,7 +2472,12 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.license = license;
 	load_attr.kern_version = kern_version;
 	load_attr.prog_ifindex = prog->prog_ifindex;
-	load_attr.prog_btf_fd = prog->btf_fd >= 0 ? prog->btf_fd : 0;
+	/* if .BTF.ext was loaded, kernel supports associated BTF for prog */
+	if (prog->obj->btf_ext)
+		btf_fd = bpf_object__btf_fd(prog->obj);
+	else
+		btf_fd = -1;
+	load_attr.prog_btf_fd = btf_fd >= 0 ? btf_fd : 0;
 	load_attr.func_info = prog->func_info;
 	load_attr.func_info_rec_size = prog->func_info_rec_size;
 	load_attr.func_info_cnt = prog->func_info_cnt;
@@ -4507,13 +4518,13 @@ struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
 				     const struct perf_buffer_opts *opts)
 {
 	struct perf_buffer_params p = {};
-	struct perf_event_attr attr = {
-		.config = PERF_COUNT_SW_BPF_OUTPUT,
-		.type = PERF_TYPE_SOFTWARE,
-		.sample_type = PERF_SAMPLE_RAW,
-		.sample_period = 1,
-		.wakeup_events = 1,
-	};
+	struct perf_event_attr attr = { 0, };
+
+	attr.config = PERF_COUNT_SW_BPF_OUTPUT,
+	attr.type = PERF_TYPE_SOFTWARE;
+	attr.sample_type = PERF_SAMPLE_RAW;
+	attr.sample_period = 1;
+	attr.wakeup_events = 1;
 
 	p.attr = &attr;
 	p.sample_cb = opts ? opts->sample_cb : NULL;
@@ -4988,13 +4999,15 @@ int libbpf_num_possible_cpus(void)
 	static const char *fcpu = "/sys/devices/system/cpu/possible";
 	int len = 0, n = 0, il = 0, ir = 0;
 	unsigned int start = 0, end = 0;
+	int tmp_cpus = 0;
 	static int cpus;
 	char buf[128];
 	int error = 0;
 	int fd = -1;
 
-	if (cpus > 0)
-		return cpus;
+	tmp_cpus = READ_ONCE(cpus);
+	if (tmp_cpus > 0)
+		return tmp_cpus;
 
 	fd = open(fcpu, O_RDONLY);
 	if (fd < 0) {
@@ -5017,7 +5030,7 @@ int libbpf_num_possible_cpus(void)
 	}
 	buf[len] = '\0';
 
-	for (ir = 0, cpus = 0; ir <= len; ir++) {
+	for (ir = 0, tmp_cpus = 0; ir <= len; ir++) {
 		/* Each sub string separated by ',' has format \d+-\d+ or \d+ */
 		if (buf[ir] == ',' || buf[ir] == '\0') {
 			buf[ir] = '\0';
@@ -5029,13 +5042,15 @@ int libbpf_num_possible_cpus(void)
 			} else if (n == 1) {
 				end = start;
 			}
-			cpus += end - start + 1;
+			tmp_cpus += end - start + 1;
 			il = ir + 1;
 		}
 	}
-	if (cpus <= 0) {
-		pr_warning("Invalid #CPUs %d from %s\n", cpus, fcpu);
+	if (tmp_cpus <= 0) {
+		pr_warning("Invalid #CPUs %d from %s\n", tmp_cpus, fcpu);
 		return -EINVAL;
 	}
-	return cpus;
+
+	WRITE_ONCE(cpus, tmp_cpus);
+	return tmp_cpus;
 }

@@ -441,7 +441,11 @@ enum hl_pll_frequency {
  * @resume: handles IP specific H/W or SW changes for resume.
  * @cb_mmap: maps a CB.
  * @ring_doorbell: increment PI on a given QMAN.
- * @flush_pq_write: flush PQ entry write if necessary, WARN if flushing failed.
+ * @pqe_write: Write the PQ entry to the PQ. This is ASIC-specific
+ *             function because the PQs are located in different memory areas
+ *             per ASIC (SRAM, DRAM, Host memory) and therefore, the method of
+ *             writing the PQE must match the destination memory area
+ *             properties.
  * @asic_dma_alloc_coherent: Allocate coherent DMA memory by calling
  *                           dma_alloc_coherent(). This is ASIC function because
  *                           its implementation is not trivial when the driver
@@ -510,7 +514,8 @@ struct hl_asic_funcs {
 	int (*cb_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u64 kaddress, phys_addr_t paddress, u32 size);
 	void (*ring_doorbell)(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
-	void (*flush_pq_write)(struct hl_device *hdev, u64 *pq, u64 exp_val);
+	void (*pqe_write)(struct hl_device *hdev, __le64 *pqe,
+			struct hl_bd *bd);
 	void* (*asic_dma_alloc_coherent)(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flag);
 	void (*asic_dma_free_coherent)(struct hl_device *hdev, size_t size,
@@ -1062,9 +1067,17 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 /*
  * address in this macro points always to a memory location in the
  * host's (server's) memory. That location is updated asynchronously
- * either by the direct access of the device or by another core
+ * either by the direct access of the device or by another core.
+ *
+ * To work both in LE and BE architectures, we need to distinguish between the
+ * two states (device or another core updates the memory location). Therefore,
+ * if mem_written_by_device is true, the host memory being polled will be
+ * updated directly by the device. If false, the host memory being polled will
+ * be updated by host CPU. Required so host knows whether or not the memory
+ * might need to be byte-swapped before returning value to caller.
  */
-#define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us) \
+#define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us, \
+				mem_written_by_device) \
 ({ \
 	ktime_t __timeout; \
 	/* timeout should be longer when working with simulator */ \
@@ -1077,10 +1090,14 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 		/* Verify we read updates done by other cores or by device */ \
 		mb(); \
 		(val) = *((u32 *) (uintptr_t) (addr)); \
+		if (mem_written_by_device) \
+			(val) = le32_to_cpu(val); \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
 			(val) = *((u32 *) (uintptr_t) (addr)); \
+			if (mem_written_by_device) \
+				(val) = le32_to_cpu(val); \
 			break; \
 		} \
 		if (sleep_us) \

@@ -1454,7 +1454,7 @@ static void __exit rapl_exit(void)
 	unregister_pm_notifier(&rapl_pm_notifier);
 }
 
-module_init(rapl_init);
+fs_initcall(rapl_init);
 module_exit(rapl_exit);
 
 MODULE_DESCRIPTION("Intel Runtime Average Power Limit (RAPL) common code");

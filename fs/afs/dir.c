@@ -440,7 +440,7 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
  * iterate through the data blob that lists the contents of an AFS directory
  */
 static int afs_dir_iterate(struct inode *dir, struct dir_context *ctx,
-			   struct key *key)
+			   struct key *key, afs_dataversion_t *_dir_version)
 {
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct afs_xdr_dir_page *dbuf;
@@ -460,6 +460,7 @@ static int afs_dir_iterate(struct inode *dir, struct dir_context *ctx,
 	req = afs_read_dir(dvnode, key);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+	*_dir_version = req->data_version;
 
 	/* round the file position up to the next entry boundary */
 	ctx->pos += sizeof(union afs_xdr_dirent) - 1;
@@ -514,7 +515,10 @@ out:
  */
 static int afs_readdir(struct file *file, struct dir_context *ctx)
 {
-	return afs_dir_iterate(file_inode(file), ctx, afs_file_key(file));
+	afs_dataversion_t dir_version;
+
+	return afs_dir_iterate(file_inode(file), ctx, afs_file_key(file),
+			       &dir_version);
 }
 
 /*
@@ -555,7 +559,8 @@ static int afs_lookup_one_filldir(struct dir_context *ctx, const char *name,
  * - just returns the FID the dentry name maps to if found
  */
 static int afs_do_lookup_one(struct inode *dir, struct dentry *dentry,
-			     struct afs_fid *fid, struct key *key)
+			     struct afs_fid *fid, struct key *key,
+			     afs_dataversion_t *_dir_version)
 {
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
 	struct afs_lookup_one_cookie cookie = {
@@ -568,7 +573,7 @@ static int afs_do_lookup_one(struct inode *dir, struct dentry *dentry,
 	_enter("{%lu},%p{%pd},", dir->i_ino, dentry, dentry);
 
 	/* search the directory */
-	ret = afs_dir_iterate(dir, &cookie.ctx, key);
+	ret = afs_dir_iterate(dir, &cookie.ctx, key, _dir_version);
 	if (ret < 0) {
 		_leave(" = %d [iter]", ret);
 		return ret;
@@ -642,6 +647,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	struct afs_server *server;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct inode *inode = NULL, *ti;
+	afs_dataversion_t data_version = READ_ONCE(dvnode->status.data_version);
 	int ret, i;
 
 	_enter("{%lu},%p{%pd},", dir->i_ino, dentry, dentry);
@@ -669,11 +675,13 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 		cookie->fids[i].vid = as->volume->vid;
 
 	/* search the directory */
-	ret = afs_dir_iterate(dir, &cookie->ctx, key);
+	ret = afs_dir_iterate(dir, &cookie->ctx, key, &data_version);
 	if (ret < 0) {
 		inode = ERR_PTR(ret);
 		goto out;
 	}
+
+	dentry->d_fsdata = (void *)(unsigned long)data_version;
 
 	inode = ERR_PTR(-ENOENT);
 	if (!cookie->found)
@@ -951,7 +959,8 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 inode ? AFS_FS_I(inode) : NULL);
 	} else {
 		trace_afs_lookup(dvnode, &dentry->d_name,
-				 inode ? AFS_FS_I(inode) : NULL);
+				 IS_ERR_OR_NULL(inode) ? NULL
+				 : AFS_FS_I(inode));
 	}
 	return d;
 }
@@ -968,7 +977,8 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	struct dentry *parent;
 	struct inode *inode;
 	struct key *key;
-	long dir_version, de_version;
+	afs_dataversion_t dir_version;
+	long de_version;
 	int ret;
 
 	if (flags & LOOKUP_RCU)
@@ -1014,20 +1024,20 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	 * on a 32-bit system, we only have 32 bits in the dentry to store the
 	 * version.
 	 */
-	dir_version = (long)dir->status.data_version;
+	dir_version = dir->status.data_version;
 	de_version = (long)dentry->d_fsdata;
-	if (de_version == dir_version)
-		goto out_valid;
+	if (de_version == (long)dir_version)
+		goto out_valid_noupdate;
 
-	dir_version = (long)dir->invalid_before;
-	if (de_version - dir_version >= 0)
+	dir_version = dir->invalid_before;
+	if (de_version - (long)dir_version >= 0)
 		goto out_valid;
 
 	_debug("dir modified");
 	afs_stat_v(dir, n_reval);
 
 	/* search the directory for this vnode */
-	ret = afs_do_lookup_one(&dir->vfs_inode, dentry, &fid, key);
+	ret = afs_do_lookup_one(&dir->vfs_inode, dentry, &fid, key, &dir_version);
 	switch (ret) {
 	case 0:
 		/* the filename maps to something */
@@ -1080,7 +1090,8 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 
 out_valid:
-	dentry->d_fsdata = (void *)dir_version;
+	dentry->d_fsdata = (void *)(unsigned long)dir_version;
+out_valid_noupdate:
 	dput(parent);
 	key_put(key);
 	_leave(" = 1 [valid]");
@@ -1186,6 +1197,20 @@ static void afs_prep_for_new_inode(struct afs_fs_cursor *fc,
 }
 
 /*
+ * Note that a dentry got changed.  We need to set d_fsdata to the data version
+ * number derived from the result of the operation.  It doesn't matter if
+ * d_fsdata goes backwards as we'll just revalidate.
+ */
+static void afs_update_dentry_version(struct afs_fs_cursor *fc,
+				      struct dentry *dentry,
+				      struct afs_status_cb *scb)
+{
+	if (fc->ac.error == 0)
+		dentry->d_fsdata =
+			(void *)(unsigned long)scb->status.data_version;
+}
+
+/*
  * create a directory on an AFS filesystem
  */
 static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
@@ -1227,6 +1252,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		afs_check_for_remote_deletion(&fc, dvnode);
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
+		afs_update_dentry_version(&fc, dentry, &scb[0]);
 		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
@@ -1319,6 +1345,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, scb);
+		afs_update_dentry_version(&fc, dentry, scb);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret == 0) {
 			afs_dir_remove_subdir(dentry);
@@ -1458,6 +1485,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 					&data_version, &scb[0]);
 		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2,
 					&data_version_2, &scb[1]);
+		afs_update_dentry_version(&fc, dentry, &scb[0]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret == 0 && !(scb[1].have_status || scb[1].have_error))
 			ret = afs_dir_remove_link(dvnode, dentry, key);
@@ -1526,6 +1554,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		afs_check_for_remote_deletion(&fc, dvnode);
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
+		afs_update_dentry_version(&fc, dentry, &scb[0]);
 		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
@@ -1607,6 +1636,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2,
 					NULL, &scb[1]);
 		ihold(&vnode->vfs_inode);
+		afs_update_dentry_version(&fc, dentry, &scb[0]);
 		d_instantiate(dentry, &vnode->vfs_inode);
 
 		mutex_unlock(&vnode->io_lock);
@@ -1686,6 +1716,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		afs_check_for_remote_deletion(&fc, dvnode);
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
+		afs_update_dentry_version(&fc, dentry, &scb[0]);
 		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
@@ -1791,6 +1822,17 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 
+	/* This bit is potentially nasty as there's a potential race with
+	 * afs_d_revalidate{,_rcu}().  We have to change d_fsdata on the dentry
+	 * to reflect it's new parent's new data_version after the op, but
+	 * d_revalidate may see old_dentry between the op having taken place
+	 * and the version being updated.
+	 *
+	 * So drop the old_dentry for now to make other threads go through
+	 * lookup instead - which we hold a lock against.
+	 */
+	d_drop(old_dentry);
+
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, orig_dvnode, key, true)) {
 		afs_dataversion_t orig_data_version;
@@ -1802,9 +1844,9 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (orig_dvnode != new_dvnode) {
 			if (mutex_lock_interruptible_nested(&new_dvnode->io_lock, 1) < 0) {
 				afs_end_vnode_operation(&fc);
-				goto error_rehash;
+				goto error_rehash_old;
 			}
-			new_data_version = new_dvnode->status.data_version;
+			new_data_version = new_dvnode->status.data_version + 1;
 		} else {
 			new_data_version = orig_data_version;
 			new_scb = &scb[0];
@@ -1827,7 +1869,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
-			goto error_rehash;
+			goto error_rehash_old;
 	}
 
 	if (ret == 0) {
@@ -1853,10 +1895,26 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				drop_nlink(new_inode);
 			spin_unlock(&new_inode->i_lock);
 		}
+
+		/* Now we can update d_fsdata on the dentries to reflect their
+		 * new parent's data_version.
+		 *
+		 * Note that if we ever implement RENAME_EXCHANGE, we'll have
+		 * to update both dentries with opposing dir versions.
+		 */
+		if (new_dvnode != orig_dvnode) {
+			afs_update_dentry_version(&fc, old_dentry, &scb[1]);
+			afs_update_dentry_version(&fc, new_dentry, &scb[1]);
+		} else {
+			afs_update_dentry_version(&fc, old_dentry, &scb[0]);
+			afs_update_dentry_version(&fc, new_dentry, &scb[0]);
+		}
 		d_move(old_dentry, new_dentry);
 		goto error_tmp;
 	}
 
+error_rehash_old:
+	d_rehash(new_dentry);
 error_rehash:
 	if (rehash)
 		d_rehash(rehash);
