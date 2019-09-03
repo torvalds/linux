@@ -27,6 +27,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
@@ -770,6 +771,46 @@ static void eeh_pe_cleanup(struct eeh_pe *pe)
 }
 
 /**
+ * eeh_check_slot_presence - Check if a device is still present in a slot
+ * @pdev: pci_dev to check
+ *
+ * This function may return a false positive if we can't determine the slot's
+ * presence state. This might happen for for PCIe slots if the PE containing
+ * the upstream bridge is also frozen, or the bridge is part of the same PE
+ * as the device.
+ *
+ * This shouldn't happen often, but you might see it if you hotplug a PCIe
+ * switch.
+ */
+static bool eeh_slot_presence_check(struct pci_dev *pdev)
+{
+	const struct hotplug_slot_ops *ops;
+	struct pci_slot *slot;
+	u8 state;
+	int rc;
+
+	if (!pdev)
+		return false;
+
+	if (pdev->error_state == pci_channel_io_perm_failure)
+		return false;
+
+	slot = pdev->slot;
+	if (!slot || !slot->hotplug)
+		return true;
+
+	ops = slot->hotplug->ops;
+	if (!ops || !ops->get_adapter_status)
+		return true;
+
+	rc = ops->get_adapter_status(slot->hotplug, &state);
+	if (rc)
+		return true;
+
+	return !!state;
+}
+
+/**
  * eeh_handle_normal_event - Handle EEH events on a specific PE
  * @pe: EEH PE - which should not be used after we return, as it may
  * have been invalidated.
@@ -799,6 +840,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
 	struct eeh_rmv_data rmv_data =
 		{LIST_HEAD_INIT(rmv_data.removed_vf_list), 0};
+	int devices = 0;
 
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
@@ -806,6 +848,23 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			__func__, pe->phb->global_number, pe->addr);
 		return;
 	}
+
+	/*
+	 * When devices are hot-removed we might get an EEH due to
+	 * a driver attempting to touch the MMIO space of a removed
+	 * device. In this case we don't have a device to recover
+	 * so suppress the event if we can't find any present devices.
+	 *
+	 * The hotplug driver should take care of tearing down the
+	 * device itself.
+	 */
+	eeh_for_each_pe(pe, tmp_pe)
+		eeh_pe_for_each_dev(tmp_pe, edev, tmp)
+			if (eeh_slot_presence_check(edev->pdev))
+				devices++;
+
+	if (!devices)
+		goto out; /* nothing to recover */
 
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
@@ -997,6 +1056,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		}
 	}
 
+out:
 	/*
 	 * Clean up any PEs without devices. While marked as EEH_PE_RECOVERYING
 	 * we don't want to modify the PE tree structure so we do it here.
