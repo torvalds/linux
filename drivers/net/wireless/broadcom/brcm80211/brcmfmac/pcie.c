@@ -1430,6 +1430,7 @@ static int brcmf_pcie_reset(struct device *dev)
 	brcmf_pcie_bus_console_read(devinfo, true);
 
 	brcmf_detach(dev);
+	brcmf_free(dev);
 
 	brcmf_pcie_release_irq(devinfo);
 	brcmf_pcie_release_scratchbuffers(devinfo);
@@ -1824,10 +1825,17 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 
 	brcmf_pcie_intr_enable(devinfo);
 	brcmf_pcie_hostready(devinfo);
-	if (brcmf_attach(&devinfo->pdev->dev, devinfo->settings) == 0)
-		return;
+
+	ret = brcmf_alloc(&devinfo->pdev->dev, devinfo->settings);
+	if (ret)
+		goto fail;
+	ret = brcmf_attach(&devinfo->pdev->dev);
+	if (ret)
+		goto fail;
 
 	brcmf_pcie_bus_console_read(devinfo, false);
+
+	return;
 
 fail:
 	device_release_driver(dev);
@@ -1971,6 +1979,7 @@ brcmf_pcie_remove(struct pci_dev *pdev)
 		brcmf_pcie_intr_disable(devinfo);
 
 	brcmf_detach(&pdev->dev);
+	brcmf_free(&pdev->dev);
 
 	kfree(bus->bus_priv.pcie);
 	kfree(bus->msgbuf->flowrings);
