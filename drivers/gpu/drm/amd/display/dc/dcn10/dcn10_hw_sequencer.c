@@ -1452,15 +1452,15 @@ static void log_tf(struct dc_context *ctx,
 	DC_LOG_ALL_TF_CHANNELS("Logging all channels...");
 
 	for (i = 0; i < hw_points_num; i++) {
-		DC_LOG_GAMMA("R\t%d\t%llu\n", i, tf->tf_pts.red[i].value);
-		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu\n", i, tf->tf_pts.green[i].value);
-		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu\n", i, tf->tf_pts.blue[i].value);
+		DC_LOG_GAMMA("R\t%d\t%llu", i, tf->tf_pts.red[i].value);
+		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu", i, tf->tf_pts.green[i].value);
+		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu", i, tf->tf_pts.blue[i].value);
 	}
 
 	for (i = hw_points_num; i < MAX_NUM_HW_POINTS; i++) {
-		DC_LOG_ALL_GAMMA("R\t%d\t%llu\n", i, tf->tf_pts.red[i].value);
-		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu\n", i, tf->tf_pts.green[i].value);
-		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu\n", i, tf->tf_pts.blue[i].value);
+		DC_LOG_ALL_GAMMA("R\t%d\t%llu", i, tf->tf_pts.red[i].value);
+		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu", i, tf->tf_pts.green[i].value);
+		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu", i, tf->tf_pts.blue[i].value);
 	}
 }
 
