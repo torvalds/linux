@@ -66,28 +66,22 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 	} while (rc == H_BUSY);
 
 	if (rc) {
-		/* H_OVERLAP needs a separate error path */
-		if (rc == H_OVERLAP)
-			return -EBUSY;
-
 		dev_err(&p->pdev->dev, "bind err: %lld\n", rc);
-		return -ENXIO;
+		return rc;
 	}
 
 	p->bound_addr = saved;
-
-	dev_dbg(&p->pdev->dev, "bound drc %x to %pR\n", p->drc_index, &p->res);
-
-	return 0;
+	dev_dbg(&p->pdev->dev, "bound drc 0x%x to %pR\n", p->drc_index, &p->res);
+	return rc;
 }
 
-static int drc_pmem_unbind(struct papr_scm_priv *p)
+static void drc_pmem_unbind(struct papr_scm_priv *p)
 {
 	unsigned long ret[PLPAR_HCALL_BUFSIZE];
 	uint64_t token = 0;
 	int64_t rc;
 
-	dev_dbg(&p->pdev->dev, "unbind drc %x\n", p->drc_index);
+	dev_dbg(&p->pdev->dev, "unbind drc 0x%x\n", p->drc_index);
 
 	/* NB: unbind has the same retry requirements as drc_pmem_bind() */
 	do {
@@ -110,10 +104,10 @@ static int drc_pmem_unbind(struct papr_scm_priv *p)
 	if (rc)
 		dev_err(&p->pdev->dev, "unbind error: %lld\n", rc);
 	else
-		dev_dbg(&p->pdev->dev, "unbind drc %x complete\n",
+		dev_dbg(&p->pdev->dev, "unbind drc 0x%x complete\n",
 			p->drc_index);
 
-	return rc == H_SUCCESS ? 0 : -ENXIO;
+	return;
 }
 
 static int papr_scm_meta_get(struct papr_scm_priv *p,
@@ -436,14 +430,16 @@ static int papr_scm_probe(struct platform_device *pdev)
 	rc = drc_pmem_bind(p);
 
 	/* If phyp says drc memory still bound then force unbound and retry */
-	if (rc == -EBUSY) {
+	if (rc == H_OVERLAP) {
 		dev_warn(&pdev->dev, "Retrying bind after unbinding\n");
 		drc_pmem_unbind(p);
 		rc = drc_pmem_bind(p);
 	}
 
-	if (rc)
+	if (rc != H_SUCCESS) {
+		rc = -ENXIO;
 		goto err;
+	}
 
 	/* setup the resource for the newly bound range */
 	p->res.start = p->bound_addr;
