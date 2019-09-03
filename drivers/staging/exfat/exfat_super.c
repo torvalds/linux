@@ -341,7 +341,7 @@ static int exfat_cmpi(const struct dentry *dentry, unsigned int len,
 	alen = exfat_striptail_len(name);
 	blen = __exfat_striptail_len(len, str);
 	if (alen == blen) {
-		if (t == NULL) {
+		if (!t) {
 			if (strncasecmp(name->name, str, alen) == 0)
 				return 0;
 		} else {
@@ -589,7 +589,7 @@ static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	/* check the validity of pointer parameters */
-	if (info == NULL)
+	if (!info)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -652,7 +652,7 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 	pr_debug("%s entered\n", __func__);
 
 	/* check the validity of pointer parameters */
-	if ((fid == NULL) || (path == NULL) || (*path == '\0'))
+	if (!fid || !path || (*path == '\0'))
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -745,7 +745,7 @@ static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
 	int ret;
 
 	/* check the validity of pointer parameters */
-	if ((fid == NULL) || (path == NULL) || (*path == '\0'))
+	if (!fid || !path || (*path == '\0'))
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -790,11 +790,11 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
 	/* check the validity of the given file id */
-	if (fid == NULL)
+	if (!fid)
 		return FFS_INVALIDFID;
 
 	/* check the validity of pointer parameters */
-	if (buffer == NULL)
+	if (!buffer)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -813,7 +813,7 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 		count = fid->size - fid->rwoffset;
 
 	if (count == 0) {
-		if (rcount != NULL)
+		if (rcount)
 			*rcount = 0;
 		ret = FFS_EOF;
 		goto out;
@@ -887,7 +887,7 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 /* How did this ever work and not leak a brlse()?? */
 err_out:
 	/* set the size of read bytes */
-	if (rcount != NULL)
+	if (rcount)
 		*rcount = read_bytes;
 
 	if (p_fs->dev_ejected)
@@ -920,11 +920,11 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
 	/* check the validity of the given file id */
-	if (fid == NULL)
+	if (!fid)
 		return FFS_INVALIDFID;
 
 	/* check the validity of pointer parameters */
-	if (buffer == NULL)
+	if (!buffer)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -940,7 +940,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 		fid->rwoffset = fid->size;
 
 	if (count == 0) {
-		if (wcount != NULL)
+		if (wcount)
 			*wcount = 0;
 		ret = FFS_SUCCESS;
 		goto out;
@@ -1099,7 +1099,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 	if (p_fs->vol_type == EXFAT) {
 		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
 					  ES_ALL_ENTRIES, &ep);
-		if (es == NULL)
+		if (!es)
 			goto err_out;
 		ep2 = ep+1;
 	} else {
@@ -1141,7 +1141,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 
 err_out:
 	/* set the size of written bytes */
-	if (wcount != NULL)
+	if (wcount)
 		*wcount = write_bytes;
 
 	if (num_alloced == 0)
@@ -1228,7 +1228,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 	if (p_fs->vol_type == EXFAT) {
 		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
-		if (es == NULL) {
+		if (!es) {
 			ret = FFS_MEDIAERR;
 			goto out;
 			}
@@ -1323,11 +1323,11 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 	s32 new_entry = 0;
 
 	/* check the validity of the given file id */
-	if (fid == NULL)
+	if (!fid)
 		return FFS_INVALIDFID;
 
 	/* check the validity of pointer parameters */
-	if ((new_path == NULL) || (*new_path == '\0'))
+	if (!new_path || (*new_path == '\0'))
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -1444,7 +1444,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	/* check the validity of the given file id */
-	if (fid == NULL)
+	if (!fid)
 		return FFS_INVALIDFID;
 
 	/* acquire the lock for file system critical section */
@@ -1532,7 +1532,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 	if (p_fs->vol_type == EXFAT) {
 		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
 					  ES_ALL_ENTRIES, &ep);
-		if (es == NULL) {
+		if (!es) {
 			ret = FFS_MEDIAERR;
 			goto out;
 		}
@@ -1648,7 +1648,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 	if (p_fs->vol_type == EXFAT) {
 		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
 					  ES_2_ENTRIES, &ep);
-		if (es == NULL) {
+		if (!es) {
 			ret = FFS_MEDIAERR;
 			goto out;
 		}
@@ -1772,7 +1772,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 	if (p_fs->vol_type == EXFAT) {
 		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
 					  ES_ALL_ENTRIES, &ep);
-		if (es == NULL) {
+		if (!es) {
 			ret = FFS_MEDIAERR;
 			goto out;
 		}
@@ -1842,7 +1842,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 	struct file_id_t *fid = &(EXFAT_I(inode)->fid);
 
 	/* check the validity of pointer parameters */
-	if (clu == NULL)
+	if (!clu)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -1926,7 +1926,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 		if (p_fs->vol_type == EXFAT) {
 			es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 						  ES_ALL_ENTRIES, &ep);
-			if (es == NULL) {
+			if (!es) {
 				ret = FFS_MEDIAERR;
 				goto out;
 			}
@@ -1994,7 +1994,7 @@ static int ffsCreateDir(struct inode *inode, char *path, struct file_id_t *fid)
 	pr_debug("%s entered\n", __func__);
 
 	/* check the validity of pointer parameters */
-	if ((fid == NULL) || (path == NULL) || (*path == '\0'))
+	if (!fid || !path || (*path == '\0'))
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
@@ -2040,7 +2040,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 	struct file_id_t *fid = &(EXFAT_I(inode)->fid);
 
 	/* check the validity of pointer parameters */
-	if (dir_entry == NULL)
+	if (!dir_entry)
 		return FFS_ERROR;
 
 	/* check if the given file ID is opened */
@@ -2231,7 +2231,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	/* check the validity of the given file id */
-	if (fid == NULL)
+	if (!fid)
 		return FFS_INVALIDFID;
 
 	dir.dir = fid->dir.dir;
@@ -3119,10 +3119,10 @@ static const char *exfat_get_link(struct dentry *dentry, struct inode *inode,
 {
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 
-	if (ei->target != NULL) {
+	if (ei->target) {
 		char *cookie = ei->target;
 
-		if (cookie != NULL)
+		if (cookie)
 			return (char *)(ei->target);
 	}
 	return NULL;
@@ -3784,7 +3784,7 @@ static int parse_options(char *options, int silent, int *debug,
 	if (!options)
 		goto out;
 
-	while ((p = strsep(&options, ",")) != NULL) {
+	while ((p = strsep(&options, ","))) {
 		int token;
 
 		if (!*p)
@@ -4048,7 +4048,7 @@ static int __init exfat_init_inodecache(void)
 					       (SLAB_RECLAIM_ACCOUNT |
 						SLAB_MEM_SPREAD),
 					       init_once);
-	if (exfat_inode_cachep == NULL)
+	if (!exfat_inode_cachep)
 		return -ENOMEM;
 	return 0;
 }

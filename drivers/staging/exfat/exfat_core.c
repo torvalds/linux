@@ -100,7 +100,7 @@ void fs_set_vol_flags(struct super_block *sb, u32 new_flag)
 	p_fs->vol_flag = new_flag;
 
 	if (p_fs->vol_type == EXFAT) {
-		if (p_fs->pbr_bh == NULL) {
+		if (!p_fs->pbr_bh) {
 			if (sector_read(sb, p_fs->PBR_sector,
 					&p_fs->pbr_bh, 1) != FFS_SUCCESS)
 				return;
@@ -543,7 +543,7 @@ s32 load_alloc_bitmap(struct super_block *sb)
 				p_fs->vol_amap = kmalloc_array(p_fs->map_sectors,
 							       sizeof(struct buffer_head *),
 							       GFP_KERNEL);
-				if (p_fs->vol_amap == NULL)
+				if (!p_fs->vol_amap)
 					return FFS_MEMORYERR;
 
 				sector = START_SECTOR(p_fs->map_clu);
@@ -685,7 +685,7 @@ void sync_alloc_bitmap(struct super_block *sb)
 	int i;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	if (p_fs->vol_amap == NULL)
+	if (!p_fs->vol_amap)
 		return;
 
 	for (i = 0; i < p_fs->map_sectors; i++)
@@ -714,7 +714,7 @@ static s32 __load_upcase_table(struct super_block *sb, sector_t sector,
 
 	upcase_table = p_fs->vol_utbl = kmalloc(UTBL_COL_COUNT * sizeof(u16 *),
 						GFP_KERNEL);
-	if (upcase_table == NULL)
+	if (!upcase_table)
 		return FFS_MEMORYERR;
 	memset(upcase_table, 0, UTBL_COL_COUNT * sizeof(u16 *));
 
@@ -750,11 +750,11 @@ static s32 __load_upcase_table(struct super_block *sb, sector_t sector,
 			} else { /* uni != index , uni != 0xFFFF */
 				u16 col_index = get_col_index(index);
 
-				if (upcase_table[col_index] == NULL) {
+				if (!upcase_table[col_index]) {
 					pr_debug("alloc = 0x%X\n", col_index);
 					upcase_table[col_index] = kmalloc_array(UTBL_ROW_COUNT,
 						sizeof(u16), GFP_KERNEL);
-					if (upcase_table[col_index] == NULL) {
+					if (!upcase_table[col_index]) {
 						ret = FFS_MEMORYERR;
 						goto error;
 					}
@@ -794,7 +794,7 @@ static s32 __load_default_upcase_table(struct super_block *sb)
 
 	upcase_table = p_fs->vol_utbl = kmalloc(UTBL_COL_COUNT * sizeof(u16 *),
 						GFP_KERNEL);
-	if (upcase_table == NULL)
+	if (!upcase_table)
 		return FFS_MEMORYERR;
 	memset(upcase_table, 0, UTBL_COL_COUNT * sizeof(u16 *));
 
@@ -812,12 +812,12 @@ static s32 __load_default_upcase_table(struct super_block *sb)
 		} else { /* uni != index , uni != 0xFFFF */
 			u16 col_index = get_col_index(index);
 
-			if (upcase_table[col_index] == NULL) {
+			if (!upcase_table[col_index]) {
 				pr_debug("alloc = 0x%X\n", col_index);
 				upcase_table[col_index] = kmalloc_array(UTBL_ROW_COUNT,
 									sizeof(u16),
 									GFP_KERNEL);
-				if (upcase_table[col_index] == NULL) {
+				if (!upcase_table[col_index]) {
 					ret = FFS_MEMORYERR;
 					goto error;
 				}
@@ -1640,7 +1640,7 @@ struct dentry_t *get_entry_with_sector(struct super_block *sb, sector_t sector,
 
 	buf = buf_getblk(sb, sector);
 
-	if (buf == NULL)
+	if (!buf)
 		return NULL;
 
 	return (struct dentry_t *)(buf + offset);
@@ -1658,10 +1658,10 @@ struct dentry_t *get_entry_in_dir(struct super_block *sb, struct chain_t *p_dir,
 
 	buf = buf_getblk(sb, sec);
 
-	if (buf == NULL)
+	if (!buf)
 		return NULL;
 
-	if (sector != NULL)
+	if (sector)
 		*sector = sec;
 	return (struct dentry_t *)(buf + off);
 }
@@ -1721,7 +1721,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	sec += START_SECTOR(clu);
 
 	buf = buf_getblk(sb, sec);
-	if (buf == NULL)
+	if (!buf)
 		goto err_out;
 
 	ep = (struct dentry_t *)(buf + off);
@@ -1741,7 +1741,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	pr_debug("%s: trying to kmalloc %zx bytes for %d entries\n", __func__,
 		 bufsize, num_entries);
 	es = kmalloc(bufsize, GFP_KERNEL);
-	if (es == NULL)
+	if (!es)
 		goto err_out;
 
 	es->num_entries = num_entries;
@@ -1820,7 +1820,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 				sec++;
 			}
 			buf = buf_getblk(sb, sec);
-			if (buf == NULL)
+			if (!buf)
 				goto err_out;
 			off = 0;
 			ep = (struct dentry_t *)(buf);
@@ -1872,7 +1872,7 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 				     remaining_byte_in_sector >> DENTRY_SIZE_BITS,
 				     num_entries);
 		buf = buf_getblk(sb, sec);
-		if (buf == NULL)
+		if (!buf)
 			goto err_out;
 		pr_debug("es->buf %p buf_off %u\n", esbuf, buf_off);
 		pr_debug("copying %d entries from %p to sector %llu\n",
@@ -2651,7 +2651,7 @@ void exfat_get_uni_name_from_ext_entry(struct super_block *sb,
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	es = get_entry_set_in_dir(sb, p_dir, entry, ES_ALL_ENTRIES, &ep);
-	if (es == NULL || es->num_entries < 3) {
+	if (!es || es->num_entries < 3) {
 		if (es)
 			release_entry_set(es);
 		return;
