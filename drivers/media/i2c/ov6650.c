@@ -1041,6 +1041,6 @@ static struct i2c_driver ov6650_i2c_driver = {
 
 module_i2c_driver(ov6650_i2c_driver);
 
-MODULE_DESCRIPTION("SoC Camera driver for OmniVision OV6650");
-MODULE_AUTHOR("Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>");
+MODULE_DESCRIPTION("V4L2 subdevice driver for OmniVision OV6650 camera sensor");
+MODULE_AUTHOR("Janusz Krzysztofik <jmkrzyszt@gmail.com");
 MODULE_LICENSE("GPL v2");
