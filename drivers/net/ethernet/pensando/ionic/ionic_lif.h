@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 
 #define IONIC_ADMINQ_LENGTH	16	/* must be a power of two */
+#define IONIC_NOTIFYQ_LENGTH	64	/* must be a power of two */
 
 #define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
 #define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
@@ -24,6 +25,7 @@ struct ionic_rx_stats {
 #define IONIC_QCQ_F_INITED		BIT(0)
 #define IONIC_QCQ_F_SG			BIT(1)
 #define IONIC_QCQ_F_INTR		BIT(2)
+#define IONIC_QCQ_F_NOTIFYQ		BIT(5)
 
 struct ionic_napi_stats {
 	u64 poll_count;
@@ -76,6 +78,8 @@ struct ionic_lif {
 	u64 __iomem *kern_dbpage;
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
+	struct ionic_qcq *notifyqcq;
+	u64 last_eid;
 	unsigned int neqs;
 	unsigned int nxqs;
 
