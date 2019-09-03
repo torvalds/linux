@@ -3,7 +3,6 @@
 
 #include <linux/hwspinlock.h>
 #include <linux/iio/iio.h>
-#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
@@ -46,14 +45,18 @@
 /* Bits definitions for SC27XX_ADC_INT_CLR registers */
 #define SC27XX_ADC_IRQ_CLR		BIT(0)
 
+/* Bits definitions for SC27XX_ADC_INT_RAW registers */
+#define SC27XX_ADC_IRQ_RAW		BIT(0)
+
 /* Mask definition for SC27XX_ADC_DATA register */
 #define SC27XX_ADC_DATA_MASK		GENMASK(11, 0)
 
 /* Timeout (ms) for the trylock of hardware spinlocks */
 #define SC27XX_ADC_HWLOCK_TIMEOUT	5000
 
-/* Timeout (ms) for ADC data conversion according to ADC datasheet */
-#define SC27XX_ADC_RDY_TIMEOUT		100
+/* Timeout (us) for ADC data conversion according to ADC datasheet */
+#define SC27XX_ADC_RDY_TIMEOUT		1000000
+#define SC27XX_ADC_POLL_RAW_STATUS	500
 
 /* Maximum ADC channel number */
 #define SC27XX_ADC_CHANNEL_MAX		32
@@ -72,10 +75,8 @@ struct sc27xx_adc_data {
 	 * subsystems which will access the unique ADC controller.
 	 */
 	struct hwspinlock *hwlock;
-	struct completion completion;
 	int channel_scale[SC27XX_ADC_CHANNEL_MAX];
 	u32 base;
-	int value;
 	int irq;
 };
 
@@ -188,9 +189,7 @@ static int sc27xx_adc_read(struct sc27xx_adc_data *data, int channel,
 			   int scale, int *val)
 {
 	int ret;
-	u32 tmp;
-
-	reinit_completion(&data->completion);
+	u32 tmp, value, status;
 
 	ret = hwspin_lock_timeout_raw(data->hwlock, SC27XX_ADC_HWLOCK_TIMEOUT);
 	if (ret) {
@@ -202,6 +201,11 @@ static int sc27xx_adc_read(struct sc27xx_adc_data *data, int channel,
 				 SC27XX_ADC_EN, SC27XX_ADC_EN);
 	if (ret)
 		goto unlock_adc;
+
+	ret = regmap_update_bits(data->regmap, data->base + SC27XX_ADC_INT_CLR,
+				 SC27XX_ADC_IRQ_CLR, SC27XX_ADC_IRQ_CLR);
+	if (ret)
+		goto disable_adc;
 
 	/* Configure the channel id and scale */
 	tmp = (scale << SC27XX_ADC_SCALE_SHIFT) & SC27XX_ADC_SCALE_MASK;
@@ -226,14 +230,21 @@ static int sc27xx_adc_read(struct sc27xx_adc_data *data, int channel,
 	if (ret)
 		goto disable_adc;
 
-	ret = wait_for_completion_timeout(&data->completion,
-				msecs_to_jiffies(SC27XX_ADC_RDY_TIMEOUT));
-	if (!ret) {
-		dev_err(data->dev, "read ADC data timeout\n");
-		ret = -ETIMEDOUT;
-	} else {
-		ret = 0;
+	ret = regmap_read_poll_timeout(data->regmap,
+				       data->base + SC27XX_ADC_INT_RAW,
+				       status, (status & SC27XX_ADC_IRQ_RAW),
+				       SC27XX_ADC_POLL_RAW_STATUS,
+				       SC27XX_ADC_RDY_TIMEOUT);
+	if (ret) {
+		dev_err(data->dev, "read adc timeout, status = 0x%x\n", status);
+		goto disable_adc;
 	}
+
+	ret = regmap_read(data->regmap, data->base + SC27XX_ADC_DATA, &value);
+	if (ret)
+		goto disable_adc;
+
+	value &= SC27XX_ADC_DATA_MASK;
 
 disable_adc:
 	regmap_update_bits(data->regmap, data->base + SC27XX_ADC_CTL,
@@ -242,30 +253,9 @@ unlock_adc:
 	hwspin_unlock_raw(data->hwlock);
 
 	if (!ret)
-		*val = data->value;
+		*val = value;
 
 	return ret;
-}
-
-static irqreturn_t sc27xx_adc_isr(int irq, void *dev_id)
-{
-	struct sc27xx_adc_data *data = dev_id;
-	int ret;
-
-	ret = regmap_update_bits(data->regmap, data->base + SC27XX_ADC_INT_CLR,
-				 SC27XX_ADC_IRQ_CLR, SC27XX_ADC_IRQ_CLR);
-	if (ret)
-		return IRQ_RETVAL(ret);
-
-	ret = regmap_read(data->regmap, data->base + SC27XX_ADC_DATA,
-			  &data->value);
-	if (ret)
-		return IRQ_RETVAL(ret);
-
-	data->value &= SC27XX_ADC_DATA_MASK;
-	complete(&data->completion);
-
-	return IRQ_HANDLED;
 }
 
 static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data,
@@ -454,11 +444,6 @@ static int sc27xx_adc_enable(struct sc27xx_adc_data *data)
 	if (ret)
 		goto disable_adc;
 
-	ret = regmap_update_bits(data->regmap, data->base + SC27XX_ADC_INT_EN,
-				 SC27XX_ADC_IRQ_EN, SC27XX_ADC_IRQ_EN);
-	if (ret)
-		goto disable_clk;
-
 	/* ADC channel scales' calibration from nvmem device */
 	ret = sc27xx_adc_scale_calibration(data, true);
 	if (ret)
@@ -483,9 +468,6 @@ disable_adc:
 static void sc27xx_adc_disable(void *_data)
 {
 	struct sc27xx_adc_data *data = _data;
-
-	regmap_update_bits(data->regmap, data->base + SC27XX_ADC_INT_EN,
-			   SC27XX_ADC_IRQ_EN, 0);
 
 	/* Disable ADC work clock and controller clock */
 	regmap_update_bits(data->regmap, SC27XX_ARM_CLK_EN,
@@ -551,7 +533,6 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	init_completion(&sc27xx_data->completion);
 	sc27xx_data->dev = dev;
 
 	ret = sc27xx_adc_enable(sc27xx_data);
@@ -563,14 +544,6 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(dev, sc27xx_adc_disable, sc27xx_data);
 	if (ret) {
 		dev_err(dev, "failed to add ADC disable action\n");
-		return ret;
-	}
-
-	ret = devm_request_threaded_irq(dev, sc27xx_data->irq, NULL,
-					sc27xx_adc_isr, IRQF_ONESHOT,
-					pdev->name, sc27xx_data);
-	if (ret) {
-		dev_err(dev, "failed to request ADC irq\n");
 		return ret;
 	}
 

@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
@@ -68,16 +69,6 @@ static struct {
 	{HID_USAGE_SENSOR_HUMIDITY, 0, 1000, 0},
 };
 
-static int pow_10(unsigned power)
-{
-	int i;
-	int ret = 1;
-	for (i = 0; i < power; ++i)
-		ret = ret * 10;
-
-	return ret;
-}
-
 static void simple_div(int dividend, int divisor, int *whole,
 				int *micro_frac)
 {
@@ -96,14 +87,14 @@ static void simple_div(int dividend, int divisor, int *whole,
 			rem *= 10;
 			exp++;
 		}
-		*micro_frac = (rem / divisor) * pow_10(6-exp);
+		*micro_frac = (rem / divisor) * int_pow(10, 6 - exp);
 	}
 }
 
 static void split_micro_fraction(unsigned int no, int exp, int *val1, int *val2)
 {
-	*val1 = no/pow_10(exp);
-	*val2 = no%pow_10(exp) * pow_10(6-exp);
+	*val1 = no / int_pow(10, exp);
+	*val2 = no % int_pow(10, exp) * int_pow(10, 6 - exp);
 }
 
 /*
@@ -125,7 +116,7 @@ static void convert_from_vtf_format(u32 value, int size, int exp,
 	}
 	exp = hid_sensor_convert_exponent(exp);
 	if (exp >= 0) {
-		*val1 = sign * value * pow_10(exp);
+		*val1 = sign * value * int_pow(10, exp);
 		*val2 = 0;
 	} else {
 		split_micro_fraction(value, -exp, val1, val2);
@@ -145,10 +136,10 @@ static u32 convert_to_vtf_format(int size, int exp, int val1, int val2)
 		sign = -1;
 	exp = hid_sensor_convert_exponent(exp);
 	if (exp < 0) {
-		value = abs(val1) * pow_10(-exp);
-		value += abs(val2) / pow_10(6+exp);
+		value = abs(val1) * int_pow(10, -exp);
+		value += abs(val2) / int_pow(10, 6 + exp);
 	} else
-		value = abs(val1) / pow_10(exp);
+		value = abs(val1) / int_pow(10, exp);
 	if (sign < 0)
 		value =  ((1LL << (size * 8)) - value);
 
@@ -211,12 +202,12 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 	if (val1 < 0 || val2 < 0)
 		return -EINVAL;
 
-	value = val1 * pow_10(6) + val2;
+	value = val1 * int_pow(10, 6) + val2;
 	if (value) {
 		if (st->poll.units == HID_USAGE_SENSOR_UNITS_MILLISECOND)
-			value = pow_10(9)/value;
+			value = int_pow(10, 9) / value;
 		else if (st->poll.units == HID_USAGE_SENSOR_UNITS_SECOND)
-			value = pow_10(6)/value;
+			value = int_pow(10, 6) / value;
 		else
 			value = 0;
 	}
@@ -311,34 +302,34 @@ static void adjust_exponent_nano(int *val0, int *val1, int scale0,
 	int rem;
 
 	if (exp > 0) {
-		*val0 = scale0 * pow_10(exp);
+		*val0 = scale0 * int_pow(10, exp);
 		res = 0;
 		if (exp > 9) {
 			*val1 = 0;
 			return;
 		}
 		for (i = 0; i < exp; ++i) {
-			x = scale1 / pow_10(8 - i);
-			res += (pow_10(exp - 1 - i) * x);
-			scale1 = scale1 % pow_10(8 - i);
+			x = scale1 / int_pow(10, 8 - i);
+			res += int_pow(10, exp - 1 - i) * x;
+			scale1 = scale1 % int_pow(10, 8 - i);
 		}
 		*val0 += res;
-		*val1 = scale1 * pow_10(exp);
+		*val1 = scale1 * int_pow(10, exp);
 	} else if (exp < 0) {
 		exp = abs(exp);
 		if (exp > 9) {
 			*val0 = *val1 = 0;
 			return;
 		}
-		*val0 = scale0 / pow_10(exp);
-		rem = scale0 % pow_10(exp);
+		*val0 = scale0 / int_pow(10, exp);
+		rem = scale0 % int_pow(10, exp);
 		res = 0;
 		for (i = 0; i < (9 - exp); ++i) {
-			x = scale1 / pow_10(8 - i);
-			res += (pow_10(8 - exp - i) * x);
-			scale1 = scale1 % pow_10(8 - i);
+			x = scale1 / int_pow(10, 8 - i);
+			res += int_pow(10, 8 - exp - i) * x;
+			scale1 = scale1 % int_pow(10, 8 - i);
 		}
-		*val1 = rem * pow_10(9 - exp) + res;
+		*val1 = rem * int_pow(10, 9 - exp) + res;
 	} else {
 		*val0 = scale0;
 		*val1 = scale1;
