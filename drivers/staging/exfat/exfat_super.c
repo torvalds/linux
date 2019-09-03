@@ -344,8 +344,10 @@ static int exfat_cmpi(const struct dentry *dentry, unsigned int len,
 		if (t == NULL) {
 			if (strncasecmp(name->name, str, alen) == 0)
 				return 0;
-		} else if (nls_strnicmp(t, name->name, str, alen) == 0)
-			return 0;
+		} else {
+			if (nls_strnicmp(t, name->name, str, alen) == 0)
+				return 0;
+		}
 	}
 	return 1;
 }
@@ -999,7 +1001,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 								   &new_clu);
 			if (num_alloced == 0)
 				break;
-			else if (num_alloced < 0) {
+			if (num_alloced < 0) {
 				ret = FFS_MEDIAERR;
 				goto out;
 			}
@@ -1248,9 +1250,9 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 		p_fs->fs_func->set_entry_clu0(ep2, CLUSTER_32(0));
 	}
 
-	if (p_fs->vol_type != EXFAT)
+	if (p_fs->vol_type != EXFAT) {
 		buf_modify(sb, sector);
-	else {
+	} else {
 		update_dir_checksum_with_entry_set(sb, es);
 		release_entry_set(es);
 	}
@@ -1561,9 +1563,9 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 	fid->attr = attr;
 	p_fs->fs_func->set_entry_attr(ep, attr);
 
-	if (p_fs->vol_type != EXFAT)
+	if (p_fs->vol_type != EXFAT) {
 		buf_modify(sb, sector);
-	else {
+	} else {
 		update_dir_checksum_with_entry_set(sb, es);
 		release_entry_set(es);
 	}

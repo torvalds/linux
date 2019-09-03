@@ -743,11 +743,11 @@ static s32 __load_upcase_table(struct super_block *sb, sector_t sector,
 				pr_debug("to 0x%X (amount of 0x%X)\n",
 					 index, uni);
 				skip = FALSE;
-			} else if (uni == index)
+			} else if (uni == index) {
 				index++;
-			else if (uni == 0xFFFF)
+			} else if (uni == 0xFFFF) {
 				skip = TRUE;
-			else { /* uni != index , uni != 0xFFFF */
+			} else { /* uni != index , uni != 0xFFFF */
 				u16 col_index = get_col_index(index);
 
 				if (upcase_table[col_index] == NULL) {
@@ -805,11 +805,11 @@ static s32 __load_default_upcase_table(struct super_block *sb)
 			index += uni;
 			pr_debug("to 0x%X (amount of 0x%X)\n", index, uni);
 			skip = FALSE;
-		} else if (uni == index)
+		} else if (uni == index) {
 			index++;
-		else if (uni == 0xFFFF)
+		} else if (uni == 0xFFFF) {
 			skip = TRUE;
-		else { /* uni != index , uni != 0xFFFF */
+		} else { /* uni != index , uni != 0xFFFF */
 			u16 col_index = get_col_index(index);
 
 			if (upcase_table[col_index] == NULL) {
