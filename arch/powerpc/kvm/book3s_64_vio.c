@@ -602,8 +602,10 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 
 		if (kvmppc_gpa_to_ua(vcpu->kvm,
 				tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
-				&ua, NULL))
-			return H_PARAMETER;
+				&ua, NULL)) {
+			ret = H_PARAMETER;
+			goto unlock_exit;
+		}
 
 		list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
 			ret = kvmppc_tce_iommu_map(vcpu->kvm, stt,
