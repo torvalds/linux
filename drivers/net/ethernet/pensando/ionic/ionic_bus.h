@@ -5,6 +5,8 @@
 #define _IONIC_BUS_H_
 
 const char *ionic_bus_info(struct ionic *ionic);
+int ionic_bus_alloc_irq_vectors(struct ionic *ionic, unsigned int nintrs);
+void ionic_bus_free_irq_vectors(struct ionic *ionic);
 int ionic_bus_register_driver(void);
 void ionic_bus_unregister_driver(void);
 

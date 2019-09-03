@@ -10,6 +10,8 @@
 #include "ionic_if.h"
 #include "ionic_regs.h"
 
+#define IONIC_LIFS_MAX			1024
+
 struct ionic_dev_bar {
 	void __iomem *vaddr;
 	phys_addr_t bus_addr;
@@ -147,5 +149,10 @@ void ionic_dev_cmd_port_speed(struct ionic_dev *idev, u32 speed);
 void ionic_dev_cmd_port_autoneg(struct ionic_dev *idev, u8 an_enable);
 void ionic_dev_cmd_port_fec(struct ionic_dev *idev, u8 fec_type);
 void ionic_dev_cmd_port_pause(struct ionic_dev *idev, u8 pause_type);
+
+void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver);
+void ionic_dev_cmd_lif_init(struct ionic_dev *idev, u16 lif_index,
+			    dma_addr_t addr);
+void ionic_dev_cmd_lif_reset(struct ionic_dev *idev, u16 lif_index);
 
 #endif /* _IONIC_DEV_H_ */

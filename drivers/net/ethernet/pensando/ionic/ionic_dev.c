@@ -226,3 +226,37 @@ void ionic_dev_cmd_port_pause(struct ionic_dev *idev, u8 pause_type)
 
 	ionic_dev_cmd_go(idev, &cmd);
 }
+
+/* LIF commands */
+void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver)
+{
+	union ionic_dev_cmd cmd = {
+		.lif_identify.opcode = IONIC_CMD_LIF_IDENTIFY,
+		.lif_identify.type = type,
+		.lif_identify.ver = ver,
+	};
+
+	ionic_dev_cmd_go(idev, &cmd);
+}
+
+void ionic_dev_cmd_lif_init(struct ionic_dev *idev, u16 lif_index,
+			    dma_addr_t info_pa)
+{
+	union ionic_dev_cmd cmd = {
+		.lif_init.opcode = IONIC_CMD_LIF_INIT,
+		.lif_init.index = cpu_to_le16(lif_index),
+		.lif_init.info_pa = cpu_to_le64(info_pa),
+	};
+
+	ionic_dev_cmd_go(idev, &cmd);
+}
+
+void ionic_dev_cmd_lif_reset(struct ionic_dev *idev, u16 lif_index)
+{
+	union ionic_dev_cmd cmd = {
+		.lif_init.opcode = IONIC_CMD_LIF_RESET,
+		.lif_init.index = cpu_to_le16(lif_index),
+	};
+
+	ionic_dev_cmd_go(idev, &cmd);
+}

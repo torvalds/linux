@@ -32,6 +32,13 @@ struct ionic {
 	struct ionic_dev_bar bars[IONIC_BARS_MAX];
 	unsigned int num_bars;
 	struct ionic_identity ident;
+	struct list_head lifs;
+	unsigned int nnqs_per_lif;
+	unsigned int neqs_per_lif;
+	unsigned int ntxqs_per_lif;
+	unsigned int nrxqs_per_lif;
+	DECLARE_BITMAP(lifbits, IONIC_LIFS_MAX);
+	unsigned int nintrs;
 };
 
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_wait);

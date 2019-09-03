@@ -8,6 +8,7 @@
 
 #include "ionic.h"
 #include "ionic_bus.h"
+#include "ionic_lif.h"
 #include "ionic_debugfs.h"
 
 /* Supported devices */
@@ -21,6 +22,17 @@ MODULE_DEVICE_TABLE(pci, ionic_id_table);
 const char *ionic_bus_info(struct ionic *ionic)
 {
 	return pci_name(ionic->pdev);
+}
+
+int ionic_bus_alloc_irq_vectors(struct ionic *ionic, unsigned int nintrs)
+{
+	return pci_alloc_irq_vectors(ionic->pdev, nintrs, nintrs,
+				     PCI_IRQ_MSIX);
+}
+
+void ionic_bus_free_irq_vectors(struct ionic *ionic)
+{
+	pci_free_irq_vectors(ionic->pdev);
 }
 
 static int ionic_map_bars(struct ionic *ionic)
@@ -151,12 +163,44 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_reset;
 	}
 
+	/* Configure LIFs */
+	err = ionic_lif_identify(ionic, IONIC_LIF_TYPE_CLASSIC,
+				 &ionic->ident.lif);
+	if (err) {
+		dev_err(dev, "Cannot identify LIFs: %d, aborting\n", err);
+		goto err_out_port_reset;
+	}
+
+	err = ionic_lifs_size(ionic);
+	if (err) {
+		dev_err(dev, "Cannot size LIFs: %d, aborting\n", err);
+		goto err_out_port_reset;
+	}
+
+	err = ionic_lifs_alloc(ionic);
+	if (err) {
+		dev_err(dev, "Cannot allocate LIFs: %d, aborting\n", err);
+		goto err_out_free_irqs;
+	}
+
+	err = ionic_lifs_init(ionic);
+	if (err) {
+		dev_err(dev, "Cannot init LIFs: %d, aborting\n", err);
+		goto err_out_free_lifs;
+	}
+
 	err = ionic_devlink_register(ionic);
 	if (err)
 		dev_err(dev, "Cannot register devlink: %d\n", err);
 
 	return 0;
 
+err_out_free_lifs:
+	ionic_lifs_free(ionic);
+err_out_free_irqs:
+	ionic_bus_free_irq_vectors(ionic);
+err_out_port_reset:
+	ionic_port_reset(ionic);
 err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
@@ -185,6 +229,9 @@ static void ionic_remove(struct pci_dev *pdev)
 		return;
 
 	ionic_devlink_unregister(ionic);
+	ionic_lifs_deinit(ionic);
+	ionic_lifs_free(ionic);
+	ionic_bus_free_irq_vectors(ionic);
 	ionic_port_reset(ionic);
 	ionic_reset(ionic);
 	ionic_dev_teardown(ionic);
