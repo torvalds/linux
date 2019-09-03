@@ -318,7 +318,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		goto dcb_error;
 	}
 
-	ice_init_dcb(&pf->hw);
+	ice_init_dcb(&pf->hw, true);
 	if (pf->hw.port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
 		pf->hw.port_info->is_sw_lldp = true;
 	else
@@ -451,7 +451,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 	port_info = hw->port_info;
 
-	err = ice_init_dcb(hw);
+	err = ice_init_dcb(hw, false);
 	if (err && !port_info->is_sw_lldp) {
 		dev_err(&pf->pdev->dev, "Error initializing DCB %d\n", err);
 		goto dcb_init_err;

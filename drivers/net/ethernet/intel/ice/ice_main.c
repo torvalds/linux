@@ -2536,6 +2536,8 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		if (ice_init_pf_dcb(pf, false)) {
 			clear_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 			clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
+		} else {
+			ice_cfg_lldp_mib_change(&pf->hw, true);
 		}
 	}
 

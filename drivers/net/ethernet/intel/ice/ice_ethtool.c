@@ -1206,8 +1206,8 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			enum ice_status status;
 
 			/* Disable FW LLDP engine */
-			status = ice_aq_cfg_lldp_mib_change(&pf->hw, false,
-							    NULL);
+			status = ice_cfg_lldp_mib_change(&pf->hw, false);
+
 			/* If unregistering for LLDP events fails, this is
 			 * not an error state, as there shouldn't be any
 			 * events to respond to.
@@ -1273,6 +1273,12 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 * The FW LLDP engine will now be consuming them.
 			 */
 			ice_cfg_sw_lldp(vsi, false, false);
+
+			/* Register for MIB change events */
+			status = ice_cfg_lldp_mib_change(&pf->hw, true);
+			if (status)
+				dev_dbg(&pf->pdev->dev,
+					"Fail to enable MIB change events\n");
 		}
 	}
 	clear_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);
