@@ -419,9 +419,21 @@ static int pnv_php_get_attention_state(struct hotplug_slot *slot, u8 *state)
 static int pnv_php_set_attention_state(struct hotplug_slot *slot, u8 state)
 {
 	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
+	struct pci_dev *bridge = php_slot->pdev;
+	u16 new, mask;
 
-	/* FIXME: Make it real once firmware supports it */
 	php_slot->attention_state = state;
+	if (!bridge)
+		return 0;
+
+	mask = PCI_EXP_SLTCTL_AIC;
+
+	if (state)
+		new = PCI_EXP_SLTCTL_ATTN_IND_ON;
+	else
+		new = PCI_EXP_SLTCTL_ATTN_IND_OFF;
+
+	pcie_capability_clear_and_set_word(bridge, PCI_EXP_SLTCTL, mask, new);
 
 	return 0;
 }
