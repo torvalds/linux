@@ -353,12 +353,13 @@ void ice_free_vfs(struct ice_pf *pf)
  * ice_trigger_vf_reset - Reset a VF on HW
  * @vf: pointer to the VF structure
  * @is_vflr: true if VFLR was issued, false if not
+ * @is_pfr: true if the reset was triggered due to a previous PFR
  *
  * Trigger hardware to start a reset for a particular VF. Expects the caller
  * to wait the proper amount of time to allow hardware to reset the VF before
  * it cleans up and restores VF functionality.
  */
-static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr)
+static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr, bool is_pfr)
 {
 	struct ice_pf *pf = vf->pf;
 	u32 reg, reg_idx, bit_idx;
@@ -379,10 +380,13 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr)
 	 */
 	clear_bit(ICE_VF_STATE_INIT, vf->vf_states);
 
-	/* Clear the VF's ARQLEN register. This is how the VF detects reset,
-	 * since the VFGEN_RSTAT register doesn't stick at 0 after reset.
+	/* VF_MBX_ARQLEN is cleared by PFR, so the driver needs to clear it
+	 * in the case of VFR. If this is done for PFR, it can mess up VF
+	 * resets because the VF driver may already have started cleanup
+	 * by the time we get here.
 	 */
-	wr32(hw, VF_MBX_ARQLEN(vf_abs_id), 0);
+	if (!is_pfr)
+		wr32(hw, VF_MBX_ARQLEN(vf_abs_id), 0);
 
 	/* In the case of a VFLR, the HW has already reset the VF and we
 	 * just need to clean up, so don't hit the VFRTRIG register.
@@ -1072,7 +1076,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 
 	/* Begin reset on all VFs at once */
 	for (v = 0; v < pf->num_alloc_vfs; v++)
-		ice_trigger_vf_reset(&pf->vf[v], is_vflr);
+		ice_trigger_vf_reset(&pf->vf[v], is_vflr, true);
 
 	for (v = 0; v < pf->num_alloc_vfs; v++) {
 		struct ice_vsi *vsi;
@@ -1172,7 +1176,7 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	if (test_and_set_bit(ICE_VF_STATE_DIS, vf->vf_states))
 		return false;
 
-	ice_trigger_vf_reset(vf, is_vflr);
+	ice_trigger_vf_reset(vf, is_vflr, false);
 
 	vsi = pf->vsi[vf->lan_vsi_idx];
 
