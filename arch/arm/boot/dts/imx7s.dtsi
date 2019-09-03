@@ -151,7 +151,7 @@
 		compatible = "fsl,imx7d-tempmon";
 		interrupt-parent = <&gpc>;
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-		fsl,tempmon =<&anatop>;
+		fsl,tempmon = <&anatop>;
 		nvmem-cells = <&tempmon_calib>,
 			<&tempmon_temp_grade>;
 		nvmem-cell-names = "calib", "temp_grade";
@@ -1184,8 +1184,8 @@
 					<&clks IMX7D_ENET_PHY_REF_ROOT_CLK>;
 				clock-names = "ipg", "ahb", "ptp",
 					"enet_clk_ref", "enet_out";
-				fsl,num-tx-queues=<3>;
-				fsl,num-rx-queues=<3>;
+				fsl,num-tx-queues = <3>;
+				fsl,num-rx-queues = <3>;
 				status = "disabled";
 			};
 		};

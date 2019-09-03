@@ -14,8 +14,8 @@
 		bits-per-pixel = <16>;
 		fsl,pcr = <0xfa208b80>;
 		bus-width = <18>;
-		native-mode = <&dvi_vga_timings>;
 		display-timings {
+			native-mode = <&dvi_vga_timings>;
 			dvi_vga_timings: 640x480 {
 				clock-frequency = <31250000>;
 				hactive = <640>;
