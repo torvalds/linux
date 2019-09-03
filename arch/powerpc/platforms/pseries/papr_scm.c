@@ -65,10 +65,8 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 		cond_resched();
 	} while (rc == H_BUSY);
 
-	if (rc) {
-		dev_err(&p->pdev->dev, "bind err: %lld\n", rc);
+	if (rc)
 		return rc;
-	}
 
 	p->bound_addr = saved;
 	dev_dbg(&p->pdev->dev, "bound drc 0x%x to %pR\n", p->drc_index, &p->res);
@@ -109,6 +107,42 @@ static void drc_pmem_unbind(struct papr_scm_priv *p)
 
 	return;
 }
+
+static int drc_pmem_query_n_bind(struct papr_scm_priv *p)
+{
+	unsigned long start_addr;
+	unsigned long end_addr;
+	unsigned long ret[PLPAR_HCALL_BUFSIZE];
+	int64_t rc;
+
+
+	rc = plpar_hcall(H_SCM_QUERY_BLOCK_MEM_BINDING, ret,
+			 p->drc_index, 0);
+	if (rc)
+		goto err_out;
+	start_addr = ret[0];
+
+	/* Make sure the full region is bound. */
+	rc = plpar_hcall(H_SCM_QUERY_BLOCK_MEM_BINDING, ret,
+			 p->drc_index, p->blocks - 1);
+	if (rc)
+		goto err_out;
+	end_addr = ret[0];
+
+	if ((end_addr - start_addr) != ((p->blocks - 1) * p->block_size))
+		goto err_out;
+
+	p->bound_addr = start_addr;
+	dev_dbg(&p->pdev->dev, "bound drc 0x%x to %pR\n", p->drc_index, &p->res);
+	return rc;
+
+err_out:
+	dev_info(&p->pdev->dev,
+		 "Failed to query, trying an unbind followed by bind");
+	drc_pmem_unbind(p);
+	return drc_pmem_bind(p);
+}
+
 
 static int papr_scm_meta_get(struct papr_scm_priv *p,
 			     struct nd_cmd_get_config_data_hdr *hdr)
@@ -430,13 +464,11 @@ static int papr_scm_probe(struct platform_device *pdev)
 	rc = drc_pmem_bind(p);
 
 	/* If phyp says drc memory still bound then force unbound and retry */
-	if (rc == H_OVERLAP) {
-		dev_warn(&pdev->dev, "Retrying bind after unbinding\n");
-		drc_pmem_unbind(p);
-		rc = drc_pmem_bind(p);
-	}
+	if (rc == H_OVERLAP)
+		rc = drc_pmem_query_n_bind(p);
 
 	if (rc != H_SUCCESS) {
+		dev_err(&p->pdev->dev, "bind err: %d\n", rc);
 		rc = -ENXIO;
 		goto err;
 	}
