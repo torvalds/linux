@@ -255,7 +255,6 @@ void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 	fsl_destroy_mc_io(mc_io);
 	fsl_mc_resource_free(resource);
 
-	device_link_del(dpmcp_dev->consumer_link);
 	dpmcp_dev->consumer_link = NULL;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_portal_free);
