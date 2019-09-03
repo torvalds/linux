@@ -7200,6 +7200,9 @@ enum {
 /* ilk/snb precision palette */
 #define _PREC_PALETTE_A           0x4b000
 #define _PREC_PALETTE_B           0x4c000
+#define   PREC_PALETTE_RED_MASK   REG_GENMASK(29, 20)
+#define   PREC_PALETTE_GREEN_MASK REG_GENMASK(19, 10)
+#define   PREC_PALETTE_BLUE_MASK  REG_GENMASK(9, 0)
 #define PREC_PALETTE(pipe, i) _MMIO(_PIPE(pipe, _PREC_PALETTE_A, _PREC_PALETTE_B) + (i) * 4)
 
 #define  _PREC_PIPEAGCMAX              0x4d000
