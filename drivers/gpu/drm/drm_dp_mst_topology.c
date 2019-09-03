@@ -2103,6 +2103,28 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_unlock(&mgr->qlock);
 }
 
+static void
+drm_dp_dump_link_address(struct drm_dp_link_address_ack_reply *reply)
+{
+	struct drm_dp_link_addr_reply_port *port_reply;
+	int i;
+
+	for (i = 0; i < reply->nports; i++) {
+		port_reply = &reply->ports[i];
+		DRM_DEBUG_KMS("port %d: input %d, pdt: %d, pn: %d, dpcd_rev: %02x, mcs: %d, ddps: %d, ldps %d, sdp %d/%d\n",
+			      i,
+			      port_reply->input_port,
+			      port_reply->peer_device_type,
+			      port_reply->port_number,
+			      port_reply->dpcd_revision,
+			      port_reply->mcs,
+			      port_reply->ddps,
+			      port_reply->legacy_device_plug_status,
+			      port_reply->num_sdp_streams,
+			      port_reply->num_sdp_stream_sinks);
+	}
+}
+
 static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 				     struct drm_dp_mst_branch *mstb)
 {
@@ -2128,18 +2150,7 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 			DRM_DEBUG_KMS("link address nak received\n");
 		} else {
 			DRM_DEBUG_KMS("link address reply: %d\n", txmsg->reply.u.link_addr.nports);
-			for (i = 0; i < txmsg->reply.u.link_addr.nports; i++) {
-				DRM_DEBUG_KMS("port %d: input %d, pdt: %d, pn: %d, dpcd_rev: %02x, mcs: %d, ddps: %d, ldps %d, sdp %d/%d\n", i,
-				       txmsg->reply.u.link_addr.ports[i].input_port,
-				       txmsg->reply.u.link_addr.ports[i].peer_device_type,
-				       txmsg->reply.u.link_addr.ports[i].port_number,
-				       txmsg->reply.u.link_addr.ports[i].dpcd_revision,
-				       txmsg->reply.u.link_addr.ports[i].mcs,
-				       txmsg->reply.u.link_addr.ports[i].ddps,
-				       txmsg->reply.u.link_addr.ports[i].legacy_device_plug_status,
-				       txmsg->reply.u.link_addr.ports[i].num_sdp_streams,
-				       txmsg->reply.u.link_addr.ports[i].num_sdp_stream_sinks);
-			}
+			drm_dp_dump_link_address(&txmsg->reply.u.link_addr);
 
 			drm_dp_check_mstb_guid(mstb, txmsg->reply.u.link_addr.guid);
 
