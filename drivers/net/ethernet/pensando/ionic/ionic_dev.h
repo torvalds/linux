@@ -12,7 +12,14 @@
 
 #define IONIC_MIN_MTU			ETH_MIN_MTU
 #define IONIC_MAX_MTU			9194
+#define IONIC_MAX_TXRX_DESC		16384
+#define IONIC_MIN_TXRX_DESC		16
+#define IONIC_DEF_TXRX_DESC		4096
 #define IONIC_LIFS_MAX			1024
+
+#define IONIC_DEV_CMD_REG_VERSION	1
+#define IONIC_DEV_INFO_REG_COUNT	32
+#define IONIC_DEV_CMD_REG_COUNT		32
 
 struct ionic_dev_bar {
 	void __iomem *vaddr;
