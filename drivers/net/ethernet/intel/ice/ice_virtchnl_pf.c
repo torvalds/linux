@@ -129,7 +129,10 @@ static void ice_vc_notify_vf_link_state(struct ice_vf *vf)
 	pfe.event = VIRTCHNL_EVENT_LINK_CHANGE;
 	pfe.severity = PF_EVENT_SEVERITY_INFO;
 
-	if (vf->link_forced)
+	/* Always report link is down if the VF queues aren't enabled */
+	if (!vf->num_qs_ena)
+		ice_set_pfe_link(vf, &pfe, ICE_AQ_LINK_SPEED_UNKNOWN, false);
+	else if (vf->link_forced)
 		ice_set_pfe_link_forced(vf, &pfe, vf->link_up);
 	else
 		ice_set_pfe_link(vf, &pfe, ls->link_speed, ls->link_info &
