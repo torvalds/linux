@@ -830,6 +830,8 @@ static void ionic_lif_deinit(struct ionic_lif *lif)
 
 	clear_bit(IONIC_LIF_INITED, lif->state);
 
+	ionic_rx_filters_deinit(lif);
+
 	napi_disable(&lif->adminqcq->napi);
 	ionic_lif_qcq_deinit(lif, lif->notifyqcq);
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
@@ -1006,6 +1008,10 @@ static int ionic_lif_init(struct ionic_lif *lif)
 	}
 
 	err = ionic_init_nic_features(lif);
+	if (err)
+		goto err_out_notifyq_deinit;
+
+	err = ionic_rx_filters_init(lif);
 	if (err)
 		goto err_out_notifyq_deinit;
 
