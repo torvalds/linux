@@ -1794,29 +1794,6 @@ static int mlx5e_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
-static int mlx5e_alloc_xps_cpumask(struct mlx5e_channel *c,
-				   struct mlx5e_params *params)
-{
-	int num_comp_vectors = mlx5_comp_vectors_count(c->mdev);
-	int irq;
-
-	if (!zalloc_cpumask_var(&c->xps_cpumask, GFP_KERNEL))
-		return -ENOMEM;
-
-	for (irq = c->ix; irq < num_comp_vectors; irq += params->num_channels) {
-		int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(c->mdev, irq));
-
-		cpumask_set_cpu(cpu, c->xps_cpumask);
-	}
-
-	return 0;
-}
-
-static void mlx5e_free_xps_cpumask(struct mlx5e_channel *c)
-{
-	free_cpumask_var(c->xps_cpumask);
-}
-
 static int mlx5e_open_queues(struct mlx5e_channel *c,
 			     struct mlx5e_params *params,
 			     struct mlx5e_channel_param *cparam)
@@ -1967,10 +1944,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->irq_desc = irq_to_desc(irq);
 	c->lag_port = mlx5e_enumerate_lag_port(priv->mdev, ix);
 
-	err = mlx5e_alloc_xps_cpumask(c, params);
-	if (err)
-		goto err_free_channel;
-
 	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
 
 	err = mlx5e_open_queues(c, params, cparam);
@@ -1993,9 +1966,7 @@ err_close_queues:
 
 err_napi_del:
 	netif_napi_del(&c->napi);
-	mlx5e_free_xps_cpumask(c);
 
-err_free_channel:
 	kvfree(c);
 
 	return err;
@@ -2009,7 +1980,6 @@ static void mlx5e_activate_channel(struct mlx5e_channel *c)
 		mlx5e_activate_txqsq(&c->sq[tc]);
 	mlx5e_activate_icosq(&c->icosq);
 	mlx5e_activate_rq(&c->rq);
-	netif_set_xps_queue(c->netdev, c->xps_cpumask, c->ix);
 
 	if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
 		mlx5e_activate_xsk(c);
@@ -2034,7 +2004,6 @@ static void mlx5e_close_channel(struct mlx5e_channel *c)
 		mlx5e_close_xsk(c);
 	mlx5e_close_queues(c);
 	netif_napi_del(&c->napi);
-	mlx5e_free_xps_cpumask(c);
 
 	kvfree(c);
 }
@@ -2869,10 +2838,10 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 		netdev_set_tc_queue(netdev, tc, nch, 0);
 }
 
-static void mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
+static void mlx5e_update_netdev_queues(struct mlx5e_priv *priv, u16 count)
 {
-	int num_txqs = priv->channels.num * priv->channels.params.num_tc;
-	int num_rxqs = priv->channels.num * priv->profile->rq_groups;
+	int num_txqs = count * priv->channels.params.num_tc;
+	int num_rxqs = count * priv->profile->rq_groups;
 	struct net_device *netdev = priv->netdev;
 
 	mlx5e_netdev_set_tcs(netdev);
@@ -2880,9 +2849,33 @@ static void mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 	netif_set_real_num_rx_queues(netdev, num_rxqs);
 }
 
+static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
+					   struct mlx5e_params *params)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int num_comp_vectors, ix, irq;
+
+	num_comp_vectors = mlx5_comp_vectors_count(mdev);
+
+	for (ix = 0; ix < params->num_channels; ix++) {
+		cpumask_clear(priv->scratchpad.cpumask);
+
+		for (irq = ix; irq < num_comp_vectors; irq += params->num_channels) {
+			int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(mdev, irq));
+
+			cpumask_set_cpu(cpu, priv->scratchpad.cpumask);
+		}
+
+		netif_set_xps_queue(priv->netdev, priv->scratchpad.cpumask, ix);
+	}
+}
+
 int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 {
 	u16 count = priv->channels.params.num_channels;
+
+	mlx5e_update_netdev_queues(priv, count);
+	mlx5e_set_default_xps_cpumasks(priv, &priv->channels.params);
 
 	if (!netif_is_rxfh_configured(priv->netdev))
 		mlx5e_build_default_indir_rqt(priv->rss_params.indirection_rqt,
@@ -2912,8 +2905,6 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 
 void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 {
-	mlx5e_update_netdev_queues(priv);
-
 	mlx5e_build_txq_maps(priv);
 	mlx5e_activate_channels(&priv->channels);
 	mlx5e_xdp_tx_enable(priv);
@@ -3449,7 +3440,7 @@ static int mlx5e_setup_tc_mqprio(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, mlx5e_num_channels_changed);
 	if (err)
 		goto out;
 
@@ -5231,6 +5222,9 @@ int mlx5e_netdev_init(struct net_device *netdev,
 	priv->max_nch     = netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
 	priv->max_opened_tc = 1;
 
+	if (!alloc_cpumask_var(&priv->scratchpad.cpumask, GFP_KERNEL))
+		return -ENOMEM;
+
 	mutex_init(&priv->state_lock);
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
@@ -5239,7 +5233,7 @@ int mlx5e_netdev_init(struct net_device *netdev,
 
 	priv->wq = create_singlethread_workqueue("mlx5e");
 	if (!priv->wq)
-		return -ENOMEM;
+		goto err_free_cpumask;
 
 	/* netdev init */
 	netif_carrier_off(netdev);
@@ -5249,11 +5243,17 @@ int mlx5e_netdev_init(struct net_device *netdev,
 #endif
 
 	return 0;
+
+err_free_cpumask:
+	free_cpumask_var(priv->scratchpad.cpumask);
+
+	return -ENOMEM;
 }
 
 void mlx5e_netdev_cleanup(struct net_device *netdev, struct mlx5e_priv *priv)
 {
 	destroy_workqueue(priv->wq);
+	free_cpumask_var(priv->scratchpad.cpumask);
 }
 
 struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
@@ -5288,6 +5288,7 @@ err_free_netdev:
 
 int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 {
+	const bool take_rtnl = priv->netdev->reg_state == NETREG_REGISTERED;
 	const struct mlx5e_profile *profile;
 	int max_nch;
 	int err;
@@ -5299,11 +5300,25 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 	max_nch = mlx5e_get_max_num_channels(priv->mdev);
 	if (priv->channels.params.num_channels > max_nch) {
 		mlx5_core_warn(priv->mdev, "MLX5E: Reducing number of channels to %d\n", max_nch);
-		/* Reducing the number of channels - RXFH has to be reset. */
+		/* Reducing the number of channels - RXFH has to be reset, and
+		 * mlx5e_num_channels_changed below will build the RQT.
+		 */
 		priv->netdev->priv_flags &= ~IFF_RXFH_CONFIGURED;
 		priv->channels.params.num_channels = max_nch;
-		mlx5e_num_channels_changed(priv);
 	}
+	/* 1. Set the real number of queues in the kernel the first time.
+	 * 2. Set our default XPS cpumask.
+	 * 3. Build the RQT.
+	 *
+	 * rtnl_lock is required by netif_set_real_num_*_queues in case the
+	 * netdev has been registered by this point (if this function was called
+	 * in the reload or resume flow).
+	 */
+	if (take_rtnl)
+		rtnl_lock();
+	mlx5e_num_channels_changed(priv);
+	if (take_rtnl)
+		rtnl_unlock();
 
 	err = profile->init_tx(priv);
 	if (err)
