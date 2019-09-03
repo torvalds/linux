@@ -37,7 +37,6 @@
 #include "../dso.h"
 #include "../callchain.h"
 #include "../evsel.h"
-#include "../util.h"
 #include "../event.h"
 #include "../thread.h"
 #include "../comm.h"

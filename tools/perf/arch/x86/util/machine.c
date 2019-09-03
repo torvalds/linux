@@ -3,7 +3,7 @@
 #include <linux/string.h>
 #include <stdlib.h>
 
-#include "../../util/util.h"
+#include "../../util/util.h" // page_size
 #include "../../util/machine.h"
 #include "../../util/map.h"
 #include "../../util/symbol.h"

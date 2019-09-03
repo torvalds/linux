@@ -9,7 +9,6 @@
 #include "tests.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "util.h"
 #include "debug.h"
 #include "parse-events.h"
 #include "thread_map.h"

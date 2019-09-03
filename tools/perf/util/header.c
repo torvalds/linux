@@ -42,11 +42,12 @@
 #include "tool.h"
 #include "time-utils.h"
 #include "units.h"
-#include "util.h"
+#include "util.h" // page_size, perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
 
 #include <linux/ctype.h>
+#include <internal/lib.h>
 
 /*
  * magic2 = "PERFILE2"

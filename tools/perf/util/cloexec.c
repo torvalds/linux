@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <sched.h>
-#include "util.h"
+#include "util.h" // for sched_getcpu()
 #include "../perf-sys.h"
 #include "cloexec.h"
 #include "event.h"

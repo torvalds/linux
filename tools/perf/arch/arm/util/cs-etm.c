@@ -25,7 +25,7 @@
 #include "../../util/evsel.h"
 #include "../../util/pmu.h"
 #include "../../util/cs-etm.h"
-#include "../../util/util.h"
+#include "../../util/util.h" // page_size
 #include "../../util/session.h"
 
 #include <errno.h>

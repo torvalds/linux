@@ -14,7 +14,7 @@
 #include "map.h"
 #include "symbol.h"
 #include "thread.h"
-#include "util.h"
+#include "util.h" // page_size
 
 #define THREADS 4
 

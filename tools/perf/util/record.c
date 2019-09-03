@@ -10,7 +10,6 @@
 #include <api/fs/fs.h>
 #include <subcmd/parse-options.h>
 #include <perf/cpumap.h>
-#include "util.h"
 #include "cloexec.h"
 #include "record.h"
 #include "../perf-sys.h"

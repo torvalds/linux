@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/bitops.h>
-#include "../../util/util.h"
 #include "../../util/debug.h"
 #include "../../util/map.h"
 #include "../../util/dso.h"

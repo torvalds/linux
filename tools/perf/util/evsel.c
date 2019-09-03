@@ -45,6 +45,7 @@
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
+#include <internal/lib.h>
 
 #include <linux/ctype.h>
 

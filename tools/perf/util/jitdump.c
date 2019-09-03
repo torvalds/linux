@@ -15,7 +15,6 @@
 #include <linux/stringify.h>
 
 #include "build-id.h"
-#include "util.h"
 #include "event.h"
 #include "debug.h"
 #include "evlist.h"

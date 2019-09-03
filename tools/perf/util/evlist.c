@@ -16,7 +16,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "units.h"
-#include "util.h"
+#include "util.h" // page_size
 #include "../perf.h"
 #include "asm/bug.h"
 #include "bpf-event.h"
