@@ -1431,6 +1431,78 @@ int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_stat
 	return 0;
 }
 
+static bool err_check(struct drm_color_lut *lut1,
+		      struct drm_color_lut *lut2, u32 err)
+{
+	return ((abs((long)lut2->red - lut1->red)) <= err) &&
+		((abs((long)lut2->blue - lut1->blue)) <= err) &&
+		((abs((long)lut2->green - lut1->green)) <= err);
+}
+
+static bool intel_color_lut_entry_equal(struct drm_color_lut *lut1,
+					struct drm_color_lut *lut2,
+					int lut_size, u32 err)
+{
+	int i;
+
+	for (i = 0; i < lut_size; i++) {
+		if (!err_check(&lut1[i], &lut2[i], err))
+			return false;
+	}
+
+	return true;
+}
+
+bool intel_color_lut_equal(struct drm_property_blob *blob1,
+			   struct drm_property_blob *blob2,
+			   u32 gamma_mode, u32 bit_precision)
+{
+	struct drm_color_lut *lut1, *lut2;
+	int lut_size1, lut_size2;
+	u32 err;
+
+	if (!blob1 != !blob2)
+		return false;
+
+	if (!blob1)
+		return true;
+
+	lut_size1 = drm_color_lut_size(blob1);
+	lut_size2 = drm_color_lut_size(blob2);
+
+	/* check sw and hw lut size */
+	switch (gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+	case GAMMA_MODE_MODE_10BIT:
+		if (lut_size1 != lut_size2)
+			return false;
+		break;
+	default:
+		MISSING_CASE(gamma_mode);
+			return false;
+	}
+
+	lut1 = blob1->data;
+	lut2 = blob2->data;
+
+	err = 0xffff >> bit_precision;
+
+	/* check sw and hw lut entry to be equal */
+	switch (gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+	case GAMMA_MODE_MODE_10BIT:
+		if (!intel_color_lut_entry_equal(lut1, lut2,
+						 lut_size2, err))
+			return false;
+		break;
+	default:
+		MISSING_CASE(gamma_mode);
+			return false;
+	}
+
+	return true;
+}
+
 void intel_color_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
