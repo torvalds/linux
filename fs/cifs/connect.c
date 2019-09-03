@@ -3478,6 +3478,14 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		tcon->use_resilient = true;
 	}
 
+	/* If the user really knows what they are doing they can override */
+	if (tcon->share_flags & SMB2_SHAREFLAG_NO_CACHING) {
+		if (volume_info->cache_ro)
+			cifs_dbg(VFS, "cache=ro requested on mount but NO_CACHING flag set on share\n");
+		else if (volume_info->cache_rw)
+			cifs_dbg(VFS, "cache=singleclient requested on mount but NO_CACHING flag set on share\n");
+	}
+
 	/*
 	 * We can have only one retry value for a connection to a share so for
 	 * resources mounted more than once to the same server share the last
