@@ -68,7 +68,8 @@ static int board_added(struct controller *ctrl)
 			return retval;
 	}
 
-	pciehp_green_led_blink(ctrl);
+	pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,
+			      INDICATOR_NOOP);
 
 	/* Check link training status */
 	retval = pciehp_check_link_status(ctrl);
@@ -126,8 +127,8 @@ static void remove_board(struct controller *ctrl, bool safe_removal)
 			   &ctrl->pending_events);
 	}
 
-	/* turn off Green LED */
-	pciehp_green_led_off(ctrl);
+	pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
+			      INDICATOR_NOOP);
 }
 
 static int pciehp_enable_slot(struct controller *ctrl);
@@ -314,7 +315,9 @@ static int pciehp_enable_slot(struct controller *ctrl)
 	pm_runtime_get_sync(&ctrl->pcie->port->dev);
 	ret = __pciehp_enable_slot(ctrl);
 	if (ret && ATTN_BUTTN(ctrl))
-		pciehp_green_led_off(ctrl); /* may be blinking */
+		/* may be blinking */
+		pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
+				      INDICATOR_NOOP);
 	pm_runtime_put(&ctrl->pcie->port->dev);
 
 	mutex_lock(&ctrl->state_lock);

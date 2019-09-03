@@ -454,42 +454,6 @@ void pciehp_set_indicators(struct controller *ctrl, int pwr, int attn)
 	}
 }
 
-void pciehp_green_led_on(struct controller *ctrl)
-{
-	if (!PWR_LED(ctrl))
-		return;
-
-	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,
-			      PCI_EXP_SLTCTL_PIC);
-	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
-		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
-		 PCI_EXP_SLTCTL_PWR_IND_ON);
-}
-
-void pciehp_green_led_off(struct controller *ctrl)
-{
-	if (!PWR_LED(ctrl))
-		return;
-
-	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
-			      PCI_EXP_SLTCTL_PIC);
-	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
-		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
-		 PCI_EXP_SLTCTL_PWR_IND_OFF);
-}
-
-void pciehp_green_led_blink(struct controller *ctrl)
-{
-	if (!PWR_LED(ctrl))
-		return;
-
-	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,
-			      PCI_EXP_SLTCTL_PIC);
-	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
-		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
-		 PCI_EXP_SLTCTL_PWR_IND_BLINK);
-}
-
 int pciehp_power_on_slot(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
