@@ -284,6 +284,91 @@ ENTRY(ce_aes_cbc_decrypt)
 	pop		{r4-r6, pc}
 ENDPROC(ce_aes_cbc_decrypt)
 
+
+	/*
+	 * ce_aes_cbc_cts_encrypt(u8 out[], u8 const in[], u32 const rk[],
+	 *			  int rounds, int bytes, u8 const iv[])
+	 * ce_aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
+	 *			  int rounds, int bytes, u8 const iv[])
+	 */
+
+ENTRY(ce_aes_cbc_cts_encrypt)
+	push		{r4-r6, lr}
+	ldrd		r4, r5, [sp, #16]
+
+	movw		ip, :lower16:.Lcts_permute_table
+	movt		ip, :upper16:.Lcts_permute_table
+	sub		r4, r4, #16
+	add		lr, ip, #32
+	add		ip, ip, r4
+	sub		lr, lr, r4
+	vld1.8		{q5}, [ip]
+	vld1.8		{q6}, [lr]
+
+	add		ip, r1, r4
+	vld1.8		{q0}, [r1]			@ overlapping loads
+	vld1.8		{q3}, [ip]
+
+	vld1.8		{q1}, [r5]			@ get iv
+	prepare_key	r2, r3
+
+	veor		q0, q0, q1			@ xor with iv
+	bl		aes_encrypt
+
+	vtbl.8		d4, {d0-d1}, d10
+	vtbl.8		d5, {d0-d1}, d11
+	vtbl.8		d2, {d6-d7}, d12
+	vtbl.8		d3, {d6-d7}, d13
+
+	veor		q0, q0, q1
+	bl		aes_encrypt
+
+	add		r4, r0, r4
+	vst1.8		{q2}, [r4]			@ overlapping stores
+	vst1.8		{q0}, [r0]
+
+	pop		{r4-r6, pc}
+ENDPROC(ce_aes_cbc_cts_encrypt)
+
+ENTRY(ce_aes_cbc_cts_decrypt)
+	push		{r4-r6, lr}
+	ldrd		r4, r5, [sp, #16]
+
+	movw		ip, :lower16:.Lcts_permute_table
+	movt		ip, :upper16:.Lcts_permute_table
+	sub		r4, r4, #16
+	add		lr, ip, #32
+	add		ip, ip, r4
+	sub		lr, lr, r4
+	vld1.8		{q5}, [ip]
+	vld1.8		{q6}, [lr]
+
+	add		ip, r1, r4
+	vld1.8		{q0}, [r1]			@ overlapping loads
+	vld1.8		{q1}, [ip]
+
+	vld1.8		{q3}, [r5]			@ get iv
+	prepare_key	r2, r3
+
+	bl		aes_decrypt
+
+	vtbl.8		d4, {d0-d1}, d10
+	vtbl.8		d5, {d0-d1}, d11
+	vtbx.8		d0, {d2-d3}, d12
+	vtbx.8		d1, {d2-d3}, d13
+
+	veor		q1, q1, q2
+	bl		aes_decrypt
+	veor		q0, q0, q3			@ xor with iv
+
+	add		r4, r0, r4
+	vst1.8		{q1}, [r4]			@ overlapping stores
+	vst1.8		{q0}, [r0]
+
+	pop		{r4-r6, pc}
+ENDPROC(ce_aes_cbc_cts_decrypt)
+
+
 	/*
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 ctr[])
