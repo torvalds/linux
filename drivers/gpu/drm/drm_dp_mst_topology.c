@@ -2086,7 +2086,7 @@ out:
 
 static struct drm_dp_mst_branch *get_mst_branch_device_by_guid_helper(
 	struct drm_dp_mst_branch *mstb,
-	uint8_t *guid)
+	const uint8_t *guid)
 {
 	struct drm_dp_mst_branch *found_mstb;
 	struct drm_dp_mst_port *port;
@@ -2110,7 +2110,7 @@ static struct drm_dp_mst_branch *get_mst_branch_device_by_guid_helper(
 
 static struct drm_dp_mst_branch *
 drm_dp_get_mst_branch_device_by_guid(struct drm_dp_mst_topology_mgr *mgr,
-				     uint8_t *guid)
+				     const uint8_t *guid)
 {
 	struct drm_dp_mst_branch *mstb;
 	int ret;
