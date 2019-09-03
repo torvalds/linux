@@ -15,6 +15,7 @@
 static void ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode);
 static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr);
 static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr);
+static void ionic_link_status_check(struct ionic_lif *lif);
 
 static void ionic_lif_deferred_work(struct work_struct *work)
 {
@@ -41,6 +42,9 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 		case IONIC_DW_TYPE_RX_ADDR_DEL:
 			ionic_lif_addr_del(lif, w->addr);
 			break;
+		case IONIC_DW_TYPE_LINK_STATUS:
+			ionic_link_status_check(lif);
+			break;
 		default:
 			break;
 		}
@@ -56,6 +60,54 @@ static void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
 	list_add_tail(&work->list, &def->list);
 	spin_unlock_bh(&def->lock);
 	schedule_work(&def->work);
+}
+
+static void ionic_link_status_check(struct ionic_lif *lif)
+{
+	struct net_device *netdev = lif->netdev;
+	u16 link_status;
+	bool link_up;
+
+	link_status = le16_to_cpu(lif->info->status.link_status);
+	link_up = link_status == IONIC_PORT_OPER_STATUS_UP;
+
+	/* filter out the no-change cases */
+	if (link_up == netif_carrier_ok(netdev))
+		goto link_out;
+
+	if (link_up) {
+		netdev_info(netdev, "Link up - %d Gbps\n",
+			    le32_to_cpu(lif->info->status.link_speed) / 1000);
+
+	} else {
+		netdev_info(netdev, "Link down\n");
+
+		/* carrier off first to avoid watchdog timeout */
+		netif_carrier_off(netdev);
+	}
+
+link_out:
+	clear_bit(IONIC_LIF_LINK_CHECK_REQUESTED, lif->state);
+}
+
+static void ionic_link_status_check_request(struct ionic_lif *lif)
+{
+	struct ionic_deferred_work *work;
+
+	/* we only need one request outstanding at a time */
+	if (test_and_set_bit(IONIC_LIF_LINK_CHECK_REQUESTED, lif->state))
+		return;
+
+	if (in_interrupt()) {
+		work = kzalloc(sizeof(*work), GFP_ATOMIC);
+		if (!work)
+			return;
+
+		work->type = IONIC_DW_TYPE_LINK_STATUS;
+		ionic_lif_deferred_enqueue(&lif->deferred, work);
+	} else {
+		ionic_link_status_check(lif);
+	}
 }
 
 static irqreturn_t ionic_isr(int irq, void *data)
@@ -381,12 +433,7 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 
 	switch (le16_to_cpu(comp->event.ecode)) {
 	case IONIC_EVENT_LINK_CHANGE:
-		netdev_info(netdev, "Notifyq IONIC_EVENT_LINK_CHANGE eid=%lld\n",
-			    eid);
-		netdev_info(netdev,
-			    "  link_status=%d link_speed=%d\n",
-			    le16_to_cpu(comp->link_change.link_status),
-			    le32_to_cpu(comp->link_change.link_speed));
+		ionic_link_status_check_request(lif);
 		break;
 	case IONIC_EVENT_RESET:
 		netdev_info(netdev, "Notifyq IONIC_EVENT_RESET eid=%lld\n",
@@ -443,6 +490,59 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	a_work = ionic_napi(napi, budget, ionic_adminq_service, NULL, NULL);
 
 	return max(n_work, a_work);
+}
+
+static void ionic_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *ns)
+{
+	struct ionic_lif *lif = netdev_priv(netdev);
+	struct ionic_lif_stats *ls;
+
+	memset(ns, 0, sizeof(*ns));
+	ls = &lif->info->stats;
+
+	ns->rx_packets = le64_to_cpu(ls->rx_ucast_packets) +
+			 le64_to_cpu(ls->rx_mcast_packets) +
+			 le64_to_cpu(ls->rx_bcast_packets);
+
+	ns->tx_packets = le64_to_cpu(ls->tx_ucast_packets) +
+			 le64_to_cpu(ls->tx_mcast_packets) +
+			 le64_to_cpu(ls->tx_bcast_packets);
+
+	ns->rx_bytes = le64_to_cpu(ls->rx_ucast_bytes) +
+		       le64_to_cpu(ls->rx_mcast_bytes) +
+		       le64_to_cpu(ls->rx_bcast_bytes);
+
+	ns->tx_bytes = le64_to_cpu(ls->tx_ucast_bytes) +
+		       le64_to_cpu(ls->tx_mcast_bytes) +
+		       le64_to_cpu(ls->tx_bcast_bytes);
+
+	ns->rx_dropped = le64_to_cpu(ls->rx_ucast_drop_packets) +
+			 le64_to_cpu(ls->rx_mcast_drop_packets) +
+			 le64_to_cpu(ls->rx_bcast_drop_packets);
+
+	ns->tx_dropped = le64_to_cpu(ls->tx_ucast_drop_packets) +
+			 le64_to_cpu(ls->tx_mcast_drop_packets) +
+			 le64_to_cpu(ls->tx_bcast_drop_packets);
+
+	ns->multicast = le64_to_cpu(ls->rx_mcast_packets);
+
+	ns->rx_over_errors = le64_to_cpu(ls->rx_queue_empty);
+
+	ns->rx_missed_errors = le64_to_cpu(ls->rx_dma_error) +
+			       le64_to_cpu(ls->rx_queue_disabled) +
+			       le64_to_cpu(ls->rx_desc_fetch_error) +
+			       le64_to_cpu(ls->rx_desc_data_error);
+
+	ns->tx_aborted_errors = le64_to_cpu(ls->tx_dma_error) +
+				le64_to_cpu(ls->tx_queue_disabled) +
+				le64_to_cpu(ls->tx_desc_fetch_error) +
+				le64_to_cpu(ls->tx_desc_data_error);
+
+	ns->rx_errors = ns->rx_over_errors +
+			ns->rx_missed_errors;
+
+	ns->tx_errors = ns->tx_aborted_errors;
 }
 
 static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
@@ -982,6 +1082,8 @@ int ionic_open(struct net_device *netdev)
 
 	set_bit(IONIC_LIF_UP, lif->state);
 
+	ionic_link_status_check_request(lif);
+
 	return 0;
 }
 
@@ -1007,6 +1109,7 @@ int ionic_stop(struct net_device *netdev)
 static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_open               = ionic_open,
 	.ndo_stop               = ionic_stop,
+	.ndo_get_stats64	= ionic_get_stats64,
 	.ndo_set_rx_mode	= ionic_set_rx_mode,
 	.ndo_set_features	= ionic_set_features,
 	.ndo_set_mac_address	= ionic_set_mac_address,
@@ -1447,6 +1550,7 @@ int ionic_lifs_register(struct ionic *ionic)
 		return err;
 	}
 
+	ionic_link_status_check_request(ionic->master_lif);
 	ionic->master_lif->registered = true;
 
 	return 0;
