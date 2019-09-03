@@ -2424,9 +2424,9 @@ drm_dp_dump_link_address(struct drm_dp_link_address_ack_reply *reply)
 static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 				     struct drm_dp_mst_branch *mstb)
 {
-	int len;
 	struct drm_dp_sideband_msg_tx *txmsg;
-	int ret;
+	struct drm_dp_link_address_ack_reply *reply;
+	int i, len, ret;
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
 	if (!txmsg)
@@ -2438,28 +2438,32 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	mstb->link_address_sent = true;
 	drm_dp_queue_down_tx(mgr, txmsg);
 
+	/* FIXME: Actually do some real error handling here */
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
-	if (ret > 0) {
-		int i;
-
-		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
-			DRM_DEBUG_KMS("link address nak received\n");
-		} else {
-			DRM_DEBUG_KMS("link address reply: %d\n", txmsg->reply.u.link_addr.nports);
-			drm_dp_dump_link_address(&txmsg->reply.u.link_addr);
-
-			drm_dp_check_mstb_guid(mstb, txmsg->reply.u.link_addr.guid);
-
-			for (i = 0; i < txmsg->reply.u.link_addr.nports; i++) {
-				drm_dp_add_port(mstb, mgr->dev, &txmsg->reply.u.link_addr.ports[i]);
-			}
-			drm_kms_helper_hotplug_event(mgr->dev);
-		}
-	} else {
-		mstb->link_address_sent = false;
-		DRM_DEBUG_KMS("link address failed %d\n", ret);
+	if (ret <= 0) {
+		DRM_ERROR("Sending link address failed with %d\n", ret);
+		goto out;
+	}
+	if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
+		DRM_ERROR("link address NAK received\n");
+		ret = -EIO;
+		goto out;
 	}
 
+	reply = &txmsg->reply.u.link_addr;
+	DRM_DEBUG_KMS("link address reply: %d\n", reply->nports);
+	drm_dp_dump_link_address(reply);
+
+	drm_dp_check_mstb_guid(mstb, reply->guid);
+
+	for (i = 0; i < reply->nports; i++)
+		drm_dp_add_port(mstb, mgr->dev, &reply->ports[i]);
+
+	drm_kms_helper_hotplug_event(mgr->dev);
+
+out:
+	if (ret <= 0)
+		mstb->link_address_sent = false;
 	kfree(txmsg);
 }
 
