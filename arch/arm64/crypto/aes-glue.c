@@ -409,10 +409,8 @@ static int essiv_cbc_init_tfm(struct crypto_skcipher *tfm)
 	struct crypto_aes_essiv_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	ctx->hash = crypto_alloc_shash("sha256", 0, 0);
-	if (IS_ERR(ctx->hash))
-		return PTR_ERR(ctx->hash);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(ctx->hash);
 }
 
 static void essiv_cbc_exit_tfm(struct crypto_skcipher *tfm)
