@@ -11,7 +11,6 @@
  */
 #include "../util/util.h"
 #include <subcmd/parse-options.h>
-#include "../builtin.h"
 #include "bench.h"
 
 #include <unistd.h>
