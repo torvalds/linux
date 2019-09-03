@@ -887,10 +887,6 @@ ENDPROC(aesbs_ctr_encrypt)
 	veor		\out, \out, \tmp
 	.endm
 
-	.align		4
-.Lxts_mul_x:
-	.quad		1, 0x87
-
 	/*
 	 * aesbs_xts_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 	 *		     int blocks, u8 iv[])
@@ -899,7 +895,9 @@ ENDPROC(aesbs_ctr_encrypt)
 	 */
 __xts_prepare8:
 	vld1.8		{q14}, [r7]		// load iv
-	__ldr		q15, .Lxts_mul_x	// load tweak mask
+	vmov.i32	d30, #0x87		// compose tweak mask vector
+	vmovl.u32	q15, d30
+	vshr.u64	d30, d31, #7
 	vmov		q12, q14
 
 	__adr		ip, 0f
