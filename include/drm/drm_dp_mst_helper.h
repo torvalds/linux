@@ -287,7 +287,7 @@ struct drm_dp_remote_dpcd_write {
 struct drm_dp_remote_i2c_read {
 	u8 num_transactions;
 	u8 port_number;
-	struct {
+	struct drm_dp_remote_i2c_read_tx {
 		u8 i2c_dev_id;
 		u8 num_bytes;
 		u8 *bytes;
