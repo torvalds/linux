@@ -8,6 +8,7 @@
 
 #include "ionic.h"
 #include "ionic_bus.h"
+#include "ionic_debugfs.h"
 
 /* Supported devices */
 static const struct pci_device_id ionic_id_table[] = {
@@ -17,10 +18,68 @@ static const struct pci_device_id ionic_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, ionic_id_table);
 
+const char *ionic_bus_info(struct ionic *ionic)
+{
+	return pci_name(ionic->pdev);
+}
+
+static int ionic_map_bars(struct ionic *ionic)
+{
+	struct pci_dev *pdev = ionic->pdev;
+	struct device *dev = ionic->dev;
+	struct ionic_dev_bar *bars;
+	unsigned int i, j;
+
+	bars = ionic->bars;
+	ionic->num_bars = 0;
+
+	for (i = 0, j = 0; i < IONIC_BARS_MAX; i++) {
+		if (!(pci_resource_flags(pdev, i) & IORESOURCE_MEM))
+			continue;
+		bars[j].len = pci_resource_len(pdev, i);
+
+		/* only map the whole bar 0 */
+		if (j > 0) {
+			bars[j].vaddr = NULL;
+		} else {
+			bars[j].vaddr = pci_iomap(pdev, i, bars[j].len);
+			if (!bars[j].vaddr) {
+				dev_err(dev,
+					"Cannot memory-map BAR %d, aborting\n",
+					i);
+				return -ENODEV;
+			}
+		}
+
+		bars[j].bus_addr = pci_resource_start(pdev, i);
+		bars[j].res_index = i;
+		ionic->num_bars++;
+		j++;
+	}
+
+	return 0;
+}
+
+static void ionic_unmap_bars(struct ionic *ionic)
+{
+	struct ionic_dev_bar *bars = ionic->bars;
+	unsigned int i;
+
+	for (i = 0; i < IONIC_BARS_MAX; i++) {
+		if (bars[i].vaddr) {
+			iounmap(bars[i].vaddr);
+			bars[i].bus_addr = 0;
+			bars[i].vaddr = NULL;
+			bars[i].len = 0;
+		}
+	}
+}
+
 static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ionic *ionic;
+	int err;
 
 	ionic = ionic_devlink_alloc(dev);
 	if (!ionic)
@@ -29,14 +88,96 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ionic->pdev = pdev;
 	ionic->dev = dev;
 	pci_set_drvdata(pdev, ionic);
+	mutex_init(&ionic->dev_cmd_lock);
+
+	/* Query system for DMA addressing limitation for the device. */
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(IONIC_ADDR_LEN));
+	if (err) {
+		dev_err(dev, "Unable to obtain 64-bit DMA for consistent allocations, aborting.  err=%d\n",
+			err);
+		goto err_out_clear_drvdata;
+	}
+
+	ionic_debugfs_add_dev(ionic);
+
+	/* Setup PCI device */
+	err = pci_enable_device_mem(pdev);
+	if (err) {
+		dev_err(dev, "Cannot enable PCI device: %d, aborting\n", err);
+		goto err_out_debugfs_del_dev;
+	}
+
+	err = pci_request_regions(pdev, IONIC_DRV_NAME);
+	if (err) {
+		dev_err(dev, "Cannot request PCI regions: %d, aborting\n", err);
+		goto err_out_pci_disable_device;
+	}
+
+	pci_set_master(pdev);
+
+	err = ionic_map_bars(ionic);
+	if (err)
+		goto err_out_pci_clear_master;
+
+	/* Configure the device */
+	err = ionic_setup(ionic);
+	if (err) {
+		dev_err(dev, "Cannot setup device: %d, aborting\n", err);
+		goto err_out_unmap_bars;
+	}
+
+	err = ionic_identify(ionic);
+	if (err) {
+		dev_err(dev, "Cannot identify device: %d, aborting\n", err);
+		goto err_out_teardown;
+	}
+
+	err = ionic_init(ionic);
+	if (err) {
+		dev_err(dev, "Cannot init device: %d, aborting\n", err);
+		goto err_out_teardown;
+	}
+
+	err = ionic_devlink_register(ionic);
+	if (err)
+		dev_err(dev, "Cannot register devlink: %d\n", err);
 
 	return 0;
+
+err_out_teardown:
+	ionic_dev_teardown(ionic);
+err_out_unmap_bars:
+	ionic_unmap_bars(ionic);
+	pci_release_regions(pdev);
+err_out_pci_clear_master:
+	pci_clear_master(pdev);
+err_out_pci_disable_device:
+	pci_disable_device(pdev);
+err_out_debugfs_del_dev:
+	ionic_debugfs_del_dev(ionic);
+err_out_clear_drvdata:
+	mutex_destroy(&ionic->dev_cmd_lock);
+	ionic_devlink_free(ionic);
+
+	return err;
 }
 
 static void ionic_remove(struct pci_dev *pdev)
 {
 	struct ionic *ionic = pci_get_drvdata(pdev);
 
+	if (!ionic)
+		return;
+
+	ionic_devlink_unregister(ionic);
+	ionic_reset(ionic);
+	ionic_dev_teardown(ionic);
+	ionic_unmap_bars(ionic);
+	pci_release_regions(pdev);
+	pci_clear_master(pdev);
+	pci_disable_device(pdev);
+	ionic_debugfs_del_dev(ionic);
+	mutex_destroy(&ionic->dev_cmd_lock);
 	ionic_devlink_free(ionic);
 }
 
