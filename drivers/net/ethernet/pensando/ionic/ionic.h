@@ -44,6 +44,9 @@ struct ionic {
 	DECLARE_BITMAP(intrs, IONIC_INTR_CTRL_REGS_MAX);
 };
 
+int ionic_napi(struct napi_struct *napi, int budget, ionic_cq_cb cb,
+	       ionic_cq_done_cb done_cb, void *done_arg);
+
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_wait);
 int ionic_set_dma_mask(struct ionic *ionic);
 int ionic_setup(struct ionic *ionic);

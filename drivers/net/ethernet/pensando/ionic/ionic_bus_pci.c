@@ -19,6 +19,11 @@ static const struct pci_device_id ionic_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, ionic_id_table);
 
+int ionic_bus_get_irq(struct ionic *ionic, unsigned int num)
+{
+	return pci_irq_vector(ionic->pdev, num);
+}
+
 const char *ionic_bus_info(struct ionic *ionic)
 {
 	return pci_name(ionic->pdev);

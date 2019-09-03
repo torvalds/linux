@@ -6,6 +6,55 @@
 
 #include <linux/pci.h>
 
+#define IONIC_ADMINQ_LENGTH	16	/* must be a power of two */
+
+#define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
+#define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
+
+struct ionic_tx_stats {
+	u64 pkts;
+	u64 bytes;
+};
+
+struct ionic_rx_stats {
+	u64 pkts;
+	u64 bytes;
+};
+
+#define IONIC_QCQ_F_INITED		BIT(0)
+#define IONIC_QCQ_F_SG			BIT(1)
+#define IONIC_QCQ_F_INTR		BIT(2)
+
+struct ionic_napi_stats {
+	u64 poll_count;
+	u64 work_done_cntr[IONIC_MAX_NUM_NAPI_CNTR];
+};
+
+struct ionic_q_stats {
+	union {
+		struct ionic_tx_stats tx;
+		struct ionic_rx_stats rx;
+	};
+};
+
+struct ionic_qcq {
+	void *base;
+	dma_addr_t base_pa;
+	unsigned int total_size;
+	struct ionic_queue q;
+	struct ionic_cq cq;
+	struct ionic_intr_info intr;
+	struct napi_struct napi;
+	struct ionic_napi_stats napi_stats;
+	struct ionic_q_stats *stats;
+	unsigned int flags;
+	struct dentry *dentry;
+};
+
+#define q_to_qcq(q)		container_of(q, struct ionic_qcq, q)
+#define napi_to_qcq(napi)	container_of(napi, struct ionic_qcq, napi)
+#define napi_to_cq(napi)	(&napi_to_qcq(napi)->cq)
+
 enum ionic_lif_state_flags {
 	IONIC_LIF_INITED,
 
@@ -25,6 +74,8 @@ struct ionic_lif {
 	unsigned int hw_index;
 	unsigned int kern_pid;
 	u64 __iomem *kern_dbpage;
+	spinlock_t adminq_lock;		/* lock for AdminQ operations */
+	struct ionic_qcq *adminqcq;
 	unsigned int neqs;
 	unsigned int nxqs;
 
@@ -45,5 +96,21 @@ int ionic_lifs_init(struct ionic *ionic);
 int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 		       union ionic_lif_identity *lif_ident);
 int ionic_lifs_size(struct ionic *ionic);
+
+static inline void debug_stats_napi_poll(struct ionic_qcq *qcq,
+					 unsigned int work_done)
+{
+	qcq->napi_stats.poll_count++;
+
+	if (work_done > (IONIC_MAX_NUM_NAPI_CNTR - 1))
+		work_done = IONIC_MAX_NUM_NAPI_CNTR - 1;
+
+	qcq->napi_stats.work_done_cntr[work_done]++;
+}
+
+#define DEBUG_STATS_CQE_CNT(cq)		((cq)->compl_count++)
+#define DEBUG_STATS_INTR_REARM(intr)	((intr)->rearm_count++)
+#define DEBUG_STATS_NAPI_POLL(qcq, work_done) \
+	debug_stats_napi_poll(qcq, work_done)
 
 #endif /* _IONIC_LIF_H_ */

@@ -126,6 +126,59 @@ struct ionic_dev {
 	struct ionic_devinfo dev_info;
 };
 
+struct ionic_cq_info {
+	void *cq_desc;
+	struct ionic_cq_info *next;
+	unsigned int index;
+	bool last;
+};
+
+struct ionic_queue;
+struct ionic_qcq;
+struct ionic_desc_info;
+
+typedef void (*ionic_desc_cb)(struct ionic_queue *q,
+			      struct ionic_desc_info *desc_info,
+			      struct ionic_cq_info *cq_info, void *cb_arg);
+
+struct ionic_desc_info {
+	void *desc;
+	void *sg_desc;
+	struct ionic_desc_info *next;
+	unsigned int index;
+	unsigned int left;
+	ionic_desc_cb cb;
+	void *cb_arg;
+};
+
+#define QUEUE_NAME_MAX_SZ		32
+
+struct ionic_queue {
+	u64 dbell_count;
+	u64 drop;
+	u64 stop;
+	u64 wake;
+	struct ionic_lif *lif;
+	struct ionic_desc_info *info;
+	struct ionic_desc_info *tail;
+	struct ionic_desc_info *head;
+	struct ionic_dev *idev;
+	unsigned int index;
+	unsigned int type;
+	unsigned int hw_index;
+	unsigned int hw_type;
+	u64 dbval;
+	void *base;
+	void *sg_base;
+	dma_addr_t base_pa;
+	dma_addr_t sg_base_pa;
+	unsigned int num_descs;
+	unsigned int desc_size;
+	unsigned int sg_desc_size;
+	unsigned int pid;
+	char name[QUEUE_NAME_MAX_SZ];
+};
+
 #define INTR_INDEX_NOT_ASSIGNED		-1
 #define INTR_NAME_MAX_SZ		32
 
@@ -138,6 +191,20 @@ struct ionic_intr_info {
 	cpumask_t affinity_mask;
 };
 
+struct ionic_cq {
+	void *base;
+	dma_addr_t base_pa;
+	struct ionic_lif *lif;
+	struct ionic_cq_info *info;
+	struct ionic_cq_info *tail;
+	struct ionic_queue *bound_q;
+	struct ionic_intr_info *bound_intr;
+	bool done_color;
+	unsigned int num_descs;
+	u64 compl_count;
+	unsigned int desc_size;
+};
+
 struct ionic;
 
 static inline void ionic_intr_init(struct ionic_dev *idev,
@@ -146,6 +213,23 @@ static inline void ionic_intr_init(struct ionic_dev *idev,
 {
 	ionic_intr_clean(idev->intr_ctrl, index);
 	intr->index = index;
+}
+
+static inline unsigned int ionic_q_space_avail(struct ionic_queue *q)
+{
+	unsigned int avail = q->tail->index;
+
+	if (q->head->index >= avail)
+		avail += q->head->left - 1;
+	else
+		avail -= q->head->index + 1;
+
+	return avail;
+}
+
+static inline bool ionic_q_has_space(struct ionic_queue *q, unsigned int want)
+{
+	return ionic_q_space_avail(q) >= want;
 }
 
 void ionic_init_devinfo(struct ionic *ionic);
@@ -174,7 +258,32 @@ void ionic_dev_cmd_lif_identify(struct ionic_dev *idev, u8 type, u8 ver);
 void ionic_dev_cmd_lif_init(struct ionic_dev *idev, u16 lif_index,
 			    dma_addr_t addr);
 void ionic_dev_cmd_lif_reset(struct ionic_dev *idev, u16 lif_index);
+void ionic_dev_cmd_adminq_init(struct ionic_dev *idev, struct ionic_qcq *qcq,
+			       u16 lif_index, u16 intr_index);
 
 int ionic_db_page_num(struct ionic_lif *lif, int pid);
+
+int ionic_cq_init(struct ionic_lif *lif, struct ionic_cq *cq,
+		  struct ionic_intr_info *intr,
+		  unsigned int num_descs, size_t desc_size);
+void ionic_cq_map(struct ionic_cq *cq, void *base, dma_addr_t base_pa);
+void ionic_cq_bind(struct ionic_cq *cq, struct ionic_queue *q);
+typedef bool (*ionic_cq_cb)(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
+typedef void (*ionic_cq_done_cb)(void *done_arg);
+unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
+			      ionic_cq_cb cb, ionic_cq_done_cb done_cb,
+			      void *done_arg);
+
+int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
+		 struct ionic_queue *q, unsigned int index, const char *name,
+		 unsigned int num_descs, size_t desc_size,
+		 size_t sg_desc_size, unsigned int pid);
+void ionic_q_map(struct ionic_queue *q, void *base, dma_addr_t base_pa);
+void ionic_q_sg_map(struct ionic_queue *q, void *base, dma_addr_t base_pa);
+void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
+		  void *cb_arg);
+void ionic_q_rewind(struct ionic_queue *q, struct ionic_desc_info *start);
+void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
+		     unsigned int stop_index);
 
 #endif /* _IONIC_DEV_H_ */
