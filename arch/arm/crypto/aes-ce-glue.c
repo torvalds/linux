@@ -177,15 +177,15 @@ static int ecb_encrypt(struct skcipher_request *req)
 	unsigned int blocks;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
+		kernel_neon_begin();
 		ce_aes_ecb_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key_enc, num_rounds(ctx), blocks);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	kernel_neon_end();
 	return err;
 }
 
@@ -197,15 +197,15 @@ static int ecb_decrypt(struct skcipher_request *req)
 	unsigned int blocks;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
+		kernel_neon_begin();
 		ce_aes_ecb_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key_dec, num_rounds(ctx), blocks);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	kernel_neon_end();
 	return err;
 }
 
@@ -217,16 +217,16 @@ static int cbc_encrypt(struct skcipher_request *req)
 	unsigned int blocks;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
+		kernel_neon_begin();
 		ce_aes_cbc_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key_enc, num_rounds(ctx), blocks,
 				   walk.iv);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	kernel_neon_end();
 	return err;
 }
 
@@ -238,16 +238,16 @@ static int cbc_decrypt(struct skcipher_request *req)
 	unsigned int blocks;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
+		kernel_neon_begin();
 		ce_aes_cbc_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key_dec, num_rounds(ctx), blocks,
 				   walk.iv);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	kernel_neon_end();
 	return err;
 }
 
@@ -258,13 +258,14 @@ static int ctr_encrypt(struct skcipher_request *req)
 	struct skcipher_walk walk;
 	int err, blocks;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
+		kernel_neon_begin();
 		ce_aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key_enc, num_rounds(ctx), blocks,
 				   walk.iv);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	if (walk.nbytes) {
@@ -278,13 +279,13 @@ static int ctr_encrypt(struct skcipher_request *req)
 		 */
 		blocks = -1;
 
+		kernel_neon_begin();
 		ce_aes_ctr_encrypt(tail, NULL, ctx->key_enc, num_rounds(ctx),
 				   blocks, walk.iv);
+		kernel_neon_end();
 		crypto_xor_cpy(tdst, tsrc, tail, nbytes);
 		err = skcipher_walk_done(&walk, 0);
 	}
-	kernel_neon_end();
-
 	return err;
 }
 
@@ -319,17 +320,16 @@ static int xts_encrypt(struct skcipher_request *req)
 	struct skcipher_walk walk;
 	unsigned int blocks;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	for (first = 1; (blocks = (walk.nbytes / AES_BLOCK_SIZE)); first = 0) {
+		kernel_neon_begin();
 		ce_aes_xts_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key1.key_enc, rounds, blocks, walk.iv,
 				   ctx->key2.key_enc, first);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	kernel_neon_end();
-
 	return err;
 }
 
@@ -341,17 +341,16 @@ static int xts_decrypt(struct skcipher_request *req)
 	struct skcipher_walk walk;
 	unsigned int blocks;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_neon_begin();
 	for (first = 1; (blocks = (walk.nbytes / AES_BLOCK_SIZE)); first = 0) {
+		kernel_neon_begin();
 		ce_aes_xts_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   ctx->key1.key_dec, rounds, blocks, walk.iv,
 				   ctx->key2.key_enc, first);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
-	kernel_neon_end();
-
 	return err;
 }
 
