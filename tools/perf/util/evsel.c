@@ -1227,36 +1227,6 @@ int evsel__disable(struct evsel *evsel)
 	return err;
 }
 
-int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
-{
-	if (ncpus == 0 || nthreads == 0)
-		return 0;
-
-	if (evsel->core.system_wide)
-		nthreads = 1;
-
-	evsel->core.sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
-	if (evsel->core.sample_id == NULL)
-		return -ENOMEM;
-
-	evsel->core.id = zalloc(ncpus * nthreads * sizeof(u64));
-	if (evsel->core.id == NULL) {
-		xyarray__delete(evsel->core.sample_id);
-		evsel->core.sample_id = NULL;
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void perf_evsel__free_id(struct evsel *evsel)
-{
-	xyarray__delete(evsel->core.sample_id);
-	evsel->core.sample_id = NULL;
-	zfree(&evsel->core.id);
-	evsel->core.ids = 0;
-}
-
 static void perf_evsel__free_config_terms(struct evsel *evsel)
 {
 	struct perf_evsel_config_term *term, *h;
@@ -1273,7 +1243,7 @@ void perf_evsel__exit(struct evsel *evsel)
 	assert(evsel->evlist == NULL);
 	perf_evsel__free_counts(evsel);
 	perf_evsel__free_fd(&evsel->core);
-	perf_evsel__free_id(evsel);
+	perf_evsel__free_id(&evsel->core);
 	perf_evsel__free_config_terms(evsel);
 	cgroup__put(evsel->cgrp);
 	perf_cpu_map__put(evsel->core.cpus);
@@ -1992,7 +1962,7 @@ out_close:
 void evsel__close(struct evsel *evsel)
 {
 	perf_evsel__close(&evsel->core);
-	perf_evsel__free_id(evsel);
+	perf_evsel__free_id(&evsel->core);
 }
 
 int perf_evsel__open_per_cpu(struct evsel *evsel,
@@ -2706,7 +2676,7 @@ int perf_evsel__store_ids(struct evsel *evsel, struct evlist *evlist)
 	struct perf_cpu_map *cpus = evsel->core.cpus;
 	struct perf_thread_map *threads = evsel->core.threads;
 
-	if (perf_evsel__alloc_id(evsel, cpus->nr, threads->nr))
+	if (perf_evsel__alloc_id(&evsel->core, cpus->nr, threads->nr))
 		return -ENOMEM;
 
 	return store_evsel_ids(evsel, evlist);

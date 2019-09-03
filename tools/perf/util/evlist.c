@@ -469,7 +469,7 @@ static void perf_evlist__id_hash(struct evlist *evlist,
 	struct perf_sample_id *sid = SID(evsel, cpu, thread);
 
 	sid->id = id;
-	sid->evsel = evsel;
+	sid->evsel = &evsel->core;
 	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
 	hlist_add_head(&sid->node, &evlist->core.heads[hash]);
 }
@@ -563,7 +563,7 @@ struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
 
 	sid = perf_evlist__id2sid(evlist, id);
 	if (sid)
-		return sid->evsel;
+		return container_of(sid->evsel, struct evsel, core);
 
 	if (!perf_evlist__sample_id_all(evlist))
 		return perf_evlist__first(evlist);
@@ -581,7 +581,7 @@ struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,
 
 	sid = perf_evlist__id2sid(evlist, id);
 	if (sid)
-		return sid->evsel;
+		return container_of(sid->evsel, struct evsel, core);
 
 	return NULL;
 }
@@ -635,7 +635,7 @@ struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 
 	hlist_for_each_entry(sid, head, node) {
 		if (sid->id == id)
-			return sid->evsel;
+			return container_of(sid->evsel, struct evsel, core);
 	}
 	return NULL;
 }
@@ -1018,7 +1018,7 @@ int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 	evlist__for_each_entry(evlist, evsel) {
 		if ((evsel->core.attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->core.sample_id == NULL &&
-		    perf_evsel__alloc_id(evsel, perf_cpu_map__nr(cpus), threads->nr) < 0)
+		    perf_evsel__alloc_id(&evsel->core, perf_cpu_map__nr(cpus), threads->nr) < 0)
 			return -ENOMEM;
 	}
 

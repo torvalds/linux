@@ -17,29 +17,6 @@ struct addr_location;
 struct evsel;
 union perf_event;
 
-/*
- * Per fd, to map back from PERF_SAMPLE_ID to evsel, only used when there are
- * more than one entry in the evlist.
- */
-struct perf_sample_id {
-	struct hlist_node 	node;
-	u64		 	id;
-	struct evsel		*evsel;
-       /*
-	* 'idx' will be used for AUX area sampling. A sample will have AUX area
-	* data that will be queued for decoding, where there are separate
-	* queues for each CPU (per-cpu tracing) or task (per-thread tracing).
-	* The sample ID can be used to lookup 'idx' which is effectively the
-	* queue number.
-	*/
-	int			idx;
-	int			cpu;
-	pid_t			tid;
-
-	/* Holds total ID period value for PERF_SAMPLE_READ processing. */
-	u64			period;
-};
-
 struct cgroup;
 
 /*
@@ -271,8 +248,6 @@ const char *perf_evsel__name(struct evsel *evsel);
 
 const char *perf_evsel__group_name(struct evsel *evsel);
 int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
-
-int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads);
 
 void __perf_evsel__set_sample_bit(struct evsel *evsel,
 				  enum perf_event_sample_format bit);
