@@ -1754,7 +1754,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	while (num_entries) {
 		/*
 		 * instead of copying whole sector, we will check every entry.
-		 * this will provide minimum stablity and consistancy.
+		 * this will provide minimum stablity and consistency.
 		 */
 		entry_type = p_fs->fs_func->get_entry_type(ep);
 

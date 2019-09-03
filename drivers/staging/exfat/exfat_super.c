@@ -482,7 +482,7 @@ static int ffsMountVol(struct super_block *sb)
 		goto out;
 	}
 
-	/* fill fs_stuct */
+	/* fill fs_struct */
 	for (i = 0; i < 53; i++)
 		if (p_pbr->bpb[i])
 			break;
