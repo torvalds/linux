@@ -756,9 +756,9 @@ static int record__open(struct record *rec)
 		if (perf_evlist__add_dummy(evlist))
 			return -ENOMEM;
 
-		pos = perf_evlist__first(evlist);
+		pos = evlist__first(evlist);
 		pos->tracking = 0;
-		pos = perf_evlist__last(evlist);
+		pos = evlist__last(evlist);
 		pos->tracking = 1;
 		pos->core.attr.enable_on_exec = 1;
 	}

@@ -88,7 +88,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 		goto out_delete_evlist;
 	}
 
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 	evsel->core.attr.task = 1;
 #ifdef __s390x__
 	evsel->core.attr.sample_freq = 1000000;

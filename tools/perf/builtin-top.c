@@ -531,7 +531,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->core.nr_entries) {
-					top->sym_evsel = perf_evlist__first(top->evlist);
+					top->sym_evsel = evlist__first(top->evlist);
 					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
@@ -540,7 +540,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
-				top->sym_evsel = perf_evlist__first(top->evlist);
+				top->sym_evsel = evlist__first(top->evlist);
 			break;
 		case 'f':
 			prompt_integer(&top->count_filter, "Enter display event count filter");
@@ -962,7 +962,7 @@ static int perf_top__overwrite_check(struct perf_top *top)
 		/* has term for current event */
 		if ((overwrite < 0) && (set >= 0)) {
 			/* if it's first event, set overwrite */
-			if (evsel == perf_evlist__first(evlist))
+			if (evsel == evlist__first(evlist))
 				overwrite = set;
 			else
 				return -1;
@@ -986,7 +986,7 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 		return 0;
 
 	/* only fall back when first event fails */
-	if (evsel != perf_evlist__first(evlist))
+	if (evsel != evlist__first(evlist))
 		return 0;
 
 	evlist__for_each_entry(evlist, counter)
@@ -1644,7 +1644,7 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	top.sym_evsel = perf_evlist__first(top.evlist);
+	top.sym_evsel = evlist__first(top.evlist);
 
 	if (!callchain_param.enabled) {
 		symbol_conf.cumulate_callchain = false;

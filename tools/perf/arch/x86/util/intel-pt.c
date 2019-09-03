@@ -417,7 +417,7 @@ static int intel_pt_track_switches(struct evlist *evlist)
 		return err;
 	}
 
-	evsel = perf_evlist__last(evlist);
+	evsel = evlist__last(evlist);
 
 	perf_evsel__set_sample_bit(evsel, CPU);
 	perf_evsel__set_sample_bit(evsel, TIME);
@@ -717,7 +717,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				if (err)
 					return err;
 
-				switch_evsel = perf_evlist__last(evlist);
+				switch_evsel = evlist__last(evlist);
 
 				switch_evsel->core.attr.freq = 0;
 				switch_evsel->core.attr.sample_period = 1;
@@ -775,7 +775,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		if (err)
 			return err;
 
-		tracking_evsel = perf_evlist__last(evlist);
+		tracking_evsel = evlist__last(evlist);
 
 		perf_evlist__set_tracking_event(evlist, tracking_evsel);
 

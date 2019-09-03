@@ -231,7 +231,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		if (err)
 			return err;
 
-		tracking_evsel = perf_evlist__last(evlist);
+		tracking_evsel = evlist__last(evlist);
 
 		perf_evlist__set_tracking_event(evlist, tracking_evsel);
 

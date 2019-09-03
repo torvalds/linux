@@ -104,7 +104,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	/*
 	 * Config the evsels, setting attr->comm on the first one, etc.
 	 */
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 	perf_evsel__set_sample_bit(evsel, CPU);
 	perf_evsel__set_sample_bit(evsel, TID);
 	perf_evsel__set_sample_bit(evsel, TIME);

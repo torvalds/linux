@@ -105,7 +105,7 @@ struct evlist *perf_evlist__new_dummy(void)
  */
 void perf_evlist__set_id_pos(struct evlist *evlist)
 {
-	struct evsel *first = perf_evlist__first(evlist);
+	struct evsel *first = evlist__first(evlist);
 
 	evlist->id_pos = first->id_pos;
 	evlist->is_pos = first->is_pos;
@@ -559,14 +559,14 @@ struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
 	struct perf_sample_id *sid;
 
 	if (evlist->core.nr_entries == 1 || !id)
-		return perf_evlist__first(evlist);
+		return evlist__first(evlist);
 
 	sid = perf_evlist__id2sid(evlist, id);
 	if (sid)
 		return container_of(sid->evsel, struct evsel, core);
 
 	if (!perf_evlist__sample_id_all(evlist))
-		return perf_evlist__first(evlist);
+		return evlist__first(evlist);
 
 	return NULL;
 }
@@ -610,7 +610,7 @@ static int perf_evlist__event2id(struct evlist *evlist,
 struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 					    union perf_event *event)
 {
-	struct evsel *first = perf_evlist__first(evlist);
+	struct evsel *first = evlist__first(evlist);
 	struct hlist_head *head;
 	struct perf_sample_id *sid;
 	int hash;
@@ -1222,7 +1222,7 @@ u64 perf_evlist__combined_branch_type(struct evlist *evlist)
 
 bool perf_evlist__valid_read_format(struct evlist *evlist)
 {
-	struct evsel *first = perf_evlist__first(evlist), *pos = first;
+	struct evsel *first = evlist__first(evlist), *pos = first;
 	u64 read_format = first->core.attr.read_format;
 	u64 sample_type = first->core.attr.sample_type;
 
@@ -1242,13 +1242,13 @@ bool perf_evlist__valid_read_format(struct evlist *evlist)
 
 u64 perf_evlist__read_format(struct evlist *evlist)
 {
-	struct evsel *first = perf_evlist__first(evlist);
+	struct evsel *first = evlist__first(evlist);
 	return first->core.attr.read_format;
 }
 
 u16 perf_evlist__id_hdr_size(struct evlist *evlist)
 {
-	struct evsel *first = perf_evlist__first(evlist);
+	struct evsel *first = evlist__first(evlist);
 	struct perf_sample *data;
 	u64 sample_type;
 	u16 size = 0;
@@ -1281,7 +1281,7 @@ out:
 
 bool perf_evlist__valid_sample_id_all(struct evlist *evlist)
 {
-	struct evsel *first = perf_evlist__first(evlist), *pos = first;
+	struct evsel *first = evlist__first(evlist), *pos = first;
 
 	evlist__for_each_entry_continue(evlist, pos) {
 		if (first->core.attr.sample_id_all != pos->core.attr.sample_id_all)
@@ -1293,7 +1293,7 @@ bool perf_evlist__valid_sample_id_all(struct evlist *evlist)
 
 bool perf_evlist__sample_id_all(struct evlist *evlist)
 {
-	struct evsel *first = perf_evlist__first(evlist);
+	struct evsel *first = evlist__first(evlist);
 	return first->core.attr.sample_id_all;
 }
 
@@ -1568,7 +1568,7 @@ int perf_evlist__strerror_open(struct evlist *evlist,
 				    "Hint:\tThe current value is %d.", value);
 		break;
 	case EINVAL: {
-		struct evsel *first = perf_evlist__first(evlist);
+		struct evsel *first = evlist__first(evlist);
 		int max_freq;
 
 		if (sysctl__read_int("kernel/perf_event_max_sample_rate", &max_freq) < 0)
@@ -1630,7 +1630,7 @@ void perf_evlist__to_front(struct evlist *evlist,
 	struct evsel *evsel, *n;
 	LIST_HEAD(move);
 
-	if (move_evsel == perf_evlist__first(evlist))
+	if (move_evsel == evlist__first(evlist))
 		return;
 
 	evlist__for_each_entry_safe(evlist, n, evsel) {
@@ -1751,7 +1751,7 @@ bool perf_evlist__exclude_kernel(struct evlist *evlist)
 void perf_evlist__force_leader(struct evlist *evlist)
 {
 	if (!evlist->nr_groups) {
-		struct evsel *leader = perf_evlist__first(evlist);
+		struct evsel *leader = evlist__first(evlist);
 
 		perf_evlist__set_leader(evlist);
 		leader->forced_leader = true;

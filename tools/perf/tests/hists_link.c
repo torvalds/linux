@@ -311,8 +311,8 @@ int test__hists_link(struct test *test __maybe_unused, int subtest __maybe_unuse
 			print_hists_in(hists);
 	}
 
-	first = perf_evlist__first(evlist);
-	evsel = perf_evlist__last(evlist);
+	first = evlist__first(evlist);
+	evsel = evlist__last(evlist);
 
 	first_hists = evsel__hists(first);
 	hists = evsel__hists(evsel);

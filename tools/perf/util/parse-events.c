@@ -1936,7 +1936,7 @@ int parse_events(struct evlist *evlist, const char *str,
 
 		perf_evlist__splice_list_tail(evlist, &parse_state.list);
 		evlist->nr_groups += parse_state.nr_groups;
-		last = perf_evlist__last(evlist);
+		last = evlist__last(evlist);
 		last->cmdline_group_boundary = true;
 
 		return 0;
@@ -2050,7 +2050,7 @@ foreach_evsel_in_last_glob(struct evlist *evlist,
 	 * So no need to WARN here, let *func do this.
 	 */
 	if (evlist->core.nr_entries > 0)
-		last = perf_evlist__last(evlist);
+		last = evlist__last(evlist);
 
 	do {
 		err = (*func)(last, arg);

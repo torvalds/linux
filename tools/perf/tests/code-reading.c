@@ -652,7 +652,7 @@ static int do_test_code_reading(bool try_kcore)
 
 		perf_evlist__config(evlist, &opts, NULL);
 
-		evsel = perf_evlist__first(evlist);
+		evsel = evlist__first(evlist);
 
 		evsel->core.attr.comm = 1;
 		evsel->core.attr.disabled = 1;

@@ -2043,7 +2043,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 		return err;
 
 	evlist = *pevlist;
-	evsel = perf_evlist__last(*pevlist);
+	evsel = evlist__last(*pevlist);
 
 	if (!evsel->priv) {
 		if (scr->per_event_dump) {

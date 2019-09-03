@@ -367,7 +367,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	cpu_clocks_evsel = perf_evlist__last(evlist);
+	cpu_clocks_evsel = evlist__last(evlist);
 
 	/* Second event */
 	err = parse_events(evlist, "cycles:u", NULL);
@@ -376,7 +376,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	cycles_evsel = perf_evlist__last(evlist);
+	cycles_evsel = evlist__last(evlist);
 
 	/* Third event */
 	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
@@ -391,7 +391,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	switch_evsel = perf_evlist__last(evlist);
+	switch_evsel = evlist__last(evlist);
 
 	perf_evsel__set_sample_bit(switch_evsel, CPU);
 	perf_evsel__set_sample_bit(switch_evsel, TIME);
@@ -401,12 +401,12 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	switch_evsel->immediate = true;
 
 	/* Test moving an event to the front */
-	if (cycles_evsel == perf_evlist__first(evlist)) {
+	if (cycles_evsel == evlist__first(evlist)) {
 		pr_debug("cycles event already at front");
 		goto out_err;
 	}
 	perf_evlist__to_front(evlist, cycles_evsel);
-	if (cycles_evsel != perf_evlist__first(evlist)) {
+	if (cycles_evsel != evlist__first(evlist)) {
 		pr_debug("Failed to move cycles event to front");
 		goto out_err;
 	}
@@ -421,7 +421,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	tracking_evsel = perf_evlist__last(evlist);
+	tracking_evsel = evlist__last(evlist);
 
 	perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
@@ -434,7 +434,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	perf_evlist__config(evlist, &opts, NULL);
 
 	/* Check moved event is still at the front */
-	if (cycles_evsel != perf_evlist__first(evlist)) {
+	if (cycles_evsel != evlist__first(evlist)) {
 		pr_debug("Front event no longer at front");
 		goto out_err;
 	}

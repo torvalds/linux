@@ -4,6 +4,7 @@
 
 #include <linux/list.h>
 #include <api/fd/array.h>
+#include <internal/evsel.h>
 
 #define PERF_EVLIST__HLIST_BITS 8
 #define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
@@ -54,5 +55,15 @@ struct perf_evlist {
  */
 #define perf_evlist__for_each_entry_reverse(evlist, evsel) \
 	__perf_evlist__for_each_entry_reverse(&(evlist)->entries, evsel)
+
+static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
+{
+	return list_entry(evlist->entries.next, struct perf_evsel, node);
+}
+
+static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
+{
+	return list_entry(evlist->entries.prev, struct perf_evsel, node);
+}
 
 #endif /* __LIBPERF_INTERNAL_EVLIST_H */
