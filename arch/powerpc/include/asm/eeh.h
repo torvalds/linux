@@ -88,6 +88,17 @@ struct eeh_pe {
 	struct list_head child_list;	/* List of PEs below this PE	*/
 	struct list_head child;		/* Memb. child_list/eeh_phb_pe	*/
 	struct list_head edevs;		/* List of eeh_dev in this PE	*/
+
+	/*
+	 * Saved stack trace. When we find a PE freeze in eeh_dev_check_failure
+	 * the stack trace is saved here so we can print it in the recovery
+	 * thread if it turns out to due to a real problem rather than
+	 * a hot-remove.
+	 *
+	 * A max of 64 entries might be overkill, but it also might not be.
+	 */
+	unsigned long stack_trace[64];
+	int trace_entries;
 };
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
