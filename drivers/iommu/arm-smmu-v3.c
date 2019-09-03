@@ -2311,6 +2311,7 @@ static void arm_smmu_install_ste_for_dev(struct arm_smmu_master *master)
 	}
 }
 
+#ifdef CONFIG_PCI_ATS
 static bool arm_smmu_ats_supported(struct arm_smmu_master *master)
 {
 	struct pci_dev *pdev;
@@ -2324,6 +2325,12 @@ static bool arm_smmu_ats_supported(struct arm_smmu_master *master)
 	pdev = to_pci_dev(master->dev);
 	return !pdev->untrusted && pdev->ats_cap;
 }
+#else
+static bool arm_smmu_ats_supported(struct arm_smmu_master *master)
+{
+	return false;
+}
+#endif
 
 static void arm_smmu_enable_ats(struct arm_smmu_master *master)
 {
