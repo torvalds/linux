@@ -64,6 +64,7 @@ void amdgpu_amdkfd_fini(void)
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 {
 	const struct kfd2kgd_calls *kfd2kgd;
+	bool vf = amdgpu_sriov_vf(adev);
 
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -101,7 +102,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	}
 
 	adev->kfd.dev = kgd2kfd_probe((struct kgd_dev *)adev,
-				      adev->pdev, kfd2kgd);
+				      adev->pdev, kfd2kgd, adev->asic_type, vf);
 
 	if (adev->kfd.dev)
 		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
@@ -735,7 +736,8 @@ struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions(void)
 }
 
 struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
-			      const struct kfd2kgd_calls *f2g)
+			      const struct kfd2kgd_calls *f2g,
+			      unsigned int asic_type, bool vf)
 {
 	return NULL;
 }

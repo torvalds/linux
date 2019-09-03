@@ -80,7 +80,7 @@ MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
-static const char *amdgpu_asic_name[] = {
+const char *amdgpu_asic_name[] = {
 	"TAHITI",
 	"PITCAIRN",
 	"VERDE",

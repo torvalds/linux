@@ -57,4 +57,6 @@ enum amd_asic_type {
 	CHIP_LAST,
 };
 
+extern const char *amdgpu_asic_name[];
+
 #endif /*__AMD_ASIC_TYPE_H__ */
