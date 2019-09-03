@@ -1503,6 +1503,59 @@ bool intel_color_lut_equal(struct drm_property_blob *blob1,
 	return true;
 }
 
+/* convert hw value with given bit_precision to lut property val */
+static u32 intel_color_lut_pack(u32 val, u32 bit_precision)
+{
+	u32 max = 0xffff >> (16 - bit_precision);
+
+	val = clamp_val(val, 0, max);
+
+	if (bit_precision < 16)
+		val <<= 16 - bit_precision;
+
+	return val;
+}
+
+static struct drm_property_blob *
+i9xx_read_lut_8(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *blob_data;
+	u32 i, val;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(struct drm_color_lut) * LEGACY_LUT_LENGTH,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	blob_data = blob->data;
+
+	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
+		if (HAS_GMCH(dev_priv))
+			val = I915_READ(PALETTE(pipe, i));
+		else
+			val = I915_READ(LGC_PALETTE(pipe, i));
+
+		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+							LGC_PALETTE_RED_MASK, val), 8);
+		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+							  LGC_PALETTE_GREEN_MASK, val), 8);
+		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+							 LGC_PALETTE_BLUE_MASK, val), 8);
+	}
+
+	return blob;
+}
+
+static void i9xx_read_luts(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->base.gamma_lut = i9xx_read_lut_8(crtc_state);
+}
+
 void intel_color_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1523,6 +1576,7 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.color_check = i9xx_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = i9xx_load_luts;
+			dev_priv->display.read_luts = i9xx_read_luts;
 		}
 	} else {
 		if (INTEL_GEN(dev_priv) >= 11)
