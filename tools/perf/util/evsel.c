@@ -2662,7 +2662,7 @@ static int store_evsel_ids(struct evsel *evsel, struct evlist *evlist)
 		     thread++) {
 			int fd = FD(evsel, cpu, thread);
 
-			if (perf_evlist__id_add_fd(evlist, evsel,
+			if (perf_evlist__id_add_fd(&evlist->core, &evsel->core,
 						   cpu, thread, fd) < 0)
 				return -1;
 		}

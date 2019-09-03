@@ -4,11 +4,14 @@
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/hash.h>
+#include <sys/ioctl.h>
 #include <internal/evlist.h>
 #include <internal/evsel.h>
 #include <internal/xyarray.h>
 #include <linux/zalloc.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
 #include <perf/cpumap.h>
 #include <perf/threadmap.h>
 
@@ -193,4 +196,45 @@ void perf_evlist__id_add(struct perf_evlist *evlist,
 {
 	perf_evlist__id_hash(evlist, evsel, cpu, thread, id);
 	evsel->id[evsel->ids++] = id;
+}
+
+int perf_evlist__id_add_fd(struct perf_evlist *evlist,
+			   struct perf_evsel *evsel,
+			   int cpu, int thread, int fd)
+{
+	u64 read_data[4] = { 0, };
+	int id_idx = 1; /* The first entry is the counter value */
+	u64 id;
+	int ret;
+
+	ret = ioctl(fd, PERF_EVENT_IOC_ID, &id);
+	if (!ret)
+		goto add;
+
+	if (errno != ENOTTY)
+		return -1;
+
+	/* Legacy way to get event id.. All hail to old kernels! */
+
+	/*
+	 * This way does not work with group format read, so bail
+	 * out in that case.
+	 */
+	if (perf_evlist__read_format(evlist) & PERF_FORMAT_GROUP)
+		return -1;
+
+	if (!(evsel->attr.read_format & PERF_FORMAT_ID) ||
+	    read(fd, &read_data, sizeof(read_data)) == -1)
+		return -1;
+
+	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		++id_idx;
+	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		++id_idx;
+
+	id = read_data[id_idx];
+
+add:
+	perf_evlist__id_add(evlist, evsel, cpu, thread, id);
+	return 0;
 }
