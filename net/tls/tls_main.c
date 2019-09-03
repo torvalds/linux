@@ -286,19 +286,14 @@ static void tls_sk_proto_cleanup(struct sock *sk,
 		kfree(ctx->tx.rec_seq);
 		kfree(ctx->tx.iv);
 		tls_sw_release_resources_tx(sk);
-#ifdef CONFIG_TLS_DEVICE
 	} else if (ctx->tx_conf == TLS_HW) {
 		tls_device_free_resources_tx(sk);
-#endif
 	}
 
 	if (ctx->rx_conf == TLS_SW)
 		tls_sw_release_resources_rx(sk);
-
-#ifdef CONFIG_TLS_DEVICE
-	if (ctx->rx_conf == TLS_HW)
+	else if (ctx->rx_conf == TLS_HW)
 		tls_device_offload_cleanup_rx(sk);
-#endif
 }
 
 static void tls_sk_proto_close(struct sock *sk, long timeout)
@@ -537,26 +532,18 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	}
 
 	if (tx) {
-#ifdef CONFIG_TLS_DEVICE
 		rc = tls_set_device_offload(sk, ctx);
 		conf = TLS_HW;
 		if (rc) {
-#else
-		{
-#endif
 			rc = tls_set_sw_offload(sk, ctx, 1);
 			if (rc)
 				goto err_crypto_info;
 			conf = TLS_SW;
 		}
 	} else {
-#ifdef CONFIG_TLS_DEVICE
 		rc = tls_set_device_offload_rx(sk, ctx);
 		conf = TLS_HW;
 		if (rc) {
-#else
-		{
-#endif
 			rc = tls_set_sw_offload(sk, ctx, 0);
 			if (rc)
 				goto err_crypto_info;
@@ -920,9 +907,7 @@ static int __init tls_register(void)
 	tls_sw_proto_ops = inet_stream_ops;
 	tls_sw_proto_ops.splice_read = tls_sw_splice_read;
 
-#ifdef CONFIG_TLS_DEVICE
 	tls_device_init();
-#endif
 	tcp_register_ulp(&tcp_tls_ulp_ops);
 
 	return 0;
@@ -931,9 +916,7 @@ static int __init tls_register(void)
 static void __exit tls_unregister(void)
 {
 	tcp_unregister_ulp(&tcp_tls_ulp_ops);
-#ifdef CONFIG_TLS_DEVICE
 	tls_device_cleanup();
-#endif
 }
 
 module_init(tls_register);
