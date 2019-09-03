@@ -3,6 +3,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/cpumask.h>
@@ -1254,9 +1255,22 @@ static int ionic_change_mtu(struct net_device *netdev, int new_mtu)
 	return err;
 }
 
+static void ionic_tx_timeout_work(struct work_struct *ws)
+{
+	struct ionic_lif *lif = container_of(ws, struct ionic_lif, tx_timeout_work);
+
+	netdev_info(lif->netdev, "Tx Timeout recovery\n");
+
+	rtnl_lock();
+	ionic_reset_queues(lif);
+	rtnl_unlock();
+}
+
 static void ionic_tx_timeout(struct net_device *netdev)
 {
-	netdev_info(netdev, "%s: stubbed\n", __func__);
+	struct ionic_lif *lif = netdev_priv(netdev);
+
+	schedule_work(&lif->tx_timeout_work);
 }
 
 static int ionic_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,
@@ -1416,6 +1430,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 	unsigned int flags;
 	unsigned int i;
 	int err = 0;
+	u32 coal;
 
 	flags = IONIC_QCQ_F_TX_STATS | IONIC_QCQ_F_SG;
 	for (i = 0; i < lif->nxqs; i++) {
@@ -1432,6 +1447,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 	}
 
 	flags = IONIC_QCQ_F_RX_STATS | IONIC_QCQ_F_INTR;
+	coal = ionic_coal_usec_to_hw(lif->ionic, lif->rx_coalesce_usecs);
 	for (i = 0; i < lif->nxqs; i++) {
 		err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
 				      lif->nrxq_descs,
@@ -1443,6 +1459,8 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 
 		lif->rxqcqs[i].qcq->stats = lif->rxqcqs[i].stats;
 
+		ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
+				     lif->rxqcqs[i].qcq->intr.index, coal);
 		ionic_link_qcq_interrupts(lif->rxqcqs[i].qcq,
 					  lif->txqcqs[i].qcq);
 	}
@@ -1621,6 +1639,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	struct net_device *netdev;
 	struct ionic_lif *lif;
 	int tbl_sz;
+	u32 coal;
 	int err;
 
 	netdev = alloc_etherdev_mqs(sizeof(*lif),
@@ -1649,6 +1668,10 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 	lif->index = index;
 	lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
 	lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
+
+	/* Convert the default coalesce value to actual hw resolution */
+	coal = ionic_coal_usec_to_hw(lif->ionic, IONIC_ITR_COAL_USEC_DEFAULT);
+	lif->rx_coalesce_usecs = ionic_coal_hw_to_usec(lif->ionic, coal);
 
 	snprintf(lif->name, sizeof(lif->name), "lif%u", index);
 
@@ -2007,6 +2030,8 @@ static int ionic_lif_init(struct ionic_lif *lif)
 
 	set_bit(IONIC_LIF_INITED, lif->state);
 
+	INIT_WORK(&lif->tx_timeout_work, ionic_tx_timeout_work);
+
 	return 0;
 
 err_out_notifyq_deinit:
@@ -2125,6 +2150,7 @@ void ionic_lifs_unregister(struct ionic *ionic)
 	 * ionic->lif for candidates to unregister
 	 */
 	cancel_work_sync(&ionic->master_lif->deferred.work);
+	cancel_work_sync(&ionic->master_lif->tx_timeout_work);
 	if (ionic->master_lif->netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(ionic->master_lif->netdev);
 }

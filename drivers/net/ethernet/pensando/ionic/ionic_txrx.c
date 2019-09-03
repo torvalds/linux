@@ -289,11 +289,9 @@ void ionic_rx_empty(struct ionic_queue *q)
 
 	for (cur = q->tail; cur != q->head; cur = cur->next) {
 		desc = cur->desc;
-
 		dma_unmap_single(dev, le64_to_cpu(desc->addr),
 				 le16_to_cpu(desc->len), DMA_FROM_DEVICE);
 		dev_kfree_skb(cur->cb_arg);
-
 		cur->cb_arg = NULL;
 	}
 }

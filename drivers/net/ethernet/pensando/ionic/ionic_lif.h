@@ -177,6 +177,7 @@ struct ionic_lif {
 	struct dentry *dentry;
 	u32 rx_coalesce_usecs;
 	u32 flags;
+	struct work_struct tx_timeout_work;
 };
 
 #define lif_to_txqcq(lif, i)	((lif)->txqcqs[i].qcq)
@@ -193,6 +194,35 @@ static inline int ionic_wait_for_bit(struct ionic_lif *lif, int bitname)
 		usleep_range(100, 200);
 
 	return test_bit(bitname, lif->state);
+}
+
+static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
+{
+	u32 mult = le32_to_cpu(ionic->ident.dev.intr_coal_mult);
+	u32 div = le32_to_cpu(ionic->ident.dev.intr_coal_div);
+
+	/* Div-by-zero should never be an issue, but check anyway */
+	if (!div || !mult)
+		return 0;
+
+	/* Round up in case usecs is close to the next hw unit */
+	usecs += (div / mult) >> 1;
+
+	/* Convert from usecs to device units */
+	return (usecs * mult) / div;
+}
+
+static inline u32 ionic_coal_hw_to_usec(struct ionic *ionic, u32 units)
+{
+	u32 mult = le32_to_cpu(ionic->ident.dev.intr_coal_mult);
+	u32 div = le32_to_cpu(ionic->ident.dev.intr_coal_div);
+
+	/* Div-by-zero should never be an issue, but check anyway */
+	if (!div || !mult)
+		return 0;
+
+	/* Convert from device units to usec */
+	return (units * div) / mult;
 }
 
 int ionic_lifs_alloc(struct ionic *ionic);
