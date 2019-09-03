@@ -2626,7 +2626,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 		readl(&priv_dev->regs->usb_cap6));
 	dev_dbg(priv_dev->dev, "USB Capabilities:: %08x\n",
 		readl(&priv_dev->regs->usb_cap1));
-	dev_dbg(priv_dev->dev, "On-Chip memory cnfiguration: %08x\n",
+	dev_dbg(priv_dev->dev, "On-Chip memory configuration: %08x\n",
 		readl(&priv_dev->regs->usb_cap2));
 
 	priv_dev->dev_ver = GET_DEV_BASE_VERSION(priv_dev->dev_ver);
