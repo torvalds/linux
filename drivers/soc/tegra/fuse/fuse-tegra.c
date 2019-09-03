@@ -186,8 +186,11 @@ u32 __init tegra_fuse_read_early(unsigned int offset)
 
 int tegra_fuse_readl(unsigned long offset, u32 *value)
 {
-	if (!fuse->read)
+	if (!fuse->read || !fuse->clk)
 		return -EPROBE_DEFER;
+
+	if (IS_ERR(fuse->clk))
+		return PTR_ERR(fuse->clk);
 
 	*value = fuse->read(fuse, offset);
 
