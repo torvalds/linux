@@ -96,8 +96,16 @@ static bool eeh_dev_removed(struct eeh_dev *edev)
 
 static bool eeh_edev_actionable(struct eeh_dev *edev)
 {
-	return (edev->pdev && !eeh_dev_removed(edev) &&
-		!eeh_pe_passed(edev->pe));
+	if (!edev->pdev)
+		return false;
+	if (edev->pdev->error_state == pci_channel_io_perm_failure)
+		return false;
+	if (eeh_dev_removed(edev))
+		return false;
+	if (eeh_pe_passed(edev->pe))
+		return false;
+
+	return true;
 }
 
 /**
