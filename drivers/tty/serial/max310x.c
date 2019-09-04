@@ -956,6 +956,15 @@ static void max310x_set_termios(struct uart_port *port,
 	max310x_port_write(port, MAX310X_XON1_REG, termios->c_cc[VSTART]);
 	max310x_port_write(port, MAX310X_XOFF1_REG, termios->c_cc[VSTOP]);
 
+	/* Disable transmitter before enabling AutoCTS or auto transmitter
+	 * flow control
+	 */
+	if (termios->c_cflag & CRTSCTS || termios->c_iflag & IXOFF) {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				    MAX310X_MODE1_TXDIS_BIT,
+				    MAX310X_MODE1_TXDIS_BIT);
+	}
+
 	port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
 	if (termios->c_cflag & CRTSCTS) {
@@ -973,6 +982,15 @@ static void max310x_set_termios(struct uart_port *port,
 			MAX310X_FLOWCTRL_SWFLOWEN_BIT;
 	}
 	max310x_port_write(port, MAX310X_FLOWCTRL_REG, flow);
+
+	/* Enable transmitter after disabling AutoCTS and auto transmitter
+	 * flow control
+	 */
+	if (!(termios->c_cflag & CRTSCTS) && !(termios->c_iflag & IXOFF)) {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				    MAX310X_MODE1_TXDIS_BIT,
+				    0);
+	}
 
 	/* Get baud rate generator configuration */
 	baud = uart_get_baud_rate(port, termios, old,
