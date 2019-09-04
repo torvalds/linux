@@ -232,8 +232,8 @@
 #define IP2_11_8	FM(AVB_MDC)		F_(0, 0)		F_(0, 0)		F_(0, 0)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP2_15_12	FM(BS_N)		FM(PWM0_A)		FM(AVB_MAGIC)		FM(VI4_CLK)		F_(0, 0)		FM(TX3_C)	F_(0, 0)	FM(VI5_CLK_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP2_19_16	FM(RD_N)		FM(PWM1_A)		FM(AVB_LINK)		FM(VI4_FIELD)		F_(0, 0)		FM(RX3_C)	FM(FSCLKST2_N_A) FM(VI5_DATA0_B) F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP2_23_20	FM(RD_WR_N)		FM(SCL7_A)		FM(AVB_AVTP_MATCH_A)	FM(VI4_VSYNC_N)		FM(TX5_B)		FM(SCK3_C)	FM(PWM5_A)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP2_27_24	FM(EX_WAIT0)		FM(SDA7_A)		FM(AVB_AVTP_CAPTURE_A)	FM(VI4_HSYNC_N)		FM(RX5_B)		FM(PWM6_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP2_23_20	FM(RD_WR_N)		FM(SCL7_A)		FM(AVB_AVTP_MATCH)	FM(VI4_VSYNC_N)		FM(TX5_B)		FM(SCK3_C)	FM(PWM5_A)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP2_27_24	FM(EX_WAIT0)		FM(SDA7_A)		FM(AVB_AVTP_CAPTURE)	FM(VI4_HSYNC_N)		FM(RX5_B)		FM(PWM6_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP2_31_28	FM(A0)			FM(IRQ0)		FM(PWM2_A)		FM(MSIOF3_SS1_B)	FM(VI5_CLK_A)		FM(DU_CDE)	FM(HRX3_D)	FM(IERX)	FM(QSTB_QHE)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_3_0		FM(A1)			FM(IRQ1)		FM(PWM3_A)		FM(DU_DOTCLKIN1)	FM(VI5_DATA0_A)		FM(DU_DISP_CDE) FM(SDA6_B)	FM(IETX)	FM(QCPV_QDE)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_7_4		FM(A2)			FM(IRQ2)		FM(AVB_AVTP_PPS)	FM(VI4_CLKENB)		FM(VI5_DATA1_A)		FM(DU_DISP)	FM(SCL6_B)	F_(0, 0)	FM(QSTVB_QVE)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -634,7 +634,7 @@ static const u16 pinmux_data[] = {
 
 	PINMUX_IPSR_GPSR(IP2_23_20,		RD_WR_N),
 	PINMUX_IPSR_MSEL(IP2_23_20,		SCL7_A,		SEL_I2C7_0),
-	PINMUX_IPSR_GPSR(IP2_23_20,		AVB_AVTP_MATCH_A),
+	PINMUX_IPSR_GPSR(IP2_23_20,		AVB_AVTP_MATCH),
 	PINMUX_IPSR_GPSR(IP2_23_20,		VI4_VSYNC_N),
 	PINMUX_IPSR_GPSR(IP2_23_20,		TX5_B),
 	PINMUX_IPSR_MSEL(IP2_23_20,		SCK3_C,		SEL_SCIF3_2),
@@ -642,7 +642,7 @@ static const u16 pinmux_data[] = {
 
 	PINMUX_IPSR_GPSR(IP2_27_24,		EX_WAIT0),
 	PINMUX_IPSR_MSEL(IP2_27_24,		SDA7_A,		SEL_I2C7_0),
-	PINMUX_IPSR_GPSR(IP2_27_24,		AVB_AVTP_CAPTURE_A),
+	PINMUX_IPSR_GPSR(IP2_27_24,		AVB_AVTP_CAPTURE),
 	PINMUX_IPSR_GPSR(IP2_27_24,		VI4_HSYNC_N),
 	PINMUX_IPSR_MSEL(IP2_27_24,		RX5_B,		SEL_SCIF5_1),
 	PINMUX_IPSR_MSEL(IP2_27_24,		PWM6_A,		SEL_PWM6_0),
@@ -1524,22 +1524,22 @@ static const unsigned int avb_avtp_pps_mux[] = {
 	AVB_AVTP_PPS_MARK,
 };
 
-static const unsigned int avb_avtp_match_a_pins[] = {
-	/* AVB_AVTP_MATCH_A */
+static const unsigned int avb_avtp_match_pins[] = {
+	/* AVB_AVTP_MATCH */
 	RCAR_GP_PIN(2, 24),
 };
 
-static const unsigned int avb_avtp_match_a_mux[] = {
-	AVB_AVTP_MATCH_A_MARK,
+static const unsigned int avb_avtp_match_mux[] = {
+	AVB_AVTP_MATCH_MARK,
 };
 
-static const unsigned int avb_avtp_capture_a_pins[] = {
-	/* AVB_AVTP_CAPTURE_A */
+static const unsigned int avb_avtp_capture_pins[] = {
+	/* AVB_AVTP_CAPTURE */
 	RCAR_GP_PIN(2, 25),
 };
 
-static const unsigned int avb_avtp_capture_a_mux[] = {
-	AVB_AVTP_CAPTURE_A_MARK,
+static const unsigned int avb_avtp_capture_mux[] = {
+	AVB_AVTP_CAPTURE_MARK,
 };
 
 /* - CAN ------------------------------------------------------------------ */
@@ -3784,8 +3784,8 @@ static const struct {
 		SH_PFC_PIN_GROUP(avb_phy_int),
 		SH_PFC_PIN_GROUP(avb_mii),
 		SH_PFC_PIN_GROUP(avb_avtp_pps),
-		SH_PFC_PIN_GROUP(avb_avtp_match_a),
-		SH_PFC_PIN_GROUP(avb_avtp_capture_a),
+		SH_PFC_PIN_GROUP(avb_avtp_match),
+		SH_PFC_PIN_GROUP(avb_avtp_capture),
 		SH_PFC_PIN_GROUP(can0_data),
 		SH_PFC_PIN_GROUP(can1_data),
 		SH_PFC_PIN_GROUP(can_clk),
@@ -4061,8 +4061,8 @@ static const char * const avb_groups[] = {
 	"avb_phy_int",
 	"avb_mii",
 	"avb_avtp_pps",
-	"avb_avtp_match_a",
-	"avb_avtp_capture_a",
+	"avb_avtp_match",
+	"avb_avtp_capture",
 };
 
 static const char * const can0_groups[] = {
