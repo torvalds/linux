@@ -389,7 +389,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 			roce_set_field(ud_sq_wqe->byte_36,
 				       V2_UD_SEND_WQE_BYTE_36_VLAN_M,
 				       V2_UD_SEND_WQE_BYTE_36_VLAN_S,
-				       ah->av.vlan);
+				       ah->av.vlan_id);
 			roce_set_field(ud_sq_wqe->byte_36,
 				       V2_UD_SEND_WQE_BYTE_36_HOPLIMIT_M,
 				       V2_UD_SEND_WQE_BYTE_36_HOPLIMIT_S,
@@ -4061,8 +4061,8 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	const struct ib_gid_attr *gid_attr = NULL;
 	int is_roce_protocol;
+	u16 vlan_id = 0xffff;
 	bool is_udp = false;
-	u16 vlan = 0xffff;
 	u8 ib_port;
 	u8 hr_port;
 	int ret;
@@ -4074,7 +4074,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 
 	if (is_roce_protocol) {
 		gid_attr = attr->ah_attr.grh.sgid_attr;
-		ret = rdma_read_gid_l2_fields(gid_attr, &vlan, NULL);
+		ret = rdma_read_gid_l2_fields(gid_attr, &vlan_id, NULL);
 		if (ret)
 			return ret;
 
@@ -4083,7 +4083,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 				 IB_GID_TYPE_ROCE_UDP_ENCAP);
 	}
 
-	if (vlan < VLAN_CFI_MASK) {
+	if (vlan_id < VLAN_N_VID) {
 		roce_set_bit(context->byte_76_srqn_op_en,
 			     V2_QPC_BYTE_76_RQ_VLAN_EN_S, 1);
 		roce_set_bit(qpc_mask->byte_76_srqn_op_en,
@@ -4095,7 +4095,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	}
 
 	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_ID_M,
-		       V2_QPC_BYTE_24_VLAN_ID_S, vlan);
+		       V2_QPC_BYTE_24_VLAN_ID_S, vlan_id);
 	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_ID_M,
 		       V2_QPC_BYTE_24_VLAN_ID_S, 0);
 
