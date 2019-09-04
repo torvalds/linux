@@ -469,6 +469,7 @@ struct ioc_gq {
 	 */
 	atomic64_t			vtime;
 	atomic64_t			done_vtime;
+	atomic64_t			abs_vdebt;
 	u64				last_vtime;
 
 	/*
@@ -653,11 +654,19 @@ static struct ioc_cgrp *blkcg_to_iocc(struct blkcg *blkcg)
 
 /*
  * Scale @abs_cost to the inverse of @hw_inuse.  The lower the hierarchical
- * weight, the more expensive each IO.
+ * weight, the more expensive each IO.  Must round up.
  */
 static u64 abs_cost_to_cost(u64 abs_cost, u32 hw_inuse)
 {
 	return DIV64_U64_ROUND_UP(abs_cost * HWEIGHT_WHOLE, hw_inuse);
+}
+
+/*
+ * The inverse of abs_cost_to_cost().  Must round up.
+ */
+static u64 cost_to_abs_cost(u64 cost, u32 hw_inuse)
+{
+	return DIV64_U64_ROUND_UP(cost * hw_inuse, HWEIGHT_WHOLE);
 }
 
 static void iocg_commit_bio(struct ioc_gq *iocg, struct bio *bio, u64 cost)
@@ -1132,16 +1141,36 @@ static void iocg_kick_waitq(struct ioc_gq *iocg, struct ioc_now *now)
 	struct iocg_wake_ctx ctx = { .iocg = iocg };
 	u64 margin_ns = (u64)(ioc->period_us *
 			      WAITQ_TIMER_MARGIN_PCT / 100) * NSEC_PER_USEC;
-	u64 vshortage, expires, oexpires;
+	u64 abs_vdebt, vdebt, vshortage, expires, oexpires;
+	s64 vbudget;
+	u32 hw_inuse;
 
 	lockdep_assert_held(&iocg->waitq.lock);
+
+	current_hweight(iocg, NULL, &hw_inuse);
+	vbudget = now->vnow - atomic64_read(&iocg->vtime);
+
+	/* pay off debt */
+	abs_vdebt = atomic64_read(&iocg->abs_vdebt);
+	vdebt = abs_cost_to_cost(abs_vdebt, hw_inuse);
+	if (vdebt && vbudget > 0) {
+		u64 delta = min_t(u64, vbudget, vdebt);
+		u64 abs_delta = min(cost_to_abs_cost(delta, hw_inuse),
+				    abs_vdebt);
+
+		atomic64_add(delta, &iocg->vtime);
+		atomic64_add(delta, &iocg->done_vtime);
+		atomic64_sub(abs_delta, &iocg->abs_vdebt);
+		if (WARN_ON_ONCE(atomic64_read(&iocg->abs_vdebt) < 0))
+			atomic64_set(&iocg->abs_vdebt, 0);
+	}
 
 	/*
 	 * Wake up the ones which are due and see how much vtime we'll need
 	 * for the next one.
 	 */
-	current_hweight(iocg, NULL, &ctx.hw_inuse);
-	ctx.vbudget = now->vnow - atomic64_read(&iocg->vtime);
+	ctx.hw_inuse = hw_inuse;
+	ctx.vbudget = vbudget - vdebt;
 	__wake_up_locked_key(&iocg->waitq, TASK_NORMAL, &ctx);
 	if (!waitqueue_active(&iocg->waitq))
 		return;
@@ -1187,6 +1216,11 @@ static void iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now, u64 cost)
 	u64 vmargin = ioc->margin_us * now->vrate;
 	u64 margin_ns = ioc->margin_us * NSEC_PER_USEC;
 	u64 expires, oexpires;
+	u32 hw_inuse;
+
+	/* debt-adjust vtime */
+	current_hweight(iocg, NULL, &hw_inuse);
+	vtime += abs_cost_to_cost(atomic64_read(&iocg->abs_vdebt), hw_inuse);
 
 	/* clear or maintain depending on the overage */
 	if (time_before_eq64(vtime, now->vnow)) {
@@ -1332,12 +1366,14 @@ static void ioc_timer_fn(struct timer_list *timer)
 	 * should have woken up in the last period and expire idle iocgs.
 	 */
 	list_for_each_entry_safe(iocg, tiocg, &ioc->active_iocgs, active_list) {
-		if (!waitqueue_active(&iocg->waitq) && !iocg_is_idle(iocg))
+		if (!waitqueue_active(&iocg->waitq) &&
+		    !atomic64_read(&iocg->abs_vdebt) && !iocg_is_idle(iocg))
 			continue;
 
 		spin_lock(&iocg->waitq.lock);
 
-		if (waitqueue_active(&iocg->waitq)) {
+		if (waitqueue_active(&iocg->waitq) ||
+		    atomic64_read(&iocg->abs_vdebt)) {
 			/* might be oversleeping vtime / hweight changes, kick */
 			iocg_kick_waitq(iocg, &now);
 			iocg_kick_delay(iocg, &now, 0);
@@ -1673,13 +1709,24 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 * in a while which is fine.
 	 */
 	if (!waitqueue_active(&iocg->waitq) &&
+	    !atomic64_read(&iocg->abs_vdebt) &&
 	    time_before_eq64(vtime + cost, now.vnow)) {
 		iocg_commit_bio(iocg, bio, cost);
 		return;
 	}
 
+	/*
+	 * We're over budget.  If @bio has to be issued regardless,
+	 * remember the abs_cost instead of advancing vtime.
+	 * iocg_kick_waitq() will pay off the debt before waking more IOs.
+	 * This way, the debt is continuously paid off each period with the
+	 * actual budget available to the cgroup.  If we just wound vtime,
+	 * we would incorrectly use the current hw_inuse for the entire
+	 * amount which, for example, can lead to the cgroup staying
+	 * blocked for a long time even with substantially raised hw_inuse.
+	 */
 	if (bio_issue_as_root_blkg(bio) || fatal_signal_pending(current)) {
-		iocg_commit_bio(iocg, bio, cost);
+		atomic64_add(abs_cost, &iocg->abs_vdebt);
 		iocg_kick_delay(iocg, &now, cost);
 		return;
 	}
@@ -1928,6 +1975,7 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	iocg->ioc = ioc;
 	atomic64_set(&iocg->vtime, now.vnow);
 	atomic64_set(&iocg->done_vtime, now.vnow);
+	atomic64_set(&iocg->abs_vdebt, 0);
 	atomic64_set(&iocg->active_period, atomic64_read(&ioc->cur_period));
 	INIT_LIST_HEAD(&iocg->active_list);
 	iocg->hweight_active = HWEIGHT_WHOLE;
