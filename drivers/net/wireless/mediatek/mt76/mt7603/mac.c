@@ -1578,7 +1578,7 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 		return;
 
 	state = mdev->chan_state;
-	busy = mt76_rr(dev, MT_MIB_STAT_PSCCA);
+	busy = mt76_rr(dev, MT_MIB_STAT_CCA);
 
 	spin_lock_bh(&dev->mt76.cc_lock);
 	cur_time = ktime_get_boottime();
