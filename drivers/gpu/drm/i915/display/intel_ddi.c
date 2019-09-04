@@ -3167,17 +3167,18 @@ static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
+	struct intel_dp *intel_dp;
 	u32 val;
 
 	if (!crtc_state->fec_enable)
 		return;
 
-	val = I915_READ(DP_TP_CTL(port));
+	intel_dp = enc_to_intel_dp(&encoder->base);
+	val = I915_READ(intel_dp->regs.dp_tp_ctl);
 	val |= DP_TP_CTL_FEC_ENABLE;
-	I915_WRITE(DP_TP_CTL(port), val);
+	I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
 
-	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
 				  DP_TP_STATUS_FEC_ENABLE_LIVE, 1))
 		DRM_ERROR("Timed out waiting for FEC Enable Status\n");
 }
@@ -3186,16 +3187,17 @@ static void intel_ddi_disable_fec_state(struct intel_encoder *encoder,
 					const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
+	struct intel_dp *intel_dp;
 	u32 val;
 
 	if (!crtc_state->fec_enable)
 		return;
 
-	val = I915_READ(DP_TP_CTL(port));
+	intel_dp = enc_to_intel_dp(&encoder->base);
+	val = I915_READ(intel_dp->regs.dp_tp_ctl);
 	val &= ~DP_TP_CTL_FEC_ENABLE;
-	I915_WRITE(DP_TP_CTL(port), val);
-	POSTING_READ(DP_TP_CTL(port));
+	I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
+	POSTING_READ(intel_dp->regs.dp_tp_ctl);
 }
 
 static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
@@ -3208,9 +3210,13 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int level = intel_ddi_dp_level(intel_dp);
+	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
+
+	intel_dp->regs.dp_tp_ctl = TGL_DP_TP_CTL(transcoder);
+	intel_dp->regs.dp_tp_status = TGL_DP_TP_STATUS(transcoder);
 
 	/* 1.a got on intel_atomic_commit_tail() */
 
@@ -3299,6 +3305,9 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
+
+	intel_dp->regs.dp_tp_ctl = DP_TP_CTL(port);
+	intel_dp->regs.dp_tp_status = DP_TP_STATUS(port);
 
 	intel_edp_panel_on(intel_dp);
 
@@ -3466,10 +3475,12 @@ static void intel_disable_ddi_buf(struct intel_encoder *encoder,
 	}
 
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
-		val = I915_READ(DP_TP_CTL(port));
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+		val = I915_READ(intel_dp->regs.dp_tp_ctl);
 		val &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
 		val |= DP_TP_CTL_LINK_TRAIN_PAT1;
-		I915_WRITE(DP_TP_CTL(port), val);
+		I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
 	}
 
 	/* Disable FEC in DP Sink */
@@ -3898,7 +3909,7 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	u32 val;
 	bool wait = false;
 
-	if (I915_READ(DP_TP_CTL(port)) & DP_TP_CTL_ENABLE) {
+	if (I915_READ(intel_dp->regs.dp_tp_ctl) & DP_TP_CTL_ENABLE) {
 		val = I915_READ(DDI_BUF_CTL(port));
 		if (val & DDI_BUF_CTL_ENABLE) {
 			val &= ~DDI_BUF_CTL_ENABLE;
@@ -3906,11 +3917,11 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 			wait = true;
 		}
 
-		val = I915_READ(DP_TP_CTL(port));
+		val = I915_READ(intel_dp->regs.dp_tp_ctl);
 		val &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
 		val |= DP_TP_CTL_LINK_TRAIN_PAT1;
-		I915_WRITE(DP_TP_CTL(port), val);
-		POSTING_READ(DP_TP_CTL(port));
+		I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
+		POSTING_READ(intel_dp->regs.dp_tp_ctl);
 
 		if (wait)
 			intel_wait_ddi_buf_idle(dev_priv, port);
@@ -3925,8 +3936,8 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 			val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	}
-	I915_WRITE(DP_TP_CTL(port), val);
-	POSTING_READ(DP_TP_CTL(port));
+	I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
+	POSTING_READ(intel_dp->regs.dp_tp_ctl);
 
 	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
 	I915_WRITE(DDI_BUF_CTL(port), intel_dp->DP);

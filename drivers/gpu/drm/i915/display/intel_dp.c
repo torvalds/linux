@@ -2297,6 +2297,9 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 				 intel_crtc_has_type(pipe_config,
 						     INTEL_OUTPUT_DP_MST));
 
+	intel_dp->regs.dp_tp_ctl = DP_TP_CTL(port);
+	intel_dp->regs.dp_tp_status = DP_TP_STATUS(port);
+
 	/*
 	 * There are four kinds of DP registers:
 	 *
@@ -3253,7 +3256,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			      dp_train_pat & train_pat_mask);
 
 	if (HAS_DDI(dev_priv)) {
-		u32 temp = I915_READ(DP_TP_CTL(port));
+		u32 temp = I915_READ(intel_dp->regs.dp_tp_ctl);
 
 		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
 			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
@@ -3279,7 +3282,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			temp |= DP_TP_CTL_LINK_TRAIN_PAT4;
 			break;
 		}
-		I915_WRITE(DP_TP_CTL(port), temp);
+		I915_WRITE(intel_dp->regs.dp_tp_ctl, temp);
 
 	} else if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 		   (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
@@ -3980,10 +3983,10 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	if (!HAS_DDI(dev_priv))
 		return;
 
-	val = I915_READ(DP_TP_CTL(port));
+	val = I915_READ(intel_dp->regs.dp_tp_ctl);
 	val &= ~DP_TP_CTL_LINK_TRAIN_MASK;
 	val |= DP_TP_CTL_LINK_TRAIN_IDLE;
-	I915_WRITE(DP_TP_CTL(port), val);
+	I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
 
 	/*
 	 * Until TGL on PORT_A we can have only eDP in SST mode. There the only
@@ -3995,7 +3998,7 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	if (port == PORT_A && INTEL_GEN(dev_priv) < 12)
 		return;
 
-	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
 				  DP_TP_STATUS_IDLE_DONE, 1))
 		DRM_ERROR("Timed out waiting for DP idle patterns\n");
 }
