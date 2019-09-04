@@ -45,7 +45,7 @@ static const char * __init product_id_to_soc_id(unsigned int product_id)
 	return NULL;
 }
 
-int __init exynos_chipid_early_init(void)
+static int __init exynos_chipid_early_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
