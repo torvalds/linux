@@ -2574,7 +2574,7 @@ xfs_ifree_cluster(
 		 * only using to mark the buffer as stale in the log, and to
 		 * attach stale cached inodes on it. That means it will never be
 		 * dispatched for IO. If it is, we want to know about it, and we
-		 * want it to fail. We can acheive this by adding a write
+		 * want it to fail. We can achieve this by adding a write
 		 * verifier to the buffer.
 		 */
 		bp->b_ops = &xfs_inode_buf_ops;

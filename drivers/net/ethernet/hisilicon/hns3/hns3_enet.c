@@ -185,7 +185,7 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 
 	/* this defines the configuration for RL (Interrupt Rate Limiter).
 	 * Rl defines rate of interrupts i.e. number of interrupts-per-second
-	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
+	 * GL and RL(Rate Limiter) are 2 ways to achieve interrupt coalescing
 	 */
 
 	if (rl_reg > 0 && !tqp_vector->tx_group.coal.gl_adapt_enable &&
