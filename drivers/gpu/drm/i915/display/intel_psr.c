@@ -88,48 +88,20 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int edp_psr_shift(enum transcoder cpu_transcoder)
+static void psr_irq_control(struct drm_i915_private *dev_priv)
 {
-	switch (cpu_transcoder) {
-	case TRANSCODER_A:
-		return EDP_PSR_TRANSCODER_A_SHIFT;
-	case TRANSCODER_B:
-		return EDP_PSR_TRANSCODER_B_SHIFT;
-	case TRANSCODER_C:
-		return EDP_PSR_TRANSCODER_C_SHIFT;
-	default:
-		MISSING_CASE(cpu_transcoder);
-		/* fallthrough */
-	case TRANSCODER_EDP:
-		return EDP_PSR_TRANSCODER_EDP_SHIFT;
-	}
-}
+	enum transcoder trans = dev_priv->psr.transcoder;
+	u32 val, mask;
 
-static void psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
-{
-	u32 debug_mask, mask;
-	enum transcoder cpu_transcoder;
-	u32 transcoders = BIT(TRANSCODER_EDP);
+	mask = EDP_PSR_ERROR(trans);
+	if (dev_priv->psr.debug & I915_PSR_DEBUG_IRQ)
+		mask |= EDP_PSR_POST_EXIT(trans) | EDP_PSR_PRE_ENTRY(trans);
 
-	if (INTEL_GEN(dev_priv) >= 8)
-		transcoders |= BIT(TRANSCODER_A) |
-			       BIT(TRANSCODER_B) |
-			       BIT(TRANSCODER_C);
-
-	debug_mask = 0;
-	mask = 0;
-	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
-		int shift = edp_psr_shift(cpu_transcoder);
-
-		mask |= EDP_PSR_ERROR(shift);
-		debug_mask |= EDP_PSR_POST_EXIT(shift) |
-			      EDP_PSR_PRE_ENTRY(shift);
-	}
-
-	if (debug & I915_PSR_DEBUG_IRQ)
-		mask |= debug_mask;
-
-	I915_WRITE(EDP_PSR_IMR, ~mask);
+	/* Warning: it is masking/setting reserved bits too */
+	val = I915_READ(EDP_PSR_IMR);
+	val &= ~EDP_PSR_TRANS_MASK(trans);
+	val |= ~mask;
+	I915_WRITE(EDP_PSR_IMR, val);
 }
 
 static void psr_event_print(u32 val, bool psr2_enabled)
@@ -171,60 +143,48 @@ static void psr_event_print(u32 val, bool psr2_enabled)
 
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 {
-	u32 transcoders = BIT(TRANSCODER_EDP);
-	enum transcoder cpu_transcoder;
+	enum transcoder cpu_transcoder = dev_priv->psr.transcoder;
 	ktime_t time_ns =  ktime_get();
-	u32 mask = 0;
 
-	if (INTEL_GEN(dev_priv) >= 8)
-		transcoders |= BIT(TRANSCODER_A) |
-			       BIT(TRANSCODER_B) |
-			       BIT(TRANSCODER_C);
+	if (psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder)) {
+		dev_priv->psr.last_entry_attempt = time_ns;
+		DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
+			      transcoder_name(cpu_transcoder));
+	}
 
-	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
-		int shift = edp_psr_shift(cpu_transcoder);
+	if (psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder)) {
+		dev_priv->psr.last_exit = time_ns;
+		DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
+			      transcoder_name(cpu_transcoder));
 
-		if (psr_iir & EDP_PSR_ERROR(shift)) {
-			DRM_WARN("[transcoder %s] PSR aux error\n",
-				 transcoder_name(cpu_transcoder));
+		if (INTEL_GEN(dev_priv) >= 9) {
+			u32 val = I915_READ(PSR_EVENT(cpu_transcoder));
+			bool psr2_enabled = dev_priv->psr.psr2_enabled;
 
-			dev_priv->psr.irq_aux_error = true;
-
-			/*
-			 * If this interruption is not masked it will keep
-			 * interrupting so fast that it prevents the scheduled
-			 * work to run.
-			 * Also after a PSR error, we don't want to arm PSR
-			 * again so we don't care about unmask the interruption
-			 * or unset irq_aux_error.
-			 */
-			mask |= EDP_PSR_ERROR(shift);
-		}
-
-		if (psr_iir & EDP_PSR_PRE_ENTRY(shift)) {
-			dev_priv->psr.last_entry_attempt = time_ns;
-			DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
-				      transcoder_name(cpu_transcoder));
-		}
-
-		if (psr_iir & EDP_PSR_POST_EXIT(shift)) {
-			dev_priv->psr.last_exit = time_ns;
-			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
-				      transcoder_name(cpu_transcoder));
-
-			if (INTEL_GEN(dev_priv) >= 9) {
-				u32 val = I915_READ(PSR_EVENT(cpu_transcoder));
-				bool psr2_enabled = dev_priv->psr.psr2_enabled;
-
-				I915_WRITE(PSR_EVENT(cpu_transcoder), val);
-				psr_event_print(val, psr2_enabled);
-			}
+			I915_WRITE(PSR_EVENT(cpu_transcoder), val);
+			psr_event_print(val, psr2_enabled);
 		}
 	}
 
-	if (mask) {
-		mask |= I915_READ(EDP_PSR_IMR);
-		I915_WRITE(EDP_PSR_IMR, mask);
+	if (psr_iir & EDP_PSR_ERROR(cpu_transcoder)) {
+		u32 val;
+
+		DRM_WARN("[transcoder %s] PSR aux error\n",
+			 transcoder_name(cpu_transcoder));
+
+		dev_priv->psr.irq_aux_error = true;
+
+		/*
+		 * If this interruption is not masked it will keep
+		 * interrupting so fast that it prevents the scheduled
+		 * work to run.
+		 * Also after a PSR error, we don't want to arm PSR
+		 * again so we don't care about unmask the interruption
+		 * or unset irq_aux_error.
+		 */
+		val = I915_READ(EDP_PSR_IMR);
+		val |= EDP_PSR_ERROR(cpu_transcoder);
+		I915_WRITE(EDP_PSR_IMR, val);
 
 		schedule_work(&dev_priv->psr.work);
 	}
@@ -747,7 +707,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 
 	I915_WRITE(EDP_PSR_DEBUG(dev_priv->psr.transcoder), mask);
 
-	psr_irq_control(dev_priv, dev_priv->psr.debug);
+	psr_irq_control(dev_priv);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
@@ -772,7 +732,7 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 	 * to avoid any rendering problems.
 	 */
 	val = I915_READ(EDP_PSR_IIR);
-	val &= EDP_PSR_ERROR(edp_psr_shift(dev_priv->psr.transcoder));
+	val &= EDP_PSR_ERROR(dev_priv->psr.transcoder);
 	if (val) {
 		dev_priv->psr.sink_not_reliable = true;
 		DRM_DEBUG_KMS("PSR interruption error set, not enabling PSR\n");
@@ -1120,7 +1080,13 @@ int intel_psr_debug_set(struct drm_i915_private *dev_priv, u64 val)
 
 	old_mode = dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK;
 	dev_priv->psr.debug = val;
-	psr_irq_control(dev_priv, dev_priv->psr.debug);
+
+	/*
+	 * Do it right away if it's already enabled, otherwise it will be done
+	 * when enabling the source.
+	 */
+	if (dev_priv->psr.enabled)
+		psr_irq_control(dev_priv);
 
 	mutex_unlock(&dev_priv->psr.lock);
 

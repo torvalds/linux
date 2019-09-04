@@ -4225,13 +4225,12 @@ enum {
 /* Bspec claims those aren't shifted but stay at 0x64800 */
 #define EDP_PSR_IMR				_MMIO(0x64834)
 #define EDP_PSR_IIR				_MMIO(0x64838)
-#define   EDP_PSR_ERROR(shift)			(1 << ((shift) + 2))
-#define   EDP_PSR_POST_EXIT(shift)		(1 << ((shift) + 1))
-#define   EDP_PSR_PRE_ENTRY(shift)		(1 << (shift))
-#define   EDP_PSR_TRANSCODER_C_SHIFT		24
-#define   EDP_PSR_TRANSCODER_B_SHIFT		16
-#define   EDP_PSR_TRANSCODER_A_SHIFT		8
-#define   EDP_PSR_TRANSCODER_EDP_SHIFT		0
+#define   _EDP_PSR_TRANS_SHIFT(trans)		((trans) == TRANSCODER_EDP ? \
+						 0 : ((trans) - TRANSCODER_A + 1) * 8)
+#define   EDP_PSR_TRANS_MASK(trans)		(0x7 << _EDP_PSR_TRANS_SHIFT(trans))
+#define   EDP_PSR_ERROR(trans)			(0x4 << _EDP_PSR_TRANS_SHIFT(trans))
+#define   EDP_PSR_POST_EXIT(trans)		(0x2 << _EDP_PSR_TRANS_SHIFT(trans))
+#define   EDP_PSR_PRE_ENTRY(trans)		(0x1 << _EDP_PSR_TRANS_SHIFT(trans))
 
 #define _SRD_AUX_CTL_A				0x60810
 #define _SRD_AUX_CTL_EDP			0x6f810
