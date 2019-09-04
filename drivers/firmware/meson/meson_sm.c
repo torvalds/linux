@@ -256,19 +256,7 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
 		return ret;
 	}
 
-	ret = sprintf(buf, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-			id_buf[SM_CHIP_ID_OFFSET + 0],
-			id_buf[SM_CHIP_ID_OFFSET + 1],
-			id_buf[SM_CHIP_ID_OFFSET + 2],
-			id_buf[SM_CHIP_ID_OFFSET + 3],
-			id_buf[SM_CHIP_ID_OFFSET + 4],
-			id_buf[SM_CHIP_ID_OFFSET + 5],
-			id_buf[SM_CHIP_ID_OFFSET + 6],
-			id_buf[SM_CHIP_ID_OFFSET + 7],
-			id_buf[SM_CHIP_ID_OFFSET + 8],
-			id_buf[SM_CHIP_ID_OFFSET + 9],
-			id_buf[SM_CHIP_ID_OFFSET + 10],
-			id_buf[SM_CHIP_ID_OFFSET + 11]);
+	ret = sprintf(buf, "%12phN\n", &id_buf[SM_CHIP_ID_OFFSET]);
 
 	kfree(id_buf);
 
