@@ -479,7 +479,6 @@ enum wireless_mode {
 #define P80211_OUI_LEN 3
 
 struct rtllib_snap_hdr {
-
 	u8    dsap;   /* always 0xAA */
 	u8    ssap;   /* always 0xAA */
 	u8    ctrl;   /* always 0x03 */
