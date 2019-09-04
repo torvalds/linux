@@ -537,6 +537,10 @@ static int caam_jr_probe(struct platform_device *pdev)
 
 	/* Identify the interrupt */
 	jrpriv->irq = irq_of_parse_and_map(nprop, 0);
+	if (!jrpriv->irq) {
+		dev_err(jrdev, "irq_of_parse_and_map failed\n");
+		return -EINVAL;
+	}
 
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */
