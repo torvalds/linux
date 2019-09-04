@@ -498,6 +498,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	struct caam_job_ring __iomem *ctrl;
 	struct caam_drv_private_jr *jrpriv;
 	static int total_jobrs;
+	struct resource *r;
 	int error;
 
 	jrdev = &pdev->dev;
@@ -513,9 +514,15 @@ static int caam_jr_probe(struct platform_device *pdev)
 	nprop = pdev->dev.of_node;
 	/* Get configuration properties from device tree */
 	/* First, get register page */
-	ctrl = of_iomap(nprop, 0);
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r) {
+		dev_err(jrdev, "platform_get_resource() failed\n");
+		return -ENOMEM;
+	}
+
+	ctrl = devm_ioremap(jrdev, r->start, resource_size(r));
 	if (!ctrl) {
-		dev_err(jrdev, "of_iomap() failed\n");
+		dev_err(jrdev, "devm_ioremap() failed\n");
 		return -ENOMEM;
 	}
 
@@ -525,7 +532,6 @@ static int caam_jr_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(jrdev, "dma_set_mask_and_coherent failed (%d)\n",
 			error);
-		iounmap(ctrl);
 		return error;
 	}
 
@@ -536,7 +542,6 @@ static int caam_jr_probe(struct platform_device *pdev)
 	error = caam_jr_init(jrdev); /* now turn on hardware */
 	if (error) {
 		irq_dispose_mapping(jrpriv->irq);
-		iounmap(ctrl);
 		return error;
 	}
 
