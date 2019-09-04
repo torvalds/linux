@@ -82,15 +82,18 @@ do {							\
 
 #define cifs_server_dbg_func(ratefunc, type, fmt, ...)		\
 do {								\
+	const char *sn = "";					\
+	if (server && server->hostname)				\
+		sn = server->hostname;				\
 	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
-		pr_debug_ ## ratefunc("%s: Server:%s "	fmt,	\
-			__FILE__, server->hostname, ##__VA_ARGS__);\
+		pr_debug_ ## ratefunc("%s: \\\\%s "	fmt,	\
+			__FILE__, sn, ##__VA_ARGS__);		\
 	} else if ((type) & VFS) {				\
-		pr_err_ ## ratefunc("CIFS VFS: Server:%s " fmt,	\
-			server->hostname, ##__VA_ARGS__);	\
+		pr_err_ ## ratefunc("CIFS VFS: \\\\%s " fmt,	\
+			sn, ##__VA_ARGS__);			\
 	} else if ((type) & NOISY && (NOISY != 0)) {		\
-		pr_debug_ ## ratefunc("Server:%s " fmt,		\
-			server->hostname, ##__VA_ARGS__);	\
+		pr_debug_ ## ratefunc("\\\\%s " fmt,		\
+			sn, ##__VA_ARGS__);			\
 	}							\
 } while (0)
 
@@ -101,6 +104,33 @@ do {							\
 			type, fmt, ##__VA_ARGS__);	\
 	else						\
 		cifs_server_dbg_func(ratelimited,	\
+			type, fmt, ##__VA_ARGS__);	\
+} while (0)
+
+#define cifs_tcon_dbg_func(ratefunc, type, fmt, ...)		\
+do {								\
+	const char *tn = "";					\
+	if (tcon && tcon->treeName)				\
+		tn = tcon->treeName;				\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
+		pr_debug_ ## ratefunc("%s: %s "	fmt,		\
+			__FILE__, tn, ##__VA_ARGS__);		\
+	} else if ((type) & VFS) {				\
+		pr_err_ ## ratefunc("CIFS VFS: %s " fmt,	\
+			tn, ##__VA_ARGS__);			\
+	} else if ((type) & NOISY && (NOISY != 0)) {		\
+		pr_debug_ ## ratefunc("%s " fmt,		\
+			tn, ##__VA_ARGS__);			\
+	}							\
+} while (0)
+
+#define cifs_tcon_dbg(type, fmt, ...)			\
+do {							\
+	if ((type) & ONCE)				\
+		cifs_tcon_dbg_func(once,		\
+			type, fmt, ##__VA_ARGS__);	\
+	else						\
+		cifs_tcon_dbg_func(ratelimited,	\
 			type, fmt, ##__VA_ARGS__);	\
 } while (0)
 
@@ -118,8 +148,14 @@ do {									\
 #define cifs_server_dbg(type, fmt, ...)					\
 do {									\
 	if (0)								\
-		pr_debug("Server:%s " fmt,				\
+		pr_debug("\\\\%s " fmt,					\
 			 server->hostname, ##__VA_ARGS__);		\
+} while (0)
+
+#define cifs_tcon_dbg(type, fmt, ...)					\
+do {									\
+	if (0)								\
+		pr_debug("%s " fmt, tcon->treeName, ##__VA_ARGS__);	\
 } while (0)
 
 #define cifs_info(fmt, ...)						\

@@ -1019,7 +1019,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	}
 
 	if (tcon->ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
-		cifs_server_dbg(VFS, "Unexpected null user (anonymous) auth flag sent by server\n");
+		cifs_tcon_dbg(VFS, "Unexpected null user (anonymous) auth flag sent by server\n");
 
 	pneg_inbuf = kmalloc(sizeof(*pneg_inbuf), GFP_NOFS);
 	if (!pneg_inbuf)
@@ -1076,18 +1076,18 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 		 * Old Windows versions or Netapp SMB server can return
 		 * not supported error. Client should accept it.
 		 */
-		cifs_server_dbg(VFS, "Server does not support validate negotiate\n");
+		cifs_tcon_dbg(VFS, "Server does not support validate negotiate\n");
 		rc = 0;
 		goto out_free_inbuf;
 	} else if (rc != 0) {
-		cifs_server_dbg(VFS, "validate protocol negotiate failed: %d\n", rc);
+		cifs_tcon_dbg(VFS, "validate protocol negotiate failed: %d\n", rc);
 		rc = -EIO;
 		goto out_free_inbuf;
 	}
 
 	rc = -EIO;
 	if (rsplen != sizeof(*pneg_rsp)) {
-		cifs_server_dbg(VFS, "invalid protocol negotiate response size: %d\n",
+		cifs_tcon_dbg(VFS, "invalid protocol negotiate response size: %d\n",
 			 rsplen);
 
 		/* relax check since Mac returns max bufsize allowed on ioctl */
@@ -1114,7 +1114,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	goto out_free_rsp;
 
 vneg_out:
-	cifs_server_dbg(VFS, "protocol revalidation - security settings mismatch\n");
+	cifs_tcon_dbg(VFS, "protocol revalidation - security settings mismatch\n");
 out_free_rsp:
 	kfree(pneg_rsp);
 out_free_inbuf:
@@ -1762,11 +1762,11 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 
 	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
 	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
-		cifs_server_dbg(VFS, "DFS capability contradicts DFS flag\n");
+		cifs_tcon_dbg(VFS, "DFS capability contradicts DFS flag\n");
 
 	if (tcon->seal &&
 	    !(server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
-		cifs_server_dbg(VFS, "Encryption is requested but not supported\n");
+		cifs_tcon_dbg(VFS, "Encryption is requested but not supported\n");
 
 	init_copy_chunk_defaults(tcon);
 	if (server->ops->validate_negotiate)
@@ -1779,7 +1779,7 @@ tcon_exit:
 
 tcon_error_exit:
 	if (rsp && rsp->sync_hdr.Status == STATUS_BAD_NETWORK_NAME) {
-		cifs_server_dbg(VFS, "BAD_NETWORK_NAME: %s\n", tree);
+		cifs_tcon_dbg(VFS, "BAD_NETWORK_NAME: %s\n", tree);
 	}
 	goto tcon_exit;
 }
@@ -2812,14 +2812,14 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	if (*plen == 0)
 		goto ioctl_exit; /* server returned no data */
 	else if (*plen > rsp_iov.iov_len || *plen > 0xFF00) {
-		cifs_server_dbg(VFS, "srv returned invalid ioctl length: %d\n", *plen);
+		cifs_tcon_dbg(VFS, "srv returned invalid ioctl length: %d\n", *plen);
 		*plen = 0;
 		rc = -EIO;
 		goto ioctl_exit;
 	}
 
 	if (rsp_iov.iov_len - *plen < le32_to_cpu(rsp->OutputOffset)) {
-		cifs_server_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n", *plen,
+		cifs_tcon_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n", *plen,
 			le32_to_cpu(rsp->OutputOffset));
 		*plen = 0;
 		rc = -EIO;
@@ -3110,7 +3110,7 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		if (!*data) {
 			*data = kmalloc(*dlen, GFP_KERNEL);
 			if (!*data) {
-				cifs_server_dbg(VFS,
+				cifs_tcon_dbg(VFS,
 					"Error %d allocating memory for acl\n",
 					rc);
 				*dlen = 0;
@@ -3505,7 +3505,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 
 			rc = smb2_verify_signature(&rqst, server);
 			if (rc)
-				cifs_server_dbg(VFS, "SMB signature verification returned error = %d\n",
+				cifs_tcon_dbg(VFS, "SMB signature verification returned error = %d\n",
 					 rc);
 		}
 		/* FIXME: should this be counted toward the initiating task? */
@@ -4095,7 +4095,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		info_buf_size = sizeof(SEARCH_ID_FULL_DIR_INFO) - 1;
 		break;
 	default:
-		cifs_server_dbg(VFS, "info level %u isn't supported\n",
+		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",
 			 srch_inf->info_level);
 		rc = -EINVAL;
 		goto qdir_exit;
@@ -4186,7 +4186,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	else if (resp_buftype == CIFS_SMALL_BUFFER)
 		srch_inf->smallBuf = true;
 	else
-		cifs_server_dbg(VFS, "illegal search buffer type\n");
+		cifs_tcon_dbg(VFS, "illegal search buffer type\n");
 
 	trace_smb3_query_dir_done(xid, persistent_fid, tcon->tid,
 			tcon->ses->Suid, index, srch_inf->entries_in_buffer);

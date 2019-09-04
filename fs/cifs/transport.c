@@ -1403,7 +1403,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	   use ses->maxReq */
 
 	if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		cifs_server_dbg(VFS, "Illegal length, greater than maximum frame, %d\n",
+		cifs_tcon_dbg(VFS, "Illegal length, greater than maximum frame, %d\n",
 			 len);
 		return -EIO;
 	}
@@ -1505,7 +1505,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	/* rcvd frame is ok */
 	if (out_buf == NULL || midQ->mid_state != MID_RESPONSE_RECEIVED) {
 		rc = -EIO;
-		cifs_server_dbg(VFS, "Bad MID state?\n");
+		cifs_tcon_dbg(VFS, "Bad MID state?\n");
 		goto out;
 	}
 
