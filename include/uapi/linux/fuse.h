@@ -425,6 +425,10 @@ enum fuse_opcode {
 
 	/* CUSE specific operations */
 	CUSE_INIT		= 4096,
+
+	/* Reserved opcodes: helpful to detect structure endian-ness */
+	CUSE_INIT_BSWAP_RESERVED	= 1048576,	/* CUSE_INIT << 8 */
+	FUSE_INIT_BSWAP_RESERVED	= 436207616,	/* FUSE_INIT << 24 */
 };
 
 enum fuse_notify_code {
