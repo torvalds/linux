@@ -214,6 +214,17 @@ static const struct dev_pm_ops tqmx86_gpio_dev_pm_ops = {
 			   tqmx86_gpio_runtime_resume, NULL)
 };
 
+static void tqmx86_init_irq_valid_mask(struct gpio_chip *chip,
+				       unsigned long *valid_mask,
+				       unsigned int ngpios)
+{
+	/* Only GPIOs 4-7 are valid for interrupts. Clear the others */
+	clear_bit(0, valid_mask);
+	clear_bit(1, valid_mask);
+	clear_bit(2, valid_mask);
+	clear_bit(3, valid_mask);
+}
+
 static int tqmx86_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -260,7 +271,6 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 	chip->get = tqmx86_gpio_get;
 	chip->set = tqmx86_gpio_set;
 	chip->ngpio = TQMX86_NGPIO;
-	chip->irq.need_valid_mask = true;
 	chip->parent = pdev->dev.parent;
 
 	pm_runtime_enable(&pdev->dev);
@@ -296,20 +306,13 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 		girq->parents[0] = irq;
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_simple_irq;
+		girq->init_valid_mask = tqmx86_init_irq_valid_mask;
 	}
 
 	ret = devm_gpiochip_add_data(dev, chip, gpio);
 	if (ret) {
 		dev_err(dev, "Could not register GPIO chip\n");
 		goto out_pm_dis;
-	}
-
-	/* Only GPIOs 4-7 are valid for interrupts. Clear the others */
-	if (irq) {
-		clear_bit(0, girq->valid_mask);
-		clear_bit(1, girq->valid_mask);
-		clear_bit(2, girq->valid_mask);
-		clear_bit(3, girq->valid_mask);
 	}
 
 	dev_info(dev, "GPIO functionality initialized with %d pins\n",

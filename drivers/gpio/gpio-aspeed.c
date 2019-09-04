@@ -689,8 +689,11 @@ static struct irq_chip aspeed_gpio_irqchip = {
 	.irq_set_type	= aspeed_gpio_set_type,
 };
 
-static void set_irq_valid_mask(struct aspeed_gpio *gpio)
+static void aspeed_init_irq_valid_mask(struct gpio_chip *gc,
+				       unsigned long *valid_mask,
+				       unsigned int ngpios)
 {
+	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
 	const struct aspeed_bank_props *props = gpio->config->props;
 
 	while (!is_bank_props_sentinel(props)) {
@@ -704,7 +707,7 @@ static void set_irq_valid_mask(struct aspeed_gpio *gpio)
 			if (i >= gpio->config->nr_gpios)
 				break;
 
-			clear_bit(i, gpio->chip.irq.valid_mask);
+			clear_bit(i, valid_mask);
 		}
 
 		props++;
@@ -1203,7 +1206,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 		girq->parents[0] = gpio->irq;
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_bad_irq;
-		girq->need_valid_mask = true;
+		girq->init_valid_mask = aspeed_init_irq_valid_mask;
 	}
 
 	gpio->offset_timer =
@@ -1214,10 +1217,6 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)
 		return rc;
-
-	/* Now the valid mask is allocated */
-	if (gpio->irq)
-		set_irq_valid_mask(gpio);
 
 	return 0;
 }

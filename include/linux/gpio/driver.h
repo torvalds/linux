@@ -202,11 +202,17 @@ struct gpio_irq_chip {
 	bool threaded;
 
 	/**
-	 * @need_valid_mask:
-	 *
-	 * If set core allocates @valid_mask with all bits set to one.
+	 * @init_valid_mask: optional routine to initialize @valid_mask, to be
+	 * used if not all GPIO lines are valid interrupts. Sometimes some
+	 * lines just cannot fire interrupts, and this routine, when defined,
+	 * is passed a bitmap in "valid_mask" and it will have ngpios
+	 * bits from 0..(ngpios-1) set to "1" as in valid. The callback can
+	 * then directly set some bits to "0" if they cannot be used for
+	 * interrupts.
 	 */
-	bool need_valid_mask;
+	void (*init_valid_mask)(struct gpio_chip *chip,
+				unsigned long *valid_mask,
+				unsigned int ngpios);
 
 	/**
 	 * @valid_mask:
