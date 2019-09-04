@@ -567,6 +567,8 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			reset_type = ICE_RESET_CORER;
 		if (test_and_clear_bit(__ICE_GLOBR_RECV, pf->state))
 			reset_type = ICE_RESET_GLOBR;
+		if (test_and_clear_bit(__ICE_EMPR_RECV, pf->state))
+			reset_type = ICE_RESET_EMPR;
 		/* return if no valid reset type requested */
 		if (reset_type == ICE_RESET_INVAL)
 			return;
@@ -612,6 +614,22 @@ static void ice_reset_subtask(struct ice_pf *pf)
 }
 
 /**
+ * ice_print_topo_conflict - print topology conflict message
+ * @vsi: the VSI whose topology status is being checked
+ */
+static void ice_print_topo_conflict(struct ice_vsi *vsi)
+{
+	switch (vsi->port_info->phy.link_info.topo_media_conflict) {
+	case ICE_AQ_LINK_TOPO_CONFLICT:
+	case ICE_AQ_LINK_MEDIA_CONFLICT:
+		netdev_info(vsi->netdev, "Possible mis-configuration of the Ethernet port detected, please use the Intel(R) Ethernet Port Configuration Tool application to address the issue.\n");
+		break;
+	default:
+		break;
+	}
+}
+
+/**
  * ice_print_link_msg - print link up or down message
  * @vsi: the VSI whose link status is being queried
  * @isup: boolean for if the link is now up or down
@@ -624,6 +642,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	const char *speed;
 	const char *fec;
 	const char *fc;
+	const char *an;
 
 	if (!vsi)
 		return;
@@ -707,6 +726,12 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		break;
 	}
 
+	/* check if autoneg completed, might be false due to not supported */
+	if (vsi->port_info->phy.link_info.an_info & ICE_AQ_AN_COMPLETED)
+		an = "True";
+	else
+		an = "False";
+
 	/* Get FEC mode requested based on PHY caps last SW configuration */
 	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
 	if (!caps) {
@@ -731,8 +756,9 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	devm_kfree(&vsi->back->pdev->dev, caps);
 
 done:
-	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Flow Control: %s\n",
-		    speed, fec_req, fec, fc);
+	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Autoneg: %s, Flow Control: %s\n",
+		    speed, fec_req, fec, an, fc);
+	ice_print_topo_conflict(vsi);
 }
 
 /**
@@ -2636,6 +2662,11 @@ static void ice_remove(struct pci_dev *pdev)
 	ice_deinit_pf(pf);
 	ice_deinit_hw(&pf->hw);
 	ice_clear_interrupt_scheme(pf);
+	/* Issue a PFR as part of the prescribed driver unload flow.  Do not
+	 * do it via ice_schedule_reset() since there is no need to rebuild
+	 * and the service task is already stopped.
+	 */
+	ice_reset(&pf->hw, ICE_RESET_PFR);
 	pci_disable_pcie_error_reporting(pdev);
 }
 
@@ -3446,12 +3477,16 @@ void ice_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 
 	vsi_stats = &vsi->net_stats;
 
-	if (test_bit(__ICE_DOWN, vsi->state) || !vsi->num_txq || !vsi->num_rxq)
+	if (!vsi->num_txq || !vsi->num_rxq)
 		return;
+
 	/* netdev packet/byte stats come from ring counter. These are obtained
 	 * by summing up ring counters (done by ice_update_vsi_ring_stats).
+	 * But, only call the update routine and read the registers if VSI is
+	 * not down.
 	 */
-	ice_update_vsi_ring_stats(vsi);
+	if (!test_bit(__ICE_DOWN, vsi->state))
+		ice_update_vsi_ring_stats(vsi);
 	stats->tx_packets = vsi_stats->tx_packets;
 	stats->tx_bytes = vsi_stats->tx_bytes;
 	stats->rx_packets = vsi_stats->rx_packets;

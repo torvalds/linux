@@ -3253,13 +3253,13 @@ static int
 ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		    struct ice_ring_container *rc, struct ice_vsi *vsi)
 {
+	const char *c_type_str = (c_type == ICE_RX_CONTAINER) ? "rx" : "tx";
+	u32 use_adaptive_coalesce, coalesce_usecs;
 	struct ice_pf *pf = vsi->back;
 	u16 itr_setting;
 
 	if (!rc->ring)
 		return -EINVAL;
-
-	itr_setting = rc->itr_setting & ~ICE_ITR_DYNAMIC;
 
 	switch (c_type) {
 	case ICE_RX_CONTAINER:
@@ -3267,11 +3267,11 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		    (ec->rx_coalesce_usecs_high &&
 		     ec->rx_coalesce_usecs_high < pf->hw.intrl_gran)) {
 			netdev_info(vsi->netdev,
-				    "Invalid value, rx-usecs-high valid values are 0 (disabled), %d-%d\n",
-				    pf->hw.intrl_gran, ICE_MAX_INTRL);
+				    "Invalid value, %s-usecs-high valid values are 0 (disabled), %d-%d\n",
+				    c_type_str, pf->hw.intrl_gran,
+				    ICE_MAX_INTRL);
 			return -EINVAL;
 		}
-
 		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl) {
 			rc->ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
 			wr32(&pf->hw, GLINT_RATE(rc->ring->q_vector->reg_idx),
@@ -3279,58 +3279,58 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 						   pf->hw.intrl_gran));
 		}
 
-		if (ec->rx_coalesce_usecs != itr_setting &&
-		    ec->use_adaptive_rx_coalesce) {
-			netdev_info(vsi->netdev,
-				    "Rx interrupt throttling cannot be changed if adaptive-rx is enabled\n");
-			return -EINVAL;
-		}
+		use_adaptive_coalesce = ec->use_adaptive_rx_coalesce;
+		coalesce_usecs = ec->rx_coalesce_usecs;
 
-		if (ec->rx_coalesce_usecs > ICE_ITR_MAX) {
-			netdev_info(vsi->netdev,
-				    "Invalid value, rx-usecs range is 0-%d\n",
-				   ICE_ITR_MAX);
-			return -EINVAL;
-		}
-
-		if (ec->use_adaptive_rx_coalesce) {
-			rc->itr_setting |= ICE_ITR_DYNAMIC;
-		} else {
-			rc->itr_setting = ITR_REG_ALIGN(ec->rx_coalesce_usecs);
-			rc->target_itr = ITR_TO_REG(rc->itr_setting);
-		}
 		break;
 	case ICE_TX_CONTAINER:
 		if (ec->tx_coalesce_usecs_high) {
 			netdev_info(vsi->netdev,
-				    "setting tx-usecs-high is not supported\n");
+				    "setting %s-usecs-high is not supported\n",
+				    c_type_str);
 			return -EINVAL;
 		}
 
-		if (ec->tx_coalesce_usecs != itr_setting &&
-		    ec->use_adaptive_tx_coalesce) {
-			netdev_info(vsi->netdev,
-				    "Tx interrupt throttling cannot be changed if adaptive-tx is enabled\n");
-			return -EINVAL;
-		}
+		use_adaptive_coalesce = ec->use_adaptive_tx_coalesce;
+		coalesce_usecs = ec->tx_coalesce_usecs;
 
-		if (ec->tx_coalesce_usecs > ICE_ITR_MAX) {
-			netdev_info(vsi->netdev,
-				    "Invalid value, tx-usecs range is 0-%d\n",
-				   ICE_ITR_MAX);
-			return -EINVAL;
-		}
-
-		if (ec->use_adaptive_tx_coalesce) {
-			rc->itr_setting |= ICE_ITR_DYNAMIC;
-		} else {
-			rc->itr_setting = ITR_REG_ALIGN(ec->tx_coalesce_usecs);
-			rc->target_itr = ITR_TO_REG(rc->itr_setting);
-		}
 		break;
 	default:
 		dev_dbg(&pf->pdev->dev, "Invalid container type %d\n", c_type);
 		return -EINVAL;
+	}
+
+	itr_setting = rc->itr_setting & ~ICE_ITR_DYNAMIC;
+	if (coalesce_usecs != itr_setting && use_adaptive_coalesce) {
+		netdev_info(vsi->netdev,
+			    "%s interrupt throttling cannot be changed if adaptive-%s is enabled\n",
+			    c_type_str, c_type_str);
+		return -EINVAL;
+	}
+
+	if (coalesce_usecs > ICE_ITR_MAX) {
+		netdev_info(vsi->netdev,
+			    "Invalid value, %s-usecs range is 0-%d\n",
+			    c_type_str, ICE_ITR_MAX);
+		return -EINVAL;
+	}
+
+	/* hardware only supports an ITR granularity of 2us */
+	if (coalesce_usecs % 2 != 0) {
+		netdev_info(vsi->netdev,
+			    "Invalid value, %s-usecs must be even\n",
+			    c_type_str);
+		return -EINVAL;
+	}
+
+	if (use_adaptive_coalesce) {
+		rc->itr_setting |= ICE_ITR_DYNAMIC;
+	} else {
+		/* store user facing value how it was set */
+		rc->itr_setting = coalesce_usecs;
+		/* set to static and convert to value HW understands */
+		rc->target_itr =
+			ITR_TO_REG(ITR_REG_ALIGN(rc->itr_setting));
 	}
 
 	return 0;
