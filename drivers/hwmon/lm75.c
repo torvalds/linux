@@ -123,15 +123,15 @@ static const struct lm75_params device_params[] = {
 	[adt75] = {
 		.clr_mask = 1 << 5,	/* not one-shot mode */
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 8,
+		.default_sample_time = MSEC_PER_SEC / 10,
 	},
 	[ds1775] = {
 		.clr_mask = 3 << 5,
 		.set_mask = 2 << 5,	/* 11-bit mode */
 		.default_resolution = 11,
-		.default_sample_time = 750,
+		.default_sample_time = 500,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 188, 375, 750, 1500 },
+		.sample_times = (unsigned int []){ 125, 250, 500, 1000 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[ds75] = {
@@ -154,7 +154,7 @@ static const struct lm75_params device_params[] = {
 	},
 	[stlm75] = {
 		.default_resolution = 9,
-		.default_sample_time = MSEC_PER_SEC / 5,
+		.default_sample_time = MSEC_PER_SEC / 6,
 	},
 	[ds7505] = {
 		.set_mask = 3 << 5,	/* 12-bit mode*/
@@ -166,36 +166,36 @@ static const struct lm75_params device_params[] = {
 	},
 	[g751] = {
 		.default_resolution = 9,
-		.default_sample_time = MSEC_PER_SEC / 2,
+		.default_sample_time = MSEC_PER_SEC / 10,
 	},
 	[lm75] = {
 		.default_resolution = 9,
-		.default_sample_time = MSEC_PER_SEC / 2,
+		.default_sample_time = MSEC_PER_SEC / 10,
 	},
 	[lm75a] = {
 		.default_resolution = 9,
-		.default_sample_time = MSEC_PER_SEC / 2,
+		.default_sample_time = MSEC_PER_SEC / 10,
 	},
 	[lm75b] = {
 		.default_resolution = 11,
-		.default_sample_time = MSEC_PER_SEC / 4,
+		.default_sample_time = MSEC_PER_SEC / 10,
 	},
 	[max6625] = {
 		.default_resolution = 9,
-		.default_sample_time = MSEC_PER_SEC / 4,
+		.default_sample_time = MSEC_PER_SEC / 7,
 	},
 	[max6626] = {
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 4,
+		.default_sample_time = MSEC_PER_SEC / 7,
 		.resolution_limits = 9,
 	},
 	[max31725] = {
 		.default_resolution = 16,
-		.default_sample_time = MSEC_PER_SEC / 8,
+		.default_sample_time = MSEC_PER_SEC / 20,
 	},
 	[tcn75] = {
 		.default_resolution = 9,
-		.default_sample_time = MSEC_PER_SEC / 8,
+		.default_sample_time = MSEC_PER_SEC / 18,
 	},
 	[pct2075] = {
 		.default_resolution = 11,
@@ -213,7 +213,7 @@ static const struct lm75_params device_params[] = {
 		.resolution_limits = 9,
 		.default_sample_time = 240,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 75, 150, 300, 600 },
+		.sample_times = (unsigned int []){ 30, 60, 120, 240 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp100] = {
@@ -222,7 +222,7 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = 320,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 75, 150, 300, 600 },
+		.sample_times = (unsigned int []){ 40, 80, 160, 320 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp101] = {
@@ -231,7 +231,7 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = 320,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 75, 150, 300, 600 },
+		.sample_times = (unsigned int []){ 40, 80, 160, 320 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp105] = {
@@ -240,14 +240,14 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp112] = {
-		.set_mask = 3 << 5,	/* 12-bit mode */
+		.set_mask = 3 << 5,	/* 8 samples / second */
 		.clr_mask = 1 << 7,	/* no one-shot mode*/
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 4,
+		.default_sample_time = 125,
 		.num_sample_times = 4,
 		.sample_times = (unsigned int []){ 125, 250, 1000, 4000 },
 	},
@@ -257,7 +257,7 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp275] = {
@@ -266,7 +266,7 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp75] = {
@@ -275,7 +275,7 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 12,
 		.default_sample_time = 220,
 		.num_sample_times = 4,
-		.sample_times = (unsigned int []){ 38, 75, 150, 300 },
+		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp75b] = { /* not one-shot mode, Conversion rate 37Hz */
@@ -290,7 +290,7 @@ static const struct lm75_params device_params[] = {
 	[tmp75c] = {
 		.clr_mask = 1 << 5,	/*not one-shot mode*/
 		.default_resolution = 12,
-		.default_sample_time = MSEC_PER_SEC / 4,
+		.default_sample_time = MSEC_PER_SEC / 12,
 	}
 };
 
