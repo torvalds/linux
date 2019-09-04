@@ -79,14 +79,12 @@ static int dw_spi_mscc_init(struct platform_device *pdev,
 			    const char *cpu_syscon, u32 if_si_owner_offset)
 {
 	struct dw_spi_mscc *dwsmscc;
-	struct resource *res;
 
 	dwsmscc = devm_kzalloc(&pdev->dev, sizeof(*dwsmscc), GFP_KERNEL);
 	if (!dwsmscc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwsmscc->spi_mst = devm_ioremap_resource(&pdev->dev, res);
+	dwsmscc->spi_mst = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwsmscc->spi_mst)) {
 		dev_err(&pdev->dev, "SPI_MST region map failed\n");
 		return PTR_ERR(dwsmscc->spi_mst);
