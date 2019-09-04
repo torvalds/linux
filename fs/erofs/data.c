@@ -40,7 +40,8 @@ static inline void read_endio(struct bio *bio)
 
 static struct bio *erofs_grab_raw_bio(struct super_block *sb,
 				      erofs_blk_t blkaddr,
-				      unsigned int nr_pages)
+				      unsigned int nr_pages,
+				      bool ismeta)
 {
 	struct bio *bio = bio_alloc(GFP_NOIO, nr_pages);
 
@@ -48,6 +49,11 @@ static struct bio *erofs_grab_raw_bio(struct super_block *sb,
 	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
 	bio->bi_private = sb;
+	if (ismeta)
+		bio->bi_opf = REQ_OP_READ | REQ_META;
+	else
+		bio->bi_opf = REQ_OP_READ;
+
 	return bio;
 }
 
@@ -69,14 +75,14 @@ repeat:
 	if (!PageUptodate(page)) {
 		struct bio *bio;
 
-		bio = erofs_grab_raw_bio(sb, blkaddr, 1);
+		bio = erofs_grab_raw_bio(sb, blkaddr, 1, true);
 
 		if (bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE) {
 			err = -EFAULT;
 			goto err_out;
 		}
 
-		__submit_bio(bio, REQ_OP_READ, REQ_META);
+		submit_bio(bio);
 		lock_page(page);
 
 		/* this page has been truncated by others */
@@ -201,7 +207,7 @@ static inline struct bio *erofs_read_raw_page(struct bio *bio,
 	    /* not continuous */
 	    *last_block + 1 != current_block) {
 submit_bio_retry:
-		__submit_bio(bio, REQ_OP_READ, 0);
+		submit_bio(bio);
 		bio = NULL;
 	}
 
@@ -271,7 +277,7 @@ submit_bio_retry:
 		if (nblocks > BIO_MAX_PAGES)
 			nblocks = BIO_MAX_PAGES;
 
-		bio = erofs_grab_raw_bio(sb, blknr, nblocks);
+		bio = erofs_grab_raw_bio(sb, blknr, nblocks, false);
 	}
 
 	err = bio_add_page(bio, page, PAGE_SIZE, 0);
@@ -302,8 +308,7 @@ has_updated:
 	/* if updated manually, continuous pages has a gap */
 	if (bio)
 submit_bio_out:
-		__submit_bio(bio, REQ_OP_READ, 0);
-
+		submit_bio(bio);
 	return err ? ERR_PTR(err) : NULL;
 }
 
@@ -367,7 +372,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 
 	/* the rare case (end in gaps) */
 	if (bio)
-		__submit_bio(bio, REQ_OP_READ, 0);
+		submit_bio(bio);
 	return 0;
 }
 

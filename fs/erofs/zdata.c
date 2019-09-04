@@ -1258,7 +1258,7 @@ repeat:
 
 		if (bio && force_submit) {
 submit_bio_retry:
-			__submit_bio(bio, REQ_OP_READ, 0);
+			submit_bio(bio);
 			bio = NULL;
 		}
 
@@ -1270,6 +1270,8 @@ submit_bio_retry:
 			bio->bi_iter.bi_sector = (sector_t)(first_index + i) <<
 				LOG_SECTORS_PER_BLOCK;
 			bio->bi_private = bi_private;
+			bio->bi_opf = REQ_OP_READ;
+
 			++nr_bios;
 		}
 
@@ -1290,7 +1292,7 @@ skippage:
 	} while (owned_head != Z_EROFS_PCLUSTER_TAIL);
 
 	if (bio)
-		__submit_bio(bio, REQ_OP_READ, 0);
+		submit_bio(bio);
 
 	if (postsubmit_is_all_bypassed(q, nr_bios, force_fg))
 		return true;
