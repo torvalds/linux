@@ -628,26 +628,21 @@ static int xts_decrypt(struct skcipher_request *req)
 static int
 rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 {
-	struct crypto_cipher *tfm;
+	struct crypto_aes_ctx ctx;
 	int ret;
 
-	tfm = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	ret = crypto_cipher_setkey(tfm, key, key_len);
+	ret = aes_expandkey(&ctx, key, key_len);
 	if (ret)
-		goto out_free_cipher;
+		return ret;
 
 	/* Clear the data in the hash sub key container to zero.*/
 	/* We want to cipher all zeros to create the hash sub key. */
 	memset(hash_subkey, 0, RFC4106_HASH_SUBKEY_SIZE);
 
-	crypto_cipher_encrypt_one(tfm, hash_subkey, hash_subkey);
+	aes_encrypt(&ctx, hash_subkey, hash_subkey);
 
-out_free_cipher:
-	crypto_free_cipher(tfm);
-	return ret;
+	memzero_explicit(&ctx, sizeof(ctx));
+	return 0;
 }
 
 static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
