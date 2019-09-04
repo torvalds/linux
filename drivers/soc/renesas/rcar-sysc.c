@@ -170,7 +170,7 @@ struct rcar_sysc_pd {
 	struct generic_pm_domain genpd;
 	struct rcar_sysc_ch ch;
 	unsigned int flags;
-	char name[0];
+	char name[];
 };
 
 static inline struct rcar_sysc_pd *to_rcar_pd(struct generic_pm_domain *d)

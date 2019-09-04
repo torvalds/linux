@@ -215,6 +215,11 @@
 					function = "spi";
 				};
 
+				spi_cs1_pins: spi-cs1-pins {
+					groups = "spi_cs1";
+					function = "spi";
+				};
+
 				i2c1_pins: i2c1-pins {
 					groups = "i2c1";
 					function = "i2c";
@@ -417,6 +422,13 @@
 				interrupt-names = "mem", "ring0", "ring1",
 						  "ring2", "ring3", "eip";
 				clocks = <&nb_periph_clk 15>;
+			};
+
+			rwtm: mailbox@b0000 {
+				compatible = "marvell,armada-3700-rwtm-mailbox";
+				reg = <0xb0000 0x100>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				#mbox-cells = <1>;
 			};
 
 			sdhci1: sdhci@d0000 {
