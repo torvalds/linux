@@ -32,71 +32,13 @@ static void erofs_readendio(struct bio *bio)
 	bio_put(bio);
 }
 
-static struct bio *erofs_grab_raw_bio(struct super_block *sb,
-				      erofs_blk_t blkaddr,
-				      unsigned int nr_pages,
-				      bool ismeta)
-{
-	struct bio *bio = bio_alloc(GFP_NOIO, nr_pages);
-
-	bio->bi_end_io = erofs_readendio;
-	bio_set_dev(bio, sb->s_bdev);
-	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
-	if (ismeta)
-		bio->bi_opf = REQ_OP_READ | REQ_META;
-	else
-		bio->bi_opf = REQ_OP_READ;
-
-	return bio;
-}
-
 struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr)
 {
 	struct inode *const bd_inode = sb->s_bdev->bd_inode;
 	struct address_space *const mapping = bd_inode->i_mapping;
-	const gfp_t gfp = mapping_gfp_constraint(mapping, ~__GFP_FS);
-	struct page *page;
-	int err;
 
-repeat:
-	page = find_or_create_page(mapping, blkaddr, gfp);
-	if (!page)
-		return ERR_PTR(-ENOMEM);
-
-	DBG_BUGON(!PageLocked(page));
-
-	if (!PageUptodate(page)) {
-		struct bio *bio;
-
-		bio = erofs_grab_raw_bio(sb, blkaddr, 1, true);
-
-		if (bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE) {
-			err = -EFAULT;
-			goto err_out;
-		}
-
-		submit_bio(bio);
-		lock_page(page);
-
-		/* this page has been truncated by others */
-		if (page->mapping != mapping) {
-			unlock_page(page);
-			put_page(page);
-			goto repeat;
-		}
-
-		/* more likely a read error */
-		if (!PageUptodate(page)) {
-			err = -EIO;
-			goto err_out;
-		}
-	}
-	return page;
-
-err_out:
-	unlock_page(page);
-	put_page(page);
-	return ERR_PTR(err);
+	return read_cache_page_gfp(mapping, blkaddr,
+				   mapping_gfp_constraint(mapping, ~__GFP_FS));
 }
 
 static int erofs_map_blocks_flatmode(struct inode *inode,
@@ -272,7 +214,13 @@ submit_bio_retry:
 		if (nblocks > BIO_MAX_PAGES)
 			nblocks = BIO_MAX_PAGES;
 
-		bio = erofs_grab_raw_bio(sb, blknr, nblocks, false);
+		bio = bio_alloc(GFP_NOIO, nblocks);
+
+		bio->bi_end_io = erofs_readendio;
+		bio_set_dev(bio, sb->s_bdev);
+		bio->bi_iter.bi_sector = (sector_t)blknr <<
+			LOG_SECTORS_PER_BLOCK;
+		bio->bi_opf = REQ_OP_READ;
 	}
 
 	err = bio_add_page(bio, page, PAGE_SIZE, 0);
