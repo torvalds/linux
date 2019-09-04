@@ -69,7 +69,7 @@ struct vport_ingress {
 	struct mlx5_flow_group *allow_spoofchk_only_grp;
 	struct mlx5_flow_group *allow_untagged_only_grp;
 	struct mlx5_flow_group *drop_grp;
-	int modify_metadata_id;
+	struct mlx5_modify_hdr   *modify_metadata;
 	struct mlx5_flow_handle  *modify_metadata_rule;
 	struct mlx5_flow_handle  *allow_rule;
 	struct mlx5_flow_handle  *drop_rule;
@@ -153,6 +153,7 @@ struct mlx5_eswitch_fdb {
 		} legacy;
 
 		struct offloads_fdb {
+			struct mlx5_flow_namespace *ns;
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *peer_miss_grp;
@@ -385,11 +386,11 @@ struct mlx5_esw_flow_attr {
 	struct {
 		u32 flags;
 		struct mlx5_eswitch_rep *rep;
+		struct mlx5_pkt_reformat *pkt_reformat;
 		struct mlx5_core_dev *mdev;
-		u32 encap_id;
 		struct mlx5_termtbl_handle *termtbl;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
-	u32	mod_hdr_id;
+	struct  mlx5_modify_hdr *modify_hdr;
 	u8	inner_match_level;
 	u8	outer_match_level;
 	struct mlx5_fc *counter;

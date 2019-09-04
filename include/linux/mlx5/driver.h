@@ -626,6 +626,11 @@ struct mlx5e_resources {
 	struct mlx5_sq_bfreg       bfreg;
 };
 
+enum mlx5_sw_icm_type {
+	MLX5_SW_ICM_TYPE_STEERING,
+	MLX5_SW_ICM_TYPE_HEADER_MODIFY,
+};
+
 #define MLX5_MAX_RESERVED_GIDS 8
 
 struct mlx5_rsvd_gids {
@@ -657,10 +662,14 @@ struct mlx5_clock {
 	struct mlx5_pps            pps_info;
 };
 
+struct mlx5_dm;
 struct mlx5_fw_tracer;
 struct mlx5_vxlan;
 struct mlx5_geneve;
 struct mlx5_hv_vhca;
+
+#define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev) (MLX5_CAP_DEV_MEM(dev, log_sw_icm_alloc_granularity))
+#define MLX5_SW_ICM_BLOCK_SIZE(dev) (1 << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
 
 struct mlx5_core_dev {
 	struct device *device;
@@ -695,6 +704,7 @@ struct mlx5_core_dev {
 	atomic_t		num_qps;
 	u32			issi;
 	struct mlx5e_resources  mlx5e_res;
+	struct mlx5_dm          *dm;
 	struct mlx5_vxlan       *vxlan;
 	struct mlx5_geneve      *geneve;
 	struct {
@@ -1078,6 +1088,10 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 size_t *offsets);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
+int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
+			 u64 length, u16 uid, phys_addr_t *addr, u32 *obj_id);
+int mlx5_dm_sw_icm_dealloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
+			   u64 length, u16 uid, phys_addr_t addr, u32 obj_id);
 
 #ifdef CONFIG_MLX5_CORE_IPOIB
 struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,

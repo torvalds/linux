@@ -11,6 +11,7 @@ Contents
 
 - `Enabling the driver and kconfig options`_
 - `Devlink info`_
+- `Devlink parameters`_
 - `Devlink health reporters`_
 - `mlx5 tracepoints`_
 
@@ -121,6 +122,38 @@ User command example::
             fw.version 16.26.0100
          stored:
             fw.version 16.26.0100
+
+Devlink parameters
+==================
+
+flow_steering_mode: Device flow steering mode
+---------------------------------------------
+The flow steering mode parameter controls the flow steering mode of the driver.
+Two modes are supported:
+1. 'dmfs' - Device managed flow steering.
+2. 'smfs  - Software/Driver managed flow steering.
+
+In DMFS mode, the HW steering entities are created and managed through the
+Firmware.
+In SMFS mode, the HW steering entities are created and managed though by
+the driver directly into Hardware without firmware intervention.
+
+SMFS mode is faster and provides better rule inserstion rate compared to default DMFS mode.
+
+User command examples:
+
+- Set SMFS flow steering mode::
+
+    $ devlink dev param set pci/0000:06:00.0 name flow_steering_mode value "smfs" cmode runtime
+
+- Read device flow steering mode::
+
+    $ devlink dev param show pci/0000:06:00.0 name flow_steering_mode
+      pci/0000:06:00.0:
+      name flow_steering_mode type driver-specific
+      values:
+         cmode runtime value smfs
+
 
 Devlink health reporters
 ========================

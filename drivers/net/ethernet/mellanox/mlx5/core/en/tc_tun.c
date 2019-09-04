@@ -291,14 +291,14 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		 */
 		goto out;
 	}
-
-	err = mlx5_packet_reformat_alloc(priv->mdev,
-					 e->reformat_type,
-					 ipv4_encap_size, encap_header,
-					 MLX5_FLOW_NAMESPACE_FDB,
-					 &e->encap_id);
-	if (err)
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
+						     e->reformat_type,
+						     ipv4_encap_size, encap_header,
+						     MLX5_FLOW_NAMESPACE_FDB);
+	if (IS_ERR(e->pkt_reformat)) {
+		err = PTR_ERR(e->pkt_reformat);
 		goto destroy_neigh_entry;
+	}
 
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(out_dev));
@@ -407,13 +407,14 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	err = mlx5_packet_reformat_alloc(priv->mdev,
-					 e->reformat_type,
-					 ipv6_encap_size, encap_header,
-					 MLX5_FLOW_NAMESPACE_FDB,
-					 &e->encap_id);
-	if (err)
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
+						     e->reformat_type,
+						     ipv6_encap_size, encap_header,
+						     MLX5_FLOW_NAMESPACE_FDB);
+	if (IS_ERR(e->pkt_reformat)) {
+		err = PTR_ERR(e->pkt_reformat);
 		goto destroy_neigh_entry;
+	}
 
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(out_dev));

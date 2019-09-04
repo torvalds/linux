@@ -868,7 +868,10 @@ struct mlx5_ib_flow_action {
 		struct {
 			struct mlx5_ib_dev *dev;
 			u32 sub_type;
-			u32 action_id;
+			union {
+				struct mlx5_modify_hdr *modify_hdr;
+				struct mlx5_pkt_reformat *pkt_reformat;
+			};
 		} flow_action_raw;
 	};
 };
@@ -881,8 +884,6 @@ struct mlx5_dm {
 	 */
 	spinlock_t lock;
 	DECLARE_BITMAP(memic_alloc_pages, MLX5_MAX_MEMIC_PAGES);
-	unsigned long *steering_sw_icm_alloc_blocks;
-	unsigned long *header_modify_sw_icm_alloc_blocks;
 };
 
 struct mlx5_read_counters_attr {
