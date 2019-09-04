@@ -300,7 +300,7 @@ static int mt76x0_probe(struct usb_interface *usb_intf,
 	if (!(mt76_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
 		dev_warn(dev->mt76.dev, "Warning: eFUSE not present\n");
 
-	ret = mt76x0_init_hardware(dev);
+	ret = mt76x0_init_hardware(dev, true);
 	if (ret)
 		goto err;
 
@@ -354,7 +354,7 @@ static int mt76x0_resume(struct usb_interface *usb_intf)
 	struct mt76x0_dev *dev = usb_get_intfdata(usb_intf);
 	int ret;
 
-	ret = mt76x0_init_hardware(dev);
+	ret = mt76x0_init_hardware(dev, false);
 	if (ret)
 		return ret;
 
