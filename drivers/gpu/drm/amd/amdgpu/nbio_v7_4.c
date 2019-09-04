@@ -473,6 +473,11 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 	return 0;
 }
 
+static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
+					void *ras_error_status)
+{
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
@@ -498,5 +503,6 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
 	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
+	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
 	.ras_late_init = amdgpu_nbio_ras_late_init,
 };

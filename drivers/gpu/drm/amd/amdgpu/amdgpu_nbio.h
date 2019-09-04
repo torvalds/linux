@@ -81,6 +81,8 @@ struct amdgpu_nbio_funcs {
 	void (*handle_ras_err_event_athub_intr_no_bifring)(struct amdgpu_device *adev);
 	int (*init_ras_controller_interrupt)(struct amdgpu_device *adev);
 	int (*init_ras_err_event_athub_interrupt)(struct amdgpu_device *adev);
+	void (*query_ras_error_count)(struct amdgpu_device *adev,
+					void *ras_error_status);
 	int (*ras_late_init)(struct amdgpu_device *adev);
 };
 
