@@ -1514,6 +1514,18 @@ reclassify:
 			goto reset;
 		} else if (unlikely(TC_ACT_EXT_CMP(err, TC_ACT_GOTO_CHAIN))) {
 			first_tp = res->goto_tp;
+
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+			{
+				struct tc_skb_ext *ext;
+
+				ext = skb_ext_add(skb, TC_SKB_EXT);
+				if (WARN_ON_ONCE(!ext))
+					return TC_ACT_SHOT;
+
+				ext->chain = err & TC_ACT_EXT_VAL_MASK;
+			}
+#endif
 			goto reset;
 		}
 #endif

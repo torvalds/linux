@@ -963,6 +963,19 @@ config NET_IFE_SKBTCINDEX
         tristate "Support to encoding decoding skb tcindex on IFE action"
         depends on NET_ACT_IFE
 
+config NET_TC_SKB_EXT
+	bool "TC recirculation support"
+	depends on NET_CLS_ACT
+	default y if NET_CLS_ACT
+	select SKB_EXTENSIONS
+
+	help
+	  Say Y here to allow tc chain misses to continue in OvS datapath in
+	  the correct recirc_id, and hardware chain misses to continue in
+	  the correct chain in tc software datapath.
+
+	  Say N here if you won't be using tc<->ovs offload or tc chains offload.
+
 endif # NET_SCHED
 
 config NET_SCH_FIFO

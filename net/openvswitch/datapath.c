@@ -1545,10 +1545,34 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb, struct genl_info *in
 	dp->user_features = 0;
 }
 
-static void ovs_dp_change(struct datapath *dp, struct nlattr *a[])
+DEFINE_STATIC_KEY_FALSE(tc_recirc_sharing_support);
+
+static int ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 {
-	if (a[OVS_DP_ATTR_USER_FEATURES])
-		dp->user_features = nla_get_u32(a[OVS_DP_ATTR_USER_FEATURES]);
+	u32 user_features = 0;
+
+	if (a[OVS_DP_ATTR_USER_FEATURES]) {
+		user_features = nla_get_u32(a[OVS_DP_ATTR_USER_FEATURES]);
+
+		if (user_features & ~(OVS_DP_F_VPORT_PIDS |
+				      OVS_DP_F_UNALIGNED |
+				      OVS_DP_F_TC_RECIRC_SHARING))
+			return -EOPNOTSUPP;
+
+#if !IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+		if (user_features & OVS_DP_F_TC_RECIRC_SHARING)
+			return -EOPNOTSUPP;
+#endif
+	}
+
+	dp->user_features = user_features;
+
+	if (dp->user_features & OVS_DP_F_TC_RECIRC_SHARING)
+		static_branch_enable(&tc_recirc_sharing_support);
+	else
+		static_branch_disable(&tc_recirc_sharing_support);
+
+	return 0;
 }
 
 static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
@@ -1610,7 +1634,9 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.port_no = OVSP_LOCAL;
 	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
 
-	ovs_dp_change(dp, a);
+	err = ovs_dp_change(dp, a);
+	if (err)
+		goto err_destroy_meters;
 
 	/* So far only local changes have been made, now need the lock. */
 	ovs_lock();
@@ -1736,7 +1762,9 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(dp))
 		goto err_unlock_free;
 
-	ovs_dp_change(dp, info->attrs);
+	err = ovs_dp_change(dp, info->attrs);
+	if (err)
+		goto err_unlock_free;
 
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
 				   info->snd_seq, 0, OVS_DP_CMD_SET);
