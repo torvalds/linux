@@ -38,7 +38,7 @@ static inline void xattr_iter_end_final(struct xattr_iter *it)
 
 static int init_inode_xattrs(struct inode *inode)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	struct xattr_iter it;
 	unsigned int i;
 	struct erofs_xattr_ibody_header *ih;
@@ -48,14 +48,14 @@ static int init_inode_xattrs(struct inode *inode)
 	int ret = 0;
 
 	/* the most case is that xattrs of this inode are initialized. */
-	if (test_bit(EROFS_V_EA_INITED_BIT, &vi->flags))
+	if (test_bit(EROFS_I_EA_INITED_BIT, &vi->flags))
 		return 0;
 
-	if (wait_on_bit_lock(&vi->flags, EROFS_V_BL_XATTR_BIT, TASK_KILLABLE))
+	if (wait_on_bit_lock(&vi->flags, EROFS_I_BL_XATTR_BIT, TASK_KILLABLE))
 		return -ERESTARTSYS;
 
 	/* someone has initialized xattrs for us? */
-	if (test_bit(EROFS_V_EA_INITED_BIT, &vi->flags))
+	if (test_bit(EROFS_I_EA_INITED_BIT, &vi->flags))
 		goto out_unlock;
 
 	/*
@@ -136,10 +136,10 @@ static int init_inode_xattrs(struct inode *inode)
 	}
 	xattr_iter_end(&it, atomic_map);
 
-	set_bit(EROFS_V_EA_INITED_BIT, &vi->flags);
+	set_bit(EROFS_I_EA_INITED_BIT, &vi->flags);
 
 out_unlock:
-	clear_and_wake_up_bit(EROFS_V_BL_XATTR_BIT, &vi->flags);
+	clear_and_wake_up_bit(EROFS_I_BL_XATTR_BIT, &vi->flags);
 	return ret;
 }
 
@@ -184,7 +184,7 @@ static inline int xattr_iter_fixup(struct xattr_iter *it)
 static int inline_xattr_iter_begin(struct xattr_iter *it,
 				   struct inode *inode)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	struct erofs_sb_info *const sbi = EROFS_SB(inode->i_sb);
 	unsigned int xattr_header_sz, inline_xattr_ofs;
 
@@ -385,7 +385,7 @@ static int inline_getxattr(struct inode *inode, struct getxattr_iter *it)
 
 static int shared_getxattr(struct inode *inode, struct getxattr_iter *it)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = inode->i_sb;
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	unsigned int i;
@@ -608,7 +608,7 @@ static int inline_listxattr(struct listxattr_iter *it)
 static int shared_listxattr(struct listxattr_iter *it)
 {
 	struct inode *const inode = d_inode(it->dentry);
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = inode->i_sb;
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	unsigned int i;

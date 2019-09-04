@@ -16,8 +16,8 @@
 
 static inline unsigned int inlinexattr_header_size(struct inode *inode)
 {
-	return sizeof(struct erofs_xattr_ibody_header)
-		+ sizeof(u32) * EROFS_V(inode)->xattr_shared_count;
+	return sizeof(struct erofs_xattr_ibody_header) +
+		sizeof(u32) * EROFS_I(inode)->xattr_shared_count;
 }
 
 static inline erofs_blk_t xattrblock_addr(struct erofs_sb_info *sbi,

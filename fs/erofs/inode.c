@@ -11,7 +11,7 @@
 /* no locking */
 static int read_inode(struct inode *inode, void *data)
 {
-	struct erofs_vnode *vi = EROFS_V(inode);
+	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_inode_compact *dic = data;
 	struct erofs_inode_extended *die;
 
@@ -140,7 +140,7 @@ bogusimode:
 static int fill_inline_data(struct inode *inode, void *data,
 			    unsigned int m_pofs)
 {
-	struct erofs_vnode *vi = EROFS_V(inode);
+	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 
 	/* should be tail-packing data inline */
@@ -178,7 +178,7 @@ static int fill_inline_data(struct inode *inode, void *data,
 static int fill_inode(struct inode *inode, int isdir)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
-	struct erofs_vnode *vi = EROFS_V(inode);
+	struct erofs_inode *vi = EROFS_I(inode);
 	struct page *page;
 	void *data;
 	int err;
@@ -260,7 +260,7 @@ static int erofs_ilookup_test_actor(struct inode *inode, void *opaque)
 {
 	const erofs_nid_t nid = *(erofs_nid_t *)opaque;
 
-	return EROFS_V(inode)->nid == nid;
+	return EROFS_I(inode)->nid == nid;
 }
 
 static int erofs_iget_set_actor(struct inode *inode, void *opaque)
@@ -297,7 +297,7 @@ struct inode *erofs_iget(struct super_block *sb,
 
 	if (inode->i_state & I_NEW) {
 		int err;
-		struct erofs_vnode *vi = EROFS_V(inode);
+		struct erofs_inode *vi = EROFS_I(inode);
 
 		vi->nid = nid;
 
@@ -317,7 +317,7 @@ int erofs_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *const inode = d_inode(path->dentry);
 
-	if (erofs_inode_is_data_compressed(EROFS_V(inode)->datalayout))
+	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
 		stat->attributes |= STATX_ATTR_COMPRESSED;
 
 	stat->attributes |= STATX_ATTR_IMMUTABLE;

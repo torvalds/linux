@@ -47,7 +47,7 @@ static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
 		/* a corrupted entry is found */
 		if (nameoff + de_namelen > maxsize ||
 		    de_namelen > EROFS_NAME_LEN) {
-			errln("bogus dirent @ nid %llu", EROFS_V(dir)->nid);
+			errln("bogus dirent @ nid %llu", EROFS_I(dir)->nid);
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
@@ -85,7 +85,7 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 			break;
 		} else if (IS_ERR(dentry_page)) {
 			errln("fail to readdir of logical block %u of nid %llu",
-			      i, EROFS_V(dir)->nid);
+			      i, EROFS_I(dir)->nid);
 			err = -EFSCORRUPTED;
 			break;
 		}
@@ -97,7 +97,7 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		if (nameoff < sizeof(struct erofs_dirent) ||
 		    nameoff >= PAGE_SIZE) {
 			errln("%s, invalid de[0].nameoff %u @ nid %llu",
-			      __func__, nameoff, EROFS_V(dir)->nid);
+			      __func__, nameoff, EROFS_I(dir)->nid);
 			err = -EFSCORRUPTED;
 			goto skip_this;
 		}

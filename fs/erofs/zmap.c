@@ -10,7 +10,7 @@
 
 int z_erofs_fill_inode(struct inode *inode)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 
 	if (vi->datalayout == EROFS_INODE_FLAT_COMPRESSION_LEGACY) {
 		vi->z_advise = 0;
@@ -19,7 +19,7 @@ int z_erofs_fill_inode(struct inode *inode)
 		vi->z_logical_clusterbits = LOG_BLOCK_SIZE;
 		vi->z_physical_clusterbits[0] = vi->z_logical_clusterbits;
 		vi->z_physical_clusterbits[1] = vi->z_logical_clusterbits;
-		set_bit(EROFS_V_Z_INITED_BIT, &vi->flags);
+		set_bit(EROFS_I_Z_INITED_BIT, &vi->flags);
 	}
 
 	inode->i_mapping->a_ops = &z_erofs_vle_normalaccess_aops;
@@ -28,7 +28,7 @@ int z_erofs_fill_inode(struct inode *inode)
 
 static int fill_inode_lazy(struct inode *inode)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = inode->i_sb;
 	int err;
 	erofs_off_t pos;
@@ -36,14 +36,14 @@ static int fill_inode_lazy(struct inode *inode)
 	void *kaddr;
 	struct z_erofs_map_header *h;
 
-	if (test_bit(EROFS_V_Z_INITED_BIT, &vi->flags))
+	if (test_bit(EROFS_I_Z_INITED_BIT, &vi->flags))
 		return 0;
 
-	if (wait_on_bit_lock(&vi->flags, EROFS_V_BL_Z_BIT, TASK_KILLABLE))
+	if (wait_on_bit_lock(&vi->flags, EROFS_I_BL_Z_BIT, TASK_KILLABLE))
 		return -ERESTARTSYS;
 
 	err = 0;
-	if (test_bit(EROFS_V_Z_INITED_BIT, &vi->flags))
+	if (test_bit(EROFS_I_Z_INITED_BIT, &vi->flags))
 		goto out_unlock;
 
 	DBG_BUGON(vi->datalayout == EROFS_INODE_FLAT_COMPRESSION_LEGACY);
@@ -83,13 +83,13 @@ static int fill_inode_lazy(struct inode *inode)
 
 	vi->z_physical_clusterbits[1] = vi->z_logical_clusterbits +
 					((h->h_clusterbits >> 5) & 7);
-	set_bit(EROFS_V_Z_INITED_BIT, &vi->flags);
+	set_bit(EROFS_I_Z_INITED_BIT, &vi->flags);
 unmap_done:
 	kunmap_atomic(kaddr);
 	unlock_page(page);
 	put_page(page);
 out_unlock:
-	clear_and_wake_up_bit(EROFS_V_BL_Z_BIT, &vi->flags);
+	clear_and_wake_up_bit(EROFS_I_BL_Z_BIT, &vi->flags);
 	return err;
 }
 
@@ -142,7 +142,7 @@ static int vle_legacy_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 					     unsigned long lcn)
 {
 	struct inode *const inode = m->inode;
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	const erofs_off_t ibase = iloc(EROFS_I_SB(inode), vi->nid);
 	const erofs_off_t pos =
 		Z_EROFS_VLE_LEGACY_INDEX_ALIGN(ibase + vi->inode_isize +
@@ -196,7 +196,7 @@ static int unpack_compacted_index(struct z_erofs_maprecorder *m,
 				  unsigned int amortizedshift,
 				  unsigned int eofs)
 {
-	struct erofs_vnode *const vi = EROFS_V(m->inode);
+	struct erofs_inode *const vi = EROFS_I(m->inode);
 	const unsigned int lclusterbits = vi->z_logical_clusterbits;
 	const unsigned int lomask = (1 << lclusterbits) - 1;
 	unsigned int vcnt, base, lo, encodebits, nblk;
@@ -260,7 +260,7 @@ static int compacted_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 					    unsigned long lcn)
 {
 	struct inode *const inode = m->inode;
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	const unsigned int lclusterbits = vi->z_logical_clusterbits;
 	const erofs_off_t ebase = ALIGN(iloc(EROFS_I_SB(inode), vi->nid) +
 					vi->inode_isize + vi->xattr_isize, 8) +
@@ -314,7 +314,7 @@ out:
 static int vle_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 				      unsigned int lcn)
 {
-	const unsigned int datamode = EROFS_V(m->inode)->datalayout;
+	const unsigned int datamode = EROFS_I(m->inode)->datalayout;
 
 	if (datamode == EROFS_INODE_FLAT_COMPRESSION_LEGACY)
 		return vle_legacy_load_cluster_from_disk(m, lcn);
@@ -328,7 +328,7 @@ static int vle_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 			       unsigned int lookback_distance)
 {
-	struct erofs_vnode *const vi = EROFS_V(m->inode);
+	struct erofs_inode *const vi = EROFS_I(m->inode);
 	struct erofs_map_blocks *const map = m->map;
 	const unsigned int lclusterbits = vi->z_logical_clusterbits;
 	unsigned long lcn = m->lcn;
@@ -374,7 +374,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 			    struct erofs_map_blocks *map,
 			    int flags)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
+	struct erofs_inode *const vi = EROFS_I(inode);
 	struct z_erofs_maprecorder m = {
 		.inode = inode,
 		.map = map,

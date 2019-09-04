@@ -117,7 +117,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 				kunmap_atomic(de);
 				put_page(page);
 				errln("corrupted dir block %d @ nid %llu",
-				      mid, EROFS_V(dir)->nid);
+				      mid, EROFS_I(dir)->nid);
 				DBG_BUGON(1);
 				page = ERR_PTR(-EFSCORRUPTED);
 				goto out;

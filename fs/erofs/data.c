@@ -112,7 +112,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	int err = 0;
 	erofs_blk_t nblocks, lastblk;
 	u64 offset = map->m_la;
-	struct erofs_vnode *vi = EROFS_V(inode);
+	struct erofs_inode *vi = EROFS_I(inode);
 	bool tailendpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
 
 	trace_erofs_map_blocks_flatmode_enter(inode, map, flags);
@@ -170,7 +170,7 @@ err_out:
 int erofs_map_blocks(struct inode *inode,
 		     struct erofs_map_blocks *map, int flags)
 {
-	if (erofs_inode_is_data_compressed(EROFS_V(inode)->datalayout)) {
+	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout)) {
 		int err = z_erofs_map_blocks_iter(inode, map, flags);
 
 		if (map->mpage) {
@@ -365,7 +365,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 			if (IS_ERR(bio)) {
 				pr_err("%s, readahead error at page %lu of nid %llu\n",
 				       __func__, page->index,
-				       EROFS_V(mapping->host)->nid);
+				       EROFS_I(mapping->host)->nid);
 
 				bio = NULL;
 			}
@@ -404,7 +404,7 @@ static sector_t erofs_bmap(struct address_space *mapping, sector_t block)
 {
 	struct inode *inode = mapping->host;
 
-	if (EROFS_V(inode)->datalayout == EROFS_INODE_FLAT_INLINE) {
+	if (EROFS_I(inode)->datalayout == EROFS_INODE_FLAT_INLINE) {
 		erofs_blk_t blks = i_size_read(inode) >> LOG_BLOCK_SIZE;
 
 		if (block >> LOG_SECTORS_PER_BLOCK >= blks)

@@ -41,7 +41,7 @@ TRACE_EVENT(erofs_lookup,
 
 	TP_fast_assign(
 		__entry->dev	= dir->i_sb->s_dev;
-		__entry->nid	= EROFS_V(dir)->nid;
+		__entry->nid	= EROFS_I(dir)->nid;
 		__entry->name	= dentry->d_name.name;
 		__entry->flags	= flags;
 	),
@@ -66,7 +66,7 @@ TRACE_EVENT(erofs_fill_inode,
 
 	TP_fast_assign(
 		__entry->dev		= inode->i_sb->s_dev;
-		__entry->nid		= EROFS_V(inode)->nid;
+		__entry->nid		= EROFS_I(inode)->nid;
 		__entry->blkaddr	= erofs_blknr(iloc(EROFS_I_SB(inode), __entry->nid));
 		__entry->ofs		= erofs_blkoff(iloc(EROFS_I_SB(inode), __entry->nid));
 		__entry->isdir		= isdir;
@@ -95,7 +95,7 @@ TRACE_EVENT(erofs_readpage,
 
 	TP_fast_assign(
 		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->nid	= EROFS_V(page->mapping->host)->nid;
+		__entry->nid	= EROFS_I(page->mapping->host)->nid;
 		__entry->dir	= S_ISDIR(page->mapping->host->i_mode);
 		__entry->index	= page->index;
 		__entry->uptodate = PageUptodate(page);
@@ -128,7 +128,7 @@ TRACE_EVENT(erofs_readpages,
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
-		__entry->nid	= EROFS_V(inode)->nid;
+		__entry->nid	= EROFS_I(inode)->nid;
 		__entry->start	= page->index;
 		__entry->nrpage	= nrpage;
 		__entry->raw	= raw;
@@ -157,7 +157,7 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
 
 	TP_fast_assign(
 		__entry->dev    = inode->i_sb->s_dev;
-		__entry->nid    = EROFS_V(inode)->nid;
+		__entry->nid    = EROFS_I(inode)->nid;
 		__entry->la	= map->m_la;
 		__entry->llen	= map->m_llen;
 		__entry->flags	= flags;
@@ -203,7 +203,7 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 
 	TP_fast_assign(
 		__entry->dev    = inode->i_sb->s_dev;
-		__entry->nid    = EROFS_V(inode)->nid;
+		__entry->nid    = EROFS_I(inode)->nid;
 		__entry->flags	= flags;
 		__entry->la	= map->m_la;
 		__entry->pa	= map->m_pa;
@@ -247,7 +247,7 @@ TRACE_EVENT(erofs_destroy_inode,
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
-		__entry->nid	= EROFS_V(inode)->nid;
+		__entry->nid	= EROFS_I(inode)->nid;
 	),
 
 	TP_printk("dev = (%d,%d), nid = %llu", show_dev_nid(__entry))

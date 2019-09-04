@@ -272,14 +272,14 @@ static inline erofs_off_t iloc(struct erofs_sb_info *sbi, erofs_nid_t nid)
 }
 
 /* atomic flag definitions */
-#define EROFS_V_EA_INITED_BIT	0
-#define EROFS_V_Z_INITED_BIT	1
+#define EROFS_I_EA_INITED_BIT	0
+#define EROFS_I_Z_INITED_BIT	1
 
 /* bitlock definitions (arranged in reverse order) */
-#define EROFS_V_BL_XATTR_BIT	(BITS_PER_LONG - 1)
-#define EROFS_V_BL_Z_BIT	(BITS_PER_LONG - 2)
+#define EROFS_I_BL_XATTR_BIT	(BITS_PER_LONG - 1)
+#define EROFS_I_BL_Z_BIT	(BITS_PER_LONG - 2)
 
-struct erofs_vnode {
+struct erofs_inode {
 	erofs_nid_t nid;
 
 	/* atomic flags (including bitlocks) */
@@ -307,8 +307,8 @@ struct erofs_vnode {
 	struct inode vfs_inode;
 };
 
-#define EROFS_V(ptr)	\
-	container_of(ptr, struct erofs_vnode, vfs_inode)
+#define EROFS_I(ptr)	\
+	container_of(ptr, struct erofs_inode, vfs_inode)
 
 static inline unsigned long inode_datablocks(struct inode *inode)
 {

@@ -421,7 +421,7 @@ static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
 	else
 		pcl->algorithmformat = Z_EROFS_COMPRESSION_SHIFTED;
 
-	pcl->clusterbits = EROFS_V(inode)->z_physical_clusterbits[0];
+	pcl->clusterbits = EROFS_I(inode)->z_physical_clusterbits[0];
 	pcl->clusterbits -= PAGE_SHIFT;
 
 	/* new pclusters should be claimed as type 1, primary and followed */
@@ -1404,12 +1404,9 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 		head = (void *)page_private(page);
 
 		err = z_erofs_do_read_page(&f, page, &pagepool);
-		if (err) {
-			struct erofs_vnode *vi = EROFS_V(inode);
-
+		if (err)
 			errln("%s, readahead error at page %lu of nid %llu",
-			      __func__, page->index, vi->nid);
-		}
+			      __func__, page->index, EROFS_I(inode)->nid);
 		put_page(page);
 	}
 
