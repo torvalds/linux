@@ -613,7 +613,10 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 	if (dev->readonly)
 		set_disk_ro(gd, 1);
 
-	add_disk(gd);
+	if (gd->flags != GENHD_FL_EXT_DEVT)
+		add_disk(gd);
+	else
+		device_add_disk(g_nand_device, gd);
 
 	return 0;
 }
