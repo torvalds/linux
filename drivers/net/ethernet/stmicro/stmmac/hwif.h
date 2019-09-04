@@ -363,6 +363,13 @@ struct stmmac_ops {
 	int (*get_mac_tx_timestamp)(struct mac_device_info *hw, u64 *ts);
 	/* Source Address Insertion / Replacement */
 	void (*sarc_configure)(void __iomem *ioaddr, int val);
+	/* Filtering */
+	int (*config_l3_filter)(struct mac_device_info *hw, u32 filter_no,
+				bool en, bool ipv6, bool sa, bool inv,
+				u32 match);
+	int (*config_l4_filter)(struct mac_device_info *hw, u32 filter_no,
+				bool en, bool udp, bool sa, bool inv,
+				u32 match);
 };
 
 #define stmmac_core_init(__priv, __args...) \
@@ -443,6 +450,10 @@ struct stmmac_ops {
 	stmmac_do_callback(__priv, mac, get_mac_tx_timestamp, __args)
 #define stmmac_sarc_configure(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, sarc_configure, __args)
+#define stmmac_config_l3_filter(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, config_l3_filter, __args)
+#define stmmac_config_l4_filter(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, config_l4_filter, __args)
 
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
@@ -499,6 +510,7 @@ struct stmmac_mode_ops {
 struct stmmac_priv;
 struct tc_cls_u32_offload;
 struct tc_cbs_qopt_offload;
+struct flow_cls_offload;
 
 struct stmmac_tc_ops {
 	int (*init)(struct stmmac_priv *priv);
@@ -506,6 +518,8 @@ struct stmmac_tc_ops {
 			     struct tc_cls_u32_offload *cls);
 	int (*setup_cbs)(struct stmmac_priv *priv,
 			 struct tc_cbs_qopt_offload *qopt);
+	int (*setup_cls)(struct stmmac_priv *priv,
+			 struct flow_cls_offload *cls);
 };
 
 #define stmmac_tc_init(__priv, __args...) \
@@ -514,6 +528,8 @@ struct stmmac_tc_ops {
 	stmmac_do_callback(__priv, tc, setup_cls_u32, __args)
 #define stmmac_tc_setup_cbs(__priv, __args...) \
 	stmmac_do_callback(__priv, tc, setup_cbs, __args)
+#define stmmac_tc_setup_cls(__priv, __args...) \
+	stmmac_do_callback(__priv, tc, setup_cls, __args)
 
 struct stmmac_counters;
 

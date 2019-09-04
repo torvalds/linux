@@ -128,6 +128,16 @@ struct stmmac_rss {
 	u32 table[STMMAC_RSS_MAX_TABLE_SIZE];
 };
 
+#define STMMAC_FLOW_ACTION_DROP		BIT(0)
+struct stmmac_flow_entry {
+	unsigned long cookie;
+	unsigned long action;
+	u8 ip_proto;
+	int in_use;
+	int idx;
+	int is_l4;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_coal_frames;
@@ -216,6 +226,8 @@ struct stmmac_priv {
 	unsigned int tc_entries_max;
 	unsigned int tc_off_max;
 	struct stmmac_tc_entry *tc_entries;
+	unsigned int flow_entries_max;
+	struct stmmac_flow_entry *flow_entries;
 
 	/* Pulse Per Second output */
 	struct stmmac_pps_cfg pps[STMMAC_PPS_MAX];

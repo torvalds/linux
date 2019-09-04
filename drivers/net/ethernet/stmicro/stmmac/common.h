@@ -360,6 +360,7 @@ struct dma_features {
 	unsigned int sphen;
 	unsigned int vlins;
 	unsigned int dvlan;
+	unsigned int l3l4fnum;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */

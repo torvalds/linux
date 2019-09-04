@@ -3931,12 +3931,17 @@ static int stmmac_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	struct stmmac_priv *priv = cb_priv;
 	int ret = -EOPNOTSUPP;
 
+	if (!tc_cls_can_offload_and_chain0(priv->dev, type_data))
+		return ret;
+
 	stmmac_disable_all_queues(priv);
 
 	switch (type) {
 	case TC_SETUP_CLSU32:
-		if (tc_cls_can_offload_and_chain0(priv->dev, type_data))
-			ret = stmmac_tc_setup_cls_u32(priv, priv, type_data);
+		ret = stmmac_tc_setup_cls_u32(priv, priv, type_data);
+		break;
+	case TC_SETUP_CLSFLOWER:
+		ret = stmmac_tc_setup_cls(priv, priv, type_data);
 		break;
 	default:
 		break;
