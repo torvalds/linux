@@ -108,6 +108,10 @@
 #define BXT_FREG_NUM			12
 #define BXT_PR_NUM			6
 
+#define CNL_PR				0x84
+#define CNL_FREG_NUM			6
+#define CNL_PR_NUM			5
+
 #define LVSCC				0xc4
 #define UVSCC				0xc8
 #define ERASE_OPCODE_SHIFT		8
@@ -342,6 +346,13 @@ static int intel_spi_init(struct intel_spi *ispi)
 		ispi->nregions = BXT_FREG_NUM;
 		ispi->pr_num = BXT_PR_NUM;
 		ispi->erase_64k = true;
+		break;
+
+	case INTEL_SPI_CNL:
+		ispi->sregs = NULL;
+		ispi->pregs = ispi->base + CNL_PR;
+		ispi->nregions = CNL_FREG_NUM;
+		ispi->pr_num = CNL_PR_NUM;
 		break;
 
 	default:
