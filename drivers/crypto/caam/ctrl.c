@@ -594,6 +594,21 @@ static int caam_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, ctrlpriv);
 	nprop = pdev->dev.of_node;
 
+	imx_soc_match = soc_device_match(caam_imx_soc_table);
+	caam_imx = (bool)imx_soc_match;
+
+	if (imx_soc_match) {
+		if (!imx_soc_match->data) {
+			dev_err(dev, "No clock data provided for i.MX SoC");
+			return -EINVAL;
+		}
+
+		ret = init_clocks(dev, imx_soc_match->data);
+		if (ret)
+			return ret;
+	}
+
+
 	/* Get configuration properties from device tree */
 	/* First, get register page */
 	ctrl = of_iomap(nprop, 0);
@@ -604,9 +619,6 @@ static int caam_probe(struct platform_device *pdev)
 
 	caam_little_end = !(bool)(rd_reg32(&ctrl->perfmon.status) &
 				  (CSTA_PLEND | CSTA_ALT_PLEND));
-	imx_soc_match = soc_device_match(caam_imx_soc_table);
-	caam_imx = (bool)imx_soc_match;
-
 	comp_params = rd_reg32(&ctrl->perfmon.comp_parms_ms);
 	if (comp_params & CTPR_MS_PS && rd_reg32(&ctrl->mcr) & MCFGR_LONG_PTR)
 		caam_ptr_sz = sizeof(u64);
@@ -639,18 +651,6 @@ static int caam_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-
-	if (imx_soc_match) {
-		if (!imx_soc_match->data) {
-			dev_err(dev, "No clock data provided for i.MX SoC");
-			return -EINVAL;
-		}
-
-		ret = init_clocks(dev, imx_soc_match->data);
-		if (ret)
-			return ret;
-	}
-
 
 	/* Allocating the BLOCK_OFFSET based on the supported page size on
 	 * the platform
