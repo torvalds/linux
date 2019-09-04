@@ -28,10 +28,6 @@ struct z_erofs_decompressor {
 	char *name;
 };
 
-static bool use_vmap;
-module_param(use_vmap, bool, 0444);
-MODULE_PARM_DESC(use_vmap, "Use vmap() instead of vm_map_ram() (default 0)");
-
 static int z_erofs_lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
 					 struct list_head *pagepool)
 {
@@ -221,32 +217,6 @@ static void copy_from_pcpubuf(struct page **out, const char *dst,
 	}
 }
 
-static void *erofs_vmap(struct page **pages, unsigned int count)
-{
-	int i = 0;
-
-	if (use_vmap)
-		return vmap(pages, count, VM_MAP, PAGE_KERNEL);
-
-	while (1) {
-		void *addr = vm_map_ram(pages, count, -1, PAGE_KERNEL);
-
-		/* retry two more times (totally 3 times) */
-		if (addr || ++i >= 3)
-			return addr;
-		vm_unmap_aliases();
-	}
-	return NULL;
-}
-
-static void erofs_vunmap(const void *mem, unsigned int count)
-{
-	if (!use_vmap)
-		vm_unmap_ram(mem, count);
-	else
-		vunmap(mem);
-}
-
 static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
 				      struct list_head *pagepool)
 {
@@ -255,7 +225,7 @@ static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
 	const struct z_erofs_decompressor *alg = decompressors + rq->alg;
 	unsigned int dst_maptype;
 	void *dst;
-	int ret;
+	int ret, i;
 
 	if (nrpages_out == 1 && !rq->inplace_io) {
 		DBG_BUGON(!*rq->out);
@@ -293,9 +263,19 @@ static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
 		goto dstmap_out;
 	}
 
-	dst = erofs_vmap(rq->out, nrpages_out);
+	i = 0;
+	while (1) {
+		dst = vm_map_ram(rq->out, nrpages_out, -1, PAGE_KERNEL);
+
+		/* retry two more times (totally 3 times) */
+		if (dst || ++i >= 3)
+			break;
+		vm_unmap_aliases();
+	}
+
 	if (!dst)
 		return -ENOMEM;
+
 	dst_maptype = 2;
 
 dstmap_out:
@@ -304,7 +284,7 @@ dstmap_out:
 	if (!dst_maptype)
 		kunmap_atomic(dst);
 	else if (dst_maptype == 2)
-		erofs_vunmap(dst, nrpages_out);
+		vm_unmap_ram(dst, nrpages_out);
 	return ret;
 }
 
