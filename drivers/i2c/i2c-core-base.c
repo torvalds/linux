@@ -832,7 +832,7 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
-	if (!client)
+	if (IS_ERR_OR_NULL(client))
 		return;
 
 	if (client->dev.of_node) {

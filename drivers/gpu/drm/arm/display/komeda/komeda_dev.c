@@ -8,6 +8,7 @@
 #include <linux/iommu.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #ifdef CONFIG_DEBUG_FS
@@ -126,7 +127,7 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 	pipe->of_output_port =
 		of_graph_get_port_by_id(np, KOMEDA_OF_PORT_OUTPUT);
 
-	pipe->of_node = np;
+	pipe->of_node = of_node_get(np);
 
 	return 0;
 }
@@ -142,6 +143,12 @@ static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 		DRM_ERROR("could not get IRQ number.\n");
 		return mdev->irq;
 	}
+
+	/* Get the optional framebuffer memory resource */
+	ret = of_reserved_mem_device_init(dev);
+	if (ret && ret != -ENODEV)
+		return ret;
+	ret = 0;
 
 	for_each_available_child_of_node(np, child) {
 		if (of_node_cmp(child->name, "pipeline") == 0) {
@@ -288,6 +295,8 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	}
 
 	mdev->n_pipelines = 0;
+
+	of_reserved_mem_device_release(dev);
 
 	if (funcs && funcs->cleanup)
 		funcs->cleanup(mdev);

@@ -223,8 +223,43 @@ disable_error_report_exit:
 	return ret;
 }
 
+static int cci_pci_sriov_configure(struct pci_dev *pcidev, int num_vfs)
+{
+	struct cci_drvdata *drvdata = pci_get_drvdata(pcidev);
+	struct dfl_fpga_cdev *cdev = drvdata->cdev;
+	int ret = 0;
+
+	if (!num_vfs) {
+		/*
+		 * disable SRIOV and then put released ports back to default
+		 * PF access mode.
+		 */
+		pci_disable_sriov(pcidev);
+
+		dfl_fpga_cdev_config_ports_pf(cdev);
+
+	} else {
+		/*
+		 * before enable SRIOV, put released ports into VF access mode
+		 * first of all.
+		 */
+		ret = dfl_fpga_cdev_config_ports_vf(cdev, num_vfs);
+		if (ret)
+			return ret;
+
+		ret = pci_enable_sriov(pcidev, num_vfs);
+		if (ret)
+			dfl_fpga_cdev_config_ports_pf(cdev);
+	}
+
+	return ret;
+}
+
 static void cci_pci_remove(struct pci_dev *pcidev)
 {
+	if (dev_is_pf(&pcidev->dev))
+		cci_pci_sriov_configure(pcidev, 0);
+
 	cci_remove_feature_devs(pcidev);
 	pci_disable_pcie_error_reporting(pcidev);
 }
@@ -234,6 +269,7 @@ static struct pci_driver cci_pci_driver = {
 	.id_table = cci_pcie_id_tbl,
 	.probe = cci_pci_probe,
 	.remove = cci_pci_remove,
+	.sriov_configure = cci_pci_sriov_configure,
 };
 
 module_pci_driver(cci_pci_driver);
