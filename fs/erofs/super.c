@@ -67,14 +67,14 @@ static void free_inode(struct inode *inode)
 static bool check_layout_compatibility(struct super_block *sb,
 				       struct erofs_super_block *layout)
 {
-	const unsigned int requirements = le32_to_cpu(layout->requirements);
+	const unsigned int feature = le32_to_cpu(layout->feature_incompat);
 
-	EROFS_SB(sb)->requirements = requirements;
+	EROFS_SB(sb)->feature_incompat = feature;
 
 	/* check if current kernel meets all mandatory requirements */
-	if (requirements & (~EROFS_ALL_REQUIREMENTS)) {
-		errln("unidentified requirements %x, please upgrade kernel version",
-		      requirements & ~EROFS_ALL_REQUIREMENTS);
+	if (feature & (~EROFS_ALL_FEATURE_INCOMPAT)) {
+		errln("unidentified incompatible feature %x, please upgrade kernel version",
+		      feature & ~EROFS_ALL_FEATURE_INCOMPAT);
 		return false;
 	}
 	return true;

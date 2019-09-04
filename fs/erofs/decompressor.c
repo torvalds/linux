@@ -129,7 +129,8 @@ static int lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
 	support_0padding = false;
 
 	/* decompression inplace is only safe when 0padding is enabled */
-	if (EROFS_SB(rq->sb)->requirements & EROFS_REQUIREMENT_LZ4_0PADDING) {
+	if (EROFS_SB(rq->sb)->feature_incompat &
+	    EROFS_FEATURE_INCOMPAT_LZ4_0PADDING) {
 		support_0padding = true;
 
 		while (!src[inputmargin & ~PAGE_MASK])
