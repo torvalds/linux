@@ -1001,7 +1001,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct bcm2835_spi *bs;
-	struct resource *res;
 	int err;
 
 	ctlr = spi_alloc_master(&pdev->dev, sizeof(*bs));
@@ -1022,8 +1021,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	bs = spi_controller_get_devdata(ctlr);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	bs->regs = devm_ioremap_resource(&pdev->dev, res);
+	bs->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bs->regs)) {
 		err = PTR_ERR(bs->regs);
 		goto out_controller_put;
