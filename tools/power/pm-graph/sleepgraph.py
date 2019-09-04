@@ -667,19 +667,19 @@ class SystemValues:
 		if linesack < linesout:
 			return False
 		return True
-	def setVal(self, val, file, mode='w'):
+	def setVal(self, val, file):
 		if not os.path.exists(file):
 			return False
 		try:
-			fp = open(file, mode)
-			fp.write(val)
+			fp = open(file, 'wb', 0)
+			fp.write(val.encode())
 			fp.flush()
 			fp.close()
 		except:
 			return False
 		return True
-	def fsetVal(self, val, path, mode='w'):
-		return self.setVal(val, self.tpath+path, mode)
+	def fsetVal(self, val, path):
+		return self.setVal(val, self.tpath+path)
 	def getVal(self, file):
 		res = ''
 		if not os.path.exists(file):
