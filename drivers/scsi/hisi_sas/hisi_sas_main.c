@@ -2579,8 +2579,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 		goto err_out;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hisi_hba->regs = devm_ioremap_resource(dev, res);
+	hisi_hba->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hisi_hba->regs))
 		goto err_out;
 
