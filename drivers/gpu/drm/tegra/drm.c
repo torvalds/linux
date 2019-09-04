@@ -163,10 +163,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		drm_mm_init(&tegra->mm, gem_start, gem_end - gem_start + 1);
 		mutex_init(&tegra->mm_lock);
 
-		DRM_DEBUG("IOMMU apertures:\n");
-		DRM_DEBUG("  GEM: %#llx-%#llx\n", gem_start, gem_end);
-		DRM_DEBUG("  Carveout: %#llx-%#llx\n", carveout_start,
-			  carveout_end);
+		DRM_DEBUG_DRIVER("IOMMU apertures:\n");
+		DRM_DEBUG_DRIVER("  GEM: %#llx-%#llx\n", gem_start, gem_end);
+		DRM_DEBUG_DRIVER("  Carveout: %#llx-%#llx\n", carveout_start,
+				 carveout_end);
 	}
 
 	if (tegra->hub) {
