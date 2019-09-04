@@ -3635,6 +3635,33 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_remove_namespaces);
 
+static int nvme_class_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct nvme_ctrl *ctrl =
+		container_of(dev, struct nvme_ctrl, ctrl_device);
+	struct nvmf_ctrl_options *opts = ctrl->opts;
+	int ret;
+
+	ret = add_uevent_var(env, "NVME_TRTYPE=%s", ctrl->ops->name);
+	if (ret)
+		return ret;
+
+	if (opts) {
+		ret = add_uevent_var(env, "NVME_TRADDR=%s", opts->traddr);
+		if (ret)
+			return ret;
+
+		ret = add_uevent_var(env, "NVME_TRSVCID=%s",
+				opts->trsvcid ?: "none");
+		if (ret)
+			return ret;
+
+		ret = add_uevent_var(env, "NVME_HOST_TRADDR=%s",
+				opts->host_traddr ?: "none");
+	}
+	return ret;
+}
+
 static void nvme_aen_uevent(struct nvme_ctrl *ctrl)
 {
 	char *envp[2] = { NULL, NULL };
@@ -4073,6 +4100,7 @@ static int __init nvme_core_init(void)
 		result = PTR_ERR(nvme_class);
 		goto unregister_chrdev;
 	}
+	nvme_class->dev_uevent = nvme_class_uevent;
 
 	nvme_subsys_class = class_create(THIS_MODULE, "nvme-subsystem");
 	if (IS_ERR(nvme_subsys_class)) {
