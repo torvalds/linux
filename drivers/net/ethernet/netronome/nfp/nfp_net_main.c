@@ -205,10 +205,8 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 
 		/* Kill the vNIC if app init marked it as invalid */
-		if (nn->port && nn->port->type == NFP_PORT_INVALID) {
+		if (nn->port && nn->port->type == NFP_PORT_INVALID)
 			nfp_net_pf_free_vnic(pf, nn);
-			continue;
-		}
 	}
 
 	if (list_empty(&pf->vnics))
