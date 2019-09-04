@@ -1559,20 +1559,22 @@ static int soc_link_init(struct snd_soc_card *card,
 	return ret;
 }
 
-static int soc_bind_aux_dev(struct snd_soc_card *card,
-			    struct snd_soc_aux_dev *aux_dev)
+static int soc_bind_aux_dev(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
+	struct snd_soc_aux_dev *aux;
+	int i;
 
-	/* codecs, usually analog devices */
-	component = soc_find_component(&aux_dev->dlc);
-	if (!component)
-		return -EPROBE_DEFER;
+	for_each_card_pre_auxs(card, i, aux) {
+		/* codecs, usually analog devices */
+		component = soc_find_component(&aux->dlc);
+		if (!component)
+			return -EPROBE_DEFER;
 
-	component->init = aux_dev->init;
-	/* see for_each_card_auxs */
-	list_add(&component->card_aux_list, &card->aux_comp_list);
-
+		component->init = aux->init;
+		/* see for_each_card_auxs */
+		list_add(&component->card_aux_list, &card->aux_comp_list);
+	}
 	return 0;
 }
 
@@ -1937,7 +1939,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *dai_link;
-	struct snd_soc_aux_dev *aux;
 	int ret, i;
 
 	mutex_lock(&client_mutex);
@@ -1965,11 +1966,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* bind aux_devs too */
-	for_each_card_pre_auxs(card, i, aux) {
-		ret = soc_bind_aux_dev(card, aux);
-		if (ret != 0)
-			goto probe_end;
-	}
+	ret = soc_bind_aux_dev(card);
+	if (ret < 0)
+		goto probe_end;
 
 	/* add predefined DAI links to the list */
 	for_each_card_prelinks(card, i, dai_link) {
