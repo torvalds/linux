@@ -1,7 +1,12 @@
 NVIDIA Tegra20/Tegra30 high speed (DMA based) UART controller driver.
 
 Required properties:
-- compatible : should be "nvidia,tegra30-hsuart", "nvidia,tegra20-hsuart".
+- compatible : should be,
+  "nvidia,tegra20-hsuart" for Tegra20,
+  "nvidia,tegra30-hsuart" for Tegra30,
+  "nvidia,tegra186-hsuart" for Tegra186,
+  "nvidia,tegra194-hsuart" for Tegra194.
+
 - reg: Should contain UART controller registers location and length.
 - interrupts: Should contain UART controller interrupts.
 - clocks: Must contain one entry, for the module clock.
