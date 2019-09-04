@@ -185,6 +185,39 @@ void drm_printf(struct drm_printer *p, const char *f, ...)
 }
 EXPORT_SYMBOL(drm_printf);
 
+/**
+ * drm_print_bits - print bits to a &drm_printer stream
+ *
+ * Print bits (in flag fields for example) in human readable form.
+ * The first name in the @bits array is for the bit indexed by @from.
+ *
+ * @p: the &drm_printer
+ * @value: field value.
+ * @bits: Array with bit names.
+ * @from: start of bit range to print (inclusive).
+ * @to: end of bit range to print (exclusive).
+ */
+void drm_print_bits(struct drm_printer *p,
+		    unsigned long value, const char *bits[],
+		    unsigned int from, unsigned int to)
+{
+	bool first = true;
+	unsigned int i;
+
+	for (i = from; i < to; i++) {
+		if (!(value & (1 << i)))
+			continue;
+		if (WARN_ON_ONCE(!bits[i-from]))
+			continue;
+		drm_printf(p, "%s%s", first ? "" : ",",
+			   bits[i-from]);
+		first = false;
+	}
+	if (first)
+		drm_printf(p, "(none)");
+}
+EXPORT_SYMBOL(drm_print_bits);
+
 void drm_dev_printk(const struct device *dev, const char *level,
 		    const char *format, ...)
 {
