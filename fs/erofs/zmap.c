@@ -12,7 +12,7 @@ int z_erofs_fill_inode(struct inode *inode)
 {
 	struct erofs_vnode *const vi = EROFS_V(inode);
 
-	if (vi->datamode == EROFS_INODE_FLAT_COMPRESSION_LEGACY) {
+	if (vi->datalayout == EROFS_INODE_FLAT_COMPRESSION_LEGACY) {
 		vi->z_advise = 0;
 		vi->z_algorithmtype[0] = 0;
 		vi->z_algorithmtype[1] = 0;
@@ -46,7 +46,7 @@ static int fill_inode_lazy(struct inode *inode)
 	if (test_bit(EROFS_V_Z_INITED_BIT, &vi->flags))
 		goto out_unlock;
 
-	DBG_BUGON(vi->datamode == EROFS_INODE_FLAT_COMPRESSION_LEGACY);
+	DBG_BUGON(vi->datalayout == EROFS_INODE_FLAT_COMPRESSION_LEGACY);
 
 	pos = ALIGN(iloc(EROFS_SB(sb), vi->nid) + vi->inode_isize +
 		    vi->xattr_isize, 8);
@@ -314,7 +314,7 @@ out:
 static int vle_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 				      unsigned int lcn)
 {
-	const unsigned int datamode = EROFS_V(m->inode)->datamode;
+	const unsigned int datamode = EROFS_V(m->inode)->datalayout;
 
 	if (datamode == EROFS_INODE_FLAT_COMPRESSION_LEGACY)
 		return vle_legacy_load_cluster_from_disk(m, lcn);

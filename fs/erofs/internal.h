@@ -285,7 +285,7 @@ struct erofs_vnode {
 	/* atomic flags (including bitlocks) */
 	unsigned long flags;
 
-	unsigned char datamode;
+	unsigned char datalayout;
 	unsigned char inode_isize;
 	unsigned short xattr_isize;
 
@@ -310,31 +310,30 @@ struct erofs_vnode {
 #define EROFS_V(ptr)	\
 	container_of(ptr, struct erofs_vnode, vfs_inode)
 
-#define __inode_advise(x, bit, bits) \
-	(((x) >> (bit)) & ((1 << (bits)) - 1))
-
-#define __inode_version(advise)	\
-	__inode_advise(advise, EROFS_I_VERSION_BIT,	\
-		EROFS_I_VERSION_BITS)
-
-#define __inode_data_mapping(advise)	\
-	__inode_advise(advise, EROFS_I_DATA_MAPPING_BIT,\
-		EROFS_I_DATA_MAPPING_BITS)
-
 static inline unsigned long inode_datablocks(struct inode *inode)
 {
 	/* since i_size cannot be changed */
 	return DIV_ROUND_UP(inode->i_size, EROFS_BLKSIZ);
 }
 
-static inline bool is_inode_layout_compression(struct inode *inode)
+static inline unsigned int erofs_bitrange(unsigned int value, unsigned int bit,
+					  unsigned int bits)
 {
-	return erofs_inode_is_data_compressed(EROFS_V(inode)->datamode);
+
+	return (value >> bit) & ((1 << bits) - 1);
 }
 
-static inline bool is_inode_flat_inline(struct inode *inode)
+
+static inline unsigned int erofs_inode_version(unsigned int value)
 {
-	return EROFS_V(inode)->datamode == EROFS_INODE_FLAT_INLINE;
+	return erofs_bitrange(value, EROFS_I_VERSION_BIT,
+			      EROFS_I_VERSION_BITS);
+}
+
+static inline unsigned int erofs_inode_datalayout(unsigned int value)
+{
+	return erofs_bitrange(value, EROFS_I_DATALAYOUT_BIT,
+			      EROFS_I_DATALAYOUT_BITS);
 }
 
 extern const struct super_operations erofs_sops;

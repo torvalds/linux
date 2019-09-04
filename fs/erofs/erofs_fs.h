@@ -41,7 +41,7 @@ struct erofs_super_block {
 };
 
 /*
- * erofs inode data mapping:
+ * erofs inode datalayout:
  * 0 - inode plain without inline data A:
  * inode, [xattrs], ... | ... | no-holed data
  * 1 - inode VLE compression B (legacy):
@@ -57,7 +57,7 @@ enum {
 	EROFS_INODE_FLAT_COMPRESSION_LEGACY	= 1,
 	EROFS_INODE_FLAT_INLINE			= 2,
 	EROFS_INODE_FLAT_COMPRESSION		= 3,
-	EROFS_INODE_LAYOUT_MAX
+	EROFS_INODE_DATALAYOUT_MAX
 };
 
 static inline bool erofs_inode_is_data_compressed(unsigned int datamode)
@@ -68,14 +68,14 @@ static inline bool erofs_inode_is_data_compressed(unsigned int datamode)
 
 /* bit definitions of inode i_advise */
 #define EROFS_I_VERSION_BITS            1
-#define EROFS_I_DATA_MAPPING_BITS       3
+#define EROFS_I_DATALAYOUT_BITS         3
 
 #define EROFS_I_VERSION_BIT             0
-#define EROFS_I_DATA_MAPPING_BIT        1
+#define EROFS_I_DATALAYOUT_BIT          1
 
 /* 32-byte reduced form of an ondisk inode */
-struct erofs_inode_v1 {
-	__le16 i_advise;	/* inode hints */
+struct erofs_inode_compact {
+	__le16 i_format;	/* inode format hints */
 
 /* 1 header + n-1 * 4 bytes inline xattr to keep continuity */
 	__le16 i_xattr_icount;
@@ -98,13 +98,13 @@ struct erofs_inode_v1 {
 };
 
 /* 32 bytes on-disk inode */
-#define EROFS_INODE_LAYOUT_V1   0
+#define EROFS_INODE_LAYOUT_COMPACT	0
 /* 64 bytes on-disk inode */
-#define EROFS_INODE_LAYOUT_V2   1
+#define EROFS_INODE_LAYOUT_EXTENDED	1
 
 /* 64-byte complete form of an ondisk inode */
-struct erofs_inode_v2 {
-	__le16 i_advise;	/* inode hints */
+struct erofs_inode_extended {
+	__le16 i_format;	/* inode format hints */
 
 /* 1 header + n-1 * 4 bytes inline xattr to keep continuity */
 	__le16 i_xattr_icount;
@@ -299,8 +299,8 @@ struct erofs_dirent {
 static inline void erofs_check_ondisk_layout_definitions(void)
 {
 	BUILD_BUG_ON(sizeof(struct erofs_super_block) != 128);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_v1) != 32);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_v2) != 64);
+	BUILD_BUG_ON(sizeof(struct erofs_inode_compact) != 32);
+	BUILD_BUG_ON(sizeof(struct erofs_inode_extended) != 64);
 	BUILD_BUG_ON(sizeof(struct erofs_xattr_ibody_header) != 12);
 	BUILD_BUG_ON(sizeof(struct erofs_xattr_entry) != 4);
 	BUILD_BUG_ON(sizeof(struct z_erofs_map_header) != 8);

@@ -12,73 +12,90 @@
 static int read_inode(struct inode *inode, void *data)
 {
 	struct erofs_vnode *vi = EROFS_V(inode);
-	struct erofs_inode_v1 *v1 = data;
-	const unsigned int advise = le16_to_cpu(v1->i_advise);
+	struct erofs_inode_compact *dic = data;
+	struct erofs_inode_extended *die;
+
+	const unsigned int ifmt = le16_to_cpu(dic->i_format);
+	struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
 	erofs_blk_t nblks = 0;
 
-	vi->datamode = __inode_data_mapping(advise);
+	vi->datalayout = erofs_inode_datalayout(ifmt);
 
-	if (vi->datamode >= EROFS_INODE_LAYOUT_MAX) {
-		errln("unsupported data mapping %u of nid %llu",
-		      vi->datamode, vi->nid);
+	if (vi->datalayout >= EROFS_INODE_DATALAYOUT_MAX) {
+		errln("unsupported datalayout %u of nid %llu",
+		      vi->datalayout, vi->nid);
 		DBG_BUGON(1);
 		return -EOPNOTSUPP;
 	}
 
-	if (__inode_version(advise) == EROFS_INODE_LAYOUT_V2) {
-		struct erofs_inode_v2 *v2 = data;
+	switch (erofs_inode_version(ifmt)) {
+	case EROFS_INODE_LAYOUT_EXTENDED:
+		die = data;
 
-		vi->inode_isize = sizeof(struct erofs_inode_v2);
-		vi->xattr_isize = erofs_xattr_ibody_size(v2->i_xattr_icount);
+		vi->inode_isize = sizeof(struct erofs_inode_extended);
+		vi->xattr_isize = erofs_xattr_ibody_size(die->i_xattr_icount);
 
-		inode->i_mode = le16_to_cpu(v2->i_mode);
-		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-		    S_ISLNK(inode->i_mode))
-			vi->raw_blkaddr = le32_to_cpu(v2->i_u.raw_blkaddr);
-		else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
+		inode->i_mode = le16_to_cpu(die->i_mode);
+		switch (inode->i_mode & S_IFMT) {
+		case S_IFREG:
+		case S_IFDIR:
+		case S_IFLNK:
+			vi->raw_blkaddr = le32_to_cpu(die->i_u.raw_blkaddr);
+			break;
+		case S_IFCHR:
+		case S_IFBLK:
 			inode->i_rdev =
-				new_decode_dev(le32_to_cpu(v2->i_u.rdev));
-		else if (S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode))
+				new_decode_dev(le32_to_cpu(die->i_u.rdev));
+			break;
+		case S_IFIFO:
+		case S_IFSOCK:
 			inode->i_rdev = 0;
-		else
+			break;
+		default:
 			goto bogusimode;
-
-		i_uid_write(inode, le32_to_cpu(v2->i_uid));
-		i_gid_write(inode, le32_to_cpu(v2->i_gid));
-		set_nlink(inode, le32_to_cpu(v2->i_nlink));
+		}
+		i_uid_write(inode, le32_to_cpu(die->i_uid));
+		i_gid_write(inode, le32_to_cpu(die->i_gid));
+		set_nlink(inode, le32_to_cpu(die->i_nlink));
 
 		/* ns timestamp */
 		inode->i_mtime.tv_sec = inode->i_ctime.tv_sec =
-			le64_to_cpu(v2->i_ctime);
+			le64_to_cpu(die->i_ctime);
 		inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec =
-			le32_to_cpu(v2->i_ctime_nsec);
+			le32_to_cpu(die->i_ctime_nsec);
 
-		inode->i_size = le64_to_cpu(v2->i_size);
+		inode->i_size = le64_to_cpu(die->i_size);
 
 		/* total blocks for compressed files */
-		if (is_inode_layout_compression(inode))
-			nblks = le32_to_cpu(v2->i_u.compressed_blocks);
-	} else if (__inode_version(advise) == EROFS_INODE_LAYOUT_V1) {
-		struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
+		if (erofs_inode_is_data_compressed(vi->datalayout))
+			nblks = le32_to_cpu(die->i_u.compressed_blocks);
+		break;
+	case EROFS_INODE_LAYOUT_COMPACT:
+		vi->inode_isize = sizeof(struct erofs_inode_compact);
+		vi->xattr_isize = erofs_xattr_ibody_size(dic->i_xattr_icount);
 
-		vi->inode_isize = sizeof(struct erofs_inode_v1);
-		vi->xattr_isize = erofs_xattr_ibody_size(v1->i_xattr_icount);
-
-		inode->i_mode = le16_to_cpu(v1->i_mode);
-		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-		    S_ISLNK(inode->i_mode))
-			vi->raw_blkaddr = le32_to_cpu(v1->i_u.raw_blkaddr);
-		else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
+		inode->i_mode = le16_to_cpu(dic->i_mode);
+		switch (inode->i_mode & S_IFMT) {
+		case S_IFREG:
+		case S_IFDIR:
+		case S_IFLNK:
+			vi->raw_blkaddr = le32_to_cpu(dic->i_u.raw_blkaddr);
+			break;
+		case S_IFCHR:
+		case S_IFBLK:
 			inode->i_rdev =
-				new_decode_dev(le32_to_cpu(v1->i_u.rdev));
-		else if (S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode))
+				new_decode_dev(le32_to_cpu(dic->i_u.rdev));
+			break;
+		case S_IFIFO:
+		case S_IFSOCK:
 			inode->i_rdev = 0;
-		else
+			break;
+		default:
 			goto bogusimode;
-
-		i_uid_write(inode, le16_to_cpu(v1->i_uid));
-		i_gid_write(inode, le16_to_cpu(v1->i_gid));
-		set_nlink(inode, le16_to_cpu(v1->i_nlink));
+		}
+		i_uid_write(inode, le16_to_cpu(dic->i_uid));
+		i_gid_write(inode, le16_to_cpu(dic->i_gid));
+		set_nlink(inode, le16_to_cpu(dic->i_nlink));
 
 		/* use build time to derive all file time */
 		inode->i_mtime.tv_sec = inode->i_ctime.tv_sec =
@@ -86,12 +103,13 @@ static int read_inode(struct inode *inode, void *data)
 		inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec =
 			sbi->build_time_nsec;
 
-		inode->i_size = le32_to_cpu(v1->i_size);
-		if (is_inode_layout_compression(inode))
-			nblks = le32_to_cpu(v1->i_u.compressed_blocks);
-	} else {
+		inode->i_size = le32_to_cpu(dic->i_size);
+		if (erofs_inode_is_data_compressed(vi->datalayout))
+			nblks = le32_to_cpu(dic->i_u.compressed_blocks);
+		break;
+	default:
 		errln("unsupported on-disk inode version %u of nid %llu",
-		      __inode_version(advise), vi->nid);
+		      erofs_inode_version(ifmt), vi->nid);
 		DBG_BUGON(1);
 		return -EOPNOTSUPP;
 	}
@@ -125,8 +143,8 @@ static int fill_inline_data(struct inode *inode, void *data,
 	struct erofs_vnode *vi = EROFS_V(inode);
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 
-	/* should be inode inline C */
-	if (!is_inode_flat_inline(inode))
+	/* should be tail-packing data inline */
+	if (vi->datalayout != EROFS_INODE_FLAT_INLINE)
 		return 0;
 
 	/* fast symlink (following ext4) */
@@ -216,7 +234,7 @@ static int fill_inode(struct inode *inode, int isdir)
 			goto out_unlock;
 		}
 
-		if (is_inode_layout_compression(inode)) {
+		if (erofs_inode_is_data_compressed(vi->datalayout)) {
 			err = z_erofs_fill_inode(inode);
 			goto out_unlock;
 		}
@@ -299,7 +317,7 @@ int erofs_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *const inode = d_inode(path->dentry);
 
-	if (is_inode_layout_compression(inode))
+	if (erofs_inode_is_data_compressed(EROFS_V(inode)->datalayout))
 		stat->attributes |= STATX_ATTR_COMPRESSED;
 
 	stat->attributes |= STATX_ATTR_IMMUTABLE;

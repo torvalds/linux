@@ -121,7 +121,7 @@ static int superblock_read(struct super_block *sb)
 #ifdef CONFIG_EROFS_FS_XATTR
 	sbi->xattr_blkaddr = le32_to_cpu(layout->xattr_blkaddr);
 #endif
-	sbi->islotbits = ffs(sizeof(struct erofs_inode_v1)) - 1;
+	sbi->islotbits = ilog2(sizeof(struct erofs_inode_compact));
 	sbi->root_nid = le16_to_cpu(layout->root_nid);
 	sbi->inos = le64_to_cpu(layout->inos);
 

@@ -113,11 +113,12 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	erofs_blk_t nblocks, lastblk;
 	u64 offset = map->m_la;
 	struct erofs_vnode *vi = EROFS_V(inode);
+	bool tailendpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
 
 	trace_erofs_map_blocks_flatmode_enter(inode, map, flags);
 
 	nblocks = DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
-	lastblk = nblocks - is_inode_flat_inline(inode);
+	lastblk = nblocks - tailendpacking;
 
 	if (offset >= inode->i_size) {
 		/* leave out-of-bound access unmapped */
@@ -132,7 +133,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	if (offset < blknr_to_addr(lastblk)) {
 		map->m_pa = blknr_to_addr(vi->raw_blkaddr) + map->m_la;
 		map->m_plen = blknr_to_addr(lastblk) - offset;
-	} else if (is_inode_flat_inline(inode)) {
+	} else if (tailendpacking) {
 		/* 2 - inode inline B: inode, [xattrs], inline last blk... */
 		struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
 
@@ -169,7 +170,7 @@ err_out:
 int erofs_map_blocks(struct inode *inode,
 		     struct erofs_map_blocks *map, int flags)
 {
-	if (is_inode_layout_compression(inode)) {
+	if (erofs_inode_is_data_compressed(EROFS_V(inode)->datalayout)) {
 		int err = z_erofs_map_blocks_iter(inode, map, flags);
 
 		if (map->mpage) {
@@ -403,7 +404,7 @@ static sector_t erofs_bmap(struct address_space *mapping, sector_t block)
 {
 	struct inode *inode = mapping->host;
 
-	if (is_inode_flat_inline(inode)) {
+	if (EROFS_V(inode)->datalayout == EROFS_INODE_FLAT_INLINE) {
 		erofs_blk_t blks = i_size_read(inode) >> LOG_BLOCK_SIZE;
 
 		if (block >> LOG_SECTORS_PER_BLOCK >= blks)
