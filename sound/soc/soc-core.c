@@ -1106,6 +1106,26 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 	dai->probed = 0;
 }
 
+static int soc_probe_dai(struct snd_soc_dai *dai, int order)
+{
+	int ret;
+
+	if (dai->probed ||
+	    dai->driver->probe_order != order)
+		return 0;
+
+	ret = snd_soc_dai_probe(dai);
+	if (ret < 0) {
+		dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
+			dai->name, ret);
+		return ret;
+	}
+
+	dai->probed = 1;
+
+	return 0;
+}
+
 static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
@@ -1408,26 +1428,6 @@ static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
 		return ret;
 	}
 	rtd->dev_registered = 1;
-	return 0;
-}
-
-static int soc_probe_dai(struct snd_soc_dai *dai, int order)
-{
-	int ret;
-
-	if (dai->probed ||
-	    dai->driver->probe_order != order)
-		return 0;
-
-	ret = snd_soc_dai_probe(dai);
-	if (ret < 0) {
-		dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
-			dai->name, ret);
-		return ret;
-	}
-
-	dai->probed = 1;
-
 	return 0;
 }
 
