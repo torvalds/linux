@@ -9,7 +9,7 @@
 #include <trace/events/erofs.h>
 
 /* no locking */
-static int read_inode(struct inode *inode, void *data)
+static int erofs_read_inode(struct inode *inode, void *data)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_inode_compact *dic = data;
@@ -163,7 +163,7 @@ static int erofs_fill_symlink(struct inode *inode, void *data,
 	return 0;
 }
 
-static int fill_inode(struct inode *inode, int isdir)
+static int erofs_fill_inode(struct inode *inode, int isdir)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
 	struct erofs_inode *vi = EROFS_I(inode);
@@ -193,7 +193,7 @@ static int fill_inode(struct inode *inode, int isdir)
 	DBG_BUGON(!PageUptodate(page));
 	data = page_address(page);
 
-	err = read_inode(inode, data + ofs);
+	err = erofs_read_inode(inode, data + ofs);
 	if (!err) {
 		/* setup the new inode */
 		switch (inode->i_mode & S_IFMT) {
@@ -286,7 +286,7 @@ struct inode *erofs_iget(struct super_block *sb,
 
 		vi->nid = nid;
 
-		err = fill_inode(inode, isdir);
+		err = erofs_fill_inode(inode, isdir);
 		if (!err)
 			unlock_new_inode(inode);
 		else {

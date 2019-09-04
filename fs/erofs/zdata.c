@@ -40,7 +40,7 @@ void z_erofs_exit_zip_subsystem(void)
 	kmem_cache_destroy(pcluster_cachep);
 }
 
-static inline int init_unzip_workqueue(void)
+static inline int z_erofs_init_workqueue(void)
 {
 	const unsigned int onlinecpus = num_possible_cpus();
 	const unsigned int flags = WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE;
@@ -54,7 +54,7 @@ static inline int init_unzip_workqueue(void)
 	return z_erofs_workqueue ? 0 : -ENOMEM;
 }
 
-static void init_once(void *ptr)
+static void z_erofs_pcluster_init_once(void *ptr)
 {
 	struct z_erofs_pcluster *pcl = ptr;
 	struct z_erofs_collection *cl = z_erofs_primarycollection(pcl);
@@ -67,7 +67,7 @@ static void init_once(void *ptr)
 		pcl->compressed_pages[i] = NULL;
 }
 
-static void init_always(struct z_erofs_pcluster *pcl)
+static void z_erofs_pcluster_init_always(struct z_erofs_pcluster *pcl)
 {
 	struct z_erofs_collection *cl = z_erofs_primarycollection(pcl);
 
@@ -81,9 +81,10 @@ int __init z_erofs_init_zip_subsystem(void)
 {
 	pcluster_cachep = kmem_cache_create("erofs_compress",
 					    Z_EROFS_WORKGROUP_SIZE, 0,
-					    SLAB_RECLAIM_ACCOUNT, init_once);
+					    SLAB_RECLAIM_ACCOUNT,
+					    z_erofs_pcluster_init_once);
 	if (pcluster_cachep) {
-		if (!init_unzip_workqueue())
+		if (!z_erofs_init_workqueue())
 			return 0;
 
 		kmem_cache_destroy(pcluster_cachep);
@@ -272,8 +273,8 @@ int erofs_try_to_free_cached_page(struct address_space *mapping,
 }
 
 /* page_type must be Z_EROFS_PAGE_TYPE_EXCLUSIVE */
-static inline bool try_inplace_io(struct z_erofs_collector *clt,
-				  struct page *page)
+static inline bool z_erofs_try_inplace_io(struct z_erofs_collector *clt,
+					  struct page *page)
 {
 	struct z_erofs_pcluster *const pcl = clt->pcl;
 	const unsigned int clusterpages = BIT(pcl->clusterbits);
@@ -296,7 +297,7 @@ static int z_erofs_attach_page(struct z_erofs_collector *clt,
 	/* give priority for inplaceio */
 	if (clt->mode >= COLLECT_PRIMARY &&
 	    type == Z_EROFS_PAGE_TYPE_EXCLUSIVE &&
-	    try_inplace_io(clt, page))
+	    z_erofs_try_inplace_io(clt, page))
 		return 0;
 
 	ret = z_erofs_pagevec_enqueue(&clt->vector,
@@ -409,7 +410,7 @@ static struct z_erofs_collection *clregister(struct z_erofs_collector *clt,
 	if (!pcl)
 		return ERR_PTR(-ENOMEM);
 
-	init_always(pcl);
+	z_erofs_pcluster_init_always(pcl);
 	pcl->obj.index = map->m_pa >> PAGE_SHIFT;
 
 	pcl->length = (map->m_llen << Z_EROFS_PCLUSTER_LENGTH_BIT) |

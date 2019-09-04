@@ -14,9 +14,9 @@ struct erofs_qstr {
 };
 
 /* based on the end of qn is accurate and it must have the trailing '\0' */
-static inline int dirnamecmp(const struct erofs_qstr *qn,
-			     const struct erofs_qstr *qd,
-			     unsigned int *matched)
+static inline int erofs_dirnamecmp(const struct erofs_qstr *qn,
+				   const struct erofs_qstr *qd,
+				   unsigned int *matched)
 {
 	unsigned int i = *matched;
 
@@ -71,7 +71,7 @@ static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,
 		};
 
 		/* string comparison without already matched prefix */
-		int ret = dirnamecmp(name, &dname, &matched);
+		int ret = erofs_dirnamecmp(name, &dname, &matched);
 
 		if (!ret) {
 			return de + mid;
@@ -98,7 +98,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 
 	startprfx = endprfx = 0;
 	head = 0;
-	back = inode_datablocks(dir) - 1;
+	back = erofs_inode_datablocks(dir) - 1;
 
 	while (head <= back) {
 		const int mid = head + (back - head) / 2;
@@ -134,7 +134,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 							  EROFS_BLKSIZ);
 
 			/* string comparison without already matched prefix */
-			diff = dirnamecmp(name, &dname, &matched);
+			diff = erofs_dirnamecmp(name, &dname, &matched);
 			kunmap_atomic(de);
 
 			if (!diff) {

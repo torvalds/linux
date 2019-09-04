@@ -16,14 +16,14 @@
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
 
-static void init_once(void *ptr)
+static void erofs_inode_init_once(void *ptr)
 {
 	struct erofs_inode *vi = ptr;
 
 	inode_init_once(&vi->vfs_inode);
 }
 
-static struct inode *alloc_inode(struct super_block *sb)
+static struct inode *erofs_alloc_inode(struct super_block *sb)
 {
 	struct erofs_inode *vi =
 		kmem_cache_alloc(erofs_inode_cachep, GFP_KERNEL);
@@ -36,7 +36,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 	return &vi->vfs_inode;
 }
 
-static void free_inode(struct inode *inode)
+static void erofs_free_inode(struct inode *inode)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
 
@@ -64,7 +64,7 @@ static bool check_layout_compatibility(struct super_block *sb,
 	return true;
 }
 
-static int superblock_read(struct super_block *sb)
+static int erofs_read_superblock(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
 	struct buffer_head *bh;
@@ -218,7 +218,7 @@ static int erofs_build_cache_strategy(struct erofs_sb_info *sbi,
 #endif
 
 /* set up default EROFS parameters */
-static void default_options(struct erofs_sb_info *sbi)
+static void erofs_default_options(struct erofs_sb_info *sbi)
 {
 #ifdef CONFIG_EROFS_FS_ZIP
 	sbi->cache_strategy = EROFS_ZIP_CACHE_READAROUND;
@@ -252,7 +252,7 @@ static match_table_t erofs_tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(struct super_block *sb, char *options)
+static int erofs_parse_options(struct super_block *sb, char *options)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
@@ -322,7 +322,7 @@ static int parse_options(struct super_block *sb, char *options)
 #ifdef CONFIG_EROFS_FS_ZIP
 static const struct address_space_operations managed_cache_aops;
 
-static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
+static int erofs_managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 {
 	int ret = 1;	/* 0 - busy */
 	struct address_space *const mapping = page->mapping;
@@ -336,9 +336,9 @@ static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 	return ret;
 }
 
-static void managed_cache_invalidatepage(struct page *page,
-					 unsigned int offset,
-					 unsigned int length)
+static void erofs_managed_cache_invalidatepage(struct page *page,
+					       unsigned int offset,
+					       unsigned int length)
 {
 	const unsigned int stop = length + offset;
 
@@ -348,13 +348,13 @@ static void managed_cache_invalidatepage(struct page *page,
 	DBG_BUGON(stop > PAGE_SIZE || stop < length);
 
 	if (offset == 0 && stop == PAGE_SIZE)
-		while (!managed_cache_releasepage(page, GFP_NOFS))
+		while (!erofs_managed_cache_releasepage(page, GFP_NOFS))
 			cond_resched();
 }
 
 static const struct address_space_operations managed_cache_aops = {
-	.releasepage = managed_cache_releasepage,
-	.invalidatepage = managed_cache_invalidatepage,
+	.releasepage = erofs_managed_cache_releasepage,
+	.invalidatepage = erofs_managed_cache_invalidatepage,
 };
 
 static int erofs_init_managed_cache(struct super_block *sb)
@@ -396,7 +396,7 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
-	err = superblock_read(sb);
+	err = erofs_read_superblock(sb);
 	if (err)
 		return err;
 
@@ -410,9 +410,9 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_xattr = erofs_xattr_handlers;
 #endif
 	/* set erofs default mount options */
-	default_options(sbi);
+	erofs_default_options(sbi);
 
-	err = parse_options(sb, data);
+	err = erofs_parse_options(sb, data);
 	if (err)
 		return err;
 
@@ -512,7 +512,7 @@ static int __init erofs_module_init(void)
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
 					       sizeof(struct erofs_inode), 0,
 					       SLAB_RECLAIM_ACCOUNT,
-					       init_once);
+					       erofs_inode_init_once);
 	if (!erofs_inode_cachep) {
 		err = -ENOMEM;
 		goto icache_err;
@@ -619,7 +619,7 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 	int err;
 
 	DBG_BUGON(!sb_rdonly(sb));
-	err = parse_options(sb, data);
+	err = erofs_parse_options(sb, data);
 	if (err)
 		goto out;
 
@@ -639,8 +639,8 @@ out:
 
 const struct super_operations erofs_sops = {
 	.put_super = erofs_put_super,
-	.alloc_inode = alloc_inode,
-	.free_inode = free_inode,
+	.alloc_inode = erofs_alloc_inode,
+	.free_inode = erofs_free_inode,
 	.statfs = erofs_statfs,
 	.show_options = erofs_show_options,
 	.remount_fs = erofs_remount,

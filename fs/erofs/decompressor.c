@@ -32,8 +32,8 @@ static bool use_vmap;
 module_param(use_vmap, bool, 0444);
 MODULE_PARM_DESC(use_vmap, "Use vmap() instead of vm_map_ram() (default 0)");
 
-static int lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
-				 struct list_head *pagepool)
+static int z_erofs_lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
+					 struct list_head *pagepool)
 {
 	const unsigned int nr =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
@@ -114,7 +114,7 @@ static void *generic_copy_inplace_data(struct z_erofs_decompress_req *rq,
 	return tmp;
 }
 
-static int lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
+static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
 {
 	unsigned int inputmargin, inlen;
 	u8 *src;
@@ -188,8 +188,8 @@ static struct z_erofs_decompressor decompressors[] = {
 		.name = "shifted"
 	},
 	[Z_EROFS_COMPRESSION_LZ4] = {
-		.prepare_destpages = lz4_prepare_destpages,
-		.decompress = lz4_decompress,
+		.prepare_destpages = z_erofs_lz4_prepare_destpages,
+		.decompress = z_erofs_lz4_decompress,
 		.name = "lz4"
 	},
 };
@@ -247,8 +247,8 @@ static void erofs_vunmap(const void *mem, unsigned int count)
 		vunmap(mem);
 }
 
-static int decompress_generic(struct z_erofs_decompress_req *rq,
-			      struct list_head *pagepool)
+static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
+				      struct list_head *pagepool)
 {
 	const unsigned int nrpages_out =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
@@ -308,8 +308,8 @@ dstmap_out:
 	return ret;
 }
 
-static int shifted_decompress(const struct z_erofs_decompress_req *rq,
-			      struct list_head *pagepool)
+static int z_erofs_shifted_transform(const struct z_erofs_decompress_req *rq,
+				     struct list_head *pagepool)
 {
 	const unsigned int nrpages_out =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
@@ -353,7 +353,7 @@ int z_erofs_decompress(struct z_erofs_decompress_req *rq,
 		       struct list_head *pagepool)
 {
 	if (rq->alg == Z_EROFS_COMPRESSION_SHIFTED)
-		return shifted_decompress(rq, pagepool);
-	return decompress_generic(rq, pagepool);
+		return z_erofs_shifted_transform(rq, pagepool);
+	return z_erofs_decompress_generic(rq, pagepool);
 }
 

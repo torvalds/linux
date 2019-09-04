@@ -9,7 +9,7 @@
 
 #include <trace/events/erofs.h>
 
-static inline void read_endio(struct bio *bio)
+static void erofs_readendio(struct bio *bio)
 {
 	struct super_block *const sb = bio->bi_private;
 	struct bio_vec *bvec;
@@ -45,7 +45,7 @@ static struct bio *erofs_grab_raw_bio(struct super_block *sb,
 {
 	struct bio *bio = bio_alloc(GFP_NOIO, nr_pages);
 
-	bio->bi_end_io = read_endio;
+	bio->bi_end_io = erofs_readendio;
 	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
 	bio->bi_private = sb;
