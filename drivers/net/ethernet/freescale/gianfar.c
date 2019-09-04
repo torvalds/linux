@@ -639,7 +639,6 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
 static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 {
 	const char *model;
-	const char *ctype;
 	const void *mac_addr;
 	int err = 0, i;
 	struct net_device *dev = NULL;
@@ -802,13 +801,15 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 				     FSL_GIANFAR_DEV_HAS_TIMER |
 				     FSL_GIANFAR_DEV_HAS_RX_FILER;
 
-	err = of_property_read_string(np, "phy-connection-type", &ctype);
-
-	/* We only care about rgmii-id.  The rest are autodetected */
-	if (err == 0 && !strcmp(ctype, "rgmii-id"))
-		priv->interface = PHY_INTERFACE_MODE_RGMII_ID;
+	/* Use PHY connection type from the DT node if one is specified there.
+	 * rgmii-id really needs to be specified. Other types can be
+	 * detected by hardware
+	 */
+	err = of_get_phy_mode(np);
+	if (err >= 0)
+		priv->interface = err;
 	else
-		priv->interface = PHY_INTERFACE_MODE_MII;
+		priv->interface = gfar_get_interface(dev);
 
 	if (of_find_property(np, "fsl,magic-packet", NULL))
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
@@ -1670,7 +1671,7 @@ static int init_phy(struct net_device *dev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct gfar_private *priv = netdev_priv(dev);
-	phy_interface_t interface;
+	phy_interface_t interface = priv->interface;
 	struct phy_device *phydev;
 	struct ethtool_eee edata;
 
@@ -1685,8 +1686,6 @@ static int init_phy(struct net_device *dev)
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
-
-	interface = gfar_get_interface(dev);
 
 	phydev = of_phy_connect(dev, priv->phy_node, &adjust_link, 0,
 				interface);
