@@ -1149,6 +1149,35 @@ static void soc_remove_link_dais(struct snd_soc_card *card)
 	}
 }
 
+static int soc_probe_link_dais(struct snd_soc_card *card)
+{
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	int i, order, ret;
+
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
+
+			dev_dbg(card->dev,
+				"ASoC: probe %s dai link %d late %d\n",
+				card->name, rtd->num, order);
+
+			ret = soc_probe_dai(rtd->cpu_dai, order);
+			if (ret)
+				return ret;
+
+			/* probe the CODEC DAI */
+			for_each_rtd_codec_dai(rtd, i, codec_dai) {
+				ret = soc_probe_dai(codec_dai, order);
+				if (ret)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static void soc_remove_link_components(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
@@ -1446,35 +1475,6 @@ static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				"ASoC: Failed to bind %s with pcm device\n",
 				dais[i]->name);
 			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static int soc_probe_link_dais(struct snd_soc_card *card)
-{
-	struct snd_soc_dai *codec_dai;
-	struct snd_soc_pcm_runtime *rtd;
-	int i, order, ret;
-
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd) {
-
-			dev_dbg(card->dev,
-				"ASoC: probe %s dai link %d late %d\n",
-				card->name, rtd->num, order);
-
-			ret = soc_probe_dai(rtd->cpu_dai, order);
-			if (ret)
-				return ret;
-
-			/* probe the CODEC DAI */
-			for_each_rtd_codec_dai(rtd, i, codec_dai) {
-				ret = soc_probe_dai(codec_dai, order);
-				if (ret)
-					return ret;
-			}
 		}
 	}
 
