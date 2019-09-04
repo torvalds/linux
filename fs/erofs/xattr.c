@@ -67,13 +67,15 @@ static int init_inode_xattrs(struct inode *inode)
 	 *    undefined right now (maybe use later with some new sb feature).
 	 */
 	if (vi->xattr_isize == sizeof(struct erofs_xattr_ibody_header)) {
-		errln("xattr_isize %d of nid %llu is not supported yet",
-		      vi->xattr_isize, vi->nid);
+		erofs_err(inode->i_sb,
+			  "xattr_isize %d of nid %llu is not supported yet",
+			  vi->xattr_isize, vi->nid);
 		ret = -EOPNOTSUPP;
 		goto out_unlock;
 	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
 		if (vi->xattr_isize) {
-			errln("bogus xattr ibody @ nid %llu", vi->nid);
+			erofs_err(inode->i_sb,
+				  "bogus xattr ibody @ nid %llu", vi->nid);
 			DBG_BUGON(1);
 			ret = -EFSCORRUPTED;
 			goto out_unlock;	/* xattr ondisk layout error */

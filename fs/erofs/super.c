@@ -16,6 +16,36 @@
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
 
+void _erofs_err(struct super_block *sb, const char *function,
+		const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("(device %s): %s: %pV", sb->s_id, function, &vaf);
+	va_end(args);
+}
+
+void _erofs_info(struct super_block *sb, const char *function,
+		 const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_info("(device %s): %pV", sb->s_id, &vaf);
+	va_end(args);
+}
+
 static void erofs_inode_init_once(void *ptr)
 {
 	struct erofs_inode *vi = ptr;
@@ -57,8 +87,9 @@ static bool check_layout_compatibility(struct super_block *sb,
 
 	/* check if current kernel meets all mandatory requirements */
 	if (feature & (~EROFS_ALL_FEATURE_INCOMPAT)) {
-		errln("unidentified incompatible feature %x, please upgrade kernel version",
-		      feature & ~EROFS_ALL_FEATURE_INCOMPAT);
+		erofs_err(sb,
+			  "unidentified incompatible feature %x, please upgrade kernel version",
+			   feature & ~EROFS_ALL_FEATURE_INCOMPAT);
 		return false;
 	}
 	return true;
@@ -75,7 +106,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	bh = sb_bread(sb, 0);
 
 	if (!bh) {
-		errln("cannot read erofs superblock");
+		erofs_err(sb, "cannot read erofs superblock");
 		return -EIO;
 	}
 
@@ -84,15 +115,15 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	ret = -EINVAL;
 	if (le32_to_cpu(dsb->magic) != EROFS_SUPER_MAGIC_V1) {
-		errln("cannot find valid erofs superblock");
+		erofs_err(sb, "cannot find valid erofs superblock");
 		goto out;
 	}
 
 	blkszbits = dsb->blkszbits;
 	/* 9(512 bytes) + LOG_SECTORS_PER_BLOCK == LOG_BLOCK_SIZE */
 	if (blkszbits != LOG_BLOCK_SIZE) {
-		errln("blksize %u isn't supported on this platform",
-		      1 << blkszbits);
+		erofs_err(sb, "blksize %u isn't supported on this platform",
+			  1 << blkszbits);
 		goto out;
 	}
 
@@ -116,7 +147,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	ret = strscpy(sbi->volume_name, dsb->volume_name,
 		      sizeof(dsb->volume_name));
 	if (ret < 0) {	/* -E2BIG */
-		errln("bad volume name without NIL terminator");
+		erofs_err(sb, "bad volume name without NIL terminator");
 		ret = -EFSCORRUPTED;
 		goto out;
 	}
@@ -127,14 +158,15 @@ out:
 }
 
 #ifdef CONFIG_EROFS_FS_ZIP
-static int erofs_build_cache_strategy(struct erofs_sb_info *sbi,
+static int erofs_build_cache_strategy(struct super_block *sb,
 				      substring_t *args)
 {
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	const char *cs = match_strdup(args);
 	int err = 0;
 
 	if (!cs) {
-		errln("Not enough memory to store cache strategy");
+		erofs_err(sb, "Not enough memory to store cache strategy");
 		return -ENOMEM;
 	}
 
@@ -145,17 +177,17 @@ static int erofs_build_cache_strategy(struct erofs_sb_info *sbi,
 	} else if (!strcmp(cs, "readaround")) {
 		sbi->cache_strategy = EROFS_ZIP_CACHE_READAROUND;
 	} else {
-		errln("Unrecognized cache strategy \"%s\"", cs);
+		erofs_err(sb, "Unrecognized cache strategy \"%s\"", cs);
 		err = -EINVAL;
 	}
 	kfree(cs);
 	return err;
 }
 #else
-static int erofs_build_cache_strategy(struct erofs_sb_info *sbi,
+static int erofs_build_cache_strategy(struct super_block *sb,
 				      substring_t *args)
 {
-	infoln("EROFS compression is disabled, so cache strategy is ignored");
+	erofs_info(sb, "EROFS compression is disabled, so cache strategy is ignored");
 	return 0;
 }
 #endif
@@ -221,10 +253,10 @@ static int erofs_parse_options(struct super_block *sb, char *options)
 			break;
 #else
 		case Opt_user_xattr:
-			infoln("user_xattr options not supported");
+			erofs_info(sb, "user_xattr options not supported");
 			break;
 		case Opt_nouser_xattr:
-			infoln("nouser_xattr options not supported");
+			erofs_info(sb, "nouser_xattr options not supported");
 			break;
 #endif
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
@@ -236,19 +268,19 @@ static int erofs_parse_options(struct super_block *sb, char *options)
 			break;
 #else
 		case Opt_acl:
-			infoln("acl options not supported");
+			erofs_info(sb, "acl options not supported");
 			break;
 		case Opt_noacl:
-			infoln("noacl options not supported");
+			erofs_info(sb, "noacl options not supported");
 			break;
 #endif
 		case Opt_cache_strategy:
-			err = erofs_build_cache_strategy(EROFS_SB(sb), args);
+			err = erofs_build_cache_strategy(sb, args);
 			if (err)
 				return err;
 			break;
 		default:
-			errln("Unrecognized mount option \"%s\" or missing value", p);
+			erofs_err(sb, "Unrecognized mount option \"%s\" or missing value", p);
 			return -EINVAL;
 		}
 	}
@@ -323,7 +355,7 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = EROFS_SUPER_MAGIC;
 
 	if (!sb_set_blocksize(sb, EROFS_BLKSIZ)) {
-		errln("failed to set erofs blksize");
+		erofs_err(sb, "failed to set erofs blksize");
 		return -EINVAL;
 	}
 
@@ -367,8 +399,8 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 		return PTR_ERR(inode);
 
 	if (!S_ISDIR(inode->i_mode)) {
-		errln("rootino(nid %llu) is not a directory(i_mode %o)",
-		      ROOT_NID(sbi), inode->i_mode);
+		erofs_err(sb, "rootino(nid %llu) is not a directory(i_mode %o)",
+			  ROOT_NID(sbi), inode->i_mode);
 		iput(inode);
 		return -EINVAL;
 	}
@@ -383,9 +415,8 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		return err;
 
-	if (!silent)
-		infoln("mounted on %s with opts: %s, root inode @ nid %llu.",
-		       sb->s_id, (char *)data, ROOT_NID(sbi));
+	erofs_info(sb, "mounted with opts: %s, root inode @ nid %llu.",
+		   (char *)data, ROOT_NID(sbi));
 	return 0;
 }
 
@@ -404,7 +435,6 @@ static void erofs_kill_sb(struct super_block *sb)
 	struct erofs_sb_info *sbi;
 
 	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
-	infoln("unmounting for %s", sb->s_id);
 
 	kill_block_super(sb);
 
@@ -443,7 +473,6 @@ static int __init erofs_module_init(void)
 	int err;
 
 	erofs_check_ondisk_layout_definitions();
-	infoln("initializing erofs " EROFS_VERSION);
 
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
 					       sizeof(struct erofs_inode), 0,
@@ -466,7 +495,6 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto fs_err;
 
-	infoln("successfully to initialize erofs");
 	return 0;
 
 fs_err:
@@ -488,7 +516,6 @@ static void __exit erofs_module_exit(void)
 	/* Ensure all RCU free inodes are safe before cache is destroyed. */
 	rcu_barrier();
 	kmem_cache_destroy(erofs_inode_cachep);
-	infoln("successfully finalize erofs");
 }
 
 /* get filesystem statistics */

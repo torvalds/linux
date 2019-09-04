@@ -182,7 +182,7 @@ static inline void z_erofs_onlinepage_endio(struct page *page)
 			SetPageUptodate(page);
 		unlock_page(page);
 	}
-	debugln("%s, page %p value %x", __func__, page, atomic_read(u.o));
+	erofs_dbg("%s, page %p value %x", __func__, page, atomic_read(u.o));
 }
 
 #define Z_EROFS_VMAP_ONSTACK_PAGES	\

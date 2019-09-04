@@ -22,13 +22,19 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "erofs: " fmt
 
-#define errln(x, ...)   pr_err(x "\n", ##__VA_ARGS__)
-#define infoln(x, ...)  pr_info(x "\n", ##__VA_ARGS__)
+__printf(3, 4) void _erofs_err(struct super_block *sb,
+			       const char *function, const char *fmt, ...);
+#define erofs_err(sb, fmt, ...)	\
+	_erofs_err(sb, __func__, fmt "\n", ##__VA_ARGS__)
+__printf(3, 4) void _erofs_info(struct super_block *sb,
+			       const char *function, const char *fmt, ...);
+#define erofs_info(sb, fmt, ...) \
+	_erofs_info(sb, __func__, fmt "\n", ##__VA_ARGS__)
 #ifdef CONFIG_EROFS_FS_DEBUG
-#define debugln(x, ...) pr_debug(x "\n", ##__VA_ARGS__)
+#define erofs_dbg(x, ...)       pr_debug(x "\n", ##__VA_ARGS__)
 #define DBG_BUGON               BUG_ON
 #else
-#define debugln(x, ...)         ((void)0)
+#define erofs_dbg(x, ...)       ((void)0)
 #define DBG_BUGON(x)            ((void)(x))
 #endif	/* !CONFIG_EROFS_FS_DEBUG */
 

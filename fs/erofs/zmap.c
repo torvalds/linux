@@ -64,8 +64,8 @@ static int fill_inode_lazy(struct inode *inode)
 	vi->z_algorithmtype[1] = h->h_algorithmtype >> 4;
 
 	if (vi->z_algorithmtype[0] >= Z_EROFS_COMPRESSION_MAX) {
-		errln("unknown compression format %u for nid %llu, please upgrade kernel",
-		      vi->z_algorithmtype[0], vi->nid);
+		erofs_err(sb, "unknown compression format %u for nid %llu, please upgrade kernel",
+			  vi->z_algorithmtype[0], vi->nid);
 		err = -EOPNOTSUPP;
 		goto unmap_done;
 	}
@@ -75,8 +75,8 @@ static int fill_inode_lazy(struct inode *inode)
 					((h->h_clusterbits >> 3) & 3);
 
 	if (vi->z_physical_clusterbits[0] != LOG_BLOCK_SIZE) {
-		errln("unsupported physical clusterbits %u for nid %llu, please upgrade kernel",
-		      vi->z_physical_clusterbits[0], vi->nid);
+		erofs_err(sb, "unsupported physical clusterbits %u for nid %llu, please upgrade kernel",
+			  vi->z_physical_clusterbits[0], vi->nid);
 		err = -EOPNOTSUPP;
 		goto unmap_done;
 	}
@@ -335,7 +335,8 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 	int err;
 
 	if (lcn < lookback_distance) {
-		errln("bogus lookback distance @ nid %llu", vi->nid);
+		erofs_err(m->inode->i_sb,
+			  "bogus lookback distance @ nid %llu", vi->nid);
 		DBG_BUGON(1);
 		return -EFSCORRUPTED;
 	}
@@ -349,8 +350,9 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 	switch (m->type) {
 	case Z_EROFS_VLE_CLUSTER_TYPE_NONHEAD:
 		if (!m->delta[0]) {
-			errln("invalid lookback distance 0 at nid %llu",
-			      vi->nid);
+			erofs_err(m->inode->i_sb,
+				  "invalid lookback distance 0 @ nid %llu",
+				  vi->nid);
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
@@ -362,8 +364,9 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 		map->m_la = (lcn << lclusterbits) | m->clusterofs;
 		break;
 	default:
-		errln("unknown type %u at lcn %lu of nid %llu",
-		      m->type, lcn, vi->nid);
+		erofs_err(m->inode->i_sb,
+			  "unknown type %u @ lcn %lu of nid %llu",
+			  m->type, lcn, vi->nid);
 		DBG_BUGON(1);
 		return -EOPNOTSUPP;
 	}
@@ -421,8 +424,9 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		}
 		/* m.lcn should be >= 1 if endoff < m.clusterofs */
 		if (!m.lcn) {
-			errln("invalid logical cluster 0 at nid %llu",
-			      vi->nid);
+			erofs_err(inode->i_sb,
+				  "invalid logical cluster 0 at nid %llu",
+				  vi->nid);
 			err = -EFSCORRUPTED;
 			goto unmap_out;
 		}
@@ -437,8 +441,9 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 			goto unmap_out;
 		break;
 	default:
-		errln("unknown type %u at offset %llu of nid %llu",
-		      m.type, ofs, vi->nid);
+		erofs_err(inode->i_sb,
+			  "unknown type %u @ offset %llu of nid %llu",
+			  m.type, ofs, vi->nid);
 		err = -EOPNOTSUPP;
 		goto unmap_out;
 	}
@@ -453,9 +458,9 @@ unmap_out:
 		kunmap_atomic(m.kaddr);
 
 out:
-	debugln("%s, m_la %llu m_pa %llu m_llen %llu m_plen %llu m_flags 0%o",
-		__func__, map->m_la, map->m_pa,
-		map->m_llen, map->m_plen, map->m_flags);
+	erofs_dbg("%s, m_la %llu m_pa %llu m_llen %llu m_plen %llu m_flags 0%o",
+		  __func__, map->m_la, map->m_pa,
+		  map->m_llen, map->m_plen, map->m_flags);
 
 	trace_z_erofs_map_blocks_iter_exit(inode, map, flags, err);
 

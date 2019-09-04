@@ -600,7 +600,7 @@ repeat:
 	}
 
 	/* go ahead the next map_blocks */
-	debugln("%s: [out-of-range] pos %llu", __func__, offset + cur);
+	erofs_dbg("%s: [out-of-range] pos %llu", __func__, offset + cur);
 
 	if (z_erofs_collector_end(clt))
 		fe->backmost = false;
@@ -680,8 +680,8 @@ next_part:
 out:
 	z_erofs_onlinepage_endio(page);
 
-	debugln("%s, finish page: %pK spiltted: %u map->m_llen %llu",
-		__func__, page, spiltted, map->m_llen);
+	erofs_dbg("%s, finish page: %pK spiltted: %u map->m_llen %llu",
+		  __func__, page, spiltted, map->m_llen);
 	return err;
 
 	/* if some error occurred while processing this page */
@@ -1340,7 +1340,7 @@ static int z_erofs_vle_normalaccess_readpage(struct file *file,
 	z_erofs_submit_and_unzip(inode->i_sb, &f.clt, &pagepool, true);
 
 	if (err)
-		errln("%s, failed to read, err [%d]", __func__, err);
+		erofs_err(inode->i_sb, "failed to read, err [%d]", err);
 
 	if (f.map.mpage)
 		put_page(f.map.mpage);
@@ -1406,8 +1406,9 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 
 		err = z_erofs_do_read_page(&f, page, &pagepool);
 		if (err)
-			errln("%s, readahead error at page %lu of nid %llu",
-			      __func__, page->index, EROFS_I(inode)->nid);
+			erofs_err(inode->i_sb,
+				  "readahead error at page %lu @ nid %llu",
+				  page->index, EROFS_I(inode)->nid);
 		put_page(page);
 	}
 

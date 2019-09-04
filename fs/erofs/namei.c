@@ -116,8 +116,9 @@ static struct page *find_target_block_classic(struct inode *dir,
 			if (!ndirents) {
 				kunmap_atomic(de);
 				put_page(page);
-				errln("corrupted dir block %d @ nid %llu",
-				      mid, EROFS_I(dir)->nid);
+				erofs_err(dir->i_sb,
+					  "corrupted dir block %d @ nid %llu",
+					  mid, EROFS_I(dir)->nid);
 				DBG_BUGON(1);
 				page = ERR_PTR(-EFSCORRUPTED);
 				goto out;
@@ -233,8 +234,8 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	} else if (err) {
 		inode = ERR_PTR(err);
 	} else {
-		debugln("%s, %s (nid %llu) found, d_type %u", __func__,
-			dentry->d_name.name, nid, d_type);
+		erofs_dbg("%s, %s (nid %llu) found, d_type %u", __func__,
+			  dentry->d_name.name, nid, d_type);
 		inode = erofs_iget(dir->i_sb, nid, d_type == FT_DIR);
 	}
 	return d_splice_alias(inode, dentry);
