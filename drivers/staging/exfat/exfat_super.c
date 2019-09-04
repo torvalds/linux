@@ -1208,8 +1208,10 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 		} else {
 			while (num_clusters > 0) {
 				last_clu = clu.dir;
-				if (FAT_read(sb, clu.dir, &clu.dir) == -1)
-					return FFS_MEDIAERR;
+				if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
+					ret = FFS_MEDIAERR;
+					goto out;
+				}
 				num_clusters--;
 			}
 		}
