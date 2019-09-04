@@ -1406,7 +1406,6 @@ void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
 	rtl8723b_set_Fw_AP_Offload_Cmd(padapter, enable);
 	msleep(10);
 	DBG_871X_LEVEL(_drv_always_, "-%s()-\n", __func__);
-	return ;
 }
 #endif /* CONFIG_AP_WOWLAN */
 
