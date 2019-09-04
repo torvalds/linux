@@ -13,6 +13,7 @@ import sys
 import re
 import time
 import json
+import math
 
 import drgn
 from drgn import container_of
@@ -95,7 +96,7 @@ class IocStat:
 
         self.enabled = ioc.enabled.value_()
         self.running = ioc.running.value_() == IOC_RUNNING
-        self.period_ms = round(ioc.period_us.value_() / 1_000)
+        self.period_ms = ioc.period_us.value_() / 1_000
         self.period_at = ioc.period_at.value_() / 1_000_000
         self.vperiod_at = ioc.period_at_vtime.value_() / VTIME_PER_SEC
         self.vrate_pct = ioc.vtime_rate.counter.value_() * 100 / VTIME_PER_USEC
@@ -147,6 +148,7 @@ class IocgStat:
         self.inuse = iocg.inuse.value_()
         self.hwa_pct = iocg.hweight_active.value_() * 100 / HWEIGHT_WHOLE
         self.hwi_pct = iocg.hweight_inuse.value_() * 100 / HWEIGHT_WHOLE
+        self.address = iocg.value_()
 
         vdone = iocg.done_vtime.counter.value_()
         vtime = iocg.vtime.counter.value_()
@@ -157,15 +159,15 @@ class IocgStat:
         else:
             self.inflight_pct = 0
 
-        self.use_delay = min(blkg.use_delay.counter.value_(), 99)
-        self.delay_ms = min(round(blkg.delay_nsec.counter.value_() / 1_000_000), 999)
+        self.use_delay = blkg.use_delay.counter.value_()
+        self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
 
         usage_idx = iocg.usage_idx.value_()
         self.usages = []
         self.usage = 0
         for i in range(NR_USAGE_SLOTS):
             usage = iocg.usages[(usage_idx + i) % NR_USAGE_SLOTS].value_()
-            upct = min(usage * 100 / HWEIGHT_WHOLE, 999)
+            upct = usage * 100 / HWEIGHT_WHOLE
             self.usages.append(upct)
             self.usage = max(self.usage, upct)
 
@@ -181,7 +183,8 @@ class IocgStat:
                 'inflight_pct'          : str(self.inflight_pct),
                 'use_delay'             : str(self.use_delay),
                 'delay_ms'              : str(self.delay_ms),
-                'usage_pct'             : str(self.usage) }
+                'usage_pct'             : str(self.usage),
+                'address'               : str(hex(self.address)) }
         for i in range(len(self.usages)):
             out[f'usage_pct_{i}'] = str(self.usages[i])
         return out
@@ -192,9 +195,10 @@ class IocgStat:
               f'{self.inuse:5}/{self.active:5} ' \
               f'{self.hwi_pct:6.2f}/{self.hwa_pct:6.2f} ' \
               f'{self.inflight_pct:6.2f} ' \
-              f'{self.use_delay:2}*{self.delay_ms:03} '
+              f'{min(self.use_delay, 99):2}*'\
+              f'{min(math.ceil(self.delay_ms), 999):03} '
         for u in self.usages:
-            out += f'{round(u):03d}:'
+            out += f'{min(round(u), 999):03d}:'
         out = out.rstrip(':')
         return out
 
