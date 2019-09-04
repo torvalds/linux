@@ -127,50 +127,39 @@ bogusimode:
 	return -EFSCORRUPTED;
 }
 
-/*
- * try_lock can be required since locking order is:
- *   file data(fs_inode)
- *        meta(bd_inode)
- * but the majority of the callers is "iget",
- * in that case we are pretty sure no deadlock since
- * no data operations exist. However I tend to
- * try_lock since it takes no much overhead and
- * will success immediately.
- */
-static int fill_inline_data(struct inode *inode, void *data,
-			    unsigned int m_pofs)
+static int erofs_fill_symlink(struct inode *inode, void *data,
+			      unsigned int m_pofs)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
+	char *lnk;
 
-	/* should be tail-packing data inline */
-	if (vi->datalayout != EROFS_INODE_FLAT_INLINE)
+	/* if it cannot be handled with fast symlink scheme */
+	if (vi->datalayout != EROFS_INODE_FLAT_INLINE ||
+	    inode->i_size >= PAGE_SIZE) {
+		inode->i_op = &erofs_symlink_iops;
 		return 0;
-
-	/* fast symlink */
-	if (S_ISLNK(inode->i_mode) && inode->i_size < PAGE_SIZE) {
-		char *lnk = erofs_kmalloc(sbi, inode->i_size + 1, GFP_KERNEL);
-
-		if (!lnk)
-			return -ENOMEM;
-
-		m_pofs += vi->inode_isize + vi->xattr_isize;
-
-		/* inline symlink data shouldn't cross page boundary as well */
-		if (m_pofs + inode->i_size > PAGE_SIZE) {
-			kfree(lnk);
-			errln("inline data cross block boundary @ nid %llu",
-			      vi->nid);
-			DBG_BUGON(1);
-			return -EFSCORRUPTED;
-		}
-
-		memcpy(lnk, data + m_pofs, inode->i_size);
-		lnk[inode->i_size] = '\0';
-
-		inode->i_link = lnk;
-		set_inode_fast_symlink(inode);
 	}
+
+	lnk = erofs_kmalloc(sbi, inode->i_size + 1, GFP_KERNEL);
+	if (!lnk)
+		return -ENOMEM;
+
+	m_pofs += vi->inode_isize + vi->xattr_isize;
+	/* inline symlink data shouldn't cross page boundary as well */
+	if (m_pofs + inode->i_size > PAGE_SIZE) {
+		kfree(lnk);
+		errln("inline data cross block boundary @ nid %llu",
+		      vi->nid);
+		DBG_BUGON(1);
+		return -EFSCORRUPTED;
+	}
+
+	memcpy(lnk, data + m_pofs, inode->i_size);
+	lnk[inode->i_size] = '\0';
+
+	inode->i_link = lnk;
+	inode->i_op = &erofs_fast_symlink_iops;
 	return 0;
 }
 
@@ -217,8 +206,9 @@ static int fill_inode(struct inode *inode, int isdir)
 			inode->i_fop = &erofs_dir_fops;
 			break;
 		case S_IFLNK:
-			/* by default, page_get_link is used for symlink */
-			inode->i_op = &erofs_symlink_iops;
+			err = erofs_fill_symlink(inode, data, ofs);
+			if (err)
+				goto out_unlock;
 			inode_nohighmem(inode);
 			break;
 		case S_IFCHR:
@@ -237,11 +227,7 @@ static int fill_inode(struct inode *inode, int isdir)
 			err = z_erofs_fill_inode(inode);
 			goto out_unlock;
 		}
-
 		inode->i_mapping->a_ops = &erofs_raw_access_aops;
-
-		/* fill last page if inline data is available */
-		err = fill_inline_data(inode, data, ofs);
 	}
 
 out_unlock:
