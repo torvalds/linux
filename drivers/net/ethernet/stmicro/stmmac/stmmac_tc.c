@@ -243,8 +243,9 @@ static int tc_init(struct stmmac_priv *priv)
 	struct dma_features *dma_cap = &priv->dma_cap;
 	unsigned int count;
 
+	/* Fail silently as we can still use remaining features, e.g. CBS */
 	if (!dma_cap->frpsel)
-		return -EINVAL;
+		return 0;
 
 	switch (dma_cap->frpbs) {
 	case 0x0:
