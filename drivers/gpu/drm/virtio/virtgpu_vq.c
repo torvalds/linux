@@ -339,11 +339,12 @@ again:
 		goto again;
 	}
 
-	if (fence)
+	if (fence) {
 		virtio_gpu_fence_emit(vgdev, hdr, fence);
-	if (vbuf->objs) {
-		virtio_gpu_array_add_fence(vbuf->objs, &fence->f);
-		virtio_gpu_array_unlock_resv(vbuf->objs);
+		if (vbuf->objs) {
+			virtio_gpu_array_add_fence(vbuf->objs, &fence->f);
+			virtio_gpu_array_unlock_resv(vbuf->objs);
+		}
 	}
 	notify = virtio_gpu_queue_ctrl_buffer_locked(vgdev, vbuf);
 	spin_unlock(&vgdev->ctrlq.qlock);
