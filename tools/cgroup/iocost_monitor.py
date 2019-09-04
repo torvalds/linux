@@ -135,7 +135,7 @@ class IocStat:
 
     def table_header_str(self):
         return f'{"":25} active {"weight":>9} {"hweight%":>13} {"inflt%":>6} ' \
-               f'{"del_ms":>6} {"usages%"}'
+               f'{"dbt":>3} {"delay":>6} {"usages%"}'
 
 class IocgStat:
     def __init__(self, iocg):
@@ -159,6 +159,7 @@ class IocgStat:
         else:
             self.inflight_pct = 0
 
+        self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
         self.use_delay = blkg.use_delay.counter.value_()
         self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
 
@@ -181,6 +182,7 @@ class IocgStat:
                 'hweight_active_pct'    : str(self.hwa_pct),
                 'hweight_inuse_pct'     : str(self.hwi_pct),
                 'inflight_pct'          : str(self.inflight_pct),
+                'debt_ms'               : str(self.debt_ms),
                 'use_delay'             : str(self.use_delay),
                 'delay_ms'              : str(self.delay_ms),
                 'usage_pct'             : str(self.usage),
@@ -195,6 +197,7 @@ class IocgStat:
               f'{self.inuse:5}/{self.active:5} ' \
               f'{self.hwi_pct:6.2f}/{self.hwa_pct:6.2f} ' \
               f'{self.inflight_pct:6.2f} ' \
+              f'{min(math.ceil(self.debt_ms), 999):3} ' \
               f'{min(self.use_delay, 99):2}*'\
               f'{min(math.ceil(self.delay_ms), 999):03} '
         for u in self.usages:

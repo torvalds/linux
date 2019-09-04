@@ -161,9 +161,9 @@
  * https://github.com/osandov/drgn.  The ouput looks like the following.
  *
  *  sdb RUN   per=300ms cur_per=234.218:v203.695 busy= +1 vrate= 62.12%
- *                 active      weight      hweight% inflt% del_ms usages%
- *  test/a              *    50/   50  33.33/ 33.33  27.65  0*041 033:033:033
- *  test/b              *   100/  100  66.67/ 66.67  17.56  0*000 066:079:077
+ *                 active      weight      hweight% inflt% dbt  delay usages%
+ *  test/a              *    50/   50  33.33/ 33.33  27.65   2  0*041 033:033:033
+ *  test/b              *   100/  100  66.67/ 66.67  17.56   0  0*000 066:079:077
  *
  * - per	: Timer period
  * - cur_per	: Internal wall and device vtime clock
