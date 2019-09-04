@@ -1107,20 +1107,26 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 }
 
 static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
-static void soc_remove_link_dais(struct snd_soc_card *card,
-		struct snd_soc_pcm_runtime *rtd, int order)
+static void soc_remove_link_dais(struct snd_soc_card *card)
 {
 	int i;
 	struct snd_soc_dai *codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	int order;
 
-	/* finalize rtd device */
-	soc_rtd_free(rtd);
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
 
-	/* remove the CODEC DAI */
-	for_each_rtd_codec_dai(rtd, i, codec_dai)
-		soc_remove_dai(codec_dai, order);
+			/* finalize rtd device */
+			soc_rtd_free(rtd);
 
-	soc_remove_dai(rtd->cpu_dai, order);
+			/* remove the CODEC DAI */
+			for_each_rtd_codec_dai(rtd, i, codec_dai)
+				soc_remove_dai(codec_dai, order);
+
+			soc_remove_dai(rtd->cpu_dai, order);
+		}
+	}
 }
 
 static void soc_remove_link_components(struct snd_soc_card *card)
@@ -1171,14 +1177,9 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 
 static void soc_remove_dai_links(struct snd_soc_card *card)
 {
-	int order;
-	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *link, *_link;
 
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd)
-			soc_remove_link_dais(card, rtd, order);
-	}
+	soc_remove_link_dais(card);
 
 	soc_remove_link_components(card);
 
