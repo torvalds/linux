@@ -221,7 +221,7 @@ an involved disclosed party. The current ambassadors list:
 
   Microsoft
   VMware
-  XEN
+  Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
   Canonical	Tyler Hicks <tyhicks@canonical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
