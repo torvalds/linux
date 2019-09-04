@@ -322,6 +322,10 @@ static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
 
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & XGMAC_AIS)) {
+		if (unlikely(intr_status & XGMAC_RBU)) {
+			x->rx_buf_unav_irq++;
+			ret |= handle_rx;
+		}
 		if (unlikely(intr_status & XGMAC_TPS)) {
 			x->tx_process_stopped_irq++;
 			ret |= tx_hard_error;
