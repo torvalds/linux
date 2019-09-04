@@ -1559,6 +1559,12 @@ static int soc_link_init(struct snd_soc_card *card,
 	return ret;
 }
 
+static void soc_unbind_aux_dev(struct snd_soc_component *component)
+{
+	component->init = NULL;
+	list_del(&component->card_aux_list);
+}
+
 static int soc_bind_aux_dev(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
@@ -1612,7 +1618,7 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 			if (comp->driver->remove_order == order) {
 				soc_remove_component(comp);
 				/* remove it from the card's aux_comp_list */
-				list_del(&comp->card_aux_list);
+				soc_unbind_aux_dev(comp);
 			}
 		}
 	}
