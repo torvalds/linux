@@ -107,6 +107,12 @@ static void imx_scu_rx_callback(struct mbox_client *c, void *msg)
 	struct imx_sc_rpc_msg *hdr;
 	u32 *data = msg;
 
+	if (!sc_ipc->msg) {
+		dev_warn(sc_ipc->dev, "unexpected rx idx %d 0x%08x, ignore!\n",
+				sc_chan->idx, *data);
+		return;
+	}
+
 	if (sc_chan->idx == 0) {
 		hdr = msg;
 		sc_ipc->rx_size = hdr->size;
@@ -165,7 +171,8 @@ int imx_scu_call_rpc(struct imx_sc_ipc *sc_ipc, void *msg, bool have_resp)
 	mutex_lock(&sc_ipc->lock);
 	reinit_completion(&sc_ipc->done);
 
-	sc_ipc->msg = msg;
+	if (have_resp)
+		sc_ipc->msg = msg;
 	sc_ipc->count = 0;
 	ret = imx_scu_ipc_write(sc_ipc, msg);
 	if (ret < 0) {
@@ -187,6 +194,7 @@ int imx_scu_call_rpc(struct imx_sc_ipc *sc_ipc, void *msg, bool have_resp)
 	}
 
 out:
+	sc_ipc->msg = NULL;
 	mutex_unlock(&sc_ipc->lock);
 
 	dev_dbg(sc_ipc->dev, "RPC SVC done\n");
