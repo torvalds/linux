@@ -126,7 +126,7 @@ static void nvme_queue_scan(struct nvme_ctrl *ctrl)
  * code paths that can't be interrupted by other reset attempts. A hot removal
  * may prevent this from succeeding.
  */
-static int nvme_try_sched_reset(struct nvme_ctrl *ctrl)
+int nvme_try_sched_reset(struct nvme_ctrl *ctrl)
 {
 	if (ctrl->state != NVME_CTRL_RESETTING)
 		return -EBUSY;
@@ -134,6 +134,7 @@ static int nvme_try_sched_reset(struct nvme_ctrl *ctrl)
 		return -EBUSY;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nvme_try_sched_reset);
 
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl)
 {
@@ -384,8 +385,10 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		break;
 	}
 
-	if (changed)
+	if (changed) {
 		ctrl->state = new_state;
+		wake_up_all(&ctrl->state_wq);
+	}
 
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 	if (changed && ctrl->state == NVME_CTRL_LIVE)
@@ -393,6 +396,39 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 	return changed;
 }
 EXPORT_SYMBOL_GPL(nvme_change_ctrl_state);
+
+/*
+ * Returns true for sink states that can't ever transition back to live.
+ */
+static bool nvme_state_terminal(struct nvme_ctrl *ctrl)
+{
+	switch (ctrl->state) {
+	case NVME_CTRL_NEW:
+	case NVME_CTRL_LIVE:
+	case NVME_CTRL_RESETTING:
+	case NVME_CTRL_CONNECTING:
+		return false;
+	case NVME_CTRL_DELETING:
+	case NVME_CTRL_DEAD:
+		return true;
+	default:
+		WARN_ONCE(1, "Unhandled ctrl state:%d", ctrl->state);
+		return true;
+	}
+}
+
+/*
+ * Waits for the controller state to be resetting, or returns false if it is
+ * not possible to ever transition to that state.
+ */
+bool nvme_wait_reset(struct nvme_ctrl *ctrl)
+{
+	wait_event(ctrl->state_wq,
+		   nvme_change_ctrl_state(ctrl, NVME_CTRL_RESETTING) ||
+		   nvme_state_terminal(ctrl));
+	return ctrl->state == NVME_CTRL_RESETTING;
+}
+EXPORT_SYMBOL_GPL(nvme_wait_reset);
 
 static void nvme_free_ns_head(struct kref *ref)
 {
@@ -3998,6 +4034,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	INIT_WORK(&ctrl->async_event_work, nvme_async_event_work);
 	INIT_WORK(&ctrl->fw_act_work, nvme_fw_act_work);
 	INIT_WORK(&ctrl->delete_work, nvme_delete_ctrl_work);
+	init_waitqueue_head(&ctrl->state_wq);
 
 	INIT_DELAYED_WORK(&ctrl->ka_work, nvme_keep_alive_work);
 	memset(&ctrl->ka_cmd, 0, sizeof(ctrl->ka_cmd));
