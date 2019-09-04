@@ -6051,7 +6051,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (filter(ndlp, param)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "3185 FIND node filter %pf DID "
+					 "3185 FIND node filter %ps DID "
 					 "ndlp x%px did x%x flg x%x st x%x "
 					 "xri x%x type x%x rpi x%x\n",
 					 filter, ndlp, ndlp->nlp_DID,
@@ -6062,7 +6062,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 		}
 	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3186 FIND node filter %pf NOT FOUND.\n", filter);
+			 "3186 FIND node filter %ps NOT FOUND.\n", filter);
 	return NULL;
 }
 
