@@ -51,25 +51,19 @@ static struct bio *erofs_grab_raw_bio(struct super_block *sb,
 	return bio;
 }
 
-/* prio -- true is used for dir */
-struct page *__erofs_get_meta_page(struct super_block *sb,
-				   erofs_blk_t blkaddr, bool prio, bool nofail)
+struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr)
 {
 	struct inode *const bd_inode = sb->s_bdev->bd_inode;
 	struct address_space *const mapping = bd_inode->i_mapping;
-	/* prefer retrying in the allocator to blindly looping below */
-	const gfp_t gfp = mapping_gfp_constraint(mapping, ~__GFP_FS) |
-		(nofail ? __GFP_NOFAIL : 0);
-	unsigned int io_retries = nofail ? EROFS_IO_MAX_RETRIES_NOFAIL : 0;
+	const gfp_t gfp = mapping_gfp_constraint(mapping, ~__GFP_FS);
 	struct page *page;
 	int err;
 
 repeat:
 	page = find_or_create_page(mapping, blkaddr, gfp);
-	if (!page) {
-		DBG_BUGON(nofail);
+	if (!page)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	DBG_BUGON(!PageLocked(page));
 
 	if (!PageUptodate(page)) {
@@ -82,14 +76,11 @@ repeat:
 			goto err_out;
 		}
 
-		__submit_bio(bio, REQ_OP_READ,
-			     REQ_META | (prio ? REQ_PRIO : 0));
-
+		__submit_bio(bio, REQ_OP_READ, REQ_META);
 		lock_page(page);
 
 		/* this page has been truncated by others */
 		if (page->mapping != mapping) {
-unlock_repeat:
 			unlock_page(page);
 			put_page(page);
 			goto repeat;
@@ -97,10 +88,6 @@ unlock_repeat:
 
 		/* more likely a read error */
 		if (!PageUptodate(page)) {
-			if (io_retries) {
-				--io_retries;
-				goto unlock_repeat;
-			}
 			err = -EIO;
 			goto err_out;
 		}
@@ -251,7 +238,7 @@ submit_bio_retry:
 
 			DBG_BUGON(map.m_plen > PAGE_SIZE);
 
-			ipage = erofs_get_meta_page(inode->i_sb, blknr, 0);
+			ipage = erofs_get_meta_page(inode->i_sb, blknr);
 
 			if (IS_ERR(ipage)) {
 				err = PTR_ERR(ipage);

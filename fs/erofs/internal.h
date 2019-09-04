@@ -258,8 +258,6 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 #error erofs cannot be used in this platform
 #endif
 
-#define EROFS_IO_MAX_RETRIES_NOFAIL     5
-
 #define ROOT_NID(sb)		((sb)->root_nid)
 
 #define erofs_blknr(addr)       ((addr) / EROFS_BLKSIZ)
@@ -418,23 +416,9 @@ static inline void __submit_bio(struct bio *bio, unsigned int op,
 	submit_bio(bio);
 }
 
-struct page *__erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr,
-				   bool prio, bool nofail);
-
-static inline struct page *erofs_get_meta_page(struct super_block *sb,
-	erofs_blk_t blkaddr, bool prio)
-{
-	return __erofs_get_meta_page(sb, blkaddr, prio, false);
-}
+struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr);
 
 int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
-
-static inline struct page *erofs_get_inline_page(struct inode *inode,
-						 erofs_blk_t blkaddr)
-{
-	return erofs_get_meta_page(inode->i_sb, blkaddr,
-				   S_ISDIR(inode->i_mode));
-}
 
 /* inode.c */
 static inline unsigned long erofs_inode_hash(erofs_nid_t nid)

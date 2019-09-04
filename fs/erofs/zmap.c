@@ -50,7 +50,7 @@ static int fill_inode_lazy(struct inode *inode)
 
 	pos = ALIGN(iloc(EROFS_SB(sb), vi->nid) + vi->inode_isize +
 		    vi->xattr_isize, 8);
-	page = erofs_get_meta_page(sb, erofs_blknr(pos), false);
+	page = erofs_get_meta_page(sb, erofs_blknr(pos));
 	if (IS_ERR(page)) {
 		err = PTR_ERR(page);
 		goto out_unlock;
@@ -127,7 +127,7 @@ static int z_erofs_reload_indexes(struct z_erofs_maprecorder *m,
 		put_page(mpage);
 	}
 
-	mpage = erofs_get_meta_page(sb, eblk, false);
+	mpage = erofs_get_meta_page(sb, eblk);
 	if (IS_ERR(mpage)) {
 		map->mpage = NULL;
 		return PTR_ERR(mpage);

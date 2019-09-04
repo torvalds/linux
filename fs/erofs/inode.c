@@ -182,7 +182,7 @@ static int fill_inode(struct inode *inode, int isdir)
 	debugln("%s, reading inode nid %llu at %u of blkaddr %u",
 		__func__, vi->nid, ofs, blkaddr);
 
-	page = erofs_get_meta_page(inode->i_sb, blkaddr, isdir);
+	page = erofs_get_meta_page(inode->i_sb, blkaddr);
 
 	if (IS_ERR(page)) {
 		errln("failed to get inode (nid: %llu) page, err %ld",

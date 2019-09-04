@@ -87,7 +87,7 @@ static int init_inode_xattrs(struct inode *inode)
 	it.blkaddr = erofs_blknr(iloc(sbi, vi->nid) + vi->inode_isize);
 	it.ofs = erofs_blkoff(iloc(sbi, vi->nid) + vi->inode_isize);
 
-	it.page = erofs_get_inline_page(inode, it.blkaddr);
+	it.page = erofs_get_meta_page(sb, it.blkaddr);
 	if (IS_ERR(it.page)) {
 		ret = PTR_ERR(it.page);
 		goto out_unlock;
@@ -117,8 +117,7 @@ static int init_inode_xattrs(struct inode *inode)
 			DBG_BUGON(it.ofs != EROFS_BLKSIZ);
 			xattr_iter_end(&it, atomic_map);
 
-			it.page = erofs_get_meta_page(sb, ++it.blkaddr,
-						      S_ISDIR(inode->i_mode));
+			it.page = erofs_get_meta_page(sb, ++it.blkaddr);
 			if (IS_ERR(it.page)) {
 				kfree(vi->xattr_shared_xattrs);
 				vi->xattr_shared_xattrs = NULL;
@@ -168,7 +167,7 @@ static inline int xattr_iter_fixup(struct xattr_iter *it)
 
 	it->blkaddr += erofs_blknr(it->ofs);
 
-	it->page = erofs_get_meta_page(it->sb, it->blkaddr, false);
+	it->page = erofs_get_meta_page(it->sb, it->blkaddr);
 	if (IS_ERR(it->page)) {
 		int err = PTR_ERR(it->page);
 
@@ -199,7 +198,7 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 	it->blkaddr = erofs_blknr(iloc(sbi, vi->nid) + inline_xattr_ofs);
 	it->ofs = erofs_blkoff(iloc(sbi, vi->nid) + inline_xattr_ofs);
 
-	it->page = erofs_get_inline_page(inode, it->blkaddr);
+	it->page = erofs_get_meta_page(inode->i_sb, it->blkaddr);
 	if (IS_ERR(it->page))
 		return PTR_ERR(it->page);
 
@@ -401,7 +400,7 @@ static int shared_getxattr(struct inode *inode, struct getxattr_iter *it)
 			if (i)
 				xattr_iter_end(&it->it, true);
 
-			it->it.page = erofs_get_meta_page(sb, blkaddr, false);
+			it->it.page = erofs_get_meta_page(sb, blkaddr);
 			if (IS_ERR(it->it.page))
 				return PTR_ERR(it->it.page);
 
@@ -623,7 +622,7 @@ static int shared_listxattr(struct listxattr_iter *it)
 			if (i)
 				xattr_iter_end(&it->it, true);
 
-			it->it.page = erofs_get_meta_page(sb, blkaddr, false);
+			it->it.page = erofs_get_meta_page(sb, blkaddr);
 			if (IS_ERR(it->it.page))
 				return PTR_ERR(it->it.page);
 
