@@ -98,20 +98,22 @@ static bool check_layout_compatibility(struct super_block *sb,
 static int erofs_read_superblock(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
-	struct buffer_head *bh;
+	struct page *page;
 	struct erofs_super_block *dsb;
 	unsigned int blkszbits;
+	void *data;
 	int ret;
 
-	bh = sb_bread(sb, 0);
-
-	if (!bh) {
+	page = read_mapping_page(sb->s_bdev->bd_inode->i_mapping, 0, NULL);
+	if (!page) {
 		erofs_err(sb, "cannot read erofs superblock");
 		return -EIO;
 	}
 
 	sbi = EROFS_SB(sb);
-	dsb = (struct erofs_super_block *)(bh->b_data + EROFS_SUPER_OFFSET);
+
+	data = kmap_atomic(page);
+	dsb = (struct erofs_super_block *)(data + EROFS_SUPER_OFFSET);
 
 	ret = -EINVAL;
 	if (le32_to_cpu(dsb->magic) != EROFS_SUPER_MAGIC_V1) {
@@ -153,7 +155,8 @@ static int erofs_read_superblock(struct super_block *sb)
 	}
 	ret = 0;
 out:
-	brelse(bh);
+	kunmap_atomic(data);
+	put_page(page);
 	return ret;
 }
 
