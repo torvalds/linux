@@ -168,8 +168,6 @@ config DRM_TTM
 config DRM_VRAM_HELPER
 	tristate
 	depends on DRM
-	select DRM_TTM
-	select DRM_TTM_HELPER
 	help
 	  Helpers for VRAM memory management
 
