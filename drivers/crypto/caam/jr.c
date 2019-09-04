@@ -146,7 +146,6 @@ static int caam_jr_remove(struct platform_device *pdev)
 	ret = caam_jr_shutdown(jrdev);
 	if (ret)
 		dev_err(jrdev, "Failed to shut down job ring\n");
-	irq_dispose_mapping(jrpriv->irq);
 
 	return ret;
 }
@@ -487,6 +486,10 @@ static int caam_jr_init(struct device *dev)
 	return error;
 }
 
+static void caam_jr_irq_dispose_mapping(void *data)
+{
+	irq_dispose_mapping((int)data);
+}
 
 /*
  * Probe routine for each detected JobR subsystem.
@@ -542,12 +545,15 @@ static int caam_jr_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	error = devm_add_action_or_reset(jrdev, caam_jr_irq_dispose_mapping,
+					 (void *)jrpriv->irq);
+	if (error)
+		return error;
+
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */
-	if (error) {
-		irq_dispose_mapping(jrpriv->irq);
+	if (error)
 		return error;
-	}
 
 	jrpriv->dev = jrdev;
 	spin_lock(&driver_data.jr_alloc_lock);
