@@ -542,6 +542,7 @@ struct smb_vol {
 	umode_t dir_mode;
 	enum securityEnum sectype; /* sectype requested via mnt opts */
 	bool sign; /* was signing requested via mnt opts? */
+	bool ignore_signature:1;
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;
@@ -681,6 +682,7 @@ struct TCP_Server_Info {
 	char server_GUID[16];
 	__u16 sec_mode;
 	bool sign; /* is signing enabled on this connection? */
+	bool ignore_signature:1; /* skip validation of signatures in SMB2/3 rsp */
 	bool session_estab; /* mark when very first sess is established */
 	int echo_credits;  /* echo reserved slots */
 	int oplock_credits;  /* oplock break reserved slots */
