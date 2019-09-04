@@ -2133,6 +2133,17 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 			mpol_cond_put(pol);
 			page = __alloc_pages_node(hpage_node,
 						gfp | __GFP_THISNODE, order);
+
+			/*
+			 * If hugepage allocations are configured to always
+			 * synchronous compact or the vma has been madvised
+			 * to prefer hugepage backing, retry allowing remote
+			 * memory as well.
+			 */
+			if (!page && (gfp & __GFP_DIRECT_RECLAIM))
+				page = __alloc_pages_node(hpage_node,
+						gfp | __GFP_NORETRY, order);
+
 			goto out;
 		}
 	}
