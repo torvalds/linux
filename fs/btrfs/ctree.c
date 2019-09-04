@@ -2913,15 +2913,13 @@ cow_done:
 			if (!p->skip_locking) {
 				level = btrfs_header_level(b);
 				if (level <= write_lock_level) {
-					err = btrfs_try_tree_write_lock(b);
-					if (!err) {
+					if (!btrfs_try_tree_write_lock(b)) {
 						btrfs_set_path_blocking(p);
 						btrfs_tree_lock(b);
 					}
 					p->locks[level] = BTRFS_WRITE_LOCK;
 				} else {
-					err = btrfs_tree_read_lock_atomic(b);
-					if (!err) {
+					if (!btrfs_tree_read_lock_atomic(b)) {
 						btrfs_set_path_blocking(p);
 						btrfs_tree_read_lock(b);
 					}
@@ -3055,8 +3053,7 @@ again:
 			}
 
 			level = btrfs_header_level(b);
-			err = btrfs_tree_read_lock_atomic(b);
-			if (!err) {
+			if (!btrfs_tree_read_lock_atomic(b)) {
 				btrfs_set_path_blocking(p);
 				btrfs_tree_read_lock(b);
 			}
