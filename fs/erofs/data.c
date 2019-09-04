@@ -38,6 +38,19 @@ static inline void read_endio(struct bio *bio)
 	bio_put(bio);
 }
 
+static struct bio *erofs_grab_raw_bio(struct super_block *sb,
+				      erofs_blk_t blkaddr,
+				      unsigned int nr_pages)
+{
+	struct bio *bio = bio_alloc(GFP_NOIO, nr_pages);
+
+	bio->bi_end_io = read_endio;
+	bio_set_dev(bio, sb->s_bdev);
+	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
+	bio->bi_private = sb;
+	return bio;
+}
+
 /* prio -- true is used for dir */
 struct page *__erofs_get_meta_page(struct super_block *sb,
 				   erofs_blk_t blkaddr, bool prio, bool nofail)
@@ -62,12 +75,7 @@ repeat:
 	if (!PageUptodate(page)) {
 		struct bio *bio;
 
-		bio = erofs_grab_bio(sb, blkaddr, 1, sb, read_endio, nofail);
-		if (IS_ERR(bio)) {
-			DBG_BUGON(nofail);
-			err = PTR_ERR(bio);
-			goto err_out;
-		}
+		bio = erofs_grab_raw_bio(sb, blkaddr, 1);
 
 		if (bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE) {
 			err = -EFAULT;
@@ -276,13 +284,7 @@ submit_bio_retry:
 		if (nblocks > BIO_MAX_PAGES)
 			nblocks = BIO_MAX_PAGES;
 
-		bio = erofs_grab_bio(sb, blknr, nblocks, sb,
-				     read_endio, false);
-		if (IS_ERR(bio)) {
-			err = PTR_ERR(bio);
-			bio = NULL;
-			goto err_out;
-		}
+		bio = erofs_grab_raw_bio(sb, blknr, nblocks);
 	}
 
 	err = bio_add_page(bio, page, PAGE_SIZE, 0);

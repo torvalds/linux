@@ -1263,9 +1263,13 @@ submit_bio_retry:
 		}
 
 		if (!bio) {
-			bio = erofs_grab_bio(sb, first_index + i,
-					     BIO_MAX_PAGES, bi_private,
-					     z_erofs_vle_read_endio, true);
+			bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
+
+			bio->bi_end_io = z_erofs_vle_read_endio;
+			bio_set_dev(bio, sb->s_bdev);
+			bio->bi_iter.bi_sector = (sector_t)(first_index + i) <<
+				LOG_SECTORS_PER_BLOCK;
+			bio->bi_private = bi_private;
 			++nr_bios;
 		}
 
