@@ -287,15 +287,9 @@ static int psp_tmr_load(struct psp_context *psp)
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
-	if (ret)
-		goto failed;
 
 	kfree(cmd);
 
-	return 0;
-
-failed:
-	kfree(cmd);
 	return ret;
 }
 
