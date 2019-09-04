@@ -71,6 +71,7 @@ extern void test__force_log();
 extern bool test__start_subtest(const char *name);
 extern void test__skip(void);
 extern void test__fail(void);
+extern int test__join_cgroup(const char *path);
 
 #define MAGIC_BYTES 123
 
