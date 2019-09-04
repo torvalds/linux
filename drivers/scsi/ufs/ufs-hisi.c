@@ -447,13 +447,11 @@ static int ufs_hisi_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 
 static int ufs_hisi_get_resource(struct ufs_hisi_host *host)
 {
-	struct resource *mem_res;
 	struct device *dev = host->hba->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 
 	/* get resource of ufs sys ctrl */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	host->ufs_sys_ctrl = devm_ioremap_resource(dev, mem_res);
+	host->ufs_sys_ctrl = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(host->ufs_sys_ctrl))
 		return PTR_ERR(host->ufs_sys_ctrl);
 
