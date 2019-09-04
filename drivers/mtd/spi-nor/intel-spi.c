@@ -187,12 +187,16 @@ static void intel_spi_dump_regs(struct intel_spi *ispi)
 		dev_dbg(ispi->dev, "PR(%d)=0x%08x\n", i,
 			readl(ispi->pregs + PR(i)));
 
-	value = readl(ispi->sregs + SSFSTS_CTL);
-	dev_dbg(ispi->dev, "SSFSTS_CTL=0x%08x\n", value);
-	dev_dbg(ispi->dev, "PREOP_OPTYPE=0x%08x\n",
-		readl(ispi->sregs + PREOP_OPTYPE));
-	dev_dbg(ispi->dev, "OPMENU0=0x%08x\n", readl(ispi->sregs + OPMENU0));
-	dev_dbg(ispi->dev, "OPMENU1=0x%08x\n", readl(ispi->sregs + OPMENU1));
+	if (ispi->sregs) {
+		value = readl(ispi->sregs + SSFSTS_CTL);
+		dev_dbg(ispi->dev, "SSFSTS_CTL=0x%08x\n", value);
+		dev_dbg(ispi->dev, "PREOP_OPTYPE=0x%08x\n",
+			readl(ispi->sregs + PREOP_OPTYPE));
+		dev_dbg(ispi->dev, "OPMENU0=0x%08x\n",
+			readl(ispi->sregs + OPMENU0));
+		dev_dbg(ispi->dev, "OPMENU1=0x%08x\n",
+			readl(ispi->sregs + OPMENU1));
+	}
 
 	if (ispi->info->type == INTEL_SPI_BYT)
 		dev_dbg(ispi->dev, "BCR=0x%08x\n", readl(ispi->base + BYT_BCR));
@@ -367,6 +371,11 @@ static int intel_spi_init(struct intel_spi *ispi)
 		    !(uvscc & ERASE_64K_OPCODE_MASK))
 			ispi->erase_64k = false;
 
+	if (ispi->sregs == NULL && (ispi->swseq_reg || ispi->swseq_erase)) {
+		dev_err(ispi->dev, "software sequencer not supported, but required\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * Some controllers can only do basic operations using hardware
 	 * sequencer. All other operations are supposed to be carried out
@@ -383,7 +392,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 	val = readl(ispi->base + HSFSTS_CTL);
 	ispi->locked = !!(val & HSFSTS_CTL_FLOCKDN);
 
-	if (ispi->locked) {
+	if (ispi->locked && ispi->sregs) {
 		/*
 		 * BIOS programs allowed opcodes and then locks down the
 		 * register. So read back what opcodes it decided to support.
