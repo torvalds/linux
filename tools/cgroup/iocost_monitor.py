@@ -111,14 +111,14 @@ class IocStat:
 
     def dict(self, now):
         return { 'device'               : devname,
-                 'timestamp'            : now,
-                 'enabled'              : self.enabled,
-                 'running'              : self.running,
-                 'period_ms'            : self.period_ms,
-                 'period_at'            : self.period_at,
-                 'period_vtime_at'      : self.vperiod_at,
-                 'busy_level'           : self.busy_level,
-                 'vrate_pct'            : self.vrate_pct, }
+                 'timestamp'            : str(now),
+                 'enabled'              : str(int(self.enabled)),
+                 'running'              : str(int(self.running)),
+                 'period_ms'            : str(self.period_ms),
+                 'period_at'            : str(self.period_at),
+                 'period_vtime_at'      : str(self.vperiod_at),
+                 'busy_level'           : str(self.busy_level),
+                 'vrate_pct'            : str(self.vrate_pct), }
 
     def table_preamble_str(self):
         state = ('RUN' if self.running else 'IDLE') if self.enabled else 'OFF'
@@ -171,19 +171,19 @@ class IocgStat:
 
     def dict(self, now, path):
         out = { 'cgroup'                : path,
-                'timestamp'             : now,
-                'is_active'             : self.is_active,
-                'weight'                : self.weight,
-                'weight_active'         : self.active,
-                'weight_inuse'          : self.inuse,
-                'hweight_active_pct'    : self.hwa_pct,
-                'hweight_inuse_pct'     : self.hwi_pct,
-                'inflight_pct'          : self.inflight_pct,
-                'use_delay'             : self.use_delay,
-                'delay_ms'              : self.delay_ms,
-                'usage_pct'             : self.usage }
+                'timestamp'             : str(now),
+                'is_active'             : str(int(self.is_active)),
+                'weight'                : str(self.weight),
+                'weight_active'         : str(self.active),
+                'weight_inuse'          : str(self.inuse),
+                'hweight_active_pct'    : str(self.hwa_pct),
+                'hweight_inuse_pct'     : str(self.hwi_pct),
+                'inflight_pct'          : str(self.inflight_pct),
+                'use_delay'             : str(self.use_delay),
+                'delay_ms'              : str(self.delay_ms),
+                'usage_pct'             : str(self.usage) }
         for i in range(len(self.usages)):
-            out[f'usage_pct_{i}'] = f'{self.usages[i]}'
+            out[f'usage_pct_{i}'] = str(self.usages[i])
         return out
 
     def table_row_str(self, path):
