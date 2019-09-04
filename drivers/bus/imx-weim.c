@@ -76,7 +76,7 @@ static const struct of_device_id weim_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, weim_id_table);
 
-static int __init imx_weim_gpr_setup(struct platform_device *pdev)
+static int imx_weim_gpr_setup(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct property *prop;
@@ -126,10 +126,10 @@ err:
 }
 
 /* Parse and set the timing for this device. */
-static int __init weim_timing_setup(struct device *dev,
-				    struct device_node *np, void __iomem *base,
-				    const struct imx_weim_devtype *devtype,
-				    struct cs_timing_state *ts)
+static int weim_timing_setup(struct device *dev,
+			     struct device_node *np, void __iomem *base,
+			     const struct imx_weim_devtype *devtype,
+			     struct cs_timing_state *ts)
 {
 	u32 cs_idx, value[MAX_CS_REGS_COUNT];
 	int i, ret;
