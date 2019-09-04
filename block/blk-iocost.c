@@ -1784,28 +1784,39 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 			   struct bio *bio)
 {
 	struct ioc_gq *iocg = blkg_to_iocg(bio->bi_blkg);
+	struct ioc *ioc = iocg->ioc;
 	sector_t bio_end = bio_end_sector(bio);
+	struct ioc_now now;
 	u32 hw_inuse;
 	u64 abs_cost, cost;
 
-	/* add iff the existing request has cost assigned */
-	if (!rq->bio || !rq->bio->bi_iocost_cost)
+	/* bypass if disabled or for root cgroup */
+	if (!ioc->enabled || !iocg->level)
 		return;
 
 	abs_cost = calc_vtime_cost(bio, iocg, true);
 	if (!abs_cost)
 		return;
 
+	ioc_now(ioc, &now);
+	current_hweight(iocg, NULL, &hw_inuse);
+	cost = abs_cost_to_cost(abs_cost, hw_inuse);
+
 	/* update cursor if backmerging into the request at the cursor */
 	if (blk_rq_pos(rq) < bio_end &&
 	    blk_rq_pos(rq) + blk_rq_sectors(rq) == iocg->cursor)
 		iocg->cursor = bio_end;
 
-	current_hweight(iocg, NULL, &hw_inuse);
-	cost = div64_u64(abs_cost * HWEIGHT_WHOLE, hw_inuse);
-	bio->bi_iocost_cost = cost;
-
-	atomic64_add(cost, &iocg->vtime);
+	/*
+	 * Charge if there's enough vtime budget and the existing request
+	 * has cost assigned.  Otherwise, account it as debt.  See debt
+	 * handling in ioc_rqos_throttle() for details.
+	 */
+	if (rq->bio && rq->bio->bi_iocost_cost &&
+	    time_before_eq64(atomic64_read(&iocg->vtime) + cost, now.vnow))
+		iocg_commit_bio(iocg, bio, cost);
+	else
+		atomic64_add(abs_cost, &iocg->abs_vdebt);
 }
 
 static void ioc_rqos_done_bio(struct rq_qos *rqos, struct bio *bio)
