@@ -89,6 +89,8 @@ struct tegra_uart_chip_data {
 	bool	fifo_mode_enable_status;
 	int	uart_max_port;
 	int	max_dma_burst_bytes;
+	int	error_tolerance_low_range;
+	int	error_tolerance_high_range;
 };
 
 struct tegra_baud_tolerance {
@@ -135,6 +137,8 @@ struct tegra_uart_port {
 	unsigned int				rx_bytes_requested;
 	struct tegra_baud_tolerance		*baud_tolerance;
 	int					n_adjustable_baud_rates;
+	int					required_rate;
+	int					configured_rate;
 };
 
 static void tegra_uart_start_next_tx(struct tegra_uart_port *tup);
@@ -350,6 +354,22 @@ static long tegra_get_tolerance_rate(struct tegra_uart_port *tup,
 	return rate;
 }
 
+static int tegra_check_rate_in_range(struct tegra_uart_port *tup)
+{
+	long diff;
+
+	diff = ((long)(tup->configured_rate - tup->required_rate) * 10000)
+		/ tup->required_rate;
+	if (diff < (tup->cdata->error_tolerance_low_range * 100) ||
+	    diff > (tup->cdata->error_tolerance_high_range * 100)) {
+		dev_err(tup->uport.dev,
+			"configured baud rate is out of range by %ld", diff);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int tegra_set_baudrate(struct tegra_uart_port *tup, unsigned int baud)
 {
 	unsigned long rate;
@@ -363,6 +383,8 @@ static int tegra_set_baudrate(struct tegra_uart_port *tup, unsigned int baud)
 
 	if (tup->cdata->support_clk_src_div) {
 		rate = baud * 16;
+		tup->required_rate = rate;
+
 		if (tup->n_adjustable_baud_rates)
 			rate = tegra_get_tolerance_rate(tup, baud, rate);
 
@@ -372,7 +394,11 @@ static int tegra_set_baudrate(struct tegra_uart_port *tup, unsigned int baud)
 				"clk_set_rate() failed for rate %lu\n", rate);
 			return ret;
 		}
+		tup->configured_rate = clk_get_rate(tup->uart_clk);
 		divisor = 1;
+		ret = tegra_check_rate_in_range(tup);
+		if (ret < 0)
+			return ret;
 	} else {
 		rate = clk_get_rate(tup->uart_clk);
 		divisor = DIV_ROUND_CLOSEST(rate, baud * 16);
@@ -991,7 +1017,11 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	 * enqueued
 	 */
 	tup->lcr_shadow = TEGRA_UART_DEFAULT_LSR;
-	tegra_set_baudrate(tup, TEGRA_UART_DEFAULT_BAUD);
+	ret = tegra_set_baudrate(tup, TEGRA_UART_DEFAULT_BAUD);
+	if (ret < 0) {
+		dev_err(tup->uport.dev, "Failed to set baud rate\n");
+		return ret;
+	}
 	tup->fcr_shadow |= UART_FCR_DMA_SELECT;
 	tegra_uart_write(tup, tup->fcr_shadow, UART_FCR);
 
@@ -1190,6 +1220,7 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	struct clk *parent_clk = clk_get_parent(tup->uart_clk);
 	unsigned long parent_clk_rate = clk_get_rate(parent_clk);
 	int max_divider = (tup->cdata->support_clk_src_div) ? 0x7FFF : 0xFFFF;
+	int ret;
 
 	max_divider *= 16;
 	spin_lock_irqsave(&u->lock, flags);
@@ -1262,7 +1293,11 @@ static void tegra_uart_set_termios(struct uart_port *u,
 			parent_clk_rate/max_divider,
 			parent_clk_rate/16);
 	spin_unlock_irqrestore(&u->lock, flags);
-	tegra_set_baudrate(tup, baud);
+	ret = tegra_set_baudrate(tup, baud);
+	if (ret < 0) {
+		dev_err(tup->uport.dev, "Failed to set baud rate\n");
+		return;
+	}
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
 	spin_lock_irqsave(&u->lock, flags);
@@ -1399,6 +1434,8 @@ static struct tegra_uart_chip_data tegra20_uart_chip_data = {
 	.fifo_mode_enable_status	= false,
 	.uart_max_port			= 5,
 	.max_dma_burst_bytes		= 4,
+	.error_tolerance_low_range	= 0,
+	.error_tolerance_high_range	= 4,
 };
 
 static struct tegra_uart_chip_data tegra30_uart_chip_data = {
@@ -1408,6 +1445,8 @@ static struct tegra_uart_chip_data tegra30_uart_chip_data = {
 	.fifo_mode_enable_status	= false,
 	.uart_max_port			= 5,
 	.max_dma_burst_bytes		= 4,
+	.error_tolerance_low_range	= 0,
+	.error_tolerance_high_range	= 4,
 };
 
 static struct tegra_uart_chip_data tegra186_uart_chip_data = {
@@ -1417,6 +1456,19 @@ static struct tegra_uart_chip_data tegra186_uart_chip_data = {
 	.fifo_mode_enable_status	= true,
 	.uart_max_port			= 8,
 	.max_dma_burst_bytes		= 8,
+	.error_tolerance_low_range	= 0,
+	.error_tolerance_high_range	= 4,
+};
+
+static struct tegra_uart_chip_data tegra194_uart_chip_data = {
+	.tx_fifo_full_status		= true,
+	.allow_txfifo_reset_fifo_mode	= false,
+	.support_clk_src_div		= true,
+	.fifo_mode_enable_status	= true,
+	.uart_max_port			= 8,
+	.max_dma_burst_bytes		= 8,
+	.error_tolerance_low_range	= -2,
+	.error_tolerance_high_range	= 2,
 };
 
 static const struct of_device_id tegra_uart_of_match[] = {
@@ -1429,6 +1481,9 @@ static const struct of_device_id tegra_uart_of_match[] = {
 	}, {
 		.compatible     = "nvidia,tegra186-hsuart",
 		.data		= &tegra186_uart_chip_data,
+	}, {
+		.compatible     = "nvidia,tegra194-hsuart",
+		.data		= &tegra194_uart_chip_data,
 	}, {
 	},
 };
