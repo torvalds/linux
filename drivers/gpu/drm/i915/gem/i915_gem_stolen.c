@@ -425,8 +425,11 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 			bdw_get_stolen_reserved(dev_priv,
 						&reserved_base, &reserved_size);
 		break;
-	case 11:
 	default:
+		MISSING_CASE(INTEL_GEN(dev_priv));
+		/* fall-through */
+	case 11:
+	case 12:
 		icl_get_stolen_reserved(dev_priv, &reserved_base,
 					&reserved_size);
 		break;
