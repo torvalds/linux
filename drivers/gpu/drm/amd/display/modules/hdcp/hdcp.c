@@ -417,10 +417,20 @@ enum mod_hdcp_status mod_hdcp_query_display(struct mod_hdcp *hdcp,
 	query->trace = &hdcp->connection.trace;
 	query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 
-	if (is_hdcp1(hdcp))
-		mod_hdcp_hdcp1_get_link_encryption_status(hdcp, &query->encryption_status);
-	else if (is_hdcp2(hdcp))
-		mod_hdcp_hdcp2_get_link_encryption_status(hdcp, &query->encryption_status);
+	if (is_display_encryption_enabled(display)) {
+		if (is_hdcp1(hdcp)) {
+			query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON;
+		} else if (is_hdcp2(hdcp)) {
+			if (query->link->adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_0)
+				query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON;
+			else if (query->link->adjust.hdcp2.force_type == MOD_HDCP_FORCE_TYPE_1)
+				query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON;
+			else
+				query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP2_ON;
+		}
+	} else {
+		query->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+	}
 
 out:
 	return status;

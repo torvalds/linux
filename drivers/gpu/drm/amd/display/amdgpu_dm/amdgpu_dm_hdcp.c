@@ -85,6 +85,7 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 		schedule_delayed_work(&hdcp_work->watchdog_timer_dwork,
 				      msecs_to_jiffies(output.watchdog_timer_delay));
 
+	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(0));
 }
 
 void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
@@ -233,8 +234,6 @@ static void event_property_validate(struct work_struct *work)
 		hdcp_work->encryption_status = query.encryption_status;
 		schedule_work(&hdcp_work->property_update_work);
 	}
-
-	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
 
 	mutex_unlock(&hdcp_work->mutex);
 }
