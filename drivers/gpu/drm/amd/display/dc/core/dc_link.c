@@ -743,7 +743,7 @@ static bool wait_for_alt_mode(struct dc_link *link)
  * This does not create remote sinks but will trigger DM
  * to start MST detection if a branch is detected.
  */
-bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
+bool dc_link_detect_helper(struct dc_link *link, enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
@@ -759,6 +759,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
+
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	if (dc_is_virtual_signal(link->connector_signal))
@@ -1065,6 +1066,24 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		dc_sink_release(prev_sink);
 
 	return true;
+
+}
+
+bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
+{
+	const struct dc *dc = link->dc;
+	bool ret;
+	/* get out of low power state */
+
+	if (dc->hwss.exit_optimized_pwr_state)
+		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
+
+	ret = dc_link_detect_helper(link, reason);
+
+	if (dc->hwss.optimize_pwr_state)
+		dc->hwss.optimize_pwr_state(dc, dc->current_state);
+
+	return ret;
 }
 
 bool dc_link_get_hpd_state(struct dc_link *dc_link)

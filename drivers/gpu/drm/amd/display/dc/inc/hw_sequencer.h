@@ -232,6 +232,13 @@ struct hw_sequencer_funcs {
 			struct dc *dc,
 			struct dc_state *context);
 
+	void (*exit_optimized_pwr_state)(
+			const struct dc *dc,
+			struct dc_state *context);
+	void (*optimize_pwr_state)(
+			const struct dc *dc,
+			struct dc_state *context);
+
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	bool (*update_bandwidth)(
 			struct dc *dc,

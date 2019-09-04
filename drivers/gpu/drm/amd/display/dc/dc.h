@@ -246,6 +246,11 @@ enum wm_report_mode {
 	WM_REPORT_OVERRIDE = 1,
 };
 
+enum dcn_pwr_state {
+	DCN_PWR_STATE_OPTIMIZED = 0,
+	DCN_PWR_STATE_NORMAL = 1
+};
+
 /*
  * For any clocks that may differ per pipe
  * only the max is stored in this structure
@@ -260,7 +265,7 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
-
+	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
 	 * optimization required

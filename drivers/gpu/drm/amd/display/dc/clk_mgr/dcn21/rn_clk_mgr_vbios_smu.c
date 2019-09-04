@@ -175,12 +175,19 @@ int rn_vbios_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_
 	return actual_dppclk_set_mhz * 1000;
 }
 
-void rn_vbios_smu_set_display_count(struct clk_mgr_internal *clk_mgr, int display_count)
+void rn_vbios_smu_set_dcn_low_power_state(struct clk_mgr_internal *clk_mgr, enum dcn_pwr_state state)
 {
+	int disp_count;
+
+	if (state == DCN_PWR_STATE_OPTIMIZED)
+		disp_count = 0;
+	else
+		disp_count = 1;
+
 	rn_vbios_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_SetDisplayCount,
-			display_count);
+		clk_mgr,
+		VBIOSSMC_MSG_SetDisplayCount,
+		disp_count);
 }
 
 void rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr)
