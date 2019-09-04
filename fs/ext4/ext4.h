@@ -833,10 +833,8 @@ do {										\
 		(raw_inode)->xtime ## _extra =					\
 				ext4_encode_extra_time(&(inode)->xtime);	\
 		}								\
-	else	{\
+	else	\
 		(raw_inode)->xtime = cpu_to_le32(clamp_t(int32_t, (inode)->xtime.tv_sec, S32_MIN, S32_MAX));	\
-		ext4_warning_inode(inode, "inode does not support timestamps beyond 2038"); \
-	} \
 } while (0)
 
 #define EXT4_EINODE_SET_XTIME(xtime, einode, raw_inode)			       \
