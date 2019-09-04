@@ -1137,20 +1137,25 @@ static void soc_remove_link_components(struct snd_soc_card *card,
 	}
 }
 
-static int soc_probe_link_components(struct snd_soc_card *card,
-				     struct snd_soc_pcm_runtime *rtd, int order)
+static int soc_probe_link_components(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
+	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_rtdcom_list *rtdcom;
-	int ret;
+	int ret, order;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
+			for_each_rtdcom(rtd, rtdcom) {
+				component = rtdcom->component;
 
-		if (component->driver->probe_order == order) {
-			ret = soc_probe_component(card, component);
-			if (ret < 0)
-				return ret;
+				if (component->driver->probe_order != order)
+					continue;
+
+				ret = soc_probe_component(card, component);
+				if (ret < 0)
+					return ret;
+			}
 		}
 	}
 
@@ -1990,16 +1995,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* probe all components used by DAI links on this card */
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd) {
-			ret = soc_probe_link_components(card, rtd, order);
-			if (ret < 0) {
-				dev_err(card->dev,
-					"ASoC: failed to instantiate card %d\n",
-					ret);
-				goto probe_end;
-			}
-		}
+	ret = soc_probe_link_components(card);
+	if (ret < 0) {
+		dev_err(card->dev,
+			"ASoC: failed to instantiate card %d\n", ret);
+		goto probe_end;
 	}
 
 	/* probe auxiliary components */
