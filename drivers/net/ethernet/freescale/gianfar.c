@@ -275,7 +275,7 @@ static void gfar_configure_coalescing(struct gfar_private *priv,
 	}
 }
 
-void gfar_configure_coalescing_all(struct gfar_private *priv)
+static void gfar_configure_coalescing_all(struct gfar_private *priv)
 {
 	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 }
@@ -1063,7 +1063,7 @@ retry:
 }
 
 /* Halt the receive and transmit queues */
-void gfar_halt(struct gfar_private *priv)
+static void gfar_halt(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
@@ -1194,7 +1194,7 @@ void stop_gfar(struct net_device *dev)
 	free_skb_resources(priv);
 }
 
-void gfar_start(struct gfar_private *priv)
+static void gfar_start(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
@@ -2324,7 +2324,7 @@ static void count_errors(u32 lstatus, struct net_device *ndev)
 	}
 }
 
-irqreturn_t gfar_receive(int irq, void *grp_id)
+static irqreturn_t gfar_receive(int irq, void *grp_id)
 {
 	struct gfar_priv_grp *grp = (struct gfar_priv_grp *)grp_id;
 	unsigned long flags;
@@ -2526,7 +2526,8 @@ static void gfar_process_frame(struct net_device *ndev, struct sk_buff *skb)
  * until the budget/quota has been reached. Returns the number
  * of frames handled
  */
-int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
+static int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue,
+			      int rx_work_limit)
 {
 	struct net_device *ndev = rx_queue->ndev;
 	struct gfar_private *priv = netdev_priv(ndev);
