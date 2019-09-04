@@ -288,7 +288,8 @@ static int lcd_olinuxino_probe(struct i2c_client *client,
 	if (IS_ERR(lcd->backlight))
 		return PTR_ERR(lcd->backlight);
 
-	drm_panel_init(&lcd->panel, dev, &lcd_olinuxino_funcs);
+	drm_panel_init(&lcd->panel, dev, &lcd_olinuxino_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&lcd->panel);
 }

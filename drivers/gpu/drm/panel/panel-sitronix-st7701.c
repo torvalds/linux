@@ -369,7 +369,8 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(st7701->backlight))
 		return PTR_ERR(st7701->backlight);
 
-	drm_panel_init(&st7701->panel, &dsi->dev, &st7701_funcs);
+	drm_panel_init(&st7701->panel, &dsi->dev, &st7701_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	/**
 	 * Once sleep out has been issued, ST7701 IC required to wait 120ms

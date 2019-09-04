@@ -224,7 +224,7 @@ static int wuxga_nt_panel_add(struct wuxga_nt_panel *wuxga_nt)
 	}
 
 	drm_panel_init(&wuxga_nt->base, &wuxga_nt->dsi->dev,
-		       &wuxga_nt_panel_funcs);
+		       &wuxga_nt_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_add(&wuxga_nt->base);
 	if (ret < 0)
