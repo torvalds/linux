@@ -11,15 +11,9 @@
 
 static void erofs_readendio(struct bio *bio)
 {
-	struct super_block *const sb = bio->bi_private;
 	struct bio_vec *bvec;
 	blk_status_t err = bio->bi_status;
 	struct bvec_iter_all iter_all;
-
-	if (time_to_inject(EROFS_SB(sb), FAULT_READ_IO)) {
-		erofs_show_injection_info(FAULT_READ_IO);
-		err = BLK_STS_IOERR;
-	}
 
 	bio_for_each_segment_all(bvec, bio, iter_all) {
 		struct page *page = bvec->bv_page;
@@ -48,7 +42,6 @@ static struct bio *erofs_grab_raw_bio(struct super_block *sb,
 	bio->bi_end_io = erofs_readendio;
 	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
-	bio->bi_private = sb;
 	if (ismeta)
 		bio->bi_opf = REQ_OP_READ | REQ_META;
 	else

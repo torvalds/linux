@@ -126,63 +126,6 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_EROFS_FAULT_INJECTION
-const char *erofs_fault_name[FAULT_MAX] = {
-	[FAULT_KMALLOC]		= "kmalloc",
-	[FAULT_READ_IO]		= "read IO error",
-};
-
-static void __erofs_build_fault_attr(struct erofs_sb_info *sbi,
-				     unsigned int rate)
-{
-	struct erofs_fault_info *ffi = &sbi->fault_info;
-
-	if (rate) {
-		atomic_set(&ffi->inject_ops, 0);
-		ffi->inject_rate = rate;
-		ffi->inject_type = (1 << FAULT_MAX) - 1;
-	} else {
-		memset(ffi, 0, sizeof(struct erofs_fault_info));
-	}
-
-	set_opt(sbi, FAULT_INJECTION);
-}
-
-static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
-				  substring_t *args)
-{
-	int rate = 0;
-
-	if (args->from && match_int(args, &rate))
-		return -EINVAL;
-
-	__erofs_build_fault_attr(sbi, rate);
-	return 0;
-}
-
-static unsigned int erofs_get_fault_rate(struct erofs_sb_info *sbi)
-{
-	return sbi->fault_info.inject_rate;
-}
-#else
-static void __erofs_build_fault_attr(struct erofs_sb_info *sbi,
-				     unsigned int rate)
-{
-}
-
-static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
-				  substring_t *args)
-{
-	infoln("fault_injection options not supported");
-	return 0;
-}
-
-static unsigned int erofs_get_fault_rate(struct erofs_sb_info *sbi)
-{
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_EROFS_FS_ZIP
 static int erofs_build_cache_strategy(struct erofs_sb_info *sbi,
 				      substring_t *args)
@@ -237,7 +180,6 @@ enum {
 	Opt_nouser_xattr,
 	Opt_acl,
 	Opt_noacl,
-	Opt_fault_injection,
 	Opt_cache_strategy,
 	Opt_err
 };
@@ -247,7 +189,6 @@ static match_table_t erofs_tokens = {
 	{Opt_nouser_xattr, "nouser_xattr"},
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
-	{Opt_fault_injection, "fault_injection=%u"},
 	{Opt_cache_strategy, "cache_strategy=%s"},
 	{Opt_err, NULL}
 };
@@ -301,11 +242,6 @@ static int erofs_parse_options(struct super_block *sb, char *options)
 			infoln("noacl options not supported");
 			break;
 #endif
-		case Opt_fault_injection:
-			err = erofs_build_fault_attr(EROFS_SB(sb), args);
-			if (err)
-				return err;
-			break;
 		case Opt_cache_strategy:
 			err = erofs_build_cache_strategy(EROFS_SB(sb), args);
 			if (err)
@@ -593,9 +529,6 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	else
 		seq_puts(seq, ",noacl");
 #endif
-	if (test_opt(sbi, FAULT_INJECTION))
-		seq_printf(seq, ",fault_injection=%u",
-			   erofs_get_fault_rate(sbi));
 #ifdef CONFIG_EROFS_FS_ZIP
 	if (sbi->cache_strategy == EROFS_ZIP_CACHE_DISABLED) {
 		seq_puts(seq, ",cache_strategy=disabled");
@@ -615,7 +548,6 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	unsigned int org_mnt_opt = sbi->mount_opt;
-	unsigned int org_inject_rate = erofs_get_fault_rate(sbi);
 	int err;
 
 	DBG_BUGON(!sb_rdonly(sb));
@@ -631,9 +563,7 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 	*flags |= SB_RDONLY;
 	return 0;
 out:
-	__erofs_build_fault_attr(sbi, org_inject_rate);
 	sbi->mount_opt = org_mnt_opt;
-
 	return err;
 }
 

@@ -131,7 +131,6 @@ static int erofs_fill_symlink(struct inode *inode, void *data,
 			      unsigned int m_pofs)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
-	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 	char *lnk;
 
 	/* if it cannot be handled with fast symlink scheme */
@@ -141,7 +140,7 @@ static int erofs_fill_symlink(struct inode *inode, void *data,
 		return 0;
 	}
 
-	lnk = erofs_kmalloc(sbi, inode->i_size + 1, GFP_KERNEL);
+	lnk = kmalloc(inode->i_size + 1, GFP_KERNEL);
 	if (!lnk)
 		return -ENOMEM;
 

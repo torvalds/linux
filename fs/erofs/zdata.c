@@ -724,14 +724,8 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 		DBG_BUGON(PageUptodate(page));
 		DBG_BUGON(!page->mapping);
 
-		if (!sbi && !z_erofs_page_is_staging(page)) {
+		if (!sbi && !z_erofs_page_is_staging(page))
 			sbi = EROFS_SB(page->mapping->host->i_sb);
-
-			if (time_to_inject(sbi, FAULT_READ_IO)) {
-				erofs_show_injection_info(FAULT_READ_IO);
-				err = BLK_STS_IOERR;
-			}
-		}
 
 		/* sbi should already be gotten if the page is managed */
 		if (sbi)
