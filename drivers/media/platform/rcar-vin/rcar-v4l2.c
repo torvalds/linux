@@ -117,15 +117,7 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
-		break;
 	case V4L2_FIELD_ALTERNATE:
-		/*
-		 * Driver does not (yet) support outputting ALTERNATE to a
-		 * userspace. It does support outputting INTERLACED so use
-		 * the VIN hardware to combine the two fields.
-		 */
-		pix->field = V4L2_FIELD_INTERLACED;
-		pix->height *= 2;
 		break;
 	default:
 		pix->field = RVIN_DEFAULT_FIELD;
@@ -164,15 +156,25 @@ static int rvin_reset_format(struct rvin_dev *vin)
 
 	v4l2_fill_pix_format(&vin->format, &fmt.format);
 
-	rvin_format_align(vin, &vin->format);
-
 	vin->src_rect.top = 0;
 	vin->src_rect.left = 0;
 	vin->src_rect.width = vin->format.width;
 	vin->src_rect.height = vin->format.height;
 
+	/*  Make use of the hardware interlacer by default. */
+	if (vin->format.field == V4L2_FIELD_ALTERNATE) {
+		vin->format.field = V4L2_FIELD_INTERLACED;
+		vin->format.height *= 2;
+	}
+
+	rvin_format_align(vin, &vin->format);
+
 	vin->crop = vin->src_rect;
-	vin->compose = vin->src_rect;
+
+	vin->compose.top = 0;
+	vin->compose.left = 0;
+	vin->compose.width = vin->format.width;
+	vin->compose.height = vin->format.height;
 
 	return 0;
 }
@@ -217,13 +219,6 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 		crop->left = 0;
 		crop->width = pix->width;
 		crop->height = pix->height;
-
-		/*
-		 * If source is ALTERNATE the driver will use the VIN hardware
-		 * to INTERLACE it. The crop height then needs to be doubled.
-		 */
-		if (pix->field == V4L2_FIELD_ALTERNATE)
-			crop->height *= 2;
 	}
 
 	if (field != V4L2_FIELD_ANY)
