@@ -317,15 +317,19 @@ static int __init vfio_ccw_sch_init(void)
 					sizeof(struct ccw_io_region), 0,
 					SLAB_ACCOUNT, 0,
 					sizeof(struct ccw_io_region), NULL);
-	if (!vfio_ccw_io_region)
+	if (!vfio_ccw_io_region) {
+		ret = -ENOMEM;
 		goto out_err;
+	}
 
 	vfio_ccw_cmd_region = kmem_cache_create_usercopy("vfio_ccw_cmd_region",
 					sizeof(struct ccw_cmd_region), 0,
 					SLAB_ACCOUNT, 0,
 					sizeof(struct ccw_cmd_region), NULL);
-	if (!vfio_ccw_cmd_region)
+	if (!vfio_ccw_cmd_region) {
+		ret = -ENOMEM;
 		goto out_err;
+	}
 
 	isc_register(VFIO_CCW_ISC);
 	ret = css_driver_register(&vfio_ccw_sch_driver);
