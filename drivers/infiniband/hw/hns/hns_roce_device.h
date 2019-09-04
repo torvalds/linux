@@ -45,7 +45,7 @@
 
 #define HNS_ROCE_MAX_MSG_LEN			0x80000000
 
-#define HNS_ROCE_ALOGN_UP(a, b) ((((a) + (b) - 1) / (b)) * (b))
+#define HNS_ROCE_ALIGN_UP(a, b) ((((a) + (b) - 1) / (b)) * (b))
 
 #define HNS_ROCE_IB_MIN_SQ_STRIDE		6
 
