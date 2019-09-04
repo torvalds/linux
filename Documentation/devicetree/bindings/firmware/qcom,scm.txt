@@ -9,14 +9,16 @@ Required properties:
 - compatible: must contain one of the following:
  * "qcom,scm-apq8064"
  * "qcom,scm-apq8084"
+ * "qcom,scm-ipq4019"
  * "qcom,scm-msm8660"
  * "qcom,scm-msm8916"
  * "qcom,scm-msm8960"
  * "qcom,scm-msm8974"
  * "qcom,scm-msm8996"
  * "qcom,scm-msm8998"
- * "qcom,scm-ipq4019"
+ * "qcom,scm-sc7180"
  * "qcom,scm-sdm845"
+ * "qcom,scm-sm8150"
  and:
  * "qcom,scm"
 - clocks: Specifies clocks needed by the SCM interface, if any:
