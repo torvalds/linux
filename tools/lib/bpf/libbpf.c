@@ -182,7 +182,6 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 
 	enum bpf_attach_type expected_attach_type;
-	int btf_fd;
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
@@ -313,7 +312,6 @@ void bpf_program__unload(struct bpf_program *prog)
 	prog->instances.nr = -1;
 	zfree(&prog->instances.fds);
 
-	zclose(prog->btf_fd);
 	zfree(&prog->func_info);
 	zfree(&prog->line_info);
 }
@@ -392,7 +390,6 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
 	prog->type = BPF_PROG_TYPE_UNSPEC;
-	prog->btf_fd = -1;
 
 	return 0;
 errout:
@@ -2288,9 +2285,6 @@ bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
 		prog->line_info_rec_size = btf_ext__line_info_rec_size(obj->btf_ext);
 	}
 
-	if (!insn_offset)
-		prog->btf_fd = btf__fd(obj->btf);
-
 	return 0;
 }
 
@@ -2463,7 +2457,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int log_buf_size = BPF_LOG_BUF_SIZE;
 	char *log_buf;
-	int ret;
+	int btf_fd, ret;
 
 	if (!insns || !insns_cnt)
 		return -EINVAL;
@@ -2478,7 +2472,12 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.license = license;
 	load_attr.kern_version = kern_version;
 	load_attr.prog_ifindex = prog->prog_ifindex;
-	load_attr.prog_btf_fd = prog->btf_fd >= 0 ? prog->btf_fd : 0;
+	/* if .BTF.ext was loaded, kernel supports associated BTF for prog */
+	if (prog->obj->btf_ext)
+		btf_fd = bpf_object__btf_fd(prog->obj);
+	else
+		btf_fd = -1;
+	load_attr.prog_btf_fd = btf_fd >= 0 ? btf_fd : 0;
 	load_attr.func_info = prog->func_info;
 	load_attr.func_info_rec_size = prog->func_info_rec_size;
 	load_attr.func_info_cnt = prog->func_info_cnt;
@@ -5000,13 +4999,15 @@ int libbpf_num_possible_cpus(void)
 	static const char *fcpu = "/sys/devices/system/cpu/possible";
 	int len = 0, n = 0, il = 0, ir = 0;
 	unsigned int start = 0, end = 0;
+	int tmp_cpus = 0;
 	static int cpus;
 	char buf[128];
 	int error = 0;
 	int fd = -1;
 
-	if (cpus > 0)
-		return cpus;
+	tmp_cpus = READ_ONCE(cpus);
+	if (tmp_cpus > 0)
+		return tmp_cpus;
 
 	fd = open(fcpu, O_RDONLY);
 	if (fd < 0) {
@@ -5029,7 +5030,7 @@ int libbpf_num_possible_cpus(void)
 	}
 	buf[len] = '\0';
 
-	for (ir = 0, cpus = 0; ir <= len; ir++) {
+	for (ir = 0, tmp_cpus = 0; ir <= len; ir++) {
 		/* Each sub string separated by ',' has format \d+-\d+ or \d+ */
 		if (buf[ir] == ',' || buf[ir] == '\0') {
 			buf[ir] = '\0';
@@ -5041,13 +5042,15 @@ int libbpf_num_possible_cpus(void)
 			} else if (n == 1) {
 				end = start;
 			}
-			cpus += end - start + 1;
+			tmp_cpus += end - start + 1;
 			il = ir + 1;
 		}
 	}
-	if (cpus <= 0) {
-		pr_warning("Invalid #CPUs %d from %s\n", cpus, fcpu);
+	if (tmp_cpus <= 0) {
+		pr_warning("Invalid #CPUs %d from %s\n", tmp_cpus, fcpu);
 		return -EINVAL;
 	}
-	return cpus;
+
+	WRITE_ONCE(cpus, tmp_cpus);
+	return tmp_cpus;
 }

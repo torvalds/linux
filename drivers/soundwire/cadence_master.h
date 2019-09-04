@@ -163,6 +163,10 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 		      struct sdw_cdns_stream_config config);
 int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns);
 
+#ifdef CONFIG_DEBUG_FS
+void sdw_cdns_debugfs_init(struct sdw_cdns *cdns, struct dentry *root);
+#endif
+
 int sdw_cdns_get_stream(struct sdw_cdns *cdns,
 			struct sdw_cdns_streams *stream,
 			u32 ch, u32 dir);

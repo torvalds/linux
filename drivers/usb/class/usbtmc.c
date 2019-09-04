@@ -2362,8 +2362,11 @@ static int usbtmc_probe(struct usb_interface *intf,
 		goto err_put;
 	}
 
+	retcode = -EINVAL;
 	data->bulk_in = bulk_in->bEndpointAddress;
 	data->wMaxPacketSize = usb_endpoint_maxp(bulk_in);
+	if (!data->wMaxPacketSize)
+		goto err_put;
 	dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n", data->bulk_in);
 
 	data->bulk_out = bulk_out->bEndpointAddress;

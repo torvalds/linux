@@ -3579,23 +3579,25 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 	 * The complete tplg for SKL is loaded as index 0, we don't use
 	 * any other index
 	 */
-	ret = snd_soc_tplg_component_load(component,
-					&skl_tplg_ops, fw, 0);
+	ret = snd_soc_tplg_component_load(component, &skl_tplg_ops, fw, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
-		release_firmware(fw);
-		return -EINVAL;
+		goto err;
 	}
 
-	skl->tplg = fw;
 	ret = skl_tplg_create_pipe_widget_list(component);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		dev_err(bus->dev, "tplg create pipe widget list failed%d\n",
+				ret);
+		goto err;
+	}
 
 	list_for_each_entry(ppl, &skl->ppl_list, node)
 		skl_tplg_set_pipe_type(skl, ppl->pipe);
 
-	return 0;
+err:
+	release_firmware(fw);
+	return ret;
 }
 
 void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
@@ -3609,6 +3611,4 @@ void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
 
 	/* clean up topology */
 	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
-
-	release_firmware(skl->tplg);
 }
