@@ -798,7 +798,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		 * we can assume that more subframes belonging to the same A-MPDU
 		 * are coming. The last one will have valid RSSI info
 		 */
-		if (!(rxinfo & MT_RXINFO_RSSI)) {
+		if (rxinfo & MT_RXINFO_RSSI) {
 			if (!++dev->mt76.ampdu_ref)
 				dev->mt76.ampdu_ref++;
 		}
@@ -1130,7 +1130,7 @@ void mt76x02_mac_work(struct work_struct *work)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mt76x02_update_channel(&dev->mt76);
+	mt76_update_survey(&dev->mt76);
 	for (i = 0, idx = 0; i < 16; i++) {
 		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
 

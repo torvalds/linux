@@ -1291,7 +1291,7 @@ void mt7615_mac_work(struct work_struct *work)
 						mac_work.work);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7615_update_channel(&dev->mt76);
+	mt76_update_survey(&dev->mt76);
 	if (++dev->mac_work_count == 5) {
 		mt7615_mac_scs_check(dev);
 		dev->mac_work_count = 0;

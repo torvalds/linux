@@ -414,6 +414,25 @@ mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
 	return &msband->chan[idx];
 }
 
+void mt76_update_survey(struct mt76_dev *dev)
+{
+	struct mt76_channel_state *state;
+
+	if (dev->drv->update_survey)
+		dev->drv->update_survey(dev);
+
+	if (dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME) {
+		state = mt76_channel_state(dev, dev->chandef.chan);
+		spin_lock_bh(&dev->rx_lock);
+		spin_lock(&dev->cc_lock);
+		state->cc_bss_rx += dev->cur_cc_bss_rx;
+		dev->cur_cc_bss_rx = 0;
+		spin_unlock(&dev->cc_lock);
+		spin_unlock_bh(&dev->rx_lock);
+	}
+}
+EXPORT_SYMBOL_GPL(mt76_update_survey);
+
 void mt76_set_channel(struct mt76_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->hw;
@@ -422,9 +441,7 @@ void mt76_set_channel(struct mt76_dev *dev)
 	int timeout = HZ / 5;
 
 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(dev), timeout);
-
-	if (dev->drv->update_survey)
-		dev->drv->update_survey(dev);
+	mt76_update_survey(dev);
 
 	dev->chandef = *chandef;
 	dev->chan_state = mt76_channel_state(dev, chandef->chan);
@@ -447,7 +464,7 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 	int ret = 0;
 
 	if (idx == 0 && dev->drv->update_survey)
-		dev->drv->update_survey(dev);
+		mt76_update_survey(dev);
 
 	sband = &dev->sband_2g;
 	if (idx >= sband->sband.n_channels) {
@@ -464,12 +481,17 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 	memset(survey, 0, sizeof(*survey));
 	survey->channel = chan;
 	survey->filled = SURVEY_INFO_TIME | SURVEY_INFO_TIME_BUSY;
-	if (chan == dev->main_chan)
+	if (chan == dev->main_chan) {
 		survey->filled |= SURVEY_INFO_IN_USE;
+
+		if (dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME)
+			survey->filled |= SURVEY_INFO_TIME_BSS_RX;
+	}
 
 	spin_lock_bh(&dev->cc_lock);
 	survey->time = div_u64(state->cc_active, 1000);
 	survey->time_busy = div_u64(state->cc_busy, 1000);
+	survey->time_bss_rx = div_u64(state->cc_bss_rx, 1000);
 	spin_unlock_bh(&dev->cc_lock);
 
 	return ret;
@@ -567,6 +589,82 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 }
 
 static void
+mt76_airtime_report(struct mt76_dev *dev, struct mt76_rx_status *status,
+		    int len)
+{
+	struct mt76_wcid *wcid = status->wcid;
+	struct ieee80211_sta *sta;
+	u32 airtime;
+
+	airtime = mt76_calc_rx_airtime(dev, status, len);
+	dev->cur_cc_bss_rx += airtime;
+
+	if (!wcid || !wcid->sta)
+		return;
+
+	sta = container_of((void *)wcid, struct ieee80211_sta, drv_priv);
+	ieee80211_sta_register_airtime(sta, status->tid, 0, airtime);
+}
+
+static void
+mt76_airtime_flush_ampdu(struct mt76_dev *dev)
+{
+	struct mt76_wcid *wcid;
+	int wcid_idx;
+
+	if (!dev->rx_ampdu_len)
+		return;
+
+	wcid_idx = dev->rx_ampdu_status.wcid_idx;
+	if (dev->rx_ampdu_status.wcid_idx != 0xff)
+		wcid = rcu_dereference(dev->wcid[wcid_idx]);
+	else
+		wcid = NULL;
+	dev->rx_ampdu_status.wcid = wcid;
+
+	mt76_airtime_report(dev, &dev->rx_ampdu_status, dev->rx_ampdu_len);
+
+	dev->rx_ampdu_len = 0;
+	dev->rx_ampdu_ref = 0;
+}
+
+static void
+mt76_airtime_check(struct mt76_dev *dev, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct mt76_wcid *wcid = status->wcid;
+
+	if (!(dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME))
+		return;
+
+	if (!wcid || !wcid->sta) {
+		if (!ether_addr_equal(hdr->addr1, dev->macaddr))
+			return;
+
+		wcid = NULL;
+	}
+
+	if (!(status->flag & RX_FLAG_AMPDU_DETAILS) ||
+	    status->ampdu_ref != dev->rx_ampdu_ref)
+		mt76_airtime_flush_ampdu(dev);
+
+	if (status->flag & RX_FLAG_AMPDU_DETAILS) {
+		if (!dev->rx_ampdu_len ||
+		    status->ampdu_ref != dev->rx_ampdu_ref) {
+			dev->rx_ampdu_status = *status;
+			dev->rx_ampdu_status.wcid_idx = wcid ? wcid->idx : 0xff;
+			dev->rx_ampdu_ref = status->ampdu_ref;
+		}
+
+		dev->rx_ampdu_len += skb->len;
+		return;
+	}
+
+	mt76_airtime_report(dev, status, skb->len);
+}
+
+static void
 mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -581,6 +679,8 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 		if (sta)
 			wcid = status->wcid = (struct mt76_wcid *)sta->drv_priv;
 	}
+
+	mt76_airtime_check(dev, skb);
 
 	if (!wcid || !wcid->sta)
 		return;

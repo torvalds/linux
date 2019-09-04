@@ -155,7 +155,8 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
-		.drv_flags = MT_DRV_TX_ALIGNED4_SKBS,
+		.drv_flags = MT_DRV_TX_ALIGNED4_SKBS |
+			     MT_DRV_SW_RX_AIRTIME,
 		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
