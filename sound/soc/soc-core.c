@@ -1452,25 +1452,30 @@ static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 	return 0;
 }
 
-static int soc_probe_link_dais(struct snd_soc_card *card,
-		struct snd_soc_pcm_runtime *rtd, int order)
+static int soc_probe_link_dais(struct snd_soc_card *card)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
-	int i, ret;
+	struct snd_soc_pcm_runtime *rtd;
+	int i, order, ret;
 
-	dev_dbg(card->dev, "ASoC: probe %s dai link %d late %d\n",
-			card->name, rtd->num, order);
+	for_each_comp_order(order) {
+		for_each_card_rtds(card, rtd) {
 
-	ret = soc_probe_dai(cpu_dai, order);
-	if (ret)
-		return ret;
+			dev_dbg(card->dev,
+				"ASoC: probe %s dai link %d late %d\n",
+				card->name, rtd->num, order);
 
-	/* probe the CODEC DAI */
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		ret = soc_probe_dai(codec_dai, order);
-		if (ret)
-			return ret;
+			ret = soc_probe_dai(rtd->cpu_dai, order);
+			if (ret)
+				return ret;
+
+			/* probe the CODEC DAI */
+			for_each_rtd_codec_dai(rtd, i, codec_dai) {
+				ret = soc_probe_dai(codec_dai, order);
+				if (ret)
+					return ret;
+			}
+		}
 	}
 
 	return 0;
@@ -1933,7 +1938,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_aux_dev *aux;
-	int ret, i, order;
+	int ret, i;
 
 	mutex_lock(&client_mutex);
 	for_each_card_prelinks(card, i, dai_link) {
@@ -2034,16 +2039,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* probe all DAI links on this card */
-	for_each_comp_order(order) {
-		for_each_card_rtds(card, rtd) {
-			ret = soc_probe_link_dais(card, rtd, order);
-			if (ret < 0) {
-				dev_err(card->dev,
-					"ASoC: failed to instantiate card %d\n",
-					ret);
-				goto probe_end;
-			}
-		}
+	ret = soc_probe_link_dais(card);
+	if (ret < 0) {
+		dev_err(card->dev,
+			"ASoC: failed to instantiate card %d\n", ret);
+		goto probe_end;
 	}
 
 	for_each_card_rtds(card, rtd)
