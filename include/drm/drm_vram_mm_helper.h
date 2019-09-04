@@ -64,6 +64,7 @@ static inline struct drm_vram_mm *drm_vram_mm_of_bdev(
 	return container_of(bdev, struct drm_vram_mm, bdev);
 }
 
+int drm_vram_mm_debugfs_init(struct drm_minor *minor);
 int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 		     uint64_t vram_base, size_t vram_size,
 		     const struct drm_vram_mm_funcs *funcs);
