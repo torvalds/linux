@@ -2613,11 +2613,21 @@ gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 	}
 
 	if (iir & GEN8_DE_EDP_PSR) {
-		u32 psr_iir = I915_READ(EDP_PSR_IIR);
+		u32 psr_iir;
+		i915_reg_t iir_reg;
+
+		if (INTEL_GEN(dev_priv) >= 12)
+			iir_reg = TRANS_PSR_IIR(dev_priv->psr.transcoder);
+		else
+			iir_reg = EDP_PSR_IIR;
+
+		psr_iir = I915_READ(iir_reg);
+		I915_WRITE(iir_reg, psr_iir);
+
+		if (psr_iir)
+			found = true;
 
 		intel_psr_irq_handler(dev_priv, psr_iir);
-		I915_WRITE(EDP_PSR_IIR, psr_iir);
-		found = true;
 	}
 
 	if (!found)
@@ -3233,8 +3243,23 @@ static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 
 	intel_uncore_write(uncore, GEN11_DISPLAY_INT_CTL, 0);
 
-	intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
-	intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
+	if (INTEL_GEN(dev_priv) >= 12) {
+		enum transcoder trans;
+
+		for (trans = TRANSCODER_A; trans <= TRANSCODER_D; trans++) {
+			enum intel_display_power_domain domain;
+
+			domain = POWER_DOMAIN_TRANSCODER(trans);
+			if (!intel_display_power_is_enabled(dev_priv, domain))
+				continue;
+
+			intel_uncore_write(uncore, TRANS_PSR_IMR(trans), 0xffffffff);
+			intel_uncore_write(uncore, TRANS_PSR_IIR(trans), 0xffffffff);
+		}
+	} else {
+		intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
+		intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
+	}
 
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
@@ -3740,7 +3765,21 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
-	gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
+	if (INTEL_GEN(dev_priv) >= 12) {
+		enum transcoder trans;
+
+		for (trans = TRANSCODER_A; trans <= TRANSCODER_D; trans++) {
+			enum intel_display_power_domain domain;
+
+			domain = POWER_DOMAIN_TRANSCODER(trans);
+			if (!intel_display_power_is_enabled(dev_priv, domain))
+				continue;
+
+			gen3_assert_iir_is_zero(uncore, TRANS_PSR_IIR(trans));
+		}
+	} else {
+		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
+	}
 
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;
