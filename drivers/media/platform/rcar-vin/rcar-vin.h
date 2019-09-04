@@ -176,7 +176,7 @@ struct rvin_info {
  *
  * @crop:		active cropping
  * @compose:		active composing
- * @source:		active size of the video source
+ * @src_rect:		active size of the video source
  * @std:		active video standard of the video source
  *
  * @alpha:		Alpha component to fill in for supported pixel formats
@@ -215,7 +215,7 @@ struct rvin_dev {
 
 	struct v4l2_rect crop;
 	struct v4l2_rect compose;
-	struct v4l2_rect source;
+	struct v4l2_rect src_rect;
 	v4l2_std_id std;
 
 	unsigned int alpha;

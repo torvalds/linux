@@ -166,13 +166,13 @@ static int rvin_reset_format(struct rvin_dev *vin)
 
 	rvin_format_align(vin, &vin->format);
 
-	vin->source.top = 0;
-	vin->source.left = 0;
-	vin->source.width = vin->format.width;
-	vin->source.height = vin->format.height;
+	vin->src_rect.top = 0;
+	vin->src_rect.left = 0;
+	vin->src_rect.width = vin->format.width;
+	vin->src_rect.height = vin->format.height;
 
-	vin->crop = vin->source;
-	vin->compose = vin->source;
+	vin->crop = vin->src_rect;
+	vin->compose = vin->src_rect;
 
 	return 0;
 }
@@ -285,7 +285,7 @@ static int rvin_s_fmt_vid_cap(struct file *file, void *priv,
 	vin->format = f->fmt.pix;
 	vin->crop = crop;
 	vin->compose = compose;
-	vin->source = crop;
+	vin->src_rect = crop;
 
 	return 0;
 }
@@ -323,8 +323,8 @@ static int rvin_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 		s->r.left = s->r.top = 0;
-		s->r.width = vin->source.width;
-		s->r.height = vin->source.height;
+		s->r.width = vin->src_rect.width;
+		s->r.height = vin->src_rect.height;
 		break;
 	case V4L2_SEL_TGT_CROP:
 		s->r = vin->crop;
@@ -366,21 +366,22 @@ static int rvin_s_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_CROP:
 		/* Can't crop outside of source input */
 		max_rect.top = max_rect.left = 0;
-		max_rect.width = vin->source.width;
-		max_rect.height = vin->source.height;
+		max_rect.width = vin->src_rect.width;
+		max_rect.height = vin->src_rect.height;
 		v4l2_rect_map_inside(&r, &max_rect);
 
-		v4l_bound_align_image(&r.width, 6, vin->source.width, 0,
-				      &r.height, 2, vin->source.height, 0, 0);
+		v4l_bound_align_image(&r.width, 6, vin->src_rect.width, 0,
+				      &r.height, 2, vin->src_rect.height, 0, 0);
 
-		r.top  = clamp_t(s32, r.top, 0, vin->source.height - r.height);
-		r.left = clamp_t(s32, r.left, 0, vin->source.width - r.width);
+		r.top  = clamp_t(s32, r.top, 0,
+				 vin->src_rect.height - r.height);
+		r.left = clamp_t(s32, r.left, 0, vin->src_rect.width - r.width);
 
 		vin->crop = s->r = r;
 
 		vin_dbg(vin, "Cropped %dx%d@%d:%d of %dx%d\n",
 			r.width, r.height, r.left, r.top,
-			vin->source.width, vin->source.height);
+			vin->src_rect.width, vin->src_rect.height);
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
 		/* Make sure compose rect fits inside output format */
