@@ -286,6 +286,7 @@ struct mt76_hw_cap {
 
 struct mt76_driver_ops {
 	u32 drv_flags;
+	u32 survey_flags;
 	u16 txwi_size;
 
 	void (*update_survey)(struct mt76_dev *dev);
@@ -322,6 +323,7 @@ struct mt76_channel_state {
 	u64 cc_active;
 	u64 cc_busy;
 	u64 cc_bss_rx;
+	u64 cc_tx;
 };
 
 struct mt76_sband {

@@ -160,6 +160,8 @@ void mt7603_wtbl_init(struct mt7603_dev *dev, int idx, int vif,
 	addr = mt7603_wtbl4_addr(idx);
 	for (i = 0; i < MT_WTBL4_SIZE; i += 4)
 		mt76_wr(dev, addr + i, 0);
+
+	mt7603_wtbl_update(dev, idx, MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 }
 
 static void
@@ -378,6 +380,84 @@ void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid,
 		  i << (tid * MT_WTBL2_W15_BA_WIN_SIZE_SHIFT);
 
 	mt76_rmw(dev, addr + (15 * 4), tid_mask, tid_val);
+}
+
+void mt7603_mac_sta_poll(struct mt7603_dev *dev)
+{
+	static const u8 ac_to_tid[4] = {
+		[IEEE80211_AC_BE] = 0,
+		[IEEE80211_AC_BK] = 1,
+		[IEEE80211_AC_VI] = 4,
+		[IEEE80211_AC_VO] = 6
+	};
+	struct ieee80211_sta *sta;
+	struct mt7603_sta *msta;
+	u32 total_airtime = 0;
+	u32 airtime[4];
+	u32 addr;
+	int i;
+
+	rcu_read_lock();
+
+	while (1) {
+		bool clear = false;
+
+		spin_lock_bh(&dev->sta_poll_lock);
+		if (list_empty(&dev->sta_poll_list)) {
+			spin_unlock_bh(&dev->sta_poll_lock);
+			break;
+		}
+
+		msta = list_first_entry(&dev->sta_poll_list, struct mt7603_sta,
+					poll_list);
+		list_del_init(&msta->poll_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
+
+		addr = mt7603_wtbl4_addr(msta->wcid.idx);
+		for (i = 0; i < 4; i++) {
+			u32 airtime_last = msta->tx_airtime_ac[i];
+
+			msta->tx_airtime_ac[i] = mt76_rr(dev, addr + i * 8);
+			airtime[i] = msta->tx_airtime_ac[i] - airtime_last;
+			airtime[i] *= 32;
+			total_airtime += airtime[i];
+
+			if (msta->tx_airtime_ac[i] & BIT(22))
+				clear = true;
+		}
+
+		if (clear) {
+			mt7603_wtbl_update(dev, msta->wcid.idx,
+					   MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
+			memset(msta->tx_airtime_ac, 0,
+			       sizeof(msta->tx_airtime_ac));
+		}
+
+		if (!msta->wcid.sta)
+			continue;
+
+		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
+		for (i = 0; i < 4; i++) {
+			struct mt76_queue *q = dev->mt76.q_tx[i].q;
+			u8 qidx = q->hw_idx;
+			u8 tid = ac_to_tid[i];
+			u32 txtime = airtime[qidx];
+
+			if (!txtime)
+				continue;
+
+			ieee80211_sta_register_airtime(sta, tid, txtime, 0);
+		}
+	}
+
+	rcu_read_unlock();
+
+	if (!total_airtime)
+		return;
+
+	spin_lock_bh(&dev->mt76.cc_lock);
+	dev->mt76.chan_state->cc_tx += total_airtime;
+	spin_unlock_bh(&dev->mt76.cc_lock);
 }
 
 static struct mt76_wcid *
@@ -1158,6 +1238,12 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 
 	msta = container_of(wcid, struct mt7603_sta, wcid);
 	sta = wcid_to_sta(wcid);
+
+	if (list_empty(&msta->poll_list)) {
+		spin_lock_bh(&dev->sta_poll_lock);
+		list_add_tail(&msta->poll_list, &dev->sta_poll_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
+	}
 
 	if (mt7603_mac_add_txs_skb(dev, msta, pid, txs_data))
 		goto out;

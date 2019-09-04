@@ -481,6 +481,7 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 	memset(survey, 0, sizeof(*survey));
 	survey->channel = chan;
 	survey->filled = SURVEY_INFO_TIME | SURVEY_INFO_TIME_BUSY;
+	survey->filled |= dev->drv->survey_flags;
 	if (chan == dev->main_chan) {
 		survey->filled |= SURVEY_INFO_IN_USE;
 
@@ -492,6 +493,7 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 	survey->time = div_u64(state->cc_active, 1000);
 	survey->time_busy = div_u64(state->cc_busy, 1000);
 	survey->time_bss_rx = div_u64(state->cc_bss_rx, 1000);
+	survey->time_tx = div_u64(state->cc_tx, 1000);
 	spin_unlock_bh(&dev->cc_lock);
 
 	return ret;

@@ -61,6 +61,9 @@ struct mt7603_sta {
 
 	struct mt7603_vif *vif;
 
+	struct list_head poll_list;
+	u32 tx_airtime_ac[4];
+
 	struct sk_buff_head psq;
 
 	struct ieee80211_tx_rate rates[4];
@@ -102,6 +105,9 @@ struct mt7603_dev {
 	u32 rxfilter;
 
 	u8 vif_mask;
+
+	struct list_head sta_poll_list;
+	spinlock_t sta_poll_lock;
 
 	struct mt7603_sta global_sta;
 
@@ -202,6 +208,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data);
 void mt7603_mac_rx_ba_reset(struct mt7603_dev *dev, void *addr, u8 tid);
 void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid,
 			    int ba_size);
+void mt7603_mac_sta_poll(struct mt7603_dev *dev);
 
 void mt7603_pse_client_reset(struct mt7603_dev *dev);
 
