@@ -166,6 +166,8 @@ static void gfxhub_v2_0_enable_system_domain(struct amdgpu_device *adev)
 	tmp = RREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_CNTL);
 	tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL,
+			    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 	WREG32_SOC15(GC, 0, mmGCVM_CONTEXT0_CNTL, tmp);
 }
 
