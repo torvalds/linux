@@ -106,7 +106,8 @@ static int lvds_encoder_probe(struct platform_device *pdev)
 	}
 
 	lvds_encoder->panel_bridge =
-		devm_drm_panel_bridge_add(dev, panel, DRM_MODE_CONNECTOR_LVDS);
+		devm_drm_panel_bridge_add_typed(dev, panel,
+						DRM_MODE_CONNECTOR_LVDS);
 	if (IS_ERR(lvds_encoder->panel_bridge))
 		return PTR_ERR(lvds_encoder->panel_bridge);
 

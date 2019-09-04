@@ -1236,8 +1236,8 @@ int ltdc_load(struct drm_device *ddev)
 	/* Add endpoints panels or bridges if any */
 	for (i = 0; i < MAX_ENDPOINTS; i++) {
 		if (panel[i]) {
-			bridge[i] = drm_panel_bridge_add(panel[i],
-							DRM_MODE_CONNECTOR_DPI);
+			bridge[i] = drm_panel_bridge_add_typed(panel[i],
+							       DRM_MODE_CONNECTOR_DPI);
 			if (IS_ERR(bridge[i])) {
 				DRM_ERROR("panel-bridge endpoint %d\n", i);
 				ret = PTR_ERR(bridge[i]);
