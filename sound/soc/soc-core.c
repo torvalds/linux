@@ -1455,18 +1455,12 @@ static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 static int soc_probe_link_dais(struct snd_soc_card *card,
 		struct snd_soc_pcm_runtime *rtd, int order)
 {
-	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *codec_dai;
-	int i, ret, num;
+	int i, ret;
 
 	dev_dbg(card->dev, "ASoC: probe %s dai link %d late %d\n",
 			card->name, rtd->num, order);
-
-	/* set default power off timeout */
-	rtd->pmdown_time = pmdown_time;
 
 	ret = soc_probe_dai(cpu_dai, order);
 	if (ret)
@@ -1479,9 +1473,20 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 			return ret;
 	}
 
-	/* complete DAI probe during last probe */
-	if (order != SND_SOC_COMP_ORDER_LAST)
-		return 0;
+	return 0;
+}
+
+static int soc_link_init(struct snd_soc_card *card,
+			 struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+	int ret, num;
+
+	/* set default power off timeout */
+	rtd->pmdown_time = pmdown_time;
 
 	/* do machine specific initialization */
 	if (dai_link->init) {
@@ -2040,6 +2045,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			}
 		}
 	}
+
+	for_each_card_rtds(card, rtd)
+		soc_link_init(card, rtd);
 
 	snd_soc_dapm_link_dai_widgets(card);
 	snd_soc_dapm_connect_dai_link_widgets(card);
