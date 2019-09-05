@@ -4,7 +4,7 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
 
-#include "meson-g12-common.dtsi"
+#include "meson-g12.dtsi"
 #include <dt-bindings/power/meson-g12a-power.h>
 
 / {
