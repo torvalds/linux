@@ -138,7 +138,7 @@ static int sprd_rtc_lock_alarm(struct sprd_rtc *rtc, bool lock)
 	if (ret)
 		return ret;
 
-	val &= ~(SPRD_RTC_ALMLOCK_MASK | SPRD_RTC_POWEROFF_ALM_FLAG);
+	val &= ~SPRD_RTC_ALMLOCK_MASK;
 	if (lock)
 		val |= SPRD_RTC_ALM_LOCK;
 	else
