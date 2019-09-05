@@ -11,6 +11,12 @@
  * pointer, yet implementation is deferred until the need actually arises.
  */
 
+/*
+ * FIXME: What to do if only 8 bits of a 16 bit address are sent?
+ * The ST-M24C64 sends only 0xff then. Needs verification with other
+ * EEPROMs, though. We currently use the 8 bit as a valid address.
+ */
+
 #include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
