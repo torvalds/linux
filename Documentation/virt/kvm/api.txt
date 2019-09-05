@@ -586,7 +586,7 @@ Capability: basic
 Architectures: x86
 Type: vcpu ioctl
 Parameters: struct kvm_msrs (in)
-Returns: 0 on success, -1 on error
+Returns: number of msrs successfully set (see below), -1 on error
 
 Writes model-specific registers to the vcpu.  See KVM_GET_MSRS for the
 data structures.
@@ -594,6 +594,11 @@ data structures.
 Application code should set the 'nmsrs' member (which indicates the
 size of the entries array), and the 'index' and 'data' members of each
 array entry.
+
+It tries to set the MSRs in array entries[] one by one. If setting an MSR
+fails, e.g., due to setting reserved bits, the MSR isn't supported/emulated
+by KVM, etc..., it stops processing the MSR list and returns the number of
+MSRs that have been set successfully.
 
 
 4.20 KVM_SET_CPUID
