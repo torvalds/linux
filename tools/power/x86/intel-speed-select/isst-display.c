@@ -133,7 +133,7 @@ static void format_and_print(FILE *outf, int level, char *header, char *value)
 	last_level = level;
 }
 
-static void print_packag_info(int cpu, FILE *outf)
+static void print_package_info(int cpu, FILE *outf)
 {
 	char header[256];
 
@@ -261,7 +261,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 	char value[256];
 	int i, base_level = 1;
 
-	print_packag_info(cpu, outf);
+	print_package_info(cpu, outf);
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
@@ -397,7 +397,7 @@ void isst_ctdp_display_information_end(FILE *outf)
 void isst_pbf_display_information(int cpu, FILE *outf, int level,
 				  struct isst_pbf_info *pbf_info)
 {
-	print_packag_info(cpu, outf);
+	print_package_info(cpu, outf);
 	_isst_pbf_display_information(cpu, outf, level, pbf_info, 4);
 	format_and_print(outf, 1, NULL, NULL);
 }
@@ -406,7 +406,7 @@ void isst_fact_display_information(int cpu, FILE *outf, int level,
 				   int fact_bucket, int fact_avx,
 				   struct isst_fact_info *fact_info)
 {
-	print_packag_info(cpu, outf);
+	print_package_info(cpu, outf);
 	_isst_fact_display_information(cpu, outf, level, fact_bucket, fact_avx,
 				       fact_info, 4);
 	format_and_print(outf, 1, NULL, NULL);
