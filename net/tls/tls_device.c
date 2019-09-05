@@ -159,12 +159,8 @@ static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 	info = ctx->retransmit_hint;
-	if (info && !before(acked_seq, info->end_seq)) {
+	if (info && !before(acked_seq, info->end_seq))
 		ctx->retransmit_hint = NULL;
-		list_del(&info->list);
-		destroy_record(info);
-		deleted_records++;
-	}
 
 	list_for_each_entry_safe(info, temp, &ctx->records_list, list) {
 		if (before(acked_seq, info->end_seq))
@@ -838,22 +834,18 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	struct net_device *netdev;
 	char *iv, *rec_seq;
 	struct sk_buff *skb;
-	int rc = -EINVAL;
 	__be64 rcd_sn;
+	int rc;
 
 	if (!ctx)
-		goto out;
+		return -EINVAL;
 
-	if (ctx->priv_ctx_tx) {
-		rc = -EEXIST;
-		goto out;
-	}
+	if (ctx->priv_ctx_tx)
+		return -EEXIST;
 
 	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);
-	if (!start_marker_record) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!start_marker_record)
+		return -ENOMEM;
 
 	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
 	if (!offload_ctx) {
@@ -939,17 +931,11 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	if (skb)
 		TCP_SKB_CB(skb)->eor = 1;
 
-	/* We support starting offload on multiple sockets
-	 * concurrently, so we only need a read lock here.
-	 * This lock must precede get_netdev_for_sock to prevent races between
-	 * NETDEV_DOWN and setsockopt.
-	 */
-	down_read(&device_offload_lock);
 	netdev = get_netdev_for_sock(sk);
 	if (!netdev) {
 		pr_err_ratelimited("%s: netdev not found\n", __func__);
 		rc = -EINVAL;
-		goto release_lock;
+		goto disable_cad;
 	}
 
 	if (!(netdev->features & NETIF_F_HW_TLS_TX)) {
@@ -960,10 +946,15 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	/* Avoid offloading if the device is down
 	 * We don't want to offload new flows after
 	 * the NETDEV_DOWN event
+	 *
+	 * device_offload_lock is taken in tls_devices's NETDEV_DOWN
+	 * handler thus protecting from the device going down before
+	 * ctx was added to tls_device_list.
 	 */
+	down_read(&device_offload_lock);
 	if (!(netdev->flags & IFF_UP)) {
 		rc = -EINVAL;
-		goto release_netdev;
+		goto release_lock;
 	}
 
 	ctx->priv_ctx_tx = offload_ctx;
@@ -971,9 +962,10 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 					     &ctx->crypto_send.info,
 					     tcp_sk(sk)->write_seq);
 	if (rc)
-		goto release_netdev;
+		goto release_lock;
 
 	tls_device_attach(ctx, sk, netdev);
+	up_read(&device_offload_lock);
 
 	/* following this assignment tls_is_sk_tx_device_offloaded
 	 * will return true and the context might be accessed
@@ -981,13 +973,14 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	 */
 	smp_store_release(&sk->sk_validate_xmit_skb, tls_validate_xmit_skb);
 	dev_put(netdev);
-	up_read(&device_offload_lock);
-	goto out;
 
-release_netdev:
-	dev_put(netdev);
+	return 0;
+
 release_lock:
 	up_read(&device_offload_lock);
+release_netdev:
+	dev_put(netdev);
+disable_cad:
 	clean_acked_data_disable(inet_csk(sk));
 	crypto_free_aead(offload_ctx->aead_send);
 free_rec_seq:
@@ -999,7 +992,6 @@ free_offload_ctx:
 	ctx->priv_ctx_tx = NULL;
 free_marker_record:
 	kfree(start_marker_record);
-out:
 	return rc;
 }
 
@@ -1012,17 +1004,10 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	if (ctx->crypto_recv.info.version != TLS_1_2_VERSION)
 		return -EOPNOTSUPP;
 
-	/* We support starting offload on multiple sockets
-	 * concurrently, so we only need a read lock here.
-	 * This lock must precede get_netdev_for_sock to prevent races between
-	 * NETDEV_DOWN and setsockopt.
-	 */
-	down_read(&device_offload_lock);
 	netdev = get_netdev_for_sock(sk);
 	if (!netdev) {
 		pr_err_ratelimited("%s: netdev not found\n", __func__);
-		rc = -EINVAL;
-		goto release_lock;
+		return -EINVAL;
 	}
 
 	if (!(netdev->features & NETIF_F_HW_TLS_RX)) {
@@ -1033,16 +1018,21 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	/* Avoid offloading if the device is down
 	 * We don't want to offload new flows after
 	 * the NETDEV_DOWN event
+	 *
+	 * device_offload_lock is taken in tls_devices's NETDEV_DOWN
+	 * handler thus protecting from the device going down before
+	 * ctx was added to tls_device_list.
 	 */
+	down_read(&device_offload_lock);
 	if (!(netdev->flags & IFF_UP)) {
 		rc = -EINVAL;
-		goto release_netdev;
+		goto release_lock;
 	}
 
 	context = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_RX, GFP_KERNEL);
 	if (!context) {
 		rc = -ENOMEM;
-		goto release_netdev;
+		goto release_lock;
 	}
 	context->resync_nh_reset = 1;
 
@@ -1058,7 +1048,11 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 		goto free_sw_resources;
 
 	tls_device_attach(ctx, sk, netdev);
-	goto release_netdev;
+	up_read(&device_offload_lock);
+
+	dev_put(netdev);
+
+	return 0;
 
 free_sw_resources:
 	up_read(&device_offload_lock);
@@ -1066,10 +1060,10 @@ free_sw_resources:
 	down_read(&device_offload_lock);
 release_ctx:
 	ctx->priv_ctx_rx = NULL;
-release_netdev:
-	dev_put(netdev);
 release_lock:
 	up_read(&device_offload_lock);
+release_netdev:
+	dev_put(netdev);
 	return rc;
 }
 
