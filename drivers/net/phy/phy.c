@@ -525,6 +525,12 @@ static int phy_check_link_status(struct phy_device *phydev)
 
 	WARN_ON(!mutex_is_locked(&phydev->lock));
 
+	/* Keep previous state if loopback is enabled because some PHYs
+	 * report that Link is Down when loopback is enabled.
+	 */
+	if (phydev->loopback_enabled)
+		return 0;
+
 	err = phy_read_status(phydev);
 	if (err)
 		return err;
