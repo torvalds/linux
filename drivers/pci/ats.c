@@ -346,6 +346,16 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 	u16 control, supported;
 	int pos;
 
+	/*
+	 * VFs must not implement the PASID Capability, but if a PF
+	 * supports PASID, its VFs share the PF PASID configuration.
+	 */
+	if (pdev->is_virtfn) {
+		if (pci_physfn(pdev)->pasid_enabled)
+			return 0;
+		return -EINVAL;
+	}
+
 	if (WARN_ON(pdev->pasid_enabled))
 		return -EBUSY;
 
@@ -383,6 +393,10 @@ void pci_disable_pasid(struct pci_dev *pdev)
 	u16 control = 0;
 	int pos;
 
+	/* VFs share the PF PASID configuration */
+	if (pdev->is_virtfn)
+		return;
+
 	if (WARN_ON(!pdev->pasid_enabled))
 		return;
 
@@ -404,6 +418,9 @@ void pci_restore_pasid_state(struct pci_dev *pdev)
 {
 	u16 control;
 	int pos;
+
+	if (pdev->is_virtfn)
+		return;
 
 	if (!pdev->pasid_enabled)
 		return;
@@ -432,6 +449,9 @@ int pci_pasid_features(struct pci_dev *pdev)
 	u16 supported;
 	int pos;
 
+	if (pdev->is_virtfn)
+		pdev = pci_physfn(pdev);
+
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PASID);
 	if (!pos)
 		return -EINVAL;
@@ -457,6 +477,9 @@ int pci_max_pasids(struct pci_dev *pdev)
 {
 	u16 supported;
 	int pos;
+
+	if (pdev->is_virtfn)
+		pdev = pci_physfn(pdev);
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PASID);
 	if (!pos)
