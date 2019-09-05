@@ -97,6 +97,7 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 	msg->xdiag_ino = sk_ino;
 	sock_diag_save_cookie(sk, msg->xdiag_cookie);
 
+	mutex_lock(&xs->mutex);
 	if ((req->xdiag_show & XDP_SHOW_INFO) && xsk_diag_put_info(xs, nlskb))
 		goto out_nlmsg_trim;
 
@@ -117,10 +118,12 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 	    sock_diag_put_meminfo(sk, nlskb, XDP_DIAG_MEMINFO))
 		goto out_nlmsg_trim;
 
+	mutex_unlock(&xs->mutex);
 	nlmsg_end(nlskb, nlh);
 	return 0;
 
 out_nlmsg_trim:
+	mutex_unlock(&xs->mutex);
 	nlmsg_cancel(nlskb, nlh);
 	return -EMSGSIZE;
 }
