@@ -1855,8 +1855,6 @@ static void icl_get_cdclk(struct drm_i915_private *dev_priv,
 	u32 val;
 	int div;
 
-	cdclk_state->bypass = 50000;
-
 	val = I915_READ(SKL_DSSM);
 	switch (val & ICL_DSSM_CDCLK_PLL_REFCLK_MASK) {
 	default:
@@ -1872,6 +1870,11 @@ static void icl_get_cdclk(struct drm_i915_private *dev_priv,
 		cdclk_state->ref = 38400;
 		break;
 	}
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		cdclk_state->bypass = cdclk_state->ref / 2;
+	else
+		cdclk_state->bypass = 50000;
 
 	val = I915_READ(BXT_DE_PLL_ENABLE);
 	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0 ||
