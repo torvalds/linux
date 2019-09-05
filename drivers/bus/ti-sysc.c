@@ -280,9 +280,6 @@ static int sysc_get_one_clock(struct sysc *ddata, const char *name)
 
 	ddata->clocks[index] = devm_clk_get(ddata->dev, name);
 	if (IS_ERR(ddata->clocks[index])) {
-		if (PTR_ERR(ddata->clocks[index]) == -ENOENT)
-			return 0;
-
 		dev_err(ddata->dev, "clock get error for %s: %li\n",
 			name, PTR_ERR(ddata->clocks[index]));
 
@@ -357,7 +354,7 @@ static int sysc_get_clocks(struct sysc *ddata)
 			continue;
 
 		error = sysc_get_one_clock(ddata, name);
-		if (error && error != -ENOENT)
+		if (error)
 			return error;
 	}
 
