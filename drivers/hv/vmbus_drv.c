@@ -2164,9 +2164,17 @@ static int vmbus_bus_suspend(struct device *dev)
 	if (atomic_read(&vmbus_connection.nr_chan_close_on_suspend) > 0)
 		wait_for_completion(&vmbus_connection.ready_for_suspend_event);
 
+	WARN_ON(atomic_read(&vmbus_connection.nr_chan_fixup_on_resume) != 0);
+
 	mutex_lock(&vmbus_connection.channel_mutex);
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		/*
+		 * Invalidate the field. Upon resume, vmbus_onoffer() will fix
+		 * up the field, and the other fields (if necessary).
+		 */
+		channel->offermsg.child_relid = INVALID_RELID;
+
 		if (is_hvsock_channel(channel)) {
 			if (!channel->rescind) {
 				pr_err("hv_sock channel not rescinded!\n");
@@ -2181,6 +2189,8 @@ static int vmbus_bus_suspend(struct device *dev)
 			WARN_ON_ONCE(1);
 		}
 		spin_unlock_irqrestore(&channel->lock, flags);
+
+		atomic_inc(&vmbus_connection.nr_chan_fixup_on_resume);
 	}
 
 	mutex_unlock(&vmbus_connection.channel_mutex);
@@ -2188,6 +2198,9 @@ static int vmbus_bus_suspend(struct device *dev)
 	vmbus_initiate_unload(false);
 
 	vmbus_connection.conn_state = DISCONNECTED;
+
+	/* Reset the event for the next resume. */
+	reinit_completion(&vmbus_connection.ready_for_resume_event);
 
 	return 0;
 }
@@ -2223,7 +2236,11 @@ static int vmbus_bus_resume(struct device *dev)
 	if (ret != 0)
 		return ret;
 
+	WARN_ON(atomic_read(&vmbus_connection.nr_chan_fixup_on_resume) == 0);
+
 	vmbus_request_offers();
+
+	wait_for_completion(&vmbus_connection.ready_for_resume_event);
 
 	/* Reset the event for the next suspend. */
 	reinit_completion(&vmbus_connection.ready_for_suspend_event);

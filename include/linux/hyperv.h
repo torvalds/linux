@@ -426,6 +426,9 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_COUNT
 };
 
+/* Hyper-V supports about 2048 channels, and the RELIDs start with 1. */
+#define INVALID_RELID	U32_MAX
+
 struct vmbus_channel_message_header {
 	enum vmbus_channel_message_type msgtype;
 	u32 padding;

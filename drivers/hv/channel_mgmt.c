@@ -407,7 +407,15 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 		cpumask_clear_cpu(channel->target_cpu,
 				  &primary_channel->alloced_cpus_in_node);
 
-	vmbus_release_relid(channel->offermsg.child_relid);
+	/*
+	 * Upon suspend, an in-use hv_sock channel is marked as "rescinded" and
+	 * the relid is invalidated; after hibernation, when the user-space app
+	 * destroys the channel, the relid is INVALID_RELID, and in this case
+	 * it's unnecessary and unsafe to release the old relid, since the same
+	 * relid can refer to a completely different channel now.
+	 */
+	if (channel->offermsg.child_relid != INVALID_RELID)
+		vmbus_release_relid(channel->offermsg.child_relid);
 
 	free_channel(channel);
 }
@@ -851,6 +859,36 @@ void vmbus_initiate_unload(bool crash)
 		vmbus_wait_for_unload();
 }
 
+static void check_ready_for_resume_event(void)
+{
+	/*
+	 * If all the old primary channels have been fixed up, then it's safe
+	 * to resume.
+	 */
+	if (atomic_dec_and_test(&vmbus_connection.nr_chan_fixup_on_resume))
+		complete(&vmbus_connection.ready_for_resume_event);
+}
+
+static void vmbus_setup_channel_state(struct vmbus_channel *channel,
+				      struct vmbus_channel_offer_channel *offer)
+{
+	/*
+	 * Setup state for signalling the host.
+	 */
+	channel->sig_event = VMBUS_EVENT_CONNECTION_ID;
+
+	if (vmbus_proto_version != VERSION_WS2008) {
+		channel->is_dedicated_interrupt =
+				(offer->is_dedicated_interrupt != 0);
+		channel->sig_event = offer->connection_id;
+	}
+
+	memcpy(&channel->offermsg, offer,
+	       sizeof(struct vmbus_channel_offer_channel));
+	channel->monitor_grp = (u8)offer->monitorid / 32;
+	channel->monitor_bit = (u8)offer->monitorid % 32;
+}
+
 /*
  * find_primary_channel_by_offer - Get the channel object given the new offer.
  * This is only used in the resume path of hibernation.
@@ -902,14 +940,29 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		atomic_dec(&vmbus_connection.offer_in_progress);
 
 		/*
-		 * We're resuming from hibernation: we expect the host to send
-		 * exactly the same offers that we had before the hibernation.
+		 * We're resuming from hibernation: all the sub-channel and
+		 * hv_sock channels we had before the hibernation should have
+		 * been cleaned up, and now we must be seeing a re-offered
+		 * primary channel that we had before the hibernation.
 		 */
-		offer_sz = sizeof(*offer);
-		if (memcmp(offer, &oldchannel->offermsg, offer_sz) == 0)
-			return;
 
-		pr_debug("Mismatched offer from the host (relid=%d)\n",
+		WARN_ON(oldchannel->offermsg.child_relid != INVALID_RELID);
+		/* Fix up the relid. */
+		oldchannel->offermsg.child_relid = offer->child_relid;
+
+		offer_sz = sizeof(*offer);
+		if (memcmp(offer, &oldchannel->offermsg, offer_sz) == 0) {
+			check_ready_for_resume_event();
+			return;
+		}
+
+		/*
+		 * This is not an error, since the host can also change the
+		 * other field(s) of the offer, e.g. on WS RS5 (Build 17763),
+		 * the offer->connection_id of the Mellanox VF vmbus device
+		 * can change when the host reoffers the device upon resume.
+		 */
+		pr_debug("vmbus offer changed: relid=%d\n",
 			 offer->child_relid);
 
 		print_hex_dump_debug("Old vmbus offer: ", DUMP_PREFIX_OFFSET,
@@ -917,6 +970,12 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 				     false);
 		print_hex_dump_debug("New vmbus offer: ", DUMP_PREFIX_OFFSET,
 				     16, 4, offer, offer_sz, false);
+
+		/* Fix up the old channel. */
+		vmbus_setup_channel_state(oldchannel, offer);
+
+		check_ready_for_resume_event();
+
 		return;
 	}
 
@@ -929,21 +988,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		return;
 	}
 
-	/*
-	 * Setup state for signalling the host.
-	 */
-	newchannel->sig_event = VMBUS_EVENT_CONNECTION_ID;
-
-	if (vmbus_proto_version != VERSION_WS2008) {
-		newchannel->is_dedicated_interrupt =
-				(offer->is_dedicated_interrupt != 0);
-		newchannel->sig_event = offer->connection_id;
-	}
-
-	memcpy(&newchannel->offermsg, offer,
-	       sizeof(struct vmbus_channel_offer_channel));
-	newchannel->monitor_grp = (u8)offer->monitorid / 32;
-	newchannel->monitor_bit = (u8)offer->monitorid % 32;
+	vmbus_setup_channel_state(newchannel, offer);
 
 	vmbus_process_offer(newchannel);
 }

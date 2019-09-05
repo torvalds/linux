@@ -272,6 +272,20 @@ struct vmbus_connection {
 	 * drop to zero.
 	 */
 	struct completion ready_for_suspend_event;
+
+	/*
+	 * The number of primary channels that should be "fixed up"
+	 * upon resume: these channels are re-offered upon resume, and some
+	 * fields of the channel offers (i.e. child_relid and connection_id)
+	 * can change, so the old offermsg must be fixed up, before the resume
+	 * callbacks of the VSC drivers start to further touch the channels.
+	 */
+	atomic_t nr_chan_fixup_on_resume;
+	/*
+	 * vmbus_bus_resume() waits for "nr_chan_fixup_on_resume" to
+	 * drop to zero.
+	 */
+	struct completion ready_for_resume_event;
 };
 
 
