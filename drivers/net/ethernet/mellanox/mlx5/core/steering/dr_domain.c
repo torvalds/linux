@@ -72,24 +72,21 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 
 	dmn->ste_icm_pool = mlx5dr_icm_pool_create(dmn, DR_ICM_TYPE_STE);
 	if (!dmn->ste_icm_pool) {
-		mlx5dr_err(dmn, "Couldn't get icm memory for %s\n",
-			   dev_name(dmn->mdev->device));
+		mlx5dr_err(dmn, "Couldn't get icm memory\n");
 		ret = -ENOMEM;
 		goto clean_uar;
 	}
 
 	dmn->action_icm_pool = mlx5dr_icm_pool_create(dmn, DR_ICM_TYPE_MODIFY_ACTION);
 	if (!dmn->action_icm_pool) {
-		mlx5dr_err(dmn, "Couldn't get action icm memory for %s\n",
-			   dev_name(dmn->mdev->device));
+		mlx5dr_err(dmn, "Couldn't get action icm memory\n");
 		ret = -ENOMEM;
 		goto free_ste_icm_pool;
 	}
 
 	ret = mlx5dr_send_ring_alloc(dmn);
 	if (ret) {
-		mlx5dr_err(dmn, "Couldn't create send-ring for %s\n",
-			   dev_name(dmn->mdev->device));
+		mlx5dr_err(dmn, "Couldn't create send-ring\n");
 		goto free_action_icm_pool;
 	}
 
@@ -312,16 +309,14 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 					    dmn->info.caps.log_icm_size);
 
 	if (!dmn->info.supp_sw_steering) {
-		mlx5dr_err(dmn, "SW steering not supported for %s\n",
-			   dev_name(mdev->device));
+		mlx5dr_err(dmn, "SW steering is not supported\n");
 		goto uninit_caps;
 	}
 
 	/* Allocate resources */
 	ret = dr_domain_init_resources(dmn);
 	if (ret) {
-		mlx5dr_err(dmn, "Failed init domain resources for %s\n",
-			   dev_name(mdev->device));
+		mlx5dr_err(dmn, "Failed init domain resources\n");
 		goto uninit_caps;
 	}
 
