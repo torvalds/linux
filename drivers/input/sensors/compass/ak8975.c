@@ -19,7 +19,7 @@
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
 #include <linux/gpio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -183,7 +183,6 @@ static int sensor_report_value(struct i2c_client *client)
 	unsigned char *stat;
 	unsigned char *stat2;
 	int ret = 0;
-	char value = 0;
 	int i;
 
 	if(sensor->ops->read_len < 8)	//sensor->ops->read_len = 8
@@ -257,8 +256,8 @@ static int sensor_report_value(struct i2c_client *client)
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
 
-		value = sensor_read_reg(client, sensor->ops->int_status_reg);
-		DBG("%s:sensor int status :0x%x\n",__func__,value);
+		DBG("%s:sensor int status :0x%x\n", __func__,
+			sensor_read_reg(client, sensor->ops->int_status_reg));
 	}
 
 
@@ -430,7 +429,6 @@ static long compass_dev_ioctl(struct file *file,
 	struct i2c_client *client = this_client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
-	struct akm_platform_data compass;
 
 	/* NOTE: In this function the size of "char" should be 1-byte. */
 	char compass_data[SENSOR_DATA_SIZE];/* for GETDATA */
@@ -543,15 +541,6 @@ static long compass_dev_ioctl(struct file *file,
 			delay = sensor->flags.delay;
 			break;
 		case ECS_IOCTL_GET_PLATFORM_DATA:
-			DBG("%s:ECS_IOCTL_GET_PLATFORM_DATA start\n",__func__);
-			//memcpy(compass.m_layout, sensor->pdata->m_layout, sizeof(sensor->pdata->m_layout));
-			//memcpy(compass.project_name, sensor->pdata->project_name, sizeof(sensor->pdata->project_name));
-			ret = copy_to_user(argp, &compass, sizeof(compass));
-			if(ret < 0)
-			{
-				printk("%s:error,ret=%d\n",__FUNCTION__, ret);
-				return ret;
-			}
 			break;
 
 		default:

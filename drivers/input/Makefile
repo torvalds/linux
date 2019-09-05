@@ -24,10 +24,10 @@ obj-$(CONFIG_INPUT_MOUSE)	+= mouse/
 obj-$(CONFIG_INPUT_JOYSTICK)	+= joystick/
 obj-$(CONFIG_INPUT_TABLET)	+= tablet/
 obj-$(CONFIG_INPUT_TOUCHSCREEN)	+= touchscreen/
+obj-$(CONFIG_ROCKCHIP_REMOTECTL)+= remotectl/
+obj-$(CONFIG_SENSOR_DEVICE)	+= sensors/
 obj-$(CONFIG_INPUT_MISC)	+= misc/
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
-
-obj-$(CONFIG_ROCKCHIP_REMOTECTL)	+= remotectl/
 
 obj-$(CONFIG_RMI4_CORE)		+= rmi4/

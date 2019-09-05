@@ -20,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
 #include <linux/gpio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -241,7 +241,7 @@ OUT:
 	return ret ? ret : count;
 }
 
-static CLASS_ATTR(accel_calibration, 0664, accel_calibration_show, accel_calibration_store);
+static CLASS_ATTR_RW(accel_calibration);
 
 static ssize_t gyro_calibration_show(struct class *class,
 		struct class_attribute *attr, char *buf)
@@ -367,7 +367,7 @@ OUT:
 	return ret ? ret : count;
 }
 
-static CLASS_ATTR(gyro_calibration, 0664, gyro_calibration_show, gyro_calibration_store);
+static CLASS_ATTR_RW(gyro_calibration);
 
 static int sensor_class_init(void)
 {

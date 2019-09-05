@@ -20,6 +20,7 @@
 #endif
 
 #include <dt-bindings/sensor-dev.h>
+#include <linux/module.h>
 
 #define SENSOR_ON		1
 #define SENSOR_OFF		0
