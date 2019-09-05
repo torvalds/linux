@@ -178,6 +178,12 @@ config ARCH_R8A774A1
 	help
 	  This enables support for the Renesas RZ/G2M SoC.
 
+config ARCH_R8A774B1
+	bool "Renesas RZ/G2N SoC Platform"
+	select ARCH_RCAR_GEN3
+	help
+	  This enables support for the Renesas RZ/G2N SoC.
+
 config ARCH_R8A774C0
 	bool "Renesas RZ/G2E SoC Platform"
 	select ARCH_RCAR_GEN3
