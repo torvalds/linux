@@ -15,7 +15,6 @@ static bool disable_usb_sg;
 module_param_named(disable_usb_sg, disable_usb_sg, bool, 0644);
 MODULE_PARM_DESC(disable_usb_sg, "Disable usb scatter-gather support");
 
-/* should be called with usb_ctrl_mtx locked */
 static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 				  u8 req_type, u16 val, u16 offset,
 				  void *buf, size_t len)
@@ -23,6 +22,8 @@ static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 	struct usb_device *udev = to_usb_device(dev->dev);
 	unsigned int pipe;
 	int i, ret;
+
+	lockdep_assert_held(&dev->usb.usb_ctrl_mtx);
 
 	pipe = (req_type & USB_DIR_IN) ? usb_rcvctrlpipe(udev, 0)
 				       : usb_sndctrlpipe(udev, 0);
@@ -60,7 +61,6 @@ int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 }
 EXPORT_SYMBOL_GPL(mt76u_vendor_request);
 
-/* should be called with usb_ctrl_mtx locked */
 static u32 __mt76u_rr(struct mt76_dev *dev, u32 addr)
 {
 	struct mt76_usb *usb = &dev->usb;
@@ -103,7 +103,6 @@ static u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
 	return ret;
 }
 
-/* should be called with usb_ctrl_mtx locked */
 static void __mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 {
 	struct mt76_usb *usb = &dev->usb;
