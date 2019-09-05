@@ -46,6 +46,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/can.h>
+#include <linux/can/can-ml.h>
 #include <linux/can/dev.h>
 #include <linux/can/skb.h>
 #include <linux/slab.h>
@@ -152,6 +153,7 @@ static void vcan_setup(struct net_device *dev)
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 0;
 	dev->flags		= IFF_NOARP;
+	dev->ml_priv		= netdev_priv(dev);
 
 	/* set flags according to driver capabilities */
 	if (echo)
@@ -162,8 +164,9 @@ static void vcan_setup(struct net_device *dev)
 }
 
 static struct rtnl_link_ops vcan_link_ops __read_mostly = {
-	.kind	= DRV_NAME,
-	.setup	= vcan_setup,
+	.kind = DRV_NAME,
+	.priv_size = sizeof(struct can_ml_priv),
+	.setup = vcan_setup,
 };
 
 static __init int vcan_init_module(void)

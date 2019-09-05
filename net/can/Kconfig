@@ -53,6 +53,8 @@ config CAN_GW
 	  They can be modified with AND/OR/XOR/SET operations as configured
 	  by the netlink configuration interface known e.g. from iptables.
 
+source "net/can/j1939/Kconfig"
+
 source "drivers/net/can/Kconfig"
 
 endif

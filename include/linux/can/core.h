@@ -41,6 +41,14 @@ struct can_proto {
 	struct proto *prot;
 };
 
+/* required_size
+ * macro to find the minimum size of a struct
+ * that includes a requested member
+ */
+#define CAN_REQUIRED_SIZE(struct_type, member) \
+	(offsetof(typeof(struct_type), member) + \
+	 sizeof(((typeof(struct_type) *)(NULL))->member))
+
 /* function prototypes for the CAN networklayer core (af_can.c) */
 
 extern int  can_proto_register(const struct can_proto *cp);
