@@ -396,7 +396,7 @@ struct pptable_funcs {
 	int (*get_smu_table_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_power_index)(struct smu_context *smu, uint32_t index);
 	int (*get_workload_type)(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile);
-	int (*run_afll_btc)(struct smu_context *smu);
+	int (*run_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
 	int (*set_default_dpm_table)(struct smu_context *smu);
@@ -696,8 +696,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_power_index? (smu)->ppt_funcs->get_smu_power_index((smu), (src)) : -EINVAL) : -EINVAL)
 #define smu_workload_get_type(smu, profile) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_workload_type? (smu)->ppt_funcs->get_workload_type((smu), (profile)) : -EINVAL) : -EINVAL)
-#define smu_run_afll_btc(smu) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
+#define smu_run_btc(smu) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_btc? (smu)->ppt_funcs->run_btc((smu)) : 0) : 0)
 #define smu_get_allowed_feature_mask(smu, feature_mask, num) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_allowed_feature_mask? (smu)->ppt_funcs->get_allowed_feature_mask((smu), (feature_mask), (num)) : 0) : 0)
 #define smu_set_deep_sleep_dcefclk(smu, clk) \

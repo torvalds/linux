@@ -1079,8 +1079,8 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	/* issue RunAfllBtc msg */
-	ret = smu_run_afll_btc(smu);
+	/* issue Run*Btc msg */
+	ret = smu_run_btc(smu);
 	if (ret)
 		return ret;
 

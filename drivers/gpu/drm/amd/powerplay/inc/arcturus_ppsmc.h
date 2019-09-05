@@ -95,8 +95,7 @@
 
 //BTC
 #define PPSMC_MSG_RunAfllBtc                     0x30
-#define PPSMC_MSG_RunGfxDcBtc                    0x31
-#define PPSMC_MSG_RunSocDcBtc                    0x32
+#define PPSMC_MSG_RunDcBtc                       0x31
 
 //Debug
 #define PPSMC_MSG_DramLogSetDramAddrHigh         0x33

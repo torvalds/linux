@@ -114,6 +114,7 @@
        __SMU_DUMMY_MAP(PowerDownJpeg),                \
        __SMU_DUMMY_MAP(BacoAudioD3PME),               \
        __SMU_DUMMY_MAP(ArmD3),                        \
+       __SMU_DUMMY_MAP(RunDcBtc),                     \
        __SMU_DUMMY_MAP(RunGfxDcBtc),                  \
        __SMU_DUMMY_MAP(RunSocDcBtc),                  \
        __SMU_DUMMY_MAP(SetMemoryChannelEnable),       \
