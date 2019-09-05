@@ -5,13 +5,13 @@
 
 menuconfig GYROSCOPE_DEVICE
 	bool "gyroscope device support"
-	default y	
+	default n
 
 if GYROSCOPE_DEVICE
 
 config GYRO_L3G4200D
   bool "gyroscope l3g4200d"
-	default y
+	default n
 
 config GYRO_K3G
   bool "gyroscope k3g"
@@ -19,11 +19,11 @@ config GYRO_K3G
 
 config GYRO_L3G20D
   bool "gyroscope l3g20d"
-	default y
+	default n
 
 config GYRO_EWTSA
   bool "gyroscope ewtsa"
-	default y
+	default n
 
 config GYRO_MPU6500
   bool "gyroscope mpu6500_gyro"
@@ -31,9 +31,9 @@ config GYRO_MPU6500
 
 config GYRO_MPU6880
   bool "gyroscope mpu6880_gyro"
-	default y
+	default n
 
 config GYRO_LSM330
 	bool "gyroscope lsm330_gyro"
-	default y
+	default n
 endif

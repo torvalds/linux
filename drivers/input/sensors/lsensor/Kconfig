@@ -5,16 +5,16 @@
 
 menuconfig LIGHT_DEVICE
 	bool "light sensor device support"
-	default y	
+	default n
 
 if LIGHT_DEVICE
 config LS_CM3217
   bool "light sensor cm3217"
-	default y
+	default n
 	
 config LS_CM3218
   bool "light sensor cm3218"
-	default y
+	default n
  
 config LS_CM3232
   bool "light sensor cm3232"
