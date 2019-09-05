@@ -30,6 +30,7 @@
 #include <linux/kdebug.h>
 #include <linux/efi.h>
 #include <linux/random.h>
+#include <linux/syscore_ops.h>
 #include <clocksource/hyperv_timer.h>
 #include "hyperv_vmbus.h"
 
@@ -2086,6 +2087,47 @@ static void hv_crash_handler(struct pt_regs *regs)
 	hyperv_cleanup();
 };
 
+static int hv_synic_suspend(void)
+{
+	/*
+	 * When we reach here, all the non-boot CPUs have been offlined, and
+	 * the stimers on them have been unbound in hv_synic_cleanup() ->
+	 * hv_stimer_cleanup() -> clockevents_unbind_device().
+	 *
+	 * hv_synic_suspend() only runs on CPU0 with interrupts disabled. Here
+	 * we do not unbind the stimer on CPU0 because: 1) it's unnecessary
+	 * because the interrupts remain disabled between syscore_suspend()
+	 * and syscore_resume(): see create_image() and resume_target_kernel();
+	 * 2) the stimer on CPU0 is automatically disabled later by
+	 * syscore_suspend() -> timekeeping_suspend() -> tick_suspend() -> ...
+	 * -> clockevents_shutdown() -> ... -> hv_ce_shutdown(); 3) a warning
+	 * would be triggered if we call clockevents_unbind_device(), which
+	 * may sleep, in an interrupts-disabled context. So, we intentionally
+	 * don't call hv_stimer_cleanup(0) here.
+	 */
+
+	hv_synic_disable_regs(0);
+
+	return 0;
+}
+
+static void hv_synic_resume(void)
+{
+	hv_synic_enable_regs(0);
+
+	/*
+	 * Note: we don't need to call hv_stimer_init(0), because the timer
+	 * on CPU0 is not unbound in hv_synic_suspend(), and the timer is
+	 * automatically re-enabled in timekeeping_resume().
+	 */
+}
+
+/* The callbacks run only on CPU0, with irqs_disabled. */
+static struct syscore_ops hv_synic_syscore_ops = {
+	.suspend = hv_synic_suspend,
+	.resume = hv_synic_resume,
+};
+
 static int __init hv_acpi_init(void)
 {
 	int ret, t;
@@ -2116,6 +2158,8 @@ static int __init hv_acpi_init(void)
 	hv_setup_kexec_handler(hv_kexec_handler);
 	hv_setup_crash_handler(hv_crash_handler);
 
+	register_syscore_ops(&hv_synic_syscore_ops);
+
 	return 0;
 
 cleanup:
@@ -2127,6 +2171,8 @@ cleanup:
 static void __exit vmbus_exit(void)
 {
 	int cpu;
+
+	unregister_syscore_ops(&hv_synic_syscore_ops);
 
 	hv_remove_kexec_handler();
 	hv_remove_crash_handler();
