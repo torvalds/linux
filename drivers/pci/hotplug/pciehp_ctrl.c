@@ -104,7 +104,7 @@ err_exit:
 }
 
 /**
- * remove_board - Turns off slot and LEDs
+ * remove_board - Turn off slot and Power Indicator
  * @ctrl: PCIe hotplug controller where board is being removed
  * @safe_removal: whether the board is safely removed (versus surprise removed)
  */
