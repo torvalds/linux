@@ -41,6 +41,7 @@
 #include <linux/kfifo.h>
 #include <linux/interrupt.h>
 #include <linux/rk-preisp.h>
+#include <linux/iommu.h>
 #include <media/v4l2-event.h>
 #include <media/media-entity.h>
 
@@ -787,6 +788,15 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 	}
 
 	rkisp1_config_clk(dev, true);
+	if (!in_interrupt()) {
+		struct iommu_domain *domain;
+
+		domain = iommu_get_domain_for_dev(dev->dev);
+		if (domain) {
+			domain->ops->detach_dev(domain, dev->dev);
+			domain->ops->attach_dev(domain, dev->dev);
+		}
+	}
 	dev->isp_state = ISP_STOP;
 
 	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
