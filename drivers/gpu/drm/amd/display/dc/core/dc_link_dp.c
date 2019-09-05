@@ -1409,6 +1409,9 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	if (link->link_enc->features.flags.bits.IS_HBR3_CAPABLE)
 		max_link_cap.link_rate = LINK_RATE_HIGH3;
 
+	if (link->link_enc->funcs->get_max_link_cap)
+		link->link_enc->funcs->get_max_link_cap(link->link_enc, &max_link_cap);
+
 	/* Lower link settings based on sink's link cap */
 	if (link->reported_link_cap.lane_count < max_link_cap.lane_count)
 		max_link_cap.lane_count =
@@ -1668,6 +1671,19 @@ bool dp_verify_link_cap_with_retries(
 		msleep(10);
 	}
 	return success;
+}
+
+bool dp_verify_mst_link_cap(
+	struct dc_link *link)
+{
+	struct dc_link_settings max_link_cap = {0};
+
+	max_link_cap = get_max_link_cap(link);
+	link->verified_link_cap = get_common_supported_link_settings(
+		link->reported_link_cap,
+		max_link_cap);
+
+	return true;
 }
 
 static struct dc_link_settings get_common_supported_link_settings(

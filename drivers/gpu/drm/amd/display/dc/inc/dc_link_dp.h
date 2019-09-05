@@ -43,6 +43,9 @@ bool dp_verify_link_cap_with_retries(
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts);
 
+bool dp_verify_mst_link_cap(
+	struct dc_link *link);
+
 bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing);

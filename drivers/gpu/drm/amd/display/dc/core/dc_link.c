@@ -872,7 +872,8 @@ bool dc_link_detect_helper(struct dc_link *link, enum dc_detect_reason reason)
 				 * empty which leads to allocate_mst_payload() has "0"
 				 * pbn_per_slot value leading to exception on dc_fixpt_div()
 				 */
-				link->verified_link_cap = link->reported_link_cap;
+				dp_verify_mst_link_cap(link);
+
 				if (prev_sink != NULL)
 					dc_sink_release(prev_sink);
 				return false;
