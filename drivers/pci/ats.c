@@ -182,6 +182,17 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 	u32 max_requests;
 	int pos;
 
+	/*
+	 * VFs must not implement the PRI Capability.  If their PF
+	 * implements PRI, it is shared by the VFs, so if the PF PRI is
+	 * enabled, it is also enabled for the VF.
+	 */
+	if (pdev->is_virtfn) {
+		if (pci_physfn(pdev)->pri_enabled)
+			return 0;
+		return -EINVAL;
+	}
+
 	if (WARN_ON(pdev->pri_enabled))
 		return -EBUSY;
 
@@ -218,6 +229,10 @@ void pci_disable_pri(struct pci_dev *pdev)
 	u16 control;
 	int pos;
 
+	/* VFs share the PF PRI */
+	if (pdev->is_virtfn)
+		return;
+
 	if (WARN_ON(!pdev->pri_enabled))
 		return;
 
@@ -243,6 +258,9 @@ void pci_restore_pri_state(struct pci_dev *pdev)
 	u32 reqs = pdev->pri_reqs_alloc;
 	int pos;
 
+	if (pdev->is_virtfn)
+		return;
+
 	if (!pdev->pri_enabled)
 		return;
 
@@ -266,6 +284,9 @@ int pci_reset_pri(struct pci_dev *pdev)
 {
 	u16 control;
 	int pos;
+
+	if (pdev->is_virtfn)
+		return 0;
 
 	if (WARN_ON(pdev->pri_enabled))
 		return -EBUSY;
@@ -292,6 +313,9 @@ int pci_prg_resp_pasid_required(struct pci_dev *pdev)
 {
 	u16 status;
 	int pos;
+
+	if (pdev->is_virtfn)
+		pdev = pci_physfn(pdev);
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
