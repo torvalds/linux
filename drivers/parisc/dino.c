@@ -6,7 +6,7 @@
 **	(c) Copyright 1999 SuSE GmbH
 **	(c) Copyright 1999,2000 Hewlett-Packard Company
 **	(c) Copyright 2000 Grant Grundler
-**	(c) Copyright 2006 Helge Deller
+**	(c) Copyright 2006-2019 Helge Deller
 **
 **
 **	This module provides access to Dino PCI bus (config/IOport spaces)
@@ -863,14 +863,14 @@ static int __init dino_common_init(struct parisc_device *dev,
 #define CUJO_RAVEN_BADPAGE	0x01003000UL
 #define CUJO_FIREHAWK_BADPAGE	0x01607000UL
 
-static const char *dino_vers[] = {
+static const char dino_vers[][4] = {
 	"2.0",
 	"2.1",
 	"3.0",
 	"3.1"
 };
 
-static const char *cujo_vers[] = {
+static const char cujo_vers[][4] = {
 	"1.0",
 	"2.0"
 };
