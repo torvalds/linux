@@ -56,6 +56,11 @@ Optional properties:
 - {rts,cts,dtr,dsr,rng,dcd}-gpios: specify a GPIO for RTS/CTS/DTR/DSR/RI/DCD
   line respectively. It will use specified GPIO instead of the peripheral
   function pin for the UART feature. If unsure, don't specify this property.
+- aspeed,sirq-polarity-sense: Only applicable to aspeed,ast2500-vuart.
+  phandle to aspeed,ast2500-scu compatible syscon alongside register offset
+  and bit number to identify how the SIRQ polarity should be configured.
+  One possible data source is the LPC/eSPI mode bit.
+  Example: aspeed,sirq-polarity-sense = <&syscon 0x70 25>
 
 Note:
 * fsl,ns16550:
