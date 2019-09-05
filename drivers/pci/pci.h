@@ -462,6 +462,12 @@ void pci_pri_init(struct pci_dev *dev);
 static inline void pci_pri_init(struct pci_dev *dev) { }
 #endif
 
+#ifdef CONFIG_PCI_PASID
+void pci_pasid_init(struct pci_dev *dev);
+#else
+static inline void pci_pasid_init(struct pci_dev *dev) { }
+#endif
+
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
