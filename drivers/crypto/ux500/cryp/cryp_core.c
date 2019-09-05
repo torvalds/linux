@@ -528,9 +528,9 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 
 	dev_dbg(ctx->device->dev, "[%s]: ", __func__);
 
-	if (unlikely(!IS_ALIGNED((u32)sg, 4))) {
+	if (unlikely(!IS_ALIGNED((unsigned long)sg, 4))) {
 		dev_err(ctx->device->dev, "[%s]: Data in sg list isn't "
-			"aligned! Addr: 0x%08x", __func__, (u32)sg);
+			"aligned! Addr: 0x%08lx", __func__, (unsigned long)sg);
 		return -EFAULT;
 	}
 
@@ -763,9 +763,9 @@ static int hw_crypt_noxts(struct cryp_ctx *ctx,
 
 	ctx->outlen = ctx->datalen;
 
-	if (unlikely(!IS_ALIGNED((u32)indata, 4))) {
+	if (unlikely(!IS_ALIGNED((unsigned long)indata, 4))) {
 		pr_debug(DEV_DBG_NAME " [%s]: Data isn't aligned! Addr: "
-			 "0x%08x", __func__, (u32)indata);
+			 "0x%08lx", __func__, (unsigned long)indata);
 		return -EINVAL;
 	}
 
