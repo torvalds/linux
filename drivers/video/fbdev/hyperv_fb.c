@@ -23,6 +23,14 @@
  *
  * Portrait orientation is also supported:
  *     For example: video=hyperv_fb:864x1152
+ *
+ * When a Windows 10 RS5+ host is used, the virtual machine screen
+ * resolution is obtained from the host. The "video=hyperv_fb" option is
+ * not needed, but still can be used to overwrite what the host specifies.
+ * The VM resolution on the host could be set by executing the powershell
+ * "set-vmvideo" command. For example
+ *     set-vmvideo -vmname name -horizontalresolution:1920 \
+ * -verticalresolution:1200 -resolutiontype single
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -45,6 +53,10 @@
 #define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))
 #define SYNTHVID_VERSION_WIN7 SYNTHVID_VERSION(3, 0)
 #define SYNTHVID_VERSION_WIN8 SYNTHVID_VERSION(3, 2)
+#define SYNTHVID_VERSION_WIN10 SYNTHVID_VERSION(3, 5)
+
+#define SYNTHVID_VER_GET_MAJOR(ver) (ver & 0x0000ffff)
+#define SYNTHVID_VER_GET_MINOR(ver) ((ver & 0xffff0000) >> 16)
 
 #define SYNTHVID_DEPTH_WIN7 16
 #define SYNTHVID_DEPTH_WIN8 32
@@ -83,15 +95,24 @@ enum synthvid_msg_type {
 	SYNTHVID_POINTER_SHAPE		= 8,
 	SYNTHVID_FEATURE_CHANGE		= 9,
 	SYNTHVID_DIRT			= 10,
+	SYNTHVID_RESOLUTION_REQUEST	= 13,
+	SYNTHVID_RESOLUTION_RESPONSE	= 14,
 
-	SYNTHVID_MAX			= 11
+	SYNTHVID_MAX			= 15
 };
+
+#define		SYNTHVID_EDID_BLOCK_SIZE	128
+#define		SYNTHVID_MAX_RESOLUTION_COUNT	64
+
+struct hvd_screen_info {
+	u16 width;
+	u16 height;
+} __packed;
 
 struct synthvid_msg_hdr {
 	u32 type;
 	u32 size;  /* size of this header + payload after this field*/
 } __packed;
-
 
 struct synthvid_version_req {
 	u32 version;
@@ -101,6 +122,19 @@ struct synthvid_version_resp {
 	u32 version;
 	u8 is_accepted;
 	u8 max_video_outputs;
+} __packed;
+
+struct synthvid_supported_resolution_req {
+	u8 maximum_resolution_count;
+} __packed;
+
+struct synthvid_supported_resolution_resp {
+	u8 edid_block[SYNTHVID_EDID_BLOCK_SIZE];
+	u8 resolution_count;
+	u8 default_resolution_index;
+	u8 is_standard;
+	struct hvd_screen_info
+		supported_resolution[SYNTHVID_MAX_RESOLUTION_COUNT];
 } __packed;
 
 struct synthvid_vram_location {
@@ -188,6 +222,8 @@ struct synthvid_msg {
 		struct synthvid_pointer_shape ptr_shape;
 		struct synthvid_feature_change feature_chg;
 		struct synthvid_dirt dirt;
+		struct synthvid_supported_resolution_req resolution_req;
+		struct synthvid_supported_resolution_resp resolution_resp;
 	};
 } __packed;
 
@@ -226,6 +262,8 @@ struct hvfb_par {
 
 static uint screen_width = HVFB_WIDTH;
 static uint screen_height = HVFB_HEIGHT;
+static uint screen_width_max = HVFB_WIDTH;
+static uint screen_height_max = HVFB_HEIGHT;
 static uint screen_depth;
 static uint screen_fb_size;
 
@@ -356,6 +394,7 @@ static void synthvid_recv_sub(struct hv_device *hdev)
 
 	/* Complete the wait event */
 	if (msg->vid_hdr.type == SYNTHVID_VERSION_RESPONSE ||
+	    msg->vid_hdr.type == SYNTHVID_RESOLUTION_RESPONSE ||
 	    msg->vid_hdr.type == SYNTHVID_VRAM_LOCATION_ACK) {
 		memcpy(par->init_buf, msg, MAX_VMBUS_PKT_SIZE);
 		complete(&par->wait);
@@ -402,6 +441,17 @@ static void synthvid_receive(void *ctx)
 	} while (bytes_recvd > 0 && ret == 0);
 }
 
+/* Check if the ver1 version is equal or greater than ver2 */
+static inline bool synthvid_ver_ge(u32 ver1, u32 ver2)
+{
+	if (SYNTHVID_VER_GET_MAJOR(ver1) > SYNTHVID_VER_GET_MAJOR(ver2) ||
+	    (SYNTHVID_VER_GET_MAJOR(ver1) == SYNTHVID_VER_GET_MAJOR(ver2) &&
+	     SYNTHVID_VER_GET_MINOR(ver1) >= SYNTHVID_VER_GET_MINOR(ver2)))
+		return true;
+
+	return false;
+}
+
 /* Check synthetic video protocol version with the host */
 static int synthvid_negotiate_ver(struct hv_device *hdev, u32 ver)
 {
@@ -430,6 +480,64 @@ static int synthvid_negotiate_ver(struct hv_device *hdev, u32 ver)
 	}
 
 	par->synthvid_version = ver;
+	pr_info("Synthvid Version major %d, minor %d\n",
+		SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MINOR(ver));
+
+out:
+	return ret;
+}
+
+/* Get current resolution from the host */
+static int synthvid_get_supported_resolution(struct hv_device *hdev)
+{
+	struct fb_info *info = hv_get_drvdata(hdev);
+	struct hvfb_par *par = info->par;
+	struct synthvid_msg *msg = (struct synthvid_msg *)par->init_buf;
+	int ret = 0;
+	unsigned long t;
+	u8 index;
+	int i;
+
+	memset(msg, 0, sizeof(struct synthvid_msg));
+	msg->vid_hdr.type = SYNTHVID_RESOLUTION_REQUEST;
+	msg->vid_hdr.size = sizeof(struct synthvid_msg_hdr) +
+		sizeof(struct synthvid_supported_resolution_req);
+
+	msg->resolution_req.maximum_resolution_count =
+		SYNTHVID_MAX_RESOLUTION_COUNT;
+	synthvid_send(hdev, msg);
+
+	t = wait_for_completion_timeout(&par->wait, VSP_TIMEOUT);
+	if (!t) {
+		pr_err("Time out on waiting resolution response\n");
+			ret = -ETIMEDOUT;
+			goto out;
+	}
+
+	if (msg->resolution_resp.resolution_count == 0) {
+		pr_err("No supported resolutions\n");
+		ret = -ENODEV;
+		goto out;
+	}
+
+	index = msg->resolution_resp.default_resolution_index;
+	if (index >= msg->resolution_resp.resolution_count) {
+		pr_err("Invalid resolution index: %d\n", index);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	for (i = 0; i < msg->resolution_resp.resolution_count; i++) {
+		screen_width_max = max_t(unsigned int, screen_width_max,
+		    msg->resolution_resp.supported_resolution[i].width);
+		screen_height_max = max_t(unsigned int, screen_height_max,
+		    msg->resolution_resp.supported_resolution[i].height);
+	}
+
+	screen_width =
+		msg->resolution_resp.supported_resolution[index].width;
+	screen_height =
+		msg->resolution_resp.supported_resolution[index].height;
 
 out:
 	return ret;
@@ -450,11 +558,27 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 	}
 
 	/* Negotiate the protocol version with host */
-	if (vmbus_proto_version == VERSION_WS2008 ||
-	    vmbus_proto_version == VERSION_WIN7)
-		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN7);
-	else
+	switch (vmbus_proto_version) {
+	case VERSION_WIN10:
+	case VERSION_WIN10_V5:
+		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN10);
+		if (!ret)
+			break;
+		/* Fallthrough */
+	case VERSION_WIN8:
+	case VERSION_WIN8_1:
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN8);
+		if (!ret)
+			break;
+		/* Fallthrough */
+	case VERSION_WS2008:
+	case VERSION_WIN7:
+		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN7);
+		break;
+	default:
+		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN10);
+		break;
+	}
 
 	if (ret) {
 		pr_err("Synthetic video device version not accepted\n");
@@ -465,6 +589,12 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 		screen_depth = SYNTHVID_DEPTH_WIN7;
 	else
 		screen_depth = SYNTHVID_DEPTH_WIN8;
+
+	if (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10)) {
+		ret = synthvid_get_supported_resolution(hdev);
+		if (ret)
+			pr_info("Failed to get supported resolution from host, use default\n");
+	}
 
 	screen_fb_size = hdev->channel->offermsg.offer.
 				mmio_megabytes * 1024 * 1024;
@@ -655,6 +785,8 @@ static void hvfb_get_option(struct fb_info *info)
 	}
 
 	if (x < HVFB_WIDTH_MIN || y < HVFB_HEIGHT_MIN ||
+	    (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10) &&
+	    (x > screen_width_max || y > screen_height_max)) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN8 &&
 	     x * y * screen_depth / 8 > SYNTHVID_FB_SIZE_WIN8) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN7 &&
@@ -691,8 +823,12 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 		}
 
 		if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
-		    pci_resource_len(pdev, 0) < screen_fb_size)
+		    pci_resource_len(pdev, 0) < screen_fb_size) {
+			pr_err("Resource not available or (0x%lx < 0x%lx)\n",
+			       (unsigned long) pci_resource_len(pdev, 0),
+			       (unsigned long) screen_fb_size);
 			goto err1;
+		}
 
 		pot_end = pci_resource_end(pdev, 0);
 		pot_start = pot_end - screen_fb_size + 1;
@@ -781,16 +917,15 @@ static int hvfb_probe(struct hv_device *hdev,
 		goto error1;
 	}
 
+	hvfb_get_option(info);
+	pr_info("Screen resolution: %dx%d, Color depth: %d\n",
+		screen_width, screen_height, screen_depth);
+
 	ret = hvfb_getmem(hdev, info);
 	if (ret) {
 		pr_err("No memory for framebuffer\n");
 		goto error2;
 	}
-
-	hvfb_get_option(info);
-	pr_info("Screen resolution: %dx%d, Color depth: %d\n",
-		screen_width, screen_height, screen_depth);
-
 
 	/* Set up fb_info */
 	info->flags = FBINFO_DEFAULT;
