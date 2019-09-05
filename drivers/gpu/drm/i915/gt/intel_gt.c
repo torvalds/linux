@@ -7,6 +7,7 @@
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_uncore.h"
+#include "intel_pm.h"
 
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 {
@@ -27,6 +28,9 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 void intel_gt_init_hw(struct drm_i915_private *i915)
 {
 	i915->gt.ggtt = &i915->ggtt;
+
+	/* BIOS often leaves RC6 enabled, but disable it for hw init */
+	intel_gt_pm_disable(&i915->gt);
 }
 
 static void rmw_set(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
@@ -222,7 +226,13 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 		intel_gtt_chipset_flush();
 }
 
-int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
+void intel_gt_driver_register(struct intel_gt *gt)
+{
+	if (IS_GEN(gt->i915, 5))
+		intel_gpu_ips_init(gt->i915);
+}
+
+static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct drm_i915_gem_object *obj;
@@ -256,9 +266,40 @@ err_unref:
 	return ret;
 }
 
-void intel_gt_fini_scratch(struct intel_gt *gt)
+static void intel_gt_fini_scratch(struct intel_gt *gt)
 {
 	i915_vma_unpin_and_release(&gt->scratch, 0);
+}
+
+int intel_gt_init(struct intel_gt *gt)
+{
+	int err;
+
+	err = intel_gt_init_scratch(gt, IS_GEN(gt->i915, 2) ? SZ_256K : SZ_4K);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+void intel_gt_driver_remove(struct intel_gt *gt)
+{
+	GEM_BUG_ON(gt->awake);
+	intel_gt_pm_disable(gt);
+}
+
+void intel_gt_driver_unregister(struct intel_gt *gt)
+{
+	intel_gpu_ips_teardown();
+}
+
+void intel_gt_driver_release(struct intel_gt *gt)
+{
+	/* Paranoia: make sure we have disabled everything before we exit. */
+	intel_gt_pm_disable(gt);
+
+	intel_cleanup_gt_powersave(gt->i915);
+	intel_gt_fini_scratch(gt);
 }
 
 void intel_gt_driver_late_release(struct intel_gt *gt)

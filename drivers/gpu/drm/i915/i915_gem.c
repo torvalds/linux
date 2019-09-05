@@ -1375,17 +1375,6 @@ out:
 	return err;
 }
 
-static int
-i915_gem_init_scratch(struct drm_i915_private *i915, unsigned int size)
-{
-	return intel_gt_init_scratch(&i915->gt, size);
-}
-
-static void i915_gem_fini_scratch(struct drm_i915_private *i915)
-{
-	intel_gt_fini_scratch(&i915->gt);
-}
-
 static int intel_engines_verify_workarounds(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
@@ -1436,12 +1425,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		goto err_unlock;
 	}
 
-	ret = i915_gem_init_scratch(dev_priv,
-				    IS_GEN(dev_priv, 2) ? SZ_256K : PAGE_SIZE);
-	if (ret) {
-		GEM_BUG_ON(ret == -EIO);
-		goto err_ggtt;
-	}
+	intel_gt_init(&dev_priv->gt);
 
 	ret = intel_engines_setup(dev_priv);
 	if (ret) {
@@ -1527,15 +1511,13 @@ err_init_hw:
 err_uc_init:
 	if (ret != -EIO) {
 		intel_uc_fini(&dev_priv->gt.uc);
-		intel_cleanup_gt_powersave(dev_priv);
 		intel_engines_cleanup(dev_priv);
 	}
 err_context:
 	if (ret != -EIO)
 		i915_gem_contexts_fini(dev_priv);
 err_scratch:
-	i915_gem_fini_scratch(dev_priv);
-err_ggtt:
+	intel_gt_driver_release(&dev_priv->gt);
 err_unlock:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -1587,12 +1569,10 @@ void i915_gem_driver_unregister(struct drm_i915_private *i915)
 
 void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 {
-	GEM_BUG_ON(dev_priv->gt.awake);
-
 	intel_wakeref_auto_fini(&dev_priv->ggtt.userfault_wakeref);
 
 	i915_gem_suspend_late(dev_priv);
-	intel_disable_gt_powersave(dev_priv);
+	intel_gt_driver_remove(&dev_priv->gt);
 
 	/* Flush any outstanding unpin_work. */
 	i915_gem_drain_workqueue(dev_priv);
@@ -1610,12 +1590,10 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_engines_cleanup(dev_priv);
 	i915_gem_contexts_fini(dev_priv);
-	i915_gem_fini_scratch(dev_priv);
+	intel_gt_driver_release(&dev_priv->gt);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	intel_wa_list_free(&dev_priv->gt_wa_list);
-
-	intel_cleanup_gt_powersave(dev_priv);
 
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 	i915_gem_cleanup_userptr(dev_priv);

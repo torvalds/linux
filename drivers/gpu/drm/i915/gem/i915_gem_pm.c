@@ -137,6 +137,7 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 
 bool i915_gem_load_power_context(struct drm_i915_private *i915)
 {
+	intel_gt_pm_enable(&i915->gt);
 	return switch_to_kernel_context_sync(&i915->gt);
 }
 

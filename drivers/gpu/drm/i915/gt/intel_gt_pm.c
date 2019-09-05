@@ -124,6 +124,42 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 		__intel_engine_reset(engine, false);
 }
 
+static bool is_mock_device(const struct intel_gt *gt)
+{
+	return I915_SELFTEST_ONLY(gt->awake == -1);
+}
+
+void intel_gt_pm_enable(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* Powersaving is controlled by the host when inside a VM */
+	if (intel_vgpu_active(gt->i915))
+		return;
+
+	if (is_mock_device(gt))
+		return;
+
+	intel_gt_pm_get(gt);
+
+	for_each_engine(engine, gt->i915, id) {
+		intel_engine_pm_get(engine);
+		engine->serial++; /* force kernel context reload */
+		intel_engine_pm_put(engine);
+	}
+
+	intel_gt_pm_put(gt);
+}
+
+void intel_gt_pm_disable(struct intel_gt *gt)
+{
+	if (is_mock_device(gt))
+		return;
+
+	intel_sanitize_gt_powersave(gt->i915);
+}
+
 int intel_gt_resume(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
