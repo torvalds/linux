@@ -74,11 +74,6 @@ struct cpu_timer {
 	int			firing;
 };
 
-static inline bool cpu_timer_requeue(struct cpu_timer *ctmr)
-{
-	return timerqueue_add(ctmr->head, &ctmr->node);
-}
-
 static inline bool cpu_timer_enqueue(struct timerqueue_head *head,
 				     struct cpu_timer *ctmr)
 {
@@ -88,8 +83,10 @@ static inline bool cpu_timer_enqueue(struct timerqueue_head *head,
 
 static inline void cpu_timer_dequeue(struct cpu_timer *ctmr)
 {
-	if (!RB_EMPTY_NODE(&ctmr->node.node))
+	if (ctmr->head) {
 		timerqueue_del(ctmr->head, &ctmr->node);
+		ctmr->head = NULL;
+	}
 }
 
 static inline u64 cpu_timer_getexpires(struct cpu_timer *ctmr)
