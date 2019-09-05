@@ -6174,7 +6174,7 @@ static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
 	bool clear;
 
 	hdev->fd_en = enable;
-	clear = hdev->fd_active_type == HCLGE_FD_ARFS_ACTIVE ? true : false;
+	clear = hdev->fd_active_type == HCLGE_FD_ARFS_ACTIVE;
 	if (!enable)
 		hclge_del_all_fd_entries(handle, clear);
 	else
