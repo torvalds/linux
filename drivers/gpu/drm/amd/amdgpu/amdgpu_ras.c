@@ -1655,10 +1655,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	if (amdgpu_ras_fs_init(adev))
 		goto fs_out;
 
-	/* ras init for each ras block */
-	if (adev->umc.funcs->ras_init)
-		adev->umc.funcs->ras_init(adev);
-
 	DRM_INFO("RAS INFO: ras initialized successfully, "
 			"hardware ability[%x] ras_mask[%x]\n",
 			con->hw_supported, con->supported);
