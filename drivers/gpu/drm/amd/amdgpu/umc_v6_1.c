@@ -273,6 +273,7 @@ static void umc_v6_1_ras_init(struct amdgpu_device *adev)
 
 const struct amdgpu_umc_funcs umc_v6_1_funcs = {
 	.ras_init = umc_v6_1_ras_init,
+	.ras_late_init = amdgpu_umc_ras_late_init,
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,
 	.enable_umc_index_mode = umc_v6_1_enable_umc_index_mode,

@@ -797,9 +797,11 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		.cb = gmc_v9_0_process_ras_data_cb,
 	};
 
-	r = amdgpu_gmc_ras_late_init(adev, &umc_ih_info);
-	if (r)
-		return r;
+	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
+		r = adev->umc.funcs->ras_late_init(adev, &umc_ih_info);
+		if (r)
+			return r;
+	}
 
 	if (adev->mmhub_funcs && adev->mmhub_funcs->ras_late_init) {
 		r = adev->mmhub_funcs->ras_late_init(adev);
