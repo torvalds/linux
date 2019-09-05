@@ -424,6 +424,7 @@ struct mt76_dev {
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_channel *main_chan;
 
+	struct mt76_channel_state *chan_state;
 	spinlock_t lock;
 	spinlock_t cc_lock;
 
@@ -604,21 +605,6 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 #define mt76_queue_rx_reset(dev, ...)	(dev)->mt76.queue_ops->rx_reset(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_tx_cleanup(dev, ...)	(dev)->mt76.queue_ops->tx_cleanup(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_kick(dev, ...)	(dev)->mt76.queue_ops->kick(&((dev)->mt76), __VA_ARGS__)
-
-static inline struct mt76_channel_state *
-mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
-{
-	struct mt76_sband *msband;
-	int idx;
-
-	if (c->band == NL80211_BAND_2GHZ)
-		msband = &dev->sband_2g;
-	else
-		msband = &dev->sband_5g;
-
-	idx = c - &msband->sband.channels[0];
-	return &msband->chan[idx];
-}
 
 struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
 				   const struct ieee80211_ops *ops,

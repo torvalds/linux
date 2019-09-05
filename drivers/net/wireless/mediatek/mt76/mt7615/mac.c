@@ -1269,7 +1269,7 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 	if (!test_bit(MT76_STATE_RUNNING, &mdev->state))
 		return;
 
-	state = mt76_channel_state(mdev, mdev->chandef.chan);
+	state = mdev->chan_state;
 	/* TODO: add DBDC support */
 	busy = mt76_get_field(dev, MT_MIB_SDR16(0), MT_MIB_BUSY_MASK);
 

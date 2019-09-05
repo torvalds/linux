@@ -1491,7 +1491,7 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
 		return;
 
-	state = mt76_channel_state(&dev->mt76, dev->mt76.chandef.chan);
+	state = mdev->chan_state;
 	busy = mt76_rr(dev, MT_MIB_STAT_PSCCA);
 
 	spin_lock_bh(&dev->mt76.cc_lock);

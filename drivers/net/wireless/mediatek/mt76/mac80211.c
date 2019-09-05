@@ -180,6 +180,7 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 	sband->bitrates = rates;
 	sband->n_bitrates = n_rates;
 	dev->chandef.chan = &sband->channels[0];
+	dev->chan_state = &msband->chan[0];
 
 	ht_cap = &sband->ht_cap;
 	ht_cap->ht_supported = true;
@@ -398,11 +399,25 @@ bool mt76_has_tx_pending(struct mt76_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76_has_tx_pending);
 
+static struct mt76_channel_state *
+mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
+{
+	struct mt76_sband *msband;
+	int idx;
+
+	if (c->band == NL80211_BAND_2GHZ)
+		msband = &dev->sband_2g;
+	else
+		msband = &dev->sband_5g;
+
+	idx = c - &msband->sband.channels[0];
+	return &msband->chan[idx];
+}
+
 void mt76_set_channel(struct mt76_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->hw;
 	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
-	struct mt76_channel_state *state;
 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	int timeout = HZ / 5;
 
@@ -412,14 +427,13 @@ void mt76_set_channel(struct mt76_dev *dev)
 		dev->drv->update_survey(dev);
 
 	dev->chandef = *chandef;
+	dev->chan_state = mt76_channel_state(dev, chandef->chan);
 
 	if (!offchannel)
 		dev->main_chan = chandef->chan;
 
-	if (chandef->chan != dev->main_chan) {
-		state = mt76_channel_state(dev, chandef->chan);
-		memset(state, 0, sizeof(*state));
-	}
+	if (chandef->chan != dev->main_chan)
+		memset(dev->chan_state, 0, sizeof(*dev->chan_state));
 }
 EXPORT_SYMBOL_GPL(mt76_set_channel);
 

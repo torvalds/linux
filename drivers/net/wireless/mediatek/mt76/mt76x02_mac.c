@@ -986,7 +986,7 @@ void mt76x02_update_channel(struct mt76_dev *mdev)
 	struct mt76_channel_state *state;
 	u32 active, busy;
 
-	state = mt76_channel_state(&dev->mt76, dev->mt76.chandef.chan);
+	state = mdev->chan_state;
 
 	busy = mt76_rr(dev, MT_CH_BUSY);
 	active = busy + mt76_rr(dev, MT_CH_IDLE);
