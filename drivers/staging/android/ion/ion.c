@@ -231,33 +231,30 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
 
 static int ion_assign_heap_id(struct ion_heap *heap, struct ion_device *dev)
 {
-	int id_bit;
-	int start_bit, end_bit = -1;
+	int id_bit = -EINVAL;
+	int start_bit = -1, end_bit = -1;
 
 	switch (heap->type) {
 	case ION_HEAP_TYPE_SYSTEM:
-		id_bit = ffs(ION_HEAP_SYSTEM);
+		id_bit = __ffs(ION_HEAP_SYSTEM);
 		break;
 	case ION_HEAP_TYPE_SYSTEM_CONTIG:
-		id_bit = ffs(ION_HEAP_SYSTEM_CONTIG);
+		id_bit = __ffs(ION_HEAP_SYSTEM_CONTIG);
 		break;
 	case ION_HEAP_TYPE_CHUNK:
-		id_bit = ffs(ION_HEAP_CHUNK);
+		id_bit = __ffs(ION_HEAP_CHUNK);
 		break;
 	case ION_HEAP_TYPE_CARVEOUT:
-		id_bit = 0;
-		start_bit = ffs(ION_HEAP_CARVEOUT_START);
-		end_bit = ffs(ION_HEAP_CARVEOUT_END);
+		start_bit = __ffs(ION_HEAP_CARVEOUT_START);
+		end_bit = __ffs(ION_HEAP_CARVEOUT_END);
 		break;
 	case ION_HEAP_TYPE_DMA:
-		id_bit = 0;
-		start_bit = ffs(ION_HEAP_DMA_START);
-		end_bit = ffs(ION_HEAP_DMA_END);
+		start_bit = __ffs(ION_HEAP_DMA_START);
+		end_bit = __ffs(ION_HEAP_DMA_END);
 		break;
 	case ION_HEAP_TYPE_CUSTOM ... ION_HEAP_TYPE_MAX:
-		id_bit = 0;
-		start_bit = ffs(ION_HEAP_CUSTOM_START);
-		end_bit = ffs(ION_HEAP_CUSTOM_END);
+		start_bit = __ffs(ION_HEAP_CUSTOM_START);
+		end_bit = __ffs(ION_HEAP_CUSTOM_END);
 		break;
 	default:
 		return -EINVAL;
@@ -271,9 +268,9 @@ static int ion_assign_heap_id(struct ion_heap *heap, struct ion_device *dev)
 	 * If the heap hasn't picked an id by itself, then we assign it
 	 * one.
 	 */
-	if (!id_bit) {
+	if (id_bit < 0) {
 		if (heap->id) {
-			id_bit = ffs(heap->id);
+			id_bit = __ffs(heap->id);
 			if (id_bit < start_bit || id_bit > end_bit)
 				return -EINVAL;
 		} else {
@@ -284,9 +281,9 @@ static int ion_assign_heap_id(struct ion_heap *heap, struct ion_device *dev)
 		}
 	}
 
-	if (test_and_set_bit(id_bit - 1, dev->heap_ids))
+	if (test_and_set_bit(id_bit, dev->heap_ids))
 		return -EEXIST;
-	heap->id = id_bit - 1;
+	heap->id = id_bit;
 	dev->heap_cnt++;
 
 	return 0;
