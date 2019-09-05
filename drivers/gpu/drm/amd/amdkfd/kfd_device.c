@@ -371,11 +371,14 @@ static const struct kfd_device_info navi10_device_info = {
 
 /* For each entry, [0] is regular and [1] is virtualisation device. */
 static const struct kfd_device_info *kfd_supported_devices[][2] = {
+#ifdef KFD_SUPPORT_IOMMU_V2
 	[CHIP_KAVERI] = {&kaveri_device_info, NULL},
+	[CHIP_CARRIZO] = {&carrizo_device_info, NULL},
+	[CHIP_RAVEN] = {&raven_device_info, NULL},
+#endif
 	[CHIP_HAWAII] = {&hawaii_device_info, NULL},
 	[CHIP_TONGA] = {&tonga_device_info, NULL},
 	[CHIP_FIJI] = {&fiji_device_info, &fiji_vf_device_info},
-	[CHIP_CARRIZO] = {&carrizo_device_info, NULL},
 	[CHIP_POLARIS10] = {&polaris10_device_info, &polaris10_vf_device_info},
 	[CHIP_POLARIS11] = {&polaris11_device_info, NULL},
 	[CHIP_POLARIS12] = {&polaris12_device_info, NULL},
@@ -383,7 +386,6 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 	[CHIP_VEGA10] = {&vega10_device_info, &vega10_vf_device_info},
 	[CHIP_VEGA12] = {&vega12_device_info, NULL},
 	[CHIP_VEGA20] = {&vega20_device_info, NULL},
-	[CHIP_RAVEN] = {&raven_device_info, NULL},
 	[CHIP_ARCTURUS] = {&arcturus_device_info, &arcturus_device_info},
 	[CHIP_NAVI10] = {&navi10_device_info, NULL},
 };
