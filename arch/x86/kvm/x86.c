@@ -1363,19 +1363,23 @@ void kvm_enable_efer_bits(u64 mask)
 EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
 
 /*
- * Writes msr value into into the appropriate "register".
+ * Write @data into the MSR specified by @index.  Select MSR specific fault
+ * checks are bypassed if @host_initiated is %true.
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
  */
-int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
+static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
+			 bool host_initiated)
 {
-	switch (msr->index) {
+	struct msr_data msr;
+
+	switch (index) {
 	case MSR_FS_BASE:
 	case MSR_GS_BASE:
 	case MSR_KERNEL_GS_BASE:
 	case MSR_CSTAR:
 	case MSR_LSTAR:
-		if (is_noncanonical_address(msr->data, vcpu))
+		if (is_noncanonical_address(data, vcpu))
 			return 1;
 		break;
 	case MSR_IA32_SYSENTER_EIP:
@@ -1392,9 +1396,46 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		 * value, and that something deterministic happens if the guest
 		 * invokes 64-bit SYSENTER.
 		 */
-		msr->data = get_canonical(msr->data, vcpu_virt_addr_bits(vcpu));
+		data = get_canonical(data, vcpu_virt_addr_bits(vcpu));
 	}
-	return kvm_x86_ops->set_msr(vcpu, msr);
+
+	msr.data = data;
+	msr.index = index;
+	msr.host_initiated = host_initiated;
+
+	return kvm_x86_ops->set_msr(vcpu, &msr);
+}
+
+/*
+ * Read the MSR specified by @index into @data.  Select MSR specific fault
+ * checks are bypassed if @host_initiated is %true.
+ * Returns 0 on success, non-0 otherwise.
+ * Assumes vcpu_load() was already called.
+ */
+static int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
+			 bool host_initiated)
+{
+	struct msr_data msr;
+	int ret;
+
+	msr.index = index;
+	msr.host_initiated = host_initiated;
+
+	ret = kvm_x86_ops->get_msr(vcpu, &msr);
+	if (!ret)
+		*data = msr.data;
+	return ret;
+}
+
+int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
+{
+	return __kvm_get_msr(vcpu, index, data, false);
+}
+EXPORT_SYMBOL_GPL(kvm_get_msr);
+
+int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
+{
+	return __kvm_set_msr(vcpu, index, data, false);
 }
 EXPORT_SYMBOL_GPL(kvm_set_msr);
 
@@ -1403,27 +1444,12 @@ EXPORT_SYMBOL_GPL(kvm_set_msr);
  */
 static int do_get_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	struct msr_data msr;
-	int r;
-
-	msr.index = index;
-	msr.host_initiated = true;
-	r = kvm_get_msr(vcpu, &msr);
-	if (r)
-		return r;
-
-	*data = msr.data;
-	return 0;
+	return __kvm_get_msr(vcpu, index, data, true);
 }
 
 static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	struct msr_data msr;
-
-	msr.data = *data;
-	msr.index = index;
-	msr.host_initiated = true;
-	return kvm_set_msr(vcpu, &msr);
+	return __kvm_set_msr(vcpu, index, *data, true);
 }
 
 #ifdef CONFIG_X86_64
@@ -2761,18 +2787,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_msr_common);
-
-
-/*
- * Reads an msr value (of 'msr_index') into 'pdata'.
- * Returns 0 on success, non-0 otherwise.
- * Assumes vcpu_load() was already called.
- */
-int kvm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
-{
-	return kvm_x86_ops->get_msr(vcpu, msr);
-}
-EXPORT_SYMBOL_GPL(kvm_get_msr);
 
 static int get_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 {
@@ -5977,28 +5991,13 @@ static void emulator_set_segment(struct x86_emulate_ctxt *ctxt, u16 selector,
 static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 *pdata)
 {
-	struct msr_data msr;
-	int r;
-
-	msr.index = msr_index;
-	msr.host_initiated = false;
-	r = kvm_get_msr(emul_to_vcpu(ctxt), &msr);
-	if (r)
-		return r;
-
-	*pdata = msr.data;
-	return 0;
+	return kvm_get_msr(emul_to_vcpu(ctxt), msr_index, pdata);
 }
 
 static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 data)
 {
-	struct msr_data msr;
-
-	msr.data = data;
-	msr.index = msr_index;
-	msr.host_initiated = false;
-	return kvm_set_msr(emul_to_vcpu(ctxt), &msr);
+	return kvm_set_msr(emul_to_vcpu(ctxt), msr_index, data);
 }
 
 static u64 emulator_get_smbase(struct x86_emulate_ctxt *ctxt)

@@ -4886,14 +4886,10 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu)
 
 static int handle_wrmsr(struct kvm_vcpu *vcpu)
 {
-	struct msr_data msr;
 	u32 ecx = kvm_rcx_read(vcpu);
 	u64 data = kvm_read_edx_eax(vcpu);
 
-	msr.data = data;
-	msr.index = ecx;
-	msr.host_initiated = false;
-	if (kvm_set_msr(vcpu, &msr) != 0) {
+	if (kvm_set_msr(vcpu, ecx, data) != 0) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(vcpu, 0);
 		return 1;

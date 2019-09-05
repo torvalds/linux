@@ -4425,15 +4425,10 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 
 static int wrmsr_interception(struct vcpu_svm *svm)
 {
-	struct msr_data msr;
 	u32 ecx = kvm_rcx_read(&svm->vcpu);
 	u64 data = kvm_read_edx_eax(&svm->vcpu);
 
-	msr.data = data;
-	msr.index = ecx;
-	msr.host_initiated = false;
-
-	if (kvm_set_msr(&svm->vcpu, &msr)) {
+	if (kvm_set_msr(&svm->vcpu, ecx, data)) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(&svm->vcpu, 0);
 		return 1;
