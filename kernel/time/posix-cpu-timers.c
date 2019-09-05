@@ -47,25 +47,46 @@ void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 /*
  * Functions for validating access to tasks.
  */
-static struct task_struct *lookup_task(const pid_t pid, bool thread)
+static struct task_struct *lookup_task(const pid_t pid, bool thread,
+				       bool gettime)
 {
 	struct task_struct *p;
 
+	/*
+	 * If the encoded PID is 0, then the timer is targeted at current
+	 * or the process to which current belongs.
+	 */
 	if (!pid)
 		return thread ? current : current->group_leader;
 
 	p = find_task_by_vpid(pid);
-	if (!p || p == current)
+	if (!p)
 		return p;
+
 	if (thread)
 		return same_thread_group(p, current) ? p : NULL;
-	if (p == current)
-		return p;
+
+	if (gettime) {
+		/*
+		 * For clock_gettime(PROCESS) the task does not need to be
+		 * the actual group leader. tsk->sighand gives
+		 * access to the group's clock.
+		 *
+		 * Timers need the group leader because they take a
+		 * reference on it and store the task pointer until the
+		 * timer is destroyed.
+		 */
+		return (p == current || thread_group_leader(p)) ? p : NULL;
+	}
+
+	/*
+	 * For processes require that p is group leader.
+	 */
 	return has_group_leader_pid(p) ? p : NULL;
 }
 
 static struct task_struct *__get_task_for_clock(const clockid_t clock,
-						bool getref)
+						bool getref, bool gettime)
 {
 	const bool thread = !!CPUCLOCK_PERTHREAD(clock);
 	const pid_t pid = CPUCLOCK_PID(clock);
@@ -75,7 +96,7 @@ static struct task_struct *__get_task_for_clock(const clockid_t clock,
 		return NULL;
 
 	rcu_read_lock();
-	p = lookup_task(pid, thread);
+	p = lookup_task(pid, thread, gettime);
 	if (p && getref)
 		get_task_struct(p);
 	rcu_read_unlock();
@@ -84,12 +105,17 @@ static struct task_struct *__get_task_for_clock(const clockid_t clock,
 
 static inline struct task_struct *get_task_for_clock(const clockid_t clock)
 {
-	return __get_task_for_clock(clock, true);
+	return __get_task_for_clock(clock, true, false);
+}
+
+static inline struct task_struct *get_task_for_clock_get(const clockid_t clock)
+{
+	return __get_task_for_clock(clock, true, true);
 }
 
 static inline int validate_clock_permissions(const clockid_t clock)
 {
-	return __get_task_for_clock(clock, false) ? 0 : -EINVAL;
+	return __get_task_for_clock(clock, false, false) ? 0 : -EINVAL;
 }
 
 /*
@@ -339,7 +365,7 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 	struct task_struct *tsk;
 	u64 t;
 
-	tsk = get_task_for_clock(clock);
+	tsk = get_task_for_clock_get(clock);
 	if (!tsk)
 		return -EINVAL;
 
