@@ -1375,11 +1375,11 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 			req->src1.uv_addr + (req->src1.vir_w * req->src1.vir_h) / 4;
 	}
 	if (is_yuv422p_format(req->src.format))
-		req->src.v_addr = req->src.uv_addr + (req->src_vir_w * req->src.vir_h) / 2;
+		req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h) / 2;
 	if (is_yuv422p_format(req->dst.format))
-		req->dst.v_addr = req->dst.uv_addr + (req->dst_vir_w * req->dst.vir_h) / 2;
+		req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h) / 2;
 	if (is_yuv422p_format(req->src1.format))
-		req->src1.v_addr = req->src1.uv_addr + (req->src1_vir_w * req->dst.vir_h) / 2;
+		req->src1.v_addr = req->src1.uv_addr + (req->src1.vir_w * req->dst.vir_h) / 2;
 
 	return 0;
 }
