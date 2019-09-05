@@ -66,6 +66,7 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 	dmn->uar = mlx5_get_uars_page(dmn->mdev);
 	if (!dmn->uar) {
 		mlx5dr_err(dmn, "Couldn't allocate UAR\n");
+		ret = -ENOMEM;
 		goto clean_pd;
 	}
 
@@ -73,6 +74,7 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 	if (!dmn->ste_icm_pool) {
 		mlx5dr_err(dmn, "Couldn't get icm memory for %s\n",
 			   dev_name(dmn->mdev->device));
+		ret = -ENOMEM;
 		goto clean_uar;
 	}
 
@@ -80,6 +82,7 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 	if (!dmn->action_icm_pool) {
 		mlx5dr_err(dmn, "Couldn't get action icm memory for %s\n",
 			   dev_name(dmn->mdev->device));
+		ret = -ENOMEM;
 		goto free_ste_icm_pool;
 	}
 
