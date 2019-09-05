@@ -3619,6 +3619,7 @@ static int hclge_reset_stack(struct hclge_dev *hdev)
 static void hclge_reset(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	enum hnae3_reset_type reset_level;
 	int ret;
 
 	/* Initialize ae_dev reset status as well, in case enet layer wants to
@@ -3697,10 +3698,10 @@ static void hclge_reset(struct hclge_dev *hdev)
 	 * it should be handled as soon as possible. since some errors
 	 * need this kind of reset to fix.
 	 */
-	hdev->reset_level = hclge_get_reset_level(ae_dev,
-						  &hdev->default_reset_request);
-	if (hdev->reset_level != HNAE3_NONE_RESET)
-		set_bit(hdev->reset_level, &hdev->reset_request);
+	reset_level = hclge_get_reset_level(ae_dev,
+					    &hdev->default_reset_request);
+	if (reset_level != HNAE3_NONE_RESET)
+		set_bit(reset_level, &hdev->reset_request);
 
 	return;
 
