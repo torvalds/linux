@@ -274,6 +274,8 @@ struct vmbus_msginfo {
 
 extern struct vmbus_connection vmbus_connection;
 
+int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version);
+
 static inline void vmbus_send_interrupt(u32 relid)
 {
 	sync_set_bit(relid, vmbus_connection.send_int_page);
