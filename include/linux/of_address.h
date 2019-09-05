@@ -12,6 +12,7 @@ struct of_pci_range_parser {
 	const __be32 *end;
 	int np;
 	int pna;
+	bool dma;
 };
 
 struct of_pci_range {

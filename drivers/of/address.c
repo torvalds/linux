@@ -243,6 +243,7 @@ static int parser_init(struct of_pci_range_parser *parser,
 	parser->node = node;
 	parser->pna = of_n_addr_cells(node);
 	parser->np = parser->pna + na + ns;
+	parser->dma = !strcmp(name, "dma-ranges");
 
 	parser->range = of_get_property(node, name, &rlen);
 	if (parser->range == NULL)
@@ -281,7 +282,11 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 	range->pci_space = be32_to_cpup(parser->range);
 	range->flags = of_bus_pci_get_flags(parser->range);
 	range->pci_addr = of_read_number(parser->range + 1, ns);
-	range->cpu_addr = of_translate_address(parser->node,
+	if (parser->dma)
+		range->cpu_addr = of_translate_dma_address(parser->node,
+				parser->range + na);
+	else
+		range->cpu_addr = of_translate_address(parser->node,
 				parser->range + na);
 	range->size = of_read_number(parser->range + parser->pna + na, ns);
 
@@ -294,8 +299,12 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 
 		flags = of_bus_pci_get_flags(parser->range);
 		pci_addr = of_read_number(parser->range + 1, ns);
-		cpu_addr = of_translate_address(parser->node,
-				parser->range + na);
+		if (parser->dma)
+			cpu_addr = of_translate_dma_address(parser->node,
+					parser->range + na);
+		else
+			cpu_addr = of_translate_address(parser->node,
+					parser->range + na);
 		size = of_read_number(parser->range + parser->pna + na, ns);
 
 		if (flags != range->flags)
