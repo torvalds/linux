@@ -1514,7 +1514,6 @@ static void usage(void)
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
 	printf("\t\tPackage, Die, CPU, and command specific results.\n");
-	printf("\t\t\tFor Set commands, status is 0 for success and rest for failures\n");
 	exit(1);
 }
 
