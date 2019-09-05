@@ -159,6 +159,11 @@ int pci_ats_page_aligned(struct pci_dev *pdev)
 EXPORT_SYMBOL_GPL(pci_ats_page_aligned);
 
 #ifdef CONFIG_PCI_PRI
+void pci_pri_init(struct pci_dev *pdev)
+{
+	pdev->pri_cap = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
+}
+
 /**
  * pci_enable_pri - Enable PRI capability
  * @ pdev: PCI device structure
@@ -169,7 +174,7 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 {
 	u16 control, status;
 	u32 max_requests;
-	int pos;
+	int pri = pdev->pri_cap;
 
 	/*
 	 * VFs must not implement the PRI Capability.  If their PF
@@ -185,21 +190,20 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 	if (WARN_ON(pdev->pri_enabled))
 		return -EBUSY;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
+	if (!pri)
 		return -EINVAL;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
+	pci_read_config_word(pdev, pri + PCI_PRI_STATUS, &status);
 	if (!(status & PCI_PRI_STATUS_STOPPED))
 		return -EBUSY;
 
-	pci_read_config_dword(pdev, pos + PCI_PRI_MAX_REQ, &max_requests);
+	pci_read_config_dword(pdev, pri + PCI_PRI_MAX_REQ, &max_requests);
 	reqs = min(max_requests, reqs);
 	pdev->pri_reqs_alloc = reqs;
-	pci_write_config_dword(pdev, pos + PCI_PRI_ALLOC_REQ, reqs);
+	pci_write_config_dword(pdev, pri + PCI_PRI_ALLOC_REQ, reqs);
 
 	control = PCI_PRI_CTRL_ENABLE;
-	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
+	pci_write_config_word(pdev, pri + PCI_PRI_CTRL, control);
 
 	pdev->pri_enabled = 1;
 
@@ -216,7 +220,7 @@ EXPORT_SYMBOL_GPL(pci_enable_pri);
 void pci_disable_pri(struct pci_dev *pdev)
 {
 	u16 control;
-	int pos;
+	int pri = pdev->pri_cap;
 
 	/* VFs share the PF PRI */
 	if (pdev->is_virtfn)
@@ -225,13 +229,12 @@ void pci_disable_pri(struct pci_dev *pdev)
 	if (WARN_ON(!pdev->pri_enabled))
 		return;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
+	if (!pri)
 		return;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
+	pci_read_config_word(pdev, pri + PCI_PRI_CTRL, &control);
 	control &= ~PCI_PRI_CTRL_ENABLE;
-	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
+	pci_write_config_word(pdev, pri + PCI_PRI_CTRL, control);
 
 	pdev->pri_enabled = 0;
 }
@@ -245,7 +248,7 @@ void pci_restore_pri_state(struct pci_dev *pdev)
 {
 	u16 control = PCI_PRI_CTRL_ENABLE;
 	u32 reqs = pdev->pri_reqs_alloc;
-	int pos;
+	int pri = pdev->pri_cap;
 
 	if (pdev->is_virtfn)
 		return;
@@ -253,12 +256,11 @@ void pci_restore_pri_state(struct pci_dev *pdev)
 	if (!pdev->pri_enabled)
 		return;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
+	if (!pri)
 		return;
 
-	pci_write_config_dword(pdev, pos + PCI_PRI_ALLOC_REQ, reqs);
-	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
+	pci_write_config_dword(pdev, pri + PCI_PRI_ALLOC_REQ, reqs);
+	pci_write_config_word(pdev, pri + PCI_PRI_CTRL, control);
 }
 EXPORT_SYMBOL_GPL(pci_restore_pri_state);
 
@@ -272,7 +274,7 @@ EXPORT_SYMBOL_GPL(pci_restore_pri_state);
 int pci_reset_pri(struct pci_dev *pdev)
 {
 	u16 control;
-	int pos;
+	int pri = pdev->pri_cap;
 
 	if (pdev->is_virtfn)
 		return 0;
@@ -280,12 +282,11 @@ int pci_reset_pri(struct pci_dev *pdev)
 	if (WARN_ON(pdev->pri_enabled))
 		return -EBUSY;
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
+	if (!pri)
 		return -EINVAL;
 
 	control = PCI_PRI_CTRL_RESET;
-	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
+	pci_write_config_word(pdev, pri + PCI_PRI_CTRL, control);
 
 	return 0;
 }
@@ -301,16 +302,16 @@ EXPORT_SYMBOL_GPL(pci_reset_pri);
 int pci_prg_resp_pasid_required(struct pci_dev *pdev)
 {
 	u16 status;
-	int pos;
+	int pri;
 
 	if (pdev->is_virtfn)
 		pdev = pci_physfn(pdev);
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
+	pri = pdev->pri_cap;
+	if (!pri)
 		return 0;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
+	pci_read_config_word(pdev, pri + PCI_PRI_STATUS, &status);
 
 	if (status & PCI_PRI_STATUS_PASID)
 		return 1;

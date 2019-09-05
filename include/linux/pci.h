@@ -454,6 +454,7 @@ struct pci_dev {
 	u8		ats_stu;	/* ATS Smallest Translation Unit */
 #endif
 #ifdef CONFIG_PCI_PRI
+	u16		pri_cap;	/* PRI Capability offset */
 	u32		pri_reqs_alloc; /* Number of PRI requests allocated */
 #endif
 #ifdef CONFIG_PCI_PASID
