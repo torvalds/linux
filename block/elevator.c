@@ -619,15 +619,25 @@ out:
 	return ret;
 }
 
+static inline bool elv_support_iosched(struct request_queue *q)
+{
+	if (q->tag_set && (q->tag_set->flags & BLK_MQ_F_NO_SCHED))
+		return false;
+	return true;
+}
+
 /*
- * For blk-mq devices, we default to using mq-deadline, if available, for single
- * queue devices.  If deadline isn't available OR we have multiple queues,
- * default to "none".
+ * For blk-mq devices supporting IO scheduling, we default to using mq-deadline,
+ * if available, for single queue devices. If deadline isn't available OR we
+ * have multiple queues, default to "none".
  */
 int elevator_init_mq(struct request_queue *q)
 {
 	struct elevator_type *e;
 	int err = 0;
+
+	if (!elv_support_iosched(q))
+		return 0;
 
 	if (q->nr_hw_queues != 1)
 		return 0;
@@ -704,13 +714,6 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	}
 
 	return elevator_switch(q, e);
-}
-
-static inline bool elv_support_iosched(struct request_queue *q)
-{
-	if (q->tag_set && (q->tag_set->flags & BLK_MQ_F_NO_SCHED))
-		return false;
-	return true;
 }
 
 ssize_t elv_iosched_store(struct request_queue *q, const char *name,
