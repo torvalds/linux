@@ -108,7 +108,12 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
 
 	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
 		return true;
-
+	/*
+	 * For dax vmas, try to always use hugepage mappings. If the kernel does
+	 * not support hugepages, fsdax mappings will fallback to PAGE_SIZE
+	 * mappings, and device-dax namespaces, that try to guarantee a given
+	 * mapping size, will fail to enable
+	 */
 	if (vma_is_dax(vma))
 		return true;
 
