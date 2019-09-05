@@ -94,11 +94,11 @@ struct keyring_index_key {
 	union {
 		struct {
 #ifdef __LITTLE_ENDIAN /* Put desc_len at the LSB of x */
-			u8	desc_len;
-			char	desc[sizeof(long) - 1];	/* First few chars of description */
+			u16	desc_len;
+			char	desc[sizeof(long) - 2];	/* First few chars of description */
 #else
-			char	desc[sizeof(long) - 1];	/* First few chars of description */
-			u8	desc_len;
+			char	desc[sizeof(long) - 2];	/* First few chars of description */
+			u16	desc_len;
 #endif
 		};
 		unsigned long x;

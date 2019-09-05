@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_HNS
-	tristate "HNS RoCE Driver"
+	bool "HNS RoCE Driver"
 	depends on NET_VENDOR_HISILICON
 	depends on ARM64 || (COMPILE_TEST && 64BIT)
 	---help---
@@ -11,7 +11,7 @@ config INFINIBAND_HNS
 	  To compile HIP06 or HIP08 driver as module, choose M here.
 
 config INFINIBAND_HNS_HIP06
-	bool "Hisilicon Hip06 Family RoCE support"
+	tristate "Hisilicon Hip06 Family RoCE support"
 	depends on INFINIBAND_HNS && HNS && HNS_DSAF && HNS_ENET
 	---help---
 	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip06 and
@@ -21,7 +21,7 @@ config INFINIBAND_HNS_HIP06
 	  module will be called hns-roce-hw-v1
 
 config INFINIBAND_HNS_HIP08
-	bool "Hisilicon Hip08 Family RoCE support"
+	tristate "Hisilicon Hip08 Family RoCE support"
 	depends on INFINIBAND_HNS && PCI && HNS3
 	---help---
 	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip08 SoC.

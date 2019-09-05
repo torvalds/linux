@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 2) {
 		printf(
-			"Sintax:  %s fbdev\n"
+			"Syntax:  %s fbdev\n"
 			"Usually: /dev/fb0, /dev/fb1...\n", argv[0]);
 		return -1;
 	}

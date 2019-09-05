@@ -2101,7 +2101,11 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 	if (ret)
 		return ret;
 
-	*query = metrics_table.CurrSocketPower << 8;
+	/* For the 40.46 release, they changed the value name */
+	if (hwmgr->smu_version == 0x282e00)
+		*query = metrics_table.AverageSocketPower << 8;
+	else
+		*query = metrics_table.CurrSocketPower << 8;
 
 	return ret;
 }
@@ -2349,12 +2353,16 @@ static int vega20_force_dpm_highest(struct pp_hwmgr *hwmgr)
 		data->dpm_table.soc_table.dpm_state.soft_max_level =
 		data->dpm_table.soc_table.dpm_levels[soft_level].value;
 
-	ret = vega20_upload_dpm_min_level(hwmgr, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_min_level(hwmgr, FEATURE_DPM_GFXCLK_MASK |
+						 FEATURE_DPM_UCLK_MASK |
+						 FEATURE_DPM_SOCCLK_MASK);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload boot level to highest!",
 			return ret);
 
-	ret = vega20_upload_dpm_max_level(hwmgr, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_max_level(hwmgr, FEATURE_DPM_GFXCLK_MASK |
+						 FEATURE_DPM_UCLK_MASK |
+						 FEATURE_DPM_SOCCLK_MASK);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload dpm max level to highest!",
 			return ret);
@@ -2387,12 +2395,16 @@ static int vega20_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 		data->dpm_table.soc_table.dpm_state.soft_max_level =
 		data->dpm_table.soc_table.dpm_levels[soft_level].value;
 
-	ret = vega20_upload_dpm_min_level(hwmgr, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_min_level(hwmgr, FEATURE_DPM_GFXCLK_MASK |
+						 FEATURE_DPM_UCLK_MASK |
+						 FEATURE_DPM_SOCCLK_MASK);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload boot level to highest!",
 			return ret);
 
-	ret = vega20_upload_dpm_max_level(hwmgr, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_max_level(hwmgr, FEATURE_DPM_GFXCLK_MASK |
+						 FEATURE_DPM_UCLK_MASK |
+						 FEATURE_DPM_SOCCLK_MASK);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload dpm max level to highest!",
 			return ret);
@@ -2403,14 +2415,54 @@ static int vega20_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 
 static int vega20_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	uint32_t soft_min_level, soft_max_level;
 	int ret = 0;
 
-	ret = vega20_upload_dpm_min_level(hwmgr, 0xFFFFFFFF);
+	/* gfxclk soft min/max settings */
+	soft_min_level =
+		vega20_find_lowest_dpm_level(&(data->dpm_table.gfx_table));
+	soft_max_level =
+		vega20_find_highest_dpm_level(&(data->dpm_table.gfx_table));
+
+	data->dpm_table.gfx_table.dpm_state.soft_min_level =
+		data->dpm_table.gfx_table.dpm_levels[soft_min_level].value;
+	data->dpm_table.gfx_table.dpm_state.soft_max_level =
+		data->dpm_table.gfx_table.dpm_levels[soft_max_level].value;
+
+	/* uclk soft min/max settings */
+	soft_min_level =
+		vega20_find_lowest_dpm_level(&(data->dpm_table.mem_table));
+	soft_max_level =
+		vega20_find_highest_dpm_level(&(data->dpm_table.mem_table));
+
+	data->dpm_table.mem_table.dpm_state.soft_min_level =
+		data->dpm_table.mem_table.dpm_levels[soft_min_level].value;
+	data->dpm_table.mem_table.dpm_state.soft_max_level =
+		data->dpm_table.mem_table.dpm_levels[soft_max_level].value;
+
+	/* socclk soft min/max settings */
+	soft_min_level =
+		vega20_find_lowest_dpm_level(&(data->dpm_table.soc_table));
+	soft_max_level =
+		vega20_find_highest_dpm_level(&(data->dpm_table.soc_table));
+
+	data->dpm_table.soc_table.dpm_state.soft_min_level =
+		data->dpm_table.soc_table.dpm_levels[soft_min_level].value;
+	data->dpm_table.soc_table.dpm_state.soft_max_level =
+		data->dpm_table.soc_table.dpm_levels[soft_max_level].value;
+
+	ret = vega20_upload_dpm_min_level(hwmgr, FEATURE_DPM_GFXCLK_MASK |
+						 FEATURE_DPM_UCLK_MASK |
+						 FEATURE_DPM_SOCCLK_MASK);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload DPM Bootup Levels!",
 			return ret);
 
-	ret = vega20_upload_dpm_max_level(hwmgr, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_max_level(hwmgr, FEATURE_DPM_GFXCLK_MASK |
+						 FEATURE_DPM_UCLK_MASK |
+						 FEATURE_DPM_SOCCLK_MASK);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload DPM Max Levels!",
 			return ret);

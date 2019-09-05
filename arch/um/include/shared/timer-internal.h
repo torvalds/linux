@@ -34,10 +34,13 @@ static inline void time_travel_set_time(unsigned long long ns)
 	time_travel_time = ns;
 }
 
-static inline void time_travel_set_timer(enum time_travel_timer_mode mode,
-					 unsigned long long expiry)
+static inline void time_travel_set_timer_mode(enum time_travel_timer_mode mode)
 {
 	time_travel_timer_mode = mode;
+}
+
+static inline void time_travel_set_timer_expiry(unsigned long long expiry)
+{
 	time_travel_timer_expiry = expiry;
 }
 #else
@@ -50,8 +53,11 @@ static inline void time_travel_set_time(unsigned long long ns)
 {
 }
 
-static inline void time_travel_set_timer(enum time_travel_timer_mode mode,
-					 unsigned long long expiry)
+static inline void time_travel_set_timer_mode(enum time_travel_timer_mode mode)
+{
+}
+
+static inline void time_travel_set_timer_expiry(unsigned long long expiry)
 {
 }
 

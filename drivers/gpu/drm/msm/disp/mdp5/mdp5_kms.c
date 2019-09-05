@@ -740,7 +740,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	dev->driver->get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos;
 	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
 	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
-	dev->max_vblank_count = 0xffffffff;
+	dev->max_vblank_count = 0; /* max_vblank_count is set on each CRTC */
 	dev->vblank_disable_immediate = true;
 
 	return kms;

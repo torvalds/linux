@@ -1839,7 +1839,7 @@ static void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
 
-	trace_intel_pipe_enable(dev_priv, pipe);
+	trace_intel_pipe_enable(crtc);
 
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
@@ -1880,7 +1880,7 @@ static void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state)
 	 */
 	assert_planes_disabled(crtc);
 
-	trace_intel_pipe_disable(dev_priv, pipe);
+	trace_intel_pipe_disable(crtc);
 
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
@@ -12042,7 +12042,7 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 		case INTEL_OUTPUT_DDI:
 			if (WARN_ON(!HAS_DDI(to_i915(dev))))
 				break;
-			/* else: fall through */
+			/* else, fall through */
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_HDMI:
 		case INTEL_OUTPUT_EDP:

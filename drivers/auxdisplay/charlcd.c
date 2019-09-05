@@ -20,7 +20,7 @@
 
 #include <generated/utsrelease.h>
 
-#include <misc/charlcd.h>
+#include "charlcd.h"
 
 #define LCD_MINOR		156
 
