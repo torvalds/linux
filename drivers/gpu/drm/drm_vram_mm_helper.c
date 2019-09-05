@@ -228,7 +228,7 @@ int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 
 	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver,
 				 dev->anon_inode->i_mapping,
-				 NULL,
+				 dev->vma_offset_manager,
 				 true);
 	if (ret)
 		return ret;
