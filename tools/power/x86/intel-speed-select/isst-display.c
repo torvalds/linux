@@ -8,6 +8,33 @@
 
 #define DISP_FREQ_MULTIPLIER 100
 
+static void printcpulist(int str_len, char *str, int mask_size,
+			 cpu_set_t *cpu_mask)
+{
+	int i, first, curr_index, index;
+
+	if (!CPU_COUNT_S(mask_size, cpu_mask)) {
+		snprintf(str, str_len, "none");
+		return;
+	}
+
+	curr_index = 0;
+	first = 1;
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (!CPU_ISSET_S(i, mask_size, cpu_mask))
+			continue;
+		if (!first) {
+			index = snprintf(&str[curr_index],
+					 str_len - curr_index, ",");
+			curr_index += index;
+		}
+		index = snprintf(&str[curr_index], str_len - curr_index, "%d",
+				 i);
+		curr_index += index;
+		first = 0;
+	}
+}
+
 static void printcpumask(int str_len, char *str, int mask_size,
 			 cpu_set_t *cpu_mask)
 {
@@ -166,6 +193,12 @@ static void _isst_pbf_display_information(int cpu, FILE *outf, int level,
 		     pbf_info->core_cpumask);
 	format_and_print(outf, disp_level + 1, header, value);
 
+	snprintf(header, sizeof(header), "high-priority-cpu-list");
+	printcpulist(sizeof(value), value,
+		     pbf_info->core_cpumask_size,
+		     pbf_info->core_cpumask);
+	format_and_print(outf, disp_level + 1, header, value);
+
 	snprintf(header, sizeof(header), "low-priority-base-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
 		 pbf_info->p1_low * DISP_FREQ_MULTIPLIER);
@@ -283,6 +316,12 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 
 		snprintf(header, sizeof(header), "enable-cpu-mask");
 		printcpumask(sizeof(value), value,
+			     ctdp_level->core_cpumask_size,
+			     ctdp_level->core_cpumask);
+		format_and_print(outf, base_level + 4, header, value);
+
+		snprintf(header, sizeof(header), "enable-cpu-list");
+		printcpulist(sizeof(value), value,
 			     ctdp_level->core_cpumask_size,
 			     ctdp_level->core_cpumask);
 		format_and_print(outf, base_level + 4, header, value);
