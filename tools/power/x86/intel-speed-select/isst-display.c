@@ -6,7 +6,7 @@
 
 #include "isst.h"
 
-#define DISP_FREQ_MULTIPLIER 100000
+#define DISP_FREQ_MULTIPLIER 100
 
 static void printcpumask(int str_len, char *str, int mask_size,
 			 cpu_set_t *cpu_mask)
@@ -156,7 +156,7 @@ static void _isst_pbf_display_information(int cpu, FILE *outf, int level,
 	snprintf(header, sizeof(header), "speed-select-base-freq");
 	format_and_print(outf, disp_level, header, NULL);
 
-	snprintf(header, sizeof(header), "high-priority-base-frequency(KHz)");
+	snprintf(header, sizeof(header), "high-priority-base-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
 		 pbf_info->p1_high * DISP_FREQ_MULTIPLIER);
 	format_and_print(outf, disp_level + 1, header, value);
@@ -166,7 +166,7 @@ static void _isst_pbf_display_information(int cpu, FILE *outf, int level,
 		     pbf_info->core_cpumask);
 	format_and_print(outf, disp_level + 1, header, value);
 
-	snprintf(header, sizeof(header), "low-priority-base-frequency(KHz)");
+	snprintf(header, sizeof(header), "low-priority-base-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
 		 pbf_info->p1_low * DISP_FREQ_MULTIPLIER);
 	format_and_print(outf, disp_level + 1, header, value);
@@ -209,7 +209,7 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 
 		if (fact_avx & 0x01) {
 			snprintf(header, sizeof(header),
-				 "high-priority-max-frequency(KHz)");
+				 "high-priority-max-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 bucket_info[j].sse_trl * DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 2, header, value);
@@ -217,7 +217,7 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 
 		if (fact_avx & 0x02) {
 			snprintf(header, sizeof(header),
-				 "high-priority-max-avx2-frequency(KHz)");
+				 "high-priority-max-avx2-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 bucket_info[j].avx_trl * DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 2, header, value);
@@ -225,7 +225,7 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 
 		if (fact_avx & 0x04) {
 			snprintf(header, sizeof(header),
-				 "high-priority-max-avx512-frequency(KHz)");
+				 "high-priority-max-avx512-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 bucket_info[j].avx512_trl *
 					 DISP_FREQ_MULTIPLIER);
@@ -235,19 +235,19 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 	snprintf(header, sizeof(header),
 		 "speed-select-turbo-freq-clip-frequencies");
 	format_and_print(outf, base_level + 1, header, NULL);
-	snprintf(header, sizeof(header), "low-priority-max-frequency(KHz)");
+	snprintf(header, sizeof(header), "low-priority-max-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
 		 fact_info->lp_clipping_ratio_license_sse *
 			 DISP_FREQ_MULTIPLIER);
 	format_and_print(outf, base_level + 2, header, value);
 	snprintf(header, sizeof(header),
-		 "low-priority-max-avx2-frequency(KHz)");
+		 "low-priority-max-avx2-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
 		 fact_info->lp_clipping_ratio_license_avx2 *
 			 DISP_FREQ_MULTIPLIER);
 	format_and_print(outf, base_level + 2, header, value);
 	snprintf(header, sizeof(header),
-		 "low-priority-max-avx512-frequency(KHz)");
+		 "low-priority-max-avx512-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
 		 fact_info->lp_clipping_ratio_license_avx512 *
 			 DISP_FREQ_MULTIPLIER);
@@ -291,7 +291,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		snprintf(value, sizeof(value), "%d", ctdp_level->tdp_ratio);
 		format_and_print(outf, base_level + 4, header, value);
 
-		snprintf(header, sizeof(header), "base-frequency(KHz)");
+		snprintf(header, sizeof(header), "base-frequency(MHz)");
 		snprintf(value, sizeof(value), "%d",
 			 ctdp_level->tdp_ratio * DISP_FREQ_MULTIPLIER);
 		format_and_print(outf, base_level + 4, header, value);
