@@ -1265,11 +1265,10 @@ int bch2_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
-	if (!(trans->flags & BTREE_INSERT_NOMARK_INSERT))
-		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k),
-			0, insert->k->k.size,
-			fs_usage, trans->journal_res.seq,
-			BCH_BUCKET_MARK_INSERT|flags);
+	bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k),
+		0, insert->k->k.size,
+		fs_usage, trans->journal_res.seq,
+		BCH_BUCKET_MARK_INSERT|flags);
 
 	if (unlikely(trans->flags & BTREE_INSERT_NOMARK_OVERWRITES))
 		return 0;
