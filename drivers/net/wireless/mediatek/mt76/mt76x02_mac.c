@@ -1148,6 +1148,15 @@ void mt76x02_mac_cc_reset(struct mt76x02_dev *dev)
 {
 	dev->mt76.survey_time = ktime_get_boottime();
 
+	mt76_wr(dev, MT_CH_TIME_CFG,
+		MT_CH_TIME_CFG_TIMER_EN |
+		MT_CH_TIME_CFG_TX_AS_BUSY |
+		MT_CH_TIME_CFG_RX_AS_BUSY |
+		MT_CH_TIME_CFG_NAV_AS_BUSY |
+		MT_CH_TIME_CFG_EIFS_AS_BUSY |
+		MT_CH_CCA_RC_EN |
+		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
+
 	/* channel cycle counters read-and-clear */
 	mt76_rr(dev, MT_CH_BUSY);
 	mt76_rr(dev, MT_CH_IDLE);

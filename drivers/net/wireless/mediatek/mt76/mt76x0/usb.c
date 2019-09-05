@@ -165,13 +165,6 @@ static int mt76x0u_init_hardware(struct mt76x02_dev *dev, bool reset)
 		FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
 		FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
 
-	mt76_wr(dev, MT_CH_TIME_CFG,
-		MT_CH_TIME_CFG_TIMER_EN |
-		MT_CH_TIME_CFG_TX_AS_BUSY |
-		MT_CH_TIME_CFG_RX_AS_BUSY |
-		MT_CH_TIME_CFG_NAV_AS_BUSY |
-		MT_CH_TIME_CFG_EIFS_AS_BUSY);
-
 	return 0;
 }
 
