@@ -10,7 +10,7 @@
 #ifndef _CX231XX_VBI_H
 #define _CX231XX_VBI_H
 
-extern const struct videobuf_queue_ops cx231xx_vbi_qops;
+extern struct vb2_ops cx231xx_vbi_qops;
 
 #define   NTSC_VBI_START_LINE 10	/* line 10 - 21 */
 #define   NTSC_VBI_END_LINE   21
