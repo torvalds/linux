@@ -1704,8 +1704,6 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 			pr_debug("Swap list %d was clean\n", i);
 	spin_unlock(&glob->lru_lock);
 
-	drm_vma_offset_manager_destroy(&bdev->_vma_manager);
-
 	if (!ret)
 		ttm_bo_global_release();
 
@@ -1722,8 +1720,8 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 	int ret;
 
-	if (!vma_manager)
-		vma_manager = &bdev->_vma_manager;
+	if (WARN_ON(vma_manager == NULL))
+		return -EINVAL;
 
 	ret = ttm_bo_global_init();
 	if (ret)
@@ -1742,9 +1740,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		goto out_no_sys;
 
 	bdev->vma_manager = vma_manager;
-	drm_vma_offset_manager_init(&bdev->_vma_manager,
-				    DRM_FILE_PAGE_OFFSET_START,
-				    DRM_FILE_PAGE_OFFSET_SIZE);
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = mapping;
