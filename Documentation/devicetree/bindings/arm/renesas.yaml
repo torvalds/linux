@@ -116,6 +116,10 @@ properties:
           - const: hoperun,hihope-rzg2m
           - const: renesas,r8a774a1
 
+      - description: RZ/G2N (R8A774B1)
+        items:
+          - const: renesas,r8a774b1
+
       - description: RZ/G2E (R8A774C0)
         items:
           - enum:
