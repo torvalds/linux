@@ -103,9 +103,6 @@ struct net {
 	/* core fib_rules */
 	struct list_head	rules_ops;
 
-	struct list_head	fib_notifier_ops;  /* Populated by
-						    * register_pernet_subsys()
-						    */
 	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
 	struct netns_mib	mib;
