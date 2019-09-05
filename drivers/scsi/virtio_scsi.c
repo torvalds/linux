@@ -30,6 +30,8 @@
 #include <linux/seqlock.h>
 #include <linux/blk-mq-virtio.h>
 
+#include "sd.h"
+
 #define VIRTIO_SCSI_MEMPOOL_SZ 64
 #define VIRTIO_SCSI_EVENT_LEN 8
 #define VIRTIO_SCSI_VQ_BASE 2
@@ -324,6 +326,36 @@ static void virtscsi_handle_param_change(struct virtio_scsi *vscsi,
 	scsi_device_put(sdev);
 }
 
+static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
+{
+	struct scsi_device *sdev;
+	struct Scsi_Host *shost = virtio_scsi_host(vscsi->vdev);
+	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
+	int result, inquiry_len, inq_result_len = 256;
+	char *inq_result = kmalloc(inq_result_len, GFP_KERNEL);
+
+	shost_for_each_device(sdev, shost) {
+		inquiry_len = sdev->inquiry_len ? sdev->inquiry_len : 36;
+
+		memset(scsi_cmd, 0, sizeof(scsi_cmd));
+		scsi_cmd[0] = INQUIRY;
+		scsi_cmd[4] = (unsigned char) inquiry_len;
+
+		memset(inq_result, 0, inq_result_len);
+
+		result = scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE,
+					  inq_result, inquiry_len, NULL,
+					  SD_TIMEOUT, SD_MAX_RETRIES, NULL);
+
+		if (result == 0 && inq_result[0] >> 5) {
+			/* PQ indicates the LUN is not attached */
+			scsi_remove_device(sdev);
+		}
+	}
+
+	kfree(inq_result);
+}
+
 static void virtscsi_handle_event(struct work_struct *work)
 {
 	struct virtio_scsi_event_node *event_node =
@@ -335,6 +367,7 @@ static void virtscsi_handle_event(struct work_struct *work)
 	    cpu_to_virtio32(vscsi->vdev, VIRTIO_SCSI_T_EVENTS_MISSED)) {
 		event->event &= ~cpu_to_virtio32(vscsi->vdev,
 						   VIRTIO_SCSI_T_EVENTS_MISSED);
+		virtscsi_rescan_hotunplug(vscsi);
 		scsi_scan_host(virtio_scsi_host(vscsi->vdev));
 	}
 
