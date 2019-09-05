@@ -10,8 +10,10 @@ Required properties:
 	- #size-cells: 0
 	- spi-max-frequency: Maximum frequency of the SPI bus the chip can
 			     operate at should be less than or equal to 18 MHz.
-	- data-ready-gpios: Interrupt GPIO for data and error reporting.
 	- device-wake-gpios: Wake up GPIO to wake up the TCAN device.
+	- interrupt-parent: the phandle to the interrupt controller which provides
+                    the interrupt.
+	- interrupts: interrupt specification for data-ready.
 
 See Documentation/devicetree/bindings/net/can/m_can.txt for additional
 required property details.
@@ -30,7 +32,8 @@ tcan4x5x: tcan4x5x@0 {
 		#size-cells = <1>;
 		spi-max-frequency = <10000000>;
 		bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
-		data-ready-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <14 GPIO_ACTIVE_LOW>;
 		device-state-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
 		device-wake-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 27 GPIO_ACTIVE_LOW>;

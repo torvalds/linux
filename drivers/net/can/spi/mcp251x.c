@@ -17,26 +17,6 @@
  * - Sascha Hauer, Marc Kleine-Budde, Pengutronix
  * - Simon Kallweit, intefo AG
  * Copyright 2007
- *
- * Your platform definition file should specify something like:
- *
- * static struct mcp251x_platform_data mcp251x_info = {
- *         .oscillator_frequency = 8000000,
- * };
- *
- * static struct spi_board_info spi_board_info[] = {
- *         {
- *                 .modalias = "mcp2510",
- *			// "mcp2515" or "mcp25625" depending on your controller
- *                 .platform_data = &mcp251x_info,
- *                 .irq = IRQ_EINT13,
- *                 .max_speed_hz = 2*1000*1000,
- *                 .chip_select = 2,
- *         },
- * };
- *
- * Please see mcp251x.h for a description of the fields in
- * struct mcp251x_platform_data.
  */
 
 #include <linux/can/core.h>
@@ -53,8 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -914,7 +893,7 @@ static int mcp251x_open(struct net_device *net)
 	priv->tx_skb = NULL;
 	priv->tx_len = 0;
 
-	if (!spi->dev.of_node)
+	if (!dev_fwnode(&spi->dev))
 		flags = IRQF_TRIGGER_FALLING;
 
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
@@ -1006,23 +985,20 @@ MODULE_DEVICE_TABLE(spi, mcp251x_id_table);
 
 static int mcp251x_can_probe(struct spi_device *spi)
 {
-	const struct of_device_id *of_id = of_match_device(mcp251x_of_match,
-							   &spi->dev);
+	const void *match = device_get_match_data(&spi->dev);
 	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct net_device *net;
 	struct mcp251x_priv *priv;
 	struct clk *clk;
 	int freq, ret;
 
-	clk = devm_clk_get(&spi->dev, NULL);
-	if (IS_ERR(clk)) {
-		if (pdata)
-			freq = pdata->oscillator_frequency;
-		else
-			return PTR_ERR(clk);
-	} else {
-		freq = clk_get_rate(clk);
-	}
+	clk = devm_clk_get_optional(&spi->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	freq = clk_get_rate(clk);
+	if (freq == 0 && pdata)
+		freq = pdata->oscillator_frequency;
 
 	/* Sanity check */
 	if (freq < 1000000 || freq > 25000000)
@@ -1033,11 +1009,9 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	if (!net)
 		return -ENOMEM;
 
-	if (!IS_ERR(clk)) {
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			goto out_free;
-	}
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto out_free;
 
 	net->netdev_ops = &mcp251x_netdev_ops;
 	net->flags |= IFF_ECHO;
@@ -1048,8 +1022,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->can.clock.freq = freq / 2;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
 		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY;
-	if (of_id)
-		priv->model = (enum mcp251x_model)of_id->data;
+	if (match)
+		priv->model = (enum mcp251x_model)match;
 	else
 		priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;
@@ -1122,8 +1096,7 @@ error_probe:
 	mcp251x_power_enable(priv->power, 0);
 
 out_clk:
-	if (!IS_ERR(clk))
-		clk_disable_unprepare(clk);
+	clk_disable_unprepare(clk);
 
 out_free:
 	free_candev(net);
@@ -1141,8 +1114,7 @@ static int mcp251x_can_remove(struct spi_device *spi)
 
 	mcp251x_power_enable(priv->power, 0);
 
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	free_candev(net);
 
@@ -1170,10 +1142,8 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 		priv->after_suspend = AFTER_SUSPEND_DOWN;
 	}
 
-	if (!IS_ERR_OR_NULL(priv->power)) {
-		regulator_disable(priv->power);
-		priv->after_suspend |= AFTER_SUSPEND_POWER;
-	}
+	mcp251x_power_enable(priv->power, 0);
+	priv->after_suspend |= AFTER_SUSPEND_POWER;
 
 	return 0;
 }
