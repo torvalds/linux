@@ -176,8 +176,8 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 
 	ret = devm_watchdog_register_device(dev, wdog);
 	if (ret)
- 		return ret;
- 
+		return ret;
+
 	ret = imx_scu_irq_group_enable(SC_IRQ_GROUP_WDOG,
 				       SC_IRQ_WDOG,
 				       true);
