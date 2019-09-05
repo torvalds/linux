@@ -29,7 +29,7 @@ given applications, see section 10 of RFC 4340.
 It has a base protocol and pluggable congestion control IDs (CCIDs).
 
 DCCP is a Proposed Standard (RFC 2026), and the homepage for DCCP as a protocol
-is at http://www.ietf.org/html.charters/dccp-charter.html
+is at https://datatracker.ietf.org/doc/charter-ietf-dccp/
 
 
 Missing features
