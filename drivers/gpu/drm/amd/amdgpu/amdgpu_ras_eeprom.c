@@ -226,8 +226,8 @@ static void __decode_table_record_from_buff(struct amdgpu_ras_eeprom_control *co
 	record->offset = (le64_to_cpu(tmp) & 0xffffffffffff);
 	i += 6;
 
-	buff[i++] = record->mem_channel;
-	buff[i++] = record->mcumc_id;
+	record->mem_channel = buff[i++];
+	record->mcumc_id = buff[i++];
 
 	memcpy(&tmp, buff + i,  6);
 	record->retired_page = (le64_to_cpu(tmp) & 0xffffffffffff);
