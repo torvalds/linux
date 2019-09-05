@@ -171,8 +171,10 @@ extern int hv_synic_alloc(void);
 
 extern void hv_synic_free(void);
 
+extern void hv_synic_enable_regs(unsigned int cpu);
 extern int hv_synic_init(unsigned int cpu);
 
+extern void hv_synic_disable_regs(unsigned int cpu);
 extern int hv_synic_cleanup(unsigned int cpu);
 
 /* Interface */
