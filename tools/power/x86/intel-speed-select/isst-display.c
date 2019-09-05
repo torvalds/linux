@@ -336,9 +336,11 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			snprintf(value, sizeof(value), "%d", j);
 			format_and_print(outf, base_level + 6, header, value);
 
-			snprintf(header, sizeof(header), "turbo-ratio");
+			snprintf(header, sizeof(header),
+				"max-turbo-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->trl_sse_active_cores[j]);
+				 ctdp_level->trl_sse_active_cores[j] *
+				  DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 6, header, value);
 		}
 		snprintf(header, sizeof(header), "turbo-ratio-limits-avx");
@@ -351,9 +353,11 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			snprintf(value, sizeof(value), "%d", j);
 			format_and_print(outf, base_level + 6, header, value);
 
-			snprintf(header, sizeof(header), "turbo-ratio");
+			snprintf(header, sizeof(header),
+				"max-turbo-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->trl_avx_active_cores[j]);
+				 ctdp_level->trl_avx_active_cores[j] *
+				  DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 6, header, value);
 		}
 
@@ -367,9 +371,11 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			snprintf(value, sizeof(value), "%d", j);
 			format_and_print(outf, base_level + 6, header, value);
 
-			snprintf(header, sizeof(header), "turbo-ratio");
+			snprintf(header, sizeof(header),
+				"max-turbo-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->trl_avx_512_active_cores[j]);
+				 ctdp_level->trl_avx_512_active_cores[j] *
+				  DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 6, header, value);
 		}
 		if (ctdp_level->pbf_support)
