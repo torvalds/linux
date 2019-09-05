@@ -297,23 +297,25 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		format_and_print(outf, base_level + 4, header, value);
 
 		snprintf(header, sizeof(header),
-			 "speed-select-turbo-freq-support");
-		snprintf(value, sizeof(value), "%d", ctdp_level->fact_support);
+			 "speed-select-turbo-freq");
+		if (ctdp_level->fact_support) {
+			if (ctdp_level->fact_enabled)
+				snprintf(value, sizeof(value), "enabled");
+			else
+				snprintf(value, sizeof(value), "disabled");
+		} else
+			snprintf(value, sizeof(value), "unsupported");
 		format_and_print(outf, base_level + 4, header, value);
 
 		snprintf(header, sizeof(header),
-			 "speed-select-base-freq-support");
-		snprintf(value, sizeof(value), "%d", ctdp_level->pbf_support);
-		format_and_print(outf, base_level + 4, header, value);
-
-		snprintf(header, sizeof(header),
-			 "speed-select-base-freq-enabled");
-		snprintf(value, sizeof(value), "%d", ctdp_level->pbf_enabled);
-		format_and_print(outf, base_level + 4, header, value);
-
-		snprintf(header, sizeof(header),
-			 "speed-select-turbo-freq-enabled");
-		snprintf(value, sizeof(value), "%d", ctdp_level->fact_enabled);
+			 "speed-select-base-freq");
+		if (ctdp_level->pbf_support) {
+			if (ctdp_level->pbf_enabled)
+				snprintf(value, sizeof(value), "enabled");
+			else
+				snprintf(value, sizeof(value), "disabled");
+		} else
+			snprintf(value, sizeof(value), "unsupported");
 		format_and_print(outf, base_level + 4, header, value);
 
 		snprintf(header, sizeof(header), "thermal-design-power(W)");
