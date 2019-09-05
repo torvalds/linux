@@ -10,9 +10,13 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/time.h>
+
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+
+#define HZ_PER_MHZ	1000000L
 
 static struct {
 	u32 usage_id;
@@ -93,8 +97,10 @@ static void simple_div(int dividend, int divisor, int *whole,
 
 static void split_micro_fraction(unsigned int no, int exp, int *val1, int *val2)
 {
-	*val1 = no / int_pow(10, exp);
-	*val2 = no % int_pow(10, exp) * int_pow(10, 6 - exp);
+	int divisor = int_pow(10, exp);
+
+	*val1 = no / divisor;
+	*val2 = no % divisor * int_pow(10, 6 - exp);
 }
 
 /*
@@ -129,6 +135,7 @@ static void convert_from_vtf_format(u32 value, int size, int exp,
 
 static u32 convert_to_vtf_format(int size, int exp, int val1, int val2)
 {
+	int divisor;
 	u32 value;
 	int sign = 1;
 
@@ -136,10 +143,13 @@ static u32 convert_to_vtf_format(int size, int exp, int val1, int val2)
 		sign = -1;
 	exp = hid_sensor_convert_exponent(exp);
 	if (exp < 0) {
+		divisor = int_pow(10, 6 + exp);
 		value = abs(val1) * int_pow(10, -exp);
-		value += abs(val2) / int_pow(10, 6 + exp);
-	} else
-		value = abs(val1) / int_pow(10, exp);
+		value += abs(val2) / divisor;
+	} else {
+		divisor = int_pow(10, exp);
+		value = abs(val1) / divisor;
+	}
 	if (sign < 0)
 		value =  ((1LL << (size * 8)) - value);
 
@@ -202,12 +212,12 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 	if (val1 < 0 || val2 < 0)
 		return -EINVAL;
 
-	value = val1 * int_pow(10, 6) + val2;
+	value = val1 * HZ_PER_MHZ + val2;
 	if (value) {
 		if (st->poll.units == HID_USAGE_SENSOR_UNITS_MILLISECOND)
-			value = int_pow(10, 9) / value;
+			value = NSEC_PER_SEC / value;
 		else if (st->poll.units == HID_USAGE_SENSOR_UNITS_SECOND)
-			value = int_pow(10, 6) / value;
+			value = USEC_PER_SEC / value;
 		else
 			value = 0;
 	}
@@ -296,6 +306,7 @@ EXPORT_SYMBOL(hid_sensor_write_raw_hyst_value);
 static void adjust_exponent_nano(int *val0, int *val1, int scale0,
 				  int scale1, int exp)
 {
+	int divisor;
 	int i;
 	int x;
 	int res;
@@ -309,9 +320,10 @@ static void adjust_exponent_nano(int *val0, int *val1, int scale0,
 			return;
 		}
 		for (i = 0; i < exp; ++i) {
-			x = scale1 / int_pow(10, 8 - i);
+			divisor = int_pow(10, 8 - i);
+			x = scale1 / divisor;
 			res += int_pow(10, exp - 1 - i) * x;
-			scale1 = scale1 % int_pow(10, 8 - i);
+			scale1 = scale1 % divisor;
 		}
 		*val0 += res;
 		*val1 = scale1 * int_pow(10, exp);
@@ -321,13 +333,15 @@ static void adjust_exponent_nano(int *val0, int *val1, int scale0,
 			*val0 = *val1 = 0;
 			return;
 		}
-		*val0 = scale0 / int_pow(10, exp);
-		rem = scale0 % int_pow(10, exp);
+		divisor = int_pow(10, exp);
+		*val0 = scale0 / divisor;
+		rem = scale0 % divisor;
 		res = 0;
 		for (i = 0; i < (9 - exp); ++i) {
-			x = scale1 / int_pow(10, 8 - i);
+			divisor = int_pow(10, 8 - i);
+			x = scale1 / divisor;
 			res += int_pow(10, 8 - exp - i) * x;
-			scale1 = scale1 % int_pow(10, 8 - i);
+			scale1 = scale1 % divisor;
 		}
 		*val1 = rem * int_pow(10, 9 - exp) + res;
 	} else {
