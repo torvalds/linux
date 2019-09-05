@@ -908,9 +908,11 @@ static struct hns3_enet_ring *hns3_backup_ringparam(struct hns3_nic_priv *priv)
 	if (!tmp_rings)
 		return NULL;
 
-	for (i = 0; i < handle->kinfo.num_tqps * 2; i++)
+	for (i = 0; i < handle->kinfo.num_tqps * 2; i++) {
 		memcpy(&tmp_rings[i], priv->ring_data[i].ring,
 		       sizeof(struct hns3_enet_ring));
+		tmp_rings[i].skb = NULL;
+	}
 
 	return tmp_rings;
 }
