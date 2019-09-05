@@ -2172,9 +2172,8 @@ static int lan743x_rx_napi_poll(struct napi_struct *napi, int weight)
 	}
 	count = 0;
 	while (count < weight) {
-		int rx_process_result = -1;
+		int rx_process_result = lan743x_rx_process_packet(rx);
 
-		rx_process_result = lan743x_rx_process_packet(rx);
 		if (rx_process_result == RX_PROCESS_RESULT_PACKET_RECEIVED) {
 			count++;
 		} else if (rx_process_result ==
