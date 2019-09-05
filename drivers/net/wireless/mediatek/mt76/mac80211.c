@@ -416,13 +416,25 @@ mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
 
 void mt76_update_survey(struct mt76_dev *dev)
 {
-	struct mt76_channel_state *state;
+	struct mt76_channel_state *state = dev->chan_state;
+	ktime_t cur_time;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
+		return;
+
+	spin_lock_bh(&dev->cc_lock);
 
 	if (dev->drv->update_survey)
 		dev->drv->update_survey(dev);
 
+	cur_time = ktime_get_boottime();
+	state->cc_active += ktime_to_us(ktime_sub(cur_time,
+						  dev->survey_time));
+	dev->survey_time = cur_time;
+
+	spin_unlock_bh(&dev->cc_lock);
+
 	if (dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME) {
-		state = mt76_channel_state(dev, dev->chandef.chan);
 		spin_lock_bh(&dev->rx_lock);
 		spin_lock(&dev->cc_lock);
 		state->cc_bss_rx += dev->cur_cc_bss_rx;

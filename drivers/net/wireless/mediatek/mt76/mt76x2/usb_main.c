@@ -49,10 +49,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 
 	err = mt76x2u_phy_set_channel(dev, chandef);
 
-	/* channel cycle counters read-and-clear */
-	mt76_rr(dev, MT_CH_IDLE);
-	mt76_rr(dev, MT_CH_BUSY);
-
+	mt76x02_mac_cc_reset(dev);
 	mt76x2_mac_resume(dev);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);

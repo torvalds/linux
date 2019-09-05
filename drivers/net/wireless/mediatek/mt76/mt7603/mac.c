@@ -1571,22 +1571,9 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	struct mt76_channel_state *state;
-	ktime_t cur_time;
-	u32 busy;
-
-	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
-		return;
 
 	state = mdev->chan_state;
-	busy = mt76_rr(dev, MT_MIB_STAT_CCA);
-
-	spin_lock_bh(&dev->mt76.cc_lock);
-	cur_time = ktime_get_boottime();
-	state->cc_busy += busy;
-	state->cc_active += ktime_to_us(ktime_sub(cur_time,
-						  dev->mt76.survey_time));
-	dev->mt76.survey_time = cur_time;
-	spin_unlock_bh(&dev->mt76.cc_lock);
+	state->cc_busy += mt76_rr(dev, MT_MIB_STAT_CCA);
 }
 
 void

@@ -984,17 +984,9 @@ void mt76x02_update_channel(struct mt76_dev *mdev)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76_channel_state *state;
-	u32 active, busy;
 
 	state = mdev->chan_state;
-
-	busy = mt76_rr(dev, MT_CH_BUSY);
-	active = busy + mt76_rr(dev, MT_CH_IDLE);
-
-	spin_lock_bh(&dev->mt76.cc_lock);
-	state->cc_busy += busy;
-	state->cc_active += active;
-	spin_unlock_bh(&dev->mt76.cc_lock);
+	state->cc_busy += mt76_rr(dev, MT_CH_BUSY);
 }
 EXPORT_SYMBOL_GPL(mt76x02_update_channel);
 
@@ -1151,6 +1143,16 @@ void mt76x02_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 }
+
+void mt76x02_mac_cc_reset(struct mt76x02_dev *dev)
+{
+	dev->mt76.survey_time = ktime_get_boottime();
+
+	/* channel cycle counters read-and-clear */
+	mt76_rr(dev, MT_CH_BUSY);
+	mt76_rr(dev, MT_CH_IDLE);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_cc_reset);
 
 void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 {
