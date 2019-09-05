@@ -1796,7 +1796,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       -
     * - __u32
       - ``dec_ref_pic_marking_bit_size``
-      -
+      - Size in bits of the dec_ref_pic_marking() syntax element.
     * - __u32
       - ``pic_order_cnt_bit_size``
       -
