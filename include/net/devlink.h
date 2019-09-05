@@ -458,6 +458,13 @@ enum devlink_param_generic_id {
 /* Maker of the board */
 #define DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE	"board.manufacture"
 
+/* Part number, identifier of asic design */
+#define DEVLINK_INFO_VERSION_GENERIC_ASIC_ID	"asic.id"
+/* Revision of asic design */
+#define DEVLINK_INFO_VERSION_GENERIC_ASIC_REV	"asic.rev"
+
+/* Overall FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW		"fw"
 /* Control processor FW version */
 #define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
 /* Data path microcode controlling high-speed packet processing */
