@@ -495,8 +495,11 @@ static int nvm_remove_tgt(struct nvm_ioctl_remove *remove)
 	}
 	up_read(&nvm_lock);
 
-	if (!t)
+	if (!t) {
+		pr_err("failed to remove target %s\n",
+				remove->tgtname);
 		return 1;
+	}
 
 	__nvm_remove_target(t, true);
 	kref_put(&dev->ref, nvm_free);
