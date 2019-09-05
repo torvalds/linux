@@ -2249,10 +2249,8 @@ static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_soc_info	*info = pdev->dev.platform_data;
 	s8			(*queue_priority_mapping)[2];
-	int			i, off;
 	const s16		(*rsv_slots)[2];
-	const s16		(*xbar_chans)[2];
-	int			irq;
+	int			i, irq;
 	char			*irq_name;
 	struct resource		*mem;
 	struct device_node	*node = pdev->dev.of_node;
@@ -2347,14 +2345,6 @@ static int edma_probe(struct platform_device *pdev)
 		/* Reset only unused - not reserved - paRAM slots */
 		if (!test_bit(i, ecc->slot_inuse))
 			edma_write_slot(ecc, i, &dummy_paramset);
-	}
-
-	/* Clear the xbar mapped channels in unused list */
-	xbar_chans = info->xbar_chans;
-	if (xbar_chans) {
-		for (i = 0; xbar_chans[i][1] != -1; i++) {
-			off = xbar_chans[i][1];
-		}
 	}
 
 	irq = platform_get_irq_byname(pdev, "edma3_ccint");
