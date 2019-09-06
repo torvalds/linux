@@ -803,10 +803,11 @@ bool tb_pci_port_is_enabled(struct tb_port *port)
 {
 	u32 data;
 
-	if (tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1))
+	if (tb_port_read(port, &data, TB_CFG_PORT,
+			 port->cap_adap + ADP_PCIE_CS_0, 1))
 		return false;
 
-	return !!(data & TB_PCI_EN);
+	return !!(data & ADP_PCIE_CS_0_PE);
 }
 
 /**
@@ -816,10 +817,11 @@ bool tb_pci_port_is_enabled(struct tb_port *port)
  */
 int tb_pci_port_enable(struct tb_port *port, bool enable)
 {
-	u32 word = enable ? TB_PCI_EN : 0x0;
+	u32 word = enable ? ADP_PCIE_CS_0_PE : 0x0;
 	if (!port->cap_adap)
 		return -ENXIO;
-	return tb_port_write(port, &word, TB_CFG_PORT, port->cap_adap, 1);
+	return tb_port_write(port, &word, TB_CFG_PORT,
+			     port->cap_adap + ADP_PCIE_CS_0, 1);
 }
 
 /**

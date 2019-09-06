@@ -241,8 +241,8 @@ struct tb_regs_port_header {
 #define TB_DP_REMOTE_CAP		0x5
 
 /* PCIe adapter registers */
-
-#define TB_PCI_EN			BIT(31)
+#define ADP_PCIE_CS_0				0x00
+#define ADP_PCIE_CS_0_PE			BIT(31)
 
 /* Hop register from TB_CFG_HOPS. 8 byte per entry. */
 struct tb_regs_hop {
