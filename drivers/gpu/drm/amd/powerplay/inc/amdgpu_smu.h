@@ -458,6 +458,7 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 	void (*dump_pptable)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool asic_default);
+	int (*get_dpm_uclk_limited)(struct smu_context *smu, uint32_t *clock, bool max);
 };
 
 struct smu_funcs
@@ -536,7 +537,7 @@ struct smu_funcs
 	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
 	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
 	int (*baco_reset)(struct smu_context *smu);
-
+	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 };
 
 #define smu_init_microcode(smu) \
@@ -745,6 +746,10 @@ struct smu_funcs
 	((smu)->funcs->register_irq_handler ? (smu)->funcs->register_irq_handler(smu) : 0)
 #define smu_set_azalia_d3_pme(smu) \
 	((smu)->funcs->set_azalia_d3_pme ? (smu)->funcs->set_azalia_d3_pme((smu)) : 0)
+#define smu_get_dpm_ultimate_freq(smu, param, min, max) \
+		((smu)->funcs->get_dpm_ultimate_freq ? (smu)->funcs->get_dpm_ultimate_freq((smu), (param), (min), (max)) : 0)
+#define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
+	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
 #define smu_get_max_sustainable_clocks_by_dc(smu, max_clocks) \
 	((smu)->funcs->get_max_sustainable_clocks_by_dc ? (smu)->funcs->get_max_sustainable_clocks_by_dc((smu), (max_clocks)) : 0)
 #define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
@@ -759,6 +764,9 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
 #define smu_dump_pptable(smu) \
 	((smu)->ppt_funcs->dump_pptable ? (smu)->ppt_funcs->dump_pptable((smu)) : 0)
+#define smu_get_dpm_uclk_limited(smu, clock, max) \
+		((smu)->ppt_funcs->get_dpm_uclk_limited ? (smu)->ppt_funcs->get_dpm_uclk_limited((smu), (clock), (max)) : -EINVAL)
+
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

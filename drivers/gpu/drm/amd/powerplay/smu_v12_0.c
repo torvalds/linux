@@ -319,6 +319,67 @@ static int smu_v12_0_populate_smc_tables(struct smu_context *smu)
 	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
+static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
+						 uint32_t *min, uint32_t *max)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+
+	if (max) {
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			ret = smu_send_smc_msg(smu, SMU_MSG_GetMaxGfxclkFrequency);
+			if (ret) {
+				pr_err("Attempt to get max GX frequency from SMC Failed !\n");
+				goto failed;
+			}
+			ret = smu_read_smc_arg(smu, max);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_UCLK:
+			ret = smu_get_dpm_uclk_limited(smu, max, true);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+
+		}
+	}
+
+	if (min) {
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			ret = smu_send_smc_msg(smu, SMU_MSG_GetMinGfxclkFrequency);
+			if (ret) {
+				pr_err("Attempt to get min GX frequency from SMC Failed !\n");
+				goto failed;
+			}
+			ret = smu_read_smc_arg(smu, min);
+			if (ret)
+				goto failed;
+			break;
+		case SMU_UCLK:
+			ret = smu_get_dpm_uclk_limited(smu, min, false);
+			if (ret)
+				goto failed;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+
+	}
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
@@ -332,6 +393,7 @@ static const struct smu_funcs smu_v12_0_funcs = {
 	.init_smc_tables = smu_v12_0_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.populate_smc_tables = smu_v12_0_populate_smc_tables,
+	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
 };
 
 void smu_v12_0_set_smu_funcs(struct smu_context *smu)

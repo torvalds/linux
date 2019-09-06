@@ -814,6 +814,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
+	case CHIP_RENOIR:
 		return 0;
 	case CHIP_RAVEN:
 		if (ASICREV_IS_PICASSO(adev->external_rev_id))
@@ -2367,6 +2368,9 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	case CHIP_RENOIR:
+#endif
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -2530,6 +2534,13 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_crtc = 5;
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;
+		break;
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	case CHIP_RENOIR:
+		adev->mode_info.num_crtc = 4;
+		adev->mode_info.num_hpd = 4;
+		adev->mode_info.num_dig = 4;
 		break;
 #endif
 	default:
@@ -2828,6 +2839,9 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 	    adev->asic_type == CHIP_NAVI10 ||
 	    adev->asic_type == CHIP_NAVI14 ||
 	    adev->asic_type == CHIP_NAVI12 ||
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	    adev->asic_type == CHIP_RENOIR ||
 #endif
 	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
@@ -5727,7 +5741,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 							false,
 							msecs_to_jiffies(5000));
 		if (unlikely(r <= 0))
-			DRM_ERROR("Waiting for fences timed out or interrupted!");
+			DRM_ERROR("Waiting for fences timed out!");
 
 		/*
 		 * TODO This might fail and hence better not used, wait

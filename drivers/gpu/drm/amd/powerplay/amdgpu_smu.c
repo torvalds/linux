@@ -231,9 +231,8 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			   uint32_t *min, uint32_t *max)
 {
-	int ret = 0, clk_id = 0;
-	uint32_t param = 0;
 	uint32_t clock_limit;
+	int ret = 0;
 
 	if (!min && !max)
 		return -EINVAL;
@@ -264,36 +263,11 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 
 		return 0;
 	}
-
-	mutex_lock(&smu->mutex);
-	clk_id = smu_clk_get_index(smu, clk_type);
-	if (clk_id < 0) {
-		ret = -EINVAL;
-		goto failed;
-	}
-
-	param = (clk_id & 0xffff) << 16;
-
-	if (max) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
-		if (ret)
-			goto failed;
-		ret = smu_read_smc_arg(smu, max);
-		if (ret)
-			goto failed;
-	}
-
-	if (min) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
-		if (ret)
-			goto failed;
-		ret = smu_read_smc_arg(smu, min);
-		if (ret)
-			goto failed;
-	}
-
-failed:
-	mutex_unlock(&smu->mutex);
+	/*
+	 * Todo: Use each asic(ASIC_ppt funcs) control the callbacks exposed to the
+	 * core driver and then have helpers for stuff that is common(SMU_v11_x | SMU_v12_x funcs).
+	 */
+	ret = smu_get_dpm_ultimate_freq(smu, clk_type, min, max);
 	return ret;
 }
 
@@ -636,7 +610,7 @@ int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 	int ret = 0;
 
 	if (adev->flags & AMD_IS_APU)
-		return 0;
+		return 1;
 
 	feature_id = smu_feature_get_index(smu, mask);
 	if (feature_id < 0)
@@ -1001,6 +975,9 @@ static int smu_override_pcie_parameters(struct smu_context *smu)
 	uint32_t pcie_gen = 0, pcie_width = 0, smu_pcie_arg;
 	int ret;
 
+	if (adev->flags & AMD_IS_APU)
+		return 0;
+
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
 		pcie_gen = 3;
 	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
@@ -1041,9 +1018,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
-
-	if (adev->flags & AMD_IS_APU)
-		return 0;
 
 	if (smu_is_dpm_running(smu) && adev->in_suspend) {
 		pr_info("dpm has been enabled\n");

@@ -2519,6 +2519,9 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	case CHIP_RENOIR:
+#endif
 		return amdgpu_dc != 0;
 #endif
 	default:
@@ -3483,7 +3486,7 @@ error:
 	amdgpu_virt_init_data_exchange(adev);
 	amdgpu_virt_release_full_gpu(adev, true);
 	if (!r && adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
-		atomic_inc(&adev->vram_lost_counter);
+		amdgpu_inc_vram_lost(adev);
 		r = amdgpu_device_recover_vram(adev);
 	}
 
@@ -3649,7 +3652,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				vram_lost = amdgpu_device_check_vram_lost(tmp_adev);
 				if (vram_lost) {
 					DRM_INFO("VRAM is lost due to GPU reset!\n");
-					atomic_inc(&tmp_adev->vram_lost_counter);
+					amdgpu_inc_vram_lost(tmp_adev);
 				}
 
 				r = amdgpu_gtt_mgr_recover(
@@ -3791,14 +3794,14 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	if (hive && !mutex_trylock(&hive->reset_lock)) {
 		DRM_INFO("Bailing on TDR for s_job:%llx, hive: %llx as another already in progress",
-			 job->base.id, hive->hive_id);
+			  job ? job->base.id : -1, hive->hive_id);
 		return 0;
 	}
 
 	/* Start with adev pre asic reset first for soft reset check.*/
 	if (!amdgpu_device_lock_adev(adev, !hive)) {
 		DRM_INFO("Bailing on TDR for s_job:%llx, as another already in progress",
-					 job->base.id);
+			  job ? job->base.id : -1);
 		return 0;
 	}
 
@@ -3839,7 +3842,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			if (!ring || !ring->sched.thread)
 				continue;
 
-			drm_sched_stop(&ring->sched, &job->base);
+			drm_sched_stop(&ring->sched, job ? &job->base : NULL);
 		}
 	}
 
@@ -3864,9 +3867,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 
 	/* Guilty job will be freed after this*/
-	r = amdgpu_device_pre_asic_reset(adev,
-					 job,
-					 &need_full_reset);
+	r = amdgpu_device_pre_asic_reset(adev, job, &need_full_reset);
 	if (r) {
 		/*TODO Should we stop ?*/
 		DRM_ERROR("GPU pre asic reset failed with err, %d for drm dev, %s ",

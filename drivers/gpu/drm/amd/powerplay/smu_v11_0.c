@@ -1718,6 +1718,43 @@ static int smu_v11_0_baco_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
+						 uint32_t *min, uint32_t *max)
+{
+	int ret = 0, clk_id = 0;
+	uint32_t param = 0;
+
+	mutex_lock(&smu->mutex);
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0) {
+		ret = -EINVAL;
+		goto failed;
+	}
+	param = (clk_id & 0xffff) << 16;
+
+	if (max) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
+		if (ret)
+			goto failed;
+		ret = smu_read_smc_arg(smu, max);
+		if (ret)
+			goto failed;
+	}
+
+	if (min) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
+		if (ret)
+			goto failed;
+		ret = smu_read_smc_arg(smu, min);
+		if (ret)
+			goto failed;
+	}
+
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1767,6 +1804,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_reset = smu_v11_0_baco_reset,
+	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

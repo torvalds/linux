@@ -354,6 +354,7 @@ struct pp_hwmgr_func {
 	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
 	int (*set_mp1_state)(struct pp_hwmgr *hwmgr, enum pp_mp1_state mp1_state);
 	int (*asic_reset)(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode);
+	int (*smu_i2c_bus_access)(struct pp_hwmgr *hwmgr, bool aquire);
 };
 
 struct pp_table_func {

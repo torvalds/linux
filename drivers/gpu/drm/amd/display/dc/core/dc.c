@@ -689,6 +689,11 @@ static bool construct(struct dc *dc,
 	if (!dc->clk_mgr)
 		goto fail;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+	if (dc->res_pool->funcs->update_bw_bounding_box)
+		dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
+#endif
+
 	/* Creation of current_state must occur after dc->dml
 	 * is initialized in dc_create_resource_pool because
 	 * on creation it copies the contents of dc->dml

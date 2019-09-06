@@ -316,10 +316,13 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
-	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
+	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		amdgpu_inc_vram_lost(adev);
 		ret = smu_baco_reset(smu);
-	else
+	} else {
+		amdgpu_inc_vram_lost(adev);
 		ret = nv_asic_mode1_reset(adev);
+	}
 
 	return ret;
 }
@@ -457,8 +460,10 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+#endif
 		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v5_0_ip_block);
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
@@ -650,7 +655,9 @@ static int nv_common_early_init(void *handle)
 			AMD_CG_SUPPORT_ATHUB_MGCG |
 			AMD_CG_SUPPORT_ATHUB_LS |
 			AMD_CG_SUPPORT_VCN_MGCG;
-		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_VCN_DPG |
+			AMD_PG_SUPPORT_ATHUB;
 		adev->external_rev_id = adev->rev_id + 0xa;
 		break;
 	default:

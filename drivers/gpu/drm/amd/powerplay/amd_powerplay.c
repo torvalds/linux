@@ -1528,6 +1528,21 @@ static int pp_asic_reset_mode_2(void *handle)
 	return ret;
 }
 
+static int pp_smu_i2c_bus_access(void *handle, bool acquire)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->smu_i2c_bus_access == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	return hwmgr->hwmgr_func->smu_i2c_bus_access(hwmgr, acquire);
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1585,4 +1600,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_ppfeature_status = pp_get_ppfeature_status,
 	.set_ppfeature_status = pp_set_ppfeature_status,
 	.asic_reset_mode_2 = pp_asic_reset_mode_2,
+	.smu_i2c_bus_access = pp_smu_i2c_bus_access,
 };
