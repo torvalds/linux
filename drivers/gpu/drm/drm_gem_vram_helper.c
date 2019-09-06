@@ -26,6 +26,9 @@ static void drm_gem_vram_cleanup(struct drm_gem_vram_object *gbo)
 	 * TTM buffer object in 'bo' has already been cleaned
 	 * up; only release the GEM object.
 	 */
+
+	WARN_ON(gbo->kmap_use_count);
+
 	drm_gem_object_release(&gbo->bo.base);
 }
 
@@ -283,6 +286,34 @@ err_ttm_bo_unreserve:
 }
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
+static void *drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
+				      bool map, bool *is_iomem)
+{
+	int ret;
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+
+	if (gbo->kmap_use_count > 0)
+		goto out;
+
+	if (kmap->virtual || !map)
+		goto out;
+
+	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
+	if (ret)
+		return ERR_PTR(ret);
+
+out:
+	if (!kmap->virtual) {
+		if (is_iomem)
+			*is_iomem = false;
+		return NULL; /* not mapped; don't increment ref */
+	}
+	++gbo->kmap_use_count;
+	if (is_iomem)
+		return ttm_kmap_obj_virtual(kmap, is_iomem);
+	return kmap->virtual;
+}
+
 /**
  * drm_gem_vram_kmap() - Maps a GEM VRAM object into kernel address space
  * @gbo:	the GEM VRAM object
@@ -304,25 +335,33 @@ void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
 			bool *is_iomem)
 {
 	int ret;
-	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+	void *virtual;
 
-	if (kmap->virtual || !map)
-		goto out;
-
-	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
 	if (ret)
 		return ERR_PTR(ret);
+	virtual = drm_gem_vram_kmap_locked(gbo, map, is_iomem);
+	ttm_bo_unreserve(&gbo->bo);
 
-out:
-	if (!is_iomem)
-		return kmap->virtual;
-	if (!kmap->virtual) {
-		*is_iomem = false;
-		return NULL;
-	}
-	return ttm_kmap_obj_virtual(kmap, is_iomem);
+	return virtual;
 }
 EXPORT_SYMBOL(drm_gem_vram_kmap);
+
+static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
+{
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+
+	if (WARN_ON_ONCE(!gbo->kmap_use_count))
+		return;
+	if (--gbo->kmap_use_count > 0)
+		return;
+
+	if (!kmap->virtual)
+		return;
+
+	ttm_bo_kunmap(kmap);
+	kmap->virtual = NULL;
+}
 
 /**
  * drm_gem_vram_kunmap() - Unmaps a GEM VRAM object
@@ -330,13 +369,13 @@ EXPORT_SYMBOL(drm_gem_vram_kmap);
  */
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo)
 {
-	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+	int ret;
 
-	if (!kmap->virtual)
+	ret = ttm_bo_reserve(&gbo->bo, false, false, NULL);
+	if (WARN_ONCE(ret, "ttm_bo_reserve_failed(): ret=%d\n", ret))
 		return;
-
-	ttm_bo_kunmap(kmap);
-	kmap->virtual = NULL;
+	drm_gem_vram_kunmap_locked(gbo);
+	ttm_bo_unreserve(&gbo->bo);
 }
 EXPORT_SYMBOL(drm_gem_vram_kunmap);
 

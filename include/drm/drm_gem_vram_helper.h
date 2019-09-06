@@ -34,10 +34,24 @@ struct vm_area_struct;
  * backed by VRAM. It can be used for simple framebuffer devices with
  * dedicated memory. The buffer object can be evicted to system memory if
  * video memory becomes scarce.
+ *
+ * GEM VRAM objects perform reference counting for pin and mapping
+ * operations. So a buffer object that has been pinned N times with
+ * drm_gem_vram_pin() must be unpinned N times with
+ * drm_gem_vram_unpin(). The same applies to pairs of
+ * drm_gem_vram_kmap() and drm_gem_vram_kunmap().
  */
 struct drm_gem_vram_object {
 	struct ttm_buffer_object bo;
 	struct ttm_bo_kmap_obj kmap;
+
+	/**
+	 * @kmap_use_count:
+	 *
+	 * Reference count on the virtual address.
+	 * The address are un-mapped when the count reaches zero.
+	 */
+	unsigned int kmap_use_count;
 
 	/* Supported placements are %TTM_PL_VRAM and %TTM_PL_SYSTEM */
 	struct ttm_placement placement;
