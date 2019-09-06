@@ -88,6 +88,7 @@ struct fs_context {
 	struct mutex		uapi_mutex;	/* Userspace access mutex */
 	struct file_system_type	*fs_type;
 	void			*fs_private;	/* The filesystem's context */
+	void			*sget_key;
 	struct dentry		*root;		/* The root and superblock */
 	struct user_namespace	*user_ns;	/* The user namespace for this mount */
 	struct net		*net_ns;	/* The network namespace for this mount */
@@ -136,7 +137,7 @@ extern int vfs_get_tree(struct fs_context *fc);
 extern void put_fs_context(struct fs_context *fc);
 
 /*
- * sget() wrapper to be called from the ->get_tree() op.
+ * sget() wrappers to be called from the ->get_tree() op.
  */
 enum vfs_get_super_keying {
 	vfs_get_single_super,	/* Only one such superblock may exist */
@@ -147,12 +148,21 @@ extern int vfs_get_super(struct fs_context *fc,
 			 enum vfs_get_super_keying keying,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
+
 extern int get_tree_nodev(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
 extern int get_tree_single(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
+extern int get_tree_keyed(struct fs_context *fc,
+			 int (*fill_super)(struct super_block *sb,
+					   struct fs_context *fc),
+			 void *key);
+
+extern int get_tree_bdev(struct fs_context *fc,
+			       int (*fill_super)(struct super_block *sb,
+						 struct fs_context *fc));
 
 extern const struct file_operations fscontext_fops;
 
