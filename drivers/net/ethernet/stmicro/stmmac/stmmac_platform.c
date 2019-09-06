@@ -359,6 +359,32 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 }
 
 /**
+ * stmmac_of_get_mac_mode - retrieves the interface of the MAC
+ * @np - device-tree node
+ * Description:
+ * Similar to `of_get_phy_mode()`, this function will retrieve (from
+ * the device-tree) the interface mode on the MAC side. This assumes
+ * that there is mode converter in-between the MAC & PHY
+ * (e.g. GMII-to-RGMII).
+ */
+static int stmmac_of_get_mac_mode(struct device_node *np)
+{
+	const char *pm;
+	int err, i;
+
+	err = of_property_read_string(np, "mac-mode", &pm);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++) {
+		if (!strcasecmp(pm, phy_modes(i)))
+			return i;
+	}
+
+	return -ENODEV;
+}
+
+/**
  * stmmac_probe_config_dt - parse device-tree driver parameters
  * @pdev: platform_device structure
  * @mac: MAC address to use
@@ -386,7 +412,13 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		*mac = NULL;
 	}
 
-	plat->interface = of_get_phy_mode(np);
+	plat->phy_interface = of_get_phy_mode(np);
+	if (plat->phy_interface < 0)
+		return ERR_PTR(plat->phy_interface);
+
+	plat->interface = stmmac_of_get_mac_mode(np);
+	if (plat->interface < 0)
+		plat->interface = plat->phy_interface;
 
 	/* Some wrapper drivers still rely on phy_node. Let's save it while
 	 * they are not converted to phylink. */
