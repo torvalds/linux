@@ -272,6 +272,8 @@
 #define dma_frcd_type(d) ((d >> 30) & 1)
 #define dma_frcd_fault_reason(c) (c & 0xff)
 #define dma_frcd_source_id(c) (c & 0xffff)
+#define dma_frcd_pasid_value(c) (((c) >> 8) & 0xfffff)
+#define dma_frcd_pasid_present(c) (((c) >> 31) & 1)
 /* low 64 bit */
 #define dma_frcd_page_addr(d) (d & (((u64)-1) << PAGE_SHIFT))
 
