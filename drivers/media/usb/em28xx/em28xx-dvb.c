@@ -471,13 +471,13 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 {
 	int i;
 
-	struct em28xx_reg_seq hauppauge_hvr930c_init[] = {
+	static const struct em28xx_reg_seq hauppauge_hvr930c_init[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0x65},
 		{EM2874_R80_GPIO_P0_CTRL,	0xfb,	0xff,	0x32},
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0xb8},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
+	static const struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x01},
 		{EM2874_R80_GPIO_P0_CTRL,	0xaf,	0xff,	0x65},
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x76},
@@ -493,7 +493,7 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 		{	-1,			-1,	-1,	-1},
 	};
 
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -537,20 +537,20 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 static void terratec_h5_init(struct em28xx *dev)
 {
 	int i;
-	struct em28xx_reg_seq terratec_h5_init[] = {
+	static const struct em28xx_reg_seq terratec_h5_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq terratec_h5_end[] = {
+	static const struct em28xx_reg_seq terratec_h5_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -594,14 +594,14 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 	 * 0xe6: unknown (does not affect DVB-T).
 	 * 0xb6: unknown (does not affect DVB-T).
 	 */
-	struct em28xx_reg_seq terratec_htc_stick_init[] = {
+	static const struct em28xx_reg_seq terratec_htc_stick_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq terratec_htc_stick_end[] = {
+	static const struct em28xx_reg_seq terratec_htc_stick_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	50},
 		{	-1,			-1,	-1,	-1},
@@ -611,7 +611,7 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 	 * Init the analog decoder (not yet supported), but
 	 * it's probably still a good idea.
 	 */
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -642,14 +642,14 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 {
 	int i;
 
-	struct em28xx_reg_seq terratec_htc_usb_xs_init[] = {
+	static const struct em28xx_reg_seq terratec_htc_usb_xs_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
 		{	-1,			-1,	-1,	-1},
 	};
-	struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
+	static const struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
@@ -660,7 +660,7 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 	 * Init the analog decoder (not yet supported), but
 	 * it's probably still a good idea.
 	 */
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -704,7 +704,7 @@ static void pctv_520e_init(struct em28xx *dev)
 	 * digital demodulator and tuner are routed via AVF4910B.
 	 */
 	int i;
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs[] = {
@@ -800,7 +800,7 @@ static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 static void px_bcud_init(struct em28xx *dev)
 {
 	int i;
-	struct {
+	static const struct {
 		unsigned char r[4];
 		int len;
 	} regs1[] = {
@@ -818,7 +818,7 @@ static void px_bcud_init(struct em28xx *dev)
 		{{ 0x85, 0x7a }, 2},
 		{{ 0x87, 0x04 }, 2},
 	};
-	static struct em28xx_reg_seq gpio[] = {
+	static const struct em28xx_reg_seq gpio[] = {
 		{EM28XX_R06_I2C_CLK,		0x40,	0xff,	300},
 		{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	60},
 		{EM28XX_R15_RGAIN,		0x20,	0xff,	0},
