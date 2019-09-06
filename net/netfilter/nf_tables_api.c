@@ -5151,7 +5151,7 @@ static int nf_tables_updobj(const struct nft_ctx *ctx,
 	newobj = nft_obj_init(ctx, type, attr);
 	if (IS_ERR(newobj)) {
 		err = PTR_ERR(newobj);
-		goto err1;
+		goto err_free_trans;
 	}
 
 	nft_trans_obj(trans) = obj;
@@ -5160,9 +5160,9 @@ static int nf_tables_updobj(const struct nft_ctx *ctx,
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 
 	return 0;
-err1:
+
+err_free_trans:
 	kfree(trans);
-	kfree(newobj);
 	return err;
 }
 
