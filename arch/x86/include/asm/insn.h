@@ -45,6 +45,7 @@ struct insn {
 		struct insn_field immediate2;	/* for 64bit imm or seg16 */
 	};
 
+	int	emulate_prefix_size;
 	insn_attr_t attr;
 	unsigned char opnd_bytes;
 	unsigned char addr_bytes;
@@ -126,6 +127,11 @@ static inline int insn_is_evex(struct insn *insn)
 	if (!insn->prefixes.got)
 		insn_get_prefixes(insn);
 	return (insn->vex_prefix.nbytes == 4);
+}
+
+static inline int insn_has_emulate_prefix(struct insn *insn)
+{
+	return !!insn->emulate_prefix_size;
 }
 
 /* Ensure this instruction is decoded completely */
