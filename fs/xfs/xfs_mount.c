@@ -214,7 +214,7 @@ xfs_initialize_perag(
 
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
-			BUG();
+			WARN_ON_ONCE(1);
 			spin_unlock(&mp->m_perag_lock);
 			radix_tree_preload_end();
 			error = -EEXIST;
