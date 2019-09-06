@@ -217,7 +217,7 @@ an involved disclosed party. The current ambassadors list:
   AMD
   IBM
   Intel
-  Qualcomm
+  Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 
   Microsoft	Sasha Levin <sashal@kernel.org>
   VMware
