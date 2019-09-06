@@ -75,14 +75,12 @@ struct padata_serial_queue {
  * @swork: work struct for serialization.
  * @work: work struct for parallelization.
  * @num_obj: Number of objects that are processed by this cpu.
- * @cpu_index: Index of the cpu.
  */
 struct padata_parallel_queue {
        struct padata_list    parallel;
        struct padata_list    reorder;
        struct work_struct    work;
        atomic_t              num_obj;
-       int                   cpu_index;
 };
 
 /**
