@@ -1603,6 +1603,44 @@ static int stmmac_test_mjumbo(struct stmmac_priv *priv)
 	return 0;
 }
 
+static int stmmac_test_sph(struct stmmac_priv *priv)
+{
+	unsigned long cnt_end, cnt_start = priv->xstats.rx_split_hdr_pkt_n;
+	struct stmmac_packet_attrs attr = { };
+	int ret;
+
+	if (!priv->sph)
+		return -EOPNOTSUPP;
+
+	/* Check for UDP first */
+	attr.dst = priv->dev->dev_addr;
+	attr.tcp = false;
+
+	ret = __stmmac_test_loopback(priv, &attr);
+	if (ret)
+		return ret;
+
+	cnt_end = priv->xstats.rx_split_hdr_pkt_n;
+	if (cnt_end <= cnt_start)
+		return -EINVAL;
+
+	/* Check for TCP now */
+	cnt_start = cnt_end;
+
+	attr.dst = priv->dev->dev_addr;
+	attr.tcp = true;
+
+	ret = __stmmac_test_loopback(priv, &attr);
+	if (ret)
+		return ret;
+
+	cnt_end = priv->xstats.rx_split_hdr_pkt_n;
+	if (cnt_end <= cnt_start)
+		return -EINVAL;
+
+	return 0;
+}
+
 #define STMMAC_LOOPBACK_NONE	0
 #define STMMAC_LOOPBACK_MAC	1
 #define STMMAC_LOOPBACK_PHY	2
@@ -1724,6 +1762,10 @@ static const struct stmmac_test {
 		.name = "Multichannel Jumbo  ",
 		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_mjumbo,
+	}, {
+		.name = "Split Header        ",
+		.lb = STMMAC_LOOPBACK_PHY,
+		.fn = stmmac_test_sph,
 	},
 };
 
