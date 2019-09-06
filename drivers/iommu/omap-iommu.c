@@ -1019,7 +1019,7 @@ EXPORT_SYMBOL_GPL(omap_iommu_domain_activate);
  * reset line. This function also saves the context of any
  * locked TLBs if suspending.
  **/
-static int omap_iommu_runtime_suspend(struct device *dev)
+static __maybe_unused int omap_iommu_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iommu_platform_data *pdata = dev_get_platdata(dev);
@@ -1061,7 +1061,7 @@ static int omap_iommu_runtime_suspend(struct device *dev)
  * reset line. The function also restores any locked TLBs if
  * resuming after a suspend.
  **/
-static int omap_iommu_runtime_resume(struct device *dev)
+static __maybe_unused int omap_iommu_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iommu_platform_data *pdata = dev_get_platdata(dev);
