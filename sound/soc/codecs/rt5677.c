@@ -4493,11 +4493,11 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_OFF:
 		regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC, 0x1, 0x0);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG1, 0x0000);
-		regmap_write(rt5677->regmap, RT5677_PWR_DIG2, 0x0000);
 		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1,
 			2 << RT5677_LDO1_SEL_SFT |
 			2 << RT5677_LDO2_SEL_SFT);
-		regmap_write(rt5677->regmap, RT5677_PWR_ANLG2, 0x0000);
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
+			RT5677_PWR_CORE, 0);
 		regmap_update_bits(rt5677->regmap,
 			RT5677_PR_BASE + RT5677_BIAS_CUR4, 0x0f00, 0x0000);
 
