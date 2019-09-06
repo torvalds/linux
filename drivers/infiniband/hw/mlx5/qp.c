@@ -4162,7 +4162,7 @@ static u64 get_xlt_octo(u64 bytes)
 	       MLX5_IB_UMR_OCTOWORD;
 }
 
-static __be64 frwr_mkey_mask(void)
+static __be64 frwr_mkey_mask(bool atomic)
 {
 	u64 result;
 
@@ -4175,9 +4175,11 @@ static __be64 frwr_mkey_mask(void)
 		MLX5_MKEY_MASK_LW		|
 		MLX5_MKEY_MASK_RR		|
 		MLX5_MKEY_MASK_RW		|
-		MLX5_MKEY_MASK_A		|
 		MLX5_MKEY_MASK_SMALL_FENCE	|
 		MLX5_MKEY_MASK_FREE;
+
+	if (atomic)
+		result |= MLX5_MKEY_MASK_A;
 
 	return cpu_to_be64(result);
 }
@@ -4204,7 +4206,7 @@ static __be64 sig_mkey_mask(void)
 }
 
 static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
-			    struct mlx5_ib_mr *mr, u8 flags)
+			    struct mlx5_ib_mr *mr, u8 flags, bool atomic)
 {
 	int size = (mr->ndescs + mr->meta_ndescs) * mr->desc_size;
 
@@ -4212,7 +4214,7 @@ static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
 
 	umr->flags = flags;
 	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
-	umr->mkey_mask = frwr_mkey_mask();
+	umr->mkey_mask = frwr_mkey_mask(atomic);
 }
 
 static void set_linv_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr)
@@ -4811,9 +4813,21 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 {
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
 	struct mlx5_ib_pd *pd = to_mpd(qp->ibqp.pd);
+	struct mlx5_ib_dev *dev = to_mdev(pd->ibpd.device);
 	int mr_list_size = (mr->ndescs + mr->meta_ndescs) * mr->desc_size;
 	bool umr_inline = mr_list_size <= MLX5_IB_SQ_UMR_INLINE_THRESHOLD;
+	bool atomic = wr->access & IB_ACCESS_REMOTE_ATOMIC;
 	u8 flags = 0;
+
+	if (!mlx5_ib_can_use_umr(dev, atomic)) {
+		mlx5_ib_warn(to_mdev(qp->ibqp.device),
+			     "Fast update of %s for MR is disabled\n",
+			     (MLX5_CAP_GEN(dev->mdev,
+					   umr_modify_entity_size_disabled)) ?
+				     "entity size" :
+				     "atomic access");
+		return -EINVAL;
+	}
 
 	if (unlikely(wr->wr.send_flags & IB_SEND_INLINE)) {
 		mlx5_ib_warn(to_mdev(qp->ibqp.device),
@@ -4826,7 +4840,7 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	if (umr_inline)
 		flags |= MLX5_UMR_INLINE;
 
-	set_reg_umr_seg(*seg, mr, flags);
+	set_reg_umr_seg(*seg, mr, flags, atomic);
 	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
 	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
 	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);

@@ -1124,6 +1124,7 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.set_coalesce		= bcmgenet_set_coalesce,
 	.get_link_ksettings	= bcmgenet_get_link_ksettings,
 	.set_link_ksettings	= bcmgenet_set_link_ksettings,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 /* Power down the unimac, based on mode. */

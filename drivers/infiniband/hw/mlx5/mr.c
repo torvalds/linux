@@ -1293,9 +1293,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	use_umr = !MLX5_CAP_GEN(dev->mdev, umr_modify_entity_size_disabled) &&
-		  (!MLX5_CAP_GEN(dev->mdev, umr_modify_atomic_disabled) ||
-		   !MLX5_CAP_GEN(dev->mdev, atomic));
+	use_umr = mlx5_ib_can_use_umr(dev, true);
 
 	if (order <= mr_cache_max_order(dev) && use_umr) {
 		mr = alloc_mr_from_cache(pd, umem, virt_addr, length, ncont,
@@ -1448,7 +1446,8 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			goto err;
 	}
 
-	if (flags & IB_MR_REREG_TRANS && !use_umr_mtt_update(mr, addr, len)) {
+	if (!mlx5_ib_can_use_umr(dev, true) ||
+	    (flags & IB_MR_REREG_TRANS && !use_umr_mtt_update(mr, addr, len))) {
 		/*
 		 * UMR can't be used - MKey needs to be replaced.
 		 */

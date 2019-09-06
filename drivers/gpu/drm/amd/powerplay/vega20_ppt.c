@@ -3050,6 +3050,7 @@ static int vega20_get_fan_speed_percent(struct smu_context *smu,
 
 static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
 {
+	uint32_t smu_version;
 	int ret = 0;
 	SmuMetrics_t metrics;
 
@@ -3060,7 +3061,15 @@ static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrSocketPower << 8;
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
+		return ret;
+
+	/* For the 40.46 release, they changed the value name */
+	if (smu_version == 0x282e00)
+		*value = metrics.AverageSocketPower << 8;
+	else
+		*value = metrics.CurrSocketPower << 8;
 
 	return 0;
 }

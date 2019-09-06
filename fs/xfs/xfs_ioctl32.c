@@ -547,63 +547,12 @@ xfs_file_compat_ioctl(
 	struct inode		*inode = file_inode(filp);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	void			__user *arg = (void __user *)p;
+	void			__user *arg = compat_ptr(p);
 	int			error;
 
 	trace_xfs_file_compat_ioctl(ip);
 
 	switch (cmd) {
-	/* No size or alignment issues on any arch */
-	case XFS_IOC_DIOINFO:
-	case XFS_IOC_FSGEOMETRY_V4:
-	case XFS_IOC_FSGEOMETRY:
-	case XFS_IOC_AG_GEOMETRY:
-	case XFS_IOC_FSGETXATTR:
-	case XFS_IOC_FSSETXATTR:
-	case XFS_IOC_FSGETXATTRA:
-	case XFS_IOC_FSSETDM:
-	case XFS_IOC_GETBMAP:
-	case XFS_IOC_GETBMAPA:
-	case XFS_IOC_GETBMAPX:
-	case XFS_IOC_FSCOUNTS:
-	case XFS_IOC_SET_RESBLKS:
-	case XFS_IOC_GET_RESBLKS:
-	case XFS_IOC_FSGROWFSLOG:
-	case XFS_IOC_GOINGDOWN:
-	case XFS_IOC_ERROR_INJECTION:
-	case XFS_IOC_ERROR_CLEARALL:
-	case FS_IOC_GETFSMAP:
-	case XFS_IOC_SCRUB_METADATA:
-	case XFS_IOC_BULKSTAT:
-	case XFS_IOC_INUMBERS:
-		return xfs_file_ioctl(filp, cmd, p);
-#if !defined(BROKEN_X86_ALIGNMENT) || defined(CONFIG_X86_X32)
-	/*
-	 * These are handled fine if no alignment issues.  To support x32
-	 * which uses native 64-bit alignment we must emit these cases in
-	 * addition to the ia-32 compat set below.
-	 */
-	case XFS_IOC_ALLOCSP:
-	case XFS_IOC_FREESP:
-	case XFS_IOC_RESVSP:
-	case XFS_IOC_UNRESVSP:
-	case XFS_IOC_ALLOCSP64:
-	case XFS_IOC_FREESP64:
-	case XFS_IOC_RESVSP64:
-	case XFS_IOC_UNRESVSP64:
-	case XFS_IOC_FSGEOMETRY_V1:
-	case XFS_IOC_FSGROWFSDATA:
-	case XFS_IOC_FSGROWFSRT:
-	case XFS_IOC_ZERO_RANGE:
-#ifdef CONFIG_X86_X32
-	/*
-	 * x32 special: this gets a different cmd number from the ia-32 compat
-	 * case below; the associated data will match native 64-bit alignment.
-	 */
-	case XFS_IOC_SWAPEXT:
-#endif
-		return xfs_file_ioctl(filp, cmd, p);
-#endif
 #if defined(BROKEN_X86_ALIGNMENT)
 	case XFS_IOC_ALLOCSP_32:
 	case XFS_IOC_FREESP_32:
@@ -705,6 +654,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSSETDM_BY_HANDLE_32:
 		return xfs_compat_fssetdm_by_handle(filp, arg);
 	default:
-		return -ENOIOCTLCMD;
+		/* try the native version */
+		return xfs_file_ioctl(filp, cmd, (unsigned long)arg);
 	}
 }

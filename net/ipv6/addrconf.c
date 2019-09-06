@@ -478,7 +478,7 @@ static struct inet6_dev *ipv6_find_idev(struct net_device *dev)
 	if (!idev) {
 		idev = ipv6_add_dev(dev);
 		if (IS_ERR(idev))
-			return NULL;
+			return idev;
 	}
 
 	if (dev->flags&IFF_UP)
@@ -1045,7 +1045,8 @@ ipv6_add_addr(struct inet6_dev *idev, struct ifa6_config *cfg,
 	int err = 0;
 
 	if (addr_type == IPV6_ADDR_ANY ||
-	    addr_type & IPV6_ADDR_MULTICAST ||
+	    (addr_type & IPV6_ADDR_MULTICAST &&
+	     !(cfg->ifa_flags & IFA_F_MCAUTOJOIN)) ||
 	    (!(idev->dev->flags & IFF_LOOPBACK) &&
 	     !netif_is_l3_master(idev->dev) &&
 	     addr_type & IPV6_ADDR_LOOPBACK))
@@ -2465,8 +2466,8 @@ static struct inet6_dev *addrconf_add_dev(struct net_device *dev)
 	ASSERT_RTNL();
 
 	idev = ipv6_find_idev(dev);
-	if (!idev)
-		return ERR_PTR(-ENOBUFS);
+	if (IS_ERR(idev))
+		return idev;
 
 	if (idev->cnf.disable_ipv6)
 		return ERR_PTR(-EACCES);
@@ -3158,7 +3159,7 @@ static void init_loopback(struct net_device *dev)
 	ASSERT_RTNL();
 
 	idev = ipv6_find_idev(dev);
-	if (!idev) {
+	if (IS_ERR(idev)) {
 		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
@@ -3373,7 +3374,7 @@ static void addrconf_sit_config(struct net_device *dev)
 	 */
 
 	idev = ipv6_find_idev(dev);
-	if (!idev) {
+	if (IS_ERR(idev)) {
 		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
@@ -3398,7 +3399,7 @@ static void addrconf_gre_config(struct net_device *dev)
 	ASSERT_RTNL();
 
 	idev = ipv6_find_idev(dev);
-	if (!idev) {
+	if (IS_ERR(idev)) {
 		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
@@ -4772,8 +4773,8 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			 IFA_F_MCAUTOJOIN | IFA_F_OPTIMISTIC;
 
 	idev = ipv6_find_idev(dev);
-	if (!idev)
-		return -ENOBUFS;
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
 
 	if (!ipv6_allow_optimistic_dad(net, idev))
 		cfg.ifa_flags &= ~IFA_F_OPTIMISTIC;

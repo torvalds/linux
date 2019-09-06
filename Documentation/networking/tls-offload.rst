@@ -506,21 +506,3 @@ Drivers should ignore the changes to TLS the device feature flags.
 These flags will be acted upon accordingly by the core ``ktls`` code.
 TLS device feature flags only control adding of new TLS connection
 offloads, old connections will remain active after flags are cleared.
-
-Known bugs
-==========
-
-skb_orphan() leaks clear text
------------------------------
-
-Currently drivers depend on the :c:member:`sk` member of
-:c:type:`struct sk_buff <sk_buff>` to identify segments requiring
-encryption. Any operation which removes or does not preserve the socket
-association such as :c:func:`skb_orphan` or :c:func:`skb_clone`
-will cause the driver to miss the packets and lead to clear text leaks.
-
-Redirects leak clear text
--------------------------
-
-In the RX direction, if segment has already been decrypted by the device
-and it gets redirected or mirrored - clear text will be transmitted out.
