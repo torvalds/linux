@@ -790,15 +790,11 @@ static struct i2c_driver dcon_driver = {
 
 static int __init olpc_dcon_init(void)
 {
-#ifdef CONFIG_FB_OLPC_DCON_1_5
 	/* XO-1.5 */
 	if (olpc_board_at_least(olpc_board(0xd0)))
 		pdata = &dcon_pdata_xo_1_5;
-#endif
-#ifdef CONFIG_FB_OLPC_DCON_1
-	if (!pdata)
+	else
 		pdata = &dcon_pdata_xo_1;
-#endif
 
 	return i2c_add_driver(&dcon_driver);
 }
