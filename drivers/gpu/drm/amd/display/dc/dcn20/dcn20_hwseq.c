@@ -1370,6 +1370,9 @@ static void dcn20_program_pipe(
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+
+		if (dc->hwss.setup_vupdate_interrupt)
+			dc->hwss.setup_vupdate_interrupt(pipe_ctx);
 	}
 
 	if (pipe_ctx->update_flags.bits.odm)
@@ -1581,8 +1584,12 @@ bool dcn20_update_bandwidth(
 
 			pipe_ctx->stream_res.tg->funcs->set_vtg_params(
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+
 			if (pipe_ctx->prev_odm_pipe == NULL)
 				dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
+
+			if (dc->hwss.setup_vupdate_interrupt)
+				dc->hwss.setup_vupdate_interrupt(pipe_ctx);
 		}
 
 		pipe_ctx->plane_res.hubp->funcs->hubp_setup(
