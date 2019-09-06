@@ -196,6 +196,11 @@
 		reset-gpios = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
 	};
 
+	usbacm_video_control: usbacm-video-control {
+		compatible = "rockchip,usbacm-video-control";
+		status = "disabled";
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_phy";
