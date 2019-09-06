@@ -30,11 +30,7 @@ static struct nft_flow_rule *nft_flow_rule_alloc(int num_actions)
 
 struct nft_flow_rule *nft_flow_rule_create(const struct nft_rule *rule)
 {
-	struct nft_offload_ctx ctx = {
-		.dep	= {
-			.type	= NFT_OFFLOAD_DEP_UNSPEC,
-		},
-	};
+	struct nft_offload_ctx *ctx;
 	struct nft_flow_rule *flow;
 	int num_actions = 0, err;
 	struct nft_expr *expr;
@@ -52,21 +48,31 @@ struct nft_flow_rule *nft_flow_rule_create(const struct nft_rule *rule)
 		return ERR_PTR(-ENOMEM);
 
 	expr = nft_expr_first(rule);
+
+	ctx = kzalloc(sizeof(struct nft_offload_ctx), GFP_KERNEL);
+	if (!ctx) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	ctx->dep.type = NFT_OFFLOAD_DEP_UNSPEC;
+
 	while (expr->ops && expr != nft_expr_last(rule)) {
 		if (!expr->ops->offload) {
 			err = -EOPNOTSUPP;
 			goto err_out;
 		}
-		err = expr->ops->offload(&ctx, flow, expr);
+		err = expr->ops->offload(ctx, flow, expr);
 		if (err < 0)
 			goto err_out;
 
 		expr = nft_expr_next(expr);
 	}
-	flow->proto = ctx.dep.l3num;
+	flow->proto = ctx->dep.l3num;
+	kfree(ctx);
 
 	return flow;
 err_out:
+	kfree(ctx);
 	nft_flow_rule_destroy(flow);
 
 	return ERR_PTR(err);
