@@ -1057,6 +1057,9 @@ static int stmmac_test_desc_sai(struct stmmac_priv *priv)
 	struct stmmac_packet_attrs attr = { };
 	int ret;
 
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
+
 	attr.remove_sa = true;
 	attr.sarc = true;
 	attr.src = src;
@@ -1076,6 +1079,9 @@ static int stmmac_test_desc_sar(struct stmmac_priv *priv)
 	struct stmmac_packet_attrs attr = { };
 	int ret;
 
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
+
 	attr.sarc = true;
 	attr.src = src;
 	attr.dst = priv->dev->dev_addr;
@@ -1093,6 +1099,9 @@ static int stmmac_test_reg_sai(struct stmmac_priv *priv)
 	unsigned char src[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	struct stmmac_packet_attrs attr = { };
 	int ret;
+
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
 
 	attr.remove_sa = true;
 	attr.sarc = true;
@@ -1113,6 +1122,9 @@ static int stmmac_test_reg_sar(struct stmmac_priv *priv)
 	unsigned char src[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	struct stmmac_packet_attrs attr = { };
 	int ret;
+
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
 
 	attr.sarc = true;
 	attr.src = src;
