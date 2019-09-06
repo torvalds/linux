@@ -400,7 +400,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 		g->fwnode = of_node_to_fwnode(np);
 	} else {
 		parent = ixp4xx_get_irq_domain();
-		g->fwnode = irq_domain_alloc_fwnode(g->base);
+		g->fwnode = irq_domain_alloc_fwnode(&res->start);
 		if (!g->fwnode) {
 			dev_err(dev, "no domain base\n");
 			return -ENODEV;
