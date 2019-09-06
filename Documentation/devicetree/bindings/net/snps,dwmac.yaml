@@ -112,6 +112,14 @@ properties:
   reset-names:
     const: stmmaceth
 
+  mac-mode:
+    maxItems: 1
+    description:
+      The property is identical to 'phy-mode', and assumes that there is mode
+      converter in-between the MAC & PHY (e.g. GMII-to-RGMII). This converter
+      can be passive (no SW requirement), and requires that the MAC operate
+      in a different mode than the PHY in order to function.
+
   snps,axi-config:
     $ref: /schemas/types.yaml#definitions/phandle
     description:
