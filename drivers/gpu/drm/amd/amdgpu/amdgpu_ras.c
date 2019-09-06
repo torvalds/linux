@@ -1496,8 +1496,13 @@ out:
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct ras_err_handler_data **data = &con->eh_data;
+	struct ras_err_handler_data **data;
 	int ret;
+
+	if (con)
+		data = &con->eh_data;
+	else
+		return 0;
 
 	*data = kmalloc(sizeof(**data), GFP_KERNEL | __GFP_ZERO);
 	if (!*data) {
