@@ -132,6 +132,8 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
+/* Gen11+. addr = base + (ctx_restore ? offset & GENMASK(12,2) : offset) */
+#define   MI_LRI_CS_MMIO		(1<<19)
 #define   MI_LRI_FORCE_POSTED		(1<<12)
 #define MI_STORE_REGISTER_MEM        MI_INSTR(0x24, 1)
 #define MI_STORE_REGISTER_MEM_GEN8   MI_INSTR(0x24, 2)

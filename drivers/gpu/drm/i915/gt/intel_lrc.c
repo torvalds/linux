@@ -1214,7 +1214,10 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				unsigned int n;
 
 				GEM_BUG_ON(READ_ONCE(ve->context.inflight));
-				virtual_update_register_offsets(regs, engine);
+
+				if (!intel_engine_has_relative_mmio(engine))
+					virtual_update_register_offsets(regs,
+									engine);
 
 				if (!list_empty(&ve->context.signals))
 					virtual_xfer_breadcrumbs(ve, engine);
@@ -2939,6 +2942,9 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
 			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 	}
+
+	if (engine->class != COPY_ENGINE_CLASS && INTEL_GEN(engine->i915) >= 12)
+		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
 }
 
 static void execlists_destroy(struct intel_engine_cs *engine)
@@ -3130,8 +3136,10 @@ static void execlists_init_reg_state(u32 *regs,
 				     struct intel_ring *ring)
 {
 	struct i915_ppgtt *ppgtt = vm_alias(ce->vm);
-	bool rcs = engine->class == RENDER_CLASS;
-	u32 base = engine->mmio_base;
+	const bool rcs = engine->class == RENDER_CLASS;
+	const u32 base = engine->mmio_base;
+	const u32 lri_base =
+		intel_engine_has_relative_mmio(engine) ? MI_LRI_CS_MMIO : 0;
 
 	/*
 	 * A context is actually a big batch buffer with several
@@ -3143,8 +3151,10 @@ static void execlists_init_reg_state(u32 *regs,
 	 *
 	 * Must keep consistent with virtual_update_register_offsets().
 	 */
-	regs[CTX_LRI_HEADER_0] = MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
-				 MI_LRI_FORCE_POSTED;
+	regs[CTX_LRI_HEADER_0] =
+		MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
+		MI_LRI_FORCE_POSTED |
+		lri_base;
 
 	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(base),
 		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
@@ -3191,7 +3201,10 @@ static void execlists_init_reg_state(u32 *regs,
 		}
 	}
 
-	regs[CTX_LRI_HEADER_1] = MI_LOAD_REGISTER_IMM(9) | MI_LRI_FORCE_POSTED;
+	regs[CTX_LRI_HEADER_1] =
+		MI_LOAD_REGISTER_IMM(9) |
+		MI_LRI_FORCE_POSTED |
+		lri_base;
 
 	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
 	/* PDP values well be assigned later if needed */
@@ -3218,7 +3231,7 @@ static void execlists_init_reg_state(u32 *regs,
 	}
 
 	if (rcs) {
-		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
+		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1) | lri_base;
 		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
 	}
 
@@ -3411,8 +3424,9 @@ static void virtual_engine_initial_hint(struct virtual_engine *ve)
 		return;
 
 	swap(ve->siblings[swp], ve->siblings[0]);
-	virtual_update_register_offsets(ve->context.lrc_reg_state,
-					ve->siblings[0]);
+	if (!intel_engine_has_relative_mmio(ve->siblings[0]))
+		virtual_update_register_offsets(ve->context.lrc_reg_state,
+						ve->siblings[0]);
 }
 
 static int virtual_context_pin(struct intel_context *ce)
