@@ -30,7 +30,6 @@
 #define EIP197_DEFAULT_RING_SIZE		400
 #define EIP197_MAX_TOKENS			18
 #define EIP197_MAX_RINGS			4
-#define EIP197_FETCH_COUNT			1
 #define EIP197_FETCH_DEPTH			2
 #define EIP197_MAX_BATCH_SZ			64
 
@@ -234,6 +233,11 @@
 #define EIP97_CFSIZE_OFFSET			8
 #define EIP197_CFSIZE_MASK			GENMASK(3, 0)
 #define EIP97_CFSIZE_MASK			GENMASK(4, 0)
+#define EIP197_RFSIZE_OFFSET			12
+#define EIP197_RFSIZE_ADJUST			4
+#define EIP97_RFSIZE_OFFSET			12
+#define EIP197_RFSIZE_MASK			GENMASK(3, 0)
+#define EIP97_RFSIZE_MASK			GENMASK(4, 0)
 
 /* EIP197_HIA_AIC_R_ENABLE_CTRL */
 #define EIP197_CDR_IRQ(n)			BIT((n) * 2)
@@ -461,6 +465,14 @@ struct safexcel_result_desc {
 
 	struct result_data_desc result_data;
 } __packed;
+
+/*
+ * The EIP(1)97 only needs to fetch the descriptor part of
+ * the result descriptor, not the result token part!
+ */
+#define EIP197_RD64_FETCH_SIZE		((sizeof(struct safexcel_result_desc) -\
+					  sizeof(struct result_data_desc)) /\
+					 sizeof(u32))
 
 struct safexcel_token {
 	u32 packet_length:17;
@@ -691,6 +703,7 @@ struct safexcel_hwconfig {
 	int pever;
 	int hwdataw;
 	int hwcfsize;
+	int hwrfsize;
 };
 
 struct safexcel_crypto_priv {
