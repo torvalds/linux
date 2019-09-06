@@ -1791,9 +1791,10 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	} else if (sas_dev->dev_status != HISI_SAS_DEV_INIT) {
 		/*
 		 * If in init state, we rely on caller to wait for link to be
-		 * ready; otherwise, delay.
+		 * ready; otherwise, except phy reset is fail, delay.
 		 */
-		msleep(2000);
+		if (!rc)
+			msleep(2000);
 	}
 
 	return rc;
