@@ -2076,11 +2076,11 @@ static bool allow_hpd_rx_irq(const struct dc_link *link)
 	return false;
 }
 
-static bool handle_hpd_irq_psr_sink(const struct dc_link *link)
+static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 {
 	union dpcd_psr_configuration psr_configuration;
 
-	if (!link->psr_enabled)
+	if (!link->psr_feature_enabled)
 		return false;
 
 	dm_helpers_dp_read_dpcd(
@@ -2119,8 +2119,8 @@ static bool handle_hpd_irq_psr_sink(const struct dc_link *link)
 				sizeof(psr_error_status.raw));
 
 			/* PSR error, disable and re-enable PSR */
-			dc_link_set_psr_enable(link, false, true);
-			dc_link_set_psr_enable(link, true, true);
+			dc_link_set_psr_allow_active(link, false, true);
+			dc_link_set_psr_allow_active(link, true, true);
 
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==

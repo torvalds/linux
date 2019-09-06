@@ -1074,15 +1074,14 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	const struct dc *dc = link->dc;
 	bool ret;
-	/* get out of low power state */
 
-	if (dc->hwss.exit_optimized_pwr_state)
-		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
+	/* get out of low power state */
+	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 
 	ret = dc_link_detect_helper(link, reason);
 
-	if (dc->hwss.optimize_pwr_state)
-		dc->hwss.optimize_pwr_state(dc, dc->current_state);
+	/* Go back to power optimized state */
+	clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
 
 	return ret;
 }
@@ -2421,13 +2420,17 @@ bool dc_link_set_abm_disable(const struct dc_link *link)
 	return true;
 }
 
-bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
+bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool wait)
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_enabled)
-		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
+
+
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
+		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
+
+	link->psr_allow_active = allow_active;
 
 	return true;
 }

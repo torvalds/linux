@@ -65,6 +65,31 @@ int clk_mgr_helper_get_active_display_cnt(
 	return display_count;
 }
 
+void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
+{
+	struct dc_link *edp_link = get_edp_link(dc);
+
+	if (dc->hwss.exit_optimized_pwr_state)
+		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
+
+	if (edp_link) {
+		clk_mgr->psr_allow_active_cache = edp_link->psr_allow_active;
+		dc_link_set_psr_allow_active(edp_link, false, false);
+	}
+
+}
+
+void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
+{
+	struct dc_link *edp_link = get_edp_link(dc);
+
+	if (edp_link)
+		dc_link_set_psr_allow_active(edp_link, clk_mgr->psr_allow_active_cache, false);
+
+	if (dc->hwss.optimize_pwr_state)
+		dc->hwss.optimize_pwr_state(dc, dc->current_state);
+
+}
 
 struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg)
 {

@@ -189,6 +189,7 @@ struct clk_mgr {
 	struct dc_context *ctx;
 	struct clk_mgr_funcs *funcs;
 	struct dc_clocks clks;
+	bool psr_allow_active_cache;
 	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
 #ifdef CONFIG_DRM_AMD_DC_DCN2_1
 	struct clk_bw_params *bw_params;
@@ -201,5 +202,9 @@ struct dccg;
 struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg);
 
 void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr);
+
+void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr);
+
+void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr);
 
 #endif /* __DAL_CLK_MGR_H__ */
