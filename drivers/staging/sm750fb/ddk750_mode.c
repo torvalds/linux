@@ -81,7 +81,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 	int cnt = 0;
 	unsigned int tmp, reg;
 
-	if (pll->clockType == SECONDARY_PLL) {
+	if (pll->clock_type == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
 		poke32(CRT_PLL_CTRL, sm750_format_pll_reg(pll));
 
@@ -134,7 +134,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 			poke32(CRT_DISPLAY_CTRL, tmp | reg);
 		}
 
-	} else if (pll->clockType == PRIMARY_PLL) {
+	} else if (pll->clock_type == PRIMARY_PLL) {
 		unsigned int reserved;
 
 		poke32(PANEL_PLL_CTRL, sm750_format_pll_reg(pll));
@@ -211,8 +211,8 @@ int ddk750_setModeTiming(struct mode_parameter *parm, enum clock_type clock)
 	struct pll_value pll;
 	unsigned int uiActualPixelClk;
 
-	pll.inputFreq = DEFAULT_INPUT_CLOCK;
-	pll.clockType = clock;
+	pll.input_freq = DEFAULT_INPUT_CLOCK;
+	pll.clock_type = clock;
 
 	uiActualPixelClk = sm750_calc_pll_value(parm->pixel_clock, &pll);
 	if (sm750_get_chip_type() == SM750LE) {
