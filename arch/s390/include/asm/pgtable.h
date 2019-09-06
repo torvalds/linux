@@ -266,11 +266,9 @@ static inline int is_module_addr(void *addr)
 #endif
 
 #define _REGION_ENTRY_BITS	 0xfffffffffffff22fUL
-#define _REGION_ENTRY_BITS_LARGE 0xffffffff8000fe2fUL
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS			0xfffffffffffffe33UL
-#define _SEGMENT_ENTRY_BITS_LARGE		0xfffffffffff0ff33UL
 #define _SEGMENT_ENTRY_HARDWARE_BITS		0xfffffffffffffe30UL
 #define _SEGMENT_ENTRY_HARDWARE_BITS_LARGE	0xfffffffffff00730UL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
@@ -699,10 +697,8 @@ static inline int pmd_large(pmd_t pmd)
 
 static inline int pmd_bad(pmd_t pmd)
 {
-	if ((pmd_val(pmd) & _SEGMENT_ENTRY_TYPE_MASK) > 0)
+	if ((pmd_val(pmd) & _SEGMENT_ENTRY_TYPE_MASK) > 0 || pmd_large(pmd))
 		return 1;
-	if (pmd_large(pmd))
-		return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS_LARGE) != 0;
 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
 }
 
@@ -710,12 +706,10 @@ static inline int pud_bad(pud_t pud)
 {
 	unsigned long type = pud_val(pud) & _REGION_ENTRY_TYPE_MASK;
 
-	if (type > _REGION_ENTRY_TYPE_R3)
+	if (type > _REGION_ENTRY_TYPE_R3 || pud_large(pud))
 		return 1;
 	if (type < _REGION_ENTRY_TYPE_R3)
 		return 0;
-	if (pud_large(pud))
-		return (pud_val(pud) & ~_REGION_ENTRY_BITS_LARGE) != 0;
 	return (pud_val(pud) & ~_REGION_ENTRY_BITS) != 0;
 }
 
