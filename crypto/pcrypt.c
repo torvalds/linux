@@ -308,8 +308,6 @@ static int pcrypt_init_padata(struct padata_instance **pinst, const char *name)
 {
 	int ret = -ENOMEM;
 
-	get_online_cpus();
-
 	*pinst = padata_alloc_possible(name);
 	if (!*pinst)
 		return ret;
@@ -317,8 +315,6 @@ static int pcrypt_init_padata(struct padata_instance **pinst, const char *name)
 	ret = pcrypt_sysfs_add(*pinst, name);
 	if (ret)
 		padata_free(*pinst);
-
-	put_online_cpus();
 
 	return ret;
 }

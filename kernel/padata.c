@@ -955,8 +955,6 @@ static struct kobj_type padata_attr_type = {
  * @name: used to identify the instance
  * @pcpumask: cpumask that will be used for padata parallelization
  * @cbcpumask: cpumask that will be used for padata serialization
- *
- * Must be called from a cpus_read_lock() protected region
  */
 static struct padata_instance *padata_alloc(const char *name,
 					    const struct cpumask *pcpumask,
@@ -974,11 +972,13 @@ static struct padata_instance *padata_alloc(const char *name,
 	if (!pinst->wq)
 		goto err_free_inst;
 
+	get_online_cpus();
+
 	if (!alloc_cpumask_var(&pinst->cpumask.pcpu, GFP_KERNEL))
-		goto err_free_wq;
+		goto err_put_cpus;
 	if (!alloc_cpumask_var(&pinst->cpumask.cbcpu, GFP_KERNEL)) {
 		free_cpumask_var(pinst->cpumask.pcpu);
-		goto err_free_wq;
+		goto err_put_cpus;
 	}
 	if (!padata_validate_cpumask(pinst, pcpumask) ||
 	    !padata_validate_cpumask(pinst, cbcpumask))
@@ -1002,12 +1002,16 @@ static struct padata_instance *padata_alloc(const char *name,
 #ifdef CONFIG_HOTPLUG_CPU
 	cpuhp_state_add_instance_nocalls_cpuslocked(hp_online, &pinst->node);
 #endif
+
+	put_online_cpus();
+
 	return pinst;
 
 err_free_masks:
 	free_cpumask_var(pinst->cpumask.pcpu);
 	free_cpumask_var(pinst->cpumask.cbcpu);
-err_free_wq:
+err_put_cpus:
+	put_online_cpus();
 	destroy_workqueue(pinst->wq);
 err_free_inst:
 	kfree(pinst);
@@ -1021,12 +1025,9 @@ err:
  *                         parallel workers.
  *
  * @name: used to identify the instance
- *
- * Must be called from a cpus_read_lock() protected region
  */
 struct padata_instance *padata_alloc_possible(const char *name)
 {
-	lockdep_assert_cpus_held();
 	return padata_alloc(name, cpu_possible_mask, cpu_possible_mask);
 }
 EXPORT_SYMBOL(padata_alloc_possible);
