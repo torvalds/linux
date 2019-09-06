@@ -14,8 +14,17 @@
 #include <crypto/sha.h>
 #include <crypto/skcipher.h>
 
-#define EIP197_HIA_VERSION_LE			0xca35
-#define EIP197_HIA_VERSION_BE			0x35ca
+#define EIP197_HIA_VERSION_BE			0xca35
+#define EIP197_HIA_VERSION_LE			0x35ca
+#define EIP97_VERSION_LE			0x9e61
+#define EIP197_VERSION_LE			0x3ac5
+#define EIP96_VERSION_LE			0x9f60
+#define EIP197_REG_LO16(reg)			(reg & 0xffff)
+#define EIP197_REG_HI16(reg)			((reg >> 16) & 0xffff)
+#define EIP197_VERSION_MASK(reg)		((reg >> 16) & 0xfff)
+#define EIP197_VERSION_SWAP(reg)		(((reg & 0xf0) << 4) | \
+						((reg >> 4) & 0xf0) | \
+						((reg >> 12) & 0xf))
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
@@ -70,6 +79,7 @@
 #define EIP197_HIA_DSE_THR(priv)	((priv)->base + (priv)->offsets.hia_dse_thr)
 #define EIP197_HIA_GEN_CFG(priv)	((priv)->base + (priv)->offsets.hia_gen_cfg)
 #define EIP197_PE(priv)			((priv)->base + (priv)->offsets.pe)
+#define EIP197_GLOBAL(priv)		((priv)->base + (priv)->offsets.global)
 
 /* EIP197 base offsets */
 #define EIP197_HIA_AIC_BASE		0x90000
@@ -82,6 +92,7 @@
 #define EIP197_HIA_DSE_THR_BASE		0x8d040
 #define EIP197_HIA_GEN_CFG_BASE		0xf0000
 #define EIP197_PE_BASE			0xa0000
+#define EIP197_GLOBAL_BASE		0xf0000
 
 /* EIP97 base offsets */
 #define EIP97_HIA_AIC_BASE		0x0
@@ -94,6 +105,7 @@
 #define EIP97_HIA_DSE_THR_BASE		0xf600
 #define EIP97_HIA_GEN_CFG_BASE		0x10000
 #define EIP97_PE_BASE			0x10000
+#define EIP97_GLOBAL_BASE		0x10000
 
 /* CDR/RDR register offsets */
 #define EIP197_HIA_xDR_OFF(priv, r)		(EIP197_HIA_AIC_xDR(priv) + (r) * 0x1000)
@@ -146,9 +158,11 @@
 #define EIP197_PE_EIP96_CONTEXT_CTRL(n)		(0x1008 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_STAT(n)		(0x100c + (0x2000 * (n)))
 #define EIP197_PE_EIP96_OPTIONS(n)		(0x13f8 + (0x2000 * (n)))
+#define EIP197_PE_EIP96_VERSION(n)		(0x13fc + (0x2000 * (n)))
 #define EIP197_PE_OUT_DBUF_THRES(n)		(0x1c00 + (0x2000 * (n)))
 #define EIP197_PE_OUT_TBUF_THRES(n)		(0x1d00 + (0x2000 * (n)))
 #define EIP197_MST_CTRL				0xfff4
+#define EIP197_VERSION				0xfffc
 
 /* EIP197-specific registers, no indirection */
 #define EIP197_CLASSIFICATION_RAMS		0xe0000
@@ -252,6 +266,7 @@
 #define EIP197_MST_CTRL_TX_MAX_CMD(n)		(((n) & 0xf) << 20)
 #define EIP197_MST_CTRL_BYTE_SWAP		BIT(24)
 #define EIP197_MST_CTRL_NO_BYTE_SWAP		BIT(25)
+#define EIP197_MST_CTRL_BYTE_SWAP_BITS          GENMASK(25, 24)
 
 /* EIP197_PE_IN_DBUF/TBUF_THRES */
 #define EIP197_PE_IN_xBUF_THRES_MIN(n)		((n) << 8)
@@ -651,14 +666,19 @@ struct safexcel_register_offsets {
 	u32 hia_dse_thr;
 	u32 hia_gen_cfg;
 	u32 pe;
+	u32 global;
 };
 
 enum safexcel_flags {
-	EIP197_TRC_CACHE = BIT(0),
+	EIP197_TRC_CACHE	= BIT(0),
+	SAFEXCEL_HW_EIP197	= BIT(1),
 };
 
 struct safexcel_hwconfig {
 	enum safexcel_eip_algorithms algo_flags;
+	int hwver;
+	int hiaver;
+	int pever;
 };
 
 struct safexcel_crypto_priv {

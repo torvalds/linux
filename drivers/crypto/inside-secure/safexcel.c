@@ -393,29 +393,21 @@ static int safexcel_hw_setup_rdesc_rings(struct safexcel_crypto_priv *priv)
 
 static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 {
-	u32 version, val;
+	u32 val;
 	int i, ret, pe;
 
 	dev_dbg(priv->dev, "HW init: using %d pipe(s) and %d ring(s)\n",
 		priv->config.pes, priv->config.rings);
 
-	/* Determine endianess and configure byte swap */
-	version = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_VERSION);
-	val = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
-
-	if ((version & 0xffff) == EIP197_HIA_VERSION_BE)
-		val |= EIP197_MST_CTRL_BYTE_SWAP;
-	else if (((version >> 16) & 0xffff) == EIP197_HIA_VERSION_LE)
-		val |= (EIP197_MST_CTRL_NO_BYTE_SWAP >> 24);
-
 	/*
 	 * For EIP197's only set maximum number of TX commands to 2^5 = 32
 	 * Skip for the EIP97 as it does not have this field.
 	 */
-	if (priv->version != EIP97IES_MRVL)
+	if (priv->flags & SAFEXCEL_HW_EIP197) {
+		val = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
 		val |= EIP197_MST_CTRL_TX_MAX_CMD(5);
-
-	writel(val, EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
+		writel(val, EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
+	}
 
 	/* Configure wr/rd cache values */
 	writel(EIP197_MST_CTRL_RD_CACHE(RD_CACHE_4BITS) |
@@ -438,7 +430,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		writel(EIP197_DxE_THR_CTRL_RESET_PE,
 		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
 
-		if (priv->version != EIP97IES_MRVL)
+		if (priv->flags & SAFEXCEL_HW_EIP197)
 			/* Reset HIA input interface arbiter (EIP197 only) */
 			writel(EIP197_HIA_RA_PE_CTRL_RESET,
 			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
@@ -464,7 +456,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		       EIP197_PE_IN_xBUF_THRES_MAX(7),
 		       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES(pe));
 
-		if (priv->version != EIP97IES_MRVL)
+		if (priv->flags & SAFEXCEL_HW_EIP197)
 			/* enable HIA input interface arbiter and rings */
 			writel(EIP197_HIA_RA_PE_CTRL_EN |
 			       GENMASK(priv->config.rings - 1, 0),
@@ -490,7 +482,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		/* FIXME: instability issues can occur for EIP97 but disabling
 		 * it impacts performance.
 		 */
-		if (priv->version != EIP97IES_MRVL)
+		if (priv->flags & SAFEXCEL_HW_EIP197)
 			val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
 		writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG(pe));
 
@@ -577,8 +569,9 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* Clear any HIA interrupt */
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	if (priv->version != EIP97IES_MRVL) {
+	if (priv->flags & SAFEXCEL_HW_EIP197) {
 		eip197_trc_cache_init(priv);
+		priv->flags |= EIP197_TRC_CACHE;
 
 		ret = eip197_load_firmwares(priv);
 		if (ret)
@@ -1083,12 +1076,12 @@ static void safexcel_configure(struct safexcel_crypto_priv *priv)
 	val = readl(EIP197_HIA_AIC_G(priv) + EIP197_HIA_OPTIONS);
 
 	/* Read number of PEs from the engine */
-	if (priv->version == EIP97IES_MRVL)
-		/* Narrow field width for EIP97 type engine */
-		mask = EIP97_N_PES_MASK;
-	else
+	if (priv->flags & SAFEXCEL_HW_EIP197)
 		/* Wider field width for all EIP197 type engines */
 		mask = EIP197_N_PES_MASK;
+	else
+		/* Narrow field width for EIP97 type engine */
+		mask = EIP97_N_PES_MASK;
 
 	priv->config.pes = (val >> EIP197_N_PES_OFFSET) & mask;
 
@@ -1108,18 +1101,7 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 {
 	struct safexcel_register_offsets *offsets = &priv->offsets;
 
-	if (priv->version == EIP97IES_MRVL) {
-		offsets->hia_aic	= EIP97_HIA_AIC_BASE;
-		offsets->hia_aic_g	= EIP97_HIA_AIC_G_BASE;
-		offsets->hia_aic_r	= EIP97_HIA_AIC_R_BASE;
-		offsets->hia_aic_xdr	= EIP97_HIA_AIC_xDR_BASE;
-		offsets->hia_dfe	= EIP97_HIA_DFE_BASE;
-		offsets->hia_dfe_thr	= EIP97_HIA_DFE_THR_BASE;
-		offsets->hia_dse	= EIP97_HIA_DSE_BASE;
-		offsets->hia_dse_thr	= EIP97_HIA_DSE_THR_BASE;
-		offsets->hia_gen_cfg	= EIP97_HIA_GEN_CFG_BASE;
-		offsets->pe		= EIP97_PE_BASE;
-	} else {
+	if (priv->flags & SAFEXCEL_HW_EIP197) {
 		offsets->hia_aic	= EIP197_HIA_AIC_BASE;
 		offsets->hia_aic_g	= EIP197_HIA_AIC_G_BASE;
 		offsets->hia_aic_r	= EIP197_HIA_AIC_R_BASE;
@@ -1130,6 +1112,19 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 		offsets->hia_dse_thr	= EIP197_HIA_DSE_THR_BASE;
 		offsets->hia_gen_cfg	= EIP197_HIA_GEN_CFG_BASE;
 		offsets->pe		= EIP197_PE_BASE;
+		offsets->global		= EIP197_GLOBAL_BASE;
+	} else {
+		offsets->hia_aic	= EIP97_HIA_AIC_BASE;
+		offsets->hia_aic_g	= EIP97_HIA_AIC_G_BASE;
+		offsets->hia_aic_r	= EIP97_HIA_AIC_R_BASE;
+		offsets->hia_aic_xdr	= EIP97_HIA_AIC_xDR_BASE;
+		offsets->hia_dfe	= EIP97_HIA_DFE_BASE;
+		offsets->hia_dfe_thr	= EIP97_HIA_DFE_THR_BASE;
+		offsets->hia_dse	= EIP97_HIA_DSE_BASE;
+		offsets->hia_dse_thr	= EIP97_HIA_DSE_THR_BASE;
+		offsets->hia_gen_cfg	= EIP97_HIA_GEN_CFG_BASE;
+		offsets->pe		= EIP97_PE_BASE;
+		offsets->global		= EIP97_GLOBAL_BASE;
 	}
 }
 
@@ -1145,8 +1140,8 @@ static int safexcel_probe_generic(void *pdev,
 				  int is_pci_dev)
 {
 	struct device *dev = priv->dev;
-	u32 peid;
-	int i, ret;
+	u32 peid, version, mask, val;
+	int i, ret, hwctg;
 
 	priv->context_pool = dmam_pool_create("safexcel-context", dev,
 					      sizeof(struct safexcel_context_record),
@@ -1154,23 +1149,89 @@ static int safexcel_probe_generic(void *pdev,
 	if (!priv->context_pool)
 		return -ENOMEM;
 
+	/*
+	 * First try the EIP97 HIA version regs
+	 * For the EIP197, this is guaranteed to NOT return any of the test
+	 * values
+	 */
+	version = readl(priv->base + EIP97_HIA_AIC_BASE + EIP197_HIA_VERSION);
+
+	mask = 0;  /* do not swap */
+	if (EIP197_REG_LO16(version) == EIP197_HIA_VERSION_LE) {
+		priv->hwconfig.hiaver = EIP197_VERSION_MASK(version);
+	} else if (EIP197_REG_HI16(version) == EIP197_HIA_VERSION_BE) {
+		/* read back byte-swapped, so complement byte swap bits */
+		mask = EIP197_MST_CTRL_BYTE_SWAP_BITS;
+		priv->hwconfig.hiaver = EIP197_VERSION_SWAP(version);
+	} else {
+		/* So it wasn't an EIP97 ... maybe it's an EIP197? */
+		version = readl(priv->base + EIP197_HIA_AIC_BASE +
+				EIP197_HIA_VERSION);
+		if (EIP197_REG_LO16(version) == EIP197_HIA_VERSION_LE) {
+			priv->hwconfig.hiaver = EIP197_VERSION_MASK(version);
+			priv->flags |= SAFEXCEL_HW_EIP197;
+		} else if (EIP197_REG_HI16(version) ==
+			   EIP197_HIA_VERSION_BE) {
+			/* read back byte-swapped, so complement swap bits */
+			mask = EIP197_MST_CTRL_BYTE_SWAP_BITS;
+			priv->hwconfig.hiaver = EIP197_VERSION_SWAP(version);
+			priv->flags |= SAFEXCEL_HW_EIP197;
+		} else {
+			return -ENODEV;
+		}
+	}
+
+	/* Now initialize the reg offsets based on the probing info so far */
 	safexcel_init_register_offsets(priv);
+
+	/*
+	 * If the version was read byte-swapped, we need to flip the device
+	 * swapping Keep in mind here, though, that what we write will also be
+	 * byte-swapped ...
+	 */
+	if (mask) {
+		val = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
+		val = val ^ (mask >> 24); /* toggle byte swap bits */
+		writel(val, EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
+	}
+
+	/*
+	 * We're not done probing yet! We may fall through to here if no HIA
+	 * was found at all. So, with the endianness presumably correct now and
+	 * the offsets setup, *really* probe for the EIP97/EIP197.
+	 */
+	version = readl(EIP197_GLOBAL(priv) + EIP197_VERSION);
+	if (((priv->flags & SAFEXCEL_HW_EIP197) &&
+	     (EIP197_REG_LO16(version) != EIP197_VERSION_LE)) ||
+	    ((!(priv->flags & SAFEXCEL_HW_EIP197) &&
+	     (EIP197_REG_LO16(version) != EIP97_VERSION_LE)))) {
+		/*
+		 * We did not find the device that matched our initial probing
+		 * (or our initial probing failed) Report appropriate error.
+		 */
+		return -ENODEV;
+	}
+
+	priv->hwconfig.hwver = EIP197_VERSION_MASK(version);
+	hwctg = version >> 28;
+	peid = version & 255;
+
+	/* Detect EIP96 packet engine and version */
+	version = readl(EIP197_PE(priv) + EIP197_PE_EIP96_VERSION(0));
+	if (EIP197_REG_LO16(version) != EIP96_VERSION_LE) {
+		dev_err(dev, "EIP%d: EIP96 not detected.\n", peid);
+		return -ENODEV;
+	}
+	priv->hwconfig.pever = EIP197_VERSION_MASK(version);
 
 	/* Get supported algorithms from EIP96 transform engine */
 	priv->hwconfig.algo_flags = readl(EIP197_PE(priv) +
 				    EIP197_PE_EIP96_OPTIONS(0));
 
-	if (priv->version == EIP97IES_MRVL) {
-		peid = 97;
-	} else {
-		priv->flags |= EIP197_TRC_CACHE;
-		peid = 197;
-	}
-
-	/* Dump some debug information important during development */
-	dev_dbg(priv->dev, "Inside Secure EIP%d packetengine\n", peid);
-	dev_dbg(priv->dev, "Supported algorithms: %08x\n",
-			   priv->hwconfig.algo_flags);
+	/* Print single info line describing what we just detected */
+	dev_info(priv->dev, "EIP%d:%x(%d)-HIA:%x,PE:%x,alg:%08x\n", peid,
+		 priv->hwconfig.hwver, hwctg, priv->hwconfig.hiaver,
+		 priv->hwconfig.pever, priv->hwconfig.algo_flags);
 
 	safexcel_configure(priv);
 
@@ -1522,7 +1583,6 @@ static const struct pci_device_id safexcel_pci_ids[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_XILINX, 0x9038,
 			       0x16ae, 0xc522),
-		/* assume EIP197B for now */
 		.driver_data = EIP197_DEVBRD,
 	},
 	{},
