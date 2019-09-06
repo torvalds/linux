@@ -2363,7 +2363,6 @@ static void ti_sysc_idle(struct work_struct *work)
 	 */
 	if (ddata->cfg.quirks & (SYSC_QUIRK_NO_IDLE |
 				 SYSC_QUIRK_NO_IDLE_ON_INIT)) {
-		sysc_clkdm_deny_idle(ddata);
 		sysc_disable_main_clocks(ddata);
 		sysc_disable_opt_clocks(ddata);
 		sysc_clkdm_allow_idle(ddata);
