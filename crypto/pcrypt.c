@@ -20,7 +20,6 @@
 
 struct padata_pcrypt {
 	struct padata_instance *pinst;
-	struct workqueue_struct *wq;
 
 	/*
 	 * Cpumask for callback CPUs. It should be
@@ -397,14 +396,9 @@ static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
 
 	get_online_cpus();
 
-	pcrypt->wq = alloc_workqueue("%s", WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE,
-				     1, name);
-	if (!pcrypt->wq)
-		goto err;
-
-	pcrypt->pinst = padata_alloc_possible(pcrypt->wq);
+	pcrypt->pinst = padata_alloc_possible(name);
 	if (!pcrypt->pinst)
-		goto err_destroy_workqueue;
+		goto err;
 
 	mask = kmalloc(sizeof(*mask), GFP_KERNEL);
 	if (!mask)
@@ -437,8 +431,6 @@ err_free_cpumask:
 	kfree(mask);
 err_free_padata:
 	padata_free(pcrypt->pinst);
-err_destroy_workqueue:
-	destroy_workqueue(pcrypt->wq);
 err:
 	put_online_cpus();
 
@@ -452,7 +444,6 @@ static void pcrypt_fini_padata(struct padata_pcrypt *pcrypt)
 
 	padata_stop(pcrypt->pinst);
 	padata_unregister_cpumask_notifier(pcrypt->pinst, &pcrypt->nblock);
-	destroy_workqueue(pcrypt->wq);
 	padata_free(pcrypt->pinst);
 }
 
