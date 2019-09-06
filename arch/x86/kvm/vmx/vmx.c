@@ -5237,7 +5237,7 @@ emulation_error:
 static void grow_ple_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	int old = vmx->ple_window;
+	unsigned int old = vmx->ple_window;
 
 	vmx->ple_window = __grow_ple_window(old, ple_window,
 					    ple_window_grow,
@@ -5252,7 +5252,7 @@ static void grow_ple_window(struct kvm_vcpu *vcpu)
 static void shrink_ple_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	int old = vmx->ple_window;
+	unsigned int old = vmx->ple_window;
 
 	vmx->ple_window = __shrink_ple_window(old, ple_window,
 					      ple_window_shrink,

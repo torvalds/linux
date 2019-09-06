@@ -891,14 +891,15 @@ TRACE_EVENT(kvm_pml_full,
 );
 
 TRACE_EVENT(kvm_ple_window,
-	TP_PROTO(bool grow, unsigned int vcpu_id, int new, int old),
+	TP_PROTO(bool grow, unsigned int vcpu_id, unsigned int new,
+		 unsigned int old),
 	TP_ARGS(grow, vcpu_id, new, old),
 
 	TP_STRUCT__entry(
 		__field(                bool,      grow         )
 		__field(        unsigned int,   vcpu_id         )
-		__field(                 int,       new         )
-		__field(                 int,       old         )
+		__field(        unsigned int,       new         )
+		__field(        unsigned int,       old         )
 	),
 
 	TP_fast_assign(
@@ -908,7 +909,7 @@ TRACE_EVENT(kvm_ple_window,
 		__entry->old            = old;
 	),
 
-	TP_printk("vcpu %u: ple_window %d (%s %d)",
+	TP_printk("vcpu %u: ple_window %u (%s %u)",
 	          __entry->vcpu_id,
 	          __entry->new,
 	          __entry->grow ? "grow" : "shrink",
