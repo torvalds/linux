@@ -696,7 +696,11 @@ typedef struct {
   uint8_t      GpioI2cSda;          // Serial Data
   uint16_t     GpioPadding;
 
-  uint32_t     BoardReserved[9];
+  // Platform input telemetry voltage coefficient
+  uint32_t     BoardVoltageCoeffA;    // decode by /1000
+  uint32_t     BoardVoltageCoeffB;    // decode by /1000
+
+  uint32_t     BoardReserved[7];
 
   // Padding for MMHUB - do not modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
