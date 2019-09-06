@@ -243,8 +243,6 @@ MODULE_DEVICE_TABLE(acpi, hisi_ddrc_pmu_acpi_match);
 static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *ddrc_pmu)
 {
-	struct resource *res;
-
 	/*
 	 * Use the SCCL_ID and DDRC channel ID to identify the
 	 * DDRC PMU, while SCCL_ID is in MPIDR[aff2].
@@ -263,8 +261,7 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 	/* DDRC PMUs only share the same SCCL */
 	ddrc_pmu->ccl_id = -1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ddrc_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	ddrc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ddrc_pmu->base)) {
 		dev_err(&pdev->dev, "ioremap failed for ddrc_pmu resource\n");
 		return PTR_ERR(ddrc_pmu->base);
