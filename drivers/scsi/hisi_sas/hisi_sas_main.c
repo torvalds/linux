@@ -1762,7 +1762,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	}
 
 	reset_type = (sas_dev->dev_status == HISI_SAS_DEV_INIT ||
-		      !dev_is_sata(device)) ? 1 : 0;
+		      !dev_is_sata(device)) ? true : false;
 
 	rc = sas_phy_reset(local_phy, reset_type);
 	sas_put_local_phy(local_phy);
@@ -1843,7 +1843,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 
 		phy = sas_get_local_phy(device);
 
-		rc = sas_phy_reset(phy, 1);
+		rc = sas_phy_reset(phy, true);
 
 		if (rc == 0)
 			hisi_sas_release_task(hisi_hba, device);
