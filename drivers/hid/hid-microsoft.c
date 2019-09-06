@@ -303,7 +303,7 @@ static void ms_ff_worker(struct work_struct *work)
 	r->magnitude[MAGNITUDE_WEAK] = ms->weak;     /* right actuator */
 
 	ret = hid_hw_output_report(hdev, (__u8 *)r, sizeof(*r));
-	if (ret)
+	if (ret < 0)
 		hid_warn(hdev, "failed to send FF report\n");
 }
 
