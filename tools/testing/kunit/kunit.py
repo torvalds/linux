@@ -62,9 +62,11 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 					      'Tests not Parsed.')
 	if request.raw_output:
 		kunit_parser.raw_output(
-			linux.run_kernel(timeout=request.timeout))
+			linux.run_kernel(timeout=request.timeout,
+					 build_dir=request.build_dir))
 	else:
-		kunit_output = linux.run_kernel(timeout=request.timeout)
+		kunit_output = linux.run_kernel(timeout=request.timeout,
+						build_dir=request.build_dir)
 		test_result = kunit_parser.parse_run_tests(kunit_output)
 	test_end = time.time()
 
