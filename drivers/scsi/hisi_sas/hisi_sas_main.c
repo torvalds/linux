@@ -3306,27 +3306,44 @@ void hisi_sas_debugfs_work_handler(struct work_struct *work)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_debugfs_work_handler);
 
-void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
+void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba)
 {
-	int max_command_entries = HISI_SAS_MAX_COMMANDS;
+	struct device *dev = hisi_hba->dev;
+	int i;
+
+	devm_kfree(dev, hisi_hba->debugfs_iost_cache);
+	devm_kfree(dev, hisi_hba->debugfs_itct_cache);
+	devm_kfree(dev, hisi_hba->debugfs_iost);
+
+	for (i = 0; i < hisi_hba->queue_count; i++)
+		devm_kfree(dev, hisi_hba->debugfs_cmd_hdr[i]);
+
+	for (i = 0; i < hisi_hba->queue_count; i++)
+		devm_kfree(dev, hisi_hba->debugfs_complete_hdr[i]);
+
+	for (i = 0; i < DEBUGFS_REGS_NUM; i++)
+		devm_kfree(dev, hisi_hba->debugfs_regs[i]);
+
+	for (i = 0; i < hisi_hba->n_phy; i++)
+		devm_kfree(dev, hisi_hba->debugfs_port_reg[i]);
+}
+
+int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
+{
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	struct device *dev = hisi_hba->dev;
-	int p, i, c, d;
+	int p, c, d;
 	size_t sz;
 
-	hisi_hba->debugfs_dir = debugfs_create_dir(dev_name(dev),
-						   hisi_sas_debugfs_dir);
-	debugfs_create_file("trigger_dump", 0600,
-			    hisi_hba->debugfs_dir,
-			    hisi_hba,
-			    &hisi_sas_debugfs_trigger_dump_fops);
+	hisi_hba->debugfs_dump_dentry =
+			debugfs_create_dir("dump", hisi_hba->debugfs_dir);
 
 	sz = hw->debugfs_reg_array[DEBUGFS_GLOBAL]->count * 4;
 	hisi_hba->debugfs_regs[DEBUGFS_GLOBAL] =
 				devm_kmalloc(dev, sz, GFP_KERNEL);
 
 	if (!hisi_hba->debugfs_regs[DEBUGFS_GLOBAL])
-		goto fail_global;
+		goto fail;
 
 	sz = hw->debugfs_reg_port->count * 4;
 	for (p = 0; p < hisi_hba->n_phy; p++) {
@@ -3334,7 +3351,7 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			devm_kmalloc(dev, sz, GFP_KERNEL);
 
 		if (!hisi_hba->debugfs_port_reg[p])
-			goto fail_port;
+			goto fail;
 	}
 
 	sz = hw->debugfs_reg_array[DEBUGFS_AXI]->count * 4;
@@ -3342,14 +3359,14 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 		devm_kmalloc(dev, sz, GFP_KERNEL);
 
 	if (!hisi_hba->debugfs_regs[DEBUGFS_AXI])
-		goto fail_axi;
+		goto fail;
 
 	sz = hw->debugfs_reg_array[DEBUGFS_RAS]->count * 4;
 	hisi_hba->debugfs_regs[DEBUGFS_RAS] =
 		devm_kmalloc(dev, sz, GFP_KERNEL);
 
 	if (!hisi_hba->debugfs_regs[DEBUGFS_RAS])
-		goto fail_ras;
+		goto fail;
 
 	sz = hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
 	for (c = 0; c < hisi_hba->queue_count; c++) {
@@ -3357,7 +3374,7 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			devm_kmalloc(dev, sz, GFP_KERNEL);
 
 		if (!hisi_hba->debugfs_complete_hdr[c])
-			goto fail_cq;
+			goto fail;
 	}
 
 	sz = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
@@ -3366,60 +3383,57 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			devm_kmalloc(dev, sz, GFP_KERNEL);
 
 		if (!hisi_hba->debugfs_cmd_hdr[d])
-			goto fail_iost_dq;
+			goto fail;
 	}
 
-	sz = max_command_entries * sizeof(struct hisi_sas_iost);
+	sz = HISI_SAS_MAX_COMMANDS * sizeof(struct hisi_sas_iost);
 
 	hisi_hba->debugfs_iost = devm_kmalloc(dev, sz, GFP_KERNEL);
 	if (!hisi_hba->debugfs_iost)
-		goto fail_iost_dq;
+		goto fail;
 
 	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
 	     sizeof(struct hisi_sas_iost_itct_cache);
 
 	hisi_hba->debugfs_iost_cache = devm_kmalloc(dev, sz, GFP_KERNEL);
 	if (!hisi_hba->debugfs_iost_cache)
-		goto fail_iost_cache;
+		goto fail;
 
 	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
 	     sizeof(struct hisi_sas_iost_itct_cache);
 
 	hisi_hba->debugfs_itct_cache = devm_kmalloc(dev, sz, GFP_KERNEL);
 	if (!hisi_hba->debugfs_itct_cache)
-		goto fail_itct_cache;
+		goto fail;
 
 	/* New memory allocation must be locate before itct */
 	sz = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 
 	hisi_hba->debugfs_itct = devm_kmalloc(dev, sz, GFP_KERNEL);
 	if (!hisi_hba->debugfs_itct)
-		goto fail_itct;
+		goto fail;
 
-	return;
-fail_itct:
-	devm_kfree(dev, hisi_hba->debugfs_iost_cache);
-fail_itct_cache:
-	devm_kfree(dev, hisi_hba->debugfs_iost_cache);
-fail_iost_cache:
-	devm_kfree(dev, hisi_hba->debugfs_iost);
-fail_iost_dq:
-	for (i = 0; i < d; i++)
-		devm_kfree(dev, hisi_hba->debugfs_cmd_hdr[i]);
-fail_cq:
-	for (i = 0; i < c; i++)
-		devm_kfree(dev, hisi_hba->debugfs_complete_hdr[i]);
-	devm_kfree(dev, hisi_hba->debugfs_regs[DEBUGFS_RAS]);
-fail_ras:
-	devm_kfree(dev, hisi_hba->debugfs_regs[DEBUGFS_AXI]);
-fail_axi:
-fail_port:
-	for (i = 0; i < p; i++)
-		devm_kfree(dev, hisi_hba->debugfs_port_reg[i]);
-	devm_kfree(dev, hisi_hba->debugfs_regs[DEBUGFS_GLOBAL]);
-fail_global:
-	debugfs_remove_recursive(hisi_hba->debugfs_dir);
-	dev_dbg(dev, "failed to init debugfs!\n");
+	return 0;
+fail:
+	hisi_sas_debugfs_release(hisi_hba);
+	return -ENOMEM;
+}
+
+void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+
+	hisi_hba->debugfs_dir = debugfs_create_dir(dev_name(dev),
+						   hisi_sas_debugfs_dir);
+	debugfs_create_file("trigger_dump", 0600,
+			    hisi_hba->debugfs_dir,
+			    hisi_hba,
+			    &hisi_sas_debugfs_trigger_dump_fops);
+
+	if (hisi_sas_debugfs_alloc(hisi_hba)) {
+		debugfs_remove_recursive(hisi_hba->debugfs_dir);
+		dev_dbg(dev, "failed to init debugfs!\n");
+	}
 }
 EXPORT_SYMBOL_GPL(hisi_sas_debugfs_init);
 
