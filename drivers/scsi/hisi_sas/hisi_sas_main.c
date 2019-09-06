@@ -1391,8 +1391,7 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 	}
 }
 
-static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
-			      u32 state)
+static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct asd_sas_port *_sas_port = NULL;
@@ -1553,7 +1552,7 @@ void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
-	hisi_sas_rescan_topology(hisi_hba, hisi_hba->phy_state, state);
+	hisi_sas_rescan_topology(hisi_hba, state);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_done);
 

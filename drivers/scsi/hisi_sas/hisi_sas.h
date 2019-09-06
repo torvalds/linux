@@ -306,8 +306,8 @@ struct hisi_sas_hw {
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int (*write_gpio)(struct hisi_hba *hisi_hba, u8 reg_type,
 				u8 reg_index, u8 reg_count, u8 *write_data);
-	int (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
-					  int delay_ms, int timeout_ms);
+	void (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
+					   int delay_ms, int timeout_ms);
 	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
 	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
 	void (*read_iost_itct_cache)(struct hisi_hba *hisi_hba,
