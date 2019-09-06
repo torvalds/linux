@@ -324,12 +324,12 @@ static void tb_dp_init_video_path(struct tb_path *path, bool discover)
 	path->weight = 1;
 
 	if (discover) {
-		path->nfc_credits = nfc_credits & TB_PORT_NFC_CREDITS_MASK;
+		path->nfc_credits = nfc_credits & ADP_CS_4_NFC_BUFFERS_MASK;
 	} else {
 		u32 max_credits;
 
-		max_credits = (nfc_credits & TB_PORT_MAX_CREDITS_MASK) >>
-			TB_PORT_MAX_CREDITS_SHIFT;
+		max_credits = (nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+			ADP_CS_4_TOTAL_BUFFERS_SHIFT;
 		/* Leave some credits for AUX path */
 		path->nfc_credits = min(max_credits - 2, 12U);
 	}
@@ -478,8 +478,8 @@ static u32 tb_dma_credits(struct tb_port *nhi)
 {
 	u32 max_credits;
 
-	max_credits = (nhi->config.nfc_credits & TB_PORT_MAX_CREDITS_MASK) >>
-		TB_PORT_MAX_CREDITS_SHIFT;
+	max_credits = (nhi->config.nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+		ADP_CS_4_TOTAL_BUFFERS_SHIFT;
 	return min(max_credits, 13U);
 }
 

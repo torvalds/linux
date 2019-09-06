@@ -211,13 +211,14 @@ struct tb_regs_port_header {
 
 } __packed;
 
-/* DWORD 4 */
-#define TB_PORT_NFC_CREDITS_MASK	GENMASK(19, 0)
-#define TB_PORT_MAX_CREDITS_SHIFT	20
-#define TB_PORT_MAX_CREDITS_MASK	GENMASK(26, 20)
-/* DWORD 5 */
-#define TB_PORT_LCA_SHIFT		22
-#define TB_PORT_LCA_MASK		GENMASK(28, 22)
+/* Basic adapter configuration registers */
+#define ADP_CS_4				0x04
+#define ADP_CS_4_NFC_BUFFERS_MASK		GENMASK(9, 0)
+#define ADP_CS_4_TOTAL_BUFFERS_MASK		GENMASK(29, 20)
+#define ADP_CS_4_TOTAL_BUFFERS_SHIFT		20
+#define ADP_CS_5				0x05
+#define ADP_CS_5_LCA_MASK			GENMASK(28, 22)
+#define ADP_CS_5_LCA_SHIFT			22
 
 /* Display Port adapter registers */
 

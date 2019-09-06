@@ -553,17 +553,17 @@ int tb_port_add_nfc_credits(struct tb_port *port, int credits)
 	if (credits == 0 || port->sw->is_unplugged)
 		return 0;
 
-	nfc_credits = port->config.nfc_credits & TB_PORT_NFC_CREDITS_MASK;
+	nfc_credits = port->config.nfc_credits & ADP_CS_4_NFC_BUFFERS_MASK;
 	nfc_credits += credits;
 
-	tb_port_dbg(port, "adding %d NFC credits to %lu",
-		    credits, port->config.nfc_credits & TB_PORT_NFC_CREDITS_MASK);
+	tb_port_dbg(port, "adding %d NFC credits to %lu", credits,
+		    port->config.nfc_credits & ADP_CS_4_NFC_BUFFERS_MASK);
 
-	port->config.nfc_credits &= ~TB_PORT_NFC_CREDITS_MASK;
+	port->config.nfc_credits &= ~ADP_CS_4_NFC_BUFFERS_MASK;
 	port->config.nfc_credits |= nfc_credits;
 
 	return tb_port_write(port, &port->config.nfc_credits,
-			     TB_CFG_PORT, 4, 1);
+			     TB_CFG_PORT, ADP_CS_4, 1);
 }
 
 /**
@@ -578,14 +578,14 @@ int tb_port_set_initial_credits(struct tb_port *port, u32 credits)
 	u32 data;
 	int ret;
 
-	ret = tb_port_read(port, &data, TB_CFG_PORT, 5, 1);
+	ret = tb_port_read(port, &data, TB_CFG_PORT, ADP_CS_5, 1);
 	if (ret)
 		return ret;
 
-	data &= ~TB_PORT_LCA_MASK;
-	data |= (credits << TB_PORT_LCA_SHIFT) & TB_PORT_LCA_MASK;
+	data &= ~ADP_CS_5_LCA_MASK;
+	data |= (credits << ADP_CS_5_LCA_SHIFT) & ADP_CS_5_LCA_MASK;
 
-	return tb_port_write(port, &data, TB_CFG_PORT, 5, 1);
+	return tb_port_write(port, &data, TB_CFG_PORT, ADP_CS_5, 1);
 }
 
 /**
