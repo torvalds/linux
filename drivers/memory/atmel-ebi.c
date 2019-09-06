@@ -19,6 +19,8 @@
 #include <linux/regmap.h>
 #include <soc/at91/atmel-sfr.h>
 
+#define AT91_EBI_NUM_CS		8
+
 struct atmel_ebi_dev_config {
 	int cs;
 	struct atmel_smc_cs_conf smcconf;
@@ -314,7 +316,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 		if (ret)
 			return ret;
 
-		if (cs >= AT91_MATRIX_EBI_NUM_CS ||
+		if (cs >= AT91_EBI_NUM_CS ||
 		    !(ebi->caps->available_cs & BIT(cs))) {
 			dev_err(dev, "invalid reg property in %pOF\n", np);
 			return -EINVAL;
@@ -344,7 +346,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 		apply = true;
 
 	i = 0;
-	for_each_set_bit(cs, &cslines, AT91_MATRIX_EBI_NUM_CS) {
+	for_each_set_bit(cs, &cslines, AT91_EBI_NUM_CS) {
 		ebid->configs[i].cs = cs;
 
 		if (apply) {
