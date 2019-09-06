@@ -344,7 +344,7 @@ static void init_channel_list(struct adapter *padapter, RT_CHANNEL_INFO *channel
 							  struct p2p_channels *channel_list)
 {
 
-	struct p2p_oper_class_map op_class[] = {
+	static const struct p2p_oper_class_map op_class[] = {
 		{ IEEE80211G,  81,   1,  13,  1, BW20 },
 		{ IEEE80211G,  82,  14,  14,  1, BW20 },
 		{ IEEE80211A, 115,  36,  48,  4, BW20 },
@@ -363,7 +363,7 @@ static void init_channel_list(struct adapter *padapter, RT_CHANNEL_INFO *channel
 
 	for (op = 0; op_class[op].op_class; op++) {
 		u8 ch;
-		struct p2p_oper_class_map *o = &op_class[op];
+		const struct p2p_oper_class_map *o = &op_class[op];
 		struct p2p_reg_class *reg = NULL;
 
 		for (ch = o->min_chan; ch <= o->max_chan; ch += o->inc) {
