@@ -3283,15 +3283,21 @@ static int hisi_sas_v3_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);
 	rc = pci_enable_device(pdev);
-	if (rc)
+	if (rc) {
 		dev_err(dev, "enable device failed during resume (%d)\n", rc);
+		return rc;
+	}
 
 	pci_set_master(pdev);
 	scsi_unblock_requests(shost);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
 	sas_prep_resume_ha(sha);
-	init_reg_v3_hw(hisi_hba);
+	rc = hw_init_v3_hw(hisi_hba);
+	if (rc) {
+		scsi_remove_host(shost);
+		pci_disable_device(pdev);
+	}
 	hisi_hba->hw->phys_init(hisi_hba);
 	sas_resume_ha(sha);
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
