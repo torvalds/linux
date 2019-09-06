@@ -808,8 +808,12 @@ static void virtual_update_register_offsets(u32 *regs,
 {
 	u32 base = engine->mmio_base;
 
+	/* Refactor so that we only have one place that knows all the offsets! */
+	GEM_WARN_ON(INTEL_GEN(engine->i915) >= 12);
+
 	/* Must match execlists_init_reg_state()! */
 
+	/* Common part */
 	regs[CTX_CONTEXT_CONTROL] =
 		i915_mmio_reg_offset(RING_CONTEXT_CONTROL(base));
 	regs[CTX_RING_HEAD] = i915_mmio_reg_offset(RING_HEAD(base));
@@ -820,13 +824,16 @@ static void virtual_update_register_offsets(u32 *regs,
 	regs[CTX_BB_HEAD_U] = i915_mmio_reg_offset(RING_BBADDR_UDW(base));
 	regs[CTX_BB_HEAD_L] = i915_mmio_reg_offset(RING_BBADDR(base));
 	regs[CTX_BB_STATE] = i915_mmio_reg_offset(RING_BBSTATE(base));
+
 	regs[CTX_SECOND_BB_HEAD_U] =
 		i915_mmio_reg_offset(RING_SBBADDR_UDW(base));
 	regs[CTX_SECOND_BB_HEAD_L] = i915_mmio_reg_offset(RING_SBBADDR(base));
 	regs[CTX_SECOND_BB_STATE] = i915_mmio_reg_offset(RING_SBBSTATE(base));
 
+	/* PPGTT part */
 	regs[CTX_CTX_TIMESTAMP] =
 		i915_mmio_reg_offset(RING_CTX_TIMESTAMP(base));
+
 	regs[CTX_PDP3_UDW] = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, 3));
 	regs[CTX_PDP3_LDW] = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, 3));
 	regs[CTX_PDP2_UDW] = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, 2));
@@ -3122,39 +3129,13 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 	return indirect_ctx_offset;
 }
 
-static struct i915_ppgtt *vm_alias(struct i915_address_space *vm)
-{
-	if (i915_is_ggtt(vm))
-		return i915_vm_to_ggtt(vm)->alias;
-	else
-		return i915_vm_to_ppgtt(vm);
-}
 
-static void execlists_init_reg_state(u32 *regs,
-				     struct intel_context *ce,
-				     struct intel_engine_cs *engine,
-				     struct intel_ring *ring)
+static void init_common_reg_state(u32 * const regs,
+				  struct i915_ppgtt * const ppgtt,
+				  struct intel_engine_cs *engine,
+				  struct intel_ring *ring)
 {
-	struct i915_ppgtt *ppgtt = vm_alias(ce->vm);
-	const bool rcs = engine->class == RENDER_CLASS;
 	const u32 base = engine->mmio_base;
-	const u32 lri_base =
-		intel_engine_has_relative_mmio(engine) ? MI_LRI_CS_MMIO : 0;
-
-	/*
-	 * A context is actually a big batch buffer with several
-	 * MI_LOAD_REGISTER_IMM commands followed by (reg, value) pairs. The
-	 * values we are setting here are only for the first context restore:
-	 * on a subsequent save, the GPU will recreate this batchbuffer with new
-	 * values (including all the missing MI_LOAD_REGISTER_IMM commands that
-	 * we are not initializing here).
-	 *
-	 * Must keep consistent with virtual_update_register_offsets().
-	 */
-	regs[CTX_LRI_HEADER_0] =
-		MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
-		MI_LRI_FORCE_POSTED |
-		lri_base;
 
 	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(base),
 		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
@@ -3172,41 +3153,43 @@ static void execlists_init_reg_state(u32 *regs,
 	CTX_REG(regs, CTX_BB_HEAD_U, RING_BBADDR_UDW(base), 0);
 	CTX_REG(regs, CTX_BB_HEAD_L, RING_BBADDR(base), 0);
 	CTX_REG(regs, CTX_BB_STATE, RING_BBSTATE(base), RING_BB_PPGTT);
-	CTX_REG(regs, CTX_SECOND_BB_HEAD_U, RING_SBBADDR_UDW(base), 0);
-	CTX_REG(regs, CTX_SECOND_BB_HEAD_L, RING_SBBADDR(base), 0);
-	CTX_REG(regs, CTX_SECOND_BB_STATE, RING_SBBSTATE(base), 0);
-	if (rcs) {
-		struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
+}
 
-		CTX_REG(regs, CTX_RCS_INDIRECT_CTX, RING_INDIRECT_CTX(base), 0);
-		CTX_REG(regs, CTX_RCS_INDIRECT_CTX_OFFSET,
-			RING_INDIRECT_CTX_OFFSET(base), 0);
-		if (wa_ctx->indirect_ctx.size) {
-			u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
+static void init_wa_bb_reg_state(u32 * const regs,
+				 struct intel_engine_cs *engine,
+				 u32 pos_bb_per_ctx)
+{
+	struct i915_ctx_workarounds * const wa_ctx = &engine->wa_ctx;
+	const u32 base = engine->mmio_base;
+	const u32 pos_indirect_ctx = pos_bb_per_ctx + 2;
+	const u32 pos_indirect_ctx_offset = pos_indirect_ctx + 2;
 
-			regs[CTX_RCS_INDIRECT_CTX + 1] =
-				(ggtt_offset + wa_ctx->indirect_ctx.offset) |
-				(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
+	CTX_REG(regs, pos_indirect_ctx, RING_INDIRECT_CTX(base), 0);
+	CTX_REG(regs, pos_indirect_ctx_offset,
+		RING_INDIRECT_CTX_OFFSET(base), 0);
+	if (wa_ctx->indirect_ctx.size) {
+		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
-			regs[CTX_RCS_INDIRECT_CTX_OFFSET + 1] =
-				intel_lr_indirect_ctx_offset(engine) << 6;
-		}
+		regs[pos_indirect_ctx + 1] =
+			(ggtt_offset + wa_ctx->indirect_ctx.offset) |
+			(wa_ctx->indirect_ctx.size / CACHELINE_BYTES);
 
-		CTX_REG(regs, CTX_BB_PER_CTX_PTR, RING_BB_PER_CTX_PTR(base), 0);
-		if (wa_ctx->per_ctx.size) {
-			u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
-
-			regs[CTX_BB_PER_CTX_PTR + 1] =
-				(ggtt_offset + wa_ctx->per_ctx.offset) | 0x01;
-		}
+		regs[pos_indirect_ctx_offset + 1] =
+			intel_lr_indirect_ctx_offset(engine) << 6;
 	}
 
-	regs[CTX_LRI_HEADER_1] =
-		MI_LOAD_REGISTER_IMM(9) |
-		MI_LRI_FORCE_POSTED |
-		lri_base;
+	CTX_REG(regs, pos_bb_per_ctx, RING_BB_PER_CTX_PTR(base), 0);
+	if (wa_ctx->per_ctx.size) {
+		const u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
-	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
+		regs[pos_bb_per_ctx + 1] =
+			(ggtt_offset + wa_ctx->per_ctx.offset) | 0x01;
+	}
+}
+
+static void init_ppgtt_reg_state(u32 *regs, u32 base,
+				 struct i915_ppgtt *ppgtt)
+{
 	/* PDP values well be assigned later if needed */
 	CTX_REG(regs, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(base, 3), 0);
 	CTX_REG(regs, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(base, 3), 0);
@@ -3229,6 +3212,47 @@ static void execlists_init_reg_state(u32 *regs,
 		ASSIGN_CTX_PDP(ppgtt, regs, 1);
 		ASSIGN_CTX_PDP(ppgtt, regs, 0);
 	}
+}
+
+static struct i915_ppgtt *vm_alias(struct i915_address_space *vm)
+{
+	if (i915_is_ggtt(vm))
+		return i915_vm_to_ggtt(vm)->alias;
+	else
+		return i915_vm_to_ppgtt(vm);
+}
+
+static void gen8_init_reg_state(u32 * const regs,
+				struct intel_context *ce,
+				struct intel_engine_cs *engine,
+				struct intel_ring *ring)
+{
+	struct i915_ppgtt * const ppgtt = vm_alias(ce->vm);
+	const bool rcs = engine->class == RENDER_CLASS;
+	const u32 base = engine->mmio_base;
+	const u32 lri_base =
+		intel_engine_has_relative_mmio(engine) ? MI_LRI_CS_MMIO : 0;
+
+	regs[CTX_LRI_HEADER_0] =
+		MI_LOAD_REGISTER_IMM(rcs ? 14 : 11) |
+		MI_LRI_FORCE_POSTED |
+		lri_base;
+
+	init_common_reg_state(regs, ppgtt, engine, ring);
+	CTX_REG(regs, CTX_SECOND_BB_HEAD_U, RING_SBBADDR_UDW(base), 0);
+	CTX_REG(regs, CTX_SECOND_BB_HEAD_L, RING_SBBADDR(base), 0);
+	CTX_REG(regs, CTX_SECOND_BB_STATE, RING_SBBSTATE(base), 0);
+	if (rcs)
+		init_wa_bb_reg_state(regs, engine, CTX_BB_PER_CTX_PTR);
+
+	regs[CTX_LRI_HEADER_1] =
+		MI_LOAD_REGISTER_IMM(9) |
+		MI_LRI_FORCE_POSTED |
+		lri_base;
+
+	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
+
+	init_ppgtt_reg_state(regs, base, ppgtt);
 
 	if (rcs) {
 		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1) | lri_base;
@@ -3238,6 +3262,66 @@ static void execlists_init_reg_state(u32 *regs,
 	regs[CTX_END] = MI_BATCH_BUFFER_END;
 	if (INTEL_GEN(engine->i915) >= 10)
 		regs[CTX_END] |= BIT(0);
+}
+
+static void gen12_init_reg_state(u32 * const regs,
+				 struct intel_context *ce,
+				 struct intel_engine_cs *engine,
+				 struct intel_ring *ring)
+{
+	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(ce->vm);
+	const bool rcs = engine->class == RENDER_CLASS;
+	const u32 base = engine->mmio_base;
+	const u32 lri_base =
+		intel_engine_has_relative_mmio(engine) ? MI_LRI_CS_MMIO : 0;
+
+	regs[CTX_LRI_HEADER_0] =
+		MI_LOAD_REGISTER_IMM(rcs ? 11 : 9) |
+		MI_LRI_FORCE_POSTED |
+		lri_base;
+
+	init_common_reg_state(regs, ppgtt, engine, ring);
+
+	/* We want ctx_ptr for all engines to be set */
+	init_wa_bb_reg_state(regs, engine, GEN12_CTX_BB_PER_CTX_PTR);
+
+	regs[CTX_LRI_HEADER_1] =
+		MI_LOAD_REGISTER_IMM(9) |
+		MI_LRI_FORCE_POSTED |
+		lri_base;
+
+	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
+
+	init_ppgtt_reg_state(regs, base, ppgtt);
+
+	if (rcs) {
+		regs[GEN12_CTX_LRI_HEADER_3] =
+			MI_LOAD_REGISTER_IMM(1) | lri_base;
+		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
+
+		/* TODO: oa_init_reg_state ? */
+	}
+}
+
+static void execlists_init_reg_state(u32 *regs,
+				     struct intel_context *ce,
+				     struct intel_engine_cs *engine,
+				     struct intel_ring *ring)
+{
+	/*
+	 * A context is actually a big batch buffer with several
+	 * MI_LOAD_REGISTER_IMM commands followed by (reg, value) pairs. The
+	 * values we are setting here are only for the first context restore:
+	 * on a subsequent save, the GPU will recreate this batchbuffer with new
+	 * values (including all the missing MI_LOAD_REGISTER_IMM commands that
+	 * we are not initializing here).
+	 *
+	 * Must keep consistent with virtual_update_register_offsets().
+	 */
+	if (INTEL_GEN(engine->i915) >= 12)
+		gen12_init_reg_state(regs, ce, engine, ring);
+	else
+		gen8_init_reg_state(regs, ce, engine, ring);
 }
 
 static int

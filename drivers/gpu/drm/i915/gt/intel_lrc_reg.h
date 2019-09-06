@@ -9,7 +9,7 @@
 
 #include <linux/types.h>
 
-/* GEN8+ Reg State Context */
+/* GEN8 to GEN11 Reg State Context */
 #define CTX_LRI_HEADER_0		0x01
 #define CTX_CONTEXT_CONTROL		0x02
 #define CTX_RING_HEAD			0x04
@@ -38,6 +38,10 @@
 #define CTX_LRI_HEADER_2		0x41
 #define CTX_R_PWR_CLK_STATE		0x42
 #define CTX_END				0x44
+
+/* GEN12+ Reg State Context */
+#define GEN12_CTX_BB_PER_CTX_PTR		0x12
+#define GEN12_CTX_LRI_HEADER_3			0x41
 
 #define CTX_REG(reg_state, pos, reg, val) do { \
 	u32 *reg_state__ = (reg_state); \
