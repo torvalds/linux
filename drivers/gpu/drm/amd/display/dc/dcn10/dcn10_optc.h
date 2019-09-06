@@ -542,6 +542,7 @@ struct dcn_otg_state {
 	uint32_t h_total;
 	uint32_t underflow_occurred_status;
 	uint32_t otg_enabled;
+	uint32_t blank_enabled;
 };
 
 void optc1_read_otg_state(struct optc *optc1,

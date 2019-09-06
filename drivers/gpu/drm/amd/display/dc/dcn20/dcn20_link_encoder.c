@@ -203,6 +203,7 @@ void link_enc2_read_state(struct link_encoder *enc, struct link_enc_state *s)
 	REG_GET(DP_DPHY_CNTL, DPHY_FEC_EN, &s->dphy_fec_en);
 	REG_GET(DP_DPHY_CNTL, DPHY_FEC_READY_SHADOW, &s->dphy_fec_ready_shadow);
 	REG_GET(DP_DPHY_CNTL, DPHY_FEC_ACTIVE_STATUS, &s->dphy_fec_active_status);
+	REG_GET(DP_LINK_CNTL, DP_LINK_TRAINING_COMPLETE, &s->dp_link_training_complete);
 }
 #endif
 

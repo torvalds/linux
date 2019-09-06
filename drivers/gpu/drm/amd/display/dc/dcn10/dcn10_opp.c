@@ -406,6 +406,7 @@ static const struct opp_funcs dcn10_opp_funcs = {
 		.opp_pipe_clock_control = opp1_pipe_clock_control,
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		.opp_set_disp_pattern_generator = NULL,
+		.dpg_is_blanked = NULL,
 #endif
 		.opp_destroy = opp1_destroy
 };

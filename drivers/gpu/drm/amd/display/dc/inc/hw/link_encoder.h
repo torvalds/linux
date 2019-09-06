@@ -124,6 +124,7 @@ struct link_enc_state {
 		uint32_t dphy_fec_en;
 		uint32_t dphy_fec_ready_shadow;
 		uint32_t dphy_fec_active_status;
+		uint32_t dp_link_training_complete;
 
 };
 #endif

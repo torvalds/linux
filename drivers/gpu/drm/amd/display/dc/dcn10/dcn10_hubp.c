@@ -1014,6 +1014,9 @@ void hubp1_read_state_common(struct hubp *hubp)
 			HUBP_TTU_DISABLE, &s->ttu_disable,
 			HUBP_UNDERFLOW_STATUS, &s->underflow_status);
 
+	REG_GET(HUBP_CLK_CNTL,
+			HUBP_CLOCK_ENABLE, &s->clock_en);
+
 	REG_GET(DCN_GLOBAL_TTU_CNTL,
 			MIN_TTU_VBLANK, &s->min_ttu_vblank);
 

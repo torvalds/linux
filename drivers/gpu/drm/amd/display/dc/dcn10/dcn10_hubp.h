@@ -670,6 +670,7 @@ struct dcn_hubp_state {
 	uint32_t sw_mode;
 	uint32_t dcc_en;
 	uint32_t blank_en;
+	uint32_t clock_en;
 	uint32_t underflow_status;
 	uint32_t ttu_disable;
 	uint32_t min_ttu_vblank;
