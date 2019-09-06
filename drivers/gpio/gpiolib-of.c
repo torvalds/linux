@@ -274,7 +274,7 @@ int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 	else
 		return desc_to_gpio(desc);
 }
-EXPORT_SYMBOL(of_get_named_gpio_flags);
+EXPORT_SYMBOL_GPL(of_get_named_gpio_flags);
 
 /**
  * gpiod_get_from_of_node() - obtain a GPIO from an OF node
@@ -343,7 +343,7 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 
 	return desc;
 }
-EXPORT_SYMBOL(gpiod_get_from_of_node);
+EXPORT_SYMBOL_GPL(gpiod_get_from_of_node);
 
 /*
  * The SPI GPIO bindings happened before we managed to establish that GPIO
@@ -719,7 +719,7 @@ err0:
 	pr_err("%pOF: GPIO chip registration failed with status %d\n", np, ret);
 	return ret;
 }
-EXPORT_SYMBOL(of_mm_gpiochip_add_data);
+EXPORT_SYMBOL_GPL(of_mm_gpiochip_add_data);
 
 /**
  * of_mm_gpiochip_remove - Remove memory mapped GPIO chip (bank)
@@ -736,7 +736,7 @@ void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc)
 	iounmap(mm_gc->regs);
 	kfree(gc->label);
 }
-EXPORT_SYMBOL(of_mm_gpiochip_remove);
+EXPORT_SYMBOL_GPL(of_mm_gpiochip_remove);
 
 static void of_gpiochip_init_valid_mask(struct gpio_chip *chip)
 {
