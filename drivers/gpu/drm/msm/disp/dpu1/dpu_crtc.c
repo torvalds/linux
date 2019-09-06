@@ -694,7 +694,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	unsigned long flags;
 	bool release_bandwidth = false;
 
-	if (!crtc || !crtc->dev || !crtc->dev->dev_private || !crtc->state) {
+	if (!crtc || !crtc->dev || !crtc->state) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}
@@ -766,7 +766,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	struct msm_drm_private *priv;
 	bool request_bandwidth;
 
-	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
+	if (!crtc || !crtc->dev) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}

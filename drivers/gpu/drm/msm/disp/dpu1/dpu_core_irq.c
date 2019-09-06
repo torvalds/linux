@@ -349,9 +349,6 @@ void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
 	if (!dpu_kms->dev) {
 		DPU_ERROR("invalid drm device\n");
 		return;
-	} else if (!dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid device private\n");
-		return;
 	}
 	priv = dpu_kms->dev->dev_private;
 
@@ -384,9 +381,6 @@ void dpu_core_irq_uninstall(struct dpu_kms *dpu_kms)
 
 	if (!dpu_kms->dev) {
 		DPU_ERROR("invalid drm device\n");
-		return;
-	} else if (!dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid device private\n");
 		return;
 	}
 	priv = dpu_kms->dev->dev_private;

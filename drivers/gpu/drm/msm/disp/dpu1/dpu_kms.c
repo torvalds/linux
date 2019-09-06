@@ -72,7 +72,7 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 	struct dpu_danger_safe_status status;
 	int i;
 
-	if (!kms->dev || !kms->dev->dev_private || !kms->hw_mdp) {
+	if (!kms->dev || !kms->hw_mdp) {
 		DPU_ERROR("invalid arg(s)\n");
 		return 0;
 	}
@@ -157,9 +157,6 @@ static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 		return 0;
 
 	priv = dev->dev_private;
-	if (!priv)
-		return 0;
-
 	base = dpu_kms->mmio + regset->offset;
 
 	/* insert padding spaces, if needed */
@@ -292,7 +289,7 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	dpu_kms = to_dpu_kms(kms);
 	dev = dpu_kms->dev;
 
-	if (!dev || !dev->dev_private)
+	if (!dev)
 		return;
 	priv = dev->dev_private;
 
@@ -469,9 +466,6 @@ static void _dpu_kms_drm_obj_destroy(struct dpu_kms *dpu_kms)
 		return;
 	} else if (!dpu_kms->dev) {
 		DPU_ERROR("invalid dev\n");
-		return;
-	} else if (!dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid dev_private\n");
 		return;
 	}
 	priv = dpu_kms->dev->dev_private;
@@ -809,10 +803,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	}
 
 	priv = dev->dev_private;
-	if (!priv) {
-		DPU_ERROR("invalid private data\n");
-		return rc;
-	}
 
 	atomic_set(&dpu_kms->bandwidth_ref, 0);
 
@@ -974,7 +964,7 @@ struct msm_kms *dpu_kms_init(struct drm_device *dev)
 	struct dpu_kms *dpu_kms;
 	int irq;
 
-	if (!dev || !dev->dev_private) {
+	if (!dev) {
 		DPU_ERROR("drm device node invalid\n");
 		return ERR_PTR(-EINVAL);
 	}
