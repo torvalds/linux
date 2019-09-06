@@ -63,8 +63,8 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_ih_info)
 	}
 
 	/* ras init of specific umc version */
-	if (adev->umc.funcs && adev->umc.funcs->ras_init)
-		adev->umc.funcs->ras_init(adev);
+	if (adev->umc.funcs && adev->umc.funcs->err_cnt_init)
+		adev->umc.funcs->err_cnt_init(adev);
 
 	return 0;
 

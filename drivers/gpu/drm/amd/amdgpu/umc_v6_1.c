@@ -234,7 +234,7 @@ static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 	amdgpu_umc_for_each_channel(umc_v6_1_query_error_address);
 }
 
-static void umc_v6_1_ras_init_per_channel(struct amdgpu_device *adev,
+static void umc_v6_1_err_cnt_init_per_channel(struct amdgpu_device *adev,
 					 struct ras_err_data *err_data,
 					 uint32_t umc_reg_offset, uint32_t channel_index)
 {
@@ -264,15 +264,15 @@ static void umc_v6_1_ras_init_per_channel(struct amdgpu_device *adev,
 	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
 }
 
-static void umc_v6_1_ras_init(struct amdgpu_device *adev)
+static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
 {
 	void *ras_error_status = NULL;
 
-	amdgpu_umc_for_each_channel(umc_v6_1_ras_init_per_channel);
+	amdgpu_umc_for_each_channel(umc_v6_1_err_cnt_init_per_channel);
 }
 
 const struct amdgpu_umc_funcs umc_v6_1_funcs = {
-	.ras_init = umc_v6_1_ras_init,
+	.err_cnt_init = umc_v6_1_err_cnt_init,
 	.ras_late_init = amdgpu_umc_ras_late_init,
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,

@@ -54,7 +54,7 @@
 	adev->umc.funcs->disable_umc_index_mode(adev);
 
 struct amdgpu_umc_funcs {
-	void (*ras_init)(struct amdgpu_device *adev);
+	void (*err_cnt_init)(struct amdgpu_device *adev);
 	int (*ras_late_init)(struct amdgpu_device *adev, void *ras_ih_info);
 	void (*query_ras_error_count)(struct amdgpu_device *adev,
 					void *ras_error_status);
