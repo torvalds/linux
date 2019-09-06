@@ -127,7 +127,8 @@ struct parallel_data {
  * struct padata_instance - The overall control structure.
  *
  * @cpu_notifier: cpu hotplug notifier.
- * @wq: The workqueue in use.
+ * @parallel_wq: The workqueue used for parallel work.
+ * @serial_wq: The workqueue used for serial work.
  * @pd: The internal control structure.
  * @cpumask: User supplied cpumasks for parallel and serial works.
  * @cpumask_change_notifier: Notifiers chain for user-defined notify
@@ -139,7 +140,8 @@ struct parallel_data {
  */
 struct padata_instance {
 	struct hlist_node		 node;
-	struct workqueue_struct		*wq;
+	struct workqueue_struct		*parallel_wq;
+	struct workqueue_struct		*serial_wq;
 	struct parallel_data		*pd;
 	struct padata_cpumask		cpumask;
 	struct blocking_notifier_head	 cpumask_change_notifier;
