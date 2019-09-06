@@ -11,8 +11,6 @@ struct gpio_desc *of_find_gpio(struct device *dev,
 			       const char *con_id,
 			       unsigned int idx,
 			       unsigned long *lookupflags);
-struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
-		   const char *list_name, int index, enum of_gpio_flags *flags);
 int of_gpiochip_add(struct gpio_chip *gc);
 void of_gpiochip_remove(struct gpio_chip *gc);
 int of_gpio_get_count(struct device *dev, const char *con_id);
@@ -22,11 +20,6 @@ static inline struct gpio_desc *of_find_gpio(struct device *dev,
 					     const char *con_id,
 					     unsigned int idx,
 					     unsigned long *lookupflags)
-{
-	return ERR_PTR(-ENOENT);
-}
-static inline struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
-		   const char *list_name, int index, enum of_gpio_flags *flags)
 {
 	return ERR_PTR(-ENOENT);
 }

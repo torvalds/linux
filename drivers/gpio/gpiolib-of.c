@@ -223,7 +223,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
  * value on the error condition. If @flags is not NULL the function also fills
  * in flags for the GPIO.
  */
-struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
+static struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
 	struct of_phandle_args gpiospec;
