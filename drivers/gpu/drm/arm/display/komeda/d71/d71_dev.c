@@ -395,6 +395,22 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 			err = PTR_ERR(pipe);
 			goto err_cleanup;
 		}
+
+		/* D71 HW doesn't update shadow registers when display output
+		 * is turning off, so when we disable all pipeline components
+		 * together with display output disable by one flush or one
+		 * operation, the disable operation updated registers will not
+		 * be flush to or valid in HW, which may leads problem.
+		 * To workaround this problem, introduce a two phase disable.
+		 * Phase1: Disabling components with display is on to make sure
+		 *	   the disable can be flushed to HW.
+		 * Phase2: Only turn-off display output.
+		 */
+		value = KOMEDA_PIPELINE_IMPROCS |
+			BIT(KOMEDA_COMPONENT_TIMING_CTRLR);
+
+		pipe->standalone_disabled_comps = value;
+
 		d71->pipes[i] = to_d71_pipeline(pipe);
 	}
 
