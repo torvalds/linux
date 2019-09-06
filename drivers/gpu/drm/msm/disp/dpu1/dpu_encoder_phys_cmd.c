@@ -373,10 +373,6 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	}
 
 	dpu_kms = phys_enc->dpu_kms;
-	if (!dpu_kms->dev) {
-		DPU_ERROR("invalid device\n");
-		return;
-	}
 	priv = dpu_kms->dev->dev_private;
 
 	/*
