@@ -266,7 +266,7 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
 
-	if (!crtc || !crtc->dev) {
+	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
 		return INTF_MODE_NONE;
 	}
@@ -694,7 +694,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	unsigned long flags;
 	bool release_bandwidth = false;
 
-	if (!crtc || !crtc->dev || !crtc->state) {
+	if (!crtc || !crtc->state) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}
@@ -766,7 +766,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	struct msm_drm_private *priv;
 	bool request_bandwidth;
 
-	if (!crtc || !crtc->dev) {
+	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}

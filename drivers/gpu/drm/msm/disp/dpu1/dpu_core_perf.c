@@ -33,11 +33,6 @@ static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv;
 
-	if (!crtc->dev) {
-		DPU_ERROR("invalid device\n");
-		return NULL;
-	}
-
 	priv = crtc->dev->dev_private;
 	if (!priv->kms) {
 		DPU_ERROR("invalid kms\n");
