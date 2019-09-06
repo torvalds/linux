@@ -25,10 +25,16 @@ static void handle_init_ack_msg(struct vdec_vpu_ipi_init_ack *msg)
 }
 
 /*
+ * vpu_dec_ipi_handler - Handler for VPU ipi message.
+ *
+ * @data: ipi message
+ * @len : length of ipi message
+ * @priv: callback private data which is passed by decoder when register.
+ *
  * This function runs in interrupt context and it means there's an IPI MSG
  * from VPU.
  */
-void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv)
+static void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv)
 {
 	struct vdec_vpu_ipi_ack *msg = data;
 	struct vdec_vpu_inst *vpu = (struct vdec_vpu_inst *)
@@ -102,6 +108,7 @@ int vpu_dec_init(struct vdec_vpu_inst *vpu)
 	mtk_vcodec_debug_enter(vpu);
 
 	init_waitqueue_head(&vpu->wq);
+	vpu->handler = vpu_dec_ipi_handler;
 
 	err = vpu_ipi_register(vpu->dev, vpu->id, vpu->handler, "vdec", NULL);
 	if (err != 0) {
