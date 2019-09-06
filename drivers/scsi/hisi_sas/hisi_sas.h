@@ -559,7 +559,6 @@ extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
 			    struct hisi_sas_slot *slot);
-extern int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *tag);
 extern int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba);
 extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
