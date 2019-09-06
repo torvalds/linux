@@ -21,7 +21,7 @@ platform_get_irq
 platform_get_irq_byname
 )(E, ...);
 
-if ( ret \( < \| <= \) 0 )
+if ( \( ret < 0 \| ret <= 0 \) )
 {
 (
 if (ret != -EPROBE_DEFER)
@@ -47,7 +47,7 @@ platform_get_irq
 platform_get_irq_byname
 )(E, ...);
 
-if ( ret \( < \| <= \) 0 )
+if ( \( ret < 0 \| ret <= 0 \) )
 {
 (
 -if (ret != -EPROBE_DEFER)
@@ -74,7 +74,7 @@ platform_get_irq
 platform_get_irq_byname
 )(E, ...);
 
-if ( ret \( < \| <= \) 0 )
+if ( \( ret < 0 \| ret <= 0 \) )
 {
 (
 if (ret != -EPROBE_DEFER)
