@@ -76,7 +76,7 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		mt7615_mac_tx_free(dev, skb);
 		break;
 	case PKT_TYPE_RX_EVENT:
-		mt76_mcu_rx_event(&dev->mt76, skb);
+		mt7615_mcu_rx_event(dev, skb);
 		break;
 	case PKT_TYPE_NORMAL:
 		if (!mt7615_mac_fill_rx(dev, skb)) {
@@ -88,13 +88,6 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		dev_kfree_skb(skb);
 		break;
 	}
-}
-
-static void mt7615_tx_tasklet(unsigned long data)
-{
-	struct mt7615_dev *dev = (struct mt7615_dev *)data;
-
-	mt76_txq_schedule_all(&dev->mt76);
 }
 
 static int mt7615_poll_tx(struct napi_struct *napi, int budget)
@@ -127,9 +120,6 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	int ret;
 
 	mt76_dma_attach(&dev->mt76);
-
-	tasklet_init(&dev->mt76.tx_tasklet, mt7615_tx_tasklet,
-		     (unsigned long)dev);
 
 	mt76_wr(dev, MT_WPDMA_GLO_CFG,
 		MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE |

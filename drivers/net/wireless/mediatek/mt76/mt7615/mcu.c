@@ -75,7 +75,7 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 
 	txd = mcu_txd->txd;
 
-	val = FIELD_PREP(MT_TXD0_TX_BYTES, cpu_to_le16(skb->len)) |
+	val = FIELD_PREP(MT_TXD0_TX_BYTES, skb->len) |
 	      FIELD_PREP(MT_TXD0_P_IDX, MT_TX_PORT_IDX_MCU) |
 	      FIELD_PREP(MT_TXD0_Q_IDX, q_idx);
 	txd[0] = cpu_to_le32(val);
@@ -113,12 +113,38 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 }
 
 static int
+mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
+			  struct sk_buff *skb, int seq)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+	int ret = 0;
+
+	if (seq != rxd->seq)
+		return -EAGAIN;
+
+	switch (cmd) {
+	case -MCU_CMD_PATCH_SEM_CONTROL:
+		skb_pull(skb, sizeof(*rxd) - 4);
+		ret = *skb->data;
+		break;
+	case MCU_EXT_CMD_GET_TEMP:
+		skb_pull(skb, sizeof(*rxd));
+		ret = le32_to_cpu(*(__le32 *)skb->data);
+		break;
+	default:
+		break;
+	}
+	dev_kfree_skb(skb);
+
+	return ret;
+}
+
+static int
 mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 		    int len, bool wait_resp)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	unsigned long expires = jiffies + 10 * HZ;
-	struct mt7615_mcu_rxd *rxd;
 	struct sk_buff *skb;
 	int ret, seq;
 
@@ -141,22 +167,71 @@ mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			break;
 		}
 
-		rxd = (struct mt7615_mcu_rxd *)skb->data;
-		if (seq != rxd->seq)
-			continue;
-
-		if (cmd == -MCU_CMD_PATCH_SEM_CONTROL) {
-			skb_pull(skb, sizeof(*rxd) - 4);
-			ret = *skb->data;
-		}
-		dev_kfree_skb(skb);
-		break;
+		ret = mt7615_mcu_parse_response(dev, cmd, skb, seq);
+		if (ret != -EAGAIN)
+			break;
 	}
 
 out:
 	mutex_unlock(&mdev->mmio.mcu.mutex);
 
 	return ret;
+}
+
+static void
+mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	if (vif->csa_active)
+		ieee80211_csa_finish(vif);
+}
+
+static void
+mt7615_mcu_rx_ext_event(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+
+	switch (rxd->ext_eid) {
+	case MCU_EXT_EVENT_RDD_REPORT:
+		ieee80211_radar_detected(dev->mt76.hw);
+		dev->hw_pattern++;
+		break;
+	case MCU_EXT_EVENT_CSA_NOTIFY:
+		ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
+				IEEE80211_IFACE_ITER_RESUME_ALL,
+				mt7615_mcu_csa_finish, dev);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
+mt7615_mcu_rx_unsolicited_event(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+
+	switch (rxd->eid) {
+	case MCU_EVENT_EXT:
+		mt7615_mcu_rx_ext_event(dev, skb);
+		break;
+	default:
+		break;
+	}
+	dev_kfree_skb(skb);
+}
+
+void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+
+	if (rxd->ext_eid == MCU_EXT_EVENT_THERMAL_PROTECT ||
+	    rxd->ext_eid == MCU_EXT_EVENT_FW_LOG_2_HOST ||
+	    rxd->ext_eid == MCU_EXT_EVENT_ASSERT_DUMP ||
+	    rxd->ext_eid == MCU_EXT_EVENT_PS_SYNC ||
+	    !rxd->seq)
+		mt7615_mcu_rx_unsolicited_event(dev, skb);
+	else
+		mt76_mcu_rx_event(&dev->mt76, skb);
 }
 
 static int mt7615_mcu_init_download(struct mt7615_dev *dev, u32 addr,
@@ -192,6 +267,7 @@ static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
 
 		data += cur_len;
 		len -= cur_len;
+		mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
 	}
 
 	return ret;
@@ -257,9 +333,9 @@ static int mt7615_driver_own(struct mt7615_dev *dev)
 
 static int mt7615_load_patch(struct mt7615_dev *dev)
 {
-	const struct firmware *fw;
-	const struct mt7615_patch_hdr *hdr;
 	const char *firmware = MT7615_ROM_PATCH;
+	const struct mt7615_patch_hdr *hdr;
+	const struct firmware *fw = NULL;
 	int len, ret, sem;
 
 	sem = mt7615_mcu_patch_sem_ctrl(dev, 1);
@@ -275,7 +351,7 @@ static int mt7615_load_patch(struct mt7615_dev *dev)
 
 	ret = request_firmware(&fw, firmware, dev->mt76.dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
 		dev_err(dev->mt76.dev, "Invalid firmware\n");
@@ -323,7 +399,7 @@ out:
 	return ret;
 }
 
-static u32 gen_dl_mode(u8 feature_set, bool is_cr4)
+static u32 mt7615_mcu_gen_dl_mode(u8 feature_set, bool is_cr4)
 {
 	u32 ret = 0;
 
@@ -337,14 +413,45 @@ static u32 gen_dl_mode(u8 feature_set, bool is_cr4)
 	return ret;
 }
 
+static int
+mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
+			     const struct mt7615_fw_trailer *hdr,
+			     const u8 *data, bool is_cr4)
+{
+	int n_region = is_cr4 ? CR4_REGION_NUM : N9_REGION_NUM;
+	int err, i, offset = 0;
+	u32 len, addr, mode;
+
+	for (i = 0; i < n_region; i++) {
+		mode = mt7615_mcu_gen_dl_mode(hdr[i].feature_set, is_cr4);
+		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
+		addr = le32_to_cpu(hdr[i].addr);
+
+		err = mt7615_mcu_init_download(dev, addr, len, mode);
+		if (err) {
+			dev_err(dev->mt76.dev, "Download request failed\n");
+			return err;
+		}
+
+		err = mt7615_mcu_send_firmware(dev, data + offset, len);
+		if (err) {
+			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
+			return err;
+		}
+
+		offset += len;
+	}
+
+	return 0;
+}
+
 static int mt7615_load_ram(struct mt7615_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt7615_fw_trailer *hdr;
 	const char *n9_firmware = MT7615_FIRMWARE_N9;
 	const char *cr4_firmware = MT7615_FIRMWARE_CR4;
-	u32 n9_ilm_addr, offset;
-	int i, ret;
+	int ret;
 
 	ret = request_firmware(&fw, n9_firmware, dev->mt76.dev);
 	if (ret)
@@ -362,31 +469,12 @@ static int mt7615_load_ram(struct mt7615_dev *dev)
 	dev_info(dev->mt76.dev, "N9 Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 
-	n9_ilm_addr = le32_to_cpu(hdr->addr);
+	ret = mt7615_mcu_send_ram_firmware(dev, hdr, fw->data, false);
+	if (ret)
+		goto out;
 
-	for (offset = 0, i = 0; i < N9_REGION_NUM; i++) {
-		u32 len, addr, mode;
-
-		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
-		addr = le32_to_cpu(hdr[i].addr);
-		mode = gen_dl_mode(hdr[i].feature_set, false);
-
-		ret = mt7615_mcu_init_download(dev, addr, len, mode);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = mt7615_mcu_send_firmware(dev, fw->data + offset, len);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
-			goto out;
-		}
-
-		offset += len;
-	}
-
-	ret = mt7615_mcu_start_firmware(dev, n9_ilm_addr, FW_START_OVERRIDE);
+	ret = mt7615_mcu_start_firmware(dev, le32_to_cpu(hdr->addr),
+					FW_START_OVERRIDE);
 	if (ret) {
 		dev_err(dev->mt76.dev, "Failed to start N9 firmware\n");
 		goto out;
@@ -410,27 +498,9 @@ static int mt7615_load_ram(struct mt7615_dev *dev)
 	dev_info(dev->mt76.dev, "CR4 Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 
-	for (offset = 0, i = 0; i < CR4_REGION_NUM; i++) {
-		u32 len, addr, mode;
-
-		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
-		addr = le32_to_cpu(hdr[i].addr);
-		mode = gen_dl_mode(hdr[i].feature_set, true);
-
-		ret = mt7615_mcu_init_download(dev, addr, len, mode);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = mt7615_mcu_send_firmware(dev, fw->data + offset, len);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
-			goto out;
-		}
-
-		offset += len;
-	}
+	ret = mt7615_mcu_send_ram_firmware(dev, hdr, fw->data, true);
+	if (ret)
+		goto out;
 
 	ret = mt7615_mcu_start_firmware(dev, 0, FW_START_WORKING_PDA_CR4);
 	if (ret)
@@ -468,6 +538,8 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
 		return -EIO;
 	}
+
+	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
 
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 
@@ -573,6 +645,8 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 #define WMM_CW_MIN_SET	BIT(1)
 #define WMM_CW_MAX_SET	BIT(2)
 #define WMM_TXOP_SET	BIT(3)
+#define WMM_PARAM_SET	(WMM_AIFS_SET | WMM_CW_MIN_SET | \
+			 WMM_CW_MAX_SET | WMM_TXOP_SET)
 	struct req_data {
 		u8 number;
 		u8 rsv[3];
@@ -585,19 +659,17 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 	} __packed req = {
 		.number = 1,
 		.queue = queue,
-		.valid = WMM_AIFS_SET | WMM_TXOP_SET,
+		.valid = WMM_PARAM_SET,
 		.aifs = params->aifs,
+		.cw_min = 5,
+		.cw_max = cpu_to_le16(10),
 		.txop = cpu_to_le16(params->txop),
 	};
 
-	if (params->cw_min) {
-		req.valid |= WMM_CW_MIN_SET;
-		req.cw_min = params->cw_min;
-	}
-	if (params->cw_max) {
-		req.valid |= WMM_CW_MAX_SET;
-		req.cw_max = cpu_to_le16(params->cw_max);
-	}
+	if (params->cw_min)
+		req.cw_min = fls(params->cw_min);
+	if (params->cw_max)
+		req.cw_max = cpu_to_le16(fls(params->cw_max));
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE,
 				   &req, sizeof(req), true);
@@ -824,78 +896,6 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
 	return ret;
 }
 
-static enum mt7615_cipher_type
-mt7615_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
-{
-	if (!key || key->keylen > 32)
-		return MT_CIPHER_NONE;
-
-	memcpy(key_data, key->key, key->keylen);
-
-	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		return MT_CIPHER_WEP40;
-	case WLAN_CIPHER_SUITE_WEP104:
-		return MT_CIPHER_WEP104;
-	case WLAN_CIPHER_SUITE_TKIP:
-		/* Rx/Tx MIC keys are swapped */
-		memcpy(key_data + 16, key->key + 24, 8);
-		memcpy(key_data + 24, key->key + 16, 8);
-		return MT_CIPHER_TKIP;
-	case WLAN_CIPHER_SUITE_CCMP:
-		return MT_CIPHER_AES_CCMP;
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		return MT_CIPHER_CCMP_256;
-	case WLAN_CIPHER_SUITE_GCMP:
-		return MT_CIPHER_GCMP;
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		return MT_CIPHER_GCMP_256;
-	case WLAN_CIPHER_SUITE_SMS4:
-		return MT_CIPHER_WAPI;
-	default:
-		return MT_CIPHER_NONE;
-	}
-}
-
-int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
-			    struct ieee80211_key_conf *key,
-			    enum set_key_cmd cmd)
-{
-	struct {
-		struct wtbl_req_hdr hdr;
-		struct wtbl_sec_key key;
-	} req = {
-		.hdr = {
-			.wlan_idx = wcid,
-			.operation = WTBL_SET,
-			.tlv_num = cpu_to_le16(1),
-		},
-		.key = {
-			.tag = cpu_to_le16(WTBL_SEC_KEY),
-			.len = cpu_to_le16(sizeof(struct wtbl_sec_key)),
-			.add = cmd,
-		},
-	};
-
-	if (cmd == SET_KEY) {
-		u8 cipher;
-
-		cipher = mt7615_get_key_info(key, req.key.key_material);
-		if (cipher == MT_CIPHER_NONE)
-			return -EOPNOTSUPP;
-
-		req.key.rkv = 1;
-		req.key.cipher_id = cipher;
-		req.key.key_id = key->keyidx;
-		req.key.key_len = key->keylen;
-	} else {
-		req.key.key_len = sizeof(req.key.key_material);
-	}
-
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_WTBL_UPDATE,
-				   &req, sizeof(req), true);
-}
-
 static int
 mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev,
 			struct mt7615_vif *mvif)
@@ -1099,6 +1099,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
+	struct ieee80211_mutable_offsets offs;
 	struct req {
 		u8 omac_idx;
 		u8 enable;
@@ -1119,13 +1120,10 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		.enable = en,
 		.wlan_idx = wcid->idx,
 		.band_idx = mvif->band_idx,
-		/* pky_type: 0 for bcn, 1 for tim */
-		.pkt_type = 0,
 	};
 	struct sk_buff *skb;
-	u16 tim_off;
 
-	skb = ieee80211_beacon_get_tim(mt76_hw(dev), vif, &tim_off, NULL);
+	skb = ieee80211_beacon_get_template(mt76_hw(dev), vif, &offs);
 	if (!skb)
 		return -EINVAL;
 
@@ -1139,8 +1137,14 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			      0, NULL);
 	memcpy(req.pkt + MT_TXD_SIZE, skb->data, skb->len);
 	req.pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
-	req.tim_ie_pos = cpu_to_le16(MT_TXD_SIZE + tim_off);
+	req.tim_ie_pos = cpu_to_le16(MT_TXD_SIZE + offs.tim_offset);
+	if (offs.csa_counter_offs[0]) {
+		u16 csa_offs;
 
+		csa_offs = MT_TXD_SIZE + offs.csa_counter_offs[0] - 4;
+		req.csa_ie_pos = cpu_to_le16(csa_offs);
+		req.csa_cnt = skb->data[offs.csa_counter_offs[0]];
+	}
 	dev_kfree_skb(skb);
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_BCN_OFFLOAD,
@@ -1213,9 +1217,62 @@ out:
 	return ret;
 }
 
+int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
+		       enum mt7615_rdd_cmd cmd, u8 index,
+		       u8 rx_sel, u8 val)
+{
+	struct {
+		u8 ctrl;
+		u8 rdd_idx;
+		u8 rdd_rx_sel;
+		u8 val;
+		u8 rsv[4];
+	} req = {
+		.ctrl = cmd,
+		.rdd_idx = index,
+		.rdd_rx_sel = rx_sel,
+		.val = val,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_CTRL,
+				   &req, sizeof(req), true);
+}
+
+int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
+{
+	struct {
+		u8 pulse_num;
+		u8 rsv[3];
+		struct {
+			u32 start_time;
+			u16 width;
+			s16 power;
+		} pattern[32];
+	} req = {
+		.pulse_num = dev->radar_pattern.n_pulses,
+	};
+	u32 start_time = ktime_to_ms(ktime_get_boottime());
+	int i;
+
+	if (dev->radar_pattern.n_pulses > ARRAY_SIZE(req.pattern))
+		return -EINVAL;
+
+	/* TODO: add some noise here */
+	for (i = 0; i < dev->radar_pattern.n_pulses; i++) {
+		req.pattern[i].width = dev->radar_pattern.width;
+		req.pattern[i].power = dev->radar_pattern.power;
+		req.pattern[i].start_time = start_time +
+					    i * dev->radar_pattern.period;
+	}
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_PATTERN,
+				   &req, sizeof(req), false);
+}
+
 int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 {
-	struct cfg80211_chan_def *chdef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
 	struct {
 		u8 control_chan;
 		u8 center_chan;
@@ -1234,17 +1291,20 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 		u8 rsv1[3];
 		u8 txpower_sku[53];
 		u8 rsv2[3];
-	} req = {0};
+	} req = {
+		.control_chan = chandef->chan->hw_value,
+		.center_chan = ieee80211_frequency_to_channel(freq1),
+		.tx_streams = (dev->mt76.chainmask >> 8) & 0xf,
+		.rx_streams_mask = dev->mt76.antenna_mask,
+		.center_chan2 = ieee80211_frequency_to_channel(freq2),
+	};
 	int ret;
 
-	req.control_chan = chdef->chan->hw_value;
-	req.center_chan = ieee80211_frequency_to_channel(chdef->center_freq1);
-	req.tx_streams = (dev->mt76.chainmask >> 8) & 0xf;
-	req.rx_streams_mask = dev->mt76.antenna_mask;
-	req.switch_reason = CH_SWITCH_NORMAL;
-	req.band_idx = 0;
-	req.center_chan2 = ieee80211_frequency_to_channel(chdef->center_freq2);
-	req.txpower_drop = 0;
+	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
+	    chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+		req.switch_reason = CH_SWITCH_DFS;
+	else
+		req.switch_reason = CH_SWITCH_NORMAL;
 
 	switch (dev->mt76.chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
@@ -1269,6 +1329,7 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	case NL80211_CHAN_WIDTH_20:
 	default:
 		req.bw = CMD_CBW_20MHZ;
+		break;
 	}
 	memset(req.txpower_sku, 0x3f, 49);
 
@@ -1533,92 +1594,15 @@ int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
 				   &wtbl_req, sizeof(wtbl_req), true);
 }
 
-void mt7615_mcu_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
-			  struct ieee80211_tx_rate *probe_rate,
-			  struct ieee80211_tx_rate *rates)
+int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index)
 {
-	int wcid = sta->wcid.idx;
-	u32 addr = MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
-	bool stbc = false;
-	int n_rates = sta->n_rates;
-	u8 bw, bw_prev, bw_idx = 0;
-	u16 val[4];
-	u16 probe_val;
-	u32 w5, w27;
-	int i;
+	struct {
+		u8 action;
+		u8 rsv[3];
+	} req = {
+		.action = index,
+	};
 
-	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
-		return;
-
-	for (i = n_rates; i < 4; i++)
-		rates[i] = rates[n_rates - 1];
-
-	val[0] = mt7615_mac_tx_rate_val(dev, &rates[0], stbc, &bw);
-	bw_prev = bw;
-
-	if (probe_rate) {
-		probe_val = mt7615_mac_tx_rate_val(dev, probe_rate, stbc, &bw);
-		if (bw)
-			bw_idx = 1;
-		else
-			bw_prev = 0;
-	} else {
-		probe_val = val[0];
-	}
-
-	val[1] = mt7615_mac_tx_rate_val(dev, &rates[1], stbc, &bw);
-	if (bw_prev) {
-		bw_idx = 3;
-		bw_prev = bw;
-	}
-
-	val[2] = mt7615_mac_tx_rate_val(dev, &rates[2], stbc, &bw);
-	if (bw_prev) {
-		bw_idx = 5;
-		bw_prev = bw;
-	}
-
-	val[3] = mt7615_mac_tx_rate_val(dev, &rates[3], stbc, &bw);
-	if (bw_prev)
-		bw_idx = 7;
-
-	w27 = mt76_rr(dev, addr + 27 * 4);
-	w27 &= ~MT_WTBL_W27_CC_BW_SEL;
-	w27 |= FIELD_PREP(MT_WTBL_W27_CC_BW_SEL, bw);
-
-	w5 = mt76_rr(dev, addr + 5 * 4);
-	w5 &= ~(MT_WTBL_W5_BW_CAP | MT_WTBL_W5_CHANGE_BW_RATE);
-	w5 |= FIELD_PREP(MT_WTBL_W5_BW_CAP, bw) |
-	      FIELD_PREP(MT_WTBL_W5_CHANGE_BW_RATE, bw_idx ? bw_idx - 1 : 7);
-
-	mt76_wr(dev, MT_WTBL_RIUCR0, w5);
-
-	mt76_wr(dev, MT_WTBL_RIUCR1,
-		FIELD_PREP(MT_WTBL_RIUCR1_RATE0, probe_val) |
-		FIELD_PREP(MT_WTBL_RIUCR1_RATE1, val[0]) |
-		FIELD_PREP(MT_WTBL_RIUCR1_RATE2_LO, val[0]));
-
-	mt76_wr(dev, MT_WTBL_RIUCR2,
-		FIELD_PREP(MT_WTBL_RIUCR2_RATE2_HI, val[0] >> 8) |
-		FIELD_PREP(MT_WTBL_RIUCR2_RATE3, val[1]) |
-		FIELD_PREP(MT_WTBL_RIUCR2_RATE4, val[1]) |
-		FIELD_PREP(MT_WTBL_RIUCR2_RATE5_LO, val[2]));
-
-	mt76_wr(dev, MT_WTBL_RIUCR3,
-		FIELD_PREP(MT_WTBL_RIUCR3_RATE5_HI, val[2] >> 4) |
-		FIELD_PREP(MT_WTBL_RIUCR3_RATE6, val[2]) |
-		FIELD_PREP(MT_WTBL_RIUCR3_RATE7, val[3]));
-
-	mt76_wr(dev, MT_WTBL_UPDATE,
-		FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, wcid) |
-		MT_WTBL_UPDATE_RATE_UPDATE |
-		MT_WTBL_UPDATE_TX_COUNT_CLEAR);
-
-	mt76_wr(dev, addr + 27 * 4, w27);
-
-	if (!(sta->wcid.tx_info & MT_WCID_TX_INFO_SET))
-		mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000);
-
-	sta->rate_count = 2 * MT7615_RATE_RETRY * n_rates;
-	sta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_GET_TEMP, &req,
+				   sizeof(req), true);
 }

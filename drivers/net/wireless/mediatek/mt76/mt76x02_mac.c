@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x02.h"
@@ -91,7 +80,6 @@ void mt76x02_mac_wcid_sync_pn(struct mt76x02_dev *dev, u8 idx,
 
 	atomic64_set(&key->tx_pn, pn);
 }
-
 
 int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,
 			     struct ieee80211_key_conf *key)
@@ -267,7 +255,7 @@ bool mt76x02_mac_load_tx_status(struct mt76x02_dev *dev,
 
 static int
 mt76x02_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
-			   enum nl80211_band band)
+			    enum nl80211_band band)
 {
 	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
 
@@ -343,7 +331,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 	    ieee80211_has_protected(hdr->frame_control)) {
 		wcid = NULL;
 		ieee80211_get_tx_rates(info->control.vif, sta, skb,
-		                       info->control.rates, 1);
+				       info->control.rates, 1);
 	}
 
 	if (wcid)
@@ -353,6 +341,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 
 	if (wcid && wcid->sw_iv && key) {
 		u64 pn = atomic64_inc_return(&key->tx_pn);
+
 		ccmp_pn[0] = pn;
 		ccmp_pn[1] = pn >> 8;
 		ccmp_pn[2] = 0;
@@ -445,8 +434,8 @@ mt76x02_tx_rate_fallback(struct ieee80211_tx_rate *rates, int idx, int phy)
 	case MT_PHY_TYPE_HT:
 		/* MCS 8 falls back to MCS 0 */
 		if (rates[0].idx == 8) {
-		    rates[1].idx = 0;
-		    break;
+			rates[1].idx = 0;
+			break;
 		}
 		/* fall through */
 	default:
@@ -568,9 +557,9 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 		u32 stat_val, stat_cache;
 
 		stat_val = stat->rate;
-		stat_val |= ((u32) stat->retry) << 16;
+		stat_val |= ((u32)stat->retry) << 16;
 		stat_cache = msta->status.rate;
-		stat_cache |= ((u32) msta->status.retry) << 16;
+		stat_cache |= ((u32)msta->status.retry) << 16;
 
 		if (*update == 0 && stat_val == stat_cache &&
 		    stat->wcid == msta->status.wcid && msta->n_frames < 32) {
@@ -718,7 +707,7 @@ mt76x02_mac_get_rssi(struct mt76x02_dev *dev, s8 rssi, int chain)
 int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 			   void *rxi)
 {
-	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76x02_rxwi *rxwi = rxi;
 	struct mt76x02_sta *sta;
 	u32 rxinfo = le32_to_cpu(rxwi->rxinfo);
