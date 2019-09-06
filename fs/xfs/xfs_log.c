@@ -2651,6 +2651,46 @@ xlog_get_lowest_lsn(
 }
 
 /*
+ * Completion of a iclog IO does not imply that a transaction has completed, as
+ * transactions can be large enough to span many iclogs. We cannot change the
+ * tail of the log half way through a transaction as this may be the only
+ * transaction in the log and moving the tail to point to the middle of it
+ * will prevent recovery from finding the start of the transaction. Hence we
+ * should only update the last_sync_lsn if this iclog contains transaction
+ * completion callbacks on it.
+ *
+ * We have to do this before we drop the icloglock to ensure we are the only one
+ * that can update it.
+ *
+ * If we are moving the last_sync_lsn forwards, we also need to ensure we kick
+ * the reservation grant head pushing. This is due to the fact that the push
+ * target is bound by the current last_sync_lsn value. Hence if we have a large
+ * amount of log space bound up in this committing transaction then the
+ * last_sync_lsn value may be the limiting factor preventing tail pushing from
+ * freeing space in the log. Hence once we've updated the last_sync_lsn we
+ * should push the AIL to ensure the push target (and hence the grant head) is
+ * no longer bound by the old log head location and can move forwards and make
+ * progress again.
+ */
+static void
+xlog_state_set_callback(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	xfs_lsn_t		header_lsn)
+{
+	iclog->ic_state = XLOG_STATE_CALLBACK;
+
+	ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
+			   header_lsn) <= 0);
+
+	if (list_empty_careful(&iclog->ic_callbacks))
+		return;
+
+	atomic64_set(&log->l_last_sync_lsn, header_lsn);
+	xlog_grant_push_ail(log, 0);
+}
+
+/*
  * Return true if we need to stop processing, false to continue to the next
  * iclog. The caller will need to run callbacks if the iclog is returned in the
  * XLOG_STATE_CALLBACK state.
@@ -2663,6 +2703,7 @@ xlog_state_iodone_process_iclog(
 	bool			*ioerror)
 {
 	xfs_lsn_t		lowest_lsn;
+	xfs_lsn_t		header_lsn;
 
 	/* Skip all iclogs in the ACTIVE & DIRTY states */
 	if (iclog->ic_state & (XLOG_STATE_ACTIVE | XLOG_STATE_DIRTY))
@@ -2702,34 +2743,15 @@ xlog_state_iodone_process_iclog(
 	 * callbacks) see the above if.
 	 *
 	 * We will do one more check here to see if we have chased our tail
-	 * around.
+	 * around. If this is not the lowest lsn iclog, then we will leave it
+	 * for another completion to process.
 	 */
+	header_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 	lowest_lsn = xlog_get_lowest_lsn(log);
-	if (lowest_lsn &&
-	    XFS_LSN_CMP(lowest_lsn, be64_to_cpu(iclog->ic_header.h_lsn)) < 0)
-		return false; /* Leave this iclog for another thread */
+	if (lowest_lsn && XFS_LSN_CMP(lowest_lsn, header_lsn) < 0)
+		return false;
 
-	iclog->ic_state = XLOG_STATE_CALLBACK;
-
-	/*
-	 * Completion of a iclog IO does not imply that a transaction has
-	 * completed, as transactions can be large enough to span many iclogs.
-	 * We cannot change the tail of the log half way through a transaction
-	 * as this may be the only transaction in the log and moving th etail to
-	 * point to the middle of it will prevent recovery from finding the
-	 * start of the transaction.  Hence we should only update the
-	 * last_sync_lsn if this iclog contains transaction completion callbacks
-	 * on it.
-	 *
-	 * We have to do this before we drop the icloglock to ensure we are the
-	 * only one that can update it.
-	 */
-	ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
-			be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
-	if (!list_empty_careful(&iclog->ic_callbacks))
-		atomic64_set(&log->l_last_sync_lsn,
-			be64_to_cpu(iclog->ic_header.h_lsn));
-
+	xlog_state_set_callback(log, iclog, header_lsn);
 	return false;
 
 }
