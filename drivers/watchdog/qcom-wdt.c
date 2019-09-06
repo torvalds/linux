@@ -42,7 +42,6 @@ static const u32 reg_offset_data_kpss[] = {
 
 struct qcom_wdt {
 	struct watchdog_device	wdd;
-	struct clk		*clk;
 	unsigned long		rate;
 	void __iomem		*base;
 	const u32		*layout;
@@ -189,6 +188,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	const u32 *regs;
 	u32 percpu_offset;
 	int irq, ret;
+	struct clk *clk;
 
 	regs = of_device_get_match_data(dev);
 	if (!regs) {
@@ -215,19 +215,18 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	wdt->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(wdt->clk)) {
+	clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get input clock\n");
-		return PTR_ERR(wdt->clk);
+		return PTR_ERR(clk);
 	}
 
-	ret = clk_prepare_enable(wdt->clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
 		dev_err(dev, "failed to setup clock\n");
 		return ret;
 	}
-	ret = devm_add_action_or_reset(dev, qcom_clk_disable_unprepare,
-				       wdt->clk);
+	ret = devm_add_action_or_reset(dev, qcom_clk_disable_unprepare, clk);
 	if (ret)
 		return ret;
 
@@ -239,7 +238,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 * that it would bite before a second elapses it's usefulness is
 	 * limited.  Bail if this is the case.
 	 */
-	wdt->rate = clk_get_rate(wdt->clk);
+	wdt->rate = clk_get_rate(clk);
 	if (wdt->rate == 0 ||
 	    wdt->rate > 0x10000000U) {
 		dev_err(dev, "invalid clock rate\n");
