@@ -2139,7 +2139,7 @@ static int do_grow(struct inode *inode, u64 size)
 	if (error)
 		goto do_end_trans;
 
-	i_size_write(inode, size);
+	truncate_setsize(inode, size);
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = current_time(&ip->i_inode);
 	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
