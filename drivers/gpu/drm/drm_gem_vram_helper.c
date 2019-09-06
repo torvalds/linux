@@ -195,6 +195,31 @@ s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo)
 }
 EXPORT_SYMBOL(drm_gem_vram_offset);
 
+static int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
+				   unsigned long pl_flag)
+{
+	int i, ret;
+	struct ttm_operation_ctx ctx = { false, false };
+
+	if (gbo->pin_count)
+		goto out;
+
+	if (pl_flag)
+		drm_gem_vram_placement(gbo, pl_flag);
+
+	for (i = 0; i < gbo->placement.num_placement; ++i)
+		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
+
+	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
+	if (ret < 0)
+		return ret;
+
+out:
+	++gbo->pin_count;
+
+	return 0;
+}
+
 /**
  * drm_gem_vram_pin() - Pins a GEM VRAM object in a region.
  * @gbo:	the GEM VRAM object
@@ -212,37 +237,39 @@ EXPORT_SYMBOL(drm_gem_vram_offset);
  */
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag)
 {
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
+	int ret;
 
 	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret < 0)
+	if (ret)
 		return ret;
-
-	if (gbo->pin_count)
-		goto out;
-
-	if (pl_flag)
-		drm_gem_vram_placement(gbo, pl_flag);
-
-	for (i = 0; i < gbo->placement.num_placement; ++i)
-		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		goto err_ttm_bo_unreserve;
-
-out:
-	++gbo->pin_count;
+	ret = drm_gem_vram_pin_locked(gbo, pl_flag);
 	ttm_bo_unreserve(&gbo->bo);
 
-	return 0;
-
-err_ttm_bo_unreserve:
-	ttm_bo_unreserve(&gbo->bo);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_pin);
+
+static int drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
+{
+	int i, ret;
+	struct ttm_operation_ctx ctx = { false, false };
+
+	if (WARN_ON_ONCE(!gbo->pin_count))
+		return 0;
+
+	--gbo->pin_count;
+	if (gbo->pin_count)
+		return 0;
+
+	for (i = 0; i < gbo->placement.num_placement ; ++i)
+		gbo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
+
+	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 /**
  * drm_gem_vram_unpin() - Unpins a GEM VRAM object
@@ -254,34 +281,14 @@ EXPORT_SYMBOL(drm_gem_vram_pin);
  */
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo)
 {
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
+	int ret;
 
 	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret < 0)
+	if (ret)
 		return ret;
-
-	if (WARN_ON_ONCE(!gbo->pin_count))
-		goto out;
-
-	--gbo->pin_count;
-	if (gbo->pin_count)
-		goto out;
-
-	for (i = 0; i < gbo->placement.num_placement ; ++i)
-		gbo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		goto err_ttm_bo_unreserve;
-
-out:
+	ret = drm_gem_vram_unpin_locked(gbo);
 	ttm_bo_unreserve(&gbo->bo);
 
-	return 0;
-
-err_ttm_bo_unreserve:
-	ttm_bo_unreserve(&gbo->bo);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_unpin);
@@ -637,15 +644,28 @@ static void *drm_gem_vram_object_vmap(struct drm_gem_object *gem)
 	int ret;
 	void *base;
 
-	ret = drm_gem_vram_pin(gbo, 0);
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
 	if (ret)
-		return NULL;
-	base = drm_gem_vram_kmap(gbo, true, NULL);
+		return ERR_PTR(ret);
+
+	ret = drm_gem_vram_pin_locked(gbo, 0);
+	if (ret)
+		goto err_ttm_bo_unreserve;
+	base = drm_gem_vram_kmap_locked(gbo, true, NULL);
 	if (IS_ERR(base)) {
-		drm_gem_vram_unpin(gbo);
-		return NULL;
+		ret = PTR_ERR(base);
+		goto err_drm_gem_vram_unpin_locked;
 	}
+
+	ttm_bo_unreserve(&gbo->bo);
+
 	return base;
+
+err_drm_gem_vram_unpin_locked:
+	drm_gem_vram_unpin_locked(gbo);
+err_ttm_bo_unreserve:
+	ttm_bo_unreserve(&gbo->bo);
+	return ERR_PTR(ret);
 }
 
 /**
@@ -658,9 +678,16 @@ static void drm_gem_vram_object_vunmap(struct drm_gem_object *gem,
 				       void *vaddr)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+	int ret;
 
-	drm_gem_vram_kunmap(gbo);
-	drm_gem_vram_unpin(gbo);
+	ret = ttm_bo_reserve(&gbo->bo, false, false, NULL);
+	if (WARN_ONCE(ret, "ttm_bo_reserve_failed(): ret=%d\n", ret))
+		return;
+
+	drm_gem_vram_kunmap_locked(gbo);
+	drm_gem_vram_unpin_locked(gbo);
+
+	ttm_bo_unreserve(&gbo->bo);
 }
 
 /*
