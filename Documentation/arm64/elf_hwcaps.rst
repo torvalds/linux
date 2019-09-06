@@ -240,6 +240,10 @@ HWCAP2_BTI
 
     Functionality implied by ID_AA64PFR0_EL1.BT == 0b0001.
 
+HWCAP2_MTE
+
+    Functionality implied by ID_AA64PFR1_EL1.MTE == 0b0010, as described
+    by Documentation/arm64/memory-tagging-extension.rst.
 
 4. Unused AT_HWCAP bits
 -----------------------
