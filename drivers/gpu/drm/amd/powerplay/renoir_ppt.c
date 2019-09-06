@@ -246,6 +246,38 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	return size;
 }
 
+static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context *smu)
+{
+	enum amd_pm_state_type pm_type;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+
+	if (!smu_dpm_ctx->dpm_context ||
+	    !smu_dpm_ctx->dpm_current_power_state)
+		return -EINVAL;
+
+	mutex_lock(&(smu->mutex));
+	switch (smu_dpm_ctx->dpm_current_power_state->classification.ui_label) {
+	case SMU_STATE_UI_LABEL_BATTERY:
+		pm_type = POWER_STATE_TYPE_BATTERY;
+		break;
+	case SMU_STATE_UI_LABEL_BALLANCED:
+		pm_type = POWER_STATE_TYPE_BALANCED;
+		break;
+	case SMU_STATE_UI_LABEL_PERFORMANCE:
+		pm_type = POWER_STATE_TYPE_PERFORMANCE;
+		break;
+	default:
+		if (smu_dpm_ctx->dpm_current_power_state->classification.flags & SMU_STATE_CLASSIFICATION_FLAG_BOOT)
+			pm_type = POWER_STATE_TYPE_INTERNAL_BOOT;
+		else
+			pm_type = POWER_STATE_TYPE_DEFAULT;
+		break;
+	}
+	mutex_unlock(&(smu->mutex));
+
+	return pm_type;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -253,6 +285,8 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.set_power_state = NULL,
 	.get_dpm_uclk_limited = renoir_get_dpm_uclk_limited,
 	.print_clk_levels = renoir_print_clk_levels,
+	.get_current_power_state = renoir_get_current_power_state,
+
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
