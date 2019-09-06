@@ -91,8 +91,7 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int meson_vrtc_suspend(struct device *dev)
+static int __maybe_unused meson_vrtc_suspend(struct device *dev)
 {
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
 
@@ -121,7 +120,7 @@ static int meson_vrtc_suspend(struct device *dev)
 	return 0;
 }
 
-static int meson_vrtc_resume(struct device *dev)
+static int __maybe_unused meson_vrtc_resume(struct device *dev)
 {
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
 
@@ -131,7 +130,7 @@ static int meson_vrtc_resume(struct device *dev)
 	meson_vrtc_set_wakeup_time(vrtc, 0);
 	return 0;
 }
-#endif
+
 static SIMPLE_DEV_PM_OPS(meson_vrtc_pm_ops,
 			 meson_vrtc_suspend, meson_vrtc_resume);
 
