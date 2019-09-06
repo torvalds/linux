@@ -7,7 +7,7 @@
 #include "en/params.h"
 #include <net/xdp_sock.h>
 
-int mlx5e_xsk_async_xmit(struct net_device *dev, u32 qid)
+int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_params *params = &priv->channels.params;

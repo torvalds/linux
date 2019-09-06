@@ -4,18 +4,23 @@
 #include "setup.h"
 #include "en/params.h"
 
+/* It matches XDP_UMEM_MIN_CHUNK_SIZE, but as this constant is private and may
+ * change unexpectedly, and mlx5e has a minimum valid stride size for striding
+ * RQ, keep this check in the driver.
+ */
+#define MLX5E_MIN_XSK_CHUNK_SIZE 2048
+
 bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			      struct mlx5e_xsk_param *xsk,
 			      struct mlx5_core_dev *mdev)
 {
-	/* AF_XDP doesn't support frames larger than PAGE_SIZE, and the current
-	 * mlx5e XDP implementation doesn't support multiple packets per page.
-	 */
-	if (xsk->chunk_size != PAGE_SIZE)
+	/* AF_XDP doesn't support frames larger than PAGE_SIZE. */
+	if (xsk->chunk_size > PAGE_SIZE ||
+			xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE)
 		return false;
 
 	/* Current MTU and XSK headroom don't allow packets to fit the frames. */
-	if (mlx5e_rx_get_linear_frag_sz(params, xsk) > xsk->chunk_size)
+	if (mlx5e_rx_get_min_frag_sz(params, xsk) > xsk->chunk_size)
 		return false;
 
 	/* frag_sz is different for regular and XSK RQs, so ensure that linear

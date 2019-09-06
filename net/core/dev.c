@@ -8126,12 +8126,15 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		bpf_chk = generic_xdp_install;
 
 	if (fd >= 0) {
+		u32 prog_id;
+
 		if (!offload && __dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG)) {
 			NL_SET_ERR_MSG(extack, "native and generic XDP can't be active at the same time");
 			return -EEXIST;
 		}
-		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
-		    __dev_xdp_query(dev, bpf_op, query)) {
+
+		prog_id = __dev_xdp_query(dev, bpf_op, query);
+		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) && prog_id) {
 			NL_SET_ERR_MSG(extack, "XDP program already attached");
 			return -EBUSY;
 		}
@@ -8146,6 +8149,14 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 			bpf_prog_put(prog);
 			return -EINVAL;
 		}
+
+		if (prog->aux->id == prog_id) {
+			bpf_prog_put(prog);
+			return 0;
+		}
+	} else {
+		if (!__dev_xdp_query(dev, bpf_op, query))
+			return 0;
 	}
 
 	err = dev_xdp_install(dev, bpf_op, extack, flags, prog);

@@ -106,6 +106,7 @@ enum bpf_cmd {
 	BPF_TASK_FD_QUERY,
 	BPF_MAP_LOOKUP_AND_DELETE_ELEM,
 	BPF_MAP_FREEZE,
+	BPF_BTF_GET_NEXT_ID,
 };
 
 enum bpf_map_type {
@@ -284,6 +285,9 @@ enum bpf_attach_type {
  */
 #define BPF_F_TEST_RND_HI32	(1U << 2)
 
+/* The verifier internal test flag. Behavior is undefined */
+#define BPF_F_TEST_STATE_FREQ	(1U << 3)
+
 /* When BPF ldimm64's insn[0].src_reg != 0 then this can have
  * two extensions:
  *
@@ -336,6 +340,9 @@ enum bpf_attach_type {
 /* Flags for accessing BPF object from program side. */
 #define BPF_F_RDONLY_PROG	(1U << 7)
 #define BPF_F_WRONLY_PROG	(1U << 8)
+
+/* Clone map from listener for newly accepted socket */
+#define BPF_F_CLONE		(1U << 9)
 
 /* flags for BPF_PROG_QUERY */
 #define BPF_F_QUERY_EFFECTIVE	(1U << 0)
@@ -576,6 +583,8 @@ union bpf_attr {
  * 		limited to five).
  *
  * 		Each time the helper is called, it appends a line to the trace.
+ * 		Lines are discarded while *\/sys/kernel/debug/tracing/trace* is
+ * 		open, use *\/sys/kernel/debug/tracing/trace_pipe* to avoid this.
  * 		The format of the trace is customizable, and the exact output
  * 		one will get depends on the options set in
  * 		*\/sys/kernel/debug/tracing/trace_options* (see also the
@@ -1014,7 +1023,7 @@ union bpf_attr {
  * 		The realm of the route for the packet associated to *skb*, or 0
  * 		if none was found.
  *
- * int bpf_perf_event_output(struct pt_reg *ctx, struct bpf_map *map, u64 flags, void *data, u64 size)
+ * int bpf_perf_event_output(struct pt_regs *ctx, struct bpf_map *map, u64 flags, void *data, u64 size)
  * 	Description
  * 		Write raw *data* blob into a special BPF perf event held by
  * 		*map* of type **BPF_MAP_TYPE_PERF_EVENT_ARRAY**. This perf
@@ -1076,7 +1085,7 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
- * int bpf_get_stackid(struct pt_reg *ctx, struct bpf_map *map, u64 flags)
+ * int bpf_get_stackid(struct pt_regs *ctx, struct bpf_map *map, u64 flags)
  * 	Description
  * 		Walk a user or a kernel stack and return its id. To achieve
  * 		this, the helper needs *ctx*, which is a pointer to the context
@@ -1725,7 +1734,7 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
- * int bpf_override_return(struct pt_reg *regs, u64 rc)
+ * int bpf_override_return(struct pt_regs *regs, u64 rc)
  * 	Description
  * 		Used for error injection, this helper uses kprobes to override
  * 		the return value of the probed function, and to set it to *rc*.

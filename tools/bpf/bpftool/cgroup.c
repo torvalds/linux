@@ -120,8 +120,8 @@ static int count_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
 static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 				   int level)
 {
+	const char *attach_flags_str;
 	__u32 prog_ids[1024] = {0};
-	char *attach_flags_str;
 	__u32 prog_cnt, iter;
 	__u32 attach_flags;
 	char buf[32];

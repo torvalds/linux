@@ -28,8 +28,6 @@ static int check_load(const char *file, enum bpf_prog_type type)
 	attr.prog_flags = BPF_F_TEST_RND_HI32;
 	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
 	bpf_object__close(obj);
-	if (err)
-		error_cnt++;
 	return err;
 }
 
@@ -105,12 +103,7 @@ void test_bpf_verif_scale(void)
 			continue;
 
 		err = check_load(test->file, test->attach_type);
-		if (test->fails) { /* expected to fail */
-			if (err)
-				error_cnt--;
-			else
-				error_cnt++;
-		}
+		CHECK_FAIL(err && !test->fails);
 	}
 
 	if (env.verifier_stats)

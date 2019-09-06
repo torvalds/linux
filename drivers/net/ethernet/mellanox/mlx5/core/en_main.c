@@ -4580,7 +4580,7 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
 	.ndo_bpf		 = mlx5e_xdp,
 	.ndo_xdp_xmit            = mlx5e_xdp_xmit,
-	.ndo_xsk_async_xmit      = mlx5e_xsk_async_xmit,
+	.ndo_xsk_wakeup          = mlx5e_xsk_wakeup,
 #ifdef CONFIG_MLX5_EN_ARFS
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif

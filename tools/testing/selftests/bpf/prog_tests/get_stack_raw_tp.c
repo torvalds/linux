@@ -135,10 +135,7 @@ void test_get_stack_raw_tp(void)
 		exp_cnt -= err;
 	}
 
-	goto close_prog_noerr;
 close_prog:
-	error_cnt++;
-close_prog_noerr:
 	if (!IS_ERR_OR_NULL(link))
 		bpf_link__destroy(link);
 	if (!IS_ERR_OR_NULL(pb))

@@ -115,10 +115,12 @@ gen_btf()
 	LLVM_OBJCOPY=${OBJCOPY} ${PAHOLE} -J ${1}
 
 	# dump .BTF section into raw binary file to link with final vmlinux
-	bin_arch=$(${OBJDUMP} -f ${1} | grep architecture | \
+	bin_arch=$(LANG=C ${OBJDUMP} -f ${1} | grep architecture | \
 		cut -d, -f1 | cut -d' ' -f2)
+	bin_format=$(LANG=C ${OBJDUMP} -f ${1} | grep 'file format' | \
+		awk '{print $4}')
 	${OBJCOPY} --dump-section .BTF=.btf.vmlinux.bin ${1} 2>/dev/null
-	${OBJCOPY} -I binary -O ${CONFIG_OUTPUT_FORMAT} -B ${bin_arch} \
+	${OBJCOPY} -I binary -O ${bin_format} -B ${bin_arch} \
 		--rename-section .data=.BTF .btf.vmlinux.bin ${2}
 }
 
