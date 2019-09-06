@@ -134,7 +134,6 @@ struct hisi_sas_rst {
 
 #define HISI_SAS_DECLARE_RST_WORK_ON_STACK(r) \
 	DECLARE_COMPLETION_ONSTACK(c); \
-	DECLARE_WORK(w, hisi_sas_sync_rst_work_handler); \
 	struct hisi_sas_rst r = HISI_SAS_RST_WORK_INIT(r, c)
 
 enum hisi_sas_bit_err_type {
