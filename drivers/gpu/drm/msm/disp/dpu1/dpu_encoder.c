@@ -645,11 +645,6 @@ static void _dpu_encoder_update_vsync_source(struct dpu_encoder_virt *dpu_enc,
 	priv = drm_enc->dev->dev_private;
 
 	dpu_kms = to_dpu_kms(priv->kms);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	}
-
 	hw_mdptop = dpu_kms->hw_mdp;
 	if (!hw_mdptop) {
 		DPU_ERROR("invalid mdptop\n");
@@ -1098,10 +1093,6 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	}
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	if (!dpu_enc || !dpu_enc->cur_master) {
@@ -2032,9 +2023,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	enum dpu_intf_type intf_type;
 	struct dpu_enc_phys_init_params phys_params;
 
-	if (!dpu_enc || !dpu_kms) {
-		DPU_ERROR("invalid arg(s), enc %d kms %d\n",
-				dpu_enc != 0, dpu_kms != 0);
+	if (!dpu_enc) {
+		DPU_ERROR("invalid arg(s), enc %d\n", dpu_enc != 0);
 		return -EINVAL;
 	}
 

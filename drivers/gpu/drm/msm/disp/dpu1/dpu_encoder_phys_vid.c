@@ -374,7 +374,7 @@ static void dpu_encoder_phys_vid_mode_set(
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	if (!phys_enc || !phys_enc->dpu_kms) {
+	if (!phys_enc) {
 		DPU_ERROR("invalid encoder/kms\n");
 		return;
 	}

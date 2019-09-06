@@ -461,10 +461,7 @@ static void _dpu_kms_drm_obj_destroy(struct dpu_kms *dpu_kms)
 	struct msm_drm_private *priv;
 	int i;
 
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	} else if (!dpu_kms->dev) {
+	if (!dpu_kms->dev) {
 		DPU_ERROR("invalid dev\n");
 		return;
 	}
