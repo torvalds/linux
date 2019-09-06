@@ -56,6 +56,11 @@ properties:
     description:
       Phandle to the extcon device providing the cable state for the otg phy.
 
+  wakeup-source:
+    description:
+      Enable USB irq wakeup when suspend.
+      Only work when suspend wakeup-config is not work.
+
   rockchip,usbgrf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:

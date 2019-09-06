@@ -1917,6 +1917,11 @@ next_child:
 		goto put_child;
 	}
 
+	if (of_property_read_bool(np, "wakeup-source"))
+		device_init_wakeup(rphy->dev, true);
+	else
+		device_init_wakeup(rphy->dev, false);
+
 	return 0;
 
 put_child:
@@ -2136,6 +2141,10 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 	struct rockchip_usb2phy_port *rport;
 	unsigned int index;
 	int ret = 0;
+	bool wakeup_enable = false;
+
+	if (device_may_wakeup(rphy->dev))
+		wakeup_enable = true;
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
@@ -2157,6 +2166,10 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 			}
 		}
 
+		if (rport->port_id == USB2PHY_PORT_OTG && wakeup_enable &&
+		    rport->bvalid_irq > 0)
+			enable_irq_wake(rport->bvalid_irq);
+
 		/* activate the linestate to detect the next interrupt. */
 		mutex_lock(&rport->mutex);
 		ret = rockchip_usb2phy_enable_line_irq(rphy, rport, true);
@@ -2165,6 +2178,9 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 			dev_err(rphy->dev, "failed to enable linestate irq\n");
 			return ret;
 		}
+
+		if (wakeup_enable && rport->ls_irq > 0)
+			enable_irq_wake(rport->ls_irq);
 
 		/* enter low power state */
 		rockchip_usb2phy_low_power_enable(rphy, rport, true);
@@ -2180,6 +2196,10 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 	unsigned int index;
 	bool iddig;
 	int ret = 0;
+	bool wakeup_enable = false;
+
+	if (device_may_wakeup(rphy->dev))
+		wakeup_enable = true;
 
 	if (rphy->phy_cfg->phy_tuning)
 		ret = rphy->phy_cfg->phy_tuning(rphy);
@@ -2218,6 +2238,13 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 					return ret;
 			}
 		}
+
+		if (rport->port_id == USB2PHY_PORT_OTG && wakeup_enable &&
+		    rport->bvalid_irq > 0)
+			disable_irq_wake(rport->bvalid_irq);
+
+		if (wakeup_enable && rport->ls_irq > 0)
+			disable_irq_wake(rport->ls_irq);
 
 		/* exit low power state */
 		rockchip_usb2phy_low_power_enable(rphy, rport, false);
