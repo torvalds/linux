@@ -2060,6 +2060,9 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 
 	/* Internal abort timed out */
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+		if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct)
+			queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
+
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 			struct hisi_sas_slot *slot = task->lldd_task;
 
