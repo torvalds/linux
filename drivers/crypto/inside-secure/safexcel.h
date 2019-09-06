@@ -31,6 +31,7 @@
 #define EIP197_MAX_TOKENS			18
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_COUNT			1
+#define EIP197_FETCH_DEPTH			2
 #define EIP197_MAX_BATCH_SZ			64
 
 #define EIP197_GFP_FLAGS(base)	((base).flags & CRYPTO_TFM_REQ_MAY_SLEEP ? \
@@ -225,6 +226,14 @@
 #define EIP197_N_PES_OFFSET			4
 #define EIP197_N_PES_MASK			GENMASK(4, 0)
 #define EIP97_N_PES_MASK			GENMASK(2, 0)
+#define EIP197_HWDATAW_OFFSET			25
+#define EIP197_HWDATAW_MASK			GENMASK(3, 0)
+#define EIP97_HWDATAW_MASK			GENMASK(2, 0)
+#define EIP197_CFSIZE_OFFSET			9
+#define EIP197_CFSIZE_ADJUST			4
+#define EIP97_CFSIZE_OFFSET			8
+#define EIP197_CFSIZE_MASK			GENMASK(3, 0)
+#define EIP97_CFSIZE_MASK			GENMASK(4, 0)
 
 /* EIP197_HIA_AIC_R_ENABLE_CTRL */
 #define EIP197_CDR_IRQ(n)			BIT((n) * 2)
@@ -680,6 +689,8 @@ struct safexcel_hwconfig {
 	int hwver;
 	int hiaver;
 	int pever;
+	int hwdataw;
+	int hwcfsize;
 };
 
 struct safexcel_crypto_priv {

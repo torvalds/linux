@@ -310,13 +310,22 @@ release_fw:
 static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 {
 	u32 hdw, cd_size_rnd, val;
-	int i;
+	int i, cd_fetch_cnt;
 
-	hdw = readl(EIP197_HIA_AIC_G(priv) + EIP197_HIA_OPTIONS);
-	hdw &= GENMASK(27, 25);
-	hdw >>= 25;
-
-	cd_size_rnd = (priv->config.cd_size + (BIT(hdw) - 1)) >> hdw;
+	cd_size_rnd  = (priv->config.cd_size +
+			(BIT(priv->hwconfig.hwdataw) - 1)) >>
+		       priv->hwconfig.hwdataw;
+	/* determine number of CD's we can fetch into the CD FIFO as 1 block */
+	if (priv->flags & SAFEXCEL_HW_EIP197) {
+		/* EIP197: try to fetch enough in 1 go to keep all pipes busy */
+		cd_fetch_cnt = (1 << priv->hwconfig.hwcfsize) / cd_size_rnd;
+		cd_fetch_cnt = min_t(uint, cd_fetch_cnt,
+				     (priv->config.pes * EIP197_FETCH_DEPTH));
+	} else {
+		/* for the EIP97, just fetch all that fits minus 1 */
+		cd_fetch_cnt = ((1 << priv->hwconfig.hwcfsize) /
+				cd_size_rnd) - 1;
+	}
 
 	for (i = 0; i < priv->config.rings; i++) {
 		/* ring base address */
@@ -328,8 +337,8 @@ static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 		writel(EIP197_xDR_DESC_MODE_64BIT | (priv->config.cd_offset << 16) |
 		       priv->config.cd_size,
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_DESC_SIZE);
-		writel(((EIP197_FETCH_COUNT * (cd_size_rnd << hdw)) << 16) |
-		       (EIP197_FETCH_COUNT * priv->config.cd_offset),
+		writel(((cd_fetch_cnt * (cd_size_rnd << hdw)) << 16) |
+		       (cd_fetch_cnt * priv->config.cd_offset),
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_CFG);
 
 		/* Configure DMA tx control */
@@ -1142,7 +1151,7 @@ static int safexcel_probe_generic(void *pdev,
 				  int is_pci_dev)
 {
 	struct device *dev = priv->dev;
-	u32 peid, version, mask, val;
+	u32 peid, version, mask, val, hiaopt;
 	int i, ret, hwctg;
 
 	priv->context_pool = dmam_pool_create("safexcel-context", dev,
@@ -1226,13 +1235,31 @@ static int safexcel_probe_generic(void *pdev,
 	}
 	priv->hwconfig.pever = EIP197_VERSION_MASK(version);
 
+	hiaopt = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_OPTIONS);
+
+	if (priv->flags & SAFEXCEL_HW_EIP197) {
+		/* EIP197 */
+		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
+					  EIP197_HWDATAW_MASK;
+		priv->hwconfig.hwcfsize = ((hiaopt >> EIP197_CFSIZE_OFFSET) &
+					   EIP197_CFSIZE_MASK) +
+					  EIP197_CFSIZE_ADJUST;
+	} else {
+		/* EIP97 */
+		priv->hwconfig.hwdataw  = (hiaopt >> EIP197_HWDATAW_OFFSET) &
+					  EIP97_HWDATAW_MASK;
+		priv->hwconfig.hwcfsize = (hiaopt >> EIP97_CFSIZE_OFFSET) &
+					  EIP97_CFSIZE_MASK;
+	}
+
 	/* Get supported algorithms from EIP96 transform engine */
 	priv->hwconfig.algo_flags = readl(EIP197_PE(priv) +
 				    EIP197_PE_EIP96_OPTIONS(0));
 
 	/* Print single info line describing what we just detected */
-	dev_info(priv->dev, "EIP%d:%x(%d)-HIA:%x,PE:%x,alg:%08x\n", peid,
+	dev_info(priv->dev, "EIP%d:%x(%d)-HIA:%x(%d,%d),PE:%x,alg:%08x\n", peid,
 		 priv->hwconfig.hwver, hwctg, priv->hwconfig.hiaver,
+		 priv->hwconfig.hwdataw, priv->hwconfig.hwcfsize,
 		 priv->hwconfig.pever, priv->hwconfig.algo_flags);
 
 	safexcel_configure(priv);
