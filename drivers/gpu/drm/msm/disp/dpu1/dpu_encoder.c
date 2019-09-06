@@ -1914,8 +1914,6 @@ static int _dpu_encoder_debugfs_status_open(struct inode *inode,
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
 	int i;
 
 	static const struct file_operations debugfs_status_fops = {
@@ -1931,9 +1929,6 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 		DPU_ERROR("invalid encoder or kms\n");
 		return -EINVAL;
 	}
-
-	priv = drm_enc->dev->dev_private;
-	dpu_kms = to_dpu_kms(priv->kms);
 
 	snprintf(name, DPU_NAME_SIZE, "encoder%u", drm_enc->base.id);
 
@@ -2133,14 +2128,12 @@ static void dpu_encoder_frame_done_timeout(struct timer_list *t)
 	struct dpu_encoder_virt *dpu_enc = from_timer(dpu_enc, t,
 			frame_done_timer);
 	struct drm_encoder *drm_enc = &dpu_enc->base;
-	struct msm_drm_private *priv;
 	u32 event;
 
 	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
-	priv = drm_enc->dev->dev_private;
 
 	if (!dpu_enc->frame_busy_mask[0] || !dpu_enc->crtc_frame_event_cb) {
 		DRM_DEBUG_KMS("id:%u invalid timeout frame_busy_mask=%lu\n",
