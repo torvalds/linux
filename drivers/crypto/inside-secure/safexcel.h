@@ -178,6 +178,12 @@
 #define EIP197_TRC_ECCADMINSTAT			0xf0838
 #define EIP197_TRC_ECCDATASTAT			0xf083c
 #define EIP197_TRC_ECCDATA			0xf0840
+#define EIP197_FLUE_CACHEBASE_LO(n)		(0xf6000 + (32 * (n)))
+#define EIP197_FLUE_CACHEBASE_HI(n)		(0xf6004 + (32 * (n)))
+#define EIP197_FLUE_CONFIG(n)			(0xf6010 + (32 * (n)))
+#define EIP197_FLUE_OFFSETS			0xf6808
+#define EIP197_FLUE_ARC4_OFFSET			0xf680c
+#define EIP197_FLUE_IFC_LUT(n)			(0xf6820 + (4 * (n)))
 #define EIP197_CS_RAM_CTRL			0xf7ff0
 
 /* EIP197_HIA_xDR_DESC_SIZE */
@@ -321,6 +327,9 @@
 #define EIP197_ADDRESS_MODE			BIT(8)
 #define EIP197_CONTROL_MODE			BIT(9)
 
+/* EIP197_FLUE_CONFIG */
+#define EIP197_FLUE_CONFIG_MAGIC		0xc7000004
+
 /* Context Control */
 struct safexcel_context_record {
 	u32 control0;
@@ -395,6 +404,8 @@ struct safexcel_context_record {
 #define EIP197_TRC_ENABLE_1			BIT(5)
 #define EIP197_TRC_ENABLE_2			BIT(6)
 #define EIP197_TRC_ENABLE_MASK			GENMASK(6, 4)
+#define EIP197_CS_BANKSEL_MASK			GENMASK(14, 12)
+#define EIP197_CS_BANKSEL_OFS			12
 
 /* EIP197_TRC_PARAMS */
 #define EIP197_TRC_PARAMS_SW_RESET		BIT(0)
@@ -412,19 +423,11 @@ struct safexcel_context_record {
 #define EIP197_TRC_PARAMS2_RC_SZ_SMALL(n)	((n) << 18)
 
 /* Cache helpers */
-#define EIP197B_CS_RC_MAX			52
-#define EIP197D_CS_RC_MAX			96
+#define EIP197_CS_TRC_REC_WC			64
 #define EIP197_CS_RC_SIZE			(4 * sizeof(u32))
 #define EIP197_CS_RC_NEXT(x)			(x)
 #define EIP197_CS_RC_PREV(x)			((x) << 10)
 #define EIP197_RC_NULL				0x3ff
-#define EIP197B_CS_TRC_REC_WC			59
-#define EIP197D_CS_TRC_REC_WC			64
-#define EIP197B_CS_TRC_LG_REC_WC		73
-#define EIP197D_CS_TRC_LG_REC_WC		80
-#define EIP197B_CS_HT_WC			64
-#define EIP197D_CS_HT_WC			256
-
 
 /* Result data */
 struct result_data_desc {
