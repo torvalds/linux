@@ -98,6 +98,17 @@ static int bo_driver_verify_access(struct ttm_buffer_object *bo,
 	return vmm->funcs->verify_access(bo, filp);
 }
 
+static void bo_driver_move_notify(struct ttm_buffer_object *bo,
+				  bool evict,
+				  struct ttm_mem_reg *new_mem)
+{
+	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bo->bdev);
+
+	if (!vmm->funcs || !vmm->funcs->move_notify)
+		return;
+	vmm->funcs->move_notify(bo, evict, new_mem);
+}
+
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 				    struct ttm_mem_reg *mem)
 {
@@ -140,6 +151,7 @@ static struct ttm_bo_driver bo_driver = {
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
 	.verify_access = bo_driver_verify_access,
+	.move_notify = bo_driver_move_notify,
 	.io_mem_reserve = bo_driver_io_mem_reserve,
 	.io_mem_free = bo_driver_io_mem_free,
 };
