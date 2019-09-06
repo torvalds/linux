@@ -53,129 +53,65 @@ static int exfat_write_inode(struct inode *inode,
 static void exfat_write_super(struct super_block *sb);
 
 #define UNIX_SECS_1980    315532800L
-
-#if BITS_PER_LONG == 64
 #define UNIX_SECS_2108    4354819200L
-#endif
-
-/* days between 1.1.70 and 1.1.80 (2 leap days) */
-#define DAYS_DELTA_DECADE    (365 * 10 + 2)
-/* 120 (2100 - 1980) isn't leap year */
-#define NO_LEAP_YEAR_2100    (120)
-#define IS_LEAP_YEAR(y)    (!((y) & 0x3) && (y) != NO_LEAP_YEAR_2100)
-
-#define SECS_PER_MIN    (60)
-#define SECS_PER_HOUR   (60 * SECS_PER_MIN)
-#define SECS_PER_DAY    (24 * SECS_PER_HOUR)
-
-#define MAKE_LEAP_YEAR(leap_year, year)                         \
-	do {                                                    \
-		if (unlikely(year > NO_LEAP_YEAR_2100))         \
-			leap_year = ((year + 3) / 4) - 1;       \
-		else                                            \
-			leap_year = ((year + 3) / 4);           \
-	} while (0)
-
-/* Linear day numbers of the respective 1sts in non-leap years. */
-static time_t accum_days_in_year[] = {
-	/* Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sep  Oct  Nov  Dec */
-	0,   0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
-};
 
 /* Convert a FAT time/date pair to a UNIX date (seconds since 1 1 70). */
 static void exfat_time_fat2unix(struct exfat_sb_info *sbi,
 				struct timespec64 *ts, struct date_time_t *tp)
 {
-	time_t year = tp->Year;
-	time_t ld;
+	ts->tv_sec = mktime64(tp->Year + 1980, tp->Month + 1, tp->Day,
+			      tp->Hour, tp->Minute, tp->Second);
 
-	MAKE_LEAP_YEAR(ld, year);
-
-	if (IS_LEAP_YEAR(year) && (tp->Month) > 2)
-		ld++;
-
-	ts->tv_sec = tp->Second +
-		     tp->Minute * SECS_PER_MIN +
-		     tp->Hour * SECS_PER_HOUR +
-		     (ld + accum_days_in_year[(tp->Month)] +
-		      (tp->Day - 1)) * SECS_PER_DAY +
-		     (year * 365 + DAYS_DELTA_DECADE) * SECS_PER_DAY +
-		     sys_tz.tz_minuteswest * SECS_PER_MIN;
-
-	ts->tv_nsec = 0;
+	ts->tv_nsec = tp->MilliSecond * NSEC_PER_MSEC;
 }
 
 /* Convert linear UNIX date to a FAT time/date pair. */
 static void exfat_time_unix2fat(struct exfat_sb_info *sbi,
 				struct timespec64 *ts, struct date_time_t *tp)
 {
-	time_t second = ts->tv_sec;
-	time_t day, month, year;
-	time_t ld;
+	time64_t second = ts->tv_sec;
+	struct tm tm;
 
-	second -= sys_tz.tz_minuteswest * SECS_PER_MIN;
+	time64_to_tm(second, 0, &tm);
 
-	/* Jan 1 GMT 00:00:00 1980. But what about another time zone? */
 	if (second < UNIX_SECS_1980) {
-		tp->Second  = 0;
-		tp->Minute  = 0;
-		tp->Hour = 0;
-		tp->Day  = 1;
-		tp->Month  = 1;
-		tp->Year = 0;
+		tp->MilliSecond = 0;
+		tp->Second	= 0;
+		tp->Minute	= 0;
+		tp->Hour	= 0;
+		tp->Day		= 1;
+		tp->Month	= 1;
+		tp->Year	= 0;
 		return;
 	}
-#if (BITS_PER_LONG == 64)
+
 	if (second >= UNIX_SECS_2108) {
-		tp->Second  = 59;
-		tp->Minute  = 59;
-		tp->Hour = 23;
-		tp->Day  = 31;
-		tp->Month  = 12;
-		tp->Year = 127;
+		tp->MilliSecond = 999;
+		tp->Second	= 59;
+		tp->Minute	= 59;
+		tp->Hour	= 23;
+		tp->Day		= 31;
+		tp->Month	= 12;
+		tp->Year	= 127;
 		return;
 	}
-#endif
-	day = second / SECS_PER_DAY - DAYS_DELTA_DECADE;
-	year = day / 365;
-	MAKE_LEAP_YEAR(ld, year);
-	if (year * 365 + ld > day)
-		year--;
 
-	MAKE_LEAP_YEAR(ld, year);
-	day -= year * 365 + ld;
-
-	if (IS_LEAP_YEAR(year) && day == accum_days_in_year[3]) {
-		month = 2;
-	} else {
-		if (IS_LEAP_YEAR(year) && day > accum_days_in_year[3])
-			day--;
-		for (month = 1; month < 12; month++) {
-			if (accum_days_in_year[month + 1] > day)
-				break;
-		}
-	}
-	day -= accum_days_in_year[month];
-
-	tp->Second  = second % SECS_PER_MIN;
-	tp->Minute  = (second / SECS_PER_MIN) % 60;
-	tp->Hour = (second / SECS_PER_HOUR) % 24;
-	tp->Day  = day + 1;
-	tp->Month  = month;
-	tp->Year = year;
+	tp->MilliSecond = ts->tv_nsec / NSEC_PER_MSEC;
+	tp->Second	= tm.tm_sec;
+	tp->Minute	= tm.tm_min;
+	tp->Hour	= tm.tm_hour;
+	tp->Day		= tm.tm_mday;
+	tp->Month	= tm.tm_mon + 1;
+	tp->Year	= tm.tm_year + 1900 - 1980;
 }
 
 struct timestamp_t *tm_current(struct timestamp_t *tp)
 {
-	struct timespec64 ts;
-	time_t second, day, leap_day, month, year;
+	time64_t second = ktime_get_real_seconds();
+	struct tm tm;
 
-	ktime_get_real_ts64(&ts);
+	time64_to_tm(second, 0, &tm);
 
-	second = ts.tv_sec;
-	second -= sys_tz.tz_minuteswest * SECS_PER_MIN;
-
-	/* Jan 1 GMT 00:00:00 1980. But what about another time zone? */
 	if (second < UNIX_SECS_1980) {
 		tp->sec  = 0;
 		tp->min  = 0;
@@ -185,7 +121,7 @@ struct timestamp_t *tm_current(struct timestamp_t *tp)
 		tp->year = 0;
 		return tp;
 	}
-#if BITS_PER_LONG == 64
+
 	if (second >= UNIX_SECS_2108) {
 		tp->sec  = 59;
 		tp->min  = 59;
@@ -195,37 +131,13 @@ struct timestamp_t *tm_current(struct timestamp_t *tp)
 		tp->year = 127;
 		return tp;
 	}
-#endif
 
-	day = second / SECS_PER_DAY - DAYS_DELTA_DECADE;
-	year = day / 365;
-
-	MAKE_LEAP_YEAR(leap_day, year);
-	if (year * 365 + leap_day > day)
-		year--;
-
-	MAKE_LEAP_YEAR(leap_day, year);
-
-	day -= year * 365 + leap_day;
-
-	if (IS_LEAP_YEAR(year) && day == accum_days_in_year[3]) {
-		month = 2;
-	} else {
-		if (IS_LEAP_YEAR(year) && day > accum_days_in_year[3])
-			day--;
-		for (month = 1; month < 12; month++) {
-			if (accum_days_in_year[month + 1] > day)
-				break;
-		}
-	}
-	day -= accum_days_in_year[month];
-
-	tp->sec  = second % SECS_PER_MIN;
-	tp->min  = (second / SECS_PER_MIN) % 60;
-	tp->hour = (second / SECS_PER_HOUR) % 24;
-	tp->day  = day + 1;
-	tp->mon  = month;
-	tp->year = year;
+	tp->sec  = tm.tm_sec;
+	tp->min  = tm.tm_min;
+	tp->hour = tm.tm_hour;
+	tp->day  = tm.tm_mday;
+	tp->mon  = tm.tm_mon + 1;
+	tp->year = tm.tm_year + 1900 - 1980;
 
 	return tp;
 }
