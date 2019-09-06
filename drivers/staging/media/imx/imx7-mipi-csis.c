@@ -293,7 +293,7 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 	struct device *dev = &state->pdev->dev;
 	unsigned int i;
 	u32 cfg;
-	struct {
+	static const struct {
 		u32 offset;
 		const char * const name;
 	} registers[] = {
