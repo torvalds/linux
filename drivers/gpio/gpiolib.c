@@ -1399,12 +1399,12 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	machine_gpiochip_add(chip);
 
-	status = gpiochip_irqchip_init_valid_mask(chip);
-	if (status)
+	ret = gpiochip_irqchip_init_valid_mask(chip);
+	if (ret)
 		goto err_remove_acpi_chip;
 
-	status = gpiochip_add_irqchip(chip, lock_key, request_key);
-	if (status)
+	ret = gpiochip_add_irqchip(chip, lock_key, request_key);
+	if (ret)
 		goto err_remove_irqchip_mask;
 
 	/*
