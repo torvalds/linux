@@ -498,8 +498,8 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 
 		/* Token & context configuration */
 		val = EIP197_PE_EIP96_TOKEN_CTRL_CTX_UPDATES |
-		      EIP197_PE_EIP96_TOKEN_CTRL_REUSE_CTX |
-		      EIP197_PE_EIP96_TOKEN_CTRL_POST_REUSE_CTX;
+		      EIP197_PE_EIP96_TOKEN_CTRL_NO_TOKEN_WAIT |
+		      EIP197_PE_EIP96_TOKEN_CTRL_ENABLE_TIMEOUT;
 		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_TOKEN_CTRL(pe));
 
 		/* H/W capabilities selection: just enable everything */
