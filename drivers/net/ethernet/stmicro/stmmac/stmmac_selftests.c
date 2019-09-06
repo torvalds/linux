@@ -722,8 +722,14 @@ static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 
 	for (i = 0; i < rx_cnt; i++) {
 		struct stmmac_channel *ch = &priv->channel[i];
+		u32 tail;
 
+		tail = priv->rx_queue[i].dma_rx_phy +
+			(DMA_RX_SIZE * sizeof(struct dma_desc));
+
+		stmmac_set_rx_tail_ptr(priv, priv->ioaddr, tail, i);
 		stmmac_start_rx(priv, priv->ioaddr, i);
+
 		local_bh_disable();
 		napi_reschedule(&ch->rx_napi);
 		local_bh_enable();
