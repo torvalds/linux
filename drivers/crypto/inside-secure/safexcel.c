@@ -505,6 +505,8 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		/* H/W capabilities selection: just enable everything */
 		writel(EIP197_FUNCTION_ALL,
 		       EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN(pe));
+		writel(EIP197_FUNCTION_ALL,
+		       EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION2_EN(pe));
 	}
 
 	/* Command Descriptor Rings prepare */
