@@ -23,10 +23,15 @@ struct mt76x02_tx_status {
 #define MT_VIF_WCID(_n)		(254 - ((_n) & 7))
 #define MT_MAX_VIFS		8
 
+#define MT_PKTID_RATE		GENMASK(4, 0)
+#define MT_PKTID_AC		GENMASK(6, 5)
+
 struct mt76x02_vif {
 	struct mt76_wcid group_wcid; /* must be first */
 	u8 idx;
 };
+
+DECLARE_EWMA(pktlen, 8, 8);
 
 struct mt76x02_sta {
 	struct mt76_wcid wcid; /* must be first */
@@ -35,6 +40,7 @@ struct mt76x02_sta {
 	struct mt76x02_tx_status status;
 	int n_frames;
 
+	struct ewma_pktlen pktlen;
 };
 
 #define MT_RXINFO_BA			BIT(0)

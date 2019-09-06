@@ -276,3 +276,51 @@ u32 mt76_calc_rx_airtime(struct mt76_dev *dev, struct mt76_rx_status *status,
 
 	return duration;
 }
+
+u32 mt76_calc_tx_airtime(struct mt76_dev *dev, struct ieee80211_tx_info *info,
+			 int len)
+{
+	struct mt76_rx_status stat = {
+		.band = info->band,
+	};
+	u32 duration = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(info->status.rates); i++) {
+		struct ieee80211_tx_rate *rate = &info->status.rates[i];
+		u32 cur_duration;
+
+		if (rate->idx < 0 || !rate->count)
+			break;
+
+		if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+			stat.bw = RATE_INFO_BW_80;
+		else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			stat.bw = RATE_INFO_BW_40;
+		else
+			stat.bw = RATE_INFO_BW_20;
+
+		stat.enc_flags = 0;
+		if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			stat.enc_flags |= RX_ENC_FLAG_SHORTPRE;
+		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+			stat.enc_flags |= RX_ENC_FLAG_SHORT_GI;
+
+		stat.rate_idx = rate->idx;
+		if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
+			stat.encoding = RX_ENC_VHT;
+			stat.rate_idx = ieee80211_rate_get_vht_mcs(rate);
+			stat.nss = ieee80211_rate_get_vht_nss(rate);
+		} else if (rate->flags & IEEE80211_TX_RC_MCS) {
+			stat.encoding = RX_ENC_HT;
+		} else {
+			stat.encoding = RX_ENC_LEGACY;
+		}
+
+		cur_duration = mt76_calc_rx_airtime(dev, &stat, len);
+		duration += cur_duration * rate->count;
+	}
+
+	return duration;
+}
+EXPORT_SYMBOL_GPL(mt76_calc_tx_airtime);

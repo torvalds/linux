@@ -104,7 +104,9 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	/* encode packet rate for no-skb packet id to fix up status reporting */
 	if (pid == MT_PACKET_ID_NO_SKB)
 		pid = MT_PACKET_ID_HAS_RATE |
-		      (le16_to_cpu(txwi->rate) & MT_RXWI_RATE_INDEX);
+		      (le16_to_cpu(txwi->rate) & MT_PKTID_RATE) |
+		      FIELD_PREP(MT_PKTID_AC,
+				 skb_get_queue_mapping(tx_info->skb));
 
 	txwi->pktid = pid;
 
