@@ -53,7 +53,7 @@ struct cl_arg args[] = {
 	{"netmask-len", 'n', "IPv4 netmask length", 1, CL_ARG_INT,
 	 &cla.nmlen},
 	{"gateway", 'g', "IPv4 gateway to use", 1, CL_ARG_IPV4, &cla.gateway},
-	{"dst", 'd', "IPv4 destination address", 1, CL_ARG_IPV4, &cla.dst},
+	{"dst", 'D', "IPv4 destination address", 1, CL_ARG_IPV4, &cla.dst},
 	{"sleep", 's', "sleep", 1, CL_ARG_INT, &cla.sleep},
 	{0},
 };
