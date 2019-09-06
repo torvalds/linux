@@ -5024,16 +5024,27 @@ xlog_recover_process_one_iunlink(
 }
 
 /*
- * xlog_iunlink_recover
+ * Recover AGI unlinked lists
  *
- * This is called during recovery to process any inodes which
- * we unlinked but not freed when the system crashed.  These
- * inodes will be on the lists in the AGI blocks.  What we do
- * here is scan all the AGIs and fully truncate and free any
- * inodes found on the lists.  Each inode is removed from the
- * lists when it has been fully truncated and is freed.  The
- * freeing of the inode and its removal from the list must be
- * atomic.
+ * This is called during recovery to process any inodes which we unlinked but
+ * not freed when the system crashed.  These inodes will be on the lists in the
+ * AGI blocks. What we do here is scan all the AGIs and fully truncate and free
+ * any inodes found on the lists. Each inode is removed from the lists when it
+ * has been fully truncated and is freed. The freeing of the inode and its
+ * removal from the list must be atomic.
+ *
+ * If everything we touch in the agi processing loop is already in memory, this
+ * loop can hold the cpu for a long time. It runs without lock contention,
+ * memory allocation contention, the need wait for IO, etc, and so will run
+ * until we either run out of inodes to process, run low on memory or we run out
+ * of log space.
+ *
+ * This behaviour is bad for latency on single CPU and non-preemptible kernels,
+ * and can prevent other filesytem work (such as CIL pushes) from running. This
+ * can lead to deadlocks if the recovery process runs out of log reservation
+ * space. Hence we need to yield the CPU when there is other kernel work
+ * scheduled on this CPU to ensure other scheduled work can run without undue
+ * latency.
  */
 STATIC void
 xlog_recover_process_iunlinks(
@@ -5080,6 +5091,7 @@ xlog_recover_process_iunlinks(
 			while (agino != NULLAGINO) {
 				agino = xlog_recover_process_one_iunlink(mp,
 							agno, agino, bucket);
+				cond_resched();
 			}
 		}
 		xfs_buf_rele(agibp);
