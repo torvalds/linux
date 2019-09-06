@@ -668,22 +668,23 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
  */
 static struct elevator_type *elevator_get_by_features(struct request_queue *q)
 {
-	struct elevator_type *e;
+	struct elevator_type *e, *found = NULL;
 
 	spin_lock(&elv_list_lock);
 
 	list_for_each_entry(e, &elv_list, list) {
 		if (elv_support_features(e->elevator_features,
-					 q->required_elevator_features))
+					 q->required_elevator_features)) {
+			found = e;
 			break;
+		}
 	}
 
-	if (e && !try_module_get(e->elevator_owner))
-		e = NULL;
+	if (found && !try_module_get(found->elevator_owner))
+		found = NULL;
 
 	spin_unlock(&elv_list_lock);
-
-	return e;
+	return found;
 }
 
 /*
