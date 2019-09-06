@@ -1049,21 +1049,22 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	dev_info(dev, "dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
 
+	down(&hisi_hba->sem);
 	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)) {
 		hisi_sas_internal_task_abort(hisi_hba, device,
 					     HISI_SAS_INT_ABT_DEV, 0);
 
 		hisi_sas_dereg_device(hisi_hba, device);
 
-		down(&hisi_hba->sem);
 		hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
-		up(&hisi_hba->sem);
 		device->lldd_dev = NULL;
 	}
 
 	if (hisi_hba->hw->free_device)
 		hisi_hba->hw->free_device(sas_dev);
 	sas_dev->dev_type = SAS_PHY_UNUSED;
+	sas_dev->sas_device = NULL;
+	up(&hisi_hba->sem);
 }
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
@@ -1543,11 +1544,11 @@ void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
-	up(&hisi_hba->sem);
 
 	if (hisi_hba->reject_stp_links_msk)
 		hisi_sas_terminate_stp_reject(hisi_hba);
 	hisi_sas_reset_init_all_devices(hisi_hba);
+	up(&hisi_hba->sem);
 	scsi_unblock_requests(shost);
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
