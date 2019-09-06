@@ -1,19 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include <error.h>
-#include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
-#include <linux/filter.h>
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include "bpf_rlimit.h"
-#include "bpf_util.h"
+#include <test_progs.h>
 #include "cgroup_helpers.h"
 
 static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
@@ -308,7 +294,7 @@ detach:
 	return err;
 }
 
-int main(int argc, char **argv)
+void test_sockopt_multi(void)
 {
 	struct bpf_prog_load_attr attr = {
 		.file = "./sockopt_multi.o",
@@ -319,56 +305,28 @@ int main(int argc, char **argv)
 	int err = -1;
 	int ignored;
 
-	if (setup_cgroup_environment()) {
-		log_err("Failed to setup cgroup environment\n");
+	cg_parent = test__join_cgroup("/parent");
+	if (CHECK_FAIL(cg_parent < 0))
 		goto out;
-	}
 
-	cg_parent = create_and_get_cgroup("/parent");
-	if (cg_parent < 0) {
-		log_err("Failed to create cgroup /parent\n");
+	cg_child = test__join_cgroup("/parent/child");
+	if (CHECK_FAIL(cg_child < 0))
 		goto out;
-	}
-
-	cg_child = create_and_get_cgroup("/parent/child");
-	if (cg_child < 0) {
-		log_err("Failed to create cgroup /parent/child\n");
-		goto out;
-	}
-
-	if (join_cgroup("/parent/child")) {
-		log_err("Failed to join cgroup /parent/child\n");
-		goto out;
-	}
 
 	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
-	if (err) {
-		log_err("Failed to load BPF object");
+	if (CHECK_FAIL(err))
 		goto out;
-	}
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock_fd < 0) {
-		log_err("Failed to create socket");
+	if (CHECK_FAIL(sock_fd < 0))
 		goto out;
-	}
 
-	if (run_getsockopt_test(obj, cg_parent, cg_child, sock_fd))
-		err = -1;
-	printf("test_sockopt_multi: getsockopt %s\n",
-	       err ? "FAILED" : "PASSED");
-
-	if (run_setsockopt_test(obj, cg_parent, cg_child, sock_fd))
-		err = -1;
-	printf("test_sockopt_multi: setsockopt %s\n",
-	       err ? "FAILED" : "PASSED");
+	CHECK_FAIL(run_getsockopt_test(obj, cg_parent, cg_child, sock_fd));
+	CHECK_FAIL(run_setsockopt_test(obj, cg_parent, cg_child, sock_fd));
 
 out:
 	close(sock_fd);
 	bpf_object__close(obj);
 	close(cg_child);
 	close(cg_parent);
-
-	printf("test_sockopt_multi: %s\n", err ? "FAILED" : "PASSED");
-	return err ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
-#include <linux/filter.h>
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include "bpf_rlimit.h"
-#include "bpf_util.h"
+#include <test_progs.h>
 #include "cgroup_helpers.h"
-
-#define CG_PATH				"/sockopt"
 
 static char bpf_log_buf[4096];
 static bool verbose;
@@ -983,39 +968,18 @@ close_prog_fd:
 	return ret;
 }
 
-int main(int args, char **argv)
+void test_sockopt(void)
 {
-	int err = EXIT_FAILURE, error_cnt = 0;
 	int cgroup_fd, i;
 
-	if (setup_cgroup_environment())
-		goto cleanup_obj;
-
-	cgroup_fd = create_and_get_cgroup(CG_PATH);
-	if (cgroup_fd < 0)
-		goto cleanup_cgroup_env;
-
-	if (join_cgroup(CG_PATH))
-		goto cleanup_cgroup;
+	cgroup_fd = test__join_cgroup("/sockopt");
+	if (CHECK_FAIL(cgroup_fd < 0))
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		int err = run_test(cgroup_fd, &tests[i]);
-
-		if (err)
-			error_cnt++;
-
-		printf("#%d %s: %s\n", i, err ? "FAIL" : "PASS",
-		       tests[i].descr);
+		test__start_subtest(tests[i].descr);
+		CHECK_FAIL(run_test(cgroup_fd, &tests[i]));
 	}
 
-	printf("Summary: %ld PASSED, %d FAILED\n",
-	       ARRAY_SIZE(tests) - error_cnt, error_cnt);
-	err = error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
-
-cleanup_cgroup:
 	close(cgroup_fd);
-cleanup_cgroup_env:
-	cleanup_cgroup_environment();
-cleanup_obj:
-	return err;
 }
