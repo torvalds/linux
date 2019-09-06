@@ -1782,7 +1782,6 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.prep_smp = prep_smp_v1_hw,
 	.prep_ssp = prep_ssp_v1_hw,
 	.start_delivery = start_delivery_v1_hw,
-	.slot_complete = slot_complete_v1_hw,
 	.phys_init = phys_init_v1_hw,
 	.phy_start = start_phy_v1_hw,
 	.phy_disable = disable_phy_v1_hw,
