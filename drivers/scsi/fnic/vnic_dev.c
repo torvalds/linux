@@ -259,7 +259,7 @@ int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 	struct vnic_devcmd __iomem *devcmd = vdev->devcmd;
 	int delay;
 	u32 status;
-	int dev_cmd_err[] = {
+	static const int dev_cmd_err[] = {
 		/* convert from fw's version of error.h to host's version */
 		0,	/* ERR_SUCCESS */
 		EINVAL,	/* ERR_EINVAL */
