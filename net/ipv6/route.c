@@ -4406,7 +4406,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	}
 
 	f6i = ip6_route_info_create(&cfg, gfp_flags, NULL);
-	if (f6i)
+	if (!IS_ERR(f6i))
 		f6i->dst_nocount = true;
 	return f6i;
 }
