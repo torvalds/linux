@@ -214,15 +214,42 @@ xlog_grant_head_wake(
 {
 	struct xlog_ticket	*tic;
 	int			need_bytes;
+	bool			woken_task = false;
 
 	list_for_each_entry(tic, &head->waiters, t_queue) {
+
+		/*
+		 * There is a chance that the size of the CIL checkpoints in
+		 * progress at the last AIL push target calculation resulted in
+		 * limiting the target to the log head (l_last_sync_lsn) at the
+		 * time. This may not reflect where the log head is now as the
+		 * CIL checkpoints may have completed.
+		 *
+		 * Hence when we are woken here, it may be that the head of the
+		 * log that has moved rather than the tail. As the tail didn't
+		 * move, there still won't be space available for the
+		 * reservation we require.  However, if the AIL has already
+		 * pushed to the target defined by the old log head location, we
+		 * will hang here waiting for something else to update the AIL
+		 * push target.
+		 *
+		 * Therefore, if there isn't space to wake the first waiter on
+		 * the grant head, we need to push the AIL again to ensure the
+		 * target reflects both the current log tail and log head
+		 * position before we wait for the tail to move again.
+		 */
+
 		need_bytes = xlog_ticket_reservation(log, head, tic);
-		if (*free_bytes < need_bytes)
+		if (*free_bytes < need_bytes) {
+			if (!woken_task)
+				xlog_grant_push_ail(log, need_bytes);
 			return false;
+		}
 
 		*free_bytes -= need_bytes;
 		trace_xfs_log_grant_wake_up(log, tic);
 		wake_up_process(tic->t_task);
+		woken_task = true;
 	}
 
 	return true;
