@@ -310,6 +310,7 @@ struct hisi_sas_hw {
 					   int delay_ms, int timeout_ms);
 	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
 	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
+	int (*set_bist)(struct hisi_hba *hisi_hba, bool enable);
 	void (*read_iost_itct_cache)(struct hisi_hba *hisi_hba,
 				     enum hisi_sas_debugfs_cache_type type,
 				     u32 *cache);
@@ -391,6 +392,14 @@ struct hisi_hba {
 	int cq_nvecs;
 	unsigned int *reply_map;
 
+	/* bist */
+	enum sas_linkrate debugfs_bist_linkrate;
+	int debugfs_bist_code_mode;
+	int debugfs_bist_phy_no;
+	int debugfs_bist_mode;
+	u32 debugfs_bist_cnt;
+	int debugfs_bist_enable;
+
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */
 	u32 *debugfs_regs[DEBUGFS_REGS_NUM];
@@ -404,6 +413,7 @@ struct hisi_hba {
 
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
+	struct dentry *debugfs_bist_dentry;
 	bool debugfs_snapshot;
 };
 
