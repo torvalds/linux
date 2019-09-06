@@ -28,6 +28,7 @@ static void drm_gem_vram_cleanup(struct drm_gem_vram_object *gbo)
 	 */
 
 	WARN_ON(gbo->kmap_use_count);
+	WARN_ON(gbo->kmap.virtual);
 
 	drm_gem_object_release(&gbo->bo.base);
 }
@@ -356,18 +357,17 @@ EXPORT_SYMBOL(drm_gem_vram_kmap);
 
 static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
 {
-	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
-
 	if (WARN_ON_ONCE(!gbo->kmap_use_count))
 		return;
 	if (--gbo->kmap_use_count > 0)
 		return;
 
-	if (!kmap->virtual)
-		return;
-
-	ttm_bo_kunmap(kmap);
-	kmap->virtual = NULL;
+	/*
+	 * Permanently mapping and unmapping buffers adds overhead from
+	 * updating the page tables and creates debugging output. Therefore,
+	 * we delay the actual unmap operation until the BO gets evicted
+	 * from memory. See drm_gem_vram_bo_driver_move_notify().
+	 */
 }
 
 /**
@@ -497,6 +497,38 @@ int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
 
+/**
+ * drm_gem_vram_bo_driver_move_notify() -
+ *	Implements &struct ttm_bo_driver.move_notify
+ * @bo:		TTM buffer object. Refers to &struct drm_gem_vram_object.bo
+ * @evict:	True, if the BO is being evicted from graphics memory;
+ *		false otherwise.
+ * @new_mem:	New memory region, or NULL on destruction
+ */
+void drm_gem_vram_bo_driver_move_notify(struct ttm_buffer_object *bo,
+					bool evict,
+					struct ttm_mem_reg *new_mem)
+{
+	struct drm_gem_vram_object *gbo;
+	struct ttm_bo_kmap_obj *kmap;
+
+	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	if (!drm_is_gem_vram(bo))
+		return;
+
+	gbo = drm_gem_vram_of_bo(bo);
+	kmap = &gbo->kmap;
+
+	if (WARN_ON_ONCE(gbo->kmap_use_count))
+		return;
+
+	if (!kmap->virtual)
+		return;
+	ttm_bo_kunmap(kmap);
+	kmap->virtual = NULL;
+}
+EXPORT_SYMBOL(drm_gem_vram_bo_driver_move_notify);
+
 /*
  * drm_gem_vram_mm_funcs - Functions for &struct drm_vram_mm
  *
@@ -506,7 +538,8 @@ EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
  */
 const struct drm_vram_mm_funcs drm_gem_vram_mm_funcs = {
 	.evict_flags = drm_gem_vram_bo_driver_evict_flags,
-	.verify_access = drm_gem_vram_bo_driver_verify_access
+	.verify_access = drm_gem_vram_bo_driver_verify_access,
+	.move_notify = drm_gem_vram_bo_driver_move_notify,
 };
 EXPORT_SYMBOL(drm_gem_vram_mm_funcs);
 

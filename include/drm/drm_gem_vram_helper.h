@@ -112,6 +112,10 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 void drm_gem_vram_bo_driver_evict_flags(struct ttm_buffer_object *bo,
 					struct ttm_placement *pl);
 
+void drm_gem_vram_bo_driver_move_notify(struct ttm_buffer_object *bo,
+					bool evict,
+					struct ttm_mem_reg *new_mem);
+
 int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
 					 struct file *filp);
 
