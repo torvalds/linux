@@ -2631,6 +2631,90 @@ xlog_get_lowest_lsn(
 }
 
 /*
+ * Return true if we need to stop processing, false to continue to the next
+ * iclog. The caller will need to run callbacks if the iclog is returned in the
+ * XLOG_STATE_CALLBACK state.
+ */
+static bool
+xlog_state_iodone_process_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	struct xlog_in_core	*completed_iclog,
+	bool			*ioerror)
+{
+	xfs_lsn_t		lowest_lsn;
+
+	/* Skip all iclogs in the ACTIVE & DIRTY states */
+	if (iclog->ic_state & (XLOG_STATE_ACTIVE | XLOG_STATE_DIRTY))
+		return false;
+
+	/*
+	 * Between marking a filesystem SHUTDOWN and stopping the log, we do
+	 * flush all iclogs to disk (if there wasn't a log I/O error). So, we do
+	 * want things to go smoothly in case of just a SHUTDOWN  w/o a
+	 * LOG_IO_ERROR.
+	 */
+	if (iclog->ic_state & XLOG_STATE_IOERROR) {
+		*ioerror = true;
+		return false;
+	}
+
+	/*
+	 * Can only perform callbacks in order.  Since this iclog is not in the
+	 * DONE_SYNC/ DO_CALLBACK state, we skip the rest and just try to clean
+	 * up.  If we set our iclog to DO_CALLBACK, we will not process it when
+	 * we retry since a previous iclog is in the CALLBACK and the state
+	 * cannot change since we are holding the l_icloglock.
+	 */
+	if (!(iclog->ic_state &
+			(XLOG_STATE_DONE_SYNC | XLOG_STATE_DO_CALLBACK))) {
+		if (completed_iclog &&
+		    (completed_iclog->ic_state == XLOG_STATE_DONE_SYNC)) {
+			completed_iclog->ic_state = XLOG_STATE_DO_CALLBACK;
+		}
+		return true;
+	}
+
+	/*
+	 * We now have an iclog that is in either the DO_CALLBACK or DONE_SYNC
+	 * states. The other states (WANT_SYNC, SYNCING, or CALLBACK were caught
+	 * by the above if and are going to clean (i.e. we aren't doing their
+	 * callbacks) see the above if.
+	 *
+	 * We will do one more check here to see if we have chased our tail
+	 * around.
+	 */
+	lowest_lsn = xlog_get_lowest_lsn(log);
+	if (lowest_lsn &&
+	    XFS_LSN_CMP(lowest_lsn, be64_to_cpu(iclog->ic_header.h_lsn)) < 0)
+		return false; /* Leave this iclog for another thread */
+
+	iclog->ic_state = XLOG_STATE_CALLBACK;
+
+	/*
+	 * Completion of a iclog IO does not imply that a transaction has
+	 * completed, as transactions can be large enough to span many iclogs.
+	 * We cannot change the tail of the log half way through a transaction
+	 * as this may be the only transaction in the log and moving th etail to
+	 * point to the middle of it will prevent recovery from finding the
+	 * start of the transaction.  Hence we should only update the
+	 * last_sync_lsn if this iclog contains transaction completion callbacks
+	 * on it.
+	 *
+	 * We have to do this before we drop the icloglock to ensure we are the
+	 * only one that can update it.
+	 */
+	ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
+			be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
+	if (!list_empty_careful(&iclog->ic_callbacks))
+		atomic64_set(&log->l_last_sync_lsn,
+			be64_to_cpu(iclog->ic_header.h_lsn));
+
+	return false;
+
+}
+
+/*
  * Keep processing entries in the iclog callback list until we come around and
  * it is empty.  We need to atomically see that the list is empty and change the
  * state to DIRTY so that we don't miss any more callbacks being added.
@@ -2714,23 +2798,15 @@ xlog_state_do_callback(
 	bool			aborted,
 	struct xlog_in_core	*ciclog)
 {
-	xlog_in_core_t	   *iclog;
-	xlog_in_core_t	   *first_iclog;	/* used to know when we've
-						 * processed all iclogs once */
-	int		   flushcnt = 0;
-	xfs_lsn_t	   lowest_lsn;
-	int		   ioerrors;	/* counter: iclogs with errors */
-	bool		   cycled_icloglock;
-	bool		   did_callbacks;
-	int		   repeats;	/* for issuing console warnings if
-					 * looping too many times */
+	struct xlog_in_core	*iclog;
+	struct xlog_in_core	*first_iclog;
+	bool			did_callbacks = false;
+	bool			cycled_icloglock;
+	bool			ioerror;
+	int			flushcnt = 0;
+	int			repeats = 0;
 
 	spin_lock(&log->l_icloglock);
-	first_iclog = iclog = log->l_iclog;
-	ioerrors = 0;
-	did_callbacks = 0;
-	repeats = 0;
-
 	do {
 		/*
 		 * Scan all iclogs starting with the one pointed to by the
@@ -2743,95 +2819,19 @@ xlog_state_do_callback(
 		first_iclog = log->l_iclog;
 		iclog = log->l_iclog;
 		cycled_icloglock = false;
+		ioerror = false;
 		repeats++;
 
 		do {
+			if (xlog_state_iodone_process_iclog(log, iclog,
+							ciclog, &ioerror))
+				break;
 
-			/* skip all iclogs in the ACTIVE & DIRTY states */
-			if (iclog->ic_state &
-			    (XLOG_STATE_ACTIVE|XLOG_STATE_DIRTY)) {
+			if (!(iclog->ic_state &
+			      (XLOG_STATE_CALLBACK | XLOG_STATE_IOERROR))) {
 				iclog = iclog->ic_next;
 				continue;
 			}
-
-			/*
-			 * Between marking a filesystem SHUTDOWN and stopping
-			 * the log, we do flush all iclogs to disk (if there
-			 * wasn't a log I/O error). So, we do want things to
-			 * go smoothly in case of just a SHUTDOWN  w/o a
-			 * LOG_IO_ERROR.
-			 */
-			if (!(iclog->ic_state & XLOG_STATE_IOERROR)) {
-				/*
-				 * Can only perform callbacks in order.  Since
-				 * this iclog is not in the DONE_SYNC/
-				 * DO_CALLBACK state, we skip the rest and
-				 * just try to clean up.  If we set our iclog
-				 * to DO_CALLBACK, we will not process it when
-				 * we retry since a previous iclog is in the
-				 * CALLBACK and the state cannot change since
-				 * we are holding the l_icloglock.
-				 */
-				if (!(iclog->ic_state &
-					(XLOG_STATE_DONE_SYNC |
-						 XLOG_STATE_DO_CALLBACK))) {
-					if (ciclog && (ciclog->ic_state ==
-							XLOG_STATE_DONE_SYNC)) {
-						ciclog->ic_state = XLOG_STATE_DO_CALLBACK;
-					}
-					break;
-				}
-				/*
-				 * We now have an iclog that is in either the
-				 * DO_CALLBACK or DONE_SYNC states. The other
-				 * states (WANT_SYNC, SYNCING, or CALLBACK were
-				 * caught by the above if and are going to
-				 * clean (i.e. we aren't doing their callbacks)
-				 * see the above if.
-				 */
-
-				/*
-				 * We will do one more check here to see if we
-				 * have chased our tail around.
-				 */
-
-				lowest_lsn = xlog_get_lowest_lsn(log);
-				if (lowest_lsn &&
-				    XFS_LSN_CMP(lowest_lsn,
-						be64_to_cpu(iclog->ic_header.h_lsn)) < 0) {
-					iclog = iclog->ic_next;
-					continue; /* Leave this iclog for
-						   * another thread */
-				}
-
-				iclog->ic_state = XLOG_STATE_CALLBACK;
-
-
-				/*
-				 * Completion of a iclog IO does not imply that
-				 * a transaction has completed, as transactions
-				 * can be large enough to span many iclogs. We
-				 * cannot change the tail of the log half way
-				 * through a transaction as this may be the only
-				 * transaction in the log and moving th etail to
-				 * point to the middle of it will prevent
-				 * recovery from finding the start of the
-				 * transaction. Hence we should only update the
-				 * last_sync_lsn if this iclog contains
-				 * transaction completion callbacks on it.
-				 *
-				 * We have to do this before we drop the
-				 * icloglock to ensure we are the only one that
-				 * can update it.
-				 */
-				ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
-					be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
-				if (!list_empty_careful(&iclog->ic_callbacks))
-					atomic64_set(&log->l_last_sync_lsn,
-						be64_to_cpu(iclog->ic_header.h_lsn));
-
-			} else
-				ioerrors++;
 
 			/*
 			 * Running callbacks will drop the icloglock which means
@@ -2864,7 +2864,7 @@ xlog_state_do_callback(
 				"%s: possible infinite loop (%d iterations)",
 				__func__, flushcnt);
 		}
-	} while (!ioerrors && cycled_icloglock);
+	} while (!ioerror && cycled_icloglock);
 
 	if (did_callbacks)
 		xlog_state_callback_check_state(log);
