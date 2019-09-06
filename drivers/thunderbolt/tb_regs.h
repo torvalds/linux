@@ -221,24 +221,20 @@ struct tb_regs_port_header {
 #define ADP_CS_5_LCA_SHIFT			22
 
 /* Display Port adapter registers */
-
-/* DWORD 0 */
-#define TB_DP_VIDEO_HOPID_SHIFT		16
-#define TB_DP_VIDEO_HOPID_MASK		GENMASK(26, 16)
-#define TB_DP_AUX_EN			BIT(30)
-#define TB_DP_VIDEO_EN			BIT(31)
-/* DWORD 1 */
-#define TB_DP_AUX_TX_HOPID_MASK		GENMASK(10, 0)
-#define TB_DP_AUX_RX_HOPID_SHIFT	11
-#define TB_DP_AUX_RX_HOPID_MASK		GENMASK(21, 11)
-/* DWORD 2 */
-#define TB_DP_HDP			BIT(6)
-/* DWORD 3 */
-#define TB_DP_HPDC			BIT(9)
-/* DWORD 4 */
-#define TB_DP_LOCAL_CAP			0x4
-/* DWORD 5 */
-#define TB_DP_REMOTE_CAP		0x5
+#define ADP_DP_CS_0				0x00
+#define ADP_DP_CS_0_VIDEO_HOPID_MASK		GENMASK(26, 16)
+#define ADP_DP_CS_0_VIDEO_HOPID_SHIFT		16
+#define ADP_DP_CS_0_AE				BIT(30)
+#define ADP_DP_CS_0_VE				BIT(31)
+#define ADP_DP_CS_1_AUX_TX_HOPID_MASK		GENMASK(10, 0)
+#define ADP_DP_CS_1_AUX_RX_HOPID_MASK		GENMASK(21, 11)
+#define ADP_DP_CS_1_AUX_RX_HOPID_SHIFT		11
+#define ADP_DP_CS_2				0x02
+#define ADP_DP_CS_2_HDP				BIT(6)
+#define ADP_DP_CS_3				0x03
+#define ADP_DP_CS_3_HDPC			BIT(9)
+#define DP_LOCAL_CAP				0x04
+#define DP_REMOTE_CAP				0x05
 
 /* PCIe adapter registers */
 #define ADP_PCIE_CS_0				0x00

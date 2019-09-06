@@ -835,11 +835,12 @@ int tb_dp_port_hpd_is_active(struct tb_port *port)
 	u32 data;
 	int ret;
 
-	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap + 2, 1);
+	ret = tb_port_read(port, &data, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
 	if (ret)
 		return ret;
 
-	return !!(data & TB_DP_HDP);
+	return !!(data & ADP_DP_CS_2_HDP);
 }
 
 /**
@@ -853,12 +854,14 @@ int tb_dp_port_hpd_clear(struct tb_port *port)
 	u32 data;
 	int ret;
 
-	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap + 3, 1);
+	ret = tb_port_read(port, &data, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_3, 1);
 	if (ret)
 		return ret;
 
-	data |= TB_DP_HPDC;
-	return tb_port_write(port, &data, TB_CFG_PORT, port->cap_adap + 3, 1);
+	data |= ADP_DP_CS_3_HDPC;
+	return tb_port_write(port, &data, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_3, 1);
 }
 
 /**
@@ -876,20 +879,23 @@ int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
 	u32 data[2];
 	int ret;
 
-	ret = tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
-			   ARRAY_SIZE(data));
+	ret = tb_port_read(port, data, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_0, ARRAY_SIZE(data));
 	if (ret)
 		return ret;
 
-	data[0] &= ~TB_DP_VIDEO_HOPID_MASK;
-	data[1] &= ~(TB_DP_AUX_RX_HOPID_MASK | TB_DP_AUX_TX_HOPID_MASK);
+	data[0] &= ~ADP_DP_CS_0_VIDEO_HOPID_MASK;
+	data[1] &= ~ADP_DP_CS_1_AUX_RX_HOPID_MASK;
+	data[1] &= ~ADP_DP_CS_1_AUX_RX_HOPID_MASK;
 
-	data[0] |= (video << TB_DP_VIDEO_HOPID_SHIFT) & TB_DP_VIDEO_HOPID_MASK;
-	data[1] |= aux_tx & TB_DP_AUX_TX_HOPID_MASK;
-	data[1] |= (aux_rx << TB_DP_AUX_RX_HOPID_SHIFT) & TB_DP_AUX_RX_HOPID_MASK;
+	data[0] |= (video << ADP_DP_CS_0_VIDEO_HOPID_SHIFT) &
+		ADP_DP_CS_0_VIDEO_HOPID_MASK;
+	data[1] |= aux_tx & ADP_DP_CS_1_AUX_TX_HOPID_MASK;
+	data[1] |= (aux_rx << ADP_DP_CS_1_AUX_RX_HOPID_SHIFT) &
+		ADP_DP_CS_1_AUX_RX_HOPID_MASK;
 
-	return tb_port_write(port, data, TB_CFG_PORT, port->cap_adap,
-			     ARRAY_SIZE(data));
+	return tb_port_write(port, data, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_0, ARRAY_SIZE(data));
 }
 
 /**
@@ -900,11 +906,11 @@ bool tb_dp_port_is_enabled(struct tb_port *port)
 {
 	u32 data[2];
 
-	if (tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
+	if (tb_port_read(port, data, TB_CFG_PORT, port->cap_adap + ADP_DP_CS_0,
 			 ARRAY_SIZE(data)))
 		return false;
 
-	return !!(data[0] & (TB_DP_VIDEO_EN | TB_DP_AUX_EN));
+	return !!(data[0] & (ADP_DP_CS_0_VE | ADP_DP_CS_0_AE));
 }
 
 /**
@@ -920,18 +926,18 @@ int tb_dp_port_enable(struct tb_port *port, bool enable)
 	u32 data[2];
 	int ret;
 
-	ret = tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
-			   ARRAY_SIZE(data));
+	ret = tb_port_read(port, data, TB_CFG_PORT,
+			  port->cap_adap + ADP_DP_CS_0, ARRAY_SIZE(data));
 	if (ret)
 		return ret;
 
 	if (enable)
-		data[0] |= TB_DP_VIDEO_EN | TB_DP_AUX_EN;
+		data[0] |= ADP_DP_CS_0_VE | ADP_DP_CS_0_AE;
 	else
-		data[0] &= ~(TB_DP_VIDEO_EN | TB_DP_AUX_EN);
+		data[0] &= ~(ADP_DP_CS_0_VE | ADP_DP_CS_0_AE);
 
-	return tb_port_write(port, data, TB_CFG_PORT, port->cap_adap,
-			     ARRAY_SIZE(data));
+	return tb_port_write(port, data, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_0, ARRAY_SIZE(data));
 }
 
 /* switch utility functions */

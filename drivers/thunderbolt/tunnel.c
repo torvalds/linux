@@ -241,23 +241,23 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 
 	/* Read both DP_LOCAL_CAP registers */
 	ret = tb_port_read(in, &in_dp_cap, TB_CFG_PORT,
-			   in->cap_adap + TB_DP_LOCAL_CAP, 1);
+			   in->cap_adap + DP_LOCAL_CAP, 1);
 	if (ret)
 		return ret;
 
 	ret = tb_port_read(out, &out_dp_cap, TB_CFG_PORT,
-			   out->cap_adap + TB_DP_LOCAL_CAP, 1);
+			   out->cap_adap + DP_LOCAL_CAP, 1);
 	if (ret)
 		return ret;
 
 	/* Write IN local caps to OUT remote caps */
 	ret = tb_port_write(out, &in_dp_cap, TB_CFG_PORT,
-			    out->cap_adap + TB_DP_REMOTE_CAP, 1);
+			    out->cap_adap + DP_REMOTE_CAP, 1);
 	if (ret)
 		return ret;
 
 	return tb_port_write(in, &out_dp_cap, TB_CFG_PORT,
-			     in->cap_adap + TB_DP_REMOTE_CAP, 1);
+			     in->cap_adap + DP_REMOTE_CAP, 1);
 }
 
 static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
