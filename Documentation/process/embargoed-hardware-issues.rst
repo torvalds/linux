@@ -219,7 +219,7 @@ an involved disclosed party. The current ambassadors list:
   Intel
   Qualcomm
 
-  Microsoft
+  Microsoft	Sasha Levin <sashal@kernel.org>
   VMware
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
