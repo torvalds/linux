@@ -35,6 +35,7 @@ struct padata_priv {
 	struct parallel_data	*pd;
 	int			cb_cpu;
 	int			cpu;
+	unsigned int		seq_nr;
 	int			info;
 	void                    (*parallel)(struct padata_priv *padata);
 	void                    (*serial)(struct padata_priv *padata);
@@ -105,6 +106,7 @@ struct padata_cpumask {
  * @reorder_objects: Number of objects waiting in the reorder queues.
  * @refcnt: Number of objects holding a reference on this parallel_data.
  * @max_seq_nr:  Maximal used sequence number.
+ * @processed: Number of already processed objects.
  * @cpu: Next CPU to be processed.
  * @cpumask: The cpumasks in use for parallel and serial workers.
  * @reorder_work: work struct for reordering.
@@ -117,6 +119,7 @@ struct parallel_data {
 	atomic_t			reorder_objects;
 	atomic_t			refcnt;
 	atomic_t			seq_nr;
+	unsigned int			processed;
 	int				cpu;
 	struct padata_cpumask		cpumask;
 	struct work_struct		reorder_work;
