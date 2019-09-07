@@ -256,29 +256,13 @@ static int tls_push_record(struct sock *sk,
 			   struct tls_context *ctx,
 			   struct tls_offload_context_tx *offload_ctx,
 			   struct tls_record_info *record,
-			   struct page_frag *pfrag,
-			   int flags,
-			   unsigned char record_type)
+			   int flags)
 {
 	struct tls_prot_info *prot = &ctx->prot_info;
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct page_frag dummy_tag_frag;
 	skb_frag_t *frag;
 	int i;
 
-	/* fill prepend */
-	frag = &record->frags[0];
-	tls_fill_prepend(ctx,
-			 skb_frag_address(frag),
-			 record->len - prot->prepend_size,
-			 record_type,
-			 prot->version);
-
-	/* HW doesn't care about the data in the tag, because it fills it. */
-	dummy_tag_frag.page = skb_frag_page(frag);
-	dummy_tag_frag.offset = 0;
-
-	tls_append_frag(record, &dummy_tag_frag, prot->tag_size);
 	record->end_seq = tp->write_seq + record->len;
 	list_add_tail_rcu(&record->list, &offload_ctx->records_list);
 	offload_ctx->open_record = NULL;
@@ -300,6 +284,38 @@ static int tls_push_record(struct sock *sk,
 
 	/* all ready, send */
 	return tls_push_sg(sk, ctx, offload_ctx->sg_tx_data, 0, flags);
+}
+
+static int tls_device_record_close(struct sock *sk,
+				   struct tls_context *ctx,
+				   struct tls_record_info *record,
+				   struct page_frag *pfrag,
+				   unsigned char record_type)
+{
+	struct tls_prot_info *prot = &ctx->prot_info;
+	int ret;
+
+	/* append tag
+	 * device will fill in the tag, we just need to append a placeholder
+	 * use socket memory to improve coalescing (re-using a single buffer
+	 * increases frag count)
+	 * if we can't allocate memory now, steal some back from data
+	 */
+	if (likely(skb_page_frag_refill(prot->tag_size, pfrag,
+					sk->sk_allocation))) {
+		ret = 0;
+		tls_append_frag(record, pfrag, prot->tag_size);
+	} else {
+		ret = prot->tag_size;
+		if (record->len <= prot->overhead_size)
+			return -ENOMEM;
+	}
+
+	/* fill prepend */
+	tls_fill_prepend(ctx, skb_frag_address(&record->frags[0]),
+			 record->len - prot->overhead_size,
+			 record_type, prot->version);
+	return ret;
 }
 
 static int tls_create_new_record(struct tls_offload_context_tx *offload_ctx,
@@ -452,13 +468,24 @@ last_record:
 
 		if (done || record->len >= max_open_record_len ||
 		    (record->num_frags >= MAX_SKB_FRAGS - 1)) {
+			rc = tls_device_record_close(sk, tls_ctx, record,
+						     pfrag, record_type);
+			if (rc) {
+				if (rc > 0) {
+					size += rc;
+				} else {
+					size = orig_size;
+					destroy_record(record);
+					ctx->open_record = NULL;
+					break;
+				}
+			}
+
 			rc = tls_push_record(sk,
 					     tls_ctx,
 					     ctx,
 					     record,
-					     pfrag,
-					     tls_push_record_flags,
-					     record_type);
+					     tls_push_record_flags);
 			if (rc < 0)
 				break;
 		}
