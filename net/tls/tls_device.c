@@ -280,9 +280,7 @@ static int tls_push_record(struct sock *sk,
 
 	tls_append_frag(record, &dummy_tag_frag, prot->tag_size);
 	record->end_seq = tp->write_seq + record->len;
-	spin_lock_irq(&offload_ctx->lock);
-	list_add_tail(&record->list, &offload_ctx->records_list);
-	spin_unlock_irq(&offload_ctx->lock);
+	list_add_tail_rcu(&record->list, &offload_ctx->records_list);
 	offload_ctx->open_record = NULL;
 
 	if (test_bit(TLS_TX_SYNC_SCHED, &ctx->flags))
@@ -535,12 +533,16 @@ struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 		/* if retransmit_hint is irrelevant start
 		 * from the beggining of the list
 		 */
-		info = list_first_entry(&context->records_list,
-					struct tls_record_info, list);
+		info = list_first_entry_or_null(&context->records_list,
+						struct tls_record_info, list);
+		if (!info)
+			return NULL;
 		record_sn = context->unacked_record_sn;
 	}
 
-	list_for_each_entry_from(info, &context->records_list, list) {
+	/* We just need the _rcu for the READ_ONCE() */
+	rcu_read_lock();
+	list_for_each_entry_from_rcu(info, &context->records_list, list) {
 		if (before(seq, info->end_seq)) {
 			if (!context->retransmit_hint ||
 			    after(info->end_seq,
@@ -549,12 +551,15 @@ struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 				context->retransmit_hint = info;
 			}
 			*p_record_sn = record_sn;
-			return info;
+			goto exit_rcu_unlock;
 		}
 		record_sn++;
 	}
+	info = NULL;
 
-	return NULL;
+exit_rcu_unlock:
+	rcu_read_unlock();
+	return info;
 }
 EXPORT_SYMBOL(tls_get_record);
 
