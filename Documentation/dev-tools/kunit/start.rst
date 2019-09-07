@@ -43,7 +43,7 @@ wrapper from your kernel repo:
 
 .. code-block:: bash
 
-	./tools/testing/kunit/kunit.py
+	./tools/testing/kunit/kunit.py run
 
 .. note::
    You may want to run ``make mrproper`` first.
