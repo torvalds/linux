@@ -318,7 +318,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 		goto dcb_error;
 	}
 
-	ice_init_dcb(&pf->hw);
+	ice_init_dcb(&pf->hw, true);
 	if (pf->hw.port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
 		pf->hw.port_info->is_sw_lldp = true;
 	else
@@ -451,7 +451,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 	port_info = hw->port_info;
 
-	err = ice_init_dcb(hw);
+	err = ice_init_dcb(hw, false);
 	if (err && !port_info->is_sw_lldp) {
 		dev_err(&pf->pdev->dev, "Error initializing DCB %d\n", err);
 		goto dcb_init_err;
@@ -474,7 +474,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		}
 
 		pf->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
-		set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 		return 0;
 	}
 
@@ -482,8 +481,6 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 	/* DCBX in FW and LLDP enabled in FW */
 	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
-
-	set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 
 	err = ice_dcb_init_cfg(pf, locked);
 	if (err)
