@@ -189,6 +189,24 @@ struct mv88e6xxx_port_hwtstamp {
 	struct hwtstamp_config tstamp_config;
 };
 
+enum mv88e6xxx_policy_mapping {
+	MV88E6XXX_POLICY_MAPPING_DA,
+	MV88E6XXX_POLICY_MAPPING_SA,
+	MV88E6XXX_POLICY_MAPPING_VTU,
+	MV88E6XXX_POLICY_MAPPING_ETYPE,
+	MV88E6XXX_POLICY_MAPPING_PPPOE,
+	MV88E6XXX_POLICY_MAPPING_VBAS,
+	MV88E6XXX_POLICY_MAPPING_OPT82,
+	MV88E6XXX_POLICY_MAPPING_UDP,
+};
+
+enum mv88e6xxx_policy_action {
+	MV88E6XXX_POLICY_ACTION_NORMAL,
+	MV88E6XXX_POLICY_ACTION_MIRROR,
+	MV88E6XXX_POLICY_ACTION_TRAP,
+	MV88E6XXX_POLICY_ACTION_DISCARD,
+};
+
 struct mv88e6xxx_port {
 	struct mv88e6xxx_chip *chip;
 	int port;
@@ -380,6 +398,10 @@ struct mv88e6xxx_ops {
 	phy_interface_t (*port_max_speed_mode)(int port);
 
 	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
+
+	int (*port_set_policy)(struct mv88e6xxx_chip *chip, int port,
+			       enum mv88e6xxx_policy_mapping mapping,
+			       enum mv88e6xxx_policy_action action);
 
 	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_frame_mode mode);
