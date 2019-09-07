@@ -25,8 +25,7 @@ properties:
       - samsung,s5pv210-adc
 
   reg:
-    minItems: 1
-    maxItems: 2
+    maxItems: 1
 
   clocks:
     description:
@@ -55,7 +54,7 @@ properties:
     $ref: '/schemas/types.yaml#/definitions/phandle'
     description:
       Phandle to the PMU system controller node (to access the ADC_PHY
-      register on Exynos5250/5420/5800/3250).
+      register on Exynos3250/4x12/5250/5420/5800).
 
   has-touchscreen:
     description:
@@ -83,19 +82,8 @@ allOf:
               - samsung,exynos4212-adc
               - samsung,s5pv210-adc
     then:
-      properties:
-        reg:
-          items:
-            # For S5P and Exynos
-            - description: base registers
-            - description: phy registers
       required:
         - samsung,syscon-phandle
-    else:
-      properties:
-        reg:
-          items:
-            - description: base registers
 
   - if:
       properties:
