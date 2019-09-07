@@ -122,13 +122,10 @@ static struct net_device *get_netdev_for_sock(struct sock *sk)
 
 static void destroy_record(struct tls_record_info *record)
 {
-	int nr_frags = record->num_frags;
-	skb_frag_t *frag;
+	int i;
 
-	while (nr_frags-- > 0) {
-		frag = &record->frags[nr_frags];
-		__skb_frag_unref(frag);
-	}
+	for (i = 0; i < record->num_frags; i++)
+		__skb_frag_unref(&record->frags[i]);
 	kfree(record);
 }
 
@@ -259,33 +256,15 @@ static int tls_push_record(struct sock *sk,
 			   struct tls_context *ctx,
 			   struct tls_offload_context_tx *offload_ctx,
 			   struct tls_record_info *record,
-			   struct page_frag *pfrag,
-			   int flags,
-			   unsigned char record_type)
+			   int flags)
 {
 	struct tls_prot_info *prot = &ctx->prot_info;
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct page_frag dummy_tag_frag;
 	skb_frag_t *frag;
 	int i;
 
-	/* fill prepend */
-	frag = &record->frags[0];
-	tls_fill_prepend(ctx,
-			 skb_frag_address(frag),
-			 record->len - prot->prepend_size,
-			 record_type,
-			 prot->version);
-
-	/* HW doesn't care about the data in the tag, because it fills it. */
-	dummy_tag_frag.page = skb_frag_page(frag);
-	dummy_tag_frag.offset = 0;
-
-	tls_append_frag(record, &dummy_tag_frag, prot->tag_size);
 	record->end_seq = tp->write_seq + record->len;
-	spin_lock_irq(&offload_ctx->lock);
-	list_add_tail(&record->list, &offload_ctx->records_list);
-	spin_unlock_irq(&offload_ctx->lock);
+	list_add_tail_rcu(&record->list, &offload_ctx->records_list);
 	offload_ctx->open_record = NULL;
 
 	if (test_bit(TLS_TX_SYNC_SCHED, &ctx->flags))
@@ -305,6 +284,38 @@ static int tls_push_record(struct sock *sk,
 
 	/* all ready, send */
 	return tls_push_sg(sk, ctx, offload_ctx->sg_tx_data, 0, flags);
+}
+
+static int tls_device_record_close(struct sock *sk,
+				   struct tls_context *ctx,
+				   struct tls_record_info *record,
+				   struct page_frag *pfrag,
+				   unsigned char record_type)
+{
+	struct tls_prot_info *prot = &ctx->prot_info;
+	int ret;
+
+	/* append tag
+	 * device will fill in the tag, we just need to append a placeholder
+	 * use socket memory to improve coalescing (re-using a single buffer
+	 * increases frag count)
+	 * if we can't allocate memory now, steal some back from data
+	 */
+	if (likely(skb_page_frag_refill(prot->tag_size, pfrag,
+					sk->sk_allocation))) {
+		ret = 0;
+		tls_append_frag(record, pfrag, prot->tag_size);
+	} else {
+		ret = prot->tag_size;
+		if (record->len <= prot->overhead_size)
+			return -ENOMEM;
+	}
+
+	/* fill prepend */
+	tls_fill_prepend(ctx, skb_frag_address(&record->frags[0]),
+			 record->len - prot->overhead_size,
+			 record_type, prot->version);
+	return ret;
 }
 
 static int tls_create_new_record(struct tls_offload_context_tx *offload_ctx,
@@ -357,6 +368,31 @@ static int tls_do_allocation(struct sock *sk,
 
 	if (!sk_page_frag_refill(sk, pfrag))
 		return -ENOMEM;
+
+	return 0;
+}
+
+static int tls_device_copy_data(void *addr, size_t bytes, struct iov_iter *i)
+{
+	size_t pre_copy, nocache;
+
+	pre_copy = ~((unsigned long)addr - 1) & (SMP_CACHE_BYTES - 1);
+	if (pre_copy) {
+		pre_copy = min(pre_copy, bytes);
+		if (copy_from_iter(addr, pre_copy, i) != pre_copy)
+			return -EFAULT;
+		bytes -= pre_copy;
+		addr += pre_copy;
+	}
+
+	nocache = round_down(bytes, SMP_CACHE_BYTES);
+	if (copy_from_iter_nocache(addr, nocache, i) != nocache)
+		return -EFAULT;
+	bytes -= nocache;
+	addr += nocache;
+
+	if (bytes && copy_from_iter(addr, bytes, i) != bytes)
+		return -EFAULT;
 
 	return 0;
 }
@@ -434,12 +470,10 @@ handle_error:
 		copy = min_t(size_t, size, (pfrag->size - pfrag->offset));
 		copy = min_t(size_t, copy, (max_open_record_len - record->len));
 
-		if (copy_from_iter_nocache(page_address(pfrag->page) +
-					       pfrag->offset,
-					   copy, msg_iter) != copy) {
-			rc = -EFAULT;
+		rc = tls_device_copy_data(page_address(pfrag->page) +
+					  pfrag->offset, copy, msg_iter);
+		if (rc)
 			goto handle_error;
-		}
 		tls_append_frag(record, pfrag, copy);
 
 		size -= copy;
@@ -457,13 +491,24 @@ last_record:
 
 		if (done || record->len >= max_open_record_len ||
 		    (record->num_frags >= MAX_SKB_FRAGS - 1)) {
+			rc = tls_device_record_close(sk, tls_ctx, record,
+						     pfrag, record_type);
+			if (rc) {
+				if (rc > 0) {
+					size += rc;
+				} else {
+					size = orig_size;
+					destroy_record(record);
+					ctx->open_record = NULL;
+					break;
+				}
+			}
+
 			rc = tls_push_record(sk,
 					     tls_ctx,
 					     ctx,
 					     record,
-					     pfrag,
-					     tls_push_record_flags,
-					     record_type);
+					     tls_push_record_flags);
 			if (rc < 0)
 				break;
 		}
@@ -538,12 +583,16 @@ struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 		/* if retransmit_hint is irrelevant start
 		 * from the beggining of the list
 		 */
-		info = list_first_entry(&context->records_list,
-					struct tls_record_info, list);
+		info = list_first_entry_or_null(&context->records_list,
+						struct tls_record_info, list);
+		if (!info)
+			return NULL;
 		record_sn = context->unacked_record_sn;
 	}
 
-	list_for_each_entry_from(info, &context->records_list, list) {
+	/* We just need the _rcu for the READ_ONCE() */
+	rcu_read_lock();
+	list_for_each_entry_from_rcu(info, &context->records_list, list) {
 		if (before(seq, info->end_seq)) {
 			if (!context->retransmit_hint ||
 			    after(info->end_seq,
@@ -552,12 +601,15 @@ struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 				context->retransmit_hint = info;
 			}
 			*p_record_sn = record_sn;
-			return info;
+			goto exit_rcu_unlock;
 		}
 		record_sn++;
 	}
+	info = NULL;
 
-	return NULL;
+exit_rcu_unlock:
+	rcu_read_unlock();
+	return info;
 }
 EXPORT_SYMBOL(tls_get_record);
 
