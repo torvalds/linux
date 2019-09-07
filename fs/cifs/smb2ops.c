@@ -4017,8 +4017,58 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	return length;
 }
 
+struct smb2_decrypt_work {
+	struct work_struct decrypt;
+	struct TCP_Server_Info *server;
+	struct page **ppages;
+	char *buf;
+	unsigned int npages;
+	unsigned int len;
+};
+
+
+static void smb2_decrypt_offload(struct work_struct *work)
+{
+	struct smb2_decrypt_work *dw = container_of(work,
+				struct smb2_decrypt_work, decrypt);
+	int i, rc;
+	struct mid_q_entry *mid;
+
+	rc = decrypt_raw_data(dw->server, dw->buf, dw->server->vals->read_rsp_size,
+			      dw->ppages, dw->npages, dw->len);
+	if (rc) {
+		cifs_dbg(VFS, "error decrypting rc=%d\n", rc);
+		goto free_pages;
+	}
+
+	mid = smb2_find_mid(dw->server, dw->buf);
+	if (mid == NULL)
+		cifs_dbg(FYI, "mid not found\n");
+	else {
+		mid->decrypted = true;
+		rc = handle_read_data(dw->server, mid, dw->buf,
+				      dw->server->vals->read_rsp_size,
+				      dw->ppages, dw->npages, dw->len);
+	}
+
+	dw->server->lstrp = jiffies;
+
+	mid->callback(mid);
+
+	cifs_mid_q_entry_release(mid);
+
+free_pages:
+	for (i = dw->npages-1; i >= 0; i--)
+		put_page(dw->ppages[i]);
+
+	kfree(dw->ppages);
+	cifs_small_buf_release(dw->buf);
+}
+
+
 static int
-receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
+receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
+		       int *num_mids)
 {
 	char *buf = server->smallbuf;
 	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
@@ -4028,7 +4078,9 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	unsigned int buflen = server->pdu_size;
 	int rc;
 	int i = 0;
+	struct smb2_decrypt_work *dw;
 
+	*num_mids = 1;
 	len = min_t(unsigned int, buflen, server->vals->read_rsp_size +
 		sizeof(struct smb2_transform_hdr)) - HEADER_SIZE(server) + 1;
 
@@ -4064,6 +4116,32 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	if (rc)
 		goto free_pages;
 
+	/*
+	 * For large reads, offload to different thread for better performance,
+	 * use more cores decrypting which can be expensive
+	 */
+
+	/* TODO: make the size limit to enable decrypt offload configurable */
+	if (server->pdu_size > (512 * 1024)) {
+		dw = kmalloc(sizeof(struct smb2_decrypt_work), GFP_KERNEL);
+		if (dw == NULL)
+			goto non_offloaded_decrypt;
+
+		dw->buf = server->smallbuf;
+		server->smallbuf = (char *)cifs_small_buf_get();
+
+		INIT_WORK(&dw->decrypt, smb2_decrypt_offload);
+
+		dw->npages = npages;
+		dw->server = server;
+		dw->ppages = pages;
+		dw->len = len;
+		queue_work(cifsiod_wq, &dw->decrypt);
+		*num_mids = 0; /* worker thread takes care of finding mid */
+		return -1;
+	}
+
+non_offloaded_decrypt:
 	rc = decrypt_raw_data(server, buf, server->vals->read_rsp_size,
 			      pages, npages, len);
 	if (rc)
@@ -4210,8 +4288,7 @@ smb3_receive_transform(struct TCP_Server_Info *server,
 
 	/* TODO: add support for compounds containing READ. */
 	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server)) {
-		*num_mids = 1;
-		return receive_encrypted_read(server, &mids[0]);
+		return receive_encrypted_read(server, &mids[0], num_mids);
 	}
 
 	return receive_encrypted_standard(server, mids, bufs, num_mids);
