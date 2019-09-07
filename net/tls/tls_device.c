@@ -122,13 +122,10 @@ static struct net_device *get_netdev_for_sock(struct sock *sk)
 
 static void destroy_record(struct tls_record_info *record)
 {
-	int nr_frags = record->num_frags;
-	skb_frag_t *frag;
+	int i;
 
-	while (nr_frags-- > 0) {
-		frag = &record->frags[nr_frags];
-		__skb_frag_unref(frag);
-	}
+	for (i = 0; i < record->num_frags; i++)
+		__skb_frag_unref(&record->frags[i]);
 	kfree(record);
 }
 
