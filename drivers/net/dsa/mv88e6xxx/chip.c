@@ -1497,7 +1497,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		fid = vlan.fid;
 	}
 
-	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+	entry.state = 0;
 	ether_addr_copy(entry.mac, addr);
 	eth_addr_dec(entry.mac);
 
@@ -1506,17 +1506,16 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	/* Initialize a fresh ATU entry if it isn't found */
-	if (entry.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED ||
-	    !ether_addr_equal(entry.mac, addr)) {
+	if (!entry.state || !ether_addr_equal(entry.mac, addr)) {
 		memset(&entry, 0, sizeof(entry));
 		ether_addr_copy(entry.mac, addr);
 	}
 
 	/* Purge the ATU entry only if no port is using it anymore */
-	if (state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (!state) {
 		entry.portvec &= ~BIT(port);
 		if (!entry.portvec)
-			entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+			entry.state = 0;
 	} else {
 		entry.portvec |= BIT(port);
 		entry.state = state;
@@ -1732,8 +1731,7 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_db_load_purge(chip, port, addr, vid,
-					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
+	err = mv88e6xxx_port_db_load_purge(chip, port, addr, vid, 0);
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -1747,7 +1745,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 	bool is_static;
 	int err;
 
-	addr.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+	addr.state = 0;
 	eth_broadcast_addr(addr.mac);
 
 	do {
@@ -1755,7 +1753,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 		if (err)
 			return err;
 
-		if (addr.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED)
+		if (!addr.state)
 			break;
 
 		if (addr.trunk || (addr.portvec & BIT(port)) == 0)
@@ -4690,8 +4688,7 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
-					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
+	err = mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid, 0);
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
