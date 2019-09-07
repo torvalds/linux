@@ -764,6 +764,8 @@ out:
 			percpu_down_write(&c->mark_lock);
 			bch2_gc_free(c);
 			percpu_up_write(&c->mark_lock);
+			/* flush fsck errors, reset counters */
+			bch2_flush_fsck_errs(c);
 
 			goto again;
 		}

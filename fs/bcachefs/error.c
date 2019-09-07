@@ -4,6 +4,8 @@
 #include "io.h"
 #include "super.h"
 
+#define FSCK_ERR_RATELIMIT_NR	10
+
 bool bch2_inconsistent_error(struct bch_fs *c)
 {
 	set_bit(BCH_FS_ERROR, &c->flags);
@@ -97,8 +99,8 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 found:
 	list_move(&s->list, &c->fsck_errors);
 	s->nr++;
-	suppressing	= s->nr == 10;
-	print		= s->nr <= 10;
+	suppressing	= s->nr == FSCK_ERR_RATELIMIT_NR;
+	print		= s->nr <= FSCK_ERR_RATELIMIT_NR;
 	buf		= s->buf;
 print:
 	va_start(args, fmt);
@@ -152,10 +154,9 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	struct fsck_err_state *s, *n;
 
 	mutex_lock(&c->fsck_error_lock);
-	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 
 	list_for_each_entry_safe(s, n, &c->fsck_errors, list) {
-		if (s->nr > 10)
+		if (s->nr > FSCK_ERR_RATELIMIT_NR)
 			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->buf);
 
 		list_del(&s->list);
