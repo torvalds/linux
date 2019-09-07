@@ -372,6 +372,31 @@ static int tls_do_allocation(struct sock *sk,
 	return 0;
 }
 
+static int tls_device_copy_data(void *addr, size_t bytes, struct iov_iter *i)
+{
+	size_t pre_copy, nocache;
+
+	pre_copy = ~((unsigned long)addr - 1) & (SMP_CACHE_BYTES - 1);
+	if (pre_copy) {
+		pre_copy = min(pre_copy, bytes);
+		if (copy_from_iter(addr, pre_copy, i) != pre_copy)
+			return -EFAULT;
+		bytes -= pre_copy;
+		addr += pre_copy;
+	}
+
+	nocache = round_down(bytes, SMP_CACHE_BYTES);
+	if (copy_from_iter_nocache(addr, nocache, i) != nocache)
+		return -EFAULT;
+	bytes -= nocache;
+	addr += nocache;
+
+	if (bytes && copy_from_iter(addr, bytes, i) != bytes)
+		return -EFAULT;
+
+	return 0;
+}
+
 static int tls_push_data(struct sock *sk,
 			 struct iov_iter *msg_iter,
 			 size_t size, int flags,
@@ -445,12 +470,10 @@ handle_error:
 		copy = min_t(size_t, size, (pfrag->size - pfrag->offset));
 		copy = min_t(size_t, copy, (max_open_record_len - record->len));
 
-		if (copy_from_iter_nocache(page_address(pfrag->page) +
-					       pfrag->offset,
-					   copy, msg_iter) != copy) {
-			rc = -EFAULT;
+		rc = tls_device_copy_data(page_address(pfrag->page) +
+					  pfrag->offset, copy, msg_iter);
+		if (rc)
 			goto handle_error;
-		}
 		tls_append_frag(record, pfrag, copy);
 
 		size -= copy;
