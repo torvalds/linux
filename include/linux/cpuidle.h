@@ -121,6 +121,9 @@ struct cpuidle_driver {
 
 	/* the driver handles the cpus in cpumask */
 	struct cpumask		*cpumask;
+
+	/* preferred governor to switch at register time */
+	const char		*governor;
 };
 
 #ifdef CONFIG_CPU_IDLE
