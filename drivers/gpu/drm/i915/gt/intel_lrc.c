@@ -631,7 +631,6 @@ execlists_schedule_out(struct i915_request *rq)
 	struct intel_engine_cs *cur, *old;
 
 	trace_i915_request_out(rq);
-	GEM_BUG_ON(intel_context_inflight(ce) != rq->engine);
 
 	old = READ_ONCE(ce->inflight);
 	do
