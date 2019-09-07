@@ -1358,11 +1358,8 @@ static int trans_get_key(struct btree_trans *trans,
 	struct btree_insert_entry *i;
 	int ret;
 
-	for (i = trans->updates;
-	     i < trans->updates + trans->nr_updates;
-	     i++)
-		if (!i->deferred &&
-		    i->iter->btree_id == btree_id &&
+	trans_for_each_update_iter(trans, i)
+		if (i->iter->btree_id == btree_id &&
 		    (btree_node_type_is_extents(btree_id)
 		     ? bkey_cmp(pos, bkey_start_pos(&i->k->k)) >= 0 &&
 		       bkey_cmp(pos, i->k->k.p) < 0
@@ -1390,8 +1387,8 @@ static void *trans_update_key(struct btree_trans *trans,
 			      struct btree_iter *iter,
 			      unsigned u64s)
 {
+	struct btree_insert_entry *i;
 	struct bkey_i *new_k;
-	unsigned i;
 
 	new_k = bch2_trans_kmalloc(trans, u64s * sizeof(u64));
 	if (IS_ERR(new_k))
@@ -1400,19 +1397,13 @@ static void *trans_update_key(struct btree_trans *trans,
 	bkey_init(&new_k->k);
 	new_k->k.p = iter->pos;
 
-	for (i = 0; i < trans->nr_updates; i++)
-		if (!trans->updates[i].deferred &&
-		    trans->updates[i].iter == iter) {
-			trans->updates[i].k = new_k;
+	trans_for_each_update_iter(trans, i)
+		if (i->iter == iter) {
+			i->k = new_k;
 			return new_k;
 		}
 
-	bch2_trans_update(trans, ((struct btree_insert_entry) {
-		.iter = iter,
-		.k = new_k,
-		.triggered = true,
-	}));
-
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, new_k));
 	return new_k;
 }
 

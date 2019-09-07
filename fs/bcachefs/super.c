@@ -462,6 +462,7 @@ static void bch2_fs_free(struct bch_fs *c)
 	bch2_fs_ec_exit(c);
 	bch2_fs_encryption_exit(c);
 	bch2_fs_io_exit(c);
+	bch2_fs_btree_iter_exit(c);
 	bch2_fs_btree_cache_exit(c);
 	bch2_fs_journal_exit(&c->journal);
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
@@ -474,7 +475,6 @@ static void bch2_fs_free(struct bch_fs *c)
 	free_percpu(c->usage[0]);
 	kfree(c->usage_base);
 	free_percpu(c->pcpu);
-	mempool_exit(&c->btree_iters_pool);
 	mempool_exit(&c->btree_bounce_pool);
 	bioset_exit(&c->btree_bio);
 	mempool_exit(&c->btree_interior_update_pool);
@@ -729,15 +729,12 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    !(c->online_reserved = alloc_percpu(u64)) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
-	    mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
-			sizeof(struct btree_iter) * BTREE_ITER_MAX +
-			sizeof(struct btree_insert_entry) *
-			(BTREE_ITER_MAX + 4)) ||
 	    bch2_io_clock_init(&c->io_clock[READ]) ||
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ||
 	    bch2_fs_journal_init(&c->journal) ||
 	    bch2_fs_replicas_init(c) ||
 	    bch2_fs_btree_cache_init(c) ||
+	    bch2_fs_btree_iter_init(c) ||
 	    bch2_fs_io_init(c) ||
 	    bch2_fs_encryption_init(c) ||
 	    bch2_fs_compress_init(c) ||

@@ -1671,7 +1671,10 @@ int bch2_trans_iter_free_on_commit(struct btree_trans *trans,
 static int bch2_trans_realloc_iters(struct btree_trans *trans,
 				    unsigned new_size)
 {
-	void *new_iters, *new_updates;
+	void *new_iters, *new_updates, *new_sorted;
+	size_t iters_bytes;
+	size_t updates_bytes;
+	size_t sorted_bytes;
 
 	new_size = roundup_pow_of_two(new_size);
 
@@ -1684,9 +1687,13 @@ static int bch2_trans_realloc_iters(struct btree_trans *trans,
 
 	bch2_trans_unlock(trans);
 
-	new_iters = kmalloc(sizeof(struct btree_iter) * new_size +
-			    sizeof(struct btree_insert_entry) * (new_size + 4),
-			    GFP_NOFS);
+	iters_bytes	= sizeof(struct btree_iter) * new_size;
+	updates_bytes	= sizeof(struct btree_insert_entry) * (new_size + 4);
+	sorted_bytes	= sizeof(u8) * (new_size + 4);
+
+	new_iters = kmalloc(iters_bytes +
+			    updates_bytes +
+			    sorted_bytes, GFP_NOFS);
 	if (new_iters)
 		goto success;
 
@@ -1695,7 +1702,8 @@ static int bch2_trans_realloc_iters(struct btree_trans *trans,
 
 	trans->used_mempool = true;
 success:
-	new_updates = new_iters + sizeof(struct btree_iter) * new_size;
+	new_updates	= new_iters + iters_bytes;
+	new_sorted	= new_updates + updates_bytes;
 
 	memcpy(new_iters, trans->iters,
 	       sizeof(struct btree_iter) * trans->nr_iters);
@@ -1710,9 +1718,10 @@ success:
 	if (trans->iters != trans->iters_onstack)
 		kfree(trans->iters);
 
-	trans->iters	= new_iters;
-	trans->updates	= new_updates;
-	trans->size	= new_size;
+	trans->iters		= new_iters;
+	trans->updates		= new_updates;
+	trans->updates_sorted	= new_sorted;
+	trans->size		= new_size;
 
 	if (trans->iters_live) {
 		trace_trans_restart_iters_realloced(trans->ip, trans->size);
@@ -1958,6 +1967,7 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	trans->size		= ARRAY_SIZE(trans->iters_onstack);
 	trans->iters		= trans->iters_onstack;
 	trans->updates		= trans->updates_onstack;
+	trans->updates_sorted	= trans->updates_sorted_onstack;
 	trans->fs_usage_deltas	= NULL;
 
 	if (expected_nr_iters > trans->size)
@@ -1981,4 +1991,19 @@ int bch2_trans_exit(struct btree_trans *trans)
 	trans->iters	= (void *) 0x1;
 
 	return trans->error ? -EIO : 0;
+}
+
+void bch2_fs_btree_iter_exit(struct bch_fs *c)
+{
+	mempool_exit(&c->btree_iters_pool);
+}
+
+int bch2_fs_btree_iter_init(struct bch_fs *c)
+{
+	unsigned nr = BTREE_ITER_MAX;
+
+	return mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
+			sizeof(struct btree_iter) * nr +
+			sizeof(struct btree_insert_entry) * (nr + 4) +
+			sizeof(u8) * (nr + 4));
 }
