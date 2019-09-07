@@ -8,6 +8,7 @@
 #ifndef _MV88E6XXX_CHIP_H
 #define _MV88E6XXX_CHIP_H
 
+#include <linux/idr.h>
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
@@ -207,6 +208,15 @@ enum mv88e6xxx_policy_action {
 	MV88E6XXX_POLICY_ACTION_DISCARD,
 };
 
+struct mv88e6xxx_policy {
+	enum mv88e6xxx_policy_mapping mapping;
+	enum mv88e6xxx_policy_action action;
+	struct ethtool_rx_flow_spec fs;
+	u8 addr[ETH_ALEN];
+	int port;
+	u16 vid;
+};
+
 struct mv88e6xxx_port {
 	struct mv88e6xxx_chip *chip;
 	int port;
@@ -264,6 +274,9 @@ struct mv88e6xxx_chip {
 
 	/* List of mdio busses */
 	struct list_head mdios;
+
+	/* Policy Control List IDs and rules */
+	struct idr policies;
 
 	/* There can be two interrupt controllers, which are chained
 	 * off a GPIO as interrupt source
