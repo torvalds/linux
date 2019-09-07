@@ -99,7 +99,7 @@ static int __init haltpoll_init(void)
 	cpuidle_poll_state_init(drv);
 
 	if (!kvm_para_available())
-		return 0;
+		return -ENODEV;
 
 	ret = cpuidle_register_driver(drv);
 	if (ret < 0)
