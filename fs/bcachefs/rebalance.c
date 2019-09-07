@@ -42,9 +42,6 @@ void bch2_rebalance_add_key(struct bch_fs *c,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 
-	if (!bkey_extent_is_data(k.k))
-		return;
-
 	if (!io_opts->background_target &&
 	    !io_opts->background_compression)
 		return;
@@ -72,30 +69,26 @@ static enum data_cmd rebalance_pred(struct bch_fs *c, void *arg,
 				    struct bch_io_opts *io_opts,
 				    struct data_opts *data_opts)
 {
-	switch (k.k->type) {
-	case KEY_TYPE_extent: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	unsigned nr_replicas = 0;
 
-		/* Make sure we have room to add a new pointer: */
-		if (bkey_val_u64s(e.k) + BKEY_EXTENT_PTR_U64s_MAX >
-		    BKEY_EXTENT_VAL_U64s_MAX)
-			return DATA_SKIP;
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		nr_replicas += !p.ptr.cached;
 
-		extent_for_each_ptr_decode(e, p, entry)
-			if (rebalance_ptr_pred(c, p, io_opts))
-				goto found;
+		if (rebalance_ptr_pred(c, p, io_opts))
+			goto found;
+	}
 
-		return DATA_SKIP;
+	if (nr_replicas < io_opts->data_replicas)
+		goto found;
+
+	return DATA_SKIP;
 found:
-		data_opts->target		= io_opts->background_target;
-		data_opts->btree_insert_flags	= 0;
-		return DATA_ADD_REPLICAS;
-	}
-	default:
-		return DATA_SKIP;
-	}
+	data_opts->target		= io_opts->background_target;
+	data_opts->btree_insert_flags	= 0;
+	return DATA_ADD_REPLICAS;
 }
 
 struct rebalance_work {

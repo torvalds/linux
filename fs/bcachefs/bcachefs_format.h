@@ -661,7 +661,7 @@ struct bch_reservation {
 
 /* Maximum possible size of an entire extent value: */
 #define BKEY_EXTENT_VAL_U64s_MAX				\
-	(BKEY_EXTENT_PTR_U64s_MAX * (BCH_REPLICAS_MAX + 1))
+	(1 + BKEY_EXTENT_PTR_U64s_MAX * (BCH_REPLICAS_MAX + 1))
 
 #define BKEY_PADDED(key)	__BKEY_PADDED(key, BKEY_EXTENT_VAL_U64s_MAX)
 
