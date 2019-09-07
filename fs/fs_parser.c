@@ -189,9 +189,8 @@ int fs_parse(struct fs_context *fc,
 		goto maybe_okay;
 
 	case fs_param_is_enum:
-		for (e = desc->enums; e->name[0]; e++) {
-			if (e->opt == p->opt &&
-			    strcmp(e->name, param->string) == 0) {
+		for (e = p->data; e->name; e++) {
+			if (strcmp(e->name, param->string) == 0) {
 				result->uint_32 = e->value;
 				goto okay;
 			}
@@ -359,10 +358,8 @@ bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
 bool fs_validate_description(const struct fs_parameter_description *desc)
 {
 	const struct fs_parameter_spec *param, *p2;
-	const struct fs_parameter_enum *e;
 	const char *name = desc->name;
-	unsigned int nr_params = 0;
-	bool good = true, enums = false;
+	bool good = true;
 
 	pr_notice("*** VALIDATE %s ***\n", name);
 
@@ -383,7 +380,12 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 				       name, param->name, t);
 				good = false;
 			} else if (t == fs_param_is_enum) {
-				enums = true;
+				const struct fs_parameter_enum *e = param->data;
+				if (!e || !e->name) {
+					pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
+					       name, param->name);
+					good = false;
+				}
 			}
 
 			/* Check for duplicate parameter names */
@@ -395,63 +397,7 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 				}
 			}
 		}
-
-		nr_params = param - desc->specs;
 	}
-
-	if (desc->enums) {
-		if (!nr_params) {
-			pr_err("VALIDATE %s: Enum table but no parameters\n",
-			       name);
-			good = false;
-			goto no_enums;
-		}
-		if (!enums) {
-			pr_err("VALIDATE %s: Enum table but no enum-type values\n",
-			       name);
-			good = false;
-			goto no_enums;
-		}
-
-		for (e = desc->enums; e->name[0]; e++) {
-			/* Check that all entries in the enum table have at
-			 * least one parameter that uses them.
-			 */
-			for (param = desc->specs; param->name; param++) {
-				if (param->opt == e->opt &&
-				    param->type != fs_param_is_enum) {
-					pr_err("VALIDATE %s: e[%tu] enum val for %s\n",
-					       name, e - desc->enums, param->name);
-					good = false;
-				}
-			}
-		}
-
-		/* Check that all enum-type parameters have at least one enum
-		 * value in the enum table.
-		 */
-		for (param = desc->specs; param->name; param++) {
-			if (param->type != fs_param_is_enum)
-				continue;
-			for (e = desc->enums; e->name[0]; e++)
-				if (e->opt == param->opt)
-					break;
-			if (!e->name[0]) {
-				pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
-				       name, param->name);
-				good = false;
-			}
-		}
-	} else {
-		if (enums) {
-			pr_err("VALIDATE %s: enum-type values, but no enum table\n",
-			       name);
-			good = false;
-			goto no_enums;
-		}
-	}
-
-no_enums:
 	return good;
 }
 #endif /* CONFIG_VALIDATE_FS_PARSER */

@@ -83,6 +83,34 @@ enum nfs_param {
 	Opt_wsize,
 };
 
+enum {
+	Opt_local_lock_all,
+	Opt_local_lock_flock,
+	Opt_local_lock_none,
+	Opt_local_lock_posix,
+};
+
+static const struct fs_parameter_enum nfs_param_enums_local_lock[] = {
+	{ "all",		Opt_local_lock_all },
+	{ "flock",	Opt_local_lock_flock },
+	{ "none",		Opt_local_lock_none },
+	{}
+};
+
+enum {
+	Opt_lookupcache_all,
+	Opt_lookupcache_none,
+	Opt_lookupcache_positive,
+};
+
+static const struct fs_parameter_enum nfs_param_enums_lookupcache[] = {
+	{ "all",		Opt_lookupcache_all },
+	{ "none",		Opt_lookupcache_none },
+	{ "pos",		Opt_lookupcache_positive },
+	{ "positive",		Opt_lookupcache_positive },
+	{}
+};
+
 static const struct fs_parameter_spec nfs_param_specs[] = {
 	fsparam_flag_no("ac",		Opt_ac),
 	fsparam_u32   ("acdirmax",	Opt_acdirmax),
@@ -98,13 +126,13 @@ static const struct fs_parameter_spec nfs_param_specs[] = {
 	fsparam_flag_no("cto",		Opt_cto),
 	fsparam_flag  ("fg",		Opt_fg),
 	__fsparam(fs_param_is_string, "fsc",		Opt_fscache,
-		  fs_param_neg_with_no|fs_param_v_optional),
+		  fs_param_neg_with_no|fs_param_v_optional, NULL),
 	fsparam_flag  ("hard",		Opt_hard),
 	__fsparam(fs_param_is_flag, "intr",		Opt_intr,
-		  fs_param_neg_with_no|fs_param_deprecated),
-	fsparam_enum  ("local_lock",	Opt_local_lock),
+		  fs_param_neg_with_no|fs_param_deprecated, NULL),
+	fsparam_enum  ("local_lock",	Opt_local_lock, nfs_param_enums_local_lock),
 	fsparam_flag_no("lock",		Opt_lock),
-	fsparam_enum  ("lookupcache",	Opt_lookupcache),
+	fsparam_enum  ("lookupcache",	Opt_lookupcache, nfs_param_enums_lookupcache),
 	fsparam_flag_no("migration",	Opt_migration),
 	fsparam_u32   ("minorversion",	Opt_minorversion),
 	fsparam_string("mountaddr",	Opt_mountaddr),
@@ -145,35 +173,9 @@ static const struct fs_parameter_spec nfs_param_specs[] = {
 	{}
 };
 
-enum {
-	Opt_local_lock_all,
-	Opt_local_lock_flock,
-	Opt_local_lock_none,
-	Opt_local_lock_posix,
-};
-
-enum {
-	Opt_lookupcache_all,
-	Opt_lookupcache_none,
-	Opt_lookupcache_positive,
-};
-
-static const struct fs_parameter_enum nfs_param_enums[] = {
-	{ Opt_local_lock,	"all",		Opt_local_lock_all },
-	{ Opt_local_lock,	"flock",	Opt_local_lock_flock },
-	{ Opt_local_lock,	"none",		Opt_local_lock_none },
-	{ Opt_local_lock,	"posix",	Opt_local_lock_posix },
-	{ Opt_lookupcache,	"all",		Opt_lookupcache_all },
-	{ Opt_lookupcache,	"none",		Opt_lookupcache_none },
-	{ Opt_lookupcache,	"pos",		Opt_lookupcache_positive },
-	{ Opt_lookupcache,	"positive",	Opt_lookupcache_positive },
-	{}
-};
-
 static const struct fs_parameter_description nfs_fs_parameters = {
 	.name		= "nfs",
 	.specs		= nfs_param_specs,
-	.enums		= nfs_param_enums,
 };
 
 enum {

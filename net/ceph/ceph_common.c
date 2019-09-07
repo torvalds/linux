@@ -283,7 +283,7 @@ static const struct fs_parameter_spec ceph_param_specs[] = {
 	fsparam_u32	("osd_request_timeout",		Opt_osd_request_timeout),
 	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
 	__fsparam	(fs_param_is_s32, "osdtimeout", Opt_osdtimeout,
-			 fs_param_deprecated),
+			 fs_param_deprecated, NULL),
 	fsparam_string	("secret",			Opt_secret),
 	fsparam_flag_no ("share",			Opt_share),
 	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),

@@ -53,18 +53,17 @@ struct fs_parameter_spec {
 #define fs_param_neg_with_no	0x0002	/* "noxxx" is negative param */
 #define fs_param_neg_with_empty	0x0004	/* "xxx=" is negative param */
 #define fs_param_deprecated	0x0008	/* The param is deprecated */
+	const void		*data;
 };
 
 struct fs_parameter_enum {
-	u8		opt;		/* Option number (as fs_parameter_spec::opt) */
-	char		name[14];
+	const char	*name;
 	u8		value;
 };
 
 struct fs_parameter_description {
 	const char	name[16];		/* Name for logging purposes */
 	const struct fs_parameter_spec *specs;	/* List of param specifications */
-	const struct fs_parameter_enum *enums;	/* Enum values */
 };
 
 /*
@@ -114,33 +113,34 @@ static inline bool fs_validate_description(const struct fs_parameter_description
  * work, but any such case is probably a sign that new helper is needed.
  * Helpers will remain stable; low-level implementation may change.
  */
-#define __fsparam(TYPE, NAME, OPT, FLAGS) \
+#define __fsparam(TYPE, NAME, OPT, FLAGS, DATA) \
 	{ \
 		.name = NAME, \
 		.opt = OPT, \
 		.type = TYPE, \
-		.flags = FLAGS \
+		.flags = FLAGS, \
+		.data = DATA \
 	}
 
-#define fsparam_flag(NAME, OPT)	__fsparam(fs_param_is_flag, NAME, OPT, 0)
+#define fsparam_flag(NAME, OPT)	__fsparam(fs_param_is_flag, NAME, OPT, 0, NULL)
 #define fsparam_flag_no(NAME, OPT) \
 				__fsparam(fs_param_is_flag, NAME, OPT, \
-					    fs_param_neg_with_no)
-#define fsparam_bool(NAME, OPT)	__fsparam(fs_param_is_bool, NAME, OPT, 0)
-#define fsparam_u32(NAME, OPT)	__fsparam(fs_param_is_u32, NAME, OPT, 0)
+					    fs_param_neg_with_no, NULL)
+#define fsparam_bool(NAME, OPT)	__fsparam(fs_param_is_bool, NAME, OPT, 0, NULL)
+#define fsparam_u32(NAME, OPT)	__fsparam(fs_param_is_u32, NAME, OPT, 0, NULL)
 #define fsparam_u32oct(NAME, OPT) \
-				__fsparam(fs_param_is_u32_octal, NAME, OPT, 0)
+				__fsparam(fs_param_is_u32_octal, NAME, OPT, 0, NULL)
 #define fsparam_u32hex(NAME, OPT) \
-				__fsparam(fs_param_is_u32_hex, NAME, OPT, 0)
-#define fsparam_s32(NAME, OPT)	__fsparam(fs_param_is_s32, NAME, OPT, 0)
-#define fsparam_u64(NAME, OPT)	__fsparam(fs_param_is_u64, NAME, OPT, 0)
-#define fsparam_enum(NAME, OPT)	__fsparam(fs_param_is_enum, NAME, OPT, 0)
+				__fsparam(fs_param_is_u32_hex, NAME, OPT, 0, NULL)
+#define fsparam_s32(NAME, OPT)	__fsparam(fs_param_is_s32, NAME, OPT, 0, NULL)
+#define fsparam_u64(NAME, OPT)	__fsparam(fs_param_is_u64, NAME, OPT, 0, NULL)
+#define fsparam_enum(NAME, OPT, array)	__fsparam(fs_param_is_enum, NAME, OPT, 0, array)
 #define fsparam_string(NAME, OPT) \
-				__fsparam(fs_param_is_string, NAME, OPT, 0)
-#define fsparam_blob(NAME, OPT)	__fsparam(fs_param_is_blob, NAME, OPT, 0)
-#define fsparam_bdev(NAME, OPT)	__fsparam(fs_param_is_blockdev, NAME, OPT, 0)
-#define fsparam_path(NAME, OPT)	__fsparam(fs_param_is_path, NAME, OPT, 0)
-#define fsparam_fd(NAME, OPT)	__fsparam(fs_param_is_fd, NAME, OPT, 0)
+				__fsparam(fs_param_is_string, NAME, OPT, 0, NULL)
+#define fsparam_blob(NAME, OPT)	__fsparam(fs_param_is_blob, NAME, OPT, 0, NULL)
+#define fsparam_bdev(NAME, OPT)	__fsparam(fs_param_is_blockdev, NAME, OPT, 0, NULL)
+#define fsparam_path(NAME, OPT)	__fsparam(fs_param_is_path, NAME, OPT, 0, NULL)
+#define fsparam_fd(NAME, OPT)	__fsparam(fs_param_is_fd, NAME, OPT, 0, NULL)
 
 
 #endif /* _LINUX_FS_PARSER_H */

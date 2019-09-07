@@ -73,26 +73,25 @@ enum afs_param {
 	Opt_source,
 };
 
-static const struct fs_parameter_spec afs_param_specs[] = {
-	fsparam_flag  ("autocell",	Opt_autocell),
-	fsparam_flag  ("dyn",		Opt_dyn),
-	fsparam_enum  ("flock",		Opt_flock),
-	fsparam_string("source",	Opt_source),
+static const struct fs_parameter_enum afs_param_flock[] = {
+	{"local",	afs_flock_mode_local },
+	{"openafs",	afs_flock_mode_openafs },
+	{"strict",	afs_flock_mode_strict },
+	{"write",	afs_flock_mode_write },
 	{}
 };
 
-static const struct fs_parameter_enum afs_param_enums[] = {
-	{ Opt_flock,	"local",	afs_flock_mode_local },
-	{ Opt_flock,	"openafs",	afs_flock_mode_openafs },
-	{ Opt_flock,	"strict",	afs_flock_mode_strict },
-	{ Opt_flock,	"write",	afs_flock_mode_write },
+static const struct fs_parameter_spec afs_param_specs[] = {
+	fsparam_flag  ("autocell",	Opt_autocell),
+	fsparam_flag  ("dyn",		Opt_dyn),
+	fsparam_enum  ("flock",		Opt_flock, afs_param_flock),
+	fsparam_string("source",	Opt_source),
 	{}
 };
 
 static const struct fs_parameter_description afs_fs_parameters = {
 	.name		= "kAFS",
 	.specs		= afs_param_specs,
-	.enums		= afs_param_enums,
 };
 
 /*

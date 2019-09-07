@@ -1271,6 +1271,13 @@ enum opt_quota {
 	Opt_quota_on,
 };
 
+static const struct fs_parameter_enum gfs2_param_quota[] = {
+	{"off",        Opt_quota_off },
+	{"account",    Opt_quota_account },
+	{"on",         Opt_quota_on },
+	{}
+};
+
 static const unsigned int opt_quota_values[] = {
 	[Opt_quota_off]     = GFS2_QUOTA_OFF,
 	[Opt_quota_account] = GFS2_QUOTA_ACCOUNT,
@@ -1282,9 +1289,21 @@ enum opt_data {
 	Opt_data_ordered   = GFS2_DATA_ORDERED,
 };
 
+static const struct fs_parameter_enum gfs2_param_data[] = {
+	{"writeback",  Opt_data_writeback },
+	{"ordered",    Opt_data_ordered },
+	{}
+};
+
 enum opt_errors {
 	Opt_errors_withdraw = GFS2_ERRORS_WITHDRAW,
 	Opt_errors_panic    = GFS2_ERRORS_PANIC,
+};
+
+static const struct fs_parameter_enum gfs2_param_errors[] = {
+	{"withdraw",   Opt_errors_withdraw },
+	{"panic",      Opt_errors_panic },
+	{}
 };
 
 static const struct fs_parameter_spec gfs2_param_specs[] = {
@@ -1300,11 +1319,11 @@ static const struct fs_parameter_spec gfs2_param_specs[] = {
 	fsparam_flag   ("upgrade",            Opt_upgrade),
 	fsparam_flag_no("acl",                Opt_acl),
 	fsparam_flag_no("suiddir",            Opt_suiddir),
-	fsparam_enum   ("data",               Opt_data),
+	fsparam_enum   ("data",               Opt_data, gfs2_param_data),
 	fsparam_flag   ("meta",               Opt_meta),
 	fsparam_flag_no("discard",            Opt_discard),
 	fsparam_s32    ("commit",             Opt_commit),
-	fsparam_enum   ("errors",             Opt_errors),
+	fsparam_enum   ("errors",             Opt_errors, gfs2_param_errors),
 	fsparam_s32    ("statfs_quantum",     Opt_statfs_quantum),
 	fsparam_s32    ("statfs_percent",     Opt_statfs_percent),
 	fsparam_s32    ("quota_quantum",      Opt_quota_quantum),
@@ -1312,25 +1331,14 @@ static const struct fs_parameter_spec gfs2_param_specs[] = {
 	fsparam_flag_no("rgrplvb",            Opt_rgrplvb),
 	fsparam_flag_no("loccookie",          Opt_loccookie),
 	/* quota can be a flag or an enum so it gets special treatment */
-	__fsparam(fs_param_is_enum, "quota", Opt_quota, fs_param_neg_with_no|fs_param_v_optional),
-	{}
-};
-
-static const struct fs_parameter_enum gfs2_param_enums[] = {
-	{ Opt_quota,    "off",        Opt_quota_off },
-	{ Opt_quota,    "account",    Opt_quota_account },
-	{ Opt_quota,    "on",         Opt_quota_on },
-	{ Opt_data,     "writeback",  Opt_data_writeback },
-	{ Opt_data,     "ordered",    Opt_data_ordered },
-	{ Opt_errors,   "withdraw",   Opt_errors_withdraw },
-	{ Opt_errors,   "panic",      Opt_errors_panic },
+	__fsparam(fs_param_is_enum, "quota", Opt_quota,
+		fs_param_neg_with_no|fs_param_v_optional, gfs2_param_quota),
 	{}
 };
 
 static const struct fs_parameter_description gfs2_fs_parameters = {
 	.name = "gfs2",
 	.specs = gfs2_param_specs,
-	.enums = gfs2_param_enums,
 };
 
 /* Parse a single mount parameter */

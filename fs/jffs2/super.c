@@ -167,27 +167,26 @@ enum {
 	Opt_rp_size,
 };
 
-static const struct fs_parameter_spec jffs2_param_specs[] = {
-	fsparam_enum	("compr",	Opt_override_compr),
-	fsparam_u32	("rp_size",	Opt_rp_size),
+static const struct fs_parameter_enum jffs2_param_compr[] = {
+	{"none",	JFFS2_COMPR_MODE_NONE },
+#ifdef CONFIG_JFFS2_LZO
+	{"lzo",		JFFS2_COMPR_MODE_FORCELZO },
+#endif
+#ifdef CONFIG_JFFS2_ZLIB
+	{"zlib",	JFFS2_COMPR_MODE_FORCEZLIB },
+#endif
 	{}
 };
 
-static const struct fs_parameter_enum jffs2_param_enums[] = {
-	{ Opt_override_compr,	"none",	JFFS2_COMPR_MODE_NONE },
-#ifdef CONFIG_JFFS2_LZO
-	{ Opt_override_compr,	"lzo",	JFFS2_COMPR_MODE_FORCELZO },
-#endif
-#ifdef CONFIG_JFFS2_ZLIB
-	{ Opt_override_compr,	"zlib",	JFFS2_COMPR_MODE_FORCEZLIB },
-#endif
+static const struct fs_parameter_spec jffs2_param_specs[] = {
+	fsparam_enum	("compr",	Opt_override_compr, jffs2_param_compr),
+	fsparam_u32	("rp_size",	Opt_rp_size),
 	{}
 };
 
 const struct fs_parameter_description jffs2_fs_parameters = {
 	.name		= "jffs2",
 	.specs		= jffs2_param_specs,
-	.enums		= jffs2_param_enums,
 };
 
 static int jffs2_parse_param(struct fs_context *fc, struct fs_parameter *param)

@@ -163,9 +163,9 @@ enum ceph_recover_session_mode {
 	ceph_recover_session_clean
 };
 
-static const struct fs_parameter_enum ceph_mount_param_enums[] = {
-	{ Opt_recover_session,	"no",		ceph_recover_session_no },
-	{ Opt_recover_session,	"clean",	ceph_recover_session_clean },
+static const struct fs_parameter_enum ceph_param_recover[] = {
+	{ "no",		ceph_recover_session_no },
+	{ "clean",	ceph_recover_session_clean },
 	{}
 };
 
@@ -180,7 +180,7 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_flag_no ("dcache",			Opt_dcache),
 	fsparam_flag_no ("dirstat",			Opt_dirstat),
 	__fsparam	(fs_param_is_string, "fsc",	Opt_fscache,
-			 fs_param_neg_with_no | fs_param_v_optional),
+			 fs_param_neg_with_no | fs_param_v_optional, NULL),
 	fsparam_flag_no ("ino32",			Opt_ino32),
 	fsparam_string	("mds_namespace",		Opt_mds_namespace),
 	fsparam_flag_no ("poolperm",			Opt_poolperm),
@@ -189,7 +189,7 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_flag_no ("rbytes",			Opt_rbytes),
 	fsparam_u32	("readdir_max_bytes",		Opt_readdir_max_bytes),
 	fsparam_u32	("readdir_max_entries",		Opt_readdir_max_entries),
-	fsparam_enum	("recover_session",		Opt_recover_session),
+	fsparam_enum	("recover_session",		Opt_recover_session, ceph_param_recover),
 	fsparam_flag_no ("require_active_mds",		Opt_require_active_mds),
 	fsparam_u32	("rsize",			Opt_rsize),
 	fsparam_string	("snapdirname",			Opt_snapdirname),
@@ -201,7 +201,6 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 static const struct fs_parameter_description ceph_mount_parameters = {
 	.name           = "ceph",
 	.specs          = ceph_mount_param_specs,
-	.enums		= ceph_mount_param_enums,
 };
 
 struct ceph_parse_opts_ctx {
