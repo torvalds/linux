@@ -281,8 +281,7 @@ retry:
 		if (ret)
 			goto err;
 
-		ret = bch2_extent_atomic_end(&trans, split_iter,
-					     k, &atomic_end);
+		ret = bch2_extent_atomic_end(split_iter, k, &atomic_end);
 		if (ret)
 			goto err;
 

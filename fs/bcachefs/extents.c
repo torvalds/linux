@@ -993,11 +993,11 @@ static int __bch2_extent_atomic_end(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_extent_atomic_end(struct btree_trans *trans,
-			   struct btree_iter *iter,
+int bch2_extent_atomic_end(struct btree_iter *iter,
 			   struct bkey_i *insert,
 			   struct bpos *end)
 {
+	struct btree_trans *trans = iter->trans;
 	struct btree *b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
 	struct bkey_packed	*_k;
@@ -1049,7 +1049,7 @@ int bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
 	struct bpos end;
 	int ret;
 
-	ret = bch2_extent_atomic_end(iter->trans, iter, k, &end);
+	ret = bch2_extent_atomic_end(iter, k, &end);
 	if (ret)
 		return ret;
 
@@ -1062,7 +1062,7 @@ int bch2_extent_is_atomic(struct bkey_i *k, struct btree_iter *iter)
 	struct bpos end;
 	int ret;
 
-	ret = bch2_extent_atomic_end(iter->trans, iter, k, &end);
+	ret = bch2_extent_atomic_end(iter, k, &end);
 	if (ret)
 		return ret;
 
