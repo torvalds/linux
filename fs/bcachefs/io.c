@@ -1218,10 +1218,15 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 	return rbio;
 }
 
+/*
+ * Only called on a top level bch_read_bio to complete an entire read request,
+ * not a split:
+ */
 static void bch2_rbio_done(struct bch_read_bio *rbio)
 {
-	bch2_time_stats_update(&rbio->c->times[BCH_TIME_data_read],
-			       rbio->start_time);
+	if (rbio->start_time)
+		bch2_time_stats_update(&rbio->c->times[BCH_TIME_data_read],
+				       rbio->start_time);
 	bio_endio(&rbio->bio);
 }
 

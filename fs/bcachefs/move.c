@@ -436,7 +436,8 @@ static int bch2_move_extent(struct bch_fs *c,
 				 GFP_KERNEL))
 		goto err_free;
 
-	io->rbio.opts = io_opts;
+	io->rbio.c		= c;
+	io->rbio.opts		= io_opts;
 	bio_init(&io->rbio.bio, NULL, io->bi_inline_vecs, pages, 0);
 	io->rbio.bio.bi_vcnt = pages;
 	bio_set_prio(&io->rbio.bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
