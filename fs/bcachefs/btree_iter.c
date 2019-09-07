@@ -526,6 +526,10 @@ static void __bch2_btree_node_iter_fix(struct btree_iter *iter,
 	unsigned offset = __btree_node_key_to_offset(b, where);
 	int shift = new_u64s - clobber_u64s;
 	unsigned old_end = t->end_offset - shift;
+	unsigned orig_iter_pos = node_iter->data[0].k;
+	bool iter_current_key_modified =
+		orig_iter_pos >= offset &&
+		orig_iter_pos <= offset + clobber_u64s;
 
 	btree_node_iter_for_each(node_iter, set)
 		if (set->end == old_end)
@@ -534,24 +538,18 @@ static void __bch2_btree_node_iter_fix(struct btree_iter *iter,
 	/* didn't find the bset in the iterator - might have to readd it: */
 	if (new_u64s &&
 	    btree_iter_pos_cmp(iter, b, where) > 0) {
-		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
-
 		bch2_btree_node_iter_push(node_iter, b, where, end);
-
-		if (!b->c.level &&
-		    node_iter == &iter->l[0].iter)
-			bkey_disassemble(b,
-				bch2_btree_node_iter_peek_all(node_iter, b),
-				&iter->k);
+		goto fixup_done;
+	} else {
+		/* Iterator is after key that changed */
+		goto out_verify;
 	}
-
-	goto iter_current_key_not_modified;
 found:
 	set->end = t->end_offset;
 
 	/* Iterator hasn't gotten to the key that changed yet: */
 	if (set->k < offset)
-		return;
+		goto out_verify;
 
 	if (new_u64s &&
 	    btree_iter_pos_cmp(iter, b, where) > 0) {
@@ -561,40 +559,25 @@ found:
 		if (set->k == set->end)
 			bch2_btree_node_iter_set_drop(node_iter, set);
 	} else {
+		/* Iterator is after key that changed */
 		set->k = (int) set->k + shift;
-		goto iter_current_key_not_modified;
+		goto out_verify;
 	}
-
-	btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 
 	bch2_btree_node_iter_sort(node_iter, b);
-	if (!b->c.level && node_iter == &iter->l[0].iter) {
-		/*
-		 * not legal to call bkey_debugcheck() here, because we're
-		 * called midway through the update path after update has been
-		 * marked but before deletes have actually happened:
-		 */
-#if 0
-		__btree_iter_peek_all(iter, &iter->l[0], &iter->k);
-#endif
-		struct btree_iter_level *l = &iter->l[0];
-		struct bkey_packed *k =
-			bch2_btree_node_iter_peek_all(&l->iter, l->b);
+fixup_done:
+	if (node_iter->data[0].k != orig_iter_pos)
+		iter_current_key_modified = true;
 
-		if (unlikely(!k))
-			iter->k.type = KEY_TYPE_deleted;
-		else
-			bkey_disassemble(l->b, k, &iter->k);
-	}
-iter_current_key_not_modified:
 	/*
 	 * When a new key is added, and the node iterator now points to that
 	 * key, the iterator might have skipped past deleted keys that should
 	 * come after the key the iterator now points to. We have to rewind to
-	 * before those deleted keys - otherwise bch2_btree_node_iter_prev_all()
-	 * breaks:
+	 * before those deleted keys - otherwise
+	 * bch2_btree_node_iter_prev_all() breaks:
 	 */
 	if (!bch2_btree_node_iter_end(node_iter) &&
+	    iter_current_key_modified &&
 	    (b->c.level ||
 	     (iter->flags & BTREE_ITER_IS_EXTENTS))) {
 		struct bset_tree *t;
@@ -622,6 +605,22 @@ iter_current_key_not_modified:
 		}
 	}
 
+	if (!b->c.level &&
+	    node_iter == &iter->l[0].iter &&
+	    iter_current_key_modified) {
+		struct bkey_packed *k =
+			bch2_btree_node_iter_peek_all(node_iter, b);
+
+		if (likely(k)) {
+			bkey_disassemble(b, k, &iter->k);
+		} else {
+			/* XXX: for extents, calculate size of hole? */
+			iter->k.type = KEY_TYPE_deleted;
+		}
+
+		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
+	}
+out_verify:
 	bch2_btree_node_iter_verify(node_iter, b);
 }
 
