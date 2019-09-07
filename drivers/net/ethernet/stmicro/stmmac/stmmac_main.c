@@ -831,15 +831,22 @@ static void stmmac_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
 	} else if (priv->plat->has_xgmac) {
-		phylink_set(mac_supported, 2500baseT_Full);
-		phylink_set(mac_supported, 5000baseT_Full);
-		phylink_set(mac_supported, 10000baseSR_Full);
-		phylink_set(mac_supported, 10000baseLR_Full);
-		phylink_set(mac_supported, 10000baseER_Full);
-		phylink_set(mac_supported, 10000baseLRM_Full);
-		phylink_set(mac_supported, 10000baseT_Full);
-		phylink_set(mac_supported, 10000baseKX4_Full);
-		phylink_set(mac_supported, 10000baseKR_Full);
+		if (!max_speed || (max_speed >= 2500)) {
+			phylink_set(mac_supported, 2500baseT_Full);
+			phylink_set(mac_supported, 2500baseX_Full);
+		}
+		if (!max_speed || (max_speed >= 5000)) {
+			phylink_set(mac_supported, 5000baseT_Full);
+		}
+		if (!max_speed || (max_speed >= 10000)) {
+			phylink_set(mac_supported, 10000baseSR_Full);
+			phylink_set(mac_supported, 10000baseLR_Full);
+			phylink_set(mac_supported, 10000baseER_Full);
+			phylink_set(mac_supported, 10000baseLRM_Full);
+			phylink_set(mac_supported, 10000baseT_Full);
+			phylink_set(mac_supported, 10000baseKX4_Full);
+			phylink_set(mac_supported, 10000baseKR_Full);
+		}
 	}
 
 	/* Half-Duplex can only work with single queue */

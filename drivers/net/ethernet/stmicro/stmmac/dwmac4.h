@@ -352,7 +352,8 @@ enum power_event {
 
 /* Default operating mode of the MAC */
 #define GMAC_CORE_INIT (GMAC_CONFIG_JD | GMAC_CONFIG_PS | \
-			GMAC_CONFIG_BE | GMAC_CONFIG_DCRS)
+			GMAC_CONFIG_BE | GMAC_CONFIG_DCRS | \
+			GMAC_CONFIG_JE)
 
 /* To dump the core regs excluding  the Address Registers */
 #define	GMAC_REG_NUM	132

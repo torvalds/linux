@@ -722,8 +722,14 @@ static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 
 	for (i = 0; i < rx_cnt; i++) {
 		struct stmmac_channel *ch = &priv->channel[i];
+		u32 tail;
 
+		tail = priv->rx_queue[i].dma_rx_phy +
+			(DMA_RX_SIZE * sizeof(struct dma_desc));
+
+		stmmac_set_rx_tail_ptr(priv, priv->ioaddr, tail, i);
 		stmmac_start_rx(priv, priv->ioaddr, i);
+
 		local_bh_disable();
 		napi_reschedule(&ch->rx_napi);
 		local_bh_enable();
@@ -1057,6 +1063,9 @@ static int stmmac_test_desc_sai(struct stmmac_priv *priv)
 	struct stmmac_packet_attrs attr = { };
 	int ret;
 
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
+
 	attr.remove_sa = true;
 	attr.sarc = true;
 	attr.src = src;
@@ -1076,6 +1085,9 @@ static int stmmac_test_desc_sar(struct stmmac_priv *priv)
 	struct stmmac_packet_attrs attr = { };
 	int ret;
 
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
+
 	attr.sarc = true;
 	attr.src = src;
 	attr.dst = priv->dev->dev_addr;
@@ -1093,6 +1105,9 @@ static int stmmac_test_reg_sai(struct stmmac_priv *priv)
 	unsigned char src[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	struct stmmac_packet_attrs attr = { };
 	int ret;
+
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
 
 	attr.remove_sa = true;
 	attr.sarc = true;
@@ -1113,6 +1128,9 @@ static int stmmac_test_reg_sar(struct stmmac_priv *priv)
 	unsigned char src[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	struct stmmac_packet_attrs attr = { };
 	int ret;
+
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
 
 	attr.sarc = true;
 	attr.src = src;
@@ -1585,6 +1603,44 @@ static int stmmac_test_mjumbo(struct stmmac_priv *priv)
 	return 0;
 }
 
+static int stmmac_test_sph(struct stmmac_priv *priv)
+{
+	unsigned long cnt_end, cnt_start = priv->xstats.rx_split_hdr_pkt_n;
+	struct stmmac_packet_attrs attr = { };
+	int ret;
+
+	if (!priv->sph)
+		return -EOPNOTSUPP;
+
+	/* Check for UDP first */
+	attr.dst = priv->dev->dev_addr;
+	attr.tcp = false;
+
+	ret = __stmmac_test_loopback(priv, &attr);
+	if (ret)
+		return ret;
+
+	cnt_end = priv->xstats.rx_split_hdr_pkt_n;
+	if (cnt_end <= cnt_start)
+		return -EINVAL;
+
+	/* Check for TCP now */
+	cnt_start = cnt_end;
+
+	attr.dst = priv->dev->dev_addr;
+	attr.tcp = true;
+
+	ret = __stmmac_test_loopback(priv, &attr);
+	if (ret)
+		return ret;
+
+	cnt_end = priv->xstats.rx_split_hdr_pkt_n;
+	if (cnt_end <= cnt_start)
+		return -EINVAL;
+
+	return 0;
+}
+
 #define STMMAC_LOOPBACK_NONE	0
 #define STMMAC_LOOPBACK_MAC	1
 #define STMMAC_LOOPBACK_PHY	2
@@ -1706,6 +1762,10 @@ static const struct stmmac_test {
 		.name = "Multichannel Jumbo  ",
 		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_mjumbo,
+	}, {
+		.name = "Split Header        ",
+		.lb = STMMAC_LOOPBACK_PHY,
+		.fn = stmmac_test_sph,
 	},
 };
 
