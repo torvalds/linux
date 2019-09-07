@@ -851,7 +851,7 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 	}
 
 	ret = kfifo_put(&le->events, ge);
-	if (ret != 0)
+	if (ret)
 		wake_up_poll(&le->wait, EPOLLIN);
 
 	return IRQ_HANDLED;
