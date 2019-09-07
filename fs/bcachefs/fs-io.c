@@ -2618,14 +2618,16 @@ err:
 	return ret;
 }
 
-static long bch2_fcollapse(struct bch_inode_info *inode,
-			   loff_t offset, loff_t len)
+static long bch2_fcollapse_finsert(struct bch_inode_info *inode,
+				   loff_t offset, loff_t len,
+				   bool insert)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
 	struct btree_trans trans;
 	struct btree_iter *src, *dst, *del = NULL;
-	loff_t new_size;
+	loff_t shift, new_size;
+	u64 src_start;
 	int ret;
 
 	if ((offset | len) & (block_bytes(c) - 1))
@@ -2643,33 +2645,52 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 	inode_dio_wait(&inode->v);
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
-	ret = -EINVAL;
-	if (offset + len >= inode->v.i_size)
-		goto err;
+	if (insert) {
+		ret = -EFBIG;
+		if (inode->v.i_sb->s_maxbytes - inode->v.i_size < len)
+			goto err;
 
-	if (inode->v.i_size < len)
-		goto err;
+		ret = -EINVAL;
+		if (offset >= inode->v.i_size)
+			goto err;
 
-	new_size = inode->v.i_size - len;
+		src_start	= U64_MAX;
+		shift		= len;
+	} else {
+		ret = -EINVAL;
+		if (offset + len >= inode->v.i_size)
+			goto err;
+
+		src_start	= offset + len;
+		shift		= -len;
+	}
+
+	new_size = inode->v.i_size + shift;
 
 	ret = write_invalidate_inode_pages_range(mapping, offset, LLONG_MAX);
 	if (ret)
 		goto err;
 
-	ret = __bch2_fpunch(c, inode, offset >> 9,
-			    (offset + len) >> 9);
-	if (ret)
-		goto err;
-
-	dst = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-			POS(inode->v.i_ino, offset >> 9),
-			BTREE_ITER_INTENT);
-	BUG_ON(IS_ERR_OR_NULL(dst));
+	if (insert) {
+		i_size_write(&inode->v, new_size);
+		mutex_lock(&inode->ei_update_lock);
+		ret = bch2_write_inode_size(c, inode, new_size,
+					    ATTR_MTIME|ATTR_CTIME);
+		mutex_unlock(&inode->ei_update_lock);
+	} else {
+		ret = __bch2_fpunch(c, inode, offset >> 9,
+				    (offset + len) >> 9);
+		if (ret)
+			goto err;
+	}
 
 	src = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-			POS(inode->v.i_ino, (offset + len) >> 9),
+			POS(inode->v.i_ino, src_start >> 9),
 			BTREE_ITER_INTENT);
 	BUG_ON(IS_ERR_OR_NULL(src));
+
+	dst = bch2_trans_copy_iter(&trans, src);
+	BUG_ON(IS_ERR_OR_NULL(dst));
 
 	while (1) {
 		struct disk_reservation disk_res =
@@ -2678,38 +2699,61 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 		struct bkey_i delete;
 		struct bkey_s_c k;
 		struct bpos next_pos;
+		struct bpos move_pos = POS(inode->v.i_ino, offset >> 9);
+		struct bpos atomic_end;
 		unsigned commit_flags = BTREE_INSERT_NOFAIL|
 			BTREE_INSERT_ATOMIC|
 			BTREE_INSERT_USE_RESERVE;
 
-		k = bch2_btree_iter_peek(src);
+		k = insert
+			? bch2_btree_iter_peek_prev(src)
+			: bch2_btree_iter_peek(src);
 		if ((ret = bkey_err(k)))
 			goto bkey_err;
 
 		if (!k.k || k.k->p.inode != inode->v.i_ino)
 			break;
 
-		BUG_ON(src->pos.offset != bkey_start_offset(k.k));
+		BUG_ON(bkey_cmp(src->pos, bkey_start_pos(k.k)));
 
-		bch2_btree_iter_set_pos(dst,
-			POS(inode->v.i_ino, src->pos.offset - (len >> 9)));
+		if (insert &&
+		    bkey_cmp(k.k->p, POS(inode->v.i_ino, offset >> 9)) <= 0)
+			break;
+reassemble:
+		bkey_reassemble(&copy.k, k);
+
+		if (insert &&
+		    bkey_cmp(bkey_start_pos(k.k), move_pos) < 0) {
+			bch2_cut_front(move_pos, &copy.k);
+			bch2_btree_iter_set_pos(src, bkey_start_pos(&copy.k.k));
+		}
+
+		copy.k.k.p.offset += shift >> 9;
+		bch2_btree_iter_set_pos(dst, bkey_start_pos(&copy.k.k));
 
 		ret = bch2_btree_iter_traverse(dst);
 		if (ret)
 			goto bkey_err;
 
-		bkey_reassemble(&copy.k, k);
-		copy.k.k.p = dst->pos;
-		copy.k.k.p.offset += copy.k.k.size;
-		ret = bch2_extent_trim_atomic(&copy.k, dst);
+		ret = bch2_extent_atomic_end(dst, &copy.k, &atomic_end);
 		if (ret)
 			goto bkey_err;
+
+		if (bkey_cmp(atomic_end, copy.k.k.p)) {
+			if (insert) {
+				move_pos = atomic_end;
+				move_pos.offset -= shift >> 9;
+				goto reassemble;
+			} else {
+				bch2_cut_back(atomic_end, &copy.k.k);
+			}
+		}
 
 		bkey_init(&delete.k);
 		delete.k.p = src->pos;
 		bch2_key_resize(&delete.k, copy.k.k.size);
 
-		next_pos = delete.k.p;
+		next_pos = insert ? bkey_start_pos(&delete.k) : delete.k.p;
 
 		/*
 		 * If the new and old keys overlap (because we're moving an
@@ -2719,7 +2763,12 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 		 * triggers are run, so the overwrite will get double counted
 		 * by the triggers machinery:
 		 */
-		if (bkey_cmp(copy.k.k.p, bkey_start_pos(&delete.k)) > 0) {
+		if (insert &&
+		    bkey_cmp(bkey_start_pos(&copy.k.k), delete.k.p) < 0) {
+			bch2_cut_back(bkey_start_pos(&copy.k.k), &delete.k);
+		} else if (!insert &&
+			   bkey_cmp(copy.k.k.p,
+				    bkey_start_pos(&delete.k)) > 0) {
 			bch2_cut_front(copy.k.k.p, &delete);
 
 			del = bch2_trans_copy_iter(&trans, src);
@@ -2727,14 +2776,11 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 
 			bch2_btree_iter_set_pos(del,
 				bkey_start_pos(&delete.k));
-			bch2_trans_update(&trans,
-				BTREE_INSERT_ENTRY(del, &delete));
-		} else {
-			bch2_trans_update(&trans,
-				BTREE_INSERT_ENTRY(src, &delete));
 		}
 
 		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(dst, &copy.k));
+		bch2_trans_update(&trans,
+				  BTREE_INSERT_ENTRY(del ?: src, &delete));
 
 		if (copy.k.k.size == k.k->size) {
 			/*
@@ -2774,11 +2820,13 @@ bkey_err:
 	}
 	bch2_trans_unlock(&trans);
 
-	i_size_write(&inode->v, new_size);
-	mutex_lock(&inode->ei_update_lock);
-	ret = bch2_write_inode_size(c, inode, new_size,
-				    ATTR_MTIME|ATTR_CTIME);
-	mutex_unlock(&inode->ei_update_lock);
+	if (!insert) {
+		i_size_write(&inode->v, new_size);
+		mutex_lock(&inode->ei_update_lock);
+		ret = bch2_write_inode_size(c, inode, new_size,
+					    ATTR_MTIME|ATTR_CTIME);
+		mutex_unlock(&inode->ei_update_lock);
+	}
 err:
 	bch2_trans_exit(&trans);
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
@@ -2947,8 +2995,11 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	if (mode == (FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE))
 		return bch2_fpunch(inode, offset, len);
 
+	if (mode == FALLOC_FL_INSERT_RANGE)
+		return bch2_fcollapse_finsert(inode, offset, len, true);
+
 	if (mode == FALLOC_FL_COLLAPSE_RANGE)
-		return bch2_fcollapse(inode, offset, len);
+		return bch2_fcollapse_finsert(inode, offset, len, false);
 
 	return -EOPNOTSUPP;
 }
