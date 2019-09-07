@@ -4222,10 +4222,8 @@ brcmf_parse_vndr_ies(const u8 *vndr_ie_buf, u32 vndr_ie_len,
 
 		vndr_ies->count++;
 
-		brcmf_dbg(TRACE, "** OUI %02x %02x %02x, type 0x%02x\n",
-			  parsed_info->vndrie.oui[0],
-			  parsed_info->vndrie.oui[1],
-			  parsed_info->vndrie.oui[2],
+		brcmf_dbg(TRACE, "** OUI %3ph, type 0x%02x\n",
+			  parsed_info->vndrie.oui,
 			  parsed_info->vndrie.oui_type);
 
 		if (vndr_ies->count >= VNDR_IE_PARSE_LIMIT)
@@ -4244,9 +4242,7 @@ next:
 static u32
 brcmf_vndr_ie(u8 *iebuf, s32 pktflag, u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
 {
-
-	strncpy(iebuf, add_del_cmd, VNDR_IE_CMD_LEN - 1);
-	iebuf[VNDR_IE_CMD_LEN - 1] = '\0';
+	strscpy(iebuf, add_del_cmd, VNDR_IE_CMD_LEN);
 
 	put_unaligned_le32(1, &iebuf[VNDR_IE_COUNT_OFFSET]);
 
@@ -4351,12 +4347,10 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 		for (i = 0; i < old_vndr_ies.count; i++) {
 			vndrie_info = &old_vndr_ies.ie_info[i];
 
-			brcmf_dbg(TRACE, "DEL ID : %d, Len: %d , OUI:%02x:%02x:%02x\n",
+			brcmf_dbg(TRACE, "DEL ID : %d, Len: %d , OUI:%3ph\n",
 				  vndrie_info->vndrie.id,
 				  vndrie_info->vndrie.len,
-				  vndrie_info->vndrie.oui[0],
-				  vndrie_info->vndrie.oui[1],
-				  vndrie_info->vndrie.oui[2]);
+				  vndrie_info->vndrie.oui);
 
 			del_add_ie_buf_len = brcmf_vndr_ie(curr_ie_buf, pktflag,
 							   vndrie_info->ie_ptr,
@@ -4388,12 +4382,10 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			remained_buf_len -= (vndrie_info->ie_len +
 					     VNDR_IE_VSIE_OFFSET);
 
-			brcmf_dbg(TRACE, "ADDED ID : %d, Len: %d, OUI:%02x:%02x:%02x\n",
+			brcmf_dbg(TRACE, "ADDED ID : %d, Len: %d, OUI:%3ph\n",
 				  vndrie_info->vndrie.id,
 				  vndrie_info->vndrie.len,
-				  vndrie_info->vndrie.oui[0],
-				  vndrie_info->vndrie.oui[1],
-				  vndrie_info->vndrie.oui[2]);
+				  vndrie_info->vndrie.oui);
 
 			del_add_ie_buf_len = brcmf_vndr_ie(curr_ie_buf, pktflag,
 							   vndrie_info->ie_ptr,

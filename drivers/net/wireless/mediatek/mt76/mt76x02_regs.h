@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef __MT76X02_REGS_H
@@ -19,8 +8,8 @@
 
 #define MT_ASIC_VERSION			0x0000
 
-#define MT76XX_REV_E3		0x22
-#define MT76XX_REV_E4		0x33
+#define MT76XX_REV_E3			0x22
+#define MT76XX_REV_E4			0x33
 
 #define MT_CMB_CTRL			0x0020
 #define MT_CMB_CTRL_XTAL_RDY		BIT(22)
@@ -120,7 +109,7 @@
 #define MT_INT_RX_DONE(_n)		BIT(_n)
 #define MT_INT_RX_DONE_ALL		GENMASK(1, 0)
 #define MT_INT_TX_DONE_ALL		GENMASK(13, 4)
-#define MT_INT_TX_DONE(_n)		BIT(_n + 4)
+#define MT_INT_TX_DONE(_n)		BIT((_n) + 4)
 #define MT_INT_RX_COHERENT		BIT(16)
 #define MT_INT_TX_COHERENT		BIT(17)
 #define MT_INT_ANY_COHERENT		BIT(18)
@@ -149,21 +138,21 @@
 
 #define MT_WPDMA_DELAY_INT_CFG		0x0210
 
-#define MT_WMM_AIFSN		0x0214
+#define MT_WMM_AIFSN			0x0214
 #define MT_WMM_AIFSN_MASK		GENMASK(3, 0)
 #define MT_WMM_AIFSN_SHIFT(_n)		((_n) * 4)
 
-#define MT_WMM_CWMIN		0x0218
+#define MT_WMM_CWMIN			0x0218
 #define MT_WMM_CWMIN_MASK		GENMASK(3, 0)
 #define MT_WMM_CWMIN_SHIFT(_n)		((_n) * 4)
 
-#define MT_WMM_CWMAX		0x021c
+#define MT_WMM_CWMAX			0x021c
 #define MT_WMM_CWMAX_MASK		GENMASK(3, 0)
 #define MT_WMM_CWMAX_SHIFT(_n)		((_n) * 4)
 
 #define MT_WMM_TXOP_BASE		0x0220
 #define MT_WMM_TXOP(_n)			(MT_WMM_TXOP_BASE + (((_n) / 2) << 2))
-#define MT_WMM_TXOP_SHIFT(_n)		((_n & 1) * 16)
+#define MT_WMM_TXOP_SHIFT(_n)		(((_n) & 1) * 16)
 #define MT_WMM_TXOP_MASK		GENMASK(15, 0)
 
 #define MT_WMM_CTRL			0x0230 /* MT76x0 */
@@ -607,7 +596,7 @@
 
 #define MT_TX_AGG_CNT(_id)		((_id) < 8 ?			\
 					 MT_TX_AGG_CNT_BASE0 + ((_id) << 2) : \
-					 MT_TX_AGG_CNT_BASE1 + ((_id - 8) << 2))
+					 MT_TX_AGG_CNT_BASE1 + (((_id) - 8) << 2))
 
 #define MT_TX_STAT_FIFO_EXT		0x1798
 #define MT_TX_STAT_FIFO_EXT_RETRY	GENMASK(7, 0)
@@ -680,17 +669,17 @@
 
 #define MT_SKEY_BASE_0			0xac00
 #define MT_SKEY_BASE_1			0xb400
-#define MT_SKEY_0(_bss, _idx)		(MT_SKEY_BASE_0 + (4 * (_bss) + _idx) * 32)
-#define MT_SKEY_1(_bss, _idx)		(MT_SKEY_BASE_1 + (4 * ((_bss) & 7) + _idx) * 32)
-#define MT_SKEY(_bss, _idx)		((_bss & 8) ? MT_SKEY_1(_bss, _idx) : MT_SKEY_0(_bss, _idx))
+#define MT_SKEY_0(_bss, _idx)		(MT_SKEY_BASE_0 + (4 * (_bss) + (_idx)) * 32)
+#define MT_SKEY_1(_bss, _idx)		(MT_SKEY_BASE_1 + (4 * ((_bss) & 7) + (_idx)) * 32)
+#define MT_SKEY(_bss, _idx)		(((_bss) & 8) ? MT_SKEY_1(_bss, _idx) : MT_SKEY_0(_bss, _idx))
 
 #define MT_SKEY_MODE_BASE_0		0xb000
 #define MT_SKEY_MODE_BASE_1		0xb3f0
-#define MT_SKEY_MODE_0(_bss)		(MT_SKEY_MODE_BASE_0 + ((_bss / 2) << 2))
+#define MT_SKEY_MODE_0(_bss)		(MT_SKEY_MODE_BASE_0 + (((_bss) / 2) << 2))
 #define MT_SKEY_MODE_1(_bss)		(MT_SKEY_MODE_BASE_1 + ((((_bss) & 7) / 2) << 2))
-#define MT_SKEY_MODE(_bss)		((_bss & 8) ? MT_SKEY_MODE_1(_bss) : MT_SKEY_MODE_0(_bss))
+#define MT_SKEY_MODE(_bss)		(((_bss) & 8) ? MT_SKEY_MODE_1(_bss) : MT_SKEY_MODE_0(_bss))
 #define MT_SKEY_MODE_MASK		GENMASK(3, 0)
-#define MT_SKEY_MODE_SHIFT(_bss, _idx)	(4 * ((_idx) + 4 * (_bss & 1)))
+#define MT_SKEY_MODE_SHIFT(_bss, _idx)	(4 * ((_idx) + 4 * ((_bss) & 1)))
 
 #define MT_BEACON_BASE			0xc000
 

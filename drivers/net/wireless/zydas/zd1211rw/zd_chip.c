@@ -41,8 +41,7 @@ void zd_chip_clear(struct zd_chip *chip)
 static int scnprint_mac_oui(struct zd_chip *chip, char *buffer, size_t size)
 {
 	u8 *addr = zd_mac_get_perm_addr(zd_chip_to_mac(chip));
-	return scnprintf(buffer, size, "%02x-%02x-%02x",
-		         addr[0], addr[1], addr[2]);
+	return scnprintf(buffer, size, "%3phD", addr);
 }
 
 /* Prints an identifier line, which will support debugging. */

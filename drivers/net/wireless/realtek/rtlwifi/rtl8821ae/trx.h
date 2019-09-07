@@ -214,7 +214,7 @@ static inline void set_tx_desc_tx_buffer_address(__le32 *__pdesc, u32 __val)
 	*(__pdesc + 10) = cpu_to_le32(__val);
 }
 
-static inline int get_tx_desc_tx_buffer_address(__le32 *__pdesc)
+static inline u32 get_tx_desc_tx_buffer_address(__le32 *__pdesc)
 {
 	return le32_to_cpu(*(__pdesc + 10));
 }
@@ -324,12 +324,12 @@ static inline int get_rx_desc_bw(__le32 *__pdesc)
 	return le32_get_bits(*(__pdesc + 4), GENMASK(5, 4));
 }
 
-static inline int get_rx_desc_tsfl(__le32 *__pdesc)
+static inline u32 get_rx_desc_tsfl(__le32 *__pdesc)
 {
 	return le32_to_cpu(*(__pdesc + 5));
 }
 
-static inline int get_rx_desc_buff_addr(__le32 *__pdesc)
+static inline u32 get_rx_desc_buff_addr(__le32 *__pdesc)
 {
 	return le32_to_cpu(*(__pdesc + 6));
 }
@@ -341,12 +341,12 @@ static inline void set_rx_desc_buff_addr(__le32 *__pdesc, u32 __val)
 
 /* TX report 2 format in Rx desc*/
 
-static inline int get_rx_rpt2_desc_macid_valid_1(__le32 *__status)
+static inline u32 get_rx_rpt2_desc_macid_valid_1(__le32 *__status)
 {
 	return le32_to_cpu(*(__status + 4));
 }
 
-static inline int get_rx_rpt2_desc_macid_valid_2(__le32 *__status)
+static inline u32 get_rx_rpt2_desc_macid_valid_2(__le32 *__status)
 {
 	return le32_to_cpu(*(__status + 5));
 }
