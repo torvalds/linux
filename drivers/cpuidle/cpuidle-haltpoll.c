@@ -35,7 +35,6 @@ static int default_enter_idle(struct cpuidle_device *dev,
 static struct cpuidle_driver haltpoll_driver = {
 	.name = "haltpoll",
 	.governor = "haltpoll",
-	.owner = THIS_MODULE,
 	.states = {
 		{ /* entry 0 is for polling */ },
 		{
