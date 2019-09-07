@@ -899,7 +899,6 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 		goto clean_qp;
 	}
 
-	memset(dmn->send_ring->buf, 0, size);
 	dmn->send_ring->buf_size = size;
 
 	dmn->send_ring->mr = dr_reg_mr(dmn->mdev,

@@ -133,7 +133,7 @@ static int mlx5_devlink_fs_mode_validate(struct devlink *devlink, u32 id,
 
 		else if (eswitch_mode == MLX5_ESWITCH_OFFLOADS) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Software managed steering is not supported when eswitch offlaods enabled.");
+					   "Software managed steering is not supported when eswitch offloads enabled.");
 			err = -EOPNOTSUPP;
 		}
 	} else {
