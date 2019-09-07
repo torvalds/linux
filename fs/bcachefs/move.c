@@ -547,7 +547,7 @@ peek:
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
 
-		if (!bkey_extent_is_data(k.k))
+		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
 		if (cur_inum != k.k->p.inode) {
