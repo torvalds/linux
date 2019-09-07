@@ -5131,6 +5131,41 @@ nft_obj_type_get(struct net *net, u32 objtype)
 	return ERR_PTR(-ENOENT);
 }
 
+static int nf_tables_updobj(const struct nft_ctx *ctx,
+			    const struct nft_object_type *type,
+			    const struct nlattr *attr,
+			    struct nft_object *obj)
+{
+	struct nft_object *newobj;
+	struct nft_trans *trans;
+	int err;
+
+	if (!obj->ops->update)
+		return -EOPNOTSUPP;
+
+	trans = nft_trans_alloc(ctx, NFT_MSG_NEWOBJ,
+				sizeof(struct nft_trans_obj));
+	if (!trans)
+		return -ENOMEM;
+
+	newobj = nft_obj_init(ctx, type, attr);
+	if (IS_ERR(newobj)) {
+		err = PTR_ERR(newobj);
+		goto err1;
+	}
+
+	nft_trans_obj(trans) = obj;
+	nft_trans_obj_update(trans) = true;
+	nft_trans_obj_newobj(trans) = newobj;
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
+
+	return 0;
+err1:
+	kfree(trans);
+	kfree(newobj);
+	return err;
+}
+
 static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
 			    const struct nlattr * const nla[],
@@ -5170,7 +5205,13 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 			NL_SET_BAD_ATTR(extack, nla[NFTA_OBJ_NAME]);
 			return -EEXIST;
 		}
-		return 0;
+		if (nlh->nlmsg_flags & NLM_F_REPLACE)
+			return -EOPNOTSUPP;
+
+		type = nft_obj_type_get(net, objtype);
+		nft_ctx_init(&ctx, net, skb, nlh, family, table, NULL, nla);
+
+		return nf_tables_updobj(&ctx, type, nla[NFTA_OBJ_DATA], obj);
 	}
 
 	nft_ctx_init(&ctx, net, skb, nlh, family, table, NULL, nla);
@@ -6431,6 +6472,19 @@ static void nft_chain_commit_update(struct nft_trans *trans)
 	}
 }
 
+static void nft_obj_commit_update(struct nft_trans *trans)
+{
+	struct nft_object *newobj;
+	struct nft_object *obj;
+
+	obj = nft_trans_obj(trans);
+	newobj = nft_trans_obj_newobj(trans);
+
+	obj->ops->update(obj, newobj);
+
+	kfree(newobj);
+}
+
 static void nft_commit_release(struct nft_trans *trans)
 {
 	switch (trans->msg_type) {
@@ -6795,10 +6849,18 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			te->set->ndeact--;
 			break;
 		case NFT_MSG_NEWOBJ:
-			nft_clear(net, nft_trans_obj(trans));
-			nf_tables_obj_notify(&trans->ctx, nft_trans_obj(trans),
-					     NFT_MSG_NEWOBJ);
-			nft_trans_destroy(trans);
+			if (nft_trans_obj_update(trans)) {
+				nft_obj_commit_update(trans);
+				nf_tables_obj_notify(&trans->ctx,
+						     nft_trans_obj(trans),
+						     NFT_MSG_NEWOBJ);
+			} else {
+				nft_clear(net, nft_trans_obj(trans));
+				nf_tables_obj_notify(&trans->ctx,
+						     nft_trans_obj(trans),
+						     NFT_MSG_NEWOBJ);
+				nft_trans_destroy(trans);
+			}
 			break;
 		case NFT_MSG_DELOBJ:
 			nft_obj_del(nft_trans_obj(trans));
@@ -6945,8 +7007,13 @@ static int __nf_tables_abort(struct net *net)
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_NEWOBJ:
-			trans->ctx.table->use--;
-			nft_obj_del(nft_trans_obj(trans));
+			if (nft_trans_obj_update(trans)) {
+				kfree(nft_trans_obj_newobj(trans));
+				nft_trans_destroy(trans);
+			} else {
+				trans->ctx.table->use--;
+				nft_obj_del(nft_trans_obj(trans));
+			}
 			break;
 		case NFT_MSG_DELOBJ:
 			trans->ctx.table->use++;
