@@ -1,7 +1,7 @@
                      p m - g r a p h
 
    pm-graph: suspend/resume/boot timing analysis tools
-    Version: 5.4
+    Version: 5.5
      Author: Todd Brandt <todd.e.brandt@intel.com>
   Home Page: https://01.org/pm-graph
 
@@ -17,6 +17,10 @@
 
 	- upstream version in git:
 	  https://github.com/intel/pm-graph/
+
+ Requirements:
+	- runs with python2 or python3, choice is made by /usr/bin/python link
+	- python2 now requires python-configparser be installed
 
  Table of Contents
 	- Overview
