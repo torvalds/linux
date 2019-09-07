@@ -36,6 +36,8 @@ KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
 KBUILD_CFLAGS += -Wno-missing-field-initializers
 KBUILD_CFLAGS += -Wno-sign-compare
 
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
+
 else
 
 # Some diagnostics enabled by default are noisy.
@@ -65,6 +67,8 @@ KBUILD_CFLAGS += -Wsign-compare
 KBUILD_CFLAGS += $(call cc-option, -Wmaybe-uninitialized)
 KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
 
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN2
+
 endif
 
 #
@@ -81,5 +85,7 @@ KBUILD_CFLAGS += -Wpointer-arith
 KBUILD_CFLAGS += -Wredundant-decls
 KBUILD_CFLAGS += -Wswitch-default
 KBUILD_CFLAGS += $(call cc-option, -Wpacked-bitfield-compat)
+
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN3
 
 endif
