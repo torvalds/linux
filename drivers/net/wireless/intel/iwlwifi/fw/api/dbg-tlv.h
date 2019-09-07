@@ -140,17 +140,6 @@ struct iwl_fw_ini_hcmd_tlv {
 	struct iwl_fw_ini_hcmd hcmd;
 } __packed; /* FW_DEBUG_TLV_HCMD_API_S_VER_1 */
 
-/**
- * struct iwl_fw_ini_debug_flow_tlv - (IWL_UCODE_TLV_TYPE_DEBUG_FLOW)
- *
- * @header: header
- * @debug_flow_cfg: &enum iwl_fw_ini_debug_flow
- */
-struct iwl_fw_ini_debug_flow_tlv {
-	struct iwl_fw_ini_header header;
-	__le32 debug_flow_cfg;
-} __packed; /* FW_DEBUG_TLV_FLOW_TLV_S_VER_1 */
-
 #define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
 
@@ -409,27 +398,6 @@ enum iwl_fw_ini_trigger_id {
 }; /* FW_DEBUG_TLV_TRIGGER_ID_E_VER_1 */
 
 /**
- * enum iwl_fw_ini_apply_point
- *
- * @IWL_FW_INI_APPLY_INVALID: invalid
- * @IWL_FW_INI_APPLY_EARLY: pre loading FW
- * @IWL_FW_INI_APPLY_AFTER_ALIVE: first cmd from host after alive
- * @IWL_FW_INI_APPLY_POST_INIT: last cmd in initialization sequence
- * @IWL_FW_INI_APPLY_MISSED_BEACONS: missed beacons notification
- * @IWL_FW_INI_APPLY_SCAN_COMPLETE: scan completed
- * @IWL_FW_INI_APPLY_NUM: number of apply points
-*/
-enum iwl_fw_ini_apply_point {
-	IWL_FW_INI_APPLY_INVALID,
-	IWL_FW_INI_APPLY_EARLY,
-	IWL_FW_INI_APPLY_AFTER_ALIVE,
-	IWL_FW_INI_APPLY_POST_INIT,
-	IWL_FW_INI_APPLY_MISSED_BEACONS,
-	IWL_FW_INI_APPLY_SCAN_COMPLETE,
-	IWL_FW_INI_APPLY_NUM,
-}; /* FW_DEBUG_TLV_APPLY_POINT_E_VER_1 */
-
-/**
  * enum iwl_fw_ini_allocation_id
  *
  * @IWL_FW_INI_ALLOCATION_INVALID: invalid
@@ -439,6 +407,7 @@ enum iwl_fw_ini_apply_point {
  * @IWL_FW_INI_ALLOCATION_ID_SDFX: for SDFX module
  * @IWL_FW_INI_ALLOCATION_ID_FW_DUMP: used for crash and runtime dumps
  * @IWL_FW_INI_ALLOCATION_ID_USER_DEFINED: for future user scenarios
+ * @IWL_FW_INI_ALLOCATION_NUM: number of allocation ids
 */
 enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_INVALID,
@@ -448,6 +417,7 @@ enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_ID_SDFX,
 	IWL_FW_INI_ALLOCATION_ID_FW_DUMP,
 	IWL_FW_INI_ALLOCATION_ID_USER_DEFINED,
+	IWL_FW_INI_ALLOCATION_NUM,
 }; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
 
 /**
@@ -518,5 +488,73 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_UMAC_ERROR_TABLE,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_DEBUG_TLV_REGION_TYPE_E_VER_1 */
+
+/**
+ * enum iwl_fw_ini_time_point
+ *
+ * Hard coded time points in which the driver can send hcmd or perform dump
+ * collection
+ *
+ * @IWL_FW_INI_TIME_POINT_EARLY: pre loading the FW
+ * @IWL_FW_INI_TIME_POINT_AFTER_ALIVE: first cmd from host after alive notif
+ * @IWL_FW_INI_TIME_POINT_POST_INIT: last cmd in series of init sequence
+ * @IWL_FW_INI_TIME_POINT_FW_ASSERT: FW assert
+ * @IWL_FW_INI_TIME_POINT_FW_HW_ERROR: FW HW error
+ * @IWL_FW_INI_TIME_POINT_FW_TFD_Q_HANG: TFD queue hang
+ * @IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFOCATION: DHC cmd response and notif
+ * @IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF: FW response or notification.
+ *	data field holds id and group
+ * @IWL_FW_INI_TIME_POINT_USER_TRIGGER: user trigger time point
+ * @IWL_FW_INI_TIME_POINT_PERIODIC: periodic timepoint that fires in constant
+ *	intervals. data field holds the interval time in msec
+ * @IWL_FW_INI_TIME_POINT_WDG_TIMEOUT: watchdog timeout
+ * @IWL_FW_INI_TIME_POINT_HOST_ASSERT: Unused
+ * @IWL_FW_INI_TIME_POINT_HOST_ALIVE_TIMEOUT: alive timeout
+ * @IWL_FW_INI_TIME_POINT_HOST_DEVICE_ENABLE: device enable
+ * @IWL_FW_INI_TIME_POINT_HOST_DEVICE_DISABLE: device disable
+ * @IWL_FW_INI_TIME_POINT_HOST_D3_START: D3 start
+ * @IWL_FW_INI_TIME_POINT_HOST_D3_END: D3 end
+ * @IWL_FW_INI_TIME_POINT_MISSED_BEACONS: missed beacons
+ * @IWL_FW_INI_TIME_POINT_ASSOC_FAILED: association failure
+ * @IWL_FW_INI_TIME_POINT_TX_FAILED: Tx frame failed
+ * @IWL_FW_INI_TIME_POINT_TX_WFD_ACTION_FRAME_FAILED: wifi direct action
+ *	frame failed
+ * @IWL_FW_INI_TIME_POINT_TX_LATENCY_THRESHOLD: Tx latency threshold
+ * @IWL_FW_INI_TIME_POINT_HANG_OCCURRED: hang occurred
+ * @IWL_FW_INI_TIME_POINT_EAPOL_FAILED: EAPOL failed
+ * @IWL_FW_INI_TIME_POINT_FAKE_TX: fake Tx
+ * @IWL_FW_INI_TIME_POINT_DEASSOC: de association
+ * @IWL_FW_INI_TIME_POINT_NUM: number of time points
+ */
+enum iwl_fw_ini_time_point {
+	IWL_FW_INI_TIME_POINT_INVALID,
+	IWL_FW_INI_TIME_POINT_EARLY,
+	IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
+	IWL_FW_INI_TIME_POINT_POST_INIT,
+	IWL_FW_INI_TIME_POINT_FW_ASSERT,
+	IWL_FW_INI_TIME_POINT_FW_HW_ERROR,
+	IWL_FW_INI_TIME_POINT_FW_TFD_Q_HANG,
+	IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFOCATION,
+	IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF,
+	IWL_FW_INI_TIME_POINT_USER_TRIGGER,
+	IWL_FW_INI_TIME_POINT_PERIODIC,
+	IWL_FW_INI_TIME_POINT_WDG_TIMEOUT,
+	IWL_FW_INI_TIME_POINT_HOST_ASSERT,
+	IWL_FW_INI_TIME_POINT_HOST_ALIVE_TIMEOUT,
+	IWL_FW_INI_TIME_POINT_HOST_DEVICE_ENABLE,
+	IWL_FW_INI_TIME_POINT_HOST_DEVICE_DISABLE,
+	IWL_FW_INI_TIME_POINT_HOST_D3_START,
+	IWL_FW_INI_TIME_POINT_HOST_D3_END,
+	IWL_FW_INI_TIME_POINT_MISSED_BEACONS,
+	IWL_FW_INI_TIME_POINT_ASSOC_FAILED,
+	IWL_FW_INI_TIME_POINT_TX_FAILED,
+	IWL_FW_INI_TIME_POINT_TX_WFD_ACTION_FRAME_FAILED,
+	IWL_FW_INI_TIME_POINT_TX_LATENCY_THRESHOLD,
+	IWL_FW_INI_TIME_POINT_HANG_OCCURRED,
+	IWL_FW_INI_TIME_POINT_EAPOL_FAILED,
+	IWL_FW_INI_TIME_POINT_FAKE_TX,
+	IWL_FW_INI_TIME_POINT_DEASSOC,
+	IWL_FW_INI_TIME_POINT_NUM,
+}; /* FW_TLV_DEBUG_TIME_POINT_API_E */
 
 #endif

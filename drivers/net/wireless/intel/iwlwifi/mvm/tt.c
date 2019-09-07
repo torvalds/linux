@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014, 2019 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
@@ -27,7 +27,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2019 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
@@ -298,15 +298,7 @@ static void check_exit_ctkill(struct work_struct *work)
 	if (__iwl_mvm_mac_start(mvm))
 		goto reschedule;
 
-	/* make sure the device is available for direct read/writes */
-	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_CHECK_CTKILL)) {
-		__iwl_mvm_mac_stop(mvm);
-		goto reschedule;
-	}
-
 	ret = iwl_mvm_get_temp(mvm, &temp);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_CHECK_CTKILL);
 
 	__iwl_mvm_mac_stop(mvm);
 
