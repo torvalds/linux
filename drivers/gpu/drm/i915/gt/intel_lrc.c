@@ -692,6 +692,9 @@ trace_ports(const struct intel_engine_execlists *execlists,
 	const struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
 
+	if (!ports[0])
+		return;
+
 	GEM_TRACE("%s: %s { %llx:%lld%s, %llx:%lld }\n",
 		  engine->name, msg,
 		  ports[0]->fence.context,
@@ -1380,13 +1383,6 @@ reset_in_progress(const struct intel_engine_execlists *execlists)
 	return unlikely(!__tasklet_is_enabled(&execlists->tasklet));
 }
 
-enum csb_step {
-	CSB_NOP,
-	CSB_PROMOTE,
-	CSB_PREEMPT,
-	CSB_COMPLETE,
-};
-
 /*
  * Starting with Gen12, the status has a new format:
  *
@@ -1413,7 +1409,7 @@ enum csb_step {
  *     bits 47-57: sw context id of the lrc the GT switched away from
  *     bits 58-63: sw counter of the lrc the GT switched away from
  */
-static inline enum csb_step
+static inline bool
 gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 {
 	u32 lower_dw = csb[0];
@@ -1423,7 +1419,7 @@ gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	bool new_queue = lower_dw & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
 
 	if (!ctx_away_valid && ctx_to_valid)
-		return CSB_PROMOTE;
+		return true;
 
 	/*
 	 * The context switch detail is not guaranteed to be 5 when a preemption
@@ -1433,7 +1429,7 @@ gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	 * would require some extra handling, but we don't support that.
 	 */
 	if (new_queue && ctx_away_valid)
-		return CSB_PREEMPT;
+		return true;
 
 	/*
 	 * switch detail = 5 is covered by the case above and we do not expect a
@@ -1442,29 +1438,13 @@ gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	 */
 	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_dw));
 
-	if (*execlists->active) {
-		GEM_BUG_ON(!ctx_away_valid);
-		return CSB_COMPLETE;
-	}
-
-	return CSB_NOP;
+	return false;
 }
 
-static inline enum csb_step
+static inline bool
 gen8_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 {
-	unsigned int status = *csb;
-
-	if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
-		return CSB_PROMOTE;
-
-	if (status & GEN8_CTX_STATUS_PREEMPTED)
-		return CSB_PREEMPT;
-
-	if (*execlists->active)
-		return CSB_COMPLETE;
-
-	return CSB_NOP;
+	return *csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
 }
 
 static void process_csb(struct intel_engine_cs *engine)
@@ -1503,7 +1483,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	rmb();
 
 	do {
-		enum csb_step csb_step;
+		bool promote;
 
 		if (++head == num_entries)
 			head = 0;
@@ -1531,20 +1511,16 @@ static void process_csb(struct intel_engine_cs *engine)
 			  buf[2 * head + 0], buf[2 * head + 1]);
 
 		if (INTEL_GEN(engine->i915) >= 12)
-			csb_step = gen12_csb_parse(execlists, buf + 2 * head);
+			promote = gen12_csb_parse(execlists, buf + 2 * head);
 		else
-			csb_step = gen8_csb_parse(execlists, buf + 2 * head);
-
-		switch (csb_step) {
-		case CSB_PREEMPT: /* cancel old inflight, prepare for switch */
+			promote = gen8_csb_parse(execlists, buf + 2 * head);
+		if (promote) {
+			/* cancel old inflight, prepare for switch */
 			trace_ports(execlists, "preempted", execlists->active);
-
 			while (*execlists->active)
 				execlists_schedule_out(*execlists->active++);
 
-			/* fallthrough */
-		case CSB_PROMOTE: /* switch pending to inflight */
-			GEM_BUG_ON(*execlists->active);
+			/* switch pending to inflight */
 			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
 			execlists->active =
 				memcpy(execlists->inflight,
@@ -1559,9 +1535,10 @@ static void process_csb(struct intel_engine_cs *engine)
 				ring_set_paused(engine, 0);
 
 			WRITE_ONCE(execlists->pending[0], NULL);
-			break;
+		} else {
+			GEM_BUG_ON(!*execlists->active);
 
-		case CSB_COMPLETE: /* port0 completed, advanced to port1 */
+			/* port0 completed, advanced to port1 */
 			trace_ports(execlists, "completed", execlists->active);
 
 			/*
@@ -1576,10 +1553,6 @@ static void process_csb(struct intel_engine_cs *engine)
 
 			GEM_BUG_ON(execlists->active - execlists->inflight >
 				   execlists_num_ports(execlists));
-			break;
-
-		case CSB_NOP:
-			break;
 		}
 	} while (head != tail);
 
