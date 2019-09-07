@@ -47,15 +47,14 @@ int lookup_constant(const struct constant_table *tbl, const char *name, int not_
 EXPORT_SYMBOL(lookup_constant);
 
 static const struct fs_parameter_spec *fs_lookup_key(
-	const struct fs_parameter_description *desc,
+	const struct fs_parameter_spec *desc,
 	const char *name)
 {
 	const struct fs_parameter_spec *p;
-
-	if (!desc->specs)
+	if (!desc)
 		return NULL;
 
-	for (p = desc->specs; p->name; p++)
+	for (p = desc; p->name; p++)
 		if (strcmp(p->name, name) == 0)
 			return p;
 
@@ -81,7 +80,7 @@ static const struct fs_parameter_spec *fs_lookup_key(
  * the parameter wasn't recognised and unknowns aren't okay.
  */
 int __fs_parse(struct p_log *log,
-	     const struct fs_parameter_description *desc,
+	     const struct fs_parameter_spec *desc,
 	     struct fs_parameter *param,
 	     struct fs_parse_result *result)
 {
@@ -355,39 +354,37 @@ bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
  * @desc: The parameter description to validate.
  */
 bool fs_validate_description(const char *name,
-	const struct fs_parameter_description *desc)
+	const struct fs_parameter_spec *desc)
 {
 	const struct fs_parameter_spec *param, *p2;
 	bool good = true;
 
 	pr_notice("*** VALIDATE %s ***\n", name);
 
-	if (desc->specs) {
-		for (param = desc->specs; param->name; param++) {
-			enum fs_parameter_type t = param->type;
+	for (param = desc; param->name; param++) {
+		enum fs_parameter_type t = param->type;
 
-			/* Check that the type is in range */
-			if (t == __fs_param_wasnt_defined ||
-			    t >= nr__fs_parameter_type) {
-				pr_err("VALIDATE %s: PARAM[%s] Bad type %u\n",
-				       name, param->name, t);
+		/* Check that the type is in range */
+		if (t == __fs_param_wasnt_defined ||
+		    t >= nr__fs_parameter_type) {
+			pr_err("VALIDATE %s: PARAM[%s] Bad type %u\n",
+			       name, param->name, t);
+			good = false;
+		} else if (t == fs_param_is_enum) {
+			const struct constant_table *e = param->data;
+			if (!e || !e->name) {
+				pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
+				       name, param->name);
 				good = false;
-			} else if (t == fs_param_is_enum) {
-				const struct constant_table *e = param->data;
-				if (!e || !e->name) {
-					pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
-					       name, param->name);
-					good = false;
-				}
 			}
+		}
 
-			/* Check for duplicate parameter names */
-			for (p2 = desc->specs; p2 < param; p2++) {
-				if (strcmp(param->name, p2->name) == 0) {
-					pr_err("VALIDATE %s: PARAM[%s]: Duplicate\n",
-					       name, param->name);
-					good = false;
-				}
+		/* Check for duplicate parameter names */
+		for (p2 = desc; p2 < param; p2++) {
+			if (strcmp(param->name, p2->name) == 0) {
+				pr_err("VALIDATE %s: PARAM[%s]: Duplicate\n",
+				       name, param->name);
+				good = false;
 			}
 		}
 	}

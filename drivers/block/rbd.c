@@ -848,7 +848,7 @@ enum {
 	Opt_notrim,
 };
 
-static const struct fs_parameter_spec rbd_param_specs[] = {
+static const struct fs_parameter_spec rbd_parameters[] = {
 	fsparam_u32	("alloc_size",			Opt_alloc_size),
 	fsparam_flag	("exclusive",			Opt_exclusive),
 	fsparam_flag	("lock_on_read",		Opt_lock_on_read),
@@ -861,10 +861,6 @@ static const struct fs_parameter_spec rbd_param_specs[] = {
 	fsparam_flag	("ro",				Opt_read_only),
 	fsparam_flag	("rw",				Opt_read_write),
 	{}
-};
-
-static const struct fs_parameter_description rbd_parameters = {
-	.specs		= rbd_param_specs,
 };
 
 struct rbd_options {
@@ -6359,7 +6355,7 @@ static int rbd_parse_param(struct fs_parameter *param,
 	if (ret != -ENOPARAM)
 		return ret;
 
-	token = __fs_parse(&log, &rbd_parameters, param, &result);
+	token = __fs_parse(&log, rbd_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0) {
 		if (token == -ENOPARAM)

@@ -111,7 +111,7 @@ static const struct constant_table nfs_param_enums_lookupcache[] = {
 	{}
 };
 
-static const struct fs_parameter_spec nfs_param_specs[] = {
+static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_flag_no("ac",		Opt_ac),
 	fsparam_u32   ("acdirmax",	Opt_acdirmax),
 	fsparam_u32   ("acdirmin",	Opt_acdirmin),
@@ -171,10 +171,6 @@ static const struct fs_parameter_spec nfs_param_specs[] = {
 	fsparam_string("vers",		Opt_vers),
 	fsparam_u32   ("wsize",		Opt_wsize),
 	{}
-};
-
-static const struct fs_parameter_description nfs_fs_parameters = {
-	.specs		= nfs_param_specs,
 };
 
 enum {
@@ -443,7 +439,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 
 	dfprintk(MOUNT, "NFS:   parsing nfs mount option '%s'\n", param->key);
 
-	opt = fs_parse(fc, &nfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, nfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return ctx->sloppy ? 1 : opt;
 
@@ -1416,7 +1412,7 @@ struct file_system_type nfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "nfs",
 	.init_fs_context	= nfs_init_fs_context,
-	.parameters		= &nfs_fs_parameters,
+	.parameters		= nfs_fs_parameters,
 	.kill_sb		= nfs_kill_super,
 	.fs_flags		= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };
@@ -1428,7 +1424,7 @@ struct file_system_type nfs4_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "nfs4",
 	.init_fs_context	= nfs_init_fs_context,
-	.parameters		= &nfs_fs_parameters,
+	.parameters		= nfs_fs_parameters,
 	.kill_sb		= nfs_kill_super,
 	.fs_flags		= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };

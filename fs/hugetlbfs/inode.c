@@ -73,7 +73,7 @@ enum hugetlb_param {
 	Opt_uid,
 };
 
-static const struct fs_parameter_spec hugetlb_param_specs[] = {
+static const struct fs_parameter_spec hugetlb_fs_parameters[] = {
 	fsparam_u32   ("gid",		Opt_gid),
 	fsparam_string("min_size",	Opt_min_size),
 	fsparam_u32   ("mode",		Opt_mode),
@@ -82,10 +82,6 @@ static const struct fs_parameter_spec hugetlb_param_specs[] = {
 	fsparam_string("size",		Opt_size),
 	fsparam_u32   ("uid",		Opt_uid),
 	{}
-};
-
-static const struct fs_parameter_description hugetlb_fs_parameters = {
-	.specs		= hugetlb_param_specs,
 };
 
 #ifdef CONFIG_NUMA
@@ -1170,7 +1166,7 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 	unsigned long ps;
 	int opt;
 
-	opt = fs_parse(fc, &hugetlb_fs_parameters, param, &result);
+	opt = fs_parse(fc, hugetlb_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -1357,7 +1353,7 @@ static int hugetlbfs_init_fs_context(struct fs_context *fc)
 static struct file_system_type hugetlbfs_fs_type = {
 	.name			= "hugetlbfs",
 	.init_fs_context	= hugetlbfs_init_fs_context,
-	.parameters		= &hugetlb_fs_parameters,
+	.parameters		= hugetlb_fs_parameters,
 	.kill_sb		= kill_litter_super,
 };
 

@@ -169,7 +169,7 @@ static const struct constant_table ceph_param_recover[] = {
 	{}
 };
 
-static const struct fs_parameter_spec ceph_mount_param_specs[] = {
+static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_flag_no ("acl",				Opt_acl),
 	fsparam_flag_no ("asyncreaddir",		Opt_asyncreaddir),
 	fsparam_s32	("caps_max",			Opt_caps_max),
@@ -196,10 +196,6 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_string	("source",			Opt_source),
 	fsparam_u32	("wsize",			Opt_wsize),
 	{}
-};
-
-static const struct fs_parameter_description ceph_mount_parameters = {
-	.specs          = ceph_mount_param_specs,
 };
 
 struct ceph_parse_opts_ctx {
@@ -271,7 +267,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 	if (ret != -ENOPARAM)
 		return ret;
 
-	token = fs_parse(fc, &ceph_mount_parameters, param, &result);
+	token = fs_parse(fc, ceph_mount_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0)
 		return token;

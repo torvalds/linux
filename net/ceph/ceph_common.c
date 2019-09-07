@@ -269,7 +269,7 @@ enum {
 	Opt_abort_on_full,
 };
 
-static const struct fs_parameter_spec ceph_param_specs[] = {
+static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
 	fsparam_flag_no ("cephx_require_signatures",	Opt_cephx_require_signatures),
 	fsparam_flag_no ("cephx_sign_messages",		Opt_cephx_sign_messages),
@@ -288,10 +288,6 @@ static const struct fs_parameter_spec ceph_param_specs[] = {
 	fsparam_flag_no ("share",			Opt_share),
 	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
 	{}
-};
-
-static const struct fs_parameter_description ceph_parameters = {
-        .specs          = ceph_param_specs,
 };
 
 struct ceph_options *ceph_alloc_options(void)
@@ -406,7 +402,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	int token, err;
 	struct p_log log = {.prefix = "libceph", .log = l};
 
-	token = __fs_parse(&log, &ceph_parameters, param, &result);
+	token = __fs_parse(&log, ceph_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0)
 		return token;

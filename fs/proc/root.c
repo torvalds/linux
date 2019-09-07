@@ -41,14 +41,10 @@ enum proc_param {
 	Opt_hidepid,
 };
 
-static const struct fs_parameter_spec proc_param_specs[] = {
+static const struct fs_parameter_spec proc_fs_parameters[] = {
 	fsparam_u32("gid",	Opt_gid),
 	fsparam_u32("hidepid",	Opt_hidepid),
 	{}
-};
-
-static const struct fs_parameter_description proc_fs_parameters = {
-	.specs		= proc_param_specs,
 };
 
 static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -57,7 +53,7 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &proc_fs_parameters, param, &result);
+	opt = fs_parse(fc, proc_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -206,7 +202,7 @@ static void proc_kill_sb(struct super_block *sb)
 static struct file_system_type proc_fs_type = {
 	.name			= "proc",
 	.init_fs_context	= proc_init_fs_context,
-	.parameters		= &proc_fs_parameters,
+	.parameters		= proc_fs_parameters,
 	.kill_sb		= proc_kill_sb,
 	.fs_flags		= FS_USERNS_MOUNT | FS_DISALLOW_NOTIFY_PERM,
 };

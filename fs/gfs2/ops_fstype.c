@@ -1306,7 +1306,7 @@ static const struct constant_table gfs2_param_errors[] = {
 	{}
 };
 
-static const struct fs_parameter_spec gfs2_param_specs[] = {
+static const struct fs_parameter_spec gfs2_fs_parameters[] = {
 	fsparam_string ("lockproto",          Opt_lockproto),
 	fsparam_string ("locktable",          Opt_locktable),
 	fsparam_string ("hostdata",           Opt_hostdata),
@@ -1336,10 +1336,6 @@ static const struct fs_parameter_spec gfs2_param_specs[] = {
 	{}
 };
 
-static const struct fs_parameter_description gfs2_fs_parameters = {
-	.specs = gfs2_param_specs,
-};
-
 /* Parse a single mount parameter */
 static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
@@ -1347,7 +1343,7 @@ static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int o;
 
-	o = fs_parse(fc, &gfs2_fs_parameters, param, &result);
+	o = fs_parse(fc, gfs2_fs_parameters, param, &result);
 	if (o < 0)
 		return o;
 
@@ -1649,7 +1645,7 @@ struct file_system_type gfs2_fs_type = {
 	.name = "gfs2",
 	.fs_flags = FS_REQUIRES_DEV,
 	.init_fs_context = gfs2_init_fs_context,
-	.parameters = &gfs2_fs_parameters,
+	.parameters = gfs2_fs_parameters,
 	.kill_sb = gfs2_kill_sb,
 	.owner = THIS_MODULE,
 };
