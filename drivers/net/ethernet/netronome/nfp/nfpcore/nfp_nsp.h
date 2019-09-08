@@ -22,6 +22,7 @@ int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw);
 int nfp_nsp_mac_reinit(struct nfp_nsp *state);
 int nfp_nsp_load_stored_fw(struct nfp_nsp *state);
 int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size);
+int nfp_nsp_fw_loaded(struct nfp_nsp *state);
 int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
 			       unsigned int offset, void *data,
 			       unsigned int len, unsigned int *read_len);
@@ -39,6 +40,11 @@ static inline bool nfp_nsp_has_stored_fw_load(struct nfp_nsp *state)
 static inline bool nfp_nsp_has_hwinfo_lookup(struct nfp_nsp *state)
 {
 	return nfp_nsp_get_abi_ver_minor(state) > 24;
+}
+
+static inline bool nfp_nsp_has_fw_loaded(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 25;
 }
 
 static inline bool nfp_nsp_has_versions(struct nfp_nsp *state)
