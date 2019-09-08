@@ -204,7 +204,7 @@ s32 fat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 
 			if ((--num_alloc) == 0) {
 				p_fs->clu_srch_ptr = new_clu;
-				if (p_fs->used_clusters != (u32) ~0)
+				if (p_fs->used_clusters != (u32)~0)
 					p_fs->used_clusters += num_clusters;
 
 				return num_clusters;
@@ -215,7 +215,7 @@ s32 fat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 	}
 
 	p_fs->clu_srch_ptr = new_clu;
-	if (p_fs->used_clusters != (u32) ~0)
+	if (p_fs->used_clusters != (u32)~0)
 		p_fs->used_clusters += num_clusters;
 
 	return num_clusters;
@@ -273,7 +273,7 @@ s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 
 		if ((--num_alloc) == 0) {
 			p_fs->clu_srch_ptr = hint_clu;
-			if (p_fs->used_clusters != (u32) ~0)
+			if (p_fs->used_clusters != (u32)~0)
 				p_fs->used_clusters += num_clusters;
 
 			p_chain->size += num_clusters;
@@ -293,7 +293,7 @@ s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 	}
 
 	p_fs->clu_srch_ptr = hint_clu;
-	if (p_fs->used_clusters != (u32) ~0)
+	if (p_fs->used_clusters != (u32)~0)
 		p_fs->used_clusters += num_clusters;
 
 	p_chain->size += num_clusters;
@@ -337,7 +337,7 @@ void fat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 
 	} while (clu != CLUSTER_32(~0));
 
-	if (p_fs->used_clusters != (u32) ~0)
+	if (p_fs->used_clusters != (u32)~0)
 		p_fs->used_clusters -= num_clusters;
 }
 
@@ -396,7 +396,7 @@ void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 		} while ((clu != CLUSTER_32(0)) && (clu != CLUSTER_32(~0)));
 	}
 
-	if (p_fs->used_clusters != (u32) ~0)
+	if (p_fs->used_clusters != (u32)~0)
 		p_fs->used_clusters -= num_clusters;
 }
 
@@ -473,7 +473,7 @@ s32 exfat_count_used_clusters(struct super_block *sb)
 	map_i = map_b = 0;
 
 	for (i = 2; i < p_fs->num_clusters; i += 8) {
-		k = *(((u8 *) p_fs->vol_amap[map_i]->b_data) + map_b);
+		k = *(((u8 *)p_fs->vol_amap[map_i]->b_data) + map_b);
 		count += used_bit[k];
 
 		if ((++map_b) >= p_bd->sector_size) {
@@ -536,7 +536,7 @@ s32 load_alloc_bitmap(struct super_block *sb)
 
 			if (ep->flags == 0x0) {
 				p_fs->map_clu  = GET32_A(ep->start_clu);
-				map_size = (u32) GET64_A(ep->size);
+				map_size = (u32)GET64_A(ep->size);
 
 				p_fs->map_sectors = ((map_size - 1) >> p_bd->sector_size_bits) + 1;
 
@@ -601,7 +601,7 @@ s32 set_alloc_bitmap(struct super_block *sb, u32 clu)
 
 	sector = START_SECTOR(p_fs->map_clu) + i;
 
-	exfat_bitmap_set((u8 *) p_fs->vol_amap[i]->b_data, b);
+	exfat_bitmap_set((u8 *)p_fs->vol_amap[i]->b_data, b);
 
 	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
 }
@@ -623,7 +623,7 @@ s32 clr_alloc_bitmap(struct super_block *sb, u32 clu)
 
 	sector = START_SECTOR(p_fs->map_clu) + i;
 
-	exfat_bitmap_clear((u8 *) p_fs->vol_amap[i]->b_data, b);
+	exfat_bitmap_clear((u8 *)p_fs->vol_amap[i]->b_data, b);
 
 	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
 
@@ -655,7 +655,7 @@ u32 test_alloc_bitmap(struct super_block *sb, u32 clu)
 	map_b = (clu >> 3) & p_bd->sector_size_mask;
 
 	for (i = 2; i < p_fs->num_clusters; i += 8) {
-		k = *(((u8 *) p_fs->vol_amap[map_i]->b_data) + map_b);
+		k = *(((u8 *)p_fs->vol_amap[map_i]->b_data) + map_b);
 		if (clu_mask > 0) {
 			k |= clu_mask;
 			clu_mask = 0;
@@ -728,7 +728,7 @@ static s32 __load_upcase_table(struct super_block *sb, sector_t sector,
 		sector++;
 
 		for (i = 0; i < p_bd->sector_size && index <= 0xFFFF; i += 2) {
-			uni = GET16(((u8 *) tmp_bh->b_data) + i);
+			uni = GET16(((u8 *)tmp_bh->b_data) + i);
 
 			checksum = ((checksum & 1) ? 0x80000000 : 0) +
 				   (checksum >> 1) + *(((u8 *)tmp_bh->b_data) +
@@ -872,7 +872,7 @@ s32 load_upcase_table(struct super_block *sb)
 				continue;
 
 			tbl_clu  = GET32_A(ep->start_clu);
-			tbl_size = (u32) GET64_A(ep->size);
+			tbl_size = (u32)GET64_A(ep->size);
 
 			sector = START_SECTOR(tbl_clu);
 			num_sectors = ((tbl_size - 1) >> p_bd->sector_size_bits) + 1;
@@ -908,7 +908,7 @@ void free_upcase_table(struct super_block *sb)
 
 u32 fat_get_entry_type(struct dentry_t *p_entry)
 {
-	struct dos_dentry_t *ep = (struct dos_dentry_t *) p_entry;
+	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
 	if (*(ep->name) == 0x0)
 		return TYPE_UNUSED;
@@ -930,7 +930,7 @@ u32 fat_get_entry_type(struct dentry_t *p_entry)
 
 u32 exfat_get_entry_type(struct dentry_t *p_entry)
 {
-	struct file_dentry_t *ep = (struct file_dentry_t *) p_entry;
+	struct file_dentry_t *ep = (struct file_dentry_t *)p_entry;
 
 	if (ep->type == 0x0) {
 		return TYPE_UNUSED;
@@ -975,7 +975,7 @@ u32 exfat_get_entry_type(struct dentry_t *p_entry)
 
 void fat_set_entry_type(struct dentry_t *p_entry, u32 type)
 {
-	struct dos_dentry_t *ep = (struct dos_dentry_t *) p_entry;
+	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
 	if (type == TYPE_UNUSED)
 		*(ep->name) = 0x0;
@@ -998,7 +998,7 @@ void fat_set_entry_type(struct dentry_t *p_entry, u32 type)
 
 void exfat_set_entry_type(struct dentry_t *p_entry, u32 type)
 {
-	struct file_dentry_t *ep = (struct file_dentry_t *) p_entry;
+	struct file_dentry_t *ep = (struct file_dentry_t *)p_entry;
 
 	if (type == TYPE_UNUSED) {
 		ep->type = 0x0;
@@ -1028,30 +1028,30 @@ void exfat_set_entry_type(struct dentry_t *p_entry, u32 type)
 
 u32 fat_get_entry_attr(struct dentry_t *p_entry)
 {
-	struct dos_dentry_t *ep = (struct dos_dentry_t *) p_entry;
+	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
-	return (u32) ep->attr;
+	return (u32)ep->attr;
 }
 
 u32 exfat_get_entry_attr(struct dentry_t *p_entry)
 {
-	struct file_dentry_t *ep = (struct file_dentry_t *) p_entry;
+	struct file_dentry_t *ep = (struct file_dentry_t *)p_entry;
 
-	return (u32) GET16_A(ep->attr);
+	return (u32)GET16_A(ep->attr);
 }
 
 void fat_set_entry_attr(struct dentry_t *p_entry, u32 attr)
 {
-	struct dos_dentry_t *ep = (struct dos_dentry_t *) p_entry;
+	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
-	ep->attr = (u8) attr;
+	ep->attr = (u8)attr;
 }
 
 void exfat_set_entry_attr(struct dentry_t *p_entry, u32 attr)
 {
-	struct file_dentry_t *ep = (struct file_dentry_t *) p_entry;
+	struct file_dentry_t *ep = (struct file_dentry_t *)p_entry;
 
-	SET16_A(ep->attr, (u16) attr);
+	SET16_A(ep->attr, (u16)attr);
 }
 
 u8 fat_get_entry_flag(struct dentry_t *p_entry)
@@ -1061,7 +1061,7 @@ u8 fat_get_entry_flag(struct dentry_t *p_entry)
 
 u8 exfat_get_entry_flag(struct dentry_t *p_entry)
 {
-	struct strm_dentry_t *ep = (struct strm_dentry_t *) p_entry;
+	struct strm_dentry_t *ep = (struct strm_dentry_t *)p_entry;
 
 	return ep->flags;
 }
@@ -1072,14 +1072,14 @@ void fat_set_entry_flag(struct dentry_t *p_entry, u8 flags)
 
 void exfat_set_entry_flag(struct dentry_t *p_entry, u8 flags)
 {
-	struct strm_dentry_t *ep = (struct strm_dentry_t *) p_entry;
+	struct strm_dentry_t *ep = (struct strm_dentry_t *)p_entry;
 
 	ep->flags = flags;
 }
 
 u32 fat_get_entry_clu0(struct dentry_t *p_entry)
 {
-	struct dos_dentry_t *ep = (struct dos_dentry_t *) p_entry;
+	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
 	return ((u32)GET16_A(ep->start_clu_hi) << 16) |
 		GET16_A(ep->start_clu_lo);
@@ -1087,7 +1087,7 @@ u32 fat_get_entry_clu0(struct dentry_t *p_entry)
 
 u32 exfat_get_entry_clu0(struct dentry_t *p_entry)
 {
-	struct strm_dentry_t *ep = (struct strm_dentry_t *) p_entry;
+	struct strm_dentry_t *ep = (struct strm_dentry_t *)p_entry;
 
 	return GET32_A(ep->start_clu);
 }
@@ -1111,7 +1111,7 @@ u64 fat_get_entry_size(struct dentry_t *p_entry)
 {
 	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
-	return (u64) GET32_A(ep->size);
+	return (u64)GET32_A(ep->size);
 }
 
 u64 exfat_get_entry_size(struct dentry_t *p_entry)
@@ -1125,7 +1125,7 @@ void fat_set_entry_size(struct dentry_t *p_entry, u64 size)
 {
 	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
-	SET32_A(ep->size, (u32) size);
+	SET32_A(ep->size, (u32)size);
 }
 
 void exfat_set_entry_size(struct dentry_t *p_entry, u64 size)
@@ -1384,14 +1384,14 @@ void init_dos_entry(struct dos_dentry_t *ep, u32 type, u32 start_clu)
 {
 	struct timestamp_t tm, *tp;
 
-	fat_set_entry_type((struct dentry_t *) ep, type);
+	fat_set_entry_type((struct dentry_t *)ep, type);
 	SET16_A(ep->start_clu_lo, CLUSTER_16(start_clu));
 	SET16_A(ep->start_clu_hi, CLUSTER_16(start_clu >> 16));
 	SET32_A(ep->size, 0);
 
 	tp = tm_current(&tm);
-	fat_set_entry_time((struct dentry_t *) ep, tp, TM_CREATE);
-	fat_set_entry_time((struct dentry_t *) ep, tp, TM_MODIFY);
+	fat_set_entry_time((struct dentry_t *)ep, tp, TM_CREATE);
+	fat_set_entry_time((struct dentry_t *)ep, tp, TM_MODIFY);
 	SET16_A(ep->access_date, 0);
 	ep->create_time_ms = 0;
 }
@@ -1401,8 +1401,8 @@ void init_ext_entry(struct ext_dentry_t *ep, s32 order, u8 chksum, u16 *uniname)
 	int i;
 	bool end = false;
 
-	fat_set_entry_type((struct dentry_t *) ep, TYPE_EXTEND);
-	ep->order = (u8) order;
+	fat_set_entry_type((struct dentry_t *)ep, TYPE_EXTEND);
+	ep->order = (u8)order;
 	ep->sysid = 0;
 	ep->checksum = chksum;
 	SET16_A(ep->start_clu, 0);
@@ -1535,7 +1535,7 @@ void update_dir_checksum(struct super_block *sb, struct chain_t *p_dir,
 
 	buf_lock(sb, sector);
 
-	num_entries = (s32) file_ep->num_ext + 1;
+	num_entries = (s32)file_ep->num_ext + 1;
 	chksum = calc_checksum_2byte((void *)file_ep, DENTRY_SIZE, 0,
 				     CS_DIR_ENTRY);
 
@@ -1749,7 +1749,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	es->offset = off;
 	es->alloc_flag = p_dir->flags;
 
-	pos = (struct dentry_t *) &(es->__buf);
+	pos = (struct dentry_t *)&es->__buf;
 
 	while (num_entries) {
 		/*
@@ -2190,7 +2190,7 @@ s32 fat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 					if (is_feasible_entry && has_ext_entry)
 						return dentry;
 
-					dos_ep = (struct dos_dentry_t *) ep;
+					dos_ep = (struct dos_dentry_t *)ep;
 					if (!nls_dosname_cmp(sb, p_dosname->name, dos_ep->name))
 						return dentry;
 				}
@@ -2198,12 +2198,12 @@ s32 fat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 				has_ext_entry = false;
 			} else if (entry_type == TYPE_EXTEND) {
 				if (is_feasible_entry) {
-					ext_ep = (struct ext_dentry_t *) ep;
+					ext_ep = (struct ext_dentry_t *)ep;
 					if (ext_ep->order > 0x40) {
 						order = (s32)(ext_ep->order - 0x40);
 						uniname = p_uniname->name + 13 * (order - 1);
 					} else {
-						order = (s32) ext_ep->order;
+						order = (s32)ext_ep->order;
 						uniname -= 13;
 					}
 
@@ -2310,7 +2310,7 @@ s32 exfat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 				num_empty = 0;
 
 				if ((entry_type == TYPE_FILE) || (entry_type == TYPE_DIR)) {
-					file_ep = (struct file_dentry_t *) ep;
+					file_ep = (struct file_dentry_t *)ep;
 					if ((type == TYPE_ALL) || (type == entry_type)) {
 						num_ext_entries = file_ep->num_ext;
 						is_feasible_entry = true;
@@ -2388,11 +2388,11 @@ s32 fat_count_ext_entries(struct super_block *sb, struct chain_t *p_dir,
 {
 	s32 count = 0;
 	u8 chksum;
-	struct dos_dentry_t *dos_ep = (struct dos_dentry_t *) p_entry;
+	struct dos_dentry_t *dos_ep = (struct dos_dentry_t *)p_entry;
 	struct ext_dentry_t *ext_ep;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	chksum = calc_checksum_1byte((void *) dos_ep->name, DOS_NAME_LENGTH, 0);
+	chksum = calc_checksum_1byte((void *)dos_ep->name, DOS_NAME_LENGTH, 0);
 
 	for (entry--; entry >= 0; entry--) {
 		ext_ep = (struct ext_dentry_t *)get_entry_in_dir(sb, p_dir,
