@@ -134,7 +134,16 @@ void bch2_btree_iter_node_drop(struct btree_iter *, struct btree *);
 
 void bch2_btree_iter_reinit_node(struct btree_iter *, struct btree *);
 
-int __must_check bch2_btree_iter_traverse(struct btree_iter *);
+int __must_check __bch2_btree_iter_traverse(struct btree_iter *);
+
+static inline int __must_check
+bch2_btree_iter_traverse(struct btree_iter *iter)
+{
+	return iter->uptodate >= BTREE_ITER_NEED_RELOCK
+		? __bch2_btree_iter_traverse(iter)
+		: 0;
+}
+
 int bch2_btree_iter_traverse_all(struct btree_trans *);
 
 struct btree *bch2_btree_iter_peek_node(struct btree_iter *);

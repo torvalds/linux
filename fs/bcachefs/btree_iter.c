@@ -955,10 +955,10 @@ static void btree_iter_up(struct btree_iter *iter)
 	btree_node_unlock(iter, iter->level++);
 }
 
-int __must_check __bch2_btree_iter_traverse(struct btree_iter *);
+static int btree_iter_traverse_one(struct btree_iter *);
 
 static int __btree_iter_traverse_all(struct btree_trans *trans,
-				     struct btree_iter *orig_iter, int ret)
+				   struct btree_iter *orig_iter, int ret)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
@@ -1002,7 +1002,7 @@ retry_all:
 		iter = &trans->iters[sorted[i]];
 
 		do {
-			ret = __bch2_btree_iter_traverse(iter);
+			ret = btree_iter_traverse_one(iter);
 		} while (ret == -EINTR);
 
 		if (ret)
@@ -1047,7 +1047,7 @@ static unsigned btree_iter_up_until_locked(struct btree_iter *iter,
  * On error, caller (peek_node()/peek_key()) must return NULL; the error is
  * stashed in the iterator and returned from bch2_trans_exit().
  */
-int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
+static int btree_iter_traverse_one(struct btree_iter *iter)
 {
 	unsigned depth_want = iter->level;
 
@@ -1099,12 +1099,12 @@ int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
 	return 0;
 }
 
-int __must_check bch2_btree_iter_traverse(struct btree_iter *iter)
+int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
 {
 	int ret;
 
 	ret =   bch2_trans_cond_resched(iter->trans) ?:
-		__bch2_btree_iter_traverse(iter);
+		btree_iter_traverse_one(iter);
 	if (unlikely(ret))
 		ret = __btree_iter_traverse_all(iter->trans, iter, ret);
 
@@ -1296,11 +1296,9 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		return btree_iter_peek_uptodate(iter);
 
 	while (1) {
-		if (iter->uptodate >= BTREE_ITER_NEED_RELOCK) {
-			ret = bch2_btree_iter_traverse(iter);
-			if (unlikely(ret))
-				return bkey_s_c_err(ret);
-		}
+		ret = bch2_btree_iter_traverse(iter);
+		if (unlikely(ret))
+			return bkey_s_c_err(ret);
 
 		k = __btree_iter_peek(iter, l);
 		if (likely(k.k))
@@ -1564,11 +1562,9 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	if (iter->uptodate == BTREE_ITER_UPTODATE)
 		return btree_iter_peek_uptodate(iter);
 
-	if (iter->uptodate >= BTREE_ITER_NEED_RELOCK) {
-		ret = bch2_btree_iter_traverse(iter);
-		if (unlikely(ret))
-			return bkey_s_c_err(ret);
-	}
+	ret = bch2_btree_iter_traverse(iter);
+	if (unlikely(ret))
+		return bkey_s_c_err(ret);
 
 	return __bch2_btree_iter_peek_slot(iter);
 }
