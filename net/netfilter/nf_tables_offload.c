@@ -28,7 +28,8 @@ static struct nft_flow_rule *nft_flow_rule_alloc(int num_actions)
 	return flow;
 }
 
-struct nft_flow_rule *nft_flow_rule_create(const struct nft_rule *rule)
+struct nft_flow_rule *nft_flow_rule_create(struct net *net,
+					   const struct nft_rule *rule)
 {
 	struct nft_offload_ctx *ctx;
 	struct nft_flow_rule *flow;
@@ -54,6 +55,7 @@ struct nft_flow_rule *nft_flow_rule_create(const struct nft_rule *rule)
 		err = -ENOMEM;
 		goto err_out;
 	}
+	ctx->net = net;
 	ctx->dep.type = NFT_OFFLOAD_DEP_UNSPEC;
 
 	while (expr->ops && expr != nft_expr_last(rule)) {
@@ -80,6 +82,19 @@ err_out:
 
 void nft_flow_rule_destroy(struct nft_flow_rule *flow)
 {
+	struct flow_action_entry *entry;
+	int i;
+
+	flow_action_for_each(i, entry, &flow->rule->action) {
+		switch (entry->id) {
+		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_MIRRED:
+			dev_put(entry->dev);
+			break;
+		default:
+			break;
+		}
+	}
 	kfree(flow->rule);
 	kfree(flow);
 }

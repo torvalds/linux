@@ -26,6 +26,7 @@ struct nft_offload_ctx {
 		u8				protonum;
 	} dep;
 	unsigned int				num_actions;
+	struct net				*net;
 	struct nft_offload_reg			regs[NFT_REG32_15 + 1];
 };
 
@@ -61,7 +62,7 @@ struct nft_flow_rule {
 #define NFT_OFFLOAD_F_ACTION	(1 << 0)
 
 struct nft_rule;
-struct nft_flow_rule *nft_flow_rule_create(const struct nft_rule *rule);
+struct nft_flow_rule *nft_flow_rule_create(struct net *net, const struct nft_rule *rule);
 void nft_flow_rule_destroy(struct nft_flow_rule *flow);
 int nft_flow_rule_offload_commit(struct net *net);
 
