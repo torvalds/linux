@@ -3366,7 +3366,6 @@ static const struct export_operations shmem_export_ops = {
 static int shmem_parse_options(char *options, struct shmem_options *ctx)
 {
 	char *this_char, *value, *rest;
-	struct mempolicy *mpol = NULL;
 	uid_t uid;
 	gid_t gid;
 
@@ -3452,9 +3451,9 @@ static int shmem_parse_options(char *options, struct shmem_options *ctx)
 #endif
 #ifdef CONFIG_NUMA
 		} else if (!strcmp(this_char,"mpol")) {
-			mpol_put(mpol);
-			mpol = NULL;
-			if (mpol_parse_str(value, &mpol))
+			mpol_put(ctx->mpol);
+			ctx->mpol = NULL;
+			if (mpol_parse_str(value, &ctx->mpol))
 				goto bad_val;
 #endif
 		} else {
@@ -3462,14 +3461,14 @@ static int shmem_parse_options(char *options, struct shmem_options *ctx)
 			goto error;
 		}
 	}
-	ctx->mpol = mpol;
 	return 0;
 
 bad_val:
 	pr_err("tmpfs: Bad value '%s' for mount option '%s'\n",
 	       value, this_char);
 error:
-	mpol_put(mpol);
+	mpol_put(ctx->mpol);
+	ctx->mpol = NULL;
 	return 1;
 
 }
