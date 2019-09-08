@@ -372,7 +372,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			format_and_print(outf, base_level + 5, header, NULL);
 
 			snprintf(header, sizeof(header), "core-count");
-			snprintf(value, sizeof(value), "%d", j);
+			snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
 			format_and_print(outf, base_level + 6, header, value);
 
 			snprintf(header, sizeof(header),
@@ -389,7 +389,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			format_and_print(outf, base_level + 5, header, NULL);
 
 			snprintf(header, sizeof(header), "core-count");
-			snprintf(value, sizeof(value), "%d", j);
+			snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
 			format_and_print(outf, base_level + 6, header, value);
 
 			snprintf(header, sizeof(header),
@@ -407,7 +407,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			format_and_print(outf, base_level + 5, header, NULL);
 
 			snprintf(header, sizeof(header), "core-count");
-			snprintf(value, sizeof(value), "%d", j);
+			snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
 			format_and_print(outf, base_level + 6, header, value);
 
 			snprintf(header, sizeof(header),

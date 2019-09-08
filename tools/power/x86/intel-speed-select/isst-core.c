@@ -188,6 +188,24 @@ int isst_get_get_trl(int cpu, int level, int avx_level, int *trl)
 	return 0;
 }
 
+int isst_get_trl_bucket_info(int cpu, unsigned long long *buckets_info)
+{
+	int ret;
+
+	debug_printf("cpu:%d bucket info via MSR\n", cpu);
+
+	*buckets_info = 0;
+
+	ret = isst_send_msr_command(cpu, 0x1ae, 0, buckets_info);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d bucket info via MSR successful 0x%llx\n", cpu,
+		     *buckets_info);
+
+	return 0;
+}
+
 int isst_set_tdp_level_msr(int cpu, int tdp_level)
 {
 	unsigned long long level = tdp_level;
@@ -560,6 +578,10 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		ctdp_level->core_cpumask_size =
 			alloc_cpu_set(&ctdp_level->core_cpumask);
 		ret = isst_get_coremask_info(cpu, i, ctdp_level);
+		if (ret)
+			return ret;
+
+		ret = isst_get_trl_bucket_info(cpu, &ctdp_level->buckets_info);
 		if (ret)
 			return ret;
 
