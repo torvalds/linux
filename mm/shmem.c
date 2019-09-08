@@ -3363,11 +3363,87 @@ static const struct export_operations shmem_export_ops = {
 	.fh_to_dentry	= shmem_fh_to_dentry,
 };
 
-static int shmem_parse_options(char *options, struct shmem_options *ctx)
+static int shmem_parse_one(struct shmem_options *ctx, char *opt, char *value)
 {
-	char *this_char, *value, *rest;
+	char *rest;
 	uid_t uid;
 	gid_t gid;
+
+	if (!strcmp(opt, "size")) {
+		unsigned long long size;
+		size = memparse(value,&rest);
+		if (*rest == '%') {
+			size <<= PAGE_SHIFT;
+			size *= totalram_pages();
+			do_div(size, 100);
+			rest++;
+		}
+		if (*rest)
+			goto bad_val;
+		ctx->blocks = DIV_ROUND_UP(size, PAGE_SIZE);
+		ctx->seen |= SHMEM_SEEN_BLOCKS;
+	} else if (!strcmp(opt, "nr_blocks")) {
+		ctx->blocks = memparse(value, &rest);
+		if (*rest)
+			goto bad_val;
+		ctx->seen |= SHMEM_SEEN_BLOCKS;
+	} else if (!strcmp(opt, "nr_inodes")) {
+		ctx->inodes = memparse(value, &rest);
+		if (*rest)
+			goto bad_val;
+		ctx->seen |= SHMEM_SEEN_INODES;
+	} else if (!strcmp(opt, "mode")) {
+		ctx->mode = simple_strtoul(value, &rest, 8) & 07777;
+		if (*rest)
+			goto bad_val;
+	} else if (!strcmp(opt, "uid")) {
+		uid = simple_strtoul(value, &rest, 0);
+		if (*rest)
+			goto bad_val;
+		ctx->uid = make_kuid(current_user_ns(), uid);
+		if (!uid_valid(ctx->uid))
+			goto bad_val;
+	} else if (!strcmp(opt, "gid")) {
+		gid = simple_strtoul(value, &rest, 0);
+		if (*rest)
+			goto bad_val;
+		ctx->gid = make_kgid(current_user_ns(), gid);
+		if (!gid_valid(ctx->gid))
+			goto bad_val;
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+	} else if (!strcmp(opt, "huge")) {
+		int huge;
+		huge = shmem_parse_huge(value);
+		if (huge < 0)
+			goto bad_val;
+		if (!has_transparent_hugepage() &&
+				huge != SHMEM_HUGE_NEVER)
+			goto bad_val;
+		ctx->huge = huge;
+		ctx->seen |= SHMEM_SEEN_HUGE;
+#endif
+#ifdef CONFIG_NUMA
+	} else if (!strcmp(opt, "mpol")) {
+		mpol_put(ctx->mpol);
+		ctx->mpol = NULL;
+		if (mpol_parse_str(value, &ctx->mpol))
+			goto bad_val;
+#endif
+	} else {
+		pr_err("tmpfs: Bad mount option %s\n", opt);
+		return -EINVAL;
+	}
+	return 0;
+
+bad_val:
+	pr_err("tmpfs: Bad value '%s' for mount option '%s'\n",
+	       value, opt);
+	return -EINVAL;
+}
+
+static int shmem_parse_options(char *options, struct shmem_options *ctx)
+{
+	char *this_char, *value;
 
 	while (options != NULL) {
 		this_char = options;
@@ -3395,77 +3471,11 @@ static int shmem_parse_options(char *options, struct shmem_options *ctx)
 			       this_char);
 			goto error;
 		}
-
-		if (!strcmp(this_char,"size")) {
-			unsigned long long size;
-			size = memparse(value,&rest);
-			if (*rest == '%') {
-				size <<= PAGE_SHIFT;
-				size *= totalram_pages();
-				do_div(size, 100);
-				rest++;
-			}
-			if (*rest)
-				goto bad_val;
-			ctx->blocks = DIV_ROUND_UP(size, PAGE_SIZE);
-			ctx->seen |= SHMEM_SEEN_BLOCKS;
-		} else if (!strcmp(this_char,"nr_blocks")) {
-			ctx->blocks = memparse(value, &rest);
-			if (*rest)
-				goto bad_val;
-			ctx->seen |= SHMEM_SEEN_BLOCKS;
-		} else if (!strcmp(this_char,"nr_inodes")) {
-			ctx->inodes = memparse(value, &rest);
-			if (*rest)
-				goto bad_val;
-			ctx->seen |= SHMEM_SEEN_INODES;
-		} else if (!strcmp(this_char,"mode")) {
-			ctx->mode = simple_strtoul(value, &rest, 8) & 07777;
-			if (*rest)
-				goto bad_val;
-		} else if (!strcmp(this_char,"uid")) {
-			uid = simple_strtoul(value, &rest, 0);
-			if (*rest)
-				goto bad_val;
-			ctx->uid = make_kuid(current_user_ns(), uid);
-			if (!uid_valid(ctx->uid))
-				goto bad_val;
-		} else if (!strcmp(this_char,"gid")) {
-			gid = simple_strtoul(value, &rest, 0);
-			if (*rest)
-				goto bad_val;
-			ctx->gid = make_kgid(current_user_ns(), gid);
-			if (!gid_valid(ctx->gid))
-				goto bad_val;
-#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-		} else if (!strcmp(this_char, "huge")) {
-			int huge;
-			huge = shmem_parse_huge(value);
-			if (huge < 0)
-				goto bad_val;
-			if (!has_transparent_hugepage() &&
-					huge != SHMEM_HUGE_NEVER)
-				goto bad_val;
-			ctx->huge = huge;
-			ctx->seen |= SHMEM_SEEN_HUGE;
-#endif
-#ifdef CONFIG_NUMA
-		} else if (!strcmp(this_char,"mpol")) {
-			mpol_put(ctx->mpol);
-			ctx->mpol = NULL;
-			if (mpol_parse_str(value, &ctx->mpol))
-				goto bad_val;
-#endif
-		} else {
-			pr_err("tmpfs: Bad mount option %s\n", this_char);
+		if (shmem_parse_one(ctx, this_char, value) < 0)
 			goto error;
-		}
 	}
 	return 0;
 
-bad_val:
-	pr_err("tmpfs: Bad value '%s' for mount option '%s'\n",
-	       value, this_char);
 error:
 	mpol_put(ctx->mpol);
 	ctx->mpol = NULL;
