@@ -102,6 +102,21 @@ enum nfp_eth_fec {
 #define NFP_FEC_REED_SOLOMON	BIT(NFP_FEC_REED_SOLOMON_BIT)
 #define NFP_FEC_DISABLED	BIT(NFP_FEC_DISABLED_BIT)
 
+/* Defines the valid values of the 'abi_drv_reset' hwinfo key */
+#define NFP_NSP_DRV_RESET_DISK			0
+#define NFP_NSP_DRV_RESET_ALWAYS		1
+#define NFP_NSP_DRV_RESET_NEVER			2
+#define NFP_NSP_DRV_RESET_DEFAULT		"0"
+
+/* Defines the valid values of the 'app_fw_from_flash' hwinfo key */
+#define NFP_NSP_APP_FW_LOAD_DISK		0
+#define NFP_NSP_APP_FW_LOAD_FLASH		1
+#define NFP_NSP_APP_FW_LOAD_PREF		2
+#define NFP_NSP_APP_FW_LOAD_DEFAULT		"2"
+
+/* Define the default value for the 'abi_drv_load_ifc' key */
+#define NFP_NSP_DRV_LOAD_IFC_DEFAULT		"0x10ff"
+
 /**
  * struct nfp_eth_table - ETH table information
  * @count:	number of table entries

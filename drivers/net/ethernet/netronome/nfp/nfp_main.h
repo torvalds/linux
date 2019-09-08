@@ -64,6 +64,7 @@ struct nfp_dumpspec {
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
+ * @unload_fw_on_remove:Do we need to unload firmware on driver removal?
  * @ctrl_vnic:		Pointer to the control vNIC if available
  * @mip:		MIP handle
  * @rtbl:		RTsym table
@@ -110,6 +111,7 @@ struct nfp_pf {
 	unsigned int num_vfs;
 
 	bool fw_loaded;
+	bool unload_fw_on_remove;
 
 	struct nfp_net *ctrl_vnic;
 
