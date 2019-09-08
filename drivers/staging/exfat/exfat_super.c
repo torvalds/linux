@@ -605,7 +605,7 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 				ret =  FFS_MEDIAERR;
 				goto out;
 			}
-			ep2 = ep+1;
+			ep2 = ep + 1;
 		} else {
 			ep = get_entry_in_dir(sb, &dir, dentry, NULL);
 			if (!ep) {
@@ -757,7 +757,7 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 		fid->hint_last_clu = clu;
 
 		/* byte offset in cluster */
-		offset = (s32)(fid->rwoffset & (p_fs->cluster_size-1));
+		offset = (s32)(fid->rwoffset & (p_fs->cluster_size - 1));
 
 		/* sector offset in cluster */
 		sec_offset = offset >> p_bd->sector_size_bits;
@@ -858,7 +858,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 	if (fid->size == 0)
 		num_clusters = 0;
 	else
-		num_clusters = (s32)((fid->size-1) >>
+		num_clusters = (s32)((fid->size - 1) >>
 				     p_fs->cluster_size_bits) + 1;
 
 	write_bytes = 0;
@@ -899,7 +899,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 			num_alloc = (s32)((count - 1) >>
 					  p_fs->cluster_size_bits) + 1;
 			new_clu.dir = (last_clu == CLUSTER_32(~0)) ?
-					CLUSTER_32(~0) : last_clu+1;
+					CLUSTER_32(~0) : last_clu + 1;
 			new_clu.size = 0;
 			new_clu.flags = fid->flags;
 
@@ -969,7 +969,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 			}
 		} else {
 			if ((offset > 0) ||
-			    ((fid->rwoffset+oneblkwrite) < fid->size)) {
+			    ((fid->rwoffset + oneblkwrite) < fid->size)) {
 				if (sector_read(sb, LogSector, &tmp_bh, 1) !=
 				    FFS_SUCCESS)
 					goto err_out;
@@ -1008,7 +1008,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es)
 			goto err_out;
-		ep2 = ep+1;
+		ep2 = ep + 1;
 	} else {
 		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
 		if (!ep)
@@ -1103,11 +1103,11 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 	fs_set_vol_flags(sb, VOL_DIRTY);
 
 	clu.dir = fid->start_clu;
-	clu.size = (s32)((old_size-1) >> p_fs->cluster_size_bits) + 1;
+	clu.size = (s32)((old_size - 1) >> p_fs->cluster_size_bits) + 1;
 	clu.flags = fid->flags;
 
 	if (new_size > 0) {
-		num_clusters = (s32)((new_size-1) >>
+		num_clusters = (s32)((new_size - 1) >>
 				     p_fs->cluster_size_bits) + 1;
 
 		if (clu.flags == 0x03) {
@@ -1141,7 +1141,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 			ret = FFS_MEDIAERR;
 			goto out;
 			}
-		ep2 = ep+1;
+		ep2 = ep + 1;
 	} else {
 		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
 		if (!ep) {
@@ -1209,7 +1209,7 @@ static void update_parent_info(struct file_id_t *fid,
 		     (parent_fid->start_clu != fid->dir.dir))) {
 		fid->dir.dir = parent_fid->start_clu;
 		fid->dir.flags = parent_fid->flags;
-		fid->dir.size = ((parent_fid->size + (p_fs->cluster_size-1))
+		fid->dir.size = ((parent_fid->size + (p_fs->cluster_size - 1))
 						>> p_fs->cluster_size_bits);
 	}
 }
@@ -1326,7 +1326,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 		if (num_entries < 0)
 			goto out;
 		p_fs->fs_func->delete_dir_entry(sb, p_dir, new_entry, 0,
-						num_entries+1);
+						num_entries + 1);
 	}
 out:
 #ifdef CONFIG_EXFAT_DELAYED_SYNC
@@ -1381,7 +1381,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 	remove_file(inode, &dir, dentry);
 
 	clu_to_free.dir = fid->start_clu;
-	clu_to_free.size = (s32)((fid->size-1) >> p_fs->cluster_size_bits) + 1;
+	clu_to_free.size = (s32)((fid->size - 1) >> p_fs->cluster_size_bits) + 1;
 	clu_to_free.flags = fid->flags;
 
 	/* (2) free the clusters */
@@ -1561,7 +1561,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 			ret = FFS_MEDIAERR;
 			goto out;
 		}
-		ep2 = ep+1;
+		ep2 = ep + 1;
 	} else {
 		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
 		if (!ep) {
@@ -1685,7 +1685,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 			ret = FFS_MEDIAERR;
 			goto out;
 		}
-		ep2 = ep+1;
+		ep2 = ep + 1;
 	} else {
 		/* for other than exfat */
 		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
@@ -2019,7 +2019,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 		if (dir.dir == CLUSTER_32(0)) /* FAT16 root_dir */
 			i = dentry % dentries_per_clu;
 		else
-			i = dentry & (dentries_per_clu-1);
+			i = dentry & (dentries_per_clu - 1);
 
 		for ( ; i < dentries_per_clu; i++, dentry++) {
 			ep = get_entry_in_dir(sb, &clu, i, &sector);
@@ -2070,7 +2070,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			buf_unlock(sb, sector);
 
 			if (p_fs->vol_type == EXFAT) {
-				ep = get_entry_in_dir(sb, &clu, i+1, NULL);
+				ep = get_entry_in_dir(sb, &clu, i + 1, NULL);
 				if (!ep) {
 					ret = FFS_MEDIAERR;
 					goto out;
@@ -2159,7 +2159,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 	down(&p_fs->v_sem);
 
 	clu_to_free.dir = fid->start_clu;
-	clu_to_free.size = (s32)((fid->size-1) >> p_fs->cluster_size_bits) + 1;
+	clu_to_free.size = (s32)((fid->size - 1) >> p_fs->cluster_size_bits) + 1;
 	clu_to_free.flags = fid->flags;
 
 	if (!is_dir_empty(sb, &clu_to_free)) {
@@ -2247,7 +2247,7 @@ get_new:
 		 */
 		if (err == FFS_MEDIAERR) {
 			cpos += 1 << p_bd->sector_size_bits;
-			cpos &= ~((1 << p_bd->sector_size_bits)-1);
+			cpos &= ~((1 << p_bd->sector_size_bits) - 1);
 		}
 
 		err = -EIO;
@@ -2265,7 +2265,7 @@ get_new:
 		inum = parent_ino(filp->f_path.dentry);
 	} else {
 		loff_t i_pos = ((loff_t) EXFAT_I(inode)->fid.start_clu << 32) |
-				((EXFAT_I(inode)->fid.rwoffset-1) & 0xffffffff);
+				((EXFAT_I(inode)->fid.rwoffset - 1) & 0xffffffff);
 		struct inode *tmp = exfat_iget(sb, i_pos);
 
 		if (tmp) {
@@ -3089,7 +3089,7 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 		if (inode->i_ino == EXFAT_ROOT_INO) {
 			if (sector <
 			    (p_fs->dentries_in_root >>
-			     (p_bd->sector_size_bits-DENTRY_SIZE_BITS))) {
+			     (p_bd->sector_size_bits - DENTRY_SIZE_BITS))) {
 				*phys = sector + p_fs->root_start_sector;
 				*mapped_blocks = 1;
 			}
@@ -3206,7 +3206,7 @@ static int exfat_write_begin(struct file *file, struct address_space *mapping,
 			       &EXFAT_I(mapping->host)->mmu_private);
 
 	if (ret < 0)
-		exfat_write_failed(mapping, pos+len);
+		exfat_write_failed(mapping, pos + len);
 	return ret;
 }
 
@@ -3221,7 +3221,7 @@ static int exfat_write_end(struct file *file, struct address_space *mapping,
 	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
 
 	if (err < len)
-		exfat_write_failed(mapping, pos+len);
+		exfat_write_failed(mapping, pos + len);
 
 	if (!(err < 0) && !(fid->attr & ATTR_ARCHIVE)) {
 		inode->i_mtime = inode->i_ctime = current_time(inode);
