@@ -962,9 +962,6 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 			   struct mlx5dr_match_param *set_param,
 			   struct mlx5dr_match_parameters *mask);
 
-void mlx5dr_crc32_init_table(void);
-u32 mlx5dr_crc32_slice8_calc(const void *input_data, size_t length);
-
 struct mlx5dr_qp {
 	struct mlx5_core_dev *mdev;
 	struct mlx5_wq_qp wq;
