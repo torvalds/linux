@@ -202,6 +202,7 @@ enum devlink_param_cmode {
 enum devlink_param_fw_load_policy_value {
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER,
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH,
+	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK,
 };
 
 enum {

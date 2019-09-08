@@ -48,4 +48,6 @@ fw_load_policy		[DEVICE, GENERIC]
 			  Load firmware version preferred by the driver.
 			* DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH (1)
 			  Load firmware currently stored in flash.
+			* DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK (2)
+			  Load firmware currently available on host's disk.
 			Type: u8
