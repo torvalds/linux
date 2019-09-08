@@ -231,7 +231,11 @@ hijack_fini(void)
 			pause();
 	}
 
+	if (!cfg)
+		return;
+
 	lkl_unload_config(cfg);
+	free(cfg);
 
 	if (!lkl_running)
 		return;
