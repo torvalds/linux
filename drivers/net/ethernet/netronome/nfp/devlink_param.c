@@ -52,6 +52,30 @@ static const struct nfp_devlink_param_u8_arg nfp_devlink_u8_args[] = {
 		.max_dl_val = DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK,
 		.max_hi_val = NFP_NSP_APP_FW_LOAD_PREF,
 	},
+	[DEVLINK_PARAM_GENERIC_ID_RESET_DEV_ON_DRV_PROBE] = {
+		.hwinfo_name = "abi_drv_reset",
+		.default_hi_val = NFP_NSP_DRV_RESET_DEFAULT,
+		.invalid_dl_val =
+			DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKNOWN,
+		.hi_to_dl = {
+			[NFP_NSP_DRV_RESET_ALWAYS] =
+				DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_ALWAYS,
+			[NFP_NSP_DRV_RESET_NEVER] =
+				DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_NEVER,
+			[NFP_NSP_DRV_RESET_DISK] =
+				DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_DISK,
+		},
+		.dl_to_hi = {
+			[DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_ALWAYS] =
+				NFP_NSP_DRV_RESET_ALWAYS,
+			[DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_NEVER] =
+				NFP_NSP_DRV_RESET_NEVER,
+			[DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_DISK] =
+				NFP_NSP_DRV_RESET_DISK,
+		},
+		.max_dl_val = DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_DISK,
+		.max_hi_val = NFP_NSP_DRV_RESET_NEVER,
+	}
 };
 
 static int
@@ -168,6 +192,11 @@ nfp_devlink_param_u8_validate(struct devlink *devlink, u32 id,
 
 static const struct devlink_param nfp_devlink_params[] = {
 	DEVLINK_PARAM_GENERIC(FW_LOAD_POLICY,
+			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			      nfp_devlink_param_u8_get,
+			      nfp_devlink_param_u8_set,
+			      nfp_devlink_param_u8_validate),
+	DEVLINK_PARAM_GENERIC(RESET_DEV_ON_DRV_PROBE,
 			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
 			      nfp_devlink_param_u8_get,
 			      nfp_devlink_param_u8_set,
