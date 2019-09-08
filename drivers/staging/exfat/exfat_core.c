@@ -204,7 +204,7 @@ s32 fat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 
 			if ((--num_alloc) == 0) {
 				p_fs->clu_srch_ptr = new_clu;
-				if (p_fs->used_clusters != (u32)~0)
+				if (p_fs->used_clusters != UINT_MAX)
 					p_fs->used_clusters += num_clusters;
 
 				return num_clusters;
@@ -215,7 +215,7 @@ s32 fat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 	}
 
 	p_fs->clu_srch_ptr = new_clu;
-	if (p_fs->used_clusters != (u32)~0)
+	if (p_fs->used_clusters != UINT_MAX)
 		p_fs->used_clusters += num_clusters;
 
 	return num_clusters;
@@ -273,7 +273,7 @@ s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 
 		if ((--num_alloc) == 0) {
 			p_fs->clu_srch_ptr = hint_clu;
-			if (p_fs->used_clusters != (u32)~0)
+			if (p_fs->used_clusters != UINT_MAX)
 				p_fs->used_clusters += num_clusters;
 
 			p_chain->size += num_clusters;
@@ -293,7 +293,7 @@ s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 	}
 
 	p_fs->clu_srch_ptr = hint_clu;
-	if (p_fs->used_clusters != (u32)~0)
+	if (p_fs->used_clusters != UINT_MAX)
 		p_fs->used_clusters += num_clusters;
 
 	p_chain->size += num_clusters;
@@ -337,7 +337,7 @@ void fat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 
 	} while (clu != CLUSTER_32(~0));
 
-	if (p_fs->used_clusters != (u32)~0)
+	if (p_fs->used_clusters != UINT_MAX)
 		p_fs->used_clusters -= num_clusters;
 }
 
@@ -396,7 +396,7 @@ void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 		} while ((clu != CLUSTER_32(0)) && (clu != CLUSTER_32(~0)));
 	}
 
-	if (p_fs->used_clusters != (u32)~0)
+	if (p_fs->used_clusters != UINT_MAX)
 		p_fs->used_clusters -= num_clusters;
 }
 
@@ -3064,7 +3064,7 @@ s32 fat16_mount(struct super_block *sb, struct pbr_sector_t *p_pbr)
 
 	p_fs->vol_flag = VOL_CLEAN;
 	p_fs->clu_srch_ptr = 2;
-	p_fs->used_clusters = (u32)~0;
+	p_fs->used_clusters = UINT_MAX;
 
 	p_fs->fs_func = &fat_fs_func;
 
@@ -3117,7 +3117,7 @@ s32 fat32_mount(struct super_block *sb, struct pbr_sector_t *p_pbr)
 
 	p_fs->vol_flag = VOL_CLEAN;
 	p_fs->clu_srch_ptr = 2;
-	p_fs->used_clusters = (u32)~0;
+	p_fs->used_clusters = UINT_MAX;
 
 	p_fs->fs_func = &fat_fs_func;
 
@@ -3192,7 +3192,7 @@ s32 exfat_mount(struct super_block *sb, struct pbr_sector_t *p_pbr)
 
 	p_fs->vol_flag = (u32)GET16(p_bpb->vol_flags);
 	p_fs->clu_srch_ptr = 2;
-	p_fs->used_clusters = (u32)~0;
+	p_fs->used_clusters = UINT_MAX;
 
 	p_fs->fs_func = &exfat_fs_func;
 

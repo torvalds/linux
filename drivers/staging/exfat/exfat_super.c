@@ -502,7 +502,7 @@ static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 	/* acquire the lock for file system critical section */
 	down(&p_fs->v_sem);
 
-	if (p_fs->used_clusters == (u32)~0)
+	if (p_fs->used_clusters == UINT_MAX)
 		p_fs->used_clusters = p_fs->fs_func->count_used_clusters(sb);
 
 	info->FatType = p_fs->vol_type;
@@ -3503,7 +3503,7 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct vol_info_t info;
 
-	if (p_fs->used_clusters == (u32)~0) {
+	if (p_fs->used_clusters == UINT_MAX) {
 		if (ffsGetVolInfo(sb, &info) == FFS_MEDIAERR)
 			return -EIO;
 
@@ -3678,7 +3678,7 @@ static int parse_options(char *options, int silent, int *debug,
 	opts->fs_uid = current_uid();
 	opts->fs_gid = current_gid();
 	opts->fs_fmask = opts->fs_dmask = current->fs->umask;
-	opts->allow_utime = (unsigned short)-1;
+	opts->allow_utime = U16_MAX;
 	opts->codepage = exfat_default_codepage;
 	opts->iocharset = exfat_default_iocharset;
 	opts->casesensitive = 0;
@@ -3770,7 +3770,7 @@ static int parse_options(char *options, int silent, int *debug,
 	}
 
 out:
-	if (opts->allow_utime == (unsigned short)-1)
+	if (opts->allow_utime == U16_MAX)
 		opts->allow_utime = ~opts->fs_dmask & 0022;
 
 	return 0;
