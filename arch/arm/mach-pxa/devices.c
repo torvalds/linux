@@ -24,6 +24,8 @@
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
+#include <mach/regs-ost.h>
+#include <mach/reset.h>
 #include "devices.h"
 #include "generic.h"
 
@@ -1117,4 +1119,13 @@ static struct platform_device pxa2xx_pxa_dma = {
 void __init pxa2xx_set_dmac_info(struct mmp_dma_platdata *dma_pdata)
 {
 	pxa_register_device(&pxa2xx_pxa_dma, dma_pdata);
+}
+
+void __init pxa_register_wdt(unsigned int reset_status)
+{
+	struct resource res = DEFINE_RES_MEM(OST_PHYS, OST_LEN);
+
+	reset_status &= RESET_STATUS_WATCHDOG;
+	platform_device_register_resndata(NULL, "sa1100_wdt", -1, &res, 1,
+					  &reset_status, sizeof(reset_status));
 }

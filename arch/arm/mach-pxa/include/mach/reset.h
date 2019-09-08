@@ -8,8 +8,8 @@
 #define RESET_STATUS_GPIO	(1 << 3)	/* GPIO Reset */
 #define RESET_STATUS_ALL	(0xf)
 
-extern unsigned int reset_status;
 extern void clear_reset_status(unsigned int mask);
+extern void pxa_register_wdt(unsigned int reset_status);
 
 /**
  * init_gpio_reset() - register GPIO as reset generator

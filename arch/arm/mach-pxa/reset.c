@@ -11,9 +11,6 @@
 #include <mach/reset.h>
 #include <mach/smemc.h>
 
-unsigned int reset_status;
-EXPORT_SYMBOL(reset_status);
-
 static void do_hw_reset(void);
 
 static int reset_gpio = -1;

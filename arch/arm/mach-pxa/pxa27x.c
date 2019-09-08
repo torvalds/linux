@@ -337,7 +337,7 @@ static int __init pxa27x_init(void)
 
 	if (cpu_is_pxa27x()) {
 
-		reset_status = RCSR;
+		pxa_register_wdt(RCSR);
 
 		pxa27x_init_pm();
 

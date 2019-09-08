@@ -463,7 +463,7 @@ static int __init pxa3xx_init(void)
 
 	if (cpu_is_pxa3xx()) {
 
-		reset_status = ARSR;
+		pxa_register_wdt(ARSR);
 
 		/*
 		 * clear RDH bit every time after reset

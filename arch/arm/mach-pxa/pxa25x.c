@@ -240,7 +240,7 @@ static int __init pxa25x_init(void)
 
 	if (cpu_is_pxa25x()) {
 
-		reset_status = RCSR;
+		pxa_register_wdt(RCSR);
 
 		pxa25x_init_pm();
 
