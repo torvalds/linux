@@ -116,10 +116,6 @@ static int validate_data_size(struct cc_cipher_ctx *ctx_p,
 	case S_DIN_to_AES:
 		switch (ctx_p->cipher_mode) {
 		case DRV_CIPHER_XTS:
-			if (size >= AES_BLOCK_SIZE &&
-			    IS_ALIGNED(size, AES_BLOCK_SIZE))
-				return 0;
-			break;
 		case DRV_CIPHER_CBC_CTS:
 			if (size >= AES_BLOCK_SIZE)
 				return 0;
@@ -938,7 +934,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "xts(paes)",
 		.driver_name = "xts-paes-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_sethkey,
 			.encrypt = cc_cipher_encrypt,
@@ -956,7 +952,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "xts512(paes)",
 		.driver_name = "xts-paes-du512-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_sethkey,
 			.encrypt = cc_cipher_encrypt,
@@ -975,7 +971,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "xts4096(paes)",
 		.driver_name = "xts-paes-du4096-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_sethkey,
 			.encrypt = cc_cipher_encrypt,
@@ -1196,7 +1192,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "xts(aes)",
 		.driver_name = "xts-aes-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_setkey,
 			.encrypt = cc_cipher_encrypt,
@@ -1213,7 +1209,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "xts512(aes)",
 		.driver_name = "xts-aes-du512-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_setkey,
 			.encrypt = cc_cipher_encrypt,
@@ -1231,7 +1227,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 	{
 		.name = "xts4096(aes)",
 		.driver_name = "xts-aes-du4096-ccree",
-		.blocksize = AES_BLOCK_SIZE,
+		.blocksize = 1,
 		.template_skcipher = {
 			.setkey = cc_cipher_setkey,
 			.encrypt = cc_cipher_encrypt,
