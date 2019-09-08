@@ -458,7 +458,7 @@ nfp_get_fw_policy_value(struct pci_dev *pdev, struct nfp_nsp *nsp,
 }
 
 /**
- * nfp_net_fw_load() - Load the firmware image
+ * nfp_fw_load() - Load the firmware image
  * @pdev:       PCI Device structure
  * @pf:		NFP PF Device structure
  * @nsp:	NFP SP handle
