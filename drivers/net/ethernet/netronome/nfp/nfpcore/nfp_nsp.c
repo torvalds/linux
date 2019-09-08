@@ -96,6 +96,7 @@ enum nfp_nsp_cmd {
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
 	SPCODE_FW_STORED	= 16, /* If no FW loaded, load flash app FW */
 	SPCODE_HWINFO_LOOKUP	= 17, /* Lookup HWinfo with overwrites etc. */
+	SPCODE_HWINFO_SET	= 18, /* Set HWinfo entry */
 	SPCODE_FW_LOADED	= 19, /* Is application firmware loaded */
 	SPCODE_VERSIONS		= 21, /* Report FW versions */
 	SPCODE_READ_SFF_EEPROM	= 22, /* Read module EEPROM */
@@ -968,6 +969,20 @@ int nfp_nsp_hwinfo_lookup_optional(struct nfp_nsp *state, void *buf,
 	}
 
 	return 0;
+}
+
+int nfp_nsp_hwinfo_set(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	struct nfp_nsp_command_buf_arg hwinfo_set = {
+		{
+			.code		= SPCODE_HWINFO_SET,
+			.option		= size,
+		},
+		.in_buf		= buf,
+		.in_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &hwinfo_set);
 }
 
 int nfp_nsp_fw_loaded(struct nfp_nsp *state)
