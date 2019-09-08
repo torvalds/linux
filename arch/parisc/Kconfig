@@ -359,6 +359,16 @@ config KEXEC
 	  shutdown, so do not be surprised if this code does not
 	  initially work for you.
 
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select KEXEC_ELF
+	help
+	  This enables the kexec_file_load() System call. This is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
+
 endmenu
 
 

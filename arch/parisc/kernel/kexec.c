@@ -40,6 +40,13 @@ static void kexec_image_info(const struct kimage *kimage)
 
 	for (i = 0; i < kimage->nr_segments; i++)
 		kexec_show_segment_info(kimage, i);
+
+#ifdef CONFIG_KEXEC_FILE
+	if (kimage->file_mode) {
+		pr_debug("cmdline: %.*s\n", (int)kimage->cmdline_buf_len,
+			 kimage->cmdline_buf);
+	}
+#endif
 }
 
 void machine_kexec_cleanup(struct kimage *kimage)
