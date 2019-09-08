@@ -107,6 +107,20 @@ struct shmem_falloc {
 	pgoff_t nr_unswapped;	/* how often writepage refused to swap out */
 };
 
+struct shmem_options {
+	unsigned long long blocks;
+	unsigned long long inodes;
+	struct mempolicy *mpol;
+	kuid_t uid;
+	kgid_t gid;
+	umode_t mode;
+	int huge;
+	int seen;
+#define SHMEM_SEEN_BLOCKS 1
+#define SHMEM_SEEN_INODES 2
+#define SHMEM_SEEN_HUGE 4
+};
+
 #ifdef CONFIG_TMPFS
 static unsigned long shmem_default_max_blocks(void)
 {
@@ -3349,8 +3363,7 @@ static const struct export_operations shmem_export_ops = {
 	.fh_to_dentry	= shmem_fh_to_dentry,
 };
 
-static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
-			       bool remount)
+static int shmem_parse_options(char *options, struct shmem_options *ctx)
 {
 	char *this_char, *value, *rest;
 	struct mempolicy *mpol = NULL;
@@ -3395,39 +3408,35 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 			}
 			if (*rest)
 				goto bad_val;
-			sbinfo->max_blocks =
-				DIV_ROUND_UP(size, PAGE_SIZE);
+			ctx->blocks = DIV_ROUND_UP(size, PAGE_SIZE);
+			ctx->seen |= SHMEM_SEEN_BLOCKS;
 		} else if (!strcmp(this_char,"nr_blocks")) {
-			sbinfo->max_blocks = memparse(value, &rest);
+			ctx->blocks = memparse(value, &rest);
 			if (*rest)
 				goto bad_val;
+			ctx->seen |= SHMEM_SEEN_BLOCKS;
 		} else if (!strcmp(this_char,"nr_inodes")) {
-			sbinfo->max_inodes = memparse(value, &rest);
+			ctx->inodes = memparse(value, &rest);
 			if (*rest)
 				goto bad_val;
+			ctx->seen |= SHMEM_SEEN_INODES;
 		} else if (!strcmp(this_char,"mode")) {
-			if (remount)
-				continue;
-			sbinfo->mode = simple_strtoul(value, &rest, 8) & 07777;
+			ctx->mode = simple_strtoul(value, &rest, 8) & 07777;
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"uid")) {
-			if (remount)
-				continue;
 			uid = simple_strtoul(value, &rest, 0);
 			if (*rest)
 				goto bad_val;
-			sbinfo->uid = make_kuid(current_user_ns(), uid);
-			if (!uid_valid(sbinfo->uid))
+			ctx->uid = make_kuid(current_user_ns(), uid);
+			if (!uid_valid(ctx->uid))
 				goto bad_val;
 		} else if (!strcmp(this_char,"gid")) {
-			if (remount)
-				continue;
 			gid = simple_strtoul(value, &rest, 0);
 			if (*rest)
 				goto bad_val;
-			sbinfo->gid = make_kgid(current_user_ns(), gid);
-			if (!gid_valid(sbinfo->gid))
+			ctx->gid = make_kgid(current_user_ns(), gid);
+			if (!gid_valid(ctx->gid))
 				goto bad_val;
 #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
 		} else if (!strcmp(this_char, "huge")) {
@@ -3438,7 +3447,8 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 			if (!has_transparent_hugepage() &&
 					huge != SHMEM_HUGE_NEVER)
 				goto bad_val;
-			sbinfo->huge = huge;
+			ctx->huge = huge;
+			ctx->seen |= SHMEM_SEEN_HUGE;
 #endif
 #ifdef CONFIG_NUMA
 		} else if (!strcmp(this_char,"mpol")) {
@@ -3452,7 +3462,7 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 			goto error;
 		}
 	}
-	sbinfo->mpol = mpol;
+	ctx->mpol = mpol;
 	return 0;
 
 bad_val:
@@ -3467,42 +3477,50 @@ error:
 static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-	struct shmem_sb_info config = *sbinfo;
+	struct shmem_options ctx = {.seen = 0};
 	unsigned long inodes;
 	int error = -EINVAL;
 
-	config.mpol = NULL;
-	if (shmem_parse_options(data, &config, true))
+	if (shmem_parse_options(data, &ctx))
 		return error;
 
 	spin_lock(&sbinfo->stat_lock);
 	inodes = sbinfo->max_inodes - sbinfo->free_inodes;
-	if (percpu_counter_compare(&sbinfo->used_blocks, config.max_blocks) > 0)
-		goto out;
-	if (config.max_inodes < inodes)
-		goto out;
 	/*
 	 * Those tests disallow limited->unlimited while any are in use;
 	 * but we must separately disallow unlimited->limited, because
 	 * in that case we have no record of how much is already in use.
 	 */
-	if (config.max_blocks && !sbinfo->max_blocks)
-		goto out;
-	if (config.max_inodes && !sbinfo->max_inodes)
-		goto out;
+	if ((ctx.seen & SHMEM_SEEN_BLOCKS) && ctx.blocks) {
+		if (!sbinfo->max_blocks)
+			goto out;
+		if (percpu_counter_compare(&sbinfo->used_blocks,
+					   ctx.blocks) > 0)
+			goto out;
+	}
+	if ((ctx.seen & SHMEM_SEEN_INODES) && ctx.inodes) {
+		if (!sbinfo->max_inodes)
+			goto out;
+		if (ctx.inodes < inodes)
+			goto out;
+	}
 
 	error = 0;
-	sbinfo->huge = config.huge;
-	sbinfo->max_blocks  = config.max_blocks;
-	sbinfo->max_inodes  = config.max_inodes;
-	sbinfo->free_inodes = config.max_inodes - inodes;
+	if (ctx.seen & SHMEM_SEEN_HUGE)
+		sbinfo->huge = ctx.huge;
+	if (ctx.seen & SHMEM_SEEN_BLOCKS)
+		sbinfo->max_blocks  = ctx.blocks;
+	if (ctx.seen & SHMEM_SEEN_INODES) {
+		sbinfo->max_inodes  = ctx.inodes;
+		sbinfo->free_inodes = ctx.inodes - inodes;
+	}
 
 	/*
 	 * Preserve previous mempolicy unless mpol remount option was specified.
 	 */
-	if (config.mpol) {
+	if (ctx.mpol) {
 		mpol_put(sbinfo->mpol);
-		sbinfo->mpol = config.mpol;	/* transfers initial ref */
+		sbinfo->mpol = ctx.mpol;	/* transfers initial ref */
 	}
 out:
 	spin_unlock(&sbinfo->stat_lock);
@@ -3551,6 +3569,9 @@ static int shmem_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 	struct shmem_sb_info *sbinfo;
+	struct shmem_options ctx = {.mode = 0777 | S_ISVTX,
+				    .uid = current_fsuid(),
+				    .gid = current_fsgid()};
 	int err = -ENOMEM;
 
 	/* Round up to L1_CACHE_BYTES to resist false sharing */
@@ -3559,9 +3580,6 @@ static int shmem_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbinfo)
 		return -ENOMEM;
 
-	sbinfo->mode = 0777 | S_ISVTX;
-	sbinfo->uid = current_fsuid();
-	sbinfo->gid = current_fsgid();
 	sb->s_fs_info = sbinfo;
 
 #ifdef CONFIG_TMPFS
@@ -3571,9 +3589,9 @@ static int shmem_fill_super(struct super_block *sb, void *data, int silent)
 	 * but the internal instance is left unlimited.
 	 */
 	if (!(sb->s_flags & SB_KERNMOUNT)) {
-		sbinfo->max_blocks = shmem_default_max_blocks();
-		sbinfo->max_inodes = shmem_default_max_inodes();
-		if (shmem_parse_options(data, sbinfo, false)) {
+		ctx.blocks = shmem_default_max_blocks();
+		ctx.inodes = shmem_default_max_inodes();
+		if (shmem_parse_options(data, &ctx)) {
 			err = -EINVAL;
 			goto failed;
 		}
@@ -3585,11 +3603,17 @@ static int shmem_fill_super(struct super_block *sb, void *data, int silent)
 #else
 	sb->s_flags |= SB_NOUSER;
 #endif
+	sbinfo->max_blocks = ctx.blocks;
+	sbinfo->free_inodes = sbinfo->max_inodes = ctx.inodes;
+	sbinfo->uid = ctx.uid;
+	sbinfo->gid = ctx.gid;
+	sbinfo->mode = ctx.mode;
+	sbinfo->huge = ctx.huge;
+	sbinfo->mpol = ctx.mpol;
 
 	spin_lock_init(&sbinfo->stat_lock);
 	if (percpu_counter_init(&sbinfo->used_blocks, 0, GFP_KERNEL))
 		goto failed;
-	sbinfo->free_inodes = sbinfo->max_inodes;
 	spin_lock_init(&sbinfo->shrinklist_lock);
 	INIT_LIST_HEAD(&sbinfo->shrinklist);
 
