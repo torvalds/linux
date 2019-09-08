@@ -704,6 +704,7 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_RAS_BLOCK__UMC:
 	case AMDGPU_RAS_BLOCK__MMHUB:
+	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
 		ret = psp_ras_trigger_error(&adev->psp, &block_info);
 		break;
 	default:
