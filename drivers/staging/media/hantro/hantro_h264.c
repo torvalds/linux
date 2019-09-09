@@ -22,7 +22,7 @@
 #define POC_BUFFER_SIZE			34
 #define SCALING_LIST_SIZE		(6 * 16 + 6 * 64)
 
-#define POC_CMP(p0, p1) ((p0) < (p1) ? -1 : 1)
+#define HANTRO_CMP(a, b) ((a) < (b) ? -1 : 1)
 
 /* Data structure describing auxiliary buffer format. */
 struct hantro_h264_dec_priv_tbl {
@@ -353,9 +353,9 @@ static int p_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 	 * ascending order.
 	 */
 	if (!(a->flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM))
-		return b->frame_num - a->frame_num;
+		return HANTRO_CMP(b->frame_num, a->frame_num);
 
-	return a->pic_num - b->pic_num;
+	return HANTRO_CMP(a->pic_num, b->pic_num);
 }
 
 static int b0_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
@@ -381,7 +381,7 @@ static int b0_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 
 	/* Long term pics in ascending pic num order. */
 	if (a->flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM)
-		return a->pic_num - b->pic_num;
+		return HANTRO_CMP(a->pic_num, b->pic_num);
 
 	poca = builder->pocs[idxa];
 	pocb = builder->pocs[idxb];
@@ -392,11 +392,11 @@ static int b0_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 	 * order.
 	 */
 	if ((poca < builder->curpoc) != (pocb < builder->curpoc))
-		return POC_CMP(poca, pocb);
+		return HANTRO_CMP(poca, pocb);
 	else if (poca < builder->curpoc)
-		return POC_CMP(pocb, poca);
+		return HANTRO_CMP(pocb, poca);
 
-	return POC_CMP(poca, pocb);
+	return HANTRO_CMP(poca, pocb);
 }
 
 static int b1_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
@@ -422,7 +422,7 @@ static int b1_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 
 	/* Long term pics in ascending pic num order. */
 	if (a->flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM)
-		return a->pic_num - b->pic_num;
+		return HANTRO_CMP(a->pic_num, b->pic_num);
 
 	poca = builder->pocs[idxa];
 	pocb = builder->pocs[idxb];
@@ -433,11 +433,11 @@ static int b1_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 	 * order.
 	 */
 	if ((poca < builder->curpoc) != (pocb < builder->curpoc))
-		return POC_CMP(pocb, poca);
+		return HANTRO_CMP(pocb, poca);
 	else if (poca < builder->curpoc)
-		return POC_CMP(pocb, poca);
+		return HANTRO_CMP(pocb, poca);
 
-	return POC_CMP(poca, pocb);
+	return HANTRO_CMP(poca, pocb);
 }
 
 static void
