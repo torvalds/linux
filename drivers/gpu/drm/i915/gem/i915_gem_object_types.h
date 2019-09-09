@@ -160,7 +160,6 @@ struct drm_i915_gem_object {
 		struct sg_table *pages;
 		void *mapping;
 
-		/* TODO: whack some of this into the error state */
 		struct i915_page_sizes {
 			/**
 			 * The sg mask of the pages sg_table. i.e the mask of

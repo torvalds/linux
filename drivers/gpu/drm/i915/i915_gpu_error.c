@@ -575,6 +575,9 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 			   lower_32_bits(obj->gtt_offset));
 	}
 
+	if (obj->gtt_page_sizes > I915_GTT_PAGE_SIZE_4K)
+		err_printf(m, "gtt_page_sizes = 0x%08x\n", obj->gtt_page_sizes);
+
 	err_compression_marker(m);
 	for (page = 0; page < obj->page_count; page++) {
 		int i, len;
@@ -734,6 +737,9 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 
 	if (IS_GEN(m->i915, 7))
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
+
+	if (IS_GEN_RANGE(m->i915, 8, 11))
+		err_printf(m, "GTT_CACHE_EN: 0x%08x\n", error->gtt_cache);
 
 	for (ee = error->engine; ee; ee = ee->next)
 		error_print_engine(m, ee, error->epoch);
@@ -985,6 +991,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 
 	dst->gtt_offset = vma->node.start;
 	dst->gtt_size = vma->node.size;
+	dst->gtt_page_sizes = vma->page_sizes.gtt;
 	dst->num_pages = num_pages;
 	dst->page_count = 0;
 	dst->unused = 0;
@@ -1553,6 +1560,9 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->gam_ecochk = intel_uncore_read(uncore, GAM_ECOCHK);
 		error->gac_eco = intel_uncore_read(uncore, GAC_ECO_BITS);
 	}
+
+	if (IS_GEN_RANGE(i915, 8, 11))
+		error->gtt_cache = intel_uncore_read(uncore, HSW_GTT_CACHE_EN);
 
 	/* 4: Everything else */
 	if (INTEL_GEN(i915) >= 11) {

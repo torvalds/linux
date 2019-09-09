@@ -74,6 +74,7 @@ struct i915_gpu_state {
 	u32 gam_ecochk;
 	u32 gab_ctl;
 	u32 gfx_mode;
+	u32 gtt_cache;
 
 	u32 nfence;
 	u64 fence[I915_MAX_NUM_FENCES];
@@ -127,6 +128,7 @@ struct i915_gpu_state {
 		struct drm_i915_error_object {
 			u64 gtt_offset;
 			u64 gtt_size;
+			u32 gtt_page_sizes;
 			int num_pages;
 			int page_count;
 			int unused;
