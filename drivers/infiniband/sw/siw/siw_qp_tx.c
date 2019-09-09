@@ -520,11 +520,12 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 							c_tx->mpa_crc_hd,
 							iov[seg].iov_base,
 							plen);
-				} else if (do_crc)
-					crypto_shash_update(
-						c_tx->mpa_crc_hd,
-						page_address(p) + fp_off,
-						plen);
+				} else if (do_crc) {
+					crypto_shash_update(c_tx->mpa_crc_hd,
+							    kmap(p) + fp_off,
+							    plen);
+					kunmap(p);
+				}
 			} else {
 				u64 pa = ((sge->laddr + sge_off) & PAGE_MASK);
 
