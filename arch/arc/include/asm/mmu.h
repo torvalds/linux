@@ -64,12 +64,6 @@ typedef struct {
 	unsigned long asid[NR_CPUS];	/* 8 bit MMU PID + Generation cycle */
 } mm_context_t;
 
-#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-void tlb_paranoid_check(unsigned int mm_asid, unsigned long address);
-#else
-#define tlb_paranoid_check(a, b)
-#endif
-
 void arc_mmu_init(void);
 extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
 void read_decode_mmu_bcr(void);

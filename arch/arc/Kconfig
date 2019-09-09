@@ -537,9 +537,6 @@ config ARC_DW2_UNWIND
 	  If you don't debug the kernel, you can say N, but we may not be able
 	  to solve problems without frame unwind information
 
-config ARC_DBG_TLB_PARANOIA
-	bool "Paranoia Checks in Low Level TLB Handlers"
-
 config ARC_DBG_JUMP_LABEL
 	bool "Paranoid checks in Static Keys (jump labels) code"
 	depends on JUMP_LABEL

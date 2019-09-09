@@ -400,7 +400,6 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	 *
 	 * Removing the assumption involves
 	 * -Using vma->mm->context{ASID,SASID}, as opposed to MMU reg.
-	 * -Fix the TLB paranoid debug code to not trigger false negatives.
 	 * -More importantly it makes this handler inconsistent with fast-path
 	 *  TLB Refill handler which always deals with "current"
 	 *
@@ -422,8 +421,6 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 		return;
 
 	local_irq_save(flags);
-
-	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), vaddr);
 
 	vaddr &= PAGE_MASK;
 
@@ -818,40 +815,3 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 
 	local_irq_restore(flags);
 }
-
-/***********************************************************************
- * Diagnostic Routines
- *  -Called from Low Level TLB Handlers if things don;t look good
- **********************************************************************/
-
-#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-
-/*
- * Low Level ASM TLB handler calls this if it finds that HW and SW ASIDS
- * don't match
- */
-void print_asid_mismatch(int mm_asid, int mmu_asid, int is_fast_path)
-{
-	pr_emerg("ASID Mismatch in %s Path Handler: sw-pid=0x%x hw-pid=0x%x\n",
-	       is_fast_path ? "Fast" : "Slow", mm_asid, mmu_asid);
-
-	__asm__ __volatile__("flag 1");
-}
-
-void tlb_paranoid_check(unsigned int mm_asid, unsigned long addr)
-{
-	unsigned int mmu_asid;
-
-	mmu_asid = read_aux_reg(ARC_REG_PID) & 0xff;
-
-	/*
-	 * At the time of a TLB miss/installation
-	 *   - HW version needs to match SW version
-	 *   - SW needs to have a valid ASID
-	 */
-	if (addr < 0x70000000 &&
-	    ((mm_asid == MM_CTXT_NO_ASID) ||
-	      (mmu_asid != (mm_asid & MM_CTXT_ASID_MASK))))
-		print_asid_mismatch(mm_asid, mmu_asid, 0);
-}
-#endif
