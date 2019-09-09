@@ -930,6 +930,7 @@ static void cancel_requests(struct intel_engine_cs *engine)
 static void i9xx_submit_request(struct i915_request *request)
 {
 	i915_request_submit(request);
+	wmb(); /* paranoid flush writes out of the WCB before mmio */
 
 	ENGINE_WRITE(request->engine, RING_TAIL,
 		     intel_ring_set_tail(request->ring, request->tail));
