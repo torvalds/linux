@@ -334,7 +334,6 @@ static void hdmi_infoframe_reset(struct sti_hdmi *hdmi,
  * Helper to concatenate infoframe in 32 bits word
  *
  * @ptr: pointer on the hdmi internal structure
- * @data: infoframe to write
  * @size: size to write
  */
 static inline unsigned int hdmi_infoframe_subpack(const u8 *ptr, size_t size)
@@ -544,13 +543,14 @@ static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
 	return 0;
 }
 
+#define HDMI_TIMEOUT_SWRESET  100   /*milliseconds */
+
 /**
  * Software reset of the hdmi subsystem
  *
  * @hdmi: pointer on the hdmi internal structure
  *
  */
-#define HDMI_TIMEOUT_SWRESET  100   /*milliseconds */
 static void hdmi_swreset(struct sti_hdmi *hdmi)
 {
 	u32 val;

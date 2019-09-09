@@ -66,7 +66,7 @@ static struct dvo_config rgb_24bit_de_cfg = {
 	.awg_fwgen_fct = sti_awg_generate_code_data_enable_mode,
 };
 
-/**
+/*
  * STI digital video output structure
  *
  * @dev: driver device

@@ -47,7 +47,7 @@ struct dma_pixmap {
 	void *base;
 };
 
-/**
+/*
  * STI Cursor structure
  *
  * @sti_plane:    sti_plane structure
