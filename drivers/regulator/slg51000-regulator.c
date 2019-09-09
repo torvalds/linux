@@ -205,7 +205,7 @@ static int slg51000_of_parse_cb(struct device_node *np,
 	ena_gpiod = devm_gpiod_get_from_of_node(chip->dev, np,
 						"enable-gpios", 0,
 						gflags, "gpio-en-ldo");
-	if (ena_gpiod) {
+	if (!IS_ERR(ena_gpiod)) {
 		config->ena_gpiod = ena_gpiod;
 		devm_gpiod_unhinge(chip->dev, config->ena_gpiod);
 	}
@@ -459,7 +459,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 					       GPIOD_OUT_HIGH
 					       | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 					       "slg51000-cs");
-	if (cs_gpiod) {
+	if (!IS_ERR(cs_gpiod)) {
 		dev_info(dev, "Found chip selector property\n");
 		chip->cs_gpiod = cs_gpiod;
 	}
