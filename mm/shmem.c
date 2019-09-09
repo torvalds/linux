@@ -37,6 +37,7 @@
 #include <linux/khugepaged.h>
 #include <linux/hugetlb.h>
 #include <linux/frontswap.h>
+#include <linux/fs_parser.h>
 
 #include <asm/tlbflush.h> /* for arch/microblaze update_mmu_cache() */
 
@@ -3363,15 +3364,63 @@ static const struct export_operations shmem_export_ops = {
 	.fh_to_dentry	= shmem_fh_to_dentry,
 };
 
-static int shmem_parse_one(struct shmem_options *ctx, char *opt, char *value)
-{
-	char *rest;
-	uid_t uid;
-	gid_t gid;
+enum shmem_param {
+	Opt_gid,
+	Opt_huge,
+	Opt_mode,
+	Opt_mpol,
+	Opt_nr_blocks,
+	Opt_nr_inodes,
+	Opt_size,
+	Opt_uid,
+};
 
-	if (!strcmp(opt, "size")) {
-		unsigned long long size;
-		size = memparse(value,&rest);
+static const struct fs_parameter_spec shmem_param_specs[] = {
+	fsparam_u32   ("gid",		Opt_gid),
+	fsparam_enum  ("huge",		Opt_huge),
+	fsparam_u32oct("mode",		Opt_mode),
+	fsparam_string("mpol",		Opt_mpol),
+	fsparam_string("nr_blocks",	Opt_nr_blocks),
+	fsparam_string("nr_inodes",	Opt_nr_inodes),
+	fsparam_string("size",		Opt_size),
+	fsparam_u32   ("uid",		Opt_uid),
+	{}
+};
+
+static const struct fs_parameter_enum shmem_param_enums[] = {
+	{ Opt_huge,	"never",	SHMEM_HUGE_NEVER },
+	{ Opt_huge,	"always",	SHMEM_HUGE_ALWAYS },
+	{ Opt_huge,	"within_size",	SHMEM_HUGE_WITHIN_SIZE },
+	{ Opt_huge,	"advise",	SHMEM_HUGE_ADVISE },
+	{}
+};
+
+const struct fs_parameter_description shmem_fs_parameters = {
+	.name		= "tmpfs",
+	.specs		= shmem_param_specs,
+	.enums		= shmem_param_enums,
+};
+
+static int shmem_parse_one(struct shmem_options *ctx,
+			   struct fs_parameter *param)
+{
+	struct fs_context *fc = NULL;
+	struct fs_parse_result result;
+	unsigned long long size;
+	char *rest;
+	int opt;
+
+	opt = fs_parse(fc, &shmem_fs_parameters, param, &result);
+	if (opt < 0) {
+		if (opt == -ENOPARAM)
+			return invalf(fc, "tmpfs: Unknown parameter '%s'",
+				      param->key);
+		return opt;
+	}
+
+	switch (opt) {
+	case Opt_size:
+		size = memparse(param->string, &rest);
 		if (*rest == '%') {
 			size <<= PAGE_SHIFT;
 			size *= totalram_pages();
@@ -3379,74 +3428,65 @@ static int shmem_parse_one(struct shmem_options *ctx, char *opt, char *value)
 			rest++;
 		}
 		if (*rest)
-			goto bad_val;
+			goto bad_value;
 		ctx->blocks = DIV_ROUND_UP(size, PAGE_SIZE);
 		ctx->seen |= SHMEM_SEEN_BLOCKS;
-	} else if (!strcmp(opt, "nr_blocks")) {
-		ctx->blocks = memparse(value, &rest);
+		break;
+	case Opt_nr_blocks:
+		ctx->blocks = memparse(param->string, &rest);
 		if (*rest)
-			goto bad_val;
+			goto bad_value;
 		ctx->seen |= SHMEM_SEEN_BLOCKS;
-	} else if (!strcmp(opt, "nr_inodes")) {
-		ctx->inodes = memparse(value, &rest);
+		break;
+	case Opt_nr_inodes:
+		ctx->inodes = memparse(param->string, &rest);
 		if (*rest)
-			goto bad_val;
+			goto bad_value;
 		ctx->seen |= SHMEM_SEEN_INODES;
-	} else if (!strcmp(opt, "mode")) {
-		ctx->mode = simple_strtoul(value, &rest, 8) & 07777;
-		if (*rest)
-			goto bad_val;
-	} else if (!strcmp(opt, "uid")) {
-		uid = simple_strtoul(value, &rest, 0);
-		if (*rest)
-			goto bad_val;
-		ctx->uid = make_kuid(current_user_ns(), uid);
+		break;
+	case Opt_mode:
+		ctx->mode = result.uint_32 & 07777;
+		break;
+	case Opt_uid:
+		ctx->uid = make_kuid(current_user_ns(), result.uint_32);
 		if (!uid_valid(ctx->uid))
-			goto bad_val;
-	} else if (!strcmp(opt, "gid")) {
-		gid = simple_strtoul(value, &rest, 0);
-		if (*rest)
-			goto bad_val;
-		ctx->gid = make_kgid(current_user_ns(), gid);
+			goto bad_value;
+		break;
+	case Opt_gid:
+		ctx->gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(ctx->gid))
-			goto bad_val;
-#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-	} else if (!strcmp(opt, "huge")) {
-		int huge;
-		huge = shmem_parse_huge(value);
-		if (huge < 0)
-			goto bad_val;
-		if (!has_transparent_hugepage() &&
-				huge != SHMEM_HUGE_NEVER)
-			goto bad_val;
-		ctx->huge = huge;
+			goto bad_value;
+		break;
+	case Opt_huge:
+		ctx->huge = result.uint_32;
+		if (ctx->huge != SHMEM_HUGE_NEVER &&
+		    !(IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
+		      has_transparent_hugepage()))
+			goto unsupported_parameter;
 		ctx->seen |= SHMEM_SEEN_HUGE;
-#endif
-#ifdef CONFIG_NUMA
-	} else if (!strcmp(opt, "mpol")) {
-		mpol_put(ctx->mpol);
-		ctx->mpol = NULL;
-		if (mpol_parse_str(value, &ctx->mpol))
-			goto bad_val;
-#endif
-	} else {
-		pr_err("tmpfs: Bad mount option %s\n", opt);
-		return -EINVAL;
+		break;
+	case Opt_mpol:
+		if (IS_ENABLED(CONFIG_NUMA)) {
+			mpol_put(ctx->mpol);
+			ctx->mpol = NULL;
+			if (mpol_parse_str(param->string, &ctx->mpol))
+				goto bad_value;
+			break;
+		}
+		goto unsupported_parameter;
 	}
 	return 0;
 
-bad_val:
-	pr_err("tmpfs: Bad value '%s' for mount option '%s'\n",
-	       value, opt);
-	return -EINVAL;
+unsupported_parameter:
+	return invalf(fc, "tmpfs: Unsupported parameter '%s'", param->key);
+bad_value:
+	return invalf(fc, "tmpfs: Bad value for '%s'", param->key);
 }
 
 static int shmem_parse_options(char *options, struct shmem_options *ctx)
 {
-	char *this_char, *value;
-
 	while (options != NULL) {
-		this_char = options;
+		char *this_char = options;
 		for (;;) {
 			/*
 			 * NUL-terminate this option: unfortunately,
@@ -3462,17 +3502,26 @@ static int shmem_parse_options(char *options, struct shmem_options *ctx)
 				break;
 			}
 		}
-		if (!*this_char)
-			continue;
-		if ((value = strchr(this_char,'=')) != NULL) {
-			*value++ = 0;
-		} else {
-			pr_err("tmpfs: No value for mount option '%s'\n",
-			       this_char);
-			goto error;
+		if (*this_char) {
+			char *value = strchr(this_char,'=');
+			struct fs_parameter param = {
+				.key	= this_char,
+				.type	= fs_value_is_string,
+			};
+			int err;
+
+			if (value) {
+				*value++ = '\0';
+				param.size = strlen(value);
+				param.string = kstrdup(value, GFP_KERNEL);
+				if (!param.string)
+					goto error;
+			}
+			err = shmem_parse_one(ctx, &param);
+			kfree(param.string);
+			if (err)
+				goto error;
 		}
-		if (shmem_parse_one(ctx, this_char, value) < 0)
-			goto error;
 	}
 	return 0;
 
