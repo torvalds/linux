@@ -1503,11 +1503,14 @@ init_cifs(void)
 	}
 
 	/*
-	 * BB Consider setting limit!=0 maybe to min(num_of_cores - 1, 3) so we
-	 * don't launch too many worker threads
+	 * Consider in future setting limit!=0 maybe to min(num_of_cores - 1, 3)
+	 * so that we don't launch too many worker threads but
+	 * Documentation/workqueue.txt recommends setting it to 0
 	 */
+
+	/* WQ_UNBOUND allows decrypt tasks to run on any CPU */
 	decrypt_wq = alloc_workqueue("smb3decryptd",
-				     WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+				     WQ_UNBOUND|WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	if (!decrypt_wq) {
 		rc = -ENOMEM;
 		goto out_destroy_cifsiod_wq;

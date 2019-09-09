@@ -4121,7 +4121,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 	 * use more cores decrypting which can be expensive
 	 */
 
-	if ((server->min_offload) &&
+	if ((server->min_offload) && (server->in_flight > 1) &&
 	    (server->pdu_size >= server->min_offload)) {
 		dw = kmalloc(sizeof(struct smb2_decrypt_work), GFP_KERNEL);
 		if (dw == NULL)
