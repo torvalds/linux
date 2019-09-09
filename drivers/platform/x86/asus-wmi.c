@@ -26,6 +26,7 @@
 #include <linux/rfkill.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/power_supply.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/debugfs.h>
@@ -35,6 +36,8 @@
 #include <linux/thermal.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <acpi/battery.h>
 #include <acpi/video.h>
 
 #include "asus-wmi.h"
@@ -195,7 +198,8 @@ struct asus_wmi {
 	u8 fan_boost_mode_mask;
 	u8 fan_boost_mode;
 
-	int charge_threshold;
+	// The RSOC controls the maximum charging percentage.
+	bool battery_rsoc_available;
 
 	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
@@ -367,6 +371,97 @@ static bool asus_wmi_dev_is_present(struct asus_wmi *asus, u32 dev_id)
 	int status = asus_wmi_get_devstate(asus, dev_id, &retval);
 
 	return status == 0 && (retval & ASUS_WMI_DSTS_PRESENCE_BIT);
+}
+
+/* Battery ********************************************************************/
+
+/* The battery maximum charging percentage */
+static int charge_end_threshold;
+
+static ssize_t charge_control_end_threshold_store(struct device *dev,
+						  struct device_attribute *attr,
+						  const char *buf, size_t count)
+{
+	int value, ret, rv;
+
+	ret = kstrtouint(buf, 10, &value);
+	if (ret)
+		return ret;
+
+	if (value < 0 || value > 100)
+		return -EINVAL;
+
+	ret = asus_wmi_set_devstate(ASUS_WMI_DEVID_RSOC, value, &rv);
+	if (ret)
+		return ret;
+
+	if (rv != 1)
+		return -EIO;
+
+	/* There isn't any method in the DSDT to read the threshold, so we
+	 * save the threshold.
+	 */
+	charge_end_threshold = value;
+	return count;
+}
+
+static ssize_t charge_control_end_threshold_show(struct device *device,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	return sprintf(buf, "%d\n", charge_end_threshold);
+}
+
+static DEVICE_ATTR_RW(charge_control_end_threshold);
+
+static int asus_wmi_battery_add(struct power_supply *battery)
+{
+	/* The WMI method does not provide a way to specific a battery, so we
+	 * just assume it is the first battery.
+	 */
+	if (strcmp(battery->desc->name, "BAT0") != 0)
+		return -ENODEV;
+
+	if (device_create_file(&battery->dev,
+	    &dev_attr_charge_control_end_threshold))
+		return -ENODEV;
+
+	/* The charge threshold is only reset when the system is power cycled,
+	 * and we can't get the current threshold so let set it to 100% when
+	 * a battery is added.
+	 */
+	asus_wmi_set_devstate(ASUS_WMI_DEVID_RSOC, 100, NULL);
+	charge_end_threshold = 100;
+
+	return 0;
+}
+
+static int asus_wmi_battery_remove(struct power_supply *battery)
+{
+	device_remove_file(&battery->dev,
+			   &dev_attr_charge_control_end_threshold);
+	return 0;
+}
+
+static struct acpi_battery_hook battery_hook = {
+	.add_battery = asus_wmi_battery_add,
+	.remove_battery = asus_wmi_battery_remove,
+	.name = "ASUS Battery Extension",
+};
+
+static void asus_wmi_battery_init(struct asus_wmi *asus)
+{
+	asus->battery_rsoc_available = false;
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_RSOC)) {
+		asus->battery_rsoc_available = true;
+		battery_hook_register(&battery_hook);
+	}
+}
+
+static void asus_wmi_battery_exit(struct asus_wmi *asus)
+{
+	if (asus->battery_rsoc_available)
+		battery_hook_unregister(&battery_hook);
 }
 
 /* LEDs ***********************************************************************/
@@ -2052,45 +2147,6 @@ static ssize_t cpufv_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_WO(cpufv);
 
-
-static ssize_t charge_threshold_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count)
-{
-	struct asus_wmi *asus = dev_get_drvdata(dev);
-	int value, ret, rv;
-
-	ret = kstrtouint(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	if (value < 0 || value > 100)
-		return -EINVAL;
-
-	ret = asus_wmi_set_devstate(ASUS_WMI_DEVID_RSOC, value, &rv);
-	if (ret)
-		return ret;
-
-	if (rv != 1)
-		return -EIO;
-
-	/* There isn't any method in the DSDT to read the threshold, so we
-	 * save the threshold.
-	 */
-	asus->charge_threshold = value;
-	return count;
-}
-
-static ssize_t charge_threshold_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct asus_wmi *asus = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", asus->charge_threshold);
-}
-
-static DEVICE_ATTR_RW(charge_threshold);
-
 static struct attribute *platform_attributes[] = {
 	&dev_attr_cpufv.attr,
 	&dev_attr_camera.attr,
@@ -2099,7 +2155,6 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_lid_resume.attr,
 	&dev_attr_als_enable.attr,
 	&dev_attr_fan_boost_mode.attr,
-	&dev_attr_charge_threshold.attr,
 	NULL
 };
 
@@ -2123,8 +2178,6 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		devid = ASUS_WMI_DEVID_ALS_ENABLE;
 	else if (attr == &dev_attr_fan_boost_mode.attr)
 		ok = asus->fan_boost_mode_available;
-	else if (attr == &dev_attr_charge_threshold.attr)
-		devid = ASUS_WMI_DEVID_RSOC;
 
 	if (devid != -1)
 		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
@@ -2450,13 +2503,9 @@ static int asus_wmi_add(struct platform_device *pdev)
 		goto fail_wmi_handler;
 	}
 
+	asus_wmi_battery_init(asus);
+
 	asus_wmi_debugfs_init(asus);
-	/* The charge threshold is only reset when the system is power cycled,
-	 * and we can't get the current threshold so let set it to 100% on
-	 * module load.
-	 */
-	asus_wmi_set_devstate(ASUS_WMI_DEVID_RSOC, 100, NULL);
-	asus->charge_threshold = 100;
 
 	return 0;
 
@@ -2491,6 +2540,7 @@ static int asus_wmi_remove(struct platform_device *device)
 	asus_wmi_debugfs_exit(asus);
 	asus_wmi_sysfs_exit(asus->platform_device);
 	asus_fan_set_auto(asus);
+	asus_wmi_battery_exit(asus);
 
 	kfree(asus);
 	return 0;
