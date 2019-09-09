@@ -1170,6 +1170,7 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_gcm,
 	&safexcel_alg_ccm,
 	&safexcel_alg_crc32,
+	&safexcel_alg_cbcmac,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
