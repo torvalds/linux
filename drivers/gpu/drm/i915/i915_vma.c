@@ -477,11 +477,6 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 		vma->flags &= ~I915_VMA_CAN_FENCE;
 }
 
-static bool color_differs(struct drm_mm_node *node, unsigned long color)
-{
-	return node->allocated && node->color != color;
-}
-
 bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
 {
 	struct drm_mm_node *node = &vma->node;
@@ -502,11 +497,13 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
 	GEM_BUG_ON(list_empty(&node->node_list));
 
 	other = list_prev_entry(node, node_list);
-	if (color_differs(other, cache_level) && !drm_mm_hole_follows(other))
+	if (i915_node_color_differs(other, cache_level) &&
+	    !drm_mm_hole_follows(other))
 		return false;
 
 	other = list_next_entry(node, node_list);
-	if (color_differs(other, cache_level) && !drm_mm_hole_follows(node))
+	if (i915_node_color_differs(other, cache_level) &&
+	    !drm_mm_hole_follows(node))
 		return false;
 
 	return true;
