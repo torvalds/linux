@@ -260,10 +260,11 @@ static void translate_rx_signal_stuff(struct ieee80211_hw *hw,
 bool rtl8723e_rx_query_desc(struct ieee80211_hw *hw,
 			    struct rtl_stats *status,
 			    struct ieee80211_rx_status *rx_status,
-			    u8 *pdesc, struct sk_buff *skb)
+			    u8 *pdesc8, struct sk_buff *skb)
 {
 	struct rx_fwinfo_8723e *p_drvinfo;
 	struct ieee80211_hdr *hdr;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u32 phystatus = get_rx_desc_physt(pdesc);
 
 	status->length = (u16)get_rx_desc_pkt_len(pdesc);
@@ -331,7 +332,7 @@ bool rtl8723e_rx_query_desc(struct ieee80211_hw *hw,
 		p_drvinfo = (struct rx_fwinfo_8723e *)(skb->data +
 						     status->rx_bufshift);
 
-		translate_rx_signal_stuff(hw, skb, status, pdesc, p_drvinfo);
+		translate_rx_signal_stuff(hw, skb, status, pdesc8, p_drvinfo);
 	}
 	rx_status->signal = status->recvsignalpower + 10;
 	return true;
@@ -350,7 +351,8 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool b_defaultadapter = true;
 	/* bool b_trigger_ac = false; */
-	u8 *pdesc = (u8 *)pdesc_tx;
+	u8 *pdesc8 = (u8 *)pdesc_tx;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	u8 fw_qsel = _rtl8723e_map_hwqueue_to_fwqueue(skb, hw_queue);
@@ -383,7 +385,7 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 
 	rtl_get_tcb_desc(hw, info, sta, skb, ptcb_desc);
 
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_8723e));
+	clear_pci_tx_desc_content(pdesc, sizeof(struct tx_desc_8723e));
 
 	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
 		firstseg = true;
@@ -519,12 +521,13 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 }
 
 void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			      u8 *pdesc, bool firstseg,
+			      u8 *pdesc8, bool firstseg,
 			      bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 fw_queue = QSLT_BEACON;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
 					    skb->data, skb->len,
@@ -538,7 +541,7 @@ void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
+	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 
 	if (firstseg)
 		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
@@ -563,7 +566,7 @@ void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	set_tx_desc_own(pdesc, 1);
 
-	set_tx_desc_pkt_size((u8 *)pdesc, (u16)(skb->len));
+	set_tx_desc_pkt_size(pdesc, (u16)(skb->len));
 
 	set_tx_desc_first_seg(pdesc, 1);
 	set_tx_desc_last_seg(pdesc, 1);
@@ -583,9 +586,11 @@ void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		      pdesc, TX_DESC_SIZE);
 }
 
-void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
+void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 		       bool istx, u8 desc_name, u8 *val)
 {
+	__le32 *pdesc = (__le32 *)pdesc8;
+
 	if (istx == true) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
@@ -622,9 +627,10 @@ void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 }
 
 u64 rtl8723e_get_desc(struct ieee80211_hw *hw,
-		      u8 *pdesc, bool istx, u8 desc_name)
+		      u8 *pdesc8, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (istx == true) {
 		switch (desc_name) {
