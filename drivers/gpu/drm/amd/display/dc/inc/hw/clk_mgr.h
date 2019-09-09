@@ -180,6 +180,9 @@ struct clk_mgr_funcs {
 			struct dc_state *context,
 			enum dc_clock_type clock_type,
 			struct dc_clock_config *clock_cfg);
+
+	bool (*are_clock_states_equal) (struct dc_clocks *a,
+			struct dc_clocks *b);
 };
 
 struct clk_mgr {

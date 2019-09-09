@@ -349,12 +349,36 @@ void dcn2_get_clock(struct clk_mgr *clk_mgr,
 	}
 }
 
+static bool dcn2_are_clock_states_equal(struct dc_clocks *a,
+		struct dc_clocks *b)
+{
+	if (a->dispclk_khz != b->dispclk_khz)
+		return false;
+	else if (a->dppclk_khz != b->dppclk_khz)
+		return false;
+	else if (a->dcfclk_khz != b->dcfclk_khz)
+		return false;
+	else if (a->socclk_khz != b->socclk_khz)
+		return false;
+	else if (a->dcfclk_deep_sleep_khz != b->dcfclk_deep_sleep_khz)
+		return false;
+	else if (a->phyclk_khz != b->phyclk_khz)
+		return false;
+	else if (a->dramclk_khz != b->dramclk_khz)
+		return false;
+	else if (a->p_state_change_support != b->p_state_change_support)
+		return false;
+
+	return true;
+}
+
 static struct clk_mgr_funcs dcn2_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks,
 	.init_clocks = dcn2_init_clocks,
 	.enable_pme_wa = dcn2_enable_pme_wa,
 	.get_clock = dcn2_get_clock,
+	.are_clock_states_equal = dcn2_are_clock_states_equal,
 };
 
 

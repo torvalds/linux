@@ -1681,8 +1681,16 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
 	}
 
-	if (type == UPDATE_TYPE_FAST && memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0)
-		dc->optimized_required = true;
+	if (type == UPDATE_TYPE_FAST) {
+		// If there's an available clock comparator, we use that.
+		if (dc->clk_mgr->funcs->are_clock_states_equal) {
+			if (!dc->clk_mgr->funcs->are_clock_states_equal(&dc->clk_mgr->clks, &dc->current_state->bw_ctx.bw.dcn.clk))
+				dc->optimized_required = true;
+		// Else we fallback to mem compare.
+		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
+			dc->optimized_required = true;
+		}
+	}
 
 	return type;
 }
