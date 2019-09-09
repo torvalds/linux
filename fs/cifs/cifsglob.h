@@ -592,6 +592,7 @@ struct smb_vol {
 	unsigned int bsize;
 	unsigned int rsize;
 	unsigned int wsize;
+	unsigned int min_offload;
 	bool sockopt_tcp_nodelay:1;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	struct smb_version_operations *ops;
@@ -745,6 +746,7 @@ struct TCP_Server_Info {
 #endif /* STATS2 */
 	unsigned int	max_read;
 	unsigned int	max_write;
+	unsigned int	min_offload;
 	__le16	compress_algorithm;
 	__le16	cipher_type;
 	 /* save initital negprot hash */

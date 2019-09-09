@@ -103,6 +103,7 @@ enum {
 	Opt_backupuid, Opt_backupgid, Opt_uid,
 	Opt_cruid, Opt_gid, Opt_file_mode,
 	Opt_dirmode, Opt_port,
+	Opt_min_enc_offload,
 	Opt_blocksize, Opt_rsize, Opt_wsize, Opt_actimeo,
 	Opt_echo_interval, Opt_max_credits, Opt_handletimeout,
 	Opt_snapshot,
@@ -207,6 +208,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_dirmode, "dirmode=%s" },
 	{ Opt_dirmode, "dir_mode=%s" },
 	{ Opt_port, "port=%s" },
+	{ Opt_min_enc_offload, "esize=%s" },
 	{ Opt_blocksize, "bsize=%s" },
 	{ Opt_rsize, "rsize=%s" },
 	{ Opt_wsize, "wsize=%s" },
@@ -2016,6 +2018,13 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			}
 			port = (unsigned short)option;
 			break;
+		case Opt_min_enc_offload:
+			if (get_option_ul(args, &option)) {
+				cifs_dbg(VFS, "Invalid minimum encrypted read offload size (esize)\n");
+				goto cifs_parse_mount_err;
+			}
+			vol->min_offload = option;
+			break;
 		case Opt_blocksize:
 			if (get_option_ul(args, &option)) {
 				cifs_dbg(VFS, "%s: Invalid blocksize value\n",
@@ -2616,6 +2625,9 @@ static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 	if (server->ignore_signature != vol->ignore_signature)
 		return 0;
 
+	if (server->min_offload != vol->min_offload)
+		return 0;
+
 	return 1;
 }
 
@@ -2790,6 +2802,7 @@ smbd_connected:
 		module_put(THIS_MODULE);
 		goto out_err_crypto_release;
 	}
+	tcp_ses->min_offload = volume_info->min_offload;
 	tcp_ses->tcpStatus = CifsNeedNegotiate;
 
 	tcp_ses->nr_targets = 1;
