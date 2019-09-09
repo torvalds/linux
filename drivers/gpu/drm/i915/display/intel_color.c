@@ -1400,6 +1400,14 @@ static int ilk_gamma_precision(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static int chv_gamma_precision(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
+		return 10;
+	else
+		return i9xx_gamma_precision(crtc_state);
+}
+
 static int glk_gamma_precision(const struct intel_crtc_state *crtc_state)
 {
 	switch (crtc_state->gamma_mode) {
@@ -1421,12 +1429,17 @@ int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_stat
 	if (!crtc_state->gamma_enable)
 		return 0;
 
-	if (HAS_GMCH(dev_priv) && !IS_CHERRYVIEW(dev_priv))
-		return i9xx_gamma_precision(crtc_state);
-	else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
-		return glk_gamma_precision(crtc_state);
-	else if (IS_IRONLAKE(dev_priv))
-		return ilk_gamma_precision(crtc_state);
+	if (HAS_GMCH(dev_priv)) {
+		if (IS_CHERRYVIEW(dev_priv))
+			return chv_gamma_precision(crtc_state);
+		else
+			return i9xx_gamma_precision(crtc_state);
+	} else {
+		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+			return glk_gamma_precision(crtc_state);
+		else if (IS_IRONLAKE(dev_priv))
+			return ilk_gamma_precision(crtc_state);
+	}
 
 	return 0;
 }
