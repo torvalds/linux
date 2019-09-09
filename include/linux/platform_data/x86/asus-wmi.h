@@ -61,7 +61,6 @@
 
 /* Misc */
 #define ASUS_WMI_DEVID_CAMERA		0x00060013
-#define ASUS_WMI_CHARGE_THRESHOLD	0x00120057
 
 /* Storage */
 #define ASUS_WMI_DEVID_CARDREADER	0x00080013
@@ -81,6 +80,9 @@
 
 /* Deep S3 / Resume on LID open */
 #define ASUS_WMI_DEVID_LID_RESUME	0x00120031
+
+/* Maximum charging percentage */
+#define ASUS_WMI_CHARGE_THRESHOLD	0x00120057
 
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT	0x00000001
