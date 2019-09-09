@@ -152,6 +152,9 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 
 	if (conf->nr_strip_zones == 1) {
 		conf->layout = RAID0_ORIG_LAYOUT;
+	} else if (mddev->layout == RAID0_ORIG_LAYOUT ||
+		   mddev->layout == RAID0_ALT_MULTIZONE_LAYOUT) {
+		conf->layout = mddev->layout;
 	} else if (default_layout == RAID0_ORIG_LAYOUT ||
 		   default_layout == RAID0_ALT_MULTIZONE_LAYOUT) {
 		conf->layout = default_layout;
