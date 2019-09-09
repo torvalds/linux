@@ -82,7 +82,7 @@
 #define ASUS_WMI_DEVID_LID_RESUME	0x00120031
 
 /* Maximum charging percentage */
-#define ASUS_WMI_CHARGE_THRESHOLD	0x00120057
+#define ASUS_WMI_DEVID_RSOC		0x00120057
 
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT	0x00000001

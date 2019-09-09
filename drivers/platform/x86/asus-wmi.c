@@ -2067,7 +2067,7 @@ static ssize_t charge_threshold_store(struct device *dev,
 	if (value < 0 || value > 100)
 		return -EINVAL;
 
-	ret = asus_wmi_set_devstate(ASUS_WMI_CHARGE_THRESHOLD, value, &rv);
+	ret = asus_wmi_set_devstate(ASUS_WMI_DEVID_RSOC, value, &rv);
 	if (ret)
 		return ret;
 
@@ -2124,7 +2124,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_fan_boost_mode.attr)
 		ok = asus->fan_boost_mode_available;
 	else if (attr == &dev_attr_charge_threshold.attr)
-		devid = ASUS_WMI_CHARGE_THRESHOLD;
+		devid = ASUS_WMI_DEVID_RSOC;
 
 	if (devid != -1)
 		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
@@ -2455,7 +2455,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	 * and we can't get the current threshold so let set it to 100% on
 	 * module load.
 	 */
-	asus_wmi_set_devstate(ASUS_WMI_CHARGE_THRESHOLD, 100, NULL);
+	asus_wmi_set_devstate(ASUS_WMI_DEVID_RSOC, 100, NULL);
 	asus->charge_threshold = 100;
 
 	return 0;
