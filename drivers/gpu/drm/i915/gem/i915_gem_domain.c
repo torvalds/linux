@@ -294,8 +294,10 @@ restart:
 		}
 	}
 
-	list_for_each_entry(vma, &obj->vma.list, obj_link)
-		vma->node.color = cache_level;
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
+		if (i915_vm_has_cache_coloring(vma->vm))
+			vma->node.color = cache_level;
+	}
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->cache_dirty = true; /* Always invalidate stale cachelines */
 

@@ -274,12 +274,14 @@ static int igt_evict_for_cache_color(void *arg)
 	LIST_HEAD(objects);
 	int err;
 
-	/* Currently the use of color_adjust is limited to cache domains within
-	 * the ggtt, and so the presence of mm.color_adjust is assumed to be
-	 * i915_ggtt_color_adjust throughout our driver, so using a mock color
-	 * adjust will work just fine for our purposes.
+	/*
+	 * Currently the use of color_adjust for the GGTT is limited to cache
+	 * coloring and guard pages, and so the presence of mm.color_adjust for
+	 * the GGTT is assumed to be i915_ggtt_color_adjust, hence using a mock
+	 * color adjust will work just fine for our purposes.
 	 */
 	ggtt->vm.mm.color_adjust = mock_color_adjust;
+	GEM_BUG_ON(!i915_vm_has_cache_coloring(&ggtt->vm));
 
 	obj = i915_gem_object_create_internal(i915, I915_GTT_PAGE_SIZE);
 	if (IS_ERR(obj)) {

@@ -2364,7 +2364,7 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  u64 min_size, u64 alignment,
-					  unsigned cache_level,
+					  unsigned long color,
 					  u64 start, u64 end,
 					  unsigned flags);
 int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,

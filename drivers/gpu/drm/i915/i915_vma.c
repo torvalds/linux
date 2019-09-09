@@ -477,7 +477,7 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 		vma->flags &= ~I915_VMA_CAN_FENCE;
 }
 
-bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
+bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color)
 {
 	struct drm_mm_node *node = &vma->node;
 	struct drm_mm_node *other;
@@ -489,7 +489,7 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
 	 * these constraints apply and set the drm_mm.color_adjust
 	 * appropriately.
 	 */
-	if (vma->vm->mm.color_adjust == NULL)
+	if (!i915_vm_has_cache_coloring(vma->vm))
 		return true;
 
 	/* Only valid to be called on an already inserted vma */
@@ -497,12 +497,12 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
 	GEM_BUG_ON(list_empty(&node->node_list));
 
 	other = list_prev_entry(node, node_list);
-	if (i915_node_color_differs(other, cache_level) &&
+	if (i915_node_color_differs(other, color) &&
 	    !drm_mm_hole_follows(other))
 		return false;
 
 	other = list_next_entry(node, node_list);
-	if (i915_node_color_differs(other, cache_level) &&
+	if (i915_node_color_differs(other, color) &&
 	    !drm_mm_hole_follows(node))
 		return false;
 
@@ -539,7 +539,7 @@ static int
 i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
 	struct drm_i915_private *dev_priv = vma->vm->i915;
-	unsigned int cache_level;
+	unsigned long color;
 	u64 start, end;
 	int ret;
 
@@ -580,14 +580,14 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		return -ENOSPC;
 	}
 
+	color = 0;
 	if (vma->obj) {
 		ret = i915_gem_object_pin_pages(vma->obj);
 		if (ret)
 			return ret;
 
-		cache_level = vma->obj->cache_level;
-	} else {
-		cache_level = 0;
+		if (i915_vm_has_cache_coloring(vma->vm))
+			color = vma->obj->cache_level;
 	}
 
 	GEM_BUG_ON(vma->pages);
@@ -605,7 +605,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		}
 
 		ret = i915_gem_gtt_reserve(vma->vm, &vma->node,
-					   size, offset, cache_level,
+					   size, offset, color,
 					   flags);
 		if (ret)
 			goto err_clear;
@@ -644,7 +644,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		}
 
 		ret = i915_gem_gtt_insert(vma->vm, &vma->node,
-					  size, alignment, cache_level,
+					  size, alignment, color,
 					  start, end, flags);
 		if (ret)
 			goto err_clear;
@@ -653,7 +653,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		GEM_BUG_ON(vma->node.start + vma->node.size > end);
 	}
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, cache_level));
+	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, color));
 
 	mutex_lock(&vma->vm->mutex);
 	list_move_tail(&vma->vm_link, &vma->vm->bound_list);

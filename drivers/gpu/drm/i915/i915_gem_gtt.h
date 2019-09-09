@@ -376,6 +376,12 @@ i915_vm_has_scratch_64K(struct i915_address_space *vm)
 	return vm->scratch_order == get_order(I915_GTT_PAGE_SIZE_64K);
 }
 
+static inline bool
+i915_vm_has_cache_coloring(struct i915_address_space *vm)
+{
+	return i915_is_ggtt(vm) && vm->mm.color_adjust;
+}
+
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
  * collateral associated with any va->pa translations GEN hardware also has a

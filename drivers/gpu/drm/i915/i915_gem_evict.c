@@ -70,7 +70,7 @@ mark_free(struct drm_mm_scan *scan,
  * @vm: address space to evict from
  * @min_size: size of the desired free space
  * @alignment: alignment constraint of the desired free space
- * @cache_level: cache_level for the desired space
+ * @color: color for the desired space
  * @start: start (inclusive) of the range from which to evict objects
  * @end: end (exclusive) of the range from which to evict objects
  * @flags: additional flags to control the eviction algorithm
@@ -91,7 +91,7 @@ mark_free(struct drm_mm_scan *scan,
 int
 i915_gem_evict_something(struct i915_address_space *vm,
 			 u64 min_size, u64 alignment,
-			 unsigned cache_level,
+			 unsigned long color,
 			 u64 start, u64 end,
 			 unsigned flags)
 {
@@ -124,7 +124,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	if (flags & PIN_MAPPABLE)
 		mode = DRM_MM_INSERT_LOW;
 	drm_mm_scan_init_with_range(&scan, &vm->mm,
-				    min_size, alignment, cache_level,
+				    min_size, alignment, color,
 				    start, end, mode);
 
 	/*
@@ -266,7 +266,6 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	u64 start = target->start;
 	u64 end = start + target->size;
 	struct i915_vma *vma, *next;
-	bool check_color;
 	int ret = 0;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
@@ -283,8 +282,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	if (!(flags & PIN_NONBLOCK))
 		i915_retire_requests(vm->i915);
 
-	check_color = vm->mm.color_adjust;
-	if (check_color) {
+	if (i915_vm_has_cache_coloring(vm)) {
 		/* Expand search to cover neighbouring guard pages (or lack!) */
 		if (start)
 			start -= I915_GTT_PAGE_SIZE;
@@ -310,7 +308,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		 * abutt and conflict. If they are in conflict, then we evict
 		 * those as well to make room for our guard pages.
 		 */
-		if (check_color) {
+		if (i915_vm_has_cache_coloring(vm)) {
 			if (node->start + node->size == target->start) {
 				if (node->color == target->color)
 					continue;
