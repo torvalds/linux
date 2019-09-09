@@ -1001,6 +1001,10 @@ static void rtw8822b_do_iqk(struct rtw_dev *rtwdev)
 		counter, reload, ++do_iqk_cnt, iqk_fail_mask);
 }
 
+static void rtw8822b_do_dpk(struct rtw_dev *rtwdev)
+{
+}
+
 static void rtw8822b_coex_cfg_init(struct rtw_dev *rtwdev)
 {
 	/* enable TBTT nterrupt */
@@ -1795,6 +1799,7 @@ static struct rtw_chip_ops rtw8822b_ops = {
 	.cfg_ldo25		= rtw8822b_cfg_ldo25,
 	.false_alarm_statistics	= rtw8822b_false_alarm_statistics,
 	.do_iqk			= rtw8822b_do_iqk,
+	.do_dpk			= rtw8822b_do_dpk,
 
 	.coex_set_init		= rtw8822b_coex_cfg_init,
 	.coex_set_ant_switch	= rtw8822b_coex_cfg_ant_switch,

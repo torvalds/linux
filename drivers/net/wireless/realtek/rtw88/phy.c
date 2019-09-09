@@ -439,12 +439,21 @@ static void rtw_phy_ra_info_update(struct rtw_dev *rtwdev)
 	rtw_iterate_stas_atomic(rtwdev, rtw_phy_ra_info_update_iter, rtwdev);
 }
 
+static void rtw_phy_dpk_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->dpk_track)
+		chip->ops->dpk_track(rtwdev);
+}
+
 void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev)
 {
 	/* for further calculation */
 	rtw_phy_statistics(rtwdev);
 	rtw_phy_dig(rtwdev);
 	rtw_phy_ra_info_update(rtwdev);
+	rtw_phy_dpk_track(rtwdev);
 }
 
 #define FRAC_BITS 3
@@ -1316,11 +1325,20 @@ void rtw_phy_cfg_rf(struct rtw_dev *rtwdev, const struct rtw_table *tbl,
 static void rtw_load_rfk_table(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
 
 	if (!chip->rfk_init_tbl)
 		return;
 
+	rtw_write32_mask(rtwdev, 0x1e24, BIT(17), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(28), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(29), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(30), 0x1);
+	rtw_write32_mask(rtwdev, 0x1cd0, BIT(31), 0x0);
+
 	rtw_load_table(rtwdev, chip->rfk_init_tbl);
+
+	dpk_info->is_dpk_pwr_on = 1;
 }
 
 void rtw_phy_load_tables(struct rtw_dev *rtwdev)
@@ -1428,6 +1446,37 @@ static u8 rtw_get_channel_group(u8 channel)
 	case 177:
 		return 13;
 	}
+}
+
+static s8 rtw_phy_get_dis_dpd_by_rate_diff(struct rtw_dev *rtwdev, u16 rate)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	s8 dpd_diff = 0;
+
+	if (!chip->en_dis_dpd)
+		return 0;
+
+#define RTW_DPD_RATE_CHECK(_rate)					\
+	case DESC_RATE ## _rate:					\
+	if (DIS_DPD_RATE ## _rate & chip->dpd_ratemask)			\
+		dpd_diff = -6 * chip->txgi_factor;			\
+	break
+
+	switch (rate) {
+	RTW_DPD_RATE_CHECK(6M);
+	RTW_DPD_RATE_CHECK(9M);
+	RTW_DPD_RATE_CHECK(MCS0);
+	RTW_DPD_RATE_CHECK(MCS1);
+	RTW_DPD_RATE_CHECK(MCS8);
+	RTW_DPD_RATE_CHECK(MCS9);
+	RTW_DPD_RATE_CHECK(VHT1SS_MCS0);
+	RTW_DPD_RATE_CHECK(VHT1SS_MCS1);
+	RTW_DPD_RATE_CHECK(VHT2SS_MCS0);
+	RTW_DPD_RATE_CHECK(VHT2SS_MCS1);
+	}
+#undef RTW_DPD_RATE_CHECK
+
+	return dpd_diff;
 }
 
 static u8 rtw_phy_get_2g_tx_power_index(struct rtw_dev *rtwdev,
@@ -1637,6 +1686,9 @@ rtw_phy_get_tx_power_index(struct rtw_dev *rtwdev, u8 rf_path, u8 rate,
 
 	tx_power = pwr_param.pwr_base;
 	offset = min_t(s8, pwr_param.pwr_offset, pwr_param.pwr_limit);
+
+	if (rtwdev->chip->en_dis_dpd)
+		offset += rtw_phy_get_dis_dpd_by_rate_diff(rtwdev, rate);
 
 	tx_power += offset;
 

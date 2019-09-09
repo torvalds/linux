@@ -341,6 +341,20 @@
 
 #define REG_RFE_CTRL_E		0x0974
 
+#define REG_DIS_DPD		0x0a70
+#define DIS_DPD_MASK		GENMASK(9, 0)
+#define DIS_DPD_RATE6M		BIT(0)
+#define DIS_DPD_RATE9M		BIT(1)
+#define DIS_DPD_RATEMCS0	BIT(2)
+#define DIS_DPD_RATEMCS1	BIT(3)
+#define DIS_DPD_RATEMCS8	BIT(4)
+#define DIS_DPD_RATEMCS9	BIT(5)
+#define DIS_DPD_RATEVHT1SS_MCS0	BIT(6)
+#define DIS_DPD_RATEVHT1SS_MCS1	BIT(7)
+#define DIS_DPD_RATEVHT2SS_MCS0	BIT(8)
+#define DIS_DPD_RATEVHT2SS_MCS1	BIT(9)
+#define DIS_DPD_RATEALL		GENMASK(9, 0)
+
 #define REG_RFE_CTRL8		0x0cb4
 #define BIT_MASK_RFE_SEL89	GENMASK(7, 0)
 #define REG_RFE_INV8		0x0cbd
@@ -471,6 +485,7 @@
 #define RF_LUTWA	0x33
 #define RF_LUTWD1	0x3e
 #define RF_LUTWD0	0x3f
+#define RF_T_METER	0x42
 #define RF_XTALX2	0xb8
 #define RF_MALSEL	0xbe
 #define RF_RCKD		0xde
