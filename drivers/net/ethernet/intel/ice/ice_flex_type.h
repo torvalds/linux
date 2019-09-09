@@ -294,6 +294,7 @@ struct ice_vsig_vsi {
 };
 
 #define ICE_XLT1_CNT	1024
+#define ICE_MAX_PTGS	256
 
 /* XLT1 Table */
 struct ice_xlt1 {
@@ -304,6 +305,7 @@ struct ice_xlt1 {
 	u16 count;
 };
 
+#define ICE_XLT2_CNT	768
 #define ICE_MAX_VSIGS	768
 
 /* VSIG bit layout:
