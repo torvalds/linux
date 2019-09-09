@@ -29,6 +29,8 @@ Optional properties:
 		 (e.g RV1108).
  - rockchip,u2phy-tuning: when set, tuning u2phy to improve usb2 SI.
  - vbus-supply: regulator phandle for vbus power source.
+ - wakeup-source: enable USB irq wakeup when suspend.
+		  only work when suspend wakeup-config is not work.
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify host or otg port,
