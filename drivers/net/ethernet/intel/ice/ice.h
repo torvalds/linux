@@ -8,6 +8,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <linux/netdevice.h>
 #include <linux/compiler.h>
 #include <linux/etherdevice.h>
@@ -307,6 +308,7 @@ enum ice_pf_flags {
 	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_FLAG_DCB_CAPABLE,
 	ICE_FLAG_DCB_ENA,
+	ICE_FLAG_ADV_FEATURES,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_NO_MEDIA,
 	ICE_FLAG_FW_LLDP_AGENT,
@@ -405,6 +407,17 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 }
 
 /**
+ * ice_netdev_to_pf - Retrieve the PF struct associated with a netdev
+ * @netdev: pointer to the netdev struct
+ */
+static inline struct ice_pf *ice_netdev_to_pf(struct net_device *netdev)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+
+	return np->vsi->back;
+}
+
+/**
  * ice_get_main_vsi - Get the PF VSI
  * @pf: PF instance
  *
@@ -421,6 +434,7 @@ static inline struct ice_vsi *ice_get_main_vsi(struct ice_pf *pf)
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
+void ice_set_ethtool_safe_mode_ops(struct net_device *netdev);
 u16 ice_get_avail_txq_count(struct ice_pf *pf);
 u16 ice_get_avail_rxq_count(struct ice_pf *pf);
 void ice_update_vsi_stats(struct ice_vsi *vsi);

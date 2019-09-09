@@ -42,6 +42,8 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 void ice_clear_pxe_mode(struct ice_hw *hw);
 enum ice_status ice_get_caps(struct ice_hw *hw);
 
+void ice_set_safe_mode_caps(struct ice_hw *hw);
+
 void ice_dev_onetime_setup(struct ice_hw *hw);
 
 enum ice_status

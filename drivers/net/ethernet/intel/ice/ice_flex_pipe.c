@@ -4,8 +4,6 @@
 #include "ice_common.h"
 #include "ice_flex_pipe.h"
 
-static void ice_fill_blk_tbls(struct ice_hw *hw);
-
 /**
  * ice_pkg_val_buf
  * @buf: pointer to the ice buffer
@@ -1358,7 +1356,7 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
  * database with the data iteratively for all advanced feature
  * blocks. Assume that the HW tables have been allocated.
  */
-static void ice_fill_blk_tbls(struct ice_hw *hw)
+void ice_fill_blk_tbls(struct ice_hw *hw)
 {
 	u8 i;
 

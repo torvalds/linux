@@ -3435,6 +3435,33 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.set_fecparam		= ice_set_fecparam,
 };
 
+static const struct ethtool_ops ice_ethtool_safe_mode_ops = {
+	.get_link_ksettings	= ice_get_link_ksettings,
+	.set_link_ksettings	= ice_set_link_ksettings,
+	.get_drvinfo		= ice_get_drvinfo,
+	.get_regs_len		= ice_get_regs_len,
+	.get_regs		= ice_get_regs,
+	.get_msglevel		= ice_get_msglevel,
+	.set_msglevel		= ice_set_msglevel,
+	.get_eeprom_len		= ice_get_eeprom_len,
+	.get_eeprom		= ice_get_eeprom,
+	.get_strings		= ice_get_strings,
+	.get_ethtool_stats	= ice_get_ethtool_stats,
+	.get_sset_count		= ice_get_sset_count,
+	.get_ringparam		= ice_get_ringparam,
+	.set_ringparam		= ice_set_ringparam,
+	.nway_reset		= ice_nway_reset,
+};
+
+/**
+ * ice_set_ethtool_safe_mode_ops - setup safe mode ethtool ops
+ * @netdev: network interface device structure
+ */
+void ice_set_ethtool_safe_mode_ops(struct net_device *netdev)
+{
+	netdev->ethtool_ops = &ice_ethtool_safe_mode_ops;
+}
+
 /**
  * ice_set_ethtool_ops - setup netdev ethtool ops
  * @netdev: network interface device structure

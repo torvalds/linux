@@ -125,4 +125,5 @@ char *ice_nvm_version_str(struct ice_hw *hw);
 enum ice_status
 ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set);
 
+bool ice_is_safe_mode(struct ice_pf *pf);
 #endif /* !_ICE_LIB_H_ */

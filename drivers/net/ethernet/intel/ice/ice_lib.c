@@ -753,6 +753,17 @@ void ice_vsi_put_qs(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_is_safe_mode
+ * @pf: pointer to the PF struct
+ *
+ * returns true if driver is in safe mode, false otherwise
+ */
+bool ice_is_safe_mode(struct ice_pf *pf)
+{
+	return !test_bit(ICE_FLAG_ADV_FEATURES, pf->flags);
+}
+
+/**
  * ice_rss_clean - Delete RSS related VSI structures that hold user inputs
  * @vsi: the VSI being removed
  */
@@ -2629,15 +2640,17 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	 * DCB settings in the HW.  Also, if the FW DCBX engine is not running
 	 * then Rx LLDP packets need to be redirected up the stack.
 	 */
-	if (vsi->type == ICE_VSI_PF) {
-		ice_vsi_add_rem_eth_mac(vsi, true);
+	if (!ice_is_safe_mode(pf)) {
+		if (vsi->type == ICE_VSI_PF) {
+			ice_vsi_add_rem_eth_mac(vsi, true);
 
-		/* Tx LLDP packets */
-		ice_cfg_sw_lldp(vsi, true, true);
+			/* Tx LLDP packets */
+			ice_cfg_sw_lldp(vsi, true, true);
 
-		/* Rx LLDP packets */
-		if (!test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
-			ice_cfg_sw_lldp(vsi, false, true);
+			/* Rx LLDP packets */
+			if (!test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
+				ice_cfg_sw_lldp(vsi, false, true);
+		}
 	}
 
 	return vsi;
@@ -2905,8 +2918,11 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 	}
 
 	/* disable each interrupt */
-	ice_for_each_q_vector(vsi, i)
+	ice_for_each_q_vector(vsi, i) {
+		if (!vsi->q_vectors[i])
+			continue;
 		wr32(hw, GLINT_DYN_CTL(vsi->q_vectors[i]->reg_idx), 0);
+	}
 
 	ice_flush(hw);
 
@@ -2975,14 +2991,16 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		pf->num_avail_sw_msix += vsi->num_q_vectors;
 	}
 
-	if (vsi->type == ICE_VSI_PF) {
-		ice_vsi_add_rem_eth_mac(vsi, false);
-		ice_cfg_sw_lldp(vsi, true, false);
-		/* The Rx rule will only exist to remove if the LLDP FW
-		 * engine is currently stopped
-		 */
-		if (!test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
-			ice_cfg_sw_lldp(vsi, false, false);
+	if (!ice_is_safe_mode(pf)) {
+		if (vsi->type == ICE_VSI_PF) {
+			ice_vsi_add_rem_eth_mac(vsi, false);
+			ice_cfg_sw_lldp(vsi, true, false);
+			/* The Rx rule will only exist to remove if the LLDP FW
+			 * engine is currently stopped
+			 */
+			if (!test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
+				ice_cfg_sw_lldp(vsi, false, false);
+		}
 	}
 
 	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
@@ -3166,48 +3184,6 @@ static void ice_vsi_update_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctx)
 	       sizeof(vsi->info.q_mapping));
 	memcpy(&vsi->info.tc_mapping, ctx->info.tc_mapping,
 	       sizeof(vsi->info.tc_mapping));
-}
-
-/**
- * ice_vsi_cfg_netdev_tc - Setup the netdev TC configuration
- * @vsi: the VSI being configured
- * @ena_tc: TC map to be enabled
- */
-static void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc)
-{
-	struct net_device *netdev = vsi->netdev;
-	struct ice_pf *pf = vsi->back;
-	struct ice_dcbx_cfg *dcbcfg;
-	u8 netdev_tc;
-	int i;
-
-	if (!netdev)
-		return;
-
-	if (!ena_tc) {
-		netdev_reset_tc(netdev);
-		return;
-	}
-
-	if (netdev_set_num_tc(netdev, vsi->tc_cfg.numtc))
-		return;
-
-	dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
-
-	ice_for_each_traffic_class(i)
-		if (vsi->tc_cfg.ena_tc & BIT(i))
-			netdev_set_tc_queue(netdev,
-					    vsi->tc_cfg.tc_info[i].netdev_tc,
-					    vsi->tc_cfg.tc_info[i].qcount_tx,
-					    vsi->tc_cfg.tc_info[i].qoffset);
-
-	for (i = 0; i < ICE_MAX_USER_PRIORITY; i++) {
-		u8 ets_tc = dcbcfg->etscfg.prio_table[i];
-
-		/* Get the mapped netdev TC# for the UP */
-		netdev_tc = vsi->tc_cfg.tc_info[ets_tc].netdev_tc;
-		netdev_set_prio_tc_map(netdev, i, netdev_tc);
-	}
 }
 
 /**
