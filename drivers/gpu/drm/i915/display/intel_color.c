@@ -1619,6 +1619,48 @@ static void i965_read_luts(struct intel_crtc_state *crtc_state)
 }
 
 static struct drm_property_blob *
+chv_read_cgm_lut(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *blob_data;
+	u32 i, val;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(struct drm_color_lut) * lut_size,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	blob_data = blob->data;
+
+	for (i = 0; i < lut_size; i++) {
+		val = I915_READ(CGM_PIPE_GAMMA(pipe, i, 0));
+		blob_data[i].green = intel_color_lut_pack(REG_FIELD_GET(
+							  CGM_PIPE_GAMMA_GREEN_MASK, val), 10);
+		blob_data[i].blue = intel_color_lut_pack(REG_FIELD_GET(
+							 CGM_PIPE_GAMMA_BLUE_MASK, val), 10);
+
+		val = I915_READ(CGM_PIPE_GAMMA(pipe, i, 1));
+		blob_data[i].red = intel_color_lut_pack(REG_FIELD_GET(
+							CGM_PIPE_GAMMA_RED_MASK, val), 10);
+	}
+
+	return blob;
+}
+
+static void chv_read_luts(struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+		crtc_state->base.gamma_lut = i9xx_read_lut_8(crtc_state);
+	else
+		crtc_state->base.gamma_lut = chv_read_cgm_lut(crtc_state);
+}
+
+static struct drm_property_blob *
 ilk_read_lut_10(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -1717,6 +1759,7 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.color_check = chv_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = chv_load_luts;
+			dev_priv->display.read_luts = chv_read_luts;
 		} else if (INTEL_GEN(dev_priv) >= 4) {
 			dev_priv->display.color_check = i9xx_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
