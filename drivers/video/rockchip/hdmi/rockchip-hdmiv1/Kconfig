@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-config  RK_HDMI_V1
-        bool "RockChip HDMI V1 support"
-        depends on RK_HDMI
-        help
-           Support rockchip hdmi version 1 if you say y here.
-
