@@ -125,15 +125,31 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		rqst[num_rqst].rq_iov = qi_iov;
 		rqst[num_rqst].rq_nvec = 1;
 
-		rc = SMB2_query_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
-				COMPOUND_FID, FILE_ALL_INFORMATION,
+		if (cfile)
+			rc = SMB2_query_info_init(tcon, &rqst[num_rqst],
+				cfile->fid.persistent_fid,
+				cfile->fid.volatile_fid,
+				FILE_ALL_INFORMATION,
 				SMB2_O_INFO_FILE, 0,
 				sizeof(struct smb2_file_all_info) +
 					  PATH_MAX * 2, 0, NULL);
+		else {
+			rc = SMB2_query_info_init(tcon, &rqst[num_rqst],
+				COMPOUND_FID,
+				COMPOUND_FID,
+				 FILE_ALL_INFORMATION,
+				SMB2_O_INFO_FILE, 0,
+				sizeof(struct smb2_file_all_info) +
+					  PATH_MAX * 2, 0, NULL);
+			if (!rc) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			}
+		}
+
 		if (rc)
 			goto finished;
-		smb2_set_next_command(tcon, &rqst[num_rqst]);
-		smb2_set_related(&rqst[num_rqst++]);
+		num_rqst++;
 		trace_smb3_query_info_compound_enter(xid, ses->Suid, tcon->tid,
 						     full_path);
 		break;
@@ -421,6 +437,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	__u32 create_options = 0;
 	struct cifs_fid fid;
 	bool no_cached_open = tcon->nohandlecache;
+	struct cifsFileInfo *cfile;
 
 	*adjust_tz = false;
 	*symlink = false;
@@ -452,9 +469,10 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
+	cifs_get_readable_path(tcon, full_path, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 			      FILE_READ_ATTRIBUTES, FILE_OPEN, create_options,
-			      smb2_data, SMB2_OP_QUERY_INFO, NULL);
+			      smb2_data, SMB2_OP_QUERY_INFO, cfile);
 	if (rc == -EOPNOTSUPP) {
 		*symlink = true;
 		create_options |= OPEN_REPARSE_POINT;

@@ -2008,6 +2008,42 @@ cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
 	return -ENOENT;
 }
 
+int
+cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
+		       struct cifsFileInfo **ret_file)
+{
+	struct list_head *tmp;
+	struct cifsFileInfo *cfile;
+	struct cifsInodeInfo *cinode;
+	char *full_path;
+
+	*ret_file = NULL;
+
+	spin_lock(&tcon->open_file_lock);
+	list_for_each(tmp, &tcon->openFileList) {
+		cfile = list_entry(tmp, struct cifsFileInfo,
+			     tlist);
+		full_path = build_path_from_dentry(cfile->dentry);
+		if (full_path == NULL) {
+			spin_unlock(&tcon->open_file_lock);
+			return -ENOMEM;
+		}
+		if (strcmp(full_path, name)) {
+			kfree(full_path);
+			continue;
+		}
+
+		kfree(full_path);
+		cinode = CIFS_I(d_inode(cfile->dentry));
+		spin_unlock(&tcon->open_file_lock);
+		*ret_file = find_readable_file(cinode, 0);
+		return *ret_file ? 0 : -ENOENT;
+	}
+
+	spin_unlock(&tcon->open_file_lock);
+	return -ENOENT;
+}
+
 static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 {
 	struct address_space *mapping = page->mapping;
