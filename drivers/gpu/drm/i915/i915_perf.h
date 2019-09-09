@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#include "i915_perf_types.h"
+
 struct drm_device;
 struct drm_file;
 struct drm_i915_private;
