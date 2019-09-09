@@ -102,6 +102,22 @@ static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
 
 static uint32_t  __calc_hdr_byte_sum(struct amdgpu_ras_eeprom_control *control);
 
+int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
+{
+	unsigned char buff[EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE] = { 0 };
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
+
+	hdr->header = EEPROM_TABLE_HDR_VAL;
+	hdr->version = EEPROM_TABLE_VER;
+	hdr->first_rec_offset = EEPROM_RECORD_START;
+	hdr->tbl_size = EEPROM_TABLE_HEADER_SIZE;
+
+	adev->psp.ras.ras->eeprom_control.tbl_byte_sum =
+			__calc_hdr_byte_sum(&adev->psp.ras.ras->eeprom_control);
+	return __update_table_header(control, buff);
+}
+
 int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 {
 	int ret = 0;
@@ -149,14 +165,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	} else {
 		DRM_INFO("Creating new EEPROM table");
 
-		hdr->header = EEPROM_TABLE_HDR_VAL;
-		hdr->version = EEPROM_TABLE_VER;
-		hdr->first_rec_offset = EEPROM_RECORD_START;
-		hdr->tbl_size = EEPROM_TABLE_HEADER_SIZE;
-
-		adev->psp.ras.ras->eeprom_control.tbl_byte_sum =
-				__calc_hdr_byte_sum(&adev->psp.ras.ras->eeprom_control);
-		ret = __update_table_header(control, buff);
+		ret = amdgpu_ras_eeprom_reset_table(control);
 	}
 
 	/* Start inserting records from here */
