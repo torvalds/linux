@@ -6887,7 +6887,8 @@ nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn)
  * will be freed in nfs4_remove_reclaim_record in the normal case).
  */
 struct nfs4_client_reclaim *
-nfs4_client_to_reclaim(struct xdr_netobj name, struct nfsd_net *nn)
+nfs4_client_to_reclaim(struct xdr_netobj name, struct xdr_netobj princhash,
+		struct nfsd_net *nn)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp;
@@ -6900,6 +6901,8 @@ nfs4_client_to_reclaim(struct xdr_netobj name, struct nfsd_net *nn)
 		list_add(&crp->cr_strhash, &nn->reclaim_str_hashtbl[strhashval]);
 		crp->cr_name.data = name.data;
 		crp->cr_name.len = name.len;
+		crp->cr_princhash.data = princhash.data;
+		crp->cr_princhash.len = princhash.len;
 		crp->cr_clp = NULL;
 		nn->reclaim_str_hashtbl_size++;
 	}
@@ -6911,6 +6914,7 @@ nfs4_remove_reclaim_record(struct nfs4_client_reclaim *crp, struct nfsd_net *nn)
 {
 	list_del(&crp->cr_strhash);
 	kfree(crp->cr_name.data);
+	kfree(crp->cr_princhash.data);
 	kfree(crp);
 	nn->reclaim_str_hashtbl_size--;
 }
