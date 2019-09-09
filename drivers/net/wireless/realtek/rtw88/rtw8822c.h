@@ -176,6 +176,7 @@ struct rtw8822c_efuse {
 #define REG_TXF7	0x1ab0
 #define REG_CCK_SOURCE	0x1abc
 #define BIT_NBI_EN		BIT(30)
+#define REG_IQKSTAT	0x1b10
 #define REG_TXANT	0x1c28
 #define REG_ENCCK	0x1c3c
 #define BIT_CCK_BLK_EN		BIT(1)
@@ -197,6 +198,7 @@ struct rtw8822c_efuse {
 #define REG_OFDM_FACNT3	0x2d0c
 #define REG_OFDM_FACNT4	0x2d10
 #define REG_OFDM_FACNT5	0x2d20
+#define REG_RPT_CIP	0x2d9c
 #define REG_OFDM_TXCNT	0x2de0
 #define REG_ORITXCODE2	0x4100
 #define REG_3WIRE2	0x410c

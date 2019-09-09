@@ -1876,6 +1876,22 @@ static void rtw8822c_false_alarm_statistics(struct rtw_dev *rtwdev)
 
 static void rtw8822c_do_iqk(struct rtw_dev *rtwdev)
 {
+	struct rtw_iqk_para para = {0};
+	u8 iqk_chk;
+	int counter;
+
+	para.clear = 1;
+	rtw_fw_do_iqk(rtwdev, &para);
+
+	for (counter = 0; counter < 300; counter++) {
+		iqk_chk = rtw_read8(rtwdev, REG_RPT_CIP);
+		if (iqk_chk == 0xaa)
+			break;
+		msleep(20);
+	}
+	rtw_write8(rtwdev, REG_IQKSTAT, 0x0);
+
+	rtw_dbg(rtwdev, RTW_DBG_RFK, "iqk counter=%d\n", counter);
 }
 
 /* for coex */
